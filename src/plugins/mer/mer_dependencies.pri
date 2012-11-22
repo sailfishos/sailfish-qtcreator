@@ -5,4 +5,5 @@ QTC_PLUGIN_DEPENDS += \
  remotelinux \
  qt4projectmanager
 QTC_LIB_DEPENDS += \
- ssh
+ ssh \
+ utils
