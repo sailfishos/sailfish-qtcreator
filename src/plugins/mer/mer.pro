@@ -90,3 +90,9 @@ HEADERS += \
     mervirtualmachinebutton.h \
     mersshparser.h \
     virtualboxmanager.h
+
+SOURCES += \
+    $$PWD/jollawelcomepage.cpp
+
+HEADERS += \
+    $$PWD/jollawelcomepage.h

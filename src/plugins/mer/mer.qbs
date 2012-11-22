@@ -97,5 +97,7 @@ QtcPlugin {
         "mermanagementwebview.cpp",
         "mermanagementwebview.h",
         "mermanagementwebview.ui",
+        "jollawelcomepage.cpp",
+        "jollawelcomepage.h"
     ]
 }

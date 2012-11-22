@@ -31,6 +31,8 @@
 #include "merdeploystepfactory.h"
 #include "mersdkmanager.h"
 
+#include "jollawelcomepage.h"
+
 #include <QtPlugin>
 
 namespace Mer {
@@ -58,6 +60,8 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
     addAutoReleasedObject(new MerRunConfigurationFactory);
     addAutoReleasedObject(new MerRunControlFactory);
     addAutoReleasedObject(new MerDeployStepFactory);
+
+    addAutoReleasedObject(new JollaWelcomePage);
 
     return true;
 }
