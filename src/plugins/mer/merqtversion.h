@@ -64,6 +64,8 @@ protected:
     QList<ProjectExplorer::Task> reportIssuesImpl(const QString &proFile,
                                                   const QString &buildDir) const;
 
+    Core::FeatureSet availableFeatures() const;
+
 private:
     QString m_vmName;
     QString m_targetName;
