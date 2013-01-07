@@ -188,5 +188,12 @@ QList<ProjectExplorer::Task> MerQtVersion::reportIssuesImpl(const QString &proFi
     return results;
 }
 
+Core::FeatureSet MerQtVersion::availableFeatures() const
+{
+    Core::FeatureSet features = BaseQtVersion::availableFeatures();
+    features |= Core::FeatureSet(Constants::SAILFISHOS_FEATURE);
+    return features;
+}
+
 } // namespace Interal
 } // namespace Mer

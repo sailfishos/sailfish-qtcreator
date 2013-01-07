@@ -101,6 +101,8 @@ const char MER_SFTP_DEPLOY_CONFIGURATION_ID[] = "Qt4ProjectManager.MerSftpDeploy
 
 const char MER_EMULATOR_START_ACTION_ID[] = "Mer.MerEmulatorStartAction";
 
+const char SAILFISHOS_FEATURE[] = "QtSupport.Wizards.FeatureSailfishOS";
+
 } // namespace Constants
 } // namespace Mer
 

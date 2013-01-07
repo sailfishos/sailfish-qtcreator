@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+/****************************************************************************
+**
+** Copyright (C) 2012 Digia Plc and/or its subsidiary(-ies).
+** Contact: http://www.qt-project.org/legal
+**
+** This file is part of Qt Creator.
+**
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and Digia.  For licensing terms and
+** conditions see http://qt.digia.com/licensing.  For further information
+** use the contact form at http://qt.digia.com/contact-us.
+**
+** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 as published by the Free Software
+** Foundation and appearing in the file LICENSE.LGPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU Lesser General Public License version 2.1 requirements
+** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** In addition, as a special exception, Digia gives you certain additional
+** rights.  These rights are described in the Digia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+****************************************************************************/
+-->
+
+<wizard version="1" kind="project"
+        class="qt4project" firstpage="10"
+        id="Q.SailfishOSQtQuick1Application" category="F.QtApplications"
+        featuresRequired="QtSupport.Wizards.FeatureSailfishOS">
+    <description>Creates a SailfishOS Qt Quick Application using Sailfish Silica components.</description>
+    <displayname>SailfishOS Qt Quick Application</displayname>;
+    <displaycategory>SailfishOS</displaycategory>
+    <files>
+        <file source="main.cpp"/>
+        <file source="template.desktop" target="%ProjectName%.desktop"/>
+        <file source="template.pro" target="%ProjectName%.pro" openproject="true"/>
+        <file source="cover/CoverPage.qml" openeditor="true"/>
+        <file source="pages/FirstPage.qml" openeditor="true"/>
+        <file source="pages/SecondPage.qml" openeditor="true"/>
+        <file source="main.qml" openeditor="true"/>
+        <file source="sailfishapplication/sailfishapplication.cpp"/>
+        <file source="sailfishapplication/sailfishapplication.h"/>
+        <file source="sailfishapplication/sailfishapplication.pri"/>
+        <file source="rpm/app.yaml" target="rpm/%ProjectName%.yaml"/>
+    </files>
+    <fieldpagetitle>Application Details</fieldpagetitle>
+    <fields>
+        <field mandatory="true" name="Summary">
+            <fieldcontrol class="QLineEdit" defaulttext="My SailfishOS Application" />
+            <fielddescription>Summary:</fielddescription>
+        </field>
+        <field mandatory="true" name="Version">
+            <fieldcontrol class="QLineEdit" defaulttext="0.1" />
+            <fielddescription>Version:</fielddescription>
+        </field>
+        <field name="Description">
+            <fieldcontrol class="QTextEdit" defaulttext="Short description of my SailfishOS Application"/>
+            <fielddescription>Description:</fielddescription>
+        </field>
+    </fields>
+</wizard>
