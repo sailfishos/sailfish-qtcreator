@@ -178,6 +178,8 @@ void MerOptionsWidget::onSdkChanged(int currentIndex)
     fetchVirtualMachineInfo();
     setShowDetailWidgets(true);
     m_ui->removeButton->setEnabled(!sdk.isAutoDetected());
+    // TODO: Remove the restriction of adding only 1 SDK
+    m_ui->addButton->setEnabled(false);
 }
 
 void MerOptionsWidget::onAddButtonClicked()
@@ -195,6 +197,8 @@ void MerOptionsWidget::onAddButtonClicked()
     rootItem->appendRow(item);
     m_ui->sdkComboBox->setCurrentIndex(m_ui->sdkComboBox->count() - 1);
     m_ui->messageInfoLabel->setVisible(!rootItem->rowCount());
+    // TODO: Remove the restriction of adding only 1 SDK
+    m_ui->addButton->setEnabled(false);
 }
 
 void MerOptionsWidget::onRemoveButtonClicked()
@@ -213,6 +217,8 @@ void MerOptionsWidget::onRemoveButtonClicked()
     m_detailsWidget->setSdk(sdk, false);
     m_ui->sdkComboBox->removeItem(m_ui->sdkComboBox->currentIndex());
     m_ui->messageInfoLabel->setVisible(!m_model->rowCount());
+    // TODO: Remove the restriction of adding only 1 SDK
+    m_ui->addButton->setEnabled(true);
 }
 
 void MerOptionsWidget::onUpdateKitsButtonClicked(const QStringList &targets)
