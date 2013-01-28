@@ -38,7 +38,7 @@ const char MER_TOOLCHAIN_TYPE[] = "Mer.Gcc";
 
 const char MER_OPTIONS_CATEGORY[] = "W.Mer";
 const char MER_OPTIONS_CATEGORY_TR[] = QT_TRANSLATE_NOOP("Mer", "Mer");
-const char MER_OPTIONS_CATEGORY_ICON[] = ":/mer/images/category_mer.png";
+const char MER_OPTIONS_CATEGORY_ICON[] = ":/mer/images/icon-s-sailfish-qtcreator.png";
 const char MER_OPTIONS_ID[] = "A.Mer";
 const char MER_OPTIONS_NAME[] = QT_TRANSLATE_NOOP("Mer", "SDK");
 

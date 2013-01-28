@@ -1,12 +1,12 @@
 <RCC>
     <qresource prefix="/mer">
-        <file>images/category_mer.png</file>
         <file>images/compile_error.png</file>
         <file>images/warning.png</file>
         <file>images/emulator-run.png</file>
         <file>images/emulator-stop.png</file>
         <file>images/sdk-run.png</file>
         <file>images/sdk-stop.png</file>
+        <file>images/icon-s-sailfish-qtcreator.png</file>
         <file>welcomepage/gettingstarted.qml</file>
         <file>welcomepage/MerIconAndLink.qml</file>
         <file>welcomepage/widgets/images/arrowBig.png</file>
