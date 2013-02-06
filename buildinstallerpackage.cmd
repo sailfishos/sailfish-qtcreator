@@ -1,0 +1,1 @@
+qmake -r -after "DEFINES+=IDE_COPY_SETTINGS_FROM_VARIANT=. IDE_SETTINGSVARIANT=MerProject" && ibjom bindist_installer
