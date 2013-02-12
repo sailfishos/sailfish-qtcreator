@@ -430,7 +430,8 @@ void QmlEngine::beginConnection(quint16 port)
         host = QLatin1String("localhost");
 
     if (port > 0) {
-        QTC_ASSERT(startParameters().connParams.port == 0
+        QTC_ASSERT(startParameters().startMode == AttachToRemoteServer
+                   || startParameters().connParams.port == 0
                    || startParameters().connParams.port == port,
                    qWarning() << "Port " << port << "from application output does not match"
                    << startParameters().connParams.port << "from start parameters.");
