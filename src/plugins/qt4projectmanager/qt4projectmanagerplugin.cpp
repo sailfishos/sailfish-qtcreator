@@ -134,16 +134,8 @@ bool Qt4ProjectManagerPlugin::initialize(const QStringList &arguments, QString *
 
     addObject(m_proFileEditorFactory);
 
-    addAutoReleasedObject(new EmptyProjectWizard);
     addAutoReleasedObject(new SubdirsProjectWizard);
-    addAutoReleasedObject(new GuiAppWizard);
-    addAutoReleasedObject(new ConsoleAppWizard);
     addAutoReleasedObject(new MobileAppWizard);
-    QtQuickAppWizard::createInstances(this); //creates several instances with different options
-    addAutoReleasedObject(new Html5AppWizard);
-    addAutoReleasedObject(new LibraryWizard);
-    addAutoReleasedObject(new TestWizard);
-    addAutoReleasedObject(new CustomWidgetWizard);
 
     CustomQt4ProjectWizard::registerSelf();
 
