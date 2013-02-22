@@ -42,6 +42,7 @@ public:
     bool startRemote(const QString &vmName, const QSsh::SshConnectionParameters &params);
     bool connectToRemote(const QString &vmName, const QSsh::SshConnectionParameters &params);
     void stopRemote(const QString &vmName);
+    void stopRemote(const QString &vmName, const QSsh::SshConnectionParameters &params);
 
 signals:
     void connectionChanged(const QString &vmName, bool isConnected);

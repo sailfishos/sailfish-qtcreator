@@ -499,10 +499,10 @@ void MerSdkManager::handleStopRemoteRequested()
     SshConnectionParameters params;
 
     if (sender() == &m_remoteEmulatorBtn && emulatorParams(name, params))
-        MerVirtualMachineManager::instance()->stopRemote(name);
+        MerVirtualMachineManager::instance()->stopRemote(name, params);
 
     if (sender() == &m_remoteSdkBtn && sdkParams(name, params))
-        MerVirtualMachineManager::instance()->stopRemote(name);
+        MerVirtualMachineManager::instance()->stopRemote(name, params);
 }
 
 bool MerSdkManager::emulatorParams(QString &emulatorName,
