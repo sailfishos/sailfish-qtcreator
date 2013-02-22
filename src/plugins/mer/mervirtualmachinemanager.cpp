@@ -145,6 +145,25 @@ void MerVirtualMachineManager::stopRemote(const QString &vmName)
     VirtualBoxManager::shutVirtualMachine(vmName);
 }
 
+void MerVirtualMachineManager::stopRemote(const QString &vmName,
+                                          const QSsh::SshConnectionParameters &params)
+{
+    // Check if we had initiated a connection to this emulator
+    if (!m_sshConnections.contains(vmName))
+        return;
+
+    // Shutdown virtual machine
+    m_sshConnectionsInProgress.insert(m_sshConnections.take(vmName), qMakePair(vmName, -1));
+    VirtualBoxManager::shutVirtualMachine(vmName);
+    // Force shutdown
+    // TODO: Remove hack. This only works for a particular emulator
+    QSsh::SshConnectionParameters sshParams = params;
+    sshParams.userName = QLatin1String("root");
+    QSsh::SshRemoteProcessRunner *runner = new QSsh::SshRemoteProcessRunner(this);
+    connect(runner, SIGNAL(processClosed(int)), SLOT(onRemoteProcessClosed()));
+    runner->run("shutdown now", sshParams);
+}
+
 void MerVirtualMachineManager::onError(QSsh::SshError error)
 {
     QSsh::SshConnection *connection = qobject_cast<QSsh::SshConnection *>(sender());
