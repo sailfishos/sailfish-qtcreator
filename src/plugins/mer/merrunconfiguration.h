@@ -36,11 +36,13 @@ public:
                         const QString &proFilePath);
     bool isEnabled() const;
 
+    QString commandPrefix() const;
+
 protected:
     friend class MerRunConfigurationFactory;
 
     MerRunConfiguration(ProjectExplorer::Target *parent,
-                        MerRunConfiguration *source);
+                        MerRunConfiguration *source);    
 };
 
 } // namespace Internal
