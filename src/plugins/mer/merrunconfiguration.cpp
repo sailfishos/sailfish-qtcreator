@@ -47,5 +47,14 @@ bool MerRunConfiguration::isEnabled() const
     return RemoteLinuxRunConfiguration::isEnabled();
 }
 
+// TODO: Temporary workaround for lipstick QML issue
+// Opens unlock the phone befeore running app
+// Remove me !
+QString MerRunConfiguration::commandPrefix() const
+{
+    return QString::fromLatin1("/usr/sbin/mcetool -Don;").append(
+                RemoteLinuxRunConfiguration::commandPrefix());
+}
+
 } // Internal
 } // Mer
