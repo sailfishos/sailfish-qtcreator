@@ -81,9 +81,6 @@ bool QmlProjectPlugin::initialize(const QStringList &, QString *errorMessage)
     addAutoReleasedObject(new Internal::QmlProjectRunConfigurationFactory);
     addAutoReleasedObject(new Internal::QmlProjectRunControlFactory);
 
-
-    Internal::QmlApplicationWizard::createInstances(this);
-
     QmlProjectFileFormat::registerDeclarativeTypes();
 
     Core::FileIconProvider *iconProvider = Core::FileIconProvider::instance();
