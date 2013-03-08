@@ -107,6 +107,9 @@ DATA_FILES_SRC = \
 unix {
     macx:DATA_FILES_SRC += externaltools/vi_mac.xml
     else:DATA_FILES_SRC += externaltools/vi.xml
+    DATA_FILES_SRC = \
+        externaltools/launchmersdkvm.xml \
+        externaltools/launchsailfishosemulator.xml
 } else {
     DATA_FILES_SRC += externaltools/notepad_win.xml
 }
