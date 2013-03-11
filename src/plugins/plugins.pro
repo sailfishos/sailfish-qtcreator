@@ -46,7 +46,8 @@ SUBDIRS   = plugin_coreplugin \
             plugin_madde \
             plugin_valgrind \
             plugin_todo \
-            plugin_qnx
+            plugin_qnx \
+            plugin_mer
 
 exists(../shared/qbs/qbs.pro):SUBDIRS += plugin_qbsprojectmanager
 
@@ -353,3 +354,9 @@ plugin_clearcase.subdir = clearcase
 plugin_clearcase.depends = plugin_vcsbase
 plugin_clearcase.depends += plugin_projectexplorer
 plugin_clearcase.depends += plugin_coreplugin
+
+plugin_mer.subdir = mer
+plugin_mer.depends = plugin_coreplugin
+plugin_mer.depends += plugin_qt4projectmanager
+plugin_mer.depends += plugin_projectexplorer
+plugin_mer.depends += plugin_remotelinux

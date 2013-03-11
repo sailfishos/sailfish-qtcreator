@@ -1,0 +1,129 @@
+Mer Plugin
+==========
+Mer plugin supports development for platforms based on Mer (http://www.merproject.org)
+
+Usage
+===================
+Add a Mer SDK Virtual Machine in the Mer Options page.
+Set the connection parameters for ssh connection in the Options page.
+Install required targets, packages and toolchains in the Mer SDK from the Mer mode.
+Configure toolchain, Qt version and kits for Mer from the Mer Options page.
+Add Mer devices from the Device Options page.
+Configure the kits with the necessary devices.
+Create/Import a project with the newly setup kit(s).
+Build and deploy using sftp/rpm.
+
+Classes
+====================
+
+Core classes
+--------------------------------------
+
+class MerPlugin
+    Instantiates all relevant classes.
+
+class MerSdk
+    Encapsulates the Mer SDK VM. It contains information such as name of the VM, shared folders, ssh
+    connection parameters, toolchains, Qt versions, kits.
+class MerSdkManager
+    Manages Mer SDK VMs. It also keeps track of the current Mer SDK VM.
+
+class MerQtVersionFactory
+    Factory to create a Qt version for a Mer target.
+class MerQtVersion
+    Encapsulation of the Qt version of a Mer target.
+
+class MerToolChainFactory
+    Factory to create a toolchain for a Mer target.
+class MerToolChain
+    Encapsulation of the toolchain of a Mer target.
+class MerSshParser
+    Parses output of merssh to filter relevant information such as errors when Mer SDK VM is not
+    running.
+
+class MerDeviceFactory
+    Factory to create a Mer based device.
+class MerDevice
+    Encapsulation of a Mer based device.
+
+class MerDeployConfigurationFactory
+    Factory to create a deploy configuration for a Mer project.
+class MerSftpDeployConfiguration
+    SFTP deploy configuration for a Mer project.
+
+class MerDeployStepFactory
+    Factory to create deploy steps for a Mer project.
+class MerEmulatorStartStep
+    A deploy step to start the emulator, if needed.
+
+class MerRunConfigurationFactory
+    Factory to create a run configuration for a Mer project.
+class MerRunConfiguration
+    Run configuration for a Mer project.
+
+class MerRunControlFactory
+    Factory to create a run control for a Mer project
+
+
+Helper classes
+--------------------------------------
+
+class SdkScriptsUtils
+    Creates wrapper scripts for qmake, make, gcc, specify, mb, rm, mv commands and stores them in
+    the Qt Creator config directory under mer-sdk-tools/<Mer SDK VM name>/<Mer target name>
+class SdkTargetUtils
+    Utility to check for installed Mer targets in the Mer SDK VM and adds/remove corrsponding Qt
+    versions in Qt Creator for the Mer targets.
+class SdkToolChainUtils
+    Utility to check for installed toolchains in the Mer SDK VM and adds/remove corresponding
+    toolchains in Qt Creator for the Mer targets.
+class SdkKitUtils
+    Add/Remove Mer kits in Qt Creator.
+
+
+UI classes
+--------------------------------------
+
+class MerDeviceConfigurationWidget
+    Device configuration widget shown in the Devices Options page for a Mer device.
+class MerDeviceConfigurationWizard
+    Wizard to create a Mer device.
+
+class MerDeviceConfigWizardDeviceTypePage
+class MerDeviceConfigWizardGeneralPage
+class MerDeviceConfigWizardStartPage
+class MerDeviceConfigWizardCheckPreviousKeySetupPage
+class MerDeviceConfigWizardReuseKeysCheckPage
+class MerDeviceConfigWizardKeyCreationPage
+class MerDeviceConfigWizardFinalPage
+
+
+class MerOptionsPage
+    Options page for Mer plugin.
+class MerOptionsWidget
+    Widget shown in the Options page for Mer plugin.
+
+class SdkDetailsWidget
+    Widget showing Mer SDK VM details in the Options page.
+class SdkSelectionDialog
+    Widget to add a Mer SDK VM.
+
+class MessagesWindow
+    Widget to show messages such as connection information etc. in the Options page.
+
+
+Misc classes
+--------------------------------------
+
+class MerVirtualMachineButton
+    Button to show the state of the Mer SDK VM and/or Emulator.
+class MerVirtualMachineManager
+    Keeps track of ssh connections to Mer SDK VM and/or Emulator to respond to state changes in the
+    VM.
+
+class MerSSH
+    Runs commands from the wrapper scripts over ssh.
+
+class VirtualBoxManager
+    Returns information about Virtual Machines by querying Virtual Box.
+

@@ -1,0 +1,7 @@
+-merdevtoolsdir
+$HOME/.config/QtProject/mer-dev-tools
+-mertarget
+nemo
+-commandtype
+sb2
+qmake
