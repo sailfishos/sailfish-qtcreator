@@ -46,7 +46,8 @@ SUBDIRS   = \
     madde \
     valgrind \
     todo \
-    qnx
+    qnx \
+    mer
 
 exists(../shared/qbs/qbs.pro): \
     SUBDIRS += \

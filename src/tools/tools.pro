@@ -3,7 +3,8 @@ TEMPLATE = subdirs
 SUBDIRS = qtpromaker \
      qmlpuppet \
      ../plugins/cpaster/frontend \
-     sdktool
+     sdktool \
+     merssh
 
 win32 {
     SUBDIRS += qtcdebugger
