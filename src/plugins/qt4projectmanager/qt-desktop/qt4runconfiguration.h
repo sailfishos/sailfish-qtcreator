@@ -62,6 +62,7 @@ namespace Qt4ProjectManager {
 class Qt4Project;
 class Qt4ProFileNode;
 class Qt4PriFileNode;
+struct TargetInformation;
 
 namespace Internal {
 class Qt4RunConfigurationFactory;
@@ -120,6 +121,7 @@ protected:
     virtual bool fromMap(const QVariantMap &map);
 
 private:
+    QPair<QString, QString> extractWorkingDirAndExecutable(const Qt4ProFileNode *node) const;
     void setBaseWorkingDirectory(const QString &workingDirectory);
     QString baseWorkingDirectory() const;
     void setCommandLineArguments(const QString &argumentsString);
