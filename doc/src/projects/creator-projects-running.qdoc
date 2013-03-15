@@ -51,6 +51,7 @@
     \include linux-mobile/creator-projects-running-generic-linux.qdocinc
     \include linux-mobile/creator-projects-running-madde.qdocinc
     \include qnx/creator-projects-running-qnx.qdocinc
+    \include mer/creator-projects-running-mer.qdocinc
     \endif
 
 */

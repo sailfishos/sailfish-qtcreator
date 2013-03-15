@@ -51,6 +51,7 @@
     \include projects/creator-projects-settings-run-debug.qdocinc
     \include linux-mobile/creator-projects-settings-run-linux.qdocinc
     \include qnx/creator-projects-settings-run-qnx.qdocinc
+    \include mer/creator-projects-settings-run-mer.qdocinc
     \endif
 
     \section1 Specifying a Custom Executable to Run

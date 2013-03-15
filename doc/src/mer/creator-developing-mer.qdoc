@@ -1,0 +1,186 @@
+/****************************************************************************
+**
+** Copyright (c) 2012 Digia Plc and/or its subsidiary(-ies).
+** Contact: http://www.qt-project.org/legal
+**
+** This file is part of Qt Creator
+**
+**
+** GNU Free Documentation License
+**
+** Alternatively, this file may be used under the terms of the GNU Free
+** Documentation License version 1.3 as published by the Free Software
+** Foundation and appearing in the file included in the packaging of this
+** file.
+**
+**
+****************************************************************************/
+
+    /*!
+
+    \contentspage index.html
+    \previouspage creator-developing-meego.html
+    \page creator-developing-mer.html
+    \nextpage creator-developing-qnx.html
+
+    \title Connecting SailfishOS Devices
+
+    The Sailfish SDK installation program configures the \gui {SailfishOS SDK} mode in
+    \QC for you. In the \gui {SailfishOS SDK} mode, you can access the
+    \gui {SDK Control Center} to install Mer tool chains and targets.
+
+    In Mer terminology, a \e target contains everything that you need to build
+    applications for a particular type of Mer device, such as a phone or a
+    tablet. \QC fetches information about header files and QML types from the
+    target to be able to provide features such as syntax highlighting and code
+    completion.
+
+    You must install Mer targets on the development host. When you specify the
+    targets in \gui Tools > \gui Options > \gui Mer, \QC automatically creates
+    an appropriate \l{glossary-buildandrun-kit}{kit} for you. \QC connects to the
+    Virtual Machine, checks the compiler and other necessary components of the
+    tool chain, and then creates the kit.
+
+    When you select the kit to build SailfishOS applications, \QC deploys the
+    applications to SailfishOS devices.
+
+    The following sections describe how to configure connections between \QC and
+    a Mer target or device and how to specify build and run settings for a kit
+    that specifies the device.
+
+    \section1 Adding Mer SDK Targets
+
+    To add Mer SDK targets, select \gui {SailfishOS Mode} to access the
+    \gui {SDK Control Center}:
+
+    \image creator-mer-sdk-control-center.png
+
+    \list 1
+
+        \li Select the \gui Targets tab.
+
+        \li In the \gui Toolchain field, select a tool chain. For Nemo, select
+            Mer-SB2-armv7hl as the toolchain.
+
+        \li In the \gui {Target name} field, give a name to the target. \QC
+            copies the necessary information to a folder that is named after the
+            target. For Nemo, select nemo_n9_min as the target name.
+
+        \li In the \gui {Rootfs URL} field, select the URL to download the
+            sysroot image. For example,
+            \c{http://img.merproject.org/images/web/lbt/2-20121111-184729/image.tar.bz2}
+
+        \li Select \gui Add to add the target.
+
+    \endlist
+
+    \section1 Creating Kits
+
+    To configure a connection between \QC and a Mer SDK target running in the
+    Virtual Machine:
+
+    \list 1
+
+        \li Select \gui Tools > \gui Options > \gui Mer > \gui SDK > \gui Add >
+            \gui {MerSDK} > \gui Add.
+
+            \image creator-mer-options-vm.png
+
+        \li The connections between \QC and the Mer SDK is protected by using an
+            SSH key. The connection wizard can create the key pair for you, or
+            you can create it separately:
+
+            \list
+
+                \li To create an SSH key, select \gui {Generate a 2048 bit SSH
+                    key without a passphrase}.
+
+                \li To use an existing key, select \gui {Specify a key which has
+                    no passphrase}.
+
+            \endlist
+
+        \li To test test the connection, select \gui {Test Connection}.
+
+        \li To add the public key to authorized keys, select
+            \gui {Authorize Key}.
+
+    \endlist
+
+    \QC configures the kit for you. To check the kit settings, select \gui Tools
+    > \gui Options > \gui {Build & Run} > \gui Kits.
+
+    To update or remove a kit, select a target in the \gui Targets and select
+    \gui {Update Kits} or \gui {Remove Kit}.
+
+    \section1 Adding SailfishOS Devices
+
+    To deploy applications and run them remotely on SailfishOS devices, specify
+    parameters for accessing the devices. Currently, you can run the SailfishOS device
+    image in the Virtual Machine.
+
+    \list 1
+
+        \li Select \gui Tools > \gui Options > \gui Devices > \gui Add >
+            \gui {Mer Device} > \gui {Start Wizard}.
+
+            \image qtcreator-device-mer.png "New Mer Device Configuration Setup"
+
+        \li In the \gui {The name to identify this configuration} field, enter a
+            name for the connection.
+
+        \li In the \gui {The device's host name or IP address} field, enter the
+            host name or IP address of the device. For a connection to the
+            Virtual Machine, enter \bold localhost.
+
+        \li In the \gui {The user name to log into the device} field, enter the
+            user name to log into the device and run the application as. For a
+            connection to the Virtual Machine, enter \bold nemo.
+
+        \li In the \gui {The authentication type} field, select whether to use
+            \gui Password or \gui Key authentication, and enter the user's
+            password or the file that contains the user's private key. For a
+            connection to the Virtual Machine, enter \bold nemo in the
+            \gui Password field.
+
+        \li Click \gui {Next} to create the connection.
+
+        \li Currently, the connection fails, because the wizard does not have
+            a field for defining the port number. To fix the configuration,
+            set the port number in the \gui {SSH port} field to \bold 2223 in
+            \gui Devices.
+
+            \image qtcreator-device-mer-port.png "Devices tab"
+
+        \li To add the SailfishOS device to the kit, select \gui Tools > \gui Options >
+            \gui {Build & Run} > \gui Kits.
+
+        \li Select the kit, and then select the device in the \gui Device field.
+
+    \endlist
+
+    \section1 Specifying Build Settings for SailfishOS Devices
+
+    To specify build settings:
+
+    \list 1
+
+        \li Open a project for an application you want to develop for the
+            device.
+
+        \li Select \gui Projects > \gui {Build & Run} > \gui {Add Kit} to add
+            the kit that you specified above.
+
+    \endlist
+
+    \section1 Specifying Run Settings for SailfishOS Devices
+
+    To specify run settings, select \gui Projects > \gui {Build & Run} >
+    \gui Run. Usually, you can use the default settings.
+
+    When you run the project, \QC deploys the application as specified by the
+    deploy steps. By default, \QC creates an installation package that you can
+    deploy to SailfishOS devices. For more information, see
+    \l{Deploying Applications to SailfishOS Devices}.
+
+*/

@@ -1,0 +1,20 @@
+    \section1 Running on SailfishOS Devices
+
+    \note This section is a placeholder, as the details have not been specified,
+    yet.
+
+    \list 1
+
+        \li Connect the device to the development host or to the Wi-Fi network.
+
+        \li Configure the device and specify a connection to it. For more
+            information, see \l{Connecting SailfishOS Devices}.
+
+        \li Click the \gui Run button.
+
+    \endlist
+
+    \QC uses the compiler specified in the Mer target to build the application.
+
+    \section2 Troubleshooting Errors
+

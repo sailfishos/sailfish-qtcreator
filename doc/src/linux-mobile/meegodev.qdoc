@@ -22,7 +22,7 @@
     \previouspage creator-developing-maemo.html
     \page creator-developing-meego.html
     \if defined(qcmanual)
-    \nextpage creator-developing-qnx.html
+    \nextpage creator-developing-mer.html
     \else
     \nextpage creator-developing-maemo.html
     \endif

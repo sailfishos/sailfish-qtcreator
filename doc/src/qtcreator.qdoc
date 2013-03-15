@@ -26,7 +26,7 @@
 /*!
     \contentspage{index.html}{Qt Creator}
     \page index.html
-    \nextpage creator-getting-started.html
+    \nextpage creator-overview.html
 
     \title Qt Creator Manual
 
@@ -109,6 +109,7 @@
                     \li \l{Publishing Qt Content for MeeGo Harmattan Devices}
                     \li \l{Publishing Qt Content for Maemo Devices}
                     \li \l{Publishing Maemo Applications to Extras-devel}
+                    \li \l{Publishing Qt Content for SailfishOS Devices}
                 \endlist
             \endlist
             \li \list
@@ -154,6 +155,7 @@
             \list
                 \li \l{Creating a Qt Quick Application}
                 \li \l{Creating a Qt Widget Based Application}
+                \li \l{Creating a SailfishOS Application}
             \endlist
         \endlist
         \li \l{Managing Projects}
@@ -237,6 +239,7 @@
                 \li \l{Deploying BlackBerry 10 Devices}
                 \li \l{Deploying Applications to Linux-Based Devices}
                 \li \l{Deploying Applications to QNX Devices}
+                \li \l{Deploying Applications to SailfishOS Devices}
             \endlist
             \li \l{Connecting Mobile Devices}
             \list
@@ -246,6 +249,7 @@
                 \li \l{Connecting Maemo Devices}
                 \li \l{Connecting MeeGo Harmattan Devices}
                 \li \l{Connecting QNX Devices}
+                \li \l{Connecting SailfishOS Devices}
             \endlist
             \li \l{Customizing the Build Process}
             \li \l{Using Maemo or MeeGo Harmattan Emulator}
@@ -280,6 +284,7 @@
             \li \l{Publishing Qt Content for Maemo Devices}
             \li \l{Publishing Qt Content for MeeGo Harmattan Devices}
             \li \l{Publishing Maemo Applications to Extras-devel}
+            \li \l{Publishing Qt Content for SailfishOS Devices}
         \endlist
         \li \l{Advanced Use}
         \list

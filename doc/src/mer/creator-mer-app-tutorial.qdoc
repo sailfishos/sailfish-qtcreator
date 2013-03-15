@@ -1,0 +1,88 @@
+/****************************************************************************
+**
+** Copyright (c) 2012 Digia Plc and/or its subsidiary(-ies).
+** Contact: http://www.qt-project.org/legal
+**
+** This file is part of Qt Creator
+**
+**
+** GNU Free Documentation License
+**
+** Alternatively, this file may be used under the terms of the GNU Free
+** Documentation License version 1.3 as published by the Free Software
+** Foundation and appearing in the file included in the packaging of this
+** file.
+**
+**
+****************************************************************************/
+
+// **********************************************************************
+// NOTE: the sections are not ordered by their logical order to avoid
+// reshuffling the file each time the index order changes (i.e., often).
+// Run the fixnavi.pl script to adjust the links to the index order.
+// **********************************************************************
+
+/*!
+    \contentspage index.html
+    \previouspage creator-writing-program.html
+    \page creator-mer-application.html
+    \nextpage creator-project-managing.html
+
+    \title Creating a SailfishOS Application
+
+    This tutorial describes how to use \QC to create a SailfishOS application.
+
+    \image creator-sailfish-tutorial-1.png "New project wizard"
+
+    \section1 Creating the Project
+
+    \list 1
+
+        \li Select \gui File > \gui {New File or Project} > \gui Applications >
+            \gui {SailfishOS Qt Quick Application} > \gui Choose.
+
+        \li In the \gui{Name} field, type \bold {HelloWorld}.
+
+        \li In the \gui {Create in} field, enter the path for the project files.
+            For example, \c {C:\Qt\examples}, and then click \gui{Next} (on
+            Windows and Linux) or \gui Continue (on Mac OS).
+
+        \li Select the SailfishOS \l{glossary-buildandrun-kit}{kit} for running
+            and building your project, and then click \gui{Next}.
+
+            \image creator-sailfish-tutorial-2.png "Kit Selection dialog"
+
+            \note Kits are listed if they have been specified in \gui Tools >
+            \gui Options > \gui {Build & Run} > \gui Kits. If a suitable kit is
+            missing, see \l{Connecting SailfishOS Devices}.
+
+        \li In the \gui {Application Details} dialog, specify information about the
+            application. The information can be displayed in the app store and
+            on the device.
+
+            \image creator-sailfish-tutorial-3.png "Application Details dialog"
+
+        \li Select \gui Next.
+
+        \li Review the project settings, and click \gui{Finish} (on Windows and
+            Linux) or \gui Done (on Mac OS) to create the project.
+
+    \endlist
+
+    \QC generates a default QML file that you can modify to create the main view
+    of the application.
+
+    \section1 Building and Running the Project
+
+    \list 1
+
+        \li In the target selector, select the SailfishOS kit.
+
+        \li Press \key {Ctrl+R} to build the application.
+
+            \QC copies the necessary files to the connected SailfishOS device and runs
+            the application on it.
+
+    \endlist
+
+*/
