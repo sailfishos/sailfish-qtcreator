@@ -64,6 +64,11 @@
             package is then moved to the Extras-devel repository that
             contains free Maemo applications.
 
+        \o  \l{Publishing Qt Content for SailfishOS Devices}
+
+            This topic will describe how to publish Qt applications for SailfishOS
+            applications in app stores.
+
     \endlist
 
 */

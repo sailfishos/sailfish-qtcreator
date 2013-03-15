@@ -45,5 +45,6 @@
     \include projects/creator-projects-running-simulator.qdocinc
     \include linux-mobile/creator-projects-running-generic-linux.qdocinc
     \include linux-mobile/creator-projects-running-madde.qdocinc
+    \include mer/creator-projects-running-mer.qdocinc
     \include qnx/creator-projects-running-qnx.qdocinc
 */

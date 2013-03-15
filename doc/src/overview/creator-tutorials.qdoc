@@ -46,10 +46,14 @@
 
             Learn how to create a Qt widget based application for the desktop.
 
-       \li \l{Creating an Android Application}
+        \li \l{Creating an Android Application}
 
             Learn how to create a Qt Quick application using Qt Quick Controls
             for Android devices.
+
+        \li \l{Creating a SailfishOS Application}
+
+            Learn how to create an application for SailfishOS devices.
 
     \endlist
 

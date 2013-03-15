@@ -62,6 +62,11 @@
             device. When you deploy it to a QNX Neutrino device, \QC copies
             the application files to the connected device. You can test and
             debug the application on the device.
+        \li \l{Deploying Applications to SailfishOS Devices}
+
+            When you build an application for SailfishOS devices, \QC generates an
+            installation package in the build directory. You can deploy the
+            package to a SailfishOS device.
     \endlist
 
     \section1 Related Topics

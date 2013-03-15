@@ -20,6 +20,10 @@
 
         \li BlackBerry 10
 
+        \li Mer
+
+        \li SailfishOS
+
     \endlist
 
     The following table summarizes operating system support for developing
@@ -27,8 +31,8 @@
 
     \table
         \header
-            \li {1,9} Operating system
-            \li {9,1} Platform
+            \li {1,10} Operating system
+            \li {10,1} Platform
         \header
             \li Desktop
             \li \QS
@@ -38,6 +42,8 @@
             \li QNX
             \li Android
             \li BlackBerry 10
+            \li Mer
+            \li SailfishOS
 
         \row
             \li Windows
@@ -47,6 +53,8 @@
             \li Yes
             \li Yes
             \li Yes (see \l{Running on QNX Devices} for limitations)
+            \li Yes
+            \li Yes
             \li Yes
             \li Yes
         \row
@@ -59,8 +67,12 @@
             \li Yes
             \li Yes
             \li Yes
+            \li Yes
+            \li Yes
             \row
             \li Mac OS X
+            \li Yes
+            \li Yes
             \li Yes
             \li Yes
             \li Yes

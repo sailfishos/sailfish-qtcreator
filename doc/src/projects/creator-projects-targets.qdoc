@@ -54,6 +54,8 @@
 
         \li QNX Device
 
+        \li SailfishOS Device
+
     \endlist
 
     To add kits:

@@ -32,7 +32,8 @@
 
     You can connect mobile devices to the development PC to build, run, debug,
     and analyze applications on them from \QC. When you install an SDK for a
-    target platform, such as Android or QNX, the build and run settings for the
+    target platform, such as Android, QNX or SailfishOS, the build and run
+    settings for the
     development targets delivered with the SDK might be set up automatically in
     \QC.
 
@@ -87,6 +88,13 @@
             supported for BlackBerry Playbook and QNX Neutrino devices, and
             requires the BlackBerry NDK or the QNX SDK to be installed on the
             development PC.
+
+        \li \l{Connecting SailfishOS Devices}
+
+            Currently, you can create an installation package that you can
+            deploy on SailfishOS devices. Later, you will be able to run applications
+            on SailfishOS devices directly from \QC. You must install the Mer SDK
+            to develop for SailfishOS devices.
 
     \endlist
 
