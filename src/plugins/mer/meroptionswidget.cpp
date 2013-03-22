@@ -90,6 +90,8 @@ MerOptionsWidget::MerOptionsWidget(QWidget *parent)
     connect(m_ui->launchSDKControlCenterPushButton, SIGNAL(clicked()),
             SLOT(onLaunchSDKControlCenterClicked()));
 
+    m_ui->launchSDKControlCenterPushButton->setVisible(false);
+
     m_ui->sdkDetailsWidget->setWidget(m_detailsWidget);
     m_ui->sdkDetailsWidget->setState(Utils::DetailsWidget::NoSummary);
     m_ui->sdkDetailsWidget->setVisible(false);

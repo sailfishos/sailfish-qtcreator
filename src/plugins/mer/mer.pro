@@ -92,7 +92,19 @@ HEADERS += \
     virtualboxmanager.h
 
 SOURCES += \
-    $$PWD/jollawelcomepage.cpp
+    $$PWD/jollawelcomepage.cpp \
+    $$PWD/mermode.cpp
 
 HEADERS += \
-    $$PWD/jollawelcomepage.h
+    $$PWD/jollawelcomepage.h \
+    $$PWD/mermode.h
+
+contains(QT_CONFIG, webkit)|contains(QT_MODULES, webkit) {
+    QT += webkit
+    greaterThan(QT_MAJOR_VERSION, 4):QT += webkitwidgets
+    SOURCES += $$PWD/mermanagementwebview.cpp
+    HEADERS += $$PWD/mermanagementwebview.h
+    FORMS += $$PWD/mermanagementwebview.ui
+} else {
+    DEFINES += QT_NO_WEBKIT
+}

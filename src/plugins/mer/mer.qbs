@@ -10,7 +10,7 @@ QtcPlugin {
     Depends { name: "Qt4ProjectManager" }
     Depends { name: "RemoteLinux" }
     Depends { name: "QtcSsh" }
-    Depends { name: "Qt"; submodules: ["widgets"] }
+    Depends { name: "Qt"; submodules: ["widgets", "webkit"] }
     Depends { name: "cpp" }
     cpp.defines: base.concat(["QT_NO_CAST_TO_ASCII", "QT_NO_CAST_FROM_ASCII"])
 
@@ -98,6 +98,11 @@ QtcPlugin {
         "mermanagementwebview.h",
         "mermanagementwebview.ui",
         "jollawelcomepage.cpp",
-        "jollawelcomepage.h"
+        "jollawelcomepage.h",
+        "mermode.cpp",
+        "mermode.h",
+        "mermanagementwebview.cpp",
+        "mermanagementwebview.h",
+        "mermanagementwebview.ui"
     ]
 }
