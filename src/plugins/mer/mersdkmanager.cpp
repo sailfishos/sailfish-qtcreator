@@ -107,10 +107,13 @@ MerSdkManager::MerSdkManager()
     connect(&m_remoteSdkBtn, SIGNAL(startRequest()), SLOT(handleStartRemoteRequested()));
     connect(&m_remoteEmulatorBtn, SIGNAL(stopRequest()), SLOT(handleStopRemoteRequested()));
     connect(&m_remoteSdkBtn, SIGNAL(stopRequest()), SLOT(handleStopRemoteRequested()));
+
+    m_sdkManager = this;
 }
 
 MerSdkManager::~MerSdkManager()
 {
+    m_sdkManager = 0;
 }
 
 void MerSdkManager::initialize()
@@ -156,10 +159,7 @@ void MerSdkManager::initialize()
 
 MerSdkManager *MerSdkManager::instance()
 {
-    if (m_sdkManager)
-        return m_sdkManager;
-
-    m_sdkManager = new MerSdkManager;
+    Q_ASSERT(m_sdkManager);
     return m_sdkManager;
 }
 
