@@ -52,7 +52,7 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
     Q_UNUSED(arguments)
     Q_UNUSED(errorString)
 
-    MerSdkManager::instance();
+    addAutoReleasedObject(new MerSdkManager);
     addAutoReleasedObject(new MerOptionsPage);
     addAutoReleasedObject(new MerDeviceFactory);
     addAutoReleasedObject(new MerQtVersionFactory);

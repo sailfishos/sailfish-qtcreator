@@ -108,8 +108,11 @@ private:
     static ProjectExplorer::Project *m_previousProject;
     mutable QMap<QString, MerSdk> m_sdks;
     mutable bool m_intialized;
+
     MerVirtualMachineButton m_remoteEmulatorBtn;
     MerVirtualMachineButton m_remoteSdkBtn;
+
+friend class MerPlugin;
 };
 
 } // Internal
