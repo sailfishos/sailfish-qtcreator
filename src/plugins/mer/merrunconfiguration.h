@@ -43,6 +43,7 @@ protected:
 
     MerRunConfiguration(ProjectExplorer::Target *parent,
                         MerRunConfiguration *source);    
+    void ctor();
 };
 
 } // namespace Internal

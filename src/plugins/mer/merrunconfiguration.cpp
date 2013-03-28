@@ -31,12 +31,22 @@ MerRunConfiguration::MerRunConfiguration(ProjectExplorer::Target *parent, const 
                                          const QString &proFilePath)
     : RemoteLinux::RemoteLinuxRunConfiguration(parent, id, proFilePath)
 {
+    ctor();
 }
 
 MerRunConfiguration::MerRunConfiguration(ProjectExplorer::Target *parent,
                                          MerRunConfiguration *source)
     : RemoteLinux::RemoteLinuxRunConfiguration(parent, source)
 {
+    ctor();
+}
+
+void MerRunConfiguration::ctor()
+{
+#ifdef Q_OS_WIN
+    // Need to find or build a Mer compatible gdb.exe
+    debuggerAspect()->setUseCppDebugger(false);
+#endif // Q_OS_WIN
 }
 
 bool MerRunConfiguration::isEnabled() const
