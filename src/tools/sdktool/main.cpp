@@ -42,6 +42,8 @@
 #include "rmkitoperation.h"
 #include "rmqtoperation.h"
 #include "rmtoolchainoperation.h"
+#include "addmertargetoperation.h"
+#include "rmmertargetoperation.h"
 
 #include <iostream>
 
@@ -170,7 +172,9 @@ int main(int argc, char *argv[])
                << new RmKeysOperation
                << new RmKitOperation
                << new RmQtOperation
-               << new RmToolChainOperation;
+               << new RmToolChainOperation
+               << new AddMerTargetOperation
+               << new RmMerTargetOperation;
 
 #ifdef WITH_TESTS
     std::cerr << std::endl << std::endl << "Starting tests..." << std::endl;

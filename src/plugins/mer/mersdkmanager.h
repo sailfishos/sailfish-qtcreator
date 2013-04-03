@@ -35,6 +35,11 @@ QT_BEGIN_NAMESPACE
 class QSettings;
 QT_END_NAMESPACE
 
+namespace Utils {
+class PersistentSettingsWriter;
+class FileName;
+}
+
 namespace ProjectExplorer {
 class Kit;
 class Project;
@@ -53,32 +58,30 @@ public:
 
     static QString sdkToolsDirectory();
     static QString globalSdkToolsDirectory();
-    static QSsh::SshConnectionParameters defaultConnectionParameters();
-    static bool authorizePublicKey(const QString &vmName, const QString &publicKeyPath,
-                                   const QString &userName, QWidget *parent);
+    static bool authorizePublicKey(const QString &authorizedKeysPath, const QString &publicKeyPath, QString &error);
     static bool isMerKit(ProjectExplorer::Kit *kit);
     static QString targetNameForKit(ProjectExplorer::Kit *kit);
     static QString virtualMachineNameForKit(const ProjectExplorer::Kit *kit);
     static bool hasMerDevice(ProjectExplorer::Kit *k);
-    static bool validateTarget(const MerSdk &sdk, const QString &target);
     static bool validateKit(const ProjectExplorer::Kit* kit);
+    static bool generateSshKey(const QString &privKeyPath, QString &error);
 
     static void addToEnvironment(const QString &sdkName, Utils::Environment &env);
 
-    QList<MerSdk> sdks() const;
-    MerSdk sdk(const QString &sdkName) const;
-    bool contains(const QString &sdkName) const;
-    void addSdk(const QString &sdkName, MerSdk sdk);
-    void removeSdk(const QString &sdkName);
-    void setCurrentSdkIndex(int index);
-    int currentSdkIndex() const;
-    void readSettings();
+    QList<MerSdk*> sdks() const;
+    MerSdk* sdk(const QString &virtualMachineName) const;
+    MerSdk* createSdk(const QString &vmName);
+    void addSdk(MerSdk* sdk);
+    void removeSdk(MerSdk* sdk);
+    void restoreSdks();
+    bool hasSdk(const MerSdk* sdk) const;
 
 public slots:
-    void writeSettings() const;
+    void storeSdks() const;
 
 signals:
     void sdksUpdated();
+    void sdksTragetsUpdated();
     void sdkRunningChanged();
 
 private slots:
@@ -99,20 +102,25 @@ private:
     MerSdkManager(const MerSdkManager &);
     MerSdkManager &operator=(const MerSdkManager &);
 
-    void writeSettings(QSettings *s, const MerSdk &sdk) const;
+    void restore();
     bool sdkParams(QString &sdkName, QSsh::SshConnectionParameters &params) const;
     bool emulatorParams(QString &emulatorName, QSsh::SshConnectionParameters &params) const;
-
+    QList<MerSdk*> restoreSdks(const Utils::FileName &fileName);
+    QList<ProjectExplorer::Kit*> merKits() const;
+    QList<MerToolChain*> merToolChains() const;
+    QList<MerQtVersion*> merQtVersions() const;
 private:
     static MerSdkManager *m_sdkManager;
     static ProjectExplorer::Project *m_previousProject;
-    mutable QMap<QString, MerSdk> m_sdks;
+    mutable QMap<QString, MerSdk*> m_sdks;
     mutable bool m_intialized;
 
     MerVirtualMachineButton m_remoteEmulatorBtn;
     MerVirtualMachineButton m_remoteSdkBtn;
 
-friend class MerPlugin;
+    Utils::PersistentSettingsWriter *m_writer;
+
+    friend class MerPlugin;
 };
 
 } // Internal

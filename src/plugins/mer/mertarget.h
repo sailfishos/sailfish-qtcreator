@@ -20,32 +20,54 @@
 **
 ****************************************************************************/
 
-#ifndef MER_MESSAGESWINDOW_H
-#define MER_MESSAGESWINDOW_H
+#ifndef MERTARGET_H
+#define MERTARGET_H
 
-#include <QPlainTextEdit>
+#include <QVariantMap>
+
+namespace ProjectExplorer {
+ class Kit;
+}
+
+namespace Utils {
+ class FileName;
+}
 
 namespace Mer {
 namespace Internal {
 
-class MessagesWindow : public QPlainTextEdit
+class MerSdk;
+class MerQtVersion;
+class MerToolChain;
+
+class MerTarget
 {
 public:
-    explicit MessagesWindow(QWidget *parent = 0);
-    void grayOutOldContent();
-    void appendText(const QString &textIn);
+    MerTarget(MerSdk *sdk);
+    virtual ~MerTarget();
+    QString name() const;
+    bool fromMap(const QVariantMap &data);
+    QVariantMap toMap() const;
+    ProjectExplorer::Kit* createKit() const;
+    MerQtVersion* createQtVersion() const;
+    MerToolChain* createToolChain() const;
+    bool createScripts() const;
+    void deleteScripts() const;
+    bool isValid() const;
+    bool operator==(const MerTarget &other) const;
 
 private:
-    bool isScrollbarAtBottom() const;
-    QString doNewlineEnforcement(const QString &out);
-    void scrollToBottom();
+    bool createScript(const QString &targetPath, int scriptIndex) const;
+    bool createCacheFile(const QString &fileName, const QString &content) const;
 
 private:
-    bool m_enforceNewline;
-    bool m_scrollToBottom;
+    MerSdk *m_sdk;
+    QString m_name;
+    QString m_qmakeQuery;
+    QString m_gccMachineDump;
 };
 
-} // Internal
-} // Mer
+}
+}
 
-#endif // MER_MESSAGESWINDOW_H
+#endif // MERTARGET_H

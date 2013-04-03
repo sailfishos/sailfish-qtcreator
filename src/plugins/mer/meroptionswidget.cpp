@@ -20,26 +20,23 @@
 **
 ****************************************************************************/
 
+#include "merconstants.h"
 #include "meroptionswidget.h"
 #include "ui_meroptionswidget.h"
 #include "sdkdetailswidget.h"
 #include "mersdkmanager.h"
-#include "sdkkitutils.h"
-#include "sdktoolchainutils.h"
-#include "sdktargetutils.h"
-#include "sdkscriptsutils.h"
 #include "sdkselectiondialog.h"
 #include "mervirtualmachinemanager.h"
 #include "virtualboxmanager.h"
 
 #include <utils/fileutils.h>
-#include <ssh/sshkeygenerator.h>
 
 #include <QStandardItemModel>
 #include <QStandardItem>
 #include <QDir>
 #include <QDesktopServices>
 #include <QUrl>
+#include <QMessageBox>
 
 namespace Mer {
 namespace Internal {
@@ -49,72 +46,27 @@ const char CONTROLCENTER_URL[] = "http://127.0.0.1:8080/";
 MerOptionsWidget::MerOptionsWidget(QWidget *parent)
     : QWidget(parent)
     , m_ui(new Ui::MerOptionsWidget)
-    , m_detailsWidget(new SdkDetailsWidget(this))
-    , m_model(0)
-    , m_toolChainUtils(new SdkToolChainUtils)
-    , m_targetUtils(new SdkTargetUtils)
-    , m_currentSdkIndex(-1)
-    , m_currentCommand(None)
+    , m_status(tr("Not connected."))
 {
-    m_timer.setSingleShot(true);
-    m_timer.setInterval(0);
-    connect(&m_timer, SIGNAL(timeout()), SLOT(changeState()));
-
-    connect(m_detailsWidget, SIGNAL(testConnection()), SLOT(testConnection()));
-    connect(m_detailsWidget, SIGNAL(updateKits(QStringList)),
-            SLOT(onUpdateKitsButtonClicked(QStringList)));
-    connect(m_detailsWidget, SIGNAL(deployPublicKey()), SLOT(onDeployPublicKeyButtonClicked()));
-    connect(m_detailsWidget, SIGNAL(createSshKey(QString)), SLOT(onCreateSshKey(QString)));
-
     m_ui->setupUi(this);
-
-    connect(m_targetUtils, SIGNAL(installedTargets(QString,QStringList)),
-            SLOT(onInstalledTargets(QString,QStringList)));
-
-    MerVirtualMachineManager *remoteManager = MerVirtualMachineManager::instance();
-    connect(remoteManager, SIGNAL(connectionChanged(QString,bool)),
-            SLOT(onConnectionChanged(QString,bool)));
-    connect(remoteManager, SIGNAL(error(QString,QString)),
-            SLOT(onConnectionError(QString,QString)));
-
-    connect(m_ui->sdkComboBox, SIGNAL(currentIndexChanged(int)), SLOT(onSdkChanged(int)));
-    connect(m_ui->sdkComboBox, SIGNAL(currentIndexChanged(int)), SIGNAL(updateSearchKeys()));
-
+    connect(MerSdkManager::instance(), SIGNAL(sdksUpdated()), SLOT(onSdksUpdated()));
+    connect(m_ui->sdkDetailsWidget, SIGNAL(authorizeSshKey(QString)), SLOT(onAuthorizeSshKey(QString)));
+    connect(m_ui->sdkDetailsWidget, SIGNAL(generateSshKey(QString)), SLOT(onGenerateSshKey(QString)));
+    connect(m_ui->sdkDetailsWidget, SIGNAL(sshKeyChanged(QString)), SLOT(onSshKeyChanged(QString)));
+    connect(m_ui->sdkComboBox, SIGNAL(activated(QString)), SLOT(onSdkChanged(QString)));
     connect(m_ui->addButton, SIGNAL(clicked()), SLOT(onAddButtonClicked()));
     connect(m_ui->removeButton, SIGNAL(clicked()), SLOT(onRemoveButtonClicked()));
-    connect(m_ui->startVirtualMachineButton, SIGNAL(clicked()),
-            SLOT(onStartVirtualMachineButtonClicked()));
+    connect(m_ui->startVirtualMachineButton, SIGNAL(clicked()), SLOT(onStartVirtualMachineButtonClicked()));
+    connect(m_ui->sdkDetailsWidget, SIGNAL(testConnectionButtonClicked()), SLOT(onTestConnectionButtonClicked()));
+    connect(MerVirtualMachineManager::instance(), SIGNAL(connectionChanged(QString,bool)), this, SLOT(onConnectionChanged(QString,bool)));
+    connect(MerVirtualMachineManager::instance(), SIGNAL(error(QString,QString)), this, SLOT(onError(QString,QString)));
 
-    m_ui->launchSDKControlCenterPushButton->setToolTip(tr("Open Mer SDK Control Center in "
-                                                          "default web browser"));
-    connect(m_ui->launchSDKControlCenterPushButton, SIGNAL(clicked()),
-            SLOT(onLaunchSDKControlCenterClicked()));
-
-    m_ui->launchSDKControlCenterPushButton->setVisible(false);
-
-    m_ui->sdkDetailsWidget->setWidget(m_detailsWidget);
-    m_ui->sdkDetailsWidget->setState(Utils::DetailsWidget::NoSummary);
-    m_ui->sdkDetailsWidget->setVisible(false);
-
-    m_ui->connectionMessagesWindow->setReadOnly(true);
-
-    m_ui->progressBar->setVisible(false);
-
-    setShowDetailWidgets(false);
-
-    MerSdkManager *sdkManager = MerSdkManager::instance();
-    connect(sdkManager, SIGNAL(sdksUpdated()), SLOT(initModel()));
-
-    initModel();
+    onSdksUpdated();
 }
 
 MerOptionsWidget::~MerOptionsWidget()
 {
     delete m_ui;
-    delete m_detailsWidget;
-    delete m_model;
-    delete m_toolChainUtils;
-    delete m_targetUtils;
 }
 
 QString MerOptionsWidget::searchKeyWordMatchString() const
@@ -125,63 +77,47 @@ QString MerOptionsWidget::searchKeyWordMatchString() const
     for (int i = 0; i < count; ++i)
         keys += m_ui->sdkComboBox->itemText(i) + blank;
     if (m_ui->sdkDetailsWidget->isVisible())
-        keys += m_detailsWidget->searchKeyWordMatchString();
+        keys += m_ui->sdkDetailsWidget->searchKeyWordMatchString();
 
     return keys.trimmed();
 }
 
-void MerOptionsWidget::saveModelData()
+void MerOptionsWidget::store()
 {
-    saveCurrentData();
-}
+    QMap<QString, MerSdk*> sdks = m_sdks;
+    MerSdkManager *sdkManager = MerSdkManager::instance();
+    QList<MerSdk*> currentSdks = sdkManager->sdks();
 
-void MerOptionsWidget::testConnection(bool updateTargets)
-{
-    m_currentCommand = updateTargets ? UpdateTargets : InstallTargets;
-
-    const QString sdkName = m_ui->sdkComboBox->currentText();
-    m_ui->progressBar->setVisible(true);
-    if (VirtualBoxManager::isVirtualMachineRunning(sdkName)) {
-        MerVirtualMachineManager *remoteManager = MerVirtualMachineManager::instance();
-        if (remoteManager->connectToRemote(sdkName, m_detailsWidget->sdk().sshConnectionParams()))
-            onConnectionChanged(sdkName, true);
-    } else {
-        m_ui->progressBar->setVisible(false);
-        m_ui->connectionMessagesWindow->appendText(tr("Error: Virtual Machine '%1' "
-                                                      "is not running!\n").arg(sdkName));
-    }
-}
-
-void MerOptionsWidget::showProgress(const QString &message)
-{
-    m_ui->connectionMessagesWindow->setVisible(true);
-    m_ui->connectionMessagesLabel->setVisible(true);
-    if (!message.isEmpty())
-        m_ui->connectionMessagesWindow->appendText(message);
-}
-
-void MerOptionsWidget::onSdkChanged(int currentIndex)
-{
-    // store the previous sdk details
-    if (m_currentSdkIndex != -1) {
-        const MerSdk sdk = m_detailsWidget->sdk();
-        m_ui->sdkComboBox->setItemData(m_currentSdkIndex, QVariant::fromValue(sdk), SdkRole);
-    }
-    m_currentSdkIndex = currentIndex;
-
-    if (currentIndex == -1) {
-        setShowDetailWidgets(false);
-        return;
+    foreach (MerSdk *sdk, sdks) {
+        if (m_sshPrivKeys.contains(sdk))
+            sdk->setPrivateKeyFile(m_sshPrivKeys[sdk]);
     }
 
-    // fetch the current sdk details
-    const MerSdk sdk = m_ui->sdkComboBox->itemData(currentIndex, SdkRole).value<MerSdk>();
-    m_detailsWidget->setSdk(sdk);
-    fetchVirtualMachineInfo();
-    setShowDetailWidgets(true);
-    m_ui->removeButton->setEnabled(!sdk.isAutoDetected());
-    // TODO: Remove the restriction of adding only 1 SDK
-    m_ui->addButton->setEnabled(false);
+    foreach (MerSdk *sdk, currentSdks) {
+        if (!sdks.contains(sdk->virtualMachineName())) {
+            sdkManager->removeSdk(sdk);
+            delete sdk;
+        } else {
+            sdks.remove(sdk->virtualMachineName());
+        }
+    }
+
+    foreach (MerSdk *sdk,sdks)
+        sdkManager->addSdk(sdk);
+
+    m_sshPrivKeys.clear();
+}
+
+void MerOptionsWidget::onSdkChanged(const QString &sdkName)
+{
+   if (m_virtualMachine != sdkName) {
+       m_virtualMachine = sdkName;
+       if (MerVirtualMachineManager::instance()->isRemoteConnected(sdkName))
+           m_status = tr("Connected.");
+       else
+           m_status = tr("Not connected.");
+       update();
+   }
 }
 
 void MerOptionsWidget::onAddButtonClicked()
@@ -190,289 +126,151 @@ void MerOptionsWidget::onAddButtonClicked()
     dialog.setWindowTitle(tr("Add Mer SDK"));
     if (dialog.exec() != QDialog::Accepted)
         return;
-    MerSdk sdk;
-    sdk.setVirtualMachineName(dialog.selectedSdkName());
-    QStandardItem *rootItem = m_model->invisibleRootItem();
-    QStandardItem *item = new QStandardItem;
-    item->setData(sdk.virtualMachineName(), Qt::DisplayRole);
-    item->setData(QVariant::fromValue(sdk), SdkRole);
-    rootItem->appendRow(item);
-    m_ui->sdkComboBox->setCurrentIndex(m_ui->sdkComboBox->count() - 1);
-    m_ui->messageInfoLabel->setVisible(!rootItem->rowCount());
-    // TODO: Remove the restriction of adding only 1 SDK
-    m_ui->addButton->setEnabled(false);
+
+    if (m_sdks.contains(dialog.selectedSdkName()))
+        return;
+
+    MerSdk* sdk = MerSdkManager::instance()->createSdk(dialog.selectedSdkName());
+    m_sdks[sdk->virtualMachineName()] = sdk;
+    m_virtualMachine = sdk->virtualMachineName();
+    update();
 }
 
 void MerOptionsWidget::onRemoveButtonClicked()
 {
-    MerSdk sdk = m_detailsWidget->sdk();
-    const QStringList installedTargets;
-    m_ui->progressBar->setVisible(true);
-    SdkScriptsUtils::removeSdkScripts(sdk);
-    m_toolChainUtils->updateToolChains(sdk, installedTargets);
-    m_targetUtils->updateQtVersions(sdk, installedTargets);
-    SdkKitUtils::updateKits(sdk, installedTargets);
-    m_ui->connectionMessagesWindow->appendText(tr("Success: '%1' has been removed \n").arg(
-                                                   m_ui->sdkComboBox->currentText()));
-    m_ui->progressBar->setVisible(false);
-    m_currentSdkIndex = -1;
-    m_detailsWidget->setSdk(sdk, false);
-    m_ui->sdkComboBox->removeItem(m_ui->sdkComboBox->currentIndex());
-    m_ui->messageInfoLabel->setVisible(!m_model->rowCount());
-    // TODO: Remove the restriction of adding only 1 SDK
-    m_ui->addButton->setEnabled(true);
-}
+    const QString &vmName = m_ui->sdkComboBox->itemData(m_ui->sdkComboBox->currentIndex(), Qt::DisplayRole).toString();
+    if (vmName.isEmpty())
+        return;
 
-void MerOptionsWidget::onUpdateKitsButtonClicked(const QStringList &targets)
-{
-    m_targetsToInstall = targets;
-    testConnection(false);
+    if (m_sdks.contains(vmName)) {
+         m_sdks.remove(vmName);
+         if (!m_sdks.isEmpty())
+             m_virtualMachine = m_sdks.keys().last();
+         else
+             m_virtualMachine.clear();
+    }
+    update();
 }
 
 void MerOptionsWidget::onTestConnectionButtonClicked()
 {
-    m_ui->connectionMessagesWindow->grayOutOldContent();;
-    testConnection();
+    MerSdk *sdk = m_sdks[m_virtualMachine];
+    if (VirtualBoxManager::isVirtualMachineRunning(sdk->virtualMachineName())) {
+        MerVirtualMachineManager *remoteManager = MerVirtualMachineManager::instance();
+        QSsh::SshConnectionParameters params;
+        params.userName = sdk->userName();
+        params.host = sdk->host();
+        params.port = sdk->sshPort();
+        if (m_sshPrivKeys.contains(sdk))
+            params.privateKeyFile = m_sshPrivKeys[sdk];
+        else
+            params.privateKeyFile = sdk->privateKeyFile();
+
+        if (remoteManager->isRemoteConnected(sdk->virtualMachineName()))
+            remoteManager->disconnectRemote(sdk->virtualMachineName());
+        m_ui->sdkDetailsWidget->setStatus(tr("Connecting to machine %1 ...").arg(sdk->virtualMachineName()));
+        remoteManager->connectToRemote(sdk->virtualMachineName(), params);
+    } else {
+        m_ui->sdkDetailsWidget->setStatus(tr("Virtual machine %1 is not running.").arg(sdk->virtualMachineName()));
+    }
 }
 
-void MerOptionsWidget::onDeployPublicKeyButtonClicked()
+void MerOptionsWidget::onAuthorizeSshKey(const QString &file)
 {
-    m_ui->progressBar->setVisible(false);
-    MerSdk sdk = m_detailsWidget->sdk();
-    const QString privKeyPath = sdk.sshConnectionParams().privateKeyFile;
-    const QString pubKeyPath = privKeyPath + QLatin1String(".pub");
-    bool success =
-            MerSdkManager::instance()->authorizePublicKey(sdk.virtualMachineName(), pubKeyPath,
-                                                          sdk.sshConnectionParams().userName, this);
-    if (success)
-        m_ui->connectionMessagesWindow->appendText(tr("Success: Deployed public key.\n"));
+    MerSdk *sdk = m_sdks[m_virtualMachine];
+    const QString pubKeyPath = file + QLatin1String(".pub");
+    const QString sshDirectoryPath = sdk->sharedSshPath() + QLatin1Char('/');
+    const QStringList authorizedKeysPaths = QStringList()
+            << sshDirectoryPath + QLatin1String("root/") + QLatin1String(Constants::MER_AUTHORIZEDKEYS_FOLDER)
+            << sshDirectoryPath + sdk->userName()
+               + QLatin1String("/") + QLatin1String(Constants::MER_AUTHORIZEDKEYS_FOLDER);
+    foreach (const QString &path, authorizedKeysPaths) {
+        QString error;
+        const bool success = MerSdkManager::instance()->authorizePublicKey(path, pubKeyPath, error);
+        if (!success)
+            QMessageBox::critical(this, tr("Cannot Authorize Keys"), error);
+        else
+            QMessageBox::information(this, tr("Key Authorized "), tr("Key %1 added to \n %2").arg(pubKeyPath).arg(path));
+    }
 }
 
 void MerOptionsWidget::onStartVirtualMachineButtonClicked()
 {
-    MerVirtualMachineManager::instance()->startRemote(m_ui->sdkComboBox->currentText(),
-                                                      m_detailsWidget->sdk().sshConnectionParams());
+    const MerSdk *sdk = m_sdks[m_virtualMachine];
+    QSsh::SshConnectionParameters params;
+    params.userName = sdk->userName();
+    params.host = sdk->host();
+    params.port = sdk->sshPort();
+    params.privateKeyFile = sdk->privateKeyFile();
+    MerVirtualMachineManager::instance()->startRemote(sdk->virtualMachineName(), params);
 }
 
-void MerOptionsWidget::onLaunchSDKControlCenterClicked()
+void MerOptionsWidget::onGenerateSshKey(const QString &privKeyPath)
 {
-    QDesktopServices::openUrl(QUrl(QLatin1String(CONTROLCENTER_URL)));
-}
-
-void MerOptionsWidget::onInstalledTargets(const QString &sdkName, const QStringList &targets)
-{
-    m_ui->progressBar->setVisible(false);
-    if (m_ui->sdkComboBox->currentText() != sdkName)
-        return;
-    m_detailsWidget->setValidTargets(targets);
-}
-
-void MerOptionsWidget::onConnectionError(const QString &sdkName, const QString &error)
-{
-    showProgress(tr("Error: Cannot connect to Virtual Machine '%1'. %2.\n").arg(sdkName, error));
-}
-
-void MerOptionsWidget::onConnectionChanged(const QString &sdkName, bool success)
-{
-    m_ui->progressBar->setVisible(false);
-    if (m_ui->sdkComboBox->currentText() != sdkName)
-        return;
-
-    if (!success)
-        return;
-    else
-        showProgress(tr("Success: Can connect to Virtual Machine '%1'.\n").arg(sdkName));
-
-    switch (m_currentCommand) {
-    case UpdateTargets:
-        updateTargets();
-        break;
-    case InstallTargets:
-        installTargets();
-        break;
-    case None:
-    default:
-        break;
-    }
-    m_currentCommand = None;
-}
-
-void MerOptionsWidget::changeState()
-{
-    m_ui->progressBar->setVisible(true);
-    switch (m_state) {
-    case SaveCurrentData: {
-        m_tempSdk = m_detailsWidget->sdk();
-        saveCurrentData();
-        m_state = CreateNewScripts;
-        m_timer.start();
-        break;
-    }
-    case CreateNewScripts: {
-        SdkScriptsUtils::createNewScripts(m_tempSdk, m_targetsToInstall);
-        m_state = UpdateToolChains;
-        m_timer.start();
-        break;
-    }
-    case UpdateToolChains: {
-        m_toolChainUtils->updateToolChains(m_tempSdk, m_targetsToInstall);
-        m_state = UpdateQtVersions;
-        m_timer.start();
-        break;
-    }
-    case UpdateQtVersions: {
-        m_targetUtils->updateQtVersions(m_tempSdk, m_targetsToInstall);
-        m_state = UpdateKits;
-        m_timer.start();
-        break;
-    }
-    case UpdateKits: {
-        SdkKitUtils::updateKits(m_tempSdk, m_targetsToInstall);
-        m_state = RemoveInvalidScripts;
-        m_timer.start();
-        break;
-    }
-    case RemoveInvalidScripts: {
-        SdkScriptsUtils::removeInvalidScripts(m_tempSdk, m_targetsToInstall);
-        m_state = Done;
-        m_timer.start();
-        break;
-    }
-    case Done: {
-        m_detailsWidget->setSdk(m_tempSdk);
-        m_state = Idle;
-        m_ui->progressBar->setVisible(false);
-        m_ui->connectionMessagesWindow->appendText(tr("Success: Targets have been updated.\n"));
-        updateTargets();
-        break;
-    }
-    case Idle:
-    default:
-        m_ui->progressBar->setVisible(false);
-        break;
+    QString error;
+    if (!MerSdkManager::generateSshKey(privKeyPath, error)) {
+       QMessageBox::critical(this, tr("Could not generate key."), error);
+    } else {
+       QMessageBox::information(this, tr("Key generated"), tr("Key pair generated \n %1 \n You should authorzie key now.").arg(privKeyPath));
+       m_ui->sdkDetailsWidget->setPrivateKeyFile(privKeyPath);
     }
 }
 
-void MerOptionsWidget::onCreateSshKey(const QString &privKeyPath)
+void MerOptionsWidget::onSdksUpdated()
 {
-    if (QFileInfo(privKeyPath).exists()) {
-        m_ui->connectionMessagesWindow->appendText(tr("Error: File '%1' exists.\n").arg(
-                                                       privKeyPath));
-        return;
-    }
-
-    bool success = true;
-    QSsh::SshKeyGenerator keyGen;
-    success = keyGen.generateKeys(QSsh::SshKeyGenerator::Rsa,
-                                  QSsh::SshKeyGenerator::Mixed, 2048,
-                                  QSsh::SshKeyGenerator::DoNotOfferEncryption);
-    if (!success) {
-        m_ui->connectionMessagesWindow->appendText(tr("Error: %1\n").arg(keyGen.error()));
-        return;
-    }
-
-    Utils::FileSaver privKeySaver(privKeyPath);
-    privKeySaver.write(keyGen.privateKey());
-    success = privKeySaver.finalize();
-    if (!success) {
-        m_ui->connectionMessagesWindow->appendText(tr("Error: %1\n").arg(
-                                                       privKeySaver.errorString()));
-        return;
-    }
-
-    Utils::FileSaver pubKeySaver(privKeyPath + QLatin1String(".pub"));
-    const QByteArray publicKey = keyGen.publicKey();
-    pubKeySaver.write(publicKey);
-    success = pubKeySaver.finalize();
-    if (!success) {
-        m_ui->connectionMessagesWindow->appendText(tr("Error: %1\n").arg(
-                                                       pubKeySaver.errorString()));
-        return;
-    }
-
-    m_ui->connectionMessagesWindow->appendText(tr("Success: SSH keys created.\n"));
-}
-
-void MerOptionsWidget::initModel()
-{
-    if (m_model)
-        delete m_model;
-    m_model = new QStandardItemModel();
-
     MerSdkManager *sdkManager = MerSdkManager::instance();
-    QList<MerSdk> sdks = sdkManager->sdks();
-
-    QStandardItem *rootItem = m_model->invisibleRootItem();
-    foreach (const MerSdk &sdk, sdks) {
-        QStandardItem *item = new QStandardItem();
-        item->setData(sdk.virtualMachineName(), Qt::DisplayRole);
-        item->setData(QVariant::fromValue(sdk), SdkRole);
-        rootItem->appendRow(item);
+    m_sdks.clear();
+    foreach (MerSdk *sdk, sdkManager->sdks()) {
+        m_sdks[sdk->virtualMachineName()] = sdk;
+        m_virtualMachine = sdk->virtualMachineName();
     }
-    m_ui->sdkComboBox->setModel(m_model);
-    m_ui->messageInfoLabel->setVisible(!rootItem->rowCount());
+    update();
 }
 
-void MerOptionsWidget::setShowDetailWidgets(bool show)
+void MerOptionsWidget::update()
 {
+    m_ui->sdkComboBox->clear();
+    m_ui->sdkComboBox->addItems(m_sdks.keys());
+    bool show = !m_virtualMachine.isEmpty();
+
+    if (show && m_sdks.contains(m_virtualMachine)) {
+        MerSdk *sdk = m_sdks[m_virtualMachine];
+        m_ui->sdkDetailsWidget->setSdk(sdk);
+        if (m_sshPrivKeys.contains(sdk))
+            m_ui->sdkDetailsWidget->setPrivateKeyFile(m_sshPrivKeys[sdk]);
+        else
+            m_ui->sdkDetailsWidget->setPrivateKeyFile(m_sdks[m_virtualMachine]->privateKeyFile());
+        int index = m_ui->sdkComboBox->findText(m_virtualMachine);
+        m_ui->sdkComboBox->setCurrentIndex(index);
+        m_ui->sdkDetailsWidget->setStatus(m_status);
+    }
+
     m_ui->sdkDetailsWidget->setVisible(show);
     m_ui->removeButton->setEnabled(show);
     m_ui->startVirtualMachineButton->setEnabled(show);
-    m_ui->launchSDKControlCenterPushButton->setEnabled(show);
 }
 
-void MerOptionsWidget::fetchVirtualMachineInfo()
+//TODO: refactor connectionManager
+void MerOptionsWidget::onConnectionChanged(const QString &vmName, bool connected)
 {
-    m_ui->progressBar->setVisible(true);
-    VirtualMachineInfo info =
-            VirtualBoxManager::fetchVirtualMachineInfo(m_ui->sdkComboBox->currentText());
-    MerSdk sdk = m_detailsWidget->sdk();
-    QSsh::SshConnectionParameters params = sdk.sshConnectionParams();
-    if (info.sshPort)
-        params.port = info.sshPort;
-    sdk.setSshConnectionParameters(params);
-    if (!info.sharedHome.isEmpty())
-        sdk.setSharedHomePath(info.sharedHome);
-    if (!info.sharedTarget.isEmpty())
-        sdk.setSharedTargetPath(info.sharedTarget);
-    if (!info.sharedSsh.isEmpty())
-        sdk.setSharedSshPath(info.sharedSsh);
-    m_detailsWidget->setSdk(sdk);
-    m_ui->progressBar->setVisible(false);
-    // Test connection if we have the correct params
-    bool test = params.authenticationType == QSsh::SshConnectionParameters::AuthenticationByPassword
-            ? !params.password.isEmpty() : !params.privateKeyFile.isEmpty();
-    if (test)
-        testConnection();
-}
-
-void MerOptionsWidget::updateTargets()
-{
-    m_targetUtils->setSshConnectionParameters(m_detailsWidget->sdk().sshConnectionParams());
-    m_ui->progressBar->setVisible(true);
-    if (!m_targetUtils->checkInstalledTargets(m_ui->sdkComboBox->currentText())) {
-        m_ui->progressBar->setVisible(false);
-        m_ui->connectionMessagesWindow->appendText(tr("Error: Could not update targets."
-                                                      "An instance of the process is already "
-                                                      "running. Please try again.\n"));
+    if (m_virtualMachine == vmName && connected) {
+        m_status = tr("Connected.");
+        update();
     }
 }
 
-void MerOptionsWidget::installTargets()
+void MerOptionsWidget::onError(const QString &vmName, const QString &error)
 {
-    m_state = SaveCurrentData;
-    m_timer.start();
+    if (m_virtualMachine == vmName) {
+        m_status = tr("Not Connected. ") + error;
+        update();
+    }
 }
 
-void MerOptionsWidget::saveCurrentData()
+void MerOptionsWidget::onSshKeyChanged(const QString &file)
 {
-    MerSdkManager *sdkManager = MerSdkManager::instance();
-    QString sdkName = m_ui->sdkComboBox->itemData(m_currentSdkIndex, Qt::DisplayRole).toString();
-    if (sdkManager->contains(sdkName))
-        sdkManager->removeSdk(sdkName);
-    if (!sdkName.isEmpty() && m_detailsWidget->isSdkValid())
-        sdkManager->addSdk(sdkName, m_detailsWidget->sdk());
-    sdkManager->writeSettings();
+    //store keys to be saved on save click
+    m_sshPrivKeys[m_sdks[m_virtualMachine]] = file;
 }
 
 } // Internal

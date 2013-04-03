@@ -338,8 +338,20 @@ void MerDeviceConfigWizardKeyCreationPage::authorizeKeys()
     m_ui->statusLabel->setText(tr("Authorizing keys..."));
     const QString privKeyPath = m_wizardData.privateKeyFilePath;
     const QString pubKeyPath = privKeyPath + QLatin1String(".pub");
-    if (MerSdkManager::instance()->authorizePublicKey(m_wizardData.configName, pubKeyPath,
-                                                      m_wizardData.userName, this))
+    VirtualMachineInfo info = VirtualBoxManager::fetchVirtualMachineInfo(m_wizardData.configName);
+    const QString sshDirectoryPath = info.sharedSsh + QLatin1Char('/');
+    const QStringList authorizedKeysPaths = QStringList()
+            << sshDirectoryPath + QLatin1String("root/") + QLatin1String(Constants::MER_AUTHORIZEDKEYS_FOLDER)
+            << sshDirectoryPath + m_wizardData.userName
+               + QLatin1String("/") + QLatin1String(Constants::MER_AUTHORIZEDKEYS_FOLDER);
+    QString error;
+    bool success = true;
+    foreach (const QString &path, authorizedKeysPaths) {
+        success &= MerSdkManager::instance()->authorizePublicKey(path, pubKeyPath, error);
+        //TODO: error handling
+    }
+
+    if (success)
         m_ui->statusLabel->setText(m_ui->statusLabel->text() + tr("Done."));
     m_isComplete = true;
     emit completeChanged();

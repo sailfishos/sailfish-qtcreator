@@ -26,6 +26,8 @@ SOURCES += \
     rmqtoperation.cpp \
     rmtoolchainoperation.cpp \
     settings.cpp \
+    addmertargetoperation.cpp \
+    rmmertargetoperation.cpp
 
 HEADERS += \
     addkeysoperation.h \
@@ -41,6 +43,8 @@ HEADERS += \
     rmqtoperation.h \
     rmtoolchainoperation.h \
     settings.h \
+    addmertargetoperation.h \
+    rmmertargetoperation.h
 
 DESTDIR=$$IDE_LIBEXEC_PATH
 macx:DEFINES += "DATA_PATH=\"\\\".\\\"\""

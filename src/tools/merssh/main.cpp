@@ -114,7 +114,7 @@ int main(int argc, char *argv[])
     command = commandPieces.join(QLatin1String(" "));
 
     if (sdkToolsDir.isEmpty() || merTarget.isEmpty()
-            || commandType.isEmpty() || command.isEmpty())  {
+            || commandType.isEmpty() || command.isEmpty()) {
         printUsage();
         return 1;
     }

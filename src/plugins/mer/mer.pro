@@ -28,22 +28,17 @@ SOURCES += \
     merqtversionfactory.cpp \
     mertoolchain.cpp \
     meroptionspage.cpp \
-    sdkkitutils.cpp \
     merdevicefactory.cpp \
     merdeployconfigurationfactory.cpp \
     merdeviceconfigurationwizard.cpp \
     merdeviceconfigurationwizardsetuppages.cpp \
     merdevice.cpp \
-    messageswindow.cpp \
     mersdkmanager.cpp \
     mersdk.cpp \
-    sdktoolchainutils.cpp \
-    sdktargetutils.cpp \
     mersftpdeployconfiguration.cpp \
     merrunconfiguration.cpp \
     merrunconfigurationfactory.cpp \
     merruncontrolfactory.cpp \
-    sdkscriptsutils.cpp \
     meroptionswidget.cpp \
     sdkdetailswidget.cpp \
     sdkselectiondialog.cpp \
@@ -53,32 +48,28 @@ SOURCES += \
     merdeviceconfigurationwidget.cpp \
     mervirtualmachinebutton.cpp \
     mersshparser.cpp \
-    virtualboxmanager.cpp
+    virtualboxmanager.cpp \
+    mertarget.cpp
 
 HEADERS += \
-    merplugin.h\
+    merplugin.h \
     merconstants.h \
     merqtversion.h \
     merqtversionfactory.h \
     mertoolchain.h \
     meroptionspage.h \
-    sdkkitutils.h \
     merdevicefactory.h \
     mertoolchainfactory.h \
     merdeployconfigurationfactory.h \
     merdeviceconfigurationwizard.h \
     merdeviceconfigurationwizardsetuppages.h \
     merdevice.h \
-    messageswindow.h \
     mersdkmanager.h \
     mersdk.h \
-    sdktoolchainutils.h \
-    sdktargetutils.h \
     mersftpdeployconfiguration.h \
     merrunconfiguration.h \
     merrunconfigurationfactory.h \
     merruncontrolfactory.h \
-    sdkscriptsutils.h \
     meroptionswidget.h \
     sdkdetailswidget.h \
     sdkselectiondialog.h \
@@ -88,7 +79,8 @@ HEADERS += \
     merdeviceconfigurationwidget.h \
     mervirtualmachinebutton.h \
     mersshparser.h \
-    virtualboxmanager.h
+    virtualboxmanager.h \
+    mertarget.h
 
 SOURCES += \
     $$PWD/jollawelcomepage.cpp \

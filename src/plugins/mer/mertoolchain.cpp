@@ -141,7 +141,7 @@ QList<Task> MerToolChain::validateKit(const Kit *kit) const
         const QString message =
                 QCoreApplication::translate("ProjectExplorer::MerToolChain",
                                             "No available Qt version found which can be used with "
-                                            "toolchain '%1'.").arg(version->displayName());
+                                            "toolchain '%1'.").arg(displayName());
         result << Task(Task::Error, message, Utils::FileName(), -1,
                        Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
 
@@ -166,7 +166,7 @@ QString MerToolChainFactory::id() const
 {
     return QLatin1String(Constants::MER_TOOLCHAIN_ID);
 }
-
+/*
 QList<ToolChain *> MerToolChainFactory::autoDetect()
 {
     QList<ToolChain *> result;
@@ -193,7 +193,7 @@ QList<ToolChain *> MerToolChainFactory::autoDetect()
     }
     return result;
 }
-
+*/
 bool MerToolChainFactory::canRestore(const QVariantMap &data)
 {
     return idFromMap(data).startsWith(QLatin1String(Constants::MER_TOOLCHAIN_ID)

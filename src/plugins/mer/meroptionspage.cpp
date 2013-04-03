@@ -51,7 +51,11 @@ QWidget *MerOptionsPage::createPage(QWidget *parent)
 void MerOptionsPage::apply()
 {
     if (m_widget)
-        m_widget->saveModelData();
+        m_widget->store();
+}
+
+void MerOptionsPage::finish()
+{
 }
 
 bool MerOptionsPage::matches(const QString &key) const

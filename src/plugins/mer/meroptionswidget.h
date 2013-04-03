@@ -39,90 +39,41 @@ namespace Ui {
 class MerOptionsWidget;
 }
 
-class SdkDetailsWidget;
-class SdkToolChainUtils;
-class SdkTargetUtils;
 class MerOptionsWidget : public QWidget
 {
     Q_OBJECT
-    enum Roles {
-        SdkRole = Qt::UserRole + 1
-    };
-
-    enum Command {
-        None,
-        UpdateTargets,
-        InstallTargets
-    };
-
-    enum State {
-        Idle,
-        SaveCurrentData,
-        CreateNewScripts,
-        UpdateToolChains,
-        UpdateQtVersions,
-        UpdateKits,
-        RemoveInvalidScripts,
-        Done
-    };
-
 public:
     explicit MerOptionsWidget(QWidget *parent = 0);
     ~MerOptionsWidget();
 
     QString searchKeyWordMatchString() const;
-    void saveModelData();
+    void store();
 
 signals:
     void updateSearchKeys();
 
 private slots:
-    void testConnection(bool updateTargets = true);
-
     // Ui
-    void showProgress(const QString &message);
-    void onSdkChanged(int currentIndex);
+    void onSdksUpdated();
+    void onSdkChanged(const QString &text);
     void onAddButtonClicked();
     void onRemoveButtonClicked();
-    void onUpdateKitsButtonClicked(const QStringList &targets);
     void onTestConnectionButtonClicked();
-    void onDeployPublicKeyButtonClicked();
     void onStartVirtualMachineButtonClicked();
-    void onLaunchSDKControlCenterClicked();
-
-    // command
-    void onInstalledTargets(const QString &sdkName, const QStringList &targets);
-    void onConnectionChanged(const QString &sdkName, bool success);
-    void onConnectionError(const QString &sdkName, const QString &error);
-
-    // timer
-    void changeState();
-
-    // others
-    void onCreateSshKey(const QString &path);
-
-    void initModel();
-
-private:
-
-    void setShowDetailWidgets(bool show);
-    void fetchVirtualMachineInfo();
-    void updateTargets();
-    void installTargets();
-    void saveCurrentData();
+    //void onLaunchSDKControlCenterClicked();
+    void onGenerateSshKey(const QString &path);
+    void onAuthorizeSshKey(const QString &file);
+    void onConnectionChanged(const QString &vmName, bool connected);
+    void onError(const QString &vmName, const QString &error);
+    void onSshKeyChanged(const QString &file);
+    void update();
 
 private:
     Ui::MerOptionsWidget *m_ui;
-    SdkDetailsWidget *m_detailsWidget;
-    QStandardItemModel *m_model;
-    SdkToolChainUtils *m_toolChainUtils;
-    SdkTargetUtils *m_targetUtils;
-    int m_currentSdkIndex;
-    Command m_currentCommand;
-    QTimer m_timer;
-    State m_state;
-    MerSdk m_tempSdk;
-    QStringList m_targetsToInstall;
+    QString m_virtualMachine;
+    QString m_status;
+    QMap<QString, MerSdk*> m_sdks;
+    QMap<MerSdk*, QString> m_sshPrivKeys;
 };
 
 } // Internal

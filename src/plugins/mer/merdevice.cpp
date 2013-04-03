@@ -86,8 +86,18 @@ private:
     {
         const QString privKeyPath = m_params.privateKeyFile;
         const QString pubKeyPath = privKeyPath + QLatin1String(".pub");
-        MerSdkManager::instance()->authorizePublicKey(m_vmName, pubKeyPath, m_params.userName,
-                                                      this);
+        QString error;
+        VirtualMachineInfo info = VirtualBoxManager::fetchVirtualMachineInfo(m_vmName);
+        const QString sshDirectoryPath = info.sharedSsh + QLatin1Char('/');
+        const QStringList authorizedKeysPaths = QStringList()
+                << sshDirectoryPath + QLatin1String("root/") + QLatin1String(Constants::MER_AUTHORIZEDKEYS_FOLDER)
+                << sshDirectoryPath + m_params.userName
+                   + QLatin1String("/") + QLatin1String(Constants::MER_AUTHORIZEDKEYS_FOLDER);
+        foreach (const QString &path, authorizedKeysPaths) {
+            const bool success = MerSdkManager::instance()->authorizePublicKey(path, pubKeyPath, error);
+            Q_UNUSED(success)
+            //TODO: error handling
+        }
     }
 
 private:

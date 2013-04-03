@@ -87,7 +87,7 @@ void MerPlugin::testMerSshOutputParsers_data()
             << QString() << QString()
             << (QList<Task>()
                 << Task(Task::Error,
-                        QLatin1String("MerSDK is not running"),
+                        QLatin1String("MerSDK is not running."),
                         Utils::FileName(), -1,
                         categoryBuildSystem))
             << QString();

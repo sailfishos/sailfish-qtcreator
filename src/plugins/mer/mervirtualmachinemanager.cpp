@@ -164,6 +164,14 @@ void MerVirtualMachineManager::stopRemote(const QString &vmName,
     runner->run("shutdown now", sshParams);
 }
 
+void MerVirtualMachineManager::disconnectRemote(const QString &vmName)
+{
+    if (m_sshConnections.contains(vmName)) {
+        m_sshConnections[vmName]->disconnectFromHost();
+        m_sshConnections.remove(vmName);
+    }
+}
+
 void MerVirtualMachineManager::onError(QSsh::SshError error)
 {
     QSsh::SshConnection *connection = qobject_cast<QSsh::SshConnection *>(sender());

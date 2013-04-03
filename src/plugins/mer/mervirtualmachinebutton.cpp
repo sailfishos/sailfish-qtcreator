@@ -54,7 +54,8 @@ void MerVirtualMachineButton::initialize()
     connect(m_action, SIGNAL(triggered()), SLOT(handleTriggered()));
 
     Core::Command *command =
-            Core::ActionManager::registerAction(m_action,"TODO::Core::Id",Core::Context(Core::Constants::C_GLOBAL));
+            Core::ActionManager::registerAction(m_action, Core::Id(m_name),
+                                                Core::Context(Core::Constants::C_GLOBAL));
     command->setAttribute(Core::Command::CA_UpdateText);
     command->setAttribute(Core::Command::CA_UpdateIcon);
 
@@ -79,7 +80,7 @@ void MerVirtualMachineButton::update()
     m_action->setEnabled(m_enabled);
     m_action->setVisible(m_visible);
     m_action->setToolTip(toolTip);
-    m_action->setIcon(m_icon.pixmap(iconSize, QIcon::Normal,state));
+    m_action->setIcon(m_icon.pixmap(iconSize, QIcon::Normal, state));
 }
 
 void MerVirtualMachineButton::handleTriggered()
