@@ -36,11 +36,6 @@ enum CommandType {
     CommandTypeSb2
 };
 
-const char QMAKE_QUERY[] = "qmake.query";
-const char QMAKE_VERSION[] = "qmake.version";
-const char GCC_DUMPMACHINE[] = "gcc.dumpmachine";
-const char GCC_DUMPVERSION[] = "gcc.dumpversion";
-
 MerSSH::MerSSH(QObject *parent)
     : QObject(parent)
     , m_exitCode(0)
@@ -81,14 +76,14 @@ QString cacheFile(const QString &command, const QString &wrapperDir)
     const QStringList commandElements = command.split(QLatin1Char(' '));
     if (commandElements.first() == QLatin1String("qmake")) {
         if (commandElements.contains(QLatin1String("-version")))
-            result = QLatin1String(QMAKE_VERSION);
+            result = QLatin1String(Mer::Constants::QMAKE_VERSION);
         else if (commandElements.contains(QLatin1String("-query")))
-            result = QLatin1String(QMAKE_QUERY);
+            result = QLatin1String(Mer::Constants::QMAKE_QUERY);
     } else if (commandElements.first() == QLatin1String("gcc")) {
         if (commandElements.contains(QLatin1String("-dumpmachine")))
-            result = QLatin1String(GCC_DUMPMACHINE);
+            result = QLatin1String(Mer::Constants::GCC_DUMPMACHINE);
         else if (commandElements.contains(QLatin1String("-dumpversion")))
-            result = QLatin1String(GCC_DUMPVERSION);
+            result = QLatin1String(Mer::Constants::GCC_DUMPVERSION);
     }
     if (!result.isEmpty())
         result.prepend(wrapperDir);
@@ -197,11 +192,11 @@ void MerSSH::onProcessClosed(int exitStatus)
             && m_runner->processExitCode() == 0;
     if (ok && !m_currentCacheFile.isEmpty()) {
         QFile file(m_currentCacheFile);
-        if (!file.open(QIODevice::WriteOnly)){
+        if (!file.open(QIODevice::WriteOnly)) {
             qCritical("Cannot write file '%s'", qPrintable(m_currentCacheFile));
             QCoreApplication::exit(1);
         }
-        if (m_currentCacheFile.endsWith(QLatin1String(QMAKE_QUERY)))
+        if (m_currentCacheFile.endsWith(QLatin1String(Mer::Constants::QMAKE_QUERY)))
             m_currentCacheData.replace(":/", QString(QLatin1Char(':') + m_merSysRoot
                                                      + QLatin1Char('/')).toUtf8());
         file.write(m_currentCacheData);

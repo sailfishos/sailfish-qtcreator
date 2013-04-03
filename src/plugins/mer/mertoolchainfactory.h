@@ -34,7 +34,7 @@ public:
     QString displayName() const;
     QString id() const;
 
-    QList<ProjectExplorer::ToolChain *> autoDetect();
+    //QList<ProjectExplorer::ToolChain *> autoDetect();
 
     bool canRestore(const QVariantMap &data);
     ProjectExplorer::ToolChain *restore(const QVariantMap &data);

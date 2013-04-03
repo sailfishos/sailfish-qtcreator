@@ -41,6 +41,7 @@ public:
     bool isRemoteRegistered(const QString &vmName) const;
     bool startRemote(const QString &vmName, const QSsh::SshConnectionParameters &params);
     bool connectToRemote(const QString &vmName, const QSsh::SshConnectionParameters &params);
+    void disconnectRemote(const QString &vmName);
     void stopRemote(const QString &vmName);
     void stopRemote(const QString &vmName, const QSsh::SshConnectionParameters &params);
 
@@ -65,7 +66,7 @@ private:
 private:
     static MerVirtualMachineManager *m_remoteManager;
     QHash<QString, QSsh::SshConnection *> m_sshConnections;
-    QHash<QSsh::SshConnection *, QPair<QString,int> > m_sshConnectionsInProgress;
+    QHash<QSsh::SshConnection *, QPair<QString, int> > m_sshConnectionsInProgress;
     QList<QSsh::SshConnection *> m_sshConnectionRetries;
     static const int m_connectionRetries;
     static const int m_initialConnectionTimeout;

@@ -37,7 +37,7 @@ public:
 
     QWidget *createPage(QWidget *parent);
     void apply();
-    void finish() { }
+    void finish();
     bool matches(const QString &key) const;
 
 private slots:

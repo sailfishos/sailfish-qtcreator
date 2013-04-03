@@ -25,61 +25,102 @@
 
 #include <ssh/sshconnection.h>
 #include <coreplugin/id.h>
-
+#include <QFileSystemWatcher>
 #include <QStringList>
+
+namespace ProjectExplorer {
+ class Kit;
+}
+
+namespace Utils {
+ class FileName;
+}
 
 namespace Mer {
 namespace Internal {
 
-class MerSdk
+class MerQtVersion;
+class MerToolChain;
+class MerTarget;
+
+class MerSdk : public QObject
 {
+    Q_OBJECT
 public:
-    explicit MerSdk(bool autoDetected = false);
-    virtual ~MerSdk() {}
+    virtual ~MerSdk();
 
-    bool isAutoDetected() const { return m_autoDetected; }
+    bool isAutoDetected() const;
+    void setAutodetect(bool autoDetected);
 
-    void setVirtualMachineName(const QString &name) { m_name = name; }
-    QString virtualMachineName() const { return m_name; }
+    void setVirtualMachineName(const QString &name);
+    QString virtualMachineName() const;
 
-    void setSharedHomePath(const QString &homePath) { m_sharedHomePath = homePath; }
-    QString sharedHomePath() const { return m_sharedHomePath; }
+    void setSharedHomePath(const QString &homePath);
+    QString sharedHomePath() const;
 
-    void setSharedTargetPath(const QString &targetPath) { m_sharedTargetPath = targetPath; }
-    QString sharedTargetPath() const { return m_sharedTargetPath; }
+    void setSharedTargetPath(const QString &targetPath);
+    QString sharedTargetPath() const;
 
-    void setSharedSshPath(const QString &sshPath) { m_sharedSshPath = sshPath; }
-    QString sharedSshPath() const { return m_sharedSshPath; }
+    void setSharedSshPath(const QString &sshPath);
+    QString sharedSshPath() const;
 
-    void setSshConnectionParameters(const QSsh::SshConnectionParameters &connectionParams)
-    {
-        m_connectionParams = connectionParams;
-    }
+    void setSshPort(quint16 port);
+    quint16 sshPort() const;
 
-    QSsh::SshConnectionParameters sshConnectionParams() const { return m_connectionParams; }
+    void setWwwPort(quint16 port);
+    quint16 wwwPort() const;
 
-    void setToolChains(const QHash<QString, QString> &toolChains) { m_toolChains = toolChains; }
-    QHash<QString, QString> toolChains() const { return m_toolChains; }
+    void setPrivateKeyFile(const QString &file);
+    QString privateKeyFile() const;
 
-    void setQtVersions(const QHash<QString, int> &qmakeIds) { m_qtVersions = qmakeIds; }
-    QHash<QString, int> qtVersions() const { return m_qtVersions; }
+    void setHost(const QString &host);
+    QString host() const;
 
-    QStringList targets() const { return m_toolChains.keys(); }
+    void setUserName(const QString &username);
+    QString userName() const;
+
+    QStringList targets() const;
+
+    bool isValid() const;
+    virtual QVariantMap toMap() const;
+    virtual bool fromMap(const QVariantMap &data);
+
+    void attach();
+    void detach();
+
+signals:
+    void targetsChanged(const QStringList &targets);
+
+private slots:
+    void updateTargets();
+    void handleTargetsFileChanged(const QString &file);
+
+private:
+    explicit MerSdk(QObject *parent = 0);
+    QList<MerTarget> readTargets(const Utils::FileName &fileName);
+    bool addTarget(const MerTarget &target);
+    bool removeTarget(const MerTarget &target);
+    void setTargets(const QList<MerTarget> &targets);
 
 private:
     QString m_name;
     QString m_sharedHomePath;
     QString m_sharedTargetPath;
     QString m_sharedSshPath;
-    QSsh::SshConnectionParameters m_connectionParams;
-    QHash<QString, QString> m_toolChains;       // QHash<target, id>
-    QHash<QString, int> m_qtVersions;           // QHash<target, id>
-    bool m_autoDetected;                        // true if the VM was packaged
+    QString m_host;
+    QString m_userName;
+    QString m_privateKeyFile;
+    quint16 m_sshPort;
+    quint16 m_wwwPort;
+
+    bool m_autoDetected;
+    QList<MerTarget> m_targets;
+    QFileSystemWatcher m_watcher;
+
+friend class MerSdkManager;
 };
 
 } // Internal
 } // Mer
-
-Q_DECLARE_METATYPE(Mer::Internal::MerSdk)
 
 #endif // MERSDK_H

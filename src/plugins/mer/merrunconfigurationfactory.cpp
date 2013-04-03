@@ -101,9 +101,8 @@ ProjectExplorer::RunConfiguration *MerRunConfigurationFactory::create(
     if (!canCreate(parent, id))
         return 0;
 
-    if (id.toString().startsWith(QLatin1String(MER_RUNCONFIGURATION_PREFIX))){
+    if (id.toString().startsWith(QLatin1String(MER_RUNCONFIGURATION_PREFIX)))
         return new MerRunConfiguration(parent, id, pathFromId(id));
-    }
 
     return 0;
 }

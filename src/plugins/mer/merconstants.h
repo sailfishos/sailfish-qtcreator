@@ -28,7 +28,7 @@
 namespace Mer {
 namespace Constants {
 
-const char MER_QT[]  = "Qt4ProjectManager.QtVersion.Mer";
+const char MER_QT[] = "Qt4ProjectManager.QtVersion.Mer";
 const char MER_TOOLCHAIN_ID[] = "Qt4ProjectManager.ToolChain.Mer";
 
 const char MER_PLATFORM[] = "Mer";
@@ -74,15 +74,24 @@ const char MERSSH_PARAMETER_COMMANDTYPE[] = "-commandtype";
 // Keys used for ini files
 const char MER_SDK[] = "MerSDK";
 const char MER_SDK_TOOLS[] = "/mer-sdk-tools/";
+const char MER_SDK_DATA_KEY[] = "MerSDK.";
+const char MER_TARGET_DATA_KEY[] = "MerTarget.";
+const char MER_SDK_COUNT_KEY[] = "MerSDK.Count";
+const char MER_TARGET_COUNT_KEY[] = "MerTarget.Count";
+const char MER_SDK_FILE_VERSION_KEY[] = "MerSDK.Version";
+const char MER_TARGET_FILE_VERSION_KEY[] = "MerTarget.Version";
+const char VM_NAME[] = "VirtualMachineName";
 const char SHARED_HOME[] = "SharedHome";
 const char SHARED_TARGET[] = "SharedTarget";
 const char SHARED_SSH[] = "SharedSsh";
 const char AUTHENTICATION_TYPE[] = "AuthenticationType";
+const char HOST[] = "Host";
 const char USERNAME[] = "Username";
 const char PASSWORD[] = "Password";
 const char KEY[] = "Key";
 const char PRIVATE_KEY_FILE[] = "PrivateKeyFile";
 const char SSH_PORT[] = "SshPort";
+const char WWW_PORT[] = "WwwPort";
 const char ID[] = "Id";
 const char NAME[] = "Name";
 const char KITS[] = "Kits";
@@ -102,6 +111,20 @@ const char MER_SFTP_DEPLOY_CONFIGURATION_ID[] = "Qt4ProjectManager.MerSftpDeploy
 const char MER_EMULATOR_START_ACTION_ID[] = "Mer.MerEmulatorStartAction";
 
 const char SAILFISHOS_FEATURE[] = "QtSupport.Wizards.FeatureSailfishOS";
+
+const char MER_SDK_FILENAME[] = "/qtcreator/mersdk.xml";
+const char MER_TARGETS_FILENAME[] = "/targets.xml";
+
+const char TARGET_NAME[] = "MerTarget.Name";
+const char QMAKE_DUMP[] = "MerTarget.QmakeQuery";
+const char GCC_DUMP[] = "MerTarget.GccDumpMachine";
+
+const char QMAKE_QUERY[] = "qmake.query";
+const char QMAKE_VERSION[] = "qmake.version";
+const char GCC_DUMPMACHINE[] = "gcc.dumpmachine";
+const char GCC_DUMPVERSION[] = "gcc.dumpversion";
+
+const char MER_AUTHORIZEDKEYS_FOLDER[] = "authorized_keys";
 
 } // namespace Constants
 } // namespace Mer

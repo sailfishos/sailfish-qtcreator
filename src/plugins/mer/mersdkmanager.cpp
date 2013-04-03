@@ -41,13 +41,16 @@
 #include <projectexplorer/taskhub.h>
 #include <remotelinux/remotelinuxrunconfiguration.h>
 #include <utils/qtcassert.h>
+#include <ssh/sshkeygenerator.h>
 
 #include <QSettings>
 #include <QFileInfo>
 #include <QMessageBox>
+#include <QDesktopServices>
 
 using namespace Mer::Constants;
 using namespace ProjectExplorer;
+using namespace QtSupport;
 using namespace RemoteLinux;
 using namespace QSsh;
 using namespace ProjectExplorer;
@@ -58,10 +61,24 @@ namespace Internal {
 MerSdkManager *MerSdkManager::m_sdkManager = 0;
 ProjectExplorer::Project *MerSdkManager::m_previousProject = 0;
 
-MerSdkManager::MerSdkManager()
-    : m_intialized(false)
+static Utils::FileName globalSettingsFileName()
 {
-    connect(Core::ICore::instance(), SIGNAL(saveSettingsRequested()), SLOT(writeSettings()));
+    QSettings *globalSettings = ExtensionSystem::PluginManager::globalSettings();
+    return Utils::FileName::fromString(QFileInfo(globalSettings->fileName()).absolutePath()
+                                       + QLatin1String(MER_SDK_FILENAME));
+}
+
+static Utils::FileName settingsFileName()
+{
+     QFileInfo settingsLocation(ExtensionSystem::PluginManager::settings()->fileName());
+     return Utils::FileName::fromString(settingsLocation.absolutePath() + QLatin1String(MER_SDK_FILENAME));
+}
+
+MerSdkManager::MerSdkManager()
+    : m_intialized(false),
+      m_writer(0)
+{
+    connect(Core::ICore::instance(), SIGNAL(saveSettingsRequested()), SLOT(storeSdks()));
 
     KitManager *km = KitManager::instance();
 
@@ -108,108 +125,175 @@ MerSdkManager::MerSdkManager()
     connect(&m_remoteEmulatorBtn, SIGNAL(stopRequest()), SLOT(handleStopRemoteRequested()));
     connect(&m_remoteSdkBtn, SIGNAL(stopRequest()), SLOT(handleStopRemoteRequested()));
 
+    m_writer = new Utils::PersistentSettingsWriter(settingsFileName(), QLatin1String("MerSDKs"));
     m_sdkManager = this;
 }
 
 MerSdkManager::~MerSdkManager()
 {
+    qDeleteAll(m_sdks.values());
     m_sdkManager = 0;
 }
 
 void MerSdkManager::initialize()
 {
     if (!m_intialized) {
-        //read stored sdks
-        readSettings();
-
-        //populate sdks toolchains qtversion
-        const QList<ToolChain *> &toolChains = ToolChainManager::instance()->toolChains();
-        const QList<QtSupport::BaseQtVersion *> &versions =
-                QtSupport::QtVersionManager::instance()->versions();
-
-        QMap<QString, MerSdk> sdks;
-
-        foreach (MerSdk sdk, m_sdks) {
-            QHash<QString, QString> toolChainsList;
-            foreach (const ToolChain *toolChain, toolChains) {
-                if (toolChain->type() != QLatin1String(Constants::MER_TOOLCHAIN_TYPE))
-                    continue;
-                const MerToolChain *tc = static_cast<const MerToolChain *>(toolChain);
-                if (tc->virtualMachineName() == sdk.virtualMachineName())
-                    toolChainsList.insert(tc->targetName(), toolChain->id());
-            }
-            sdk.setToolChains(toolChainsList);
-
-            QHash<QString, int> qtVersionsList;
-            foreach (const QtSupport::BaseQtVersion *version, versions) {
-                if (version->type() != QLatin1String(Constants::MER_QT))
-                    continue;
-                const MerQtVersion *qtv = static_cast<const MerQtVersion *>(version);
-                if (qtv->virtualMachineName() == sdk.virtualMachineName())
-                    qtVersionsList.insert(qtv->targetName(), version->uniqueId());
-            }
-            sdk.setQtVersions(qtVersionsList);
-            sdks.insert(sdk.virtualMachineName(), sdk);
+        restore();
+        //read kits
+        QList<Kit*> kits = merKits();
+        QList<MerToolChain*> toolchains = merToolChains();
+        QList<MerQtVersion*> qtversions = merQtVersions();
+        //cleanup
+        foreach (MerToolChain *toolchain, toolchains) {
+            const MerSdk *sdk = m_sdks[toolchain->virtualMachineName()];
+            if (sdk && sdk->targets().contains(toolchain->targetName()))
+                continue;
+            qWarning() << "MerToolChain wihout target found. Removing toolchain.";
+            ToolChainManager::instance()->deregisterToolChain(toolchain);
         }
-        m_sdks = sdks;
+
+        foreach (MerQtVersion *version, qtversions) {
+            const MerSdk *sdk = m_sdks[version->virtualMachineName()];
+            if (sdk && sdk->targets().contains(version->targetName()))
+                continue;
+            qWarning() << "MerQtVersion without target found. Removing qtversion.";
+            QtVersionManager::instance()->removeVersion(version);
+        }
+
+        //remove broken kits
+        foreach (Kit *kit, kits) {
+            if (!validateKit(kit)) {
+                qWarning() << "Broken Mer kit found !. Removing kit.";
+                KitManager::instance()->deregisterKit(kit);
+            }
+        }
         m_intialized = true;
-        emit sdksUpdated();
     }
+}
+
+QList<Kit *> MerSdkManager::merKits() const
+{
+    QList<Kit*> kits;
+    foreach (ProjectExplorer::Kit *kit, ProjectExplorer::KitManager::instance()->kits()) {
+        if (isMerKit(kit))
+            kits << kit;
+    }
+    return kits;
+}
+
+QList<MerToolChain *> MerSdkManager::merToolChains() const
+{
+    QList<MerToolChain*> toolchains;
+    foreach (ProjectExplorer::ToolChain *toolchain, ProjectExplorer::ToolChainManager::instance()->toolChains()) {
+        if (!toolchain->isAutoDetected())
+            continue;
+        if (toolchain->type() != QLatin1String(Constants::MER_TOOLCHAIN_TYPE))
+            continue;
+        toolchains << static_cast<MerToolChain*>(toolchain);
+    }
+    return toolchains;
+}
+
+QList<MerQtVersion *> MerSdkManager::merQtVersions() const
+{
+    QList<MerQtVersion*> qtversions;
+    foreach (BaseQtVersion *qtVersion, QtSupport::QtVersionManager::instance()->versions()) {
+        if (!qtVersion->isAutodetected())
+            continue;
+        if (qtVersion->type() != QLatin1String(Constants::MER_QT))
+            continue;
+        qtversions << static_cast<MerQtVersion*>(qtVersion);
+    }
+    return qtversions;
 }
 
 MerSdkManager *MerSdkManager::instance()
 {
-    Q_ASSERT(m_sdkManager);
+    QTC_CHECK(m_sdkManager);
     return m_sdkManager;
 }
 
-QList<MerSdk> MerSdkManager::sdks() const
+QList<MerSdk*> MerSdkManager::sdks() const
 {
     return m_sdks.values();
 }
 
-MerSdk MerSdkManager::sdk(const QString &sdkName) const
+void MerSdkManager::restore()
 {
-    return m_sdks.value(sdkName);
+    //first global location
+    QList<MerSdk*> globalSDK = restoreSdks(globalSettingsFileName());
+    Q_UNUSED(globalSDK)
+    //TODO some logic :)
+    //local location
+    QList<MerSdk*> localSDK = restoreSdks(settingsFileName());
+
+    foreach (MerSdk *sdk, localSDK)
+        addSdk(sdk);
 }
 
-void MerSdkManager::readSettings()
+QList<MerSdk*> MerSdkManager::restoreSdks(const Utils::FileName &fileName)
 {
-    QSettings *s = Core::ICore::settings();
-    s->beginGroup(QLatin1String(MER_SDK));
-    const QStringList sdks = s->childGroups();
-    foreach (const QString &sdk, sdks) {
-        s->beginGroup(sdk);
-        bool autoDetected = s->value(QLatin1String(AUTO_DETECTED)).toBool();
-        MerSdk mersdk(autoDetected);
+    QList<MerSdk*> result;
 
-        mersdk.setVirtualMachineName(sdk);
+    Utils::PersistentSettingsReader reader;
+    if (!reader.load(fileName))
+        return result;
+    QVariantMap data = reader.restoreValues();
 
-        mersdk.setSharedHomePath(s->value(QLatin1String(SHARED_HOME)).toString());
-        mersdk.setSharedTargetPath(s->value(QLatin1String(SHARED_TARGET)).toString());
-        mersdk.setSharedSshPath(s->value(QLatin1String(SHARED_SSH)).toString());
+    int version = data.value(QLatin1String(MER_SDK_FILE_VERSION_KEY), 0).toInt();
+    if (version < 1)
+        return result;
 
-        SshConnectionParameters params = defaultConnectionParameters();
-        params.userName = s->value(QLatin1String(USERNAME)).toString();
-        params.password = s->value(QLatin1String(PASSWORD)).toString();
-        params.privateKeyFile = s->value(QLatin1String(PRIVATE_KEY_FILE)).toString();
-        params.authenticationType =
-                s->value(QLatin1String(AUTHENTICATION_TYPE)).toString() == QLatin1String(PASSWORD)
-                ? SshConnectionParameters::AuthenticationByPassword
-                : SshConnectionParameters::AuthenticationByKey;
-        params.port = s->value(QLatin1String(SSH_PORT)).toUInt();
-        mersdk.setSshConnectionParameters(params);
-        s->endGroup();
-        m_sdks.insert(sdk, mersdk);
+    int count = data.value(QLatin1String(MER_SDK_COUNT_KEY), 0).toInt();
+    for (int i = 0; i < count; ++i) {
+        const QString key = QString::fromLatin1(MER_SDK_DATA_KEY) + QString::number(i);
+        if (!data.contains(key))
+            break;
+
+        const QVariantMap merSdkMap = data.value(key).toMap();
+        MerSdk *sdk = new MerSdk();
+        if (!sdk->fromMap(merSdkMap)) {
+             qWarning() << sdk->virtualMachineName()<<"is configured incorrectly...";
+        }
+        result << sdk;
     }
-    s->endGroup();
+    return result;
+}
+
+void MerSdkManager::storeSdks() const
+{
+    QVariantMap data;
+    data.insert(QLatin1String(MER_SDK_FILE_VERSION_KEY), 1);
+    int count = 0;
+    foreach (const MerSdk* sdk, m_sdks) {
+        if (!sdk->isValid()) {
+            qWarning() << sdk->virtualMachineName()<<"is configured incorrectly...";
+        }
+        QVariantMap tmp = sdk->toMap();
+        if (tmp.isEmpty())
+            continue;
+        data.insert(QString::fromLatin1(MER_SDK_DATA_KEY) + QString::number(count), tmp);
+        ++count;
+    }
+    data.insert(QLatin1String(MER_SDK_COUNT_KEY), count);
+    m_writer->save(data, Core::ICore::mainWindow());
 }
 
 bool MerSdkManager::isMerKit(Kit *kit)
 {
     if (!kit)
         return false;
-    return kit->value(Core::Id(TYPE)).toString() == QLatin1String(MER_SDK);
+    if (!kit->isAutoDetected())
+        return false;
+
+    ProjectExplorer::ToolChain* tc = ProjectExplorer::ToolChainKitInformation::toolChain(kit);
+    const Core::Id deviceType = DeviceTypeKitInformation::deviceTypeId(kit);
+    if (tc && tc->type() == QLatin1String(Constants::MER_TOOLCHAIN_TYPE))
+        return true;
+    if (deviceType.isValid() && deviceType == Core::Id(Constants::MER_DEVICE_TYPE))
+        return true;
+
+    return false;
 }
 
 QString MerSdkManager::targetNameForKit(Kit *kit)
@@ -254,131 +338,69 @@ QString MerSdkManager::globalSdkToolsDirectory()
             QLatin1String(Constants::MER_SDK_TOOLS);
 }
 
-SshConnectionParameters MerSdkManager::defaultConnectionParameters()
-{
-    SshConnectionParameters params;
-    params.userName = QLatin1String(MER_SDK_DEFAULTUSER);
-    params.authenticationType = SshConnectionParameters::AuthenticationByKey;
-    params.host = QLatin1String(MER_SDK_DEFAULTHOST);
-    params.timeout = 10;
-    return params;
-}
-
-bool MerSdkManager::authorizePublicKey(const QString &vmName,
+bool MerSdkManager::authorizePublicKey(const QString &authorizedKeysPath,
                                        const QString &pubKeyPath,
-                                       const QString &userName,
-                                       QWidget *parent = 0)
+                                       QString &error)
 {
-    VirtualMachineInfo info = VirtualBoxManager::fetchVirtualMachineInfo(vmName);
-
-    const QString sshDirectoryPath = info.sharedSsh + QLatin1Char('/');
-    const QStringList authorizedKeysPaths = QStringList()
-            << sshDirectoryPath + QLatin1String("root/authorized_keys")
-            << sshDirectoryPath + userName
-               + QLatin1String("/authorized_keys");
-
     bool success = false;
     QFileInfo fi(pubKeyPath);
     if (!fi.exists()) {
-        QMessageBox::critical(parent, tr("Cannot Authorize Keys"),
-                              tr("Error: File %1 is missing \n").arg(pubKeyPath));
+        error.append(tr("Error: File %1 is missing.").arg(pubKeyPath));
         return success;
     }
 
     Utils::FileReader pubKeyReader;
     success = pubKeyReader.fetch(pubKeyPath);
     if (!success) {
-        QMessageBox::critical(parent, tr("Cannot Authorize Keys"),
-                              tr("Error: %1 \n").arg(pubKeyReader.errorString()));
+        error.append(tr("Error: %1").arg(pubKeyReader.errorString()));
         return success;
     }
+
     const QByteArray publicKey = pubKeyReader.data();
-    foreach (const QString &authorizedKeys, authorizedKeysPaths) {
-        bool containsKey = false;
-        {
-            Utils::FileReader authKeysReader;
-            success = authKeysReader.fetch(authorizedKeys);
-            if (!success) {
-                // File could not be read. Does it exist?
-                // Check for directory
-                QDir sshDirectory(QFileInfo(authorizedKeys).absolutePath());
-                if (!sshDirectory.exists() && !sshDirectory.mkpath(sshDirectory.absolutePath())) {
-                    QMessageBox::critical(parent, tr("Cannot Authorize Keys"),
-                                          tr("Error: Could not create directory %1 \n").arg(
-                                              sshDirectory.absolutePath()));
-                    success = false;
-                    break;
-                }
 
-                QFileInfo akFi(authorizedKeys);
-                if (!akFi.exists()) {
-                    // Create file
-                    Utils::FileSaver authKeysSaver(authorizedKeys, QIODevice::WriteOnly);
-                    authKeysSaver.write(publicKey);
-                    success = authKeysSaver.finalize();
-                    if (!success) {
-                        QMessageBox::critical(parent, tr("Cannot Authorize Keys"),
-                                              tr("Error: %1 \n").arg(authKeysSaver.errorString()));
-                        break;
-                    }
-                    QFile::setPermissions(authorizedKeys, QFile::ReadOwner|QFile::WriteOwner);
-                }
-            } else {
-                containsKey = authKeysReader.data().contains(publicKey);
-            }
+    QDir sshDirectory(QFileInfo(authorizedKeysPath).absolutePath());
+    if (!sshDirectory.exists() && !sshDirectory.mkpath(sshDirectory.absolutePath())) {
+        error.append(tr("Error: Could not create directory %1").arg(sshDirectory.absolutePath()));
+        success = false;
+        return success;
+    }
+
+    QFileInfo akFi(authorizedKeysPath);
+    if (!akFi.exists()) {
+        //create new key
+        Utils::FileSaver authKeysSaver(authorizedKeysPath, QIODevice::WriteOnly);
+        authKeysSaver.write(publicKey);
+        success = authKeysSaver.finalize();
+        if (!success) {
+            error.append(tr("Error: %1").arg(authKeysSaver.errorString()));
+            return success;
         }
-        if (!containsKey) {
-            // File does not contain the public key. Append it to file.
-            Utils::FileSaver authorizedKeysSaver(authorizedKeys, QIODevice::Append);
-            authorizedKeysSaver.write("\n");
-            authorizedKeysSaver.write(publicKey);
-            authorizedKeysSaver.write("\n");
-            success = authorizedKeysSaver.finalize();
-            if (!success) {
-                QMessageBox::critical(parent, tr("Cannot Authorize Keys"),
-                                      tr("Error: %1 \n").arg(authorizedKeysSaver.errorString()));
-                break;
-            }
+        QFile::setPermissions(authorizedKeysPath, QFile::ReadOwner|QFile::WriteOwner);
+    } else {
+        //append
+        Utils::FileReader authKeysReader;
+        success = authKeysReader.fetch(authorizedKeysPath);
+        if (!success) {
+            error.append(tr("Error: %1").arg(authKeysReader.errorString()));
+            return success;
+        }
+        success = !authKeysReader.data().contains(publicKey);
+        if (!success) {
+            error.append(tr("Key already authorized ! \n %1 already in %2").arg(pubKeyPath).arg(authorizedKeysPath));
+            return success;
+        }
+        // File does not contain the public key. Append it to file.
+        Utils::FileSaver authorizedKeysSaver(authorizedKeysPath, QIODevice::Append);
+        authorizedKeysSaver.write("\n");
+        authorizedKeysSaver.write(publicKey);
+        success = authorizedKeysSaver.finalize();
+        if (!success) {
+            error.append(tr("Error: %1").arg(authorizedKeysSaver.errorString()));
+            return success;
         }
     }
+
     return success;
-}
-
-void MerSdkManager::writeSettings(QSettings *s, const MerSdk &sdk) const
-{
-    s->beginGroup(sdk.virtualMachineName());
-
-    s->setValue(QLatin1String(AUTO_DETECTED), sdk.isAutoDetected());
-    s->setValue(QLatin1String(SHARED_HOME), sdk.sharedHomePath());
-    s->setValue(QLatin1String(SHARED_TARGET), sdk.sharedTargetPath());
-    s->setValue(QLatin1String(SHARED_SSH), sdk.sharedSshPath());
-
-    SshConnectionParameters params = sdk.sshConnectionParams();
-    s->setValue(QLatin1String(USERNAME), params.userName);
-    s->setValue(QLatin1String(PASSWORD), params.password);
-    s->setValue(QLatin1String(PRIVATE_KEY_FILE), params.privateKeyFile);
-    QString authType = QLatin1String(PASSWORD);
-    if (params.authenticationType == SshConnectionParameters::AuthenticationByKey)
-        authType = QLatin1String(KEY);
-    s->setValue(QLatin1String(AUTHENTICATION_TYPE), authType);
-    s->setValue(QLatin1String(SSH_PORT), QString::number(params.port));
-
-    s->endGroup();
-}
-
-void MerSdkManager::writeSettings() const
-{
-    QSettings *userSettings = Core::ICore::settings();
-    userSettings->remove(QLatin1String(MER_SDK));
-    userSettings->beginGroup(QLatin1String(MER_SDK));
-    foreach (const MerSdk &sdk, m_sdks) {
-        // Auto detected SDKs have been installed by the SDK installer
-        // Their settings are in the global scope and are non-modifiable.
-        if (sdk.isAutoDetected())
-            continue;
-        writeSettings(userSettings, sdk);
-    }
-    userSettings->endGroup();
 }
 
 void MerSdkManager::handleKitUpdated(Kit *kit)
@@ -537,16 +559,19 @@ bool MerSdkManager::sdkParams(QString &sdkName, SshConnectionParameters &params)
     Kit *kit = target->kit();
     if (!kit)
         return false;
+
     sdkName = virtualMachineNameForKit(kit);
     if (sdkName.isNull())
         return false;
 
-    foreach (const MerSdk& sdk , m_sdks) {
-        if (sdk.virtualMachineName()==sdkName) {
-            params = sdk.sshConnectionParams();
-            break;
-        }
-    }
+    const MerSdk *sdk = m_sdks[sdkName];
+    QTC_ASSERT(sdk, return false);
+    params.port = sdk->sshPort();
+    params.userName = sdk->userName();
+    params.authenticationType = SshConnectionParameters::AuthenticationByKey;
+    params.privateKeyFile = sdk->privateKeyFile();
+    params.host = sdk->host();
+
     return true;
 }
 
@@ -565,7 +590,7 @@ void MerSdkManager::handleTaskAdded(const Task &task)
         if (response == QMessageBox::Yes) {
             QString name;
             SshConnectionParameters params;
-            if (contains(vm))
+            if (sdk(vm))
                 sdkParams(name, params);
             else
                 emulatorParams(name, params);
@@ -574,21 +599,60 @@ void MerSdkManager::handleTaskAdded(const Task &task)
     }
 }
 
-void MerSdkManager::addSdk(const QString &sdkName, MerSdk sdk)
+bool MerSdkManager::hasSdk(const MerSdk* sdk) const
 {
-    m_sdks.insert(sdkName, sdk);
+    return m_sdks.contains(sdk->virtualMachineName());
+}
+
+// takes ownership
+void MerSdkManager::addSdk(MerSdk* sdk)
+{
+    if (m_sdks.contains(sdk->virtualMachineName()))
+        return;
+    m_sdks.insert(sdk->virtualMachineName(), sdk);
+    connect(sdk,SIGNAL(targetsChanged(QStringList)),this,SIGNAL(sdksUpdated()));
+    sdk->attach();
     emit sdksUpdated();
 }
 
-void MerSdkManager::removeSdk(const QString &sdkName)
+// pass back the ownership
+void MerSdkManager::removeSdk(MerSdk* sdk)
 {
-    m_sdks.remove(sdkName);
+    if (!m_sdks.contains(sdk->virtualMachineName()))
+        return;
+    m_sdks.remove(sdk->virtualMachineName());
+    disconnect(sdk,SIGNAL(targetsChanged(QStringList)),this,SIGNAL(sdksUpdated()));
+    sdk->detach();
     emit sdksUpdated();
 }
 
-bool MerSdkManager::contains(const QString &sdkName) const
+//ownership passed to caller
+MerSdk* MerSdkManager::createSdk(const QString &vmName)
 {
-    return m_sdks.contains(sdkName);
+    MerSdk *sdk = new MerSdk();
+
+    VirtualMachineInfo info =
+            VirtualBoxManager::fetchVirtualMachineInfo(vmName);
+    sdk->setVirtualMachineName(vmName);
+    sdk->setSshPort(info.sshPort);
+    sdk->setWwwPort(info.wwwPort);
+    //TODO:
+    sdk->setHost(QLatin1String(MER_SDK_DEFAULTHOST));
+    //TODO:
+    sdk->setUserName(QLatin1String(MER_SDK_DEFAULTUSER));
+    const QString sshDirectory(QDir::fromNativeSeparators(QDesktopServices::storageLocation(
+                                                              QDesktopServices::HomeLocation))+ QLatin1String("/.ssh"));
+    sdk->setPrivateKeyFile(QDir::toNativeSeparators(QString::fromLatin1("%1/id_rsa").arg(sshDirectory)));
+    sdk->setSharedHomePath(info.sharedHome);
+    sdk->setSharedTargetPath(info.sharedTarget);
+    sdk->setSharedSshPath(info.sharedSsh);
+    return sdk;
+}
+
+
+MerSdk* MerSdkManager::sdk(const QString &sdkName) const
+{
+    return m_sdks[sdkName];
 }
 
 void MerSdkManager::handleConnectionError(const QString &vmName, const QString &error)
@@ -601,47 +665,21 @@ void MerSdkManager::handleConnectionError(const QString &vmName, const QString &
                      Core::Id(MER_TASKHUB_CATEGORY)));
 }
 
-bool MerSdkManager::validateTarget(const MerSdk &sdk, const QString &target)
-{
-    QString toolchainId = sdk.toolChains().value(target);
-    int qtversionId = sdk.qtVersions().value(target);
-
-    if (toolchainId.isEmpty() || qtversionId == 0)
-        return false;
-
-    QtSupport::BaseQtVersion* version =
-            QtSupport::QtVersionManager::instance()->version(qtversionId);
-    ToolChain* toolchain =  ToolChainManager::instance()->findToolChain(toolchainId);
-
-    if (!version || !toolchain)
-        return false;
-    if (version->type() != QLatin1String(Constants::MER_QT))
-        return false;
-    if (toolchain->type() != QLatin1String(Constants::MER_TOOLCHAIN_TYPE))
-        return false;
-
-    QList<Kit*> kits = KitManager::instance()->kits();
-    foreach (Kit* kit, kits) {
-        ToolChain* kitToolChain = ToolChainKitInformation::toolChain(kit);
-        QtSupport::BaseQtVersion* kitVersion = QtSupport::QtKitInformation::qtVersion(kit);
-        if (kitToolChain == toolchain && kitVersion == version)
-            return true;
-    }
-    return false;
-}
-
 bool MerSdkManager::validateKit(const Kit* kit)
 {
     if (!kit)
         return false;
     ToolChain* toolchain = ToolChainKitInformation::toolChain(kit);
     QtSupport::BaseQtVersion* version = QtSupport::QtKitInformation::qtVersion(kit);
+    Core::Id deviceType = DeviceTypeKitInformation::deviceTypeId(kit);
 
-    if (!version || !toolchain)
+    if (!version || !toolchain || !deviceType.isValid())
         return false;
     if (version->type() != QLatin1String(Constants::MER_QT))
         return false;
     if (toolchain->type() != QLatin1String(Constants::MER_TOOLCHAIN_TYPE))
+        return false;
+    if (deviceType != Core::Id(Constants::MER_DEVICE_TYPE))
         return false;
 
     MerToolChain* mertoolchain = static_cast<MerToolChain*>(toolchain);
@@ -654,23 +692,59 @@ bool MerSdkManager::validateKit(const Kit* kit)
 void MerSdkManager::addToEnvironment(const QString &sdkName, Utils::Environment &env)
 {
     const VirtualMachineInfo vmInfo = VirtualBoxManager::fetchVirtualMachineInfo(sdkName);
-    const MerSdk sdk = MerSdkManager::instance()->sdk(sdkName);
-    QSsh::SshConnectionParameters sshParams = sdk.sshConnectionParams();
-    const QString sshPort = QString::number(vmInfo.sshPort ? vmInfo.sshPort : sshParams.port);
+    const MerSdk *sdk = MerSdkManager::instance()->sdk(sdkName);
+    QTC_CHECK(sdk);
+    const QString sshPort = QString::number(vmInfo.sshPort ? vmInfo.sshPort : sdk->sshPort());
     const QString sharedHome =
-            QDir::fromNativeSeparators(vmInfo.sharedHome.isEmpty() ? sdk.sharedHomePath()
+            QDir::fromNativeSeparators(vmInfo.sharedHome.isEmpty() ? sdk->sharedHomePath()
                                                                    : vmInfo.sharedHome);
     const QString sharedTarget =
-            QDir::fromNativeSeparators(vmInfo.sharedTarget.isEmpty() ? sdk.sharedTargetPath()
+            QDir::fromNativeSeparators(vmInfo.sharedTarget.isEmpty() ? sdk->sharedTargetPath()
                                                                      : vmInfo.sharedTarget);
 
 
     env.appendOrSet(QLatin1String("MER_SSH_USERNAME"),
                     QLatin1String(Constants::MER_SDK_DEFAULTUSER));
     env.appendOrSet(QLatin1String("MER_SSH_PORT"), sshPort);
-    env.appendOrSet(QLatin1String("MER_SSH_PRIVATE_KEY"), sshParams.privateKeyFile);
+    env.appendOrSet(QLatin1String("MER_SSH_PRIVATE_KEY"), sdk->privateKeyFile());
     env.appendOrSet(QLatin1String("MER_SSH_SHARED_HOME"), sharedHome);
     env.appendOrSet(QLatin1String("MER_SSH_SHARED_TARGET"), sharedTarget);
+}
+
+bool MerSdkManager::generateSshKey(const QString &privKeyPath, QString &error)
+{
+    if (QFileInfo(privKeyPath).exists()) {
+        error.append(tr("Error: File '%1' exists.\n").arg(privKeyPath));
+        return false;
+    }
+
+    bool success = true;
+    QSsh::SshKeyGenerator keyGen;
+    success = keyGen.generateKeys(QSsh::SshKeyGenerator::Rsa,
+                                  QSsh::SshKeyGenerator::Mixed, 2048,
+                                  QSsh::SshKeyGenerator::DoNotOfferEncryption);
+    if (!success) {
+        error.append(tr("Error: %1\n").arg(keyGen.error()));
+        return false;
+    }
+
+    Utils::FileSaver privKeySaver(privKeyPath);
+    privKeySaver.write(keyGen.privateKey());
+    success = privKeySaver.finalize();
+    if (!success) {
+        error.append(tr("Error: %1\n").arg(privKeySaver.errorString()));
+        return false;
+    }
+
+    Utils::FileSaver pubKeySaver(privKeyPath + QLatin1String(".pub"));
+    const QByteArray publicKey = keyGen.publicKey();
+    pubKeySaver.write(publicKey);
+    success = pubKeySaver.finalize();
+    if (!success) {
+        error.append(tr("Error: %1\n").arg(pubKeySaver.errorString()));
+        return false;
+    }
+    return true;
 }
 
 } // Internal

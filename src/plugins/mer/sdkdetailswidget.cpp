@@ -23,10 +23,8 @@
 #include "sdkdetailswidget.h"
 #include "ui_sdkdetailswidget.h"
 #include "merconstants.h"
-#include "sdkkitutils.h"
 #include "mersdkmanager.h"
 
-#include <QDesktopServices>
 #include <QFileDialog>
 
 namespace Mer {
@@ -38,59 +36,17 @@ SdkDetailsWidget::SdkDetailsWidget(QWidget *parent)
     , m_invalidIcon(QLatin1String(":/mer/images/compile_error.png"))
     , m_warningIcon(QLatin1String(":/mer/images/warning.png"))
     , m_updateConnection(false)
-    , m_validSdk(false)
 {
     m_ui->setupUi(this);
 
-    QButtonGroup *buttonGroup = new QButtonGroup(this);
-    buttonGroup->setExclusive(true);
-    buttonGroup->addButton(m_ui->createSshKeyRadioButton);
-    buttonGroup->addButton(m_ui->useExistingSshKeyRadioButton);
-    connect(buttonGroup, SIGNAL(buttonClicked(int)), SLOT(onSshKeyRadioButton()));
-
-    connect(m_ui->createSshKeySaveToolButton, SIGNAL(clicked()), SLOT(onSshKeySaveButtonClicked()));
-    connect(m_ui->createSshKeyPushButton, SIGNAL(clicked()), SLOT(onSshKeyButtonClicked()));
-
-    connect(m_ui->createSshKeyLineEdit, SIGNAL(editingFinished()),
-            SLOT(onAuthenticationInfoUpdated()));
-    connect(m_ui->createSshKeyLineEdit, SIGNAL(textChanged(QString)),
-            SLOT(onAuthenticationInfoChanged()));
-    connect(m_ui->privateKeyPathChooser, SIGNAL(editingFinished()),
-            SLOT(onAuthenticationInfoUpdated()));
-    connect(m_ui->privateKeyPathChooser, SIGNAL(changed(QString)),
-            SLOT(onAuthenticationInfoChanged()));
-
-    connect(m_ui->testConnectionButton, SIGNAL(clicked()), SLOT(onTestConnectionButtonClicked()));
-    connect(m_ui->deployPublicKeyButton, SIGNAL(clicked()),
-            SLOT(onAuthorizePublicKeyButtonClicked()));
-    connect(m_ui->updateKitsButton, SIGNAL(clicked()), SLOT(onUpdateKitsButtonClicked()));
-
-    connect(m_ui->targetsListWidget, SIGNAL(currentItemChanged(QListWidgetItem*,QListWidgetItem*)),
-            SLOT(onCurrentItemChanged(QListWidgetItem*)));
-
-    connect(m_ui->createKitButton, SIGNAL(clicked()), SLOT(onCreateKitButtonClicked()));
-    connect(m_ui->removeKitButton, SIGNAL(clicked()), SLOT(onRemoveKitButtonClicked()));
+    connect(m_ui->authorizeSshKeyPushButton, SIGNAL(clicked()), SLOT(onAuthorizeSshKeyButtonClicked()));
+    connect(m_ui->generateSshKeyPushButton, SIGNAL(clicked()), SLOT(onGenerateSshKeyButtonClicked()));
+    connect(m_ui->privateKeyPathChooser, SIGNAL(editingFinished()), SLOT(onPathChooserEditingFinished()));
+    connect(m_ui->privateKeyPathChooser, SIGNAL(browsingFinished()), SLOT(onPathChooserEditingFinished()));
+    connect(m_ui->testConnectionPushButton, SIGNAL(clicked()), SIGNAL(testConnectionButtonClicked()));
 
     m_ui->privateKeyPathChooser->setExpectedKind(Utils::PathChooser::File);
-    const QString sshDirectory(QDir::fromNativeSeparators(QDesktopServices::storageLocation(
-                                                              QDesktopServices::HomeLocation))
-                               + QLatin1String("/.ssh"));
-    m_ui->privateKeyPathChooser->setBaseDirectory(sshDirectory);
     m_ui->privateKeyPathChooser->setPromptDialogTitle(tr("Select SSH Key"));
-
-    m_ui->createSshKeyLineEdit->setText(
-                QDir::toNativeSeparators(sshDirectory + QLatin1String("/mer-qt-creator-rsa")));
-    m_ui->privateKeyPathChooser->setPath(QDir::toNativeSeparators(
-                                             QString::fromLatin1("%1/id_rsa").arg(sshDirectory)));
-
-    m_ui->updateKitsButton->setEnabled(false);
-    m_ui->createKitButton->setEnabled(false);
-    m_ui->removeKitButton->setEnabled(false);
-    m_ui->useExistingSshKeyRadioButton->setChecked(true);
-    m_ui->testConnectionButton->setEnabled(false);
-    m_ui->deployPublicKeyButton->setEnabled(false);
-
-    onSshKeyRadioButton();
 }
 
 SdkDetailsWidget::~SdkDetailsWidget()
@@ -101,196 +57,74 @@ SdkDetailsWidget::~SdkDetailsWidget()
 QString SdkDetailsWidget::searchKeyWordMatchString() const
 {
     const QChar blank = QLatin1Char(' ');
-    return  m_ui->createSshKeyLineEdit->text() + blank
-            + m_ui->privateKeyPathChooser->path() + blank
+    return  m_ui->privateKeyPathChooser->path() + blank
             + m_ui->homeFolderPathLabel->text() + blank
             + m_ui->targetFolderPathLabel->text() + blank
             + m_ui->sshFolderPathLabel->text();
 }
 
-bool SdkDetailsWidget::isSdkValid() const
+void SdkDetailsWidget::setSdk(const MerSdk *sdk)
 {
-    return m_validSdk;
-}
+    m_ui->nameLabelText->setText(sdk->virtualMachineName());
+    m_ui->sshPortLabelText->setText(QString::number(sdk->sshPort()));
+    m_ui->wwwPortLabelText->setText(QString::number(sdk->wwwPort()));
+    m_ui->homeFolderPathLabel->setText(QDir::toNativeSeparators(sdk->sharedHomePath()));
+    m_ui->targetFolderPathLabel->setText(QDir::toNativeSeparators(sdk->sharedTargetPath()));
+    m_ui->sshFolderPathLabel->setText(QDir::toNativeSeparators(sdk->sharedSshPath()));
 
-void SdkDetailsWidget::setSdk(const MerSdk &sdk, bool validSdk)
-{
-    m_validSdk = validSdk;
-    m_sdk = sdk;
-    QSsh::SshConnectionParameters params = m_sdk.sshConnectionParams();
-    const bool useExistingKey = !params.privateKeyFile.isEmpty();
-    m_ui->privateKeyPathChooser->setPath(params.privateKeyFile);
-    m_ui->createSshKeyRadioButton->setChecked(!useExistingKey);
-    m_ui->useExistingSshKeyRadioButton->setChecked(useExistingKey);
-    onSshKeyRadioButton();
-    const QString homePath = sdk.sharedHomePath();
-    m_ui->homeFolderPathLabel->setText(QDir::toNativeSeparators(homePath));
-    m_ui->targetFolderPathLabel->setText(QDir::toNativeSeparators(sdk.sharedTargetPath()));
-    m_ui->sshFolderPathLabel->setText(QDir::toNativeSeparators(sdk.sharedSshPath()));
-    bool isValidSdk = !homePath.isEmpty();
-    m_ui->testConnectionButton->setEnabled(isValidSdk);
-    if (isValidSdk) {
-        const QString authorized_keys = QDir::fromNativeSeparators(sdk.sharedSshPath())
-                + QLatin1String("/.ssh/authorized_keys");
-        m_ui->deployPublicKeyButton->setToolTip(tr("Add public key to %1").arg(
-                                                    QDir::toNativeSeparators(authorized_keys)));
+    if (MerSdkManager::instance()->hasSdk(sdk)) {
+        const QStringList &targets = sdk->targets();
+        if (targets.isEmpty())
+            m_ui->targetsListLabel->setText(tr("No targets installed"));
+        else
+            m_ui->targetsListLabel->setText(sdk->targets().join(QLatin1String(", ")));
+    } else {
+        m_ui->targetsListLabel->setText(tr("Add SDK first to see targets"));
     }
-    setValidTargets(sdk.qtVersions().keys());
 
+    if (!sdk->sharedHomePath().isEmpty()) {
+        const QString authorized_keys = QDir::fromNativeSeparators(sdk->sharedSshPath());
+        m_ui->authorizeSshKeyPushButton->setToolTip(tr("Add public key to %1").arg(
+                                                        QDir::toNativeSeparators(authorized_keys)));
+    }
+
+    m_ui->userNameLabelText->setText(sdk->userName());
     // For Mer VMs installed by the SDK installer, further key modifications
     // should be disabled.
-    const bool canModifyKeys = !sdk.isAutoDetected();
-    if (m_ui->createSshKeyRadioButton->isChecked()) {
-        m_ui->createSshKeyLineEdit->setEnabled(canModifyKeys);
-        m_ui->createSshKeySaveToolButton->setEnabled(canModifyKeys);
-        m_ui->createSshKeyPushButton->setEnabled(canModifyKeys);
-    } else {
-        m_ui->privateKeyPathChooser->setEnabled(canModifyKeys);
-    }
-    m_ui->createSshKeyRadioButton->setEnabled(canModifyKeys);
-    m_ui->useExistingSshKeyRadioButton->setEnabled(canModifyKeys);
-    m_ui->deployPublicKeyButton->setEnabled(isValidSdk && canModifyKeys);
+
+    const bool canModifyKeys = sdk->isAutoDetected();
+    m_ui->authorizeSshKeyPushButton->setEnabled(!canModifyKeys);
+    m_ui->generateSshKeyPushButton->setEnabled(!canModifyKeys);
+    m_ui->privateKeyPathChooser->setEnabled(!canModifyKeys);
 }
 
-MerSdk SdkDetailsWidget::sdk() const
+void SdkDetailsWidget::setPrivateKeyFile(const QString &path)
 {
-    MerSdk sdk = m_sdk;
-    QSsh::SshConnectionParameters params = sdk.sshConnectionParams();
-    params.privateKeyFile = m_ui->createSshKeyRadioButton->isChecked()
-            ? m_ui->createSshKeyLineEdit->text()
-            : m_ui->privateKeyPathChooser->path();
-    sdk.setSshConnectionParameters(params);
-    sdk.setSharedHomePath(m_ui->homeFolderPathLabel->text());
-    sdk.setSharedTargetPath(m_ui->targetFolderPathLabel->text());
-    sdk.setSharedSshPath(m_ui->sshFolderPathLabel->text());
-    return sdk;
+    m_ui->privateKeyPathChooser->setPath(path);
+    m_ui->privateKeyPathChooser->triggerChanged();
+    onPathChooserEditingFinished();
 }
 
-void SdkDetailsWidget::setValidTargets(const QStringList &targets)
+void SdkDetailsWidget::setStatus(const QString &status)
 {
-    bool needsUpdateTargets = false;
-    m_ui->targetsListWidget->clear();
-
-    QListWidgetItem *item = 0;
-    foreach (const QString &t, targets) {
-        if (MerSdkManager::validateTarget(m_sdk, t)) {
-            item = new QListWidgetItem(t, m_ui->targetsListWidget);
-            item->setData(InstallRole, true);
-        } else {
-            item = new QListWidgetItem(m_warningIcon, t, m_ui->targetsListWidget);
-            // if the target has been added by sdk installer then it cannot be updated
-            if (!needsUpdateTargets && !SdkKitUtils::isSdkKit(m_sdk.virtualMachineName(), t))
-                needsUpdateTargets = true;
-            item->setData(InstallRole, false);
-        }
-        item->setData(ValidRole, true);
-    }
-    m_ui->updateKitsButton->setEnabled(needsUpdateTargets);
+    m_ui->statusLabelText->setText(status);
 }
 
-QStringList SdkDetailsWidget::validTargets() const
+void SdkDetailsWidget::onAuthorizeSshKeyButtonClicked()
 {
-    QStringList targets;
-    int count = m_ui->targetsListWidget->count();
-    for (int i = 0; i < count; ++i) {
-        QListWidgetItem *item = m_ui->targetsListWidget->item(i);
-        if (item->data(ValidRole).toBool())
-            targets << item->text();
-    }
-    return targets;
+    if (m_ui->privateKeyPathChooser->isValid())
+        emit authorizeSshKey(m_ui->privateKeyPathChooser->path());
 }
 
-QStringList SdkDetailsWidget::installedTargets() const
+void SdkDetailsWidget::onGenerateSshKeyButtonClicked()
 {
-    QStringList targets;
-    int count = m_ui->targetsListWidget->count();
-    for (int i = 0; i < count; ++i) {
-        QListWidgetItem *item = m_ui->targetsListWidget->item(i);
-        if (item->data(InstallRole).toBool())
-            targets << item->text();
-    }
-    return targets;
+    emit generateSshKey(m_ui->privateKeyPathChooser->path());
 }
 
-void SdkDetailsWidget::onSshKeyRadioButton()
+void SdkDetailsWidget::onPathChooserEditingFinished()
 {
-    const bool existingSshKey = m_ui->useExistingSshKeyRadioButton->isChecked();
-    m_ui->createSshKeyLineEdit->setEnabled(!existingSshKey);
-    m_ui->createSshKeySaveToolButton->setEnabled(!existingSshKey);
-    m_ui->createSshKeyPushButton->setEnabled(!existingSshKey);
-    m_ui->privateKeyPathChooser->setEnabled(existingSshKey);
-}
-
-void SdkDetailsWidget::onSshKeySaveButtonClicked()
-{
-    const QString hostSshDirectoryPath =
-            QDesktopServices::storageLocation(QDesktopServices::HomeLocation)
-            + QLatin1String("/.ssh");
-    const QString fileName = QFileDialog::getSaveFileName(this, tr("Save SSH private key"),
-                                                          hostSshDirectoryPath);
-    m_ui->createSshKeyLineEdit->setText(QDir::toNativeSeparators(fileName));
-}
-
-void SdkDetailsWidget::onSshKeyButtonClicked()
-{
-    emit createSshKey(m_ui->createSshKeyLineEdit->text());
-}
-
-void SdkDetailsWidget::onAuthenticationInfoChanged()
-{
-    const bool authorizeKey = m_ui->createSshKeyRadioButton->isChecked()
-            || (m_ui->useExistingSshKeyRadioButton->isChecked()
-                && m_ui->privateKeyPathChooser->isValid());
-    m_ui->deployPublicKeyButton->setEnabled(authorizeKey);
-}
-
-void SdkDetailsWidget::onAuthenticationInfoUpdated()
-{
-    if (m_updateConnection)
-        emit testConnection();
-    m_updateConnection = false;
-}
-
-void SdkDetailsWidget::onCurrentItemChanged(QListWidgetItem *item)
-{
-    if (!item) {
-        m_ui->createKitButton->setEnabled(false);
-        m_ui->removeKitButton->setEnabled(false);
-        return;
-    }
-    const bool isInstalled = item->data(InstallRole).toBool();
-    const bool isSdkKit = SdkKitUtils::isSdkKit(m_sdk.virtualMachineName(), item->text());
-    m_ui->createKitButton->setEnabled(!isInstalled && !isSdkKit);
-    m_ui->removeKitButton->setEnabled(isInstalled && !isSdkKit);
-}
-
-void SdkDetailsWidget::onUpdateKitsButtonClicked()
-{
-    emit updateKits(validTargets());
-}
-
-void SdkDetailsWidget::onCreateKitButtonClicked()
-{
-    QStringList targets = installedTargets();
-    targets << m_ui->targetsListWidget->currentItem()->text();
-    emit updateKits(targets);
-}
-
-void SdkDetailsWidget::onRemoveKitButtonClicked()
-{
-    QStringList targets = installedTargets();
-    targets.removeOne(m_ui->targetsListWidget->currentItem()->text());
-    emit updateKits(targets);
-}
-
-void SdkDetailsWidget::onTestConnectionButtonClicked()
-{
-    emit testConnection();
-}
-
-void SdkDetailsWidget::onAuthorizePublicKeyButtonClicked()
-{
-    emit deployPublicKey();
+    if (m_ui->privateKeyPathChooser->isValid())
+        emit sshKeyChanged(m_ui->privateKeyPathChooser->path());
 }
 
 } // Internal

@@ -52,43 +52,27 @@ public:
     ~SdkDetailsWidget();
 
     QString searchKeyWordMatchString() const;
-
-    bool isSdkValid() const;
-
-    void setSdk(const MerSdk &sdk, bool validSdk = true);
-    MerSdk sdk() const;
-
-    void setValidTargets(const QStringList &targets);
-    QStringList validTargets() const;
-
-    QStringList installedTargets() const;
+    void setSdk(const MerSdk *sdk);
+    void setStatus(const QString &status);
+    void setPrivateKeyFile(const QString &path);
 
 signals:
-    void testConnection();
-    void updateKits(QStringList);
-    void deployPublicKey();
-    void createSshKey(QString);
+    void generateSshKey(const QString &key);
+    void sshKeyChanged(const QString &key);
+    void authorizeSshKey(const QString &key);
+    void testConnectionButtonClicked();
 
 private slots:
-    void onSshKeyRadioButton();
-    void onSshKeySaveButtonClicked();
-    void onSshKeyButtonClicked();
-    void onAuthenticationInfoChanged();
-    void onAuthenticationInfoUpdated();
-    void onCurrentItemChanged(QListWidgetItem *item);
-    void onUpdateKitsButtonClicked();
-    void onCreateKitButtonClicked();
-    void onRemoveKitButtonClicked();
-    void onTestConnectionButtonClicked();
-    void onAuthorizePublicKeyButtonClicked();
+    void onAuthorizeSshKeyButtonClicked();
+    void onGenerateSshKeyButtonClicked();
+    void onPathChooserEditingFinished();
+
 
 private:
     Ui::SdkDetailsWidget *m_ui;
-    MerSdk m_sdk;
     QIcon m_invalidIcon;
     QIcon m_warningIcon;
     bool m_updateConnection;
-    bool m_validSdk;
 };
 
 } // Internal
