@@ -33,7 +33,6 @@
 #include "baseqtversion.h"
 
 #include <extensionsystem/pluginmanager.h>
-#include <utils/environment.h>
 
 #include <QSettings>
 
@@ -56,10 +55,13 @@ bool sortByPriority(QtVersionFactory *a, QtVersionFactory *b)
     return a->priority() > b->priority();
 }
 
-BaseQtVersion *QtVersionFactory::createQtVersionFromQMakePath(const Utils::FileName &qmakePath, bool isAutoDetected, const QString &autoDetectionSource, QString *error)
+BaseQtVersion *QtVersionFactory::createQtVersionFromQMakePath(const Utils::FileName &qmakePath,
+                                                              bool isAutoDetected,
+                                                              const QString &autoDetectionSource,
+                                                              const Utils::Environment &env,
+                                                              QString *error)
 {
     QHash<QString, QString> versionInfo;
-    Utils::Environment env = Utils::Environment::systemEnvironment();
     if (!BaseQtVersion::queryQMakeVariables(qmakePath, env, &versionInfo, error))
         return 0;
     Utils::FileName mkspec = BaseQtVersion::mkspecFromVersionInfo(versionInfo);

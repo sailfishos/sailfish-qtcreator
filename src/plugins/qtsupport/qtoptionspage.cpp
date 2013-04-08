@@ -654,7 +654,9 @@ void QtOptionsPageWidget::addQtDir()
     }
 
     QString error;
-    version = QtVersionFactory::createQtVersionFromQMakePath(qtVersion, false, QString(), &error);
+    version = QtVersionFactory::createQtVersionFromQMakePath(qtVersion, false, QString(),
+                                                             Utils::Environment::systemEnvironment(),
+                                                             &error);
     if (version) {
         m_versions.append(version);
 

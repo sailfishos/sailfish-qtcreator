@@ -33,6 +33,8 @@
 #include "qtsupport_global.h"
 
 #include <utils/fileutils.h>
+#include <utils/environment.h>
+
 #include <QObject>
 #include <QVariantMap>
 
@@ -62,7 +64,11 @@ public:
     virtual int priority() const = 0;
     virtual BaseQtVersion *create(const Utils::FileName &qmakePath, ProFileEvaluator *evaluator, bool isAutoDetected = false, const QString &autoDetectionSource = QString()) = 0;
 
-    static BaseQtVersion *createQtVersionFromQMakePath(const Utils::FileName &qmakePath, bool isAutoDetected = false, const QString &autoDetectionSource = QString(), QString *error = 0);
+    static BaseQtVersion *createQtVersionFromQMakePath(const Utils::FileName &qmakePath,
+                                                       bool isAutoDetected = false,
+                                                       const QString &autoDetectionSource = QString(),
+                                                       const Utils::Environment &env = Utils::Environment::systemEnvironment(),
+                                                       QString *error = 0);
 };
 
 } // namespace QtSupport
