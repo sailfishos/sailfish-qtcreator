@@ -81,7 +81,6 @@ public slots:
 
 signals:
     void sdksUpdated();
-    void sdksTragetsUpdated();
     void sdkRunningChanged();
 
 private slots:

@@ -24,6 +24,7 @@
 #define MERPLUGIN_H
 
 #include <extensionsystem/iplugin.h>
+#include <QStringList>
 
 namespace Mer {
 namespace Internal {
@@ -43,8 +44,11 @@ public:
 private slots:
 
 #ifdef WITH_TESTS
+    void verifyTargets(QString vm, QStringList expectedKits, QStringList expectedToolChains, QStringList expectedQtVersion);
     void testMerSshOutputParsers_data();
     void testMerSshOutputParsers();
+    void testMerSdkManager_data();
+    void testMerSdkManager();
 #endif
 
 };
