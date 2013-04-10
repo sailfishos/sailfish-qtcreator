@@ -754,16 +754,16 @@ bool MerSdkManager::generateSshKey(const QString &privKeyPath, QString &error)
 
 #ifdef WITH_TESTS
 
-void MerPlugin::verifyTargets(QString vm ,QStringList expectedKits,QStringList expectedToolChains,QStringList expectedQtVersions)
+void MerPlugin::verifyTargets(QString vm, QStringList expectedKits, QStringList expectedToolChains, QStringList expectedQtVersions)
 {
-    MerSdkManager* sdkManager = MerSdkManager::instance();
-    QList<ProjectExplorer::Kit *> kits = sdkManager->merKits();
-    QList<MerToolChain *> toolchains = sdkManager->merToolChains();
-    QList<MerQtVersion *> qtversions = sdkManager->merQtVersions();
+    MerSdkManager *sdkManager = MerSdkManager::instance();
+    QList<ProjectExplorer::Kit*> kits = sdkManager->merKits();
+    QList<MerToolChain*> toolchains = sdkManager->merToolChains();
+    QList<MerQtVersion*> qtversions = sdkManager->merQtVersions();
 
-    foreach(ProjectExplorer::Kit* x , kits) {
+    foreach (ProjectExplorer::Kit* x, kits) {
         QString target = MerSdkManager::targetNameForKit(x);
-        if(expectedKits.contains(target)) {
+        if (expectedKits.contains(target)) {
             expectedKits.removeAll(target);
             continue;
         }
@@ -771,10 +771,10 @@ void MerPlugin::verifyTargets(QString vm ,QStringList expectedKits,QStringList e
     }
     QVERIFY2(expectedKits.isEmpty(), "Expected kits not created");
 
-    foreach(MerToolChain* x , toolchains) {
+    foreach (MerToolChain *x, toolchains) {
         QString target = x->targetName();
         QVERIFY2(x->virtualMachineName() == vm, "VirtualMachine name does not match");
-        if(expectedToolChains.contains(target)) {
+        if (expectedToolChains.contains(target)) {
             expectedToolChains.removeAll(target);
             continue;
         }
@@ -782,10 +782,10 @@ void MerPlugin::verifyTargets(QString vm ,QStringList expectedKits,QStringList e
     }
     QVERIFY2(expectedToolChains.isEmpty(), "Expected toolchains not created");
 
-    foreach(MerQtVersion* x , qtversions) {
+    foreach (MerQtVersion *x, qtversions) {
         QString target = x->targetName();
         QVERIFY2(x->virtualMachineName() == vm, "VirtualMachine name does not match");
-        if(expectedQtVersions.contains(target)) {
+        if (expectedQtVersions.contains(target)) {
             expectedQtVersions.removeAll(target);
             continue;
         }
@@ -812,10 +812,9 @@ void MerPlugin::testMerSdkManager()
     QFETCH(QStringList, targets);
     QFETCH(QStringList, expectedTargets);
 
-    const QString& initFile = filepath + QDir::separator() + QLatin1String("init.xml");
-    const QString& targetFile = filepath + QDir::separator() + QLatin1String("targets.xml");
-    const QString& runFile = filepath + QDir::separator() + QLatin1String("run.xml");
-
+    const QString &initFile = filepath + QDir::separator() + QLatin1String("init.xml");
+    const QString &targetFile = filepath + QDir::separator() + QLatin1String("targets.xml");
+    const QString &runFile = filepath + QDir::separator() + QLatin1String("run.xml");
 
     QFileInfo initfi(initFile);
     QVERIFY2(initfi.exists(),"Missing init.xml");
@@ -830,22 +829,23 @@ void MerPlugin::testMerSdkManager()
     QStringList expectedQtVersions = expectedTargets;
     QStringList expectedKits = expectedTargets;
 
-    foreach(const QString& target, targets) {
-        if(target.isEmpty()) break;
-        QVERIFY2(QDir(filepath).mkdir(target),"Could not create fake sysroot");
+    foreach (const QString &target, targets) {
+        if (target.isEmpty())
+            break;
+        QVERIFY2(QDir(filepath).mkdir(target), "Could not create fake sysroot");
     }
-    foreach(const QString& target, expectedTargets) {
-        if(target.isEmpty()) break;
-        QVERIFY2(QDir(filepath).mkdir(target),"Could not create fake sysroot");
+    foreach (const QString &target, expectedTargets) {
+        if (target.isEmpty())
+            break;
+        QVERIFY2(QDir(filepath).mkdir(target), "Could not create fake sysroot");
     }
 
+    QVERIFY2(QFile::copy(initFile, targetFile), "Could not copy init.xml to target.xml");
 
-    QVERIFY2(QFile::copy(initFile,targetFile),"Could not copy init.xml to target.xml");
-
-    MerSdkManager* sdkManager = MerSdkManager::instance();
+    MerSdkManager *sdkManager = MerSdkManager::instance();
     QVERIFY(sdkManager);
     QVERIFY(sdkManager->sdks().isEmpty());
-    MerSdk* sdk = sdkManager->createSdk(virtualMachine);
+    MerSdk *sdk = sdkManager->createSdk(virtualMachine);
     QVERIFY(sdk);
     QVERIFY(!sdk->isValid());
 
@@ -858,38 +858,36 @@ void MerPlugin::testMerSdkManager()
 
     QVERIFY(!sdkManager->sdks().isEmpty());
 
-    verifyTargets(virtualMachine,initKits,initToolChains,initQtVersions);
+    verifyTargets(virtualMachine, initKits, initToolChains, initQtVersions);
 
-    QVERIFY2(QFile::remove(targetFile),"Could not remove target.xml");
-    QVERIFY2(QFile::copy(runFile,targetFile),"Could not copy run.xml to target.xml");
+    QVERIFY2(QFile::remove(targetFile), "Could not remove target.xml");
+    QVERIFY2(QFile::copy(runFile, targetFile), "Could not copy run.xml to target.xml");
 
     QSignalSpy spy(sdk, SIGNAL(targetsChanged(QStringList)));
     int i = 0;
     while (spy.count() == 0 && i++ < 50)
         QTest::qWait(200);
 
-    verifyTargets(virtualMachine,expectedKits,expectedToolChains,expectedQtVersions);
+    verifyTargets(virtualMachine, expectedKits, expectedToolChains, expectedQtVersions);
 
     sdkManager->removeSdk(sdk);
 
-    QList<ProjectExplorer::Kit *> kits = sdkManager->merKits();
-    QList<MerToolChain *> toolchains = sdkManager->merToolChains();
-    QList<MerQtVersion *> qtversions = sdkManager->merQtVersions();
+    QList<ProjectExplorer::Kit*> kits = sdkManager->merKits();
+    QList<MerToolChain*> toolchains = sdkManager->merToolChains();
+    QList<MerQtVersion*> qtversions = sdkManager->merQtVersions();
 
     QVERIFY2(kits.isEmpty(), "Merkit not removed");
     QVERIFY2(toolchains.isEmpty(), "Toolchain not removed");
     QVERIFY2(qtversions.isEmpty(), "QtVersion not removed");
     QVERIFY(sdkManager->sdks().isEmpty());
     //cleanup
-    QVERIFY2(QFile::remove(targetFile),"Could not remove target.xml");
-    foreach(const QString& target, expectedTargets) {
-            QDir(filepath).rmdir(target);
-    }
-    foreach(const QString& target, targets) {
-            QDir(filepath).rmdir(target);
-    }
+    QVERIFY2(QFile::remove(targetFile), "Could not remove target.xml");
+    foreach (const QString &target, expectedTargets)
+        QDir(filepath).rmdir(target);
+    foreach (const QString &target, targets)
+        QDir(filepath).rmdir(target);
 }
-#endif
+#endif // WITH_TESTS
 
 } // Internal
 } // Mer
