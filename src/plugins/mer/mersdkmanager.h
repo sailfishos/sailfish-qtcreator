@@ -54,10 +54,10 @@ public:
     static QString sdkToolsDirectory();
     static QString globalSdkToolsDirectory();
     static bool authorizePublicKey(const QString &authorizedKeysPath, const QString &publicKeyPath, QString &error);
-    static bool isMerKit(ProjectExplorer::Kit *kit);
-    static QString targetNameForKit(ProjectExplorer::Kit *kit);
+    static bool isMerKit(const ProjectExplorer::Kit *kit);
+    static QString targetNameForKit(const ProjectExplorer::Kit *kit);
     static QString virtualMachineNameForKit(const ProjectExplorer::Kit *kit);
-    static bool hasMerDevice(ProjectExplorer::Kit *k);
+    static bool hasMerDevice(ProjectExplorer::Kit *kit);
     static bool validateKit(const ProjectExplorer::Kit* kit);
     static bool generateSshKey(const QString &privKeyPath, QString &error);
 
@@ -67,10 +67,10 @@ public:
     QList<MerSdk*> sdks() const;
     MerSdk* sdk(const QString &virtualMachineName) const;
     MerSdk* createSdk(const QString &vmName);
-    void addSdk(MerSdk* sdk);
-    void removeSdk(MerSdk* sdk);
+    void addSdk(MerSdk *sdk);
+    void removeSdk(MerSdk *sdk);
     void restoreSdks();
-    bool hasSdk(const MerSdk* sdk) const;
+    bool hasSdk(const MerSdk *sdk) const;
 
 public slots:
     void storeSdks() const;

@@ -40,7 +40,6 @@ public:
 
 private:
     friend class MerDeployConfigurationFactory;
-
 };
 
 } // namespace Internal

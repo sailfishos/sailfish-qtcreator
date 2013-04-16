@@ -256,10 +256,7 @@ bool MerVirtualBoxManager::promptToStart(const QString& vm) const
                                  "running.\n\n"
                                  "Start Virtual Machine now?").arg(vm),
                               QMessageBox::No | QMessageBox::Yes, QMessageBox::Yes);
-    if (response == QMessageBox::Yes) {
-        return true;
-    }
-    return false;
+    return (response == QMessageBox::Yes);
 }
 
 } // Internal

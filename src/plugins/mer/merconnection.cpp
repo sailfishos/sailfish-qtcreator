@@ -59,7 +59,8 @@ MerRemoteConnection::MerRemoteConnection(QObject *parent)
 
 MerRemoteConnection::~MerRemoteConnection()
 {
-     if (m_connection) m_connection->deleteLater();
+     if (m_connection)
+         m_connection->deleteLater();
      m_connection = 0;
 }
 
@@ -117,29 +118,31 @@ void MerRemoteConnection::initialize()
 
 bool MerRemoteConnection::isConnected() const
 {
-    return m_state == Conneted;
+    return m_state == Connected;
 }
 
 SshConnectionParameters MerRemoteConnection::parameters() const
 {
-    if(m_connection) return m_connection->connectionParameters();
+    if (m_connection)
+        return m_connection->connectionParameters();
 
     return SshConnectionParameters();
 }
 
 void MerRemoteConnection::setSshParameters(const SshConnectionParameters &parameters)
 {
-    if(m_connection && m_connection->connectionParameters() == parameters) {
+    if (m_connection && m_connection->connectionParameters() == parameters)
         return;
-    }
 
-    if (m_connection) m_connection->deleteLater();
+    if (m_connection)
+        m_connection->deleteLater();
+
     SshConnectionParameters params = parameters;
     params.timeout = 10;
     m_connection = createConnection(params);
 }
 
-void MerRemoteConnection::setVirtualMachine(const QString& name)
+void MerRemoteConnection::setVirtualMachine(const QString &name)
 {
     m_vmName = name;
 }
@@ -149,8 +152,8 @@ void MerRemoteConnection::update()
     QIcon::State state;
     QString toolTip;
     bool enabled = m_enabled;
-    switch(m_state) {
-        case Conneted:
+    switch (m_state) {
+        case Connected:
             state = QIcon::On;
             toolTip = m_stopTip;
             break;
@@ -189,37 +192,35 @@ void MerRemoteConnection::handleConnection()
     }
 }
 
-void MerRemoteConnection::changeState(State stateTriger)
+void MerRemoteConnection::changeState(State stateTrigger)
 {
-    QTC_ASSERT(!m_vmName.isEmpty(),return);
+    QTC_ASSERT(!m_vmName.isEmpty(), return);
 
-    if(stateTriger != NoStateTigger) {
-        m_state = stateTriger;
-    }
+    if (stateTrigger != NoStateTrigger)
+        m_state = stateTrigger;
 
     switch (m_state) {
         case StartingVm:
-            if (!MerVirtualBoxManager::isVirtualMachineRunning(m_vmName)) {
-                MerVirtualBoxManager::startVirtualMachine(m_vmName);
-                QTimer::singleShot(VM_TIMEOUT,this,SLOT(changeState()));
-            } else {
+            if (MerVirtualBoxManager::isVirtualMachineRunning(m_vmName)) {
                 m_state = Connecting;
                 m_connection->connectToHost();
+            } else {
+                MerVirtualBoxManager::startVirtualMachine(m_vmName);
+                QTimer::singleShot(VM_TIMEOUT, this, SLOT(changeState()));
             }
             break;
         case Connecting:
             if (m_connection->state() == SshConnection::Connected) {
-                m_state = Conneted;
+                m_state = Connected;
             } else if (m_connection->state() == SshConnection::Unconnected) {
                 m_state = Disconnected; //broken
-                if(m_connection->errorState()!= SshNoError) {
-                    createConnectionErrorTask(m_vmName,m_connection->errorString());
-                }
+                if (m_connection->errorState() != SshNoError)
+                    createConnectionErrorTask(m_vmName, m_connection->errorString());
             } else {
-                QTimer::singleShot(VM_TIMEOUT,this,SLOT(changeState()));
+                QTimer::singleShot(VM_TIMEOUT, this, SLOT(changeState()));
             }
             break;
-        case Conneted:
+        case Connected:
             break;
         case Disconneting:
              if (m_connection->state() == SshConnection::Connected) {
@@ -231,19 +232,16 @@ void MerRemoteConnection::changeState(State stateTriger)
                  QSsh::SshRemoteProcessRunner *runner = new QSsh::SshRemoteProcessRunner(m_connection);
                  connect(runner, SIGNAL(processClosed(int)), runner, SLOT(deleteLater()));
                  runner->run("shutdown now", sshParams);
-                 QTimer::singleShot(VM_TIMEOUT,this,SLOT(changeState()));
+                 QTimer::singleShot(VM_TIMEOUT, this, SLOT(changeState()));
                  m_state = ClosingVm;
              } else {
-                 QTimer::singleShot(VM_TIMEOUT,this,SLOT(changeState()));
+                 QTimer::singleShot(VM_TIMEOUT, this, SLOT(changeState()));
              }
             break;
         case ClosingVm:
-            if (!MerVirtualBoxManager::isVirtualMachineRunning(m_vmName)) {
-                m_state = Disconnected;
-            } else {
+            if (MerVirtualBoxManager::isVirtualMachineRunning(m_vmName))
                 qWarning() << "Could not close virtual machine" << m_vmName;
-                m_state = Disconnected;
-            }
+            m_state = Disconnected;
             break;
         case Disconnected:
             break;
@@ -255,18 +253,19 @@ void MerRemoteConnection::changeState(State stateTriger)
 
 void MerRemoteConnection::handleTriggered()
 {
-    if(!m_connection) return;
+    if (!m_connection)
+        return;
 
     if (m_state == Disconnected) {
         changeState(StartingVm);
-    } else if(m_state == Conneted) {
+    } else if (m_state == Connected) {
         changeState(Disconneting);
     }
 }
 
 void  MerRemoteConnection::createConnectionErrorTask(const QString &vmName, const QString &error)
 {
-    TaskHub* th = ProjectExplorerPlugin::instance()->taskHub();
+    TaskHub *th = ProjectExplorerPlugin::instance()->taskHub();
     th->addTask(Task(Task::Error,
                      tr("%1: %2").arg(vmName, error),
                      Utils::FileName() /* filename */,

@@ -44,7 +44,7 @@ public:
 private slots:
 
 #ifdef WITH_TESTS
-    void verifyTargets(QString vm, QStringList expectedKits, QStringList expectedToolChains, QStringList expectedQtVersion);
+    void verifyTargets(const QString &vm, QStringList expectedKits, QStringList expectedToolChains, QStringList expectedQtVersion);
     void testMerSshOutputParsers_data();
     void testMerSshOutputParsers();
     void testMerSdkManager_data();
