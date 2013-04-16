@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>Mer::Internal::SdkDetailsWidget</class>
- <widget class="QWidget" name="Mer::Internal::SdkDetailsWidget">
+ <class>Mer::Internal::MerSdkDetailsWidget</class>
+ <widget class="QWidget" name="Mer::Internal::MerSdkDetailsWidget">
   <property name="geometry">
    <rect>
     <x>0</x>

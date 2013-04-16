@@ -248,6 +248,8 @@ void MerRemoteConnection::changeState(State stateTriger)
             break;
         case Disconnected:
             break;
+        default:
+            break;
     }
     update();
 }

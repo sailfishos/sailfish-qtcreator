@@ -20,8 +20,8 @@
 **
 ****************************************************************************/
 
-#ifndef MER_SDKSELECTIONDIALOG_H
-#define MER_SDKSELECTIONDIALOG_H
+#ifndef MERSDKSELECTIONDIALOG_H
+#define MERSDKSELECTIONDIALOG_H
 
 #include <QDialog>
 
@@ -29,15 +29,15 @@ namespace Mer {
 namespace Internal {
 
 namespace Ui {
-class SdkSelectionDialog;
+class MerSdkSelectionDialog;
 }
 
-class SdkSelectionDialog : public QDialog
+class MerSdkSelectionDialog : public QDialog
 {
     Q_OBJECT
 public:
-    explicit SdkSelectionDialog(QWidget *parent = 0);
-    ~SdkSelectionDialog();
+    explicit MerSdkSelectionDialog(QWidget *parent = 0);
+    ~MerSdkSelectionDialog();
 
     QString selectedSdkName() const;
 
@@ -46,7 +46,7 @@ private slots:
     void handleItemDoubleClicked();
 
 private:
-    Ui::SdkSelectionDialog *m_ui;
+    Ui::MerSdkSelectionDialog *m_ui;
 };
 
 } // Internal

@@ -20,8 +20,8 @@
 **
 ****************************************************************************/
 
-#ifndef MER_SDKDETAILSWIDGET_H
-#define MER_SDKDETAILSWIDGET_H
+#ifndef MERSDKDETAILSWIDGET_H
+#define MERSDKDETAILSWIDGET_H
 
 #include "mersdk.h"
 
@@ -36,10 +36,10 @@ namespace Mer {
 namespace Internal {
 
 namespace Ui {
-class SdkDetailsWidget;
+class MerSdkDetailsWidget;
 }
 
-class SdkDetailsWidget : public QWidget
+class MerSdkDetailsWidget : public QWidget
 {
     Q_OBJECT
 public:
@@ -48,8 +48,8 @@ public:
         InstallRole
     };
 
-    explicit SdkDetailsWidget(QWidget *parent = 0);
-    ~SdkDetailsWidget();
+    explicit MerSdkDetailsWidget(QWidget *parent = 0);
+    ~MerSdkDetailsWidget();
 
     QString searchKeyWordMatchString() const;
     void setSdk(const MerSdk *sdk);
@@ -70,7 +70,7 @@ private slots:
 
 
 private:
-    Ui::SdkDetailsWidget *m_ui;
+    Ui::MerSdkDetailsWidget *m_ui;
     QIcon m_invalidIcon;
     QIcon m_warningIcon;
     bool m_updateConnection;
@@ -79,4 +79,4 @@ private:
 } // Internal
 } // Mer
 
-#endif // MER_SDKDETAILSWIDGET_H
+#endif // MERSDKDETAILSWIDGET_H

@@ -15,7 +15,7 @@
   </property>
   <layout class="QGridLayout" name="gridLayout_2">
    <item row="1" column="0">
-    <widget class="Mer::Internal::SdkDetailsWidget" name="sdkDetailsWidget" native="true"/>
+    <widget class="Mer::Internal::MerSdkDetailsWidget" name="sdkDetailsWidget" native="true"/>
    </item>
    <item row="0" column="0">
     <layout class="QVBoxLayout" name="verticalLayout">
@@ -104,9 +104,9 @@
  </widget>
  <customwidgets>
   <customwidget>
-   <class>Mer::Internal::SdkDetailsWidget</class>
+   <class>Mer::Internal::MerSdkDetailsWidget</class>
    <extends>QWidget</extends>
-   <header>sdkdetailswidget.h</header>
+   <header>mersdkdetailswidget.h</header>
    <container>1</container>
   </customwidget>
  </customwidgets>

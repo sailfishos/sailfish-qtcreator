@@ -20,8 +20,8 @@
 **
 ****************************************************************************/
 
-#include "sdkdetailswidget.h"
-#include "ui_sdkdetailswidget.h"
+#include "mersdkdetailswidget.h"
+#include "ui_mersdkdetailswidget.h"
 #include "merconstants.h"
 #include "mersdkmanager.h"
 
@@ -30,9 +30,9 @@
 namespace Mer {
 namespace Internal {
 
-SdkDetailsWidget::SdkDetailsWidget(QWidget *parent)
+MerSdkDetailsWidget::MerSdkDetailsWidget(QWidget *parent)
     : QWidget(parent)
-    , m_ui(new Ui::SdkDetailsWidget)
+    , m_ui(new Ui::MerSdkDetailsWidget)
     , m_invalidIcon(QLatin1String(":/mer/images/compile_error.png"))
     , m_warningIcon(QLatin1String(":/mer/images/warning.png"))
     , m_updateConnection(false)
@@ -49,12 +49,12 @@ SdkDetailsWidget::SdkDetailsWidget(QWidget *parent)
     m_ui->privateKeyPathChooser->setPromptDialogTitle(tr("Select SSH Key"));
 }
 
-SdkDetailsWidget::~SdkDetailsWidget()
+MerSdkDetailsWidget::~MerSdkDetailsWidget()
 {
     delete m_ui;
 }
 
-QString SdkDetailsWidget::searchKeyWordMatchString() const
+QString MerSdkDetailsWidget::searchKeyWordMatchString() const
 {
     const QChar blank = QLatin1Char(' ');
     return  m_ui->privateKeyPathChooser->path() + blank
@@ -63,7 +63,7 @@ QString SdkDetailsWidget::searchKeyWordMatchString() const
             + m_ui->sshFolderPathLabel->text();
 }
 
-void SdkDetailsWidget::setSdk(const MerSdk *sdk)
+void MerSdkDetailsWidget::setSdk(const MerSdk *sdk)
 {
     m_ui->nameLabelText->setText(sdk->virtualMachineName());
     m_ui->sshPortLabelText->setText(QString::number(sdk->sshPort()));
@@ -98,35 +98,35 @@ void SdkDetailsWidget::setSdk(const MerSdk *sdk)
     m_ui->privateKeyPathChooser->setEnabled(!canModifyKeys);
 }
 
-void SdkDetailsWidget::setTestButtonEnabled(bool enabled)
+void MerSdkDetailsWidget::setTestButtonEnabled(bool enabled)
 {
     m_ui->testConnectionPushButton->setEnabled(enabled);
 }
 
-void SdkDetailsWidget::setPrivateKeyFile(const QString &path)
+void MerSdkDetailsWidget::setPrivateKeyFile(const QString &path)
 {
     m_ui->privateKeyPathChooser->setPath(path);
     m_ui->privateKeyPathChooser->triggerChanged();
     onPathChooserEditingFinished();
 }
 
-void SdkDetailsWidget::setStatus(const QString &status)
+void MerSdkDetailsWidget::setStatus(const QString &status)
 {
     m_ui->statusLabelText->setText(status);
 }
 
-void SdkDetailsWidget::onAuthorizeSshKeyButtonClicked()
+void MerSdkDetailsWidget::onAuthorizeSshKeyButtonClicked()
 {
     if (m_ui->privateKeyPathChooser->isValid())
         emit authorizeSshKey(m_ui->privateKeyPathChooser->path());
 }
 
-void SdkDetailsWidget::onGenerateSshKeyButtonClicked()
+void MerSdkDetailsWidget::onGenerateSshKeyButtonClicked()
 {
     emit generateSshKey(m_ui->privateKeyPathChooser->path());
 }
 
-void SdkDetailsWidget::onPathChooserEditingFinished()
+void MerSdkDetailsWidget::onPathChooserEditingFinished()
 {
     if (m_ui->privateKeyPathChooser->isValid())
         emit sshKeyChanged(m_ui->privateKeyPathChooser->path());
