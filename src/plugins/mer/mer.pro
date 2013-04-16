@@ -13,8 +13,8 @@ RESOURCES += \
 
 FORMS += \
     meroptionswidget.ui \
-    sdkdetailswidget.ui \
-    sdkselectiondialog.ui \
+    mersdkdetailswidget.ui \
+    mersdkselectiondialog.ui \
     merdeviceconfigwizardgeneralpage.ui \
     merdeviceconfigwizardcheckpreviouskeysetupcheckpage.ui \
     merdeviceconfigwizardreusekeyscheckpage.ui \
@@ -40,8 +40,8 @@ SOURCES += \
     merrunconfigurationfactory.cpp \
     merruncontrolfactory.cpp \
     meroptionswidget.cpp \
-    sdkdetailswidget.cpp \
-    sdkselectiondialog.cpp \
+    mersdkdetailswidget.cpp \
+    mersdkselectiondialog.cpp \
     meremulatorstartstep.cpp \
     merdeploystepfactory.cpp \
     merdeviceconfigurationwidget.cpp \
@@ -71,8 +71,8 @@ HEADERS += \
     merrunconfigurationfactory.h \
     merruncontrolfactory.h \
     meroptionswidget.h \
-    sdkdetailswidget.h \
-    sdkselectiondialog.h \
+    mersdkdetailswidget.h \
+    mersdkselectiondialog.h \
     mervirtualmachinemanager.h \
     meremulatorstartstep.h \
     merdeploystepfactory.h \

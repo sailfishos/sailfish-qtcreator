@@ -23,10 +23,9 @@
 #include "merconstants.h"
 #include "meroptionswidget.h"
 #include "ui_meroptionswidget.h"
-#include "sdkdetailswidget.h"
+#include "mersdkdetailswidget.h"
 #include "mersdkmanager.h"
-#include "sdkselectiondialog.h"
-#include "mervirtualmachinemanager.h"
+#include "mersdkselectiondialog.h"
 #include "virtualboxmanager.h"
 #include "merconnectionmanager.h"
 
@@ -118,7 +117,7 @@ void MerOptionsWidget::onSdkChanged(const QString &sdkName)
 
 void MerOptionsWidget::onAddButtonClicked()
 {
-    SdkSelectionDialog dialog(this);
+    MerSdkSelectionDialog dialog(this);
     dialog.setWindowTitle(tr("Add Mer SDK"));
     if (dialog.exec() != QDialog::Accepted)
         return;

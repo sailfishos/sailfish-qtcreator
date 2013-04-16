@@ -20,8 +20,8 @@
 **
 ****************************************************************************/
 
-#include "sdkselectiondialog.h"
-#include "ui_sdkselectiondialog.h"
+#include "mersdkselectiondialog.h"
+#include "ui_mersdkselectiondialog.h"
 #include "virtualboxmanager.h"
 
 #include <QListWidgetItem>
@@ -30,9 +30,9 @@
 namespace Mer {
 namespace Internal {
 
-SdkSelectionDialog::SdkSelectionDialog(QWidget *parent)
+MerSdkSelectionDialog::MerSdkSelectionDialog(QWidget *parent)
     : QDialog(parent)
-    , m_ui(new Ui::SdkSelectionDialog)
+    , m_ui(new Ui::MerSdkSelectionDialog)
 {
     m_ui->setupUi(this);
 
@@ -52,23 +52,23 @@ SdkSelectionDialog::SdkSelectionDialog(QWidget *parent)
     connect(m_ui->buttonBox, SIGNAL(rejected()), SLOT(reject()));
 }
 
-SdkSelectionDialog::~SdkSelectionDialog()
+MerSdkSelectionDialog::~MerSdkSelectionDialog()
 {
     delete m_ui;
 }
 
-void SdkSelectionDialog::handleItemSelectionChanged()
+void MerSdkSelectionDialog::handleItemSelectionChanged()
 {
     m_ui->buttonBox->button(QDialogButtonBox::Ok)->setEnabled(
                 !m_ui->virtualMachineListWidget->selectedItems().isEmpty());
 }
 
-void SdkSelectionDialog::handleItemDoubleClicked()
+void MerSdkSelectionDialog::handleItemDoubleClicked()
 {
     accept();
 }
 
-QString SdkSelectionDialog::selectedSdkName() const
+QString MerSdkSelectionDialog::selectedSdkName() const
 {
     QList<QListWidgetItem *> selected = m_ui->virtualMachineListWidget->selectedItems();
     if (selected.isEmpty())
