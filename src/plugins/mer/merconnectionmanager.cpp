@@ -23,7 +23,6 @@
 #include "merconnectionmanager.h"
 #include "merconnection.h"
 #include "mersdkmanager.h"
-#include "mervirtualboxmanager.h"
 
 #include <projectexplorer/project.h>
 #include <projectexplorer/target.h>
