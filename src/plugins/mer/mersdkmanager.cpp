@@ -23,30 +23,22 @@
 #include "mersdkmanager.h"
 #include "merconstants.h"
 #include "merqtversion.h"
-#include "mervirtualmachinemanager.h"
 #include "mertoolchain.h"
 #include "virtualboxmanager.h"
+#include "merconnectionmanager.h"
 #include "merplugin.h"
 
 #include <coreplugin/icore.h>
+#include <extensionsystem/pluginmanager.h>
+#include <utils/qtcassert.h>
+#include <utils/persistentsettings.h>
+#include <projectexplorer/kitmanager.h>
+#include <projectexplorer/toolchainmanager.h>
+#include <projectexplorer/kit.h>
 #include <qtsupport/qtversionmanager.h>
 #include <qtsupport/qtkitinformation.h>
-#include <extensionsystem/pluginmanager.h>
-#include <projectexplorer/projectexplorer.h>
-#include <projectexplorer/project.h>
-#include <projectexplorer/session.h>
-#include <projectexplorer/kitmanager.h>
-#include <projectexplorer/kit.h>
-#include <projectexplorer/target.h>
-#include <projectexplorer/toolchainmanager.h>
-#include <projectexplorer/taskhub.h>
-#include <remotelinux/remotelinuxrunconfiguration.h>
-#include <utils/qtcassert.h>
 #include <ssh/sshkeygenerator.h>
 
-#include <QSettings>
-#include <QFileInfo>
-#include <QMessageBox>
 #include <QDesktopServices>
 
 #ifdef WITH_TESTS
@@ -56,15 +48,14 @@
 using namespace Mer::Constants;
 using namespace ProjectExplorer;
 using namespace QtSupport;
-using namespace RemoteLinux;
+//using namespace RemoteLinux;
 using namespace QSsh;
 using namespace ProjectExplorer;
 
 namespace Mer {
 namespace Internal {
 
-MerSdkManager *MerSdkManager::m_sdkManager = 0;
-ProjectExplorer::Project *MerSdkManager::m_previousProject = 0;
+MerSdkManager *MerSdkManager::m_instance = 0;
 
 static Utils::FileName globalSettingsFileName()
 {
@@ -84,60 +75,15 @@ MerSdkManager::MerSdkManager()
       m_writer(0)
 {
     connect(Core::ICore::instance(), SIGNAL(saveSettingsRequested()), SLOT(storeSdks()));
-
-    KitManager *km = KitManager::instance();
-
-    connect(km, SIGNAL(kitUpdated(ProjectExplorer::Kit*)),
-            SLOT(handleKitUpdated(ProjectExplorer::Kit*)));
-    connect(km, SIGNAL(kitsLoaded()), SLOT(initialize()));
-
-    SessionManager *session = ProjectExplorerPlugin::instance()->session();
-    connect(session, SIGNAL(startupProjectChanged(ProjectExplorer::Project*)),
-            SLOT(handleStartupProjectChanged(ProjectExplorer::Project*)));
-
-    MerVirtualMachineManager *mrmm = MerVirtualMachineManager::instance();
-    connect(mrmm, SIGNAL(connectionChanged(QString,bool)), SLOT(updateUI()));
-    connect(mrmm, SIGNAL(error(QString,QString)), SLOT(handleConnectionError(QString,QString)));
-
-    TaskHub *th = ProjectExplorerPlugin::instance()->taskHub();
-    th->addCategory(Core::Id(MER_TASKHUB_CATEGORY), tr("Virtual Machine Error"));
-    connect(th, SIGNAL(taskAdded(ProjectExplorer::Task)),
-            SLOT(handleTaskAdded(ProjectExplorer::Task)));
-
-    QIcon emuIcon;
-    emuIcon.addFile(QLatin1String(":/mer/images/emulator-run.png"));
-    emuIcon.addFile(QLatin1String(":/mer/images/emulator-stop.png"), QSize(), QIcon::Normal,
-                    QIcon::On);
-
-    QIcon sdkIcon;
-    sdkIcon.addFile(QLatin1String(":/mer/images/sdk-run.png"));
-    sdkIcon.addFile(QLatin1String(":/mer/images/sdk-stop.png"), QSize(), QIcon::Normal, QIcon::On);
-
-    m_remoteEmulatorBtn.setName(tr("Emulator"));
-    m_remoteEmulatorBtn.setIcon(emuIcon);
-    m_remoteEmulatorBtn.setStartTip(tr("Start Emulator"));
-    m_remoteEmulatorBtn.setStopTip(tr("Stop Emulator"));
-    m_remoteEmulatorBtn.initialize();
-
-    m_remoteSdkBtn.setName(tr("MerSdk"));
-    m_remoteSdkBtn.setIcon(sdkIcon);
-    m_remoteSdkBtn.setStartTip(tr("Start Sdk"));
-    m_remoteSdkBtn.setStopTip(tr("Stop Sdk"));
-    m_remoteSdkBtn.initialize();
-
-    connect(&m_remoteEmulatorBtn, SIGNAL(startRequest()), SLOT(handleStartRemoteRequested()));
-    connect(&m_remoteSdkBtn, SIGNAL(startRequest()), SLOT(handleStartRemoteRequested()));
-    connect(&m_remoteEmulatorBtn, SIGNAL(stopRequest()), SLOT(handleStopRemoteRequested()));
-    connect(&m_remoteSdkBtn, SIGNAL(stopRequest()), SLOT(handleStopRemoteRequested()));
-
+    connect(KitManager::instance(), SIGNAL(kitsLoaded()), SLOT(initialize()));
     m_writer = new Utils::PersistentSettingsWriter(settingsFileName(), QLatin1String("MerSDKs"));
-    m_sdkManager = this;
+    m_instance = this;
 }
 
 MerSdkManager::~MerSdkManager()
 {
     qDeleteAll(m_sdks.values());
-    m_sdkManager = 0;
+    m_instance = 0;
 }
 
 void MerSdkManager::initialize()
@@ -179,7 +125,7 @@ void MerSdkManager::initialize()
 QList<Kit *> MerSdkManager::merKits() const
 {
     QList<Kit*> kits;
-    foreach (ProjectExplorer::Kit *kit, ProjectExplorer::KitManager::instance()->kits()) {
+    foreach (Kit *kit, KitManager::instance()->kits()) {
         if (isMerKit(kit))
             kits << kit;
     }
@@ -189,7 +135,7 @@ QList<Kit *> MerSdkManager::merKits() const
 QList<MerToolChain *> MerSdkManager::merToolChains() const
 {
     QList<MerToolChain*> toolchains;
-    foreach (ProjectExplorer::ToolChain *toolchain, ProjectExplorer::ToolChainManager::instance()->toolChains()) {
+    foreach (ToolChain *toolchain, ToolChainManager::instance()->toolChains()) {
         if (!toolchain->isAutoDetected())
             continue;
         if (toolchain->type() != QLatin1String(Constants::MER_TOOLCHAIN_TYPE))
@@ -214,8 +160,8 @@ QList<MerQtVersion *> MerSdkManager::merQtVersions() const
 
 MerSdkManager *MerSdkManager::instance()
 {
-    QTC_CHECK(m_sdkManager);
-    return m_sdkManager;
+    QTC_CHECK(m_instance);
+    return m_instance;
 }
 
 QList<MerSdk*> MerSdkManager::sdks() const
@@ -291,7 +237,7 @@ bool MerSdkManager::isMerKit(Kit *kit)
     if (!kit->isAutoDetected())
         return false;
 
-    ProjectExplorer::ToolChain* tc = ProjectExplorer::ToolChainKitInformation::toolChain(kit);
+    ToolChain* tc = ToolChainKitInformation::toolChain(kit);
     const Core::Id deviceType = DeviceTypeKitInformation::deviceTypeId(kit);
     if (tc && tc->type() == QLatin1String(Constants::MER_TOOLCHAIN_TYPE))
         return true;
@@ -408,202 +354,6 @@ bool MerSdkManager::authorizePublicKey(const QString &authorizedKeysPath,
     return success;
 }
 
-void MerSdkManager::handleKitUpdated(Kit *kit)
-{
-    if (!isMerKit(kit))
-        return;
-    updateUI();
-}
-
-void MerSdkManager::handleStartupProjectChanged(Project *project)
-{
-    if (project != m_previousProject && project) {
-        // handle all target related changes, add, remove, etc...
-        connect(project, SIGNAL(addedTarget(ProjectExplorer::Target*)),
-                SLOT(handleTargetAdded(ProjectExplorer::Target*)));
-        connect(project, SIGNAL(removedTarget(ProjectExplorer::Target*)),
-                SLOT(handleTargetRemoved(ProjectExplorer::Target*)));
-        connect(project, SIGNAL(activeTargetChanged(ProjectExplorer::Target*)),
-                SLOT(updateUI()));
-    }
-
-    if (m_previousProject) {
-        disconnect(m_previousProject, SIGNAL(addedTarget(ProjectExplorer::Target*)),
-                   this, SLOT(handleTargetAdded(ProjectExplorer::Target*)));
-        disconnect(m_previousProject, SIGNAL(removedTarget(ProjectExplorer::Target*)),
-                   this, SLOT(handleTargetRemoved(ProjectExplorer::Target*)));
-        disconnect(m_previousProject, SIGNAL(activeTargetChanged(ProjectExplorer::Target*)),
-                   this, SLOT(updateUI()));
-    }
-
-    m_previousProject = project;
-    updateUI();
-}
-
-void MerSdkManager::handleTargetAdded(Target *target)
-{
-    if (!target || !isMerKit(target->kit()))
-        return;
-    updateUI();
-}
-
-void MerSdkManager::handleTargetRemoved(Target *target)
-{
-    if (!target || !isMerKit(target->kit()))
-        return;
-    updateUI();
-}
-
-void MerSdkManager::updateUI()
-{
-    bool sdkRemoteButonEnabled = false;
-    bool emulatorRemoteButtonEnabled = false;
-    bool sdkRemoteButonVisible = false;
-    bool emulatorRemoteButtonVisible = false;
-    bool isSdkRemoteRunning = false;
-    bool isEmulatorRemoteRunning = false;
-
-    const Project * const p = ProjectExplorerPlugin::instance()->session()->startupProject();
-    if (p) {
-        const Target * const activeTarget = p->activeTarget();
-        const QList<Target *> targets =  p->targets();
-
-        foreach (const Target* t , targets) {
-            if (isMerKit(t->kit())) {
-                sdkRemoteButonVisible = true;
-                if (t == activeTarget) {
-                    sdkRemoteButonEnabled = true;
-                    isSdkRemoteRunning =
-                            MerVirtualMachineManager::instance()->isRemoteConnected(
-                                virtualMachineNameForKit(t->kit()));
-                }
-            }
-
-            if (hasMerDevice(t->kit())) {
-                emulatorRemoteButtonVisible = true;
-                if (t == activeTarget) {
-                    const IDevice::ConstPtr device = DeviceKitInformation::device(t->kit());
-                    emulatorRemoteButtonEnabled =
-                            device && device->machineType() == IDevice::Emulator;
-                    isEmulatorRemoteRunning =
-                            MerVirtualMachineManager::instance()->isRemoteConnected(
-                                device->id().toString());
-                }
-            }
-        }
-    }
-
-    m_remoteEmulatorBtn.setEnabled(emulatorRemoteButtonEnabled);
-    m_remoteEmulatorBtn.setVisible(emulatorRemoteButtonVisible);
-    m_remoteEmulatorBtn.setRunning(isEmulatorRemoteRunning);
-    m_remoteEmulatorBtn.update();
-
-    if (m_remoteSdkBtn.isRunning() != isSdkRemoteRunning)
-        emit sdkRunningChanged();
-    m_remoteSdkBtn.setEnabled(sdkRemoteButonEnabled);
-    m_remoteSdkBtn.setVisible(sdkRemoteButonVisible);
-    m_remoteSdkBtn.setRunning(isSdkRemoteRunning);
-    m_remoteSdkBtn.update();
-}
-
-void MerSdkManager::handleStartRemoteRequested()
-{
-    QString name;
-    SshConnectionParameters params;
-
-    if (sender() == &m_remoteEmulatorBtn && !emulatorParams(name, params))
-        return;
-
-    if (sender() == &m_remoteSdkBtn && !sdkParams(name, params))
-        return;
-
-    MerVirtualMachineManager::instance()->startRemote(name, params);
-}
-
-void MerSdkManager::handleStopRemoteRequested()
-{
-    QString name;
-    SshConnectionParameters params;
-
-    if (sender() == &m_remoteEmulatorBtn && emulatorParams(name, params))
-        MerVirtualMachineManager::instance()->stopRemote(name, params);
-
-    if (sender() == &m_remoteSdkBtn && sdkParams(name, params))
-        MerVirtualMachineManager::instance()->stopRemote(name, params);
-}
-
-bool MerSdkManager::emulatorParams(QString &emulatorName,
-                                   SshConnectionParameters &params) const
-{
-    Project *p = ProjectExplorerPlugin::instance()->session()->startupProject();
-    if (!p)
-        return false;
-    Target *target = p->activeTarget();
-    if (!target)
-        return false;
-    RemoteLinuxRunConfiguration *mrc =
-            qobject_cast<RemoteLinuxRunConfiguration *>(target->activeRunConfiguration());
-    if (!mrc)
-        return false;
-    const IDevice::ConstPtr config = DeviceKitInformation::device(target->kit());
-    if (config.isNull() || config->machineType() != IDevice::Emulator)
-        return false;
-    emulatorName = config->id().toString();
-    params = config->sshParameters();
-    return true;
-}
-
-bool MerSdkManager::sdkParams(QString &sdkName, SshConnectionParameters &params) const
-{
-    Project *p = ProjectExplorerPlugin::instance()->session()->startupProject();
-    if (!p)
-        return false;
-    Target *target = p->activeTarget();
-    if (!target)
-        return false;
-    Kit *kit = target->kit();
-    if (!kit)
-        return false;
-
-    sdkName = virtualMachineNameForKit(kit);
-    if (sdkName.isNull())
-        return false;
-
-    const MerSdk *sdk = m_sdks[sdkName];
-    QTC_ASSERT(sdk, return false);
-    params.port = sdk->sshPort();
-    params.userName = sdk->userName();
-    params.authenticationType = SshConnectionParameters::AuthenticationByKey;
-    params.privateKeyFile = sdk->privateKeyFile();
-    params.host = sdk->host();
-
-    return true;
-}
-
-void MerSdkManager::handleTaskAdded(const Task &task)
-{
-    static QRegExp regExp(QLatin1String("Virtual Machine '(.*)' is not running!"));
-    if (regExp.indexIn(task.description) != -1) {
-        QString vm = regExp.cap(1);
-        const QMessageBox::StandardButton response =
-                QMessageBox::question(0, tr("Start Virtual Machine"),
-                                      tr("Virtual Machine '%1' is not running! Please start the "
-                                         "Virtual Machine and retry after the Virtual Machine is "
-                                         "running.\n\n"
-                                         "Start Virtual Machine now?").arg(vm),
-                                      QMessageBox::No | QMessageBox::Yes, QMessageBox::Yes);
-        if (response == QMessageBox::Yes) {
-            QString name;
-            SshConnectionParameters params;
-            if (sdk(vm))
-                sdkParams(name, params);
-            else
-                emulatorParams(name, params);
-            MerVirtualMachineManager::instance()->startRemote(name, params);
-        }
-    }
-}
-
 bool MerSdkManager::hasSdk(const MerSdk* sdk) const
 {
     return m_sdks.contains(sdk->virtualMachineName());
@@ -660,16 +410,6 @@ MerSdk* MerSdkManager::sdk(const QString &sdkName) const
     return m_sdks[sdkName];
 }
 
-void MerSdkManager::handleConnectionError(const QString &vmName, const QString &error)
-{
-    TaskHub* th = ProjectExplorerPlugin::instance()->taskHub();
-    th->addTask(Task(Task::Error,
-                     tr("%1: %2").arg(vmName, error),
-                     Utils::FileName() /* filename */,
-                     -1 /* linenumber */,
-                     Core::Id(MER_TASKHUB_CATEGORY)));
-}
-
 bool MerSdkManager::validateKit(const Kit* kit)
 {
     if (!kit)
@@ -724,10 +464,10 @@ bool MerSdkManager::generateSshKey(const QString &privKeyPath, QString &error)
     }
 
     bool success = true;
-    QSsh::SshKeyGenerator keyGen;
-    success = keyGen.generateKeys(QSsh::SshKeyGenerator::Rsa,
-                                  QSsh::SshKeyGenerator::Mixed, 2048,
-                                  QSsh::SshKeyGenerator::DoNotOfferEncryption);
+    SshKeyGenerator keyGen;
+    success = keyGen.generateKeys(SshKeyGenerator::Rsa,
+                                  SshKeyGenerator::Mixed, 2048,
+                                  SshKeyGenerator::DoNotOfferEncryption);
     if (!success) {
         error.append(tr("Error: %1\n").arg(keyGen.error()));
         return false;
@@ -761,7 +501,7 @@ void MerPlugin::verifyTargets(QString vm, QStringList expectedKits, QStringList 
     QList<MerToolChain*> toolchains = sdkManager->merToolChains();
     QList<MerQtVersion*> qtversions = sdkManager->merQtVersions();
 
-    foreach (ProjectExplorer::Kit* x, kits) {
+    foreach (Kit* x, kits) {
         QString target = MerSdkManager::targetNameForKit(x);
         if (expectedKits.contains(target)) {
             expectedKits.removeAll(target);
@@ -843,6 +583,7 @@ void MerPlugin::testMerSdkManager()
     QVERIFY2(QFile::copy(initFile, targetFile), "Could not copy init.xml to target.xml");
 
     MerSdkManager *sdkManager = MerSdkManager::instance();
+
     QVERIFY(sdkManager);
     QVERIFY(sdkManager->sdks().isEmpty());
     MerSdk *sdk = sdkManager->createSdk(virtualMachine);
@@ -872,7 +613,7 @@ void MerPlugin::testMerSdkManager()
 
     sdkManager->removeSdk(sdk);
 
-    QList<ProjectExplorer::Kit*> kits = sdkManager->merKits();
+    QList<Kit*> kits = sdkManager->merKits();
     QList<MerToolChain*> toolchains = sdkManager->merToolChains();
     QList<MerQtVersion*> qtversions = sdkManager->merQtVersions();
 
@@ -881,6 +622,7 @@ void MerPlugin::testMerSdkManager()
     QVERIFY2(qtversions.isEmpty(), "QtVersion not removed");
     QVERIFY(sdkManager->sdks().isEmpty());
     //cleanup
+
     QVERIFY2(QFile::remove(targetFile), "Could not remove target.xml");
     foreach (const QString &target, expectedTargets)
         QDir(filepath).rmdir(target);

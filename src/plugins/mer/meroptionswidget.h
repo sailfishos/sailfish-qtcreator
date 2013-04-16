@@ -63,8 +63,6 @@ private slots:
     //void onLaunchSDKControlCenterClicked();
     void onGenerateSshKey(const QString &path);
     void onAuthorizeSshKey(const QString &file);
-    void onConnectionChanged(const QString &vmName, bool connected);
-    void onError(const QString &vmName, const QString &error);
     void onSshKeyChanged(const QString &file);
     void update();
 

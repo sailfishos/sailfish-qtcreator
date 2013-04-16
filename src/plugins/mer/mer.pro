@@ -43,14 +43,14 @@ SOURCES += \
     meroptionswidget.cpp \
     sdkdetailswidget.cpp \
     sdkselectiondialog.cpp \
-    mervirtualmachinemanager.cpp \
     meremulatorstartstep.cpp \
     merdeploystepfactory.cpp \
     merdeviceconfigurationwidget.cpp \
-    mervirtualmachinebutton.cpp \
     mersshparser.cpp \
     virtualboxmanager.cpp \
-    mertarget.cpp
+    mertarget.cpp \
+    merconnection.cpp \
+    merconnectionmanager.cpp
 
 HEADERS += \
     merplugin.h \
@@ -81,7 +81,9 @@ HEADERS += \
     mervirtualmachinebutton.h \
     mersshparser.h \
     virtualboxmanager.h \
-    mertarget.h
+    mertarget.h \
+    merconnection.h \
+    merconnectionmanager.h
 
 SOURCES += \
     $$PWD/jollawelcomepage.cpp \

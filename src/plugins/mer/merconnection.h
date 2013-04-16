@@ -20,8 +20,8 @@
 **
 ****************************************************************************/
 
-#ifndef MERVIRTUALMACHINEBUTTON_H
-#define MERVIRTUALMACHINEBUTTON_H
+#ifndef MERCONNECTION_H
+#define MERCONNECTION_H
 
 #include <qglobal.h>
 #include <QObject>
@@ -31,33 +31,45 @@ QT_BEGIN_NAMESPACE
 class QAction;
 QT_END_NAMESPACE
 
+namespace QSsh {
+class SshConnection;
+class SshConnectionParameters;
+}
+
 namespace Mer {
 namespace Internal {
 
-class MerVirtualMachineButton : public QObject
+class MerRemoteConnection : public QObject
 {
     Q_OBJECT
 public:
-    explicit MerVirtualMachineButton(QObject *parent = 0);
+    enum State { NoStateTigger =-1 , Disconnected, StartingVm , Connecting , Conneted,  Disconneting , ClosingVm};
+    explicit MerRemoteConnection(QObject *parent = 0);
+    ~MerRemoteConnection();
 
-    void setName(const QString &name) { m_name = name; }
-    void setIcon(const QIcon &icon) { m_icon = icon; }
-    void setStartTip(const QString &tip) { m_startTip = tip; }
-    void setStopTip(const QString &tip) { m_stopTip = tip; }
-    void setRunning(bool running) { m_running = running; }
-    bool isRunning() const { return m_running; }
-    void setVisible(bool visible) { m_visible = visible; }
-    void setEnabled(bool enabled) { m_enabled = enabled; }
-
+    void setName(const QString &name);
+    void setIcon(const QIcon &icon);
+    void setStartTip(const QString &tip);
+    void setStopTip(const QString &tip);
+    void setVisible(bool visible);
+    void setEnabled(bool enabled);
+    void setSshParameters(const QSsh::SshConnectionParameters &serverInfo);
+    QSsh::SshConnectionParameters parameters() const;
+    void setVirtualMachine(const QString& name);
+    bool isConnected() const;
     void initialize();
     void update();
 
-signals:
-    void startRequest();
-    void stopRequest();
+    static bool promptToStart(const QString& vm);
 
 private slots:
     void handleTriggered();
+    void handleConnection();
+    void changeState(State state = NoStateTigger);
+
+private:
+    QSsh::SshConnection* createConnection(const QSsh::SshConnectionParameters &params);
+    void createConnectionErrorTask(const QString &vmName, const QString &error);
 
 private:
     QAction *m_action;
@@ -66,11 +78,13 @@ private:
     QString m_startTip;
     QString m_stopTip;
     bool m_initalized;
-    bool m_running;
     bool m_visible;
     bool m_enabled;
+    QSsh::SshConnection* m_connection;
+    QString m_vmName;
+    State m_state;
 };
 
 }
 }
-#endif // MERVIRTUALMACHINEBUTTON_H
+#endif
