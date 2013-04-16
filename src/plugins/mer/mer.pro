@@ -73,11 +73,9 @@ HEADERS += \
     meroptionswidget.h \
     mersdkdetailswidget.h \
     mersdkselectiondialog.h \
-    mervirtualmachinemanager.h \
     meremulatorstartstep.h \
     merdeploystepfactory.h \
     merdeviceconfigurationwidget.h \
-    mervirtualmachinebutton.h \
     mersshparser.h \
     mertarget.h \
     merconnection.h \
