@@ -37,7 +37,7 @@ MerManagementWebView::MerManagementWebView(QWidget *parent)
     connect(ui->webView->page(), SIGNAL(linkHovered(QString,QString,QString)), ui->statusBarLabel, SLOT(setText(QString)));
     connect(ui->webView->page(), SIGNAL(loadFinished(bool)), SLOT(handleLoadFinished(bool)));
     on_homeButton_clicked();
-    connect(MerSdkManager::instance(), SIGNAL(sdkRunningChanged()),
+    connect(MerSdkManager::instance(), SIGNAL(sdksUpdated()),
             SLOT(reloadPage()));
 }
 

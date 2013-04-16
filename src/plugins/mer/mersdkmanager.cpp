@@ -435,16 +435,11 @@ bool MerSdkManager::validateKit(const Kit *kit)
 
 void MerSdkManager::addToEnvironment(const QString &sdkName, Utils::Environment &env)
 {
-    const VirtualMachineInfo vmInfo = MerVirtualBoxManager::fetchVirtualMachineInfo(sdkName);
     const MerSdk *sdk = MerSdkManager::instance()->sdk(sdkName);
     QTC_CHECK(sdk);
-    const QString sshPort = QString::number(vmInfo.sshPort ? vmInfo.sshPort : sdk->sshPort());
-    const QString sharedHome =
-            QDir::fromNativeSeparators(vmInfo.sharedHome.isEmpty() ? sdk->sharedHomePath()
-                                                                   : vmInfo.sharedHome);
-    const QString sharedTarget =
-            QDir::fromNativeSeparators(vmInfo.sharedTarget.isEmpty() ? sdk->sharedTargetPath()
-                                                                     : vmInfo.sharedTarget);
+    const QString sshPort = QString::number(sdk->sshPort());
+    const QString sharedHome = QDir::fromNativeSeparators(sdk->sharedHomePath());
+    const QString sharedTarget = QDir::fromNativeSeparators(sdk->sharedTargetPath());
 
 
     env.appendOrSet(QLatin1String("MER_SSH_USERNAME"),
