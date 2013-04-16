@@ -23,7 +23,7 @@
 #include "merqtversion.h"
 #include "merconstants.h"
 #include "mersdkmanager.h"
-#include "virtualboxmanager.h"
+#include "mervirtualboxmanager.h"
 
 #include <utils/environment.h>
 #include <qtsupport/qtkitinformation.h>
@@ -169,7 +169,7 @@ QList<ProjectExplorer::Task> MerQtVersion::reportIssuesImpl(const QString &proFi
     // Exctracting the VM name out of the qmake wrapper path
     const QString merSDKVMName = qmakeCommand().parentDir().parentDir().toFileInfo().baseName();
 
-    const VirtualMachineInfo vmInfo = VirtualBoxManager::fetchVirtualMachineInfo(merSDKVMName);
+    const VirtualMachineInfo vmInfo = MerVirtualBoxManager::fetchVirtualMachineInfo(merSDKVMName);
     if (vmInfo.sharedHome.isEmpty())
         return results;
     const QString proFileClean = QDir::cleanPath(proFile);

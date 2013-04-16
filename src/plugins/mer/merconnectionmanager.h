@@ -30,7 +30,6 @@ namespace ProjectExplorer {
 class Kit;
 class Project;
 class Target;
-class Task;
 }
 
 namespace QSsh {
@@ -61,7 +60,6 @@ private slots:
     void handleKitUpdated(ProjectExplorer::Kit *kit);
     void handleTargetAdded(ProjectExplorer::Target *target);
     void handleTargetRemoved(ProjectExplorer::Target *target);
-    void handleTaskAdded(const ProjectExplorer::Task &task);
 private:
     MerConnectionManager();
 

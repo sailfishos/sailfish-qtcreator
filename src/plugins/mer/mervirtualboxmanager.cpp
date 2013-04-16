@@ -20,14 +20,18 @@
 **
 ****************************************************************************/
 
-#include "virtualboxmanager.h"
+#include "mervirtualboxmanager.h"
+#include "merconstants.h"
 
 #include <utils/qtcassert.h>
 #include <utils/hostosinfo.h>
+#include <projectexplorer/taskhub.h>
+#include <projectexplorer/projectexplorer.h>
 
 #include <QDir>
 #include <QProcess>
 #include <QSettings>
+#include <QMessageBox>
 
 const char VBOXMANAGE[] = "VBoxManage";
 const char LIST[] = "list";
@@ -38,6 +42,8 @@ const char MACHINE_READABLE[] = "--machinereadable";
 const char STARTVM[] = "startvm";
 const char CONTROLVM[] = "controlvm";
 const char ACPI_POWER_BUTTON[] = "acpipowerbutton";
+
+using namespace ProjectExplorer;
 
 namespace Mer {
 namespace Internal {
@@ -71,7 +77,28 @@ static QString vBoxManagePath()
     }
 }
 
-bool VirtualBoxManager::isVirtualMachineRunning(const QString &vmName)
+MerVirtualBoxManager::MerVirtualBoxManager(QObject *parent):
+    QObject(parent)
+{
+    TaskHub *th = ProjectExplorerPlugin::instance()->taskHub();
+    th->addCategory(Core::Id(Constants::MER_TASKHUB_CATEGORY), tr("Virtual Machine Error"));
+    connect(th, SIGNAL(taskAdded(ProjectExplorer::Task)),
+            SLOT(handleTaskAdded(ProjectExplorer::Task)));
+    m_instance = this;
+}
+
+MerVirtualBoxManager::~MerVirtualBoxManager()
+{
+    m_instance = 0;
+}
+
+MerVirtualBoxManager *MerVirtualBoxManager::instance()
+{
+    QTC_CHECK(m_instance);
+    return m_instance;
+}
+
+bool MerVirtualBoxManager::isVirtualMachineRunning(const QString &vmName)
 {
     QStringList arguments;
     arguments.append(QLatin1String(LIST));
@@ -84,7 +111,7 @@ bool VirtualBoxManager::isVirtualMachineRunning(const QString &vmName)
     return isVirtualMachineListed(vmName, QString::fromLocal8Bit(process.readAllStandardOutput()));
 }
 
-bool VirtualBoxManager::isVirtualMachineRegistered(const QString &vmName)
+bool MerVirtualBoxManager::isVirtualMachineRegistered(const QString &vmName)
 {
     QStringList arguments;
     arguments.append(QLatin1String(LIST));
@@ -97,7 +124,7 @@ bool VirtualBoxManager::isVirtualMachineRegistered(const QString &vmName)
     return isVirtualMachineListed(vmName, QString::fromLocal8Bit(process.readAllStandardOutput()));
 }
 
-VirtualMachineInfo VirtualBoxManager::fetchVirtualMachineInfo(const QString &vmName)
+VirtualMachineInfo MerVirtualBoxManager::fetchVirtualMachineInfo(const QString &vmName)
 {
     VirtualMachineInfo info;
     QStringList arguments;
@@ -112,7 +139,7 @@ VirtualMachineInfo VirtualBoxManager::fetchVirtualMachineInfo(const QString &vmN
     return virtualMachineInfoFromOutput(QString::fromLocal8Bit(process.readAllStandardOutput()));
 }
 
-bool VirtualBoxManager::startVirtualMachine(const QString &vmName)
+bool MerVirtualBoxManager::startVirtualMachine(const QString &vmName)
 {
     // Start VM if it is not running
     if (isVirtualMachineRunning(vmName))
@@ -123,7 +150,7 @@ bool VirtualBoxManager::startVirtualMachine(const QString &vmName)
     return QProcess::execute(vBoxManagePath(), arguments);
 }
 
-bool VirtualBoxManager::shutVirtualMachine(const QString &vmName)
+bool MerVirtualBoxManager::shutVirtualMachine(const QString &vmName)
 {
     if (!isVirtualMachineRunning(vmName))
         return true;
@@ -139,7 +166,7 @@ bool VirtualBoxManager::shutVirtualMachine(const QString &vmName)
     return isVirtualMachineRunning(vmName);
 }
 
-QStringList VirtualBoxManager::fetchRegisteredVirtualMachines()
+QStringList MerVirtualBoxManager::fetchRegisteredVirtualMachines()
 {
     QStringList vms;
     QStringList arguments;
@@ -205,6 +232,34 @@ VirtualMachineInfo virtualMachineInfoFromOutput(const QString &output)
     }
 
     return info;
+}
+
+void MerVirtualBoxManager::handleTaskAdded(const Task &task)
+{
+    static QRegExp regExp(QLatin1String("Virtual Machine '(.*)' is not running!"));
+    if (regExp.indexIn(task.description) != -1) {
+        QString vm = regExp.cap(1);
+        if (promptToStart(vm)) {
+            QStringList vmList = MerVirtualBoxManager::fetchRegisteredVirtualMachines();
+            if(vmList.contains(vm))
+                MerVirtualBoxManager::startVirtualMachine(vm);
+        }
+    }
+}
+
+bool MerVirtualBoxManager::promptToStart(const QString& vm) const
+{
+    const QMessageBox::StandardButton response =
+        QMessageBox::question(0, tr("Start Virtual Machine"),
+                              tr("Virtual Machine '%1' is not running! Please start the "
+                                 "Virtual Machine and retry after the Virtual Machine is "
+                                 "running.\n\n"
+                                 "Start Virtual Machine now?").arg(vm),
+                              QMessageBox::No | QMessageBox::Yes, QMessageBox::Yes);
+    if (response == QMessageBox::Yes) {
+        return true;
+    }
+    return false;
 }
 
 } // Internal

@@ -27,6 +27,10 @@
 #include <QHash>
 #include <QString>
 
+namespace ProjectExplorer {
+class Task;
+}
+
 namespace Mer {
 namespace Internal {
 
@@ -42,16 +46,29 @@ public:
     QList<quint16> freePorts;
 };
 
-namespace VirtualBoxManager {
+class MerVirtualBoxManager : public QObject
+{
+    Q_OBJECT
+public:
+    MerVirtualBoxManager* instance();
+    ~MerVirtualBoxManager();
+    static bool isVirtualMachineRunning(const QString &vmName);
+    static bool isVirtualMachineRegistered(const QString &vmName);
+    static QStringList fetchRegisteredVirtualMachines();
+    static VirtualMachineInfo fetchVirtualMachineInfo(const QString &vmName);
+    static bool startVirtualMachine(const QString &vmName);
+    static bool shutVirtualMachine(const QString &vmName);
+private slots:
+    void handleTaskAdded(const ProjectExplorer::Task &task);
+private:
+    MerVirtualBoxManager(QObject *parent = 0);
+    bool promptToStart(const QString& vm) const;
 
-bool isVirtualMachineRunning(const QString &vmName);
-bool isVirtualMachineRegistered(const QString &vmName);
-QStringList fetchRegisteredVirtualMachines();
-VirtualMachineInfo fetchVirtualMachineInfo(const QString &vmName);
-bool startVirtualMachine(const QString &vmName);
-bool shutVirtualMachine(const QString &vmName);
+private:
+    MerVirtualBoxManager *m_instance;
+    friend class MerPlugin;
+};
 
-} // VirtualBoxManager
 } // Internal
 } // Mer
 

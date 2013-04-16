@@ -26,7 +26,7 @@
 #include "mersdkdetailswidget.h"
 #include "mersdkmanager.h"
 #include "mersdkselectiondialog.h"
-#include "virtualboxmanager.h"
+#include "mervirtualboxmanager.h"
 #include "merconnectionmanager.h"
 
 #include <utils/fileutils.h>
@@ -150,7 +150,7 @@ void MerOptionsWidget::onRemoveButtonClicked()
 void MerOptionsWidget::onTestConnectionButtonClicked()
 {
     MerSdk *sdk = m_sdks[m_virtualMachine];
-    if (VirtualBoxManager::isVirtualMachineRunning(sdk->virtualMachineName())) {
+    if (MerVirtualBoxManager::isVirtualMachineRunning(sdk->virtualMachineName())) {
         QSsh::SshConnectionParameters params = MerConnectionManager::paramters(sdk);
         if (m_sshPrivKeys.contains(sdk))
             params.privateKeyFile = m_sshPrivKeys[sdk];
@@ -188,7 +188,7 @@ void MerOptionsWidget::onAuthorizeSshKey(const QString &file)
 void MerOptionsWidget::onStartVirtualMachineButtonClicked()
 {
     const MerSdk *sdk = m_sdks[m_virtualMachine];
-    VirtualBoxManager::startVirtualMachine(sdk->virtualMachineName());
+    MerVirtualBoxManager::startVirtualMachine(sdk->virtualMachineName());
 }
 
 void MerOptionsWidget::onGenerateSshKey(const QString &privKeyPath)

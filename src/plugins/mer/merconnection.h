@@ -60,8 +60,6 @@ public:
     void initialize();
     void update();
 
-    static bool promptToStart(const QString& vm);
-
 private slots:
     void handleTriggered();
     void handleConnection();

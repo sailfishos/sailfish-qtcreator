@@ -47,10 +47,10 @@ SOURCES += \
     merdeploystepfactory.cpp \
     merdeviceconfigurationwidget.cpp \
     mersshparser.cpp \
-    virtualboxmanager.cpp \
     mertarget.cpp \
     merconnection.cpp \
-    merconnectionmanager.cpp
+    merconnectionmanager.cpp \
+    mervirtualboxmanager.cpp
 
 HEADERS += \
     merplugin.h \
@@ -80,10 +80,10 @@ HEADERS += \
     merdeviceconfigurationwidget.h \
     mervirtualmachinebutton.h \
     mersshparser.h \
-    virtualboxmanager.h \
     mertarget.h \
     merconnection.h \
-    merconnectionmanager.h
+    merconnectionmanager.h \
+    mervirtualboxmanager.h
 
 SOURCES += \
     $$PWD/jollawelcomepage.cpp \

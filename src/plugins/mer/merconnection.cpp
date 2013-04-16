@@ -22,7 +22,7 @@
 
 #include "merconnection.h"
 #include "merconstants.h"
-#include "virtualboxmanager.h"
+#include "mervirtualboxmanager.h"
 #include <coreplugin/actionmanager/command.h>
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/coreconstants.h>
@@ -33,7 +33,6 @@
 #include <projectexplorer/taskhub.h>
 #include <projectexplorer/projectexplorer.h>
 #include <QAction>
-#include <QMessageBox>
 #include <QTimer>
 
 namespace Mer {
@@ -200,8 +199,8 @@ void MerRemoteConnection::changeState(State stateTriger)
 
     switch (m_state) {
         case StartingVm:
-            if (!VirtualBoxManager::isVirtualMachineRunning(m_vmName)) {
-                VirtualBoxManager::startVirtualMachine(m_vmName);
+            if (!MerVirtualBoxManager::isVirtualMachineRunning(m_vmName)) {
+                MerVirtualBoxManager::startVirtualMachine(m_vmName);
                 QTimer::singleShot(VM_TIMEOUT,this,SLOT(changeState()));
             } else {
                 m_state = Connecting;
@@ -226,7 +225,7 @@ void MerRemoteConnection::changeState(State stateTriger)
              if (m_connection->state() == SshConnection::Connected) {
                  m_connection->disconnectFromHost();
              } else if (m_connection->state() == SshConnection::Unconnected) {
-                 VirtualBoxManager::shutVirtualMachine(m_vmName);
+                 MerVirtualBoxManager::shutVirtualMachine(m_vmName);
                  QSsh::SshConnectionParameters sshParams = m_connection->connectionParameters();
                  sshParams.userName = QLatin1String("root");
                  QSsh::SshRemoteProcessRunner *runner = new QSsh::SshRemoteProcessRunner(m_connection);
@@ -239,7 +238,7 @@ void MerRemoteConnection::changeState(State stateTriger)
              }
             break;
         case ClosingVm:
-            if (!VirtualBoxManager::isVirtualMachineRunning(m_vmName)) {
+            if (!MerVirtualBoxManager::isVirtualMachineRunning(m_vmName)) {
                 m_state = Disconnected;
             } else {
                 qWarning() << "Could not close virtual machine" << m_vmName;
@@ -273,21 +272,6 @@ void  MerRemoteConnection::createConnectionErrorTask(const QString &vmName, cons
                      Utils::FileName() /* filename */,
                      -1 /* linenumber */,
                      Core::Id(Constants::MER_TASKHUB_CATEGORY)));
-}
-
-bool MerRemoteConnection::promptToStart(const QString& vm)
-{
-    const QMessageBox::StandardButton response =
-        QMessageBox::question(0, tr("Start Virtual Machine"),
-                              tr("Virtual Machine '%1' is not running! Please start the "
-                                 "Virtual Machine and retry after the Virtual Machine is "
-                                 "running.\n\n"
-                                 "Start Virtual Machine now?").arg(vm),
-                              QMessageBox::No | QMessageBox::Yes, QMessageBox::Yes);
-    if (response == QMessageBox::Yes) {
-        return true;
-    }
-    return false;
 }
 
 } // Internal

@@ -23,16 +23,13 @@
 #include "merconnectionmanager.h"
 #include "merconnection.h"
 #include "mersdkmanager.h"
-#include "merconstants.h"
 #include "virtualboxmanager.h"
 
 #include <projectexplorer/project.h>
 #include <projectexplorer/target.h>
-#include <extensionsystem/pluginmanager.h>
-#include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/session.h>
 #include <projectexplorer/kitinformation.h>
-#include <projectexplorer/taskhub.h>
+#include <projectexplorer/projectexplorer.h>
 #include <ssh/sshconnection.h>
 
 #include <QIcon>
@@ -76,11 +73,6 @@ MerConnectionManager::MerConnectionManager():
     SessionManager *session = ProjectExplorerPlugin::instance()->session();
     connect(session, SIGNAL(startupProjectChanged(ProjectExplorer::Project*)),
             SLOT(handleStartupProjectChanged(ProjectExplorer::Project*)));
-
-    TaskHub *th = ProjectExplorerPlugin::instance()->taskHub();
-    th->addCategory(Core::Id(Constants::MER_TASKHUB_CATEGORY), tr("Virtual Machine Error"));
-    connect(th, SIGNAL(taskAdded(ProjectExplorer::Task)),
-            SLOT(handleTaskAdded(ProjectExplorer::Task)));
 
     m_instance = this;
 }
@@ -204,27 +196,6 @@ void MerConnectionManager::update()
     m_sdkConnection->setVisible(sdkRemoteButonVisible);
     m_emulatorConnection->update();
     m_sdkConnection->update();
-}
-
-void MerConnectionManager::handleTaskAdded(const Task &task)
-{
-    //TODO: move this to virtualboxmanager
-    static QRegExp regExp(QLatin1String("Virtual Machine '(.*)' is not running!"));
-    if (regExp.indexIn(task.description) != -1) {
-        QString vm = regExp.cap(1);
-        const QMessageBox::StandardButton response =
-                QMessageBox::question(0, tr("Start Virtual Machine"),
-                                      tr("Virtual Machine '%1' is not running! Please start the "
-                                         "Virtual Machine and retry after the Virtual Machine is "
-                                         "running.\n\n"
-                                         "Start Virtual Machine now?").arg(vm),
-                                      QMessageBox::No | QMessageBox::Yes, QMessageBox::Yes);
-        if (response == QMessageBox::Yes) {
-            QStringList vmList = VirtualBoxManager::fetchRegisteredVirtualMachines();
-            if(vmList.contains(vm))
-                VirtualBoxManager::startVirtualMachine(vm);
-        }
-    }
 }
 
 QString MerConnectionManager::testConnection(const QSsh::SshConnectionParameters &params)
