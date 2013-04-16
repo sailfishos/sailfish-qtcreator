@@ -55,6 +55,7 @@ public:
     void setSdk(const MerSdk *sdk);
     void setStatus(const QString &status);
     void setPrivateKeyFile(const QString &path);
+    void setTestButtonEnabled(bool enabled);
 
 signals:
     void generateSshKey(const QString &key);

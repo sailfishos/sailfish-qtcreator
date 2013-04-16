@@ -21,10 +21,11 @@
 ****************************************************************************/
 
 #include "meremulatorstartstep.h"
-#include "mervirtualmachinemanager.h"
+#include "merconnectionmanager.h"
 #include "merconstants.h"
 
 #include <remotelinux/abstractremotelinuxdeployservice.h>
+#include <ssh/sshconnection.h>
 
 using namespace ProjectExplorer;
 using namespace RemoteLinux;
@@ -52,8 +53,8 @@ private:
         }
 
         const QString vmName = device->id().toString();
-        MerVirtualMachineManager *em = MerVirtualMachineManager::instance();
-        if (em->isRemoteConnected(vmName)) {
+        MerConnectionManager *em = MerConnectionManager::instance();
+        if (em->isConnected(device->sshParameters())) {
             emit progressMessage(tr("Emulator is already running. Nothing to do."));
             handleDeviceSetupDone(true);
             return;

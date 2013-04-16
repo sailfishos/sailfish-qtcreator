@@ -98,6 +98,11 @@ void SdkDetailsWidget::setSdk(const MerSdk *sdk)
     m_ui->privateKeyPathChooser->setEnabled(!canModifyKeys);
 }
 
+void SdkDetailsWidget::setTestButtonEnabled(bool enabled)
+{
+    m_ui->testConnectionPushButton->setEnabled(enabled);
+}
+
 void SdkDetailsWidget::setPrivateKeyFile(const QString &path)
 {
     m_ui->privateKeyPathChooser->setPath(path);

@@ -23,7 +23,6 @@
 #include "merdevice.h"
 #include "merdeviceconfigurationwidget.h"
 #include "merconstants.h"
-#include "mervirtualmachinemanager.h"
 #include "mersdkmanager.h"
 #include "virtualboxmanager.h"
 
@@ -185,7 +184,7 @@ void MerDevice::executeAction(Core::Id actionId, QWidget *parent) const
             dialog.exec();
             return;
         } else if (actionId == Constants::MER_EMULATOR_START_ACTION_ID) {
-            MerVirtualMachineManager::instance()->startRemote(id().toString(), sshParameters());
+            VirtualBoxManager::shutVirtualMachine(id().toString());
             return;
         }
     }

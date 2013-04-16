@@ -24,8 +24,6 @@
 #define MERSDKMANAGER_H
 
 #include "mersdk.h"
-#include "mervirtualmachinebutton.h"
-
 #include <ssh/sshconnection.h>
 #include <utils/environment.h>
 
@@ -43,8 +41,6 @@ class FileName;
 namespace ProjectExplorer {
 class Kit;
 class Project;
-class Target;
-class Task;
 }
 
 namespace Mer {
@@ -55,7 +51,6 @@ class MerSdkManager : public QObject
     Q_OBJECT
 public:
     static MerSdkManager *instance();
-
     static QString sdkToolsDirectory();
     static QString globalSdkToolsDirectory();
     static bool authorizePublicKey(const QString &authorizedKeysPath, const QString &publicKeyPath, QString &error);
@@ -68,6 +63,7 @@ public:
 
     static void addToEnvironment(const QString &sdkName, Utils::Environment &env);
 
+    ~MerSdkManager();
     QList<MerSdk*> sdks() const;
     MerSdk* sdk(const QString &virtualMachineName) const;
     MerSdk* createSdk(const QString &vmName);
@@ -81,42 +77,21 @@ public slots:
 
 signals:
     void sdksUpdated();
-    void sdkRunningChanged();
 
 private slots:
-    void handleStartupProjectChanged(ProjectExplorer::Project *project);
-    void handleKitUpdated(ProjectExplorer::Kit *kit);
-    void handleTargetAdded(ProjectExplorer::Target *target);
-    void handleTargetRemoved(ProjectExplorer::Target *target);
-    void handleTaskAdded(const ProjectExplorer::Task &task);
-    void handleStartRemoteRequested();
-    void handleStopRemoteRequested();
     void initialize();
-    void updateUI();
-    void handleConnectionError(const QString &vmName, const QString &error);
 
 private:
-    explicit MerSdkManager();
-    ~MerSdkManager();
-    MerSdkManager(const MerSdkManager &);
-    MerSdkManager &operator=(const MerSdkManager &);
-
+    MerSdkManager();
     void restore();
-    bool sdkParams(QString &sdkName, QSsh::SshConnectionParameters &params) const;
-    bool emulatorParams(QString &emulatorName, QSsh::SshConnectionParameters &params) const;
     QList<MerSdk*> restoreSdks(const Utils::FileName &fileName);
     QList<ProjectExplorer::Kit*> merKits() const;
     QList<MerToolChain*> merToolChains() const;
     QList<MerQtVersion*> merQtVersions() const;
 private:
-    static MerSdkManager *m_sdkManager;
-    static ProjectExplorer::Project *m_previousProject;
-    mutable QMap<QString, MerSdk*> m_sdks;
-    mutable bool m_intialized;
-
-    MerVirtualMachineButton m_remoteEmulatorBtn;
-    MerVirtualMachineButton m_remoteSdkBtn;
-
+    static MerSdkManager *m_instance;
+    QMap<QString, MerSdk*> m_sdks;
+    bool m_intialized;
     Utils::PersistentSettingsWriter *m_writer;
 
     friend class MerPlugin;

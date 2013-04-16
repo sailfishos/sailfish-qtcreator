@@ -30,7 +30,7 @@
 #include "meroptionspage.h"
 #include "merdeploystepfactory.h"
 #include "mersdkmanager.h"
-
+#include "merconnectionmanager.h"
 #include "jollawelcomepage.h"
 #include "mermode.h"
 
@@ -53,6 +53,7 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
     Q_UNUSED(errorString)
 
     addAutoReleasedObject(new MerSdkManager);
+    addAutoReleasedObject(new MerConnectionManager);
     addAutoReleasedObject(new MerOptionsPage);
     addAutoReleasedObject(new MerDeviceFactory);
     addAutoReleasedObject(new MerQtVersionFactory);

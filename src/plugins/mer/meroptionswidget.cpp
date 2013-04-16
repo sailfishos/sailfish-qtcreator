@@ -28,8 +28,10 @@
 #include "sdkselectiondialog.h"
 #include "mervirtualmachinemanager.h"
 #include "virtualboxmanager.h"
+#include "merconnectionmanager.h"
 
 #include <utils/fileutils.h>
+#include <ssh/sshconnection.h>
 
 #include <QStandardItemModel>
 #include <QStandardItem>
@@ -58,9 +60,6 @@ MerOptionsWidget::MerOptionsWidget(QWidget *parent)
     connect(m_ui->removeButton, SIGNAL(clicked()), SLOT(onRemoveButtonClicked()));
     connect(m_ui->startVirtualMachineButton, SIGNAL(clicked()), SLOT(onStartVirtualMachineButtonClicked()));
     connect(m_ui->sdkDetailsWidget, SIGNAL(testConnectionButtonClicked()), SLOT(onTestConnectionButtonClicked()));
-    connect(MerVirtualMachineManager::instance(), SIGNAL(connectionChanged(QString,bool)), this, SLOT(onConnectionChanged(QString,bool)));
-    connect(MerVirtualMachineManager::instance(), SIGNAL(error(QString,QString)), this, SLOT(onError(QString,QString)));
-
     onSdksUpdated();
 }
 
@@ -112,10 +111,7 @@ void MerOptionsWidget::onSdkChanged(const QString &sdkName)
 {
    if (m_virtualMachine != sdkName) {
        m_virtualMachine = sdkName;
-       if (MerVirtualMachineManager::instance()->isRemoteConnected(sdkName))
-           m_status = tr("Connected.");
-       else
-           m_status = tr("Not connected.");
+       m_status = tr("Not tested.");
        update();
    }
 }
@@ -156,20 +152,16 @@ void MerOptionsWidget::onTestConnectionButtonClicked()
 {
     MerSdk *sdk = m_sdks[m_virtualMachine];
     if (VirtualBoxManager::isVirtualMachineRunning(sdk->virtualMachineName())) {
-        MerVirtualMachineManager *remoteManager = MerVirtualMachineManager::instance();
-        QSsh::SshConnectionParameters params;
-        params.userName = sdk->userName();
-        params.host = sdk->host();
-        params.port = sdk->sshPort();
+        QSsh::SshConnectionParameters params = MerConnectionManager::paramters(sdk);
         if (m_sshPrivKeys.contains(sdk))
             params.privateKeyFile = m_sshPrivKeys[sdk];
         else
             params.privateKeyFile = sdk->privateKeyFile();
-
-        if (remoteManager->isRemoteConnected(sdk->virtualMachineName()))
-            remoteManager->disconnectRemote(sdk->virtualMachineName());
         m_ui->sdkDetailsWidget->setStatus(tr("Connecting to machine %1 ...").arg(sdk->virtualMachineName()));
-        remoteManager->connectToRemote(sdk->virtualMachineName(), params);
+        m_ui->sdkDetailsWidget->setTestButtonEnabled(false);
+        m_status = MerConnectionManager::instance()->testConnection(params);
+        m_ui->sdkDetailsWidget->setTestButtonEnabled(true);
+        update();
     } else {
         m_ui->sdkDetailsWidget->setStatus(tr("Virtual machine %1 is not running.").arg(sdk->virtualMachineName()));
     }
@@ -197,12 +189,7 @@ void MerOptionsWidget::onAuthorizeSshKey(const QString &file)
 void MerOptionsWidget::onStartVirtualMachineButtonClicked()
 {
     const MerSdk *sdk = m_sdks[m_virtualMachine];
-    QSsh::SshConnectionParameters params;
-    params.userName = sdk->userName();
-    params.host = sdk->host();
-    params.port = sdk->sshPort();
-    params.privateKeyFile = sdk->privateKeyFile();
-    MerVirtualMachineManager::instance()->startRemote(sdk->virtualMachineName(), params);
+    VirtualBoxManager::startVirtualMachine(sdk->virtualMachineName());
 }
 
 void MerOptionsWidget::onGenerateSshKey(const QString &privKeyPath)
@@ -248,23 +235,6 @@ void MerOptionsWidget::update()
     m_ui->sdkDetailsWidget->setVisible(show);
     m_ui->removeButton->setEnabled(show);
     m_ui->startVirtualMachineButton->setEnabled(show);
-}
-
-//TODO: refactor connectionManager
-void MerOptionsWidget::onConnectionChanged(const QString &vmName, bool connected)
-{
-    if (m_virtualMachine == vmName && connected) {
-        m_status = tr("Connected.");
-        update();
-    }
-}
-
-void MerOptionsWidget::onError(const QString &vmName, const QString &error)
-{
-    if (m_virtualMachine == vmName) {
-        m_status = tr("Not Connected. ") + error;
-        update();
-    }
 }
 
 void MerOptionsWidget::onSshKeyChanged(const QString &file)
