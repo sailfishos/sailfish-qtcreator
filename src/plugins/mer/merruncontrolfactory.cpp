@@ -25,7 +25,7 @@
 #include "merrunconfiguration.h"
 #include "mersdkmanager.h"
 #include "mertoolchain.h"
-#include "virtualboxmanager.h"
+#include "mervirtualboxmanager.h"
 
 #include <debugger/debuggerplugin.h>
 #include <debugger/debuggerrunner.h>
@@ -95,7 +95,7 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, RunMode mo
     if (toolchain->type() == QLatin1String(Constants::MER_TOOLCHAIN_TYPE)) {
         MerToolChain *mertoolchain = static_cast<MerToolChain *>(toolchain);
         const VirtualMachineInfo info =
-                VirtualBoxManager::fetchVirtualMachineInfo(mertoolchain->virtualMachineName());
+                MerVirtualBoxManager::fetchVirtualMachineInfo(mertoolchain->virtualMachineName());
         if (!info.sharedHome.isEmpty())
             params.sourcePathMap.insert(QLatin1String("/home/mersdk"), info.sharedHome);
     }

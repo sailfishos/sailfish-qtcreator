@@ -24,7 +24,7 @@
 #include "merdeviceconfigurationwidget.h"
 #include "merconstants.h"
 #include "mersdkmanager.h"
-#include "virtualboxmanager.h"
+#include "mervirtualboxmanager.h"
 
 #include <remotelinux/remotelinux_constants.h>
 #include <utils/qtcassert.h>
@@ -86,7 +86,7 @@ private:
         const QString privKeyPath = m_params.privateKeyFile;
         const QString pubKeyPath = privKeyPath + QLatin1String(".pub");
         QString error;
-        VirtualMachineInfo info = VirtualBoxManager::fetchVirtualMachineInfo(m_vmName);
+        VirtualMachineInfo info = MerVirtualBoxManager::fetchVirtualMachineInfo(m_vmName);
         const QString sshDirectoryPath = info.sharedSsh + QLatin1Char('/');
         const QStringList authorizedKeysPaths = QStringList()
                 << sshDirectoryPath + QLatin1String("root/") + QLatin1String(Constants::MER_AUTHORIZEDKEYS_FOLDER)
@@ -184,7 +184,7 @@ void MerDevice::executeAction(Core::Id actionId, QWidget *parent) const
             dialog.exec();
             return;
         } else if (actionId == Constants::MER_EMULATOR_START_ACTION_ID) {
-            VirtualBoxManager::shutVirtualMachine(id().toString());
+            MerVirtualBoxManager::shutVirtualMachine(id().toString());
             return;
         }
     }

@@ -29,7 +29,7 @@
 #include "merconstants.h"
 #include "merconnectionmanager.h"
 #include "mersdkmanager.h"
-#include "virtualboxmanager.h"
+#include "mervirtualboxmanager.h"
 
 #include <ssh/sshkeygenerator.h>
 
@@ -87,7 +87,7 @@ void MerDeviceConfigWizardGeneralPage::initializePage()
         m_ui->nameComboBox->clear();
         m_ui->nameLineEdit->setVisible(false);
         m_ui->hostNameLineEdit->setReadOnly(true);
-        const QStringList registeredVMs = VirtualBoxManager::fetchRegisteredVirtualMachines();
+        const QStringList registeredVMs = MerVirtualBoxManager::fetchRegisteredVirtualMachines();
         foreach (const QString &vm, registeredVMs)
             m_ui->nameComboBox->addItem(vm);
     }
@@ -150,7 +150,7 @@ void MerDeviceConfigWizardGeneralPage::authTypeChanged()
 
 void MerDeviceConfigWizardGeneralPage::onVirtualMachineChanged(const QString &vmName)
 {
-    VirtualMachineInfo info = VirtualBoxManager::fetchVirtualMachineInfo(vmName);
+    VirtualMachineInfo info = MerVirtualBoxManager::fetchVirtualMachineInfo(vmName);
     m_ui->sshPortSpinBox->setValue(info.sshPort);
     QStringList freePorts;
     foreach (quint16 port, info.freePorts)
@@ -338,7 +338,7 @@ void MerDeviceConfigWizardKeyCreationPage::authorizeKeys()
     m_ui->statusLabel->setText(tr("Authorizing keys..."));
     const QString privKeyPath = m_wizardData.privateKeyFilePath;
     const QString pubKeyPath = privKeyPath + QLatin1String(".pub");
-    VirtualMachineInfo info = VirtualBoxManager::fetchVirtualMachineInfo(m_wizardData.configName);
+    VirtualMachineInfo info = MerVirtualBoxManager::fetchVirtualMachineInfo(m_wizardData.configName);
     const QString sshDirectoryPath = info.sharedSsh + QLatin1Char('/');
     const QStringList authorizedKeysPaths = QStringList()
             << sshDirectoryPath + QLatin1String("root/") + QLatin1String(Constants::MER_AUTHORIZEDKEYS_FOLDER)
@@ -401,7 +401,7 @@ void MerDeviceConfigWizardFinalPage::startEmulator()
     params.authenticationType = m_wizardData.authType;
     params.port = m_wizardData.sshPort;
     */
-    VirtualBoxManager::startVirtualMachine(m_wizardData.configName);
+    MerVirtualBoxManager::startVirtualMachine(m_wizardData.configName);
 }
 
 QString MerDeviceConfigWizardFinalPage::infoText() const

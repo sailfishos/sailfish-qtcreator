@@ -22,7 +22,7 @@
 
 #include "merdeviceconfigurationwidget.h"
 #include "ui_merdeviceconfigurationwidget.h"
-#include "virtualboxmanager.h"
+#include "mervirtualboxmanager.h"
 
 #include <utils/portlist.h>
 #include <utils/fancylineedit.h>
@@ -152,7 +152,7 @@ void MerDeviceConfigurationWidget::createNewKey()
 void MerDeviceConfigurationWidget::updateDeviceFromUi()
 {
     VirtualMachineInfo info =
-            VirtualBoxManager::fetchVirtualMachineInfo(device()->id().toString());
+            MerVirtualBoxManager::fetchVirtualMachineInfo(device()->id().toString());
     int sshPort = info.sshPort ? info.sshPort : device()->sshParameters().port;
     m_ui->sshPortSpinBox->setValue(sshPort);
     if (info.freePorts.count()) {
@@ -211,7 +211,7 @@ void MerDeviceConfigurationWidget::initGui()
     m_ui->keyFileLineEdit->setPath(sshParams.privateKeyFile);
     m_ui->showPasswordCheckBox->setChecked(false);
     VirtualMachineInfo info =
-            VirtualBoxManager::fetchVirtualMachineInfo(device()->id().toString());
+            MerVirtualBoxManager::fetchVirtualMachineInfo(device()->id().toString());
     int sshPort = info.sshPort ? info.sshPort : sshParams.port;
     m_ui->sshPortSpinBox->setValue(sshPort);
     if (info.freePorts.count()) {

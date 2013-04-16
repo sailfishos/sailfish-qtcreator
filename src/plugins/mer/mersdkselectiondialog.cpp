@@ -22,7 +22,7 @@
 
 #include "mersdkselectiondialog.h"
 #include "ui_mersdkselectiondialog.h"
-#include "virtualboxmanager.h"
+#include "mervirtualboxmanager.h"
 
 #include <QListWidgetItem>
 #include <QPushButton>
@@ -36,7 +36,7 @@ MerSdkSelectionDialog::MerSdkSelectionDialog(QWidget *parent)
 {
     m_ui->setupUi(this);
 
-    const QStringList registeredSdks = VirtualBoxManager::fetchRegisteredVirtualMachines();
+    const QStringList registeredSdks = MerVirtualBoxManager::fetchRegisteredVirtualMachines();
     foreach (const QString &sdk, registeredSdks)
         new QListWidgetItem(sdk, m_ui->virtualMachineListWidget);
 

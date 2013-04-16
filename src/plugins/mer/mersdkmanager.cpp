@@ -24,7 +24,7 @@
 #include "merconstants.h"
 #include "merqtversion.h"
 #include "mertoolchain.h"
-#include "virtualboxmanager.h"
+#include "mervirtualboxmanager.h"
 #include "merconnectionmanager.h"
 #include "merplugin.h"
 
@@ -386,8 +386,7 @@ MerSdk* MerSdkManager::createSdk(const QString &vmName)
 {
     MerSdk *sdk = new MerSdk();
 
-    VirtualMachineInfo info =
-            VirtualBoxManager::fetchVirtualMachineInfo(vmName);
+    VirtualMachineInfo info = MerVirtualBoxManager::fetchVirtualMachineInfo(vmName);
     sdk->setVirtualMachineName(vmName);
     sdk->setSshPort(info.sshPort);
     sdk->setWwwPort(info.wwwPort);
@@ -436,7 +435,7 @@ bool MerSdkManager::validateKit(const Kit* kit)
 
 void MerSdkManager::addToEnvironment(const QString &sdkName, Utils::Environment &env)
 {
-    const VirtualMachineInfo vmInfo = VirtualBoxManager::fetchVirtualMachineInfo(sdkName);
+    const VirtualMachineInfo vmInfo = MerVirtualBoxManager::fetchVirtualMachineInfo(sdkName);
     const MerSdk *sdk = MerSdkManager::instance()->sdk(sdkName);
     QTC_CHECK(sdk);
     const QString sshPort = QString::number(vmInfo.sshPort ? vmInfo.sshPort : sdk->sshPort());
