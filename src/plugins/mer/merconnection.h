@@ -43,7 +43,16 @@ class MerRemoteConnection : public QObject
 {
     Q_OBJECT
 public:
-    enum State { NoStateTigger =-1 , Disconnected, StartingVm , Connecting , Conneted,  Disconneting , ClosingVm};
+    enum State {
+        NoStateTrigger = -1,
+        Disconnected,
+        StartingVm,
+        Connecting,
+        Connected,
+        Disconneting,
+        ClosingVm
+    };
+
     explicit MerRemoteConnection(QObject *parent = 0);
     ~MerRemoteConnection();
 
@@ -55,7 +64,7 @@ public:
     void setEnabled(bool enabled);
     void setSshParameters(const QSsh::SshConnectionParameters &serverInfo);
     QSsh::SshConnectionParameters parameters() const;
-    void setVirtualMachine(const QString& name);
+    void setVirtualMachine(const QString &name);
     bool isConnected() const;
     void initialize();
     void update();
@@ -63,7 +72,7 @@ public:
 private slots:
     void handleTriggered();
     void handleConnection();
-    void changeState(State state = NoStateTigger);
+    void changeState(State state = NoStateTrigger);
 
 private:
     QSsh::SshConnection* createConnection(const QSsh::SshConnectionParameters &params);

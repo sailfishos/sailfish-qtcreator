@@ -23,7 +23,7 @@
 #include "merconnectionmanager.h"
 #include "merconnection.h"
 #include "mersdkmanager.h"
-#include "virtualboxmanager.h"
+#include "mervirtualboxmanager.h"
 
 #include <projectexplorer/project.h>
 #include <projectexplorer/target.h>
@@ -82,23 +82,22 @@ MerConnectionManager::~MerConnectionManager()
     m_instance = 0;
 }
 
-MerConnectionManager *MerConnectionManager::instance()
+MerConnectionManager* MerConnectionManager::instance()
 {
     Q_ASSERT(m_instance);
     return m_instance;
 }
 
-bool MerConnectionManager::isConnected(const QSsh::SshConnectionParameters &params)
+bool MerConnectionManager::isConnected(const QSsh::SshConnectionParameters &params) const
 {
-    if(m_emulatorConnection->parameters() == params)
+    if (m_emulatorConnection->parameters() == params)
         return m_emulatorConnection->isConnected();
-    if(m_sdkConnection->parameters() == params)
+    if (m_sdkConnection->parameters() == params)
         return m_sdkConnection->isConnected();
     return false;
-
 }
 
-QSsh::SshConnectionParameters MerConnectionManager::paramters(const MerSdk* sdk)
+QSsh::SshConnectionParameters MerConnectionManager::paramters(const MerSdk *sdk)
 {
     QSsh::SshConnectionParameters params;
     params.userName = sdk->userName();
@@ -158,21 +157,21 @@ void MerConnectionManager::update()
     bool sdkRemoteButonVisible = false;
     bool emulatorRemoteButtonVisible = false;
 
-    const Project * const p = ProjectExplorerPlugin::instance()->session()->startupProject();
+    const Project* const p = ProjectExplorerPlugin::instance()->session()->startupProject();
     if (p) {
-        const Target * const activeTarget = p->activeTarget();
+        const Target* const activeTarget = p->activeTarget();
         const QList<Target *> targets =  p->targets();
 
-        foreach (const Target* t , targets) {
+        foreach (const Target *t , targets) {
             if (MerSdkManager::isMerKit(t->kit())) {
                 sdkRemoteButonVisible = true;
                 if (t == activeTarget) {
                     sdkRemoteButonEnabled = true;
-                     const QString &sdkName = MerSdkManager::virtualMachineNameForKit(t->kit());
-                     if(!sdkName.isEmpty()) {
+                    const QString &sdkName = MerSdkManager::virtualMachineNameForKit(t->kit());
+                    if (!sdkName.isEmpty()) {
                         m_sdkConnection->setVirtualMachine(sdkName);
                         m_sdkConnection->setSshParameters(paramters(MerSdkManager::instance()->sdk(sdkName)));
-                     }
+                    }
                 }
             }
 
@@ -198,10 +197,10 @@ void MerConnectionManager::update()
     m_sdkConnection->update();
 }
 
-QString MerConnectionManager::testConnection(const QSsh::SshConnectionParameters &params)
+QString MerConnectionManager::testConnection(const QSsh::SshConnectionParameters &params) const
 {
     QSsh::SshConnectionParameters p = params;
-    p.timeout=24; //TODO: magic number
+    p.timeout = 24; //TODO: magic number
     QSsh::SshConnection connection(p);
     QEventLoop loop;
     connect(&connection, SIGNAL(connected()), &loop, SLOT(quit()));
@@ -210,7 +209,7 @@ QString MerConnectionManager::testConnection(const QSsh::SshConnectionParameters
     connection.connectToHost();
     loop.exec();
     QString result;
-    if(connection.errorState() != QSsh::SshNoError)
+    if (connection.errorState() != QSsh::SshNoError)
         result = connection.errorString();
     else
         result = tr("Connected");

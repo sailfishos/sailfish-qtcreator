@@ -29,11 +29,11 @@
 #include <QStringList>
 
 namespace ProjectExplorer {
- class Kit;
+class Kit;
 }
 
 namespace Utils {
- class FileName;
+class FileName;
 }
 
 namespace Mer {

@@ -230,7 +230,7 @@ void MerSdkManager::storeSdks() const
     m_writer->save(data, Core::ICore::mainWindow());
 }
 
-bool MerSdkManager::isMerKit(Kit *kit)
+bool MerSdkManager::isMerKit(const Kit *kit)
 {
     if (!kit)
         return false;
@@ -247,7 +247,7 @@ bool MerSdkManager::isMerKit(Kit *kit)
     return false;
 }
 
-QString MerSdkManager::targetNameForKit(Kit *kit)
+QString MerSdkManager::targetNameForKit(const Kit *kit)
 {
     if (!kit || !isMerKit(kit))
         return QString();
@@ -269,9 +269,9 @@ QString MerSdkManager::virtualMachineNameForKit(const Kit *kit)
     return QString();
 }
 
-bool MerSdkManager::hasMerDevice(Kit *k)
+bool MerSdkManager::hasMerDevice(Kit *kit)
 {
-    IDevice::ConstPtr dev = DeviceKitInformation::device(k);
+    IDevice::ConstPtr dev = DeviceKitInformation::device(kit);
     if (dev.isNull())
         return false;
     return dev->type() == Constants::MER_DEVICE_TYPE;
@@ -360,18 +360,18 @@ bool MerSdkManager::hasSdk(const MerSdk* sdk) const
 }
 
 // takes ownership
-void MerSdkManager::addSdk(MerSdk* sdk)
+void MerSdkManager::addSdk(MerSdk *sdk)
 {
     if (m_sdks.contains(sdk->virtualMachineName()))
         return;
     m_sdks.insert(sdk->virtualMachineName(), sdk);
-    connect(sdk,SIGNAL(targetsChanged(QStringList)),this,SIGNAL(sdksUpdated()));
+    connect(sdk, SIGNAL(targetsChanged(QStringList)), this, SIGNAL(sdksUpdated()));
     sdk->attach();
     emit sdksUpdated();
 }
 
 // pass back the ownership
-void MerSdkManager::removeSdk(MerSdk* sdk)
+void MerSdkManager::removeSdk(MerSdk *sdk)
 {
     if (!m_sdks.contains(sdk->virtualMachineName()))
         return;
@@ -409,7 +409,7 @@ MerSdk* MerSdkManager::sdk(const QString &sdkName) const
     return m_sdks[sdkName];
 }
 
-bool MerSdkManager::validateKit(const Kit* kit)
+bool MerSdkManager::validateKit(const Kit *kit)
 {
     if (!kit)
         return false;
@@ -493,7 +493,7 @@ bool MerSdkManager::generateSshKey(const QString &privKeyPath, QString &error)
 
 #ifdef WITH_TESTS
 
-void MerPlugin::verifyTargets(QString vm, QStringList expectedKits, QStringList expectedToolChains, QStringList expectedQtVersions)
+void MerPlugin::verifyTargets(const QString &vm, QStringList expectedKits, QStringList expectedToolChains, QStringList expectedQtVersions)
 {
     MerSdkManager *sdkManager = MerSdkManager::instance();
     QList<ProjectExplorer::Kit*> kits = sdkManager->merKits();

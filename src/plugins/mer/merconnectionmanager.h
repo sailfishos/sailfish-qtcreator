@@ -47,11 +47,11 @@ class MerConnectionManager : public QObject
 {
     Q_OBJECT
 public:
-    static MerConnectionManager *instance();
+    static MerConnectionManager* instance();
     ~MerConnectionManager();
-    static QSsh::SshConnectionParameters paramters(const MerSdk* sdk);
-    QString testConnection(const QSsh::SshConnectionParameters &params);
-    bool isConnected(const QSsh::SshConnectionParameters &params);
+    static QSsh::SshConnectionParameters paramters(const MerSdk *sdk);
+    QString testConnection(const QSsh::SshConnectionParameters &params) const;
+    bool isConnected(const QSsh::SshConnectionParameters &params) const;
 
 public slots:
     void update();
