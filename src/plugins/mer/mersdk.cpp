@@ -159,7 +159,10 @@ quint16 MerSdk::wwwPort() const
 
 void MerSdk::setPrivateKeyFile(const QString &file)
 {
-    m_privateKeyFile = file;
+    if (m_privateKeyFile != file) {
+        m_privateKeyFile = file;
+        emit privateKeyChanged(file);
+    }
 }
 
 QString MerSdk::privateKeyFile() const

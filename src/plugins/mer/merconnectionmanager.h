@@ -52,10 +52,8 @@ public:
     static QSsh::SshConnectionParameters paramters(const MerSdk *sdk);
     QString testConnection(const QSsh::SshConnectionParameters &params) const;
     bool isConnected(const QSsh::SshConnectionParameters &params) const;
-
-public slots:
-    void update();
 private slots:
+    void update();
     void handleStartupProjectChanged(ProjectExplorer::Project *project);
     void handleKitUpdated(ProjectExplorer::Kit *kit);
     void handleTargetAdded(ProjectExplorer::Target *target);
