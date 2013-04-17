@@ -72,7 +72,7 @@ MerConnectionManager::MerConnectionManager():
     SessionManager *session = ProjectExplorerPlugin::instance()->session();
     connect(session, SIGNAL(startupProjectChanged(ProjectExplorer::Project*)),
             SLOT(handleStartupProjectChanged(ProjectExplorer::Project*)));
-
+    connect(MerSdkManager::instance(),SIGNAL(sdksUpdated()),this,SLOT(update()));
     m_instance = this;
 }
 

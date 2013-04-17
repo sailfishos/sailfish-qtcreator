@@ -90,6 +90,7 @@ public:
 
 signals:
     void targetsChanged(const QStringList &targets);
+    void privateKeyChanged(const QString &file);
 
 private slots:
     void updateTargets();
