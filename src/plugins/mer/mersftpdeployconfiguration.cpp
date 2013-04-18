@@ -37,6 +37,7 @@ MerSftpDeployConfiguration::MerSftpDeployConfiguration(ProjectExplorer::Target *
                                                        MerSftpDeployConfiguration *source)
     : RemoteLinux::RemoteLinuxDeployConfiguration(target, source)
 {
+     cloneSteps(source);
 }
 
 }
