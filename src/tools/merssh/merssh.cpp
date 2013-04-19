@@ -39,6 +39,7 @@ enum CommandType {
 MerSSH::MerSSH(QObject *parent)
     : QObject(parent)
     , m_exitCode(0)
+    , m_quietOnError(false)
     , m_runner(new QSsh::SshRemoteProcessRunner())
 {
     connect(m_runner, SIGNAL(readyReadStandardOutput()), SLOT(onStandardOutput()));
@@ -95,6 +96,9 @@ bool MerSSH::run(const QString &sdkToolsDir, const QString &merTargetName,
 {
     using namespace Mer::Constants;
 
+    // HACK: Qt Creator ignores gcc's exit code, and can be confused by non-gcc-like output.
+    m_quietOnError = command.startsWith(QLatin1String("gcc "));
+
     const QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
     const QString sharedHome = environment.value(QLatin1String(MER_SSH_SHARED_HOME));
     const QString sharedTarget = environment.value(QLatin1String(MER_SSH_SHARED_TARGET));
@@ -107,7 +111,7 @@ bool MerSSH::run(const QString &sdkToolsDir, const QString &merTargetName,
 
     CommandType type = commandTypeFromString(commandType);
     if (type == CommandTypeUndefined) {
-        qCritical("Invalid commandType '%s'", qPrintable(commandType));
+        printError(QString::fromLatin1("Invalid commandType '%1'").arg(commandType));
         return false;
     }
 
@@ -116,7 +120,7 @@ bool MerSSH::run(const QString &sdkToolsDir, const QString &merTargetName,
     if (QFile::exists(m_currentCacheFile)) {
         QFile cacheFile(m_currentCacheFile);
         if (!cacheFile.open(QIODevice::ReadOnly)) {
-            qCritical("Cannot read cached file '%s'", qPrintable(m_currentCacheFile));
+            printError(QString::fromLatin1("Cannot read cached file '%1'").arg(m_currentCacheFile));
             return false;
         }
         fprintf(stdout, "%s", cacheFile.readAll().constData());
@@ -131,9 +135,8 @@ bool MerSSH::run(const QString &sdkToolsDir, const QString &merTargetName,
     if (m_currentCacheFile.isEmpty()) {
         if (!QDir::currentPath().startsWith(QDir::fromNativeSeparators(
                                                 QDir::cleanPath(sharedHome)))) {
-            fprintf(stderr, "Project ERROR: Project is outside of shared home '%s'.\n",
-                    qPrintable(QDir::toNativeSeparators(sharedHome)));
-            fflush(stderr);
+            printError(QString::fromLatin1("Project ERROR: Project is outside of shared home '%1'.")
+                       .arg(QDir::toNativeSeparators(sharedHome)));
             return false;
         }
         completeCommand.prepend(QLatin1String("cd \"") + QDir::currentPath()
@@ -182,8 +185,7 @@ void MerSSH::onStandardOutput()
 
 void MerSSH::onStandardError()
 {
-    fprintf(stderr, "%s", m_runner->readAllStandardError().constData());
-    fflush(stderr);
+    printError(QString::fromUtf8(m_runner->readAllStandardError()));
 }
 
 void MerSSH::onProcessClosed(int exitStatus)
@@ -193,7 +195,7 @@ void MerSSH::onProcessClosed(int exitStatus)
     if (ok && !m_currentCacheFile.isEmpty()) {
         QFile file(m_currentCacheFile);
         if (!file.open(QIODevice::WriteOnly)) {
-            qCritical("Cannot write file '%s'", qPrintable(m_currentCacheFile));
+            printError(QString::fromLatin1("Cannot write file '%1'").arg(m_currentCacheFile));
             QCoreApplication::exit(1);
         }
         if (m_currentCacheFile.endsWith(QLatin1String(Mer::Constants::QMAKE_QUERY)))
@@ -208,8 +210,14 @@ void MerSSH::onProcessClosed(int exitStatus)
 
 void MerSSH::onConnectionError()
 {
-    qCritical("Project ERROR: Could not connect to MerSDK Virtual Machine. %s",
-              qPrintable(m_runner->lastConnectionErrorString()));
+    printError(QString::fromLatin1("Project ERROR: Could not connect to MerSDK Virtual Machine. %1")
+               .arg(m_runner->lastConnectionErrorString()));
     QCoreApplication::exit(1);
 }
 
+void MerSSH::printError(const QString &message)
+{
+    if (m_quietOnError)
+        return;
+    qCritical("%s", qPrintable(message));
+}

@@ -52,7 +52,10 @@ private slots:
     void onConnectionError();
 
 private:
+    void printError(const QString &message);
+
     int m_exitCode;
+    bool m_quietOnError;
     QString m_merSysRoot;
     QString m_currentCacheFile;
     QByteArray m_currentCacheData;
