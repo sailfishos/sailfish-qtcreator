@@ -126,6 +126,12 @@ const char GCC_DUMPVERSION[] = "gcc.dumpversion";
 
 const char MER_AUTHORIZEDKEYS_FOLDER[] = "authorized_keys";
 
+const char MER_SSH_SHARED_HOME[] = "MER_SSH_SHARED_HOME";
+const char MER_SSH_SHARED_TARGET[] = "MER_SSH_SHARED_TARGET";
+const char MER_SSH_USERNAME[] = "MER_SSH_USERNAME";
+const char MER_SSH_PRIVATE_KEY[] = "MER_SSH_PRIVATE_KEY";
+const char MER_SSH_PORT[] = "MER_SSH_PORT";
+
 } // namespace Constants
 } // namespace Mer
 

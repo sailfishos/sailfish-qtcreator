@@ -96,14 +96,14 @@ bool MerSSH::run(const QString &sdkToolsDir, const QString &merTargetName,
     using namespace Mer::Constants;
 
     const QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
-    const QString sharedHome = environment.value(QLatin1String("MER_SSH_SHARED_HOME"));
-    const QString sharedTarget = environment.value(QLatin1String("MER_SSH_SHARED_TARGET"));
+    const QString sharedHome = environment.value(QLatin1String(MER_SSH_SHARED_HOME));
+    const QString sharedTarget = environment.value(QLatin1String(MER_SSH_SHARED_TARGET));
     m_merSysRoot = sharedTarget + QLatin1Char('/') + merTargetName;
     QSsh::SshConnectionParameters params = connectionParameters();
-    params.userName = environment.value(QLatin1String("MER_SSH_USERNAME"));
-    params.privateKeyFile = environment.value(QLatin1String("MER_SSH_PRIVATE_KEY"));
+    params.userName = environment.value(QLatin1String(MER_SSH_USERNAME));
+    params.privateKeyFile = environment.value(QLatin1String(MER_SSH_PRIVATE_KEY));
     params.authenticationType = QSsh::SshConnectionParameters::AuthenticationByKey;
-    params.port = environment.value(QLatin1String("MER_SSH_PORT")).toInt();
+    params.port = environment.value(QLatin1String(MER_SSH_PORT)).toInt();
 
     CommandType type = commandTypeFromString(commandType);
     if (type == CommandTypeUndefined) {
