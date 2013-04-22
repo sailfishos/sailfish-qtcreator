@@ -26,6 +26,7 @@
 #include "merconstants.h"
 
 #include <projectexplorer/gcctoolchain.h>
+#include <projectexplorer/headerpath.h>
 
 namespace Mer {
 namespace Internal {
@@ -55,9 +56,13 @@ public:
     QList<Utils::FileName> suggestedMkspecList() const;
     QList<ProjectExplorer::Task> validateKit(const ProjectExplorer::Kit *kit) const;
 
+    QList<ProjectExplorer::HeaderPath> systemHeaderPaths(const QStringList &cxxflags,
+                                                         const Utils::FileName &sysRoot) const;
+
 private:
     QString m_vmName;
     QString m_targetName;
+    mutable QList<ProjectExplorer::HeaderPath> m_headerPathsOnHost;
 };
 
 } // Internal
