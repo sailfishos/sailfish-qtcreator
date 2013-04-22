@@ -40,6 +40,7 @@
 #include <ssh/sshkeygenerator.h>
 
 #include <QDesktopServices>
+#include <QDir>
 
 #ifdef WITH_TESTS
 #include <QtTest>
