@@ -37,6 +37,12 @@
 #include <QDir>
 #include <iostream>
 
+const char MER_TARGETS_XML[] = "/targets.xml";
+const char MER_PARAM_MER_TARGETS_DIR[] = "--mer-targets-dir";
+const char MER_PARAM_TARGET_NAME[] = "--target-name";
+const char MER_PARAM_QMAKE_QUERY[] = "--qmake-query";
+const char MER_PARAM_GCC_DUMPMACHINE[] = "--gcc-dumpmachine";
+
 AddMerTargetOperation::AddMerTargetOperation()
 {
 }
@@ -53,10 +59,11 @@ QString AddMerTargetOperation::helpText() const
 
 QString AddMerTargetOperation::argumentsHelpText() const
 {
-    return QLatin1String("    --sdk <PATH>                               mer sdk root (required).\n"
-                         "    --name <NAME>                              display name of the new target (required).\n"
-                         "    --qmake <FILE>                             qmake dump used for new target (required).\n"
-                         "    --gcc <FILE>                               gcc dump used for new traget (required).\n");
+    const QString indent = QLatin1String("    ");
+    return indent + QLatin1String(MER_PARAM_MER_TARGETS_DIR) + QLatin1String(" <PATH>   shared \"targets\" folder (required).\n")
+         + indent + QLatin1String(MER_PARAM_TARGET_NAME) + QLatin1String(" <NAME>       display name (required).\n")
+         + indent + QLatin1String(MER_PARAM_QMAKE_QUERY) + QLatin1String(" <FILE>       'qmake -query' dump (required).\n")
+         + indent + QLatin1String(MER_PARAM_GCC_DUMPMACHINE) + QLatin1String(" <FILE>   'gcc --dumpmachine' dump (required).\n");
 }
 
 bool AddMerTargetOperation::setArguments(const QStringList &args)
@@ -66,63 +73,64 @@ bool AddMerTargetOperation::setArguments(const QStringList &args)
         const QString current = args.at(i);
         const QString next = ((i + 1) < args.count()) ? args.at(i + 1) : QString();
 
-        if (current == QLatin1String("--sdk")) {
+        if (current == QLatin1String(MER_PARAM_MER_TARGETS_DIR)) {
             if (next.isNull())
                 return false;
             ++i; // skip next;
-            m_sdkRoot = next;
+            m_targetsDir = next;
             continue;
         }
 
-        if (current == QLatin1String("--name")) {
+        if (current == QLatin1String(MER_PARAM_TARGET_NAME)) {
             if (next.isNull())
                 return false;
             ++i; // skip next;
-            m_name = next;
+            m_targetName = next;
             continue;
         }
 
-        if (current == QLatin1String("--qmake")) {
+        if (current == QLatin1String(MER_PARAM_QMAKE_QUERY)) {
             if (next.isNull())
                 return false;
             ++i; // skip next;
-            m_qmakeDumpFileName = next;
+            m_qmakeQueryFileName = next;
             continue;
         }
 
-        if (current == QLatin1String("--gcc")) {
+        if (current == QLatin1String(MER_PARAM_GCC_DUMPMACHINE)) {
             if (next.isNull())
                 return false;
             ++i; // skip next;
-            m_gccDumpFileName = next;
+            m_gccDumpmachineFileName = next;
             continue;
         }
     }
 
-    if (m_sdkRoot.isEmpty())
-        std::cerr << "No sdk root given for target." << std::endl << std::endl;
-    if (m_name.isEmpty())
-        std::cerr << "No name given for target." << std::endl << std::endl;
-    if (m_qmakeDumpFileName.isEmpty())
-        std::cerr << "No qmake dump file given for target." << std::endl << std::endl;
-    if (m_gccDumpFileName.isEmpty())
-        std::cerr << "No gcc dump given for target." << std::endl << std::endl;
+    const char MISSING[] = " parameter missing.";
+    if (m_targetsDir.isEmpty())
+        std::cerr << MER_PARAM_MER_TARGETS_DIR << MISSING << std::endl << std::endl;
+    if (m_targetName.isEmpty())
+        std::cerr << MER_PARAM_TARGET_NAME << MISSING << std::endl << std::endl;
+    if (m_qmakeQueryFileName.isEmpty())
+        std::cerr << MER_PARAM_QMAKE_QUERY << MISSING << std::endl << std::endl;
+    if (m_gccDumpmachineFileName.isEmpty())
+        std::cerr << MER_PARAM_GCC_DUMPMACHINE << MISSING << std::endl << std::endl;
 
-    return !m_sdkRoot.isEmpty() && !m_name.isEmpty() && !m_qmakeDumpFileName.isEmpty() && !m_gccDumpFileName.isEmpty();
+    return !m_targetsDir.isEmpty() && !m_targetName.isEmpty() && !m_qmakeQueryFileName.isEmpty() && !m_gccDumpmachineFileName.isEmpty();
 }
 
 int AddMerTargetOperation::execute() const
 {
-    QVariantMap map = load(m_sdkRoot);
+    QVariantMap map = load(m_targetsDir);
     if (map.isEmpty())
         map = initializeTargets();
 
-    const QVariantMap result = addTarget(map, m_name, m_qmakeDumpFileName, m_gccDumpFileName);
+    const QVariantMap result = addTarget(map, m_targetName, m_qmakeQueryFileName, m_gccDumpmachineFileName);
 
     if (result.isEmpty() || map == result)
         return -2;
 
-    return save(result, m_sdkRoot) ? 0 : -3;
+    return save(result, m_targetsDir) ? 0 : -3;
 }
 
 QVariantMap AddMerTargetOperation::initializeTargets() const
@@ -156,7 +164,7 @@ QVariantMap AddMerTargetOperation::addTarget(const QVariantMap &map, const QStri
     QStringList valueKeys = FindValueOperation::findValues(map, QVariant(name));
     bool hasTarget = false;
     foreach (const QString &t, valueKeys) {
-        if (t.endsWith(QString(QLatin1Char('/')) + QLatin1String(Mer::Constants::TARGET_NAME))) {
+        if (t.endsWith(QLatin1Char('/') + QLatin1String(Mer::Constants::TARGET_NAME))) {
             hasTarget = true;
             break;
         }
@@ -167,20 +175,20 @@ QVariantMap AddMerTargetOperation::addTarget(const QVariantMap &map, const QStri
     }
 
     bool ok;
-    int count = GetOperation::get(map, QLatin1String(Mer::Constants::MER_TARGET_COUNT_KEY)).toInt(&ok);
+    const int count = GetOperation::get(map, QLatin1String(Mer::Constants::MER_TARGET_COUNT_KEY)).toInt(&ok);
     if (!ok || count < 0) {
         std::cerr << "Error: Count found targets, file seems wrong." << std::endl;
         return QVariantMap();
     }
 
-    QString qmake = readCacheFile(qmakeFileName);
+    const QString qmake = readCacheFile(qmakeFileName);
     if (qmake.isEmpty()){
         std::cerr << "Error: Could not read file " << qPrintable(qmakeFileName) << std::endl;
         return QVariantMap();
     }
 
-    QString gcc = readCacheFile(gccFileName);
-    if(gcc.isEmpty()) {
+    const QString gcc = readCacheFile(gccFileName);
+    if (gcc.isEmpty()) {
         std::cerr << "Error: Could not read file " << qPrintable(gccFileName) << std::endl;
         return QVariantMap();
     }
@@ -205,7 +213,7 @@ QVariantMap AddMerTargetOperation::load(const QString &root) const
     QVariantMap map;
 
     // Read values from original file:
-    Utils::FileName path = Utils::FileName::fromString(root + QLatin1String("/targets/targets.xml"));
+    const Utils::FileName path = Utils::FileName::fromString(root + QLatin1String(MER_TARGETS_XML));
     if (path.toFileInfo().exists()) {
         Utils::PersistentSettingsReader reader;
         if (!reader.load(path))
@@ -217,18 +225,14 @@ QVariantMap AddMerTargetOperation::load(const QString &root) const
 
 bool AddMerTargetOperation::save(const QVariantMap &map, const QString &root) const
 {
-    Utils::FileName path = Utils::FileName::fromString(root + QLatin1String("/targets/targets.xml"));
+    const Utils::FileName path = Utils::FileName::fromString(root + QLatin1String(MER_TARGETS_XML));
 
     if (path.isEmpty()) {
         std::cerr << "Error: No path found for " << qPrintable(root) << "." << std::endl;
         return false;
     }
 
-    Utils::FileName dir = path.parentDir();
-    if (!dir.toFileInfo().exists())
-        QDir(root).mkpath(dir.toString());
-
-    Utils::PersistentSettingsWriter writer(path, QLatin1String("unknown"));
+    const Utils::PersistentSettingsWriter writer(path, QLatin1String("unknown"));
     return writer.save(map, 0)
             && QFile::setPermissions(path.toString(),
                                      QFile::ReadOwner | QFile::WriteOwner
