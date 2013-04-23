@@ -59,10 +59,10 @@ private:
     QString readCacheFile(const QString &cacheFile) const;
 
 private:
-    QString m_sdkRoot;
-    QString m_name;
-    QString m_qmakeDumpFileName;
-    QString m_gccDumpFileName;
+    QString m_targetsDir;
+    QString m_targetName;
+    QString m_qmakeQueryFileName;
+    QString m_gccDumpmachineFileName;
 };
 
 #endif // ADDMERTARGETOPERATION_H
