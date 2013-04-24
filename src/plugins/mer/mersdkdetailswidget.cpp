@@ -69,7 +69,7 @@ void MerSdkDetailsWidget::setSdk(const MerSdk *sdk)
     m_ui->sshPortLabelText->setText(QString::number(sdk->sshPort()));
     m_ui->wwwPortLabelText->setText(QString::number(sdk->wwwPort()));
     m_ui->homeFolderPathLabel->setText(QDir::toNativeSeparators(sdk->sharedHomePath()));
-    m_ui->targetFolderPathLabel->setText(QDir::toNativeSeparators(sdk->sharedTargetPath()));
+    m_ui->targetFolderPathLabel->setText(QDir::toNativeSeparators(sdk->sharedTargetsPath()));
     m_ui->sshFolderPathLabel->setText(QDir::toNativeSeparators(sdk->sharedSshPath()));
 
     if (MerSdkManager::instance()->hasSdk(sdk)) {
