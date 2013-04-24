@@ -138,7 +138,9 @@ ProjectExplorer::DeployConfiguration *MerDeployConfigurationFactory::clone(
 bool MerDeployConfigurationFactory::canHandle(ProjectExplorer::Target *t) const
 {
     return ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(t->kit())
-            == Constants::MER_DEVICE_TYPE_ARM;
+            == Constants::MER_DEVICE_TYPE_ARM
+            || ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(t->kit())
+            == Constants::MER_DEVICE_TYPE_I486;
 }
 
 } // Internal

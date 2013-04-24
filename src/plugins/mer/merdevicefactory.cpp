@@ -47,7 +47,7 @@ QString MerDeviceFactory::displayNameForId(Core::Id type) const
 bool MerDeviceFactory::canCreate(Core::Id type)
 {
     return type == Core::Id(Constants::MER_DEVICE_TYPE_I486) ||
-       type == Core::Id(Constants::MER_DEVICE_TYPE_ARM);
+            type == Core::Id(Constants::MER_DEVICE_TYPE_ARM);
 }
 
 
