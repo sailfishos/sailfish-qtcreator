@@ -20,7 +20,6 @@ FORMS += \
     merdeviceconfigwizardcheckpreviouskeysetupcheckpage.ui \
     merdeviceconfigwizardreusekeyscheckpage.ui \
     merdeviceconfigwizardkeycreationpage.ui \
-    merdeviceconfigwizarddevicetypepage.ui \
     merdeviceconfigurationwidget.ui
 
 SOURCES += \

@@ -142,7 +142,11 @@ ProjectExplorer::Kit* MerTarget::createKit() const
     k->setIconPath(QLatin1String(Constants::MER_OPTIONS_CATEGORY_ICON));
     k->setValue(Core::Id(Constants::VM_NAME), m_sdk->virtualMachineName());
     ProjectExplorer::SysRootKitInformation::setSysRoot(k, Utils::FileName::fromString(sysroot));
-    ProjectExplorer::DeviceTypeKitInformation::setDeviceTypeId(k, Constants::MER_DEVICE_TYPE);
+    if (m_gccMachineDump.contains(QLatin1String("i486"))) {
+        ProjectExplorer::DeviceTypeKitInformation::setDeviceTypeId(k, Constants::MER_DEVICE_TYPE_I486);
+    } else {
+        ProjectExplorer::DeviceTypeKitInformation::setDeviceTypeId(k, Constants::MER_DEVICE_TYPE_ARM);
+    }
     return k;
 }
 

@@ -54,12 +54,18 @@ MerDeviceConfigWizardGeneralPage::MerDeviceConfigWizardGeneralPage(const WizardD
     m_ui->setupUi(this);
     setTitle(tr("General Information"));
 
-    QButtonGroup *buttonGroup = new QButtonGroup(this);
-    buttonGroup->setExclusive(true);
-    buttonGroup->addButton(m_ui->passwordRadioButton);
-    buttonGroup->addButton(m_ui->keyRadioButton);
-    connect(buttonGroup, SIGNAL(buttonClicked(int)), SLOT(authTypeChanged()));
-    connect(buttonGroup, SIGNAL(buttonClicked(int)), SIGNAL(completeChanged()));
+    QButtonGroup *buttonGroup1 = new QButtonGroup(this);
+    buttonGroup1->setExclusive(true);
+    buttonGroup1->addButton(m_ui->passwordRadioButton);
+    buttonGroup1->addButton(m_ui->keyRadioButton);
+    QButtonGroup *buttonGroup2 = new QButtonGroup(this);
+    buttonGroup2->setExclusive(true);
+    buttonGroup2->addButton(m_ui->realDeviceRadioButton);
+    buttonGroup2->addButton(m_ui->virtualMachineRadioButton);
+    connect(buttonGroup1, SIGNAL(buttonClicked(int)), SLOT(authTypeChanged()));
+    connect(buttonGroup1, SIGNAL(buttonClicked(int)), SIGNAL(completeChanged()));
+    connect(buttonGroup2, SIGNAL(buttonClicked(int)), SLOT(machineTypeChanged()));
+    connect(buttonGroup2, SIGNAL(buttonClicked(int)), SIGNAL(completeChanged()));
     m_ui->keyRadioButton->setChecked(true);
     authTypeChanged();
 
@@ -68,31 +74,21 @@ MerDeviceConfigWizardGeneralPage::MerDeviceConfigWizardGeneralPage(const WizardD
     m_ui->sshPortSpinBox->setMaximum(65535);
     m_ui->sshPortSpinBox->setValue(2223);
 
-    connect(m_ui->nameLineEdit, SIGNAL(textChanged(QString)), SIGNAL(completeChanged()));
+    connect(m_ui->deviceNameLineEdit, SIGNAL(textChanged(QString)), SIGNAL(completeChanged()));
     connect(m_ui->hostNameLineEdit, SIGNAL(textChanged(QString)), SIGNAL(completeChanged()));
     connect(m_ui->passwordLineEdit, SIGNAL(textChanged(QString)), SIGNAL(completeChanged()));
-    connect(m_ui->nameComboBox, SIGNAL(currentIndexChanged(QString)),
+    connect(m_ui->virtualMachineComboBox, SIGNAL(currentIndexChanged(QString)),
             SLOT(onVirtualMachineChanged(QString)));
 }
 
 void MerDeviceConfigWizardGeneralPage::initializePage()
 {
     if (IDevice::Hardware == m_wizardData.machineType) {
-        m_ui->nameComboBox->setVisible(false);
-        m_ui->nameLineEdit->setVisible(true);
-        m_ui->nameLineEdit->setText(tr("Mer Device"));
-        m_ui->hostNameLineEdit->setReadOnly(false);
+        m_ui->realDeviceRadioButton->setChecked(true);
     } else {
-        m_ui->nameComboBox->setVisible(true);
-        m_ui->nameComboBox->clear();
-        m_ui->nameLineEdit->setVisible(false);
-        m_ui->hostNameLineEdit->setReadOnly(true);
-        const QStringList registeredVMs = MerVirtualBoxManager::fetchRegisteredVirtualMachines();
-        foreach (const QString &vm, registeredVMs)
-            m_ui->nameComboBox->addItem(vm);
+        m_ui->virtualMachineRadioButton->setChecked(true);
     }
-    m_ui->hostNameLineEdit->setText(m_wizardData.machineType == IDevice::Emulator
-                                    ? QLatin1String(Constants::MER_SDK_DEFAULTHOST) : QString());
+    machineTypeChanged();
 }
 
 bool MerDeviceConfigWizardGeneralPage::isComplete() const
@@ -106,8 +102,8 @@ bool MerDeviceConfigWizardGeneralPage::isComplete() const
 
 QString MerDeviceConfigWizardGeneralPage::configName() const
 {
-    return IDevice::Hardware == m_wizardData.machineType ? m_ui->nameLineEdit->text().trimmed()
-                                                         : m_ui->nameComboBox->currentText();
+    return IDevice::Hardware == m_wizardData.machineType ? m_ui->deviceNameLineEdit->text().trimmed()
+                                                         : m_ui->virtualMachineComboBox->currentText();
 }
 
 QString MerDeviceConfigWizardGeneralPage::hostName() const
@@ -137,6 +133,14 @@ SshConnectionParameters::AuthenticationType MerDeviceConfigWizardGeneralPage::au
             : SshConnectionParameters::AuthenticationByKey;
 }
 
+IDevice::MachineType MerDeviceConfigWizardGeneralPage::machineType() const
+{
+    return m_ui->virtualMachineRadioButton->isChecked()
+            ? IDevice::Emulator
+            : IDevice::Hardware;
+}
+
+
 int MerDeviceConfigWizardGeneralPage::sshPort() const
 {
     return m_ui->sshPortSpinBox->value();
@@ -146,6 +150,32 @@ void MerDeviceConfigWizardGeneralPage::authTypeChanged()
 {
     const bool enable = authType() == SshConnectionParameters::AuthenticationByPassword;
     m_ui->passwordLineEdit->setEnabled(enable);
+}
+
+void MerDeviceConfigWizardGeneralPage::machineTypeChanged()
+{
+    const bool hardware = machineType() == IDevice::Hardware;
+    m_ui->deviceNameLineEdit->setVisible(hardware);
+    m_ui->virtualMachineComboBox->setVisible(!hardware);
+    m_ui->hostNameLineEdit->setReadOnly(!hardware);
+    if (!hardware) {
+        const QStringList registeredVMs = MerVirtualBoxManager::fetchRegisteredVirtualMachines();
+        m_ui->hostNameLineEdit->setText(QLatin1String(Constants::MER_SDK_DEFAULTHOST));
+        m_ui->virtualMachineComboBox->clear();
+        foreach (const QString &vm, registeredVMs)
+            m_ui->virtualMachineComboBox->addItem(vm);
+    } else {
+        m_ui->deviceNameLineEdit->setText(tr("Mer ARM Device"));
+        m_ui->hostNameLineEdit->setText(QString());
+    }
+
+    if (m_wizardData.deviceType == Constants::MER_DEVICE_TYPE_ARM) {
+        m_ui->architectureLabel->setText(QLatin1String("arm"));
+    }
+
+    if (m_wizardData.deviceType == Constants::MER_DEVICE_TYPE_I486) {
+        m_ui->architectureLabel->setText(QLatin1String("i486"));
+    }
 }
 
 void MerDeviceConfigWizardGeneralPage::onVirtualMachineChanged(const QString &vmName)
@@ -409,30 +439,6 @@ QString MerDeviceConfigWizardFinalPage::infoText() const
     if (m_wizardData.machineType == IDevice::Emulator)
         return tr("The new device configuration will now be created.");
     return GenericLinuxDeviceConfigurationWizardFinalPage::infoText();
-}
-
-MerDeviceConfigWizardDeviceTypePage::MerDeviceConfigWizardDeviceTypePage(QWidget *parent)
-    : QWizardPage(parent)
-    , m_ui(new Ui::MerDeviceConfigWizardDeviceTypePage)
-{
-    m_ui->setupUi(this);
-    setTitle(tr("Device Type"));
-
-    QButtonGroup *buttonGroup = new QButtonGroup(this);
-    buttonGroup->setExclusive(true);
-    buttonGroup->addButton(m_ui->hwButton);
-    buttonGroup->addButton(m_ui->emulatorButton);
-    m_ui->emulatorButton->setChecked(true);
-}
-
-bool MerDeviceConfigWizardDeviceTypePage::isComplete() const
-{
-    return true;
-}
-
-IDevice::MachineType MerDeviceConfigWizardDeviceTypePage::machineType() const
-{
-    return m_ui->hwButton->isChecked() ? IDevice::Hardware : IDevice::Emulator;
 }
 
 } // Internal

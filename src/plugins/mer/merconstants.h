@@ -43,7 +43,8 @@ const char MER_OPTIONS_ID[] = "A.Mer";
 const char MER_OPTIONS_NAME[] = QT_TRANSLATE_NOOP("Mer", "SDK");
 
 const char MER_TASKHUB_CATEGORY[] = "Qt4ProjectManager.TaskHub.Mer";
-const char MER_DEVICE_TYPE[] = "Mer.Device.Type";
+const char MER_DEVICE_TYPE_I486[] = "Mer.Device.Type.i486";
+const char MER_DEVICE_TYPE_ARM[] = "Mer.Device.Type.Arm";
 
 #ifdef Q_OS_WIN
 #define SCRIPT_EXTENSION ".cmd"

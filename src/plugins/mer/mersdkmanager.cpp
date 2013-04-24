@@ -28,6 +28,7 @@
 #include "merconnectionmanager.h"
 #include "mersdkkitinformation.h"
 #include "merplugin.h"
+#include "merdevicefactory.h"
 
 #include <coreplugin/icore.h>
 #include <extensionsystem/pluginmanager.h>
@@ -244,7 +245,7 @@ bool MerSdkManager::isMerKit(const Kit *kit)
     const Core::Id deviceType = DeviceTypeKitInformation::deviceTypeId(kit);
     if (tc && tc->type() == QLatin1String(Constants::MER_TOOLCHAIN_TYPE))
         return true;
-    if (deviceType.isValid() && deviceType == Core::Id(Constants::MER_DEVICE_TYPE))
+    if (deviceType.isValid() && MerDeviceFactory::canCreate(deviceType))
         return true;
 
     return false;
@@ -277,7 +278,7 @@ bool MerSdkManager::hasMerDevice(Kit *kit)
     IDevice::ConstPtr dev = DeviceKitInformation::device(kit);
     if (dev.isNull())
         return false;
-    return dev->type() == Constants::MER_DEVICE_TYPE;
+    return MerDeviceFactory::canCreate(dev->type());
 }
 
 QString MerSdkManager::sdkToolsDirectory()
@@ -429,7 +430,7 @@ bool MerSdkManager::validateKit(const Kit *kit)
         return false;
     if (toolchain->type() != QLatin1String(Constants::MER_TOOLCHAIN_TYPE))
         return false;
-    if (deviceType != Core::Id(Constants::MER_DEVICE_TYPE))
+    if (!MerDeviceFactory::canCreate(deviceType))
         return false;
 
     MerToolChain* mertoolchain = static_cast<MerToolChain*>(toolchain);

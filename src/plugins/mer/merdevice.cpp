@@ -122,6 +122,10 @@ MerDevice::Ptr MerDevice::create(const QString &name,
 
 QString MerDevice::displayType() const
 {
+    if(type() == Constants::MER_DEVICE_TYPE_I486)
+        return QLatin1String("Mer i486");
+    if(type() == Constants::MER_DEVICE_TYPE_ARM)
+        return QLatin1String("Mer ARM");
     return tr("Mer");
 }
 

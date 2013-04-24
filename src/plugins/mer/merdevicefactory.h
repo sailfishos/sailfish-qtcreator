@@ -35,7 +35,7 @@ public:
 
     QString displayNameForId(Core::Id type) const;
     QList<Core::Id> availableCreationIds() const;
-
+    static bool canCreate(Core::Id id);
     ProjectExplorer::IDevice::Ptr create(Core::Id id) const;
     bool canRestore(const QVariantMap &map) const;
     ProjectExplorer::IDevice::Ptr restore(const QVariantMap &map) const;
