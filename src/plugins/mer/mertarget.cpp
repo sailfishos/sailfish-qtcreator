@@ -50,11 +50,8 @@ static const struct WrapperScript {
     { MER_WRAPPER_QMAKE, WrapperScript::ExecutionTypeSb2 },
     { MER_WRAPPER_MAKE, WrapperScript::ExecutionTypeSb2 },
     { MER_WRAPPER_GCC, WrapperScript::ExecutionTypeSb2 },
-    { MER_WRAPPER_GDB, WrapperScript::ExecutionTypeSb2 },
     { MER_WRAPPER_SPECIFY, WrapperScript::ExecutionStandard },
-    { MER_WRAPPER_MB, WrapperScript::ExecutionStandard },
-    { MER_WRAPPER_RM, WrapperScript::ExecutionStandard },
-    { MER_WRAPPER_MV, WrapperScript::ExecutionStandard }
+    { MER_WRAPPER_MB, WrapperScript::ExecutionStandard }
 };
 
 MerTarget::MerTarget(MerSdk* mersdk):
