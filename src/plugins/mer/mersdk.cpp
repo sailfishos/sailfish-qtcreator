@@ -195,10 +195,10 @@ void MerSdk::attach()
 {
     if (!m_watcher.files().isEmpty())
             m_watcher.removePaths(m_watcher.files());
-    QString file = sharedTargetsPath() + QLatin1String(Constants::MER_TARGETS_FILENAME);
+    const QString file = sharedTargetsPath() + QLatin1String(Constants::MER_TARGETS_FILENAME);
     QFileInfo fi(file);
     if (fi.exists()) {
-        m_watcher.addPath(sharedTargetsPath() + QLatin1String(Constants::MER_TARGETS_FILENAME));
+        m_watcher.addPath(file);
         updateTargets();
     } else {
         qWarning() << "Targets file not found: " << file;
@@ -279,7 +279,10 @@ bool MerSdk::fromMap(const QVariantMap &data)
 
 bool MerSdk::isValid() const
 {
-    return !m_name.isEmpty() && !m_sharedHomePath.isEmpty() && !m_sharedSshPath.isEmpty() && !m_sharedTargetsPath.isEmpty();
+    return !m_name.isEmpty()
+            && !m_sharedHomePath.isEmpty()
+            && !m_sharedSshPath.isEmpty()
+            && !m_sharedTargetsPath.isEmpty();
 }
 
 void MerSdk::updateTargets()

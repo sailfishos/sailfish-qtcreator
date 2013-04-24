@@ -47,7 +47,7 @@ enum PageId { GeneralPageId,
 class MerDeviceConfigurationWizardPrivate
 {
 public:
-    MerDeviceConfigurationWizardPrivate(Core::Id id,QWidget *parent)
+    MerDeviceConfigurationWizardPrivate(Core::Id id, QWidget *parent)
         : generalPage(wizardData, parent)
         , previousKeySetupPage(parent)
         , reuseKeysCheckPage(parent)
@@ -66,9 +66,9 @@ public:
     MerDeviceConfigWizardFinalPage finalPage;
 };
 
-MerDeviceConfigurationWizard::MerDeviceConfigurationWizard(Core::Id id,QWidget *parent)
+MerDeviceConfigurationWizard::MerDeviceConfigurationWizard(Core::Id id, QWidget *parent)
     : QWizard(parent)
-    , d(new MerDeviceConfigurationWizardPrivate(id,this))
+    , d(new MerDeviceConfigurationWizardPrivate(id, this))
 {
     setWindowTitle(tr("New Mer Device Configuration Setup"));
     setPage(GeneralPageId, &d->generalPage);

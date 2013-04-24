@@ -51,18 +51,17 @@ unsigned int MerSdkKitInformation::priority() const
 
 QVariant MerSdkKitInformation::defaultValue(ProjectExplorer::Kit *kit) const
 {
-    const MerSdk* sdk = MerSdkKitInformation::sdk(kit);
-    if (sdk) return sdk->virtualMachineName();
+    const MerSdk *sdk = MerSdkKitInformation::sdk(kit);
+    if (sdk)
+        return sdk->virtualMachineName();
     return QVariant();
 }
 
 QList<ProjectExplorer::Task> MerSdkKitInformation::validate(const ProjectExplorer::Kit *kit) const
 {
     if (MerDeviceFactory::canCreate(ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(kit))) {
-
         const QString &vmName = kit->value(Core::Id(Constants::VM_NAME)).toString();
         if (!MerSdkManager::instance()->sdk(vmName)) {
-
             const QString message = QCoreApplication::translate("MerSdk",
                                                                 "No valid MerSdk virtual machine %1 found").arg(vmName);
             return QList<ProjectExplorer::Task>() << ProjectExplorer::Task(ProjectExplorer::Task::Error, message, Utils::FileName(), -1,
@@ -82,9 +81,8 @@ ProjectExplorer::KitInformation::ItemList MerSdkKitInformation::toUserOutput(Pro
     if (MerDeviceFactory::canCreate(ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(kit))) {
         QString vmName;
         MerSdk* sdk = MerSdkKitInformation::sdk(kit);
-        if (sdk) {
+        if (sdk)
             vmName = sdk->virtualMachineName();
-        }
         return ProjectExplorer::KitInformation::ItemList()
                 << qMakePair(tr("MerSdk"),vmName);
     }
@@ -105,16 +103,16 @@ void MerSdkKitInformation::addToEnvironment(const ProjectExplorer::Kit *kit, Uti
 {
     const MerSdk *sdk = MerSdkKitInformation::sdk(kit);
     if (sdk) {
-    const QString sshPort = QString::number(sdk->sshPort());
-    const QString sharedHome = QDir::fromNativeSeparators(sdk->sharedHomePath());
-    const QString sharedTarget = QDir::fromNativeSeparators(sdk->sharedTargetsPath());
+	const QString sshPort = QString::number(sdk->sshPort());
+	const QString sharedHome = QDir::fromNativeSeparators(sdk->sharedHomePath());
+	const QString sharedTarget = QDir::fromNativeSeparators(sdk->sharedTargetsPath());
 
-    env.appendOrSet(QLatin1String(Constants::MER_SSH_USERNAME),
-                    QLatin1String(Constants::MER_SDK_DEFAULTUSER));
-    env.appendOrSet(QLatin1String(Constants::MER_SSH_PORT), sshPort);
-    env.appendOrSet(QLatin1String(Constants::MER_SSH_PRIVATE_KEY), sdk->privateKeyFile());
-    env.appendOrSet(QLatin1String(Constants::MER_SSH_SHARED_HOME), sharedHome);
-    env.appendOrSet(QLatin1String(Constants::MER_SSH_SHARED_TARGET), sharedTarget);
+	env.appendOrSet(QLatin1String(Constants::MER_SSH_USERNAME),
+	                QLatin1String(Constants::MER_SDK_DEFAULTUSER));
+	env.appendOrSet(QLatin1String(Constants::MER_SSH_PORT), sshPort);
+	env.appendOrSet(QLatin1String(Constants::MER_SSH_PRIVATE_KEY), sdk->privateKeyFile());
+	env.appendOrSet(QLatin1String(Constants::MER_SSH_SHARED_HOME), sharedHome);
+	env.appendOrSet(QLatin1String(Constants::MER_SSH_SHARED_TARGET), sharedTarget);
     }
 }
 
@@ -129,7 +127,7 @@ MerSdkKitInformationWidget::MerSdkKitInformationWidget(ProjectExplorer::Kit *kit
     handleSdksUpdated();
     refresh();
     connect(m_combo, SIGNAL(currentIndexChanged(int)), this, SLOT(handleCurrentIndexChanged()));
-    connect(MerSdkManager::instance(), SIGNAL(sdksUpdated()),this, SLOT(handleSdksUpdated()));
+    connect(MerSdkManager::instance(), SIGNAL(sdksUpdated()), this, SLOT(handleSdksUpdated()));
     connect(m_manageButton, SIGNAL(clicked()), this, SLOT(handleManageClicked()));
 }
 
@@ -168,7 +166,7 @@ QWidget *MerSdkKitInformationWidget::buttonWidget() const
     return m_manageButton;
 }
 
-int MerSdkKitInformationWidget::findMerSdk(const MerSdk* sdk) const
+int MerSdkKitInformationWidget::findMerSdk(const MerSdk *sdk) const
 {
     if (sdk) {
         for (int i = 0; i < m_combo->count(); ++i) {
@@ -183,25 +181,23 @@ void MerSdkKitInformationWidget::handleSdksUpdated()
 {
     const QList<MerSdk*>& sdks = MerSdkManager::instance()->sdks();
     m_combo->clear();
-    foreach(const MerSdk* sdk,sdks)
+    foreach (const MerSdk *sdk, sdks)
         m_combo->addItem(sdk->virtualMachineName());
 }
 
 void MerSdkKitInformationWidget::handleManageClicked()
 {
     MerOptionsPage *page = ExtensionSystem::PluginManager::getObject<MerOptionsPage>();
-    if (page) {
+    if (page)
         page->setSdk(m_combo->currentText());
-    }
     Core::ICore::showOptionsDialog(Constants::MER_OPTIONS_CATEGORY,Constants::MER_OPTIONS_ID);
 }
 
 void MerSdkKitInformationWidget::handleCurrentIndexChanged()
 {
     const MerSdk* sdk = MerSdkManager::instance()->sdk(m_combo->currentText());
-    if (sdk) {
-        MerSdkKitInformation::setSdk(m_kit,sdk);
-    }
+    if (sdk)
+        MerSdkKitInformation::setSdk(m_kit, sdk);
 }
 
 }

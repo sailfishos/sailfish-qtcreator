@@ -370,7 +370,7 @@ void MerSdkManager::addSdk(MerSdk *sdk)
         return;
     m_sdks.insert(sdk->virtualMachineName(), sdk);
     connect(sdk, SIGNAL(targetsChanged(QStringList)), this, SIGNAL(sdksUpdated()));
-    connect(sdk,SIGNAL(privateKeyChanged(QString)),this,SIGNAL(sdksUpdated()));
+    connect(sdk, SIGNAL(privateKeyChanged(QString)), this, SIGNAL(sdksUpdated()));
     sdk->attach();
     emit sdksUpdated();
 }
@@ -381,8 +381,8 @@ void MerSdkManager::removeSdk(MerSdk *sdk)
     if (!m_sdks.contains(sdk->virtualMachineName()))
         return;
     m_sdks.remove(sdk->virtualMachineName());
-    disconnect(sdk,SIGNAL(targetsChanged(QStringList)),this,SIGNAL(sdksUpdated()));
-    disconnect(sdk,SIGNAL(privateKeyChanged(QString)),this,SIGNAL(sdksUpdated()));
+    disconnect(sdk, SIGNAL(targetsChanged(QStringList)), this, SIGNAL(sdksUpdated()));
+    disconnect(sdk, SIGNAL(privateKeyChanged(QString)), this, SIGNAL(sdksUpdated()));
     sdk->detach();
     emit sdksUpdated();
 }

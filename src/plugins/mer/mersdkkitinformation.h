@@ -48,12 +48,15 @@ public:
 
     QWidget *mainWidget() const;
     QWidget *buttonWidget() const;
+
 private:
-    int findMerSdk(const MerSdk* sdk) const;
+    int findMerSdk(const MerSdk *sdk) const;
+
 private slots:
     void handleSdksUpdated();
     void handleManageClicked();
     void handleCurrentIndexChanged();
+
 private:
     QComboBox *m_combo;
     QPushButton *m_manageButton;
@@ -67,16 +70,14 @@ public:
     explicit MerSdkKitInformation();
     Core::Id dataId() const;
     unsigned int priority() const;
-    QVariant defaultValue(ProjectExplorer::Kit *) const;
-    QList<ProjectExplorer::Task> validate(const ProjectExplorer::Kit *) const;
-    //void fix(ProjectExplorer::Kit *);
-    //void setup(ProjectExplorer::Kit *);
-    ItemList toUserOutput(ProjectExplorer::Kit *) const ;
-    ProjectExplorer::KitConfigWidget *createConfigWidget(ProjectExplorer::Kit *) const ;
-    void addToEnvironment(const ProjectExplorer::Kit *k, Utils::Environment &env) const;
+    QVariant defaultValue(ProjectExplorer::Kit *kit) const;
+    QList<ProjectExplorer::Task> validate(const ProjectExplorer::Kit *kit) const;
+    ItemList toUserOutput(ProjectExplorer::Kit *kit) const;
+    ProjectExplorer::KitConfigWidget *createConfigWidget(ProjectExplorer::Kit *kit) const;
+    void addToEnvironment(const ProjectExplorer::Kit *kit, Utils::Environment &env) const;
 
-    static void setSdk(ProjectExplorer::Kit *k, const MerSdk* sdk);
-    static MerSdk* sdk(const ProjectExplorer::Kit *k);
+    static void setSdk(ProjectExplorer::Kit *kit, const MerSdk* sdk);
+    static MerSdk* sdk(const ProjectExplorer::Kit *kit);
 };
 
 }

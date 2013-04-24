@@ -68,11 +68,10 @@ void MerOptionsPage::onUpdateSearchKeys()
     m_searchKeyWords = m_widget->searchKeyWordMatchString();
 }
 
-void MerOptionsPage::setSdk(const QString& vmName)
+void MerOptionsPage::setSdk(const QString &vmName)
 {
-    if(m_widget) {
+    if (m_widget)
         m_widget->setSdk(vmName);
-    }
 }
 
 } // Internal

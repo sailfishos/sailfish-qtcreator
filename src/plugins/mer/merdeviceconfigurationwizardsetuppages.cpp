@@ -24,7 +24,6 @@
 #include "ui_merdeviceconfigwizardkeycreationpage.h"
 #include "ui_merdeviceconfigwizardreusekeyscheckpage.h"
 #include "ui_merdeviceconfigwizardgeneralpage.h"
-#include "ui_merdeviceconfigwizarddevicetypepage.h"
 #include "merdeviceconfigurationwizardsetuppages.h"
 #include "merconstants.h"
 #include "merconnectionmanager.h"
@@ -83,11 +82,10 @@ MerDeviceConfigWizardGeneralPage::MerDeviceConfigWizardGeneralPage(const WizardD
 
 void MerDeviceConfigWizardGeneralPage::initializePage()
 {
-    if (IDevice::Hardware == m_wizardData.machineType) {
+    if (IDevice::Hardware == m_wizardData.machineType)
         m_ui->realDeviceRadioButton->setChecked(true);
-    } else {
+    else
         m_ui->virtualMachineRadioButton->setChecked(true);
-    }
     machineTypeChanged();
 }
 
@@ -169,13 +167,10 @@ void MerDeviceConfigWizardGeneralPage::machineTypeChanged()
         m_ui->hostNameLineEdit->setText(QString());
     }
 
-    if (m_wizardData.deviceType == Constants::MER_DEVICE_TYPE_ARM) {
+    if (m_wizardData.deviceType == Constants::MER_DEVICE_TYPE_ARM)
         m_ui->architectureLabel->setText(QLatin1String("arm"));
-    }
-
-    if (m_wizardData.deviceType == Constants::MER_DEVICE_TYPE_I486) {
+    else if (m_wizardData.deviceType == Constants::MER_DEVICE_TYPE_I486)
         m_ui->architectureLabel->setText(QLatin1String("i486"));
-    }
 }
 
 void MerDeviceConfigWizardGeneralPage::onVirtualMachineChanged(const QString &vmName)
