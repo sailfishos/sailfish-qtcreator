@@ -129,7 +129,7 @@ ProjectExplorer::Kit* MerTarget::createKit() const
     const QString sysroot = m_sdk->sharedTargetPath() + QLatin1String("/") + m_name;
     Utils::FileName path = Utils::FileName::fromString(sysroot);
     if (!path.toFileInfo().exists()) {
-        qWarning()<< "Sysroot does not exists" << sysroot;
+        qWarning() << "Sysroot does not exist" << sysroot;
         return 0;
     }
     ProjectExplorer::Kit *k = new ProjectExplorer::Kit();
