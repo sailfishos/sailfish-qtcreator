@@ -24,6 +24,7 @@
 #include "merconstants.h"
 #include "mersdkmanager.h"
 #include "meroptionspage.h"
+#include "merdevicefactory.h"
 #include <coreplugin/icore.h>
 #include <projectexplorer/projectexplorerconstants.h>
 #include <extensionsystem/pluginmanager.h>
@@ -50,13 +51,14 @@ unsigned int MerSdkKitInformation::priority() const
 
 QVariant MerSdkKitInformation::defaultValue(ProjectExplorer::Kit *kit) const
 {
-    Q_UNUSED(kit)
-    return QLatin1String(Constants::MER_SDK);
+    const MerSdk* sdk = MerSdkKitInformation::sdk(kit);
+    if (sdk) return sdk->virtualMachineName();
+    return QVariant();
 }
 
 QList<ProjectExplorer::Task> MerSdkKitInformation::validate(const ProjectExplorer::Kit *kit) const
 {
-    if (ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(kit) == Core::Id(Constants::MER_DEVICE_TYPE)) {
+    if (MerDeviceFactory::canCreate(ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(kit))) {
 
         const QString &vmName = kit->value(Core::Id(Constants::VM_NAME)).toString();
         if (!MerSdkManager::instance()->sdk(vmName)) {
@@ -77,7 +79,7 @@ MerSdk* MerSdkKitInformation::sdk(const ProjectExplorer::Kit *kit)
 
 ProjectExplorer::KitInformation::ItemList MerSdkKitInformation::toUserOutput(ProjectExplorer::Kit *kit) const
 {
-    if (ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(kit) == Core::Id(Constants::MER_DEVICE_TYPE)) {
+    if (MerDeviceFactory::canCreate(ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(kit))) {
         QString vmName;
         MerSdk* sdk = MerSdkKitInformation::sdk(kit);
         if (sdk) {
@@ -153,7 +155,7 @@ void MerSdkKitInformationWidget::refresh()
 
 bool MerSdkKitInformationWidget::visibleInKit()
 {
-    return ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(m_kit) == Core::Id(Constants::MER_DEVICE_TYPE);
+    return MerDeviceFactory::canCreate(ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(m_kit));
 }
 
 QWidget *MerSdkKitInformationWidget::mainWidget() const

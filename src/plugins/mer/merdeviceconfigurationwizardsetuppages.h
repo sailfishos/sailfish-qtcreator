@@ -47,24 +47,13 @@ struct WizardData
     QString hostName;
     QSsh::SshConnectionParameters::AuthenticationType authType;
     ProjectExplorer::IDevice::MachineType machineType;
+    Core::Id deviceType;
     QString privateKeyFilePath;
     QString publicKeyFilePath;
     QString userName;
     QString password;
     QString freePorts;
     int sshPort;
-};
-
-class MerDeviceConfigWizardDeviceTypePage : public QWizardPage
-{
-public:
-    explicit MerDeviceConfigWizardDeviceTypePage(QWidget *parent = 0);
-
-    virtual bool isComplete() const;
-    ProjectExplorer::IDevice::MachineType machineType() const;
-
-private:
-    Ui::MerDeviceConfigWizardDeviceTypePage *m_ui;
 };
 
 class MerDeviceConfigWizardGeneralPage : public QWizardPage
@@ -81,10 +70,12 @@ public:
     QString password() const;
     QString freePorts() const;
     QSsh::SshConnectionParameters::AuthenticationType authType() const;
+    ProjectExplorer::IDevice::MachineType machineType() const;
     int sshPort() const;
 
 private slots:
     void authTypeChanged();
+    void machineTypeChanged();
     void onVirtualMachineChanged(const QString &vmName);
 
 private:

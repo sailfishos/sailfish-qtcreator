@@ -37,20 +37,30 @@ MerDeviceFactory::MerDeviceFactory()
 
 QString MerDeviceFactory::displayNameForId(Core::Id type) const
 {
-    if (type == Constants::MER_DEVICE_TYPE)
-        return tr("Mer Device");
+    if (type == Constants::MER_DEVICE_TYPE_I486)
+        return tr("Mer i486 Device ");
+    if (type == Constants::MER_DEVICE_TYPE_ARM)
+        return tr("Mer ARM Device");
     return QString();
 }
 
+bool MerDeviceFactory::canCreate(Core::Id type)
+{
+    return type == Core::Id(Constants::MER_DEVICE_TYPE_I486) ||
+       type == Core::Id(Constants::MER_DEVICE_TYPE_ARM);
+}
+
+
 QList<Core::Id> MerDeviceFactory::availableCreationIds() const
 {
-    return QList<Core::Id>() << Core::Id(Constants::MER_DEVICE_TYPE);
+    return QList<Core::Id>() << Core::Id(Constants::MER_DEVICE_TYPE_I486)
+                             << Core::Id(Constants::MER_DEVICE_TYPE_ARM);
 }
 
 ProjectExplorer::IDevice::Ptr MerDeviceFactory::create(Core::Id id) const
 {
-    QTC_ASSERT(id == Constants::MER_DEVICE_TYPE, return ProjectExplorer::IDevice::Ptr());
-    MerDeviceConfigurationWizard wizard;
+    QTC_ASSERT(canCreate(id), return ProjectExplorer::IDevice::Ptr());
+    MerDeviceConfigurationWizard wizard(id);
     if (wizard.exec() != QDialog::Accepted)
         return ProjectExplorer::IDevice::Ptr();
     return wizard.device();
@@ -58,7 +68,7 @@ ProjectExplorer::IDevice::Ptr MerDeviceFactory::create(Core::Id id) const
 
 bool MerDeviceFactory::canRestore(const QVariantMap &map) const
 {
-    return ProjectExplorer::IDevice::typeFromMap(map) == Constants::MER_DEVICE_TYPE;
+    return canCreate(ProjectExplorer::IDevice::typeFromMap(map));
 }
 
 ProjectExplorer::IDevice::Ptr MerDeviceFactory::restore(const QVariantMap &map) const

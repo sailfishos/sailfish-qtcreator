@@ -21,6 +21,7 @@
 ****************************************************************************/
 
 #include "merrunconfigurationfactory.h"
+#include "merdevicefactory.h"
 #include "merconstants.h"
 #include "merrunconfiguration.h"
 
@@ -155,7 +156,7 @@ ProjectExplorer::RunConfiguration *MerRunConfigurationFactory::clone(
 
 bool MerRunConfigurationFactory::canHandle(ProjectExplorer::Target *t) const
 {
-    return ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(t->kit()) == MER_DEVICE_TYPE;
+    return MerDeviceFactory::canCreate(ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(t->kit()));
 }
 
 } // Internal

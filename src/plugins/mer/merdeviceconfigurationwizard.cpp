@@ -37,8 +37,7 @@ namespace Mer {
 namespace Internal {
 
 namespace {
-enum PageId { DeviceTypePageId,
-              GeneralPageId,
+enum PageId { GeneralPageId,
               PreviousKeySetupCheckPageId,
               ReuseKeysCheckPageId,
               KeyCreationPageId,
@@ -48,18 +47,18 @@ enum PageId { DeviceTypePageId,
 class MerDeviceConfigurationWizardPrivate
 {
 public:
-    MerDeviceConfigurationWizardPrivate(QWidget *parent)
-        : deviceTypePage(parent)
-        , generalPage(wizardData, parent)
+    MerDeviceConfigurationWizardPrivate(Core::Id id,QWidget *parent)
+        : generalPage(wizardData, parent)
         , previousKeySetupPage(parent)
         , reuseKeysCheckPage(parent)
         , keyCreationPage(wizardData, parent)
         , finalPage(wizardData, parent)
     {
+        wizardData.deviceType = id;
+        wizardData.machineType = id == Constants::MER_DEVICE_TYPE_I486 ? ProjectExplorer::IDevice::Emulator : ProjectExplorer::IDevice::Hardware;
     }
 
     WizardData wizardData;
-    MerDeviceConfigWizardDeviceTypePage deviceTypePage;
     MerDeviceConfigWizardGeneralPage generalPage;
     MerDeviceConfigWizardPreviousKeySetupCheckPage previousKeySetupPage;
     MerDeviceConfigWizardReuseKeysCheckPage reuseKeysCheckPage;
@@ -67,12 +66,11 @@ public:
     MerDeviceConfigWizardFinalPage finalPage;
 };
 
-MerDeviceConfigurationWizard::MerDeviceConfigurationWizard(QWidget *parent)
+MerDeviceConfigurationWizard::MerDeviceConfigurationWizard(Core::Id id,QWidget *parent)
     : QWizard(parent)
-    , d(new MerDeviceConfigurationWizardPrivate(this))
+    , d(new MerDeviceConfigurationWizardPrivate(id,this))
 {
     setWindowTitle(tr("New Mer Device Configuration Setup"));
-    setPage(DeviceTypePageId, &d->deviceTypePage);
     setPage(GeneralPageId, &d->generalPage);
     setPage(PreviousKeySetupCheckPageId, &d->previousKeySetupPage);
     setPage(ReuseKeysCheckPageId, &d->reuseKeysCheckPage);
@@ -99,7 +97,7 @@ IDevice::Ptr MerDeviceConfigurationWizard::device()
     else
         sshParams.privateKeyFile = d->wizardData.privateKeyFilePath;
     IDevice::Ptr device = MerDevice::create(d->wizardData.configName,
-                                            Core::Id(Constants::MER_DEVICE_TYPE),
+                                            d->wizardData.deviceType,
                                             d->wizardData.machineType,
                                             IDevice::ManuallyAdded);
     device->setFreePorts(Utils::PortList::fromString(d->wizardData.freePorts));
@@ -116,9 +114,6 @@ IDevice::Ptr MerDeviceConfigurationWizard::device()
 int MerDeviceConfigurationWizard::nextId() const
 {
     switch (currentId()) {
-    case DeviceTypePageId:
-        d->wizardData.machineType = d->deviceTypePage.machineType();
-        return GeneralPageId;
     case GeneralPageId:
         d->wizardData.configName = d->generalPage.configName();
         d->wizardData.hostName = d->generalPage.hostName();
