@@ -116,14 +116,14 @@ QStringList MerSdk::targets() const
     return result;
 }
 
-void MerSdk::setSharedTargetsPath(const QString &targetPath)
+void MerSdk::setSharedTargetsPath(const QString &targetsPath)
 {
-    m_sharedTargetPath = targetPath;
+    m_sharedTargetsPath = targetsPath;
 }
 
-QString MerSdk::sharedTargetPath() const
+QString MerSdk::sharedTargetsPath() const
 {
-    return m_sharedTargetPath;
+    return m_sharedTargetsPath;
 }
 
 void MerSdk::setSharedSshPath(const QString &sshPath)
@@ -195,10 +195,10 @@ void MerSdk::attach()
 {
     if (!m_watcher.files().isEmpty())
             m_watcher.removePaths(m_watcher.files());
-    QString file = sharedTargetPath() + QLatin1String(Constants::MER_TARGETS_FILENAME);
+    QString file = sharedTargetsPath() + QLatin1String(Constants::MER_TARGETS_FILENAME);
     QFileInfo fi(file);
     if (fi.exists()) {
-        m_watcher.addPath(sharedTargetPath() + QLatin1String(Constants::MER_TARGETS_FILENAME));
+        m_watcher.addPath(sharedTargetsPath() + QLatin1String(Constants::MER_TARGETS_FILENAME));
         updateTargets();
     } else {
         qWarning() << "Targets file not found: " << file;
@@ -225,7 +225,7 @@ QVariantMap MerSdk::toMap() const
     result.insert(QLatin1String(VM_NAME), virtualMachineName());
     result.insert(QLatin1String(AUTO_DETECTED), isAutoDetected());
     result.insert(QLatin1String(SHARED_HOME), sharedHomePath());
-    result.insert(QLatin1String(SHARED_TARGET), sharedTargetPath());
+    result.insert(QLatin1String(SHARED_TARGET), sharedTargetsPath());
     result.insert(QLatin1String(SHARED_SSH), sharedSshPath());
     result.insert(QLatin1String(HOST), host());
     result.insert(QLatin1String(USERNAME), userName());
@@ -279,7 +279,7 @@ bool MerSdk::fromMap(const QVariantMap &data)
 
 bool MerSdk::isValid() const
 {
-    return !m_name.isEmpty() && !m_sharedHomePath.isEmpty() && !m_sharedSshPath.isEmpty() && !m_sharedTargetPath.isEmpty();
+    return !m_name.isEmpty() && !m_sharedHomePath.isEmpty() && !m_sharedSshPath.isEmpty() && !m_sharedTargetsPath.isEmpty();
 }
 
 void MerSdk::updateTargets()
@@ -287,7 +287,7 @@ void MerSdk::updateTargets()
     QList<MerTarget> targetsToInstall;
     QList<MerTarget> targetsToKeep;
     QList<MerTarget> targetsToRemove = m_targets;
-    QList<MerTarget> sdkTargets = readTargets(Utils::FileName::fromString(sharedTargetPath() + QLatin1String(Constants::MER_TARGETS_FILENAME)));
+    QList<MerTarget> sdkTargets = readTargets(Utils::FileName::fromString(sharedTargetsPath() + QLatin1String(Constants::MER_TARGETS_FILENAME)));
 
     //sort
     foreach (const MerTarget &sdkTarget, sdkTargets) {
@@ -310,7 +310,7 @@ void MerSdk::updateTargets()
 
 void MerSdk::handleTargetsFileChanged(const QString &file)
 {
-    QTC_ASSERT(file == sharedTargetPath() + QLatin1String(Constants::MER_TARGETS_FILENAME), return);
+    QTC_ASSERT(file == sharedTargetsPath() + QLatin1String(Constants::MER_TARGETS_FILENAME), return);
     updateTargets();
 }
 
