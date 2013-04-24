@@ -146,20 +146,12 @@ QList<Task> MerQtVersion::validateKit(const Kit *kit)
 
     } else if (!MerSdkManager::validateKit(kit)) {
         const QString message =
-                QCoreApplication::translate("QtVersion", "This Qt version '%1' can not be used "
-                                            "with toolchain '%2'.").arg(version->displayName(),
-                                                                        tc->displayName());
+                QCoreApplication::translate("QtVersion", "This Qt version '%1' does not match mersdk or toolchain").
+                arg(version->displayName());
         result << Task(Task::Error, message, Utils::FileName(), -1,
                        Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
     }
     return result;
-}
-
-void MerQtVersion::addToEnvironment(const Kit *k, Utils::Environment &env) const
-{
-    BaseQtVersion::addToEnvironment(k, env);
-    // Add Mer SDK ssh connection params
-    MerSdkManager::addToEnvironment(MerSdkManager::virtualMachineNameForKit(k), env);
 }
 
 QList<ProjectExplorer::Task> MerQtVersion::reportIssuesImpl(const QString &proFile,

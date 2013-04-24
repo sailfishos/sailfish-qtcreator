@@ -137,9 +137,9 @@ ProjectExplorer::Kit* MerTarget::createKit() const
     }
     ProjectExplorer::Kit *k = new ProjectExplorer::Kit();
     k->setAutoDetected(true);
-    k->setValue(Core::Id(Constants::TYPE), QLatin1String(Constants::MER_SDK));
     k->setDisplayName(QString::fromLocal8Bit("%1-%2").arg(m_sdk->virtualMachineName(), m_name));
     k->setIconPath(QLatin1String(Constants::MER_OPTIONS_CATEGORY_ICON));
+    k->setValue(Core::Id(Constants::VM_NAME), m_sdk->virtualMachineName());
     ProjectExplorer::SysRootKitInformation::setSysRoot(k, Utils::FileName::fromString(sysroot));
     ProjectExplorer::DeviceTypeKitInformation::setDeviceTypeId(k, Constants::MER_DEVICE_TYPE);
     return k;

@@ -50,9 +50,6 @@ public:
 
     ToolChain *clone() const;
     ProjectExplorer::IOutputParser *outputParser() const;
-
-    void addToEnvironment(Utils::Environment &env) const;
-
     QList<Utils::FileName> suggestedMkspecList() const;
     QList<ProjectExplorer::Task> validateKit(const ProjectExplorer::Kit *kit) const;
 

@@ -49,7 +49,8 @@ SOURCES += \
     mertarget.cpp \
     merconnection.cpp \
     merconnectionmanager.cpp \
-    mervirtualboxmanager.cpp
+    mervirtualboxmanager.cpp \
+    mersdkkitinformation.cpp
 
 HEADERS += \
     merplugin.h \
@@ -80,7 +81,8 @@ HEADERS += \
     mertarget.h \
     merconnection.h \
     merconnectionmanager.h \
-    mervirtualboxmanager.h
+    mervirtualboxmanager.h \
+    mersdkkitinformation.h
 
 SOURCES += \
     $$PWD/jollawelcomepage.cpp \

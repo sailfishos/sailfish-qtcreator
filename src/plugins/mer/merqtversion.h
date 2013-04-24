@@ -54,9 +54,6 @@ public:
     QString platformDisplayName() const;
 
     QList<ProjectExplorer::Task> validateKit(const ProjectExplorer::Kit *k);
-
-    void addToEnvironment(const ProjectExplorer::Kit *k, Utils::Environment &env) const;
-
     QVariantMap toMap() const;
     void fromMap(const QVariantMap &data);
 

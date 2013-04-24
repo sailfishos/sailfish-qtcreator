@@ -47,6 +47,7 @@ public:
     ~MerOptionsWidget();
 
     QString searchKeyWordMatchString() const;
+    void setSdk(const QString& vmName);
     void store();
 
 signals:

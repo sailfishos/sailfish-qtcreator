@@ -67,6 +67,13 @@ MerOptionsWidget::~MerOptionsWidget()
     delete m_ui;
 }
 
+void MerOptionsWidget::setSdk(const QString& vmName)
+{
+    if (m_sdks[vmName]) {
+        onSdkChanged(vmName);
+    }
+}
+
 QString MerOptionsWidget::searchKeyWordMatchString() const
 {
     const QChar blank = QLatin1Char(' ');
@@ -206,6 +213,7 @@ void MerOptionsWidget::onSdksUpdated()
 {
     MerSdkManager *sdkManager = MerSdkManager::instance();
     m_sdks.clear();
+    m_virtualMachine.clear();
     foreach (MerSdk *sdk, sdkManager->sdks()) {
         m_sdks[sdk->virtualMachineName()] = sdk;
         m_virtualMachine = sdk->virtualMachineName();
