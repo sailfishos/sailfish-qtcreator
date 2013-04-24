@@ -116,7 +116,7 @@ QStringList MerSdk::targets() const
     return result;
 }
 
-void MerSdk::setSharedTargetPath(const QString &targetPath)
+void MerSdk::setSharedTargetsPath(const QString &targetPath)
 {
     m_sharedTargetPath = targetPath;
 }
@@ -251,7 +251,7 @@ bool MerSdk::fromMap(const QVariantMap &data)
     setVirtualMachineName(data.value(QLatin1String(VM_NAME)).toString());
     setAutodetect(data.value(QLatin1String(AUTO_DETECTED)).toBool());
     setSharedHomePath(data.value(QLatin1String(SHARED_HOME)).toString());
-    setSharedTargetPath(data.value(QLatin1String(SHARED_TARGET)).toString());
+    setSharedTargetsPath(data.value(QLatin1String(SHARED_TARGET)).toString());
     setSharedSshPath(data.value(QLatin1String(SHARED_SSH)).toString());
     setHost(data.value(QLatin1String(HOST)).toString());
     setUserName(data.value(QLatin1String(USERNAME)).toString());

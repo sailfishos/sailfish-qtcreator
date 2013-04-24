@@ -50,6 +50,7 @@ unsigned int MerSdkKitInformation::priority() const
 
 QVariant MerSdkKitInformation::defaultValue(ProjectExplorer::Kit *kit) const
 {
+    Q_UNUSED(kit)
     return QLatin1String(Constants::MER_SDK);
 }
 

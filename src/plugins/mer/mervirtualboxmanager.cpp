@@ -225,7 +225,7 @@ VirtualMachineInfo virtualMachineInfoFromOutput(const QString &output)
             if (rexp.cap(7) == QLatin1String("home"))
                 info.sharedHome = rexp.cap(8);
             else if (rexp.cap(7) == QLatin1String("targets"))
-                info.sharedTarget = rexp.cap(8);
+                info.sharedTargets = rexp.cap(8);
             else if (rexp.cap(7) == QLatin1String("ssh"))
                 info.sharedSsh = rexp.cap(8);
         }
