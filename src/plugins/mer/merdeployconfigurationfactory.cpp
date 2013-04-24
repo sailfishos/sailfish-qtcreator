@@ -24,6 +24,7 @@
 #include "mersftpdeployconfiguration.h"
 #include "merconstants.h"
 #include "meremulatorstartstep.h"
+#include "merdevicefactory.h"
 
 #include <extensionsystem/pluginmanager.h>
 #include <projectexplorer/buildstep.h>
@@ -137,10 +138,7 @@ ProjectExplorer::DeployConfiguration *MerDeployConfigurationFactory::clone(
 
 bool MerDeployConfigurationFactory::canHandle(ProjectExplorer::Target *t) const
 {
-    return ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(t->kit())
-            == Constants::MER_DEVICE_TYPE_ARM
-            || ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(t->kit())
-            == Constants::MER_DEVICE_TYPE_I486;
+    return MerDeviceFactory::canCreate(ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(t->kit()));
 }
 
 } // Internal
