@@ -241,7 +241,7 @@ void MerVirtualBoxManager::handleTaskAdded(const Task &task)
         QString vm = regExp.cap(1);
         if (promptToStart(vm)) {
             QStringList vmList = MerVirtualBoxManager::fetchRegisteredVirtualMachines();
-            if(vmList.contains(vm))
+            if (vmList.contains(vm))
                 MerVirtualBoxManager::startVirtualMachine(vm);
         }
     }

@@ -34,7 +34,7 @@ class MerDeviceConfigurationWizardPrivate;
 class MerDeviceConfigurationWizard : public QWizard
 {
 public:
-    explicit MerDeviceConfigurationWizard(Core::Id id ,QWidget *parent = 0);
+    explicit MerDeviceConfigurationWizard(Core::Id id, QWidget *parent = 0);
     ~MerDeviceConfigurationWizard();
 
     ProjectExplorer::IDevice::Ptr device();

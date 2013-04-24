@@ -67,11 +67,10 @@ MerOptionsWidget::~MerOptionsWidget()
     delete m_ui;
 }
 
-void MerOptionsWidget::setSdk(const QString& vmName)
+void MerOptionsWidget::setSdk(const QString &vmName)
 {
-    if (m_sdks[vmName]) {
+    if (m_sdks.contains(vmName))
         onSdkChanged(vmName);
-    }
 }
 
 QString MerOptionsWidget::searchKeyWordMatchString() const

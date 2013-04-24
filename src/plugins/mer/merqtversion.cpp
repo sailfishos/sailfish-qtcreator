@@ -145,7 +145,7 @@ QList<Task> MerQtVersion::validateKit(const Kit *kit)
 
     } else if (!MerSdkManager::validateKit(kit)) {
         const QString message =
-                QCoreApplication::translate("QtVersion", "This Qt version '%1' does not match mersdk or toolchain").
+                QCoreApplication::translate("QtVersion", "This Qt version '%1' does not match Mer SDK or toolchain.").
                 arg(version->displayName());
         result << Task(Task::Error, message, Utils::FileName(), -1,
                        Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
