@@ -39,7 +39,7 @@ class VirtualMachineInfo
 public:
     VirtualMachineInfo() : sshPort(0), wwwPort(0) {}
     QString sharedHome;
-    QString sharedTarget;
+    QString sharedTargets;
     QString sharedSsh;
     quint16 sshPort;
     quint16 wwwPort;

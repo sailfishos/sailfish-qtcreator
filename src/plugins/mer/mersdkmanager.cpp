@@ -403,7 +403,7 @@ MerSdk* MerSdkManager::createSdk(const QString &vmName)
                                                               QDesktopServices::HomeLocation))+ QLatin1String("/.ssh"));
     sdk->setPrivateKeyFile(QDir::toNativeSeparators(QString::fromLatin1("%1/id_rsa").arg(sshDirectory)));
     sdk->setSharedHomePath(info.sharedHome);
-    sdk->setSharedTargetPath(info.sharedTarget);
+    sdk->setSharedTargetsPath(info.sharedTargets);
     sdk->setSharedSshPath(info.sharedSsh);
     return sdk;
 }
@@ -576,7 +576,7 @@ void MerPlugin::testMerSdkManager()
 
     sdk->setSharedSshPath(QDir::toNativeSeparators(filepath));
     sdk->setSharedHomePath(QDir::toNativeSeparators(filepath));
-    sdk->setSharedTargetPath(QDir::toNativeSeparators(filepath));
+    sdk->setSharedTargetsPath(QDir::toNativeSeparators(filepath));
 
     QVERIFY(sdk->isValid());
     sdkManager->addSdk(sdk);
