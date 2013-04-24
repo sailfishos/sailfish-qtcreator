@@ -103,14 +103,6 @@ IOutputParser *MerToolChain::outputParser() const
     return parser;
 }
 
-void MerToolChain::addToEnvironment(Utils::Environment &env) const
-{
-    GccToolChain::addToEnvironment(env);
-    // Extract the VM name out of the tool chain wrapper path
-    const QString sdkName = compilerCommand().parentDir().parentDir().toFileInfo().baseName();
-    MerSdkManager::addToEnvironment(sdkName, env);
-}
-
 QVariantMap MerToolChain::toMap() const
 {
     QVariantMap data = GccToolChain::toMap();
@@ -148,9 +140,8 @@ QList<Task> MerToolChain::validateKit(const Kit *kit) const
     } else if (!Internal::MerSdkManager::validateKit(kit)) {
         const QString message =
                 QCoreApplication::translate("ProjectExplorer::MerToolChain",
-                                            "The toolchain '%1' cannot produce code for the Qt "
-                                            "version '%2'.").arg(displayName(),
-                                                                 version->displayName());
+                                            "The toolchain '%1' does not match mersdk or qt version").
+                                                                arg(displayName());
         result << Task(Task::Error, message, Utils::FileName(), -1,
                        Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
     }

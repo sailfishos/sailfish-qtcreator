@@ -26,6 +26,7 @@
 #include "mertoolchain.h"
 #include "mervirtualboxmanager.h"
 #include "merconnectionmanager.h"
+#include "mersdkkitinformation.h"
 #include "merplugin.h"
 
 #include <coreplugin/icore.h>
@@ -79,6 +80,7 @@ MerSdkManager::MerSdkManager()
     connect(KitManager::instance(), SIGNAL(kitsLoaded()), SLOT(initialize()));
     m_writer = new Utils::PersistentSettingsWriter(settingsFileName(), QLatin1String("MerSDKs"));
     m_instance = this;
+    ProjectExplorer::KitManager::instance()->registerKitInformation(new MerSdkKitInformation);
 }
 
 MerSdkManager::~MerSdkManager()
@@ -235,7 +237,7 @@ bool MerSdkManager::isMerKit(const Kit *kit)
 {
     if (!kit)
         return false;
-    if (!kit->isAutoDetected())
+    if (!MerSdkKitInformation::sdk(kit))
         return false;
 
     ToolChain* tc = ToolChainKitInformation::toolChain(kit);
@@ -419,8 +421,9 @@ bool MerSdkManager::validateKit(const Kit *kit)
     ToolChain* toolchain = ToolChainKitInformation::toolChain(kit);
     QtSupport::BaseQtVersion* version = QtSupport::QtKitInformation::qtVersion(kit);
     Core::Id deviceType = DeviceTypeKitInformation::deviceTypeId(kit);
+    MerSdk* sdk = MerSdkKitInformation::sdk(kit);
 
-    if (!version || !toolchain || !deviceType.isValid())
+    if (!version || !toolchain || !deviceType.isValid() || !sdk)
         return false;
     if (version->type() != QLatin1String(Constants::MER_QT))
         return false;
@@ -432,25 +435,9 @@ bool MerSdkManager::validateKit(const Kit *kit)
     MerToolChain* mertoolchain = static_cast<MerToolChain*>(toolchain);
     MerQtVersion* merqtversion = static_cast<MerQtVersion*>(version);
 
-    return mertoolchain->virtualMachineName() == merqtversion->virtualMachineName()
+    return  sdk->virtualMachineName() ==  mertoolchain->virtualMachineName()
+            && sdk->virtualMachineName() ==  merqtversion->virtualMachineName()
             && mertoolchain->targetName() == merqtversion->targetName();
-}
-
-void MerSdkManager::addToEnvironment(const QString &sdkName, Utils::Environment &env)
-{
-    const MerSdk *sdk = MerSdkManager::instance()->sdk(sdkName);
-    QTC_CHECK(sdk);
-    const QString sshPort = QString::number(sdk->sshPort());
-    const QString sharedHome = QDir::fromNativeSeparators(sdk->sharedHomePath());
-    const QString sharedTarget = QDir::fromNativeSeparators(sdk->sharedTargetPath());
-
-
-    env.appendOrSet(QLatin1String(Constants::MER_SSH_USERNAME),
-                    QLatin1String(Constants::MER_SDK_DEFAULTUSER));
-    env.appendOrSet(QLatin1String(Constants::MER_SSH_PORT), sshPort);
-    env.appendOrSet(QLatin1String(Constants::MER_SSH_PRIVATE_KEY), sdk->privateKeyFile());
-    env.appendOrSet(QLatin1String(Constants::MER_SSH_SHARED_HOME), sharedHome);
-    env.appendOrSet(QLatin1String(Constants::MER_SSH_SHARED_TARGET), sharedTarget);
 }
 
 bool MerSdkManager::generateSshKey(const QString &privKeyPath, QString &error)

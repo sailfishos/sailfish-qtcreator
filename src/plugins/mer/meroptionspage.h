@@ -40,6 +40,8 @@ public:
     void finish();
     bool matches(const QString &key) const;
 
+    void setSdk(const QString& vmName);
+
 private slots:
     void onUpdateSearchKeys();
 

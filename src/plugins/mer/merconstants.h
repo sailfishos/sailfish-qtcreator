@@ -99,7 +99,6 @@ const char SYSROOT[] = "Sysroot";
 const char TOOL_CHAINS[] = "ToolChains";
 const char QT_VERSIONS[] = "QtVersions";
 const char AUTO_DETECTED[] = "AutoDetected";
-const char TYPE[] = "Type";
 const char TARGET[] = "Target";
 const char VIRTUAL_MACHINE[] = "VirtualMachine";
 const char SB2_TARGET_NAME[] = "SB2.TargetName";
@@ -125,6 +124,7 @@ const char GCC_DUMPMACHINE[] = "gcc.dumpmachine";
 const char GCC_DUMPVERSION[] = "gcc.dumpversion";
 
 const char MER_AUTHORIZEDKEYS_FOLDER[] = "authorized_keys";
+const char MER_KIT_INFORMATION[] = "Mer.Kit.Information";
 
 const char MER_SSH_SHARED_HOME[] = "MER_SSH_SHARED_HOME";
 const char MER_SSH_SHARED_TARGET[] = "MER_SSH_SHARED_TARGET";
