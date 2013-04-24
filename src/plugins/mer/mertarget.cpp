@@ -72,6 +72,8 @@ bool MerTarget::fromMap(const QVariantMap &data)
 {
     m_name = data.value(QLatin1String(Constants::TARGET_NAME)).toString();
     m_qmakeQuery = data.value(QLatin1String(Constants::QMAKE_DUMP)).toString();
+    m_qmakeQuery.replace(QLatin1String(":/"),
+                         QString::fromLatin1(":%1/%2/").arg(m_sdk->sharedTargetsPath()).arg(m_name));
     m_gccMachineDump = data.value(QLatin1String(Constants::GCC_DUMP)).toString();
     return isValid();
 }
