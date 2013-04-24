@@ -137,7 +137,7 @@ ProjectExplorer::Kit* MerTarget::createKit() const
     }
     ProjectExplorer::Kit *k = new ProjectExplorer::Kit();
     k->setAutoDetected(true);
-    k->setDisplayName(QString::fromLocal8Bit("%1-%2").arg(m_sdk->virtualMachineName(), m_name));
+    k->setDisplayName(QString::fromLatin1("%1-%2").arg(m_sdk->virtualMachineName(), m_name));
     k->setIconPath(QLatin1String(Constants::MER_OPTIONS_CATEGORY_ICON));
     k->setValue(Core::Id(Constants::VM_NAME), m_sdk->virtualMachineName());
     ProjectExplorer::SysRootKitInformation::setSysRoot(k, Utils::FileName::fromString(sysroot));
@@ -166,8 +166,8 @@ MerQtVersion* MerTarget::createQtVersion() const
     MerQtVersion *merqtv = static_cast<MerQtVersion *>(qtv);
     const QString vmName = m_sdk->virtualMachineName();
     merqtv->setDisplayName(
-                QString::fromLocal8Bit("Qt %1 in %2 %3").arg(qtv->qtVersionString(),
-                                                             vmName, m_name));
+                QString::fromLatin1("Qt %1 in %2 %3").arg(qtv->qtVersionString(),
+                                                          vmName, m_name));
     merqtv->setVirtualMachineName(vmName);
     merqtv->setTargetName(m_name);
     return merqtv;
@@ -190,7 +190,7 @@ MerToolChain* MerTarget::createToolChain() const
 
     MerToolChain* mertoolchain = new MerToolChain(true, gcc);
     const QString vmName = m_sdk->virtualMachineName();
-    mertoolchain->setDisplayName(QString::fromLocal8Bit("GCC (%1 %2)").arg(vmName, m_name));
+    mertoolchain->setDisplayName(QString::fromLatin1("GCC (%1 %2)").arg(vmName, m_name));
     mertoolchain->setVirtualMachine(vmName);
     mertoolchain->setTargetName(m_name);
     return mertoolchain;

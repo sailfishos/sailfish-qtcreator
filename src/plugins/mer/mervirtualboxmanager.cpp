@@ -182,7 +182,7 @@ QStringList MerVirtualBoxManager::fetchRegisteredVirtualMachines()
 
 bool isVirtualMachineListed(const QString &vmName, const QString &output)
 {
-    return output.indexOf(QRegExp(QString::fromLocal8Bit("\\B\"%1\"\\B").arg(vmName))) != -1;
+    return output.indexOf(QRegExp(QString::fromLatin1("\\B\"%1\"\\B").arg(vmName))) != -1;
 }
 
 QStringList listedVirtualMachines(const QString &output)
