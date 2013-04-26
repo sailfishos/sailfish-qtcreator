@@ -73,6 +73,8 @@ Utils::FileName Settings::getPath(const QString &file)
         result.appendPath(QLatin1String("devices"));
     else if (file == QLatin1String("android"))
         result.appendPath(QLatin1String("android"));
+    else if (file == QLatin1String("mersdk"))
+        result.appendPath(QLatin1String("mersdk"));
     else
         return Utils::FileName();
     result.append(QLatin1String(".xml"));
