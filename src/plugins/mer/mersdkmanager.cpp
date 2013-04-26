@@ -175,14 +175,11 @@ QList<MerSdk*> MerSdkManager::sdks() const
 
 void MerSdkManager::restore()
 {
-    //first global location
-    QList<MerSdk*> globalSDK = restoreSdks(globalSettingsFileName());
-    Q_UNUSED(globalSDK)
-    //TODO some logic :)
     //local location
-    QList<MerSdk*> localSDK = restoreSdks(settingsFileName());
-
-    foreach (MerSdk *sdk, localSDK)
+    QList<MerSdk*> sdks = restoreSdks(settingsFileName());
+    if(sdks.isEmpty())
+        sdks = restoreSdks(globalSettingsFileName());
+    foreach (MerSdk *sdk, sdks)
         addSdk(sdk);
 }
 
