@@ -127,6 +127,24 @@ QList<Task> MerToolChain::validateKit(const Kit *kit) const
     if (!result.isEmpty())
         return result;
 
+    Core::Id type = DeviceTypeKitInformation::deviceTypeId(kit);
+
+    if (type == Constants::MER_DEVICE_TYPE_I486 && targetAbi().architecture() != ProjectExplorer::Abi::X86Architecture) {
+        const QString message =
+                QCoreApplication::translate("ProjectExplorer::MerToolChain",
+                                            "MerToolChain '%1' can not be used for device with i486 architecture").arg(displayName());
+        result << Task(Task::Error, message, Utils::FileName(), -1,
+                       Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
+    }
+
+    if (type == Constants::MER_DEVICE_TYPE_ARM && targetAbi().architecture() != ProjectExplorer::Abi::ArmArchitecture) {
+        const QString message =
+                QCoreApplication::translate("ProjectExplorer::MerToolChain",
+                                            "MerToolChain '%1' can not be used for device with arm architecture").arg(displayName());
+        result << Task(Task::Error, message, Utils::FileName(), -1,
+                       Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
+    }
+
     QtSupport::BaseQtVersion *version = QtSupport::QtKitInformation::qtVersion(kit);
 
     if (!version) {
