@@ -35,8 +35,8 @@
 #include "../../plugins/mer/merconstants.h"
 #include <iostream>
 
-const char MER_PARAM_VM_NAME[] = "--sdkName";
-const char MER_PARAM_AUTO_DETECTED[] = "--autodetected";
+const char MER_PARAM_VM_NAME[] = "--vm-name";
+const char MER_PARAM_AUTODETECTED[] = "--autodetected";
 const char MER_PARAM_SHARED_HOME[] = "--shared-home";
 const char MER_PARAM_SHARED_TARGET[] = "--shared-target";
 const char MER_PARAM_SHARED_SSH[] = "--shared-ssh";
@@ -66,16 +66,16 @@ QString AddMerSdkOperation::helpText() const
 QString AddMerSdkOperation::argumentsHelpText() const
 {
     const QString indent = QLatin1String("    ");
-    return indent + QLatin1String(MER_PARAM_VM_NAME) + QLatin1String(" <NAME>   mer sdk virtual machine name (required).\n")
-         + indent + QLatin1String(MER_PARAM_AUTO_DETECTED) + QLatin1String(" <BOOL>       is sdk autodetected.\n")
-         + indent + QLatin1String(MER_PARAM_SHARED_HOME) + QLatin1String(" <PATH>       shared home folder (required).\n")
-         + indent + QLatin1String(MER_PARAM_SHARED_TARGET) + QLatin1String(" <PATH>   shared target folder (required).\n")
-         + indent + QLatin1String(MER_PARAM_SHARED_SSH) + QLatin1String(" <PATH>   shared ssh folder (required).\n")
-         + indent + QLatin1String(MER_PARAM_HOST) + QLatin1String(" <NAME>   mersdk ssh hostname (required).\n")
-         + indent + QLatin1String(MER_PARAM_USERNAME) + QLatin1String(" <NAME>   mersdk ssh username (required).\n")
-         + indent + QLatin1String(MER_PARAM_PRIVATE_KEY_FILE) + QLatin1String(" <FILE>  mersdk private key file (required).\n")
-         + indent + QLatin1String(MER_PARAM_SSH_PORT) + QLatin1String(" <NUMBER>  mersdk ssh port (required).\n")
-         + indent + QLatin1String(MER_PARAM_WWW_PORT) + QLatin1String(" <NUMBER>  mersdk www port (required).\n");
+    return indent + QLatin1String(MER_PARAM_VM_NAME) + QLatin1String(" <NAME>              mer sdk virtual machine name (required).\n")
+         + indent + QLatin1String(MER_PARAM_AUTODETECTED) + QLatin1String(" <BOOL>         is sdk autodetected.\n")
+         + indent + QLatin1String(MER_PARAM_SHARED_HOME) + QLatin1String(" <PATH>          shared home folder (required).\n")
+         + indent + QLatin1String(MER_PARAM_SHARED_TARGET) + QLatin1String(" <PATH>        shared target folder (required).\n")
+         + indent + QLatin1String(MER_PARAM_SHARED_SSH) + QLatin1String(" <PATH>           shared ssh folder (required).\n")
+         + indent + QLatin1String(MER_PARAM_HOST) + QLatin1String(" <NAME>                 mersdk ssh hostname (required).\n")
+         + indent + QLatin1String(MER_PARAM_USERNAME) + QLatin1String(" <NAME>             mersdk ssh username (required).\n")
+         + indent + QLatin1String(MER_PARAM_PRIVATE_KEY_FILE) + QLatin1String(" <FILE>     mersdk private key file (required).\n")
+         + indent + QLatin1String(MER_PARAM_SSH_PORT) + QLatin1String(" <NUMBER>           mersdk ssh port (required).\n")
+         + indent + QLatin1String(MER_PARAM_WWW_PORT) + QLatin1String(" <NUMBER>           mersdk www port (required).\n");
 }
 
 bool AddMerSdkOperation::setArguments(const QStringList &args)
@@ -93,7 +93,7 @@ bool AddMerSdkOperation::setArguments(const QStringList &args)
             continue;
         }
 
-        if (current == QLatin1String(MER_PARAM_AUTO_DETECTED)) {
+        if (current == QLatin1String(MER_PARAM_AUTODETECTED)) {
             if (next.isNull())
                 return false;
             ++i; // skip next;
