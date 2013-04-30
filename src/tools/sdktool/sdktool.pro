@@ -26,7 +26,8 @@ SOURCES += \
     settings.cpp \
     addmertargetoperation.cpp \
     rmmertargetoperation.cpp \
-    addmersdkoperation.cpp
+    addmersdkoperation.cpp \
+    adddeviceoperation.cpp
 
 HEADERS += \
     addkeysoperation.h \
@@ -44,7 +45,8 @@ HEADERS += \
     settings.h \
     addmertargetoperation.h \
     rmmertargetoperation.h \
-    addmersdkoperation.h
+    addmersdkoperation.h \
+    adddeviceoperation.h
 
 DESTDIR=$$IDE_LIBEXEC_PATH
 macx:DEFINES += "DATA_PATH=\"\\\".\\\"\""

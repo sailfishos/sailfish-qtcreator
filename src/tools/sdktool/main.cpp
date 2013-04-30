@@ -45,6 +45,7 @@
 #include "addmertargetoperation.h"
 #include "rmmertargetoperation.h"
 #include "addmersdkoperation.h"
+#include "adddeviceoperation.h"
 
 #include <iostream>
 
@@ -175,7 +176,8 @@ int main(int argc, char *argv[])
                << new RmQtOperation
                << new RmToolChainOperation
                << new AddMerTargetOperation
-               << new AddMerSdkOperation;
+               << new AddMerSdkOperation
+               << new AddDeviceOperation;
 
 #ifdef WITH_TESTS
     std::cerr << std::endl << std::endl << "Starting tests..." << std::endl;
