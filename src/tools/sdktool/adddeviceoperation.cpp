@@ -60,7 +60,6 @@ AddDeviceOperation::AddDeviceOperation():
     m_autheticationType(0),
     m_timeout(0),
     m_machineType(0)
-
 {
 }
 
@@ -71,10 +70,10 @@ QString AddDeviceOperation::name() const
 
 QString AddDeviceOperation::helpText() const
 {
-    return QLatin1String("add device sdk to Qt Creator configuration");
+    return QLatin1String("add device to Qt Creator configuration");
 }
 
-QString AddDeviceOperation::param(const QString& text) const
+QString AddDeviceOperation::param(const QString &text)
 {
     return QLatin1String("--") + text.toLower();
 }
@@ -82,26 +81,24 @@ QString AddDeviceOperation::param(const QString& text) const
 QString AddDeviceOperation::argumentsHelpText() const
 {
     const QString indent = QLatin1String("    ");
-    return indent + param(QLatin1String(DisplayNameKey))+ QLatin1String(" <NAME>   device name (required).\n")
-         + indent + param(QLatin1String(TypeKey)) + QLatin1String(" <NAME>       device type (required).\n")
-         + indent + indent+ QLatin1String(Mer::Constants::MER_DEVICE_TYPE_I486) + QLatin1String(" for mer i486 target\n")
-         + indent + indent+ QLatin1String(Mer::Constants::MER_DEVICE_TYPE_ARM) + QLatin1String(" for mer arm target\n")
-         + indent + param(QLatin1String(OriginKey)) + QLatin1String(" <manuallyAdded/autoDetected> origin.\n")
-         + indent + param(QLatin1String(MachineTypeKey)) + QLatin1String(" <hardware/emulator>       machine type .\n")
-         + indent + param(QLatin1String(HostKey)) + QLatin1String(" <NAME>   host name for ssh connection.\n")
-         + indent + param(QLatin1String(SshPortKey)) + QLatin1String(" <NUMBER>   port for ssh connection.\n")
-         + indent + param(QLatin1String(UserNameKey)) + QLatin1String(" <NAME>   user name for ssh connection.\n")
-         + indent + param(QLatin1String(AuthKey)) + QLatin1String(" <passoword/privateKey>   authentication Id type (required).\n")
-         + indent + param(QLatin1String(KeyFileKey)) + QLatin1String(" <FILE>   private key file (required).\n")
-         + indent + param(QLatin1String(PasswordKey)) + QLatin1String(" <NAME>  password for ssh connection.\n")
-         + indent + param(QLatin1String(TimeoutKey)) + QLatin1String(" <NUMBER>  timeout for ssh connection.\n")
-         + indent + param(QLatin1String(PortsSpecKey)) + QLatin1String(" <NUMBER,NUMBER,NUMBER>  free ports\n");
+    return indent + param(QLatin1String(DisplayNameKey))+ QLatin1String(" <NAME>                                  device name (required).\n")
+         + indent + param(QLatin1String(TypeKey)) + QLatin1String(" <NAME>                                device type (required).\n")
+         + indent + indent + QLatin1String(Mer::Constants::MER_DEVICE_TYPE_I486) + QLatin1String("    for mer i486 target\n")
+         + indent + indent + QLatin1String(Mer::Constants::MER_DEVICE_TYPE_ARM) + QLatin1String("     for mer arm target\n")
+         + indent + param(QLatin1String(OriginKey)) + QLatin1String(" <manuallyAdded/autoDetected>          origin.\n")
+         + indent + param(QLatin1String(MachineTypeKey)) + QLatin1String(" <hardware/emulator>                     machine type.\n")
+         + indent + param(QLatin1String(HostKey)) + QLatin1String(" <NAME>                                  host name for ssh connection.\n")
+         + indent + param(QLatin1String(SshPortKey)) + QLatin1String(" <NUMBER>                             port for ssh connection.\n")
+         + indent + param(QLatin1String(UserNameKey)) + QLatin1String(" <NAME>                                 user name for ssh connection.\n")
+         + indent + param(QLatin1String(AuthKey)) + QLatin1String(" <password/privateKey>         authentication Id type (required).\n")
+         + indent + param(QLatin1String(KeyFileKey)) + QLatin1String(" <FILE>                               private key file (required).\n")
+         + indent + param(QLatin1String(PasswordKey)) + QLatin1String(" <NAME>                              password for ssh connection.\n")
+         + indent + param(QLatin1String(TimeoutKey)) + QLatin1String(" <NUMBER>                             timeout for ssh connection.\n")
+         + indent + param(QLatin1String(PortsSpecKey)) + QLatin1String(" <NUMBER,NUMBER|NUMBER-NUMBER>  free ports.\n");
 }
-
 
 bool AddDeviceOperation::setArguments(const QStringList &args)
 {
-
     for (int i = 0; i < args.count(); ++i) {
         const QString current = args.at(i);
         const QString next = ((i + 1) < args.count()) ? args.at(i + 1) : QString();
@@ -152,7 +149,6 @@ bool AddDeviceOperation::setArguments(const QStringList &args)
             m_userName = next;
             continue;
         }
-
 
         if (current == param(QLatin1String(AuthKey))) {
             if (next.isNull())
@@ -211,29 +207,29 @@ bool AddDeviceOperation::setArguments(const QStringList &args)
 
 int AddDeviceOperation::execute() const
 {
-    QVariantMap map = load(QLatin1String("devices"));
+    const QString devicesKey = QLatin1String("devices");
+    QVariantMap map = load(devicesKey);
     if (map.isEmpty())
         map = initializeDevices();
 
-     QVariantMap mapdevice = map.value(QLatin1String(DeviceManagerKey)).toMap();
+    QVariantMap mapdevice = map.value(QLatin1String(DeviceManagerKey)).toMap();
 
-    if (map.isEmpty()){
+    if (map.isEmpty())
         std::cerr << "Error: Count found devices, file seems wrong." << std::endl;
-    }
 
     const QVariantMap result = addDevice(mapdevice, m_displayName, m_type, m_origin, m_machineType, m_host, m_port,
-                                      m_userName, m_autheticationType, m_password, m_privateKeyFile, m_timeout,m_freePorts);
+                                         m_userName, m_autheticationType, m_password, m_privateKeyFile, m_timeout,m_freePorts);
 
     if (result.isEmpty() || mapdevice == result)
         return -2;
 
     map.remove(QLatin1String(DeviceManagerKey));
-    map.insert(QLatin1String(DeviceManagerKey),result);
+    map.insert(QLatin1String(DeviceManagerKey), result);
 
-    return save(map,QLatin1String("devices")) ? 0 : -3;
+    return save(map, devicesKey) ? 0 : -3;
 }
 
-QVariantMap AddDeviceOperation::initializeDevices() const
+QVariantMap AddDeviceOperation::initializeDevices()
 {
     QVariantMap map;
     QVariantList deviceList;
@@ -242,8 +238,6 @@ QVariantMap AddDeviceOperation::initializeDevices() const
     data.insert(QLatin1String(DeviceManagerKey), map);
     return data;
 }
-
-
 
 QVariantMap AddDeviceOperation::addDevice(const QVariantMap &map,
                                           const QString &displayName,
@@ -257,10 +251,10 @@ QVariantMap AddDeviceOperation::addDevice(const QVariantMap &map,
                                           const QString &password,
                                           const QString &privateKeyFile,
                                           int timeout,
-                                          const QString &freePorts) const
+                                          const QString &freePorts)
 {
     QVariantMap result = map;
-    QVariantList deviceList  = map.value(QLatin1String(DeviceListKey)).toList();
+    QVariantList deviceList = map.value(QLatin1String(DeviceListKey)).toList();
     QVariantMap data;
     data.insert(QLatin1String(DisplayNameKey), QVariant(displayName));
     data.insert(QLatin1String(TypeKey), QVariant(type));
@@ -276,6 +270,6 @@ QVariantMap AddDeviceOperation::addDevice(const QVariantMap &map,
     data.insert(QLatin1String(PortsSpecKey), QVariant(freePorts));
     deviceList.append(QVariant(data));
     result.remove(QLatin1String(DeviceListKey));
-    result.insert(QLatin1String(DeviceListKey),deviceList);
+    result.insert(QLatin1String(DeviceListKey), deviceList);
     return result;
 }

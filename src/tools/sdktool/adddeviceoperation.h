@@ -52,11 +52,11 @@ public:
 #endif
 
 private:
-    QVariantMap initializeDevices() const;
-    QString param(const QString& text) const;
-    QVariantMap addDevice(const QVariantMap &map, const QString &displayName, const QString &type, int origin,
-                          int machineType, const QString &host, int port,const QString &userName, int autheticationType,
-                          const QString &password,const QString &privateKeyFil, int timeout, const QString &freePorts) const;
+    static QVariantMap initializeDevices();
+    static QString param(const QString &text);
+    static QVariantMap addDevice(const QVariantMap &map, const QString &displayName, const QString &type, int origin,
+                                 int machineType, const QString &host, int port, const QString &userName, int autheticationType,
+                                 const QString &password,const QString &privateKeyFil, int timeout, const QString &freePorts);
 
 private:
     QString m_displayName;
