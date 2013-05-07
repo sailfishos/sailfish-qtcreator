@@ -107,7 +107,7 @@ bool AddDeviceOperation::setArguments(const QStringList &args)
             if (next.isNull())
                 return false;
             ++i; // skip next;
-            m_internalId = next;
+            m_internalId = next.toLatin1();
             continue;
         }
 
@@ -261,7 +261,7 @@ QVariantMap AddDeviceOperation::initializeDevices()
 }
 
 QVariantMap AddDeviceOperation::addDevice(const QVariantMap &map,
-                                          const QString &internalId,
+                                          const QByteArray &internalId,
                                           const QString &displayName,
                                           const QString &type,
                                           int origin,
