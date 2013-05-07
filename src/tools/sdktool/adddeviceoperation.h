@@ -55,7 +55,7 @@ private:
     static QVariantMap initializeDevices();
     static QString param(const QString &text);
     static QVariantMap addDevice(const QVariantMap &map,
-                                 const QString &internalId,
+                                 const QByteArray &internalId,
                                  const QString &displayName,
                                  const QString &type,
                                  int origin,
@@ -70,7 +70,7 @@ private:
                                  const QString &freePorts);
 
 private:
-    QString m_internalId;
+    QByteArray m_internalId;
     QString m_displayName;
     QString m_type;
     int m_origin;
