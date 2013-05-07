@@ -158,7 +158,7 @@ bool AddDeviceOperation::setArguments(const QStringList &args)
             if (next.isNull())
                 return false;
             ++i; // skip next;
-            m_autheticationType = next.toInt();
+            m_autheticationType = next == QLatin1String("password");
             continue;
         }
 
