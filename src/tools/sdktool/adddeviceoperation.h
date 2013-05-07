@@ -54,11 +54,23 @@ public:
 private:
     static QVariantMap initializeDevices();
     static QString param(const QString &text);
-    static QVariantMap addDevice(const QVariantMap &map, const QString &displayName, const QString &type, int origin,
-                                 int machineType, const QString &host, int port, const QString &userName, int autheticationType,
-                                 const QString &password,const QString &privateKeyFil, int timeout, const QString &freePorts);
+    static QVariantMap addDevice(const QVariantMap &map,
+                                 const QString &internalId,
+                                 const QString &displayName,
+                                 const QString &type,
+                                 int origin,
+                                 int machineType,
+                                 const QString &host,
+                                 int port,
+                                 const QString &userName,
+                                 int autheticationType,
+                                 const QString &password,
+                                 const QString &privateKeyFil,
+                                 int timeout,
+                                 const QString &freePorts);
 
 private:
+    QString m_internalId;
     QString m_displayName;
     QString m_type;
     int m_origin;
