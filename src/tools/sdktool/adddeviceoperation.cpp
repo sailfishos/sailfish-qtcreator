@@ -81,7 +81,8 @@ QString AddDeviceOperation::param(const QString &text)
 QString AddDeviceOperation::argumentsHelpText() const
 {
     const QString indent = QLatin1String("    ");
-    return indent + param(QLatin1String(DisplayNameKey))+ QLatin1String(" <NAME>                                  device name (required).\n")
+    return indent + param(QLatin1String(IdKey))+ QLatin1String(" <NAME>                            internal device ID (required).\n")
+         + indent + param(QLatin1String(DisplayNameKey))+ QLatin1String(" <NAME>                                  device name (required).\n")
          + indent + param(QLatin1String(TypeKey)) + QLatin1String(" <NAME>                                device type (required).\n")
          + indent + indent + QLatin1String(Mer::Constants::MER_DEVICE_TYPE_I486) + QLatin1String("    for mer i486 target\n")
          + indent + indent + QLatin1String(Mer::Constants::MER_DEVICE_TYPE_ARM) + QLatin1String("     for mer arm target\n")
@@ -102,6 +103,14 @@ bool AddDeviceOperation::setArguments(const QStringList &args)
     for (int i = 0; i < args.count(); ++i) {
         const QString current = args.at(i);
         const QString next = ((i + 1) < args.count()) ? args.at(i + 1) : QString();
+        if (current == param(QLatin1String(IdKey))) {
+            if (next.isNull())
+                return false;
+            ++i; // skip next;
+            m_internalId = next;
+            continue;
+        }
+
         if (current == param(QLatin1String(DisplayNameKey))) {
             if (next.isNull())
                 return false;
@@ -201,6 +210,10 @@ bool AddDeviceOperation::setArguments(const QStringList &args)
 
     const char MISSING[] = " parameter missing.";
     bool error = false;
+    if (m_internalId.isEmpty()) {
+        std::cerr << IdKey << MISSING << std::endl << std::endl;
+        error = true;
+    }
     if (m_displayName.isEmpty()) {
         std::cerr << DisplayNameKey << MISSING << std::endl << std::endl;
         error = true;
@@ -225,7 +238,7 @@ int AddDeviceOperation::execute() const
     if (map.isEmpty())
         std::cerr << "Error: Count found devices, file seems wrong." << std::endl;
 
-    const QVariantMap result = addDevice(mapdevice, m_displayName, m_type, m_origin, m_machineType, m_host, m_port,
+    const QVariantMap result = addDevice(mapdevice, m_internalId, m_displayName, m_type, m_origin, m_machineType, m_host, m_port,
                                          m_userName, m_autheticationType, m_password, m_privateKeyFile, m_timeout,m_freePorts);
 
     if (result.isEmpty() || mapdevice == result)
@@ -248,6 +261,7 @@ QVariantMap AddDeviceOperation::initializeDevices()
 }
 
 QVariantMap AddDeviceOperation::addDevice(const QVariantMap &map,
+                                          const QString &internalId,
                                           const QString &displayName,
                                           const QString &type,
                                           int origin,
@@ -264,6 +278,7 @@ QVariantMap AddDeviceOperation::addDevice(const QVariantMap &map,
     QVariantMap result = map;
     QVariantList deviceList = map.value(QLatin1String(DeviceListKey)).toList();
     QVariantMap data;
+    data.insert(QLatin1String(IdKey), QVariant(internalId));
     data.insert(QLatin1String(DisplayNameKey), QVariant(displayName));
     data.insert(QLatin1String(TypeKey), QVariant(type));
     data.insert(QLatin1String(OriginKey),QVariant(origin));
