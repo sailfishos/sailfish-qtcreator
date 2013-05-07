@@ -142,6 +142,14 @@ bool AddDeviceOperation::setArguments(const QStringList &args)
             continue;
         }
 
+        if (current == param(QLatin1String(HostKey))) {
+            if (next.isNull())
+                return false;
+            ++i; // skip next;
+            m_host = next;
+            continue;
+        }
+
         if (current == param(QLatin1String(UserNameKey))) {
             if (next.isNull())
                 return false;
