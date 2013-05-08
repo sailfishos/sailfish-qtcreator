@@ -88,9 +88,9 @@ private:
     DeviceManager(bool isInstance = true);
 
     void load();
-    void loadPre2_6();
+    QList<IDevice::Ptr> loadPre2_6();
     static const IDeviceFactory *restoreFactory(const QVariantMap &map);
-    void fromMap(const QVariantMap &map);
+    QList<IDevice::Ptr> fromMap(const QVariantMap &map);
     QVariantMap toMap() const;
     void ensureOneDefaultDevicePerType();
 
@@ -106,6 +106,7 @@ private:
     IDevice::ConstPtr fromRawPointer(const IDevice *device) const;
 
     static Utils::FileName settingsFilePath(const QString &extension);
+    static Utils::FileName systemSettingsFilePath(const QString &deviceFileRelativePath);
     static void copy(const DeviceManager *source, DeviceManager *target, bool deep);
 
     Internal::DeviceManagerPrivate * const d;
