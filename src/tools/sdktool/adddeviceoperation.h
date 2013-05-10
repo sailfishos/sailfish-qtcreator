@@ -67,7 +67,8 @@ private:
                                  const QString &password,
                                  const QString &privateKeyFil,
                                  int timeout,
-                                 const QString &freePorts);
+                                 const QString &freePorts,
+                                 int version);
 
 private:
     QByteArray m_internalId;
@@ -83,6 +84,7 @@ private:
     int m_timeout;
     QString m_freePorts;
     int m_machineType;
+    int m_version;
 };
 
 #endif // ADDDEVICEOPERATION_H

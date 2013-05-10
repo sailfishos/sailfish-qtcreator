@@ -35,7 +35,7 @@
 #include "../../plugins/mer/merconstants.h"
 #include <iostream>
 
-// copy pasted from
+// copy pasted from idevice.cpp
 const char DisplayNameKey[] = "Name";
 const char TypeKey[] = "OsType";
 const char IdKey[] = "InternalId";
@@ -43,6 +43,7 @@ const char OriginKey[] = "Origin";
 const char MachineTypeKey[] = "Type";
 const char DeviceManagerKey[] = "DeviceManager";
 const char DeviceListKey[] = "DeviceList";
+const char VersionKey[] = "Version";
 
 // Connection
 const char HostKey[] = "Host";
@@ -54,12 +55,13 @@ const char KeyFileKey[] = "KeyFile";
 const char PasswordKey[] = "Password";
 const char TimeoutKey[] = "Timeout";
 
-AddDeviceOperation::AddDeviceOperation():
-    m_origin(0),
-    m_port(0),
-    m_autheticationType(0),
-    m_timeout(0),
-    m_machineType(0)
+AddDeviceOperation::AddDeviceOperation()
+    : m_origin(0)
+    , m_port(0)
+    , m_autheticationType(0)
+    , m_timeout(0)
+    , m_machineType(0)
+    , m_version(0)
 {
 }
 
@@ -95,7 +97,8 @@ QString AddDeviceOperation::argumentsHelpText() const
          + indent + param(QLatin1String(KeyFileKey)) + QLatin1String(" <FILE>                               private key file (required).\n")
          + indent + param(QLatin1String(PasswordKey)) + QLatin1String(" <NAME>                              password for ssh connection.\n")
          + indent + param(QLatin1String(TimeoutKey)) + QLatin1String(" <NUMBER>                             timeout for ssh connection.\n")
-         + indent + param(QLatin1String(PortsSpecKey)) + QLatin1String(" <NUMBER,NUMBER|NUMBER-NUMBER>  free ports.\n");
+         + indent + param(QLatin1String(PortsSpecKey)) + QLatin1String(" <NUMBER,NUMBER|NUMBER-NUMBER>  free ports.\n")
+         + indent + param(QLatin1String(VersionKey)) + QLatin1String(" <NUMBER>                             version of the device.\n");
 }
 
 bool AddDeviceOperation::setArguments(const QStringList &args)
@@ -206,6 +209,14 @@ bool AddDeviceOperation::setArguments(const QStringList &args)
             m_freePorts = next;
             continue;
         }
+
+        if (current == param(QLatin1String(VersionKey))) {
+            if (next.isNull())
+                return false;
+            ++i; // skip next;
+            m_version = next.toInt();
+            continue;
+        }
     }
 
     const char MISSING[] = " parameter missing.";
@@ -238,8 +249,21 @@ int AddDeviceOperation::execute() const
     if (map.isEmpty())
         std::cerr << "Error: Count found devices, file seems wrong." << std::endl;
 
-    const QVariantMap result = addDevice(mapdevice, m_internalId, m_displayName, m_type, m_origin, m_machineType, m_host, m_port,
-                                         m_userName, m_autheticationType, m_password, m_privateKeyFile, m_timeout,m_freePorts);
+    const QVariantMap result = addDevice(mapdevice,
+                                         m_internalId,
+                                         m_displayName,
+                                         m_type,
+                                         m_origin,
+                                         m_machineType,
+                                         m_host,
+                                         m_port,
+                                         m_userName,
+                                         m_autheticationType,
+                                         m_password,
+                                         m_privateKeyFile,
+                                         m_timeout,
+                                         m_freePorts,
+                                         m_version);
 
     if (result.isEmpty() || mapdevice == result)
         return -2;
@@ -273,7 +297,8 @@ QVariantMap AddDeviceOperation::addDevice(const QVariantMap &map,
                                           const QString &password,
                                           const QString &privateKeyFile,
                                           int timeout,
-                                          const QString &freePorts)
+                                          const QString &freePorts,
+                                          int version)
 {
     QVariantMap result = map;
     QVariantList deviceList = map.value(QLatin1String(DeviceListKey)).toList();
@@ -291,6 +316,7 @@ QVariantMap AddDeviceOperation::addDevice(const QVariantMap &map,
     data.insert(QLatin1String(KeyFileKey), QVariant(privateKeyFile));
     data.insert(QLatin1String(TimeoutKey), QVariant(timeout));
     data.insert(QLatin1String(PortsSpecKey), QVariant(freePorts));
+    data.insert(QLatin1String(VersionKey), QVariant(version));
     deviceList.append(QVariant(data));
     result.remove(QLatin1String(DeviceListKey));
     result.insert(QLatin1String(DeviceListKey), deviceList);
