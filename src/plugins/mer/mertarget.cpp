@@ -68,6 +68,21 @@ QString MerTarget::name() const
     return m_name;
 }
 
+void MerTarget::setName(const QString &name)
+{
+    m_name = name;
+}
+
+void MerTarget::setQmakeQuery(const QString &qmakeQuery)
+{
+    m_qmakeQuery = qmakeQuery;
+}
+
+void MerTarget::setGccDumpMachine(const QString &gccMachineDump)
+{
+    m_gccMachineDump = gccMachineDump;
+}
+
 bool MerTarget::fromMap(const QVariantMap &data)
 {
     m_name = data.value(QLatin1String(Constants::TARGET_NAME)).toString();

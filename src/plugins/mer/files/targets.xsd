@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+
+    <xsd:element name="targets" type="targetsType">
+    </xsd:element>
+
+    <xsd:complexType name="targetsType">
+        <xsd:sequence>
+            <xsd:element name="target" type="targetType" maxOccurs="unbounded"/>
+        </xsd:sequence>
+        <xsd:attribute name="version" type="xsd:positiveInteger"/>
+    </xsd:complexType>
+
+    <xsd:complexType name="targetType">
+        <xsd:sequence>
+            <xsd:element name="output" type="outputType" maxOccurs="unbounded"/>
+        </xsd:sequence>
+        <xsd:attribute name="name" type="xsd:string"/>
+    </xsd:complexType>
+
+    <xsd:simpleType name="outputTypeBase">
+        <xsd:restriction base="xsd:string"/>
+    </xsd:simpleType>
+
+    <xsd:complexType name="outputType">
+        <xsd:simpleContent>
+            <xsd:extension base="outputTypeBase">
+                <xsd:attribute name="name" type="xsd:string"/>
+            </xsd:extension>
+        </xsd:simpleContent>
+    </xsd:complexType>
+
+</xsd:schema>

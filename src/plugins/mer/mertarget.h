@@ -46,6 +46,11 @@ public:
     MerTarget(MerSdk *sdk);
     virtual ~MerTarget();
     QString name() const;
+
+    void setName(const QString &name);
+    void setQmakeQuery(const QString &qmakeQuery);
+    void setGccDumpMachine(const QString &gccMachineDump);
+
     bool fromMap(const QVariantMap &data);
     QVariantMap toMap() const;
     ProjectExplorer::Kit* createKit() const;
