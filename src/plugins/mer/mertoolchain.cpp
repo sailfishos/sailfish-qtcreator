@@ -178,6 +178,12 @@ QList<HeaderPath> MerToolChain::systemHeaderPaths(const QStringList &cxxflags, c
     return m_headerPathsOnHost;
 }
 
+void MerToolChain::addToEnvironment(Utils::Environment &env) const
+{
+    // Mer SDK supports UTF-8
+    env.unset(QLatin1String("LC_ALL"));
+}
+
 QString MerToolChainFactory::displayName() const
 {
     return tr("Mer");
