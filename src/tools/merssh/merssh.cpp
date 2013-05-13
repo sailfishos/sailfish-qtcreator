@@ -151,7 +151,7 @@ bool MerSSH::run(const QString &sdkToolsDir, const QString &merTargetName,
         completeCommand.append(QLatin1String(" < /dev/null"));
 
     m_sshConnectionParams = params;
-    m_completeCommand = completeCommand.toLatin1();
+    m_completeCommand = completeCommand.toUtf8();
     m_runner->run(m_completeCommand, m_sshConnectionParams);
     return true;
 }
