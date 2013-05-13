@@ -1,35 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE unknown>
-<!-- Written by  , 2013-04-02T15:34:17. -->
-<qtcreator>
- <data>
-  <variable>MerTarget.0</variable>
-  <valuemap type="QVariantMap">
-   <value type="QString" key="MerTarget.GccDumpMachine">i486-meego-linux-gnu</value>
-   <value type="QString" key="MerTarget.Name">$TARGET_NAME$</value>
-   <value type="QString" key="MerTarget.QmakeQuery">QT_INSTALL_PREFIX:$TARGETS_DIR$/$TARGET_NAME$/usr
-QT_INSTALL_DATA:$TARGETS_DIR$/$TARGET_NAME$/usr/share/qt4
-QT_INSTALL_DOCS:$TARGETS_DIR$/$TARGET_NAME$/usr/share/doc/qt4
-QT_INSTALL_HEADERS:$TARGETS_DIR$/$TARGET_NAME$/usr/include/qt4
-QT_INSTALL_LIBS:$TARGETS_DIR$/$TARGET_NAME$/usr/lib
-QT_INSTALL_BINS:$TARGETS_DIR$/$TARGET_NAME$/usr/bin
-QT_INSTALL_PLUGINS:$TARGETS_DIR$/$TARGET_NAME$/usr/lib/qt4/plugins
-QT_INSTALL_IMPORTS:$TARGETS_DIR$/$TARGET_NAME$/usr/lib/qt4/imports
-QT_INSTALL_TRANSLATIONS:$TARGETS_DIR$/$TARGET_NAME$/usr/share/qt4/translations
-QT_INSTALL_CONFIGURATION:$TARGETS_DIR$/$TARGET_NAME$/etc/xdg
-QT_INSTALL_EXAMPLES:$TARGETS_DIR$/$TARGET_NAME$/usr/lib/qt4/examples
-QT_INSTALL_DEMOS:$TARGETS_DIR$/$TARGET_NAME$/usr/lib/qt4/demos
-QMAKE_MKSPECS:$TARGETS_DIR$/$TARGET_NAME$/usr/share/qt4/mkspecs
-QMAKE_VERSION:2.01a
-QT_VERSION:4.8.3</value>
-  </valuemap>
- </data>
- <data>
-  <variable>MerTarget.Count</variable>
-  <value type="int">1</value>
- </data>
- <data>
-  <variable>MerTarget.Version</variable>
-  <value type="int">2</value>
- </data>
-</qtcreator>
+<targets version="2">
+    <target name="$TARGET_NAME$">
+        <output name="GccDumpMachine">i486-meego-linux-gnu</output>
+        <output name="QmakeQuery">QT_INSTALL_PREFIX:$TARGETS_DIR$/$TARGET_NAME$/usr
+        QT_INSTALL_DATA:$TARGETS_DIR$/$TARGET_NAME$/usr/share/qt4
+        QT_INSTALL_DOCS:$TARGETS_DIR$/$TARGET_NAME$/usr/share/doc/qt4
+        QT_INSTALL_HEADERS:$TARGETS_DIR$/$TARGET_NAME$/usr/include/qt4
+        QT_INSTALL_LIBS:$TARGETS_DIR$/$TARGET_NAME$/usr/lib
+        QT_INSTALL_BINS:$TARGETS_DIR$/$TARGET_NAME$/usr/bin
+        QT_INSTALL_PLUGINS:$TARGETS_DIR$/$TARGET_NAME$/usr/lib/qt4/plugins
+        QT_INSTALL_IMPORTS:$TARGETS_DIR$/$TARGET_NAME$/usr/lib/qt4/imports
+        QT_INSTALL_TRANSLATIONS:$TARGETS_DIR$/$TARGET_NAME$/usr/share/qt4/translations
+        QT_INSTALL_CONFIGURATION:$TARGETS_DIR$/$TARGET_NAME$/etc/xdg
+        QT_INSTALL_EXAMPLES:$TARGETS_DIR$/$TARGET_NAME$/usr/lib/qt4/examples
+        QT_INSTALL_DEMOS:$TARGETS_DIR$/$TARGET_NAME$/usr/lib/qt4/demos
+        QMAKE_MKSPECS:$TARGETS_DIR$/$TARGET_NAME$/usr/share/qt4/mkspecs
+        QMAKE_VERSION:2.01a
+        QT_VERSION:4.8.3</output>
+    </target>
+</targets>

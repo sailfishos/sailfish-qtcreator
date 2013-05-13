@@ -76,6 +76,7 @@ const char MERSSH_PARAMETER_COMMANDTYPE[] = "-commandtype";
 const char MER_SDK[] = "MerSDK";
 const char MER_SDK_TOOLS[] = "/mer-sdk-tools/";
 const char MER_SDK_DATA_KEY[] = "MerSDK.";
+const char MER_TARGET_KEY[] = "MerTarget.Target";
 const char MER_TARGET_DATA_KEY[] = "MerTarget.";
 const char MER_SDK_COUNT_KEY[] = "MerSDK.Count";
 const char MER_TARGET_COUNT_KEY[] = "MerTarget.Count";

@@ -2,11 +2,13 @@ TEMPLATE = lib
 TARGET = Mer
 PROVIDER = MerProject
 
-QT += gui
+QT += gui xmlpatterns
 
 include(../../qtcreatorplugin.pri)
 
 DEFINES += QT_NO_CAST_TO_ASCII QT_NO_CAST_FROM_ASCII
+
+#DEFINES += USE_XMLPATTERNS
 
 RESOURCES += \
     mer.qrc
@@ -49,7 +51,8 @@ SOURCES += \
     merconnection.cpp \
     merconnectionmanager.cpp \
     mervirtualboxmanager.cpp \
-    mersdkkitinformation.cpp
+    mersdkkitinformation.cpp \
+    mertargetsxmlparser.cpp
 
 HEADERS += \
     merplugin.h \
@@ -81,7 +84,8 @@ HEADERS += \
     merconnection.h \
     merconnectionmanager.h \
     mervirtualboxmanager.h \
-    mersdkkitinformation.h
+    mersdkkitinformation.h \
+    mertargetsxmlparser.h
 
 SOURCES += \
     $$PWD/jollawelcomepage.cpp \

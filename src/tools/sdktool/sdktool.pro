@@ -9,6 +9,9 @@ CONFIG -= app_bundle
 
 QT -= gui test
 
+QT += xmlpatterns
+#DEFINES += USE_XMLPATTERNS
+
 isEmpty(PRECOMPILED_HEADER):PRECOMPILED_HEADER = $$PWD/../../shared/qtcreator_pch.h
 
 SOURCES += \
@@ -29,7 +32,8 @@ SOURCES += \
     addmertargetoperation.cpp \
     rmmertargetoperation.cpp \
     addmersdkoperation.cpp \
-    adddeviceoperation.cpp
+    adddeviceoperation.cpp \
+    ../../plugins/mer/mertargetsxmlparser.cpp
 
 HEADERS += \
     addkeysoperation.h \
@@ -48,7 +52,8 @@ HEADERS += \
     addmertargetoperation.h \
     rmmertargetoperation.h \
     addmersdkoperation.h \
-    adddeviceoperation.h
+    adddeviceoperation.h \
+    ../../plugins/mer/mertargetsxmlparser.h
 
 DESTDIR=$$IDE_LIBEXEC_PATH
 macx:DEFINES += "DATA_PATH=\"\\\".\\\"\""

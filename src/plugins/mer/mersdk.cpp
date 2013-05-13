@@ -26,6 +26,7 @@
 #include "mersdkmanager.h"
 #include "mertoolchain.h"
 #include "merqtversion.h"
+#include "mertargetsxmlparser.h"
 #include <utils/persistentsettings.h>
 #include <utils/qtcassert.h>
 #include <projectexplorer/toolchainmanager.h>
@@ -320,6 +321,7 @@ void MerSdk::handleTargetsFileChanged(const QString &file)
 QList<MerTarget> MerSdk::readTargets(const Utils::FileName &fileName)
 {
     QList<MerTarget> result;
+#ifndef USE_XMLPATTERNS
     Utils::PersistentSettingsReader reader;
     if (!reader.load(fileName))
         return result;
@@ -337,6 +339,19 @@ QList<MerTarget> MerSdk::readTargets(const Utils::FileName &fileName)
         if (target.fromMap(data.value(key).toMap()))
             result << target;
     }
+#else
+    MerTargetsXmlReader xmlParser(fileName.toString());
+    if (!xmlParser.hasError() && xmlParser.version() > 0) {
+        QList<MerTargetData> targetData = xmlParser.targetData();
+        foreach (const MerTargetData &data, targetData) {
+            MerTarget target(this);
+            target.setName(data.name);
+            target.setGccDumpMachine(data.gccDumpMachine);
+            target.setQmakeQuery(data.qmakeQuery);
+            result << target;
+        }
+    }
+#endif
     return result;
 }
 
