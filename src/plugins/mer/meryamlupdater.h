@@ -48,6 +48,9 @@ private slots:
     void onProjectRemoved(ProjectExplorer::Project *project);
 
 private:
+    bool monitorProject(const ProjectExplorer::Project *project);
+
+private:
     QList<const ProjectExplorer::Project *> m_projectsToMonitor;
 };
 
