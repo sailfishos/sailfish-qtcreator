@@ -21,7 +21,8 @@ PkgBR:
 Requires:
   - ""
 Files:
-  - "/opt"
+#This section is overwritten by Qt Creator. Do not remove the comments.
+#Sections ends.
 
 
 

@@ -123,6 +123,7 @@ void MerSdkManager::initialize()
             }
         }
         m_intialized = true;
+        emit initialized();
     }
 }
 
