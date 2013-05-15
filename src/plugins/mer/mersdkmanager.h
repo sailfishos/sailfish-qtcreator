@@ -70,11 +70,14 @@ public:
     void restoreSdks();
     bool hasSdk(const MerSdk *sdk) const;
 
+    QList<ProjectExplorer::Kit*> merKits() const;
+
 public slots:
     void storeSdks() const;
 
 signals:
     void sdksUpdated();
+    void initialized();
 
 private slots:
     void initialize();
@@ -83,7 +86,6 @@ private:
     MerSdkManager();
     void restore();
     QList<MerSdk*> restoreSdks(const Utils::FileName &fileName);
-    QList<ProjectExplorer::Kit*> merKits() const;
     QList<MerToolChain*> merToolChains() const;
     QList<MerQtVersion*> merQtVersions() const;
 private:
