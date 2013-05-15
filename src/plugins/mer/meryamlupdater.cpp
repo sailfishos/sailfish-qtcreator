@@ -38,8 +38,8 @@ using namespace ProjectExplorer;
 using namespace QtSupport;
 using namespace Qt4ProjectManager;
 
-const char SECTION_START[] = "#This section is overwritten by Qt Creator. Do not remove the comments.";
-const char SECTION_END[] = "#Sections ends.";
+const char SECTION_START[] = "# This section is overwritten by Qt Creator. Do not remove the comments.";
+const char SECTION_END[] = "# Sections ends.";
 
 namespace Mer {
 namespace Internal {
