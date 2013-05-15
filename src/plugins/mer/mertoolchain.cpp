@@ -180,7 +180,7 @@ QList<HeaderPath> MerToolChain::systemHeaderPaths(const QStringList &cxxflags, c
 
 void MerToolChain::addToEnvironment(Utils::Environment &env) const
 {
-    // Mer SDK supports UTF-8
+    GccToolChain::addToEnvironment(env);
     env.unset(QLatin1String("LC_ALL"));
 }
 
