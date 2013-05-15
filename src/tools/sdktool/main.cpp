@@ -49,6 +49,8 @@
 
 #include <iostream>
 
+#include <app/app_version.h>
+
 #include <QCoreApplication>
 #include <QStringList>
 
@@ -160,6 +162,9 @@ int parseArguments(const QStringList &args, Settings *s, const QList<Operation *
 int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);
+
+    QCoreApplication::setApplicationName(QLatin1String("sdktool"));
+    QCoreApplication::setApplicationVersion(QLatin1String(Core::Constants::IDE_VERSION_LONG));
 
     Settings settings;
 
