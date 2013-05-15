@@ -56,8 +56,6 @@ public:
     QList<ProjectExplorer::HeaderPath> systemHeaderPaths(const QStringList &cxxflags,
                                                          const Utils::FileName &sysRoot) const;
 
-    void addToEnvironment(Utils::Environment &env) const;
-
 private:
     QString m_vmName;
     QString m_targetName;
