@@ -109,7 +109,7 @@ protected:
     typedef QSharedPointer<Internal::CustomWizardParameters> CustomWizardParametersPtr;
     typedef QSharedPointer<Internal::CustomWizardContext> CustomWizardContextPtr;
 
-    void initWizardDialog(Utils::Wizard *w, const QString &defaultPath,
+    void initWizardDialog(Utils::Wizard *w,
                           const WizardPageList &extensionPages) const;
 
     // generate files in path
