@@ -89,9 +89,11 @@ MerConnectionManager* MerConnectionManager::instance()
 
 bool MerConnectionManager::isConnected(const QSsh::SshConnectionParameters &params) const
 {
-    if (m_emulatorConnection->parameters() == params)
+    QSsh::SshConnectionParameters paramsWithDefaultTimeOut = params;
+    paramsWithDefaultTimeOut.timeout = MerRemoteConnection::m_connectionTimeOut;
+    if (m_emulatorConnection->parameters() == paramsWithDefaultTimeOut)
         return m_emulatorConnection->isConnected();
-    if (m_sdkConnection->parameters() == params)
+    if (m_sdkConnection->parameters() == paramsWithDefaultTimeOut)
         return m_sdkConnection->isConnected();
     return false;
 }
@@ -199,7 +201,7 @@ void MerConnectionManager::update()
 QString MerConnectionManager::testConnection(const QSsh::SshConnectionParameters &params) const
 {
     QSsh::SshConnectionParameters p = params;
-    p.timeout = 24; //TODO: magic number
+    p.timeout = MerRemoteConnection::m_connectionTimeOut;
     QSsh::SshConnection connection(p);
     QEventLoop loop;
     connect(&connection, SIGNAL(connected()), &loop, SLOT(quit()));
