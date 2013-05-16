@@ -69,6 +69,8 @@ public:
     void initialize();
     void update();
 
+    static const int m_connectionTimeOut = 77; // seconds
+
 private slots:
     void handleTriggered();
     void handleConnection();

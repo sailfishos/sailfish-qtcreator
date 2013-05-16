@@ -138,7 +138,7 @@ void MerRemoteConnection::setSshParameters(const SshConnectionParameters &parame
         m_connection->deleteLater();
 
     SshConnectionParameters params = parameters;
-    params.timeout = 10;
+    params.timeout = m_connectionTimeOut;
     m_connection = createConnection(params);
 }
 
