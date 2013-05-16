@@ -86,22 +86,23 @@ void MerYamlUpdater::onProFilesEvaluated(const Project *proj)
             targetPaths.append(item.path);
     }
     targetPaths.removeDuplicates();
-    // Get the yaml file
+    // Get the yaml file. It should usually be <project_name>.yaml
+    const QString expectedYamlFile = QString::fromLatin1("%1.yaml").arg(project->displayName());
     const QStringList allFiles = project->files(Project::ExcludeGeneratedFiles);
     QString yamlFile;
     foreach (const QString &file, allFiles) {
-        if (file.endsWith(QLatin1String(".yaml"))) {
+        if (file.endsWith(expectedYamlFile)) {
             yamlFile = file;
             break;
         }
     }
-    // Find the yaml in /rpm folder
+    // Try to find the yaml in /rpm folder
     if (yamlFile.isEmpty()) {
-        QDir projDir(proj->projectDirectory());
+        QDir projDir(project->projectDirectory());
         QStringList rpm = projDir.entryList(QStringList() << QLatin1String("rpm"), QDir::Dirs);
         if (rpm.count()) {
             QDir rpmDir(rpm.first());
-            QStringList files = rpmDir.entryList(QStringList() << QString::fromLatin1("%1.yaml").arg(project->displayName()), QDir::Files);
+            QStringList files = rpmDir.entryList(QStringList() << expectedYamlFile, QDir::Files);
             if (files.count())
                 yamlFile = files.first();
         }
