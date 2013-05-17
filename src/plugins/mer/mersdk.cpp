@@ -105,16 +105,21 @@ void MerSdk::setTargets(const QList<MerTarget> &targets)
 {
     if (m_targets != targets) {
         m_targets = targets;
-        emit targetsChanged(this->targets());
+        emit targetsChanged(this->targetNames());
     }
 }
 
-QStringList MerSdk::targets() const
+QStringList MerSdk::targetNames() const
 {
     QStringList result;
     foreach (const MerTarget &target, m_targets)
         result << target.name();
     return result;
+}
+
+QList<MerTarget> MerSdk::targets() const
+{
+    return m_targets;
 }
 
 void MerSdk::setSharedTargetsPath(const QString &targetsPath)

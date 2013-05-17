@@ -56,6 +56,7 @@ public:
     static bool authorizePublicKey(const QString &authorizedKeysPath, const QString &publicKeyPath, QString &error);
     static bool isMerKit(const ProjectExplorer::Kit *kit);
     static QString targetNameForKit(const ProjectExplorer::Kit *kit);
+    static QList<ProjectExplorer::Kit *> kitsForTarget(const QString &targetName);
     static QString virtualMachineNameForKit(const ProjectExplorer::Kit *kit);
     static bool hasMerDevice(ProjectExplorer::Kit *kit);
     static bool validateKit(const ProjectExplorer::Kit* kit);
