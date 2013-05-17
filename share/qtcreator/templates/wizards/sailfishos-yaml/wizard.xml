@@ -41,6 +41,10 @@
     </files>
     <fieldpagetitle>Application Details</fieldpagetitle>
     <fields>
+        <field mandatory="true" name="Name">
+            <fieldcontrol class="QLineEdit" validator="^[a-zA-Z0-9_]+$" placeholdertext="Project Name" />
+            <fielddescription>Name:</fielddescription>
+        </field>
         <field mandatory="true" name="Summary">
             <fieldcontrol class="QLineEdit" defaulttext="My SailfishOS Application" />
             <fielddescription>Summary:</fielddescription>
