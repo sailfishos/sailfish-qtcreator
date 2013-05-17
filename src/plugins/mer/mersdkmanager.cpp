@@ -29,6 +29,7 @@
 #include "mersdkkitinformation.h"
 #include "merplugin.h"
 #include "merdevicefactory.h"
+#include "mertarget.h"
 
 #include <coreplugin/icore.h>
 #include <extensionsystem/pluginmanager.h>
@@ -101,7 +102,7 @@ void MerSdkManager::initialize()
         //cleanup
         foreach (MerToolChain *toolchain, toolchains) {
             const MerSdk *sdk = m_sdks[toolchain->virtualMachineName()];
-            if (sdk && sdk->targets().contains(toolchain->targetName()))
+            if (sdk && sdk->targetNames().contains(toolchain->targetName()))
                 continue;
             qWarning() << "MerToolChain wihout target found. Removing toolchain.";
             ToolChainManager::instance()->deregisterToolChain(toolchain);
@@ -109,7 +110,7 @@ void MerSdkManager::initialize()
 
         foreach (MerQtVersion *version, qtversions) {
             const MerSdk *sdk = m_sdks[version->virtualMachineName()];
-            if (sdk && sdk->targets().contains(version->targetName()))
+            if (sdk && sdk->targetNames().contains(version->targetName()))
                 continue;
             qWarning() << "MerQtVersion without target found. Removing qtversion.";
             QtVersionManager::instance()->removeVersion(version);
@@ -122,6 +123,25 @@ void MerSdkManager::initialize()
                 KitManager::instance()->deregisterKit(kit);
             }
         }
+
+        // add new kits if required
+        // O(n3)!!
+        foreach (MerSdk *sdk, m_sdks) {
+            QList<MerTarget> targets = sdk->targets();
+            foreach (const MerTarget &target, targets) {
+                QList<Kit*> kitsForTarget = MerSdkManager::kitsForTarget(target.name());
+                // consider only those that are auto detected.
+                bool success = false;
+                foreach (const Kit *kit, kitsForTarget) {
+                    success = kit->isAutoDetected();
+                    if (success)
+                        break;
+                }
+                if (!success)
+                    sdk->addTarget(target);
+            }
+        }
+
         m_intialized = true;
         emit initialized();
     }
@@ -259,6 +279,19 @@ QString MerSdkManager::targetNameForKit(const Kit *kit)
         return mertoolchain->targetName();
     }
     return QString();
+}
+
+QList<Kit *> MerSdkManager::kitsForTarget(const QString &targetName)
+{
+    QList<Kit*> kitsForTarget;
+    if (targetName.isEmpty())
+        return kitsForTarget;
+    const QList<Kit*> kits = KitManager::instance()->kits();
+    foreach (Kit *kit, kits) {
+        if (targetNameForKit(kit) == targetName)
+            kitsForTarget << kit;
+    }
+    return kitsForTarget;
 }
 
 QString MerSdkManager::virtualMachineNameForKit(const Kit *kit)

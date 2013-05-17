@@ -79,7 +79,8 @@ public:
     void setUserName(const QString &username);
     QString userName() const;
 
-    QStringList targets() const;
+    QStringList targetNames() const;
+    QList<MerTarget> targets() const;
 
     bool isValid() const;
     virtual QVariantMap toMap() const;

@@ -73,11 +73,11 @@ void MerSdkDetailsWidget::setSdk(const MerSdk *sdk)
     m_ui->sshFolderPathLabel->setText(QDir::toNativeSeparators(sdk->sharedSshPath()));
 
     if (MerSdkManager::instance()->hasSdk(sdk)) {
-        const QStringList &targets = sdk->targets();
+        const QStringList &targets = sdk->targetNames();
         if (targets.isEmpty())
             m_ui->targetsListLabel->setText(tr("No targets installed"));
         else
-            m_ui->targetsListLabel->setText(sdk->targets().join(QLatin1String(", ")));
+            m_ui->targetsListLabel->setText(sdk->targetNames().join(QLatin1String(", ")));
     } else {
         m_ui->targetsListLabel->setText(tr("Add SDK first to see targets"));
     }
