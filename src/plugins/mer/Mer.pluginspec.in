@@ -17,4 +17,7 @@ Alternatively, this file may be used in accordance with the terms and conditions
         <dependency name=\"ProjectExplorer\" version=\"$$QTCREATOR_VERSION\"/>
         <dependency name=\"RemoteLinux\" version=\"$$QTCREATOR_VERSION\"/>
     </dependencyList>
+    <argumentList>
+        <argument name=\"-mer-verbose\">Verbose loading of Mer SDKs</argument>
+    </argumentList>
 </plugin>

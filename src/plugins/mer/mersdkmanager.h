@@ -96,6 +96,9 @@ private:
     Utils::PersistentSettingsWriter *m_writer;
 
     friend class MerPlugin;
+
+public:
+    static bool verbose;
 };
 
 } // Internal

@@ -52,8 +52,9 @@ MerPlugin::~MerPlugin()
 
 bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
 {
-    Q_UNUSED(arguments)
     Q_UNUSED(errorString)
+
+    MerSdkManager::verbose = arguments.count(QLatin1String("-mer-verbose"));
 
     addAutoReleasedObject(new MerSdkManager);
     addAutoReleasedObject(new MerVirtualBoxManager);
