@@ -39,7 +39,6 @@
 #include <extensionsystem/pluginmanager.h>
 #include <utils/fileutils.h>
 #include <utils/qtcassert.h>
-#include <utils/filewizarddialog.h>
 
 #include <QDebug>
 #include <QFile>
@@ -134,12 +133,14 @@ static inline void addWizardPage(Utils::Wizard *w, QWizardPage *p, int id)
 }
 
 // Initialize a wizard with a custom file page.
-void CustomWizard::initWizardDialog(Utils::Wizard *wizard, const WizardPageList &extensionPages) const
+void CustomWizard::initWizardDialog(Utils::Wizard *wizard, const QString &defaultPath,
+                                    const WizardPageList &extensionPages) const
 {
     QTC_ASSERT(!parameters().isNull(), return);
 
     d->m_context->reset();
     Internal::CustomWizardPage *customPage = new Internal::CustomWizardPage(d->m_context, parameters());
+    customPage->setPath(defaultPath);
     addWizardPage(wizard, customPage, parameters()->firstPageId);
     if (!parameters()->fieldPageTitle.isEmpty())
         customPage->setTitle(parameters()->fieldPageTitle);
@@ -154,9 +155,8 @@ QWizard *CustomWizard::createWizardDialog(QWidget *parent,
                                           const Core::WizardDialogParameters &wizardDialogParameters) const
 {
     QTC_ASSERT(!d->m_parameters.isNull(), return 0);
-    Utils::FileWizardDialog *wizard = new Utils::FileWizardDialog(parent);
-    wizard->setPath(wizardDialogParameters.defaultPath());
-    initWizardDialog(wizard, wizardDialogParameters.extensionPages());
+    Utils::Wizard *wizard = new Utils::Wizard(parent);
+    initWizardDialog(wizard, wizardDialogParameters.defaultPath(), wizardDialogParameters.extensionPages());
     return wizard;
 }
 
@@ -230,15 +230,12 @@ static inline QString scriptWorkingDirectory(const QSharedPointer<Internal::Cust
 Core::GeneratedFiles CustomWizard::generateFiles(const QWizard *dialog, QString *errorMessage) const
 {
     // Look for the Custom field page to find the path
-    const Utils::FileWizardDialog *cwp = qobject_cast<const Utils::FileWizardDialog *>(dialog);
+    const Internal::CustomWizardPage *cwp = findWizardPage<Internal::CustomWizardPage>(dialog);
     QTC_ASSERT(cwp, return Core::GeneratedFiles());
 
     CustomWizardContextPtr ctx = context();
     ctx->path = ctx->targetPath = cwp->path();
-    FieldReplacementMap fieldReplacementMap = replacementMap(dialog);
-    fieldReplacementMap.insert(QLatin1String("Name"), cwp->fileName());
-    ctx->replacements = fieldReplacementMap;
-
+    ctx->replacements = replacementMap(dialog);
     if (CustomWizardPrivate::verbose) {
         QString logText;
         QTextStream str(&logText);

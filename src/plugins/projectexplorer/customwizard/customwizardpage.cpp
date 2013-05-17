@@ -487,6 +487,23 @@ CustomWizardPage::CustomWizardPage(const QSharedPointer<CustomWizardContext> &ct
     CustomWizardFieldPage(ctx, parameters, parent),
     m_pathChooser(new Utils::PathChooser)
 {
+    addRow(tr("Path:"), m_pathChooser);
+    connect(m_pathChooser, SIGNAL(validChanged()), this, SIGNAL(completeChanged()));
+}
+
+QString CustomWizardPage::path() const
+{
+    return m_pathChooser->path();
+}
+
+void CustomWizardPage::setPath(const QString &path)
+{
+    m_pathChooser->setPath(path);
+}
+
+bool CustomWizardPage::isComplete() const
+{
+    return m_pathChooser->isValid();
 }
 
 } // namespace Internal

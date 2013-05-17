@@ -176,6 +176,11 @@ public:
                               const QSharedPointer<CustomWizardParameters> &parameters,
                               QWidget *parent = 0);
 
+    QString path() const;
+    void setPath(const QString &path);
+
+    virtual bool isComplete() const;
+
 private:
     Utils::PathChooser *m_pathChooser;
 };
