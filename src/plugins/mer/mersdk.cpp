@@ -362,7 +362,8 @@ QList<MerTarget> MerSdk::readTargets(const Utils::FileName &fileName)
 
 bool MerSdk::addTarget(const MerTarget &target)
 {
-    qDebug() << "Installing" << target.name() << "for" <<virtualMachineName();
+    if (MerSdkManager::verbose)
+        qDebug() << "Installing" << target.name() << "for" << virtualMachineName();
     if (!target.createScripts()) {
         qWarning() << "Failed to create wrapper scripts.";
         return false;
@@ -390,7 +391,8 @@ bool MerSdk::addTarget(const MerTarget &target)
 
 bool MerSdk::removeTarget(const MerTarget &target)
 {
-    qDebug() << "Uninstalling" << target.name() << "for" << virtualMachineName();
+    if (MerSdkManager::verbose)
+        qDebug() << "Uninstalling" << target.name() << "for" << virtualMachineName();
     //delete kit
     foreach (ProjectExplorer::Kit *kit, ProjectExplorer::KitManager::instance()->kits()) {
         if (!kit->isAutoDetected())

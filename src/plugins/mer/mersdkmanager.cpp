@@ -60,6 +60,7 @@ namespace Mer {
 namespace Internal {
 
 MerSdkManager *MerSdkManager::m_instance = 0;
+bool MerSdkManager::verbose = false;
 
 static Utils::FileName globalSettingsFileName()
 {
