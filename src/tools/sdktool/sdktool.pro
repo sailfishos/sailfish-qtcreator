@@ -8,7 +8,6 @@ CONFIG -= app_bundle
 QT -= gui test
 
 QT += xmlpatterns
-#DEFINES += USE_XMLPATTERNS
 
 isEmpty(PRECOMPILED_HEADER):PRECOMPILED_HEADER = $$PWD/../../shared/qtcreator_pch.h
 

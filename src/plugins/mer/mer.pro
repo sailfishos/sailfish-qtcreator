@@ -9,8 +9,6 @@ include(mer_dependencies.pri)
 
 DEFINES += QT_NO_CAST_TO_ASCII QT_NO_CAST_FROM_ASCII
 
-#DEFINES += USE_XMLPATTERNS
-
 RESOURCES += \
     mer.qrc
 
