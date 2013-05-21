@@ -326,25 +326,6 @@ void MerSdk::handleTargetsFileChanged(const QString &file)
 QList<MerTarget> MerSdk::readTargets(const Utils::FileName &fileName)
 {
     QList<MerTarget> result;
-#ifndef USE_XMLPATTERNS
-    Utils::PersistentSettingsReader reader;
-    if (!reader.load(fileName))
-        return result;
-    QVariantMap data = reader.restoreValues();
-    int version = data.value(QLatin1String(Constants::MER_TARGET_FILE_VERSION_KEY), 0).toInt();
-    if (version < 1)
-        return result;
-
-    int count = data.value(QLatin1String(Constants::MER_TARGET_COUNT_KEY), 0).toInt();
-    for (int i = 0; i < count; ++i) {
-        const QString key = QString::fromLatin1(Constants::MER_TARGET_DATA_KEY) + QString::number(i);
-        if (!data.contains(key))
-            break;
-        MerTarget target(this);
-        if (target.fromMap(data.value(key).toMap()))
-            result << target;
-    }
-#else
     MerTargetsXmlReader xmlParser(fileName.toString());
     if (!xmlParser.hasError() && xmlParser.version() > 0) {
         QList<MerTargetData> targetData = xmlParser.targetData();
@@ -356,7 +337,6 @@ QList<MerTarget> MerSdk::readTargets(const Utils::FileName &fileName)
             result << target;
         }
     }
-#endif
     return result;
 }
 
