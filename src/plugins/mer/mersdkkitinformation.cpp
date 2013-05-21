@@ -73,6 +73,8 @@ QList<ProjectExplorer::Task> MerSdkKitInformation::validate(const ProjectExplore
 
 MerSdk* MerSdkKitInformation::sdk(const ProjectExplorer::Kit *kit)
 {
+    if (!kit)
+        return 0;
     return MerSdkManager::instance()->sdk(kit->value(Core::Id(Constants::VM_NAME)).toString());
 }
 
