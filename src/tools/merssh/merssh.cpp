@@ -33,7 +33,8 @@
 enum CommandType {
     CommandTypeUndefined,
     CommandTypeStandard,
-    CommandTypeSb2
+    CommandTypeSb2,
+    CommandTypeMb2
 };
 
 MerSSH::MerSSH(QObject *parent)
@@ -68,6 +69,8 @@ CommandType commandTypeFromString(const QString &commandType)
         return CommandTypeStandard;
     else if (commandType == QLatin1String(Mer::Constants::MER_EXECUTIONTYPE_SB2))
         return CommandTypeSb2;
+    else if (commandType == QLatin1String(Mer::Constants::MER_EXECUTIONTYPE_MB2))
+        return CommandTypeMb2;
     return CommandTypeUndefined;
 }
 
@@ -129,9 +132,14 @@ bool MerSSH::run(const QString &sdkToolsDir, const QString &merTargetName,
         return true;
     }
 
-    QString completeCommand = (type == CommandTypeSb2) ?
-                QLatin1String("sb2 -t ") + merTargetName + QLatin1Char(' ') + command
-                + QLatin1Char(' ') : command;
+    QString prefix;
+    if (type == CommandTypeSb2)
+        prefix = QLatin1String("sb2 -t ");
+    else if (type == CommandTypeMb2)
+        prefix = QLatin1String("mb2 -t ");
+    QString completeCommand = (type == CommandTypeStandard)
+            ? command
+            : prefix + merTargetName + QLatin1Char(' ') + command + QLatin1Char(' ');
     if (m_currentCacheFile.isEmpty()) {
         if (!QDir::currentPath().startsWith(QDir::fromNativeSeparators(
                                                 QDir::cleanPath(sharedHome)))) {

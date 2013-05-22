@@ -67,6 +67,7 @@ const char MER_SDK_DEFAULTHOST[] = "localhost";
 
 const char MER_EXECUTIONTYPE_STANDARD[] = "standard";
 const char MER_EXECUTIONTYPE_SB2[] = "sb2";
+const char MER_EXECUTIONTYPE_MB2[] = "mb2";
 
 const char MERSSH_PARAMETER_SDKTOOLSDIR[] = "-sdktoolsdir";
 const char MERSSH_PARAMETER_MERTARGET[] = "-mertarget";
