@@ -105,16 +105,16 @@ void MerSdkKitInformation::addToEnvironment(const ProjectExplorer::Kit *kit, Uti
 {
     const MerSdk *sdk = MerSdkKitInformation::sdk(kit);
     if (sdk) {
-	const QString sshPort = QString::number(sdk->sshPort());
-	const QString sharedHome = QDir::fromNativeSeparators(sdk->sharedHomePath());
-	const QString sharedTarget = QDir::fromNativeSeparators(sdk->sharedTargetsPath());
+        const QString sshPort = QString::number(sdk->sshPort());
+        const QString sharedHome = QDir::fromNativeSeparators(sdk->sharedHomePath());
+        const QString sharedTarget = QDir::fromNativeSeparators(sdk->sharedTargetsPath());
 
-	env.appendOrSet(QLatin1String(Constants::MER_SSH_USERNAME),
-	                QLatin1String(Constants::MER_SDK_DEFAULTUSER));
-	env.appendOrSet(QLatin1String(Constants::MER_SSH_PORT), sshPort);
-	env.appendOrSet(QLatin1String(Constants::MER_SSH_PRIVATE_KEY), sdk->privateKeyFile());
-	env.appendOrSet(QLatin1String(Constants::MER_SSH_SHARED_HOME), sharedHome);
-	env.appendOrSet(QLatin1String(Constants::MER_SSH_SHARED_TARGET), sharedTarget);
+        env.appendOrSet(QLatin1String(Constants::MER_SSH_USERNAME),
+                        QLatin1String(Constants::MER_SDK_DEFAULTUSER));
+        env.appendOrSet(QLatin1String(Constants::MER_SSH_PORT), sshPort);
+        env.appendOrSet(QLatin1String(Constants::MER_SSH_PRIVATE_KEY), sdk->privateKeyFile());
+        env.appendOrSet(QLatin1String(Constants::MER_SSH_SHARED_HOME), sharedHome);
+        env.appendOrSet(QLatin1String(Constants::MER_SSH_SHARED_TARGET), sharedTarget);
     }
 }
 
