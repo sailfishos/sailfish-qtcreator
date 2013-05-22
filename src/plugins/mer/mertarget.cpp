@@ -43,13 +43,14 @@ using namespace Mer::Constants;
 static const struct WrapperScript {
     enum Execution {
         ExecutionStandard,
-        ExecutionTypeSb2
+        ExecutionTypeSb2,
+        ExecutionTypeMb2
     };
     const char* name;
     Execution executionType;
 } wrapperScripts[] = {
-    { MER_WRAPPER_QMAKE, WrapperScript::ExecutionTypeSb2 },
-    { MER_WRAPPER_MAKE, WrapperScript::ExecutionTypeSb2 },
+    { MER_WRAPPER_QMAKE, WrapperScript::ExecutionTypeMb2 },
+    { MER_WRAPPER_MAKE, WrapperScript::ExecutionTypeMb2 },
     { MER_WRAPPER_GCC, WrapperScript::ExecutionTypeSb2 },
     { MER_WRAPPER_SPECIFY, WrapperScript::ExecutionStandard },
     { MER_WRAPPER_MB, WrapperScript::ExecutionStandard }
@@ -257,10 +258,14 @@ bool MerTarget::createScript(const QString &targetPath, int scriptIndex) const
         qWarning() << "Could not open script" << scriptCopyPath;
         return false;
     }
-    const QString executionType =
-            QLatin1String(wrapperScriptCopy.executionType == WrapperScript::ExecutionStandard ?
-                              Constants::MER_EXECUTIONTYPE_STANDARD
-                            : Constants::MER_EXECUTIONTYPE_SB2);
+    QString executionType;
+    if (wrapperScriptCopy.executionType == WrapperScript::ExecutionStandard)
+        executionType = QLatin1String(Constants::MER_EXECUTIONTYPE_STANDARD);
+    else if (wrapperScriptCopy.executionType == WrapperScript::ExecutionTypeSb2)
+        executionType = QLatin1String(Constants::MER_EXECUTIONTYPE_SB2);
+    else if (wrapperScriptCopy.executionType == WrapperScript::ExecutionTypeMb2)
+        executionType = QLatin1String(Constants::MER_EXECUTIONTYPE_MB2);
+
     const QString scriptHeader = HostOsInfo::isWindowsHost() ? QLatin1String("@echo off\n")
                                                              : QLatin1String("#!/bin/bash\n");
     const QString scriptContent = scriptHeader
