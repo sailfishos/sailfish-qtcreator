@@ -24,6 +24,7 @@
 #define MERYAMLUPDATER_H
 
 #include <QObject>
+#include <QFutureInterface>
 
 namespace ProjectExplorer {
 class Project;
@@ -52,6 +53,7 @@ private:
 
 private:
     QList<const ProjectExplorer::Project *> m_projectsToMonitor;
+    QFutureInterface<void> m_progress;
 };
 
 } // Internal

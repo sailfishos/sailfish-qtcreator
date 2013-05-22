@@ -30,6 +30,10 @@
 #include <qt4projectmanager/qt4project.h>
 #include <qt4projectmanager/qt4nodes.h>
 
+#include <coreplugin/icore.h>
+#include <coreplugin/progressmanager/progressmanager.h>
+#include <coreplugin/progressmanager/futureprogress.h>
+
 #include <qtsupport/qtkitinformation.h>
 
 #include <utils/fileutils.h>
@@ -77,6 +81,12 @@ void MerYamlUpdater::onProFilesEvaluated(const Project *proj)
     if (!project || !m_projectsToMonitor.contains(project))
         return;
 
+    m_progress.setProgressRange(0, 100);
+    Core::FutureProgress *fp = Core::ICore::progressManager()->addTask(m_progress.future(),
+                                            tr("Updating YAML"),
+                                            QLatin1String("Mer.YAMLUpdater"));
+    fp->setKeepOnFinish(Core::FutureProgress::HideOnFinish);
+    m_progress.reportStarted();
     QStringList targetPaths;
     const QList<Qt4ProFileNode *> proFiles = project->allProFiles();
     foreach (const Qt4ProFileNode *node, proFiles) {
@@ -148,6 +158,8 @@ void MerYamlUpdater::onProFilesEvaluated(const Project *proj)
         yamlSaver.write(newContent);
         yamlSaver.finalize();
     }
+    m_progress.setProgressValue(100);
+    m_progress.reportFinished();
 }
 
 void MerYamlUpdater::onTargetAddedToProject(Target *target)
