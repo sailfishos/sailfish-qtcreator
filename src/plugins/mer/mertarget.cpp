@@ -26,6 +26,7 @@
 #include "mersdkmanager.h"
 #include "mertoolchain.h"
 #include "merqtversion.h"
+#include "merspecifykitinformation.h"
 #include <qtsupport/qtversionmanager.h>
 #include <qtsupport/qtkitinformation.h>
 #include <qtsupport/qtversionfactory.h>
@@ -162,6 +163,10 @@ ProjectExplorer::Kit* MerTarget::createKit() const
     } else {
         ProjectExplorer::DeviceTypeKitInformation::setDeviceTypeId(k, Constants::MER_DEVICE_TYPE_ARM);
     }
+    const QString targetPath(MerSdkManager::sdkToolsDirectory()
+                              + m_sdk->virtualMachineName() + QLatin1Char('/') + m_name);
+    const QString specifyPath = targetPath + QLatin1Char('/') + QLatin1String("specify");
+    MerSpecifyKitInformation::setSpecifyPath(k, Utils::FileName::fromString(specifyPath));
     return k;
 }
 
