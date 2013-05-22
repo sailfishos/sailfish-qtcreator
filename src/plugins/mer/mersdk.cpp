@@ -39,24 +39,6 @@
 
 using namespace Mer::Constants;
 
-static const struct WrapperScript {
-    enum Execution {
-        ExecutionStandard,
-        ExecutionTypeSb2
-    };
-    const char* name;
-    Execution executionType;
-} wrapperScripts[] = {
-    { MER_WRAPPER_QMAKE, WrapperScript::ExecutionTypeSb2 },
-    { MER_WRAPPER_MAKE, WrapperScript::ExecutionTypeSb2 },
-    { MER_WRAPPER_GCC, WrapperScript::ExecutionTypeSb2 },
-    { MER_WRAPPER_GDB, WrapperScript::ExecutionTypeSb2 },
-    { MER_WRAPPER_SPECIFY, WrapperScript::ExecutionStandard },
-    { MER_WRAPPER_MB, WrapperScript::ExecutionStandard },
-    { MER_WRAPPER_RM, WrapperScript::ExecutionStandard },
-    { MER_WRAPPER_MV, WrapperScript::ExecutionStandard }
-};
-
 namespace Mer {
 namespace Internal {
 
