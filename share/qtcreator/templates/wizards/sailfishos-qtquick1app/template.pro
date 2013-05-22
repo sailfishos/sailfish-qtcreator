@@ -16,4 +16,6 @@ desktop.files = %ProjectName%.desktop
 # Please do not modify the following line.
 include(sailfishapplication/sailfishapplication.pri)
 
-OTHER_FILES = rpm/%ProjectName%.yaml
+OTHER_FILES = \
+    rpm/%ProjectName%.yaml \
+    rpm/%ProjectName%.spec
