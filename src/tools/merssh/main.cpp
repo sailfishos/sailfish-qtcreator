@@ -47,7 +47,7 @@ bool generateSshKeys(const QString &privateKeyFileName, const QString &publicKey
 {
     QSsh::SshKeyGenerator keyGen;
     if (!keyGen.generateKeys(QSsh::SshKeyGenerator::Rsa,
-                             QSsh::SshKeyGenerator::Mixed, 2048,
+                             QSsh::SshKeyGenerator::OpenSsl, 2048,
                              QSsh::SshKeyGenerator::DoNotOfferEncryption)) {
         qCritical() << "Cannot generate the ssh keys." << endl;
         return false;
