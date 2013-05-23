@@ -38,7 +38,7 @@ MerDeviceFactory::MerDeviceFactory()
 QString MerDeviceFactory::displayNameForId(Core::Id type) const
 {
     if (type == Constants::MER_DEVICE_TYPE_I486)
-        return tr("Mer i486 Device ");
+        return tr("Mer i486 Device");
     if (type == Constants::MER_DEVICE_TYPE_ARM)
         return tr("Mer ARM Device");
     return QString();
