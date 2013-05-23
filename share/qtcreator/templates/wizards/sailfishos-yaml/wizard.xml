@@ -43,7 +43,7 @@
     <fields>
         <field mandatory="true" name="Name">
             <fieldcontrol class="QLineEdit" validator="^[a-zA-Z0-9_]+$" placeholdertext="Project Name" />
-            <fielddescription>Name:</fielddescription>
+            <fielddescription>Project Name:</fielddescription>
         </field>
         <field mandatory="true" name="Summary">
             <fieldcontrol class="QLineEdit" defaulttext="My SailfishOS Application" />
