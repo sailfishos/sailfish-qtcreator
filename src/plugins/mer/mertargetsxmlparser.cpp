@@ -163,6 +163,25 @@ private:
     QString m_attributeValue;
     int m_version;
 };
+
+#ifdef Q_OS_MAC
+#  define SHARE_PATH "/../Resources"
+#else
+#  define SHARE_PATH "/../share/qtcreator"
+#endif
+
+static QString applicationDirPath()
+{
+    return QCoreApplication::applicationDirPath();
+}
+
+static inline QString sharedDirPath()
+{
+    QString appPath = applicationDirPath();
+
+    return QFileInfo(appPath + QLatin1String(SHARE_PATH)).absoluteFilePath();
+}
+
 } // Anonymous
 
 class MerTargetsXmlReaderPrivate
@@ -199,7 +218,14 @@ MerTargetsXmlReader::MerTargetsXmlReader(const QString &fileName, QObject *paren
     QXmlSchema schema;
     schema.setMessageHandler(&d->messageHandler);
 
-    schema.load(Utils::FileReader::fetchQrc(QLatin1String(":/mer/files/targets.xsd")));
+    Utils::FileReader schemeReader;
+    d->error = !schemeReader.fetch(QString::fromLatin1("%1/mer/targets.xsd").arg(sharedDirPath()),
+            QIODevice::ReadOnly);
+    if (d->error) {
+        d->errorString = schemeReader.errorString();
+        return;
+    }
+    schema.load(schemeReader.data());
     d->error = !schema.isValid();
     if (d->error) {
         d->errorString = d->messageHandler.errorString();
