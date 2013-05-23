@@ -25,8 +25,6 @@
 
 #include <utils/qtcassert.h>
 #include <utils/hostosinfo.h>
-#include <projectexplorer/taskhub.h>
-#include <projectexplorer/projectexplorer.h>
 
 #include <QDir>
 #include <QProcess>
@@ -42,8 +40,6 @@ const char MACHINE_READABLE[] = "--machinereadable";
 const char STARTVM[] = "startvm";
 const char CONTROLVM[] = "controlvm";
 const char ACPI_POWER_BUTTON[] = "acpipowerbutton";
-
-using namespace ProjectExplorer;
 
 namespace Mer {
 namespace Internal {
@@ -80,10 +76,6 @@ static QString vBoxManagePath()
 MerVirtualBoxManager::MerVirtualBoxManager(QObject *parent):
     QObject(parent)
 {
-    TaskHub *th = ProjectExplorerPlugin::instance()->taskHub();
-    th->addCategory(Core::Id(Constants::MER_TASKHUB_CATEGORY), tr("Virtual Machine Error"));
-    connect(th, SIGNAL(taskAdded(ProjectExplorer::Task)),
-            SLOT(handleTaskAdded(ProjectExplorer::Task)));
     m_instance = this;
 }
 
@@ -232,31 +224,6 @@ VirtualMachineInfo virtualMachineInfoFromOutput(const QString &output)
     }
 
     return info;
-}
-
-void MerVirtualBoxManager::handleTaskAdded(const Task &task)
-{
-    static QRegExp regExp(QLatin1String("Virtual Machine '(.*)' is not running!"));
-    if (regExp.indexIn(task.description) != -1) {
-        QString vm = regExp.cap(1);
-        if (promptToStart(vm)) {
-            QStringList vmList = MerVirtualBoxManager::fetchRegisteredVirtualMachines();
-            if (vmList.contains(vm))
-                MerVirtualBoxManager::startVirtualMachine(vm);
-        }
-    }
-}
-
-bool MerVirtualBoxManager::promptToStart(const QString& vm) const
-{
-    const QMessageBox::StandardButton response =
-        QMessageBox::question(0, tr("Start Virtual Machine"),
-                              tr("Virtual Machine '%1' is not running! Please start the "
-                                 "Virtual Machine and retry after the Virtual Machine is "
-                                 "running.\n\n"
-                                 "Start Virtual Machine now?").arg(vm),
-                              QMessageBox::No | QMessageBox::Yes, QMessageBox::Yes);
-    return (response == QMessageBox::Yes);
 }
 
 } // Internal

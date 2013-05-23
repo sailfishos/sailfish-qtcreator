@@ -121,7 +121,7 @@ bool MerRemoteConnection::isConnected() const
     return m_state == Connected;
 }
 
-SshConnectionParameters MerRemoteConnection::parameters() const
+SshConnectionParameters MerRemoteConnection::sshParameters() const
 {
     if (m_connection)
         return m_connection->connectionParameters();
@@ -129,22 +129,24 @@ SshConnectionParameters MerRemoteConnection::parameters() const
     return SshConnectionParameters();
 }
 
-void MerRemoteConnection::setSshParameters(const SshConnectionParameters &parameters)
+void MerRemoteConnection::setConnectionParameters(const QString &virtualMachine, const SshConnectionParameters &sshParameters)
 {
-    if (m_connection && m_connection->connectionParameters() == parameters)
+    if (m_connection && m_connection->connectionParameters() == sshParameters && virtualMachine == m_vmName)
         return;
 
     if (m_connection)
         m_connection->deleteLater();
 
-    SshConnectionParameters params = parameters;
+    SshConnectionParameters params = sshParameters;
     params.timeout = m_connectionTimeOut;
+    m_vmName = virtualMachine;
     m_connection = createConnection(params);
+    m_state = Disconnected;
 }
 
-void MerRemoteConnection::setVirtualMachine(const QString &name)
+QString MerRemoteConnection::virtualMachine() const
 {
-    m_vmName = name;
+    return m_vmName;
 }
 
 void MerRemoteConnection::update()
@@ -165,7 +167,6 @@ void MerRemoteConnection::update()
             enabled = false;
             break;
     }
-
     m_action->setEnabled(enabled);
     m_action->setVisible(m_visible);
     m_action->setToolTip(toolTip);
@@ -221,6 +222,10 @@ void MerRemoteConnection::changeState(State stateTrigger)
             }
             break;
         case Connected:
+            if(m_connection->state() == SshConnection::Unconnected)
+            {
+                m_state = Disconnected;
+            }
             break;
         case Disconneting:
              if (m_connection->state() == SshConnection::Connected) {
@@ -249,6 +254,15 @@ void MerRemoteConnection::changeState(State stateTrigger)
             break;
     }
     update();
+}
+
+void MerRemoteConnection::connectTo()
+{
+    if (!m_connection)
+        return;
+
+    if (m_state == Disconnected)
+        changeState(StartingVm);
 }
 
 void MerRemoteConnection::handleTriggered()

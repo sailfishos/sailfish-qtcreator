@@ -27,10 +27,6 @@
 #include <QHash>
 #include <QString>
 
-namespace ProjectExplorer {
-class Task;
-}
-
 namespace Mer {
 namespace Internal {
 
@@ -58,11 +54,8 @@ public:
     static VirtualMachineInfo fetchVirtualMachineInfo(const QString &vmName);
     static bool startVirtualMachine(const QString &vmName);
     static bool shutVirtualMachine(const QString &vmName);
-private slots:
-    void handleTaskAdded(const ProjectExplorer::Task &task);
 private:
     MerVirtualBoxManager(QObject *parent = 0);
-    bool promptToStart(const QString& vm) const;
 
 private:
     MerVirtualBoxManager *m_instance;

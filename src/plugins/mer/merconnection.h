@@ -62,12 +62,13 @@ public:
     void setStopTip(const QString &tip);
     void setVisible(bool visible);
     void setEnabled(bool enabled);
-    void setSshParameters(const QSsh::SshConnectionParameters &serverInfo);
-    QSsh::SshConnectionParameters parameters() const;
-    void setVirtualMachine(const QString &name);
+    void setConnectionParameters(const QString &virtualMachine, const QSsh::SshConnectionParameters &sshParameters);
+    QSsh::SshConnectionParameters sshParameters() const;
+    QString virtualMachine() const;
     bool isConnected() const;
     void initialize();
     void update();
+    void connectTo();
 
     static const int m_connectionTimeOut = 77; // seconds
 
