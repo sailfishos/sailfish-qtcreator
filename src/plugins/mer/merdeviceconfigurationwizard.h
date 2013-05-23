@@ -33,6 +33,8 @@ namespace Internal {
 class MerDeviceConfigurationWizardPrivate;
 class MerDeviceConfigurationWizard : public QWizard
 {
+    Q_OBJECT
+
 public:
     explicit MerDeviceConfigurationWizard(Core::Id id, QWidget *parent = 0);
     ~MerDeviceConfigurationWizard();

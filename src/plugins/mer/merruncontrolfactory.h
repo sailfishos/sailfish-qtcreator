@@ -30,6 +30,8 @@ namespace Internal {
 
 class MerRunControlFactory : public ProjectExplorer::IRunControlFactory
 {
+    Q_OBJECT
+
 public:
     explicit MerRunControlFactory(QObject *parent = 0);
 
