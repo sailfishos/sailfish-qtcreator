@@ -30,6 +30,7 @@ namespace ProjectExplorer {
 class Kit;
 class Project;
 class Target;
+class Task;
 }
 
 namespace QSsh {
@@ -51,13 +52,15 @@ public:
     ~MerConnectionManager();
     static QSsh::SshConnectionParameters paramters(const MerSdk *sdk);
     QString testConnection(const QSsh::SshConnectionParameters &params) const;
-    bool isConnected(const QSsh::SshConnectionParameters &params) const;
+    bool isConnected(const QString &vmName) const;
+    void connectTo(const QString &vmName);
 private slots:
     void update();
     void handleStartupProjectChanged(ProjectExplorer::Project *project);
     void handleKitUpdated(ProjectExplorer::Kit *kit);
     void handleTargetAdded(ProjectExplorer::Target *target);
     void handleTargetRemoved(ProjectExplorer::Target *target);
+    void handleTaskAdded(const ProjectExplorer::Task &task);
 private:
     MerConnectionManager();
 
@@ -69,6 +72,18 @@ private:
 
     friend class MerPlugin;
 };
+
+class PromtToStart : public QObject
+{
+    Q_OBJECT
+public:
+    PromtToStart(const QString &vm);
+public slots:
+    void prompt();
+private:
+    QString m_vm;
+};
+
 }
 }
 

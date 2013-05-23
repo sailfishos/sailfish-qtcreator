@@ -54,12 +54,12 @@ private:
 
         const QString vmName = device->id().toString();
         MerConnectionManager *em = MerConnectionManager::instance();
-        if (em->isConnected(device->sshParameters())) {
+        if (em->isConnected(vmName)) {
             emit progressMessage(tr("Emulator is already running. Nothing to do."));
             handleDeviceSetupDone(true);
             return;
         } else {
-            emit errorMessage(tr("Virtual Machine '%1' is not running!").arg(vmName));
+            emit errorMessage(tr("Could not connect to %1 Virtual Machine.").arg(vmName));
             handleDeviceSetupDone(false);
             return;
         }
