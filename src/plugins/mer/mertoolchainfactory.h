@@ -30,6 +30,8 @@ namespace Internal {
 
 class MerToolChainFactory : public ProjectExplorer::ToolChainFactory
 {
+    Q_OBJECT
+
 public:
     QString displayName() const;
     QString id() const;

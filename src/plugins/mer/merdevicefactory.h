@@ -30,6 +30,8 @@ namespace Internal {
 
 class MerDeviceFactory : public ProjectExplorer::IDeviceFactory
 {
+    Q_OBJECT
+
 public:
     MerDeviceFactory();
 

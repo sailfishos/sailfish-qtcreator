@@ -46,6 +46,8 @@ namespace {
 
 class MessageHandler : public QAbstractMessageHandler
 {
+    Q_OBJECT
+
 public:
     QString errorString() const
     {

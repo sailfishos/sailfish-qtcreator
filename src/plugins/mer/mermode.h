@@ -30,6 +30,8 @@ namespace Internal {
 
 class MerMode : public Core::IMode
 {
+    Q_OBJECT
+
 public:
     MerMode();
 };

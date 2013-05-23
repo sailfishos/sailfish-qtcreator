@@ -30,6 +30,8 @@ namespace Internal {
 
 class MerRunConfigurationFactory : public ProjectExplorer::IRunConfigurationFactory
 {
+    Q_OBJECT
+
 public:
     explicit MerRunConfigurationFactory(QObject *parent = 0);
 

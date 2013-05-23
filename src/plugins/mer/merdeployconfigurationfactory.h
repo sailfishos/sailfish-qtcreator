@@ -30,6 +30,8 @@ namespace Internal {
 
 class MerDeployConfigurationFactory : public ProjectExplorer::DeployConfigurationFactory
 {
+    Q_OBJECT
+
 public:
     explicit MerDeployConfigurationFactory(QObject *parent = 0);
 
