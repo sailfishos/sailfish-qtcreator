@@ -485,7 +485,7 @@ bool MerSdkManager::generateSshKey(const QString &privKeyPath, QString &error)
     bool success = true;
     SshKeyGenerator keyGen;
     success = keyGen.generateKeys(SshKeyGenerator::Rsa,
-                                  SshKeyGenerator::Mixed, 2048,
+                                  SshKeyGenerator::OpenSsl, 2048,
                                   SshKeyGenerator::DoNotOfferEncryption);
     if (!success) {
         error.append(tr("Error: %1\n").arg(keyGen.error()));
