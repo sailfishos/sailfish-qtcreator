@@ -46,12 +46,10 @@ namespace {
 
 class MessageHandler : public QAbstractMessageHandler
 {
-    Q_OBJECT
-
 public:
     QString errorString() const
     {
-        return tr("Error %1:%2:%3 %4").arg(m_identifier.toString())
+        return QObject::tr("Error %1:%2:%3 %4").arg(m_identifier.toString())
                 .arg(m_sourceLocation.line())
                 .arg(m_sourceLocation.column())
                 .arg(m_description);
