@@ -73,11 +73,11 @@ private:
     friend class MerPlugin;
 };
 
-class PromtToStart : public QObject
+class ConnectionRequest : public QObject
 {
     Q_OBJECT
 public:
-    PromtToStart(const QString &vm);
+    ConnectionRequest(const QString &vm);
 public slots:
     void prompt();
 private:

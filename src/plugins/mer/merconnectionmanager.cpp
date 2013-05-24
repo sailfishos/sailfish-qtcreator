@@ -31,11 +31,8 @@
 #include <projectexplorer/session.h>
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/projectexplorer.h>
-#include <ssh/sshconnection.h>
-
 #include <projectexplorer/taskhub.h>
-#include <projectexplorer/buildmanager.h>
-#include <qt4projectmanager/qt4buildconfiguration.h>
+#include <ssh/sshconnection.h>
 
 #include <QIcon>
 #include <QMessageBox>
@@ -227,28 +224,15 @@ QString MerConnectionManager::testConnection(const QSsh::SshConnectionParameters
     return result;
 }
 
-
 void MerConnectionManager::handleTaskAdded(const Task &task)
 {
     static QRegExp regExp(tr("Could not connect to (.*) Virtual Machine."));
     if (regExp.indexIn(task.description) != -1) {
         QString vm = regExp.cap(1);
-
         if (!MerVirtualBoxManager::isVirtualMachineRunning(vm)) {
-            new PromtToStart(vm);
-        }
-        const Project* const p = ProjectExplorerPlugin::instance()->session()->startupProject();
-        if (p) {
-            const Target* const activeTarget = p->activeTarget();
-         Qt4ProjectManager::Qt4BuildConfiguration *bc = qobject_cast< Qt4ProjectManager::Qt4BuildConfiguration *>(activeTarget->activeBuildConfiguration());
-        if (!bc)
-            return;
-        ProjectExplorer::BuildManager *bm = ProjectExplorerPlugin::instance()->buildManager();
-        //bm->buildList(bc->knownStepLists(),);
+            new ConnectionRequest(vm);
         }
     }
-
-
 }
 
 void MerConnectionManager::connectTo(const QString &vmName)
@@ -265,13 +249,13 @@ void MerConnectionManager::connectTo(const QString &vmName)
 //QProcess emits finnished singal and cleans up. Meanwhile users closes box end continues
 //with invalid m_process pointer.
 
-PromtToStart::PromtToStart(const QString& vm):
+ConnectionRequest::ConnectionRequest(const QString& vm):
     m_vm(vm)
 {
     QTimer::singleShot(0,this,SLOT(prompt()));
 }
 
-void PromtToStart::prompt()
+void ConnectionRequest::prompt()
 {
     const QMessageBox::StandardButton response =
         QMessageBox::question(0, tr("Start Virtual Machine"),
@@ -283,7 +267,6 @@ void PromtToStart::prompt()
     if (response == QMessageBox::Yes) {
         MerConnectionManager::instance()->connectTo(m_vm);
     }
-
     this->deleteLater();
 }
 
