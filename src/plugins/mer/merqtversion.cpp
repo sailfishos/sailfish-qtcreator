@@ -98,7 +98,7 @@ QString MerQtVersion::description() const
 
 bool MerQtVersion::supportsShadowBuilds() const
 {
-    return false;
+    return true;
 }
 
 QString MerQtVersion::platformName() const
