@@ -120,37 +120,37 @@ void MerYamlUpdater::onProFilesEvaluated(const Project *proj)
     QByteArray newContent;
     {
         Utils::FileReader yamlReader;
-        if (!yamlReader.fetch(yamlFile, QIODevice::ReadOnly))
-            return;
-        const QByteArray data = yamlReader.data();
-        QRegExp rxp(QString::fromLatin1("(Files:.*)(?:%1\n)(.*)(?:%2)(.*:?)").arg(QLatin1String(SECTION_START), QLatin1String(SECTION_END)));
-        rxp.setMinimal(true);
-        int pos = 0;
-        if ((pos = rxp.indexIn(QString::fromUtf8(data), pos)) != -1) {
-            // Add everything before the Files: section
-            newContent = data.left(pos);
+        if (yamlReader.fetch(yamlFile, QIODevice::ReadOnly)) {
+            const QByteArray data = yamlReader.data();
+            QRegExp rxp(QString::fromLatin1("(Files:.*)(?:%1\n)(.*)(?:%2)(.*:?)").arg(QLatin1String(SECTION_START), QLatin1String(SECTION_END)));
+            rxp.setMinimal(true);
+            int pos = 0;
+            if ((pos = rxp.indexIn(QString::fromUtf8(data), pos)) != -1) {
+                // Add everything before the Files: section
+                newContent = data.left(pos);
 
-            // Add everything before the comments
-            newContent.append(rxp.cap(1).toUtf8());
+                // Add everything before the comments
+                newContent.append(rxp.cap(1).toUtf8());
 
-            // Find out the whitespace used in this section
-            QString prefix = QLatin1String("  - ");
-            const QRegExp rxPrefix(QLatin1String("\n+(\\s*-\\s*)"));
-            if (rxPrefix.indexIn(rxp.cap(1)) != -1)
-                prefix = rxPrefix.cap(1);
-            else if (rxPrefix.indexIn(rxp.cap(3)) != -1)
-                prefix = rxPrefix.cap(1);
+                // Find out the whitespace used in this section
+                QString prefix = QLatin1String("  - ");
+                const QRegExp rxPrefix(QLatin1String("\n+(\\s*-\\s*)"));
+                if (rxPrefix.indexIn(rxp.cap(1)) != -1)
+                    prefix = rxPrefix.cap(1);
+                else if (rxPrefix.indexIn(rxp.cap(3)) != -1)
+                    prefix = rxPrefix.cap(1);
 
-            // Overwrite the contents between the comments
-            newContent.append(SECTION_START);
-            newContent.append("\n");
-            foreach (const QString &target, targetPaths)
-                newContent.append(prefix.toUtf8() + '"' + target.toUtf8() + "\"\n");
-            newContent.append(SECTION_END);
+                // Overwrite the contents between the comments
+                newContent.append(SECTION_START);
+                newContent.append("\n");
+                foreach (const QString &target, targetPaths)
+                    newContent.append(prefix.toUtf8() + '"' + target.toUtf8() + "\"\n");
+                newContent.append(SECTION_END);
 
-            // Add everything after the comments
-            pos += rxp.matchedLength();
-            newContent.append(data.mid(pos));
+                // Add everything after the comments
+                pos += rxp.matchedLength();
+                newContent.append(data.mid(pos));
+            }
         }
     }
     if (!newContent.isEmpty()) {
