@@ -188,7 +188,7 @@ void MerSpecUpdater::onYamlFileChanged(const QString &yamlPath)
     m_progress.reportStarted();
 
     const Project *project = m_projectFileMap.key(yamlPath);
-    if (project) {
+    if (project && project->activeTarget()) {
         Kit *kit = project->activeTarget()->kit();
         if (MerSdkManager::instance()->merKits().contains(kit)) {
             const Utils::FileName specifyFile = MerSpecifyKitInformation::specifyPath(kit);
