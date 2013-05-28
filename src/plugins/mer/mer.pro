@@ -52,6 +52,7 @@ SOURCES += \
     mersdkkitinformation.cpp \
     mertargetsxmlparser.cpp \
     merdevicexmlparser.cpp \
+    merprojectlistener.cpp \
     meryamlupdater.cpp \
     merspecupdater.cpp \
     merspecifykitinformation.cpp
@@ -89,6 +90,7 @@ HEADERS += \
     mersdkkitinformation.h \
     mertargetsxmlparser.h \
     merdevicexmlparser.h \
+    merprojectlistener.h \
     meryamlupdater.h \
     merspecupdater.h \
     merspecifykitinformation.h

@@ -20,32 +20,48 @@
 **
 ****************************************************************************/
 
-#ifndef MERYAMLUPDATER_H
-#define MERYAMLUPDATER_H
-
-#include "merprojectlistener.h"
+#ifndef MERPROJECTLISTENER_H
+#define MERPROJECTLISTENER_H
 
 #include <QObject>
-#include <QFutureInterface>
+
+namespace ProjectExplorer {
+class Project;
+class Target;
+}
+
+namespace Qt4ProjectManager {
+class Qt4Project;
+}
 
 namespace Mer {
 namespace Internal {
 
-class MerYamlUpdater : public MerProjectListener
+class MerProjectListener : public QObject
 {
     Q_OBJECT
+public:
+    explicit MerProjectListener(QObject *parent = 0);
+    virtual ~MerProjectListener() {}
+
+protected slots:
+    virtual void init();
+    virtual bool handleProject(const Qt4ProjectManager::Qt4Project *project) = 0;
 
 private slots:
-    void onProFilesEvaluated(const ProjectExplorer::Project *project = 0);
+    virtual void onTargetAddedToProject(ProjectExplorer::Target *target);
+    virtual void onTargetRemovedFromProject(ProjectExplorer::Target *target);
+    virtual void onProjectAdded(ProjectExplorer::Project *project);
+    virtual void onProjectRemoved(ProjectExplorer::Project *project);
 
 private:
-    bool handleProject(const Qt4ProjectManager::Qt4Project *qt4Project);
+    bool handleProject_private(const ProjectExplorer::Project *project);
 
-private:
-    QFutureInterface<void> m_progress;
+protected:
+    QList<const ProjectExplorer::Project *> m_projectsToHandle;
 };
 
 } // Internal
 } // Mer
 
-#endif // MERYAMLUPDATER_H
+#endif // MERPROJECTLISTENER_H

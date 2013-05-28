@@ -48,37 +48,11 @@ const char SECTION_END[] = "# Sections ends.";
 namespace Mer {
 namespace Internal {
 
-MerYamlUpdater::MerYamlUpdater(QObject *parent) :
-    QObject(parent)
-{
-    connect(MerSdkManager::instance(), SIGNAL(initialized()), SLOT(init()));
-}
-
-void MerYamlUpdater::init()
-{
-    // This is called just once after the MerSdkManager is initialized.
-    const SessionManager *sessionManager = ProjectExplorerPlugin::instance()->session();
-    const QList<Project *> projects = sessionManager->projects();
-    // O(n2)
-    foreach (Project *project, projects) {
-        connect(project, SIGNAL(addedTarget(ProjectExplorer::Target*)),
-                SLOT(onTargetAddedToProject(ProjectExplorer::Target*)));
-        connect(project, SIGNAL(removedTarget(ProjectExplorer::Target*)),
-                SLOT(onTargetRemovedFromProject(ProjectExplorer::Target*)));
-        onProjectAdded(project);
-    }
-
-    connect(sessionManager, SIGNAL(projectAdded(ProjectExplorer::Project*)),
-            SLOT(onProjectAdded(ProjectExplorer::Project*)));
-    connect(sessionManager, SIGNAL(projectRemoved(ProjectExplorer::Project*)),
-            SLOT(onProjectRemoved(ProjectExplorer::Project*)));
-}
-
 void MerYamlUpdater::onProFilesEvaluated(const Project *proj)
 {
     const Qt4Project *project = proj ? qobject_cast<const Qt4Project *>(proj)
                                      : qobject_cast<const Qt4Project *>(sender());
-    if (!project || !m_projectsToMonitor.contains(project))
+    if (!project || !m_projectsToHandle.contains(project))
         return;
 
     m_progress.setProgressRange(0, 100);
@@ -162,58 +136,10 @@ void MerYamlUpdater::onProFilesEvaluated(const Project *proj)
     m_progress.reportFinished();
 }
 
-void MerYamlUpdater::onTargetAddedToProject(Target *target)
+bool MerYamlUpdater::handleProject(const Qt4Project *qt4Project)
 {
-    const Project *project = target->project();
-    if (MerSdkManager::instance()->merKits().contains(target->kit())
-            && !m_projectsToMonitor.contains(project)) {
-        monitorProject(project);
-    }
-}
-
-void MerYamlUpdater::onTargetRemovedFromProject(Target *target)
-{
-    Project *project = target->project();
-    const QList<Kit *> merKits = MerSdkManager::instance()->merKits();
-    if (merKits.contains(target->kit()) && m_projectsToMonitor.contains(project)) {
-        bool monitor = false;
-        foreach (Kit *kit, merKits) {
-            monitor = project->supportsKit(kit);
-            if (monitor)
-                break;
-        }
-        if (!monitor) {
-            m_projectsToMonitor.removeOne(project);
-            project->disconnect(this);
-        }
-    }
-}
-
-void MerYamlUpdater::onProjectAdded(Project *project)
-{
-    const QList<Kit *> merKits = MerSdkManager::instance()->merKits();
-    foreach (Kit *kit, merKits) {
-        if (project->supportsKit(kit)) {
-            if (monitorProject(project))
-                break;
-        }
-    }
-}
-
-void MerYamlUpdater::onProjectRemoved(Project *project)
-{
-    m_projectsToMonitor.removeOne(project);
-    project->disconnect(this);
-}
-
-bool MerYamlUpdater::monitorProject(const Project *project)
-{
-    const Qt4Project *qt4Project = qobject_cast<const Qt4Project *>(project);
-    if (!qt4Project)
-        return false;
-    m_projectsToMonitor.append(project);
     connect(qt4Project, SIGNAL(proFilesEvaluated()), SLOT(onProFilesEvaluated()));
-    onProFilesEvaluated(project);
+    onProFilesEvaluated(qt4Project);
     return true;
 }
 
