@@ -51,6 +51,7 @@ SOURCES += \
     mervirtualboxmanager.cpp \
     mersdkkitinformation.cpp \
     mertargetsxmlparser.cpp \
+    merdevicexmlparser.cpp \
     meryamlupdater.cpp \
     merspecupdater.cpp \
     merspecifykitinformation.cpp
@@ -87,6 +88,7 @@ HEADERS += \
     mervirtualboxmanager.h \
     mersdkkitinformation.h \
     mertargetsxmlparser.h \
+    merdevicexmlparser.h \
     meryamlupdater.h \
     merspecupdater.h \
     merspecifykitinformation.h
