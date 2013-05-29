@@ -57,13 +57,8 @@ void MerProjectListener::init()
     const SessionManager *sessionManager = ProjectExplorerPlugin::instance()->session();
     const QList<Project*> projects = sessionManager->projects();
     // O(n2)
-    foreach (Project *project, projects) {
-        connect(project, SIGNAL(addedTarget(ProjectExplorer::Target*)),
-                SLOT(onTargetAddedToProject(ProjectExplorer::Target*)));
-        connect(project, SIGNAL(removedTarget(ProjectExplorer::Target*)),
-                SLOT(onTargetRemovedFromProject(ProjectExplorer::Target*)));
+    foreach (Project *project, projects)
         onProjectAdded(project);
-    }
 
     connect(sessionManager, SIGNAL(projectAdded(ProjectExplorer::Project*)),
             SLOT(onProjectAdded(ProjectExplorer::Project*)));
@@ -73,33 +68,31 @@ void MerProjectListener::init()
 
 void MerProjectListener::onTargetAddedToProject(Target *target)
 {
-    const Project *project = target->project();
-    if (MerSdkManager::instance()->merKits().contains(target->kit())
-            && !m_projectsToHandle.contains(project)) {
+    Project *project = target->project();
+    if (MerSdkManager::instance()->merKits().contains(target->kit()))
         handleProject_private(project);
-    }
 }
 
 void MerProjectListener::onTargetRemovedFromProject(Target *target)
 {
     Project *project = target->project();
     const QList<Kit *> merKits = MerSdkManager::instance()->merKits();
-    if (merKits.contains(target->kit()) && m_projectsToHandle.contains(project)) {
-        bool handle = false;
-        foreach (Kit *kit, merKits) {
-            handle = project->supportsKit(kit);
-            if (handle)
-                break;
-        }
-        if (!handle) {
-            m_projectsToHandle.removeOne(project);
-            project->disconnect(this);
-        }
-    }
+    int merTargetsCount = 0;
+    // Counting how many Mer Targets are left after this removal
+    foreach (Target *projectTarget, project->targets())
+        if (merKits.contains(projectTarget->kit()))
+            merTargetsCount++;
+    if (merTargetsCount == 0)
+        forgetProject(project);
 }
 
 void MerProjectListener::onProjectAdded(Project *project)
 {
+    connect(project, SIGNAL(addedTarget(ProjectExplorer::Target*)),
+            SLOT(onTargetAddedToProject(ProjectExplorer::Target*)));
+    connect(project, SIGNAL(removedTarget(ProjectExplorer::Target*)),
+            SLOT(onTargetRemovedFromProject(ProjectExplorer::Target*)));
+
     const QList<Kit *> merKits = MerSdkManager::instance()->merKits();
     foreach (Kit *kit, merKits) {
         if (project->supportsKit(kit)) {
@@ -111,16 +104,14 @@ void MerProjectListener::onProjectAdded(Project *project)
 
 void MerProjectListener::onProjectRemoved(Project *project)
 {
-    m_projectsToHandle.removeOne(project);
-    project->disconnect(this);
+    forgetProject(project);
 }
 
-bool MerProjectListener::handleProject_private(const ProjectExplorer::Project *project)
+bool MerProjectListener::handleProject_private(Project *project)
 {
-    const Qt4Project *qt4Project = qobject_cast<const Qt4Project *>(project);
+    Qt4Project *qt4Project = qobject_cast<Qt4Project*>(project);
     if (!qt4Project)
         return false;
-    m_projectsToHandle.append(qt4Project);
     return handleProject(qt4Project);
 }
 

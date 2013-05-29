@@ -46,19 +46,16 @@ public:
 
 protected slots:
     virtual void init();
-    virtual bool handleProject(const Qt4ProjectManager::Qt4Project *project) = 0;
+    virtual bool handleProject(Qt4ProjectManager::Qt4Project *project) = 0;
+    virtual bool forgetProject(ProjectExplorer::Project *project) = 0;
 
-private slots:
     virtual void onTargetAddedToProject(ProjectExplorer::Target *target);
     virtual void onTargetRemovedFromProject(ProjectExplorer::Target *target);
     virtual void onProjectAdded(ProjectExplorer::Project *project);
     virtual void onProjectRemoved(ProjectExplorer::Project *project);
 
 private:
-    bool handleProject_private(const ProjectExplorer::Project *project);
-
-protected:
-    QList<const ProjectExplorer::Project *> m_projectsToHandle;
+    bool handleProject_private(ProjectExplorer::Project *project);
 };
 
 } // Internal
