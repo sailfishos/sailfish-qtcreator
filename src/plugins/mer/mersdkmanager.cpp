@@ -31,6 +31,8 @@
 #include "merplugin.h"
 #include "merdevicefactory.h"
 #include "mertarget.h"
+#include "merdevice.h"
+#include "merdevicexmlparser.h"
 
 #include <coreplugin/icore.h>
 #include <extensionsystem/pluginmanager.h>
@@ -39,6 +41,7 @@
 #include <projectexplorer/kitmanager.h>
 #include <projectexplorer/toolchainmanager.h>
 #include <projectexplorer/kit.h>
+#include <projectexplorer/devicesupport/devicemanager.h>
 #include <qtsupport/qtversionmanager.h>
 #include <qtsupport/qtkitinformation.h>
 #include <ssh/sshkeygenerator.h>
@@ -82,6 +85,8 @@ MerSdkManager::MerSdkManager()
 {
     connect(Core::ICore::instance(), SIGNAL(saveSettingsRequested()), SLOT(storeSdks()));
     connect(KitManager::instance(), SIGNAL(kitsLoaded()), SLOT(initialize()));
+    connect(DeviceManager::instance(), SIGNAL(devicesLoaded()), SLOT(updateDevices()));
+    connect(DeviceManager::instance(), SIGNAL(deviceListChanged()), SLOT(updateDevices()));
     m_writer = new Utils::PersistentSettingsWriter(settingsFileName(), QLatin1String("MerSDKs"));
     m_instance = this;
     ProjectExplorer::KitManager::instance()->registerKitInformation(new MerSdkKitInformation);
@@ -146,6 +151,7 @@ void MerSdkManager::initialize()
         }
 
         m_intialized = true;
+        updateDevices();
         emit initialized();
     }
 }
@@ -509,6 +515,36 @@ bool MerSdkManager::generateSshKey(const QString &privKeyPath, QString &error)
         return false;
     }
     return true;
+}
+
+void MerSdkManager::updateDevices()
+{
+    QList<MerDeviceData> devices;
+    int count = DeviceManager::instance()->deviceCount();
+    for(int i = 0 ;  i < count; ++i) {
+        IDevice::ConstPtr d = DeviceManager::instance()->deviceAt(i);
+        if (MerDeviceFactory::canCreate(d->type())) {
+            const MerDevice* device = static_cast<const MerDevice*>(d.data());
+            MerDeviceData xmlData;
+            xmlData.m_ip = device->sshParameters().host;
+            xmlData.m_mac = device->mac();
+            xmlData.m_name = device->displayName();
+            xmlData.m_sshKeyPath = device->sshParameters().privateKeyFile;
+            xmlData.m_subNet = device->subNet();
+            xmlData.m_type = device->type() == Constants::MER_DEVICE_TYPE_ARM ? QLatin1String("real") : QLatin1String ("vbox");
+            devices << xmlData;
+        }
+    }
+
+    foreach(MerSdk* sdk, m_sdks)
+    {
+        const QString file = sdk->sharedTargetsPath() + QLatin1String(Constants::MER_DEVICES_FILENAME);
+        MerEngineData xmlData;
+        xmlData.m_name = sdk->virtualMachineName();
+        xmlData.m_type =  QLatin1String("vbox");
+        xmlData.m_subNet = QLatin1String("TODO:");
+        MerDevicesXmlWriter writer(file,devices,xmlData);
+    }
 }
 
 #ifdef WITH_TESTS

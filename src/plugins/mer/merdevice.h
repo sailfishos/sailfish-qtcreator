@@ -46,6 +46,11 @@ public:
     QList<Core::Id> actionIds() const;
     QString displayNameForActionId(Core::Id actionId) const;
     void executeAction(Core::Id actionId, QWidget *parent) const;
+    void fromMap(const QVariantMap &map);
+    QVariantMap toMap() const;
+
+    QString mac() const;
+    QString subNet() const;
 
 protected:
     MerDevice();
