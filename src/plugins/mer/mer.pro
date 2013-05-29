@@ -55,6 +55,7 @@ SOURCES += \
     merprojectlistener.cpp \
     meryamlupdater.cpp \
     merspecupdater.cpp \
+    merbuildconfigurationprojectpathenvironmentvariablesetter.cpp \
     merspecifykitinformation.cpp
 
 HEADERS += \
@@ -93,6 +94,7 @@ HEADERS += \
     merprojectlistener.h \
     meryamlupdater.h \
     merspecupdater.h \
+    merbuildconfigurationprojectpathenvironmentvariablesetter.h \
     merspecifykitinformation.h
 
 SOURCES += \
