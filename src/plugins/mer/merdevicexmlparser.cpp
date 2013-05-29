@@ -258,7 +258,7 @@ MerDevicesXmlReader::MerDevicesXmlReader(const QString &fileName, QObject *paren
     schema.setMessageHandler(&d->messageHandler);
 
     Utils::FileReader schemeReader;
-    d->error = !schemeReader.fetch(QString::fromLatin1("%1/mer/targets.xsd").arg(sharedDirPath()),
+    d->error = !schemeReader.fetch(QString::fromLatin1("%1/mer/devices.xsd").arg(sharedDirPath()),
             QIODevice::ReadOnly);
     if (d->error) {
         d->errorString = schemeReader.errorString();
