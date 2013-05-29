@@ -72,7 +72,7 @@
           <item row="2" column="0">
            <widget class="QLabel" name="portLabel">
             <property name="text">
-             <string>Ssh Port:</string>
+             <string>SSH port:</string>
             </property>
            </widget>
           </item>
@@ -123,7 +123,7 @@
           <item row="0" column="0">
            <widget class="QLabel" name="homeFolderLabel">
             <property name="text">
-             <string>&quot;home&quot; folder:</string>
+             <string>home folder:</string>
             </property>
            </widget>
           </item>
@@ -137,7 +137,7 @@
           <item row="1" column="0">
            <widget class="QLabel" name="targetFolderLabel">
             <property name="text">
-             <string>&quot;targets&quot; folder:</string>
+             <string>targets folder:</string>
             </property>
            </widget>
           </item>
@@ -151,7 +151,7 @@
           <item row="2" column="0">
            <widget class="QLabel" name="sshFolderLabel">
             <property name="text">
-             <string>&quot;ssh&quot; folder:</string>
+             <string>ssh folder:</string>
             </property>
            </widget>
           </item>
@@ -177,7 +177,7 @@
           <item row="0" column="0">
            <widget class="QLabel" name="userNameLabel">
             <property name="text">
-             <string>UserName:</string>
+             <string>Username:</string>
             </property>
            </widget>
           </item>
@@ -191,7 +191,7 @@
           <item row="1" column="0">
            <widget class="QLabel" name="sshKeyLabel">
             <property name="text">
-             <string>Ssh key: </string>
+             <string>SSH key: </string>
             </property>
            </widget>
           </item>
