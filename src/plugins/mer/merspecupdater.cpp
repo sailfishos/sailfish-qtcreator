@@ -112,7 +112,7 @@ void MerSpecUpdater::monitorYamlFile(const Project *proj)
         m_watcher.removePaths(currentFiles);
     if (!yamlFile.isEmpty()) {
         m_watcher.addPath(yamlFile);
-        m_projectFileMap.insert(project, yamlFile);
+        m_projectFileMap.insertMulti(project, yamlFile);
         onYamlFileChanged(yamlFile);
     }
 }
@@ -165,6 +165,7 @@ void MerSpecUpdater::onProjectRemoved(Project *project)
     QStringList currentFiles = m_projectFileMap.values(project);
     if (currentFiles.count())
         m_watcher.removePaths(currentFiles);
+    m_projectFileMap.remove(project);
 }
 
 bool MerSpecUpdater::monitorProject(const Project *project)
