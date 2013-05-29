@@ -24,6 +24,7 @@
 #include "merconstants.h"
 #include "merdevicefactory.h"
 #include "mersdkkitinformation.h"
+#include "mersdkmanager.h"
 
 #include <utils/pathchooser.h>
 #include <projectexplorer/projectexplorerconstants.h>
@@ -111,7 +112,7 @@ QList<Task> MerSpecifyKitInformation::validate(const Kit *k) const
 {
     QList<Task> result;
     const Utils::FileName file = MerSpecifyKitInformation::specifyPath(k);
-    if (!file.toFileInfo().isFile()) {
+    if (MerSdkManager::isMerKit(k) && !file.toFileInfo().isFile()) {
         const QString message = QCoreApplication::translate("MerSdk",
                                                             "No valid specify tool found");
         return QList<Task>() << Task(Task::Error, message, Utils::FileName(), -1,
@@ -127,7 +128,10 @@ KitConfigWidget *MerSpecifyKitInformation::createConfigWidget(Kit *k) const
 
 KitInformation::ItemList MerSpecifyKitInformation::toUserOutput(Kit *k) const
 {
-    return ItemList() << qMakePair(tr("Specify"), specifyPath(k).toUserOutput());
+    if (MerDeviceFactory::canCreate(ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(k)))
+        return ItemList() << qMakePair(tr("Specify"), specifyPath(k).toUserOutput());
+    else
+        return ProjectExplorer::KitInformation::ItemList();
 }
 
 Utils::FileName MerSpecifyKitInformation::specifyPath(const Kit *k)
