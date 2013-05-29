@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>438</width>
-    <height>254</height>
+    <width>481</width>
+    <height>310</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -33,7 +33,7 @@
      <item>
       <widget class="QRadioButton" name="realDeviceRadioButton">
        <property name="text">
-        <string>Real Device</string>
+        <string>Real device</string>
        </property>
       </widget>
      </item>
@@ -42,7 +42,7 @@
    <item row="1" column="0">
     <widget class="QLabel" name="nameLabel_2">
      <property name="text">
-      <string>Device Name:</string>
+      <string>Device name:</string>
      </property>
     </widget>
    </item>
@@ -87,7 +87,7 @@
    <item row="5" column="0">
     <widget class="QLabel" name="authTypeLabel">
      <property name="text">
-      <string>Auhtentication type:</string>
+      <string>Authentication type:</string>
      </property>
     </widget>
    </item>
@@ -126,7 +126,7 @@
    <item row="7" column="0">
     <widget class="QLabel" name="sshPortLabel">
      <property name="text">
-      <string>The SSH server port:</string>
+      <string>SSH port:</string>
      </property>
     </widget>
    </item>
@@ -140,7 +140,7 @@
    <item row="8" column="0">
     <widget class="QLabel" name="freePortsLabel">
      <property name="text">
-      <string>Free Ports:</string>
+      <string>Free ports:</string>
      </property>
     </widget>
    </item>
