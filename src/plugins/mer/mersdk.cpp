@@ -124,7 +124,6 @@ QString MerSdk::sharedSshPath() const
     return m_sharedSshPath;
 }
 
-
 void MerSdk::setSshPort(quint16 port)
 {
     m_sshPort = port;

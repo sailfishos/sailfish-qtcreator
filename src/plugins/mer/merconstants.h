@@ -116,6 +116,7 @@ const char SAILFISHOS_FEATURE[] = "QtSupport.Wizards.FeatureSailfishOS";
 
 const char MER_SDK_FILENAME[] = "/qtcreator/mersdk.xml";
 const char MER_TARGETS_FILENAME[] = "/targets.xml";
+const char MER_DEVICES_FILENAME[] = "/devices.xml";
 
 const char TARGET_NAME[] = "MerTarget.Name";
 const char QMAKE_DUMP[] = "MerTarget.QmakeQuery";

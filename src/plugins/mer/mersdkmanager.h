@@ -82,6 +82,7 @@ signals:
 
 private slots:
     void initialize();
+    void updateDevices();
 
 private:
     MerSdkManager();

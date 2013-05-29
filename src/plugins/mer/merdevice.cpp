@@ -196,6 +196,27 @@ void MerDevice::executeAction(Core::Id actionId, QWidget *parent) const
     LinuxDevice::executeAction(actionId, parent);
 }
 
+void MerDevice::fromMap(const QVariantMap &map)
+{
+    RemoteLinux::LinuxDevice::fromMap(map);
+}
+
+QVariantMap MerDevice::toMap() const
+{
+    QVariantMap map = RemoteLinux::LinuxDevice::toMap();
+    return map;
+}
+
+QString MerDevice::mac() const
+{
+    return QLatin1String("TODO:");
+}
+
+QString MerDevice::subNet() const
+{
+    return QLatin1String("TODO:");
+}
+
 #include "merdevice.moc"
 
 } // Internal
