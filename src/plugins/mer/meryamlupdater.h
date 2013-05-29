@@ -39,10 +39,12 @@ private slots:
     void onProFilesEvaluated(const ProjectExplorer::Project *project = 0);
 
 private:
-    bool handleProject(const Qt4ProjectManager::Qt4Project *qt4Project);
+    bool handleProject(Qt4ProjectManager::Qt4Project *qt4Project);
+    bool forgetProject(ProjectExplorer::Project *project);
 
 private:
     QFutureInterface<void> m_progress;
+    QList<const ProjectExplorer::Project*> m_projectsToHandle;
 };
 
 } // Internal

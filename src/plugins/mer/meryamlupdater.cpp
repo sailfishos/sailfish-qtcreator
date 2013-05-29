@@ -136,10 +136,20 @@ void MerYamlUpdater::onProFilesEvaluated(const Project *proj)
     m_progress.reportFinished();
 }
 
-bool MerYamlUpdater::handleProject(const Qt4Project *qt4Project)
+bool MerYamlUpdater::handleProject(Qt4Project *qt4Project)
 {
+    if (m_projectsToHandle.contains(qt4Project))
+        return false;
+    m_projectsToHandle.append(qt4Project);
     connect(qt4Project, SIGNAL(proFilesEvaluated()), SLOT(onProFilesEvaluated()));
     onProFilesEvaluated(qt4Project);
+    return true;
+}
+
+bool MerYamlUpdater::forgetProject(Project *project)
+{
+    m_projectsToHandle.removeOne(project);
+    project->disconnect(this);
     return true;
 }
 
