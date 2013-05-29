@@ -136,6 +136,8 @@ const char MER_SSH_USERNAME[] = "MER_SSH_USERNAME";
 const char MER_SSH_PRIVATE_KEY[] = "MER_SSH_PRIVATE_KEY";
 const char MER_SSH_PORT[] = "MER_SSH_PORT";
 
+const char MER_PROJECTPATH_ENVVAR_NAME[] = "MER_PROJECTPATH";
+
 } // namespace Constants
 } // namespace Mer
 
