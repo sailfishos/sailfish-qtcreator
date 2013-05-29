@@ -133,10 +133,15 @@ bool MerSSH::run(const QString &sdkToolsDir, const QString &merTargetName,
     }
 
     QString prefix;
-    if (type == CommandTypeSb2)
+    if (type == CommandTypeSb2) {
         prefix = QLatin1String("sb2 -t ");
-    else if (type == CommandTypeMb2)
-        prefix = QLatin1String("mb2 -t ");
+    } else if (type == CommandTypeMb2) {
+        const QString projectPath = QString::fromUtf8(qgetenv(MER_PROJECTPATH_ENVVAR_NAME));
+        const QString projectPathParameter = projectPath.isEmpty()
+                ? QString()
+                : QLatin1String(" -p ") + projectPath;
+        prefix = QLatin1String("mb2") + projectPathParameter + QLatin1String(" -t ");
+    }
     QString completeCommand = (type == CommandTypeStandard)
             ? command
             : prefix + merTargetName + QLatin1Char(' ') + command + QLatin1Char(' ');
