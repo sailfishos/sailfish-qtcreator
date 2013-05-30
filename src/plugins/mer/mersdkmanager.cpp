@@ -109,7 +109,7 @@ void MerSdkManager::initialize()
         QList<MerQtVersion*> qtversions = merQtVersions();
         //cleanup
         foreach (MerToolChain *toolchain, toolchains) {
-            const MerSdk *sdk = m_sdks[toolchain->virtualMachineName()];
+            const MerSdk *sdk = m_sdks.value(toolchain->virtualMachineName());
             if (sdk && sdk->targetNames().contains(toolchain->targetName()))
                 continue;
             qWarning() << "MerToolChain wihout target found. Removing toolchain.";
@@ -117,7 +117,7 @@ void MerSdkManager::initialize()
         }
 
         foreach (MerQtVersion *version, qtversions) {
-            const MerSdk *sdk = m_sdks[version->virtualMachineName()];
+            const MerSdk *sdk = m_sdks.value(version->virtualMachineName());
             if (sdk && sdk->targetNames().contains(version->targetName()))
                 continue;
             qWarning() << "MerQtVersion without target found. Removing qtversion.";
@@ -452,7 +452,7 @@ MerSdk* MerSdkManager::createSdk(const QString &vmName)
 
 MerSdk* MerSdkManager::sdk(const QString &sdkName) const
 {
-    return m_sdks[sdkName];
+    return m_sdks.value(sdkName);
 }
 
 bool MerSdkManager::validateKit(const Kit *kit)

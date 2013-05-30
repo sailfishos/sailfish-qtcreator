@@ -24,7 +24,6 @@
 #define MERCONNECTIONMANAGER_H
 
 #include <QObject>
-#include <QMap>
 
 namespace ProjectExplorer {
 class Kit;
