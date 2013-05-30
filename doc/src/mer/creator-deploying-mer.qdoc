@@ -34,15 +34,9 @@
     project .pro file. You can view the settings in the \gui {Run Settings}.
 
     When you run the application on a SailfishOS device, \QC deploys the application as
-    specified by the deploy steps. You can either copy the application files to
-    the device or create a package that is installed and maintained by using the
-    RPM package manager. In both cases, \QC uses the SSH file transfer protocol
-    (SFTP) to transfer the files.
+    specified by the deploy steps.
 
     \section1 Uploading Files via SFTP
-
-    To copy the application files to the device, select
-    \gui {Copy Files to Device}.
 
     \image creator-mer-deploy-settings.png
 
@@ -55,6 +49,9 @@
     \l{http://qt-project.org/doc/qt-4.8/qmake-variable-reference.html#installs}
     {INSTALLS variable} in the project .pro file to add the missing files.
 
+    The \gui {Upload files via SFTP} step determines that \QC uses the SSH file
+    transfer protocol (SFTP) to transfer the files to the device.
+
     If you have a lot of data to copy, select \gui Details in the
     \gui {Upload files via SFTP} step, and then select the
     \gui {Incremental deployment} check box. \QC takes note of the deployment
@@ -64,17 +61,4 @@
     another device with the same IP address, deselect the check box once, to
     have \QC deploy all files again.
 
-    \section1 Creating RPM Packages
-
-    To create a package that can be installed and maintained by using the RPM
-    package manager, select \gui {Install from RPM Package}.
-
-    \image creator-mer-deploy-settings-rpm.png
-
-    \QC creates an installation package in RPM format, copies it to the SailfishOS
-    device, and installs it.
-
-    The package name is of the following format:
-    <project-name>-<target-name>.rpm. You can deploy the RPM file to SailfishOS
-    devices.
 */
