@@ -52970,75 +52970,75 @@ should a repository require SSH-authentication (see documentation on SSH and the
     <name>gettingstarted</name>
     <message>
         <source>Getting Started</source>
-        <translation type="unfinished">入门</translation>
+        <translation>入门</translation>
     </message>
     <message>
         <source>User Interface</source>
-        <translation type="unfinished">用户界面</translation>
+        <translation>用户界面</translation>
     </message>
     <message>
         <source>Building and running applications</source>
-        <translation type="unfinished"></translation>
+        <translation>生成和运行应用程序</translation>
     </message>
     <message>
         <source>Create your first SailfishOS application and test the installation</source>
-        <translation type="unfinished"></translation>
+        <translation>创建您的首个 SailfishOS 应用程序并对安装进行测试</translation>
     </message>
     <message>
         <source>SailfishOS UI</source>
-        <translation type="unfinished"></translation>
+        <translation>SailfishOS UI</translation>
     </message>
     <message>
         <source>Explore the design principles and workflow of the SailfishOS user interface</source>
-        <translation type="unfinished"></translation>
+        <translation>了解 SailfishOS 用户界面的设计原则和工作流程。</translation>
     </message>
     <message>
         <source>Develop</source>
-        <translation type="unfinished">开发</translation>
+        <translation>开发</translation>
     </message>
     <message>
         <source>Read and experiment with the Sailfish Silica components</source>
-        <translation type="unfinished"></translation>
+        <translation>阅读 Sailfish Silica 组件信息并尝试使用这些组件</translation>
     </message>
     <message>
         <source>To select a tutorial and learn how to develop applications.</source>
-        <translation type="unfinished"></translation>
+        <translation>选择教程并了解如何开发应用程序。</translation>
     </message>
     <message>
         <source>Start Developing</source>
-        <translation type="unfinished"></translation>
+        <translation>开始开发</translation>
     </message>
     <message>
         <source>To check that the Qt SDK installation was successful, open an example application and run it.</source>
-        <translation type="unfinished"></translation>
+        <translation>要查看是否已成功安装 Qt SDK，请打开示例应用程序并尝试运行。</translation>
     </message>
     <message>
         <source>Building and Running an Example Application</source>
-        <translation type="unfinished"></translation>
+        <translation>生成并运行示例应用程序</translation>
     </message>
     <message>
         <source>IDE Overview</source>
-        <translation type="unfinished"></translation>
+        <translation>IDE 概述</translation>
     </message>
     <message>
         <source>To find out what kind of integrated environment (IDE) Qt Creator is.</source>
-        <translation type="unfinished"></translation>
+        <translation>了解 Qt Creator 属于哪类集成环境(IDE)。</translation>
     </message>
     <message>
         <source>To become familiar with the parts of the Qt Creator user interface and to learn how to use them.</source>
-        <translation type="unfinished"></translation>
+        <translation>熟悉 Qt Creator 用户界面的各个组成部分并了解如何使用它们。</translation>
     </message>
     <message>
         <source>User Guide</source>
-        <translation type="unfinished"></translation>
+        <translation>用户指南</translation>
     </message>
     <message>
         <source>Online Community</source>
-        <translation type="unfinished"></translation>
+        <translation>在线社区</translation>
     </message>
     <message>
         <source>Blogs</source>
-        <translation type="unfinished"></translation>
+        <translation>博客</translation>
     </message>
 </context>
 <context>
@@ -58669,474 +58669,477 @@ cannot be found in the path.</source>
     <name>Mer::Internal::MerDeviceConfigurationWidget</name>
     <message>
         <source>Form</source>
-        <translation type="unfinished">界面</translation>
+        <translation>界面</translation>
     </message>
     <message>
         <source>Authentication type:</source>
-        <translation type="unfinished">验证类型:</translation>
+        <translation>验证类型:</translation>
     </message>
     <message>
         <source>Password</source>
-        <translation type="unfinished">密码</translation>
+        <translation>密码</translation>
     </message>
     <message>
         <source>&amp;Key</source>
-        <translation type="unfinished">密钥(&amp;K)</translation>
+        <translation>密钥(&amp;K)</translation>
     </message>
     <message>
         <source>&amp;Host name:</source>
-        <translation type="unfinished">主机名称(&amp;H):</translation>
+        <translation>主机名称(&amp;H):</translation>
     </message>
     <message>
         <source>IP or host name of the device</source>
-        <translation type="unfinished">设备的IP或者主机名称</translation>
+        <translation>设备的 IP 或者主机名称</translation>
     </message>
     <message>
         <source>&amp;SSH port:</source>
-        <translation type="unfinished">SSH端口(&amp;S):</translation>
+        <translation>SSH 端口(&amp;S):</translation>
     </message>
     <message>
         <source>Free ports:</source>
-        <translation type="unfinished">空闲端口:</translation>
+        <translation>空闲端口:</translation>
     </message>
     <message>
         <source>You can enter lists and ranges like this: 1024,1026-1028,1030</source>
-        <translation type="unfinished"></translation>
+        <translation>您可以按照如下所示，输入列表和范围:1024,1026-1028,1030</translation>
     </message>
     <message>
         <source>Timeout:</source>
-        <translation type="unfinished">超时时间:</translation>
+        <translation>超时时间:</translation>
     </message>
     <message>
         <source>s</source>
-        <translation type="unfinished">秒</translation>
+        <translation>秒</translation>
     </message>
     <message>
         <source>&amp;Username:</source>
-        <translation type="unfinished">用户名(&amp;U):</translation>
+        <translation>用户名(&amp;U):</translation>
     </message>
     <message>
         <source>&amp;Password:</source>
-        <translation type="unfinished">密码(&amp;P):</translation>
+        <translation>密码(&amp;P):</translation>
     </message>
     <message>
         <source>Show password</source>
-        <translation type="unfinished">显示密码</translation>
+        <translation>显示密码</translation>
     </message>
     <message>
         <source>Private key file:</source>
-        <translation type="unfinished">私钥文件:</translation>
+        <translation>私钥文件:</translation>
     </message>
     <message>
         <source>Create New...</source>
-        <translation type="unfinished">创建新密钥...</translation>
+        <translation>创建新密钥...</translation>
     </message>
     <message>
         <source>Machine type:</source>
-        <translation type="unfinished">机器类型:</translation>
+        <translation>机器类型:</translation>
     </message>
     <message>
         <source>Physical Device</source>
-        <translation type="unfinished">物理设备</translation>
+        <translation>物理设备</translation>
     </message>
     <message>
         <source>Emulator</source>
-        <translation type="unfinished">模拟器</translation>
+        <translation>模拟器</translation>
     </message>
     <message>
         <source>You will need at least two ports for debugging.</source>
-        <translation type="unfinished"></translation>
+        <translation>您至少需要两个端口来进行调试。</translation>
     </message>
 </context>
 <context>
     <name>Mer::Internal::MerDeviceConfigWizardCheckPreviousKeySetupPage</name>
     <message>
         <source>WizardPage</source>
-        <translation type="unfinished">向导页面</translation>
+        <translation>向导页面</translation>
     </message>
     <message>
         <source>Has a passwordless (key-based) login already been set up for this device?</source>
-        <translation type="unfinished"></translation>
+        <translation>这台设备是否已设置为无需密码（需要密钥）即可登录?</translation>
     </message>
     <message>
         <source>Yes, and the private key is located at</source>
-        <translation type="unfinished">是的，私钥保存在</translation>
+        <translation>是的，私钥保存在</translation>
     </message>
     <message>
         <source>No</source>
-        <translation type="unfinished">否</translation>
+        <translation>否</translation>
     </message>
 </context>
 <context>
     <name>Mer::Internal::MerDeviceConfigWizardGeneralPage</name>
     <message>
         <source>WizardPage</source>
-        <translation type="unfinished">向导页面</translation>
+        <translation>向导页面</translation>
     </message>
     <message>
         <source>Configuration:</source>
-        <translation type="unfinished">配置:</translation>
+        <translation>配置:</translation>
     </message>
     <message>
         <source>Virtual Machine</source>
-        <translation type="unfinished"></translation>
+        <translation>虚拟机</translation>
     </message>
     <message>
         <source>Real Device</source>
-        <translation type="unfinished"></translation>
+        <translation>实际设备</translation>
     </message>
     <message>
         <source>Device Name:</source>
-        <translation type="unfinished"></translation>
+        <translation>设备名称:</translation>
     </message>
     <message>
         <source>Host:</source>
-        <translation type="unfinished">主机:</translation>
+        <translation>主机:</translation>
     </message>
     <message>
         <source>Username:</source>
-        <translation type="unfinished">用户名:</translation>
+        <translation>用户名:</translation>
     </message>
     <message>
         <source>Auhtentication type:</source>
-        <translation type="unfinished"></translation>
+        <translation>验证类型:</translation>
     </message>
     <message>
         <source>Password</source>
-        <translation type="unfinished">密码</translation>
+        <translation>密码</translation>
     </message>
     <message>
         <source>Key</source>
-        <translation type="unfinished">密钥</translation>
+        <translation>密钥</translation>
     </message>
     <message>
         <source>Password:</source>
-        <translation type="unfinished">密码:</translation>
+        <translation>密码:</translation>
     </message>
     <message>
         <source>The SSH server port:</source>
-        <translation type="unfinished">SSH 服务器端口:</translation>
+        <translation>SSH 服务器端口:</translation>
     </message>
     <message>
         <source>Free Ports:</source>
-        <translation type="unfinished"></translation>
+        <translation>可用端口:</translation>
     </message>
     <message>
         <source>Note: For debugging, at least 2 free ports are required.</source>
-        <translation type="unfinished"></translation>
+        <translation>注意：如需进行调试，则至少需要 2 个可用端口。</translation>
     </message>
     <message>
         <source>Architecture:</source>
-        <translation type="unfinished">体系结构:</translation>
+        <translation>体系结构:</translation>
     </message>
     <message>
         <source>undefined</source>
-        <translation type="unfinished"></translation>
+        <translation>未定义的</translation>
     </message>
     <message>
         <source>General Information</source>
-        <translation type="unfinished"></translation>
+        <translation>一般信息</translation>
     </message>
     <message>
         <source>Mer ARM Device</source>
-        <translation type="unfinished"></translation>
+        <translation>Mer ARM 设备</translation>
     </message>
 </context>
 <context>
     <name>Mer::Internal::MerDeviceConfigWizardKeyCreationPage</name>
     <message>
         <source>WizardPage</source>
-        <translation type="unfinished">向导页面</translation>
+        <translation>向导页面</translation>
     </message>
     <message>
         <source>Qt Creator will now generate a new pair of keys. Please enter the directory to save the key files in and then press &quot;Create Keys&quot;.</source>
-        <translation type="unfinished"></translation>
+        <translation>Qt Creator 将生成一对新密钥。请输入路径以保存密钥文件，然后按&quot;创建密钥&quot;。</translation>
     </message>
     <message>
         <source>Directory:</source>
-        <translation type="unfinished">目录:</translation>
+        <translation>目录:</translation>
     </message>
     <message>
         <source>Create Keys</source>
-        <translation type="unfinished"></translation>
+        <translation>创建密钥</translation>
     </message>
     <message>
         <source>Authorize Keys</source>
-        <translation type="unfinished"></translation>
+        <translation>验证密钥</translation>
     </message>
     <message>
         <source>Key Creation</source>
-        <translation type="unfinished">密钥创建</translation>
+        <translation>密钥创建</translation>
     </message>
     <message>
         <source>Cannot Create Keys</source>
-        <translation type="unfinished">无法创建密钥</translation>
+        <translation>无法创建密钥</translation>
     </message>
     <message>
         <source>The path you have entered is not a directory.</source>
-        <translation type="unfinished">您输入的路径不是一个目录。</translation>
+        <translation>您输入的路径不是一个目录。</translation>
     </message>
     <message>
         <source>The directory you have entered does not exist and cannot be created.</source>
-        <translation type="unfinished">您输入的目录不存在也不可以被创建。</translation>
+        <translation>您输入的目录不存在也不可以被创建。</translation>
     </message>
     <message>
         <source>Creating keys...</source>
-        <translation type="unfinished">创建密钥...</translation>
+        <translation>创建密钥...</translation>
     </message>
     <message>
         <source>Key creation failed: %1</source>
-        <translation type="unfinished">密钥创建失败: %1</translation>
+        <translation>密钥创建失败:%1</translation>
     </message>
     <message>
         <source>Done.</source>
-        <translation type="unfinished">完成。</translation>
+        <translation>完成。</translation>
     </message>
     <message>
         <source>Authorizing keys...</source>
-        <translation type="unfinished"></translation>
+        <translation>验证密钥...</translation>
     </message>
     <message>
         <source>Could Not Save Key File</source>
-        <translation type="unfinished">无法保存密钥文件</translation>
+        <translation>无法保存密钥文件</translation>
     </message>
 </context>
 <context>
     <name>Mer::Internal::MerDeviceConfigWizardReuseKeysCheckPage</name>
     <message>
         <source>WizardPage</source>
-        <translation type="unfinished">向导页面</translation>
+        <translation>向导页面</translation>
     </message>
     <message>
         <source>Do you want to re-use an existing pair of keys or should a new one be created?</source>
-        <translation type="unfinished">您想要使用现有的密钥对还是创建一对新的?</translation>
+        <translation>您想要使用现有的密钥对还是创建一对新的?</translation>
     </message>
     <message>
         <source>Re-use existing keys</source>
-        <translation type="unfinished">重复使用现有密钥</translation>
+        <translation>重复使用现有密钥</translation>
     </message>
     <message>
         <source>File containing the public key:</source>
-        <translation type="unfinished"></translation>
+        <translation>包含公钥的文件:</translation>
     </message>
     <message>
         <source>File containing the private key:</source>
-        <translation type="unfinished"></translation>
+        <translation>包含私钥的文件:</translation>
     </message>
     <message>
         <source>Create new keys</source>
-        <translation type="unfinished">创建新密钥</translation>
+        <translation>创建新密钥</translation>
     </message>
     <message>
         <source>Existing Keys Check</source>
-        <translation type="unfinished">现有密钥检测</translation>
+        <translation>现有密钥检测</translation>
     </message>
 </context>
 <context>
     <name>Mer::Internal::MerManagementWebView</name>
     <message>
         <source>Form</source>
-        <translation type="unfinished">界面</translation>
+        <translation>界面</translation>
     </message>
     <message>
         <source>about:blank</source>
-        <translation type="unfinished"></translation>
+        <translation>about:blank</translation>
     </message>
 </context>
 <context>
     <name>Mer::Internal::MerOptionsWidget</name>
     <message>
         <source>Form</source>
-        <translation type="unfinished">界面</translation>
+        <translation>界面</translation>
     </message>
     <message>
         <source>Virtual Machine:</source>
-        <translation type="unfinished"></translation>
+        <translation>虚拟机:</translation>
     </message>
     <message>
         <source>Add...</source>
-        <translation type="unfinished">添加...</translation>
+        <translation>添加...</translation>
     </message>
     <message>
         <source>Remove</source>
-        <translation type="unfinished">删除</translation>
+        <translation>删除</translation>
     </message>
     <message>
         <source>Start Virtual Machine</source>
-        <translation type="unfinished"></translation>
+        <translation>启动虚拟机</translation>
     </message>
     <message>
         <source>Not connected.</source>
-        <translation type="unfinished"></translation>
+        <translation>未连接。</translation>
     </message>
     <message>
         <source>Not tested.</source>
-        <translation type="unfinished"></translation>
+        <translation>未测试。</translation>
     </message>
     <message>
         <source>Add Mer SDK</source>
-        <translation type="unfinished"></translation>
+        <translation>添加 Mer SDK</translation>
     </message>
     <message>
         <source>Connecting to machine %1 ...</source>
-        <translation type="unfinished"></translation>
+        <translation>连接至机器 %1...</translation>
     </message>
     <message>
         <source>Virtual machine %1 is not running.</source>
-        <translation type="unfinished"></translation>
+        <translation>虚拟机 %1 未运行。</translation>
     </message>
     <message>
         <source>Cannot Authorize Keys</source>
-        <translation type="unfinished"></translation>
+        <translation>无法验证密钥</translation>
     </message>
     <message>
         <source>Key Authorized </source>
-        <translation type="unfinished"></translation>
+        <translation>密钥已验证</translation>
     </message>
     <message>
         <source>Key %1 added to 
  %2</source>
-        <translation type="unfinished"></translation>
+        <translation>密钥 %1 已添加至
+ %2</translation>
     </message>
     <message>
         <source>Could not generate key.</source>
-        <translation type="unfinished"></translation>
+        <translation>无法生成密钥。</translation>
     </message>
     <message>
         <source>Key generated</source>
-        <translation type="unfinished"></translation>
+        <translation>已生成密钥</translation>
     </message>
     <message>
         <source>Key pair generated 
  %1 
  You should authorzie key now.</source>
-        <translation type="unfinished"></translation>
+        <translation>已生成密钥对
+ %1 
+ 您现在应验证密钥。</translation>
     </message>
 </context>
 <context>
     <name>Mer::Internal::MerSdkDetailsWidget</name>
     <message>
         <source>Dialog</source>
-        <translation type="unfinished">对话框</translation>
+        <translation>对话框</translation>
     </message>
     <message>
         <source>Virtual Machine</source>
-        <translation type="unfinished"></translation>
+        <translation>虚拟机</translation>
     </message>
     <message>
         <source>Name:</source>
-        <translation type="unfinished">名称:</translation>
+        <translation>名称:</translation>
     </message>
     <message>
         <source>Host:</source>
-        <translation type="unfinished">主机:</translation>
+        <translation>主机:</translation>
     </message>
     <message>
         <source>localhost</source>
-        <translation type="unfinished">localhost</translation>
+        <translation>本地主机</translation>
     </message>
     <message>
         <source>Ssh Port:</source>
-        <translation type="unfinished"></translation>
+        <translation>Ssh 端口:</translation>
     </message>
     <message>
         <source>2222</source>
-        <translation type="unfinished">2222</translation>
+        <translation>2222</translation>
     </message>
     <message>
         <source>Web port:</source>
-        <translation type="unfinished"></translation>
+        <translation>Web 端口:</translation>
     </message>
     <message>
         <source>8080</source>
-        <translation type="unfinished">8080</translation>
+        <translation>8080</translation>
     </message>
     <message>
         <source>Targets:</source>
-        <translation type="unfinished">目标:</translation>
+        <translation>目标:</translation>
     </message>
     <message>
         <source>None</source>
-        <translation type="unfinished">无</translation>
+        <translation>无</translation>
     </message>
     <message>
         <source>Shared folders</source>
-        <translation type="unfinished"></translation>
+        <translation>共享文件夹</translation>
     </message>
     <message>
         <source>&quot;home&quot; folder:</source>
-        <translation type="unfinished"></translation>
+        <translation>&quot;主&quot;文件夹:</translation>
     </message>
     <message>
         <source>&quot;targets&quot; folder:</source>
-        <translation type="unfinished"></translation>
+        <translation>&quot;目标&quot;文件夹:</translation>
     </message>
     <message>
         <source>&quot;ssh&quot; folder:</source>
-        <translation type="unfinished"></translation>
+        <translation>&quot;ssh&quot;文件夹:</translation>
     </message>
     <message>
         <source>Connection</source>
-        <translation type="unfinished"></translation>
+        <translation>连接</translation>
     </message>
     <message>
         <source>UserName:</source>
-        <translation type="unfinished"></translation>
+        <translation>用户名:</translation>
     </message>
     <message>
         <source>Ssh key: </source>
-        <translation type="unfinished"></translation>
+        <translation>Ssh 密钥:</translation>
     </message>
     <message>
         <source>Generate Key</source>
-        <translation type="unfinished"></translation>
+        <translation>生成密钥</translation>
     </message>
     <message>
         <source>Authorize Key</source>
-        <translation type="unfinished"></translation>
+        <translation>验证密钥</translation>
     </message>
     <message>
         <source>Status:</source>
-        <translation type="unfinished"></translation>
+        <translation>状态:</translation>
     </message>
     <message>
         <source>Not Connected</source>
-        <translation type="unfinished"></translation>
+        <translation>未连接</translation>
     </message>
     <message>
         <source>Test Connection</source>
-        <translation type="unfinished"></translation>
+        <translation>测试连接</translation>
     </message>
     <message>
         <source>Select SSH Key</source>
-        <translation type="unfinished"></translation>
+        <translation>选择 SSH 密钥</translation>
     </message>
     <message>
         <source>No targets installed</source>
-        <translation type="unfinished"></translation>
+        <translation>未安装目标</translation>
     </message>
     <message>
         <source>Add SDK first to see targets</source>
-        <translation type="unfinished"></translation>
+        <translation>查看目标之前先添加 SDK</translation>
     </message>
     <message>
         <source>Add public key to %1</source>
-        <translation type="unfinished"></translation>
+        <translation>添加公钥至 %1</translation>
     </message>
 </context>
 <context>
     <name>Mer::Internal::MerSdkSelectionDialog</name>
     <message>
         <source>WizardPage</source>
-        <translation type="unfinished">向导页面</translation>
+        <translation>向导页面</translation>
     </message>
     <message>
         <source>Available Virtual Machines:</source>
-        <translation type="unfinished"></translation>
+        <translation>可用的虚拟机:</translation>
     </message>
     <message>
         <source>Add</source>
-        <translation type="unfinished">添加</translation>
+        <translation>添加</translation>
     </message>
 </context>
 <context>
@@ -60859,247 +60862,249 @@ Commit now?</source>
     <name>Mer::Internal::JollaWelcomePage</name>
     <message>
         <source>Getting Started</source>
-        <translation type="unfinished">入门</translation>
+        <translation>入门</translation>
     </message>
 </context>
 <context>
     <name>Mer::Internal::MerRemoteConnection</name>
     <message>
         <source>%1: %2</source>
-        <translation type="unfinished">%1: %2</translation>
+        <translation>%1:%2</translation>
     </message>
 </context>
 <context>
     <name>Mer::Internal::MerConnectionManager</name>
     <message>
         <source>Emulator</source>
-        <translation type="unfinished">模拟器</translation>
+        <translation>模拟器</translation>
     </message>
     <message>
         <source>Start Emulator</source>
-        <translation type="unfinished"></translation>
+        <translation>启动模拟器</translation>
     </message>
     <message>
         <source>Stop Emulator</source>
-        <translation type="unfinished"></translation>
+        <translation>停止模拟器</translation>
     </message>
     <message>
         <source>MerSdk</source>
-        <translation type="unfinished"></translation>
+        <translation>MerSdk</translation>
     </message>
     <message>
         <source>Start Sdk</source>
-        <translation type="unfinished"></translation>
+        <translation>启动 Sdk</translation>
     </message>
     <message>
         <source>Stop Sdk</source>
-        <translation type="unfinished"></translation>
+        <translation>停止 Sdk</translation>
     </message>
     <message>
         <source>Connected</source>
-        <translation type="unfinished"></translation>
+        <translation>已连接</translation>
     </message>
 </context>
 <context>
     <name>Mer</name>
     <message>
         <source>Mer</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mer</translation>
     </message>
     <message>
         <source>SDK</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">SDK</translation>
     </message>
     <message>
         <source>Copy Files to Device</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">复制文件至设备</translation>
     </message>
 </context>
 <context>
     <name>Mer::Internal::MerDeployConfigurationFactory</name>
     <message>
         <source>Mer</source>
-        <translation type="unfinished"></translation>
+        <translation>Mer</translation>
     </message>
 </context>
 <context>
     <name>Mer::Internal::PublicKeyDeploymentDialog</name>
     <message>
         <source>Deploying...</source>
-        <translation type="unfinished">部署中...</translation>
+        <translation>部署中...</translation>
     </message>
     <message>
         <source>Deployed</source>
-        <translation type="unfinished"></translation>
+        <translation>已部署</translation>
     </message>
     <message>
         <source>Close</source>
-        <translation type="unfinished">关闭</translation>
+        <translation>关闭</translation>
     </message>
 </context>
 <context>
     <name>Mer::Internal::MerDevice</name>
     <message>
         <source>Mer</source>
-        <translation type="unfinished"></translation>
+        <translation>Mer</translation>
     </message>
     <message>
         <source>Deploy Public Key</source>
-        <translation type="unfinished"></translation>
+        <translation>部署公钥</translation>
     </message>
     <message>
         <source>Start Emulator</source>
-        <translation type="unfinished"></translation>
+        <translation>启动模拟器</translation>
     </message>
 </context>
 <context>
     <name>Mer::Internal::MerDeviceConfigurationWizard</name>
     <message>
         <source>New Mer Device Configuration Setup</source>
-        <translation type="unfinished"></translation>
+        <translation>全新 Mer 设备配置设置</translation>
     </message>
 </context>
 <context>
     <name>Mer::Internal::MerDeviceConfigWizardPreviousKeySetupCheckPage</name>
     <message>
         <source>Device Status Check</source>
-        <translation type="unfinished"></translation>
+        <translation>设备状态检查</translation>
     </message>
 </context>
 <context>
     <name>Mer::Internal::MerDeviceConfigWizardFinalPage</name>
     <message>
         <source>Start Emulator</source>
-        <translation type="unfinished"></translation>
+        <translation>启动模拟器</translation>
     </message>
     <message>
         <source>The new device configuration will now be created.</source>
-        <translation type="unfinished">新设备配置将会被创建。</translation>
+        <translation>新设备配置将会被创建。</translation>
     </message>
 </context>
 <context>
     <name>Mer::Internal::MerDeviceFactory</name>
     <message>
         <source>Mer i486 Device</source>
-        <translation type="unfinished"></translation>
+        <translation>Mer i486 设备</translation>
     </message>
     <message>
         <source>Mer ARM Device</source>
-        <translation type="unfinished"></translation>
+        <translation>Mer ARM 设备</translation>
     </message>
 </context>
 <context>
     <name>Mer::Internal::MerEmulatorStartService</name>
     <message>
         <source>Checking whether to start Emulator...</source>
-        <translation type="unfinished"></translation>
+        <translation>查看是否要启动模拟器...</translation>
     </message>
     <message>
         <source>Target device is not an emulator. Nothing to do.</source>
-        <translation type="unfinished">目标设备不是一个模拟器，没什么要做的。</translation>
+        <translation>目标设备不是一个模拟器，没什么要做的。</translation>
     </message>
     <message>
         <source>Emulator is already running. Nothing to do.</source>
-        <translation type="unfinished"></translation>
+        <translation>模拟器正在运行，没什么要做的。</translation>
     </message>
     <message>
         <source>Virtual Machine &apos;%1&apos; is not running!</source>
-        <translation type="unfinished"></translation>
+        <translation>虚拟机 &apos;%1&apos; 未运行!</translation>
     </message>
 </context>
 <context>
     <name>Mer::Internal::MerEmulatorStartStep</name>
     <message>
         <source>Start Emulator, if necessary</source>
-        <translation type="unfinished"></translation>
+        <translation>如需要，启动模拟器</translation>
     </message>
 </context>
 <context>
     <name>Mer::Internal::MerMode</name>
     <message>
         <source>SailfishOS</source>
-        <translation type="unfinished"></translation>
+        <translation>SailfishOS</translation>
     </message>
 </context>
 <context>
     <name>Mer::Internal::MerRunConfigurationFactory</name>
     <message>
         <source>%1 on Mer Device</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 在 Mer 设备上</translation>
     </message>
 </context>
 <context>
     <name>Mer::Internal::MerRunControlFactory</name>
     <message>
         <source>Run on remote Mer device</source>
-        <translation type="unfinished"></translation>
+        <translation>在远程 Mer 设备上运行</translation>
     </message>
 </context>
 <context>
     <name>MerSdk</name>
     <message>
         <source>No valid MerSdk virtual machine %1 found</source>
-        <translation type="unfinished"></translation>
+        <translation></translation>
     </message>
     <message>
         <source>No valid specify tool found</source>
-        <translation type="unfinished"></translation>
+        <translation></translation>
     </message>
 </context>
 <context>
     <name>Mer::Internal::MerSdkKitInformation</name>
     <message>
         <source>MerSdk</source>
-        <translation type="unfinished"></translation>
+        <translation>MerSdk</translation>
     </message>
 </context>
 <context>
     <name>Mer::Internal::MerSdkKitInformationWidget</name>
     <message>
         <source>Manage...</source>
-        <translation type="unfinished">管理...</translation>
+        <translation>管理...</translation>
     </message>
     <message>
         <source>None</source>
-        <translation type="unfinished">无</translation>
+        <translation>无</translation>
     </message>
     <message>
         <source>Mer SDK:</source>
-        <translation type="unfinished"></translation>
+        <translation>Mer SDK:</translation>
     </message>
     <message>
         <source>Name of virtual machine used as Mer SDK.</source>
-        <translation type="unfinished"></translation>
+        <translation>作为 Mer SDK 使用的虚拟机的名称。</translation>
     </message>
 </context>
 <context>
     <name>Mer::Internal::MerSdkManager</name>
     <message>
         <source>Error: File %1 is missing.</source>
-        <translation type="unfinished"></translation>
+        <translation>错误:文件 %1 丢失。</translation>
     </message>
     <message>
         <source>Error: %1</source>
-        <translation type="unfinished">错误: %1</translation>
+        <translation>错误:%1</translation>
     </message>
     <message>
         <source>Error: Could not create directory %1</source>
-        <translation type="unfinished"></translation>
+        <translation>错误:无法创建路径 %1</translation>
     </message>
     <message>
         <source>Key already authorized ! 
  %1 already in %2</source>
-        <translation type="unfinished"></translation>
+        <translation>已验证密钥!
+ %1 已在 %2 中</translation>
     </message>
     <message>
         <source>Error: File &apos;%1&apos; exists.
 </source>
-        <translation type="unfinished"></translation>
+        <translation>错误:文件 &apos;%1&apos; 已存在。
+</translation>
     </message>
     <message>
         <source>Error: %1
 </source>
-        <translation type="unfinished">错误: %1
+        <translation>错误:%1
 </translation>
     </message>
 </context>
@@ -61107,39 +61112,39 @@ Commit now?</source>
     <name>Mer::Internal::MerSftpDeployConfiguration</name>
     <message>
         <source>Mer</source>
-        <translation type="unfinished"></translation>
+        <translation>Mer</translation>
     </message>
 </context>
 <context>
     <name>Mer::Internal::MerSpecifyKitInformationWidget</name>
     <message>
         <source>Specify:</source>
-        <translation type="unfinished"></translation>
+        <translation>指定:</translation>
     </message>
     <message>
         <source>Path for specify tool.</source>
-        <translation type="unfinished"></translation>
+        <translation>指定工具的路径。</translation>
     </message>
 </context>
 <context>
     <name>Mer::Internal::MerSpecifyKitInformation</name>
     <message>
         <source>Specify</source>
-        <translation type="unfinished"></translation>
+        <translation>指定</translation>
     </message>
 </context>
 <context>
     <name>Mer::Internal::MerSpecUpdater</name>
     <message>
         <source>Updating Spec</source>
-        <translation type="unfinished"></translation>
+        <translation>更新规格</translation>
     </message>
 </context>
 <context>
     <name>Mer::MessageHandler</name>
     <message>
         <source>Error %1:%2:%3 %4</source>
-        <translation type="unfinished"></translation>
+        <translation>错误 %1:%2:%3%4</translation>
     </message>
 </context>
 <context>
@@ -61165,31 +61170,33 @@ Commit now?</source>
     <name>Mer::Internal::MerToolChainFactory</name>
     <message>
         <source>Mer</source>
-        <translation type="unfinished"></translation>
+        <translation>Mer</translation>
     </message>
 </context>
 <context>
     <name>Mer::Internal::MerVirtualBoxManager</name>
     <message>
         <source>Virtual Machine Error</source>
-        <translation type="unfinished"></translation>
+        <translation>虚拟机错误</translation>
     </message>
     <message>
         <source>Start Virtual Machine</source>
-        <translation type="unfinished"></translation>
+        <translation>启动虚拟机</translation>
     </message>
     <message>
         <source>Virtual Machine &apos;%1&apos; is not running! Please start the Virtual Machine and retry after the Virtual Machine is running.
 
 Start Virtual Machine now?</source>
-        <translation type="unfinished"></translation>
+        <translation>虚拟机 &apos;%1&apos; 未运行!请启动虚拟机，然后在虚拟机开始运行之后重试。
+
+立即启动虚拟机?</translation>
     </message>
 </context>
 <context>
     <name>Mer::Internal::MerYamlUpdater</name>
     <message>
         <source>Updating YAML</source>
-        <translation type="unfinished"></translation>
+        <translation>更新 YAML</translation>
     </message>
 </context>
 <context>
