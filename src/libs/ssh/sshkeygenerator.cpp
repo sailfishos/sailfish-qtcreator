@@ -150,7 +150,7 @@ void SshKeyGenerator::generateOpenSslPrivateKeyString(const KeyPtr &key)
         const QSharedPointer<RSA_PrivateKey> rsaKey
             = key.dynamicCast<RSA_PrivateKey>();
         params << rsaKey->get_n() << rsaKey->get_e() << rsaKey->get_d() << rsaKey->get_p()
-            << rsaKey->get_q();
+               << rsaKey->get_q() << BigInt(0) << BigInt(0) << BigInt(0);
         keyId = SshCapabilities::PubKeyRsa;
         label = "RSA PRIVATE KEY";
     } else {
