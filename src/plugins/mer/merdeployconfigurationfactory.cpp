@@ -21,10 +21,11 @@
 ****************************************************************************/
 
 #include "merdeployconfigurationfactory.h"
-#include "mersftpdeployconfiguration.h"
+#include "merdeployconfiguration.h"
 #include "merconstants.h"
 #include "meremulatorstartstep.h"
 #include "merdevicefactory.h"
+#include "merdeploysteps.h"
 
 #include <extensionsystem/pluginmanager.h>
 #include <projectexplorer/buildstep.h>
@@ -50,15 +51,18 @@ QList<Core::Id> MerDeployConfigurationFactory::availableCreationIds(Target *pare
     QList<Core::Id> ids;
 
     if (canHandle(parent))
-        ids << Core::Id(Constants::MER_SFTP_DEPLOY_CONFIGURATION_ID);
+           ids << MerRsyncDeployConfiguration::configurationId() << MerRpmDeployConfiguration::configurationId();
+
 
     return ids;
 }
 
 QString MerDeployConfigurationFactory::displayNameForId(const Core::Id id) const
 {
-    if (id == Core::Id(Constants::MER_SFTP_DEPLOY_CONFIGURATION_ID))
-        return tr("Mer", Constants::MER_SFTP_DEPLOY_STRING);
+    if (id == MerRsyncDeployConfiguration::configurationId())
+        return MerRsyncDeployConfiguration::displayName();
+    else if (id == MerRpmDeployConfiguration::configurationId())
+        return MerRpmDeployConfiguration::displayName();
     return QString();
 }
 
@@ -76,15 +80,15 @@ DeployConfiguration *MerDeployConfigurationFactory::create(Target *parent, const
 
     ProjectExplorer::DeployConfiguration *dc = 0;
 
-    if (id == Constants::MER_SFTP_DEPLOY_CONFIGURATION_ID) {
-        dc = new MerSftpDeployConfiguration(parent, id);
-        dc->stepList()->insertStep(0, new MerEmulatorStartStep(dc->stepList()));
-        using namespace RemoteLinux;
-        GenericDirectUploadStep *uploadStep =
-                new GenericDirectUploadStep(dc->stepList(), GenericDirectUploadStep::stepId());
-        uploadStep->setIncrementalDeployment(false);
-        dc->stepList()->insertStep(1, uploadStep);
-    }
+     if (id == MerRpmDeployConfiguration::configurationId()) {
+         dc = new MerRpmDeployConfiguration(parent, id);
+         dc->stepList()->insertStep(0, new MerEmulatorStartStep(dc->stepList()));
+         dc->stepList()->insertStep(1, new MerRpmDeployStep(dc->stepList()));
+     } else if (id == MerRsyncDeployConfiguration::configurationId()) {
+         dc = new MerRsyncDeployConfiguration(parent, id);
+         dc->stepList()->insertStep(0, new MerEmulatorStartStep(dc->stepList()));
+         dc->stepList()->insertStep(1, new MerRsyncDeployStep(dc->stepList()));
+     }
 
     return dc;
 }
@@ -104,17 +108,13 @@ ProjectExplorer::DeployConfiguration *MerDeployConfigurationFactory::restore(
 
     Core::Id id = ProjectExplorer::idFromMap(map);
 
-    if (id == Core::Id(Constants::MER_SFTP_DEPLOY_CONFIGURATION_ID)) {
-        MerSftpDeployConfiguration *dc =
-                qobject_cast<MerSftpDeployConfiguration *>(create(parent, id));
-        QTC_ASSERT(dc, return 0);
-        if (!dc->fromMap(map)) {
-            delete dc;
-            return 0;
-        }
-        return dc;
+    MerDeployConfiguration * const dc = qobject_cast<MerDeployConfiguration *>(create(parent, id));
+    QTC_ASSERT(dc, return 0);
+    if (!dc->fromMap(map)) {
+        delete dc;
+        return 0;
     }
-    return 0;
+    return dc;
 }
 
 bool MerDeployConfigurationFactory::canClone(ProjectExplorer::Target *parent,
@@ -126,14 +126,15 @@ bool MerDeployConfigurationFactory::canClone(ProjectExplorer::Target *parent,
 ProjectExplorer::DeployConfiguration *MerDeployConfigurationFactory::clone(
         ProjectExplorer::Target *parent, ProjectExplorer::DeployConfiguration *source)
 {
+
     if (!canClone(parent, source))
         return 0;
-    if (source->id() == Core::Id(Constants::MER_SFTP_DEPLOY_CONFIGURATION_ID)) {
-        return new MerSftpDeployConfiguration(
-                    parent, qobject_cast<MerSftpDeployConfiguration *>(source));
+    if (source->id() == MerRpmDeployConfiguration::configurationId()) {
+        return new MerRpmDeployConfiguration(parent, qobject_cast<MerRpmDeployConfiguration *>(source));
+    }else if(source->id() == MerRsyncDeployConfiguration::configurationId()){
+        return new MerRsyncDeployConfiguration(parent, qobject_cast<MerRsyncDeployConfiguration *>(source));
     }
     return 0;
-
 }
 
 bool MerDeployConfigurationFactory::canHandle(ProjectExplorer::Target *t) const

@@ -20,7 +20,8 @@ FORMS += \
     merdeviceconfigwizardcheckpreviouskeysetupcheckpage.ui \
     merdeviceconfigwizardreusekeyscheckpage.ui \
     merdeviceconfigwizardkeycreationpage.ui \
-    merdeviceconfigurationwidget.ui
+    merdeviceconfigurationwidget.ui \
+    merdeploystep.ui
 
 SOURCES += \
     merplugin.cpp \
@@ -57,7 +58,9 @@ SOURCES += \
     meryamlupdater.cpp \
     merspecupdater.cpp \
     merbuildconfigurationprojectpathenvironmentvariablesetter.cpp \
-    merspecifykitinformation.cpp
+    merspecifykitinformation.cpp \
+    merdeploysteps.cpp \
+    merdeployconfiguration.cpp
 
 HEADERS += \
     merplugin.h \
@@ -96,7 +99,9 @@ HEADERS += \
     meryamlupdater.h \
     merspecupdater.h \
     merbuildconfigurationprojectpathenvironmentvariablesetter.h \
-    merspecifykitinformation.h
+    merspecifykitinformation.h \
+    merdeploysteps.h \
+    merdeployconfiguration.h
 
 SOURCES += \
     $$PWD/jollawelcomepage.cpp \
