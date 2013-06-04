@@ -108,7 +108,6 @@ const char SB2_TARGET_NAME[] = "SB2.TargetName";
 
 const char MER_RUNCONFIGURATION_PREFIX[] = "Qt4ProjectManager.MerRunConfiguration:";
 const char MER_SFTP_DEPLOY_STRING[] = QT_TRANSLATE_NOOP("Mer", "Copy Files to Device");
-const char MER_SFTP_DEPLOY_CONFIGURATION_ID[] = "Qt4ProjectManager.MerSftpDeployConfiguration";
 
 const char MER_EMULATOR_START_ACTION_ID[] = "Mer.MerEmulatorStartAction";
 

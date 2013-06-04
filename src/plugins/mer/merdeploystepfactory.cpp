@@ -22,8 +22,10 @@
 
 #include "merdeploystepfactory.h"
 #include "meremulatorstartstep.h"
-#include "mersftpdeployconfiguration.h"
+#include "merdeploysteps.h"
+#include "merdeployconfiguration.h"
 
+#include <projectexplorer/buildsteplist.h>
 #include <utils/qtcassert.h>
 
 using namespace ProjectExplorer;
@@ -39,10 +41,12 @@ MerDeployStepFactory::MerDeployStepFactory(QObject *parent)
 QList<Core::Id> MerDeployStepFactory::availableCreationIds(BuildStepList *parent) const
 {
     QList<Core::Id> ids;
-    if (!qobject_cast<MerSftpDeployConfiguration *>(parent->parent()))
+    if (!qobject_cast<MerDeployConfiguration *>(parent->parent()))
         return ids;
 
     ids << MerEmulatorStartStep::stepId();
+    ids << MerRsyncDeployStep::stepId();
+    ids << MerRpmDeployStep::stepId();
     return ids;
 }
 
@@ -50,6 +54,10 @@ QString MerDeployStepFactory::displayNameForId(const Core::Id id) const
 {
     if (id == MerEmulatorStartStep::stepId())
         return MerEmulatorStartStep::stepDisplayName();
+    if (id == MerRsyncDeployStep::stepId())
+        return MerRsyncDeployStep::displayName();
+    if (id == MerRpmDeployStep::stepId())
+        return MerRpmDeployStep::displayName();
     return QString();
 }
 
@@ -62,6 +70,10 @@ BuildStep *MerDeployStepFactory::create(BuildStepList *parent, const Core::Id id
 {
     if (id == MerEmulatorStartStep::stepId())
         return new MerEmulatorStartStep(parent);
+    if (id == MerRsyncDeployStep::stepId())
+        return new MerRsyncDeployStep(parent);
+    if (id == MerRpmDeployStep::stepId())
+        return new MerRpmDeployStep(parent);
     return 0;
 }
 
@@ -91,6 +103,10 @@ BuildStep *MerDeployStepFactory::clone(BuildStepList *parent, BuildStep *product
     QTC_ASSERT(canClone(parent, product), return 0);
     if (MerEmulatorStartStep * const other = qobject_cast<MerEmulatorStartStep *>(product))
         return new MerEmulatorStartStep(parent, other);
+    if (MerRsyncDeployStep * const other = qobject_cast<MerRsyncDeployStep *>(product))
+        return new MerRsyncDeployStep(parent, other);
+    if (MerRpmDeployStep * const other = qobject_cast<MerRpmDeployStep *>(product))
+        return new MerRpmDeployStep(parent, other);
 
     return 0;
 }
