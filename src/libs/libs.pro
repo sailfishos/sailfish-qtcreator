@@ -15,7 +15,8 @@ SUBDIRS   = \
     qmleditorwidgets \
     qtcomponents/styleitem \
     ssh \
-    zeroconf
+    zeroconf \
+    mer
 
 exists(../shared/qbs/qbs.pro):SUBDIRS += \
     ../shared/qbs/src/lib \
