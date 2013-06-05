@@ -27,7 +27,6 @@
 #include "mervirtualboxmanager.h"
 #include "merconnectionmanager.h"
 #include "mersdkkitinformation.h"
-#include "merspecifykitinformation.h"
 #include "merplugin.h"
 #include "merdevicefactory.h"
 #include "mertarget.h"
@@ -90,7 +89,6 @@ MerSdkManager::MerSdkManager()
     m_writer = new Utils::PersistentSettingsWriter(settingsFileName(), QLatin1String("MerSDKs"));
     m_instance = this;
     ProjectExplorer::KitManager::instance()->registerKitInformation(new MerSdkKitInformation);
-    ProjectExplorer::KitManager::instance()->registerKitInformation(new MerSpecifyKitInformation);
 }
 
 MerSdkManager::~MerSdkManager()
