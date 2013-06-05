@@ -138,6 +138,9 @@ const char MER_SSH_PORT[] = "MER_SSH_PORT";
 
 const char MER_PROJECTPATH_ENVVAR_NAME[] = "MER_PROJECTPATH";
 
+const char MER_YAML_MIME_TYPE[] = "text/yaml";
+const char MER_YAML_EDITOR_ID[] = "Mer.YamlEditor";
+
 } // namespace Constants
 } // namespace Mer
 

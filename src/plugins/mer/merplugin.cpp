@@ -35,6 +35,7 @@
 #include "meryamlupdater.h"
 #include "merspecupdater.h"
 #include "merbuildconfigurationprojectpathenvironmentvariablesetter.h"
+#include "yamleditorfactory.h"
 #include "jollawelcomepage.h"
 #include "mermode.h"
 
@@ -72,6 +73,7 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
     addAutoReleasedObject(new MerYamlUpdater);
     addAutoReleasedObject(new MerSpecUpdater);
     addAutoReleasedObject(new MerBuildConfigurationProjectPathEnvironmentVariableSetter);
+    addAutoReleasedObject(new YamlEditorFactory);
 
     addAutoReleasedObject(new JollaWelcomePage);
     addAutoReleasedObject(new MerMode);
