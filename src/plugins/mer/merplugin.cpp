@@ -37,6 +37,8 @@
 #include "jollawelcomepage.h"
 #include "mermode.h"
 
+#include <coreplugin/icore.h>
+#include <coreplugin/mimedatabase.h>
 
 #include <QtPlugin>
 
@@ -53,7 +55,8 @@ MerPlugin::~MerPlugin()
 
 bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
 {
-    Q_UNUSED(errorString)
+    if (!Core::ICore::mimeDatabase()->addMimeTypes(QLatin1String(":/mer/YAMLEditor.mimetypes.xml"), errorString))
+        return false;
 
     MerSdkManager::verbose = arguments.count(QLatin1String("-mer-verbose"));
 
