@@ -343,7 +343,7 @@ bool MerSdk::addTarget(const MerTarget &target)
     ProjectExplorer::ToolChainManager::instance()->registerToolChain(toolchain.data());
     QtSupport::QtVersionManager::instance()->addVersion(version.data());
     QtSupport::QtKitInformation::setQtVersion(kit, version.data());
-    ProjectExplorer::ToolChainKitInformation::setToolChain(kit, toolchain.data());
+    ProjectExplorer::ToolChainKitInformation::setToolChain(kit, toolchain.data());    
     ProjectExplorer::KitManager::instance()->registerKit(kit);
     toolchain.take();
     version.take();

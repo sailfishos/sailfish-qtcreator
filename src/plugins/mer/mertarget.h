@@ -46,6 +46,7 @@ public:
     MerTarget(MerSdk *sdk);
     virtual ~MerTarget();
     QString name() const;
+    QString targetPath() const;
 
     void setName(const QString &name);
     void setQmakeQuery(const QString &qmakeQuery);

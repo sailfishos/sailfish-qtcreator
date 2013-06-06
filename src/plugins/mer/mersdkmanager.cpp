@@ -32,6 +32,7 @@
 #include "mertarget.h"
 #include "merdevice.h"
 #include "merdevicexmlparser.h"
+#include "mertargetkitinformation.h"
 
 #include <coreplugin/icore.h>
 #include <extensionsystem/pluginmanager.h>
@@ -89,6 +90,7 @@ MerSdkManager::MerSdkManager()
     m_writer = new Utils::PersistentSettingsWriter(settingsFileName(), QLatin1String("MerSDKs"));
     m_instance = this;
     ProjectExplorer::KitManager::instance()->registerKitInformation(new MerSdkKitInformation);
+    ProjectExplorer::KitManager::instance()->registerKitInformation(new MerTargetKitInformation);
 }
 
 MerSdkManager::~MerSdkManager()

@@ -127,8 +127,9 @@ const char GCC_DUMPMACHINE[] = "gcc.dumpmachine";
 const char GCC_DUMPVERSION[] = "gcc.dumpversion";
 
 const char MER_AUTHORIZEDKEYS_FOLDER[] = "authorized_keys";
-const char MER_KIT_INFORMATION[] = "Mer.Kit.Information";
-const char MER_KIT_SPECIFY_INFORMATION[] = "Mer.Kit.Information.Specify";
+const char MER_SDK_KIT_INFORMATION[] = "Mer.Sdk.Kit.Information";
+const char MER_TARGET_KIT_INFORMATION[] = "Mer.Target.Kit.Information";
+const char MER_KIT_SPECIFY_INFORMATION[] = "Mer.Specify.Kit.Information";
 
 const char MER_SSH_SHARED_HOME[] = "MER_SSH_SHARED_HOME";
 const char MER_SSH_SHARED_TARGET[] = "MER_SSH_SHARED_TARGET";

@@ -41,7 +41,7 @@ MerSdkKitInformation::MerSdkKitInformation()
 
 Core::Id MerSdkKitInformation::dataId() const
 {
-    return Core::Id(Constants::MER_KIT_INFORMATION);
+    return Core::Id(Constants::MER_SDK_KIT_INFORMATION);
 }
 
 unsigned int MerSdkKitInformation::priority() const
@@ -98,7 +98,8 @@ ProjectExplorer::KitConfigWidget *MerSdkKitInformation::createConfigWidget(Proje
 
 void MerSdkKitInformation::setSdk(ProjectExplorer::Kit *kit, const MerSdk* sdk)
 {
-    kit->setValue(Core::Id(Constants::VM_NAME),sdk->virtualMachineName());
+    if(kit->value(Core::Id(Constants::VM_NAME)) != sdk->virtualMachineName())
+        kit->setValue(Core::Id(Constants::VM_NAME),sdk->virtualMachineName());
 }
 
 void MerSdkKitInformation::addToEnvironment(const ProjectExplorer::Kit *kit, Utils::Environment &env) const
@@ -125,9 +126,7 @@ MerSdkKitInformationWidget::MerSdkKitInformationWidget(ProjectExplorer::Kit *kit
       m_combo(new QComboBox),
       m_manageButton(new QPushButton(tr("Manage...")))
 {
-    m_combo->addItem(tr("None"), -1);
     handleSdksUpdated();
-    refresh();
     connect(m_combo, SIGNAL(currentIndexChanged(int)), this, SLOT(handleCurrentIndexChanged()));
     connect(MerSdkManager::instance(), SIGNAL(sdksUpdated()), this, SLOT(handleSdksUpdated()));
     connect(m_manageButton, SIGNAL(clicked()), this, SLOT(handleManageClicked()));
@@ -150,7 +149,17 @@ void MerSdkKitInformationWidget::makeReadOnly()
 
 void MerSdkKitInformationWidget::refresh()
 {
-    m_combo->setCurrentIndex(findMerSdk(MerSdkKitInformation::sdk(m_kit)));
+    const MerSdk* sdk = MerSdkKitInformation::sdk(m_kit);
+    int i;
+    if (sdk) {
+        for (i = m_combo->count() - 1; i >= 0; --i) {
+            if (sdk->virtualMachineName() == m_combo->itemText(i))
+                break;
+        }
+    } else {
+        i = 0;
+    }
+    m_combo->setCurrentIndex(i);
 }
 
 bool MerSdkKitInformationWidget::visibleInKit()
@@ -168,23 +177,17 @@ QWidget *MerSdkKitInformationWidget::buttonWidget() const
     return m_manageButton;
 }
 
-int MerSdkKitInformationWidget::findMerSdk(const MerSdk *sdk) const
-{
-    if (sdk) {
-        for (int i = 0; i < m_combo->count(); ++i) {
-            if (sdk->virtualMachineName() == m_combo->currentText())
-                return i;
-        }
-    }
-    return -1;
-}
-
 void MerSdkKitInformationWidget::handleSdksUpdated()
 {
     const QList<MerSdk*>& sdks = MerSdkManager::instance()->sdks();
     m_combo->clear();
-    foreach (const MerSdk *sdk, sdks)
-        m_combo->addItem(sdk->virtualMachineName());
+    if(sdks.isEmpty()) {
+        m_combo->addItem(tr("None"));
+    } else {
+        foreach (const MerSdk *sdk, sdks)
+            m_combo->addItem(sdk->virtualMachineName());
+    }
+    refresh();
 }
 
 void MerSdkKitInformationWidget::handleManageClicked()
@@ -200,6 +203,7 @@ void MerSdkKitInformationWidget::handleCurrentIndexChanged()
     const MerSdk* sdk = MerSdkManager::instance()->sdk(m_combo->currentText());
     if (sdk)
         MerSdkKitInformation::setSdk(m_kit, sdk);
+
 }
 
 }
