@@ -19,6 +19,8 @@ extern "C" {
 #include <stdio.h>
 #include <string.h>
 
+#include "yaml_global.h"
+
 /**
  * @defgroup export Export Definitions
  * @{
@@ -26,6 +28,7 @@ extern "C" {
 
 /** The public API declaration. */
 
+#if false
 #ifdef _WIN32
 #   if defined(YAML_DECLARE_STATIC)
 #       define  YAML_DECLARE(type)  type
@@ -37,6 +40,9 @@ extern "C" {
 #else
 #   define  YAML_DECLARE(type)  type
 #endif
+#endif
+
+#define  YAML_DECLARE(type)  YAML_EXPORT type
 
 /** @} */
 
