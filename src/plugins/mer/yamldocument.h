@@ -23,20 +23,22 @@
 #ifndef YAMLDOCUMENT_H
 #define YAMLDOCUMENT_H
 
-#include <coreplugin/textdocument.h>
+#include <coreplugin/idocument.h>
 
 namespace Mer {
 namespace Internal {
 
 class YamlEditorWidget;
-class YamlDocument : public Core::TextDocument
+class YamlDocumentPrivate;
+class YamlDocument : public Core::IDocument
 {
     Q_OBJECT
 public:
     explicit YamlDocument(YamlEditorWidget *parent);
+    ~YamlDocument();
 
     bool open(QString *errorString, const QString &fileName);
-    bool save(QString *errorString, const QString &fileName = QString(), bool autoSave = false);
+    bool save(QString *errorString, const QString &fileName, bool autoSave = false);
     QString fileName() const;
 
     QString defaultPath() const;
@@ -48,11 +50,12 @@ public:
 
     bool reload(QString *errorString, ReloadFlag flag, ChangeType type);
     void rename(const QString &newName);
-    bool loadContent(const QString &yamlSource, QString *errorMessage = 0, int *errorLine = 0);
 
 private:
-    QString m_fileName;
-    YamlEditorWidget *m_editorWidget;
+    void updateEditor();
+
+private:
+    YamlDocumentPrivate *d;
 };
 
 } // Internal

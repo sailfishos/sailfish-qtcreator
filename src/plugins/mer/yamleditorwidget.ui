@@ -35,14 +35,14 @@
       <property name="geometry">
        <rect>
         <x>0</x>
-        <y>0</y>
+        <y>-279</y>
         <width>798</width>
-        <height>708</height>
+        <height>758</height>
        </rect>
       </property>
       <layout class="QFormLayout" name="formLayout">
        <item row="0" column="0">
-        <widget class="QLabel" name="label">
+        <widget class="QLabel" name="nameLabel">
          <property name="text">
           <string>Name:</string>
          </property>
@@ -51,7 +51,7 @@
        <item row="0" column="1">
         <layout class="QHBoxLayout" name="horizontalLayout">
          <item>
-          <widget class="QLineEdit" name="lineEdit_2"/>
+          <widget class="QLineEdit" name="nameLineEdit"/>
          </item>
          <item>
           <spacer name="horizontalSpacer">
@@ -69,7 +69,7 @@
         </layout>
        </item>
        <item row="1" column="0">
-        <widget class="QLabel" name="label_2">
+        <widget class="QLabel" name="summaryLabel">
          <property name="text">
           <string>Summary:</string>
          </property>
@@ -78,7 +78,7 @@
        <item row="1" column="1">
         <layout class="QHBoxLayout" name="horizontalLayout_2">
          <item>
-          <widget class="QLineEdit" name="lineEdit_3"/>
+          <widget class="QLineEdit" name="summaryLineEdit"/>
          </item>
          <item>
           <spacer name="horizontalSpacer_2">
@@ -96,7 +96,7 @@
         </layout>
        </item>
        <item row="2" column="0">
-        <widget class="QLabel" name="label_8">
+        <widget class="QLabel" name="descriptionLabel">
          <property name="text">
           <string>Description:</string>
          </property>
@@ -105,7 +105,7 @@
        <item row="2" column="1">
         <layout class="QHBoxLayout" name="horizontalLayout_3">
          <item>
-          <widget class="QLineEdit" name="lineEdit_4"/>
+          <widget class="QTextEdit" name="descriptionTextEdit"/>
          </item>
          <item>
           <spacer name="horizontalSpacer_3">
@@ -123,7 +123,7 @@
         </layout>
        </item>
        <item row="3" column="0">
-        <widget class="QLabel" name="label_3">
+        <widget class="QLabel" name="versionLabel">
          <property name="text">
           <string>Version:</string>
          </property>
@@ -132,7 +132,7 @@
        <item row="3" column="1">
         <layout class="QHBoxLayout" name="horizontalLayout_4">
          <item>
-          <widget class="QLineEdit" name="lineEdit_6"/>
+          <widget class="QLineEdit" name="versionLineEdit"/>
          </item>
          <item>
           <spacer name="horizontalSpacer_4">
@@ -150,7 +150,7 @@
         </layout>
        </item>
        <item row="4" column="0">
-        <widget class="QLabel" name="label_4">
+        <widget class="QLabel" name="releaseLabel">
          <property name="text">
           <string>Release:</string>
          </property>
@@ -159,7 +159,7 @@
        <item row="4" column="1">
         <layout class="QHBoxLayout" name="horizontalLayout_5">
          <item>
-          <widget class="QLineEdit" name="lineEdit"/>
+          <widget class="QLineEdit" name="releaseLineEdit"/>
          </item>
          <item>
           <spacer name="horizontalSpacer_5">
@@ -177,7 +177,7 @@
         </layout>
        </item>
        <item row="5" column="0">
-        <widget class="QLabel" name="label_5">
+        <widget class="QLabel" name="groupLabel">
          <property name="text">
           <string>Group:</string>
          </property>
@@ -186,7 +186,7 @@
        <item row="5" column="1">
         <layout class="QHBoxLayout" name="horizontalLayout_6">
          <item>
-          <widget class="QLineEdit" name="lineEdit_5"/>
+          <widget class="QLineEdit" name="groupLineEdit"/>
          </item>
          <item>
           <spacer name="horizontalSpacer_6">
@@ -204,7 +204,7 @@
         </layout>
        </item>
        <item row="6" column="0">
-        <widget class="QLabel" name="label_6">
+        <widget class="QLabel" name="licenseLabel">
          <property name="text">
           <string>License:</string>
          </property>
@@ -213,7 +213,7 @@
        <item row="6" column="1">
         <layout class="QHBoxLayout" name="horizontalLayout_7">
          <item>
-          <widget class="QTextEdit" name="textEdit"/>
+          <widget class="QTextEdit" name="licenseTextedit"/>
          </item>
          <item>
           <spacer name="horizontalSpacer_7">
@@ -231,7 +231,7 @@
         </layout>
        </item>
        <item row="7" column="0">
-        <widget class="QLabel" name="label_7">
+        <widget class="QLabel" name="sourcesLabel">
          <property name="text">
           <string>Sources:</string>
          </property>
@@ -240,17 +240,17 @@
        <item row="7" column="1">
         <layout class="QGridLayout" name="gridLayout">
          <item row="1" column="1">
-          <widget class="QPushButton" name="pushButton_2">
+          <widget class="QPushButton" name="sourcesRemoveButton">
            <property name="text">
             <string>Remove</string>
            </property>
           </widget>
          </item>
          <item row="0" column="0" rowspan="3">
-          <widget class="QListWidget" name="listWidget"/>
+          <widget class="QListWidget" name="sourcesListWidget"/>
          </item>
          <item row="0" column="1">
-          <widget class="QPushButton" name="pushButton">
+          <widget class="QPushButton" name="sourcesAddButton">
            <property name="text">
             <string>Add</string>
            </property>
@@ -285,7 +285,7 @@
         </layout>
        </item>
        <item row="8" column="0">
-        <widget class="QLabel" name="label_12">
+        <widget class="QLabel" name="filesLabel">
          <property name="text">
           <string>Files:</string>
          </property>
@@ -294,21 +294,21 @@
        <item row="8" column="1">
         <layout class="QGridLayout" name="gridLayout_2">
          <item row="1" column="1">
-          <widget class="QPushButton" name="pushButton_4">
+          <widget class="QPushButton" name="filesRemoveButton">
            <property name="text">
             <string>Remove</string>
            </property>
           </widget>
          </item>
          <item row="0" column="1">
-          <widget class="QPushButton" name="pushButton_3">
+          <widget class="QPushButton" name="filesAddButton">
            <property name="text">
             <string>Add</string>
            </property>
           </widget>
          </item>
          <item row="0" column="0" rowspan="3">
-          <widget class="QListWidget" name="listWidget_2"/>
+          <widget class="QListWidget" name="filesListWidget"/>
          </item>
          <item row="2" column="1">
           <spacer name="verticalSpacer_2">
@@ -339,7 +339,7 @@
         </layout>
        </item>
        <item row="9" column="0">
-        <widget class="QLabel" name="label_9">
+        <widget class="QLabel" name="pkgConfigBRLabel">
          <property name="text">
           <string>PkgConfigBR:</string>
          </property>
@@ -348,7 +348,7 @@
        <item row="9" column="1">
         <layout class="QGridLayout" name="gridLayout_3">
          <item row="0" column="1">
-          <widget class="QPushButton" name="pushButton_7">
+          <widget class="QPushButton" name="pkgConfigBRAddButton">
            <property name="text">
             <string>Add</string>
            </property>
@@ -368,14 +368,14 @@
           </spacer>
          </item>
          <item row="1" column="1">
-          <widget class="QPushButton" name="pushButton_8">
+          <widget class="QPushButton" name="pkgConfigBRRemoveButton">
            <property name="text">
             <string>Remove</string>
            </property>
           </widget>
          </item>
          <item row="0" column="0" rowspan="3">
-          <widget class="QListWidget" name="listWidget_4"/>
+          <widget class="QListWidget" name="pkgConfigBRListWidget"/>
          </item>
          <item row="1" column="2">
           <spacer name="horizontalSpacer_10">
@@ -393,7 +393,7 @@
         </layout>
        </item>
        <item row="10" column="0">
-        <widget class="QLabel" name="label_10">
+        <widget class="QLabel" name="pkgBRLabel">
          <property name="text">
           <string>PkgBR:</string>
          </property>
@@ -415,17 +415,17 @@
           </spacer>
          </item>
          <item row="0" column="0" rowspan="3">
-          <widget class="QListWidget" name="listWidget_3"/>
+          <widget class="QListWidget" name="pkgBRListWidget"/>
          </item>
          <item row="0" column="1">
-          <widget class="QPushButton" name="pushButton_5">
+          <widget class="QPushButton" name="pkgBRAddButton">
            <property name="text">
             <string>Add</string>
            </property>
           </widget>
          </item>
          <item row="1" column="1">
-          <widget class="QPushButton" name="pushButton_6">
+          <widget class="QPushButton" name="pkgBRRemoveButton">
            <property name="text">
             <string>Remove</string>
            </property>
@@ -447,7 +447,7 @@
         </layout>
        </item>
        <item row="11" column="0">
-        <widget class="QLabel" name="label_11">
+        <widget class="QLabel" name="requiresLabel">
          <property name="text">
           <string>Requires:</string>
          </property>
@@ -469,17 +469,17 @@
           </spacer>
          </item>
          <item row="0" column="1">
-          <widget class="QPushButton" name="pushButton_9">
+          <widget class="QPushButton" name="requiresAddButton">
            <property name="text">
             <string>Add</string>
            </property>
           </widget>
          </item>
          <item row="0" column="0" rowspan="3">
-          <widget class="QListWidget" name="listWidget_5"/>
+          <widget class="QListWidget" name="requiresListWidget"/>
          </item>
          <item row="1" column="1">
-          <widget class="QPushButton" name="pushButton_10">
+          <widget class="QPushButton" name="requiresRemoveButton">
            <property name="text">
             <string>Remove</string>
            </property>
