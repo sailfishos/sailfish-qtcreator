@@ -26,6 +26,8 @@
 #include "mersdkmanager.h"
 #include "mertoolchain.h"
 #include "merqtversion.h"
+#include "mersdkkitinformation.h"
+#include "mertargetkitinformation.h"
 #include <qtsupport/qtversionmanager.h>
 #include <qtsupport/qtkitinformation.h>
 #include <qtsupport/qtversionfactory.h>
@@ -106,13 +108,18 @@ bool MerTarget::isValid() const
     return !m_name.isEmpty() && !m_qmakeQuery.isEmpty() && !m_gccMachineDump.isEmpty();
 }
 
+QString MerTarget::targetPath() const
+{
+    return MerSdkManager::sdkToolsDirectory() + m_sdk->virtualMachineName() + QLatin1Char('/') + m_name;
+}
+
 bool MerTarget::createScripts() const
 {
     if (!isValid())
         return false;
 
-    const QString targetPath(MerSdkManager::sdkToolsDirectory()
-                              + m_sdk->virtualMachineName() + QLatin1Char('/') + m_name);
+    QString targetPath(this->targetPath());
+
     QDir targetDir(targetPath);
     if (!targetDir.exists() && !targetDir.mkpath(targetPath)) {
         qWarning() << "Could not create target directory." << targetDir;
@@ -156,16 +163,14 @@ ProjectExplorer::Kit* MerTarget::createKit() const
     k->setAutoDetected(true);
     k->setDisplayName(QString::fromLatin1("%1-%2").arg(m_sdk->virtualMachineName(), m_name));
     k->setIconPath(QLatin1String(Constants::MER_OPTIONS_CATEGORY_ICON));
-    k->setValue(Core::Id(Constants::VM_NAME), m_sdk->virtualMachineName());
     ProjectExplorer::SysRootKitInformation::setSysRoot(k, Utils::FileName::fromString(sysroot));
     if (m_gccMachineDump.contains(QLatin1String("i486"))) {
         ProjectExplorer::DeviceTypeKitInformation::setDeviceTypeId(k, Constants::MER_DEVICE_TYPE_I486);
     } else {
         ProjectExplorer::DeviceTypeKitInformation::setDeviceTypeId(k, Constants::MER_DEVICE_TYPE_ARM);
     }
-    const QString targetPath(MerSdkManager::sdkToolsDirectory()
-                              + m_sdk->virtualMachineName() + QLatin1Char('/') + m_name);
-    const QString specifyPath = targetPath + QLatin1Char('/') + QLatin1String("specify");
+    MerSdkKitInformation::setSdk(k,m_sdk);
+    MerTargetKitInformation::setTargetName(k,name());
     return k;
 }
 

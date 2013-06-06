@@ -61,7 +61,8 @@ SOURCES += \
     yamleditorfactory.cpp \
     yamleditorwidget.cpp \
     yamleditor.cpp \
-    yamldocument.cpp
+    yamldocument.cpp \
+    mertargetkitinformation.cpp
 
 HEADERS += \
     merplugin.h \
@@ -103,7 +104,9 @@ HEADERS += \
     yamleditorfactory.h \
     yamleditorwidget.h \
     yamleditor.h \
-    yamldocument.h
+    yamldocument.h \
+    mertargetkitinformation.h
+
 
 SOURCES += \
     $$PWD/jollawelcomepage.cpp \
