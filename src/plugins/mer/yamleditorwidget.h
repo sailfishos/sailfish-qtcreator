@@ -25,6 +25,10 @@
 
 #include <QWidget>
 
+QT_BEGIN_NAMESPACE
+class QListWidgetItem;
+QT_END_NAMESPACE
+
 namespace Core {
 class IEditor;
 }
@@ -92,6 +96,12 @@ signals:
 
 private slots:
     void onModified();
+    void onAddFiles();
+    void onRemoveFiles();
+    void onAddItem();
+    void onRemoveItem();
+    void onItemActivated(QListWidgetItem *item);
+    void onSelectionChanged();
 
 private:
     YamlEditor *createEditor();
