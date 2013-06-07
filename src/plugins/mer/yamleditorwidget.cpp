@@ -323,6 +323,22 @@ void YamlEditorWidget::setTrackChanges(bool track)
     m_trackChanges = track;
 }
 
+void YamlEditorWidget::clear()
+{
+    ui->nameLineEdit->clear();
+    ui->summaryLineEdit->clear();
+    ui->versionLineEdit->clear();
+    ui->releaseLineEdit->clear();
+    ui->groupLineEdit->clear();
+    ui->licenseTextedit->clear();
+    ui->descriptionTextEdit->clear();
+    ui->sourcesListWidget->clear();
+    ui->pkgBRListWidget->clear();
+    ui->pkgConfigBRListWidget->clear();
+    ui->requiresListWidget->clear();
+    ui->filesListWidget->clear();
+}
+
 YamlEditor *YamlEditorWidget::createEditor()
 {
     return new YamlEditor(this);

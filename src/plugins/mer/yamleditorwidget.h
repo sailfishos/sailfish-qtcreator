@@ -90,6 +90,7 @@ public:
     bool modified() const;
     void setModified(bool modified);
     void setTrackChanges(bool track);
+    void clear();
 
 signals:
     void changed();
