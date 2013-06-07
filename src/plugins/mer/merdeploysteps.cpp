@@ -163,6 +163,7 @@ MerRsyncDeployStep::MerRsyncDeployStep(BuildStepList *bsl)
     : MerProcessStep(bsl, stepId())
 {
     setDefaultDisplayName(displayName());
+    setArguments(QLatin1String("--rsync"));
 }
 
 MerRsyncDeployStep::MerRsyncDeployStep(BuildStepList *bsl, MerRsyncDeployStep *bs)
@@ -173,7 +174,6 @@ MerRsyncDeployStep::MerRsyncDeployStep(BuildStepList *bsl, MerRsyncDeployStep *b
 
 bool MerRsyncDeployStep::init()
 {
-    setArguments(QLatin1String("--rsync"));
     return MerProcessStep::init();
 }
 
@@ -210,6 +210,7 @@ MerRpmDeployStep::MerRpmDeployStep(BuildStepList *bsl)
     : MerProcessStep(bsl, stepId())
 {
     setDefaultDisplayName(displayName());
+    setArguments(QLatin1String("--zypper"));
 }
 
 MerRpmDeployStep::MerRpmDeployStep(BuildStepList *bsl, MerRpmDeployStep *bs)
@@ -220,7 +221,6 @@ MerRpmDeployStep::MerRpmDeployStep(BuildStepList *bsl, MerRpmDeployStep *bs)
 
 bool MerRpmDeployStep::init()
 {
-    setArguments(QLatin1String("--zypper"));
     return MerProcessStep::init();
 }
 
