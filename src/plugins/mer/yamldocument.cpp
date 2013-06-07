@@ -94,15 +94,18 @@ bool YamlDocument::open(QString *errorString, const QString &fileName)
     return d->success;
 }
 
-bool YamlDocument::save(QString *errorString, const QString &/*fileName*/, bool /*autoSave*/)
+bool YamlDocument::save(QString *errorString, const QString &fileName, bool autoSave)
 {
+    if (autoSave)
+        return false;
+    const QString actualName = fileName.isEmpty() ? this->fileName() : fileName;
     d->success = yaml_emitter_initialize(&d->yamlWriter);
     if (d->success) {
         d->setValues(yaml_document_get_root_node(&d->yamlDocument));
         d->valueStack.clear();
         d->editorWidget->setModified(false);
 
-        FILE *yamlFile = fopen(d->fileName.toUtf8(), "wb");
+        FILE *yamlFile = fopen(actualName.toUtf8(), "wb");
         if (yamlFile)
             yaml_emitter_set_output_file(&d->yamlWriter, yamlFile);
 
@@ -119,7 +122,7 @@ bool YamlDocument::save(QString *errorString, const QString &/*fileName*/, bool 
         *errorString = tr("Error %1").arg(QString::fromUtf8(d->yamlWriter.problem));
     yaml_emitter_delete(&d->yamlWriter);
     if (d->success)
-        open(0, d->fileName);
+        open(0, actualName);
     return d->success;
 }
 
