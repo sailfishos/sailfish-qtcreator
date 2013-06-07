@@ -98,14 +98,15 @@ bool MerSSH::run(const QString &sdkToolsDir, const QString &merTargetName,
                  const QString &commandType, const QString &command)
 {
     using namespace Mer::Constants;
-
     // HACK: Qt Creator ignores gcc's exit code, and can be confused by non-gcc-like output.
     m_quietOnError = command.startsWith(QLatin1String("gcc "));
 
     const QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
     const QString sharedHome = environment.value(QLatin1String(MER_SSH_SHARED_HOME));
     const QString sharedTarget = environment.value(QLatin1String(MER_SSH_SHARED_TARGET));
+
     m_merSysRoot = sharedTarget + QLatin1Char('/') + merTargetName;
+
     QSsh::SshConnectionParameters params = connectionParameters();
     params.userName = environment.value(QLatin1String(MER_SSH_USERNAME));
     params.privateKeyFile = environment.value(QLatin1String(MER_SSH_PRIVATE_KEY));
@@ -132,19 +133,34 @@ bool MerSSH::run(const QString &sdkToolsDir, const QString &merTargetName,
         return true;
     }
 
-    QString prefix;
-    if (type == CommandTypeSb2) {
-        prefix = QLatin1String("sb2 -t ");
-    } else if (type == CommandTypeMb2) {
-        const QString projectPath = QString::fromUtf8(qgetenv(MER_PROJECTPATH_ENVVAR_NAME));
-        const QString projectPathParameter = projectPath.isEmpty()
-                ? QString()
-                : QLatin1String(" -p ") + projectPath;
-        prefix = QLatin1String("mb2") + projectPathParameter + QLatin1String(" -t ");
+    QString completeCommand;
+
+    switch (type) {
+    case CommandTypeSb2: {
+        const QString targetName = QString::fromUtf8(qgetenv(MER_SSH_TARGET_NAME));
+        completeCommand = QLatin1String("sb2 -t ") + targetName + QLatin1Char(' ') + command + QLatin1Char(' ');
+        break;
     }
-    QString completeCommand = (type == CommandTypeStandard)
-            ? command
-            : prefix + merTargetName + QLatin1Char(' ') + command + QLatin1Char(' ');
+    case CommandTypeMb2: {
+        const QString projectPath = QString::fromUtf8(qgetenv(MER_PROJECTPATH_ENVVAR_NAME));
+        const QString device = QString::fromUtf8(qgetenv(MER_SSH_DEVICE_NAME));
+        const QString projectPathParameter = projectPath.isEmpty() ? QString() : QLatin1String(" -p ") + projectPath;
+        const QString deviceParameter = device.isEmpty() ? QString() : QLatin1String(" -d \"") + device + QLatin1String("\"");
+        const QString targetName = QString::fromUtf8(qgetenv(MER_SSH_TARGET_NAME));
+        completeCommand = QLatin1String("mb2") + projectPathParameter + deviceParameter + QLatin1String(" -t ") +
+                targetName +  QLatin1Char(' ') + command + QLatin1Char(' ');
+        break;
+    }
+    case CommandTypeStandard:
+        completeCommand = command;
+        break;
+    case CommandTypeUndefined:
+        printError(QString::fromLatin1("Invalid commandType '%1'").arg(commandType));
+        return false;
+    default:
+        break;
+    }
+
     if (m_currentCacheFile.isEmpty()) {
         if (!QDir::currentPath().startsWith(QDir::fromNativeSeparators(
                                                 QDir::cleanPath(sharedHome)))) {
@@ -162,6 +178,7 @@ bool MerSSH::run(const QString &sdkToolsDir, const QString &merTargetName,
     const bool queryPredefinedMacros = rx.indexIn(completeCommand) != -1;
     if (queryPredefinedMacros)
         completeCommand.append(QLatin1String(" < /dev/null"));
+
 
     m_sshConnectionParams = params;
     m_completeCommand = completeCommand.toUtf8();

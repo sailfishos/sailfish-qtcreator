@@ -114,6 +114,11 @@ QString MerSdk::sharedTargetsPath() const
     return m_sharedTargetsPath;
 }
 
+QString MerSdk::sharedConfigPath() const
+{
+    return m_sharedConfigPath;
+}
+
 void MerSdk::setSharedSshPath(const QString &sshPath)
 {
     m_sharedSshPath = sshPath;

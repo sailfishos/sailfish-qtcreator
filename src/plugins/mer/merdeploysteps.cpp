@@ -29,6 +29,8 @@
 #include "merconstants.h"
 #include "merdeploysteps.h"
 #include "mersdkmanager.h"
+#include "mersdkkitinformation.h"
+#include "mertargetkitinformation.h"
 #include <utils/qtcassert.h>
 #include <projectexplorer/buildstep.h>
 #include <projectexplorer/buildconfiguration.h>
@@ -85,6 +87,56 @@ MerProcessStep::MerProcessStep(ProjectExplorer::BuildStepList *bsl, MerProcessSt
 
 }
 
+bool MerProcessStep::init()
+{
+    BuildConfiguration *bc = buildConfiguration();
+    if (!bc)
+        bc = target()->activeBuildConfiguration();
+
+    if (!bc) {
+        addOutput(tr("Cannot deploy: No active build configuration."),
+            ErrorMessageOutput);
+        return false;
+    }
+
+    const MerSdk *const merSdk = MerSdkKitInformation::sdk(target()->kit());
+
+    if (!merSdk) {
+        addOutput(tr("Cannot deploy: Missing MerSdk information in the kit"),ErrorMessageOutput);
+        return false;
+    }
+
+    const QString target = MerTargetKitInformation::targetName(this->target()->kit());
+
+    if (target.isEmpty()) {
+        addOutput(tr("Cannot deploy: Missing MerTarget information in the kit"),ErrorMessageOutput);
+        return false;
+    }
+
+    IDevice::ConstPtr device = DeviceKitInformation::device(this->target()->kit());
+
+    if (device.isNull()) {
+        addOutput(tr("Cannot deploy: Missing MerDevice information in the kit"),ErrorMessageOutput);
+        return false;
+    }
+
+    const QString projectDirectory = project()->projectDirectory();
+    const QString wrapperScriptsDir =  MerSdkManager::sdkToolsDirectory() + merSdk->virtualMachineName()
+            + QLatin1Char('/') + target;
+    const QString deployCommand = wrapperScriptsDir + QLatin1Char('/') + QLatin1String(Constants::MER_WRAPPER_DEPLOY);
+
+    ProcessParameters *pp = processParameters();
+
+    Utils::Environment env = bc ? bc->environment() : Utils::Environment::systemEnvironment();
+    env.appendOrSet(QLatin1String(Constants::MER_SSH_DEVICE_NAME),device->displayName());
+    pp->setMacroExpander(bc ? bc->macroExpander() : Core::VariableManager::instance()->macroExpander());
+    pp->setEnvironment(env);
+    pp->setWorkingDirectory(projectDirectory);
+    pp->setCommand(deployCommand);
+    pp->setArguments(arguments());
+    return AbstractProcessStep::init();
+}
+
 QString MerProcessStep::arguments() const
 {
     return m_arguments;
@@ -104,7 +156,7 @@ const Core::Id MerRsyncDeployStep::stepId()
 
 QString MerRsyncDeployStep::displayName()
 {
-    return tr("Mb2(rsync)");
+    return QLatin1String("Rsync");
 }
 
 MerRsyncDeployStep::MerRsyncDeployStep(BuildStepList *bsl)
@@ -121,38 +173,8 @@ MerRsyncDeployStep::MerRsyncDeployStep(BuildStepList *bsl, MerRsyncDeployStep *b
 
 bool MerRsyncDeployStep::init()
 {
-    BuildConfiguration *bc = buildConfiguration();
-    if (!bc)
-        bc = target()->activeBuildConfiguration();
-
-    if (!bc) {
-        addOutput(tr("Cannot deploy: No active build configuration."),
-            ErrorMessageOutput);
-        return false;
-    }
-
-    const QtSupport::BaseQtVersion *const qtVersion = QtSupport::QtKitInformation::qtVersion(target()->kit());
-    if (!qtVersion) {
-        addOutput(tr("Cannot deploy: Unusable build configuration."),
-            ErrorMessageOutput);
-        return false;
-
-    }
-
-    //TODO sanity checks;
-    const QString projectDirectory = project()->projectDirectory();
-    const QString wrapperScriptsDir = qtVersion->qmakeCommand().parentDir().toString();
-    const QString mb2Command = wrapperScriptsDir + QLatin1Char('/') + QLatin1String(Constants::MER_WRAPPER_MB);
-    //const QString projectName = QFileInfo(project()->document()->fileName()).baseName();
-    setArguments(QLatin1String("deploy -rsync"));
-
-    ProcessParameters *pp = processParameters();
-    pp->setMacroExpander(bc ? bc->macroExpander() : Core::VariableManager::instance()->macroExpander());
-    pp->setEnvironment(bc ? bc->environment() : Utils::Environment::systemEnvironment());
-    pp->setWorkingDirectory(projectDirectory);
-    pp->setCommand(mb2Command);
-    pp->setArguments(arguments());
-    return AbstractProcessStep::init();
+    setArguments(QLatin1String("--rsync"));
+    return MerProcessStep::init();
 }
 
 bool MerRsyncDeployStep::immutable() const
@@ -181,7 +203,7 @@ const Core::Id MerRpmDeployStep::stepId()
 
 QString MerRpmDeployStep::displayName()
 {
-    return tr("Mb2(rpm)");
+    return QLatin1String("Rpm");
 }
 
 MerRpmDeployStep::MerRpmDeployStep(BuildStepList *bsl)
@@ -198,38 +220,8 @@ MerRpmDeployStep::MerRpmDeployStep(BuildStepList *bsl, MerRpmDeployStep *bs)
 
 bool MerRpmDeployStep::init()
 {
-    BuildConfiguration *bc = buildConfiguration();
-    if (!bc)
-        bc = target()->activeBuildConfiguration();
-
-    if (!bc) {
-        addOutput(tr("Cannot deploy: No active build configuration."),
-            ErrorMessageOutput);
-        return false;
-    }
-
-    const QtSupport::BaseQtVersion *const qtVersion = QtSupport::QtKitInformation::qtVersion(target()->kit());
-    if (!qtVersion) {
-        addOutput(tr("Cannot deploy: Unusable build configuration."),
-            ErrorMessageOutput);
-        return false;
-
-    }
-
-    //TODO sanity checks;
-    const QString projectDirectory = project()->projectDirectory();
-    const QString wrapperScriptsDir = qtVersion->qmakeCommand().parentDir().toString();
-    const QString mb2Command = wrapperScriptsDir + QLatin1Char('/') + QLatin1String(Constants::MER_WRAPPER_MB);
-    //const QString projectName = QFileInfo(project()->document()->fileName()).baseName();
-    setArguments(QLatin1String("deploy"));
-
-    ProcessParameters *pp = processParameters();
-    pp->setMacroExpander(bc ? bc->macroExpander() : Core::VariableManager::instance()->macroExpander());
-    pp->setEnvironment(bc ? bc->environment() : Utils::Environment::systemEnvironment());
-    pp->setWorkingDirectory(projectDirectory);
-    pp->setCommand(mb2Command);
-    pp->setArguments(arguments());
-    return AbstractProcessStep::init();
+    setArguments(QLatin1String("--zypper"));
+    return MerProcessStep::init();
 }
 
 bool MerRpmDeployStep::immutable() const

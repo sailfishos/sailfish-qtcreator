@@ -61,6 +61,9 @@ public:
     void setSharedTargetsPath(const QString &targetsPath);
     QString sharedTargetsPath() const;
 
+    void setSharedConfigPath(const QString &configPath);
+    QString sharedConfigPath() const;
+
     void setSharedSshPath(const QString &sshPath);
     QString sharedSshPath() const;
 
@@ -109,6 +112,7 @@ private:
     QString m_sharedHomePath;
     QString m_sharedTargetsPath;
     QString m_sharedSshPath;
+    QString m_sharedConfigPath;
     QString m_host;
     QString m_userName;
     QString m_privateKeyFile;
