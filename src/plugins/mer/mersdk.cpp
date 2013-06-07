@@ -114,6 +114,11 @@ QString MerSdk::sharedTargetsPath() const
     return m_sharedTargetsPath;
 }
 
+void MerSdk::setSharedConfigPath(const QString &configPath)
+{
+    m_sharedConfigPath = configPath;
+}
+
 QString MerSdk::sharedConfigPath() const
 {
     return m_sharedConfigPath;
@@ -218,6 +223,7 @@ QVariantMap MerSdk::toMap() const
     result.insert(QLatin1String(AUTO_DETECTED), isAutoDetected());
     result.insert(QLatin1String(SHARED_HOME), sharedHomePath());
     result.insert(QLatin1String(SHARED_TARGET), sharedTargetsPath());
+    result.insert(QLatin1String(SHARED_CONFIG), sharedConfigPath());
     result.insert(QLatin1String(SHARED_SSH), sharedSshPath());
     result.insert(QLatin1String(HOST), host());
     result.insert(QLatin1String(USERNAME), userName());
@@ -244,6 +250,7 @@ bool MerSdk::fromMap(const QVariantMap &data)
     setAutodetect(data.value(QLatin1String(AUTO_DETECTED)).toBool());
     setSharedHomePath(data.value(QLatin1String(SHARED_HOME)).toString());
     setSharedTargetsPath(data.value(QLatin1String(SHARED_TARGET)).toString());
+    setSharedConfigPath(data.value(QLatin1String(SHARED_CONFIG)).toString());
     setSharedSshPath(data.value(QLatin1String(SHARED_SSH)).toString());
     setHost(data.value(QLatin1String(HOST)).toString());
     setUserName(data.value(QLatin1String(USERNAME)).toString());

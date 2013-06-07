@@ -220,6 +220,8 @@ VirtualMachineInfo virtualMachineInfoFromOutput(const QString &output)
                 info.sharedTargets = rexp.cap(8);
             else if (rexp.cap(7) == QLatin1String("ssh"))
                 info.sharedSsh = rexp.cap(8);
+            else if (rexp.cap(7) == QLatin1String("config"))
+                info.sharedConfig = rexp.cap(8);
         }
     }
 
