@@ -539,7 +539,7 @@ void MerSdkManager::updateDevices()
 
     foreach(MerSdk* sdk, m_sdks)
     {
-        const QString file = sdk->sharedTargetsPath() + QLatin1String(Constants::MER_DEVICES_FILENAME);
+        const QString file = sdk->sharedConfigPath() + QLatin1String(Constants::MER_DEVICES_FILENAME);
         MerEngineData xmlData;
         xmlData.m_name = sdk->virtualMachineName();
         xmlData.m_type =  QLatin1String("vbox");
