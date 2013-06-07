@@ -41,6 +41,7 @@ class MerProcessStep: public ProjectExplorer::AbstractProcessStep
 public:
     explicit MerProcessStep(ProjectExplorer::BuildStepList *bsl,const Core::Id id);
     MerProcessStep(ProjectExplorer::BuildStepList *bsl, MerProcessStep *bs);
+    bool init();
     QString arguments() const;
     void setArguments(const QString &arguments);
 private:
@@ -56,7 +57,7 @@ public:
 
     bool init();
     bool immutable() const;
-     void run(QFutureInterface<bool> &fi);
+    void run(QFutureInterface<bool> &fi);
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget();
     static const Core::Id stepId();
     static QString displayName();

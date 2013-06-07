@@ -98,6 +98,12 @@ void MerTargetKitInformation::setTargetName(ProjectExplorer::Kit *kit, const QSt
         kit->setValue(Core::Id(Constants::TARGET),targetName);
 }
 
+void MerTargetKitInformation::addToEnvironment(const ProjectExplorer::Kit *kit, Utils::Environment &env) const
+{
+    const QString targetName = MerTargetKitInformation::targetName(kit);
+        env.appendOrSet(QLatin1String(Constants::MER_SSH_TARGET_NAME),targetName);
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////
 
 MerTargetKitInformationWidget::MerTargetKitInformationWidget(ProjectExplorer::Kit *kit)
