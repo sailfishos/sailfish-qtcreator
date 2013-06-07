@@ -26,6 +26,8 @@
 
 #include <coreplugin/editormanager/ieditor.h>
 
+#include <QFileDialog>
+
 namespace Mer {
 namespace Internal {
 
@@ -45,16 +47,54 @@ YamlEditorWidget::YamlEditorWidget(QWidget *parent) :
     connect(ui->licenseTextedit, SIGNAL(textChanged()), SLOT(onModified()));
     connect(ui->descriptionTextEdit, SIGNAL(textChanged()), SLOT(onModified()));
 
-    connect(ui->sourcesAddButton, SIGNAL(clicked()), SLOT(onModified()));
-    connect(ui->sourcesRemoveButton, SIGNAL(clicked()), SLOT(onModified()));
-    connect(ui->pkgConfigBRAddButton, SIGNAL(clicked()), SLOT(onModified()));
-    connect(ui->pkgConfigBRRemoveButton, SIGNAL(clicked()), SLOT(onModified()));
-    connect(ui->pkgBRAddButton, SIGNAL(clicked()), SLOT(onModified()));
-    connect(ui->pkgBRRemoveButton, SIGNAL(clicked()), SLOT(onModified()));
-    connect(ui->requiresAddButton, SIGNAL(clicked()), SLOT(onModified()));
-    connect(ui->requiresRemoveButton, SIGNAL(clicked()), SLOT(onModified()));
-    connect(ui->filesAddButton, SIGNAL(clicked()), SLOT(onModified()));
-    connect(ui->filesRemoveButton, SIGNAL(clicked()), SLOT(onModified()));
+    connect(ui->sourcesAddButton, SIGNAL(clicked()), SLOT(onAddItem()));
+    connect(ui->sourcesRemoveButton, SIGNAL(clicked()), SLOT(onRemoveItem()));
+    connect(ui->pkgConfigBRAddButton, SIGNAL(clicked()), SLOT(onAddItem()));
+    connect(ui->pkgConfigBRRemoveButton, SIGNAL(clicked()), SLOT(onRemoveItem()));
+    connect(ui->pkgBRAddButton, SIGNAL(clicked()), SLOT(onAddItem()));
+    connect(ui->pkgBRRemoveButton, SIGNAL(clicked()), SLOT(onRemoveItem()));
+    connect(ui->requiresAddButton, SIGNAL(clicked()), SLOT(onAddItem()));
+    connect(ui->requiresRemoveButton, SIGNAL(clicked()), SLOT(onRemoveItem()));
+    connect(ui->filesAddButton, SIGNAL(clicked()), SLOT(onAddFiles()));
+    connect(ui->filesRemoveButton, SIGNAL(clicked()), SLOT(onRemoveFiles()));
+
+    connect(ui->sourcesListWidget, SIGNAL(itemActivated(QListWidgetItem*)),
+            SLOT(onItemActivated(QListWidgetItem*)));
+    connect(ui->sourcesListWidget, SIGNAL(itemChanged(QListWidgetItem*)),
+            SLOT(onModified()));
+    connect(ui->sourcesListWidget, SIGNAL(itemSelectionChanged()),
+            SLOT(onSelectionChanged()));
+    connect(ui->pkgConfigBRListWidget, SIGNAL(itemActivated(QListWidgetItem*)),
+            SLOT(onItemActivated(QListWidgetItem*)));
+    connect(ui->pkgConfigBRListWidget, SIGNAL(itemChanged(QListWidgetItem*)),
+            SLOT(onModified()));
+    connect(ui->pkgConfigBRListWidget, SIGNAL(itemSelectionChanged()),
+            SLOT(onSelectionChanged()));
+    connect(ui->pkgBRListWidget, SIGNAL(itemActivated(QListWidgetItem*)),
+            SLOT(onItemActivated(QListWidgetItem*)));
+    connect(ui->pkgBRListWidget, SIGNAL(itemChanged(QListWidgetItem*)),
+            SLOT(onModified()));
+    connect(ui->pkgBRListWidget, SIGNAL(itemSelectionChanged()),
+            SLOT(onSelectionChanged()));
+    connect(ui->requiresListWidget, SIGNAL(itemActivated(QListWidgetItem*)),
+            SLOT(onItemActivated(QListWidgetItem*)));
+    connect(ui->requiresListWidget, SIGNAL(itemChanged(QListWidgetItem*)),
+            SLOT(onModified()));
+    connect(ui->requiresListWidget, SIGNAL(itemSelectionChanged()),
+            SLOT(onSelectionChanged()));
+    connect(ui->filesListWidget, SIGNAL(itemActivated(QListWidgetItem*)),
+            SLOT(onItemActivated(QListWidgetItem*)));
+    connect(ui->filesListWidget, SIGNAL(itemChanged(QListWidgetItem*)),
+            SLOT(onModified()));
+    connect(ui->filesListWidget, SIGNAL(itemSelectionChanged()),
+            SLOT(onSelectionChanged()));
+
+    ui->sourcesRemoveButton->setEnabled(false);
+    ui->pkgConfigBRRemoveButton->setEnabled(false);
+    ui->pkgBRRemoveButton->setEnabled(false);
+    ui->requiresRemoveButton->setEnabled(false);
+    ui->filesRemoveButton->setEnabled(false);
+
 }
 
 YamlEditorWidget::~YamlEditorWidget()
@@ -136,16 +176,25 @@ QStringList YamlEditorWidget::sources() const
 {
     QStringList sources;
     int count = ui->sourcesListWidget->count();
-    while (count)
-        sources << ui->sourcesListWidget->item(--count)->text();
+    while (count) {
+        const QString text = ui->sourcesListWidget->item(--count)->text();
+        if (text == tr("<New Item>"))
+            continue;
+        sources << text;
+    }
     return sources;
 }
 
 void YamlEditorWidget::setSources(const QStringList &sources)
 {
     ui->sourcesListWidget->clear();
-    foreach (const QString &source, sources)
-        ui->sourcesListWidget->addItem(source);
+    foreach (const QString &source, sources) {
+        if (source.isEmpty())
+            continue;
+        QListWidgetItem *item = new QListWidgetItem(source);
+        item->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable | Qt::ItemIsEditable);
+        ui->sourcesListWidget->addItem(item);
+    }
 }
 
 QString YamlEditorWidget::description() const
@@ -162,64 +211,100 @@ QStringList YamlEditorWidget::pkgConfigBR() const
 {
     QStringList pkgConfigs;
     int count = ui->pkgConfigBRListWidget->count();
-    while (count)
-        pkgConfigs << ui->pkgConfigBRListWidget->item(--count)->text();
+    while (count) {
+        const QString text = ui->pkgConfigBRListWidget->item(--count)->text();
+        if (text == tr("<New Item>"))
+            continue;
+        pkgConfigs << text;
+    }
     return pkgConfigs;
 }
 
 void YamlEditorWidget::setPkgConfigBR(const QStringList &requires)
 {
     ui->pkgConfigBRListWidget->clear();
-    foreach (const QString &r, requires)
-        ui->pkgConfigBRListWidget->addItem(r);
+    foreach (const QString &r, requires) {
+        if (r.isEmpty())
+            continue;
+        QListWidgetItem *item = new QListWidgetItem(r);
+        item->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable | Qt::ItemIsEditable);
+        ui->pkgConfigBRListWidget->addItem(item);
+    }
 }
 
 QStringList YamlEditorWidget::pkgBR() const
 {
     QStringList packages;
     int count = ui->pkgBRListWidget->count();
-    while (count)
-        packages << ui->pkgBRListWidget->item(--count)->text();
+    while (count) {
+        const QString text = ui->pkgBRListWidget->item(--count)->text();
+        if (text == tr("<New Item>"))
+            continue;
+        packages << text;
+    }
     return packages;
 }
 
 void YamlEditorWidget::setPkgBR(const QStringList &packages)
 {
     ui->pkgBRListWidget->clear();
-    foreach (const QString &p, packages)
-        ui->pkgBRListWidget->addItem(p);
+    foreach (const QString &p, packages) {
+        if (p.isEmpty())
+            continue;
+        QListWidgetItem *item = new QListWidgetItem(p);
+        item->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable | Qt::ItemIsEditable);
+        ui->pkgBRListWidget->addItem(item);
+    }
 }
 
 QStringList YamlEditorWidget::requires() const
 {
     QStringList requires;
     int count = ui->requiresListWidget->count();
-    while (count)
-        requires << ui->requiresListWidget->item(--count)->text();
+    while (count) {
+        const QString text = ui->requiresListWidget->item(--count)->text();
+        if (text == tr("<New Item>"))
+            continue;
+        requires << text;
+    }
     return requires;
 }
 
 void YamlEditorWidget::setRequires(const QStringList &requires)
 {
     ui->requiresListWidget->clear();
-    foreach (const QString &r, requires)
-        ui->requiresListWidget->addItem(r);
+    foreach (const QString &r, requires) {
+        if (r.isEmpty())
+            continue;
+        QListWidgetItem *item = new QListWidgetItem(r);
+        item->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable | Qt::ItemIsEditable);
+        ui->requiresListWidget->addItem(item);
+    }
 }
 
 QStringList YamlEditorWidget::files() const
 {
     QStringList files;
     int count = ui->filesListWidget->count();
-    while (count)
-        files << ui->filesListWidget->item(--count)->text();
+    while (count) {
+        const QString text = ui->filesListWidget->item(--count)->text();
+        if (text == tr("<New Item>"))
+            continue;
+        files << text;
+    }
     return files;
 }
 
 void YamlEditorWidget::setFiles(const QStringList &files)
 {
     ui->filesListWidget->clear();
-    foreach (const QString &f, files)
-        ui->filesListWidget->addItem(f);
+    foreach (const QString &f, files) {
+        if (f.isEmpty())
+            continue;
+        QListWidgetItem *item = new QListWidgetItem(f);
+        item->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable | Qt::ItemIsEditable);
+        ui->filesListWidget->addItem(item);
+    }
 }
 
 bool YamlEditorWidget::modified() const
@@ -247,6 +332,98 @@ void YamlEditorWidget::onModified()
 {
     if (m_trackChanges)
         setModified(true);
+}
+
+void YamlEditorWidget::onAddFiles()
+{
+    QStringList files = QFileDialog::getOpenFileNames(this, tr("Select files"));
+    foreach (const QString &f, files) {
+        QListWidgetItem *item = new QListWidgetItem(f);
+        item->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable | Qt::ItemIsEditable);
+        ui->filesListWidget->addItem(item);
+    }
+    if (files.count())
+        onModified();
+}
+
+void YamlEditorWidget::onRemoveFiles()
+{
+    QList<QListWidgetItem *> selectedItems = ui->filesListWidget->selectedItems();
+    foreach (QListWidgetItem *item, selectedItems) {
+        ui->filesListWidget->removeItemWidget(item);
+        delete item;
+    }
+    if (selectedItems.count())
+        onModified();
+}
+
+void YamlEditorWidget::onAddItem()
+{
+    QListWidget *widget = 0;
+    QObject *button = sender();
+    if (button == ui->sourcesAddButton)
+        widget = ui->sourcesListWidget;
+    else if (button == ui->pkgBRAddButton)
+        widget = ui->pkgBRListWidget;
+    else if (button == ui->pkgConfigBRAddButton)
+        widget = ui->pkgConfigBRListWidget;
+    else if (button == ui->requiresAddButton)
+        widget = ui->requiresListWidget;
+    if (widget) {
+        QListWidgetItem *item = new QListWidgetItem(tr("<New Item>"));
+        item->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable | Qt::ItemIsEditable);
+        item->setSelected(true);
+        widget->addItem(item);
+        onModified();
+    }
+}
+
+void YamlEditorWidget::onRemoveItem()
+{
+    QListWidget *widget = 0;
+    QPushButton *button = qobject_cast<QPushButton *>(sender());
+    if (button == ui->sourcesRemoveButton)
+        widget = ui->sourcesListWidget;
+    else if (button == ui->pkgBRRemoveButton)
+        widget = ui->pkgBRListWidget;
+    else if (button == ui->pkgConfigBRRemoveButton)
+        widget = ui->pkgConfigBRListWidget;
+    else if (button == ui->requiresRemoveButton)
+        widget = ui->requiresListWidget;
+    if (widget) {
+        QList<QListWidgetItem *> selectedItems = widget->selectedItems();
+        foreach (QListWidgetItem *item, selectedItems) {
+            ui->filesListWidget->removeItemWidget(item);
+            delete item;
+        }
+        if (selectedItems.count())
+            onModified();
+    }
+}
+
+void YamlEditorWidget::onItemActivated(QListWidgetItem *item)
+{
+    QListWidget *widget = qobject_cast<QListWidget *>(sender());
+    if (widget)
+        widget->editItem(item);
+}
+
+void YamlEditorWidget::onSelectionChanged()
+{
+    QListWidget *widget = qobject_cast<QListWidget *>(sender());
+    QPushButton *button = 0;
+    if (widget == ui->sourcesListWidget)
+        button = ui->sourcesRemoveButton;
+    else if (widget == ui->pkgBRListWidget)
+        button = ui->pkgBRRemoveButton;
+    else if (widget == ui->pkgConfigBRListWidget)
+        button = ui->pkgConfigBRRemoveButton;
+    else if (widget == ui->requiresListWidget)
+        button = ui->requiresRemoveButton;
+    else if (widget == ui->filesListWidget)
+        button = ui->filesRemoveButton;
+    if (widget && button)
+        button->setEnabled(widget->selectedItems().count());
 }
 
 } // Internal
