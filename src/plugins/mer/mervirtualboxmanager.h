@@ -36,6 +36,7 @@ public:
     VirtualMachineInfo() : sshPort(0), wwwPort(0) {}
     QString sharedHome;
     QString sharedTargets;
+    QString sharedConfig;
     QString sharedSsh;
     quint16 sshPort;
     quint16 wwwPort;

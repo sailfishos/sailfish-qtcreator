@@ -30,8 +30,8 @@
        <rect>
         <x>0</x>
         <y>0</y>
-        <width>978</width>
-        <height>609</height>
+        <width>986</width>
+        <height>617</height>
        </rect>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_2">
@@ -162,6 +162,20 @@
             </property>
            </widget>
           </item>
+          <item row="3" column="0">
+           <widget class="QLabel" name="configFolderLabel">
+            <property name="text">
+             <string>config folder:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="1">
+           <widget class="QLabel" name="configFolderPathLabel">
+            <property name="text">
+             <string/>
+            </property>
+           </widget>
+          </item>
          </layout>
         </widget>
        </item>
@@ -205,6 +219,7 @@
                 <verstretch>0</verstretch>
                </sizepolicy>
               </property>
+              <zorder>groupBox_2</zorder>
              </widget>
             </item>
             <item>
@@ -282,6 +297,10 @@
    <extends>QWidget</extends>
    <header location="global">utils/pathchooser.h</header>
    <container>1</container>
+   <slots>
+    <signal>editingFinished()</signal>
+    <signal>browsingFinished()</signal>
+   </slots>
   </customwidget>
  </customwidgets>
  <resources/>

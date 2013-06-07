@@ -85,6 +85,7 @@ const char MER_TARGET_FILE_VERSION_KEY[] = "MerTarget.Version";
 const char VM_NAME[] = "VirtualMachineName";
 const char SHARED_HOME[] = "SharedHome";
 const char SHARED_TARGET[] = "SharedTarget";
+const char SHARED_CONFIG[] = "SharedConfig";
 const char SHARED_SSH[] = "SharedSsh";
 const char AUTHENTICATION_TYPE[] = "AuthenticationType";
 const char HOST[] = "Host";

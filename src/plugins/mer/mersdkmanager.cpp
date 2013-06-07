@@ -445,6 +445,7 @@ MerSdk* MerSdkManager::createSdk(const QString &vmName)
     sdk->setPrivateKeyFile(QDir::toNativeSeparators(QString::fromLatin1("%1/id_rsa").arg(sshDirectory)));
     sdk->setSharedHomePath(info.sharedHome);
     sdk->setSharedTargetsPath(info.sharedTargets);
+    sdk->setSharedConfigPath(info.sharedConfig);
     sdk->setSharedSshPath(info.sharedSsh);
     return sdk;
 }
