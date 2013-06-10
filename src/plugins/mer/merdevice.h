@@ -36,7 +36,8 @@ public:
     typedef QSharedPointer<const MerDevice> ConstPtr;
 
     static Ptr create();
-    static Ptr create(const QString &name, Core::Id type, MachineType machineType,
+    static Ptr create(const QString& mac, const QString& subnet, int index,
+                      const QString &name, Core::Id type, MachineType machineType,
                       Origin origin = ManuallyAdded, Core::Id id = Core::Id());
 
     QString displayType() const;
@@ -50,16 +51,24 @@ public:
     QVariantMap toMap() const;
 
     QString mac() const;
-    QString subNet() const;
+    QString subnet() const;
+    int index() const;
+
+    static int generateId();
 
 protected:
     MerDevice();
-    MerDevice(const QString &name, Core::Id type, MachineType machineType, Origin origin,
+    MerDevice(const QString& mac, const QString& subnet, int index,
+              const QString &name, Core::Id type, MachineType machineType, Origin origin,
               Core::Id id);
     MerDevice(const MerDevice &other);
 
 private:
     MerDevice &operator=(const MerDevice &);
+    //this magic values are on customer request
+    QString m_mac;
+    int m_index;
+    QString m_subnet;
 };
 
 }

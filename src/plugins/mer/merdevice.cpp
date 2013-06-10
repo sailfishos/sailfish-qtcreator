@@ -25,11 +25,13 @@
 #include "merconstants.h"
 #include "mersdkmanager.h"
 #include "mervirtualboxmanager.h"
+#include "merdevicefactory.h"
 
 #include <remotelinux/remotelinux_constants.h>
 #include <utils/qtcassert.h>
 #include <utils/fileutils.h>
 #include <ssh/sshconnection.h>
+#include <projectexplorer/devicesupport/devicemanager.h>
 
 #include <QDir>
 #include <QTimer>
@@ -111,13 +113,16 @@ MerDevice::Ptr MerDevice::create()
     return Ptr(new MerDevice);
 }
 
-MerDevice::Ptr MerDevice::create(const QString &name,
+MerDevice::Ptr MerDevice::create(const QString& mac,
+                                 const QString& subnet,
+                                 int index,
+                                const QString &name,
                                  Core::Id type,
                                  MachineType machineType,
                                  Origin origin,
                                  Core::Id id)
 {
-    return Ptr(new MerDevice(name, type, machineType, origin, id));
+    return Ptr(new MerDevice(mac,subnet,index,name, type, machineType, origin, id));
 }
 
 QString MerDevice::displayType() const
@@ -134,18 +139,26 @@ ProjectExplorer::IDeviceWidget *MerDevice::createWidget()
     return new MerDeviceConfigurationWidget(sharedFromThis());
 }
 
-MerDevice::MerDevice(const QString &name,
+MerDevice::MerDevice(const QString& mac,
+                     const QString& subnet,
+                     int index,
+                     const QString &name,
                      Core::Id type,
                      MachineType machineType,
                      Origin origin,
                      Core::Id id)
-    : RemoteLinux::LinuxDevice(name, type, machineType, origin, id)
+    : RemoteLinux::LinuxDevice(name, type, machineType, origin, id),
+    m_mac(mac),
+    m_subnet(subnet),
+    m_index(index)
 {
     setDeviceState(IDevice::DeviceStateUnknown);
 }
 
 MerDevice::MerDevice(const MerDevice &other)
-    : RemoteLinux::LinuxDevice(other)
+    : RemoteLinux::LinuxDevice(other), m_index(other.m_index),
+      m_subnet(other.subnet()),
+      m_mac(other.mac())
 {
 }
 
@@ -199,22 +212,53 @@ void MerDevice::executeAction(Core::Id actionId, QWidget *parent) const
 void MerDevice::fromMap(const QVariantMap &map)
 {
     RemoteLinux::LinuxDevice::fromMap(map);
+    m_mac = map.value(QLatin1String(Constants::MER_MAC)).toString();
+    m_subnet = map.value(QLatin1String(Constants::MER_SUBNET)).toString();
+    m_index = map.value(QLatin1String(Constants::MER_DEVICE_INDEX)).toInt();
+
 }
 
 QVariantMap MerDevice::toMap() const
 {
     QVariantMap map = RemoteLinux::LinuxDevice::toMap();
+    map.insert(QLatin1String(Constants::MER_MAC), m_mac);
+    map.insert(QLatin1String(Constants::MER_SUBNET), m_subnet);
+    map.insert(QLatin1String(Constants::MER_DEVICE_INDEX), m_index);
     return map;
 }
 
 QString MerDevice::mac() const
 {
-    return QLatin1String("TODO:");
+    return m_mac;
 }
 
-QString MerDevice::subNet() const
+QString MerDevice::subnet() const
 {
-    return QLatin1String("TODO:");
+    return m_subnet;
+}
+
+int MerDevice::index() const
+{
+    return m_index;
+}
+
+//this function does not have much sense,
+//however it was regested by customer
+int MerDevice::generateId()
+{
+    //go through mer device and generate first free index;
+    ProjectExplorer::DeviceManager* dm = ProjectExplorer::DeviceManager::instance();
+    int count = dm->deviceCount();
+    int index = 0 ;
+
+    for (int i=0 ; i < count ; ++i) {
+        if(MerDeviceFactory::canCreate(dm->deviceAt(i)->type()))
+        {
+            const MerDevice* d = static_cast<const MerDevice*>(dm->deviceAt(i).data());
+            index = d->index() > index? d->index() : index;
+        }
+    }
+    return ++index;
 }
 
 #include "merdevice.moc"

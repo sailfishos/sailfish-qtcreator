@@ -75,6 +75,7 @@ public:
     QString m_subNet;
     QString m_name;
     QString m_type;
+    QString m_index;
 };
 
 class MerEngineData

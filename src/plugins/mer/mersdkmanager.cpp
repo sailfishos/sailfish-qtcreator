@@ -527,12 +527,18 @@ void MerSdkManager::updateDevices()
         if (MerDeviceFactory::canCreate(d->type())) {
             const MerDevice* device = static_cast<const MerDevice*>(d.data());
             MerDeviceData xmlData;
-            xmlData.m_ip = device->sshParameters().host;
-            xmlData.m_mac = device->mac();
-            xmlData.m_name = device->displayName();
-            xmlData.m_sshKeyPath = device->sshParameters().privateKeyFile;
-            xmlData.m_subNet = device->subNet();
-            xmlData.m_type = device->type() == Constants::MER_DEVICE_TYPE_ARM ? QLatin1String("real") : QLatin1String ("vbox");
+            if(device->type() == Constants::MER_DEVICE_TYPE_ARM ) {
+                xmlData.m_ip = device->sshParameters().host;
+                xmlData.m_name = device->displayName();
+                xmlData.m_type = device->type() == Constants::MER_DEVICE_TYPE_ARM ? QLatin1String("real") : QLatin1String ("vbox");
+                xmlData.m_sshKeyPath = device->sshParameters().privateKeyFile;
+            } else {
+                xmlData.m_index = QString::number(device->index());
+                xmlData.m_subNet = device->subnet();
+                xmlData.m_mac = device->mac();
+                xmlData.m_type = device->type() == Constants::MER_DEVICE_TYPE_ARM ? QLatin1String("real") : QLatin1String ("vbox");
+                xmlData.m_sshKeyPath = device->sshParameters().privateKeyFile;
+            }
             devices << xmlData;
         }
     }
@@ -543,7 +549,8 @@ void MerSdkManager::updateDevices()
         MerEngineData xmlData;
         xmlData.m_name = sdk->virtualMachineName();
         xmlData.m_type =  QLatin1String("vbox");
-        xmlData.m_subNet = QLatin1String("TODO:");
+        //hardcoded/magic values on customer regest
+        xmlData.m_subNet = QLatin1String("10.220.220");
         if (!file.isEmpty())
             MerDevicesXmlWriter writer(file, devices,xmlData);
     }

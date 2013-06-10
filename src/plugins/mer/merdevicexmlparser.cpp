@@ -60,6 +60,7 @@ const char IP[] = "ip";
 const char SSH_PATH[] = "sshkeypath";
 const char SUBNET[] = "subnet";
 const char MAC[] = "mac";
+const char INDEX[] = "index";
 
 namespace Mer {
 
@@ -163,6 +164,8 @@ protected:
             m_currentDevice.m_name = value.toString();
         if (element == QLatin1String(TYPE))
             m_currentDevice.m_type = value.toString();
+        if (element == QLatin1String(INDEX))
+            m_currentDevice.m_index = value.toString().toInt();
     }
 
     virtual void comment(const QString &/*value*/)
@@ -363,6 +366,11 @@ MerDevicesXmlWriter::MerDevicesXmlWriter(const QString &fileName,
         writer.writeStartElement(QLatin1String(DEVICE));
         writer.writeAttribute(QLatin1String(NAME), data.m_name);
         writer.writeAttribute(QLatin1String(TYPE), data.m_type);
+        if(!data.m_index.isEmpty()) {
+            writer.writeStartElement(QLatin1String(INDEX));
+            writer.writeCharacters(data.m_index);
+            writer.writeEndElement(); // index
+        }
         if(!data.m_ip.isEmpty()) {
             writer.writeStartElement(QLatin1String(IP));
             writer.writeCharacters(data.m_ip);
