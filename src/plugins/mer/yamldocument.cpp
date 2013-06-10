@@ -38,19 +38,39 @@
 namespace Mer {
 namespace Internal {
 
-class YamlDocumentPrivate
-{
+class YAMLNodes {
 public:
-    YamlDocumentPrivate()
+    YAMLNodes()
     {
         allKeys = QList<QByteArray>() << "Name" << "Summary" << "Version" << "Release"
                                       << "Group" << "License" << "Sources" << "Description"
                                       << "PkgConfigBR" << "PkgBR" << "Requires" << "Files";
     }
 
-    void fetchValues(const yaml_node_t *node, QStack<QByteArray> &valueStack);
-    int setValues(yaml_document_t *newDoc, const yaml_node_t *node, QList<QByteArray> &keys);
-    int addValueNode(const QByteArray &key, yaml_document_t *newDoc, const yaml_node_t *nodeValue);
+    QString name;
+    QString summary;
+    QString version;
+    QString release;
+    QString group;
+    QString license;
+    QString description;
+    QStringList sources;
+    QStringList pkgConfigBR;
+    QStringList pkgBR;
+    QStringList requires;
+    QStringList files;
+
+    QList<QByteArray> allKeys;
+};
+
+class YamlDocumentPrivate
+{
+public:
+    YamlDocumentPrivate() : success(false) {}
+
+    static void fetchValues(yaml_document_t *yamlDoc, const yaml_node_t *node, YAMLNodes &nodes, QStack<QByteArray> &valueStack);
+    static int setValues(yaml_document_t *yamlDoc, yaml_document_t *newDoc, const yaml_node_t *node, const YAMLNodes &nodes, QList<QByteArray> &keys);
+    static int addValueNode( const QByteArray &key, yaml_document_t *newDoc, const yaml_node_t *nodeValue = 0, const YAMLNodes &nodes = YAMLNodes());
 
     QString fileName;
     YamlEditorWidget *editorWidget;
@@ -59,8 +79,6 @@ public:
     yaml_emitter_t yamlWriter;
     yaml_document_t yamlDocument;
     bool success;
-
-    QList<QByteArray> allKeys;
 };
 
 YamlDocument::YamlDocument(YamlEditorWidget *parent) :
@@ -92,7 +110,22 @@ bool YamlDocument::open(QString *errorString, const QString &fileName)
             d->editorWidget->setTrackChanges(false);
             d->editorWidget->clear();
             QStack<QByteArray> valueStack;
-            d->fetchValues(yaml_document_get_root_node(&d->yamlDocument), valueStack);
+            YAMLNodes nodes;
+            d->fetchValues(&d->yamlDocument, yaml_document_get_root_node(&d->yamlDocument), nodes, valueStack);
+
+            d->editorWidget->setName(nodes.name);
+            d->editorWidget->setSummary(nodes.summary);
+            d->editorWidget->setVersion(nodes.version);
+            d->editorWidget->setRelease(nodes.release);
+            d->editorWidget->setGroup(nodes.group);
+            d->editorWidget->setLicense(nodes.license);
+            d->editorWidget->setSources(nodes.sources);
+            d->editorWidget->setDescription(nodes.description);
+            d->editorWidget->setPkgConfigBR(nodes.pkgConfigBR);
+            d->editorWidget->setPkgBR(nodes.pkgBR);
+            d->editorWidget->setRequires(nodes.requires);
+            d->editorWidget->setFiles(nodes.files);
+
             d->editorWidget->setTrackChanges(true);
         }
         fclose(yamlFile);
@@ -116,16 +149,30 @@ bool YamlDocument::save(QString *errorString, const QString &fileName, bool auto
                                  d->yamlDocument.tag_directives.end,
                                  d->yamlDocument.start_implicit, d->yamlDocument.end_implicit);
         QList<QByteArray> keys;
-        int nodeId = d->setValues(&updatedDocument, yaml_document_get_root_node(&d->yamlDocument),
-                                  keys);
+        YAMLNodes nodes;
+        nodes.name = d->editorWidget->name();
+        nodes.summary = d->editorWidget->summary();
+        nodes.version = d->editorWidget->version();
+        nodes.release = d->editorWidget->release();
+        nodes.group = d->editorWidget->group();
+        nodes.license = d->editorWidget->license();
+        nodes.sources = d->editorWidget->sources();
+        nodes.description = d->editorWidget->description();
+        nodes.pkgConfigBR = d->editorWidget->pkgConfigBR();
+        nodes.pkgBR = d->editorWidget->pkgBR();
+        nodes.requires = d->editorWidget->requires();
+        nodes.files = d->editorWidget->files();
+
+        int nodeId = d->setValues(&d->yamlDocument, &updatedDocument, yaml_document_get_root_node(&d->yamlDocument),
+                                  nodes, keys);
         yaml_node_t *node = yaml_document_get_node(&updatedDocument, nodeId);
         if (node && node->type == YAML_MAPPING_NODE) {
-            foreach (const QByteArray &k, d->allKeys) {
+            foreach (const QByteArray &k, nodes.allKeys) {
                 if (keys.removeOne(k))
                     continue;
                 const int keyNodeId = yaml_document_add_scalar(&updatedDocument, 0, (yaml_char_t *)k.data(),
                                                                k.length(), YAML_ANY_SCALAR_STYLE);
-                const int valueNodeId = d->addValueNode(k, &updatedDocument, 0);
+                const int valueNodeId = d->addValueNode(k, &updatedDocument);
                 yaml_document_append_mapping_pair(&updatedDocument, nodeId, keyNodeId, valueNodeId);
             }
         }
@@ -206,7 +253,66 @@ void YamlDocument::rename(const QString &newName)
     emit changed();
 }
 
-void YamlDocumentPrivate::fetchValues(const yaml_node_t *node, QStack<QByteArray> &valueStack)
+bool YamlDocument::updateFiles(const QStringList &files, const QString &fileName)
+{
+    yaml_parser_t yamlParser;
+    yaml_document_t yamlDocument;
+
+    YAMLNodes nodes;
+    bool success = yaml_parser_initialize(&yamlParser);
+    if (success) {
+        FILE *yamlFile = fopen(fileName.toUtf8(), "rb");
+        if (yamlFile)
+            yaml_parser_set_input_file(&yamlParser, yamlFile);
+        success = yaml_parser_load(&yamlParser, &yamlDocument);
+        if (success) {
+            QStack<QByteArray> valueStack;
+            YamlDocumentPrivate::fetchValues(&yamlDocument, yaml_document_get_root_node(&yamlDocument), nodes, valueStack);
+        }
+        fclose(yamlFile);
+    }
+
+    if (!success)
+        return success;
+
+    yaml_emitter_t yamlWriter;
+    success = yaml_emitter_initialize(&yamlWriter);
+    if (success) {
+        yaml_document_t updatedDocument;
+        yaml_document_initialize(&updatedDocument, yamlDocument.version_directive,
+                                 yamlDocument.tag_directives.start,
+                                 yamlDocument.tag_directives.end,
+                                 yamlDocument.start_implicit, yamlDocument.end_implicit);
+        foreach (const QString &file, files) {
+            if (!nodes.files.contains(file))
+                nodes.files.append(file);
+        }
+        QList<QByteArray> keys;
+        YamlDocumentPrivate::setValues(&yamlDocument, &updatedDocument, yaml_document_get_root_node(&yamlDocument), nodes, keys);
+
+        FILE *yamlFile = fopen(fileName.toUtf8(), "wb");
+        if (yamlFile)
+            yaml_emitter_set_output_file(&yamlWriter, yamlFile);
+
+        success = yaml_emitter_open(&yamlWriter);
+        if (success)
+            success = yaml_emitter_dump(&yamlWriter, &updatedDocument);
+        if (success)
+            success = yaml_emitter_close(&yamlWriter);
+        if (success)
+            success = yaml_emitter_flush(&yamlWriter);
+        fclose(yamlFile);
+        yaml_document_delete(&updatedDocument);
+    }
+
+    yaml_emitter_delete(&yamlWriter);
+    yaml_parser_delete(&yamlParser);
+    yaml_document_delete(&yamlDocument);
+    return success;
+}
+
+void YamlDocumentPrivate::fetchValues(yaml_document_t *yamlDoc, const yaml_node_t *node, YAMLNodes &nodes,
+                                      QStack<QByteArray> &valueStack)
 {
     if (node) {
         switch (node->type) {
@@ -219,8 +325,8 @@ void YamlDocumentPrivate::fetchValues(const yaml_node_t *node, QStack<QByteArray
             yaml_node_item_t *current = node->data.sequence.items.start;
             yaml_node_item_t *end = node->data.sequence.items.top;
             while (current && current < end) {
-                yaml_node_t *nodeItem = yaml_document_get_node(&yamlDocument, *current);
-                fetchValues(nodeItem, valueStack);
+                yaml_node_t *nodeItem = yaml_document_get_node(yamlDoc, *current);
+                fetchValues(yamlDoc, nodeItem, nodes, valueStack);
                 ++current;
             }
             break;
@@ -229,54 +335,54 @@ void YamlDocumentPrivate::fetchValues(const yaml_node_t *node, QStack<QByteArray
             yaml_node_pair_t *current = node->data.mapping.pairs.start;
             yaml_node_pair_t *end = node->data.mapping.pairs.top;
             while (current && current < end) {
-                yaml_node_t *nodeKey = yaml_document_get_node(&yamlDocument, current->key);
+                yaml_node_t *nodeKey = yaml_document_get_node(yamlDoc, current->key);
                 if (nodeKey->type != YAML_SCALAR_NODE ||
-                        !allKeys.contains((char*)nodeKey->data.scalar.value)) {
+                        !nodes.allKeys.contains((char*)nodeKey->data.scalar.value)) {
                     ++current;
                     continue;
                 }
                 const QByteArray key = QByteArray((const char*)nodeKey->data.scalar.value);;
-                yaml_node_t *nodeValue = yaml_document_get_node(&yamlDocument, current->value);
-                fetchValues(nodeValue, valueStack);
+                yaml_node_t *nodeValue = yaml_document_get_node(yamlDoc, current->value);
+                fetchValues(yamlDoc, nodeValue, nodes, valueStack);
                 if (key == "Name") {
-                    editorWidget->setName(QString::fromUtf8(valueStack.pop()));
+                    nodes.name = QString::fromUtf8(valueStack.pop());
                 } else if (key == "Summary") {
-                    editorWidget->setSummary(QString::fromUtf8(valueStack.pop()));
+                    nodes.summary = QString::fromUtf8(valueStack.pop());
                 } else if (key == "Version") {
-                    editorWidget->setVersion(QString::fromUtf8(valueStack.pop()));
+                    nodes.version = QString::fromUtf8(valueStack.pop());
                 } else if (key == "Release") {
-                    editorWidget->setRelease(QString::fromUtf8(valueStack.pop()));
+                    nodes.release = QString::fromUtf8(valueStack.pop());
                 } else if (key == "Group") {
-                    editorWidget->setGroup(QString::fromUtf8(valueStack.pop()));
+                    nodes.group = QString::fromUtf8(valueStack.pop());
                 } else if (key == "License") {
-                    editorWidget->setLicense(QString::fromUtf8(valueStack.pop()));
+                    nodes.license = QString::fromUtf8(valueStack.pop());
                 } else if (key == "Sources") {
                     QStringList sources;
                     while (!valueStack.isEmpty())
                         sources << QString::fromUtf8(valueStack.pop());
-                    editorWidget->setSources(sources);
+                    nodes.sources = sources;
                 } else if (key == "Description") {
-                    editorWidget->setDescription(QString::fromUtf8(valueStack.pop()));
+                    nodes.description = QString::fromUtf8(valueStack.pop());
                 } else if (key == "PkgConfigBR") {
                     QStringList pkgConfigs;
                     while (!valueStack.isEmpty())
                         pkgConfigs << QString::fromUtf8(valueStack.pop());
-                    editorWidget->setPkgConfigBR(pkgConfigs);
+                    nodes.pkgConfigBR = pkgConfigs;
                 } else if (key == "PkgBR") {
                     QStringList pkgs;
                     while (!valueStack.isEmpty())
                         pkgs << QString::fromUtf8(valueStack.pop());
-                    editorWidget->setPkgBR(pkgs);
+                    nodes.pkgBR = pkgs;
                 } else if (key == "Requires") {
                     QStringList requires;
                     while (!valueStack.isEmpty())
                         requires << QString::fromUtf8(valueStack.pop());
-                    editorWidget->setRequires(requires);
+                    nodes.requires = requires;
                 } else if (key == "Files") {
                     QStringList files;
                     while (!valueStack.isEmpty())
                         files << QString::fromUtf8(valueStack.pop());
-                    editorWidget->setFiles(files);
+                    nodes.files = files;
                 }
                 ++current;
             }
@@ -286,7 +392,7 @@ void YamlDocumentPrivate::fetchValues(const yaml_node_t *node, QStack<QByteArray
     }
 }
 
-int YamlDocumentPrivate::setValues(yaml_document_t *newDoc, const yaml_node_t *node, QList<QByteArray> &keys)
+int YamlDocumentPrivate::setValues(yaml_document_t *yamlDoc, yaml_document_t *newDoc, const yaml_node_t *node, const YAMLNodes &nodes, QList<QByteArray> &keys)
 {
     int nodeId = 0;
     if (node) {
@@ -302,8 +408,8 @@ int YamlDocumentPrivate::setValues(yaml_document_t *newDoc, const yaml_node_t *n
             yaml_node_item_t *current = node->data.sequence.items.start;
             const yaml_node_item_t *end = node->data.sequence.items.top;
             while (current && current < end) {
-                const yaml_node_t *nodeItem = yaml_document_get_node(&yamlDocument, *current);
-                int itemId = setValues(newDoc, nodeItem, keys);
+                const yaml_node_t *nodeItem = yaml_document_get_node(yamlDoc, *current);
+                int itemId = setValues(yamlDoc, newDoc, nodeItem, nodes, keys);
                 yaml_document_append_sequence_item(newDoc, nodeId, itemId);
                 ++current;
             }
@@ -314,7 +420,7 @@ int YamlDocumentPrivate::setValues(yaml_document_t *newDoc, const yaml_node_t *n
             yaml_node_pair_t *current = node->data.mapping.pairs.start;
             const yaml_node_pair_t *end = node->data.mapping.pairs.top;
             while (current && current < end) {
-                const yaml_node_t *nodeKey = yaml_document_get_node(&yamlDocument, current->key);
+                const yaml_node_t *nodeKey = yaml_document_get_node(yamlDoc, current->key);
                 if (nodeKey->type != YAML_SCALAR_NODE) {
                     ++current;
                     continue;
@@ -324,14 +430,13 @@ int YamlDocumentPrivate::setValues(yaml_document_t *newDoc, const yaml_node_t *n
                                                                nodeKey->data.scalar.length,
                                                                nodeKey->data.scalar.style);
 
-                const yaml_node_t *nodeValue = yaml_document_get_node(&yamlDocument,
-                                                                      current->value);
+                const yaml_node_t *nodeValue = yaml_document_get_node(yamlDoc, current->value);
                 QByteArray key = QByteArray((const char*)nodeKey->data.scalar.value);
                 keys << key;
-                int valueNodeId = addValueNode(key, newDoc, nodeValue);
+                int valueNodeId = addValueNode(key, newDoc, nodeValue, nodes);
                 if (!valueNodeId) {
                     keys.removeLast();
-                    valueNodeId = setValues(newDoc, nodeValue, keys);
+                    valueNodeId = setValues(yamlDoc, newDoc, nodeValue, nodes, keys);
                 }
                 yaml_document_append_mapping_pair(newDoc, nodeId, keyNodeId, valueNodeId);
                 ++current;
@@ -343,7 +448,7 @@ int YamlDocumentPrivate::setValues(yaml_document_t *newDoc, const yaml_node_t *n
     return nodeId;
 }
 
-int YamlDocumentPrivate::addValueNode(const QByteArray &key, yaml_document_t *newDoc, const yaml_node_t *nodeValue)
+int YamlDocumentPrivate::addValueNode(const QByteArray &key, yaml_document_t *newDoc, const yaml_node_t *nodeValue, const YAMLNodes &nodes)
 {
     int valueNodeId = 0;
     yaml_scalar_style_t scalarStyle = YAML_ANY_SCALAR_STYLE;
@@ -359,33 +464,33 @@ int YamlDocumentPrivate::addValueNode(const QByteArray &key, yaml_document_t *ne
         }
     }
     if (key == "Name") {
-        const QByteArray name = editorWidget->name().toUtf8();
+        const QByteArray name = nodes.name.toUtf8();
         valueNodeId = yaml_document_add_scalar(newDoc, 0, (yaml_char_t *)name.data(),
                                                name.length(), scalarStyle);
     } else if (key == "Summary") {
-        const QByteArray summary = editorWidget->summary().toUtf8();
+        const QByteArray summary = nodes.summary.toUtf8();
         valueNodeId = yaml_document_add_scalar(newDoc, 0, (yaml_char_t *)summary.data(),
                                                summary.length(), scalarStyle);
     } else if (key == "Version") {
-        const QByteArray version = editorWidget->version().toUtf8();
+        const QByteArray version = nodes.version.toUtf8();
         valueNodeId = yaml_document_add_scalar(newDoc, 0, (yaml_char_t *)version.data(),
                                                version.length(), scalarStyle);
     } else if (key == "Release") {
-        const QByteArray release = editorWidget->release().toUtf8();
+        const QByteArray release =nodes.release.toUtf8();
         valueNodeId = yaml_document_add_scalar(newDoc, 0, (yaml_char_t *)release.data(),
                                                release.length(), scalarStyle);
     } else if (key == "Group") {
-        const QByteArray group = editorWidget->group().toUtf8();
+        const QByteArray group = nodes.group.toUtf8();
         valueNodeId = yaml_document_add_scalar(newDoc, 0, (yaml_char_t *)group.data(),
                                                group.length(), scalarStyle);
     } else if (key == "License") {
-        const QByteArray license = editorWidget->license().toUtf8();
+        const QByteArray license = nodes.license.toUtf8();
         valueNodeId = yaml_document_add_scalar(newDoc, 0, (yaml_char_t *)license.data(),
                                                license.length(), scalarStyle);
     } else if (key == "Sources") {
         valueNodeId = yaml_document_add_sequence(newDoc, 0,
                                                  sequenceStyle);
-        const QStringList sources = editorWidget->sources();
+        const QStringList sources = nodes.sources;
         foreach (const QString &source, sources) {
             const QByteArray s = source.toUtf8();
             int id = yaml_document_add_scalar(newDoc, 0, (yaml_char_t *)s.data(),
@@ -393,13 +498,13 @@ int YamlDocumentPrivate::addValueNode(const QByteArray &key, yaml_document_t *ne
             yaml_document_append_sequence_item(newDoc, valueNodeId, id);
         }
     } else if (key == "Description") {
-        const QByteArray description = editorWidget->description().toUtf8();
+        const QByteArray description = nodes.description.toUtf8();
         valueNodeId = yaml_document_add_scalar(newDoc, 0,
                                                (yaml_char_t *)description.data(),
                                                description.length(), scalarStyle);
     } else if (key == "PkgConfigBR") {
         valueNodeId = yaml_document_add_sequence(newDoc, 0, sequenceStyle);
-        const QStringList pkgConfigs = editorWidget->pkgConfigBR();
+        const QStringList pkgConfigs = nodes.pkgConfigBR;
         foreach (const QString &pc, pkgConfigs) {
             const QByteArray p = pc.toUtf8();
             int id = yaml_document_add_scalar(newDoc, 0, (yaml_char_t *)p.data(),
@@ -408,7 +513,7 @@ int YamlDocumentPrivate::addValueNode(const QByteArray &key, yaml_document_t *ne
         }
     } else if (key == "PkgBR") {
         valueNodeId = yaml_document_add_sequence(newDoc, 0, sequenceStyle);
-        const QStringList pkgs = editorWidget->pkgBR();
+        const QStringList pkgs = nodes.pkgBR;
         foreach (const QString &p, pkgs) {
             const QByteArray pkg = p.toUtf8();
             int id = yaml_document_add_scalar(newDoc, 0, (yaml_char_t *)pkg.data(),
@@ -417,7 +522,7 @@ int YamlDocumentPrivate::addValueNode(const QByteArray &key, yaml_document_t *ne
         }
     } else if (key == "Requires") {
         valueNodeId = yaml_document_add_sequence(newDoc, 0, sequenceStyle);
-        const QStringList requires = editorWidget->requires();
+        const QStringList requires = nodes.requires;
         foreach (const QString &r, requires) {
             const QByteArray req = r.toUtf8();
             int id = yaml_document_add_scalar(newDoc, 0, (yaml_char_t *)req.data(),
@@ -426,7 +531,7 @@ int YamlDocumentPrivate::addValueNode(const QByteArray &key, yaml_document_t *ne
         }
     } else if (key == "Files") {
         valueNodeId = yaml_document_add_sequence(newDoc, 0, sequenceStyle);
-        const QStringList files = editorWidget->files();
+        const QStringList files = nodes.files;
         foreach (const QString &f, files) {
             const QByteArray file = f.toUtf8();
             int id = yaml_document_add_scalar(newDoc, 0, (yaml_char_t *)file.data(),
