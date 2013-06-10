@@ -86,6 +86,7 @@ MerDeviceConfigurationWizard::~MerDeviceConfigurationWizard()
 
 IDevice::Ptr MerDeviceConfigurationWizard::device()
 {
+
     SshConnectionParameters sshParams;
     sshParams.host = d->wizardData.hostName;
     sshParams.userName = d->wizardData.userName;
@@ -96,7 +97,14 @@ IDevice::Ptr MerDeviceConfigurationWizard::device()
         sshParams.password = d->wizardData.password;
     else
         sshParams.privateKeyFile = d->wizardData.privateKeyFilePath;
-    IDevice::Ptr device = MerDevice::create(d->wizardData.configName,
+    int index = MerDevice::generateId();
+    //hardcoded values requested by customer;
+    QString mac = QString(QLatin1String("08:00:5A:11:00:0%1")).arg(index);
+    QLatin1String subnet("10.220.220");
+    IDevice::Ptr device = MerDevice::create(mac,
+                                            subnet,
+                                            index,
+                                            d->wizardData.configName,
                                             d->wizardData.deviceType,
                                             d->wizardData.machineType,
                                             IDevice::ManuallyAdded);
