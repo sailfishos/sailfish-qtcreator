@@ -55,6 +55,7 @@ SOURCES += \
     mertargetsxmlparser.cpp \
     merdevicexmlparser.cpp \
     merprojectlistener.cpp \
+    meryamlupdater.cpp \
     merbuildconfigurationprojectpathenvironmentvariablesetter.cpp \
     merdeploysteps.cpp \
     merdeployconfiguration.cpp \
@@ -98,6 +99,7 @@ HEADERS += \
     mertargetsxmlparser.h \
     merdevicexmlparser.h \
     merprojectlistener.h \
+    meryamlupdater.h \
     merbuildconfigurationprojectpathenvironmentvariablesetter.h \
     merdeploysteps.h \
     merdeployconfiguration.h \

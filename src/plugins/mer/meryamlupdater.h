@@ -20,46 +20,34 @@
 **
 ****************************************************************************/
 
-#ifndef YAMLDOCUMENT_H
-#define YAMLDOCUMENT_H
+#ifndef MERYAMLUPDATER_H
+#define MERYAMLUPDATER_H
 
-#include <coreplugin/idocument.h>
+#include "merprojectlistener.h"
+
+#include <QObject>
+#include <QFutureInterface>
 
 namespace Mer {
 namespace Internal {
 
-class YamlEditorWidget;
-class YamlDocumentPrivate;
-class YamlDocument : public Core::IDocument
+class MerYamlUpdater : public MerProjectListener
 {
     Q_OBJECT
-public:
-    explicit YamlDocument(YamlEditorWidget *parent);
-    ~YamlDocument();
 
-    bool open(QString *errorString, const QString &fileName);
-    bool save(QString *errorString, const QString &fileName, bool autoSave = false);
-    QString fileName() const;
-
-    QString defaultPath() const;
-    QString suggestedFileName() const;
-    QString mimeType() const;
-
-    bool isModified() const;
-    bool isSaveAsAllowed() const;
-
-    bool reload(QString *errorString, ReloadFlag flag, ChangeType type);
-    void rename(const QString &newName);
-
-    static bool updateFiles(const QStringList &files, const QString &fileName);
-private:
-    void updateEditor();
+private slots:
+    void onProFilesEvaluated(const ProjectExplorer::Project *project = 0);
 
 private:
-    YamlDocumentPrivate *d;
+    bool handleProject(Qt4ProjectManager::Qt4Project *qt4Project);
+    bool forgetProject(ProjectExplorer::Project *project);
+
+private:
+    QFutureInterface<void> m_progress;
+    QList<const ProjectExplorer::Project*> m_projectsToHandle;
 };
 
 } // Internal
 } // Mer
 
-#endif // YAMLDOCUMENT_H
+#endif // MERYAMLUPDATER_H
