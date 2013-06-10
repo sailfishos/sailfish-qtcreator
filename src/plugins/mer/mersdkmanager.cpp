@@ -544,7 +544,8 @@ void MerSdkManager::updateDevices()
         xmlData.m_name = sdk->virtualMachineName();
         xmlData.m_type =  QLatin1String("vbox");
         xmlData.m_subNet = QLatin1String("TODO:");
-        MerDevicesXmlWriter writer(file,devices,xmlData);
+        if (!file.isEmpty())
+            MerDevicesXmlWriter writer(file, devices,xmlData);
     }
 }
 
