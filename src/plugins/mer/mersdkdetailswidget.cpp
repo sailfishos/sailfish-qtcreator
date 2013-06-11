@@ -90,13 +90,6 @@ void MerSdkDetailsWidget::setSdk(const MerSdk *sdk)
     }
 
     m_ui->userNameLabelText->setText(sdk->userName());
-    // For Mer VMs installed by the SDK installer, further key modifications
-    // should be disabled.
-
-    const bool canModifyKeys = sdk->isAutoDetected();
-    m_ui->authorizeSshKeyPushButton->setEnabled(!canModifyKeys);
-    m_ui->generateSshKeyPushButton->setEnabled(!canModifyKeys);
-    m_ui->privateKeyPathChooser->setEnabled(!canModifyKeys);
 }
 
 void MerSdkDetailsWidget::setTestButtonEnabled(bool enabled)
