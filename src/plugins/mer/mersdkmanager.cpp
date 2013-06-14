@@ -538,7 +538,18 @@ void MerSdkManager::updateDevices()
                 xmlData.m_name = device->displayName();
                 xmlData.m_mac = device->mac();
                 xmlData.m_type = device->type() == Constants::MER_DEVICE_TYPE_ARM ? QLatin1String("real") : QLatin1String ("vbox");
-                xmlData.m_sshKeyPath = device->sshParameters().privateKeyFile;
+                //TODO: hardcoded due to bad xml design which assumes device belongs to one engine
+                //whats more... private key should be in the config dir :(
+                QString file;
+                foreach(MerSdk* sdk, m_sdks) {
+                    file = device->sshParameters().privateKeyFile;
+                    //TODO: this is very very ugly
+                    if(file.contains(sdk->sharedConfigPath())) {
+                        file = file.remove(sdk->sharedConfigPath() + QDir::separator());
+                        break;
+                    }
+                }
+                xmlData.m_sshKeyPath = file;
             }
             devices << xmlData;
         }
