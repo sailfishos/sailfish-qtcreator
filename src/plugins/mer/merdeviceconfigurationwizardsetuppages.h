@@ -54,6 +54,7 @@ struct WizardData
     QString password;
     QString freePorts;
     int sshPort;
+    int timeout;
 };
 
 class MerDeviceConfigWizardGeneralPage : public QWizardPage
@@ -71,6 +72,7 @@ public:
     QString freePorts() const;
     QSsh::SshConnectionParameters::AuthenticationType authType() const;
     ProjectExplorer::IDevice::MachineType machineType() const;
+    int timeout() const;
     int sshPort() const;
 
 private slots:
@@ -80,72 +82,6 @@ private slots:
 
 private:
     Ui::MerDeviceConfigWizardGeneralPage *m_ui;
-    const WizardData &m_wizardData;
-};
-
-class MerDeviceConfigWizardPreviousKeySetupCheckPage : public QWizardPage
-{
-    Q_OBJECT
-public:
-    explicit MerDeviceConfigWizardPreviousKeySetupCheckPage(QWidget *parent = 0);
-
-    virtual bool isComplete() const;
-    virtual void initializePage();
-
-    bool keyBasedLoginWasSetup() const;
-    QString privateKeyFilePath() const;
-
-private slots:
-    void handleSelectionChanged();
-
-private:
-    Ui::MerDeviceConfigWizardCheckPreviousKeySetupPage *m_ui;
-};
-
-class MerDeviceConfigWizardReuseKeysCheckPage : public QWizardPage
-{
-    Q_OBJECT
-public:
-    explicit MerDeviceConfigWizardReuseKeysCheckPage(QWidget *parent = 0);
-
-    virtual bool isComplete() const;
-
-    virtual void initializePage();
-
-    bool reuseKeys() const;
-
-    QString privateKeyFilePath() const;
-    QString publicKeyFilePath() const;
-
-private slots:
-    void handleSelectionChanged();
-
-private:
-    Ui::MerDeviceConfigWizardReuseKeysCheckPage *m_ui;
-};
-
-class MerDeviceConfigWizardKeyCreationPage : public QWizardPage
-{
-    Q_OBJECT
-public:
-    MerDeviceConfigWizardKeyCreationPage(const WizardData &wizardData, QWidget *parent);
-    QString privateKeyFilePath() const;
-    QString publicKeyFilePath() const;
-
-    virtual void initializePage();
-    virtual bool isComplete() const;
-
-private slots:
-    void createKeys();
-    void authorizeKeys();
-
-private:
-    bool saveFile(const QString &filePath, const QByteArray &data);
-    void enableInput();
-
-private:
-    Ui::MerDeviceConfigWizardKeyCreationPage *m_ui;
-    bool m_isComplete;
     const WizardData &m_wizardData;
 };
 

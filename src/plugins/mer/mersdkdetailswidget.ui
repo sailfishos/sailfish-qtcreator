@@ -205,7 +205,7 @@
           <item row="1" column="0">
            <widget class="QLabel" name="sshKeyLabel">
             <property name="text">
-             <string>SSH key: </string>
+             <string>Ssh key: </string>
             </property>
            </widget>
           </item>
@@ -219,7 +219,6 @@
                 <verstretch>0</verstretch>
                </sizepolicy>
               </property>
-              <zorder>groupBox_2</zorder>
              </widget>
             </item>
             <item>

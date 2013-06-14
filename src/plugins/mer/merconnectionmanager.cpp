@@ -32,6 +32,7 @@
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/taskhub.h>
+#include <projectexplorer/devicesupport/devicemanager.h>
 #include <ssh/sshconnection.h>
 
 #include <QIcon>
@@ -77,6 +78,7 @@ MerConnectionManager::MerConnectionManager():
     connect(session, SIGNAL(startupProjectChanged(ProjectExplorer::Project*)),
             SLOT(handleStartupProjectChanged(ProjectExplorer::Project*)));
     connect(MerSdkManager::instance(), SIGNAL(sdksUpdated()), this, SLOT(update()));
+    connect(DeviceManager::instance(), SIGNAL(deviceListChanged()), SLOT(update()));
 
     TaskHub *th = ProjectExplorerPlugin::instance()->taskHub();
     th->addCategory(Core::Id(Constants::MER_TASKHUB_CATEGORY), tr("Virtual Machine Error"));

@@ -59,7 +59,6 @@ MerDeviceConfigurationWidget::MerDeviceConfigurationWidget(
     connect(m_ui->showPasswordCheckBox, SIGNAL(toggled(bool)), SLOT(showPassword(bool)));
     connect(m_ui->portsLineEdit, SIGNAL(editingFinished()), SLOT(handleFreePortsChanged()));
     connect(m_ui->createKeyButton, SIGNAL(clicked()), SLOT(createNewKey()));
-
     initGui();
 }
 
@@ -76,11 +75,12 @@ void MerDeviceConfigurationWidget::authenticationTypeChanged()
             ? SshConnectionParameters::AuthenticationByPassword
             : SshConnectionParameters::AuthenticationByKey;
     device()->setSshParameters(sshParams);
-    m_ui->pwdLineEdit->setEnabled(usePassword);
-    m_ui->passwordLabel->setEnabled(usePassword);
-    m_ui->keyFileLineEdit->setEnabled(!usePassword);
-    m_ui->keyLabel->setEnabled(!usePassword);
-    m_ui->createKeyButton->setEnabled(!usePassword);
+    m_ui->pwdLineEdit->setVisible(usePassword);
+    m_ui->passwordLabel->setVisible(usePassword);
+    m_ui->showPasswordCheckBox->setVisible(usePassword);
+    m_ui->keyFileLineEdit->setVisible(!usePassword);
+    m_ui->keyLabel->setVisible(!usePassword);
+    m_ui->createKeyButton->setVisible(!usePassword);
 }
 
 void MerDeviceConfigurationWidget::hostNameEditingFinished()
@@ -151,19 +151,6 @@ void MerDeviceConfigurationWidget::createNewKey()
 
 void MerDeviceConfigurationWidget::updateDeviceFromUi()
 {
-    VirtualMachineInfo info =
-            MerVirtualBoxManager::fetchVirtualMachineInfo(device()->id().toString());
-    int sshPort = info.sshPort ? info.sshPort : device()->sshParameters().port;
-    m_ui->sshPortSpinBox->setValue(sshPort);
-    if (info.freePorts.count()) {
-        QStringList freePorts;
-        foreach (quint16 port, info.freePorts)
-            freePorts << QString::number(port);
-        m_ui->portsLineEdit->setText(freePorts.join(QLatin1String(",")));
-    } else {
-        m_ui->portsLineEdit->setText(device()->freePorts().toString());
-    }
-
     hostNameEditingFinished();
     sshPortEditingFinished();
     timeoutEditingFinished();
@@ -202,28 +189,16 @@ void MerDeviceConfigurationWidget::initGui()
     SshConnectionParameters::AuthenticationByPassword == sshParams.authenticationType
             ? m_ui->passwordButton->setChecked(true)
             : m_ui->keyButton->setChecked(true);
-    m_ui->timeoutSpinBox->setValue(sshParams.timeout);
 
+    m_ui->timeoutSpinBox->setValue(sshParams.timeout);
     m_ui->hostLineEdit->setText(sshParams.host);
     m_ui->timeoutSpinBox->setValue(sshParams.timeout);
     m_ui->userLineEdit->setText(sshParams.userName);
     m_ui->pwdLineEdit->setText(sshParams.password);
     m_ui->keyFileLineEdit->setPath(sshParams.privateKeyFile);
     m_ui->showPasswordCheckBox->setChecked(false);
-    VirtualMachineInfo info =
-            MerVirtualBoxManager::fetchVirtualMachineInfo(device()->id().toString());
-    int sshPort = info.sshPort ? info.sshPort : sshParams.port;
-    m_ui->sshPortSpinBox->setValue(sshPort);
-    if (info.freePorts.count()) {
-        QStringList freePorts;
-        foreach (quint16 port, info.freePorts)
-            freePorts << QString::number(port);
-        m_ui->portsLineEdit->setText(freePorts.join(QLatin1String(",")));
-    } else {
-        m_ui->portsLineEdit->setText(device()->freePorts().toString());
-    }
-    sshPortEditingFinished();
-    handleFreePortsChanged();
+    m_ui->sshPortSpinBox->setValue(sshParams.port);
+    m_ui->portsLineEdit->setText(device()->freePorts().toString());
     updatePortsWarningLabel();
 }
 

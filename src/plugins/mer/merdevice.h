@@ -67,8 +67,8 @@ private:
     MerDevice &operator=(const MerDevice &);
     //this magic values are on customer request
     QString m_mac;
-    int m_index;
     QString m_subnet;
+    int m_index;
 };
 
 }

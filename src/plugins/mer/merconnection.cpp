@@ -137,10 +137,8 @@ void MerRemoteConnection::setConnectionParameters(const QString &virtualMachine,
     if (m_connection)
         m_connection->deleteLater();
 
-    SshConnectionParameters params = sshParameters;
-    params.timeout = m_connectionTimeOut;
     m_vmName = virtualMachine;
-    m_connection = createConnection(params);
+    m_connection = createConnection(sshParameters);
     m_state = Disconnected;
 }
 
