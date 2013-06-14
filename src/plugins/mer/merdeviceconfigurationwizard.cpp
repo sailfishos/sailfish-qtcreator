@@ -49,9 +49,6 @@ class MerDeviceConfigurationWizardPrivate
 public:
     MerDeviceConfigurationWizardPrivate(Core::Id id, QWidget *parent)
         : generalPage(wizardData, parent)
-        , previousKeySetupPage(parent)
-        , reuseKeysCheckPage(parent)
-        , keyCreationPage(wizardData, parent)
         , finalPage(wizardData, parent)
     {
         wizardData.deviceType = id;
@@ -60,9 +57,6 @@ public:
 
     WizardData wizardData;
     MerDeviceConfigWizardGeneralPage generalPage;
-    MerDeviceConfigWizardPreviousKeySetupCheckPage previousKeySetupPage;
-    MerDeviceConfigWizardReuseKeysCheckPage reuseKeysCheckPage;
-    MerDeviceConfigWizardKeyCreationPage keyCreationPage;
     MerDeviceConfigWizardFinalPage finalPage;
 };
 
@@ -72,9 +66,6 @@ MerDeviceConfigurationWizard::MerDeviceConfigurationWizard(Core::Id id, QWidget 
 {
     setWindowTitle(tr("New Mer Device Configuration Setup"));
     setPage(GeneralPageId, &d->generalPage);
-    setPage(PreviousKeySetupCheckPageId, &d->previousKeySetupPage);
-    setPage(ReuseKeysCheckPageId, &d->reuseKeysCheckPage);
-    setPage(KeyCreationPageId, &d->keyCreationPage);
     setPage(FinalPageId, &d->finalPage);
     d->finalPage.setCommitPage(true);
 }
@@ -86,12 +77,11 @@ MerDeviceConfigurationWizard::~MerDeviceConfigurationWizard()
 
 IDevice::Ptr MerDeviceConfigurationWizard::device()
 {
-
     SshConnectionParameters sshParams;
     sshParams.host = d->wizardData.hostName;
     sshParams.userName = d->wizardData.userName;
     sshParams.port = d->wizardData.sshPort;
-    sshParams.timeout = 10;
+    sshParams.timeout = d->wizardData.timeout;
     sshParams.authenticationType = d->wizardData.authType;
     if (sshParams.authenticationType == SshConnectionParameters::AuthenticationByPassword)
         sshParams.password = d->wizardData.password;
@@ -130,28 +120,7 @@ int MerDeviceConfigurationWizard::nextId() const
         d->wizardData.authType = d->generalPage.authType();
         d->wizardData.password = d->generalPage.password();
         d->wizardData.freePorts = d->generalPage.freePorts();
-        if (SshConnectionParameters::AuthenticationByPassword == d->wizardData.authType)
-            return FinalPageId;
-        else
-            return PreviousKeySetupCheckPageId;
-    case PreviousKeySetupCheckPageId:
-        if (d->previousKeySetupPage.keyBasedLoginWasSetup()) {
-            d->wizardData.privateKeyFilePath = d->previousKeySetupPage.privateKeyFilePath();
-            return FinalPageId;
-        } else {
-            return ReuseKeysCheckPageId;
-        }
-    case ReuseKeysCheckPageId:
-        if (d->reuseKeysCheckPage.reuseKeys()) {
-            d->wizardData.privateKeyFilePath = d->reuseKeysCheckPage.privateKeyFilePath();
-            d->wizardData.publicKeyFilePath = d->reuseKeysCheckPage.publicKeyFilePath();
-            return FinalPageId;
-        } else {
-            return KeyCreationPageId;
-        }
-    case KeyCreationPageId:
-        d->wizardData.privateKeyFilePath = d->keyCreationPage.privateKeyFilePath();
-        d->wizardData.publicKeyFilePath = d->keyCreationPage.publicKeyFilePath();
+        d->wizardData.timeout = d->generalPage.timeout();
         return FinalPageId;
     case FinalPageId:
         return -1;

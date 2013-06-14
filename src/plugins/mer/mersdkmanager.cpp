@@ -535,6 +535,7 @@ void MerSdkManager::updateDevices()
             } else {
                 xmlData.m_index = QString::number(device->index());
                 xmlData.m_subNet = device->subnet();
+                xmlData.m_name = device->displayName();
                 xmlData.m_mac = device->mac();
                 xmlData.m_type = device->type() == Constants::MER_DEVICE_TYPE_ARM ? QLatin1String("real") : QLatin1String ("vbox");
                 xmlData.m_sshKeyPath = device->sshParameters().privateKeyFile;

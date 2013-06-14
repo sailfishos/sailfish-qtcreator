@@ -16,9 +16,6 @@ FORMS += \
     mersdkdetailswidget.ui \
     mersdkselectiondialog.ui \
     merdeviceconfigwizardgeneralpage.ui \
-    merdeviceconfigwizardcheckpreviouskeysetupcheckpage.ui \
-    merdeviceconfigwizardreusekeyscheckpage.ui \
-    merdeviceconfigwizardkeycreationpage.ui \
     merdeviceconfigurationwidget.ui \
     merdeploystep.ui \
     yamleditorwidget.ui

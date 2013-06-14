@@ -193,7 +193,7 @@ QStringList listedVirtualMachines(const QString &output)
 VirtualMachineInfo virtualMachineInfoFromOutput(const QString &output)
 {
     VirtualMachineInfo info;
-    info.sshPort = -1;
+    info.sshPort = 0;
 
     // Get ssh port, shared home and shared targets
     // 1 Name, 2 Protocol, 3 Host IP, 4 Host Port, 5 Guest IP, 6 Guest Port, 7 Shared Folder Name,

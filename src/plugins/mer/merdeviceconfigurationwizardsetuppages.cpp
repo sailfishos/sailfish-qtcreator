@@ -20,9 +20,6 @@
 **
 ****************************************************************************/
 
-#include "ui_merdeviceconfigwizardcheckpreviouskeysetupcheckpage.h"
-#include "ui_merdeviceconfigwizardkeycreationpage.h"
-#include "ui_merdeviceconfigwizardreusekeyscheckpage.h"
 #include "ui_merdeviceconfigwizardgeneralpage.h"
 #include "merdeviceconfigurationwizardsetuppages.h"
 #include "merconstants.h"
@@ -32,6 +29,7 @@
 
 #include <ssh/sshkeygenerator.h>
 
+#include <QPushButton>
 #include <QButtonGroup>
 #include <QDesktopServices>
 #include <QMessageBox>
@@ -72,6 +70,10 @@ MerDeviceConfigWizardGeneralPage::MerDeviceConfigWizardGeneralPage(const WizardD
     m_ui->sshPortSpinBox->setMinimum(1);
     m_ui->sshPortSpinBox->setMaximum(65535);
     m_ui->sshPortSpinBox->setValue(2223);
+
+    m_ui->timeoutSpinBox->setMinimum(1);
+    m_ui->timeoutSpinBox->setMaximum(65535);
+    m_ui->timeoutSpinBox->setValue(10);
 
     connect(m_ui->deviceNameLineEdit, SIGNAL(textChanged(QString)), SIGNAL(completeChanged()));
     connect(m_ui->hostNameLineEdit, SIGNAL(textChanged(QString)), SIGNAL(completeChanged()));
@@ -138,10 +140,14 @@ IDevice::MachineType MerDeviceConfigWizardGeneralPage::machineType() const
             : IDevice::Hardware;
 }
 
-
 int MerDeviceConfigWizardGeneralPage::sshPort() const
 {
     return m_ui->sshPortSpinBox->value();
+}
+
+int MerDeviceConfigWizardGeneralPage::timeout() const
+{
+    return m_ui->timeoutSpinBox->value();
 }
 
 void MerDeviceConfigWizardGeneralPage::authTypeChanged()
@@ -176,112 +182,18 @@ void MerDeviceConfigWizardGeneralPage::machineTypeChanged()
 void MerDeviceConfigWizardGeneralPage::onVirtualMachineChanged(const QString &vmName)
 {
     VirtualMachineInfo info = MerVirtualBoxManager::fetchVirtualMachineInfo(vmName);
-    m_ui->sshPortSpinBox->setValue(info.sshPort);
+
+    if (info.sshPort == 0)
+            m_ui->sshPortSpinBox->setValue(22);
+        else
+            m_ui->sshPortSpinBox->setValue(info.sshPort);
     QStringList freePorts;
     foreach (quint16 port, info.freePorts)
         freePorts << QString::number(port);
     m_ui->freePortsLineEdit->setText(freePorts.join(QLatin1String(",")));
 }
 
-MerDeviceConfigWizardPreviousKeySetupCheckPage::MerDeviceConfigWizardPreviousKeySetupCheckPage(
-        QWidget *parent)
-    : QWizardPage(parent)
-    , m_ui(new Ui::MerDeviceConfigWizardCheckPreviousKeySetupPage)
-{
-    m_ui->setupUi(this);
-    m_ui->privateKeyFilePathChooser->setExpectedKind(PathChooser::File);
-    setTitle(tr("Device Status Check"));
-    QButtonGroup * const buttonGroup = new QButtonGroup(this);
-    buttonGroup->setExclusive(true);
-    buttonGroup->addButton(m_ui->keyWasSetUpButton);
-    buttonGroup->addButton(m_ui->keyWasNotSetUpButton);
-    connect(buttonGroup, SIGNAL(buttonClicked(int)), SLOT(handleSelectionChanged()));
-    connect(m_ui->privateKeyFilePathChooser, SIGNAL(changed(QString)), SIGNAL(completeChanged()));
-}
-
-bool MerDeviceConfigWizardPreviousKeySetupCheckPage::isComplete() const
-{
-    return !keyBasedLoginWasSetup() || m_ui->privateKeyFilePathChooser->isValid();
-}
-
-void MerDeviceConfigWizardPreviousKeySetupCheckPage::initializePage()
-{
-    m_ui->keyWasNotSetUpButton->setChecked(true);
-    m_ui->privateKeyFilePathChooser->setPath(IDevice::defaultPrivateKeyFilePath());
-    handleSelectionChanged();
-}
-
-bool MerDeviceConfigWizardPreviousKeySetupCheckPage::keyBasedLoginWasSetup() const
-{
-    return m_ui->keyWasSetUpButton->isChecked();
-}
-
-QString MerDeviceConfigWizardPreviousKeySetupCheckPage::privateKeyFilePath() const
-{
-    return m_ui->privateKeyFilePathChooser->path();
-}
-
-void MerDeviceConfigWizardPreviousKeySetupCheckPage::handleSelectionChanged()
-{
-    m_ui->privateKeyFilePathChooser->setEnabled(keyBasedLoginWasSetup());
-    emit completeChanged();
-}
-
-MerDeviceConfigWizardReuseKeysCheckPage::MerDeviceConfigWizardReuseKeysCheckPage(QWidget *parent)
-    : QWizardPage(parent)
-    , m_ui(new Ui::MerDeviceConfigWizardReuseKeysCheckPage)
-{
-    m_ui->setupUi(this);
-    setTitle(tr("Existing Keys Check"));
-    m_ui->publicKeyFilePathChooser->setExpectedKind(PathChooser::File);
-    m_ui->privateKeyFilePathChooser->setExpectedKind(PathChooser::File);
-    QButtonGroup * const buttonGroup = new QButtonGroup(this);
-    buttonGroup->setExclusive(true);
-    buttonGroup->addButton(m_ui->reuseButton);
-    buttonGroup->addButton(m_ui->dontReuseButton);
-    connect(buttonGroup, SIGNAL(buttonClicked(int)), SLOT(handleSelectionChanged()));
-    connect(m_ui->privateKeyFilePathChooser, SIGNAL(changed(QString)), SIGNAL(completeChanged()));
-    connect(m_ui->publicKeyFilePathChooser, SIGNAL(changed(QString)), SIGNAL(completeChanged()));
-}
-
-bool MerDeviceConfigWizardReuseKeysCheckPage::isComplete() const
-{
-    return (m_ui->publicKeyFilePathChooser->isValid() && m_ui->privateKeyFilePathChooser->isValid())
-            || !reuseKeys();
-}
-
-void MerDeviceConfigWizardReuseKeysCheckPage::initializePage()
-{
-    m_ui->dontReuseButton->setChecked(true);
-    m_ui->privateKeyFilePathChooser->setPath(IDevice::defaultPrivateKeyFilePath());
-    m_ui->publicKeyFilePathChooser->setPath(IDevice::defaultPublicKeyFilePath());
-    handleSelectionChanged();
-}
-
-bool MerDeviceConfigWizardReuseKeysCheckPage::reuseKeys() const
-{
-    return m_ui->reuseButton->isChecked();
-}
-
-QString MerDeviceConfigWizardReuseKeysCheckPage::privateKeyFilePath() const
-{
-    return m_ui->privateKeyFilePathChooser->path();
-}
-
-QString MerDeviceConfigWizardReuseKeysCheckPage::publicKeyFilePath() const
-{
-    return m_ui->publicKeyFilePathChooser->path();
-}
-
-void MerDeviceConfigWizardReuseKeysCheckPage::handleSelectionChanged()
-{
-    m_ui->privateKeyFilePathLabel->setEnabled(reuseKeys());
-    m_ui->privateKeyFilePathChooser->setEnabled(reuseKeys());
-    m_ui->publicKeyFilePathLabel->setEnabled(reuseKeys());
-    m_ui->publicKeyFilePathChooser->setEnabled(reuseKeys());
-    emit completeChanged();
-}
-
+/*
 MerDeviceConfigWizardKeyCreationPage::MerDeviceConfigWizardKeyCreationPage(
         const WizardData &wizardData, QWidget *parent)
     : QWizardPage(parent)
@@ -399,7 +311,7 @@ void MerDeviceConfigWizardKeyCreationPage::enableInput()
     m_ui->createKeysButton->setEnabled(true);
     m_ui->statusLabel->clear();
 }
-
+*/
 MerDeviceConfigWizardFinalPage::MerDeviceConfigWizardFinalPage(const WizardData &wizardData,
                                                                QWidget *parent)
     : GenericLinuxDeviceConfigurationWizardFinalPage(parent)
