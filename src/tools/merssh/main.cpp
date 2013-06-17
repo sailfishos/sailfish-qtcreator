@@ -74,18 +74,6 @@ bool generateSshKeys(const QString &privateKeyFileName, const QString &publicKey
     return true;
 }
 
-bool removeSshKeys(const QString &privateKeyFileName, const QString &publicKeyFileName)
-{
-    bool success = false;
-    if (QFile::exists(privateKeyFileName))
-        success = QFile::remove(privateKeyFileName);
-    if (success && QFile::exists(publicKeyFileName))
-        success = QFile::remove(publicKeyFileName);
-
-    return success;
-}
-
-
 int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);
@@ -102,8 +90,6 @@ int main(int argc, char *argv[])
 
     if (arguments.length() == 3 && arguments.first() == QLatin1String("generatesshkeys"))
         return generateSshKeys(arguments.at(1), arguments.at(2)) ? 0 : 1;
-    if (arguments.length() == 3 && arguments.first() == QLatin1String("removesshkeys"))
-        return removeSshKeys(arguments.at(1), arguments.at(2)) ? 0 : 1;
 
     foreach (QString argument, arguments) {
         argument = argument.trimmed();
