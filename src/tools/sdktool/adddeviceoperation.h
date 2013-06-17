@@ -68,7 +68,10 @@ private:
                                  const QString &privateKeyFil,
                                  int timeout,
                                  const QString &freePorts,
-                                 int version);
+                                 int version,
+                                 int merIndex = -1,
+                                 QString merMac = QString(),
+                                 QString merSubnet = QString());
 
 private:
     QByteArray m_internalId;
@@ -85,6 +88,9 @@ private:
     QString m_freePorts;
     int m_machineType;
     int m_version;
+    int m_merIndex;
+    QString m_merMac;
+    QString m_merSubnet;
 };
 
 #endif // ADDDEVICEOPERATION_H
