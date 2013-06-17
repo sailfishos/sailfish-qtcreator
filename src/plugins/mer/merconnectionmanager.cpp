@@ -116,6 +116,7 @@ QSsh::SshConnectionParameters MerConnectionManager::paramters(const MerSdk *sdk)
     params.host = sdk->host();
     params.port = sdk->sshPort();
     params.privateKeyFile = sdk->privateKeyFile();
+    params.timeout = sdk->timeout();
     return params;
 }
 

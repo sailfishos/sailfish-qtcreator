@@ -44,6 +44,10 @@ namespace Internal {
 
 MerSdk::MerSdk(QObject *parent) : QObject(parent)
     , m_autoDetected(false)
+    , m_sshPort(-1)
+    , m_wwwPort(-1)
+    , m_timeout(10)
+
 {
     connect(&m_watcher, SIGNAL(fileChanged(QString)), this, SLOT(handleTargetsFileChanged(QString)));
 }
@@ -185,6 +189,16 @@ void MerSdk::setUserName(const QString &username)
 QString MerSdk::userName() const
 {
     return m_userName;
+}
+
+void MerSdk::setTimeout(int timeout)
+{
+    m_timeout = timeout;
+}
+
+int MerSdk::timeout() const
+{
+    return m_timeout;
 }
 
 // call the install all the targets and track the changes

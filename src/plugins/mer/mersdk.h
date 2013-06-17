@@ -73,6 +73,9 @@ public:
     void setWwwPort(quint16 port);
     quint16 wwwPort() const;
 
+    void setTimeout(int timeout);
+    int timeout() const;
+
     void setPrivateKeyFile(const QString &file);
     QString privateKeyFile() const;
 
@@ -118,6 +121,7 @@ private:
     QString m_privateKeyFile;
     quint16 m_sshPort;
     quint16 m_wwwPort;
+    int m_timeout;
 
     bool m_autoDetected;
     QList<MerTarget> m_targets;
