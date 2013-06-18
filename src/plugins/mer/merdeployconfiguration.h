@@ -32,7 +32,9 @@
 
 #include <projectexplorer/deployconfiguration.h>
 
+QT_BEGIN_NAMESPACE
 class QLabel;
+QT_END_NAMESPACE
 
 namespace Mer {
 namespace Internal {
