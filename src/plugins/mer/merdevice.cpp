@@ -156,9 +156,10 @@ MerDevice::MerDevice(const QString& mac,
 }
 
 MerDevice::MerDevice(const MerDevice &other)
-    : RemoteLinux::LinuxDevice(other), m_index(other.m_index),
+    : RemoteLinux::LinuxDevice(other),
+      m_mac(other.mac()),
       m_subnet(other.subnet()),
-      m_mac(other.mac())
+      m_index(other.m_index)
 {
 }
 
