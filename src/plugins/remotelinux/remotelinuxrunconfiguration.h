@@ -64,7 +64,7 @@ public:
     ProjectExplorer::Runnable runnable() const override;
 
     QString localExecutableFilePath() const;
-    QString defaultRemoteExecutableFilePath() const;
+    virtual QString defaultRemoteExecutableFilePath() const;
     QString remoteExecutableFilePath() const;
     QString arguments() const;
     void setArguments(const QString &args);
