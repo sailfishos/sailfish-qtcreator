@@ -111,6 +111,7 @@ private:
     void setTargets(const QList<MerTarget> &targets);
 
 private:
+    bool m_autoDetected;
     QString m_name;
     QString m_sharedHomePath;
     QString m_sharedTargetsPath;
@@ -122,8 +123,6 @@ private:
     quint16 m_sshPort;
     quint16 m_wwwPort;
     int m_timeout;
-
-    bool m_autoDetected;
     QList<MerTarget> m_targets;
     QFileSystemWatcher m_watcher;
 

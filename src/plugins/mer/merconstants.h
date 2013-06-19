@@ -110,6 +110,8 @@ const char MER_RUNCONFIGURATION_PREFIX[] = "Qt4ProjectManager.MerRunConfiguratio
 const char MER_SFTP_DEPLOY_STRING[] = QT_TRANSLATE_NOOP("Mer", "Copy Files to Device");
 
 const char MER_EMULATOR_START_ACTION_ID[] = "Mer.MerEmulatorStartAction";
+const char MER_EMULATOR_DEPLOYKEY_ACTION_ID[] = "Mer.MerEmulatorDeployAction";
+const char MER_EMULATOR_TEST_ID[] = "Mer.MerEmulatorTestAction";
 
 const char SAILFISHOS_FEATURE[] = "QtSupport.Wizards.FeatureSailfishOS";
 
@@ -138,9 +140,11 @@ const char MER_SSH_PRIVATE_KEY[] = "MER_SSH_PRIVATE_KEY";
 const char MER_SSH_TARGET_NAME[] = "MER_SSH_TARGET_NAME";
 const char MER_SSH_DEVICE_NAME[] = "MER_SSH_DEVICE_NAME";
 const char MER_SSH_PORT[] = "MER_SSH_PORT";
-const char MER_MAC[] = "MER_MAC";
+const char MER_DEVICE_VIRTUAL_MACHINE[] = "MER_DEVICE_VIRTUAL_MACHINE";
+const char MER_DEVICE_MAC[] = "MER_DEVICE_MAC";
 const char MER_DEVICE_INDEX[] = "MER_DEVICE_INDEX";
-const char MER_SUBNET[] = "MER_SUBNET";
+const char MER_DEVICE_SUBNET[] = "MER_DEVICE_SUBNET";
+const char MER_DEVICE_MER_SDK[] = "MER_DEVICE_SDK";
 
 const char MER_PROJECTPATH_ENVVAR_NAME[] = "MER_PROJECTPATH";
 

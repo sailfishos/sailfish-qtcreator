@@ -328,17 +328,7 @@ MerDeviceConfigWizardFinalPage::MerDeviceConfigWizardFinalPage(const WizardData 
 
 void MerDeviceConfigWizardFinalPage::startEmulator()
 {
-    /*
-    SshConnectionParameters params;
-    params.host = m_wizardData.hostName;
-    params.userName = m_wizardData.userName;
-    params.password = m_wizardData.password;
-    params.privateKeyFile = m_wizardData.privateKeyFilePath;
-    params.timeout = 10;
-    params.authenticationType = m_wizardData.authType;
-    params.port = m_wizardData.sshPort;
-    */
-    MerVirtualBoxManager::startVirtualMachine(m_wizardData.configName);
+    MerVirtualBoxManager::startVirtualMachine(m_wizardData.virtualMachineName);
 }
 
 QString MerDeviceConfigWizardFinalPage::infoText() const

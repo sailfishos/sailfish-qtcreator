@@ -44,6 +44,7 @@ class MerDeviceConfigWizardKeyCreationPage;
 struct WizardData
 {
     QString configName;
+    QString virtualMachineName;
     QString hostName;
     QSsh::SshConnectionParameters::AuthenticationType authType;
     ProjectExplorer::IDevice::MachineType machineType;

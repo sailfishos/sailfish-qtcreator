@@ -69,9 +69,11 @@ private:
                                  int timeout,
                                  const QString &freePorts,
                                  int version,
+                                 const QString &virtualMachine = QString(),
+                                 const QString &sdkVirtualMachine = QString(),
                                  int merIndex = -1,
-                                 QString merMac = QString(),
-                                 QString merSubnet = QString());
+                                 const QString &merMac = QString(),
+                                 const QString &merSubnet = QString());
 
 private:
     QByteArray m_internalId;
@@ -88,6 +90,8 @@ private:
     QString m_freePorts;
     int m_machineType;
     int m_version;
+    QString m_merVirtualMachine;
+    QString m_merSdkVirtualMachine;
     int m_merIndex;
     QString m_merMac;
     QString m_merSubnet;
