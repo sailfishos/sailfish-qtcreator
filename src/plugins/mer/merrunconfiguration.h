@@ -37,7 +37,7 @@ public:
     bool isEnabled() const;
 
     QString commandPrefix() const;
-
+    QString defaultRemoteExecutableFilePath() const;
 protected:
     friend class MerRunConfigurationFactory;
 
