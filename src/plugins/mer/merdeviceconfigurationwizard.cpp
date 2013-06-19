@@ -22,8 +22,9 @@
 
 #include "merdeviceconfigurationwizard.h"
 #include "merdeviceconfigurationwizardsetuppages.h"
-#include "merdevice.h"
+#include "meremulatordevice.h"
 #include "merconstants.h"
+#include "mersdkmanager.h"
 
 #include <remotelinux/linuxdevicetestdialog.h>
 #include <remotelinux/linuxdevicetester.h>
@@ -38,9 +39,6 @@ namespace Internal {
 
 namespace {
 enum PageId { GeneralPageId,
-              PreviousKeySetupCheckPageId,
-              ReuseKeysCheckPageId,
-              KeyCreationPageId,
               FinalPageId };
 } // Anonymous
 
@@ -66,8 +64,8 @@ MerDeviceConfigurationWizard::MerDeviceConfigurationWizard(Core::Id id, QWidget 
 {
     setWindowTitle(tr("New Mer Device Configuration Setup"));
     setPage(GeneralPageId, &d->generalPage);
-    setPage(FinalPageId, &d->finalPage);
-    d->finalPage.setCommitPage(true);
+    //setPage(FinalPageId, &d->finalPage);
+    d->generalPage.setCommitPage(true);
 }
 
 MerDeviceConfigurationWizard::~MerDeviceConfigurationWizard()
@@ -87,17 +85,16 @@ IDevice::Ptr MerDeviceConfigurationWizard::device()
         sshParams.password = d->wizardData.password;
     else
         sshParams.privateKeyFile = d->wizardData.privateKeyFilePath;
-    int index = MerDevice::generateId();
+
     //hardcoded values requested by customer;
+    int index = MerSdkManager::generateDeviceId();
     QString mac = QString(QLatin1String("08:00:5A:11:00:0%1")).arg(index);
-    QLatin1String subnet("10.220.220");
-    IDevice::Ptr device = MerDevice::create(mac,
-                                            subnet,
-                                            index,
-                                            d->wizardData.configName,
-                                            d->wizardData.deviceType,
-                                            d->wizardData.machineType,
-                                            IDevice::ManuallyAdded);
+    MerEmulatorDevice::Ptr device = MerEmulatorDevice::create();
+    device->setVirtualMachine(d->wizardData.virtualMachineName);
+    device->setMac(mac);
+    device->setSubnet(QLatin1String("10.220.220"));
+    device->setIndex(index);
+    device->setDisplayName(d->wizardData.configName),
     device->setFreePorts(Utils::PortList::fromString(d->wizardData.freePorts));
     device->setSshParameters(sshParams);
     // Might be called after accept.

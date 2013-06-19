@@ -28,47 +28,29 @@
 namespace Mer {
 namespace Internal {
 
-class MerDevice : public RemoteLinux::LinuxDevice
+class MerHardwareDevice : public RemoteLinux::LinuxDevice
 {
     Q_DECLARE_TR_FUNCTIONS(Mer::Internal::MerDevice)
 public:
-    typedef QSharedPointer<MerDevice> Ptr;
-    typedef QSharedPointer<const MerDevice> ConstPtr;
+    typedef QSharedPointer<MerHardwareDevice> Ptr;
+    typedef QSharedPointer<const MerHardwareDevice> ConstPtr;
 
     static Ptr create();
-    static Ptr create(const QString& mac, const QString& subnet, int index,
-                      const QString &name, Core::Id type, MachineType machineType,
+    static Ptr create(const QString &name, Core::Id type, MachineType machineType,
                       Origin origin = ManuallyAdded, Core::Id id = Core::Id());
 
     QString displayType() const;
     ProjectExplorer::IDeviceWidget *createWidget();
     ProjectExplorer::IDevice::Ptr clone() const;
 
-    QList<Core::Id> actionIds() const;
-    QString displayNameForActionId(Core::Id actionId) const;
-    void executeAction(Core::Id actionId, QWidget *parent) const;
-    void fromMap(const QVariantMap &map);
-    QVariantMap toMap() const;
-
-    QString mac() const;
-    QString subnet() const;
-    int index() const;
-
-    static int generateId();
-
 protected:
-    MerDevice();
-    MerDevice(const QString& mac, const QString& subnet, int index,
-              const QString &name, Core::Id type, MachineType machineType, Origin origin,
+    MerHardwareDevice();
+    MerHardwareDevice(const QString &name, Core::Id type, MachineType machineType, Origin origin,
               Core::Id id);
-    MerDevice(const MerDevice &other);
+    MerHardwareDevice(const MerHardwareDevice &other);
 
 private:
-    MerDevice &operator=(const MerDevice &);
-    //this magic values are on customer request
-    QString m_mac;
-    QString m_subnet;
-    int m_index;
+    MerHardwareDevice &operator=(const MerHardwareDevice &);
 };
 
 }

@@ -21,11 +21,15 @@
 ****************************************************************************/
 
 #include "merdevicefactory.h"
-#include "merdeviceconfigurationwizard.h"
-#include "merdevice.h"
+#include "meremulatordevicedialog.h"
+#include "meremulatordevice.h"
 #include "merconstants.h"
+#include "mersdkmanager.h"
 
 #include <utils/qtcassert.h>
+#include <remotelinux/linuxdevicetestdialog.h>
+#include <ssh/sshconnection.h>
+#include <utils/portlist.h>
 
 namespace Mer {
 namespace Internal {
@@ -39,31 +43,55 @@ QString MerDeviceFactory::displayNameForId(Core::Id type) const
 {
     if (type == Constants::MER_DEVICE_TYPE_I486)
         return tr("Mer i486 Device");
-    if (type == Constants::MER_DEVICE_TYPE_ARM)
-        return tr("Mer ARM Device");
+    //if (type == Constants::MER_DEVICE_TYPE_ARM)
+    //    return tr("Mer ARM Device");
     return QString();
 }
 
 bool MerDeviceFactory::canCreate(Core::Id type)
 {
-    return type == Core::Id(Constants::MER_DEVICE_TYPE_I486) ||
-            type == Core::Id(Constants::MER_DEVICE_TYPE_ARM);
+    return type == Core::Id(Constants::MER_DEVICE_TYPE_I486); //||
+          //  type == Core::Id(Constants::MER_DEVICE_TYPE_ARM);
 }
 
 
 QList<Core::Id> MerDeviceFactory::availableCreationIds() const
 {
-    return QList<Core::Id>() << Core::Id(Constants::MER_DEVICE_TYPE_I486)
-                             << Core::Id(Constants::MER_DEVICE_TYPE_ARM);
+    return QList<Core::Id>() << Core::Id(Constants::MER_DEVICE_TYPE_I486);
+                           //  << Core::Id(Constants::MER_DEVICE_TYPE_ARM);
 }
 
 ProjectExplorer::IDevice::Ptr MerDeviceFactory::create(Core::Id id) const
 {
     QTC_ASSERT(canCreate(id), return ProjectExplorer::IDevice::Ptr());
-    MerDeviceConfigurationWizard wizard(id);
-    if (wizard.exec() != QDialog::Accepted)
+    MerEmulatorDeviceDialog dialog;
+    if (dialog.exec() != QDialog::Accepted)
         return ProjectExplorer::IDevice::Ptr();
-    return wizard.device();
+
+    QSsh::SshConnectionParameters sshParams;
+    sshParams.host = QLatin1String("localhost");
+    sshParams.userName = dialog.userName();
+    sshParams.port = dialog.sshPort();
+    sshParams.timeout = dialog.timeout();
+    sshParams.authenticationType = QSsh::SshConnectionParameters::AuthenticationByKey;
+    sshParams.privateKeyFile = dialog.privateKey();
+
+    //hardcoded values requested by customer;
+    QString mac = QString(QLatin1String("08:00:5A:11:00:0%1")).arg(dialog.index());
+    MerEmulatorDevice::Ptr device = MerEmulatorDevice::create();
+    device->setVirtualMachine(dialog.emulatorVm());
+    device->setSdkName(dialog.sdkVm());
+    device->setMac(mac);
+    device->setSubnet(QLatin1String("10.220.220"));
+    device->setIndex(dialog.index());
+    device->setDisplayName(dialog.configName());
+    device->setFreePorts(Utils::PortList::fromString(dialog.freePorts()));
+    device->setSshParameters(sshParams);
+
+    RemoteLinux::GenericLinuxDeviceTester* tester = new RemoteLinux::GenericLinuxDeviceTester();
+    RemoteLinux::LinuxDeviceTestDialog dlg(device,tester);
+    dlg.exec();
+    return device;
 }
 
 bool MerDeviceFactory::canRestore(const QVariantMap &map) const
@@ -74,7 +102,7 @@ bool MerDeviceFactory::canRestore(const QVariantMap &map) const
 ProjectExplorer::IDevice::Ptr MerDeviceFactory::restore(const QVariantMap &map) const
 {
     QTC_ASSERT(canRestore(map), return ProjectExplorer::IDevice::Ptr());
-    const ProjectExplorer::IDevice::Ptr device = MerDevice::create();
+    const ProjectExplorer::IDevice::Ptr device = MerEmulatorDevice::create();
     device->fromMap(map);
     return device;
 }

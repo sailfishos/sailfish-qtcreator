@@ -56,9 +56,11 @@ const char PasswordKey[] = "Password";
 const char TimeoutKey[] = "Timeout";
 
 //Mer specific stuff
+const char MerVirtualMachine[] = "MerVirtualMachine";
 const char MerIndex[] = "MerIndex";
 const char MerMac[] = "MerMac";
 const char MerSubnet[] = "MerSubnet";
+const char MerSdkVirtualMachine[] = "MerSdkVirtualMachine";
 
 AddDeviceOperation::AddDeviceOperation()
     : m_origin(0)
@@ -105,7 +107,9 @@ QString AddDeviceOperation::argumentsHelpText() const
          + indent + param(QLatin1String(TimeoutKey)) + QLatin1String(" <NUMBER>                             timeout for ssh connection.\n")
          + indent + param(QLatin1String(PortsSpecKey)) + QLatin1String(" <NUMBER,NUMBER|NUMBER-NUMBER>  free ports.\n")
          + indent + param(QLatin1String(VersionKey)) + QLatin1String(" <NUMBER>                             version of the device.\n")
-         + indent + param(QLatin1String(MerIndex)) + QLatin1String(" <NUMBER>                             version of the device.\n")
+         + indent + param(QLatin1String(MerVirtualMachine)) + QLatin1String(" <STRING>                             name of virtual machine for device.\n")
+         + indent + param(QLatin1String(MerSdkVirtualMachine)) + QLatin1String(" <STRING>                             name of mersdk.\n")
+         + indent + param(QLatin1String(MerIndex)) + QLatin1String(" <NUMBER>                             index of the device.\n")
          + indent + param(QLatin1String(MerMac)) + QLatin1String(" <STRING>                             mac of the device.\n")
          + indent + param(QLatin1String(MerSubnet)) + QLatin1String(" <STRING>                             subnet of the device.\n");
 }
@@ -227,6 +231,21 @@ bool AddDeviceOperation::setArguments(const QStringList &args)
             continue;
         }
 
+        if (current == param(QLatin1String(MerVirtualMachine))) {
+            if (next.isNull())
+                return false;
+            ++i; // skip next;
+            m_merVirtualMachine = next;
+            continue;
+        }
+        if (current == param(QLatin1String(MerSdkVirtualMachine))) {
+            if (next.isNull())
+                return false;
+            ++i; // skip next;
+            m_merSdkVirtualMachine = next;
+            continue;
+        }
+
         if (current == param(QLatin1String(MerIndex))) {
             if (next.isNull())
                 return false;
@@ -297,6 +316,8 @@ int AddDeviceOperation::execute() const
                                          m_timeout,
                                          m_freePorts,
                                          m_version,
+                                         m_merVirtualMachine,
+                                         m_merSdkVirtualMachine,
                                          m_merIndex,
                                          m_merMac,
                                          m_merSubnet);
@@ -335,9 +356,11 @@ QVariantMap AddDeviceOperation::addDevice(const QVariantMap &map,
                                           int timeout,
                                           const QString &freePorts,
                                           int version,
+                                          const QString &sdkVirtualMachine,
+                                          const QString &virtualMachine,
                                           int merIndex,
-                                          QString merMac,
-                                          QString merSubnet)
+                                          const QString &merMac,
+                                          const QString &merSubnet)
 {
     QVariantMap result = map;
     QVariantList deviceList = map.value(QLatin1String(DeviceListKey)).toList();
@@ -356,12 +379,16 @@ QVariantMap AddDeviceOperation::addDevice(const QVariantMap &map,
     data.insert(QLatin1String(TimeoutKey), QVariant(timeout));
     data.insert(QLatin1String(PortsSpecKey), QVariant(freePorts));
     data.insert(QLatin1String(VersionKey), QVariant(version));
+    if(!virtualMachine.isEmpty())
+        data.insert(QLatin1String(Mer::Constants::MER_DEVICE_VIRTUAL_MACHINE) , QVariant(virtualMachine));
+    if(!sdkVirtualMachine.isEmpty())
+        data.insert(QLatin1String(Mer::Constants::MER_DEVICE_MER_SDK) , QVariant(virtualMachine));
     if(merIndex > -1)
         data.insert(QLatin1String(Mer::Constants::MER_DEVICE_INDEX), QVariant(merIndex));
     if(!merMac.isEmpty())
-        data.insert(QLatin1String(Mer::Constants::MER_MAC), QVariant(merMac));
+        data.insert(QLatin1String(Mer::Constants::MER_DEVICE_MAC), QVariant(merMac));
     if(!merSubnet.isEmpty())
-        data.insert(QLatin1String(Mer::Constants::MER_SUBNET), QVariant(merSubnet));
+        data.insert(QLatin1String(Mer::Constants::MER_DEVICE_SUBNET), QVariant(merSubnet));
     deviceList.append(QVariant(data));
     result.remove(QLatin1String(DeviceListKey));
     result.insert(QLatin1String(DeviceListKey), deviceList);

@@ -30,7 +30,7 @@
 #include "merplugin.h"
 #include "merdevicefactory.h"
 #include "mertarget.h"
-#include "merdevice.h"
+#include "meremulatordevice.h"
 #include "merdevicexmlparser.h"
 #include "mertargetkitinformation.h"
 
@@ -484,9 +484,20 @@ bool MerSdkManager::validateKit(const Kit *kit)
 
 bool MerSdkManager::generateSshKey(const QString &privKeyPath, QString &error)
 {
-    if (QFileInfo(privKeyPath).exists()) {
+    if (privKeyPath.isEmpty()) {
+        error.append(tr("Error: Key Path  is empty.\n"));
+        return false;
+    }
+
+    QFileInfo finfo(privKeyPath);
+
+    if (finfo.exists()) {
         error.append(tr("Error: File '%1' exists.\n").arg(privKeyPath));
         return false;
+    }
+
+    if (!finfo.dir().exists()) {
+        QDir().mkpath(finfo.dir().absolutePath());
     }
 
     bool success = true;
@@ -525,7 +536,8 @@ void MerSdkManager::updateDevices()
     for(int i = 0 ;  i < count; ++i) {
         IDevice::ConstPtr d = DeviceManager::instance()->deviceAt(i);
         if (MerDeviceFactory::canCreate(d->type())) {
-            const MerDevice* device = static_cast<const MerDevice*>(d.data());
+            //TODO fix me
+            const MerEmulatorDevice* device = static_cast<const MerEmulatorDevice*>(d.data());
             MerDeviceData xmlData;
             if(device->type() == Constants::MER_DEVICE_TYPE_ARM ) {
                 xmlData.m_ip = device->sshParameters().host;
@@ -566,6 +578,26 @@ void MerSdkManager::updateDevices()
         if (!file.isEmpty())
             MerDevicesXmlWriter writer(file, devices,xmlData);
     }
+}
+
+
+//this function does not have much sense,
+//however it was regested by customer
+int MerSdkManager::generateDeviceId()
+{
+    //go through mer device and generate first free index;
+    ProjectExplorer::DeviceManager* dm = ProjectExplorer::DeviceManager::instance();
+    int count = dm->deviceCount();
+    int index = 0 ;
+
+    for (int i=0 ; i < count ; ++i) {
+        if(MerDeviceFactory::canCreate(dm->deviceAt(i)->type()))
+        {
+            const MerEmulatorDevice* d = static_cast<const MerEmulatorDevice*>(dm->deviceAt(i).data());
+            index = d->index() > index? d->index() : index;
+        }
+    }
+    return ++index;
 }
 
 #ifdef WITH_TESTS
