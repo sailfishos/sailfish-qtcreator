@@ -43,7 +43,6 @@ public:
     int timeout() const;
     QString privateKey() const;
     QString emulatorVm() const;
-    QString sdkVm() const;
     QString freePorts() const;
     QString sharedConfigPath() const;
     QString sharedSshPath() const;
