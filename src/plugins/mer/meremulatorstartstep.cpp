@@ -23,6 +23,7 @@
 #include "meremulatorstartstep.h"
 #include "merconnectionmanager.h"
 #include "merconstants.h"
+#include "meremulatordevice.h"
 
 #include <remotelinux/abstractremotelinuxdeployservice.h>
 #include <ssh/sshconnection.h>
@@ -45,14 +46,14 @@ private:
     void doDeviceSetup()
     {
         emit progressMessage(tr("Checking whether to start Emulator..."));
-        IDevice::ConstPtr device = deviceConfiguration();
-        if (device->machineType() == IDevice::Hardware) {
+        IDevice::ConstPtr d = deviceConfiguration();
+        if(d->type() != Constants::MER_DEVICE_TYPE_I486) {
             emit progressMessage(tr("Target device is not an emulator. Nothing to do."));
             handleDeviceSetupDone(true);
             return;
         }
-
-        const QString vmName = device->id().toString();
+        const MerEmulatorDevice* device = static_cast<const MerEmulatorDevice*>(d.data());
+        const QString vmName = device->virtualMachine();
         MerConnectionManager *em = MerConnectionManager::instance();
         if (em->isConnected(vmName)) {
             emit progressMessage(tr("Emulator is already running. Nothing to do."));
