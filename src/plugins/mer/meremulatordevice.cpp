@@ -198,7 +198,7 @@ void MerEmulatorDevice::executeAction(Core::Id actionId, QWidget *parent) const
         dialog.exec();
         return;
     } else if (actionId == Constants::MER_EMULATOR_START_ACTION_ID) {
-        MerVirtualBoxManager::shutVirtualMachine(m_virtualMachine);
+        MerVirtualBoxManager::startVirtualMachine(m_virtualMachine);
         return;
     } else if (actionId == Constants::MER_EMULATOR_TEST_ID) {
         RemoteLinux::LinuxDeviceTestDialog dialog(sharedFromThis(), new RemoteLinux::GenericLinuxDeviceTester, parent);
