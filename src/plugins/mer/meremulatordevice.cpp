@@ -211,7 +211,6 @@ void MerEmulatorDevice::fromMap(const QVariantMap &map)
 {
     IDevice::fromMap(map);
     m_virtualMachine = map.value(QLatin1String(Constants::MER_DEVICE_VIRTUAL_MACHINE)).toString();
-    m_sdkName = map.value(QLatin1String(Constants::MER_DEVICE_MER_SDK)).toString();
     m_mac = map.value(QLatin1String(Constants::MER_DEVICE_MAC)).toString();
     m_subnet = map.value(QLatin1String(Constants::MER_DEVICE_SUBNET)).toString();
     m_index = map.value(QLatin1String(Constants::MER_DEVICE_INDEX)).toInt();
@@ -223,7 +222,6 @@ QVariantMap MerEmulatorDevice::toMap() const
 {
     QVariantMap map = IDevice::toMap();
     map.insert(QLatin1String(Constants::MER_DEVICE_VIRTUAL_MACHINE), m_virtualMachine);
-    map.insert(QLatin1String(Constants::MER_DEVICE_MER_SDK), m_sdkName);
     map.insert(QLatin1String(Constants::MER_DEVICE_MAC), m_mac);
     map.insert(QLatin1String(Constants::MER_DEVICE_SUBNET), m_subnet);
     map.insert(QLatin1String(Constants::MER_DEVICE_INDEX), m_index);
@@ -260,16 +258,6 @@ void MerEmulatorDevice::setVirtualMachine(const QString& machineName)
 QString MerEmulatorDevice::virtualMachine() const
 {
     return m_virtualMachine;
-}
-
-void MerEmulatorDevice::setSdkName(const QString& sdkName)
-{
-    m_sdkName = sdkName;
-}
-
-QString MerEmulatorDevice::sdkName() const
-{
-    return m_sdkName;
 }
 
 void MerEmulatorDevice::setIndex(int index)

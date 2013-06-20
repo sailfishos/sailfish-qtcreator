@@ -80,13 +80,11 @@ void MerEmulatorDeviceWidget::userNameEditingFinished()
 {
     if(device()->type() != Constants::MER_DEVICE_TYPE_I486) return;
     MerEmulatorDevice* device = static_cast<MerEmulatorDevice*>(this->device().data());
-    const MerSdk* sdk = MerSdkManager::instance()->sdk(device->sdkName());
-    if(!sdk) return;
 
     QString index = QLatin1String("/ssh/private_keys/%1/");
     SshConnectionParameters sshParams = device->sshParameters();
     const QString& user = m_ui->userLineEdit->text();
-    const QString privKey = sdk->sharedConfigPath() + index.arg(device->index()) + user;
+    const QString privKey = device->sharedConfigPath() + index.arg(device->index()) + user;
 
     sshParams.userName = user;
     sshParams.privateKeyFile = privKey;
@@ -132,7 +130,6 @@ void MerEmulatorDeviceWidget::initGui()
     m_ui->sshPortSpinBox->setValue(sshParams.port);
     m_ui->portsLineEdit->setText(device->freePorts().toString());
     m_ui->emulatorVmLabelEdit->setText(device->virtualMachine());
-    m_ui->merVmLabelEdit->setText(device->sdkName());
     m_ui->configFolderLabelEdit->setText(device->sharedConfigPath());
     m_ui->sshFolderLabelEdit->setText(device->sharedSshPath());
     updatePortsWarningLabel();

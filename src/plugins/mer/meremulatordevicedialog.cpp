@@ -50,7 +50,6 @@ MerEmulatorDeviceDialog::MerEmulatorDeviceDialog(QWidget *parent): QDialog(paren
     QStringList vmNames;
     foreach (const MerSdk *s, sdks) {
         vmNames << s->virtualMachineName();
-        m_ui->merVmComboBox->addItem(s->virtualMachineName());
     }
 
     static QRegExp regExp(tr("Emulator"));
@@ -67,8 +66,6 @@ MerEmulatorDeviceDialog::MerEmulatorDeviceDialog(QWidget *parent): QDialog(paren
             }
         }
     }
-
-    connect(m_ui->merVmComboBox,SIGNAL(currentIndexChanged(QString)),this,SLOT(handleKeyChanged()));
     connect(m_ui->emulatorComboBox,SIGNAL(currentIndexChanged(QString)),this,SLOT(handleEmulatorVmChanged(QString)));
     connect(m_ui->userLineEdit, SIGNAL(textChanged(QString)), this, SLOT(handleKeyChanged()));
     handleKeyChanged();
@@ -110,11 +107,6 @@ QString MerEmulatorDeviceDialog::emulatorVm() const
     return m_ui->emulatorComboBox->currentText();
 }
 
-QString MerEmulatorDeviceDialog::sdkVm() const
-{
-    return m_ui->merVmComboBox->currentText();
-}
-
 QString MerEmulatorDeviceDialog::freePorts() const
 {
     return m_ui->portsLineEdit->text();
@@ -130,13 +122,10 @@ QString MerEmulatorDeviceDialog::sharedSshPath() const
     return m_ui->sshFolderLabelEdit->text();
 }
 
-
 void MerEmulatorDeviceDialog::handleKeyChanged()
 {
     QString index(QLatin1String("/ssh/private_keys/%1/"));
-    const MerSdk* sdk = MerSdkManager::instance()->sdk(sdkVm());
-    if(!sdk) return;
-    m_ui->sshKeyLabelEdit->setText(sdk->sharedConfigPath() + index.arg(m_index)  + userName());
+    m_ui->sshKeyLabelEdit->setText(sharedConfigPath()+ index.arg(m_index)  + userName());
 }
 
 void MerEmulatorDeviceDialog::handleEmulatorVmChanged(const QString &vmName)
@@ -152,6 +141,7 @@ void MerEmulatorDeviceDialog::handleEmulatorVmChanged(const QString &vmName)
     m_ui->portsLineEdit->setText(freePorts.join(QLatin1String(",")));
     m_ui->configFolderLabelEdit->setText(info.sharedConfig);
     m_ui->sshFolderLabelEdit->setText(info.sharedSsh);
+    handleKeyChanged();
 }
 
 int MerEmulatorDeviceDialog::index() const

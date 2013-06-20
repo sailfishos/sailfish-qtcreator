@@ -80,7 +80,6 @@ ProjectExplorer::IDevice::Ptr MerDeviceFactory::create(Core::Id id) const
     QString mac = QString(QLatin1String("08:00:5A:11:00:0%1")).arg(dialog.index());
     MerEmulatorDevice::Ptr device = MerEmulatorDevice::create();
     device->setVirtualMachine(dialog.emulatorVm());
-    device->setSdkName(dialog.sdkVm());
     device->setMac(mac);
     device->setSubnet(QLatin1String("10.220.220"));
     device->setIndex(dialog.index());

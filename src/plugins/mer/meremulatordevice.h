@@ -56,9 +56,6 @@ public:
     void setVirtualMachine(const QString& machineName);
     QString virtualMachine() const;
 
-    void setSdkName(const QString& sdkName);
-    QString sdkName() const;
-
     void setMac(const QString& mac);
     QString mac() const;
 
@@ -75,7 +72,6 @@ private:
     MerEmulatorDevice();
 private:
     QString m_virtualMachine;
-    QString m_sdkName;
     QString m_mac;
     QString m_subnet;
     int m_index;

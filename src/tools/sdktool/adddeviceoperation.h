@@ -70,7 +70,6 @@ private:
                                  const QString &freePorts,
                                  int version,
                                  const QString &virtualMachine = QString(),
-                                 const QString &sdkVirtualMachine = QString(),
                                  int merIndex = -1,
                                  const QString &merMac = QString(),
                                  const QString &merSubnet = QString());
@@ -91,7 +90,6 @@ private:
     int m_machineType;
     int m_version;
     QString m_merVirtualMachine;
-    QString m_merSdkVirtualMachine;
     int m_merIndex;
     QString m_merMac;
     QString m_merSubnet;
