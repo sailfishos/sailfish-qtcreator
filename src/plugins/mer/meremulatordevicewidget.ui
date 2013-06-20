@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>483</width>
-    <height>191</height>
+    <width>514</width>
+    <height>246</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -27,8 +27,8 @@
        <rect>
         <x>0</x>
         <y>0</y>
-        <width>462</width>
-        <height>195</height>
+        <width>508</width>
+        <height>240</height>
        </rect>
       </property>
       <layout class="QGridLayout" name="gridLayout_2">
@@ -48,7 +48,7 @@
           <item row="3" column="1">
            <widget class="QLabel" name="emulatorVmLabelEdit">
             <property name="text">
-             <string>none</string>
+             <string/>
             </property>
            </widget>
           </item>
@@ -62,11 +62,11 @@
           <item row="4" column="1">
            <widget class="QLabel" name="merVmLabelEdit">
             <property name="text">
-             <string>none</string>
+             <string/>
             </property>
            </widget>
           </item>
-          <item row="6" column="0">
+          <item row="8" column="0">
            <widget class="QLabel" name="userNameLabel">
             <property name="text">
              <string>&amp;Username:</string>
@@ -76,10 +76,10 @@
             </property>
            </widget>
           </item>
-          <item row="6" column="1">
+          <item row="8" column="1">
            <widget class="QLineEdit" name="userLineEdit"/>
           </item>
-          <item row="8" column="0">
+          <item row="10" column="0">
            <widget class="QLabel" name="sshPortLabel">
             <property name="text">
              <string>&amp;SSH port:</string>
@@ -89,7 +89,7 @@
             </property>
            </widget>
           </item>
-          <item row="8" column="1">
+          <item row="10" column="1">
            <widget class="QSpinBox" name="sshPortSpinBox">
             <property name="minimum">
              <number>0</number>
@@ -102,7 +102,7 @@
             </property>
            </widget>
           </item>
-          <item row="9" column="0">
+          <item row="11" column="0">
            <widget class="QLabel" name="connectionTimeoutLabel">
             <property name="text">
              <string>Timeout:</string>
@@ -112,7 +112,7 @@
             </property>
            </widget>
           </item>
-          <item row="9" column="1">
+          <item row="11" column="1">
            <widget class="QSpinBox" name="timeoutSpinBox">
             <property name="suffix">
              <string>s</string>
@@ -128,7 +128,7 @@
             </property>
            </widget>
           </item>
-          <item row="10" column="0">
+          <item row="12" column="0">
            <widget class="QLabel" name="freePortsLabel">
             <property name="text">
              <string>Free ports:</string>
@@ -138,7 +138,7 @@
             </property>
            </widget>
           </item>
-          <item row="10" column="1">
+          <item row="12" column="1">
            <layout class="QHBoxLayout" name="horizontalLayout_2">
             <item>
              <widget class="QLineEdit" name="portsLineEdit">
@@ -156,17 +156,45 @@
             </item>
            </layout>
           </item>
-          <item row="7" column="0">
+          <item row="9" column="0">
            <widget class="QLabel" name="sshKeyLabel">
             <property name="text">
              <string>SSH key:</string>
             </property>
            </widget>
           </item>
-          <item row="7" column="1">
+          <item row="9" column="1">
            <widget class="QLabel" name="sshKeyLabelEdit">
             <property name="text">
              <string>none</string>
+            </property>
+           </widget>
+          </item>
+          <item row="6" column="0">
+           <widget class="QLabel" name="configFolderLabel">
+            <property name="text">
+             <string>Config Folder:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="7" column="0">
+           <widget class="QLabel" name="sshFolderLabel">
+            <property name="text">
+             <string>SSsh Folder:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="6" column="1">
+           <widget class="QLabel" name="configFolderLabelEdit">
+            <property name="text">
+             <string/>
+            </property>
+           </widget>
+          </item>
+          <item row="7" column="1">
+           <widget class="QLabel" name="sshFolderLabelEdit">
+            <property name="text">
+             <string/>
             </property>
            </widget>
           </item>
@@ -184,6 +212,10 @@
          <zorder>emulatorLabel</zorder>
          <zorder>sshKeyLabel</zorder>
          <zorder>sshKeyLabelEdit</zorder>
+         <zorder>configFolderLabel</zorder>
+         <zorder>sshFolderLabel</zorder>
+         <zorder>configFolderLabelEdit</zorder>
+         <zorder>sshFolderLabelEdit</zorder>
         </widget>
        </item>
       </layout>

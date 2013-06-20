@@ -45,7 +45,10 @@ public:
     QString emulatorVm() const;
     QString sdkVm() const;
     QString freePorts() const;
+    QString sharedConfigPath() const;
+    QString sharedSshPath() const;
     int index() const;
+    bool requireSshKeys() const;
 
 private slots:
     void handleKeyChanged();

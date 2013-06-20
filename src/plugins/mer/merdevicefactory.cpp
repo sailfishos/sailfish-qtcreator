@@ -42,7 +42,7 @@ MerDeviceFactory::MerDeviceFactory()
 QString MerDeviceFactory::displayNameForId(Core::Id type) const
 {
     if (type == Constants::MER_DEVICE_TYPE_I486)
-        return tr("Mer i486 Device");
+        return tr("Mer Emulator Device");
     //if (type == Constants::MER_DEVICE_TYPE_ARM)
     //    return tr("Mer ARM Device");
     return QString();
@@ -87,6 +87,20 @@ ProjectExplorer::IDevice::Ptr MerDeviceFactory::create(Core::Id id) const
     device->setDisplayName(dialog.configName());
     device->setFreePorts(Utils::PortList::fromString(dialog.freePorts()));
     device->setSshParameters(sshParams);
+    device->setSharedConfigPath(dialog.sharedConfigPath());
+    device->setSharedSshPath(dialog.sharedSshPath());
+    if(dialog.requireSshKeys()) {
+        QStringList users;
+        //TODO: reconsider hardcoded values
+        users << QLatin1String("nemo");
+        users << QLatin1String("root");
+        if (!users.contains(dialog.userName()))
+            users << dialog.userName();
+        foreach(const QString& user, users)
+        {
+            device->generteSshKey(user);
+        }
+    }
 
     RemoteLinux::GenericLinuxDeviceTester* tester = new RemoteLinux::GenericLinuxDeviceTester();
     RemoteLinux::LinuxDeviceTestDialog dlg(device,tester);
