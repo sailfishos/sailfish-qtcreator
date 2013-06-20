@@ -43,7 +43,8 @@ MerEmulatorDeviceDialog::MerEmulatorDeviceDialog(QWidget *parent): QDialog(paren
     m_ui->timeoutSpinBox->setMaximum(65535);
     m_ui->timeoutSpinBox->setValue(10);
     m_ui->sshCheckBox->setChecked(true);
-
+    //block "nemo" user
+    m_ui->userLineEdit->setEnabled(false);
     m_index = MerSdkManager::generateDeviceId();
 
     QList<MerSdk*> sdks = MerSdkManager::instance()->sdks();
@@ -70,6 +71,7 @@ MerEmulatorDeviceDialog::MerEmulatorDeviceDialog(QWidget *parent): QDialog(paren
     connect(m_ui->userLineEdit, SIGNAL(textChanged(QString)), this, SLOT(handleKeyChanged()));
     handleKeyChanged();
     handleEmulatorVmChanged(m_ui->emulatorComboBox->currentText());
+
 }
 
 MerEmulatorDeviceDialog::~MerEmulatorDeviceDialog()
