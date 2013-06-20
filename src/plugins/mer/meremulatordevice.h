@@ -47,6 +47,12 @@ public:
     void fromMap(const QVariantMap &map);
     QVariantMap toMap() const;
 
+    void setSharedConfigPath(const QString &configPath);
+    QString sharedConfigPath() const;
+
+    void setSharedSshPath(const QString &sshPath);
+    QString sharedSshPath() const;
+
     void setVirtualMachine(const QString& machineName);
     QString virtualMachine() const;
 
@@ -61,6 +67,10 @@ public:
 
     void setIndex(int index);
     int index() const;
+
+    void generteSshKey(const QString& user);
+
+
 private:
     MerEmulatorDevice();
 private:
@@ -69,6 +79,8 @@ private:
     QString m_mac;
     QString m_subnet;
     int m_index;
+    QString m_sharedSshPath;
+    QString m_sharedConfigPath;
 
 };
 

@@ -42,6 +42,7 @@ MerEmulatorDeviceDialog::MerEmulatorDeviceDialog(QWidget *parent): QDialog(paren
     m_ui->timeoutSpinBox->setMinimum(1);
     m_ui->timeoutSpinBox->setMaximum(65535);
     m_ui->timeoutSpinBox->setValue(10);
+    m_ui->sshCheckBox->setChecked(true);
 
     m_index = MerSdkManager::generateDeviceId();
 
@@ -119,6 +120,17 @@ QString MerEmulatorDeviceDialog::freePorts() const
     return m_ui->portsLineEdit->text();
 }
 
+QString MerEmulatorDeviceDialog::sharedConfigPath() const
+{
+    return m_ui->configFolderLabelEdit->text();
+}
+
+QString MerEmulatorDeviceDialog::sharedSshPath() const
+{
+    return m_ui->sshFolderLabelEdit->text();
+}
+
+
 void MerEmulatorDeviceDialog::handleKeyChanged()
 {
     QString index(QLatin1String("/ssh/private_keys/%1/"));
@@ -138,11 +150,19 @@ void MerEmulatorDeviceDialog::handleEmulatorVmChanged(const QString &vmName)
     foreach (quint16 port, info.freePorts)
         freePorts << QString::number(port);
     m_ui->portsLineEdit->setText(freePorts.join(QLatin1String(",")));
+    m_ui->configFolderLabelEdit->setText(info.sharedConfig);
+    m_ui->sshFolderLabelEdit->setText(info.sharedSsh);
 }
 
 int MerEmulatorDeviceDialog::index() const
 {
     return m_index;
+}
+
+
+bool MerEmulatorDeviceDialog::requireSshKeys() const
+{
+    return m_ui->sshCheckBox->isChecked();
 }
 
 }

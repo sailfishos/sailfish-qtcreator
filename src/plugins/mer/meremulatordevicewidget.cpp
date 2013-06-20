@@ -133,6 +133,8 @@ void MerEmulatorDeviceWidget::initGui()
     m_ui->portsLineEdit->setText(device->freePorts().toString());
     m_ui->emulatorVmLabelEdit->setText(device->virtualMachine());
     m_ui->merVmLabelEdit->setText(device->sdkName());
+    m_ui->configFolderLabelEdit->setText(device->sharedConfigPath());
+    m_ui->sshFolderLabelEdit->setText(device->sharedSshPath());
     updatePortsWarningLabel();
 }
 
