@@ -60,6 +60,8 @@ const char MerVirtualMachine[] = "MerVirtualMachine";
 const char MerIndex[] = "MerIndex";
 const char MerMac[] = "MerMac";
 const char MerSubnet[] = "MerSubnet";
+const char MerSharedConfig[] = "MerSharedConfig";
+const char MerSharedSsh[] = "MerSharedSsh";
 
 AddDeviceOperation::AddDeviceOperation()
     : m_origin(0)
@@ -109,7 +111,9 @@ QString AddDeviceOperation::argumentsHelpText() const
          + indent + param(QLatin1String(MerVirtualMachine)) + QLatin1String(" <STRING>                             name of virtual machine for device.\n")
          + indent + param(QLatin1String(MerIndex)) + QLatin1String(" <NUMBER>                             index of the device.\n")
          + indent + param(QLatin1String(MerMac)) + QLatin1String(" <STRING>                             mac of the device.\n")
-         + indent + param(QLatin1String(MerSubnet)) + QLatin1String(" <STRING>                             subnet of the device.\n");
+         + indent + param(QLatin1String(MerSubnet)) + QLatin1String(" <STRING>                             subnet of the device.\n")
+         + indent + param(QLatin1String(MerSharedSsh)) + QLatin1String(" <STRING>                             path of vm shared ssh.\n")
+         + indent + param(QLatin1String(MerSharedConfig)) + QLatin1String(" <STRING>                             path of vm shared config.\n");
 }
 
 bool AddDeviceOperation::setArguments(const QStringList &args)
@@ -260,6 +264,20 @@ bool AddDeviceOperation::setArguments(const QStringList &args)
             m_merSubnet = next;
             continue;
         }
+        if (current == param(QLatin1String(MerSharedSsh))) {
+            if (next.isNull())
+                return false;
+            ++i; // skip next;
+            m_merSharedSshPath = next;
+            continue;
+        }
+        if (current == param(QLatin1String(MerSharedConfig))) {
+            if (next.isNull())
+                return false;
+            ++i; // skip next;
+            m_merSharedConfigPath = next;
+            continue;
+        }
     }
 
     const char MISSING[] = " parameter missing.";
@@ -310,7 +328,9 @@ int AddDeviceOperation::execute() const
                                          m_merVirtualMachine,
                                          m_merIndex,
                                          m_merMac,
-                                         m_merSubnet);
+                                         m_merSubnet,
+                                         m_merSharedSshPath,
+                                         m_merSharedConfigPath);
 
     if (result.isEmpty() || mapdevice == result)
         return -2;
@@ -349,7 +369,9 @@ QVariantMap AddDeviceOperation::addDevice(const QVariantMap &map,
                                           const QString &virtualMachine,
                                           int merIndex,
                                           const QString &merMac,
-                                          const QString &merSubnet)
+                                          const QString &merSubnet,
+                                          const QString &sharedSshPath,
+                                          const QString &sharedConfigPath)
 {
     QVariantMap result = map;
     QVariantList deviceList = map.value(QLatin1String(DeviceListKey)).toList();
@@ -376,6 +398,10 @@ QVariantMap AddDeviceOperation::addDevice(const QVariantMap &map,
         data.insert(QLatin1String(Mer::Constants::MER_DEVICE_MAC), QVariant(merMac));
     if(!merSubnet.isEmpty())
         data.insert(QLatin1String(Mer::Constants::MER_DEVICE_SUBNET), QVariant(merSubnet));
+    if(!sharedSshPath.isEmpty())
+        data.insert(QLatin1String(Mer::Constants::MER_DEVICE_SHARED_SSH), QVariant(sharedSshPath));
+    if(!sharedConfigPath.isEmpty())
+        data.insert(QLatin1String(Mer::Constants::MER_DEVICE_SHARED_CONFIG), QVariant(sharedConfigPath));
     deviceList.append(QVariant(data));
     result.remove(QLatin1String(DeviceListKey));
     result.insert(QLatin1String(DeviceListKey), deviceList);

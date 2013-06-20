@@ -553,7 +553,8 @@ void MerSdkManager::updateDevices()
                 //TODO: this is logic is a bit twisted / insane :)
                 QFileInfo file(device->sshParameters().privateKeyFile);
                 QString path = file.dir().absolutePath();
-                xmlData.m_sshKeyPath = path.remove(device->sharedConfigPath() + QDir::separator());
+                if(!device->sharedConfigPath().isEmpty())
+                    xmlData.m_sshKeyPath = path.remove(device->sharedConfigPath() + QDir::separator());
             }
             devices << xmlData;
         }
