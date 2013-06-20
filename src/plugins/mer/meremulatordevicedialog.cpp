@@ -41,7 +41,7 @@ MerEmulatorDeviceDialog::MerEmulatorDeviceDialog(QWidget *parent): QDialog(paren
     m_ui->sshPortSpinBox->setValue(2223);
     m_ui->timeoutSpinBox->setMinimum(1);
     m_ui->timeoutSpinBox->setMaximum(65535);
-    m_ui->timeoutSpinBox->setValue(10);
+    m_ui->timeoutSpinBox->setValue(30);
     m_ui->sshCheckBox->setChecked(true);
     //block "nemo" user
     m_ui->userLineEdit->setEnabled(false);
