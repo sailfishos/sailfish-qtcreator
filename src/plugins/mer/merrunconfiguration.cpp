@@ -21,10 +21,12 @@
 ****************************************************************************/
 
 #include "merrunconfiguration.h"
+#include "merdeployconfiguration.h"
 
 #include <projectexplorer/target.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/deploymentdata.h>
+#include <projectexplorer/deployconfiguration.h>
 
 namespace Mer {
 namespace Internal {
@@ -61,11 +63,20 @@ bool MerRunConfiguration::isEnabled() const
 
 QString MerRunConfiguration::defaultRemoteExecutableFilePath() const
 {
-    qDebug()<<"cool";
+    ProjectExplorer::DeployConfiguration* conf = target()->activeDeployConfiguration();
     QString executable = target()->deploymentData().deployableForLocalFile(localExecutableFilePath())
             .remoteFilePath();
-    QString projectName = target()->project()->displayName();
-    return QLatin1String("/opt/sdk/") + projectName + executable;
+    if (conf->id() == MerRsyncDeployConfiguration::configurationId()) {
+        QString projectName = target()->project()->displayName();
+        return QLatin1String("/opt/sdk/") + projectName + executable;
+    }
+
+    if (conf->id() == MerRpmDeployConfiguration::configurationId()) {
+        //TODO:
+        return executable;
+    }
+
+    return executable;
 }
 
 // TODO: Temporary workaround for lipstick QML issue
