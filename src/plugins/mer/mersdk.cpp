@@ -46,7 +46,7 @@ MerSdk::MerSdk(QObject *parent) : QObject(parent)
     , m_autoDetected(false)
     , m_sshPort(-1)
     , m_wwwPort(-1)
-    , m_timeout(10)
+    , m_timeout(30)
 
 {
     connect(&m_watcher, SIGNAL(fileChanged(QString)), this, SLOT(handleTargetsFileChanged(QString)));
