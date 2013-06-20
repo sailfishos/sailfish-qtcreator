@@ -25,6 +25,7 @@
 #include "mersdkmanager.h"
 #include "merconstants.h"
 #include "mervirtualboxmanager.h"
+#include "meremulatordevice.h"
 
 #include <projectexplorer/project.h>
 #include <projectexplorer/target.h>
@@ -193,8 +194,11 @@ void MerConnectionManager::update()
                     const IDevice::ConstPtr device = DeviceKitInformation::device(t->kit());
                     emulatorRemoteButtonEnabled =
                             DeviceTypeKitInformation::deviceTypeId(t->kit()) == Core::Id(Constants::MER_DEVICE_TYPE_I486);
-                    const QString &emulatorName = device->id().toString(); //TODO: refactor me
-                    m_emulatorConnection->setConnectionParameters(emulatorName, device->sshParameters());
+                    if(emulatorRemoteButtonEnabled) {
+                          const MerEmulatorDevice* emu = static_cast<const MerEmulatorDevice*>(device.data());
+                          const QString &emulatorName = emu->virtualMachine(); //TODO: refactor me
+                          m_emulatorConnection->setConnectionParameters(emulatorName, device->sshParameters());
+                    }
                 }
             }
         }

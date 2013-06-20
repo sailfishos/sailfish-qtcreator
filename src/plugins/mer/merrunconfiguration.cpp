@@ -58,7 +58,7 @@ bool MerRunConfiguration::isEnabled() const
 
     return RemoteLinuxRunConfiguration::isEnabled();
 }
-
+/*
 QString MerRunConfiguration::defaultRemoteExecutableFilePath() const
 {
     QString executable = target()->deploymentData().deployableForLocalFile(localExecutableFilePath())
@@ -66,7 +66,7 @@ QString MerRunConfiguration::defaultRemoteExecutableFilePath() const
     QString projectName = target()->project()->displayName();
     return QLatin1String("/opt/sdk/") + projectName + executable;
 }
-
+*/
 // TODO: Temporary workaround for lipstick QML issue
 // Opens unlock the phone befeore running app
 // Remove me !
