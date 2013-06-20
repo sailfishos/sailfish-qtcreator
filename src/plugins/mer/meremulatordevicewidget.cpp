@@ -132,6 +132,8 @@ void MerEmulatorDeviceWidget::initGui()
     m_ui->emulatorVmLabelEdit->setText(device->virtualMachine());
     m_ui->configFolderLabelEdit->setText(device->sharedConfigPath());
     m_ui->sshFolderLabelEdit->setText(device->sharedSshPath());
+    //block "nemo" user
+    m_ui->userLineEdit->setEnabled(false);
     updatePortsWarningLabel();
 }
 
