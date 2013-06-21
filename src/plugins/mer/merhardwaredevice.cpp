@@ -21,7 +21,7 @@
 ****************************************************************************/
 
 #include "merhardwaredevice.h"
-#include "merdeviceconfigurationwidget.h"
+#include "merhardwaredevicewidget.h"
 #include "merconstants.h"
 #include "mersdkmanager.h"
 #include "mervirtualboxmanager.h"
@@ -61,7 +61,7 @@ QString MerHardwareDevice::displayType() const
 
 ProjectExplorer::IDeviceWidget *MerHardwareDevice::createWidget()
 {
-    return new MerDeviceConfigurationWidget(sharedFromThis());
+    return new MerHardwareDeviceWidget(sharedFromThis());
 }
 
 MerHardwareDevice::MerHardwareDevice(const QString &name,

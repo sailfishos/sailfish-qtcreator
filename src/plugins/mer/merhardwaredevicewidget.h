@@ -20,8 +20,8 @@
 **
 ****************************************************************************/
 
-#ifndef MERDEVICECONFIGURATIONWIDGET_H
-#define MERDEVICECONFIGURATIONWIDGET_H
+#ifndef MERHARDWAREDEVICEWIDGET_H
+#define MERHARDWAREDEVICEWIDGET_H
 
 #include <projectexplorer/devicesupport/idevicewidget.h>
 
@@ -29,16 +29,16 @@ namespace Mer {
 namespace Internal {
 
 namespace Ui {
-class MerDeviceConfigurationWidget;
+class MerHardwareDeviceWidget;
 }
 
-class MerDeviceConfigurationWidget : public ProjectExplorer::IDeviceWidget
+class MerHardwareDeviceWidget : public ProjectExplorer::IDeviceWidget
 {
     Q_OBJECT
 public:
-    explicit MerDeviceConfigurationWidget(const ProjectExplorer::IDevice::Ptr &deviceConfig,
+    explicit MerHardwareDeviceWidget(const ProjectExplorer::IDevice::Ptr &deviceConfig,
                                           QWidget *parent = 0);
-    ~MerDeviceConfigurationWidget();
+    ~MerHardwareDeviceWidget();
 
 private slots:
     void authenticationTypeChanged();
@@ -58,7 +58,7 @@ private:
     void updatePortsWarningLabel();
     void initGui();
 
-    Ui::MerDeviceConfigurationWidget *m_ui;
+    Ui::MerHardwareDeviceWidget *m_ui;
 };
 
 } // Internal
