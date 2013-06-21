@@ -15,12 +15,12 @@ FORMS += \
     meroptionswidget.ui \
     mersdkdetailswidget.ui \
     mersdkselectiondialog.ui \
-    merdeviceconfigurationwidget.ui \
     merdeploystep.ui \
     yamleditorwidget.ui \
-    merdeviceconfigwizardgeneralpage.ui \
     meremulatordevicedialog.ui \
-    meremulatordevicewidget.ui
+    meremulatordevicewidget.ui \
+    merhardweredevicewidget.ui \
+    merhardweredevicewizardgeneralpage.ui
 
 SOURCES += \
     merplugin.cpp \

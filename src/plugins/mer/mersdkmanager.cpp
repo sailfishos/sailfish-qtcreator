@@ -340,7 +340,7 @@ bool MerSdkManager::authorizePublicKey(const QString &authorizedKeysPath,
     bool success = false;
     QFileInfo fi(pubKeyPath);
     if (!fi.exists()) {
-        error.append(tr("Error: File %1 is missing.").arg(pubKeyPath));
+        error.append(tr("Error: File %1 is missing.").arg(QDir::toNativeSeparators(pubKeyPath)));
         return success;
     }
 
@@ -381,7 +381,7 @@ bool MerSdkManager::authorizePublicKey(const QString &authorizedKeysPath,
         }
         success = !authKeysReader.data().contains(publicKey);
         if (!success) {
-            error.append(tr("Key already authorized ! \n %1 already in %2").arg(pubKeyPath).arg(authorizedKeysPath));
+            error.append(tr("Key already authorized ! \n %1 already in %2").arg(QDir::toNativeSeparators(pubKeyPath)).arg(QDir::toNativeSeparators(authorizedKeysPath)));
             return success;
         }
         // File does not contain the public key. Append it to file.
@@ -554,7 +554,7 @@ void MerSdkManager::updateDevices()
                 QFileInfo file(device->sshParameters().privateKeyFile);
                 QString path = file.dir().absolutePath();
                 if(!device->sharedConfigPath().isEmpty())
-                    xmlData.m_sshKeyPath = path.remove(device->sharedConfigPath() + QDir::separator());
+                    xmlData.m_sshKeyPath = QDir::fromNativeSeparators(path.remove(QDir::toNativeSeparators(device->sharedConfigPath() + QDir::separator())));
             }
             devices << xmlData;
         }

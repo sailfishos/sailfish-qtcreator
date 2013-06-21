@@ -126,12 +126,12 @@ void MerEmulatorDeviceWidget::initGui()
     const SshConnectionParameters &sshParams = device->sshParameters();
     m_ui->timeoutSpinBox->setValue(sshParams.timeout);
     m_ui->userLineEdit->setText(sshParams.userName);
-    m_ui->sshKeyLabelEdit->setText(sshParams.privateKeyFile);
+    m_ui->sshKeyLabelEdit->setText(QDir::toNativeSeparators(sshParams.privateKeyFile));
     m_ui->sshPortSpinBox->setValue(sshParams.port);
     m_ui->portsLineEdit->setText(device->freePorts().toString());
     m_ui->emulatorVmLabelEdit->setText(device->virtualMachine());
-    m_ui->configFolderLabelEdit->setText(device->sharedConfigPath());
-    m_ui->sshFolderLabelEdit->setText(device->sharedSshPath());
+    m_ui->configFolderLabelEdit->setText(QDir::toNativeSeparators(device->sharedConfigPath()));
+    m_ui->sshFolderLabelEdit->setText(QDir::toNativeSeparators(device->sharedSshPath()));
     //block "nemo" user
     m_ui->userLineEdit->setEnabled(false);
     updatePortsWarningLabel();

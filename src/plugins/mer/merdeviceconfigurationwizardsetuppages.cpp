@@ -55,14 +55,8 @@ MerDeviceConfigWizardGeneralPage::MerDeviceConfigWizardGeneralPage(const WizardD
     buttonGroup1->setExclusive(true);
     buttonGroup1->addButton(m_ui->passwordRadioButton);
     buttonGroup1->addButton(m_ui->keyRadioButton);
-    QButtonGroup *buttonGroup2 = new QButtonGroup(this);
-    buttonGroup2->setExclusive(true);
-    buttonGroup2->addButton(m_ui->realDeviceRadioButton);
-    buttonGroup2->addButton(m_ui->virtualMachineRadioButton);
     connect(buttonGroup1, SIGNAL(buttonClicked(int)), SLOT(authTypeChanged()));
     connect(buttonGroup1, SIGNAL(buttonClicked(int)), SIGNAL(completeChanged()));
-    connect(buttonGroup2, SIGNAL(buttonClicked(int)), SLOT(machineTypeChanged()));
-    connect(buttonGroup2, SIGNAL(buttonClicked(int)), SIGNAL(completeChanged()));
     m_ui->keyRadioButton->setChecked(true);
     authTypeChanged();
 
@@ -78,17 +72,11 @@ MerDeviceConfigWizardGeneralPage::MerDeviceConfigWizardGeneralPage(const WizardD
     connect(m_ui->deviceNameLineEdit, SIGNAL(textChanged(QString)), SIGNAL(completeChanged()));
     connect(m_ui->hostNameLineEdit, SIGNAL(textChanged(QString)), SIGNAL(completeChanged()));
     connect(m_ui->passwordLineEdit, SIGNAL(textChanged(QString)), SIGNAL(completeChanged()));
-    connect(m_ui->virtualMachineComboBox, SIGNAL(currentIndexChanged(QString)),
-            SLOT(onVirtualMachineChanged(QString)));
 }
 
 void MerDeviceConfigWizardGeneralPage::initializePage()
 {
-    if (IDevice::Hardware == m_wizardData.machineType)
-        m_ui->realDeviceRadioButton->setChecked(true);
-    else
-        m_ui->virtualMachineRadioButton->setChecked(true);
-    machineTypeChanged();
+
 }
 
 bool MerDeviceConfigWizardGeneralPage::isComplete() const
@@ -102,8 +90,7 @@ bool MerDeviceConfigWizardGeneralPage::isComplete() const
 
 QString MerDeviceConfigWizardGeneralPage::configName() const
 {
-    return IDevice::Hardware == m_wizardData.machineType ? m_ui->deviceNameLineEdit->text().trimmed()
-                                                         : m_ui->virtualMachineComboBox->currentText();
+    return m_ui->deviceNameLineEdit->text().trimmed();
 }
 
 QString MerDeviceConfigWizardGeneralPage::hostName() const
@@ -135,9 +122,7 @@ SshConnectionParameters::AuthenticationType MerDeviceConfigWizardGeneralPage::au
 
 IDevice::MachineType MerDeviceConfigWizardGeneralPage::machineType() const
 {
-    return m_ui->virtualMachineRadioButton->isChecked()
-            ? IDevice::Emulator
-            : IDevice::Hardware;
+    return IDevice::Hardware;
 }
 
 int MerDeviceConfigWizardGeneralPage::sshPort() const
@@ -154,43 +139,6 @@ void MerDeviceConfigWizardGeneralPage::authTypeChanged()
 {
     const bool enable = authType() == SshConnectionParameters::AuthenticationByPassword;
     m_ui->passwordLineEdit->setEnabled(enable);
-}
-
-void MerDeviceConfigWizardGeneralPage::machineTypeChanged()
-{
-    const bool hardware = machineType() == IDevice::Hardware;
-    m_ui->deviceNameLineEdit->setVisible(hardware);
-    m_ui->virtualMachineComboBox->setVisible(!hardware);
-    m_ui->hostNameLineEdit->setReadOnly(!hardware);
-    if (!hardware) {
-        const QStringList registeredVMs = MerVirtualBoxManager::fetchRegisteredVirtualMachines();
-        m_ui->hostNameLineEdit->setText(QLatin1String(Constants::MER_SDK_DEFAULTHOST));
-        m_ui->virtualMachineComboBox->clear();
-        foreach (const QString &vm, registeredVMs)
-            m_ui->virtualMachineComboBox->addItem(vm);
-    } else {
-        m_ui->deviceNameLineEdit->setText(tr("Mer ARM Device"));
-        m_ui->hostNameLineEdit->setText(QString());
-    }
-
-    if (m_wizardData.deviceType == Constants::MER_DEVICE_TYPE_ARM)
-        m_ui->architectureLabel->setText(QLatin1String("arm"));
-    else if (m_wizardData.deviceType == Constants::MER_DEVICE_TYPE_I486)
-        m_ui->architectureLabel->setText(QLatin1String("i486"));
-}
-
-void MerDeviceConfigWizardGeneralPage::onVirtualMachineChanged(const QString &vmName)
-{
-    VirtualMachineInfo info = MerVirtualBoxManager::fetchVirtualMachineInfo(vmName);
-
-    if (info.sshPort == 0)
-            m_ui->sshPortSpinBox->setValue(22);
-        else
-            m_ui->sshPortSpinBox->setValue(info.sshPort);
-    QStringList freePorts;
-    foreach (quint16 port, info.freePorts)
-        freePorts << QString::number(port);
-    m_ui->freePortsLineEdit->setText(freePorts.join(QLatin1String(",")));
 }
 
 /*
