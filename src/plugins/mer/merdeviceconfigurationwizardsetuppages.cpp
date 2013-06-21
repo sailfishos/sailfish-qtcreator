@@ -20,7 +20,7 @@
 **
 ****************************************************************************/
 
-#include "ui_merdeviceconfigwizardgeneralpage.h"
+#include "ui_merhardwaredevicewizardgeneralpage.h"
 #include "merdeviceconfigurationwizardsetuppages.h"
 #include "merconstants.h"
 #include "merconnectionmanager.h"

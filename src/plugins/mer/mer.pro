@@ -20,8 +20,8 @@ FORMS += \
     yamleditorwidget.ui \
     meremulatordevicedialog.ui \
     meremulatordevicewidget.ui \
-    merhardweredevicewidget.ui \
-    merhardweredevicewizardgeneralpage.ui
+    merhardwaredevicewidget.ui \
+    merhardwaredevicewizardgeneralpage.ui
 
 SOURCES += \
     merplugin.cpp \
@@ -44,7 +44,6 @@ SOURCES += \
     mersdkselectiondialog.cpp \
     meremulatorstartstep.cpp \
     merdeploystepfactory.cpp \
-    merdeviceconfigurationwidget.cpp \
     mersshparser.cpp \
     mertarget.cpp \
     merconnection.cpp \
@@ -66,7 +65,8 @@ SOURCES += \
     meremulatordevice.cpp \
     meremulatordevicewidget.cpp \
     meremulatordevicedialog.cpp \
-    merhardwaredevice.cpp
+    merhardwaredevice.cpp \
+    merhardwaredevicewidget.cpp
 
 HEADERS += \
     merplugin.h \
@@ -91,7 +91,6 @@ HEADERS += \
     mersdkselectiondialog.h \
     meremulatorstartstep.h \
     merdeploystepfactory.h \
-    merdeviceconfigurationwidget.h \
     mersshparser.h \
     mertarget.h \
     merconnection.h \
@@ -113,7 +112,8 @@ HEADERS += \
     meremulatordevice.h \
     meremulatordevicewidget.h \
     meremulatordevicedialog.h \
-    merhardwaredevice.h
+    merhardwaredevice.h \
+    merhardwaredevicewidget.h
 
 
 SOURCES += \
