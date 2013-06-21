@@ -78,9 +78,6 @@ public:
 
 private slots:
     void authTypeChanged();
-    void machineTypeChanged();
-    void onVirtualMachineChanged(const QString &vmName);
-
 private:
     Ui::MerDeviceConfigWizardGeneralPage *m_ui;
     const WizardData &m_wizardData;

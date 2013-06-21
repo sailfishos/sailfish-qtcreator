@@ -24,6 +24,7 @@
 #include "meremulatordevicedialog.h"
 #include "ui_meremulatordevicedialog.h"
 #include "mervirtualboxmanager.h"
+#include <QDir>
 
 namespace Mer {
 namespace Internal {
@@ -127,7 +128,7 @@ QString MerEmulatorDeviceDialog::sharedSshPath() const
 void MerEmulatorDeviceDialog::handleKeyChanged()
 {
     QString index(QLatin1String("/ssh/private_keys/%1/"));
-    m_ui->sshKeyLabelEdit->setText(sharedConfigPath()+ index.arg(m_index)  + userName());
+    m_ui->sshKeyLabelEdit->setText(QDir::toNativeSeparators(sharedConfigPath()+ index.arg(m_index)  + userName()));
 }
 
 void MerEmulatorDeviceDialog::handleEmulatorVmChanged(const QString &vmName)
@@ -141,8 +142,8 @@ void MerEmulatorDeviceDialog::handleEmulatorVmChanged(const QString &vmName)
     foreach (quint16 port, info.freePorts)
         freePorts << QString::number(port);
     m_ui->portsLineEdit->setText(freePorts.join(QLatin1String(",")));
-    m_ui->configFolderLabelEdit->setText(info.sharedConfig);
-    m_ui->sshFolderLabelEdit->setText(info.sharedSsh);
+    m_ui->configFolderLabelEdit->setText(QDir::toNativeSeparators(info.sharedConfig));
+    m_ui->sshFolderLabelEdit->setText(QDir::toNativeSeparators(info.sharedSsh));
     handleKeyChanged();
 }
 
