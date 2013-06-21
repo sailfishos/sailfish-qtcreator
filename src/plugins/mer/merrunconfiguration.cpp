@@ -64,8 +64,7 @@ bool MerRunConfiguration::isEnabled() const
 QString MerRunConfiguration::defaultRemoteExecutableFilePath() const
 {
     ProjectExplorer::DeployConfiguration* conf = target()->activeDeployConfiguration();
-    QString executable = target()->deploymentData().deployableForLocalFile(localExecutableFilePath())
-            .remoteFilePath();
+    QString executable = RemoteLinuxRunConfiguration::defaultRemoteExecutableFilePath();
     if (conf->id() == MerRsyncDeployConfiguration::configurationId()) {
         QString projectName = target()->project()->displayName();
         return QLatin1String("/opt/sdk/") + projectName + executable;
