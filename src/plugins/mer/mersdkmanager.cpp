@@ -552,7 +552,7 @@ void MerSdkManager::updateDevices()
                 xmlData.m_type = device->type() == Constants::MER_DEVICE_TYPE_ARM ? QLatin1String("real") : QLatin1String ("vbox");
                 //TODO: this is logic is a bit twisted / insane :)
                 QFileInfo file(device->sshParameters().privateKeyFile);
-                QString path = file.dir().absolutePath();
+                QString path = QDir::toNativeSeparators(file.dir().absolutePath());
                 if(!device->sharedConfigPath().isEmpty())
                     xmlData.m_sshKeyPath = QDir::fromNativeSeparators(path.remove(QDir::toNativeSeparators(device->sharedConfigPath() + QDir::separator())));
             }
