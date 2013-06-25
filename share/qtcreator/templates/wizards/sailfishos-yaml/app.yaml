@@ -10,7 +10,7 @@ Description: |
   %Description%
 # Qt Applications generally don't use configure and do use qmake
 Configure: none
-Builder: qmake
+Builder: qtc
 # pkgconfigs we depend on to build
 PkgConfigBR:
   - ""
