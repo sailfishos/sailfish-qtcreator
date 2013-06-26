@@ -53,6 +53,7 @@ static const struct WrapperScript {
     { MER_WRAPPER_QMAKE, WrapperScript::ExecutionTypeMb2 },
     { MER_WRAPPER_MAKE, WrapperScript::ExecutionTypeMb2 },
     { MER_WRAPPER_GCC, WrapperScript::ExecutionTypeSb2 },
+    { MER_WRAPPER_GDB, WrapperScript::ExecutionTypeSb2 },
     { MER_WRAPPER_DEPLOY, WrapperScript::ExecutionTypeMb2 }
 };
 

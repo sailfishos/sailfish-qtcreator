@@ -102,6 +102,7 @@ DebuggerStartParameters LinuxDeviceDebugSupport::startParameters(const RemoteLin
     Kit *k = target->kit();
     const IDevice::ConstPtr device = DeviceKitInformation::device(k);
 
+    params.environment = runConfig->target()->activeBuildConfiguration()->environment();
     params.sysRoot = SysRootKitInformation::sysRoot(k).toString();
     params.debuggerCommand = DebuggerKitInformation::debuggerCommand(k).toString();
     if (ToolChain *tc = ToolChainKitInformation::toolChain(k))

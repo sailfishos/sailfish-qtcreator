@@ -27,6 +27,7 @@
 #include "mertoolchain.h"
 #include "merqtversion.h"
 #include "mertargetsxmlparser.h"
+#include <debugger/debuggerkitinformation.h>
 #include <utils/persistentsettings.h>
 #include <utils/qtcassert.h>
 #include <projectexplorer/toolchainmanager.h>
@@ -369,7 +370,10 @@ bool MerSdk::addTarget(const MerTarget &target)
     ProjectExplorer::ToolChainManager::instance()->registerToolChain(toolchain.data());
     QtSupport::QtVersionManager::instance()->addVersion(version.data());
     QtSupport::QtKitInformation::setQtVersion(kit, version.data());
-    ProjectExplorer::ToolChainKitInformation::setToolChain(kit, toolchain.data());    
+    ProjectExplorer::ToolChainKitInformation::setToolChain(kit, toolchain.data());
+    const Utils::FileName gdbCommand = Utils::FileName::fromString(target.targetPath()
+            + QLatin1Char('/') + QLatin1String(Constants::MER_WRAPPER_GDB));
+    Debugger::DebuggerKitInformation::setDebuggerCommand(kit, gdbCommand);
     ProjectExplorer::KitManager::instance()->registerKit(kit);
     toolchain.take();
     version.take();
