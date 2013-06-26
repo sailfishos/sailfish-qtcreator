@@ -151,7 +151,7 @@ ProjectExplorer::IDevice::Ptr MerEmulatorDevice::clone() const
 }
 
 MerEmulatorDevice::MerEmulatorDevice():
-    IDevice(Constants::MER_DEVICE_TYPE_I486, IDevice::ManuallyAdded, IDevice::Emulator)
+    RemoteLinux::LinuxDevice(QString(), Core::Id(Constants::MER_DEVICE_TYPE_I486), Emulator, ManuallyAdded, Core::Id())
 {
     setDeviceState(IDevice::DeviceStateUnknown);
 }
@@ -298,7 +298,6 @@ void MerEmulatorDevice::generteSshKey(const QString& user)
                                      user, sharedSshPath());
     dialog.exec();
 }
-
 
 #include "meremulatordevice.moc"
 

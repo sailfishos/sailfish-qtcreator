@@ -23,13 +23,14 @@
 **
 ****************************************************************************/
 
-#include <projectexplorer/devicesupport/idevice.h>
+//#include <projectexplorer/devicesupport/idevice.h>
+#include <remotelinux/linuxdevice.h>
 #include <QCoreApplication>
 
 namespace Mer {
 namespace Internal {
 
-class MerEmulatorDevice : public ProjectExplorer::IDevice
+class MerEmulatorDevice : public RemoteLinux::LinuxDevice
 {
     Q_DECLARE_TR_FUNCTIONS(Mer::Internal::MerEmulatorDevice)
 
@@ -66,7 +67,6 @@ public:
     int index() const;
 
     void generteSshKey(const QString& user);
-
 
 private:
     MerEmulatorDevice();

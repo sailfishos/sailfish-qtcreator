@@ -84,6 +84,7 @@ DebuggerStartParameters LinuxDeviceDebugSupport::startParameters(const RemoteLin
     const IDevice::ConstPtr device = DeviceKitInformation::device(k);
     QTC_ASSERT(device, return params);
 
+    params.environment = runConfig->target()->activeBuildConfiguration()->environment();
     params.sysRoot = SysRootKitInformation::sysRoot(k).toString();
     params.debuggerCommand = DebuggerKitInformation::debuggerCommand(k).toString();
     if (ToolChain *tc = ToolChainKitInformation::toolChain(k))
