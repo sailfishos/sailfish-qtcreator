@@ -21,7 +21,6 @@
 ****************************************************************************/
 
 #include "merdeploystepfactory.h"
-#include "meremulatorstartstep.h"
 #include "merdeploysteps.h"
 #include "merdeployconfiguration.h"
 
@@ -53,7 +52,7 @@ QList<Core::Id> MerDeployStepFactory::availableCreationIds(BuildStepList *parent
 QString MerDeployStepFactory::displayNameForId(const Core::Id id) const
 {
     if (id == MerEmulatorStartStep::stepId())
-        return MerEmulatorStartStep::stepDisplayName();
+        return MerEmulatorStartStep::displayName();
     if (id == MerRsyncDeployStep::stepId())
         return MerRsyncDeployStep::displayName();
     if (id == MerRpmDeployStep::stepId())

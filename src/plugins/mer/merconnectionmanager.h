@@ -59,7 +59,7 @@ private slots:
     void handleKitUpdated(ProjectExplorer::Kit *kit);
     void handleTargetAdded(ProjectExplorer::Target *target);
     void handleTargetRemoved(ProjectExplorer::Target *target);
-    void handleTaskAdded(const ProjectExplorer::Task &task);
+    void handleBuildStateChanged(ProjectExplorer::Project* project);
 private:
     MerConnectionManager();
 
@@ -70,17 +70,6 @@ private:
     QScopedPointer<MerRemoteConnection> m_sdkConnection;
 
     friend class MerPlugin;
-};
-
-class ConnectionRequest : public QObject
-{
-    Q_OBJECT
-public:
-    ConnectionRequest(const QString &vm);
-public slots:
-    void prompt();
-private:
-    QString m_vm;
 };
 
 }

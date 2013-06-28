@@ -23,6 +23,7 @@
 #include "merconnection.h"
 #include "merconstants.h"
 #include "mervirtualboxmanager.h"
+#include "merconnectionmanager.h"
 #include <coreplugin/actionmanager/command.h>
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/coreconstants.h>
@@ -35,6 +36,7 @@
 #include <projectexplorer/projectexplorer.h>
 #include <QAction>
 #include <QTimer>
+#include <QMessageBox>
 
 namespace Mer {
 namespace Internal {
@@ -44,16 +46,19 @@ using namespace ProjectExplorer;
 
 const QSize iconSize = QSize(24, 20);
 
-static int VM_TIMEOUT = 3000;
-
 MerRemoteConnection::MerRemoteConnection(QObject *parent)
     : QObject(parent)
     , m_action(new QAction(this))
-    , m_initalized(false)
+    , m_uiInitalized(false)
+    , m_connectionInitialized(false)
     , m_visible(false)
     , m_enabled(false)
     , m_connection(0)
     , m_state(Disconnected)
+    , m_vmStartupTimeOut(3000)
+    , m_vmCloseTimeOut(3000)
+    , m_probeTimeout(1000)
+    , m_reportError(true)
 {
 
 }
@@ -100,9 +105,19 @@ void MerRemoteConnection::setEnabled(bool enabled)
     m_enabled = enabled;
 }
 
+void MerRemoteConnection::setTaskCategory(Core::Id id)
+{
+    m_taskId = id;
+}
+
+void MerRemoteConnection::setProbeTimeout(int timeout)
+{
+    m_probeTimeout = timeout;
+}
+
 void MerRemoteConnection::initialize()
 {
-    if (m_initalized)
+    if (m_uiInitalized)
         return;
 
     m_action->setText(m_name);
@@ -119,7 +134,11 @@ void MerRemoteConnection::initialize()
     Core::ModeManager::addAction(command->action(), 1);
     m_action->setEnabled(m_enabled);
     m_action->setVisible(m_visible);
-    m_initalized = true;
+    m_uiInitalized = true;
+
+    TaskHub *th = ProjectExplorerPlugin::instance()->taskHub();
+    th->addCategory(m_taskId, tr("Virtual Machine Error"));
+
 }
 
 bool MerRemoteConnection::isConnected() const
@@ -129,23 +148,38 @@ bool MerRemoteConnection::isConnected() const
 
 SshConnectionParameters MerRemoteConnection::sshParameters() const
 {
-    if (m_connection)
-        return m_connection->connectionParameters();
-
-    return SshConnectionParameters();
+    return m_params;
 }
 
-void MerRemoteConnection::setConnectionParameters(const QString &virtualMachine, const SshConnectionParameters &sshParameters)
+void MerRemoteConnection::setVirtualMachine(const QString vm)
 {
-    if (m_connection && m_connection->connectionParameters() == sshParameters && virtualMachine == m_vmName)
-        return;
+    if(m_vmName != vm) {
+        m_vmName = vm;
+        m_connectionInitialized = false;
+    }
+}
 
-    if (m_connection)
-        m_connection->deleteLater();
+void MerRemoteConnection::setConnectionParameters(const SshConnectionParameters &sshParameters)
+{
+    if(m_params != sshParameters) {
+        m_params = sshParameters;
+        m_connectionInitialized = false;
+    }
+}
 
-    m_vmName = virtualMachine;
-    m_connection = createConnection(sshParameters);
-    m_state = Disconnected;
+void MerRemoteConnection::setupConnection()
+{
+     if (m_connectionInitialized)
+         return;
+
+     if (m_connection) {
+         m_connection->disconnect();
+         m_connection->deleteLater();
+     }
+
+     m_connection = createConnection(m_params);
+     m_state = Disconnected;
+     m_connectionInitialized = true;
 }
 
 QString MerRemoteConnection::virtualMachine() const
@@ -187,74 +221,76 @@ QSsh::SshConnection* MerRemoteConnection::createConnection(const SshConnectionPa
     return connection;
 }
 
-void MerRemoteConnection::handleConnection()
-{
-    //TODO: this can be removed
-    SshConnection *connection = qobject_cast<SshConnection*>(sender());
-    if (connection) {
-        QTC_ASSERT(connection == m_connection, return);
-        changeState();
-    }
-}
-
 void MerRemoteConnection::changeState(State stateTrigger)
 {
     QTC_ASSERT(!m_vmName.isEmpty(), return);
+    QTC_ASSERT(m_connectionInitialized, return);
 
     if (stateTrigger != NoStateTrigger)
         m_state = stateTrigger;
 
     switch (m_state) {
-        case StartingVm:
-            if (MerVirtualBoxManager::isVirtualMachineRunning(m_vmName)) {
-                m_state = Connecting;
-                m_connection->connectToHost();
-            } else {
-                MerVirtualBoxManager::startVirtualMachine(m_vmName);
-                QTimer::singleShot(VM_TIMEOUT, this, SLOT(changeState()));
-            }
-            break;
-        case Connecting:
-            if (m_connection->state() == SshConnection::Connected) {
-                m_state = Connected;
-            } else if (m_connection->state() == SshConnection::Unconnected) {
-                m_state = Disconnected; //broken
-                if (m_connection->errorState() != SshNoError)
-                    createConnectionErrorTask(m_vmName, m_connection->errorString());
-            } else {
-                QTimer::singleShot(VM_TIMEOUT, this, SLOT(changeState()));
-            }
-            break;
-        case Connected:
-            if(m_connection->state() == SshConnection::Unconnected)
-            {
-                m_state = Disconnected;
-            }
-            break;
-        case Disconneting:
-             if (m_connection->state() == SshConnection::Connected) {
-                 m_connection->disconnectFromHost();
-             } else if (m_connection->state() == SshConnection::Unconnected) {
-                 MerVirtualBoxManager::shutVirtualMachine(m_vmName);
-                 QSsh::SshConnectionParameters sshParams = m_connection->connectionParameters();
-                 QSsh::SshRemoteProcessRunner *runner = new QSsh::SshRemoteProcessRunner(m_connection);
-                 connect(runner, SIGNAL(processClosed(int)), runner, SLOT(deleteLater()));
-                 runner->run("sdk-shutdown", sshParams);
-                 QTimer::singleShot(VM_TIMEOUT, this, SLOT(changeState()));
-                 m_state = ClosingVm;
-             } else {
-                 QTimer::singleShot(VM_TIMEOUT, this, SLOT(changeState()));
-             }
-            break;
-        case ClosingVm:
-            if (MerVirtualBoxManager::isVirtualMachineRunning(m_vmName))
-                qWarning() << "Could not close virtual machine" << m_vmName;
+    case StartingVm:
+        if (MerVirtualBoxManager::isVirtualMachineRunning(m_vmName)) {
+            m_state = Connecting;
+            m_reportError = true;
+            m_connection->connectToHost();
+        } else {
+            MerVirtualBoxManager::startVirtualMachine(m_vmName);
+            QTimer::singleShot(m_vmStartupTimeOut, this, SLOT(changeState()));
+        }
+        break;
+    case TryConnect:
+        if (m_connection->state() == SshConnection::Unconnected) {
+            m_state = Connecting;
+            m_reportError = false;
+            m_connection->connectToHost();
+            QTimer::singleShot(m_probeTimeout, this, SLOT(changeState()));
+        }
+        break;
+    case Connecting:
+        if (m_connection->state() == SshConnection::Connected) {
+            m_state = Connected;
+            removeConnectionErrorTask(m_taskId);
+        } else if (m_connection->state() == SshConnection::Unconnected) {
+            m_state = Disconnected; //broken
+            if (m_connection->errorState() != SshNoError && m_reportError)
+                createConnectionErrorTask(m_vmName, m_connection->errorString(),m_taskId);
+        } else if (m_connection->state() == SshConnection::Connecting) {
+            m_connection->disconnectFromHost();
             m_state = Disconnected;
-            break;
-        case Disconnected:
-            break;
-        default:
-            break;
+         }
+        break;
+    case Connected:
+        if(m_connection->state() == SshConnection::Unconnected) {
+            m_state = Disconnected;
+        } else if (m_connection->state() == SshConnection::Connecting) {
+            m_state = Connecting;
+        } //Connected
+        break;
+    case Disconneting:
+        if (m_connection->state() == SshConnection::Connected ||
+                m_connection->state() == SshConnection::Connecting) {
+            m_connection->disconnectFromHost();
+        } else if (m_connection->state() == SshConnection::Unconnected) {
+            MerVirtualBoxManager::shutVirtualMachine(m_vmName);
+            QSsh::SshConnectionParameters sshParams = m_connection->connectionParameters();
+            QSsh::SshRemoteProcessRunner *runner = new QSsh::SshRemoteProcessRunner(m_connection);
+            connect(runner, SIGNAL(processClosed(int)), runner, SLOT(deleteLater()));
+            runner->run("sdk-shutdown", sshParams);
+            QTimer::singleShot(m_vmCloseTimeOut, this, SLOT(changeState()));
+            m_state = ClosingVm;
+        }
+        break;
+    case ClosingVm:
+        if (MerVirtualBoxManager::isVirtualMachineRunning(m_vmName))
+            qWarning() << "Could not close virtual machine" << m_vmName;
+        m_state = Disconnected;
+        break;
+    case Disconnected:
+        break;
+    default:
+        break;
     }
     update();
 }
@@ -266,6 +302,17 @@ void MerRemoteConnection::connectTo()
 
     if (m_state == Disconnected)
         changeState(StartingVm);
+}
+
+//connects only if vm running;
+void MerRemoteConnection::tryConnectTo()
+{  
+    if (!MerVirtualBoxManager::isVirtualMachineRunning(m_vmName))
+        return;
+
+    if (m_state == Disconnected) {
+        changeState(TryConnect);
+    }
 }
 
 void MerRemoteConnection::handleTriggered()
@@ -280,14 +327,21 @@ void MerRemoteConnection::handleTriggered()
     }
 }
 
-void  MerRemoteConnection::createConnectionErrorTask(const QString &vmName, const QString &error)
+void  MerRemoteConnection::createConnectionErrorTask(const QString &vmName, const QString &error, Core::Id category)
 {
     TaskHub *th = ProjectExplorerPlugin::instance()->taskHub();
+    th->clearTasks(category);
     th->addTask(Task(Task::Error,
                      tr("%1: %2").arg(vmName, error),
                      Utils::FileName() /* filename */,
                      -1 /* linenumber */,
-                     Core::Id(Constants::MER_TASKHUB_CATEGORY)));
+                     category));
+}
+
+void  MerRemoteConnection::removeConnectionErrorTask(Core::Id category)
+{
+    TaskHub *th = ProjectExplorerPlugin::instance()->taskHub();
+    th->clearTasks(category);
 }
 
 } // Internal

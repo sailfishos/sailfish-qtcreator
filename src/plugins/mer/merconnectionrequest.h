@@ -20,36 +20,27 @@
 **
 ****************************************************************************/
 
-#ifndef MEREMULATORSTARTSTEP_H
-#define MEREMULATORSTARTSTEP_H
+#ifndef MERCONNECTIONREQUEST_H
+#define MERCONNECTIONREQUEST_H
 
-#include <remotelinux/abstractremotelinuxdeploystep.h>
+#include <QObject>
+#include <QString>
 
 namespace Mer {
 namespace Internal {
 
-class MerEmulatorStartService;
-class MerEmulatorStartStep : public RemoteLinux::AbstractRemoteLinuxDeployStep
+class MerConnectionRequest : public QObject
 {
     Q_OBJECT
-
 public:
-    MerEmulatorStartStep(ProjectExplorer::BuildStepList *bsl);
-    MerEmulatorStartStep(ProjectExplorer::BuildStepList *bsl, MerEmulatorStartStep *other);
-
-    static Core::Id stepId();
-    static QString stepDisplayName();
-
+    MerConnectionRequest(const QString &vm);
+public slots:
+    void prompt();
 private:
-    void ctor();
-
-    RemoteLinux::AbstractRemoteLinuxDeployService *deployService() const;
-    bool initInternal(QString *error = 0);
-
-    MerEmulatorStartService *m_service;
+    QString m_vm;
 };
 
-} // Internal
-} // Mer
+}
+}
 
-#endif // MEREMULATORSTARTSTEP_H
+#endif // MERCONNECTIONREQUEST_H

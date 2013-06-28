@@ -41,7 +41,6 @@ SOURCES += \
     meroptionswidget.cpp \
     mersdkdetailswidget.cpp \
     mersdkselectiondialog.cpp \
-    meremulatorstartstep.cpp \
     merdeploystepfactory.cpp \
     mersshparser.cpp \
     mertarget.cpp \
@@ -67,7 +66,8 @@ SOURCES += \
     merhardwaredevicewidget.cpp \
     meremulatordevicewizard.cpp \
     merhardwaredevicewizard.cpp \
-    meremulatordevicewizardpages.cpp
+    meremulatordevicewizardpages.cpp \
+    merconnectionrequest.cpp
 
 HEADERS += \
     merplugin.h \
@@ -89,7 +89,6 @@ HEADERS += \
     meroptionswidget.h \
     mersdkdetailswidget.h \
     mersdkselectiondialog.h \
-    meremulatorstartstep.h \
     merdeploystepfactory.h \
     mersshparser.h \
     mertarget.h \
@@ -115,7 +114,8 @@ HEADERS += \
     merhardwaredevicewidget.h \
     meremulatordevicewizard.h \
     merhardwaredevicewizard.h \
-    meremulatordevicewizardpages.h
+    meremulatordevicewizardpages.h \
+    merconnectionrequest.h
 
 
 SOURCES += \

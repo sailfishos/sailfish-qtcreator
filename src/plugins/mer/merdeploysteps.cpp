@@ -31,6 +31,11 @@
 #include "mersdkmanager.h"
 #include "mersdkkitinformation.h"
 #include "mertargetkitinformation.h"
+#include "merconnectionmanager.h"
+#include "meremulatordevice.h"
+#include "merconnectionrequest.h"
+#include "mervirtualboxmanager.h"
+#include "merconnection.h"
 #include <utils/qtcassert.h>
 #include <projectexplorer/buildstep.h>
 #include <projectexplorer/buildconfiguration.h>
@@ -149,6 +154,83 @@ void MerProcessStep::setArguments(const QString &arguments)
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
+const Core::Id MerEmulatorStartStep::stepId()
+{
+    return Core::Id("Qt4ProjectManager.MerEmulatorStartStep");
+}
+
+QString MerEmulatorStartStep::displayName()
+{
+    return tr("Start Emulator");
+}
+
+MerEmulatorStartStep::MerEmulatorStartStep(BuildStepList *bsl)
+    : MerProcessStep(bsl, stepId())
+{
+    setDefaultDisplayName(displayName());
+}
+
+MerEmulatorStartStep::MerEmulatorStartStep(ProjectExplorer::BuildStepList *bsl, MerEmulatorStartStep *bs)
+    :MerProcessStep(bsl,bs)
+    , m_vm(bs->vitualMachine())
+    , m_ssh(bs->sshParams())
+{
+    setDefaultDisplayName(displayName());
+}
+
+QString MerEmulatorStartStep::vitualMachine()
+{
+    return m_vm;
+}
+
+QSsh::SshConnectionParameters MerEmulatorStartStep::sshParams()
+{
+    return m_ssh;
+}
+
+bool MerEmulatorStartStep::init()
+{
+    IDevice::ConstPtr d = DeviceKitInformation::device(this->target()->kit());
+    if(d->type() != Constants::MER_DEVICE_TYPE_I486) {
+        setEnabled(false);
+        return false;
+    }
+    const MerEmulatorDevice* device = static_cast<const MerEmulatorDevice*>(d.data());
+    m_vm = device->virtualMachine();
+    m_ssh = device->sshParameters();
+    return !m_vm.isEmpty();
+}
+
+bool MerEmulatorStartStep::immutable() const
+{
+    return false;
+}
+
+void MerEmulatorStartStep::run(QFutureInterface<bool> &fi)
+{
+    MerConnectionManager *em = MerConnectionManager::instance();
+    if(em->isConnected(m_vm)) {
+        emit addOutput(tr("Emulator is already running. Nothing to do."),MessageOutput);
+        fi.reportResult(true);
+        emit finished();
+    } else {
+        emit addOutput(tr("Starting Emulator..."), MessageOutput);
+        QString error = tr("Could not connect to %1 Virtual Machine.").arg(m_vm);
+        MerRemoteConnection::createConnectionErrorTask(m_vm,error,Constants::MER_TASKHUB_EMULATOR_CATEGORY);
+        if(!MerVirtualBoxManager::isVirtualMachineRunning(m_vm))
+                new MerConnectionRequest(m_vm);
+        fi.reportResult(false);
+        emit finished();
+    }
+}
+
+BuildStepConfigWidget *MerEmulatorStartStep::createConfigWidget()
+{
+    return new MerSimpleBuildStepConfigWidget(displayName(),tr("Starts Emulator virtual machine, if necessery."));
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////
+
 const Core::Id MerRsyncDeployStep::stepId()
 {
     return Core::Id("Qt4ProjectManager.MerRsyncDeployStep");
@@ -166,10 +248,11 @@ MerRsyncDeployStep::MerRsyncDeployStep(BuildStepList *bsl)
     setArguments(QLatin1String("--rsync"));
 }
 
-MerRsyncDeployStep::MerRsyncDeployStep(BuildStepList *bsl, MerRsyncDeployStep *bs)
-    : MerProcessStep(bsl, bs)
+MerRsyncDeployStep::MerRsyncDeployStep(ProjectExplorer::BuildStepList *bsl, MerRsyncDeployStep *bs)
+    :MerProcessStep(bsl,bs)
 {
     setDefaultDisplayName(displayName());
+    setArguments(QLatin1String("--rsync"));
 }
 
 bool MerRsyncDeployStep::init()
@@ -213,10 +296,12 @@ MerRpmDeployStep::MerRpmDeployStep(BuildStepList *bsl)
     setArguments(QLatin1String("--zypper"));
 }
 
-MerRpmDeployStep::MerRpmDeployStep(BuildStepList *bsl, MerRpmDeployStep *bs)
-    : MerProcessStep(bsl,bs)
+
+MerRpmDeployStep::MerRpmDeployStep(ProjectExplorer::BuildStepList *bsl, MerRpmDeployStep *bs)
+    :MerProcessStep(bsl,bs)
 {
     setDefaultDisplayName(displayName());
+    setArguments(QLatin1String("--zypper"));
 }
 
 bool MerRpmDeployStep::init()

@@ -32,6 +32,7 @@
 
 #include "ui_merdeploystep.h"
 #include <projectexplorer/abstractprocessstep.h>
+#include <ssh/sshconnection.h>
 
 namespace Mer {
 namespace Internal {
@@ -48,13 +49,31 @@ private:
     QString m_arguments;
 };
 
+class MerEmulatorStartStep : public MerProcessStep
+{
+    Q_OBJECT
+public:
+    explicit MerEmulatorStartStep(ProjectExplorer::BuildStepList *bsl);
+    MerEmulatorStartStep(ProjectExplorer::BuildStepList *bsl, MerEmulatorStartStep *bs);
+    bool init();
+    bool immutable() const;
+    void run(QFutureInterface<bool> &fi);
+    ProjectExplorer::BuildStepConfigWidget *createConfigWidget();
+    static const Core::Id stepId();
+    static QString displayName();
+    QString vitualMachine();
+    QSsh::SshConnectionParameters sshParams();
+    QString m_vm;
+    QSsh::SshConnectionParameters m_ssh;
+    friend class MerDeployStepFactory;
+};
+
 class MerRsyncDeployStep : public MerProcessStep
 {
     Q_OBJECT
 public:
     explicit MerRsyncDeployStep(ProjectExplorer::BuildStepList *bsl);
     MerRsyncDeployStep(ProjectExplorer::BuildStepList *bsl, MerRsyncDeployStep *bs);
-
     bool init();
     bool immutable() const;
     void run(QFutureInterface<bool> &fi);
@@ -71,7 +90,6 @@ class MerRpmDeployStep : public MerProcessStep
 public:
     explicit MerRpmDeployStep(ProjectExplorer::BuildStepList *bsl);
     MerRpmDeployStep(ProjectExplorer::BuildStepList *bsl, MerRpmDeployStep *bs);
-
     bool init();
     bool immutable() const;
     void run(QFutureInterface<bool> &fi);

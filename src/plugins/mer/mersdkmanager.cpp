@@ -285,16 +285,6 @@ QList<Kit *> MerSdkManager::kitsForTarget(const QString &targetName)
     return kitsForTarget;
 }
 
-QString MerSdkManager::virtualMachineNameForKit(const Kit *kit)
-{
-    ToolChain *toolchain = ToolChainKitInformation::toolChain(kit);
-    if (toolchain && toolchain->type() == QLatin1String(Constants::MER_TOOLCHAIN_TYPE)) {
-        MerToolChain *mertoolchain = static_cast<MerToolChain *>(toolchain);
-        return mertoolchain->virtualMachineName();
-    }
-    return QString();
-}
-
 bool MerSdkManager::hasMerDevice(Kit *kit)
 {
     IDevice::ConstPtr dev = DeviceKitInformation::device(kit);

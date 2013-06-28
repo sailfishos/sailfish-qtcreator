@@ -26,6 +26,8 @@
 #include "merconstants.h"
 #include "mervirtualboxmanager.h"
 #include "meremulatordevice.h"
+#include "mersdkkitinformation.h"
+#include "merconnectionrequest.h"
 
 #include <projectexplorer/project.h>
 #include <projectexplorer/target.h>
@@ -34,11 +36,11 @@
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/taskhub.h>
 #include <projectexplorer/devicesupport/devicemanager.h>
+#include <projectexplorer/buildmanager.h>
 #include <ssh/sshconnection.h>
+#include <utils/qtcassert.h>
 
 #include <QIcon>
-#include <QMessageBox>
-#include <QTimer>
 
 using namespace ProjectExplorer;
 
@@ -65,6 +67,8 @@ MerConnectionManager::MerConnectionManager():
     m_emulatorConnection->setIcon(emuIcon);
     m_emulatorConnection->setStartTip(tr("Start Emulator"));
     m_emulatorConnection->setStopTip(tr("Stop Emulator"));
+    m_emulatorConnection->setTaskCategory(Core::Id(Constants::MER_TASKHUB_EMULATOR_CATEGORY));
+    m_emulatorConnection->setProbeTimeout(1000);
     m_emulatorConnection->initialize();
 
     m_sdkConnection->setName(tr("MerSdk"));
@@ -72,6 +76,8 @@ MerConnectionManager::MerConnectionManager():
     m_sdkConnection->setIcon(sdkIcon);
     m_sdkConnection->setStartTip(tr("Start Sdk"));
     m_sdkConnection->setStopTip(tr("Stop Sdk"));
+    m_sdkConnection->setTaskCategory(Core::Id(Constants::MER_TASKHUB_SDK_CATEGORY));
+    m_sdkConnection->setProbeTimeout(1000);
     m_sdkConnection->initialize();
 
     connect(KitManager::instance(), SIGNAL(kitUpdated(ProjectExplorer::Kit*)),
@@ -83,10 +89,9 @@ MerConnectionManager::MerConnectionManager():
     connect(MerSdkManager::instance(), SIGNAL(sdksUpdated()), this, SLOT(update()));
     connect(DeviceManager::instance(), SIGNAL(deviceListChanged()), SLOT(update()));
 
-    TaskHub *th = ProjectExplorerPlugin::instance()->taskHub();
-    th->addCategory(Core::Id(Constants::MER_TASKHUB_CATEGORY), tr("Virtual Machine Error"));
-    connect(th, SIGNAL(taskAdded(ProjectExplorer::Task)),
-            SLOT(handleTaskAdded(ProjectExplorer::Task)));
+    ProjectExplorerPlugin *projectExplorer = ProjectExplorerPlugin::instance();
+    connect(projectExplorer->buildManager(), SIGNAL(buildStateChanged(ProjectExplorer::Project*)),
+            this, SLOT(handleBuildStateChanged(ProjectExplorer::Project*)));
 
     m_instance = this;
 }
@@ -152,6 +157,8 @@ void MerConnectionManager::handleStartupProjectChanged(ProjectExplorer::Project 
 
     m_project = project;
     update();
+    m_emulatorConnection->tryConnectTo();
+    m_sdkConnection->tryConnectTo();
 }
 
 void MerConnectionManager::handleTargetAdded(Target *target)
@@ -164,6 +171,24 @@ void MerConnectionManager::handleTargetRemoved(Target *target)
 {
     if (target && MerSdkManager::isMerKit(target->kit()))
         update();
+}
+
+void MerConnectionManager::handleBuildStateChanged(Project* project)
+{
+     Target* target = project->activeTarget();
+     ProjectExplorerPlugin *projectExplorer = ProjectExplorerPlugin::instance();
+     if (target && target->kit() && MerSdkManager::isMerKit(target->kit())) {
+         if (projectExplorer->buildManager()->isBuilding(project)) {
+             if(m_sdkConnection->isConnected()) return;
+             const QString vm = m_sdkConnection->virtualMachine();
+             QTC_ASSERT(!vm.isEmpty(),return);
+             if (!MerVirtualBoxManager::isVirtualMachineRunning(vm)) {
+                 new MerConnectionRequest(vm);
+             } else {
+                 m_sdkConnection->connectTo();
+             }
+         }
+     }
 }
 
 void MerConnectionManager::update()
@@ -183,10 +208,13 @@ void MerConnectionManager::update()
                 sdkRemoteButonVisible = true;
                 if (t == activeTarget) {
                     sdkRemoteButonEnabled = true;
-                    const QString &sdkName = MerSdkManager::virtualMachineNameForKit(t->kit());
-                    if (!sdkName.isEmpty()) {
-                        m_sdkConnection->setConnectionParameters(sdkName, paramters(MerSdkManager::instance()->sdk(sdkName)));
-                    }
+                    MerSdk* sdk = MerSdkKitInformation::sdk(t->kit());
+                    QTC_ASSERT(sdk, continue);
+                    QString sdkName = sdk->virtualMachineName();
+                    QTC_ASSERT(!sdkName.isEmpty(), continue);
+                    m_sdkConnection->setVirtualMachine(sdkName);
+                    m_sdkConnection->setConnectionParameters(paramters(sdk));
+                    m_sdkConnection->setupConnection();
                 }
             }
 
@@ -198,8 +226,10 @@ void MerConnectionManager::update()
                             DeviceTypeKitInformation::deviceTypeId(t->kit()) == Core::Id(Constants::MER_DEVICE_TYPE_I486);
                     if(emulatorRemoteButtonEnabled) {
                           const MerEmulatorDevice* emu = static_cast<const MerEmulatorDevice*>(device.data());
-                          const QString &emulatorName = emu->virtualMachine(); //TODO: refactor me
-                          m_emulatorConnection->setConnectionParameters(emulatorName, device->sshParameters());
+                          const QString &emulatorName = emu->virtualMachine();
+                          m_emulatorConnection->setVirtualMachine(emulatorName);
+                          m_emulatorConnection->setConnectionParameters(device->sshParameters());
+                          m_emulatorConnection->setupConnection();
                     }
                 }
             }
@@ -217,7 +247,6 @@ void MerConnectionManager::update()
 QString MerConnectionManager::testConnection(const QSsh::SshConnectionParameters &params) const
 {
     QSsh::SshConnectionParameters p = params;
-    p.timeout = MerRemoteConnection::m_connectionTimeOut;
     QSsh::SshConnection connection(p);
     QEventLoop loop;
     connect(&connection, SIGNAL(connected()), &loop, SLOT(quit()));
@@ -233,17 +262,6 @@ QString MerConnectionManager::testConnection(const QSsh::SshConnectionParameters
     return result;
 }
 
-void MerConnectionManager::handleTaskAdded(const Task &task)
-{
-    static QRegExp regExp(tr("Could not connect to (.*) Virtual Machine."));
-    if (regExp.indexIn(task.description) != -1) {
-        QString vm = regExp.cap(1);
-        if (!MerVirtualBoxManager::isVirtualMachineRunning(vm)) {
-            new ConnectionRequest(vm);
-        }
-    }
-}
-
 void MerConnectionManager::connectTo(const QString &vmName)
 {
     if(m_emulatorConnection->virtualMachine() == vmName) {
@@ -251,32 +269,6 @@ void MerConnectionManager::connectTo(const QString &vmName)
     }else if(m_sdkConnection->virtualMachine() == vmName) {
         m_sdkConnection->connectTo();
     }
-}
-
-//This ungly code fixes the isse of showing the messagebox, while QProcess
-//form build stps ends. Since messagebox reenters event loop
-//QProcess emits finnished singal and cleans up. Meanwhile users closes box end continues
-//with invalid m_process pointer.
-
-ConnectionRequest::ConnectionRequest(const QString& vm):
-    m_vm(vm)
-{
-    QTimer::singleShot(0,this,SLOT(prompt()));
-}
-
-void ConnectionRequest::prompt()
-{
-    const QMessageBox::StandardButton response =
-        QMessageBox::question(0, tr("Start Virtual Machine"),
-                              tr("Virtual Machine '%1' is not running! Please start the "
-                                 "Virtual Machine and retry after the Virtual Machine is "
-                                 "running.\n\n"
-                                 "Start Virtual Machine now?").arg(m_vm),
-                              QMessageBox::No | QMessageBox::Yes, QMessageBox::Yes);
-    if (response == QMessageBox::Yes) {
-        MerConnectionManager::instance()->connectTo(m_vm);
-    }
-    this->deleteLater();
 }
 
 }
