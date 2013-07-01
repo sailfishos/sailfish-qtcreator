@@ -14,7 +14,16 @@
    <string>Form</string>
   </property>
   <layout class="QGridLayout" name="gridLayout">
-   <property name="margin">
+   <property name="leftMargin">
+    <number>0</number>
+   </property>
+   <property name="topMargin">
+    <number>0</number>
+   </property>
+   <property name="rightMargin">
+    <number>0</number>
+   </property>
+   <property name="bottomMargin">
     <number>0</number>
    </property>
    <item row="0" column="0">
@@ -26,9 +35,9 @@
       <property name="geometry">
        <rect>
         <x>0</x>
-        <y>0</y>
-        <width>508</width>
-        <height>240</height>
+        <y>-34</y>
+        <width>491</width>
+        <height>276</height>
        </rect>
       </property>
       <layout class="QGridLayout" name="gridLayout_2">
@@ -50,6 +59,9 @@
             <property name="text">
              <string/>
             </property>
+            <property name="textInteractionFlags">
+             <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
+            </property>
            </widget>
           </item>
           <item row="5" column="0">
@@ -64,12 +76,15 @@
             <property name="text">
              <string/>
             </property>
+            <property name="textInteractionFlags">
+             <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
+            </property>
            </widget>
           </item>
           <item row="6" column="0">
            <widget class="QLabel" name="sshFolderLabel">
             <property name="text">
-             <string>SSsh Folder:</string>
+             <string>SSH Folder:</string>
             </property>
            </widget>
           </item>
@@ -77,6 +92,9 @@
            <widget class="QLabel" name="sshFolderLabelEdit">
             <property name="text">
              <string/>
+            </property>
+            <property name="textInteractionFlags">
+             <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
             </property>
            </widget>
           </item>
@@ -91,7 +109,11 @@
            </widget>
           </item>
           <item row="7" column="1">
-           <widget class="QLineEdit" name="userLineEdit"/>
+           <widget class="QLineEdit" name="userLineEdit">
+            <property name="text">
+             <string notr="true"/>
+            </property>
+           </widget>
           </item>
           <item row="8" column="0">
            <widget class="QLabel" name="sshKeyLabel">
@@ -104,6 +126,9 @@
            <widget class="QLabel" name="sshKeyLabelEdit">
             <property name="text">
              <string>none</string>
+            </property>
+            <property name="textInteractionFlags">
+             <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
             </property>
            </widget>
           </item>
