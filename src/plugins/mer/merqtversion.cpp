@@ -166,12 +166,14 @@ QList<ProjectExplorer::Task> MerQtVersion::reportIssuesImpl(const QString &proFi
         return results;
     const QString proFileClean = QDir::cleanPath(proFile);
     const QString sharedHomeClean = QDir::cleanPath(vmInfo.sharedHome);
-    if (!proFileClean.startsWith(sharedHomeClean)) {
+    const QString sharedSrcClean = QDir::cleanPath(vmInfo.sharedSrc);
+    if (!proFileClean.startsWith(sharedHomeClean) && !proFileClean.startsWith(sharedSrcClean)) {
         ProjectExplorer::Task task(ProjectExplorer::Task::Error,
                                    QCoreApplication::translate("QtVersion",
                                                                "Project is outside of shared "
-                                                               "home '%1'")
-                                   .arg(QDir::toNativeSeparators(vmInfo.sharedHome)),
+                                                               "home '%1' and shared src '%2'")
+                                   .arg(QDir::toNativeSeparators(vmInfo.sharedHome))
+                                   .arg(QDir::toNativeSeparators(vmInfo.sharedSrc)),
                                    Utils::FileName(), -1, Core::Id());
         results.append(task);
     }

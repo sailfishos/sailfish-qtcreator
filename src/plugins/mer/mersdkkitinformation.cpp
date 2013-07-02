@@ -109,6 +109,7 @@ void MerSdkKitInformation::addToEnvironment(const ProjectExplorer::Kit *kit, Uti
         const QString sshPort = QString::number(sdk->sshPort());
         const QString sharedHome = QDir::fromNativeSeparators(sdk->sharedHomePath());
         const QString sharedTarget = QDir::fromNativeSeparators(sdk->sharedTargetsPath());
+        const QString sharedSrc = QDir::fromNativeSeparators(sdk->sharedSrcPath());
 
         env.appendOrSet(QLatin1String(Constants::MER_SSH_USERNAME),
                         QLatin1String(Constants::MER_SDK_DEFAULTUSER));
@@ -116,6 +117,7 @@ void MerSdkKitInformation::addToEnvironment(const ProjectExplorer::Kit *kit, Uti
         env.appendOrSet(QLatin1String(Constants::MER_SSH_PRIVATE_KEY), sdk->privateKeyFile());
         env.appendOrSet(QLatin1String(Constants::MER_SSH_SHARED_HOME), sharedHome);
         env.appendOrSet(QLatin1String(Constants::MER_SSH_SHARED_TARGET), sharedTarget);
+        env.appendOrSet(QLatin1String(Constants::MER_SSH_SHARED_SRC), sharedSrc);
     }
 }
 

@@ -104,6 +104,7 @@ bool MerSSH::run(const QString &sdkToolsDir, const QString &merTargetName,
     const QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
     const QString sharedHome = environment.value(QLatin1String(MER_SSH_SHARED_HOME));
     const QString sharedTarget = environment.value(QLatin1String(MER_SSH_SHARED_TARGET));
+    const QString sharedSrc = environment.value(QLatin1String(MER_SSH_SHARED_SRC));
 
     m_merSysRoot = sharedTarget + QLatin1Char('/') + merTargetName;
 
@@ -162,16 +163,20 @@ bool MerSSH::run(const QString &sdkToolsDir, const QString &merTargetName,
     }
 
     if (m_currentCacheFile.isEmpty()) {
-        if (!QDir::currentPath().startsWith(QDir::fromNativeSeparators(
-                                                QDir::cleanPath(sharedHome)))) {
-            printError(QString::fromLatin1("Project ERROR: Project is outside of shared home '%1'.")
-                       .arg(QDir::toNativeSeparators(sharedHome)));
+        const QString currentPath = QDir::currentPath();
+        const QString cleanSharedHome = QDir::fromNativeSeparators(QDir::cleanPath(sharedHome));
+        const QString cleanSharedSrc = QDir::fromNativeSeparators(QDir::cleanPath(sharedSrc));
+        if (!currentPath.startsWith(cleanSharedHome) && !currentPath.startsWith(cleanSharedSrc)) {
+            printError(QString::fromLatin1("Project ERROR: Project is outside of shared home '%1' and shared src '%2'.")
+                       .arg(QDir::toNativeSeparators(sharedHome)).arg(QDir::toNativeSeparators(sharedSrc)));
             return false;
         }
         completeCommand.prepend(QLatin1String("cd \"") + QDir::currentPath()
                                 + QLatin1String("\" && "));
     }
+    // First replace shared home and then shared src (error prone!)
     completeCommand.replace(sharedHome, QLatin1String("$HOME/"));
+    completeCommand.replace(sharedSrc, QLatin1String("/home/src1/"));
     completeCommand = completeCommand.trimmed();
     // hack for gcc when querying pre-defined macros and header paths
     QRegExp rx(QLatin1String("\\bgcc\\b.*\\B-\\B"));

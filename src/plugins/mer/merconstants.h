@@ -86,6 +86,7 @@ const char VM_NAME[] = "VirtualMachineName";
 const char SHARED_HOME[] = "SharedHome";
 const char SHARED_TARGET[] = "SharedTarget";
 const char SHARED_CONFIG[] = "SharedConfig";
+const char SHARED_SRC[] = "SharedSrc";
 const char SHARED_SSH[] = "SharedSsh";
 const char AUTHENTICATION_TYPE[] = "AuthenticationType";
 const char HOST[] = "Host";
@@ -135,6 +136,7 @@ const char MER_KIT_SPECIFY_INFORMATION[] = "Mer.Specify.Kit.Information";
 
 const char MER_SSH_SHARED_HOME[] = "MER_SSH_SHARED_HOME";
 const char MER_SSH_SHARED_TARGET[] = "MER_SSH_SHARED_TARGET";
+const char MER_SSH_SHARED_SRC[] = "MER_SSH_SHARED_SRC";
 const char MER_SSH_USERNAME[] = "MER_SSH_USERNAME";
 const char MER_SSH_PRIVATE_KEY[] = "MER_SSH_PRIVATE_KEY";
 const char MER_SSH_TARGET_NAME[] = "MER_SSH_TARGET_NAME";

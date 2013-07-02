@@ -37,6 +37,7 @@ public:
     QString sharedHome;
     QString sharedTargets;
     QString sharedConfig;
+    QString sharedSrc;
     QString sharedSsh;
     quint16 sshPort;
     quint16 wwwPort;
