@@ -67,6 +67,9 @@ public:
     void setSharedSshPath(const QString &sshPath);
     QString sharedSshPath() const;
 
+    void setSharedSrcPath(const QString &srcPath);
+    QString sharedSrcPath() const;
+
     void setSshPort(quint16 port);
     quint16 sshPort() const;
 
@@ -117,6 +120,7 @@ private:
     QString m_sharedTargetsPath;
     QString m_sharedSshPath;
     QString m_sharedConfigPath;
+    QString m_sharedSrcPath;
     QString m_host;
     QString m_userName;
     QString m_privateKeyFile;

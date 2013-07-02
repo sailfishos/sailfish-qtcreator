@@ -451,6 +451,7 @@ MerSdk* MerSdkManager::createSdk(const QString &vmName)
     sdk->setSharedHomePath(info.sharedHome);
     sdk->setSharedTargetsPath(info.sharedTargets);
     sdk->setSharedConfigPath(info.sharedConfig);
+    sdk->setSharedSrcPath(info.sharedSrc);
     sdk->setSharedSshPath(info.sharedSsh);
     return sdk;
 }

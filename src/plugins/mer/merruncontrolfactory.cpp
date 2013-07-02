@@ -98,6 +98,8 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, RunMode mo
                 MerVirtualBoxManager::fetchVirtualMachineInfo(mertoolchain->virtualMachineName());
         if (!info.sharedHome.isEmpty())
             params.sourcePathMap.insert(QLatin1String("/home/mersdk"), info.sharedHome);
+        if (!info.sharedSrc.isEmpty())
+            params.sourcePathMap.insert(QLatin1String("/home/src1"), info.sharedSrc);
     }
 
     DebuggerRunControl * const runControl =
