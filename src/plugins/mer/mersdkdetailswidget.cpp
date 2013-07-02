@@ -84,7 +84,7 @@ void MerSdkDetailsWidget::setSdk(const MerSdk *sdk)
         m_ui->targetsListLabel->setText(tr("Add SDK first to see targets"));
     }
 
-    if (!sdk->sharedHomePath().isEmpty()) {
+    if (!sdk->sharedSshPath().isEmpty()) {
         const QString authorized_keys = QDir::fromNativeSeparators(sdk->sharedSshPath());
         m_ui->authorizeSshKeyPushButton->setToolTip(tr("Add public key to %1").arg(
                                                         QDir::toNativeSeparators(authorized_keys)));
