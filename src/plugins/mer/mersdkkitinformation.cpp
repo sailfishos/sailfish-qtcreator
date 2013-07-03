@@ -117,7 +117,8 @@ void MerSdkKitInformation::addToEnvironment(const ProjectExplorer::Kit *kit, Uti
         env.appendOrSet(QLatin1String(Constants::MER_SSH_PRIVATE_KEY), sdk->privateKeyFile());
         env.appendOrSet(QLatin1String(Constants::MER_SSH_SHARED_HOME), sharedHome);
         env.appendOrSet(QLatin1String(Constants::MER_SSH_SHARED_TARGET), sharedTarget);
-        env.appendOrSet(QLatin1String(Constants::MER_SSH_SHARED_SRC), sharedSrc);
+        if (!sharedSrc.isEmpty())
+            env.appendOrSet(QLatin1String(Constants::MER_SSH_SHARED_SRC), sharedSrc);
     }
 }
 
