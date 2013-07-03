@@ -166,7 +166,7 @@ bool MerSSH::run(const QString &sdkToolsDir, const QString &merTargetName,
         const QString currentPath = QDir::currentPath();
         const QString cleanSharedHome = QDir::fromNativeSeparators(QDir::cleanPath(sharedHome));
         const QString cleanSharedSrc = QDir::fromNativeSeparators(QDir::cleanPath(sharedSrc));
-        if (!currentPath.startsWith(cleanSharedHome) && !currentPath.startsWith(cleanSharedSrc)) {
+        if (!currentPath.startsWith(cleanSharedHome) && (sharedSrc.isEmpty() || !currentPath.startsWith(cleanSharedSrc))) {
             printError(QString::fromLatin1("Project ERROR: Project is outside of shared home '%1' and shared src '%2'.")
                        .arg(QDir::toNativeSeparators(sharedHome)).arg(QDir::toNativeSeparators(sharedSrc)));
             return false;
@@ -176,7 +176,8 @@ bool MerSSH::run(const QString &sdkToolsDir, const QString &merTargetName,
     }
     // First replace shared home and then shared src (error prone!)
     completeCommand.replace(sharedHome, QLatin1String("$HOME/"));
-    completeCommand.replace(sharedSrc, QLatin1String("/home/src1/"));
+    if (!sharedSrc.isEmpty())
+        completeCommand.replace(sharedSrc, QLatin1String("/home/src1/"));
     completeCommand = completeCommand.trimmed();
     // hack for gcc when querying pre-defined macros and header paths
     QRegExp rx(QLatin1String("\\bgcc\\b.*\\B-\\B"));
