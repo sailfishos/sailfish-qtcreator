@@ -1,7 +1,7 @@
 [Desktop Entry]
 Type=Application
-Name=%ProjectName%
+Name=template
 Icon=icon-launcher-gallery
-Exec=invoker --type=j -s /opt/sdk/bin/%ProjectName%
+Exec=invoker --type=silica-qt5 -s /usr/bin/template
 Comment=Sailfish UI application
 

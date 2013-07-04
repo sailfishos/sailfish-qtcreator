@@ -1,0 +1,19 @@
+Name: template
+Summary: My SailfishOS Application
+Version: 0.1
+Release: 1
+Group: Qt/Qt
+License: LICENSE
+Sources:
+- '%{name}-%{version}.tar.bz2'
+Description: |
+  Short description of my SailfishOS Application
+Configure: none
+Builder: qtc
+PkgConfigBR: []
+PkgBR: []
+Requires: []
+Files:
+- /usr/bin
+- /usr/share/template
+- /usr/share/applications

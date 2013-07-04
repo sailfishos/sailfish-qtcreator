@@ -1,5 +1,7 @@
 import QtQuick 2.0
 import Sailfish.Silica 1.0
+import Sailfish.Silica.theme 1.0
+
 
 Page {
     id: page
@@ -23,15 +25,15 @@ Page {
         // of the page, followed by our content.
         Column {
             width: page.width
-            spacing: theme.paddingLarge
+            spacing: Theme.paddingLarge
             PageHeader {
                 title: "UI Template"
             }
             Label { 
-                x: theme.paddingLarge
+                x: Theme.paddingLarge
                 text: "Hello Sailors" 
-                color: theme.secondaryHighlightColor
-                font.pixelSize: theme.fontSizeLarge
+                color: Theme.secondaryHighlightColor
+                font.pixelSize: Theme.fontSizeLarge
             }
         }
     }
