@@ -24,6 +24,7 @@
 #include "merconstants.h"
 #include "mersdkmanager.h"
 #include "mervirtualboxmanager.h"
+#include "mersdkkitinformation.h"
 
 #include <utils/environment.h>
 #include <qtsupport/qtkitinformation.h>
@@ -159,24 +160,31 @@ QList<ProjectExplorer::Task> MerQtVersion::reportIssuesImpl(const QString &proFi
 {
     QList<ProjectExplorer::Task> results;
 
-    // Exctracting the VM name out of the qmake wrapper path
-    const QString merSDKVMName = qmakeCommand().parentDir().parentDir().toFileInfo().baseName();
+    MerSdk* sdk = MerSdkManager::instance()->sdk(m_vmName);
 
-    const VirtualMachineInfo vmInfo = MerVirtualBoxManager::fetchVirtualMachineInfo(merSDKVMName);
-    if (vmInfo.sharedHome.isEmpty())
-        return results;
-    const QString proFileClean = QDir::cleanPath(proFile);
-    const QString sharedHomeClean = QDir::cleanPath(vmInfo.sharedHome);
-    const QString sharedSrcClean = QDir::cleanPath(vmInfo.sharedSrc);
-    if (!proFileClean.startsWith(sharedHomeClean) && !proFileClean.startsWith(sharedSrcClean)) {
+    if(!sdk) {
         ProjectExplorer::Task task(ProjectExplorer::Task::Error,
                                    QCoreApplication::translate("QtVersion",
-                                                               "Project is outside of shared "
-                                                               "home '%1' and shared src '%2'")
-                                   .arg(QDir::toNativeSeparators(vmInfo.sharedHome))
-                                   .arg(QDir::toNativeSeparators(vmInfo.sharedSrc)),
+                                                               "MerQtVersion is missing MerSDK"),
                                    Utils::FileName(), -1, Core::Id());
         results.append(task);
+    } else {
+        const QString proFileClean = QDir::cleanPath(proFile);
+        const QString sharedHomeClean = QDir::cleanPath(sdk->sharedHomePath());
+        const QString sharedSrcClean = QDir::cleanPath(sdk->sharedSrcPath());
+        if (!proFileClean.startsWith(sharedHomeClean) && !proFileClean.startsWith(sharedSrcClean)) {
+            QString message =  QCoreApplication::translate("QtVersion","Project is outside of mer workspace");
+            if(!sdk->sharedHomePath().isEmpty() && !sdk->sharedSrcPath().isEmpty())
+              message = QCoreApplication::translate("QtVersion","Project is outside of mer shared home '%1' and mer shared src '%2'")
+                      .arg(QDir::toNativeSeparators(QDir::toNativeSeparators(sdk->sharedHomePath())))
+                      .arg(QDir::toNativeSeparators(QDir::toNativeSeparators(sdk->sharedSrcPath())));
+            else if(!sdk->sharedHomePath().isEmpty())
+              message = QCoreApplication::translate("QtVersion","Project is outside of shared home '%1'")
+                      .arg(QDir::toNativeSeparators(QDir::toNativeSeparators(sdk->sharedHomePath())));
+            ProjectExplorer::Task task(ProjectExplorer::Task::Error,message,Utils::FileName(), -1, Core::Id());
+            results.append(task);
+        }
+
     }
     results.append(BaseQtVersion::reportIssuesImpl(proFile, buildDir));
     return results;
