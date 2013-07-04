@@ -32,7 +32,7 @@
 
 <wizard version="1" kind="project"
         class="qt4project" firstpage="10"
-        id="Q.SailfishOSQtQuick1Application" category="F.QtApplications"
+        id="Q.SailfishOSQtQuick2Application" category="F.QtApplications"
         featuresRequired="QtSupport.Wizards.FeatureSailfishOS">
     <description>Creates a SailfishOS Qt Quick Application using Sailfish Silica components.</description>
     <displayname>SailfishOS Qt Quick Application</displayname>;
@@ -48,8 +48,8 @@
         <file source="sailfishapplication/sailfishapplication.cpp"/>
         <file source="sailfishapplication/sailfishapplication.h"/>
         <file source="sailfishapplication/sailfishapplication.pri"/>
-        <file source="rpm/app.yaml" target="rpm/%ProjectName%.yaml"/>
-        <file source="rpm/app.spec" target="rpm/%ProjectName%.spec"/>
+        <file source="rpm/template.yaml" target="rpm/%ProjectName%.yaml"/>
+        <file source="rpm/template.spec" target="rpm/%ProjectName%.spec"/>
     </files>
     <fieldpagetitle>Application Details</fieldpagetitle>
     <fields>
