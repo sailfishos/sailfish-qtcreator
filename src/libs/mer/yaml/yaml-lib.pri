@@ -4,6 +4,8 @@ dll {
     DEFINES += YAML_STATIC_LIB
 }
 
+CONFIG(debug, debug|release): DEFINES += NDEBUG
+
 INCLUDEPATH += \
     $$PWD \
     $$PWD/libyaml-stable \
