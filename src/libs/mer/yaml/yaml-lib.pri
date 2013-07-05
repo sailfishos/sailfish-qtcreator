@@ -4,7 +4,7 @@ dll {
     DEFINES += YAML_STATIC_LIB
 }
 
-CONFIG(debug, debug|release): DEFINES += NDEBUG
+CONFIG(release, debug|release): DEFINES += NDEBUG
 
 INCLUDEPATH += \
     $$PWD \
