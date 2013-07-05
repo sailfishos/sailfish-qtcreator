@@ -154,7 +154,7 @@ void SshKeyGenerator::generateOpenSslPrivateKeyString(const KeyPtr &key)
 
         const BigInt dmp1 = rsaKey->get_d() % (rsaKey->get_p() - 1);
         const BigInt dmq1 = rsaKey->get_d() % (rsaKey->get_q() - 1);
-        const BigInt iqmp = power_mod(rsaKey->get_q(), -1, rsaKey->get_p());
+        const BigInt iqmp = inverse_mod(rsaKey->get_q(), rsaKey->get_p());
         params << dmp1 << dmq1 << iqmp;
         keyId = SshCapabilities::PubKeyRsa;
         label = "RSA PRIVATE KEY";
