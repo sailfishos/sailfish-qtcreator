@@ -29,6 +29,7 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QProcessEnvironment>
+#include <QSocketNotifier>
 
 enum CommandType {
     CommandTypeUndefined,
@@ -43,6 +44,7 @@ MerSSH::MerSSH(QObject *parent)
     , m_quietOnError(false)
     , m_runner(new QSsh::SshRemoteProcessRunner())
 {
+    connect(m_runner, SIGNAL(processStarted()), SLOT(onProcessStarted()));
     connect(m_runner, SIGNAL(readyReadStandardOutput()), SLOT(onStandardOutput()));
     connect(m_runner, SIGNAL(readyReadStandardError()), SLOT(onStandardError()));
     connect(m_runner, SIGNAL(processClosed(int)), SLOT(onProcessClosed(int)));
@@ -95,8 +97,10 @@ QString cacheFile(const QString &command, const QString &wrapperDir)
 }
 
 bool MerSSH::run(const QString &sdkToolsDir, const QString &merTargetName,
-                 const QString &commandType, const QString &command)
+                 const QString &commandType, const QString &command, bool interactive)
 {
+    m_interactive = interactive;
+
     using namespace Mer::Constants;
     // HACK: Qt Creator ignores gcc's exit code, and can be confused by non-gcc-like output.
     m_quietOnError = command.startsWith(QLatin1String("gcc "));
@@ -208,6 +212,19 @@ void MerSSH::timerEvent(QTimerEvent *event)
     QCoreApplication::exit(0);
 }
 
+void MerSSH::onProcessStarted()
+{
+    if (m_interactive) {
+        m_stdin = new QFile;
+        if (!m_stdin->open(stdin, QIODevice::ReadOnly | QIODevice::Unbuffered)) {
+            qDebug("Warning: Cannot read from standard input.");
+            return;
+        }
+        QSocketNotifier * const notifier = new QSocketNotifier(0, QSocketNotifier::Read, this);
+        connect(notifier, SIGNAL(activated(int)), SLOT(handleStdin()));
+    }
+}
+
 void MerSSH::onStandardOutput()
 {
     const QByteArray output(m_runner->readAllStandardOutput());
@@ -249,6 +266,11 @@ void MerSSH::onConnectionError()
     printError(QString::fromLatin1("Project ERROR: Could not connect to MerSDK Virtual Machine. %1")
                .arg(m_runner->lastConnectionErrorString()));
     QCoreApplication::exit(1);
+}
+
+void MerSSH::handleStdin()
+{
+    m_runner->writeDataToProcess(m_stdin->readLine());
 }
 
 void MerSSH::printError(const QString &message)

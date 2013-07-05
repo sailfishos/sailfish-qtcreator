@@ -27,6 +27,10 @@
 
 #include <QObject>
 
+QT_BEGIN_NAMESPACE
+class QFile;
+QT_END_NAMESPACE
+
 namespace QSsh {
 class SshRemoteProcessRunner;
 } // namespace QSsh
@@ -39,29 +43,33 @@ public:
     explicit MerSSH(QObject *parent = 0);
     ~MerSSH();
     bool run(const QString &sdkToolsDir, const QString &merTargetName,
-             const QString &commandType, const QString &command);
+             const QString &commandType, const QString &command, bool interactive);
     static QString shellSafeArgument(const QString &argument);
 
 protected:
     void timerEvent(QTimerEvent *event);
 
 private slots:
+    void onProcessStarted();
     void onStandardOutput();
     void onStandardError();
     void onProcessClosed(int exitStatus);
     void onConnectionError();
+    void handleStdin();
 
 private:
     void printError(const QString &message);
 
     int m_exitCode;
     bool m_quietOnError;
+    bool m_interactive;
     QString m_merSysRoot;
     QString m_currentCacheFile;
     QByteArray m_currentCacheData;
     QSsh::SshRemoteProcessRunner *m_runner;
     QByteArray m_completeCommand;
     QSsh::SshConnectionParameters m_sshConnectionParams;
+    QFile *m_stdin;
 };
 
 #endif // MERSSH_H
