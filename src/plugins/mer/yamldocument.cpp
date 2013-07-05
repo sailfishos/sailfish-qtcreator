@@ -96,6 +96,9 @@ YamlDocument::~YamlDocument()
 
 bool YamlDocument::open(QString *errorString, const QString &fileName)
 {
+    if (fileName.isEmpty())
+        return false;
+
     d->success = yaml_parser_initialize(&d->yamlParser);
     if (d->success) {
         FILE *yamlFile = fopen(fileName.toUtf8(), "rb");
@@ -141,6 +144,8 @@ bool YamlDocument::save(QString *errorString, const QString &fileName, bool auto
     if (autoSave)
         return false;
     const QString actualName = fileName.isEmpty() ? this->fileName() : fileName;
+    if (actualName.isEmpty())
+        return false;
     d->success = yaml_emitter_initialize(&d->yamlWriter);
     if (d->success) {
         yaml_document_t updatedDocument;
@@ -255,6 +260,9 @@ void YamlDocument::rename(const QString &newName)
 
 bool YamlDocument::updateFiles(const QStringList &files, const QString &fileName)
 {
+    if (fileName.isEmpty())
+        return false;
+
     yaml_parser_t yamlParser;
     yaml_document_t yamlDocument;
 
