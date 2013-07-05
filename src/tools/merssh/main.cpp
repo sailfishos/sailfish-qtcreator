@@ -91,6 +91,7 @@ int main(int argc, char *argv[])
     if (arguments.length() == 3 && arguments.first() == QLatin1String("generatesshkeys"))
         return generateSshKeys(arguments.at(1), arguments.at(2)) ? 0 : 1;
 
+    bool interactive = false;
     foreach (QString argument, arguments) {
         argument = argument.trimmed();
         if (argument == QLatin1String(Mer::Constants::MERSSH_PARAMETER_SDKTOOLSDIR)) {
@@ -102,6 +103,8 @@ int main(int argc, char *argv[])
         } else if (argument == QLatin1String(Mer::Constants::MERSSH_PARAMETER_COMMANDTYPE)) {
             currentParameter = &commandType;
             commandPieces.clear();
+        } else if (argument == QLatin1String("-interactive")) {
+            interactive = true;
         } else {
             if (currentParameter) {
                 *currentParameter = argument;
@@ -120,8 +123,8 @@ int main(int argc, char *argv[])
     }
 
     MerSSH merSSH(&a);
-    const bool parametersCorrect =
-            merSSH.run(sdkToolsDir + QLatin1Char('/'), merTarget, commandType, command);
+    const bool parametersCorrect = merSSH.run(sdkToolsDir + QLatin1Char('/'), merTarget,
+                                              commandType, command, interactive);
     if (!parametersCorrect)
         return 1;
 
