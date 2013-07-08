@@ -2,21 +2,35 @@ Name:    %ProjectName%
 Summary: %Summary%
 Version: %Version%
 Release: 1
-Group:   Qt/Qt
+Group: Qt/Qt
 License: LICENSE
+# This must be generated before uploading a package to a remote build service
 Sources:
-- "%{name}-%{version}.tar.bz2"
+- '%{name}-%{version}.tar.bz2'
 Description: |
-  %Description%
-# Qt Applications generally don't use configure and do use qmake
+  Short description of my SailfishOS Application
 Configure: none
-Builder: qtc
-# pkgconfigs we depend on to build
-PkgConfigBR: []
-# Packages we depend on to build
-PkgBR: [pkgconfig(qdeclarative5-boostable), pkgconfig(Qt5Core), pkgconfig(Qt5Qml),  pkgconfig(Qt5Quick)]
-# Packages we require to run
-Requires: [sailfishsilica-qt5, mapplauncherd-booster-silica-qt5]
+# The qtc5 builder inserts macros to allow QtCreator to have fine
+# control over qmake/make execution
+Builder: qtc5
+
+# Build dependencies should ideally be specified using pkgconfig:
+PkgConfigBR:
+  - qdeclarative5-boostable
+  - Qt5Core
+  - Qt5Qml
+  - Qt5Quick
+
+# Build dependencies without a pkgconfig setup can be listed here
+# PkgBR:
+#   - package-needed-to-build
+
+# Runtime dependencies which are not automatically detected
+Requires:
+  - sailfishsilica-qt5
+  - mapplauncherd-booster-silica-qt5
+
+# All installed files
 Files:
 # This section is overwritten by Qt Creator. Do not remove the comments.
 # Sections ends.
