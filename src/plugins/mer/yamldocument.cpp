@@ -96,14 +96,12 @@ YamlDocument::~YamlDocument()
 
 bool YamlDocument::open(QString *errorString, const QString &fileName)
 {
-    if (fileName.isEmpty())
-        return false;
-
     d->success = yaml_parser_initialize(&d->yamlParser);
     if (d->success) {
         FILE *yamlFile = fopen(fileName.toUtf8(), "rb");
-        if (yamlFile)
-            yaml_parser_set_input_file(&d->yamlParser, yamlFile);
+        if (!yamlFile)
+            return false;
+        yaml_parser_set_input_file(&d->yamlParser, yamlFile);
         d->success = yaml_parser_load(&d->yamlParser, &d->yamlDocument);
 
         d->fileName = fileName;
@@ -144,10 +142,13 @@ bool YamlDocument::save(QString *errorString, const QString &fileName, bool auto
     if (autoSave)
         return false;
     const QString actualName = fileName.isEmpty() ? this->fileName() : fileName;
-    if (actualName.isEmpty())
-        return false;
     d->success = yaml_emitter_initialize(&d->yamlWriter);
     if (d->success) {
+        FILE *yamlFile = fopen(actualName.toUtf8(), "wb");
+        if (!yamlFile)
+            return false;
+        yaml_emitter_set_output_file(&d->yamlWriter, yamlFile);
+
         yaml_document_t updatedDocument;
         yaml_document_initialize(&updatedDocument, d->yamlDocument.version_directive,
                                  d->yamlDocument.tag_directives.start,
@@ -182,10 +183,6 @@ bool YamlDocument::save(QString *errorString, const QString &fileName, bool auto
             }
         }
         d->editorWidget->setModified(false);
-
-        FILE *yamlFile = fopen(actualName.toUtf8(), "wb");
-        if (yamlFile)
-            yaml_emitter_set_output_file(&d->yamlWriter, yamlFile);
 
         d->success = yaml_emitter_open(&d->yamlWriter);
         if (d->success)
@@ -260,9 +257,6 @@ void YamlDocument::rename(const QString &newName)
 
 bool YamlDocument::updateFiles(const QStringList &files, const QString &fileName)
 {
-    if (fileName.isEmpty())
-        return false;
-
     yaml_parser_t yamlParser;
     yaml_document_t yamlDocument;
 
@@ -270,8 +264,9 @@ bool YamlDocument::updateFiles(const QStringList &files, const QString &fileName
     bool success = yaml_parser_initialize(&yamlParser);
     if (success) {
         FILE *yamlFile = fopen(fileName.toUtf8(), "rb");
-        if (yamlFile)
-            yaml_parser_set_input_file(&yamlParser, yamlFile);
+        if (!yamlFile)
+            return false;
+        yaml_parser_set_input_file(&yamlParser, yamlFile);
         success = yaml_parser_load(&yamlParser, &yamlDocument);
         if (success) {
             QStack<QByteArray> valueStack;
