@@ -1,5 +1,5 @@
 # The name of your app
-TARGET = template
+TARGET = %ProjectName%
 
 # C++ sources
 SOURCES += main.cpp
@@ -11,11 +11,11 @@ HEADERS +=
 qml.files = *.qml pages cover main.qml
 
 # The .desktop file
-desktop.files = template.desktop
+desktop.files = %ProjectName%.desktop
 
 # Please do not modify the following line.
 include(sailfishapplication/sailfishapplication.pri)
 
 OTHER_FILES = \
-    rpm/template.yaml \
-    rpm/template.spec
+    rpm/%ProjectName%.yaml \
+    rpm/%ProjectName%.spec
