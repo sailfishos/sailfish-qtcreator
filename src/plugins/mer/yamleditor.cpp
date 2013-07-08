@@ -40,7 +40,7 @@ YamlEditor::YamlEditor(YamlEditorWidget *parent) :
     setWidget(parent);
 }
 
-bool YamlEditor::createNew(const QString &contents)
+bool YamlEditor::createNew(const QString &/*contents*/)
 {
     return false;
 }
