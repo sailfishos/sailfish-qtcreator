@@ -1,19 +1,22 @@
-Name: template
-Summary: My SailfishOS Application
-Version: 0.1
+Name:    %ProjectName%
+Summary: %Summary%
+Version: %Version%
 Release: 1
-Group: Qt/Qt
+Group:   Qt/Qt
 License: LICENSE
 Sources:
-- '%{name}-%{version}.tar.bz2'
+- "%{name}-%{version}.tar.bz2"
 Description: |
-  Short description of my SailfishOS Application
+  %Description%
+# Qt Applications generally don't use configure and do use qmake
 Configure: none
 Builder: qtc
+# pkgconfigs we depend on to build
 PkgConfigBR: []
-PkgBR: []
-Requires: []
+# Packages we depend on to build
+PkgBR: [pkgconfig(qdeclarative5-boostable), pkgconfig(Qt5Core), pkgconfig(Qt5Qml),  pkgconfig(Qt5Quick)]
+# Packages we require to run
+Requires: [sailfishsilica-qt5, mapplauncherd-booster-silica-qt5]
 Files:
-- /usr/bin
-- /usr/share/template
-- /usr/share/applications
+# This section is overwritten by Qt Creator. Do not remove the comments.
+# Sections ends.

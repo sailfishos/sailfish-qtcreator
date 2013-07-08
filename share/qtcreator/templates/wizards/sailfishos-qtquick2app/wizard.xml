@@ -49,7 +49,6 @@
         <file source="sailfishapplication/sailfishapplication.h"/>
         <file source="sailfishapplication/sailfishapplication.pri"/>
         <file source="rpm/template.yaml" target="rpm/%ProjectName%.yaml"/>
-        <file source="rpm/template.spec" target="rpm/%ProjectName%.spec"/>
     </files>
     <fieldpagetitle>Application Details</fieldpagetitle>
     <fields>
