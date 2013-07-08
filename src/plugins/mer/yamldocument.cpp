@@ -66,7 +66,7 @@ public:
 class YamlDocumentPrivate
 {
 public:
-    YamlDocumentPrivate() : success(false) {}
+    YamlDocumentPrivate() : editorWidget(0) {}
 
     static void fetchValues(yaml_document_t *yamlDoc, const yaml_node_t *node, YAMLNodes &nodes, QStack<QByteArray> &valueStack);
     static int setValues(yaml_document_t *yamlDoc, yaml_document_t *newDoc, const yaml_node_t *node, const YAMLNodes &nodes, QList<QByteArray> &keys);
@@ -78,7 +78,6 @@ public:
     yaml_parser_t yamlParser;
     yaml_emitter_t yamlWriter;
     yaml_document_t yamlDocument;
-    bool success;
 };
 
 YamlDocument::YamlDocument(YamlEditorWidget *parent) :
@@ -96,18 +95,18 @@ YamlDocument::~YamlDocument()
 
 bool YamlDocument::open(QString *errorString, const QString &fileName)
 {
-    d->success = yaml_parser_initialize(&d->yamlParser);
-    if (d->success) {
+    bool success = yaml_parser_initialize(&d->yamlParser);
+    if (success) {
         FILE *yamlFile = fopen(fileName.toUtf8(), "rb");
         if (!yamlFile)
             return false;
         yaml_parser_set_input_file(&d->yamlParser, yamlFile);
-        d->success = yaml_parser_load(&d->yamlParser, &d->yamlDocument);
+        success = yaml_parser_load(&d->yamlParser, &d->yamlDocument);
 
         d->fileName = fileName;
         d->editorWidget->editor()->setDisplayName(QFileInfo(fileName).fileName());
 
-        if (d->success) {
+        if (success) {
             d->editorWidget->setTrackChanges(false);
             d->editorWidget->clear();
             QStack<QByteArray> valueStack;
@@ -131,10 +130,10 @@ bool YamlDocument::open(QString *errorString, const QString &fileName)
         }
         fclose(yamlFile);
     }
-    if (!d->success && errorString)
+    if (!success && errorString)
         *errorString = tr("Error %1").arg(QString::fromUtf8(d->yamlParser.problem));
     yaml_parser_delete(&d->yamlParser);
-    return d->success;
+    return success;
 }
 
 bool YamlDocument::save(QString *errorString, const QString &fileName, bool autoSave)
@@ -142,8 +141,8 @@ bool YamlDocument::save(QString *errorString, const QString &fileName, bool auto
     if (autoSave)
         return false;
     const QString actualName = fileName.isEmpty() ? this->fileName() : fileName;
-    d->success = yaml_emitter_initialize(&d->yamlWriter);
-    if (d->success) {
+    bool success = yaml_emitter_initialize(&d->yamlWriter);
+    if (success) {
         FILE *yamlFile = fopen(actualName.toUtf8(), "wb");
         if (!yamlFile)
             return false;
@@ -184,24 +183,24 @@ bool YamlDocument::save(QString *errorString, const QString &fileName, bool auto
         }
         d->editorWidget->setModified(false);
 
-        d->success = yaml_emitter_open(&d->yamlWriter);
-        if (d->success)
-            d->success = yaml_emitter_dump(&d->yamlWriter, &updatedDocument);
-        if (d->success)
-            d->success = yaml_emitter_close(&d->yamlWriter);
-        if (d->success)
-            d->success = yaml_emitter_flush(&d->yamlWriter);
+        success = yaml_emitter_open(&d->yamlWriter);
+        if (success)
+            success = yaml_emitter_dump(&d->yamlWriter, &updatedDocument);
+        if (success)
+            success = yaml_emitter_close(&d->yamlWriter);
+        if (success)
+            success = yaml_emitter_flush(&d->yamlWriter);
         fclose(yamlFile);
         yaml_document_delete(&updatedDocument);
     }
-    if (!d->success && errorString)
+    if (!success && errorString)
         *errorString = tr("Error %1").arg(QString::fromUtf8(d->yamlWriter.problem));
     yaml_emitter_delete(&d->yamlWriter);
-    if (d->success) {
+    if (success) {
         yaml_document_delete(&d->yamlDocument);
         open(0, actualName);
     }
-    return d->success;
+    return success;
 }
 
 QString YamlDocument::fileName() const
