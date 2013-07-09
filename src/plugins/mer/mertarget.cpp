@@ -35,6 +35,7 @@
 #include <utils/hostosinfo.h>
 #include <utils/qtcassert.h>
 #include <QDir>
+#include <QStringList>
 
 namespace Mer {
 namespace Internal {
@@ -48,13 +49,14 @@ static const struct WrapperScript {
         ExecutionTypeMb2
     };
     const char* name;
+    QStringList additionalArguments;
     Execution executionType;
 } wrapperScripts[] = {
-    { MER_WRAPPER_QMAKE, WrapperScript::ExecutionTypeMb2 },
-    { MER_WRAPPER_MAKE, WrapperScript::ExecutionTypeMb2 },
-    { MER_WRAPPER_GCC, WrapperScript::ExecutionTypeSb2 },
-    { MER_WRAPPER_GDB, WrapperScript::ExecutionTypeSb2 },
-    { MER_WRAPPER_DEPLOY, WrapperScript::ExecutionTypeMb2 }
+    { MER_WRAPPER_QMAKE, QStringList(), WrapperScript::ExecutionTypeMb2 },
+    { MER_WRAPPER_MAKE, QStringList(), WrapperScript::ExecutionTypeMb2 },
+    { MER_WRAPPER_GCC, QStringList(), WrapperScript::ExecutionTypeSb2 },
+    { MER_WRAPPER_GDB, QStringList(QLatin1String("-interactive")), WrapperScript::ExecutionTypeSb2 },
+    { MER_WRAPPER_DEPLOY, QStringList(), WrapperScript::ExecutionTypeMb2 }
 };
 
 MerTarget::MerTarget(MerSdk* mersdk):
@@ -271,8 +273,14 @@ bool MerTarget::createScript(const QString &targetPath, int scriptIndex) const
 
     const QString scriptHeader = HostOsInfo::isWindowsHost() ? QLatin1String("@echo off\n")
                                                              : QLatin1String("#!/bin/bash\n");
+    QString additionalArgs;
+    if (!wrapperScriptCopy.additionalArguments.isEmpty()) {
+        additionalArgs.append(wrapperScriptCopy.additionalArguments.join(QLatin1String(" ")))
+                .append(QLatin1Char(' '));
+    }
     const QString scriptContent = scriptHeader
             + QLatin1Char('"') + QDir::toNativeSeparators(wrapperBinaryPath) + QLatin1String("\" ")
+            + additionalArgs
             + QLatin1String(Mer::Constants::MERSSH_PARAMETER_SDKTOOLSDIR) + QLatin1String(" \"")
             + merDevToolsDir + QLatin1String("\" ")
             + QLatin1String(Constants::MERSSH_PARAMETER_COMMANDTYPE) + QLatin1Char(' ')
