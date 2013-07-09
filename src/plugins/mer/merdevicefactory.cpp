@@ -21,7 +21,7 @@
 ****************************************************************************/
 
 #include "merdevicefactory.h"
-#include "meremulatordevicedialog.h"
+#include "meremulatordevicewizard.h"
 #include "meremulatordevice.h"
 #include "merconstants.h"
 #include "mersdkmanager.h"
@@ -64,47 +64,44 @@ QList<Core::Id> MerDeviceFactory::availableCreationIds() const
 ProjectExplorer::IDevice::Ptr MerDeviceFactory::create(Core::Id id) const
 {
     QTC_ASSERT(canCreate(id), return ProjectExplorer::IDevice::Ptr());
-    MerEmulatorDeviceDialog dialog;
-    if (dialog.exec() != QDialog::Accepted)
+    MerEmulatorDeviceWizard wizard;
+    if (wizard.exec() != QDialog::Accepted)
         return ProjectExplorer::IDevice::Ptr();
 
     QSsh::SshConnectionParameters sshParams;
     sshParams.host = QLatin1String("localhost");
-    sshParams.userName = dialog.userName();
-    sshParams.port = dialog.sshPort();
-    sshParams.timeout = dialog.timeout();
+    sshParams.userName = wizard.userName();
+    sshParams.port = wizard.sshPort();
+    sshParams.timeout = wizard.timeout();
     sshParams.authenticationType = QSsh::SshConnectionParameters::AuthenticationByKey;
-    sshParams.privateKeyFile = dialog.privateKey();
+    sshParams.privateKeyFile = wizard.userPrivateKey();
 
     //hardcoded values requested by customer;
-    QString mac = QString(QLatin1String("08:00:5A:11:00:0%1")).arg(dialog.index());
+    QString mac = QString(QLatin1String("08:00:5A:11:00:0%1")).arg(wizard.index());
     MerEmulatorDevice::Ptr device = MerEmulatorDevice::create();
-    device->setVirtualMachine(dialog.emulatorVm());
+    device->setVirtualMachine(wizard.emulatorVm());
     device->setMac(mac);
     device->setSubnet(QLatin1String("10.220.220"));
-    device->setIndex(dialog.index());
-    device->setDisplayName(dialog.configName());
-    device->setFreePorts(Utils::PortList::fromString(dialog.freePorts()));
+    device->setIndex(wizard.index());
+    device->setDisplayName(wizard.configName());
+    device->setFreePorts(Utils::PortList::fromString(wizard.freePorts()));
     device->setSshParameters(sshParams);
-    device->setSharedConfigPath(dialog.sharedConfigPath());
-    device->setSharedSshPath(dialog.sharedSshPath());
-    if(dialog.requireSshKeys()) {
-        QStringList users;
-        //TODO: reconsider hardcoded values
-        users << QLatin1String("nemo");
-        users << QLatin1String("root");
-        if (!users.contains(dialog.userName()))
-            users << dialog.userName();
-        foreach(const QString& user, users)
-        {
-            device->generteSshKey(user);
-        }
+    device->setSharedConfigPath(wizard.sharedConfigPath());
+    device->setSharedSshPath(wizard.sharedSshPath());
+
+    if(wizard.isUserNewSshKeysRquired() && !wizard.userPrivateKey().isEmpty()) {
+        device->generteSshKey(wizard.userName());
+    }
+
+    if(wizard.isRootNewSshKeysRquired() && !wizard.rootPrivateKey().isEmpty()) {
+        device->generteSshKey(wizard.rootName());
     }
 
     RemoteLinux::GenericLinuxDeviceTester* tester = new RemoteLinux::GenericLinuxDeviceTester();
     RemoteLinux::LinuxDeviceTestDialog dlg(device,tester);
     dlg.exec();
     return device;
+
 }
 
 bool MerDeviceFactory::canRestore(const QVariantMap &map) const

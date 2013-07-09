@@ -42,6 +42,7 @@ class PublicKeyDeploymentDialog : public QProgressDialog
     Q_OBJECT
     enum State {
         Init,
+        RemoveOldKeys,
         GenerateSsh,
         Deploy,
         Error,
@@ -61,7 +62,12 @@ public:
         setAutoReset(false);
         setAutoClose(false);
         setMinimumDuration(0);
-        setMaximum(2);
+        setMaximum(3);
+        QString title(tr("Generating new ssh key for %1").arg(user));
+        setWindowTitle(title);
+        setLabelText(title);
+        m_sshDirectoryPath = m_sharedPath + QLatin1Char('/') + m_user+ QLatin1Char('/')
+                 + QLatin1String(Constants::MER_AUTHORIZEDKEYS_FOLDER);
         QTimer::singleShot(0, this, SLOT(updateState()));
     }
 
@@ -70,19 +76,31 @@ private slots:
     {
         switch (m_state) {
         case Init:
-            m_state = GenerateSsh;
-            setLabelText(tr("Regenerating ssh keys..."));
+            m_state = RemoveOldKeys;
+            setLabelText(tr("Removing old keys for %1 ...").arg(m_user));
             setCancelButtonText(tr("Close"));
             setValue(0);
             show();
+            QTimer::singleShot(1, this, SLOT(updateState()));
+            break;
+        case RemoveOldKeys:
+            m_state = GenerateSsh;
+               setLabelText(tr("Generating ssh key for %1 ...").arg(m_user));
+            if(QFileInfo(m_privKeyPath).exists()) {
+                QFile(m_privKeyPath).remove();
+            }
+
+            if(QFileInfo(m_sshDirectoryPath).exists()) {
+                QFile(m_sshDirectoryPath).remove();
+            }
+            setValue(1);
             QTimer::singleShot(0, this, SLOT(updateState()));
             break;
         case GenerateSsh:
             m_state = Deploy;
             m_error.clear();
-            setValue(1);
-            setLabelText(tr("Generate key..."));
-            setCancelButtonText(tr("Close"));
+            setValue(2);
+            setLabelText(tr("Deploying key for %1 ...").arg(m_user));
 
             if (!QFileInfo(m_privKeyPath).exists()) {
                 if (!MerSdkManager::generateSshKey(m_privKeyPath, m_error)) {
@@ -94,22 +112,17 @@ private slots:
         case Deploy: {
             m_state = Idle;
             const QString pubKeyPath = m_privKeyPath + QLatin1String(".pub");
-            setLabelText(tr("Deploying.."));
-
-
             if(m_sharedPath.isEmpty()) {
                 m_state = Error;
                 m_error.append(tr("SharedPath for emulator not found for this device"));
                 QTimer::singleShot(0, this, SLOT(updateState()));
                 return;
             }
-            const QString sshDirectoryPath = m_sharedPath + QLatin1Char('/') + m_user+ QLatin1Char('/')
-                     + QLatin1String(Constants::MER_AUTHORIZEDKEYS_FOLDER);
 
-            if(!MerSdkManager::authorizePublicKey(sshDirectoryPath, pubKeyPath, m_error)) {
+            if(!MerSdkManager::authorizePublicKey(m_sshDirectoryPath, pubKeyPath, m_error)) {
                  m_state = Error;
             }else{
-                setValue(2);
+                setValue(3);
                 setLabelText(tr("Deployed"));
                 setCancelButtonText(tr("Close"));
             }
@@ -136,6 +149,7 @@ private:
     QString m_error;
     QString m_user;
     QString m_sharedPath;
+    QString m_sshDirectoryPath;
 };
 
 
@@ -193,9 +207,8 @@ void MerEmulatorDevice::executeAction(Core::Id actionId, QWidget *parent) const
     QTC_ASSERT(actionIds().contains(actionId), return);
 
     if (actionId ==  Constants::MER_EMULATOR_DEPLOYKEY_ACTION_ID) {
-        PublicKeyDeploymentDialog dialog(sshParameters().privateKeyFile, virtualMachine(),
-                                         sshParameters().userName, sharedSshPath(),parent);
-        dialog.exec();
+        generteSshKey(QLatin1String(Constants::MER_DEVICE_DEFAULTUSER));
+        generteSshKey(QLatin1String(Constants::MER_DEVICE_ROOTUSER));
         return;
     } else if (actionId == Constants::MER_EMULATOR_START_ACTION_ID) {
         MerVirtualBoxManager::startVirtualMachine(m_virtualMachine);
@@ -290,13 +303,15 @@ QString MerEmulatorDevice::sharedSshPath() const
     return m_sharedSshPath;
 }
 
-void MerEmulatorDevice::generteSshKey(const QString& user)
+void MerEmulatorDevice::generteSshKey(const QString& user) const
 {
-    QString index(QLatin1String("/ssh/private_keys/%1/"));
-    QString privateKeyFile = m_sharedConfigPath + index.arg(m_index) + user;
-    PublicKeyDeploymentDialog dialog(privateKeyFile, virtualMachine(),
-                                     user, sharedSshPath());
-    dialog.exec();
+    if(!m_sharedConfigPath.isEmpty()) {
+        QString index(QLatin1String("/ssh/private_keys/%1/"));
+        QString privateKeyFile = m_sharedConfigPath + index.arg(m_index) + user;
+        PublicKeyDeploymentDialog dialog(privateKeyFile, virtualMachine(),
+                                         user, sharedSshPath());
+        dialog.exec();
+    }
 }
 
 #include "meremulatordevice.moc"

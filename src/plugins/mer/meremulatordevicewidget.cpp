@@ -51,8 +51,6 @@ MerEmulatorDeviceWidget::MerEmulatorDeviceWidget(
     connect(m_ui->userLineEdit, SIGNAL(editingFinished()), SLOT(userNameEditingFinished()));
     connect(m_ui->timeoutSpinBox, SIGNAL(editingFinished()), SLOT(timeoutEditingFinished()));
     connect(m_ui->timeoutSpinBox, SIGNAL(valueChanged(int)), SLOT(timeoutEditingFinished()));
-    connect(m_ui->sshPortSpinBox, SIGNAL(editingFinished()), SLOT(sshPortEditingFinished()));
-    connect(m_ui->sshPortSpinBox, SIGNAL(valueChanged(int)), SLOT(sshPortEditingFinished()));
     connect(m_ui->portsLineEdit, SIGNAL(editingFinished()), SLOT(handleFreePortsChanged()));
     initGui();
 }
@@ -60,13 +58,6 @@ MerEmulatorDeviceWidget::MerEmulatorDeviceWidget(
 MerEmulatorDeviceWidget::~MerEmulatorDeviceWidget()
 {
     delete m_ui;
-}
-
-void MerEmulatorDeviceWidget::sshPortEditingFinished()
-{
-    SshConnectionParameters sshParams = device()->sshParameters();
-    sshParams.port = m_ui->sshPortSpinBox->value();
-    device()->setSshParameters(sshParams);
 }
 
 void MerEmulatorDeviceWidget::timeoutEditingFinished()
@@ -81,15 +72,17 @@ void MerEmulatorDeviceWidget::userNameEditingFinished()
     if(device()->type() != Constants::MER_DEVICE_TYPE_I486) return;
     MerEmulatorDevice* device = static_cast<MerEmulatorDevice*>(this->device().data());
 
-    QString index = QLatin1String("/ssh/private_keys/%1/");
-    SshConnectionParameters sshParams = device->sshParameters();
-    const QString& user = m_ui->userLineEdit->text();
-    const QString privKey = device->sharedConfigPath() + index.arg(device->index()) + user;
+    if(!device->sharedConfigPath().isEmpty()) {
+        QString index = QLatin1String("/ssh/private_keys/%1/");
+        SshConnectionParameters sshParams = device->sshParameters();
+        const QString& user = m_ui->userLineEdit->text();
+        const QString privKey = device->sharedConfigPath() + index.arg(device->index()) + user;
 
-    sshParams.userName = user;
-    sshParams.privateKeyFile = privKey;
-    m_ui->sshKeyLabelEdit->setText(privKey);
-    device->setSshParameters(sshParams);
+        sshParams.userName = user;
+        sshParams.privateKeyFile = privKey;
+        m_ui->sshKeyLabelEdit->setText(privKey);
+        device->setSshParameters(sshParams);
+    }
 }
 
 void MerEmulatorDeviceWidget::handleFreePortsChanged()
@@ -100,7 +93,6 @@ void MerEmulatorDeviceWidget::handleFreePortsChanged()
 
 void MerEmulatorDeviceWidget::updateDeviceFromUi()
 {
-    sshPortEditingFinished();
     timeoutEditingFinished();
     userNameEditingFinished();
     handleFreePortsChanged();
@@ -126,12 +118,24 @@ void MerEmulatorDeviceWidget::initGui()
     const SshConnectionParameters &sshParams = device->sshParameters();
     m_ui->timeoutSpinBox->setValue(sshParams.timeout);
     m_ui->userLineEdit->setText(sshParams.userName);
-    m_ui->sshKeyLabelEdit->setText(QDir::toNativeSeparators(sshParams.privateKeyFile));
-    m_ui->sshPortSpinBox->setValue(sshParams.port);
+    if (!sshParams.privateKeyFile.isEmpty())
+        m_ui->sshKeyLabelEdit->setText(QDir::toNativeSeparators(sshParams.privateKeyFile));
+    else
+        m_ui->sshKeyLabelEdit->setText(tr("none"));
+    if(sshParams.port > 0)
+        m_ui->sshPortLabelEdit->setText(QString::number(sshParams.port));
+    else
+        m_ui->sshPortLabelEdit->setText(tr("none"));
     m_ui->portsLineEdit->setText(device->freePorts().toString());
     m_ui->emulatorVmLabelEdit->setText(device->virtualMachine());
-    m_ui->configFolderLabelEdit->setText(QDir::toNativeSeparators(device->sharedConfigPath()));
-    m_ui->sshFolderLabelEdit->setText(QDir::toNativeSeparators(device->sharedSshPath()));
+    if(!device->sharedConfigPath().isEmpty())
+        m_ui->configFolderLabelEdit->setText(QDir::toNativeSeparators(device->sharedConfigPath()));
+    else
+        m_ui->configFolderLabelEdit->setText(tr("none"));
+    if(!device->sharedSshPath().isEmpty())
+        m_ui->sshFolderLabelEdit->setText(QDir::toNativeSeparators(device->sharedSshPath()));
+    else
+        m_ui->sshFolderLabelEdit->setText(tr("none"));
     //block "nemo" user
     m_ui->userLineEdit->setEnabled(false);
     updatePortsWarningLabel();

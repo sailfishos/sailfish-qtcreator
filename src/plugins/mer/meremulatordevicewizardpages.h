@@ -20,43 +20,60 @@
 **
 ****************************************************************************/
 
-#ifndef MEREMULATORDEVICEDIALOG_H
-#define MEREMULATORDEVICEDIALOG_H
+#ifndef MEREMULATORDEVICEWIZARDPAGES_H
+#define MEREMULATORDEVICEWIZARDPAGES_H
 
-#include <QDialog>
+#include <QWizardPage>
 
 namespace Mer {
 namespace Internal {
 
-namespace Ui { class MerEmulatorDeviceDialog; }
+namespace Ui {
+    class MerEmulatorDeviceWizardVMPage;
+    class MerEmulatorDeviceWizardSshPage;
+}
 
-class MerEmulatorDeviceDialog : public QDialog
+class MerEmualtorVMPage : public QWizardPage
 {
     Q_OBJECT
 public:
-    MerEmulatorDeviceDialog(QWidget *parent = 0);
-    ~MerEmulatorDeviceDialog();
+    MerEmualtorVMPage(QWidget *parent = 0);
+    ~MerEmualtorVMPage();
 
     QString configName() const;
-    QString userName() const;
     int sshPort() const;
     int timeout() const;
-    QString privateKey() const;
     QString emulatorVm() const;
     QString freePorts() const;
     QString sharedConfigPath() const;
     QString sharedSshPath() const;
-    int index() const;
-    bool requireSshKeys() const;
 
 private slots:
-    void handleKeyChanged();
     void handleEmulatorVmChanged(const QString &vmName);
 private:
-     Ui::MerEmulatorDeviceDialog *m_ui;
-     int m_index;
+     Ui::MerEmulatorDeviceWizardVMPage *m_ui;
+};
+
+class MerEmualtorSshPage : public QWizardPage
+{
+    Q_OBJECT
+public:
+    MerEmualtorSshPage(QWidget *parent = 0);
+    ~MerEmualtorSshPage();
+
+    void initializePage();
+
+    QString userName() const;
+    QString userPrivateKey() const;
+    QString rootName() const;
+    QString rootPrivateKey() const;
+    bool isUserNewSshKeysRquired() const;
+    bool isRootNewSshKeysRquired() const;
+
+private:
+     Ui::MerEmulatorDeviceWizardSshPage *m_ui;
 };
 
 }
 }
-#endif // MEREMULATORDEVICEDIALOG_H
+#endif

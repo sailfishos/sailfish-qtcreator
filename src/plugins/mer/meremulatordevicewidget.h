@@ -41,7 +41,6 @@ public:
     ~MerEmulatorDeviceWidget();
 
 private slots:
-    void sshPortEditingFinished();
     void timeoutEditingFinished();
     void userNameEditingFinished();
     void handleFreePortsChanged();
