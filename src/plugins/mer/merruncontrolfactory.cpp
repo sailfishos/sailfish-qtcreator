@@ -22,6 +22,7 @@
 
 #include "merruncontrolfactory.h"
 #include "merconstants.h"
+#include "meremulatordevice.h"
 #include "merrunconfiguration.h"
 #include "mersdkmanager.h"
 #include "mertoolchain.h"
@@ -100,6 +101,14 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, RunMode mo
             params.sourcePathMap.insert(QLatin1String("/home/mersdk"), info.sharedHome);
         if (!info.sharedSrc.isEmpty())
             params.sourcePathMap.insert(QLatin1String("/home/src1"), info.sharedSrc);
+    }
+
+    const MerEmulatorDevice::ConstPtr &merDevice
+            = DeviceKitInformation::device(k).dynamicCast<const MerEmulatorDevice>();
+    if (merDevice) {
+        const QString deviceIpAsSeenByBuildEngine = QString::fromLatin1("10.220.220.%1")
+                .arg(merDevice->index());
+        params.remoteChannel = deviceIpAsSeenByBuildEngine + QLatin1String(":-1");
     }
 
     DebuggerRunControl * const runControl =
