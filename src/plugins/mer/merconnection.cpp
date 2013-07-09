@@ -231,10 +231,9 @@ void MerRemoteConnection::changeState(State stateTrigger)
              } else if (m_connection->state() == SshConnection::Unconnected) {
                  MerVirtualBoxManager::shutVirtualMachine(m_vmName);
                  QSsh::SshConnectionParameters sshParams = m_connection->connectionParameters();
-                 sshParams.userName = QLatin1String("root");
                  QSsh::SshRemoteProcessRunner *runner = new QSsh::SshRemoteProcessRunner(m_connection);
                  connect(runner, SIGNAL(processClosed(int)), runner, SLOT(deleteLater()));
-                 runner->run("shutdown now", sshParams);
+                 runner->run("sdk-shutdown", sshParams);
                  QTimer::singleShot(VM_TIMEOUT, this, SLOT(changeState()));
                  m_state = ClosingVm;
              } else {
