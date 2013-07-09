@@ -20,7 +20,7 @@
 **
 ****************************************************************************/
 
-#include "merdeviceconfigurationwizard.h"
+#include "merhardwaredevicewizard.h"
 #include "merdeviceconfigurationwizardsetuppages.h"
 #include "meremulatordevice.h"
 #include "merconstants.h"

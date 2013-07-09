@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>531</width>
-    <height>336</height>
+    <height>310</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -28,7 +28,7 @@
         <x>0</x>
         <y>0</y>
         <width>525</width>
-        <height>330</height>
+        <height>304</height>
        </rect>
       </property>
       <layout class="QGridLayout" name="gridLayout_2">
@@ -218,7 +218,6 @@
          <zorder>sshKeyLabel</zorder>
          <zorder>emulatorComboBox</zorder>
          <zorder>emulatorLabel</zorder>
-         <zorder>buttonBox</zorder>
          <zorder>configNameLineEdit</zorder>
          <zorder>configNameLabel</zorder>
          <zorder>configFolderLabel</zorder>
@@ -227,6 +226,7 @@
          <zorder>sshFolderLabelEdit</zorder>
          <zorder>sshKeyLabelEdit</zorder>
          <zorder>sshCheckBox</zorder>
+         <zorder>buttonBox</zorder>
         </widget>
        </item>
       </layout>

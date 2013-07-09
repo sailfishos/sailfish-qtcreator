@@ -66,7 +66,7 @@ public:
     void setIndex(int index);
     int index() const;
 
-    void generteSshKey(const QString& user);
+    void generteSshKey(const QString& user) const;
 
 private:
     MerEmulatorDevice();
