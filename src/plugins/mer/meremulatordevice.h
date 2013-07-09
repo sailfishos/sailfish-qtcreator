@@ -36,6 +36,7 @@ class MerEmulatorDevice : public RemoteLinux::LinuxDevice
 
 public:
     typedef QSharedPointer<MerEmulatorDevice> Ptr;
+    typedef QSharedPointer<const MerEmulatorDevice> ConstPtr;
 
     static Ptr create();
     ProjectExplorer::IDevice::Ptr clone() const;
