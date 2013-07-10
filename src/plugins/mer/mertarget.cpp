@@ -271,8 +271,10 @@ bool MerTarget::createScript(const QString &targetPath, int scriptIndex) const
     else if (wrapperScriptCopy.executionType == WrapperScript::ExecutionTypeMb2)
         executionType = QLatin1String(Constants::MER_EXECUTIONTYPE_MB2);
 
-    const QString scriptHeader = HostOsInfo::isWindowsHost() ? QLatin1String("@echo off\n")
-                                                             : QLatin1String("#!/bin/bash\n");
+    QString scriptHeader = HostOsInfo::isWindowsHost() ? QLatin1String("@echo off\n")
+                                                       : QLatin1String("#!/bin/bash\n");
+    if (HostOsInfo::isAnyUnixHost())
+        scriptHeader += QLatin1String("exec ");
     QString additionalArgs;
     if (!wrapperScriptCopy.additionalArguments.isEmpty()) {
         additionalArgs.append(wrapperScriptCopy.additionalArguments.join(QLatin1String(" ")))
