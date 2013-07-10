@@ -101,6 +101,7 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, RunMode mo
             params.sourcePathMap.insert(QLatin1String("/home/mersdk"), info.sharedHome);
         if (!info.sharedSrc.isEmpty())
             params.sourcePathMap.insert(QLatin1String("/home/src1"), info.sharedSrc);
+        params.executable.replace(info.sharedHome, QLatin1String("/home/mersdk"));
     }
 
     const MerEmulatorDevice::ConstPtr &merDevice
