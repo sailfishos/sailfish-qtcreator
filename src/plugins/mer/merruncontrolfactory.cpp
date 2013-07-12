@@ -88,6 +88,7 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, RunMode mo
     DebuggerStartParameters params = LinuxDeviceDebugSupport::startParameters(rc);
     if (mode == ProjectExplorer::DebugRunModeWithBreakOnMain)
         params.breakOnMain = true;
+
     // Map the source path
     Target *target = runConfig->target();
     Kit *k = target->kit();
@@ -101,16 +102,16 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, RunMode mo
             params.sourcePathMap.insert(QLatin1String("/home/mersdk"), info.sharedHome);
         if (!info.sharedSrc.isEmpty())
             params.sourcePathMap.insert(QLatin1String("/home/src1"), info.sharedSrc);
-        params.executable.replace(info.sharedHome, QLatin1String("/home/mersdk"));
+//        params.executable.replace(info.sharedHome, QLatin1String("/home/mersdk"));
     }
 
-    const MerEmulatorDevice::ConstPtr &merDevice
-            = DeviceKitInformation::device(k).dynamicCast<const MerEmulatorDevice>();
-    if (merDevice) {
-        const QString deviceIpAsSeenByBuildEngine = QString::fromLatin1("10.220.220.%1")
-                .arg(merDevice->index());
-        params.remoteChannel = deviceIpAsSeenByBuildEngine + QLatin1String(":-1");
-    }
+//    const MerEmulatorDevice::ConstPtr &merDevice
+//            = DeviceKitInformation::device(k).dynamicCast<const MerEmulatorDevice>();
+//    if (merDevice) {
+//        const QString deviceIpAsSeenByBuildEngine = QString::fromLatin1("10.220.220.%1")
+//                .arg(merDevice->index());
+//        params.remoteChannel = deviceIpAsSeenByBuildEngine + QLatin1String(":-1");
+//    }
 
     DebuggerRunControl * const runControl =
             DebuggerPlugin::createDebugger(params, rc, errorMessage);

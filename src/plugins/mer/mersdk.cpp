@@ -383,9 +383,11 @@ bool MerSdk::addTarget(const MerTarget &target)
     QtSupport::QtVersionManager::instance()->addVersion(version.data());
     QtSupport::QtKitInformation::setQtVersion(kit, version.data());
     ProjectExplorer::ToolChainKitInformation::setToolChain(kit, toolchain.data());
-    const Utils::FileName gdbCommand = Utils::FileName::fromString(target.targetPath()
-            + QLatin1Char('/') + QLatin1String(Constants::MER_WRAPPER_GDB));
-    Debugger::DebuggerKitInformation::setDebuggerCommand(kit, gdbCommand);
+//    const Utils::FileName gdbCommand = Utils::FileName::fromString(target.targetPath()
+//            + QLatin1Char('/') + QLatin1String(Constants::MER_WRAPPER_GDB));
+//    Debugger::DebuggerKitInformation::setDebuggerCommand(kit, gdbCommand);
+    Debugger::DebuggerKitInformation::setDebuggerCommand(kit,
+            Utils::FileName::fromString(QLatin1String("gdb")));
     ProjectExplorer::KitManager::instance()->registerKit(kit);
     toolchain.take();
     version.take();
