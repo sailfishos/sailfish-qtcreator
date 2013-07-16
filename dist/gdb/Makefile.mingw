@@ -1,6 +1,6 @@
 broot=${PWD}
 source=${broot}/source
-targets=arm-none-linux-gnueabi i686-pc-mingw32
+targets=i486-meego-linux-gnu
 staging=${broot}/staging
 pyversion=2.7
 pydir=${broot}/python
@@ -36,7 +36,7 @@ checkunzip:
 ${source}/python.zip: | makesourcedir checkwget
 	cd ${source} && \
 	echo "Downloading python..." && \
-	wget -q http://download.qt.nokia.com/misc/gdb/7.4/build-prerequisits/python.zip && \
+	wget -q http://releases.qt-project.org/gdb/build-prerequisites/python.zip && \
 	touch python.zip
 
 ${broot}/python/python.exe: ${source}/python.zip | checkunzip
@@ -73,7 +73,7 @@ ${staging}/gdb-${version}/configure: ${source}/gdb-${version}.tar.bz2 | makestag
 	tar xf ${source}/gdb-${version}.tar.bz2 && \
 	cd gdb-${version} && \
 	touch configure && \
-	patch -p1 < ${broot}/patches/gdb-ipv6.patch
+	patch -p2 < ${broot}/patches/gdb-ipv6.patch
 
 ${staging}/lib/libiconv.a: ${source}/libiconv-${iconvversion}.tar.gz | makestagingdir
 	cd ${staging} && \
