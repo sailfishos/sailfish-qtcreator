@@ -1,6 +1,6 @@
 broot=${PWD}
 source=${broot}/source
-targets=arm-none-linux-gnueabi i686-pc-mingw32
+targets=i486-meego-linux-gnu
 staging=${broot}/staging
 pyversion=2.7
 pydir=${broot}/python
