@@ -8,7 +8,7 @@ arch=`uname -sm | sed 's/ /-/g' | tr A-Z a-z`
 version=7.5
 targetdir=${broot}/qtcreator-gdb-${version}
 gdbtargets=$(addprefix ${targetdir}/gdb-, ${targets})
-packagename=sailfish-gdb-${version}-${arch}.7z
+packagename=sailfish-gdb-mac.7z
 
 all:package
 
