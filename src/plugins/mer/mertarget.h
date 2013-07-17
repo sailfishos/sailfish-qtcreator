@@ -51,6 +51,7 @@ public:
     void setName(const QString &name);
     void setQmakeQuery(const QString &qmakeQuery);
     void setGccDumpMachine(const QString &gccMachineDump);
+    void setDefaultGdb(const QString &name);
 
     bool fromMap(const QVariantMap &data);
     QVariantMap toMap() const;
@@ -71,6 +72,7 @@ private:
     QString m_name;
     QString m_qmakeQuery;
     QString m_gccMachineDump;
+    QString m_defaultGdb;
 };
 
 }
