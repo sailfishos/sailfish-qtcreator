@@ -120,10 +120,12 @@ const char SAILFISHOS_FEATURE[] = "QtSupport.Wizards.FeatureSailfishOS";
 const char MER_SDK_FILENAME[] = "/qtcreator/mersdk.xml";
 const char MER_TARGETS_FILENAME[] = "/targets.xml";
 const char MER_DEVICES_FILENAME[] = "/devices.xml";
+const char MER_DEBUGGER_FILENAME[] = "gdb-i486-meego-linux-gnu";
 
-const char TARGET_NAME[] = "MerTarget.Name";
-const char QMAKE_DUMP[] = "MerTarget.QmakeQuery";
-const char GCC_DUMP[] = "MerTarget.GccDumpMachine";
+const char MER_TARGET_NAME[] = "MerTarget.Name";
+const char MER_TARGET_QMAKE_DUMP[] = "MerTarget.QmakeQuery";
+const char MER_TARGET_GCC_DUMP[] = "MerTarget.GccDumpMachine";
+const char MER_TARGET_DEFAULT_DEBUGGER[] = "MerTarget.DefaultDebugger";
 
 const char QMAKE_QUERY[] = "qmake.query";
 const char QMAKE_VERSION[] = "qmake.version";

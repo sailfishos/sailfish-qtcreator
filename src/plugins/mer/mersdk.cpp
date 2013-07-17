@@ -27,7 +27,6 @@
 #include "mertoolchain.h"
 #include "merqtversion.h"
 #include "mertargetsxmlparser.h"
-#include <debugger/debuggerkitinformation.h>
 #include <utils/persistentsettings.h>
 #include <utils/qtcassert.h>
 #include <projectexplorer/toolchainmanager.h>
@@ -51,6 +50,7 @@ MerSdk::MerSdk(QObject *parent) : QObject(parent)
 
 {
     connect(&m_watcher, SIGNAL(fileChanged(QString)), this, SLOT(handleTargetsFileChanged(QString)));
+    qDebug()<<MerSdkManager::globalSdkToolsDirectory();
 }
 
 MerSdk::~MerSdk()
@@ -383,11 +383,6 @@ bool MerSdk::addTarget(const MerTarget &target)
     QtSupport::QtVersionManager::instance()->addVersion(version.data());
     QtSupport::QtKitInformation::setQtVersion(kit, version.data());
     ProjectExplorer::ToolChainKitInformation::setToolChain(kit, toolchain.data());
-//    const Utils::FileName gdbCommand = Utils::FileName::fromString(target.targetPath()
-//            + QLatin1Char('/') + QLatin1String(Constants::MER_WRAPPER_GDB));
-//    Debugger::DebuggerKitInformation::setDebuggerCommand(kit, gdbCommand);
-    Debugger::DebuggerKitInformation::setDebuggerCommand(kit,
-            Utils::FileName::fromString(QLatin1String("gdb")));
     ProjectExplorer::KitManager::instance()->registerKit(kit);
     toolchain.take();
     version.take();

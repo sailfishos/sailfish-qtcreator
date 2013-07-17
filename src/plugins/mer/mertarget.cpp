@@ -28,6 +28,7 @@
 #include "merqtversion.h"
 #include "mersdkkitinformation.h"
 #include "mertargetkitinformation.h"
+#include <debugger/debuggerkitinformation.h>
 #include <qtsupport/qtversionmanager.h>
 #include <qtsupport/qtkitinformation.h>
 #include <qtsupport/qtversionfactory.h>
@@ -60,7 +61,8 @@ static const struct WrapperScript {
 };
 
 MerTarget::MerTarget(MerSdk* mersdk):
-    m_sdk(mersdk)
+    m_sdk(mersdk),
+    m_defaultGdb(QLatin1String(Constants::MER_DEBUGGER_FILENAME))  //TODO:
 {
 }
 
@@ -88,20 +90,27 @@ void MerTarget::setGccDumpMachine(const QString &gccMachineDump)
     m_gccMachineDump = gccMachineDump;
 }
 
+void MerTarget::setDefaultGdb(const QString &name)
+{
+    m_defaultGdb=name;
+}
+
 bool MerTarget::fromMap(const QVariantMap &data)
 {
-    m_name = data.value(QLatin1String(Constants::TARGET_NAME)).toString();
-    m_qmakeQuery = data.value(QLatin1String(Constants::QMAKE_DUMP)).toString();
-    m_gccMachineDump = data.value(QLatin1String(Constants::GCC_DUMP)).toString();
+    m_name = data.value(QLatin1String(Constants::MER_TARGET_NAME)).toString();
+    m_qmakeQuery = data.value(QLatin1String(Constants::MER_TARGET_QMAKE_DUMP)).toString();
+    m_gccMachineDump = data.value(QLatin1String(Constants::MER_TARGET_GCC_DUMP)).toString();
+    m_defaultGdb = data.value(QLatin1String(Constants::MER_TARGET_DEFAULT_DEBUGGER)).toString();
     return isValid();
 }
 
 QVariantMap MerTarget::toMap() const
 {
     QVariantMap result;
-    result.insert(QLatin1String(Constants::TARGET_NAME), m_name);
-    result.insert(QLatin1String(Constants::QMAKE_DUMP), m_qmakeQuery);
-    result.insert(QLatin1String(Constants::GCC_DUMP), m_gccMachineDump);
+    result.insert(QLatin1String(Constants::MER_TARGET_NAME), m_name);
+    result.insert(QLatin1String(Constants::MER_TARGET_QMAKE_DUMP), m_qmakeQuery);
+    result.insert(QLatin1String(Constants::MER_TARGET_GCC_DUMP), m_gccMachineDump);
+    result.insert(QLatin1String(Constants::MER_TARGET_DEFAULT_DEBUGGER), m_defaultGdb);
     return result;
 }
 
@@ -120,7 +129,7 @@ bool MerTarget::createScripts() const
     if (!isValid())
         return false;
 
-    QString targetPath(this->targetPath());
+    const QString targetPath(this->targetPath());
 
     QDir targetDir(targetPath);
     if (!targetDir.exists() && !targetDir.mkpath(targetPath)) {
@@ -146,31 +155,35 @@ bool MerTarget::createScripts() const
 
 void MerTarget::deleteScripts() const
 {
-    const QString targetPath(MerSdkManager::sdkToolsDirectory()
-                              + m_sdk->virtualMachineName() + QLatin1Char('/') + m_name);
-    Utils::FileUtils::removeRecursively(Utils::FileName::fromString(targetPath));
+    Utils::FileUtils::removeRecursively(Utils::FileName::fromString(targetPath()));
 }
 
 ProjectExplorer::Kit* MerTarget::createKit() const
 {
     if (!isValid())
         return 0;
-    const QString sysroot = m_sdk->sharedTargetsPath() + QLatin1String("/") + m_name;
+    const QString sysroot(m_sdk->sharedTargetsPath() + QLatin1String("/") + m_name);
+
     Utils::FileName path = Utils::FileName::fromString(sysroot);
     if (!path.toFileInfo().exists()) {
         qWarning() << "Sysroot does not exist" << sysroot;
         return 0;
     }
+
     ProjectExplorer::Kit *k = new ProjectExplorer::Kit();
     k->setAutoDetected(true);
     k->setDisplayName(QString::fromLatin1("%1-%2").arg(m_sdk->virtualMachineName(), m_name));
     k->setIconPath(QLatin1String(Constants::MER_OPTIONS_CATEGORY_ICON));
     ProjectExplorer::SysRootKitInformation::setSysRoot(k, Utils::FileName::fromString(sysroot));
-    if (m_gccMachineDump.contains(QLatin1String("i486"))) {
-        ProjectExplorer::DeviceTypeKitInformation::setDeviceTypeId(k, Constants::MER_DEVICE_TYPE_I486);
-    } else {
-        ProjectExplorer::DeviceTypeKitInformation::setDeviceTypeId(k, Constants::MER_DEVICE_TYPE_ARM);
-    }
+    ProjectExplorer::DeviceTypeKitInformation::setDeviceTypeId(k, Constants::MER_DEVICE_TYPE_I486);
+    //TODO://
+    //if (m_gccMachineDump.contains(QLatin1String("i486"))) {
+    // ProjectExplorer::DeviceTypeKitInformation::setDeviceTypeId(k, Constants::MER_DEVICE_TYPE_ARM);
+    //}
+    const QString gdb = Utils::HostOsInfo::withExecutableSuffix(m_defaultGdb);
+    Utils::FileName gdbFileName = Utils::FileName::fromString(QCoreApplication::applicationDirPath() + QLatin1String("/") + gdb);
+    Debugger::DebuggerKitInformation::setEngineType(k,Debugger::GdbEngineType);
+    Debugger::DebuggerKitInformation::setDebuggerCommand(k,gdbFileName);
     MerSdkKitInformation::setSdk(k,m_sdk);
     MerTargetKitInformation::setTargetName(k,name());
     return k;
@@ -178,9 +191,8 @@ ProjectExplorer::Kit* MerTarget::createKit() const
 
 MerQtVersion* MerTarget::createQtVersion() const
 {
-    const QString targetDirectory(MerSdkManager::sdkToolsDirectory() + m_sdk->virtualMachineName() + QLatin1Char('/') + m_name);
     const Utils::FileName qmake =
-            Utils::FileName::fromString(targetDirectory + QLatin1Char('/') +
+            Utils::FileName::fromString(targetPath() + QLatin1Char('/') +
                                         QLatin1String(Constants::MER_WRAPPER_QMAKE));
     QtSupport::QtVersionManager *qtvm = QtSupport::QtVersionManager::instance();
     // Is there a qtversion present for this qmake?
@@ -190,7 +202,7 @@ MerQtVersion* MerTarget::createQtVersion() const
         qtv = 0;
     }
     if (!qtv)
-        qtv = QtSupport::QtVersionFactory::createQtVersionFromQMakePath(qmake, true, targetDirectory);
+        qtv = QtSupport::QtVersionFactory::createQtVersionFromQMakePath(qmake, true, targetPath());
 
     QTC_ASSERT(qtv && qtv->type() == QLatin1String(Constants::MER_QT), return 0);
 
@@ -206,9 +218,8 @@ MerQtVersion* MerTarget::createQtVersion() const
 
 MerToolChain* MerTarget::createToolChain() const
 {
-    const QString targetToolsDir(MerSdkManager::sdkToolsDirectory() + m_sdk->virtualMachineName() + QLatin1Char('/') + m_name);
     const Utils::FileName gcc =
-            Utils::FileName::fromString(targetToolsDir + QLatin1Char('/') +
+            Utils::FileName::fromString(targetPath() + QLatin1Char('/') +
                                         QLatin1String(Constants::MER_WRAPPER_GCC));
     ProjectExplorer::ToolChainManager *tcm = ProjectExplorer::ToolChainManager::instance();
     QList<ProjectExplorer::ToolChain *> toolChains = tcm->toolChains();
