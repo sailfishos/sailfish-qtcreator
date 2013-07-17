@@ -11,7 +11,7 @@ targetdir=${broot}/qtcreator-gdb-${version}
 gdbtargets=$(addprefix ${targetdir}/gdb-, ${targets})
 packageparts=${targetdir}/lib ${targetdir}/lib ${targetdir}/libiconv-2.dll ${targetdir}/python27.dll ${targetdir}/libexpat-1.dll
 arch=`uname -sm | sed 's/ /-/g' | tr A-Z a-z`
-packagename=qtcreator-gdb-${version}-${arch}.7z
+packagename=sailfish-gdb-${version}-${arch}.7z
 
 all: package
 
@@ -110,7 +110,6 @@ package: ${gdbtargets} ${broot}/python/python.exe
 	cp ${staging}/bin/libexpat* ${targetdir} && \
 	cp ${pydir}/python*.dll ${targetdir} && \
 	cp -r ${pydir}/lib ${targetdir} && \
-	mv ${targetdir} ${targetdir}-${arch} && \
+	mv ${targetdir} bin && \
 	echo "Packing..." && \
-	7z a ${packagename} qtcreator-gdb-${version}-${arch} && \
-	mv ${targetdir}-${arch} ${targetdir}
+	7z a ${packagename} bin
