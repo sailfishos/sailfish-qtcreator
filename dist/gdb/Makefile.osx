@@ -76,8 +76,8 @@ ${gdbtargets}: ${targetdir}/gdb-%: ${staging}/gdb-${version}/configure ${staging
 	cd ${staging}/gdb-${version}-$* && \
 	${staging}/gdb-${version}/configure --disable-nls --target=$* --with-separate-debug-dir="" \
         --disable-werror --with-python=${staging} --with-libexpat-prefix=${staging} && \
-	${MAKE} MAKEFLAGS+=-j1 && \
-	strip -o ${targetdir}/gdb-$* gdb/gdb
+	${MAKE} MAKEFLAGS+=-j1 && 
+	strip -r -u -o ${targetdir}/gdb-$* gdb/gdb
 
 package: ${gdbtargets} ${targetdir}/python/include/python${pyversion}/pyconfig.h
 	mv ${targetdir} bin
