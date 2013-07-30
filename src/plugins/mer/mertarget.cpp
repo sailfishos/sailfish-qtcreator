@@ -181,7 +181,16 @@ ProjectExplorer::Kit* MerTarget::createKit() const
     // ProjectExplorer::DeviceTypeKitInformation::setDeviceTypeId(k, Constants::MER_DEVICE_TYPE_ARM);
     //}
     const QString gdb = Utils::HostOsInfo::withExecutableSuffix(m_defaultGdb);
-    Utils::FileName gdbFileName = Utils::FileName::fromString(QCoreApplication::applicationDirPath() + QLatin1String("/") + gdb);
+    QString gdbDir = QCoreApplication::applicationDirPath();
+    if (Utils::HostOsInfo::isMacHost()) {
+        QDir dir = QDir(gdbDir);
+        dir.cdUp();
+        dir.cdUp();
+        dir.cdUp();
+        gdbDir = dir.path();
+    }
+    Utils::FileName gdbFileName = Utils::FileName::fromString(gdbDir + QLatin1String("/") + gdb);
+
     Debugger::DebuggerKitInformation::setEngineType(k,Debugger::GdbEngineType);
     Debugger::DebuggerKitInformation::setDebuggerCommand(k,gdbFileName);
     MerSdkKitInformation::setSdk(k,m_sdk);
