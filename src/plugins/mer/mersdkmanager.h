@@ -88,7 +88,7 @@ private slots:
 private:
     MerSdkManager();
     void restore();
-    QList<MerSdk*> restoreSdks(const Utils::FileName &fileName, int &version);
+    QList<MerSdk*> restoreSdks(const Utils::FileName &fileName);
     QList<MerToolChain*> merToolChains() const;
     QList<MerQtVersion*> merQtVersions() const;
 private:

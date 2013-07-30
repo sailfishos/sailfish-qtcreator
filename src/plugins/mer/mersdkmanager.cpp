@@ -205,17 +205,15 @@ QList<MerSdk*> MerSdkManager::sdks() const
 
 void MerSdkManager::restore()
 {
-    int userFileVersion = 0;
-    int globalFileVersion = 0;
-    QList<MerSdk *> userSdks = restoreSdks(settingsFileName(), userFileVersion);
-    QList<MerSdk *> globalSdks = restoreSdks(globalSettingsFileName(), globalFileVersion);
-
-    QList<MerSdk *> registerSdks = globalFileVersion > userFileVersion ? globalSdks : userSdks;
-    foreach (MerSdk *sdk, registerSdks)
+    //local location
+    QList<MerSdk*> sdks = restoreSdks(settingsFileName());
+    if(sdks.isEmpty())
+        sdks = restoreSdks(globalSettingsFileName());
+    foreach (MerSdk *sdk, sdks)
         addSdk(sdk);
 }
 
-QList<MerSdk*> MerSdkManager::restoreSdks(const Utils::FileName &fileName, int &version)
+QList<MerSdk*> MerSdkManager::restoreSdks(const Utils::FileName &fileName)
 {
     QList<MerSdk*> result;
 
@@ -224,7 +222,7 @@ QList<MerSdk*> MerSdkManager::restoreSdks(const Utils::FileName &fileName, int &
         return result;
     QVariantMap data = reader.restoreValues();
 
-    version = data.value(QLatin1String(MER_SDK_FILE_VERSION_KEY), 0).toInt();
+    int version = data.value(QLatin1String(MER_SDK_FILE_VERSION_KEY), 0).toInt();
     if (version < 1)
         return result;
 
