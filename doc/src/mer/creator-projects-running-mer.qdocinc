@@ -14,7 +14,8 @@
 
     \endlist
 
-    \QC uses the compiler specified in the Mer target to build the application.
+    \QC uses the compiler specified in the SailfishOS
+    \l{glossary-buildandrun-kit}{kit} to build the application.
 
     \section2 Troubleshooting Errors
 
