@@ -33,32 +33,15 @@
     You can specify settings for deploying applications to SailfishOS devices in the
     project .pro file. You can view the settings in the \gui {Run Settings}.
 
-    When you run the application on a SailfishOS device, \QC deploys the application as
-    specified by the deploy steps.
+    When you run the application on a SailfishOS device or on the emulator, \QC
+    deploys the application as specified by the deploy steps.
 
-    \section1 Uploading Files via SFTP
+    \section1 Copying Binary Files
 
     \image creator-mer-deploy-settings.png
 
-    The files to be installed are listed in the \gui {Deployment} step,
-    the \gui {Files to install for subproject} field. The \gui {Local File Path}
-    field displays the location of the file on the development PC. The
-    \gui {Remote Directory} field displays the folder where the file is
-    installed on the device. Text in red color indicates that the information is
-    missing. Edit the qmake
-    \l{http://qt-project.org/doc/qt-4.8/qmake-variable-reference.html#installs}
-    {INSTALLS variable} in the project .pro file to add the missing files.
-
-    The \gui {Upload files via SFTP} step determines that \QC uses the SSH file
-    transfer protocol (SFTP) to transfer the files to the device.
-
-    If you have a lot of data to copy, select \gui Details in the
-    \gui {Upload files via SFTP} step, and then select the
-    \gui {Incremental deployment} check box. \QC takes note of the deployment
-    time and only copies files that have changed since the last deployment.
-    However, when you make major changes on the device, such as removing files
-    from the device manually or flashing a new disk image, or when you use
-    another device with the same IP address, deselect the check box once, to
-    have \QC deploy all files again.
+    The \gui {Deploy by Copying Binaries} step determines that \QC uses the
+    rsync file copying tool to transfer the files to the device or to the
+    emulator.
 
 */
