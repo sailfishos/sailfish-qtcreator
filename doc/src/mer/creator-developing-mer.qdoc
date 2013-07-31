@@ -31,7 +31,7 @@
     target to be able to provide features such as syntax highlighting and code
     completion.
 
-    The Sailfish SDK installation program installs Mer targets on the
+    The SailfishOS SDK installation program installs Mer targets on the
     development host and configures the appropriate \l{glossary-buildandrun-kit}
     {kit} for you in \QC. After the installation, you are ready to start
     developing applications, as described in
@@ -50,6 +50,9 @@
     parameters for accessing the devices. In addition, you can run the
     SailfishOS device image in the Virtual Machine. The Sailfish SDK
     installation program creates the connection to the Virtual Machine for you.
+    When you use the SailfishOS application wizard to create a SailfishOS
+    project, buttons for starting the Mer SDK Virtual Machine and the emulator
+    become visible on the taskbar.
 
     You can protect the connections between \QC and a device by using
     either a password or an SSH key. If you do not have an SSH key, you can
@@ -60,39 +63,21 @@
     \list 1
 
         \li Select \gui Tools > \gui Options > \gui Devices > \gui Add >
-            \gui {Mer i486 Device} or \gui {Mer ARM Device} >
-            \gui {Start Wizard}.
+            \gui {SailfishOS Emulator} > \gui {Start Wizard}.
 
             \image qtcreator-device-mer.png "New Mer Device Configuration Setup"
 
-        \li In the \gui Configuration field, select \gui {Real device} for a
-            device connection or \gui {Virtual Machine} for an emulator
-            connection.
+            Usually, you can use the default values for all the fields.
 
-        \li In the \gui {Device name} field, enter a name for the connection.
+        \li In the \gui {Config name} field, you can change the name
+            for the connection.
 
-        \li In the \gui Host field, enter the host name or IP address of the
-            device.
+        \li In the \gui {SSH timeout} field, you can change the time in seconds
+            that \QC attempts to connect to the emulator. You can increase the
+            timeout if the connection fails.
 
-            For a connection to the Virtual Machine, enter \bold localhost.
-
-        \li In the \gui Username field, enter the user name to log into the
-            device and run the application as.
-
-            For a connection to the Virtual Machine, enter \bold nemo.
-
-        \li In the \gui {Authentication type} field, select whether to use
-            \gui Password or \gui Key authentication, and enter the user's
-            password or the file that contains the user's private key.
-
-            For a connection to the Virtual Machine, enter \bold nemo in the
-            \gui Password field.
-
-        \li In the \gui {SSH server port} field, enter the port to use for the
-            SSH connection.
-
-        \li In the \gui {Free ports} field, specify a port number range or a
-            comma-separated list of at least two free ports for debugging on
+        \li In the \gui {Free ports} field, you can change the port number
+            range, so that at least two free ports are listed for debugging on
             the device.
 
         \li Click \gui Next (or \gui Continue on Mac OS) to specify the key

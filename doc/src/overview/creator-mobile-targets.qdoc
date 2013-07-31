@@ -91,10 +91,9 @@
 
         \li \l{Connecting SailfishOS Devices}
 
-            Currently, you can create an installation package that you can
-            deploy on SailfishOS devices. Later, you will be able to run applications
-            on SailfishOS devices directly from \QC. You must install the Mer SDK
-            to develop for SailfishOS devices.
+            You can deploy and run applications on the SailfishOS emulator
+            directly from \QC. You must install the SailfishOS SDK to develop
+            for SailfishOS devices.
 
     \endlist
 
