@@ -64,9 +64,8 @@
             debug the application on the device.
         \li \l{Deploying Applications to SailfishOS Devices}
 
-            When you build an application for SailfishOS devices, \QC generates an
-            installation package in the build directory. You can deploy the
-            package to a SailfishOS device.
+            When you deploy an application to a SailfishOS device or emulator,
+            \QC copies the binary files to the device or to the emulator.
     \endlist
 
     \section1 Related Topics
