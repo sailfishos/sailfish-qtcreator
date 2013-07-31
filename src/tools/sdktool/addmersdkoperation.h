@@ -46,12 +46,10 @@ public:
     int execute() const;
 
 #ifdef WITH_TESTS
-    //TODO:
-    bool test() const { return false; }
+    bool test() const;
 #endif
 
-private:
-    QVariantMap addSdk(const QVariantMap &map,
+    static QVariantMap addSdk(const QVariantMap &map,
            const QString &sdkName,
            bool autodetected,
            const QString &sharedHomePath,
@@ -62,8 +60,8 @@ private:
            const QString &userName,
            const QString &privateKeyFile,
            quint16 sshPort,
-           quint16 wwwPort) const;
-    QVariantMap initializeSdks() const;
+           quint16 wwwPort);
+    static QVariantMap initializeSdks();
 
 private:
     QString m_name;

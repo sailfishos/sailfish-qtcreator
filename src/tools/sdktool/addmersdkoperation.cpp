@@ -240,7 +240,7 @@ int AddMerSdkOperation::execute() const
     return save(result,QLatin1String("mersdk")) ? 0 : -3;
 }
 
-QVariantMap AddMerSdkOperation::initializeSdks() const
+QVariantMap AddMerSdkOperation::initializeSdks()
 {
     QVariantMap map;
     map.insert(QLatin1String(Mer::Constants::MER_SDK_FILE_VERSION_KEY), 2);
@@ -259,7 +259,7 @@ QVariantMap AddMerSdkOperation::addSdk(const QVariantMap &map,
                                           const QString &userName,
                                           const QString &privateKeyFile,
                                           quint16 sshPort,
-                                          quint16 wwwPort) const
+                                          quint16 wwwPort)
 {
     QStringList valueKeys = FindValueOperation::findValues(map, QVariant(sdkName));
     bool hasTarget = false;
@@ -303,3 +303,65 @@ QVariantMap AddMerSdkOperation::addSdk(const QVariantMap &map,
 
     return AddKeysOperation::addKeys(cleaned, data);
 }
+
+#ifdef WITH_TESTS
+bool AddMerSdkOperation::test() const
+{
+    QVariantMap map = initializeSdks();
+
+    if (map.count() != 2
+            || !map.contains(QLatin1String(Mer::Constants::MER_SDK_FILE_VERSION_KEY))
+            || map.value(QLatin1String(Mer::Constants::MER_SDK_FILE_VERSION_KEY)).toInt() != 2
+            || !map.contains(QLatin1String(Mer::Constants::MER_SDK_COUNT_KEY))
+            || map.value(QLatin1String(Mer::Constants::MER_SDK_COUNT_KEY)).toInt() != 0)
+        return false;
+
+    map = addSdk(map, QLatin1String("testSdk"), true,
+                 QLatin1String("/test/sharedHomePath"),
+                 QLatin1String("/test/sharedTargetPath"),
+                 QLatin1String("/test/sharedSshPath"),
+                 QLatin1String("/test/sharedConfigPath"),
+                 QLatin1String("host"),
+                 QLatin1String("user"),
+                 QLatin1String("/test/privateKey"),22,80);
+
+    const QString sdk = QString::fromLatin1(Mer::Constants::MER_SDK_DATA_KEY) + QString::number(0);
+
+
+    if (map.count() != 3
+            || !map.contains(QLatin1String(Mer::Constants::MER_SDK_FILE_VERSION_KEY))
+            || map.value(QLatin1String(Mer::Constants::MER_SDK_FILE_VERSION_KEY)).toInt() != 2
+            || !map.contains(QLatin1String(Mer::Constants::MER_SDK_COUNT_KEY))
+            || map.value(QLatin1String(Mer::Constants::MER_SDK_COUNT_KEY)).toInt() != 1
+            || !map.contains(sdk))
+        return false;
+
+    QVariantMap sdkMap= map.value(sdk).toMap();
+    if (sdkMap.count() != 11
+            || !sdkMap.contains(QLatin1String(Mer::Constants::VM_NAME))
+            || sdkMap.value(QLatin1String(Mer::Constants::VM_NAME)).toString() != QLatin1String("testSdk")
+            || !sdkMap.contains(QLatin1String(Mer::Constants::AUTO_DETECTED))
+            || sdkMap.value(QLatin1String(Mer::Constants::AUTO_DETECTED)).toBool() != true
+            || !sdkMap.contains(QLatin1String(Mer::Constants::SHARED_HOME))
+            || sdkMap.value(QLatin1String(Mer::Constants::SHARED_HOME)).toString() != QLatin1String("/test/sharedHomePath")
+            || !sdkMap.contains(QLatin1String(Mer::Constants::SHARED_TARGET))
+            || sdkMap.value(QLatin1String(Mer::Constants::SHARED_TARGET)).toString() != QLatin1String("/test/sharedTargetPath")
+            || !sdkMap.contains(QLatin1String(Mer::Constants::SHARED_SSH))
+            || sdkMap.value(QLatin1String(Mer::Constants::SHARED_SSH)).toString() != QLatin1String("/test/sharedSshPath")
+            || !sdkMap.contains(QLatin1String(Mer::Constants::SHARED_CONFIG))
+            || sdkMap.value(QLatin1String(Mer::Constants::SHARED_CONFIG)).toString() != QLatin1String("/test/sharedConfigPath")
+            || !sdkMap.contains(QLatin1String(Mer::Constants::HOST))
+            || sdkMap.value(QLatin1String(Mer::Constants::HOST)).toString() != QLatin1String("host")
+            || !sdkMap.contains(QLatin1String(Mer::Constants::USERNAME))
+            || sdkMap.value(QLatin1String(Mer::Constants::USERNAME)).toString() != QLatin1String("user")
+            || !sdkMap.contains(QLatin1String(Mer::Constants::PRIVATE_KEY_FILE))
+            || sdkMap.value(QLatin1String(Mer::Constants::PRIVATE_KEY_FILE)).toString() != QLatin1String("/test/privateKey")
+            || !sdkMap.contains(QLatin1String(Mer::Constants::SSH_PORT))
+            || sdkMap.value(QLatin1String(Mer::Constants::SSH_PORT)).toInt() != 22
+            || !sdkMap.contains(QLatin1String(Mer::Constants::WWW_PORT))
+            || sdkMap.value(QLatin1String(Mer::Constants::WWW_PORT)).toInt() != 80)
+        return false;
+
+    return true;
+}
+#endif
