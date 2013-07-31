@@ -54,9 +54,12 @@
             Windows and Linux) or \gui Continue (on Mac OS).
 
         \li Select the SailfishOS \l{glossary-buildandrun-kit}{kit} for running
-            and building your project, and then click \gui{Next}. If the path
-            provided in the previous step is outside the directory shared with
-            MerSDK Virtual Machine, an appropriate warning is shown.
+            and building your project, and then click \gui{Next}. You can create
+            applications in the SailfishOS SDK installation directory and in an
+            additional source directory that you specify during the installation
+            of the SailfishOS SDK. These directories are shared with the
+            MerSDK Virtual Machine. If you select some other directory, a
+            warning is displayed.
 
             \image creator-sailfish-tutorial-2.png "Kit Selection dialog"
 
@@ -82,15 +85,33 @@
 
     \section1 Building and Running the Project
 
+    To build, deploy, and run the application, select \gui Build > \gui Run.
+    \QC builds the application, copies the necessary files to the connected
+    SailfishOS device or to the emulator, and runs the application on it.
+
+    \section2 Running on the Emulator
+
+    If no device is connected, \QC runs the application on the emulator
+    running in the MerSDK Virtual Machine.
+
+    When you create your first SailfishOS application, the buttons for
+    starting the Mer SDK Virtual Machine and the emulator become visible on the
+    taskbar.
+
     \list 1
+
+        \li Select
+            \inlineimage creator-mer-start-sdk-button.png
+            (\gui {Start SDK}) to start the MerSDK Virtual Machine.
+
+        \li Select
+            \inlineimage creator-mer-start-emulator-button.png
+            (\gui {Start Emulator}) to start the emulator in the Virtual
+            Machine.
 
         \li In the target selector, select the SailfishOS kit.
 
-        \li Press \key {Ctrl+R} to build the application.
-
-            \QC copies the necessary files to the connected SailfishOS device or
-            to the emulator (if no device is connected) and runs
-            the application on it.
+        \li Press \key {Ctrl+R} to build, deploy, and run the application.
 
     \endlist
 
