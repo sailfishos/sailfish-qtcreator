@@ -95,7 +95,7 @@ MerRsyncDeployConfiguration::MerRsyncDeployConfiguration(Target *target, MerRsyn
 
 QString MerRsyncDeployConfiguration::displayName()
 {
-    return tr("Deploy By Coping Binaries");
+    return tr("Deploy By Copying Binaries");
 }
 
 Core::Id MerRsyncDeployConfiguration::configurationId()
