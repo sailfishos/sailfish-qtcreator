@@ -134,14 +134,14 @@ int AddMerTargetOperation::execute() const
     return save(result, m_targetsDir) ? 0 : -3;
 }
 
-QVariantMap AddMerTargetOperation::initializeTargets() const
+QVariantMap AddMerTargetOperation::initializeTargets()
 {
     QVariantMap map;
     map.insert(QLatin1String(Mer::Constants::MER_TARGET_FILE_VERSION_KEY), 2);
     return map;
 }
 
-QString AddMerTargetOperation::readCacheFile(const QString &cacheFile) const
+QString AddMerTargetOperation::readCacheFile(const QString &cacheFile)
 {
     QByteArray read;
     QFile file(cacheFile);
@@ -159,7 +159,7 @@ QString AddMerTargetOperation::readCacheFile(const QString &cacheFile) const
 }
 
 QVariantMap AddMerTargetOperation::addTarget(const QVariantMap &map, const QString &name, const QString &qmakeFileName,
-                                             const QString &gccFileName) const
+                                             const QString &gccFileName)
 {
     bool hasTarget = false;
     QVariantList targetData = map.value(QLatin1String(Mer::Constants::MER_TARGET_KEY)).toList();
