@@ -48,7 +48,7 @@
 
     To deploy applications and run them remotely on SailfishOS devices, specify
     parameters for accessing the devices. In addition, you can run the
-    SailfishOS device image in the Virtual Machine. The Sailfish SDK
+    SailfishOS device image in the Virtual Machine. The SailfishOS SDK
     installation program creates the connection to the Virtual Machine for you.
     When you use the SailfishOS application wizard to create a SailfishOS
     project, buttons for starting the Mer SDK Virtual Machine and the emulator
@@ -60,12 +60,14 @@
 
     \image qtcreator-devices-mer.png "Devices options dialog"
 
+    To add an emulator connection:
+
     \list 1
 
         \li Select \gui Tools > \gui Options > \gui Devices > \gui Add >
-            \gui {SailfishOS Emulator} > \gui {Start Wizard}.
+            \gui {Mer Emulator Device} > \gui {Start Wizard}.
 
-            \image qtcreator-device-mer.png "New Mer Device Configuration Setup"
+            \image qtcreator-device-mer.png "New Mer Emulator Device Setup"
 
             Usually, you can use the default values for all the fields.
 
@@ -74,20 +76,16 @@
 
         \li In the \gui {SSH timeout} field, you can change the time in seconds
             that \QC attempts to connect to the emulator. You can increase the
-            timeout if the connection fails.
+            timeout if creating the connection fails.
 
-        \li In the \gui {Free ports} field, you can change the port number
-            range, so that at least two free ports are listed for debugging on
-            the device.
+        \li In the \gui {Free ports} field, check that at least two free ports
+            are listed for debugging on the device.
 
         \li Click \gui Next (or \gui Continue on Mac OS) to specify the key
             pair to use to protect the connection between \QC and the device.
             You can also allow \QC to generate the keys for you.
 
             \image qtcreator-keys-mer.png "Existing Keys Check dialog"
-
-            For more information about the SSH key generation, see
-            \l{Generating SSH Keys}.
 
         \li To add the SailfishOS device to the SailfishOS kit, select
             \gui Tools > \gui Options > \gui {Build & Run} > \gui Kits.
@@ -120,8 +118,8 @@
     \gui Run. Usually, you can use the default settings.
 
     When you run the project, \QC deploys the application as specified by the
-    deploy steps. By default, \QC creates an installation package that you can
-    deploy to SailfishOS devices. For more information, see
+    deploy steps. By default, \QC copies the binary files to the connected
+    device or to the emulator. For more information, see
     \l{Deploying Applications to SailfishOS Devices}.
 
     \section1 Adding Mer SDK Targets
@@ -169,7 +167,7 @@
 
             \list
 
-                \li To use an existing key, select \gui Choose.
+                \li To use an existing key, select \gui Browse.
 
                 \li To create an SSH key, select \gui {Generate Key}.
 
@@ -184,7 +182,7 @@
 
     To create a kit that uses the new Mer SDK, select \gui Tools
     > \gui Options > \gui {Build & Run} > \gui Kits. You can clone the kit
-    created by the Sailfish SDK installation program and just change the
-    Mer SDK, path to the Specify tool, and other fields, as necessary.
+    created by the SailfishOS SDK installation program and just change the
+    Mer SDK, and other fields, as necessary.
 
 */
