@@ -50,7 +50,6 @@ MerSdk::MerSdk(QObject *parent) : QObject(parent)
 
 {
     connect(&m_watcher, SIGNAL(fileChanged(QString)), this, SLOT(handleTargetsFileChanged(QString)));
-    qDebug()<<MerSdkManager::globalSdkToolsDirectory();
 }
 
 MerSdk::~MerSdk()
