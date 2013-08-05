@@ -33,8 +33,6 @@
 #include "rmkeysoperation.h"
 #include "addkeysoperation.h"
 #include "../../plugins/mer/merconstants.h"
-#include <QDebug>
-
 #include <iostream>
 
 RmMerSdkOperation::RmMerSdkOperation()
