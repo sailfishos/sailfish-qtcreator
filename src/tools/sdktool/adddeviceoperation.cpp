@@ -305,12 +305,10 @@ int AddDeviceOperation::execute() const
     if (map.isEmpty())
         map = initializeDevices();
 
-    QVariantMap mapdevice = map.value(QLatin1String(DeviceManagerKey)).toMap();
-
     if (map.isEmpty())
         std::cerr << "Error: Count found devices, file seems wrong." << std::endl;
 
-    const QVariantMap result = addDevice(mapdevice,
+    const QVariantMap result = addDevice(map,
                                          m_internalId,
                                          m_displayName,
                                          m_type,
@@ -332,13 +330,10 @@ int AddDeviceOperation::execute() const
                                          m_merSharedSshPath,
                                          m_merSharedConfigPath);
 
-    if (result.isEmpty() || mapdevice == result)
+    if (result.isEmpty() || map == result)
         return -2;
 
-    map.remove(QLatin1String(DeviceManagerKey));
-    map.insert(QLatin1String(DeviceManagerKey), result);
-
-    return save(map, devicesKey) ? 0 : -3;
+    return save(result, devicesKey) ? 0 : -3;
 }
 
 QVariantMap AddDeviceOperation::initializeDevices()
@@ -374,7 +369,9 @@ QVariantMap AddDeviceOperation::addDevice(const QVariantMap &map,
                                           const QString &sharedConfigPath)
 {
     QVariantMap result = map;
-    QVariantList deviceList = map.value(QLatin1String(DeviceListKey)).toList();
+
+    QVariantMap mapdevice = map.value(QLatin1String(DeviceManagerKey)).toMap();
+    QVariantList deviceList = mapdevice.value(QLatin1String(DeviceListKey)).toList();
     QVariantMap data;
     data.insert(QLatin1String(IdKey), QVariant(internalId));
     data.insert(QLatin1String(DisplayNameKey), QVariant(displayName));
@@ -402,8 +399,9 @@ QVariantMap AddDeviceOperation::addDevice(const QVariantMap &map,
         data.insert(QLatin1String(Mer::Constants::MER_DEVICE_SHARED_SSH), QVariant(sharedSshPath));
     if(!sharedConfigPath.isEmpty())
         data.insert(QLatin1String(Mer::Constants::MER_DEVICE_SHARED_CONFIG), QVariant(sharedConfigPath));
-    deviceList.append(QVariant(data));
-    result.remove(QLatin1String(DeviceListKey));
-    result.insert(QLatin1String(DeviceListKey), deviceList);
-    return result;
+    deviceList.append(data);
+
+    QString key = QLatin1String(DeviceManagerKey) + QLatin1Char('/') + QLatin1String(DeviceListKey);
+    result = RmKeysOperation::rmKeys(result,  QStringList() << key);
+    return AddKeysOperation::addKeys(result, KeyValuePairList() << KeyValuePair(key, deviceList));
 }

@@ -50,10 +50,7 @@ public:
     //TODO:
     bool test() const { return false; }
 #endif
-
-private:
     static QVariantMap initializeDevices();
-    static QString param(const QString &text);
     static QVariantMap addDevice(const QVariantMap &map,
                                  const QByteArray &internalId,
                                  const QString &displayName,
@@ -75,6 +72,8 @@ private:
                                  const QString &merSubnet = QString(),
                                  const QString &sharedSshPath = QString(),
                                  const QString &sharedConfigPath = QString());
+private:    
+    static QString param(const QString &text);
 
 private:
     QByteArray m_internalId;
