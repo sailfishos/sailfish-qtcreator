@@ -47,6 +47,7 @@
 #include "addmersdkoperation.h"
 #include "adddeviceoperation.h"
 #include "rmmersdkoperation.h"
+#include "rmdeviceoperation.h"
 
 #include <iostream>
 
@@ -185,7 +186,8 @@ int main(int argc, char *argv[])
                << new RmMerTargetOperation
                << new AddMerSdkOperation
                << new RmMerSdkOperation
-               << new AddDeviceOperation;
+               << new AddDeviceOperation
+               << new RmDeviceOperation;
 
 
 #ifdef WITH_TESTS

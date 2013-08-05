@@ -33,7 +33,8 @@ SOURCES += \
     addmersdkoperation.cpp \
     adddeviceoperation.cpp \
     ../../plugins/mer/mertargetsxmlparser.cpp \
-    rmmersdkoperation.cpp
+    rmmersdkoperation.cpp \
+    rmdeviceoperation.cpp
 
 HEADERS += \
     addkeysoperation.h \
@@ -54,7 +55,8 @@ HEADERS += \
     addmersdkoperation.h \
     adddeviceoperation.h \
     ../../plugins/mer/mertargetsxmlparser.h \
-    rmmersdkoperation.h
+    rmmersdkoperation.h \
+    rmdeviceoperation.h
 
 DESTDIR=$$IDE_LIBEXEC_PATH
 macx:DEFINES += "DATA_PATH=\"\\\".\\\"\""
