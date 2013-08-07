@@ -225,7 +225,7 @@ QVariantMap AddMerTargetOperation::load(const QString &root)
     return map;
 }
 
-bool AddMerTargetOperation::save(const QVariantMap &map, const QString &root) const
+bool AddMerTargetOperation::save(const QVariantMap &map, const QString &root)
 {
     const Utils::FileName path = Utils::FileName::fromString(root + QLatin1String(MER_TARGETS_XML));
 
