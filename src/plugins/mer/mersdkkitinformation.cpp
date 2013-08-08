@@ -124,8 +124,8 @@ void MerSdkKitInformation::addToEnvironment(const ProjectExplorer::Kit *kit, Uti
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 
-MerSdkKitInformationWidget::MerSdkKitInformationWidget(ProjectExplorer::Kit *kit)
-    : ProjectExplorer::KitConfigWidget(kit),
+MerSdkKitInformationWidget::MerSdkKitInformationWidget(ProjectExplorer::Kit *kit, bool sticky)
+    : ProjectExplorer::KitConfigWidget(kit, sticky),
       m_combo(new QComboBox),
       m_manageButton(new QPushButton(tr("Manage...")))
 {

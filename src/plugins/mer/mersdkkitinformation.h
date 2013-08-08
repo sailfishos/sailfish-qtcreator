@@ -38,7 +38,7 @@ class  MerSdkKitInformationWidget : public ProjectExplorer::KitConfigWidget
 {
     Q_OBJECT
 public:
-    MerSdkKitInformationWidget(ProjectExplorer::Kit *kit);
+    MerSdkKitInformationWidget(ProjectExplorer::Kit *kit, bool sticky = false);
 
     QString displayName() const;
     QString toolTip() const;

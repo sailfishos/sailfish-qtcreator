@@ -106,8 +106,8 @@ void MerTargetKitInformation::addToEnvironment(const ProjectExplorer::Kit *kit, 
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 
-MerTargetKitInformationWidget::MerTargetKitInformationWidget(ProjectExplorer::Kit *kit)
-    : ProjectExplorer::KitConfigWidget(kit),
+MerTargetKitInformationWidget::MerTargetKitInformationWidget(ProjectExplorer::Kit *kit, bool sticky)
+    : ProjectExplorer::KitConfigWidget(kit,sticky),
       m_combo(new QComboBox),
       m_manageButton(new QPushButton(tr("Manage...")))
 {

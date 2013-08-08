@@ -37,7 +37,7 @@ class  MerTargetKitInformationWidget : public ProjectExplorer::KitConfigWidget
 {
     Q_OBJECT
 public:
-    MerTargetKitInformationWidget(ProjectExplorer::Kit *kit);
+    MerTargetKitInformationWidget(ProjectExplorer::Kit *kit, bool sitcky = false);
 
     QString displayName() const;
     QString toolTip() const;
