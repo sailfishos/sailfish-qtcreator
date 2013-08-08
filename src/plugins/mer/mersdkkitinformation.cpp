@@ -78,7 +78,7 @@ MerSdk* MerSdkKitInformation::sdk(const ProjectExplorer::Kit *kit)
     return MerSdkManager::instance()->sdk(kit->value(Core::Id(Constants::VM_NAME)).toString());
 }
 
-ProjectExplorer::KitInformation::ItemList MerSdkKitInformation::toUserOutput(ProjectExplorer::Kit *kit) const
+ProjectExplorer::KitInformation::ItemList MerSdkKitInformation::toUserOutput(const ProjectExplorer::Kit *kit) const
 {
     if (MerDeviceFactory::canCreate(ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(kit))) {
         QString vmName;

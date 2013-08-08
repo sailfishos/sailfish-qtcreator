@@ -77,7 +77,7 @@ QString MerTargetKitInformation::targetName(const ProjectExplorer::Kit *kit)
     return kit->value(Core::Id(Constants::TARGET)).toString();
 }
 
-ProjectExplorer::KitInformation::ItemList MerTargetKitInformation::toUserOutput(ProjectExplorer::Kit *kit) const
+ProjectExplorer::KitInformation::ItemList MerTargetKitInformation::toUserOutput(const ProjectExplorer::Kit *kit) const
 {
     if (MerDeviceFactory::canCreate(ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(kit))) {
         QString targetName = MerTargetKitInformation::targetName(kit);

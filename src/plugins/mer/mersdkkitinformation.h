@@ -69,7 +69,7 @@ public:
     unsigned int priority() const;
     QVariant defaultValue(ProjectExplorer::Kit *kit) const;
     QList<ProjectExplorer::Task> validate(const ProjectExplorer::Kit *kit) const;
-    ItemList toUserOutput(ProjectExplorer::Kit *kit) const;
+    ItemList toUserOutput(const ProjectExplorer::Kit *kit) const;
     ProjectExplorer::KitConfigWidget *createConfigWidget(ProjectExplorer::Kit *kit) const;
     void addToEnvironment(const ProjectExplorer::Kit *kit, Utils::Environment &env) const;
 
