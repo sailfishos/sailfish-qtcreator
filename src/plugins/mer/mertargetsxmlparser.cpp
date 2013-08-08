@@ -31,6 +31,7 @@
 #include <QXmlQuery>
 #include <QXmlStreamWriter>
 #include <QStack>
+#include <QFileInfo>
 
 const char TARGET[] = "target";
 const char TARGETS[] = "targets";

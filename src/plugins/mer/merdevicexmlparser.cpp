@@ -31,6 +31,7 @@
 #include <QXmlQuery>
 #include <QXmlStreamWriter>
 #include <QStack>
+#include <QFileInfo>
 
 //Parser for:
 //https://wiki.merproject.org/wiki/SDK_on_VirtualBox/Design

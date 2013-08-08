@@ -40,7 +40,6 @@ MerMode::MerMode()
     setIcon(QIcon(QLatin1String(Constants::MER_OPTIONS_CATEGORY_ICON)));
     setPriority(80); // between "Projects" and "Analyze" modes
     setId("Mer.MerMode");
-    setType("Mer.MerMode");
     setContextHelpId(QString());
 }
 
