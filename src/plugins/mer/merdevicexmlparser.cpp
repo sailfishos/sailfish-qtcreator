@@ -394,6 +394,40 @@ MerDevicesXmlWriter::MerDevicesXmlWriter(const QString &fileName,
         }
         writer.writeEndElement(); // device
     }
+    {
+        // This is a hack. This hack allows external modifications to the xml file for devices
+        // Only devices that are of type=vbox are overwritten.
+        // REMOVE THESE LINES
+        // STARTS HERE
+        Utils::FileReader fileReader;
+        if (fileReader.fetch(fileName)) {
+            QXmlStreamReader xmlReader(fileReader.data());
+            while (!xmlReader.atEnd()) {
+                xmlReader.readNext();
+                if (xmlReader.isStartElement() && xmlReader.name().toLatin1() == DEVICE) {
+                    QXmlStreamAttributes attributes = xmlReader.attributes();
+                    if (attributes.value(QLatin1String(TYPE)) != QLatin1String("vbox")) {
+                        writer.writeStartElement(QLatin1String(DEVICE));
+                        writer.writeAttributes(attributes);
+                        while (xmlReader.readNext()) {
+                            if (xmlReader.isStartElement()) {
+                                writer.writeStartElement(xmlReader.name().toString());
+                                attributes = xmlReader.attributes();
+                                writer.writeAttributes(attributes);
+                            } else if (xmlReader.isEndElement()) {
+                                writer.writeEndElement();
+                                if (xmlReader.name() == DEVICE)
+                                    break;
+                            } else if (xmlReader.isCharacters()) {
+                                writer.writeCharacters(xmlReader.text().toString());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // ENDS HERE
+    }
     writer.writeEndElement(); // devices
     writer.writeEndDocument();
     d->fileSaver.write(data);
