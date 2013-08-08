@@ -1,0 +1,2 @@
+QTC_LIB_NAME = Yaml
+INCLUDEPATH += $$PWD
