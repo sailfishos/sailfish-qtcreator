@@ -55,20 +55,20 @@ MerRunConfigurationFactory::MerRunConfigurationFactory(QObject *parent)
 QList<Core::Id> MerRunConfigurationFactory::availableCreationIds(
         ProjectExplorer::Target *parent) const
 {
-    QList<Core::Id> ids;
+    QList<Core::Id>result;
     if (!canHandle(parent))
-        return ids;
+        return result;
 
     Qt4ProjectManager::Qt4Project *qt4Project =
             qobject_cast<Qt4ProjectManager::Qt4Project *>(parent->project());
     if (!qt4Project)
-        return ids;
+        return result;
 
     QStringList proFiles =
             qt4Project->applicationProFilePathes(QLatin1String(MER_RUNCONFIGURATION_PREFIX));
-    //TODO::foreach (const QString &pf, proFiles)
-    //    ids << Core::Id(pf);
-    return ids;
+    foreach (const QString &pf, proFiles)
+           result << Core::Id::fromString(pf);
+    return result;
 }
 
 QString MerRunConfigurationFactory::displayNameForId(const Core::Id id) const
