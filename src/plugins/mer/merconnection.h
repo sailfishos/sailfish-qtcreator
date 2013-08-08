@@ -26,6 +26,7 @@
 #include <qglobal.h>
 #include <QObject>
 #include <QIcon>
+#include <coreplugin/id.h>
 
 QT_BEGIN_NAMESPACE
 class QAction;
@@ -56,6 +57,7 @@ public:
     explicit MerRemoteConnection(QObject *parent = 0);
     ~MerRemoteConnection();
 
+    void setId(const Core::Id &id);
     void setName(const QString &name);
     void setIcon(const QIcon &icon);
     void setStartTip(const QString &tip);
@@ -82,6 +84,7 @@ private:
     void createConnectionErrorTask(const QString &vmName, const QString &error);
 
 private:
+    Core::Id m_id;
     QAction *m_action;
     QIcon m_icon;
     QString m_name;

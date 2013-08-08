@@ -26,6 +26,7 @@
 #include <coreplugin/actionmanager/command.h>
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/coreconstants.h>
+#include <coreplugin/icontext.h>
 #include <coreplugin/modemanager.h>
 #include <ssh/sshconnection.h>
 #include <ssh/sshremoteprocessrunner.h>
@@ -62,6 +63,11 @@ MerRemoteConnection::~MerRemoteConnection()
      if (m_connection)
          m_connection->deleteLater();
      m_connection = 0;
+}
+
+void MerRemoteConnection::setId(const Core::Id &id)
+{
+    m_id = id;
 }
 
 void MerRemoteConnection::setName(const QString &name)
@@ -105,7 +111,7 @@ void MerRemoteConnection::initialize()
     connect(m_action, SIGNAL(triggered()), this, SLOT(handleTriggered()));
 
     Core::Command *command =
-            Core::ActionManager::registerAction(m_action, Core::Id(m_name),
+            Core::ActionManager::registerAction(m_action, m_id,
                                                 Core::Context(Core::Constants::C_GLOBAL));
     command->setAttribute(Core::Command::CA_UpdateText);
     command->setAttribute(Core::Command::CA_UpdateIcon);

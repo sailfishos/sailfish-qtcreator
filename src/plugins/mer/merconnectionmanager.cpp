@@ -61,12 +61,14 @@ MerConnectionManager::MerConnectionManager():
     sdkIcon.addFile(QLatin1String(":/mer/images/sdk-stop.png"), QSize(), QIcon::Normal, QIcon::On);
 
     m_emulatorConnection->setName(tr("Emulator"));
+    m_emulatorConnection->setId(Constants::MER_EMULATOR_CONNECTON_ACTION_ID);
     m_emulatorConnection->setIcon(emuIcon);
     m_emulatorConnection->setStartTip(tr("Start Emulator"));
     m_emulatorConnection->setStopTip(tr("Stop Emulator"));
     m_emulatorConnection->initialize();
 
     m_sdkConnection->setName(tr("MerSdk"));
+    m_emulatorConnection->setId(Constants::MER_SDK_CONNECTON_ACTION_ID);
     m_sdkConnection->setIcon(sdkIcon);
     m_sdkConnection->setStartTip(tr("Start Sdk"));
     m_sdkConnection->setStopTip(tr("Stop Sdk"));
