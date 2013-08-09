@@ -30,32 +30,39 @@ QQuickView *Sailfish::createView(const QString &file)
     view = new QQuickView;
 #endif
 
-    bool isDesktop = qApp->arguments().contains("-desktop");
-
-    QString path;
-    if (isDesktop) {
-        path = qApp->applicationDirPath() + QDir::separator();
-#ifdef DESKTOP
-        view->setViewport(new QGLWidget);
-#endif
-    } else {
-        path = QString(DEPLOYMENT_PATH);
-    }
     if(file.contains(":")) {
         view->setSource(QUrl(file));
     } else {
-        if(QCoreApplication::applicationFilePath().startsWith("/opt/sdk/")) {
-            // Quick deployed under /opt/sdk
-            // parse the base path from application binary's path and use it as base
-            QString basePath = QCoreApplication::applicationFilePath();
-            basePath.chop(basePath.length() -  basePath.indexOf("/", 9)); // first index after /opt/sdk/
-            view->setSource(QUrl::fromLocalFile(basePath + path + file));
-        } else {
-            // Otherwise use deployement path as is
-            view->setSource(QUrl::fromLocalFile(path + file));
-        }
+        view->setSource(QUrl::fromLocalFile(deploymentPath() + file));
     }
     return view;
+}
+
+
+QString Sailfish::deploymentRoot()
+{
+    if(QCoreApplication::applicationFilePath().startsWith("/opt/sdk/")) {
+        // Deployed under /opt/sdk/<app-name>/..
+        // parse the base path from application binary's path and use it as base
+        QString basePath = QCoreApplication::applicationFilePath();
+        basePath.chop(basePath.length() -  basePath.indexOf("/", 9)); // first index after /opt/sdk/
+        return basePath;
+    } else {
+        return "";
+    }
+}
+
+QString Sailfish::deploymentPath()
+{
+    bool isDesktop = qApp->arguments().contains("-desktop");
+    QString path;
+    if (isDesktop) {
+        path = qApp->applicationDirPath() + QDir::separator();
+    } else {
+        path = deploymentRoot() + QString(DEPLOYMENT_PATH);
+    }
+
+    return path;
 }
 
 QQuickView *Sailfish::createView()
@@ -72,17 +79,10 @@ QQuickView *Sailfish::createView()
 
 void Sailfish::setView(QQuickView *view, const QString &file)
 {
-    bool isDesktop = qApp->arguments().contains("-desktop");
-    QString path;
-    if (isDesktop) {
-        path = qApp->applicationDirPath() + QDir::separator();
-    } else {
-        path = QString(DEPLOYMENT_PATH);
-    }
     if(file.contains(":")) {
         view->setSource(QUrl(file));
     } else {
-        view->setSource(QUrl::fromLocalFile(path + file));
+        view->setSource(QUrl::fromLocalFile(deploymentPath() + file));
     }
 }
 

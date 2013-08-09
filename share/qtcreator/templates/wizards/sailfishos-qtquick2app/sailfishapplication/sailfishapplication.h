@@ -13,6 +13,8 @@ QQuickView *createView(const QString &);
 QQuickView *createView();
 void setView(QQuickView* view, const QString &);
 void showView(QQuickView* view);
+QString deploymentRoot();
+QString deploymentPath();
 
 }
 
