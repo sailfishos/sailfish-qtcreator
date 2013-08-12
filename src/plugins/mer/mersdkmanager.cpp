@@ -132,24 +132,6 @@ void MerSdkManager::initialize()
             }
         }
 
-        // add new kits if required
-        // O(n3)!!
-        foreach (MerSdk *sdk, m_sdks) {
-            QList<MerTarget> targets = sdk->targets();
-            foreach (const MerTarget &target, targets) {
-                QList<Kit*> kitsForTarget = MerSdkManager::kitsForTarget(target.name());
-                // consider only those that are auto detected.
-                bool success = false;
-                foreach (const Kit *kit, kitsForTarget) {
-                    success = kit->isAutoDetected();
-                    if (success)
-                        break;
-                }
-                if (!success)
-                    sdk->addTarget(target);
-            }
-        }
-
         m_intialized = true;
         updateDevices();
         emit initialized();

@@ -312,10 +312,10 @@ bool MerSdk::isValid() const
 
 void MerSdk::updateTargets()
 {
+    QList<MerTarget> sdkTargets = readTargets(Utils::FileName::fromString(sharedTargetsPath() + QLatin1String(Constants::MER_TARGETS_FILENAME)));
     QList<MerTarget> targetsToInstall;
     QList<MerTarget> targetsToKeep;
     QList<MerTarget> targetsToRemove = m_targets;
-    QList<MerTarget> sdkTargets = readTargets(Utils::FileName::fromString(sharedTargetsPath() + QLatin1String(Constants::MER_TARGETS_FILENAME)));
 
     //sort
     foreach (const MerTarget &sdkTarget, sdkTargets) {
