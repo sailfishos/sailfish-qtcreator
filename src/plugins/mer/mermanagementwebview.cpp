@@ -23,6 +23,7 @@
 #include "mermanagementwebview.h"
 #include "ui_mermanagementwebview.h"
 #include "mersdkmanager.h"
+#include <QTimer>
 
 namespace Mer {
 namespace Internal {
@@ -32,6 +33,8 @@ const char CONTROLCENTER_URL[] = "http://127.0.0.1:8080/";
 MerManagementWebView::MerManagementWebView(QWidget *parent)
     : QWidget(parent)
     , ui(new Ui::MerManagementWebView)
+    , m_loaded(false)
+    , m_autoFailReload(false)
 {
     ui->setupUi(this);
     connect(ui->webView->page(), SIGNAL(linkHovered(QString,QString,QString)), ui->statusBarLabel, SLOT(setText(QString)));
@@ -77,15 +80,25 @@ void MerManagementWebView::handleLoadFinished(bool success)
                         "</body>"
                         "</html>")
                     );
+          m_loaded = false;
+         if (m_autoFailReload)
+             QTimer::singleShot(5000,this,SLOT(reloadPage()));
+    }else if (ui->webView->url().toString() != QLatin1String("about:blank")) {
+          m_loaded = true;
     }
 }
 
 void MerManagementWebView::reloadPage()
 {
-    if (ui->webView->url().isEmpty()
-            || ui->webView->url().toString() == QLatin1String("about:blank"))
+    if (ui->webView->url().isEmpty() || ui->webView->url().toString() == QLatin1String("about:blank"))
         setUrl(QUrl(QLatin1String(CONTROLCENTER_URL)));
-    ui->webView->reload();
+}
+
+void MerManagementWebView::setAutoFailReload(bool enabled)
+{
+    m_autoFailReload = enabled;
+    if(enabled && !m_loaded)
+        reloadPage();
 }
 
 } // namespace Internal

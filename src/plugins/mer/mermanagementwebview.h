@@ -43,6 +43,7 @@ public:
 
 public slots:
     void setUrl(const QUrl &url);
+    void setAutoFailReload(bool enabled);
 
 private slots:
     void on_webView_urlChanged(const QUrl &url);
@@ -53,6 +54,8 @@ private slots:
 
 private:
     Ui::MerManagementWebView *ui;
+    bool m_loaded;
+    bool m_autoFailReload;
 };
 
 } // namespace Internal

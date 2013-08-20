@@ -25,6 +25,10 @@
 
 #include <coreplugin/imode.h>
 
+namespace Core {
+class IMode;
+}
+
 namespace Mer {
 namespace Internal {
 
@@ -34,6 +38,8 @@ class MerMode : public Core::IMode
 
 public:
     MerMode();
+private slots:
+    void handleUpdateContext(Core::IMode *newMode, Core::IMode *oldMode);
 };
 
 } // namespace Internal

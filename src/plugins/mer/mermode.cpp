@@ -25,6 +25,9 @@
 #if !defined(QT_NO_WEBKIT)
 #include "mermanagementwebview.h"
 #endif
+#include <coreplugin/modemanager.h>
+#include <QDebug>
+
 namespace Mer {
 namespace Internal {
 
@@ -41,6 +44,18 @@ MerMode::MerMode()
     setPriority(80); // between "Projects" and "Analyze" modes
     setId("Mer.MerMode");
     setContextHelpId(QString());
+    connect(Core::ModeManager::instance(), SIGNAL(currentModeChanged(Core::IMode*,Core::IMode*)),
+            this, SLOT(handleUpdateContext(Core::IMode*,Core::IMode*)));
+}
+
+void MerMode::handleUpdateContext(Core::IMode *newMode, Core::IMode *oldMode)
+{
+    MerManagementWebView* view = qobject_cast<MerManagementWebView*>(widget());
+    if (view && newMode == this) {
+        view->setAutoFailReload(true);
+    } else if (view && oldMode == this) {
+        view->setAutoFailReload(false);
+    }
 }
 
 } // namespace Internal
