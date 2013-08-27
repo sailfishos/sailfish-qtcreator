@@ -362,7 +362,8 @@ QString ExamplesWelcomePage::copyToAlternativeLocation(const QFileInfo& proFileI
     bb->addButton(tr("&Keep Project and Open"), QDialogButtonBox::RejectRole);
     lay->addWidget(bb, 2, 0, 1, 2);
     connect(chooser, SIGNAL(validChanged(bool)), copyBtn, SLOT(setEnabled(bool)));
-    if (d.exec() == QDialog::Accepted) {
+    int code = d.exec();
+    if (code == QDialog::Accepted) {
         QString exampleDirName = proFileInfo.dir().dirName();
         QString destBaseDir = chooser->path();
         settings->setValue(QString::fromLatin1(C_FALLBACK_ROOT), destBaseDir);
@@ -401,6 +402,9 @@ QString ExamplesWelcomePage::copyToAlternativeLocation(const QFileInfo& proFileI
             }
 
         }
+    }
+    if (d.exec() == QDialog::Rejected) {
+        return proFileInfo.absoluteFilePath();
     }
     return QString();
 
