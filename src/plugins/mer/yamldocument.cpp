@@ -28,7 +28,7 @@
 #include <coreplugin/editormanager/editormanager.h>
 
 #include <utils/textfileformat.h>
-#include <mer/yaml/libyaml-stable/include/yaml.h>
+#include <yaml/libyaml-stable/include/yaml.h>
 
 #include <QFileInfo>
 #include <QDir>

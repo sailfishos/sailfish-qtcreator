@@ -12,7 +12,7 @@ SUBDIRS   = \
     glsl \
     ssh \
     zeroconf \
-    mer
+    yaml
 
 for(l, SUBDIRS) {
     QTC_LIB_DEPENDS =
