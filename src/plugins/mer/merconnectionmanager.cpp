@@ -72,7 +72,7 @@ MerConnectionManager::MerConnectionManager():
     m_emulatorConnection->initialize();
 
     m_sdkConnection->setName(tr("MerSdk"));
-    m_emulatorConnection->setId(Constants::MER_SDK_CONNECTON_ACTION_ID);
+    m_sdkConnection->setId(Constants::MER_SDK_CONNECTON_ACTION_ID);
     m_sdkConnection->setIcon(sdkIcon);
     m_sdkConnection->setStartTip(tr("Start Sdk"));
     m_sdkConnection->setStopTip(tr("Stop Sdk"));
