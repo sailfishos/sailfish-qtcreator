@@ -149,7 +149,8 @@ bool MerSSH::run(const QString &sdkToolsDir, const QString &merTargetName,
     case CommandTypeMb2: {
         const QString projectPath = QString::fromUtf8(qgetenv(MER_PROJECTPATH_ENVVAR_NAME));
         const QString device = QString::fromUtf8(qgetenv(MER_SSH_DEVICE_NAME));
-        const QString projectPathParameter = projectPath.isEmpty() ? QString() : QLatin1String(" -p ") + projectPath;
+        const QString projectPathParameter = projectPath.isEmpty() ? QString() : QLatin1String(" -p ") +
+        QLatin1String("\"") + projectPath +   QLatin1String("\"");
         const QString deviceParameter = device.isEmpty() ? QString() : QLatin1String(" -d \"") + device + QLatin1String("\"");
         const QString targetName = QString::fromUtf8(qgetenv(MER_SSH_TARGET_NAME));
         completeCommand = QLatin1String("mb2") + projectPathParameter + deviceParameter + QLatin1String(" -t ") +
