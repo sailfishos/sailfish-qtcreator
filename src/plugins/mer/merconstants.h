@@ -47,6 +47,14 @@ const char MER_TASKHUB_SDK_CATEGORY[] = "Qt4ProjectManager.TaskHub.Sdk.Mer";
 const char MER_DEVICE_TYPE_I486[] = "Mer.Device.Type.i486";
 const char MER_DEVICE_TYPE_ARM[] = "Mer.Device.Type.Arm";
 
+const char MER_SAILFISH_MENU[] = "Mer.Sailfish.Menu";
+const char MER_SAILFISH_START_MENU[] = "Mer.Sailfish.Start.Menu";
+const char MER_SAILFISH_STOP_MENU[] = "Mer.Sailfish.Stop.Menu";
+const char MER_SAILFISH_VM_GROUP_MENU[] = "Mer.Sailfish.Vm.Group.Menu";
+const char MER_SAILFISH_OTHER_GROUP_MENU[] = "Mer.Sailfish.Other.Group.Menu";
+const char MER_SAILFISH_START_ICON[] = ":/mer/images/sdk-run.png";
+const char MER_SAILFISH_STOP_ICON[] = ":/mer/images/sdk-stop.png";
+
 #ifdef Q_OS_WIN
 #define SCRIPT_EXTENSION ".cmd"
 #else // Q_OS_WIN

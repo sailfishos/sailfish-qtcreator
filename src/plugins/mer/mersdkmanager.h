@@ -43,6 +43,10 @@ class Kit;
 class Project;
 }
 
+namespace Core {
+class ActionContainer;
+
+}
 namespace Mer {
 namespace Internal {
 
@@ -90,12 +94,16 @@ private:
     QList<MerSdk*> restoreSdks(const Utils::FileName &fileName);
     QList<MerToolChain*> merToolChains() const;
     QList<MerQtVersion*> merQtVersions() const;
+    void setupActions();
+    void updateActions();
 private:
     static MerSdkManager *m_instance;
     QMap<QString, MerSdk*> m_sdks;
     bool m_intialized;
     Utils::PersistentSettingsWriter *m_writer;
-
+    Core::ActionContainer *m_menu;
+    Core::ActionContainer *m_startMenu;
+    Core::ActionContainer *m_stopMenu;
     friend class MerPlugin;
 
 public:

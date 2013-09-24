@@ -35,6 +35,9 @@
 #include "mertargetkitinformation.h"
 
 #include <coreplugin/icore.h>
+#include <coreplugin/actionmanager/actioncontainer.h>
+#include <coreplugin/actionmanager/actionmanager.h>
+#include <coreplugin/coreconstants.h>
 #include <extensionsystem/pluginmanager.h>
 #include <utils/qtcassert.h>
 #include <utils/persistentsettings.h>
@@ -48,6 +51,7 @@
 
 #include <QDesktopServices>
 #include <QDir>
+#include <QMenu>
 
 #ifdef WITH_TESTS
 #include <QtTest>
@@ -56,7 +60,7 @@
 using namespace Mer::Constants;
 using namespace ProjectExplorer;
 using namespace QtSupport;
-//using namespace RemoteLinux;
+using namespace Core;
 using namespace QSsh;
 using namespace ProjectExplorer;
 
@@ -81,7 +85,10 @@ static Utils::FileName settingsFileName()
 
 MerSdkManager::MerSdkManager()
     : m_intialized(false),
-      m_writer(0)
+      m_writer(0),
+      m_menu(0),
+      m_startMenu(0),
+      m_stopMenu(0)
 {
     connect(Core::ICore::instance(), SIGNAL(saveSettingsRequested()), SLOT(storeSdks()));
     connect(KitManager::instance(), SIGNAL(kitsLoaded()), SLOT(initialize()));
@@ -91,6 +98,7 @@ MerSdkManager::MerSdkManager()
     m_instance = this;
     ProjectExplorer::KitManager::instance()->registerKitInformation(new MerSdkKitInformation);
     ProjectExplorer::KitManager::instance()->registerKitInformation(new MerTargetKitInformation);
+    setupActions();
 }
 
 MerSdkManager::~MerSdkManager()
@@ -137,6 +145,34 @@ void MerSdkManager::initialize()
         emit initialized();
     }
 }
+
+void MerSdkManager::setupActions()
+{
+    m_menu = ActionManager::createMenu(Constants::MER_SAILFISH_MENU);
+    m_menu->menu()->setTitle(tr("&SailfishSDK"));
+    m_menu->menu()->setEnabled(true);
+
+    ActionContainer *menubar = ActionManager::actionContainer(Core::Constants::MENU_BAR);
+    ActionContainer *mtools = ActionManager::actionContainer(Core::Constants::M_HELP);
+    //TODO:menubar->addMenu(mtools, m_menu);
+
+    m_menu->appendGroup(Constants::MER_SAILFISH_VM_GROUP_MENU);
+    m_menu->appendGroup(Constants::MER_SAILFISH_OTHER_GROUP_MENU);
+
+    m_startMenu = ActionManager::createMenu(Constants::MER_SAILFISH_START_MENU);
+    m_startMenu->menu()->setIcon(QIcon(QLatin1String(Constants::MER_SAILFISH_START_ICON)));
+    m_startMenu->menu()->setTitle(tr("&Start Virutal Machine"));
+    m_menu->addMenu(m_startMenu,Constants::MER_SAILFISH_VM_GROUP_MENU);
+
+    m_stopMenu = ActionManager::createMenu(Constants::MER_SAILFISH_STOP_MENU);
+    m_stopMenu->menu()->setTitle(tr("&Stop Virutal Machine"));
+    m_stopMenu->menu()->setIcon(QIcon(QLatin1String(Constants::MER_SAILFISH_STOP_ICON)));
+    m_menu->addMenu(m_stopMenu,Constants::MER_SAILFISH_VM_GROUP_MENU);
+    QAction *optionsAction = new QAction(tr("Options..."),m_menu);
+
+    m_menu->menu()->addAction(optionsAction);
+}
+
 
 QList<Kit *> MerSdkManager::merKits() const
 {
@@ -384,6 +420,8 @@ void MerSdkManager::addSdk(MerSdk *sdk)
     connect(sdk, SIGNAL(targetsChanged(QStringList)), this, SIGNAL(sdksUpdated()));
     connect(sdk, SIGNAL(privateKeyChanged(QString)), this, SIGNAL(sdksUpdated()));
     sdk->attach();
+    //TODO:
+    updateActions();
     emit sdksUpdated();
 }
 
@@ -396,7 +434,41 @@ void MerSdkManager::removeSdk(MerSdk *sdk)
     disconnect(sdk, SIGNAL(targetsChanged(QStringList)), this, SIGNAL(sdksUpdated()));
     disconnect(sdk, SIGNAL(privateKeyChanged(QString)), this, SIGNAL(sdksUpdated()));
     sdk->detach();
+    //TODO:
+    updateActions();
     emit sdksUpdated();
+}
+
+void MerSdkManager::updateActions()
+{
+
+    QMenu *startMenu = m_startMenu->menu();
+    startMenu->clear();
+    QMenu *stopMenu = m_stopMenu->menu();
+    stopMenu->clear();
+
+    foreach(MerSdk* sdk, m_sdks) {
+        QAction *startAction = new QAction(sdk->virtualMachineName(),m_startMenu);
+        startMenu->addAction(startAction);
+        QAction *stopAction = new QAction(sdk->virtualMachineName(),m_stopMenu);
+        stopMenu->addAction(stopAction);
+    }
+
+    int count = DeviceManager::instance()->deviceCount();
+    for(int i = 0 ;  i < count; ++i) {
+        IDevice::ConstPtr d = DeviceManager::instance()->deviceAt(i);
+        if (MerDeviceFactory::canCreate(d->type())) {
+            //TODO fix me
+            const MerEmulatorDevice* device = static_cast<const MerEmulatorDevice*>(d.data());
+            QAction *startAction = new QAction(device->virtualMachine(),m_startMenu);
+            startMenu->addAction(startAction);
+            QAction *stopAction = new QAction(device->virtualMachine(),m_stopMenu);
+            stopMenu->addAction(stopAction);
+        }
+    }
+
+    startMenu->menuAction()->setEnabled(!startMenu->actions().isEmpty());
+    stopMenu->menuAction()->setEnabled(!startMenu->actions().isEmpty());
 }
 
 //ownership passed to caller
@@ -549,6 +621,8 @@ void MerSdkManager::updateDevices()
         if (!file.isEmpty())
             MerDevicesXmlWriter writer(file, devices,xmlData);
     }
+    //TODO:
+    updateActions();
 }
 
 
