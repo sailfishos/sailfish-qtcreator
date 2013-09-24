@@ -59,6 +59,7 @@ MerOptionsWidget::MerOptionsWidget(QWidget *parent)
     connect(m_ui->removeButton, SIGNAL(clicked()), SLOT(onRemoveButtonClicked()));
     connect(m_ui->startVirtualMachineButton, SIGNAL(clicked()), SLOT(onStartVirtualMachineButtonClicked()));
     connect(m_ui->sdkDetailsWidget, SIGNAL(testConnectionButtonClicked()), SLOT(onTestConnectionButtonClicked()));
+    connect(m_ui->sdkDetailsWidget, SIGNAL(headlessCheckBoxToggled(bool)), SLOT(onHeadlessCheckBoxToggled(bool)));
     onSdksUpdated();
 }
 
@@ -95,6 +96,8 @@ void MerOptionsWidget::store()
     foreach (MerSdk *sdk, sdks) {
         if (m_sshPrivKeys.contains(sdk))
             sdk->setPrivateKeyFile(m_sshPrivKeys[sdk]);
+        if (m_headless.contains(sdk))
+            sdk->setHeadless(m_headless[sdk]);
     }
 
     foreach (MerSdk *sdk, currentSdks) {
@@ -110,6 +113,7 @@ void MerOptionsWidget::store()
         sdkManager->addSdk(sdk);
 
     m_sshPrivKeys.clear();
+    m_headless.clear();
 }
 
 void MerOptionsWidget::onSdkChanged(const QString &sdkName)
@@ -194,7 +198,7 @@ void MerOptionsWidget::onAuthorizeSshKey(const QString &file)
 void MerOptionsWidget::onStartVirtualMachineButtonClicked()
 {
     const MerSdk *sdk = m_sdks[m_virtualMachine];
-    MerVirtualBoxManager::startVirtualMachine(sdk->virtualMachineName());
+    MerVirtualBoxManager::startVirtualMachine(sdk->virtualMachineName(), sdk->isHeadless());
 }
 
 void MerOptionsWidget::onGenerateSshKey(const QString &privKeyPath)
@@ -232,7 +236,13 @@ void MerOptionsWidget::update()
         if (m_sshPrivKeys.contains(sdk))
             m_ui->sdkDetailsWidget->setPrivateKeyFile(m_sshPrivKeys[sdk]);
         else
-            m_ui->sdkDetailsWidget->setPrivateKeyFile(m_sdks[m_virtualMachine]->privateKeyFile());
+            m_ui->sdkDetailsWidget->setPrivateKeyFile(sdk->privateKeyFile());
+
+        if (m_headless.contains(sdk))
+            m_ui->sdkDetailsWidget->setHeadless(m_headless[sdk]);
+        else
+            m_ui->sdkDetailsWidget->setHeadless(sdk->isHeadless());
+
         int index = m_ui->sdkComboBox->findText(m_virtualMachine);
         m_ui->sdkComboBox->setCurrentIndex(index);
         m_ui->sdkDetailsWidget->setStatus(m_status);
@@ -247,6 +257,12 @@ void MerOptionsWidget::onSshKeyChanged(const QString &file)
 {
     //store keys to be saved on save click
     m_sshPrivKeys[m_sdks[m_virtualMachine]] = file;
+}
+
+void MerOptionsWidget::onHeadlessCheckBoxToggled(bool checked)
+{
+    //store keys to be saved on save click
+    m_headless[m_sdks[m_virtualMachine]] = checked;
 }
 
 } // Internal

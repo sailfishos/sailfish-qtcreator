@@ -77,7 +77,7 @@ MerConnectionManager::MerConnectionManager():
     m_sdkConnection->setStartTip(tr("Start Sdk"));
     m_sdkConnection->setStopTip(tr("Stop Sdk"));
     m_sdkConnection->setTaskCategory(Core::Id(Constants::MER_TASKHUB_SDK_CATEGORY));
-    m_sdkConnection->setProbeTimeout(1000);
+    m_sdkConnection->setProbeTimeout(1000); 
     m_sdkConnection->initialize();
 
     connect(KitManager::instance(), SIGNAL(kitUpdated(ProjectExplorer::Kit*)),
@@ -213,6 +213,7 @@ void MerConnectionManager::update()
                     QString sdkName = sdk->virtualMachineName();
                     QTC_ASSERT(!sdkName.isEmpty(), continue);
                     m_sdkConnection->setVirtualMachine(sdkName);
+                    m_sdkConnection->setHeadless(sdk->isHeadless());
                     m_sdkConnection->setConnectionParameters(paramters(sdk));
                     m_sdkConnection->setupConnection();
                 }

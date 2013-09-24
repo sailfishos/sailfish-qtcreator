@@ -276,7 +276,7 @@ MerDeviceConfigWizardFinalPage::MerDeviceConfigWizardFinalPage(const WizardData 
 
 void MerDeviceConfigWizardFinalPage::startEmulator()
 {
-    MerVirtualBoxManager::startVirtualMachine(m_wizardData.virtualMachineName);
+    MerVirtualBoxManager::startVirtualMachine(m_wizardData.virtualMachineName,false);
 }
 
 QString MerDeviceConfigWizardFinalPage::infoText() const

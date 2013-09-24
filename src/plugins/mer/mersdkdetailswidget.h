@@ -56,12 +56,14 @@ public:
     void setStatus(const QString &status);
     void setPrivateKeyFile(const QString &path);
     void setTestButtonEnabled(bool enabled);
+    void setHeadless(bool enabled);
 
 signals:
     void generateSshKey(const QString &key);
     void sshKeyChanged(const QString &key);
     void authorizeSshKey(const QString &key);
     void testConnectionButtonClicked();
+    void headlessCheckBoxToggled(bool checked);
 
 private slots:
     void onAuthorizeSshKeyButtonClicked();

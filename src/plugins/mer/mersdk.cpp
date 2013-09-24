@@ -47,7 +47,7 @@ MerSdk::MerSdk(QObject *parent) : QObject(parent)
     , m_sshPort(-1)
     , m_wwwPort(-1)
     , m_timeout(30)
-
+    , m_headless(false)
 {
     connect(&m_watcher, SIGNAL(fileChanged(QString)), this, SLOT(handleTargetsFileChanged(QString)));
 }
@@ -55,6 +55,19 @@ MerSdk::MerSdk(QObject *parent) : QObject(parent)
 MerSdk::~MerSdk()
 {
 
+}
+
+void MerSdk::setHeadless(bool enabled)
+{
+    if (m_headless != enabled) {
+        m_headless = enabled;
+        emit headlessChanged(enabled);
+    }
+}
+
+bool MerSdk::isHeadless() const
+{
+    return m_headless;
 }
 
 bool MerSdk::isAutoDetected() const
@@ -255,6 +268,7 @@ QVariantMap MerSdk::toMap() const
     result.insert(QLatin1String(PRIVATE_KEY_FILE), privateKeyFile());
     result.insert(QLatin1String(SSH_PORT), QString::number(sshPort()));
     result.insert(QLatin1String(WWW_PORT), QString::number(wwwPort()));
+    result.insert(QLatin1String(HEADLESS), isHeadless());
     int count = 0;
     foreach (const MerTarget &target, m_targets) {
         if (!target.isValid())
@@ -283,6 +297,7 @@ bool MerSdk::fromMap(const QVariantMap &data)
     setPrivateKeyFile( data.value(QLatin1String(PRIVATE_KEY_FILE)).toString());
     setSshPort(data.value(QLatin1String(SSH_PORT)).toUInt());
     setWwwPort(data.value(QLatin1String(WWW_PORT)).toUInt());
+    setHeadless(data.value(QLatin1String(HEADLESS)).toBool());
 
     int count = data.value(QLatin1String(MER_TARGET_COUNT_KEY), 0).toInt();
     QList<MerTarget> targets;

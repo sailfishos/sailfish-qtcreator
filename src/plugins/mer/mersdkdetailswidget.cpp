@@ -44,6 +44,7 @@ MerSdkDetailsWidget::MerSdkDetailsWidget(QWidget *parent)
     connect(m_ui->privateKeyPathChooser, SIGNAL(editingFinished()), SLOT(onPathChooserEditingFinished()));
     connect(m_ui->privateKeyPathChooser, SIGNAL(browsingFinished()), SLOT(onPathChooserEditingFinished()));
     connect(m_ui->testConnectionPushButton, SIGNAL(clicked()), SIGNAL(testConnectionButtonClicked()));
+    connect(m_ui->headlessCheckBox, SIGNAL(toggled(bool)), SIGNAL(headlessCheckBoxToggled(bool)));
 
     m_ui->privateKeyPathChooser->setExpectedKind(Utils::PathChooser::File);
     m_ui->privateKeyPathChooser->setPromptDialogTitle(tr("Select SSH Key"));
@@ -108,6 +109,11 @@ void MerSdkDetailsWidget::setPrivateKeyFile(const QString &path)
 void MerSdkDetailsWidget::setStatus(const QString &status)
 {
     m_ui->statusLabelText->setText(status);
+}
+
+void MerSdkDetailsWidget::setHeadless(bool enabled)
+{
+    m_ui->headlessCheckBox->setChecked(enabled);
 }
 
 void MerSdkDetailsWidget::onAuthorizeSshKeyButtonClicked()

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1000</width>
-    <height>631</height>
+    <width>1004</width>
+    <height>453</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -30,8 +30,8 @@
        <rect>
         <x>0</x>
         <y>0</y>
-        <width>986</width>
-        <height>617</height>
+        <width>990</width>
+        <height>439</height>
        </rect>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_2">
@@ -41,6 +41,9 @@
           <string>Virtual machine</string>
          </property>
          <layout class="QFormLayout" name="formLayout">
+          <property name="fieldGrowthPolicy">
+           <enum>QFormLayout::ExpandingFieldsGrow</enum>
+          </property>
           <item row="0" column="0">
            <widget class="QLabel" name="nameLabel">
             <property name="text">
@@ -126,6 +129,20 @@
             </property>
            </widget>
           </item>
+          <item row="5" column="0">
+           <widget class="QLabel" name="label">
+            <property name="text">
+             <string>Headless:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="5" column="1">
+           <widget class="QCheckBox" name="headlessCheckBox">
+            <property name="text">
+             <string>(You have to restart vm to apply this setting)</string>
+            </property>
+           </widget>
+          </item>
          </layout>
         </widget>
        </item>
@@ -135,6 +152,9 @@
           <string>Shared folders</string>
          </property>
          <layout class="QFormLayout" name="formLayout_2">
+          <property name="fieldGrowthPolicy">
+           <enum>QFormLayout::ExpandingFieldsGrow</enum>
+          </property>
           <item row="0" column="0">
            <widget class="QLabel" name="homeFolderLabel">
             <property name="text">

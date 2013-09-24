@@ -106,6 +106,7 @@ const char KEY[] = "Key";
 const char PRIVATE_KEY_FILE[] = "PrivateKeyFile";
 const char SSH_PORT[] = "SshPort";
 const char WWW_PORT[] = "WwwPort";
+const char HEADLESS[] = "Headless";
 const char ID[] = "Id";
 const char NAME[] = "Name";
 const char KITS[] = "Kits";

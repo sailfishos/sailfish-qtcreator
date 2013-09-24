@@ -211,7 +211,7 @@ void MerEmulatorDevice::executeAction(Core::Id actionId, QWidget *parent) const
         generteSshKey(QLatin1String(Constants::MER_DEVICE_ROOTUSER));
         return;
     } else if (actionId == Constants::MER_EMULATOR_START_ACTION_ID) {
-        MerVirtualBoxManager::startVirtualMachine(m_virtualMachine);
+        MerVirtualBoxManager::startVirtualMachine(m_virtualMachine,false);
         return;
     } else if (actionId == Constants::MER_EMULATOR_TEST_ID) {
         RemoteLinux::LinuxDeviceTestDialog dialog(sharedFromThis(), new RemoteLinux::GenericLinuxDeviceTester, parent);

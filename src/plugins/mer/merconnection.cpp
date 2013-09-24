@@ -59,6 +59,7 @@ MerRemoteConnection::MerRemoteConnection(QObject *parent)
     , m_vmCloseTimeOut(3000)
     , m_probeTimeout(1000)
     , m_reportError(true)
+    , m_headless(false)
 {
 
 }
@@ -113,6 +114,11 @@ void MerRemoteConnection::setTaskCategory(Core::Id id)
 void MerRemoteConnection::setProbeTimeout(int timeout)
 {
     m_probeTimeout = timeout;
+}
+
+void MerRemoteConnection::setHeadless(bool headless)
+{
+    m_headless = headless;
 }
 
 void MerRemoteConnection::initialize()
@@ -236,7 +242,7 @@ void MerRemoteConnection::changeState(State stateTrigger)
             m_reportError = true;
             m_connection->connectToHost();
         } else {
-            MerVirtualBoxManager::startVirtualMachine(m_vmName);
+            MerVirtualBoxManager::startVirtualMachine(m_vmName,m_headless);
             QTimer::singleShot(m_vmStartupTimeOut, this, SLOT(changeState()));
         }
         break;

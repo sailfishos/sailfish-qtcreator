@@ -40,6 +40,8 @@ const char MACHINE_READABLE[] = "--machinereadable";
 const char STARTVM[] = "startvm";
 const char CONTROLVM[] = "controlvm";
 const char ACPI_POWER_BUTTON[] = "acpipowerbutton";
+const char TYPE[] = "--type";
+const char HEADLESS[] = "headless";
 
 namespace Mer {
 namespace Internal {
@@ -131,7 +133,7 @@ VirtualMachineInfo MerVirtualBoxManager::fetchVirtualMachineInfo(const QString &
     return virtualMachineInfoFromOutput(QString::fromLocal8Bit(process.readAllStandardOutput()));
 }
 
-bool MerVirtualBoxManager::startVirtualMachine(const QString &vmName)
+bool MerVirtualBoxManager::startVirtualMachine(const QString &vmName,bool headless)
 {
     // Start VM if it is not running
     if (isVirtualMachineRunning(vmName))
@@ -139,6 +141,11 @@ bool MerVirtualBoxManager::startVirtualMachine(const QString &vmName)
     QStringList arguments;
     arguments.append(QLatin1String(STARTVM));
     arguments.append(vmName);
+    if (headless) {
+        arguments.append(QLatin1String(TYPE));
+        arguments.append(QLatin1String(HEADLESS));
+    }
+
     return QProcess::execute(vBoxManagePath(), arguments);
 }
 

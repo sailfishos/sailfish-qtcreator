@@ -65,6 +65,7 @@ private slots:
     void onGenerateSshKey(const QString &path);
     void onAuthorizeSshKey(const QString &file);
     void onSshKeyChanged(const QString &file);
+    void onHeadlessCheckBoxToggled(bool checked);
     void update();
 
 private:
@@ -73,6 +74,7 @@ private:
     QString m_status;
     QMap<QString, MerSdk*> m_sdks;
     QMap<MerSdk*, QString> m_sshPrivKeys;
+    QMap<MerSdk*, bool> m_headless;
 };
 
 } // Internal

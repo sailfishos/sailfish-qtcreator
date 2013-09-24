@@ -419,6 +419,7 @@ void MerSdkManager::addSdk(MerSdk *sdk)
     m_sdks.insert(sdk->virtualMachineName(), sdk);
     connect(sdk, SIGNAL(targetsChanged(QStringList)), this, SIGNAL(sdksUpdated()));
     connect(sdk, SIGNAL(privateKeyChanged(QString)), this, SIGNAL(sdksUpdated()));
+    connect(sdk, SIGNAL(headlessChanged(bool)), this, SIGNAL(sdksUpdated()));
     sdk->attach();
     //TODO:
     updateActions();

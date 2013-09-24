@@ -88,6 +88,9 @@ public:
     void setUserName(const QString &username);
     QString userName() const;
 
+    void setHeadless(bool enabled);
+    bool isHeadless() const;
+
     QStringList targetNames() const;
     QList<MerTarget> targets() const;
 
@@ -101,6 +104,7 @@ public:
 signals:
     void targetsChanged(const QStringList &targets);
     void privateKeyChanged(const QString &file);
+    void headlessChanged(bool);
 
 private slots:
     void updateTargets();
@@ -129,6 +133,7 @@ private:
     int m_timeout;
     QList<MerTarget> m_targets;
     QFileSystemWatcher m_watcher;
+    bool m_headless;
 
 friend class MerSdkManager;
 };
