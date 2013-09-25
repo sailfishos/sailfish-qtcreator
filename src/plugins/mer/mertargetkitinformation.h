@@ -51,6 +51,7 @@ public:
 private slots:
     void handleManageClicked();
     void handleCurrentIndexChanged();
+    void handleSdksUpdated();
 
 private:
     QComboBox *m_combo;

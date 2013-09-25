@@ -114,6 +114,7 @@ MerTargetKitInformationWidget::MerTargetKitInformationWidget(ProjectExplorer::Ki
     refresh();
     connect(m_combo, SIGNAL(currentIndexChanged(int)), this, SLOT(handleCurrentIndexChanged()));
     connect(m_manageButton, SIGNAL(clicked()), this, SLOT(handleManageClicked()));
+    connect(MerSdkManager::instance(), SIGNAL(sdksUpdated()), this, SLOT(handleSdksUpdated()));
 }
 
 QString MerTargetKitInformationWidget::displayName() const
@@ -136,16 +137,17 @@ void MerTargetKitInformationWidget::refresh()
     const MerSdk* sdk = MerSdkKitInformation::sdk(m_kit);
     QString targetName = MerTargetKitInformation::targetName(m_kit);
     int i = -1;
-
+    m_combo->blockSignals(true);
     m_combo->clear();
     if (sdk && !targetName.isEmpty()) {
-        foreach (const QString& targetName, sdk->targetNames())
-            m_combo->addItem(targetName);
-        for (i = m_combo->count() -1; i >= 0; --i) {
-            if (targetName == m_combo->itemText(i))
-                break;
+        foreach (const QString& targetName, sdk->targetNames()) {
+            m_combo->addItem(targetName);        
         }
+    }
 
+    for (i = m_combo->count() - 1; i >= 0; --i) {
+        if (targetName == m_combo->itemText(i))
+            break;
     }
 
     if(m_combo->count() == 0) {
@@ -153,6 +155,7 @@ void MerTargetKitInformationWidget::refresh()
         i=0;
     }
 
+    m_combo->blockSignals(false);
     m_combo->setCurrentIndex(i);
 }
 
@@ -184,9 +187,14 @@ void MerTargetKitInformationWidget::handleManageClicked()
 
 void MerTargetKitInformationWidget::handleCurrentIndexChanged()
 {
-        const MerSdk* sdk = MerSdkKitInformation::sdk(m_kit);
-        if (sdk && sdk->targetNames().contains(m_combo->currentText()))
-            MerTargetKitInformation::setTargetName(m_kit,m_combo->currentText());
+    const MerSdk* sdk = MerSdkKitInformation::sdk(m_kit);
+    if (sdk && sdk->targetNames().contains(m_combo->currentText()))
+        MerTargetKitInformation::setTargetName(m_kit,m_combo->currentText());
+}
+
+void MerTargetKitInformationWidget::handleSdksUpdated()
+{
+    refresh();
 }
 
 }

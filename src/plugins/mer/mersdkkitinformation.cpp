@@ -183,13 +183,16 @@ QWidget *MerSdkKitInformationWidget::buttonWidget() const
 void MerSdkKitInformationWidget::handleSdksUpdated()
 {
     const QList<MerSdk*>& sdks = MerSdkManager::instance()->sdks();
+    m_combo->blockSignals(true);
     m_combo->clear();
     if(sdks.isEmpty()) {
         m_combo->addItem(tr("None"));
     } else {
-        foreach (const MerSdk *sdk, sdks)
+        foreach (const MerSdk *sdk, sdks) {
             m_combo->addItem(sdk->virtualMachineName());
+        }
     }
+    m_combo->blockSignals(false);
     refresh();
 }
 
