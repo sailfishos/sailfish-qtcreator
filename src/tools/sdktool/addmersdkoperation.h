@@ -60,7 +60,8 @@ public:
            const QString &userName,
            const QString &privateKeyFile,
            quint16 sshPort,
-           quint16 wwwPort);
+           quint16 wwwPort,
+           bool headless);
     static QVariantMap initializeSdks();
 
 private:
@@ -75,5 +76,6 @@ private:
     QString m_privateKeyFile;
     quint16 m_sshPort;
     quint16 m_wwwPort;
+    bool m_headless;
 };
 #endif
