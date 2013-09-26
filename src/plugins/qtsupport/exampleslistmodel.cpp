@@ -201,6 +201,7 @@ ExamplesListModel::ExamplesListModel(QObject *parent) :
     roleNames[VideoLength] = "videoLength";
     roleNames[Platforms] = "platforms";
     roleNames[IsHighlighted] = "isHighlighted";
+    roleNames[PreferredFeatures] = "preferredFeatures";
     setRoleNames(roleNames);
 
     connect(Core::HelpManager::instance(), SIGNAL(setupFinished()),
@@ -311,6 +312,8 @@ void ExamplesListModel::parseExamples(QXmlStreamReader *reader,
                 m_tags.append(item.tags);
             } else if (reader->name() == QLatin1String("platforms")) {
                 item.platforms = trimStringList(reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement).split(QLatin1Char(','), QString::SkipEmptyParts));
+            } else if (reader->name() == QLatin1String("preferredFeatures")) {
+                item.preferredFeatures = trimStringList(reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement).split(QLatin1Char(','), QString::SkipEmptyParts));
         }
             break;
         case QXmlStreamReader::EndElement:
@@ -670,6 +673,8 @@ QVariant ExamplesListModel::data(const QModelIndex &index, int role) const
         return item.videoLength;
     case Platforms:
         return item.platforms;
+    case PreferredFeatures:
+        return item.preferredFeatures;
     case IsHighlighted:
         return item.isHighlighted;
     default:

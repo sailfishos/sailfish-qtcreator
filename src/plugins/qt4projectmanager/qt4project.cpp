@@ -44,6 +44,7 @@
 #include <coreplugin/icontext.h>
 #include <coreplugin/progressmanager/progressmanager.h>
 #include <coreplugin/documentmanager.h>
+#include <coreplugin/featureprovider.h>
 #include <cpptools/cppmodelmanagerinterface.h>
 #include <qmljstools/qmljsmodelmanager.h>
 #include <projectexplorer/buildmanager.h>
@@ -1392,9 +1393,16 @@ bool Qt4Project::needsConfiguration() const
     return targets().isEmpty();
 }
 
-void Qt4Project::configureAsExampleProject(const QStringList &platforms)
+void Qt4Project::configureAsExampleProject(const QStringList &platforms, const QStringList &preferredFeatures)
 {
     QList<Kit *> kits = ProjectExplorer::KitManager::instance()->kits();
+    Target *preferredTarget(0);
+    Core::FeatureSet featuresSet;
+
+    foreach(const QString& f, preferredFeatures) {
+        featuresSet |= Core::Feature(Core::Id::fromString(f));
+    }
+
     foreach (Kit *k, kits) {
         QtSupport::BaseQtVersion *version = QtSupport::QtKitInformation::qtVersion(k);
         if (!version)
@@ -1406,9 +1414,19 @@ void Qt4Project::configureAsExampleProject(const QStringList &platforms)
                 = Qt4BuildConfigurationFactory::availableBuildConfigurations(k, document()->fileName());
         if (infoList.isEmpty())
             continue;
-        addTarget(createTarget(k, infoList));
+
+        Target *target = createTarget(k, infoList);
+
+        if (version->availableFeatures().contains(featuresSet) && !preferredTarget)
+            preferredTarget = target;
+
+        addTarget(target);
     }
+
     ProjectExplorer::ProjectExplorerPlugin::instance()->requestProjectModeUpdate(this);
+    if(preferredTarget) {
+        setActiveTarget(preferredTarget);
+    }
 }
 
 bool Qt4Project::supportsNoTargetPanel() const
