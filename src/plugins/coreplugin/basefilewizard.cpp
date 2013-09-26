@@ -78,6 +78,7 @@ public:
     QString category;
     QString displayCategory;
     Core::FeatureSet requiredFeatures;
+    Core::FeatureSet preferredFeatures;
     Core::IWizard::WizardFlags flags;
     QString descriptionImage;
 };
@@ -217,8 +218,17 @@ Core::FeatureSet BaseFileWizardParameters::requiredFeatures() const
 
 void BaseFileWizardParameters::setRequiredFeatures(Core::FeatureSet features)
 {
-
     m_d->requiredFeatures = features;
+}
+
+void BaseFileWizardParameters::setPreferredFeatures(Core::FeatureSet features)
+{
+    m_d->preferredFeatures = features;
+}
+
+FeatureSet BaseFileWizardParameters::preferredFeatures() const
+{
+    return m_d->preferredFeatures;
 }
 
 void BaseFileWizardParameters::setDisplayCategory(const QString &v)
@@ -467,6 +477,7 @@ void BaseFileWizard::runWizard(const QString &path, QWidget *parent, const QStri
                                                                                            allExtensionPages,
                                                                                            platform,
                                                                                            requiredFeatures(),
+                                                                                           preferredFeatures(),
                                                                                            dialogParameterFlags,
                                                                                            extraValues)));
     QTC_ASSERT(!wizard.isNull(), return);
@@ -552,6 +563,11 @@ void BaseFileWizard::runWizard(const QString &path, QWidget *parent, const QStri
 Core::FeatureSet BaseFileWizard::requiredFeatures() const
 {
     return d->m_parameters.requiredFeatures();
+}
+
+Core::FeatureSet BaseFileWizard::preferredFeatures() const
+{
+    return d->m_parameters.preferredFeatures();
 }
 
 Core::IWizard::WizardFlags BaseFileWizard::flags() const
