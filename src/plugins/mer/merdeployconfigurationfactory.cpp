@@ -48,10 +48,16 @@ MerDeployConfigurationFactory::MerDeployConfigurationFactory(QObject *parent)
 QList<Core::Id> MerDeployConfigurationFactory::availableCreationIds(Target *parent) const
 {
     QList<Core::Id> ids;
+    //TODO: canHandle(parent)
+    Core::Id type = ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(parent->kit());
+    if (type == Constants::MER_DEVICE_TYPE_I486) {
+           ids << MerRsyncDeployConfiguration::configurationId()
+               << MerRpmDeployConfiguration::configurationId();
+    }
 
-    if (canHandle(parent))
-           ids << MerRsyncDeployConfiguration::configurationId() << MerRpmDeployConfiguration::configurationId();
-
+    if (type == Constants::MER_DEVICE_TYPE_ARM) {
+          ids << MerRpmBuildConfiguration::configurationId();
+    }
 
     return ids;
 }
@@ -62,6 +68,8 @@ QString MerDeployConfigurationFactory::displayNameForId(const Core::Id id) const
         return MerRsyncDeployConfiguration::displayName();
     else if (id == MerRpmDeployConfiguration::configurationId())
         return MerRpmDeployConfiguration::displayName();
+    else if (id == MerRpmBuildConfiguration::configurationId())
+        return MerRpmBuildConfiguration::displayName();
     return QString();
 }
 
@@ -87,6 +95,9 @@ DeployConfiguration *MerDeployConfigurationFactory::create(Target *parent, const
          dc = new MerRsyncDeployConfiguration(parent, id);
          dc->stepList()->insertStep(0, new MerEmulatorStartStep(dc->stepList()));
          dc->stepList()->insertStep(1, new MerRsyncDeployStep(dc->stepList()));
+     } else if (id == MerRpmBuildConfiguration::configurationId()) {
+         dc = new MerRpmBuildConfiguration(parent, id);
+         dc->stepList()->insertStep(0, new MerRpmBuildStep(dc->stepList()));
      }
 
     return dc;
@@ -132,7 +143,10 @@ ProjectExplorer::DeployConfiguration *MerDeployConfigurationFactory::clone(
         return new MerRpmDeployConfiguration(parent, qobject_cast<MerRpmDeployConfiguration *>(source));
     }else if(source->id() == MerRsyncDeployConfiguration::configurationId()){
         return new MerRsyncDeployConfiguration(parent, qobject_cast<MerRsyncDeployConfiguration *>(source));
+    }else if(source->id() == MerRpmBuildConfiguration::configurationId()){
+        return new MerRpmBuildConfiguration(parent, qobject_cast<MerRpmBuildConfiguration *>(source));
     }
+
     return 0;
 }
 

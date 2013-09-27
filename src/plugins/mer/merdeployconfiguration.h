@@ -76,6 +76,20 @@ private:
     MerRsyncDeployConfiguration(ProjectExplorer::Target *target, MerRsyncDeployConfiguration *source);
     friend class MerDeployConfigurationFactory;
 };
+//TODO: Hack
+class MerRpmBuildConfiguration : public  MerDeployConfiguration
+{
+    Q_OBJECT
+
+public:
+    static QString displayName();
+    static Core::Id configurationId();
+
+private:
+    MerRpmBuildConfiguration(ProjectExplorer::Target *parent, const Core::Id id);
+    MerRpmBuildConfiguration(ProjectExplorer::Target *target, MerRpmBuildConfiguration *source);
+    friend class MerDeployConfigurationFactory;
+};
 
 
 } // namespace Internal

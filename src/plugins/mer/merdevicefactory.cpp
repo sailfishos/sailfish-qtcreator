@@ -43,22 +43,22 @@ QString MerDeviceFactory::displayNameForId(Core::Id type) const
 {
     if (type == Constants::MER_DEVICE_TYPE_I486)
         return tr("Mer Emulator Device");
-    //if (type == Constants::MER_DEVICE_TYPE_ARM)
-    //    return tr("Mer ARM Device");
+    if (type == Constants::MER_DEVICE_TYPE_ARM)
+        return tr("Mer ARM Device");
     return QString();
 }
 
 bool MerDeviceFactory::canCreate(Core::Id type)
 {
-    return type == Core::Id(Constants::MER_DEVICE_TYPE_I486); //||
-          //  type == Core::Id(Constants::MER_DEVICE_TYPE_ARM);
+    return type == Core::Id(Constants::MER_DEVICE_TYPE_I486) ||
+           type == Core::Id(Constants::MER_DEVICE_TYPE_ARM);
 }
 
 
 QList<Core::Id> MerDeviceFactory::availableCreationIds() const
 {
-    return QList<Core::Id>() << Core::Id(Constants::MER_DEVICE_TYPE_I486);
-                           //  << Core::Id(Constants::MER_DEVICE_TYPE_ARM);
+    return QList<Core::Id>() << Core::Id(Constants::MER_DEVICE_TYPE_I486)
+                             << Core::Id(Constants::MER_DEVICE_TYPE_ARM);
 }
 
 ProjectExplorer::IDevice::Ptr MerDeviceFactory::create(Core::Id id) const

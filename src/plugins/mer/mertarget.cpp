@@ -57,7 +57,8 @@ static const struct WrapperScript {
     { MER_WRAPPER_MAKE, QStringList(), WrapperScript::ExecutionTypeMb2 },
     { MER_WRAPPER_GCC, QStringList(), WrapperScript::ExecutionTypeSb2 },
     { MER_WRAPPER_GDB, QStringList(QLatin1String("-interactive")), WrapperScript::ExecutionTypeSb2 },
-    { MER_WRAPPER_DEPLOY, QStringList(), WrapperScript::ExecutionTypeMb2 }
+    { MER_WRAPPER_DEPLOY, QStringList(), WrapperScript::ExecutionTypeMb2 },
+    { MER_WRAPPER_RPM, QStringList(), WrapperScript::ExecutionTypeMb2 }
 };
 
 MerTarget::MerTarget(MerSdk* mersdk):
@@ -175,11 +176,13 @@ ProjectExplorer::Kit* MerTarget::createKit() const
     k->setDisplayName(QString::fromLatin1("%1-%2").arg(m_sdk->virtualMachineName(), m_name));
     k->setIconPath(QLatin1String(Constants::MER_OPTIONS_CATEGORY_ICON));
     ProjectExplorer::SysRootKitInformation::setSysRoot(k, Utils::FileName::fromUserInput(sysroot));
-    ProjectExplorer::DeviceTypeKitInformation::setDeviceTypeId(k, Constants::MER_DEVICE_TYPE_I486);
-    //TODO://
-    //if (m_gccMachineDump.contains(QLatin1String("i486"))) {
-    // ProjectExplorer::DeviceTypeKitInformation::setDeviceTypeId(k, Constants::MER_DEVICE_TYPE_ARM);
-    //}
+
+    if (m_gccMachineDump.contains(QLatin1String("i486"))) {
+        ProjectExplorer::DeviceTypeKitInformation::setDeviceTypeId(k, Constants::MER_DEVICE_TYPE_I486);
+    } else if (m_gccMachineDump.contains(QLatin1String("arm"))) {
+        ProjectExplorer::DeviceTypeKitInformation::setDeviceTypeId(k, Constants::MER_DEVICE_TYPE_ARM);
+    }
+
     const QString gdb = Utils::HostOsInfo::withExecutableSuffix(m_defaultGdb);
     QString gdbDir = QCoreApplication::applicationDirPath();
     if (Utils::HostOsInfo::isMacHost()) {

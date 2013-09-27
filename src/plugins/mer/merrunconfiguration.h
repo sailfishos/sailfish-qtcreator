@@ -38,12 +38,15 @@ public:
 
     QString commandPrefix() const;
     QString defaultRemoteExecutableFilePath() const;
+    QString disabledReason() const;
 protected:
     friend class MerRunConfigurationFactory;
 
     MerRunConfiguration(ProjectExplorer::Target *parent,
                         MerRunConfiguration *source);    
     void ctor();
+private:
+    mutable QString m_disabledReason;
 };
 
 } // namespace Internal

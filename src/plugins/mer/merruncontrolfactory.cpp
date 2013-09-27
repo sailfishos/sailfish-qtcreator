@@ -52,6 +52,7 @@ MerRunControlFactory::MerRunControlFactory(QObject *parent)
 
 bool MerRunControlFactory::canRun(RunConfiguration *runConfiguration, RunMode mode) const
 {
+
     if (mode != NormalRunMode && mode != DebugRunMode && mode != DebugRunModeWithBreakOnMain)
         return false;
 

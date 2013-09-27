@@ -20,6 +20,7 @@
 **
 ****************************************************************************/
 
+#include "merconstants.h"
 #include "merrunconfiguration.h"
 #include "merdeployconfiguration.h"
 
@@ -27,6 +28,7 @@
 #include <projectexplorer/project.h>
 #include <projectexplorer/deploymentdata.h>
 #include <projectexplorer/deployconfiguration.h>
+#include <projectexplorer/kitinformation.h>
 
 namespace Mer {
 namespace Internal {
@@ -47,12 +49,26 @@ MerRunConfiguration::MerRunConfiguration(ProjectExplorer::Target *parent,
 
 void MerRunConfiguration::ctor()
 {
+
+}
+
+QString MerRunConfiguration::disabledReason() const
+{
+    if(m_disabledReason.isEmpty())
+        return RemoteLinuxRunConfiguration::disabledReason();
+    else
+        return m_disabledReason;
 }
 
 bool MerRunConfiguration::isEnabled() const
 {
     if (!target()->activeDeployConfiguration())
         return false;
+    //TODO Hack
+    if(ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(target()->kit()) == Constants::MER_DEVICE_TYPE_ARM) {
+        m_disabledReason = tr("Aplha2 SDK does not support run configuration for arm packages");
+        return false;
+    }
 
     return RemoteLinuxRunConfiguration::isEnabled();
 }

@@ -66,6 +66,7 @@ const char MER_WRAPPER_MAKE[] = "make"SCRIPT_EXTENSION;
 const char MER_WRAPPER_GCC[] = "gcc"SCRIPT_EXTENSION;
 const char MER_WRAPPER_GDB[] = "gdb"SCRIPT_EXTENSION;
 const char MER_WRAPPER_DEPLOY[] = "deploy"SCRIPT_EXTENSION;
+const char MER_WRAPPER_RPM[] = "rpm"SCRIPT_EXTENSION;
 const char MER_WRAPPER_RM[] = "rm"SCRIPT_EXTENSION;
 const char MER_WRAPPER_MV[] = "mv"SCRIPT_EXTENSION;
 

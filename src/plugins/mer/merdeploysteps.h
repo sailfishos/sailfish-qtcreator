@@ -45,6 +45,7 @@ public:
     bool init();
     QString arguments() const;
     void setArguments(const QString &arguments);
+
 private:
     QString m_arguments;
 };
@@ -90,6 +91,22 @@ class MerRpmDeployStep : public MerProcessStep
 public:
     explicit MerRpmDeployStep(ProjectExplorer::BuildStepList *bsl);
     MerRpmDeployStep(ProjectExplorer::BuildStepList *bsl, MerRpmDeployStep *bs);
+    bool init();
+    bool immutable() const;
+    void run(QFutureInterface<bool> &fi);
+    ProjectExplorer::BuildStepConfigWidget *createConfigWidget();
+    static const Core::Id stepId();
+    static QString displayName();
+    friend class MerDeployStepFactory;
+};
+
+//TODO: HACK
+class MerRpmBuildStep : public MerProcessStep
+{
+    Q_OBJECT
+public:
+    explicit MerRpmBuildStep(ProjectExplorer::BuildStepList *bsl);
+    MerRpmBuildStep(ProjectExplorer::BuildStepList *bsl, MerRpmBuildStep *bs);
     bool init();
     bool immutable() const;
     void run(QFutureInterface<bool> &fi);

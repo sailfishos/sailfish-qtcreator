@@ -120,7 +120,8 @@ bool MerProcessStep::init()
 
     IDevice::ConstPtr device = DeviceKitInformation::device(this->target()->kit());
 
-    if (device.isNull()) {
+    //TODO: HACK
+    if (device.isNull() && DeviceTypeKitInformation::deviceTypeId(this->target()->kit()) != Constants::MER_DEVICE_TYPE_ARM) {
         addOutput(tr("Cannot deploy: Missing MerDevice information in the kit"),ErrorMessageOutput);
         return false;
     }
@@ -133,7 +134,9 @@ bool MerProcessStep::init()
     ProcessParameters *pp = processParameters();
 
     Utils::Environment env = bc ? bc->environment() : Utils::Environment::systemEnvironment();
-    env.appendOrSet(QLatin1String(Constants::MER_SSH_DEVICE_NAME),device->displayName());
+    //TODO HACK
+    if(!device.isNull())
+        env.appendOrSet(QLatin1String(Constants::MER_SSH_DEVICE_NAME),device->displayName());
     pp->setMacroExpander(bc ? bc->macroExpander() : Core::VariableManager::instance()->macroExpander());
     pp->setEnvironment(env);
     pp->setWorkingDirectory(projectDirectory);
@@ -191,7 +194,7 @@ QSsh::SshConnectionParameters MerEmulatorStartStep::sshParams()
 bool MerEmulatorStartStep::init()
 {
     IDevice::ConstPtr d = DeviceKitInformation::device(this->target()->kit());
-    if(d->type() != Constants::MER_DEVICE_TYPE_I486) {
+    if(d.isNull() || d->type() != Constants::MER_DEVICE_TYPE_I486) {
         setEnabled(false);
         return false;
     }
@@ -324,6 +327,61 @@ BuildStepConfigWidget *MerRpmDeployStep::createConfigWidget()
 {
      return new MerDeployStepWidget(displayName(),tr("Deploys rpm package."),this);
 }
+
+//TODO: HACK
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+const Core::Id MerRpmBuildStep::stepId()
+{
+    return Core::Id("Qt4ProjectManager.MerRpmBuildStep");
+}
+
+QString MerRpmBuildStep::displayName()
+{
+    return QLatin1String("Rpm");
+}
+
+MerRpmBuildStep::MerRpmBuildStep(BuildStepList *bsl)
+    : MerProcessStep(bsl, stepId())
+{
+    setDefaultDisplayName(displayName());
+}
+
+
+MerRpmBuildStep::MerRpmBuildStep(ProjectExplorer::BuildStepList *bsl, MerRpmBuildStep *bs)
+    :MerProcessStep(bsl,bs)
+{
+    setDefaultDisplayName(displayName());
+}
+
+bool MerRpmBuildStep::init()
+{
+    bool success = MerProcessStep::init();
+    //hack
+    ProcessParameters *pp = processParameters();
+    QString deployCommand = pp->command();
+    deployCommand.replace(QLatin1String(Constants::MER_WRAPPER_DEPLOY),QLatin1String(Constants::MER_WRAPPER_RPM));
+    pp->setCommand(deployCommand);
+    return success;
+}
+
+bool MerRpmBuildStep::immutable() const
+{
+    return false;
+}
+
+void MerRpmBuildStep::run(QFutureInterface<bool> &fi)
+{
+    emit addOutput(tr("Deploying rpm package..."), MessageOutput);
+    AbstractProcessStep::run(fi);
+}
+
+BuildStepConfigWidget *MerRpmBuildStep::createConfigWidget()
+{
+     return new MerDeployStepWidget(displayName(),tr("Deploys rpm package."),this);
+}
+
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

@@ -78,7 +78,7 @@ QString MerRunConfigurationFactory::displayNameForId(const Core::Id id) const
         return QString();
 
     if (id.toString().startsWith(QLatin1String(MER_RUNCONFIGURATION_PREFIX)))
-        return tr("%1 on Mer Device").arg(QFileInfo(path).completeBaseName());
+        return tr("%1 (on Mer Device)").arg(QFileInfo(path).completeBaseName());
 
     return QString();
 }
@@ -102,8 +102,13 @@ ProjectExplorer::RunConfiguration *MerRunConfigurationFactory::doCreate(
     if (!canCreate(parent, id))
         return 0;
 
-    if (id.toString().startsWith(QLatin1String(MER_RUNCONFIGURATION_PREFIX)))
-        return new MerRunConfiguration(parent, id, pathFromId(id));
+    if (id.toString().startsWith(QLatin1String(MER_RUNCONFIGURATION_PREFIX))) {
+        MerRunConfiguration *config = new MerRunConfiguration(parent, id, pathFromId(id));
+        config->setDefaultDisplayName(displayNameForId(id));
+
+
+        return config;
+    }
 
     return 0;
 }

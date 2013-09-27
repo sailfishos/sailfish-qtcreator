@@ -103,6 +103,27 @@ Core::Id MerRsyncDeployConfiguration::configurationId()
     return Core::Id("Qt4ProjectManager.MerRSyncDeployConfiguration");
 }
 
+/////////////////////////////////////////////////////////////////////////////////////
+//TODO:HACK
+MerRpmBuildConfiguration::MerRpmBuildConfiguration(Target *parent, const Core::Id id)
+    : MerDeployConfiguration(parent, id,displayName())
+{
+}
+
+MerRpmBuildConfiguration::MerRpmBuildConfiguration(Target *target, MerRpmBuildConfiguration *source)
+    : MerDeployConfiguration(target, source)
+{
+}
+
+QString MerRpmBuildConfiguration::displayName()
+{
+    return tr("Deploy As RPM Package");
+}
+
+Core::Id MerRpmBuildConfiguration::configurationId()
+{
+    return Core::Id("Qt4ProjectManager.MerRpmBuildConfiguration");
+}
 
 } // namespace Internal
 } // namespace Mer
