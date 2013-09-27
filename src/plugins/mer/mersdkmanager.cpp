@@ -458,8 +458,7 @@ void MerSdkManager::updateActions()
     int count = DeviceManager::instance()->deviceCount();
     for(int i = 0 ;  i < count; ++i) {
         IDevice::ConstPtr d = DeviceManager::instance()->deviceAt(i);
-        if (MerDeviceFactory::canCreate(d->type())) {
-            //TODO fix me
+        if (d->type() == Constants::MER_DEVICE_TYPE_I486) {
             const MerEmulatorDevice* device = static_cast<const MerEmulatorDevice*>(d.data());
             QAction *startAction = new QAction(device->virtualMachine(),m_startMenu);
             startMenu->addAction(startAction);
@@ -587,21 +586,21 @@ void MerSdkManager::updateDevices()
     for(int i = 0 ;  i < count; ++i) {
         IDevice::ConstPtr d = DeviceManager::instance()->deviceAt(i);
         if (MerDeviceFactory::canCreate(d->type())) {
-            //TODO fix me
-            const MerEmulatorDevice* device = static_cast<const MerEmulatorDevice*>(d.data());
             MerDeviceData xmlData;
-            if(device->type() == Constants::MER_DEVICE_TYPE_ARM ) {
-                xmlData.m_ip = device->sshParameters().host;
-                xmlData.m_name = device->displayName();
-                xmlData.m_type = device->type() == Constants::MER_DEVICE_TYPE_ARM ? QLatin1String("real") : QLatin1String ("vbox");
-                xmlData.m_sshKeyPath = device->sshParameters().privateKeyFile;
-            } else {
+            if(d->type() == Constants::MER_DEVICE_TYPE_ARM ) {
+                xmlData.m_ip = d->sshParameters().host;
+                xmlData.m_name = d->displayName();
+                xmlData.m_type = QLatin1String("real");
+                xmlData.m_sshKeyPath = d->sshParameters().privateKeyFile;
+            }
+
+            if(d->type() == Constants::MER_DEVICE_TYPE_I486) {
+                const MerEmulatorDevice* device = static_cast<const MerEmulatorDevice*>(d.data());
                 xmlData.m_index = QString::number(device->index());
                 xmlData.m_subNet = device->subnet();
                 xmlData.m_name = device->displayName();
                 xmlData.m_mac = device->mac();
-                xmlData.m_type = device->type() == Constants::MER_DEVICE_TYPE_ARM ? QLatin1String("real") : QLatin1String ("vbox");
-                //TODO: this is logic is a bit twisted / insane :)
+                xmlData.m_type = QLatin1String ("vbox");
                 QFileInfo file(device->sshParameters().privateKeyFile);
                 QString path = QDir::toNativeSeparators(file.dir().absolutePath());
                 if(!device->sharedConfigPath().isEmpty())
@@ -637,8 +636,7 @@ int MerSdkManager::generateDeviceId()
     int index = 0 ;
 
     for (int i=0 ; i < count ; ++i) {
-        if(MerDeviceFactory::canCreate(dm->deviceAt(i)->type()))
-        {
+        if(dm->deviceAt(i)->type() == Constants::MER_DEVICE_TYPE_I486) {
             const MerEmulatorDevice* d = static_cast<const MerEmulatorDevice*>(dm->deviceAt(i).data());
             index = d->index() > index? d->index() : index;
         }
