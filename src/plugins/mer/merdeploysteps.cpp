@@ -50,6 +50,8 @@
 #include <coreplugin/idocument.h>
 #include <extensionsystem/pluginmanager.h>
 #include <coreplugin/variablemanager.h>
+#include <QMessageBox>
+#include <QTimer>
 
 using namespace ProjectExplorer;
 
@@ -276,7 +278,10 @@ void MerRsyncDeployStep::run(QFutureInterface<bool> &fi)
 
 BuildStepConfigWidget *MerRsyncDeployStep::createConfigWidget()
 {
-    return new MerDeployStepWidget(displayName(),tr("Deploys with rsync."),this);
+    MerDeployStepWidget *widget = new MerDeployStepWidget(this);
+    widget->setDisplayName(displayName());
+    widget->setSummaryText(tr("Deploys with rsync."));
+    return widget;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -325,7 +330,10 @@ void MerRpmDeployStep::run(QFutureInterface<bool> &fi)
 
 BuildStepConfigWidget *MerRpmDeployStep::createConfigWidget()
 {
-     return new MerDeployStepWidget(displayName(),tr("Deploys rpm package."),this);
+    MerDeployStepWidget *widget = new MerDeployStepWidget(this);
+    widget->setDisplayName(displayName());
+    widget->setSummaryText(tr("Deploys rpm package."));
+    return widget;
 }
 
 //TODO: HACK
@@ -358,6 +366,8 @@ MerRpmBuildStep::MerRpmBuildStep(ProjectExplorer::BuildStepList *bsl, MerRpmBuil
 bool MerRpmBuildStep::init()
 {
     bool success = MerProcessStep::init();
+    m_packages.clear();
+
     //hack
     ProcessParameters *pp = processParameters();
     QString deployCommand = pp->command();
@@ -370,24 +380,64 @@ bool MerRpmBuildStep::immutable() const
 {
     return false;
 }
-
+//TODO: This is hack
 void MerRpmBuildStep::run(QFutureInterface<bool> &fi)
 {
-    emit addOutput(tr("Deploying rpm package..."), MessageOutput);
+    emit addOutput(tr("Building rpm package..."), MessageOutput);
     AbstractProcessStep::run(fi);
+}
+//TODO: This is hack
+void MerRpmBuildStep::processFinished(int exitCode, QProcess::ExitStatus status)
+{
+    MerProcessStep::processFinished(exitCode, status);
+    if(exitCode == 0 && status == QProcess::NormalExit && !m_packages.isEmpty()){
+        new RpmInfo(m_packages);
+    }
 }
 
 BuildStepConfigWidget *MerRpmBuildStep::createConfigWidget()
 {
-     return new MerDeployStepWidget(displayName(),tr("Deploys rpm package."),this);
+    MerDeployStepWidget *widget = new MerDeployStepWidget(this);
+    widget->setDisplayName(displayName());
+    widget->setSummaryText(tr("Builds rpm package."));
+    widget->setCommandText(QLatin1String("mb2 rpm"));
+    return widget;
 }
 
+void MerRpmBuildStep::stdOutput(const QString &line)
+{
+    QRegExp rexp(QLatin1String("^Wrote: (/.*RPMS.*\.rpm)"));
+    if (rexp.indexIn(line) != -1) {
+        m_packages.append(rexp.cap(1));
+    }
+    MerProcessStep::stdOutput(line);
+}
+
+RpmInfo::RpmInfo(const QStringList& list):
+    m_list(list)
+{
+    QTimer::singleShot(0,this,SLOT(info()));
+}
+
+void RpmInfo::info()
+{
+    QString message(QLatin1String("Following packages has been created:"));
+    message.append(QLatin1String("<ul>"));
+    foreach(const QString file,m_list) {
+        message.append(QLatin1String("<li>"));
+        message.append(file);
+        message.append(QLatin1String("</li>"));
+    }
+    message.append(QLatin1String("</ul>"));
+    QMessageBox::information(0, tr("Packages created"),message);
+    this->deleteLater();
+}
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-MerDeployStepWidget::MerDeployStepWidget(const QString& displayText, const QString& summaryText, MerProcessStep *step)
-        : m_step(step), m_displayText(displayText),m_summaryText(summaryText)
+MerDeployStepWidget::MerDeployStepWidget(MerProcessStep *step)
+        : m_step(step)
 {
     m_ui.setupUi(this);
     m_ui.commandArgumentsLineEdit->setText(m_step->arguments());
@@ -408,6 +458,26 @@ QString MerDeployStepWidget::displayName() const
 void MerDeployStepWidget::commandArgumentsLineEditTextEdited()
 {
     m_step->setArguments(m_ui.commandArgumentsLineEdit->text());
+}
+
+void MerDeployStepWidget::setCommandText(const QString& commandText)
+{
+     m_ui.commandLabelEdit->setText(commandText);
+}
+
+void MerDeployStepWidget::setDisplayName(const QString& displayText)
+{
+    m_displayText = displayText;
+}
+
+void MerDeployStepWidget::setSummaryText(const QString& summaryText)
+{
+    m_summaryText = summaryText;
+}
+
+QString MerDeployStepWidget::commnadText() const
+{
+   return  m_ui.commandLabelEdit->text();
 }
 
 } // Internal

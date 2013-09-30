@@ -114,15 +114,34 @@ public:
     static const Core::Id stepId();
     static QString displayName();
     friend class MerDeployStepFactory;
+    void processFinished(int exitCode, QProcess::ExitStatus status);
+    void stdOutput(const QString &line);
+private:
+    QStringList m_packages;
+};
+
+class RpmInfo: public QObject
+{
+    Q_OBJECT
+public:
+    RpmInfo(const QStringList &list);
+public slots:
+    void info();
+private:
+    QStringList m_list;
 };
 
 class MerDeployStepWidget : public ProjectExplorer::BuildStepConfigWidget
 {
     Q_OBJECT
 public:
-    MerDeployStepWidget(const QString& displayText, const QString& summaryText, MerProcessStep *step);
+    MerDeployStepWidget(MerProcessStep *step);
     QString displayName() const;
     QString summaryText() const;
+    QString commnadText() const;
+    void setCommandText(const QString& commandText);
+    void setDisplayName(const QString& summaryText);
+    void setSummaryText(const QString& displayText);
 private slots:
     void commandArgumentsLineEditTextEdited();
 private:
