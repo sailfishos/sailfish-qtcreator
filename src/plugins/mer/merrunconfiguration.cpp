@@ -49,7 +49,7 @@ MerRunConfiguration::MerRunConfiguration(ProjectExplorer::Target *parent,
 
 void MerRunConfiguration::ctor()
 {
-
+    connect(target(),SIGNAL(activeDeployConfigurationChanged(ProjectExplorer::DeployConfiguration*)),this,SIGNAL(enabledChanged()));
 }
 
 QString MerRunConfiguration::disabledReason() const
@@ -62,10 +62,11 @@ QString MerRunConfiguration::disabledReason() const
 
 bool MerRunConfiguration::isEnabled() const
 {
-    if (!target()->activeDeployConfiguration())
-        return false;
+    ProjectExplorer::DeployConfiguration* conf = target()->activeDeployConfiguration();
+    if (!conf) return false;
+
     //TODO Hack
-    if(ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(target()->kit()) == Constants::MER_DEVICE_TYPE_ARM) {
+    if(conf->id() == MerRpmBuildConfiguration::configurationId()) {
         m_disabledReason = tr("Alpha2 SDK does not support run configuration for arm packages");
         return false;
     }
@@ -76,6 +77,8 @@ bool MerRunConfiguration::isEnabled() const
 QString MerRunConfiguration::defaultRemoteExecutableFilePath() const
 {
     ProjectExplorer::DeployConfiguration* conf = target()->activeDeployConfiguration();
+    if (!conf) return QString();
+
     QString executable = RemoteLinuxRunConfiguration::defaultRemoteExecutableFilePath();
     if (conf->id() == MerRsyncDeployConfiguration::configurationId()) {
         QString projectName = target()->project()->displayName();

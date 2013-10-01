@@ -56,7 +56,9 @@ QList<Core::Id> MerDeployConfigurationFactory::availableCreationIds(Target *pare
     }
 
     if (type == Constants::MER_DEVICE_TYPE_ARM) {
-          ids << MerRpmBuildConfiguration::configurationId();
+        ids << MerRsyncDeployConfiguration::configurationId()
+            << MerRpmDeployConfiguration::configurationId()
+            << MerRpmBuildConfiguration::configurationId();
     }
 
     return ids;

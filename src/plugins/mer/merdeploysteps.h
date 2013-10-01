@@ -117,6 +117,8 @@ public:
     void processFinished(int exitCode, QProcess::ExitStatus status);
     void stdOutput(const QString &line);
 private:
+    QString m_sharedHome;
+    QString m_sharedSrc;
     QStringList m_packages;
 };
 

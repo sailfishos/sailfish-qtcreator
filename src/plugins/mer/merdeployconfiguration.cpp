@@ -117,12 +117,12 @@ MerRpmBuildConfiguration::MerRpmBuildConfiguration(Target *target, MerRpmBuildCo
 
 QString MerRpmBuildConfiguration::displayName()
 {
-    return tr("Deploy As RPM Package");
+    return tr("Deploy Method ARM");
 }
 
 Core::Id MerRpmBuildConfiguration::configurationId()
 {
-    return Core::Id("Qt4ProjectManager.MerRpmBuildConfiguration");
+    return Core::Id("Qt4ProjectManager.MerArmDeployConfiguration");
 }
 
 } // namespace Internal

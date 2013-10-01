@@ -367,6 +367,9 @@ bool MerRpmBuildStep::init()
 {
     bool success = MerProcessStep::init();
     m_packages.clear();
+    const MerSdk *const sdk = MerSdkKitInformation::sdk(target()->kit());
+    m_sharedHome = QDir::cleanPath(sdk->sharedHomePath());
+    m_sharedSrc = QDir::cleanPath(sdk->sharedSrcPath());
 
     //hack
     ProcessParameters *pp = processParameters();
@@ -408,7 +411,11 @@ void MerRpmBuildStep::stdOutput(const QString &line)
 {
     QRegExp rexp(QLatin1String("^Wrote: (/.*RPMS.*\\.rpm)"));
     if (rexp.indexIn(line) != -1) {
-        m_packages.append(rexp.cap(1));
+        QString file = rexp.cap(1);
+        //TODO First replace shared home and then shared src (error prone!)
+        file.replace(QRegExp(QLatin1String("^/home/mersdk")),m_sharedHome);
+        file.replace(QRegExp(QLatin1String("^/home/src1")),m_sharedSrc);
+        m_packages.append(QDir::toNativeSeparators(file));
     }
     MerProcessStep::stdOutput(line);
 }
