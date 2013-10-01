@@ -90,7 +90,10 @@
         \li To add the SailfishOS device to the SailfishOS kit, select
             \gui Tools > \gui Options > \gui {Build & Run} > \gui Kits.
 
-        \li Select the kit, and then select the device in the \gui Device field.
+        \li Select the kit, and then select \gui Clone to create an editable
+            copy of the kit.
+
+        \li Select the clone and then select the device in the \gui Device field.
             If the device is not listed, select \gui Manage and add it, as
             instructed above.
 
