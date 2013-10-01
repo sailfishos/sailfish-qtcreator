@@ -421,7 +421,7 @@ RpmInfo::RpmInfo(const QStringList& list):
 
 void RpmInfo::info()
 {
-    QString message(QLatin1String("Following packages has been created:"));
+    QString message(QLatin1String("Following packages have been created:"));
     message.append(QLatin1String("<ul>"));
     foreach(const QString file,m_list) {
         message.append(QLatin1String("<li>"));

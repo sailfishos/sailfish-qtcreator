@@ -66,7 +66,7 @@ bool MerRunConfiguration::isEnabled() const
         return false;
     //TODO Hack
     if(ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(target()->kit()) == Constants::MER_DEVICE_TYPE_ARM) {
-        m_disabledReason = tr("Aplha2 SDK does not support run configuration for arm packages");
+        m_disabledReason = tr("Alpha2 SDK does not support run configuration for arm packages");
         return false;
     }
 
