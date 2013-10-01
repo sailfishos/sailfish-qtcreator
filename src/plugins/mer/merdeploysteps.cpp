@@ -406,7 +406,7 @@ BuildStepConfigWidget *MerRpmBuildStep::createConfigWidget()
 
 void MerRpmBuildStep::stdOutput(const QString &line)
 {
-    QRegExp rexp(QLatin1String("^Wrote: (/.*RPMS.*\.rpm)"));
+    QRegExp rexp(QLatin1String("^Wrote: (/.*RPMS.*\\.rpm)"));
     if (rexp.indexIn(line) != -1) {
         m_packages.append(rexp.cap(1));
     }
