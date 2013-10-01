@@ -57,7 +57,7 @@ MerRemoteConnection::MerRemoteConnection(QObject *parent)
     , m_state(Disconnected)
     , m_vmStartupTimeOut(3000)
     , m_vmCloseTimeOut(3000)
-    , m_probeTimeout(1000)
+    , m_probeTimeout(3000)
     , m_reportError(true)
     , m_headless(false)
 {
