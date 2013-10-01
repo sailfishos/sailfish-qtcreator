@@ -88,13 +88,16 @@ DeployConfiguration *MerDeployConfigurationFactory::create(Target *parent, const
     QTC_ASSERT(canCreate(parent, id), return 0);
 
     ProjectExplorer::DeployConfiguration *dc = 0;
+    Core::Id type = ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(parent->kit());
 
-     if (id == MerRpmDeployConfiguration::configurationId()) {
+     if (id == MerRpsmDeployConfiguration::configurationId()) {
          dc = new MerRpmDeployConfiguration(parent, id);
-         dc->stepList()->insertStep(0, new MerEmulatorStartStep(dc->stepList()));
+         if (type != Constants::MER_DEVICE_TYPE_ARM)
+            dc->stepList()->insertStep(0, new MerEmulatorStartStep(dc->stepList()));
          dc->stepList()->insertStep(1, new MerRpmDeployStep(dc->stepList()));
      } else if (id == MerRsyncDeployConfiguration::configurationId()) {
          dc = new MerRsyncDeployConfiguration(parent, id);
+          if (type != Constants::MER_DEVICE_TYPE_ARM)
          dc->stepList()->insertStep(0, new MerEmulatorStartStep(dc->stepList()));
          dc->stepList()->insertStep(1, new MerRsyncDeployStep(dc->stepList()));
      } else if (id == MerRpmBuildConfiguration::configurationId()) {

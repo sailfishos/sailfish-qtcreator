@@ -23,6 +23,7 @@
 #include "merconstants.h"
 #include "merrunconfiguration.h"
 #include "merdeployconfiguration.h"
+#include "projectexplorer/kitinformation.h"
 
 #include <projectexplorer/target.h>
 #include <projectexplorer/project.h>
@@ -61,14 +62,14 @@ QString MerRunConfiguration::disabledReason() const
 }
 
 bool MerRunConfiguration::isEnabled() const
-{
-    ProjectExplorer::DeployConfiguration* conf = target()->activeDeployConfiguration();
-    if (!conf) return false;
-
+{   
     //TODO Hack
-    if(conf->id() == MerRpmBuildConfiguration::configurationId()) {
-        m_disabledReason = tr("Alpha2 SDK does not support run configuration for arm packages");
-        return false;
+    if(target()->kit())
+    {
+        if(ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(target()->kit()) == Constants::MER_DEVICE_TYPE_ARM) {
+            m_disabledReason = tr("Alpha2 SDK does not support run configuration for arm packages");
+            return false;
+        }
     }
 
     return RemoteLinuxRunConfiguration::isEnabled();
