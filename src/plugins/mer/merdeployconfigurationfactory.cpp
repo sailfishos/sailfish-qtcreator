@@ -56,9 +56,10 @@ QList<Core::Id> MerDeployConfigurationFactory::availableCreationIds(Target *pare
     }
 
     if (type == Constants::MER_DEVICE_TYPE_ARM) {
-        ids << MerRsyncDeployConfiguration::configurationId()
-            << MerRpmDeployConfiguration::configurationId()
-            << MerRpmBuildConfiguration::configurationId();
+        ids << MerRpmBuildConfiguration::configurationId()
+            << MerRsyncDeployConfiguration::configurationId()
+            << MerRpmDeployConfiguration::configurationId();
+
     }
 
     return ids;
@@ -90,7 +91,7 @@ DeployConfiguration *MerDeployConfigurationFactory::create(Target *parent, const
     ProjectExplorer::DeployConfiguration *dc = 0;
     Core::Id type = ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(parent->kit());
 
-     if (id == MerRpsmDeployConfiguration::configurationId()) {
+     if (id == MerRpmDeployConfiguration::configurationId()) {
          dc = new MerRpmDeployConfiguration(parent, id);
          if (type != Constants::MER_DEVICE_TYPE_ARM)
             dc->stepList()->insertStep(0, new MerEmulatorStartStep(dc->stepList()));
