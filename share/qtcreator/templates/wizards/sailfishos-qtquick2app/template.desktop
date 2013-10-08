@@ -1,7 +1,6 @@
 [Desktop Entry]
 Type=Application
+X-Nemo-Application-Type=silica-qt5
 Name=%ProjectName%
-Icon=icon-launcher-default
-Exec=invoker --type=silica-qt5 -s /usr/bin/%ProjectName%
-Comment=Sailfish UI application
-
+Icon=%ProjectName%
+Exec=%ProjectName%

@@ -1,21 +1,13 @@
 # The name of your app
 TARGET = %ProjectName%
 
-# C++ sources
-SOURCES += main.cpp
+CONFIG += sailfishapp
 
-# C++ headers
-HEADERS +=
+SOURCES += src/%ProjectName%.cpp
 
-# QML files and folders
-qml.files = *.qml pages cover main.qml
-
-# The .desktop file
-desktop.files = %ProjectName%.desktop
-
-# Please do not modify the following line.
-include(sailfishapplication/sailfishapplication.pri)
-
-OTHER_FILES = \
-    rpm/%ProjectName%.yaml \
-    rpm/%ProjectName%.spec
+OTHER_FILES += qml/%ProjectName%.qml \
+    qml/cover/CoverPage.qml \
+    qml/pages/FirstPage.qml \
+    qml/pages/SecondPage.qml \
+    rpm/%ProjectName%.spec \
+    rpm/%ProjectName%.yaml 
