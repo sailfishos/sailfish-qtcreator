@@ -32,6 +32,7 @@
 #include "getoperation.h"
 #include "addkeysoperation.h"
 #include "rmkeysoperation.h"
+#include "findvalueoperation.h"
 #include "../../plugins/mer/merconstants.h"
 #include <iostream>
 
@@ -300,7 +301,7 @@ bool AddDeviceOperation::setArguments(const QStringList &args)
 
 int AddDeviceOperation::execute() const
 {
-    const QString devicesKey = QLatin1String("devices");
+    const QString devicesKey(QLatin1String("devices"));
     QVariantMap map = load(devicesKey);
     if (map.isEmpty())
         map = initializeDevices();
@@ -372,6 +373,36 @@ QVariantMap AddDeviceOperation::addDevice(const QVariantMap &map,
 
     QVariantMap mapdevice = map.value(QLatin1String(DeviceManagerKey)).toMap();
     QVariantList deviceList = mapdevice.value(QLatin1String(DeviceListKey)).toList();
+
+    foreach(const QVariant& m, deviceList){
+        QStringList valueKeys = FindValueOperation::findValues(m.toMap(), QVariant(internalId));
+        bool hasTarget = false;
+        foreach (const QString &t, valueKeys) {
+            if (t.endsWith(QLatin1String(IdKey))) {
+                hasTarget = true;
+                break;
+            }
+        }
+        if (hasTarget) {
+            std::cerr << "Error: InternalId " << qPrintable(QLatin1String(internalId)) << " already defined as device id." << std::endl;
+            return result;
+        }
+
+        valueKeys = FindValueOperation::findValues(m.toMap(), QVariant(displayName));
+        hasTarget = false;
+        foreach (const QString &t, valueKeys) {
+            if (t.endsWith(QLatin1String(DisplayNameKey))) {
+                hasTarget = true;
+                break;
+            }
+        }
+        if (hasTarget) {
+            std::cerr << "Error: Name " << qPrintable(displayName) << " already defined as device name." << std::endl;
+            return result;
+        }
+
+    }
+
     QVariantMap data;
     data.insert(QLatin1String(IdKey), QVariant(internalId));
     data.insert(QLatin1String(DisplayNameKey), QVariant(displayName));
