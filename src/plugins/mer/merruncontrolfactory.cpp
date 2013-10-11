@@ -27,18 +27,22 @@
 #include "mersdkmanager.h"
 #include "mertoolchain.h"
 #include "mervirtualboxmanager.h"
+#include "mersdkkitinformation.h"
 
 #include <debugger/debuggerplugin.h>
 #include <debugger/debuggerrunner.h>
 #include <debugger/debuggerstartparameters.h>
 #include <debugger/debuggerkitinformation.h>
 #include <projectexplorer/target.h>
+#include <analyzerbase/ianalyzerengine.h>
+#include <analyzerbase/analyzermanager.h>
+#include <analyzerbase/analyzerruncontrol.h>
 #include <qtsupport/qtkitinformation.h>
 #include <utils/portlist.h>
 #include <utils/qtcassert.h>
 #include <remotelinux/remotelinuxdebugsupport.h>
 #include <remotelinux/remotelinuxruncontrol.h>
-
+#include <remotelinux/remotelinuxanalyzesupport.h>
 using namespace Debugger;
 using namespace ProjectExplorer;
 using namespace Mer;
@@ -53,8 +57,10 @@ MerRunControlFactory::MerRunControlFactory(QObject *parent)
 bool MerRunControlFactory::canRun(RunConfiguration *runConfiguration, RunMode mode) const
 {
 
-    if (mode != NormalRunMode && mode != DebugRunMode && mode != DebugRunModeWithBreakOnMain)
-        return false;
+    if (mode != NormalRunMode && mode != DebugRunMode && mode != DebugRunModeWithBreakOnMain
+                && mode != QmlProfilerRunMode) {
+            return false;
+    }
 
     if (!runConfiguration->isEnabled()
             || !runConfiguration->id().toString().startsWith(
@@ -83,27 +89,60 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, RunMode mo
 
     MerRunConfiguration *rc = qobject_cast<MerRunConfiguration *>(runConfig);
     QTC_ASSERT(rc, return 0);
-    if (mode == ProjectExplorer::NormalRunMode)
+
+    switch (mode) {
+    case NormalRunMode:
         return new RemoteLinuxRunControl(rc);
+    case DebugRunMode:
+    case DebugRunModeWithBreakOnMain: {
+        IDevice::ConstPtr dev = DeviceKitInformation::device(rc->target()->kit());
+        if (!dev) {
+            *errorMessage = tr("Cannot debug: Kit has no device.");
+            return 0;
+        }
+        if (rc->portsUsedByDebuggers() > dev->freePorts().count()) {
+            *errorMessage = tr("Cannot debug: Not enough free ports available.");
+            return 0;
+        }
+        DebuggerStartParameters params = LinuxDeviceDebugSupport::startParameters(rc);
+        if (mode == ProjectExplorer::DebugRunModeWithBreakOnMain)
+            params.breakOnMain = true;
 
-    DebuggerStartParameters params = LinuxDeviceDebugSupport::startParameters(rc);
-    if (mode == ProjectExplorer::DebugRunModeWithBreakOnMain)
-        params.breakOnMain = true;
+        MerSdk* mersdk = MerSdkKitInformation::sdk(rc->target()->kit());
 
-    // Map the source path
-    Target *target = runConfig->target();
-    Kit *k = target->kit();
-    // Get the VM against which this was built
-    ToolChain *toolchain = ToolChainKitInformation::toolChain(k);
-    if (toolchain->type() == QLatin1String(Constants::MER_TOOLCHAIN_TYPE)) {
-        MerToolChain *mertoolchain = static_cast<MerToolChain *>(toolchain);
-        const VirtualMachineInfo info =
-                MerVirtualBoxManager::fetchVirtualMachineInfo(mertoolchain->virtualMachineName());
-        if (!info.sharedHome.isEmpty())
-            params.sourcePathMap.insert(QLatin1String("/home/mersdk"), info.sharedHome);
-        if (!info.sharedSrc.isEmpty())
-            params.sourcePathMap.insert(QLatin1String("/home/src1"), info.sharedSrc);
-//        params.executable.replace(info.sharedHome, QLatin1String("/home/mersdk"));
+        if (mersdk && !mersdk->sharedHomePath().isEmpty())
+            params.sourcePathMap.insert(QLatin1String("/home/mersdk"), mersdk->sharedHomePath());
+        if (mersdk && !mersdk->sharedSrcPath().isEmpty())
+            params.sourcePathMap.insert(QLatin1String("/home/src1"), mersdk->sharedSrcPath());
+
+        DebuggerRunControl * const runControl
+                = DebuggerPlugin::createDebugger(params, rc, errorMessage);
+        if (!runControl)
+            return 0;
+        LinuxDeviceDebugSupport * const debugSupport =
+                new LinuxDeviceDebugSupport(rc, runControl->engine());
+        connect(runControl, SIGNAL(finished()), debugSupport, SLOT(handleDebuggingFinished()));
+        return runControl;
+    }
+    case QmlProfilerRunMode: {
+        Analyzer::IAnalyzerTool *tool = Analyzer::AnalyzerManager::toolFromRunMode(mode);
+        if (!tool) {
+            if (errorMessage)
+                *errorMessage = tr("No analyzer tool selected.");
+            return 0;
+        }
+        Analyzer::AnalyzerStartParameters params = RemoteLinuxAnalyzeSupport::startParameters(rc, mode);
+        Analyzer::AnalyzerRunControl * const runControl = new Analyzer::AnalyzerRunControl(tool, params, runConfig);
+        RemoteLinuxAnalyzeSupport * const analyzeSupport =
+                new RemoteLinuxAnalyzeSupport(rc, runControl->engine(), mode);
+        connect(runControl, SIGNAL(finished()), analyzeSupport, SLOT(handleProfilingFinished()));
+        return runControl;
+    }
+
+    case NoRunMode:
+    case CallgrindRunMode:
+    case MemcheckRunMode:
+        QTC_ASSERT(false, return 0);
     }
 
 //    const MerEmulatorDevice::ConstPtr &merDevice
@@ -113,15 +152,7 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, RunMode mo
 //                .arg(merDevice->index());
 //        params.remoteChannel = deviceIpAsSeenByBuildEngine + QLatin1String(":-1");
 //    }
-
-    DebuggerRunControl * const runControl =
-            DebuggerPlugin::createDebugger(params, rc, errorMessage);
-    if (!runControl)
-        return 0;
-    LinuxDeviceDebugSupport * const debugSupport =
-            new LinuxDeviceDebugSupport(rc, runControl->engine());
-    connect(runControl, SIGNAL(finished()), debugSupport, SLOT(handleDebuggingFinished()));
-    return runControl;
+    return 0;
 }
 
 QString MerRunControlFactory::displayName() const
