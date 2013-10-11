@@ -137,8 +137,13 @@ void MerSdkManager::initialize()
             if (!validateKit(kit)) {
                 qWarning() << "Broken Mer kit found !. Removing kit.";
                 KitManager::instance()->deregisterKit(kit);
+            }else{
+                kit->validate();
             }
         }
+
+
+
 
         m_intialized = true;
         updateDevices();
