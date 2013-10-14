@@ -129,9 +129,9 @@ int AddMerTargetOperation::execute() const
     const QVariantMap result = addTarget(map, m_targetName, m_qmakeQueryFileName, m_gccDumpmachineFileName);
 
     if (result.isEmpty() || map == result)
-        return -2;
+        return 2;
 
-    return save(result, m_targetsDir) ? 0 : -3;
+    return save(result, m_targetsDir) ? 0 : 3;
 }
 
 QVariantMap AddMerTargetOperation::initializeTargets()

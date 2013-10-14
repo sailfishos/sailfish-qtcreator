@@ -242,9 +242,9 @@ int AddMerSdkOperation::execute() const
                                       m_sharedConfigPath, m_host, m_userName, m_privateKeyFile, m_sshPort, m_wwwPort,m_headless);
 
     if (result.isEmpty() || map == result)
-        return -2;
+        return 2;
 
-    return save(result,QLatin1String("mersdk")) ? 0 : -3;
+    return save(result,QLatin1String("mersdk")) ? 0 : 3;
 }
 
 QVariantMap AddMerSdkOperation::initializeSdks()

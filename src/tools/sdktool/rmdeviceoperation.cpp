@@ -82,9 +82,9 @@ int RmDeviceOperation::execute() const
     QVariantMap result = removeDevice(map, m_deviceId);
 
     if (result == map)
-        return -2;
+        return 2;
 
-    return save(result,QLatin1String("devices")) ? 0 : -3;
+    return save(result,QLatin1String("devices")) ? 0 : 3;
 }
 
 QVariantMap RmDeviceOperation::removeDevice(const QVariantMap &map, const QString &id)

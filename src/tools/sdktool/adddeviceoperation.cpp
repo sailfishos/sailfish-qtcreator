@@ -332,9 +332,9 @@ int AddDeviceOperation::execute() const
                                          m_merSharedConfigPath);
 
     if (result.isEmpty() || map == result)
-        return -2;
+        return 2;
 
-    return save(result, devicesKey) ? 0 : -3;
+    return save(result, devicesKey) ? 0 : 3;
 }
 
 QVariantMap AddDeviceOperation::initializeDevices()
