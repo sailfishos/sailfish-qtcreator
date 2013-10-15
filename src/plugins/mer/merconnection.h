@@ -78,6 +78,7 @@ public:
     void initialize();
     void update();
     void connectTo();
+    void disconnectFrom();
     void tryConnectTo();
     void setupConnection();
     static void createConnectionErrorTask(const QString &vmName, const QString &error, Core::Id category);

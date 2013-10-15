@@ -333,6 +333,15 @@ void MerRemoteConnection::handleTriggered()
     }
 }
 
+
+void MerRemoteConnection::disconnectFrom()
+{
+    if (m_state == Connected) {
+        changeState(Disconneting);
+    }
+}
+
+
 void  MerRemoteConnection::createConnectionErrorTask(const QString &vmName, const QString &error, Core::Id category)
 {
     TaskHub *th = ProjectExplorerPlugin::instance()->taskHub();

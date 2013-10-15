@@ -53,6 +53,7 @@ public:
     QString testConnection(const QSsh::SshConnectionParameters &params) const;
     bool isConnected(const QString &vmName) const;
     void connectTo(const QString &vmName);
+    void disconnectFrom(const QString &vmName);
 private slots:
     void update();
     void handleStartupProjectChanged(ProjectExplorer::Project *project);

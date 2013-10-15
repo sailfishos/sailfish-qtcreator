@@ -272,5 +272,14 @@ void MerConnectionManager::connectTo(const QString &vmName)
     }
 }
 
+void MerConnectionManager::disconnectFrom(const QString &vmName)
+{
+    if(m_emulatorConnection->virtualMachine() == vmName) {
+        m_emulatorConnection->disconnectFrom();
+    }else if(m_sdkConnection->virtualMachine() == vmName) {
+        m_sdkConnection->disconnectFrom();
+    }
+}
+
 }
 }
