@@ -41,7 +41,7 @@
     <files>
         <file source="src/template.cpp" target="src/%ProjectName%.cpp"/>
         <file source="template.desktop" target="%ProjectName%.desktop"/>
-        <file source="template.png" target="%ProjectName%.png"/>
+        <file source="template.png" target="%ProjectName%.png" binary="true"/>
         <file source="template.pro" target="%ProjectName%.pro" openproject="true"/>
         <file source="qml/cover/CoverPage.qml" openeditor="true"/>
         <file source="qml/pages/FirstPage.qml" openeditor="true"/>
