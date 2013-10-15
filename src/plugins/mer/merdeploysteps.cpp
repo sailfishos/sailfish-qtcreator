@@ -301,7 +301,7 @@ MerRpmDeployStep::MerRpmDeployStep(BuildStepList *bsl)
     : MerProcessStep(bsl, stepId())
 {
     setDefaultDisplayName(displayName());
-    setArguments(QLatin1String("--zypper"));
+    setArguments(QLatin1String("--pkcon"));
 }
 
 
@@ -309,7 +309,7 @@ MerRpmDeployStep::MerRpmDeployStep(ProjectExplorer::BuildStepList *bsl, MerRpmDe
     :MerProcessStep(bsl,bs)
 {
     setDefaultDisplayName(displayName());
-    setArguments(QLatin1String("--zypper"));
+    setArguments(QLatin1String("--pkcon"));
 }
 
 bool MerRpmDeployStep::init()
