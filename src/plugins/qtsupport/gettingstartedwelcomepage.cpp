@@ -372,8 +372,10 @@ QString ExamplesWelcomePage::copyToAlternativeLocation(const QFileInfo& proFileI
                     }
                 }
 
+                FileName projectFile = FileName::fromString(targetDir + QLatin1Char('/') + proFileInfo.fileName());
+                FileUtils::makeWritable(projectFile);
+                return projectFile.toString();
 
-                return targetDir + QLatin1Char('/') + proFileInfo.fileName();
             } else {
                 QMessageBox::warning(Core::ICore::mainWindow(), tr("Cannot Copy Project"), error);
             }
