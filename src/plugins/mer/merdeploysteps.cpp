@@ -231,7 +231,7 @@ void MerEmulatorStartStep::run(QFutureInterface<bool> &fi)
 
 BuildStepConfigWidget *MerEmulatorStartStep::createConfigWidget()
 {
-    return new MerSimpleBuildStepConfigWidget(displayName(),tr("Starts Emulator virtual machine, if necessery."));
+    return new MerSimpleBuildStepConfigWidget(displayName(),tr("Starts Emulator virtual machine, if necessary."));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
