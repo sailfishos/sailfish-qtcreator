@@ -27,7 +27,7 @@
 #include "mervirtualboxmanager.h"
 #include "meremulatordevice.h"
 #include "mersdkkitinformation.h"
-#include "merconnectionrequest.h"
+#include "merconnectionprompt.h"
 
 #include <projectexplorer/project.h>
 #include <projectexplorer/target.h>
@@ -77,7 +77,7 @@ MerConnectionManager::MerConnectionManager():
     m_sdkConnection->setStartTip(tr("Start Sdk"));
     m_sdkConnection->setStopTip(tr("Stop Sdk"));
     m_sdkConnection->setTaskCategory(Core::Id(Constants::MER_TASKHUB_SDK_CATEGORY));
-    m_sdkConnection->setProbeTimeout(1000); 
+    m_sdkConnection->setProbeTimeout(1000);
     m_sdkConnection->initialize();
 
     connect(KitManager::instance(), SIGNAL(kitUpdated(ProjectExplorer::Kit*)),
@@ -108,7 +108,7 @@ MerConnectionManager* MerConnectionManager::instance()
 }
 
 bool MerConnectionManager::isConnected(const QString &vmName) const
-{    
+{
     if(m_emulatorConnection->virtualMachine() == vmName) {
         return m_emulatorConnection->isConnected();
     }else if(m_sdkConnection->virtualMachine() == vmName) {
@@ -183,7 +183,8 @@ void MerConnectionManager::handleBuildStateChanged(Project* project)
              const QString vm = m_sdkConnection->virtualMachine();
              QTC_ASSERT(!vm.isEmpty(),return);
              if (!MerVirtualBoxManager::isVirtualMachineRunning(vm)) {
-                 new MerConnectionRequest(vm);
+                 MerConnectionPrompt *connectioPrompt = new MerConnectionPrompt(vm);
+                 connectioPrompt->prompt(MerConnectionPrompt::Start);
              } else {
                  m_sdkConnection->connectTo();
              }

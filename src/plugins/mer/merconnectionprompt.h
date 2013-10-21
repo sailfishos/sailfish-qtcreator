@@ -26,18 +26,32 @@
 #include <QObject>
 #include <QString>
 
+#include "merplugin.h"
+
 namespace Mer {
 namespace Internal {
 
-class MerConnectionRequest : public QObject
+class MerConnectionPrompt : public QObject
 {
     Q_OBJECT
 public:
-    MerConnectionRequest(const QString &vm);
+    enum PromptRequest {
+        Start = 0,
+        Close
+    };
+
+    MerConnectionPrompt(const QString& vm = QString(), const Mer::Internal::MerPlugin *merplugin = 0);
+
 public slots:
-    void prompt();
+    void prompt(const MerConnectionPrompt::PromptRequest pr);
+
+private slots:
+    void startPrompt();
+    void closePrompt();
+
 private:
     QString m_vm;
+    const MerPlugin *m_merplugin;
 };
 
 }

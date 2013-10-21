@@ -33,7 +33,7 @@
 #include "mertargetkitinformation.h"
 #include "merconnectionmanager.h"
 #include "meremulatordevice.h"
-#include "merconnectionrequest.h"
+#include "merconnectionprompt.h"
 #include "mervirtualboxmanager.h"
 #include "merconnection.h"
 #include <utils/qtcassert.h>
@@ -222,8 +222,10 @@ void MerEmulatorStartStep::run(QFutureInterface<bool> &fi)
         emit addOutput(tr("Starting Emulator..."), MessageOutput);
         QString error = tr("Could not connect to %1 Virtual Machine.").arg(m_vm);
         MerRemoteConnection::createConnectionErrorTask(m_vm,error,Constants::MER_TASKHUB_EMULATOR_CATEGORY);
-        if(!MerVirtualBoxManager::isVirtualMachineRunning(m_vm))
-                new MerConnectionRequest(m_vm);
+        if(!MerVirtualBoxManager::isVirtualMachineRunning(m_vm)) {
+            MerConnectionPrompt *connectioPrompt = new MerConnectionPrompt(m_vm, 0);
+            connectioPrompt->prompt(MerConnectionPrompt::Start);
+        }
         fi.reportResult(false);
         emit finished();
     }

@@ -67,7 +67,7 @@ SOURCES += \
     meremulatordevicewizard.cpp \
     merhardwaredevicewizard.cpp \
     meremulatordevicewizardpages.cpp \
-    merconnectionrequest.cpp
+    merconnectionprompt.cpp
 
 HEADERS += \
     merplugin.h \
@@ -115,7 +115,7 @@ HEADERS += \
     meremulatordevicewizard.h \
     merhardwaredevicewizard.h \
     meremulatordevicewizardpages.h \
-    merconnectionrequest.h
+    merconnectionprompt.h
 
 
 SOURCES += \

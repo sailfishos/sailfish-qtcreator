@@ -37,6 +37,7 @@
 #include "yamleditorfactory.h"
 #include "jollawelcomepage.h"
 #include "mermode.h"
+#include "merconnectionprompt.h"
 
 #include <coreplugin/icore.h>
 #include <coreplugin/mimedatabase.h>
@@ -90,36 +91,11 @@ void MerPlugin::extensionsInitialized()
 
 ExtensionSystem::IPlugin::ShutdownFlag MerPlugin::aboutToShutdown()
 {
-    //TODO: this is quick a dirty
+    MerConnectionPrompt *promtConnection = new MerConnectionPrompt(QString(), this);
+    promtConnection->prompt(MerConnectionPrompt::Close);
+    QTimer::singleShot(3000, this, SIGNAL(asynchronousShutdownFinished()));
 
-    bool shutdown = false;
-
-    QList<MerSdk*> sdks = MerSdkManager::instance()->sdks();
-    foreach(const MerSdk* sdk, sdks) {
-        if(sdk->isHeadless()) {
-            const QString& vm = sdk->virtualMachineName();
-            if(MerConnectionManager::instance()->isConnected(vm)) {
-                const QMessageBox::StandardButton response =
-                        QMessageBox::question(0, tr("Stop Virtual Machine"),
-                        tr("The headless virtual machine '%1' is still running!\n\n"
-                        "Stop Virtual Machine now?").arg(vm),
-                        QMessageBox::No | QMessageBox::Yes, QMessageBox::Yes);
-                if (response == QMessageBox::Yes) {
-                    MerConnectionManager::instance()->disconnectFrom(vm);
-                    //TODO: disconnected signal
-                    shutdown = true;
-                }
-            }
-        }
-    }
-
-    if(shutdown) {
-        //TODO: disconnected signal
-        QTimer::singleShot(3000,this, SIGNAL(asynchronousShutdownFinished()));
-        return AsynchronousShutdown;
-    } else {
-        return SynchronousShutdown;
-    }
+    return AsynchronousShutdown;
 }
 
 } // Internal

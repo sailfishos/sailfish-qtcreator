@@ -20,8 +20,10 @@
 **
 ****************************************************************************/
 
-#include "merconnectionrequest.h"
+#include "merconnectionprompt.h"
 #include "merconnectionmanager.h"
+#include "mersdkmanager.h"
+
 #include <QMessageBox>
 #include <QTimer>
 
@@ -33,14 +35,25 @@
 namespace Mer {
 namespace Internal {
 
-
-MerConnectionRequest::MerConnectionRequest(const QString& vm):
+MerConnectionPrompt::MerConnectionPrompt(const QString& vm, const MerPlugin *merplugin):
     m_vm(vm)
+  ,m_merplugin(merplugin)
 {
-    QTimer::singleShot(0,this,SLOT(prompt()));
 }
 
-void MerConnectionRequest::prompt()
+void MerConnectionPrompt::prompt(const MerConnectionPrompt::PromptRequest pr)
+{
+    switch(pr) {
+    case MerConnectionPrompt::Start:
+        QTimer::singleShot(0,this,SLOT(startPrompt()));
+        break;
+    case MerConnectionPrompt::Close:
+        QTimer::singleShot(0,this,SLOT(closePrompt()));
+        break;
+    }
+}
+
+void MerConnectionPrompt::startPrompt()
 {
     const QMessageBox::StandardButton response =
         QMessageBox::question(0, tr("Start Virtual Machine"),
@@ -52,6 +65,31 @@ void MerConnectionRequest::prompt()
     if (response == QMessageBox::Yes) {
         MerConnectionManager::instance()->connectTo(m_vm);
     }
+
+    this->deleteLater();
+}
+
+void MerConnectionPrompt::closePrompt()
+{
+    QList<MerSdk*> sdks = MerSdkManager::instance()->sdks();
+    foreach(const MerSdk* sdk, sdks) {
+        if(sdk->isHeadless()) {
+            const QString& vm = sdk->virtualMachineName();
+            if(MerConnectionManager::instance()->isConnected(vm)) {
+                const QMessageBox::StandardButton response =
+                        QMessageBox::question(0, tr("Stop Virtual Machine"),
+                        tr("The headless virtual machine '%1' is still running!\n\n"
+                        "Stop Virtual Machine now?").arg(vm),
+                        QMessageBox::No | QMessageBox::Yes, QMessageBox::Yes);
+
+                if (response == QMessageBox::Yes) {
+                    MerConnectionManager::instance()->disconnectFrom(vm);
+                    QTimer::singleShot(3000, const_cast<Mer::Internal::MerPlugin*> (m_merplugin), SIGNAL(asynchronousShutdownFinished()));
+                }
+            }
+        }
+    }
+
     this->deleteLater();
 }
 
