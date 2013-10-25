@@ -279,7 +279,6 @@ void MerRemoteConnection::changeState(State stateTrigger)
                 m_connection->state() == SshConnection::Connecting) {
             m_connection->disconnectFromHost();
         } else if (m_connection->state() == SshConnection::Unconnected) {
-            MerVirtualBoxManager::shutVirtualMachine(m_vmName);
             QSsh::SshConnectionParameters sshParams = m_connection->connectionParameters();
             QSsh::SshRemoteProcessRunner *runner = new QSsh::SshRemoteProcessRunner(m_connection);
             connect(runner, SIGNAL(processClosed(int)), runner, SLOT(deleteLater()));
@@ -289,8 +288,11 @@ void MerRemoteConnection::changeState(State stateTrigger)
         }
         break;
     case ClosingVm:
-        if (MerVirtualBoxManager::isVirtualMachineRunning(m_vmName))
+        if (MerVirtualBoxManager::isVirtualMachineRunning(m_vmName)) {
             qWarning() << "Could not close virtual machine" << m_vmName;
+            qWarning() << "Trying force..";
+            MerVirtualBoxManager::shutVirtualMachine(m_vmName);
+        }
         m_state = Disconnected;
         break;
     case Disconnected:

@@ -43,6 +43,11 @@ public:
     ShutdownFlag aboutToShutdown();
 
 private slots:
+    void handlePromptClosed(const QString& vm, bool accepted);
+
+private:
+    QStringList m_stopList;
+    bool m_wait;
 
 #ifdef WITH_TESTS
     void verifyTargets(const QString &vm, QStringList expectedKits, QStringList expectedToolChains, QStringList expectedQtVersion);

@@ -38,6 +38,7 @@
 #include "jollawelcomepage.h"
 #include "mermode.h"
 #include "merconnectionprompt.h"
+#include "meractionmanager.h"
 
 #include <coreplugin/icore.h>
 #include <coreplugin/mimedatabase.h>
@@ -49,7 +50,8 @@
 namespace Mer {
 namespace Internal {
 
-MerPlugin::MerPlugin()
+MerPlugin::MerPlugin():
+    m_wait(false)
 {
 }
 
@@ -78,6 +80,7 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
     addAutoReleasedObject(new MerYamlUpdater);
     addAutoReleasedObject(new MerBuildConfigurationProjectPathEnvironmentVariableSetter);
     addAutoReleasedObject(new YamlEditorFactory);
+    addAutoReleasedObject(new MerActionManager);
 
     addAutoReleasedObject(new JollaWelcomePage);
     addAutoReleasedObject(new MerMode);
@@ -91,10 +94,42 @@ void MerPlugin::extensionsInitialized()
 
 ExtensionSystem::IPlugin::ShutdownFlag MerPlugin::aboutToShutdown()
 {
-    MerConnectionPrompt *promtConnection = new MerConnectionPrompt(QString(), this);
-    promtConnection->prompt(MerConnectionPrompt::Close);
+    m_stopList.clear();
+    m_wait=false;
+    QList<MerSdk*> sdks = MerSdkManager::instance()->sdks();
+    foreach(const MerSdk* sdk, sdks) {
+        if(sdk->isHeadless()) {
+            const QString& vm = sdk->virtualMachineName();
+            if(MerConnectionManager::instance()->isConnected(vm)) {
+                Prompt * prompt = MerActionManager::createClosePrompt(vm);
+                connect(prompt,SIGNAL(closed(QString,bool)),this,SLOT(handlePromptClosed(QString,bool)));
+                m_stopList << vm;
+            }
+        }
+    }
+    if(m_stopList.isEmpty())
+        return SynchronousShutdown;
+    else
+        return AsynchronousShutdown;
+}
 
-    return AsynchronousShutdown;
+void MerPlugin::handlePromptClosed(const QString& vm, bool accepted)
+{
+     m_stopList.removeAll(vm);
+    if (accepted) {
+        MerConnectionManager::instance()->disconnectFrom(vm);
+        m_wait=true;
+    }
+
+    if(m_stopList.isEmpty()) {
+        if(m_wait){
+             QTimer::singleShot(3000, this, SIGNAL(asynchronousShutdownFinished()));
+        }else{
+             emit asynchronousShutdownFinished();
+        }
+
+    }
+
 }
 
 } // Internal
