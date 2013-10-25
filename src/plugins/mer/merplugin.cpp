@@ -93,7 +93,6 @@ ExtensionSystem::IPlugin::ShutdownFlag MerPlugin::aboutToShutdown()
 {
     MerConnectionPrompt *promtConnection = new MerConnectionPrompt(QString(), this);
     promtConnection->prompt(MerConnectionPrompt::Close);
-    QTimer::singleShot(3000, this, SIGNAL(asynchronousShutdownFinished()));
 
     return AsynchronousShutdown;
 }
