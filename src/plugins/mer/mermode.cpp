@@ -50,12 +50,14 @@ MerMode::MerMode()
 
 void MerMode::handleUpdateContext(Core::IMode *newMode, Core::IMode *oldMode)
 {
+#if !defined(QT_NO_WEBKIT)
     MerManagementWebView* view = qobject_cast<MerManagementWebView*>(widget());
     if (view && newMode == this) {
         view->setAutoFailReload(true);
     } else if (view && oldMode == this) {
         view->setAutoFailReload(false);
     }
+#endif
 }
 
 } // namespace Internal

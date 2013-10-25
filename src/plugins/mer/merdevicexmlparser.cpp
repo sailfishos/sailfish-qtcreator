@@ -404,7 +404,7 @@ MerDevicesXmlWriter::MerDevicesXmlWriter(const QString &fileName,
             QXmlStreamReader xmlReader(fileReader.data());
             while (!xmlReader.atEnd()) {
                 xmlReader.readNext();
-                if (xmlReader.isStartElement() && xmlReader.name().toLatin1() == DEVICE) {
+                if (xmlReader.isStartElement() && xmlReader.name() == QLatin1String(DEVICE)) {
                     QXmlStreamAttributes attributes = xmlReader.attributes();
                     if (attributes.value(QLatin1String(TYPE)) != QLatin1String("vbox")) {
                         writer.writeStartElement(QLatin1String(DEVICE));
@@ -416,7 +416,7 @@ MerDevicesXmlWriter::MerDevicesXmlWriter(const QString &fileName,
                                 writer.writeAttributes(attributes);
                             } else if (xmlReader.isEndElement()) {
                                 writer.writeEndElement();
-                                if (xmlReader.name() == DEVICE)
+                                if (xmlReader.name() == QLatin1String(DEVICE))
                                     break;
                             } else if (xmlReader.isCharacters()) {
                                 writer.writeCharacters(xmlReader.text().toString());
