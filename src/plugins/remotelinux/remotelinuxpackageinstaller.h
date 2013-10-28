@@ -40,7 +40,7 @@ class REMOTELINUX_EXPORT AbstractRemoteLinuxPackageInstaller : public QObject
 public:
     ~AbstractRemoteLinuxPackageInstaller();
 
-    void installPackage(const ProjectExplorer::IDevice::ConstPtr &deviceConfig,
+    virtual void installPackage(const ProjectExplorer::IDevice::ConstPtr &deviceConfig,
         const QString &packageFilePath, bool removePackageFile);
     void cancelInstallation();
 
