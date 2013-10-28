@@ -69,6 +69,8 @@ public:
 
     void generteSshKey(const QString& user) const;
 
+    QSsh::SshConnectionParameters sshParametersForUser(const QSsh::SshConnectionParameters &sshParams, const QLatin1String &user) const;
+
 private:
     MerEmulatorDevice();
 private:

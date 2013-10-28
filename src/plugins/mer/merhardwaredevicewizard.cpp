@@ -97,6 +97,7 @@ IDevice::Ptr MerDeviceConfigurationWizard::device()
     device->setDisplayName(d->wizardData.configName),
     device->setFreePorts(Utils::PortList::fromString(d->wizardData.freePorts));
     device->setSshParameters(sshParams);
+
     // Might be called after accept.
     QWidget *parent = isVisible() ? this : static_cast<QWidget *>(0);
     RemoteLinux::LinuxDeviceTestDialog dlg(device,

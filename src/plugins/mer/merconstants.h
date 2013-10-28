@@ -61,6 +61,7 @@ const char MER_SAILFISH_STOP_ICON[] = ":/mer/images/sdk-stop.png";
 #define SCRIPT_EXTENSION ""
 #endif // Q_OS_WIN
 
+const char MER_WRAPPER_RPMBUILD[] = "rpmbuild"SCRIPT_EXTENSION;
 const char MER_WRAPPER_QMAKE[] = "qmake"SCRIPT_EXTENSION;
 const char MER_WRAPPER_MAKE[] = "make"SCRIPT_EXTENSION;
 const char MER_WRAPPER_GCC[] = "gcc"SCRIPT_EXTENSION;

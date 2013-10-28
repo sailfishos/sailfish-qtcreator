@@ -314,6 +314,17 @@ void MerEmulatorDevice::generteSshKey(const QString& user) const
     }
 }
 
+QSsh::SshConnectionParameters MerEmulatorDevice::sshParametersForUser(const QSsh::SshConnectionParameters &sshParams, const QLatin1String &user) const
+{
+    QString emulatorIndex(QLatin1String("/ssh/private_keys/%1/"));
+    QString privateKeyFile = sharedConfigPath() + emulatorIndex.arg(index()) + user;
+    QSsh::SshConnectionParameters m_sshParams = sshParams;
+    m_sshParams.userName = user;
+    m_sshParams.privateKeyFile = privateKeyFile;
+
+    return m_sshParams;
+}
+
 #include "meremulatordevice.moc"
 
 }

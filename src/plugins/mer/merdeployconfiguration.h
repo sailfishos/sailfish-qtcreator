@@ -30,7 +30,8 @@
 #ifndef MERDEPLOYCONFIGURATION_H
 #define MERDEPLOYCONFIGURATION_H
 
-#include <projectexplorer/deployconfiguration.h>
+//#include <projectexplorer/deployconfiguration.h>
+#include <remotelinux/remotelinuxdeployconfiguration.h>
 
 QT_BEGIN_NAMESPACE
 class QLabel;
@@ -39,7 +40,7 @@ QT_END_NAMESPACE
 namespace Mer {
 namespace Internal {
 
-class MerDeployConfiguration : public ProjectExplorer::DeployConfiguration
+class MerDeployConfiguration : public RemoteLinux::RemoteLinuxDeployConfiguration
 {
     Q_OBJECT
 public:
@@ -69,7 +70,7 @@ class MerRsyncDeployConfiguration : public  MerDeployConfiguration
 
 public:
     static QString displayName();
-    static Core::Id configurationId();    
+    static Core::Id configurationId();
 
 private:
     MerRsyncDeployConfiguration(ProjectExplorer::Target *parent, const Core::Id id);
@@ -77,7 +78,7 @@ private:
     friend class MerDeployConfigurationFactory;
 };
 //TODO: Hack
-class MerRpmBuildConfiguration : public  MerDeployConfiguration
+class MerMb2RpmBuildConfiguration : public  MerDeployConfiguration
 {
     Q_OBJECT
 
@@ -86,11 +87,24 @@ public:
     static Core::Id configurationId();
 
 private:
-    MerRpmBuildConfiguration(ProjectExplorer::Target *parent, const Core::Id id);
-    MerRpmBuildConfiguration(ProjectExplorer::Target *target, MerRpmBuildConfiguration *source);
+    MerMb2RpmBuildConfiguration(ProjectExplorer::Target *parent, const Core::Id id);
+    MerMb2RpmBuildConfiguration(ProjectExplorer::Target *target, MerMb2RpmBuildConfiguration *source);
     friend class MerDeployConfigurationFactory;
 };
 
+class MerRpmBuildDeployConfiguration : public MerDeployConfiguration
+{
+    Q_OBJECT
+
+    public:
+        static QString displayName();
+        static Core::Id configurationId();
+
+    private:
+        MerRpmBuildDeployConfiguration(ProjectExplorer::Target *parent, const Core::Id id);
+        MerRpmBuildDeployConfiguration(ProjectExplorer::Target *target, MerRpmBuildDeployConfiguration *source);
+        friend class MerDeployConfigurationFactory;
+};
 
 } // namespace Internal
 } // namespace Mer

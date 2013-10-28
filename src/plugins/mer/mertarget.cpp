@@ -58,7 +58,8 @@ static const struct WrapperScript {
     { MER_WRAPPER_GCC, QStringList(), WrapperScript::ExecutionTypeSb2 },
     { MER_WRAPPER_GDB, QStringList(QLatin1String("-interactive")), WrapperScript::ExecutionTypeSb2 },
     { MER_WRAPPER_DEPLOY, QStringList(), WrapperScript::ExecutionTypeMb2 },
-    { MER_WRAPPER_RPM, QStringList(), WrapperScript::ExecutionTypeMb2 }
+    { MER_WRAPPER_RPM, QStringList(), WrapperScript::ExecutionTypeMb2 },
+    { MER_WRAPPER_RPMBUILD, QStringList(), WrapperScript::ExecutionTypeSb2 }
 };
 
 MerTarget::MerTarget(MerSdk* mersdk):

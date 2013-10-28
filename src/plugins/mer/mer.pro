@@ -21,7 +21,8 @@ FORMS += \
     merhardwaredevicewidget.ui \
     merhardwaredevicewizardgeneralpage.ui \
     meremulatordevicewizardvmpage.ui \
-    meremulatordevicewizardsshpage.ui
+    meremulatordevicewizardsshpage.ui \
+    merrpmpackagingwidget.ui
 
 SOURCES += \
     merplugin.cpp \
@@ -68,7 +69,12 @@ SOURCES += \
     merhardwaredevicewizard.cpp \
     meremulatordevicewizardpages.cpp \
     merconnectionprompt.cpp \
-    meractionmanager.cpp
+    meractionmanager.cpp \
+    merrpmpackagingstep.cpp \
+    merrpmpackagingwidget.cpp \
+    merrpminstaller.cpp \
+    meruploadandinstallrpmsteps.cpp
+
 
 HEADERS += \
     merplugin.h \
@@ -117,8 +123,11 @@ HEADERS += \
     merhardwaredevicewizard.h \
     meremulatordevicewizardpages.h \
     merconnectionprompt.h \
-    meractionmanager.h
-
+    meractionmanager.h \
+    merrpmpackagingstep.h \
+    merrpmpackagingwidget.h \
+    merrpminstaller.h \
+    meruploadandinstallrpmsteps.h
 
 SOURCES += \
     $$PWD/jollawelcomepage.cpp \

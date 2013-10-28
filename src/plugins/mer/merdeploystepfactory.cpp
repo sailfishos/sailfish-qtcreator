@@ -23,6 +23,9 @@
 #include "merdeploystepfactory.h"
 #include "merdeploysteps.h"
 #include "merdeployconfiguration.h"
+#include "merrpmpackagingstep.h"
+#include "merrpminstaller.h"
+#include "meruploadandinstallrpmsteps.h"
 
 #include <projectexplorer/buildsteplist.h>
 #include <utils/qtcassert.h>
@@ -47,6 +50,9 @@ QList<Core::Id> MerDeployStepFactory::availableCreationIds(BuildStepList *parent
     ids << MerRsyncDeployStep::stepId();
     ids << MerRpmDeployStep::stepId();
     ids << MerRpmBuildStep::stepId();
+    ids << MerRpmPackagingStep::stepId();
+    ids << MerUploadAndInstallRpmStep::stepId();
+
     return ids;
 }
 
@@ -60,6 +66,10 @@ QString MerDeployStepFactory::displayNameForId(const Core::Id id) const
         return MerRpmDeployStep::displayName();
     if (id == MerRpmBuildStep::stepId())
         return MerRpmBuildStep::displayName();
+    if (id == MerRpmPackagingStep::stepId())
+        return MerRpmPackagingStep::displayName();
+    if (id == MerUploadAndInstallRpmStep::stepId())
+        return MerUploadAndInstallRpmStep::displayName();
     return QString();
 }
 
@@ -78,6 +88,10 @@ BuildStep *MerDeployStepFactory::create(BuildStepList *parent, const Core::Id id
         return new MerRpmDeployStep(parent);
     if (id == MerRpmBuildStep::stepId())
         return new MerRpmBuildStep(parent);
+    if (id == MerRpmPackagingStep::stepId())
+        return new MerRpmPackagingStep(parent);
+    if (id == MerUploadAndInstallRpmStep::stepId())
+        return new MerUploadAndInstallRpmStep(parent);
     return 0;
 }
 
@@ -113,6 +127,10 @@ BuildStep *MerDeployStepFactory::clone(BuildStepList *parent, BuildStep *product
         return new MerRpmDeployStep(parent, other);
     if (MerRpmBuildStep * const other = qobject_cast<MerRpmBuildStep *>(product))
         return new MerRpmBuildStep(parent, other);
+    if (MerRpmPackagingStep * const other = qobject_cast<MerRpmPackagingStep *>(product))
+        return new MerRpmPackagingStep(parent, other);
+    if (MerUploadAndInstallRpmStep * const other = qobject_cast<MerUploadAndInstallRpmStep *>(product))
+        return new MerUploadAndInstallRpmStep(parent, other);
 
     return 0;
 }

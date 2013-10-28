@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2012 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -27,69 +27,37 @@
 **
 ****************************************************************************/
 
-#ifndef REMOTELINUXPACKAGEINSTALLER_H
-#define REMOTELINUXPACKAGEINSTALLER_H
+#ifndef MERRPMINSTALLER_H
+#define MERRPMINSTALLER_H
 
-#include "remotelinux_export.h"
+#include <remotelinux/remotelinuxpackageinstaller.h>
 
-#include <projectexplorer/devicesupport/idevice.h>
-
-namespace RemoteLinux {
-
+namespace Mer {
 namespace Internal {
-class AbstractRemoteLinuxPackageInstallerPrivate;
-} // namespace Internal
 
-class REMOTELINUX_EXPORT AbstractRemoteLinuxPackageInstaller : public QObject
+class MerRpmInstaller: public RemoteLinux::AbstractRemoteLinuxPackageInstaller
 {
     Q_OBJECT
-    Q_DISABLE_COPY(AbstractRemoteLinuxPackageInstaller)
+
 public:
-    ~AbstractRemoteLinuxPackageInstaller();
-
-    virtual void installPackage(const ProjectExplorer::IDevice::ConstPtr &deviceConfig,
+    explicit MerRpmInstaller(QObject *parent);
+    void installPackage(const ProjectExplorer::IDevice::ConstPtr &deviceConfig,
         const QString &packageFilePath, bool removePackageFile);
-    void cancelInstallation();
-
-signals:
-    void stdoutData(const QString &output);
-    void stderrData(const QString &output);
-    void finished(const QString &errorMsg = QString());
-
-protected:
-    explicit AbstractRemoteLinuxPackageInstaller(QObject *parent = 0);
 
 private slots:
-    void handleConnectionError();
-    void handleInstallationFinished(int exitStatus);
-    void handleInstallerOutput();
-    void handleInstallerErrorOutput();
-
-private:
-    virtual QString installCommandLine(const QString &packageFilePath) const = 0;
-    virtual QString cancelInstallationCommandLine() const = 0;
-
-    virtual void prepareInstallation() {}
-    virtual QString errorString() const { return QString(); }
-
-    void setFinished();
-
-    Internal::AbstractRemoteLinuxPackageInstallerPrivate * const d;
-};
-
-
-class REMOTELINUX_EXPORT RemoteLinuxTarPackageInstaller : public AbstractRemoteLinuxPackageInstaller
-{
-    Q_OBJECT
-public:
-    RemoteLinuxTarPackageInstaller(QObject *parent = 0);
+    void handleInstallerErrorOutput(const QString &output);
 
 private:
     QString installCommandLine(const QString &packageFilePath) const;
     QString cancelInstallationCommandLine() const;
+    void prepareInstallation();
+    QString errorString() const;
+
+    QString m_installerStderr;
+    QString m_installerStdout;
 };
 
+} // namespace Internal
+} // namespace Mer
 
-} // namespace RemoteLinux
-
-#endif // REMOTELINUXPACKAGEINSTALLER_H
+#endif // MERRPMINSTALLER_H

@@ -41,14 +41,14 @@ namespace Mer {
 namespace Internal {
 
 MerDeployConfiguration::MerDeployConfiguration(Target *parent, const Core::Id id,const QString& displayName)
-    : ProjectExplorer::DeployConfiguration(parent, id)
+    : RemoteLinux::RemoteLinuxDeployConfiguration(parent, id, displayName)
 {
     setDisplayName(displayName);
     setDefaultDisplayName(displayName);
 }
 
 MerDeployConfiguration::MerDeployConfiguration(ProjectExplorer::Target *target, MerDeployConfiguration *source)
-    : ProjectExplorer::DeployConfiguration(target, source)
+    : RemoteLinux::RemoteLinuxDeployConfiguration(target, source)
 {
     cloneSteps(source);
 }
@@ -73,7 +73,7 @@ void MerRpmDeployConfiguration::init()
 
 QString MerRpmDeployConfiguration::displayName()
 {
-    return tr("Deploy As RPM Package");
+    return tr("Deploy As RPM Package (MB2)");
 }
 
 Core::Id MerRpmDeployConfiguration::configurationId()
@@ -81,7 +81,7 @@ Core::Id MerRpmDeployConfiguration::configurationId()
     return Core::Id("Qt4ProjectManager.MerRpmDeployConfiguration");
 }
 
-////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////
 
 MerRsyncDeployConfiguration::MerRsyncDeployConfiguration(Target *parent, const Core::Id id)
     : MerDeployConfiguration(parent, id,displayName())
@@ -95,7 +95,7 @@ MerRsyncDeployConfiguration::MerRsyncDeployConfiguration(Target *target, MerRsyn
 
 QString MerRsyncDeployConfiguration::displayName()
 {
-    return tr("Deploy By Copying Binaries");
+    return tr("Deploy By Copying Binaries (MB2)");
 }
 
 Core::Id MerRsyncDeployConfiguration::configurationId()
@@ -105,24 +105,48 @@ Core::Id MerRsyncDeployConfiguration::configurationId()
 
 /////////////////////////////////////////////////////////////////////////////////////
 //TODO:HACK
-MerRpmBuildConfiguration::MerRpmBuildConfiguration(Target *parent, const Core::Id id)
+MerMb2RpmBuildConfiguration::MerMb2RpmBuildConfiguration(Target *parent, const Core::Id id)
     : MerDeployConfiguration(parent, id,displayName())
 {
 }
 
-MerRpmBuildConfiguration::MerRpmBuildConfiguration(Target *target, MerRpmBuildConfiguration *source)
+MerMb2RpmBuildConfiguration::MerMb2RpmBuildConfiguration(Target *target, MerMb2RpmBuildConfiguration *source)
     : MerDeployConfiguration(target, source)
 {
 }
 
-QString MerRpmBuildConfiguration::displayName()
+QString MerMb2RpmBuildConfiguration::displayName()
 {
-    return tr("Deploy Method ARM");
+    return tr("Build ARM package (MB2)");
 }
 
-Core::Id MerRpmBuildConfiguration::configurationId()
+Core::Id MerMb2RpmBuildConfiguration::configurationId()
 {
     return Core::Id("Qt4ProjectManager.MerArmDeployConfiguration");
+}
+
+////////////////////////////////////////////////////////////////////////////////////
+
+MerRpmBuildDeployConfiguration::MerRpmBuildDeployConfiguration(Target *parent, const Core::Id id)
+    : MerDeployConfiguration(parent, id, displayName())
+{
+
+}
+
+MerRpmBuildDeployConfiguration::MerRpmBuildDeployConfiguration(Target *target, MerRpmBuildDeployConfiguration *source)
+    : MerDeployConfiguration(target, source)
+{
+
+}
+
+QString MerRpmBuildDeployConfiguration::displayName()
+{
+    return tr("Deploy As RPM Package (RPMBUILD)");
+}
+
+Core::Id MerRpmBuildDeployConfiguration::configurationId()
+{
+    return Core::Id("Qt4ProjectManager.MerRpmLocalDeployConfiguration");
 }
 
 } // namespace Internal
