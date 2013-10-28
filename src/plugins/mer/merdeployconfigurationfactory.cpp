@@ -112,7 +112,6 @@ DeployConfiguration *MerDeployConfigurationFactory::create(Target *parent, const
          dc->stepList()->insertStep(0, new MerRpmBuildStep(dc->stepList()));
      } else if (id == MerRpmBuildDeployConfiguration::configurationId()) {
          dc = new MerRpmBuildDeployConfiguration(parent, id);
-         dc->stepList()->insertStep(0, new MerEmulatorStartStep(dc->stepList()));
          dc->stepList()->insertStep(1, new MerRpmPackagingStep(dc->stepList()));
          dc->stepList()->insertStep(2, new MerUploadAndInstallRpmStep(dc->stepList()));
      }

@@ -46,22 +46,15 @@ MerHardwareDevice::Ptr MerHardwareDevice::create()
 }
 
 MerHardwareDevice::Ptr MerHardwareDevice::create(const QString &name,
-                                 Core::Id type,
-                                 MachineType machineType,
                                  Origin origin,
                                  Core::Id id)
 {
-    return Ptr(new MerHardwareDevice(name, type, machineType, origin, id));
+    return Ptr(new MerHardwareDevice(name, Constants::MER_DEVICE_TYPE_ARM, IDevice::Hardware, origin, id));
 }
 
 QString MerHardwareDevice::displayType() const
 {
     return QLatin1String("Mer ARM");
-}
-
-ProjectExplorer::IDeviceWidget *MerHardwareDevice::createWidget()
-{
-    return new MerHardwareDeviceWidget(sharedFromThis());
 }
 
 MerHardwareDevice::MerHardwareDevice(const QString &name,

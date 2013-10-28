@@ -21,110 +21,56 @@
 ****************************************************************************/
 
 #include "merhardwaredevicewizard.h"
-#include "merdeviceconfigurationwizardsetuppages.h"
-#include "meremulatordevice.h"
-#include "merconstants.h"
-#include "mersdkmanager.h"
+#include <ssh/sshconnection.h>
 
-#include <remotelinux/linuxdevicetestdialog.h>
-#include <remotelinux/linuxdevicetester.h>
-#include <utils/portlist.h>
-#include <utils/qtcassert.h>
-
-using namespace ProjectExplorer;
 using namespace QSsh;
 
 namespace Mer {
 namespace Internal {
 
-namespace {
-enum PageId { GeneralPageId,
-              FinalPageId };
-} // Anonymous
-
-class MerDeviceConfigurationWizardPrivate
+MerHardwareDeviceWizard::MerHardwareDeviceWizard(QWidget *parent)
+    : QWizard(parent),
+      m_setupPage(this),
+      m_finalPage(this)
 {
-public:
-    MerDeviceConfigurationWizardPrivate(Core::Id id, QWidget *parent)
-        : generalPage(wizardData, parent)
-        , finalPage(wizardData, parent)
-    {
-        wizardData.deviceType = id;
-        wizardData.machineType = id == Constants::MER_DEVICE_TYPE_I486 ? ProjectExplorer::IDevice::Emulator : ProjectExplorer::IDevice::Hardware;
-    }
-
-    WizardData wizardData;
-    MerDeviceConfigWizardGeneralPage generalPage;
-    MerDeviceConfigWizardFinalPage finalPage;
-};
-
-MerDeviceConfigurationWizard::MerDeviceConfigurationWizard(Core::Id id, QWidget *parent)
-    : QWizard(parent)
-    , d(new MerDeviceConfigurationWizardPrivate(id, this))
-{
-    setWindowTitle(tr("New Mer Device Configuration Setup"));
-    setPage(GeneralPageId, &d->generalPage);
-    //setPage(FinalPageId, &d->finalPage);
-    d->generalPage.setCommitPage(true);
+    setWindowTitle(tr("New Mer ARM Device  Setup"));
+    addPage(&m_setupPage);
+    addPage(&m_finalPage);
+    m_finalPage.setCommitPage(true);
 }
 
-MerDeviceConfigurationWizard::~MerDeviceConfigurationWizard()
+MerHardwareDeviceWizard::~MerHardwareDeviceWizard()
 {
-    delete d;
+
 }
 
-IDevice::Ptr MerDeviceConfigurationWizard::device()
+QString MerHardwareDeviceWizard::hostName() const
 {
-    SshConnectionParameters sshParams;
-    sshParams.host = d->wizardData.hostName;
-    sshParams.userName = d->wizardData.userName;
-    sshParams.port = d->wizardData.sshPort;
-    sshParams.timeout = d->wizardData.timeout;
-    sshParams.authenticationType = d->wizardData.authType;
-    if (sshParams.authenticationType == SshConnectionParameters::AuthenticationByPassword)
-        sshParams.password = d->wizardData.password;
-    else
-        sshParams.privateKeyFile = d->wizardData.privateKeyFilePath;
-
-    //hardcoded values requested by customer;
-    int index = MerSdkManager::generateDeviceId();
-    QString mac = QString(QLatin1String("08:00:5A:11:00:0%1")).arg(index);
-    MerEmulatorDevice::Ptr device = MerEmulatorDevice::create();
-    device->setVirtualMachine(d->wizardData.virtualMachineName);
-    device->setMac(mac);
-    device->setSubnet(QLatin1String("10.220.220"));
-    device->setIndex(index);
-    device->setDisplayName(d->wizardData.configName),
-    device->setFreePorts(Utils::PortList::fromString(d->wizardData.freePorts));
-    device->setSshParameters(sshParams);
-
-    // Might be called after accept.
-    QWidget *parent = isVisible() ? this : static_cast<QWidget *>(0);
-    RemoteLinux::LinuxDeviceTestDialog dlg(device,
-                                           new RemoteLinux::GenericLinuxDeviceTester(this),
-                                           parent);
-    dlg.exec();
-    return device;
+    return m_setupPage.hostName();
 }
 
-int MerDeviceConfigurationWizard::nextId() const
+QString MerHardwareDeviceWizard::userName() const
 {
-    switch (currentId()) {
-    case GeneralPageId:
-        d->wizardData.configName = d->generalPage.configName();
-        d->wizardData.hostName = d->generalPage.hostName();
-        d->wizardData.sshPort = d->generalPage.sshPort();
-        d->wizardData.userName = d->generalPage.userName();
-        d->wizardData.authType = d->generalPage.authType();
-        d->wizardData.password = d->generalPage.password();
-        d->wizardData.freePorts = d->generalPage.freePorts();
-        d->wizardData.timeout = d->generalPage.timeout();
-        return FinalPageId;
-    case FinalPageId:
-        return -1;
-    default:
-        QTC_ASSERT(false, return -1);
-    }
+    return m_setupPage.userName();
+}
+
+QString MerHardwareDeviceWizard::password() const
+{
+    return m_setupPage.password();
+}
+
+QString MerHardwareDeviceWizard::privateKeyFilePath() const
+{
+    return m_setupPage.privateKeyFilePath();
+}
+
+QString MerHardwareDeviceWizard::configurationName() const
+{
+    return m_setupPage.configurationName();
+}
+QSsh::SshConnectionParameters::AuthenticationType MerHardwareDeviceWizard::authenticationType() const
+{
+    return m_setupPage.authenticationType();
 }
 
 } // Internal

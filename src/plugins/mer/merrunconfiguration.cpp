@@ -64,9 +64,12 @@ QString MerRunConfiguration::disabledReason() const
 bool MerRunConfiguration::isEnabled() const
 {   
     //TODO Hack
+
+    ProjectExplorer::DeployConfiguration* conf = target()->activeDeployConfiguration();
     if(target()->kit())
-    {
-        if(ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(target()->kit()) == Constants::MER_DEVICE_TYPE_ARM) {
+    {   
+        if(ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(target()->kit()) == Constants::MER_DEVICE_TYPE_ARM
+            && conf->id() != MerRpmBuildDeployConfiguration::configurationId()) {
             m_disabledReason = tr("Alpha2 SDK does not support run configuration for arm packages");
             return false;
         }

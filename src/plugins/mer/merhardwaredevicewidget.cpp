@@ -19,7 +19,7 @@
 ** conditions contained in a signed written agreement between you and Digia.
 **
 ****************************************************************************/
-
+/*
 #include "merhardwaredevicewidget.h"
 #include "ui_merhardwaredevicewidget.h"
 #include "mervirtualboxmanager.h"
@@ -197,3 +197,4 @@ void MerHardwareDeviceWidget::initGui()
 
 } // Internal
 } // Mer
+*/

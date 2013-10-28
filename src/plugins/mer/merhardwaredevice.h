@@ -36,11 +36,9 @@ public:
     typedef QSharedPointer<const MerHardwareDevice> ConstPtr;
 
     static Ptr create();
-    static Ptr create(const QString &name, Core::Id type, MachineType machineType,
-                      Origin origin = ManuallyAdded, Core::Id id = Core::Id());
+    static Ptr create(const QString &name, Origin origin = ManuallyAdded, Core::Id id = Core::Id());
 
     QString displayType() const;
-    ProjectExplorer::IDeviceWidget *createWidget();
     ProjectExplorer::IDevice::Ptr clone() const;
 
 protected:

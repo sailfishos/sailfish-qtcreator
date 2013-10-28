@@ -24,7 +24,7 @@
 #define MERHARDWAREDEVICEWIDGET_H
 
 #include <projectexplorer/devicesupport/idevicewidget.h>
-
+/*
 namespace Mer {
 namespace Internal {
 
@@ -63,5 +63,5 @@ private:
 
 } // Internal
 } // Mer
-
+*/
 #endif // MERDEVICECONFIGURATIONWIDGET_H

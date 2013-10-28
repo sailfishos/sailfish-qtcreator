@@ -1,7 +1,6 @@
 #ifndef MEREMULATORDEVICEWIZARD_H
 #define MEREMULATORDEVICEWIZARD_H
 
-#include <projectexplorer/devicesupport/idevice.h>
 #include "meremulatordevicewizardpages.h"
 #include <QWizard>
 
@@ -12,7 +11,7 @@ class MerEmulatorDeviceWizard : public QWizard
 {
     Q_OBJECT
 public:
-    MerEmulatorDeviceWizard(QWidget *parent = 0);
+    explicit MerEmulatorDeviceWizard(QWidget *parent = 0);
 
     int index() const;
     QString configName() const;

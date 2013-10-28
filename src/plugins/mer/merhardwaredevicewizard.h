@@ -20,34 +20,46 @@
 **
 ****************************************************************************/
 
-#ifndef MERDEVICECONFIGURATIONWIZARD_H
-#define MERDEVICECONFIGURATIONWIZARD_H
-
-#include <projectexplorer/devicesupport/idevice.h>
+#ifndef MERHARDWAREDEVICEWIZARD_H
+#define MERHARDWAREDEVICEWIZARD_H
 
 #include <QWizard>
+#include <remotelinux/genericlinuxdeviceconfigurationwizardpages.h>
+
+namespace QSsh {
+    class SshConnectionParameters;
+}
 
 namespace Mer {
 namespace Internal {
 
-class MerDeviceConfigurationWizardPrivate;
-class MerDeviceConfigurationWizard : public QWizard
+class MerDeviceConfigurationWizardSetupPage: public RemoteLinux::GenericLinuxDeviceConfigurationWizardSetupPage
+{
+public:
+    MerDeviceConfigurationWizardSetupPage(QWidget *parent = 0):
+        RemoteLinux::GenericLinuxDeviceConfigurationWizardSetupPage(parent){}
+    QString defaultConfigurationName() const { return tr("Sailfish Device");}
+};
+
+class MerHardwareDeviceWizard : public QWizard
 {
     Q_OBJECT
-
 public:
-    explicit MerDeviceConfigurationWizard(Core::Id id, QWidget *parent = 0);
-    ~MerDeviceConfigurationWizard();
-
-    ProjectExplorer::IDevice::Ptr device();
-
-    virtual int nextId() const;
+    explicit MerHardwareDeviceWizard(QWidget *parent = 0);
+    ~MerHardwareDeviceWizard();
+    QString hostName() const;
+    QString userName() const;
+    QString password() const;
+    QString privateKeyFilePath() const;
+    QString configurationName() const;
+    QSsh::SshConnectionParameters::AuthenticationType authenticationType() const;
 
 private:
-    MerDeviceConfigurationWizardPrivate * const d;
+    MerDeviceConfigurationWizardSetupPage m_setupPage;
+    RemoteLinux::GenericLinuxDeviceConfigurationWizardFinalPage m_finalPage;
 };
 
 } // Internal
 } // Mer
 
-#endif // MERDEVICECONFIGURATIONWIZARD_H
+#endif

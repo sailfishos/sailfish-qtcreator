@@ -23,6 +23,8 @@
 #include "merdevicefactory.h"
 #include "meremulatordevicewizard.h"
 #include "meremulatordevice.h"
+#include "merhardwaredevicewizard.h"
+#include "merhardwaredevice.h"
 #include "merconstants.h"
 #include "mersdkmanager.h"
 
@@ -64,44 +66,74 @@ QList<Core::Id> MerDeviceFactory::availableCreationIds() const
 ProjectExplorer::IDevice::Ptr MerDeviceFactory::create(Core::Id id) const
 {
     QTC_ASSERT(canCreate(id), return ProjectExplorer::IDevice::Ptr());
-    MerEmulatorDeviceWizard wizard;
-    if (wizard.exec() != QDialog::Accepted)
-        return ProjectExplorer::IDevice::Ptr();
 
-    QSsh::SshConnectionParameters sshParams;
-    sshParams.host = QLatin1String("localhost");
-    sshParams.userName = wizard.userName();
-    sshParams.port = wizard.sshPort();
-    sshParams.timeout = wizard.timeout();
-    sshParams.authenticationType = QSsh::SshConnectionParameters::AuthenticationByKey;
-    sshParams.privateKeyFile = wizard.userPrivateKey();
+    if(id == Constants::MER_DEVICE_TYPE_I486) {
+        MerEmulatorDeviceWizard wizard;
+        if (wizard.exec() != QDialog::Accepted)
+            return ProjectExplorer::IDevice::Ptr();
 
-    //hardcoded values requested by customer;
-    QString mac = QString(QLatin1String("08:00:5A:11:00:0%1")).arg(wizard.index());
-    MerEmulatorDevice::Ptr device = MerEmulatorDevice::create();
-    device->setVirtualMachine(wizard.emulatorVm());
-    device->setMac(mac);
-    device->setSubnet(QLatin1String("10.220.220"));
-    device->setIndex(wizard.index());
-    device->setDisplayName(wizard.configName());
-    device->setFreePorts(Utils::PortList::fromString(wizard.freePorts()));
-    device->setSshParameters(sshParams);
-    device->setSharedConfigPath(wizard.sharedConfigPath());
-    device->setSharedSshPath(wizard.sharedSshPath());
+        QSsh::SshConnectionParameters sshParams;
+        sshParams.host = QLatin1String("localhost");
+        sshParams.userName = wizard.userName();
+        sshParams.port = wizard.sshPort();
+        sshParams.timeout = wizard.timeout();
+        sshParams.authenticationType = QSsh::SshConnectionParameters::AuthenticationByKey;
+        sshParams.privateKeyFile = wizard.userPrivateKey();
 
-    if(wizard.isUserNewSshKeysRquired() && !wizard.userPrivateKey().isEmpty()) {
-        device->generteSshKey(wizard.userName());
+        //hardcoded values requested by customer;
+        QString mac = QString(QLatin1String("08:00:5A:11:00:0%1")).arg(wizard.index());
+        MerEmulatorDevice::Ptr device = MerEmulatorDevice::create();
+        device->setVirtualMachine(wizard.emulatorVm());
+        device->setMac(mac);
+        device->setSubnet(QLatin1String("10.220.220"));
+        device->setIndex(wizard.index());
+        device->setDisplayName(wizard.configName());
+        device->setFreePorts(Utils::PortList::fromString(wizard.freePorts()));
+        device->setSshParameters(sshParams);
+        device->setSharedConfigPath(wizard.sharedConfigPath());
+        device->setSharedSshPath(wizard.sharedSshPath());
+
+        if(wizard.isUserNewSshKeysRquired() && !wizard.userPrivateKey().isEmpty()) {
+            device->generteSshKey(wizard.userName());
+        }
+
+        if(wizard.isRootNewSshKeysRquired() && !wizard.rootPrivateKey().isEmpty()) {
+            device->generteSshKey(wizard.rootName());
+        }
+
+        RemoteLinux::GenericLinuxDeviceTester* tester = new RemoteLinux::GenericLinuxDeviceTester();
+        RemoteLinux::LinuxDeviceTestDialog dlg(device,tester);
+        dlg.exec();
+        return device;
     }
 
-    if(wizard.isRootNewSshKeysRquired() && !wizard.rootPrivateKey().isEmpty()) {
-        device->generteSshKey(wizard.rootName());
+    if(id == Constants::MER_DEVICE_TYPE_ARM) {
+        MerHardwareDeviceWizard wizard;
+        if (wizard.exec() != QDialog::Accepted)
+            return ProjectExplorer::IDevice::Ptr();
+
+        QSsh::SshConnectionParameters sshParams;
+        //sshParams.options &= ~SshConnectionOptions(SshEnableStrictConformanceChecks); // For older SSH servers.
+        sshParams.host = wizard.hostName();
+        sshParams.userName = wizard.userName();
+        sshParams.port = 22;
+        sshParams.timeout = 10;
+        sshParams.authenticationType = wizard.authenticationType();
+        if (sshParams.authenticationType == QSsh::SshConnectionParameters::AuthenticationByPassword)
+            sshParams.password = wizard.password();
+        else
+            sshParams.privateKeyFile = wizard.privateKeyFilePath();
+        MerHardwareDevice::Ptr device = MerHardwareDevice::create(wizard.configurationName());
+        device->setFreePorts(Utils::PortList::fromString(QLatin1String("10000-10100")));
+        device->setSshParameters(sshParams);
+
+        RemoteLinux::GenericLinuxDeviceTester* tester = new RemoteLinux::GenericLinuxDeviceTester();
+        RemoteLinux::LinuxDeviceTestDialog dlg(device,tester);
+        dlg.exec();
+        return device;
     }
 
-    RemoteLinux::GenericLinuxDeviceTester* tester = new RemoteLinux::GenericLinuxDeviceTester();
-    RemoteLinux::LinuxDeviceTestDialog dlg(device,tester);
-    dlg.exec();
-    return device;
-
+    return ProjectExplorer::IDevice::Ptr();
 }
 
 bool MerDeviceFactory::canRestore(const QVariantMap &map) const
@@ -112,9 +144,17 @@ bool MerDeviceFactory::canRestore(const QVariantMap &map) const
 ProjectExplorer::IDevice::Ptr MerDeviceFactory::restore(const QVariantMap &map) const
 {
     QTC_ASSERT(canRestore(map), return ProjectExplorer::IDevice::Ptr());
-    const ProjectExplorer::IDevice::Ptr device = MerEmulatorDevice::create();
-    device->fromMap(map);
-    return device;
+    if(ProjectExplorer::IDevice::typeFromMap(map) == Constants::MER_DEVICE_TYPE_I486) {
+        const ProjectExplorer::IDevice::Ptr device = MerEmulatorDevice::create();
+        device->fromMap(map);
+        return device;
+    }
+    if(ProjectExplorer::IDevice::typeFromMap(map) == Constants::MER_DEVICE_TYPE_ARM) {
+        const ProjectExplorer::IDevice::Ptr device = MerHardwareDevice::create();
+        device->fromMap(map);
+        return device;
+    }
+    return ProjectExplorer::IDevice::Ptr();
 }
 
 } // Internal
