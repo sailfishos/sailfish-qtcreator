@@ -43,14 +43,12 @@ MerRpmInstaller::MerRpmInstaller(QObject *parent)
 
 void MerRpmInstaller::installPackage(const ProjectExplorer::IDevice::ConstPtr &deviceConfig, const QString &packageFilePath, bool removePackageFile)
 {
-    ProjectExplorer::IDevice::Ptr device = deviceConfig->clone();
-    if(device->type() != Core::Id(Constants::MER_DEVICE_TYPE_I486))
-        return;
-
-    const MerEmulatorDevice* emu = static_cast<const MerEmulatorDevice*>(device.data());
-    QSsh::SshConnectionParameters sshParams = emu->sshParametersForUser(device->sshParameters(), QLatin1String("root"));
-    device->setSshParameters(sshParams);
-    AbstractRemoteLinuxPackageInstaller::installPackage(device,packageFilePath,removePackageFile);
+    //TODO: cleanup
+    //ProjectExplorer::IDevice::Ptr device = deviceConfig->clone();
+    //const MerEmulatorDevice* emu = static_cast<const MerEmulatorDevice*>(device.data());
+    //QSsh::SshConnectionParameters sshParams = emu->sshParametersForUser(device->sshParameters(), QLatin1String("root"));
+    //device->setSshParameters(sshParams);
+    AbstractRemoteLinuxPackageInstaller::installPackage(deviceConfig,packageFilePath,removePackageFile);
 }
 
 void MerRpmInstaller::handleInstallerErrorOutput(const QString &output)
@@ -60,7 +58,8 @@ void MerRpmInstaller::handleInstallerErrorOutput(const QString &output)
 
 QString MerRpmInstaller::installCommandLine(const QString &packageFilePath) const
 {
-    return QLatin1String("rpm -i --force ") + packageFilePath;
+    //return QLatin1String("rpm -i --force ") + packageFilePath;
+      return QLatin1String("pkcon -y install-local ") + packageFilePath;
 }
 
 QString MerRpmInstaller::cancelInstallationCommandLine() const
