@@ -23,6 +23,7 @@
 #include "merconnectionprompt.h"
 #include "merconnectionmanager.h"
 #include "mersdkmanager.h"
+#include "mervirtualboxmanager.h"
 
 #include <QMessageBox>
 #include <QTimer>
@@ -55,6 +56,12 @@ void MerConnectionPrompt::prompt(const MerConnectionPrompt::PromptRequest pr)
 
 void MerConnectionPrompt::startPrompt()
 {
+    if(!MerVirtualBoxManager::isVirtualMachineRegistered(m_vm)) {
+        QMessageBox::warning(0, tr("Start Virtual Machine"),
+                             tr("Virtual Machine '%1' is not installed! ").arg(m_vm), QMessageBox::Ok);
+        return;
+    }
+
     const QMessageBox::StandardButton response =
         QMessageBox::question(0, tr("Start Virtual Machine"),
                               tr("Virtual Machine '%1' is not running! Please start the "

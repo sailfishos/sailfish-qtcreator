@@ -138,15 +138,20 @@ bool MerVirtualBoxManager::startVirtualMachine(const QString &vmName,bool headle
     // Start VM if it is not running
     if (isVirtualMachineRunning(vmName))
         return true;
-    QStringList arguments;
-    arguments.append(QLatin1String(STARTVM));
-    arguments.append(vmName);
-    if (headless) {
-        arguments.append(QLatin1String(TYPE));
-        arguments.append(QLatin1String(HEADLESS));
+
+    if(isVirtualMachineRegistered(vmName)) {
+        QStringList arguments;
+        arguments.append(QLatin1String(STARTVM));
+        arguments.append(vmName);
+        if (headless) {
+            arguments.append(QLatin1String(TYPE));
+            arguments.append(QLatin1String(HEADLESS));
+        }
+
+        return QProcess::execute(vBoxManagePath(), arguments);
     }
 
-    return QProcess::execute(vBoxManagePath(), arguments);
+    return false;
 }
 
 bool MerVirtualBoxManager::shutVirtualMachine(const QString &vmName)

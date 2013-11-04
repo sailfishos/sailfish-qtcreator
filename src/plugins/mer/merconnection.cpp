@@ -66,9 +66,9 @@ MerRemoteConnection::MerRemoteConnection(QObject *parent)
 
 MerRemoteConnection::~MerRemoteConnection()
 {
-     if (m_connection)
-         m_connection->deleteLater();
-     m_connection = 0;
+    if (m_connection)
+        m_connection->deleteLater();
+    m_connection = 0;
 }
 
 void MerRemoteConnection::setId(const Core::Id &id)
@@ -175,17 +175,17 @@ void MerRemoteConnection::setConnectionParameters(const SshConnectionParameters 
 
 void MerRemoteConnection::setupConnection()
 {
-     if (m_connectionInitialized)
-         return;
+    if (m_connectionInitialized)
+        return;
 
-     if (m_connection) {
-         m_connection->disconnect();
-         m_connection->deleteLater();
-     }
+    if (m_connection) {
+        m_connection->disconnect();
+        m_connection->deleteLater();
+    }
 
-     m_connection = createConnection(m_params);
-     m_state = Disconnected;
-     m_connectionInitialized = true;
+    m_connection = createConnection(m_params);
+    m_state = Disconnected;
+    m_connectionInitialized = true;
 }
 
 QString MerRemoteConnection::virtualMachine() const
@@ -199,17 +199,17 @@ void MerRemoteConnection::update()
     QString toolTip;
     bool enabled = m_enabled;
     switch (m_state) {
-        case Connected:
-            state = QIcon::On;
-            toolTip = m_stopTip;
-            break;
-        case Disconnected:
-            state = QIcon::Off;
-            toolTip = m_startTip;
-            break;
-        default:
-            enabled = false;
-            break;
+    case Connected:
+        state = QIcon::On;
+        toolTip = m_stopTip;
+        break;
+    case Disconnected:
+        state = QIcon::Off;
+        toolTip = m_startTip;
+        break;
+    default:
+        enabled = false;
+        break;
     }
     m_action->setEnabled(enabled);
     m_action->setVisible(m_visible);
@@ -265,7 +265,7 @@ void MerRemoteConnection::changeState(State stateTrigger)
         } else if (m_connection->state() == SshConnection::Connecting) {
             m_connection->disconnectFromHost();
             m_state = Disconnected;
-         }
+        }
         break;
     case Connected:
         if(m_connection->state() == SshConnection::Unconnected) {
@@ -314,7 +314,7 @@ void MerRemoteConnection::connectTo()
 
 //connects only if vm running;
 void MerRemoteConnection::tryConnectTo()
-{  
+{
     if (!MerVirtualBoxManager::isVirtualMachineRunning(m_vmName))
         return;
 
