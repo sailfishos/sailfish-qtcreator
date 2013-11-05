@@ -221,7 +221,7 @@ void MerEmulatorStartStep::run(QFutureInterface<bool> &fi)
     } else {
         emit addOutput(tr("Starting Emulator..."), MessageOutput);
         QString error = tr("Could not connect to %1 Virtual Machine.").arg(m_vm);
-        MerRemoteConnection::createConnectionErrorTask(m_vm,error,Constants::MER_TASKHUB_EMULATOR_CATEGORY);
+        MerConnection::createConnectionErrorTask(m_vm,error,Constants::MER_TASKHUB_EMULATOR_CATEGORY);
         if(!MerVirtualBoxManager::isVirtualMachineRunning(m_vm)) {
             MerConnectionPrompt *connectioPrompt = new MerConnectionPrompt(m_vm, 0);
             connectioPrompt->prompt(MerConnectionPrompt::Start);

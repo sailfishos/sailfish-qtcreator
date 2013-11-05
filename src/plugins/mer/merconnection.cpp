@@ -46,7 +46,7 @@ using namespace ProjectExplorer;
 
 const QSize iconSize = QSize(24, 20);
 
-MerRemoteConnection::MerRemoteConnection(QObject *parent)
+MerConnection::MerConnection(QObject *parent)
     : QObject(parent)
     , m_action(new QAction(this))
     , m_uiInitalized(false)
@@ -64,64 +64,64 @@ MerRemoteConnection::MerRemoteConnection(QObject *parent)
 
 }
 
-MerRemoteConnection::~MerRemoteConnection()
+MerConnection::~MerConnection()
 {
     if (m_connection)
         m_connection->deleteLater();
     m_connection = 0;
 }
 
-void MerRemoteConnection::setId(const Core::Id &id)
+void MerConnection::setId(const Core::Id &id)
 {
     m_id = id;
 }
 
-void MerRemoteConnection::setName(const QString &name)
+void MerConnection::setName(const QString &name)
 {
     m_name = name;
 }
 
-void MerRemoteConnection::setIcon(const QIcon &icon)
+void MerConnection::setIcon(const QIcon &icon)
 {
     m_icon = icon;
 }
 
-void MerRemoteConnection::setStartTip(const QString &tip)
+void MerConnection::setStartTip(const QString &tip)
 {
     m_startTip = tip;
 }
 
-void MerRemoteConnection::setStopTip(const QString &tip)
+void MerConnection::setStopTip(const QString &tip)
 {
     m_stopTip = tip;
 }
 
-void MerRemoteConnection::setVisible(bool visible)
+void MerConnection::setVisible(bool visible)
 {
     m_visible = visible;
 }
 
-void MerRemoteConnection::setEnabled(bool enabled)
+void MerConnection::setEnabled(bool enabled)
 {
     m_enabled = enabled;
 }
 
-void MerRemoteConnection::setTaskCategory(Core::Id id)
+void MerConnection::setTaskCategory(Core::Id id)
 {
     m_taskId = id;
 }
 
-void MerRemoteConnection::setProbeTimeout(int timeout)
+void MerConnection::setProbeTimeout(int timeout)
 {
     m_probeTimeout = timeout;
 }
 
-void MerRemoteConnection::setHeadless(bool headless)
+void MerConnection::setHeadless(bool headless)
 {
     m_headless = headless;
 }
 
-void MerRemoteConnection::initialize()
+void MerConnection::initialize()
 {
     if (m_uiInitalized)
         return;
@@ -147,17 +147,17 @@ void MerRemoteConnection::initialize()
 
 }
 
-bool MerRemoteConnection::isConnected() const
+bool MerConnection::isConnected() const
 {
     return m_state == Connected;
 }
 
-SshConnectionParameters MerRemoteConnection::sshParameters() const
+SshConnectionParameters MerConnection::sshParameters() const
 {
     return m_params;
 }
 
-void MerRemoteConnection::setVirtualMachine(const QString vm)
+void MerConnection::setVirtualMachine(const QString vm)
 {
     if(m_vmName != vm) {
         m_vmName = vm;
@@ -165,7 +165,7 @@ void MerRemoteConnection::setVirtualMachine(const QString vm)
     }
 }
 
-void MerRemoteConnection::setConnectionParameters(const SshConnectionParameters &sshParameters)
+void MerConnection::setConnectionParameters(const SshConnectionParameters &sshParameters)
 {
     if(m_params != sshParameters) {
         m_params = sshParameters;
@@ -173,7 +173,7 @@ void MerRemoteConnection::setConnectionParameters(const SshConnectionParameters 
     }
 }
 
-void MerRemoteConnection::setupConnection()
+void MerConnection::setupConnection()
 {
     if (m_connectionInitialized)
         return;
@@ -188,12 +188,12 @@ void MerRemoteConnection::setupConnection()
     m_connectionInitialized = true;
 }
 
-QString MerRemoteConnection::virtualMachine() const
+QString MerConnection::virtualMachine() const
 {
     return m_vmName;
 }
 
-void MerRemoteConnection::update()
+void MerConnection::update()
 {
     QIcon::State state;
     QString toolTip;
@@ -218,7 +218,7 @@ void MerRemoteConnection::update()
 }
 
 
-QSsh::SshConnection* MerRemoteConnection::createConnection(const SshConnectionParameters &params)
+QSsh::SshConnection* MerConnection::createConnection(const SshConnectionParameters &params)
 {
     SshConnection *connection = new SshConnection(params);
     connect(connection, SIGNAL(connected()), this, SLOT(changeState()));
@@ -227,7 +227,7 @@ QSsh::SshConnection* MerRemoteConnection::createConnection(const SshConnectionPa
     return connection;
 }
 
-void MerRemoteConnection::changeState(State stateTrigger)
+void MerConnection::changeState(State stateTrigger)
 {
     QTC_ASSERT(!m_vmName.isEmpty(), return);
     QTC_ASSERT(m_connectionInitialized, return);
@@ -303,7 +303,7 @@ void MerRemoteConnection::changeState(State stateTrigger)
     update();
 }
 
-void MerRemoteConnection::connectTo()
+void MerConnection::connectTo()
 {
     if (!m_connection)
         return;
@@ -313,7 +313,7 @@ void MerRemoteConnection::connectTo()
 }
 
 //connects only if vm running;
-void MerRemoteConnection::tryConnectTo()
+void MerConnection::tryConnectTo()
 {
     if (!MerVirtualBoxManager::isVirtualMachineRunning(m_vmName))
         return;
@@ -323,7 +323,7 @@ void MerRemoteConnection::tryConnectTo()
     }
 }
 
-void MerRemoteConnection::handleTriggered()
+void MerConnection::handleTriggered()
 {
     if (!m_connection)
         return;
@@ -336,7 +336,7 @@ void MerRemoteConnection::handleTriggered()
 }
 
 
-void MerRemoteConnection::disconnectFrom()
+void MerConnection::disconnectFrom()
 {
     if (m_state == Connected) {
         changeState(Disconneting);
@@ -344,7 +344,7 @@ void MerRemoteConnection::disconnectFrom()
 }
 
 
-void  MerRemoteConnection::createConnectionErrorTask(const QString &vmName, const QString &error, Core::Id category)
+void  MerConnection::createConnectionErrorTask(const QString &vmName, const QString &error, Core::Id category)
 {
     TaskHub *th = ProjectExplorerPlugin::instance()->taskHub();
     th->clearTasks(category);
@@ -355,7 +355,7 @@ void  MerRemoteConnection::createConnectionErrorTask(const QString &vmName, cons
                      category));
 }
 
-void  MerRemoteConnection::removeConnectionErrorTask(Core::Id category)
+void  MerConnection::removeConnectionErrorTask(Core::Id category)
 {
     TaskHub *th = ProjectExplorerPlugin::instance()->taskHub();
     th->clearTasks(category);

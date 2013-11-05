@@ -51,8 +51,8 @@ MerConnectionManager *MerConnectionManager::m_instance = 0;
 ProjectExplorer::Project *MerConnectionManager::m_project = 0;
 
 MerConnectionManager::MerConnectionManager():
-    m_emulatorConnection(new MerRemoteConnection()),
-    m_sdkConnection(new MerRemoteConnection())
+    m_emulatorConnection(new MerConnection()),
+    m_sdkConnection(new MerConnection())
 {
     QIcon emuIcon;
     emuIcon.addFile(QLatin1String(":/mer/images/emulator-run.png"));

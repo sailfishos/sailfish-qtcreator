@@ -41,7 +41,7 @@ namespace Mer {
 namespace Internal {
 
 class MerSdk;
-class MerRemoteConnection;
+class MerConnection;
 
 class MerConnectionManager : public QObject
 {
@@ -67,8 +67,8 @@ private:
 private:
     static MerConnectionManager *m_instance;
     static ProjectExplorer::Project *m_project;
-    QScopedPointer<MerRemoteConnection> m_emulatorConnection;
-    QScopedPointer<MerRemoteConnection> m_sdkConnection;
+    QScopedPointer<MerConnection> m_emulatorConnection;
+    QScopedPointer<MerConnection> m_sdkConnection;
 
     friend class MerPlugin;
 };

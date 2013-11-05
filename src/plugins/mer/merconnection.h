@@ -42,7 +42,7 @@ class SshConnectionParameters;
 namespace Mer {
 namespace Internal {
 
-class MerRemoteConnection : public QObject
+class MerConnection : public QObject
 {
     Q_OBJECT
 public:
@@ -57,8 +57,8 @@ public:
         ClosingVm
     };
 
-    explicit MerRemoteConnection(QObject *parent = 0);
-    ~MerRemoteConnection();
+    explicit MerConnection(QObject *parent = 0);
+    ~MerConnection();
 
     void setId(const Core::Id &id);
     void setName(const QString &name);
