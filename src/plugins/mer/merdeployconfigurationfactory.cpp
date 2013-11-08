@@ -54,15 +54,15 @@ QList<Core::Id> MerDeployConfigurationFactory::availableCreationIds(Target *pare
     Core::Id type = ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(parent->kit());
     if (type == Constants::MER_DEVICE_TYPE_I486) {
            ids << MerRsyncDeployConfiguration::configurationId()
-               << MerRpmDeployConfiguration::configurationId()
-               << MerRpmBuildDeployConfiguration::configurationId();
+               << MerRpmDeployConfiguration::configurationId();
+               //<< MerRpmBuildDeployConfiguration::configurationId();
     }
 
     if (type == Constants::MER_DEVICE_TYPE_ARM) {
-        ids << MerMb2RpmBuildConfiguration::configurationId()
-            << MerRsyncDeployConfiguration::configurationId()
-            << MerRpmDeployConfiguration::configurationId()
-            << MerRpmBuildDeployConfiguration::configurationId();
+        ids << MerMb2RpmBuildConfiguration::configurationId();
+            //<< MerRsyncDeployConfiguration::configurationId()
+            //<< MerRpmDeployConfiguration::configurationId();
+            //<< MerRpmBuildDeployConfiguration::configurationId();
     }
 
     return ids;
@@ -110,6 +110,7 @@ DeployConfiguration *MerDeployConfigurationFactory::create(Target *parent, const
      } else if (id == MerMb2RpmBuildConfiguration::configurationId()) {
          dc = new MerMb2RpmBuildConfiguration(parent, id);
          dc->stepList()->insertStep(0, new MerRpmBuildStep(dc->stepList()));
+         dc->stepList()->insertStep(2, new MerUploadAndInstallRpmStep(dc->stepList()));
      } else if (id == MerRpmBuildDeployConfiguration::configurationId()) {
          dc = new MerRpmBuildDeployConfiguration(parent, id);
          dc->stepList()->insertStep(1, new MerRpmPackagingStep(dc->stepList()));

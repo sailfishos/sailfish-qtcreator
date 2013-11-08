@@ -28,7 +28,7 @@
 ****************************************************************************/
 
 #include "meruploadandinstallrpmsteps.h"
-#include "merrpmpackagingstep.h"
+//#include "merrpmpackagingstep.h"
 #include "merdeploysteps.h"
 #include "merrpminstaller.h"
 
@@ -46,6 +46,7 @@ using namespace RemoteLinux;
 
 namespace Mer {
 namespace Internal {
+
 namespace {
 class MerUploadAndInstallPackageService : public AbstractUploadAndInstallPackageService
 {
@@ -99,7 +100,9 @@ AbstractRemoteLinuxDeployService *MerUploadAndInstallRpmStep::deployService() co
 
 bool MerUploadAndInstallRpmStep::initInternal(QString *error)
 {
-    m_packagingStep = deployConfiguration()->earlierBuildStep<MerRpmPackagingStep>(this);
+    //m_packagingStep = deployConfiguration()->earlierBuildStep<MerRpmPackagingStep>(this);
+    m_packagingStep = deployConfiguration()->earlierBuildStep<MerRpmBuildStep>(this);
+
     if (!m_packagingStep) {
         if (error)
             *error = tr("No Rpm package build step found.");
@@ -121,7 +124,7 @@ QString MerUploadAndInstallRpmStep::displayName()
 
 void  MerUploadAndInstallRpmStep::run(QFutureInterface<bool> &fi)
 {
-    const QString packageFile = m_packagingStep->packageFilePath();
+    const QString packageFile = m_packagingStep->packagesFilePath().first();
     if(!packageFile.endsWith(QLatin1String(".rpm"))){
         const QString message((tr("No package to deploy found in %1")).arg(packageFile));
         emit addOutput(message, ErrorMessageOutput);
@@ -132,7 +135,7 @@ void  MerUploadAndInstallRpmStep::run(QFutureInterface<bool> &fi)
         return;
     }
 
-    m_deployService->setPackageFilePath(m_packagingStep->packageFilePath());
+    m_deployService->setPackageFilePath(packageFile);
     AbstractRemoteLinuxDeployStep::run(fi);
 }
 

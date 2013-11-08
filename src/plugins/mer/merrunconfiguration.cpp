@@ -65,15 +65,15 @@ bool MerRunConfiguration::isEnabled() const
 {   
     //TODO Hack
 
-    ProjectExplorer::DeployConfiguration* conf = target()->activeDeployConfiguration();
-    if(target()->kit())
-    {   
-        if(ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(target()->kit()) == Constants::MER_DEVICE_TYPE_ARM
-            && conf->id() != MerRpmBuildDeployConfiguration::configurationId()) {
-            m_disabledReason = tr("Alpha2 SDK does not support run configuration for arm packages");
-            return false;
-        }
-    }
+//    ProjectExplorer::DeployConfiguration* conf = target()->activeDeployConfiguration();
+//    if(target()->kit())
+//    {
+//        if(ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(target()->kit()) == Constants::MER_DEVICE_TYPE_ARM
+//            && conf->id() != MerRpmBuildDeployConfiguration::configurationId()) {
+//            m_disabledReason = tr("Alpha2 SDK does not support run configuration for arm packages");
+//            return false;
+//        }
+//    }
 
     return RemoteLinuxRunConfiguration::isEnabled();
 }
@@ -102,8 +102,9 @@ QString MerRunConfiguration::defaultRemoteExecutableFilePath() const
 // Remove me !
 QString MerRunConfiguration::commandPrefix() const
 {
-    return QString::fromLatin1("/usr/sbin/mcetool -Don;").append(
-                RemoteLinuxRunConfiguration::commandPrefix());
+    return RemoteLinuxRunConfiguration::commandPrefix();
+//    return QString::fromLatin1("/usr/sbin/mcetool -Don;").append(
+//                RemoteLinuxRunConfiguration::commandPrefix());
 }
 
 } // Internal

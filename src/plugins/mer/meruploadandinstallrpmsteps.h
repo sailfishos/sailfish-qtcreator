@@ -38,7 +38,8 @@ class AbstractUploadAndInstallPackageService;
 namespace Mer {
 namespace Internal {
 
-class MerRpmPackagingStep;
+//class MerRpmPackagingStep;
+class MerRpmBuildStep;
 
 class MerUploadAndInstallRpmStep : public RemoteLinux::AbstractRemoteLinuxDeployStep
 {
@@ -58,7 +59,8 @@ private:
     RemoteLinux::AbstractRemoteLinuxDeployService *deployService() const;
     void ctor();
 private:
-    MerRpmPackagingStep * m_packagingStep;
+    //MerRpmPackagingStep * m_packagingStep;
+    MerRpmBuildStep *m_packagingStep;
     RemoteLinux::AbstractUploadAndInstallPackageService *m_deployService;
 };
 

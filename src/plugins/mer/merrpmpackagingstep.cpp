@@ -114,7 +114,7 @@ bool MerRpmPackagingStep::init()
     return true;
 }
 
-void MerRpmPackagingStep::run(QFutureInterface<bool> &fi)
+void MerRpmPackagingStep::  run(QFutureInterface<bool> &fi)
 {
     if (!m_packagingNeeded) {
         emit addOutput(tr("Package up to date."), MessageOutput);

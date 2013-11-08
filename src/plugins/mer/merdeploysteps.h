@@ -116,6 +116,7 @@ public:
     friend class MerDeployStepFactory;
     void processFinished(int exitCode, QProcess::ExitStatus status);
     void stdOutput(const QString &line);
+    QStringList packagesFilePath() const;
 private:
     QString m_sharedHome;
     QString m_sharedSrc;
