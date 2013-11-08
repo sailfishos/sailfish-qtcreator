@@ -50,10 +50,10 @@ MerActionManager::MerActionManager():
     m_startMenu(0),
     m_stopMenu(0)
 {
-    connect(DeviceManager::instance(), SIGNAL(devicesLoaded()), SLOT(updateActions()));
-    connect(DeviceManager::instance(), SIGNAL(deviceListChanged()), SLOT(updateActions()));
-    connect(MerSdkManager::instance(), SIGNAL(sdksUpdated()),SLOT(updateActions()));
-    setupActions();
+    //connect(DeviceManager::instance(), SIGNAL(devicesLoaded()), SLOT(updateActions()));
+    //connect(DeviceManager::instance(), SIGNAL(deviceListChanged()), SLOT(updateActions()));
+    //connect(MerSdkManager::instance(), SIGNAL(sdksUpdated()),SLOT(updateActions()));
+    //setupActions();
 }
 
 MerActionManager::~MerActionManager()
