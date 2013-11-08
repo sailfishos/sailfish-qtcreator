@@ -149,6 +149,7 @@ public:
     void setType(Core::Id type);
 
     bool isAutoDetected() const;
+    bool isSdkProvided() const;
     Core::Id id() const;
 
     virtual bool isCompatibleWith(const Kit *k) const;
@@ -224,6 +225,7 @@ protected:
 
 private:
     int version() const;
+    void setSdkProvided(bool sdkProvided);
 
     const std::unique_ptr<Internal::IDevicePrivate> d;
     friend class DeviceManager;

@@ -110,7 +110,7 @@ bool RmKitOperation::test() const
     QVariantMap devMap = AddDeviceOperation::initializeDevices();
     devMap = AddDeviceOperation::addDevice(devMap, "{dev-id}", "Dev", 0, 0,
                                            "HWplatform", "SWplatform",
-                                           "localhost", "10000-11000", "localhost", "", 42,
+                                           "localhost", "10000-11000", "localhost", "", 42, false,
                                            "desktop", "", 22, 10000, "uname", 1,
                                            KeyValuePairList());
 

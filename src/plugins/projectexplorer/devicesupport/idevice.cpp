@@ -107,6 +107,7 @@ const char DisplayNameKey[] = "Name";
 const char TypeKey[] = "OsType";
 const char IdKey[] = "InternalId";
 const char OriginKey[] = "Origin";
+const char SdkProvidedKey[] = "SdkProvided";
 const char MachineTypeKey[] = "Type";
 const char VersionKey[] = "Version";
 const char ExtraDataKey[] = "ExtraData";
@@ -139,6 +140,7 @@ public:
     QString displayName;
     Core::Id type;
     IDevice::Origin origin = IDevice::AutoDetected;
+    bool sdkProvided = false;
     Core::Id id;
     IDevice::DeviceState deviceState = IDevice::DeviceStateUnknown;
     IDevice::MachineType machineType = IDevice::Hardware;
@@ -227,6 +229,16 @@ void IDevice::setType(Core::Id type)
 bool IDevice::isAutoDetected() const
 {
     return d->origin == AutoDetected;
+}
+
+bool IDevice::isSdkProvided() const
+{
+    return d->sdkProvided;
+}
+
+void IDevice::setSdkProvided(bool sdkProvided)
+{
+    d->sdkProvided = sdkProvided;
 }
 
 /*!
@@ -332,6 +344,7 @@ void IDevice::fromMap(const QVariantMap &map)
     if (!d->id.isValid())
         d->id = newId();
     d->origin = static_cast<Origin>(map.value(QLatin1String(OriginKey), ManuallyAdded).toInt());
+    d->sdkProvided = map.value(QLatin1String(SdkProvidedKey)).toBool();
 
     d->sshParameters.setHost(map.value(QLatin1String(HostKey)).toString());
     d->sshParameters.setPort(map.value(QLatin1String(SshPortKey), 22).toInt());
@@ -375,6 +388,7 @@ QVariantMap IDevice::toMap() const
     map.insert(QLatin1String(TypeKey), d->type.toString());
     map.insert(QLatin1String(IdKey), d->id.toSetting());
     map.insert(QLatin1String(OriginKey), d->origin);
+    map.insert(QLatin1String(SdkProvidedKey), d->sdkProvided);
 
     map.insert(QLatin1String(MachineTypeKey), d->machineType);
     map.insert(QLatin1String(HostKey), d->sshParameters.host());
