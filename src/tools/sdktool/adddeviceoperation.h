@@ -56,6 +56,7 @@ public:
                                  const QString &displayName,
                                  const QString &type,
                                  int origin,
+                                 bool sdkProvided,
                                  int machineType,
                                  const QString &host,
                                  int port,
@@ -80,6 +81,7 @@ private:
     QString m_displayName;
     QString m_type;
     int m_origin;
+    bool m_sdkProvided;
     QString m_host;
     int m_port;
     QString m_userName;

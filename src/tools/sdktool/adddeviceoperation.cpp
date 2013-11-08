@@ -41,6 +41,7 @@ const char DisplayNameKey[] = "Name";
 const char TypeKey[] = "OsType";
 const char IdKey[] = "InternalId";
 const char OriginKey[] = "Origin";
+const char SdkProvidedKey[] = "SdkProvided";
 const char MachineTypeKey[] = "Type";
 const char DeviceManagerKey[] = "DeviceManager";
 const char DeviceListKey[] = "DeviceList";
@@ -66,6 +67,7 @@ const char MerSharedSsh[] = "MerSharedSsh";
 
 AddDeviceOperation::AddDeviceOperation()
     : m_origin(0)
+    , m_sdkProvided(false)
     , m_port(0)
     , m_autheticationType(0)
     , m_timeout(0)
@@ -99,6 +101,7 @@ QString AddDeviceOperation::argumentsHelpText() const
          + indent + indent + QLatin1String(Mer::Constants::MER_DEVICE_TYPE_I486) + QLatin1String("    for mer i486 target\n")
          + indent + indent + QLatin1String(Mer::Constants::MER_DEVICE_TYPE_ARM) + QLatin1String("     for mer arm target\n")
          + indent + param(QLatin1String(OriginKey)) + QLatin1String(" <manuallyAdded/autoDetected>          origin.\n")
+         + indent + param(QLatin1String(SdkProvidedKey)) + QLatin1String(" <true/false>                sdk installer provided.\n")
          + indent + param(QLatin1String(MachineTypeKey)) + QLatin1String(" <hardware/emulator>                     machine type.\n")
          + indent + param(QLatin1String(HostKey)) + QLatin1String(" <NAME>                                  host name for ssh connection.\n")
          + indent + param(QLatin1String(SshPortKey)) + QLatin1String(" <NUMBER>                             port for ssh connection.\n")
@@ -159,6 +162,14 @@ bool AddDeviceOperation::setArguments(const QStringList &args)
                 return false;
             ++i; // skip next;
             m_origin = next == QLatin1String("manuallyAdded");
+            continue;
+        }
+
+        if (current == param(QLatin1String(SdkProvidedKey))) {
+            if (next.isNull())
+                return false;
+            ++i; // skip next;
+            m_sdkProvided = next == QLatin1String("false");
             continue;
         }
 
@@ -314,6 +325,7 @@ int AddDeviceOperation::execute() const
                                          m_displayName,
                                          m_type,
                                          m_origin,
+                                         m_sdkProvided,
                                          m_machineType,
                                          m_host,
                                          m_port,
@@ -352,6 +364,7 @@ QVariantMap AddDeviceOperation::addDevice(const QVariantMap &map,
                                           const QString &displayName,
                                           const QString &type,
                                           int origin,
+                                          bool sdkProvided,
                                           int machineType,
                                           const QString &host,
                                           int port,
@@ -408,6 +421,7 @@ QVariantMap AddDeviceOperation::addDevice(const QVariantMap &map,
     data.insert(QLatin1String(DisplayNameKey), QVariant(displayName));
     data.insert(QLatin1String(TypeKey), QVariant(type));
     data.insert(QLatin1String(OriginKey),QVariant(origin));
+    data.insert(QLatin1String(SdkProvidedKey),QVariant(sdkProvided));
     data.insert(QLatin1String(MachineTypeKey), QVariant(machineType));
     data.insert(QLatin1String(HostKey), QVariant(host));
     data.insert(QLatin1String(SshPortKey), QVariant(port));

@@ -103,6 +103,7 @@ public:
 
     Core::Id type() const;
     bool isAutoDetected() const;
+    bool isSdkProvided() const;
     Core::Id id() const;
 
     virtual QString displayType() const = 0;
@@ -154,6 +155,7 @@ private:
     IDevice &operator=(const IDevice &); // Unimplemented.
 
     int version() const;
+    void setSdkProvided(bool sdkProvided);
 
     Internal::IDevicePrivate *d;
     friend class DeviceManager;

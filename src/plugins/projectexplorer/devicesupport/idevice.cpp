@@ -107,6 +107,7 @@ const char DisplayNameKey[] = "Name";
 const char TypeKey[] = "OsType";
 const char IdKey[] = "InternalId";
 const char OriginKey[] = "Origin";
+const char SdkProvidedKey[] = "SdkProvided";
 const char MachineTypeKey[] = "Type";
 const char VersionKey[] = "Version";
 
@@ -132,6 +133,7 @@ class IDevicePrivate
 public:
     IDevicePrivate() :
         origin(IDevice::AutoDetected),
+        sdkProvided(false),
         deviceState(IDevice::DeviceStateUnknown),
         machineType(IDevice::Hardware),
         version(0)
@@ -140,6 +142,7 @@ public:
     QString displayName;
     Core::Id type;
     IDevice::Origin origin;
+    bool sdkProvided;
     Core::Id id;
     IDevice::DeviceState deviceState;
     IDevice::MachineType machineType;
@@ -223,6 +226,16 @@ bool IDevice::isAutoDetected() const
     return d->origin == AutoDetected;
 }
 
+bool IDevice::isSdkProvided() const
+{
+    return d->sdkProvided;
+}
+
+void IDevice::setSdkProvided(bool sdkProvided)
+{
+    d->sdkProvided = sdkProvided;
+}
+
 /*!
     Identifies the device. If an id is given when constructing a device then
     this id is used. Otherwise, a UUID is generated and used to identity the
@@ -289,6 +302,7 @@ void IDevice::fromMap(const QVariantMap &map)
     if (!d->id.isValid())
         d->id = newId();
     d->origin = static_cast<Origin>(map.value(QLatin1String(OriginKey), ManuallyAdded).toInt());
+    d->sdkProvided = map.value(QLatin1String(SdkProvidedKey)).toBool();
 
     d->sshParameters.host = map.value(QLatin1String(HostKey)).toString();
     d->sshParameters.port = map.value(QLatin1String(SshPortKey), 22).toInt();
@@ -318,6 +332,7 @@ QVariantMap IDevice::toMap() const
     map.insert(QLatin1String(TypeKey), d->type.toString());
     map.insert(QLatin1String(IdKey), d->id.toSetting());
     map.insert(QLatin1String(OriginKey), d->origin);
+    map.insert(QLatin1String(SdkProvidedKey), d->sdkProvided);
 
     map.insert(QLatin1String(MachineTypeKey), d->machineType);
     map.insert(QLatin1String(HostKey), d->sshParameters.host);
