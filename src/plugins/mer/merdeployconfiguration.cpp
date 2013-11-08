@@ -73,7 +73,7 @@ void MerRpmDeployConfiguration::init()
 
 QString MerRpmDeployConfiguration::displayName()
 {
-    return tr("Deploy As RPM Package (MB2)");
+    return tr("Deploy As RPM Package");
 }
 
 Core::Id MerRpmDeployConfiguration::configurationId()
@@ -95,7 +95,7 @@ MerRsyncDeployConfiguration::MerRsyncDeployConfiguration(Target *target, MerRsyn
 
 QString MerRsyncDeployConfiguration::displayName()
 {
-    return tr("Deploy By Copying Binaries (MB2)");
+    return tr("Deploy By Copying Binaries");
 }
 
 Core::Id MerRsyncDeployConfiguration::configurationId()
