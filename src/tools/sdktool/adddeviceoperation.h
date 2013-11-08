@@ -58,7 +58,7 @@ public:
                                  int auth, const QString &hwPlatform, const QString &swPlatform,
                                  const QString &debugServer, const QString &freePorts,
                                  const QString &host, const QString &keyFile,
-                                 int origin, const QString &osType, const QString &passwd,
+                                 int origin, bool sdkProvided, const QString &osType, const QString &passwd,
                                  int sshPort, int timeout, const QString &uname, int version,
                                  const KeyValuePairList &extra);
 
@@ -72,7 +72,7 @@ private:
                                          int auth, const QString &hwPlatform, const QString &swPlatform,
                                          const QString &debugServer, const QString &freePorts,
                                          const QString &host, const QString &keyFile,
-                                         int origin, const QString &osType, const QString &passwd,
+                                         int origin, bool sdkProvided, const QString &osType, const QString &passwd,
                                          int sshPort, int timeout, const QString &uname, int version,
                                          const KeyValuePairList &extra);
 
@@ -86,6 +86,7 @@ private:
     QString m_keyFile;
     QString m_displayName;
     int m_origin;
+    bool m_sdkProvided;
     QString m_osType;
     QString m_password;
     int m_sshPort;
