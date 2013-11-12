@@ -47,6 +47,7 @@
 #include <projectexplorer/target.h>
 #include <qtsupport/baseqtversion.h>
 #include <qtsupport/qtkitinformation.h>
+#include <qt4projectmanager/qt4buildconfiguration.h>
 #include <coreplugin/idocument.h>
 #include <extensionsystem/pluginmanager.h>
 #include <coreplugin/variablemanager.h>
@@ -96,9 +97,9 @@ MerProcessStep::MerProcessStep(ProjectExplorer::BuildStepList *bsl, MerProcessSt
 
 bool MerProcessStep::init()
 {
-    BuildConfiguration *bc = buildConfiguration();
+    Qt4ProjectManager::Qt4BuildConfiguration *bc = qobject_cast<Qt4ProjectManager::Qt4BuildConfiguration*>(buildConfiguration());
     if (!bc)
-        bc = target()->activeBuildConfiguration();
+        bc =  qobject_cast<Qt4ProjectManager::Qt4BuildConfiguration*>(target()->activeBuildConfiguration());
 
     if (!bc) {
         addOutput(tr("Cannot deploy: No active build configuration."),
@@ -128,7 +129,8 @@ bool MerProcessStep::init()
         return false;
     }
 
-    const QString projectDirectory = project()->projectDirectory();
+
+    const QString projectDirectory = bc->shadowBuild() ? bc->shadowBuildDirectory() : project()->projectDirectory();
     const QString wrapperScriptsDir =  MerSdkManager::sdkToolsDirectory() + merSdk->virtualMachineName()
             + QLatin1Char('/') + target;
     const QString deployCommand = wrapperScriptsDir + QLatin1Char('/') + QLatin1String(Constants::MER_WRAPPER_DEPLOY);
