@@ -169,7 +169,7 @@ bool AddDeviceOperation::setArguments(const QStringList &args)
             if (next.isNull())
                 return false;
             ++i; // skip next;
-            m_sdkProvided = next == QLatin1String("false");
+            m_sdkProvided = next == QLatin1String("true");
             continue;
         }
 
