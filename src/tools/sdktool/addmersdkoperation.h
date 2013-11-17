@@ -55,6 +55,7 @@ public:
            const QString &sharedHomePath,
            const QString &sharedTargetsPath,
            const QString &sharedSshPath,
+           const QString &sharedSrcPath,
            const QString &sharedConfigPath,
            const QString &host,
            const QString &userName,
@@ -70,6 +71,7 @@ private:
     QString m_sharedHomePath;
     QString m_sharedTargetsPath;
     QString m_sharedSshPath;
+    QString m_sharedSrcPath;
     QString m_sharedConfigPath;
     QString m_host;
     QString m_userName;

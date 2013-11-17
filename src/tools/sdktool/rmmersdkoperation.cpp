@@ -132,6 +132,7 @@ bool RmMerSdkOperation::test() const
                                                  QLatin1String("/test/sharedHomePath"),
                                                  QLatin1String("/test/sharedTargetPath"),
                                                  QLatin1String("/test/sharedSshPath"),
+                                                 QLatin1String("/test/sharedSrcPath"),
                                                  QLatin1String("/test/sharedConfigPath"),
                                                  QLatin1String("host"),QLatin1String("user"),
                                                  QLatin1String("/test/privateKey"),22,80,false);
@@ -141,6 +142,7 @@ bool RmMerSdkOperation::test() const
                                      QLatin1String("/test/sharedHomePath"),
                                      QLatin1String("/test/sharedTargetPath"),
                                      QLatin1String("/test/sharedSshPath"),
+                                     QLatin1String("/test/sharedSrcPath"),
                                      QLatin1String("/test/sharedConfigPath"),
                                      QLatin1String("host"),QLatin1String("user"),
                                      QLatin1String("/test/privateKey"),22,80,false);

@@ -40,6 +40,7 @@ const char MER_PARAM_AUTODETECTED[] = "--autodetected";
 const char MER_PARAM_SHARED_HOME[] = "--shared-home";
 const char MER_PARAM_SHARED_TARGETS[] = "--shared-targets";
 const char MER_PARAM_SHARED_SSH[] = "--shared-ssh";
+const char MER_PARAM_SHARED_SRC[] = "--shared-src";
 const char MER_PARAM_SHARED_CONFIG[] = "--shared-config";
 const char MER_PARAM_HOST[] = "--host";
 const char MER_PARAM_USERNAME[] = "--username";
@@ -74,6 +75,7 @@ QString AddMerSdkOperation::argumentsHelpText() const
          + indent + QLatin1String(MER_PARAM_SHARED_HOME) + QLatin1String(" <PATH>          shared \"home\" folder (required).\n")
          + indent + QLatin1String(MER_PARAM_SHARED_TARGETS) + QLatin1String(" <PATH>       shared \"targets\" folder (required).\n")
          + indent + QLatin1String(MER_PARAM_SHARED_SSH) + QLatin1String(" <PATH>           shared \"ssh\" folder (required).\n")
+         + indent + QLatin1String(MER_PARAM_SHARED_SRC) + QLatin1String(" <PATH>           shared \"src\" folder (required).\n")
          + indent + QLatin1String(MER_PARAM_SHARED_CONFIG) + QLatin1String(" <PATH>        shared \"config\" folder (required).\n")
          + indent + QLatin1String(MER_PARAM_HOST) + QLatin1String(" <NAME>                 mersdk ssh hostname (required).\n")
          + indent + QLatin1String(MER_PARAM_USERNAME) + QLatin1String(" <NAME>             mersdk ssh username (required).\n")
@@ -128,6 +130,14 @@ bool AddMerSdkOperation::setArguments(const QStringList &args)
                 return false;
             ++i; // skip next;
             m_sharedSshPath = next;
+            continue;
+        }
+
+        if (current == QLatin1String(MER_PARAM_SHARED_SRC)) {
+            if (next.isNull())
+                return false;
+            ++i; // skip next;
+            m_sharedSrcPath = next;
             continue;
         }
 
@@ -204,6 +214,10 @@ bool AddMerSdkOperation::setArguments(const QStringList &args)
         std::cerr << MER_PARAM_SHARED_SSH << MISSING << std::endl << std::endl;
         error = true;
     }
+    if (m_sharedSrcPath.isEmpty()) {
+        std::cerr << MER_PARAM_SHARED_SRC << MISSING << std::endl << std::endl;
+        error = true;
+    }
     if (m_sharedConfigPath.isEmpty()) {
         std::cerr << MER_PARAM_SHARED_CONFIG << MISSING << std::endl << std::endl;
         error = true;
@@ -239,7 +253,8 @@ int AddMerSdkOperation::execute() const
         map = initializeSdks();
 
     const QVariantMap result = addSdk(map, m_name, m_autoDetected, m_sharedHomePath, m_sharedTargetsPath, m_sharedSshPath,
-                                      m_sharedConfigPath, m_host, m_userName, m_privateKeyFile, m_sshPort, m_wwwPort,m_headless);
+                                      m_sharedSrcPath, m_sharedConfigPath, m_host, m_userName, m_privateKeyFile, m_sshPort,
+                                      m_wwwPort, m_headless);
 
     if (result.isEmpty() || map == result)
         return 2;
@@ -261,6 +276,7 @@ QVariantMap AddMerSdkOperation::addSdk(const QVariantMap &map,
                                           const QString &sharedHomePath,
                                           const QString &sharedTargetsPath,
                                           const QString &sharedSshPath,
+                                          const QString &sharedSrcPath,
                                           const QString &sharedConfigPath,
                                           const QString &host,
                                           const QString &userName,
@@ -301,6 +317,7 @@ QVariantMap AddMerSdkOperation::addSdk(const QVariantMap &map,
     data << KeyValuePair(QStringList() << sdk << QLatin1String(Mer::Constants::SHARED_HOME), QVariant(sharedHomePath));
     data << KeyValuePair(QStringList() << sdk << QLatin1String(Mer::Constants::SHARED_TARGET), QVariant(sharedTargetsPath));
     data << KeyValuePair(QStringList() << sdk << QLatin1String(Mer::Constants::SHARED_SSH), QVariant(sharedSshPath));
+    data << KeyValuePair(QStringList() << sdk << QLatin1String(Mer::Constants::SHARED_SRC), QVariant(sharedSrcPath));
     data << KeyValuePair(QStringList() << sdk << QLatin1String(Mer::Constants::SHARED_CONFIG), QVariant(sharedConfigPath));
     data << KeyValuePair(QStringList() << sdk << QLatin1String(Mer::Constants::HOST), QVariant(host));
     data << KeyValuePair(QStringList() << sdk << QLatin1String(Mer::Constants::USERNAME), QVariant(userName));
@@ -329,6 +346,7 @@ bool AddMerSdkOperation::test() const
                  QLatin1String("/test/sharedHomePath"),
                  QLatin1String("/test/sharedTargetPath"),
                  QLatin1String("/test/sharedSshPath"),
+                 QLatin1String("/test/sharedSrcPath"),
                  QLatin1String("/test/sharedConfigPath"),
                  QLatin1String("host"),
                  QLatin1String("user"),
@@ -346,7 +364,7 @@ bool AddMerSdkOperation::test() const
         return false;
 
     QVariantMap sdkMap= map.value(sdk).toMap();
-    if (sdkMap.count() != 11
+    if (sdkMap.count() != 13
             || !sdkMap.contains(QLatin1String(Mer::Constants::VM_NAME))
             || sdkMap.value(QLatin1String(Mer::Constants::VM_NAME)).toString() != QLatin1String("testSdk")
             || !sdkMap.contains(QLatin1String(Mer::Constants::AUTO_DETECTED))
@@ -357,6 +375,8 @@ bool AddMerSdkOperation::test() const
             || sdkMap.value(QLatin1String(Mer::Constants::SHARED_TARGET)).toString() != QLatin1String("/test/sharedTargetPath")
             || !sdkMap.contains(QLatin1String(Mer::Constants::SHARED_SSH))
             || sdkMap.value(QLatin1String(Mer::Constants::SHARED_SSH)).toString() != QLatin1String("/test/sharedSshPath")
+            || !sdkMap.contains(QLatin1String(Mer::Constants::SHARED_SRC))
+            || sdkMap.value(QLatin1String(Mer::Constants::SHARED_SRC)).toString() != QLatin1String("/test/sharedSrcPath")
             || !sdkMap.contains(QLatin1String(Mer::Constants::SHARED_CONFIG))
             || sdkMap.value(QLatin1String(Mer::Constants::SHARED_CONFIG)).toString() != QLatin1String("/test/sharedConfigPath")
             || !sdkMap.contains(QLatin1String(Mer::Constants::HOST))
@@ -368,7 +388,9 @@ bool AddMerSdkOperation::test() const
             || !sdkMap.contains(QLatin1String(Mer::Constants::SSH_PORT))
             || sdkMap.value(QLatin1String(Mer::Constants::SSH_PORT)).toInt() != 22
             || !sdkMap.contains(QLatin1String(Mer::Constants::WWW_PORT))
-            || sdkMap.value(QLatin1String(Mer::Constants::WWW_PORT)).toInt() != 80)
+            || sdkMap.value(QLatin1String(Mer::Constants::WWW_PORT)).toInt() != 80
+            || !sdkMap.contains(QLatin1String(Mer::Constants::HEADLESS))
+            || sdkMap.value(QLatin1String(Mer::Constants::HEADLESS)).toBool() != false)
         return false;
 
     return true;
