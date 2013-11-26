@@ -85,6 +85,21 @@ private:
     friend class MerDeployStepFactory;
 };
 
+class MerLocalRsyncDeployStep : public MerProcessStep
+{
+    Q_OBJECT
+public:
+    explicit MerLocalRsyncDeployStep(ProjectExplorer::BuildStepList *bsl);
+    MerLocalRsyncDeployStep(ProjectExplorer::BuildStepList *bsl, MerLocalRsyncDeployStep *bs);
+    bool init();
+    bool immutable() const;
+    void run(QFutureInterface<bool> &fi);
+    ProjectExplorer::BuildStepConfigWidget *createConfigWidget();
+    static const Core::Id stepId();
+    static QString displayName();
+    friend class MerDeployStepFactory;
+};
+
 class MerRpmDeployStep : public MerProcessStep
 {
     Q_OBJECT

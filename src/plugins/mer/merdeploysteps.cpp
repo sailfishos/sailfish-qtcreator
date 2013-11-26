@@ -290,6 +290,103 @@ BuildStepConfigWidget *MerRsyncDeployStep::createConfigWidget()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+const Core::Id MerLocalRsyncDeployStep::stepId()
+{
+    return Core::Id("Qt4ProjectManager.MerLocalRsyncDeployStep");
+}
+
+QString MerLocalRsyncDeployStep::displayName()
+{
+    return QLatin1String("Local Rsync");
+}
+
+MerLocalRsyncDeployStep::MerLocalRsyncDeployStep(BuildStepList *bsl)
+    : MerProcessStep(bsl, stepId())
+{
+    setDefaultDisplayName(displayName());
+}
+
+MerLocalRsyncDeployStep::MerLocalRsyncDeployStep(ProjectExplorer::BuildStepList *bsl, MerLocalRsyncDeployStep *bs)
+    :MerProcessStep(bsl,bs)
+{
+    setDefaultDisplayName(displayName());
+}
+
+bool MerLocalRsyncDeployStep::init()
+{
+    Qt4ProjectManager::Qt4BuildConfiguration *bc = qobject_cast<Qt4ProjectManager::Qt4BuildConfiguration*>(buildConfiguration());
+    if (!bc)
+        bc =  qobject_cast<Qt4ProjectManager::Qt4BuildConfiguration*>(target()->activeBuildConfiguration());
+
+    if (!bc) {
+        addOutput(tr("Cannot deploy: No active build configuration."),
+            ErrorMessageOutput);
+        return false;
+    }
+
+    const MerSdk *const merSdk = MerSdkKitInformation::sdk(target()->kit());
+
+    if (!merSdk) {
+        addOutput(tr("Cannot deploy: Missing MerSdk information in the kit"),ErrorMessageOutput);
+        return false;
+    }
+
+    const QString target = MerTargetKitInformation::targetName(this->target()->kit());
+
+    if (target.isEmpty()) {
+        addOutput(tr("Cannot deploy: Missing MerTarget information in the kit"),ErrorMessageOutput);
+        return false;
+    }
+
+    IDevice::ConstPtr device = DeviceKitInformation::device(this->target()->kit());
+
+    //TODO: HACK
+    if (device.isNull() && DeviceTypeKitInformation::deviceTypeId(this->target()->kit()) != Constants::MER_DEVICE_TYPE_ARM) {
+        addOutput(tr("Cannot deploy: Missing MerDevice information in the kit"),ErrorMessageOutput);
+        return false;
+    }
+
+
+    const QString projectDirectory = bc->shadowBuild() ? bc->shadowBuildDirectory() : project()->projectDirectory();
+    const QString deployCommand = QLatin1String("rsync");
+
+    ProcessParameters *pp = processParameters();
+
+    Utils::Environment env = bc ? bc->environment() : Utils::Environment::systemEnvironment();
+    //TODO HACK
+    if(!device.isNull())
+        env.appendOrSet(QLatin1String(Constants::MER_SSH_DEVICE_NAME),device->displayName());
+    pp->setMacroExpander(bc ? bc->macroExpander() : Core::VariableManager::instance()->macroExpander());
+    pp->setEnvironment(env);
+    pp->setWorkingDirectory(projectDirectory);
+    pp->setCommand(deployCommand);
+    pp->setArguments(arguments());
+
+    return AbstractProcessStep::init();
+}
+
+bool MerLocalRsyncDeployStep::immutable() const
+{
+    return false;
+}
+
+void MerLocalRsyncDeployStep::run(QFutureInterface<bool> &fi)
+{
+   emit addOutput(tr("Deploying binaries..."), MessageOutput);
+   AbstractProcessStep::run(fi);
+}
+
+BuildStepConfigWidget *MerLocalRsyncDeployStep::createConfigWidget()
+{
+    MerDeployStepWidget *widget = new MerDeployStepWidget(this);
+    widget->setDisplayName(displayName());
+    widget->setSummaryText(tr("Deploys with local installed rsync."));
+    widget->setCommandText(tr("Deploy using local installed Rsync"));
+    return widget;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 
 const Core::Id MerRpmDeployStep::stepId()
 {
