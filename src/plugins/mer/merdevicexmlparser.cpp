@@ -406,7 +406,7 @@ MerDevicesXmlWriter::MerDevicesXmlWriter(const QString &fileName,
                 xmlReader.readNext();
                 if (xmlReader.isStartElement() && xmlReader.name() == QLatin1String(DEVICE)) {
                     QXmlStreamAttributes attributes = xmlReader.attributes();
-                    if (attributes.value(QLatin1String(TYPE)) != QLatin1String("vbox")) {
+                    if (attributes.value(QLatin1String(TYPE)) == QLatin1String("custom")) {
                         writer.writeStartElement(QLatin1String(DEVICE));
                         writer.writeAttributes(attributes);
                         while (xmlReader.readNext()) {

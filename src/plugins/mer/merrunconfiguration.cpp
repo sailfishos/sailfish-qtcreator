@@ -65,15 +65,15 @@ bool MerRunConfiguration::isEnabled() const
 {   
     //TODO Hack
 
-//    ProjectExplorer::DeployConfiguration* conf = target()->activeDeployConfiguration();
-//    if(target()->kit())
-//    {
-//        if(ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(target()->kit()) == Constants::MER_DEVICE_TYPE_ARM
-//            && conf->id() != MerRpmBuildDeployConfiguration::configurationId()) {
-//            m_disabledReason = tr("Alpha2 SDK does not support run configuration for arm packages");
-//            return false;
-//        }
-//    }
+    ProjectExplorer::DeployConfiguration* conf = target()->activeDeployConfiguration();
+    if(target()->kit())
+    {
+        if(ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(target()->kit()) == Constants::MER_DEVICE_TYPE_ARM
+            && conf->id() == MerMb2RpmBuildConfiguration::configurationId()) {
+            m_disabledReason = tr("This deployment method does not support run configuraiton");
+            return false;
+        }
+    }
 
     return RemoteLinuxRunConfiguration::isEnabled();
 }

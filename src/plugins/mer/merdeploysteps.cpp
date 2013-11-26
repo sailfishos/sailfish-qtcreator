@@ -496,7 +496,7 @@ void MerRpmBuildStep::processFinished(int exitCode, QProcess::ExitStatus status)
     //TODO:
     MerProcessStep::processFinished(exitCode, status);
     if(exitCode == 0 && status == QProcess::NormalExit && !m_packages.isEmpty()){
-        //new RpmInfo(m_packages);
+        new RpmInfo(m_packages);
     }
 }
 

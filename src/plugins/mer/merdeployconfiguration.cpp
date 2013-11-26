@@ -117,7 +117,7 @@ MerMb2RpmBuildConfiguration::MerMb2RpmBuildConfiguration(Target *target, MerMb2R
 
 QString MerMb2RpmBuildConfiguration::displayName()
 {
-    return tr("Build ARM RPM package");
+    return tr("Deploy By Building An RPM Package");
 }
 
 Core::Id MerMb2RpmBuildConfiguration::configurationId()
