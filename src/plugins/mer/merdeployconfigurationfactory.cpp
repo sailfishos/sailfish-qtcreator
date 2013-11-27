@@ -101,15 +101,15 @@ DeployConfiguration *MerDeployConfigurationFactory::create(Target *parent, const
          dc = new MerRpmDeployConfiguration(parent, id);
          if (type != Constants::MER_DEVICE_TYPE_ARM)
             dc->stepList()->insertStep(0, new MerEmulatorStartStep(dc->stepList()));
-         dc->stepList()->insertStep(1, new MerRpmDeployStep(dc->stepList()));
+         dc->stepList()->insertStep(1, new MerMb2RpmDeployStep(dc->stepList()));
      } else if (id == MerRsyncDeployConfiguration::configurationId()) {
          dc = new MerRsyncDeployConfiguration(parent, id);
           if (type != Constants::MER_DEVICE_TYPE_ARM)
          dc->stepList()->insertStep(0, new MerEmulatorStartStep(dc->stepList()));
-         dc->stepList()->insertStep(1, new MerRsyncDeployStep(dc->stepList()));
+         dc->stepList()->insertStep(1, new MerMb2RsyncDeployStep(dc->stepList()));
      } else if (id == MerMb2RpmBuildConfiguration::configurationId()) {
          dc = new MerMb2RpmBuildConfiguration(parent, id);
-         dc->stepList()->insertStep(0, new MerRpmBuildStep(dc->stepList()));
+         dc->stepList()->insertStep(0, new MerMb2RpmBuildStep(dc->stepList()));
          //dc->stepList()->insertStep(2, new MerUploadAndInstallRpmStep(dc->stepList()));
      } else if (id == MerRpmBuildDeployConfiguration::configurationId()) {
          dc = new MerRpmBuildDeployConfiguration(parent, id);

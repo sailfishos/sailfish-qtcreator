@@ -240,47 +240,47 @@ BuildStepConfigWidget *MerEmulatorStartStep::createConfigWidget()
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
-const Core::Id MerRsyncDeployStep::stepId()
+const Core::Id MerMb2RsyncDeployStep::stepId()
 {
     return Core::Id("Qt4ProjectManager.MerRsyncDeployStep");
 }
 
-QString MerRsyncDeployStep::displayName()
+QString MerMb2RsyncDeployStep::displayName()
 {
     return QLatin1String("Rsync");
 }
 
-MerRsyncDeployStep::MerRsyncDeployStep(BuildStepList *bsl)
+MerMb2RsyncDeployStep::MerMb2RsyncDeployStep(BuildStepList *bsl)
     : MerProcessStep(bsl, stepId())
 {
     setDefaultDisplayName(displayName());
     setArguments(QLatin1String("--rsync"));
 }
 
-MerRsyncDeployStep::MerRsyncDeployStep(ProjectExplorer::BuildStepList *bsl, MerRsyncDeployStep *bs)
+MerMb2RsyncDeployStep::MerMb2RsyncDeployStep(ProjectExplorer::BuildStepList *bsl, MerMb2RsyncDeployStep *bs)
     :MerProcessStep(bsl,bs)
 {
     setDefaultDisplayName(displayName());
     setArguments(QLatin1String("--rsync"));
 }
 
-bool MerRsyncDeployStep::init()
+bool MerMb2RsyncDeployStep::init()
 {
     return MerProcessStep::init();
 }
 
-bool MerRsyncDeployStep::immutable() const
+bool MerMb2RsyncDeployStep::immutable() const
 {
     return false;
 }
 
-void MerRsyncDeployStep::run(QFutureInterface<bool> &fi)
+void MerMb2RsyncDeployStep::run(QFutureInterface<bool> &fi)
 {
    emit addOutput(tr("Deploying binaries..."), MessageOutput);
    AbstractProcessStep::run(fi);
 }
 
-BuildStepConfigWidget *MerRsyncDeployStep::createConfigWidget()
+BuildStepConfigWidget *MerMb2RsyncDeployStep::createConfigWidget()
 {
     MerDeployStepWidget *widget = new MerDeployStepWidget(this);
     widget->setDisplayName(displayName());
@@ -388,17 +388,17 @@ BuildStepConfigWidget *MerLocalRsyncDeployStep::createConfigWidget()
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-const Core::Id MerRpmDeployStep::stepId()
+const Core::Id MerMb2RpmDeployStep::stepId()
 {
     return Core::Id("Qt4ProjectManager.MerRpmDeployStep");
 }
 
-QString MerRpmDeployStep::displayName()
+QString MerMb2RpmDeployStep::displayName()
 {
     return QLatin1String("Rpm");
 }
 
-MerRpmDeployStep::MerRpmDeployStep(BuildStepList *bsl)
+MerMb2RpmDeployStep::MerMb2RpmDeployStep(BuildStepList *bsl)
     : MerProcessStep(bsl, stepId())
 {
     setDefaultDisplayName(displayName());
@@ -406,30 +406,30 @@ MerRpmDeployStep::MerRpmDeployStep(BuildStepList *bsl)
 }
 
 
-MerRpmDeployStep::MerRpmDeployStep(ProjectExplorer::BuildStepList *bsl, MerRpmDeployStep *bs)
+MerMb2RpmDeployStep::MerMb2RpmDeployStep(ProjectExplorer::BuildStepList *bsl, MerMb2RpmDeployStep *bs)
     :MerProcessStep(bsl,bs)
 {
     setDefaultDisplayName(displayName());
     setArguments(QLatin1String("--pkcon"));
 }
 
-bool MerRpmDeployStep::init()
+bool MerMb2RpmDeployStep::init()
 {
     return MerProcessStep::init();
 }
 
-bool MerRpmDeployStep::immutable() const
+bool MerMb2RpmDeployStep::immutable() const
 {
     return false;
 }
 
-void MerRpmDeployStep::run(QFutureInterface<bool> &fi)
+void MerMb2RpmDeployStep::run(QFutureInterface<bool> &fi)
 {
     emit addOutput(tr("Deploying rpm package..."), MessageOutput);
     AbstractProcessStep::run(fi);
 }
 
-BuildStepConfigWidget *MerRpmDeployStep::createConfigWidget()
+BuildStepConfigWidget *MerMb2RpmDeployStep::createConfigWidget()
 {
     MerDeployStepWidget *widget = new MerDeployStepWidget(this);
     widget->setDisplayName(displayName());
@@ -441,30 +441,30 @@ BuildStepConfigWidget *MerRpmDeployStep::createConfigWidget()
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-const Core::Id MerRpmBuildStep::stepId()
+const Core::Id MerMb2RpmBuildStep::stepId()
 {
     return Core::Id("Qt4ProjectManager.MerRpmBuildStep");
 }
 
-QString MerRpmBuildStep::displayName()
+QString MerMb2RpmBuildStep::displayName()
 {
     return QLatin1String("Rpm");
 }
 
-MerRpmBuildStep::MerRpmBuildStep(BuildStepList *bsl)
+MerMb2RpmBuildStep::MerMb2RpmBuildStep(BuildStepList *bsl)
     : MerProcessStep(bsl, stepId())
 {
     setDefaultDisplayName(displayName());
 }
 
 
-MerRpmBuildStep::MerRpmBuildStep(ProjectExplorer::BuildStepList *bsl, MerRpmBuildStep *bs)
+MerMb2RpmBuildStep::MerMb2RpmBuildStep(ProjectExplorer::BuildStepList *bsl, MerMb2RpmBuildStep *bs)
     :MerProcessStep(bsl,bs)
 {
     setDefaultDisplayName(displayName());
 }
 
-bool MerRpmBuildStep::init()
+bool MerMb2RpmBuildStep::init()
 {
     bool success = MerProcessStep::init();
     m_packages.clear();
@@ -480,18 +480,18 @@ bool MerRpmBuildStep::init()
     return success;
 }
 
-bool MerRpmBuildStep::immutable() const
+bool MerMb2RpmBuildStep::immutable() const
 {
     return false;
 }
 //TODO: This is hack
-void MerRpmBuildStep::run(QFutureInterface<bool> &fi)
+void MerMb2RpmBuildStep::run(QFutureInterface<bool> &fi)
 {
     emit addOutput(tr("Building rpm package..."), MessageOutput);
     AbstractProcessStep::run(fi);
 }
 //TODO: This is hack
-void MerRpmBuildStep::processFinished(int exitCode, QProcess::ExitStatus status)
+void MerMb2RpmBuildStep::processFinished(int exitCode, QProcess::ExitStatus status)
 {
     //TODO:
     MerProcessStep::processFinished(exitCode, status);
@@ -500,12 +500,12 @@ void MerRpmBuildStep::processFinished(int exitCode, QProcess::ExitStatus status)
     }
 }
 
-QStringList MerRpmBuildStep::packagesFilePath() const
+QStringList MerMb2RpmBuildStep::packagesFilePath() const
 {
     return m_packages;
 }
 
-BuildStepConfigWidget *MerRpmBuildStep::createConfigWidget()
+BuildStepConfigWidget *MerMb2RpmBuildStep::createConfigWidget()
 {
     MerDeployStepWidget *widget = new MerDeployStepWidget(this);
     widget->setDisplayName(displayName());
@@ -514,7 +514,7 @@ BuildStepConfigWidget *MerRpmBuildStep::createConfigWidget()
     return widget;
 }
 
-void MerRpmBuildStep::stdOutput(const QString &line)
+void MerMb2RpmBuildStep::stdOutput(const QString &line)
 {
     QRegExp rexp(QLatin1String("^Wrote: (/.*RPMS.*\\.rpm)"));
     if (rexp.indexIn(line) != -1) {

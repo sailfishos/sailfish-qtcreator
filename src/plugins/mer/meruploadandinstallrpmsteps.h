@@ -39,7 +39,7 @@ namespace Mer {
 namespace Internal {
 
 //class MerRpmPackagingStep;
-class MerRpmBuildStep;
+class MerMb2RpmBuildStep;
 
 class MerUploadAndInstallRpmStep : public RemoteLinux::AbstractRemoteLinuxDeployStep
 {
@@ -60,7 +60,7 @@ private:
     void ctor();
 private:
     //MerRpmPackagingStep * m_packagingStep;
-    MerRpmBuildStep *m_packagingStep;
+    MerMb2RpmBuildStep *m_packagingStep;
     RemoteLinux::AbstractUploadAndInstallPackageService *m_deployService;
 };
 

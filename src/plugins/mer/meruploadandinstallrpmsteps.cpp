@@ -101,7 +101,7 @@ AbstractRemoteLinuxDeployService *MerUploadAndInstallRpmStep::deployService() co
 bool MerUploadAndInstallRpmStep::initInternal(QString *error)
 {
     //m_packagingStep = deployConfiguration()->earlierBuildStep<MerRpmPackagingStep>(this);
-    m_packagingStep = deployConfiguration()->earlierBuildStep<MerRpmBuildStep>(this);
+    m_packagingStep = deployConfiguration()->earlierBuildStep<MerMb2RpmBuildStep>(this);
 
     if (!m_packagingStep) {
         if (error)

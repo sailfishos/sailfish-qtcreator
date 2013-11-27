@@ -69,12 +69,12 @@ public:
     friend class MerDeployStepFactory;
 };
 
-class MerRsyncDeployStep : public MerProcessStep
+class MerMb2RsyncDeployStep : public MerProcessStep
 {
     Q_OBJECT
 public:
-    explicit MerRsyncDeployStep(ProjectExplorer::BuildStepList *bsl);
-    MerRsyncDeployStep(ProjectExplorer::BuildStepList *bsl, MerRsyncDeployStep *bs);
+    explicit MerMb2RsyncDeployStep(ProjectExplorer::BuildStepList *bsl);
+    MerMb2RsyncDeployStep(ProjectExplorer::BuildStepList *bsl, MerMb2RsyncDeployStep *bs);
     bool init();
     bool immutable() const;
     void run(QFutureInterface<bool> &fi);
@@ -100,12 +100,12 @@ public:
     friend class MerDeployStepFactory;
 };
 
-class MerRpmDeployStep : public MerProcessStep
+class MerMb2RpmDeployStep : public MerProcessStep
 {
     Q_OBJECT
 public:
-    explicit MerRpmDeployStep(ProjectExplorer::BuildStepList *bsl);
-    MerRpmDeployStep(ProjectExplorer::BuildStepList *bsl, MerRpmDeployStep *bs);
+    explicit MerMb2RpmDeployStep(ProjectExplorer::BuildStepList *bsl);
+    MerMb2RpmDeployStep(ProjectExplorer::BuildStepList *bsl, MerMb2RpmDeployStep *bs);
     bool init();
     bool immutable() const;
     void run(QFutureInterface<bool> &fi);
@@ -116,12 +116,12 @@ public:
 };
 
 //TODO: HACK
-class MerRpmBuildStep : public MerProcessStep
+class MerMb2RpmBuildStep : public MerProcessStep
 {
     Q_OBJECT
 public:
-    explicit MerRpmBuildStep(ProjectExplorer::BuildStepList *bsl);
-    MerRpmBuildStep(ProjectExplorer::BuildStepList *bsl, MerRpmBuildStep *bs);
+    explicit MerMb2RpmBuildStep(ProjectExplorer::BuildStepList *bsl);
+    MerMb2RpmBuildStep(ProjectExplorer::BuildStepList *bsl, MerMb2RpmBuildStep *bs);
     bool init();
     bool immutable() const;
     void run(QFutureInterface<bool> &fi);
