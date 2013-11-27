@@ -67,6 +67,8 @@ public:
     QString effectiveCommand() const;
     /// Get the fully expanded arguments to use:
     QString effectiveArguments() const;
+    /// Get the fully expanded enviroment to use:
+    Utils::Environment effectiveEnviroment() const;
 
     /// True if effectiveCommand() would return only a fallback
     bool commandMissing() const;
@@ -87,6 +89,7 @@ private:
     mutable QString m_effectiveWorkingDirectory;
     mutable QString m_effectiveCommand;
     mutable QString m_effectiveArguments;
+    mutable Utils::Environment m_effectiveEnviroment;
     mutable bool m_commandMissing;
 };
 
