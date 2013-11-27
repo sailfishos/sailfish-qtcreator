@@ -190,6 +190,12 @@ QList<ProjectExplorer::Task> MerQtVersion::reportIssuesImpl(const QString &proFi
     return results;
 }
 
+void MerQtVersion::addToEnvironment(const ProjectExplorer::Kit *k, Utils::Environment &env) const
+{
+    env.appendOrSet(QLatin1String(Constants::MER_PROJECTPATH_ENVVAR_NAME), QLatin1String("%{CurrentProject:Path}"));
+}
+
+
 Core::FeatureSet MerQtVersion::availableFeatures() const
 {
     Core::FeatureSet features = BaseQtVersion::availableFeatures();

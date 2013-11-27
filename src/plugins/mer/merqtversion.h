@@ -56,6 +56,7 @@ public:
     QList<ProjectExplorer::Task> validateKit(const ProjectExplorer::Kit *k);
     QVariantMap toMap() const;
     void fromMap(const QVariantMap &data);
+    void addToEnvironment(const ProjectExplorer::Kit *k, Utils::Environment &env) const;
 
 protected:
     QList<ProjectExplorer::Task> reportIssuesImpl(const QString &proFile,
