@@ -228,7 +228,7 @@ void AbstractProcessStep::doRun()
     d->m_process.reset(new Utils::QtcProcess());
     d->m_process->setUseCtrlCStub(Utils::HostOsInfo::isWindowsHost());
     d->m_process->setWorkingDirectory(wd.absolutePath());
-    d->m_process->setEnvironment(d->m_param.environment());
+    d->m_process->setEnvironment(d->m_param.effectiveEnvironment());
     d->m_process->setCommand(effectiveCommand);
     if (d->m_lowPriority && ProjectExplorerPlugin::projectExplorerSettings().lowBuildPriority)
         d->m_process->setLowPriority();
