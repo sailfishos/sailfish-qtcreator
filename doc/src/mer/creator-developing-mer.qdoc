@@ -54,6 +54,11 @@
     project, buttons for starting the Mer SDK Virtual Machine and the emulator
     become visible on the taskbar.
 
+    By default, the Virtual Machine is run in a \e {headless state}, which means
+    that the VirtualBox user interface is hidden. When running in the headless
+    state, you are prompted to close the Virtual Machine when you exit \QC.
+    To show VirtualBox, select \gui Tools > \gui Options > \gui Mer.
+
     You can protect the connections between \QC and a device by using
     either a password or an SSH key. If you do not have an SSH key, you can
     create it in \QC.
@@ -164,6 +169,9 @@
 
             \note You can only create one connection to a particular Mer SDK
             target.
+
+        \li Deselect the \gui Headless check box and restart the Virtual Machine
+            to show the VirtualBox user interface.
 
         \li In the \gui Connection field, specify the SSH key to use to protect
             the connection between \QC and the Mer SDK:
