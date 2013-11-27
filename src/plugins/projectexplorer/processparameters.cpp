@@ -134,6 +134,21 @@ QString ProcessParameters::effectiveCommand() const
 }
 
 /*!
+    Gets the fully expanded enviroment directory.
+*/
+
+Utils::Environment ProcessParameters::effectiveEnvironment() const
+{
+    if (m_macroExpander) {
+        m_effectiveEnvironment.clear();
+         Utils::Environment::const_iterator i;
+        for (i = environment().constBegin(); i != environment().constEnd(); ++i)
+            m_effectiveEnvironment.appendOrSet(m_macroExpander->expand(i.key()), m_macroExpander->expand(i.value()));
+    }
+    return m_effectiveEnvironment;
+}
+
+/*!
     Returns \c true if effectiveCommand() would return only a fallback.
 */
 
@@ -195,4 +210,5 @@ void ProcessParameters::resolveAll()
     effectiveCommand();
     effectiveArguments();
     effectiveWorkingDirectory();
+    effectiveEnvironment();
 }
