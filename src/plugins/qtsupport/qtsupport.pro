@@ -28,6 +28,7 @@ HEADERS += \
     exampleslistmodel.h \
     screenshotcropper.h \
     qtconfigwidget.h \
+    copytolocationdialog.h \
     desktopqtversionfactory.h \
     desktopqtversion.h \
     uicgenerator.h \
@@ -53,6 +54,7 @@ SOURCES += \
     exampleslistmodel.cpp \
     screenshotcropper.cpp \
     qtconfigwidget.cpp \
+    copytolocationdialog.cpp \
     desktopqtversionfactory.cpp \
     desktopqtversion.cpp \
     uicgenerator.cpp \
@@ -63,6 +65,7 @@ FORMS   +=  \
     showbuildlog.ui \
     qtversioninfo.ui \
     qtversionmanager.ui \
+    copytolocationdialog.ui
 
 RESOURCES += \
     qtsupport.qrc
