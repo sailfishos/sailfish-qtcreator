@@ -30,7 +30,8 @@ HEADERS += \
     exampleslistmodel.h \
     screenshotcropper.h \
     qtconfigwidget.h \
-    qtfeatureprovider.h
+    qtfeatureprovider.h \
+    copytolocationdialog.h
 
 SOURCES += \
     qtsupportplugin.cpp \
@@ -53,13 +54,15 @@ SOURCES += \
     gettingstartedwelcomepage.cpp \
     exampleslistmodel.cpp \
     screenshotcropper.cpp \
-    qtconfigwidget.cpp
+    qtconfigwidget.cpp \
+    copytolocationdialog.cpp
 
 FORMS   +=  \
     showbuildlog.ui \
     qtversioninfo.ui \
     debugginghelper.ui \
     qtversionmanager.ui \
+    copytolocationdialog.ui
 
 RESOURCES += \
     qtsupport.qrc
