@@ -27,6 +27,7 @@
 
 #include "exampleslistmodel.h"
 #include "screenshotcropper.h"
+#include "copytolocationdialog.h"
 
 #include <utils/fileutils.h>
 #include <utils/pathchooser.h>
@@ -98,56 +99,24 @@ Id ExamplesWelcomePage::id() const
 QString ExamplesWelcomePage::copyToAlternativeLocation(const QFileInfo& proFileInfo, QStringList &filesToOpen, const QStringList& dependencies)
 {
     const QString projectDir = proFileInfo.canonicalPath();
-    QDialog d(ICore::mainWindow());
-    QGridLayout *lay = new QGridLayout(&d);
-    QLabel *descrLbl = new QLabel;
-    d.setWindowTitle(tr("Copy Project to writable Location?"));
-    descrLbl->setTextFormat(Qt::RichText);
-    descrLbl->setWordWrap(false);
-    const QString nativeProjectDir = QDir::toNativeSeparators(projectDir);
-    descrLbl->setText(QString::fromLatin1("<blockquote>%1</blockquote>").arg(nativeProjectDir));
-    descrLbl->setMinimumWidth(descrLbl->sizeHint().width());
-    descrLbl->setWordWrap(true);
-    descrLbl->setText(tr("<p>The project you are about to open is located in the "
-                         "write-protected location:</p><blockquote>%1</blockquote>"
-                         "<p>Please select a writable location below and click \"Copy Project and Open\" "
-                         "to open a modifiable copy of the project or click \"Keep Project and Open\" "
-                         "to open the project in location.</p><p><b>Note:</b> You will not "
-                         "be able to alter or compile your project in the current location.</p>")
-                      .arg(nativeProjectDir));
-    lay->addWidget(descrLbl, 0, 0, 1, 2);
-    QLabel *txt = new QLabel(tr("&Location:"));
-    PathChooser *chooser = new PathChooser;
-    txt->setBuddy(chooser);
-    chooser->setExpectedKind(PathChooser::ExistingDirectory);
-    chooser->setHistoryCompleter(QLatin1String("Qt.WritableExamplesDir.History"));
     QSettings *settings = ICore::settings();
-    chooser->setPath(settings->value(QString::fromLatin1(C_FALLBACK_ROOT),
-                                     DocumentManager::projectsDirectory().toString()).toString());
-    lay->addWidget(txt, 1, 0);
-    lay->addWidget(chooser, 1, 1);
-    enum { Copy = QDialog::Accepted + 1, Keep = QDialog::Accepted + 2 };
-    QDialogButtonBox *bb = new QDialogButtonBox;
-    QPushButton *copyBtn = bb->addButton(tr("&Copy Project and Open"), QDialogButtonBox::AcceptRole);
-    connect(copyBtn, &QAbstractButton::released, &d, [&d] { d.done(Copy); });
-    copyBtn->setDefault(true);
-    QPushButton *keepBtn = bb->addButton(tr("&Keep Project and Open"), QDialogButtonBox::RejectRole);
-    connect(keepBtn, &QAbstractButton::released, &d, [&d] { d.done(Keep); });
-    lay->addWidget(bb, 2, 0, 1, 2);
-    connect(chooser, &PathChooser::validChanged, copyBtn, &QWidget::setEnabled);
-    int code = d.exec();
-    if (code == Copy) {
+    CopyToLocationDialog d(ICore::mainWindow());
+    d.setSourcePath(projectDir);
+    d.setDestinationPath(settings->value(QString::fromLatin1(C_FALLBACK_ROOT),
+                                         DocumentManager::projectsDirectory().toString()).toString());
+
+    while (QDialog::Accepted == d.exec()) {
         QString exampleDirName = proFileInfo.dir().dirName();
-        QString destBaseDir = chooser->path();
+        QString destBaseDir = d.destinationPath();
         settings->setValue(QString::fromLatin1(C_FALLBACK_ROOT), destBaseDir);
         QDir toDirWithExamplesDir(destBaseDir);
         if (toDirWithExamplesDir.cd(exampleDirName)) {
             toDirWithExamplesDir.cdUp(); // step out, just to not be in the way
             QMessageBox::warning(ICore::mainWindow(), tr("Cannot Use Location"),
-                                 tr("The specified location already exists. "
-                                    "Please specify a valid location."),
+                                 tr("The specified location already contains \"%1\" directory. "
+                                    "Please specify a valid location.").arg(exampleDirName),
                                  QMessageBox::Ok, QMessageBox::NoButton);
-            return QString();
+            continue;
         } else {
             QString error;
             QString targetDir = destBaseDir + QLatin1Char('/') + exampleDirName;
@@ -164,7 +133,7 @@ QString ExamplesWelcomePage::copyToAlternativeLocation(const QFileInfo& proFileI
                     if (!FileUtils::copyRecursively(FileName::fromString(dependency), targetFile,
                             &error)) {
                         QMessageBox::warning(ICore::mainWindow(), tr("Cannot Copy Project"), error);
-                        // do not fail, just warn;
+                        continue;
                     }
                 }
 
@@ -172,12 +141,11 @@ QString ExamplesWelcomePage::copyToAlternativeLocation(const QFileInfo& proFileI
                 return targetDir + QLatin1Char('/') + proFileInfo.fileName();
             } else {
                 QMessageBox::warning(ICore::mainWindow(), tr("Cannot Copy Project"), error);
+                continue;
             }
 
         }
     }
-    if (code == Keep)
-        return proFileInfo.absoluteFilePath();
     return QString();
 }
 
