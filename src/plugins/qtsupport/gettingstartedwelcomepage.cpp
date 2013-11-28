@@ -330,7 +330,7 @@ QString ExamplesWelcomePage::copyToAlternativeLocation(const QFileInfo& proFileI
     const QString projectDir = proFileInfo.canonicalPath();
     QSettings *settings = Core::ICore::settings();
     CopyToLocationDialog d(Core::ICore::mainWindow());
-    d.setSourcePath(QDir::toNativeSeparators(projectDir));
+    d.setSourcePath(projectDir);
     d.setDestinationPath(settings->value(QString::fromLatin1(C_FALLBACK_ROOT),
                                          Core::DocumentManager::projectsDirectory()).toString());
 

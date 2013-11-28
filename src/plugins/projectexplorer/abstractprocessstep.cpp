@@ -193,7 +193,7 @@ void AbstractProcessStep::run(QFutureInterface<bool> &fi)
     m_process->setUseCtrlCStub(true);
 #endif
     m_process->setWorkingDirectory(wd.absolutePath());
-    m_process->setEnvironment(m_param.effectiveEnviroment());
+    m_process->setEnvironment(m_param.effectiveEnvironment());
 
     connect(m_process, SIGNAL(readyReadStandardOutput()),
             this, SLOT(processReadyReadStdOutput()));

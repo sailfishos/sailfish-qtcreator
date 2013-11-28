@@ -141,15 +141,15 @@ QString ProcessParameters::effectiveCommand() const
     Gets the fully expanded enviroment directory.
 */
 
-Utils::Environment ProcessParameters::effectiveEnviroment() const
+Utils::Environment ProcessParameters::effectiveEnvironment() const
 {
     if (m_macroExpander) {
-        m_effectiveEnviroment.clear();
+        m_effectiveEnvironment.clear();
          Utils::Environment::const_iterator i;
         for (i = environment().constBegin(); i != environment().constEnd(); ++i)
-            m_effectiveEnviroment.appendOrSet(Utils::expandMacros(i.key(), m_macroExpander), Utils::expandMacros(i.value(), m_macroExpander));
+            m_effectiveEnvironment.appendOrSet(Utils::expandMacros(i.key(), m_macroExpander), Utils::expandMacros(i.value(), m_macroExpander));
     }
-    return m_effectiveEnviroment;
+    return m_effectiveEnvironment;
 }
 
 /*!
@@ -222,5 +222,5 @@ void ProcessParameters::resolveAll()
     effectiveCommand();
     effectiveArguments();
     effectiveWorkingDirectory();
-    effectiveEnviroment();
+    effectiveEnvironment();
 }
