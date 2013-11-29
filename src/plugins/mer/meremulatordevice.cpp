@@ -194,7 +194,7 @@ QString MerEmulatorDevice::displayNameForActionId(Core::Id actionId) const
     QTC_ASSERT(actionIds().contains(actionId), return QString());
 
     if (actionId == Constants::MER_EMULATOR_DEPLOYKEY_ACTION_ID)
-        return tr("Regenerate SshKeys");
+        return tr("Regenerate SSH Keys");
     else if (actionId == Constants::MER_EMULATOR_START_ACTION_ID)
         return tr("Start Emulator");
     else if (actionId == Constants::MER_EMULATOR_TEST_ID)

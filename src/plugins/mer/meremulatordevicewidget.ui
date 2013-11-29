@@ -41,7 +41,7 @@
           <item row="3" column="0">
            <widget class="QLabel" name="emulatorLabel">
             <property name="text">
-             <string>Virtual machine:</string>
+             <string>Virtual Machine:</string>
             </property>
            </widget>
           </item>
@@ -109,7 +109,7 @@
           <item row="11" column="0">
            <widget class="QLabel" name="sshKeyLabel">
             <property name="text">
-             <string>Ssh key:</string>
+             <string>SSH key:</string>
             </property>
            </widget>
           </item>
@@ -180,7 +180,7 @@
           <item row="5" column="0">
            <widget class="QLabel" name="sshPortLabel">
             <property name="text">
-             <string>Ssh port:</string>
+             <string>SSH port:</string>
             </property>
            </widget>
           </item>

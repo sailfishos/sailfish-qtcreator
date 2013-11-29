@@ -57,7 +57,7 @@
              <item row="4" column="0">
               <widget class="QLabel" name="userSshKeyLabel">
                <property name="text">
-                <string>Ssh key:</string>
+                <string>SSH key:</string>
                </property>
               </widget>
              </item>
@@ -85,7 +85,7 @@
              <item row="5" column="1">
               <widget class="QCheckBox" name="userSshCheckBox">
                <property name="text">
-                <string>Generate new ssh keys</string>
+                <string>Generate new SSH keys</string>
                </property>
                <property name="tristate">
                 <bool>false</bool>
@@ -117,7 +117,7 @@
              <item row="4" column="0">
               <widget class="QLabel" name="rootSshKeyLabel">
                <property name="text">
-                <string>Ssh key:</string>
+                <string>SSH key:</string>
                </property>
               </widget>
              </item>
@@ -145,7 +145,7 @@
              <item row="5" column="1">
               <widget class="QCheckBox" name="rootSshCheckBox">
                <property name="text">
-                <string>Generate new ssh keys</string>
+                <string>Generate new SSH keys</string>
                </property>
                <property name="tristate">
                 <bool>false</bool>

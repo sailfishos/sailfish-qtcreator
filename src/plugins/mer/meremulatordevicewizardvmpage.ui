@@ -46,7 +46,7 @@
             <item row="0" column="0">
              <widget class="QLabel" name="configNameLabel">
               <property name="text">
-               <string>ConfigName:</string>
+               <string>Config Name:</string>
               </property>
              </widget>
             </item>
@@ -66,7 +66,7 @@
             <item row="2" column="0">
              <widget class="QLabel" name="connectionTimeoutLabel">
               <property name="text">
-               <string>Ssh Timeout:</string>
+               <string>SSH Timeout:</string>
               </property>
               <property name="buddy">
                <cstring>timeoutSpinBox</cstring>
@@ -137,7 +137,7 @@
              <item row="1" column="0">
               <widget class="QLabel" name="sshPortLabel">
                <property name="text">
-                <string>Ssh port:</string>
+                <string>SSH port:</string>
                </property>
               </widget>
              </item>
@@ -151,7 +151,7 @@
              <item row="2" column="0">
               <widget class="QLabel" name="configFolderLabel">
                <property name="text">
-                <string>&quot;config&quot; foler:</string>
+                <string>&quot;config&quot; folder:</string>
                </property>
               </widget>
              </item>
