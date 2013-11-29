@@ -29,7 +29,7 @@ PkgConfigBR:
 
 # Runtime dependencies which are not automatically detected
 Requires:
-- sailfishsilica-qt5 >= 0.10.0
+- sailfishsilica-qt5 >= 0.10.9
 # All installed files
 Files:
 - '%{_datadir}/icons/hicolor/86x86/apps/%{name}.png'

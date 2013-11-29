@@ -47,11 +47,13 @@ Page {
             Label {
                 x: Theme.paddingLarge
                 text: "Item " + index
+                anchors.verticalCenter: parent.verticalCenter
                 color: delegate.highlighted ? Theme.highlightColor : Theme.primaryColor
             }
             onClicked: console.log("Clicked " + index)
         }
     }
+    VerticalScrollDecorator {}
 }
 
 

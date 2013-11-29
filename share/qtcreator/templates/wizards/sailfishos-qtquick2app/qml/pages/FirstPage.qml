@@ -62,9 +62,9 @@ Page {
             }
             Label { 
                 x: Theme.paddingLarge
-                text: "Hello Sailors" 
+                text: "Hello Sailors"
                 color: Theme.secondaryHighlightColor
-                font.pixelSize: Theme.fontSizeLarge
+                font.pixelSize: Theme.fontSizeExtraLarge
             }
         }
     }
