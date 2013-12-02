@@ -13,7 +13,6 @@ class MerEmulatorDeviceWizard : public QWizard
 public:
     explicit MerEmulatorDeviceWizard(QWidget *parent = 0);
 
-    int index() const;
     QString configName() const;
     QString userName() const;
     QString rootName() const;
@@ -25,6 +24,7 @@ public:
     QString freePorts() const;
     QString sharedConfigPath() const;
     QString sharedSshPath() const;
+    QString mac() const;
 
     bool isUserNewSshKeysRquired() const;
     bool isRootNewSshKeysRquired() const;
@@ -32,7 +32,6 @@ public:
 private:
     MerEmualtorVMPage m_vmPage;
     MerEmualtorSshPage m_sshPage;
-    int m_index;
 };
 
 }

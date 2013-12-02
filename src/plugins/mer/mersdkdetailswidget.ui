@@ -81,7 +81,7 @@
           <item row="2" column="0">
            <widget class="QLabel" name="portLabel">
             <property name="text">
-             <string>Ssh port:</string>
+             <string>SSH port:</string>
             </property>
            </widget>
           </item>
@@ -272,7 +272,7 @@
           <item row="1" column="0">
            <widget class="QLabel" name="sshKeyLabel">
             <property name="text">
-             <string>Ssh key: </string>
+             <string>SSH key: </string>
             </property>
            </widget>
           </item>

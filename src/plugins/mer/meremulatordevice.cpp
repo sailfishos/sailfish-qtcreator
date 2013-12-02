@@ -226,7 +226,6 @@ void MerEmulatorDevice::fromMap(const QVariantMap &map)
     m_virtualMachine = map.value(QLatin1String(Constants::MER_DEVICE_VIRTUAL_MACHINE)).toString();
     m_mac = map.value(QLatin1String(Constants::MER_DEVICE_MAC)).toString();
     m_subnet = map.value(QLatin1String(Constants::MER_DEVICE_SUBNET)).toString();
-    m_index = map.value(QLatin1String(Constants::MER_DEVICE_INDEX)).toInt();
     m_sharedSshPath = map.value(QLatin1String(Constants::MER_DEVICE_SHARED_SSH)).toString();
     m_sharedConfigPath = map.value(QLatin1String(Constants::MER_DEVICE_SHARED_CONFIG)).toString();
 }
@@ -237,7 +236,6 @@ QVariantMap MerEmulatorDevice::toMap() const
     map.insert(QLatin1String(Constants::MER_DEVICE_VIRTUAL_MACHINE), m_virtualMachine);
     map.insert(QLatin1String(Constants::MER_DEVICE_MAC), m_mac);
     map.insert(QLatin1String(Constants::MER_DEVICE_SUBNET), m_subnet);
-    map.insert(QLatin1String(Constants::MER_DEVICE_INDEX), m_index);
     map.insert(QLatin1String(Constants::MER_DEVICE_SHARED_SSH), m_sharedSshPath);
     map.insert(QLatin1String(Constants::MER_DEVICE_SHARED_CONFIG), m_sharedConfigPath);
     return map;
@@ -273,16 +271,6 @@ QString MerEmulatorDevice::virtualMachine() const
     return m_virtualMachine;
 }
 
-void MerEmulatorDevice::setIndex(int index)
-{
-     m_index = index;
-}
-
-int MerEmulatorDevice::index() const
-{
-    return m_index;
-}
-
 void MerEmulatorDevice::setSharedConfigPath(const QString &configPath)
 {
     m_sharedConfigPath = configPath;
@@ -307,7 +295,9 @@ void MerEmulatorDevice::generteSshKey(const QString& user) const
 {
     if(!m_sharedConfigPath.isEmpty()) {
         QString index(QLatin1String("/ssh/private_keys/%1/"));
-        QString privateKeyFile = m_sharedConfigPath + index.arg(m_index) + user;
+        //TODO fix me:
+        QString privateKeyFile = m_sharedConfigPath +
+                index.arg(virtualMachine()).replace(QLatin1String(" "),QLatin1String("_")) + user;
         PublicKeyDeploymentDialog dialog(privateKeyFile, virtualMachine(),
                                          user, sharedSshPath());
         dialog.exec();
@@ -316,8 +306,10 @@ void MerEmulatorDevice::generteSshKey(const QString& user) const
 
 QSsh::SshConnectionParameters MerEmulatorDevice::sshParametersForUser(const QSsh::SshConnectionParameters &sshParams, const QLatin1String &user) const
 {
-    QString emulatorIndex(QLatin1String("/ssh/private_keys/%1/"));
-    QString privateKeyFile = sharedConfigPath() + emulatorIndex.arg(index()) + user;
+    QString index(QLatin1String("/ssh/private_keys/%1/"));
+    //TODO fix me:
+    QString privateKeyFile = sharedConfigPath()  +
+            index.arg(virtualMachine()).replace(QLatin1String(" "),QLatin1String("_")) + user;
     QSsh::SshConnectionParameters m_sshParams = sshParams;
     m_sshParams.userName = user;
     m_sshParams.privateKeyFile = privateKeyFile;

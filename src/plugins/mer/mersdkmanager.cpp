@@ -528,7 +528,9 @@ void MerSdkManager::updateDevices()
 
             if(d->type() == Constants::MER_DEVICE_TYPE_I486) {
                 const MerEmulatorDevice* device = static_cast<const MerEmulatorDevice*>(d.data());
-                xmlData.m_index = QString::number(device->index());
+                //TODO: fix me
+                QString mac = device->mac();
+                xmlData.m_index = mac.at(mac.count()-1);
                 xmlData.m_subNet = device->subnet();
                 xmlData.m_name = device->displayName();
                 xmlData.m_mac = device->mac();
@@ -553,25 +555,6 @@ void MerSdkManager::updateDevices()
         if (!file.isEmpty())
             MerDevicesXmlWriter writer(file, devices,xmlData);
     }
-}
-
-
-//this function does not have much sense,
-//however it was regested by customer
-int MerSdkManager::generateDeviceId()
-{
-    //go through mer device and generate first free index;
-    ProjectExplorer::DeviceManager* dm = ProjectExplorer::DeviceManager::instance();
-    int count = dm->deviceCount();
-    int index = 0 ;
-
-    for (int i=0 ; i < count ; ++i) {
-        if(dm->deviceAt(i)->type() == Constants::MER_DEVICE_TYPE_I486) {
-            const MerEmulatorDevice* d = static_cast<const MerEmulatorDevice*>(dm->deviceAt(i).data());
-            index = d->index() > index? d->index() : index;
-        }
-    }
-    return ++index;
 }
 
 #ifdef WITH_TESTS

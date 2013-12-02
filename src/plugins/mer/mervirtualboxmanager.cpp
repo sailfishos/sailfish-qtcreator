@@ -209,10 +209,12 @@ VirtualMachineInfo virtualMachineInfoFromOutput(const QString &output)
 
     // Get ssh port, shared home and shared targets
     // 1 Name, 2 Protocol, 3 Host IP, 4 Host Port, 5 Guest IP, 6 Guest Port, 7 Shared Folder Name,
-    // 8 Shared Folder Path
+    // 8 Shared Folder Path 9 mac
     QRegExp rexp(QLatin1String("(?:Forwarding\\(\\d+\\)=\"(\\w+),(\\w+),(.*),(\\d+),(.*),(\\d+)\")"
                                "|(?:SharedFolderNameMachineMapping\\d+=\"(\\w+)\"\\W*"
-                               "SharedFolderPathMachineMapping\\d+=\"(.*)\")"));
+                               "SharedFolderPathMachineMapping\\d+=\"(.*)\")"
+                               "|(?:macaddress\\d+=\"(.*)\")"));
+
     rexp.setMinimal(true);
     int pos = 0;
     while ((pos = rexp.indexIn(output, pos)) != -1) {
@@ -225,7 +227,7 @@ VirtualMachineInfo virtualMachineInfoFromOutput(const QString &output)
                 info.wwwPort = port;
             else
                 info.freePorts << port;
-        } else {
+        } else if(rexp.cap(0).startsWith(QLatin1String("SharedFolderNameMachineMapping"))) {
             if (rexp.cap(7) == QLatin1String("home"))
                 info.sharedHome = rexp.cap(8);
             else if (rexp.cap(7) == QLatin1String("targets"))
@@ -236,6 +238,17 @@ VirtualMachineInfo virtualMachineInfoFromOutput(const QString &output)
                 info.sharedConfig = rexp.cap(8);
             else if (rexp.cap(7).startsWith(QLatin1String("src")))
                 info.sharedSrc = rexp.cap(8);
+        } else if(rexp.cap(0).startsWith(QLatin1String("macaddress"))) {
+            QRegExp rx(QLatin1String("(?:([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]{2}))"));
+            QString mac = rexp.cap(9);
+            QStringList macFields;
+            if(rx.exactMatch(mac)) {
+                macFields = rx.capturedTexts();
+            }
+            if(!macFields.isEmpty()) {
+                macFields.removeFirst();
+                info.macs << macFields.join(QLatin1String(":"));
+            }
         }
     }
 

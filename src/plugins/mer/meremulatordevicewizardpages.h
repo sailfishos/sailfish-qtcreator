@@ -47,6 +47,7 @@ public:
     QString freePorts() const;
     QString sharedConfigPath() const;
     QString sharedSshPath() const;
+    QString mac() const;
 
 private slots:
     void handleEmulatorVmChanged(const QString &vmName);

@@ -113,6 +113,11 @@ QString MerEmualtorVMPage::sharedSshPath() const
     return trimNone(m_ui->sshFolderLabelEdit->text());
 }
 
+QString MerEmualtorVMPage::mac() const
+{
+    return m_ui->macLabelEdit->text();
+}
+
 void MerEmualtorVMPage::handleEmulatorVmChanged(const QString &vmName)
 {
     VirtualMachineInfo info = MerVirtualBoxManager::fetchVirtualMachineInfo(vmName);
@@ -137,6 +142,12 @@ void MerEmualtorVMPage::handleEmulatorVmChanged(const QString &vmName)
         m_ui->sshFolderLabelEdit->setText(sshFolder);
     else
         m_ui->sshFolderLabelEdit->setText(tr("none"));
+
+    if(info.macs.count()>1)
+        m_ui->macLabelEdit->setText(info.macs.at(1));
+    else
+        m_ui->macLabelEdit->setText(tr("none"));
+
 }
 
 
@@ -164,7 +175,10 @@ void MerEmualtorSshPage::initializePage()
    QString index(QLatin1String("/ssh/private_keys/%1/"));
    const MerEmulatorDeviceWizard* wizard = qobject_cast<MerEmulatorDeviceWizard*>(this->wizard());
    QTC_ASSERT(wizard,return);
-   QString sshKeyPath(QDir::toNativeSeparators(wizard->sharedConfigPath() + index.arg(wizard->index())  + QLatin1String("%1")));
+   //TODO: fix me
+   QString sshKeyPath(QDir::toNativeSeparators(wizard->sharedConfigPath() +
+                      index.arg(wizard->emulatorVm()).replace(QLatin1String(" "),QLatin1String("_")) +
+                      QLatin1String("%1")));
    if(!wizard->sharedConfigPath().isEmpty()) {
        m_ui->userSshKeyLabelEdit->setText(sshKeyPath.arg(userName()));
        m_ui->rootSshKeyLabelEdit->setText(sshKeyPath.arg(rootName()));

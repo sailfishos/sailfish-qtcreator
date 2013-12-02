@@ -60,7 +60,6 @@ public:
     static bool hasMerDevice(ProjectExplorer::Kit *kit);
     static bool validateKit(const ProjectExplorer::Kit* kit);
     static bool generateSshKey(const QString &privKeyPath, QString &error);
-    static int generateDeviceId();
 
     ~MerSdkManager();
     QList<MerSdk*> sdks() const;

@@ -64,9 +64,6 @@ public:
     void setSubnet(const QString& subnet);
     QString subnet() const;
 
-    void setIndex(int index);
-    int index() const;
-
     void generteSshKey(const QString& user) const;
 
     QSsh::SshConnectionParameters sshParametersForUser(const QSsh::SshConnectionParameters &sshParams, const QLatin1String &user) const;
@@ -77,7 +74,6 @@ private:
     QString m_virtualMachine;
     QString m_mac;
     QString m_subnet;
-    int m_index;
     QString m_sharedSshPath;
     QString m_sharedConfigPath;
 

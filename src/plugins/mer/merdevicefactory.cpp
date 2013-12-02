@@ -81,12 +81,10 @@ ProjectExplorer::IDevice::Ptr MerDeviceFactory::create(Core::Id id) const
         sshParams.privateKeyFile = wizard.userPrivateKey();
 
         //hardcoded values requested by customer;
-        QString mac = QString(QLatin1String("08:00:5A:11:00:0%1")).arg(wizard.index());
         MerEmulatorDevice::Ptr device = MerEmulatorDevice::create();
         device->setVirtualMachine(wizard.emulatorVm());
-        device->setMac(mac);
+        device->setMac(wizard.mac());
         device->setSubnet(QLatin1String("10.220.220"));
-        device->setIndex(wizard.index());
         device->setDisplayName(wizard.configName());
         device->setFreePorts(Utils::PortList::fromString(wizard.freePorts()));
         device->setSshParameters(sshParams);

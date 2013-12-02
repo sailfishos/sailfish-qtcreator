@@ -26,6 +26,7 @@
 #include <QObject>
 #include <QHash>
 #include <QString>
+#include <QStringList>
 
 namespace Mer {
 namespace Internal {
@@ -42,6 +43,7 @@ public:
     quint16 sshPort;
     quint16 wwwPort;
     QList<quint16> freePorts;
+    QStringList macs;
 };
 
 class MerVirtualBoxManager : public QObject

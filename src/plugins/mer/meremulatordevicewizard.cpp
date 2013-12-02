@@ -6,7 +6,6 @@ namespace Internal {
 
 MerEmulatorDeviceWizard::MerEmulatorDeviceWizard(QWidget *parent): QWizard(parent)
 {
-    m_index = MerSdkManager::generateDeviceId();
     setWindowTitle(tr("New Mer Emulator Device  Setup"));
     addPage(&m_vmPage);
     addPage(&m_sshPage);
@@ -68,11 +67,6 @@ QString MerEmulatorDeviceWizard::sharedSshPath() const
     return m_vmPage.sharedSshPath();
 }
 
-int MerEmulatorDeviceWizard::index() const
-{
-    return m_index;
-}
-
 bool MerEmulatorDeviceWizard::isUserNewSshKeysRquired() const
 {
     return m_sshPage.isUserNewSshKeysRquired();
@@ -81,6 +75,11 @@ bool MerEmulatorDeviceWizard::isUserNewSshKeysRquired() const
 bool MerEmulatorDeviceWizard::isRootNewSshKeysRquired() const
 {
     return m_sshPage.isRootNewSshKeysRquired();
+}
+
+QString MerEmulatorDeviceWizard::mac() const
+{
+    return m_vmPage.mac();
 }
 
 }
