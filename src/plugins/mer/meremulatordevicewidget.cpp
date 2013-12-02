@@ -139,6 +139,11 @@ void MerEmulatorDeviceWidget::initGui()
         m_ui->sshFolderLabelEdit->setText(QDir::toNativeSeparators(device->sharedSshPath()));
     else
         m_ui->sshFolderLabelEdit->setText(tr("none"));
+
+    if(!device->mac().isEmpty())
+        m_ui->macLabelEdit->setText(device->mac());
+    else
+        m_ui->macLabelEdit->setText(tr("none"));
     //block "nemo" user
     m_ui->userLineEdit->setEnabled(false);
     updatePortsWarningLabel();
