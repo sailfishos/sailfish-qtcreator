@@ -22,18 +22,53 @@
 
 #ifndef MERHARDWAREDEVICEWIZARDPAGES_H
 #define MERHARDWAREDEVICEWIZARDPAGES_H
-#include <remotelinux/genericlinuxdeviceconfigurationwizardpages.h>
+
+#include <QWizardPage>
 
 namespace Mer {
 namespace Internal {
 
+namespace Ui {
+    class MerHardwareDeviceWizardGeneralPage;
+    class MerHardwareDeviceWizardKeyPage;
+}
 
-class MerDeviceConfigurationWizardSetupPage: public RemoteLinux::GenericLinuxDeviceConfigurationWizardSetupPage
+class MerHardwareDeviceWizardGeneralPage : public QWizardPage
 {
+    Q_OBJECT
 public:
-    MerDeviceConfigurationWizardSetupPage(QWidget *parent = 0):
-        RemoteLinux::GenericLinuxDeviceConfigurationWizardSetupPage(parent){}
-    QString defaultConfigurationName() const { return tr("Sailfish Device");}
+    explicit MerHardwareDeviceWizardGeneralPage(QWidget *parent = 0);
+
+    QString configName() const;
+    QString hostName() const;
+    QString userName() const;
+    QString password() const;
+    QString freePorts() const;
+    int timeout() const;
+    int sshPort() const;
+
+    bool isComplete() const;
+
+private:
+    Ui::MerHardwareDeviceWizardGeneralPage *m_ui;
+};
+
+class MerHardwareDeviceWizardKeyPage : public QWizardPage
+{
+    Q_OBJECT
+public:
+    explicit MerHardwareDeviceWizardKeyPage(QWidget *parent = 0);
+    void initializePage();
+    QString publicKeyFilePath() const;
+    QString privateKeyFilePath() const;
+    bool isNewSshKeysRquired() const;
+    QString sharedSshPath() const;
+private slots:
+    void handleSdkVmChanged(const QString &vmName);
+    void handleTestConnectionClicked();
+
+private:
+    Ui::MerHardwareDeviceWizardKeyPage *m_ui;
 };
 
 }

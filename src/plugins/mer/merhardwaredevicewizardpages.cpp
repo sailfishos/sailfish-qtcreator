@@ -19,11 +19,162 @@
 ** conditions contained in a signed written agreement between you and Digia.
 **
 ****************************************************************************/
-
+#include "merconstants.h"
+#include "mersdkmanager.h"
+#include "mervirtualboxmanager.h"
 #include "merhardwaredevicewizardpages.h"
+#include "merhardwaredevicewizard.h"
+#include "ui_merhardwaredevicewizardgeneralpage.h"
+#include "ui_merhardwaredevicewizardkeypage.h"
+#include <utils/qtcassert.h>
+#include <QDir>
 
 namespace Mer {
 namespace Internal {
+
+
+MerHardwareDeviceWizardGeneralPage::MerHardwareDeviceWizardGeneralPage(QWidget *parent)
+    : QWizardPage(parent)
+    , m_ui(new Ui::MerHardwareDeviceWizardGeneralPage)
+{
+    m_ui->setupUi(this);
+    setTitle(tr("General Information"));
+    m_ui->configLineEdit->setText(tr("SailfishOS Device"));
+    m_ui->hostNameLineEdit->setText(QLatin1String("192.168.2.15"));
+
+    m_ui->usernameLineEdit->setText(QLatin1String(Constants::MER_DEVICE_DEFAULTUSER));
+    m_ui->sshPortSpinBox->setMinimum(1);
+    m_ui->sshPortSpinBox->setMaximum(65535);
+    m_ui->sshPortSpinBox->setValue(22);
+
+    m_ui->timeoutSpinBox->setMinimum(1);
+    m_ui->timeoutSpinBox->setMaximum(65535);
+    m_ui->timeoutSpinBox->setValue(10);
+
+    connect(m_ui->configLineEdit, SIGNAL(textChanged(QString)), SIGNAL(completeChanged()));
+    connect(m_ui->hostNameLineEdit, SIGNAL(textChanged(QString)), SIGNAL(completeChanged()));
+    connect(m_ui->passwordLineEdit, SIGNAL(textChanged(QString)), SIGNAL(completeChanged()));
+}
+
+bool MerHardwareDeviceWizardGeneralPage::isComplete() const
+{
+    return !configName().isEmpty()
+            && !hostName().isEmpty()
+            && !userName().isEmpty()
+            && !password().isEmpty();
+}
+
+QString MerHardwareDeviceWizardGeneralPage::configName() const
+{
+    return m_ui->configLineEdit->text().trimmed();
+}
+
+QString MerHardwareDeviceWizardGeneralPage::hostName() const
+{
+    return m_ui->hostNameLineEdit->text().trimmed();
+}
+
+QString MerHardwareDeviceWizardGeneralPage::userName() const
+{
+    return m_ui->usernameLineEdit->text().trimmed();
+}
+
+QString MerHardwareDeviceWizardGeneralPage::password() const
+{
+    return m_ui->passwordLineEdit->text().trimmed();
+}
+
+QString MerHardwareDeviceWizardGeneralPage::freePorts() const
+{
+    return m_ui->freePortsLineEdit->text().trimmed();
+}
+
+int MerHardwareDeviceWizardGeneralPage::sshPort() const
+{
+    return m_ui->sshPortSpinBox->value();
+}
+
+int MerHardwareDeviceWizardGeneralPage::timeout() const
+{
+    return m_ui->timeoutSpinBox->value();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+
+MerHardwareDeviceWizardKeyPage::MerHardwareDeviceWizardKeyPage(QWidget *parent)
+    : QWizardPage(parent)
+    , m_ui(new Ui::MerHardwareDeviceWizardKeyPage)
+{
+    m_ui->setupUi(this);
+    setTitle(tr("Key Public Key Deployment"));
+    m_ui->sshCheckBox->setChecked(true);
+    static QRegExp regExp(tr("MerSDK"));
+    QList<MerSdk*> sdks = MerSdkManager::instance()->sdks();
+    foreach (const MerSdk *s, sdks) {
+        m_ui->merSdkComboBox->addItem(s->virtualMachineName());
+        if (regExp.indexIn(s->virtualMachineName()) != -1) {
+            //preselect sdk
+            m_ui->merSdkComboBox->setCurrentIndex(m_ui->merSdkComboBox->count()-1);
+        }
+    }
+    connect(m_ui->merSdkComboBox,SIGNAL(currentIndexChanged(QString)),this,SLOT(handleSdkVmChanged(QString)));
+    connect(m_ui->testButton, SIGNAL(clicked()), SLOT(handleTestConnectionClicked()));
+}
+
+void MerHardwareDeviceWizardKeyPage::initializePage()
+{
+   const MerHardwareDeviceWizard* wizard = qobject_cast<MerHardwareDeviceWizard*>(this->wizard());
+   QTC_ASSERT(wizard,return);
+
+   m_ui->hostLabelEdit->setText(wizard->hostName());
+   m_ui->usernameLabelEdit->setText(wizard->userName());
+   m_ui->passwordLabelEdit->setText(wizard->password());
+   m_ui->sshPortLabelEdit->setText(QString::number(wizard->sshPort()));
+   handleSdkVmChanged(m_ui->merSdkComboBox->currentText());
+}
+
+void MerHardwareDeviceWizardKeyPage::handleSdkVmChanged(const QString &vmName)
+{
+    MerSdk* sdk = MerSdkManager::instance()->sdk(vmName);
+    QTC_ASSERT(sdk,return);
+    const MerHardwareDeviceWizard* wizard = qobject_cast<MerHardwareDeviceWizard*>(this->wizard());
+    QTC_ASSERT(wizard,return);
+    QString index(QLatin1String("/ssh/private_keys/%1/"));
+    //TODO: fix me
+    QString sshKeyPath(QDir::toNativeSeparators(sdk->sharedConfigPath() +
+                       index.arg(wizard->configurationName()).replace(QLatin1String(" "),QLatin1String("_")) +
+                       wizard->userName()));
+    m_ui->privateSshKeyLabelEdit->setText(sshKeyPath);
+    m_ui->publicSshKeyLabelEdit->setText(sshKeyPath + QLatin1String(".pub"));
+}
+
+QString MerHardwareDeviceWizardKeyPage::privateKeyFilePath() const
+{
+    return QDir::fromNativeSeparators(m_ui->privateSshKeyLabelEdit->text());
+}
+
+QString MerHardwareDeviceWizardKeyPage::publicKeyFilePath() const
+{
+    return QDir::fromNativeSeparators(m_ui->publicSshKeyLabelEdit->text());
+}
+
+void MerHardwareDeviceWizardKeyPage::handleTestConnectionClicked()
+{
+    //TODO: implement me
+    QTC_ASSERT(false,return);
+}
+
+bool MerHardwareDeviceWizardKeyPage::isNewSshKeysRquired() const
+{
+    return m_ui->sshCheckBox->isChecked();
+}
+
+QString MerHardwareDeviceWizardKeyPage::sharedSshPath() const
+{
+    MerSdk* sdk = MerSdkManager::instance()->sdk(m_ui->merSdkComboBox->currentText());
+    QTC_ASSERT(sdk,return QString());
+    return sdk->sharedConfigPath();
+}
 
 }
 }

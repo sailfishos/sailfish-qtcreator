@@ -41,14 +41,20 @@ public:
     QString displayType() const;
     ProjectExplorer::IDevice::Ptr clone() const;
 
+    void setSharedSshPath(const QString &sshPath);
+    QString sharedSshPath() const;
+
+    void fromMap(const QVariantMap &map);
+    QVariantMap toMap() const;
+
 protected:
     MerHardwareDevice();
     MerHardwareDevice(const QString &name, Core::Id type, MachineType machineType, Origin origin,
               Core::Id id);
-    MerHardwareDevice(const MerHardwareDevice &other);
-
 private:
     MerHardwareDevice &operator=(const MerHardwareDevice &);
+private:
+    QString m_sharedSshPath;
 };
 
 }

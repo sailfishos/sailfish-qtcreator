@@ -67,11 +67,6 @@ MerHardwareDevice::MerHardwareDevice(const QString &name,
     setDeviceState(IDevice::DeviceStateUnknown);
 }
 
-MerHardwareDevice::MerHardwareDevice(const MerHardwareDevice &other)
-    : RemoteLinux::LinuxDevice(other)
-{
-}
-
 ProjectExplorer::IDevice::Ptr MerHardwareDevice::clone() const
 {
     return Ptr(new MerHardwareDevice(*this));
@@ -81,6 +76,31 @@ MerHardwareDevice::MerHardwareDevice()
 {
     setDeviceState(IDevice::DeviceStateUnknown);
 }
+
+void MerHardwareDevice::setSharedSshPath(const QString &sshPath)
+{
+    m_sharedSshPath = sshPath;
+}
+
+QString MerHardwareDevice::sharedSshPath() const
+{
+    return m_sharedSshPath;
+}
+
+void MerHardwareDevice::fromMap(const QVariantMap &map)
+{
+    IDevice::fromMap(map);
+    m_sharedSshPath = map.value(QLatin1String(Constants::MER_DEVICE_SHARED_SSH)).toString();
+}
+
+QVariantMap MerHardwareDevice::toMap() const
+{
+    QVariantMap map = IDevice::toMap();
+    map.insert(QLatin1String(Constants::MER_DEVICE_SHARED_SSH), m_sharedSshPath);
+    return map;
+}
+
+
 
 } // Internal
 } // Mer

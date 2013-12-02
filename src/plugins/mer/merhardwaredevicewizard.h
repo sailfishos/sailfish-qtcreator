@@ -24,6 +24,7 @@
 #define MERHARDWAREDEVICEWIZARD_H
 
 #include "merhardwaredevicewizardpages.h"
+#include <remotelinux/genericlinuxdeviceconfigurationwizardpages.h>
 #include <QWizard>
 
 namespace QSsh {
@@ -44,10 +45,16 @@ public:
     QString password() const;
     QString privateKeyFilePath() const;
     QString configurationName() const;
-    QSsh::SshConnectionParameters::AuthenticationType authenticationType() const;
+    int sshPort() const;
+    int timeout() const;
+    QString freePorts() const;
+    bool isNewSshKeysRquired() const;
+    QString sharedSshPath() const;
+
 
 private:
-    MerDeviceConfigurationWizardSetupPage m_setupPage;
+    MerHardwareDeviceWizardGeneralPage m_setupPage;
+    MerHardwareDeviceWizardKeyPage m_keyPage;
     RemoteLinux::GenericLinuxDeviceConfigurationWizardFinalPage m_finalPage;
 };
 

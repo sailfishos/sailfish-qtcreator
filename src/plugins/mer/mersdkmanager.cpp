@@ -31,6 +31,7 @@
 #include "merdevicefactory.h"
 #include "mertarget.h"
 #include "meremulatordevice.h"
+#include "merhardwaredevice.h"
 #include "merdevicexmlparser.h"
 #include "mertargetkitinformation.h"
 
@@ -519,11 +520,17 @@ void MerSdkManager::updateDevices()
         IDevice::ConstPtr d = DeviceManager::instance()->deviceAt(i);
         if (MerDeviceFactory::canCreate(d->type())) {
             MerDeviceData xmlData;
-            if(d->type() == Constants::MER_DEVICE_TYPE_ARM ) {
-                xmlData.m_ip = d->sshParameters().host;
-                xmlData.m_name = d->displayName();
+            if(d->type() == Constants::MER_DEVICE_TYPE_ARM) {
+                const MerHardwareDevice* device = static_cast<const MerHardwareDevice*>(d.data());
+                xmlData.m_ip = device->sshParameters().host;
+                xmlData.m_name = device->displayName();
                 xmlData.m_type = QLatin1String("real");
-                xmlData.m_sshKeyPath = d->sshParameters().privateKeyFile;
+                QFileInfo file(device->sshParameters().privateKeyFile);
+                QString path = QDir::toNativeSeparators(file.dir().absolutePath());
+                if(!device->sharedSshPath().isEmpty())
+                    xmlData.m_sshKeyPath = QDir::fromNativeSeparators(
+                                path.remove(QDir::toNativeSeparators(device->sharedSshPath() +
+                                                                     QDir::separator())));
             }
 
             if(d->type() == Constants::MER_DEVICE_TYPE_I486) {
@@ -538,7 +545,9 @@ void MerSdkManager::updateDevices()
                 QFileInfo file(device->sshParameters().privateKeyFile);
                 QString path = QDir::toNativeSeparators(file.dir().absolutePath());
                 if(!device->sharedConfigPath().isEmpty())
-                    xmlData.m_sshKeyPath = QDir::fromNativeSeparators(path.remove(QDir::toNativeSeparators(device->sharedConfigPath() + QDir::separator())));
+                    xmlData.m_sshKeyPath = QDir::fromNativeSeparators(
+                                path.remove(QDir::toNativeSeparators(device->sharedConfigPath() +
+                                                                     QDir::separator())));
             }
             devices << xmlData;
         }

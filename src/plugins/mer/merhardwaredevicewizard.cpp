@@ -31,10 +31,12 @@ namespace Internal {
 MerHardwareDeviceWizard::MerHardwareDeviceWizard(QWidget *parent)
     : QWizard(parent),
       m_setupPage(this),
+      m_keyPage(this),
       m_finalPage(this)
 {
     setWindowTitle(tr("New Mer ARM Device  Setup"));
     addPage(&m_setupPage);
+    addPage(&m_keyPage);
     addPage(&m_finalPage);
     m_finalPage.setCommitPage(true);
 }
@@ -61,16 +63,37 @@ QString MerHardwareDeviceWizard::password() const
 
 QString MerHardwareDeviceWizard::privateKeyFilePath() const
 {
-    return m_setupPage.privateKeyFilePath();
+    return m_keyPage.privateKeyFilePath();
 }
 
 QString MerHardwareDeviceWizard::configurationName() const
 {
-    return m_setupPage.configurationName();
+    return m_setupPage.configName();
 }
-QSsh::SshConnectionParameters::AuthenticationType MerHardwareDeviceWizard::authenticationType() const
+
+QString MerHardwareDeviceWizard::freePorts() const
 {
-    return m_setupPage.authenticationType();
+     return m_setupPage.freePorts();
+}
+
+int MerHardwareDeviceWizard::sshPort() const
+{
+    return m_setupPage.sshPort();
+}
+
+int MerHardwareDeviceWizard::timeout() const
+{
+    return m_setupPage.timeout();
+}
+
+bool MerHardwareDeviceWizard::isNewSshKeysRquired() const
+{
+    return m_keyPage.isNewSshKeysRquired();
+}
+
+QString MerHardwareDeviceWizard::sharedSshPath() const
+{
+    return m_keyPage.sharedSshPath();
 }
 
 } // Internal

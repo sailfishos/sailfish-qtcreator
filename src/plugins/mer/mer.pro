@@ -22,7 +22,8 @@ FORMS += \
     merhardwaredevicewizardgeneralpage.ui \
     meremulatordevicewizardvmpage.ui \
     meremulatordevicewizardsshpage.ui \
-    merrpmpackagingwidget.ui
+    merrpmpackagingwidget.ui \
+    merhardwaredevicewizardkeypage.ui
 
 SOURCES += \
     merplugin.cpp \
@@ -32,7 +33,6 @@ SOURCES += \
     meroptionspage.cpp \
     merdevicefactory.cpp \
     merdeployconfigurationfactory.cpp \
-    merdeviceconfigurationwizardsetuppages.cpp \
     mersdkmanager.cpp \
     mersdk.cpp \
     mersftpdeployconfiguration.cpp \
@@ -86,7 +86,6 @@ HEADERS += \
     merdevicefactory.h \
     mertoolchainfactory.h \
     merdeployconfigurationfactory.h \
-    merdeviceconfigurationwizardsetuppages.h \
     mersdkmanager.h \
     mersdk.h \
     mersftpdeployconfiguration.h \
