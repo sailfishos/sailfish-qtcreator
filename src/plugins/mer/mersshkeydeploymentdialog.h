@@ -20,46 +20,37 @@
 **
 ****************************************************************************/
 
-#ifndef MERHARDWAREDEVICEWIZARD_H
-#define MERHARDWAREDEVICEWIZARD_H
+#ifndef MERSSHKEYDEPLOYMENTDIALOG_H
+#define MERSSHKEYDEPLOYMENTDIALOG_H
 
-#include "merhardwaredevicewizardpages.h"
-#include <remotelinux/genericlinuxdeviceconfigurationwizardpages.h>
-#include <QWizard>
-
-namespace QSsh {
-    class SshConnectionParameters;
-}
+#include <QProgressDialog>
+#include <remotelinux/sshkeydeployer.h>
+#include <ssh/sshconnection.h>
 
 namespace Mer {
 namespace Internal {
 
-class MerHardwareDeviceWizard : public QWizard
+class MerSshKeyDeploymentDialog: public QProgressDialog
 {
     Q_OBJECT
 public:
-    explicit MerHardwareDeviceWizard(QWidget *parent = 0);
-    ~MerHardwareDeviceWizard();
-    QString hostName() const;
-    QString userName() const;
-    QString password() const;
-    QString privateKeyFilePath() const;
-    QString publicKeyFilePath() const;
-    QString configurationName() const;
-    int sshPort() const;
-    int timeout() const;
-    QString freePorts() const;
-    bool isNewSshKeysRquired() const;
-    QString sharedSshPath() const;
-
-
+    MerSshKeyDeploymentDialog(QWidget *parent = 0);
+    void setPublicKeyPath(const QString& file);
+    void setSShParameters(const QSsh::SshConnectionParameters& parameters);
+    int exec();
+private slots:
+    void handleDeploymentError(const QString &errorMsg);
+    void handleDeploymentSuccess();
+    void handleCanceled();
 private:
-    MerHardwareDeviceWizardGeneralPage m_setupPage;
-    MerHardwareDeviceWizardKeyPage m_keyPage;
-    RemoteLinux::GenericLinuxDeviceConfigurationWizardFinalPage m_finalPage;
+    void handleDeploymentFinished(const QString &errorMsg);
+private:
+    RemoteLinux::SshKeyDeployer m_sshDeployer;
+    QString m_publicKeyPath;
+    QSsh::SshConnectionParameters m_sshParams;
+    bool m_done;
 };
 
-} // Internal
-} // Mer
-
-#endif
+}
+}
+#endif // MERSSHKEYDEPLOYMENTDIALOG_H

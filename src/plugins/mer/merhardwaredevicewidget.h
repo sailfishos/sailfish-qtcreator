@@ -24,7 +24,7 @@
 #define MERHARDWAREDEVICEWIDGET_H
 
 #include <projectexplorer/devicesupport/idevicewidget.h>
-/*
+
 namespace Mer {
 namespace Internal {
 
@@ -41,17 +41,11 @@ public:
     ~MerHardwareDeviceWidget();
 
 private slots:
-    void authenticationTypeChanged();
     void hostNameEditingFinished();
     void sshPortEditingFinished();
     void timeoutEditingFinished();
     void userNameEditingFinished();
-    void passwordEditingFinished();
-    void keyFileEditingFinished();
-    void showPassword(bool showClearText);
     void handleFreePortsChanged();
-    void setPrivateKey(const QString &path);
-    void createNewKey();
 
 private:
     void updateDeviceFromUi();
@@ -63,5 +57,5 @@ private:
 
 } // Internal
 } // Mer
-*/
+
 #endif // MERDEVICECONFIGURATIONWIDGET_H

@@ -58,12 +58,17 @@ QString MerHardwareDeviceWizard::userName() const
 
 QString MerHardwareDeviceWizard::password() const
 {
-    return m_setupPage.password();
+    return m_keyPage.password();
 }
 
 QString MerHardwareDeviceWizard::privateKeyFilePath() const
 {
     return m_keyPage.privateKeyFilePath();
+}
+
+QString MerHardwareDeviceWizard::publicKeyFilePath() const
+{
+    return m_keyPage.publicKeyFilePath();
 }
 
 QString MerHardwareDeviceWizard::configurationName() const

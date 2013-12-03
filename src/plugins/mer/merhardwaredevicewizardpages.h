@@ -63,12 +63,15 @@ public:
     QString privateKeyFilePath() const;
     bool isNewSshKeysRquired() const;
     QString sharedSshPath() const;
+    QString password() const;
+    bool isComplete() const;
 private slots:
     void handleSdkVmChanged(const QString &vmName);
     void handleTestConnectionClicked();
 
 private:
     Ui::MerHardwareDeviceWizardKeyPage *m_ui;
+    bool m_isIdle;
 };
 
 }

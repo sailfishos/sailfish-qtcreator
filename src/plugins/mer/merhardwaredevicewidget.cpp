@@ -19,10 +19,13 @@
 ** conditions contained in a signed written agreement between you and Digia.
 **
 ****************************************************************************/
-/*
+
 #include "merhardwaredevicewidget.h"
 #include "ui_merhardwaredevicewidget.h"
 #include "mervirtualboxmanager.h"
+#include "merconstants.h"
+#include "merhardwaredevice.h"
+
 
 #include <utils/portlist.h>
 #include <utils/fancylineedit.h>
@@ -47,40 +50,17 @@ MerHardwareDeviceWidget::MerHardwareDeviceWidget(
     m_ui->setupUi(this);
     connect(m_ui->hostLineEdit, SIGNAL(editingFinished()), SLOT(hostNameEditingFinished()));
     connect(m_ui->userLineEdit, SIGNAL(editingFinished()), SLOT(userNameEditingFinished()));
-    connect(m_ui->pwdLineEdit, SIGNAL(editingFinished()), SLOT(passwordEditingFinished()));
-    connect(m_ui->passwordButton, SIGNAL(toggled(bool)), SLOT(authenticationTypeChanged()));
-    connect(m_ui->keyFileLineEdit, SIGNAL(editingFinished()), SLOT(keyFileEditingFinished()));
-    connect(m_ui->keyFileLineEdit, SIGNAL(browsingFinished()), SLOT(keyFileEditingFinished()));
-    connect(m_ui->keyButton, SIGNAL(toggled(bool)), SLOT(authenticationTypeChanged()));
     connect(m_ui->timeoutSpinBox, SIGNAL(editingFinished()), SLOT(timeoutEditingFinished()));
     connect(m_ui->timeoutSpinBox, SIGNAL(valueChanged(int)), SLOT(timeoutEditingFinished()));
     connect(m_ui->sshPortSpinBox, SIGNAL(editingFinished()), SLOT(sshPortEditingFinished()));
     connect(m_ui->sshPortSpinBox, SIGNAL(valueChanged(int)), SLOT(sshPortEditingFinished()));
-    connect(m_ui->showPasswordCheckBox, SIGNAL(toggled(bool)), SLOT(showPassword(bool)));
     connect(m_ui->portsLineEdit, SIGNAL(editingFinished()), SLOT(handleFreePortsChanged()));
-    connect(m_ui->createKeyButton, SIGNAL(clicked()), SLOT(createNewKey()));
     initGui();
 }
 
 MerHardwareDeviceWidget::~MerHardwareDeviceWidget()
 {
     delete m_ui;
-}
-
-void MerHardwareDeviceWidget::authenticationTypeChanged()
-{
-    SshConnectionParameters sshParams = device()->sshParameters();
-    const bool usePassword = m_ui->passwordButton->isChecked();
-    sshParams.authenticationType = usePassword
-            ? SshConnectionParameters::AuthenticationByPassword
-            : SshConnectionParameters::AuthenticationByKey;
-    device()->setSshParameters(sshParams);
-    m_ui->pwdLineEdit->setVisible(usePassword);
-    m_ui->passwordLabel->setVisible(usePassword);
-    m_ui->showPasswordCheckBox->setVisible(usePassword);
-    m_ui->keyFileLineEdit->setVisible(!usePassword);
-    m_ui->keyLabel->setVisible(!usePassword);
-    m_ui->createKeyButton->setVisible(!usePassword);
 }
 
 void MerHardwareDeviceWidget::hostNameEditingFinished()
@@ -111,42 +91,10 @@ void MerHardwareDeviceWidget::userNameEditingFinished()
     device()->setSshParameters(sshParams);
 }
 
-void MerHardwareDeviceWidget::passwordEditingFinished()
-{
-    SshConnectionParameters sshParams = device()->sshParameters();
-    sshParams.password = m_ui->pwdLineEdit->text();
-    device()->setSshParameters(sshParams);
-}
-
-void MerHardwareDeviceWidget::keyFileEditingFinished()
-{
-    SshConnectionParameters sshParams = device()->sshParameters();
-    sshParams.privateKeyFile = m_ui->keyFileLineEdit->path();
-    device()->setSshParameters(sshParams);
-}
-
 void MerHardwareDeviceWidget::handleFreePortsChanged()
 {
     device()->setFreePorts(PortList::fromString(m_ui->portsLineEdit->text()));
     updatePortsWarningLabel();
-}
-
-void MerHardwareDeviceWidget::showPassword(bool showClearText)
-{
-    m_ui->pwdLineEdit->setEchoMode(showClearText ? QLineEdit::Normal : QLineEdit::Password);
-}
-
-void MerHardwareDeviceWidget::setPrivateKey(const QString &path)
-{
-    m_ui->keyFileLineEdit->setPath(path);
-    keyFileEditingFinished();
-}
-
-void MerHardwareDeviceWidget::createNewKey()
-{
-    SshKeyCreationDialog dialog(this);
-    if (dialog.exec() == QDialog::Accepted)
-        setPrivateKey(dialog.privateKeyFilePath());
 }
 
 void MerHardwareDeviceWidget::updateDeviceFromUi()
@@ -155,8 +103,6 @@ void MerHardwareDeviceWidget::updateDeviceFromUi()
     sshPortEditingFinished();
     timeoutEditingFinished();
     userNameEditingFinished();
-    passwordEditingFinished();
-    keyFileEditingFinished();
     handleFreePortsChanged();
 }
 
@@ -171,25 +117,18 @@ void MerHardwareDeviceWidget::initGui()
     m_ui->portsWarningLabel->setToolTip(QLatin1String("<font color=\"red\">")
                                         + tr("You will need at least two ports for debugging.")
                                         + QLatin1String("</font>"));
-    m_ui->keyFileLineEdit->setExpectedKind(PathChooser::File);
-    m_ui->keyFileLineEdit->lineEdit()->setMinimumWidth(0);
     QRegExpValidator * const portsValidator
             = new QRegExpValidator(QRegExp(PortList::regularExpression()), this);
     m_ui->portsLineEdit->setValidator(portsValidator);
 
     const SshConnectionParameters &sshParams = device()->sshParameters();
 
-    SshConnectionParameters::AuthenticationByPassword == sshParams.authenticationType
-            ? m_ui->passwordButton->setChecked(true)
-            : m_ui->keyButton->setChecked(true);
-
+    m_ui->autheticationTypeLabelEdit->setText(tr("SSH Key"));
     m_ui->timeoutSpinBox->setValue(sshParams.timeout);
     m_ui->hostLineEdit->setText(sshParams.host);
     m_ui->timeoutSpinBox->setValue(sshParams.timeout);
     m_ui->userLineEdit->setText(sshParams.userName);
-    m_ui->pwdLineEdit->setText(sshParams.password);
-    m_ui->keyFileLineEdit->setPath(sshParams.privateKeyFile);
-    m_ui->showPasswordCheckBox->setChecked(false);
+    m_ui->privateKeyLabelEdit->setText(QDir::toNativeSeparators(sshParams.privateKeyFile));
     m_ui->sshPortSpinBox->setValue(sshParams.port);
     m_ui->portsLineEdit->setText(device()->freePorts().toString());
     updatePortsWarningLabel();
@@ -197,4 +136,3 @@ void MerHardwareDeviceWidget::initGui()
 
 } // Internal
 } // Mer
-*/

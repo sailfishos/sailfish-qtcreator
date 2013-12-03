@@ -7,17 +7,14 @@
     <x>0</x>
     <y>0</y>
     <width>786</width>
-    <height>254</height>
+    <height>218</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Form</string>
   </property>
-  <layout class="QGridLayout" name="gridLayout">
-   <property name="margin">
-    <number>0</number>
-   </property>
-   <item row="0" column="0">
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
     <widget class="QScrollArea" name="scrollArea">
      <property name="widgetResizable">
       <bool>true</bool>
@@ -26,13 +23,13 @@
       <property name="geometry">
        <rect>
         <x>0</x>
-        <y>0</y>
-        <width>780</width>
-        <height>248</height>
+        <y>-3</y>
+        <width>757</width>
+        <height>207</height>
        </rect>
       </property>
       <layout class="QGridLayout" name="gridLayout_2">
-       <item row="0" column="1">
+       <item row="0" column="0">
         <widget class="QWidget" name="widget" native="true">
          <layout class="QFormLayout" name="formLayout">
           <property name="fieldGrowthPolicy">
@@ -79,83 +76,13 @@
            </widget>
           </item>
           <item row="2" column="1">
-           <widget class="QLineEdit" name="userLineEdit"/>
+           <layout class="QHBoxLayout" name="horizontalLayout_7">
+            <item>
+             <widget class="QLineEdit" name="userLineEdit"/>
+            </item>
+           </layout>
           </item>
           <item row="3" column="0">
-           <widget class="QLabel" name="authTypeLabel">
-            <property name="text">
-             <string>Authentication type:</string>
-            </property>
-           </widget>
-          </item>
-          <item row="3" column="1">
-           <layout class="QHBoxLayout" name="horizontalLayout">
-            <item>
-             <widget class="QRadioButton" name="keyButton">
-              <property name="text">
-               <string>&amp;Key</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QRadioButton" name="passwordButton">
-              <property name="text">
-               <string>Password</string>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </item>
-          <item row="4" column="0">
-           <widget class="QLabel" name="passwordLabel">
-            <property name="text">
-             <string>&amp;Password:</string>
-            </property>
-            <property name="buddy">
-             <cstring>pwdLineEdit</cstring>
-            </property>
-           </widget>
-          </item>
-          <item row="4" column="1">
-           <layout class="QHBoxLayout" name="horizontalLayout_6">
-            <item>
-             <widget class="QLineEdit" name="pwdLineEdit">
-              <property name="echoMode">
-               <enum>QLineEdit::Password</enum>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QCheckBox" name="showPasswordCheckBox">
-              <property name="text">
-               <string>Show password</string>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </item>
-          <item row="5" column="0">
-           <widget class="QLabel" name="keyLabel">
-            <property name="text">
-             <string>Private key file:</string>
-            </property>
-           </widget>
-          </item>
-          <item row="5" column="1">
-           <layout class="QHBoxLayout" name="horizontalLayout_8">
-            <item>
-             <widget class="Utils::PathChooser" name="keyFileLineEdit" native="true"/>
-            </item>
-            <item>
-             <widget class="QPushButton" name="createKeyButton">
-              <property name="text">
-               <string>Create New...</string>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </item>
-          <item row="6" column="0">
            <widget class="QLabel" name="sshPortLabel">
             <property name="text">
              <string>&amp;SSH port:</string>
@@ -165,20 +92,37 @@
             </property>
            </widget>
           </item>
-          <item row="6" column="1">
-           <widget class="QSpinBox" name="sshPortSpinBox">
-            <property name="minimum">
-             <number>0</number>
-            </property>
-            <property name="maximum">
-             <number>65535</number>
-            </property>
-            <property name="value">
-             <number>22</number>
-            </property>
-           </widget>
+          <item row="3" column="1">
+           <layout class="QHBoxLayout" name="horizontalLayout_6">
+            <item>
+             <widget class="QSpinBox" name="sshPortSpinBox">
+              <property name="minimum">
+               <number>0</number>
+              </property>
+              <property name="maximum">
+               <number>65535</number>
+              </property>
+              <property name="value">
+               <number>22</number>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <spacer name="horizontalSpacer_2">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>40</width>
+                <height>20</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+           </layout>
           </item>
-          <item row="7" column="0">
+          <item row="4" column="0">
            <widget class="QLabel" name="connectionTimeoutLabel">
             <property name="text">
              <string>Timeout:</string>
@@ -188,23 +132,40 @@
             </property>
            </widget>
           </item>
-          <item row="7" column="1">
-           <widget class="QSpinBox" name="timeoutSpinBox">
-            <property name="suffix">
-             <string>s</string>
-            </property>
-            <property name="maximum">
-             <number>10000</number>
-            </property>
-            <property name="singleStep">
-             <number>10</number>
-            </property>
-            <property name="value">
-             <number>1000</number>
-            </property>
-           </widget>
+          <item row="4" column="1">
+           <layout class="QHBoxLayout" name="horizontalLayout_5">
+            <item>
+             <widget class="QSpinBox" name="timeoutSpinBox">
+              <property name="suffix">
+               <string>s</string>
+              </property>
+              <property name="maximum">
+               <number>10000</number>
+              </property>
+              <property name="singleStep">
+               <number>10</number>
+              </property>
+              <property name="value">
+               <number>1000</number>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <spacer name="horizontalSpacer">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>40</width>
+                <height>20</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+           </layout>
           </item>
-          <item row="8" column="0">
+          <item row="5" column="0">
            <widget class="QLabel" name="freePortsLabel">
             <property name="text">
              <string>Free ports:</string>
@@ -214,7 +175,7 @@
             </property>
            </widget>
           </item>
-          <item row="8" column="1">
+          <item row="5" column="1">
            <layout class="QHBoxLayout" name="horizontalLayout_2">
             <item>
              <widget class="QLineEdit" name="portsLineEdit">
@@ -232,20 +193,43 @@
             </item>
            </layout>
           </item>
+          <item row="6" column="0">
+           <widget class="QLabel" name="authTypeLabel">
+            <property name="text">
+             <string>Authentication:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="6" column="1">
+           <layout class="QHBoxLayout" name="horizontalLayout">
+            <item>
+             <widget class="QLabel" name="autheticationTypeLabelEdit">
+              <property name="text">
+               <string>none</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item row="8" column="0">
+           <widget class="QLabel" name="keyLabel">
+            <property name="text">
+             <string>Private SSH Key:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="8" column="1">
+           <layout class="QHBoxLayout" name="horizontalLayout_8">
+            <item>
+             <widget class="QLabel" name="privateKeyLabelEdit">
+              <property name="text">
+               <string>none</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
          </layout>
-         <zorder>authTypeButtonsWidget</zorder>
-         <zorder>hostNameLabel</zorder>
-         <zorder>passwordLabel</zorder>
-         <zorder>keyLabel</zorder>
-         <zorder>userLineEdit</zorder>
-         <zorder>userNameLabel</zorder>
-         <zorder>sshPortLabel</zorder>
-         <zorder>sshPortSpinBox</zorder>
-         <zorder>connectionTimeoutLabel</zorder>
-         <zorder>timeoutSpinBox</zorder>
-         <zorder>freePortsLabel</zorder>
-         <zorder></zorder>
-         <zorder>authTypeLabel</zorder>
         </widget>
        </item>
       </layout>
@@ -254,18 +238,6 @@
    </item>
   </layout>
  </widget>
- <customwidgets>
-  <customwidget>
-   <class>Utils::PathChooser</class>
-   <extends>QWidget</extends>
-   <header location="global">utils/pathchooser.h</header>
-   <container>1</container>
-   <slots>
-    <signal>editingFinished()</signal>
-    <signal>browsingFinished()</signal>
-   </slots>
-  </customwidget>
- </customwidgets>
  <resources/>
  <connections/>
 </ui>

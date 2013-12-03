@@ -27,10 +27,10 @@
 #include "merhardwaredevice.h"
 #include "merconstants.h"
 #include "mersdkmanager.h"
+#include "mersshkeydeploymentdialog.h"
 
 #include <utils/qtcassert.h>
 #include <remotelinux/linuxdevicetestdialog.h>
-#include <remotelinux/publickeydeploymentdialog.h>
 #include <ssh/sshconnection.h>
 #include <utils/portlist.h>
 #include <QFileInfo>
@@ -128,25 +128,34 @@ ProjectExplorer::IDevice::Ptr MerDeviceFactory::create(Core::Id id) const
             }
         }
 
+        {
+            QSsh::SshConnectionParameters sshParams;
+            sshParams.host = wizard.hostName();
+            sshParams.userName = wizard.userName();
+            sshParams.port = wizard.sshPort();
+            sshParams.timeout = wizard.timeout();
+            sshParams.authenticationType = QSsh::SshConnectionParameters::AuthenticationByPassword;
+            sshParams.password = wizard.password();
+            MerSshKeyDeploymentDialog dlg;
+            dlg.setSShParameters(sshParams);
+            dlg.setPublicKeyPath(wizard.publicKeyFilePath());
+            if (dlg.exec() == QDialog::Rejected) {
+                return ProjectExplorer::IDevice::Ptr();
+            }
+        }
+
         QSsh::SshConnectionParameters sshParams;
         //sshParams.options &= ~SshConnectionOptions(SshEnableStrictConformanceChecks); // For older SSH servers.
         sshParams.host = wizard.hostName();
         sshParams.userName = wizard.userName();
         sshParams.port = wizard.sshPort();
         sshParams.timeout = wizard.timeout();
-        sshParams.authenticationType = QSsh::SshConnectionParameters::AuthenticationByPassword;
-        sshParams.password = wizard.password();
+        sshParams.authenticationType = QSsh::SshConnectionParameters::AuthenticationByKey;
         sshParams.privateKeyFile = wizard.privateKeyFilePath();
+
         MerHardwareDevice::Ptr device = MerHardwareDevice::create(wizard.configurationName());
         device->setSharedSshPath(wizard.sharedSshPath());
         //device->setFreePorts(Utils::PortList::fromString(QLatin1String("10000-10100")));
-        device->setSshParameters(sshParams);
-
-        QDialog *d = RemoteLinux::PublicKeyDeploymentDialog::createDialog(device);
-        if (d)
-            d->exec();
-
-        sshParams.authenticationType = QSsh::SshConnectionParameters::AuthenticationByKey;
         device->setSshParameters(sshParams);
         RemoteLinux::GenericLinuxDeviceTester* tester = new RemoteLinux::GenericLinuxDeviceTester();
         RemoteLinux::LinuxDeviceTestDialog dlg(device,tester);

@@ -6,38 +6,26 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>776</width>
-    <height>291</height>
+    <width>848</width>
+    <height>377</height>
    </rect>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>700</width>
+    <height>350</height>
+   </size>
   </property>
   <property name="windowTitle">
    <string>WizardPage</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
-    <widget class="QLabel" name="infoLabel1">
-     <property name="text">
-      <string>Please connect your device and activate the developer mode.</string>
-     </property>
-    </widget>
-   </item>
-   <item>
-    <widget class="QLabel" name="infoLabel2">
-     <property name="text">
-      <string>In &quot;Developer Mode Settings&quot; select &quot;Remote connection&quot;and generate the ssh password. </string>
-     </property>
-    </widget>
-   </item>
-   <item>
-    <widget class="QLabel" name="infoLabel3">
-     <property name="text">
-      <string>Type the generated password in the form below.</string>
-     </property>
-    </widget>
-   </item>
-   <item>
     <widget class="QWidget" name="widget" native="true">
      <layout class="QFormLayout" name="formLayout">
+      <property name="fieldGrowthPolicy">
+       <enum>QFormLayout::ExpandingFieldsGrow</enum>
+      </property>
       <item row="0" column="0">
        <widget class="QLabel" name="nameLabel">
         <property name="text">
@@ -69,7 +57,7 @@
       <item row="2" column="0">
        <widget class="QLabel" name="usernameLabel">
         <property name="text">
-         <string>The user name to log into the device </string>
+         <string>The user name to log into the device: </string>
         </property>
        </widget>
       </item>
@@ -85,27 +73,13 @@
        </layout>
       </item>
       <item row="3" column="0">
-       <widget class="QLabel" name="passwordLabel">
-        <property name="text">
-         <string>Generated password:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="3" column="1">
-       <layout class="QHBoxLayout" name="horizontalLayout_5">
-        <item>
-         <widget class="QLineEdit" name="passwordLineEdit"/>
-        </item>
-       </layout>
-      </item>
-      <item row="4" column="0">
        <widget class="QLabel" name="sshPortLabel">
         <property name="text">
          <string>SSH port:</string>
         </property>
        </widget>
       </item>
-      <item row="4" column="1">
+      <item row="3" column="1">
        <layout class="QHBoxLayout" name="horizontalLayout_3">
         <item>
          <widget class="QSpinBox" name="sshPortSpinBox"/>
@@ -125,14 +99,14 @@
         </item>
        </layout>
       </item>
-      <item row="5" column="0">
+      <item row="4" column="0">
        <widget class="QLabel" name="Timeout">
         <property name="text">
          <string>Timeout:</string>
         </property>
        </widget>
       </item>
-      <item row="5" column="1">
+      <item row="4" column="1">
        <layout class="QHBoxLayout" name="horizontalLayout_11">
         <item>
          <widget class="QSpinBox" name="timeoutSpinBox"/>
@@ -152,14 +126,14 @@
         </item>
        </layout>
       </item>
-      <item row="6" column="0">
+      <item row="5" column="0">
        <widget class="QLabel" name="freePortsLabel">
         <property name="text">
          <string>Free ports:</string>
         </property>
        </widget>
       </item>
-      <item row="6" column="1">
+      <item row="5" column="1">
        <layout class="QHBoxLayout" name="horizontalLayout_2">
         <item>
          <widget class="QLineEdit" name="freePortsLineEdit">
@@ -173,7 +147,7 @@
         </item>
        </layout>
       </item>
-      <item row="7" column="1">
+      <item row="6" column="1">
        <widget class="QLabel" name="freePortsDebuggerMessageLabel">
         <property name="text">
          <string>Note: For debugging, at least 2 free ports are required.</string>
@@ -184,6 +158,35 @@
     </widget>
    </item>
   </layout>
+  <zorder>widget</zorder>
+  <zorder>freePortsDebuggerMessageLabel</zorder>
+  <zorder>freePortsLabel</zorder>
+  <zorder>hostNameLineEdit</zorder>
+  <zorder>timeoutSpinBox</zorder>
+  <zorder>horizontalSpacer_2</zorder>
+  <zorder>usernameLineEdit</zorder>
+  <zorder>freePortsLineEdit</zorder>
+  <zorder>configLineEdit</zorder>
+  <zorder>hostNameLabel</zorder>
+  <zorder>sshPortSpinBox</zorder>
+  <zorder>Timeout</zorder>
+  <zorder>usernameLabel</zorder>
+  <zorder>nameLabel</zorder>
+  <zorder>sshPortLabel</zorder>
+  <zorder>horizontalSpacer</zorder>
+  <zorder>nameLabel</zorder>
+  <zorder>nameLabel</zorder>
+  <zorder></zorder>
+  <zorder>hostNameLabel</zorder>
+  <zorder></zorder>
+  <zorder>usernameLabel</zorder>
+  <zorder></zorder>
+  <zorder>sshPortLabel</zorder>
+  <zorder>Timeout</zorder>
+  <zorder></zorder>
+  <zorder>freePortsLabel</zorder>
+  <zorder></zorder>
+  <zorder>horizontalLayoutWidget</zorder>
  </widget>
  <resources/>
  <connections/>

@@ -24,6 +24,7 @@
 #include "mervirtualboxmanager.h"
 #include "merhardwaredevicewizardpages.h"
 #include "merhardwaredevicewizard.h"
+#include "merconnectionmanager.h"
 #include "ui_merhardwaredevicewizardgeneralpage.h"
 #include "ui_merhardwaredevicewizardkeypage.h"
 #include <utils/qtcassert.h>
@@ -49,19 +50,17 @@ MerHardwareDeviceWizardGeneralPage::MerHardwareDeviceWizardGeneralPage(QWidget *
 
     m_ui->timeoutSpinBox->setMinimum(1);
     m_ui->timeoutSpinBox->setMaximum(65535);
-    m_ui->timeoutSpinBox->setValue(10);
+    m_ui->timeoutSpinBox->setValue(1);
 
     connect(m_ui->configLineEdit, SIGNAL(textChanged(QString)), SIGNAL(completeChanged()));
     connect(m_ui->hostNameLineEdit, SIGNAL(textChanged(QString)), SIGNAL(completeChanged()));
-    connect(m_ui->passwordLineEdit, SIGNAL(textChanged(QString)), SIGNAL(completeChanged()));
 }
 
 bool MerHardwareDeviceWizardGeneralPage::isComplete() const
 {
     return !configName().isEmpty()
             && !hostName().isEmpty()
-            && !userName().isEmpty()
-            && !password().isEmpty();
+            && !userName().isEmpty();
 }
 
 QString MerHardwareDeviceWizardGeneralPage::configName() const
@@ -77,11 +76,6 @@ QString MerHardwareDeviceWizardGeneralPage::hostName() const
 QString MerHardwareDeviceWizardGeneralPage::userName() const
 {
     return m_ui->usernameLineEdit->text().trimmed();
-}
-
-QString MerHardwareDeviceWizardGeneralPage::password() const
-{
-    return m_ui->passwordLineEdit->text().trimmed();
 }
 
 QString MerHardwareDeviceWizardGeneralPage::freePorts() const
@@ -103,7 +97,8 @@ int MerHardwareDeviceWizardGeneralPage::timeout() const
 
 MerHardwareDeviceWizardKeyPage::MerHardwareDeviceWizardKeyPage(QWidget *parent)
     : QWizardPage(parent)
-    , m_ui(new Ui::MerHardwareDeviceWizardKeyPage)
+    , m_ui(new Ui::MerHardwareDeviceWizardKeyPage),
+      m_isIdle(true)
 {
     m_ui->setupUi(this);
     setTitle(tr("Key Public Key Deployment"));
@@ -119,6 +114,7 @@ MerHardwareDeviceWizardKeyPage::MerHardwareDeviceWizardKeyPage(QWidget *parent)
     }
     connect(m_ui->merSdkComboBox,SIGNAL(currentIndexChanged(QString)),this,SLOT(handleSdkVmChanged(QString)));
     connect(m_ui->testButton, SIGNAL(clicked()), SLOT(handleTestConnectionClicked()));
+    connect(m_ui->passwordLineEdit, SIGNAL(textChanged(QString)), SIGNAL(completeChanged()));
 }
 
 void MerHardwareDeviceWizardKeyPage::initializePage()
@@ -128,8 +124,8 @@ void MerHardwareDeviceWizardKeyPage::initializePage()
 
    m_ui->hostLabelEdit->setText(wizard->hostName());
    m_ui->usernameLabelEdit->setText(wizard->userName());
-   m_ui->passwordLabelEdit->setText(wizard->password());
    m_ui->sshPortLabelEdit->setText(QString::number(wizard->sshPort()));
+   m_ui->connectionLabelEdit->setText(tr("Not connected"));
    handleSdkVmChanged(m_ui->merSdkComboBox->currentText());
 }
 
@@ -160,8 +156,23 @@ QString MerHardwareDeviceWizardKeyPage::publicKeyFilePath() const
 
 void MerHardwareDeviceWizardKeyPage::handleTestConnectionClicked()
 {
-    //TODO: implement me
-    QTC_ASSERT(false,return);
+    m_isIdle = false;
+    completeChanged();
+    const MerHardwareDeviceWizard* wizard = qobject_cast<MerHardwareDeviceWizard*>(this->wizard());
+    QTC_ASSERT(wizard,return);
+    QSsh::SshConnectionParameters sshParams;
+    sshParams.host = wizard->hostName();
+    sshParams.userName = wizard->userName();
+    sshParams.port = wizard->sshPort();
+    sshParams.timeout = wizard->timeout();
+    sshParams.authenticationType = QSsh::SshConnectionParameters::AuthenticationByPassword;
+    sshParams.password = wizard->password();
+    m_ui->connectionLabelEdit->setText(tr("Connecting to machine %1 ...").arg(wizard->hostName()));
+    m_ui->testButton->setEnabled(false);
+    m_ui->connectionLabelEdit->setText(MerConnectionManager::instance()->testConnection(sshParams));
+    m_ui->testButton->setEnabled(true);
+    m_isIdle = true;
+    completeChanged();
 }
 
 bool MerHardwareDeviceWizardKeyPage::isNewSshKeysRquired() const
@@ -169,11 +180,21 @@ bool MerHardwareDeviceWizardKeyPage::isNewSshKeysRquired() const
     return m_ui->sshCheckBox->isChecked();
 }
 
+QString MerHardwareDeviceWizardKeyPage::password() const
+{
+    return m_ui->passwordLineEdit->text().trimmed();
+}
+
 QString MerHardwareDeviceWizardKeyPage::sharedSshPath() const
 {
     MerSdk* sdk = MerSdkManager::instance()->sdk(m_ui->merSdkComboBox->currentText());
     QTC_ASSERT(sdk,return QString());
     return sdk->sharedConfigPath();
+}
+
+bool MerHardwareDeviceWizardKeyPage::isComplete() const
+{
+    return !password().isEmpty() && m_isIdle;
 }
 
 }

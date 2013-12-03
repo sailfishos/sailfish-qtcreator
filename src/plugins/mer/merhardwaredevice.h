@@ -47,6 +47,11 @@ public:
     void fromMap(const QVariantMap &map);
     QVariantMap toMap() const;
 
+    QList<Core::Id> actionIds() const;
+    QString displayNameForActionId(Core::Id actionId) const;
+    void executeAction(Core::Id actionId, QWidget *parent) const;
+    ProjectExplorer::IDeviceWidget* createWidget();
+
 protected:
     MerHardwareDevice();
     MerHardwareDevice(const QString &name, Core::Id type, MachineType machineType, Origin origin,

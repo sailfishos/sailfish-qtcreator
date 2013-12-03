@@ -125,7 +125,9 @@ const char MER_SFTP_DEPLOY_STRING[] = QT_TRANSLATE_NOOP("Mer", "Copy Files to De
 
 const char MER_EMULATOR_START_ACTION_ID[] = "Mer.MerEmulatorStartAction";
 const char MER_EMULATOR_DEPLOYKEY_ACTION_ID[] = "Mer.MerEmulatorDeployAction";
+const char MER_HARDWARE_DEPLOYKEY_ACTION_ID[] = "Mer.MerHardwareDeployAction";
 const char MER_EMULATOR_TEST_ID[] = "Mer.MerEmulatorTestAction";
+const char MER_HARDWARE_TEST_ID[] = "Mer.MerHardwareTestAction";
 const char MER_EMULATOR_CONNECTON_ACTION_ID[] = "Mer.EmulatorConnecitonAction";
 const char MER_SDK_CONNECTON_ACTION_ID[] = "Mer.SdkConnectionAction";
 

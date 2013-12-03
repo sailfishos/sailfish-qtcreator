@@ -73,7 +73,8 @@ SOURCES += \
     merrpmpackagingwidget.cpp \
     merrpminstaller.cpp \
     meruploadandinstallrpmsteps.cpp \
-    merhardwaredevicewizardpages.cpp
+    merhardwaredevicewizardpages.cpp \
+    mersshkeydeploymentdialog.cpp
 
 
 HEADERS += \
@@ -126,7 +127,8 @@ HEADERS += \
     merrpmpackagingwidget.h \
     merrpminstaller.h \
     meruploadandinstallrpmsteps.h \
-    merhardwaredevicewizardpages.h
+    merhardwaredevicewizardpages.h \
+    mersshkeydeploymentdialog.h
 
 SOURCES += \
     $$PWD/jollawelcomepage.cpp \
