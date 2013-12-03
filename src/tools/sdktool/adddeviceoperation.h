@@ -68,7 +68,6 @@ public:
                                  const QString &freePorts,
                                  int version,
                                  const QString &virtualMachine = QString(),
-                                 int merIndex = -1,
                                  const QString &merMac = QString(),
                                  const QString &merSubnet = QString(),
                                  const QString &sharedSshPath = QString(),
@@ -93,7 +92,6 @@ private:
     int m_machineType;
     int m_version;
     QString m_merVirtualMachine;
-    int m_merIndex;
     QString m_merMac;
     QString m_merSubnet;
     QString m_merSharedSshPath;

@@ -59,7 +59,6 @@ const char TimeoutKey[] = "Timeout";
 
 //Mer specific stuff
 const char MerVirtualMachine[] = "MerVirtualMachine";
-const char MerIndex[] = "MerIndex";
 const char MerMac[] = "MerMac";
 const char MerSubnet[] = "MerSubnet";
 const char MerSharedConfig[] = "MerSharedConfig";
@@ -73,7 +72,6 @@ AddDeviceOperation::AddDeviceOperation()
     , m_timeout(0)
     , m_machineType(0)
     , m_version(0)
-    , m_merIndex(-1)
 {
 }
 
@@ -113,7 +111,6 @@ QString AddDeviceOperation::argumentsHelpText() const
          + indent + param(QLatin1String(PortsSpecKey)) + QLatin1String(" <NUMBER,NUMBER|NUMBER-NUMBER>  free ports.\n")
          + indent + param(QLatin1String(VersionKey)) + QLatin1String(" <NUMBER>                             version of the device.\n")
          + indent + param(QLatin1String(MerVirtualMachine)) + QLatin1String(" <STRING>                             name of virtual machine for device.\n")
-         + indent + param(QLatin1String(MerIndex)) + QLatin1String(" <NUMBER>                             index of the device.\n")
          + indent + param(QLatin1String(MerMac)) + QLatin1String(" <STRING>                             mac of the device.\n")
          + indent + param(QLatin1String(MerSubnet)) + QLatin1String(" <STRING>                             subnet of the device.\n")
          + indent + param(QLatin1String(MerSharedSsh)) + QLatin1String(" <STRING>                             path of vm shared ssh.\n")
@@ -253,14 +250,6 @@ bool AddDeviceOperation::setArguments(const QStringList &args)
             continue;
         }
 
-        if (current == param(QLatin1String(MerIndex))) {
-            if (next.isNull())
-                return false;
-            ++i; // skip next;
-            m_merIndex = next.toInt();
-            continue;
-        }
-
         if (current == param(QLatin1String(MerMac))) {
             if (next.isNull())
                 return false;
@@ -337,7 +326,6 @@ int AddDeviceOperation::execute() const
                                          m_freePorts,
                                          m_version,
                                          m_merVirtualMachine,
-                                         m_merIndex,
                                          m_merMac,
                                          m_merSubnet,
                                          m_merSharedSshPath,
@@ -376,7 +364,6 @@ QVariantMap AddDeviceOperation::addDevice(const QVariantMap &map,
                                           const QString &freePorts,
                                           int version,
                                           const QString &virtualMachine,
-                                          int merIndex,
                                           const QString &merMac,
                                           const QString &merSubnet,
                                           const QString &sharedSshPath,
@@ -434,8 +421,6 @@ QVariantMap AddDeviceOperation::addDevice(const QVariantMap &map,
     data.insert(QLatin1String(VersionKey), QVariant(version));
     if(!virtualMachine.isEmpty())
         data.insert(QLatin1String(Mer::Constants::MER_DEVICE_VIRTUAL_MACHINE) , QVariant(virtualMachine));
-    if(merIndex > -1)
-        data.insert(QLatin1String(Mer::Constants::MER_DEVICE_INDEX), QVariant(merIndex));
     if(!merMac.isEmpty())
         data.insert(QLatin1String(Mer::Constants::MER_DEVICE_MAC), QVariant(merMac));
     if(!merSubnet.isEmpty())
