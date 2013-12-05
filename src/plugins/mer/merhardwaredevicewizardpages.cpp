@@ -27,7 +27,9 @@
 #include "merconnectionmanager.h"
 #include "ui_merhardwaredevicewizardgeneralpage.h"
 #include "ui_merhardwaredevicewizardkeypage.h"
+#include <projectexplorer/devicesupport/devicemanager.h>
 #include <utils/qtcassert.h>
+#include <utils/portlist.h>
 #include <QDir>
 
 namespace Mer {
@@ -40,7 +42,15 @@ MerHardwareDeviceWizardGeneralPage::MerHardwareDeviceWizardGeneralPage(QWidget *
 {
     m_ui->setupUi(this);
     setTitle(tr("General Information"));
-    m_ui->configLineEdit->setText(tr("SailfishOS Device"));
+
+    QString preferredName = tr("SailfishOS Device");
+
+    int i = 1;
+    QString tryName = preferredName;
+    while (ProjectExplorer::DeviceManager::instance()->hasDevice(tryName))
+        tryName = preferredName + QString::number(++i);
+
+    m_ui->configLineEdit->setText(tryName);
     m_ui->hostNameLineEdit->setText(QLatin1String("192.168.2.15"));
 
     m_ui->usernameLineEdit->setText(QLatin1String(Constants::MER_DEVICE_DEFAULTUSER));
@@ -50,7 +60,9 @@ MerHardwareDeviceWizardGeneralPage::MerHardwareDeviceWizardGeneralPage(QWidget *
 
     m_ui->timeoutSpinBox->setMinimum(1);
     m_ui->timeoutSpinBox->setMaximum(65535);
-    m_ui->timeoutSpinBox->setValue(1);
+    m_ui->timeoutSpinBox->setValue(2);
+
+    m_ui->freePortsLineEdit->setText(QLatin1String("10000-10100"));
 
     connect(m_ui->configLineEdit, SIGNAL(textChanged(QString)), SIGNAL(completeChanged()));
     connect(m_ui->hostNameLineEdit, SIGNAL(textChanged(QString)), SIGNAL(completeChanged()));
@@ -60,7 +72,8 @@ bool MerHardwareDeviceWizardGeneralPage::isComplete() const
 {
     return !configName().isEmpty()
             && !hostName().isEmpty()
-            && !userName().isEmpty();
+            && !userName().isEmpty()
+            && !ProjectExplorer::DeviceManager::instance()->hasDevice(configName());
 }
 
 QString MerHardwareDeviceWizardGeneralPage::configName() const

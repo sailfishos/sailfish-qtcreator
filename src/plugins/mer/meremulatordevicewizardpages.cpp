@@ -26,7 +26,8 @@
 #include "ui_meremulatordevicewizardvmpage.h"
 #include "ui_meremulatordevicewizardsshpage.h"
 #include "mervirtualboxmanager.h"
-#include "utils/qtcassert.h"
+#include <utils/qtcassert.h>
+#include <projectexplorer/devicesupport/devicemanager.h>
 #include <QDir>
 
 namespace Mer {
@@ -43,7 +44,15 @@ MerEmualtorVMPage::MerEmualtorVMPage(QWidget *parent): QWizardPage(parent),
     m_ui(new Ui::MerEmulatorDeviceWizardVMPage)
 {
     m_ui->setupUi(this);
-    m_ui->configNameLineEdit->setText(tr("SailfishOS Emulator"));
+
+    QString preferredName = tr("SailfishOS Emulator");
+
+    int i = 1;
+    QString tryName = preferredName;
+    while (ProjectExplorer::DeviceManager::instance()->hasDevice(tryName))
+        tryName = preferredName + QString::number(++i);
+
+    m_ui->configNameLineEdit->setText(tryName);
     m_ui->timeoutSpinBox->setMinimum(1);
     m_ui->timeoutSpinBox->setMaximum(65535);
     m_ui->timeoutSpinBox->setValue(30);
@@ -69,8 +78,8 @@ MerEmualtorVMPage::MerEmualtorVMPage(QWidget *parent): QWizardPage(parent),
         }
     }
     connect(m_ui->emulatorComboBox,SIGNAL(currentIndexChanged(QString)),this,SLOT(handleEmulatorVmChanged(QString)));
+    connect(m_ui->configNameLineEdit, SIGNAL(textChanged(QString)), SIGNAL(completeChanged()));
     handleEmulatorVmChanged(m_ui->emulatorComboBox->currentText());
-
 }
 
 MerEmualtorVMPage::~MerEmualtorVMPage()
@@ -150,6 +159,12 @@ void MerEmualtorVMPage::handleEmulatorVmChanged(const QString &vmName)
 
 }
 
+
+bool MerEmualtorVMPage::isComplete() const
+{
+    return !configName().isEmpty()
+            && !ProjectExplorer::DeviceManager::instance()->hasDevice(configName());
+}
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

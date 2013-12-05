@@ -155,6 +155,7 @@ ProjectExplorer::IDevice::Ptr MerDeviceFactory::create(Core::Id id) const
 
         MerHardwareDevice::Ptr device = MerHardwareDevice::create(wizard.configurationName());
         device->setSharedSshPath(wizard.sharedSshPath());
+        device->setFreePorts(Utils::PortList::fromString(wizard.freePorts()));
         //device->setFreePorts(Utils::PortList::fromString(QLatin1String("10000-10100")));
         device->setSshParameters(sshParams);
         RemoteLinux::GenericLinuxDeviceTester* tester = new RemoteLinux::GenericLinuxDeviceTester();
