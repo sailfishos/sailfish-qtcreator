@@ -70,7 +70,7 @@ bool MerRunConfiguration::isEnabled() const
     {
         if(ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(target()->kit()) == Constants::MER_DEVICE_TYPE_ARM
             && conf->id() == MerMb2RpmBuildConfiguration::configurationId()) {
-            m_disabledReason = tr("This deployment method does not support run configuraiton");
+            m_disabledReason = tr("This deployment method does not support run configuration");
             return false;
         }
     }

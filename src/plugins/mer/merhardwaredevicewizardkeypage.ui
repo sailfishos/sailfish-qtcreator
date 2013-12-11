@@ -24,7 +24,7 @@
    <item>
     <widget class="QLabel" name="infoLabel2">
      <property name="text">
-      <string>In &quot;Developer Mode Settings&quot; select &quot;Remote connection&quot;and generate the ssh password. </string>
+      <string>In &quot;Developer Mode Settings&quot; select &quot;Remote connection&quot; and generate the ssh password. </string>
      </property>
     </widget>
    </item>

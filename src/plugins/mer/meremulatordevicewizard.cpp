@@ -6,7 +6,7 @@ namespace Internal {
 
 MerEmulatorDeviceWizard::MerEmulatorDeviceWizard(QWidget *parent): QWizard(parent)
 {
-    setWindowTitle(tr("New Mer Emulator Device  Setup"));
+    setWindowTitle(tr("New Mer Emulator Device Setup"));
     addPage(&m_vmPage);
     addPage(&m_sshPage);
     m_sshPage.setCommitPage(true);
