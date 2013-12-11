@@ -52,8 +52,8 @@ Page {
             }
             onClicked: console.log("Clicked " + index)
         }
+        VerticalScrollDecorator {}
     }
-    VerticalScrollDecorator {}
 }
 
 
