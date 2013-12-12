@@ -23,6 +23,7 @@
 #include "merconstants.h"
 #include "merrunconfiguration.h"
 #include "merdeployconfiguration.h"
+#include <remotelinux/remotelinuxenvironmentaspect.h>
 #include "projectexplorer/kitinformation.h"
 
 #include <projectexplorer/target.h>
@@ -102,7 +103,44 @@ QString MerRunConfiguration::defaultRemoteExecutableFilePath() const
 // Remove me !
 QString MerRunConfiguration::commandPrefix() const
 {
-    return RemoteLinuxRunConfiguration::commandPrefix();
+  /*
+   * The full command prefix will look something like this:
+   *
+   * test -f /etc/profile && source /etc/profile;test -f
+   * $HOME/.profile && source $HOME/.profile; faketty() {
+   * /usr/bin/script -qfc "$(printf "'%s' " "$@")" /dev/null; };
+   * DISPLAY=:0.0 faketty
+   *
+   * The reason to use the faketty function to start the program is
+   * that Mer qtbase is only logging to console when the program is
+   * run from a tty. We need the console logs in order to show them in
+   * QtC.
+   *
+   * TODO remove this if/when there's a better way to capture console
+   * logs.
+   *
+   */
+
+  RemoteLinux::RemoteLinuxEnvironmentAspect *aspect =
+    extraAspect<RemoteLinux::RemoteLinuxEnvironmentAspect>();
+  QTC_ASSERT(aspect, return QString());
+
+  // source the profile scripts
+  QString etcprofile = RemoteLinuxRunConfiguration::environmentPreparationCommand();
+
+  // faketty bash function
+  QString fakettyfunc = QString::fromLatin1("faketty() { /usr/bin/script -qfc \"$(printf \"'%s' \" \"$@\")\" /dev/null; }");
+
+  // runenvironment as in RemoteLinuxRunConfiguration
+  QString runenvironment = QString::fromLatin1("DISPLAY=:0.0 %1")
+    .arg(aspect->userEnvironmentChangesAsString());
+
+  // the actual call to faketty, this must be given before the command itself
+  QString fakettycmd = QString::fromLatin1("faketty");
+
+  return QString::fromLatin1("%1; %2; %3 %4")
+    .arg(etcprofile, fakettyfunc, runenvironment, fakettycmd);
+
 //    return QString::fromLatin1("/usr/sbin/mcetool -Don;").append(
 //                RemoteLinuxRunConfiguration::commandPrefix());
 }
