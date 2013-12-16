@@ -61,7 +61,7 @@ public:
     bool createScripts() const;
     void deleteScripts() const;
     bool isValid() const;
-    bool operator==(const MerTarget &other) const;
+    bool operator==(const MerTarget &other) const;   
 
 private:
     bool createScript(const QString &targetPath, int scriptIndex) const;

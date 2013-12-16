@@ -20,113 +20,122 @@
 **
 ****************************************************************************/
 
+#include "commandfactory.h"
+#include "qmakecommand.h"
+#include "generatekeyscommand.h"
+#include "gcccommand.h"
+#include "makecommand.h"
+#include "deploycommand.h"
+#include "rpmcommand.h"
+#include <mer/merconstants.h>
 #include <QCoreApplication>
+#include <QProcessEnvironment>
 #include <QFile>
 #include <QStringList>
-#include <QDebug>
-
-#include "merssh.h"
-#include "mer/merconstants.h"
-#include <ssh/sshkeygenerator.h>
+#include <QDir>
+#include <QTimer>
 
 void printUsage()
 {
     qCritical()
             << "merssh usage:" << endl
-            << "merssh <options> <command>" << endl
-            << "  " << Mer::Constants::MERSSH_PARAMETER_SDKTOOLSDIR
-            << "  directory with Qt Creator's target helpers" << endl
-            << "  " << Mer::Constants::MERSSH_PARAMETER_MERTARGET
-            << "       the mer target name" << endl
-            << "  " << Mer::Constants::MERSSH_PARAMETER_COMMANDTYPE
-            << "     ['standard'|'sb2']" << endl
-            << "All options are mandatory." << endl;
+            << "merssh <command>" << endl
+            << "environment project parameters:" << endl
+            << Mer::Constants::MER_SSH_TARGET_NAME << endl
+            << Mer::Constants::MER_SSH_SHARED_HOME << endl
+            << Mer::Constants::MER_SSH_SHARED_TARGET << endl
+            << Mer::Constants::MER_SSH_SHARED_SRC << endl
+            << Mer::Constants::MER_SSH_SDK_TOOLS << endl
+            << Mer::Constants::MER_SSH_PROJECT_PATH << endl
+            << Mer::Constants::MER_SSH_DEVICE_NAME << endl
+            << "evironment connection parameters:" << endl
+            << Mer::Constants::MER_SSH_USERNAME << endl
+            << Mer::Constants::MER_SSH_PORT << endl
+            << Mer::Constants::MER_SSH_PRIVATE_KEY << endl;
 }
 
-bool generateSshKeys(const QString &privateKeyFileName, const QString &publicKeyFileName)
-{
-    QSsh::SshKeyGenerator keyGen;
-    if (!keyGen.generateKeys(QSsh::SshKeyGenerator::Rsa,
-                             QSsh::SshKeyGenerator::OpenSsl, 2048,
-                             QSsh::SshKeyGenerator::DoNotOfferEncryption)) {
-        qCritical() << "Cannot generate the ssh keys." << endl;
-        return false;
-    }
+QStringList quoteArguemnts(QStringList args){
 
-    QFile privateKeyFile(privateKeyFileName);
-    if (!privateKeyFile.open(QIODevice::WriteOnly)) {
-        qCritical() << "Cannot write file:" << privateKeyFileName << endl;
-        return false;
-    }
-    privateKeyFile.write(keyGen.privateKey());
-    if (!QFile::setPermissions(privateKeyFileName, QFile::ReadOwner | QFile::WriteOwner)) {
-        qCritical() << "Cannot set permissions of file:" << privateKeyFileName << endl;
-        return false;
-    }
+    QStringList result;
+    QRegExp reg(QLatin1String("^'(.*)'$"));
 
-    QFile publicKeyFile(publicKeyFileName);
-    if (!publicKeyFile.open(QIODevice::WriteOnly)) {
-        qCritical() << "Cannot write file:" << publicKeyFileName << endl;
-        return false;
+    foreach (const QString arg,args) {
+        if (reg.indexIn(arg) != -1){
+            if (arg.indexOf(QLatin1Char(' ')) > -1)
+                result.append(arg);
+            else
+                result.append(reg.cap(1));
+        } else  if (arg.indexOf(QLatin1Char(' ')) == -1) {
+            result.append(arg);
+        } else {
+            QString message = QString::fromLatin1("Unquoted argument found  '%1'. Skipping...\n").arg(arg);
+            fprintf(stderr, "%s", qPrintable(message));
+            fflush(stderr);
+        }
     }
-    publicKeyFile.write(keyGen.publicKey());
-
-    return true;
+    return result;
 }
 
 int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);
 
-    QString sdkToolsDir;
-    QString merTarget;
-    QString commandType;
-    QString command;
-    QStringList commandPieces;
-    QString *currentParameter = 0;
+    CommandFactory::registerCommand<QMakeCommand>(QLatin1String("qmake"));
+    CommandFactory::registerCommand<GccCommand>(QLatin1String("gcc"));
+    CommandFactory::registerCommand<MakeCommand>(QLatin1String("make"));
+    CommandFactory::registerCommand<DeployCommand>(QLatin1String("deploy"));
+    CommandFactory::registerCommand<RpmCommand>(QLatin1String("rpm"));
+    CommandFactory::registerCommand<GenerateKeysCommand>(QLatin1String("generatesshkeys"));
 
-    QStringList arguments = QCoreApplication::arguments();
-    arguments.takeFirst();
+    QStringList arguments  = QCoreApplication::arguments();
 
-    if (arguments.length() == 3 && arguments.first() == QLatin1String("generatesshkeys"))
-        return generateSshKeys(arguments.at(1), arguments.at(2)) ? 0 : 1;
-
-    bool interactive = false;
-    foreach (QString argument, arguments) {
-        argument = argument.trimmed();
-        if (argument == QLatin1String(Mer::Constants::MERSSH_PARAMETER_SDKTOOLSDIR)) {
-            currentParameter = &sdkToolsDir;
-            commandPieces.clear();
-        } else if (argument == QLatin1String(Mer::Constants::MERSSH_PARAMETER_MERTARGET)) {
-            currentParameter = &merTarget;
-            commandPieces.clear();
-        } else if (argument == QLatin1String(Mer::Constants::MERSSH_PARAMETER_COMMANDTYPE)) {
-            currentParameter = &commandType;
-            commandPieces.clear();
-        } else if (argument == QLatin1String("-interactive")) {
-            interactive = true;
-        } else {
-            if (currentParameter) {
-                *currentParameter = argument;
-                currentParameter = 0;
-            } else {
-                commandPieces.append(MerSSH::shellSafeArgument(argument));
-            }
-        }
-    }
-    command = commandPieces.join(QLatin1String(" "));
-
-    if (sdkToolsDir.isEmpty() || merTarget.isEmpty()
-            || commandType.isEmpty() || command.isEmpty()) {
+    //remove merssh
+    if (!arguments.takeFirst().endsWith(QLatin1String("merssh"))) {
+        //in case of symbloic link usage
+        qCritical() << "Please use wrapper script provided by SDK" << endl;
         printUsage();
         return 1;
     }
 
-    MerSSH merSSH(&a);
-    const bool parametersCorrect = merSSH.run(sdkToolsDir + QLatin1Char('/'), merTarget,
-                                              commandType, command, interactive);
-    if (!parametersCorrect)
+    if(arguments.isEmpty()) {
+        qCritical() << "No arguments" << endl;
+        printUsage();
         return 1;
+    }
 
+    QScopedPointer<Command> command(CommandFactory::create(arguments.first()));
+
+    if(command.isNull()) {
+         qCritical() << "Command not found." << endl;
+         printUsage();
+         return 1;
+    }
+
+    const QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
+    command->setTargetName(environment.value(QLatin1String(Mer::Constants::MER_SSH_TARGET_NAME)));
+    command->setSharedHomePath(environment.value(QLatin1String(Mer::Constants::MER_SSH_SHARED_HOME)));
+    command->setSharedTargetPath(environment.value(QLatin1String(Mer::Constants::MER_SSH_SHARED_TARGET)));
+    command->setSharedSourcePath(environment.value(QLatin1String(Mer::Constants::MER_SSH_SHARED_SRC)));
+    command->setSdkToolsPath(environment.value(QLatin1String(Mer::Constants::MER_SSH_SDK_TOOLS)));
+    command->setProjectPath(environment.value(QLatin1String(Mer::Constants::MER_SSH_PROJECT_PATH)));
+    command->setDeviceName(environment.value(QLatin1String(Mer::Constants::MER_SSH_DEVICE_NAME)));
+
+    QSsh::SshConnectionParameters parameters;
+    parameters.host = QLatin1String(Mer::Constants::MER_SDK_DEFAULTHOST);
+    parameters.userName = environment.value(QLatin1String(Mer::Constants::MER_SSH_USERNAME));
+    parameters.port = environment.value(QLatin1String(Mer::Constants::MER_SSH_PORT)).toInt();
+    parameters.privateKeyFile = environment.value(QLatin1String(Mer::Constants::MER_SSH_PRIVATE_KEY));
+    parameters.authenticationType = QSsh::SshConnectionParameters::AuthenticationByKey;
+    parameters.timeout = 10;
+    command->setSshParameters(parameters);
+    command->setArguments(quoteArguemnts(arguments));
+
+    if (!command->isValid()) {
+       qCritical() << "Invalid command arguments" << endl;
+       printUsage();
+       return 1;
+    }
+
+    CommandInvoker invoker(command.data());
     return a.exec();
 }

@@ -43,23 +43,14 @@ namespace Internal {
 
 using namespace Mer::Constants;
 
-static const struct WrapperScript {
-    enum Execution {
-        ExecutionStandard,
-        ExecutionTypeSb2,
-        ExecutionTypeMb2
-    };
-    const char* name;
-    QStringList additionalArguments;
-    Execution executionType;
-} wrapperScripts[] = {
-    { MER_WRAPPER_QMAKE, QStringList(), WrapperScript::ExecutionTypeMb2 },
-    { MER_WRAPPER_MAKE, QStringList(), WrapperScript::ExecutionTypeMb2 },
-    { MER_WRAPPER_GCC, QStringList(), WrapperScript::ExecutionTypeSb2 },
-    { MER_WRAPPER_GDB, QStringList(QLatin1String("-interactive")), WrapperScript::ExecutionTypeSb2 },
-    { MER_WRAPPER_DEPLOY, QStringList(), WrapperScript::ExecutionTypeMb2 },
-    { MER_WRAPPER_RPM, QStringList(), WrapperScript::ExecutionTypeMb2 },
-    { MER_WRAPPER_RPMBUILD, QStringList(), WrapperScript::ExecutionTypeSb2 }
+const char* wrapperScripts[] =
+{
+    MER_WRAPPER_QMAKE,
+    MER_WRAPPER_MAKE,
+    MER_WRAPPER_GCC,
+    MER_WRAPPER_DEPLOY,
+    MER_WRAPPER_RPM,
+    MER_WRAPPER_RPMBUILD
 };
 
 MerTarget::MerTarget(MerSdk* mersdk):
@@ -215,17 +206,19 @@ MerQtVersion* MerTarget::createQtVersion() const
         qtv = 0;
     }
     if (!qtv)
-        qtv = QtSupport::QtVersionFactory::createQtVersionFromQMakePath(qmake, true, targetPath());
+        qtv = new MerQtVersion(qmake, true, targetPath());
+
+    //QtSupport::QtVersionFactory::createQtVersionFromQMakePath(qmake, true, targetPath());
 
     QTC_ASSERT(qtv && qtv->type() == QLatin1String(Constants::MER_QT), return 0);
 
     MerQtVersion *merqtv = static_cast<MerQtVersion *>(qtv);
     const QString vmName = m_sdk->virtualMachineName();
+    merqtv->setVirtualMachineName(vmName);
+    merqtv->setTargetName(m_name);
     merqtv->setDisplayName(
                 QString::fromLatin1("Qt %1 in %2 %3").arg(qtv->qtVersionString(),
                                                           vmName, m_name));
-    merqtv->setVirtualMachineName(vmName);
-    merqtv->setTargetName(m_name);
     return merqtv;
 }
 
@@ -243,23 +236,24 @@ MerToolChain* MerTarget::createToolChain() const
         }
     }
 
-    MerToolChain* mertoolchain = new MerToolChain(true, gcc);
+    MerToolChain* mertoolchain = new MerToolChain(true);
     const QString vmName = m_sdk->virtualMachineName();
     mertoolchain->setDisplayName(QString::fromLatin1("GCC (%1 %2)").arg(vmName, m_name));
     mertoolchain->setVirtualMachine(vmName);
     mertoolchain->setTargetName(m_name);
+    mertoolchain->setCompilerCommand(gcc);
     return mertoolchain;
 }
 
 bool MerTarget::createScript(const QString &targetPath, int scriptIndex) const
 {
     bool ok = false;
-    const WrapperScript &wrapperScriptCopy = wrapperScripts[scriptIndex];
+    const char* wrapperScriptCopy = wrapperScripts[scriptIndex];
     const QFile::Permissions rwrw = QFile::ReadOwner|QFile::ReadUser|QFile::ReadGroup
             |QFile::WriteOwner|QFile::WriteUser|QFile::WriteGroup;
     const QFile::Permissions rwxrwx = rwrw|QFile::ExeOwner|QFile::ExeUser|QFile::ExeGroup;
 
-    QString wrapperScriptCommand = QLatin1String(wrapperScriptCopy.name);
+    QString wrapperScriptCommand = QLatin1String(wrapperScriptCopy);
     if (Utils::HostOsInfo::isWindowsHost())
         wrapperScriptCommand.chop(4); // remove the ".cmd"
 
@@ -272,11 +266,7 @@ bool MerTarget::createScript(const QString &targetPath, int scriptIndex) const
         wrapperBinaryPath += QLatin1String("/merssh");
 
     using namespace Utils;
-    const QString allParameters = HostOsInfo::isWindowsHost() ? QLatin1String("%*")
-                                                              : QLatin1String("$@");
-
-    const QString scriptCopyPath = targetPath + QLatin1Char('/')
-            + QLatin1String(wrapperScriptCopy.name);
+    const QString scriptCopyPath = targetPath + QLatin1Char('/') + QLatin1String(wrapperScriptCopy);
     QDir targetDir(targetPath);
     const QString targetName = targetDir.dirName();
     targetDir.cdUp();
@@ -287,34 +277,39 @@ bool MerTarget::createScript(const QString &targetPath, int scriptIndex) const
         qWarning() << "Could not open script" << scriptCopyPath;
         return false;
     }
-    QString executionType;
-    if (wrapperScriptCopy.executionType == WrapperScript::ExecutionStandard)
-        executionType = QLatin1String(Constants::MER_EXECUTIONTYPE_STANDARD);
-    else if (wrapperScriptCopy.executionType == WrapperScript::ExecutionTypeSb2)
-        executionType = QLatin1String(Constants::MER_EXECUTIONTYPE_SB2);
-    else if (wrapperScriptCopy.executionType == WrapperScript::ExecutionTypeMb2)
-        executionType = QLatin1String(Constants::MER_EXECUTIONTYPE_MB2);
 
-    QString scriptHeader = HostOsInfo::isWindowsHost() ? QLatin1String("@echo off\n")
-                                                       : QLatin1String("#!/bin/bash\n");
-    if (HostOsInfo::isAnyUnixHost())
-        scriptHeader += QLatin1String("exec ");
-    QString additionalArgs;
-    if (!wrapperScriptCopy.additionalArguments.isEmpty()) {
-        additionalArgs.append(wrapperScriptCopy.additionalArguments.join(QLatin1String(" ")))
-                .append(QLatin1Char(' '));
+    QString scriptContent;
+
+    if (HostOsInfo::isWindowsHost()) {
+        scriptContent += QLatin1String("@echo off\n");
+        scriptContent += QLatin1String("set ARGUMENTS=\"\";FOR %%a IN (%*) DO set ARGUMENTS = %ARGUMENTS% '%%a'\n");
+        scriptContent += QLatin1String("set  ") +
+                QLatin1String(Mer::Constants::MER_SSH_TARGET_NAME) +
+                QLatin1Char('=') + targetName + QLatin1Char('\n');
+        scriptContent += QLatin1String("set  ") +
+                QLatin1String(Mer::Constants::MER_SSH_SDK_TOOLS) +
+                QLatin1Char('=') + merDevToolsDir + QDir::separator() + targetName + QLatin1Char('\n');
+        scriptContent += QLatin1Char('"') +
+                QDir::toNativeSeparators(wrapperBinaryPath) + QLatin1String("\" ") +
+                wrapperScriptCommand + QLatin1Char(' ') + QLatin1String("%ARGUMENTS%");
     }
-    const QString scriptContent = scriptHeader
-            + QLatin1Char('"') + QDir::toNativeSeparators(wrapperBinaryPath) + QLatin1String("\" ")
-            + additionalArgs
-            + QLatin1String(Mer::Constants::MERSSH_PARAMETER_SDKTOOLSDIR) + QLatin1String(" \"")
-            + merDevToolsDir + QLatin1String("\" ")
-            + QLatin1String(Constants::MERSSH_PARAMETER_COMMANDTYPE) + QLatin1Char(' ')
-            + executionType + QLatin1Char(' ')
-            + QLatin1String(Mer::Constants::MERSSH_PARAMETER_MERTARGET) + QLatin1Char(' ')
-            + targetName + QLatin1Char(' ')
-            + wrapperScriptCommand + QLatin1Char(' ')
-            + allParameters;
+
+    if (HostOsInfo::isAnyUnixHost()) {
+        scriptContent += QLatin1String("#!/bin/bash\n");
+        scriptContent += QLatin1String("ARGUMENTS=\"\";for ARGUMENT in \"$@\"; do ARGUMENTS=\"${ARGUMENTS} '${ARGUMENT}'\" ; done;\n");
+        scriptContent += QLatin1String("export  ") +
+                QLatin1String(Mer::Constants::MER_SSH_TARGET_NAME) +
+                QLatin1Char('=') + targetName + QLatin1Char('\n');
+        scriptContent += QLatin1String("export  ") +
+                QLatin1String(Mer::Constants::MER_SSH_SDK_TOOLS) +
+                QLatin1Char('=') + merDevToolsDir + QDir::separator() + targetName + QLatin1Char('\n');
+        scriptContent += QLatin1String("exec ");
+        scriptContent += QLatin1Char('"') +
+                QDir::toNativeSeparators(wrapperBinaryPath) + QLatin1String("\" ") +
+                wrapperScriptCommand + QLatin1Char(' ') + QLatin1String("${ARGUMENTS}");
+    }
+
+
     ok = script.write(scriptContent.toUtf8()) != -1;
     if (!ok) {
         qWarning() << "Could not write script" << scriptCopyPath;

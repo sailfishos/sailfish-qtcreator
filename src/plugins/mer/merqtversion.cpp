@@ -192,7 +192,8 @@ QList<ProjectExplorer::Task> MerQtVersion::reportIssuesImpl(const QString &proFi
 
 void MerQtVersion::addToEnvironment(const ProjectExplorer::Kit *k, Utils::Environment &env) const
 {
-    env.appendOrSet(QLatin1String(Constants::MER_PROJECTPATH_ENVVAR_NAME), QLatin1String("%{CurrentProject:Path}"));
+    env.appendOrSet(QLatin1String(Constants::MER_SSH_PROJECT_PATH), QLatin1String("%{CurrentProject:Path}"));
+    env.appendOrSet(QLatin1String(Constants::MER_SSH_SDK_TOOLS),qmakeCommand().parentDir().toString());
 }
 
 
@@ -203,6 +204,14 @@ Core::FeatureSet MerQtVersion::availableFeatures() const
     if(!qtAbis().contains(ProjectExplorer::Abi(QLatin1String("arm-linux-generic-elf-32bit"))))
         features |= Core::FeatureSet(Constants::MER_WIZARD_FEATURE_EMULATOR);
     return features;
+}
+
+Utils::Environment MerQtVersion::qmakeRunEnvironment() const
+{
+    Utils::Environment env = BaseQtVersion::qmakeRunEnvironment();
+    env.appendOrSet(QLatin1String(Constants::MER_SSH_TARGET_NAME),m_targetName);
+    env.appendOrSet(QLatin1String(Constants::MER_SSH_SDK_TOOLS),qmakeCommand().parentDir().toString());
+    return env;
 }
 
 } // namespace Interal

@@ -7,15 +7,31 @@ include(../../rpath.pri)
 CONFIG += console
 CONFIG -= app_bundle
 
-QT -= gui test
 QT += network
+QT -= gui
+
 
 SOURCES = \
     main.cpp \
-    merssh.cpp
+    command.cpp \
+    qmakecommand.cpp \
+    generatekeyscommand.cpp \
+    gcccommand.cpp \
+    merremoteprocess.cpp \
+    makecommand.cpp \
+    deploycommand.cpp \
+    rpmcommand.cpp
 
 HEADERS += \
-    merssh.h
+    command.h \
+    commandfactory.h \
+    qmakecommand.h \
+    generatekeyscommand.h \
+    gcccommand.h \
+    merremoteprocess.h \
+    makecommand.h \
+    deploycommand.h \
+    rpmcommand.h
 
 DESTDIR = $$IDE_LIBEXEC_PATH
 

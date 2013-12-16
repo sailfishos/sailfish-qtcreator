@@ -34,8 +34,8 @@ namespace Internal {
 class MerToolChain : public ProjectExplorer::GccToolChain
 {
 public:
-    MerToolChain(bool autodetect, const Utils::FileName &compilerCommand = Utils::FileName(),
-                 const QString &id = QLatin1String(Constants::MER_TOOLCHAIN_ID));
+    MerToolChain(bool autodetect, const QString &id
+                 = QLatin1String(Constants::MER_TOOLCHAIN_ID));
 
     void setVirtualMachine(const QString &name);
     QString virtualMachineName() const;
@@ -55,7 +55,7 @@ public:
 
     QList<ProjectExplorer::HeaderPath> systemHeaderPaths(const QStringList &cxxflags,
                                                          const Utils::FileName &sysRoot) const;
-
+    void addToEnvironment(Utils::Environment &env) const;
 private:
     QString m_vmName;
     QString m_targetName;

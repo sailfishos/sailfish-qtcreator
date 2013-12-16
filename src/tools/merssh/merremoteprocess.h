@@ -20,56 +20,45 @@
 **
 ****************************************************************************/
 
-#ifndef MERSSH_H
-#define MERSSH_H
+#ifndef REOMOTE_PROCESS_H
+#define REOMOTE_PROCESS_H
 
 #include <ssh/sshconnection.h>
+#include <ssh/sshremoteprocessrunner.h>
 
 #include <QObject>
+#include <QEventLoop>
 
 QT_BEGIN_NAMESPACE
 class QFile;
 QT_END_NAMESPACE
 
-namespace QSsh {
-class SshRemoteProcessRunner;
-} // namespace QSsh
-
-class MerSSH : public QObject
+class MerRemoteProcess : public QSsh::SshRemoteProcessRunner
 {
     Q_OBJECT
-
 public:
-    explicit MerSSH(QObject *parent = 0);
-    ~MerSSH();
-    bool run(const QString &sdkToolsDir, const QString &merTargetName,
-             const QString &commandType, const QString &command, bool interactive);
+    explicit MerRemoteProcess(QObject *parent = 0);
+    ~MerRemoteProcess();
+    int executeAndWait();
+    void setIntercative(bool enabled);
+    void setCacheOutput(bool enabled);
+    void setSshParameters(const QSsh::SshConnectionParameters& params);
+    void setCommand(const QString& command);
     static QString shellSafeArgument(const QString &argument);
-
-protected:
-    void timerEvent(QTimerEvent *event);
 
 private slots:
     void onProcessStarted();
     void onStandardOutput();
     void onStandardError();
-    void onProcessClosed(int exitStatus);
     void onConnectionError();
     void handleStdin();
 
 private:
-    void printError(const QString &message);
-
-    int m_exitCode;
-    bool m_quietOnError;
+    bool m_cache;
     bool m_interactive;
-    QString m_merSysRoot;
-    QString m_currentCacheFile;
-    QByteArray m_currentCacheData;
-    QSsh::SshRemoteProcessRunner *m_runner;
-    QByteArray m_completeCommand;
+    QString m_command;
     QSsh::SshConnectionParameters m_sshConnectionParams;
     QFile *m_stdin;
 };
 
-#endif // MERSSH_H
+#endif // REOMOTE_PROCESS_H

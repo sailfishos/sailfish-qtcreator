@@ -40,12 +40,10 @@ namespace Internal {
 
 using namespace ProjectExplorer;
 
-MerToolChain::MerToolChain(bool autodetected,
-                           const Utils::FileName &compilerCommand,
-                           const QString &id)
+MerToolChain::MerToolChain(bool autodetected,const QString &id)
     : GccToolChain(id, autodetected)
 {
-    setCompilerCommand(compilerCommand);
+
 }
 
 void MerToolChain::setVirtualMachine(const QString &name)
@@ -176,6 +174,14 @@ QList<HeaderPath> MerToolChain::systemHeaderPaths(const QStringList &cxxflags, c
                                              HeaderPath::GlobalHeaderPath));
     }
     return m_headerPathsOnHost;
+}
+
+
+void MerToolChain::addToEnvironment(Utils::Environment &env) const
+{
+    GccToolChain::addToEnvironment(env);
+    env.appendOrSet(QLatin1String(Constants::MER_SSH_TARGET_NAME),m_targetName);
+    env.appendOrSet(QLatin1String(Constants::MER_SSH_SDK_TOOLS),compilerCommand().parentDir().toString());
 }
 
 QString MerToolChainFactory::displayName() const

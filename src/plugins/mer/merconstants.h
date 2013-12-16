@@ -65,24 +65,13 @@ const char MER_WRAPPER_RPMBUILD[] = "rpmbuild"SCRIPT_EXTENSION;
 const char MER_WRAPPER_QMAKE[] = "qmake"SCRIPT_EXTENSION;
 const char MER_WRAPPER_MAKE[] = "make"SCRIPT_EXTENSION;
 const char MER_WRAPPER_GCC[] = "gcc"SCRIPT_EXTENSION;
-const char MER_WRAPPER_GDB[] = "gdb"SCRIPT_EXTENSION;
 const char MER_WRAPPER_DEPLOY[] = "deploy"SCRIPT_EXTENSION;
 const char MER_WRAPPER_RPM[] = "rpm"SCRIPT_EXTENSION;
-const char MER_WRAPPER_RM[] = "rm"SCRIPT_EXTENSION;
-const char MER_WRAPPER_MV[] = "mv"SCRIPT_EXTENSION;
 
 const char MER_SDK_DEFAULTUSER[] = "mersdk";
 const char MER_DEVICE_DEFAULTUSER[] = "nemo";
 const char MER_DEVICE_ROOTUSER[] = "root";
 const char MER_SDK_DEFAULTHOST[] = "localhost";
-
-const char MER_EXECUTIONTYPE_STANDARD[] = "standard";
-const char MER_EXECUTIONTYPE_SB2[] = "sb2";
-const char MER_EXECUTIONTYPE_MB2[] = "mb2";
-
-const char MERSSH_PARAMETER_SDKTOOLSDIR[] = "-sdktoolsdir";
-const char MERSSH_PARAMETER_MERTARGET[] = "-mertarget";
-const char MERSSH_PARAMETER_COMMANDTYPE[] = "-commandtype";
 
 // Keys used for ini files
 const char MER_SDK[] = "MerSDK";
@@ -154,9 +143,11 @@ const char MER_SDK_KIT_INFORMATION[] = "Mer.Sdk.Kit.Information";
 const char MER_TARGET_KIT_INFORMATION[] = "Mer.Target.Kit.Information";
 const char MER_KIT_SPECIFY_INFORMATION[] = "Mer.Specify.Kit.Information";
 
+const char MER_SSH_PROJECT_PATH[] = "MER_SSH_PROJECT_PATH";
 const char MER_SSH_SHARED_HOME[] = "MER_SSH_SHARED_HOME";
 const char MER_SSH_SHARED_TARGET[] = "MER_SSH_SHARED_TARGET";
 const char MER_SSH_SHARED_SRC[] = "MER_SSH_SHARED_SRC";
+const char MER_SSH_SDK_TOOLS[] = "MER_SSH_SDK_TOOLS";
 const char MER_SSH_USERNAME[] = "MER_SSH_USERNAME";
 const char MER_SSH_PRIVATE_KEY[] = "MER_SSH_PRIVATE_KEY";
 const char MER_SSH_TARGET_NAME[] = "MER_SSH_TARGET_NAME";
@@ -167,7 +158,6 @@ const char MER_DEVICE_MAC[] = "MER_DEVICE_MAC";
 const char MER_DEVICE_SUBNET[] = "MER_DEVICE_SUBNET";
 const char MER_DEVICE_SHARED_SSH[] = "MER_DEVICE_SHARED_SSH";
 const char MER_DEVICE_SHARED_CONFIG[]= "MER_DEVICE_SHARED_CONFIG";
-const char MER_PROJECTPATH_ENVVAR_NAME[] = "MER_PROJECTPATH";
 
 const char MER_YAML_MIME_TYPE[] = "text/x-yaml";
 const char MER_YAML_EDITOR_ID[] = "Mer.YamlEditor";

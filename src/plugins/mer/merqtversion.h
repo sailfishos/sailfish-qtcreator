@@ -57,6 +57,7 @@ public:
     QVariantMap toMap() const;
     void fromMap(const QVariantMap &data);
     void addToEnvironment(const ProjectExplorer::Kit *k, Utils::Environment &env) const;
+    Utils::Environment qmakeRunEnvironment() const;
 
 protected:
     QList<ProjectExplorer::Task> reportIssuesImpl(const QString &proFile,
