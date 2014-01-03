@@ -90,12 +90,7 @@ int main(int argc, char *argv[])
     QStringList arguments  = QCoreApplication::arguments();
 
     //remove merssh
-    if (!arguments.takeFirst().endsWith(QLatin1String("merssh"))) {
-        //in case of symbloic link usage
-        qCritical() << "Please use wrapper script provided by SDK" << endl;
-        printUsage();
-        return 1;
-    }
+    arguments.takeFirst();
 
     if(arguments.isEmpty()) {
         qCritical() << "No arguments" << endl;
