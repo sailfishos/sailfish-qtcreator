@@ -282,7 +282,7 @@ bool MerTarget::createScript(const QString &targetPath, int scriptIndex) const
 
     if (HostOsInfo::isWindowsHost()) {
         scriptContent += QLatin1String("@echo off\n");
-        scriptContent += QLatin1String("set ARGUMENTS=\"\";FOR %%a IN (%*) DO set ARGUMENTS = %ARGUMENTS% '%%a'\n");
+        scriptContent += QLatin1String("set ARGUMENTS=\nFOR %%a IN (%*) DO set ARGUMENTS=%ARGUMENTS% '%%a'\n");
         scriptContent += QLatin1String("set  ") +
                 QLatin1String(Mer::Constants::MER_SSH_TARGET_NAME) +
                 QLatin1Char('=') + targetName + QLatin1Char('\n');
