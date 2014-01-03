@@ -37,7 +37,7 @@ bool GenerateKeysCommand::parseArguments()
 {
     const QStringList &args = arguments();
 
-    for (int i = 0; i < args.count(); ++i) {
+    for (int i = 1; i < args.count(); ++i) {
         const QString current = args.at(i);
         const QString next = ((i + 1) < args.count()) ? args.at(i + 1) : QString();
 
