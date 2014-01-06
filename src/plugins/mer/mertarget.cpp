@@ -281,17 +281,18 @@ bool MerTarget::createScript(const QString &targetPath, int scriptIndex) const
     QString scriptContent;
 
     if (HostOsInfo::isWindowsHost()) {
-        scriptContent += QLatin1String("@echo off\n");
-        scriptContent += QLatin1String("set ARGUMENTS=\nFOR %%a IN (%*) DO set ARGUMENTS=%ARGUMENTS% '%%a'\n");
-        scriptContent += QLatin1String("set  ") +
+        scriptContent += QLatin1String("@echo off\nSetLocal EnableDelayedExpansion\n");
+        scriptContent += QLatin1String("set ARGUMENTS=\nFOR %%a IN (%*) DO set ARGUMENTS=!ARGUMENTS! ^ '%%a'\n");
+        scriptContent += QLatin1String("set ") +
                 QLatin1String(Mer::Constants::MER_SSH_TARGET_NAME) +
                 QLatin1Char('=') + targetName + QLatin1Char('\n');
-        scriptContent += QLatin1String("set  ") +
+        scriptContent += QLatin1String("set ") +
                 QLatin1String(Mer::Constants::MER_SSH_SDK_TOOLS) +
                 QLatin1Char('=') + merDevToolsDir + QDir::separator() + targetName + QLatin1Char('\n');
+        scriptContent += QLatin1String("SetLocal DisableDelayedExpansion\n");
         scriptContent += QLatin1Char('"') +
                 QDir::toNativeSeparators(wrapperBinaryPath) + QLatin1String("\" ") +
-                wrapperScriptCommand + QLatin1Char(' ') + QLatin1String("%ARGUMENTS%");
+                wrapperScriptCommand + QLatin1Char(' ') + QLatin1String("%ARGUMENTS%\n");
     }
 
     if (HostOsInfo::isAnyUnixHost()) {

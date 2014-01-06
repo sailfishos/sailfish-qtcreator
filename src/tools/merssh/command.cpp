@@ -94,7 +94,9 @@ void Command::setSdkToolsPath(const QString& path)
 
 void Command::setArguments(const QStringList &args)
 {
-    m_args = args;
+    m_args.clear();
+    foreach (const QString& arg,args)
+        m_args.append(shellSafeArgument(arg));
 }
 
 QStringList Command::arguments() const
@@ -128,7 +130,7 @@ QString Command::shellSafeArgument(const QString &argument) const
     if (QFile::exists(safeArgument))
         safeArgument = QDir::fromNativeSeparators(safeArgument);
     if (safeArgument.indexOf(QLatin1Char(' ')) > -1)
-        safeArgument = QLatin1Char('"') + safeArgument + QLatin1Char('"');
+        safeArgument = QLatin1Char('\'') + safeArgument + QLatin1Char('\'');
     return safeArgument;
 }
 
