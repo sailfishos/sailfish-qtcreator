@@ -57,15 +57,21 @@ void printUsage()
 QStringList quoteArguemnts(QStringList args){
 
     QStringList result;
-    QRegExp reg(QLatin1String("^'(.*)'$"));
+    QRegExp reg1(QLatin1String("^'(.*)'$"));
+    QRegExp reg2(QLatin1String("^\"(.*)\"$"));
 
     foreach (const QString arg,args) {
-        if (reg.indexIn(arg) != -1){
+        if (reg1.indexIn(arg) != -1){
             if (arg.indexOf(QLatin1Char(' ')) > -1)
                 result.append(arg);
             else
-                result.append(reg.cap(1));
-        } else  if (arg.indexOf(QLatin1Char(' ')) == -1) {
+                result.append(reg1.cap(1));
+        } else if (reg2.indexIn(arg) != -1){
+            if (arg.indexOf(QLatin1Char(' ')) > -1)
+                result.append(arg);
+            else
+                result.append(reg2.cap(1));
+        }  else  if (arg.indexOf(QLatin1Char(' ')) == -1) {
             result.append(arg);
         } else {
             QString message = QString::fromLatin1("Unquoted argument found  '%1'. Skipping...\n").arg(arg);
