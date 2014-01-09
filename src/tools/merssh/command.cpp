@@ -126,12 +126,29 @@ void Command::setDeviceName(const QString& device)
 
 QString Command::shellSafeArgument(const QString &argument) const
 {
+    //unix style
+    static QRegExp reg1(QLatin1String("^'(.*)'$"));
+    //windows style
+    static QRegExp reg2(QLatin1String("^\"(.*)\"$"));
+
     QString safeArgument = argument;
-    if (QFile::exists(safeArgument))
+
+    //unquote for file exits
+    if (reg1.indexIn(argument) != -1) {
+        safeArgument = reg1.cap(1);
+    }
+
+    if (reg2.indexIn(argument) != -1) {
+        safeArgument = reg2.cap(1);
+    }
+
+    if (QFile::exists(safeArgument)) {
         safeArgument = QDir::fromNativeSeparators(safeArgument);
-    if (safeArgument.indexOf(QLatin1Char(' ')) > -1)
-        safeArgument = QLatin1Char('\'') + safeArgument + QLatin1Char('\'');
-    return safeArgument;
+        if (safeArgument.indexOf(QLatin1Char(' ')) > -1)
+            safeArgument = QLatin1Char('\'') + safeArgument + QLatin1Char('\'');
+        return safeArgument;
+    }
+    return argument;
 }
 
 QString Command::remotePathMapping(const QString& command) const
