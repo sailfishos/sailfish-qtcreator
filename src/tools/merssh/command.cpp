@@ -39,7 +39,7 @@ QString Command::sharedHomePath() const
 
 void Command::setSharedHomePath(const QString& path)
 {
-    m_sharedHomePath = path;
+    m_sharedHomePath = QDir::fromNativeSeparators(path);
 }
 
 QString Command::targetName() const
@@ -59,7 +59,7 @@ QString Command::sharedSourcePath() const
 
 void Command::setSharedSourcePath(const QString& path)
 {
-    m_sharedSourcePath = path;
+    m_sharedSourcePath = QDir::fromNativeSeparators(path);
 }
 
 QString Command::sharedTargetPath() const
@@ -69,7 +69,7 @@ QString Command::sharedTargetPath() const
 
 void Command::setSharedTargetPath(const QString& path)
 {
-    m_sharedSourcePath = path;
+    m_sharedSourcePath = QDir::fromNativeSeparators(path);
 }
 
 QString Command::sdkToolsPath() const
@@ -79,7 +79,7 @@ QString Command::sdkToolsPath() const
 
 void Command::setProjectPath(const QString& path)
 {
-    m_projectPath = path;
+    m_projectPath =  QDir::fromNativeSeparators(path);
 }
 
 QString Command::projectPath() const
@@ -89,7 +89,7 @@ QString Command::projectPath() const
 
 void Command::setSdkToolsPath(const QString& path)
 {
-    m_toolsPath = path;
+    m_toolsPath = QDir::fromNativeSeparators(path);
 }
 
 void Command::setArguments(const QStringList &args)
