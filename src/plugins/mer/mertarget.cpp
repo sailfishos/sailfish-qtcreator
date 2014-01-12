@@ -296,7 +296,7 @@ bool MerTarget::createScript(const QString &targetPath, int scriptIndex) const
     }
 
     if (HostOsInfo::isAnyUnixHost()) {
-        scriptContent += QLatin1String("#!/bin/bash\n");
+        scriptContent += QLatin1String("#!/bin/sh\n");
         scriptContent += QLatin1String("ARGUMENTS=\"\";for ARGUMENT in \"$@\"; do ARGUMENTS=\"${ARGUMENTS} '${ARGUMENT}'\" ; done;\n");
         scriptContent += QLatin1String("export  ") +
                 QLatin1String(Mer::Constants::MER_SSH_TARGET_NAME) +
