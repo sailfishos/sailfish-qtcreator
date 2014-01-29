@@ -179,6 +179,19 @@ separate build of it. We recommend using a separate, release-built version
 of Qt and Qt Creator to work on a debug-built version of Qt and Qt Creator
 or using shadow builds.
 
+Building for Sailfish SDK
+=========================
+
+1. create set of directories like '~/QtCreator/Build' '~/QtCreator/Install'
+2. navigate to '~/QtCreator' and clone the Qt Creator's source tree there
+3. run qmake:
+	qmake ../digia-qt-creator/qtcreator.pro -r -after "DEFINES+=IDE_COPY_SETTINGS_FROM_VARIANT=. IDE_SETTINGSVARIANT=SailfishAlpha4" QTC_PREFIX=
+
+4. build QtCreator, intaller, artifacts etc as defined in 
+	http://qt-project.org/wiki/Building-Qt-Creator-Packages
+
+
+
 Third-party Components
 ======================
 Qt Creator includes the following third-party components,
