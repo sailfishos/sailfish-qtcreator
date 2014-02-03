@@ -305,16 +305,16 @@ MerTargetsXmlWriter::MerTargetsXmlWriter(const QString &fileName, int version,
     writer.writeStartDocument();
     writer.writeStartElement(QLatin1String(TARGETS));
     writer.writeAttribute(QLatin1String(VERSION), QString::number(version));
-    foreach (const MerTargetData &data, targetData) {
+    foreach (const MerTargetData &d, targetData) {
         writer.writeStartElement(QLatin1String(TARGET));
-        writer.writeAttribute(QLatin1String(NAME), data.name);
+        writer.writeAttribute(QLatin1String(NAME), d.name);
         writer.writeStartElement(QLatin1String(OUTPUT));
         writer.writeAttribute(QLatin1String(NAME), QLatin1String(GCCDUMPMACHINE));
-        writer.writeCharacters(data.gccDumpMachine);
+        writer.writeCharacters(d.gccDumpMachine);
         writer.writeEndElement(); // output
         writer.writeStartElement(QLatin1String(OUTPUT));
         writer.writeAttribute(QLatin1String(NAME), QLatin1String(QMAKEQUERY));
-        writer.writeCharacters(data.qmakeQuery);
+        writer.writeCharacters(d.qmakeQuery);
         writer.writeEndElement(); // output
         writer.writeEndElement(); // target
     }

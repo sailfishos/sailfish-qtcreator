@@ -57,6 +57,7 @@ public:
     void setPrivateKeyFile(const QString &path);
     void setTestButtonEnabled(bool enabled);
     void setHeadless(bool enabled);
+    void setSrcFolderChooserPath(const QString &path);
 
 signals:
     void generateSshKey(const QString &key);
@@ -64,11 +65,13 @@ signals:
     void authorizeSshKey(const QString &key);
     void testConnectionButtonClicked();
     void headlessCheckBoxToggled(bool checked);
+    void srcFolderApplyButtonClicked(const QString &path);
 
 private slots:
     void onAuthorizeSshKeyButtonClicked();
     void onGenerateSshKeyButtonClicked();
     void onPathChooserEditingFinished();
+    void onSrcFolderApplyButtonClicked();
 
 
 private:

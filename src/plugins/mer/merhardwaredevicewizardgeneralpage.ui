@@ -29,7 +29,7 @@
       <item row="0" column="0">
        <widget class="QLabel" name="nameLabel">
         <property name="text">
-         <string>The name to indentify this configuration: </string>
+         <string>The name to identify this configuration: </string>
         </property>
        </widget>
       </item>
@@ -158,35 +158,6 @@
     </widget>
    </item>
   </layout>
-  <zorder>widget</zorder>
-  <zorder>freePortsDebuggerMessageLabel</zorder>
-  <zorder>freePortsLabel</zorder>
-  <zorder>hostNameLineEdit</zorder>
-  <zorder>timeoutSpinBox</zorder>
-  <zorder>horizontalSpacer_2</zorder>
-  <zorder>usernameLineEdit</zorder>
-  <zorder>freePortsLineEdit</zorder>
-  <zorder>configLineEdit</zorder>
-  <zorder>hostNameLabel</zorder>
-  <zorder>sshPortSpinBox</zorder>
-  <zorder>Timeout</zorder>
-  <zorder>usernameLabel</zorder>
-  <zorder>nameLabel</zorder>
-  <zorder>sshPortLabel</zorder>
-  <zorder>horizontalSpacer</zorder>
-  <zorder>nameLabel</zorder>
-  <zorder>nameLabel</zorder>
-  <zorder></zorder>
-  <zorder>hostNameLabel</zorder>
-  <zorder></zorder>
-  <zorder>usernameLabel</zorder>
-  <zorder></zorder>
-  <zorder>sshPortLabel</zorder>
-  <zorder>Timeout</zorder>
-  <zorder></zorder>
-  <zorder>freePortsLabel</zorder>
-  <zorder></zorder>
-  <zorder>horizontalLayoutWidget</zorder>
  </widget>
  <resources/>
  <connections/>

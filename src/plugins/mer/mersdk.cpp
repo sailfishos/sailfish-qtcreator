@@ -272,7 +272,7 @@ QVariantMap MerSdk::toMap() const
     int count = 0;
     foreach (const MerTarget &target, m_targets) {
         if (!target.isValid())
-            qWarning() << target.name()<<"is configured incorrectly...";
+            qWarning() << target.name() << "is configured incorrectly...";
         QVariantMap tmp = target.toMap();
         if (tmp.isEmpty())
             continue;

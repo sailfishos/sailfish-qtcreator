@@ -30,8 +30,8 @@
        <rect>
         <x>0</x>
         <y>0</y>
-        <width>990</width>
-        <height>439</height>
+        <width>968</width>
+        <height>486</height>
        </rect>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_2">
@@ -132,14 +132,17 @@
           <item row="5" column="0">
            <widget class="QLabel" name="label">
             <property name="text">
-             <string>Headless:</string>
+             <string>No window:</string>
             </property>
            </widget>
           </item>
           <item row="5" column="1">
            <widget class="QCheckBox" name="headlessCheckBox">
+            <property name="toolTip">
+             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If enabled the virtual machine will be run in a windowless mode (default).&lt;/p&gt;&lt;p&gt;Changing this setting requires restarting the virtual machine.&lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+            </property>
             <property name="text">
-             <string>(You have to restart vm to apply this setting)</string>
+             <string/>
             </property>
            </widget>
           </item>
@@ -151,53 +154,32 @@
          <property name="title">
           <string>Shared folders</string>
          </property>
-         <layout class="QFormLayout" name="formLayout_2">
-          <property name="fieldGrowthPolicy">
-           <enum>QFormLayout::ExpandingFieldsGrow</enum>
-          </property>
-          <item row="0" column="0">
-           <widget class="QLabel" name="homeFolderLabel">
+         <layout class="QGridLayout" name="gridLayout">
+          <item row="0" column="2">
+           <widget class="QPushButton" name="srcFolderApplyButton">
+            <property name="toolTip">
+             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Change the alternative source location folder.&lt;/span&gt;&lt;/p&gt;&lt;p&gt;By default MerSDK can read project sources only from your home directory. You can specify here another location for your projects. You will need to stop MerSDK before this setting can be changed.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+            </property>
             <property name="text">
-             <string>&quot;home&quot; folder:</string>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="1">
-           <widget class="QLabel" name="homeFolderPathLabel">
-            <property name="text">
-             <string/>
-            </property>
-            <property name="textInteractionFlags">
-             <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="0">
-           <widget class="QLabel" name="targetFolderLabel">
-            <property name="text">
-             <string>&quot;targets&quot; folder:</string>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="1">
-           <widget class="QLabel" name="targetFolderPathLabel">
-            <property name="text">
-             <string/>
-            </property>
-            <property name="textInteractionFlags">
-             <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
+             <string>Change</string>
             </property>
            </widget>
           </item>
           <item row="2" column="0">
-           <widget class="QLabel" name="sshFolderLabel">
+           <widget class="QLabel" name="targetFolderLabel">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
             <property name="text">
-             <string>&quot;ssh&quot; folder:</string>
+             <string>Targets folder:</string>
             </property>
            </widget>
           </item>
           <item row="2" column="1">
-           <widget class="QLabel" name="sshFolderPathLabel">
+           <widget class="QLabel" name="targetFolderPathLabel">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
             <property name="text">
              <string/>
             </property>
@@ -207,14 +189,20 @@
            </widget>
           </item>
           <item row="3" column="0">
-           <widget class="QLabel" name="configFolderLabel">
+           <widget class="QLabel" name="sshFolderLabel">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
             <property name="text">
-             <string>&quot;config&quot; folder:</string>
+             <string>Ssh folder:</string>
             </property>
            </widget>
           </item>
           <item row="3" column="1">
-           <widget class="QLabel" name="configFolderPathLabel">
+           <widget class="QLabel" name="sshFolderPathLabel">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
             <property name="text">
              <string/>
             </property>
@@ -224,19 +212,68 @@
            </widget>
           </item>
           <item row="4" column="0">
-           <widget class="QLabel" name="srcFolderLabel">
+           <widget class="QLabel" name="configFolderLabel">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
             <property name="text">
-             <string>&quot;src&quot; folder:</string>
+             <string>Config folder:</string>
             </property>
            </widget>
           </item>
           <item row="4" column="1">
-           <widget class="QLabel" name="srcFolderPathLabel">
+           <widget class="QLabel" name="configFolderPathLabel">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
             <property name="text">
              <string/>
             </property>
             <property name="textInteractionFlags">
              <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="homeFolderLabel">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+            <property name="text">
+             <string>Home folder:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="Utils::PathChooser" name="srcFolderPathChooser" native="true">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="toolTip">
+             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;The alternative source folder path.&lt;/span&gt;&lt;/p&gt;&lt;p&gt;Your projects can be located under your home folder or under this folder.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QLabel" name="homeFolderPathLabel">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+            <property name="text">
+             <string/>
+            </property>
+            <property name="textInteractionFlags">
+             <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="0">
+           <widget class="QLabel" name="srcFolderLabel">
+            <property name="text">
+             <string>Alt source folder:</string>
             </property>
            </widget>
           </item>

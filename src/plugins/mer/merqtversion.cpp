@@ -192,6 +192,7 @@ QList<ProjectExplorer::Task> MerQtVersion::reportIssuesImpl(const QString &proFi
 
 void MerQtVersion::addToEnvironment(const ProjectExplorer::Kit *k, Utils::Environment &env) const
 {
+    Q_UNUSED(k);
     env.appendOrSet(QLatin1String(Constants::MER_SSH_PROJECT_PATH), QLatin1String("%{CurrentProject:Path}"));
     env.appendOrSet(QLatin1String(Constants::MER_SSH_SDK_TOOLS),qmakeCommand().parentDir().toString());
 }

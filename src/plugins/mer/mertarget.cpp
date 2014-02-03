@@ -81,6 +81,8 @@ void MerTarget::setQmakeQuery(const QString &qmakeQuery)
 void MerTarget::setGccDumpMachine(const QString &gccMachineDump)
 {
     m_gccMachineDump = gccMachineDump;
+    // the dump contains a linefeed
+    m_gccMachineDump.remove(QRegExp(QLatin1String("\\n")));
 }
 
 void MerTarget::setDefaultGdb(const QString &name)
