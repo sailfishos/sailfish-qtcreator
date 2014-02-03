@@ -36,7 +36,6 @@
 #include <projectexplorer/projectexplorer.h>
 #include <QAction>
 #include <QTimer>
-#include <QMessageBox>
 
 namespace Mer {
 namespace Internal {
@@ -94,6 +93,26 @@ void MerConnection::setStartTip(const QString &tip)
 void MerConnection::setStopTip(const QString &tip)
 {
     m_stopTip = tip;
+}
+
+void MerConnection::setConnectingTip(const QString &tip)
+{
+    m_connTip = tip;
+}
+
+void MerConnection::setDisconnectingTip(const QString &tip)
+{
+    m_discoTip = tip;
+}
+
+void MerConnection::setClosingTip(const QString &tip)
+{
+    m_closingTip = tip;
+}
+
+void MerConnection::setStartingTip(const QString &tip)
+{
+    m_startingTip = tip;
 }
 
 void MerConnection::setVisible(bool visible)
@@ -195,22 +214,42 @@ QString MerConnection::virtualMachine() const
 
 void MerConnection::update()
 {
-    QIcon::State state;
+    QIcon::State state = QIcon::Off;
     QString toolTip;
     bool enabled = m_enabled;
+
     switch (m_state) {
     case Connected:
         state = QIcon::On;
         toolTip = m_stopTip;
         break;
     case Disconnected:
-        state = QIcon::Off;
         toolTip = m_startTip;
         break;
-    default:
+    case StartingVm:
         enabled = false;
+        state = QIcon::On;
+        toolTip = m_startingTip;
+        break;
+    case TryConnect:
+    case Connecting:
+        enabled = false;
+        state = QIcon::On;
+        toolTip = m_connTip;
+        break;
+    case Disconnecting:
+        enabled = false;
+        toolTip = m_discoTip;
+        break;
+    case ClosingVm:
+        enabled = false;
+        toolTip = m_closingTip;
+        break;
+    default:
+        qWarning() << "MerConnection::update() - unknown state";
         break;
     }
+
     m_action->setEnabled(enabled);
     m_action->setVisible(m_visible);
     m_action->setToolTip(toolTip);
@@ -274,7 +313,7 @@ void MerConnection::changeState(State stateTrigger)
             m_state = Connecting;
         } //Connected
         break;
-    case Disconneting:
+    case Disconnecting:
         if (m_connection->state() == SshConnection::Connected ||
                 m_connection->state() == SshConnection::Connecting) {
             m_connection->disconnectFromHost();
@@ -331,7 +370,7 @@ void MerConnection::handleTriggered()
     if (m_state == Disconnected) {
         changeState(StartingVm);
     } else if (m_state == Connected) {
-        changeState(Disconneting);
+        changeState(Disconnecting);
     }
 }
 
@@ -339,7 +378,7 @@ void MerConnection::handleTriggered()
 void MerConnection::disconnectFrom()
 {
     if (m_state == Connected) {
-        changeState(Disconneting);
+        changeState(Disconnecting);
     }
 }
 

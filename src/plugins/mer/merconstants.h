@@ -83,6 +83,7 @@ const char MER_SDK_COUNT_KEY[] = "MerSDK.Count";
 const char MER_TARGET_COUNT_KEY[] = "MerTarget.Count";
 const char MER_SDK_FILE_VERSION_KEY[] = "MerSDK.Version";
 const char MER_TARGET_FILE_VERSION_KEY[] = "MerTarget.Version";
+const char MER_SDK_INSTALLDIR[] = "MerSDK.InstallDir";
 const char VM_NAME[] = "VirtualMachineName";
 const char SHARED_HOME[] = "SharedHome";
 const char SHARED_TARGET[] = "SharedTarget";

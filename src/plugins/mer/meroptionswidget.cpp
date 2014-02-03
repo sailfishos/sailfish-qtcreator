@@ -60,6 +60,7 @@ MerOptionsWidget::MerOptionsWidget(QWidget *parent)
     connect(m_ui->startVirtualMachineButton, SIGNAL(clicked()), SLOT(onStartVirtualMachineButtonClicked()));
     connect(m_ui->sdkDetailsWidget, SIGNAL(testConnectionButtonClicked()), SLOT(onTestConnectionButtonClicked()));
     connect(m_ui->sdkDetailsWidget, SIGNAL(headlessCheckBoxToggled(bool)), SLOT(onHeadlessCheckBoxToggled(bool)));
+    connect(m_ui->sdkDetailsWidget, SIGNAL(srcFolderApplyButtonClicked(QString)), SLOT(onSrcFolderApplyButtonClicked(QString)));
     onSdksUpdated();
 }
 
@@ -161,7 +162,7 @@ void MerOptionsWidget::onTestConnectionButtonClicked()
 {
     MerSdk *sdk = m_sdks[m_virtualMachine];
     if (MerVirtualBoxManager::isVirtualMachineRunning(sdk->virtualMachineName())) {
-        QSsh::SshConnectionParameters params = MerConnectionManager::paramters(sdk);
+        QSsh::SshConnectionParameters params = MerConnectionManager::parameters(sdk);
         if (m_sshPrivKeys.contains(sdk))
             params.privateKeyFile = m_sshPrivKeys[sdk];
         else
@@ -222,6 +223,43 @@ void MerOptionsWidget::onSdksUpdated()
         m_virtualMachine = sdk->virtualMachineName();
     }
     update();
+}
+
+void MerOptionsWidget::onSrcFolderApplyButtonClicked(const QString &newFolder)
+{
+    MerSdk *sdk = m_sdks[m_virtualMachine];
+
+    if (newFolder == sdk->sharedSrcPath()) {
+        QMessageBox::information(0, tr("Choose a new folder"),
+                                 tr("The given folder (%1) is the current alternative source folder. "
+                                    "Please choose another folder if you want to change it.").arg(sdk->sharedSrcPath()));
+        return;
+    }
+
+    if (MerVirtualBoxManager::isVirtualMachineRunning(m_virtualMachine)) {
+        QMessageBox::information(0, tr("Stop Virtual Machine"),
+                                 tr("Virtual Machine %1 is running. "
+                                    "It must be stopped before the source folder can be changed.").arg(m_virtualMachine));
+    }
+    else if (MerVirtualBoxManager::updateSharedFolder(m_virtualMachine, QLatin1String("src1"), newFolder)) {
+        // remember to update this value
+        sdk->setSharedSrcPath(newFolder);
+
+        const QMessageBox::StandardButton response =
+            QMessageBox::question(0, tr("Success!"),
+                                  tr("Alternative source folder for %1 changed to %2.\n\n"
+                                     "Do you want to start %1 now?").arg(m_virtualMachine).arg(newFolder),
+                                  QMessageBox::No | QMessageBox::Yes, QMessageBox::Yes);
+        if (response == QMessageBox::Yes)
+            MerVirtualBoxManager::startVirtualMachine(m_virtualMachine, sdk->isHeadless());
+    }
+    else {
+        QMessageBox::warning(0, tr("Changing the source folder failed!"),
+                             tr("Unable to change the alternative source folder to %1").arg(newFolder));
+    }
+
+    // update the path in the chooser
+    m_ui->sdkDetailsWidget->setSrcFolderChooserPath(sdk->sharedSrcPath());
 }
 
 void MerOptionsWidget::update()

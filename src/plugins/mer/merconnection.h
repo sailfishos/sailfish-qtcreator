@@ -53,7 +53,7 @@ public:
         TryConnect,
         Connecting,
         Connected,
-        Disconneting,
+        Disconnecting,
         ClosingVm
     };
 
@@ -65,6 +65,10 @@ public:
     void setIcon(const QIcon &icon);
     void setStartTip(const QString &tip);
     void setStopTip(const QString &tip);
+    void setConnectingTip(const QString &tip);
+    void setDisconnectingTip(const QString &tip);
+    void setStartingTip(const QString &tip);
+    void setClosingTip(const QString &tip);
     void setVisible(bool visible);
     void setEnabled(bool enabled);
     void setTaskCategory(Core::Id id);
@@ -98,6 +102,10 @@ private:
     QString m_name;
     QString m_startTip;
     QString m_stopTip;
+    QString m_connTip;
+    QString m_discoTip;
+    QString m_closingTip;
+    QString m_startingTip;
     bool m_uiInitalized;
     bool m_connectionInitialized;
     bool m_visible;

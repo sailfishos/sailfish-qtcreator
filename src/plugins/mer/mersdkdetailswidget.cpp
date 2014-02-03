@@ -23,6 +23,7 @@
 #include "mersdkdetailswidget.h"
 #include "ui_mersdkdetailswidget.h"
 #include "merconstants.h"
+#include "mervirtualboxmanager.h"
 #include "mersdkmanager.h"
 
 #include <QFileDialog>
@@ -45,6 +46,7 @@ MerSdkDetailsWidget::MerSdkDetailsWidget(QWidget *parent)
     connect(m_ui->privateKeyPathChooser, SIGNAL(browsingFinished()), SLOT(onPathChooserEditingFinished()));
     connect(m_ui->testConnectionPushButton, SIGNAL(clicked()), SIGNAL(testConnectionButtonClicked()));
     connect(m_ui->headlessCheckBox, SIGNAL(toggled(bool)), SIGNAL(headlessCheckBoxToggled(bool)));
+    connect(m_ui->srcFolderApplyButton, SIGNAL(clicked()), SLOT(onSrcFolderApplyButtonClicked()));
 
     m_ui->privateKeyPathChooser->setExpectedKind(Utils::PathChooser::File);
     m_ui->privateKeyPathChooser->setPromptDialogTitle(tr("Select SSH Key"));
@@ -64,6 +66,11 @@ QString MerSdkDetailsWidget::searchKeyWordMatchString() const
             + m_ui->sshFolderPathLabel->text();
 }
 
+void MerSdkDetailsWidget::setSrcFolderChooserPath(const QString& path)
+{
+    m_ui->srcFolderPathChooser->setPath(QDir::toNativeSeparators(path));
+}
+
 void MerSdkDetailsWidget::setSdk(const MerSdk *sdk)
 {
     m_ui->nameLabelText->setText(sdk->virtualMachineName());
@@ -73,7 +80,7 @@ void MerSdkDetailsWidget::setSdk(const MerSdk *sdk)
     m_ui->targetFolderPathLabel->setText(QDir::toNativeSeparators(sdk->sharedTargetsPath()));
     m_ui->sshFolderPathLabel->setText(QDir::toNativeSeparators(sdk->sharedSshPath()));
     m_ui->configFolderPathLabel->setText(QDir::toNativeSeparators(sdk->sharedConfigPath()));
-    m_ui->srcFolderPathLabel->setText(QDir::toNativeSeparators(sdk->sharedSrcPath()));
+    m_ui->srcFolderPathChooser->setPath(QDir::toNativeSeparators(sdk->sharedSrcPath()));
 
     if (MerSdkManager::instance()->hasSdk(sdk)) {
         const QStringList &targets = sdk->targetNames();
@@ -114,6 +121,12 @@ void MerSdkDetailsWidget::setStatus(const QString &status)
 void MerSdkDetailsWidget::setHeadless(bool enabled)
 {
     m_ui->headlessCheckBox->setChecked(enabled);
+}
+
+void MerSdkDetailsWidget::onSrcFolderApplyButtonClicked()
+{
+    if (m_ui->srcFolderPathChooser->isValid())
+        emit srcFolderApplyButtonClicked(m_ui->srcFolderPathChooser->path());
 }
 
 void MerSdkDetailsWidget::onAuthorizeSshKeyButtonClicked()
