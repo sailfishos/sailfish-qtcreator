@@ -158,10 +158,6 @@ const char MER_DEVICE_MAC[] = "MER_DEVICE_MAC";
 const char MER_DEVICE_SUBNET[] = "MER_DEVICE_SUBNET";
 const char MER_DEVICE_SHARED_SSH[] = "MER_DEVICE_SHARED_SSH";
 const char MER_DEVICE_SHARED_CONFIG[]= "MER_DEVICE_SHARED_CONFIG";
-
-const char MER_YAML_MIME_TYPE[] = "text/x-yaml";
-const char MER_YAML_EDITOR_ID[] = "Mer.YamlEditor";
-
 } // namespace Constants
 } // namespace Mer
 

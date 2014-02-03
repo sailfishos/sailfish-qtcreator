@@ -6,5 +6,4 @@ QTC_PLUGIN_DEPENDS += \
  qt4projectmanager
 QTC_LIB_DEPENDS += \
  ssh \
- utils \
- yaml
+ utils

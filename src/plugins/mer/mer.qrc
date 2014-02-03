@@ -21,6 +21,5 @@
         <file>welcomepage/widgets/images/sailfish-icon-buildrun.png</file>
         <file>welcomepage/widgets/images/sailfish-icon-guideline.png</file>
         <file>welcomepage/widgets/images/sailfish-icon-showcase.png</file>
-        <file>YAMLEditor.mimetypes.xml</file>
     </qresource>
 </RCC>
