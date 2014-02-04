@@ -16,7 +16,6 @@ FORMS += \
     mersdkdetailswidget.ui \
     mersdkselectiondialog.ui \
     merdeploystep.ui \
-    yamleditorwidget.ui \
     meremulatordevicewidget.ui \
     merhardwaredevicewidget.ui \
     merhardwaredevicewizardgeneralpage.ui \
@@ -52,13 +51,8 @@ SOURCES += \
     mertargetsxmlparser.cpp \
     merdevicexmlparser.cpp \
     merprojectlistener.cpp \
-    meryamlupdater.cpp \
     merdeploysteps.cpp \
     merdeployconfiguration.cpp \
-    yamleditorfactory.cpp \
-    yamleditorwidget.cpp \
-    yamleditor.cpp \
-    yamldocument.cpp \
     mertargetkitinformation.cpp \
     meremulatordevice.cpp \
     meremulatordevicewidget.cpp \
@@ -106,13 +100,8 @@ HEADERS += \
     mertargetsxmlparser.h \
     merdevicexmlparser.h \
     merprojectlistener.h \
-    meryamlupdater.h \
     merdeploysteps.h \
     merdeployconfiguration.h \
-    yamleditorfactory.h \
-    yamleditorwidget.h \
-    yamleditor.h \
-    yamldocument.h \
     mertargetkitinformation.h \
     meremulatordevice.h \
     meremulatordevicewidget.h \

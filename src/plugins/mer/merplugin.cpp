@@ -32,8 +32,6 @@
 #include "mersdkmanager.h"
 #include "merconnectionmanager.h"
 #include "mervirtualboxmanager.h"
-#include "meryamlupdater.h"
-#include "yamleditorfactory.h"
 #include "jollawelcomepage.h"
 #include "mermode.h"
 #include "merconnectionprompt.h"
@@ -60,9 +58,6 @@ MerPlugin::~MerPlugin()
 
 bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
 {
-    if (!Core::ICore::mimeDatabase()->addMimeTypes(QLatin1String(":/mer/YAMLEditor.mimetypes.xml"), errorString))
-        return false;
-
     MerSdkManager::verbose = arguments.count(QLatin1String("-mer-verbose"));
 
     addAutoReleasedObject(new MerSdkManager);
@@ -76,8 +71,6 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
     addAutoReleasedObject(new MerRunConfigurationFactory);
     addAutoReleasedObject(new MerRunControlFactory);
     addAutoReleasedObject(new MerDeployStepFactory);
-    addAutoReleasedObject(new MerYamlUpdater);
-    addAutoReleasedObject(new YamlEditorFactory);
     addAutoReleasedObject(new MerActionManager);
 
     addAutoReleasedObject(new JollaWelcomePage);
