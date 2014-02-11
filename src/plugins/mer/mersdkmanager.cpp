@@ -298,7 +298,7 @@ void MerSdkManager::storeSdks() const
     int count = 0;
     foreach (const MerSdk* sdk, m_sdks) {
         if (!sdk->isValid()) {
-            qWarning() << sdk->virtualMachineName()<<"is configured incorrectly...";
+            qWarning() << sdk->virtualMachineName() << "is configured incorrectly...";
         }
         QVariantMap tmp = sdk->toMap();
         if (tmp.isEmpty())
@@ -420,7 +420,7 @@ bool MerSdkManager::authorizePublicKey(const QString &authorizedKeysPath,
         }
         success = !authKeysReader.data().contains(publicKey);
         if (!success) {
-            error.append(tr("Key already authorized ! \n %1 already in %2").arg(QDir::toNativeSeparators(pubKeyPath)).arg(QDir::toNativeSeparators(authorizedKeysPath)));
+            error.append(tr("Key already authorized!\n %1 already in %2").arg(QDir::toNativeSeparators(pubKeyPath)).arg(QDir::toNativeSeparators(authorizedKeysPath)));
             return success;
         }
         // File does not contain the public key. Append it to file.
@@ -481,7 +481,6 @@ MerSdk* MerSdkManager::createSdk(const QString &vmName)
     //TODO:
     sdk->setUserName(QLatin1String(MER_SDK_DEFAULTUSER));
 
-
     QString sshDirectory;
     if(info.sharedConfig.isEmpty())
         sshDirectory = QDir::fromNativeSeparators(QDesktopServices::storageLocation(QDesktopServices::HomeLocation))+ QLatin1String("/.ssh");
@@ -531,7 +530,7 @@ bool MerSdkManager::validateKit(const Kit *kit)
 bool MerSdkManager::generateSshKey(const QString &privKeyPath, QString &error)
 {
     if (privKeyPath.isEmpty()) {
-        error.append(tr("Error: Key Path  is empty.\n"));
+        error.append(tr("Error: Key Path is empty.\n"));
         return false;
     }
 
@@ -575,6 +574,7 @@ bool MerSdkManager::generateSshKey(const QString &privKeyPath, QString &error)
     return true;
 }
 
+// this method updates the Mer devices.xml, nothing else
 void MerSdkManager::updateDevices()
 {
     QList<MerDeviceData> devices;
@@ -622,10 +622,11 @@ void MerSdkManager::updateDevices()
         MerEngineData xmlData;
         xmlData.m_name = sdk->virtualMachineName();
         xmlData.m_type =  QLatin1String("vbox");
-        //hardcoded/magic values on customer regest
+        //hardcoded/magic values on customer request
         xmlData.m_subNet = QLatin1String("10.220.220");
-        if (!file.isEmpty())
-            MerDevicesXmlWriter writer(file, devices,xmlData);
+        if (!file.isEmpty()) {
+            MerDevicesXmlWriter writer(file, devices, xmlData);
+        }
     }
 }
 

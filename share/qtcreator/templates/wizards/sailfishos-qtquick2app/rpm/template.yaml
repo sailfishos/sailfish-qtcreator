@@ -36,5 +36,3 @@ Files:
 - '%{_datadir}/applications/%{name}.desktop'
 - '%{_datadir}/%{name}/qml'
 - '%{_bindir}'
-# This section is overwritten by Qt Creator. Do not remove the comments.
-# Sections ends.

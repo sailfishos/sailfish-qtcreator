@@ -64,7 +64,7 @@ public:
     void setSubnet(const QString& subnet);
     QString subnet() const;
 
-    void generteSshKey(const QString& user) const;
+    void generateSshKey(const QString& user) const;
 
     QSsh::SshConnectionParameters sshParametersForUser(const QSsh::SshConnectionParameters &sshParams, const QLatin1String &user) const;
 

@@ -207,8 +207,8 @@ void MerEmulatorDevice::executeAction(Core::Id actionId, QWidget *parent) const
     QTC_ASSERT(actionIds().contains(actionId), return);
 
     if (actionId ==  Constants::MER_EMULATOR_DEPLOYKEY_ACTION_ID) {
-        generteSshKey(QLatin1String(Constants::MER_DEVICE_DEFAULTUSER));
-        generteSshKey(QLatin1String(Constants::MER_DEVICE_ROOTUSER));
+        generateSshKey(QLatin1String(Constants::MER_DEVICE_DEFAULTUSER));
+        generateSshKey(QLatin1String(Constants::MER_DEVICE_ROOTUSER));
         return;
     } else if (actionId == Constants::MER_EMULATOR_START_ACTION_ID) {
         MerVirtualBoxManager::startVirtualMachine(m_virtualMachine,false);
@@ -291,7 +291,7 @@ QString MerEmulatorDevice::sharedSshPath() const
     return m_sharedSshPath;
 }
 
-void MerEmulatorDevice::generteSshKey(const QString& user) const
+void MerEmulatorDevice::generateSshKey(const QString& user) const
 {
     if(!m_sharedConfigPath.isEmpty()) {
         QString index(QLatin1String("/ssh/private_keys/%1/"));
