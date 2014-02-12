@@ -107,17 +107,8 @@ QString MerRunConfiguration::commandPrefix() const
    * The full command prefix will look something like this:
    *
    * test -f /etc/profile && source /etc/profile;test -f
-   * $HOME/.profile && source $HOME/.profile; faketty() {
-   * /usr/bin/script -qfc "$(printf "'%s' " "$@")" /dev/null; };
-   * DISPLAY=:0.0 faketty
-   *
-   * The reason to use the faketty function to start the program is
-   * that Mer qtbase is only logging to console when the program is
-   * run from a tty. We need the console logs in order to show them in
-   * QtC.
-   *
-   * TODO remove this if/when there's a better way to capture console
-   * logs.
+   * $HOME/.profile && source $HOME/.profile; QT_NO_JOURNALD_LOG=1
+   * DISPLAY=:0.0
    *
    */
 
@@ -128,18 +119,15 @@ QString MerRunConfiguration::commandPrefix() const
   // source the profile scripts
   QString etcprofile = RemoteLinuxRunConfiguration::environmentPreparationCommand();
 
-  // faketty bash function
-  QString fakettyfunc = QString::fromLatin1("faketty() { /usr/bin/script -qfc \"$(printf \"'%s' \" \"$@\")\" /dev/null; }");
+  // required by qtbase not to direct logs to journald
+  QString qtbaselogs = QString::fromLatin1("QT_NO_JOURNALD_LOG=1");
 
   // runenvironment as in RemoteLinuxRunConfiguration
   QString runenvironment = QString::fromLatin1("DISPLAY=:0.0 %1")
     .arg(aspect->userEnvironmentChangesAsString());
 
-  // the actual call to faketty, this must be given before the command itself
-  QString fakettycmd = QString::fromLatin1("faketty");
-
-  return QString::fromLatin1("%1; %2; %3 %4")
-    .arg(etcprofile, fakettyfunc, runenvironment, fakettycmd);
+  return QString::fromLatin1("%1; %2 %3")
+    .arg(etcprofile, qtbaselogs, runenvironment);
 
 //    return QString::fromLatin1("/usr/sbin/mcetool -Don;").append(
 //                RemoteLinuxRunConfiguration::commandPrefix());
