@@ -111,7 +111,7 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, RunMode mo
         MerSdk* mersdk = MerSdkKitInformation::sdk(rc->target()->kit());
 
         if (mersdk && !mersdk->sharedHomePath().isEmpty())
-            params.sourcePathMap.insert(QLatin1String("/home/mersdk"), mersdk->sharedHomePath());
+            params.sourcePathMap.insert(QLatin1String("/home/mersdk/share"), mersdk->sharedHomePath());
         if (mersdk && !mersdk->sharedSrcPath().isEmpty())
             params.sourcePathMap.insert(QLatin1String("/home/src1"), mersdk->sharedSrcPath());
 
