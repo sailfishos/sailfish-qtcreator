@@ -160,7 +160,7 @@ QString Command::remotePathMapping(const QString& command) const
 
     // First replace shared home and then shared src (error prone!)
     if (!sharedHomePath().isEmpty())
-    result.replace(sharedHomePath(), QLatin1String("/home/mersdk"));
+    result.replace(sharedHomePath(), QLatin1String("/home/mersdk/share"));
     if (!sharedSourcePath().isEmpty())
         result.replace(sharedSourcePath(), QLatin1String("/home/src1"));
     result = result.trimmed();

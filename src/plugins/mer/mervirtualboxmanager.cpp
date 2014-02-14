@@ -26,10 +26,10 @@
 #include <utils/qtcassert.h>
 #include <utils/hostosinfo.h>
 
+#include <QDebug>
 #include <QDir>
 #include <QProcess>
 #include <QSettings>
-#include <QMessageBox>
 
 const char VBOXMANAGE[] = "VBoxManage";
 const char LIST[] = "list";
@@ -42,6 +42,11 @@ const char CONTROLVM[] = "controlvm";
 const char ACPI_POWER_BUTTON[] = "acpipowerbutton";
 const char TYPE[] = "--type";
 const char HEADLESS[] = "headless";
+const char SHAREDFOLDER[] = "sharedfolder";
+const char SHARE_NAME[] = "--name";
+const char REMOVE_SHARED[] = "remove";
+const char HOSTPATH[] = "--hostpath";
+const char ADD_SHARED[] = "add";
 
 namespace Mer {
 namespace Internal {
@@ -116,6 +121,45 @@ bool MerVirtualBoxManager::isVirtualMachineRegistered(const QString &vmName)
         return false;
 
     return isVirtualMachineListed(vmName, QString::fromLocal8Bit(process.readAllStandardOutput()));
+}
+
+bool MerVirtualBoxManager::updateSharedFolder(const QString &vmName, const QString &mountName, const QString &newFolder)
+{
+    if (isVirtualMachineRunning(vmName)) {
+        qWarning() << "Virtual machine " << vmName << " is running, unable to update shared folder.";
+        return false;
+    }
+
+    QStringList rargs;
+    rargs.append(QLatin1String(SHAREDFOLDER));
+    rargs.append(QLatin1String(REMOVE_SHARED));
+    rargs.append(vmName);
+    rargs.append(QLatin1String(SHARE_NAME));
+    rargs.append(mountName);
+    QProcess rproc;
+    rproc.start(vBoxManagePath(), rargs);
+    if (!rproc.waitForFinished()) {
+        qWarning() << "VBoxManage failed to remove " << mountName;
+        return false;
+    }
+
+    QStringList aargs;
+    aargs.append(QLatin1String(SHAREDFOLDER));
+    aargs.append(QLatin1String(ADD_SHARED));
+    aargs.append(vmName);
+    aargs.append(QLatin1String(SHARE_NAME));
+    aargs.append(mountName);
+    aargs.append(QLatin1String(HOSTPATH));
+    aargs.append(newFolder);
+
+    QProcess aproc;
+    aproc.start(vBoxManagePath(), aargs);
+    if (!aproc.waitForFinished()) {
+        qWarning() << "VBoxManage failed to add " << mountName;
+        return false;
+    }
+
+    return true;
 }
 
 VirtualMachineInfo MerVirtualBoxManager::fetchVirtualMachineInfo(const QString &vmName)

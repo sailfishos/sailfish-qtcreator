@@ -66,6 +66,7 @@ public:
     static QVariantMap initializeSdks();
 
 private:
+    QString m_installDir;
     QString m_name;
     bool m_autoDetected;
     QString m_sharedHomePath;

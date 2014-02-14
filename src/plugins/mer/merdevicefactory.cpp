@@ -95,11 +95,11 @@ ProjectExplorer::IDevice::Ptr MerDeviceFactory::create(Core::Id id) const
         device->setSharedSshPath(wizard.sharedSshPath());
 
         if(wizard.isUserNewSshKeysRquired() && !wizard.userPrivateKey().isEmpty()) {
-            device->generteSshKey(wizard.userName());
+            device->generateSshKey(wizard.userName());
         }
 
         if(wizard.isRootNewSshKeysRquired() && !wizard.rootPrivateKey().isEmpty()) {
-            device->generteSshKey(wizard.rootName());
+            device->generateSshKey(wizard.rootName());
         }
 
         RemoteLinux::GenericLinuxDeviceTester* tester = new RemoteLinux::GenericLinuxDeviceTester();

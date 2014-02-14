@@ -66,6 +66,7 @@ private slots:
     void onAuthorizeSshKey(const QString &file);
     void onSshKeyChanged(const QString &file);
     void onHeadlessCheckBoxToggled(bool checked);
+    void onSrcFolderApplyButtonClicked(const QString &path);
     void update();
 
 private:

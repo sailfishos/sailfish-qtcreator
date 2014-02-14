@@ -272,9 +272,6 @@ def main():
     if sys.platform.startswith('win'):
       copy_qt_libs(install_dir, QT_INSTALL_BINS, QT_INSTALL_PLUGINS, QT_INSTALL_IMPORTS, QT_INSTALL_QML, plugins, imports)
     else:
-      print ">> kalaa >>";
-      print "Install:", install_dir;
-      print "<< kalaa <<";
       copy_qt_libs(install_dir, QT_INSTALL_LIBS, QT_INSTALL_PLUGINS, QT_INSTALL_IMPORTS, QT_INSTALL_QML, plugins, imports)
     copy_translations(install_dir, QT_INSTALL_TRANSLATIONS)
 

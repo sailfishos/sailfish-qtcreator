@@ -49,7 +49,7 @@ class MerConnectionManager : public QObject
 public:
     static MerConnectionManager* instance();
     ~MerConnectionManager();
-    static QSsh::SshConnectionParameters paramters(const MerSdk *sdk);
+    static QSsh::SshConnectionParameters parameters(const MerSdk *sdk);
     QString testConnection(const QSsh::SshConnectionParameters &params) const;
     bool isConnected(const QString &vmName) const;
     void connectTo(const QString &vmName);

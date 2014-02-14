@@ -67,6 +67,10 @@ MerConnectionManager::MerConnectionManager():
     m_emulatorConnection->setIcon(emuIcon);
     m_emulatorConnection->setStartTip(tr("Start Emulator"));
     m_emulatorConnection->setStopTip(tr("Stop Emulator"));
+    m_emulatorConnection->setConnectingTip(tr("Connecting..."));
+    m_emulatorConnection->setDisconnectingTip(tr("Disconnecting..."));
+    m_emulatorConnection->setClosingTip(tr("Closing Emulator"));
+    m_emulatorConnection->setStartingTip(tr("Starting Emulator"));
     m_emulatorConnection->setTaskCategory(Core::Id(Constants::MER_TASKHUB_EMULATOR_CATEGORY));
     m_emulatorConnection->setProbeTimeout(1000);
     m_emulatorConnection->initialize();
@@ -74,8 +78,12 @@ MerConnectionManager::MerConnectionManager():
     m_sdkConnection->setName(tr("MerSdk"));
     m_sdkConnection->setId(Constants::MER_SDK_CONNECTON_ACTION_ID);
     m_sdkConnection->setIcon(sdkIcon);
-    m_sdkConnection->setStartTip(tr("Start Sdk"));
-    m_sdkConnection->setStopTip(tr("Stop Sdk"));
+    m_sdkConnection->setStartTip(tr("Start SDK"));
+    m_sdkConnection->setStopTip(tr("Stop SDK"));
+    m_sdkConnection->setConnectingTip(tr("Connecting..."));
+    m_sdkConnection->setDisconnectingTip(tr("Disconnecting..."));
+    m_sdkConnection->setClosingTip(tr("Closing SDK"));
+    m_sdkConnection->setStartingTip(tr("Starting SDK"));
     m_sdkConnection->setTaskCategory(Core::Id(Constants::MER_TASKHUB_SDK_CATEGORY));
     m_sdkConnection->setProbeTimeout(1000);
     m_sdkConnection->initialize();
@@ -117,7 +125,7 @@ bool MerConnectionManager::isConnected(const QString &vmName) const
     return false;
 }
 
-QSsh::SshConnectionParameters MerConnectionManager::paramters(const MerSdk *sdk)
+QSsh::SshConnectionParameters MerConnectionManager::parameters(const MerSdk *sdk)
 {
     QSsh::SshConnectionParameters params;
     params.userName = sdk->userName();
@@ -194,9 +202,9 @@ void MerConnectionManager::handleBuildStateChanged(Project* project)
 
 void MerConnectionManager::update()
 {
-    bool sdkRemoteButonEnabled = false;
+    bool sdkRemoteButtonEnabled = false;
     bool emulatorRemoteButtonEnabled = false;
-    bool sdkRemoteButonVisible = false;
+    bool sdkRemoteButtonVisible = false;
     bool emulatorRemoteButtonVisible = false;
 
     const Project* const p = ProjectExplorerPlugin::instance()->session()->startupProject();
@@ -206,16 +214,16 @@ void MerConnectionManager::update()
 
         foreach (const Target *t , targets) {
             if (MerSdkManager::isMerKit(t->kit())) {
-                sdkRemoteButonVisible = true;
+                sdkRemoteButtonVisible = true;
                 if (t == activeTarget) {
-                    sdkRemoteButonEnabled = true;
+                    sdkRemoteButtonEnabled = true;
                     MerSdk* sdk = MerSdkKitInformation::sdk(t->kit());
                     QTC_ASSERT(sdk, continue);
                     QString sdkName = sdk->virtualMachineName();
                     QTC_ASSERT(!sdkName.isEmpty(), continue);
                     m_sdkConnection->setVirtualMachine(sdkName);
                     m_sdkConnection->setHeadless(sdk->isHeadless());
-                    m_sdkConnection->setConnectionParameters(paramters(sdk));
+                    m_sdkConnection->setConnectionParameters(parameters(sdk));
                     m_sdkConnection->setupConnection();
                 }
             }
@@ -240,8 +248,8 @@ void MerConnectionManager::update()
 
     m_emulatorConnection->setEnabled(emulatorRemoteButtonEnabled);
     m_emulatorConnection->setVisible(emulatorRemoteButtonVisible);
-    m_sdkConnection->setEnabled(sdkRemoteButonEnabled);
-    m_sdkConnection->setVisible(sdkRemoteButonVisible);
+    m_sdkConnection->setEnabled(sdkRemoteButtonEnabled);
+    m_sdkConnection->setVisible(sdkRemoteButtonVisible);
     m_emulatorConnection->update();
     m_sdkConnection->update();
 }
