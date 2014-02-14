@@ -678,9 +678,9 @@ void MerPlugin::testMerSdkManager_data()
     QTest::addColumn<QString>("virtualMachine");
     QTest::addColumn<QStringList>("targets");
     QTest::addColumn<QStringList>("expectedTargets");
-    QTest::newRow("testcase1") << "./testcase1" << "TestVM" << QStringList() << (QStringList() << QLatin1String("SailfishOS-i486-x86-1"));
-    QTest::newRow("testcase2") << "./testcase2" << "TestVM" << (QStringList() << QLatin1String("SailfishOS-i486-x86-1")) << (QStringList() << QLatin1String("SailfishOS-i486-x86-2"));
-    QTest::newRow("testcase3") << "./testcase3" << "TestVM" << (QStringList() << QLatin1String("SailfishOS-i486-x86-1")) << (QStringList());
+    QTest::newRow("testcase1") << "./testcase1" << "TestVM" << QStringList() << (QStringList() << QLatin1String("SailfishOS-i486-1"));
+    QTest::newRow("testcase2") << "./testcase2" << "TestVM" << (QStringList() << QLatin1String("SailfishOS-i486-1")) << (QStringList() << QLatin1String("SailfishOS-i486-2"));
+    QTest::newRow("testcase3") << "./testcase3" << "TestVM" << (QStringList() << QLatin1String("SailfishOS-i486-1")) << (QStringList());
 }
 
 void MerPlugin::testMerSdkManager()

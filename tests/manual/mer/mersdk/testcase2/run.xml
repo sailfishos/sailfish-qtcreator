@@ -7,20 +7,20 @@
   <valuemap type="QVariantMap">
    <value type="QString" key="MerTarget.GccDumpMachine">i486-meego-linux-gnu
 </value>
-   <value type="QString" key="MerTarget.Name">SailfishOS-i486-x86-2</value>
-   <value type="QString" key="MerTarget.QmakeQuery">QT_INSTALL_PREFIX:/home/stefan/SailfishOS/mersdk/targets/SailfishOS-i486-x86/usr
-QT_INSTALL_DATA:/home/stefan/SailfishOS/mersdk/targets/SailfishOS-i486-x86/usr/share/qt4
-QT_INSTALL_DOCS:/home/stefan/SailfishOS/mersdk/targets/SailfishOS-i486-x86/usr/share/doc/qt4
-QT_INSTALL_HEADERS:/home/stefan/SailfishOS/mersdk/targets/SailfishOS-i486-x86/usr/include/qt4
-QT_INSTALL_LIBS:/home/stefan/SailfishOS/mersdk/targets/SailfishOS-i486-x86/usr/lib
-QT_INSTALL_BINS:/home/stefan/SailfishOS/mersdk/targets/SailfishOS-i486-x86/usr/bin
-QT_INSTALL_PLUGINS:/home/stefan/SailfishOS/mersdk/targets/SailfishOS-i486-x86/usr/lib/qt4/plugins
-QT_INSTALL_IMPORTS:/home/stefan/SailfishOS/mersdk/targets/SailfishOS-i486-x86/usr/lib/qt4/imports
-QT_INSTALL_TRANSLATIONS:/home/stefan/SailfishOS/mersdk/targets/SailfishOS-i486-x86/usr/share/qt4/translations
-QT_INSTALL_CONFIGURATION:/home/stefan/SailfishOS/mersdk/targets/SailfishOS-i486-x86/etc/xdg
-QT_INSTALL_EXAMPLES:/home/stefan/SailfishOS/mersdk/targets/SailfishOS-i486-x86/usr/lib/qt4/examples
-QT_INSTALL_DEMOS:/home/stefan/SailfishOS/mersdk/targets/SailfishOS-i486-x86/usr/lib/qt4/demos
-QMAKE_MKSPECS:/home/stefan/SailfishOS/mersdk/targets/SailfishOS-i486-x86/usr/share/qt4/mkspecs
+   <value type="QString" key="MerTarget.Name">SailfishOS-i486-2</value>
+   <value type="QString" key="MerTarget.QmakeQuery">QT_INSTALL_PREFIX:/home/stefan/SailfishOS/mersdk/targets/SailfishOS-i486/usr
+QT_INSTALL_DATA:/home/stefan/SailfishOS/mersdk/targets/SailfishOS-i486/usr/share/qt4
+QT_INSTALL_DOCS:/home/stefan/SailfishOS/mersdk/targets/SailfishOS-i486/usr/share/doc/qt4
+QT_INSTALL_HEADERS:/home/stefan/SailfishOS/mersdk/targets/SailfishOS-i486/usr/include/qt4
+QT_INSTALL_LIBS:/home/stefan/SailfishOS/mersdk/targets/SailfishOS-i486/usr/lib
+QT_INSTALL_BINS:/home/stefan/SailfishOS/mersdk/targets/SailfishOS-i486/usr/bin
+QT_INSTALL_PLUGINS:/home/stefan/SailfishOS/mersdk/targets/SailfishOS-i486/usr/lib/qt4/plugins
+QT_INSTALL_IMPORTS:/home/stefan/SailfishOS/mersdk/targets/SailfishOS-i486/usr/lib/qt4/imports
+QT_INSTALL_TRANSLATIONS:/home/stefan/SailfishOS/mersdk/targets/SailfishOS-i486/usr/share/qt4/translations
+QT_INSTALL_CONFIGURATION:/home/stefan/SailfishOS/mersdk/targets/SailfishOS-i486/etc/xdg
+QT_INSTALL_EXAMPLES:/home/stefan/SailfishOS/mersdk/targets/SailfishOS-i486/usr/lib/qt4/examples
+QT_INSTALL_DEMOS:/home/stefan/SailfishOS/mersdk/targets/SailfishOS-i486/usr/lib/qt4/demos
+QMAKE_MKSPECS:/home/stefan/SailfishOS/mersdk/targets/SailfishOS-i486/usr/share/qt4/mkspecs
 QMAKE_VERSION:2.01a
 QT_VERSION:4.8.3
 </value>
