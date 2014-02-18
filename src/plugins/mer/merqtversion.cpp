@@ -31,6 +31,7 @@
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/toolchain.h>
 #include <utils/qtcassert.h>
+#include <utils/hostosinfo.h>
 
 #include <QCoreApplication>
 #include <QFileInfo>
@@ -169,11 +170,18 @@ QList<ProjectExplorer::Task> MerQtVersion::reportIssuesImpl(const QString &proFi
                                    Utils::FileName(), -1, Core::Id());
         results.append(task);
     } else {
-        const QString proFileClean = QDir::cleanPath(proFile);
-        const QString sharedHomeClean = QDir::cleanPath(sdk->sharedHomePath());
-        const QString sharedSrcClean = QDir::cleanPath(sdk->sharedSrcPath());
+        QString proFileClean = QDir::cleanPath(proFile);
+        QString sharedHomeClean = QDir::cleanPath(sdk->sharedHomePath());
+        QString sharedSrcClean = QDir::cleanPath(sdk->sharedSrcPath());
+
+        if (Utils::HostOsInfo::isWindowsHost()) {
+            proFileClean = proFileClean.toLower();
+            sharedHomeClean = sharedHomeClean.toLower();
+            sharedSrcClean = sharedSrcClean.toLower();
+        }
+
         if (!proFileClean.startsWith(sharedHomeClean) && !proFileClean.startsWith(sharedSrcClean)) {
-            QString message =  QCoreApplication::translate("QtVersion","Project is outside of mer workspace");
+            QString message =  QCoreApplication::translate("QtVersion", "Project is outside of mer workspace");
             if(!sdk->sharedHomePath().isEmpty() && !sdk->sharedSrcPath().isEmpty())
               message = QCoreApplication::translate("QtVersion","Project is outside of mer shared home '%1' and mer shared src '%2'")
                       .arg(QDir::toNativeSeparators(QDir::toNativeSeparators(sdk->sharedHomePath())))

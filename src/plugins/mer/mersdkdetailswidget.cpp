@@ -26,6 +26,7 @@
 #include "mervirtualboxmanager.h"
 #include "mersdkmanager.h"
 
+#include <utils/hostosinfo.h>
 #include <QFileDialog>
 
 namespace Mer {
@@ -125,8 +126,15 @@ void MerSdkDetailsWidget::setHeadless(bool enabled)
 
 void MerSdkDetailsWidget::onSrcFolderApplyButtonClicked()
 {
-    if (m_ui->srcFolderPathChooser->isValid())
-        emit srcFolderApplyButtonClicked(m_ui->srcFolderPathChooser->path());
+    if (m_ui->srcFolderPathChooser->isValid()) {
+        QString path = m_ui->srcFolderPathChooser->path();
+        if (Utils::HostOsInfo::isWindowsHost()) {
+            if (!path.endsWith(QLatin1String("\\")) && !path.endsWith(QLatin1String("/"))) {
+                path = path + QLatin1Char('\\');
+            }
+        }
+        emit srcFolderApplyButtonClicked(path);
+    }
 }
 
 void MerSdkDetailsWidget::onAuthorizeSshKeyButtonClicked()
