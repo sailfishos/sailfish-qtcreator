@@ -48,6 +48,8 @@
         <file source="qml/pages/SecondPage.qml" openeditor="true"/>
         <file source="qml/template.qml" target="qml/%ProjectName%.qml" openeditor="true"/>
         <file source="rpm/template.yaml" target="rpm/%ProjectName%.yaml"/>
+	<file source="translations/template.ts" target="translations/%ProjectName%.ts"/>
+	<file source="translations/template-de.ts" target="translations/%ProjectName%-de.ts"/>
     </files>
     <fieldpagetitle>Application Details</fieldpagetitle>
     <fields>

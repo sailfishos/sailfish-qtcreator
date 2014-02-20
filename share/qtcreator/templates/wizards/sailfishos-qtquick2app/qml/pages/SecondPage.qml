@@ -39,7 +39,7 @@ Page {
         model: 20
         anchors.fill: parent
         header: PageHeader {
-            title: "Nested Page"
+            title: qsTr("Nested Page")
         }
         delegate: BackgroundItem {
             id: delegate
