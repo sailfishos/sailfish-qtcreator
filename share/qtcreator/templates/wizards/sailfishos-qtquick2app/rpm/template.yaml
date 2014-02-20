@@ -7,7 +7,8 @@ Release: 1
 Group: Qt/Qt
 URL: http://example.org/
 License: LICENSE
-# This must be generated before uploading a package to a remote build service
+# This must be generated before uploading a package to a remote build service.
+# Usually this line does not need to be modified.
 Sources:
 - '%{name}-%{version}.tar.bz2'
 Description: |
@@ -16,12 +17,14 @@ Configure: none
 # The qtc5 builder inserts macros to allow QtCreator to have fine
 # control over qmake/make execution
 Builder: qtc5
-# Build dependencies should ideally be specified using pkgconfig:
+
+# This section specifies build dependencies that are resolved using pkconfig.
+# This is the preferred way of specifying build dependencies for your package.
 PkgConfigBR:
-- sailfishapp >= 0.0.10
-- Qt5Core
-- Qt5Qml
-- Qt5Quick
+  - sailfishapp >= 1.0.2
+  - Qt5Core
+  - Qt5Qml
+  - Qt5Quick
 
 # Build dependencies without a pkgconfig setup can be listed here
 # PkgBR:
@@ -29,10 +32,15 @@ PkgConfigBR:
 
 # Runtime dependencies which are not automatically detected
 Requires:
-- sailfishsilica-qt5 >= 0.10.9
+  - sailfishsilica-qt5 >= 0.10.9 
+
 # All installed files
 Files:
-- '%{_datadir}/icons/hicolor/86x86/apps/%{name}.png'
-- '%{_datadir}/applications/%{name}.desktop'
-- '%{_datadir}/%{name}/qml'
-- '%{_bindir}'
+  - '%defattr(0644,root,root,-)'
+  - '%attr(0755,root,root) %{_bindir}'
+  - '%{_datadir}/%{name}'
+  - '%{_datadir}/applications/%{name}.desktop'
+  - '%{_datadir}/icons/hicolor/86x86/apps/%{name}.png'
+
+# For more information about yaml and what's supported in Sailfish OS
+# build system, please see https://wiki.merproject.org/wiki/Spectacle
