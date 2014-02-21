@@ -1,0 +1,13 @@
+diff --git a/gdb-7.5.1/readline/util.c b/gdb-7.5.1/readline/util.c
+index 6c68ad8..321dee2 100644
+--- a/gdb-7.5.1/readline/util.c
++++ b/gdb-7.5.1/readline/util.c
+@@ -389,7 +389,7 @@ _rl_strnicmp (string1, string2, count)
+         break;
+       s2++;
+     }
+-  while (--count != 0)
++  while (--count != 0);
+ 
+   return (0);
+ }
