@@ -563,6 +563,13 @@ bool MerSdkManager::generateSshKey(const QString &privKeyPath, QString &error)
         return false;
     }
 
+    // fix file permissions for private key
+    QFile tmp_perm(privKeyPath);
+    if (tmp_perm.open(QIODevice::WriteOnly|QIODevice::Append)) {
+        QFile::setPermissions(tmp_perm.fileName(), (QFile::ReadOwner|QFile::WriteOwner));
+        tmp_perm.close();
+    }
+
     Utils::FileSaver pubKeySaver(privKeyPath + QLatin1String(".pub"));
     const QByteArray publicKey = keyGen.publicKey();
     pubKeySaver.write(publicKey);
