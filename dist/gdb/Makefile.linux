@@ -1,6 +1,6 @@
 broot=${PWD}
 source=${broot}/source
-targets=i486-meego-linux-gnu arm-meego-linux-gnueabi
+targets=i486-meego-linux-gnu armv7hl-meego-linux-gnueabi
 staging=${broot}/staging
 pyversion=2.7
 expatversion=2.0.1
