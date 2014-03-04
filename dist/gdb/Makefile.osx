@@ -1,6 +1,6 @@
 broot=${PWD}
 source=${broot}/source
-targets=i486-meego-linux-gnu arm-meego-linux-gnueabi
+targets=i486-meego-linux-gnu armv7hl-meego-linux-gnueabi
 staging=${broot}/staging
 pyversion=2.7
 expatversion=2.0.1
@@ -30,11 +30,11 @@ ${source}/expat-${expatversion}.tar.gz: | makesourcedir
 	curl -LsOf http://sourceforge.net/projects/expat/files/expat/${expatversion}/expat-${expatversion}.tar.gz && \
 	touch ${source}/expat-${expatversion}.tar.gz
 
-${source}/Python-${pyversion}.tgz: | makesourcedir
+${source}/Python-${pyversion}.tar.bz2: | makesourcedir
 	cd ${source} && \
 	echo "Downloading python..." && \
-	curl -Osf http://www.python.org/ftp/python/${pyversion}/Python-${pyversion}.tgz && \
-	touch ${source}/Python-${pyversion}.tgz
+	curl -Osf http://legacy.python.org/ftp/python/${pyversion}/Python-${pyversion}.tar.bz2 && \
+	touch ${source}/Python-${pyversion}.tar.bz2
 
 ${source}/gdb-${version}.tar.bz2: | makesourcedir
 	cd ${source} && \
@@ -49,11 +49,11 @@ ${staging}/lib/libexpat.a: ${source}/expat-${expatversion}.tar.gz | makestagingd
 	tar xf ${source}/expat-${expatversion}.tar.gz && cd expat-${expatversion} && \
 	./configure --disable-shared -prefix=${staging} && ${MAKE} && ${MAKE} install
 
-${staging}/lib/libpython${pyversion}.a: ${source}/Python-${pyversion}.tgz | makestagingdir
+${staging}/lib/libpython${pyversion}.a: ${source}/Python-${pyversion}.tar.bz2 | makestagingdir
 	unset PYTHONHOME && \
 	cd ${staging} && \
 	echo "Extracting python..." && \
-	tar xf ${source}/Python-${pyversion}.tgz && cd Python-${pyversion} && \
+	tar xf ${source}/Python-${pyversion}.tar.bz2 && cd Python-${pyversion} && \
 	./configure --prefix=${staging} && ${MAKE} && ${MAKE} install
 
 ${targetdir}/python/include/python${pyversion}/pyconfig.h: ${staging}/lib/libpython${pyversion}.a | maketargetdir
@@ -67,7 +67,8 @@ ${staging}/gdb-${version}/configure: ${source}/gdb-${version}.tar.bz2 | makestag
 	cd gdb-${version} && \
 	touch configure && \
 	patch -p2 < ${broot}/patches/pythonhome-7.4_mac.patch && \
-	patch -p2 < ${broot}/patches/gdb-ipv6.patch
+	patch -p2 < ${broot}/patches/gdb-ipv6.patch && \
+	patch -p1 < ${broot}/patches/gdb-osx108-fix.patch
 
 ${gdbtargets}: ${targetdir}/gdb-%: ${staging}/gdb-${version}/configure ${staging}/lib/libpython${pyversion}.a ${staging}/lib/libexpat.a | maketargetdir
 	test -e ${staging}/gdb-${version}-$* || mkdir ${staging}/gdb-${version}-$*
