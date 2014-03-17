@@ -368,6 +368,13 @@ QList<MerTarget> MerSdk::readTargets(const Utils::FileName &fileName)
             target.setName(data.name);
             target.setGccDumpMachine(data.gccDumpMachine);
             target.setQmakeQuery(data.qmakeQuery);
+
+            if (data.gccDumpMachine.contains(QLatin1String(Constants::MER_i486_IDENTIFIER))) {
+                target.setDefaultGdb(QLatin1String(Constants::MER_DEBUGGER_i486_FILENAME));
+            } else if (data.gccDumpMachine.contains(QLatin1String(Constants::MER_ARM_IDENTIFIER))) {
+                target.setDefaultGdb(QLatin1String(Constants::MER_DEBUGGER_ARM_FILENAME));
+            }
+
             result << target;
         }
     }

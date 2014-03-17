@@ -46,7 +46,8 @@ const char MER_TASKHUB_EMULATOR_CATEGORY[] = "Qt4ProjectManager.TaskHub.Emulator
 const char MER_TASKHUB_SDK_CATEGORY[] = "Qt4ProjectManager.TaskHub.Sdk.Mer";
 const char MER_DEVICE_TYPE_I486[] = "Mer.Device.Type.i486";
 const char MER_DEVICE_TYPE_ARM[] = "Mer.Device.Type.Arm";
-
+const char MER_i486_IDENTIFIER[] = "i486";
+const char MER_ARM_IDENTIFIER[] = "arm";
 const char MER_SAILFISH_MENU[] = "Mer.Sailfish.Menu";
 const char MER_SAILFISH_START_MENU[] = "Mer.Sailfish.Start.Menu";
 const char MER_SAILFISH_STOP_MENU[] = "Mer.Sailfish.Stop.Menu";
@@ -127,7 +128,9 @@ const char MER_WIZARD_FEATURE_EMULATOR[] = "Mer.Wizard.Feature.Emulator";
 const char MER_SDK_FILENAME[] = "/qtcreator/mersdk.xml";
 const char MER_TARGETS_FILENAME[] = "/targets.xml";
 const char MER_DEVICES_FILENAME[] = "/devices.xml";
-const char MER_DEBUGGER_FILENAME[] = "gdb-i486-meego-linux-gnu";
+const char MER_DEBUGGER_i486_FILENAME[] = "gdb-i486-meego-linux-gnu";
+const char MER_DEBUGGER_ARM_FILENAME[] = "gdb-armv7hl-meego-linux-gnueabi";
+const char MER_DEBUGGER_DEFAULT_FILENAME[] = "gdb";
 
 const char MER_TARGET_NAME[] = "MerTarget.Name";
 const char MER_TARGET_QMAKE_DUMP[] = "MerTarget.QmakeQuery";
