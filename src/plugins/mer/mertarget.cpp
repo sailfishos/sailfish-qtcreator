@@ -55,7 +55,7 @@ const char* wrapperScripts[] =
 
 MerTarget::MerTarget(MerSdk* mersdk):
     m_sdk(mersdk),
-    m_defaultGdb(QLatin1String(Constants::MER_DEBUGGER_FILENAME))  //TODO:
+    m_defaultGdb(QLatin1String(Constants::MER_DEBUGGER_DEFAULT_FILENAME))
 {
 }
 
