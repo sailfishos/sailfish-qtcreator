@@ -28,20 +28,20 @@ makestagingdir:
 ${source}/expat-${expatversion}.tar.gz: | makesourcedir
 	cd ${source} && \
 	echo "Downloading expat..." && \
-	curl -LsOf http://sourceforge.net/projects/expat/files/expat/${expatversion}/expat-${expatversion}.tar.gz && \
+	wget -q http://sourceforge.net/projects/expat/files/expat/${expatversion}/expat-${expatversion}.tar.gz && \
 	touch ${source}/expat-${expatversion}.tar.gz
 
 ${source}/Python-${pyversion}.tar.bz2: | makesourcedir
 	cd ${source} && \
 	echo "Downloading python..." && \
-	curl -Osf http://legacy.python.org/ftp/python/${pyversion}/Python-${pyversion}.tar.bz2 && \
+	wget -q --no-check-certificate http://www.python.org/ftp/python/${pyversion}/Python-${pyversion}.tar.bz2 && \
 	touch ${source}/Python-${pyversion}.tar.bz2
 
 ${source}/gdb-${version}.tar.bz2: | makesourcedir
 	cd ${source} && \
 	echo "Downloading gdb..." && \
-	curl -Osf http://ftp.gnu.org/gnu/gdb/gdb-${version}.tar.bz2 || \
-	curl -osf gdb-${version}.tar.bz2 http://ftp.gnu.org/gnu/gdb/gdb-${version}a.tar.bz2 && \
+	wget -q http://ftp.gnu.org/gnu/gdb/gdb-${version}.tar.bz2 || \
+	wget -Oq gdb-${version}.tar.bz2 http://ftp.gnu.org/gnu/gdb/gdb-${version}a.tar.bz2 && \
 	touch gdb-*.tar.bz2
 
 ${staging}/lib/libexpat.a: ${source}/expat-${expatversion}.tar.gz | makestagingdir
