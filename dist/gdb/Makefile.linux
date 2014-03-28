@@ -1,4 +1,5 @@
 broot=${PWD}
+PATCHDIR?=${broot}/patches
 source=${broot}/source
 targets=i486-meego-linux-gnu armv7hl-meego-linux-gnueabi
 staging=${broot}/staging
@@ -33,7 +34,7 @@ ${source}/expat-${expatversion}.tar.gz: | makesourcedir
 ${source}/Python-${pyversion}.tgz: | makesourcedir
 	cd ${source} && \
 	echo "Downloading python..." && \
-	wget -q http://www.python.org/ftp/python/${pyversion}/Python-${pyversion}.tgz && \
+	wget -q --no-check-certificate http://www.python.org/ftp/python/${pyversion}/Python-${pyversion}.tgz && \
 	touch ${source}/Python-${pyversion}.tgz
 
 ${source}/gdb-${version}.tar.bz2: | makesourcedir
@@ -67,8 +68,8 @@ ${staging}/gdb-${version}/configure: ${source}/gdb-${version}.tar.bz2 | makestag
 	tar xf ${source}/gdb-${version}.tar.bz2 && \
 	cd gdb-${version} && \
 	touch configure && \
-        patch -p2 < ${broot}/patches/pythonhome-7.4_linux.patch && \
-        patch -p2 < ${broot}/patches/gdb-ipv6.patch
+        patch -p2 < ${PATCHDIR}/pythonhome-7.4_linux.patch && \
+        patch -p2 < ${PATCHDIR}/gdb-ipv6.patch
 
 ${gdbtargets}: ${targetdir}/gdb-%: ${staging}/gdb-${version}/configure ${staging}/lib/libpython${pyversion}.a ${staging}/lib/libexpat.a | maketargetdir
 	test -e ${staging}/gdb-${version}-$* || mkdir ${staging}/gdb-${version}-$*
