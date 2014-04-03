@@ -58,7 +58,7 @@ VersionDialog::VersionDialog(QWidget *parent)
     QString ideRev;
 #ifdef IDE_REVISION
      //: This gets conditionally inserted as argument %8 into the description string.
-     ideRev = tr("From revision %1<br/>").arg(QString::fromLatin1(Constants::IDE_REVISION_STR).left(10));
+     ideRev = tr("From revision %1<br/>").arg(QString::fromLatin1(Constants::IDE_REVISION_STR).left(14));
 #endif
 
      const QString description = tr(
