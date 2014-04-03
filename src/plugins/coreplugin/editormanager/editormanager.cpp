@@ -130,8 +130,6 @@ using namespace Utils;
 
 //===================EditorManager=====================
 
-EditorManagerPlaceHolder *EditorManagerPlaceHolder::m_current = 0;
-
 EditorManagerPlaceHolder::EditorManagerPlaceHolder(Core::IMode *mode, QWidget *parent)
     : QWidget(parent), m_mode(mode)
 {
@@ -145,26 +143,20 @@ EditorManagerPlaceHolder::EditorManagerPlaceHolder(Core::IMode *mode, QWidget *p
 
 EditorManagerPlaceHolder::~EditorManagerPlaceHolder()
 {
-    if (m_current == this) {
-        EditorManager::instance()->setParent(0);
-        EditorManager::instance()->hide();
+    // EditorManager will be deleted in ~MainWindow()
+    EditorManager *em = EditorManager::instance();
+    if (em && em->parent() == this) {
+        em->hide();
+        em->setParent(0);
     }
 }
 
 void EditorManagerPlaceHolder::currentModeChanged(Core::IMode *mode)
 {
     if (m_mode == mode) {
-        m_current = this;
         layout()->addWidget(EditorManager::instance());
         EditorManager::instance()->show();
-    } else if (m_current == this) {
-        m_current = 0;
     }
-}
-
-EditorManagerPlaceHolder* EditorManagerPlaceHolder::current()
-{
-    return m_current;
 }
 
 // ---------------- EditorManager
