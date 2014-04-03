@@ -515,8 +515,6 @@ public:
 
     ~DebugMode()
     {
-        // Make sure the editor manager does not get deleted.
-        //EditorManager::instance()->setParent(0);
         delete m_widget;
     }
 };

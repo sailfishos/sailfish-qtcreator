@@ -94,8 +94,6 @@ EditMode::EditMode() :
 
 EditMode::~EditMode()
 {
-    // Make sure the editor manager does not get deleted
-    m_editorManager->setParent(0);
     delete m_splitter;
 }
 
