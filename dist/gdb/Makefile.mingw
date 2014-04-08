@@ -14,13 +14,22 @@ packageparts=${targetdir}/lib ${targetdir}/lib ${targetdir}/libiconv-2.dll ${tar
 arch=`uname -sm | sed 's/ /-/g' | tr A-Z a-z`
 packagename=sailfish-gdb-${version}-windows.7z
 
-ifneq ($(DOWNLOAD_PATH),)
-	DL_PYTHON=DL_GDB=DL_ICONV=DL_EXPAT=http://$(DOWNLOAD_PATH)
+ifdef V
+Q=
 else
-	DL_PYTHON=http://master.qt-project.org/development_releases/prebuilt/gdb/build-prerequisites
+Q=@
+endif
+
+ifeq ($(DOWNLOAD_URL),)
 	DL_GDB=http://ftp.gnu.org/gnu/gdb
 	DL_ICONV=http://ftp.gnu.org/pub/gnu/libiconv
 	DL_EXPAT=http://sourceforge.net/projects/expat/files/expat/${expatversion}
+	DL_PYTHON=http://master.qt-project.org/development_releases/prebuilt/gdb/build-prerequisites
+else
+	DL_GDB=$(DOWNLOAD_URL)
+	DL_EXPAT=$(DOWNLOAD_URL)
+	DL_ICONV=$(DOWNLOAD_URL)
+	DL_PYTHON=$(DOWNLOAD_URL)
 endif
 
 all: package
@@ -41,16 +50,16 @@ makestagingdir:
 	@test -e ${staging} || mkdir ${staging}
 
 checkunzip:
-	unzip -v &> /dev/null || mingw-get install msys-unzip
+	$(Q)unzip -v &> /dev/null || mingw-get install msys-unzip
 
 ${source}/python.zip: | makesourcedir checkwget
-	cd ${source} && \
+	$(Q)cd ${source} && \
 	echo "Downloading python..." && \
 	wget -q $(DL_PYTHON)/python.zip && \
 	touch python.zip
 
 ${broot}/python/python.exe: ${source}/python.zip | checkunzip
-	cd ${broot} && \
+	$(Q)cd ${broot} && \
 	echo "Extracting python..." && \
 	unzip -oq ${source}/python.zip && \
 	touch python/python.exe
@@ -59,26 +68,26 @@ checkwget:
 	wget -V &> /dev/null || mingw-get install msys-wget-bin
 
 ${source}/gdb-${version}.tar.bz2: | makesourcedir checkwget
-	cd ${source} && \
+	$(Q)cd ${source} && \
 	echo "Downloading gdb..." && \
 	wget -q $(DL_GDB)/gdb-${version}.tar.bz2 || \
-	wget -Oq gdb-${version}.tar.bz2 $(DL_GDB)/gdb-${version}a.tar.bz2 && \
+	wget -qO gdb-${version}.tar.bz2 $(DL_GDB)/gdb-${version}a.tar.bz2 && \
 	touch gdb-${version}.tar.bz2
 
 ${source}/libiconv-${iconvversion}.tar.gz: | makesourcedir checkwget
-	cd ${source} && \
+	$(Q)cd ${source} && \
 	echo "Downloading iconv..." && \
 	wget -q $(DL_ICONV)/libiconv-${iconvversion}.tar.gz  && \
 	touch ${source}/libiconv-${iconvversion}.tar.gz
 
 ${source}/expat-${expatversion}.tar.gz: | makesourcedir checkwget
-	cd ${source} && \
+	$(Q)cd ${source} && \
 	echo "Downloading expat..." && \
-	wget -q $(DL_EXPAT)/expat-${expatversion}.tar.gz/download && \
+	wget -q $(DL_EXPAT)/expat-${expatversion}.tar.gz && \
 	touch ${source}/expat-${expatversion}.tar.gz
 
 ${staging}/gdb-${version}/configure: ${source}/gdb-${version}.tar.bz2 | makestagingdir
-	cd ${staging} && \
+	$(Q)cd ${staging} && \
 	echo "Extracting gdb..." && \
 	tar xf ${source}/gdb-${version}.tar.bz2 && \
 	cd gdb-${version} && \
@@ -87,7 +96,7 @@ ${staging}/gdb-${version}/configure: ${source}/gdb-${version}.tar.bz2 | makestag
 	patch -p2 < ${PATCHDIR}/mingw-compilation.patch
 
 ${staging}/lib/libiconv.a: ${source}/libiconv-${iconvversion}.tar.gz | makestagingdir
-	cd ${staging} && \
+	$(Q)cd ${staging} && \
 	echo "Extracting iconv..." && \
 	tar xf ${source}/libiconv-${iconvversion}.tar.gz && \
 	cd libiconv-${iconvversion} && \
@@ -95,7 +104,7 @@ ${staging}/lib/libiconv.a: ${source}/libiconv-${iconvversion}.tar.gz | makestagi
 	${MAKE} && ${MAKE} install
 
 ${staging}/lib/libexpat.a: ${source}/expat-${expatversion}.tar.gz | makestagingdir
-	cd ${staging} && \
+	$(Q)cd ${staging} && \
 	echo "Extracting expat..." && \
 	tar xf ${source}/expat-${expatversion}.tar.gz && \
 	cd expat-${expatversion} && \
@@ -103,8 +112,8 @@ ${staging}/lib/libexpat.a: ${source}/expat-${expatversion}.tar.gz | makestagingd
 	${MAKE} && ${MAKE} install
 
 ${gdbtargets}: ${targetdir}/gdb-%: ${staging}/lib/libexpat.a ${staging}/lib/libiconv.a ${staging}/gdb-${version}/configure | maketargetdir ${broot}/python/python.exe
-	test -e ${staging}/gdb-${version}-$* || mkdir ${staging}/gdb-${version}-$*
-	export PYTHONHOME=${pydir} && \
+	$(Q)test -e ${staging}/gdb-${version}-$* || mkdir ${staging}/gdb-${version}-$*
+	$(Q)export PYTHONHOME=${pydir} && \
 	LDFLAGS="L${pydir} -lpthread -ldl -lutil -lpython27" && \
 	CFLAGS="-I${pydir}/include" && \
 	cd ${staging}/gdb-${version}-$* && \
@@ -113,11 +122,11 @@ ${gdbtargets}: ${targetdir}/gdb-%: ${staging}/lib/libexpat.a ${staging}/lib/libi
 	--with-expat --with-libexpat-prefix=${staging} \
 	--with-separate-debug-dir="" \
 	--with-python=${pydir} && \
-	${MAKE} MAKEFLAGS+= -j1 && \
+	${MAKE} && \
 	strip -o ${targetdir}/gdb-$*.exe gdb/gdb.exe
 
 package: ${gdbtargets} ${broot}/python/python.exe
-	cp ${staging}/bin/libiconv* ${targetdir} && \
+	$(Q)cp ${staging}/bin/libiconv* ${targetdir} && \
 	cp ${staging}/bin/libexpat* ${targetdir} && \
 	cp ${pydir}/python*.dll ${targetdir} && \
 	cp -r ${pydir}/lib ${targetdir} && \

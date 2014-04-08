@@ -11,12 +11,20 @@ targetdir=${broot}/qtcreator-gdb-${version}
 gdbtargets=$(addprefix ${targetdir}/gdb-, ${targets})
 packagename=sailfish-gdb-${version}-${arch}.7z
 
-ifneq ($(DOWNLOAD_PATH),)
-	DL_PYTHON=DL_GDB=DL_EXPAT=http://$(DOWNLOAD_PATH)
+ifdef V
+Q=
 else
-	DL_PYTHON=http://www.python.org/ftp/python/${pyversion}
+Q=@
+endif
+
+ifeq ($(DOWNLOAD_URL),)
 	DL_GDB=http://ftp.gnu.org/gnu/gdb
+	DL_PYTHON=http://www.python.org/ftp/python/${pyversion}
 	DL_EXPAT=http://sourceforge.net/projects/expat/files/expat/${expatversion}
+else
+	DL_GDB=$(DOWNLOAD_URL)
+	DL_EXPAT=$(DOWNLOAD_URL)
+	DL_PYTHON=$(DOWNLOAD_URL)
 endif
 
 all:package
@@ -34,44 +42,45 @@ makestagingdir:
 	@test -e ${staging} || mkdir ${staging}
 
 ${source}/expat-${expatversion}.tar.gz: | makesourcedir
-	cd ${source} && \
+	$(Q)cd ${source} && \
 	echo "Downloading expat..." && \
 	wget -q $(DL_EXPAT)/expat-${expatversion}.tar.gz && \
 	touch ${source}/expat-${expatversion}.tar.gz
 
 ${source}/Python-${pyversion}.tgz: | makesourcedir
-	cd ${source} && \
+	$(Q)cd ${source} && \
 	echo "Downloading python..." && \
 	wget -q --no-check-certificate $(DL_PYTHON)/Python-${pyversion}.tgz && \
 	touch ${source}/Python-${pyversion}.tgz
 
 ${source}/gdb-${version}.tar.bz2: | makesourcedir
-	cd ${source} && \
+	$(Q)cd ${source} && \
 	echo "Downloading gdb..." && \
 	wget -q $(DL_GDB)/gdb-${version}.tar.bz2 || \
-	wget -Oq gdb-${version}.tar.bz2 $(DL_GDB)/gdb-${version}a.tar.bz2 && \
+	wget -qO gdb-${version}.tar.bz2 $(DL_GDB)/gdb-${version}a.tar.bz2 && \
 	touch gdb-*.tar.bz2
 
 ${staging}/lib/libexpat.a: ${source}/expat-${expatversion}.tar.gz | makestagingdir
-	cd ${staging} && \
+	$(Q)cd ${staging} && \
 	echo "Extracting expat..." && \
 	tar xf ${source}/expat-${expatversion}.tar.gz && cd expat-${expatversion} && \
-	./configure --disable-shared -prefix=${staging} && ${MAKE} && ${MAKE} install
+	./configure --disable-shared -prefix=${staging} && \
+	${MAKE} -j$(shell getconf _NPROCESSORS_ONLN) && ${MAKE} install
 
 ${staging}/lib/libpython${pyversion}.a: ${source}/Python-${pyversion}.tgz | makestagingdir
-	unset PYTHONHOME && cd ${staging} && \
+	$(Q)unset PYTHONHOME && cd ${staging} && \
 	echo "Extracting python..." && \
 	tar xf ${source}/Python-${pyversion}.tgz && \
 	cd Python-${pyversion} && \
 	export LDFLAGS="-pthread -lm" && \
-	./configure --prefix=${staging} && ${MAKE} && ${MAKE} install
+	./configure --prefix=${staging} && ${MAKE} -j$(shell getconf _NPROCESSORS_ONLN) && ${MAKE} install
 
 ${targetdir}/python/include/python${pyversion}/pyconfig.h: ${staging}/lib/libpython${pyversion}.a | maketargetdir
-	mkdir -p ${targetdir}/python/lib && cp -a ${staging}/lib/python${pyversion} ${targetdir}/python/lib/
-	mkdir -p ${targetdir}/python/include/python${pyversion} && cp ${staging}/include/python${pyversion}/pyconfig.h ${targetdir}/python/include/python${pyversion}/
+	$(Q)mkdir -p ${targetdir}/python/lib && cp -a ${staging}/lib/python${pyversion} ${targetdir}/python/lib/
+	$(Q)mkdir -p ${targetdir}/python/include/python${pyversion} && cp ${staging}/include/python${pyversion}/pyconfig.h ${targetdir}/python/include/python${pyversion}/
 
 ${staging}/gdb-${version}/configure: ${source}/gdb-${version}.tar.bz2 | makestagingdir
-	cd ${staging} && \
+	$(Q)cd ${staging} && \
 	echo "Extracting gdb..." && \
 	tar xf ${source}/gdb-${version}.tar.bz2 && \
 	cd gdb-${version} && \
@@ -80,18 +89,17 @@ ${staging}/gdb-${version}/configure: ${source}/gdb-${version}.tar.bz2 | makestag
         patch -p2 < ${PATCHDIR}/gdb-ipv6.patch
 
 ${gdbtargets}: ${targetdir}/gdb-%: ${staging}/gdb-${version}/configure ${staging}/lib/libpython${pyversion}.a ${staging}/lib/libexpat.a | maketargetdir
-	test -e ${staging}/gdb-${version}-$* || mkdir ${staging}/gdb-${version}-$*
-	export PYTHONHOME=${staging} && \
+	$(Q)test -e ${staging}/gdb-${version}-$* || mkdir ${staging}/gdb-${version}-$*
+	$(Q)export PYTHONHOME=${staging} && \
 	export PATH="${staging}/bin/:$$PATH" && \
 	export LDFLAGS="-Wl,--no-as-needed -pthread -lm" && \
 	cd ${staging}/gdb-${version}-$* && \
 	${staging}/gdb-${version}/configure --disable-nls --target=$* --with-separate-debug-dir="" \
 	--disable-werror --with-python=${staging} --with-libexpat-prefix=${staging} && \
-	sleep 3 && \
-	${MAKE} MAKEFLAGS+=-j1 && \
+	${MAKE} -j$(shell getconf _NPROCESSORS_ONLN) && \
 	strip -o ${targetdir}/gdb-$* gdb/gdb
 
 package: ${gdbtargets} ${targetdir}/python/include/python${pyversion}/pyconfig.h
-	mv ${targetdir} bin
+	$(Q)mv ${targetdir} bin
 	echo "Packing..."
 	7z a ${packagename} bin
