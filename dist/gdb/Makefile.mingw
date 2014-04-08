@@ -14,6 +14,15 @@ packageparts=${targetdir}/lib ${targetdir}/lib ${targetdir}/libiconv-2.dll ${tar
 arch=`uname -sm | sed 's/ /-/g' | tr A-Z a-z`
 packagename=sailfish-gdb-${version}-windows.7z
 
+ifneq ($(DOWNLOAD_PATH),)
+	DL_PYTHON=DL_GDB=DL_ICONV=DL_EXPAT=http://$(DOWNLOAD_PATH)
+else
+	DL_PYTHON=http://master.qt-project.org/development_releases/prebuilt/gdb/build-prerequisites
+	DL_GDB=http://ftp.gnu.org/gnu/gdb
+	DL_ICONV=http://ftp.gnu.org/pub/gnu/libiconv
+	DL_EXPAT=http://sourceforge.net/projects/expat/files/expat/${expatversion}
+endif
+
 all: package
 
 clean:
@@ -37,7 +46,7 @@ checkunzip:
 ${source}/python.zip: | makesourcedir checkwget
 	cd ${source} && \
 	echo "Downloading python..." && \
-	wget -q http://master.qt-project.org/development_releases/prebuilt/gdb/build-prerequisites/python.zip && \
+	wget -q $(DL_PYTHON)/python.zip && \
 	touch python.zip
 
 ${broot}/python/python.exe: ${source}/python.zip | checkunzip
@@ -52,20 +61,20 @@ checkwget:
 ${source}/gdb-${version}.tar.bz2: | makesourcedir checkwget
 	cd ${source} && \
 	echo "Downloading gdb..." && \
-	wget -q http://ftp.gnu.org/gnu/gdb/gdb-${version}.tar.bz2 || \
-	wget -Oq gdb-${version}.tar.bz2 http://ftp.gnu.org/gnu/gdb/gdb-${version}a.tar.bz2 && \
+	wget -q $(DL_GDB)/gdb-${version}.tar.bz2 || \
+	wget -Oq gdb-${version}.tar.bz2 $(DL_GDB)/gdb-${version}a.tar.bz2 && \
 	touch gdb-${version}.tar.bz2
 
 ${source}/libiconv-${iconvversion}.tar.gz: | makesourcedir checkwget
 	cd ${source} && \
 	echo "Downloading iconv..." && \
-	wget -q http://ftp.gnu.org/pub/gnu/libiconv/libiconv-${iconvversion}.tar.gz  && \
+	wget -q $(DL_ICONV)/libiconv-${iconvversion}.tar.gz  && \
 	touch ${source}/libiconv-${iconvversion}.tar.gz
 
 ${source}/expat-${expatversion}.tar.gz: | makesourcedir checkwget
 	cd ${source} && \
 	echo "Downloading expat..." && \
-	wget -q http://sourceforge.net/projects/expat/files/expat/${expatversion}/expat-${expatversion}.tar.gz/download && \
+	wget -q $(DL_EXPAT)/expat-${expatversion}.tar.gz/download && \
 	touch ${source}/expat-${expatversion}.tar.gz
 
 ${staging}/gdb-${version}/configure: ${source}/gdb-${version}.tar.bz2 | makestagingdir

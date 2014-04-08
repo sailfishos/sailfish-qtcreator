@@ -11,6 +11,14 @@ targetdir=${broot}/qtcreator-gdb-${version}
 gdbtargets=$(addprefix ${targetdir}/gdb-, ${targets})
 packagename=sailfish-gdb-${version}-mac.7z
 
+ifneq ($(DOWNLOAD_PATH),)
+	DL_PYTHON=DL_GDB=DL_EXPAT=http://$(DOWNLOAD_PATH)
+else
+	DL_PYTHON=http://www.python.org/ftp/python/${pyversion}
+	DL_GDB=http://ftp.gnu.org/gnu/gdb
+	DL_EXPAT=http://sourceforge.net/projects/expat/files/expat/${expatversion}
+endif
+
 all:package
 
 clean:
@@ -28,20 +36,20 @@ makestagingdir:
 ${source}/expat-${expatversion}.tar.gz: | makesourcedir
 	cd ${source} && \
 	echo "Downloading expat..." && \
-	wget -q http://sourceforge.net/projects/expat/files/expat/${expatversion}/expat-${expatversion}.tar.gz && \
+	wget -q $(DL_EXPAT)/expat-${expatversion}.tar.gz && \
 	touch ${source}/expat-${expatversion}.tar.gz
 
-${source}/Python-${pyversion}.tar.bz2: | makesourcedir
+${source}/Python-${pyversion}.tgz: | makesourcedir
 	cd ${source} && \
 	echo "Downloading python..." && \
-	wget -q --no-check-certificate http://www.python.org/ftp/python/${pyversion}/Python-${pyversion}.tar.bz2 && \
-	touch ${source}/Python-${pyversion}.tar.bz2
+	wget -q --no-check-certificate $(DL_PYTHON)/Python-${pyversion}.tgz && \
+	touch ${source}/Python-${pyversion}.tgz
 
 ${source}/gdb-${version}.tar.bz2: | makesourcedir
 	cd ${source} && \
 	echo "Downloading gdb..." && \
-	wget -q http://ftp.gnu.org/gnu/gdb/gdb-${version}.tar.bz2 || \
-	wget -Oq gdb-${version}.tar.bz2 http://ftp.gnu.org/gnu/gdb/gdb-${version}a.tar.bz2 && \
+	wget -q $(DL_GDB)/gdb-${version}.tar.bz2 || \
+	wget -Oq gdb-${version}.tar.bz2 $(DL_GDB)/gdb-${version}a.tar.bz2 && \
 	touch gdb-*.tar.bz2
 
 ${staging}/lib/libexpat.a: ${source}/expat-${expatversion}.tar.gz | makestagingdir
@@ -54,7 +62,7 @@ ${staging}/lib/libpython${pyversion}.a: ${source}/Python-${pyversion}.tar.bz2 | 
 	unset PYTHONHOME && \
 	cd ${staging} && \
 	echo "Extracting python..." && \
-	tar xf ${source}/Python-${pyversion}.tar.bz2 && cd Python-${pyversion} && \
+	tar xf ${source}/Python-${pyversion}.tgz && cd Python-${pyversion} && \
 	./configure --prefix=${staging} && ${MAKE} && ${MAKE} install
 
 ${targetdir}/python/include/python${pyversion}/pyconfig.h: ${staging}/lib/libpython${pyversion}.a | maketargetdir
