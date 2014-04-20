@@ -98,39 +98,17 @@ QString MerRunConfiguration::defaultRemoteExecutableFilePath() const
     return executable;
 }
 
-// TODO: Temporary workaround for lipstick QML issue
-// Opens unlock the phone befeore running app
-// Remove me !
 QString MerRunConfiguration::commandPrefix() const
 {
-  /*
-   * The full command prefix will look something like this:
-   *
-   * test -f /etc/profile && source /etc/profile;test -f
-   * $HOME/.profile && source $HOME/.profile; QT_NO_JOURNALD_LOG=1
-   * DISPLAY=:0.0
-   *
-   */
-
   RemoteLinux::RemoteLinuxEnvironmentAspect *aspect =
     extraAspect<RemoteLinux::RemoteLinuxEnvironmentAspect>();
   QTC_ASSERT(aspect, return QString());
 
-  // source the profile scripts
-  QString etcprofile = RemoteLinuxRunConfiguration::environmentPreparationCommand();
-
   // required by qtbase not to direct logs to journald
   QString qtbaselogs = QString::fromLatin1("QT_NO_JOURNALD_LOG=1");
 
-  // runenvironment as in RemoteLinuxRunConfiguration
-  QString runenvironment = QString::fromLatin1("DISPLAY=:0.0 %1")
-    .arg(aspect->userEnvironmentChangesAsString());
-
-  return QString::fromLatin1("%1; %2 %3")
-    .arg(etcprofile, qtbaselogs, runenvironment);
-
-//    return QString::fromLatin1("/usr/sbin/mcetool -Don;").append(
-//                RemoteLinuxRunConfiguration::commandPrefix());
+  return QString::fromLatin1("%2 %3")
+      .arg(qtbaselogs, aspect->userEnvironmentChangesAsString());
 }
 
 } // Internal
