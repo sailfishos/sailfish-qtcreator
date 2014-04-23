@@ -54,7 +54,7 @@ void printUsage()
             << Mer::Constants::MER_SSH_PRIVATE_KEY << endl;
 }
 
-QStringList unquoteArguments(QStringList args){
+QStringList unquoteArguments(QStringList args) {
 
     QStringList result;
     //unix style

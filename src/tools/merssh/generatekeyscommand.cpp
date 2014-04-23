@@ -61,14 +61,31 @@ bool GenerateKeysCommand::parseArguments()
         qCritical() << "No public key given.";
 
     return !m_privateKeyFileName.isEmpty() && !m_publicKeyFileName.isEmpty();
+}
 
+QString GenerateKeysCommand::unquote(const QString &arg)
+{
+    QString result;
+
+    //unix style
+    static QRegExp reg1(QLatin1String("^'(.*)'$"));
+    //windows style
+    static QRegExp reg2(QLatin1String("^\"(.*)\"$"));
+
+    // strip quotes away
+    if (reg1.indexIn(arg) != -1){
+        result.append(reg1.cap(1));
+    } else if (reg2.indexIn(arg) != -1){
+        result.append(reg2.cap(1));
+    }  else if (arg.indexOf(QLatin1Char(' ')) == -1) {
+        result.append(arg);
+    }
+    return result;
 }
 
 int GenerateKeysCommand::execute()
 {
-
-    if(!parseArguments())
-    {
+    if(!parseArguments()) {
         qCritical() << "Could not parse arguments.";
         return 1;
     }
@@ -84,6 +101,8 @@ int GenerateKeysCommand::execute()
         return 1;
     }
 
+    m_privateKeyFileName = unquote(m_privateKeyFileName);
+
     QFile privateKeyFile(m_privateKeyFileName);
     if (!privateKeyFile.open(QIODevice::WriteOnly)) {
         qCritical() << "Cannot write file:" << m_privateKeyFileName;
@@ -94,6 +113,8 @@ int GenerateKeysCommand::execute()
         qCritical() << "Cannot set permissions of file:" << m_privateKeyFileName;
         return 1;
     }
+
+    m_publicKeyFileName = unquote(m_publicKeyFileName);
 
     QFile publicKeyFile(m_publicKeyFileName);
     if (!publicKeyFile.open(QIODevice::WriteOnly)) {
