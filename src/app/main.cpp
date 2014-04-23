@@ -327,8 +327,19 @@ int main(int argc, char **argv)
             }
         }
     }
-    if (!settingsPath.isEmpty())
+    if (!settingsPath.isEmpty()) {
         QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, settingsPath);
+    }
+#ifdef Q_OS_WIN
+    else {
+        // set the windows settings userdir to the install dir
+        QDir rootDir = QApplication::applicationDirPath();
+        rootDir.cdUp();
+        QString mySettingsPath = QDir::toNativeSeparators(rootDir.canonicalPath());
+        mySettingsPath += QDir::separator() + QLatin1String("settings");
+        QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, mySettingsPath);
+    }
+#endif
 
     // Must be done before any QSettings class is created
     QSettings::setPath(QSettings::IniFormat, QSettings::SystemScope,
