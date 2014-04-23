@@ -272,7 +272,7 @@ bool MerTarget::createScript(const QString &targetPath, int scriptIndex) const
     QDir targetDir(targetPath);
     const QString targetName = targetDir.dirName();
     targetDir.cdUp();
-    const QString merDevToolsDir = targetDir.canonicalPath();
+    const QString merDevToolsDir = QDir::toNativeSeparators(targetDir.canonicalPath());
     QFile script(scriptCopyPath);
     ok = script.open(QIODevice::WriteOnly);
     if (!ok) {
