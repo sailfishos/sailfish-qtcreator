@@ -56,9 +56,9 @@ bool GenerateKeysCommand::parseArguments()
     }
 
     if (m_privateKeyFileName.isEmpty())
-        qCritical() << "No private kit given.";
+        qCritical() << "No private key given.";
     if (m_publicKeyFileName.isEmpty())
-        qCritical() << "No piblic key given.";
+        qCritical() << "No public key given.";
 
     return !m_privateKeyFileName.isEmpty() && !m_publicKeyFileName.isEmpty();
 

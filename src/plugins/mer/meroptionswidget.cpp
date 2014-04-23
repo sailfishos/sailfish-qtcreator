@@ -208,7 +208,7 @@ void MerOptionsWidget::onGenerateSshKey(const QString &privKeyPath)
     if (!MerSdkManager::generateSshKey(privKeyPath, error)) {
        QMessageBox::critical(this, tr("Could not generate key."), error);
     } else {
-       QMessageBox::information(this, tr("Key generated"), tr("Key pair generated \n %1 \n You should authorzie key now.").arg(privKeyPath));
+       QMessageBox::information(this, tr("Key generated"), tr("Key pair generated \n %1 \n You should authorize key now.").arg(privKeyPath));
        m_ui->sdkDetailsWidget->setPrivateKeyFile(privKeyPath);
     }
 }

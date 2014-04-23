@@ -54,7 +54,7 @@ void printUsage()
             << Mer::Constants::MER_SSH_PRIVATE_KEY << endl;
 }
 
-QStringList unquoteArguemnts(QStringList args){
+QStringList unquoteArguments(QStringList args){
 
     QStringList result;
     //unix style
@@ -73,7 +73,7 @@ QStringList unquoteArguemnts(QStringList args){
                 result.append(arg);
             else
                 result.append(reg2.cap(1));
-        }  else  if (arg.indexOf(QLatin1Char(' ')) == -1) {
+        }  else if (arg.indexOf(QLatin1Char(' ')) == -1) {
             result.append(arg);
         } else {
             QString message = QString::fromLatin1("Unquoted argument found  '%1', which should be quoted. Skipping...\n").arg(arg);
@@ -131,7 +131,7 @@ int main(int argc, char *argv[])
     parameters.authenticationType = QSsh::SshConnectionParameters::AuthenticationByKey;
     parameters.timeout = 10;
     command->setSshParameters(parameters);
-    command->setArguments(unquoteArguemnts(arguments));
+    command->setArguments(unquoteArguments(arguments));
 
     if (!command->isValid()) {
        qCritical() << "Invalid command arguments" << endl;
