@@ -402,7 +402,7 @@ MerMb2RpmDeployStep::MerMb2RpmDeployStep(BuildStepList *bsl)
     : MerProcessStep(bsl, stepId())
 {
     setDefaultDisplayName(displayName());
-    setArguments(QLatin1String("--pkcon"));
+    setArguments(QLatin1String("--sdk"));
 }
 
 
@@ -410,7 +410,7 @@ MerMb2RpmDeployStep::MerMb2RpmDeployStep(ProjectExplorer::BuildStepList *bsl, Me
     :MerProcessStep(bsl,bs)
 {
     setDefaultDisplayName(displayName());
-    setArguments(QLatin1String("--pkcon"));
+    setArguments(QLatin1String("--sdk"));
 }
 
 bool MerMb2RpmDeployStep::init()
