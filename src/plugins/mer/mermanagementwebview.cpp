@@ -40,8 +40,6 @@ MerManagementWebView::MerManagementWebView(QWidget *parent)
     connect(ui->webView->page(), SIGNAL(linkHovered(QString,QString,QString)), ui->statusBarLabel, SLOT(setText(QString)));
     connect(ui->webView->page(), SIGNAL(loadFinished(bool)), SLOT(handleLoadFinished(bool)));
     on_homeButton_clicked();
-
-    ui->webView->setStyleSheet(QLatin1String("background-color: #3f768b;"));
 }
 
 MerManagementWebView::~MerManagementWebView()
@@ -77,7 +75,7 @@ void MerManagementWebView::handleLoadFinished(bool success)
                              QLatin1String(
                                            "<html>"
                                            "<head></head>"
-                                           "<body style='background-color: #3f768b;'>"
+                                           "<body>"
                                            "<div style='text-align: center; vertical-align: middle;'>"
                                            "<h1>The SDK VM is not responding.</h1>"
                                            "<p><h1>Create a new SailfishOS project (or open an existing one) and press the <em>Start SDK</em> button on the lower left.</h1></p>"
