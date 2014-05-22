@@ -59,7 +59,7 @@ void MerRpmInstaller::handleInstallerErrorOutput(const QString &output)
 QString MerRpmInstaller::installCommandLine(const QString &packageFilePath) const
 {
     //return QLatin1String("rpm -i --force ") + packageFilePath;
-      return QLatin1String("pkcon -y install-local ") + packageFilePath;
+      return QLatin1String("sdk-deploy-rpm ") + packageFilePath;
 }
 
 QString MerRpmInstaller::cancelInstallationCommandLine() const
