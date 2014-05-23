@@ -62,12 +62,16 @@ static QString vBoxManagePath()
         if (path.isEmpty()) {
             path = QString::fromLocal8Bit(qgetenv("VBOX_INSTALL_PATH"));
             if (path.isEmpty()) {
-                // Not found in environment? Look up registry.
-                QSettings s(QLatin1String("HKEY_LOCAL_MACHINE\\SOFTWARE\\Oracle\\VirtualBox"),
-                            QSettings::NativeFormat);
-                path = s.value(QLatin1String("InstallDir")).toString();
-                if (path.startsWith(QLatin1Char('"')) && path.endsWith(QLatin1Char('"')))
-                    path = path.mid(1, path.length() - 2); // remove quotes
+                // env var name for VirtualBox 4.3.12 changed to this
+                path = QString::fromLocal8Bit(qgetenv("VBOX_MSI_INSTALL_PATH"));
+                if (path.isEmpty()) {
+                    // Not found in environment? Look up registry.
+                    QSettings s(QLatin1String("HKEY_LOCAL_MACHINE\\SOFTWARE\\Oracle\\VirtualBox"),
+                                QSettings::NativeFormat);
+                    path = s.value(QLatin1String("InstallDir")).toString();
+                    if (path.startsWith(QLatin1Char('"')) && path.endsWith(QLatin1Char('"')))
+                        path = path.mid(1, path.length() - 2); // remove quotes
+                }
             }
 
             if (!path.isEmpty())

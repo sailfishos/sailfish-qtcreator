@@ -107,7 +107,7 @@ QString MerRunConfiguration::commandPrefix() const
   // required by qtbase not to direct logs to journald
   QString qtbaselogs = QString::fromLatin1("QT_NO_JOURNALD_LOG=1");
 
-  return QString::fromLatin1("%2 %3")
+  return QString::fromLatin1("%1 %2")
       .arg(qtbaselogs, aspect->userEnvironmentChangesAsString());
 }
 
