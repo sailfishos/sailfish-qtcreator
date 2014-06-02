@@ -60,7 +60,7 @@ MerHardwareDeviceWizardGeneralPage::MerHardwareDeviceWizardGeneralPage(QWidget *
 
     m_ui->timeoutSpinBox->setMinimum(1);
     m_ui->timeoutSpinBox->setMaximum(65535);
-    m_ui->timeoutSpinBox->setValue(2);
+    m_ui->timeoutSpinBox->setValue(10);
 
     m_ui->freePortsLineEdit->setText(QLatin1String("10000-10100"));
 
