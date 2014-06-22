@@ -160,10 +160,13 @@ QString Command::remotePathMapping(const QString& command) const
                    + QLatin1String("' && "));
 
     // First replace shared home and then shared src (error prone!)
-    if (!sharedHomePath().isEmpty())
-      result.replace(sharedHomePath(), QLatin1String("/home/mersdk/share/"));
+    if (!sharedHomePath().isEmpty()) {
+      QDir homeDir(sharedHomePath());
+      result.replace(homeDir.canonicalPath(), QLatin1String("/home/mersdk/share/"));
+    }
     if (!sharedSourcePath().isEmpty()) {
-      result.replace(sharedSourcePath(), QLatin1String("/home/src1/"),
+      QDir srcDir(sharedSourcePath());
+      result.replace(srcDir.canonicalPath(), QLatin1String("/home/src1/"),
 		     (Utils::HostOsInfo::isWindowsHost()?Qt::CaseInsensitive:Qt::CaseSensitive));
     }
     result = result.trimmed();
@@ -172,9 +175,13 @@ QString Command::remotePathMapping(const QString& command) const
 
 bool Command::isValid() const
 {
-    QString currentPath = QDir::currentPath();
-    QString cleanSharedHome = QDir::fromNativeSeparators(QDir::cleanPath(sharedHomePath()));
-    QString cleanSharedSrc = QDir::fromNativeSeparators(QDir::cleanPath(sharedSourcePath()));
+    QDir curDir(QDir::currentPath());
+    QDir homeDir(QDir::fromNativeSeparators(QDir::cleanPath(sharedHomePath())));
+    QDir srcDir(QDir::fromNativeSeparators(QDir::cleanPath(sharedSourcePath())));
+
+    QString currentPath = curDir.canonicalPath();
+    QString cleanSharedHome = homeDir.canonicalPath();
+    QString cleanSharedSrc = srcDir.canonicalPath();
 
     if (Utils::HostOsInfo::isWindowsHost()) {
         currentPath = currentPath.toLower();

@@ -169,10 +169,30 @@ QList<ProjectExplorer::Task> MerQtVersion::reportIssuesImpl(const QString &proFi
                                                                "MerQtVersion is missing MerSDK"),
                                    Utils::FileName(), -1, Core::Id());
         results.append(task);
-    } else {
-        QString proFileClean = QDir::cleanPath(proFile);
-        QString sharedHomeClean = QDir::cleanPath(sdk->sharedHomePath());
-        QString sharedSrcClean = QDir::cleanPath(sdk->sharedSrcPath());
+    } 
+    else {
+        QString proFileClean;
+        QString sharedHomeClean;
+        QString sharedSrcClean;
+    
+        QDir proDir(proFile);
+    
+        // If proDir is empty it means that the pro file has not yet
+        // been created (new project wizard) and we must use the values
+        // as they are
+        if (proDir.canonicalPath().isEmpty()) {
+            proFileClean = QDir::cleanPath(proFile);
+            sharedHomeClean = QDir::cleanPath(sdk->sharedHomePath());
+            sharedSrcClean = QDir::cleanPath(sdk->sharedSrcPath());
+        }
+        else {
+            // proDir is not empty, let's remove any symlinks from paths
+            QDir homeDir(sdk->sharedHomePath());
+            QDir srcDir(sdk->sharedSrcPath());
+            proFileClean = QDir::cleanPath(proDir.canonicalPath());
+            sharedHomeClean = QDir::cleanPath(homeDir.canonicalPath());
+            sharedSrcClean = QDir::cleanPath(srcDir.canonicalPath());
+        }
 
         if (Utils::HostOsInfo::isWindowsHost()) {
             proFileClean = proFileClean.toLower();
@@ -183,11 +203,11 @@ QList<ProjectExplorer::Task> MerQtVersion::reportIssuesImpl(const QString &proFi
         if (!proFileClean.startsWith(sharedHomeClean) && !proFileClean.startsWith(sharedSrcClean)) {
             QString message =  QCoreApplication::translate("QtVersion", "Project is outside of mer workspace");
             if(!sdk->sharedHomePath().isEmpty() && !sdk->sharedSrcPath().isEmpty())
-              message = QCoreApplication::translate("QtVersion","Project is outside of mer shared home '%1' and mer shared src '%2'")
+              message = QCoreApplication::translate("QtVersion", "Project is outside of Mer shared home '%1' and mer shared src '%2'")
                       .arg(QDir::toNativeSeparators(QDir::toNativeSeparators(sdk->sharedHomePath())))
                       .arg(QDir::toNativeSeparators(QDir::toNativeSeparators(sdk->sharedSrcPath())));
             else if(!sdk->sharedHomePath().isEmpty())
-              message = QCoreApplication::translate("QtVersion","Project is outside of shared home '%1'")
+              message = QCoreApplication::translate("QtVersion", "Project is outside of shared home '%1'")
                       .arg(QDir::toNativeSeparators(QDir::toNativeSeparators(sdk->sharedHomePath())));
             ProjectExplorer::Task task(ProjectExplorer::Task::Error,message,Utils::FileName(), -1, Core::Id());
             results.append(task);
