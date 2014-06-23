@@ -124,7 +124,7 @@ QString MerTargetKitInformationWidget::displayName() const
 
 QString MerTargetKitInformationWidget::toolTip() const
 {
-    return tr("Name of traget used by sb2.");
+    return tr("Name of target used by sb2.");
 }
 
 void MerTargetKitInformationWidget::makeReadOnly()
