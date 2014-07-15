@@ -33,10 +33,9 @@ fi
 
 macdeployqt "$1" \
         "-executable=$1/Contents/MacOS/qmlpuppet.app/Contents/MacOS/qmlpuppet" \
-        "-executable=$1/Contents/Resources/qtpromaker" \
-        "-executable=$1/Contents/Resources/sdktool" \
         "-executable=$1/Contents/Resources/merssh" \
-        $designerPluginArguments || exit 1
+        "-executable=$1/Contents/Resources/qtpromaker" \
+        "-executable=$1/Contents/Resources/sdktool" "$qml2puppetArgument" || exit 1
 
 qmlpuppetResources="$1/Contents/MacOS/qmlpuppet.app/Contents/Resources"
 test -d "$qmlpuppetResources" || mkdir -p "$qmlpuppetResources"
