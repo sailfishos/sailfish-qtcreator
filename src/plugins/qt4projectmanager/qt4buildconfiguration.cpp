@@ -723,7 +723,6 @@ Qt4BuildConfiguration *Qt4BuildConfiguration::setup(Target *t, QString defaultDi
     Q_ASSERT(cleanSteps);
 
     QMakeStep *qmakeStep = new QMakeStep(buildSteps);
-
     buildSteps->insertStep(0, qmakeStep);
 
     MakeStep *makeStep = new MakeStep(buildSteps);
