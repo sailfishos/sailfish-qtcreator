@@ -83,9 +83,6 @@ protected:
     Core::FeatureSet requiredFeatures() const;
     void setRequiredFeatures(const Core::FeatureSet &featureSet);
 
-    Core::FeatureSet preferredFeatures() const;
-    void setPrefferedFeatures(const Core::FeatureSet &featureSet);
-
 private slots:
     void slotAccepted();
     void nextClicked();

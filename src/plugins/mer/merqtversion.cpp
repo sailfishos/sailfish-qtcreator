@@ -229,9 +229,7 @@ void MerQtVersion::addToEnvironment(const ProjectExplorer::Kit *k, Utils::Enviro
 Core::FeatureSet MerQtVersion::availableFeatures() const
 {
     Core::FeatureSet features = BaseQtVersion::availableFeatures();
-    features |= Core::FeatureSet(Constants::MER_WIZARD_FEATURE_SAILFISHOS);
-    if(!qtAbis().contains(ProjectExplorer::Abi(QLatin1String("arm-linux-generic-elf-32bit"))))
-        features |= Core::FeatureSet(Constants::MER_WIZARD_FEATURE_EMULATOR);
+    features |= Core::FeatureSet(Constants::SAILFISHOS_FEATURE);
     return features;
 }
 

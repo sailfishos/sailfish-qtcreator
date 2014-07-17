@@ -33,8 +33,7 @@
 <wizard version="1" kind="project"
         class="qt4project" firstpage="10"
         id="Q.SailfishOSQtQuick2Application" category="F.QtApplications"
-        featuresRequired="Mer.Wizard.Feature.SailfishOS"
-        featuresPreferred="Mer.Wizard.Feature.Emulator">
+        featuresRequired="QtSupport.Wizards.FeatureSailfishOS">
     <description>Creates a SailfishOS Qt Quick Application using Sailfish Silica components.</description>
     <displayname>SailfishOS Qt Quick Application</displayname>;
     <displaycategory>SailfishOS</displaycategory>

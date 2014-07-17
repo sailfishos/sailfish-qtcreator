@@ -382,7 +382,7 @@ QString ExamplesWelcomePage::copyToAlternativeLocation(const QFileInfo& proFileI
 }
 
 void ExamplesWelcomePage::openProject(const QString &projectFile, const QStringList &additionalFilesToOpen,
-                                            const QUrl &help, const QStringList &dependencies, const QStringList &platforms, const QStringList &preferredFeauters)
+                                            const QUrl &help, const QStringList &dependencies, const QStringList &platforms)
 {
     QString proFile = projectFile;
     if (proFile.isEmpty())
@@ -405,7 +405,7 @@ void ExamplesWelcomePage::openProject(const QString &projectFile, const QStringL
     if (ProjectExplorer::Project *project = peplugin->openProject(proFile, &errorMessage)) {
         Core::ICore::openFiles(filesToOpen);
         if (project->needsConfiguration())
-            project->configureAsExampleProject(platforms,preferredFeauters);
+            project->configureAsExampleProject(platforms);
         Core::ModeManager::activateMode(Core::Constants::MODE_EDIT);
         if (help.isValid())
             Core::ICore::helpManager()->handleHelpRequest(help.toString() + QLatin1String("?view=split"));

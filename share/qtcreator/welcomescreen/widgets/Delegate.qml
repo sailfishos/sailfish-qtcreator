@@ -244,7 +244,7 @@ Rectangle {
             if (model.isVideo)
                 gettingStarted.openUrl(model.videoUrl);
             else if (model.hasSourceCode)
-                gettingStarted.openProject(model.projectPath, model.filesToOpen, model.docUrl, model.dependencies, model.platforms, model.preferredFeatures)
+                gettingStarted.openProject(model.projectPath, model.filesToOpen, model.docUrl, model.dependencies, model.platforms)
             else
                 gettingStarted.openSplitHelp(model.docUrl);
         }

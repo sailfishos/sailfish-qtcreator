@@ -111,6 +111,8 @@ const char TARGET[] = "Target";
 const char VIRTUAL_MACHINE[] = "VirtualMachine";
 const char SB2_TARGET_NAME[] = "SB2.TargetName";
 
+
+
 const char MER_RUNCONFIGURATION_PREFIX[] = "Qt4ProjectManager.MerRunConfiguration:";
 const char MER_SFTP_DEPLOY_STRING[] = QT_TRANSLATE_NOOP("Mer", "Copy Files to Device");
 
@@ -122,8 +124,7 @@ const char MER_HARDWARE_TEST_ID[] = "Mer.MerHardwareTestAction";
 const char MER_EMULATOR_CONNECTON_ACTION_ID[] = "Mer.EmulatorConnecitonAction";
 const char MER_SDK_CONNECTON_ACTION_ID[] = "Mer.SdkConnectionAction";
 
-const char MER_WIZARD_FEATURE_SAILFISHOS[] = "Mer.Wizard.Feature.SailfishOS";
-const char MER_WIZARD_FEATURE_EMULATOR[] = "Mer.Wizard.Feature.Emulator";
+const char SAILFISHOS_FEATURE[] = "QtSupport.Wizards.FeatureSailfishOS";
 
 const char MER_SDK_FILENAME[] = "/qtcreator/mersdk.xml";
 const char MER_TARGETS_FILENAME[] = "/targets.xml";

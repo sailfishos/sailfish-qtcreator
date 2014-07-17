@@ -91,7 +91,6 @@ public:
     virtual Core::GeneratedFiles generateFiles(const QWizard *w, QString *errorMessage) const;
 
     virtual Core::FeatureSet requiredFeatures() const;
-    virtual Core::FeatureSet preferredFeatures() const;
 
 
     // Register a factory for a derived custom widget

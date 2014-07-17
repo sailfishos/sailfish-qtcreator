@@ -254,11 +254,6 @@ Core::FeatureSet CustomWizard::requiredFeatures() const
     return baseFileWizardParameters().requiredFeatures();
 }
 
-Core::FeatureSet CustomWizard::preferredFeatures() const
-{
-    return baseFileWizardParameters().preferredFeatures();
-}
-
 bool CustomWizard::writeFiles(const Core::GeneratedFiles &files, QString *errorMessage)
 {
     if (!Core::BaseFileWizard::writeFiles(files, errorMessage))

@@ -160,8 +160,8 @@ CustomQt4ProjectWizard::CustomQt4ProjectWizard(const Core::BaseFileWizardParamet
 {
 }
 
-QWizard *CustomQt4ProjectWizard::createWizardDialog(QWidget *parent,
-                                                    const Core::WizardDialogParameters &wizardDialogParameters) const
+    QWizard *CustomQt4ProjectWizard::createWizardDialog(QWidget *parent,
+                                                        const Core::WizardDialogParameters &wizardDialogParameters) const
 {
     BaseQt4ProjectWizardDialog *wizard = new BaseQt4ProjectWizardDialog(false, parent, wizardDialogParameters);
 
@@ -241,7 +241,14 @@ int BaseQt4ProjectWizardDialog::addModulesPage(int id)
 int BaseQt4ProjectWizardDialog::addTargetSetupPage(bool mobile, int id)
 {
     m_targetSetupPage = new TargetSetupPage;
-    m_targetSetupPage->setPreferredKitMatcher(new QtSupport::QtVersionKitMatcher(preferredFeatures()));
+    const QString platform = selectedPlatform();
+    Core::FeatureSet features = mobile ? Core::FeatureSet(QtSupport::Constants::FEATURE_MOBILE)
+                                       : Core::FeatureSet(QtSupport::Constants::FEATURE_DESKTOP);
+    if (platform.isEmpty())
+        m_targetSetupPage->setPreferredKitMatcher(new QtSupport::QtVersionKitMatcher(features));
+    else
+        m_targetSetupPage->setPreferredKitMatcher(new QtSupport::QtPlatformKitMatcher(platform));
+
     m_targetSetupPage->setRequiredKitMatcher(new QtSupport::QtVersionKitMatcher(requiredFeatures()));
 
     resize(900, 450);

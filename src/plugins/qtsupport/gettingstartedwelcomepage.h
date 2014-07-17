@@ -86,7 +86,7 @@ public slots:
     void openSplitHelp(const QUrl &help);
     void openHelp(const QUrl &help);
     void openProject(const QString& projectFile, const QStringList& additionalFilesToOpen,
-                     const QUrl& help, const QStringList &dependencies, const QStringList &platforms, const QStringList &preferredFeauters);
+                     const QUrl& help, const QStringList &dependencies, const QStringList &platforms);
     void updateTagsModel();
 
 private:

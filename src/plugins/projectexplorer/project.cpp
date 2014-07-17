@@ -460,9 +460,8 @@ bool Project::needsConfiguration() const
     return false;
 }
 
-void Project::configureAsExampleProject(const QStringList &platforms,const QStringList &preferredFeatures)
+void Project::configureAsExampleProject(const QStringList &platforms)
 {
-    Q_UNUSED(preferredFeatures);
     Q_UNUSED(platforms);
 }
 
