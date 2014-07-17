@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -49,8 +49,12 @@ struct CppFileSettings
 {
     CppFileSettings();
 
+    QStringList headerPrefixes;
     QString headerSuffix;
+    QStringList headerSearchPaths;
+    QStringList sourcePrefixes;
     QString sourceSuffix;
+    QStringList sourceSearchPaths;
     bool lowerCaseFiles;
     QString licenseTemplatePath;
 
@@ -78,8 +82,6 @@ public:
     CppFileSettings settings() const;
     void setSettings(const CppFileSettings &s);
 
-    QString searchKeywords() const;
-
 private slots:
     void slotEdit();
 
@@ -96,15 +98,13 @@ public:
     explicit CppFileSettingsPage(QSharedPointer<CppFileSettings> &settings,
                                  QObject *parent = 0);
 
-    QWidget *createPage(QWidget *parent);
+    QWidget *widget();
     void apply();
-    void finish() { }
-    bool matches(const QString &) const;
+    void finish();
 
 private:
     const QSharedPointer<CppFileSettings> m_settings;
     QPointer<CppFileSettingsWidget> m_widget;
-    QString m_searchKeywords;
 };
 
 } // namespace Internal

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -31,39 +31,44 @@
 
 #include "task.h"
 
-#include <coreplugin/icore.h>
 #include <coreplugin/iversioncontrol.h>
 #include <coreplugin/vcsmanager.h>
-
-#include <QFileInfo>
+#include <utils/qtcassert.h>
 
 #include <QAction>
+#include <QFileInfo>
 
-using namespace ProjectExplorer::Internal;
+using namespace Core;
 
-bool VcsAnnotateTaskHandler::canHandle(const ProjectExplorer::Task &task) const
+namespace ProjectExplorer {
+namespace Internal {
+
+bool VcsAnnotateTaskHandler::canHandle(const Task &task) const
 {
     QFileInfo fi(task.file.toFileInfo());
     if (!fi.exists() || !fi.isFile() || !fi.isReadable())
         return false;
-    Core::IVersionControl *vc = Core::ICore::vcsManager()->findVersionControlForDirectory(fi.absolutePath());
+    IVersionControl *vc = VcsManager::findVersionControlForDirectory(fi.absolutePath());
     if (!vc)
         return false;
-    return vc->supportsOperation(Core::IVersionControl::AnnotateOperation);
+    return vc->supportsOperation(IVersionControl::AnnotateOperation);
 }
 
-void VcsAnnotateTaskHandler::handle(const ProjectExplorer::Task &task)
+void VcsAnnotateTaskHandler::handle(const Task &task)
 {
     QFileInfo fi(task.file.toFileInfo());
-    Core::IVersionControl *vc = Core::ICore::vcsManager()->findVersionControlForDirectory(fi.absolutePath());
-    Q_ASSERT(vc);
-    Q_ASSERT(vc->supportsOperation(Core::IVersionControl::AnnotateOperation));
+    IVersionControl *vc = VcsManager::findVersionControlForDirectory(fi.absolutePath());
+    QTC_ASSERT(vc, return);
+    QTC_ASSERT(vc->supportsOperation(IVersionControl::AnnotateOperation), return);
     vc->vcsAnnotate(fi.absoluteFilePath(), task.movedLine);
 }
 
 QAction *VcsAnnotateTaskHandler::createAction(QObject *parent) const
 {
     QAction *vcsannotateAction = new QAction(tr("&Annotate"), parent);
-    vcsannotateAction->setToolTip(tr("Annotate using version control system"));
+    vcsannotateAction->setToolTip(tr("Annotate using version control system."));
     return vcsannotateAction;
 }
+
+} // namespace Internal
+} // namespace ProjectExplorer

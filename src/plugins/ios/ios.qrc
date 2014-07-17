@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/ios">
+        <file>images/iossettings.png</file>
+    </qresource>
+</RCC>

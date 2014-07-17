@@ -1,12 +1,13 @@
 QTC_PLUGIN_NAME = QmlJSTools
 QTC_LIB_DEPENDS += \
-    languageutils \
+    aggregation \
     cplusplus \
-    qmljs
+    extensionsystem \
+    languageutils \
+    qmljs \
+    utils
 QTC_PLUGIN_DEPENDS += \
     coreplugin \
-    find \
-    locator \
     projectexplorer \
     qtsupport \
     texteditor \

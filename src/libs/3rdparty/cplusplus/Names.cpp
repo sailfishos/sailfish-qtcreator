@@ -19,6 +19,7 @@
 // THE SOFTWARE.
 
 #include "Names.h"
+#include "Matcher.h"
 #include "NameVisitor.h"
 #include "Literals.h"
 #include <algorithm>
@@ -31,6 +32,13 @@ QualifiedNameId::~QualifiedNameId()
 
 void QualifiedNameId::accept0(NameVisitor *visitor) const
 { visitor->visit(this); }
+
+bool QualifiedNameId::match0(const Name *otherName, Matcher *matcher) const
+{
+    if (const QualifiedNameId *name = otherName->asQualifiedNameId())
+        return matcher->match(this, name);
+    return false;
+}
 
 const Identifier *QualifiedNameId::identifier() const
 {
@@ -71,6 +79,13 @@ DestructorNameId::~DestructorNameId()
 void DestructorNameId::accept0(NameVisitor *visitor) const
 { visitor->visit(this); }
 
+bool DestructorNameId::match0(const Name *otherName, Matcher *matcher) const
+{
+    if (const DestructorNameId *name = otherName->asDestructorNameId())
+        return matcher->match(this, name);
+    return false;
+}
+
 const Name *DestructorNameId::name() const
 { return _name; }
 
@@ -96,11 +111,18 @@ TemplateNameId::~TemplateNameId()
 void TemplateNameId::accept0(NameVisitor *visitor) const
 { visitor->visit(this); }
 
+bool TemplateNameId::match0(const Name *otherName, Matcher *matcher) const
+{
+    if (const TemplateNameId *other = otherName->asTemplateNameId())
+        return matcher->match(this, other);
+    return false;
+}
+
 const Identifier *TemplateNameId::identifier() const
 { return _identifier; }
 
 unsigned TemplateNameId::templateArgumentCount() const
-{ return _templateArguments.size(); }
+{ return unsigned(_templateArguments.size()); }
 
 const FullySpecifiedType &TemplateNameId::templateArgumentAt(unsigned index) const
 { return _templateArguments[index]; }
@@ -117,7 +139,7 @@ bool TemplateNameId::isEqualTo(const Name *other) const
             return false;
         if (templateArgumentCount() != t->templateArgumentCount())
             return false;
-        for (unsigned i = 0; i < templateArgumentCount(); ++i) {
+        for (unsigned i = 0, ei = templateArgumentCount(); i != ei; ++i) {
             const FullySpecifiedType &l = _templateArguments[i];
             const FullySpecifiedType &r = t->_templateArguments[i];
             if (! l.isEqualTo(r))
@@ -130,10 +152,23 @@ bool TemplateNameId::isEqualTo(const Name *other) const
 bool TemplateNameId::Compare::operator()(const TemplateNameId *name,
                                          const TemplateNameId *other) const
 {
+    if (name == 0)
+        return other != 0;
+    if (other == 0)
+        return false;
+    if (name == other)
+        return false;
+
     const Identifier *id = name->identifier();
     const Identifier *otherId = other->identifier();
 
-    if (id == otherId) {
+    if (id == 0)
+        return otherId != 0;
+    if (otherId == 0)
+        return false;
+
+    const int c = std::strcmp(id->chars(), otherId->chars());
+    if (c == 0) {
         // we have to differentiate TemplateNameId with respect to specialization or instantiation
         if (name->isSpecialization() == other->isSpecialization()) {
             return std::lexicographical_compare(name->firstTemplateArgument(),
@@ -145,7 +180,7 @@ bool TemplateNameId::Compare::operator()(const TemplateNameId *name,
         }
     }
 
-    return id < otherId;
+    return c < 0;
 }
 
 OperatorNameId::OperatorNameId(Kind kind)
@@ -157,6 +192,13 @@ OperatorNameId::~OperatorNameId()
 
 void OperatorNameId::accept0(NameVisitor *visitor) const
 { visitor->visit(this); }
+
+bool OperatorNameId::match0(const Name *otherName, Matcher *matcher) const
+{
+    if (const OperatorNameId *name = otherName->asOperatorNameId())
+        return matcher->match(this, name);
+    return false;
+}
 
 OperatorNameId::Kind OperatorNameId::kind() const
 { return _kind; }
@@ -185,6 +227,13 @@ ConversionNameId::~ConversionNameId()
 void ConversionNameId::accept0(NameVisitor *visitor) const
 { visitor->visit(this); }
 
+bool ConversionNameId::match0(const Name *otherName, Matcher *matcher) const
+{
+    if (const ConversionNameId *name = otherName->asConversionNameId())
+        return matcher->match(this, name);
+    return false;
+}
+
 FullySpecifiedType ConversionNameId::type() const
 { return _type; }
 
@@ -208,6 +257,13 @@ SelectorNameId::~SelectorNameId()
 void SelectorNameId::accept0(NameVisitor *visitor) const
 { visitor->visit(this); }
 
+bool SelectorNameId::match0(const Name *otherName, Matcher *matcher) const
+{
+    if (const SelectorNameId *name = otherName->asSelectorNameId())
+        return matcher->match(this, name);
+    return false;
+}
+
 const Identifier *SelectorNameId::identifier() const
 {
     if (_names.empty())
@@ -217,7 +273,7 @@ const Identifier *SelectorNameId::identifier() const
 }
 
 unsigned SelectorNameId::nameCount() const
-{ return _names.size(); }
+{ return unsigned(_names.size()); }
 
 const Name *SelectorNameId::nameAt(unsigned index) const
 { return _names[index]; }
@@ -262,6 +318,13 @@ unsigned AnonymousNameId::classTokenIndex() const
 
 void AnonymousNameId::accept0(NameVisitor *visitor) const
 { visitor->visit(this); }
+
+bool AnonymousNameId::match0(const Name *otherName, Matcher *matcher) const
+{
+    if (const AnonymousNameId *id = otherName->asAnonymousNameId())
+        return matcher->match(this, id);
+    return false;
+}
 
 const Identifier *AnonymousNameId::identifier() const
 { return 0; }

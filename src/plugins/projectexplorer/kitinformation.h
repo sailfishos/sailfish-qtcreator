@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -53,9 +53,6 @@ class PROJECTEXPLORER_EXPORT SysRootKitInformation : public KitInformation
 public:
     SysRootKitInformation();
 
-    Core::Id dataId() const;
-    unsigned int priority() const;
-
     QVariant defaultValue(Kit *k) const;
 
     QList<Task> validate(const Kit *k) const;
@@ -64,6 +61,7 @@ public:
 
     ItemList toUserOutput(const Kit *k) const;
 
+    static Core::Id id();
     static bool hasSysRoot(const Kit *k);
     static Utils::FileName sysRoot(const Kit *k);
     static void setSysRoot(Kit *k, const Utils::FileName &v);
@@ -95,9 +93,6 @@ class PROJECTEXPLORER_EXPORT ToolChainKitInformation : public KitInformation
 public:
     ToolChainKitInformation();
 
-    Core::Id dataId() const;
-    unsigned int priority() const;
-
     QVariant defaultValue(Kit *k) const;
 
     QList<Task> validate(const Kit *k) const;
@@ -113,10 +108,12 @@ public:
     void addToEnvironment(const Kit *k, Utils::Environment &env) const;
     IOutputParser *createOutputParser(const Kit *k) const;
 
+    static Core::Id id();
     static ToolChain *toolChain(const Kit *k);
     static void setToolChain(Kit *k, ToolChain *tc);
 
     static QString msgNoToolChainInTarget();
+
 private slots:
     void kitsWereLoaded();
     void toolChainUpdated(ProjectExplorer::ToolChain *tc);
@@ -149,9 +146,6 @@ class PROJECTEXPLORER_EXPORT DeviceTypeKitInformation : public KitInformation
 public:
     DeviceTypeKitInformation();
 
-    Core::Id dataId() const;
-    unsigned int priority() const;
-
     QVariant defaultValue(Kit *k) const;
 
     QList<Task> validate(const Kit *k) const;
@@ -160,6 +154,7 @@ public:
 
     ItemList toUserOutput(const Kit *k) const;
 
+    static const Core::Id id();
     static const Core::Id deviceTypeId(const Kit *k);
     static void setDeviceTypeId(Kit *k, Core::Id type);
 };
@@ -193,9 +188,6 @@ class PROJECTEXPLORER_EXPORT DeviceKitInformation : public KitInformation
 public:
     DeviceKitInformation();
 
-    Core::Id dataId() const;
-    unsigned int priority() const;
-
     QVariant defaultValue(Kit *k) const;
 
     QList<Task> validate(const Kit *k) const;
@@ -208,14 +200,15 @@ public:
 
     ItemList toUserOutput(const Kit *k) const;
 
+    static Core::Id id();
     static IDevice::ConstPtr device(const Kit *k);
     static Core::Id deviceId(const Kit *k);
     static void setDevice(Kit *k, IDevice::ConstPtr dev);
-    static void setDeviceId(Kit *k, const Core::Id id);
+    static void setDeviceId(Kit *k, const Core::Id dataId);
 
 private slots:
     void kitsWereLoaded();
-    void deviceUpdated(const Core::Id &id);
+    void deviceUpdated(const Core::Id &dataId);
     void devicesChanged();
     void kitUpdated(ProjectExplorer::Kit *k);
 };

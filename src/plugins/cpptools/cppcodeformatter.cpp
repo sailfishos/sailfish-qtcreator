@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -70,7 +70,8 @@ void CodeFormatter::recalculateStateAfter(const QTextBlock &block)
     restoreCurrentState(block.previous());
 
     bool endedJoined = false;
-    const int lexerState = tokenizeBlock(block, &endedJoined);
+    // Discard newline expected bit from state
+    const int lexerState = tokenizeBlock(block, &endedJoined) & ~0x80;
     m_tokenIndex = 0;
     m_newStates.clear();
 
@@ -168,6 +169,7 @@ void CodeFormatter::recalculateStateAfter(const QTextBlock &block)
             switch (kind) {
             case T_LESS:        enter(template_param); break;
             case T_GREATER:     leave(); break;
+            case T_GREATER_GREATER: leave(); leave(); break; // call leave twice to pop both template_param states
             } break;
 
         case operator_declaration:
@@ -178,12 +180,16 @@ void CodeFormatter::recalculateStateAfter(const QTextBlock &block)
 
         case declaration_start:
             switch (kind) {
+            case T_CLASS:
+            case T_STRUCT:      turnInto(class_start); continue;
+            case T_ENUM:        turnInto(enum_start); continue;
             case T_RBRACE:      leave(true); continue;
             case T_SEMICOLON:   leave(true); break;
             case T_EQUAL:       enter(assign_open_or_initializer); break;
             case T_LBRACE:      enter(defun_open); break;
             case T_COLON:       enter(member_init_open); enter(member_init_expected); break;
             case T_OPERATOR:    enter(operator_declaration); break;
+            case T_GREATER_GREATER: break;
             default:            tryExpression(true); break;
             } break;
 
@@ -227,7 +233,7 @@ void CodeFormatter::recalculateStateAfter(const QTextBlock &block)
             switch (kind) {
             case T_RBRACKET:    turnInto(lambda_declarator_expected); break; // we can't determine exact kind of expression. Try again
             case T_COMMA:
-            case T_EQUAL:       turnInto(lambda_instroducer); break;              // ',' or '=' inside brackets can be only whithin lambda capture list
+            case T_EQUAL:       turnInto(lambda_instroducer); break;              // ',' or '=' inside brackets can be only within lambda capture list
             case T_IDENTIFIER:          // '&', id, 'this' are allowed both in the capture list and subscribtion
             case T_AMPER:
             case T_THIS:        break;
@@ -504,7 +510,7 @@ void CodeFormatter::recalculateStateAfter(const QTextBlock &block)
                 leave();
                 continue;
             } else if (m_tokenIndex == m_tokens.size() - 1
-                    && lexerState == Lexer::State_Default) {
+                    && lexerState == 0) {
                 leave();
             } else if (m_tokenIndex == 0 && m_currentToken.isComment()) {
                 // to allow enter/leave to update the indentDepth
@@ -519,9 +525,9 @@ void CodeFormatter::recalculateStateAfter(const QTextBlock &block)
             int previousPreviousMarker = -1;
             for (int i = size - 1; i >= 0; --i) {
                 if (m_currentState.at(i).type == cpp_macro_conditional) {
-                    if (previousMarker == -1)
+                    if (previousMarker == -1) {
                         previousMarker = i;
-                    else {
+                    } else {
                         previousPreviousMarker = i;
                         break;
                     }
@@ -571,8 +577,8 @@ void CodeFormatter::recalculateStateAfter(const QTextBlock &block)
 
     if (topState != multiline_comment_start
             && topState != multiline_comment_cont
-            && (lexerState == Lexer::State_MultiLineComment
-                || lexerState == Lexer::State_MultiLineDoxyComment)) {
+            && (lexerState == T_COMMENT
+                || lexerState == T_DOXY_COMMENT)) {
         enter(multiline_comment_start);
     }
 
@@ -840,7 +846,7 @@ bool CodeFormatter::tryDeclaration()
         return true;
     case T_IDENTIFIER:
         if (m_tokenIndex == 0) {
-            QString tokenText = currentTokenText().toString();
+            const QStringRef tokenText = currentTokenText();
             if (tokenText.startsWith(QLatin1String("Q_"))
                     || tokenText.startsWith(QLatin1String("QT_"))
                     || tokenText.startsWith(QLatin1String("QML_"))
@@ -1055,9 +1061,14 @@ int CodeFormatter::tokenizeBlock(const QTextBlock &block, bool *endedJoined)
         startState = 0;
     QTC_ASSERT(startState != -1, return 0);
 
+    LanguageFeatures features;
+    features.qtEnabled = true;
+    features.qtMocRunEnabled = true;
+    features.qtKeywordsEnabled = true;
+    features.objCEnabled = true;
+
     SimpleLexer tokenize;
-    tokenize.setQtMocRunEnabled(true);
-    tokenize.setObjCEnabled(true);
+    tokenize.setLanguageFeatures(features);
 
     m_currentLine = block.text();
     // to determine whether a line was joined, Tokenizer needs a
@@ -1607,7 +1618,7 @@ void QtStyleCodeFormatter::adjustIndent(const QList<CPlusPlus::Token> &tokens, i
         if ((topState.type == multiline_comment_cont
              || topState.type == multiline_comment_start)
                 && (kind == T_COMMENT || kind == T_DOXY_COMMENT)
-                && (lexerState == Lexer::State_Default
+                && (lexerState == T_EOF_SYMBOL
                     || tokens.size() != 1)) {
             if (*indentDepth >= m_tabSettings.m_indentSize)
                 *indentDepth -= m_tabSettings.m_indentSize;

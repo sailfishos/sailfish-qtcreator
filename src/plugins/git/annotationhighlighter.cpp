@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -35,9 +35,8 @@ namespace Git {
 namespace Internal {
 
 GitAnnotationHighlighter::GitAnnotationHighlighter(const ChangeNumbers &changeNumbers,
-                                                   const QColor &bg,
                                                    QTextDocument *document) :
-    VcsBase::BaseAnnotationHighlighter(changeNumbers, bg, document),
+    VcsBase::BaseAnnotationHighlighter(changeNumbers, document),
     m_blank(QLatin1Char(' '))
 {
 }

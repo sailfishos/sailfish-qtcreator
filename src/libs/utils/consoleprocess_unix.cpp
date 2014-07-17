@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -32,6 +32,7 @@
 #include "qtcprocess.h"
 
 #include <utils/hostosinfo.h>
+#include <utils/qtcassert.h>
 
 #include <QCoreApplication>
 #include <QTimer>
@@ -64,6 +65,11 @@ ConsoleProcess::ConsoleProcess(QObject *parent)  :
     d->m_process.setProcessChannelMode(QProcess::ForwardedChannels);
 }
 
+qint64 ConsoleProcess::applicationMainThreadID() const
+{
+    return -1;
+}
+
 void ConsoleProcess::setSettings(QSettings *settings)
 {
     d->m_settings = settings;
@@ -75,7 +81,8 @@ bool ConsoleProcess::start(const QString &program, const QString &args)
         return false;
 
     QtcProcess::SplitError perr;
-    QStringList pargs = QtcProcess::prepareArgs(args, &perr, &d->m_environment, &d->m_workingDir);
+    QtcProcess::Arguments pargs = QtcProcess::prepareArgs(args, &perr, HostOsInfo::hostOs(),
+                                                          &d->m_environment, &d->m_workingDir);
     QString pcmd;
     if (perr == QtcProcess::SplitOk) {
         pcmd = program;
@@ -91,12 +98,15 @@ bool ConsoleProcess::start(const QString &program, const QString &args)
             return false;
         }
         pcmd = QLatin1String("/bin/sh");
-        pargs << QLatin1String("-c") << (QtcProcess::quoteArg(program) + QLatin1Char(' ') + args);
+        pargs = QtcProcess::Arguments::createUnixArgs(QStringList()
+                    << QLatin1String("-c")
+                    << (QtcProcess::quoteArg(program) + QLatin1Char(' ') + args));
     }
 
     QtcProcess::SplitError qerr;
-    QStringList xtermArgs = QtcProcess::prepareArgs(terminalEmulator(d->m_settings), &qerr,
-                                                    &d->m_environment, &d->m_workingDir);
+    QtcProcess::Arguments xtermArgs = QtcProcess::prepareArgs(terminalEmulator(d->m_settings), &qerr,
+                                                              HostOsInfo::hostOs(),
+                                                              &d->m_environment, &d->m_workingDir);
     if (qerr != QtcProcess::SplitOk) {
         emit processError(qerr == QtcProcess::BadQuoting
                           ? tr("Quoting error in terminal command.")
@@ -134,23 +144,23 @@ bool ConsoleProcess::start(const QString &program, const QString &args)
         }
     }
 
-    if (Utils::HostOsInfo::isMacHost()) {
-        xtermArgs << (QCoreApplication::applicationDirPath()
-                      + QLatin1String("/../Resources/qtcreator_process_stub"));
-    } else {
-        xtermArgs << (QCoreApplication::applicationDirPath()
-                      + QLatin1String("/qtcreator_process_stub"));
-    }
-    xtermArgs
+    QString stubPath = QCoreApplication::applicationDirPath();
+    if (Utils::HostOsInfo::isMacHost())
+        stubPath.append(QLatin1String("/../Resources/qtcreator_process_stub"));
+    else
+        stubPath.append(QLatin1String("/qtcreator_process_stub"));
+
+    QStringList allArgs = xtermArgs.toUnixArgs();
+    allArgs << stubPath
               << modeOption(d->m_mode)
               << d->m_stubServer.fullServerName()
               << msgPromptToClose()
               << workingDirectory()
               << (d->m_tempFile ? d->m_tempFile->fileName() : QString())
-              << pcmd << pargs;
+              << pcmd << pargs.toUnixArgs();
 
-    QString xterm = xtermArgs.takeFirst();
-    d->m_process.start(xterm, xtermArgs);
+    QString xterm = allArgs.takeFirst();
+    d->m_process.start(xterm, allArgs);
     if (!d->m_process.waitForStarted()) {
         stubServerShutdown();
         emit processError(tr("Cannot start the terminal emulator '%1', change the setting in the "
@@ -295,12 +305,12 @@ void ConsoleProcess::readStubOutput()
             d->m_appStatus = QProcess::NormalExit;
             d->m_appCode = out.mid(5).toInt();
             d->m_appPid = 0;
-            emit processStopped();
+            emit processStopped(d->m_appCode, d->m_appStatus);
         } else if (out.startsWith("crash ")) {
             d->m_appStatus = QProcess::CrashExit;
             d->m_appCode = out.mid(6).toInt();
             d->m_appPid = 0;
-            emit processStopped();
+            emit processStopped(d->m_appCode, d->m_appStatus);
         } else {
             emit processError(msgUnexpectedOutput(out));
             d->m_stubPid = 0;
@@ -323,7 +333,7 @@ void ConsoleProcess::stubExited()
         d->m_appStatus = QProcess::CrashExit;
         d->m_appCode = -1;
         d->m_appPid = 0;
-        emit processStopped(); // Maybe it actually did not, but keep state consistent
+        emit processStopped(d->m_appCode, d->m_appStatus); // Maybe it actually did not, but keep state consistent
     }
     emit stubStopped();
 }

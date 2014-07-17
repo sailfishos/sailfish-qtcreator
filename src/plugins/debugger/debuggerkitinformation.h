@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -32,8 +32,12 @@
 
 #include "debugger_global.h"
 #include "debuggerconstants.h"
+#include "debuggeritem.h"
 
+#include <projectexplorer/abi.h>
 #include <projectexplorer/kitinformation.h>
+
+#include <utils/persistentsettings.h>
 
 namespace Debugger {
 
@@ -42,30 +46,17 @@ class DEBUGGER_EXPORT DebuggerKitInformation : public ProjectExplorer::KitInform
     Q_OBJECT
 
 public:
-    class DEBUGGER_EXPORT DebuggerItem {
-    public:
-        DebuggerItem();
-        DebuggerItem(DebuggerEngineType engineType, const Utils::FileName &fn);
-        bool equals(const DebuggerItem &rhs) const { return engineType == rhs.engineType && binary == rhs.binary; }
-
-        DebuggerEngineType engineType;
-        Utils::FileName binary;
-    };
-
     DebuggerKitInformation();
 
-    Core::Id dataId() const;
-
-    unsigned int priority() const; // the higher the closer to the top.
-
-    static DebuggerItem autoDetectItem(const ProjectExplorer::Kit *k);
-    QVariant defaultValue(ProjectExplorer::Kit *k) const
-        { return DebuggerKitInformation::itemToVariant(DebuggerKitInformation::autoDetectItem(k)); }
+    QVariant defaultValue(ProjectExplorer::Kit *k) const;
 
     QList<ProjectExplorer::Task> validate(const ProjectExplorer::Kit *k) const
         { return DebuggerKitInformation::validateDebugger(k); }
 
     void setup(ProjectExplorer::Kit *k);
+    void fix(ProjectExplorer::Kit *k);
+
+    static const DebuggerItem *debugger(const ProjectExplorer::Kit *kit);
 
     static QList<ProjectExplorer::Task> validateDebugger(const ProjectExplorer::Kit *k);
     static bool isValidDebugger(const ProjectExplorer::Kit *k);
@@ -73,32 +64,14 @@ public:
     ProjectExplorer::KitConfigWidget *createConfigWidget(ProjectExplorer::Kit *k) const;
 
     ItemList toUserOutput(const ProjectExplorer::Kit *k) const;
-    static QString userOutput(const DebuggerItem &item);
 
-    static DebuggerItem debuggerItem(const ProjectExplorer::Kit *k);
-    static void setDebuggerItem(ProjectExplorer::Kit *k, const DebuggerItem &item);
+    static void setDebugger(ProjectExplorer::Kit *k, const QVariant &id);
 
-    static Utils::FileName debuggerCommand(const ProjectExplorer::Kit *k)
-        { return debuggerItem(k).binary; }
-
-    static void setDebuggerCommand(ProjectExplorer::Kit *k, const Utils::FileName &command);
-
-    static DebuggerEngineType engineType(const ProjectExplorer::Kit *k)
-        { return debuggerItem(k).engineType; }
-
-    static void setEngineType(ProjectExplorer::Kit *k, DebuggerEngineType type);
-
-    static QString debuggerEngineName(DebuggerEngineType t);
-
-private:
-    static DebuggerItem variantToItem(const QVariant &v);
-    static QVariant itemToVariant(const DebuggerItem &i);
+    static Core::Id id();
+    static Utils::FileName debuggerCommand(const ProjectExplorer::Kit *k);
+    static DebuggerEngineType engineType(const ProjectExplorer::Kit *k);
+    static QString displayString(const ProjectExplorer::Kit *k);
 };
-
-inline bool operator==(const DebuggerKitInformation::DebuggerItem &i1, const DebuggerKitInformation::DebuggerItem &i2)
-    { return i1.equals(i2); }
-inline bool operator!=(const DebuggerKitInformation::DebuggerItem &i1, const DebuggerKitInformation::DebuggerItem &i2)
-    { return !i1.equals(i2); }
 
 } // namespace Debugger
 

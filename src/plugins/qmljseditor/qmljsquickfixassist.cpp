@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -29,6 +29,7 @@
 
 #include "qmljsquickfixassist.h"
 #include "qmljseditorconstants.h"
+#include "qmljseditordocument.h"
 
 //temp
 #include "qmljsquickfix.h"
@@ -48,10 +49,9 @@ using namespace Internal;
 QmlJSQuickFixAssistInterface::QmlJSQuickFixAssistInterface(QmlJSTextEditorWidget *editor,
                                                            TextEditor::AssistReason reason)
     : DefaultAssistInterface(editor->document(), editor->position(),
-                             editor->editorDocument()->fileName(), reason)
-    , m_editor(editor)
-    , m_semanticInfo(editor->semanticInfo())
-    , m_currentFile(QmlJSRefactoringChanges::file(m_editor, m_semanticInfo.document))
+                             editor->baseTextDocument()->filePath(), reason)
+    , m_semanticInfo(editor->qmlJsEditorDocument()->semanticInfo())
+    , m_currentFile(QmlJSRefactoringChanges::file(editor, m_semanticInfo.document))
 {}
 
 QmlJSQuickFixAssistInterface::~QmlJSQuickFixAssistInterface()
@@ -65,11 +65,6 @@ const SemanticInfo &QmlJSQuickFixAssistInterface::semanticInfo() const
 QmlJSRefactoringFilePtr QmlJSQuickFixAssistInterface::currentFile() const
 {
     return m_currentFile;
-}
-
-QmlJSTextEditorWidget *QmlJSQuickFixAssistInterface::editor() const
-{
-    return m_editor;
 }
 
 // ----------------------
@@ -95,6 +90,11 @@ QmlJSQuickFixAssistProvider::QmlJSQuickFixAssistProvider()
 
 QmlJSQuickFixAssistProvider::~QmlJSQuickFixAssistProvider()
 {}
+
+bool QmlJSQuickFixAssistProvider::isAsynchronous() const
+{
+    return false;
+}
 
 bool QmlJSQuickFixAssistProvider::supportsEditor(const Core::Id &editorId) const
 {

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -31,21 +31,21 @@
 #include "baseqmldebuggerclient.h"
 #include "qmlinspectoragent.h"
 
-#include "debuggerstartparameters.h"
-#include "debuggeractions.h"
-#include "debuggercore.h"
-#include "debuggerinternalconstants.h"
-#include "debuggermainwindow.h"
-#include "debuggerrunner.h"
-#include "debuggerstringutils.h"
-#include "debuggertooltipmanager.h"
-#include "localsandexpressionswindow.h"
-#include "watchwindow.h"
+#include <debugger/debuggerstartparameters.h>
+#include <debugger/debuggeractions.h>
+#include <debugger/debuggercore.h>
+#include <debugger/debuggerinternalconstants.h>
+#include <debugger/debuggermainwindow.h>
+#include <debugger/debuggerrunner.h>
+#include <debugger/debuggerstringutils.h>
+#include <debugger/debuggertooltipmanager.h>
+#include <debugger/localsandexpressionswindow.h>
+#include <debugger/watchwindow.h>
 
-#include "breakhandler.h"
-#include "stackhandler.h"
-#include "watchhandler.h"
-#include "sourcefileshandler.h"
+#include <debugger/breakhandler.h>
+#include <debugger/stackhandler.h>
+#include <debugger/watchhandler.h>
+#include <debugger/sourcefileshandler.h>
 #include <qmljseditor/qmljseditorconstants.h>
 #include <qmljs/parser/qmljsast_p.h>
 #include <qmljs/qmljsmodelmanagerinterface.h>
@@ -53,7 +53,7 @@
 
 #include <utils/qtcassert.h>
 
-#include <texteditor/itexteditor.h>
+#include <texteditor/basetextdocument.h>
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/helpmanager.h>
 #include <coreplugin/icore.h>
@@ -292,7 +292,7 @@ QmlEngine::QmlEngine(const DebuggerStartParameters &startParameters, DebuggerEng
 
 
     connect(&m_applicationLauncher,
-        SIGNAL(processExited(int)),
+        SIGNAL(processExited(int,QProcess::ExitStatus)),
         SLOT(disconnected()));
     connect(&m_applicationLauncher,
         SIGNAL(appendMessage(QString,Utils::OutputFormat)),
@@ -342,7 +342,7 @@ QmlEngine::~QmlEngine()
         if (textEditPtr)
             editorsToClose << textEditPtr.data();
     }
-    Core::EditorManager::instance()->closeEditors(editorsToClose);
+    Core::EditorManager::closeEditors(editorsToClose);
 }
 
 void QmlEngine::notifyInferiorSetupOk()
@@ -372,7 +372,7 @@ void QmlEngine::connectionEstablished()
 
     if (!watchHandler()->watcherNames().isEmpty())
         synchronizeWatchers();
-    connect(watchersModel(),SIGNAL(layoutChanged()),this,SLOT(synchronizeWatchers()));
+    connect(watchModel(),SIGNAL(layoutChanged()),this,SLOT(synchronizeWatchers()));
 
     if (state() == EngineRunRequested)
         notifyEngineRunAndInferiorRunOk();
@@ -457,16 +457,22 @@ void QmlEngine::connectionStartupFailed()
 
 void QmlEngine::appStartupFailed(const QString &errorMessage)
 {
-    QMessageBox *infoBox = new QMessageBox(Core::ICore::mainWindow());
-    infoBox->setIcon(QMessageBox::Critical);
-    infoBox->setWindowTitle(tr("Qt Creator"));
-    infoBox->setText(tr("Could not connect to the in-process QML debugger."
-                        "\n%1").arg(errorMessage));
-    infoBox->setStandardButtons(QMessageBox::Ok | QMessageBox::Help);
-    infoBox->setDefaultButton(QMessageBox::Ok);
-    connect(infoBox, SIGNAL(finished(int)),
-            this, SLOT(errorMessageBoxFinished(int)));
-    infoBox->show();
+    QString error = tr("Could not connect to the in-process QML debugger."
+                       "\n%1").arg(errorMessage);
+
+    if (isMasterEngine()) {
+        QMessageBox *infoBox = new QMessageBox(Core::ICore::mainWindow());
+        infoBox->setIcon(QMessageBox::Critical);
+        infoBox->setWindowTitle(tr("Qt Creator"));
+        infoBox->setText(error);
+        infoBox->setStandardButtons(QMessageBox::Ok | QMessageBox::Help);
+        infoBox->setDefaultButton(QMessageBox::Ok);
+        connect(infoBox, SIGNAL(finished(int)),
+                this, SLOT(errorMessageBoxFinished(int)));
+        infoBox->show();
+    } else {
+        showMessage(error, StatusBar);
+    }
 
     notifyEngineRunFailed();
 }
@@ -479,8 +485,7 @@ void QmlEngine::errorMessageBoxFinished(int result)
         break;
     }
     case QMessageBox::Help: {
-        Core::HelpManager *helpManager = Core::HelpManager::instance();
-        helpManager->handleHelpRequest(QLatin1String("qthelp://org.qt-project.qtcreator/doc/creator-debugging-qml.html"));
+        Core::HelpManager::handleHelpRequest(QLatin1String("qthelp://org.qt-project.qtcreator/doc/creator-debugging-qml.html"));
         // fall through
     }
     default:
@@ -534,28 +539,25 @@ void QmlEngine::gotoLocation(const Location &location)
     if (QUrl(fileName).isLocalFile()) {
         // internal file from source files -> show generated .js
         QTC_ASSERT(m_sourceDocuments.contains(fileName), return);
-        Core::IEditor *editor = 0;
 
-        Core::EditorManager *editorManager = Core::EditorManager::instance();
         QString titlePattern = tr("JS Source for %1").arg(fileName);
-        //Check if there are open editors with the same title
-        QList<Core::IEditor *> editors = editorManager->openedEditors();
-        foreach (Core::IEditor *ed, editors) {
-            if (ed->displayName() == titlePattern) {
-                editor = ed;
-                break;
+        //Check if there are open documents with the same title
+        foreach (Core::IDocument *document, Core::EditorManager::documentModel()->openedDocuments()) {
+            if (document->displayName() == titlePattern) {
+                Core::EditorManager::activateEditorForDocument(document);
+                return;
             }
         }
-        if (!editor) {
-            editor = Core::EditorManager::openEditorWithContents(QmlJSEditor::Constants::C_QMLJSEDITOR_ID,
-                                                           &titlePattern);
-            if (editor)
-                editor->setProperty(Constants::OPENED_BY_DEBUGGER, true);
-
-            updateEditor(editor, m_sourceDocuments.value(fileName));
+        Core::IEditor *editor = Core::EditorManager::openEditorWithContents(
+                    QmlJSEditor::Constants::C_QMLJSEDITOR_ID, &titlePattern);
+        if (editor) {
+            editor->document()->setProperty(Constants::OPENED_BY_DEBUGGER, true);
+            QPlainTextEdit *plainTextEdit =
+                    qobject_cast<QPlainTextEdit *>(editor->widget());
+            if (plainTextEdit)
+                plainTextEdit->setReadOnly(true);
+            updateDocument(editor->document(), m_sourceDocuments.value(fileName));
         }
-        Core::EditorManager::activateEditor(editor);
-
     } else {
         DebuggerEngine::gotoLocation(location);
     }
@@ -563,7 +565,7 @@ void QmlEngine::gotoLocation(const Location &location)
 
 void QmlEngine::closeConnection()
 {
-    disconnect(watchersModel(),SIGNAL(layoutChanged()),this,SLOT(synchronizeWatchers()));
+    disconnect(watchModel(),SIGNAL(layoutChanged()),this,SLOT(synchronizeWatchers()));
     m_adapter.closeConnection();
 }
 
@@ -600,7 +602,7 @@ void QmlEngine::startApplicationLauncher()
 void QmlEngine::stopApplicationLauncher()
 {
     if (m_applicationLauncher.isRunning()) {
-        disconnect(&m_applicationLauncher, SIGNAL(processExited(int)),
+        disconnect(&m_applicationLauncher, SIGNAL(processExited(int,QProcess::ExitStatus)),
                    this, SLOT(disconnected()));
         m_applicationLauncher.stop();
     }
@@ -1171,7 +1173,7 @@ void QmlEngine::updateCurrentContext()
 
     QmlJS::ConsoleManagerInterface *consoleManager = qmlConsoleManager();
     if (consoleManager)
-        consoleManager->setContext(tr("Context: ").append(context));
+        consoleManager->setContext(tr("Context:") + QLatin1Char(' ') + context);
 }
 
 void QmlEngine::appendDebugOutput(QtMsgType type, const QString &message,
@@ -1308,27 +1310,22 @@ void QmlEngine::updateScriptSource(const QString &fileName, int lineOffset, int 
     //update open editors
     QString titlePattern = tr("JS Source for %1").arg(fileName);
     //Check if there are open editors with the same title
-    QList<Core::IEditor *> editors = Core::EditorManager::instance()->openedEditors();
-    foreach (Core::IEditor *editor, editors) {
-        if (editor->displayName() == titlePattern) {
-            updateEditor(editor, document);
+    foreach (Core::IDocument *doc, Core::EditorManager::documentModel()->openedDocuments()) {
+        if (doc->displayName() == titlePattern) {
+            updateDocument(doc, document);
             break;
         }
     }
 }
 
-void QmlEngine::updateEditor(Core::IEditor *editor, const QTextDocument *document)
+void QmlEngine::updateDocument(Core::IDocument *document, const QTextDocument *textDocument)
 {
-    TextEditor::ITextEditor *textEditor = qobject_cast<TextEditor::ITextEditor*>(editor);
-    if (!textEditor)
+    TextEditor::BaseTextDocument *baseTextDocument
+            = qobject_cast<TextEditor::BaseTextDocument *>(document);
+    if (!baseTextDocument)
         return;
 
-    QPlainTextEdit *plainTextEdit =
-            qobject_cast<QPlainTextEdit *>(editor->widget());
-    if (!plainTextEdit)
-        return;
-    plainTextEdit->setPlainText(document->toPlainText());
-    plainTextEdit->setReadOnly(true);
+    baseTextDocument->document()->setPlainText(textDocument->toPlainText());
 }
 
 bool QmlEngine::canEvaluateScript(const QString &script)

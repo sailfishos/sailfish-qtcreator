@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,6 +30,7 @@
 #include "outputformatter.h"
 
 #include <QPlainTextEdit>
+#include <utils/ansiescapecodehandler.h>
 
 using namespace Utils;
 
@@ -37,6 +38,8 @@ OutputFormatter::OutputFormatter()
     : QObject()
     , m_plainTextEdit(0)
     , m_formats(0)
+    , m_escapeCodeHandler(new AnsiEscapeCodeHandler)
+    , m_overwriteOutput(false)
 {
 
 }
@@ -44,6 +47,7 @@ OutputFormatter::OutputFormatter()
 OutputFormatter::~OutputFormatter()
 {
     delete[] m_formats;
+    delete m_escapeCodeHandler;
 }
 
 QPlainTextEdit *OutputFormatter::plainTextEdit() const
@@ -59,14 +63,42 @@ void OutputFormatter::setPlainTextEdit(QPlainTextEdit *plainText)
 
 void OutputFormatter::appendMessage(const QString &text, OutputFormat format)
 {
+    appendMessage(text, m_formats[format]);
+}
+
+void OutputFormatter::appendMessage(const QString &text, const QTextCharFormat &format)
+{
     QTextCursor cursor(m_plainTextEdit->document());
     cursor.movePosition(QTextCursor::End);
-    cursor.insertText(text, m_formats[format]);
+
+    foreach (const FormattedText &output,
+             m_escapeCodeHandler->parseText(FormattedText(text, format))) {
+        int startPos = 0;
+        int crPos = -1;
+        while ((crPos = output.text.indexOf(QLatin1Char('\r'), startPos)) >= 0)  {
+            append(cursor, output.text.mid(startPos, crPos - startPos), output.format);
+            startPos = crPos + 1;
+            m_overwriteOutput = true;
+        }
+        if (startPos < output.text.count())
+            append(cursor, output.text.mid(startPos), output.format);
+    }
 }
 
 QTextCharFormat OutputFormatter::charFormat(OutputFormat format) const
 {
     return m_formats[format];
+}
+
+void OutputFormatter::append(QTextCursor &cursor, const QString &text,
+                             const QTextCharFormat &format)
+{
+    if (m_overwriteOutput) {
+        cursor.clearSelection();
+        cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::KeepAnchor);
+        m_overwriteOutput = false;
+    }
+    cursor.insertText(text, format);
 }
 
 void OutputFormatter::clearLastLine()
@@ -130,4 +162,10 @@ void OutputFormatter::setFont(const QFont &font)
 {
     m_font = font;
     initFormats();
+}
+
+void OutputFormatter::flush()
+{
+    if (m_escapeCodeHandler)
+        m_escapeCodeHandler->endFormatScope();
 }

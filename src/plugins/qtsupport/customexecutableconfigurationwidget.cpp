@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -55,6 +55,7 @@ CustomExecutableConfigurationWidget::CustomExecutableConfigurationWidget(CustomE
     layout->setMargin(0);
 
     m_executableChooser = new Utils::PathChooser(this);
+    m_executableChooser->setHistoryCompleter(QLatin1String("Qt.CustomExecutable.History"));
     m_executableChooser->setExpectedKind(Utils::PathChooser::Command);
     layout->addRow(tr("Executable:"), m_executableChooser);
 
@@ -63,6 +64,7 @@ CustomExecutableConfigurationWidget::CustomExecutableConfigurationWidget(CustomE
     layout->addRow(tr("Arguments:"), m_commandLineArgumentsLineEdit);
 
     m_workingDirectory = new Utils::PathChooser(this);
+    m_workingDirectory->setHistoryCompleter(QLatin1String("Qt.WorkingDir.History"));
     m_workingDirectory->setExpectedKind(Utils::PathChooser::Directory);
     m_workingDirectory->setBaseDirectory(rc->target()->project()->projectDirectory());
 

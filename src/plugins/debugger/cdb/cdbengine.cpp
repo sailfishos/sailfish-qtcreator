@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -29,28 +29,29 @@
 
 #include "cdbengine.h"
 
-#include "breakhandler.h"
 #include "bytearrayinputstream.h"
 #include "cdboptionspage.h"
 #include "cdbparsehelpers.h"
-#include "debuggeractions.h"
-#include "debuggercore.h"
-#include "debuggerprotocol.h"
-#include "debuggermainwindow.h"
-#include "debuggerstartparameters.h"
-#include "debuggertooltipmanager.h"
-#include "disassembleragent.h"
-#include "disassemblerlines.h"
-#include "memoryagent.h"
-#include "moduleshandler.h"
-#include "registerhandler.h"
-#include "stackhandler.h"
-#include "threadshandler.h"
-#include "watchhandler.h"
-#include "shared/cdbsymbolpathlisteditor.h"
-#include "shared/hostutils.h"
-#include "procinterrupt.h"
-#include "sourceutils.h"
+
+#include <debugger/breakhandler.h>
+#include <debugger/debuggeractions.h>
+#include <debugger/debuggercore.h>
+#include <debugger/debuggerprotocol.h>
+#include <debugger/debuggermainwindow.h>
+#include <debugger/debuggerstartparameters.h>
+#include <debugger/debuggertooltipmanager.h>
+#include <debugger/disassembleragent.h>
+#include <debugger/disassemblerlines.h>
+#include <debugger/memoryagent.h>
+#include <debugger/moduleshandler.h>
+#include <debugger/registerhandler.h>
+#include <debugger/stackhandler.h>
+#include <debugger/threadshandler.h>
+#include <debugger/watchhandler.h>
+#include <debugger/procinterrupt.h>
+#include <debugger/sourceutils.h>
+#include <debugger/shared/cdbsymbolpathlisteditor.h>
+#include <debugger/shared/hostutils.h>
 
 #include <coreplugin/icore.h>
 #include <projectexplorer/taskhub.h>
@@ -150,6 +151,7 @@ enum HandleLocalsFlags
 */
 
 using namespace ProjectExplorer;
+using namespace Utils;
 
 namespace Debugger {
 namespace Internal {
@@ -205,7 +207,7 @@ static QMessageBox *
 nonModalMessageBox(QMessageBox::Icon icon, const QString &title, const QString &text)
 {
     QMessageBox *mb = new QMessageBox(icon, title, text, QMessageBox::Ok,
-                                      debuggerCore()->mainWindow());
+                                      Core::ICore::mainWindow());
     mb->setAttribute(Qt::WA_DeleteOnClose);
     mb->show();
     return mb;
@@ -315,7 +317,7 @@ static inline bool validMode(DebuggerStartMode sm)
 // Accessed by RunControlFactory
 DebuggerEngine *createCdbEngine(const DebuggerStartParameters &sp, QString *errorMessage)
 {
-    if (Utils::HostOsInfo::isWindowsHost()) {
+    if (HostOsInfo::isWindowsHost()) {
         if (validMode(sp.startMode))
             return new CdbEngine(sp);
         *errorMessage = QLatin1String("Internal error: Invalid start parameters passed for thee CDB engine.");
@@ -327,7 +329,7 @@ DebuggerEngine *createCdbEngine(const DebuggerStartParameters &sp, QString *erro
 
 void addCdbOptionPages(QList<Core::IOptionsPage *> *opts)
 {
-    if (Utils::HostOsInfo::isWindowsHost()) {
+    if (HostOsInfo::isWindowsHost()) {
         opts->push_back(new CdbOptionsPage);
         opts->push_back(new CdbPathsPage);
     }
@@ -337,7 +339,6 @@ void addCdbOptionPages(QList<Core::IOptionsPage *> *opts)
 
 CdbEngine::CdbEngine(const DebuggerStartParameters &sp) :
     DebuggerEngine(sp),
-    m_creatorExtPrefix("<qtcreatorcdbext>|"),
     m_tokenPrefix("<token>"),
     m_effectiveStartMode(NoStartMode),
     m_accessible(false),
@@ -351,7 +352,6 @@ CdbEngine::CdbEngine(const DebuggerStartParameters &sp) :
     m_verboseLog(false), // Default CDB setting
     m_notifyEngineShutdownOnTermination(false),
     m_hasDebuggee(false),
-    m_cdbIs64Bit(false),
     m_wow64State(wow64Uninitialized),
     m_elapsedLogTime(0),
     m_sourceStepInto(false),
@@ -363,6 +363,8 @@ CdbEngine::CdbEngine(const DebuggerStartParameters &sp) :
             this, SLOT(operateByInstructionTriggered(bool)));
     connect(debuggerCore()->action(VerboseLog), SIGNAL(triggered(bool)),
             this, SLOT(verboseLogTriggered(bool)));
+    connect(debuggerCore()->action(CreateFullBacktrace), SIGNAL(triggered()),
+            this, SLOT(createFullBacktrace()));
     setObjectName(QLatin1String("CdbEngine"));
     connect(&m_process, SIGNAL(finished(int)), this, SLOT(processFinished()));
     connect(&m_process, SIGNAL(error(QProcess::ProcessError)), this, SLOT(processError()));
@@ -413,7 +415,7 @@ void CdbEngine::init()
     }
     // update source path maps from debugger start params
     mergeStartParametersSourcePathMap();
-    QTC_ASSERT(m_process.state() != QProcess::Running, Utils::SynchronousProcess::stopProcess(m_process));
+    QTC_ASSERT(m_process.state() != QProcess::Running, SynchronousProcess::stopProcess(m_process));
 }
 
 CdbEngine::~CdbEngine()
@@ -477,11 +479,11 @@ bool CdbEngine::setToolTipExpression(const QPoint &mousePos,
     const WatchData *localVariable = watchHandler()->findCppLocalVariable(exp);
     if (!localVariable)
         return false;
+    context.iname = localVariable->iname;
     DebuggerToolTipWidget *tw = new DebuggerToolTipWidget;
     tw->setContext(context);
-    tw->setIname(localVariable->iname);
     tw->acquireEngine(this);
-    DebuggerToolTipManager::instance()->showToolTip(mousePos, editor, tw);
+    DebuggerToolTipManager::showToolTip(mousePos, tw);
     return true;
 }
 
@@ -538,8 +540,8 @@ bool CdbEngine::startConsole(const DebuggerStartParameters &sp, QString *errorMe
 {
     if (debug)
         qDebug("startConsole %s", qPrintable(sp.executable));
-    m_consoleStub.reset(new Utils::ConsoleProcess);
-    m_consoleStub->setMode(Utils::ConsoleProcess::Suspend);
+    m_consoleStub.reset(new ConsoleProcess);
+    m_consoleStub->setMode(ConsoleProcess::Suspend);
     connect(m_consoleStub.data(), SIGNAL(processError(QString)),
             SLOT(consoleStubError(QString)));
     connect(m_consoleStub.data(), SIGNAL(processStarted()),
@@ -585,6 +587,7 @@ void CdbEngine::consoleStubProcessStarted()
     QString errorMessage;
     if (!launchCDB(attachParameters, &errorMessage)) {
         showMessage(errorMessage, LogError);
+        showMessageBox(QMessageBox::Critical, tr("Failed to Start the Debugger"), errorMessage);
         STATE_DEBUG(state(), Q_FUNC_INFO, __LINE__, "notifyEngineSetupFailed")
         notifyEngineSetupFailed();
     }
@@ -592,6 +595,16 @@ void CdbEngine::consoleStubProcessStarted()
 
 void CdbEngine::consoleStubExited()
 {
+}
+
+void CdbEngine::createFullBacktrace()
+{
+    postBuiltinCommand("~*kp", 0, &CdbEngine::handleCreateFullBackTrace);
+}
+
+void CdbEngine::handleCreateFullBackTrace(const CdbEngine::CdbBuiltinCommandPtr &cmd)
+{
+    debuggerCore()->openTextEditor(QLatin1String("Backtrace $"), QLatin1String(cmd->joinedReply()));
 }
 
 void CdbEngine::setupEngine()
@@ -621,6 +634,7 @@ void CdbEngine::setupEngine()
         qDebug("<setupEngine ok=%d", ok);
     if (!ok) {
         showMessage(errorMessage, LogError);
+        showMessageBox(QMessageBox::Critical, tr("Failed to Start the Debugger"), errorMessage);
         STATE_DEBUG(state(), Q_FUNC_INFO, __LINE__, "notifyEngineSetupFailed")
         notifyEngineSetupFailed();
     }
@@ -654,17 +668,14 @@ bool CdbEngine::launchCDB(const DebuggerStartParameters &sp, QString *errorMessa
         return false;
     }
 
-    m_cdbIs64Bit =
-#ifdef Q_OS_WIN
-            Utils::winIs64BitBinary(executable);
-#else
-            false;
-#endif
-    if (!m_cdbIs64Bit)
+    bool cdbIs64Bit = Utils::is64BitWindowsBinary(executable);
+    if (!cdbIs64Bit)
         m_wow64State = noWow64Stack;
-    const QFileInfo extensionFi(CdbEngine::extensionLibraryName(m_cdbIs64Bit));
+    const QFileInfo extensionFi(CdbEngine::extensionLibraryName(cdbIs64Bit));
     if (!extensionFi.isFile()) {
-        *errorMessage = QString::fromLatin1("Internal error: The extension %1 cannot be found.").
+        *errorMessage = QString::fromLatin1("Internal error: The extension %1 cannot be found.\n"
+                                            "If you build Qt Creator from sources, check out "
+                                            "https://qt.gitorious.org/qt-creator/binary-artifacts/").
                 arg(QDir::toNativeSeparators(extensionFi.absoluteFilePath()));
         return false;
     }
@@ -701,8 +712,7 @@ bool CdbEngine::launchCDB(const DebuggerStartParameters &sp, QString *errorMessa
     case StartExternal:
         if (!nativeArguments.isEmpty())
             nativeArguments.push_back(blank);
-        Utils::QtcProcess::addArgs(&nativeArguments,
-                                   QStringList(QDir::toNativeSeparators(sp.executable)));
+        QtcProcess::addArgs(&nativeArguments, QStringList(QDir::toNativeSeparators(sp.executable)));
         break;
     case AttachToRemoteServer:
         break;
@@ -754,11 +764,8 @@ bool CdbEngine::launchCDB(const DebuggerStartParameters &sp, QString *errorMessa
                 arg(QDir::toNativeSeparators(executable), m_process.errorString());
         return false;
     }
-#ifdef Q_OS_WIN
-    const unsigned long pid = Utils::winQPidToPid(m_process.pid());
-#else
-    const unsigned long pid = 0;
-#endif
+
+    const unsigned long pid = Utils::qPidToPid(m_process.pid());
     showMessage(QString::fromLatin1("%1 running as %2").
                 arg(QDir::toNativeSeparators(executable)).arg(pid), LogMisc);
     m_hasDebuggee = true;
@@ -777,10 +784,13 @@ void CdbEngine::setupInferior()
 {
     if (debug)
         qDebug("setupInferior");
+    const DebuggerStartParameters &sp = startParameters();
+    if (!sp.commandsAfterConnect.isEmpty())
+        postCommand(sp.commandsAfterConnect, 0);
     // QmlCppEngine expects the QML engine to be connected before any breakpoints are hit
     // (attemptBreakpointSynchronization() will be directly called then)
     attemptBreakpointSynchronization();
-    if (startParameters().breakOnMain) {
+    if (sp.breakOnMain) {
         const BreakpointParameters bp(BreakpointAtMain);
         postCommand(cdbAddBreakpointCommand(bp, m_sourcePathMappings,
                                             BreakpointModelId(quint16(-1)), true), 0);
@@ -838,7 +848,7 @@ void CdbEngine::runEngine()
     if (debuggerCore()->boolSetting(CdbBreakOnCrtDbgReport)) {
         const QByteArray module = msvcRunTime(startParameters().toolChainAbi.osFlavor());
         const QByteArray debugModule = module + 'D';
-        const QByteArray wideFunc = CdbOptionsPage::crtDbgReport + 'W';
+        const QByteArray wideFunc = QByteArray(CdbOptionsPage::crtDbgReport).append('W');
         postCommand(breakAtFunctionCommand(CdbOptionsPage::crtDbgReport, module), 0);
         postCommand(breakAtFunctionCommand(wideFunc, module), 0);
         postCommand(breakAtFunctionCommand(CdbOptionsPage::crtDbgReport, debugModule), 0);
@@ -944,7 +954,7 @@ void CdbEngine::shutdownEngine()
     } else {
         // Remote process. No can do, currently
         m_notifyEngineShutdownOnTermination = true;
-        Utils::SynchronousProcess::stopProcess(m_process);
+        SynchronousProcess::stopProcess(m_process);
         return;
     }
     // Lost debuggee, debugger should quit anytime now
@@ -1099,9 +1109,11 @@ bool CdbEngine::hasCapability(unsigned cap) const
            |BreakOnThrowAndCatchCapability // Sort-of: Can break on throw().
            |BreakConditionCapability|TracePointCapability
            |BreakModuleCapability
+           |CreateFullBacktraceCapability
            |OperateByInstructionCapability
            |RunToLineCapability
-           |MemoryAddressCapability);
+           |MemoryAddressCapability
+           |AdditionalQmlStackCapability);
 }
 
 void CdbEngine::executeStep()
@@ -1170,10 +1182,7 @@ void CdbEngine::interruptInferior()
         notifyInferiorRunOk();
         return;
     }
-    if (!doInterruptInferior(NoSpecialStop)) {
-        STATE_DEBUG(state(), Q_FUNC_INFO, __LINE__, "notifyInferiorStopFailed")
-        notifyInferiorStopFailed();
-    }
+    doInterruptInferior(NoSpecialStop);
 }
 
 void CdbEngine::doInterruptInferiorCustomSpecialStop(const QVariant &v)
@@ -1183,21 +1192,31 @@ void CdbEngine::doInterruptInferiorCustomSpecialStop(const QVariant &v)
     m_customSpecialStopData.push_back(v);
 }
 
-bool CdbEngine::doInterruptInferior(SpecialStopMode sm)
+void CdbEngine::handleDoInterruptInferior(const QString &errorMessage)
 {
-    const SpecialStopMode oldSpecialMode = m_specialStopMode;
-    m_specialStopMode = sm;
-
-    showMessage(QString::fromLatin1("Interrupting process %1...").arg(inferiorPid()), LogMisc);
-    QString errorMessage;
-
-    const bool ok = interruptProcess(inferiorPid(), CdbEngineType,
-                                     &errorMessage, m_cdbIs64Bit);
-    if (!ok) {
-        m_specialStopMode = oldSpecialMode;
+    if (errorMessage.isEmpty()) {
+        showMessage(QLatin1String("Interrupted ") + QString::number(inferiorPid()));
+    } else {
         showMessage(errorMessage, LogError);
+        notifyInferiorStopFailed();
     }
-    return ok;
+    m_signalOperation->disconnect(this);
+    m_signalOperation.clear();
+}
+
+void CdbEngine::doInterruptInferior(SpecialStopMode sm)
+{
+    showMessage(QString::fromLatin1("Interrupting process %1...").arg(inferiorPid()), LogMisc);
+
+    QTC_ASSERT(!m_signalOperation, notifyInferiorStopFailed();  return;);
+    m_signalOperation = startParameters().device->signalOperation();
+    m_specialStopMode = sm;
+    QTC_ASSERT(m_signalOperation, notifyInferiorStopFailed(); return;);
+    connect(m_signalOperation.data(), SIGNAL(finished(QString)),
+            SLOT(handleDoInterruptInferior(QString)));
+
+    m_signalOperation->setDebuggerCommand(startParameters().debuggerCommand);
+    m_signalOperation->interruptProcess(inferiorPid());
 }
 
 void CdbEngine::executeRunToLine(const ContextData &data)
@@ -1383,7 +1402,7 @@ void CdbEngine::postBuiltinCommand(const QByteArray &cmd, unsigned flags,
         showMessage(msg, LogError);
         return;
     }
-    if (!flags & QuietCommand)
+    if (!(flags & QuietCommand))
         showMessage(QString::fromLocal8Bit(cmd), LogInput);
 
     const int token = m_nextCommandToken++;
@@ -1430,7 +1449,7 @@ void CdbEngine::postExtensionCommand(const QByteArray &cmd,
     if (!arguments.isEmpty())
         str <<  ' ' << arguments;
 
-    if (!flags & QuietCommand)
+    if (!(flags & QuietCommand))
         showMessage(QString::fromLocal8Bit(fullCmd), LogInput);
 
     CdbExtensionCommandPtr pendingCommand(new CdbExtensionCommand(fullCmd, token, flags, handler, nextCommandFlag, cookie));
@@ -1456,6 +1475,11 @@ void CdbEngine::activateFrame(int index)
     }
 
     const StackFrame frame = frames.at(index);
+    if (frame.language != CppLanguage) {
+        gotoLocation(frame);
+        return;
+    }
+
     if (debug || debugLocals)
         qDebug("activateFrame idx=%d '%s' %d", index,
                qPrintable(frame.file), frame.line);
@@ -1652,7 +1676,7 @@ void CdbEngine::handleResolveSymbol(const CdbBuiltinCommandPtr &command)
 
 // Find the function address matching needle in a list of function
 // addresses obtained from the 'x' command. Check for the
-// mimimum POSITIVE offset (needle >= function address.)
+// minimum POSITIVE offset (needle >= function address.)
 static inline quint64 findClosestFunctionAddress(const QList<quint64> &addresses,
                                                  quint64 needle)
 {
@@ -2473,13 +2497,12 @@ void CdbEngine::handleExtensionMessage(char t, int token, const QByteArray &what
                 && exception.exceptionCode != winExceptionSetThreadName) {
             const Task::TaskType type =
                     isFatalWinException(exception.exceptionCode) ? Task::Error : Task::Warning;
-            const Utils::FileName fileName = exception.file.isEmpty() ?
-                        Utils::FileName() :
-                        Utils::FileName::fromUserInput(QString::fromLocal8Bit(exception.file));
-            const Task task(type, exception.toString(false).trimmed(),
-                            fileName, exception.lineNumber,
-                            Core::Id(Debugger::Constants::TASK_CATEGORY_DEBUGGER_RUNTIME));
-            taskHub()->addTask(task);
+            const FileName fileName = exception.file.isEmpty() ?
+                        FileName() :
+                        FileName::fromUserInput(QString::fromLocal8Bit(exception.file));
+            TaskHub::addTask(type, exception.toString(false).trimmed(),
+                             Debugger::Constants::TASK_CATEGORY_DEBUGGER_RUNTIME,
+                             fileName, exception.lineNumber);
         }
         return;
     }
@@ -2533,11 +2556,12 @@ void CdbEngine::parseOutputLine(QByteArray line)
     while (isCdbPrompt(line))
         line.remove(0, CdbPromptLength);
     // An extension notification (potentially consisting of several chunks)
-    if (line.startsWith(m_creatorExtPrefix)) {
+    static const QByteArray creatorExtPrefix = "<qtcreatorcdbext>|";
+    if (line.startsWith(creatorExtPrefix)) {
         // "<qtcreatorcdbext>|type_char|token|remainingChunks|serviceName|message"
-        const char type = line.at(m_creatorExtPrefix.size());
+        const char type = line.at(creatorExtPrefix.size());
         // integer token
-        const int tokenPos = m_creatorExtPrefix.size() + 2;
+        const int tokenPos = creatorExtPrefix.size() + 2;
         const int tokenEndPos = line.indexOf('|', tokenPos);
         QTC_ASSERT(tokenEndPos != -1, return);
         const int token = line.mid(tokenPos, tokenEndPos - tokenPos).toInt();
@@ -2705,13 +2729,13 @@ static CPlusPlus::Document::Ptr getParsedDocument(const QString &fileName,
                                                   const CppTools::CppModelManagerInterface::WorkingCopy &workingCopy,
                                                   const CPlusPlus::Snapshot &snapshot)
 {
-    QString src;
+    QByteArray src;
     if (workingCopy.contains(fileName)) {
         src = workingCopy.source(fileName);
     } else {
-        Utils::FileReader reader;
+        FileReader reader;
         if (reader.fetch(fileName)) // ### FIXME error reporting
-            src = QString::fromLocal8Bit(reader.data()); // ### FIXME encoding
+            src = QString::fromLocal8Bit(reader.data()).toUtf8();
     }
 
     CPlusPlus::Document::Ptr doc = snapshot.preprocessedDocument(src, fileName);
@@ -2878,11 +2902,7 @@ CdbEngine::NormalizedSourceFileName CdbEngine::sourceMapNormalizeFileNameFromDeb
     const QString fileName = cdbSourcePathMapping(QDir::toNativeSeparators(f), m_sourcePathMappings,
                                                   DebuggerToSource);
     // Up/lower case normalization according to Windows.
-#ifdef Q_OS_WIN
-    QString normalized = Utils::normalizePathName(fileName);
-#else
-    QString normalized = fileName;
-#endif
+    const QString normalized = Utils::FileUtils::normalizePathName(fileName);
     if (debugSourceMapping)
         qDebug(" sourceMapNormalizeFileNameFromDebugger %s->%s", qPrintable(fileName), qPrintable(normalized));
     // Check if it really exists, that is normalize worked and QFileInfo confirms it.
@@ -2922,6 +2942,9 @@ static StackFrames parseFrames(const GdbMi &gdbmi, bool *incomplete = 0)
             frame.file = QFile::decodeName(fullName.data());
             frame.line = frameMi["line"].data().toInt();
             frame.usable = false; // To be decided after source path mapping.
+            const GdbMi languageMi = frameMi["language"];
+            if (languageMi.isValid() && languageMi.data() == "js")
+                frame.language = QmlLanguage;
         }
         frame.function = QLatin1String(frameMi["func"].data());
         frame.from = QLatin1String(frameMi["from"].data());
@@ -2974,6 +2997,39 @@ unsigned CdbEngine::parseStackTrace(const GdbMi &data, bool sourceStepInto)
     stackHandler()->setFrames(frames, incomplete);
     activateFrame(current);
     return 0;
+}
+
+void CdbEngine::loadAdditionalQmlStack()
+{
+    postExtensionCommand("qmlstack", QByteArray(), 0, &CdbEngine::handleAdditionalQmlStack);
+}
+
+void CdbEngine::handleAdditionalQmlStack(const CdbExtensionCommandPtr &reply)
+{
+    QString errorMessage;
+    do {
+        if (!reply->success) {
+            errorMessage = QLatin1String(reply->errorMessage);
+            break;
+        }
+        GdbMi stackGdbMi;
+        stackGdbMi.fromString(reply->reply);
+        if (!stackGdbMi.isValid()) {
+            errorMessage = QLatin1String("GDBMI parser error");
+            break;
+        }
+        StackFrames qmlFrames = parseFrames(stackGdbMi);
+        const int qmlFrameCount = qmlFrames.size();
+        if (!qmlFrameCount) {
+            errorMessage = QLatin1String("Empty stack");
+            break;
+        }
+        for (int i = 0; i < qmlFrameCount; ++i)
+            qmlFrames[i].fixQmlFrame(startParameters());
+        stackHandler()->prependFrames(qmlFrames);
+    } while (false);
+    if (!errorMessage.isEmpty())
+        showMessage(QLatin1String("Unable to obtain QML stack trace: ") + errorMessage, LogError);
 }
 
 void CdbEngine::mergeStartParametersSourcePathMap()

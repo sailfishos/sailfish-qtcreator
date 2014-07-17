@@ -1,6 +1,6 @@
 #############################################################################
 ##
-## Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+## Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ## Contact: http://www.qt-project.org/legal
 ##
 ## This file is part of Qt Creator.
@@ -28,7 +28,6 @@
 #############################################################################
 
 source("../../shared/qtcreator.py")
-source("../../shared/suites_qtta.py")
 
 # test bookmark functionality
 def renameBookmarkFolder(view, item, newName):
@@ -44,6 +43,12 @@ def invokeContextMenuItemOnBookmarkFolder(view, item, menuItem):
     activateItem(waitForObject("{aboveWidget=%s type='QMenu' unnamed='1' visible='1' "
                                "window=':Add Bookmark_BookmarkDialog'}" % aboveWidget), menuItem)
 
+def textForQtVersion(text):
+    if isQt4Build:
+        return "QtCreator : " + text
+    else:
+        return text + " | QtCreator"
+
 def main():
     startApplication("qtcreator" + SettingsPath)
     if not startedWithoutPluginError():
@@ -53,10 +58,8 @@ def main():
     manualQModelIndex = getQModelIndexStr("text?='Qt Creator Manual *'",
                                           ":Qt Creator_QHelpContentWidget")
     doubleClick(manualQModelIndex, 5, 5, 0, Qt.LeftButton)
-    gettingStartedQModelIndex = getQModelIndexStr("text='Getting Started'", manualQModelIndex)
-    doubleClick(gettingStartedQModelIndex, 5, 5, 0, Qt.LeftButton)
     mouseClick(waitForObject(getQModelIndexStr("text='Building and Running an Example'",
-                                               gettingStartedQModelIndex)), 5, 5, 0, Qt.LeftButton)
+                                               manualQModelIndex)), 5, 5, 0, Qt.LeftButton)
     # open bookmarks window
     clickButton(waitForObject(":Qt Creator.Add Bookmark_QToolButton"))
     clickButton(waitForObject(":Add Bookmark.ExpandBookmarksList_QToolButton"))
@@ -85,10 +88,10 @@ def main():
     sampleQModelIndex = getQModelIndexStr("text='Sample'", ":Qt Creator_Bookmarks_TreeView")
     folder1QModelIndex = getQModelIndexStr("text='Folder 1'", sampleQModelIndex)
     folder2QModelIndex = getQModelIndexStr("text='Folder 2'", folder1QModelIndex)
-    bldRunQModelIndex = getQModelIndexStr("text?='QtCreator : Building and Running an Example*'",
+    bldRunQModelIndex = getQModelIndexStr("text?='%s'" % textForQtVersion("Building and Running an Example*"),
                                           folder2QModelIndex)
     newFolderQModelIndex = getQModelIndexStr("text='New Folder'", sampleQModelIndex)
-    manualQModelIndex = getQModelIndexStr("text='QtCreator : Qt Creator Manual'",
+    manualQModelIndex = getQModelIndexStr("text='%s'" % textForQtVersion("Qt Creator Manual"),
                                              newFolderQModelIndex)
     test.verify(checkIfObjectExists(sampleQModelIndex, verboseOnFail = True) and
                 checkIfObjectExists(folder1QModelIndex, verboseOnFail = True) and
@@ -100,14 +103,14 @@ def main():
     for i in range(6):
         type(waitForObject(":Qt Creator_Bookmarks_TreeView"), "<Right>")
     type(waitForObject(":Qt Creator_Bookmarks_TreeView"), "<Return>")
-    test.verify("QtCreator : Building and Running an Example" in str(waitForObject(":Qt Creator_Help::Internal::HelpViewer").title),
+    test.verify(textForQtVersion("Building and Running an Example") in str(waitForObject(":Qt Creator_Help::Internal::HelpViewer").title),
                 "Verifying if first bookmark is opened")
     mouseClick(waitForObject(bldRunQModelIndex))
     type(waitForObject(":Qt Creator_Bookmarks_TreeView"), "<Down>")
     type(waitForObject(":Qt Creator_Bookmarks_TreeView"), "<Right>")
     type(waitForObject(":Qt Creator_Bookmarks_TreeView"), "<Down>")
     type(waitForObject(":Qt Creator_Bookmarks_TreeView"), "<Return>")
-    test.verify("QtCreator : Qt Creator Manual" in str(waitForObject(":Qt Creator_Help::Internal::HelpViewer").title),
+    test.verify(textForQtVersion("Qt Creator Manual") in str(waitForObject(":Qt Creator_Help::Internal::HelpViewer").title),
                 "Verifying if second bookmark is opened")
     # delete previously created directory
     clickButton(waitForObject(":Qt Creator.Add Bookmark_QToolButton"))

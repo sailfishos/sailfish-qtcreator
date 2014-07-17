@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -131,6 +131,9 @@ SettingsDatabase::SettingsDatabase(const QString &path,
                 d->m_settings.insert(query.value(0).toString(), QVariant());
             }
         }
+
+        // syncing can be slow, especially on Linux and Windows
+        d->m_db.exec(QLatin1String("PRAGMA synchronous = OFF;"));
     }
 }
 
@@ -250,6 +253,20 @@ QStringList SettingsDatabase::childKeys() const
     }
 
     return children;
+}
+
+void SettingsDatabase::beginTransaction()
+{
+    if (!d->m_db.isOpen())
+        return;
+    d->m_db.exec(QLatin1String("BEGIN TRANSACTION;"));
+}
+
+void SettingsDatabase::endTransaction()
+{
+    if (!d->m_db.isOpen())
+        return;
+    d->m_db.exec(QLatin1String("END TRANSACTION;"));
 }
 
 void SettingsDatabase::sync()

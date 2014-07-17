@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -75,6 +75,8 @@ static inline QStringList importPaths() {
 
 static inline bool checkIfDerivedFromItem(const QString &fileName)
 {
+    return true;
+
     QmlJS::Snapshot snapshot;
 
 
@@ -91,7 +93,7 @@ static inline bool checkIfDerivedFromItem(const QString &fileName)
 
     QmlJS::Document::MutablePtr document =
             QmlJS::Document::create(fileName.isEmpty() ?
-                                        QLatin1String("<internal>") : fileName, QmlJS::Document::QmlLanguage);
+                                        QLatin1String("<internal>") : fileName, QmlJS::Language::Qml);
     document->setSource(source);
     document->parseQml();
 
@@ -101,7 +103,7 @@ static inline bool checkIfDerivedFromItem(const QString &fileName)
 
     snapshot.insert(document);
 
-    QmlJS::Link link(snapshot, modelManager->importPaths(), QmlJS::ModelManagerInterface::instance()->builtins(document));
+    QmlJS::Link link(snapshot, modelManager->defaultVContext(), QmlJS::ModelManagerInterface::instance()->builtins(document));
 
     QList<QmlJS::DiagnosticMessage> diagnosticLinkMessages;
     QmlJS::ContextPtr context = link(document, &diagnosticLinkMessages);
@@ -228,6 +230,8 @@ void SubComponentManager::parseDirectories()
 
 void SubComponentManager::parseDirectory(const QString &canonicalDirPath, bool addToLibrary, const TypeName& qualification)
 {
+    if (!model()->rewriterView())
+        return;
 
     QDir designerDir(canonicalDirPath + Constants::QML_DESIGNER_SUBFOLDER);
     if (designerDir.exists()) {
@@ -360,14 +364,6 @@ void SubComponentManager::unregisterQmlFile(const QFileInfo &fileInfo, const QSt
         componentName = qualifier + '.' + componentName;
 }
 
-static inline bool isDepricatedQtType(const QString &typeName)
-{
-    if (typeName.length() < 8)
-        return false;
-
-    return typeName.contains("Qt.");
-}
-
 
 void SubComponentManager::registerQmlFile(const QFileInfo &fileInfo, const QString &qualifier,
                                                  bool addToLibrary)
@@ -399,7 +395,6 @@ void SubComponentManager::registerQmlFile(const QFileInfo &fileInfo, const QStri
         itemLibraryEntry.setName(baseComponentName);
         itemLibraryEntry.setCategory("QML Components");
         if (!qualifier.isEmpty()) {
-            itemLibraryEntry.setForceImport(true);
             itemLibraryEntry.setRequiredImport(fixedQualifier);
         }
 

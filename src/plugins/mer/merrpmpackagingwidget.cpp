@@ -34,7 +34,7 @@
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/target.h>
-#include <qt4projectmanager/qt4buildconfiguration.h>
+#include <qmakeprojectmanager/qmakebuildconfiguration.h>
 #include <utils/qtcassert.h>
 
 #include <QTimer>

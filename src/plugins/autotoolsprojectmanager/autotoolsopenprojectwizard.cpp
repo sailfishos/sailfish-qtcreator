@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (C) 2013 Openismus GmbH.
+** Copyright (C) 2014 Openismus GmbH.
 ** Authors: Peter Penz (ppenz@openismus.com)
 **          Patricia Santana Cruz (patriciasantanacruz@gmail.com)
 ** Contact: http://www.qt-project.org/legal
@@ -57,12 +57,6 @@ AutotoolsOpenProjectWizard::AutotoolsOpenProjectWizard(AutotoolsManager *manager
     setPage(BuildPathPageId, new BuildPathPage(this));
 
     setStartId(BuildPathPageId);
-    init();
-}
-
-void AutotoolsOpenProjectWizard::init()
-{
-    setOption(QWizard::NoBackButtonOnStartPage);
     setWindowTitle(tr("Autotools Wizard"));
 }
 
@@ -103,6 +97,7 @@ BuildPathPage::BuildPathPage(AutotoolsOpenProjectWizard *wizard)
                       "with different settings."));
     fl->addWidget(label);
     m_pc = new Utils::PathChooser(this);
+    m_pc->setHistoryCompleter(QLatin1String("AutoTools.BuildDir.History"));
     m_pc->setBaseDirectory(m_wizard->sourceDirectory());
     m_pc->setPath(m_wizard->buildDirectory());
     connect(m_pc, SIGNAL(changed(QString)), this, SLOT(buildDirectoryChanged()));

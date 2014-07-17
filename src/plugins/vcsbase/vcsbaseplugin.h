@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -36,10 +36,10 @@
 
 #include <QSharedDataPointer>
 #include <QList>
+#include <QProcessEnvironment>
 
 QT_BEGIN_NAMESPACE
 class QAction;
-class QProcessEnvironment;
 class QTextCodec;
 QT_END_NAMESPACE
 
@@ -48,6 +48,7 @@ namespace Utils { struct SynchronousProcessResponse; }
 namespace Core {
 class IVersionControl;
 class Id;
+class IDocument;
 }
 
 namespace VcsBase {
@@ -55,7 +56,7 @@ namespace VcsBase {
 namespace Internal { struct State; }
 
 class VcsBaseSubmitEditor;
-struct VcsBasePluginPrivate;
+class VcsBasePluginPrivate;
 class VcsBasePluginStateData;
 class VcsBasePlugin;
 
@@ -94,9 +95,9 @@ public:
     QString currentProjectName() const;
     QString currentProjectTopLevel() const;
     /* Convenience: Returns project path relative to top level if it
-     * differs from top level (else empty()) as an argument list to do
+     * differs from top level (else empty string) as an argument list to do
      * eg a 'vcs diff <args>' */
-    QStringList relativeCurrentProject() const;
+    QString relativeCurrentProject() const;
 
     // Top level directory for actions on the top level. Preferably
     // the file one.
@@ -137,9 +138,6 @@ public:
     const VcsBasePluginState &currentState() const;
     Core::IVersionControl *versionControl() const;
 
-    // For internal tests: Create actions driving IVersionControl's snapshot interface.
-    QList<QAction*> createSnapShotTestActions();
-
     // Convenience that searches for the repository specifically for version control
     // systems that do not have directories like "CVS" in each managed subdirectory
     // but have a directory at the top of the repository like ".git" containing
@@ -150,9 +148,18 @@ public:
     // Sets up SSH graphical password prompting (note that the latter
     // requires a terminal-less process) and sets LANG to 'C' to force English
     // (suppress LOCALE warnings/parse commands output) if desired.
-    static void setProcessEnvironment(QProcessEnvironment *e, bool forceCLocale);
+    static void setProcessEnvironment(QProcessEnvironment *e,
+                                      bool forceCLocale,
+                                      const QString &sshPasswordPrompt = sshPrompt());
+    // Returns SSH prompt configured in settings.
+    static QString sshPrompt();
     // Returns whether an SSH prompt is configured.
     static bool isSshPromptConfigured();
+
+    // Sets the source of editor contents, can be directory or file.
+    static void setSource(Core::IDocument *document, const QString &source);
+    // Returns the source of editor contents.
+    static QString source(Core::IDocument *document);
 
     // Convenience to synchronously run VCS commands
     enum RunVcsFlags {
@@ -166,33 +173,19 @@ public:
         ForceCLocale = 0x80,            // Force C-locale for commands whose output is parsed.
         FullySynchronously = 0x100,     // Suppress local event loop (in case UI actions are
                                         // triggered by file watchers).
-        ExpectRepoChanges = 0x200       // Expect changes in repository by the command
+        ExpectRepoChanges = 0x200,      // Expect changes in repository by the command
+        SilentOutput = 0x400,           // With ShowStdOutInLogWindow - append output silently
+        NoOutput = SuppressStdErrInLogWindow | SuppressFailMessageInLogWindow
+                   | SuppressCommandLogging
     };
 
     static Utils::SynchronousProcessResponse runVcs(const QString &workingDir,
                                                     const QString &binary,
                                                     const QStringList &arguments,
                                                     int timeOutMS,
-                                                    QProcessEnvironment env,
                                                     unsigned flags = 0,
-                                                    QTextCodec *outputCodec = 0);
-
-    static Utils::SynchronousProcessResponse runVcs(const QString &workingDir,
-                                                    const QString &binary,
-                                                    const QStringList &arguments,
-                                                    int timeOutMS,
-                                                    unsigned flags = 0,
-                                                    QTextCodec *outputCodec = 0);
-
-    // Make sure to not pass through the event loop at all:
-    static bool runFullySynchronous(const QString &workingDirectory,
-                                    const QString &binary,
-                                    const QStringList &arguments,
-                                    const QProcessEnvironment &env,
-                                    QByteArray* outputText,
-                                    QByteArray *errorText,
-                                    int timeoutMS,
-                                    unsigned flags);
+                                                    QTextCodec *outputCodec = 0,
+                                                    const QProcessEnvironment &env = QProcessEnvironment());
 
     // Utility to run the 'patch' command
     static bool runPatch(const QByteArray &input, const QString &workingDirectory = QString(),
@@ -212,7 +205,7 @@ protected:
     // Sets the current submit editor for this specific version control plugin.
     // The plugin automatically checks if the submit editor is closed and calls
     // submitEditorAboutToClose().
-    // The method raiseSubmitEditor can be used to check for a running submit editor and raise it.
+    // The function raiseSubmitEditor can be used to check for a running submit editor and raise it.
     void setSubmitEditor(VcsBaseSubmitEditor *submitEditor);
     // Current submit editor set through setSubmitEditor, if it wasn't closed inbetween
     VcsBaseSubmitEditor *submitEditor() const;
@@ -234,10 +227,6 @@ protected:
 private slots:
     void slotSubmitEditorAboutToClose(VcsBaseSubmitEditor *submitEditor, bool *result);
     void slotStateChanged(const VcsBase::Internal::State &s, Core::IVersionControl *vc);
-    void slotTestSnapshot();
-    void slotTestListSnapshots();
-    void slotTestRestoreSnapshot();
-    void slotTestRemoveSnapshot();
 
 private:
     VcsBasePluginPrivate *d;

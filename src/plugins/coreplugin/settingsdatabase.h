@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -39,9 +39,7 @@
 
 namespace Core {
 
-namespace Internal {
-class SettingsDatabasePrivate;
-}
+namespace Internal { class SettingsDatabasePrivate; }
 
 class CORE_EXPORT SettingsDatabase : public QObject
 {
@@ -58,6 +56,9 @@ public:
     void endGroup();
     QString group() const;
     QStringList childKeys() const;
+
+    void beginTransaction();
+    void endTransaction();
 
     void sync();
 

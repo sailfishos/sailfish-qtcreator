@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -48,6 +48,9 @@ const char VCS_ID_MERCURIAL[] = "H.Mercurial";
 const char VCS_ID_SUBVERSION[] = "J.Subversion";
 const char VCS_ID_PERFORCE[] = "P.Perforce";
 const char VCS_ID_CVS[] = "Z.CVS";
+
+const char VAR_VCS_NAME[] = "CurrentProject:VcsName";
+const char VAR_VCS_TOPIC[] = "CurrentProject:VcsTopic";
 
 } // namespace Constants
 } // namespace VcsBase

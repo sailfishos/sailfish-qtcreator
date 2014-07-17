@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -46,7 +46,7 @@
 #include <utils/synchronousprocess.h>
 #include <utils/fileutils.h>
 #include <utils/qtcassert.h>
-#include <find/basetextfind.h>
+#include <coreplugin/find/basetextfind.h>
 #include <texteditor/fontsettings.h>
 #include <texteditor/texteditorsettings.h>
 
@@ -114,7 +114,7 @@ static const char *belongingClassName(const CPlusPlus::Function *function)
     files from the list by pressing unchecking them or diff the selection
     by doubleclicking.
 
-    The action matching the the ids (unless 0) of the parameter struct will be
+    The action matching the ids (unless 0) of the parameter struct will be
     registered with the EditorWidget and submit/diff actions will be added to
     a toolbar.
 
@@ -146,7 +146,7 @@ struct VcsBaseSubmitEditorPrivate
 {
     VcsBaseSubmitEditorPrivate(const VcsBaseSubmitEditorParameters *parameters,
                                SubmitEditorWidget *editorWidget,
-                               QObject *q);
+                               VcsBaseSubmitEditor *q);
 
     SubmitEditorWidget *m_widget;
     QToolBar *m_toolWidget;
@@ -163,7 +163,7 @@ struct VcsBaseSubmitEditorPrivate
 
 VcsBaseSubmitEditorPrivate::VcsBaseSubmitEditorPrivate(const VcsBaseSubmitEditorParameters *parameters,
                                                        SubmitEditorWidget *editorWidget,
-                                                       QObject *q) :
+                                                       VcsBaseSubmitEditor *q) :
     m_widget(editorWidget),
     m_toolWidget(0),
     m_parameters(parameters),
@@ -181,23 +181,31 @@ VcsBaseSubmitEditor::VcsBaseSubmitEditor(const VcsBaseSubmitEditorParameters *pa
                                          SubmitEditorWidget *editorWidget) :
     d(new VcsBaseSubmitEditorPrivate(parameters, editorWidget, this))
 {
+    setId(parameters->id);
     setContext(Core::Context(parameters->context));
     setWidget(d->m_widget);
+    document()->setDisplayName(QCoreApplication::translate("VCS", d->m_parameters->displayName));
 
     // Message font according to settings
-    const TextEditor::FontSettings fs = TextEditor::TextEditorSettings::instance()->fontSettings();
-    QFont font = editorWidget->descriptionEdit()->font();
-    font.setFamily(fs.family());
-    font.setPointSize(fs.fontSize());
-    editorWidget->descriptionEdit()->setFont(font);
+    Utils::CompletingTextEdit *descriptionEdit = editorWidget->descriptionEdit();
+    const TextEditor::FontSettings fs = TextEditor::TextEditorSettings::fontSettings();
+    const QTextCharFormat tf = fs.toTextCharFormat(TextEditor::C_TEXT);
+    descriptionEdit->setFont(tf.font());
+    const QTextCharFormat selectionFormat = fs.toTextCharFormat(TextEditor::C_SELECTION);
+    QPalette pal;
+    pal.setColor(QPalette::Base, tf.background().color());
+    pal.setColor(QPalette::Text, tf.foreground().color());
+    pal.setColor(QPalette::Foreground, tf.foreground().color());
+    if (selectionFormat.background().style() != Qt::NoBrush)
+        pal.setColor(QPalette::Highlight, selectionFormat.background().color());
+    pal.setBrush(QPalette::HighlightedText, selectionFormat.foreground());
+    descriptionEdit->setPalette(pal);
 
     d->m_file->setModified(false);
     // We are always clean to prevent the editor manager from asking to save.
-    connect(d->m_file, SIGNAL(saveMe(QString*,QString,bool)),
-            this, SLOT(save(QString*,QString,bool)));
 
     connect(d->m_widget, SIGNAL(diffSelected(QList<int>)), this, SLOT(slotDiffSelectedVcsFiles(QList<int>)));
-    connect(d->m_widget->descriptionEdit(), SIGNAL(textChanged()), this, SLOT(slotDescriptionChanged()));
+    connect(descriptionEdit, SIGNAL(textChanged()), this, SLOT(slotDescriptionChanged()));
 
     const CommonVcsSettings settings = VcsPlugin::instance()->settings();
     // Add additional context menu settings
@@ -234,7 +242,7 @@ VcsBaseSubmitEditor::VcsBaseSubmitEditor(const VcsBaseSubmitEditorParameters *pa
             this, SLOT(slotRefreshCommitData()), Qt::QueuedConnection);
 
     Aggregation::Aggregate *aggregate = new Aggregation::Aggregate;
-    aggregate->add(new Find::BaseTextFind(d->m_widget->descriptionEdit()));
+    aggregate->add(new Core::BaseTextFind(descriptionEdit));
     aggregate->add(this);
 }
 
@@ -352,12 +360,6 @@ void VcsBaseSubmitEditor::slotDescriptionChanged()
 {
 }
 
-bool VcsBaseSubmitEditor::createNew(const QString &contents)
-{
-    setFileContents(contents);
-    return true;
-}
-
 bool VcsBaseSubmitEditor::open(QString *errorString, const QString &fileName, const QString &realFileName)
 {
     if (fileName.isEmpty())
@@ -368,10 +370,10 @@ bool VcsBaseSubmitEditor::open(QString *errorString, const QString &fileName, co
         return false;
 
     const QString text = QString::fromLocal8Bit(reader.data());
-    if (!createNew(text))
+    if (!setFileContents(text.toUtf8()))
         return false;
 
-    d->m_file->setFileName(QFileInfo(fileName).absoluteFilePath());
+    d->m_file->setFilePath(QFileInfo(fileName).absoluteFilePath());
     d->m_file->setModified(fileName != realFileName);
     return true;
 }
@@ -379,19 +381,6 @@ bool VcsBaseSubmitEditor::open(QString *errorString, const QString &fileName, co
 Core::IDocument *VcsBaseSubmitEditor::document()
 {
     return d->m_file;
-}
-
-QString VcsBaseSubmitEditor::displayName() const
-{
-    if (d->m_displayName.isEmpty())
-        d->m_displayName = QCoreApplication::translate("VCS", d->m_parameters->displayName);
-    return d->m_displayName;
-}
-
-void VcsBaseSubmitEditor::setDisplayName(const QString &title)
-{
-    d->m_displayName = title;
-    emit changed();
 }
 
 QString VcsBaseSubmitEditor::checkScriptWorkingDirectory() const
@@ -402,11 +391,6 @@ QString VcsBaseSubmitEditor::checkScriptWorkingDirectory() const
 void VcsBaseSubmitEditor::setCheckScriptWorkingDirectory(const QString &s)
 {
     d->m_checkScriptWorkingDirectory = s;
-}
-
-Core::Id VcsBaseSubmitEditor::id() const
-{
-    return d->m_parameters->id;
 }
 
 static QToolBar *createToolBar(const QWidget *someWidget, QAction *submitAction, QAction *diffAction)
@@ -529,29 +513,14 @@ void VcsBaseSubmitEditor::slotDiffSelectedVcsFiles(const QList<int> &rawList)
         emit diffSelectedFiles(rowsToFiles(rawList));
 }
 
-bool VcsBaseSubmitEditor::save(QString *errorString, const QString &fileName, bool autoSave)
-{
-    const QString fName = fileName.isEmpty() ? d->m_file->fileName() : fileName;
-    Utils::FileSaver saver(fName, QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text);
-    saver.write(fileContents());
-    if (!saver.finalize(errorString))
-        return false;
-    if (autoSave)
-        return true;
-    const QFileInfo fi(fName);
-    d->m_file->setFileName(fi.absoluteFilePath());
-    d->m_file->setModified(false);
-    return true;
-}
-
 QByteArray VcsBaseSubmitEditor::fileContents() const
 {
     return d->m_widget->descriptionText().toLocal8Bit();
 }
 
-bool VcsBaseSubmitEditor::setFileContents(const QString &contents)
+bool VcsBaseSubmitEditor::setFileContents(const QByteArray &contents)
 {
-    d->m_widget->setDescriptionText(contents);
+    d->m_widget->setDescriptionText(QString::fromUtf8(contents));
     return true;
 }
 

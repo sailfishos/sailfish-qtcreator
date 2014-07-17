@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -42,64 +42,73 @@
 #include <QVBoxLayout>
 #include <QFormLayout>
 
-using namespace Android;
-using namespace Android::Internal;
+#include <qtsupport/baseqtversion.h>
+#include <qtsupport/qtkitinformation.h>
 
-namespace {
-static const char ANDROIDGDBSERVER_INFORMATION[] = "Android.GdbServer.Information";
-}
+using namespace ProjectExplorer;
+using namespace Utils;
+
+namespace Android {
+namespace Internal {
 
 AndroidGdbServerKitInformation::AndroidGdbServerKitInformation()
 {
+    setId(AndroidGdbServerKitInformation::id());
+    setPriority(27999); // Just one less than Debugger!
 }
 
-Core::Id AndroidGdbServerKitInformation::dataId() const
-{
-    return Core::Id(ANDROIDGDBSERVER_INFORMATION);
-}
-
-unsigned int AndroidGdbServerKitInformation::priority() const
-{
-    return 27999; // Just one less than Debugger!
-}
-
-QVariant AndroidGdbServerKitInformation::defaultValue(ProjectExplorer::Kit *kit) const
+QVariant AndroidGdbServerKitInformation::defaultValue(Kit *kit) const
 {
     return autoDetect(kit).toString();
 }
 
-QList<ProjectExplorer::Task> AndroidGdbServerKitInformation::validate(const ProjectExplorer::Kit *) const
+QList<Task> AndroidGdbServerKitInformation::validate(const Kit *) const
 {
-    return QList<ProjectExplorer::Task>();
+    return QList<Task>();
 }
 
-ProjectExplorer::KitInformation::ItemList AndroidGdbServerKitInformation::toUserOutput(const ProjectExplorer::Kit *kit) const
+KitInformation::ItemList AndroidGdbServerKitInformation::toUserOutput(const Kit *kit) const
 {
-    return ProjectExplorer::KitInformation::ItemList()
+    return KitInformation::ItemList()
             << qMakePair(tr("GDB server"), AndroidGdbServerKitInformation::gdbServer(kit).toUserOutput());
 }
 
-ProjectExplorer::KitConfigWidget *AndroidGdbServerKitInformation::createConfigWidget(ProjectExplorer::Kit *kit) const
+KitConfigWidget *AndroidGdbServerKitInformation::createConfigWidget(Kit *kit) const
 {
-    return new AndroidGdbServerKitInformationWidget(kit, isSticky(kit));
+    return new AndroidGdbServerKitInformationWidget(kit, this);
 }
 
-Utils::FileName AndroidGdbServerKitInformation::gdbServer(const ProjectExplorer::Kit *kit)
+Core::Id AndroidGdbServerKitInformation::id()
 {
-    return Utils::FileName::fromString(kit->value(Core::Id(ANDROIDGDBSERVER_INFORMATION)).toString());
+    return "Android.GdbServer.Information";
 }
 
-void AndroidGdbServerKitInformation::setGdbSever(ProjectExplorer::Kit *kit, const Utils::FileName &gdbServerCommand)
+bool AndroidGdbServerKitInformation::isAndroidKit(const Kit *kit)
 {
-    kit->setValue(Core::Id(ANDROIDGDBSERVER_INFORMATION),
-                  gdbServerCommand.toString());
+    QtSupport::BaseQtVersion *qt = QtSupport::QtKitInformation::qtVersion(kit);
+    ToolChain *tc = ToolChainKitInformation::toolChain(kit);
+    if (qt && tc)
+        return qt->type() == QLatin1String(Constants::ANDROIDQT)
+                && tc->type() == QLatin1String(Constants::ANDROID_TOOLCHAIN_TYPE);
+    return false;
+
 }
 
-Utils::FileName AndroidGdbServerKitInformation::autoDetect(ProjectExplorer::Kit *kit)
+FileName AndroidGdbServerKitInformation::gdbServer(const Kit *kit)
 {
-    ProjectExplorer::ToolChain *tc = ProjectExplorer::ToolChainKitInformation::toolChain(kit);
+    return FileName::fromString(kit->value(AndroidGdbServerKitInformation::id()).toString());
+}
+
+void AndroidGdbServerKitInformation::setGdbSever(Kit *kit, const FileName &gdbServerCommand)
+{
+    kit->setValue(AndroidGdbServerKitInformation::id(), gdbServerCommand.toString());
+}
+
+FileName AndroidGdbServerKitInformation::autoDetect(Kit *kit)
+{
+    ToolChain *tc = ToolChainKitInformation::toolChain(kit);
     if (!tc || tc->type() != QLatin1String(Constants::ANDROID_TOOLCHAIN_TYPE))
-        return Utils::FileName();
+        return FileName();
     AndroidToolChain *atc = static_cast<AndroidToolChain *>(tc);
     return atc->suggestedGdbServer();
 }
@@ -109,9 +118,9 @@ Utils::FileName AndroidGdbServerKitInformation::autoDetect(ProjectExplorer::Kit 
 ///////////////
 
 
-AndroidGdbServerKitInformationWidget::AndroidGdbServerKitInformationWidget(ProjectExplorer::Kit *kit, bool sticky)
-    : ProjectExplorer::KitConfigWidget(kit, sticky),
-      m_label(new Utils::ElidingLabel),
+AndroidGdbServerKitInformationWidget::AndroidGdbServerKitInformationWidget(Kit *kit, const KitInformation *ki)
+    : KitConfigWidget(kit, ki),
+      m_label(new ElidingLabel),
       m_button(new QPushButton(tr("Manage...")))
 {
     // ToolButton with Menu, defaulting to 'Autodetect'.
@@ -123,6 +132,12 @@ AndroidGdbServerKitInformationWidget::AndroidGdbServerKitInformationWidget(Proje
     m_button->setMenu(buttonMenu);
 
     refresh();
+}
+
+AndroidGdbServerKitInformationWidget::~AndroidGdbServerKitInformationWidget()
+{
+    delete m_button;
+    delete m_label;
 }
 
 QString AndroidGdbServerKitInformationWidget::displayName() const
@@ -147,7 +162,7 @@ void AndroidGdbServerKitInformationWidget::refresh()
 
 bool AndroidGdbServerKitInformationWidget::visibleInKit()
 {
-    return ProjectExplorer::DeviceKitInformation::deviceId(m_kit) == Core::Id(Constants::ANDROID_DEVICE_ID);
+    return DeviceKitInformation::deviceId(m_kit) == Constants::ANDROID_DEVICE_ID;
 }
 
 QWidget *AndroidGdbServerKitInformationWidget::mainWidget() const
@@ -173,8 +188,8 @@ void AndroidGdbServerKitInformationWidget::showDialog()
     formLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
 
     QLabel *binaryLabel = new QLabel(tr("&Binary:"));
-    Utils::PathChooser *chooser = new Utils::PathChooser;
-    chooser->setExpectedKind(Utils::PathChooser::ExistingCommand);
+    PathChooser *chooser = new PathChooser;
+    chooser->setExpectedKind(PathChooser::ExistingCommand);
     chooser->setPath(AndroidGdbServerKitInformation::gdbServer(m_kit).toString());
     binaryLabel->setBuddy(chooser);
     formLayout->addRow(binaryLabel, chooser);
@@ -190,3 +205,6 @@ void AndroidGdbServerKitInformationWidget::showDialog()
     if (dialog.exec() == QDialog::Accepted)
         AndroidGdbServerKitInformation::setGdbSever(m_kit, chooser->fileName());
 }
+
+} // namespace Internal
+} // namespace Android

@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Denis Mingulov
+** Copyright (c) 2014 Denis Mingulov
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -34,15 +34,6 @@
 
 namespace ClassView {
 namespace Internal {
-
-/*!
-   \class NavigationWidgetFactory
-   \brief INavigationWidgetFactory implementation for Class View
-
-   INavigationWidgetFactory implementation for Class View. Singleton instance.
-   Supports \a setState publc slot to add/remove factory to \a ExtensionSystem::PluginManager.
-   Also supports some additional signals, \a widgetIsCreated and \a stateChanged.
- */
 
 class NavigationWidgetFactory : public Core::INavigationWidgetFactory
 {
@@ -81,9 +72,6 @@ public:
     void restoreSettings(int position, QWidget *widget);
 
 signals:
-    /*!
-       \brief Signal which informs that the widget factory creates a widget.
-     */
     void widgetIsCreated();
 };
 

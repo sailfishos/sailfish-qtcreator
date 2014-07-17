@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -28,12 +28,30 @@
 ****************************************************************************/
 
 #include "qmlmodelnodefacade.h"
-#include "qmlmodelview.h"
-#include <QDebug>
+#include "nodeinstanceview.h"
+
 namespace QmlDesigner {
 
 QmlModelNodeFacade::QmlModelNodeFacade() : m_modelNode(ModelNode())
 {}
+
+AbstractView *QmlModelNodeFacade::view() const
+{
+    if (modelNode().isValid())
+        return modelNode().view();
+    else
+        return 0;
+}
+
+NodeInstanceView *QmlModelNodeFacade::nodeInstanceView(const ModelNode &modelNode)
+{
+    return modelNode.model()->nodeInstanceView();
+}
+
+NodeInstanceView *QmlModelNodeFacade::nodeInstanceView() const
+{
+    return nodeInstanceView(m_modelNode);
+}
 
 
 QmlModelNodeFacade::QmlModelNodeFacade(const ModelNode &modelNode) : m_modelNode(modelNode)
@@ -42,14 +60,32 @@ QmlModelNodeFacade::QmlModelNodeFacade(const ModelNode &modelNode) : m_modelNode
 QmlModelNodeFacade::~QmlModelNodeFacade()
 {}
 
-bool QmlModelNodeFacade::isValid() const
+QmlModelNodeFacade::operator ModelNode() const
 {
-    return modelNode().isValid() && qmlModelView() && qmlModelView()->nodeInstanceView() && qmlModelView()->hasInstanceForModelNode(modelNode()) && qmlModelView()->instanceForModelNode(modelNode()).isValid();
+    return m_modelNode;
 }
 
-QmlModelView* QmlModelNodeFacade::qmlModelView() const
+ModelNode QmlModelNodeFacade::modelNode()
 {
-    return modelNode().view()->toQmlModelView();
+    return m_modelNode;
+}
+
+const ModelNode QmlModelNodeFacade::modelNode() const
+{
+    return m_modelNode;
+}
+
+bool QmlModelNodeFacade::isValid() const
+{
+    return isValidQmlModelNodeFacade(m_modelNode);
+}
+
+bool QmlModelNodeFacade::isValidQmlModelNodeFacade(const ModelNode &modelNode)
+{
+    return modelNode.isValid()
+            && nodeInstanceView(modelNode)
+            && nodeInstanceView(modelNode)->hasInstanceForModelNode(modelNode)
+            && nodeInstanceView(modelNode)->instanceForModelNode(modelNode).isValid();
 }
 
 bool QmlModelNodeFacade::isRootNode() const

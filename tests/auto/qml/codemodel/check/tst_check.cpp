@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -111,7 +111,7 @@ void tst_Check::test()
     QFETCH(QString, path);
 
     Snapshot snapshot;
-    Document::MutablePtr doc = Document::create(path, Document::QmlLanguage);
+    Document::MutablePtr doc = Document::create(path, Language::Qml);
     QFile file(doc->fileName());
     file.open(QFile::ReadOnly | QFile::Text);
     doc->setSource(file.readAll());
@@ -122,7 +122,9 @@ void tst_Check::test()
     QVERIFY(!doc->source().isEmpty());
     QVERIFY(doc->diagnosticMessages().isEmpty());
 
-    ContextPtr context = Link(snapshot, QStringList(), LibraryInfo())();
+    ViewerContext vContext;
+    vContext.flags = ViewerContext::Complete;
+    ContextPtr context = Link(snapshot, vContext, LibraryInfo())();
 
     Check checker(doc, context);
     QList<Message> messages = checker();

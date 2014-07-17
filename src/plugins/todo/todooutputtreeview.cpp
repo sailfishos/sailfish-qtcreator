@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -48,6 +48,7 @@ TodoOutputTreeView::TodoOutputTreeView(QWidget *parent) :
     setFrameStyle(QFrame::NoFrame);
     setSortingEnabled(true);
     setAttribute(Qt::WA_MacShowFocusRect, false);
+    setSelectionBehavior(QTreeView::SelectRows);
 
     header()->setResizeMode(QHeaderView::Interactive);
     header()->setStretchLastSection(true);
@@ -102,6 +103,18 @@ void TodoOutputTreeView::resizeEvent(QResizeEvent *event)
 
     setColumnWidth(Constants::OUTPUT_COLUMN_TEXT, widthText);
     setColumnWidth(Constants::OUTPUT_COLUMN_FILE, widthFile);
+}
+
+void TodoOutputTreeView::keyPressEvent(QKeyEvent *e)
+{
+    if (!e->modifiers()
+            && (e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter)
+            && currentIndex().isValid()) {
+        emit clicked(currentIndex());
+        e->accept();
+        return;
+    }
+    QTreeView::keyPressEvent(e);
 }
 
 void TodoOutputTreeView::todoColumnResized(int column, int oldSize, int newSize)

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (c) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (c) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator
@@ -23,7 +23,7 @@
 // **********************************************************************
 
 /*!
-    \contentspage index.html
+    \contentspage {Qt Creator Manual}
     \previouspage creator-build-example-application.html
     \page creator-tutorials.html
     \nextpage creator-qml-application.html
@@ -46,10 +46,10 @@
 
             Learn how to create a Qt widget based application for the desktop.
 
-        \li \l{Creating an Android Application}
+       \li \l{Creating a Mobile Application}
 
             Learn how to create a Qt Quick application using Qt Quick Controls
-            for Android devices.
+            for Android and iOS devices.
 
         \li \l{Creating a SailfishOS Application}
 

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -34,7 +34,6 @@
 #include "qmljseditorconstants.h"
 
 #include <texteditor/texteditorsettings.h>
-#include <texteditor/fontsettings.h>
 #include <texteditor/texteditorconstants.h>
 #include <texteditor/snippets/snippeteditor.h>
 
@@ -65,10 +64,7 @@ QString QmlJSSnippetProvider::displayName() const
 
 void QmlJSSnippetProvider::decorateEditor(TextEditor::SnippetEditorWidget *editor) const
 {
-    Highlighter *highlighter = new Highlighter;
-    const TextEditor::FontSettings &fs = TextEditor::TextEditorSettings::instance()->fontSettings();
-    highlighter->setFormats(fs.toTextCharFormats(QmlJSTextEditorWidget::highlighterFormatCategories()));
-    editor->setSyntaxHighlighter(highlighter);
-    editor->setIndenter(new Indenter);
+    editor->setSyntaxHighlighter(new Highlighter);
+    editor->baseTextDocument()->setIndenter(new Indenter);
     editor->setAutoCompleter(new AutoCompleter);
 }

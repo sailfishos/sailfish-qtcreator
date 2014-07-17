@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -35,7 +35,6 @@
 
 #include <designdocument.h>
 #include <modelnode.h>
-#include <propertyeditor.h>
 
 #include <QWidget>
 #include <QLabel>
@@ -51,7 +50,6 @@ QT_END_NAMESPACE
 namespace Core {
     class SideBar;
     class SideBarItem;
-    class OpenEditorsModel;
     class EditorToolBar;
     class OutputPanePlaceHolder;
 }
@@ -59,6 +57,7 @@ namespace Core {
 namespace QmlDesigner {
 
 class ItemLibraryWidget;
+class CrumbleBar;
 
 namespace Internal {
 
@@ -111,6 +110,8 @@ public:
     void disableWidgets();
     void showErrorMessage(const QList<RewriterView::Error> &errors);
 
+    CrumbleBar* crumbleBar() const;
+
 public slots:
     void updateErrorStatus(const QList<RewriterView::Error> &errors);
     void restoreDefaultView();
@@ -140,14 +141,15 @@ private: // functions
     QmlDesigner::ModelNode nodeForPosition(int cursorPos) const;
     void addNavigatorHistoryEntry(const QString &fileName);
     QWidget *createCenterWidget();
+    QWidget *createCrumbleBarFrame();
 
 private: // variables
     QSplitter *m_mainSplitter;
     QScopedPointer<Core::SideBar> m_leftSideBar;
     QScopedPointer<Core::SideBar> m_rightSideBar;
+    QPointer<QWidget> m_topSideBar;
     Core::EditorToolBar *m_toolBar;
-    Core::OutputPanePlaceHolder *m_outputPanePlaceholder;
-    Core::MiniSplitter *m_outputPlaceholderSplitter;
+    CrumbleBar *m_crumbleBar;
     bool m_isDisabled;
     bool m_showSidebars;
 

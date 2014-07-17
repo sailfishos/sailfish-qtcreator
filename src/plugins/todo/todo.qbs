@@ -1,17 +1,18 @@
-import qbs.base 1.0
+import qbs 1.0
 
-import "../QtcPlugin.qbs" as QtcPlugin
+import QtcPlugin
 
 QtcPlugin {
     name: "Todo"
 
     Depends { name: "Qt.widgets" }
-    Depends { name: "Core" }
-    Depends { name: "TextEditor" }
-    Depends { name: "ProjectExplorer" }
     Depends { name: "CPlusPlus" }
-    Depends { name: "CppTools" }
     Depends { name: "QmlJS" }
+    Depends { name: "Utils" }
+
+    Depends { name: "Core" }
+    Depends { name: "ProjectExplorer" }
+    Depends { name: "CppTools" }
 
     files: [
         "constants.h",

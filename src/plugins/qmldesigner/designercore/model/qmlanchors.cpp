@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -31,7 +31,7 @@
 #include "bindingproperty.h"
 #include "nodeabstractproperty.h"
 #include "rewritertransaction.h"
-#include "qmlmodelview.h"
+#include "nodeinstanceview.h"
 
 namespace QmlDesigner {
 
@@ -119,6 +119,54 @@ QmlItemNode QmlAnchors::qmlItemNode() const
     return m_qmlItemNode;
 }
 
+bool QmlAnchors::modelHasAnchors() const
+{
+    return modelHasAnchor(AnchorLine::Left)
+            || modelHasAnchor(AnchorLine::Right)
+            || modelHasAnchor(AnchorLine::Top)
+            || modelHasAnchor(AnchorLine::Bottom)
+            || modelHasAnchor(AnchorLine::HorizontalCenter)
+            || modelHasAnchor(AnchorLine::VerticalCenter)
+            || modelHasAnchor(AnchorLine::Baseline);
+}
+
+bool QmlAnchors::modelHasAnchor(AnchorLine::Type sourceAnchorLineType) const
+{
+    const PropertyName propertyName = anchorPropertyName(sourceAnchorLineType);
+
+    if (sourceAnchorLineType & AnchorLine::Fill)
+        return qmlItemNode().modelNode().hasBindingProperty(propertyName) || qmlItemNode().modelNode().hasBindingProperty("anchors.fill");
+
+    if (sourceAnchorLineType & AnchorLine::Center)
+        return qmlItemNode().modelNode().hasBindingProperty(propertyName) || qmlItemNode().modelNode().hasBindingProperty("anchors.centerIn");
+
+    return qmlItemNode().modelNode().hasBindingProperty(anchorPropertyName(sourceAnchorLineType));
+}
+
+AnchorLine QmlAnchors::modelAnchor(AnchorLine::Type sourceAnchorLineType) const
+{
+ QPair<PropertyName, ModelNode> targetAnchorLinePair;
+ if (sourceAnchorLineType & AnchorLine::Fill && qmlItemNode().modelNode().hasBindingProperty("anchors.fill")) {
+     targetAnchorLinePair.second = qmlItemNode().modelNode().bindingProperty("anchors.fill").resolveToModelNode();
+     targetAnchorLinePair.first = lineTypeToString(sourceAnchorLineType);
+ } else if (sourceAnchorLineType & AnchorLine::Center && qmlItemNode().modelNode().hasBindingProperty("anchors.centerIn")) {
+     targetAnchorLinePair.second = qmlItemNode().modelNode().bindingProperty("anchors.centerIn").resolveToModelNode();
+     targetAnchorLinePair.first = lineTypeToString(sourceAnchorLineType);
+ } else {
+     AbstractProperty binding = qmlItemNode().modelNode().bindingProperty(anchorPropertyName(sourceAnchorLineType)).resolveToProperty();
+     targetAnchorLinePair.first = binding.name();
+     targetAnchorLinePair.second = binding.parentModelNode();
+ }
+
+ AnchorLine::Type targetAnchorLine = propertyNameToLineType(targetAnchorLinePair.first);
+
+ if (targetAnchorLine == AnchorLine::Invalid )
+     return AnchorLine();
+
+
+ return AnchorLine(QmlItemNode(targetAnchorLinePair.second), targetAnchorLine);
+}
+
 bool QmlAnchors::isValid() const
 {
     return m_qmlItemNode.isValid();
@@ -128,7 +176,7 @@ void QmlAnchors::setAnchor(AnchorLine::Type sourceAnchorLine,
                           const QmlItemNode &targetQmlItemNode,
                           AnchorLine::Type targetAnchorLine)
 {
-    RewriterTransaction transaction = qmlItemNode().qmlModelView()->beginRewriterTransaction();
+    RewriterTransaction transaction = qmlItemNode().view()->beginRewriterTransaction(QByteArrayLiteral("QmlAnchors::setAnchor"));
     if (qmlItemNode().isInBaseState()) {
         if ((qmlItemNode().nodeInstance().hasAnchor("anchors.fill") && (sourceAnchorLine & AnchorLine::Fill))
              || ((qmlItemNode().nodeInstance().hasAnchor("anchors.centerIn") && (sourceAnchorLine & AnchorLine::Center)))) {
@@ -136,7 +184,8 @@ void QmlAnchors::setAnchor(AnchorLine::Type sourceAnchorLine,
         }
 
         const PropertyName propertyName = anchorPropertyName(sourceAnchorLine);
-        QString targetExpression = targetQmlItemNode.modelNode().validId();
+        ModelNode targetModelNode = targetQmlItemNode.modelNode();
+        QString targetExpression = targetModelNode.validId();
         if (targetQmlItemNode.modelNode() == qmlItemNode().modelNode().parentProperty().parentModelNode())
             targetExpression = "parent";
         if (sourceAnchorLine != AnchorLine::Center && sourceAnchorLine != AnchorLine::Fill)
@@ -276,12 +325,12 @@ AnchorLine QmlAnchors::instanceAnchor(AnchorLine::Type sourceAnchorLine) const
     if (targetAnchorLinePair.second < 0) //there might be no node instance for the parent
         return AnchorLine();
 
-    return AnchorLine(QmlItemNode(qmlItemNode().nodeForInstance(qmlItemNode().qmlModelView()->nodeInstanceView()->instanceForId(targetAnchorLinePair.second))), targetAnchorLine);
+    return AnchorLine(QmlItemNode(qmlItemNode().nodeForInstance(qmlItemNode().nodeInstanceView()->instanceForId(targetAnchorLinePair.second))), targetAnchorLine);
 }
 
 void QmlAnchors::removeAnchor(AnchorLine::Type sourceAnchorLine)
 {
-   RewriterTransaction transaction = qmlItemNode().qmlModelView()->beginRewriterTransaction();
+   RewriterTransaction transaction = qmlItemNode().view()->beginRewriterTransaction(QByteArrayLiteral("QmlAnchors::removeAnchor"));
     if (qmlItemNode().isInBaseState()) {
         const PropertyName propertyName = anchorPropertyName(sourceAnchorLine);
         if (qmlItemNode().nodeInstance().hasAnchor("anchors.fill") && (sourceAnchorLine & AnchorLine::Fill)) {
@@ -303,7 +352,7 @@ void QmlAnchors::removeAnchor(AnchorLine::Type sourceAnchorLine)
 
 void QmlAnchors::removeAnchors()
 {
-    RewriterTransaction transaction = qmlItemNode().qmlModelView()->beginRewriterTransaction();
+    RewriterTransaction transaction = qmlItemNode().view()->beginRewriterTransaction(QByteArrayLiteral("QmlAnchors::removeAnchors"));
     if (qmlItemNode().nodeInstance().hasAnchor("anchors.fill"))
         qmlItemNode().modelNode().removeProperty("anchors.fill");
     if (qmlItemNode().nodeInstance().hasAnchor("anchors.centerIn"))
@@ -491,7 +540,7 @@ void QmlAnchors::removeMargin(AnchorLine::Type sourceAnchorLineType)
 
 void QmlAnchors::removeMargins()
 {
-    RewriterTransaction transaction = qmlItemNode().qmlModelView()->beginRewriterTransaction();
+    RewriterTransaction transaction = qmlItemNode().view()->beginRewriterTransaction(QByteArrayLiteral("QmlAnchors::removeMargins"));
     removeMargin(AnchorLine::Left);
     removeMargin(AnchorLine::Right);
     removeMargin(AnchorLine::Top);

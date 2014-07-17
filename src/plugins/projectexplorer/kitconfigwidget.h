@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -32,11 +32,14 @@
 
 #include "projectexplorer_export.h"
 
+#include <coreplugin/id.h>
+
 #include <QWidget>
 
 namespace ProjectExplorer {
 
 class Kit;
+class KitInformation;
 
 // --------------------------------------------------------------------------
 // KitConfigWidget
@@ -47,7 +50,9 @@ class PROJECTEXPLORER_EXPORT KitConfigWidget : public QObject
     Q_OBJECT
 
 public:
-    KitConfigWidget(Kit *kit, bool sticky) : m_kit(kit), m_isSticky(sticky) { }
+    KitConfigWidget(Kit *kit, const KitInformation *ki);
+
+    Core::Id kitInformationId() const;
 
     virtual QString displayName() const = 0;
     virtual QString toolTip() const { return QString(); }
@@ -58,13 +63,18 @@ public:
     virtual QWidget *mainWidget() const = 0;
     virtual QWidget *buttonWidget() const { return 0; }
 
-    bool isSticky() { return m_isSticky; }
+    bool isSticky() const { return m_isSticky; }
+    bool isMutable() const;
+    void setMutable(bool b);
+
+    static QString msgManage();
 
 signals:
     void dirty();
 
 protected:
-    ProjectExplorer::Kit *m_kit;
+    Kit *m_kit;
+    const KitInformation *m_kitInformation;
     bool m_isSticky;
 };
 

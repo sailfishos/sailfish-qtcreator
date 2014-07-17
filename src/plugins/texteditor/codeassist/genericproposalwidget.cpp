@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -82,8 +82,7 @@ bool isPerfectMatch(const QString &prefix, const IGenericProposalModel *model)
     for (int i = 0; i < model->size(); ++i) {
         const QString &current = cleanText(model->text(i));
         if (!current.isEmpty()) {
-            TextEditor::CaseSensitivity cs =
-                TextEditor::TextEditorSettings::instance()->completionSettings().m_caseSensitivity;
+            CaseSensitivity cs = TextEditorSettings::completionSettings().m_caseSensitivity;
             if (cs == TextEditor::CaseSensitive) {
                 if (prefix == current)
                     return true;
@@ -158,6 +157,9 @@ public:
         layout->setSpacing(0);
         layout->addWidget(m_label);
 
+        // Limit horizontal width
+        m_label->setSizePolicy(QSizePolicy::Fixed, m_label->sizePolicy().verticalPolicy());
+
         m_label->setForegroundRole(QPalette::ToolTipText);
         m_label->setBackgroundRole(QPalette::ToolTipBase);
     }
@@ -165,6 +167,20 @@ public:
     void setText(const QString &text)
     {
         m_label->setText(text);
+    }
+
+    // Workaround QTCREATORBUG-11653
+    void calculateMaximumWidth()
+    {
+        const QDesktopWidget *desktopWidget = QApplication::desktop();
+        const int desktopWidth = desktopWidget->isVirtualDesktop()
+                ? desktopWidget->width()
+                : desktopWidget->availableGeometry(desktopWidget->primaryScreen()).width();
+        const QMargins widgetMargins = contentsMargins();
+        const QMargins layoutMargins = layout()->contentsMargins();
+        const int margins = widgetMargins.left() + widgetMargins.right()
+                + layoutMargins.left() + layoutMargins.right();
+        m_label->setMaximumWidth(desktopWidth - this->pos().x() - margins);
     }
 
 private:
@@ -297,6 +313,7 @@ void GenericProposalWidgetPrivate::maybeShowInfoTip()
 
     m_infoFrame->move(m_completionListView->infoFramePos());
     m_infoFrame->setText(infoTip);
+    m_infoFrame->calculateMaximumWidth();
     m_infoFrame->adjustSize();
     m_infoFrame->show();
     m_infoFrame->raise();
@@ -444,11 +461,12 @@ bool GenericProposalWidget::updateAndCheck(const QString &prefix)
     if (d->m_model->size() == 0
             || (!d->m_model->keepPerfectMatch(d->m_reason)
                 && isPerfectMatch(prefix, d->m_model))) {
+        d->m_completionListView->reset();
         abort();
         return false;
     }
     if (d->m_model->isSortable(prefix))
-        d->m_model->sort();
+        d->m_model->sort(prefix);
     d->m_completionListView->reset();
 
     // Try to find the previosly explicit selection (if any). If we can find the item set it
@@ -468,13 +486,14 @@ bool GenericProposalWidget::updateAndCheck(const QString &prefix)
             d->m_explicitlySelected = false;
     }
 
-    if (TextEditorSettings::instance()->completionSettings().m_partiallyComplete
+    if (TextEditorSettings::completionSettings().m_partiallyComplete
             && d->m_kind == Completion
             && d->m_justInvoked
             && d->m_isSynchronized) {
         if (d->m_model->size() == 1) {
             IAssistProposalItem *item = d->m_model->proposalItem(0);
             if (item->implicitlyApplies()) {
+                d->m_completionListView->reset();
                 abort();
                 emit proposalItemActivated(item);
                 return false;
@@ -548,9 +567,7 @@ bool GenericProposalWidget::eventFilter(QObject *o, QEvent *e)
             if (fe->reason() == Qt::OtherFocusReason) {
                 // Qt/carbon workaround
                 // focus out is received before the key press event.
-                if (d->m_completionListView->currentIndex().isValid())
-                    emit proposalItemActivated(d->m_model->proposalItem(
-                                                   d->m_completionListView->currentIndex().row()));
+                activateCurrentProposalItem();
             }
         }
         if (d->m_infoFrame)
@@ -571,6 +588,8 @@ bool GenericProposalWidget::eventFilter(QObject *o, QEvent *e)
         switch (ke->key()) {
         case Qt::Key_Escape:
             abort();
+            emit explicitlyAborted();
+            e->accept();
             return true;
 
         case Qt::Key_N:
@@ -592,9 +611,7 @@ bool GenericProposalWidget::eventFilter(QObject *o, QEvent *e)
         case Qt::Key_Return:
             if (!useCarbonWorkaround()) {
                 abort();
-                if (d->m_completionListView->currentIndex().isValid())
-                    emit proposalItemActivated(d->m_model->proposalItem(
-                                                   d->m_completionListView->currentIndex().row()));
+                activateCurrentProposalItem();
             }
             return true;
 
@@ -655,6 +672,21 @@ bool GenericProposalWidget::eventFilter(QObject *o, QEvent *e)
         return true;
     }
     return false;
+}
+
+bool GenericProposalWidget::activateCurrentProposalItem()
+{
+    if (d->m_completionListView->currentIndex().isValid()) {
+        const int currentRow = d->m_completionListView->currentIndex().row();
+        emit proposalItemActivated(d->m_model->proposalItem(currentRow));
+        return true;
+    }
+    return false;
+}
+
+IGenericProposalModel *GenericProposalWidget::model()
+{
+    return d->m_model;
 }
 
 #include "genericproposalwidget.moc"

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -28,6 +28,8 @@
 ****************************************************************************/
 
 #include "childrenchangedcommand.h"
+
+#include <QDebug>
 
 namespace QmlDesigner {
 
@@ -58,6 +60,12 @@ QVector<InformationContainer> ChildrenChangedCommand::informations() const
     return m_informationVector;
 }
 
+void ChildrenChangedCommand::sort()
+{
+    qSort(m_childrenVector);
+    qSort(m_informationVector);
+}
+
 QDataStream &operator<<(QDataStream &out, const ChildrenChangedCommand &command)
 {
     out << command.parentInstanceId();
@@ -73,6 +81,21 @@ QDataStream &operator>>(QDataStream &in, ChildrenChangedCommand &command)
     in >> command.m_informationVector;
 
     return in;
+}
+
+bool operator ==(const ChildrenChangedCommand &first, const ChildrenChangedCommand &second)
+{
+    return first.m_parentInstanceId == second.m_parentInstanceId
+            && first.m_childrenVector == second.m_childrenVector
+            && first.m_informationVector == second.m_informationVector;
+}
+
+QDebug operator <<(QDebug debug, const ChildrenChangedCommand &command)
+{
+    return debug.nospace() << "ChildrenChangedCommand("
+                           << "parentInstanceId: " << command.parentInstanceId() << ", "
+                           << "children: " << command.childrenInstances() << ", "
+                           << "informations: " << command.informations() << ")";
 }
 
 } // namespace QmlDesigner

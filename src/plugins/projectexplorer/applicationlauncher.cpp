@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -35,10 +35,8 @@
 #include <coreplugin/icore.h>
 
 #include <utils/consoleprocess.h>
+#include <utils/fileutils.h>
 #include <utils/qtcprocess.h>
-#ifdef Q_OS_WIN
-#include <utils/winutils.h>
-#endif
 
 #include <QTextCodec>
 
@@ -90,7 +88,7 @@ ApplicationLauncherPrivate::ApplicationLauncherPrivate() :
 ApplicationLauncher::ApplicationLauncher(QObject *parent)
     : QObject(parent), d(new ApplicationLauncherPrivate)
 {
-    if (ProjectExplorerPlugin::instance()->projectExplorerSettings().mergeStdErrAndStdOut){
+    if (ProjectExplorerPlugin::projectExplorerSettings().mergeStdErrAndStdOut){
         d->m_guiProcess.setReadChannelMode(QProcess::MergedChannels);
     } else {
         d->m_guiProcess.setReadChannelMode(QProcess::SeparateChannels);
@@ -113,8 +111,8 @@ ApplicationLauncher::ApplicationLauncher(QObject *parent)
             this, SIGNAL(processStarted()));
     connect(&d->m_consoleProcess, SIGNAL(processError(QString)),
             this, SLOT(consoleProcessError(QString)));
-    connect(&d->m_consoleProcess, SIGNAL(processStopped()),
-            this, SLOT(processStopped()));
+    connect(&d->m_consoleProcess, SIGNAL(processStopped(int,QProcess::ExitStatus)),
+            this, SLOT(processDone(int,QProcess::ExitStatus)));
 
 #ifdef Q_OS_WIN
     connect(WinDebugInterface::instance(), SIGNAL(cannotRetrieveDebugOutput()),
@@ -131,19 +129,10 @@ ApplicationLauncher::~ApplicationLauncher()
 
 void ApplicationLauncher::setWorkingDirectory(const QString &dir)
 {
-#ifdef Q_OS_WIN
     // Work around QTBUG-17529 (QtDeclarative fails with 'File name case mismatch' ...)
-    const QString fixedPath = Utils::normalizePathName(dir);
-#else
-#   define fixedPath dir
-#endif
-
+    const QString fixedPath = Utils::FileUtils::normalizePathName(dir);
     d->m_guiProcess.setWorkingDirectory(fixedPath);
     d->m_consoleProcess.setWorkingDirectory(fixedPath);
-
-#ifndef Q_OS_WIN
-#   undef fixedPath
-#endif
 }
 
 void ApplicationLauncher::setEnvironment(const Utils::Environment &env)
@@ -181,7 +170,7 @@ void ApplicationLauncher::stop()
         }
     } else {
         d->m_consoleProcess.stop();
-        processStopped();
+        processDone(0, QProcess::CrashExit);
     }
 }
 
@@ -214,12 +203,14 @@ qint64 ApplicationLauncher::applicationPID() const
 void ApplicationLauncher::guiProcessError()
 {
     QString error;
+    QProcess::ExitStatus status = QProcess::NormalExit;
     switch (d->m_guiProcess.error()) {
     case QProcess::FailedToStart:
         error = tr("Failed to start program. Path or permissions wrong?");
         break;
     case QProcess::Crashed:
         error = tr("The program has unexpectedly finished.");
+        status = QProcess::CrashExit;
         break;
     default:
         error = tr("Some error has occurred while running the program.");
@@ -227,7 +218,7 @@ void ApplicationLauncher::guiProcessError()
     emit appendMessage(error + QLatin1Char('\n'), Utils::ErrorMessageFormat);
     if (d->m_processRunning && !isRunning()) {
         d->m_processRunning = false;
-        emit processExited(-1);
+        emit processExited(-1, status);
     }
 }
 
@@ -236,7 +227,7 @@ void ApplicationLauncher::consoleProcessError(const QString &error)
     emit appendMessage(error + QLatin1Char('\n'), Utils::ErrorMessageFormat);
     if (d->m_processRunning && d->m_consoleProcess.applicationPID() == 0) {
         d->m_processRunning = false;
-        emit processExited(-1);
+        emit processExited(-1, QProcess::NormalExit);
     }
 }
 
@@ -270,14 +261,9 @@ void ApplicationLauncher::checkDebugOutput(qint64 pid, const QString &message)
 }
 #endif
 
-void ApplicationLauncher::processStopped()
+void ApplicationLauncher::processDone(int exitCode, QProcess::ExitStatus status)
 {
-    emit processExited(0);
-}
-
-void ApplicationLauncher::processDone(int exitCode, QProcess::ExitStatus)
-{
-    emit processExited(exitCode);
+    emit processExited(exitCode, status);
 }
 
 void ApplicationLauncher::bringToForeground()
@@ -288,7 +274,7 @@ void ApplicationLauncher::bringToForeground()
 
 QString ApplicationLauncher::msgWinCannotRetrieveDebuggingOutput()
 {
-    return tr("Cannot retrieve debugging output.\n");
+    return tr("Cannot retrieve debugging output.") + QLatin1Char('\n');
 }
 
 } // namespace ProjectExplorer

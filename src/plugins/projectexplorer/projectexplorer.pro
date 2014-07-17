@@ -1,4 +1,4 @@
-QT += xml script declarative
+QT += xml script
 
 include(../../qtcreatorplugin.pri)
 include(customwizard/customwizard.pri)
@@ -6,15 +6,22 @@ HEADERS += projectexplorer.h \
     abi.h \
     abiwidget.h \
     ansifilterparser.h \
+    buildinfo.h \
     clangparser.h \
     environmentaspect.h \
     environmentaspectwidget.h \
     gcctoolchain.h \
+    importwidget.h \
     localapplicationrunconfiguration.h \
     localenvironmentaspect.h \
+    osparser.h \
     projectexplorer_export.h \
+    projectimporter.h \
     projectwindow.h \
     removetaskhandler.h \
+    targetsetuppage.h \
+    targetsetupwidget.h \
+    unconfiguredprojectpanel.h \
     kit.h \
     kitchooser.h \
     kitconfigwidget.h \
@@ -83,7 +90,6 @@ HEADERS += projectexplorer.h \
     cesdkhandler.h \
     gccparser.h \
     projectexplorersettingspage.h \
-    projectwelcomepage.h \
     baseprojectwizarddialog.h \
     miniprojecttargetselector.h \
     targetselector.h \
@@ -99,8 +105,6 @@ HEADERS += projectexplorer.h \
     taskhub.h \
     localapplicationruncontrol.h \
     metatypedeclarations.h \
-    publishing/publishingwizardselectiondialog.h \
-    publishing/ipublishingwizardfactory.h \
     headerpath.h \
     gcctoolchainfactories.h \
     appoutputpane.h \
@@ -113,23 +117,34 @@ HEADERS += projectexplorer.h \
     devicesupport/desktopdevicefactory.h \
     devicesupport/idevicewidget.h \
     devicesupport/idevicefactory.h \
+    devicesupport/desktopdeviceprocess.h \
     devicesupport/devicecheckbuildstep.h \
     devicesupport/devicemanager.h \
     devicesupport/devicemanagermodel.h \
     devicesupport/devicefactoryselectiondialog.h \
+    devicesupport/deviceprocess.h \
     devicesupport/deviceprocesslist.h \
     devicesupport/deviceprocessesdialog.h \
     devicesupport/devicesettingswidget.h \
     devicesupport/devicesettingspage.h \
+    devicesupport/devicetestdialog.h \
+    devicesupport/devicetypekitchooser.h \
     devicesupport/deviceusedportsgatherer.h \
     devicesupport/deviceapplicationrunner.h \
     devicesupport/localprocesslist.h \
+    devicesupport/sshdeviceprocess.h \
     devicesupport/sshdeviceprocesslist.h \
     devicesupport/desktopdeviceconfigurationwidget.h \
+    devicesupport/desktopprocesssignaloperation.h \
     deploymentdata.h \
     buildtargetinfo.h \
     customtoolchain.h \
-    projectmacroexpander.h
+    projectmacroexpander.h \
+    customparser.h \
+    customparserconfigdialog.h \
+    ipotentialkit.h \
+    selectablefilesmodel.h \
+    xcodebuildparser.h
 
 SOURCES += projectexplorer.cpp \
     abi.cpp \
@@ -139,12 +154,19 @@ SOURCES += projectexplorer.cpp \
     environmentaspect.cpp \
     environmentaspectwidget.cpp \
     gcctoolchain.cpp \
+    importwidget.cpp \
     localapplicationrunconfiguration.cpp \
     localenvironmentaspect.cpp \
+    osparser.cpp \
+    projectimporter.cpp \
     projectwindow.cpp \
     removetaskhandler.cpp \
+    targetsetuppage.cpp \
+    targetsetupwidget.cpp \
+    unconfiguredprojectpanel.cpp \
     kit.cpp \
     kitchooser.cpp \
+    kitconfigwidget.cpp \
     kitinformation.cpp \
     kitinformationconfigwidget.cpp \
     kitmanager.cpp \
@@ -205,7 +227,6 @@ SOURCES += projectexplorer.cpp \
     cesdkhandler.cpp \
     gccparser.cpp \
     projectexplorersettingspage.cpp \
-    projectwelcomepage.cpp \
     corelistenercheckingforrunningbuild.cpp \
     baseprojectwizarddialog.cpp \
     miniprojecttargetselector.cpp \
@@ -220,7 +241,6 @@ SOURCES += projectexplorer.cpp \
     taskhub.cpp \
     processparameters.cpp \
     localapplicationruncontrol.cpp \
-    publishing/publishingwizardselectiondialog.cpp \
     appoutputpane.cpp \
     codestylesettingspropertiespage.cpp \
     settingsaccessor.cpp \
@@ -229,22 +249,33 @@ SOURCES += projectexplorer.cpp \
     devicesupport/desktopdevice.cpp \
     devicesupport/desktopdevicefactory.cpp \
     devicesupport/idevicefactory.cpp \
+    devicesupport/desktopdeviceprocess.cpp \
     devicesupport/devicecheckbuildstep.cpp \
     devicesupport/devicemanager.cpp \
     devicesupport/devicemanagermodel.cpp \
     devicesupport/devicefactoryselectiondialog.cpp \
+    devicesupport/deviceprocess.cpp \
     devicesupport/deviceprocesslist.cpp \
     devicesupport/deviceprocessesdialog.cpp \
     devicesupport/devicesettingswidget.cpp \
     devicesupport/devicesettingspage.cpp \
+    devicesupport/devicetestdialog.cpp \
+    devicesupport/devicetypekitchooser.cpp \
     devicesupport/deviceusedportsgatherer.cpp \
     devicesupport/deviceapplicationrunner.cpp \
     devicesupport/localprocesslist.cpp \
+    devicesupport/sshdeviceprocess.cpp \
     devicesupport/sshdeviceprocesslist.cpp \
     devicesupport/desktopdeviceconfigurationwidget.cpp \
+    devicesupport/desktopprocesssignaloperation.cpp \
     deployablefile.cpp \
     customtoolchain.cpp \
-    projectmacroexpander.cpp
+    projectmacroexpander.cpp \
+    customparser.cpp \
+    customparserconfigdialog.cpp \
+    ipotentialkit.cpp \
+    selectablefilesmodel.cpp \
+    xcodebuildparser.cpp
 
 FORMS += processstep.ui \
     editorsettingspropertiespage.ui \
@@ -253,11 +284,12 @@ FORMS += processstep.ui \
     projectexplorersettingspage.ui \
     targetsettingswidget.ui \
     doubletabwidget.ui \
-    publishing/publishingwizardselectiondialog.ui \
     codestylesettingspropertiespage.ui \
     devicesupport/devicefactoryselectiondialog.ui \
     devicesupport/devicesettingswidget.ui \
-    devicesupport/desktopdeviceconfigurationwidget.ui
+    devicesupport/devicetestdialog.ui \
+    devicesupport/desktopdeviceconfigurationwidget.ui \
+    customparserconfigdialog.ui
 
 WINSOURCES += \
     windebuginterface.cpp \
@@ -285,6 +317,11 @@ equals(TEST, 1) {
         outputparser_test.h
 }
 
+greaterThan(QT_MAJOR_VERSION, 4) {
+    QT += quick
+    HEADERS += projectwelcomepage.h
+    SOURCES += projectwelcomepage.cpp
+}
 macx:LIBS += -framework Carbon
 
 RESOURCES += projectexplorer.qrc

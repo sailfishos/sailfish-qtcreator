@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -31,6 +31,8 @@
 
 #include "debuggerstartparameters.h"
 #include "debuggerdialogs.h"
+#include "debuggerkitinformation.h"
+#include "gdb/coregdbadapter.h"
 
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/projectexplorerconstants.h>
@@ -236,14 +238,17 @@ AttachCoreDialog::AttachCoreDialog(QWidget *parent)
     d->forceLocalLabel->setBuddy(d->forceLocalCheckBox);
 
     d->localExecFileName = new PathChooser(this);
+    d->localExecFileName->setHistoryCompleter(QLatin1String("LocalExecutable"));
     d->localExecFileName->setExpectedKind(PathChooser::File);
     d->localExecFileName->setPromptDialogTitle(tr("Select Executable"));
 
     d->localCoreFileName = new PathChooser(this);
+    d->localCoreFileName->setHistoryCompleter(QLatin1String("Debugger.CoreFile.History"));
     d->localCoreFileName->setExpectedKind(PathChooser::File);
     d->localCoreFileName->setPromptDialogTitle(tr("Select Core File"));
 
     d->overrideStartScriptFileName = new PathChooser(this);
+    d->overrideStartScriptFileName->setHistoryCompleter(QLatin1String("Debugger.StartupScript.History"));
     d->overrideStartScriptFileName->setExpectedKind(PathChooser::File);
     d->overrideStartScriptFileName->setPromptDialogTitle(tr("Select Startup Script"));
 
@@ -262,9 +267,9 @@ AttachCoreDialog::AttachCoreDialog(QWidget *parent)
     formLayout->setHorizontalSpacing(6);
     formLayout->setVerticalSpacing(6);
     formLayout->addRow(tr("Kit:"), d->kitChooser);
-    formLayout->addRow(tr("&Executable:"), d->localExecFileName);
     formLayout->addRow(d->forceLocalLabel, d->forceLocalCheckBox);
     formLayout->addRow(tr("Core file:"), coreLayout);
+    formLayout->addRow(tr("&Executable:"), d->localExecFileName);
     formLayout->addRow(tr("Override &start script:"), d->overrideStartScriptFileName);
 
     QFrame *line = new QFrame(this);
@@ -288,11 +293,11 @@ AttachCoreDialog::~AttachCoreDialog()
 int AttachCoreDialog::exec()
 {
     connect(d->selectRemoteCoreButton, SIGNAL(clicked()), SLOT(selectRemoteCoreFile()));
-    connect(d->remoteCoreFileName, SIGNAL(textChanged(QString)), SLOT(changed()));
+    connect(d->remoteCoreFileName, SIGNAL(textChanged(QString)), SLOT(coreFileChanged(QString)));
     connect(d->localExecFileName, SIGNAL(changed(QString)), SLOT(changed()));
-    connect(d->localCoreFileName, SIGNAL(changed(QString)), SLOT(changed()));
+    connect(d->localCoreFileName, SIGNAL(changed(QString)), SLOT(coreFileChanged(QString)));
     connect(d->forceLocalCheckBox, SIGNAL(stateChanged(int)), SLOT(changed()));
-    connect(d->kitChooser, SIGNAL(activated(int)), SLOT(changed()));
+    connect(d->kitChooser, SIGNAL(currentIndexChanged(int)), SLOT(changed()));
     connect(d->buttonBox, SIGNAL(rejected()), SLOT(reject()));
     connect(d->buttonBox, SIGNAL(accepted()), SLOT(accept()));
     changed();
@@ -314,9 +319,20 @@ bool AttachCoreDialog::useLocalCoreFile() const
     return isLocalKit() || d->forceLocalCheckBox->isChecked();
 }
 
+void AttachCoreDialog::coreFileChanged(const QString &core)
+{
+    Kit *k = d->kitChooser->currentKit();
+    QTC_ASSERT(k, return);
+    FileName cmd = DebuggerKitInformation::debuggerCommand(k);
+    bool isCore = false;
+    QString exe = readExecutableNameFromCore(cmd.toString(), core, &isCore);
+    d->localExecFileName->setFileName(FileName::fromString(exe));
+    changed();
+}
+
 void AttachCoreDialog::changed()
 {
-    bool isValid = d->kitChooser->currentIndex() >= 0 && d->localExecFileName->isValid();
+    bool isValid = d->kitChooser->currentKit() && d->localExecFileName->isValid();
     bool isKitLocal = isLocalKit();
 
     d->forceLocalLabel->setVisible(!isKitLocal);

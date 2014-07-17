@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -42,6 +42,8 @@ namespace QmlDesigner {
 class PropertyValueContainer
 {
     friend QDataStream &operator>>(QDataStream &in, PropertyValueContainer &container);
+    friend bool operator ==(const PropertyValueContainer &first, const PropertyValueContainer &second);
+    friend bool operator <(const PropertyValueContainer &first, const PropertyValueContainer &second);
 
 public:
     PropertyValueContainer();
@@ -62,6 +64,10 @@ private:
 
 QDataStream &operator<<(QDataStream &out, const PropertyValueContainer &container);
 QDataStream &operator>>(QDataStream &in, PropertyValueContainer &container);
+
+bool operator ==(const PropertyValueContainer &first, const PropertyValueContainer &second);
+bool operator <(const PropertyValueContainer &first, const PropertyValueContainer &second);
+QDebug operator <<(QDebug debug, const PropertyValueContainer &container);
 
 } // namespace QmlDesigner
 

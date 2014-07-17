@@ -2,13 +2,17 @@ import qbs
 
 Project {
     name: "Plugins"
+
     references: [
         "analyzerbase/analyzerbase.qbs",
         "android/android.qbs",
         "autotoolsprojectmanager/autotoolsprojectmanager.qbs",
+        "baremetal/baremetal.qbs",
         "bazaar/bazaar.qbs",
+        "beautifier/beautifier.qbs",
         "bineditor/bineditor.qbs",
         "bookmarks/bookmarks.qbs",
+        "clangcodemodel/clangcodemodel.qbs",
         "classview/classview.qbs",
         "clearcase/clearcase.qbs",
         "cmakeprojectmanager/cmakeprojectmanager.qbs",
@@ -31,9 +35,9 @@ Project {
         "helloworld/helloworld.qbs",
         "help/help.qbs",
         "imageviewer/imageviewer.qbs",
+        "ios/ios.qbs",
         "locator/locator.qbs",
         "macros/macros.qbs",
-        "madde/madde.qbs",
         "mercurial/mercurial.qbs",
         "perforce/perforce.qbs",
         "projectexplorer/projectexplorer.qbs",
@@ -45,7 +49,7 @@ Project {
         "qmlprofiler/qmlprofiler.qbs",
         "qmlprojectmanager/qmlprojectmanager.qbs",
         "qnx/qnx.qbs",
-        "qt4projectmanager/qt4projectmanager.qbs",
+        "qmakeprojectmanager/qmakeprojectmanager.qbs",
         "qtsupport/qtsupport.qbs",
         "remotelinux/remotelinux.qbs",
         "resourceeditor/resourceeditor.qbs",
@@ -56,6 +60,7 @@ Project {
         "updateinfo/updateinfo.qbs",
         "valgrind/valgrind.qbs",
         "vcsbase/vcsbase.qbs",
-        "welcome/welcome.qbs"
-    ]
+        "welcome/welcome.qbs",
+        "winrt/winrt.qbs"
+    ].concat(project.additionalPlugins)
 }

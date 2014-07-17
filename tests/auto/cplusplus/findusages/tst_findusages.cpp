@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -75,6 +75,9 @@ class tst_FindUsages: public QObject
 {
     Q_OBJECT
 
+private:
+    void dump(const QList<Usage> &usages) const;
+
 private Q_SLOTS:
     void inlineMethod();
     void lambdaCaptureByValue();
@@ -96,12 +99,33 @@ private Q_SLOTS:
     void instantiateTemplateWithNestedClass();
     void operatorAsteriskOfNestedClassOfTemplateClass_QTCREATORBUG9006();
     void operatorArrowOfNestedClassOfTemplateClass_QTCREATORBUG9005();
+    void templateClassParameters();
+    void templateClass_className();
+    void templateFunctionParameters();
+
     void anonymousClass_QTCREATORBUG8963();
+    void anonymousClass_QTCREATORBUG11859();
     void using_insideGlobalNamespace();
     void using_insideNamespace();
     void using_insideFunction();
     void templatedFunction_QTCREATORBUG9749();
+
+    void usingInDifferentNamespace_QTCREATORBUG7978();
 };
+
+void tst_FindUsages::dump(const QList<Usage> &usages) const
+{
+    QTextStream err(stderr, QIODevice::WriteOnly);
+    err << "DEBUG  : " << usages.size() << " usages:" << endl;
+    foreach (const Usage &usage, usages) {
+        err << "DEBUG  : "
+            << usage.path << ":"
+            << usage.line << ":"
+            << usage.col << ":"
+            << usage.len << ":"
+            << usage.lineText << endl;
+    }
+}
 
 void tst_FindUsages::inlineMethod()
 {
@@ -539,6 +563,49 @@ void tst_FindUsages::anonymousClass_QTCREATORBUG8963()
     QCOMPARE(findUsages.usages().size(), 2);
 }
 
+void tst_FindUsages::anonymousClass_QTCREATORBUG11859()
+{
+    const QByteArray src =
+            "struct Foo {\n"
+            "};\n"
+            "typedef struct {\n"
+            " int Foo;\n"
+            "} Struct;\n"
+            "void foo()\n"
+            "{\n"
+            " Struct s;\n"
+            " s.Foo;\n"
+            "}\n"
+            ;
+
+    Document::Ptr doc = Document::create("anonymousClass_QTCREATORBUG11859");
+    doc->setUtf8Source(src);
+    doc->parse();
+    doc->check();
+
+    QVERIFY(doc->diagnosticMessages().isEmpty());
+    QCOMPARE(doc->globalSymbolCount(), 4U);
+
+    Snapshot snapshot;
+    snapshot.insert(doc);
+
+    Class *fooAsStruct = doc->globalSymbolAt(0)->asClass();
+    QVERIFY(fooAsStruct);
+    Class *structSymbol = doc->globalSymbolAt(1)->asClass();
+    QVERIFY(structSymbol);
+    QCOMPARE(structSymbol->memberCount(), 1U);
+    Declaration *fooAsMemberOfAnonymousStruct = structSymbol->memberAt(0)->asDeclaration();
+    QVERIFY(fooAsMemberOfAnonymousStruct);
+    QCOMPARE(fooAsMemberOfAnonymousStruct->name()->identifier()->chars(), "Foo");
+
+    FindUsages findUsages(src, doc, snapshot);
+    findUsages(fooAsStruct);
+    QCOMPARE(findUsages.references().size(), 1);
+
+    findUsages(fooAsMemberOfAnonymousStruct);
+    QCOMPARE(findUsages.references().size(), 2);
+}
+
 void tst_FindUsages::using_insideGlobalNamespace()
 {
     const QByteArray src =
@@ -706,6 +773,115 @@ void tst_FindUsages::operatorArrowOfNestedClassOfTemplateClass_QTCREATORBUG9005(
     QCOMPARE(findUsages.usages().size(), 2);
 }
 
+void tst_FindUsages::templateClassParameters()
+{
+    const QByteArray src = "\n"
+            "template <class T>\n"
+            "struct TS\n"
+            "{\n"
+            "    void set(T t) { T t1 = t; }\n"
+            "    T get();\n"
+            "    T t;\n"
+            "};\n"
+            ;
+
+    Document::Ptr doc = Document::create("templateClassParameters");
+    doc->setUtf8Source(src);
+    doc->parse();
+    doc->check();
+
+    QVERIFY(doc->diagnosticMessages().isEmpty());
+    QCOMPARE(doc->globalSymbolCount(), 1U);
+
+    Snapshot snapshot;
+    snapshot.insert(doc);
+
+    Template *templateClassTS = doc->globalSymbolAt(0)->asTemplate();
+    QVERIFY(templateClassTS);
+    QCOMPARE(templateClassTS->memberCount(), 2U);
+    QCOMPARE(templateClassTS->templateParameterCount(), 1U);
+    TypenameArgument *templArgument = templateClassTS->templateParameterAt(0)->asTypenameArgument();
+    QVERIFY(templArgument);
+
+    FindUsages findUsages(src, doc, snapshot);
+    findUsages(templArgument);
+    QCOMPARE(findUsages.usages().size(), 5);
+}
+
+void tst_FindUsages::templateClass_className()
+{
+    const QByteArray src = "\n"
+            "template <class T>\n"
+            "struct TS\n"
+            "{\n"
+            "    TS();\n"
+            "    ~TS();\n"
+            "};\n"
+            "template <class T>\n"
+            "TS<T>::TS()\n"
+            "{\n"
+            "}\n"
+            "template <class T>\n"
+            "TS<T>::~TS()\n"
+            "{\n"
+            "}\n"
+            ;
+
+    Document::Ptr doc = Document::create("templateClass_className");
+    doc->setUtf8Source(src);
+    doc->parse();
+    doc->check();
+
+    QVERIFY(doc->diagnosticMessages().isEmpty());
+    QCOMPARE(doc->globalSymbolCount(), 3U);
+
+    Snapshot snapshot;
+    snapshot.insert(doc);
+
+    Template *templateClassTS = doc->globalSymbolAt(0)->asTemplate();
+    QVERIFY(templateClassTS);
+    Class *classTS = templateClassTS->memberAt(1)->asClass();
+    QVERIFY(classTS);
+    QCOMPARE(classTS->memberCount(), 2U);
+
+    FindUsages findUsages(src, doc, snapshot);
+    findUsages(classTS);
+    QCOMPARE(findUsages.usages().size(), 7);
+}
+
+void tst_FindUsages::templateFunctionParameters()
+{
+    const QByteArray src = "\n"
+            "template<class T>\n"
+            "T foo(T t)\n"
+            "{\n"
+            "    typename T;\n"
+            "}\n"
+            ;
+
+    Document::Ptr doc = Document::create("templateFunctionParameters");
+    doc->setUtf8Source(src);
+    doc->parse();
+    doc->check();
+
+    QVERIFY(doc->diagnosticMessages().isEmpty());
+    QCOMPARE(doc->globalSymbolCount(), 1U);
+
+    Snapshot snapshot;
+    snapshot.insert(doc);
+
+    Template *templateFunctionTS = doc->globalSymbolAt(0)->asTemplate();
+    QVERIFY(templateFunctionTS);
+    QCOMPARE(templateFunctionTS->memberCount(), 2U);
+    QCOMPARE(templateFunctionTS->templateParameterCount(), 1U);
+    TypenameArgument *templArgument = templateFunctionTS->templateParameterAt(0)->asTypenameArgument();
+    QVERIFY(templArgument);
+
+    FindUsages findUsages(src, doc, snapshot);
+    findUsages(templArgument);
+    QCOMPARE(findUsages.usages().size(), 4);
+}
+
 void tst_FindUsages::templatedFunction_QTCREATORBUG9749()
 {
     const QByteArray src = "\n"
@@ -734,6 +910,45 @@ void tst_FindUsages::templatedFunction_QTCREATORBUG9749()
     FindUsages findUsages(src, doc, snapshot);
     findUsages(func);
     QCOMPARE(findUsages.usages().size(), 2);
+}
+
+void tst_FindUsages::usingInDifferentNamespace_QTCREATORBUG7978()
+{
+    const QByteArray src = "\n"
+            "struct S {};\n"
+            "namespace std\n"
+            "{\n"
+            "    template <typename T> struct shared_ptr{};\n"
+            "}\n"
+            "namespace NS\n"
+            "{\n"
+            "    using std::shared_ptr;\n"
+            "}\n"
+            "void fun()\n"
+            "{\n"
+            "    NS::shared_ptr<S> p;\n"
+            "}\n"
+            ;
+
+    Document::Ptr doc = Document::create("usingInDifferentNamespace_QTCREATORBUG7978");
+    doc->setUtf8Source(src);
+    doc->parse();
+    doc->check();
+
+    QVERIFY(doc->diagnosticMessages().isEmpty());
+    QCOMPARE(doc->globalSymbolCount(), 4U);
+
+    Snapshot snapshot;
+    snapshot.insert(doc);
+
+    Namespace *ns = doc->globalSymbolAt(1)->asNamespace();
+    QVERIFY(ns);
+    QCOMPARE(ns->memberCount(), 1U);
+    Template *templateClass = ns->memberAt(0)->asTemplate();
+
+    FindUsages findUsages(src, doc, snapshot);
+    findUsages(templateClass);
+    QCOMPARE(findUsages.usages().size(), 3);
 }
 
 QTEST_APPLESS_MAIN(tst_FindUsages)

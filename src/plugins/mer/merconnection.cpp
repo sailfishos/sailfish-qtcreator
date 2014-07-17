@@ -161,9 +161,7 @@ void MerConnection::initialize()
     m_action->setVisible(m_visible);
     m_uiInitalized = true;
 
-    TaskHub *th = ProjectExplorerPlugin::instance()->taskHub();
-    th->addCategory(m_taskId, tr("Virtual Machine Error"));
-
+    TaskHub::addCategory(m_taskId, tr("Virtual Machine Error"));
 }
 
 bool MerConnection::isConnected() const
@@ -385,19 +383,17 @@ void MerConnection::disconnectFrom()
 
 void  MerConnection::createConnectionErrorTask(const QString &vmName, const QString &error, Core::Id category)
 {
-    TaskHub *th = ProjectExplorerPlugin::instance()->taskHub();
-    th->clearTasks(category);
-    th->addTask(Task(Task::Error,
-                     tr("%1: %2").arg(vmName, error),
-                     Utils::FileName() /* filename */,
-                     -1 /* linenumber */,
-                     category));
+    TaskHub::clearTasks(category);
+    TaskHub::addTask(Task(Task::Error,
+                          tr("%1: %2").arg(vmName, error),
+                          Utils::FileName() /* filename */,
+                          -1 /* linenumber */,
+                          category));
 }
 
 void  MerConnection::removeConnectionErrorTask(Core::Id category)
 {
-    TaskHub *th = ProjectExplorerPlugin::instance()->taskHub();
-    th->clearTasks(category);
+    TaskHub::clearTasks(category);
 }
 
 } // Internal

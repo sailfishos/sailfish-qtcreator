@@ -40,9 +40,11 @@ MerOptionsPage::MerOptionsPage(QObject *parent)
     setDisplayName(QCoreApplication::translate("Mer", Constants::MER_OPTIONS_NAME));
 }
 
-QWidget *MerOptionsPage::createPage(QWidget *parent)
+QWidget *MerOptionsPage::widget()
 {
-    m_widget = new MerOptionsWidget(parent);
+    Q_ASSERT(m_widget == 0);
+
+    m_widget = new MerOptionsWidget();
     connect(m_widget, SIGNAL(updateSearchKeys()), SLOT(onUpdateSearchKeys()));
     m_searchKeyWords = m_widget->searchKeyWordMatchString();
     return m_widget;

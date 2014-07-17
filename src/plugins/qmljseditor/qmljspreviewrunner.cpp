@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -28,6 +28,8 @@
 ****************************************************************************/
 
 #include "qmljspreviewrunner.h"
+
+#include <coreplugin/icore.h>
 
 #include <utils/environment.h>
 #include <utils/hostosinfo.h>
@@ -71,8 +73,8 @@ void QmlJSPreviewRunner::run(const QString &filename)
     }
 
     if (!errorMessage.isEmpty())
-        QMessageBox::warning(0, tr("Failed to preview Qt Quick file"),
-                             tr("Could not preview Qt Quick (QML) file. Reason: \n%1").arg(errorMessage));
+        QMessageBox::warning(Core::ICore::dialogParent(), tr("Failed to preview Qt Quick file"),
+                             tr("Could not preview Qt Quick (QML) file. Reason:\n%1").arg(errorMessage));
 }
 
 

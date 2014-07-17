@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -77,6 +77,13 @@ BehaviorSettingsWidget::BehaviorSettingsWidget(QWidget *parent)
         d->m_codecs.append(codec);
     }
 
+    // Qt5 doesn't list the system locale (QTBUG-34283), so add it manually
+    const QString system(QLatin1String("System"));
+    if (d->m_ui.encodingBox->findText(system) == -1) {
+        d->m_ui.encodingBox->insertItem(0, system);
+        d->m_codecs.prepend(QTextCodec::codecForLocale());
+    }
+
     connect(d->m_ui.autoIndent, SIGNAL(toggled(bool)),
             this, SLOT(slotTypingSettingsChanged()));
     connect(d->m_ui.smartBackspaceBehavior, SIGNAL(currentIndexChanged(int)),
@@ -91,6 +98,8 @@ BehaviorSettingsWidget::BehaviorSettingsWidget(QWidget *parent)
             this, SLOT(slotStorageSettingsChanged()));
     connect(d->m_ui.cleanIndentation, SIGNAL(clicked(bool)),
             this, SLOT(slotStorageSettingsChanged()));
+    connect(d->m_ui.mouseHiding, SIGNAL(clicked()),
+            this, SLOT(slotBehaviorSettingsChanged()));
     connect(d->m_ui.mouseNavigation, SIGNAL(clicked()),
             this, SLOT(slotBehaviorSettingsChanged()));
     connect(d->m_ui.scrollWheelZooming, SIGNAL(clicked(bool)),
@@ -177,15 +186,16 @@ void BehaviorSettingsWidget::updateConstrainTooltipsBoxTooltip() const
 {
     if (d->m_ui.constrainTooltipsBox->currentIndex() == 0) {
         d->m_ui.constrainTooltipsBox->setToolTip(
-            tr("Display context-sensitive help or type information on mouseover."));
+            tr("Displays context-sensitive help or type information on mouseover."));
     } else {
         d->m_ui.constrainTooltipsBox->setToolTip(
-            tr("Display context-sensitive help or type information on Shift+Mouseover."));
+            tr("Displays context-sensitive help or type information on Shift+Mouseover."));
     }
 }
 
 void BehaviorSettingsWidget::setAssignedBehaviorSettings(const BehaviorSettings &behaviorSettings)
 {
+    d->m_ui.mouseHiding->setChecked(behaviorSettings.m_mouseHiding);
     d->m_ui.mouseNavigation->setChecked(behaviorSettings.m_mouseNavigation);
     d->m_ui.scrollWheelZooming->setChecked(behaviorSettings.m_scrollWheelZooming);
     d->m_ui.constrainTooltipsBox->setCurrentIndex(behaviorSettings.m_constrainHoverTooltips ? 1 : 0);
@@ -196,6 +206,7 @@ void BehaviorSettingsWidget::setAssignedBehaviorSettings(const BehaviorSettings 
 
 void BehaviorSettingsWidget::assignedBehaviorSettings(BehaviorSettings *behaviorSettings) const
 {
+    behaviorSettings->m_mouseHiding = d->m_ui.mouseHiding->isChecked();
     behaviorSettings->m_mouseNavigation = d->m_ui.mouseNavigation->isChecked();
     behaviorSettings->m_scrollWheelZooming = d->m_ui.scrollWheelZooming->isChecked();
     behaviorSettings->m_constrainHoverTooltips = (d->m_ui.constrainTooltipsBox->currentIndex() == 1);
@@ -214,35 +225,6 @@ void BehaviorSettingsWidget::assignedExtraEncodingSettings(
 {
     encodingSettings->m_utf8BomSetting =
         (ExtraEncodingSettings::Utf8BomSetting)d->m_ui.utf8BomBox->currentIndex();
-}
-
-QString BehaviorSettingsWidget::collectUiKeywords() const
-{
-    static const QLatin1Char sep(' ');
-    QString keywords;
-    QTextStream(&keywords)
-        << sep << d->m_ui.tabPreferencesWidget->searchKeywords()
-        << sep << d->m_ui.autoIndent->text()
-        << sep << d->m_ui.smartBackspaceLabel->text()
-        << sep << d->m_ui.tabKeyBehaviorLabel->text()
-        << sep << d->m_ui.cleanWhitespace->text()
-        << sep << d->m_ui.inEntireDocument->text()
-        << sep << d->m_ui.cleanIndentation->text()
-        << sep << d->m_ui.addFinalNewLine->text()
-        << sep << d->m_ui.encodingLabel->text()
-        << sep << d->m_ui.utf8BomLabel->text()
-        << sep << d->m_ui.mouseNavigation->text()
-        << sep << d->m_ui.scrollWheelZooming->text()
-        << sep << d->m_ui.helpTooltipsLabel->text()
-        << sep << d->m_ui.constrainTooltipsBox->itemText(0)
-        << sep << d->m_ui.constrainTooltipsBox->itemText(1)
-        << sep << d->m_ui.camelCaseNavigation->text()
-        << sep << d->m_ui.keyboardTooltips->text()
-        << sep << d->m_ui.groupBoxStorageSettings->title()
-        << sep << d->m_ui.groupBoxEncodings->title()
-        << sep << d->m_ui.groupBoxMouse->title();
-    keywords.remove(QLatin1Char('&'));
-    return keywords;
 }
 
 TabSettingsWidget *BehaviorSettingsWidget::tabSettingsWidget() const

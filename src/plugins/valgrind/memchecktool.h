@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 ** Author: Nicolas Arnaud-Cormos, KDAB (nicolas.arnaud-cormos@kdab.com)
 **
@@ -34,15 +34,10 @@
 #include "valgrindtool.h"
 
 #include <QSortFilterProxyModel>
-#include <QSharedPointer>
 
 QT_BEGIN_NAMESPACE
-class QItemSelection;
-class QTreeView;
 class QModelIndex;
 class QAction;
-class QSpinBox;
-class QCheckBox;
 class QMenu;
 QT_END_NAMESPACE
 
@@ -53,15 +48,12 @@ class Error;
 }
 }
 
-namespace Analyzer {
-class AnalyzerSettings;
-}
-
 namespace Valgrind {
 namespace Internal {
 
-class MemcheckErrorView;
 class FrameFinder;
+class MemcheckErrorView;
+class ValgrindBaseSettings;
 
 class MemcheckErrorFilterProxyModel : public QSortFilterProxyModel
 {
@@ -89,41 +81,37 @@ class MemcheckTool : public ValgrindTool
 public:
     MemcheckTool(QObject *parent);
 
-    Core::Id id() const;
     ProjectExplorer::RunMode runMode() const;
-    QString displayName() const;
-    QString description() const;
-
-    // Create the valgrind settings (for all valgrind tools)
-    Analyzer::AbstractAnalyzerSubConfig *createGlobalSettings();
-    Analyzer::AbstractAnalyzerSubConfig *createProjectSettings();
 
 private slots:
     void settingsDestroyed(QObject *settings);
     void maybeActiveRunConfigurationChanged();
 
-    void engineStarting(const Analyzer::IAnalyzerEngine *engine);
-    void finished();
+    void engineStarting(const Analyzer::AnalyzerRunControl *engine);
+    void engineFinished();
+    void loadingExternalXmlLogFileFinished();
 
     void parserError(const Valgrind::XmlProtocol::Error &error);
     void internalParserError(const QString &errorString);
     void updateErrorFilter();
     void suppressionActionTriggered();
 
+    void loadExternalXmlLogFile();
+
 private:
     ToolMode toolMode() const;
-    void extensionsInitialized() {}
     QWidget *createWidgets();
     void setBusyCursor(bool busy);
 
-    Analyzer::IAnalyzerEngine *createEngine(const Analyzer::AnalyzerStartParameters &sp,
+    Analyzer::AnalyzerRunControl *createRunControl(const Analyzer::AnalyzerStartParameters &sp,
                                ProjectExplorer::RunConfiguration *runConfiguration = 0);
-    void startTool(Analyzer::StartMode mode);
 
     void clearErrorView();
+    void updateFromSettings();
+    int updateUiAfterFinishedHelper();
 
 private:
-    Analyzer::AnalyzerSettings *m_settings;
+    ValgrindBaseSettings *m_settings;
     QMenu *m_filterMenu;
 
     FrameFinder *m_frameFinder;
@@ -135,6 +123,7 @@ private:
     QAction *m_filterProjectAction;
     QList<QAction *> m_suppressionActions;
     QAction *m_suppressionSeparator;
+    QAction *m_loadExternalLogFile;
     QAction *m_goBack;
     QAction *m_goNext;
 };

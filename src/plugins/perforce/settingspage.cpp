@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -48,6 +48,7 @@ SettingsPageWidget::SettingsPageWidget(QWidget *parent) :
     m_ui.setupUi(this);
     m_ui.errorLabel->clear();
     m_ui.pathChooser->setPromptDialogTitle(tr("Perforce Command"));
+    m_ui.pathChooser->setHistoryCompleter(QLatin1String("Perforce.Command.History"));
     m_ui.pathChooser->setExpectedKind(PathChooser::Command);
     connect(m_ui.testPushButton, SIGNAL(clicked()), this, SLOT(slotTest()));
 }
@@ -142,21 +143,21 @@ SettingsPage::SettingsPage()
     setDisplayName(tr("Perforce"));
 }
 
-QWidget *SettingsPage::createPage(QWidget *parent)
+QWidget *SettingsPage::widget()
 {
-    m_widget = new SettingsPageWidget(parent);
-    m_widget->setSettings(PerforcePlugin::perforcePluginInstance()->settings());
-    if (m_searchKeywords.isEmpty())
-        m_searchKeywords = m_widget->searchKeywords();
+    if (!m_widget) {
+        m_widget = new SettingsPageWidget;
+        m_widget->setSettings(PerforcePlugin::settings());
+    }
     return m_widget;
 }
 
 void SettingsPage::apply()
 {
-    PerforcePlugin::perforcePluginInstance()->setSettings(m_widget->settings());
+    PerforcePlugin::setSettings(m_widget->settings());
 }
 
-bool SettingsPage::matches(const QString &s) const
+void SettingsPage::finish()
 {
-    return m_searchKeywords.contains(s, Qt::CaseInsensitive);
+    delete m_widget;
 }

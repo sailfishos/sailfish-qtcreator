@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,13 +30,12 @@
 #ifndef PYTHONINDENTER_H
 #define PYTHONINDENTER_H
 
-#include "../pythoneditor_global.h"
 #include <texteditor/indenter.h>
 #include <QStringList>
 
 namespace PythonEditor {
 
-class PYEDITOR_EXPORT PythonIndenter : public TextEditor::Indenter
+class PythonIndenter : public TextEditor::Indenter
 {
 public:
     PythonIndenter();

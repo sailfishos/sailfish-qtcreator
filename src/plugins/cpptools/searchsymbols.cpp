@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -42,20 +42,14 @@ SearchSymbols::SymbolTypes SearchSymbols::AllTypes =
         | SymbolSearcher::Enums
         | SymbolSearcher::Declarations;
 
-SearchSymbols::SearchSymbols():
-    symbolsToSearchFor(SymbolSearcher::Classes | SymbolSearcher::Functions | SymbolSearcher::Enums),
-    separateScope(false)
+SearchSymbols::SearchSymbols() :
+    symbolsToSearchFor(SymbolSearcher::Classes | SymbolSearcher::Functions | SymbolSearcher::Enums)
 {
 }
 
 void SearchSymbols::setSymbolsToSearchFor(SymbolTypes types)
 {
     symbolsToSearchFor = types;
-}
-
-void SearchSymbols::setSeparateScope(bool separateScope)
-{
-    this->separateScope = separateScope;
 }
 
 QList<ModelItemInfo> SearchSymbols::operator()(Document::Ptr doc, int sizeHint, const QString &scope)
@@ -89,9 +83,7 @@ bool SearchSymbols::visit(Enum *symbol)
     QString name = symbolName(symbol);
     QString scopedName = scopedSymbolName(name);
     QString previousScope = switchScope(scopedName);
-    appendItem(separateScope ? name : scopedName,
-               separateScope ? previousScope : QString(),
-               ModelItemInfo::Enum, symbol);
+    appendItem(name, QString(), previousScope, ModelItemInfo::Enum, symbol);
     for (unsigned i = 0; i < symbol->memberCount(); ++i) {
         accept(symbol->memberAt(i));
     }
@@ -103,25 +95,9 @@ bool SearchSymbols::visit(Function *symbol)
 {
     if (!(symbolsToSearchFor & SymbolSearcher::Functions))
         return false;
-
-    QString extraScope;
-    if (const Name *name = symbol->name()) {
-        if (const QualifiedNameId *q = name->asQualifiedNameId()) {
-            if (q->base())
-                extraScope = overview.prettyName(q->base());
-        }
-    }
-    QString fullScope = _scope;
-    if (!_scope.isEmpty() && !extraScope.isEmpty())
-        fullScope += QLatin1String("::");
-    fullScope += extraScope;
     QString name = symbolName(symbol);
-    QString scopedName = scopedSymbolName(name);
-    QString type = overview.prettyType(symbol->type(),
-                                       separateScope ? symbol->unqualifiedName() : 0);
-    appendItem(separateScope ? type : scopedName,
-               separateScope ? fullScope : type,
-               ModelItemInfo::Method, symbol);
+    QString type = overview.prettyType(symbol->type());
+    appendItem(name, type, _scope, ModelItemInfo::Function, symbol);
     return false;
 }
 
@@ -152,12 +128,9 @@ bool SearchSymbols::visit(Declaration *symbol)
     }
 
     QString name = symbolName(symbol);
-    QString scopedName = scopedSymbolName(name);
-    QString type = overview.prettyType(symbol->type(),
-                                       separateScope ? symbol->unqualifiedName() : 0);
-    appendItem(separateScope ? type : scopedName,
-               separateScope ? _scope : type,
-               symbol->type()->asFunctionType() ? ModelItemInfo::Method
+    QString type = overview.prettyType(symbol->type());
+    appendItem(name, type, _scope,
+               symbol->type()->asFunctionType() ? ModelItemInfo::Function
                                                 : ModelItemInfo::Declaration,
                symbol);
     return false;
@@ -168,11 +141,8 @@ bool SearchSymbols::visit(Class *symbol)
     QString name = symbolName(symbol);
     QString scopedName = scopedSymbolName(name);
     QString previousScope = switchScope(scopedName);
-    if (symbolsToSearchFor & SymbolSearcher::Classes) {
-        appendItem(separateScope ? name : scopedName,
-                   separateScope ? previousScope : QString(),
-                   ModelItemInfo::Class, symbol);
-    }
+    if (symbolsToSearchFor & SymbolSearcher::Classes)
+        appendItem(name, QString(), previousScope, ModelItemInfo::Class, symbol);
     for (unsigned i = 0; i < symbol->memberCount(); ++i) {
         accept(symbol->memberAt(i));
     }
@@ -305,17 +275,12 @@ QString SearchSymbols::symbolName(const Symbol *symbol) const
     return symbolName;
 }
 
-void SearchSymbols::appendItem(const QString &name,
-                               const QString &info,
-                               ModelItemInfo::ItemType type,
+void SearchSymbols::appendItem(const QString &symbolName, const QString &symbolType,
+                               const QString &symbolScope, ModelItemInfo::ItemType itemType,
                                Symbol *symbol)
 {
-    if (!symbol->name())
+    if (!symbol->name() || symbol->isGenerated())
         return;
-
-    QStringList fullyQualifiedName;
-    foreach (const Name *name, LookupContext::fullyQualifiedName(symbol))
-        fullyQualifiedName.append(findOrInsert(overview.prettyName(name)));
 
     QString path = m_paths.value(symbol->fileId(), QString());
     if (path.isEmpty()) {
@@ -324,8 +289,10 @@ void SearchSymbols::appendItem(const QString &name,
     }
 
     const QIcon icon = icons.iconForSymbol(symbol);
-    items.append(ModelItemInfo(findOrInsert(name), findOrInsert(info), type,
-                               fullyQualifiedName,
+    items.append(ModelItemInfo(findOrInsert(symbolName),
+                               findOrInsert(symbolType),
+                               findOrInsert(symbolScope),
+                               itemType,
                                path,
                                symbol->line(),
                                symbol->column() - 1, // 1-based vs 0-based column

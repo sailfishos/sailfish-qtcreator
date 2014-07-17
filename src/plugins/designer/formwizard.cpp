@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -37,14 +37,9 @@
 using namespace Designer;
 using namespace Designer::Internal;
 
-FormWizard::FormWizard(const BaseFileWizardParameters &parameters, QObject *parent)
-  : Core::BaseFileWizard(parameters, parent)
+FormWizard::FormWizard()
 {
-}
-
-Core::FeatureSet FormWizard::requiredFeatures() const
-{
-    return Core::Feature(QtSupport::Constants::FEATURE_QWIDGETS);
+    addRequiredFeature(Core::Id(QtSupport::Constants::FEATURE_QWIDGETS));
 }
 
 QWizard *FormWizard::createWizardDialog(QWidget *parent,

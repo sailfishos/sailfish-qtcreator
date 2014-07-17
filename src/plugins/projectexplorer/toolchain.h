@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -31,6 +31,7 @@
 #define TOOLCHAIN_H
 
 #include "projectexplorer_export.h"
+#include <coreplugin/id.h>
 
 #include <QObject>
 #include <QString>
@@ -43,9 +44,7 @@ class FileName;
 
 namespace ProjectExplorer {
 
-namespace Internal {
-class ToolChainPrivate;
-}
+namespace Internal { class ToolChainPrivate; }
 
 class Abi;
 class HeaderPath;
@@ -63,12 +62,20 @@ class Kit;
 class PROJECTEXPLORER_EXPORT ToolChain
 {
 public:
+    enum Detection {
+        ManualDetection,
+        AutoDetection,
+        AutoDetectionFromSettings
+    };
+
     virtual ~ToolChain();
 
     QString displayName() const;
     void setDisplayName(const QString &name);
 
-    bool isAutoDetected() const;
+    inline bool isAutoDetected() const { return detection() != ManualDetection; }
+    Detection detection() const;
+
     QString id() const;
 
     virtual QList<Utils::FileName> suggestedMkspecList() const;
@@ -141,20 +148,20 @@ public:
     virtual ToolChain *clone() const = 0;
 
     // Used by the toolchainmanager to save user-generated tool chains.
-    // Make sure to call this method when deriving!
+    // Make sure to call this function when deriving!
     virtual QVariantMap toMap() const;
     virtual QList<Task> validateKit(const Kit *k) const;
 protected:
-    ToolChain(const QString &id, bool autoDetect);
+    explicit ToolChain(const QString &id, Detection d);
     explicit ToolChain(const ToolChain &);
 
     void toolChainUpdated();
 
-    // Make sure to call this method when deriving!
+    // Make sure to call this function when deriving!
     virtual bool fromMap(const QVariantMap &data);
 
 private:
-    void setAutoDetected(bool);
+    void setDetection(Detection d);
 
     Internal::ToolChainPrivate *const d;
 
@@ -167,8 +174,8 @@ class PROJECTEXPLORER_EXPORT ToolChainFactory : public QObject
     Q_OBJECT
 
 public:
-    virtual QString displayName() const = 0;
-    virtual QString id() const = 0;
+    Core::Id id() const { return m_id; }
+    QString displayName() const { return m_displayName; }
 
     virtual QList<ToolChain *> autoDetect();
 
@@ -181,6 +188,14 @@ public:
     static QString idFromMap(const QVariantMap &data);
     static void idToMap(QVariantMap &data, const QString id);
     static void autoDetectionToMap(QVariantMap &data, bool detected);
+
+protected:
+    void setId(Core::Id id) { m_id = id; }
+    void setDisplayName(const QString &name) { m_displayName = name; }
+
+private:
+    QString m_displayName;
+    Core::Id m_id;
 };
 
 } // namespace ProjectExplorer

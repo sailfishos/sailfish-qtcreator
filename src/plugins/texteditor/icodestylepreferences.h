@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -41,9 +41,7 @@ QT_END_NAMESPACE
 
 namespace TextEditor {
 
-namespace Internal {
-class ICodeStylePreferencesPrivate;
-}
+namespace Internal { class ICodeStylePreferencesPrivate; }
 
 class TabSettings;
 class CodeStylePool;
@@ -57,8 +55,8 @@ public:
     explicit ICodeStylePreferences(QObject *parentObject = 0);
     virtual ~ICodeStylePreferences();
 
-    QString id() const;
-    void setId(const QString &name);
+    QByteArray id() const;
+    void setId(const QByteArray &name);
 
     QString displayName() const;
     void setDisplayName(const QString &name);
@@ -83,8 +81,8 @@ public:
     ICodeStylePreferences *currentDelegate() const; // null or one of delegates from the pool
     void setCurrentDelegate(ICodeStylePreferences *delegate);
 
-    QString currentDelegateId() const;
-    void setCurrentDelegate(const QString &id);
+    QByteArray currentDelegateId() const;
+    void setCurrentDelegate(const QByteArray &id);
 
     void toSettings(const QString &category, QSettings *s) const;
     void fromSettings(const QString &category, const QSettings *s);

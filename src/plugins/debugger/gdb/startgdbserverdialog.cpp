@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -29,12 +29,13 @@
 
 #include "startgdbserverdialog.h"
 
-#include "debuggermainwindow.h"
-#include "debuggerplugin.h"
-#include "debuggerkitinformation.h"
-#include "debuggerruncontrolfactory.h"
-#include "debuggerstartparameters.h"
+#include <debugger/debuggermainwindow.h>
+#include <debugger/debuggerplugin.h>
+#include <debugger/debuggerkitinformation.h>
+#include <debugger/debuggerruncontrolfactory.h>
+#include <debugger/debuggerstartparameters.h>
 
+#include <coreplugin/icore.h>
 #include <projectexplorer/kitchooser.h>
 #include <projectexplorer/devicesupport/deviceprocesslist.h>
 #include <projectexplorer/devicesupport/deviceprocessesdialog.h>
@@ -62,7 +63,7 @@ public:
 
     DeviceProcessesDialog *dialog;
     bool startServerOnly;
-    DeviceProcess process;
+    DeviceProcessItem process;
     Kit *kit;
     IDevice::ConstPtr device;
 
@@ -122,7 +123,10 @@ void GdbServerStarter::portListReady()
     connect(&d->runner, SIGNAL(readyReadStandardError()), SLOT(handleProcessErrorOutput()));
     connect(&d->runner, SIGNAL(processClosed(int)), SLOT(handleProcessClosed(int)));
 
-    QByteArray cmd = "gdbserver --attach :"
+    QByteArray gdbServerPath = d->device->debugServerPath().toUtf8();
+    if (gdbServerPath.isEmpty())
+        gdbServerPath = "gdbserver";
+    QByteArray cmd = gdbServerPath + " --attach :"
             + QByteArray::number(port) + ' ' + QByteArray::number(d->process.pid);
     logMessage(tr("Running command: %1").arg(QString::fromLatin1(cmd)));
     d->runner.run(cmd, d->device->sshParameters());
@@ -186,7 +190,7 @@ void GdbServerStarter::attach(int port)
             localExecutable = candidate;
     }
     if (localExecutable.isEmpty()) {
-        QMessageBox::warning(DebuggerPlugin::mainWindow(), tr("Warning"),
+        QMessageBox::warning(ICore::mainWindow(), tr("Warning"),
             tr("Cannot find local executable for remote process \"%1\".")
                 .arg(d->process.exe));
         return;
@@ -194,7 +198,7 @@ void GdbServerStarter::attach(int port)
 
     QList<Abi> abis = Abi::abisOfBinary(Utils::FileName::fromString(localExecutable));
     if (abis.isEmpty()) {
-        QMessageBox::warning(DebuggerPlugin::mainWindow(), tr("Warning"),
+        QMessageBox::warning(ICore::mainWindow(), tr("Warning"),
             tr("Cannot find ABI for remote process \"%1\".")
                 .arg(d->process.exe));
         return;

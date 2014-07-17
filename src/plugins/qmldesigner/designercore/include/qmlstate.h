@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -36,13 +36,13 @@
 
 namespace QmlDesigner {
 
-class QmlModelView;
-class QmlModelStateGroup;
+class AbstractViewAbstractVieweGroup;
 class QmlObjectNode;
+class QmlModelStateGroup;
 
 class QMLDESIGNERCORE_EXPORT QmlModelState : public QmlModelNodeFacade
 {
-    friend class QmlModelView;
+    friend class StatesEditorView;
 
 public:
     QmlModelState();
@@ -64,15 +64,19 @@ public:
     QString name() const;
     void setName(const QString &name);
     bool isValid() const;
+    static bool isValidQmlModelState(const ModelNode &modelNode);
     void destroy();
 
     bool isBaseState() const;
+    static bool isBaseState(const ModelNode &modelNode);
     QmlModelState duplicate(const QString &name) const;
     QmlModelStateGroup stateGroup() const;
 
+    static ModelNode createQmlState(AbstractView *view, const PropertyListType &propertyList);
+
 protected:
     void addChangeSetIfNotExists(const ModelNode &node);
-    static QmlModelState createBaseState(const QmlModelView *view);
+    static QmlModelState createBaseState(const AbstractView *view);
 
 };
 

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -67,9 +67,11 @@ public:
     ~StackHandler();
 
     void setFrames(const StackFrames &frames, bool canExpand = false);
+    void prependFrames(const StackFrames &frames);
     const StackFrames &frames() const;
     void setCurrentIndex(int index);
     int currentIndex() const { return m_currentIndex; }
+    int firstUsableIndex() const;
     StackFrame currentFrame() const;
     const StackFrame &frameAt(int index) const { return m_stackFrames.at(index); }
     int stackSize() const { return m_stackFrames.size(); }

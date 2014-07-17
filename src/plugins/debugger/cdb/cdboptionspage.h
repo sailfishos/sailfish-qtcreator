@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -43,9 +43,7 @@ QT_BEGIN_NAMESPACE
 class QCheckBox;
 QT_END_NAMESPACE
 
-namespace Utils {
-    class PathListEditor;
-}
+namespace Utils { class PathListEditor; }
 namespace Debugger {
 namespace Internal {
 
@@ -78,9 +76,8 @@ class CdbOptionsPageWidget : public QWidget
     Q_OBJECT
 
 public:
-    explicit CdbOptionsPageWidget(QWidget *parent);
+    explicit CdbOptionsPageWidget(QWidget *parent = 0);
     QStringList breakEvents() const;
-    QString searchKeywords() const;
 
     Utils::SavedActionSet group;
 
@@ -103,17 +100,15 @@ public:
     virtual ~CdbOptionsPage();
 
     // IOptionsPage
-    QWidget *createPage(QWidget *parent);
+    QWidget *widget();
     void apply();
     void finish();
-    bool matches(const QString &) const;
 
     static const char *crtDbgReport;
 
 private:
     Utils::SavedActionSet group;
     QPointer<CdbOptionsPageWidget> m_widget;
-    QString m_searchKeywords;
 };
 
 class CdbPathsPage : public Core::IOptionsPage
@@ -127,10 +122,9 @@ public:
     static CdbPathsPage *instance();
 
     // IOptionsPage
-    QWidget *createPage(QWidget *parent);
+    QWidget *widget();
     void apply();
     void finish();
-    bool matches(const QString &searchKeyWord) const;
 
 private:
     QPointer<CdbPathsPageWidget> m_widget;

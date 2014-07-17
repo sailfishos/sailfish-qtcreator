@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -51,7 +51,6 @@ class KitManager;
 
 namespace Internal {
 class KitManagerConfigWidget;
-class KitManagerPrivate;
 class KitModel;
 } // namespace Internal
 
@@ -70,9 +69,8 @@ public:
     typedef QPair<QString, QString> Item;
     typedef QList<Item> ItemList;
 
-    virtual Core::Id dataId() const = 0;
-
-    virtual unsigned int priority() const = 0; // the higher the closer to the top.
+    Core::Id id() const { return m_id; }
+    int priority() const { return m_priority; }
 
     virtual QVariant defaultValue(Kit *) const = 0;
 
@@ -92,10 +90,14 @@ public:
 
     virtual QString displayNamePostfix(const Kit *k) const;
 
-    bool isSticky(const Kit *k) const;
-
 protected:
+    void setId(Core::Id id) { m_id = id; }
+    void setPriority(int priority) { m_priority = priority; }
     void notifyAboutUpdate(Kit *k);
+
+private:
+    Core::Id m_id;
+    int m_priority; // The higher the closer to the top.
 };
 
 class PROJECTEXPLORER_EXPORT KitMatcher
@@ -110,33 +112,32 @@ class PROJECTEXPLORER_EXPORT KitManager : public QObject
     Q_OBJECT
 
 public:
-    static KitManager *instance();
+    static QObject *instance();
     ~KitManager();
 
-    QList<Kit *> kits(const KitMatcher *m = 0) const;
-    Kit *find(const Core::Id &id) const;
-    Kit *find(const KitMatcher *m) const;
-    Kit *defaultKit() const;
+    static QList<Kit *> kits();
+    static QList<Kit *> matchingKits(const KitMatcher &matcher);
+    static Kit *find(const Core::Id &id);
+    static Kit *find(const KitMatcher &matcher);
+    static Kit *defaultKit();
 
-    QList<KitInformation *> kitInformation() const;
+    static QList<KitInformation *> kitInformation();
 
-    Internal::KitManagerConfigWidget *createConfigWidget(Kit *k) const;
+    static Internal::KitManagerConfigWidget *createConfigWidget(Kit *k);
 
     static void deleteKit(Kit *k);
 
-    bool isLoaded() const;
-
     static QString uniqueKitName(const Kit *k, const QString name, const QList<Kit *> &allKits);
 
+    static bool registerKit(ProjectExplorer::Kit *k);
+    static void deregisterKit(ProjectExplorer::Kit *k);
+    static void setDefaultKit(ProjectExplorer::Kit *k);
+
+    static void registerKitInformation(ProjectExplorer::KitInformation *ki);
+    static void deregisterKitInformation(ProjectExplorer::KitInformation *ki);
+
 public slots:
-    bool registerKit(ProjectExplorer::Kit *k);
-    void deregisterKit(ProjectExplorer::Kit *k);
-    void setDefaultKit(ProjectExplorer::Kit *k);
-
     void saveKits();
-
-    void registerKitInformation(ProjectExplorer::KitInformation *ki);
-    void deregisterKitInformation(ProjectExplorer::KitInformation *ki);
 
 signals:
     void kitAdded(ProjectExplorer::Kit *);
@@ -155,7 +156,7 @@ signals:
 private:
     explicit KitManager(QObject *parent = 0);
 
-    bool setKeepDisplayNameUnique(bool unique);
+    static bool setKeepDisplayNameUnique(bool unique);
 
     // Make sure the this is only called after all
     // KitInformation are registered!
@@ -170,15 +171,10 @@ private:
     };
     KitList restoreKits(const Utils::FileName &fileName);
 
-    void notifyAboutDisplayNameChange(ProjectExplorer::Kit *k);
-    void notifyAboutUpdate(ProjectExplorer::Kit *k);
+    static void notifyAboutDisplayNameChange(ProjectExplorer::Kit *k);
+    static void notifyAboutUpdate(ProjectExplorer::Kit *k);
     void addKit(Kit *k);
 
-    Internal::KitManagerPrivate *const d;
-
-    static KitManager *m_instance;
-
-    friend class Internal::KitManagerPrivate; // for the restoreToolChains methods
     friend class ProjectExplorerPlugin; // for constructor
     friend class Kit;
     friend class Internal::KitModel;

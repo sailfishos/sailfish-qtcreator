@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 ** Author: Nicolas Arnaud-Cormos, KDAB (nicolas.arnaud-cormos@kdab.com)
 **
@@ -43,9 +43,7 @@ namespace Analyzer {
 enum StartMode
 {
     StartLocal = -1,
-    StartRemote = -2,
-    StartQml = -3,
-    StartQmlRemote = -4 // TODO: remove this enum and make it generic
+    StartRemote = -2
 };
 
 namespace Constants {
@@ -68,7 +66,7 @@ const char G_ANALYZER_OPTIONS[] = "Menu.Group.Analyzer.Options";
 
 // Manager controls.
 const char ANALYZER_CONTROL_START_ICON[] = ":/images/analyzer_start_small.png";
-const char ANALYZER_CONTROL_STOP_ICON[] = ":/debugger/images/debugger_stop_small.png";
+const char ANALYZER_CONTROL_STOP_ICON[] = ":/images/analyzer_stop_small.png";
 
 const char ANALYZERTASK_ID[] = "Analyzer.TaskId";
 

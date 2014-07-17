@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -42,9 +42,8 @@ QT_END_NAMESPACE
 namespace Core {
 class ActionContainer;
 class Command;
+class CommandLocator;
 }
-
-namespace Locator { class CommandLocator; }
 
 namespace Gerrit {
 namespace Internal {
@@ -66,7 +65,8 @@ public:
 
     static QString gitBinary();
     static QString branch(const QString &repository);
-    void addToLocator(Locator::CommandLocator *locator);
+    void addToLocator(Core::CommandLocator *locator);
+    void push(const QString &topLevel);
 
 public slots:
     void fetchDisplay(const QSharedPointer<Gerrit::Internal::GerritChange> &change);

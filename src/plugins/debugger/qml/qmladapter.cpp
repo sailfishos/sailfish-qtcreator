@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -29,7 +29,7 @@
 
 #include "qmladapter.h"
 
-#include "debuggerstringutils.h"
+#include <debugger/debuggerstringutils.h>
 #include "qmlengine.h"
 #include "qmlv8debuggerclient.h"
 #include "qscriptdebuggerclient.h"
@@ -141,7 +141,7 @@ void QmlAdapter::connectionStateChanged()
     switch (m_conn->state()) {
     case QAbstractSocket::UnconnectedState:
     {
-        showConnectionStatusMessage(tr("Disconnected.\n\n"));
+        showConnectionStatusMessage(tr("Disconnected.") + QLatin1String("\n\n"));
         emit disconnected();
 
         break;
@@ -154,7 +154,7 @@ void QmlAdapter::connectionStateChanged()
         break;
     case QAbstractSocket::ConnectedState:
     {
-        showConnectionStatusMessage(tr("Connected.\n"));
+        showConnectionStatusMessage(tr("Connected.") + QLatin1Char('\n'));
 
         m_connectionTimer.stop();
 

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -29,14 +29,19 @@
 
 #include "cmakebuildconfiguration.h"
 
+#include "cmakebuildinfo.h"
 #include "cmakeopenprojectwizard.h"
 #include "cmakeproject.h"
 #include "cmakeprojectconstants.h"
 
+#include <coreplugin/icore.h>
+#include <coreplugin/mimedatabase.h>
 #include <projectexplorer/buildsteplist.h>
 #include <projectexplorer/kit.h>
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/target.h>
+
+#include <utils/qtcassert.h>
 
 #include <QInputDialog>
 
@@ -44,7 +49,6 @@ using namespace CMakeProjectManager;
 using namespace Internal;
 
 namespace {
-const char BUILD_DIRECTORY_KEY[] = "CMakeProjectManager.CMakeBuildConfiguration.BuildDirectory";
 const char USE_NINJA_KEY[] = "CMakeProjectManager.CMakeBuildConfiguration.UseNinja";
 } // namespace
 
@@ -52,17 +56,16 @@ CMakeBuildConfiguration::CMakeBuildConfiguration(ProjectExplorer::Target *parent
     BuildConfiguration(parent, Core::Id(Constants::CMAKE_BC_ID)), m_useNinja(false)
 {
     CMakeProject *project = static_cast<CMakeProject *>(parent->project());
-    m_buildDirectory = project->shadowBuildDirectory(project->document()->fileName(),
-                                                     parent->kit(),
-                                                     displayName());
+    setBuildDirectory(Utils::FileName::fromString(project->shadowBuildDirectory(project->projectFilePath(),
+                                                                                parent->kit(),
+                                                                                displayName())));
 }
 
 CMakeBuildConfiguration::CMakeBuildConfiguration(ProjectExplorer::Target *parent,
                                                  CMakeBuildConfiguration *source) :
     BuildConfiguration(parent, source),
-    m_buildDirectory(source->m_buildDirectory),
     m_msvcVersion(source->m_msvcVersion),
-    m_useNinja(false)
+    m_useNinja(source->m_useNinja)
 {
     Q_ASSERT(parent);
     cloneSteps(source);
@@ -71,7 +74,6 @@ CMakeBuildConfiguration::CMakeBuildConfiguration(ProjectExplorer::Target *parent
 QVariantMap CMakeBuildConfiguration::toMap() const
 {
     QVariantMap map(ProjectExplorer::BuildConfiguration::toMap());
-    map.insert(QLatin1String(BUILD_DIRECTORY_KEY), m_buildDirectory);
     map.insert(QLatin1String(USE_NINJA_KEY), m_useNinja);
     return map;
 }
@@ -81,7 +83,6 @@ bool CMakeBuildConfiguration::fromMap(const QVariantMap &map)
     if (!BuildConfiguration::fromMap(map))
         return false;
 
-    m_buildDirectory = map.value(QLatin1String(BUILD_DIRECTORY_KEY)).toString();
     m_useNinja = map.value(QLatin1String(USE_NINJA_KEY), false).toBool();
 
     return true;
@@ -108,20 +109,6 @@ ProjectExplorer::NamedWidget *CMakeBuildConfiguration::createConfigWidget()
     return new CMakeBuildSettingsWidget(this);
 }
 
-QString CMakeBuildConfiguration::buildDirectory() const
-{
-    return m_buildDirectory;
-}
-
-void CMakeBuildConfiguration::setBuildDirectory(const QString &buildDirectory)
-{
-    if (m_buildDirectory == buildDirectory)
-        return;
-    m_buildDirectory = buildDirectory;
-    emit buildDirectoryChanged();
-    emit environmentChanged();
-}
-
 /*!
   \class CMakeBuildConfigurationFactory
 */
@@ -135,64 +122,64 @@ CMakeBuildConfigurationFactory::~CMakeBuildConfigurationFactory()
 {
 }
 
-QList<Core::Id> CMakeBuildConfigurationFactory::availableCreationIds(const ProjectExplorer::Target *parent) const
+int CMakeBuildConfigurationFactory::priority(const ProjectExplorer::Target *parent) const
 {
-    if (!canHandle(parent))
-        return QList<Core::Id>();
-    return QList<Core::Id>() << Core::Id(Constants::CMAKE_BC_ID);
+    return canHandle(parent) ? 0 : -1;
 }
 
-QString CMakeBuildConfigurationFactory::displayNameForId(const Core::Id id) const
+QList<ProjectExplorer::BuildInfo *> CMakeBuildConfigurationFactory::availableBuilds(const ProjectExplorer::Target *parent) const
 {
-    if (id == Constants::CMAKE_BC_ID)
-        return tr("Build");
-    return QString();
+    QList<ProjectExplorer::BuildInfo *> result;
+
+    CMakeBuildInfo *info = createBuildInfo(parent->kit(),
+                                           parent->project()->projectDirectory());
+    result << info;
+    return result;
 }
 
-bool CMakeBuildConfigurationFactory::canCreate(const ProjectExplorer::Target *parent, const Core::Id id) const
+int CMakeBuildConfigurationFactory::priority(const ProjectExplorer::Kit *k, const QString &projectPath) const
 {
-    if (!canHandle(parent))
-        return false;
-    if (id == Constants::CMAKE_BC_ID)
-        return true;
-    return false;
+    return (k && Core::MimeDatabase::findByFile(QFileInfo(projectPath))
+            .matchesType(QLatin1String(Constants::CMAKEMIMETYPE))) ? 0 : -1;
 }
 
-CMakeBuildConfiguration *CMakeBuildConfigurationFactory::create(ProjectExplorer::Target *parent, const Core::Id id, const QString &name)
+QList<ProjectExplorer::BuildInfo *> CMakeBuildConfigurationFactory::availableSetups(const ProjectExplorer::Kit *k,
+                                                                                    const QString &projectPath) const
 {
-    if (!canCreate(parent, id))
-        return 0;
+    QList<ProjectExplorer::BuildInfo *> result;
+    CMakeBuildInfo *info = createBuildInfo(k, ProjectExplorer::Project::projectDirectory(projectPath));
+    //: The name of the build configuration created by default for a cmake project.
+    info->displayName = tr("Default");
+    info->buildDirectory
+            = Utils::FileName::fromString(CMakeProject::shadowBuildDirectory(projectPath, k,
+                                                                             info->displayName));
+    result << info;
+    return result;
+}
 
+ProjectExplorer::BuildConfiguration *CMakeBuildConfigurationFactory::create(ProjectExplorer::Target *parent,
+                                                                            const ProjectExplorer::BuildInfo *info) const
+{
+    QTC_ASSERT(info->factory() == this, return 0);
+    QTC_ASSERT(info->kitId == parent->kit()->id(), return 0);
+    QTC_ASSERT(!info->displayName.isEmpty(), return 0);
+
+    CMakeBuildInfo copy(*static_cast<const CMakeBuildInfo *>(info));
     CMakeProject *project = static_cast<CMakeProject *>(parent->project());
 
-    bool ok = true;
-    QString buildConfigurationName = name;
-    if (buildConfigurationName.isNull())
-        buildConfigurationName = QInputDialog::getText(0,
-                                                       tr("New Configuration"),
-                                                       tr("New configuration name:"),
-                                                       QLineEdit::Normal,
-                                                       QString(), &ok);
-    buildConfigurationName = buildConfigurationName.trimmed();
-    if (!ok || buildConfigurationName.isEmpty())
-        return 0;
+    if (copy.buildDirectory.isEmpty())
+        copy.buildDirectory
+                = Utils::FileName::fromString(project->shadowBuildDirectory(project->projectFilePath(),
+                                                                            parent->kit(),
+                                                                            copy.displayName));
 
-    CMakeOpenProjectWizard::BuildInfo info;
-    info.sourceDirectory = project->projectDirectory();
-    info.environment = Utils::Environment::systemEnvironment();
-    parent->kit()->addToEnvironment(info.environment);
-    info.buildDirectory = project->shadowBuildDirectory(project->document()->fileName(),
-                                                        parent->kit(),
-                                                        buildConfigurationName);
-    info.kit = parent->kit();
-    info.useNinja = false; // This is ignored anyway
-
-    CMakeOpenProjectWizard copw(project->projectManager(), CMakeOpenProjectWizard::ChangeDirectory, info);
+    CMakeOpenProjectWizard copw(Core::ICore::mainWindow(), project->projectManager(), CMakeOpenProjectWizard::ChangeDirectory, &copy);
     if (copw.exec() != QDialog::Accepted)
         return 0;
 
     CMakeBuildConfiguration *bc = new CMakeBuildConfiguration(parent);
-    bc->setDisplayName(buildConfigurationName);
+    bc->setDisplayName(copy.displayName);
+    bc->setDefaultDisplayName(copy.displayName);
 
     ProjectExplorer::BuildStepList *buildSteps = bc->stepList(ProjectExplorer::Constants::BUILDSTEPS_BUILD);
     ProjectExplorer::BuildStepList *cleanSteps = bc->stepList(ProjectExplorer::Constants::BUILDSTEPS_CLEAN);
@@ -205,7 +192,7 @@ CMakeBuildConfiguration *CMakeBuildConfigurationFactory::create(ProjectExplorer:
     cleanMakeStep->setAdditionalArguments(QLatin1String("clean"));
     cleanMakeStep->setClean(true);
 
-    bc->setBuildDirectory(copw.buildDirectory());
+    bc->setBuildDirectory(Utils::FileName::fromString(copw.buildDirectory()));
     bc->setUseNinja(copw.useNinja());
 
     // Default to all
@@ -217,7 +204,9 @@ CMakeBuildConfiguration *CMakeBuildConfigurationFactory::create(ProjectExplorer:
 
 bool CMakeBuildConfigurationFactory::canClone(const ProjectExplorer::Target *parent, ProjectExplorer::BuildConfiguration *source) const
 {
-    return canCreate(parent, source->id());
+    if (!canHandle(parent))
+        return false;
+    return source->id() == Constants::CMAKE_BC_ID;
 }
 
 CMakeBuildConfiguration *CMakeBuildConfigurationFactory::clone(ProjectExplorer::Target *parent, ProjectExplorer::BuildConfiguration *source)
@@ -230,7 +219,9 @@ CMakeBuildConfiguration *CMakeBuildConfigurationFactory::clone(ProjectExplorer::
 
 bool CMakeBuildConfigurationFactory::canRestore(const ProjectExplorer::Target *parent, const QVariantMap &map) const
 {
-    return canCreate(parent, ProjectExplorer::idFromMap(map));
+    if (!canHandle(parent))
+        return false;
+    return ProjectExplorer::idFromMap(map) == Constants::CMAKE_BC_ID;
 }
 
 CMakeBuildConfiguration *CMakeBuildConfigurationFactory::restore(ProjectExplorer::Target *parent, const QVariantMap &map)
@@ -246,15 +237,31 @@ CMakeBuildConfiguration *CMakeBuildConfigurationFactory::restore(ProjectExplorer
 
 bool CMakeBuildConfigurationFactory::canHandle(const ProjectExplorer::Target *t) const
 {
+    QTC_ASSERT(t, return false);
     if (!t->project()->supportsKit(t->kit()))
         return false;
     return qobject_cast<CMakeProject *>(t->project());
 }
 
+CMakeBuildInfo *CMakeBuildConfigurationFactory::createBuildInfo(const ProjectExplorer::Kit *k,
+                                                                const QString &sourceDir) const
+{
+    CMakeBuildInfo *info = new CMakeBuildInfo(this);
+    info->typeName = tr("Build");
+    info->kitId = k->id();
+    info->environment = Utils::Environment::systemEnvironment();
+    k->addToEnvironment(info->environment);
+    info->useNinja = false;
+    info->sourceDirectory = sourceDir;
+    info->supportsShadowBuild = true;
+
+    return info;
+}
+
 ProjectExplorer::BuildConfiguration::BuildType CMakeBuildConfiguration::buildType() const
 {
     QString cmakeBuildType;
-    QFile cmakeCache(buildDirectory() + QLatin1String("/CMakeCache.txt"));
+    QFile cmakeCache(buildDirectory().toString() + QLatin1String("/CMakeCache.txt"));
     if (cmakeCache.open(QIODevice::ReadOnly)) {
         while (!cmakeCache.atEnd()) {
             QByteArray line = cmakeCache.readLine();

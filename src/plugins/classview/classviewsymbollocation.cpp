@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Denis Mingulov
+** Copyright (c) 2014 Denis Mingulov
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -33,6 +33,14 @@
 
 namespace ClassView {
 namespace Internal {
+
+/*!
+    \class SymbolLocation
+    \brief The SymbolLocation class stores information about symbol location
+    to know the exact location to open when the user clicks on a tree item.
+
+    This class might be used in QSet and QHash.
+*/
 
 SymbolLocation::SymbolLocation() :
     m_line(0),

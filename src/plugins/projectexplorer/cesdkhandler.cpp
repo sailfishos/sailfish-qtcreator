@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -79,9 +79,9 @@ bool CeSdkHandler::parse(const QString &vsdir)
         xml.readNext();
         if (xml.isStartElement()) {
             currentElement = xml.name().toString();
-            if (currentElement == QLatin1String("Platform"))
+            if (currentElement == QLatin1String("Platform")) {
                 currentItem = CeSdkInfo();
-            else if (currentElement == QLatin1String("Directories")) {
+            } else if (currentElement == QLatin1String("Directories")) {
                 QXmlStreamAttributes attr = xml.attributes();
                 currentItem.m_include = fixPaths(attr.value(QLatin1String("Include")).toString());
                 currentItem.m_lib = fixPaths(attr.value(QLatin1String("Library")).toString());

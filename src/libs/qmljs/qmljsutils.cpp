@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -194,7 +194,7 @@ UiQualifiedId *QmlJS::qualifiedTypeNameId(Node *node)
 
 DiagnosticMessage QmlJS::errorMessage(const AST::SourceLocation &loc, const QString &message)
 {
-    return DiagnosticMessage(DiagnosticMessage::Error, loc, message);
+    return DiagnosticMessage(Severity::Error, loc, message);
 }
 
 bool QmlJS::isValidBuiltinPropertyType(const QString &name)

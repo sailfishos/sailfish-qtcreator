@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -35,7 +35,7 @@
 #include <utils/wizard.h>
 
 namespace VcsBase {
-class AbstractCheckoutJob;
+class Command;
 
 namespace Internal {
 class CheckoutProgressWizardPage;
@@ -48,7 +48,9 @@ public:
     explicit CheckoutWizardDialog(const QList<QWizardPage *> &parameterPages,
                                   QWidget *parent = 0);
 
-    void start(const QSharedPointer<AbstractCheckoutJob> &job);
+    void setTitle(const QString &title);
+    void setStartedStatus(const QString &title);
+    void start(VcsBase::Command *command);
 
 signals:
     void progressPageShown();

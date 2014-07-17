@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -38,7 +38,6 @@
 #include <QGraphicsSceneMouseEvent>
 #include <QDebug>
 #include <QMimeData>
-#include <QMessageBox>
 #include <QTimer>
 
 namespace QmlDesigner {
@@ -97,6 +96,7 @@ void DragTool::keyPressEvent(QKeyEvent *event)
     if (event->key() == Qt::Key_Escape) {
         abort();
         event->accept();
+        commitTransaction();
         view()->changeToSelectionTool();
     }
 }
@@ -152,7 +152,7 @@ void DragTool::createQmlItemNode(const ItemLibraryEntry &itemLibraryEntry, QmlIt
     FormEditorItem *parentItem = scene()->itemForQmlItemNode(parentNode);
     QPointF pos = parentItem->mapFromScene(scenePos);
 
-    m_dragNode = view()->createQmlItemNode(itemLibraryEntry, pos, parentNode);
+    m_dragNode = QmlItemNode::createQmlItemNode(view(), itemLibraryEntry, pos, parentNode);
 
     Q_ASSERT(m_dragNode.modelNode().isValid());
 
@@ -171,7 +171,7 @@ void DragTool::createQmlItemNodeFromImage(const QString &imageName, QmlItemNode 
     FormEditorItem *parentItem = scene()->itemForQmlItemNode(parentNode);
     QPointF pos = parentItem->mapFromScene(scenePos);
 
-    m_dragNode = view()->createQmlItemNodeFromImage(imageName, pos, parentNode);
+    m_dragNode = QmlItemNode::createQmlItemNodeFromImage(view(), imageName, pos, parentNode);
 
     QList<QmlItemNode> nodeList;
     nodeList.append(m_dragNode);
@@ -190,8 +190,11 @@ FormEditorItem* DragTool::calculateContainer(const QPointF &point, FormEditorIte
     QList<QGraphicsItem *> list = scene()->items(point);
     foreach (QGraphicsItem *item, list) {
          FormEditorItem *formEditorItem = FormEditorItem::fromQGraphicsItem(item);
-         if (formEditorItem && formEditorItem != currentItem && formEditorItem->isContainer()
-             && !isAncestorOf(currentItem, formEditorItem))
+         if (formEditorItem
+                 && formEditorItem != currentItem
+                 && formEditorItem->isContainer()
+                 && !formEditorItem->qmlItemNode().modelNode().metaInfo().isLayoutable()
+                 && !isAncestorOf(currentItem, formEditorItem))
              return formEditorItem;
     }
 
@@ -264,10 +267,15 @@ void DragTool::abort()
         m_dragNode.destroy();
 
     QmlDesignerItemLibraryDragAndDrop::CustomDragAndDrop::hide();
+}
 
-    if (m_rewriterTransaction.isValid())
+void DragTool::commitTransaction()
+{
+    try {
         m_rewriterTransaction.commit();
-
+    } catch (RewritingException &e) {
+        e.showException();
+    }
 }
 
 void DragTool::dropEvent(QGraphicsSceneDragDropEvent * event)
@@ -277,15 +285,12 @@ void DragTool::dropEvent(QGraphicsSceneDragDropEvent * event)
         event->accept();
         end(generateUseSnapping(event->modifiers()));
 
-        try {
-            m_rewriterTransaction.commit();
-        } catch (RewritingException &e) {
-            QMessageBox::warning(0, "Error", e.description());
-        }
+        commitTransaction();
+
         if (m_dragNode.isValid()) {
             QList<QmlItemNode> nodeList;
             nodeList.append(m_dragNode);
-            view()->setSelectedQmlItemNodes(nodeList);
+            view()->setSelectedModelNodes(toModelNodeList(nodeList));
         }
         m_dragNode = ModelNode();
         view()->changeToSelectionTool();
@@ -321,7 +326,7 @@ void DragTool::dragEnterEvent(QGraphicsSceneDragDropEvent * event)
 
         if (!m_rewriterTransaction.isValid()) {
             view()->clearSelectedModelNodes();
-            m_rewriterTransaction = view()->beginRewriterTransaction();
+            m_rewriterTransaction = view()->beginRewriterTransaction(QByteArrayLiteral("DragTool::dragEnterEvent"));
         }
     }
 }
@@ -337,15 +342,11 @@ void DragTool::dragLeaveEvent(QGraphicsSceneDragDropEvent * event)
         m_moveManipulator.end();
         clear();
 
-        try {
-            m_rewriterTransaction.commit();
-        } catch (RewritingException &e) {
-            QMessageBox::warning(0, "Error", e.description());
-        }
+        commitTransaction();
 
         QmlDesignerItemLibraryDragAndDrop::CustomDragAndDrop::show();
         QList<QmlItemNode> nodeList;
-        view()->setSelectedQmlItemNodes(nodeList);
+        view()->setSelectedModelNodes(toModelNodeList(nodeList));
         view()->changeToSelectionTool();
     }
 }

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -51,7 +51,7 @@
 #include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/actionmanager/command.h>
 #include <coreplugin/editormanager/editormanager.h>
-#include <locator/commandlocator.h>
+#include <coreplugin/locator/commandlocator.h>
 
 #include <vcsbase/vcsbaseoutputwindow.h>
 
@@ -66,6 +66,8 @@
 #include <QTemporaryFile>
 #include <QDir>
 #include <QMap>
+
+using namespace Core;
 
 enum { debug = 0 };
 
@@ -165,10 +167,9 @@ FetchContext::~FetchContext()
 void FetchContext::start()
 {
     m_progress.setProgressRange(0, 2);
-    Core::ProgressManager *pm = Core::ICore::instance()->progressManager();
-    Core::FutureProgress *fp = pm->addTask(m_progress.future(), tr("Gerrit Fetch"),
-                                           QLatin1String("gerrit-fetch"));
-    fp->setKeepOnFinish(Core::FutureProgress::HideOnFinish);
+    FutureProgress *fp = ProgressManager::addTask(m_progress.future(), tr("Gerrit Fetch"),
+                                           "gerrit-fetch");
+    fp->setKeepOnFinish(FutureProgress::HideOnFinish);
     m_progress.reportStarted();
     // Order: initialize future before starting the process in case error handling is invoked.
     const QStringList args = m_change->gitFetchArguments(m_parameters);
@@ -247,15 +248,15 @@ void FetchContext::show()
 void FetchContext::cherryPick()
 {
     // Point user to errors.
-    VcsBase::VcsBaseOutputWindow::instance()->popup(Core::IOutputPane::ModeSwitch
-                                                  | Core::IOutputPane::WithFocus);
+    VcsBase::VcsBaseOutputWindow::instance()->popup(IOutputPane::ModeSwitch
+                                                  | IOutputPane::WithFocus);
     Git::Internal::GitPlugin::instance()->gitClient()->synchronousCherryPick(
                 m_repository, QLatin1String("FETCH_HEAD"));
 }
 
 void FetchContext::checkout()
 {
-    Git::Internal::GitPlugin::instance()->gitClient()->synchronousCheckout(
+    Git::Internal::GitPlugin::instance()->gitClient()->stashAndCheckout(
                 m_repository, QLatin1String("FETCH_HEAD"));
 }
 
@@ -270,23 +271,23 @@ GerritPlugin::~GerritPlugin()
 {
 }
 
-bool GerritPlugin::initialize(Core::ActionContainer *ac)
+bool GerritPlugin::initialize(ActionContainer *ac)
 {
-    m_parameters->fromSettings(Core::ICore::instance()->settings());
+    m_parameters->fromSettings(ICore::settings());
 
     QAction *openViewAction = new QAction(tr("Gerrit..."), this);
 
     m_gerritCommand =
-        Core::ActionManager::registerAction(openViewAction, Constants::GERRIT_OPEN_VIEW,
-                           Core::Context(Core::Constants::C_GLOBAL));
+        ActionManager::registerAction(openViewAction, Constants::GERRIT_OPEN_VIEW,
+                           Context(Core::Constants::C_GLOBAL));
     connect(openViewAction, SIGNAL(triggered()), this, SLOT(openView()));
     ac->addAction(m_gerritCommand);
 
     QAction *pushAction = new QAction(tr("Push to Gerrit..."), this);
 
-    Core::Command *pushCommand =
-        Core::ActionManager::registerAction(pushAction, Constants::GERRIT_PUSH,
-                           Core::Context(Core::Constants::C_GLOBAL));
+    Command *pushCommand =
+        ActionManager::registerAction(pushAction, Constants::GERRIT_PUSH,
+                           Context(Core::Constants::C_GLOBAL));
     connect(pushAction, SIGNAL(triggered()), this, SLOT(push()));
     ac->addAction(pushCommand);
 
@@ -301,24 +302,19 @@ void GerritPlugin::updateActions(bool hasTopLevel)
     m_pushToGerritPair.first->setEnabled(hasTopLevel);
 }
 
-void GerritPlugin::addToLocator(Locator::CommandLocator *locator)
+void GerritPlugin::addToLocator(Core::CommandLocator *locator)
 {
     locator->appendCommand(m_gerritCommand);
     locator->appendCommand(m_pushToGerritPair.second);
 }
 
-void GerritPlugin::push()
+void GerritPlugin::push(const QString &topLevel)
 {
-    const QString topLevel = Git::Internal::GitPlugin::instance()->currentState().topLevel();
-
     // QScopedPointer is required to delete the dialog when leaving the function
-    GerritPushDialog dialog(topLevel, m_reviewers, Core::ICore::mainWindow());
-
-    if (!dialog.localChangesFound())
-        return;
+    GerritPushDialog dialog(topLevel, m_reviewers, ICore::mainWindow());
 
     if (!dialog.valid()) {
-        QMessageBox::warning(Core::ICore::mainWindow(), tr("Initialization Failed"),
+        QMessageBox::warning(ICore::mainWindow(), tr("Initialization Failed"),
                               tr("Failed to initialize dialog. Aborting."));
         return;
     }
@@ -360,11 +356,13 @@ void GerritPlugin::openView()
 {
     if (m_dialog.isNull()) {
         while (!m_parameters->isValid()) {
-            const Core::Id group = VcsBase::Constants::VCS_SETTINGS_CATEGORY;
-            if (!Core::ICore::instance()->showOptionsDialog(group, Core::Id("Gerrit")))
+            QMessageBox::warning(ICore::dialogParent(), tr("Error"),
+                    tr("Invalid Gerrit configuration. Host, user and ssh binary are mandatory."));
+            const Id group = VcsBase::Constants::VCS_SETTINGS_CATEGORY;
+            if (!ICore::showOptionsDialog(group, "Gerrit"))
                 return;
         }
-        GerritDialog *gd = new GerritDialog(m_parameters, Core::ICore::mainWindow());
+        GerritDialog *gd = new GerritDialog(m_parameters, ICore::mainWindow());
         gd->setModal(false);
         connect(gd, SIGNAL(fetchDisplay(QSharedPointer<Gerrit::Internal::GerritChange>)),
                 this, SLOT(fetchDisplay(QSharedPointer<Gerrit::Internal::GerritChange>)));
@@ -382,6 +380,11 @@ void GerritPlugin::openView()
         m_dialog.data()->setWindowState(state & ~Qt::WindowMinimized);
     m_dialog.data()->show();
     m_dialog.data()->raise();
+}
+
+void GerritPlugin::push()
+{
+    push(Git::Internal::GitPlugin::instance()->currentState().topLevel());
 }
 
 QString GerritPlugin::gitBinary()
@@ -465,7 +468,7 @@ void GerritPlugin::fetch(const QSharedPointer<Gerrit::Internal::GerritChange> &c
 
             if (!verifiedRepository) {
                 QMessageBox::StandardButton answer = QMessageBox::question(
-                            Core::ICore::mainWindow(), tr("Remote Not Verified"),
+                            ICore::mainWindow(), tr("Remote Not Verified"),
                             tr("Change host %1\nand project %2\n\nwere not verified among remotes"
                                " in %3. Select different folder?")
                             .arg(m_parameters->host,
@@ -509,8 +512,7 @@ void GerritPlugin::fetch(const QSharedPointer<Gerrit::Internal::GerritChange> &c
 // Try to find a matching repository for a project by asking the VcsManager.
 QString GerritPlugin::findLocalRepository(QString project, const QString &branch) const
 {
-    const Core::VcsManager *vcsManager = Core::ICore::instance()->vcsManager();
-    const QStringList gitRepositories = vcsManager->repositories(Git::Internal::GitPlugin::instance()->gitVersionControl());
+    const QStringList gitRepositories = VcsManager::repositories(Git::Internal::GitPlugin::instance()->gitVersionControl());
     // Determine key (file name) to look for (qt/qtbase->'qtbase').
     const int slashPos = project.lastIndexOf(QLatin1Char('/'));
     if (slashPos != -1)
@@ -544,7 +546,7 @@ QString GerritPlugin::findLocalRepository(QString project, const QString &branch
     } // for repositories
     // No match, do we have  a projects folder?
     if (Core::DocumentManager::useProjectsDirectory())
-        return Core::DocumentManager::projectsDirectory();
+        return DocumentManager::projectsDirectory();
 
     return QDir::currentPath();
 }

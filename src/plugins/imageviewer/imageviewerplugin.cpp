@@ -1,7 +1,7 @@
 /**************************************************************************
 **
-** Copyright (C) 2013 Denis Mingulov.
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Denis Mingulov.
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -42,42 +42,26 @@
 namespace ImageViewer {
 namespace Internal {
 
-///////////////////////////////// ImageViewerPluginPrivate //////////////////////////////////
-struct ImageViewerPluginPrivate
-{
-    QPointer<ImageViewerFactory> factory;
-};
-
 ///////////////////////////////// ImageViewerPlugin //////////////////////////////////
-
-ImageViewerPlugin::ImageViewerPlugin()
-    : d(new ImageViewerPluginPrivate)
-{
-}
-
-ImageViewerPlugin::~ImageViewerPlugin()
-{
-    delete d;
-}
 
 bool ImageViewerPlugin::initialize(const QStringList &arguments, QString *errorMessage)
 {
     Q_UNUSED(arguments)
 
-    if (!Core::ICore::mimeDatabase()->addMimeTypes(QLatin1String(":/imageviewer/ImageViewer.mimetypes.xml"), errorMessage))
+    if (!Core::MimeDatabase::addMimeTypes(QLatin1String(":/imageviewer/ImageViewer.mimetypes.xml"), errorMessage))
         return false;
 
-    d->factory = new ImageViewerFactory(this);
+    m_factory = new ImageViewerFactory(this);
     Aggregation::Aggregate *aggregate = new Aggregation::Aggregate;
-    aggregate->add(d->factory);
+    aggregate->add(m_factory);
 
-    addAutoReleasedObject(d->factory);
+    addAutoReleasedObject(m_factory);
     return true;
 }
 
 void ImageViewerPlugin::extensionsInitialized()
 {
-    d->factory->extensionsInitialized();
+    m_factory->extensionsInitialized();
 }
 
 } // namespace Internal

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -87,7 +87,7 @@ QSet<QString> CvsEditor::annotationChanges() const
             changes.insert(r.cap(1));
         }
     }
-    if (Cvs::Constants::debug)
+    if (Constants::debug)
         qDebug() << "CVSEditor::annotationChanges() returns #" << changes.size();
     return changes;
 }
@@ -123,10 +123,9 @@ QString CvsEditor::changeUnderCursor(const QTextCursor &c) const
     return QString();
 }
 
-VcsBase::BaseAnnotationHighlighter *CvsEditor::createAnnotationHighlighter(const QSet<QString> &changes,
-                                                                           const QColor &bg) const
+VcsBase::BaseAnnotationHighlighter *CvsEditor::createAnnotationHighlighter(const QSet<QString> &changes) const
 {
-    return new CvsAnnotationHighlighter(changes, bg);
+    return new CvsAnnotationHighlighter(changes);
 }
 
 QStringList CvsEditor::annotationPreviousVersions(const QString &revision) const

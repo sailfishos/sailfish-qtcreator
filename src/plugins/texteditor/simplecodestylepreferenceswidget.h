@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -40,9 +40,7 @@ class TabSettings;
 class TabSettingsWidget;
 class ICodeStylePreferences;
 
-namespace Ui {
-    class TabPreferencesWidget;
-}
+namespace Ui { class TabPreferencesWidget; }
 
 class TEXTEDITOR_EXPORT SimpleCodeStylePreferencesWidget : public QWidget
 {
@@ -52,7 +50,6 @@ public:
     explicit SimpleCodeStylePreferencesWidget(QWidget *parent = 0);
 
     void setPreferences(ICodeStylePreferences *tabPreferences);
-    QString searchKeywords() const;
 
     void setFlat(bool on);
     TabSettingsWidget *tabSettingsWidget() const;

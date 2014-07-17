@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -39,6 +39,7 @@
 #include <QGroupBox>
 #include <QRegExp>
 #include <QVBoxLayout>
+#include <QMenu>
 
 namespace Git {
 namespace Internal {
@@ -46,6 +47,7 @@ namespace Internal {
 // ------------------
 GitSubmitEditorWidget::GitSubmitEditorWidget(QWidget *parent) :
     VcsBase::SubmitEditorWidget(parent),
+    m_pushAction(NoPush),
     m_gitSubmitPanel(new QWidget),
     m_logChangeWidget(0),
     m_hasUnmerged(false),
@@ -82,7 +84,11 @@ void GitSubmitEditorWidget::setHasUnmerged(bool e)
     m_hasUnmerged = e;
 }
 
-void GitSubmitEditorWidget::initialize(CommitType commitType, const QString &repository)
+void GitSubmitEditorWidget::initialize(CommitType commitType,
+                                       const QString &repository,
+                                       const GitSubmitEditorPanelData &data,
+                                       const GitSubmitEditorPanelInfo &info,
+                                       bool enablePush)
 {
     if (m_isInitialized)
         return;
@@ -92,7 +98,7 @@ void GitSubmitEditorWidget::initialize(CommitType commitType, const QString &rep
         QVBoxLayout *logChangeLayout = new QVBoxLayout;
         logChangeGroupBox->setLayout(logChangeLayout);
         m_logChangeWidget = new LogChangeWidget;
-        m_logChangeWidget->init(repository, QString(), false);
+        m_logChangeWidget->init(repository);
         connect(m_logChangeWidget, SIGNAL(doubleClicked(QString)), this, SIGNAL(show(QString)));
         logChangeLayout->addWidget(m_logChangeWidget);
         insertTopWidget(logChangeGroupBox);
@@ -100,12 +106,22 @@ void GitSubmitEditorWidget::initialize(CommitType commitType, const QString &rep
         hideDescription();
     }
     insertTopWidget(m_gitSubmitPanel);
+    setPanelData(data);
+    setPanelInfo(info);
+
+    if (enablePush) {
+        QMenu *menu = new QMenu(this);
+        menu->addAction(tr("&Commit only"), this, SLOT(commitOnlySlot()));
+        menu->addAction(tr("Commit and &Push"), this, SLOT(commitAndPushSlot()));
+        menu->addAction(tr("Commit and Push to &Gerrit"), this, SLOT(commitAndPushToGerritSlot()));
+        addSubmitButtonMenu(menu);
+    }
 }
 
 void GitSubmitEditorWidget::refreshLog(const QString &repository)
 {
     if (m_logChangeWidget)
-        m_logChangeWidget->init(repository, QString(), false);
+        m_logChangeWidget->init(repository);
 }
 
 GitSubmitEditorPanelData GitSubmitEditorWidget::panelData() const
@@ -114,6 +130,7 @@ GitSubmitEditorPanelData GitSubmitEditorWidget::panelData() const
     rc.author = m_gitSubmitPanelUi.authorLineEdit->text();
     rc.email = m_gitSubmitPanelUi.emailLineEdit->text();
     rc.bypassHooks = m_gitSubmitPanelUi.bypassHooksCheckBox->isChecked();
+    rc.pushAction = m_pushAction;
     return rc;
 }
 
@@ -153,6 +170,16 @@ QString GitSubmitEditorWidget::cleanupDescription(const QString &input) const
 
 }
 
+QString GitSubmitEditorWidget::commitName() const
+{
+    if (m_pushAction == NormalPush)
+        return tr("&Commit and Push");
+    else if (m_pushAction == PushToGerrit)
+        return tr("&Commit and Push to Gerrit");
+
+    return tr("&Commit");
+}
+
 void GitSubmitEditorWidget::authorInformationChanged()
 {
     bool bothEmpty = m_gitSubmitPanelUi.authorLineEdit->text().isEmpty() &&
@@ -163,6 +190,24 @@ void GitSubmitEditorWidget::authorInformationChanged()
     m_gitSubmitPanelUi.invalidEmailLabel->
             setVisible(!emailIsValid() && !bothEmpty);
 
+    updateSubmitAction();
+}
+
+void GitSubmitEditorWidget::commitOnlySlot()
+{
+    m_pushAction = NoPush;
+    updateSubmitAction();
+}
+
+void GitSubmitEditorWidget::commitAndPushSlot()
+{
+    m_pushAction = NormalPush;
+    updateSubmitAction();
+}
+
+void GitSubmitEditorWidget::commitAndPushToGerritSlot()
+{
+    m_pushAction = PushToGerrit;
     updateSubmitAction();
 }
 

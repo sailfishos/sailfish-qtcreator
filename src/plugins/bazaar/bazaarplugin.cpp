@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Hugues Delorme
+** Copyright (c) 2014 Hugues Delorme
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -34,6 +34,7 @@
 #include "bazaarcommitwidget.h"
 #include "bazaareditor.h"
 #include "pullorpushdialog.h"
+#include "uncommitdialog.h"
 #include "commiteditor.h"
 #include "clonewizard.h"
 
@@ -47,8 +48,7 @@
 #include <coreplugin/icore.h>
 #include <coreplugin/documentmanager.h>
 #include <coreplugin/editormanager/editormanager.h>
-
-#include <locator/commandlocator.h>
+#include <coreplugin/locator/commandlocator.h>
 
 #include <utils/parameteraction.h>
 #include <utils/qtcassert.h>
@@ -148,7 +148,7 @@ bool BazaarPlugin::initialize(const QStringList &arguments, QString *errorMessag
     addAutoReleasedObject(new CloneWizard);
 
     const QString prefix = QLatin1String("bzr");
-    m_commandLocator = new Locator::CommandLocator("Bazaar", prefix, prefix);
+    m_commandLocator = new Core::CommandLocator("Bazaar", prefix, prefix);
     addAutoReleasedObject(m_commandLocator);
 
     createMenu();
@@ -421,6 +421,13 @@ void BazaarPlugin::createRepositoryActions(const Core::Context &context)
     m_bazaarContainer->addAction(command);
     m_commandLocator->appendCommand(command);
 
+    action = new QAction(tr("Uncommit..."), this);
+    m_repositoryActionList.append(action);
+    command = Core::ActionManager::registerAction(action, Core::Id(Constants::UNCOMMIT), context);
+    connect(action, SIGNAL(triggered()), this, SLOT(uncommit()));
+    m_bazaarContainer->addAction(command);
+    m_commandLocator->appendCommand(command);
+
     QAction *createRepositoryAction = new QAction(tr("Create Repository..."), this);
     command = Core::ActionManager::registerAction(createRepositoryAction, Core::Id(Constants::CREATE_REPOSITORY), context);
     connect(createRepositoryAction, SIGNAL(triggered()), this, SLOT(createRepository()));
@@ -536,7 +543,7 @@ void BazaarPlugin::showCommitWidget(const QList<VcsBase::VcsBaseClient::StatusIt
     // Keep the file alive, else it removes self and forgets its name
     saver.setAutoRemove(false);
     if (!saver.finalize()) {
-        VcsBase::VcsBaseOutputWindow::instance()->append(saver.errorString());
+        VcsBase::VcsBaseOutputWindow::instance()->appendError(saver.errorString());
         return;
     }
 
@@ -561,7 +568,7 @@ void BazaarPlugin::showCommitWidget(const QList<VcsBase::VcsBaseClient::StatusIt
 
     const QString msg = tr("Commit changes for \"%1\".").
             arg(QDir::toNativeSeparators(m_submitRepository));
-    commitEditor->setDisplayName(msg);
+    commitEditor->document()->setDisplayName(msg);
 
     const BranchInfo branch = m_client->synchronousBranchQuery(m_submitRepository);
     commitEditor->setFields(m_submitRepository, branch,
@@ -637,7 +644,17 @@ void BazaarPlugin::commitFromEditor()
 {
     // Close the submit editor
     m_submitActionTriggered = true;
-    Core::ICore::editorManager()->closeEditor();
+    Core::EditorManager::closeEditor();
+}
+
+void BazaarPlugin::uncommit()
+{
+    const VcsBase::VcsBasePluginState state = currentState();
+    QTC_ASSERT(state.hasTopLevel(), return);
+
+    UnCommitDialog dialog;
+    if (dialog.exec() == QDialog::Accepted)
+        m_client->synchronousUncommit(state.topLevel(), dialog.revision(), dialog.extraOptions());
 }
 
 bool BazaarPlugin::submitEditorAboutToClose()
@@ -647,7 +664,7 @@ bool BazaarPlugin::submitEditorAboutToClose()
     Core::IDocument *editorDocument = commitEditor->document();
     QTC_ASSERT(editorDocument, return true);
 
-    bool dummyPrompt = m_bazaarSettings.boolValue(BazaarSettings::promptOnSubmitKey);
+    bool dummyPrompt = false;
     const VcsBase::VcsBaseSubmitEditor::PromptSubmitResult response =
             commitEditor->promptSubmit(tr("Close Commit Editor"), tr("Do you want to commit the changes?"),
                                        tr("Message check failed. Do you want to proceed?"),
@@ -690,7 +707,7 @@ bool BazaarPlugin::submitEditorAboutToClose()
         // Whether local commit or not
         if (commitWidget->isLocalOptionEnabled())
             extraOptions += QLatin1String("--local");
-        m_client->commit(m_submitRepository, files, editorDocument->fileName(), extraOptions);
+        m_client->commit(m_submitRepository, files, editorDocument->filePath(), extraOptions);
     }
     return true;
 }

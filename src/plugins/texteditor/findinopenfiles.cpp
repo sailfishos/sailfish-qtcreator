@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -33,19 +33,18 @@
 #include <utils/filesearch.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/editormanager/editormanager.h>
-#include <coreplugin/editormanager/openeditorsmodel.h>
+#include <coreplugin/editormanager/documentmodel.h>
 
 #include <QSettings>
 
-using namespace Find;
 using namespace TextEditor;
 using namespace TextEditor::Internal;
 
 FindInOpenFiles::FindInOpenFiles()
 {
-    connect(Core::ICore::instance()->editorManager(), SIGNAL(editorOpened(Core::IEditor*)),
+    connect(Core::EditorManager::instance(), SIGNAL(editorOpened(Core::IEditor*)),
             this, SLOT(updateEnabledState()));
-    connect(Core::ICore::instance()->editorManager(), SIGNAL(editorsClosed(QList<Core::IEditor*>)),
+    connect(Core::EditorManager::instance(), SIGNAL(editorsClosed(QList<Core::IEditor*>)),
             this, SLOT(updateEnabledState()));
 }
 
@@ -64,17 +63,18 @@ Utils::FileIterator *FindInOpenFiles::files(const QStringList &nameFilters,
 {
     Q_UNUSED(nameFilters)
     Q_UNUSED(additionalParameters)
-    QMap<QString, QTextCodec *> openEditorEncodings = ITextEditor::openedTextEditorsEncodings();
+    QMap<QString, QTextCodec *> openEditorEncodings
+            = ITextEditorDocument::openedTextDocumentEncodings();
     QStringList fileNames;
     QList<QTextCodec *> codecs;
-    foreach (const Core::OpenEditorsModel::Entry &entry,
-             Core::EditorManager::instance()->openedEditorsModel()->entries()) {
-        QString fileName = entry.fileName();
+    foreach (Core::DocumentModel::Entry *entry,
+             Core::EditorManager::documentModel()->documents()) {
+        QString fileName = entry->fileName();
         if (!fileName.isEmpty()) {
             fileNames.append(fileName);
             QTextCodec *codec = openEditorEncodings.value(fileName);
             if (!codec)
-                codec = Core::EditorManager::instance()->defaultTextCodec();
+                codec = Core::EditorManager::defaultTextCodec();
             codecs.append(codec);
         }
     }
@@ -100,7 +100,7 @@ QString FindInOpenFiles::toolTip() const
 
 bool FindInOpenFiles::isEnabled() const
 {
-    return Core::EditorManager::instance()->openedEditors().count() > 0;
+    return Core::EditorManager::documentModel()->documentCount() > 0;
 }
 
 void FindInOpenFiles::writeSettings(QSettings *settings)

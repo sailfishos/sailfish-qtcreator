@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -76,11 +76,15 @@ private slots:
     void buildFile();
     void buildProductContextMenu();
     void buildProduct();
+    void buildSubprojectContextMenu();
+    void buildSubproject();
 
     void reparseCurrentProject();
 
 private:
-    void buildFiles(QbsProject *project, const QStringList &files);
+    void buildFiles(QbsProject *project, const QStringList &files,
+                    const QStringList &activeFileTags);
+    void buildSingleFile(QbsProject *project, const QString &file);
     void buildProducts(QbsProject *project, const QStringList &products);
 
     QbsManager *m_manager;
@@ -90,8 +94,10 @@ private:
     QAction *m_reparseQbsCtx;
     QAction *m_buildFileContextMenu;
     QAction *m_buildProductContextMenu;
+    QAction *m_buildSubprojectContextMenu;
     Utils::ParameterAction *m_buildFile;
     Utils::ParameterAction *m_buildProduct;
+    Utils::ParameterAction *m_buildSubproject;
 
     Internal::QbsProject *m_currentProject;
     ProjectExplorer::Target *m_currentTarget;

@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 BogDan Vatra <bog_dan_ro@yahoo.com>
+** Copyright (c) 2014 BogDan Vatra <bog_dan_ro@yahoo.com>
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -40,15 +40,15 @@
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/target.h>
 #include <debugger/debuggerconstants.h>
-#include <qt4projectmanager/qt4project.h>
-#include <qt4projectmanager/qt4nodes.h>
+#include <qmakeprojectmanager/qmakeproject.h>
+#include <qmakeprojectmanager/qmakenodes.h>
 #include <qtsupport/customexecutablerunconfiguration.h>
 #include <qtsupport/qtkitinformation.h>
 #include <qtsupport/qtsupportconstants.h>
 
 
 using namespace ProjectExplorer;
-using namespace Qt4ProjectManager;
+using namespace QmakeProjectManager;
 
 namespace Android {
 namespace Internal {
@@ -90,11 +90,11 @@ QList<Core::Id> AndroidRunConfigurationFactory::availableCreationIds(Target *par
     QList<Core::Id> ids;
     if (!AndroidManager::supportsAndroid(parent))
         return ids;
-    QList<Qt4ProFileNode *> nodes = static_cast<Qt4Project *>(parent->project())->allProFiles();
+    QList<QmakeProFileNode *> nodes = static_cast<QmakeProject *>(parent->project())->allProFiles();
     const Core::Id base = Core::Id(ANDROID_RC_ID_PREFIX);
-    foreach (Qt4ProFileNode *node, nodes)
+    foreach (QmakeProFileNode *node, nodes)
         if (node->projectType() == ApplicationTemplate || node->projectType() == LibraryTemplate)
-            ids << base.withSuffix(node->targetInformation().target);
+            ids << base.withSuffix(node->path());
     return ids;
 }
 
@@ -168,7 +168,7 @@ RunControl *AndroidRunControlFactory::create(RunConfiguration *runConfig,
     case DebugRunMode:
         return AndroidDebugSupport::createDebugRunControl(rc, errorMessage);
     case QmlProfilerRunMode:
-        return AndroidAnalyzeSupport::createAnalyzeRunControl(rc, mode, errorMessage);
+        return AndroidAnalyzeSupport::createAnalyzeRunControl(rc, mode);
     case NoRunMode:
     case DebugRunModeWithBreakOnMain:
     case CallgrindRunMode:
@@ -180,4 +180,4 @@ RunControl *AndroidRunControlFactory::create(RunConfiguration *runConfig,
 }
 
 } // namespace Internal
-} // namespace Qt4ProjectManager
+} // namespace Android

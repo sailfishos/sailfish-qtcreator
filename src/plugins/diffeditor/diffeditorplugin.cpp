@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -31,9 +31,7 @@
 #include "diffeditor.h"
 #include "diffeditorconstants.h"
 #include "diffeditorfactory.h"
-#include "diffeditorwidget.h"
-#include "diffshoweditor.h"
-#include "diffshoweditorfactory.h"
+#include "diffeditormanager.h"
 
 #include <QFileDialog>
 #include <QTextCodec>
@@ -43,9 +41,9 @@
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/editormanager/editormanager.h>
+#include <coreplugin/icore.h>
 
 namespace DiffEditor {
-
 namespace Internal {
 
 DiffEditorPlugin::DiffEditorPlugin()
@@ -75,7 +73,8 @@ bool DiffEditorPlugin::initialize(const QStringList &arguments, QString *errorMe
     toolsContainer->addAction(diffCommand, Constants::G_TOOLS_DIFF);
 
     addAutoReleasedObject(new DiffEditorFactory(this));
-    addAutoReleasedObject(new DiffShowEditorFactory(this));
+
+    new DiffEditorManager(this);
 
     return true;
 }
@@ -86,13 +85,13 @@ void DiffEditorPlugin::extensionsInitialized()
 
 void DiffEditorPlugin::diff()
 {
-    QString fileName1 = QFileDialog::getOpenFileName(0,
+    QString fileName1 = QFileDialog::getOpenFileName(Core::ICore::dialogParent(),
                                                      tr("Select First File for Diff"),
                                                      QString());
     if (fileName1.isNull())
         return;
 
-    QString fileName2 = QFileDialog::getOpenFileName(0,
+    QString fileName2 = QFileDialog::getOpenFileName(Core::ICore::dialogParent(),
                                                      tr("Select Second File for Diff"),
                                                      QString());
     if (fileName2.isNull())
@@ -103,49 +102,35 @@ void DiffEditorPlugin::diff()
     //: Editor title
     QString title = tr("Diff \"%1\", \"%2\"").arg(fileName1).arg(fileName2);
     DiffEditor *editor = qobject_cast<DiffEditor *>
-            (Core::EditorManager::openEditorWithContents(editorId, &title, QString()));
-
+            (Core::EditorManager::openEditorWithContents(editorId, &title, QByteArray(),
+                                                         (Core::EditorManager::OpenInOtherSplit
+                                                          | Core::EditorManager::NoNewSplits)));
     if (!editor)
         return;
 
-    Core::EditorManager::activateEditor(editor);
+    const QString text1 = getFileContents(fileName1);
+    const QString text2 = getFileContents(fileName2);
 
-    DiffEditorWidget *editorWidget = editor->editorWidget();
-
-    const QString text1 = getFileContents(fileName1, editorWidget->codec());
-    const QString text2 = getFileContents(fileName2, editorWidget->codec());
-
-    DiffEditorWidget::DiffFilesContents dfc;
+    DiffEditorController::DiffFilesContents dfc;
     dfc.leftFileInfo = fileName1;
     dfc.leftText = text1;
     dfc.rightFileInfo = fileName2;
     dfc.rightText = text2;
-    QList<DiffEditorWidget::DiffFilesContents> list;
+    QList<DiffEditorController::DiffFilesContents> list;
     list.append(dfc);
 
-    editor->setDiff(list);
+    editor->controller()->setDiffContents(list);
 }
 
-QString DiffEditorPlugin::getFileContents(const QString &fileName, QTextCodec *codec) const
+QString DiffEditorPlugin::getFileContents(const QString &fileName) const
 {
     QFile file(fileName);
-    if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        return codec->toUnicode(file.readAll());
-    }
+    if (file.open(QIODevice::ReadOnly | QIODevice::Text))
+        return Core::EditorManager::defaultTextCodec()->toUnicode(file.readAll());
     return QString();
 }
 
 } // namespace Internal
 } // namespace DiffEditor
-
-#ifdef WITH_TESTS
-
-void DiffEditor::Internal::DiffEditorPlugin::testAssemblyRows()
-{
-    DiffEditorWidget widget;
-    widget.testAssemblyRows();
-}
-
-#endif // WITH_TESTS
 
 Q_EXPORT_PLUGIN(DiffEditor::Internal::DiffEditorPlugin)

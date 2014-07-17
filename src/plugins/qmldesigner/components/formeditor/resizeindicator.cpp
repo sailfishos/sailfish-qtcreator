@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -66,16 +66,22 @@ void ResizeIndicator::clear()
     m_itemControllerHash.clear();
 }
 
+bool itemIsResizable(const QmlItemNode &qmlItemNode)
+{
+    return qmlItemNode.isValid()
+            && qmlItemNode.instanceIsResizable()
+            && qmlItemNode.modelIsMovable()
+            && qmlItemNode.modelIsResizable()
+            && !qmlItemNode.instanceHasRotationTransform()
+            && !qmlItemNode.instanceIsInLayoutable();
+}
+
 void ResizeIndicator::setItems(const QList<FormEditorItem*> &itemList)
 {
     clear();
 
     foreach (FormEditorItem* item, itemList) {
-        if (item
-                && item->qmlItemNode().isValid()
-                && item->qmlItemNode().instanceIsResizable()
-                && !item->qmlItemNode().instanceHasRotationTransform()
-                && !item->qmlItemNode().instanceIsInLayoutable()) {
+        if (item && itemIsResizable(item->qmlItemNode())) {
             ResizeController controller(m_layerItem, item);
             m_itemControllerHash.insert(item, controller);
         }
@@ -86,12 +92,15 @@ void ResizeIndicator::updateItems(const QList<FormEditorItem*> &itemList)
 {
     foreach (FormEditorItem* item, itemList) {
         if (m_itemControllerHash.contains(item)) {
-            if (item->qmlItemNode().instanceHasRotationTransform()) {
+            if (!item || !itemIsResizable(item->qmlItemNode())) {
                 m_itemControllerHash.take(item);
             } else {
                 ResizeController controller(m_itemControllerHash.value(item));
                 controller.updatePosition();
             }
+        } else if (item && itemIsResizable(item->qmlItemNode())) {
+            ResizeController controller(m_layerItem, item);
+            m_itemControllerHash.insert(item, controller);
         }
     }
 }

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -27,63 +27,50 @@
 **
 ****************************************************************************/
 
-import QtQuick 1.0
+import QtQuick 2.1
 import widgets 1.0
+import QtQuick.Controls 1.0
 
-Rectangle {
-    width: 920
-    height: 600
-    color: "#edf0f2"
-    id: root
+ScrollView {
+    id: scrollView
+
+    property var fonts: CustomFonts {}
+    property var colors: CustomColors { }
+
+    flickableItem.pixelAligned: true
 
     Rectangle {
-        id: canvas
+        width: Math.max(920, scrollView.flickableItem.width - 30)
+        height: Math.max(loader.height, scrollView.flickableItem.height);
 
-        width: Math.min(1024, parent.width)
-        //this is a workaround for QTCREATORBUG-6803
-        anchors.topMargin: (root.height > 700) ? 0 : 0
+        id: root
 
-        anchors.top: parent.top
-        anchors.bottom: parent.bottom
-        anchors.horizontalCenter: parent.horizontalCenter
+        SideBar {
+            id: sideBar
+            model: pagesModel
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+
+        }
+
+        Rectangle {
+            color: "#737373"
+            width: 1
+            height: parent.height
+
+            anchors.right: sideBar.right
+        }
+
+        QtObject {
+            id: tab
+            property int currentIndex: sideBar.currentIndex
+        }
 
         PageLoader {
-            anchors.fill: parent
-            anchors.topMargin: 76
+            id: loader
             model: pagesModel
-        }
-
-        CustomTab {
-            id: tab
-            x: 578
-            y: 96
+            anchors.left: sideBar.right
             anchors.right: parent.right
-            anchors.rightMargin: 36
-            model: pagesModel
-
-        }
-
-        Logo {
-            x: 25
-            y: 14
-        }
-
-        Rectangle {
-            visible: root.width > 1042
-            width: 2
-            color: "#cdcdcd"
-            anchors.left: parent.left
-            anchors.top: parent.top
-            anchors.bottom: parent.bottom
-        }
-
-        Rectangle {
-            visible: root.width > 1042
-            width: 2
-            color: "#cdcdcd"
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.bottom: parent.bottom
         }
 
     }

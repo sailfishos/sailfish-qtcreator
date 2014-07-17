@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2012 - 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -32,11 +32,14 @@
 #include "blackberrydeviceconfiguration.h"
 
 #include "qnxconstants.h"
+#include "qnxdeviceprocesssignaloperation.h"
+#include "blackberrydeployqtlibrariesdialog.h"
 #include "blackberrydeviceconfigurationwidget.h"
 #include "blackberrydeviceconnectionmanager.h"
-#include "blackberrydeviceprocesssupport.h"
+#include "qnxdeviceprocesslist.h"
 
 #include <projectexplorer/kitinformation.h>
+#include <ssh/sshconnection.h>
 
 using namespace Qnx;
 using namespace Qnx::Internal;
@@ -45,6 +48,7 @@ using namespace ProjectExplorer;
 namespace {
 const char ConnectToDeviceActionId[]      = "Qnx.BlackBerry.ConnectToDeviceAction";
 const char DisconnectFromDeviceActionId[] = "Qnx.BlackBerry.DisconnectFromDeviceAction";
+const char DeployQtLibrariesActionId[]    = "Qnx.BlackBerry.DeployQtLibrariesAction";
 }
 
 BlackBerryDeviceConfiguration::BlackBerryDeviceConfiguration()
@@ -98,15 +102,17 @@ IDevice::Ptr BlackBerryDeviceConfiguration::clone() const
     return Ptr(new BlackBerryDeviceConfiguration(*this));
 }
 
+bool BlackBerryDeviceConfiguration::hasDeviceTester() const
+{
+    // we are unable to easily verify that a device is available unless we duplicate
+    // 'Connect to device' functionality, therefore disabling device-tester
+    return false;
+}
+
 BlackBerryDeviceConfiguration::ConstPtr BlackBerryDeviceConfiguration::device(const Kit *k)
 {
     IDevice::ConstPtr dev = DeviceKitInformation::device(k);
     return dev.dynamicCast<const BlackBerryDeviceConfiguration>();
-}
-
-DeviceProcessSupport::Ptr BlackBerryDeviceConfiguration::processSupport() const
-{
-    return ProjectExplorer::DeviceProcessSupport::Ptr(new BlackBerryDeviceProcessSupport);
 }
 
 QString BlackBerryDeviceConfiguration::displayType() const
@@ -123,7 +129,8 @@ IDeviceWidget *BlackBerryDeviceConfiguration::createWidget()
 QList<Core::Id> BlackBerryDeviceConfiguration::actionIds() const
 {
     return QList<Core::Id>() << Core::Id(ConnectToDeviceActionId)
-                             << Core::Id(DisconnectFromDeviceActionId);
+                             << Core::Id(DisconnectFromDeviceActionId)
+                             << Core::Id(DeployQtLibrariesActionId);
 }
 
 QString BlackBerryDeviceConfiguration::displayNameForActionId(Core::Id actionId) const
@@ -132,11 +139,13 @@ QString BlackBerryDeviceConfiguration::displayNameForActionId(Core::Id actionId)
         return tr("Connect to device");
     else if (actionId == Core::Id(DisconnectFromDeviceActionId))
         return tr("Disconnect from device");
+    else if (actionId == Core::Id(DeployQtLibrariesActionId))
+        return tr("Deploy Qt libraries...");
 
     return QString();
 }
 
-void BlackBerryDeviceConfiguration::executeAction(Core::Id actionId, QWidget *parent) const
+void BlackBerryDeviceConfiguration::executeAction(Core::Id actionId, QWidget *parent)
 {
     Q_UNUSED(parent);
 
@@ -145,11 +154,15 @@ void BlackBerryDeviceConfiguration::executeAction(Core::Id actionId, QWidget *pa
 
     BlackBerryDeviceConnectionManager *connectionManager =
             BlackBerryDeviceConnectionManager::instance();
-    if (actionId == Core::Id(ConnectToDeviceActionId))
+    if (actionId == Core::Id(ConnectToDeviceActionId)) {
         connectionManager->connectDevice(device);
-    else if (actionId == Core::Id(DisconnectFromDeviceActionId)
-             && connectionManager->isConnected(id()))
+    } else if (actionId == Core::Id(DisconnectFromDeviceActionId)
+             && connectionManager->isConnected(id())) {
         connectionManager->disconnectDevice(device);
+    } else if (actionId == Core::Id(DeployQtLibrariesActionId)) {
+        BlackBerryDeployQtLibrariesDialog dialog(device, parent);
+        dialog.exec();
+    }
 }
 
 QVariantMap BlackBerryDeviceConfiguration::toMap() const
@@ -157,4 +170,15 @@ QVariantMap BlackBerryDeviceConfiguration::toMap() const
     QVariantMap map = RemoteLinux::LinuxDevice::toMap();
     map.insert(QLatin1String(Constants::QNX_DEBUG_TOKEN_KEY), m_debugToken);
     return map;
+}
+
+DeviceProcessList *BlackBerryDeviceConfiguration::createProcessListModel(QObject *parent) const
+{
+    return new QnxDeviceProcessList(sharedFromThis(), parent);
+}
+
+DeviceProcessSignalOperation::Ptr BlackBerryDeviceConfiguration::signalOperation() const
+{
+    return DeviceProcessSignalOperation::Ptr(
+                new BlackBerryDeviceProcessSignalOperation(sshParameters()));
 }

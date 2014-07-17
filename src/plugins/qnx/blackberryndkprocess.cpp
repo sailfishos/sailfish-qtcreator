@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -30,7 +30,7 @@
 ****************************************************************************/
 
 #include "blackberryndkprocess.h"
-#include "blackberryconfiguration.h"
+#include "blackberryconfigurationmanager.h"
 
 #include <utils/hostosinfo.h>
 
@@ -45,29 +45,47 @@ BlackBerryNdkProcess::BlackBerryNdkProcess(const QString &command, QObject *pare
     m_command(command)
 {
     m_process->setProcessChannelMode(QProcess::MergedChannels);
+    m_process->setEnvironment(Utils::EnvironmentItem::toStringList(
+             BlackBerryConfigurationManager::instance()->defaultConfigurationEnv()));
 
+    connect(m_process, SIGNAL(started()), this, SIGNAL(started()));
     connect(m_process, SIGNAL(finished(int,QProcess::ExitStatus)),
             this, SLOT(processFinished()));
     connect(m_process, SIGNAL(error(QProcess::ProcessError)),
             this, SLOT(processError(QProcess::ProcessError)));
 }
 
+const QString BlackBerryNdkProcess::resolveNdkToolPath(const QString &tool)
+{
+    QString toolPath;
+    QList<Utils::EnvironmentItem> qnxEnv =
+        BlackBerryConfigurationManager::instance()->defaultConfigurationEnv();
+    foreach (const Utils::EnvironmentItem &item, qnxEnv) {
+        if (item.name == QLatin1String("QNX_HOST") && !item.value.isEmpty()) {
+            toolPath = item.value
+                    + (QLatin1String("/usr/bin/")) + tool;
+
+            if (Utils::HostOsInfo::isWindowsHost())
+                toolPath += QLatin1String(".bat");
+
+            break;
+        }
+    }
+
+    return toolPath;
+}
+
 QString BlackBerryNdkProcess::command() const
 {
-    QString command = BlackBerryConfiguration::instance()
-        .qnxEnv().value(QLatin1String("QNX_HOST"))
-        + (QLatin1String("/usr/bin/")) + m_command;
-
-    if (Utils::HostOsInfo::isWindowsHost())
-        command += QLatin1String(".bat");
-
-    return command;
+    return resolveNdkToolPath(m_command);
 }
 
 void BlackBerryNdkProcess::start(const QStringList &arguments)
 {
     if (m_process->state() != QProcess::NotRunning)
         return;
+
+    resetResults();
 
     m_process->start(command(), arguments);
 }
@@ -144,6 +162,10 @@ int BlackBerryNdkProcess::errorLineToReturnStatus(const QString &line) const
 void BlackBerryNdkProcess::processData(const QString &line)
 {
     Q_UNUSED(line);
+}
+
+void BlackBerryNdkProcess::resetResults()
+{
 }
 
 } // namespace Internal

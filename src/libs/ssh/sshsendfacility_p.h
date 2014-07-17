@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -33,6 +33,8 @@
 #include "sshcryptofacility_p.h"
 #include "sshoutgoingpacket_p.h"
 
+#include <QStringList>
+
 QT_BEGIN_NAMESPACE
 class QTcpSocket;
 QT_END_NAMESPACE
@@ -59,10 +61,13 @@ public:
         const QByteArray &reasonString);
     void sendMsgUnimplementedPacket(quint32 serverSeqNr);
     void sendUserAuthServiceRequestPacket();
-    void sendUserAuthByPwdRequestPacket(const QByteArray &user,
+    void sendUserAuthByPasswordRequestPacket(const QByteArray &user,
         const QByteArray &service, const QByteArray &pwd);
-    void sendUserAuthByKeyRequestPacket(const QByteArray &user,
+    void sendUserAuthByPublicKeyRequestPacket(const QByteArray &user,
         const QByteArray &service);
+    void sendUserAuthByKeyboardInteractiveRequestPacket(const QByteArray &user,
+        const QByteArray &service);
+    void sendUserAuthInfoResponsePacket(const QStringList &responses);
     void sendRequestFailurePacket();
     void sendIgnorePacket();
     void sendInvalidPacket();

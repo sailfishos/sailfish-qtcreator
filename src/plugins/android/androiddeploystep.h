@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 BogDan Vatra <bog_dan_ro@yahoo.com>
+** Copyright (c) 2014 BogDan Vatra <bog_dan_ro@yahoo.com>
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -87,15 +87,12 @@ public:
     virtual ~AndroidDeployStep();
 
     QString deviceSerialNumber();
-    int deviceAPILevel();
 
     AndroidDeployAction deployAction();
 
     bool fromMap(const QVariantMap &map);
     QVariantMap toMap() const;
 
-    void cleanLibsOnDevice();
-    void installQASIPackage(const QString &packagePath);
     bool bundleQtOptionAvailable();
 
 public slots:
@@ -110,7 +107,6 @@ private slots:
     bool deployPackage();
     void handleBuildOutput();
     void handleBuildError();
-    void processFinished();
     void kitUpdated(ProjectExplorer::Kit *kit);
 
 private:
@@ -134,23 +130,24 @@ private:
     void fetchRemoteModificationTimes(QList<DeployItem> *deployList);
     void stripFiles(const QList<DeployItem> &deployList, ProjectExplorer::Abi::Architecture architecture, const QString &ndkToolchainVersion);
     void deployFiles(QProcess *process, const QList<DeployItem> &deployList);
+    bool checkForQt51Files();
 
 private:
     QString m_deviceSerialNumber;
     int m_deviceAPILevel;
+    QString m_targetArch;
 
-    QString m_QASIPackagePath;
     AndroidDeployAction m_deployAction;
 
     // members to transfer data from init() to run
+    QString m_avdName;
     QString m_packageName;
     QString m_qtVersionSourcePath;
-    QtSupport::BaseQtVersion::QmakeBuildConfigs m_qtVersionQMakeBuildConfig;
+    bool m_signPackage;
     Utils::FileName m_androidDirPath;
     QString m_apkPathDebug;
     QString m_apkPathRelease;
     QString m_buildDirectory;
-    QString m_runQASIPackagePath;
     AndroidDeployAction m_runDeployAction;
     QString m_ndkToolChainVersion;
     QString m_libgnustl;

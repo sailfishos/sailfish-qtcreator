@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,6 +30,7 @@
 #include "cmakeopenprojectwizard.h"
 #include "cmakeprojectmanager.h"
 #include "cmakebuildconfiguration.h"
+#include "cmakebuildinfo.h"
 
 #include <coreplugin/icore.h>
 #include <utils/hostosinfo.h>
@@ -42,6 +43,8 @@
 #include <projectexplorer/abi.h>
 #include <projectexplorer/projectexplorerconstants.h>
 #include <texteditor/fontsettings.h>
+#include <remotelinux/remotelinux_constants.h>
+#include <qnx/qnxconstants.h>
 
 #include <QVBoxLayout>
 #include <QFormLayout>
@@ -125,7 +128,8 @@ QByteArray GeneratorInfo::generator() const
         if (targetAbi.osFlavor() == ProjectExplorer::Abi::WindowsMsvc2005Flavor
                 || targetAbi.osFlavor() == ProjectExplorer::Abi::WindowsMsvc2008Flavor
                 || targetAbi.osFlavor() == ProjectExplorer::Abi::WindowsMsvc2010Flavor
-                || targetAbi.osFlavor() == ProjectExplorer::Abi::WindowsMsvc2012Flavor) {
+                || targetAbi.osFlavor() == ProjectExplorer::Abi::WindowsMsvc2012Flavor
+                || targetAbi.osFlavor() == ProjectExplorer::Abi::WindowsMsvc2013Flavor) {
             return "NMake Makefiles";
         } else if (targetAbi.osFlavor() == ProjectExplorer::Abi::WindowsMSysFlavor) {
             if (Utils::HostOsInfo::isWindowsHost())
@@ -157,7 +161,8 @@ QString GeneratorInfo::displayName() const
         if (targetAbi.osFlavor() == ProjectExplorer::Abi::WindowsMsvc2005Flavor
                 || targetAbi.osFlavor() == ProjectExplorer::Abi::WindowsMsvc2008Flavor
                 || targetAbi.osFlavor() == ProjectExplorer::Abi::WindowsMsvc2010Flavor
-                || targetAbi.osFlavor() == ProjectExplorer::Abi::WindowsMsvc2012Flavor) {
+                || targetAbi.osFlavor() == ProjectExplorer::Abi::WindowsMsvc2012Flavor
+                || targetAbi.osFlavor() == ProjectExplorer::Abi::WindowsMsvc2013Flavor) {
             return tr("NMake Generator (%1)").arg(m_kit->displayName());
         } else if (targetAbi.osFlavor() == ProjectExplorer::Abi::WindowsMSysFlavor) {
             if (Utils::HostOsInfo::isWindowsHost())
@@ -179,7 +184,10 @@ QList<GeneratorInfo> GeneratorInfo::generatorInfosFor(ProjectExplorer::Kit *k, N
     if (!tc)
         return results;
     Core::Id deviceType = ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(k);
-    if (deviceType !=  ProjectExplorer::Constants::DESKTOP_DEVICE_TYPE)
+    if (deviceType !=  ProjectExplorer::Constants::DESKTOP_DEVICE_TYPE
+            && deviceType != RemoteLinux::Constants::GenericLinuxOsType
+            && deviceType != Qnx::Constants::QNX_QNX_OS_TYPE
+            && deviceType != Qnx::Constants::QNX_BB_OS_TYPE)
         return results;
     ProjectExplorer::Abi targetAbi = tc->targetAbi();
     if (n != ForceNinja) {
@@ -187,7 +195,8 @@ QList<GeneratorInfo> GeneratorInfo::generatorInfosFor(ProjectExplorer::Kit *k, N
             if (targetAbi.osFlavor() == ProjectExplorer::Abi::WindowsMsvc2005Flavor
                     || targetAbi.osFlavor() == ProjectExplorer::Abi::WindowsMsvc2008Flavor
                     || targetAbi.osFlavor() == ProjectExplorer::Abi::WindowsMsvc2010Flavor
-                    || targetAbi.osFlavor() == ProjectExplorer::Abi::WindowsMsvc2012Flavor) {
+                    || targetAbi.osFlavor() == ProjectExplorer::Abi::WindowsMsvc2012Flavor
+                    || targetAbi.osFlavor() == ProjectExplorer::Abi::WindowsMsvc2013Flavor) {
                 if (hasCodeBlocks)
                     results << GeneratorInfo(k);
             } else if (targetAbi.osFlavor() == ProjectExplorer::Abi::WindowsMSysFlavor) {
@@ -211,8 +220,9 @@ QList<GeneratorInfo> GeneratorInfo::generatorInfosFor(ProjectExplorer::Kit *k, N
 /// CMakeOpenProjectWizard
 //////////////
 
-CMakeOpenProjectWizard::CMakeOpenProjectWizard(CMakeManager *cmakeManager, const QString &sourceDirectory, Utils::Environment env)
-    : m_cmakeManager(cmakeManager),
+CMakeOpenProjectWizard::CMakeOpenProjectWizard(QWidget *parent, CMakeManager *cmakeManager, const QString &sourceDirectory, Utils::Environment env)
+    : Utils::Wizard(parent),
+      m_cmakeManager(cmakeManager),
       m_sourceDirectory(sourceDirectory),
       m_environment(env),
       m_useNinja(false),
@@ -237,14 +247,17 @@ CMakeOpenProjectWizard::CMakeOpenProjectWizard(CMakeManager *cmakeManager, const
     init();
 }
 
-CMakeOpenProjectWizard::CMakeOpenProjectWizard(CMakeManager *cmakeManager, CMakeOpenProjectWizard::Mode mode,
-                                               const BuildInfo &info)
-    : m_cmakeManager(cmakeManager),
-      m_sourceDirectory(info.sourceDirectory),
-      m_environment(info.environment),
-      m_useNinja(info.useNinja),
-      m_kit(info.kit)
+CMakeOpenProjectWizard::CMakeOpenProjectWizard(QWidget *parent, CMakeManager *cmakeManager, CMakeOpenProjectWizard::Mode mode,
+                                               const CMakeBuildInfo *info)
+    : Utils::Wizard(parent),
+      m_cmakeManager(cmakeManager),
+      m_sourceDirectory(info->sourceDirectory),
+      m_environment(info->environment),
+      m_useNinja(info->useNinja),
+      m_kit(0)
 {
+    m_kit = ProjectExplorer::KitManager::find(info->kitId);
+
     CMakeRunPage::Mode rmode;
     if (mode == CMakeOpenProjectWizard::NeedToCreate)
         rmode = CMakeRunPage::Recreate;
@@ -256,20 +269,18 @@ CMakeOpenProjectWizard::CMakeOpenProjectWizard(CMakeManager *cmakeManager, CMake
         rmode = CMakeRunPage::ChangeDirectory;
 
     if (mode == CMakeOpenProjectWizard::ChangeDirectory) {
-        m_buildDirectory = info.buildDirectory;
+        m_buildDirectory = info->buildDirectory.toString();
         addPage(new ShadowBuildPage(this, true));
     }
     if (!m_cmakeManager->isCMakeExecutableValid())
         addPage(new ChooseCMakePage(this));
 
-    addPage(new CMakeRunPage(this, rmode, info.buildDirectory));
+    addPage(new CMakeRunPage(this, rmode, info->buildDirectory.toString()));
     init();
 }
 
 void CMakeOpenProjectWizard::init()
 {
-    setOption(QWizard::NoBackButtonOnStartPage);
-    setOption(QWizard::NoCancelButton, false);
     setWindowTitle(tr("CMake Wizard"));
 }
 
@@ -292,8 +303,7 @@ bool CMakeOpenProjectWizard::compatibleKitExist() const
     bool hasNinjaGenerator = m_cmakeManager->hasCodeBlocksNinjaGenerator();
     bool preferNinja = m_cmakeManager->preferNinja();
 
-    QList<ProjectExplorer::Kit *> kitList =
-            ProjectExplorer::KitManager::instance()->kits();
+    QList<ProjectExplorer::Kit *> kitList = ProjectExplorer::KitManager::kits();
 
     foreach (ProjectExplorer::Kit *k, kitList) {
         // OfferNinja and ForceNinja differ in what they return
@@ -388,7 +398,7 @@ NoKitPage::NoKitPage(CMakeOpenProjectWizard *cmakeWizard)
     layout->addWidget(m_descriptionLabel);
 
     m_optionsButton = new QPushButton;
-    m_optionsButton->setText(tr("Show Options"));
+    m_optionsButton->setText(Core::ICore::msgShowOptionsDialog());
 
     connect(m_optionsButton, SIGNAL(clicked()),
             this, SLOT(showOptions()));
@@ -453,7 +463,7 @@ ShadowBuildPage::ShadowBuildPage(CMakeOpenProjectWizard *cmakeWizard, bool chang
     QLabel *label = new QLabel(this);
     label->setWordWrap(true);
     if (change)
-        label->setText(tr("Please enter the directory in which you want to build your project. "));
+        label->setText(tr("Please enter the directory in which you want to build your project.") + QLatin1Char(' '));
     else
         label->setText(tr("Please enter the directory in which you want to build your project. "
                           "Qt Creator recommends to not use the source directory for building. "
@@ -464,6 +474,7 @@ ShadowBuildPage::ShadowBuildPage(CMakeOpenProjectWizard *cmakeWizard, bool chang
     m_pc->setBaseDirectory(m_cmakeWizard->sourceDirectory());
     m_pc->setPath(m_cmakeWizard->buildDirectory());
     m_pc->setExpectedKind(Utils::PathChooser::Directory);
+    m_pc->setHistoryCompleter(QLatin1String("Cmake.BuildDir.History"));
     connect(m_pc, SIGNAL(changed(QString)), this, SLOT(buildDirectoryChanged()));
     fl->addRow(tr("Build directory:"), m_pc);
     setTitle(tr("Build Location"));
@@ -487,6 +498,7 @@ ChooseCMakePage::ChooseCMakePage(CMakeOpenProjectWizard *cmakeWizard)
     // Show a field for the user to enter
     m_cmakeExecutable = new Utils::PathChooser(this);
     m_cmakeExecutable->setExpectedKind(Utils::PathChooser::ExistingCommand);
+    m_cmakeExecutable->setHistoryCompleter(QLatin1String("Cmake.Command.History"));
     fl->addRow(tr("CMake Executable:"), m_cmakeExecutable);
 
     connect(m_cmakeExecutable, SIGNAL(editingFinished()),
@@ -505,13 +517,14 @@ void ChooseCMakePage::updateErrorText()
     } else {
         QString text = tr("Specify the path to the CMake executable. No CMake executable was found in the path.");
         if (!cmakeExecutable.isEmpty()) {
+            text += QLatin1Char(' ');
             QFileInfo fi(cmakeExecutable);
             if (!fi.exists())
-                text += tr(" The CMake executable (%1) does not exist.").arg(cmakeExecutable);
+                text += tr("The CMake executable (%1) does not exist.").arg(cmakeExecutable);
             else if (!fi.isExecutable())
-                text += tr(" The path %1 is not an executable.").arg(cmakeExecutable);
+                text += tr("The path %1 is not an executable.").arg(cmakeExecutable);
             else
-                text += tr(" The path %1 is not a valid CMake executable.").arg(cmakeExecutable);
+                text += tr("The path %1 is not a valid CMake executable.").arg(cmakeExecutable);
         }
         m_cmakeLabel->setText(text);
     }
@@ -617,7 +630,7 @@ QByteArray CMakeRunPage::cachedGeneratorFromFile(const QString &cache)
 void CMakeRunPage::initializePage()
 {
     if (m_mode == Initial) {
-        bool upToDateXmlFile = m_cmakeWizard->existsUpToDateXmlFile();;
+        bool upToDateXmlFile = m_cmakeWizard->existsUpToDateXmlFile();
         m_buildDirectory = m_cmakeWizard->buildDirectory();
 
         if (upToDateXmlFile) {
@@ -665,8 +678,7 @@ void CMakeRunPage::initializePage()
         QByteArray cachedGenerator = cachedGeneratorFromFile(m_buildDirectory + QLatin1String("/CMakeCache.txt"));
 
         m_generatorComboBox->show();
-        QList<ProjectExplorer::Kit *> kitList =
-                ProjectExplorer::KitManager::instance()->kits();
+        QList<ProjectExplorer::Kit *> kitList = ProjectExplorer::KitManager::kits();
         int defaultIndex = 0;
 
         foreach (ProjectExplorer::Kit *k, kitList) {
@@ -675,7 +687,7 @@ void CMakeRunPage::initializePage()
                                                                           preferNinja,
                                                                           hasCodeBlocksGenerator);
 
-            if (k == ProjectExplorer::KitManager::instance()->defaultKit())
+            if (k == ProjectExplorer::KitManager::defaultKit())
                 defaultIndex = m_generatorComboBox->count();
 
             foreach (const GeneratorInfo &info, infos)
@@ -732,7 +744,7 @@ void CMakeRunPage::runCMake()
     m_cmakeWizard->setKit(generatorInfo.kit());
     m_cmakeWizard->setUseNinja(generatorInfo.isNinja());
 
-    // If mode is initial the user chooses the kit, otherwise it's already choosen
+    // If mode is initial the user chooses the kit, otherwise it's already chosen
     // and the environment already contains the kit
     if (m_mode == Initial)
         generatorInfo.kit()->addToEnvironment(env);

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -34,11 +34,14 @@
 #include <nodeproperty.h>
 #include <variantproperty.h>
 #include <metainfo.h>
-#include <qmlmodelview.h>
+#include <abstractview.h>
 #include <rewriterview.h>
 #include <invalididexception.h>
 #include <rewritingexception.h>
 #include <modelnodecontextmenu.h>
+#include <qmlitemnode.h>
+
+#include <coreplugin/icore.h>
 
 #include <QMimeData>
 #include <QMessageBox>
@@ -47,11 +50,11 @@
 
 static inline void setScenePos(const QmlDesigner::ModelNode &modelNode,const QPointF &pos)
 {
-    QmlDesigner::QmlItemNode parentNode = modelNode.parentProperty().parentQmlObjectNode().toQmlItemNode();
-    if (parentNode.isValid()) {
+    if (modelNode.hasParentProperty() && QmlDesigner::QmlItemNode::isValidQmlItemNode(modelNode.parentProperty().parentModelNode())) {
+        QmlDesigner::QmlItemNode parentNode = modelNode.parentProperty().parentQmlObjectNode().toQmlItemNode();
         QPointF localPos = parentNode.instanceSceneTransform().inverted().map(pos);
-        modelNode.variantProperty("x") = localPos.toPoint().x();
-        modelNode.variantProperty("y") = localPos.toPoint().y();
+        modelNode.variantProperty("x").setValue(localPos.toPoint().x());
+        modelNode.variantProperty("y").setValue(localPos.toPoint().y());
     }
 }
 
@@ -149,8 +152,7 @@ bool NavigatorTreeModel::dropMimeData(const QMimeData *data,
             return false;
         targetIndex -= visibleProperties(parentNode).count();
         parentPropertyName = parentNode.metaInfo().defaultPropertyName();
-    }
-    else {
+    } else {
         parentItemIndex = parentIndex.parent();
         parentPropertyName = parentIndex.data(Qt::DisplayRole).toByteArray();
     }
@@ -295,11 +297,12 @@ void NavigatorTreeModel::updateItemRowOrder(const NodeListProperty &listProperty
             parentIdItem = parentRow.idItem;
             newRow += visibleProperties(listProperty.parentModelNode()).count();
         }
-    }
-    else {
+    } else {
         parentIdItem = itemRow.idItem->parent();
     }
-    Q_ASSERT(parentIdItem);
+
+    if (!parentIdItem) //### Items without a parent should not exist
+        return;
 
     if (currentRow != newRow) {
         QList<QStandardItem*> items = parentIdItem->takeRow(currentRow);
@@ -325,7 +328,7 @@ void NavigatorTreeModel::handleChangedItem(QStandardItem *item)
                  try {
                      node.setId(item->text());
                  } catch (InvalidIdException &e) { //better save then sorry
-                     QMessageBox::warning(0, tr("Invalid Id"), e.description());
+                     QMessageBox::warning(Core::ICore::dialogParent(), tr("Invalid Id"), e.description());
                  }
              } else { //there is already an id, so we refactor
                  if (node.view()->rewriterView())
@@ -334,9 +337,9 @@ void NavigatorTreeModel::handleChangedItem(QStandardItem *item)
         } else {
 
              if (!node.isValidId(item->text()))
-                 QMessageBox::warning(0, tr("Invalid Id"),  tr("%1 is an invalid id").arg(item->text()));
+                 QMessageBox::warning(Core::ICore::dialogParent(), tr("Invalid Id"),  tr("%1 is an invalid id.").arg(item->text()));
              else
-                 QMessageBox::warning(0, tr("Invalid Id"),  tr("%1 already exists").arg(item->text()));
+                 QMessageBox::warning(Core::ICore::dialogParent(), tr("Invalid Id"),  tr("%1 already exists.").arg(item->text()));
              bool blockSingals = blockItemChangedSignal(true);
              item->setText(node.id());
              blockItemChangedSignal(blockSingals);
@@ -382,7 +385,7 @@ NavigatorTreeModel::ItemRow NavigatorTreeModel::itemRowForNode(const ModelNode &
     return m_nodeItemHash.value(node);
 }
 
-void NavigatorTreeModel::setView(QmlModelView *view)
+void NavigatorTreeModel::setView(AbstractView *view)
 {
     m_view = view;
     m_hiddenProperties.clear();
@@ -394,10 +397,10 @@ void NavigatorTreeModel::setView(QmlModelView *view)
 
 void NavigatorTreeModel::clearView()
 {
+    setView(0);
     m_view.clear();
     m_nodeHash.clear();
     m_nodeItemHash.clear();
-    clear();
 }
 
 QModelIndex NavigatorTreeModel::indexForNode(const ModelNode &node) const
@@ -419,7 +422,7 @@ ModelNode NavigatorTreeModel::nodeForIndex(const QModelIndex &index) const
 
 bool NavigatorTreeModel::isInTree(const ModelNode &node) const
 {
-    return m_nodeHash.keys().contains(node.internalId());
+    return m_nodeHash.contains(node.internalId());
 }
 
 bool NavigatorTreeModel::isNodeInvisible(const QModelIndex &index) const
@@ -443,42 +446,41 @@ bool NavigatorTreeModel::isNodeInvisible(const ModelNode &node) const
 void NavigatorTreeModel::addSubTree(const ModelNode &node)
 {
     Q_ASSERT(node.isValid());
-    Q_ASSERT(!containsNodeHash(node.internalId()));
+    if (!containsNodeHash(node.internalId())) {
 
-    //updateItemRow(node, newRow);
+        //updateItemRow(node, newRow);
 
-    // only add items that are in the modelNodeChildren list (that means, visible in the editor)
-    if (!node.isRootNode()
-        && !modelNodeChildren(node.parentProperty().parentModelNode()).contains(node)) {
-        return;
-    }
+        // only add items that are in the modelNodeChildren list (that means, visible in the editor)
+        if (node.metaInfo().isGraphicalItem()
+                && (node.isRootNode() || modelNodeChildren(node.parentProperty().parentModelNode()).contains(node))) {
 
-    ItemRow newRow = createItemRow(node);
-    m_nodeHash.insert(node.internalId(), node);
-    m_nodeItemHash.insert(node, newRow);
+            ItemRow newRow = createItemRow(node);
+            m_nodeHash.insert(node.internalId(), node);
+            m_nodeItemHash.insert(node, newRow);
 
-    updateItemRow(node, newRow);
+            updateItemRow(node, newRow);
 
-    foreach (const ModelNode &childNode, modelNodeChildren(node))
-        addSubTree(childNode);
+            foreach (const ModelNode &childNode, modelNodeChildren(node))
+                addSubTree(childNode);
 
-    // We assume that the node is always added to the _end_ of the property list.
-    if (node.hasParentProperty()) {
-        AbstractProperty property(node.parentProperty());
-        ItemRow parentRow = itemRowForNode(property.parentModelNode());
-        QStandardItem *parentItem = parentRow.propertyItems.value(property.name());
-        if (!parentItem) {
-            // Child nodes in the default property are added directly under the
-            // parent.
-            parentItem = parentRow.idItem;
+            // We assume that the node is always added to the _end_ of the property list.
+            if (node.hasParentProperty()) {
+                AbstractProperty property(node.parentProperty());
+                ItemRow parentRow = itemRowForNode(property.parentModelNode());
+                QStandardItem *parentItem = parentRow.propertyItems.value(property.name());
+                if (!parentItem) {
+                    // Child nodes in the default property are added directly under the
+                    // parent.
+                    parentItem = parentRow.idItem;
+                }
+                if (parentItem)
+                    parentItem->appendRow(newRow.toList());
+            } else {
+                appendRow(newRow.toList());
+            }
         }
-        if (parentItem)
-            parentItem->appendRow(newRow.toList());
-    } else {
-        appendRow(newRow.toList());
     }
 }
-
 /**
   Deletes visual representation for the node (subtree).
   */
@@ -491,8 +493,12 @@ void NavigatorTreeModel::removeSubTree(const ModelNode &node)
 
     QList<QStandardItem*> rowList;
     ItemRow itemRow = itemRowForNode(node);
-    if (itemRow.idItem->parent())
+    if (itemRow.idItem->parent()) {
         rowList = itemRow.idItem->parent()->takeRow(itemRow.idItem->row());
+    } else {
+        rowList = takeRow(itemRow.idItem->row());
+    }
+
 
     foreach (const ModelNode &childNode, modelNodeChildren(node)) {
         removeSubTree(childNode);
@@ -500,8 +506,10 @@ void NavigatorTreeModel::removeSubTree(const ModelNode &node)
 
     qDeleteAll(rowList);
 
+
     m_nodeHash.remove(node.internalId());
     m_nodeItemHash.remove(node);
+
 }
 
 void NavigatorTreeModel::moveNodesInteractive(NodeAbstractProperty parentProperty, const QList<ModelNode> &modelNodes, int targetIndex)
@@ -509,7 +517,7 @@ void NavigatorTreeModel::moveNodesInteractive(NodeAbstractProperty parentPropert
     try {
         TypeName propertyQmlType = qmlTypeInQtContainer(parentProperty.parentModelNode().metaInfo().propertyTypeName(parentProperty.name()));
 
-        RewriterTransaction transaction = m_view->beginRewriterTransaction();
+        RewriterTransaction transaction = m_view->beginRewriterTransaction(QByteArrayLiteral("NavigatorTreeModel::moveNodesInteractive"));
         foreach (const ModelNode &node, modelNodes) {
             if (!node.isValid())
                 continue;
@@ -529,7 +537,11 @@ void NavigatorTreeModel::moveNodesInteractive(NodeAbstractProperty parentPropert
                                 continue;
                             if (propertyNode.isValid()) {
                                 QApplication::setOverrideCursor(Qt::ArrowCursor);
-                                if (QMessageBox::warning(0, tr("Warning"), tr("Reparenting the component %1 here will cause the component %2 to be deleted. Do you want to proceed?").arg(node.id(), propertyNode.id()), QMessageBox::Ok | QMessageBox::Cancel) == QMessageBox::Cancel) {
+                                if (QMessageBox::warning(Core::ICore::dialogParent(), tr("Warning"),
+                                                         tr("Reparenting the component %1 here will cause the "
+                                                            "component %2 to be deleted. Do you want to proceed?")
+                                                            .arg(node.id(), propertyNode.id()),
+                                                         QMessageBox::Ok | QMessageBox::Cancel) == QMessageBox::Cancel) {
                                     QApplication::restoreOverrideCursor();
                                     continue;
                                 }
@@ -568,7 +580,7 @@ void NavigatorTreeModel::moveNodesInteractive(NodeAbstractProperty parentPropert
             }
         }
     }  catch (RewritingException &e) { //better safe than sorry! There always might be cases where we fail
-        QMessageBox::warning(0, "Error", e.description());
+        e.showException();
     }
 }
 
@@ -615,6 +627,7 @@ PropertyNameList NavigatorTreeModel::visibleProperties(const ModelNode &node) co
     foreach (const PropertyName &propertyName, node.metaInfo().propertyNames()) {
         if (!propertyName.contains('.') && //do not show any dot properties, since they are tricky and unlikely to make sense
             node.metaInfo().propertyIsWritable(propertyName) && !m_hiddenProperties.contains(propertyName) &&
+            node.metaInfo().propertyTypeName(propertyName) != TypeName("Component") &&
             !node.metaInfo().propertyIsEnumType(propertyName) && //Some enums have the same name as Qml types (e. g. Flow)
             !node.metaInfo().propertyIsPrivate(propertyName) && //Do not show private properties
             propertyName != node.metaInfo().defaultPropertyName()) { // TODO: ask the node instances

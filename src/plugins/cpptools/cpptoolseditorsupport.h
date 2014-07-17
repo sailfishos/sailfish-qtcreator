@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -33,15 +33,21 @@
 #include "cpphighlightingsupport.h"
 #include "cppmodelmanager.h"
 #include "cppsemanticinfo.h"
+#include "cppsnapshotupdater.h"
 
+#include <cplusplus/Control.h>
 #include <cplusplus/CppDocument.h>
 
 #include <QFuture>
 #include <QObject>
 #include <QPointer>
+#include <QSharedPointer>
 #include <QTimer>
 
-namespace CPlusPlus { class AST; }
+namespace CPlusPlus {
+class AST;
+class DeclarationAST;
+} // namespace CPlusPlus
 
 namespace TextEditor {
 class BaseTextEditor;
@@ -50,12 +56,14 @@ class ITextMark;
 
 namespace CppTools {
 
+class CppCompletionAssistProvider;
+
 /**
  * \brief The CppEditorSupport class oversees the actions that happen when a C++ text editor updates
  *        its document.
  *
  * The following steps are taken:
- * 1. the text editor fires a contentsChanged() signal that triggers updateDocument
+ * 1. the text editor document fires a contentsChanged() signal that triggers updateDocument
  * 2. update document will start a timer, or reset the timer if it was already running. This way
  *    subsequent updates (e.g. keypresses) get bunched together instead of running the subsequent
  *    actions for every key press
@@ -86,31 +94,49 @@ class CPPTOOLS_EXPORT CppEditorSupport: public QObject
 {
     Q_OBJECT
 
+    typedef TextEditor::BlockRange BlockRange;
+
 public:
     CppEditorSupport(Internal::CppModelManager *modelManager, TextEditor::BaseTextEditor *textEditor);
     virtual ~CppEditorSupport();
 
     QString fileName() const;
 
-    QString contents() const;
+    QByteArray contents() const;
     unsigned editorRevision() const;
 
     void setExtraDiagnostics(const QString &key,
                              const QList<CPlusPlus::Document::DiagnosticMessage> &messages);
+    void setIfdefedOutBlocks(const QList<BlockRange> &ifdefedOutBlocks);
 
     /// True after the document was parsed/updated for the first time
     /// and the first semantic info calculation was started.
     bool initialized();
 
     /// Retrieve the semantic info, which will get recalculated on the current
-    /// thread if it is outdate.
-    SemanticInfo recalculateSemanticInfo(bool emitSignalWhenFinished = true);
+    /// thread if it is outdate. Will not emit the semanticInfoUpdated() signal.
+    SemanticInfo recalculateSemanticInfo();
+
+    CPlusPlus::Document::Ptr lastSemanticInfoDocument() const;
+
+    enum ForceReason {
+        NoForce,
+        ForceDueToInvalidSemanticInfo,
+        ForceDueEditorRequest
+    };
 
     /// Recalculates the semantic info in a future, and will emit the
     /// semanticInfoUpdated() signal when finished.
     /// Requires that initialized() is true.
-    /// \param force do not check if the old semantic info is still valid
-    void recalculateSemanticInfoDetached(bool force = false);
+    /// \param forceReason the reason to force, if any
+    void recalculateSemanticInfoDetached(ForceReason forceReason);
+
+    CppCompletionAssistProvider *completionAssistProvider() const;
+
+    QSharedPointer<SnapshotUpdater> snapshotUpdater();
+
+    /// Checks whether the document is (re)parsed or about to be (re)parsed.
+    bool isUpdatingDocument();
 
 signals:
     void documentUpdated();
@@ -128,15 +154,17 @@ private slots:
     void updateDocumentNow();
 
     void onDocumentUpdated(CPlusPlus::Document::Ptr doc);
-    void startHighlighting();
+    void startHighlighting(ForceReason forceReason = NoForce);
 
     void onDiagnosticsChanged();
 
     void updateEditor();
     void updateEditorNow();
 
+    void onCurrentEditorChanged();
+    void releaseResources();
+
 private:
-    typedef TextEditor::BaseTextEditorWidget::BlockRange BlockRange;
     struct EditorUpdates {
         EditorUpdates()
             : revision(-1)
@@ -148,15 +176,34 @@ private:
 
     enum {
         UpdateDocumentDefaultInterval = 150,
-        UpdateEditorInterval = 300
+        UpdateEditorInterval = 300,
+        EditorHiddenGCTimeout = 2 * 60 * 1000 // 2 minutes
     };
 
 private:
+    class FuturizedTopLevelDeclarationProcessor: public CPlusPlus::TopLevelDeclarationProcessor
+    {
+    public:
+        FuturizedTopLevelDeclarationProcessor(QFutureInterface<void> &future): m_future(future) {}
+        bool processDeclaration(CPlusPlus::DeclarationAST *) { return !isCanceled(); }
+        bool isCanceled() { return m_future.isCanceled(); }
+    private:
+        QFutureInterface<void> m_future;
+    };
+
     SemanticInfo::Source currentSource(bool force);
-    void recalculateSemanticInfoNow(const SemanticInfo::Source &source, bool emitSignalWhenFinished,
-                                    CPlusPlus::TopLevelDeclarationProcessor *processor = 0);
+    SemanticInfo recalculateSemanticInfoNow(const SemanticInfo::Source &source,
+                                            bool emitSignalWhenFinished,
+                                            FuturizedTopLevelDeclarationProcessor *processor = 0);
     void recalculateSemanticInfoDetached_helper(QFutureInterface<void> &future,
                                                 SemanticInfo::Source source);
+
+    bool isSemanticInfoValid() const;
+    SemanticInfo semanticInfo() const;
+    void setSemanticInfo(const SemanticInfo &semanticInfo, bool emitSignal = true);
+
+    QSharedPointer<SnapshotUpdater> snapshotUpdater_internal() const;
+    void setSnapshotUpdater_internal(const QSharedPointer<SnapshotUpdater> &updater);
 
 private:
     Internal::CppModelManager *m_modelManager;
@@ -166,8 +213,12 @@ private:
     unsigned m_revision;
     QFuture<void> m_documentParser;
 
+    QTimer *m_editorGCTimer;
+    bool m_editorVisible;
+
     // content caching
-    mutable QString m_cachedContents;
+    mutable QMutex m_cachedContentsLock;
+    mutable QByteArray m_cachedContents;
     mutable int m_cachedContentsEditorRevision;
     bool m_fileIsBeingReloaded;
 
@@ -182,11 +233,17 @@ private:
     mutable QMutex m_lastSemanticInfoLock;
     SemanticInfo m_lastSemanticInfo;
     QFuture<void> m_futureSemanticInfo;
+    mutable QMutex m_snapshotUpdaterLock;
+    QSharedPointer<SnapshotUpdater> m_snapshotUpdater;
 
     // Highlighting:
     unsigned m_lastHighlightRevision;
+    bool m_lastHighlightOnCompleteSemanticInfo;
     QFuture<TextEditor::HighlightingResult> m_highlighter;
     QScopedPointer<CppTools::CppHighlightingSupport> m_highlightingSupport;
+
+    // Completion:
+    CppCompletionAssistProvider *m_completionAssistProvider;
 };
 
 } // namespace CppTools

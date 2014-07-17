@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Brian McGillion
+** Copyright (c) 2014 Brian McGillion
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -49,6 +49,9 @@ public:
                           const QString &srcLocation,
                           const QString &dstLocation,
                           const QStringList &extraOptions = QStringList());
+    bool synchronousPull(const QString &workingDir,
+                         const QString &srcLocation,
+                         const QStringList &extraOptions = QStringList());
     bool manifestSync(const QString &repository, const QString &filename);
     QString branchQuerySync(const QString &repositoryRoot);
     QStringList parentRevisionsSync(const QString &workingDirectory,
@@ -60,6 +63,7 @@ public:
     void incoming(const QString &repositoryRoot, const QString &repository = QString());
     void outgoing(const QString &repositoryRoot);
     QString vcsGetRepositoryURL(const QString &directory);
+    bool managesFile(const QString &workingDirectory, const QString &fileName) const;
 
     void annotate(const QString &workingDir, const QString &file,
                   const QString revision = QString(), int lineNumber = -1,
@@ -86,6 +90,13 @@ protected:
                                                             const QStringList &files,
                                                             const QStringList &extraOptions);
     StatusItem parseStatusLine(const QString &line) const;
+
+signals:
+    void needUpdate();
+    void needMerge();
+
+private:
+    void parsePullOutput(const QString &output);
 };
 
 } //namespace Internal

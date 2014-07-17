@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -31,6 +31,8 @@
 
 #include "operation.h"
 
+#include "adddebuggeroperation.h"
+#include "adddeviceoperation.h"
 #include "addkeysoperation.h"
 #include "addkitoperation.h"
 #include "addqtoperation.h"
@@ -38,20 +40,14 @@
 #include "findkeyoperation.h"
 #include "findvalueoperation.h"
 #include "getoperation.h"
+#include "rmdebuggeroperation.h"
+#include "rmdeviceoperation.h"
 #include "rmkeysoperation.h"
 #include "rmkitoperation.h"
 #include "rmqtoperation.h"
 #include "rmtoolchainoperation.h"
-#include "addmertargetoperation.h"
-#include "rmmertargetoperation.h"
-#include "addmersdkoperation.h"
-#include "adddeviceoperation.h"
-#include "rmmersdkoperation.h"
-#include "rmdeviceoperation.h"
 
 #include <iostream>
-
-#include <app/app_version.h>
 
 #include <QCoreApplication>
 #include <QStringList>
@@ -163,32 +159,39 @@ int parseArguments(const QStringList &args, Settings *s, const QList<Operation *
 
 int main(int argc, char *argv[])
 {
-    QCoreApplication a(argc, argv);
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 3, 0))
+    // Since 5.3, Qt by default aborts if the effective user id is different than the
+    // real user id. However, in IFW on Mac we use setuid to 'elevate'
+    // permissions if needed. This is considered safe because the user has to provide
+    // the credentials manually - an attack would require at least access to the
+    // user's environment.
+    QCoreApplication::setSetuidAllowed(true);
+#endif
 
-    QCoreApplication::setApplicationName(QLatin1String("sdktool"));
-    QCoreApplication::setApplicationVersion(QLatin1String(Core::Constants::IDE_VERSION_LONG));
+    QCoreApplication a(argc, argv);
 
     Settings settings;
 
     QList<Operation *> operations;
     operations << new AddKeysOperation
-               << new AddKitOperation
+
+               << new AddDebuggerOperation
+               << new AddDeviceOperation
                << new AddQtOperation
                << new AddToolChainOperation
-               << new FindKeyOperation
-               << new FindValueOperation
+
+               << new AddKitOperation
+
                << new GetOperation
-               << new RmKeysOperation
                << new RmKitOperation
+               << new RmDebuggerOperation
+               << new RmDeviceOperation
+               << new RmKeysOperation
                << new RmQtOperation
                << new RmToolChainOperation
-               << new AddMerTargetOperation
-               << new RmMerTargetOperation
-               << new AddMerSdkOperation
-               << new RmMerSdkOperation
-               << new AddDeviceOperation
-               << new RmDeviceOperation;
 
+               << new FindKeyOperation
+               << new FindValueOperation;
 
 #ifdef WITH_TESTS
     std::cerr << std::endl << std::endl << "Starting tests..." << std::endl;

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,13 +30,15 @@
 #ifndef QMLPROFILERCLIENTMANAGER_H
 #define QMLPROFILERCLIENTMANAGER_H
 
-#include <QObject>
-#include <QStringList>
-
 #include "qmlprofilerstatemanager.h"
 #include <qmldebug/qmlprofilereventlocation.h>
 
+#include <QObject>
+#include <QStringList>
+
 namespace QmlProfiler {
+class QmlProfilerModelManager;
+
 namespace Internal {
 
 class QmlProfilerClientManager : public QObject
@@ -55,16 +57,10 @@ public:
     void discardPendingData();
     bool isConnected() const;
 
+    void setModelManager(QmlProfilerModelManager *m);
 signals:
     void connectionFailed();
     void connectionClosed();
-
-    // data
-    void addRangedEvent(int,int,qint64,qint64,QStringList,QmlDebug::QmlEventLocation);
-    void addV8Event(int,QString,QString,int,double,double);
-    void addFrameEvent(qint64,int,int);
-    void traceStarted(qint64);
-    void traceFinished(qint64);
     void dataReadyForProcessing();
 
 public slots:
@@ -76,7 +72,7 @@ private slots:
     void connectionStateChanged();
     void retryMessageBoxFinished(int result);
 
-    void qmlComplete();
+    void qmlComplete(qint64 maximumTime);
     void v8Complete();
 
     void profilerStateChanged();

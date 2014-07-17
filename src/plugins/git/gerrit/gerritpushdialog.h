@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Petar Perisin.
+** Copyright (C) 2014 Petar Perisin.
 ** Contact: petar.perisin@gmail.com
 **
 ** This file is part of Qt Creator.
@@ -32,13 +32,16 @@
 
 #include <QDialog>
 #include <QMultiMap>
+#include <QDate>
+
+namespace Git {
+namespace Internal { class GitClient; }
+}
 
 namespace Gerrit {
 namespace Internal {
 
-namespace Ui {
-    class GerritPushDialog;
-}
+namespace Ui { class GerritPushDialog; }
 
 class GerritPushDialog : public QDialog
 {
@@ -54,24 +57,26 @@ public:
     QString selectedPushType() const;
     QString selectedTopic() const;
     QString reviewers() const;
-    bool localChangesFound() const;
     bool valid() const;
 
 private slots:
     void setChangeRange();
-    void setRemoteBranches();
+    void setRemoteBranches(bool includeOld = false);
+    void updateCommits(int index);
 
 private:
-    typedef QMultiMap<QString, QString> RemoteBranchesMap;
+    typedef QPair<QString, QDate> BranchDate;
+    typedef QMultiMap<QString, BranchDate> RemoteBranchesMap;
 
-    QString calculateChangeRange();
+    QString determineRemoteBranch(const QString &localBranch);
+    void initRemoteBranches();
+    QString calculateChangeRange(const QString &branch);
     QString m_workingDir;
-    QString m_suggestedRemoteName;
     QString m_suggestedRemoteBranch;
     Ui::GerritPushDialog *m_ui;
     RemoteBranchesMap m_remoteBranches;
-    bool m_localChangesFound;
     bool m_valid;
+    Git::Internal::GitClient *m_client;
 };
 
 

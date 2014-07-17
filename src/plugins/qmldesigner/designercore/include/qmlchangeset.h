@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -44,6 +44,7 @@ public:
     ModelNode target() const;
     void setTarget(const ModelNode &target);
     bool isValid() const;
+    static bool isValidQmlModelStateOperation(const ModelNode &modelNode);
 };
 
 
@@ -53,6 +54,7 @@ public:
     QmlPropertyChanges() : QmlModelStateOperation() {}
     QmlPropertyChanges(const ModelNode &modelNode) : QmlModelStateOperation(modelNode) {}
     bool isValid() const;
+    static bool isValidQmlPropertyChanges(const ModelNode &modelNode);
     void removeProperty(const PropertyName &name);
 };
 

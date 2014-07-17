@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -32,15 +32,12 @@
 #include "remotelinux_export.h"
 
 #include <projectexplorer/devicesupport/idevice.h>
-
-#include <QWizard>
+#include <utils/wizard.h>
 
 namespace RemoteLinux {
-namespace Internal {
-class GenericLinuxDeviceConfigurationWizardPrivate;
-} // namespace Internal
+namespace Internal { class GenericLinuxDeviceConfigurationWizardPrivate; }
 
-class REMOTELINUX_EXPORT GenericLinuxDeviceConfigurationWizard : public QWizard
+class REMOTELINUX_EXPORT GenericLinuxDeviceConfigurationWizard : public Utils::Wizard
 {
     Q_OBJECT
 

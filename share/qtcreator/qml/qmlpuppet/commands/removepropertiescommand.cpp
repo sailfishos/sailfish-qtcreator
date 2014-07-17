@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -28,6 +28,8 @@
 ****************************************************************************/
 
 #include "removepropertiescommand.h"
+
+#include <QDebug>
 
 namespace QmlDesigner {
 
@@ -57,6 +59,11 @@ QDataStream &operator>>(QDataStream &in, RemovePropertiesCommand &command)
     in >> command.m_properties;
 
     return in;
+}
+
+QDebug operator <<(QDebug debug, const RemovePropertiesCommand &command)
+{
+    return debug.nospace() << "RemovePropertiesCommand(properties: " << command.m_properties << ")";
 }
 
 }

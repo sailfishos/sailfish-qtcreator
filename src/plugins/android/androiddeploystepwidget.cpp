@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 BogDan Vatra <bog_dan_ro@yahoo.com>
+** Copyright (c) 2014 BogDan Vatra <bog_dan_ro@yahoo.com>
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -31,6 +31,7 @@
 #include "ui_androiddeploystepwidget.h"
 
 #include "androiddeploystep.h"
+#include "androidmanager.h"
 #include "androidrunconfiguration.h"
 
 #include <coreplugin/icore.h>
@@ -55,6 +56,7 @@ AndroidDeployStepWidget::AndroidDeployStepWidget(AndroidDeployStep *step) :
 
     connect(ui->chooseButton, SIGNAL(clicked()), SLOT(setQASIPackagePath()));
     connect(ui->cleanLibsPushButton, SIGNAL(clicked()), SLOT(cleanLibsOnDevice()));
+    connect(ui->resetDefaultDevices, SIGNAL(clicked()), SLOT(resetDefaultDevices()));
 
     connect(m_step, SIGNAL(deployOptionsChanged()),
             this, SLOT(deployOptionsChanged()));
@@ -116,14 +118,19 @@ void AndroidDeployStepWidget::setQASIPackagePath()
         QFileDialog::getOpenFileName(this, tr("Qt Android Smart Installer"),
                                      QDir::homePath(), tr("Android package (*.apk)"));
     if (!packagePath.isEmpty())
-        m_step->installQASIPackage(packagePath);
+        AndroidManager::installQASIPackage(m_step->target(), packagePath);
 }
 
 
 void AndroidDeployStepWidget::cleanLibsOnDevice()
 {
-    m_step->cleanLibsOnDevice();
+    AndroidManager::cleanLibsOnDevice(m_step->target());
+}
+
+void AndroidDeployStepWidget::resetDefaultDevices()
+{
+    AndroidConfigurations::clearDefaultDevices(m_step->project());
 }
 
 } // namespace Internal
-} // namespace Qt4ProjectManager
+} // namespace Android

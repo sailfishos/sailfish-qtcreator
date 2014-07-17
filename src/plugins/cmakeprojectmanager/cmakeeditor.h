@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,16 +30,13 @@
 #ifndef CMAKEEDITOR_H
 #define CMAKEEDITOR_H
 
-#include "cmakeeditorfactory.h"
-
 #include <texteditor/basetextdocument.h>
 #include <texteditor/basetexteditor.h>
+#include <texteditor/codeassist/completionassistprovider.h>
 #include <utils/uncommentselection.h>
 
 
-namespace TextEditor {
-class FontSettings;
-}
+namespace TextEditor { class FontSettings; }
 
 namespace CMakeProjectManager {
 namespace Internal {
@@ -56,9 +53,8 @@ public:
     CMakeEditor(CMakeEditorWidget *);
 
     bool duplicateSupported() const { return true; }
-    Core::IEditor *duplicate(QWidget *parent);
-    Core::Id id() const;
-    bool isTemporary() const { return false; }
+    Core::IEditor *duplicate();
+    TextEditor::CompletionAssistProvider *completionAssistProvider();
 
 private slots:
     void markAsChanged();
@@ -70,15 +66,12 @@ class CMakeEditorWidget : public TextEditor::BaseTextEditorWidget
     Q_OBJECT
 
 public:
-    CMakeEditorWidget(QWidget *parent, CMakeEditorFactory *factory, TextEditor::TextEditorActionHandler *ah);
+    CMakeEditorWidget(QWidget *parent = 0);
+    CMakeEditorWidget(CMakeEditorWidget *other);
 
     bool save(const QString &fileName = QString());
 
-    CMakeEditorFactory *factory() { return m_factory; }
-    TextEditor::TextEditorActionHandler *actionHandler() const { return m_ah; }
-
-    Link findLinkAt(const QTextCursor &cursor,
-                                     bool resolveTarget = true);
+    Link findLinkAt(const QTextCursor &cursor, bool resolveTarget = true, bool inNextSplit = false);
 
 protected:
     TextEditor::BaseTextEditor *createEditor();
@@ -86,11 +79,10 @@ protected:
 
 public slots:
     void unCommentSelection();
-    void setFontSettings(const TextEditor::FontSettings &);
 
 private:
-    CMakeEditorFactory *m_factory;
-    TextEditor::TextEditorActionHandler *m_ah;
+    CMakeEditorWidget(TextEditor::BaseTextEditorWidget *); // avoid stupidity
+    void ctor();
     Utils::CommentDefinition m_commentDefinition;
 };
 
@@ -105,6 +97,6 @@ public:
 };
 
 } // namespace Internal
-} // namespace Qt4ProjectManager
+} // namespace CMakeProjectManager
 
 #endif // CMAKEEDITOR_H

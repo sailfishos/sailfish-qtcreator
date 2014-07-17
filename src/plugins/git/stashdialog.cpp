@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -115,6 +115,7 @@ StashDialog::StashDialog(QWidget *parent) :
     setAttribute(Qt::WA_DeleteOnClose, true);  // Do not update unnecessarily
 
     ui->setupUi(this);
+    ui->filterLineEdit->setFiltering(true);
     // Buttons
     ui->buttonBox->addButton(m_showCurrentButton, QDialogButtonBox::ActionRole);
     connect(m_showCurrentButton, SIGNAL(clicked()), this, SLOT(showCurrent()));
@@ -323,12 +324,10 @@ void StashDialog::restoreCurrent()
     QString name = m_model->at(index).name;
     // Make sure repository is not modified, restore. The command will
     // output to window on success.
-    const bool success = promptForRestore(&name, 0, &errorMessage)
-                         && gitClient()->synchronousStashRestore(m_repository, name, false, QString(), &errorMessage);
-    if (success) {
+    if (promptForRestore(&name, 0, &errorMessage)
+            && gitClient()->synchronousStashRestore(m_repository, name)) {
         refresh(m_repository, true); // Might have stashed away local changes.
-    } else {
-        if (!errorMessage.isEmpty())
+    } else if (!errorMessage.isEmpty()) {
         warning(msgRestoreFailedTitle(name), errorMessage);
     }
 }
@@ -340,13 +339,11 @@ void StashDialog::restoreCurrentInBranch()
     QString errorMessage;
     QString branch;
     QString name = m_model->at(index).name;
-    const bool success = promptForRestore(&name, &branch, &errorMessage)
-                         && gitClient()->synchronousStashRestore(m_repository, name, false, branch, &errorMessage);
-    if (success) {
+    if (promptForRestore(&name, &branch, &errorMessage)
+            && gitClient()->synchronousStashRestore(m_repository, name, false, branch)) {
         refresh(m_repository, true); // git deletes the stash, unfortunately.
-    } else {
-        if (!errorMessage.isEmpty())
-            warning(msgRestoreFailedTitle(name), errorMessage);
+    } else if (!errorMessage.isEmpty()) {
+        warning(msgRestoreFailedTitle(name), errorMessage);
     }
 }
 

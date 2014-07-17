@@ -7,7 +7,7 @@ QtcPlugin {
 
     Depends { name: "Core" }
     Depends { name: "ProjectExplorer" }
-    Depends { name: "Qt4ProjectManager" }
+    Depends { name: "QmakeProjectManager" }
     Depends { name: "RemoteLinux" }
     Depends { name: "QtcSsh" }
     Depends { name: "Qt"; submodules: ["widgets", "webkit"] }

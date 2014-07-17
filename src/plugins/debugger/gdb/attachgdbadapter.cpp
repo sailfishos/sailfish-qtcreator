@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -29,9 +29,9 @@
 
 #include "attachgdbadapter.h"
 
-#include "debuggerprotocol.h"
-#include "debuggerstringutils.h"
-#include "debuggerstartparameters.h"
+#include <debugger/debuggerprotocol.h>
+#include <debugger/debuggerstringutils.h>
+#include <debugger/debuggerstartparameters.h>
 
 #include <utils/qtcassert.h>
 
@@ -60,9 +60,9 @@ void GdbAttachEngine::setupEngine()
     showMessage(_("TRYING TO START ADAPTER"));
 
     if (!startParameters().workingDirectory.isEmpty())
-        m_gdbProc.setWorkingDirectory(startParameters().workingDirectory);
+        m_gdbProc->setWorkingDirectory(startParameters().workingDirectory);
     if (startParameters().environment.size())
-        m_gdbProc.setEnvironment(startParameters().environment.toStringList());
+        m_gdbProc->setEnvironment(startParameters().environment.toStringList());
 
     startGdb();
 }
@@ -92,12 +92,11 @@ void GdbAttachEngine::handleAttach(const GdbResponse &response)
     case GdbResultRunning:
         showMessage(_("INFERIOR ATTACHED"));
         showMessage(msgAttachedToStoppedInferior(), StatusBar);
-        tryLoadPythonDumpers();
         handleInferiorPrepared();
         break;
     case GdbResultError:
         if (response.data["msg"].data() == "ptrace: Operation not permitted.") {
-            notifyInferiorSetupFailed(DumperHelper::msgPtraceError(startParameters().startMode));
+            notifyInferiorSetupFailed(msgPtraceError(startParameters().startMode));
             break;
         }
         // if msg != "ptrace: ..." fall through

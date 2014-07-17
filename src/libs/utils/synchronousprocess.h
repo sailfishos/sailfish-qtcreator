@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -34,11 +34,9 @@
 
 #include <QProcess>
 #include <QSharedPointer>
+#include <QTextCodec>
 
-QT_BEGIN_NAMESPACE
-class QTextCodec;
-class QDebug;
-QT_END_NAMESPACE
+QT_FORWARD_DECLARE_CLASS(QDebug)
 
 namespace Utils {
 
@@ -73,6 +71,14 @@ struct QTCREATOR_UTILS_EXPORT SynchronousProcessResponse
 
 QTCREATOR_UTILS_EXPORT QDebug operator<<(QDebug str, const SynchronousProcessResponse &);
 
+class QTCREATOR_UTILS_EXPORT ExitCodeInterpreter : public QObject
+{
+    Q_OBJECT
+public:
+    ExitCodeInterpreter(QObject *parent) : QObject(parent) {}
+    virtual SynchronousProcessResponse::Result interpretExitCode(int code) const;
+};
+
 class QTCREATOR_UTILS_EXPORT SynchronousProcess : public QObject
 {
     Q_OBJECT
@@ -90,8 +96,8 @@ public:
     void setTimeout(int timeoutMS);
     int timeout() const;
 
-    void setStdOutCodec(QTextCodec *c);
-    QTextCodec *stdOutCodec() const;
+    void setCodec(QTextCodec *c);
+    QTextCodec *codec() const;
 
     QProcess::ProcessChannelMode processChannelMode () const;
     void setProcessChannelMode(QProcess::ProcessChannelMode m);
@@ -117,6 +123,9 @@ public:
     unsigned flags() const;
     void setFlags(unsigned);
 
+    void setExitCodeInterpreter(ExitCodeInterpreter *interpreter);
+    ExitCodeInterpreter *exitCodeInterpreter() const;
+
     SynchronousProcessResponse run(const QString &binary, const QStringList &args);
 
     // Create a (derived) processes with flags applied.
@@ -138,12 +147,17 @@ public:
     static QString locateBinary(const QString &binary);
     static QString locateBinary(const QString &path, const QString &binary);
 
+    static QString normalizeNewlines(const QString &text);
+
 signals:
-    void stdOut(const QByteArray &data, bool firstTime);
-    void stdErr(const QByteArray &data, bool firstTime);
+    void stdOut(const QString &text, bool firstTime);
+    void stdErr(const QString &text, bool firstTime);
 
     void stdOutBuffered(const QString &data, bool firstTime);
     void stdErrBuffered(const QString &data, bool firstTime);
+
+public slots:
+    bool terminate();
 
 private slots:
     void slotTimeout();
@@ -155,8 +169,7 @@ private slots:
 private:
     void processStdOut(bool emitSignals);
     void processStdErr(bool emitSignals);
-    static QString convertStdErr(const QByteArray &);
-    QString convertStdOut(const QByteArray &) const;
+    QString convertOutput(const QByteArray &, QTextCodec::ConverterState *state) const;
 
     SynchronousProcessPrivate *d;
 };

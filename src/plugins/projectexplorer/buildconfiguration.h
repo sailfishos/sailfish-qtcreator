@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -34,14 +34,14 @@
 #include "projectconfiguration.h"
 
 #include <utils/environment.h>
+#include <utils/fileutils.h>
 
-namespace Utils {
-class AbstractMacroExpander;
-}
+namespace Utils { class AbstractMacroExpander; }
 
 namespace ProjectExplorer {
 
 class BuildConfiguration;
+class BuildInfo;
 class NamedWidget;
 class BuildStepList;
 class Kit;
@@ -56,7 +56,8 @@ public:
     // ctors are protected
     virtual ~BuildConfiguration();
 
-    virtual QString buildDirectory() const = 0;
+    Utils::FileName buildDirectory() const;
+    Utils::FileName rawBuildDirectory() const;
 
     virtual ProjectExplorer::NamedWidget *createConfigWidget() = 0;
     virtual QList<NamedWidget *> createSubConfigWidgets();
@@ -99,10 +100,12 @@ protected:
     BuildConfiguration(Target *target, const Core::Id id);
     BuildConfiguration(Target *target, BuildConfiguration *source);
 
+    virtual void setBuildDirectory(const Utils::FileName &dir);
     void cloneSteps(BuildConfiguration *source);
 
 private slots:
     void handleKitUpdate();
+    void emitBuildDirectoryChanged();
 
 private:
     void emitEnvironmentChanged();
@@ -111,6 +114,8 @@ private:
     QList<Utils::EnvironmentItem> m_userEnvironmentChanges;
     QList<BuildStepList *> m_stepLists;
     Utils::AbstractMacroExpander *m_macroExpander;
+    Utils::FileName m_buildDirectory;
+    Utils::FileName m_lastEmmitedBuildDirectory;
     mutable Utils::Environment m_cachedEnvironment;
 };
 
@@ -123,13 +128,20 @@ public:
     explicit IBuildConfigurationFactory(QObject *parent = 0);
     virtual ~IBuildConfigurationFactory();
 
-    // used to show the list of possible additons to a target, returns a list of types
-    virtual QList<Core::Id> availableCreationIds(const Target *parent) const = 0;
-    // used to translate the types to names to display to the user
-    virtual QString displayNameForId(const Core::Id id) const = 0;
+    // The priority is negative if this factory can not create anything for the target.
+    // It is 0 for the "default" factory that wants to handle the target.
+    // Add 100 for each specialization.
+    virtual int priority(const Target *parent) const = 0;
+    // List of build information that can be used to create a new build configuration via
+    // "Add Build Configuration" button.
+    virtual QList<BuildInfo *> availableBuilds(const Target *parent) const = 0;
 
-    virtual bool canCreate(const Target *parent, const Core::Id id) const = 0;
-    virtual BuildConfiguration *create(Target *parent, const Core::Id id, const QString &name = QString()) = 0;
+    virtual int priority(const Kit *k, const QString &projectPath) const = 0;
+    // List of build information that can be used to initially set up a new build configuration.
+    virtual QList<BuildInfo *> availableSetups(const Kit *k, const QString &projectPath) const = 0;
+
+    virtual BuildConfiguration *create(Target *parent, const BuildInfo *info) const = 0;
+
     // used to recreate the runConfigurations when restoring settings
     virtual bool canRestore(const Target *parent, const QVariantMap &map) const = 0;
     virtual BuildConfiguration *restore(Target *parent, const QVariantMap &map) = 0;
@@ -137,6 +149,7 @@ public:
     virtual BuildConfiguration *clone(Target *parent, BuildConfiguration *product) = 0;
 
     static IBuildConfigurationFactory *find(Target *parent, const QVariantMap &map);
+    static IBuildConfigurationFactory *find(Kit *k, const QString &projectPath);
     static IBuildConfigurationFactory *find(Target *parent);
     static IBuildConfigurationFactory *find(Target *parent, BuildConfiguration *bc);
 

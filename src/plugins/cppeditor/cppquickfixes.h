@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -40,14 +40,6 @@
 
 QT_BEGIN_NAMESPACE
 class QByteArray;
-class QCheckBox;
-class QComboBox;
-class QDialogButtonBox;
-class QStandardItem;
-class QSortFilterProxyModel;
-class QStandardItemModel;
-class QString;
-class QTreeView;
 template <class> class QList;
 QT_END_NAMESPACE
 
@@ -457,6 +449,17 @@ public:
 };
 
 /*!
+  Extracts the selected constant and converts it to a parameter of the current function.
+
+  Activates on numeric, bool, character, or string literal in the function body.
+ */
+class ExtractLiteralAsParameter : public CppQuickFixFactory
+{
+public:
+    void match(const CppQuickFixInterface &interface, TextEditor::QuickFixOperations &result);
+};
+
+/*!
   Adds getter and setter functions for a member variable
  */
 class GenerateGetterSetter : public CppQuickFixFactory
@@ -512,76 +515,13 @@ public:
 };
 
 /*!
- Insert (pure) virtual functions of a base class.
- Exposed for tests.
+  Optimizes a for loop to avoid permanent condition check and forces to use preincrement
+  or predecrement operators in the expression of the for loop.
  */
-class InsertVirtualMethodsDialog : public QDialog
+class OptimizeForLoop : public CppQuickFixFactory
 {
-    Q_OBJECT
 public:
-    enum CustomItemRoles {
-        ClassOrFunction = Qt::UserRole + 1,
-        Implemented = Qt::UserRole + 2,
-        PureVirtual = Qt::UserRole + 3,
-        AccessSpec = Qt::UserRole + 4
-    };
-
-    enum ImplementationMode {
-        ModeOnlyDeclarations = 0x00000001,
-        ModeInsideClass = 0x00000002,
-        ModeOutsideClass = 0x00000004,
-        ModeImplementationFile = 0x00000008
-    };
-
-    InsertVirtualMethodsDialog(QWidget *parent = 0);
-    void initGui();
-    void initData();
-    virtual ImplementationMode implementationMode() const;
-    void setImplementationsMode(ImplementationMode mode);
-    virtual bool insertKeywordVirtual() const;
-    void setInsertKeywordVirtual(bool insert);
-    void setHasImplementationFile(bool file);
-    void setHasReimplementedFunctions(bool functions);
-    bool hideReimplementedFunctions() const;
-    virtual bool gather();
-
-private slots:
-    void updateCheckBoxes(QStandardItem *item);
-    void setHideReimplementedFunctions(bool hide);
-
-private:
-    QTreeView *m_view;
-    QCheckBox *m_hideReimplementedFunctions;
-    QComboBox *m_insertMode;
-    QCheckBox *m_virtualKeyword;
-    QDialogButtonBox *m_buttons;
-    QList<bool> m_expansionStateNormal;
-    QList<bool> m_expansionStateReimp;
-    bool m_hasImplementationFile;
-    bool m_hasReimplementedFunctions;
-
-    void saveExpansionState();
-    void restoreExpansionState();
-
-protected:
-    ImplementationMode m_implementationMode;
-    bool m_insertKeywordVirtual;
-
-public:
-    QStandardItemModel *classFunctionModel;
-    QSortFilterProxyModel *classFunctionFilterModel;
-};
-
-class InsertVirtualMethods: public CppQuickFixFactory
-{
-    Q_OBJECT
-public:
-    InsertVirtualMethods(InsertVirtualMethodsDialog *dialog = new InsertVirtualMethodsDialog);
-    ~InsertVirtualMethods();
     void match(const CppQuickFixInterface &interface, TextEditor::QuickFixOperations &result);
-
-private:
-    InsertVirtualMethodsDialog *m_dialog;
 };
 
 } // namespace Internal

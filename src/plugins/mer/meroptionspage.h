@@ -35,7 +35,7 @@ class MerOptionsPage : public Core::IOptionsPage
 public:
     explicit MerOptionsPage(QObject *parent = 0);
 
-    QWidget *createPage(QWidget *parent);
+    QWidget *widget();
     void apply();
     void finish();
     bool matches(const QString &key) const;

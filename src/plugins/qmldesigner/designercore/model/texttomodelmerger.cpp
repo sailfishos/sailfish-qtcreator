@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -40,6 +40,7 @@
 #include "variantproperty.h"
 #include "signalhandlerproperty.h"
 #include "nodemetainfo.h"
+#include "enumeration.h"
 
 #include <qmljs/qmljsevaluate.h>
 #include <qmljs/qmljslink.h>
@@ -48,6 +49,9 @@
 #include <qmljs/qmljsutils.h>
 #include <qmljs/qmljsmodelmanagerinterface.h>
 #include <qmljs/qmljsqrcparser.h>
+#include <qmljs/qmljsinterpreter.h>
+
+#include <utils/qtcassert.h>
 
 #include <QSet>
 #include <QDir>
@@ -61,7 +65,7 @@ namespace {
 static inline QStringList supportedVersionsList()
 {
     QStringList list;
-    list << QLatin1String("1.0") << QLatin1String("1.1") << QLatin1String("2.0") << QLatin1String("2.1");
+    list << QLatin1String("1.0") << QLatin1String("1.1") << QLatin1String("2.0") << QLatin1String("2.1") << QLatin1String("2.2");
     return list;
 }
 
@@ -109,11 +113,6 @@ static inline unsigned char convertHex(ushort c)
         return (c - 'a' + 10);
     else
         return (c - 'A' + 10);
-}
-
-static inline unsigned char convertHex(ushort c1, ushort c2)
-{
-    return ((convertHex(c1) << 4) + convertHex(c2));
 }
 
 QChar convertUnicode(ushort c1, ushort c2,
@@ -309,10 +308,10 @@ class ReadingContext
 {
 public:
     ReadingContext(const Snapshot &snapshot, const Document::Ptr &doc,
-                   const QStringList importPaths)
+                   const ViewerContext &vContext)
         : m_snapshot(snapshot)
         , m_doc(doc)
-        , m_link(snapshot, importPaths,
+        , m_link(snapshot, vContext,
                  QmlJS::ModelManagerInterface::instance()->builtins(doc))
         , m_context(m_link(doc, &m_diagnosticLinkMessages))
         , m_scopeChain(doc, m_context)
@@ -362,12 +361,12 @@ public:
 
             const Imports *imports = m_context->imports(m_doc.data());
             ImportInfo importInfo = imports->info(fullTypeName, m_context.data());
-            if (importInfo.isValid() && importInfo.type() == ImportInfo::LibraryImport) {
+            if (importInfo.isValid() && importInfo.type() == ImportType::Library) {
                 QString name = importInfo.name();
                 majorVersion = importInfo.version().majorVersion();
                 minorVersion = importInfo.version().minorVersion();
                 typeName.prepend(name + QLatin1Char('.'));
-            } else if (importInfo.isValid() && importInfo.type() == ImportInfo::DirectoryImport) {
+            } else if (importInfo.isValid() && importInfo.type() == ImportType::Directory) {
                 QString path = importInfo.path();
                 QDir dir(m_doc->path());
                 // should probably try to make it relatve to some import path, not to the document path
@@ -375,7 +374,7 @@ public:
                 QString name = relativeDir.replace(QLatin1Char('/'), QLatin1Char('.'));
                 if (!name.isEmpty())
                     typeName.prepend(name + QLatin1Char('.'));
-            } else if (importInfo.isValid() && importInfo.type() == ImportInfo::QrcDirectoryImport) {
+            } else if (importInfo.isValid() && importInfo.type() == ImportType::QrcDirectory) {
                 QString path = QrcParser::normalizedQrcDirectoryPath(importInfo.path());
                 path = path.mid(1, path.size() - ((path.size() > 1) ? 2 : 1));
                 const QString name = path.replace(QLatin1Char('/'), QLatin1Char('.'));
@@ -387,7 +386,7 @@ public:
 
     /// When something is changed here, also change Check::checkScopeObjectMember in
     /// qmljscheck.cpp
-    /// ### Maybe put this into the context as a helper method.
+    /// ### Maybe put this into the context as a helper function.
     bool lookupProperty(const QString &prefix, const UiQualifiedId *id, const Value **property = 0, const ObjectValue **parentObject = 0, QString *name = 0)
     {
         QList<const ObjectValue *> scopeObjects = m_scopeChain.qmlScopeObjects();
@@ -549,10 +548,6 @@ public:
             value.convert(QVariant::Bool);
             return value;
         } else if (property->asNumberValue()) {
-            //Enums in alias properties pretend to be a number.
-            //In Qt Quick 1 this was still valid syntax.
-            if (NodeMetaInfo::qtQuickEnumsWithoutScope().contains(value.toString()))
-                return value.toString();
             value.convert(QVariant::Double);
             return value;
         } else if (property->asStringValue()) {
@@ -571,12 +566,7 @@ public:
         if (astValueList.count() == 2 //Check for global Qt enums
                 && astValueList.first() == QLatin1String("Qt")
                 && globalQtEnums().contains(astValueList.last()))
-            return QVariant(astValueList.last());
-
-        if (astValueList.count() == 2 //Check for global Qt Quick enums
-                && NodeMetaInfo::qtQuickEnums().contains(astValue)) {
-            return QVariant(astValueList.last());
-        }
+            return QVariant::fromValue(Enumeration(astValue));
 
         ExpressionStatement *eStmt = cast<ExpressionStatement *>(rhs);
         if (!eStmt || !eStmt->expression)
@@ -618,7 +608,7 @@ public:
             return QVariant();
 
         if (rhsCppComponentValue->getEnum(lhsPropertyTypeName).hasKey(rhsValueName))
-            return QVariant(rhsValueName);
+            return QVariant::fromValue(Enumeration(astValue));
         else
             return QVariant();
     }
@@ -702,8 +692,8 @@ void TextToModelMerger::setupImports(const Document::Ptr &doc,
 {
     QList<Import> existingImports = m_rewriterView->model()->imports();
 
-    for (UiImportList *iter = doc->qmlProgram()->imports; iter; iter = iter->next) {
-        UiImport *import = iter->import;
+    for (UiHeaderItemList *iter = doc->qmlProgram()->headers; iter; iter = iter->next) {
+        UiImport *import = AST::cast<UiImport *>(iter->headerItem);
         if (!import)
             continue;
 
@@ -738,6 +728,67 @@ void TextToModelMerger::setupImports(const Document::Ptr &doc,
         differenceHandler.importAbsentInQMl(import);
 }
 
+void TextToModelMerger::setupPossibleImports(const QmlJS::Snapshot &snapshot, const QmlJS::ViewerContext &viewContext)
+{
+    QList<Import> possibleImports;
+
+    QSet<ImportKey> possibleImportKeys = snapshot.importDependencies()->libraryImports(viewContext);
+
+    QHash<QString, ImportKey> filteredPossibleImportKeys;
+    foreach (const ImportKey &importKey, possibleImportKeys) {
+        if (!filteredPossibleImportKeys.contains(importKey.path())
+                || filteredPossibleImportKeys.value(importKey.path()).majorVersion < importKey.majorVersion
+                || (filteredPossibleImportKeys.value(importKey.path()).majorVersion == importKey.majorVersion
+                    && filteredPossibleImportKeys.value(importKey.path()).minorVersion < importKey.minorVersion))
+        filteredPossibleImportKeys.insert(importKey.path(), importKey);
+    }
+
+    filteredPossibleImportKeys.remove(QLatin1String("<cpp>"));
+    filteredPossibleImportKeys.remove(QLatin1String("QML"));
+    filteredPossibleImportKeys.remove(QLatin1String("QtQml"));
+    filteredPossibleImportKeys.remove(QLatin1String("QtQuick/PrivateWidgets"));
+
+    QList<QmlJS::Import> allImports = m_scopeChain->context()->imports(m_document.data())->all();
+
+    foreach (const QmlJS::Import &import, allImports) {
+        filteredPossibleImportKeys.remove(import.info.path());
+    }
+
+    foreach (const ImportKey &importKey, filteredPossibleImportKeys) {
+        QString libraryName = importKey.splitPath.join(QLatin1Char('.'));
+        QString version = QString(QStringLiteral("%1.%2").arg(importKey.majorVersion).arg(importKey.minorVersion));
+        possibleImports.append(Import::createLibraryImport(libraryName, version));
+    }
+
+    if ( m_rewriterView->isAttached())
+        m_rewriterView->model()->setPossibleImports(possibleImports);
+}
+
+void TextToModelMerger::setupUsedImports()
+{
+     QList<QmlJS::Import> allImports = m_scopeChain->context()->imports(m_document.data())->all();
+
+     QList<Import> usedImports;
+
+     foreach (const QmlJS::Import &import, allImports) {
+         if (import.used) {
+            if (import.info.type() == ImportType::Library) {
+                usedImports.append(Import::createLibraryImport(import.info.name(), import.info.version().toString(), import.info.as()));
+            } else if (import.info.type() == ImportType::Directory || import.info.type() == ImportType::File) {
+                usedImports.append(Import::createFileImport(import.info.name(), import.info.version().toString(), import.info.as()));
+            }
+         }
+     }
+     // even if not explicitly used we probably want to keep QtQuick imports
+     usedImports.append(Import::createLibraryImport("QtQuick", "1.0"));
+     usedImports.append(Import::createLibraryImport("QtQuick", "1.1"));
+     usedImports.append(Import::createLibraryImport("QtQuick", "2.0"));
+     usedImports.append(Import::createLibraryImport("QtQuick", "2.1"));
+
+    if (m_rewriterView->isAttached())
+        m_rewriterView->model()->setUsedImports(usedImports);
+}
+
 bool TextToModelMerger::load(const QString &data, DifferenceHandler &differenceHandler)
 {
 //    qDebug() << "TextToModelMerger::load with data:" << data;
@@ -750,7 +801,7 @@ bool TextToModelMerger::load(const QString &data, DifferenceHandler &differenceH
     try {
         Snapshot snapshot = m_rewriterView->textModifier()->getSnapshot();
         const QString fileName = url.toLocalFile();
-        Document::MutablePtr doc = Document::create(fileName.isEmpty() ? QLatin1String("<internal>") : fileName, Document::QmlLanguage);
+        Document::MutablePtr doc = Document::create(fileName.isEmpty() ? QLatin1String("<internal>") : fileName, Language::Qml);
         doc->setSource(data);
         doc->parseQml();
 
@@ -763,7 +814,11 @@ bool TextToModelMerger::load(const QString &data, DifferenceHandler &differenceH
             return false;
         }
         snapshot.insert(doc);
-        ReadingContext ctxt(snapshot, doc, importPaths);
+        QmlJS::ViewerContext vContext;
+        vContext.language = QmlJS::Language::Qml;
+        vContext.paths = importPaths;
+        vContext.flags = QmlJS::ViewerContext::Complete;
+        ReadingContext ctxt(snapshot, doc, vContext);
         m_scopeChain = QSharedPointer<const ScopeChain>(
                     new ScopeChain(ctxt.scopeChain()));
         m_document = doc;
@@ -776,15 +831,17 @@ bool TextToModelMerger::load(const QString &data, DifferenceHandler &differenceH
         }
 
         setupImports(doc, differenceHandler);
+        setupPossibleImports(snapshot, vContext);
+        setupUsedImports();
 
         if (m_rewriterView->model()->imports().isEmpty()) {
-            const QmlJS::DiagnosticMessage diagnosticMessage(QmlJS::DiagnosticMessage::Error, AST::SourceLocation(0, 0, 0, 0), QCoreApplication::translate("QmlDesigner::TextToModelMerger", "No import statements found"));
+            const QmlJS::DiagnosticMessage diagnosticMessage(QmlJS::Severity::Error, AST::SourceLocation(0, 0, 0, 0), QCoreApplication::translate("QmlDesigner::TextToModelMerger", "No import statements found"));
             errors.append(RewriterView::Error(diagnosticMessage, QUrl::fromLocalFile(doc->fileName())));
         }
 
         foreach (const QmlDesigner::Import &import, m_rewriterView->model()->imports()) {
             if (import.isLibraryImport() && import.url() == QLatin1String("QtQuick") && !supportedQtQuickVersion(import.version())) {
-                const QmlJS::DiagnosticMessage diagnosticMessage(QmlJS::DiagnosticMessage::Error, AST::SourceLocation(0, 0, 0, 0),
+                const QmlJS::DiagnosticMessage diagnosticMessage(QmlJS::Severity::Error, AST::SourceLocation(0, 0, 0, 0),
                                                                  QCoreApplication::translate("QmlDesigner::TextToModelMerger", "Unsupported QtQuick version"));
                 errors.append(RewriterView::Error(diagnosticMessage, QUrl::fromLocalFile(doc->fileName())));
             }
@@ -799,8 +856,8 @@ bool TextToModelMerger::load(const QString &data, DifferenceHandler &differenceH
 
             foreach (StaticAnalysis::Type type, StaticAnalysis::Message::allMessageTypes()) {
                 StaticAnalysis::PrototypeMessageData prototypeMessageData = StaticAnalysis::Message::prototypeForMessageType(type);
-                if (prototypeMessageData.severity == StaticAnalysis::MaybeWarning
-                        || prototypeMessageData.severity == StaticAnalysis::Warning) {
+                if (prototypeMessageData.severity == Severity::MaybeWarning
+                        || prototypeMessageData.severity == Severity::Warning) {
                     check.disableMessage(type);
                 }
             }
@@ -808,14 +865,20 @@ bool TextToModelMerger::load(const QString &data, DifferenceHandler &differenceH
             check.enableMessage(StaticAnalysis::WarnImperativeCodeNotEditableInVisualDesigner);
             check.enableMessage(StaticAnalysis::WarnUnsupportedTypeInVisualDesigner);
             check.enableMessage(StaticAnalysis::WarnReferenceToParentItemNotSupportedByVisualDesigner);
+            check.enableMessage(StaticAnalysis::WarnReferenceToParentItemNotSupportedByVisualDesigner);
+            check.enableMessage(StaticAnalysis::WarnAboutQtQuick1InsteadQtQuick2);
             //## triggers too often ## check.enableMessage(StaticAnalysis::WarnUndefinedValueForVisualDesigner);
-            check.enableMessage(StaticAnalysis::WarnStatesOnlyInRootItemForVisualDesigner);
 
             foreach (const StaticAnalysis::Message &message, check()) {
-                if (message.severity == StaticAnalysis::Error)
+                if (message.severity == Severity::Error)
                     errors.append(RewriterView::Error(message.toDiagnosticMessage(), QUrl::fromLocalFile(doc->fileName())));
-                if (message.severity == StaticAnalysis::Warning)
-                    warnings.append(RewriterView::Error(message.toDiagnosticMessage(), QUrl::fromLocalFile(doc->fileName())));
+                if (message.severity == Severity::Warning) {
+                    if (message.type == StaticAnalysis::WarnAboutQtQuick1InsteadQtQuick2) {
+                        errors.append(RewriterView::Error(message.toDiagnosticMessage(), QUrl::fromLocalFile(doc->fileName())));
+                    } else {
+                        warnings.append(RewriterView::Error(message.toDiagnosticMessage(), QUrl::fromLocalFile(doc->fileName())));
+                    }
+                }
             }
 
             if (!errors.isEmpty()) {
@@ -910,7 +973,7 @@ void TextToModelMerger::syncNode(ModelNode &modelNode,
         }
     }
 
-    bool isImplicitComponent = modelNode.parentProperty().isValid() && propertyIsComponentType(modelNode.parentProperty(), typeName, modelNode.model());
+    bool isImplicitComponent = modelNode.hasParentProperty() && propertyIsComponentType(modelNode.parentProperty(), typeName, modelNode.model());
 
 
     if (modelNode.type() != typeName //If there is no valid parentProperty                                                                                                      //the node has just been created. The type is correct then.
@@ -1001,7 +1064,7 @@ void TextToModelMerger::syncNode(ModelNode &modelNode,
             if (property->name.isEmpty() || property->memberType.isEmpty())
                 continue; // better safe than sorry.
 
-            const QString &astName = property->name.toString();
+            const QStringRef astName = property->name;
             QString astValue;
             if (property->statement)
                 astValue = textAt(context->doc(),
@@ -1054,6 +1117,50 @@ void TextToModelMerger::syncNode(ModelNode &modelNode,
     context->leaveScope();
 }
 
+static QVariant parsePropertyExpression(ExpressionNode *expressionNode)
+{
+    Q_ASSERT(expressionNode);
+
+    ArrayLiteral *arrayLiteral = cast<ArrayLiteral *>(expressionNode);
+
+    if (arrayLiteral) {
+        QList<QVariant> variantList;
+        for (ElementList *it = arrayLiteral->elements; it; it = it->next)
+            variantList << parsePropertyExpression(it->expression);
+        return variantList;
+    }
+
+    StringLiteral *stringLiteral = cast<AST::StringLiteral *>(expressionNode);
+    if (stringLiteral)
+        return stringLiteral->value.toString();
+
+    TrueLiteral *trueLiteral = cast<AST::TrueLiteral *>(expressionNode);
+    if (trueLiteral)
+        return true;
+
+    FalseLiteral *falseLiteral = cast<AST::FalseLiteral *>(expressionNode);
+    if (falseLiteral)
+        return false;
+
+    NumericLiteral *numericLiteral = cast<AST::NumericLiteral *>(expressionNode);
+    if (numericLiteral)
+        return numericLiteral->value;
+
+
+    return QVariant();
+}
+
+QVariant parsePropertyScriptBinding(UiScriptBinding *uiScriptBinding)
+{
+    Q_ASSERT(uiScriptBinding);
+
+    ExpressionStatement *expStmt = cast<ExpressionStatement *>(uiScriptBinding->statement);
+    if (!expStmt)
+        return QVariant();
+
+    return parsePropertyExpression(expStmt->expression);
+}
+
 QmlDesigner::PropertyName TextToModelMerger::syncScriptBinding(ModelNode &modelNode,
                                              const QString &prefix,
                                              UiScriptBinding *script,
@@ -1090,7 +1197,9 @@ QmlDesigner::PropertyName TextToModelMerger::syncScriptBinding(ModelNode &modelN
         if (isPropertyChangesType(modelNode.type())
                 || isConnectionsType(modelNode.type())) {
             AbstractProperty modelProperty = modelNode.property(astPropertyName.toUtf8());
-            const QVariant variantValue(deEscape(stripQuotes(astValue)));
+            QVariant variantValue = parsePropertyScriptBinding(script);
+            if (!variantValue.isValid())
+                variantValue = deEscape(stripQuotes(astValue));
             syncVariantProperty(modelProperty, variantValue, TypeName(), differenceHandler);
             return astPropertyName.toUtf8();
         } else {
@@ -1201,9 +1310,8 @@ void TextToModelMerger::syncSignalHandler(AbstractProperty &modelProperty,
 {
     if (modelProperty.isSignalHandlerProperty()) {
         SignalHandlerProperty signalHandlerProperty = modelProperty.toSignalHandlerProperty();
-        if (signalHandlerProperty.source() != javascript) {
+        if (signalHandlerProperty.source() != javascript)
             differenceHandler.signalHandlerSourceDiffer(signalHandlerProperty, javascript);
-        }
     } else {
         differenceHandler.shouldBeSignalHandlerProperty(modelProperty, javascript);
     }
@@ -1376,8 +1484,7 @@ void ModelValidator::signalHandlerSourceDiffer(SignalHandlerProperty &modelPrope
 {
     Q_UNUSED(modelProperty)
     Q_UNUSED(javascript)
-    Q_ASSERT(modelProperty.source() == javascript);
-    Q_ASSERT(0);
+    QTC_ASSERT(modelProperty.source() == javascript, return);
 }
 
 void ModelValidator::shouldBeSignalHandlerProperty(AbstractProperty &modelProperty, const QString & /*javascript*/)
@@ -1402,13 +1509,13 @@ void ModelValidator::variantValuesDiffer(VariantProperty &modelProperty, const Q
     Q_UNUSED(qmlVariantValue)
     Q_UNUSED(dynamicTypeName)
 
-    Q_ASSERT(modelProperty.isDynamic() == !dynamicTypeName.isEmpty());
+    QTC_ASSERT(modelProperty.isDynamic() == !dynamicTypeName.isEmpty(), return);
     if (modelProperty.isDynamic()) {
-        Q_ASSERT(modelProperty.dynamicTypeName() == dynamicTypeName);
+        QTC_ASSERT(modelProperty.dynamicTypeName() == dynamicTypeName, return);
     }
 
-    Q_ASSERT(equals(modelProperty.value(), qmlVariantValue));
-    Q_ASSERT(0);
+    QTC_ASSERT(equals(modelProperty.value(), qmlVariantValue), return);
+    QTC_ASSERT(0, return);
 }
 
 void ModelValidator::shouldBeVariantProperty(AbstractProperty &modelProperty, const QVariant &/*qmlVariantValue*/, const TypeName &/*dynamicTypeName*/)
@@ -1461,10 +1568,10 @@ void ModelValidator::typeDiffers(bool /*isRootNode*/,
     Q_UNUSED(minorVersion)
     Q_UNUSED(majorVersion)
 
-    Q_ASSERT(modelNode.type() == typeName);
-    Q_ASSERT(modelNode.majorVersion() == majorVersion);
-    Q_ASSERT(modelNode.minorVersion() == minorVersion);
-    Q_ASSERT(0);
+    QTC_ASSERT(modelNode.type() == typeName, return);
+    QTC_ASSERT(modelNode.majorVersion() == majorVersion, return);
+    QTC_ASSERT(modelNode.minorVersion() == minorVersion, return);
+    QTC_ASSERT(0, return);
 }
 
 void ModelValidator::propertyAbsentFromQml(AbstractProperty &modelProperty)
@@ -1480,8 +1587,8 @@ void ModelValidator::idsDiffer(ModelNode &modelNode, const QString &qmlId)
     Q_UNUSED(modelNode)
     Q_UNUSED(qmlId)
 
-    Q_ASSERT(modelNode.id() == qmlId);
-    Q_ASSERT(0);
+    QTC_ASSERT(modelNode.id() == qmlId, return);
+    QTC_ASSERT(0, return);
 }
 
 void ModelAmender::modelMissesImport(const QmlDesigner::Import &import)
@@ -1665,7 +1772,7 @@ void ModelAmender::typeDiffers(bool isRootNode,
                                QmlJS::AST::UiObjectMember *astNode,
                                ReadingContext *context)
 {
-    const bool propertyTakesComponent = propertyIsComponentType(modelNode.parentProperty(), typeName, modelNode.model());
+    const bool propertyTakesComponent = modelNode.hasParentProperty() && propertyIsComponentType(modelNode.parentProperty(), typeName, modelNode.model());
 
     if (isRootNode) {
         modelNode.view()->changeRootNodeType(typeName, majorVersion, minorVersion);

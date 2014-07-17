@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Nicolas Arnaud-Cormos
+** Copyright (c) 2014 Nicolas Arnaud-Cormos
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -32,11 +32,10 @@
 #include "macro.h"
 #include "macrotextfind.h"
 
-#include <find/ifindsupport.h>
-
 #include <coreplugin/icore.h>
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/editormanager/ieditor.h>
+#include <coreplugin/find/ifindsupport.h>
 
 #include <aggregation/aggregate.h>
 
@@ -60,8 +59,7 @@ static const quint8 RESET = 5;
 FindMacroHandler::FindMacroHandler():
     IMacroHandler()
 {
-    const Core::EditorManager *editorManager = Core::EditorManager::instance();
-    connect(editorManager, SIGNAL(currentEditorChanged(Core::IEditor*)),
+    connect(Core::EditorManager::instance(), SIGNAL(currentEditorChanged(Core::IEditor*)),
             this, SLOT(changeEditor(Core::IEditor*)));
 }
 
@@ -80,32 +78,32 @@ bool FindMacroHandler::executeEvent(const MacroEvent &macroEvent)
     if (!aggregate)
         return false;
 
-    Find::IFindSupport *currentFind = aggregate->component<Find::IFindSupport>();
+    Core::IFindSupport *currentFind = aggregate->component<Core::IFindSupport>();
     if (!currentFind)
         return false;
 
     switch (macroEvent.value(TYPE).toInt()) {
     case FINDINCREMENTAL:
         currentFind->findIncremental(macroEvent.value(BEFORE).toString(),
-                                  (Find::FindFlags)macroEvent.value(FLAGS).toInt());
+                                  (Core::FindFlags)macroEvent.value(FLAGS).toInt());
         break;
     case FINDSTEP:
         currentFind->findStep(macroEvent.value(BEFORE).toString(),
-                           (Find::FindFlags)macroEvent.value(FLAGS).toInt());
+                           (Core::FindFlags)macroEvent.value(FLAGS).toInt());
         break;
     case REPLACE:
         currentFind->replace(macroEvent.value(BEFORE).toString(),
                              macroEvent.value(AFTER).toString(),
-                             (Find::FindFlags)macroEvent.value(FLAGS).toInt());
+                             (Core::FindFlags)macroEvent.value(FLAGS).toInt());
     case REPLACESTEP:
         currentFind->replaceStep(macroEvent.value(BEFORE).toString(),
                               macroEvent.value(AFTER).toString(),
-                              (Find::FindFlags)macroEvent.value(FLAGS).toInt());
+                              (Core::FindFlags)macroEvent.value(FLAGS).toInt());
         break;
     case REPLACEALL:
         currentFind->replaceAll(macroEvent.value(BEFORE).toString(),
                              macroEvent.value(AFTER).toString(),
-                             (Find::FindFlags)macroEvent.value(FLAGS).toInt());
+                             (Core::FindFlags)macroEvent.value(FLAGS).toInt());
         break;
     case RESET:
         currentFind->resetIncrementalSearch();
@@ -114,7 +112,7 @@ bool FindMacroHandler::executeEvent(const MacroEvent &macroEvent)
     return true;
 }
 
-void FindMacroHandler::findIncremental(const QString &txt, Find::FindFlags findFlags)
+void FindMacroHandler::findIncremental(const QString &txt, Core::FindFlags findFlags)
 {
     if (!isRecording())
         return;
@@ -126,7 +124,7 @@ void FindMacroHandler::findIncremental(const QString &txt, Find::FindFlags findF
     addMacroEvent(e);
 }
 
-void FindMacroHandler::findStep(const QString &txt, Find::FindFlags findFlags)
+void FindMacroHandler::findStep(const QString &txt, Core::FindFlags findFlags)
 {
     if (!isRecording())
         return;
@@ -138,7 +136,7 @@ void FindMacroHandler::findStep(const QString &txt, Find::FindFlags findFlags)
     addMacroEvent(e);
 }
 
-void FindMacroHandler::replace(const QString &before, const QString &after, Find::FindFlags findFlags)
+void FindMacroHandler::replace(const QString &before, const QString &after, Core::FindFlags findFlags)
 {
     if (!isRecording())
         return;
@@ -151,7 +149,7 @@ void FindMacroHandler::replace(const QString &before, const QString &after, Find
     addMacroEvent(e);
 }
 
-void FindMacroHandler::replaceStep(const QString &before, const QString &after, Find::FindFlags findFlags)
+void FindMacroHandler::replaceStep(const QString &before, const QString &after, Core::FindFlags findFlags)
 {
     if (!isRecording())
         return;
@@ -164,7 +162,7 @@ void FindMacroHandler::replaceStep(const QString &before, const QString &after, 
     addMacroEvent(e);
 }
 
-void FindMacroHandler::replaceAll(const QString &before, const QString &after, Find::FindFlags findFlags)
+void FindMacroHandler::replaceAll(const QString &before, const QString &after, Core::FindFlags findFlags)
 {
     if (!isRecording())
         return;
@@ -195,7 +193,7 @@ void FindMacroHandler::changeEditor(Core::IEditor *editor)
 
     Aggregation::Aggregate *aggregate = Aggregation::Aggregate::parentAggregate(editor->widget());
     if (aggregate) {
-        Find::IFindSupport *currentFind = aggregate->component<Find::IFindSupport>();
+        Core::IFindSupport *currentFind = aggregate->component<Core::IFindSupport>();
         if (currentFind) {
             MacroTextFind *macroFind = qobject_cast<MacroTextFind *>(currentFind);
             if (macroFind)
@@ -206,23 +204,23 @@ void FindMacroHandler::changeEditor(Core::IEditor *editor)
             aggregate->add(macroFind);
 
             // Connect all signals
-            connect(macroFind, SIGNAL(allReplaced(QString,QString,Find::FindFlags)),
-                    this, SLOT(replaceAll(QString,QString,Find::FindFlags)));
-            connect(macroFind, SIGNAL(incrementalFound(QString,Find::FindFlags)),
-                    this, SLOT(findIncremental(QString,Find::FindFlags)));
+            connect(macroFind, SIGNAL(allReplaced(QString,QString,Core::FindFlags)),
+                    this, SLOT(replaceAll(QString,QString,Core::FindFlags)));
+            connect(macroFind, SIGNAL(incrementalFound(QString,Core::FindFlags)),
+                    this, SLOT(findIncremental(QString,Core::FindFlags)));
             connect(macroFind, SIGNAL(incrementalSearchReseted()),
                     this, SLOT(resetIncrementalSearch()));
-            connect(macroFind, SIGNAL(replaced(QString,QString,Find::FindFlags)),
-                    this, SLOT(replace(QString,QString,Find::FindFlags)));
-            connect(macroFind, SIGNAL(stepFound(QString,Find::FindFlags)),
-                    this, SLOT(findStep(QString,Find::FindFlags)));
-            connect(macroFind, SIGNAL(stepReplaced(QString,QString,Find::FindFlags)),
-                    this, SLOT(replaceStep(QString,QString,Find::FindFlags)));
+            connect(macroFind, SIGNAL(replaced(QString,QString,Core::FindFlags)),
+                    this, SLOT(replace(QString,QString,Core::FindFlags)));
+            connect(macroFind, SIGNAL(stepFound(QString,Core::FindFlags)),
+                    this, SLOT(findStep(QString,Core::FindFlags)));
+            connect(macroFind, SIGNAL(stepReplaced(QString,QString,Core::FindFlags)),
+                    this, SLOT(replaceStep(QString,QString,Core::FindFlags)));
         }
     }
 }
 
-void FindMacroHandler::startRecording(Macros::Macro* macro)
+void FindMacroHandler::startRecording(Macro* macro)
 {
     IMacroHandler::startRecording(macro);
     Core::IEditor *current = Core::EditorManager::currentEditor();

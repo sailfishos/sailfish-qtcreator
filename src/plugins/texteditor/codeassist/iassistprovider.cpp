@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -50,7 +50,13 @@ using namespace TextEditor;
 */
 
 /*!
-    \fn bool TextEditor::IAssistProvider::supportsEditor(const QString &editorId) const
+    \fn bool TextEditor::IAssistProvider::isAsynchronous() const;
+
+    Returns whether this provider runs asynchronously.
+*/
+
+/*!
+    \fn bool TextEditor::IAssistProvider::supportsEditor(const Core::Id &editorId) const
 
     Returns whether this provider supports the editor which has the \a editorId.
 */

@@ -12,11 +12,6 @@ greaterThan(QT_MAJOR_VERSION, 4) {
 include(../../qtcreatorplugin.pri)
 include(../../shared/scriptwrapper/scriptwrapper.pri)
 win32-msvc*:QMAKE_CXXFLAGS += -wd4251 -wd4290 -wd4250
-INCLUDEPATH += dialogs \
-    actionmanager \
-    editormanager \
-    progressmanager \
-    scriptmanager
 SOURCES += mainwindow.cpp \
     editmode.cpp \
     tabpositionindicator.cpp \
@@ -34,7 +29,7 @@ SOURCES += mainwindow.cpp \
     versiondialog.cpp \
     editormanager/editormanager.cpp \
     editormanager/editorview.cpp \
-    editormanager/openeditorsmodel.cpp \
+    editormanager/documentmodel.cpp \
     editormanager/openeditorsview.cpp \
     editormanager/openeditorswindow.cpp \
     editormanager/ieditorfactory.cpp \
@@ -55,7 +50,6 @@ SOURCES += mainwindow.cpp \
     progressmanager/progressview.cpp \
     progressmanager/progressbar.cpp \
     progressmanager/futureprogress.cpp \
-    scriptmanager/scriptmanager.cpp \
     statusbarwidget.cpp \
     coreplugin.cpp \
     variablemanager.cpp \
@@ -101,7 +95,9 @@ SOURCES += mainwindow.cpp \
     documentmanager.cpp \
     removefiledialog.cpp \
     iversioncontrol.cpp \
-    icorelistener.cpp
+    dialogs/addtovcsdialog.cpp \
+    icorelistener.cpp \
+    ioutputpane.cpp
 
 HEADERS += mainwindow.h \
     editmode.h \
@@ -118,7 +114,7 @@ HEADERS += mainwindow.h \
     statusbarmanager.h \
     editormanager/editormanager.h \
     editormanager/editorview.h \
-    editormanager/openeditorsmodel.h \
+    editormanager/documentmodel.h \
     editormanager/openeditorsview.h \
     editormanager/openeditorswindow.h \
     editormanager/ieditor.h \
@@ -156,9 +152,6 @@ HEADERS += mainwindow.h \
     ifilewizardextension.h \
     icorelistener.h \
     versiondialog.h \
-    scriptmanager/metatypedeclarations.h \
-    scriptmanager/scriptmanager.h \
-    scriptmanager/scriptmanager_p.h \
     core_global.h \
     statusbarwidget.h \
     coreplugin.h \
@@ -200,10 +193,10 @@ HEADERS += mainwindow.h \
     idocumentfactory.h \
     textdocument.h \
     documentmanager.h \
-    removefiledialog.h
+    removefiledialog.h \
+    dialogs/addtovcsdialog.h
 
 FORMS += dialogs/newdialog.ui \
-    actionmanager/commandmappings.ui \
     dialogs/saveitemsdialog.ui \
     dialogs/readonlyfilesdialog.ui \
     dialogs/openwithdialog.ui \
@@ -212,10 +205,14 @@ FORMS += dialogs/newdialog.ui \
     variablechooser.ui \
     mimetypesettingspage.ui \
     mimetypemagicdialog.ui \
-    removefiledialog.ui
+    removefiledialog.ui \
+   dialogs/addtovcsdialog.ui
 
 RESOURCES += core.qrc \
     fancyactionbar.qrc
+
+include(find/find.pri)
+include(locator/locator.pri)
 
 win32 {
     SOURCES += progressmanager/progressmanager_win.cpp
@@ -241,3 +238,8 @@ else:unix {
     }
 }
 OTHER_FILES += editormanager/BinFiles.mimetypes.xml
+
+equals(TEST, 1) {
+    SOURCES += testdatadir.cpp
+    HEADERS += testdatadir.h
+}

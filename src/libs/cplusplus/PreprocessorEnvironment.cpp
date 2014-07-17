@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -54,7 +54,18 @@
 
 #include <cstring>
 
-using namespace CPlusPlus;
+namespace CPlusPlus {
+
+static unsigned hashCode(const char *str, int length)
+{
+    unsigned hash_value = 0;
+
+    for (int i = 0; i < length; ++i)
+        hash_value = (hash_value << 5) - hash_value + str[i];
+
+    return hash_value;
+}
+
 
 Environment::Environment()
     : currentLine(0),
@@ -93,7 +104,8 @@ Macro *Environment::bind(const Macro &__macro)
     Q_ASSERT(! __macro.name().isEmpty());
 
     Macro *m = new Macro (__macro);
-    m->_hashcode = hashCode(m->name());
+    const QByteArray &name = m->name();
+    m->_hashcode = hashCode(name.begin(), name.size());
 
     if (++_macro_count == _allocated_macros) {
         if (! _allocated_macros)
@@ -170,8 +182,7 @@ bool Environment::isBuiltinMacro(const ByteArrayRef &s)
                         }
                     }
                 }
-            }
-            else if (s[2] == 'F') {
+            } else if (s[2] == 'F') {
                 if (s[3] == 'I') {
                     if (s[4] == 'L') {
                         if (s[5] == 'E') {
@@ -183,8 +194,7 @@ bool Environment::isBuiltinMacro(const ByteArrayRef &s)
                         }
                     }
                 }
-            }
-            else if (s[2] == 'L') {
+            } else if (s[2] == 'L') {
                 if (s[3] == 'I') {
                     if (s[4] == 'N') {
                         if (s[5] == 'E') {
@@ -196,8 +206,7 @@ bool Environment::isBuiltinMacro(const ByteArrayRef &s)
                         }
                     }
                 }
-            }
-            else if (s[2] == 'T') {
+            } else if (s[2] == 'T') {
                 if (s[3] == 'I') {
                     if (s[4] == 'M') {
                         if (s[5] == 'E') {
@@ -226,7 +235,7 @@ Macro *Environment::resolve(const ByteArrayRef &name) const
     if (! _macros)
         return 0;
 
-    Macro *it = _hash[hashCode(name) % _hash_count];
+    Macro *it = _hash[hashCode(name.start(), name.size()) % _hash_count];
     for (; it; it = it->_next) {
         if (it->name() != name)
             continue;
@@ -235,26 +244,6 @@ Macro *Environment::resolve(const ByteArrayRef &name) const
         else break;
     }
     return it;
-}
-
-unsigned Environment::hashCode(const QByteArray &s)
-{
-    unsigned hash_value = 0;
-
-    for (int i = 0; i < s.size (); ++i)
-        hash_value = (hash_value << 5) - hash_value + s.at (i);
-
-    return hash_value;
-}
-
-unsigned Environment::hashCode(const ByteArrayRef &s)
-{
-    unsigned hash_value = 0;
-
-    for (int i = 0; i < s.length(); ++i)
-        hash_value = (hash_value << 5) - hash_value + s.at(i);
-
-    return hash_value;
 }
 
 void Environment::rehash()
@@ -281,3 +270,5 @@ void Environment::dump() const
         qDebug() << m->decoratedName();
     }
 }
+
+} // namespace CPlusPlus

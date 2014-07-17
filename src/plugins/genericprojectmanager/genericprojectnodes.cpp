@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -42,9 +42,9 @@ namespace GenericProjectManager {
 namespace Internal {
 
 GenericProjectNode::GenericProjectNode(GenericProject *project, Core::IDocument *projectFile)
-    : ProjectNode(projectFile->fileName()), m_project(project), m_projectFile(projectFile)
+    : ProjectNode(projectFile->filePath()), m_project(project), m_projectFile(projectFile)
 {
-    setDisplayName(QFileInfo(projectFile->fileName()).completeBaseName());
+    setDisplayName(QFileInfo(projectFile->filePath()).completeBaseName());
 }
 
 Core::IDocument *GenericProjectNode::projectFile() const
@@ -54,7 +54,7 @@ Core::IDocument *GenericProjectNode::projectFile() const
 
 QString GenericProjectNode::projectFilePath() const
 {
-    return m_projectFile->fileName();
+    return m_projectFile->filePath();
 }
 
 QHash<QString, QStringList> sortFilesIntoPaths(const QString &base, const QSet<QString> files)
@@ -103,8 +103,7 @@ void GenericProjectNode::refresh(QSet<QString> oldFileList)
         addFileNodes(QList<FileNode *>()
                      << projectFilesNode
                      << projectIncludesNode
-                     << projectConfigNode,
-                     this);
+                     << projectConfigNode);
     }
 
     // Do those separately
@@ -142,7 +141,7 @@ void GenericProjectNode::refresh(QSet<QString> oldFileList)
             fileNodes.append(fileNode);
         }
 
-        addFileNodes(fileNodes, folder);
+        folder->addFileNodes(fileNodes);
     }
 
     filesInPaths = sortFilesIntoPaths(baseDir, removed);
@@ -161,7 +160,7 @@ void GenericProjectNode::refresh(QSet<QString> oldFileList)
                     fileNodes.append(fn);
         }
 
-        removeFileNodes(fileNodes, folder);
+        folder->removeFileNodes(fileNodes);
     }
 
     foreach (FolderNode *fn, subFolderNodes())
@@ -175,7 +174,7 @@ void GenericProjectNode::removeEmptySubFolders(FolderNode *gparent, FolderNode *
         removeEmptySubFolders(parent, fn);
 
     if (parent->subFolderNodes().isEmpty() && parent->fileNodes().isEmpty())
-        removeFolderNodes(QList<FolderNode*>() << parent, gparent);
+        gparent->removeFolderNodes(QList<FolderNode*>() << parent);
 }
 
 FolderNode *GenericProjectNode::createFolderByName(const QStringList &components, int end)
@@ -198,7 +197,7 @@ FolderNode *GenericProjectNode::createFolderByName(const QStringList &components
     FolderNode *parent = findFolderByName(components, end - 1);
     if (!parent)
         parent = createFolderByName(components, end - 1);
-    addFolderNodes(QList<FolderNode*>() << folder, parent);
+    parent->addFolderNodes(QList<FolderNode*>() << folder);
 
     return folder;
 }
@@ -226,17 +225,18 @@ FolderNode *GenericProjectNode::findFolderByName(const QStringList &components, 
     return 0;
 }
 
-bool GenericProjectNode::hasBuildTargets() const
+bool GenericProjectNode::showInSimpleTree() const
 {
     return true;
 }
 
-QList<ProjectNode::ProjectAction> GenericProjectNode::supportedActions(Node *node) const
+QList<ProjectExplorer::ProjectAction> GenericProjectNode::supportedActions(Node *node) const
 {
     Q_UNUSED(node);
     return QList<ProjectAction>()
         << AddNewFile
         << AddExistingFile
+        << AddExistingDirectory
         << RemoveFile
         << Rename;
 }
@@ -259,37 +259,28 @@ bool GenericProjectNode::removeSubProjects(const QStringList &proFilePaths)
     return false;
 }
 
-bool GenericProjectNode::addFiles(const FileType fileType,
-                                  const QStringList &filePaths, QStringList *notAdded)
+bool GenericProjectNode::addFiles(const QStringList &filePaths, QStringList *notAdded)
 {
-    Q_UNUSED(fileType)
     Q_UNUSED(notAdded)
 
     return m_project->addFiles(filePaths);
 }
 
-bool GenericProjectNode::removeFiles(const FileType fileType,
-                                     const QStringList &filePaths, QStringList *notRemoved)
+bool GenericProjectNode::removeFiles(const QStringList &filePaths, QStringList *notRemoved)
 {
-    Q_UNUSED(fileType)
     Q_UNUSED(notRemoved)
 
     return m_project->removeFiles(filePaths);
 }
 
-bool GenericProjectNode::deleteFiles(const FileType fileType,
-                                     const QStringList &filePaths)
+bool GenericProjectNode::deleteFiles(const QStringList &filePaths)
 {
-    Q_UNUSED(fileType)
     Q_UNUSED(filePaths)
     return false;
 }
 
-bool GenericProjectNode::renameFile(const FileType fileType,
-                                    const QString &filePath, const QString &newFilePath)
+bool GenericProjectNode::renameFile(const QString &filePath, const QString &newFilePath)
 {
-    Q_UNUSED(fileType)
-
     return m_project->renameFile(filePath, newFilePath);
 }
 

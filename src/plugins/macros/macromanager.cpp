@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Nicolas Arnaud-Cormos
+** Copyright (c) 2014 Nicolas Arnaud-Cormos
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -62,7 +62,6 @@
 #include <QFileDialog>
 #include <QMessageBox>
 
-using namespace Macros;
 using namespace Macros::Internal;
 
 /*!
@@ -78,13 +77,13 @@ using namespace Macros::Internal;
     The MacroManager manages all macros, loads them on startup, keeps track of the
     current macro, and creates new macros.
 
-    There are two important methods in this class that can be used outside the Macros plugin:
+    There are two important functions in this class that can be used outside the Macros plugin:
     \list
     \li registerEventHandler: add a new event handler
     \li registerAction: add a macro event when this action is triggered
     \endlist
 
-    This class is a singleton and can be accessed using the instance method.
+    This class is a singleton and can be accessed using the instance function.
 */
 
 /*!
@@ -94,7 +93,7 @@ using namespace Macros::Internal;
     the action id passed to the ActionManager.
 */
 
-class Macros::MacroManager::MacroManagerPrivate
+class MacroManager::MacroManagerPrivate
 {
 public:
     MacroManagerPrivate(MacroManager *qq);
@@ -157,7 +156,7 @@ void MacroManager::MacroManagerPrivate::initialize()
 
 static Core::Id makeId(const QString &name)
 {
-    return Core::Id(Constants::PREFIX_MACRO).withSuffix(name);
+    return Core::Id(Macros::Constants::PREFIX_MACRO).withSuffix(name);
 }
 
 void MacroManager::MacroManagerPrivate::addMacro(Macro *macro)
@@ -253,10 +252,10 @@ MacroManager::MacroManager(QObject *parent) :
     QObject(parent),
     d(new MacroManagerPrivate(this))
 {
+    m_instance = this;
     registerMacroHandler(d->actionHandler);
     registerMacroHandler(d->findHandler);
     registerMacroHandler(d->textEditorHandler);
-    m_instance = this;
 }
 
 MacroManager::~MacroManager()
@@ -287,11 +286,11 @@ void MacroManager::startMacro()
     foreach (IMacroHandler *handler, d->handlers)
         handler->startRecording(d->currentMacro);
 
-    QString endShortcut = Core::ActionManager::command(Constants::END_MACRO)->defaultKeySequence().toString();
-    QString executeShortcut = Core::ActionManager::command(Constants::EXECUTE_LAST_MACRO)->defaultKeySequence().toString();
-    QString help = tr("Macro mode. Type \"%1\" to stop recording and \"%2\" to play it")
+    QString endShortcut = Core::ActionManager::command(Constants::END_MACRO)->keySequence().toString();
+    QString executeShortcut = Core::ActionManager::command(Constants::EXECUTE_LAST_MACRO)->keySequence().toString();
+    QString help = tr("Macro mode. Type \"%1\" to stop recording and \"%2\" to play the macro.")
         .arg(endShortcut).arg(executeShortcut);
-    Core::EditorManager::instance()->showEditorStatusBar(
+    Core::EditorManager::showEditorStatusBar(
                 QLatin1String(Constants::M_STATUS_BUFFER),
                 help,
                 tr("Stop Recording Macro"), this, SLOT(endMacro()));
@@ -299,7 +298,7 @@ void MacroManager::startMacro()
 
 void MacroManager::endMacro()
 {
-    Core::EditorManager::instance()->hideEditorStatusBar(QLatin1String(Constants::M_STATUS_BUFFER));
+    Core::EditorManager::hideEditorStatusBar(QLatin1String(Constants::M_STATUS_BUFFER));
 
     Core::ActionManager::command(Constants::START_MACRO)->action()->setEnabled(true);
     Core::ActionManager::command(Constants::END_MACRO)->action()->setEnabled(false);
@@ -360,14 +359,14 @@ void MacroManager::deleteMacro(const QString &name)
     }
 }
 
-const QMap<QString,Macro*> &MacroManager::macros() const
+const QMap<QString,Macro*> &MacroManager::macros()
 {
-    return d->macros;
+    return m_instance->d->macros;
 }
 
 void MacroManager::registerMacroHandler(IMacroHandler *handler)
 {
-    d->handlers.prepend(handler);
+    m_instance->d->handlers.prepend(handler);
 }
 
 MacroManager *MacroManager::instance()
@@ -386,13 +385,13 @@ void MacroManager::changeMacro(const QString &name, const QString &description)
         d->changeMacroDescription(macro, description);
 }
 
-void Macros::MacroManager::saveLastMacro()
+void MacroManager::saveLastMacro()
 {
     if (d->currentMacro->events().count())
         d->showSaveDialog();
 }
 
-QString Macros::MacroManager::macrosDirectory() const
+QString MacroManager::macrosDirectory()
 {
     const QString &path =
         Core::ICore::userResourcePath() + QLatin1String("/macros");

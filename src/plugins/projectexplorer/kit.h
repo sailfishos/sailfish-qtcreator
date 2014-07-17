@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -76,12 +76,14 @@ public:
     QString fileSystemFriendlyName() const;
 
     bool isAutoDetected() const;
+    QString autoDetectionSource() const;
     bool isSdkProvided() const;
     Core::Id id() const;
 
     QIcon icon() const;
-    QString iconPath() const;
-    void setIconPath(const QString &path);
+    static QIcon icon(const Utils::FileName &path);
+    Utils::FileName iconPath() const;
+    void setIconPath(const Utils::FileName &path);
 
     QVariant value(Core::Id key, const QVariant &unset = QVariant()) const;
     bool hasValue(Core::Id key) const;
@@ -99,14 +101,21 @@ public:
     Kit *clone(bool keepName = false) const;
     void copyFrom(const Kit *k);
 
+    // Note: Stickyness is *not* saved!
     void setAutoDetected(bool detected);
+    void setAutoDetectionSource(const QString &autoDetectionSource);
+    void makeSticky();
+    void setSticky(Core::Id id, bool b);
+    void makeUnSticky();
+
+    void setMutable(Core::Id id, bool b);
+    bool isMutable(Core::Id id) const;
 
 private:
     void setSdkProvided(bool sdkProvided);
-    void makeSticky();
-    void makeSticky(Core::Id id);
 
     ~Kit();
+    Kit(const QVariantMap &data);
 
     // Unimplemented.
     Kit(const Kit &other);
@@ -116,9 +125,8 @@ private:
     void kitUpdated();
 
     QVariantMap toMap() const;
-    bool fromMap(const QVariantMap &value);
 
-    Internal::KitPrivate *d;
+    Internal::KitPrivate *const d;
 
     friend class KitInformation;
     friend class KitManager;

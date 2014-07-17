@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -28,15 +28,19 @@
 ****************************************************************************/
 
 #include "checkoutprogresswizardpage.h"
-#include "checkoutjobs.h"
-#include "ui_checkoutprogresswizardpage.h"
+#include "command.h"
+#include "vcsbaseplugin.h"
 
+#include <utils/outputformatter.h>
 #include <utils/qtcassert.h>
 
 #include <QApplication>
+#include <QLabel>
+#include <QPlainTextEdit>
+#include <QVBoxLayout>
 
 /*!
-    \class VcsBase::CheckoutProgressWizardPage
+    \class VcsBase::Internal::CheckoutProgressWizardPage
 
     \brief The CheckoutProgressWizardPage implements a page showing the
     progress of an initial project checkout.
@@ -51,10 +55,21 @@ namespace Internal {
 
 CheckoutProgressWizardPage::CheckoutProgressWizardPage(QWidget *parent) :
     QWizardPage(parent),
-    ui(new Ui::CheckoutProgressWizardPage),
+    m_startedStatus(tr("Checkout started...")),
+    m_overwriteOutput(false),
     m_state(Idle)
 {
-    ui->setupUi(this);
+    resize(264, 200);
+    QVBoxLayout *verticalLayout = new QVBoxLayout(this);
+    m_logPlainTextEdit = new QPlainTextEdit;
+    m_formatter = new Utils::OutputFormatter;
+    m_logPlainTextEdit->setReadOnly(true);
+    m_formatter->setPlainTextEdit(m_logPlainTextEdit);
+
+    verticalLayout->addWidget(m_logPlainTextEdit);
+
+    m_statusLabel = new QLabel;
+    verticalLayout->addWidget(m_statusLabel);
     setTitle(tr("Checkout"));
 }
 
@@ -62,63 +77,76 @@ CheckoutProgressWizardPage::~CheckoutProgressWizardPage()
 {
     if (m_state == Running) // Paranoia!
         QApplication::restoreOverrideCursor();
-    delete ui;
+    delete m_formatter;
 }
 
-void CheckoutProgressWizardPage::start(const QSharedPointer<AbstractCheckoutJob> &job)
+void CheckoutProgressWizardPage::setStartedStatus(const QString &startedStatus)
 {
-    if (job.isNull()) {
-        ui->logPlainTextEdit->setPlainText(tr("No job running, please abort."));
+    m_startedStatus = startedStatus;
+}
+
+void CheckoutProgressWizardPage::start(Command *command)
+{
+    if (!command) {
+        m_logPlainTextEdit->setPlainText(tr("No job running, please abort."));
         return;
     }
 
     QTC_ASSERT(m_state != Running, return);
-    m_job = job;
-    connect(job.data(), SIGNAL(output(QString)), ui->logPlainTextEdit, SLOT(appendPlainText(QString)));
-    connect(job.data(), SIGNAL(failed(QString)), this, SLOT(slotFailed(QString)));
-    connect(job.data(), SIGNAL(succeeded()), this, SLOT(slotSucceeded()));
+    m_command = command;
+    command->setProgressiveOutput(true);
+    connect(command, SIGNAL(output(QString)), this, SLOT(slotOutput(QString)));
+    connect(command, SIGNAL(finished(bool,int,QVariant)), this, SLOT(slotFinished(bool,int,QVariant)));
     QApplication::setOverrideCursor(Qt::WaitCursor);
-    ui->logPlainTextEdit->clear();
-    ui->statusLabel->setText(tr("Checkout started..."));
-    ui->statusLabel->setPalette(QPalette());
+    m_logPlainTextEdit->clear();
+    m_overwriteOutput = false;
+    m_statusLabel->setText(m_startedStatus);
+    m_statusLabel->setPalette(QPalette());
     m_state = Running;
-    // Note: Process jobs can emit failed() right from
-    // the start() method on Windows.
-    job->start();
+    command->execute();
 }
 
-void CheckoutProgressWizardPage::slotFailed(const QString &why)
+void CheckoutProgressWizardPage::slotFinished(bool ok, int exitCode, const QVariant &)
 {
-    ui->logPlainTextEdit->appendPlainText(why);
-    if (m_state == Running) {
-        m_state = Failed;
-        QApplication::restoreOverrideCursor();
-        ui->statusLabel->setText(tr("Failed."));
-        QPalette palette = ui->statusLabel->palette();
-        palette.setColor(QPalette::Active, QPalette::Text, Qt::red);
-        ui->statusLabel->setPalette(palette);
-        emit terminated(false);
+    if (ok && exitCode == 0) {
+        if (m_state == Running) {
+            m_state = Succeeded;
+            QApplication::restoreOverrideCursor();
+            m_statusLabel->setText(tr("Succeeded."));
+            QPalette palette;
+            palette.setColor(QPalette::Active, QPalette::Text, Qt::green);
+            m_statusLabel->setPalette(palette);
+            emit completeChanged();
+            emit terminated(true);
+        }
+    } else {
+        m_logPlainTextEdit->appendPlainText(m_error);
+        if (m_state == Running) {
+            m_state = Failed;
+            QApplication::restoreOverrideCursor();
+            m_statusLabel->setText(tr("Failed."));
+            QPalette palette;
+            palette.setColor(QPalette::Active, QPalette::Text, Qt::red);
+            m_statusLabel->setPalette(palette);
+            emit terminated(false);
+        }
     }
 }
 
-void CheckoutProgressWizardPage::slotSucceeded()
+void CheckoutProgressWizardPage::slotOutput(const QString &text)
 {
-    if (m_state == Running) {
-        m_state = Succeeded;
-        QApplication::restoreOverrideCursor();
-        ui->statusLabel->setText(tr("Succeeded."));
-        QPalette palette = ui->statusLabel->palette();
-        palette.setColor(QPalette::Active, QPalette::Text, Qt::green);
-        ui->statusLabel->setPalette(palette);
-        emit completeChanged();
-        emit terminated(true);
-    }
+    m_formatter->appendMessage(text, Utils::StdOutFormat);
+}
+
+void CheckoutProgressWizardPage::slotError(const QString &text)
+{
+    m_error.append(text);
 }
 
 void CheckoutProgressWizardPage::terminate()
 {
-    if (!m_job.isNull())
-        m_job->cancel();
+    if (m_command)
+        m_command->cancel();
 }
 
 bool CheckoutProgressWizardPage::isComplete() const

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -112,11 +112,6 @@ CPLUSPLUS_EXPORT FullySpecifiedType rewriteType(const FullySpecifiedType &type,
 CPLUSPLUS_EXPORT const Name *rewriteName(const Name *name,
                                          SubstitutionEnvironment *env,
                                          Control *control);
-
-// Simplify complicated STL template types, such as
-// 'std::basic_string<char,std::char_traits<char>,std::allocator<char> > '->
-// 'std::string'.
-CPLUSPLUS_EXPORT QString simplifySTLType(const QString &typeIn);
 
 } // namespace CPlusPlus
 

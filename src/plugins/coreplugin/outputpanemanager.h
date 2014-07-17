@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -32,6 +32,7 @@
 
 #include <coreplugin/id.h>
 
+#include <QMap>
 #include <QToolButton>
 
 QT_BEGIN_NAMESPACE
@@ -75,6 +76,7 @@ public slots:
 
 protected:
     void focusInEvent(QFocusEvent *e);
+    void resizeEvent(QResizeEvent *e);
 
 private slots:
     void showPage(int flags);
@@ -125,6 +127,7 @@ private:
     QVector<OutputPaneToggleButton *> m_buttons;
     QVector<QAction *> m_actions;
     QVector<Id> m_ids;
+    QMap<Id, bool> m_buttonVisibility;
 
     QStackedWidget *m_outputWidgetPane;
     QStackedWidget *m_opToolBarWidgets;
@@ -132,6 +135,7 @@ private:
     QPixmap m_minimizeIcon;
     QPixmap m_maximizeIcon;
     bool m_maximised;
+    int m_outputPaneHeight;
 };
 
 class OutputPaneToggleButton : public QToolButton

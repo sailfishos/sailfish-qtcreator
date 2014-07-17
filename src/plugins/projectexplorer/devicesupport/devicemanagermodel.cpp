@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -54,7 +54,7 @@ DeviceManagerModel::DeviceManagerModel(const DeviceManager *deviceManager, QObje
     connect(deviceManager, SIGNAL(deviceAdded(Core::Id)), SLOT(handleDeviceAdded(Core::Id)));
     connect(deviceManager, SIGNAL(deviceRemoved(Core::Id)), SLOT(handleDeviceRemoved(Core::Id)));
     connect(deviceManager, SIGNAL(deviceUpdated(Core::Id)), SLOT(handleDeviceUpdated(Core::Id)));
-    connect(deviceManager, SIGNAL(deviceListChanged()), SLOT(handleDeviceListChanged()));
+    connect(deviceManager, SIGNAL(deviceListReplaced()), SLOT(handleDeviceListChanged()));
 }
 
 DeviceManagerModel::~DeviceManagerModel()

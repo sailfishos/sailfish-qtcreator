@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -41,9 +41,12 @@ using namespace Android::Internal;
 
 
 AndroidManifestDocument::AndroidManifestDocument(AndroidManifestEditorWidget *editorWidget)
-    : TextEditor::BaseTextDocument(),
+    : TextEditor::PlainTextDocument(),
       m_editorWidget(editorWidget)
 {
+    setMimeType(QLatin1String(Constants::ANDROID_MANIFEST_MIME_TYPE));
+    connect(editorWidget, SIGNAL(guiChanged()),
+            this, SIGNAL(changed()));
 }
 
 bool AndroidManifestDocument::save(QString *errorString, const QString &fileName, bool autoSave)
@@ -54,13 +57,13 @@ bool AndroidManifestDocument::save(QString *errorString, const QString &fileName
 
 QString AndroidManifestDocument::defaultPath() const
 {
-    QFileInfo fi(fileName());
+    QFileInfo fi(filePath());
     return fi.absolutePath();
 }
 
 QString AndroidManifestDocument::suggestedFileName() const
 {
-    QFileInfo fi(fileName());
+    QFileInfo fi(filePath());
     return fi.fileName();
 }
 

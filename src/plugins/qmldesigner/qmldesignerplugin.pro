@@ -3,7 +3,6 @@ CONFIG += exceptions
 INCLUDEPATH += $$PWD
 
 include(../../qtcreatorplugin.pri)
-include(../../private_headers.pri)
 
 include(designercore/designercore-lib.pri)
 include(components/componentcore/componentcore.pri)
@@ -16,6 +15,13 @@ include(components/pluginmanager/pluginmanager.pri)
 include(components/stateseditor/stateseditor.pri)
 include(components/resources/resources.pri)
 include(components/debugview/debugview.pri)
+include(components/importmanager/importmanager.pri)
 include(qmldesignerplugin.pri)
 
 DEFINES -= QT_NO_CAST_FROM_ASCII
+
+BUILD_PUPPET_IN_CREATOR_BINPATH = $$(BUILD_PUPPET_IN_CREATOR_BINPATH)
+!isEmpty(BUILD_PUPPET_IN_CREATOR_BINPATH) {
+    DEFINES += SEARCH_PUPPET_IN_CREATOR_BINPATH
+    message("Search puppet in qtcreator bin path!")
+}

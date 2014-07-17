@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -125,7 +125,7 @@ static ApplicationProgressView *sharedProgressView = nil;
 
 @end
 
-void Core::Internal::ProgressManagerPrivate::setApplicationLabel(const QString &text)
+void Core::Internal::ProgressManagerPrivate::doSetApplicationLabel(const QString &text)
 {
     NSString *cocoaString = [[NSString alloc] initWithUTF8String:text.toUtf8().constData()];
     [[NSApp dockTile] setBadgeLabel:cocoaString];

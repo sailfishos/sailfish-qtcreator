@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -28,10 +28,7 @@
 ****************************************************************************/
 
 #include "debugginghelperbuildtask.h"
-#include "debugginghelper.h"
 #include "qmldumptool.h"
-#include "qmlobservertool.h"
-#include "qmldebugginglibrary.h"
 #include "baseqtversion.h"
 #include "qtversionmanager.h"
 #include <utils/qtcassert.h>
@@ -59,7 +56,7 @@ DebuggingHelperBuildTask::DebuggingHelperBuildTask(const BaseQtVersion *version,
 
     // Print result in application ouptut
     connect(this, SIGNAL(logOutput(QString,Core::MessageManager::PrintToOutputPaneFlags)),
-            Core::MessageManager::instance(), SLOT(printToOutputPane(QString,Core::MessageManager::PrintToOutputPaneFlags)),
+            Core::MessageManager::instance(), SLOT(write(QString,Core::MessageManager::PrintToOutputPaneFlags)),
             Qt::QueuedConnection);
 
     //
@@ -101,9 +98,8 @@ DebuggingHelperBuildTask::DebuggingHelperBuildTask(const BaseQtVersion *version,
         // explicitly set 32 or 64 bit in case Qt is compiled with both
         if (toolChain->targetAbi().wordWidth() == 32)
             m_qmakeArguments << QLatin1String("CONFIG+=x86");
-        else if (toolChain->targetAbi().wordWidth() == 64) {
+        else if (toolChain->targetAbi().wordWidth() == 64)
             m_qmakeArguments << QLatin1String("CONFIG+=x86_64");
-        }
     }
     m_makeCommand = toolChain->makeCommand(m_environment);
     m_mkspec = version->mkspec();
@@ -120,20 +116,8 @@ DebuggingHelperBuildTask::Tools DebuggingHelperBuildTask::availableTools(const B
     QTC_ASSERT(version, return 0);
     // Check the build requirements of the tools
     DebuggingHelperBuildTask::Tools tools = 0;
-    // Gdb helpers are needed on Mac/gdb only.
-    foreach (const Abi &abi, version->qtAbis()) {
-        if (abi.os() == Abi::MacOS) {
-            tools |= DebuggingHelperBuildTask::GdbDebugging;
-            break;
-        }
-    }
     if (QmlDumpTool::canBuild(version))
         tools |= QmlDump;
-    if (QmlDebuggingLibrary::canBuild(version)) {
-        tools |= QmlDebugging;
-        if (QmlObserverTool::canBuild(version))
-            tools |= QmlObserver; // requires QML debugging.
-    }
     return tools;
 }
 
@@ -144,7 +128,7 @@ void DebuggingHelperBuildTask::showOutputOnError(bool show)
 
 void DebuggingHelperBuildTask::run(QFutureInterface<void> &future)
 {
-    future.setProgressRange(0, 5);
+    future.setProgressRange(0, 3);
     future.setProgressValue(1);
 
     if (m_invalidQt || !buildDebuggingHelper(future)) {
@@ -177,18 +161,6 @@ bool DebuggingHelperBuildTask::buildDebuggingHelper(QFutureInterface<void> &futu
     arguments.mkspec = m_mkspec;
     arguments.environment = m_environment;
 
-    if (m_tools & GdbDebugging) {
-        QString output, error;
-        bool success = true;
-
-        arguments.directory = DebuggingHelperLibrary::copy(m_qtInstallData, &error);
-        if (arguments.directory.isEmpty()
-                || !DebuggingHelperLibrary::build(arguments, &output, &error))
-            success = false;
-        log(output, error);
-        if (!success)
-            return false;
-    }
     future.setProgressValue(2);
 
     if (m_tools & QmlDump) {
@@ -204,47 +176,6 @@ bool DebuggingHelperBuildTask::buildDebuggingHelper(QFutureInterface<void> &futu
             return false;
     }
     future.setProgressValue(3);
-
-    QString qmlDebuggingDirectory;
-    if (m_tools & QmlDebugging) {
-        QString output, error;
-
-        qmlDebuggingDirectory = QmlDebuggingLibrary::copy(m_qtInstallData, &error);
-
-        bool success = true;
-        arguments.directory = qmlDebuggingDirectory;
-        if (arguments.directory.isEmpty()
-                || !QmlDebuggingLibrary::build(arguments, &output, &error)) {
-            success = false;
-        }
-
-        log(output, error);
-        if (!success)
-            return false;
-    }
-    future.setProgressValue(4);
-
-    if (m_tools & QmlObserver) {
-        QString output, error;
-        bool success = true;
-
-        arguments.directory = QmlObserverTool::copy(m_qtInstallData, &error);
-        arguments.qmakeArguments << QLatin1String("INCLUDEPATH+=\"\\\"")
-                                    + qmlDebuggingDirectory
-                                    + QLatin1String("include\\\"\"");
-        arguments.qmakeArguments << QLatin1String("LIBS+=-L\"\\\"")
-                                    + qmlDebuggingDirectory
-                                    + QLatin1String("\\\"\"");
-
-        if (arguments.directory.isEmpty()
-                || !QmlObserverTool::build(arguments, &output, &error)) {
-            success = false;
-        }
-        log(output, error);
-        if (!success)
-            return false;
-    }
-    future.setProgressValue(5);
     return true;
 }
 

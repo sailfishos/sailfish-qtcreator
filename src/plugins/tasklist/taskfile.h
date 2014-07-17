@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -32,9 +32,7 @@
 
 #include <coreplugin/idocument.h>
 
-namespace ProjectExplorer {
-class Project;
-} // namespace ProjectExplorer
+namespace ProjectExplorer { class Project; }
 
 namespace TaskList {
 namespace Internal {
@@ -46,7 +44,6 @@ public:
     ~TaskFile();
 
     bool save(QString *errorString, const QString &fileName, bool autoSave);
-    QString fileName() const;
 
     QString defaultPath() const;
     QString suggestedFileName() const;
@@ -57,16 +54,14 @@ public:
 
     ReloadBehavior reloadBehavior(ChangeTrigger state, ChangeType type) const;
     bool reload(QString *errorString, ReloadFlag flag, ChangeType type);
-    void rename(const QString &newName);
 
     bool open(QString *errorString, const QString &fileName);
 
-    ProjectExplorer::Project *context() const;
-    void setContext(ProjectExplorer::Project *context);
+    QString baseDir() const;
+    void setBaseDir(const QString &base);
 
 private:
-    QString m_fileName;
-    ProjectExplorer::Project *m_context;
+    QString m_baseDir;
 };
 
 } // namespace Internal

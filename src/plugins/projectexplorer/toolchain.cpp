@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -53,8 +53,10 @@ namespace Internal {
 class ToolChainPrivate
 {
 public:
-    ToolChainPrivate(const QString &id, bool autodetect) :
-        m_autodetect(autodetect)
+    typedef ToolChain::Detection Detection;
+
+    explicit ToolChainPrivate(const QString &id, Detection d) :
+        m_detection(d)
     {
         m_id = createId(id);
     }
@@ -67,7 +69,7 @@ public:
     }
 
     QString m_id;
-    bool m_autodetect;
+    Detection m_detection;
     mutable QString m_displayName;
 };
 
@@ -81,12 +83,12 @@ public:
 
 // --------------------------------------------------------------------------
 
-ToolChain::ToolChain(const QString &id, bool autodetect) :
-    d(new Internal::ToolChainPrivate(id, autodetect))
+ToolChain::ToolChain(const QString &id, Detection d) :
+    d(new Internal::ToolChainPrivate(id, d))
 { }
 
 ToolChain::ToolChain(const ToolChain &other) :
-    d(new Internal::ToolChainPrivate(other.d->m_id, false))
+    d(new Internal::ToolChainPrivate(other.d->m_id, ManualDetection))
 {
     // leave the autodetection bit at false.
     d->m_displayName = QCoreApplication::translate("ProjectExplorer::ToolChain", "Clone of %1")
@@ -114,9 +116,9 @@ void ToolChain::setDisplayName(const QString &name)
     toolChainUpdated();
 }
 
-bool ToolChain::isAutoDetected() const
+ToolChain::Detection ToolChain::detection() const
 {
-    return d->m_autodetect;
+    return d->m_detection;
 }
 
 QString ToolChain::id() const
@@ -131,7 +133,7 @@ QList<Utils::FileName> ToolChain::suggestedMkspecList() const
 
 Utils::FileName ToolChain::suggestedDebugger() const
 {
-    return ToolChainManager::instance()->defaultDebugger(targetAbi());
+    return ToolChainManager::defaultDebugger(targetAbi());
 }
 
 bool ToolChain::canClone() const
@@ -154,7 +156,7 @@ bool ToolChain::operator == (const ToolChain &tc) const
 /*!
     Used by the tool chain manager to save user-generated tool chains.
 
-    Make sure to call this method when deriving.
+    Make sure to call this function when deriving.
 */
 
 QVariantMap ToolChain::toMap() const
@@ -169,21 +171,21 @@ QVariantMap ToolChain::toMap() const
 
 void ToolChain::toolChainUpdated()
 {
-    ToolChainManager::instance()->notifyAboutUpdate(this);
+    ToolChainManager::notifyAboutUpdate(this);
 }
 
-void ToolChain::setAutoDetected(bool autodetect)
+void ToolChain::setDetection(ToolChain::Detection de)
 {
-    if (d->m_autodetect == autodetect)
+    if (d->m_detection == de)
         return;
-    d->m_autodetect = autodetect;
+    d->m_detection = de;
     toolChainUpdated();
 }
 
 /*!
     Used by the tool chain manager to load user-generated tool chains.
 
-    Make sure to call this method when deriving.
+    Make sure to call this function when deriving.
 */
 
 bool ToolChain::fromMap(const QVariantMap &data)
@@ -191,7 +193,8 @@ bool ToolChain::fromMap(const QVariantMap &data)
     d->m_displayName = data.value(QLatin1String(DISPLAY_NAME_KEY)).toString();
     // make sure we have new style ids:
     d->m_id = data.value(QLatin1String(ID_KEY)).toString();
-    d->m_autodetect = data.value(QLatin1String(AUTODETECT_KEY), false).toBool();
+    const bool autoDetect = data.value(QLatin1String(AUTODETECT_KEY), false).toBool();
+    d->m_detection = autoDetect ? AutoDetectionFromSettings : ManualDetection;
 
     return true;
 }

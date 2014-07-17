@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -34,7 +34,7 @@
 
 namespace QmlDesigner {
 
-PropertyEditorTransaction::PropertyEditorTransaction(QmlDesigner::PropertyEditor *propertyEditor) : QObject(propertyEditor), m_propertyEditor(propertyEditor), m_timerId(-1)
+PropertyEditorTransaction::PropertyEditorTransaction(QmlDesigner::PropertyEditorView *propertyEditor) : QObject(propertyEditor), m_propertyEditor(propertyEditor), m_timerId(-1)
 {
 }
 
@@ -44,7 +44,7 @@ void PropertyEditorTransaction::start()
         return;
     if (m_rewriterTransaction.isValid())
         m_rewriterTransaction.commit();
-    m_rewriterTransaction = m_propertyEditor->beginRewriterTransaction();
+    m_rewriterTransaction = m_propertyEditor->beginRewriterTransaction(QByteArrayLiteral("PropertyEditorTransaction::start"));
     m_timerId = startTimer(4000);
 }
 

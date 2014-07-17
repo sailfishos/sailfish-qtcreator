@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -41,7 +41,19 @@ FastPreprocessor::FastPreprocessor(const Snapshot &snapshot)
     , _preproc(this, &_env)
 { }
 
-QByteArray FastPreprocessor::run(Document::Ptr newDoc, const QString &source)
+// This is a temporary fix to handle non-ascii characters. This can be removed when the lexer can
+// handle multi-byte characters.
+static QByteArray convertToLatin1(const QByteArray &contents)
+{
+    const char *p = contents.constData();
+    while (char ch = *p++)
+        if (ch & 0x80)
+            return QString::fromUtf8(contents).toLatin1();
+
+    return contents;
+}
+
+QByteArray FastPreprocessor::run(Document::Ptr newDoc, const QByteArray &source)
 {
     std::swap(newDoc, _currentDoc);
     const QString fileName = _currentDoc->fileName();
@@ -51,12 +63,18 @@ QByteArray FastPreprocessor::run(Document::Ptr newDoc, const QString &source)
     if (Document::Ptr doc = _snapshot.document(fileName)) {
         _merged.insert(fileName);
 
-        mergeEnvironment(Preprocessor::configurationFileName);
-        foreach (const Document::Include &i, doc->includes())
+        for (Snapshot::const_iterator i = _snapshot.begin(), ei = _snapshot.end(); i != ei; ++i) {
+            if (isInjectedFile(i.key()))
+                mergeEnvironment(i.key());
+        }
+
+        foreach (const Document::Include &i, doc->resolvedIncludes())
             mergeEnvironment(i.resolvedFileName());
     }
 
-    const QByteArray preprocessed = _preproc.run(fileName, source);
+    QByteArray src = convertToLatin1(source);
+
+    const QByteArray preprocessed = _preproc.run(fileName, src);
 //    qDebug("FastPreprocessor::run for %s produced [[%s]]", fileName.toUtf8().constData(), preprocessed.constData());
     std::swap(newDoc, _currentDoc);
     return preprocessed;
@@ -78,7 +96,7 @@ void FastPreprocessor::mergeEnvironment(const QString &fileName)
         _merged.insert(fileName);
 
         if (Document::Ptr doc = _snapshot.document(fileName)) {
-            foreach (const Document::Include &i, doc->includes())
+            foreach (const Document::Include &i, doc->resolvedIncludes())
                 mergeEnvironment(i.resolvedFileName());
 
             _env.addMacros(doc->definedMacros());

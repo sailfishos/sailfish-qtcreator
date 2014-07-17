@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -37,7 +37,6 @@
 
 QT_BEGIN_NAMESPACE
 
-
 class QDebug;
 class QmlErrorPrivate;
 class QmlError
@@ -58,6 +57,8 @@ public:
     void setLine(int);
     int column() const;
     void setColumn(int);
+    QObject *object() const;
+    void setObject(QObject *);
 
     QString toString() const;
 private:

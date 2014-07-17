@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -44,6 +44,7 @@ QT_END_NAMESPACE
 namespace VcsBase {
 namespace Internal {
     class CommonVcsSettings;
+    class SubmitEditorFile;
 }
 struct VcsBaseSubmitEditorPrivate;
 class SubmitEditorWidget;
@@ -111,13 +112,8 @@ public:
     void setCheckScriptWorkingDirectory(const QString &);
 
     // Core::IEditor
-    bool createNew(const QString &contents);
     bool open(QString *errorString, const QString &fileName, const QString &realFileName);
     Core::IDocument *document();
-    QString displayName() const;
-    void setDisplayName(const QString &title);
-    Core::Id id() const;
-    bool isTemporary() const { return true; }
 
     QWidget *toolBar();
 
@@ -146,7 +142,6 @@ signals:
 
 private slots:
     void slotDiffSelectedVcsFiles(const QList<int> &rawList);
-    bool save(QString *errorString, const QString &fileName, bool autoSave);
     void slotDescriptionChanged();
     void slotCheckSubmitMessage();
     void slotInsertNickName();
@@ -159,7 +154,7 @@ protected:
      * the file. The default implementation uses the text
      * of the description editor. */
     virtual QByteArray fileContents() const;
-    virtual bool setFileContents(const QString &contents);
+    virtual bool setFileContents(const QByteArray &contents);
 
     void setDescriptionMandatory(bool v);
     bool isDescriptionMandatory() const;
@@ -171,6 +166,7 @@ private:
     QString promptForNickName();
 
     VcsBaseSubmitEditorPrivate *d;
+    friend class Internal::SubmitEditorFile; // for the file contents
 };
 
 } // namespace VcsBase

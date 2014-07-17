@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -34,7 +34,6 @@
 #include "watchutils.h"
 #include "debuggerprotocol.h"
 
-#include <QTextDocument> // Qt::escape() in Qt 4
 #include <QDebug>
 
 ////////////////////////////////////////////////////////////////////
@@ -98,6 +97,7 @@ bool isIntType(const QByteArray &type)
                     (  type == "unsigned char"
                     || type == "unsigned short"
                     || type == "unsigned short int"
+                    || type == "unsigned int"
                     || type == "unsigned long"
                     || type == "unsigned long int"
                     || type == "unsigned long long"
@@ -337,11 +337,36 @@ QString WatchData::toString() const
     return res + QLatin1Char('}');
 }
 
+static QString htmlEscape(const QString &plain)
+{
+#if QT_VERSION >= 0x050000
+    return Qt::escape(plain);
+#else
+    // Copied from Qt to avoid GUI dependency
+    // (Qt::escape has been moved in Qt 5)
+    QString rich;
+    rich.reserve(int(plain.length() * qreal(1.1)));
+    for (int i = 0; i < plain.length(); ++i) {
+        if (plain.at(i) == QLatin1Char('<'))
+            rich += QLatin1String("&lt;");
+        else if (plain.at(i) == QLatin1Char('>'))
+            rich += QLatin1String("&gt;");
+        else if (plain.at(i) == QLatin1Char('&'))
+            rich += QLatin1String("&amp;");
+        else if (plain.at(i) == QLatin1Char('"'))
+            rich += QLatin1String("&quot;");
+        else
+            rich += plain.at(i);
+    }
+    return rich;
+#endif
+}
+
 // Format a tooltip fow with aligned colon.
 static void formatToolTipRow(QTextStream &str,
     const QString &category, const QString &value)
 {
-    QString val = Qt::escape(value);
+    QString val = htmlEscape(value);
     val.replace(QLatin1Char('\n'), QLatin1String("<br>"));
     str << "<tr><td>" << category << "</td><td> : </td><td>"
         << val << "</td></tr>";
@@ -367,7 +392,8 @@ QString WatchData::toToolTip() const
     }
     if (val.size() > 1000) {
         val.truncate(1000);
-        val += tr(" ... <cut off>");
+        val += QLatin1Char(' ');
+        val += tr("... <cut off>");
     }
     formatToolTipRow(str, tr("Value"), val);
     if (address)

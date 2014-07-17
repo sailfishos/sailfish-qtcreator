@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -28,6 +28,7 @@
 ****************************************************************************/
 
 #include "historycompleter.h"
+#include "fancylineedit.h"
 
 #include "qtcassert.h"
 
@@ -35,7 +36,6 @@
 
 #include <QItemDelegate>
 #include <QKeyEvent>
-#include <QLineEdit>
 #include <QListView>
 #include <QPainter>
 
@@ -59,14 +59,15 @@ public:
     QStringList list;
     QString historyKey;
     int maxLines;
-    QLineEdit *lineEdit;
+    FancyLineEdit *lineEdit;
 };
 
 class HistoryLineDelegate : public QItemDelegate
 {
 public:
-    HistoryLineDelegate()
-        : pixmap(QLatin1String(":/core/images/editclear.png"))
+    HistoryLineDelegate(QObject *parent)
+        : QItemDelegate(parent)
+        , pixmap(QLatin1String(":/core/images/editclear.png"))
     {}
 
     void paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const
@@ -85,7 +86,7 @@ public:
     HistoryLineView(HistoryCompleterPrivate *model_)
         : model(model_)
     {
-        HistoryLineDelegate *delegate = new HistoryLineDelegate;
+        HistoryLineDelegate *delegate = new HistoryLineDelegate(this);
         pixmapWidth = delegate->pixmap.width();
         setItemDelegate(delegate);
     }
@@ -159,7 +160,7 @@ void HistoryCompleterPrivate::saveEntry(const QString &str)
     theSettings->setValue(historyKey, list);
 }
 
-HistoryCompleter::HistoryCompleter(QLineEdit *lineEdit, const QString &historyKey, QObject *parent)
+HistoryCompleter::HistoryCompleter(FancyLineEdit *lineEdit, const QString &historyKey, QObject *parent)
     : QCompleter(parent),
       d(new HistoryCompleterPrivate)
 {
@@ -170,12 +171,11 @@ HistoryCompleter::HistoryCompleter(QLineEdit *lineEdit, const QString &historyKe
     d->historyKey = QLatin1String("CompleterHistory/") + historyKey;
     d->list = theSettings->value(d->historyKey).toStringList();
     d->lineEdit = lineEdit;
-    if (d->list.count())
+    if (d->list.count() && lineEdit->text().isEmpty())
         lineEdit->setText(d->list.at(0));
 
     setModel(d);
     setPopup(new HistoryLineView(d));
-    lineEdit->installEventFilter(this);
 
     connect(lineEdit, SIGNAL(editingFinished()), this, SLOT(saveHistory()));
 }
@@ -188,17 +188,6 @@ bool HistoryCompleter::removeHistoryItem(int index)
 HistoryCompleter::~HistoryCompleter()
 {
     delete d;
-}
-
-bool HistoryCompleter::eventFilter(QObject *obj, QEvent *event)
-{
-    if (event->type() == QEvent::KeyPress
-            && static_cast<QKeyEvent *>(event)->key() == Qt::Key_Down
-            && !popup()->isVisible()) {
-        setCompletionPrefix(QString());
-        complete();
-    }
-    return QCompleter::eventFilter(obj, event);
 }
 
 int HistoryCompleter::historySize() const

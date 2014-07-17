@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -37,7 +37,6 @@
 #include <utils/filewizarddialog.h>
 #include <utils/qtcassert.h>
 #include <utils/stringutils.h>
-#include <utils/hostosinfo.h>
 
 #include <QDir>
 #include <QFileInfo>
@@ -61,189 +60,6 @@ static int indexOfFile(const GeneratedFiles &f, const QString &path)
         if (f.at(i).path() == path)
             return i;
     return -1;
-}
-
-// ------------ BaseFileWizardParameterData
-class BaseFileWizardParameterData : public QSharedData
-{
-public:
-    explicit BaseFileWizardParameterData(IWizard::WizardKind kind = IWizard::FileWizard);
-    void clear();
-
-    IWizard::WizardKind kind;
-    QIcon icon;
-    QString description;
-    QString displayName;
-    QString id;
-    QString category;
-    QString displayCategory;
-    Core::FeatureSet requiredFeatures;
-    Core::IWizard::WizardFlags flags;
-    QString descriptionImage;
-};
-
-BaseFileWizardParameterData::BaseFileWizardParameterData(IWizard::WizardKind k) :
-    kind(k)
-{
-}
-
-void BaseFileWizardParameterData::clear()
-{
-    kind = IWizard::FileWizard;
-    icon = QIcon();
-    description.clear();
-    displayName.clear();
-    id.clear();
-    category.clear();
-    displayCategory.clear();
-}
-
-/*!
-    \class Core::BaseFileWizardParameters
-    \brief The BaseFileWizardParameters class is a parameter class for
-    passing parameters to instances of the class Wizard containing name, icon,
-    and so on.
-
-    \sa Core::GeneratedFile, Core::BaseFileWizard, Core::StandardFileWizard
-    \sa Core::Internal::WizardEventLoop
-*/
-
-BaseFileWizardParameters::BaseFileWizardParameters(IWizard::WizardKind kind) :
-   m_d(new BaseFileWizardParameterData(kind))
-{
-}
-
-BaseFileWizardParameters::BaseFileWizardParameters(const BaseFileWizardParameters &rhs) :
-    m_d(rhs.m_d)
-{
-}
-
-BaseFileWizardParameters &BaseFileWizardParameters::operator=(const BaseFileWizardParameters &rhs)
-{
-    if (this != &rhs)
-        m_d.operator=(rhs.m_d);
-    return *this;
-}
-
-BaseFileWizardParameters::~BaseFileWizardParameters()
-{
-}
-
-void BaseFileWizardParameters::clear()
-{
-    m_d->clear();
-}
-
-CORE_EXPORT QDebug operator<<(QDebug d, const BaseFileWizardParameters &p)
-{
-    d.nospace() << "Kind: " << p.kind() << " Id: " << p.id()
-                << " Category: " << p.category()
-                << " DisplayName: " << p.displayName()
-                << " Description: " << p.description()
-                << " DisplayCategory: " << p.displayCategory()
-                << " Required Features: " << p.requiredFeatures().toStringList();
-    return d;
-}
-
-IWizard::WizardKind BaseFileWizardParameters::kind() const
-{
-    return m_d->kind;
-}
-
-void BaseFileWizardParameters::setKind(IWizard::WizardKind k)
-{
-    m_d->kind = k;
-}
-
-QIcon BaseFileWizardParameters::icon() const
-{
-    return m_d->icon;
-}
-
-void BaseFileWizardParameters::setIcon(const QIcon &icon)
-{
-    m_d->icon = icon;
-}
-
-QString BaseFileWizardParameters::description() const
-{
-    return m_d->description;
-}
-
-void BaseFileWizardParameters::setDescription(const QString &v)
-{
-    m_d->description = v;
-}
-
-QString BaseFileWizardParameters::displayName() const
-{
-    return m_d->displayName;
-}
-
-void BaseFileWizardParameters::setDisplayName(const QString &v)
-{
-    m_d->displayName = v;
-}
-
-QString BaseFileWizardParameters::id() const
-{
-    return m_d->id;
-}
-
-void BaseFileWizardParameters::setId(const QString &v)
-{
-    m_d->id = v;
-}
-
-QString BaseFileWizardParameters::category() const
-{
-    return m_d->category;
-}
-
-void BaseFileWizardParameters::setCategory(const QString &v)
-{
-    m_d->category = v;
-}
-
-QString BaseFileWizardParameters::displayCategory() const
-{
-    return m_d->displayCategory;
-}
-
-Core::FeatureSet BaseFileWizardParameters::requiredFeatures() const
-{
-    return m_d->requiredFeatures;
-}
-
-void BaseFileWizardParameters::setRequiredFeatures(Core::FeatureSet features)
-{
-
-    m_d->requiredFeatures = features;
-}
-
-void BaseFileWizardParameters::setDisplayCategory(const QString &v)
-{
-    m_d->displayCategory = v;
-}
-
-Core::IWizard::WizardFlags BaseFileWizardParameters::flags() const
-{
-    return m_d->flags;
-}
-
-void BaseFileWizardParameters::setFlags(Core::IWizard::WizardFlags flags)
-{
-    m_d->flags = flags;
-}
-
-QString BaseFileWizardParameters::descriptionImage() const
-{
-  return m_d->descriptionImage;
-}
-
-void BaseFileWizardParameters::setDescriptionImage(const QString &path)
-{
-    m_d->descriptionImage = path;
 }
 
 /*!
@@ -346,101 +162,36 @@ void WizardEventLoop::rejected()
     \brief The BaseFileWizard class implements a generic wizard for
     creating files.
 
-    The following abstract methods must be implemented:
+    The following abstract functions must be implemented:
     \list
     \li createWizardDialog(): Called to create the QWizard dialog to be shown.
     \li generateFiles(): Generates file content.
     \endlist
 
-    The behaviour can be further customized by overwriting the virtual method \c postGenerateFiles(),
+    The behaviour can be further customized by overwriting the virtual function \c postGenerateFiles(),
     which is called after generating the files.
 
     \sa Core::GeneratedFile, Core::BaseFileWizardParameters, Core::StandardFileWizard
     \sa Core::Internal::WizardEventLoop
 */
 
-struct BaseFileWizardPrivate
+BaseFileWizard::ExtensionList BaseFileWizard::extensions() const
 {
-    explicit BaseFileWizardPrivate(const Core::BaseFileWizardParameters &parameters)
-      : m_parameters(parameters), m_wizardDialog(0)
-    {}
-
-    const Core::BaseFileWizardParameters m_parameters;
-    QWizard *m_wizardDialog;
-};
-
-// ---------------- Wizard
-BaseFileWizard::BaseFileWizard(const BaseFileWizardParameters &parameters,
-                       QObject *parent) :
-    IWizard(parent),
-    d(new BaseFileWizardPrivate(parameters))
-{
-}
-
-BaseFileWizardParameters BaseFileWizard::baseFileWizardParameters() const
-{
-    return d->m_parameters;
-}
-
-BaseFileWizard::~BaseFileWizard()
-{
-    delete d;
-}
-
-IWizard::WizardKind  BaseFileWizard::kind() const
-{
-    return d->m_parameters.kind();
-}
-
-QIcon BaseFileWizard::icon() const
-{
-    return d->m_parameters.icon();
-}
-
-QString BaseFileWizard::description() const
-{
-    return d->m_parameters.description();
-}
-
-QString BaseFileWizard::displayName() const
-{
-    return d->m_parameters.displayName();
-}
-
-QString BaseFileWizard::id() const
-{
-    return d->m_parameters.id();
-}
-
-QString BaseFileWizard::category() const
-{
-    return d->m_parameters.category();
-}
-
-QString BaseFileWizard::displayCategory() const
-{
-    return d->m_parameters.displayCategory();
-}
-
-QString BaseFileWizard::descriptionImage() const
-{
-       return d->m_parameters.descriptionImage();
+    return ExtensionSystem::PluginManager::getObjects<IFileWizardExtension>();
 }
 
 void BaseFileWizard::runWizard(const QString &path, QWidget *parent, const QString &platform, const QVariantMap &extraValues)
 {
     QTC_ASSERT(!path.isEmpty(), return);
 
-    typedef  QList<IFileWizardExtension*> ExtensionList;
-
     QString errorMessage;
     // Compile extension pages, purge out unused ones
-    ExtensionList extensions = ExtensionSystem::PluginManager::getObjects<IFileWizardExtension>();
+    ExtensionList extensionList = extensions();
     WizardPageList  allExtensionPages;
-    for (ExtensionList::iterator it = extensions.begin(); it !=  extensions.end(); ) {
+    for (ExtensionList::iterator it = extensionList.begin(); it !=  extensionList.end(); ) {
         const WizardPageList extensionPages = (*it)->extensionPages(this);
         if (extensionPages.empty()) {
-            it = extensions.erase(it);
+            it = extensionList.erase(it);
         } else {
             allExtensionPages += extensionPages;
             ++it;
@@ -448,7 +199,7 @@ void BaseFileWizard::runWizard(const QString &path, QWidget *parent, const QStri
     }
 
     if (debugWizard)
-        qDebug() << Q_FUNC_INFO <<  path << parent << "exs" <<  extensions.size() << allExtensionPages.size();
+        qDebug() << Q_FUNC_INFO <<  path << parent << "exs" <<  extensionList.size() << allExtensionPages.size();
 
     QWizardPage *firstExtensionPage = 0;
     if (!allExtensionPages.empty())
@@ -493,7 +244,7 @@ void BaseFileWizard::runWizard(const QString &path, QWidget *parent, const QStri
             }
         }
         if (firstExtensionPageHit)
-            foreach (IFileWizardExtension *ex, extensions)
+            foreach (IFileWizardExtension *ex, extensionList)
                 ex->firstExtensionPageShown(files, extraValues);
         if (accepted)
             break;
@@ -511,7 +262,7 @@ void BaseFileWizard::runWizard(const QString &path, QWidget *parent, const QStri
         break;
     }
 
-    foreach (IFileWizardExtension *ex, extensions) {
+    foreach (IFileWizardExtension *ex, extensionList) {
         for (int i = 0; i < files.count(); i++) {
             ex->applyCodeStyle(&files[i]);
         }
@@ -525,7 +276,7 @@ void BaseFileWizard::runWizard(const QString &path, QWidget *parent, const QStri
 
     bool removeOpenProjectAttribute = false;
     // Run the extensions
-    foreach (IFileWizardExtension *ex, extensions) {
+    foreach (IFileWizardExtension *ex, extensionList) {
         bool remove;
         if (!ex->processFiles(files, &remove, &errorMessage)) {
             if (!errorMessage.isEmpty())
@@ -537,8 +288,8 @@ void BaseFileWizard::runWizard(const QString &path, QWidget *parent, const QStri
 
     if (removeOpenProjectAttribute) {
         for (int i = 0; i < files.count(); i++) {
-            if (files[i].attributes() & Core::GeneratedFile::OpenProjectAttribute)
-                files[i].setAttributes(Core::GeneratedFile::OpenEditorAttribute);
+            if (files[i].attributes() & GeneratedFile::OpenProjectAttribute)
+                files[i].setAttributes(GeneratedFile::OpenEditorAttribute);
         }
     }
 
@@ -546,17 +297,6 @@ void BaseFileWizard::runWizard(const QString &path, QWidget *parent, const QStri
     if (!postGenerateFiles(wizard.data(), files, &errorMessage))
         if (!errorMessage.isEmpty())
             QMessageBox::critical(0, tr("File Generation Failure"), errorMessage);
-}
-
-
-Core::FeatureSet BaseFileWizard::requiredFeatures() const
-{
-    return d->m_parameters.requiredFeatures();
-}
-
-Core::IWizard::WizardFlags BaseFileWizard::flags() const
-{
-    return d->m_parameters.flags();
 }
 
 /*!
@@ -591,28 +331,6 @@ bool BaseFileWizard::writeFiles(const GeneratedFiles &files, QString *errorMessa
             if (!generatedFile.write(errorMessage))
                 return false;
     return true;
-}
-
-/*!
-    Sets some standard options on a QWizard.
-*/
-
-void BaseFileWizard::setupWizard(QWizard *w)
-{
-    w->setOption(QWizard::NoCancelButton, false);
-    w->setOption(QWizard::NoDefaultButton, false);
-    w->setOption(QWizard::NoBackButtonOnStartPage, true);
-    w->setWindowFlags(w->windowFlags() & ~Qt::WindowContextHelpButtonHint);
-
-    if (Utils::HostOsInfo::isMacHost()) {
-        w->setButtonLayout(QList<QWizard::WizardButton>()
-                           << QWizard::CancelButton
-                           << QWizard::Stretch
-                           << QWizard::BackButton
-                           << QWizard::NextButton
-                           << QWizard::CommitButton
-                           << QWizard::FinishButton);
-    }
 }
 
 /*!
@@ -652,9 +370,9 @@ bool BaseFileWizard::postGenerateFiles(const QWizard *, const GeneratedFiles &l,
 
 bool BaseFileWizard::postGenerateOpenEditors(const GeneratedFiles &l, QString *errorMessage)
 {
-    foreach (const Core::GeneratedFile &file, l) {
-        if (file.attributes() & Core::GeneratedFile::OpenEditorAttribute) {
-            if (!Core::EditorManager::openEditor(file.path(), file.editorId())) {
+    foreach (const GeneratedFile &file, l) {
+        if (file.attributes() & GeneratedFile::OpenEditorAttribute) {
+            if (!EditorManager::openEditor(file.path(), file.editorId())) {
                 if (errorMessage)
                     *errorMessage = tr("Failed to open an editor for '%1'.").arg(QDir::toNativeSeparators(file.path()));
                 return false;
@@ -678,9 +396,9 @@ BaseFileWizard::OverwriteResult BaseFileWizard::promptOverwrite(GeneratedFiles *
     QStringList existingFiles;
     bool oddStuffFound = false;
 
-    static const QString readOnlyMsg = tr(" [read only]");
-    static const QString directoryMsg = tr(" [folder]");
-    static const QString symLinkMsg = tr(" [symbolic link]");
+    static const QString readOnlyMsg = tr("[read only]");
+    static const QString directoryMsg = tr("[folder]");
+    static const QString symLinkMsg = tr("[symbolic link]");
 
     foreach (const GeneratedFile &file, *files) {
         const QFileInfo fi(file.path());
@@ -703,17 +421,17 @@ BaseFileWizard::OverwriteResult BaseFileWizard::promptOverwrite(GeneratedFiles *
             do {
                 if (fi.isDir()) {
                     oddStuffFound = true;
-                    fileNamesMsgPart += directoryMsg;
+                    fileNamesMsgPart += QLatin1Char(' ') + directoryMsg;
                     break;
                 }
                 if (fi.isSymLink()) {
                     oddStuffFound = true;
-                    fileNamesMsgPart += symLinkMsg;
+                    fileNamesMsgPart += QLatin1Char(' ') + symLinkMsg;
                     break;
             }
                 if (!fi.isWritable()) {
                     oddStuffFound = true;
-                    fileNamesMsgPart += readOnlyMsg;
+                    fileNamesMsgPart += QLatin1Char(' ') + readOnlyMsg;
                 }
             } while (false);
         }
@@ -777,7 +495,7 @@ QString BaseFileWizard::buildFileName(const QString &path,
 
 QString BaseFileWizard::preferredSuffix(const QString &mimeType)
 {
-    const QString rc = Core::ICore::mimeDatabase()->preferredSuffixByType(mimeType);
+    const QString rc = MimeDatabase::preferredSuffixByType(mimeType);
     if (rc.isEmpty())
         qWarning("%s: WARNING: Unable to find a preferred suffix for %s.",
                  Q_FUNC_INFO, mimeType.toUtf8().constData());
@@ -803,12 +521,6 @@ QString BaseFileWizard::preferredSuffix(const QString &mimeType)
     Creates the files with the \a name under the \a path.
 */
 
-StandardFileWizard::StandardFileWizard(const BaseFileWizardParameters &parameters,
-                                       QObject *parent) :
-    BaseFileWizard(parameters, parent)
-{
-}
-
 /*!
     Creates a Utils::FileWizardDialog.
 */
@@ -820,7 +532,6 @@ QWizard *StandardFileWizard::createWizardDialog(QWidget *parent,
     if (wizardDialogParameters.flags().testFlag(WizardDialogParameters::ForceCapitalLetterForFileName))
         standardWizardDialog->setForceFirstCapitalLetterForFileName(true);
     standardWizardDialog->setWindowTitle(tr("New %1").arg(displayName()));
-    setupWizard(standardWizardDialog);
     standardWizardDialog->setPath(wizardDialogParameters.defaultPath());
     foreach (QWizardPage *p, wizardDialogParameters.extensionPages())
         BaseFileWizard::applyExtensionPageShortTitle(standardWizardDialog, standardWizardDialog->addPage(p));

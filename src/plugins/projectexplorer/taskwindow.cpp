@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -48,6 +48,7 @@
 #include <QStyledItemDelegate>
 #include <QMenu>
 #include <QToolButton>
+#include <QScrollBar>
 
 namespace {
 const int ELLIPSIS_GRADIENT_WIDTH = 16;
@@ -73,6 +74,8 @@ public:
 class TaskDelegate : public QStyledItemDelegate
 {
     Q_OBJECT
+
+    friend class TaskView; // for using Positions::minimumSize()
 
 public:
     TaskDelegate(QObject * parent = 0);
@@ -126,11 +129,11 @@ private:
         int right() const { return m_totalWidth - ITEM_MARGIN; }
         int bottom() const { return m_bottom; }
         int firstLineHeight() const { return m_fontHeight + 1; }
-        int minimumHeight() const { return taskIconHeight() + 2 * ITEM_MARGIN; }
+        static int minimumHeight() { return taskIconHeight() + 2 * ITEM_MARGIN; }
 
         int taskIconLeft() const { return left(); }
-        int taskIconWidth() const { return TASK_ICON_SIZE; }
-        int taskIconHeight() const { return TASK_ICON_SIZE; }
+        static int taskIconWidth() { return TASK_ICON_SIZE; }
+        static int taskIconHeight() { return TASK_ICON_SIZE; }
         int taskIconRight() const { return taskIconLeft() + taskIconWidth(); }
         QRect taskIcon() const { return QRect(taskIconLeft(), top(), taskIconWidth(), taskIconHeight()); }
 
@@ -169,6 +172,13 @@ TaskView::TaskView(QWidget *parent)
 {
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
+
+    QFontMetrics fm(font());
+    int vStepSize = fm.height() + 3;
+    if (vStepSize < TaskDelegate::Positions::minimumHeight())
+        vStepSize = TaskDelegate::Positions::minimumHeight();
+
+    verticalScrollBar()->setSingleStep(vStepSize);
 }
 
 TaskView::~TaskView()
@@ -198,7 +208,6 @@ public:
     QToolButton *m_filterWarningsButton;
     QToolButton *m_categoriesButton;
     QMenu *m_categoriesMenu;
-    TaskHub *m_taskHub;
     int m_badgeCount;
     QList<QAction *> m_actions;
 };
@@ -217,7 +226,7 @@ static QToolButton *createFilterButton(QIcon icon, const QString &toolTip,
     return button;
 }
 
-TaskWindow::TaskWindow(TaskHub *taskhub) : d(new TaskWindowPrivate)
+TaskWindow::TaskWindow() : d(new TaskWindowPrivate)
 {
     d->m_defaultHandler = 0;
 
@@ -236,7 +245,6 @@ TaskWindow::TaskWindow(TaskHub *taskhub) : d(new TaskWindowPrivate)
     d->m_listview->setAttribute(Qt::WA_MacShowFocusRect, false);
 
     d->m_taskWindowContext = new Internal::TaskWindowContext(d->m_listview);
-    d->m_taskHub = taskhub;
     d->m_badgeCount = 0;
 
     Core::ICore::addContextObject(d->m_taskWindowContext);
@@ -253,9 +261,9 @@ TaskWindow::TaskWindow(TaskHub *taskhub) : d(new TaskWindowPrivate)
 
     d->m_listview->setContextMenuPolicy(Qt::ActionsContextMenu);
 
-    d->m_filterWarningsButton = createFilterButton(d->m_model->taskTypeIcon(Task::Warning),
-                                                   tr("Show Warnings"),
-                                                   this, SLOT(setShowWarnings(bool)));
+    d->m_filterWarningsButton = createFilterButton(
+                QIcon(QLatin1String(":/projectexplorer/images/compile_warning.png")),
+                tr("Show Warnings"), this, SLOT(setShowWarnings(bool)));
 
     d->m_categoriesButton = new QToolButton;
     d->m_categoriesButton->setIcon(QIcon(QLatin1String(Core::Constants::ICON_FILTER)));
@@ -270,25 +278,26 @@ TaskWindow::TaskWindow(TaskHub *taskhub) : d(new TaskWindowPrivate)
 
     d->m_categoriesButton->setMenu(d->m_categoriesMenu);
 
-    connect(d->m_taskHub, SIGNAL(categoryAdded(Core::Id,QString,bool)),
+    QObject *hub = TaskHub::instance();
+    connect(hub, SIGNAL(categoryAdded(Core::Id,QString,bool)),
             this, SLOT(addCategory(Core::Id,QString,bool)));
-    connect(d->m_taskHub, SIGNAL(taskAdded(ProjectExplorer::Task)),
+    connect(hub, SIGNAL(taskAdded(ProjectExplorer::Task)),
             this, SLOT(addTask(ProjectExplorer::Task)));
-    connect(d->m_taskHub, SIGNAL(taskRemoved(ProjectExplorer::Task)),
+    connect(hub, SIGNAL(taskRemoved(ProjectExplorer::Task)),
             this, SLOT(removeTask(ProjectExplorer::Task)));
-    connect(d->m_taskHub, SIGNAL(taskLineNumberUpdated(uint,int)),
+    connect(hub, SIGNAL(taskLineNumberUpdated(uint,int)),
             this, SLOT(updatedTaskLineNumber(uint,int)));
-    connect(d->m_taskHub, SIGNAL(taskFileNameUpdated(uint,QString)),
+    connect(hub, SIGNAL(taskFileNameUpdated(uint,QString)),
             this, SLOT(updatedTaskFileName(uint,QString)));
-    connect(d->m_taskHub, SIGNAL(tasksCleared(Core::Id)),
+    connect(hub, SIGNAL(tasksCleared(Core::Id)),
             this, SLOT(clearTasks(Core::Id)));
-    connect(d->m_taskHub, SIGNAL(categoryVisibilityChanged(Core::Id,bool)),
+    connect(hub, SIGNAL(categoryVisibilityChanged(Core::Id,bool)),
             this, SLOT(setCategoryVisibility(Core::Id,bool)));
-    connect(d->m_taskHub, SIGNAL(popupRequested(int)),
+    connect(hub, SIGNAL(popupRequested(int)),
             this, SLOT(popup(int)));
-    connect(d->m_taskHub, SIGNAL(showTask(uint)),
+    connect(hub, SIGNAL(showTask(uint)),
             this, SLOT(showTask(uint)));
-    connect(d->m_taskHub, SIGNAL(openTask(uint)),
+    connect(hub, SIGNAL(openTask(uint)),
             this, SLOT(openTask(uint)));
 }
 
@@ -535,7 +544,8 @@ void TaskWindow::setShowWarnings(bool show)
 {
     d->m_filter->setFilterIncludesWarnings(show);
     d->m_filter->setFilterIncludesUnknowns(show); // "Unknowns" are often associated with warnings
-    setBadgeNumber(d->m_filter->rowCount());
+    d->m_badgeCount = d->m_filter->rowCount();
+    setBadgeNumber(d->m_badgeCount);
 }
 
 void TaskWindow::updateCategoriesMenu()
@@ -595,7 +605,7 @@ void TaskWindow::clearContents()
 {
     // clear all tasks in all displays
     // Yeah we are that special
-    d->m_taskHub->clearTasks();
+    TaskHub::clearTasks();
 }
 
 bool TaskWindow::hasFocus() const
@@ -720,6 +730,7 @@ QSize TaskDelegate::sizeHint(const QStyleOptionViewItem &option, const QModelInd
         int height = 0;
         description.replace(QLatin1Char('\n'), QChar::LineSeparator);
         QTextLayout tl(description);
+        tl.setAdditionalFormats(index.data(TaskModel::Task_t).value<ProjectExplorer::Task>().formats);
         tl.beginLayout();
         while (true) {
             QTextLine line = tl.createLine();

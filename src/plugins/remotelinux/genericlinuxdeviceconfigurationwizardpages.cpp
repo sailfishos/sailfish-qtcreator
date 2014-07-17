@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -56,9 +56,10 @@ GenericLinuxDeviceConfigurationWizardSetupPage::GenericLinuxDeviceConfigurationW
     QWizardPage(parent), d(new Internal::GenericLinuxDeviceConfigurationWizardSetupPagePrivate)
 {
     d->ui.setupUi(this);
-    setTitle(tr("Connection Data"));
+    setTitle(tr("Connection"));
     setSubTitle(QLatin1String(" ")); // For Qt bug (background color)
     d->ui.privateKeyPathChooser->setExpectedKind(PathChooser::File);
+    d->ui.privateKeyPathChooser->setHistoryCompleter(QLatin1String("Ssh.KeyFile.History"));
     d->ui.privateKeyPathChooser->setPromptDialogTitle(tr("Choose a Private Key File"));
     connect(d->ui.nameLineEdit, SIGNAL(textChanged(QString)), SIGNAL(completeChanged()));
     connect(d->ui.hostNameLineEdit, SIGNAL(textChanged(QString)), SIGNAL(completeChanged()));
@@ -86,7 +87,7 @@ void GenericLinuxDeviceConfigurationWizardSetupPage::initializePage()
 bool GenericLinuxDeviceConfigurationWizardSetupPage::isComplete() const
 {
     return !configurationName().isEmpty() && !hostName().isEmpty() && !userName().isEmpty()
-            && (authenticationType() == SshConnectionParameters::AuthenticationByPassword
+            && (authenticationType() != SshConnectionParameters::AuthenticationTypePublicKey
                 || d->ui.privateKeyPathChooser->isValid());
 }
 
@@ -108,8 +109,8 @@ QString GenericLinuxDeviceConfigurationWizardSetupPage::userName() const
 SshConnectionParameters::AuthenticationType GenericLinuxDeviceConfigurationWizardSetupPage::authenticationType() const
 {
     return d->ui.passwordButton->isChecked()
-        ? SshConnectionParameters::AuthenticationByPassword
-        : SshConnectionParameters::AuthenticationByKey;
+        ? SshConnectionParameters::AuthenticationTypeTryAllPasswordBasedMethods
+        : SshConnectionParameters::AuthenticationTypePublicKey;
 }
 
 QString GenericLinuxDeviceConfigurationWizardSetupPage::password() const
@@ -144,8 +145,8 @@ QString GenericLinuxDeviceConfigurationWizardSetupPage::defaultPassWord() const
 
 void GenericLinuxDeviceConfigurationWizardSetupPage::handleAuthTypeChanged()
 {
-    d->ui.passwordLineEdit->setEnabled(authenticationType() == SshConnectionParameters::AuthenticationByPassword);
-    d->ui.privateKeyPathChooser->setEnabled(authenticationType() == SshConnectionParameters::AuthenticationByKey);
+    d->ui.passwordLineEdit->setEnabled(authenticationType() != SshConnectionParameters::AuthenticationTypePublicKey);
+    d->ui.privateKeyPathChooser->setEnabled(!d->ui.passwordLineEdit->isEnabled());
     emit completeChanged();
 }
 
@@ -153,7 +154,7 @@ void GenericLinuxDeviceConfigurationWizardSetupPage::handleAuthTypeChanged()
 GenericLinuxDeviceConfigurationWizardFinalPage::GenericLinuxDeviceConfigurationWizardFinalPage(QWidget *parent)
     : QWizardPage(parent), d(new Internal::GenericLinuxDeviceConfigurationWizardFinalPagePrivate)
 {
-    setTitle(tr("Setup Finished"));
+    setTitle(tr("Summary"));
     setSubTitle(QLatin1String(" ")); // For Qt bug (background color)
     d->infoLabel.setWordWrap(true);
     QVBoxLayout * const layout = new QVBoxLayout(this);

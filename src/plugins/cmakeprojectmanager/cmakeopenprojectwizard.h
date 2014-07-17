@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -31,6 +31,7 @@
 #define CMAKEOPENPROJECTWIZARD_H
 
 #include "cmakebuildconfiguration.h"
+#include "cmakebuildinfo.h"
 
 #include <utils/environment.h>
 #include <utils/wizard.h>
@@ -49,9 +50,7 @@ class FancyLineEdit;
 class PathChooser;
 }
 
-namespace ProjectExplorer {
-class Kit;
-}
+namespace ProjectExplorer { class Kit; }
 
 namespace CMakeProjectManager {
 namespace Internal {
@@ -70,34 +69,13 @@ public:
         ChangeDirectory
     };
 
-    class BuildInfo
-    {
-    public:
-        BuildInfo()
-        {}
-
-        BuildInfo(CMakeBuildConfiguration *bc)
-            : sourceDirectory(bc->target()->project()->projectDirectory())
-            , buildDirectory(bc->buildDirectory())
-            , environment(bc->environment())
-            , useNinja(bc->useNinja())
-            , kit(bc->target()->kit())
-        {}
-
-        QString sourceDirectory;
-        QString buildDirectory;
-        Utils::Environment environment;
-        bool useNinja;
-        ProjectExplorer::Kit *kit;
-    };
-
     /// used at importing a project without a .user file
-    CMakeOpenProjectWizard(CMakeManager *cmakeManager, const QString &sourceDirectory, Utils::Environment env);
+    CMakeOpenProjectWizard(QWidget *parent, CMakeManager *cmakeManager, const QString &sourceDirectory, Utils::Environment env);
 
     /// used to update if we have already a .user file
     /// recreates or updates the cbp file
     /// Also used to change the build directory of one buildconfiguration or create a new buildconfiguration
-    CMakeOpenProjectWizard(CMakeManager *cmakeManager, Mode mode, const BuildInfo &info);
+    CMakeOpenProjectWizard(QWidget *parent, CMakeManager *cmakeManager, Mode mode, const CMakeBuildInfo *info);
 
     QString buildDirectory() const;
     QString sourceDirectory() const;

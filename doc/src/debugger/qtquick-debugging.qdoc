@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (c) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (c) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator
@@ -23,19 +23,14 @@
 // **********************************************************************
 
 /*!
-    \contentspage index.html
+    \contentspage {Qt Creator Manual}
     \previouspage creator-debugging-helpers.html
     \page creator-debugging-qml.html
     \nextpage creator-debugging-example.html
 
     \title Debugging Qt Quick Projects
 
-    \note You need Qt 4.7.1 or later to debug Qt Quick projects. Debugging
-    projects not created with the Qt Quick wizards is only supported with
-    Qt 4.8, or later.
-
-    To debug Qt Quick applications running on devices, you must install
-    Qt 4.7.4, or later, libraries on devices.
+    \note You need Qt 4.8 or later to debug Qt Quick projects.
 
     For an example of how to debug Qt Quick Projects, see
     \l{Debugging a Qt Quick Example Application}.
@@ -46,18 +41,8 @@
     \l{Creating Qt Quick Projects}{type of the project}: Qt Quick UI or Qt Quick
     Application, and the Qt version used.
 
-    To debug Qt Quick UI projects:
-
-    \list 1
-
-        \li In \gui Projects mode \gui {Run Settings}, select the
-            \gui {Enable QML} check box in the \gui {Debugger Settings} to
-            enable QML debugging.
-
-        \li For Qt 4.7, compile the QML Inspector debugging helper. For more information,
-            see \l{Debugging Helpers for QML}.
-
-    \endlist
+    To debug Qt Quick UI projects, select the \gui {Enable QML} check box in the
+    \gui {Debugger Settings} in \gui Projects mode \gui {Run Settings}.
 
     To debug Qt Quick Applications:
 

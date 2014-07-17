@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -31,6 +31,8 @@
 #include "projectexplorerconstants.h"
 #include "task.h"
 
+#include <utils/qtcassert.h>
+
 using namespace ProjectExplorer;
 
 namespace {
@@ -38,7 +40,7 @@ namespace {
     const char * const FILE_PATTERN = "(([A-Za-z]:)?[^:]+\\.[^:]+):";
     // line no. or elf segment + offset (1 bracket)
     // const char * const POSITION_PATTERN = "(\\d+|\\(\\.[^:]+[+-]0x[a-fA-F0-9]+\\):)";
-    const char * const POSITION_PATTERN = "(\\d|\\(\\..+[+-]0x[a-fA-F0-9]+\\):)";
+    const char * const POSITION_PATTERN = "(\\d+|\\(\\..+[+-]0x[a-fA-F0-9]+\\)):";
     const char * const COMMAND_PATTERN = "^(.*[\\\\/])?([a-z0-9]+-[a-z0-9]+-[a-z0-9]+-)?(ld|gold)(-[0-9\\.]+)?(\\.exe)?: ";
 }
 
@@ -50,9 +52,11 @@ LdParser::LdParser()
                               QString::fromLatin1(FILE_PATTERN) + QLatin1String(")?(") +
                               QLatin1String(POSITION_PATTERN) + QLatin1String(")?\\s(.+)$"));
     m_regExpLinker.setMinimal(true);
+    QTC_CHECK(m_regExpLinker.isValid());
 
     m_regExpGccNames.setPattern(QLatin1String(COMMAND_PATTERN));
     m_regExpGccNames.setMinimal(true);
+    QTC_CHECK(m_regExpGccNames.isValid());
 }
 
 void LdParser::stdError(const QString &line)
@@ -70,21 +74,19 @@ void LdParser::stdError(const QString &line)
                           lne /* description */,
                           Utils::FileName() /* filename */,
                           -1 /* linenumber */,
-                          Core::Id(Constants::TASK_CATEGORY_COMPILE)));
+                          Constants::TASK_CATEGORY_COMPILE));
         return;
     } else if (m_regExpGccNames.indexIn(lne) > -1) {
         QString description = lne.mid(m_regExpGccNames.matchedLength());
-        Task task(Task::Error,
-                  description,
-                  Utils::FileName(), /* filename */
-                  -1, /* line */
-                  Core::Id(Constants::TASK_CATEGORY_COMPILE));
+        Task::TaskType type = Task::Error;
         if (description.startsWith(QLatin1String("warning: "))) {
-            task.type = Task::Warning;
-            task.description = description.mid(9);
+            type = Task::Warning;
+            description = description.mid(9);
         } else if (description.startsWith(QLatin1String("fatal: ")))  {
-            task.description = description.mid(7);
+            description = description.mid(7);
         }
+        Task task(type, description, Utils::FileName() /* filename */, -1 /* line */,
+                  Constants::TASK_CATEGORY_COMPILE);
         emit addTask(task);
         return;
     } else if (m_regExpLinker.indexIn(lne) > -1) {
@@ -93,22 +95,25 @@ void LdParser::stdError(const QString &line)
         if (!ok)
             lineno = -1;
         Utils::FileName filename = Utils::FileName::fromUserInput(m_regExpLinker.cap(1));
-        if (!m_regExpLinker.cap(4).isEmpty()
-            && !m_regExpLinker.cap(4).startsWith(QLatin1String("(.text")))
-            filename = Utils::FileName::fromUserInput(m_regExpLinker.cap(4));
+        const QString sourceFileName = m_regExpLinker.cap(4);
+        if (!sourceFileName.isEmpty()
+            && !sourceFileName.startsWith(QLatin1String("(.text"))
+            && !sourceFileName.startsWith(QLatin1String("(.data"))) {
+            filename = Utils::FileName::fromUserInput(sourceFileName);
+        }
         QString description = m_regExpLinker.cap(8).trimmed();
-        Task task(Task::Error, description, filename, lineno,
-                  Core::Id(Constants::TASK_CATEGORY_COMPILE));
+        Task::TaskType type = Task::Error;
         if (description.startsWith(QLatin1String("At global scope")) ||
             description.startsWith(QLatin1String("At top level")) ||
             description.startsWith(QLatin1String("instantiated from ")) ||
-            description.startsWith(QLatin1String("In ")))
-            task.type = Task::Unknown;
-        if (description.startsWith(QLatin1String("warning: "), Qt::CaseInsensitive)) {
-            task.type = Task::Warning;
-            task.description = description.mid(9);
+            description.startsWith(QLatin1String("In ")) ||
+            description.startsWith(QLatin1String("first defined here"))) {
+            type = Task::Unknown;
+        } else if (description.startsWith(QLatin1String("warning: "), Qt::CaseInsensitive)) {
+            type = Task::Warning;
+            description = description.mid(9);
         }
-
+        Task task(type, description, filename, lineno, Constants::TASK_CATEGORY_COMPILE);
         emit addTask(task);
         return;
     }

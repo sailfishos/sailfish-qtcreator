@@ -1,8 +1,12 @@
 !isEmpty(QTCREATOR_PRI_INCLUDED):error("qtcreator.pri already included")
 QTCREATOR_PRI_INCLUDED = 1
 
-QTCREATOR_VERSION = 2.8.2
-BINARY_ARTIFACTS_BRANCH = 2.8
+QTCREATOR_VERSION = 3.1.2
+QTCREATOR_COMPAT_VERSION = 3.1.0
+BINARY_ARTIFACTS_BRANCH = 3.1
+
+# enable c++11 on everything but mac/release (breaks 10.6)
+!macx|CONFIG(debug, debug|release): CONFIG += c++11
 
 isEqual(QT_MAJOR_VERSION, 5) {
 
@@ -129,13 +133,11 @@ macx {
     IDE_DOC_PATH     = $$IDE_DATA_PATH/doc
     IDE_BIN_PATH     = $$IDE_APP_PATH/$${IDE_APP_TARGET}.app/Contents/MacOS
     copydata = 1
-    isEmpty(TIGER_COMPAT_MODE):TIGER_COMPAT_MODE=$$(QTC_TIGER_COMPAT)
     !isEqual(QT_MAJOR_VERSION, 5) {
-        # Qt5 doesn't support 10.5, and will set the minimum version correctly to 10.6 or 10.7.
-        isEmpty(TIGER_COMPAT_MODE) {
-            QMAKE_CXXFLAGS *= -mmacosx-version-min=10.5
-            QMAKE_LFLAGS *= -mmacosx-version-min=10.5
-        }
+        # we use @rpath which is 10.5+
+        # Qt5 doesn't support 10.5, and will set the minimum version to 10.6 or 10.7.
+        QMAKE_CXXFLAGS *= -mmacosx-version-min=10.5
+        QMAKE_LFLAGS *= -mmacosx-version-min=10.5
     }
 } else {
     contains(TEMPLATE, vc.*):vcproj = 1
@@ -152,8 +154,14 @@ macx {
 INCLUDEPATH += \
     $$IDE_BUILD_TREE/src \ # for <app/app_version.h>
     $$IDE_SOURCE_TREE/src/libs \
-    $$IDE_SOURCE_TREE/tools \
-    $$IDE_SOURCE_TREE/src/plugins
+    $$IDE_SOURCE_TREE/tools
+
+QTC_PLUGIN_DIRS = $$(QTC_PLUGIN_DIRS)
+QTC_PLUGIN_DIRS = $$split(QTC_PLUGIN_DIRS, $$QMAKE_DIRLIST_SEP)
+QTC_PLUGIN_DIRS += $$IDE_SOURCE_TREE/src/plugins
+for(dir, QTC_PLUGIN_DIRS) {
+    INCLUDEPATH += $$dir
+}
 
 CONFIG += depend_includepath
 
@@ -182,6 +190,8 @@ unix {
 win32-msvc* { 
     #Don't warn about sprintf, fopen etc being 'unsafe'
     DEFINES += _CRT_SECURE_NO_WARNINGS
+    # Speed up startup time when debugging with cdb
+    QMAKE_LFLAGS_DEBUG += /INCREMENTAL:NO
 }
 
 qt:greaterThan(QT_MAJOR_VERSION, 4) {
@@ -200,7 +210,16 @@ for(ever) {
         break()
     done_plugins += $$QTC_PLUGIN_DEPENDS
     for(dep, QTC_PLUGIN_DEPENDS) {
-        include($$PWD/src/plugins/$$dep/$${dep}_dependencies.pri)
+        dependencies_file =
+        for(dir, QTC_PLUGIN_DIRS) {
+            exists($$dir/$$dep/$${dep}_dependencies.pri) {
+                dependencies_file = $$dir/$$dep/$${dep}_dependencies.pri
+                break()
+            }
+        }
+        isEmpty(dependencies_file): \
+            error("Plugin dependency $$dep not found")
+        include($$dependencies_file)
         LIBS += -l$$qtLibraryName($$QTC_PLUGIN_NAME)
     }
     QTC_PLUGIN_DEPENDS = $$unique(QTC_PLUGIN_DEPENDS)

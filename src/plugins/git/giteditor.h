@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -50,26 +50,33 @@ public:
                        QWidget *parent);
 
 public slots:
-    void setPlainTextDataFiltered(const QByteArray &a);
+    void setPlainTextFiltered(const QString &text);
     // Matches  the signature of the finished signal of GitCommand
     void commandFinishedGotoLine(bool ok, int exitCode, const QVariant &v);
 
 private slots:
+    void checkoutChange();
+    void resetChange();
     void cherryPickChange();
     void revertChange();
+    void stageDiffChunk();
+    void unstageDiffChunk();
+    void applyDiffChunk(const VcsBase::DiffChunk& chunk, bool revert);
 
 private:
     void init();
+    void addDiffActions(QMenu *menu, const VcsBase::DiffChunk &chunk);
     bool open(QString *errorString, const QString &fileName, const QString &realFileName);
     QSet<QString> annotationChanges() const;
     QString changeUnderCursor(const QTextCursor &) const;
-    VcsBase::BaseAnnotationHighlighter *createAnnotationHighlighter(const QSet<QString> &changes, const QColor &bg) const;
+    VcsBase::BaseAnnotationHighlighter *createAnnotationHighlighter(const QSet<QString> &changes) const;
     QString decorateVersion(const QString &revision) const;
     QStringList annotationPreviousVersions(const QString &revision) const;
     bool isValidRevision(const QString &revision) const;
     void addChangeActions(QMenu *menu, const QString &change);
     QString revisionSubject(const QTextBlock &inBlock) const;
     bool supportChangeLinks() const;
+    QString fileNameForLine(int line) const;
 
     mutable QRegExp m_changeNumberPattern;
     QString m_currentChange;

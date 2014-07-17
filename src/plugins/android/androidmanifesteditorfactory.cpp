@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -39,31 +39,31 @@
 using namespace Android;
 using namespace Android::Internal;
 
+class AndroidTextEditorActionHandler : public TextEditor::TextEditorActionHandler
+{
+public:
+    explicit AndroidTextEditorActionHandler(QObject *parent)
+        : TextEditorActionHandler(parent, Constants::ANDROID_MANIFEST_EDITOR_CONTEXT)
+    {}
+private:
+    TextEditor::BaseTextEditorWidget *resolveTextEditorWidget(Core::IEditor *editor) const
+    {
+        AndroidManifestEditor *androidManifestEditor = static_cast<AndroidManifestEditor *>(editor);
+        return androidManifestEditor->textEditor();
+    }
+};
 
 AndroidManifestEditorFactory::AndroidManifestEditorFactory(QObject *parent)
-    : Core::IEditorFactory(parent),
-      m_actionHandler(new TextEditor::TextEditorActionHandler(Constants::ANDROID_MANIFEST_EDITOR_CONTEXT))
+    : Core::IEditorFactory(parent)
 {
+    setId(Constants::ANDROID_MANIFEST_EDITOR_ID);
+    setDisplayName(tr("Android Manifest editor"));
+    addMimeType(Constants::ANDROID_MANIFEST_MIME_TYPE);
+    new AndroidTextEditorActionHandler(this);
 }
 
-QStringList AndroidManifestEditorFactory::mimeTypes() const
+Core::IEditor *AndroidManifestEditorFactory::createEditor()
 {
-    return QStringList() << QLatin1String(Constants::ANDROID_MANIFEST_MIME_TYPE);
-}
-
-Core::Id AndroidManifestEditorFactory::id() const
-{
-    return Constants::ANDROID_MANIFEST_EDITOR_ID;
-}
-
-QString AndroidManifestEditorFactory::displayName() const
-{
-    return tr("Android Manifest editor");
-}
-
-Core::IEditor *AndroidManifestEditorFactory::createEditor(QWidget *parent)
-{
-    AndroidManifestEditorWidget *editor = new AndroidManifestEditorWidget(parent, m_actionHandler);
-    TextEditor::TextEditorSettings::instance()->initializeEditor(editor);
-    return editor->editor();
+    AndroidManifestEditorWidget *androidManifestEditorWidget = new AndroidManifestEditorWidget();
+    return androidManifestEditorWidget->editor();
 }

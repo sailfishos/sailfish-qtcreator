@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2012 - 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -37,7 +37,6 @@
 
 #include <projectexplorer/devicesupport/deviceusedportsgatherer.h>
 #include <remotelinux/genericlinuxdeviceconfigurationwizardpages.h>
-#include <remotelinux/linuxdevicetestdialog.h>
 #include <utils/portlist.h>
 
 using namespace ProjectExplorer;
@@ -45,7 +44,7 @@ using namespace Qnx;
 using namespace Qnx::Internal;
 
 QnxDeviceConfigurationWizard::QnxDeviceConfigurationWizard(QWidget *parent) :
-    QWizard(parent)
+    Utils::Wizard(parent)
 {
     setWindowTitle(tr("New QNX Device Configuration Setup"));
 
@@ -66,7 +65,8 @@ IDevice::Ptr QnxDeviceConfigurationWizard::device()
     sshParams.port = 22;
     sshParams.timeout = 10;
     sshParams.authenticationType = m_setupPage->authenticationType();
-    if (sshParams.authenticationType == QSsh::SshConnectionParameters::AuthenticationByPassword)
+    if (sshParams.authenticationType == QSsh::SshConnectionParameters::AuthenticationTypeTryAllPasswordBasedMethods
+        || sshParams.authenticationType == QSsh::SshConnectionParameters::AuthenticationTypePassword)
         sshParams.password = m_setupPage->password();
     else
         sshParams.privateKeyFile = m_setupPage->privateKeyFilePath();
@@ -75,9 +75,6 @@ IDevice::Ptr QnxDeviceConfigurationWizard::device()
         Core::Id(Constants::QNX_QNX_OS_TYPE), IDevice::Hardware);
     device->setSshParameters(sshParams);
     device->setFreePorts(Utils::PortList::fromString(QLatin1String("10000-10100")));
-
-    RemoteLinux::LinuxDeviceTestDialog dlg(device, device->createDeviceTester(), this);
-    dlg.exec();
 
     return device;
 }

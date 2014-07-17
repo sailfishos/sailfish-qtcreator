@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -32,10 +32,10 @@
 
 #include "operation.h"
 
+#include <QString>
+
 class RmDeviceOperation : public Operation
 {
-public:
-    RmDeviceOperation();
 public:
     QString name() const;
     QString helpText() const;
@@ -48,10 +48,11 @@ public:
 #ifdef WITH_TESTS
     bool test() const;
 #endif
-    static QVariantMap removeDevice(const QVariantMap &map, const QString &id);
+
+    static QVariantMap rmDevice(const QVariantMap &map, const QString &id);
 
 private:
-    QString m_deviceId;
+    QString m_id;
 };
 
 #endif // RMDEVICEOPERATION_H

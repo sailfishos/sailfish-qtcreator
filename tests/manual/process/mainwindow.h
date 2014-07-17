@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -46,7 +46,7 @@ signals:
 
 public slots:
     void test();
-    void append(const QByteArray &a);
+    void append(const QString &s);
 
 private:
     QPlainTextEdit *m_logWindow;

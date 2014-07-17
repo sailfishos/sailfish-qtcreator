@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 AudioCodes Ltd.
+** Copyright (c) 2014 AudioCodes Ltd.
 ** Author: Orgad Shaneh <orgad.shaneh@audiocodes.com>
 ** Contact: http://www.qt-project.org/legal
 **
@@ -34,9 +34,8 @@ using namespace ClearCase;
 using namespace ClearCase::Internal;
 
 ClearCaseAnnotationHighlighter::ClearCaseAnnotationHighlighter(const ChangeNumbers &changeNumbers,
-                                                               const QColor &bg,
                                                                QTextDocument *document) :
-    VcsBase::BaseAnnotationHighlighter(changeNumbers, bg, document),
+    VcsBase::BaseAnnotationHighlighter(changeNumbers, document),
     m_separator(QLatin1Char('|'))
 {
 }

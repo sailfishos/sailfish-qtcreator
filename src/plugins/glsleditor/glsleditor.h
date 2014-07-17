@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,8 +30,6 @@
 #ifndef GLSLEDITOR_H
 #define GLSLEDITOR_H
 
-#include "glsleditor_global.h"
-
 #include <texteditor/basetexteditor.h>
 
 #include <QSharedPointer>
@@ -46,19 +44,15 @@ namespace GLSL {
 class Engine;
 class TranslationUnitAST;
 class Scope;
-}
-
-namespace Core {
-class ICore;
-}
+} // namespace GLSL
 
 namespace GLSLEditor {
-class GLSLTextEditorWidget;
 namespace Internal {
-class GLSLEditorEditable;
-}
 
-class GLSLEDITOR_EXPORT Document
+class GLSLEditorEditable;
+class GLSLTextEditorWidget;
+
+class Document
 {
 public:
     typedef QSharedPointer<Document> Ptr;
@@ -87,12 +81,13 @@ private:
     friend class GLSLTextEditorWidget;
 };
 
-class GLSLEDITOR_EXPORT GLSLTextEditorWidget : public TextEditor::BaseTextEditorWidget
+class GLSLTextEditorWidget : public TextEditor::BaseTextEditorWidget
 {
     Q_OBJECT
 
 public:
     GLSLTextEditorWidget(QWidget *parent = 0);
+    GLSLTextEditorWidget(GLSLTextEditorWidget *other);
     ~GLSLTextEditorWidget();
 
     virtual void unCommentSelection();
@@ -104,24 +99,20 @@ public:
 
     static int languageVariant(const QString &mimeType);
 
-    Document::Ptr glslDocument() const;
-
     TextEditor::IAssistInterface *createAssistInterface(TextEditor::AssistKind assistKind,
                                                         TextEditor::AssistReason reason) const;
-
-public slots:
-    virtual void setFontSettings(const TextEditor::FontSettings &);
 
 private slots:
     void updateDocument();
     void updateDocumentNow();
 
 protected:
-    bool event(QEvent *e);
     TextEditor::BaseTextEditor *createEditor();
     void createToolBar(Internal::GLSLEditorEditable *editable);
 
 private:
+    GLSLTextEditorWidget(TextEditor::BaseTextEditorWidget *); // avoid stupidity
+    void ctor();
     void setSelectedElements();
     QString wordUnderCursor() const;
 
@@ -130,6 +121,7 @@ private:
     Document::Ptr m_glslDocument;
 };
 
+} // namespace Internal
 } // namespace GLSLEditor
 
 #endif // GLSLEDITOR_H

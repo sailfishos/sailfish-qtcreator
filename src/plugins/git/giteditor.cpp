@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -37,6 +37,7 @@
 #include "gitconstants.h"
 #include "githighlighters.h"
 
+#include <coreplugin/icore.h>
 #include <utils/qtcassert.h>
 #include <vcsbase/vcsbaseoutputwindow.h>
 #include <texteditor/basetextdocument.h>
@@ -44,9 +45,13 @@
 #include <QFileInfo>
 #include <QRegExp>
 #include <QSet>
+#include <QTemporaryFile>
+#include <QTextCodec>
+#include <QDir>
 
 #include <QTextCursor>
 #include <QTextBlock>
+#include <QMessageBox>
 
 #define CHANGE_PATTERN "[a-f0-9]{7,40}"
 
@@ -107,10 +112,9 @@ QString GitEditor::changeUnderCursor(const QTextCursor &c) const
     return QString();
 }
 
-VcsBase::BaseAnnotationHighlighter *GitEditor::createAnnotationHighlighter(const QSet<QString> &changes,
-                                                                           const QColor &bg) const
+VcsBase::BaseAnnotationHighlighter *GitEditor::createAnnotationHighlighter(const QSet<QString> &changes) const
 {
-    return new GitAnnotationHighlighter(changes, bg);
+    return new GitAnnotationHighlighter(changes);
 }
 
 /* Remove the date specification from annotation, which is tabular:
@@ -118,25 +122,26 @@ VcsBase::BaseAnnotationHighlighter *GitEditor::createAnnotationHighlighter(const
 8ca887aa (author               YYYY-MM-DD HH:MM:SS <offset>  <line>)<content>
 \endcode */
 
-static QByteArray removeAnnotationDate(const QByteArray &b)
+static QString removeAnnotationDate(const QString &b)
 {
     if (b.isEmpty())
-        return QByteArray();
+        return b;
 
-    const int parenPos = b.indexOf(')');
+    const QChar space(QLatin1Char(' '));
+    const int parenPos = b.indexOf(QLatin1Char(')'));
     if (parenPos == -1)
-        return QByteArray(b);
+        return b;
     int datePos = parenPos;
 
     int i = parenPos;
-    while (i >= 0 && b.at(i) != ' ')
+    while (i >= 0 && b.at(i) != space)
         --i;
-    while (i >= 0 && b.at(i) == ' ')
+    while (i >= 0 && b.at(i) == space)
         --i;
     int spaceCount = 0;
     // i is now on timezone. Go back 3 spaces: That is where the date starts.
     while (i >= 0) {
-        if (b.at(i) == ' ')
+        if (b.at(i) == space)
             ++spaceCount;
         if (spaceCount == 3) {
             datePos = i;
@@ -145,33 +150,33 @@ static QByteArray removeAnnotationDate(const QByteArray &b)
         --i;
     }
     if (datePos == 0)
-        return QByteArray(b);
+        return b;
 
     // Copy over the parts that have not changed into a new byte array
-    QByteArray result;
+    QString result;
     QTC_ASSERT(b.size() >= parenPos, return result);
     int prevPos = 0;
-    int pos = b.indexOf('\n', 0) + 1;
+    int pos = b.indexOf(QLatin1Char('\n'), 0) + 1;
     forever {
         QTC_CHECK(prevPos < pos);
         int afterParen = prevPos + parenPos;
-        result.append(b.constData() + prevPos, datePos);
-        result.append(b.constData() + afterParen, pos - afterParen);
+        result.append(b.mid(prevPos, datePos));
+        result.append(b.mid(afterParen, pos - afterParen));
         prevPos = pos;
         QTC_CHECK(prevPos != 0);
         if (pos == b.size())
             break;
 
-        pos = b.indexOf('\n', pos) + 1;
+        pos = b.indexOf(QLatin1Char('\n'), pos) + 1;
         if (pos == 0) // indexOf returned -1
             pos = b.size();
     }
     return result;
 }
 
-void GitEditor::setPlainTextDataFiltered(const QByteArray &a)
+void GitEditor::setPlainTextFiltered(const QString &text)
 {
-    QByteArray array = a;
+    QString modText = text;
     GitPlugin *plugin = GitPlugin::instance();
     // If desired, filter out the date from annotation
     switch (contentType())
@@ -179,22 +184,16 @@ void GitEditor::setPlainTextDataFiltered(const QByteArray &a)
     case VcsBase::AnnotateOutput: {
         const bool omitAnnotationDate = plugin->settings().boolValue(GitSettings::omitAnnotationDateKey);
         if (omitAnnotationDate)
-            array = removeAnnotationDate(a);
+            modText = removeAnnotationDate(text);
         break;
     }
     case VcsBase::DiffOutput: {
-        if (array.isEmpty())
-            array = QByteArray("No difference to HEAD");
-        const QFileInfo fi(source());
-        const QString workingDirectory = fi.isDir() ? fi.absoluteFilePath() : fi.absolutePath();
-        QByteArray precedes, follows;
-        if (array.startsWith("commit ")) { // show
-            int lastHeaderLine = array.indexOf("\n\n") + 1;
-            plugin->gitClient()->synchronousTagsForCommit(workingDirectory, QLatin1String(array.mid(7, 8)), precedes, follows);
-            if (!precedes.isEmpty())
-                array.insert(lastHeaderLine, "Precedes: " + precedes + '\n');
-            if (!follows.isEmpty())
-                array.insert(lastHeaderLine, "Follows: " + follows + '\n');
+        if (modText.isEmpty()) {
+            modText = QLatin1String("No difference to HEAD");
+        } else {
+            const QFileInfo fi(source());
+            const QString workingDirectory = fi.isDir() ? fi.absoluteFilePath() : fi.absolutePath();
+            modText = plugin->gitClient()->extendedShowDescription(workingDirectory, modText);
         }
         break;
     }
@@ -202,7 +201,7 @@ void GitEditor::setPlainTextDataFiltered(const QByteArray &a)
         break;
     }
 
-    setPlainTextData(array);
+    baseTextDocument()->setPlainText(modText);
 }
 
 void GitEditor::commandFinishedGotoLine(bool ok, int exitCode, const QVariant &v)
@@ -213,6 +212,32 @@ void GitEditor::commandFinishedGotoLine(bool ok, int exitCode, const QVariant &v
         if (line >= 0)
             gotoLine(line);
     }
+}
+
+void GitEditor::checkoutChange()
+{
+    const QFileInfo fi(source());
+    const QString workingDirectory = fi.isDir() ? fi.absoluteFilePath() : fi.absolutePath();
+    GitPlugin::instance()->gitClient()->stashAndCheckout(workingDirectory, m_currentChange);
+}
+
+void GitEditor::resetChange()
+{
+    const QFileInfo fi(source());
+    const QString workingDir = fi.isDir() ? fi.absoluteFilePath() : fi.absolutePath();
+
+    GitClient *client = GitPlugin::instance()->gitClient();
+    if (client->gitStatus(workingDir, StatusMode(NoUntracked | NoSubmodules))
+            != GitClient::StatusUnchanged) {
+        if (QMessageBox::question(
+                    Core::ICore::mainWindow(), tr("Reset"),
+                    tr("All changes in working directory will be discarded. Are you sure?"),
+                    QMessageBox::Yes | QMessageBox::No,
+                    QMessageBox::No) == QMessageBox::No) {
+            return;
+        }
+    }
+    client->reset(workingDir, QLatin1String("--hard"), m_currentChange);
 }
 
 void GitEditor::cherryPickChange()
@@ -229,26 +254,88 @@ void GitEditor::revertChange()
     GitPlugin::instance()->gitClient()->synchronousRevert(workingDirectory, m_currentChange);
 }
 
+void GitEditor::stageDiffChunk()
+{
+    const QAction *a = qobject_cast<QAction *>(sender());
+    QTC_ASSERT(a, return);
+    const VcsBase::DiffChunk chunk = qvariant_cast<VcsBase::DiffChunk>(a->data());
+    return applyDiffChunk(chunk, false);
+}
+
+void GitEditor::unstageDiffChunk()
+{
+    const QAction *a = qobject_cast<QAction *>(sender());
+    QTC_ASSERT(a, return);
+    const VcsBase::DiffChunk chunk = qvariant_cast<VcsBase::DiffChunk>(a->data());
+    return applyDiffChunk(chunk, true);
+}
+
+void GitEditor::applyDiffChunk(const VcsBase::DiffChunk& chunk, bool revert)
+{
+    VcsBase::VcsBaseOutputWindow *outwin = VcsBase::VcsBaseOutputWindow::instance();
+    QTemporaryFile patchFile;
+    if (!patchFile.open())
+        return;
+
+    const QString baseDir = workingDirectory();
+    patchFile.write(chunk.header);
+    patchFile.write(chunk.chunk);
+    patchFile.close();
+
+    GitClient *client = GitPlugin::instance()->gitClient();
+    QStringList args = QStringList() << QLatin1String("--cached");
+    if (revert)
+        args << QLatin1String("--reverse");
+    QString errorMessage;
+    if (client->synchronousApplyPatch(baseDir, patchFile.fileName(), &errorMessage, args)) {
+        if (errorMessage.isEmpty())
+            outwin->append(tr("Chunk successfully staged"));
+        else
+            outwin->append(errorMessage);
+        if (revert)
+            emit diffChunkReverted(chunk);
+        else
+            emit diffChunkApplied(chunk);
+    } else {
+        outwin->appendError(errorMessage);
+    }
+}
+
 void GitEditor::init()
 {
     VcsBase::VcsBaseEditorWidget::init();
     Core::Id editorId = editor()->id();
     if (editorId == Git::Constants::GIT_COMMIT_TEXT_EDITOR_ID)
-        new GitSubmitHighlighter(baseTextDocument().data());
+        new GitSubmitHighlighter(baseTextDocument());
     else if (editorId == Git::Constants::GIT_REBASE_EDITOR_ID)
-        new GitRebaseHighlighter(baseTextDocument().data());
+        new GitRebaseHighlighter(baseTextDocument());
+}
+
+void GitEditor::addDiffActions(QMenu *menu, const VcsBase::DiffChunk &chunk)
+{
+    menu->addSeparator();
+
+    QAction *stageAction = menu->addAction(tr("Stage Chunk..."));
+    stageAction->setData(qVariantFromValue(chunk));
+    connect(stageAction, SIGNAL(triggered()), this, SLOT(stageDiffChunk()));
+
+    QAction *unstageAction = menu->addAction(tr("Unstage Chunk..."));
+    unstageAction->setData(qVariantFromValue(chunk));
+    connect(unstageAction, SIGNAL(triggered()), this, SLOT(unstageDiffChunk()));
 }
 
 bool GitEditor::open(QString *errorString, const QString &fileName, const QString &realFileName)
 {
-    bool res = VcsBaseEditorWidget::open(errorString, fileName, realFileName);
     Core::Id editorId = editor()->id();
     if (editorId == Git::Constants::GIT_COMMIT_TEXT_EDITOR_ID
             || editorId == Git::Constants::GIT_REBASE_EDITOR_ID) {
         QFileInfo fi(fileName);
-        setSource(fi.absolutePath());
+        const QString gitPath = fi.absolutePath();
+        setSource(gitPath);
+        baseTextDocument()->setCodec(
+                    GitPlugin::instance()->gitClient()->encoding(gitPath, "i18n.commitEncoding"));
     }
-    return res;
+    return VcsBaseEditorWidget::open(errorString, fileName, realFileName);
 }
 
 QString GitEditor::decorateVersion(const QString &revision) const
@@ -287,6 +374,8 @@ void GitEditor::addChangeActions(QMenu *menu, const QString &change)
     if (contentType() != VcsBase::OtherContent) {
         menu->addAction(tr("Cherry-Pick Change %1").arg(change), this, SLOT(cherryPickChange()));
         menu->addAction(tr("Revert Change %1").arg(change), this, SLOT(revertChange()));
+        menu->addAction(tr("Checkout Change %1").arg(change), this, SLOT(checkoutChange()));
+        menu->addAction(tr("Hard Reset to Change %1").arg(change), this, SLOT(resetChange()));
     }
 }
 
@@ -307,6 +396,20 @@ bool GitEditor::supportChangeLinks() const
     return VcsBaseEditorWidget::supportChangeLinks()
             || (editor()->id() == Git::Constants::GIT_COMMIT_TEXT_EDITOR_ID)
             || (editor()->id() == Git::Constants::GIT_REBASE_EDITOR_ID);
+}
+
+QString GitEditor::fileNameForLine(int line) const
+{
+    // 7971b6e7 share/qtcreator/dumper/dumper.py   (hjk
+    QTextBlock block = document()->findBlockByLineNumber(line - 1);
+    QTC_ASSERT(block.isValid(), return source());
+    static QRegExp renameExp(QLatin1String("^" CHANGE_PATTERN "\\s+([^(]+)"));
+    if (renameExp.indexIn(block.text()) != -1) {
+        const QString fileName = renameExp.cap(1).trimmed();
+        if (!fileName.isEmpty())
+            return fileName;
+    }
+    return source();
 }
 
 } // namespace Internal

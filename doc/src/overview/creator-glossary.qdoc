@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (c) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (c) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator
@@ -23,7 +23,7 @@
 // **********************************************************************
 
 /*!
-    \contentspage index.html
+    \contentspage {Qt Creator Manual}
     \previouspage creator-known-issues.html
     \page creator-glossary.html
     \nextpage technical-support.html
@@ -67,9 +67,7 @@
                 contained in a .qml file. For instance, a Button component may
                 be defined in Button.qml. The QML runtime may instantiate this
                 Button component to create Button objects. Alternatively, a
-                component may be defined inside a
-                \l{http://qt-project.org/doc/qt-5.0/qtqml/qml-qtquick2-component.html}
-                {Component} QML type.
+                component may be defined inside a \l{Component} QML type.
 
         \row
             \li Deploy configuration

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -45,9 +45,9 @@
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/editormanager/ieditor.h>
+#include <coreplugin/featureprovider.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/fileiconprovider.h>
-#include <coreplugin/mimedatabase.h>
 #include <projectexplorer/buildmanager.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/projectexplorer.h>
@@ -60,8 +60,21 @@
 #include <QAction>
 #include <QtPlugin>
 
+using namespace ProjectExplorer;
+
 namespace QbsProjectManager {
 namespace Internal {
+
+class QbsFeatureProvider : public Core::IFeatureProvider
+{
+    Core::FeatureSet availableFeatures(const QString & /* platform */) const {
+        return Core::FeatureSet("Qbs.QbsSupport");
+    }
+
+    QStringList availablePlatforms() const { return QStringList(); }
+    QString displayNameForPlatform(const QString & /* platform */) const { return QString(); }
+};
+
 
 QbsProjectManagerPlugin::QbsProjectManagerPlugin() :
     m_manager(0),
@@ -73,17 +86,15 @@ QbsProjectManagerPlugin::QbsProjectManagerPlugin() :
 
 bool QbsProjectManagerPlugin::initialize(const QStringList &arguments, QString *errorMessage)
 {
+    Q_UNUSED(arguments);
     Q_UNUSED(errorMessage);
+
     m_manager = new QbsManager(this);
     m_projectExplorer = ProjectExplorer::ProjectExplorerPlugin::instance();
     const Core::Context projectContext(::QbsProjectManager::Constants::PROJECT_ID);
     const Core::Context globalcontext(Core::Constants::C_GLOBAL);
 
-    Q_UNUSED(arguments);
-
-    Core::FileIconProvider::instance()
-            ->registerIconOverlayForSuffix(QIcon(QLatin1String(QtSupport::Constants::ICON_QT_PROJECT)),
-                                           QLatin1String("qbs"));
+    Core::FileIconProvider::registerIconOverlayForSuffix(QtSupport::Constants::ICON_QT_PROJECT, "qbs");
 
     //create and register objects
     addAutoReleasedObject(m_manager);
@@ -93,6 +104,7 @@ bool QbsProjectManagerPlugin::initialize(const QStringList &arguments, QString *
     addAutoReleasedObject(new QbsInstallStepFactory);
     addAutoReleasedObject(new QbsDeployConfigurationFactory);
     addAutoReleasedObject(new QbsRunConfigurationFactory);
+    addAutoReleasedObject(new QbsFeatureProvider);
 
     //menus
     // Build Menu:
@@ -154,11 +166,27 @@ bool QbsProjectManagerPlugin::initialize(const QStringList &arguments, QString *
     mbuild->addAction(command, ProjectExplorer::Constants::G_BUILD_BUILD);
     connect(m_buildProduct, SIGNAL(triggered()), this, SLOT(buildProduct()));
 
+    m_buildSubprojectContextMenu = new QAction(tr("Build"), this);
+    command = Core::ActionManager::registerAction(m_buildSubprojectContextMenu, Constants::ACTION_BUILD_SUBPROJECT_CONTEXT, projectContext);
+    command->setAttribute(Core::Command::CA_Hide);
+    msubproject->addAction(command, ProjectExplorer::Constants::G_PROJECT_BUILD);
+    connect(m_buildSubprojectContextMenu, SIGNAL(triggered()), this, SLOT(buildSubprojectContextMenu()));
+
+    m_buildSubproject = new Utils::ParameterAction(tr("Build Subproject"), tr("Build Subproject \"%1\""),
+                                                Utils::ParameterAction::AlwaysEnabled, this);
+    command = Core::ActionManager::registerAction(m_buildSubproject, Constants::ACTION_BUILD_SUBPROJECT, globalcontext);
+    command->setAttribute(Core::Command::CA_Hide);
+    command->setAttribute(Core::Command::CA_UpdateText);
+    command->setDescription(m_buildFile->text());
+    command->setDefaultKeySequence(QKeySequence(tr("Ctrl+Shift+B")));
+    mbuild->addAction(command, ProjectExplorer::Constants::G_BUILD_BUILD);
+    connect(m_buildSubproject, SIGNAL(triggered()), this, SLOT(buildSubproject()));
+
     // Connect
     connect(m_projectExplorer, SIGNAL(currentNodeChanged(ProjectExplorer::Node*,ProjectExplorer::Project*)),
             this, SLOT(updateContextActions(ProjectExplorer::Node*,ProjectExplorer::Project*)));
 
-    connect(m_projectExplorer->buildManager(), SIGNAL(buildStateChanged(ProjectExplorer::Project*)),
+    connect(BuildManager::instance(), SIGNAL(buildStateChanged(ProjectExplorer::Project*)),
             this, SLOT(buildStateChanged(ProjectExplorer::Project*)));
 
     connect(Core::EditorManager::instance(), SIGNAL(currentEditorChanged(Core::IEditor*)),
@@ -199,57 +227,67 @@ void QbsProjectManagerPlugin::updateContextActions(ProjectExplorer::Node *node, 
 
     activeTargetChanged();
 
-    bool isBuilding = m_projectExplorer->buildManager()->isBuilding(project);
+    bool isBuilding = BuildManager::isBuilding(project);
     bool isFile = m_currentProject && node && (node->nodeType() == ProjectExplorer::FileNodeType);
     bool isProduct = m_currentProject && node && qobject_cast<QbsProductNode *>(node->projectNode());
+    QbsProjectNode *subproject = qobject_cast<QbsProjectNode *>(node);
+    bool isSubproject = m_currentProject && subproject && subproject != m_currentProject->rootProjectNode();
     bool isFileEnabled = isFile && node->isEnabled();
 
     m_reparseQbsCtx->setEnabled(!isBuilding && m_currentProject && !m_currentProject->isParsing());
     m_buildFileContextMenu->setEnabled(isFileEnabled);
-    m_buildProductContextMenu->setEnabled(isProduct);
+    m_buildProductContextMenu->setVisible(isProduct);
+    m_buildSubprojectContextMenu->setVisible(isSubproject);
 }
 
 void QbsProjectManagerPlugin::updateReparseQbsAction()
 {
     m_reparseQbs->setEnabled(m_currentProject
-                             && !m_projectExplorer->buildManager()->isBuilding(m_currentProject)
+                             && !BuildManager::isBuilding(m_currentProject)
                              && !m_currentProject->isParsing());
 }
 
 void QbsProjectManagerPlugin::updateBuildActions()
 {
+    bool enabled = false;
     bool fileVisible = false;
-    bool fileEnabled = false;
     bool productVisible = false;
-    bool productEnabled = false;
+    bool subprojectVisible = false;
 
     QString file;
 
-    if (Core::IEditor *currentEditor = Core::EditorManager::currentEditor()) {
-        file = currentEditor->document()->fileName();
-        ProjectExplorer::SessionManager *session = m_projectExplorer->session();
-        ProjectExplorer::Node *node  = session->nodeForFile(file);
-        ProjectExplorer::Project *project
-                = qobject_cast<QbsProject *>(session->projectForFile(file));
+    if (Core::IDocument *currentDocument = Core::EditorManager::currentDocument()) {
+        file = currentDocument->filePath();
+        Node *node  = SessionManager::nodeForFile(file);
+        Project *project = qobject_cast<QbsProject *>(SessionManager::projectForFile(file));
 
         m_buildFile->setParameter(QFileInfo(file).fileName());
         fileVisible = project && node && qobject_cast<QbsBaseProjectNode *>(node->projectNode());
-        fileEnabled = !m_projectExplorer->buildManager()->isBuilding(project)
+        enabled = !BuildManager::isBuilding(project)
                 && m_currentProject && !m_currentProject->isParsing();
 
-        if (QbsProductNode *productNode
-                = qobject_cast<QbsProductNode *>(node ? node->projectNode() : 0)) {
-            productEnabled = true;
+        QbsProductNode *productNode
+                = qobject_cast<QbsProductNode *>(node ? node->projectNode() : 0);
+        if (productNode) {
             productVisible = true;
             m_buildProduct->setParameter(productNode->displayName());
         }
+        QbsProjectNode *subprojectNode
+                = qobject_cast<QbsProjectNode *>(productNode ? productNode->parentFolderNode() : 0);
+        if (subprojectNode && subprojectNode != project->rootProjectNode()) {
+            subprojectVisible = true;
+            m_buildSubproject->setParameter(subprojectNode->displayName());
+        }
     }
 
-    m_buildFile->setEnabled(fileEnabled);
+    m_buildFile->setEnabled(enabled);
     m_buildFile->setVisible(fileVisible);
 
-    m_buildProduct->setEnabled(productEnabled);
+    m_buildProduct->setEnabled(enabled);
     m_buildProduct->setVisible(productVisible);
+
+    m_buildSubproject->setEnabled(enabled);
+    m_buildSubproject->setVisible(subprojectVisible);
 }
 
 void QbsProjectManagerPlugin::activeTargetChanged()
@@ -289,22 +327,22 @@ void QbsProjectManagerPlugin::buildFileContextMenu()
     QTC_ASSERT(m_currentNode, return);
     QTC_ASSERT(m_currentProject, return);
 
-    buildFiles(m_currentProject, QStringList(m_currentNode->path()));
+    buildSingleFile(m_currentProject, m_currentNode->path());
 }
 
 void QbsProjectManagerPlugin::buildFile()
 {
     QString file;
     QbsProject *project = 0;
-    if (Core::IEditor *currentEditor = Core::EditorManager::currentEditor()) {
-        file = currentEditor->document()->fileName();
-        project = qobject_cast<QbsProject *>(m_projectExplorer->session()->projectForFile(file));
+    if (Core::IDocument *currentDocument= Core::EditorManager::currentDocument()) {
+        file = currentDocument->filePath();
+        project = qobject_cast<QbsProject *>(SessionManager::projectForFile(file));
     }
 
     if (!project || file.isEmpty())
         return;
 
-    buildFiles(project, QStringList(file));
+    buildSingleFile(project, file);
 }
 
 void QbsProjectManagerPlugin::buildProductContextMenu()
@@ -319,12 +357,11 @@ void QbsProjectManagerPlugin::buildProduct()
 {
     QbsProject *project = 0;
     QbsProductNode *product = 0;
-    if (Core::IEditor *currentEditor = Core::EditorManager::currentEditor()) {
-        const QString file = currentEditor->document()->fileName();
-        ProjectExplorer::SessionManager *session = m_projectExplorer->session();
+    if (Core::IDocument *currentDocument= Core::EditorManager::currentDocument()) {
+        const QString file = currentDocument->filePath();
 
-        project = qobject_cast<QbsProject *>(session->projectForFile(file));
-        product = qobject_cast<QbsProductNode *>(session->nodeForFile(file)->projectNode());
+        project = qobject_cast<QbsProject *>(SessionManager::projectForFile(file));
+        product = qobject_cast<QbsProductNode *>(SessionManager::nodeForFile(file)->projectNode());
     }
 
     if (!project || !product)
@@ -333,7 +370,52 @@ void QbsProjectManagerPlugin::buildProduct()
     buildProducts(project, QStringList(product->displayName()));
 }
 
-void QbsProjectManagerPlugin::buildFiles(QbsProject *project, const QStringList &files)
+void QbsProjectManagerPlugin::buildSubprojectContextMenu()
+{
+    QTC_ASSERT(m_currentNode, return);
+    QTC_ASSERT(m_currentProject, return);
+
+    QbsProjectNode *subProject = qobject_cast<QbsProjectNode *>(m_currentNode);
+    QTC_ASSERT(subProject, return);
+
+    QStringList toBuild;
+    foreach (const qbs::ProductData &data, subProject->qbsProjectData().allProducts())
+        toBuild << data.name();
+
+    buildProducts(m_currentProject, toBuild);
+}
+
+void QbsProjectManagerPlugin::buildSubproject()
+{
+    QbsProject *project = 0;
+    QbsProjectNode *subproject = 0;
+    if (Core::IDocument *currentDocument= Core::EditorManager::currentDocument()) {
+        const QString file = currentDocument->filePath();
+
+        project = qobject_cast<QbsProject *>(SessionManager::projectForFile(file));
+        QbsBaseProjectNode *start = qobject_cast<QbsBaseProjectNode *>(SessionManager::nodeForFile(file)->projectNode());
+        while (start && start != project->rootProjectNode()) {
+            QbsProjectNode *tmp = qobject_cast<QbsProjectNode *>(start);
+            if (tmp) {
+                subproject = tmp;
+                break;
+            }
+            start = qobject_cast<QbsProjectNode *>(start->parentFolderNode());
+        }
+    }
+
+    if (!project || !subproject)
+        return;
+
+    QStringList toBuild;
+    foreach (const qbs::ProductData &data, subproject->qbsProjectData().allProducts())
+        toBuild << data.name();
+
+    buildProducts(project, toBuild);
+}
+
+void QbsProjectManagerPlugin::buildFiles(QbsProject *project, const QStringList &files,
+                                         const QStringList &activeFileTags)
 {
     QTC_ASSERT(project, return);
     QTC_ASSERT(!files.isEmpty(), return);
@@ -345,19 +427,26 @@ void QbsProjectManagerPlugin::buildFiles(QbsProject *project, const QStringList 
     if (!bc)
         return;
 
-    ProjectExplorer::ProjectExplorerPlugin *pe = ProjectExplorer::ProjectExplorerPlugin::instance();
-    if (!pe->saveModifiedFiles())
+    if (!ProjectExplorerPlugin::instance()->saveModifiedFiles())
         return;
 
     bc->setChangedFiles(files);
+    bc->setActiveFileTags(activeFileTags);
     bc->setProducts(QStringList());
 
-    const Core::Id buildStep = Core::Id(ProjectExplorer::Constants::BUILDSTEPS_BUILD);
+    const Core::Id buildStep = ProjectExplorer::Constants::BUILDSTEPS_BUILD;
 
     const QString name = ProjectExplorer::ProjectExplorerPlugin::displayNameForStepId(buildStep);
-    pe->buildManager()->buildList(bc->stepList(buildStep), name);
+    BuildManager::buildList(bc->stepList(buildStep), name);
 
     bc->setChangedFiles(QStringList());
+    bc->setActiveFileTags(QStringList());
+}
+
+void QbsProjectManagerPlugin::buildSingleFile(QbsProject *project, const QString &file)
+{
+    buildFiles(project, QStringList(file), QStringList()
+               << QLatin1String("obj") << QLatin1String("hpp"));
 }
 
 void QbsProjectManagerPlugin::buildProducts(QbsProject *project, const QStringList &products)
@@ -372,25 +461,30 @@ void QbsProjectManagerPlugin::buildProducts(QbsProject *project, const QStringLi
     if (!bc)
         return;
 
-    ProjectExplorer::ProjectExplorerPlugin *pe = ProjectExplorer::ProjectExplorerPlugin::instance();
-    if (!pe->saveModifiedFiles())
+    if (!ProjectExplorerPlugin::instance()->saveModifiedFiles())
         return;
 
     bc->setChangedFiles(QStringList());
     bc->setProducts(products);
 
-    const Core::Id buildStep = Core::Id(ProjectExplorer::Constants::BUILDSTEPS_BUILD);
+    const Core::Id buildStep = ProjectExplorer::Constants::BUILDSTEPS_BUILD;
 
-    const QString name = ProjectExplorer::ProjectExplorerPlugin::displayNameForStepId(buildStep);
-    pe->buildManager()->buildList(bc->stepList(buildStep), name);
+    const QString name = ProjectExplorerPlugin::displayNameForStepId(buildStep);
+    BuildManager::buildList(bc->stepList(buildStep), name);
 
     bc->setProducts(QStringList());
 }
 
 void QbsProjectManagerPlugin::reparseCurrentProject()
 {
-    if (m_currentProject)
-        m_currentProject->parseCurrentBuildConfiguration();
+    if (!m_currentProject || BuildManager::isBuilding(m_currentProject)) {
+        // Qbs does update the build graph during the build. So we cannot
+        // start to parse while a build is running or we will lose information.
+        // Just return since the qbsbuildstep will trigger a reparse after the build.
+        return;
+    }
+
+    m_currentProject->parseCurrentBuildConfiguration(true);
 }
 
 } // namespace Internal

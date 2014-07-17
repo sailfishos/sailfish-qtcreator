@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -90,7 +90,7 @@ public:
     };
 
     ModelNode();
-    ModelNode(const Internal::InternalNodePointer &internalNode, Model *model, AbstractView *view);
+    ModelNode(const Internal::InternalNodePointer &internalNode, Model *model, const AbstractView *view);
     ModelNode(const ModelNode modelNode, AbstractView *view);
     ModelNode(const ModelNode &other);
     ~ModelNode();
@@ -100,7 +100,6 @@ public:
     TypeName simplifiedTypeName() const;
     int minorVersion() const;
     int majorVersion() const;
-    int majorQtQuickVersion() const;
 
     bool isValid() const;
     bool isInHierarchy() const;
@@ -124,6 +123,7 @@ public:
     NodeListProperty nodeListProperty(const PropertyName &name) const;
     NodeProperty nodeProperty(const PropertyName &name) const;
     NodeAbstractProperty nodeAbstractProperty(const PropertyName &name) const;
+    NodeAbstractProperty defaultNodeAbstractProperty() const;
 
     void removeProperty(const PropertyName &name); //### also implement in AbstractProperty
     QList<AbstractProperty> properties() const;
@@ -139,9 +139,9 @@ public:
     bool hasVariantProperty(const PropertyName &name) const;
     bool hasBindingProperty(const PropertyName &name) const;
     bool hasNodeAbstracProperty(const PropertyName &name) const;
+    bool hasDefaultNodeAbstracProperty() const;
     bool hasNodeProperty(const PropertyName &name) const;
     bool hasNodeListProperty(const PropertyName &name) const;
-
 
     void setScriptFunctions(const QStringList &scriptFunctionList);
     QStringList scriptFunctions() const;
@@ -158,6 +158,7 @@ public:
     AbstractView *view() const;
 
     const NodeMetaInfo metaInfo() const;
+    bool hasMetaInfo() const;
 
     bool isSelected() const;
     bool isRootNode() const;
@@ -183,9 +184,11 @@ public:
 
     NodeSourceType nodeSourceType() const;
 
+    bool isComponent() const;
+
 private: // functions
     Internal::InternalNodePointer internalNode() const;
-    QString generateNewId() const;
+
 
 private: // variables
     Internal::InternalNodePointer m_internalNode;

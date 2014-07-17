@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -56,6 +56,8 @@ public:
                                     const KeyValuePairList &extra);
 
     static QVariantMap initializeToolChains();
+    static bool exists(const QString &id);
+    static bool exists(const QVariantMap &map, const QString &id);
 
 private:
     QString m_id;

@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2012 - 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -32,18 +32,28 @@
 #include "blackberryapplicationrunner.h"
 
 #include "blackberrydeployconfiguration.h"
+#include "blackberrydeviceconnectionmanager.h"
 #include "blackberryrunconfiguration.h"
+#include "blackberrylogprocessrunner.h"
+#include "blackberrydeviceinformation.h"
 #include "qnxconstants.h"
 
+#include <coreplugin/icore.h>
+#include <projectexplorer/kit.h>
 #include <projectexplorer/target.h>
-#include <qt4projectmanager/qt4buildconfiguration.h>
+#include <qmakeprojectmanager/qmakebuildconfiguration.h>
+#include <debugger/debuggerrunconfigurationaspect.h>
 #include <ssh/sshremoteprocessrunner.h>
 #include <utils/qtcassert.h>
 
+#include <QMessageBox>
 #include <QTimer>
 #include <QDir>
+#include <QTemporaryFile>
 
 namespace {
+enum { debugCheckQmlJSArgs = 0 };
+
 bool parseRunningState(const QString &line)
 {
     QTC_ASSERT(line.startsWith(QLatin1String("result::")), return false);
@@ -55,23 +65,21 @@ using namespace ProjectExplorer;
 using namespace Qnx;
 using namespace Qnx::Internal;
 
-BlackBerryApplicationRunner::BlackBerryApplicationRunner(bool debugMode, BlackBerryRunConfiguration *runConfiguration, QObject *parent)
+BlackBerryApplicationRunner::BlackBerryApplicationRunner(const BlackBerryApplicationRunner::LaunchFlags &launchFlags, BlackBerryRunConfiguration *runConfiguration, QObject *parent)
     : QObject(parent)
-    , m_debugMode(debugMode)
-    , m_slog2infoFound(false)
-    , m_currentLogs(false)
+    , m_launchFlags(launchFlags)
     , m_pid(-1)
     , m_appId(QString())
     , m_running(false)
     , m_stopping(false)
-    , m_tailCommand(QString())
     , m_launchProcess(0)
     , m_stopProcess(0)
-    , m_tailProcess(0)
-    , m_testSlog2Process(0)
-    , m_launchDateTimeProcess(0)
+    , m_deviceInfo(0)
+    , m_logProcessRunner(0)
     , m_runningStateTimer(new QTimer(this))
     , m_runningStateProcess(0)
+    , m_qmlDebugServerPort(0)
+    , m_checkQmlJsDebugArgumentsProcess(0)
 {
     QTC_ASSERT(runConfiguration, return);
 
@@ -80,17 +88,25 @@ BlackBerryApplicationRunner::BlackBerryApplicationRunner(bool debugMode, BlackBe
     m_environment = buildConfig->environment();
     m_deployCmd = m_environment.searchInPath(QLatin1String(Constants::QNX_BLACKBERRY_DEPLOY_CMD));
 
+    QFileInfo fi(target->kit()->autoDetectionSource());
+    m_bbApiLevelVersion = BlackBerryVersionNumber::fromNdkEnvFileName(fi.baseName());
+
     m_device = BlackBerryDeviceConfiguration::device(target->kit());
     m_barPackage = runConfiguration->barPackage();
 
     // The BlackBerry device always uses key authentication
     m_sshParams = m_device->sshParameters();
-    m_sshParams.authenticationType = QSsh::SshConnectionParameters::AuthenticationByKey;
+    m_sshParams.authenticationType = QSsh::SshConnectionParameters::AuthenticationTypePublicKey;
+
+    Debugger::DebuggerRunConfigurationAspect *aspect =
+    runConfiguration->extraAspect<Debugger::DebuggerRunConfigurationAspect>();
+    if (aspect)
+        m_qmlDebugServerPort = aspect->qmlDebugServerPort();
 
     m_runningStateTimer->setInterval(3000);
     m_runningStateTimer->setSingleShot(true);
     connect(m_runningStateTimer, SIGNAL(timeout()), this, SLOT(determineRunningState()));
-    connect(this, SIGNAL(started()), this, SLOT(checkSlog2Info()));
+    connect(this, SIGNAL(started()), this, SLOT(startLogProcessRunner()));
 
     connect(&m_launchStopProcessParser, SIGNAL(pidParsed(qint64)), this, SLOT(setPid(qint64)));
     connect(&m_launchStopProcessParser, SIGNAL(applicationIdParsed(QString)), this, SLOT(setApplicationId(QString)));
@@ -98,40 +114,86 @@ BlackBerryApplicationRunner::BlackBerryApplicationRunner(bool debugMode, BlackBe
 
 void BlackBerryApplicationRunner::start()
 {
-    QStringList args;
-    args << QLatin1String("-launchApp");
-    if (m_debugMode)
-        args << QLatin1String("-debugNative");
-    args << QLatin1String("-device") << m_sshParams.host;
-    if (!m_sshParams.password.isEmpty())
-        args << QLatin1String("-password") << m_sshParams.password;
-    args << QDir::toNativeSeparators(m_barPackage);
-
-    if (!m_launchProcess) {
-        m_launchProcess = new QProcess(this);
-        connect(m_launchProcess, SIGNAL(readyReadStandardError()), this, SLOT(readStandardError()));
-        connect(m_launchProcess, SIGNAL(readyReadStandardOutput()), this, SLOT(readStandardOutput()));
-        connect(m_launchProcess, SIGNAL(finished(int,QProcess::ExitStatus)),
-                this, SLOT(startFinished(int,QProcess::ExitStatus)));
-
-        m_launchProcess->setEnvironment(m_environment.toStringList());
+    if (!BlackBerryDeviceConnectionManager::instance()->isConnected(m_device->id())) {
+        connect(BlackBerryDeviceConnectionManager::instance(), SIGNAL(deviceConnected()),
+                this, SLOT(checkDeployMode()));
+        connect(BlackBerryDeviceConnectionManager::instance(), SIGNAL(deviceDisconnected(Core::Id)),
+                this, SLOT(disconnectFromDeviceSignals(Core::Id)));
+        connect(BlackBerryDeviceConnectionManager::instance(), SIGNAL(connectionOutput(Core::Id,QString)),
+                this, SLOT(displayConnectionOutput(Core::Id,QString)));
+        BlackBerryDeviceConnectionManager::instance()->connectDevice(m_device->id());
+    } else {
+        checkDeployMode();
     }
-
-    m_launchProcess->start(m_deployCmd, args);
-    m_runningStateTimer->start();
-    m_running = true;
 }
 
-void BlackBerryApplicationRunner::checkSlog2Info()
+void BlackBerryApplicationRunner::startLogProcessRunner()
 {
-    if (m_slog2infoFound) {
-        readLaunchTime();
-    } else if (!m_testSlog2Process) {
-        m_testSlog2Process = new QSsh::SshRemoteProcessRunner(this);
-        connect(m_testSlog2Process, SIGNAL(processClosed(int)),
-                this, SLOT(handleSlog2InfoFound()));
-        m_testSlog2Process->run("slog2info", m_sshParams);
+    if (!m_logProcessRunner) {
+        m_logProcessRunner = new BlackBerryLogProcessRunner(this, m_appId, m_device);
+        connect(m_logProcessRunner, SIGNAL(output(QString,Utils::OutputFormat)),
+            this, SIGNAL(output(QString,Utils::OutputFormat)));
+        connect(m_logProcessRunner, SIGNAL(finished()), this, SIGNAL(finished()));
     }
+
+    m_logProcessRunner->start();
+}
+
+void BlackBerryApplicationRunner::displayConnectionOutput(Core::Id deviceId, const QString &msg)
+{
+    if (deviceId != m_device->id())
+        return;
+
+    if (msg.contains(QLatin1String("Info:")))
+        emit output(msg, Utils::StdOutFormat);
+    else if (msg.contains(QLatin1String("Error:")))
+        emit output(msg, Utils::StdErrFormat);
+}
+
+void BlackBerryApplicationRunner::checkDeviceRuntimeVersion(int status)
+{
+    if (status != BlackBerryNdkProcess::Success) {
+        emit output(tr("Cannot determine device runtime version."), Utils::StdErrFormat);
+        return;
+    }
+
+    if (m_bbApiLevelVersion.isEmpty()) {
+        emit output(tr("Cannot determine API level version."), Utils::StdErrFormat);
+        checkQmlJsDebugArguments();
+        return;
+    }
+
+    const QString runtimeVersion = m_deviceInfo->scmBundle();
+    if (m_bbApiLevelVersion.toString() != runtimeVersion) {
+        const QMessageBox::StandardButton answer =
+                QMessageBox::question(Core::ICore::mainWindow(),
+                                      tr("Confirmation"),
+                                      tr("The device runtime version(%1) does not match "
+                                         "the API level version(%2).\n"
+                                         "This may cause unexpected behavior when debugging.\n"
+                                         "Do you want to continue anyway?")
+                                      .arg(runtimeVersion, m_bbApiLevelVersion.toString()),
+                                      QMessageBox::Yes | QMessageBox::No);
+
+        if (answer == QMessageBox::No) {
+            emit startFailed(tr("API level version does not match Runtime version."));
+            return;
+        }
+    }
+
+    checkQmlJsDebugArguments();
+}
+
+void BlackBerryApplicationRunner::queryDeviceInformation()
+{
+    if (!m_deviceInfo) {
+        m_deviceInfo = new BlackBerryDeviceInformation(this);
+        connect(m_deviceInfo, SIGNAL(finished(int)),
+                this, SLOT(checkDeviceRuntimeVersion(int)));
+    }
+
+    m_deviceInfo->setDeviceTarget(m_sshParams.host, m_sshParams.password);
+    emit output(tr("Querying device runtime version..."), Utils::StdOutFormat);
 }
 
 void BlackBerryApplicationRunner::startFinished(int exitCode, QProcess::ExitStatus exitStatus)
@@ -156,13 +218,6 @@ ProjectExplorer::RunControl::StopResult BlackBerryApplicationRunner::stop()
         return ProjectExplorer::RunControl::AsynchronousStop;
 
     m_stopping = true;
-    m_currentLogs = false;
-
-    if (m_testSlog2Process && m_testSlog2Process->isProcessRunning()) {
-        m_testSlog2Process->cancel();
-        delete m_testSlog2Process;
-        m_testSlog2Process = 0;
-    }
 
     QStringList args;
     args << QLatin1String("-terminateApp");
@@ -225,74 +280,16 @@ void BlackBerryApplicationRunner::readStandardError()
     }
 }
 
-void BlackBerryApplicationRunner::killTailProcess()
+void BlackBerryApplicationRunner::disconnectFromDeviceSignals(Core::Id deviceId)
 {
-    QTC_ASSERT(!m_tailCommand.isEmpty(), return);
-
-    QString killCommand = m_device->processSupport()->killProcessByNameCommandLine(m_tailCommand);
-
-    QSsh::SshRemoteProcessRunner *slayProcess = new QSsh::SshRemoteProcessRunner(this);
-    connect(slayProcess, SIGNAL(processClosed(int)), this, SIGNAL(finished()));
-    slayProcess->run(killCommand.toLatin1(), m_sshParams);
-
-    // Not supported by OpenSSH server
-    //m_tailProcess->sendSignalToProcess(Utils::SshRemoteProcess::KillSignal);
-    m_tailProcess->cancel();
-
-    delete m_tailProcess;
-    m_tailProcess = 0;
-}
-
-void BlackBerryApplicationRunner::tailApplicationLog()
-{
-    QSsh::SshRemoteProcessRunner *process = qobject_cast<QSsh::SshRemoteProcessRunner *>(sender());
-    QTC_ASSERT(process, return);
-
-    m_launchDateTime = QDateTime::fromString(QString::fromLatin1(process->readAllStandardOutput()).trimmed(),
-                                             QString::fromLatin1("dd HH:mm:ss"));
-
-    if (m_stopping || (m_tailProcess && m_tailProcess->isProcessRunning()))
-        return;
-
-    QTC_CHECK(!m_appId.isEmpty());
-
-    if (!m_tailProcess) {
-        m_tailProcess = new QSsh::SshRemoteProcessRunner(this);
-
-        connect(m_tailProcess, SIGNAL(readyReadStandardOutput()),
-                this, SLOT(handleTailOutput()));
-        connect(m_tailProcess, SIGNAL(readyReadStandardError()),
-                this, SLOT(handleTailError()));
-        connect(m_tailProcess, SIGNAL(connectionError()),
-                this, SLOT(handleTailConnectionError()));
+    if (m_device->id() == deviceId) {
+        disconnect(BlackBerryDeviceConnectionManager::instance(), SIGNAL(deviceConnected()),
+                   this, SLOT(checkDeployMode()));
+        disconnect(BlackBerryDeviceConnectionManager::instance(), SIGNAL(deviceDisconnected(Core::Id)),
+                   this, SLOT(disconnectFromDeviceSignals(Core::Id)));
+        disconnect(BlackBerryDeviceConnectionManager::instance(), SIGNAL(connectionOutput(Core::Id,QString)),
+                   this, SLOT(displayConnectionOutput(Core::Id,QString)));
     }
-
-    if (m_slog2infoFound) {
-        m_tailCommand = QString::fromLatin1("slog2info -w -b ") + m_appId;
-    } else {
-        m_tailCommand = QLatin1String("tail -c +1 -f /accounts/1000/appdata/") + m_appId
-                + QLatin1String("/logs/log");
-    }
-    m_tailProcess->run(m_tailCommand.toLatin1(), m_sshParams);
-}
-
-void BlackBerryApplicationRunner::handleSlog2InfoFound()
-{
-    QSsh::SshRemoteProcessRunner *process = qobject_cast<QSsh::SshRemoteProcessRunner *>(sender());
-    QTC_ASSERT(process, return);
-
-    m_slog2infoFound = (process->processExitCode() == 0);
-
-    readLaunchTime();
-}
-
-void BlackBerryApplicationRunner::readLaunchTime()
-{
-    m_launchDateTimeProcess = new QSsh::SshRemoteProcessRunner(this);
-    connect(m_launchDateTimeProcess, SIGNAL(processClosed(int)),
-            this, SLOT(tailApplicationLog()));
-
-    m_launchDateTimeProcess->run("date +\"%d %H:%M:%S\"", m_sshParams);
 }
 
 void BlackBerryApplicationRunner::setPid(qint64 pid)
@@ -305,73 +302,148 @@ void BlackBerryApplicationRunner::setApplicationId(const QString &applicationId)
     m_appId = applicationId;
 }
 
-void BlackBerryApplicationRunner::handleTailOutput()
+void BlackBerryApplicationRunner::checkQmlJsDebugArguments()
 {
-    QSsh::SshRemoteProcessRunner *process = qobject_cast<QSsh::SshRemoteProcessRunner *>(sender());
-    QTC_ASSERT(process, return);
+    if (!m_launchFlags.testFlag(QmlDebugLaunch)) {
+        // no need to change anytning in app manifest for this kind of run
+        launchApplication();
+    }
 
-    const QString message = QString::fromLatin1(process->readAllStandardOutput());
-    if (m_slog2infoFound) {
-        const QStringList multiLine = message.split(QLatin1Char('\n'));
-        Q_FOREACH (const QString &line, multiLine) {
-            // Check if logs are from the recent launch
-            // Note: This is useless if/once slog2info -b displays only logs from recent launches
-            if (!m_currentLogs) {
-                QDateTime dateTime = QDateTime::fromString(line.split(m_appId).first().mid(4).trimmed(),
-                                                           QString::fromLatin1("dd HH:mm:ss.zzz"));
-
-                m_currentLogs = dateTime >= m_launchDateTime;
-                if (!m_currentLogs)
-                    continue;
-            }
-
-            // The line could be a part of a previous log message that contains a '\n'
-            // In that case only the message body is displayed
-            if (!line.contains(m_appId) && !line.isEmpty()) {
-                emit output(line + QLatin1Char('\n'), Utils::StdOutFormat);
-                continue;
-            }
-
-            QStringList validLineBeginnings;
-            validLineBeginnings << QLatin1String("qt-msg      0  ")
-                                << QLatin1String("qt-msg*     0  ")
-                                << QLatin1String("default*  9000  ")
-                                << QLatin1String("default   9000  ")
-                                << QLatin1String("                           0  ");
-            Q_FOREACH (const QString &beginning, validLineBeginnings) {
-                if (showQtMessage(beginning, line))
-                    break;
-            }
-        }
+    emit output(tr("Checking qmljsdebugger command line argument."), Utils::StdOutFormat);
+    QString nativePackagerCmd = m_environment.searchInPath(QLatin1String("blackberry-nativepackager"));
+    if (nativePackagerCmd.isEmpty()) {
+        emit output(tr("Cannot find Native Packager executable."), Utils::StdErrFormat);
         return;
     }
-    emit output(message, Utils::StdOutFormat);
+
+    m_checkQmlJsDebugArgumentsProcess = new QProcess(this);
+    connect(m_checkQmlJsDebugArgumentsProcess, SIGNAL(error(QProcess::ProcessError)), this, SLOT(checkQmlJsDebugArgumentsManifestLoaded()));
+    connect(m_checkQmlJsDebugArgumentsProcess, SIGNAL(finished(int)), this, SLOT(checkQmlJsDebugArgumentsManifestLoaded()));
+
+    QStringList args;
+    args << QLatin1String("-listManifest") << QDir::toNativeSeparators(m_barPackage);
+    if (debugCheckQmlJSArgs)
+        qDebug() << "get manifest:" << nativePackagerCmd << args.join(QLatin1String(" "));
+    m_checkQmlJsDebugArgumentsProcess->start(nativePackagerCmd, args);
 }
 
-bool BlackBerryApplicationRunner::showQtMessage(const QString& pattern, const QString& line)
+void BlackBerryApplicationRunner::checkQmlJsDebugArgumentsManifestLoaded()
 {
-    const int index = line.indexOf(pattern);
-    if (index != -1) {
-        const QString str = line.right(line.length()-index-pattern.length()) + QLatin1Char('\n');
-        emit output(str, Utils::StdOutFormat);
-        return true;
+    m_checkQmlJsDebugArgumentsProcess->deleteLater();
+
+    if (m_checkQmlJsDebugArgumentsProcess->exitStatus() != QProcess::NormalExit) {
+        emit output(tr("Cannot read bar package manifest."), Utils::StdErrFormat);
+        qWarning() << "Cannot read bar package manifest:" << m_checkQmlJsDebugArgumentsProcess->errorString();
+        qWarning() << m_checkQmlJsDebugArgumentsProcess->readAllStandardError();
+        return;
     }
-    return false;
+
+    QString manifestContent = QString::fromUtf8(m_checkQmlJsDebugArgumentsProcess->readAllStandardOutput());
+
+    QRegExp rxEoln(QLatin1String("(\\r\\n|\\n|\\r)"));
+    QStringList manifestLines = manifestContent.split(rxEoln);
+
+    QMutableListIterator<QString> it(manifestLines);
+    QLatin1String entryPoint("Entry-Point: ");
+    while (it.hasNext()) {
+        it.next();
+        if (it.value().startsWith(entryPoint)) {
+            while (it.hasNext() && it.peekNext().startsWith(QLatin1Char(' ')))
+                it.next();
+            QString qmljsdbgArg = QString::fromLatin1("-qmljsdebugger=port:%1%2")
+                .arg(m_qmlDebugServerPort)
+                .arg(m_launchFlags.testFlag(QmlDebugLaunchBlocking)? QLatin1String(",block"): QLatin1String(""));
+            it.insert(QLatin1String("  ") + qmljsdbgArg);
+            manifestContent = manifestLines.join(QLatin1String("\n"));
+            break;
+        }
+    }
+
+    m_checkQmlJsDebugArgumentsProcess = new QProcess(this);
+    connect(m_checkQmlJsDebugArgumentsProcess, SIGNAL(error(QProcess::ProcessError)), this, SLOT(checkQmlJsDebugArgumentsManifestSaved()));
+    connect(m_checkQmlJsDebugArgumentsProcess, SIGNAL(finished(int)), this, SLOT(checkQmlJsDebugArgumentsManifestSaved()));
+
+    QTemporaryFile *manifestFile = new QTemporaryFile(m_checkQmlJsDebugArgumentsProcess);
+    if (!manifestFile->open()) {
+        emit output(tr("Internal error: Cannot create temporary manifest file '%1'")
+            .arg(manifestFile->fileName()), Utils::StdErrFormat);
+        delete manifestFile;
+        return;
+    }
+
+    manifestFile->write(manifestContent.toUtf8());
+    manifestFile->flush();
+
+    QStringList args;
+    args << QLatin1String("-device") << m_sshParams.host;
+    if (!m_sshParams.password.isEmpty())
+        args << QLatin1String("-password") << m_sshParams.password;
+    args << QLatin1String("-package") << QDir::toNativeSeparators(m_barPackage);
+    args << QLatin1String("-putFile");
+    args << manifestFile->fileName();
+    args << QLatin1String("app/META-INF/MANIFEST.MF");
+    if (debugCheckQmlJSArgs)
+        qDebug() << "set manifest:" << m_deployCmd << args.join(QLatin1String(" "));
+    m_checkQmlJsDebugArgumentsProcess->start(m_deployCmd, args);
 }
 
-void BlackBerryApplicationRunner::handleTailError()
+void BlackBerryApplicationRunner::checkQmlJsDebugArgumentsManifestSaved()
 {
-    QSsh::SshRemoteProcessRunner *process = qobject_cast<QSsh::SshRemoteProcessRunner *>(sender());
-    QTC_ASSERT(process, return);
+    m_checkQmlJsDebugArgumentsProcess->deleteLater();
 
-    const QString message = QString::fromLatin1(process->readAllStandardError());
-    emit output(message, Utils::StdErrFormat);
+    if (m_checkQmlJsDebugArgumentsProcess->exitStatus() != QProcess::NormalExit) {
+        emit output(tr("Cannot set command line arguments."), Utils::StdErrFormat);
+        qWarning() << "Cannot set command line arguments:" << m_checkQmlJsDebugArgumentsProcess->errorString();
+        qWarning() << m_checkQmlJsDebugArgumentsProcess->readAllStandardError();
+        return;
+    }
+
+    launchApplication();
 }
 
-void BlackBerryApplicationRunner::handleTailConnectionError()
+void BlackBerryApplicationRunner::launchApplication()
 {
-    emit output(tr("Cannot show debug output. Error: %1").arg(m_tailProcess->lastConnectionErrorString()),
-                Utils::StdErrFormat);
+    // If original device connection fails before launching, this method maybe triggered
+    // if any other device is connected(?)
+    if (!BlackBerryDeviceConnectionManager::instance()->isConnected(m_device->id()))
+        return;
+
+    QStringList args;
+    args << QLatin1String("-launchApp");
+    if (m_launchFlags.testFlag(CppDebugLaunch))
+        args << QLatin1String("-debugNative");
+    args << QLatin1String("-device") << m_sshParams.host;
+    if (!m_sshParams.password.isEmpty())
+        args << QLatin1String("-password") << m_sshParams.password;
+    args << QLatin1String("-package") << QDir::toNativeSeparators(m_barPackage);
+
+    if (!m_launchProcess) {
+        m_launchProcess = new QProcess(this);
+        connect(m_launchProcess, SIGNAL(readyReadStandardError()), this, SLOT(readStandardError()));
+        connect(m_launchProcess, SIGNAL(readyReadStandardOutput()), this, SLOT(readStandardOutput()));
+        connect(m_launchProcess, SIGNAL(finished(int,QProcess::ExitStatus)),
+                this, SLOT(startFinished(int,QProcess::ExitStatus)));
+
+        m_launchProcess->setEnvironment(m_environment.toStringList());
+    }
+    if (debugCheckQmlJSArgs)
+        qDebug() << "launch:" << m_deployCmd << args.join(QLatin1String(" "));
+    m_launchProcess->start(m_deployCmd, args);
+    m_runningStateTimer->start();
+    m_running = true;
+}
+
+void BlackBerryApplicationRunner::checkDeployMode()
+{
+    // If original device connection fails before launching, this method maybe triggered
+    // if any other device is connected
+    if (!BlackBerryDeviceConnectionManager::instance()->isConnected(m_device->id()))
+        return;
+
+    if (m_launchFlags.testFlag(CppDebugLaunch))
+        queryDeviceInformation(); // check API version vs Runtime version
+    else
+        checkQmlJsDebugArguments();
 }
 
 void BlackBerryApplicationRunner::startRunningStateTimer()
@@ -431,8 +503,12 @@ void BlackBerryApplicationRunner::reset()
             m_runningStateProcess->kill();
     }
 
-    if (m_tailProcess && m_tailProcess->isProcessRunning())
-        killTailProcess();
-    else
+    if (m_logProcessRunner) {
+        m_logProcessRunner->stop();
+
+        delete m_logProcessRunner;
+        m_logProcessRunner = 0;
+    } else {
         emit finished();
+    }
 }

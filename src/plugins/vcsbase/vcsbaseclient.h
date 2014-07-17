@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Brian McGillion and Hugues Delorme
+** Copyright (c) 2014 Brian McGillion and Hugues Delorme
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -44,6 +44,7 @@ QT_END_NAMESPACE
 
 namespace Utils {
 struct SynchronousProcessResponse;
+class ExitCodeInterpreter;
 }
 
 namespace VcsBase {
@@ -118,6 +119,7 @@ public:
     virtual QString findTopLevelForFile(const QFileInfo &file) const = 0;
 
     virtual VcsBaseClientSettings *settings() const;
+    virtual QProcessEnvironment processEnvironment() const;
 
 signals:
     void parsedStatus(const QList<VcsBase::VcsBaseClient::StatusItem> &statusList);
@@ -149,6 +151,7 @@ protected:
     };
     virtual QString vcsCommandString(VcsCommand cmd) const;
     virtual Core::Id vcsEditorKind(VcsCommand cmd) const = 0;
+    virtual Utils::ExitCodeInterpreter *exitCodeInterpreter(VcsCommand cmd, QObject *parent) const;
 
     virtual QStringList revisionSpec(const QString &revision) const = 0;
     virtual VcsBaseEditorParameterWidget *createDiffEditor(const QString &workingDir,
@@ -163,7 +166,7 @@ protected:
     // Fully synchronous VCS execution (QProcess-based)
     bool vcsFullySynchronousExec(const QString &workingDir,
                                  const QStringList &args,
-                                 QByteArray *output);
+                                 QByteArray *output) const;
     // Synchronous VCS execution using Utils::SynchronousProcess, with
     // log windows updating (using VcsBasePlugin::runVcs with flags)
     Utils::SynchronousProcessResponse vcsSynchronousExec(const QString &workingDir,
@@ -175,8 +178,6 @@ protected:
                                                   const char *registerDynamicProperty,
                                                   const QString &dynamicPropertyValue) const;
 
-    virtual QProcessEnvironment processEnvironment() const;
-
     enum JobOutputBindMode {
         NoOutputBind,
         VcsWindowOutputBind
@@ -184,7 +185,7 @@ protected:
     Command *createCommand(const QString &workingDirectory,
                            VcsBase::VcsBaseEditorWidget *editor = 0,
                            JobOutputBindMode mode = NoOutputBind);
-    void enqueueJob(Command *cmd, const QStringList &args);
+    void enqueueJob(Command *cmd, const QStringList &args, Utils::ExitCodeInterpreter *interpreter = 0);
 
     void resetCachedVcsInfo(const QString &workingDir);
 
@@ -192,8 +193,8 @@ private:
     friend class VcsBaseClientPrivate;
     VcsBaseClientPrivate *d;
 
-    Q_PRIVATE_SLOT(d, void statusParser(QByteArray))
-    Q_PRIVATE_SLOT(d, void annotateRevision(QString, QString, int))
+    Q_PRIVATE_SLOT(d, void statusParser(QString))
+    Q_PRIVATE_SLOT(d, void annotateRevision(QString, QString, QString, int))
     Q_PRIVATE_SLOT(d, void saveSettings())
     Q_PRIVATE_SLOT(d, void commandFinishedGotoLine(QWidget *))
 };

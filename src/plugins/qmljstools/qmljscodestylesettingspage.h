@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -48,9 +48,7 @@ namespace TextEditor {
 namespace QmlJSTools {
 namespace Internal {
 
-namespace Ui {
-class QmlJSCodeStyleSettingsPage;
-}
+namespace Ui { class QmlJSCodeStyleSettingsPage; }
 
 class QmlJSCodeStylePreferencesWidget : public QWidget
 {
@@ -61,7 +59,6 @@ public:
     ~QmlJSCodeStylePreferencesWidget();
 
     void setPreferences(TextEditor::ICodeStylePreferences *preferences);
-    QString searchKeywords() const;
 
 private slots:
     void decorateEditor(const TextEditor::FontSettings &fontSettings);
@@ -82,13 +79,11 @@ class QmlJSCodeStyleSettingsPage : public Core::IOptionsPage
 public:
     explicit QmlJSCodeStyleSettingsPage(QWidget *parent = 0);
 
-    QWidget *createPage(QWidget *parent);
+    QWidget *widget();
     void apply();
-    void finish() { }
-    bool matches(const QString &) const;
+    void finish();
 
 private:
-    QString m_searchKeywords;
     TextEditor::ICodeStylePreferences *m_pageTabPreferences;
     QPointer<TextEditor::CodeStyleEditor> m_widget;
 };

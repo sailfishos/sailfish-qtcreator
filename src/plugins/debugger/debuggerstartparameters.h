@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -38,6 +38,7 @@
 #include <utils/environment.h>
 #include <projectexplorer/abi.h>
 #include <projectexplorer/kit.h>
+#include <projectexplorer/devicesupport/idevice.h>
 
 #include <QMetaType>
 
@@ -63,13 +64,16 @@ public:
         attachPID(-1),
         useTerminal(false),
         breakOnMain(false),
+        continueAfterAttach(false),
         multiProcess(false),
         languages(AnyLanguage),
         qmlServerAddress(QLatin1String("127.0.0.1")),
         qmlServerPort(Constants::QML_DEFAULT_DEBUG_SERVER_PORT),
         remoteSetupNeeded(false),
+        useContinueInsteadOfRun(false),
         startMode(NoStartMode),
         closeMode(KillAtClose),
+        useCtrlCStub(false),
         testReceiver(0),
         testCallback(0),
         testCase(0)
@@ -82,9 +86,12 @@ public:
     DebuggerEngineType secondSlaveEngineType;
     DebuggerEngineType cppEngineType;
     QString sysRoot;
+    QString deviceSymbolsRoot;
     QString debuggerCommand;
     ProjectExplorer::Abi toolChainAbi;
+    ProjectExplorer::IDevice::ConstPtr device;
 
+    QString platform;
     QString executable;
     QString displayName; // Used in the Snapshots view.
     QString startMessage; // First status message shown.
@@ -97,6 +104,7 @@ public:
     qint64 attachPID;
     bool useTerminal;
     bool breakOnMain;
+    bool continueAfterAttach;
     bool multiProcess;
     DebuggerLanguages languages;
 
@@ -112,7 +120,6 @@ public:
 
     // Used by remote debugging.
     QString remoteChannel;
-    QString symbolFileName;
     QString serverStartScript;
     QString debugInfoLocation; // Gdb "set-debug-file-directory".
     QStringList debugSourceLocation; // Gdb "directory"
@@ -123,14 +130,17 @@ public:
     bool remoteSetupNeeded;
     QMap<QString, QString> sourcePathMap;
 
-    QString dumperLibrary;
+    // Used by baremetal plugin
+    bool useContinueInsteadOfRun; // if connected to a hw debugger run is not possible but continue is used
+    QByteArray commandsAfterConnect; // additional commands to post after connection to debug target
+
     QStringList solibSearchPath;
-    QStringList dumperLibraryLocations;
     DebuggerStartMode startMode;
     DebuggerCloseMode closeMode;
 
     // For QNX debugging
     QString remoteExecutable;
+    bool useCtrlCStub;
 
     // For Debugger testing.
     QObject *testReceiver;

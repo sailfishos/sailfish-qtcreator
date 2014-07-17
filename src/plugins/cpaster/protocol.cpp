@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -92,6 +92,7 @@ Protocol::ContentType Protocol::contentType(const QString &mt)
         return C;
     if (mt == QLatin1String(CppTools::Constants::CPP_SOURCE_MIMETYPE)
         || mt == QLatin1String(CppTools::Constants::CPP_HEADER_MIMETYPE)
+        || mt == QLatin1String(CppTools::Constants::OBJECTIVE_C_SOURCE_MIMETYPE)
         || mt == QLatin1String(CppTools::Constants::OBJECTIVE_CPP_SOURCE_MIMETYPE))
         return Cpp;
     if (mt == QLatin1String(QmlJSTools::Constants::QML_MIMETYPE)
@@ -165,7 +166,7 @@ bool Protocol::showConfigurationError(const Protocol *p,
     QMessageBox mb(QMessageBox::Warning, title, message, QMessageBox::Cancel, parent);
     QPushButton *settingsButton = 0;
     if (showConfig)
-        settingsButton = mb.addButton(tr("Settings..."), QMessageBox::AcceptRole);
+        settingsButton = mb.addButton(Core::ICore::msgShowOptionsDialog(), QMessageBox::AcceptRole);
     mb.exec();
     bool rc = false;
     if (mb.clickedButton() == settingsButton)

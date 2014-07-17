@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -41,6 +41,8 @@ class QTextCharFormat;
 class QToolButton;
 QT_END_NAMESPACE
 
+namespace Utils { class AnsiEscapeCodeHandler; }
+
 namespace ProjectExplorer {
 
 class BuildManager;
@@ -56,7 +58,7 @@ class CompileOutputWindow : public Core::IOutputPane
     Q_OBJECT
 
 public:
-    CompileOutputWindow(BuildManager *bm, QAction *cancelBuildAction);
+    CompileOutputWindow(QAction *cancelBuildAction);
     ~CompileOutputWindow();
 
     QWidget *outputWidget(QWidget *);
@@ -80,6 +82,8 @@ public:
     bool knowsPositionOf(const Task &task);
     void showPositionOf(const Task &task);
 
+    void flush();
+
 private slots:
     void updateWordWrapMode();
 
@@ -88,6 +92,7 @@ private:
     QHash<unsigned int, int> m_taskPositions;
     ShowOutputTaskHandler * m_handler;
     QToolButton *m_cancelBuildButton;
+    Utils::AnsiEscapeCodeHandler *m_escapeCodeHandler;
 };
 
 } // namespace Internal

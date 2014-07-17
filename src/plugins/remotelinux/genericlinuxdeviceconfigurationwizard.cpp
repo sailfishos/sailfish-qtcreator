@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -31,8 +31,6 @@
 
 #include "genericlinuxdeviceconfigurationwizardpages.h"
 #include "linuxdevice.h"
-#include "linuxdevicetestdialog.h"
-#include "linuxdevicetester.h"
 #include "remotelinux_constants.h"
 
 #include <utils/portlist.h>
@@ -60,7 +58,7 @@ public:
 } // namespace Internal
 
 GenericLinuxDeviceConfigurationWizard::GenericLinuxDeviceConfigurationWizard(QWidget *parent)
-    : QWizard(parent),
+    : Utils::Wizard(parent),
       d(new Internal::GenericLinuxDeviceConfigurationWizardPrivate(this))
 {
     setWindowTitle(tr("New Generic Linux Device Configuration Setup"));
@@ -83,7 +81,7 @@ IDevice::Ptr GenericLinuxDeviceConfigurationWizard::device()
     sshParams.port = 22;
     sshParams.timeout = 10;
     sshParams.authenticationType = d->setupPage.authenticationType();
-    if (sshParams.authenticationType == SshConnectionParameters::AuthenticationByPassword)
+    if (sshParams.authenticationType != SshConnectionParameters::AuthenticationTypePublicKey)
         sshParams.password = d->setupPage.password();
     else
         sshParams.privateKeyFile = d->setupPage.privateKeyFilePath();
@@ -91,10 +89,6 @@ IDevice::Ptr GenericLinuxDeviceConfigurationWizard::device()
         Core::Id(Constants::GenericLinuxOsType), IDevice::Hardware);
     device->setFreePorts(Utils::PortList::fromString(QLatin1String("10000-10100")));
     device->setSshParameters(sshParams);
-    // Might be called after accept.
-    QWidget *parent = isVisible() ? this : static_cast<QWidget *>(0);
-    LinuxDeviceTestDialog dlg(device, new GenericLinuxDeviceTester(this), parent);
-    dlg.exec();
     return device;
 }
 

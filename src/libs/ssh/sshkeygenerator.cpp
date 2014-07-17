@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -31,6 +31,7 @@
 
 #include "sshbotanconversions_p.h"
 #include "sshcapabilities_p.h"
+#include "sshinit_p.h"
 #include "sshpacket_p.h"
 
 #include <botan/botan.h>
@@ -47,6 +48,7 @@ using namespace Internal;
 
 SshKeyGenerator::SshKeyGenerator() : m_type(Rsa)
 {
+    initSsh();
 }
 
 bool SshKeyGenerator::generateKeys(KeyType type, PrivateKeyFormat format, int keySize,

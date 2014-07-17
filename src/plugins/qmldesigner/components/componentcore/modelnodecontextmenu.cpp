@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,6 +30,7 @@
 #include "modelnodecontextmenu.h"
 #include "modelnodecontextmenu_helper.h"
 #include "designeractionmanager.h"
+#include <qmldesignerplugin.h>
 
 #include <modelnode.h>
 
@@ -37,7 +38,7 @@
 
 namespace QmlDesigner {
 
-ModelNodeContextMenu::ModelNodeContextMenu(QmlModelView *view) :
+ModelNodeContextMenu::ModelNodeContextMenu(AbstractView *view) :
     m_selectionContext(view)
 {
 }
@@ -94,11 +95,11 @@ void ModelNodeContextMenu::execute(const QPoint &position, bool selectionMenuBoo
     QMenu* mainMenu = new QMenu();
 
     m_selectionContext.setShowSelectionTools(selectionMenuBool);
-    m_selectionContext.setScenePos(m_scenePos);
+    m_selectionContext.setScenePosition(m_scenePos);
 
 
      QSet<AbstractDesignerAction* > factories =
-             QSet<AbstractDesignerAction* >::fromList(DesignerActionManager::designerActions());
+             QSet<AbstractDesignerAction* >::fromList(QmlDesignerPlugin::instance()->designerActionManager().designerActions());
 
      populateMenu(factories, QString(""), mainMenu, m_selectionContext);
 
@@ -111,7 +112,7 @@ void ModelNodeContextMenu::setScenePos(const QPoint &position)
     m_scenePos = position;
 }
 
-void ModelNodeContextMenu::showContextMenu(QmlModelView *view,
+void ModelNodeContextMenu::showContextMenu(AbstractView *view,
                                            const QPoint &globalPosition,
                                            const QPoint &scenePosition,
                                            bool showSelection)

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -60,7 +60,9 @@ void tst_gdb::version()
     bool qnx = true;
     Debugger::Internal::extractGdbVersion(msg, &v, &bv, &mac, &qnx);
     //qDebug() << msg << " -> " << v << bv << mac << qnx;
+    QEXPECT_FAIL("openSUSE 13.1", "Not done yet", Continue);
     QCOMPARE(v, gdbVersion);
+    QEXPECT_FAIL("openSUSE 13.1", "Not done yet", Continue);
     QCOMPARE(bv, gdbBuildVersion);
     QCOMPARE(mac, isMacGdb);
     QCOMPARE(qnx, isQnxGdb);
@@ -117,6 +119,10 @@ void tst_gdb::version_data()
     QTest::newRow("rubenvb")
         << "GNU gdb (rubenvb-4.7.2-release) 7.5.50.20120920-cvs"
         << 70550 << 20120920 << false << false;
+
+    QTest::newRow("openSUSE 13.1")
+        << "GNU gdb (GDB; openSUSE 13.1) 7.6.50.20130731-cvs"
+        << 70650 << 20130731 << false << false;
 }
 
 static QString chopConst(QString type)
@@ -210,9 +216,9 @@ QString niceType(QString type)
             QRegExp re5(QString("map<%1, %2, std::less<%3>, %4\\s*>")
                 .arg(key, value, key, alloc));
             re5.setMinimal(true);
-            if (re5.indexIn(type) != -1)
+            if (re5.indexIn(type) != -1) {
                 type.replace(re5.cap(0), QString("map<%1, %2>").arg(key, value));
-            else {
+            } else {
                 QRegExp re7(QString("map<const %1, %2, std::less<const %3>, %4\\s*>")
                     .arg(key, value, key, alloc));
                 re7.setMinimal(true);
@@ -263,11 +269,7 @@ void tst_gdb::niceType_data()
         << "std::map<const char*, Foo>";
 }
 
-int main(int argc, char *argv[])
-{
-    tst_gdb test;
-    return QTest::qExec(&test, argc, argv);
-}
+QTEST_APPLESS_MAIN(tst_gdb);
 
 #include "tst_gdb.moc"
 

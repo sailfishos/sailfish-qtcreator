@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -46,9 +46,7 @@ class QLabel;
 class QSlider;
 QT_END_NAMESPACE
 
-namespace QmlJS {
-    class PropertyReader;
-}
+namespace QmlJS { class PropertyReader; }
 
 namespace QmlEditorWidgets {
 

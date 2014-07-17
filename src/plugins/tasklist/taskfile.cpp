@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -38,8 +38,7 @@ using namespace TaskList::Internal;
 // TaskFile
 // --------------------------------------------------------------------------
 
-TaskFile::TaskFile(QObject *parent) : Core::IDocument(parent),
-    m_context(0)
+TaskFile::TaskFile(QObject *parent) : Core::IDocument(parent)
 { }
 
 TaskFile::~TaskFile()
@@ -51,11 +50,6 @@ bool TaskFile::save(QString *errorString, const QString &fileName, bool autoSave
     Q_UNUSED(fileName);
     Q_UNUSED(autoSave)
     return false;
-}
-
-QString TaskFile::fileName() const
-{
-    return m_fileName;
 }
 
 QString TaskFile::defaultPath() const
@@ -100,27 +94,21 @@ bool TaskFile::reload(QString *errorString, ReloadFlag flag, ChangeType type)
         deleteLater();
         return true;
     }
-    return open(errorString, m_fileName);
-}
-
-void TaskFile::rename(const QString &newName)
-{
-    Q_UNUSED(newName);
+    return open(errorString, filePath());
 }
 
 bool TaskFile::open(QString *errorString, const QString &fileName)
 {
-    m_fileName = fileName;
-    return TaskList::TaskListPlugin::instance()->loadFile(errorString, m_context, m_fileName);
+    setFilePath(fileName);
+    return TaskList::TaskListPlugin::loadFile(errorString, m_baseDir, fileName);
 }
 
-ProjectExplorer::Project *TaskFile::context() const
+QString TaskFile::baseDir() const
 {
-    return m_context;
+    return m_baseDir;
 }
 
-void TaskFile::setContext(ProjectExplorer::Project *context)
+void TaskFile::setBaseDir(const QString &base)
 {
-    m_context = context;
+    m_baseDir = base;
 }
-

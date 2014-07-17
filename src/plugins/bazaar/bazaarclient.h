@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Hugues Delorme
+** Copyright (c) 2014 Hugues Delorme
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -49,6 +49,9 @@ public:
 
     bool synchronousSetUserId();
     BranchInfo synchronousBranchQuery(const QString &repositoryRoot) const;
+    bool synchronousUncommit(const QString &workingDir,
+                             const QString& revision = QString(),
+                             const QStringList &extraOptions = QStringList());
     void commit(const QString &repositoryRoot, const QStringList &files,
                 const QString &commitMessageFile, const QStringList &extraOptions = QStringList());
     void annotate(const QString &workingDir, const QString &file,
@@ -57,10 +60,12 @@ public:
     void view(const QString &source, const QString &id,
               const QStringList &extraOptions = QStringList());
     QString findTopLevelForFile(const QFileInfo &file) const;
+    bool managesFile(const QString &workingDirectory, const QString &fileName) const;
 
 protected:
     Core::Id vcsEditorKind(VcsCommand cmd) const;
     QString vcsCommandString(VcsCommand cmd) const;
+    Utils::ExitCodeInterpreter *exitCodeInterpreter(VcsCommand cmd, QObject *parent) const;
     QStringList revisionSpec(const QString &revision) const;
     VcsBase::VcsBaseEditorParameterWidget *createDiffEditor(const QString &workingDir,
                                                             const QStringList &files,

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,11 +30,19 @@
 #ifndef QMLPROJECTFILEFORMAT_H
 #define QMLPROJECTFILEFORMAT_H
 
+#include <QCoreApplication>
+#include <QString>
+
 namespace QmlProjectManager {
 
-class QmlProjectFileFormat {
+class QmlProjectItem;
+
+class QmlProjectFileFormat
+{
+    Q_DECLARE_TR_FUNCTIONS(QmlProjectManager::QmlProjectFileFormat)
+
 public:
-    static void registerDeclarativeTypes();
+    static QmlProjectItem *parseProjectFile(const QString &fileName, QString *errorMessage = 0);
 };
 
 } // namespace QmlProjectManager

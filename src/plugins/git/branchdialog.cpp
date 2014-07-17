@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -38,11 +38,15 @@
 #include "stashdialog.h" // Label helpers
 
 #include <utils/qtcassert.h>
+#include <utils/execmenu.h>
 #include <vcsbase/vcsbaseoutputwindow.h>
+#include <coreplugin/documentmanager.h>
 
+#include <QAction>
 #include <QItemSelectionModel>
 #include <QMessageBox>
 #include <QList>
+#include <QMenu>
 
 #include <QDebug>
 
@@ -67,8 +71,11 @@ BranchDialog::BranchDialog(QWidget *parent) :
     connect(m_ui->renameButton, SIGNAL(clicked()), this, SLOT(rename()));
     connect(m_ui->diffButton, SIGNAL(clicked()), this, SLOT(diff()));
     connect(m_ui->logButton, SIGNAL(clicked()), this, SLOT(log()));
+    connect(m_ui->resetButton, SIGNAL(clicked()), this, SLOT(reset()));
     connect(m_ui->mergeButton, SIGNAL(clicked()), this, SLOT(merge()));
     connect(m_ui->rebaseButton, SIGNAL(clicked()), this, SLOT(rebase()));
+    connect(m_ui->cherryPickButton, SIGNAL(clicked()), this, SLOT(cherryPick()));
+    connect(m_ui->trackButton, SIGNAL(clicked()), this, SLOT(setRemoteTracking()));
 
     m_ui->branchView->setModel(m_model);
 
@@ -106,18 +113,25 @@ void BranchDialog::refreshIfSame(const QString &repository)
 void BranchDialog::enableButtons()
 {
     QModelIndex idx = selectedIndex();
+    QModelIndex currentBranch = m_model->currentBranch();
     const bool hasSelection = idx.isValid();
-    const bool currentSelected = hasSelection && idx == m_model->currentBranch();
+    const bool currentSelected = hasSelection && idx == currentBranch;
     const bool isLocal = m_model->isLocal(idx);
     const bool isLeaf = m_model->isLeaf(idx);
+    const bool isTag = m_model->isTag(idx);
+    const bool hasActions = hasSelection && isLeaf;
+    const bool currentLocal = m_model->isLocal(currentBranch);
 
-    m_ui->removeButton->setEnabled(hasSelection && !currentSelected && isLocal && isLeaf);
-    m_ui->renameButton->setEnabled(hasSelection && isLocal && isLeaf);
-    m_ui->logButton->setEnabled(hasSelection && isLeaf);
-    m_ui->diffButton->setEnabled(hasSelection && isLeaf);
-    m_ui->checkoutButton->setEnabled(hasSelection && !currentSelected && isLeaf);
-    m_ui->rebaseButton->setEnabled(hasSelection && !currentSelected && isLeaf);
-    m_ui->mergeButton->setEnabled(hasSelection && !currentSelected && isLeaf);
+    m_ui->removeButton->setEnabled(hasActions && !currentSelected && (isLocal || isTag));
+    m_ui->renameButton->setEnabled(hasActions && (isLocal || isTag));
+    m_ui->logButton->setEnabled(hasActions);
+    m_ui->diffButton->setEnabled(hasActions);
+    m_ui->checkoutButton->setEnabled(hasActions && !currentSelected);
+    m_ui->rebaseButton->setEnabled(hasActions && !currentSelected);
+    m_ui->resetButton->setEnabled(hasActions && currentLocal && !currentSelected);
+    m_ui->mergeButton->setEnabled(hasActions && !currentSelected);
+    m_ui->cherryPickButton->setEnabled(hasActions && !currentSelected);
+    m_ui->trackButton->setEnabled(hasActions && currentLocal && !currentSelected && !isTag);
 }
 
 void BranchDialog::refresh()
@@ -128,10 +142,10 @@ void BranchDialog::refresh()
 void BranchDialog::add()
 {
     QModelIndex trackedIndex = selectedIndex();
-    QString trackedBranch = m_model->branchName(trackedIndex);
+    QString trackedBranch = m_model->fullName(trackedIndex);
     if (trackedBranch.isEmpty()) {
         trackedIndex = m_model->currentBranch();
-        trackedBranch = m_model->branchName(trackedIndex);
+        trackedBranch = m_model->fullName(trackedIndex);
     }
     const bool isLocal = m_model->isLocal(trackedIndex);
     const bool isTag = m_model->isTag(trackedIndex);
@@ -146,12 +160,14 @@ void BranchDialog::add()
         ++i;
     }
 
-    BranchAddDialog branchAddDialog(true, this);
+    BranchAddDialog branchAddDialog(localNames, true, this);
     branchAddDialog.setBranchName(suggestedName);
     branchAddDialog.setTrackedBranchName(isTag ? QString() : trackedBranch, !isLocal);
 
     if (branchAddDialog.exec() == QDialog::Accepted && m_model) {
         QModelIndex idx = m_model->addBranch(branchAddDialog.branchName(), branchAddDialog.track(), trackedIndex);
+        if (!idx.isValid())
+            return;
         m_ui->branchView->selectionModel()->select(idx, QItemSelectionModel::Clear
                                                         | QItemSelectionModel::Select
                                                         | QItemSelectionModel::Current);
@@ -164,10 +180,12 @@ void BranchDialog::add()
 
 void BranchDialog::checkout()
 {
+    if (!Core::DocumentManager::saveAllModifiedDocuments())
+        return;
     QModelIndex idx = selectedIndex();
 
-    const QString currentBranch = m_model->branchName(m_model->currentBranch());
-    const QString nextBranch = m_model->branchName(idx);
+    const QString currentBranch = m_model->fullName(m_model->currentBranch());
+    const QString nextBranch = m_model->fullName(idx);
     const QString popMessageStart = QCoreApplication::applicationName() +
             QLatin1String(" ") + nextBranch + QLatin1String("-AutoStash ");
 
@@ -230,45 +248,57 @@ void BranchDialog::remove()
     QModelIndex selected = selectedIndex();
     QTC_CHECK(selected != m_model->currentBranch()); // otherwise the button would not be enabled!
 
-    QString branchName = m_model->branchName(selected);
+    QString branchName = m_model->fullName(selected);
     if (branchName.isEmpty())
         return;
 
-    QString message = tr("Would you like to delete the branch '%1'?").arg(branchName);
-    bool wasMerged = m_model->branchIsMerged(selected);
-    if (!wasMerged)
+    const bool isTag = m_model->isTag(selected);
+    const bool wasMerged = isTag ? true : m_model->branchIsMerged(selected);
+    QString message;
+    if (isTag)
+        message = tr("Would you like to delete the tag '%1'?").arg(branchName);
+    else if (wasMerged)
+        message = tr("Would you like to delete the branch '%1'?").arg(branchName);
+    else
         message = tr("Would you like to delete the <b>unmerged</b> branch '%1'?").arg(branchName);
 
-    if (QMessageBox::question(this, tr("Delete Branch"), message, QMessageBox::Yes|QMessageBox::No,
-                              wasMerged ? QMessageBox::Yes : QMessageBox::No) == QMessageBox::Yes)
-        m_model->removeBranch(selected);
+    if (QMessageBox::question(this, isTag ? tr("Delete Tag") : tr("Delete Branch"),
+                              message, QMessageBox::Yes | QMessageBox::No,
+                              wasMerged ? QMessageBox::Yes : QMessageBox::No) == QMessageBox::Yes) {
+        if (isTag)
+            m_model->removeTag(selected);
+        else
+            m_model->removeBranch(selected);
+    }
 }
 
 void BranchDialog::rename()
 {
     QModelIndex selected = selectedIndex();
     QTC_CHECK(selected != m_model->currentBranch()); // otherwise the button would not be enabled!
-    QTC_CHECK(m_model->isLocal(selected));           // otherwise the button would not be enabled!
+    const bool isTag = m_model->isTag(selected);
+    QTC_CHECK(m_model->isLocal(selected) || isTag);
 
-    QString oldBranchName = m_model->branchName(selected);
-    QStringList localNames = m_model->localBranchNames();
+    QString oldName = m_model->fullName(selected);
+    QStringList localNames;
+    if (!isTag)
+        localNames = m_model->localBranchNames();
 
-    BranchAddDialog branchAddDialog(false, this);
-    branchAddDialog.setBranchName(oldBranchName);
+    BranchAddDialog branchAddDialog(localNames, false, this);
+    if (isTag)
+        branchAddDialog.setWindowTitle(tr("Rename Tag"));
+    branchAddDialog.setBranchName(oldName);
     branchAddDialog.setTrackedBranchName(QString(), false);
 
     branchAddDialog.exec();
 
     if (branchAddDialog.result() == QDialog::Accepted && m_model) {
-        if (branchAddDialog.branchName() == oldBranchName)
+        if (branchAddDialog.branchName() == oldName)
             return;
-        if (localNames.contains(branchAddDialog.branchName())) {
-            QMessageBox::critical(this, tr("Branch Exists"),
-                                  tr("Local branch \'%1\' already exists.")
-                                  .arg(branchAddDialog.branchName()));
-            return;
-        }
-        m_model->renameBranch(oldBranchName, branchAddDialog.branchName());
+        if (isTag)
+            m_model->renameTag(oldName, branchAddDialog.branchName());
+        else
+            m_model->renameBranch(oldName, branchAddDialog.branchName());
         refresh();
     }
     enableButtons();
@@ -276,42 +306,88 @@ void BranchDialog::rename()
 
 void BranchDialog::diff()
 {
-    QString branchName = m_model->branchName(selectedIndex());
-    if (branchName.isEmpty())
+    QString fullName = m_model->fullName(selectedIndex(), true);
+    if (fullName.isEmpty())
         return;
     // Do not pass working dir by reference since it might change
-    GitPlugin::instance()->gitClient()->diffBranch(QString(m_repository), QStringList(), branchName);
+    GitPlugin::instance()->gitClient()->diffBranch(QString(m_repository), QStringList(), fullName);
 }
 
 void BranchDialog::log()
 {
-    QString branchName = m_model->branchName(selectedIndex());
+    QString branchName = m_model->fullName(selectedIndex(), true);
     if (branchName.isEmpty())
         return;
     // Do not pass working dir by reference since it might change
-    GitPlugin::instance()->gitClient()->log(QString(m_repository), QStringList(), false, QStringList(branchName));
+    GitPlugin::instance()->gitClient()->log(QString(m_repository), QString(), false, QStringList(branchName));
+}
+
+void BranchDialog::reset()
+{
+    QString currentName = m_model->fullName(m_model->currentBranch());
+    QString branchName = m_model->fullName(selectedIndex());
+    if (currentName.isEmpty() || branchName.isEmpty())
+        return;
+
+    if (QMessageBox::question(this, tr("Git Reset"), tr("Hard reset branch '%1' to '%2'?")
+                              .arg(currentName).arg(branchName),
+                              QMessageBox::Yes, QMessageBox::No) == QMessageBox::Yes) {
+        GitPlugin::instance()->gitClient()->reset(QString(m_repository), QLatin1String("--hard"),
+                                                  branchName);
+
+    }
 }
 
 void BranchDialog::merge()
 {
+    if (!Core::DocumentManager::saveAllModifiedDocuments())
+        return;
     QModelIndex idx = selectedIndex();
     QTC_CHECK(idx != m_model->currentBranch()); // otherwise the button would not be enabled!
 
-    const QString branch = m_model->branchName(idx);
+    const QString branch = m_model->fullName(idx, true);
     GitClient *client = GitPlugin::instance()->gitClient();
+    bool allowFastForward = true;
+    if (client->isFastForwardMerge(m_repository, branch)) {
+        QMenu popup;
+        QAction *fastForward = popup.addAction(tr("Fast-Forward"));
+        popup.addAction(tr("No Fast-Forward"));
+        QAction *chosen = Utils::execMenuAtWidget(&popup, m_ui->mergeButton);
+        if (!chosen)
+            return;
+        allowFastForward = (chosen == fastForward);
+    }
     if (client->beginStashScope(m_repository, QLatin1String("merge"), AllowUnstashed))
-        client->synchronousMerge(m_repository, branch);
+        client->synchronousMerge(m_repository, branch, allowFastForward);
 }
 
 void BranchDialog::rebase()
 {
+    if (!Core::DocumentManager::saveAllModifiedDocuments())
+        return;
     QModelIndex idx = selectedIndex();
     QTC_CHECK(idx != m_model->currentBranch()); // otherwise the button would not be enabled!
 
-    const QString baseBranch = m_model->branchName(idx);
+    const QString baseBranch = m_model->fullName(idx, true);
     GitClient *client = GitPlugin::instance()->gitClient();
     if (client->beginStashScope(m_repository, QLatin1String("rebase")))
         client->rebase(m_repository, baseBranch);
+}
+
+void BranchDialog::cherryPick()
+{
+    if (!Core::DocumentManager::saveAllModifiedDocuments())
+        return;
+    QModelIndex idx = selectedIndex();
+    QTC_CHECK(idx != m_model->currentBranch()); // otherwise the button would not be enabled!
+
+    const QString branch = m_model->fullName(idx, true);
+    GitPlugin::instance()->gitClient()->synchronousCherryPick(m_repository, branch);
+}
+
+void BranchDialog::setRemoteTracking()
+{
+    m_model->setRemoteTracking(selectedIndex());
 }
 
 QModelIndex BranchDialog::selectedIndex()

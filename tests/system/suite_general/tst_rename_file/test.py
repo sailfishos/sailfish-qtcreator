@@ -1,6 +1,6 @@
 #############################################################################
 ##
-## Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+## Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ## Contact: http://www.qt-project.org/legal
 ##
 ## This file is part of Qt Creator.
@@ -50,19 +50,28 @@ def main():
                                ["Resources", "musicbrowser.qrc"],
                                ["QML", "musicbrowser.qml"]]:
         filenames = ["ABCD" + filename.upper(), "abcd" + filename.lower(), "test", "TEST", filename]
-        if platform.system() == 'Darwin':
+        if isQt4Build and platform.system() == 'Darwin':
             # avoid QTCREATORBUG-9197
             filtered = [filenames[0]]
-            for i in range(1, len(filenames)):
-                if filenames[i].lower() != filtered[-1].lower():
-                    filtered.append(filenames[i])
+            for filename in filenames[1:]:
+                if filename.lower() != filtered[-1].lower():
+                    filtered.append(filename)
             filenames = filtered
-        for i in range(len(filenames)):
+        previous = filenames[-1]
+        for filename in filenames:
             tempFiletype = filetype
-            if filetype == "QML" and filenames[i - 1][-4:] != ".qml":
+            if filetype == "QML" and previous[-4:] != ".qml":
                 tempFiletype = "Other files"
+            # following is necessary due to QTCREATORBUG-10179
+            # will be fixed when Qt5's MIME type database can be used
+            if ((filenames[-1] in ("main.cpp", "utility.cpp") and previous[-4:] != ".cpp")
+                or (filenames[-1] == "utility.h" and previous[-2:].lower() != ".h")
+                or (filetype == "Resources" and previous[-4:] != ".qrc")):
+                tempFiletype = "Other files"
+            # end of handling QTCREATORBUG-10179
             renameFile(templateDir, usedProFile, projectName + "." + tempFiletype,
-                       filenames[i - 1], filenames[i])
+                       previous, filename)
+            previous = filename
     invokeMenuItem("File", "Exit")
 
 def renameFile(projectDir, proFile, branch, oldname, newname):
@@ -71,20 +80,23 @@ def renameFile(projectDir, proFile, branch, oldname, newname):
     oldFileText = readFile(oldFilePath)
     itemText = branch + "." + oldname.replace(".", "\\.")
     treeview = waitForObject(":Qt Creator_Utils::NavigationTreeView")
-    if platform.system() == 'Darwin':
-        JIRA.performWorkaroundForBug(8735, JIRA.Bug.CREATOR, treeview)
     try:
         openItemContextMenu(treeview, itemText, 5, 5, 0)
     except:
         openItemContextMenu(treeview, addBranchWildcardToRoot(itemText), 5, 5, 0)
-    activateItem(waitForObjectItem(":Qt Creator.Project.Menu.File_QMenu", "Rename..."))
+    # hack for Squish5/Qt5.2 problems of handling menus on Mac - remove asap
+    if platform.system() == 'Darwin':
+        waitFor("macHackActivateContextMenuItem('Rename...')", 5000)
+    else:
+        if oldname.endswith(".qrc"):
+            menu = ":Qt Creator.Project.Menu.Folder_QMenu"
+        else:
+            menu = ":Qt Creator.Project.Menu.File_QMenu"
+        activateItem(waitForObjectItem(menu, "Rename..."))
     type(waitForObject(":Qt Creator_Utils::NavigationTreeView::QExpandingLineEdit"), newname)
     type(waitForObject(":Qt Creator_Utils::NavigationTreeView::QExpandingLineEdit"), "<Return>")
     test.verify(waitFor("os.path.exists(newFilePath)", 1000),
                 "Verify that file with new name exists: %s" % newFilePath)
-    if not (oldname.lower() == newname.lower() and platform.system() in ('Windows', 'Microsoft')):
-        test.verify(not os.path.exists(oldFilePath),
-                    "Verify that file with old name does not exist: %s" % oldFilePath)
     test.compare(readFile(newFilePath), oldFileText,
                  "Comparing content of file before and after renaming")
     test.verify(waitFor("newname in safeReadFile(proFile)", 2000),
@@ -92,6 +104,9 @@ def renameFile(projectDir, proFile, branch, oldname, newname):
     if not oldname in newname:
         test.verify(not oldname in readFile(proFile),
                     "Verify that old filename '%s' was removed from pro-file." % oldname)
+    if not (oldname.lower() == newname.lower() and platform.system() in ('Windows', 'Microsoft')):
+        test.verify(not oldname in os.listdir(projectDir),
+                    "Verify that file with old name does not exist: %s" % oldFilePath)
 
 def safeReadFile(filename):
     text = ""

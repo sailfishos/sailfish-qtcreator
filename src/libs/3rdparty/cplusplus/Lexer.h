@@ -32,27 +32,12 @@ class CPLUSPLUS_EXPORT Lexer
     void operator =(const Lexer &other);
 
 public:
-    enum State {
-        State_Default,
-        State_MultiLineComment,
-        State_MultiLineDoxyComment
-    };
-
     Lexer(TranslationUnit *unit);
     Lexer(const char *firstChar, const char *lastChar);
     ~Lexer();
 
     Control *control() const { return _control; }
     TranslationUnit *translationUnit() const;
-
-    bool qtMocRunEnabled() const;
-    void setQtMocRunEnabled(bool onoff);
-
-    bool cxx0xEnabled() const;
-    void setCxxOxEnabled(bool onoff);
-
-    bool objCEnabled() const;
-    void setObjCEnabled(bool onoff);
 
     void scan(Token *tok);
 
@@ -79,13 +64,13 @@ public:
     int state() const;
     void setState(int state);
 
-    bool isIncremental() const;
-    void setIncremental(bool isIncremental);
+    LanguageFeatures languageFeatures() const { return _languageFeatures; }
+    void setLanguageFeatures(LanguageFeatures features) { _languageFeatures = features; }
 
 private:
     void scan_helper(Token *tok);
     void setSource(const char *firstChar, const char *lastChar);
-    static int classify(const char *string, int length, bool q, bool cxx0x);
+    static int classify(const char *string, int length, LanguageFeatures features);
     static int classifyObjCAtKeyword(const char *s, int n);
     static int classifyOperator(const char *string, int length);
 
@@ -95,6 +80,8 @@ private:
     void scanUntilQuote(Token *tok, unsigned char quote);
     void scanNumericLiteral(Token *tok);
     void scanIdentifier(Token *tok, unsigned extraProcessedChars = 0);
+    void scanBackslash(Kind type);
+    void scanCppComment(Kind type);
 
     inline void yyinp()
     {
@@ -107,13 +94,14 @@ private:
 
 private:
     struct Flags {
-        unsigned _isIncremental: 1;
         unsigned _scanCommentTokens: 1;
         unsigned _scanKeywords: 1;
         unsigned _scanAngleStringLiteralTokens: 1;
-        unsigned _qtMocRunEnabled: 1;
-        unsigned _cxx0xEnabled: 1;
-        unsigned _objCEnabled: 1;
+    };
+
+    struct State {
+        unsigned char _tokenKind : 7;
+        unsigned char _newlineExpected : 1;
     };
 
     TranslationUnit *_translationUnit;
@@ -123,12 +111,17 @@ private:
     const char *_lastChar;
     const char *_tokenStart;
     unsigned char _yychar;
-    int _state;
+    union {
+        unsigned char _state;
+        State s;
+    };
     union {
         unsigned _flags;
         Flags f;
     };
     unsigned _currentLine;
+    LanguageFeatures _languageFeatures;
+
 };
 
 } // namespace CPlusPlus

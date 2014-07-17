@@ -178,7 +178,7 @@ void MerHardwareDeviceWizardKeyPage::handleTestConnectionClicked()
     sshParams.userName = wizard->userName();
     sshParams.port = wizard->sshPort();
     sshParams.timeout = wizard->timeout();
-    sshParams.authenticationType = QSsh::SshConnectionParameters::AuthenticationByPassword;
+    sshParams.authenticationType = QSsh::SshConnectionParameters::AuthenticationTypePassword;
     sshParams.password = wizard->password();
     m_ui->connectionLabelEdit->setText(tr("Connecting to machine %1 ...").arg(wizard->hostName()));
     m_ui->testButton->setEnabled(false);

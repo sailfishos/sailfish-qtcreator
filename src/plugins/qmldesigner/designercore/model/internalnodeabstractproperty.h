@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -55,7 +55,7 @@ public:
 
     virtual bool isValid() const;
 
-    using InternalProperty::remove; // keep the virtual remove(...) method around
+    using InternalProperty::remove; // keep the virtual remove(...) function around
 
 protected:
     InternalNodeAbstractProperty(const PropertyName &name, const InternalNodePointer &propertyOwner);

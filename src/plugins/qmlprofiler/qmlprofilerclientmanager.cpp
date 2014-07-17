@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -40,17 +40,18 @@
 #include <QTimer>
 #include <QMessageBox>
 
+#include "qmlprofilermodelmanager.h"
+
 using namespace QmlDebug;
 using namespace Core;
 
 namespace QmlProfiler {
 namespace Internal {
 
-class QmlProfilerClientManager::QmlProfilerClientManagerPrivate {
+class QmlProfilerClientManager::QmlProfilerClientManagerPrivate
+{
 public:
-    QmlProfilerClientManagerPrivate(QmlProfilerClientManager *qq) { Q_UNUSED(qq); }
-
-    QmlProfilerStateManager* profilerState;
+    QmlProfilerStateManager *profilerState;
 
     QmlDebugConnection *connection;
     QPointer<QmlProfilerTraceClient> qmlclientplugin;
@@ -70,10 +71,12 @@ public:
 
     bool v8DataReady;
     bool qmlDataReady;
+
+    QmlProfilerModelManager *modelManager;
 };
 
 QmlProfilerClientManager::QmlProfilerClientManager(QObject *parent) :
-    QObject(parent), d(new QmlProfilerClientManagerPrivate(this))
+    QObject(parent), d(new QmlProfilerClientManagerPrivate)
 {
     setObjectName(QLatin1String("QML Profiler Connections"));
 
@@ -84,19 +87,30 @@ QmlProfilerClientManager::QmlProfilerClientManager(QObject *parent) :
     d->v8DataReady = false;
     d->qmlDataReady = false;
 
+    d->modelManager = 0;
+
     d->connectionTimer.setInterval(200);
     connect(&d->connectionTimer, SIGNAL(timeout()), SLOT(tryToConnect()));
 }
 
 QmlProfilerClientManager::~QmlProfilerClientManager()
 {
-    disconnectClientSignals();
     delete d->connection;
     delete d->qmlclientplugin.data();
     delete d->v8clientplugin.data();
 
     delete d;
 }
+
+void QmlProfilerClientManager::setModelManager(QmlProfilerModelManager *m)
+{
+    if (d->modelManager)
+        disconnect(this,SIGNAL(dataReadyForProcessing()), d->modelManager, SLOT(complete()));
+    d->modelManager = m;
+    if (d->modelManager)
+        connect(this,SIGNAL(dataReadyForProcessing()), d->modelManager, SLOT(complete()));
+}
+
 ////////////////////////////////////////////////////////////////
 // Interface
 void QmlProfilerClientManager::setTcpConnection(QString host, quint64 port)
@@ -158,18 +172,18 @@ void QmlProfilerClientManager::connectClientSignals()
 {
     QTC_ASSERT(d->profilerState, return);
     if (d->qmlclientplugin) {
-        connect(d->qmlclientplugin.data(), SIGNAL(complete()),
-                this, SLOT(qmlComplete()));
+        connect(d->qmlclientplugin.data(), SIGNAL(complete(qint64)),
+                this, SLOT(qmlComplete(qint64)));
         connect(d->qmlclientplugin.data(),
-                SIGNAL(range(int,int,qint64,qint64,QStringList,QmlDebug::QmlEventLocation)),
-                this,
-                SIGNAL(addRangedEvent(int,int,qint64,qint64,QStringList,QmlDebug::QmlEventLocation)));
+                SIGNAL(rangedEvent(int,int,qint64,qint64,QStringList,QmlDebug::QmlEventLocation,
+                             qint64,qint64,qint64,qint64,qint64)),
+                d->modelManager,
+                SLOT(addQmlEvent(int,int,qint64,qint64,QStringList,QmlDebug::QmlEventLocation,
+                             qint64,qint64,qint64,qint64,qint64)));
         connect(d->qmlclientplugin.data(), SIGNAL(traceFinished(qint64)),
-                this, SIGNAL(traceFinished(qint64)));
+                d->modelManager->traceTime(), SLOT(setEndTime(qint64)));
         connect(d->qmlclientplugin.data(), SIGNAL(traceStarted(qint64)),
-                this, SIGNAL(traceStarted(qint64)));
-        connect(d->qmlclientplugin.data(), SIGNAL(frame(qint64,int,int)),
-                this, SIGNAL(addFrameEvent(qint64,int,int)));
+                d->modelManager->traceTime(), SLOT(setStartTime(qint64)));
         connect(d->qmlclientplugin.data(), SIGNAL(enabledChanged()),
                 d->qmlclientplugin.data(), SLOT(sendRecordingStatus()));
         // fixme: this should be unified for both clients
@@ -180,8 +194,8 @@ void QmlProfilerClientManager::connectClientSignals()
         connect(d->v8clientplugin.data(), SIGNAL(complete()), this, SLOT(v8Complete()));
         connect(d->v8clientplugin.data(),
                 SIGNAL(v8range(int,QString,QString,int,double,double)),
-                this,
-                SIGNAL(addV8Event(int,QString,QString,int,double,double)));
+                d->modelManager,
+                SLOT(addV8Event(int,QString,QString,int,double,double)));
         connect(d->v8clientplugin.data(), SIGNAL(enabledChanged()),
                 d->v8clientplugin.data(), SLOT(sendRecordingStatus()));
     }
@@ -193,15 +207,17 @@ void QmlProfilerClientManager::disconnectClientSignals()
         disconnect(d->qmlclientplugin.data(), SIGNAL(complete()),
                    this, SLOT(qmlComplete()));
         disconnect(d->qmlclientplugin.data(),
-                   SIGNAL(range(int,int,qint64,qint64,QStringList,QmlDebug::QmlEventLocation)),
-                   this,
-                   SIGNAL(addRangedEvent(int,int,qint64,qint64,QStringList,QmlDebug::QmlEventLocation)));
+                   SIGNAL(rangedEvent(int,int,qint64,qint64,QStringList,QmlDebug::QmlEventLocation,
+                                qint64,qint64,qint64,qint64,qint64)),
+                   d->modelManager,
+                   SLOT(addQmlEvent(int,int,qint64,qint64,QStringList,QmlDebug::QmlEventLocation,
+                                    qint64,qint64,qint64,qint64,qint64)));
         disconnect(d->qmlclientplugin.data(), SIGNAL(traceFinished(qint64)),
-                   this, SIGNAL(traceFinished(qint64)));
+                d->modelManager->traceTime(), SLOT(setEndTime(qint64)));
         disconnect(d->qmlclientplugin.data(), SIGNAL(traceStarted(qint64)),
-                   this, SIGNAL(traceStarted(qint64)));
+                d->modelManager->traceTime(), SLOT(setStartTime(qint64)));
         disconnect(d->qmlclientplugin.data(), SIGNAL(frame(qint64,int,int)),
-                   this, SIGNAL(addFrameEvent(qint64,int,int)));
+                   d->modelManager, SLOT(addFrameEvent(qint64,int,int)));
         disconnect(d->qmlclientplugin.data(), SIGNAL(enabledChanged()),
                    d->qmlclientplugin.data(), SLOT(sendRecordingStatus()));
         // fixme: this should be unified for both clients
@@ -212,8 +228,8 @@ void QmlProfilerClientManager::disconnectClientSignals()
         disconnect(d->v8clientplugin.data(), SIGNAL(complete()), this, SLOT(v8Complete()));
         disconnect(d->v8clientplugin.data(),
                    SIGNAL(v8range(int,QString,QString,int,double,double)),
-                   this,
-                   SIGNAL(addV8Event(int,QString,QString,int,double,double)));
+                   d->modelManager,
+                   SLOT(addV8Event(int,QString,QString,int,double,double)));
         disconnect(d->v8clientplugin.data(), SIGNAL(enabledChanged()),
                    d->v8clientplugin.data(), SLOT(sendRecordingStatus()));
     }
@@ -224,8 +240,6 @@ void QmlProfilerClientManager::connectToClient()
     if (!d->connection || d->connection->state() != QAbstractSocket::UnconnectedState)
         return;
 
-    QmlProfilerTool::logStatus(QString::fromLatin1("QML Profiler: Connecting to %1:%2 ...")
-                               .arg(d->tcpHost, QString::number(d->tcpPort)));
     d->connection->connectToHost(d->tcpHost, d->tcpPort);
 }
 
@@ -237,7 +251,7 @@ bool QmlProfilerClientManager::isConnected() const
 void QmlProfilerClientManager::disconnectClient()
 {
     // this might be actually be called indirectly by QDDConnectionPrivate::readyRead(), therefore allow
-    // method to complete before deleting object
+    // function to complete before deleting object
     if (d->connection) {
         d->connection->deleteLater();
         d->connection = 0;
@@ -293,14 +307,17 @@ void QmlProfilerClientManager::connectionStateChanged()
     case QAbstractSocket::ConnectingState: {
         if (QmlProfilerPlugin::debugOutput)
             qWarning("QML Profiler: Connecting to debug server ...");
+        QmlProfilerTool::logStatus(tr("QML Profiler: Connecting to %1:%2 ...")
+            .arg(d->tcpHost, QString::number(d->tcpPort)));
         break;
     }
     case QAbstractSocket::ConnectedState:
     {
         if (QmlProfilerPlugin::debugOutput)
             qWarning("QML Profiler: connected and running");
-            // notify the client recording status
-            clientRecordingChanged();
+        // notify the client recording status
+        clientRecordingChanged();
+        QmlProfilerTool::logStatus(tr("QML Profiler: connected and running"));
         break;
     }
     case QAbstractSocket::ClosingState:
@@ -337,8 +354,10 @@ void QmlProfilerClientManager::retryMessageBoxFinished(int result)
     }
 }
 
-void QmlProfilerClientManager::qmlComplete()
+void QmlProfilerClientManager::qmlComplete(qint64 maximumTime)
 {
+    if (maximumTime > d->modelManager->traceTime()->endTime())
+        d->modelManager->traceTime()->setEndTime(maximumTime);
     d->qmlDataReady = true;
     if (!d->v8clientplugin || d->v8clientplugin.data()->status() != QmlDebug::Enabled || d->v8DataReady) {
         emit dataReadyForProcessing();

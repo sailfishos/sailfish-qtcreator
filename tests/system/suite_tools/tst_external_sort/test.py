@@ -1,6 +1,6 @@
 #############################################################################
 ##
-## Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+## Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ## Contact: http://www.qt-project.org/legal
 ##
 ## This file is part of Qt Creator.
@@ -35,12 +35,16 @@ def main():
         return
     invokeMenuItem("File", "Open File or Project...")
     unsortedFile = os.path.join(os.getcwd(), "testdata", "unsorted.txt")
-    sorted = getOutputFromCmdline("sort %s" % unsortedFile).replace("\r", "")
+    locale = ""
+    if not platform.system() in ('Windows', 'Microsoft'):
+        locale = "LC_ALL=C "
+    sorted = getOutputFromCmdline("%ssort %s" % (locale, unsortedFile)).replace("\r", "")
     selectFromFileDialog(unsortedFile)
-    invokeMenuItem("Edit", "Select All")
-    invokeMenuItem("Tools", "External", "Text", "Sort Selection")
     editor = waitForObject("{type='TextEditor::PlainTextEditorWidget' unnamed='1' "
                            "visible='1' window=':Qt Creator_Core::Internal::MainWindow'}", 3000)
+    placeCursorToLine(editor, "bbb")
+    invokeMenuItem("Edit", "Select All")
+    invokeMenuItem("Tools", "External", "Text", "Sort Selection")
     test.verify(waitFor("str(editor.plainText) == sorted", 2000),
                 "Verify that sorted text\n%s\nmatches the expected text\n%s" % (editor.plainText, sorted))
     invokeMenuItem('File', 'Revert "unsorted.txt" to Saved')

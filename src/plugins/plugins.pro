@@ -4,7 +4,6 @@ TEMPLATE  = subdirs
 
 SUBDIRS   = \
     coreplugin \
-    welcome \
     find \
     texteditor \
     cppeditor \
@@ -20,7 +19,7 @@ SUBDIRS   = \
     cvs \
     cpptools \
     qtsupport \
-    qt4projectmanager \
+    qmakeprojectmanager \
     locator \
     debugger \
     help \
@@ -32,6 +31,7 @@ SUBDIRS   = \
     resourceeditor \
     genericprojectmanager \
     qmljseditor \
+    qmlprojectmanager \
     glsleditor \
     pythoneditor \
     mercurial \
@@ -43,13 +43,27 @@ SUBDIRS   = \
     macros \
     remotelinux \
     android \
-    madde \
     valgrind \
     todo \
     qnx \
-    mer
+    mer \
+    clearcase \
+    baremetal \
+    ios \
+    beautifier
 
-exists(../shared/qbs/qbs.pro): \
+minQtVersion(5, 0, 0) {
+    SUBDIRS += winrt
+}
+
+# prefer qmake variable set on command line over env var
+isEmpty(LLVM_INSTALL_DIR):LLVM_INSTALL_DIR=$$(LLVM_INSTALL_DIR)
+!isEmpty(LLVM_INSTALL_DIR) {
+    SUBDIRS += clangcodemodel
+}
+
+isEmpty(QBS_INSTALL_DIR): QBS_INSTALL_DIR = $$(QBS_INSTALL_DIR)
+exists(../shared/qbs/qbs.pro)|!isEmpty(QBS_INSTALL_DIR): \
     SUBDIRS += \
         qbsprojectmanager
 
@@ -62,31 +76,16 @@ isEmpty(IDE_PACKAGE_MODE) {
         updateinfo
 }
 
-!macx: \
+minQtVersion(5, 2, 0) {
     SUBDIRS += \
-        clearcase
-
-contains(QT_CONFIG, declarative)|!isEmpty(QT.declarative.name) {
-    SUBDIRS += \
-        qmlprojectmanager \
-        qmlprofiler
-
-    greaterThan(QT_MAJOR_VERSION, 4) {
-        SUBDIRS += \
-            qmldesigner
-    } else {
-        include(../private_headers.pri)
-        exists($${QT_PRIVATE_HEADERS}/QtDeclarative/private/qdeclarativecontext_p.h) {
-            SUBDIRS += \
-                qmldesigner
-        } else {
-            warning("QmlDesigner plugin has been disabled.")
-            warning("The plugin depends on private headers from QtDeclarative module.")
-            warning("To enable it, pass 'QT_PRIVATE_HEADERS=$QTDIR/include' to qmake, where $QTDIR is the source directory of qt.")
-        }
-    }
+        qmldesigner \
+        qmlprofiler \
+        welcome
 } else {
-    warning("QmlProjectManager, QmlProfiler and QmlDesigner plugins have been disabled: The plugins require QtDeclarative")
+     warning("QmlDesigner plugin has been disabled.")
+     warning("QmlProfiler plugin has been disabled.")
+     warning("Welcome plugin has been disabled.")
+     warning("These plugins need at least Qt 5.2.")
 }
 
 for(p, SUBDIRS) {
@@ -96,9 +95,6 @@ for(p, SUBDIRS) {
     $$pv = $$QTC_PLUGIN_DEPENDS
 }
 
-SUBDIRS += debugger/dumper.pro
 linux-* {
      SUBDIRS += debugger/ptracepreload.pro
 }
-
-include (debugger/lldblib/guest/qtcreator-lldb.pri)

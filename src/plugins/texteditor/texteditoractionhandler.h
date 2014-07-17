@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -43,6 +43,7 @@ QT_FORWARD_DECLARE_CLASS(QAction)
 namespace Core {
 class ICore;
 class IEditor;
+class ActionContainer;
 }
 
 namespace TextEditor {
@@ -64,32 +65,29 @@ public:
         JumpToFileUnderCursor = 16
     };
 
-    explicit TextEditorActionHandler(const char *context, uint optionalActions = None);
+    explicit TextEditorActionHandler(QObject *parent, Core::Id contextId, uint optionalActions = None);
     ~TextEditorActionHandler();
 
-    void setupActions(BaseTextEditorWidget *editor);
+protected:
+    virtual BaseTextEditorWidget *resolveTextEditorWidget(Core::IEditor *editor) const;
 
-    void initializeActions();
+private:
+    QAction *registerAction(const Core::Id &id,
+                            const char *slot,
+                            bool scriptable = false,
+                            const QString &title = QString(),
+                            const QKeySequence &keySequence = QKeySequence(),
+                            const char *menueGroup = 0,
+                            Core::ActionContainer *container = 0);
 
-public slots:
+    void createActions();
+
+private slots:
     void updateActions();
     void updateRedoAction();
     void updateUndoAction();
     void updateCopyAction();
 
-protected:
-    const QPointer<BaseTextEditorWidget> &currentEditor() const;
-    QAction *registerNewAction(const Core::Id &id, bool scriptable = false, const QString &title = QString());
-    QAction *registerNewAction(const Core::Id &id, QObject *receiver, const char *slot, bool scriptable = false,
-                               const QString &title = QString());
-
-    enum UpdateMode { ReadOnlyMode, WriteMode };
-    UpdateMode updateMode() const;
-
-    void createActions();
-    void updateActions(UpdateMode um);
-
-private slots:
     void undoAction();
     void redoAction();
     void copyAction();
@@ -218,9 +216,8 @@ private:
     QList<QAction *> m_modifyingActions;
 
     uint m_optionalActions;
-    QPointer<BaseTextEditorWidget> m_currentEditor;
-    Core::Context m_contextId;
-    bool m_initialized;
+    QPointer<BaseTextEditorWidget> m_currentEditorWidget;
+    Core::Id m_contextId;
 };
 
 } // namespace TextEditor

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -43,17 +43,11 @@ class QMessageBox;
 class QWidget;
 QT_END_NAMESPACE
 
-namespace CPlusPlus {
-class Snapshot;
-}
+namespace CPlusPlus { class Snapshot; }
 
-namespace Utils {
-class SavedAction;
-}
+namespace Utils { class SavedAction; }
 
-namespace ProjectExplorer {
-class RunControl;
-}
+namespace ProjectExplorer { class RunControl; }
 
 namespace Debugger {
 
@@ -81,10 +75,11 @@ class DebuggerCore : public QObject
 public:
     DebuggerCore() {}
 
-    virtual QVariant sessionValue(const QString &name) = 0;
-    virtual void setSessionValue(const QString &name, const QVariant &value) = 0;
-    virtual QVariant configValue(const QString &name) const = 0;
-    virtual void setConfigValue(const QString &name, const QVariant &value) = 0;
+    static QVariant sessionValue(const QByteArray &name);
+    static void setSessionValue(const QByteArray &name, const QVariant &value);
+    static QVariant configValue(const QByteArray &name);
+    static void setConfigValue(const QByteArray &name, const QVariant &value);
+
     virtual void updateState(DebuggerEngine *engine) = 0;
     virtual void updateWatchersWindow(bool showWatch, bool showReturn) = 0;
     virtual QIcon locationMarkIcon() const = 0;
@@ -117,7 +112,6 @@ public:
         const QVector<Section> &sections) = 0;
     virtual void openMemoryEditor() = 0;
     virtual void languagesChanged() = 0;
-    virtual void executeDebuggerCommand(const QString &command, DebuggerLanguages languages) = 0;
 
     virtual Utils::SavedAction *action(int code) const = 0;
     virtual bool boolSetting(int code) const = 0;

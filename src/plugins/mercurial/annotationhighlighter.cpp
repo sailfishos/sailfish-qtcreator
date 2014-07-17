@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Brian McGillion
+** Copyright (c) 2014 Brian McGillion
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -34,9 +34,8 @@ using namespace Mercurial::Internal;
 using namespace Mercurial;
 
 MercurialAnnotationHighlighter::MercurialAnnotationHighlighter(const ChangeNumbers &changeNumbers,
-                                                               const QColor &bg,
                                                                QTextDocument *document)
-    : VcsBase::BaseAnnotationHighlighter(changeNumbers, bg, document),
+    : VcsBase::BaseAnnotationHighlighter(changeNumbers, document),
     changeset(QLatin1String(Constants::CHANGESETID12))
 {
 }

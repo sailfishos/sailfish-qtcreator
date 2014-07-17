@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -27,7 +27,7 @@
 **
 ****************************************************************************/
 
-import QtQuick 1.0
+import QtQuick 2.1
 import Monitor 1.0
 
 Item {
@@ -38,41 +38,33 @@ Item {
     property string duration
     property bool showDuration
 
-    width: 170
+    width: Math.max(150, col.width + 25)
     height: col.height + 30
     z: 1
     visible: false
     x: 200
     y: 125
 
-    property int yoffset: root.scrollY
-    onYoffsetChanged: {
-        y = relativey + yoffset
-        fitInView();
-    }
-    property int relativey : y - yoffset
-    onYChanged: relativey = y - yoffset
-
     // keep inside view
     Connections {
         target: root
         onWidthChanged: fitInView();
-        onCandidateHeightChanged: fitInView();
+        onHeightChanged: fitInView();
     }
 
     function fitInView() {
         // don't reposition if it does not fit
-        if (root.width < width || root.candidateHeight < height)
+        if (root.width < width || root.height < height)
             return;
 
         if (x + width > root.width)
             x = root.width - width;
         if (x < 0)
             x = 0;
-        if (y + height - yoffset > root.candidateHeight)
-            y = root.candidateHeight - height + yoffset;
-        if (y < yoffset)
-            y = yoffset;
+        if (y + height > root.height)
+            y = root.height - height;
+        if (y < 0)
+            y = 0;
     }
 
     // shadow
@@ -134,35 +126,36 @@ Item {
         y: 20
         border.width: 1
         border.color: "#a0a0a0"
-        Column {
+        Grid {
             id: col
             x: 10
             y: 5
-            Detail {
-                label: qsTr("Start")
-                content:  selectionRangeDetails.startTime
-            }
-            Detail {
-                label: qsTr("End")
-                visible: selectionRangeDetails.showDuration
-                content:  selectionRangeDetails.endTime
-            }
-            Detail {
-                label: qsTr("Duration")
-                visible: selectionRangeDetails.showDuration
-                content: selectionRangeDetails.duration
+            spacing: 5
+            columns: 2
+
+            Repeater {
+                model: [
+                    qsTr("Start"),
+                    startTime,
+                    showDuration ? qsTr("End") : "",
+                    showDuration ? endTime : "",
+                    showDuration ? qsTr("Duration") : "",
+                    showDuration ? duration : ""
+                ]
+                Detail {
+                    text: modelData
+                }
             }
         }
     }
 
     MouseArea {
-        width: col.width + 45
-        height: col.height + 30
+        anchors.fill: parent
         drag.target: parent
         drag.minimumX: 0
         drag.maximumX: root.width - parent.width
-        drag.minimumY: yoffset
-        drag.maximumY: root.candidateHeight - parent.height + yoffset
+        drag.minimumY: 0
+        drag.maximumY: root.height - parent.height + 0
         onClicked: {
             if ((selectionRange.x < flick.contentX) ^ (selectionRange.x+selectionRange.width > flick.contentX + flick.width)) {
                 root.recenter(selectionRange.startTime + selectionRange.duration/2);

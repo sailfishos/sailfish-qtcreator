@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -47,10 +47,10 @@ namespace Internal {
 
 
 AbstractMsvcToolChain::AbstractMsvcToolChain(const QString &id,
-                                             bool autodetect,
+                                             Detection d,
                                              const Abi &abi,
                                              const QString& vcvarsBat) :
-    ToolChain(id, autodetect),
+    ToolChain(id, d),
     m_lastEnvironment(Utils::Environment::systemEnvironment()),
     m_abi(abi),
     m_vcvarsBat(vcvarsBat)
@@ -61,8 +61,8 @@ AbstractMsvcToolChain::AbstractMsvcToolChain(const QString &id,
     Q_ASSERT(!m_vcvarsBat.isEmpty());
 }
 
-AbstractMsvcToolChain::AbstractMsvcToolChain(const QString &id, bool autodetect) :
-    ToolChain(id, autodetect),
+AbstractMsvcToolChain::AbstractMsvcToolChain(const QString &id, Detection d) :
+    ToolChain(id, d),
     m_lastEnvironment(Utils::Environment::systemEnvironment())
 {
 
@@ -99,7 +99,8 @@ ToolChain::CompilerFlags AbstractMsvcToolChain::compilerFlags(const QStringList 
         flags &= ~MicrosoftExtensions;
 
     if (m_abi.osFlavor() == Abi::WindowsMsvc2010Flavor
-            || m_abi.osFlavor() == Abi::WindowsMsvc2012Flavor)
+            || m_abi.osFlavor() == Abi::WindowsMsvc2012Flavor
+            || m_abi.osFlavor() == Abi::WindowsMsvc2013Flavor)
         flags |= StandardCxx11;
 
     return flags;
@@ -181,7 +182,7 @@ void AbstractMsvcToolChain::addToEnvironment(Utils::Environment &env) const
 
 QString AbstractMsvcToolChain::makeCommand(const Utils::Environment &environment) const
 {
-    bool useJom = ProjectExplorerPlugin::instance()->projectExplorerSettings().useJom;
+    bool useJom = ProjectExplorerPlugin::projectExplorerSettings().useJom;
     const QString jom = QLatin1String("jom.exe");
     const QString nmake = QLatin1String("nmake.exe");
     QString tmp;
@@ -223,14 +224,15 @@ QByteArray AbstractMsvcToolChain::msvcPredefinedMacros(const QStringList cxxflag
     Q_UNUSED(cxxflags);
     Q_UNUSED(env);
 
-    QByteArray predefinedMacros = "#define __MSVCRT__\n"
+    static const QByteArray predefinedMacros(
+            "#define __MSVCRT__\n"
             "#define __w64\n"
             "#define __int64 long long\n"
             "#define __int32 long\n"
             "#define __int16 short\n"
             "#define __int8 char\n"
             "#define __ptr32\n"
-            "#define __ptr64\n";
+            "#define __ptr64\n");
 
     return predefinedMacros;
 }
@@ -241,17 +243,11 @@ bool AbstractMsvcToolChain::generateEnvironmentSettings(Utils::Environment &env,
                                                         const QString &batchArgs,
                                                         QMap<QString, QString> &envPairs)
 {
+    const QByteArray marker = "####################\r\n";
     // Create a temporary file name for the output. Use a temporary file here
     // as I don't know another way to do this in Qt...
     // Note, can't just use a QTemporaryFile all the way through as it remains open
     // internally so it can't be streamed to later.
-    QString tempOutFile;
-    QTemporaryFile* pVarsTempFile = new QTemporaryFile(QDir::tempPath() + QLatin1String("/XXXXXX.txt"));
-    pVarsTempFile->setAutoRemove(false);
-    pVarsTempFile->open();
-    pVarsTempFile->close();
-    tempOutFile = pVarsTempFile->fileName();
-    delete pVarsTempFile;
 
     // Create a batch file to create and save the env settings
     Utils::TempFileSaver saver(QDir::tempPath() + QLatin1String("/XXXXXX.bat"));
@@ -263,10 +259,9 @@ bool AbstractMsvcToolChain::generateEnvironmentSettings(Utils::Environment &env,
         call += batchArgs.toLocal8Bit();
     }
     saver.write(call + "\r\n");
-
-    const QByteArray redirect = "set > " + Utils::QtcProcess::quoteArg(
-                                    QDir::toNativeSeparators(tempOutFile)).toLocal8Bit() + "\r\n";
-    saver.write(redirect);
+    saver.write("@echo " + marker);
+    saver.write("set\r\n");
+    saver.write("@echo " + marker);
     if (!saver.finalize()) {
         qWarning("%s: %s", Q_FUNC_INFO, qPrintable(saver.errorString()));
         return false;
@@ -302,19 +297,31 @@ bool AbstractMsvcToolChain::generateEnvironmentSettings(Utils::Environment &env,
         return false;
     }
     // The SDK/MSVC scripts do not return exit codes != 0. Check on stdout.
-    const QByteArray stdOut = run.readAllStandardOutput();
+    QByteArray stdOut = run.readAllStandardOutput();
     if (!stdOut.isEmpty() && (stdOut.contains("Unknown") || stdOut.contains("Error")))
         qWarning("%s: '%s' reports:\n%s", Q_FUNC_INFO, call.constData(), stdOut.constData());
 
     //
     // Now parse the file to get the environment settings
-    QFile varsFile(tempOutFile);
-    if (!varsFile.open(QIODevice::ReadOnly))
+    int start = stdOut.indexOf(marker);
+    if (start == -1) {
+        qWarning("Could not find start marker in stdout output.");
         return false;
+    }
 
+    stdOut = stdOut.mid(start + marker.size());
+
+    int end = stdOut.indexOf(marker);
+    if (end == -1) {
+        qWarning("Could not find end marker in stdout output.");
+        return false;
+    }
+
+    stdOut = stdOut.left(end);
+
+    QStringList lines = QString::fromLocal8Bit(stdOut).split(QLatin1String("\r\n"));
     QRegExp regexp(QLatin1String("(\\w*)=(.*)"));
-    while (!varsFile.atEnd()) {
-        const QString line = QString::fromLocal8Bit(varsFile.readLine()).trimmed();
+    foreach (const QString &line, lines) {
         if (regexp.exactMatch(line)) {
             const QString varName = regexp.cap(1);
             const QString varValue = regexp.cap(2);
@@ -323,10 +330,6 @@ bool AbstractMsvcToolChain::generateEnvironmentSettings(Utils::Environment &env,
                 envPairs.insert(varName, varValue);
         }
     }
-
-    // Tidy up and remove the file
-    varsFile.close();
-    varsFile.remove();
 
     return true;
 }
@@ -340,19 +343,16 @@ void AbstractMsvcToolChain::inferWarningsForLevel(int warningLevel, WarningFlags
     // reset all except unrelated flag
     flags = flags & WarningsAsErrors;
 
-    if (warningLevel >= 1) {
+    if (warningLevel >= 1)
         flags |= WarningFlags(WarningsDefault | WarnIgnoredQualfiers | WarnHiddenLocals  | WarnUnknownPragma);
-    }
-    if (warningLevel >= 2) {
+    if (warningLevel >= 2)
         flags |= WarningsAll;
-    }
     if (warningLevel >= 3) {
         flags |= WarningFlags(WarningsExtra | WarnNonVirtualDestructor | WarnSignedComparison
                 | WarnUnusedLocals | WarnDeprecated);
     }
-    if (warningLevel >= 4) {
+    if (warningLevel >= 4)
         flags |= WarnUnusedParams;
-    }
 }
 
 bool AbstractMsvcToolChain::operator ==(const ToolChain &other) const

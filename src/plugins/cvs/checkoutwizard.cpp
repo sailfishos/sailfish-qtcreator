@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -32,35 +32,20 @@
 #include "cvsplugin.h"
 
 #include <coreplugin/iversioncontrol.h>
-#include <vcsbase/checkoutjobs.h>
+#include <vcsbase/command.h>
 #include <vcsbase/vcsbaseconstants.h>
 #include <vcsbase/vcsconfigurationpage.h>
 #include <utils/qtcassert.h>
 
-#include <QIcon>
-
 namespace Cvs {
 namespace Internal {
 
-CheckoutWizard::CheckoutWizard(QObject *parent) :
-        VcsBase::BaseCheckoutWizard(parent)
+CheckoutWizard::CheckoutWizard()
 {
     setId(QLatin1String(VcsBase::Constants::VCS_ID_CVS));
-}
-
-QIcon CheckoutWizard::icon() const
-{
-    return QIcon(QLatin1String(":/cvs/images/cvs.png"));
-}
-
-QString CheckoutWizard::description() const
-{
-    return tr("Checks out a CVS repository and tries to load the contained project.");
-}
-
-QString CheckoutWizard::displayName() const
-{
-    return tr("CVS Checkout");
+    setIcon(QIcon(QLatin1String(":/cvs/images/cvs.png")));
+    setDescription(tr("Checks out a CVS repository and tries to load the contained project."));
+    setDisplayName(tr("CVS Checkout"));
 }
 
 QList<QWizardPage*> CheckoutWizard::createParameterPages(const QString &path)
@@ -75,24 +60,25 @@ QList<QWizardPage*> CheckoutWizard::createParameterPages(const QString &path)
     return rc;
 }
 
-QSharedPointer<VcsBase::AbstractCheckoutJob> CheckoutWizard::createJob(const QList<QWizardPage*> &parameterPages,
-                                                                    QString *checkoutPath)
+VcsBase::Command *CheckoutWizard::createCommand(const QList<QWizardPage*> &parameterPages,
+                                                QString *checkoutPath)
 {
     // Collect parameters for the checkout command.
     // CVS does not allow for checking out into a different directory.
     const CheckoutWizardPage *cwp = qobject_cast<const CheckoutWizardPage *>(parameterPages.front());
-    QTC_ASSERT(cwp, return QSharedPointer<VcsBase::AbstractCheckoutJob>());
+    QTC_ASSERT(cwp, return 0);
     const CvsSettings settings = CvsPlugin::instance()->settings();
-    const QString binary = settings.cvsBinaryPath;
+    const QString binary = settings.binaryPath();
     QStringList args;
     const QString repository = cwp->repository();
     args << QLatin1String("checkout") << repository;
     const QString workingDirectory = cwp->path();
     *checkoutPath = workingDirectory + QLatin1Char('/') + repository;
 
-    VcsBase::ProcessCheckoutJob *job = new VcsBase::ProcessCheckoutJob;
-    job->addStep(binary, settings.addOptions(args), workingDirectory);
-    return QSharedPointer<VcsBase::AbstractCheckoutJob>(job);
+    VcsBase::Command *command = new VcsBase::Command(binary, workingDirectory,
+                                                     QProcessEnvironment::systemEnvironment());
+    command->addJob(settings.addOptions(args), -1);
+    return command;
 }
 
 } // namespace Internal

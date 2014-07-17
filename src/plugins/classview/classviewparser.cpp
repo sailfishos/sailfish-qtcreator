@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Denis Mingulov
+** Copyright (c) 2014 Denis Mingulov
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -45,7 +45,6 @@
 #include <projectexplorer/session.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/projectnodes.h>
-#include <coreplugin/idocument.h>
 #include <utils/qtcassert.h>
 
 #include <QStandardItem>
@@ -59,16 +58,39 @@
 
 enum { debug = false };
 
+using namespace ProjectExplorer;
+
 namespace ClassView {
 namespace Internal {
 
 // ----------------------------- ParserPrivate ---------------------------------
 
 /*!
-   \struct ParserPrivate
-   \brief Private class data for \a Parser
+   \class ParserPrivate
+   \brief The ParserPrivate class defines private class data for the Parser
+   class.
    \sa Parser
  */
+
+/*!
+   \class Parser
+   \brief The Parser class parses C++ information. Multithreading is supported.
+*/
+
+/*!
+    \fn void Parser::treeDataUpdate(QSharedPointer<QStandardItem> result)
+
+    Emits a signal about a tree data update.
+*/
+
+/*!
+    \fn void Parser::resetDataDone()
+
+    Emits a signal that internal data is reset.
+
+    \sa resetData, resetDataToCurrentState
+*/
+
 class ParserPrivate
 {
 public:
@@ -132,6 +154,10 @@ CPlusPlus::Document::Ptr ParserPrivate::document(const QString &fileName) const
 
 // ----------------------------- Parser ---------------------------------
 
+/*!
+    Constructs the parser object.
+*/
+
 Parser::Parser(QObject *parent)
     : QObject(parent),
     d(new ParserPrivate())
@@ -147,10 +173,18 @@ Parser::Parser(QObject *parent)
     connect(d->timer, SIGNAL(timeout()), SLOT(requestCurrentState()), Qt::QueuedConnection);
 }
 
+/*!
+    Destructs the parser object.
+*/
+
 Parser::~Parser()
 {
     delete d;
 }
+
+/*!
+    Checks \a item for lazy data population of a QStandardItemModel.
+*/
 
 bool Parser::canFetchMore(QStandardItem *item) const
 {
@@ -160,6 +194,11 @@ bool Parser::canFetchMore(QStandardItem *item) const
     return ptr->canFetchMore(item);
 }
 
+/*!
+    Checks \a item for lazy data population of a QStandardItemModel.
+    \a skipRoot skips the root item.
+*/
+
 void Parser::fetchMore(QStandardItem *item, bool skipRoot) const
 {
     ParserTreeItem::ConstPtr ptr = findItemByRoot(item, skipRoot);
@@ -167,6 +206,10 @@ void Parser::fetchMore(QStandardItem *item, bool skipRoot) const
         return;
     ptr->fetchMore(item);
 }
+
+/*!
+    Switches to flat mode (without subprojects) if \a flat returns \c true.
+*/
 
 void Parser::setFlatMode(bool flatMode)
 {
@@ -179,6 +222,11 @@ void Parser::setFlatMode(bool flatMode)
     // regenerate and resend current tree
     emitCurrentTree();
 }
+
+/*!
+    Returns the internal tree item for \a item. \a skipRoot skips the root
+    item.
+*/
 
 ParserTreeItem::ConstPtr Parser::findItemByRoot(const QStandardItem *item, bool skipRoot) const
 {
@@ -213,6 +261,12 @@ ParserTreeItem::ConstPtr Parser::findItemByRoot(const QStandardItem *item, bool 
     return internal;
 }
 
+/*!
+    Parses the class and produces a new tree.
+
+    \sa addProject
+*/
+
 ParserTreeItem::ConstPtr Parser::parse()
 {
     QTime time;
@@ -222,8 +276,7 @@ ParserTreeItem::ConstPtr Parser::parse()
     ParserTreeItem::Ptr rootItem(new ParserTreeItem());
 
     // check all projects
-    QList<ProjectExplorer::Project *> projects = getProjectList();
-    foreach (const ProjectExplorer::Project *prj, projects) {
+    foreach (const Project *prj, SessionManager::projects()) {
         if (!prj)
             continue;
 
@@ -234,14 +287,14 @@ ParserTreeItem::ConstPtr Parser::parse()
         QString prjName(prj->displayName());
         QString prjType(prjName);
         if (prj->document())
-            prjType = prj->document()->fileName();
+            prjType = prj->projectFilePath();
         SymbolInformation inf(prjName, prjType);
 
         QStringList projectList = addProjectNode(item, prj->rootProjectNode());
 
         if (d->flatMode) {
             // use prj path (prjType) as a project id
-//            addProject(item, prj->files(ProjectExplorer::Project::ExcludeGeneratedFiles), prjType);
+//            addProject(item, prj->files(Project::ExcludeGeneratedFiles), prjType);
             //! \todo return back, works too long
             ParserTreeItem::Ptr flatItem = createFlatTree(projectList);
             item.swap(flatItem);
@@ -257,6 +310,11 @@ ParserTreeItem::ConstPtr Parser::parse()
     return rootItem;
 }
 
+/*!
+    Parses the project with the \a projectId and adds the documents
+    from the \a fileList to the tree item \a item.
+*/
+
 void Parser::addProject(const ParserTreeItem::Ptr &item, const QStringList &fileList,
                                  const QString &projectId)
 {
@@ -268,6 +326,10 @@ void Parser::addProject(const ParserTreeItem::Ptr &item, const QStringList &file
     // if there is an item - copy project tree to that item
     item->copy(prj);
 }
+
+/*!
+    Parses \a symbol and adds the results to \a item (as a parent).
+*/
 
 void Parser::addSymbol(const ParserTreeItem::Ptr &item, const CPlusPlus::Symbol *symbol)
 {
@@ -350,6 +412,10 @@ void Parser::addSymbol(const ParserTreeItem::Ptr &item, const CPlusPlus::Symbol 
         item->appendChild(itemAdd, information);
 }
 
+/*!
+    Creates a flat tree from the list of projects specified by \a projectList.
+*/
+
 ParserTreeItem::Ptr Parser::createFlatTree(const QStringList &projectList)
 {
     QReadLocker locker(&d->prjLocker);
@@ -363,6 +429,12 @@ ParserTreeItem::Ptr Parser::createFlatTree(const QStringList &projectList)
     }
     return item;
 }
+
+/*!
+    Parses the project with the \a projectId and adds the documents from the
+    \a fileList to the project. Updates the internal cached tree for this
+    project.
+*/
 
 ParserTreeItem::Ptr Parser::getParseProjectTree(const QStringList &fileList,
                                                 const QString &projectId)
@@ -397,6 +469,12 @@ ParserTreeItem::Ptr Parser::getParseProjectTree(const QStringList &fileList,
     return item;
 }
 
+/*!
+    Gets the project with \a projectId from the cache if it is valid or parses
+    the project and adds the documents from the \a fileList to the project.
+    Updates the internal cached tree for this project.
+*/
+
 ParserTreeItem::Ptr Parser::getCachedOrParseProjectTree(const QStringList &fileList,
                                                 const QString &projectId)
 {
@@ -424,6 +502,13 @@ ParserTreeItem::Ptr Parser::getCachedOrParseProjectTree(const QStringList &fileL
     return getParseProjectTree(fileList, projectId);
 }
 
+/*!
+    Parses the document \a doc if it is in the project files and adds a tree to
+    the internal storage. Updates the internal cached tree for this document.
+
+    \sa parseDocument
+*/
+
 ParserTreeItem::ConstPtr Parser::getParseDocumentTree(const CPlusPlus::Document::Ptr &doc)
 {
     if (doc.isNull())
@@ -448,6 +533,13 @@ ParserTreeItem::ConstPtr Parser::getParseDocumentTree(const CPlusPlus::Document:
     return itemPtr;
 }
 
+/*!
+    Gets the document \a doc from the cache or parses it if it is in the project
+    files and adds a tree to the internal storage.
+
+    \sa parseDocument
+*/
+
 ParserTreeItem::ConstPtr Parser::getCachedOrParseDocumentTree(const CPlusPlus::Document::Ptr &doc)
 {
     if (doc.isNull())
@@ -464,6 +556,11 @@ ParserTreeItem::ConstPtr Parser::getCachedOrParseDocumentTree(const CPlusPlus::D
     d->docLocker.unlock();
     return getParseDocumentTree(doc);
 }
+
+/*!
+    Parses the document \a doc if it is in the project files and adds a tree to
+    the internal storage.
+*/
 
 void Parser::parseDocument(const CPlusPlus::Document::Ptr &doc)
 {
@@ -485,6 +582,10 @@ void Parser::parseDocument(const CPlusPlus::Document::Ptr &doc)
     return;
 }
 
+/*!
+    Requests to clear full internal stored data.
+*/
+
 void Parser::clearCacheAll()
 {
     d->docLocker.lockForWrite();
@@ -497,6 +598,11 @@ void Parser::clearCacheAll()
 
     clearCache();
 }
+
+/*!
+    Requests to clear internal stored data. The data has to be regenerated on
+    the next request.
+*/
 
 void Parser::clearCache()
 {
@@ -511,11 +617,20 @@ void Parser::clearCache()
     d->cachedPrjTreesRevision.clear();
 }
 
+/*!
+    Specifies the files that must be allowed for the parsing as a \a fileList.
+    Files outside of this list will not be in any tree.
+*/
+
 void Parser::setFileList(const QStringList &fileList)
 {
     d->fileList.clear();
     d->fileList = QSet<QString>::fromList(fileList);
 }
+
+/*!
+    Removes the files defined in the \a fileList from the parsing.
+*/
 
 void Parser::removeFiles(const QStringList &fileList)
 {
@@ -536,6 +651,10 @@ void Parser::removeFiles(const QStringList &fileList)
     emit filesAreRemoved();
 }
 
+/*!
+    Fully resets the internal state of the code parser to \a snapshot.
+*/
+
 void Parser::resetData(const CPlusPlus::Snapshot &snapshot)
 {
     // clear internal cache
@@ -555,15 +674,20 @@ void Parser::resetData(const CPlusPlus::Snapshot &snapshot)
     QStringList fileList;
 
     // check all projects
-    QList<ProjectExplorer::Project *> projects = getProjectList();
-    foreach (const ProjectExplorer::Project *prj, projects) {
+    foreach (const Project *prj, SessionManager::projects()) {
         if (prj)
-            fileList += prj->files(ProjectExplorer::Project::ExcludeGeneratedFiles);
+            fileList += prj->files(Project::ExcludeGeneratedFiles);
     }
     setFileList(fileList);
 
     emit resetDataDone();
 }
+
+/*!
+    Fully resets the internal state of the code parser to the current state.
+
+    \sa resetData
+*/
 
 void Parser::resetDataToCurrentState()
 {
@@ -573,16 +697,30 @@ void Parser::resetDataToCurrentState()
         resetData(codeModel->snapshot());
 }
 
+/*!
+    Regenerates the tree when internal data changes.
+
+    \sa resetDataDone
+*/
+
 void Parser::onResetDataDone()
 {
     // internal data is reset, update a tree and send it back
     emitCurrentTree();
 }
 
+/*!
+    Requests to emit a signal with the current tree state.
+*/
+
 void Parser::requestCurrentState()
 {
     emitCurrentTree();
 }
+
+/*!
+    Sends the current tree to listeners.
+*/
 
 void Parser::emitCurrentTree()
 {
@@ -600,6 +738,10 @@ void Parser::emitCurrentTree()
 
     emit treeDataUpdate(std);
 }
+
+/*!
+    Generates a project node file list for the root node \a node.
+*/
 
 QStringList Parser::projectNodeFileList(const ProjectExplorer::FolderNode *node) const
 {
@@ -626,6 +768,13 @@ QStringList Parser::projectNodeFileList(const ProjectExplorer::FolderNode *node)
 
     return list;
 }
+
+/*!
+    Generates projects like the Project Explorer.
+    \a item specifies the item and \a node specifies the root node.
+
+    Returns a list of projects which were added to the item.
+*/
 
 QStringList Parser::addProjectNode(const ParserTreeItem::Ptr &item,
                                      const ProjectExplorer::ProjectNode *node)
@@ -668,19 +817,6 @@ QStringList Parser::addProjectNode(const ParserTreeItem::Ptr &item,
     }
 
     return projectList;
-}
-
-QList<ProjectExplorer::Project *> Parser::getProjectList() const
-{
-    QList<ProjectExplorer::Project *> list;
-
-    // check all projects
-    ProjectExplorer::SessionManager *sessionManager
-            = ProjectExplorer::ProjectExplorerPlugin::instance()->session();
-
-    list = sessionManager->projects();
-
-    return list;
 }
 
 } // namespace Internal

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -37,14 +37,11 @@
 #include <extensionsystem/pluginspec.h>
 
 #include <coreplugin/icore.h>
-#include <coreplugin/editormanager/editormanager.h>
+#include <texteditor/texteditoractionhandler.h>
+#include <texteditor/texteditorsettings.h>
 
 #include <QCoreApplication>
-#include <QFileInfo>
-#include <QDebug>
 #include <QSettings>
-#include <QMessageBox>
-#include <QPushButton>
 
 using namespace GLSLEditor::Internal;
 using namespace GLSLEditor::Constants;
@@ -52,35 +49,25 @@ using namespace GLSLEditor::Constants;
 GLSLEditorFactory::GLSLEditorFactory(QObject *parent)
   : Core::IEditorFactory(parent)
 {
-    m_mimeTypes
-            << QLatin1String(GLSLEditor::Constants::GLSL_MIMETYPE)
-            << QLatin1String(GLSLEditor::Constants::GLSL_MIMETYPE_VERT)
-            << QLatin1String(GLSLEditor::Constants::GLSL_MIMETYPE_FRAG)
-            << QLatin1String(GLSLEditor::Constants::GLSL_MIMETYPE_VERT_ES)
-            << QLatin1String(GLSLEditor::Constants::GLSL_MIMETYPE_FRAG_ES)
-            ;
+    setId(C_GLSLEDITOR_ID);
+    setDisplayName(qApp->translate("OpenWith::Editors", C_GLSLEDITOR_DISPLAY_NAME));
+    addMimeType(GLSLEditor::Constants::GLSL_MIMETYPE);
+    addMimeType(GLSLEditor::Constants::GLSL_MIMETYPE_VERT);
+    addMimeType(GLSLEditor::Constants::GLSL_MIMETYPE_FRAG);
+    addMimeType(GLSLEditor::Constants::GLSL_MIMETYPE_VERT_ES);
+    addMimeType(GLSLEditor::Constants::GLSL_MIMETYPE_FRAG_ES);
+    new TextEditor::TextEditorActionHandler(this, Constants::C_GLSLEDITOR_ID,
+                                TextEditor::TextEditorActionHandler::Format
+                                | TextEditor::TextEditorActionHandler::UnCommentSelection
+                                | TextEditor::TextEditorActionHandler::UnCollapseAll);
+
 }
 
-Core::Id GLSLEditorFactory::id() const
+Core::IEditor *GLSLEditorFactory::createEditor()
 {
-    return Core::Id(C_GLSLEDITOR_ID);
-}
-
-QString GLSLEditorFactory::displayName() const
-{
-    return qApp->translate("OpenWith::Editors", C_GLSLEDITOR_DISPLAY_NAME);
-}
-
-Core::IEditor *GLSLEditorFactory::createEditor(QWidget *parent)
-{
-    GLSLEditor::GLSLTextEditorWidget *rc = new GLSLEditor::GLSLTextEditorWidget(parent);
-    GLSLEditorPlugin::instance()->initializeEditor(rc);
+    GLSLTextEditorWidget *rc = new GLSLTextEditorWidget();
+    TextEditor::TextEditorSettings::initializeEditor(rc);
     return rc->editor();
-}
-
-QStringList GLSLEditorFactory::mimeTypes() const
-{
-    return m_mimeTypes;
 }
 
 void GLSLEditorFactory::updateEditorInfoBar(Core::IEditor *)

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 ** Author: Andreas Hartmetz, KDAB (andreas.hartmetz@kdab.com)
 **
@@ -33,10 +33,10 @@
 
 #include <QListView>
 
-namespace Analyzer { class AnalyzerSettings; }
-
 namespace Valgrind {
 namespace Internal {
+
+class ValgrindBaseSettings;
 
 class MemcheckErrorView : public QListView
 {
@@ -52,10 +52,12 @@ public:
 
     void setDefaultSuppressionFile(const QString &suppFile);
     QString defaultSuppressionFile() const;
-    Analyzer::AnalyzerSettings *settings() const { return m_settings; }
+    ValgrindBaseSettings *settings() const { return m_settings; }
+
+    void updateGeometries();
 
 public slots:
-    void settingsChanged(Analyzer::AnalyzerSettings *settings);
+    void settingsChanged(ValgrindBaseSettings *settings);
     void goNext();
     void goBack();
 
@@ -75,7 +77,7 @@ private:
     QAction *m_copyAction;
     QAction *m_suppressAction;
     QString m_defaultSuppFile;
-    Analyzer::AnalyzerSettings *m_settings;
+    ValgrindBaseSettings *m_settings;
 };
 
 } // namespace Internal

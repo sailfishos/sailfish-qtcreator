@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -36,9 +36,7 @@ QT_FORWARD_DECLARE_CLASS(QDesignerFormWindowInterface)
 
 namespace SharedTools {
 
-namespace Internal {
-    class FormResizer;
-}
+namespace Internal { class FormResizer; }
 
 /* A scroll area that embeds a Designer form window */
 

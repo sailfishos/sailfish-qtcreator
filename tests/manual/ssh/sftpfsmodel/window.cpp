@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -62,7 +62,8 @@ void SftpFsWindow::connectToHost()
     SshConnectionParameters sshParams;
     sshParams.host = m_ui->hostLineEdit->text();
     sshParams.userName = m_ui->userLineEdit->text();
-    sshParams.authenticationType = SshConnectionParameters::AuthenticationByPassword;
+    sshParams.authenticationType
+            = SshConnectionParameters::AuthenticationTypeTryAllPasswordBasedMethods;
     sshParams.password = m_ui->passwordLineEdit->text();
     sshParams.port = m_ui->portSpinBox->value();
     sshParams.timeout = 10;

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -32,6 +32,7 @@
 
 #include "modelnodeoperations.h"
 #include "defaultdesigneraction.h"
+#include "qmlitemnode.h"
 
 #include <QAction>
 #include <QMenu>
@@ -94,11 +95,6 @@ bool singleSelectionItemIsAnchored(const SelectionContext &selectionState);
 bool singleSelectionItemIsNotAnchored(const SelectionContext &selectionState);
 
 } // namespace SelectionStateFunctors
-
-
-namespace ComponentUtils {
-    void goIntoComponent(const ModelNode &modelNode);
-}
 
 class ActionTemplate : public DefaultAction
 {

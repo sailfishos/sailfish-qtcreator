@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -29,7 +29,6 @@
 
 #include "checkoutwizarddialog.h"
 #include "basecheckoutwizard.h"
-#include "checkoutjobs.h"
 #include "checkoutprogresswizardpage.h"
 
 #include <coreplugin/basefilewizard.h>
@@ -52,14 +51,22 @@ CheckoutWizardDialog::CheckoutWizardDialog(const QList<QWizardPage *> &parameter
     m_progressPage(new CheckoutProgressWizardPage),
     m_progressPageId(-1)
 {
-    setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
     foreach (QWizardPage *wp, parameterPages)
         addPage(wp);
     m_progressPageId = parameterPages.size();
     setPage(m_progressPageId, m_progressPage);
     connect(this, SIGNAL(currentIdChanged(int)), this, SLOT(slotPageChanged(int)));
     connect(m_progressPage, SIGNAL(terminated(bool)), this, SLOT(slotTerminated(bool)));
-    Core::BaseFileWizard::setupWizard(this);
+}
+
+void CheckoutWizardDialog::setTitle(const QString &title)
+{
+    m_progressPage->setTitle(title);
+}
+
+void CheckoutWizardDialog::setStartedStatus(const QString &title)
+{
+    m_progressPage->setStartedStatus(title);
 }
 
 void CheckoutWizardDialog::slotPageChanged(int id)
@@ -75,11 +82,11 @@ void CheckoutWizardDialog::slotTerminated(bool success)
         button(QWizard::BackButton)->setEnabled(true);
 }
 
-void CheckoutWizardDialog::start(const QSharedPointer<AbstractCheckoutJob> &job)
+void CheckoutWizardDialog::start(Command *command)
 {
     // No "back" available while running.
     button(QWizard::BackButton)->setEnabled(false);
-    m_progressPage->start(job);
+    m_progressPage->start(command);
 }
 
 void CheckoutWizardDialog::reject()

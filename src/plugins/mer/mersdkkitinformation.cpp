@@ -93,7 +93,7 @@ ProjectExplorer::KitInformation::ItemList MerSdkKitInformation::toUserOutput(con
 
 ProjectExplorer::KitConfigWidget *MerSdkKitInformation::createConfigWidget(ProjectExplorer::Kit *kit) const
 {
-    return new MerSdkKitInformationWidget(kit);
+    return new MerSdkKitInformationWidget(kit, this);
 }
 
 void MerSdkKitInformation::setSdk(ProjectExplorer::Kit *kit, const MerSdk* sdk)
@@ -124,8 +124,9 @@ void MerSdkKitInformation::addToEnvironment(const ProjectExplorer::Kit *kit, Uti
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 
-MerSdkKitInformationWidget::MerSdkKitInformationWidget(ProjectExplorer::Kit *kit, bool sticky)
-    : ProjectExplorer::KitConfigWidget(kit, sticky),
+MerSdkKitInformationWidget::MerSdkKitInformationWidget(ProjectExplorer::Kit *kit,
+        const MerSdkKitInformation *kitInformation)
+    : ProjectExplorer::KitConfigWidget(kit, kitInformation),
       m_combo(new QComboBox),
       m_manageButton(new QPushButton(tr("Manage...")))
 {

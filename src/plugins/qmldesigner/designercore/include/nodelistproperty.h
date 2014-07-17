@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -51,8 +51,6 @@ class QMLDESIGNERCORE_EXPORT NodeListProperty : public NodeAbstractProperty
     friend class QmlDesigner::AbstractProperty;
     friend class QmlDesigner::Internal::ModelPrivate;
 public:
-    NodeListProperty& operator= (const QVariant &value);
-
     NodeListProperty();
     NodeListProperty(const NodeListProperty &nodeListProperty, AbstractView *view);
     const QList<ModelNode> toModelNodeList() const;

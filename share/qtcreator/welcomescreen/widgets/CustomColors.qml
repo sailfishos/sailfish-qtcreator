@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -27,11 +27,11 @@
 **
 ****************************************************************************/
 
-import QtQuick 1.0
+import QtQuick 2.1
 
 QtObject {
-    property color linkColor: "#445ba8"
+    property color linkColor: "#328930"
     //property color linkColor: "#70b332"
     //property color strongForegroundColor: "#58595b"
-    property color strongForegroundColor: "#445ba8"
+    property color strongForegroundColor: "#328930"
 }

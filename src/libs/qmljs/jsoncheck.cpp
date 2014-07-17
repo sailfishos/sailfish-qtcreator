@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -100,8 +100,9 @@ bool JsonCheck::visit(ObjectLiteral *ast)
         return false;
 
     QSet<QString> propertiesFound;
-    for (PropertyNameAndValueList *it = ast->properties; it; it = it->next) {
-        StringLiteralPropertyName *literalName = cast<StringLiteralPropertyName *>(it->name);
+    for (PropertyAssignmentList *it = ast->properties; it; it = it->next) {
+        PropertyNameAndValue *assignment = AST::cast<AST::PropertyNameAndValue *>(it->assignment);
+        StringLiteralPropertyName *literalName = cast<StringLiteralPropertyName *>(assignment->name);
         if (literalName) {
             const QString &propertyName = literalName->id.toString();
             if (m_schema->hasPropertySchema(propertyName)) {
@@ -109,7 +110,7 @@ bool JsonCheck::visit(ObjectLiteral *ast)
                 propertiesFound.insert(propertyName);
                 // Sec. 5.2: "... each property definition's value MUST be a schema..."
                 m_schema->enterNestedPropertySchema(propertyName);
-                processSchema(it->value);
+                processSchema(assignment->value);
                 m_schema->leaveNestedSchema();
             } else {
                 analysis()->m_messages.append(Message(ErrInvalidPropertyName,
@@ -119,7 +120,7 @@ bool JsonCheck::visit(ObjectLiteral *ast)
             }
         }  else {
             analysis()->m_messages.append(Message(ErrStringValueExpected,
-                                                  it->name->firstSourceLocation(),
+                                                  assignment->name->firstSourceLocation(),
                                                   QString(), QString(),
                                                   false));
         }
@@ -272,12 +273,12 @@ bool JsonCheck::visit(StringLiteral *ast)
 
     analysis()->boostRanking();
 
-    const QString &literal = ast->value.toString();
+    const QStringRef literal = ast->value;
 
     const QString &pattern = m_schema->pattern();
     if (!pattern.isEmpty()) {
         QRegExp regExp(pattern);
-        if (regExp.indexIn(literal) == -1) {
+        if (regExp.indexIn(literal.toString()) == -1) {
             analysis()->m_messages.append(Message(ErrInvalidStringValuePattern,
                                                   ast->firstSourceLocation(),
                                                   QString(), QString(), false));

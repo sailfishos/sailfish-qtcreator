@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -34,10 +34,11 @@
 
 using namespace Qnx::Internal;
 
-BlackBerrySshKeysGenerator::BlackBerrySshKeysGenerator(QObject *parent)
-    : QThread(parent)
+BlackBerrySshKeysGenerator::BlackBerrySshKeysGenerator()
+    : QThread(0)
     , m_keyGen(new QSsh::SshKeyGenerator)
 {
+    connect(this, SIGNAL(finished()), this, SLOT(deleteLater()));
 }
 
 BlackBerrySshKeysGenerator::~BlackBerrySshKeysGenerator()
@@ -51,15 +52,20 @@ void BlackBerrySshKeysGenerator::run()
     const bool success = m_keyGen->generateKeys(QSsh::SshKeyGenerator::Rsa,
                                                 QSsh::SshKeyGenerator::Mixed, 4096,
                                                 QSsh::SshKeyGenerator::DoNotOfferEncryption);
-    emit sshKeysGenerationFinished(success);
-}
+    if (success) {
+        // BB10 devices allow to use public key with no comment
+        // or a comment in username@hostname format
+        // QSsh::SshKeyGenerator class creates comments in 'QtCreator/TIMEZONE' format
+        // therefore stripping this comment out
+        QByteArray publicKey = m_keyGen->publicKey();
+        int firstSpace = publicKey.indexOf(' ');
+        if (firstSpace >= 0) {
+            int secondSpace = publicKey.indexOf(' ', firstSpace + 1);
+            if (secondSpace >= 0)
+                publicKey.truncate(secondSpace);
+        }
 
-QSsh::SshKeyGenerator *BlackBerrySshKeysGenerator::keyGenerator() const
-{
-    return m_keyGen;
-}
-
-QString BlackBerrySshKeysGenerator::error() const
-{
-    return m_keyGen->error();
+        emit sshKeysGenerationFinished(m_keyGen->privateKey(), publicKey);
+    } else
+        emit sshKeysGenerationFailed(m_keyGen->error());
 }

@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Denis Mingulov
+** Copyright (c) 2014 Denis Mingulov
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -45,6 +45,23 @@ static NavigationWidgetFactory *factoryInstance;
 
 ///////////////////////////////// NavigationWidgetFactory //////////////////////////////////
 
+/*!
+    \class NavigationWidgetFactory
+    \brief The NavigationWidgetFactory class implements a singleton instance of
+    the INavigationWidgetFactory for the Class View.
+
+    Supports the \c setState public slot for adding the widget factory to or
+    removing it from \c ExtensionSystem::PluginManager.
+
+    Also supports the \c widgetIsCreated and \c stateChanged signals.
+*/
+
+/*!
+    \fn void NavigationWidgetFactory::widgetIsCreated()
+
+    Informs that the widget factory created a widget.
+*/
+
 NavigationWidgetFactory::NavigationWidgetFactory()
 {
     factoryInstance = this;
@@ -72,7 +89,7 @@ int NavigationWidgetFactory::priority() const
 
 Core::Id NavigationWidgetFactory::id() const
 {
-    return Core::Id("Class View");
+    return "Class View";
 }
 
 QKeySequence NavigationWidgetFactory::activationSequence() const
@@ -92,10 +109,8 @@ Core::NavigationView NavigationWidgetFactory::createWidget()
 
 
 /*!
-   \brief Get a settings prefix for the specified position
-   \param position Position
-   \return Settings prefix
- */
+   Returns a settings prefix for \a position.
+*/
 static QString settingsPrefix(int position)
 {
     return QString::fromLatin1("ClassView/Treewidget.%1/FlatMode").arg(position);

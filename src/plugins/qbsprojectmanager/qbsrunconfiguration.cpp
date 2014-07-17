@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -96,6 +96,8 @@ QbsRunConfiguration::QbsRunConfiguration(ProjectExplorer::Target *parent, Core::
     m_currentInstallStep(0),
     m_currentBuildStepList(0)
 {
+    addExtraAspect(new ProjectExplorer::LocalEnvironmentAspect(this));
+
     ctor();
 }
 
@@ -105,8 +107,8 @@ QbsRunConfiguration::QbsRunConfiguration(ProjectExplorer::Target *parent, QbsRun
     m_commandLineArguments(source->m_commandLineArguments),
     m_runMode(source->m_runMode),
     m_userWorkingDirectory(source->m_userWorkingDirectory),
-    m_currentInstallStep(source->m_currentInstallStep),
-    m_currentBuildStepList(source->m_currentBuildStepList)
+    m_currentInstallStep(0), // no need to copy this, we will get if from the DC anyway.
+    m_currentBuildStepList(0) // ditto
 {
     ctor();
 }
@@ -139,6 +141,9 @@ void QbsRunConfiguration::ctor()
     connect(target(), SIGNAL(activeDeployConfigurationChanged(ProjectExplorer::DeployConfiguration*)),
             this, SLOT(installStepChanged()));
     installStepChanged();
+
+    if (isConsoleApplication())
+        m_runMode = Console;
 }
 
 QWidget *QbsRunConfiguration::createConfigurationWidget()
@@ -196,22 +201,27 @@ QString QbsRunConfiguration::executable() const
     QbsProject *pro = static_cast<QbsProject *>(target()->project());
     const qbs::ProductData product = findProduct(pro->qbsProjectData(), m_qbsProduct);
 
-    if (!product.isValid() || !pro->qbsProject())
+    if (!product.isValid() || !pro->qbsProject().isValid())
         return QString();
 
-    return pro->qbsProject()->targetExecutable(product, installOptions());
+    return pro->qbsProject().targetExecutable(product, installOptions());
 }
 
 ProjectExplorer::LocalApplicationRunConfiguration::RunMode QbsRunConfiguration::runMode() const
 {
-    if (m_forcedGuiMode)
-        return LocalApplicationRunConfiguration::Gui;
     return m_runMode;
 }
 
-bool QbsRunConfiguration::forcedGuiMode() const
+bool QbsRunConfiguration::isConsoleApplication() const
 {
-    return m_forcedGuiMode;
+    QbsProject *pro = static_cast<QbsProject *>(target()->project());
+    const qbs::ProductData product = findProduct(pro->qbsProjectData(), m_qbsProduct);
+    foreach (const qbs::TargetArtifact &ta, product.targetArtifacts()) {
+        if (ta.isExecutable())
+            return !ta.properties().getProperty(QLatin1String("consoleApplication")).toBool();
+    }
+
+    return false;
 }
 
 QString QbsRunConfiguration::workingDirectory() const
@@ -283,16 +293,6 @@ QString QbsRunConfiguration::qbsProduct() const
     return m_qbsProduct;
 }
 
-QString QbsRunConfiguration::dumperLibrary() const
-{
-    return QtSupport::QtKitInformation::dumperLibrary(target()->kit());
-}
-
-QStringList QbsRunConfiguration::dumperLibraryLocations() const
-{
-    return QtSupport::QtKitInformation::dumperLibraryLocations(target()->kit());
-}
-
 QString QbsRunConfiguration::defaultDisplayName()
 {
     QString defaultName;
@@ -357,6 +357,7 @@ QbsRunConfigurationWidget::QbsRunConfigurationWidget(QbsRunConfiguration *rc, QW
 
     m_executableLineEdit = new QLineEdit(this);
     m_executableLineEdit->setEnabled(false);
+    m_executableLineEdit->setPlaceholderText(tr("<unknown>"));
     toplayout->addRow(tr("Executable:"), m_executableLineEdit);
 
     QLabel *argumentsLabel = new QLabel(tr("Arguments:"), this);
@@ -365,6 +366,7 @@ QbsRunConfigurationWidget::QbsRunConfigurationWidget(QbsRunConfiguration *rc, QW
     toplayout->addRow(argumentsLabel, m_argumentsLineEdit);
 
     m_workingDirectoryEdit = new Utils::PathChooser(this);
+    m_workingDirectoryEdit->setHistoryCompleter(QLatin1String("Qbs.WorkingDir.History"));
     m_workingDirectoryEdit->setExpectedKind(Utils::PathChooser::Directory);
     ProjectExplorer::EnvironmentAspect *aspect
             = m_rc->extraAspect<ProjectExplorer::EnvironmentAspect>();
@@ -386,8 +388,6 @@ QbsRunConfigurationWidget::QbsRunConfigurationWidget(QbsRunConfiguration *rc, QW
 
     QHBoxLayout *innerBox = new QHBoxLayout();
     m_useTerminalCheck = new QCheckBox(tr("Run in terminal"), this);
-    m_useTerminalCheck->setChecked(m_rc->runMode() == ProjectExplorer::LocalApplicationRunConfiguration::Console);
-    m_useTerminalCheck->setVisible(!m_rc->forcedGuiMode());
     innerBox->addWidget(m_useTerminalCheck);
 
     innerBox->addStretch();
@@ -434,6 +434,8 @@ void QbsRunConfigurationWidget::runConfigurationEnabledChange()
     m_disabledIcon->setVisible(!enabled);
     m_disabledReason->setVisible(!enabled);
     m_disabledReason->setText(m_rc->disabledReason());
+
+    m_useTerminalCheck->setChecked(m_rc->runMode() == ProjectExplorer::LocalApplicationRunConfiguration::Console);
     targetInformationHasChanged();
 }
 
@@ -493,10 +495,8 @@ void QbsRunConfigurationWidget::commandLineArgumentsChanged(const QString &args)
 
 void QbsRunConfigurationWidget::runModeChanged(ProjectExplorer::LocalApplicationRunConfiguration::RunMode runMode)
 {
-    if (!m_ignoreChange) {
-        m_useTerminalCheck->setVisible(!m_rc->forcedGuiMode());
+    if (!m_ignoreChange)
         m_useTerminalCheck->setChecked(runMode == ProjectExplorer::LocalApplicationRunConfiguration::Console);
-    }
 }
 
 // --------------------------------------------------------------------
@@ -559,13 +559,20 @@ QList<Core::Id> QbsRunConfigurationFactory::availableCreationIds(ProjectExplorer
         return result;
 
     QbsProject *project = static_cast<QbsProject *>(parent->project());
-    if (!project || !project->qbsProject())
+    if (!project || !project->qbsProject().isValid())
         return result;
 
+    // Before the first build, some information regarding the target artifacts is not yet
+    // present. Simply create run configs for all products in that case; the irrelevant ones
+    // will disapear again later.
     foreach (const qbs::ProductData &product, project->qbsProjectData().allProducts()) {
-        if (!project->qbsProject()->targetExecutable(product, qbs::InstallOptions()).isEmpty())
+        const bool alreadyhasTargetInfo = !product.targetArtifacts().isEmpty();
+        if (!alreadyhasTargetInfo || !project->qbsProject()
+                .targetExecutable(product, qbs::InstallOptions()).isEmpty()) {
             result << Core::Id::fromString(QString::fromLatin1(QBS_RC_PREFIX) + product.name());
+        }
     }
+
     return result;
 }
 

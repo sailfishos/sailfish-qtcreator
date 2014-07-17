@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -57,7 +57,8 @@ class SysRootInformationConfigWidget : public KitConfigWidget
     Q_OBJECT
 
 public:
-    explicit SysRootInformationConfigWidget(Kit *k, bool sticky);
+    SysRootInformationConfigWidget(Kit *k, const KitInformation *ki);
+    ~SysRootInformationConfigWidget();
 
     QString displayName() const;
     void refresh();
@@ -83,7 +84,8 @@ class ToolChainInformationConfigWidget : public KitConfigWidget
     Q_OBJECT
 
 public:
-    explicit ToolChainInformationConfigWidget(Kit *k, bool sticky);
+    ToolChainInformationConfigWidget(Kit *k, const KitInformation *ki);
+    ~ToolChainInformationConfigWidget();
 
     QString displayName() const;
     void refresh();
@@ -103,7 +105,6 @@ private:
     void updateComboBox();
     int indexOf(const ToolChain *tc);
 
-    bool m_isReadOnly;
     QComboBox *m_comboBox;
     QPushButton *m_manageButton;
 };
@@ -117,7 +118,8 @@ class DeviceTypeInformationConfigWidget : public KitConfigWidget
     Q_OBJECT
 
 public:
-    explicit DeviceTypeInformationConfigWidget(Kit *workingCopy, bool sticky);
+    DeviceTypeInformationConfigWidget(Kit *workingCopy, const KitInformation *ki);
+    ~DeviceTypeInformationConfigWidget();
 
     QWidget *mainWidget() const;
     QString displayName() const;
@@ -129,7 +131,6 @@ private slots:
     void currentTypeChanged(int idx);
 
 private:
-    bool m_isReadOnly;
     QComboBox *m_comboBox;
 };
 
@@ -142,7 +143,8 @@ class DeviceInformationConfigWidget : public KitConfigWidget
     Q_OBJECT
 
 public:
-    explicit DeviceInformationConfigWidget(Kit *workingCopy, bool sticky);
+    DeviceInformationConfigWidget(Kit *workingCopy, const KitInformation *ki);
+    ~DeviceInformationConfigWidget();
 
     QWidget *mainWidget() const;
     QWidget *buttonWidget() const;

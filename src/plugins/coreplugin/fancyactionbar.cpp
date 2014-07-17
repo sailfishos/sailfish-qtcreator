@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -46,21 +46,16 @@
 #include <QPropertyAnimation>
 #include <QDebug>
 
-using namespace Core;
-using namespace Internal;
+using namespace Utils;
+
+namespace Core {
+namespace Internal {
 
 FancyToolButton::FancyToolButton(QWidget *parent)
     : QToolButton(parent), m_fader(0)
 {
-    m_hasForceVisible = false;
     setAttribute(Qt::WA_Hover, true);
     setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
-}
-
-void FancyToolButton::forceVisible(bool visible)
-{
-    m_hasForceVisible = true;
-    setVisible(visible);
 }
 
 bool FancyToolButton::event(QEvent *e)
@@ -85,7 +80,7 @@ bool FancyToolButton::event(QEvent *e)
     case QEvent::ToolTip:
         {
             QHelpEvent *he = static_cast<QHelpEvent *>(e);
-            Utils::ToolTip::instance()->show(mapToGlobal(he->pos()), Utils::TextContent(toolTip()), this);
+            ToolTip::show(mapToGlobal(he->pos()), TextContent(toolTip()), this);
             return true;
         }
     default:
@@ -175,8 +170,6 @@ void FancyToolButton::paintEvent(QPaintEvent *event)
         painter.drawLine(rect().topLeft() - QPoint(0,1), rect().topRight() - QPoint(0,1));
         painter.restore();
     }
-    QPixmap borderPixmap;
-    QMargins margins;
 
     QRect iconRect(0, 0, Core::Constants::TARGET_ICON_SIZE, Core::Constants::TARGET_ICON_SIZE);
     // draw popup texts
@@ -304,10 +297,8 @@ void FancyToolButton::actionChanged()
 {
     // the default action changed in some way, e.g. it might got hidden
     // since we inherit a tool button we won't get invisible, so do this here
-    if (!m_hasForceVisible) {
-        if (QAction* action = defaultAction())
-            setVisible(action->isVisible());
-    }
+    if (QAction* action = defaultAction())
+        setVisible(action->isVisible());
 }
 
 FancyActionBar::FancyActionBar(QWidget *parent)
@@ -351,3 +342,5 @@ QSize FancyActionBar::minimumSizeHint() const
     return sizeHint();
 }
 
+} // namespace Internal
+} // namespace Core

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -44,28 +44,34 @@
 namespace QtSupport {
 namespace Internal {
 
-QtKitConfigWidget::QtKitConfigWidget(ProjectExplorer::Kit *k, bool sticky) :
-    KitConfigWidget(k, sticky)
+QtKitConfigWidget::QtKitConfigWidget(ProjectExplorer::Kit *k, const ProjectExplorer::KitInformation *ki) :
+    KitConfigWidget(k, ki)
 {
     m_combo = new QComboBox;
     m_combo->addItem(tr("None"), -1);
 
-    QtVersionManager *mgr = QtVersionManager::instance();
-    QList<BaseQtVersion *> versions = mgr->validVersions();
     QList<int> versionIds;
-    foreach (BaseQtVersion *v, versions)
+    foreach (BaseQtVersion *v, QtVersionManager::versions())
         versionIds.append(v->uniqueId());
     versionsChanged(versionIds, QList<int>(), QList<int>());
 
-    m_manageButton = new QPushButton(tr("Manage..."));
+    m_manageButton = new QPushButton(KitConfigWidget::msgManage());
 
     refresh();
+    m_combo->setToolTip(toolTip());
+
     connect(m_combo, SIGNAL(currentIndexChanged(int)), this, SLOT(currentWasChanged(int)));
 
-    connect(mgr, SIGNAL(qtVersionsChanged(QList<int>,QList<int>,QList<int>)),
+    connect(QtVersionManager::instance(), SIGNAL(qtVersionsChanged(QList<int>,QList<int>,QList<int>)),
             this, SLOT(versionsChanged(QList<int>,QList<int>,QList<int>)));
 
     connect(m_manageButton, SIGNAL(clicked()), this, SLOT(manageQtVersions()));
+}
+
+QtKitConfigWidget::~QtKitConfigWidget()
+{
+    delete m_combo;
+    delete m_manageButton;
 }
 
 QString QtKitConfigWidget::displayName() const
@@ -100,28 +106,34 @@ QWidget *QtKitConfigWidget::buttonWidget() const
     return m_manageButton;
 }
 
+static QString itemNameFor(const BaseQtVersion *v)
+{
+    QTC_ASSERT(v, return QString());
+    QString name = v->displayName();
+    if (!v->isValid())
+        name = QCoreApplication::translate("QtSupport::Internal::QtKitConfigWidget", "%1 (invalid)").arg(v->displayName());
+    return name;
+}
+
 void QtKitConfigWidget::versionsChanged(const QList<int> &added, const QList<int> &removed,
                                         const QList<int> &changed)
 {
-    QtVersionManager *mgr = QtVersionManager::instance();
-
     foreach (const int id, added) {
-        BaseQtVersion *v = mgr->version(id);
+        BaseQtVersion *v = QtVersionManager::version(id);
         QTC_CHECK(v);
         QTC_CHECK(findQtVersion(id) < 0);
-        m_combo->addItem(v->displayName(), id);
+        m_combo->addItem(itemNameFor(v), id);
     }
     foreach (const int id, removed) {
         int pos = findQtVersion(id);
-        QTC_CHECK(pos >= 0);
-        m_combo->removeItem(pos);
-
+        if (pos >= 0) // We do not include invalid Qt versions, so do not try to remove those.
+            m_combo->removeItem(pos);
     }
     foreach (const int id, changed) {
-        BaseQtVersion *v = mgr->version(id);
+        BaseQtVersion *v = QtVersionManager::version(id);
         int pos = findQtVersion(id);
         QTC_CHECK(pos >= 0);
-        m_combo->setItemText(pos, v->displayName());
+        m_combo->setItemText(pos, itemNameFor(v));
     }
 }
 

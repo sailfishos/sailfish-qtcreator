@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -36,7 +36,7 @@
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/helpmanager.h>
 #include <qtsupport/qtkitinformation.h>
-#include <projectexplorer/environmentaspect.h>
+#include <projectexplorer/localenvironmentaspect.h>
 #include <projectexplorer/target.h>
 
 #include <utils/pathchooser.h>
@@ -75,6 +75,7 @@ CMakeRunConfiguration::CMakeRunConfiguration(ProjectExplorer::Target *parent, Co
     m_title(title),
     m_enabled(true)
 {
+    addExtraAspect(new ProjectExplorer::LocalEnvironmentAspect(this));
     ctor();
 }
 
@@ -193,7 +194,12 @@ QString CMakeRunConfiguration::defaultDisplayName() const
 {
     if (m_title.isEmpty())
         return tr("Run CMake kit");
-    return m_title + (m_enabled ? QString() : tr(" (disabled)"));
+    QString result = m_title;
+    if (!m_enabled) {
+        result += QLatin1Char(' ');
+        result += tr("(disabled)");
+    }
+    return result;
 }
 
 QWidget *CMakeRunConfiguration::createConfigurationWidget()
@@ -204,16 +210,6 @@ QWidget *CMakeRunConfiguration::createConfigurationWidget()
 void CMakeRunConfiguration::setCommandLineArguments(const QString &newText)
 {
     m_arguments = newText;
-}
-
-QString CMakeRunConfiguration::dumperLibrary() const
-{
-    return QtSupport::QtKitInformation::dumperLibrary(target()->kit());
-}
-
-QStringList CMakeRunConfiguration::dumperLibraryLocations() const
-{
-    return QtSupport::QtKitInformation::dumperLibraryLocations(target()->kit());
 }
 
 void CMakeRunConfiguration::setEnabled(bool b)
@@ -254,6 +250,7 @@ CMakeRunConfigurationWidget::CMakeRunConfigurationWidget(CMakeRunConfiguration *
     m_workingDirectoryEdit->setExpectedKind(Utils::PathChooser::Directory);
     m_workingDirectoryEdit->setBaseDirectory(m_cmakeRunConfiguration->target()->project()->projectDirectory());
     m_workingDirectoryEdit->setPath(m_cmakeRunConfiguration->baseWorkingDirectory());
+    m_workingDirectoryEdit->setHistoryCompleter(QLatin1String("CMake.WorkingDir.History"));
     ProjectExplorer::EnvironmentAspect *aspect
             = m_cmakeRunConfiguration->extraAspect<ProjectExplorer::EnvironmentAspect>();
     if (aspect) {
@@ -263,7 +260,7 @@ CMakeRunConfigurationWidget::CMakeRunConfigurationWidget(CMakeRunConfiguration *
     m_workingDirectoryEdit->setPromptDialogTitle(tr("Select Working Directory"));
 
     QToolButton *resetButton = new QToolButton();
-    resetButton->setToolTip(tr("Reset to default"));
+    resetButton->setToolTip(tr("Reset to default."));
     resetButton->setIcon(QIcon(QLatin1String(Core::Constants::ICON_RESET)));
 
     QHBoxLayout *boxlayout = new QHBoxLayout();
@@ -283,7 +280,7 @@ CMakeRunConfigurationWidget::CMakeRunConfigurationWidget(CMakeRunConfiguration *
     m_details->setLayout(fl);
 
     QVBoxLayout *vbx = new QVBoxLayout(this);
-    vbx->setMargin(0);;
+    vbx->setMargin(0);
     vbx->addWidget(m_detailsContainer);
 
     connect(m_workingDirectoryEdit, SIGNAL(changed(QString)),

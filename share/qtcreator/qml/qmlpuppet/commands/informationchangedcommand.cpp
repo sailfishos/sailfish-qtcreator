@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,6 +30,7 @@
 #include "informationchangedcommand.h"
 
 #include <QMetaType>
+#include <QtDebug>
 
 #include "propertyvaluecontainer.h"
 
@@ -49,6 +50,11 @@ QVector<InformationContainer> InformationChangedCommand::informations() const
     return m_informationVector;
 }
 
+void InformationChangedCommand::sort()
+{
+    qSort(m_informationVector);
+}
+
 QDataStream &operator<<(QDataStream &out, const InformationChangedCommand &command)
 {
     out << command.informations();
@@ -62,5 +68,16 @@ QDataStream &operator>>(QDataStream &in, InformationChangedCommand &command)
 
     return in;
 }
+
+bool operator ==(const InformationChangedCommand &first, const InformationChangedCommand &second)
+{
+    return first.m_informationVector == second.m_informationVector;
+}
+
+QDebug operator <<(QDebug debug, const InformationChangedCommand &command)
+{
+    return debug.nospace() << "InformationChangedCommand(" << command.informations() << ")";
+}
+
 
 } // namespace QmlDesigner

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -38,19 +38,15 @@ namespace Internal {
 class CheckoutWizard : public VcsBase::BaseCheckoutWizard
 {
     Q_OBJECT
+
 public:
-    explicit CheckoutWizard(QObject *parent = 0);
+    CheckoutWizard();
 
-    // IWizard
-    QIcon icon() const;
-    QString description() const;
-    QString displayName() const;
-
-protected:
+private:
     // BaseCheckoutWizard
     QList<QWizardPage*> createParameterPages(const QString &path);
-    QSharedPointer<VcsBase::AbstractCheckoutJob> createJob(const QList<QWizardPage*> &parameterPage,
-                                                           QString *checkoutPath);
+    VcsBase::Command *createCommand(const QList<QWizardPage*> &parameterPage,
+                                    QString *checkoutPath);
 };
 
 } // namespace Internal

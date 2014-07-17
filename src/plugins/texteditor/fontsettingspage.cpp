@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -36,14 +36,15 @@
 #include <utils/stringutils.h>
 #include <utils/qtcassert.h>
 
-#include <QDebug>
-#include <QSettings>
-#include <QTimer>
 #include <QFileDialog>
 #include <QFontDatabase>
 #include <QInputDialog>
 #include <QMessageBox>
 #include <QPalette>
+#include <QPointer>
+#include <QSettings>
+#include <QTimer>
+#include <QDebug>
 
 namespace TextEditor {
 namespace Internal {
@@ -122,10 +123,10 @@ public:
     TextEditor::FormatDescriptions m_descriptions;
     FontSettings m_value;
     FontSettings m_lastValue;
+    QPointer<QWidget> m_widget;
     Ui::FontSettingsPage *m_ui;
     SchemeListModel *m_schemeListModel;
     bool m_refreshingSchemeList;
-    QString m_searchKeywords;
 };
 
 } // namespace Internal
@@ -260,15 +261,15 @@ QColor FormatDescription::foreground() const
 
 QColor FormatDescription::background() const
 {
-    if (m_id == C_TEXT)
+    if (m_id == C_TEXT) {
         return Qt::white;
-    else if (m_id == C_LINE_NUMBER)
+    } else if (m_id == C_LINE_NUMBER) {
         return QApplication::palette().background().color();
-    else if (m_id == C_SEARCH_RESULT)
+    } else if (m_id == C_SEARCH_RESULT) {
         return QColor(0xffef0b);
-    else if (m_id == C_PARENTHESES)
+    } else if (m_id == C_PARENTHESES) {
         return QColor(0xb4, 0xee, 0xb4);
-    else if (m_id == C_CURRENT_LINE || m_id == C_SEARCH_SCOPE) {
+    } else if (m_id == C_CURRENT_LINE || m_id == C_SEARCH_SCOPE) {
         const QPalette palette = QApplication::palette();
         const QColor &fg = palette.color(QPalette::Highlight);
         const QColor &bg = palette.color(QPalette::Base);
@@ -326,49 +327,41 @@ FontSettingsPage::~FontSettingsPage()
     delete d_ptr;
 }
 
-QWidget *FontSettingsPage::createPage(QWidget *parent)
+QWidget *FontSettingsPage::widget()
 {
-    QWidget *w = new QWidget(parent);
-    d_ptr->m_ui = new Ui::FontSettingsPage;
-    d_ptr->m_ui->setupUi(w);
-    d_ptr->m_ui->schemeComboBox->setModel(d_ptr->m_schemeListModel);
+    if (!d_ptr->m_widget){
+        d_ptr->m_widget = new QWidget;
+        d_ptr->m_ui = new Ui::FontSettingsPage;
+        d_ptr->m_ui->setupUi(d_ptr->m_widget);
+        d_ptr->m_ui->schemeComboBox->setModel(d_ptr->m_schemeListModel);
 
-    QFontDatabase db;
-    const QStringList families = db.families();
-    d_ptr->m_ui->familyComboBox->addItems(families);
-    const int idx = families.indexOf(d_ptr->m_value.family());
-    d_ptr->m_ui->familyComboBox->setCurrentIndex(idx);
+        QFontDatabase db;
+        const QStringList families = db.families();
+        d_ptr->m_ui->familyComboBox->addItems(families);
+        const int idx = families.indexOf(d_ptr->m_value.family());
+        d_ptr->m_ui->familyComboBox->setCurrentIndex(idx);
 
-    d_ptr->m_ui->antialias->setChecked(d_ptr->m_value.antialias());
-    d_ptr->m_ui->zoomSpinBox->setValue(d_ptr->m_value.fontZoom());
+        d_ptr->m_ui->antialias->setChecked(d_ptr->m_value.antialias());
+        d_ptr->m_ui->zoomSpinBox->setValue(d_ptr->m_value.fontZoom());
 
-    d_ptr->m_ui->schemeEdit->setFormatDescriptions(d_ptr->m_descriptions);
-    d_ptr->m_ui->schemeEdit->setBaseFont(d_ptr->m_value.font());
-    d_ptr->m_ui->schemeEdit->setColorScheme(d_ptr->m_value.colorScheme());
+        d_ptr->m_ui->schemeEdit->setFormatDescriptions(d_ptr->m_descriptions);
+        d_ptr->m_ui->schemeEdit->setBaseFont(d_ptr->m_value.font());
+        d_ptr->m_ui->schemeEdit->setColorScheme(d_ptr->m_value.colorScheme());
 
-    connect(d_ptr->m_ui->familyComboBox, SIGNAL(currentIndexChanged(QString)), this, SLOT(fontFamilySelected(QString)));
-    connect(d_ptr->m_ui->sizeComboBox, SIGNAL(currentIndexChanged(QString)), this, SLOT(fontSizeSelected(QString)));
-    connect(d_ptr->m_ui->zoomSpinBox, SIGNAL(valueChanged(int)), this, SLOT(fontZoomChanged()));
-    connect(d_ptr->m_ui->schemeComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(colorSchemeSelected(int)));
-    connect(d_ptr->m_ui->copyButton, SIGNAL(clicked()), this, SLOT(copyColorScheme()));
-    connect(d_ptr->m_ui->deleteButton, SIGNAL(clicked()), this, SLOT(confirmDeleteColorScheme()));
+        connect(d_ptr->m_ui->familyComboBox, SIGNAL(currentIndexChanged(QString)), this, SLOT(fontFamilySelected(QString)));
+        connect(d_ptr->m_ui->sizeComboBox, SIGNAL(currentIndexChanged(QString)), this, SLOT(fontSizeSelected(QString)));
+        connect(d_ptr->m_ui->zoomSpinBox, SIGNAL(valueChanged(int)), this, SLOT(fontZoomChanged()));
+        connect(d_ptr->m_ui->antialias, SIGNAL(toggled(bool)), this, SLOT(antialiasChanged()));
+        connect(d_ptr->m_ui->schemeComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(colorSchemeSelected(int)));
+        connect(d_ptr->m_ui->copyButton, SIGNAL(clicked()), this, SLOT(copyColorScheme()));
+        connect(d_ptr->m_ui->deleteButton, SIGNAL(clicked()), this, SLOT(confirmDeleteColorScheme()));
 
 
-    updatePointSizes();
-    refreshColorSchemeList();
-    d_ptr->m_lastValue = d_ptr->m_value;
-    if (d_ptr->m_searchKeywords.isEmpty()) {
-        QLatin1Char sep(' ');
-        d_ptr->m_searchKeywords =
-                d_ptr->m_ui->fontGroupBox->title() + sep
-                + d_ptr->m_ui->familyLabel->text() + sep
-                + d_ptr->m_ui->sizeLabel->text() + sep
-                + d_ptr->m_ui->zoomLabel->text() + sep
-                + d_ptr->m_ui->antialias->text() + sep
-                + d_ptr->m_ui->colorSchemeGroupBox->title();
-        d_ptr->m_searchKeywords.remove(QLatin1Char('&'));
+        updatePointSizes();
+        refreshColorSchemeList();
+        d_ptr->m_lastValue = d_ptr->m_value;
     }
-    return w;
+    return d_ptr->m_widget;
 }
 
 void FontSettingsPage::fontFamilySelected(const QString &family)
@@ -425,6 +418,12 @@ void FontSettingsPage::fontSizeSelected(const QString &sizeString)
 void FontSettingsPage::fontZoomChanged()
 {
     d_ptr->m_value.setFontZoom(d_ptr->m_ui->zoomSpinBox->value());
+}
+
+void FontSettingsPage::antialiasChanged()
+{
+    d_ptr->m_value.setAntialias(d_ptr->m_ui->antialias->isChecked());
+    d_ptr->m_ui->schemeEdit->setBaseFont(d_ptr->m_value.font());
 }
 
 void FontSettingsPage::colorSchemeSelected(int index)
@@ -599,7 +598,6 @@ void FontSettingsPage::apply()
 {
     if (!d_ptr->m_ui) // page was never shown
         return;
-    d_ptr->m_value.setAntialias(d_ptr->m_ui->antialias->isChecked());
 
     if (d_ptr->m_value.colorScheme() != d_ptr->m_ui->schemeEdit->colorScheme()) {
         // Update the scheme and save it under the name it already has
@@ -630,6 +628,7 @@ void FontSettingsPage::saveSettings()
 
 void FontSettingsPage::finish()
 {
+    delete d_ptr->m_widget;
     if (!d_ptr->m_ui) // page was never shown
         return;
     // If changes were applied, these are equal. Otherwise restores last value.
@@ -641,9 +640,4 @@ void FontSettingsPage::finish()
 const FontSettings &FontSettingsPage::fontSettings() const
 {
     return d_ptr->m_value;
-}
-
-bool FontSettingsPage::matches(const QString &s) const
-{
-    return d_ptr->m_searchKeywords.contains(s, Qt::CaseInsensitive);
 }

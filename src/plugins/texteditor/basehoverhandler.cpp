@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -37,13 +37,21 @@
 
 #include <QPoint>
 
-using namespace TextEditor;
 using namespace Core;
+
+namespace TextEditor {
+
+static BaseTextEditorWidget *baseTextEditor(ITextEditor *editor)
+{
+    if (!editor)
+        return 0;
+    return qobject_cast<BaseTextEditorWidget *>(editor->widget());
+}
 
 BaseHoverHandler::BaseHoverHandler(QObject *parent) : QObject(parent), m_diagnosticTooltip(false)
 {
     // Listen for editor opened events in order to connect to tooltip/helpid requests
-    connect(ICore::editorManager(), SIGNAL(editorOpened(Core::IEditor*)),
+    connect(Core::EditorManager::instance(), SIGNAL(editorOpened(Core::IEditor*)),
             this, SLOT(editorOpened(Core::IEditor*)));
 }
 
@@ -84,7 +92,7 @@ void BaseHoverHandler::updateContextHelpId(TextEditor::ITextEditor *editor, int 
 
     // If the tooltip is visible and there is a help match, this match is used to update
     // the help id. Otherwise, let the identification process happen.
-    if (!Utils::ToolTip::instance()->isVisible() || !lastHelpItemIdentified().isValid())
+    if (!Utils::ToolTip::isVisible() || !lastHelpItemIdentified().isValid())
         process(editor, pos);
 
     if (lastHelpItemIdentified().isValid())
@@ -94,13 +102,19 @@ void BaseHoverHandler::updateContextHelpId(TextEditor::ITextEditor *editor, int 
 }
 
 void BaseHoverHandler::setToolTip(const QString &tooltip)
-{ m_toolTip = tooltip; }
+{
+    m_toolTip = tooltip;
+}
 
 const QString &BaseHoverHandler::toolTip() const
-{ return m_toolTip; }
+{
+    return m_toolTip;
+}
 
 void BaseHoverHandler::appendToolTip(const QString &extension)
-{ m_toolTip.append(extension); }
+{
+    m_toolTip.append(extension);
+}
 
 void BaseHoverHandler::addF1ToToolTip()
 {
@@ -120,10 +134,14 @@ bool BaseHoverHandler::isDiagnosticTooltip() const
 }
 
 void BaseHoverHandler::setLastHelpItemIdentified(const HelpItem &help)
-{ m_lastHelpItemIdentified = help; }
+{
+    m_lastHelpItemIdentified = help;
+}
 
 const HelpItem &BaseHoverHandler::lastHelpItemIdentified() const
-{ return m_lastHelpItemIdentified; }
+{
+    return m_lastHelpItemIdentified;
+}
 
 void BaseHoverHandler::clear()
 {
@@ -157,14 +175,9 @@ void BaseHoverHandler::decorateToolTip()
 void BaseHoverHandler::operateTooltip(ITextEditor *editor, const QPoint &point)
 {
     if (m_toolTip.isEmpty())
-        Utils::ToolTip::instance()->hide();
+        Utils::ToolTip::hide();
     else
-        Utils::ToolTip::instance()->show(point, Utils::TextContent(m_toolTip), editor->widget());
+        Utils::ToolTip::show(point, Utils::TextContent(m_toolTip), editor->widget());
 }
 
-BaseTextEditorWidget *BaseHoverHandler::baseTextEditor(ITextEditor *editor)
-{
-    if (!editor)
-        return 0;
-    return qobject_cast<BaseTextEditorWidget *>(editor->widget());
-}
+} // namespace TextEditor

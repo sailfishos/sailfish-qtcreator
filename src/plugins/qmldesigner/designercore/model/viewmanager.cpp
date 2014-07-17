@@ -1,9 +1,20 @@
 #include "viewmanager.h"
 
+#include <rewriterview.h>
+#include <nodeinstanceview.h>
+#include <itemlibraryview.h>
+#include <navigatorview.h>
+#include <stateseditorview.h>
+#include <formeditorview.h>
+#include <propertyeditorview.h>
+#include <componentview.h>
+#include <debugview.h>
+#include <importmanagerview.h>
+#include <designeractionmanagerview.h>
+
 #include "componentaction.h"
-#include "formeditorwidget.h"
-#include "toolbox.h"
-#include "designeractionmanager.h"
+#include "designmodewidget.h"
+#include "crumblebar.h"
 
 #include <qmldesigner/qmldesignerplugin.h>
 
@@ -12,17 +23,39 @@
 
 namespace QmlDesigner {
 
-ViewManager::ViewManager()
+class ViewManagerData
 {
-    //QObject::connect(&m_nodeInstanceView, SIGNAL(qmlPuppetCrashed()), designModeWidget, SLOT(qmlPuppetCrashed()));
-    //QObject::connect(m_formEditorView.crumblePath(), SIGNAL(elementClicked(QVariant)), designModeWidget, SLOT(onCrumblePathElementClicked(QVariant)));
-    m_formEditorView.formEditorWidget()->toolBox()->addLeftSideAction(m_componentView.action()); // ugly hack
+public:
+    QmlModelState savedState;
+    Internal::DebugView debugView;
+    ComponentView componentView;
+    FormEditorView formEditorView;
+    ItemLibraryView itemLibraryView;
+    NavigatorView navigatorView;
+    PropertyEditorView propertyEditorView;
+    StatesEditorView statesEditorView;
+    NodeInstanceView nodeInstanceView;
+    DesignerActionManagerView designerActionManagerView;
+
+    QList<QWeakPointer<AbstractView> > additionalViews;
+};
+
+
+static CrumbleBar *crumbleBar() {
+    return QmlDesignerPlugin::instance()->mainWidget()->crumbleBar();
+}
+
+ViewManager::ViewManager()
+    : d(new ViewManagerData)
+{
 }
 
 ViewManager::~ViewManager()
 {
-    foreach (const QWeakPointer<AbstractView> &view, m_additionalViews)
+    foreach (const QWeakPointer<AbstractView> &view, d->additionalViews)
         delete view.data();
+
+    delete d;
 }
 
 DesignDocument *ViewManager::currentDesignDocument() const
@@ -32,7 +65,7 @@ DesignDocument *ViewManager::currentDesignDocument() const
 
 QString ViewManager::pathToQt() const
 {
-    QtSupport::BaseQtVersion *activeQtVersion = QtSupport::QtVersionManager::instance()->version(currentDesignDocument()->qtVersionId());
+    QtSupport::BaseQtVersion *activeQtVersion = QtSupport::QtVersionManager::version(currentDesignDocument()->qtVersionId());
     if (activeQtVersion && (activeQtVersion->qtVersion() >= QtSupport::QtVersionNumber(4, 7, 1))
             && (activeQtVersion->type() == QLatin1String(QtSupport::Constants::DESKTOPQT)
                 || activeQtVersion->type() == QLatin1String(QtSupport::Constants::SIMULATORQT)))
@@ -44,15 +77,14 @@ QString ViewManager::pathToQt() const
 void ViewManager::attachNodeInstanceView()
 {
     setNodeInstanceViewQtPath(pathToQt());
-    currentModel()->setNodeInstanceView(&m_nodeInstanceView);
+    currentModel()->setNodeInstanceView(&d->nodeInstanceView);
 }
 
-void ViewManager::attachRewriterView(TextModifier *textModifier)
+void ViewManager::attachRewriterView()
 {
     if (currentDesignDocument()->rewriterView()) {
-        currentDesignDocument()->rewriterView()->setTextModifier(textModifier);
-        currentDesignDocument()->rewriterView()->reactivateTextMofifierChangeSignals();
         currentModel()->setRewriterView(currentDesignDocument()->rewriterView());
+        currentDesignDocument()->rewriterView()->reactivateTextMofifierChangeSignals();
     }
 }
 
@@ -66,106 +98,117 @@ void ViewManager::detachRewriterView()
 
 void ViewManager::switchStateEditorViewToBaseState()
 {
-    if (m_statesEditorView.isAttached()) {
-        m_savedState = m_statesEditorView.currentState();
-        m_statesEditorView.setCurrentState(m_statesEditorView.baseState());
+    if (d->statesEditorView.isAttached()) {
+        d->savedState = d->statesEditorView.currentState();
+        d->statesEditorView.setCurrentState(d->statesEditorView.baseState());
     }
 }
 
 void ViewManager::switchStateEditorViewToSavedState()
 {
-    if (m_savedState.isValid() && m_statesEditorView.isAttached())
-        m_statesEditorView.setCurrentState(m_savedState);
+    if (d->savedState.isValid() && d->statesEditorView.isAttached())
+        d->statesEditorView.setCurrentState(d->savedState);
 }
 
 void ViewManager::resetPropertyEditorView()
 {
-    m_propertyEditorView.resetView();
+    d->propertyEditorView.resetView();
 }
 
 void ViewManager::registerFormEditorToolTakingOwnership(AbstractCustomTool *tool)
 {
-    m_formEditorView.registerTool(tool);
+    d->formEditorView.registerTool(tool);
 }
 
 void ViewManager::registerViewTakingOwnership(AbstractView *view)
 {
-    m_additionalViews.append(view);
+    d->additionalViews.append(view);
 }
 
 void ViewManager::detachViewsExceptRewriterAndComponetView()
 {
     switchStateEditorViewToBaseState();
     detachAdditionalViews();
-    currentModel()->detachView(DesignerActionManager::view());
-    currentModel()->detachView(&m_formEditorView);
-    currentModel()->detachView(&m_navigatorView);
-    currentModel()->detachView(&m_itemLibraryView);
-    currentModel()->detachView(&m_statesEditorView);
-    currentModel()->detachView(&m_propertyEditorView);
-    if (m_debugView.isAttached())
-        currentModel()->detachView(&m_debugView);
+    currentModel()->detachView(&d->designerActionManagerView);
+    currentModel()->detachView(&d->formEditorView);
+    currentModel()->detachView(&d->navigatorView);
+    currentModel()->detachView(&d->itemLibraryView);
+    currentModel()->detachView(&d->statesEditorView);
+    currentModel()->detachView(&d->propertyEditorView);
+
+    if (d->debugView.isAttached())
+        currentModel()->detachView(&d->debugView);
+
     currentModel()->setNodeInstanceView(0);
 }
 
 void ViewManager::attachItemLibraryView()
 {
     setItemLibraryViewResourcePath(QFileInfo(currentDesignDocument()->fileName()).absolutePath());
-    currentModel()->attachView(&m_itemLibraryView);
+    currentModel()->attachView(&d->itemLibraryView);
 }
 
 void ViewManager::attachAdditionalViews()
 {
-    foreach (const QWeakPointer<AbstractView> &view, m_additionalViews)
+    foreach (const QWeakPointer<AbstractView> &view, d->additionalViews)
         currentModel()->attachView(view.data());
 }
 
 void ViewManager::detachAdditionalViews()
 {
-    foreach (const QWeakPointer<AbstractView> &view, m_additionalViews)
+    foreach (const QWeakPointer<AbstractView> &view, d->additionalViews)
         currentModel()->detachView(view.data());
 }
 
 void ViewManager::attachComponentView()
 {
-    documentModel()->attachView(&m_componentView);
-    QObject::connect(m_componentView.action(), SIGNAL(currentComponentChanged(ModelNode)), currentDesignDocument(), SLOT(changeToSubComponent(ModelNode)));
+    documentModel()->attachView(&d->componentView);
+    QObject::connect(d->componentView.action(), SIGNAL(currentComponentChanged(ModelNode)), currentDesignDocument(), SLOT(changeToSubComponent(ModelNode)));
+    QObject::connect(d->componentView.action(), SIGNAL(changedToMaster()), currentDesignDocument(), SLOT(changeToMaster()));
 }
 
 void ViewManager::detachComponentView()
 {
-    QObject::disconnect(m_componentView.action(), SIGNAL(currentComponentChanged(ModelNode)), currentDesignDocument(), SLOT(changeToSubComponent(ModelNode)));
-    documentModel()->detachView(&m_componentView);
+    QObject::disconnect(d->componentView.action(), SIGNAL(currentComponentChanged(ModelNode)), currentDesignDocument(), SLOT(changeToSubComponent(ModelNode)));
+    QObject::disconnect(d->componentView.action(), SIGNAL(changedToMaster()), currentDesignDocument(), SLOT(changeToMaster()));
+
+    documentModel()->detachView(&d->componentView);
 }
 
 void ViewManager::attachViewsExceptRewriterAndComponetView()
 {
     if (QmlDesignerPlugin::instance()->settings().enableDebugView)
-        currentModel()->attachView(&m_debugView);
+        currentModel()->attachView(&d->debugView);
+
     attachNodeInstanceView();
-    currentModel()->attachView(&m_formEditorView);
-    currentModel()->attachView(&m_navigatorView);
+    currentModel()->attachView(&d->formEditorView);
+    currentModel()->attachView(&d->navigatorView);
     attachItemLibraryView();
-    currentModel()->attachView(&m_statesEditorView);
-    currentModel()->attachView(&m_propertyEditorView);
-    currentModel()->attachView(DesignerActionManager::view());
+    currentModel()->attachView(&d->statesEditorView);
+    currentModel()->attachView(&d->propertyEditorView);
+    currentModel()->attachView(&d->designerActionManagerView);
     attachAdditionalViews();
     switchStateEditorViewToSavedState();
 }
 
 void ViewManager::setItemLibraryViewResourcePath(const QString &resourcePath)
 {
-    m_itemLibraryView.setResourcePath(resourcePath);
+    d->itemLibraryView.setResourcePath(resourcePath);
 }
 
 void ViewManager::setComponentNode(const ModelNode &componentNode)
 {
-    m_componentView.setComponentNode(componentNode);
+    d->componentView.setComponentNode(componentNode);
+}
+
+void ViewManager::setComponentViewToMaster()
+{
+    d->componentView.setComponentToMaster();
 }
 
 void ViewManager::setNodeInstanceViewQtPath(const QString &qtPath)
 {
-    m_nodeInstanceView.setPathToQt(qtPath);
+    d->nodeInstanceView.setPathToQt(qtPath);
 }
 
 static bool widgetInfoLessThan(const WidgetInfo &firstWidgetInfo, const WidgetInfo &secondWidgetInfo)
@@ -177,15 +220,15 @@ QList<WidgetInfo> ViewManager::widgetInfos()
 {
     QList<WidgetInfo> widgetInfoList;
 
-    widgetInfoList.append(m_formEditorView.widgetInfo());
-    widgetInfoList.append(m_itemLibraryView.widgetInfo());
-    widgetInfoList.append(m_navigatorView.widgetInfo());
-    widgetInfoList.append(m_propertyEditorView.widgetInfo());
-    widgetInfoList.append(m_statesEditorView.widgetInfo());
-    if (m_debugView.hasWidget())
-        widgetInfoList.append(m_debugView.widgetInfo());
+    widgetInfoList.append(d->formEditorView.widgetInfo());
+    widgetInfoList.append(d->itemLibraryView.widgetInfo());
+    widgetInfoList.append(d->navigatorView.widgetInfo());
+    widgetInfoList.append(d->propertyEditorView.widgetInfo());
+    widgetInfoList.append(d->statesEditorView.widgetInfo());
+    if (d->debugView.hasWidget())
+        widgetInfoList.append(d->debugView.widgetInfo());
 
-    foreach (const QWeakPointer<AbstractView> &abstractView, m_additionalViews) {
+    foreach (const QWeakPointer<AbstractView> &abstractView, d->additionalViews) {
         if (abstractView && abstractView->hasWidget())
             widgetInfoList.append(abstractView->widgetInfo());
     }
@@ -207,26 +250,40 @@ void ViewManager::enableWidgets()
         widgetInfo.widget->setEnabled(true);
 }
 
-void ViewManager::pushFileOnCrambleBar(const QString &fileName)
+void ViewManager::pushFileOnCrumbleBar(const QString &fileName)
 {
-    m_formEditorView.formEditorWidget()->formEditorCrumbleBar()->pushFile(fileName);
+    crumbleBar()->pushFile(fileName);
 }
 
-void ViewManager::pushInFileComponentOnCrambleBar(const QString &componentId)
-
+void ViewManager::pushInFileComponentOnCrumbleBar(const ModelNode &modelNode)
 {
-    m_formEditorView.formEditorWidget()->formEditorCrumbleBar()->pushInFileComponent(componentId);
+    crumbleBar()->pushInFileComponent(modelNode);
 }
 
 void ViewManager::nextFileIsCalledInternally()
 {
-    m_formEditorView.formEditorWidget()->formEditorCrumbleBar()->nextFileIsCalledInternally();
+    crumbleBar()->nextFileIsCalledInternally();
 }
 
- QmlModelView *ViewManager::qmlModelView()
- {
-     return &m_formEditorView;
- }
+NodeInstanceView *ViewManager::nodeInstanceView()
+{
+    return &d->nodeInstanceView;
+}
+
+QWidgetAction *ViewManager::componentViewAction()
+{
+    return d->componentView.action();
+}
+
+DesignerActionManager &ViewManager::designerActionManager()
+{
+    return d->designerActionManagerView.designerActionManager();
+}
+
+const DesignerActionManager &ViewManager::designerActionManager() const
+{
+    return d->designerActionManagerView.designerActionManager();
+}
 
 Model *ViewManager::currentModel() const
 {

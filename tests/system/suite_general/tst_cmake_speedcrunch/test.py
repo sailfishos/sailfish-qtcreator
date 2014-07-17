@@ -1,6 +1,6 @@
 #############################################################################
 ##
-## Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+## Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ## Contact: http://www.qt-project.org/legal
 ##
 ## This file is part of Qt Creator.
@@ -36,9 +36,6 @@ def main():
     if (which("cmake") == None):
         test.fatal("cmake not found in PATH - needed to run this test")
         return
-    if (which("qmake") == None):
-        test.fatal("qmake not found in PATH - needed to run this test")
-        return
     if not neededFilePresent(SpeedCrunchPath):
         return
 
@@ -51,12 +48,14 @@ def main():
         invokeMenuItem("File", "Exit")
         return
     progressBarWait(30000)
+    naviTreeView = "{column='0' container=':Qt Creator_Utils::NavigationTreeView' text~='%s' type='QModelIndex'}"
+    compareProjectTree(naviTreeView % "speedcrunch( \[\S+\])?", "projecttree_speedcrunch.tsv")
 
     # Invoke a rebuild of the application
     invokeMenuItem("Build", "Rebuild All")
 
     # Wait for, and test if the build succeeded
-    waitForSignal("{type='ProjectExplorer::BuildManager' unnamed='1'}", "buildQueueFinished(bool)", 300000)
+    waitForCompile(300000)
     checkCompile()
     checkLastBuild()
 

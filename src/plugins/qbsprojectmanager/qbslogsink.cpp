@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -49,9 +49,9 @@ namespace Internal {
 
 QbsLogSink::QbsLogSink(QObject *parent) : QObject(parent)
 {
-    ProjectExplorer::TaskHub *hub = ProjectExplorer::ProjectExplorerPlugin::instance()->taskHub();
     connect(this, SIGNAL(newTask(ProjectExplorer::Task)),
-            hub, SLOT(addTask(ProjectExplorer::Task)), Qt::QueuedConnection);
+            ProjectExplorer::TaskHub::instance(),
+            SLOT(addTask(ProjectExplorer::Task)), Qt::QueuedConnection);
 }
 
 void QbsLogSink::sendMessages()
@@ -63,9 +63,8 @@ void QbsLogSink::sendMessages()
         m_messages.clear();
     }
 
-    Core::MessageManager *mm = Core::MessageManager::instance();
     foreach (const QString &msg, toSend)
-        mm->printToOutputPane(msg, Core::MessageManager::NoModeSwitch);
+        Core::MessageManager::write(msg);
 }
 
 void QbsLogSink::doPrintWarning(const qbs::ErrorInfo &warning)

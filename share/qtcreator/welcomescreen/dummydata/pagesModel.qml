@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -27,15 +27,11 @@
 **
 ****************************************************************************/
 
-import QtQuick 1.0
+import QtQuick 2.1
 
 ListModel {
     ListElement {
-        title: "Getting Started"
-        pageLocation: "../gettingstarted.qml"
-    }
-    ListElement {
-        title: "Develop"
+        title: "Projects"
         pageLocation: "../develop.qml"
     }
     ListElement {

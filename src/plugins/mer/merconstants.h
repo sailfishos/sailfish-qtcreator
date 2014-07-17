@@ -28,8 +28,8 @@
 namespace Mer {
 namespace Constants {
 
-const char MER_QT[] = "Qt4ProjectManager.QtVersion.Mer";
-const char MER_TOOLCHAIN_ID[] = "Qt4ProjectManager.ToolChain.Mer";
+const char MER_QT[] = "QmakeProjectManager.QtVersion.Mer";
+const char MER_TOOLCHAIN_ID[] = "QmakeProjectManager.ToolChain.Mer";
 
 const char MER_PLATFORM[] = "Mer";
 const char MER_PLATFORM_TR[] = QT_TRANSLATE_NOOP("QtSupport", "Mer");
@@ -42,8 +42,8 @@ const char MER_OPTIONS_CATEGORY_ICON[] = ":/mer/images/icon-s-sailfish-qtcreator
 const char MER_OPTIONS_ID[] = "A.Mer";
 const char MER_OPTIONS_NAME[] = QT_TRANSLATE_NOOP("Mer", "SDK");
 
-const char MER_TASKHUB_EMULATOR_CATEGORY[] = "Qt4ProjectManager.TaskHub.Emulator.Mer";
-const char MER_TASKHUB_SDK_CATEGORY[] = "Qt4ProjectManager.TaskHub.Sdk.Mer";
+const char MER_TASKHUB_EMULATOR_CATEGORY[] = "QmakeProjectManager.TaskHub.Emulator.Mer";
+const char MER_TASKHUB_SDK_CATEGORY[] = "QmakeProjectManager.TaskHub.Sdk.Mer";
 const char MER_DEVICE_TYPE_I486[] = "Mer.Device.Type.i486";
 const char MER_DEVICE_TYPE_ARM[] = "Mer.Device.Type.Arm";
 const char MER_i486_IDENTIFIER[] = "i486";
@@ -62,12 +62,12 @@ const char MER_SAILFISH_STOP_ICON[] = ":/mer/images/sdk-stop.png";
 #define SCRIPT_EXTENSION ""
 #endif // Q_OS_WIN
 
-const char MER_WRAPPER_RPMBUILD[] = "rpmbuild"SCRIPT_EXTENSION;
-const char MER_WRAPPER_QMAKE[] = "qmake"SCRIPT_EXTENSION;
-const char MER_WRAPPER_MAKE[] = "make"SCRIPT_EXTENSION;
-const char MER_WRAPPER_GCC[] = "gcc"SCRIPT_EXTENSION;
-const char MER_WRAPPER_DEPLOY[] = "deploy"SCRIPT_EXTENSION;
-const char MER_WRAPPER_RPM[] = "rpm"SCRIPT_EXTENSION;
+const char MER_WRAPPER_RPMBUILD[] = "rpmbuild" SCRIPT_EXTENSION;
+const char MER_WRAPPER_QMAKE[] = "qmake" SCRIPT_EXTENSION;
+const char MER_WRAPPER_MAKE[] = "make" SCRIPT_EXTENSION;
+const char MER_WRAPPER_GCC[] = "gcc" SCRIPT_EXTENSION;
+const char MER_WRAPPER_DEPLOY[] = "deploy" SCRIPT_EXTENSION;
+const char MER_WRAPPER_RPM[] = "rpm" SCRIPT_EXTENSION;
 
 const char MER_SDK_DEFAULTUSER[] = "mersdk";
 const char MER_DEVICE_DEFAULTUSER[] = "nemo";
@@ -113,14 +113,12 @@ const char SB2_TARGET_NAME[] = "SB2.TargetName";
 
 
 
-const char MER_RUNCONFIGURATION_PREFIX[] = "Qt4ProjectManager.MerRunConfiguration:";
+const char MER_RUNCONFIGURATION_PREFIX[] = "QmakeProjectManager.MerRunConfiguration:";
 const char MER_SFTP_DEPLOY_STRING[] = QT_TRANSLATE_NOOP("Mer", "Copy Files to Device");
 
 const char MER_EMULATOR_START_ACTION_ID[] = "Mer.MerEmulatorStartAction";
 const char MER_EMULATOR_DEPLOYKEY_ACTION_ID[] = "Mer.MerEmulatorDeployAction";
 const char MER_HARDWARE_DEPLOYKEY_ACTION_ID[] = "Mer.MerHardwareDeployAction";
-const char MER_EMULATOR_TEST_ID[] = "Mer.MerEmulatorTestAction";
-const char MER_HARDWARE_TEST_ID[] = "Mer.MerHardwareTestAction";
 const char MER_EMULATOR_CONNECTON_ACTION_ID[] = "Mer.EmulatorConnecitonAction";
 const char MER_SDK_CONNECTON_ACTION_ID[] = "Mer.SdkConnectionAction";
 

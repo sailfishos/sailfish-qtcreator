@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -124,7 +124,7 @@ void QmlJSOutlineWidget::setEditor(QmlJSTextEditorWidget *editor)
 {
     m_editor = editor;
 
-    m_filterModel->setSourceModel(m_editor->outlineModel());
+    m_filterModel->setSourceModel(m_editor->qmlJsEditorDocument()->outlineModel());
     modelUpdated();
 
     connect(m_treeView->selectionModel(), SIGNAL(selectionChanged(QItemSelection,QItemSelection)),
@@ -135,7 +135,7 @@ void QmlJSOutlineWidget::setEditor(QmlJSTextEditorWidget *editor)
 
     connect(m_editor, SIGNAL(outlineModelIndexChanged(QModelIndex)),
             this, SLOT(updateSelectionInTree(QModelIndex)));
-    connect(m_editor->outlineModel(), SIGNAL(updated()),
+    connect(m_editor->qmlJsEditorDocument()->outlineModel(), SIGNAL(updated()),
             this, SLOT(modelUpdated()));
 }
 
@@ -207,7 +207,8 @@ void QmlJSOutlineWidget::updateSelectionInText(const QItemSelection &selection)
 void QmlJSOutlineWidget::updateTextCursor(const QModelIndex &index)
 {
     QModelIndex sourceIndex = m_filterModel->mapToSource(index);
-    AST::SourceLocation location = m_editor->outlineModel()->sourceLocation(sourceIndex);
+    AST::SourceLocation location
+            = m_editor->qmlJsEditorDocument()->outlineModel()->sourceLocation(sourceIndex);
 
     if (!location.isValid())
         return;
@@ -217,9 +218,8 @@ void QmlJSOutlineWidget::updateTextCursor(const QModelIndex &index)
     if (location.offset >= textLength)
         return;
 
-    Core::EditorManager *editorManager = Core::EditorManager::instance();
-    editorManager->cutForwardNavigationHistory();
-    editorManager->addCurrentPositionToNavigationHistory();
+    Core::EditorManager::cutForwardNavigationHistory();
+    Core::EditorManager::addCurrentPositionToNavigationHistory();
 
     QTextCursor textCursor = m_editor->textCursor();
     m_blockCursorSync = true;

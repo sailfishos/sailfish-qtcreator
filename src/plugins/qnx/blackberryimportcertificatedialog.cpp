@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -49,6 +49,7 @@ BlackBerryImportCertificateDialog::BlackBerryImportCertificateDialog(
 {
     m_ui->setupUi(this);
     m_ui->certPath->setExpectedKind(Utils::PathChooser::File);
+    m_ui->certPath->setHistoryCompleter(QLatin1String("BB.Certificate.History"));
     m_ui->certPath->setPromptDialogTitle(tr("Import Certificate"));
     m_ui->certPath->setPromptDialogFilter(tr("PKCS 12 Archives (*.p12)"));
 

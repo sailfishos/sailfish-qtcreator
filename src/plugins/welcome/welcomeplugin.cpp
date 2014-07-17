@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -40,19 +40,17 @@
 
 #include <projectexplorer/projectexplorer.h>
 
+#include <utils/fileutils.h>
 #include <utils/hostosinfo.h>
 #include <utils/styledbar.h>
 #include <utils/iwelcomepage.h>
 #include <utils/networkaccessmanager.h>
 
-#ifdef Q_OS_WIN
-#include <utils/winutils.h>
-#endif
-
 #include <QScrollArea>
 #include <QDesktopServices>
 #include <QPainter>
 #include <QVBoxLayout>
+#include <QMessageBox>
 
 #include <QCoreApplication>
 #include <QDir>
@@ -61,10 +59,10 @@
 #include <QUrl>
 #include <QtPlugin>
 
-#include <QDeclarativeView>
-#include <QDeclarativeContext>
-#include <QDeclarativeEngine>
-#include <QDeclarativeNetworkAccessManagerFactory>
+#include <QtQuick/QQuickView>
+#include <QtQml/QQmlContext>
+#include <QtQml/QQmlEngine>
+#include <QtQml/QQmlNetworkAccessManagerFactory>
 
 enum { debug = 0 };
 
@@ -76,10 +74,10 @@ static const char currentPageSettingsKeyC[] = "WelcomeTab";
 namespace Welcome {
 namespace Internal {
 
-class NetworkAccessManagerFactory : public QDeclarativeNetworkAccessManagerFactory
+class NetworkAccessManagerFactory : public QQmlNetworkAccessManagerFactory
 {
 public:
-    NetworkAccessManagerFactory(): QDeclarativeNetworkAccessManagerFactory() {}
+    NetworkAccessManagerFactory(): QQmlNetworkAccessManagerFactory() {}
     QNetworkAccessManager* create(QObject *parent) { return new Utils::NetworkAccessManager(parent); }
 };
 
@@ -103,7 +101,7 @@ public:
 
     Q_SCRIPTABLE QString platform() const;
 
-    bool eventFilter(QObject *, QEvent *);
+//    bool eventFilter(QObject *, QEvent *);
 
 public slots:
     void setActivePlugin(int pos)
@@ -119,12 +117,15 @@ signals:
 
 private slots:
     void welcomePluginAdded(QObject*);
+#if QT_VERSION >= 0x050300
+    void sceneGraphError(QQuickWindow::SceneGraphError, const QString &message);
+#endif
 
 private:
-    void facilitateQml(QDeclarativeEngine *engine);
+    void facilitateQml(QQmlEngine *engine);
 
     QWidget *m_modeWidget;
-    QDeclarativeView *m_welcomePage;
+    QQuickView *m_welcomePage;
     QList<QObject*> m_pluginList;
     int m_activePlugin;
     NetworkAccessManagerFactory *m_networkAccessManagerFactory;
@@ -146,41 +147,45 @@ WelcomeMode::WelcomeMode() :
     setContextHelpId(QLatin1String("Qt Creator Manual"));
     setContext(Core::Context(Core::Constants::C_WELCOME_MODE));
 
-    m_welcomePage = new QDeclarativeView;
-    m_welcomePage->setResizeMode(QDeclarativeView::SizeRootObjectToView);
-    // filter to forward dragEnter events
-    m_welcomePage->installEventFilter(this);
-    m_welcomePage->viewport()->installEventFilter(this);
+    m_welcomePage = new QQuickView;
+#if QT_VERSION >= 0x050300
+    connect(m_welcomePage, SIGNAL(sceneGraphError(QQuickWindow::SceneGraphError,QString)),
+            this, SLOT(sceneGraphError(QQuickWindow::SceneGraphError,QString)));
+#endif // Qt 5.3
+    m_welcomePage->setObjectName(QLatin1String("WelcomePage"));
+    m_welcomePage->setResizeMode(QQuickView::SizeRootObjectToView);
+
+//  filter to forward dragEnter events
+//    m_welcomePage->installEventFilter(this);
+//    m_welcomePage->viewport()->installEventFilter(this);
 
     m_modeWidget = new QWidget;
+    m_modeWidget->setObjectName(QLatin1String("WelcomePageModeWidget"));
     QVBoxLayout *layout = new QVBoxLayout;
     layout->setMargin(0);
     layout->setSpacing(0);
-    m_modeWidget->setLayout(layout);
 
     Utils::StyledBar* styledBar = new Utils::StyledBar(m_modeWidget);
+    styledBar->setObjectName(QLatin1String("WelcomePageStyledBar"));
     layout->addWidget(styledBar);
-    QScrollArea *scrollArea = new QScrollArea(m_modeWidget);
-    scrollArea->setFrameShape(QFrame::NoFrame);
-    layout->addWidget(scrollArea);
-    scrollArea->setWidget(m_welcomePage);
-    scrollArea->setWidgetResizable(true);
-    m_welcomePage->setMinimumWidth(880);
-    m_welcomePage->setMinimumHeight(548);
-    PluginManager *pluginManager = PluginManager::instance();
-    connect(pluginManager, SIGNAL(objectAdded(QObject*)), SLOT(welcomePluginAdded(QObject*)));
+
+    QWidget *container = QWidget::createWindowContainer(m_welcomePage, m_modeWidget);
+    m_modeWidget->setLayout(layout);
+    layout->addWidget(container);
+
+    connect(PluginManager::instance(), SIGNAL(objectAdded(QObject*)), SLOT(welcomePluginAdded(QObject*)));
 
     setWidget(m_modeWidget);
 }
 
-bool WelcomeMode::eventFilter(QObject *, QEvent *e)
-{
-    if (e->type() == QEvent::DragEnter) {
-        e->ignore();
-        return true;
-    }
-    return false;
-}
+//bool WelcomeMode::eventFilter(QObject *, QEvent *e)
+//{
+//    if (e->type() == QEvent::DragEnter) {
+//        e->ignore();
+//        return true;
+//    }
+//    return false;
+//}
 
 WelcomeMode::~WelcomeMode()
 {
@@ -190,33 +195,38 @@ WelcomeMode::~WelcomeMode()
     delete m_networkAccessManagerFactory;
 }
 
+#if QT_VERSION >= 0x050300
+void WelcomeMode::sceneGraphError(QQuickWindow::SceneGraphError, const QString &message)
+{
+    QMessageBox *messageBox =
+        new QMessageBox(QMessageBox::Warning,
+                        tr("Welcome Mode Load Error"), message,
+                        QMessageBox::Close, m_modeWidget);
+    messageBox->setModal(false);
+    messageBox->setAttribute(Qt::WA_DeleteOnClose);
+    messageBox->show();
+}
+#endif // Qt 5.3
+
 bool sortFunction(Utils::IWelcomePage * a, Utils::IWelcomePage *b)
 {
     return a->priority() < b->priority();
 }
 
-void WelcomeMode::facilitateQml(QDeclarativeEngine * /*engine*/)
+void WelcomeMode::facilitateQml(QQmlEngine * /*engine*/)
 {
 }
 
 static QString applicationDirPath()
 {
-#ifdef Q_OS_WIN
     // normalize paths so QML doesn't freak out if it's wrongly capitalized on Windows
-    return Utils::normalizePathName(QCoreApplication::applicationDirPath());
-#else
-    return QCoreApplication::applicationDirPath();
-#endif
+    return Utils::FileUtils::normalizePathName(QCoreApplication::applicationDirPath());
 }
 
 static QString resourcePath()
 {
-#ifdef Q_OS_WIN
     // normalize paths so QML doesn't freak out if it's wrongly capitalized on Windows
-    return Utils::normalizePathName(Core::ICore::resourcePath());
-#else
-    return Core::ICore::resourcePath();
-#endif
+    return Utils::FileUtils::normalizePathName(Core::ICore::resourcePath());
 }
 
 void WelcomeMode::initPlugins()
@@ -224,11 +234,7 @@ void WelcomeMode::initPlugins()
     QSettings *settings = Core::ICore::settings();
     setActivePlugin(settings->value(QLatin1String(currentPageSettingsKeyC)).toInt());
 
-    // TODO: re-enable reading from Settings when possible. See QTCREATORBUG-6803
-    if (activePlugin() > 1)
-        setActivePlugin(1);
-
-    QDeclarativeContext *ctx = m_welcomePage->rootContext();
+    QQmlContext *ctx = m_welcomePage->rootContext();
     ctx->setContextProperty(QLatin1String("welcomeMode"), this);
 
     QList<Utils::IWelcomePage*> duplicatePlugins = PluginManager::getObjects<Utils::IWelcomePage>();
@@ -256,7 +262,7 @@ void WelcomeMode::initPlugins()
     }
 
 
-    QDeclarativeEngine *engine = m_welcomePage->engine();
+    QQmlEngine *engine = m_welcomePage->engine();
     QStringList importPathList = engine->importPathList();
     importPathList << resourcePath() + QLatin1String("/welcomescreen");
     engine->setImportPathList(importPathList);
@@ -287,10 +293,10 @@ void WelcomeMode::initPlugins()
 QString WelcomeMode::platform() const
 {
     switch (HostOsInfo::hostOs()) {
-    case HostOsInfo::HostOsWindows: return QLatin1String("windows");
-    case HostOsInfo::HostOsMac: return QLatin1String("mac");
-    case HostOsInfo::HostOsLinux: return QLatin1String("linux");
-    case HostOsInfo::HostOsOtherUnix: return QLatin1String("unix");
+    case OsTypeWindows: return QLatin1String("windows");
+    case OsTypeMac: return QLatin1String("mac");
+    case OsTypeLinux: return QLatin1String("linux");
+    case OsTypeOtherUnix: return QLatin1String("unix");
     default: return QLatin1String("other");
     }
 }
@@ -323,7 +329,7 @@ void WelcomeMode::welcomePluginAdded(QObject *obj)
         }
         m_pluginList.insert(insertPos, plugin);
         // update model through reset
-        QDeclarativeContext *ctx = m_welcomePage->rootContext();
+        QQmlContext *ctx = m_welcomePage->rootContext();
         ctx->setContextProperty(QLatin1String("pagesModel"), QVariant::fromValue(m_pluginList));
     }
 }
@@ -350,7 +356,7 @@ bool WelcomePlugin::initialize(const QStringList & /* arguments */, QString * /*
 /*! Notification that all extensions that this plugin depends on have been
     initialized. The dependencies are defined in the plugins .qwp file.
 
-    Normally this method is used for things that rely on other plugins to have
+    Normally this function is used for things that rely on other plugins to have
     added objects to the plugin manager, that implement interfaces that we're
     interested in. These objects can now be requested through the
     PluginManagerInterface.

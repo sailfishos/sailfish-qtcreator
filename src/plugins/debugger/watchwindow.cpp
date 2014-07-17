@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -649,7 +649,7 @@ void WatchTreeView::contextMenuEvent(QContextMenuEvent *ev)
         QString msg = (individualFormat == -1 && typeFormat != -1)
             ? tr("Use Format for Type (Currently %1)")
                 .arg(alternativeFormats.at(typeFormat))
-            : tr("Use Display Format Based on Type ");
+            : tr("Use Display Format Based on Type") + QLatin1Char(' ');
         clearIndividualFormatAction = formatMenu.addAction(spacer + msg);
         clearIndividualFormatAction->setCheckable(true);
         clearIndividualFormatAction->setChecked(individualFormat == -1);
@@ -863,7 +863,7 @@ void WatchTreeView::contextMenuEvent(QContextMenuEvent *ev)
 
     QAction *actCloseEditorToolTips =
         new QAction(tr("Close Editor Tooltips"), &menu);
-    actCloseEditorToolTips->setEnabled(DebuggerToolTipManager::instance()->hasToolTips());
+    actCloseEditorToolTips->setEnabled(DebuggerToolTipManager::hasToolTips());
     menu.addAction(actCloseEditorToolTips);
 
     addBaseContextActions(&menu);
@@ -932,7 +932,7 @@ void WatchTreeView::contextMenuEvent(QContextMenuEvent *ev)
     } else if (act == showUnprintableHexadecimal) {
         handler->setUnprintableBase(16);
     } else if (act == actCloseEditorToolTips) {
-        DebuggerToolTipManager::instance()->closeAllToolTips();
+        DebuggerToolTipManager::closeAllToolTips();
     } else if (handleBaseContextAction(act)) {
         ;
     } else {

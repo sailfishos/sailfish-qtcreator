@@ -47,7 +47,7 @@
 #include <projectexplorer/target.h>
 #include <qtsupport/baseqtversion.h>
 #include <qtsupport/qtkitinformation.h>
-#include <qt4projectmanager/qt4buildconfiguration.h>
+#include <qmakeprojectmanager/qmakebuildconfiguration.h>
 #include <coreplugin/idocument.h>
 #include <extensionsystem/pluginmanager.h>
 #include <coreplugin/variablemanager.h>
@@ -97,9 +97,9 @@ MerProcessStep::MerProcessStep(ProjectExplorer::BuildStepList *bsl, MerProcessSt
 
 bool MerProcessStep::init()
 {
-    Qt4ProjectManager::Qt4BuildConfiguration *bc = qobject_cast<Qt4ProjectManager::Qt4BuildConfiguration*>(buildConfiguration());
+    QmakeProjectManager::QmakeBuildConfiguration *bc = qobject_cast<QmakeProjectManager::QmakeBuildConfiguration*>(buildConfiguration());
     if (!bc)
-        bc =  qobject_cast<Qt4ProjectManager::Qt4BuildConfiguration*>(target()->activeBuildConfiguration());
+        bc =  qobject_cast<QmakeProjectManager::QmakeBuildConfiguration*>(target()->activeBuildConfiguration());
 
     if (!bc) {
         addOutput(tr("Cannot deploy: No active build configuration."),
@@ -130,7 +130,7 @@ bool MerProcessStep::init()
     }
 
 
-    const QString projectDirectory = bc->shadowBuild() ? bc->shadowBuildDirectory() : project()->projectDirectory();
+    const QString projectDirectory = bc->isShadowBuild() ? bc->rawBuildDirectory().toString() : project()->projectDirectory();
     const QString wrapperScriptsDir =  MerSdkManager::sdkToolsDirectory() + merSdk->virtualMachineName()
             + QLatin1Char('/') + target;
     const QString deployCommand = wrapperScriptsDir + QLatin1Char('/') + QLatin1String(Constants::MER_WRAPPER_DEPLOY);
@@ -141,7 +141,7 @@ bool MerProcessStep::init()
     //TODO HACK
     if(!device.isNull())
         env.appendOrSet(QLatin1String(Constants::MER_SSH_DEVICE_NAME),device->displayName());
-    pp->setMacroExpander(bc ? bc->macroExpander() : Core::VariableManager::instance()->macroExpander());
+    pp->setMacroExpander(bc ? bc->macroExpander() : Core::VariableManager::macroExpander());
     pp->setEnvironment(env);
     pp->setWorkingDirectory(projectDirectory);
     pp->setCommand(deployCommand);
@@ -163,7 +163,7 @@ void MerProcessStep::setArguments(const QString &arguments)
 
 const Core::Id MerEmulatorStartStep::stepId()
 {
-    return Core::Id("Qt4ProjectManager.MerEmulatorStartStep");
+    return Core::Id("QmakeProjectManager.MerEmulatorStartStep");
 }
 
 QString MerEmulatorStartStep::displayName()
@@ -242,7 +242,7 @@ BuildStepConfigWidget *MerEmulatorStartStep::createConfigWidget()
 
 const Core::Id MerMb2RsyncDeployStep::stepId()
 {
-    return Core::Id("Qt4ProjectManager.MerRsyncDeployStep");
+    return Core::Id("QmakeProjectManager.MerRsyncDeployStep");
 }
 
 QString MerMb2RsyncDeployStep::displayName()
@@ -292,7 +292,7 @@ BuildStepConfigWidget *MerMb2RsyncDeployStep::createConfigWidget()
 
 const Core::Id MerLocalRsyncDeployStep::stepId()
 {
-    return Core::Id("Qt4ProjectManager.MerLocalRsyncDeployStep");
+    return Core::Id("QmakeProjectManager.MerLocalRsyncDeployStep");
 }
 
 QString MerLocalRsyncDeployStep::displayName()
@@ -314,9 +314,9 @@ MerLocalRsyncDeployStep::MerLocalRsyncDeployStep(ProjectExplorer::BuildStepList 
 
 bool MerLocalRsyncDeployStep::init()
 {
-    Qt4ProjectManager::Qt4BuildConfiguration *bc = qobject_cast<Qt4ProjectManager::Qt4BuildConfiguration*>(buildConfiguration());
+    QmakeProjectManager::QmakeBuildConfiguration *bc = qobject_cast<QmakeProjectManager::QmakeBuildConfiguration*>(buildConfiguration());
     if (!bc)
-        bc =  qobject_cast<Qt4ProjectManager::Qt4BuildConfiguration*>(target()->activeBuildConfiguration());
+        bc =  qobject_cast<QmakeProjectManager::QmakeBuildConfiguration*>(target()->activeBuildConfiguration());
 
     if (!bc) {
         addOutput(tr("Cannot deploy: No active build configuration."),
@@ -347,7 +347,7 @@ bool MerLocalRsyncDeployStep::init()
     }
 
 
-    const QString projectDirectory = bc->shadowBuild() ? bc->shadowBuildDirectory() : project()->projectDirectory();
+    const QString projectDirectory = bc->isShadowBuild() ? bc->rawBuildDirectory().toString() : project()->projectDirectory();
     const QString deployCommand = QLatin1String("rsync");
 
     ProcessParameters *pp = processParameters();
@@ -356,7 +356,7 @@ bool MerLocalRsyncDeployStep::init()
     //TODO HACK
     if(!device.isNull())
         env.appendOrSet(QLatin1String(Constants::MER_SSH_DEVICE_NAME),device->displayName());
-    pp->setMacroExpander(bc ? bc->macroExpander() : Core::VariableManager::instance()->macroExpander());
+    pp->setMacroExpander(bc ? bc->macroExpander() : Core::VariableManager::macroExpander());
     pp->setEnvironment(env);
     pp->setWorkingDirectory(projectDirectory);
     pp->setCommand(deployCommand);
@@ -390,7 +390,7 @@ BuildStepConfigWidget *MerLocalRsyncDeployStep::createConfigWidget()
 
 const Core::Id MerMb2RpmDeployStep::stepId()
 {
-    return Core::Id("Qt4ProjectManager.MerRpmDeployStep");
+    return Core::Id("QmakeProjectManager.MerRpmDeployStep");
 }
 
 QString MerMb2RpmDeployStep::displayName()
@@ -443,7 +443,7 @@ BuildStepConfigWidget *MerMb2RpmDeployStep::createConfigWidget()
 
 const Core::Id MerMb2RpmBuildStep::stepId()
 {
-    return Core::Id("Qt4ProjectManager.MerRpmBuildStep");
+    return Core::Id("QmakeProjectManager.MerRpmBuildStep");
 }
 
 QString MerMb2RpmBuildStep::displayName()

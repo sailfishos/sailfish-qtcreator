@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -33,9 +33,10 @@
 #include <qmldesignercorelib_global.h>
 
 #include <QObject>
-#include <QDeclarativePropertyMap>
-#include <qdeclarative.h>
+#include <QQmlPropertyMap>
+#include <QtQml>
 #include <modelnode.h>
+#include <enumeration.h>
 
 class PropertyEditorValue;
 
@@ -43,7 +44,7 @@ class PropertyEditorNodeWrapper : public QObject {
     Q_OBJECT
 
     Q_PROPERTY(bool exists READ exists NOTIFY existsChanged)
-    Q_PROPERTY(QDeclarativePropertyMap* properties READ properties NOTIFY propertiesChanged)
+    Q_PROPERTY(QQmlPropertyMap* properties READ properties NOTIFY propertiesChanged)
     Q_PROPERTY(QString type READ type NOTIFY typeChanged)
 
 public:
@@ -51,7 +52,7 @@ public:
     PropertyEditorNodeWrapper(PropertyEditorValue* parent);
     bool exists();
     QString type();
-    QDeclarativePropertyMap* properties();
+    QQmlPropertyMap* properties();
     QmlDesigner::ModelNode parentModelNode() const;
     QmlDesigner::PropertyName propertyName() const;
 
@@ -70,7 +71,7 @@ private:
     void setup();
 
     QmlDesigner::ModelNode m_modelNode;
-    QDeclarativePropertyMap m_valuesPropertyMap;
+    QQmlPropertyMap m_valuesPropertyMap;
     PropertyEditorValue* m_editorValue;
 };
 
@@ -78,13 +79,14 @@ class PropertyEditorValue : public QObject
 {
     Q_OBJECT
     Q_PROPERTY(QVariant value READ value WRITE setValueWithEmit NOTIFY valueChangedQml)
+    Q_PROPERTY(QVariant enumeration READ enumeration NOTIFY valueChangedQml)
     Q_PROPERTY(QString expression READ expression WRITE setExpressionWithEmit NOTIFY expressionChanged FINAL)
     Q_PROPERTY(QString valueToString READ valueToString NOTIFY valueChangedQml FINAL)
     Q_PROPERTY(bool isInModel READ isInModel NOTIFY valueChangedQml FINAL)
     Q_PROPERTY(bool isInSubState READ isInSubState NOTIFY valueChangedQml FINAL)
     Q_PROPERTY(bool isBound READ isBound NOTIFY isBoundChanged FINAL)
     Q_PROPERTY(bool isValid READ isValid NOTIFY isValidChanged FINAL)
-    Q_PROPERTY(bool isTranslated READ isTranslated NOTIFY valueChangedQml FINAL)
+    Q_PROPERTY(bool isTranslated READ isTranslated NOTIFY expressionChanged FINAL)
 
     Q_PROPERTY(QString name READ name FINAL)
     Q_PROPERTY(PropertyEditorNodeWrapper* complexNode READ complexNode NOTIFY complexNodeChanged FINAL)
@@ -95,6 +97,8 @@ public:
     QVariant value() const;
     void setValueWithEmit(const QVariant &value);
     void setValue(const QVariant &value);
+
+    QString enumeration() const;
 
     QString expression() const;
     void setExpressionWithEmit(const QString &expression);
@@ -125,6 +129,7 @@ public:
 
 public slots:
     void resetValue();
+    void setEnumeration(const QString &scope, const QString &name);
 
 signals:
     void valueChanged(const QString &name, const QVariant&);
@@ -152,7 +157,7 @@ private: //variables
 
 QML_DECLARE_TYPE(PropertyEditorValue)
 QML_DECLARE_TYPE(PropertyEditorNodeWrapper)
-QML_DECLARE_TYPE(QDeclarativePropertyMap)
+QML_DECLARE_TYPE(QQmlPropertyMap)
 
 
 #endif // PROPERTYEDITORVALUE_H

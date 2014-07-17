@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -33,9 +33,7 @@
 
 #include <QThread>
 
-namespace QSsh {
-class SshKeyGenerator;
-}
+namespace QSsh { class SshKeyGenerator; }
 
 namespace Qnx {
 namespace Internal {
@@ -44,13 +42,12 @@ class BlackBerrySshKeysGenerator : public QThread
 {
     Q_OBJECT
 public:
-    BlackBerrySshKeysGenerator(QObject *parent = 0);
+    BlackBerrySshKeysGenerator();
     ~BlackBerrySshKeysGenerator();
-    QSsh::SshKeyGenerator *keyGenerator() const;
-    QString error() const;
 
 signals:
-    void sshKeysGenerationFinished(bool success);
+    void sshKeysGenerationFailed(const QString &error);
+    void sshKeysGenerationFinished(const QByteArray &privateKey, const QByteArray &publicKey);
 
 private:
       QSsh::SshKeyGenerator *m_keyGen;

@@ -347,7 +347,8 @@ FullySpecifiedType Bind::declarator(DeclaratorAST *ast, const FullySpecifiedType
 
     std::swap(_declaratorId, declaratorId);
     bool isAuto = false;
-    if (translationUnit()->cxx0xEnabled())
+    const bool cxx11Enabled = translationUnit()->languageFeatures().cxx11Enabled;
+    if (cxx11Enabled)
         isAuto = type.isAuto();
 
     for (SpecifierListAST *it = ast->attribute_list; it; it = it->next) {
@@ -369,8 +370,7 @@ FullySpecifiedType Bind::declarator(DeclaratorAST *ast, const FullySpecifiedType
     }
     if (!type->isFunctionType()) {
         ExpressionTy initializer = this->expression(ast->initializer);
-        if (translationUnit()->cxx0xEnabled() && isAuto) {
-
+        if (cxx11Enabled && isAuto) {
             type = initializer;
             type.setAuto(true);
         }
@@ -1142,11 +1142,11 @@ const StringLiteral *Bind::asStringLiteral(unsigned firstToken, unsigned lastTok
     std::string buffer;
     for (unsigned index = firstToken; index != lastToken; ++index) {
         const Token &tk = tokenAt(index);
-        if (tk.whitespace() || tk.newline())
+        if (index != firstToken && (tk.whitespace() || tk.newline()))
             buffer += ' ';
         buffer += tk.spell();
     }
-    return control()->stringLiteral(buffer.c_str(), buffer.size());
+    return control()->stringLiteral(buffer.c_str(), unsigned(buffer.size()));
 }
 
 // StatementAST
@@ -1168,7 +1168,7 @@ bool Bind::visit(QtMemberDeclarationAST *ast)
                 privateClass += nameId->identifier()->chars();
                 privateClass += "Private";
 
-                const Name *privName = control()->identifier(privateClass.c_str(), privateClass.size());
+                const Name *privName = control()->identifier(privateClass.c_str(), unsigned(privateClass.size()));
                 declTy.setType(control()->namedType(privName));
             }
         }
@@ -1249,7 +1249,7 @@ bool Bind::visit(ForeachStatementAST *ast)
     DeclaratorIdAST *declaratorId = 0;
     type = this->declarator(ast->declarator, type, &declaratorId);
     const StringLiteral *initializer = 0;
-    if (type.isAuto() && translationUnit()->cxx0xEnabled()) {
+    if (type.isAuto() && translationUnit()->languageFeatures().cxx11Enabled) {
         ExpressionTy exprType = this->expression(ast->expression);
 
         ArrayType* arrayType = 0;
@@ -1262,7 +1262,7 @@ bool Bind::visit(ForeachStatementAST *ast)
             unsigned endOfExpression = ast->expression->lastToken();
             const StringLiteral *sl = asStringLiteral(startOfExpression, endOfExpression);
             const std::string buff = std::string("*") + sl->chars() + ".begin()";
-            initializer = control()->stringLiteral(buff.c_str(), buff.size());
+            initializer = control()->stringLiteral(buff.c_str(), unsigned(buff.size()));
         }
     }
 
@@ -1299,7 +1299,7 @@ bool Bind::visit(RangeBasedForStatementAST *ast)
     DeclaratorIdAST *declaratorId = 0;
     type = this->declarator(ast->declarator, type, &declaratorId);
     const StringLiteral *initializer = 0;
-    if (type.isAuto() && translationUnit()->cxx0xEnabled()) {
+    if (type.isAuto() && translationUnit()->languageFeatures().cxx11Enabled) {
         ExpressionTy exprType = this->expression(ast->expression);
 
         ArrayType* arrayType = 0;
@@ -1312,7 +1312,7 @@ bool Bind::visit(RangeBasedForStatementAST *ast)
             unsigned endOfExpression = ast->expression->lastToken();
             const StringLiteral *sl = asStringLiteral(startOfExpression, endOfExpression);
             const std::string buff = std::string("*") + sl->chars() + ".begin()";
-            initializer = control()->stringLiteral(buff.c_str(), buff.size());
+            initializer = control()->stringLiteral(buff.c_str(), unsigned(buff.size()));
         }
     }
 
@@ -1861,7 +1861,7 @@ bool Bind::visit(SimpleDeclarationAST *ast)
         setDeclSpecifiers(decl, type);
 
         if (Function *fun = decl->type()->asFunctionType()) {
-            fun->setScope(_scope);
+            fun->setEnclosingScope(_scope);
             fun->setSourceLocation(sourceLocation, translationUnit());
 
             setDeclSpecifiers(fun, type);
@@ -2002,6 +2002,8 @@ bool Bind::visit(QtPropertyDeclarationAST *ast)
             flags |= QtPropertyDeclaration::ReadFunction;
         } else if (name == "WRITE") {
             flags |= QtPropertyDeclaration::WriteFunction;
+        } else if (name == "MEMBER") {
+            flags |= QtPropertyDeclaration::MemberVariable;
         } else if (name == "RESET") {
             flags |= QtPropertyDeclaration::ResetFunction;
         } else if (name == "NOTIFY") {
@@ -2591,7 +2593,7 @@ bool Bind::visit(ObjCSelectorAST *ast) // ### review
     }
 
     if (! arguments.empty()) {
-        _name = control()->selectorNameId(&arguments[0], arguments.size(), hasArgs);
+        _name = control()->selectorNameId(&arguments[0], unsigned(arguments.size()), hasArgs);
         ast->name = _name;
     }
 
@@ -2676,7 +2678,7 @@ bool Bind::visit(TemplateIdAST *ast)
         _name = control()->templateNameId(id, isSpecialization);
     else
         _name = control()->templateNameId(id, isSpecialization, &templateArguments[0],
-                templateArguments.size());
+                unsigned(templateArguments.size()));
 
     ast->name = _name;
     return false;
@@ -2720,7 +2722,7 @@ bool Bind::visit(SimpleSpecifierAST *ast)
             break;
 
         case T_AUTO:
-            if (!translationUnit()->cxx0xEnabled()) {
+            if (!translationUnit()->languageFeatures().cxx11Enabled) {
                 if (_type.isAuto())
                     translationUnit()->error(ast->specifier_token, "duplicate `%s'", spell(ast->specifier_token));
             }
@@ -3016,17 +3018,9 @@ bool Bind::visit(EnumSpecifierAST *ast)
         this->enumerator(it->value, e);
     }
 
-    if (ast->stray_comma_token /* && ! translationUnit()->cxx0xEnabled()*/) {
-        const Token &tk = tokenAt(ast->stray_comma_token);
-        if (! tk.generated())
-            translationUnit()->warning(ast->stray_comma_token,
-                                       "commas at the end of enumerator lists are a C++0x-specific feature");
-    }
-
     (void) switchScope(previousScope);
     return false;
 }
-
 
 // PtrOperatorAST
 bool Bind::visit(PointerToMemberAST *ast)

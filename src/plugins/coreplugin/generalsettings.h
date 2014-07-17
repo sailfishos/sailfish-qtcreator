@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -40,9 +40,7 @@ QT_END_NAMESPACE
 namespace Core {
 namespace Internal {
 
-namespace Ui {
-    class GeneralSettings;
-}
+namespace Ui { class GeneralSettings; }
 
 class GeneralSettings : public IOptionsPage
 {
@@ -51,10 +49,9 @@ class GeneralSettings : public IOptionsPage
 public:
     GeneralSettings();
 
-    QWidget* createPage(QWidget *parent);
+    QWidget* widget();
     void apply();
     void finish();
-    virtual bool matches(const QString &) const;
 
 private slots:
     void resetInterfaceColor();
@@ -70,7 +67,6 @@ private:
     QString language() const;
     void setLanguage(const QString&);
     Ui::GeneralSettings *m_page;
-    QString m_searchKeywords;
     QPointer<QMessageBox> m_dialog;
     QPointer<QWidget> m_widget;
 };

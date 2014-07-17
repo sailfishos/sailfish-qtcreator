@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2012 - 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -33,6 +33,7 @@
 #include "qnxconstants.h"
 
 #include <remotelinux/remotelinuxrunconfigurationwidget.h>
+#include <utils/environment.h>
 
 #include <QLabel>
 #include <QLineEdit>
@@ -60,22 +61,23 @@ void QnxRunConfiguration::setQtLibPath(const QString &path)
     m_qtLibPath = path;
 }
 
-QString QnxRunConfiguration::environmentPreparationCommand() const
+Utils::Environment QnxRunConfiguration::environment() const
 {
-    QString command;
-    const QStringList filesToSource = QStringList() << QLatin1String("/etc/profile")
-        << QLatin1String("$HOME/.profile");
-    foreach (const QString &filePath, filesToSource)
-        command += QString::fromLatin1("test -f %1 && . %1;").arg(filePath);
-    if (!workingDirectory().isEmpty())
-        command += QLatin1String("cd ") + workingDirectory() + QLatin1Char(';');
+    Utils::Environment env = RemoteLinuxRunConfiguration::environment();
+    if (!m_qtLibPath.isEmpty()) {
+        env.appendOrSet(QLatin1String("LD_LIBRARY_PATH"),
+                        m_qtLibPath + QLatin1String("/lib:$LD_LIBRARY_PATH"));
+        env.appendOrSet(QLatin1String("QML_IMPORT_PATH"),
+                        m_qtLibPath + QLatin1String("/imports:$QML_IMPORT_PATH"));
+        env.appendOrSet(QLatin1String("QML2_IMPORT_PATH"),
+                        m_qtLibPath + QLatin1String("/qml:$QML2_IMPORT_PATH"));
+        env.appendOrSet(QLatin1String("QT_PLUGIN_PATH"),
+                        m_qtLibPath + QLatin1String("/plugins:$QT_PLUGIN_PATH"));
+        env.set(QLatin1String("QT_QPA_FONTDIR"),
+                        m_qtLibPath + QLatin1String("/lib/fonts"));
+    }
 
-    if (!m_qtLibPath.isEmpty())
-        command += QLatin1String("LD_LIBRARY_PATH=") + m_qtLibPath + QLatin1String(":$LD_LIBRARY_PATH");
-    else
-        command.chop(1); // Trailing semicolon.
-
-    return command;
+    return env;
 }
 
 QWidget *QnxRunConfiguration::createConfigurationWidget()

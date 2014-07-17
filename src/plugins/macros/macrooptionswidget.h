@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Nicolas Arnaud-Cormos
+** Copyright (c) 2014 Nicolas Arnaud-Cormos
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -45,9 +45,7 @@ namespace Internal {
 
 class MacroSettings;
 
-namespace Ui {
-    class MacroOptionsWidget;
-}
+namespace Ui { class MacroOptionsWidget; }
 
 class MacroOptionsWidget : public QWidget {
     Q_OBJECT

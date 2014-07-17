@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -33,7 +33,7 @@
 #include <QWidget>
 
 QT_BEGIN_NAMESPACE
-class QDeclarativeView;
+class QQuickView;
 QT_END_NAMESPACE
 
 namespace QmlDesigner {
@@ -44,9 +44,7 @@ class StatesEditorModel;
 class StatesEditorView;
 class NodeInstanceView;
 
-namespace Internal {
-class StatesEditorImageProvider;
-}
+namespace Internal { class StatesEditorImageProvider; }
 
 class StatesEditorWidget : public QWidget
 {
@@ -62,8 +60,10 @@ public:
     void setCurrentStateInternalId(int internalId);
     void setNodeInstanceView(NodeInstanceView *nodeInstanceView);
 
+    void showAddNewStatesButton(bool showAddNewStatesButton);
+
 private:
-    QWeakPointer<QDeclarativeView> m_declarativeView;
+    QWeakPointer<QQuickView> m_quickView;
     QWeakPointer<StatesEditorView> m_statesEditorView;
     Internal::StatesEditorImageProvider *m_imageProvider;
 };

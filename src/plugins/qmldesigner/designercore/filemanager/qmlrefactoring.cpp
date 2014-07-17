@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -59,7 +59,7 @@ bool QmlRefactoring::reparseDocument()
 
 //    qDebug() << "QmlRefactoring::reparseDocument() new QML source:" << newSource;
 
-    Document::MutablePtr tmpDocument(Document::create("<ModelToTextMerger>", Document::QmlLanguage));
+    Document::MutablePtr tmpDocument(Document::create("<ModelToTextMerger>", Language::Qml));
     tmpDocument->setSource(newSource);
 
     if (tmpDocument->parseQml()) {

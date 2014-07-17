@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -27,26 +27,28 @@
 **
 ****************************************************************************/
 
-#include <cplusplus/CppDocument.h>
-#include <cplusplus/TranslationUnit.h>
+#include "cppeditor.h"
+#include "cppeditorplugin.h"
+#include "cppeditortestcase.h"
+#include "cppquickfix.h"
+#include "cppquickfixassistant.h"
+#include "cppquickfixes.h"
+#include "cppinsertvirtualmethods.h"
 
 #include <coreplugin/editormanager/editormanager.h>
-#include <cppeditor/cppeditor.h>
-#include <cppeditor/cppeditorplugin.h>
-#include <cppeditor/cppquickfixassistant.h>
-#include <cppeditor/cppquickfixes.h>
-#include <cppeditor/cppquickfix.h>
-#include <cppeditor/cppquickfix_test_utils.h>
 #include <cpptools/cppmodelmanagerinterface.h>
 #include <cpptools/cpptoolsplugin.h>
 #include <extensionsystem/pluginmanager.h>
-#include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/project.h>
+#include <projectexplorer/projectexplorer.h>
 #include <texteditor/basetextdocument.h>
 
+#include <cplusplus/CppDocument.h>
+#include <cplusplus/TranslationUnit.h>
+
 #include <QDebug>
-#include <QtAlgorithms>
 #include <QTextDocument>
+#include <QtAlgorithms>
 #include <QtTest>
 
 #if  QT_VERSION >= 0x050000
@@ -81,7 +83,7 @@ using namespace TextEditor;
 
 namespace {
 
-class TestActionsTestCase
+class TestActionsTestCase : public CppEditor::Internal::Tests::TestCase
 {
 public:
     class AbstractAction
@@ -97,15 +99,15 @@ public:
 public:
     /// Run the given fileActions for each file and the given tokenActions for each token.
     /// The cursor is positioned on the very first character of each token.
-    void run(const Actions &tokenActions = Actions(),
-             const Actions &fileActions = Actions());
+    TestActionsTestCase(const Actions &tokenActions = Actions(),
+                        const Actions &fileActions = Actions());
 
     /// Simulate pressing ESC, which will close popups, search results pane, etc...
     /// This works only if the Qt Creator window is active.
     static void escape();
 
     /// Undoing changes
-    static void undoChangesInEditorWidget(BaseTextEditorWidget *editorWidget);
+    static void undoChangesInDocument(BaseTextDocument *editorDocument);
     static void undoChangesInAllEditorWidgets();
 
     /// Execute actions for the current cursor position of editorWidget.
@@ -132,15 +134,21 @@ bool TestActionsTestCase::allProjectsConfigured = false;
 typedef TestActionsTestCase::Actions Actions;
 typedef TestActionsTestCase::ActionPointer ActionPointer;
 
-void TestActionsTestCase::run(const Actions &tokenActions, const Actions &fileActions)
+Actions singleAction(const ActionPointer &action)
 {
-    CppModelManagerInterface *mm = CppModelManagerInterface::instance();
-    EditorManager *em = EditorManager::instance();
+    return Actions() << action;
+}
+
+TestActionsTestCase::TestActionsTestCase(const Actions &tokenActions, const Actions &fileActions)
+    : CppEditor::Internal::Tests::TestCase(/*runGarbageCollector=*/false)
+{
+    QVERIFY(succeededSoFar());
 
     // Collect files to process
     QStringList filesToOpen;
     QList<QPointer<ProjectExplorer::Project> > projects;
-    const QList<CppModelManagerInterface::ProjectInfo> projectInfos = mm->projectInfos();
+    const QList<CppModelManagerInterface::ProjectInfo> projectInfos
+            = m_modelManager->projectInfos();
     if (projectInfos.isEmpty())
         MSKIP_SINGLE("No project(s) loaded. Test operates only on loaded projects.");
 
@@ -175,19 +183,17 @@ void TestActionsTestCase::run(const Actions &tokenActions, const Actions &fileAc
         undoAllChangesAndCloseAllEditors();
 
         // Open editor
-        QCOMPARE(em->openedEditors().size(), 0);
-        CPPEditor *editor = dynamic_cast<CPPEditor *>(em->openEditor(filePath));
-        QVERIFY(editor);
-        QCOMPARE(em->openedEditors().size(), 1);
-        QVERIFY(mm->isCppEditor(editor));
-        QVERIFY(mm->workingCopy().contains(filePath));
+        QCOMPARE(EditorManager::documentModel()->openedDocuments().size(), 0);
+        CPPEditor *editor;
+        CPPEditorWidget *editorWidget;
+        QVERIFY(openCppEditor(filePath, &editor, &editorWidget));
+
+        QCOMPARE(EditorManager::documentModel()->openedDocuments().size(), 1);
+        QVERIFY(m_modelManager->isCppEditor(editor));
+        QVERIFY(m_modelManager->workingCopy().contains(filePath));
 
         // Rehighlight
-        CPPEditorWidget *editorWidget = dynamic_cast<CPPEditorWidget *>(editor->editorWidget());
-        QVERIFY(editorWidget);
-        editorWidget->semanticRehighlight(true);
-        while (editorWidget->semanticInfo().doc.isNull())
-            QApplication::processEvents();
+        waitForRehighlightedSemanticDocument(editorWidget);
 
         // Run all file actions
         executeActionsOnEditorWidget(editorWidget, fileActions);
@@ -195,9 +201,9 @@ void TestActionsTestCase::run(const Actions &tokenActions, const Actions &fileAc
         if (tokenActions.empty())
             continue;
 
-        Snapshot snapshot = mm->snapshot();
+        const Snapshot snapshot = globalSnapshot();
         Document::Ptr document = snapshot.preprocessedDocument(
-            editorWidget->document()->toPlainText(), filePath);
+            editorWidget->document()->toPlainText().toUtf8(), filePath);
         QVERIFY(document);
         document->parse();
         TranslationUnit *translationUnit = document->translationUnit();
@@ -252,21 +258,19 @@ void TestActionsTestCase::escape()
         QTest::keyClick(w, Qt::Key_Escape);
 }
 
-void TestActionsTestCase::undoChangesInEditorWidget(BaseTextEditorWidget *editorWidget)
+void TestActionsTestCase::undoChangesInDocument(BaseTextDocument *editorDocument)
 {
-    QTextDocument * const document = editorWidget->document();
+    QTextDocument * const document = editorDocument->document();
     QVERIFY(document);
     while (document->isUndoAvailable())
-        editorWidget->undo();
+        document->undo();
 }
 
 void TestActionsTestCase::undoChangesInAllEditorWidgets()
 {
-    EditorManager *em = EditorManager::instance();
-    foreach (IEditor *editor, em->openedEditors()) {
-        BaseTextEditor *baseTextEditor = qobject_cast<BaseTextEditor*>(editor);
-        BaseTextEditorWidget *baseTextEditorWidget = baseTextEditor->editorWidget();
-        undoChangesInEditorWidget(baseTextEditorWidget);
+    foreach (IDocument *document, EditorManager::documentModel()->openedDocuments()) {
+        BaseTextDocument *baseTextDocument = qobject_cast<BaseTextDocument *>(document);
+        undoChangesInDocument(baseTextDocument);
     }
 }
 
@@ -302,11 +306,10 @@ void TestActionsTestCase::moveWordCamelCaseToToken(TranslationUnit *translationU
 
 void TestActionsTestCase::undoAllChangesAndCloseAllEditors()
 {
-    EditorManager *em = EditorManager::instance();
     undoChangesInAllEditorWidgets();
-    em->closeAllEditors(/*askAboutModifiedEditors =*/ false);
+    EditorManager::closeAllEditors(/*askAboutModifiedEditors =*/ false);
     QApplication::processEvents();
-    QCOMPARE(em->openedEditors().size(), 0);
+    QCOMPARE(EditorManager::documentModel()->openedDocuments().size(), 0);
 }
 
 void TestActionsTestCase::configureAllProjects(const QList<QPointer<ProjectExplorer::Project> >
@@ -335,10 +338,8 @@ public:
 
 void FollowSymbolUnderCursorTokenAction::run(CPPEditorWidget *editorWidget)
 {
-    EditorManager *em = EditorManager::instance();
-
     // Follow link
-    IEditor *editorBefore = em->currentEditor();
+    IEditor *editorBefore = EditorManager::currentEditor();
     const int originalLine = editorBefore->currentLine();
     const int originalColumn = editorBefore->currentColumn();
     editorWidget->openLinkUnderCursor();
@@ -346,9 +347,9 @@ void FollowSymbolUnderCursorTokenAction::run(CPPEditorWidget *editorWidget)
     QApplication::processEvents();
 
     // Go back
-    IEditor *editorAfter = em->currentEditor();
+    IEditor *editorAfter = EditorManager::currentEditor();
     if (editorAfter != editorBefore)
-        em->goBackInNavigationHistory();
+        EditorManager::goBackInNavigationHistory();
     else
         editorBefore->gotoLine(originalLine, originalColumn);
     QApplication::processEvents();
@@ -363,19 +364,17 @@ public:
 
 void SwitchDeclarationDefinitionTokenAction::run(CPPEditorWidget *)
 {
-    EditorManager *em = EditorManager::instance();
-
     // Switch Declaration/Definition
-    IEditor *editorBefore = em->currentEditor();
+    IEditor *editorBefore = EditorManager::currentEditor();
     const int originalLine = editorBefore->currentLine();
     const int originalColumn = editorBefore->currentColumn();
     CppEditor::Internal::CppEditorPlugin::instance()->switchDeclarationDefinition();
     QApplication::processEvents();
 
     // Go back
-    IEditor *editorAfter = em->currentEditor();
+    IEditor *editorAfter = EditorManager::currentEditor();
     if (editorAfter != editorBefore)
-        em->goBackInNavigationHistory();
+        EditorManager::goBackInNavigationHistory();
     else
         editorBefore->gotoLine(originalLine, originalColumn);
     QApplication::processEvents();
@@ -444,7 +443,7 @@ void InvokeCompletionTokenAction::run(CPPEditorWidget *editorWidget)
     //    editorWidget->setFocus();
     QApplication::processEvents();
 
-    TestActionsTestCase::undoChangesInEditorWidget(editorWidget);
+    TestActionsTestCase::undoChangesInDocument(editorWidget->baseTextDocument());
 }
 
 class RunAllQuickFixesTokenAction : public TestActionsTestCase::AbstractAction
@@ -475,10 +474,7 @@ void RunAllQuickFixesTokenAction::run(CPPEditorWidget *editorWidget)
         // Where possible, use a guiless version of the factory.
         if (qobject_cast<InsertVirtualMethods *>(quickFixFactory)) {
             QScopedPointer<CppQuickFixFactory> factoryProducingGuiLessOperations;
-            factoryProducingGuiLessOperations.reset(
-                new InsertVirtualMethods(
-                    new InsertVirtualMethodsDialogTest(
-                        InsertVirtualMethodsDialog::ModeOutsideClass, true)));
+            factoryProducingGuiLessOperations.reset(InsertVirtualMethods::createTestFactory());
             factoryProducingGuiLessOperations->match(qfi, operations);
         } else {
             quickFixFactory->match(qfi, operations);
@@ -502,17 +498,15 @@ public:
 
 void SwitchHeaderSourceFileAction::run(CPPEditorWidget *)
 {
-    EditorManager *em = EditorManager::instance();
-
     // Switch Header/Source
-    IEditor *editorBefore = em->currentEditor();
+    IEditor *editorBefore = EditorManager::currentEditor();
     CppTools::Internal::CppToolsPlugin::instance()->switchHeaderSource();
     QApplication::processEvents();
 
     // Go back
-    IEditor *editorAfter = em->currentEditor();
+    IEditor *editorAfter = EditorManager::currentEditor();
     if (editorAfter != editorBefore)
-        em->goBackInNavigationHistory();
+        EditorManager::goBackInNavigationHistory();
     QApplication::processEvents();
 }
 
@@ -520,88 +514,51 @@ void SwitchHeaderSourceFileAction::run(CPPEditorWidget *)
 
 void CppEditorPlugin::test_openEachFile()
 {
-    TestActionsTestCase test;
-    test.run();
+    TestActionsTestCase();
 }
 
 void CppEditorPlugin::test_switchHeaderSourceOnEachFile()
 {
-    Actions fileActions;
-    fileActions << ActionPointer(new SwitchHeaderSourceFileAction);
-
-    TestActionsTestCase test;
-    test.run(Actions(), fileActions);
+    TestActionsTestCase(Actions(), singleAction(ActionPointer(new SwitchHeaderSourceFileAction)));
 }
 
 void CppEditorPlugin::test_moveTokenWiseThroughEveryFile()
 {
-    Actions tokenActions;
-    tokenActions << ActionPointer(new NoOpTokenAction());
-
-    TestActionsTestCase test;
-    test.run(tokenActions);
+    TestActionsTestCase(singleAction(ActionPointer(new NoOpTokenAction)));
 }
 
 /// May block if file does not exists (e.g. a not generated ui_* file).
 void CppEditorPlugin::test_moveTokenWiseThroughEveryFileAndFollowSymbol()
 {
-    Actions tokenActions;
-    tokenActions << ActionPointer(new FollowSymbolUnderCursorTokenAction());
-
-    TestActionsTestCase test;
-    test.run(tokenActions);
+    TestActionsTestCase(singleAction(ActionPointer(new FollowSymbolUnderCursorTokenAction)));
 }
 
 void CppEditorPlugin::test_moveTokenWiseThroughEveryFileAndSwitchDeclarationDefinition()
 {
-    Actions tokenActions;
-    tokenActions << ActionPointer(new SwitchDeclarationDefinitionTokenAction());
-
-    TestActionsTestCase test;
-    test.run(tokenActions);
+    TestActionsTestCase(singleAction(ActionPointer(new SwitchDeclarationDefinitionTokenAction)));
 }
 
 void CppEditorPlugin::test_moveTokenWiseThroughEveryFileAndFindUsages()
 {
-    Actions tokenActions;
-    tokenActions << ActionPointer(new FindUsagesTokenAction());
-
-    TestActionsTestCase test;
-    test.run(tokenActions);
+    TestActionsTestCase(singleAction(ActionPointer(new FindUsagesTokenAction)));
 }
 
 void CppEditorPlugin::test_moveTokenWiseThroughEveryFileAndRenameUsages()
 {
-    Actions tokenActions;
-    tokenActions << ActionPointer(new RenameSymbolUnderCursorTokenAction());
-
-    TestActionsTestCase test;
-    test.run(tokenActions);
+    TestActionsTestCase(singleAction(ActionPointer(new RenameSymbolUnderCursorTokenAction)));
 }
 
 void CppEditorPlugin::test_moveTokenWiseThroughEveryFileAndOpenTypeHierarchy()
 {
-    Actions tokenActions;
-    tokenActions << ActionPointer(new OpenTypeHierarchyTokenAction());
-
-    TestActionsTestCase test;
-    test.run(tokenActions);
+    TestActionsTestCase(singleAction(ActionPointer(new OpenTypeHierarchyTokenAction)));
 }
 
 void CppEditorPlugin::test_moveTokenWiseThroughEveryFileAndInvokeCompletion()
 {
-    Actions tokenActions;
-    tokenActions << ActionPointer(new InvokeCompletionTokenAction());
-
-    TestActionsTestCase test;
-    test.run(tokenActions);
+    TestActionsTestCase(singleAction(ActionPointer(new InvokeCompletionTokenAction)));
 }
 
 void CppEditorPlugin::test_moveTokenWiseThroughEveryFileAndTriggerQuickFixes()
 {
-    Actions tokenActions;
-    tokenActions << ActionPointer(new RunAllQuickFixesTokenAction());
-
-    TestActionsTestCase test;
-    test.run(tokenActions);
+    TestActionsTestCase(singleAction(ActionPointer(new RunAllQuickFixesTokenAction)));
 }

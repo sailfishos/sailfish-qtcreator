@@ -1,6 +1,6 @@
 #############################################################################
 ##
-## Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+## Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ## Contact: http://www.qt-project.org/legal
 ##
 ## This file is part of Qt Creator.
@@ -34,7 +34,7 @@ def switchViewTo(view):
     # make sure that no tooltip is shown, so move the mouse away and wait until all disappear
     mouseMove(waitForObject(':Qt Creator_Core::Internal::MainWindow'), -20, -20)
     waitFor("not QToolTip.isVisible()", 15000)
-    if view < ViewConstants.WELCOME or view > ViewConstants.LAST_AVAILABLE:
+    if view < ViewConstants.FIRST_AVAILABLE or view > ViewConstants.LAST_AVAILABLE:
         return
     tabBar = waitForObject("{type='Core::Internal::FancyTabBar' unnamed='1' visible='1' "
                            "window=':Qt Creator_Core::Internal::MainWindow'}")
@@ -168,7 +168,7 @@ def getQtInformationForBuildSettings(kitCount, alreadyOnProjectsBuildSettings=Fa
     qtLibPath = getQtInformationByQMakeCall(qtDir, QtInformation.QT_LIBPATH)
     qtBinPath = getQtInformationByQMakeCall(qtDir, QtInformation.QT_BINPATH)
     if afterSwitchTo:
-        if ViewConstants.WELCOME <= afterSwitchTo <= ViewConstants.LAST_AVAILABLE:
+        if ViewConstants.FIRST_AVAILABLE <= afterSwitchTo <= ViewConstants.LAST_AVAILABLE:
             switchViewTo(afterSwitchTo)
         else:
             test.warning("Don't know where you trying to switch to (%s)" % afterSwitchTo)
@@ -185,7 +185,7 @@ def getQtInformationForQmlProject():
     waitForObjectItem(":Options_QListView", "Build & Run")
     clickItem(":Options_QListView", "Build & Run", 14, 15, 0, Qt.LeftButton)
     clickOnTab(":Options.qt_tabwidget_tabbar_QTabBar", "Kits")
-    targetsTreeView = waitForObject(":Kits_Or_Compilers_QTreeView")
+    targetsTreeView = waitForObject(":BuildAndRun_QTreeView")
     if not __selectTreeItemOnBuildAndRun__(targetsTreeView, "%s(\s\(default\))?" % kit, True):
         test.fatal("Found no matching kit - this shouldn't happen.")
         clickButton(waitForObject(":Options.Cancel_QPushButton"))
@@ -299,6 +299,10 @@ def invokeContextMenuOnProject(projectName, menuItem):
             return
     openItemContextMenu(waitForObject(":Qt Creator_Utils::NavigationTreeView"),
                         str(projItem.text).replace("_", "\\_").replace(".", "\\."), 5, 5, 0)
-    activateItem(waitForObjectItem("{name='Project.Menu.Project' type='QMenu' visible='1' "
-                                   "window=':Qt Creator_Core::Internal::MainWindow'}", menuItem))
+    # Hack for Squish 5.0.1 handling menus of Qt5.2 on Mac (avoids crash) - remove asap
+    if platform.system() == 'Darwin':
+        waitFor("macHackActivateContextMenuItem(menuItem)", 6000)
+    else:
+        activateItem(waitForObjectItem("{name='Project.Menu.Project' type='QMenu' visible='1' "
+                                       "window=':Qt Creator_Core::Internal::MainWindow'}", menuItem))
     return projItem

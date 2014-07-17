@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -34,7 +34,6 @@ namespace Constants {
 
 const char GenericLinuxOsType[] = "GenericLinuxOsType";
 
-const char GenericTestDeviceActionId[] = "RemoteLinux.GenericTestDeviceAction";
 const char GenericDeployKeyToDeviceActionId[] = "RemoteLinux.GenericDeployKeyToDeviceAction";
 
 const char EMBEDDED_LINUX_QT[] = "RemoteLinux.EmbeddedLinuxQt";

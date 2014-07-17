@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2012 - 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -34,12 +34,15 @@
 
 #include "qnxabstractrunsupport.h"
 
+#include <utils/outputformat.h>
+
 namespace Debugger { class DebuggerEngine; }
 
 namespace Qnx {
 namespace Internal {
 
 class QnxRunConfiguration;
+class Slog2InfoRunner;
 
 class QnxDebugSupport : public QnxAbstractRunSupport
 {
@@ -60,10 +63,17 @@ private slots:
     void handleRemoteOutput(const QByteArray &output);
     void handleError(const QString &error);
 
+    void printMissingWarning();
+    void handleApplicationOutput(const QString &msg, Utils::OutputFormat outputFormat);
+
 private:
     void startExecution();
 
     QString executable() const;
+
+    void killInferiorProcess();
+
+    Slog2InfoRunner *m_slog2Info;
 
     Debugger::DebuggerEngine *m_engine;
     int m_pdebugPort;

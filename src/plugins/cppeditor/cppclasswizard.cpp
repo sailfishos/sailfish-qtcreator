@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -96,9 +96,8 @@ static bool lowerCaseFiles()
 // Set up new class widget from settings
 void ClassNamePage::initParameters()
 {
-    const Core::MimeDatabase *mdb = Core::ICore::mimeDatabase();
-    m_newClassWidget->setHeaderExtension(mdb->preferredSuffixByType(QLatin1String(Constants::CPP_HEADER_MIMETYPE)));
-    m_newClassWidget->setSourceExtension(mdb->preferredSuffixByType(QLatin1String(Constants::CPP_SOURCE_MIMETYPE)));
+    m_newClassWidget->setHeaderExtension(Core::MimeDatabase::preferredSuffixByType(QLatin1String(Constants::CPP_HEADER_MIMETYPE)));
+    m_newClassWidget->setSourceExtension(Core::MimeDatabase::preferredSuffixByType(QLatin1String(Constants::CPP_SOURCE_MIMETYPE)));
     m_newClassWidget->setLowerCaseFiles(lowerCaseFiles());
 }
 
@@ -115,7 +114,6 @@ CppClassWizardDialog::CppClassWizardDialog(QWidget *parent) :
     Utils::Wizard(parent),
     m_classNamePage(new ClassNamePage(this))
 {
-    Core::BaseFileWizard::setupWizard(this);
     setWindowTitle(tr("C++ Class Wizard"));
     const int classNameId = addPage(m_classNamePage);
     wizardProgress()->item(classNameId)->setTitle(tr("Details"));
@@ -141,15 +139,8 @@ CppClassWizardParameters  CppClassWizardDialog::parameters() const
 
 // ========= CppClassWizard =========
 
-CppClassWizard::CppClassWizard(const Core::BaseFileWizardParameters &parameters,
-                               QObject *parent)
-  : Core::BaseFileWizard(parameters, parent)
+CppClassWizard::CppClassWizard()
 {
-}
-
-Core::FeatureSet CppClassWizard::requiredFeatures() const
-{
-    return Core::FeatureSet();
 }
 
 QString CppClassWizard::sourceSuffix() const

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -60,6 +60,7 @@ GenericLinuxDeviceConfigurationWidget::GenericLinuxDeviceConfigurationWidget(
     connect(m_ui->showPasswordCheckBox, SIGNAL(toggled(bool)), this, SLOT(showPassword(bool)));
     connect(m_ui->portsLineEdit, SIGNAL(editingFinished()), this, SLOT(handleFreePortsChanged()));
     connect(m_ui->createKeyButton, SIGNAL(clicked()), SLOT(createNewKey()));
+    connect(m_ui->gdbServerLineEdit, SIGNAL(editingFinished()), SLOT(gdbServerEditingFinished()));
 
     initGui();
 }
@@ -74,8 +75,8 @@ void GenericLinuxDeviceConfigurationWidget::authenticationTypeChanged()
     SshConnectionParameters sshParams = device()->sshParameters();
     const bool usePassword = m_ui->passwordButton->isChecked();
     sshParams.authenticationType = usePassword
-        ? SshConnectionParameters::AuthenticationByPassword
-        : SshConnectionParameters::AuthenticationByKey;
+        ? SshConnectionParameters::AuthenticationTypeTryAllPasswordBasedMethods
+        : SshConnectionParameters::AuthenticationTypePublicKey;
     device()->setSshParameters(sshParams);
     m_ui->pwdLineEdit->setEnabled(usePassword);
     m_ui->passwordLabel->setEnabled(usePassword);
@@ -125,6 +126,11 @@ void GenericLinuxDeviceConfigurationWidget::keyFileEditingFinished()
     device()->setSshParameters(sshParams);
 }
 
+void GenericLinuxDeviceConfigurationWidget::gdbServerEditingFinished()
+{
+    device()->setDebugServerPath(m_ui->gdbServerLineEdit->text());
+}
+
 void GenericLinuxDeviceConfigurationWidget::handleFreePortsChanged()
 {
     device()->setFreePorts(PortList::fromString(m_ui->portsLineEdit->text()));
@@ -159,6 +165,7 @@ void GenericLinuxDeviceConfigurationWidget::updateDeviceFromUi()
     passwordEditingFinished();
     keyFileEditingFinished();
     handleFreePortsChanged();
+    gdbServerEditingFinished();
 }
 
 void GenericLinuxDeviceConfigurationWidget::updatePortsWarningLabel()
@@ -176,6 +183,7 @@ void GenericLinuxDeviceConfigurationWidget::initGui()
     m_ui->portsWarningLabel->setToolTip(QLatin1String("<font color=\"red\">")
         + tr("You will need at least one port.") + QLatin1String("</font>"));
     m_ui->keyFileLineEdit->setExpectedKind(PathChooser::File);
+    m_ui->keyFileLineEdit->setHistoryCompleter(QLatin1String("Ssh.KeyFile.History"));
     m_ui->keyFileLineEdit->lineEdit()->setMinimumWidth(0);
     QRegExpValidator * const portsValidator
         = new QRegExpValidator(QRegExp(PortList::regularExpression()), this);
@@ -183,7 +191,7 @@ void GenericLinuxDeviceConfigurationWidget::initGui()
 
     const SshConnectionParameters &sshParams = device()->sshParameters();
 
-    if (sshParams.authenticationType == SshConnectionParameters::AuthenticationByPassword)
+    if (sshParams.authenticationType != SshConnectionParameters::AuthenticationTypePublicKey)
         m_ui->passwordButton->setChecked(true);
     else
         m_ui->keyButton->setChecked(true);
@@ -199,5 +207,6 @@ void GenericLinuxDeviceConfigurationWidget::initGui()
     m_ui->pwdLineEdit->setText(sshParams.password);
     m_ui->keyFileLineEdit->setPath(sshParams.privateKeyFile);
     m_ui->showPasswordCheckBox->setChecked(false);
+    m_ui->gdbServerLineEdit->setText(device()->debugServerPath());
     updatePortsWarningLabel();
 }

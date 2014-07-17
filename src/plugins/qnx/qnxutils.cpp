@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2012 - 2014 BlackBerry Limited. All rights reserved
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -33,13 +33,24 @@
 #include "qnxabstractqtversion.h"
 
 #include <utils/hostosinfo.h>
+#include <utils/synchronousprocess.h>
 
 #include <QDir>
 #include <QDesktopServices>
 #include <QDomDocument>
+#include <QProcess>
+#include <QTemporaryFile>
+#include <QApplication>
 
 using namespace Qnx;
 using namespace Qnx::Internal;
+
+namespace {
+const char *EVAL_ENV_VARS[] = {
+    "QNX_TARGET", "QNX_HOST", "QNX_CONFIGURATION", "MAKEFLAGS", "LD_LIBRARY_PATH",
+    "PATH", "QDE", "CPUVARDIR", "PYTHONPATH"
+};
+}
 
 QString QnxUtils::addQuotes(const QString &string)
 {
@@ -77,108 +88,70 @@ QStringList QnxUtils::searchPaths(QnxAbstractQtVersion *qtVersion)
     return searchPaths;
 }
 
-QMultiMap<QString, QString> QnxUtils::parseEnvironmentFile(const QString &fileName)
+QList<Utils::EnvironmentItem> QnxUtils::qnxEnvironmentFromNdkFile(const QString &fileName)
 {
-    QMultiMap<QString, QString> result;
+    QList <Utils::EnvironmentItem> items;
 
-    QFile file(fileName);
-    if (!file.open(QIODevice::ReadOnly))
-        return result;
+    if (!QFileInfo(fileName).exists())
+        return items;
 
-    QTextStream str(&file);
-    QMap<QString, QString> fileContent;
+    const bool isWindows = Utils::HostOsInfo::isWindowsHost();
+
+    // locking creating bbndk-env file wrapper script
+    QTemporaryFile tmpFile(
+            QDir::tempPath() + QDir::separator()
+            + QLatin1String("bbndk-env-eval-XXXXXX") + QLatin1String(isWindows ? ".bat" : ".sh"));
+    if (!tmpFile.open())
+        return items;
+    tmpFile.setTextModeEnabled(true);
+
+    // writing content to wrapper script
+    QTextStream fileContent(&tmpFile);
+    if (isWindows)
+        fileContent << QLatin1String("@echo off\n")
+                    << QLatin1String("call ") << fileName << QLatin1Char('\n');
+    else
+        fileContent << QLatin1String("#!/bin/bash\n")
+                    << QLatin1String(". ") << fileName << QLatin1Char('\n');
+    QString linePattern = QString::fromLatin1(isWindows ? "echo %1=%%1%" : "echo %1=$%1");
+    for (int i = 0, len = sizeof(EVAL_ENV_VARS) / sizeof(const char *); i < len; ++i)
+        fileContent << linePattern.arg(QLatin1String(EVAL_ENV_VARS[i])) << QLatin1Char('\n');
+    tmpFile.close();
+
+    // running wrapper script
+    QProcess process;
+    if (isWindows)
+        process.start(QLatin1String("cmd.exe"),
+                QStringList() << QLatin1String("/C") << tmpFile.fileName());
+    else
+        process.start(QLatin1String("/bin/bash"),
+                QStringList() << tmpFile.fileName());
+
+    // waiting for finish
+    QApplication::setOverrideCursor(Qt::BusyCursor);
+    bool waitResult = process.waitForFinished(10000);
+    QApplication::restoreOverrideCursor();
+    if (!waitResult) {
+        Utils::SynchronousProcess::stopProcess(process);
+        return items;
+    }
+
+    if (process.exitStatus() != QProcess::NormalExit || process.exitCode() != 0)
+        return items;
+
+    // parsing process output
+    QTextStream str(&process);
     while (!str.atEnd()) {
         QString line = str.readLine();
-        if (!line.contains(QLatin1Char('=')))
-            continue;
-
         int equalIndex = line.indexOf(QLatin1Char('='));
+        if (equalIndex < 0)
+            continue;
         QString var = line.left(equalIndex);
-        //Remove set in front
-        if (var.startsWith(QLatin1String("set ")))
-            var = var.right(var.size() - 4);
-
         QString value = line.mid(equalIndex + 1);
-
-        // BASE_DIR variable is evaluated when souring the bbnk-env script
-        // BASE_DIR="$( cd "$(dirname "${BASH_SOURCE[0]}" )" && pwd )"
-        // We already know the NDK path so we can set the variable value
-        if (var == QLatin1String("BASE_DIR"))
-            value = QFileInfo(fileName).dir().absolutePath();
-
-        if (Utils::HostOsInfo::isWindowsHost()) {
-            QRegExp systemVarRegExp(QLatin1String("IF NOT DEFINED ([\\w\\d]+)\\s+set ([\\w\\d]+)=([\\w\\d]+)"));
-            if (line.contains(systemVarRegExp)) {
-                var = systemVarRegExp.cap(2);
-                Utils::Environment sysEnv = Utils::Environment::systemEnvironment();
-                QString sysVar = systemVarRegExp.cap(1);
-                if (sysEnv.hasKey(sysVar))
-                    value = sysEnv.value(sysVar);
-                else
-                    value = systemVarRegExp.cap(3);
-            }
-        }
-        else if (Utils::HostOsInfo::isAnyUnixHost()) {
-            QRegExp systemVarRegExp(QLatin1String("\\$\\{([\\w\\d]+):=([\\w\\d]+)\\}")); // to match e.g. "${QNX_HOST_VERSION:=10_0_9_52}"
-            if (value.contains(systemVarRegExp)) {
-                Utils::Environment sysEnv = Utils::Environment::systemEnvironment();
-                QString sysVar = systemVarRegExp.cap(1);
-                if (sysEnv.hasKey(sysVar))
-                    value = sysEnv.value(sysVar);
-                else
-                    value = systemVarRegExp.cap(2);
-            }
-        }
-
-        if (value.startsWith(QLatin1Char('"')))
-            value = value.mid(1);
-        if (value.endsWith(QLatin1Char('"')))
-            value = value.left(value.size() - 1);
-
-        fileContent[var] = value;
-    }
-    file.close();
-
-    QMapIterator<QString, QString> it(fileContent);
-    while (it.hasNext()) {
-        it.next();
-        QStringList values;
-        if (Utils::HostOsInfo::isWindowsHost())
-            values = it.value().split(QLatin1Char(';'));
-        else if (Utils::HostOsInfo::isAnyUnixHost())
-            values = it.value().split(QLatin1Char(':'));
-
-        QString key = it.key();
-        foreach (const QString &value, values) {
-            const QString ownKeyAsWindowsVar = QLatin1Char('%') + key + QLatin1Char('%');
-            const QString ownKeyAsUnixVar = QLatin1Char('$') + key;
-            if (value != ownKeyAsUnixVar && value != ownKeyAsWindowsVar) { // to ignore e.g. PATH=$PATH
-                QString val = value;
-                if (val.contains(QLatin1Char('%')) || val.contains(QLatin1Char('$'))) {
-                    QMapIterator<QString, QString> replaceIt(fileContent);
-                    while (replaceIt.hasNext()) {
-                        replaceIt.next();
-                        const QString replaceKey = replaceIt.key();
-                        if (replaceKey == key)
-                            continue;
-
-                        const QString keyAsWindowsVar = QLatin1Char('%') + replaceKey + QLatin1Char('%');
-                        const QString keyAsUnixVar = QLatin1Char('$') + replaceKey;
-                        if (val.contains(keyAsWindowsVar))
-                            val.replace(keyAsWindowsVar, replaceIt.value());
-                        if (val.contains(keyAsUnixVar))
-                            val.replace(keyAsUnixVar, replaceIt.value());
-                    }
-                }
-                result.insert(key, val);
-            }
-        }
+        items.append(Utils::EnvironmentItem(var, value));
     }
 
-    if (!result.contains(QLatin1String("CPUVARDIR")))
-            result.insert(QLatin1String("CPUVARDIR"), QLatin1String("armle-v7"));
-
-    return result;
+    return items;
 }
 
 bool QnxUtils::isValidNdkPath(const QString &ndkPath)
@@ -186,7 +159,7 @@ bool QnxUtils::isValidNdkPath(const QString &ndkPath)
     return (QFileInfo(envFilePath(ndkPath)).exists());
 }
 
-QString QnxUtils::envFilePath(const QString &ndkPath)
+QString QnxUtils::envFilePath(const QString &ndkPath, const QString &targetVersion)
 {
     QString envFile;
     if (Utils::HostOsInfo::isWindowsHost())
@@ -195,7 +168,7 @@ QString QnxUtils::envFilePath(const QString &ndkPath)
         envFile = ndkPath + QLatin1String("/bbndk-env.sh");
 
     if (!QFileInfo(envFile).exists()) {
-        QString version = ndkVersion(ndkPath);
+        QString version = targetVersion.isEmpty() ? defaultTargetVersion(ndkPath) : targetVersion;
         version = version.replace(QLatin1Char('.'), QLatin1Char('_'));
         if (Utils::HostOsInfo::isWindowsHost())
             envFile = ndkPath + QLatin1String("/bbndk-env_") + version + QLatin1String(".bat");
@@ -205,28 +178,11 @@ QString QnxUtils::envFilePath(const QString &ndkPath)
     return envFile;
 }
 
-void QnxUtils::prependQnxMapToEnvironment(const QMultiMap<QString, QString> &qnxMap, Utils::Environment &env)
-{
-    QMultiMap<QString, QString>::const_iterator it;
-    QMultiMap<QString, QString>::const_iterator end(qnxMap.constEnd());
-    for (it = qnxMap.constBegin(); it != end; ++it) {
-        const QString key = it.key();
-        const QString value = it.value();
-
-        if (key == QLatin1String("PATH"))
-            env.prependOrSetPath(value);
-        else if (key == QLatin1String("LD_LIBRARY_PATH"))
-            env.prependOrSetLibrarySearchPath(value);
-        else
-            env.set(key, value);
-    }
-}
-
 Utils::FileName QnxUtils::executableWithExtension(const Utils::FileName &fileName)
 {
     Utils::FileName result = fileName;
     if (Utils::HostOsInfo::isWindowsHost())
-        result.append(QLatin1String(".exe"));
+        result.appendString(QLatin1String(".exe"));
     return result;
 }
 
@@ -254,18 +210,28 @@ QString QnxUtils::dataDirPath()
 
 QString QnxUtils::qConfigPath()
 {
-    if (Utils::HostOsInfo::isMacHost() || Utils::HostOsInfo::isWindowsHost()) {
+    if (Utils::HostOsInfo::isMacHost() || Utils::HostOsInfo::isWindowsHost())
         return dataDirPath() + QLatin1String("/BlackBerry Native SDK/qconfig");
-    } else {
+    else
         return dataDirPath() + QLatin1String("/bbndk/qconfig");
-    }
 }
 
-QString QnxUtils::ndkVersion(const QString &ndkPath)
+QString QnxUtils::defaultTargetVersion(const QString &ndkPath)
 {
+    foreach (const NdkInstallInformation &ndkInfo, installedNdks()) {
+        if (!ndkInfo.path.compare(ndkPath, Utils::HostOsInfo::fileNameCaseSensitivity()))
+            return ndkInfo.version;
+    }
+
+    return QString();
+}
+
+QList<NdkInstallInformation> QnxUtils::installedNdks()
+{
+    QList<NdkInstallInformation> ndkList;
     QString ndkConfigPath = qConfigPath();
     if (!QDir(ndkConfigPath).exists())
-        return QString();
+        return ndkList;
 
     QFileInfoList ndkfileList = QDir(ndkConfigPath).entryInfoList(QStringList() << QLatin1String("*.xml"),
                                                                   QDir::Files, QDir::Time);
@@ -286,11 +252,80 @@ QString QnxUtils::ndkVersion(const QString &ndkPath)
         // The file contains only one installation node
         if (!childElt.isNull()) {
             // The file contains only one base node
-            QDomElement elt = childElt.firstChildElement(QLatin1String("base"));
-            if (!elt.text().compare(ndkPath, Utils::HostOsInfo::fileNameCaseSensitivity()))
-                return childElt.firstChildElement(QLatin1String("version")).text();
+            NdkInstallInformation ndkInfo;
+            ndkInfo.path = childElt.firstChildElement(QLatin1String("base")).text();
+            ndkInfo.name = childElt.firstChildElement(QLatin1String("name")).text();
+            ndkInfo.host = childElt.firstChildElement(QLatin1String("host")).text();
+            ndkInfo.target = childElt.firstChildElement(QLatin1String("target")).text();
+            ndkInfo.version = childElt.firstChildElement(QLatin1String("version")).text();
+            ndkInfo.installationXmlFilePath = ndkFile.absoluteFilePath();
+
+            ndkList.append(ndkInfo);
         }
     }
 
+    return ndkList;
+}
+
+QString QnxUtils::sdkInstallerPath(const QString &ndkPath)
+{
+    QString sdkinstallPath;
+    if (Utils::HostOsInfo::isWindowsHost())
+        sdkinstallPath = ndkPath + QLatin1String("/qde.exe");
+    else
+        sdkinstallPath = ndkPath + QLatin1String("/qde");
+
+    if (QFileInfo(sdkinstallPath).exists())
+        return sdkinstallPath;
+
     return QString();
+}
+
+// The resulting process when launching sdkinstall
+QString QnxUtils::qdeInstallProcess(const QString &ndkPath, const QString &target,
+                                    const QString &option, const QString &version)
+{
+    QString installerPath = sdkInstallerPath(ndkPath);
+    if (installerPath.isEmpty())
+        return QString();
+
+    const QDir pluginDir(ndkPath + QLatin1String("/plugins"));
+    const QStringList installerPlugins = pluginDir.entryList(QStringList() << QLatin1String("com.qnx.tools.ide.sdk.installer.app_*.jar"));
+    const QString installerApplication = installerPlugins.size() >= 1 ? QLatin1String("com.qnx.tools.ide.sdk.installer.app.SDKInstallerApplication")
+                                                                      : QLatin1String("com.qnx.tools.ide.sdk.manager.core.SDKInstallerApplication");
+    return QString::fromLatin1("%1 -nosplash -application %2 "
+                               "%3 %4 %5 -vmargs -Dosgi.console=:none").arg(installerPath, installerApplication, target, option, version);
+}
+
+QList<Utils::EnvironmentItem> QnxUtils::qnxEnvironment(const QString &sdkPath)
+{
+    // Mimic what the SDP installer puts into the system environment
+
+    QList<Utils::EnvironmentItem> environmentItems;
+
+    if (Utils::HostOsInfo::isWindowsHost()) {
+        // TODO:
+        //environment.insert(QLatin1String("QNX_CONFIGURATION"), QLatin1String("/etc/qnx"));
+        environmentItems.append(Utils::EnvironmentItem(QLatin1String(Constants::QNX_TARGET_KEY), sdkPath + QLatin1String("/target/qnx6")));
+        environmentItems.append(Utils::EnvironmentItem(QLatin1String(Constants::QNX_HOST_KEY), sdkPath + QLatin1String("/host/win32/x86")));
+
+        environmentItems.append(Utils::EnvironmentItem(QLatin1String("PATH"), sdkPath + QLatin1String("/host/win32/x86/usr/bin;%PATH%")));
+
+        // TODO:
+        //environment.insert(QLatin1String("PATH"), QLatin1String("/etc/qnx/bin"));
+    } else if (Utils::HostOsInfo::isAnyUnixHost()) {
+        environmentItems.append(Utils::EnvironmentItem(QLatin1String("QNX_CONFIGURATION"), QLatin1String("/etc/qnx")));
+        environmentItems.append(Utils::EnvironmentItem(QLatin1String(Constants::QNX_TARGET_KEY), sdkPath + QLatin1String("/target/qnx6")));
+        environmentItems.append(Utils::EnvironmentItem(QLatin1String(Constants::QNX_HOST_KEY), sdkPath + QLatin1String("/host/linux/x86")));
+
+
+        environmentItems.append(Utils::EnvironmentItem(QLatin1String("PATH"), sdkPath + QLatin1String("/host/linux/x86/usr/bin:/etc/qnx/bin:${PATH}")));
+
+        environmentItems.append(Utils::EnvironmentItem(QLatin1String("LD_LIBRARY_PATH"), sdkPath + QLatin1String("/host/linux/x86/usr/lib:${LD_LIBRARY_PATH}")));
+    }
+
+    environmentItems.append(Utils::EnvironmentItem(QLatin1String("QNX_JAVAHOME"), sdkPath + QLatin1String("/_jvm")));
+    environmentItems.append(Utils::EnvironmentItem(QLatin1String("MAKEFLAGS"), QLatin1String("-I") + sdkPath + QLatin1String("/target/qnx6/usr/include")));
+
+    return environmentItems;
 }

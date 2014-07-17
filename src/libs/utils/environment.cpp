@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -29,10 +29,9 @@
 
 #include "environment.h"
 
-#include "hostosinfo.h"
-
 #include <QDir>
 #include <QProcessEnvironment>
+#include <QSet>
 #include <QCoreApplication>
 
 class SystemEnvironment : public Utils::Environment
@@ -99,12 +98,12 @@ QStringList EnvironmentItem::toStringList(const QList<EnvironmentItem> &list)
     return result;
 }
 
-Environment::Environment(const QStringList &env)
+Environment::Environment(const QStringList &env, OsType osType) : m_osType(osType)
 {
     foreach (const QString &s, env) {
         int i = s.indexOf(QLatin1Char('='));
         if (i >= 0) {
-            if (HostOsInfo::isWindowsHost())
+            if (m_osType == OsTypeWindows)
                 m_values.insert(s.left(i).toUpper(), s.mid(i+1));
             else
                 m_values.insert(s.left(i), s.mid(i+1));
@@ -136,17 +135,17 @@ QProcessEnvironment Environment::toProcessEnvironment() const
 
 void Environment::set(const QString &key, const QString &value)
 {
-    m_values.insert(HostOsInfo::isWindowsHost() ? key.toUpper() : key, value);
+    m_values.insert(m_osType == OsTypeWindows ? key.toUpper() : key, value);
 }
 
 void Environment::unset(const QString &key)
 {
-    m_values.remove(HostOsInfo::isWindowsHost() ? key.toUpper() : key);
+    m_values.remove(m_osType == OsTypeWindows ? key.toUpper() : key);
 }
 
 void Environment::appendOrSet(const QString &key, const QString &value, const QString &sep)
 {
-    const QString &_key = HostOsInfo::isWindowsHost() ? key.toUpper() : key;
+    const QString &_key = m_osType == OsTypeWindows ? key.toUpper() : key;
     QMap<QString, QString>::iterator it = m_values.find(_key);
     if (it == m_values.end()) {
         m_values.insert(_key, value);
@@ -160,7 +159,7 @@ void Environment::appendOrSet(const QString &key, const QString &value, const QS
 
 void Environment::prependOrSet(const QString&key, const QString &value, const QString &sep)
 {
-    const QString &_key = HostOsInfo::isWindowsHost() ? key.toUpper() : key;
+    const QString &_key = m_osType == OsTypeWindows ? key.toUpper() : key;
     QMap<QString, QString>::iterator it = m_values.find(_key);
     if (it == m_values.end()) {
         m_values.insert(_key, value);
@@ -175,26 +174,26 @@ void Environment::prependOrSet(const QString&key, const QString &value, const QS
 void Environment::appendOrSetPath(const QString &value)
 {
     appendOrSet(QLatin1String("PATH"), QDir::toNativeSeparators(value),
-            QString(HostOsInfo::pathListSeparator()));
+            QString(OsSpecificAspects(m_osType).pathListSeparator()));
 }
 
 void Environment::prependOrSetPath(const QString &value)
 {
     prependOrSet(QLatin1String("PATH"), QDir::toNativeSeparators(value),
-            QString(HostOsInfo::pathListSeparator()));
+            QString(OsSpecificAspects(m_osType).pathListSeparator()));
 }
 
 void Environment::prependOrSetLibrarySearchPath(const QString &value)
 {
-    switch (HostOsInfo::hostOs()) {
-    case HostOsInfo::HostOsWindows: {
+    switch (m_osType) {
+    case OsTypeWindows: {
         const QChar sep = QLatin1Char(';');
         const QLatin1String path("PATH");
         prependOrSet(path, QDir::toNativeSeparators(value), QString(sep));
         break;
     }
-    case HostOsInfo::HostOsLinux:
-    case HostOsInfo::HostOsOtherUnix: {
+    case OsTypeLinux:
+    case OsTypeOtherUnix: {
         const QChar sep = QLatin1Char(':');
         const QLatin1String path("LD_LIBRARY_PATH");
         prependOrSet(path, QDir::toNativeSeparators(value), QString(sep));
@@ -243,7 +242,7 @@ QString Environment::searchInPath(const QString &executable,
     QFileInfo fi(exec);
 
     QStringList execs(exec);
-    if (HostOsInfo::isWindowsHost()) {
+    if (m_osType == OsTypeWindows) {
         // Check all the executable extensions on windows:
         // PATHEXT is only used if the executable has no extension
         if (fi.suffix().isEmpty()) {
@@ -264,7 +263,11 @@ QString Environment::searchInPath(const QString &executable,
     if (fi.isAbsolute())
         return exec;
 
+    QSet<QString> alreadyChecked;
     foreach (const QString &dir, additionalDirs) {
+        if (alreadyChecked.contains(dir))
+            continue;
+        alreadyChecked.insert(dir);
         QString tmp = searchInDirectory(execs, dir);
         if (!tmp.isEmpty())
             return tmp;
@@ -274,6 +277,9 @@ QString Environment::searchInPath(const QString &executable,
         return QString();
 
     foreach (const QString &p, path()) {
+        if (alreadyChecked.contains(p))
+            continue;
+        alreadyChecked.insert(p);
         QString tmp = searchInDirectory(execs, QDir::fromNativeSeparators(p));
         if (!tmp.isEmpty())
             return tmp;
@@ -283,8 +289,8 @@ QString Environment::searchInPath(const QString &executable,
 
 QStringList Environment::path() const
 {
-    return m_values.value(QLatin1String("PATH")).split(HostOsInfo::pathListSeparator(),
-                                                       QString::SkipEmptyParts);
+    return m_values.value(QLatin1String("PATH"))
+            .split(OsSpecificAspects(m_osType).pathListSeparator(), QString::SkipEmptyParts);
 }
 
 QString Environment::value(const QString &key) const
@@ -398,7 +404,7 @@ bool Environment::hasKey(const QString &key) const
 
 QString Environment::userName() const
 {
-    return value(QLatin1String(HostOsInfo::isWindowsHost() ? "USERNAME" : "USER"));
+    return value(QLatin1String(m_osType == OsTypeWindows ? "USERNAME" : "USER"));
 }
 
 bool Environment::operator!=(const Environment &other) const
@@ -408,7 +414,7 @@ bool Environment::operator!=(const Environment &other) const
 
 bool Environment::operator==(const Environment &other) const
 {
-    return m_values == other.m_values;
+    return m_osType == other.m_osType && m_values == other.m_values;
 }
 
 /** Expand environment variables in a string.
@@ -422,7 +428,7 @@ QString Environment::expandVariables(const QString &input) const
 {
     QString result = input;
 
-    if (HostOsInfo::isWindowsHost()) {
+    if (m_osType == OsTypeWindows) {
         for (int vStart = -1, i = 0; i < result.length(); ) {
             if (result.at(i++) == QLatin1Char('%')) {
                 if (vStart > 0) {

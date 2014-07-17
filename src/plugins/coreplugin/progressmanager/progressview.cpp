@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -34,8 +34,6 @@
 
 using namespace Core;
 using namespace Core::Internal;
-
-static const int PROGRESS_WIDTH = 100;
 
 ProgressView::ProgressView(QWidget *parent)
     : QWidget(parent), m_referenceWidget(0), m_hovered(false)

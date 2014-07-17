@@ -1,18 +1,20 @@
-import qbs.base 1.0
+import qbs 1.0
 
-import "../QtcPlugin.qbs" as QtcPlugin
+import QtcPlugin
 
 QtcPlugin {
     name: "RemoteLinux"
 
     Depends { name: "Qt.widgets" }
+    Depends { name: "QtcSsh" }
+    Depends { name: "QmlDebug" }
+    Depends { name: "Utils" }
+
     Depends { name: "AnalyzerBase" }
     Depends { name: "Core" }
     Depends { name: "Debugger" }
     Depends { name: "ProjectExplorer" }
-    Depends { name: "QmlDebug" }
     Depends { name: "QtSupport" }
-    Depends { name: "QtcSsh" }
 
     files: [
         "abstractpackagingstep.cpp",
@@ -47,9 +49,8 @@ QtcPlugin {
         "genericremotelinuxdeploystepfactory.h",
         "linuxdevice.cpp",
         "linuxdevice.h",
-        "linuxdevicetestdialog.cpp",
-        "linuxdevicetestdialog.h",
-        "linuxdevicetestdialog.ui",
+        "linuxdeviceprocess.cpp",
+        "linuxdeviceprocess.h",
         "linuxdevicetester.cpp",
         "linuxdevicetester.h",
         "packageuploader.cpp",
@@ -101,6 +102,8 @@ QtcPlugin {
         "remotelinuxruncontrol.h",
         "remotelinuxruncontrolfactory.cpp",
         "remotelinuxruncontrolfactory.h",
+        "remotelinuxsignaloperation.cpp",
+        "remotelinuxsignaloperation.h",
         "remotelinuxutils.cpp",
         "remotelinuxutils.h",
         "sshkeydeployer.cpp",

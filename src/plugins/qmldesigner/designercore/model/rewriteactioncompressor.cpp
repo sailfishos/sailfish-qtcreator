@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -38,17 +38,17 @@
 using namespace QmlDesigner;
 using namespace QmlDesigner::Internal;
 
-static bool nodeOrParentInSet(const ModelNode &node, const QSet<ModelNode> &nodeSet)
+static bool nodeOrParentInSet(const ModelNode &modelNode, const QSet<ModelNode> &nodeSet)
 {
-    ModelNode n = node;
-    while (n.isValid()) {
-        if (nodeSet.contains(n))
+    ModelNode currentModelnode = modelNode;
+    while (currentModelnode.isValid()) {
+        if (nodeSet.contains(currentModelnode))
             return true;
 
-        if (!n.hasParentProperty())
+        if (!currentModelnode.hasParentProperty())
             return false;
 
-        n = n.parentProperty().parentModelNode();
+        currentModelnode = currentModelnode.parentProperty().parentModelNode();
     }
 
     return false;

@@ -27,7 +27,19 @@
 #include "DiagnosticClient.h"
 #include <cstdio>
 #include <vector>
-#include <map>
+
+#if !(__cplusplus > 199711L || __GXX_EXPERIMENTAL_CXX0X__ || _MSC_VER >= 1600 || defined( _LIBCPP_VERSION )) \
+    || (defined(__GNUC_LIBSTD__) && ((__GNUC_LIBSTD__-0) * 100 + __GNUC_LIBSTD_MINOR__-0 <= 402))
+#define USE_TR1
+#endif
+
+#if defined(_MSC_VER) && _MSC_VER < 1600
+#  include <map>
+#elif defined(USE_TR1)
+#  include <tr1/unordered_map>
+#else
+#  include <unordered_map>
+#endif
 
 namespace CPlusPlus {
 
@@ -52,9 +64,11 @@ public:
 
     void setSource(const char *source, unsigned size);
 
-    unsigned tokenCount() const { return _tokens->size(); }
-    const Token &tokenAt(unsigned index) const { return _tokens->at(index); }
-    int tokenKind(unsigned index) const { return _tokens->at(index).f.kind; }
+    unsigned tokenCount() const { return _tokens ? unsigned(_tokens->size()) : unsigned(0); }
+    const Token &tokenAt(unsigned index) const
+    { return _tokens && index < tokenCount() ? (*_tokens)[index] : nullToken; }
+
+    int tokenKind(unsigned index) const { return tokenAt(index).f.kind; }
     const char *spell(unsigned index) const;
 
     unsigned commentCount() const;
@@ -69,21 +83,13 @@ public:
     MemoryPool *memoryPool() const;
     AST *ast() const;
 
+    bool blockErrors() const { return f._blockErrors; }
     bool blockErrors(bool block)
     {
         const bool previous = f._blockErrors;
         f._blockErrors = block;
         return previous;
     }
-
-    bool qtMocRunEnabled() const;
-    void setQtMocRunEnabled(bool onoff);
-
-    bool cxx0xEnabled() const;
-    void setCxxOxEnabled(bool onoff);
-
-    bool objCEnabled() const;
-    void setObjCEnabled(bool onoff);
 
     void warning(unsigned index, const char *fmt, ...);
     void error(unsigned index, const char *fmt, ...);
@@ -140,6 +146,9 @@ public:
 
     bool maybeSplitGreaterGreaterToken(unsigned tokenIndex);
 
+    LanguageFeatures languageFeatures() const { return _languageFeatures; }
+    void setLanguageFeatures(LanguageFeatures features) { _languageFeatures = features; }
+
 private:
     struct PPLine {
         unsigned offset;
@@ -162,10 +171,13 @@ private:
         { return offset < other.offset; }
     };
 
+    void releaseTokensAndComments();
     unsigned findLineNumber(unsigned offset) const;
     unsigned findColumnNumber(unsigned offset, unsigned lineNumber) const;
     PPLine findPreprocessorLine(unsigned offset) const;
     void showErrorLine(unsigned index, unsigned column, FILE *out);
+
+    static const Token nullToken;
 
     Control *_control;
     const StringLiteral *_fileId;
@@ -175,7 +187,15 @@ private:
     std::vector<Token> *_comments;
     std::vector<unsigned> _lineOffsets;
     std::vector<PPLine> _ppLines;
-    std::map<unsigned, std::pair<unsigned, unsigned> > _expandedLineColumn; // TODO: Replace this for a hash
+#if defined(_MSC_VER) && _MSC_VER < 1600
+    // MSVC2008 and earlier do not implement TR1.
+    typedef std::map<unsigned, std::pair<unsigned, unsigned> > TokenLineColumn;
+#elif defined(USE_TR1)
+    typedef std::tr1::unordered_map<unsigned, std::pair<unsigned, unsigned> > TokenLineColumn;
+#else
+    typedef std::unordered_map<unsigned, std::pair<unsigned, unsigned> > TokenLineColumn;
+#endif
+    TokenLineColumn _expandedLineColumn;
     MemoryPool *_pool;
     AST *_ast;
     TranslationUnit *_previousTranslationUnit;
@@ -184,14 +204,12 @@ private:
         unsigned _parsed: 1;
         unsigned _blockErrors: 1;
         unsigned _skipFunctionBody: 1;
-        unsigned _qtMocRunEnabled: 1;
-        unsigned _cxx0xEnabled: 1;
-        unsigned _objCEnabled: 1;
     };
     union {
         unsigned _flags;
         Flags f;
     };
+    LanguageFeatures _languageFeatures;
 };
 
 } // namespace CPlusPlus

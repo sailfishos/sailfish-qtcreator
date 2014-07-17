@@ -1,6 +1,6 @@
 #############################################################################
 ##
-## Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+## Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ## Contact: http://www.qt-project.org/legal
 ##
 ## This file is part of Qt Creator.
@@ -49,11 +49,12 @@ def handleDebuggerWarnings(config, isMsvcBuild=False):
         except LookupError:
             pass # No warning. Fine.
     if "Release" in config and (isMsvcBuild or platform.system() == "Linux"):
-        message = waitForObject("{container=':Qt Creator.DebugModeWidget_QSplitter' name='qt_msgbox_label' type='QLabel' visible='1'}")
+        msgBox = "{type='QMessageBox' unnamed='1' visible='1' windowTitle='Warning'}"
+        message = waitForObject("{name='qt_msgbox_label' type='QLabel' visible='1' window=%s}" % msgBox)
         messageText = str(message.text)
         test.verify(messageText.startswith('This does not seem to be a "Debug" build.\nSetting breakpoints by file name and line number may fail.'),
                     "Got warning: %s" % messageText)
-        clickButton("{container=':Qt Creator.DebugModeWidget_QSplitter' text='OK' type='QPushButton' unnamed='1' visible='1'}")
+        clickButton("{text='OK' type='QPushButton' unnamed='1' visible='1' window=%s}" % msgBox)
 
 def takeDebuggerLog():
     invokeMenuItem("Window", "Views", "Debugger Log")
@@ -80,7 +81,7 @@ def setBreakpointsForCurrentProject(filesAndLines):
         for curFile,curLine in current.iteritems():
             if not openDocument(curFile):
                 return False
-            editor = getEditorForFileSuffix(curFile)
+            editor = getEditorForFileSuffix(curFile, True)
             if not placeCursorToLine(editor, curLine, True):
                 return False
             invokeMenuItem("Debug", "Toggle Breakpoint")
@@ -125,10 +126,16 @@ def removeOldBreakpoints():
 # param expectedBPOrder holds a list of dicts where the dicts contain always
 #       only 1 key:value pair - the key is the name of the file, the value is
 #       line number where the debugger should stop
-def doSimpleDebugging(kitCount, currentKit, currentConfigName, pressContinueCount=1, expectedBPOrder=[]):
+def doSimpleDebugging(kitCount, currentKit, currentConfigName, pressContinueCount=1,
+                      expectedBPOrder=[], enableQml=True):
     expectedLabelTexts = ['Stopped\.', 'Stopped at breakpoint \d+ \(\d+\) in thread \d+\.']
     if len(expectedBPOrder) == 0:
         expectedLabelTexts.append("Running\.")
+    switchViewTo(ViewConstants.PROJECTS)
+    switchToBuildOrRunSettingsFor(kitCount, currentKit, ProjectSettings.RUN)
+    ensureChecked(waitForObject("{container=':Qt Creator.scrollArea_QScrollArea' text='Enable QML' "
+                                "type='QCheckBox' unnamed='1' visible='1'}"), enableQml)
+    switchViewTo(ViewConstants.EDIT)
     if not __startDebugger__(kitCount, currentKit, currentConfigName):
         return False
     statusLabel = findObject(":Debugger Toolbar.StatusText_Utils::StatusLabel")

@@ -1,6 +1,6 @@
 #############################################################################
 ##
-## Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+## Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ## Contact: http://www.qt-project.org/legal
 ##
 ## This file is part of Qt Creator.
@@ -28,7 +28,6 @@
 #############################################################################
 
 source("../../shared/qtcreator.py")
-source("../../shared/suites_qtta.py")
 
 def startQtCreatorWithNewAppAtQMLEditor(projectDir, projectName, line = None):
     startApplication("qtcreator" + SettingsPath)
@@ -37,7 +36,7 @@ def startQtCreatorWithNewAppAtQMLEditor(projectDir, projectName, line = None):
     # create qt quick application
     createNewQtQuickApplication(projectDir, projectName)
     # open qml file
-    qmlFile = projectName + ".QML.qml/" + projectName + ".main\\.qml"
+    qmlFile = projectName + ".Resources.qml\.qrc./.main\\.qml"
     if not openDocument(qmlFile):
         test.fatal("Could not open %s" % qmlFile)
         invokeMenuItem("File", "Exit")

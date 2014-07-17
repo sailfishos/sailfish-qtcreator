@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -52,6 +52,7 @@ public:
 
     void setDeployableFiles(const QList<ProjectExplorer::DeployableFile> &deployableFiles);
     void setIncrementalDeployment(bool incremental);
+    void setIgnoreMissingFiles(bool ignoreMissingFiles);
 
   protected:
     bool isDeploymentNecessary() const;
@@ -64,7 +65,7 @@ public:
 
 private slots:
     void handleSftpInitialized();
-    void handleSftpInitializationFailed(const QString &errorMessage);
+    void handleSftpChannelError(const QString &errorMessage);
     void handleUploadFinished(QSsh::SftpJobId jobId, const QString &errorMsg);
     void handleMkdirFinished(int exitStatus);
     void handleLnFinished(int exitStatus);

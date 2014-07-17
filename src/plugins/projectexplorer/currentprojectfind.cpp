@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -33,27 +33,23 @@
 #include "project.h"
 #include "session.h"
 
-#include <coreplugin/idocument.h>
 #include <utils/qtcassert.h>
 #include <utils/filesearch.h>
 
 #include <QDebug>
 #include <QSettings>
 
-using namespace Find;
 using namespace ProjectExplorer;
 using namespace ProjectExplorer::Internal;
 using namespace TextEditor;
 
-CurrentProjectFind::CurrentProjectFind(ProjectExplorerPlugin *plugin)
-  : AllProjectsFind(plugin),
-    m_plugin(plugin)
+CurrentProjectFind::CurrentProjectFind()
 {
-    connect(m_plugin, SIGNAL(currentProjectChanged(ProjectExplorer::Project*)),
+    connect(ProjectExplorerPlugin::instance(), SIGNAL(currentProjectChanged(ProjectExplorer::Project*)),
             this, SLOT(handleProjectChanged()));
-    connect(m_plugin->session(), SIGNAL(projectRemoved(ProjectExplorer::Project*)),
+    connect(SessionManager::instance(), SIGNAL(projectRemoved(ProjectExplorer::Project*)),
             this, SLOT(handleProjectChanged()));
-    connect(m_plugin->session(), SIGNAL(projectAdded(ProjectExplorer::Project*)),
+    connect(SessionManager::instance(), SIGNAL(projectAdded(ProjectExplorer::Project*)),
             this, SLOT(handleProjectChanged()));
 }
 
@@ -76,21 +72,21 @@ QVariant CurrentProjectFind::additionalParameters() const
 {
     Project *project = ProjectExplorerPlugin::currentProject();
     if (project && project->document())
-        return qVariantFromValue(project->document()->fileName());
+        return qVariantFromValue(project->projectFilePath());
     return QVariant();
 }
 
 Utils::FileIterator *CurrentProjectFind::files(const QStringList &nameFilters,
                            const QVariant &additionalParameters) const
 {
-    QTC_ASSERT(additionalParameters.isValid(), return new Utils::FileIterator());
-    QList<Project *> allProjects = m_plugin->session()->projects();
+    QTC_ASSERT(additionalParameters.isValid(),
+               return new Utils::FileIterator(QStringList(), QList<QTextCodec *>()));
     QString projectFile = additionalParameters.toString();
-    foreach (Project *project, allProjects) {
-        if (project->document() && projectFile == project->document()->fileName())
+    foreach (Project *project, SessionManager::projects()) {
+        if (project->document() && projectFile == project->projectFilePath())
             return filesForProjects(nameFilters, QList<Project *>() << project);
     }
-    return new Utils::FileIterator();
+    return new Utils::FileIterator(QStringList(), QList<QTextCodec *>());
 }
 
 QString CurrentProjectFind::label() const
@@ -106,13 +102,12 @@ void CurrentProjectFind::handleProjectChanged()
 
 void CurrentProjectFind::recheckEnabled()
 {
-    SearchResult *search = qobject_cast<SearchResult *>(sender());
+    Core::SearchResult *search = qobject_cast<Core::SearchResult *>(sender());
     if (!search)
         return;
     QString projectFile = getAdditionalParameters(search).toString();
-    QList<Project *> allProjects = m_plugin->session()->projects();
-    foreach (Project *project, allProjects) {
-        if (project->document() && projectFile == project->document()->fileName()) {
+    foreach (Project *project, SessionManager::projects()) {
+        if (projectFile == project->projectFilePath()) {
             search->setSearchAgainEnabled(true);
             return;
         }

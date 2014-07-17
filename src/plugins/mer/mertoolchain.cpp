@@ -40,7 +40,7 @@ namespace Internal {
 
 using namespace ProjectExplorer;
 
-MerToolChain::MerToolChain(bool autodetected,const QString &id)
+MerToolChain::MerToolChain(Detection autodetected,const QString &id)
     : GccToolChain(id, autodetected)
 {
 
@@ -229,7 +229,7 @@ bool MerToolChainFactory::canRestore(const QVariantMap &data)
 
 ToolChain *MerToolChainFactory::restore(const QVariantMap &data)
 {
-    MerToolChain *tc = new MerToolChain(true);
+    MerToolChain *tc = new MerToolChain(ToolChain::AutoDetection); // TODO: unsure
     if (!tc->fromMap(data)) {
         delete tc;
         return 0;

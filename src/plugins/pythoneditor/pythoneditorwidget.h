@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,33 +30,33 @@
 #ifndef PYTHONEDITORWIDGET_H
 #define PYTHONEDITORWIDGET_H
 
-#include "pythoneditor_global.h"
-
 #include <texteditor/basetexteditor.h>
 #include <utils/uncommentselection.h>
 
 namespace PythonEditor {
+namespace Internal {
 
-class PYEDITOR_EXPORT EditorWidget : public TextEditor::BaseTextEditorWidget
+class EditorWidget : public TextEditor::BaseTextEditorWidget
 {
     Q_OBJECT
 
 public:
     EditorWidget(QWidget *parent = 0);
+    EditorWidget(EditorWidget *other);
     virtual ~EditorWidget();
 
     virtual void unCommentSelection();
-
-public slots:
-    virtual void setFontSettings(const TextEditor::FontSettings &);
 
 protected:
     TextEditor::BaseTextEditor *createEditor();
 
 private:
+    EditorWidget(TextEditor::BaseTextEditorWidget *); // avoid stupidity
+    void ctor();
     Utils::CommentDefinition m_commentDefinition;
 };
 
+} // namespace Internal
 } // namespace PythonEditor
 
 #endif // PYTHONEDITORWIDGET_H

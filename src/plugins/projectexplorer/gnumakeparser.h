@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -62,7 +62,8 @@ private:
 
     QRegExp m_makeDir;
     QRegExp m_makeLine;
-    QRegExp m_makefileError;
+    QRegExp m_threeStarError;
+    QRegExp m_errorInMakefile;
 
     QStringList m_directories;
 

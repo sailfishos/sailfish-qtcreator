@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -56,37 +56,31 @@ ToolSettings::ToolSettings(QObject *parent) :
 }
 
 
-bool ToolSettings::matches(const QString & searchKeyWord) const
+QWidget *ToolSettings::widget()
 {
-    return m_searchKeywords.contains(searchKeyWord, Qt::CaseInsensitive);
-}
-
-QWidget *ToolSettings::createPage(QWidget *parent)
-{
-    m_widget = new ExternalToolConfig(parent);
-    m_widget->setTools(ExternalToolManager::instance()->toolsByCategory());
-    if (m_searchKeywords.isEmpty())
-        m_searchKeywords = m_widget->searchKeywords();
+    if (!m_widget) {
+        m_widget = new ExternalToolConfig;
+        m_widget->setTools(ExternalToolManager::toolsByCategory());
+    }
     return m_widget;
 }
 
-
 static QString getUserFilePath(const QString &proposalFileName)
 {
-    QDir resourceDir(ICore::userResourcePath());
+    const QDir resourceDir(ICore::userResourcePath());
     if (!resourceDir.exists(QLatin1String("externaltools")))
         resourceDir.mkpath(QLatin1String("externaltools"));
-    QFileInfo fi(proposalFileName);
+    const QFileInfo fi(proposalFileName);
     const QString &suffix = QLatin1String(".") + fi.completeSuffix();
     const QString &newFilePath = ICore::userResourcePath()
             + QLatin1String("/externaltools/") + fi.baseName();
     int count = 0;
     QString tryPath = newFilePath + suffix;
     while (QFile::exists(tryPath)) {
-        if (count > 15)
+        if (++count > 15)
             return QString();
         // add random number
-        int number = qrand() % 1000;
+        const int number = qrand() % 1000;
         tryPath = newFilePath + QString::number(number) + suffix;
     }
     return tryPath;
@@ -95,6 +89,7 @@ static QString getUserFilePath(const QString &proposalFileName)
 static QString idFromDisplayName(const QString &displayName)
 {
     QString id = displayName;
+    id.remove(QRegExp(QLatin1String("&(?!&)")));
     QChar *c = id.data();
     while (!c->isNull()) {
         if (!c->isLetterOrNumber())
@@ -132,7 +127,7 @@ void ToolSettings::apply()
     if (!m_widget)
         return;
     m_widget->apply();
-    QMap<QString, ExternalTool *> originalTools = ExternalToolManager::instance()->toolsById();
+    QMap<QString, ExternalTool *> originalTools = ExternalToolManager::toolsById();
     QMap<QString, QList<ExternalTool *> > newToolsMap = m_widget->tools();
     QMap<QString, QList<ExternalTool *> > resultMap;
     QMapIterator<QString, QList<ExternalTool *> > it(newToolsMap);
@@ -202,10 +197,10 @@ void ToolSettings::apply()
         QFile::remove(tool->fileName());
     }
 
-    ExternalToolManager::instance()->setToolsByCategory(resultMap);
+    ExternalToolManager::setToolsByCategory(resultMap);
 }
-
 
 void ToolSettings::finish()
 {
+    delete m_widget;
 }

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -29,27 +29,30 @@
 
 #include "lldbengine.h"
 
-#include "debuggeractions.h"
-#include "debuggercore.h"
-#include "debuggerdialogs.h"
-#include "debuggerplugin.h"
-#include "debuggerprotocol.h"
-#include "debuggerstartparameters.h"
-#include "debuggerstringutils.h"
-#include "debuggertooltipmanager.h"
+#include <debugger/debuggeractions.h>
+#include <debugger/debuggercore.h>
+#include <debugger/debuggerdialogs.h>
+#include <debugger/debuggerinternalconstants.h>
+#include <debugger/debuggermainwindow.h>
+#include <debugger/debuggerplugin.h>
+#include <debugger/debuggerprotocol.h>
+#include <debugger/debuggerstartparameters.h>
+#include <debugger/debuggerstringutils.h>
+#include <debugger/debuggertooltipmanager.h>
 
-#include "breakhandler.h"
-#include "disassemblerlines.h"
-#include "moduleshandler.h"
-#include "registerhandler.h"
-#include "stackhandler.h"
-#include "sourceutils.h"
-#include "threadshandler.h"
-#include "watchhandler.h"
-#include "watchutils.h"
+#include <debugger/breakhandler.h>
+#include <debugger/disassemblerlines.h>
+#include <debugger/moduleshandler.h>
+#include <debugger/registerhandler.h>
+#include <debugger/stackhandler.h>
+#include <debugger/sourceutils.h>
+#include <debugger/threadshandler.h>
+#include <debugger/watchhandler.h>
+#include <debugger/watchutils.h>
 
 #include <utils/qtcassert.h>
 #include <utils/savedaction.h>
+#include <utils/qtcprocess.h>
 
 #include <texteditor/itexteditor.h>
 #include <coreplugin/idocument.h>
@@ -66,11 +69,15 @@
 #include <QMessageBox>
 #include <QToolTip>
 
-#include <stdio.h>
-
+using namespace Utils;
 
 namespace Debugger {
 namespace Internal {
+
+static QByteArray tooltipIName(const QString &exp)
+{
+    return "tooltip." + exp.toLatin1().toHex();
+}
 
 ///////////////////////////////////////////////////////////////////////
 //
@@ -79,16 +86,29 @@ namespace Internal {
 ///////////////////////////////////////////////////////////////////////
 
 LldbEngine::LldbEngine(const DebuggerStartParameters &startParameters)
-    : DebuggerEngine(startParameters)
+    : DebuggerEngine(startParameters), m_continueAtNextSpontaneousStop(false)
 {
     m_lastAgentId = 0;
     m_lastToken = 0;
     setObjectName(QLatin1String("LldbEngine"));
 
+    if (startParameters.useTerminal) {
+        #ifdef Q_OS_WIN
+            // Windows up to xp needs a workaround for attaching to freshly started processes. see proc_stub_win
+            if (QSysInfo::WindowsVersion >= QSysInfo::WV_VISTA)
+                m_stubProc.setMode(Utils::ConsoleProcess::Suspend);
+            else
+                m_stubProc.setMode(Utils::ConsoleProcess::Debug);
+        #else
+            m_stubProc.setMode(Utils::ConsoleProcess::Debug);
+            m_stubProc.setSettings(Core::ICore::settings());
+        #endif
+    }
+
     connect(debuggerCore()->action(AutoDerefPointers), SIGNAL(valueChanged(QVariant)),
             SLOT(updateLocals()));
     connect(debuggerCore()->action(CreateFullBacktrace), SIGNAL(triggered()),
-            SLOT(updateAll()));
+            SLOT(createFullBacktrace()));
     connect(debuggerCore()->action(UseDebuggingHelpers), SIGNAL(valueChanged(QVariant)),
             SLOT(updateLocals()));
     connect(debuggerCore()->action(UseDynamicType), SIGNAL(valueChanged(QVariant)),
@@ -98,7 +118,10 @@ LldbEngine::LldbEngine(const DebuggerStartParameters &startParameters)
 }
 
 LldbEngine::~LldbEngine()
-{}
+{
+    m_stubProc.disconnect(); // Avoid spurious state transitions from late exiting stub
+}
+
 
 void LldbEngine::executeDebuggerCommand(const QString &command, DebuggerLanguages)
 {
@@ -110,10 +133,15 @@ void LldbEngine::runCommand(const Command &command)
     QTC_ASSERT(m_lldbProc.state() == QProcess::Running, notifyEngineIll());
     ++m_lastToken;
     QByteArray token = QByteArray::number(m_lastToken);
-    QByteArray cmd = "db {'cmd':'" + command.function + "',"
-        + command.args + "'token':" + token + "}\n";
+    QByteArray cmd = "{\"cmd\":\"" + command.function + "\","
+        + command.args + "\"token\":" + token + "}\n";
     showMessage(_(token + cmd), LogInput);
     m_lldbProc.write(cmd);
+}
+
+void LldbEngine::debugLastCommand()
+{
+    runCommand(m_lastDebuggableCommand);
 }
 
 void LldbEngine::shutdownInferior()
@@ -126,15 +154,90 @@ void LldbEngine::shutdownEngine()
 {
     QTC_ASSERT(state() == EngineShutdownRequested, qDebug() << state());
     m_lldbProc.kill();
+    if (startParameters().useTerminal)
+        m_stubProc.stop();
+    notifyEngineShutdownOk();
+}
+
+void LldbEngine::abortDebugger()
+{
+    if (targetState() == DebuggerFinished) {
+        // We already tried. Try harder.
+        showMessage(_("ABORTING DEBUGGER. SECOND TIME."));
+        m_lldbProc.kill();
+    } else {
+        // Be friendly the first time. This will change targetState().
+        showMessage(_("ABORTING DEBUGGER. FIRST TIME."));
+        quitDebugger();
+    }
+}
+
+// FIXME: Merge with GdbEngine/QtcProcess
+bool LldbEngine::prepareCommand()
+{
+    if (HostOsInfo::isWindowsHost()) {
+        DebuggerStartParameters &sp = startParameters();
+        QtcProcess::SplitError perr;
+        sp.processArgs = QtcProcess::prepareArgs(sp.processArgs, &perr,
+                                                 Utils::HostOsInfo::hostOs(),
+                    &sp.environment, &sp.workingDirectory).toWindowsArgs();
+        if (perr != Utils::QtcProcess::SplitOk) {
+            // perr == BadQuoting is never returned on Windows
+            // FIXME? QTCREATORBUG-2809
+            notifyEngineSetupFailed();
+            return false;
+        }
+    }
+    return true;
 }
 
 void LldbEngine::setupEngine()
 {
-    QTC_ASSERT(state() == EngineSetupRequested, qDebug() << state());
+    if (startParameters().useTerminal) {
+        QTC_ASSERT(state() == EngineSetupRequested, qDebug() << state());
+        showMessage(_("TRYING TO START ADAPTER"));
 
+    // Currently, adapters are not re-used
+    //    // We leave the console open, so recycle it now.
+    //    m_stubProc.blockSignals(true);
+    //    m_stubProc.stop();
+    //    m_stubProc.blockSignals(false);
+
+        if (!prepareCommand()) {
+            notifyEngineSetupFailed();
+            return;
+        }
+
+        m_stubProc.setWorkingDirectory(startParameters().workingDirectory);
+        // Set environment + dumper preload.
+        m_stubProc.setEnvironment(startParameters().environment);
+
+        connect(&m_stubProc, SIGNAL(processError(QString)), SLOT(stubError(QString)));
+        connect(&m_stubProc, SIGNAL(processStarted()), SLOT(stubStarted()));
+        connect(&m_stubProc, SIGNAL(stubStopped()), SLOT(stubExited()));
+        // FIXME: Starting the stub implies starting the inferior. This is
+        // fairly unclean as far as the state machine and error reporting go.
+
+        if (!m_stubProc.start(startParameters().executable,
+                             startParameters().processArgs)) {
+            // Error message for user is delivered via a signal.
+            //handleAdapterStartFailed(QString());
+            notifyEngineSetupFailed();
+            return;
+        }
+
+    } else {
+        QTC_ASSERT(state() == EngineSetupRequested, qDebug() << state());
+        if (startParameters().remoteSetupNeeded)
+            notifyEngineRequestRemoteSetup();
+        else
+            startLldb();
+    }
+}
+
+void LldbEngine::startLldb()
+{
     m_lldbCmd = startParameters().debuggerCommand;
-    showMessage(_("STARTING LLDB ") + m_lldbCmd);
-
     connect(&m_lldbProc, SIGNAL(error(QProcess::ProcessError)),
         SLOT(handleLldbError(QProcess::ProcessError)));
     connect(&m_lldbProc, SIGNAL(finished(int,QProcess::ExitStatus)),
@@ -147,11 +250,19 @@ void LldbEngine::setupEngine()
     connect(this, SIGNAL(outputReady(QByteArray)),
         SLOT(handleResponse(QByteArray)), Qt::QueuedConnection);
 
-    m_lldbProc.start(_("python"), QStringList() << _("-i")
-        << (Core::ICore::resourcePath() + _("/dumper/lbridge.py")) << m_lldbCmd);
+    QStringList args;
+    args.append(_("-i"));
+    args.append(Core::ICore::resourcePath() + _("/debugger/lldbbridge.py"));
+    args.append(m_lldbCmd);
+    showMessage(_("STARTING LLDB ") + args.join(QLatin1String(" ")));
+    m_lldbProc.setEnvironment(startParameters().environment.toStringList());
+    if (!startParameters().workingDirectory.isEmpty())
+        m_lldbProc.setWorkingDirectory(startParameters().workingDirectory);
+
+    m_lldbProc.start(_("python"), args);
 
     if (!m_lldbProc.waitForStarted()) {
-        const QString msg = tr("Unable to start lldb '%1': %2")
+        const QString msg = tr("Unable to start LLDB \"%1\": %2")
             .arg(m_lldbCmd, m_lldbProc.errorString());
         notifyEngineSetupFailed();
         showMessage(_("ADAPTER START FAILED"));
@@ -162,10 +273,54 @@ void LldbEngine::setupEngine()
 
 void LldbEngine::setupInferior()
 {
-    QString executable = QFileInfo(startParameters().executable).absoluteFilePath();
-    runCommand(Command("setupInferior").arg("executable", executable));
+    const DebuggerStartParameters &sp = startParameters();
 
-    requestUpdateWatchers();
+    QString executable;
+    Utils::QtcProcess::Arguments args;
+    Utils::QtcProcess::prepareCommand(QFileInfo(sp.executable).absoluteFilePath(),
+                                      sp.processArgs, &executable, &args);
+
+    Command cmd("setupInferior");
+    cmd.arg("executable", executable);
+    cmd.arg("breakOnMain", sp.breakOnMain);
+    cmd.arg("useTerminal", sp.useTerminal);
+
+    cmd.beginList("processArgs");
+    foreach (const QString &arg, args.toUnixArgs())
+        cmd.arg(arg.toUtf8().toHex());
+    cmd.endList();
+
+    if (sp.useTerminal) {
+        QTC_ASSERT(state() == InferiorSetupRequested, qDebug() << state());
+        const qint64 attachedPID = m_stubProc.applicationPID();
+        const qint64 attachedMainThreadID = m_stubProc.applicationMainThreadID();
+        const QString msg = (attachedMainThreadID != -1)
+                ? QString::fromLatin1("Attaching to %1 (%2)").arg(attachedPID).arg(attachedMainThreadID)
+                : QString::fromLatin1("Attaching to %1").arg(attachedPID);
+        showMessage(msg, LogMisc);
+        cmd.arg("startMode", AttachExternal);
+        cmd.arg("attachPid", attachedPID);
+
+    } else {
+
+        cmd.arg("startMode", sp.startMode);
+        // it is better not to check the start mode on the python sid (as we would have to duplicate the
+        // enum values), and thus we assume that if the sp.attachPID is valid we really have to attach
+        QTC_CHECK(sp.attachPID <= 0 || (sp.startMode == AttachCrashedExternal
+                                    || sp.startMode == AttachExternal));
+        cmd.arg("attachPid", sp.attachPID);
+        cmd.arg("sysRoot", sp.deviceSymbolsRoot.isEmpty() ? sp.sysRoot : sp.deviceSymbolsRoot);
+        cmd.arg("remoteChannel", ((sp.startMode == AttachToRemoteProcess
+                                   || sp.startMode == AttachToRemoteServer)
+                                  ? sp.remoteChannel : QString()));
+        cmd.arg("platform", sp.platform);
+        QTC_CHECK(!sp.continueAfterAttach || (sp.startMode == AttachToRemoteProcess
+                                              || sp.startMode == AttachExternal
+                                              || sp.startMode == AttachToRemoteServer));
+        m_continueAtNextSpontaneousStop = false;
+    }
+
+    runCommand(cmd);
 }
 
 void LldbEngine::runEngine()
@@ -246,6 +401,10 @@ void LldbEngine::handleResponse(const QByteArray &response)
             refreshLocals(item);
         else if (name == "stack")
             refreshStack(item);
+        else if (name == "stack-position")
+            refreshStackPosition(item);
+        else if (name == "stack-top")
+            refreshStackTop(item);
         else if (name == "registers")
             refreshRegisters(item);
         else if (name == "threads")
@@ -260,8 +419,12 @@ void LldbEngine::handleResponse(const QByteArray &response)
             refreshModules(item);
         else if (name == "symbols")
             refreshSymbols(item);
-        else if (name == "bkpts")
-            refreshBreakpoints(item);
+        else if (name == "breakpoint-added")
+            refreshAddedBreakpoint(item);
+        else if (name == "breakpoint-changed")
+            refreshChangedBreakpoint(item);
+        else if (name == "breakpoint-removed")
+            refreshRemovedBreakpoint(item);
         else if (name == "output")
             refreshOutput(item);
         else if (name == "disassembly")
@@ -270,7 +433,21 @@ void LldbEngine::handleResponse(const QByteArray &response)
             refreshMemory(item);
         else if (name == "continuation")
             runContinuation(item);
+        else if (name == "full-backtrace")
+            showFullBacktrace(item);
+        else if (name == "statusmessage") {
+            QString msg = QString::fromUtf8(item.data());
+            if (msg.size())
+                msg[0] = msg.at(0).toUpper();
+            showStatusMessage(msg);
+        }
     }
+}
+
+void LldbEngine::showFullBacktrace(const GdbMi &data)
+{
+    debuggerCore()->openTextEditor(_("Backtrace $"),
+        QString::fromUtf8(QByteArray::fromHex(data.data())));
 }
 
 void LldbEngine::runContinuation(const GdbMi &data)
@@ -283,8 +460,11 @@ void LldbEngine::executeRunToLine(const ContextData &data)
 {
     resetLocation();
     notifyInferiorRunRequested();
-    runCommand(Command("executeRunToLine")
-        .arg("file", data.fileName).arg("line", data.address));
+    Command cmd("executeRunToLocation");
+    cmd.arg("file", data.fileName);
+    cmd.arg("line", data.lineNumber);
+    cmd.arg("address", data.address);
+    runCommand(cmd);
 }
 
 void LldbEngine::executeRunToFunction(const QString &functionName)
@@ -298,8 +478,11 @@ void LldbEngine::executeJumpToLine(const ContextData &data)
 {
     resetLocation();
     notifyInferiorRunRequested();
-    runCommand(Command("executeJumpToLine")
-        .arg("file", data.fileName).arg("line", data.address));
+    Command cmd("executeJumpToLocation");
+    cmd.arg("file", data.fileName);
+    cmd.arg("line", data.lineNumber);
+    cmd.arg("address", data.address);
+    runCommand(cmd);
 }
 
 void LldbEngine::activateFrame(int frameIndex)
@@ -308,7 +491,20 @@ void LldbEngine::activateFrame(int frameIndex)
     if (state() != InferiorStopOk && state() != InferiorUnrunnable)
         return;
 
-    runCommand(Command("activateFrame").arg("index", frameIndex));
+    const int n = stackHandler()->stackSize();
+    if (frameIndex == n) {
+        Command cmd("reportStack");
+        cmd.arg("stacklimit", n * 10 + 3);
+        runCommand(cmd);
+        return;
+    }
+
+    Command cmd("activateFrame");
+    cmd.arg("index", frameIndex);
+    cmd.arg("thread", threadsHandler()->currentThread().raw());
+    runCommand(cmd);
+
+    updateAll();
 }
 
 void LldbEngine::selectThread(ThreadId threadId)
@@ -429,9 +625,11 @@ void LldbEngine::attemptBreakpointSynchronization()
 void LldbEngine::updateBreakpointData(const GdbMi &bkpt, bool added)
 {
     BreakHandler *handler = breakHandler();
-    BreakpointModelId id = BreakpointModelId(bkpt["modelid"].data());
-    BreakpointResponse response = handler->response(id);
     BreakpointResponseId rid = BreakpointResponseId(bkpt["lldbid"].data());
+    BreakpointModelId id = BreakpointModelId(bkpt["modelid"].data());
+    if (!id.isValid())
+        id = handler->findBreakpointByResponseId(rid);
+    BreakpointResponse response = handler->response(id);
     if (added)
         response.id = rid;
     QTC_CHECK(response.id == rid);
@@ -440,35 +638,35 @@ void LldbEngine::updateBreakpointData(const GdbMi &bkpt, bool added)
     response.ignoreCount = bkpt["ignorecount"].toInt();
     response.condition = QByteArray::fromHex(bkpt["condition"].data());
     response.hitCount = bkpt["hitcount"].toInt();
+    response.fileName = bkpt["file"].toUtf8();
+    response.lineNumber = bkpt["line"].toInt();
 
-    if (added) {
-        // Added.
-        GdbMi locations = bkpt["locations"];
-        const int numChild = locations.children().size();
-        if (numChild > 1) {
-            foreach (const GdbMi &location, locations.children()) {
-                const int locid = location["locid"].toInt();
-                BreakpointResponse sub;
-                sub.id = BreakpointResponseId(rid.majorPart(), locid);
-                sub.type = response.type;
-                sub.address = location["addr"].toAddress();
-                sub.functionName = location["func"].toUtf8();
-                handler->insertSubBreakpoint(id, sub);
-            }
-        } else if (numChild == 1) {
-            const GdbMi location = locations.childAt(0);
-            response.address = location["addr"].toAddress();
-            response.functionName = location["func"].toUtf8();
-        } else {
-            QTC_CHECK(false);
+    GdbMi locations = bkpt["locations"];
+    const int numChild = locations.children().size();
+    if (numChild > 1) {
+        foreach (const GdbMi &location, locations.children()) {
+            const int locid = location["locid"].toInt();
+            BreakpointResponse sub;
+            sub.id = BreakpointResponseId(rid.majorPart(), locid);
+            sub.type = response.type;
+            sub.address = location["addr"].toAddress();
+            sub.functionName = location["func"].toUtf8();
+            sub.fileName = location["file"].toUtf8();
+            sub.lineNumber = location["line"].toInt();
+            handler->insertSubBreakpoint(id, sub);
         }
-        handler->setResponse(id, response);
-        handler->notifyBreakpointInsertOk(id);
+    } else if (numChild == 1) {
+        const GdbMi location = locations.childAt(0);
+        response.address = location["addr"].toAddress();
+        response.functionName = location["func"].toUtf8();
     } else {
-        // Changed.
-        handler->setResponse(id, response);
-        handler->notifyBreakpointChangeOk(id);
+        QTC_CHECK(false);
     }
+    handler->setResponse(id, response);
+    if (added)
+        handler->notifyBreakpointInsertOk(id);
+    else
+        handler->notifyBreakpointChangeOk(id);
 }
 
 void LldbEngine::refreshDisassembly(const GdbMi &data)
@@ -518,25 +716,26 @@ void LldbEngine::refreshOutput(const GdbMi &output)
     showMessage(QString::fromUtf8(data), ch);
 }
 
-void LldbEngine::refreshBreakpoints(const GdbMi &bkpts)
+void LldbEngine::refreshAddedBreakpoint(const GdbMi &bkpt)
+{
+    BreakpointModelId id = BreakpointModelId(bkpt["modelid"].data());
+    QTC_CHECK(breakHandler()->state(id) == BreakpointInsertProceeding);
+    updateBreakpointData(bkpt, true);
+}
+
+void LldbEngine::refreshChangedBreakpoint(const GdbMi &bkpt)
+{
+    BreakpointModelId id = BreakpointModelId(bkpt["modelid"].data());
+    QTC_CHECK(!id.isValid() || breakHandler()->state(id) == BreakpointChangeProceeding);
+    updateBreakpointData(bkpt, false);
+}
+
+void LldbEngine::refreshRemovedBreakpoint(const GdbMi &bkpt)
 {
     BreakHandler *handler = breakHandler();
-    foreach (const GdbMi &bkpt, bkpts.children()) {
-        QByteArray op = bkpt["operation"].data();
-        if (op == "added") {
-            BreakpointModelId id = BreakpointModelId(bkpt["modelid"].data());
-            QTC_CHECK(handler->state(id) == BreakpointInsertProceeding);
-            updateBreakpointData(bkpt, true);
-        } else if (op == "changed") {
-            BreakpointModelId id = BreakpointModelId(bkpt["modelid"].data());
-            QTC_CHECK(handler->state(id) == BreakpointChangeProceeding);
-            updateBreakpointData(bkpt, false);
-        } else if (op == "removed") {
-            BreakpointModelId id = BreakpointModelId(bkpt["modelid"].data());
-            QTC_CHECK(handler->state(id) == BreakpointRemoveProceeding);
-            handler->notifyBreakpointRemoveOk(id);
-        }
-    }
+    BreakpointModelId id = BreakpointModelId(bkpt["modelid"].data());
+    QTC_CHECK(handler->state(id) == BreakpointRemoveProceeding);
+    handler->notifyBreakpointRemoveOk(id);
 }
 
 void LldbEngine::loadSymbols(const QString &moduleName)
@@ -600,84 +799,108 @@ static WatchData m_toolTip;
 static QPoint m_toolTipPos;
 static QHash<QString, WatchData> m_toolTipCache;
 
-bool LldbEngine::setToolTipExpression(const QPoint &mousePos,
-    TextEditor::ITextEditor *editor, const DebuggerToolTipContext &ctx)
+void LldbEngine::showToolTip()
 {
-    Q_UNUSED(mousePos);
-    Q_UNUSED(editor);
+    if (m_toolTipContext.isNull())
+        return;
+    const QString expression = m_toolTipContext->expression;
+    if (DebuggerToolTipManager::debug())
+        qDebug() << "LldbEngine::showToolTip " << expression << m_toolTipContext->iname << (*m_toolTipContext);
 
-    if (state() != InferiorStopOk) {
-        //SDEBUG("SUPPRESSING DEBUGGER TOOLTIP, INFERIOR NOT STOPPED");
-        return false;
-    }
-    // Check mime type and get expression (borrowing some C++ - functions)
-    const QString javaPythonMimeType =
-        QLatin1String("application/javascript");
-    if (!editor->document() || editor->document()->mimeType() != javaPythonMimeType)
-        return false;
-
-    int line;
-    int column;
-    QString exp = cppExpressionAt(editor, ctx.position, &line, &column);
-
-/*
-    if (m_toolTipCache.contains(exp)) {
-        const WatchData & data = m_toolTipCache[exp];
-        q->watchHandler()->removeChildren(data.iname);
-        insertData(data);
+    if (m_toolTipContext->iname.startsWith("tooltip")
+        && (!debuggerCore()->boolSetting(UseToolTipsInMainEditor)
+            || !watchHandler()->isValidToolTip(m_toolTipContext->iname))) {
+        watchHandler()->removeData(m_toolTipContext->iname);
         return;
     }
-*/
 
-    QToolTip::hideText();
-    if (exp.isEmpty() || exp.startsWith(QLatin1Char('#')))  {
-        QToolTip::hideText();
+    DebuggerToolTipWidget *tw = new DebuggerToolTipWidget;
+    tw->setContext(*m_toolTipContext);
+    tw->acquireEngine(this);
+    DebuggerToolTipManager::showToolTip(m_toolTipContext->mousePosition, tw);
+    // Prevent tooltip from re-occurring (classic GDB, QTCREATORBUG-4711).
+    m_toolTipContext.reset();
+}
+
+void LldbEngine::resetLocation()
+{
+    m_toolTipContext.reset();
+    DebuggerEngine::resetLocation();
+}
+
+bool LldbEngine::setToolTipExpression(const QPoint &mousePos,
+    TextEditor::ITextEditor *editor, const DebuggerToolTipContext &contextIn)
+{
+    if (state() != InferiorStopOk || !isCppEditor(editor)) {
+        //qDebug() << "SUPPRESSING DEBUGGER TOOLTIP, INFERIOR NOT STOPPED "
+        // " OR NOT A CPPEDITOR";
         return false;
     }
 
-    if (!hasLetterOrNumber(exp)) {
-        QToolTip::showText(m_toolTipPos, tr("'%1' contains no identifier.").arg(exp));
-        return true;
-    }
-
-    if (exp.startsWith(QLatin1Char('"')) && exp.endsWith(QLatin1Char('"'))) {
-        QToolTip::showText(m_toolTipPos, tr("String literal %1").arg(exp));
-        return true;
-    }
-
-    if (exp.startsWith(QLatin1String("++")) || exp.startsWith(QLatin1String("--")))
-        exp.remove(0, 2);
-
-    if (exp.endsWith(QLatin1String("++")) || exp.endsWith(QLatin1String("--")))
-        exp.remove(0, 2);
-
-    if (exp.startsWith(QLatin1Char('<')) || exp.startsWith(QLatin1Char('[')))
+    DebuggerToolTipContext context = contextIn;
+    int line, column;
+    QString exp = fixCppExpression(cppExpressionAt(editor, context.position, &line, &column, &context.function));
+    if (exp.isEmpty())
         return false;
+    // Prefer a filter on an existing local variable if it can be found.
+    QByteArray iname;
+    if (const WatchData *localVariable = watchHandler()->findCppLocalVariable(exp)) {
+        exp = QLatin1String(localVariable->exp);
+        iname = localVariable->iname;
+    } else {
+        iname = tooltipIName(exp);
+    }
 
-    if (hasSideEffects(exp)) {
-        QToolTip::showText(m_toolTipPos,
-            tr("Cowardly refusing to evaluate expression '%1' "
-               "with potential side effects.").arg(exp));
+    if (DebuggerToolTipManager::debug())
+        qDebug() << "GdbEngine::setToolTipExpression1 " << exp << iname << context;
+
+    // Same expression: Display synchronously.
+    if (!m_toolTipContext.isNull() && m_toolTipContext->expression == exp) {
+        showToolTip();
         return true;
     }
 
-#if 0
-    //if (status() != InferiorStopOk)
-    //    return;
+    m_toolTipContext.reset(new DebuggerToolTipContext(context));
+    m_toolTipContext->mousePosition = mousePos;
+    m_toolTipContext->expression = exp;
+    m_toolTipContext->iname = iname;
+    // Local variable: Display synchronously.
+    if (iname.startsWith("local")) {
+        showToolTip();
+        return true;
+    }
 
-    // FIXME: 'exp' can contain illegal characters
-    m_toolTip = WatchData();
-    m_toolTip.exp = exp;
-    m_toolTip.name = exp;
-    m_toolTip.iname = tooltipIName;
-    insertData(m_toolTip);
-#endif
-    return false;
+    if (DebuggerToolTipManager::debug())
+        qDebug() << "GdbEngine::setToolTipExpression2 " << exp << (*m_toolTipContext);
+
+    UpdateParameters params;
+    params.tryPartial = true;
+    params.tooltipOnly = true;
+    params.varList = iname;
+    doUpdateLocals(params);
+
+    return true;
 }
 
 void LldbEngine::updateAll()
 {
+    reloadRegisters();
+    updateStack();
     updateLocals();
+}
+
+void LldbEngine::reloadFullStack()
+{
+    Command cmd("reportStack");
+    cmd.arg("stacklimit", -1);
+    runCommand(cmd);
+}
+
+void LldbEngine::updateStack()
+{
+    Command cmd("reportStack");
+    cmd.arg("stacklimit", 20);
+    runCommand(cmd);
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -705,59 +928,80 @@ void LldbEngine::updateWatchData(const WatchData &data, const WatchUpdateFlags &
 
 void LldbEngine::updateLocals()
 {
-    WatchHandler *handler = watchHandler();
+    UpdateParameters params;
+    doUpdateLocals(params);
+}
 
-    //requestUpdateWatchers();
+void LldbEngine::doUpdateLocals(UpdateParameters params)
+{
+    WatchHandler *handler = watchHandler();
 
     Command cmd("updateData");
     cmd.arg("expanded", handler->expansionRequests());
     cmd.arg("typeformats", handler->typeFormatRequests());
     cmd.arg("formats", handler->individualFormatRequests());
 
-//    const QString fileName = stackHandler()->currentFrame().file;
-//    if (!fileName.isEmpty()) {
-//        const QString function = stackHandler()->currentFrame().function;
-//        typedef DebuggerToolTipManager::ExpressionInamePair ExpressionInamePair;
-//        typedef DebuggerToolTipManager::ExpressionInamePairs ExpressionInamePairs;
-
-//        // Re-create tooltip items that are not filters on existing local variables in
-//        // the tooltip model.
-//        ExpressionInamePairs toolTips = DebuggerToolTipManager::instance()
-//                ->treeWidgetExpressions(fileName, objectName(), function);
-
-//        const QString currentExpression = tooltipExpression();
-//        if (!currentExpression.isEmpty()) {
-//            int currentIndex = -1;
-//            for (int i = 0; i < toolTips.size(); ++i) {
-//                if (toolTips.at(i).first == currentExpression) {
-//                    currentIndex = i;
-//                    break;
-//                }
-//            }
-//            if (currentIndex < 0)
-//                toolTips.push_back(ExpressionInamePair(currentExpression, tooltipIName(currentExpression)));
-//        }
-
-//        foreach (const ExpressionInamePair &p, toolTips) {
-//            if (p.second.startsWith("tooltip")) {
-//                QHash<QByteArray, QByteArray> hash;
-//                hash["exp"] = p.first.toLatin1();
-//                hash["id"] = p.second;
-//                watcherData.append(Command::toData(hash));
-//            }
-//        }
-//    }
-
     const static bool alwaysVerbose = !qgetenv("QTC_DEBUGGER_PYTHON_VERBOSE").isEmpty();
     cmd.arg("passexceptions", alwaysVerbose);
     cmd.arg("fancy", debuggerCore()->boolSetting(UseDebuggingHelpers));
     cmd.arg("autoderef", debuggerCore()->boolSetting(AutoDerefPointers));
     cmd.arg("dyntype", debuggerCore()->boolSetting(UseDynamicType));
-    //cmd.arg("partial", ??)
-    //cmd.arg("tooltipOnly", ??)
+    cmd.arg("partial", params.tryPartial);
+    cmd.arg("tooltiponly", params.tooltipOnly);
+
+    cmd.beginList("watchers");
+    // Watchers
+    QHashIterator<QByteArray, int> it(WatchHandler::watcherNames());
+    while (it.hasNext()) {
+        it.next();
+        cmd.beginGroup()
+            .arg("iname", "watch." + QByteArray::number(it.value()))
+            .arg("exp", it.key().toHex())
+        .endGroup();
+    }
+    // Tooltip
+    const StackFrame frame = stackHandler()->currentFrame();
+    if (!frame.file.isEmpty()) {
+        // Re-create tooltip items that are not filters on existing local variables in
+        // the tooltip model.
+        DebuggerToolTipContexts toolTips =
+            DebuggerToolTipManager::treeWidgetExpressions(frame.file, objectName(), frame.function);
+
+        const QString currentExpression =
+             m_toolTipContext.isNull() ? QString() : m_toolTipContext->expression;
+        if (!currentExpression.isEmpty()) {
+            int currentIndex = -1;
+            for (int i = 0; i < toolTips.size(); ++i) {
+                if (toolTips.at(i).expression == currentExpression) {
+                    currentIndex = i;
+                    break;
+                }
+            }
+            if (currentIndex < 0) {
+                DebuggerToolTipContext context;
+                context.expression = currentExpression;
+                context.iname = tooltipIName(currentExpression);
+                toolTips.push_back(context);
+            }
+        }
+        foreach (const DebuggerToolTipContext &p, toolTips) {
+            if (p.iname.startsWith("tooltip"))
+                cmd.beginGroup()
+                    .arg("iname", p.iname)
+                    .arg("exp", p.expression.toLatin1().toHex())
+                .endGroup();
+        }
+    }
+    cmd.endList();
+
     //cmd.arg("resultvarname", m_resultVarName);
 
+    m_lastDebuggableCommand = cmd;
+    m_lastDebuggableCommand.args.replace("\"passexceptions\":0", "\"passexceptions\":1");
+
     runCommand(cmd);
+
+    reloadRegisters();
 }
 
 void LldbEngine::handleLldbError(QProcess::ProcessError error)
@@ -774,7 +1018,7 @@ void LldbEngine::handleLldbError(QProcess::ProcessError error)
     default:
         //setState(EngineShutdownRequested, true);
         m_lldbProc.kill();
-        showMessageBox(QMessageBox::Critical, tr("Lldb I/O Error"),
+        showMessageBox(QMessageBox::Critical, tr("LLDB I/O Error"),
                        errorMessage(error));
         break;
     }
@@ -784,12 +1028,12 @@ QString LldbEngine::errorMessage(QProcess::ProcessError error) const
 {
     switch (error) {
         case QProcess::FailedToStart:
-            return tr("The Lldb process failed to start. Either the "
-                "invoked program '%1' is missing, or you may have insufficient "
+            return tr("The LLDB process failed to start. Either the "
+                "invoked program \"%1\" is missing, or you may have insufficient "
                 "permissions to invoke the program.")
                 .arg(m_lldbCmd);
         case QProcess::Crashed:
-            return tr("The Lldb process crashed some time after starting "
+            return tr("The LLDB process crashed some time after starting "
                 "successfully.");
         case QProcess::Timedout:
             return tr("The last waitFor...() function timed out. "
@@ -797,13 +1041,13 @@ QString LldbEngine::errorMessage(QProcess::ProcessError error) const
                 "waitFor...() again.");
         case QProcess::WriteError:
             return tr("An error occurred when attempting to write "
-                "to the Lldb process. For example, the process may not be running, "
+                "to the LLDB process. For example, the process may not be running, "
                 "or it may have closed its input channel.");
         case QProcess::ReadError:
             return tr("An error occurred when attempting to read from "
                 "the Lldb process. For example, the process may not be running.");
         default:
-            return tr("An unknown error in the Lldb process occurred. ");
+            return tr("An unknown error in the LLDB process occurred.") + QLatin1Char(' ');
     }
 }
 
@@ -820,15 +1064,12 @@ void LldbEngine::readLldbStandardError()
     qDebug() << "\nLLDB STDERR" << err;
     //qWarning() << "Unexpected lldb stderr:" << err;
     showMessage(_(err), LogError);
-    if (!err.startsWith("warning:"))
-        m_lldbProc.kill();
 }
 
 void LldbEngine::readLldbStandardOutput()
 {
     QByteArray out = m_lldbProc.readAllStandardOutput();
-    //showMessage(_("Lldb stdout: " + out));
-    showMessage(_(out), LogDebug);
+    showMessage(_("Lldb stdout: " + out));
     m_inbuffer.append(out);
     while (true) {
         int pos = m_inbuffer.indexOf("@\n");
@@ -838,22 +1079,6 @@ void LldbEngine::readLldbStandardOutput()
         m_inbuffer = m_inbuffer.mid(pos + 2);
         emit outputReady(response);
     }
-}
-
-void LldbEngine::requestUpdateWatchers()
-{
-    QHashIterator<QByteArray, int> it(WatchHandler::watcherNames());
-    QList<QByteArray> watcherData;
-    while (it.hasNext()) {
-        it.next();
-        QHash<QByteArray, QByteArray> hash;
-        hash["iname"] = "'watch." + QByteArray::number(it.value()) + '\'';
-        hash["exp"] = '\'' + it.key().toHex() + '\'';
-        watcherData.append(Command::toData(hash));
-    }
-    Command cmd("setWatchers");
-    cmd.args.append("'watchers':" + Command::toData(watcherData) + ',');
-    runCommand(cmd);
 }
 
 void LldbEngine::refreshLocals(const GdbMi &vars)
@@ -866,6 +1091,7 @@ void LldbEngine::refreshLocals(const GdbMi &vars)
     //if (!partial) {
         list.append(*handler->findData("local"));
         list.append(*handler->findData("watch"));
+        list.append(*handler->findData("tooltip"));
         list.append(*handler->findData("return"));
     //}
 
@@ -883,12 +1109,12 @@ void LldbEngine::refreshLocals(const GdbMi &vars)
         parseWatchData(handler->expandedINames(), dummy, child, &list);
     }
     handler->insertData(list);
+
+    showToolTip();
  }
 
 void LldbEngine::refreshStack(const GdbMi &stack)
 {
-    //if (!partial)
-    //    emit stackFrameCompleted();
     StackHandler *handler = stackHandler();
     StackFrames frames;
     foreach (const GdbMi &item, stack["frames"].children()) {
@@ -904,10 +1130,26 @@ void LldbEngine::refreshStack(const GdbMi &stack)
     }
     bool canExpand = stack["hasmore"].toInt();
     debuggerCore()->action(ExpandStack)->setEnabled(canExpand);
-    handler->setFrames(frames);
+    handler->setFrames(frames, canExpand);
+}
 
-    int index = stack["current-frame"].toInt();
+void LldbEngine::refreshStackPosition(const GdbMi &position)
+{
+    setStackPosition(position["id"].toInt());
+}
+
+void LldbEngine::refreshStackTop(const GdbMi &)
+{
+    setStackPosition(stackHandler()->firstUsableIndex());
+}
+
+void LldbEngine::setStackPosition(int index)
+{
+    StackHandler *handler = stackHandler();
+    handler->setFrames(handler->frames());
     handler->setCurrentIndex(index);
+    if (index >= 0 && index < handler->stackSize())
+        gotoLocation(handler->frameAt(index));
 }
 
 void LldbEngine::refreshRegisters(const GdbMi &registers)
@@ -962,9 +1204,15 @@ void LldbEngine::refreshState(const GdbMi &reportedState)
         notifyInferiorRunOk();
     else if (newState == "inferiorrunfailed")
         notifyInferiorRunFailed();
-    else if (newState == "stopped")
+    else if (newState == "stopped") {
         notifyInferiorSpontaneousStop();
-    else if (newState == "inferiorstopok")
+        if (m_continueAtNextSpontaneousStop) {
+            m_continueAtNextSpontaneousStop = false;
+            continueInferior();
+        } else {
+            updateAll();
+        }
+    } else if (newState == "inferiorstopok")
         notifyInferiorStopOk();
     else if (newState == "inferiorstopfailed")
         notifyInferiorStopFailed();
@@ -972,13 +1220,15 @@ void LldbEngine::refreshState(const GdbMi &reportedState)
         notifyEngineSetupOk();
     else if (newState == "enginesetupfailed")
         notifyEngineSetupFailed();
-    else if (newState == "stopped")
-        notifyInferiorSpontaneousStop();
+    else if (newState == "enginerunfailed")
+        notifyEngineRunFailed();
     else if (newState == "inferiorsetupok")
         notifyInferiorSetupOk();
-    else if (newState == "enginerunandinferiorrunok")
+    else if (newState == "enginerunandinferiorrunok") {
+        if (startParameters().continueAfterAttach)
+            m_continueAtNextSpontaneousStop = true;
         notifyEngineRunAndInferiorRunOk();
-    else if (newState == "enginerunandinferiorstopok")
+    } else if (newState == "enginerunandinferiorstopok")
         notifyEngineRunAndInferiorStopOk();
     else if (newState == "inferiorshutdownok")
         notifyInferiorShutdownOk();
@@ -1007,7 +1257,8 @@ void LldbEngine::refreshLocation(const GdbMi &reportedLocation)
 
 void LldbEngine::reloadRegisters()
 {
-    runCommand("reportRegisters");
+    if (debuggerCore()->isDockVisible(QLatin1String(DOCKWIDGET_REGISTER)))
+        runCommand("reportRegisters");
 }
 
 void LldbEngine::fetchDisassembler(DisassemblerAgent *agent)
@@ -1018,9 +1269,19 @@ void LldbEngine::fetchDisassembler(DisassemblerAgent *agent)
         id = ++m_lastAgentId;
         m_disassemblerAgents.insert(p, id);
     }
-    runCommand(Command("disassemble").arg("cookie", id));
+    const Location &loc = agent->location();
+    Command cmd("disassemble");
+    cmd.arg("cookie", id);
+    cmd.arg("address", loc.address());
+    cmd.arg("function", loc.functionName());
+    cmd.arg("flavor", debuggerCore()->boolSetting(IntelFlavor) ? "intel" : "att");
+    runCommand(cmd);
 }
 
+void LldbEngine::createFullBacktrace()
+{
+    runCommand("createFullBacktrace");
+}
 
 void LldbEngine::fetchMemory(MemoryAgent *agent, QObject *editorToken,
         quint64 addr, quint64 length)
@@ -1029,12 +1290,13 @@ void LldbEngine::fetchMemory(MemoryAgent *agent, QObject *editorToken,
     if (id == -1) {
         id = ++m_lastAgentId;
         m_memoryAgents.insert(agent, id);
-        m_memoryAgentTokens.insert(id, editorToken);
     }
-    runCommand(Command("readMemory")
-               .arg("address", addr)
-               .arg("length", length)
-               .arg("cookie", id));
+    m_memoryAgentTokens.insert(id, editorToken);
+    Command cmd("fetchMemory");
+    cmd.arg("address", addr);
+    cmd.arg("length", length);
+    cmd.arg("cookie", id);
+    runCommand(cmd);
 }
 
 void LldbEngine::changeMemory(MemoryAgent *agent, QObject *editorToken,
@@ -1046,10 +1308,11 @@ void LldbEngine::changeMemory(MemoryAgent *agent, QObject *editorToken,
         m_memoryAgents.insert(agent, id);
         m_memoryAgentTokens.insert(id, editorToken);
     }
-    runCommand(Command("writeMemory")
-               .arg("address", addr)
-               .arg("data", data.toHex())
-               .arg("cookie", id));
+    Command cmd("writeMemory");
+    cmd.arg("address", addr);
+    cmd.arg("data", data.toHex());
+    cmd.arg("cookie", id);
+    runCommand(cmd);
 }
 
 void LldbEngine::setRegisterValue(int regnr, const QString &value)
@@ -1099,6 +1362,38 @@ DebuggerEngine *createLldbEngine(const DebuggerStartParameters &startParameters)
     return new LldbEngine(startParameters);
 }
 
+void LldbEngine::notifyEngineRemoteSetupDone(int portOrPid, int qmlPort)
+{
+    QTC_ASSERT(state() == EngineSetupRequested, qDebug() << state());
+    DebuggerEngine::notifyEngineRemoteSetupDone(portOrPid, qmlPort);
+
+    if (qmlPort != -1)
+        startParameters().qmlServerPort = qmlPort;
+    if (portOrPid != -1) {
+        if (startParameters().startMode == AttachExternal) {
+            startParameters().attachPID = portOrPid;
+        } else {
+            QString &rc = startParameters().remoteChannel;
+            const int sepIndex = rc.lastIndexOf(QLatin1Char(':'));
+            if (sepIndex != -1)
+                rc.replace(sepIndex + 1, rc.count() - sepIndex - 1,
+                           QString::number(portOrPid));
+        }
+    }
+    startLldb();
+}
+
+void LldbEngine::notifyEngineRemoteSetupFailed(const QString &reason)
+{
+    QTC_ASSERT(state() == EngineSetupRequested, qDebug() << state());
+    DebuggerEngine::notifyEngineRemoteSetupFailed(reason);
+    showMessage(_("ADAPTER START FAILED"));
+    if (!reason.isEmpty()) {
+        const QString title = tr("Adapter start failed");
+        Core::ICore::showWarningWithOptions(title, reason);
+    }
+    notifyEngineSetupFailed();
+}
 
 ///////////////////////////////////////////////////////////////////////
 //
@@ -1108,9 +1403,9 @@ DebuggerEngine *createLldbEngine(const DebuggerStartParameters &startParameters)
 
 const LldbEngine::Command &LldbEngine::Command::argHelper(const char *name, const QByteArray &data) const
 {
-    args.append('\'');
+    args.append('"');
     args.append(name);
-    args.append("':");
+    args.append("\":");
     args.append(data);
     args.append(",");
     return *this;
@@ -1135,7 +1430,7 @@ QByteArray LldbEngine::Command::toData(const QHash<QByteArray, QByteArray> &valu
         it.next();
         if (!res.isEmpty())
             res.append(',');
-        res += '\'' + it.key() + "':" + it.value();
+        res += '"' + it.key() + "\":" + it.value();
     }
     return '{' + res + '}';
 }
@@ -1167,20 +1462,28 @@ const LldbEngine::Command &LldbEngine::Command::arg(const char *name, const QByt
 
 const LldbEngine::Command &LldbEngine::Command::arg(const char *name, const char *value) const
 {
-    args.append('\'');
+    args.append('"');
     args.append(name);
-    args.append("':'");
+    args.append("\":\"");
     args.append(value);
-    args.append("',");
+    args.append("\",");
+    return *this;
+}
+
+const LldbEngine::Command &LldbEngine::Command::arg(const char *value) const
+{
+    args.append("\"");
+    args.append(value);
+    args.append("\",");
     return *this;
 }
 
 const LldbEngine::Command &LldbEngine::Command::beginList(const char *name) const
 {
     if (name) {
-        args += '\'';
+        args += '"';
         args += name;
-        args += "':";
+        args += "\":";
     }
     args += '[';
     return *this;
@@ -1196,9 +1499,9 @@ void LldbEngine::Command::endList() const
 const LldbEngine::Command &LldbEngine::Command::beginGroup(const char *name) const
 {
     if (name) {
-        args += '\'';
+        args += '"';
         args += name;
-        args += "':";
+        args += "\":";
     }
     args += '{';
     return *this;
@@ -1209,6 +1512,26 @@ void LldbEngine::Command::endGroup() const
     if (args.endsWith(','))
         args.chop(1);
     args += "},";
+}
+
+void LldbEngine::stubStarted()
+{
+    startLldb();
+}
+
+void LldbEngine::stubError(const QString &msg)
+{
+    showMessageBox(QMessageBox::Critical, tr("Debugger Error"), msg);
+}
+
+void LldbEngine::stubExited()
+{
+    if (state() == EngineShutdownRequested || state() == DebuggerFinished) {
+        showMessage(_("STUB EXITED EXPECTEDLY"));
+        return;
+    }
+    showMessage(_("STUB EXITED"));
+    notifyEngineIll();
 }
 
 } // namespace Internal

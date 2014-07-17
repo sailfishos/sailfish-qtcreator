@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -117,7 +117,7 @@ QString AbstractPackagingStep::cachedPackageDirectory() const
 QString AbstractPackagingStep::packageDirectory() const
 {
     return d->currentBuildConfiguration
-        ? d->currentBuildConfiguration->buildDirectory() : QString();
+            ? d->currentBuildConfiguration->buildDirectory().toString() : QString();
 }
 
 bool AbstractPackagingStep::isPackagingNeeded() const
@@ -170,7 +170,14 @@ void AbstractPackagingStep::raiseError(const QString &errorMessage)
 {
     emit addOutput(errorMessage, BuildStep::ErrorOutput);
     emit addTask(Task(Task::Error, errorMessage, Utils::FileName(), -1,
-                      Core::Id(Constants::TASK_CATEGORY_BUILDSYSTEM)));
+                      Constants::TASK_CATEGORY_DEPLOYMENT));
+}
+
+void AbstractPackagingStep::raiseWarning(const QString &warningMessage)
+{
+    emit addOutput(warningMessage, ErrorMessageOutput);
+    emit addTask(Task(Task::Warning, warningMessage, Utils::FileName(), -1,
+                      Constants::TASK_CATEGORY_DEPLOYMENT));
 }
 
 } // namespace RemoteLinux

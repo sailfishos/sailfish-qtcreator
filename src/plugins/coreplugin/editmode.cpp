@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -28,14 +28,14 @@
 ****************************************************************************/
 
 #include "editmode.h"
-#include "editormanager.h"
 #include "coreconstants.h"
 #include "modemanager.h"
 #include "minisplitter.h"
 #include "outputpane.h"
 #include "navigationwidget.h"
 #include "rightpane.h"
-#include "ieditor.h"
+#include <coreplugin/editormanager/editormanager.h>
+#include <coreplugin/editormanager/ieditor.h>
 
 #include <QLatin1String>
 #include <QHBoxLayout>
@@ -49,7 +49,6 @@ EditMode::EditMode() :
     m_splitter(new MiniSplitter),
     m_rightSplitWidgetLayout(new QVBoxLayout)
 {
-    m_editorManager = EditorManager::instance();
     setObjectName(QLatin1String("EditMode"));
     setDisplayName(tr("Edit"));
     setIcon(QIcon(QLatin1String(":/fancyactionbar/images/mode_Edit.png")));
@@ -84,7 +83,7 @@ EditMode::EditMode() :
 
     connect(ModeManager::instance(), SIGNAL(currentModeChanged(Core::IMode*)),
             this, SLOT(grabEditorManager(Core::IMode*)));
-    m_splitter->setFocusProxy(m_editorManager);
+    m_splitter->setFocusProxy(EditorManager::instance());
 
     setWidget(m_splitter);
     setContext(Context(Constants::C_EDIT_MODE,

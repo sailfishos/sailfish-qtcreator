@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -57,6 +57,7 @@ public:
 
     bool equals(const BehaviorSettings &bs) const;
 
+    bool m_mouseHiding;
     bool m_mouseNavigation;
     bool m_scrollWheelZooming;
     bool m_constrainHoverTooltips;

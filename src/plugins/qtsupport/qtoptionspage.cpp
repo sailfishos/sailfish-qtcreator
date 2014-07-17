@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -37,16 +37,13 @@
 #include "qtversionmanager.h"
 #include "qtversionfactory.h"
 #include "qmldumptool.h"
-#include "qmldebugginglibrary.h"
-#include "qmlobservertool.h"
 
-#include <coreplugin/icore.h>
 #include <coreplugin/progressmanager/progressmanager.h>
-#include <utils/qtcassert.h>
-#include <utils/pathchooser.h>
 #include <projectexplorer/toolchainmanager.h>
 #include <projectexplorer/projectexplorerconstants.h>
 #include <utils/hostosinfo.h>
+#include <utils/pathchooser.h>
+#include <utils/qtcassert.h>
 #include <utils/runextensions.h>
 
 #include <QDir>
@@ -55,11 +52,13 @@
 #include <QTextBrowser>
 #include <QDesktopServices>
 
-enum ModelRoles { VersionIdRole = Qt::UserRole, ToolChainIdRole, BuildLogRole, BuildRunningRole};
-
-using namespace QtSupport;
-using namespace QtSupport::Internal;
+using namespace ProjectExplorer;
 using namespace Utils;
+
+namespace QtSupport {
+namespace Internal {
+
+enum ModelRoles { VersionIdRole = Qt::UserRole, ToolChainIdRole, BuildLogRole, BuildRunningRole};
 
 ///
 // QtOptionsPage
@@ -76,11 +75,10 @@ QtOptionsPage::QtOptionsPage()
     setCategoryIcon(QLatin1String(ProjectExplorer::Constants::PROJECTEXPLORER_SETTINGS_CATEGORY_ICON));
 }
 
-QWidget *QtOptionsPage::createPage(QWidget *parent)
+QWidget *QtOptionsPage::widget()
 {
-    m_widget = new QtOptionsPageWidget(parent);
-    if (m_searchKeywords.isEmpty())
-        m_searchKeywords = m_widget->searchKeywords();
+    if (!m_widget)
+        m_widget = new QtOptionsPageWidget;
     return m_widget;
 }
 
@@ -93,9 +91,9 @@ void QtOptionsPage::apply()
     m_widget->apply();
 }
 
-bool QtOptionsPage::matches(const QString &s) const
+void QtOptionsPage::finish()
 {
-    return m_searchKeywords.contains(s, Qt::CaseInsensitive);
+    delete m_widget;
 }
 
 //-----------------------------------------------------
@@ -116,7 +114,7 @@ QtOptionsPageWidget::QtOptionsPageWidget(QWidget *parent)
 {
     QWidget *versionInfoWidget = new QWidget();
     m_versionUi->setupUi(versionInfoWidget);
-    m_versionUi->editPathPushButton->setText(QCoreApplication::translate("Utils::PathChooser", Utils::PathChooser::browseButtonLabel));
+    m_versionUi->editPathPushButton->setText(PathChooser::browseButtonLabel());
 
     QWidget *debuggingHelperDetailsWidget = new QWidget();
     m_debuggingHelperUi->setupUi(debuggingHelperDetailsWidget);
@@ -131,15 +129,16 @@ QtOptionsPageWidget::QtOptionsPageWidget(QWidget *parent)
             this, SLOT(setInfoWidgetVisibility()));
 
     m_ui->versionInfoWidget->setWidget(versionInfoWidget);
-    m_ui->versionInfoWidget->setState(Utils::DetailsWidget::NoSummary);
+    m_ui->versionInfoWidget->setState(DetailsWidget::NoSummary);
 
     m_ui->debuggingHelperWidget->setWidget(debuggingHelperDetailsWidget);
     connect(m_ui->debuggingHelperWidget, SIGNAL(expanded(bool)),
             this, SLOT(setInfoWidgetVisibility()));
 
     // setup parent items for auto-detected and manual versions
-    m_ui->qtdirList->header()->setResizeMode(QHeaderView::ResizeToContents);
     m_ui->qtdirList->header()->setStretchLastSection(false);
+    m_ui->qtdirList->header()->setResizeMode(0, QHeaderView::ResizeToContents);
+    m_ui->qtdirList->header()->setResizeMode(1, QHeaderView::Stretch);
     m_ui->qtdirList->setTextElideMode(Qt::ElideNone);
     m_autoItem = new QTreeWidgetItem(m_ui->qtdirList);
     m_autoItem->setText(0, tr("Auto-detected"));
@@ -151,8 +150,7 @@ QtOptionsPageWidget::QtOptionsPageWidget(QWidget *parent)
     m_manualItem->setFlags(Qt::ItemIsEnabled);
 
     QList<int> additions;
-    QList<BaseQtVersion *> versions = QtVersionManager::instance()->versions();
-    foreach (BaseQtVersion *v, versions)
+    foreach (BaseQtVersion *v, QtVersionManager::versions())
         additions.append(v->uniqueId());
 
     updateQtVersions(additions, QList<int>(), QList<int>());
@@ -175,14 +173,8 @@ QtOptionsPageWidget::QtOptionsPageWidget(QWidget *parent)
 
     connect(m_debuggingHelperUi->rebuildButton, SIGNAL(clicked()),
             this, SLOT(buildDebuggingHelper()));
-    connect(m_debuggingHelperUi->gdbHelperBuildButton, SIGNAL(clicked()),
-            this, SLOT(buildGdbHelper()));
     connect(m_debuggingHelperUi->qmlDumpBuildButton, SIGNAL(clicked()),
             this, SLOT(buildQmlDump()));
-    connect(m_debuggingHelperUi->qmlDebuggingLibBuildButton, SIGNAL(clicked()),
-            this, SLOT(buildQmlDebuggingLibrary()));
-    connect(m_debuggingHelperUi->qmlObserverBuildButton, SIGNAL(clicked()),
-            this, SLOT(buildQmlObserver()));
 
     connect(m_debuggingHelperUi->showLogButton, SIGNAL(clicked()),
             this, SLOT(slotShowDebuggingBuildLog()));
@@ -246,14 +238,8 @@ void QtOptionsPageWidget::debuggingHelperBuildFinished(int qtVersionId, const QS
     item->setData(0, BuildLogRole, output);
 
     bool success = true;
-    if (tools & DebuggingHelperBuildTask::GdbDebugging)
-        success &= version->hasGdbDebuggingHelper();
-    if (tools & DebuggingHelperBuildTask::QmlDebugging)
-        success &= version->hasQmlDebuggingLibrary();
     if (tools & DebuggingHelperBuildTask::QmlDump)
         success &= version->hasQmlDump();
-    if (tools & DebuggingHelperBuildTask::QmlObserver)
-        success &= version->hasQmlObserver();
 
     if (!success)
         showDebuggingBuildLog(item);
@@ -319,7 +305,7 @@ void QtOptionsPageWidget::selectedToolChainChanged(int comboIndex)
     item->setData(0, ToolChainIdRole, toolChainId);
 }
 
-void QtOptionsPageWidget::qtVersionsDumpUpdated(const Utils::FileName &qmakeCommand)
+void QtOptionsPageWidget::qtVersionsDumpUpdated(const FileName &qmakeCommand)
 {
     foreach (BaseQtVersion *version, m_versions) {
         if (version->qmakeCommand() == qmakeCommand)
@@ -364,9 +350,9 @@ QtOptionsPageWidget::ValidityInfo QtOptionsPageWidget::validInformation(const Ba
     // Do we have tool chain issues?
     QStringList missingToolChains;
     int abiCount = 0;
-    foreach (const ProjectExplorer::Abi &a, version->qtAbis()) {
-        if (ProjectExplorer::ToolChainManager::instance()->findToolChains(a).isEmpty())
-            missingToolChains.append(a.toString());
+    foreach (const Abi &abi, version->qtAbis()) {
+        if (ToolChainManager::findToolChains(abi).isEmpty())
+            missingToolChains.append(abi.toString());
         ++abiCount;
     }
 
@@ -398,25 +384,22 @@ QtOptionsPageWidget::ValidityInfo QtOptionsPageWidget::validInformation(const Ba
     return info;
 }
 
-QList<ProjectExplorer::ToolChain*> QtOptionsPageWidget::toolChains(const BaseQtVersion *version)
+QList<ToolChain*> QtOptionsPageWidget::toolChains(const BaseQtVersion *version)
 {
-    QHash<QString,ProjectExplorer::ToolChain*> toolChains;
+    QHash<QString,ToolChain*> toolChains;
     if (!version)
         return toolChains.values();
 
-    foreach (const ProjectExplorer::Abi &a, version->qtAbis()) {
-        foreach (ProjectExplorer::ToolChain *tc,
-                 ProjectExplorer::ToolChainManager::instance()->findToolChains(a)) {
+    foreach (const Abi &a, version->qtAbis())
+        foreach (ToolChain *tc, ToolChainManager::findToolChains(a))
             toolChains.insert(tc->id(), tc);
-        }
-    }
 
     return toolChains.values();
 }
 
 QString QtOptionsPageWidget::defaultToolChainId(const BaseQtVersion *version)
 {
-    QList<ProjectExplorer::ToolChain*> possibleToolChains = toolChains(version);
+    QList<ToolChain*> possibleToolChains = toolChains(version);
     if (!possibleToolChains.isEmpty())
         return possibleToolChains.first()->id();
     return QString();
@@ -448,8 +431,7 @@ void QtOptionsPageWidget::buildDebuggingHelper(DebuggingHelperBuildTask::Tools t
     // Run a debugging helper build task in the background.
     QString toolChainId = m_debuggingHelperUi->toolChainComboBox->itemData(
                 m_debuggingHelperUi->toolChainComboBox->currentIndex()).toString();
-    ProjectExplorer::ToolChainManager *tcMgr = ProjectExplorer::ToolChainManager::instance();
-    ProjectExplorer::ToolChain *toolChain = tcMgr->findToolChain(toolChainId);
+    ToolChain *toolChain = ToolChainManager::findToolChain(toolChainId);
     if (!toolChain)
         return;
 
@@ -462,30 +444,12 @@ void QtOptionsPageWidget::buildDebuggingHelper(DebuggingHelperBuildTask::Tools t
     QFuture<void> task = QtConcurrent::run(&DebuggingHelperBuildTask::run, buildTask);
     const QString taskName = tr("Building helpers");
 
-    Core::ICore::progressManager()->addTask(task, taskName,
-                                                        QLatin1String("Qt4ProjectManager::BuildHelpers"));
-}
-void QtOptionsPageWidget::buildGdbHelper()
-{
-    buildDebuggingHelper(DebuggingHelperBuildTask::GdbDebugging);
+    Core::ProgressManager::addTask(task, taskName, "QmakeProjectManager::BuildHelpers");
 }
 
 void QtOptionsPageWidget::buildQmlDump()
 {
     buildDebuggingHelper(DebuggingHelperBuildTask::QmlDump);
-}
-
-void QtOptionsPageWidget::buildQmlDebuggingLibrary()
-{
-    buildDebuggingHelper(DebuggingHelperBuildTask::QmlDebugging);
-}
-
-void QtOptionsPageWidget::buildQmlObserver()
-{
-    DebuggingHelperBuildTask::Tools qmlDbgTools =
-            DebuggingHelperBuildTask::QmlObserver;
-    qmlDbgTools |= DebuggingHelperBuildTask::QmlDebugging;
-    buildDebuggingHelper(qmlDbgTools);
 }
 
 // Non-modal dialog
@@ -531,8 +495,6 @@ void QtOptionsPageWidget::showDebuggingBuildLog(const QTreeWidgetItem *currentIt
 void QtOptionsPageWidget::updateQtVersions(const QList<int> &additions, const QList<int> &removals,
                                            const QList<int> &changes)
 {
-    QtVersionManager *vm = QtVersionManager::instance();
-
     QList<QTreeWidgetItem *> toRemove;
     QList<int> toAdd = additions;
 
@@ -568,7 +530,7 @@ void QtOptionsPageWidget::updateQtVersions(const QList<int> &additions, const QL
 
     // Add changed/added items:
     foreach (int a, toAdd) {
-        BaseQtVersion *version = vm->version(a)->clone();
+        BaseQtVersion *version = QtVersionManager::version(a)->clone();
         m_versions.append(version);
         QTreeWidgetItem *item = new QTreeWidgetItem;
 
@@ -607,15 +569,15 @@ QtOptionsPageWidget::~QtOptionsPageWidget()
 static QString filterForQmakeFileDialog()
 {
     QString filter = QLatin1String("qmake (");
-    const QStringList commands = Utils::BuildableHelperLibrary::possibleQMakeCommands();
+    const QStringList commands = BuildableHelperLibrary::possibleQMakeCommands();
     for (int i = 0; i < commands.size(); ++i) {
         if (i)
             filter += QLatin1Char(' ');
-        if (Utils::HostOsInfo::isMacHost())
+        if (HostOsInfo::isMacHost())
             // work around QTBUG-7739 that prohibits filters that don't start with *
             filter += QLatin1Char('*');
         filter += commands.at(i);
-        if (Utils::HostOsInfo::isAnyUnixHost() && !Utils::HostOsInfo::isMacHost())
+        if (HostOsInfo::isAnyUnixHost() && !HostOsInfo::isMacHost())
             // kde bug, we need at least one wildcard character
             // see QTCREATORBUG-7771
             filter += QLatin1Char('*');
@@ -626,7 +588,7 @@ static QString filterForQmakeFileDialog()
 
 void QtOptionsPageWidget::addQtDir()
 {
-    Utils::FileName qtVersion = Utils::FileName::fromString(
+    FileName qtVersion = FileName::fromString(
                 QFileDialog::getOpenFileName(this,
                                              tr("Select a qmake Executable"),
                                              QString(),
@@ -635,6 +597,12 @@ void QtOptionsPageWidget::addQtDir()
                                              QFileDialog::DontResolveSymlinks));
     if (qtVersion.isNull())
         return;
+
+    QFileInfo fi(qtVersion.toString());
+    // should add all qt versions here ?
+    if (BuildableHelperLibrary::isQtChooser(fi))
+        qtVersion = FileName::fromString(BuildableHelperLibrary::qtChooserToQmakePath(fi.symLinkTarget()));
+
     BaseQtVersion *version = 0;
     foreach (BaseQtVersion *v, m_versions) {
         if (v->qmakeCommand() == qtVersion) {
@@ -691,7 +659,7 @@ void QtOptionsPageWidget::editPath()
 {
     BaseQtVersion *current = currentVersion();
     QString dir = currentVersion()->qmakeCommand().toFileInfo().absolutePath();
-    Utils::FileName qtVersion = Utils::FileName::fromString(
+    FileName qtVersion = FileName::fromString(
                 QFileDialog::getOpenFileName(this,
                                              tr("Select a qmake executable"),
                                              dir,
@@ -734,49 +702,30 @@ void QtOptionsPageWidget::updateDebuggingHelperUi()
     BaseQtVersion *version = currentVersion();
     const QTreeWidgetItem *currentItem = m_ui->qtdirList->currentItem();
 
-    QList<ProjectExplorer::ToolChain*> toolchains = toolChains(currentVersion());
+    QList<ToolChain*> toolchains = toolChains(currentVersion());
 
     if (!version || !version->isValid() || toolchains.isEmpty()) {
         m_ui->debuggingHelperWidget->setVisible(false);
     } else {
         const DebuggingHelperBuildTask::Tools availableTools = DebuggingHelperBuildTask::availableTools(version);
-        const bool canBuildGdbHelper = availableTools & DebuggingHelperBuildTask::GdbDebugging;
         const bool canBuildQmlDumper = availableTools & DebuggingHelperBuildTask::QmlDump;
-        const bool canBuildQmlDebuggingLib = availableTools & DebuggingHelperBuildTask::QmlDebugging;
-        const bool canBuildQmlObserver = availableTools & DebuggingHelperBuildTask::QmlObserver;
 
-        const bool hasGdbHelper = !version->gdbDebuggingHelperLibrary().isEmpty();
         const bool hasQmlDumper = version->hasQmlDump();
         const bool needsQmlDumper = version->needsQmlDump();
-        const bool hasQmlDebuggingLib = version->hasQmlDebuggingLibrary();
-        const bool needsQmlDebuggingLib = version->needsQmlDebuggingLibrary();
-        const bool hasQmlObserver = !version->qmlObserverTool().isEmpty();
 
-        bool isBuildingGdbHelper = false;
         bool isBuildingQmlDumper = false;
-        bool isBuildingQmlDebuggingLib = false;
-        bool isBuildingQmlObserver = false;
 
         if (currentItem) {
             DebuggingHelperBuildTask::Tools buildingTools
                     = currentItem->data(0, BuildRunningRole).value<DebuggingHelperBuildTask::Tools>();
-            isBuildingGdbHelper = buildingTools & DebuggingHelperBuildTask::GdbDebugging;
             isBuildingQmlDumper = buildingTools & DebuggingHelperBuildTask::QmlDump;
-            isBuildingQmlDebuggingLib = buildingTools & DebuggingHelperBuildTask::QmlDebugging;
-            isBuildingQmlObserver = buildingTools & DebuggingHelperBuildTask::QmlObserver;
         }
 
         // get names of tools from labels
         QStringList helperNames;
         const QChar colon = QLatin1Char(':');
-        if (hasGdbHelper)
-            helperNames << m_debuggingHelperUi->gdbHelperLabel->text().remove(colon);
         if (hasQmlDumper)
             helperNames << m_debuggingHelperUi->qmlDumpLabel->text().remove(colon);
-        if (hasQmlDebuggingLib)
-            helperNames << m_debuggingHelperUi->qmlDebuggingLibLabel->text().remove(colon);
-        if (hasQmlObserver)
-            helperNames << m_debuggingHelperUi->qmlObserverLabel->text().remove(colon);
 
         QString status;
         if (helperNames.isEmpty()) {
@@ -787,21 +736,6 @@ void QtOptionsPageWidget::updateDebuggingHelperUi()
         }
 
         m_ui->debuggingHelperWidget->setSummaryText(status);
-
-        QString gdbHelperText;
-        Qt::TextInteractionFlags gdbHelperTextFlags = Qt::NoTextInteraction;
-        if (hasGdbHelper) {
-            gdbHelperText = QDir::toNativeSeparators(version->gdbDebuggingHelperLibrary());
-            gdbHelperTextFlags = Qt::TextSelectableByMouse;
-        } else {
-            if (canBuildGdbHelper)
-                gdbHelperText =  tr("<i>Not yet built.</i>");
-            else
-                gdbHelperText =  tr("<i>Not needed.</i>");
-        }
-        m_debuggingHelperUi->gdbHelperStatus->setText(gdbHelperText);
-        m_debuggingHelperUi->gdbHelperStatus->setTextInteractionFlags(gdbHelperTextFlags);
-        m_debuggingHelperUi->gdbHelperBuildButton->setEnabled(canBuildGdbHelper && !isBuildingGdbHelper);
 
         QString qmlDumpStatusText, qmlDumpStatusToolTip;
         Qt::TextInteractionFlags qmlDumpStatusTextFlags = Qt::NoTextInteraction;
@@ -830,61 +764,7 @@ void QtOptionsPageWidget::updateDebuggingHelperUi()
         m_debuggingHelperUi->qmlDumpStatus->setToolTip(qmlDumpStatusToolTip);
         m_debuggingHelperUi->qmlDumpBuildButton->setEnabled(canBuildQmlDumper & !isBuildingQmlDumper);
 
-        QString qmlDebuggingLibStatusText, qmlDebuggingLibToolTip;
-        Qt::TextInteractionFlags qmlDebuggingLibStatusTextFlags = Qt::NoTextInteraction;
-        if (hasQmlDebuggingLib) {
-            qmlDebuggingLibStatusText = QDir::toNativeSeparators(
-                        version->qmlDebuggingHelperLibrary(false));
-            const QString debugPath = QDir::toNativeSeparators(
-                        version->qmlDebuggingHelperLibrary(true));
-
-            if (qmlDebuggingLibStatusText != debugPath) {
-                if (!qmlDebuggingLibStatusText.isEmpty()
-                        && !debugPath.isEmpty()) {
-                    qmlDebuggingLibStatusText += QLatin1Char('\n');
-                }
-                qmlDebuggingLibStatusText += debugPath;
-            }
-            qmlDebuggingLibStatusTextFlags = Qt::TextSelectableByMouse;
-        } else {
-            if (!needsQmlDebuggingLib) {
-                qmlDebuggingLibStatusText = tr("<i>Not needed.</i>");
-            } else if (canBuildQmlDebuggingLib) {
-                qmlDebuggingLibStatusText = tr("<i>Not yet built.</i>");
-            } else {
-                qmlDebuggingLibStatusText = tr("<i>Cannot be compiled.</i>");
-                QmlDebuggingLibrary::canBuild(version, &qmlDebuggingLibToolTip);
-            }
-        }
-        m_debuggingHelperUi->qmlDebuggingLibStatus->setText(qmlDebuggingLibStatusText);
-        m_debuggingHelperUi->qmlDebuggingLibStatus->setTextInteractionFlags(qmlDebuggingLibStatusTextFlags);
-        m_debuggingHelperUi->qmlDebuggingLibStatus->setToolTip(qmlDebuggingLibToolTip);
-        m_debuggingHelperUi->qmlDebuggingLibBuildButton->setEnabled(needsQmlDebuggingLib
-                                                                    && canBuildQmlDebuggingLib
-                                                                    && !isBuildingQmlDebuggingLib);
-
-        QString qmlObserverStatusText, qmlObserverToolTip;
-        Qt::TextInteractionFlags qmlObserverStatusTextFlags = Qt::NoTextInteraction;
-        if (hasQmlObserver) {
-            qmlObserverStatusText = QDir::toNativeSeparators(version->qmlObserverTool());
-            qmlObserverStatusTextFlags = Qt::TextSelectableByMouse;
-        }  else {
-            if (!needsQmlDebuggingLib) {
-                qmlObserverStatusText = tr("<i>Not needed.</i>");
-            } else if (canBuildQmlObserver) {
-                qmlObserverStatusText = tr("<i>Not yet built.</i>");
-            } else {
-                qmlObserverStatusText = tr("<i>Cannot be compiled.</i>");
-                QmlObserverTool::canBuild(version, &qmlObserverToolTip);
-            }
-        }
-        m_debuggingHelperUi->qmlObserverStatus->setText(qmlObserverStatusText);
-        m_debuggingHelperUi->qmlObserverStatus->setTextInteractionFlags(qmlObserverStatusTextFlags);
-        m_debuggingHelperUi->qmlObserverStatus->setToolTip(qmlObserverToolTip);
-        m_debuggingHelperUi->qmlObserverBuildButton->setEnabled(canBuildQmlObserver
-                                                                & !isBuildingQmlObserver);
-
-        QList<ProjectExplorer::ToolChain*> toolchains = toolChains(currentVersion());
+        QList<ToolChain*> toolchains = toolChains(currentVersion());
         QString selectedToolChainId = currentItem->data(0, ToolChainIdRole).toString();
         m_debuggingHelperUi->toolChainComboBox->clear();
         for (int i = 0; i < toolchains.size(); ++i) {
@@ -901,14 +781,8 @@ void QtOptionsPageWidget::updateDebuggingHelperUi()
         const bool hasLog = currentItem && !currentItem->data(0, BuildLogRole).toString().isEmpty();
         m_debuggingHelperUi->showLogButton->setEnabled(hasLog);
 
-        const bool canBuild = canBuildGdbHelper
-                               || canBuildQmlDumper
-                               || (canBuildQmlDebuggingLib && needsQmlDebuggingLib)
-                               || canBuildQmlObserver;
-        const bool isBuilding = isBuildingGdbHelper
-                                 || isBuildingQmlDumper
-                                 || isBuildingQmlDebuggingLib
-                                 || isBuildingQmlObserver;
+        const bool canBuild = canBuildQmlDumper;
+        const bool isBuilding = isBuildingQmlDumper;
 
         m_debuggingHelperUi->rebuildButton->setEnabled(canBuild && !isBuilding);
         m_debuggingHelperUi->toolChainComboBox->setEnabled(canBuild && !isBuilding);
@@ -1026,7 +900,7 @@ void QtOptionsPageWidget::updateWidgets()
     const bool enabled = version != 0;
     const bool isAutodetected = enabled && version->isAutodetected();
     m_ui->delButton->setEnabled(enabled && !isAutodetected);
-    m_versionUi->nameEdit->setEnabled(enabled && !isAutodetected);
+    m_versionUi->nameEdit->setEnabled(enabled);
     m_versionUi->editPathPushButton->setEnabled(enabled && !isAutodetected);
 }
 
@@ -1054,8 +928,7 @@ void QtOptionsPageWidget::apply()
     disconnect(QtVersionManager::instance(), SIGNAL(qtVersionsChanged(QList<int>,QList<int>,QList<int>)),
             this, SLOT(updateQtVersions(QList<int>,QList<int>,QList<int>)));
 
-    QtVersionManager *vm = QtVersionManager::instance();
-    vm->setNewQtVersions(versions());
+    QtVersionManager::setNewQtVersions(versions());
 
     connect(QtVersionManager::instance(), SIGNAL(qtVersionsChanged(QList<int>,QList<int>,QList<int>)),
             this, SLOT(updateQtVersions(QList<int>,QList<int>,QList<int>)));
@@ -1106,17 +979,5 @@ QList<BaseQtVersion *> QtOptionsPageWidget::versions() const
     return result;
 }
 
-QString QtOptionsPageWidget::searchKeywords() const
-{
-    QString rc;
-    QLatin1Char sep(' ');
-    QTextStream ts(&rc);
-    ts << sep << m_versionUi->versionNameLabel->text()
-       << sep << m_versionUi->pathLabel->text()
-       << sep << m_debuggingHelperUi->gdbHelperLabel->text()
-       << sep << m_debuggingHelperUi->qmlDumpLabel->text()
-       << sep << m_debuggingHelperUi->qmlObserverLabel->text();
-
-    rc.remove(QLatin1Char('&'));
-    return rc;
-}
+} // namespace Internal
+} // namespace QtSupport

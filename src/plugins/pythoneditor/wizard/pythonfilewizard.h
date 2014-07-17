@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -39,17 +39,13 @@ class FileWizard : public Core::BaseFileWizard
     Q_OBJECT
 
 public:
-    explicit FileWizard(QObject *parent = 0);
-    virtual ~FileWizard();
+    FileWizard();
 
 protected:
-    virtual QWizard *createWizardDialog(
-            QWidget *parent,
-            const Core::WizardDialogParameters &params) const;
+    QWizard *createWizardDialog(QWidget *parent,
+                                const Core::WizardDialogParameters &params) const;
 
-    virtual Core::GeneratedFiles generateFiles(
-            const QWizard *dialog,
-            QString *errorMessage) const;
+    Core::GeneratedFiles generateFiles(const QWizard *dialog, QString *errorMessage) const;
 };
 
 } // namespace PythonEditor

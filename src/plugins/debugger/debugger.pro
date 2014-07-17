@@ -24,9 +24,13 @@ HEADERS += \
     debuggercore.h \
     debuggerconstants.h \
     debuggerinternalconstants.h \
+    debuggeritem.h \
+    debuggeritemmanager.h \
+    debuggeritemmodel.h \
     debuggerdialogs.h \
     debuggerengine.h \
     debuggermainwindow.h \
+    debuggeroptionspage.h \
     debuggerplugin.h \
     debuggerprotocol.h \
     debuggerrunconfigurationaspect.h \
@@ -68,7 +72,9 @@ HEADERS += \
     debuggersourcepathmappingwidget.h \
     memoryview.h \
     localsandexpressionswindow.h \
-    imageviewer.h
+    imageviewer.h \
+    simplifytype.h \
+    unstartedappwatcherdialog.h
 
 SOURCES += \
     basewindow.cpp \
@@ -80,12 +86,16 @@ SOURCES += \
     debuggeractions.cpp \
     debuggerdialogs.cpp \
     debuggerengine.cpp \
+    debuggeritem.cpp \
+    debuggeritemmanager.cpp \
+    debuggeritemmodel.cpp \
     debuggermainwindow.cpp \
     debuggerplugin.cpp \
     debuggerprotocol.cpp \
     debuggerrunconfigurationaspect.cpp \
     debuggerrunner.cpp \
     debuggerstreamops.cpp \
+    debuggeroptionspage.cpp \
     debuggerkitconfigwidget.cpp \
     debuggerkitinformation.cpp \
     disassembleragent.cpp \
@@ -119,7 +129,9 @@ SOURCES += \
     debuggersourcepathmappingwidget.cpp \
     memoryview.cpp \
     localsandexpressionswindow.cpp \
-    imageviewer.cpp
+    imageviewer.cpp \
+    simplifytype.cpp \
+    unstartedappwatcherdialog.cpp
 
 FORMS += \
     localsandexpressionsoptionspage.ui
@@ -141,30 +153,9 @@ LIBS  *= -lole32 \
 }
 include(cdb/cdb.pri)
 include(gdb/gdb.pri)
-include(script/script.pri)
 include(pdb/pdb.pri)
 include(lldb/lldb.pri)
-include(lldblib/lldbhost.pri)
 include(qml/qml.pri)
 include(namedemangler/namedemangler.pri)
 
 include(shared/shared.pri)
-
-equals(TEST, 1):!isEmpty(copydata) {
-    TEST_DIR = tests/manual/debugger/simple
-    INPUT_FILE = $$IDE_SOURCE_TREE/$$TEST_DIR/simple.pro
-    macx: OUTPUT_DIR = $$IDE_DATA_PATH/$$TEST_DIR
-    else: OUTPUT_DIR = $$IDE_BUILD_TREE/$$TEST_DIR
-    testfile.target = $$OUTPUT_DIR/$$basename(INPUT_FILE)
-    testfile.depends = $$INPUT_FILE
-    win32:isEmpty(QMAKE_SH) {
-        INPUT_FILE ~= s,/,\\\\,g
-        OUTPUT_DIR ~= s,/,\\\\,g
-    } else {
-        isEmpty(QMAKE_CHK_EXISTS_GLUE):QMAKE_CHK_EXISTS_GLUE  = "|| "
-    }
-    testfile.commands = ($$QMAKE_CHK_DIR_EXISTS \"$$OUTPUT_DIR\" $$QMAKE_CHK_EXISTS_GLUE $$QMAKE_MKDIR \"$$OUTPUT_DIR\") \
-        && $$QMAKE_COPY \"$$INPUT_FILE\" \"$$OUTPUT_DIR\"
-    QMAKE_EXTRA_TARGETS += testfile
-    PRE_TARGETDEPS += $$testfile.target
-}

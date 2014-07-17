@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -45,10 +45,12 @@ public:
     explicit AbstractEditorSupport(CppModelManagerInterface *modelmanager);
     virtual ~AbstractEditorSupport();
 
+    /// \returns the contents, encoded as UTF-8
     virtual QByteArray contents() const = 0;
     virtual QString fileName() const = 0;
 
     void updateDocument();
+    unsigned revision() const { return m_revision; }
 
     // TODO: find a better place for common utility functions
     static QString functionAt(const CppModelManagerInterface *mm,
@@ -59,6 +61,7 @@ public:
 
 private:
     CppModelManagerInterface *m_modelmanager;
+    unsigned m_revision;
 };
 
 } // namespace CppTools

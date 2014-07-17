@@ -1,6 +1,6 @@
 #############################################################################
 ##
-## Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+## Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ## Contact: http://www.qt-project.org/legal
 ##
 ## This file is part of Qt Creator.
@@ -55,13 +55,15 @@ def clickItemVerifyHelpCombo(qmlItem, expectedHelpComboRegex, testDetails):
                 "Verifying: Getting Started topic is being displayed.")
 
 def main():
+    test.log("Welcome mode is not scriptable at the moment")
+    return
     global webPageContentLoadedValue, gettingStartedText
     # open Qt Creator
     startApplication("qtcreator" + SettingsPath)
     if not startedWithoutPluginError():
         return
     installLazySignalHandler(":QWebPage","loadFinished(bool)", "webPageContentLoaded")
-    installLazySignalHandler(":*Qt Creator_Help::Internal::HelpViewer", "loadFinished(bool)",
+    installLazySignalHandler(":Qt Creator_Help::Internal::HelpViewer", "loadFinished(bool)",
                              "webPageContentLoaded")
     setAlwaysStartFullHelp()
     addCurrentCreatorDocumentation()

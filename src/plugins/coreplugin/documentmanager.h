@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -47,6 +47,8 @@ namespace Core {
 class IContext;
 class IDocument;
 
+namespace Internal { class MainWindow; }
+
 class CORE_EXPORT DocumentManager : public QObject
 {
     Q_OBJECT
@@ -58,10 +60,7 @@ public:
 
     typedef QPair<QString, Id> RecentFile;
 
-    explicit DocumentManager(QMainWindow *ew);
-    virtual ~DocumentManager();
-
-    static DocumentManager *instance();
+    static QObject *instance();
 
     // file pool to monitor
     static void addDocuments(const QList<IDocument *> &documents, bool addWatcher = true);
@@ -85,7 +84,7 @@ public:
     static void setCurrentFile(const QString &filePath);
     static QString currentFile();
 
-    // helper methods
+    // helper functions
     static QString fixFileName(const QString &fileName, FixMode fixmode);
 
     static bool saveDocument(IDocument *document, const QString &fileName = QString(), bool *isReadOnly = 0);
@@ -100,12 +99,27 @@ public:
     static QString getSaveAsFileName(const IDocument *document, const QString &filter = QString(),
                               QString *selectedFilter = 0);
 
-    static QList<IDocument *> saveModifiedDocumentsSilently(const QList<IDocument *> &documents, bool *cancelled = 0);
-    static QList<IDocument *> saveModifiedDocuments(const QList<IDocument *> &documents,
-                                     bool *cancelled = 0,
-                                     const QString &message = QString(),
+    static bool saveAllModifiedDocumentsSilently(bool *canceled = 0,
+                                                 QList<IDocument *> *failedToClose = 0);
+    static bool saveModifiedDocumentsSilently(const QList<IDocument *> &documents, bool *canceled = 0,
+                                              QList<IDocument *> *failedToClose = 0);
+    static bool saveModifiedDocumentSilently(IDocument *document, bool *canceled = 0,
+                                             QList<IDocument *> *failedToClose = 0);
+
+    static bool saveAllModifiedDocuments(const QString &message = QString(), bool *canceled = 0,
+                                         const QString &alwaysSaveMessage = QString(),
+                                         bool *alwaysSave = 0,
+                                         QList<IDocument *> *failedToClose = 0);
+    static bool saveModifiedDocuments(const QList<IDocument *> &documents,
+                                      const QString &message = QString(), bool *canceled = 0,
+                                      const QString &alwaysSaveMessage = QString(),
+                                      bool *alwaysSave = 0,
+                                      QList<IDocument *> *failedToClose = 0);
+    static bool saveModifiedDocument(IDocument *document,
+                                     const QString &message = QString(), bool *canceled = 0,
                                      const QString &alwaysSaveMessage = QString(),
-                                     bool *alwaysSave = 0);
+                                     bool *alwaysSave = 0,
+                                     QList<IDocument *> *failedToClose = 0);
 
     static QString fileDialogLastVisitedDirectory();
     static void setFileDialogLastVisitedDirectory(const QString &);
@@ -127,10 +141,8 @@ public:
        lead to any editors to reload or any other editor manager actions. */
     static void notifyFilesChangedInternally(const QStringList &files);
 
-    static void executeOpenWithMenuAction(QAction *action);
-
 public slots:
-    void slotExecuteOpenWithMenuAction(QAction *action);
+    static void executeOpenWithMenuAction(QAction *action);
 
 signals:
     void currentFileChanged(const QString &filePath);
@@ -147,11 +159,16 @@ protected:
 
 private slots:
     void documentDestroyed(QObject *obj);
-    void fileNameChanged(const QString &oldName, const QString &newName);
+    void filePathChanged(const QString &oldName, const QString &newName);
     void checkForNewFileName();
     void checkForReload();
     void changedFile(const QString &file);
-    void syncWithEditor(const QList<Core::IContext *> &context);
+
+private:
+    explicit DocumentManager(QObject *parent);
+    ~DocumentManager();
+
+    friend class Core::Internal::MainWindow;
 };
 
 /*! The FileChangeBlocker blocks all change notifications to all IDocument * that

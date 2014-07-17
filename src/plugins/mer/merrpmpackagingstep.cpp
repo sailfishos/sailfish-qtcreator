@@ -33,7 +33,7 @@
 #include "merconstants.h"
 #include "mersdkkitinformation.h"
 
-#include <qt4projectmanager/qt4buildconfiguration.h>
+#include <qmakeprojectmanager/qmakebuildconfiguration.h>
 #include <projectexplorer/target.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/buildconfiguration.h>
@@ -101,7 +101,7 @@ bool MerRpmPackagingStep::init()
         raiseError(tr("Packaging failed: No mer target."));
         return false;
     }
-    m_fileName = QFileInfo(project()->document()->fileName()).baseName();
+    m_fileName = QFileInfo(project()->document()->filePath()).baseName();
     const QString wrapperScriptsDir = version->qmakeCommand().parentDir().toString();
     m_rpmCommand = wrapperScriptsDir + QLatin1Char('/') + QLatin1String(Constants::MER_WRAPPER_RPMBUILD);
     QString sharedHome =  MerSdkKitInformation::sdk(target()->kit())->sharedHomePath();
@@ -295,7 +295,7 @@ bool MerRpmPackagingStep::createPackage(QProcess *buildProc,const QFutureInterfa
 
 const Core::Id MerRpmPackagingStep::stepId()
 {
-    return Core::Id("Qt4ProjectManager.MerRpmPackagingStep");
+    return Core::Id("QmakeProjectManager.MerRpmPackagingStep");
 }
 
 QString MerRpmPackagingStep::displayName()

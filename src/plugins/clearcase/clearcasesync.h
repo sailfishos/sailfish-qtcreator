@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -42,12 +42,38 @@ public:
     explicit ClearCaseSync(ClearCasePlugin *plugin, QSharedPointer<StatusMap> statusMap);
     void run(QFutureInterface<void> &future, QStringList &files);
 
+    QStringList updateStatusHotFiles(const QString &viewRoot, int &total);
+    void invalidateStatus(const QDir &viewRootDir, const QStringList &files);
+    void invalidateStatusAllFiles();
+    void processCleartoolLsLine(const QDir &viewRootDir, const QString &buffer);
+    void updateTotalFilesCount(const QString view, ClearCaseSettings settings, const int processed);
+    void updateStatusForNotManagedFiles(const QStringList &files);
+
+    void syncDynamicView(QFutureInterface<void> &future,
+                         const ClearCaseSettings &settings);
+    void syncSnapshotView(QFutureInterface<void> &future, QStringList &files,
+                          const ClearCaseSettings &settings);
+
+    void processCleartoolLscheckoutLine(const QString &buffer);
 signals:
     void updateStreamAndView();
 
 private:
     ClearCasePlugin *m_plugin;
     QSharedPointer<StatusMap> m_statusMap;
+
+public slots:
+#ifdef WITH_TESTS
+    void verifyParseStatus(const QString &fileName, const QString &cleartoolLsLine,
+                           const FileStatus::Status);
+    void verifyFileNotManaged();
+
+    void verifyFileCheckedOutDynamicView();
+    void verifyFileCheckedInDynamicView();
+    void verifyFileNotManagedDynamicView();
+
+#endif
+
 };
 
 } // namespace Internal

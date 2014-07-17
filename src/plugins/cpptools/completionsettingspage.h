@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -35,12 +35,12 @@
 #include <texteditor/completionsettings.h>
 #include <texteditor/texteditoroptionspage.h>
 
+#include <QPointer>
+
 namespace CppTools {
 namespace Internal {
 
-namespace Ui {
-class CompletionSettingsPage;
-}
+namespace Ui { class CompletionSettingsPage; }
 
 // TODO: Move this class to the text editor plugin
 
@@ -52,10 +52,9 @@ public:
     CompletionSettingsPage(QObject *parent);
     ~CompletionSettingsPage();
 
-    QWidget *createPage(QWidget *parent);
+    QWidget *widget();
     void apply();
     void finish();
-    bool matches(const QString &) const;
 
     const CommentsSettings &commentsSettings() const;
 
@@ -69,7 +68,7 @@ private:
     bool requireCommentsSettingsUpdate() const;
 
     Ui::CompletionSettingsPage *m_page;
-    QString m_searchKeywords;
+    QPointer<QWidget> m_widget;
     CommentsSettings m_commentsSettings;
 };
 

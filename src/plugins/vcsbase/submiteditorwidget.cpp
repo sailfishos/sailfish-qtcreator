@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -34,10 +34,10 @@
 
 #include <QDebug>
 #include <QPointer>
+#include <QTextBlock>
 #include <QTimer>
 #include <QScopedPointer>
 
-#include <QPushButton>
 #include <QMenu>
 #include <QHBoxLayout>
 #include <QToolButton>
@@ -75,7 +75,7 @@ namespace VcsBase {
 
 // QActionPushButton: A push button tied to an action
 // (similar to a QToolButton)
-class QActionPushButton : public QPushButton
+class QActionPushButton : public QToolButton
 {
     Q_OBJECT
 public:
@@ -86,8 +86,11 @@ private slots:
 };
 
 QActionPushButton::QActionPushButton(QAction *a) :
-     QPushButton(a->icon(), a->text())
+     QToolButton()
 {
+    setIcon(a->icon());
+    setText(a->text());
+    setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
     connect(a, SIGNAL(changed()), this, SLOT(actionChanged()));
     connect(this, SIGNAL(clicked()), a, SLOT(trigger()));
     setEnabled(a->isEnabled());
@@ -153,6 +156,8 @@ struct SubmitEditorWidgetPrivate
     bool m_commitEnabled;
     bool m_ignoreChange;
     bool m_descriptionMandatory;
+
+    QActionPushButton *m_submitButton;
 };
 
 SubmitEditorWidgetPrivate::SubmitEditorWidgetPrivate() :
@@ -164,7 +169,8 @@ SubmitEditorWidgetPrivate::SubmitEditorWidgetPrivate() :
     m_lineWidth(defaultLineWidth),
     m_commitEnabled(false),
     m_ignoreChange(false),
-    m_descriptionMandatory(true)
+    m_descriptionMandatory(true),
+    m_submitButton(0)
 {
 }
 
@@ -229,7 +235,8 @@ void SubmitEditorWidget::registerActions(QAction *editorUndoAction, QAction *edi
         if (!actionSlotHelper)
             actionSlotHelper = new QActionSetTextSlotHelper(submitAction);
         connect(this, SIGNAL(submitActionTextChanged(QString)), actionSlotHelper, SLOT(setText(QString)));
-        d->m_ui.buttonLayout->addWidget(new QActionPushButton(submitAction));
+        d->m_submitButton = new QActionPushButton(submitAction);
+        d->m_ui.buttonLayout->addWidget(d->m_submitButton);
         if (!d->m_submitShortcut)
             d->m_submitShortcut = new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_Return), this);
         connect(d->m_submitShortcut, SIGNAL(activated()), submitAction, SLOT(trigger()));
@@ -293,11 +300,22 @@ static QString wrappedText(const QTextEdit *e)
     QTextCursor cursor(e->document());
     cursor.movePosition(QTextCursor::Start);
     while (!cursor.atEnd()) {
-        cursor.select(QTextCursor::LineUnderCursor);
-        rc += cursor.selectedText();
-        rc += newLine;
-        cursor.movePosition(QTextCursor::EndOfLine); // Mac needs it
-        cursor.movePosition(QTextCursor::NextCharacter);
+        const QString block = cursor.block().text();
+        if (block.startsWith(QLatin1Char('\t'))) { // Don't wrap
+            rc += block + newLine;
+            cursor.movePosition(QTextCursor::EndOfBlock);
+        } else {
+            forever {
+                cursor.select(QTextCursor::LineUnderCursor);
+                rc += cursor.selectedText();
+                rc += newLine;
+                cursor.movePosition(QTextCursor::EndOfLine); // Mac needs it
+                if (cursor.atBlockEnd())
+                    break;
+                cursor.movePosition(QTextCursor::NextCharacter);
+            }
+        }
+        cursor.movePosition(QTextCursor::NextBlock);
     }
     return rc;
 }
@@ -521,6 +539,11 @@ QString SubmitEditorWidget::cleanupDescription(const QString &input) const
 void SubmitEditorWidget::insertTopWidget(QWidget *w)
 {
     d->m_ui.vboxLayout->insertWidget(0, w);
+}
+
+void SubmitEditorWidget::addSubmitButtonMenu(QMenu *menu)
+{
+    d->m_submitButton->setMenu(menu);
 }
 
 void SubmitEditorWidget::hideDescription()

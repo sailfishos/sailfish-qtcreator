@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -35,9 +35,11 @@
 #include <texteditor/basetexteditor.h>
 
 namespace QmlJSEditor {
+namespace Internal {
+
 class QmlJSTextEditorWidget;
 
-class QMLJSEDITOR_EXPORT QmlJSEditor : public TextEditor::BaseTextEditor
+class QmlJSEditor : public TextEditor::BaseTextEditor
 {
     Q_OBJECT
 
@@ -45,18 +47,18 @@ public:
     explicit QmlJSEditor(QmlJSTextEditorWidget *);
 
     bool duplicateSupported() const { return true; }
-    Core::IEditor *duplicate(QWidget *parent);
-    Core::Id id() const;
-    bool isTemporary() const { return false; }
+    Core::IEditor *duplicate();
     bool open(QString *errorString, const QString &fileName, const QString &realFileName);
     bool isDesignModePreferred() const;
-    void setTextCodec(QTextCodec *codec, TextCodecReason = TextCodecOtherReason);
 
     const Utils::CommentDefinition *commentDefinition() const;
+
+    TextEditor::CompletionAssistProvider *completionAssistProvider();
 private:
     Utils::CommentDefinition m_commentDefinition;
 };
 
+} // namespace Internal
 } // namespace QmlJSEditor
 
 #endif // QMLJSEDITOREDITABLE_H

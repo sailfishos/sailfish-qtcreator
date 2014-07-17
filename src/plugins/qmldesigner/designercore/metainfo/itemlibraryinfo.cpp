@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -121,7 +121,7 @@ TypeName ItemLibraryEntry::typeName() const
     return m_data->typeName;
 }
 
-QString ItemLibraryEntry::qml() const
+QString ItemLibraryEntry::qmlPath() const
 {
     return m_data->qml;
 }
@@ -192,14 +192,13 @@ static QString getSourceForUrl(const QString &fileURl)
 {
     Utils::FileReader fileReader;
 
-    if (fileReader.fetch(fileURl)) {
+    if (fileReader.fetch(fileURl))
         return fileReader.data();
-    } else {
+    else
         return Utils::FileReader::fetchQrc(fileURl);
-    }
 }
 
-void ItemLibraryEntry::setQml(const QString &qml)
+void ItemLibraryEntry::setQmlPath(const QString &qml)
 {
     m_data->qml = qml;
 

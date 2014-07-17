@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -57,6 +57,7 @@ StackHandler::StackHandler()
   : m_positionIcon(QIcon(QLatin1String(":/debugger/images/location_16.png"))),
     m_emptyIcon(QIcon(QLatin1String(":/debugger/images/debugger_empty_14.png")))
 {
+    setObjectName(QLatin1String("StackModel"));
     m_resetLocationScheduled = false;
     m_contentsValid = false;
     m_currentIndex = -1;
@@ -121,7 +122,7 @@ QVariant StackHandler::data(const QModelIndex &index, int role) const
             ? m_positionIcon : m_emptyIcon;
     }
 
-    if (role == Qt::ToolTipRole)
+    if (role == Qt::ToolTipRole && debuggerCore()->boolSetting(UseToolTipsInStackView))
         return frame.toToolTip();
 
     return QVariant();
@@ -202,6 +203,30 @@ void StackHandler::setFrames(const StackFrames &frames, bool canExpand)
         m_currentIndex = -1;
     endResetModel();
     emit stackChanged();
+}
+
+void StackHandler::prependFrames(const StackFrames &frames)
+{
+    if (frames.isEmpty())
+        return;
+    const int count = frames.size();
+    beginInsertRows(QModelIndex(), 0, count - 1);
+    for (int i = count - 1; i >= 0; --i)
+        m_stackFrames.prepend(frames.at(i));
+    endInsertRows();
+    if (m_currentIndex >= 0)
+        setCurrentIndex(m_currentIndex + count);
+    emit stackChanged();
+}
+
+int StackHandler::firstUsableIndex() const
+{
+    if (!debuggerCore()->boolSetting(OperateByInstruction)) {
+        for (int i = 0, n = m_stackFrames.size(); i != n; ++i)
+            if (m_stackFrames.at(i).isUsable())
+                return i;
+    }
+    return 0;
 }
 
 const StackFrames &StackHandler::frames() const

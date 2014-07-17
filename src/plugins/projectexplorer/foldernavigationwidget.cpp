@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -38,8 +38,8 @@
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/fileutils.h>
+#include <coreplugin/find/findplugin.h>
 
-#include <find/findplugin.h>
 #include <texteditor/findinfiles.h>
 
 #include <utils/hostosinfo.h>
@@ -124,7 +124,7 @@ FolderNavigationWidget::FolderNavigationWidget(QWidget *parent)
       m_toggleSync(new QToolButton(this))
 {
     m_fileSystemModel->setResolveSymlinks(false);
-    m_fileSystemModel->setIconProvider(Core::FileIconProvider::instance());
+    m_fileSystemModel->setIconProvider(Core::FileIconProvider::iconProvider());
     QDir::Filters filters = QDir::AllDirs | QDir::Files | QDir::Drives
                             | QDir::Readable| QDir::Writable
                             | QDir::Executable | QDir::Hidden;
@@ -158,6 +158,8 @@ FolderNavigationWidget::FolderNavigationWidget(QWidget *parent)
             this, SLOT(slotOpenItem(QModelIndex)));
     connect(m_filterHiddenFilesAction, SIGNAL(toggled(bool)), this, SLOT(setHiddenFilesFilter(bool)));
     connect(m_toggleSync, SIGNAL(clicked(bool)), this, SLOT(toggleAutoSynchronization()));
+    connect(m_filterModel, SIGNAL(layoutChanged()),
+            this, SLOT(ensureCurrentIndex()));
 }
 
 void FolderNavigationWidget::toggleAutoSynchronization()
@@ -225,10 +227,17 @@ bool FolderNavigationWidget::setCurrentDirectory(const QString &directory)
         setCurrentTitle(QString(), QString());
         return false;
     }
-    m_listView->setRootIndex(m_filterModel->mapFromSource(index));
+    QModelIndex oldRootIndex = m_listView->rootIndex();
+    QModelIndex newRootIndex = m_filterModel->mapFromSource(index);
+    m_listView->setRootIndex(newRootIndex);
     const QDir current(QDir::cleanPath(newDirectory));
     setCurrentTitle(current.dirName(),
                     QDir::toNativeSeparators(current.absolutePath()));
+    if (oldRootIndex.parent() == newRootIndex) { // cdUp, so select the old directory
+        m_listView->setCurrentIndex(oldRootIndex);
+        m_listView->scrollTo(oldRootIndex, QAbstractItemView::EnsureVisible);
+    }
+
     return !directory.isEmpty();
 }
 
@@ -307,7 +316,7 @@ void FolderNavigationWidget::contextMenuEvent(QContextMenuEvent *ev)
     QAction *actionTerminal = menu.addAction(Core::FileUtils::msgTerminalAction());
     actionTerminal->setEnabled(hasCurrentItem);
 
-    QAction *actionFind = menu.addAction(msgFindOnFileSystem());
+    QAction *actionFind = menu.addAction(Core::FileUtils::msgFindInDirectory());
     actionFind->setEnabled(hasCurrentItem);
     // open with...
     if (!m_fileSystemModel->isDir(current)) {
@@ -343,34 +352,10 @@ void FolderNavigationWidget::contextMenuEvent(QContextMenuEvent *ev)
         return;
     }
     if (action == actionFind) {
-        QFileInfo info = m_fileSystemModel->fileInfo(current);
-        if (m_fileSystemModel->isDir(current))
-            findOnFileSystem(info.absoluteFilePath());
-        else
-            findOnFileSystem(info.absolutePath());
+        TextEditor::FindInFiles::findOnFileSystem(m_fileSystemModel->filePath(current));
         return;
     }
     Core::DocumentManager::executeOpenWithMenuAction(action);
-}
-
-QString FolderNavigationWidget::msgFindOnFileSystem()
-{
-    return tr("Find in this directory...");
-}
-
-void FolderNavigationWidget::findOnFileSystem(const QString &pathIn)
-{
-    const QFileInfo fileInfo(pathIn);
-    const QString folder = fileInfo.isDir() ? fileInfo.absoluteFilePath() : fileInfo.absolutePath();
-
-    TextEditor::FindInFiles *fif = ExtensionSystem::PluginManager::getObject<TextEditor::FindInFiles>();
-    if (!fif)
-        return;
-    Find::FindPlugin *plugin = Find::FindPlugin::instance();
-    if (!plugin)
-        return;
-    fif->setDirectory(folder);
-    Find::FindPlugin::instance()->openFindDialog(fif);
 }
 
 void FolderNavigationWidget::setHiddenFilesFilter(bool filter)
@@ -387,6 +372,17 @@ void FolderNavigationWidget::setHiddenFilesFilter(bool filter)
 bool FolderNavigationWidget::hiddenFilesFilter() const
 {
     return m_filterHiddenFilesAction->isChecked();
+}
+
+void FolderNavigationWidget::ensureCurrentIndex()
+{
+    QModelIndex index = m_listView->currentIndex();
+    if (!index.isValid()
+            || index.parent() != m_listView->rootIndex()) {
+        index = m_listView->rootIndex().child(0, 0);
+        m_listView->setCurrentIndex(index);
+    }
+    m_listView->scrollTo(index);
 }
 
 // --------------------FolderNavigationWidgetFactory
@@ -410,7 +406,7 @@ int FolderNavigationWidgetFactory::priority() const
 
 Core::Id FolderNavigationWidgetFactory::id() const
 {
-    return Core::Id("File System");
+    return "File System";
 }
 
 QKeySequence FolderNavigationWidgetFactory::activationSequence() const

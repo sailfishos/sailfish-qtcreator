@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 BogDan Vatra <bog_dan_ro@yahoo.com>
+** Copyright (c) 2014 BogDan Vatra <bog_dan_ro@yahoo.com>
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -55,6 +55,7 @@ private slots:
 
     void setQASIPackagePath();
     void cleanLibsOnDevice();
+    void resetDefaultDevices();
 
     void deployOptionsChanged();
 private:

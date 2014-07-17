@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2012 - 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -79,7 +79,8 @@ QtSupport::BaseQtVersion *BlackBerryQtVersionFactory::create(const Utils::FileNa
     if (!fi.exists() || !fi.isExecutable() || !fi.isFile())
         return 0;
 
-    if (evaluator->values(QLatin1String("CONFIG")).contains(QLatin1String("blackberry"))) {
+    if (evaluator->values(QLatin1String("CONFIG")).contains(QLatin1String("blackberry")) ||
+            evaluator->values(QLatin1String("QMAKE_PLATFORM")).contains(QLatin1String("blackberry"))) {
         QString cpuDir = evaluator->value(QLatin1String("QNX_CPUDIR"));
         return new BlackBerryQtVersion(QnxUtils::cpudirToArch(cpuDir), qmakePath,
                                 isAutoDetected, autoDetectionSource);

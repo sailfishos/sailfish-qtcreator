@@ -92,7 +92,7 @@
         <item row="6" column="1">
          <widget class="QCheckBox" name="checkBoxPassControlKey">
           <property name="toolTip">
-           <string>Pass key sequences like Ctrl-S to Qt Creator core instead of interpreting them in FakeVim. This gives easier access to Qt Creator core functionality at the price of losing some features of FakeVim.</string>
+           <string>Passes key sequences like Ctrl-S to Qt Creator core instead of interpreting them in FakeVim. This gives easier access to Qt Creator core functionality at the price of losing some features of FakeVim.</string>
           </property>
           <property name="text">
            <string>Pass control key</string>
@@ -123,7 +123,7 @@
         <item row="7" column="0">
          <widget class="QCheckBox" name="checkBoxPassKeys">
           <property name="toolTip">
-           <string>Let Qt Creator handle some key presses in insert mode so that code can be properly completed and expanded.</string>
+           <string>Lets Qt Creator handle some key presses in insert mode so that code can be properly completed and expanded.</string>
           </property>
           <property name="text">
            <string>Pass keys in insert mode</string>
@@ -134,6 +134,16 @@
          <widget class="QCheckBox" name="checkBoxShowMarks">
           <property name="text">
            <string>Show position of text marks</string>
+          </property>
+         </widget>
+        </item>
+        <item row="7" column="1">
+         <widget class="QCheckBox" name="checkBoxRelativeNumber">
+          <property name="toolTip">
+           <string>Displays line numbers relative to the line containing text cursor.</string>
+          </property>
+          <property name="text">
+           <string>Show line numbers relative to cursor</string>
           </property>
          </widget>
         </item>
@@ -177,7 +187,7 @@
         <item>
          <widget class="QLabel" name="labelTabulator">
           <property name="toolTip">
-           <string>Vim tabstop option</string>
+           <string>Vim tabstop option.</string>
           </property>
           <property name="text">
            <string>Tabulator size:</string>
@@ -277,25 +287,7 @@
          </widget>
         </item>
         <item row="2" column="1">
-         <layout class="QHBoxLayout" name="horizontalLayout_2">
-          <item>
-           <widget class="QLineEdit" name="lineEditVimRcPath">
-            <property name="toolTip">
-             <string>Keep empty to use the default path, i.e. %USERPROFILE%\_vimrc on Windows, ~/.vimrc otherwise.</string>
-            </property>
-            <property name="placeholderText">
-             <string/>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="pushButtonVimRcPath">
-            <property name="text">
-             <string>Browse...</string>
-            </property>
-           </widget>
-          </item>
-         </layout>
+         <widget class="Utils::PathChooser" name="pathChooserVimRcPath" native="true"/>
         </item>
        </layout>
       </item>
@@ -355,6 +347,14 @@
    </item>
   </layout>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>Utils::PathChooser</class>
+   <extends>QWidget</extends>
+   <header location="global">utils/pathchooser.h</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
  <tabstops>
   <tabstop>checkBoxUseFakeVim</tabstop>
   <tabstop>checkBoxAutoIndent</tabstop>
@@ -372,14 +372,14 @@
   <tabstop>checkBoxWrapScan</tabstop>
   <tabstop>checkBoxShowMarks</tabstop>
   <tabstop>checkBoxPassControlKey</tabstop>
+  <tabstop>checkBoxRelativeNumber</tabstop>
   <tabstop>spinBoxShiftWidth</tabstop>
   <tabstop>spinBoxTabStop</tabstop>
   <tabstop>spinBoxScrollOff</tabstop>
   <tabstop>lineEditBackspace</tabstop>
   <tabstop>lineEditIsKeyword</tabstop>
   <tabstop>checkBoxReadVimRc</tabstop>
-  <tabstop>lineEditVimRcPath</tabstop>
-  <tabstop>pushButtonVimRcPath</tabstop>
+  <tabstop>pathChooserVimRcPath</tabstop>
   <tabstop>pushButtonCopyTextEditorSettings</tabstop>
   <tabstop>pushButtonSetQtStyle</tabstop>
   <tabstop>pushButtonSetPlainStyle</tabstop>

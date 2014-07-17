@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2012 - 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -33,6 +33,7 @@
 #include "blackberrydeviceconfigurationwizardpages.h"
 #include "qnxconstants.h"
 #include "blackberrydeviceconfiguration.h"
+#include "blackberrydeviceconnectionmanager.h"
 
 #include <ssh/sshconnection.h>
 
@@ -40,16 +41,18 @@ using namespace Qnx;
 using namespace Qnx::Internal;
 
 BlackBerryDeviceConfigurationWizard::BlackBerryDeviceConfigurationWizard(QWidget *parent) :
-    QWizard(parent)
+    Utils::Wizard(parent)
 {
     setWindowTitle(tr("New BlackBerry Device Configuration Setup"));
 
     m_setupPage = new BlackBerryDeviceConfigurationWizardSetupPage(this);
-    m_sshKeyPage = new BlackBerryDeviceConfigurationWizardSshKeyPage(this);
+    m_queryPage = new BlackBerryDeviceConfigurationWizardQueryPage(m_holder, this);
+    m_configPage = new BlackBerryDeviceConfigurationWizardConfigPage(m_holder, this);
     m_finalPage = new BlackBerryDeviceConfigurationWizardFinalPage(this);
 
     setPage(SetupPageId, m_setupPage);
-    setPage(SshKeyPageId, m_sshKeyPage);
+    setPage(QueryPageId, m_queryPage);
+    setPage(ConfigPageId, m_configPage);
     setPage(FinalPageId, m_finalPage);
     m_finalPage->setCommitPage(true);
 }
@@ -60,16 +63,19 @@ ProjectExplorer::IDevice::Ptr BlackBerryDeviceConfigurationWizard::device()
     sshParams.options = QSsh::SshIgnoreDefaultProxy;
     sshParams.host = m_setupPage->hostName();
     sshParams.password = m_setupPage->password();
-    sshParams.authenticationType = QSsh::SshConnectionParameters::AuthenticationByKey;
-    sshParams.privateKeyFile = m_sshKeyPage->privateKey();
+    sshParams.authenticationType = QSsh::SshConnectionParameters::AuthenticationTypePublicKey;
+    sshParams.privateKeyFile = BlackBerryDeviceConnectionManager::instance()->privateKeyPath();
     sshParams.userName = QLatin1String("devuser");
     sshParams.timeout = 10;
     sshParams.port = 22;
 
-    BlackBerryDeviceConfiguration::Ptr configuration = BlackBerryDeviceConfiguration::create(m_setupPage->deviceName(),
-                                                                                             Core::Id(Constants::QNX_BB_OS_TYPE),
-                                                                                             m_setupPage->machineType());
+    BlackBerryDeviceConfiguration::Ptr configuration = BlackBerryDeviceConfiguration::create(
+            m_configPage->configurationName(),
+            Core::Id(Constants::QNX_BB_OS_TYPE),
+            m_holder.isSimulator
+                    ? ProjectExplorer::IDevice::Emulator
+                    : ProjectExplorer::IDevice::Hardware);
     configuration->setSshParameters(sshParams);
-    configuration->setDebugToken(m_setupPage->debugToken());
+    configuration->setDebugToken(m_configPage->debugToken());
     return configuration;
 }

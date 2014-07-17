@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -39,9 +39,7 @@ namespace Internal {
 
 class BarDescriptorPermissionsModel;
 
-namespace Ui {
-class BarDescriptorEditorPermissionsWidget;
-}
+namespace Ui { class BarDescriptorEditorPermissionsWidget; }
 
 class BarDescriptorEditorPermissionsWidget : public BarDescriptorEditorAbstractPanelWidget
 {
@@ -51,12 +49,14 @@ public:
     explicit BarDescriptorEditorPermissionsWidget(QWidget *parent = 0);
     ~BarDescriptorEditorPermissionsWidget();
 
-    void clear();
+protected:
+    void updateWidgetValue(BarDescriptorDocument::Tag tag, const QVariant &value);
+    void emitChanged(BarDescriptorDocument::Tag tag);
 
+private:
     QStringList checkedPermissions() const;
     void checkPermission(const QString &identifier);
 
-private:
     Ui::BarDescriptorEditorPermissionsWidget *m_ui;
 
     BarDescriptorPermissionsModel *m_permissionsModel;

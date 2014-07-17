@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -37,6 +37,7 @@
 #include <QIcon>
 
 QT_BEGIN_NAMESPACE
+class QTreeWidget;
 class QTreeWidgetItem;
 QT_END_NAMESPACE
 
@@ -45,12 +46,6 @@ namespace ExtensionSystem {
 class PluginManager;
 class PluginSpec;
 class PluginCollection;
-
-namespace Internal {
-namespace Ui {
-    class PluginView;
-} // namespace Ui
-} // namespace Internal
 
 class EXTENSIONSYSTEM_EXPORT PluginView : public QWidget
 {
@@ -79,7 +74,7 @@ private:
     void updatePluginDependencies();
     int parsePluginSpecs(QTreeWidgetItem *parentItem, Qt::CheckState &groupState, QList<PluginSpec*> plugins);
 
-    Internal::Ui::PluginView *m_ui;
+    QTreeWidget *m_categoryWidget;
     QList<QTreeWidgetItem*> m_items;
     QHash<PluginSpec*, QTreeWidgetItem*> m_specToItem;
 

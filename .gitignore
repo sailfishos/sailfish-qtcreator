@@ -33,6 +33,7 @@ Thumbs.db
 *.rc
 *.embed.manifest
 /.qmake.cache
+/.qmake.stash
 
 # qtcreator generated files
 *.pro.user*
@@ -202,3 +203,7 @@ tmp/
 /tests/valgrind/memcheck/testrunner
 /tests/valgrind/callgrind/callgrindparsertests
 /tests/valgrind/callgrind/modeltest
+
+# qbs builds
+/*-debug/
+/*-release/

@@ -6,13 +6,12 @@ contains(CONFIG, dll) {
 
 include(parser/parser.pri)
 
-INCLUDEPATH += $$PWD/..
-
 HEADERS += \
     $$PWD/qmljs_global.h \
     $$PWD/qmljsbind.h \
     $$PWD/qmljsbundle.h \
     $$PWD/qmljsevaluate.h \
+    $$PWD/qmljsfindexportedcpptypes.h \
     $$PWD/qmljsdocument.h \
     $$PWD/qmljsscanner.h \
     $$PWD/qmljsinterpreter.h \
@@ -27,6 +26,7 @@ HEADERS += \
     $$PWD/qmljsrewriter.h \
     $$PWD/qmljsicons.h \
     $$PWD/qmljsdelta.h \
+    $$PWD/qmljsplugindumper.h \
     $$PWD/qmljstypedescriptionreader.h \
     $$PWD/qmljsscopeastpath.h \
     $$PWD/qmljsvalueowner.h \
@@ -40,12 +40,16 @@ HEADERS += \
     $$PWD/iscriptevaluator.h \
     $$PWD/qmljssimplereader.h \
     $$PWD/persistenttrie.h \
-    $$PWD/qmljsqrcparser.h
+    $$PWD/qmljsqrcparser.h \
+    $$PWD/qmljsconstants.h \
+    $$PWD/qmljsimportdependencies.h \
+    $$PWD/qmljsviewercontext.h
 
 SOURCES += \
     $$PWD/qmljsbind.cpp \
     $$PWD/qmljsbundle.cpp \
     $$PWD/qmljsevaluate.cpp \
+    $$PWD/qmljsfindexportedcpptypes.cpp \
     $$PWD/qmljsdocument.cpp \
     $$PWD/qmljsscanner.cpp \
     $$PWD/qmljsinterpreter.cpp \
@@ -59,6 +63,7 @@ SOURCES += \
     $$PWD/qmljsrewriter.cpp \
     $$PWD/qmljsicons.cpp \
     $$PWD/qmljsdelta.cpp \
+    $$PWD/qmljsplugindumper.cpp \
     $$PWD/qmljstypedescriptionreader.cpp \
     $$PWD/qmljsscopeastpath.cpp \
     $$PWD/qmljsvalueowner.cpp \
@@ -71,7 +76,10 @@ SOURCES += \
     $$PWD/consoleitem.cpp \
     $$PWD/qmljssimplereader.cpp \
     $$PWD/persistenttrie.cpp \
-    $$PWD/qmljsqrcparser.cpp
+    $$PWD/qmljsqrcparser.cpp \
+    $$PWD/qmljsimportdependencies.cpp \
+    $$PWD/qmljsviewercontext.cpp
+
 
 RESOURCES += \
     $$PWD/qmljs.qrc
@@ -90,3 +98,5 @@ contains(QT, gui) {
         $$PWD/qmljscodeformatter.h \
         $$PWD/qmljsreformatter.h
 }
+
+QT += xml

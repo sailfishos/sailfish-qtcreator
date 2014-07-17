@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -51,11 +51,8 @@ namespace Internal {
 
 QmlTaskManager::QmlTaskManager(QObject *parent) :
     QObject(parent),
-    m_taskHub(0),
     m_updatingSemantic(false)
 {
-    m_taskHub = ProjectExplorer::ProjectExplorerPlugin::instance()->taskHub();
-
     // displaying results incrementally leads to flickering
 //    connect(&m_messageCollector, SIGNAL(resultsReadyAt(int,int)),
 //            SLOT(displayResults(int,int)));
@@ -95,13 +92,13 @@ static QList<ProjectExplorer::Task> convertToTasks(const QList<StaticAnalysis::M
 void QmlTaskManager::collectMessages(
         QFutureInterface<FileErrorMessages> &future,
         Snapshot snapshot, QList<ModelManagerInterface::ProjectInfo> projectInfos,
-        QStringList importPaths, bool updateSemantic)
+        ViewerContext vContext, bool updateSemantic)
 {
     foreach (const ModelManagerInterface::ProjectInfo &info, projectInfos) {
         QHash<QString, QList<DiagnosticMessage> > linkMessages;
         ContextPtr context;
         if (updateSemantic) {
-            Link link(snapshot, importPaths, snapshot.libraryInfo(info.qtImportsPath));
+            Link link(snapshot, vContext, snapshot.libraryInfo(info.qtImportsPath));
             context = link(&linkMessages);
         }
 
@@ -164,7 +161,7 @@ void QmlTaskManager::updateMessagesNow(bool updateSemantic)
     QFuture<FileErrorMessages> future =
             QtConcurrent::run<FileErrorMessages>(
                 &collectMessages, modelManager->newestSnapshot(), modelManager->projectInfos(),
-                modelManager->importPaths(), updateSemantic);
+                modelManager->defaultVContext(), updateSemantic);
     m_messageCollector.setFuture(future);
 }
 
@@ -195,7 +192,7 @@ void QmlTaskManager::insertTask(const ProjectExplorer::Task &task)
     QList<ProjectExplorer::Task> tasks = m_docsWithTasks.value(task.file.toString());
     tasks.append(task);
     m_docsWithTasks.insert(task.file.toString(), tasks);
-    m_taskHub->addTask(task);
+    ProjectExplorer::TaskHub::addTask(task);
 }
 
 void QmlTaskManager::removeTasksForFile(const QString &fileName)
@@ -203,16 +200,16 @@ void QmlTaskManager::removeTasksForFile(const QString &fileName)
     if (m_docsWithTasks.contains(fileName)) {
         const QList<ProjectExplorer::Task> tasks = m_docsWithTasks.value(fileName);
         foreach (const ProjectExplorer::Task &task, tasks)
-            m_taskHub->removeTask(task);
+            ProjectExplorer::TaskHub::removeTask(task);
         m_docsWithTasks.remove(fileName);
     }
 }
 
 void QmlTaskManager::removeAllTasks(bool clearSemantic)
 {
-    m_taskHub->clearTasks(Constants::TASK_CATEGORY_QML);
+    ProjectExplorer::TaskHub::clearTasks(Constants::TASK_CATEGORY_QML);
     if (clearSemantic)
-        m_taskHub->clearTasks(Constants::TASK_CATEGORY_QML_ANALYSIS);
+        ProjectExplorer::TaskHub::clearTasks(Constants::TASK_CATEGORY_QML_ANALYSIS);
     m_docsWithTasks.clear();
 }
 

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -99,21 +99,6 @@ void TabSettingsWidget::setFlat(bool on)
     ui->tabsAndIndentationGroupBox->setFlat(on);
     const int margin = on ? 0 : -1;
     ui->tabsAndIndentationGroupBox->layout()->setContentsMargins(margin, -1, margin, margin);
-}
-
-QString TabSettingsWidget::searchKeywords() const
-{
-    QString rc;
-    QLatin1Char sep(' ');
-    QTextStream(&rc)
-            << sep << ui->tabsAndIndentationGroupBox->title()
-            << sep << ui->tabPolicyLabel->text()
-            << sep << ui->tabSizeLabel->text()
-            << sep << ui->indentSizeLabel->text()
-            << sep << ui->continuationAlignBehaviorLabel->text()
-               ;
-    rc.remove(QLatin1Char('&'));
-    return rc;
 }
 
 void TabSettingsWidget::setCodingStyleWarningVisible(bool visible)

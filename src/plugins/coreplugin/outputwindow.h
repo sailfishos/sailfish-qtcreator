@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -80,7 +80,7 @@ protected:
 
 private:
     void enableUndoRedo();
-    QString doNewlineEnfocement(const QString &out);
+    QString doNewlineEnforcement(const QString &out);
 
     Core::IContext *m_outputWindowContext;
     Utils::OutputFormatter *m_formatter;

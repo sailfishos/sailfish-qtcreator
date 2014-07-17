@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -29,7 +29,8 @@
 
 #include "openeditorsview.h"
 #include "editormanager.h"
-#include "openeditorsmodel.h"
+#include "ieditor.h"
+#include "documentmodel.h"
 
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/actionmanager/actionmanager.h>
@@ -95,8 +96,9 @@ OpenEditorsWidget::OpenEditorsWidget()
     setTextElideMode(Qt::ElideMiddle);
     setFrameStyle(QFrame::NoFrame);
     setAttribute(Qt::WA_MacShowFocusRect, false);
-    EditorManager *em = EditorManager::instance();
-    setModel(em->openedEditorsModel());
+    m_model = new ProxyModel(this);
+    m_model->setSourceModel(EditorManager::documentModel());
+    setModel(m_model);
     setSelectionMode(QAbstractItemView::SingleSelection);
     setSelectionBehavior(QAbstractItemView::SelectRows);
     header()->setStretchLastSection(false);
@@ -107,7 +109,7 @@ OpenEditorsWidget::OpenEditorsWidget()
     installEventFilter(this);
     viewport()->installEventFilter(this);
 
-    connect(em, SIGNAL(currentEditorChanged(Core::IEditor*)),
+    connect(EditorManager::instance(), SIGNAL(currentEditorChanged(Core::IEditor*)),
             this, SLOT(updateCurrentItem(Core::IEditor*)));
     connect(this, SIGNAL(clicked(QModelIndex)),
             this, SLOT(handleClicked(QModelIndex)));
@@ -124,12 +126,13 @@ OpenEditorsWidget::~OpenEditorsWidget()
 
 void OpenEditorsWidget::updateCurrentItem(Core::IEditor *editor)
 {
-    if (!editor) {
+    IDocument *document = editor ? editor->document() : 0;
+    QModelIndex index = m_model->index(EditorManager::documentModel()->indexOfDocument(document), 0);
+    if (!index.isValid()) {
         clearSelection();
         return;
     }
-    EditorManager *em = EditorManager::instance();
-    setCurrentIndex(em->openedEditorsModel()->indexOf(editor));
+    setCurrentIndex(index);
     selectionModel()->select(currentIndex(),
                                               QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
     scrollTo(currentIndex());
@@ -167,15 +170,15 @@ bool OpenEditorsWidget::eventFilter(QObject *obj, QEvent *event)
 
 void OpenEditorsWidget::handlePressed(const QModelIndex &index)
 {
-    if (index.column() == 0)
-        activateEditor(index);
-    else if (index.column() == 1)
+    if (index.column() == 1)
         m_delegate->pressedIndex = index;
 }
 
 void OpenEditorsWidget::handleClicked(const QModelIndex &index)
 {
-    if (index.column() == 1) { // the funky close button
+    if (index.column() == 0) {
+        activateEditor(index);
+    } else if (index.column() == 1) { // the funky close button
         closeEditor(index);
 
         // work around a bug in itemviews where the delegate wouldn't get the QStyle::State_MouseOver
@@ -189,12 +192,14 @@ void OpenEditorsWidget::handleClicked(const QModelIndex &index)
 void OpenEditorsWidget::activateEditor(const QModelIndex &index)
 {
     selectionModel()->select(index, QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
-    EditorManager::instance()->activateEditorForIndex(index);
+    EditorManager::activateEditorForEntry(
+                EditorManager::documentModel()->documentAtRow(m_model->mapToSource(index).row()));
 }
 
 void OpenEditorsWidget::closeEditor(const QModelIndex &index)
 {
-    EditorManager::instance()->closeEditor(index);
+    EditorManager::closeEditor(
+                EditorManager::documentModel()->documentAtRow(m_model->mapToSource(index).row()));
     // work around selection changes
     updateCurrentItem(EditorManager::currentEditor());
 }
@@ -203,9 +208,11 @@ void OpenEditorsWidget::contextMenuRequested(QPoint pos)
 {
     QMenu contextMenu;
     QModelIndex editorIndex = indexAt(pos);
-    EditorManager::instance()->addSaveAndCloseEditorActions(&contextMenu, editorIndex);
+    DocumentModel::Entry *entry = EditorManager::documentModel()->documentAtRow(
+                m_model->mapToSource(editorIndex).row());
+    EditorManager::addSaveAndCloseEditorActions(&contextMenu, entry);
     contextMenu.addSeparator();
-    EditorManager::instance()->addNativeDirActions(&contextMenu, editorIndex);
+    EditorManager::addNativeDirActions(&contextMenu, entry);
     contextMenu.exec(mapToGlobal(pos));
 }
 
@@ -230,9 +237,9 @@ int OpenEditorsViewFactory::priority() const
     return 200;
 }
 
-Core::Id OpenEditorsViewFactory::id() const
+Id OpenEditorsViewFactory::id() const
 {
-    return Core::Id("Open Documents");
+    return "Open Documents";
 }
 
 QKeySequence OpenEditorsViewFactory::activationSequence() const
@@ -246,4 +253,133 @@ OpenEditorsViewFactory::OpenEditorsViewFactory()
 
 OpenEditorsViewFactory::~OpenEditorsViewFactory()
 {
+}
+
+
+ProxyModel::ProxyModel(QObject *parent) : QAbstractProxyModel(parent)
+{
+}
+
+QModelIndex ProxyModel::mapFromSource(const QModelIndex &sourceIndex) const
+{
+    // root
+    if (!sourceIndex.isValid())
+        return QModelIndex();
+    // hide the <no document>
+    int row = sourceIndex.row() - 1;
+    if (row < 0)
+        return QModelIndex();
+    return createIndex(row, sourceIndex.column());
+}
+
+QModelIndex ProxyModel::mapToSource(const QModelIndex &proxyIndex) const
+{
+    if (!proxyIndex.isValid())
+        return QModelIndex();
+    // handle missing <no document>
+    return sourceModel()->index(proxyIndex.row() + 1, proxyIndex.column());
+}
+
+QModelIndex ProxyModel::index(int row, int column, const QModelIndex &parent) const
+{
+    if (parent.isValid() || row < 0 || row >= sourceModel()->rowCount(mapToSource(parent)) - 1
+            || column < 0 || column > 1)
+        return QModelIndex();
+    return createIndex(row, column);
+}
+
+QModelIndex ProxyModel::parent(const QModelIndex &child) const
+{
+    Q_UNUSED(child)
+    return QModelIndex();
+}
+
+int ProxyModel::rowCount(const QModelIndex &parent) const
+{
+    if (!parent.isValid())
+        return sourceModel()->rowCount(mapToSource(parent)) - 1;
+    return 0;
+}
+
+int ProxyModel::columnCount(const QModelIndex &parent) const
+{
+    return sourceModel()->columnCount(mapToSource(parent));
+}
+
+void ProxyModel::setSourceModel(QAbstractItemModel *sm)
+{
+    QAbstractItemModel *previousModel = sourceModel();
+    if (previousModel) {
+        disconnect(previousModel, SIGNAL(dataChanged(QModelIndex,QModelIndex)),
+                   this, SLOT(sourceDataChanged(QModelIndex,QModelIndex)));
+        disconnect(previousModel, SIGNAL(rowsInserted(QModelIndex,int,int)),
+                   this, SLOT(sourceRowsInserted(QModelIndex,int,int)));
+        disconnect(previousModel, SIGNAL(rowsRemoved(QModelIndex,int,int)),
+                   this, SLOT(sourceRowsRemoved(QModelIndex,int,int)));
+        disconnect(previousModel, SIGNAL(rowsAboutToBeInserted(QModelIndex,int,int)),
+                   this, SLOT(sourceRowsAboutToBeInserted(QModelIndex,int,int)));
+        disconnect(previousModel, SIGNAL(rowsAboutToBeRemoved(QModelIndex,int,int)),
+                   this, SLOT(sourceRowsAboutToBeRemoved(QModelIndex,int,int)));
+    }
+    QAbstractProxyModel::setSourceModel(sm);
+    if (sm) {
+        connect(sm, SIGNAL(dataChanged(QModelIndex,QModelIndex)),
+                this, SLOT(sourceDataChanged(QModelIndex,QModelIndex)));
+        connect(sm, SIGNAL(rowsInserted(QModelIndex,int,int)),
+                this, SLOT(sourceRowsInserted(QModelIndex,int,int)));
+        connect(sm, SIGNAL(rowsRemoved(QModelIndex,int,int)),
+                this, SLOT(sourceRowsRemoved(QModelIndex,int,int)));
+        connect(sm, SIGNAL(rowsAboutToBeInserted(QModelIndex,int,int)),
+                this, SLOT(sourceRowsAboutToBeInserted(QModelIndex,int,int)));
+        connect(sm, SIGNAL(rowsAboutToBeRemoved(QModelIndex,int,int)),
+                this, SLOT(sourceRowsAboutToBeRemoved(QModelIndex,int,int)));
+    }
+}
+
+#if QT_VERSION >= 0x050000
+QModelIndex ProxyModel::sibling(int row, int column, const QModelIndex &idx) const
+{
+    return QAbstractItemModel::sibling(row, column, idx);
+}
+#endif
+
+void ProxyModel::sourceDataChanged(const QModelIndex &topLeft, const QModelIndex &bottomRight)
+{
+    QModelIndex topLeftIndex = mapFromSource(topLeft);
+    if (!topLeftIndex.isValid())
+        topLeftIndex = index(0, topLeft.column());
+    QModelIndex bottomRightIndex = mapFromSource(bottomRight);
+    if (!bottomRightIndex.isValid())
+        bottomRightIndex = index(0, bottomRight.column());
+    emit dataChanged(topLeftIndex, bottomRightIndex);
+}
+
+void ProxyModel::sourceRowsRemoved(const QModelIndex &parent, int start, int end)
+{
+    Q_UNUSED(parent)
+    Q_UNUSED(start)
+    Q_UNUSED(end)
+    endRemoveRows();
+}
+
+void ProxyModel::sourceRowsInserted(const QModelIndex &parent, int start, int end)
+{
+    Q_UNUSED(parent)
+    Q_UNUSED(start)
+    Q_UNUSED(end)
+    endInsertRows();
+}
+
+void ProxyModel::sourceRowsAboutToBeRemoved(const QModelIndex &parent, int start, int end)
+{
+    int realStart = parent.isValid() || start == 0 ? start : start - 1;
+    int realEnd = parent.isValid() || end == 0 ? end : end - 1;
+    beginRemoveRows(parent, realStart, realEnd);
+}
+
+void ProxyModel::sourceRowsAboutToBeInserted(const QModelIndex &parent, int start, int end)
+{
+    int realStart = parent.isValid() || start == 0 ? start : start - 1;
+    int realEnd = parent.isValid() || end == 0 ? end : end - 1;
+    beginInsertRows(parent, realStart, realEnd);
 }

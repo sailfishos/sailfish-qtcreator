@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -34,8 +34,10 @@
 
 #include <qmljs/qmljsmodelmanagerinterface.h>
 #include <qmljs/qmljsqrcparser.h>
+#include <qmljs/qmljsconstants.h>
 
 #include <cplusplus/CppDocument.h>
+#include <utils/qtcoverride.h>
 
 #include <QFuture>
 #include <QFutureSynchronizer>
@@ -44,22 +46,13 @@
 QT_FORWARD_DECLARE_CLASS(QTimer)
 QT_FORWARD_DECLARE_CLASS(QLocale)
 
-namespace Core {
-class MimeType;
-}
+namespace Core { class MimeType; }
 
-namespace CPlusPlus {
-class CppModelManagerInterface;
-}
+namespace CPlusPlus { class CppModelManagerInterface; }
 
-namespace QmlJS {
-class QrcParser;
-}
+namespace QmlJS { class QrcParser; }
 
 namespace QmlJSTools {
-
-QMLJSTOOLS_EXPORT QmlJS::Document::Language languageOfFile(const QString &fileName);
-QMLJSTOOLS_EXPORT QStringList qmlAndJsGlobPatterns();
 
 namespace Internal {
 
@@ -74,105 +67,15 @@ public:
     ~ModelManager();
 
     void delayedInitialization();
-
-    virtual WorkingCopy workingCopy() const;
-    virtual QmlJS::Snapshot snapshot() const;
-    virtual QmlJS::Snapshot newestSnapshot() const;
-
-    virtual void updateSourceFiles(const QStringList &files,
-                                   bool emitDocumentOnDiskChanged);
-    virtual void fileChangedOnDisk(const QString &path);
-    virtual void removeFiles(const QStringList &files);
-    virtual QStringList filesAtQrcPath(const QString &path, const QLocale *locale = 0,
-                                       ProjectExplorer::Project *project = 0,
-                                       QrcResourceSelector resources = AllQrcResources);
-    virtual QMap<QString,QStringList> filesInQrcPath(const QString &path,
-                                                     const QLocale *locale = 0,
-                                                     ProjectExplorer::Project *project = 0,
-                                                     bool addDirs = false,
-                                                     QrcResourceSelector resources = AllQrcResources);
-
-    virtual QList<ProjectInfo> projectInfos() const;
-    virtual ProjectInfo projectInfo(ProjectExplorer::Project *project) const;
-    virtual void updateProjectInfo(const ProjectInfo &pinfo);
-    Q_SLOT virtual void removeProjectInfo(ProjectExplorer::Project *project);
-    virtual ProjectInfo projectInfoForPath(QString path);
-
-    void updateDocument(QmlJS::Document::Ptr doc);
-    void updateLibraryInfo(const QString &path, const QmlJS::LibraryInfo &info);
-    void emitDocumentChangedOnDisk(QmlJS::Document::Ptr doc);
-    void updateQrcFile(const QString &path);
-
-    virtual QStringList importPaths() const;
-    virtual QmlJS::QmlLanguageBundles activeBundles() const;
-    virtual QmlJS::QmlLanguageBundles extendedBundles() const;
-
-    virtual void loadPluginTypes(const QString &libraryPath, const QString &importPath,
-                                 const QString &importUri, const QString &importVersion);
-
-    virtual CppDataHash cppData() const;
-
-    virtual QmlJS::LibraryInfo builtins(const QmlJS::Document::Ptr &doc) const;
-
-    virtual void joinAllThreads();
-
-public slots:
-    virtual void resetCodeModel();
-
-Q_SIGNALS:
-    void projectPathChanged(const QString &projectPath);
-
 protected:
-    QFuture<void> refreshSourceFiles(const QStringList &sourceFiles,
-                                     bool emitDocumentOnDiskChanged);
-
-    static void parse(QFutureInterface<void> &future,
-                      WorkingCopy workingCopy,
-                      QStringList files,
-                      ModelManager *modelManager,
-                      bool emitDocChangedOnDisk);
-
-    void loadQmlTypeDescriptions();
-    void loadQmlTypeDescriptions(const QString &path);
-
-    void updateImportPaths();
-
-private slots:
-    void maybeQueueCppQmlTypeUpdate(const CPlusPlus::Document::Ptr &doc);
-    void queueCppQmlTypeUpdate(const CPlusPlus::Document::Ptr &doc, bool scan);
-    void startCppQmlTypeUpdate();
-    void asyncReset();
-
+    QHash<QString, QmlJS::Language::Enum> languageForSuffix() const QTC_OVERRIDE;
+    void writeMessageInternal(const QString &msg) const QTC_OVERRIDE;
+    ModelManagerInterface::ProjectInfo defaultProjectInfo() const QTC_OVERRIDE;
+    WorkingCopy workingCopyInternal() const QTC_OVERRIDE;
+    void addTaskInternal(QFuture<void> result, const QString &msg, const char *taskId) const QTC_OVERRIDE;
 private:
+    void loadDefaultQmlTypeDescriptions();
     static bool matchesMimeType(const Core::MimeType &fileMimeType, const Core::MimeType &knownMimeType);
-    static void updateCppQmlTypes(QFutureInterface<void> &interface,
-                                  ModelManager *qmlModelManager,
-                                  CPlusPlus::Snapshot snapshot,
-                                  QHash<QString, QPair<CPlusPlus::Document::Ptr, bool> > documents);
-
-    mutable QMutex m_mutex;
-    QmlJS::Snapshot _validSnapshot;
-    QmlJS::Snapshot _newestSnapshot;
-    QStringList m_allImportPaths;
-    QStringList m_defaultImportPaths;
-    QmlJS::QmlLanguageBundles m_activeBundles;
-    QmlJS::QmlLanguageBundles m_extendedBundles;
-
-    QFutureSynchronizer<void> m_synchronizer;
-
-    QTimer *m_updateCppQmlTypesTimer;
-    QTimer *m_asyncResetTimer;
-    QHash<QString, QPair<CPlusPlus::Document::Ptr, bool> > m_queuedCppDocuments;
-    QFuture<void> m_cppQmlTypesUpdater;
-    QmlJS::QrcCache m_qrcCache;
-
-    CppDataHash m_cppDataHash;
-    mutable QMutex m_cppDataMutex;
-
-    // project integration
-    QMap<ProjectExplorer::Project *, ProjectInfo> m_projects;
-
-    PluginDumper *m_pluginDumper;
 };
 
 } // namespace Internal

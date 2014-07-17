@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -301,7 +301,7 @@ void QPacketProtocol::clear()
 
 /*!
   Returns the next unread packet, or an invalid QPacket instance if no packets
-  are available.  This method does NOT block.
+  are available.  This function does NOT block.
   */
 QPacket QPacketProtocol::read()
 {

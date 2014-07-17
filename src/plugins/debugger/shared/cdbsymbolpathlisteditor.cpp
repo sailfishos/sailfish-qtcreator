@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -34,7 +34,7 @@
 #include <utils/pathchooser.h>
 #include <utils/checkablemessagebox.h>
 
-#include <symbolpathsdialog.h>
+#include "symbolpathsdialog.h"
 
 #include <QCheckBox>
 #include <QDir>
@@ -56,6 +56,7 @@ CacheDirectoryDialog::CacheDirectoryDialog(QWidget *parent) :
 
     QFormLayout *formLayout = new QFormLayout;
     m_chooser->setExpectedKind(Utils::PathChooser::ExistingDirectory);
+    m_chooser->setHistoryCompleter(QLatin1String("Debugger.CdbCacheDir.History"));
     m_chooser->setMinimumWidth(400);
     formLayout->addRow(tr("Path:"), m_chooser);
 

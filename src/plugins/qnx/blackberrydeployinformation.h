@@ -2,9 +2,9 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2012 - 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 **
@@ -33,13 +33,11 @@
 
 #include <QAbstractTableModel>
 
-namespace ProjectExplorer {
-class Target;
-}
+namespace ProjectExplorer { class Target; }
 
-namespace Qt4ProjectManager {
-class Qt4ProFileNode;
-class Qt4Project;
+namespace QmakeProjectManager {
+class QmakeProFileNode;
+class QmakeProject;
 }
 
 namespace Qnx {
@@ -102,10 +100,10 @@ private:
         ColumnCount // Always have last
     };
 
-    Qt4ProjectManager::Qt4Project *project() const;
+    QmakeProjectManager::QmakeProject *project() const;
 
     void initModel();
-    BarPackageDeployInformation deployInformationFromNode(Qt4ProjectManager::Qt4ProFileNode *node) const;
+    BarPackageDeployInformation deployInformationFromNode(QmakeProjectManager::QmakeProFileNode *node) const;
 
     ProjectExplorer::Target *m_target;
 

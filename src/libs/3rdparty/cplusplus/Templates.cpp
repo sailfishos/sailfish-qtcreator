@@ -87,7 +87,7 @@ void CloneType::visit(PointerType *type)
 
 void CloneType::visit(ReferenceType *type)
 {
-    _type.setType(_control->referenceType(_clone->type(type->elementType(), _subst)));
+    _type.setType(_control->referenceType(_clone->type(type->elementType(), _subst), type->isRvalueReference()));
 }
 
 void CloneType::visit(ArrayType *type)
@@ -188,7 +188,7 @@ Symbol *CloneSymbol::cloneSymbol(Symbol *symbol, Subst *subst)
     SymbolSubstPair symbolSubstPair = std::make_pair(symbol, subst);
     if (_cache.find(symbolSubstPair) != _cache.end()) {
         Symbol *cachedSymbol = _cache[symbolSubstPair];
-        if (cachedSymbol->scope() == symbol->scope())
+        if (cachedSymbol->enclosingScope() == symbol->enclosingScope())
             return cachedSymbol;
     }
 
@@ -443,7 +443,7 @@ void CloneName::visit(const TemplateNameId *name)
         _name = _control->templateNameId(_clone->identifier(name->identifier()), name->isSpecialization());
     else
         _name = _control->templateNameId(_clone->identifier(name->identifier()), name->isSpecialization(),
-                                         &args[0], args.size());
+                                         &args[0], unsigned(args.size()));
 }
 
 void CloneName::visit(const DestructorNameId *name)
@@ -473,7 +473,7 @@ void CloneName::visit(const SelectorNameId *name)
     std::vector<const Name *> names(name->nameCount());
     for (unsigned i = 0; i < names.size(); ++i)
         names[i] = _clone->name(name->nameAt(i), _subst);
-    _name = _control->selectorNameId(&names[0], names.size(), name->hasArguments());
+    _name = _control->selectorNameId(&names[0], unsigned(names.size()), name->hasArguments());
 }
 
 
@@ -531,7 +531,7 @@ Symbol *Clone::instantiate(Template *templ, const FullySpecifiedType *const args
         }
     }
     if (Symbol *inst = symbol(templ->declaration(), &subst)) {
-        inst->setScope(templ->enclosingScope());
+        inst->setEnclosingScope(templ->enclosingScope());
         return inst;
     }
     return 0;

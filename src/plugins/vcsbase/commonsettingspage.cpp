@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -33,8 +33,11 @@
 #include "ui_commonsettingspage.h"
 
 #include <coreplugin/icore.h>
+#include <coreplugin/vcsmanager.h>
 
-#include <QDebug>
+#include <utils/environment.h>
+#include <utils/hostosinfo.h>
+
 #include <QCoreApplication>
 
 namespace VcsBase {
@@ -48,13 +51,23 @@ CommonSettingsWidget::CommonSettingsWidget(QWidget *parent) :
 {
     m_ui->setupUi(this);
     m_ui->submitMessageCheckScriptChooser->setExpectedKind(Utils::PathChooser::ExistingCommand);
+    m_ui->submitMessageCheckScriptChooser->setHistoryCompleter(QLatin1String("Vcs.MessageCheckScript.History"));
     m_ui->nickNameFieldsFileChooser->setExpectedKind(Utils::PathChooser::File);
+    m_ui->nickNameFieldsFileChooser->setHistoryCompleter(QLatin1String("Vcs.NickFields.History"));
     m_ui->nickNameMailMapChooser->setExpectedKind(Utils::PathChooser::File);
+    m_ui->nickNameMailMapChooser->setHistoryCompleter(QLatin1String("Vcs.NickMap.History"));
     m_ui->sshPromptChooser->setExpectedKind(Utils::PathChooser::ExistingCommand);
-    const QString patchToolTip = tr("Command used for reverting diff chunks");
+    m_ui->sshPromptChooser->setHistoryCompleter(QLatin1String("Vcs.SshPrompt.History"));
+    const QString patchToolTip = tr("Command used for reverting diff chunks.");
     m_ui->patchCommandLabel->setToolTip(patchToolTip);
     m_ui->patchChooser->setToolTip(patchToolTip);
     m_ui->patchChooser->setExpectedKind(Utils::PathChooser::ExistingCommand);
+    m_ui->patchChooser->setHistoryCompleter(QLatin1String("Vcs.PatchCommand.History"));
+
+    updatePath();
+
+    connect(Core::VcsManager::instance(), SIGNAL(configurationChanged(const IVersionControl*)),
+            this, SLOT(updatePath()));
 }
 
 CommonSettingsWidget::~CommonSettingsWidget()
@@ -100,6 +113,15 @@ QString CommonSettingsWidget::searchKeyWordMatchString() const
     return rc;
 }
 
+void CommonSettingsWidget::updatePath()
+{
+    Utils::Environment env = Utils::Environment::systemEnvironment();
+    QStringList toAdd = Core::VcsManager::additionalToolsPath();
+    env.appendOrSetPath(toAdd.join(QString(Utils::HostOsInfo::pathListSeparator())));
+    m_ui->patchChooser->setEnvironment(env);
+    m_ui->sshPromptChooser->setEnvironment(env);
+}
+
 // --------------- VcsBaseSettingsPage
 CommonOptionsPage::CommonOptionsPage(QObject *parent) :
     VcsBaseOptionsPage(parent)
@@ -110,12 +132,12 @@ CommonOptionsPage::CommonOptionsPage(QObject *parent) :
     setDisplayName(QCoreApplication::translate("VcsBase", Constants::VCS_COMMON_SETTINGS_NAME));
 }
 
-QWidget *CommonOptionsPage::createPage(QWidget *parent)
+QWidget *CommonOptionsPage::widget()
 {
-    m_widget = new CommonSettingsWidget(parent);
-    m_widget->setSettings(m_settings);
-    if (m_searchKeyWords.isEmpty())
-        m_searchKeyWords = m_widget->searchKeyWordMatchString();
+    if (!m_widget) {
+        m_widget = new CommonSettingsWidget;
+        m_widget->setSettings(m_settings);
+    }
     return m_widget;
 }
 
@@ -131,9 +153,9 @@ void CommonOptionsPage::apply()
     }
 }
 
-bool CommonOptionsPage::matches(const QString &key) const
+void CommonOptionsPage::finish()
 {
-    return m_searchKeyWords.contains(key, Qt::CaseInsensitive);
+    delete m_widget;
 }
 
 } // namespace Internal

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -31,6 +31,7 @@
 
 #include <QSharedMemory>
 #include <QCache>
+#include <QDebug>
 
 #include <cstring>
 
@@ -230,5 +231,24 @@ QDataStream &operator>>(QDataStream &in, ImageContainer &container)
 
     return in;
 }
+
+bool operator ==(const ImageContainer &first, const ImageContainer &second)
+{
+    return first.m_instanceId == second.m_instanceId
+            && first.m_image == second.m_image;
+}
+
+bool operator <(const ImageContainer &first, const ImageContainer &second)
+{
+    return first.m_instanceId < second.m_instanceId;
+}
+
+QDebug operator <<(QDebug debug, const ImageContainer &container)
+{
+    return debug.nospace() << "ImageContainer("
+                           << "instanceId: " << container.instanceId() << ", "
+                           << "size: " << container.image().size() << ")";
+}
+
 
 } // namespace QmlDesigner

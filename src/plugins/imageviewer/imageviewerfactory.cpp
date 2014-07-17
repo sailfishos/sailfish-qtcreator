@@ -1,7 +1,7 @@
 /**************************************************************************
 **
-** Copyright (C) 2013 Denis Mingulov.
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Denis Mingulov.
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -29,7 +29,6 @@
 ****************************************************************************/
 
 #include "imageviewerfactory.h"
-#include "imagevieweractionhandler.h"
 #include "imageviewerconstants.h"
 #include "imageviewer.h"
 
@@ -41,71 +40,45 @@
 namespace ImageViewer {
 namespace Internal {
 
-struct ImageViewerFactoryPrivate
-{
-    QStringList mimeTypes;
-    QPointer<ImageViewerActionHandler> actionHandler;
-};
-
 ImageViewerFactory::ImageViewerFactory(QObject *parent) :
-    Core::IEditorFactory(parent),
-    d(new ImageViewerFactoryPrivate)
+    Core::IEditorFactory(parent)
 {
-    d->actionHandler = new ImageViewerActionHandler(this);
+    setId(Constants::IMAGEVIEWER_ID);
+    setDisplayName(qApp->translate("OpenWith::Editors", Constants::IMAGEVIEWER_DISPLAY_NAME));
 
-    QMap<QByteArray, QString> possibleMimeTypes;
-    possibleMimeTypes.insert("bmp", QLatin1String("image/bmp"));
-    possibleMimeTypes.insert("gif", QLatin1String("image/gif"));
-    possibleMimeTypes.insert("ico", QLatin1String("image/x-icon"));
-    possibleMimeTypes.insert("jpeg", QLatin1String("image/jpeg"));
-    possibleMimeTypes.insert("jpg", QLatin1String("image/jpeg"));
-    possibleMimeTypes.insert("mng", QLatin1String("video/x-mng"));
-    possibleMimeTypes.insert("pbm", QLatin1String("image/x-portable-bitmap"));
-    possibleMimeTypes.insert("pgm", QLatin1String("image/x-portable-graymap"));
-    possibleMimeTypes.insert("png", QLatin1String("image/png"));
-    possibleMimeTypes.insert("ppm", QLatin1String("image/x-portable-pixmap"));
-    possibleMimeTypes.insert("svg", QLatin1String("image/svg+xml"));
-    possibleMimeTypes.insert("tif", QLatin1String("image/tiff"));
-    possibleMimeTypes.insert("tiff", QLatin1String("image/tiff"));
-    possibleMimeTypes.insert("xbm", QLatin1String("image/xbm"));
-    possibleMimeTypes.insert("xpm", QLatin1String("image/xpm"));
+    QMap<QByteArray, const char *> possibleMimeTypes;
+    possibleMimeTypes.insert("bmp", "image/bmp");
+    possibleMimeTypes.insert("gif", "image/gif");
+    possibleMimeTypes.insert("ico", "image/x-icon");
+    possibleMimeTypes.insert("jpeg","image/jpeg");
+    possibleMimeTypes.insert("jpg", "image/jpeg");
+    possibleMimeTypes.insert("mng", "video/x-mng");
+    possibleMimeTypes.insert("pbm", "image/x-portable-bitmap");
+    possibleMimeTypes.insert("pgm", "image/x-portable-graymap");
+    possibleMimeTypes.insert("png", "image/png");
+    possibleMimeTypes.insert("ppm", "image/x-portable-pixmap");
+    possibleMimeTypes.insert("svg", "image/svg+xml");
+    possibleMimeTypes.insert("tif", "image/tiff");
+    possibleMimeTypes.insert("tiff","image/tiff");
+    possibleMimeTypes.insert("xbm", "image/xbm");
+    possibleMimeTypes.insert("xpm", "image/xpm");
 
     QList<QByteArray> supportedFormats = QImageReader::supportedImageFormats();
     foreach (const QByteArray &format, supportedFormats) {
-        const QString &value = possibleMimeTypes.value(format);
-        if (!value.isEmpty())
-            d->mimeTypes.append(value);
+        const char *value = possibleMimeTypes.value(format);
+        if (value)
+            addMimeType(value);
     }
 }
 
-ImageViewerFactory::~ImageViewerFactory()
+Core::IEditor *ImageViewerFactory::createEditor()
 {
-    delete d;
-}
-
-Core::IEditor *ImageViewerFactory::createEditor(QWidget *parent)
-{
-    return new ImageViewer(parent);
-}
-
-QStringList ImageViewerFactory::mimeTypes() const
-{
-    return d->mimeTypes;
-}
-
-Core::Id ImageViewerFactory::id() const
-{
-    return Core::Id(Constants::IMAGEVIEWER_ID);
-}
-
-QString ImageViewerFactory::displayName() const
-{
-    return qApp->translate("OpenWith::Editors", Constants::IMAGEVIEWER_DISPLAY_NAME);
+    return new ImageViewer();
 }
 
 void ImageViewerFactory::extensionsInitialized()
 {
-    d->actionHandler->createActions();
+    m_actionHandler.createActions();
 }
 
 } // namespace Internal

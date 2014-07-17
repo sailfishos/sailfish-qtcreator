@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -89,10 +89,6 @@ public:
 
     bool isDirty() const;
     void setDirty(bool dirty);
-
-    void addFiles(QStringList fileList, const QModelIndex &index);
-
-    void addFile(const QString &prefix, const QString &file);
 
     bool isPrefix(const QModelIndex &index) const;
 

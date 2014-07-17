@@ -1,15 +1,16 @@
-import qbs.base 1.0
+import qbs 1.0
 
-import "../QtcPlugin.qbs" as QtcPlugin
-import "../../../qbs/defaults.js" as Defaults
+import QtcPlugin
 
 QtcPlugin {
     name: "FakeVim"
 
+    Depends { name: "Qt.widgets" }
+    Depends { name: "Aggregation" }
+    Depends { name: "Utils" }
+
     Depends { name: "Core" }
     Depends { name: "TextEditor" }
-    Depends { name: "Find" }
-    Depends { name: "Qt.widgets" }
 
     files: [
         "fakevimactions.cpp",
@@ -23,7 +24,7 @@ QtcPlugin {
 
     Group {
         name: "Tests"
-        condition: Defaults.testsEnabled(qbs)
+        condition: project.testsEnabled
         files: ["fakevim_test.cpp"]
     }
 }

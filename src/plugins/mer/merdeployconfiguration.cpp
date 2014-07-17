@@ -78,7 +78,7 @@ QString MerRpmDeployConfiguration::displayName()
 
 Core::Id MerRpmDeployConfiguration::configurationId()
 {
-    return Core::Id("Qt4ProjectManager.MerRpmDeployConfiguration");
+    return Core::Id("QmakeProjectManager.MerRpmDeployConfiguration");
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////
@@ -100,7 +100,7 @@ QString MerRsyncDeployConfiguration::displayName()
 
 Core::Id MerRsyncDeployConfiguration::configurationId()
 {
-    return Core::Id("Qt4ProjectManager.MerRSyncDeployConfiguration");
+    return Core::Id("QmakeProjectManager.MerRSyncDeployConfiguration");
 }
 
 /////////////////////////////////////////////////////////////////////////////////////
@@ -122,7 +122,7 @@ QString MerMb2RpmBuildConfiguration::displayName()
 
 Core::Id MerMb2RpmBuildConfiguration::configurationId()
 {
-    return Core::Id("Qt4ProjectManager.MerArmDeployConfiguration");
+    return Core::Id("QmakeProjectManager.MerArmDeployConfiguration");
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -146,7 +146,7 @@ QString MerRpmBuildDeployConfiguration::displayName()
 
 Core::Id MerRpmBuildDeployConfiguration::configurationId()
 {
-    return Core::Id("Qt4ProjectManager.MerRpmLocalDeployConfiguration");
+    return Core::Id("QmakeProjectManager.MerRpmLocalDeployConfiguration");
 }
 
 } // namespace Internal

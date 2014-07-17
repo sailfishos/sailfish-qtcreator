@@ -89,11 +89,11 @@ MerSdkManager::MerSdkManager()
     connect(Core::ICore::instance(), SIGNAL(saveSettingsRequested()), SLOT(storeSdks()));
     connect(KitManager::instance(), SIGNAL(kitsLoaded()), SLOT(initialize()));
     connect(DeviceManager::instance(), SIGNAL(devicesLoaded()), SLOT(updateDevices()));
-    connect(DeviceManager::instance(), SIGNAL(deviceListChanged()), SLOT(updateDevices()));
+    connect(DeviceManager::instance(), SIGNAL(updated()), SLOT(updateDevices()));
     m_writer = new Utils::PersistentSettingsWriter(settingsFileName(), QLatin1String("MerSDKs"));
     m_instance = this;
-    ProjectExplorer::KitManager::instance()->registerKitInformation(new MerSdkKitInformation);
-    ProjectExplorer::KitManager::instance()->registerKitInformation(new MerTargetKitInformation);
+    ProjectExplorer::KitManager::registerKitInformation(new MerSdkKitInformation);
+    ProjectExplorer::KitManager::registerKitInformation(new MerTargetKitInformation);
 }
 
 MerSdkManager::~MerSdkManager()
@@ -116,7 +116,7 @@ void MerSdkManager::initialize()
             if (sdk && sdk->targetNames().contains(toolchain->targetName()))
                 continue;
             qWarning() << "MerToolChain wihout target found. Removing toolchain.";
-            ToolChainManager::instance()->deregisterToolChain(toolchain);
+            ToolChainManager::deregisterToolChain(toolchain);
         }
 
         foreach (MerQtVersion *version, qtversions) {
@@ -124,14 +124,14 @@ void MerSdkManager::initialize()
             if (sdk && sdk->targetNames().contains(version->targetName()))
                 continue;
             qWarning() << "MerQtVersion without target found. Removing qtversion.";
-            QtVersionManager::instance()->removeVersion(version);
+            QtVersionManager::removeVersion(version);
         }
 
         //remove broken kits
         foreach (Kit *kit, kits) {
             if (!validateKit(kit)) {
                 qWarning() << "Broken Mer kit found! Removing kit.";
-                KitManager::instance()->deregisterKit(kit);
+                KitManager::deregisterKit(kit);
             }else{
                 kit->validate();
             }
@@ -146,7 +146,7 @@ void MerSdkManager::initialize()
 QList<Kit *> MerSdkManager::merKits() const
 {
     QList<Kit*> kits;
-    foreach (Kit *kit, KitManager::instance()->kits()) {
+    foreach (Kit *kit, KitManager::kits()) {
         if (isMerKit(kit))
             kits << kit;
     }
@@ -156,7 +156,7 @@ QList<Kit *> MerSdkManager::merKits() const
 QList<MerToolChain *> MerSdkManager::merToolChains() const
 {
     QList<MerToolChain*> toolchains;
-    foreach (ToolChain *toolchain, ToolChainManager::instance()->toolChains()) {
+    foreach (ToolChain *toolchain, ToolChainManager::toolChains()) {
         if (!toolchain->isAutoDetected())
             continue;
         if (toolchain->type() != QLatin1String(Constants::MER_TOOLCHAIN_TYPE))
@@ -169,7 +169,7 @@ QList<MerToolChain *> MerSdkManager::merToolChains() const
 QList<MerQtVersion *> MerSdkManager::merQtVersions() const
 {
     QList<MerQtVersion*> qtversions;
-    foreach (BaseQtVersion *qtVersion, QtSupport::QtVersionManager::instance()->versions()) {
+    foreach (BaseQtVersion *qtVersion, QtSupport::QtVersionManager::versions()) {
         if (!qtVersion->isAutodetected())
             continue;
         if (qtVersion->type() != QLatin1String(Constants::MER_QT))
@@ -235,7 +235,7 @@ void MerSdkManager::restore()
             // This is executed if the user has reinstalled MerSDK to
             // a different directory. Clean up all the existing Mer
             // kits, which contain paths to the old install directory.
-            foreach (ProjectExplorer::Kit *kit, ProjectExplorer::KitManager::instance()->kits()) {
+            foreach (ProjectExplorer::Kit *kit, ProjectExplorer::KitManager::kits()) {
                 if (!kit->isAutoDetected())
                     continue;
                 ProjectExplorer::ToolChain *tc = ProjectExplorer::ToolChainKitInformation::toolChain(kit);
@@ -246,9 +246,9 @@ void MerSdkManager::restore()
                     if (MerSdkManager::verbose)
                         qDebug() << "Removing Mer kit due to reinstall";
                     QtSupport::BaseQtVersion *v = QtSupport::QtKitInformation::qtVersion(kit);
-                    ProjectExplorer::KitManager::instance()->deregisterKit(kit);
-                    ProjectExplorer::ToolChainManager::instance()->deregisterToolChain(tc);
-                    QtSupport::QtVersionManager::instance()->removeVersion(v);
+                    ProjectExplorer::KitManager::deregisterKit(kit);
+                    ProjectExplorer::ToolChainManager::deregisterToolChain(tc);
+                    QtSupport::QtVersionManager::removeVersion(v);
                 }
             }
         }
@@ -344,7 +344,7 @@ QList<Kit *> MerSdkManager::kitsForTarget(const QString &targetName)
     QList<Kit*> kitsForTarget;
     if (targetName.isEmpty())
         return kitsForTarget;
-    const QList<Kit*> kits = KitManager::instance()->kits();
+    const QList<Kit*> kits = KitManager::kits();
     foreach (Kit *kit, kits) {
         if (targetNameForKit(kit) == targetName)
             kitsForTarget << kit;

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -96,7 +96,7 @@ QImage ScreenshotCropper::croppedImage(const QImage &sourceImage, const QString 
             return result;
     }
 
-    return sourceImage.scaled(cropSize, Qt::KeepAspectRatio);
+    return sourceImage.scaled(cropSize, Qt::KeepAspectRatio, Qt::SmoothTransformation);
 }
 
 static int areaAttribute(const QXmlStreamAttributes &attributes, const QString &name)

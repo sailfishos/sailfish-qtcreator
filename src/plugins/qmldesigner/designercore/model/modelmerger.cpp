@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -60,7 +60,7 @@ static QString fixExpression(const QString &expression, const QHash<QString, QSt
 static void syncVariantProperties(ModelNode &outputNode, const ModelNode &inputNode)
 {
     foreach (const VariantProperty &variantProperty, inputNode.variantProperties()) {
-        outputNode.variantProperty(variantProperty.name()) = variantProperty.value();
+        outputNode.variantProperty(variantProperty.name()).setValue(variantProperty.value());
     }
 }
 
@@ -154,7 +154,7 @@ static ModelNode createNodeFromNode(const ModelNode &modelNode,const QHash<QStri
 
 ModelNode ModelMerger::insertModel(const ModelNode &modelNode)
 {
-    RewriterTransaction transaction(view()->beginRewriterTransaction());
+    RewriterTransaction transaction(view()->beginRewriterTransaction(QByteArrayLiteral("ModelMerger::insertModel")));
 
     QList<Import> newImports;
 
@@ -179,7 +179,7 @@ void ModelMerger::replaceModel(const ModelNode &modelNode)
         view()->model()->setFileUrl(modelNode.model()->fileUrl());
 
     try {
-        RewriterTransaction transaction(view()->beginRewriterTransaction());
+        RewriterTransaction transaction(view()->beginRewriterTransaction(QByteArrayLiteral("ModelMerger::replaceModel")));
 
         ModelNode rootNode(view()->rootModelNode());
 

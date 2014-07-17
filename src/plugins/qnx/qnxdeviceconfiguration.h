@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2012 - 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -50,19 +50,32 @@ public:
                       Origin origin = ManuallyAdded, Core::Id id = Core::Id());
     ProjectExplorer::IDevice::Ptr clone() const;
 
-    ProjectExplorer::DeviceProcessSupport::Ptr processSupport() const;
     ProjectExplorer::PortsGatheringMethod::Ptr portsGatheringMethod() const;
     ProjectExplorer::DeviceProcessList *createProcessListModel(QObject *parent) const;
+    ProjectExplorer::DeviceProcessSignalOperation::Ptr signalOperation() const;
 
-    RemoteLinux::AbstractLinuxDeviceTester *createDeviceTester() const;
+    ProjectExplorer::DeviceTester *createDeviceTester() const;
 
     QString displayType() const;
+
+    int qnxVersion() const;
+
+    void fromMap(const QVariantMap &map);
+    QVariantMap toMap() const;
 
 protected:
     QnxDeviceConfiguration();
     QnxDeviceConfiguration(const QString &name, Core::Id type, MachineType machineType,
                            Origin origin, Core::Id id);
     QnxDeviceConfiguration(const QnxDeviceConfiguration &other);
+
+    QString interruptProcessByNameCommandLine(const QString &filePath) const;
+    QString killProcessByNameCommandLine(const QString &filePath) const;
+
+private:
+    void updateVersionNumber() const;
+
+    mutable int m_versionNumber;
 };
 
 } // namespace Internal

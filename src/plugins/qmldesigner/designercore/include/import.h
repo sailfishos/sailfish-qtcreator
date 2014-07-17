@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -32,6 +32,7 @@
 
 #include <QString>
 #include <QStringList>
+#include <QMetaType>
 
 #include "qmldesignercorelib_global.h"
 
@@ -40,6 +41,8 @@ namespace QmlDesigner {
 class QMLDESIGNERCORE_EXPORT Import
 {
 public:
+    Import();
+
     static Import createLibraryImport(const QString &url, const QString &version = QString(), const QString &alias = QString(), const QStringList &importPaths = QStringList());
     static Import createFileImport(const QString &file, const QString &version = QString(), const QString &alias = QString(), const QStringList &importPaths = QStringList());
     static Import empty();
@@ -56,9 +59,11 @@ public:
     QString alias() const { return m_alias; }
     QStringList importPaths() const { return m_importPathList; }
 
-    QString toString(bool addSemicolon = false, bool skipAlias = false) const;
+    QString toString(bool skipAlias = false) const;
+    QString toImportString() const;
 
     bool operator==(const Import &other) const;
+    bool isSameModule(const Import &other) const;
 
 private:
     Import(const QString &url, const QString &file, const QString &version, const QString &alias, const QStringList &importPaths);
@@ -74,5 +79,7 @@ private:
 QMLDESIGNERCORE_EXPORT uint qHash(const Import &import);
 
 } // namespace QmlDesigner
+
+Q_DECLARE_METATYPE(QmlDesigner::Import)
 
 #endif // IMPORT_H

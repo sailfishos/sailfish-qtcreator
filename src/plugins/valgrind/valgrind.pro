@@ -6,8 +6,6 @@ QT *= network
 
 CONFIG += exceptions
 
-INCLUDEPATH *= $$PWD
-
 HEADERS += \
     valgrindplugin.h \
     valgrindengine.h \
@@ -24,12 +22,11 @@ HEADERS += \
     callgrindengine.h \
     workarounds.h \
     callgrindtextmark.h \
-    \
+    valgrindtool.h \
     memchecktool.h \
     memcheckengine.h \
     memcheckerrorview.h \
     suppressiondialog.h \
-    valgrindtool.h \
     valgrindruncontrolfactory.h
 
 SOURCES += \
@@ -39,7 +36,7 @@ SOURCES += \
     valgrindsettings.cpp \
     valgrindrunner.cpp \
     valgrindprocess.cpp \
-    \
+    valgrindtool.cpp \
     callgrindcostdelegate.cpp \
     callgrindcostview.cpp \
     callgrindhelper.cpp \
@@ -53,7 +50,6 @@ SOURCES += \
     memcheckengine.cpp \
     memcheckerrorview.cpp \
     suppressiondialog.cpp \
-    valgrindtool.cpp \
     valgrindruncontrolfactory.cpp
 
 FORMS += \

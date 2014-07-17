@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -87,22 +87,6 @@ void MetaInfoPrivate::initialize()
 {
     parseItemLibraryDescriptions();
     m_isInitialized = true;
-}
-
-QString static inline stripPrefix(const QString &typeName)
-{
-    QStringList list = typeName.split('.');
-    if (list.count() == 2)
-        return list.last();
-    return typeName;
-}
-
-static inline bool isDepricatedQtType(const QString &typeName)
-{
-    if (typeName.length() < 8)
-        return false;
-
-    return typeName.contains("Qt.");
 }
 
 void MetaInfoPrivate::parseItemLibraryDescriptions()
@@ -199,7 +183,7 @@ MetaInfo MetaInfo::global()
 /*!
   Clears the global meta information object.
 
-  This method should be called once on application shutdown to free static data structures.
+  This function should be called once on application shutdown to free static data structures.
   */
 void MetaInfo::clearGlobal()
 {

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -28,12 +28,14 @@
 ****************************************************************************/
 
 #include "miniprojecttargetselector.h"
+#include "kit.h"
+#include "kitconfigwidget.h"
+#include "kitmanager.h"
 #include "target.h"
 
 #include <utils/styledbar.h>
 #include <utils/stylehelper.h>
 
-#include <coreplugin/idocument.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/modemanager.h>
@@ -57,21 +59,42 @@
 #include <QAction>
 #include <QItemDelegate>
 
+#if QT_VERSION >= 0x050100
+#include <QGuiApplication>
+#endif
+
 static QIcon createCenteredIcon(const QIcon &icon, const QIcon &overlay)
 {
     QPixmap targetPixmap;
-    targetPixmap = QPixmap(Core::Constants::TARGET_ICON_SIZE, Core::Constants::TARGET_ICON_SIZE);
+    qreal appDevicePixelRatio = 1.0;
+#if QT_VERSION >= 0x050100
+    appDevicePixelRatio = qApp->devicePixelRatio();
+#endif
+    int deviceSpaceIconSize = Core::Constants::TARGET_ICON_SIZE * appDevicePixelRatio;
+    targetPixmap = QPixmap(deviceSpaceIconSize, deviceSpaceIconSize);
+#if QT_VERSION >= 0x050100
+    targetPixmap.setDevicePixelRatio(appDevicePixelRatio);
+#endif
     targetPixmap.fill(Qt::transparent);
-    QPainter painter(&targetPixmap);
+    QPainter painter(&targetPixmap); // painter in user space
 
-    QPixmap pixmap = icon.pixmap(Core::Constants::TARGET_ICON_SIZE);
-    painter.drawPixmap((Core::Constants::TARGET_ICON_SIZE - pixmap.width())/2,
-                       (Core::Constants::TARGET_ICON_SIZE - pixmap.height())/2, pixmap);
+    QPixmap pixmap = icon.pixmap(Core::Constants::TARGET_ICON_SIZE); // already takes app devicePixelRatio into account
+    qreal pixmapDevicePixelRatio = 1.0;
+#if QT_VERSION >= 0x050100
+    pixmapDevicePixelRatio = pixmap.devicePixelRatio();
+#endif
+    painter.drawPixmap((Core::Constants::TARGET_ICON_SIZE - pixmap.width() / pixmapDevicePixelRatio) / 2,
+                       (Core::Constants::TARGET_ICON_SIZE - pixmap.height() / pixmapDevicePixelRatio) / 2, pixmap);
     if (!overlay.isNull()) {
-        pixmap = overlay.pixmap(Core::Constants::TARGET_ICON_SIZE);
-        painter.drawPixmap((Core::Constants::TARGET_ICON_SIZE - pixmap.width())/2,
-                           (Core::Constants::TARGET_ICON_SIZE - pixmap.height())/2, pixmap);
+        pixmap = overlay.pixmap(Core::Constants::TARGET_ICON_SIZE); // already takes app devicePixelRatio into account
+        pixmapDevicePixelRatio = 1.0;
+#if QT_VERSION >= 0x050100
+        pixmapDevicePixelRatio = pixmap.devicePixelRatio();
+#endif
+        painter.drawPixmap((Core::Constants::TARGET_ICON_SIZE - pixmap.width() / pixmapDevicePixelRatio) / 2,
+                           (Core::Constants::TARGET_ICON_SIZE - pixmap.height() / pixmapDevicePixelRatio) / 2, pixmap);
     }
+
     return QIcon(targetPixmap);
 }
 
@@ -210,16 +233,17 @@ int ListWidget::padding()
 ////////
 // ProjectListWidget
 ////////
-ProjectListWidget::ProjectListWidget(SessionManager *sessionManager, QWidget *parent)
-    : ListWidget(parent), m_sessionManager(sessionManager), m_ignoreIndexChange(false)
+ProjectListWidget::ProjectListWidget(QWidget *parent)
+    : ListWidget(parent), m_ignoreIndexChange(false)
 {
-    connect(m_sessionManager, SIGNAL(projectAdded(ProjectExplorer::Project*)),
+    QObject *sessionManager = SessionManager::instance();
+    connect(sessionManager, SIGNAL(projectAdded(ProjectExplorer::Project*)),
             this, SLOT(addProject(ProjectExplorer::Project*)));
-    connect(m_sessionManager, SIGNAL(aboutToRemoveProject(ProjectExplorer::Project*)),
+    connect(sessionManager, SIGNAL(aboutToRemoveProject(ProjectExplorer::Project*)),
             this, SLOT(removeProject(ProjectExplorer::Project*)));
-    connect(m_sessionManager, SIGNAL(startupProjectChanged(ProjectExplorer::Project*)),
+    connect(sessionManager, SIGNAL(startupProjectChanged(ProjectExplorer::Project*)),
             this, SLOT(changeStartupProject(ProjectExplorer::Project*)));
-    connect(m_sessionManager, SIGNAL(projectDisplayNameChanged(ProjectExplorer::Project*)),
+    connect(sessionManager, SIGNAL(projectDisplayNameChanged(ProjectExplorer::Project*)),
             this, SLOT(projectDisplayNameChanged(ProjectExplorer::Project*)));
     connect(this, SIGNAL(currentRowChanged(int)),
             this, SLOT(setProject(int)));
@@ -237,7 +261,7 @@ QListWidgetItem *ProjectListWidget::itemForProject(Project *project)
 
 QString ProjectListWidget::fullName(ProjectExplorer::Project *project)
 {
-    return tr("%1 (%2)").arg(project->displayName(), project->document()->fileName());
+    return tr("%1 (%2)").arg(project->displayName(), project->projectFilePath());
 }
 
 void ProjectListWidget::addProject(Project *project)
@@ -268,7 +292,7 @@ void ProjectListWidget::addProject(Project *project)
     item->setText(displayName);
     insertItem(pos, item);
 
-    if (project == ProjectExplorerPlugin::instance()->startupProject())
+    if (project == SessionManager::startupProject())
         setCurrentItem(item);
 
     QFontMetrics fn(font());
@@ -364,7 +388,7 @@ void ProjectListWidget::setProject(int index)
     if (index < 0)
         return;
     Project *p = item(index)->data(Qt::UserRole).value<Project *>();
-    m_sessionManager->setStartupProject(p);
+    SessionManager::setStartupProject(p);
 }
 
 void ProjectListWidget::changeStartupProject(Project *project)
@@ -520,6 +544,81 @@ QListWidgetItem *GenericListWidget::itemForProjectConfiguration(ProjectConfigura
     return 0;
 }
 
+/////////
+// KitAreaWidget
+/////////
+
+KitAreaWidget::KitAreaWidget(QWidget *parent) : QWidget(parent),
+    m_layout(new QGridLayout(this)), m_kit(0)
+{
+    m_layout->setMargin(3);
+    setKit(0);
+}
+
+void KitAreaWidget::setKit(Kit *k)
+{
+    foreach (KitConfigWidget *w, m_widgets)
+        w->deleteLater();
+    m_widgets.clear();
+    foreach (QLabel *l, m_labels)
+        l->deleteLater();
+    m_labels.clear();
+
+    if (m_kit) {
+        disconnect(KitManager::instance(), SIGNAL(kitUpdated(ProjectExplorer::Kit*)),
+                   this, SLOT(updateKit(ProjectExplorer::Kit*)));
+    }
+
+    int row = 0;
+    foreach (KitInformation *ki, KitManager::kitInformation()) {
+        if (k && k->isMutable(ki->id())) {
+            KitConfigWidget *widget = ki->createConfigWidget(k);
+            m_widgets << widget;
+            QLabel *label = new QLabel(widget->displayName());
+            m_labels << label;
+
+            m_layout->addWidget(label, row, 0);
+            m_layout->addWidget(widget->mainWidget(), row, 1);
+            ++row;
+        }
+    }
+    m_kit = k;
+
+    if (m_kit) {
+        connect(KitManager::instance(), SIGNAL(kitUpdated(ProjectExplorer::Kit*)),
+                this, SLOT(updateKit(ProjectExplorer::Kit*)));
+    }
+
+    setHidden(m_widgets.isEmpty());
+}
+
+void KitAreaWidget::updateKit(Kit *k)
+{
+    if (!m_kit || m_kit != k)
+        return;
+
+    // Check whether our widgets changed
+    bool mustRegenerate = false;
+    QList<Core::Id> knownIdList;
+    foreach (KitConfigWidget *w, m_widgets)
+        knownIdList << w->kitInformationId();
+
+    foreach (KitInformation *ki, KitManager::kitInformation()) {
+        Core::Id currentId = ki->id();
+        if (m_kit->isMutable(currentId) && !knownIdList.removeOne(currentId)) {
+            mustRegenerate = true;
+            break;
+        }
+    }
+
+    if (mustRegenerate || !knownIdList.isEmpty())
+        setKit(m_kit);
+}
+
+/////////
+// MiniProjectTargetSelector
+/////////
+
 QWidget *MiniProjectTargetSelector::createTitleLabel(const QString &text)
 {
     Utils::StyledBar *bar = new Utils::StyledBar(this);
@@ -540,8 +639,8 @@ QWidget *MiniProjectTargetSelector::createTitleLabel(const QString &text)
     return bar;
 }
 
-MiniProjectTargetSelector::MiniProjectTargetSelector(QAction *targetSelectorAction, SessionManager *sessionManager, QWidget *parent) :
-    QWidget(parent), m_projectAction(targetSelectorAction), m_sessionManager(sessionManager),
+MiniProjectTargetSelector::MiniProjectTargetSelector(QAction *targetSelectorAction, QWidget *parent) :
+    QWidget(parent), m_projectAction(targetSelectorAction),
     m_project(0),
     m_target(0),
     m_buildConfiguration(0),
@@ -549,7 +648,7 @@ MiniProjectTargetSelector::MiniProjectTargetSelector(QAction *targetSelectorActi
     m_runConfiguration(0),
     m_hideOnRelease(false)
 {
-    QPalette p = palette();
+    QPalette p;
     p.setColor(QPalette::Text, QColor(255, 255, 255, 160));
     setPalette(p);
     setProperty("panelwidget", true);
@@ -558,6 +657,8 @@ MiniProjectTargetSelector::MiniProjectTargetSelector(QAction *targetSelectorActi
 
     targetSelectorAction->setIcon(style()->standardIcon(QStyle::SP_ComputerIcon));
     targetSelectorAction->setProperty("titledAction", true);
+
+    m_kitAreaWidget = new KitAreaWidget(this);
 
     m_summaryLabel = new QLabel(this);
     m_summaryLabel->setMargin(3);
@@ -571,7 +672,7 @@ MiniProjectTargetSelector::MiniProjectTargetSelector(QAction *targetSelectorActi
     m_listWidgets[PROJECT] = 0; //project is not a generic list widget
 
     m_titleWidgets[PROJECT] = createTitleLabel(tr("Project"));
-    m_projectListWidget = new ProjectListWidget(m_sessionManager, this);
+    m_projectListWidget = new ProjectListWidget(this);
 
     QStringList titles;
     titles << tr("Kit") << tr("Build")
@@ -582,21 +683,23 @@ MiniProjectTargetSelector::MiniProjectTargetSelector(QAction *targetSelectorActi
         m_listWidgets[i] = new GenericListWidget(this);
     }
 
-    changeStartupProject(m_sessionManager->startupProject());
-    if (m_sessionManager->startupProject())
-        activeTargetChanged(m_sessionManager->startupProject()->activeTarget());
+    Project *startup = SessionManager::startupProject();
+    changeStartupProject(startup);
+    if (startup)
+        activeTargetChanged(startup->activeTarget());
 
     connect(m_summaryLabel, SIGNAL(linkActivated(QString)),
             this, SLOT(switchToProjectsMode()));
 
-    connect(m_sessionManager, SIGNAL(startupProjectChanged(ProjectExplorer::Project*)),
+    QObject *sessionManager = SessionManager::instance();
+    connect(sessionManager, SIGNAL(startupProjectChanged(ProjectExplorer::Project*)),
             this, SLOT(changeStartupProject(ProjectExplorer::Project*)));
 
-    connect(m_sessionManager, SIGNAL(projectAdded(ProjectExplorer::Project*)),
+    connect(sessionManager, SIGNAL(projectAdded(ProjectExplorer::Project*)),
             this, SLOT(projectAdded(ProjectExplorer::Project*)));
-    connect(m_sessionManager, SIGNAL(projectRemoved(ProjectExplorer::Project*)),
+    connect(sessionManager, SIGNAL(projectRemoved(ProjectExplorer::Project*)),
             this, SLOT(projectRemoved(ProjectExplorer::Project*)));
-    connect(m_sessionManager, SIGNAL(projectDisplayNameChanged(ProjectExplorer::Project*)),
+    connect(sessionManager, SIGNAL(projectDisplayNameChanged(ProjectExplorer::Project*)),
             this, SLOT(updateActionAndSummary()));
 
     // for icon changes:
@@ -745,8 +848,15 @@ void MiniProjectTargetSelector::doLayout(bool keepSize)
     static QWidget *actionBar = Core::ICore::mainWindow()->findChild<QWidget*>(QLatin1String("actionbar"));
     Q_ASSERT(actionBar);
 
+    m_kitAreaWidget->move(0, 0);
+
+    int oldSummaryLabelY = m_summaryLabel->y();
+
+    int kitAreaHeight = m_kitAreaWidget->isVisibleTo(this) ? m_kitAreaWidget->sizeHint().height() : 0;
+
     // 1. Calculate the summary label height
-    int summaryLabelY = 1;
+    int summaryLabelY = 1 + kitAreaHeight;
+
     int summaryLabelHeight = 0;
     int oldSummaryLabelHeight = m_summaryLabel->height();
     bool onlySummary = false;
@@ -761,7 +871,7 @@ void MiniProjectTargetSelector::doLayout(bool keepSize)
         onlySummary = true;
     } else {
         if (visibleLineCount < 3) {
-            foreach (Project *p, m_sessionManager->projects()) {
+            foreach (Project *p, SessionManager::projects()) {
                 if (p->needsConfiguration()) {
                     visibleLineCount = 3;
                     break;
@@ -783,32 +893,34 @@ void MiniProjectTargetSelector::doLayout(bool keepSize)
     if (actionBar->isVisible())
         alignedWithActionHeight = actionBar->height() - statusBar->height();
     int bottomMargin = 9;
-    int totalHeight = 0;
+    int heightWithoutKitArea = 0;
 
     if (!onlySummary) {
-        // list widget heigth
+        // list widget height
         int maxItemCount = m_projectListWidget->maxCount();
         for (int i = TARGET; i < LAST; ++i)
             maxItemCount = qMax(maxItemCount, m_listWidgets[i]->maxCount());
 
         int titleWidgetsHeight = m_titleWidgets.first()->height();
         if (keepSize) {
-            totalHeight = height();
+            heightWithoutKitArea = height() - oldSummaryLabelY + 1;
         } else {
             // Clamp the size of the listwidgets to be
-            // at least as high as the the sidebar button
+            // at least as high as the sidebar button
             // and at most twice as high
-            totalHeight = summaryLabelHeight + qBound(alignedWithActionHeight,
-                                                      maxItemCount * 30 + bottomMargin + titleWidgetsHeight,
-                                                      alignedWithActionHeight * 2);
+            heightWithoutKitArea = summaryLabelHeight
+                    + qBound(alignedWithActionHeight,
+                             maxItemCount * 30 + bottomMargin + titleWidgetsHeight,
+                             alignedWithActionHeight * 2);
         }
 
         int titleY = summaryLabelY + summaryLabelHeight;
         int listY = titleY + titleWidgetsHeight;
-        int listHeight = totalHeight - bottomMargin - listY + 1;
+        int listHeight = heightWithoutKitArea + kitAreaHeight - bottomMargin - listY + 1;
 
         // list widget widths
         int minWidth = qMax(m_summaryLabel->sizeHint().width(), 250);
+        minWidth = qMax(minWidth, m_kitAreaWidget->sizeHint().width());
         if (keepSize) {
             // Do not make the widget smaller then it was before
             int oldTotalListWidgetWidth = m_projectListWidget->isVisibleTo(this) ?
@@ -835,21 +947,21 @@ void MiniProjectTargetSelector::doLayout(bool keepSize)
         }
 
         m_summaryLabel->resize(x - 1, summaryLabelHeight);
-        setFixedSize(x, totalHeight);
+        m_kitAreaWidget->resize(x - 1, kitAreaHeight);
+        setFixedSize(x, heightWithoutKitArea + kitAreaHeight);
     } else {
         if (keepSize)
-            totalHeight = height();
+            heightWithoutKitArea = height() - oldSummaryLabelY + 1;
         else
-            totalHeight = qMax(summaryLabelHeight + bottomMargin, alignedWithActionHeight);
-        m_summaryLabel->resize(m_summaryLabel->sizeHint().width(), totalHeight - bottomMargin);
-        setFixedSize(m_summaryLabel->width() + 1, totalHeight); //1 extra pixel for the border
+            heightWithoutKitArea = qMax(summaryLabelHeight + bottomMargin, alignedWithActionHeight);
+        m_summaryLabel->resize(m_summaryLabel->sizeHint().width(), heightWithoutKitArea - bottomMargin);
+        m_kitAreaWidget->resize(m_kitAreaWidget->sizeHint());
+        setFixedSize(m_summaryLabel->width() + 1, heightWithoutKitArea + kitAreaHeight); //1 extra pixel for the border
     }
 
-    if (isVisibleTo(parentWidget())) {
-        QPoint moveTo = statusBar->mapToGlobal(QPoint(0,0));
-        moveTo -= QPoint(0, totalHeight);
-        move(moveTo);
-    }
+    QPoint moveTo = statusBar->mapToGlobal(QPoint(0,0));
+    moveTo -= QPoint(0, height());
+    move(moveTo);
 }
 
 void MiniProjectTargetSelector::setActiveTarget(ProjectExplorer::ProjectConfiguration *pc)
@@ -1064,10 +1176,11 @@ void MiniProjectTargetSelector::slotRemovedRunConfiguration(ProjectExplorer::Run
 
 void MiniProjectTargetSelector::updateProjectListVisible()
 {
-    bool visible = m_sessionManager->projects().size() > 1;
+    int count = SessionManager::projects().size();
+    bool visible = count > 1;
 
     m_projectListWidget->setVisible(visible);
-    m_projectListWidget->setMaxCount(m_sessionManager->projects().size());
+    m_projectListWidget->setMaxCount(count);
     m_titleWidgets[PROJECT]->setVisible(visible);
 
     updateSummary();
@@ -1076,7 +1189,7 @@ void MiniProjectTargetSelector::updateProjectListVisible()
 void MiniProjectTargetSelector::updateTargetListVisible()
 {
     int maxCount = 0;
-    foreach (Project *p, m_sessionManager->projects())
+    foreach (Project *p, SessionManager::projects())
         maxCount = qMax(p->targets().size(), maxCount);
 
     bool visible = maxCount > 1;
@@ -1089,7 +1202,7 @@ void MiniProjectTargetSelector::updateTargetListVisible()
 void MiniProjectTargetSelector::updateBuildListVisible()
 {
     int maxCount = 0;
-    foreach (Project *p, m_sessionManager->projects())
+    foreach (Project *p, SessionManager::projects())
         foreach (Target *t, p->targets())
             maxCount = qMax(t->buildConfigurations().size(), maxCount);
 
@@ -1103,7 +1216,7 @@ void MiniProjectTargetSelector::updateBuildListVisible()
 void MiniProjectTargetSelector::updateDeployListVisible()
 {
     int maxCount = 0;
-    foreach (Project *p, m_sessionManager->projects())
+    foreach (Project *p, SessionManager::projects())
         foreach (Target *t, p->targets())
             maxCount = qMax(t->deployConfigurations().size(), maxCount);
 
@@ -1117,7 +1230,7 @@ void MiniProjectTargetSelector::updateDeployListVisible()
 void MiniProjectTargetSelector::updateRunListVisible()
 {
     int maxCount = 0;
-    foreach (Project *p, m_sessionManager->projects())
+    foreach (Project *p, SessionManager::projects())
         foreach (Target *t, p->targets())
             maxCount = qMax(t->runConfigurations().size(), maxCount);
 
@@ -1173,6 +1286,8 @@ void MiniProjectTargetSelector::activeTargetChanged(ProjectExplorer::Target *tar
     }
 
     m_target = target;
+
+    m_kitAreaWidget->setKit(m_target ? m_target->kit() : 0);
 
     m_listWidgets[TARGET]->setActiveProjectConfiguration(m_target);
 
@@ -1286,10 +1401,10 @@ void MiniProjectTargetSelector::activeRunConfigurationChanged(ProjectExplorer::R
 
 void MiniProjectTargetSelector::setVisible(bool visible)
 {
+    doLayout(false);
     QWidget::setVisible(visible);
     m_projectAction->setChecked(visible);
     if (visible) {
-        doLayout(false);
         if (!focusWidget() || !focusWidget()->isVisibleTo(this)) { // Does the second part actually work?
             if (m_projectListWidget->isVisibleTo(this))
                 m_projectListWidget->setFocus();
@@ -1390,12 +1505,12 @@ void MiniProjectTargetSelector::updateActionAndSummary()
     QString runConfig;
     QIcon targetIcon = style()->standardIcon(QStyle::SP_ComputerIcon);
 
-    Project *project = ProjectExplorerPlugin::instance()->startupProject();
+    Project *project = SessionManager::startupProject();
     if (project) {
         projectName = project->displayName();
-        foreach (Project *p, ProjectExplorerPlugin::instance()->session()->projects()) {
+        foreach (Project *p, SessionManager::projects()) {
             if (p != project && p->displayName() == projectName) {
-                fileName = project->document()->fileName();
+                fileName = project->projectFilePath();
                 break;
             }
         }
@@ -1445,10 +1560,10 @@ void MiniProjectTargetSelector::updateActionAndSummary()
 void MiniProjectTargetSelector::updateSummary()
 {
     QString summary;
-    if (Project *startupProject = m_sessionManager->startupProject()) {
+    if (Project *startupProject = SessionManager::startupProject()) {
         if (!m_projectListWidget->isVisibleTo(this))
             summary.append(tr("Project: <b>%1</b><br/>").arg(startupProject->displayName()));
-        if (Target *activeTarget = m_sessionManager->startupProject()->activeTarget()) {
+        if (Target *activeTarget = startupProject->activeTarget()) {
             if (!m_listWidgets[TARGET]->isVisibleTo(this))
                 summary.append(tr("Kit: <b>%1</b><br/>").arg( activeTarget->displayName()));
             if (!m_listWidgets[BUILD]->isVisibleTo(this) && activeTarget->activeBuildConfiguration())
@@ -1496,6 +1611,6 @@ void MiniProjectTargetSelector::paintEvent(QPaintEvent *)
 
 void MiniProjectTargetSelector::switchToProjectsMode()
 {
-    Core::ICore::instance()->modeManager()->activateMode(Constants::MODE_SESSION);
+    Core::ModeManager::activateMode(Constants::MODE_SESSION);
     hide();
 }

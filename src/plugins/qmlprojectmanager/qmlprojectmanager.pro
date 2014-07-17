@@ -1,4 +1,4 @@
-QT += network declarative
+QT += network
 
 include(../../qtcreatorplugin.pri)
 include(fileformat/fileformat.pri)
@@ -11,14 +11,14 @@ HEADERS += qmlproject.h \
     qmlprojectconstants.h \
     qmlprojectnodes.h \
     qmlprojectfile.h \
-    qmlprojectruncontrol.h \
     qmlprojectrunconfiguration.h \
     qmlprojectrunconfigurationfactory.h \
     qmlprojectmanager_global.h \
     qmlprojectmanagerconstants.h \
     qmlprojectrunconfigurationwidget.h \
     qmlapp.h \
-    qmlapplicationwizard.h
+    qmlapplicationwizard.h \
+    qmlapplicationwizardpages.h
 
 SOURCES += qmlproject.cpp \
     qmlprojectenvironmentaspect.cpp \
@@ -26,11 +26,11 @@ SOURCES += qmlproject.cpp \
     qmlprojectmanager.cpp \
     qmlprojectnodes.cpp \
     qmlprojectfile.cpp \
-    qmlprojectruncontrol.cpp \
     qmlprojectrunconfiguration.cpp \
     qmlprojectrunconfigurationfactory.cpp \
     qmlprojectrunconfigurationwidget.cpp \
     qmlapp.cpp \
-    qmlapplicationwizard.cpp
+    qmlapplicationwizard.cpp \
+    qmlapplicationwizardpages.cpp
 
 RESOURCES += qmlproject.qrc

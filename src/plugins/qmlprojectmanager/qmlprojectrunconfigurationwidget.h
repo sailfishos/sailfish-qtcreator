@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -49,10 +49,8 @@ class QmlProjectRunConfigurationWidget : public QWidget
 public:
     explicit QmlProjectRunConfigurationWidget(QmlProjectRunConfiguration *rc);
 
-public slots:
-    void updateFileComboBox();
-
 private slots:
+    void updateFileComboBox();
     void setMainScript(int index);
     void onViewerArgsChanged();
 

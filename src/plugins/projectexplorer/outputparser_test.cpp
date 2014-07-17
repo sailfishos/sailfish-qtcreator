@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -40,7 +40,7 @@ OutputParserTester::OutputParserTester() :
     m_debug(false)
 { }
 
-// test methods:
+// test functions:
 void OutputParserTester::testParsing(const QString &lines,
                                      Channel inputChannel,
                                      QList<Task> tasks,

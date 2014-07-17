@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -50,11 +50,28 @@ class QRect;
 class QTextBlock;
 QT_END_NAMESPACE
 
-namespace Utils {
-    class CommentDefinition;
-}
+namespace Utils { class CommentDefinition; }
 
 namespace TextEditor {
+
+class TEXTEDITOR_EXPORT BlockRange
+{
+public:
+    BlockRange() : _first(0), _last(-1) {}
+    BlockRange(int firstPosition, int lastPosition)
+      : _first(firstPosition), _last(lastPosition)
+    {}
+
+    inline bool isNull() const { return _last < _first; }
+
+    int first() const { return _first; }
+    int last() const { return _last; }
+
+private:
+    int _first;
+    int _last;
+};
+
 
 class TEXTEDITOR_EXPORT ITextEditorDocument : public Core::TextDocument
 {
@@ -62,9 +79,17 @@ class TEXTEDITOR_EXPORT ITextEditorDocument : public Core::TextDocument
 public:
     explicit ITextEditorDocument(QObject *parent = 0);
 
-    virtual QString contents() const = 0;
+    virtual QString plainText() const = 0;
     virtual QString textAt(int pos, int length) const = 0;
     virtual QChar characterAt(int pos) const = 0;
+
+    virtual ITextMarkable *markableInterface() const = 0;
+
+    static QMap<QString, QString> openedTextDocumentContents();
+    static QMap<QString, QTextCodec *> openedTextDocumentEncodings();
+
+signals:
+    void contentsChanged();
 };
 
 class TEXTEDITOR_EXPORT ITextEditor : public Core::IEditor
@@ -107,21 +132,7 @@ public:
     /*! Selects text between current cursor position and \a toPos. */
     virtual void select(int toPos) = 0;
 
-    virtual ITextMarkable *markableInterface() = 0;
-
-    enum TextCodecReason {
-        TextCodecOtherReason,
-        TextCodecFromSystemSetting,
-        TextCodecFromProjectSetting
-    };
-
-    virtual void setTextCodec(QTextCodec *, TextCodecReason reason = TextCodecOtherReason) = 0;
-    virtual QTextCodec *textCodec() const = 0;
-
     virtual const Utils::CommentDefinition* commentDefinition() const = 0;
-
-    static QMap<QString, QString> openedTextEditorsContents();
-    static QMap<QString, QTextCodec *> openedTextEditorsEncodings();
 
     enum MarkRequestKind {
         BreakpointRequest,
@@ -130,8 +141,6 @@ public:
     };
 
 signals:
-    void contentsChanged();
-    void contentsChangedBecauseOfUndo();
     void markRequested(TextEditor::ITextEditor *editor, int line, TextEditor::ITextEditor::MarkRequestKind kind);
     void markContextMenuRequested(TextEditor::ITextEditor *editor, int line, QMenu *menu);
     void tooltipOverrideRequested(TextEditor::ITextEditor *editor, const QPoint &globalPos, int position, bool *handled);

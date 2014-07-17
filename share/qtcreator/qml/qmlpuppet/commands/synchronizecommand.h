@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -40,6 +40,7 @@ namespace QmlDesigner {
 class SynchronizeCommand
 {
     friend QDataStream &operator>>(QDataStream &in, SynchronizeCommand &command);
+    friend bool operator ==(const SynchronizeCommand &first, const SynchronizeCommand &second);
 
 public:
     SynchronizeCommand();
@@ -53,6 +54,9 @@ private:
 
 QDataStream &operator<<(QDataStream &out, const SynchronizeCommand &command);
 QDataStream &operator>>(QDataStream &in, SynchronizeCommand &command);
+
+bool operator ==(const SynchronizeCommand &first, const SynchronizeCommand &second);
+QDebug operator <<(QDebug debug, const SynchronizeCommand &command);
 
 } // namespace QmlDesigner
 

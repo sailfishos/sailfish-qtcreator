@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -39,14 +39,13 @@ namespace Debugger {
 namespace Internal { class DebuggerRunConfigWidget;  }
 
 class DEBUGGER_EXPORT DebuggerRunConfigurationAspect
-    : public QObject, public ProjectExplorer::IRunConfigurationAspect
+    : public ProjectExplorer::IRunConfigurationAspect
 {
     Q_OBJECT
 
 public:
     DebuggerRunConfigurationAspect(ProjectExplorer::RunConfiguration *runConfiguration);
-    DebuggerRunConfigurationAspect(ProjectExplorer::RunConfiguration *runConfiguration,
-                                   const DebuggerRunConfigurationAspect *other);
+    DebuggerRunConfigurationAspect *create(ProjectExplorer::RunConfiguration *runConfiguration) const;
 
     enum DebuggerLanguageStatus {
         DisabledLanguage = 0,
@@ -54,13 +53,10 @@ public:
         AutoEnabledLanguage
     };
 
-    QVariantMap toMap() const;
     void fromMap(const QVariantMap &map);
+    void toMap(QVariantMap &map) const;
 
-    DebuggerRunConfigurationAspect *clone(ProjectExplorer::RunConfiguration *parent) const;
     ProjectExplorer::RunConfigWidget *createConfigurationWidget();
-
-    QString displayName() const;
 
     bool useCppDebugger() const;
     void setUseCppDebugger(bool value);
@@ -71,15 +67,8 @@ public:
     bool useMultiProcess() const;
     void setUseMultiProcess(bool on);
     bool isQmlDebuggingSpinboxSuppressed() const;
-    ProjectExplorer::RunConfiguration *runConfiguration();
-
-signals:
-    void debuggersChanged();
 
 private:
-    void ctor();
-
-    ProjectExplorer::RunConfiguration *m_runConfiguration;
     DebuggerLanguageStatus m_useCppDebugger;
     DebuggerLanguageStatus m_useQmlDebugger;
     uint m_qmlDebugServerPort;

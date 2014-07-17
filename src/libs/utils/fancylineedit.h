@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -31,8 +31,8 @@
 #define FANCYLINEEDIT_H
 
 #include "utils_global.h"
+#include "completinglineedit.h"
 
-#include <QLineEdit>
 #include <QAbstractButton>
 
 QT_BEGIN_NAMESPACE
@@ -60,16 +60,25 @@ public:
 
     void setAutoHide(bool hide) { m_autoHide = hide; }
     bool hasAutoHide() const { return m_autoHide; }
+
+protected:
+    void keyPressEvent(QKeyEvent *ke);
+    void keyReleaseEvent(QKeyEvent *ke);
+
 private:
     float m_iconOpacity;
     bool m_autoHide;
     QPixmap m_pixmap;
 };
 
-class QTCREATOR_UTILS_EXPORT FancyLineEdit : public QLineEdit
+class QTCREATOR_UTILS_EXPORT FancyLineEdit : public CompletingLineEdit
 {
     Q_OBJECT
     Q_ENUMS(Side)
+
+    // Validation.
+    Q_PROPERTY(QString initialText READ initialText WRITE setInitialText DESIGNABLE true)
+    Q_PROPERTY(QColor errorColor READ errorColor WRITE setErrorColor DESIGNABLE true)
 
 public:
     enum Side {Left = 0, Right = 1};
@@ -85,6 +94,7 @@ public:
 
     void setButtonVisible(Side side, bool visible);
     bool isButtonVisible(Side side) const;
+    QAbstractButton *button(Side side) const;
 
     void setButtonToolTip(Side side, const QString &);
     void setButtonFocusPolicy(Side side, Qt::FocusPolicy policy);
@@ -97,28 +107,69 @@ public:
     void setAutoHideButton(Side side, bool h);
     bool hasAutoHideButton(Side side) const;
 
+
+    // Completion
+
     // Enable a history completer with a history of entries.
     void setHistoryCompleter(const QString &historyKey);
-
     // Sets a completer that is not a history completer.
     void setSpecialCompleter(QCompleter *completer);
+
+
+    // Filtering
+
+    // Enables fitering
+    void setFiltering(bool on);
+
+
+    //  Validation
+
+    enum State { Invalid, DisplayingInitialText, Valid };
+
+    State state() const;
+    bool isValid() const;
+    QString errorMessage() const;
+
+    QString initialText() const;
+    void setInitialText(const QString &);
+
+    QColor errorColor() const;
+    void setErrorColor(const  QColor &);
+
+    // Trigger an update (after changing settings)
+    void triggerChanged();
+
+    static QColor textColor(const QWidget *w);
+    static void setTextColor(QWidget *w, const QColor &c);
+
+protected slots:
+    // Custom behaviour can be added here.
+    virtual void handleChanged(const QString &) {}
 
 signals:
     void buttonClicked(Utils::FancyLineEdit::Side side);
     void leftButtonClicked();
     void rightButtonClicked();
 
+    void filterChanged(const QString &);
+
+    void validChanged();
+    void validChanged(bool validState);
+    void validReturnPressed();
+
 private slots:
-    void checkButtons(const QString &);
     void iconClicked();
+    void onTextChanged(const QString &);
 
 protected:
     void resizeEvent(QResizeEvent *e);
-    bool event(QEvent *e);
+
+    virtual bool validate(const QString &value, QString *errorMessage) const;
+    virtual QString fixInputString(const QString &string);
 
 private:
     // Unimplemented, to force the user to make a decision on
-    // whether to use setHistoryKey() or setSpecialCompleter().
+    // whether to use setHistoryCompleter() or setSpecialCompleter().
     void setCompleter(QCompleter *);
 
     void updateMargins();
@@ -126,7 +177,6 @@ private:
     friend class Utils::FancyLineEditPrivate;
 
     FancyLineEditPrivate *d;
-    QString m_oldText;
 };
 
 } // namespace Utils

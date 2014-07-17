@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -34,9 +34,7 @@
 
 #include <QDir>
 
-namespace Utils {
-class Environment;
-}
+namespace Utils { class Environment; }
 
 namespace ProjectExplorer {
 
@@ -103,6 +101,6 @@ inline QString CeSdkHandler::fixPaths(QString path) const
     return QDir::toNativeSeparators(path);
 }
 
-} // namespace Qt4ProjectManager
+} // namespace ProjectExplorer
 
 #endif // CE_SDK_HANDLER_H

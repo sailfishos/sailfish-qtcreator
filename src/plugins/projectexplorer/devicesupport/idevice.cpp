@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -121,8 +121,10 @@ const char KeyFileKey[] = "KeyFile";
 const char PasswordKey[] = "Password";
 const char TimeoutKey[] = "Timeout";
 
+const char DebugServerKey[] = "DebugServerKey";
+
 typedef QSsh::SshConnectionParameters::AuthenticationType AuthType;
-const AuthType DefaultAuthType = QSsh::SshConnectionParameters::AuthenticationByKey;
+const AuthType DefaultAuthType = QSsh::SshConnectionParameters::AuthenticationTypePublicKey;
 const IDevice::MachineType DefaultMachineType = IDevice::Hardware;
 
 const int DefaultTimeout = 10;
@@ -150,11 +152,12 @@ public:
 
     QSsh::SshConnectionParameters sshParameters;
     Utils::PortList freePorts;
+    QString debugServerPath;
 };
 } // namespace Internal
 
 PortsGatheringMethod::~PortsGatheringMethod() { }
-DeviceProcessSupport::~DeviceProcessSupport() { }
+DeviceTester::DeviceTester(QObject *parent) : QObject(parent) { }
 
 IDevice::IDevice() : d(new Internal::IDevicePrivate)
 { }
@@ -249,11 +252,6 @@ Core::Id IDevice::id() const
     return d->id;
 }
 
-DeviceProcessSupport::Ptr IDevice::processSupport() const
-{
-    return DeviceProcessSupport::Ptr();
-}
-
 PortsGatheringMethod::Ptr IDevice::portsGatheringMethod() const
 {
     return PortsGatheringMethod::Ptr();
@@ -263,6 +261,18 @@ DeviceProcessList *IDevice::createProcessListModel(QObject *parent) const
 {
     Q_UNUSED(parent);
     QTC_ASSERT(false, qDebug("This should not have been called..."); return 0);
+    return 0;
+}
+
+DeviceTester *IDevice::createDeviceTester() const
+{
+    QTC_ASSERT(false, qDebug("This should not have been called..."));
+    return 0;
+}
+
+DeviceProcess *IDevice::createProcess(QObject * /* parent */) const
+{
+    QTC_CHECK(false);
     return 0;
 }
 
@@ -317,6 +327,8 @@ void IDevice::fromMap(const QVariantMap &map)
         QLatin1String("10000-10100")).toString());
     d->machineType = static_cast<MachineType>(map.value(QLatin1String(MachineTypeKey), DefaultMachineType).toInt());
     d->version = map.value(QLatin1String(VersionKey), 0).toInt();
+
+    d->debugServerPath = map.value(QLatin1String(DebugServerKey)).toString();
 }
 
 /*!
@@ -345,6 +357,8 @@ QVariantMap IDevice::toMap() const
 
     map.insert(QLatin1String(PortsSpecKey), d->freePorts.toString());
     map.insert(QLatin1String(VersionKey), d->version);
+
+    map.insert(QLatin1String(DebugServerKey), d->debugServerPath);
 
     return map;
 }
@@ -381,6 +395,11 @@ void IDevice::setSshParameters(const QSsh::SshConnectionParameters &sshParameter
     d->sshParameters = sshParameters;
 }
 
+QString IDevice::qmlProfilerHost() const
+{
+    return d->sshParameters.host;
+}
+
 void IDevice::setFreePorts(const Utils::PortList &freePorts)
 {
     d->freePorts = freePorts;
@@ -394,6 +413,16 @@ Utils::PortList IDevice::freePorts() const
 IDevice::MachineType IDevice::machineType() const
 {
     return d->machineType;
+}
+
+QString IDevice::debugServerPath() const
+{
+    return d->debugServerPath;
+}
+
+void IDevice::setDebugServerPath(const QString &path)
+{
+    d->debugServerPath = path;
 }
 
 int IDevice::version() const
@@ -410,6 +439,15 @@ QString IDevice::defaultPrivateKeyFilePath()
 QString IDevice::defaultPublicKeyFilePath()
 {
     return defaultPrivateKeyFilePath() + QLatin1String(".pub");
+}
+
+void DeviceProcessSignalOperation::setDebuggerCommand(const QString &cmd)
+{
+    m_debuggerCommand = cmd;
+}
+
+DeviceProcessSignalOperation::DeviceProcessSignalOperation()
+{
 }
 
 } // namespace ProjectExplorer

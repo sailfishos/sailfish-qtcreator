@@ -89,7 +89,7 @@ ProjectExplorer::KitInformation::ItemList MerTargetKitInformation::toUserOutput(
 
 ProjectExplorer::KitConfigWidget *MerTargetKitInformation::createConfigWidget(ProjectExplorer::Kit *kit) const
 {
-    return new MerTargetKitInformationWidget(kit);
+    return new MerTargetKitInformationWidget(kit, this);
 }
 
 void MerTargetKitInformation::setTargetName(ProjectExplorer::Kit *kit, const QString& targetName)
@@ -106,8 +106,9 @@ void MerTargetKitInformation::addToEnvironment(const ProjectExplorer::Kit *kit, 
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 
-MerTargetKitInformationWidget::MerTargetKitInformationWidget(ProjectExplorer::Kit *kit, bool sticky)
-    : ProjectExplorer::KitConfigWidget(kit,sticky),
+MerTargetKitInformationWidget::MerTargetKitInformationWidget(ProjectExplorer::Kit *kit,
+        const MerTargetKitInformation *kitInformation)
+    : ProjectExplorer::KitConfigWidget(kit, kitInformation),
       m_combo(new QComboBox),
       m_manageButton(new QPushButton(tr("Manage...")))
 {

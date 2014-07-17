@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -28,6 +28,8 @@
 ****************************************************************************/
 
 #include "changevaluescommand.h"
+
+#include <QDebug>
 
 namespace QmlDesigner {
 
@@ -57,6 +59,11 @@ QDataStream &operator>>(QDataStream &in, ChangeValuesCommand &command)
     in >> command.m_valueChangeVector;
 
     return in;
+}
+
+QDebug operator <<(QDebug debug, const ChangeValuesCommand &command)
+{
+    return debug.nospace() << "ChangeValuesCommand(valueChanges: " << command.m_valueChangeVector << ")";
 }
 
 } // namespace QmlDesigner

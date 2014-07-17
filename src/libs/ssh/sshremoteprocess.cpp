@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -174,6 +174,11 @@ void SshRemoteProcess::addToEnvironment(const QByteArray &var, const QByteArray 
 {
     if (d->channelState() == Internal::SshRemoteProcessPrivate::Inactive)
         d->m_env << qMakePair(var, value); // Cached locally and sent on start()
+}
+
+void SshRemoteProcess::clearEnvironment()
+{
+    d->m_env.clear();
 }
 
 void SshRemoteProcess::requestTerminal(const SshPseudoTerminal &terminal)

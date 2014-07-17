@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -86,10 +86,14 @@ public:
     SnapLineMap rightSnappingOffsets() const;
 
     QList<FormEditorItem*> childFormEditorItems() const;
+    QList<FormEditorItem*> offspringFormEditorItems() const;
+
     FormEditorScene *scene() const;
     FormEditorItem *parentItem() const;
 
     QRectF boundingRect() const;
+    QPainterPath shape() const;
+    bool contains(const QPointF &point) const;
 
     void updateGeometry();
     void updateVisibilty();
@@ -99,6 +103,7 @@ public:
     FormEditorView *formEditorView() const;
 
     void setHighlightBoundingRect(bool highlight);
+    void blurContent(bool blurContent);
 
     void setContentVisible(bool visible);
     bool isContentVisible() const;
@@ -110,26 +115,24 @@ protected:
     AbstractFormEditorTool* tool() const;
     void paintBoundingRect(QPainter *painter) const;
     void paintPlaceHolderForInvisbleItem(QPainter *painter) const;
-
-private slots:
-    void changeAttention(qreal value);
+    void paintComponentContentVisualisation(QPainter *painter, const QRectF &clippinRectangle) const;
+    QList<FormEditorItem*> offspringFormEditorItemsRecursive(const FormEditorItem *formEditorItem) const;
 
 private: // functions
     FormEditorItem(const QmlItemNode &qmlItemNode, FormEditorScene* scene);
     void setup();
-    void setAttentionScale(double scale);
-    void setAttentionHighlight(double value);
 
 private: // variables
     SnappingLineCreator m_snappingLineCreator;
     QmlItemNode m_qmlItemNode;
     QWeakPointer<QTimeLine> m_attentionTimeLine;
-    QTransform m_attentionTransform; // make item larger in anchor mode
     QTransform m_inverseAttentionTransform;
     QRectF m_boundingRect;
     QRectF m_paintedBoundingRect;
+    QRectF m_selectionBoundingRect;
     double m_borderWidth;
     bool m_highlightBoundingRect;
+    bool m_blurContent;
     bool m_isContentVisible;
     bool m_isFormEditorVisible;
 };

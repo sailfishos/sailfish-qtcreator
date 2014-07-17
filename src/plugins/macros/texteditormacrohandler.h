@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Nicolas Arnaud-Cormos
+** Copyright (c) 2014 Nicolas Arnaud-Cormos
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -32,29 +32,25 @@
 
 #include "imacrohandler.h"
 
-namespace Core {
-class IEditor;
-}
+namespace Core { class IEditor; }
 
-namespace TextEditor {
-class ITextEditor;
-}
+namespace TextEditor { class ITextEditor; }
 
 namespace Macros {
 namespace Internal {
 
-class TextEditorMacroHandler : public Macros::IMacroHandler
+class TextEditorMacroHandler : public IMacroHandler
 {
     Q_OBJECT
 
 public:
     TextEditorMacroHandler();
 
-    void startRecording(Macros::Macro *macro);
-    void endRecordingMacro(Macros::Macro *macro);
+    void startRecording(Macro *macro);
+    void endRecordingMacro(Macro *macro);
 
-    bool canExecuteEvent(const Macros::MacroEvent &macroEvent);
-    bool executeEvent(const Macros::MacroEvent &macroEvent);
+    bool canExecuteEvent(const MacroEvent &macroEvent);
+    bool executeEvent(const MacroEvent &macroEvent);
 
     bool eventFilter(QObject *watched, QEvent *event);
 

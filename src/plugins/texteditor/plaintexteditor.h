@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -34,9 +34,7 @@
 
 #include <utils/uncommentselection.h>
 
-namespace Core {
-class MimeType;
-}
+namespace Core { class MimeType; }
 
 namespace TextEditor {
 
@@ -50,9 +48,16 @@ public:
     PlainTextEditor(PlainTextEditorWidget *);
 
     bool duplicateSupported() const { return true; }
-    Core::IEditor *duplicate(QWidget *parent);
-    bool isTemporary() const { return false; }
-    Core::Id id() const;
+    Core::IEditor *duplicate();
+};
+
+class TEXTEDITOR_EXPORT PlainTextDocument : public BaseTextDocument
+{
+    Q_OBJECT
+public:
+    PlainTextDocument();
+private slots:
+    void updateTabSettings();
 };
 
 class TEXTEDITOR_EXPORT PlainTextEditorWidget : public BaseTextEditorWidget
@@ -60,7 +65,9 @@ class TEXTEDITOR_EXPORT PlainTextEditorWidget : public BaseTextEditorWidget
     Q_OBJECT
 
 public:
-    PlainTextEditorWidget(QWidget *parent);
+    PlainTextEditorWidget(QWidget *parent = 0);
+    PlainTextEditorWidget(PlainTextDocument *doc, QWidget *parent = 0);
+    PlainTextEditorWidget(PlainTextEditorWidget *other);
 
     void configure(const QString& mimeType);
     void configure(const Core::MimeType &mimeType);
@@ -68,8 +75,6 @@ public:
 
 public slots:
     virtual void unCommentSelection();
-    virtual void setFontSettings(const FontSettings &fs);
-    virtual void setTabSettings(const TextEditor::TabSettings &);
 
 private slots:
     void configure();
@@ -82,7 +87,9 @@ protected:
     virtual BaseTextEditor *createEditor() { return new PlainTextEditor(this); }
 
 private:
-    QString findDefinitionId(const Core::MimeType &mimeType, bool considerParents) const;
+    PlainTextEditorWidget(TextEditor::BaseTextEditorWidget *); // avoid stupidity
+    PlainTextEditorWidget(BaseTextDocument *, QWidget *); //avoid stupidity
+    void ctor();
 
     bool m_isMissingSyntaxDefinition;
     Utils::CommentDefinition m_commentDefinition;

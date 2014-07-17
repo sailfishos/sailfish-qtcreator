@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -43,23 +43,16 @@
 using namespace ProjectExplorer;
 
 namespace PythonEditor {
+namespace Internal {
 
-static Core::BaseFileWizardParameters getDefaultParams()
+ClassWizard::ClassWizard()
 {
-    Core::BaseFileWizardParameters p(Core::IWizard::FileWizard);
-
-    p.setId(QLatin1String(Constants::C_PY_CLASS_WIZARD_ID));
-    p.setCategory(QLatin1String(Constants::C_PY_WIZARD_CATEGORY));
-    p.setDisplayCategory(QLatin1String(Constants::C_PY_DISPLAY_CATEGORY));
-    p.setDisplayName(ClassWizard::tr(Constants::EN_PY_CLASS_DISPLAY_NAME));
-    p.setDescription(ClassWizard::tr(Constants::EN_PY_CLASS_DESCRIPTION));
-
-    return p;
-}
-
-ClassWizard::ClassWizard(QObject *parent) :
-    Core::BaseFileWizard(getDefaultParams(), parent)
-{
+    setWizardKind(Core::IWizard::FileWizard);
+    setId(QLatin1String(Constants::C_PY_CLASS_WIZARD_ID));
+    setCategory(QLatin1String(Constants::C_PY_WIZARD_CATEGORY));
+    setDisplayCategory(QLatin1String(Constants::C_PY_DISPLAY_CATEGORY));
+    setDisplayName(ClassWizard::tr(Constants::EN_PY_CLASS_DISPLAY_NAME));
+    setDescription(ClassWizard::tr(Constants::EN_PY_CLASS_DESCRIPTION));
 }
 
 QWizard *ClassWizard::createWizardDialog(
@@ -112,12 +105,13 @@ Kit *ClassWizard::kitForWizard(const ClassWizardDialog *wizard) const
     const QString nodePath = wizard->extraValues().value(key).toString();
 
     // projectForFile doesn't find project if project file path passed
-    Node *node = ProjectExplorerPlugin::instance()->session()->nodeForFile(nodePath);
-    Project *proj = ProjectExplorerPlugin::instance()->session()->projectForNode(node);
+    Node *node = SessionManager::nodeForFile(nodePath);
+    Project *proj = SessionManager::projectForNode(node);
     if (proj && proj->activeTarget())
         return proj->activeTarget()->kit();
 
-    return KitManager::instance()->defaultKit();
+    return KitManager::defaultKit();
 }
 
+} // namespace Internal
 } // namespace PythonEditor

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -45,7 +45,8 @@ class QtKitConfigWidget : public ProjectExplorer::KitConfigWidget
     Q_OBJECT
 
 public:
-    explicit QtKitConfigWidget(ProjectExplorer::Kit *k, bool sticky);
+    QtKitConfigWidget(ProjectExplorer::Kit *k, const ProjectExplorer::KitInformation *ki);
+    ~QtKitConfigWidget();
 
     QString displayName() const;
 

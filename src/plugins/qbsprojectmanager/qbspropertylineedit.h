@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,7 +30,7 @@
 #ifndef QBSPROPERTYLINEEDIT_H
 #define QBSPROPERTYLINEEDIT_H
 
-#include <utils/basevalidatinglineedit.h>
+#include <utils/fancylineedit.h>
 
 #include <QList>
 #include <QPair>
@@ -38,7 +38,7 @@
 namespace QbsProjectManager {
 namespace Internal {
 
-class QbsPropertyLineEdit : public Utils::BaseValidatingLineEdit
+class QbsPropertyLineEdit : public Utils::FancyLineEdit
 {
     Q_OBJECT
 

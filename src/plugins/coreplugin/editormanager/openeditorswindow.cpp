@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -28,10 +28,10 @@
 ****************************************************************************/
 
 #include "openeditorswindow.h"
-#include "openeditorsmodel.h"
+#include "documentmodel.h"
 #include "editormanager.h"
 #include "editorview.h"
-#include "idocument.h"
+#include <coreplugin/idocument.h>
 
 #include <utils/hostosinfo.h>
 #include <utils/qtcassert.h>
@@ -193,7 +193,7 @@ void OpenEditorsWindow::centerOnItem(int selectedIndex)
     }
 }
 
-void OpenEditorsWindow::setEditors(const QList<EditLocation> &globalHistory, EditorView *view, OpenEditorsModel *model)
+void OpenEditorsWindow::setEditors(const QList<EditLocation> &globalHistory, EditorView *view, DocumentModel *model)
 {
     m_editorList->clear();
 
@@ -203,15 +203,15 @@ void OpenEditorsWindow::setEditors(const QList<EditLocation> &globalHistory, Edi
     addHistoryItems(globalHistory, view, model, documentsDone);
 
     // add purely restored editors which are not initialised yet
-    foreach (const OpenEditorsModel::Entry &entry, model->entries()) {
-        if (entry.editor)
+    foreach (DocumentModel::Entry *entry, model->documents()) {
+        if (entry->document)
             continue;
         QTreeWidgetItem *item = new QTreeWidgetItem();
-        QString title = entry.displayName();
+        QString title = entry->displayName();
         item->setIcon(0, m_emptyIcon);
         item->setText(0, title);
-        item->setToolTip(0, entry.fileName());
-        item->setData(0, Qt::UserRole+2, QVariant::fromValue(entry.id()));
+        item->setToolTip(0, entry->fileName());
+        item->setData(0, Qt::UserRole+2, QVariant::fromValue(entry->id()));
         item->setTextAlignment(0, Qt::AlignLeft);
 
         m_editorList->addTopLevelItem(item);
@@ -225,11 +225,11 @@ void OpenEditorsWindow::selectEditor(QTreeWidgetItem *item)
         return;
     if (IDocument *document = item->data(0, Qt::UserRole).value<IDocument*>()) {
         EditorView *view = item->data(0, Qt::UserRole+1).value<EditorView*>();
-        EditorManager::instance()->activateEditorForDocument(view, document);
+        EditorManager::activateEditorForDocument(view, document);
     } else {
         if (!EditorManager::openEditor(
                     item->toolTip(0), item->data(0, Qt::UserRole+2).value<Core::Id>())) {
-            EditorManager::instance()->openedEditorsModel()->removeEditor(item->toolTip(0));
+            EditorManager::documentModel()->removeDocument(item->toolTip(0));
             delete item;
         }
     }
@@ -249,29 +249,28 @@ void OpenEditorsWindow::ensureCurrentVisible()
 
 
 void OpenEditorsWindow::addHistoryItems(const QList<EditLocation> &history, EditorView *view,
-                                        OpenEditorsModel *model, QSet<IDocument *> &documentsDone)
+                                        DocumentModel *model, QSet<IDocument *> &documentsDone)
 {
     foreach (const EditLocation &hi, history) {
         if (hi.document.isNull() || documentsDone.contains(hi.document))
             continue;
         documentsDone.insert(hi.document.data());
-        QString title = model->displayNameForDocument(hi.document);
+        QString title = hi.document->displayName();
         QTC_ASSERT(!title.isEmpty(), continue);
         QTreeWidgetItem *item = new QTreeWidgetItem();
         if (hi.document->isModified())
             title += tr("*");
-        item->setIcon(0, !hi.document->fileName().isEmpty() && hi.document->isFileReadOnly()
+        item->setIcon(0, !hi.document->filePath().isEmpty() && hi.document->isFileReadOnly()
                       ? model->lockedIcon() : m_emptyIcon);
         item->setText(0, title);
-        item->setToolTip(0, hi.document->fileName());
+        item->setToolTip(0, hi.document->filePath());
         item->setData(0, Qt::UserRole, QVariant::fromValue(hi.document.data()));
         item->setData(0, Qt::UserRole+1, QVariant::fromValue(view));
         item->setTextAlignment(0, Qt::AlignLeft);
 
         m_editorList->addTopLevelItem(item);
 
-        if (m_editorList->topLevelItemCount() == 1){
+        if (m_editorList->topLevelItemCount() == 1)
             m_editorList->setCurrentItem(item);
-        }
     }
 }

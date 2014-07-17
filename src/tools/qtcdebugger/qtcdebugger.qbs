@@ -1,14 +1,11 @@
-import qbs.base 1.0
-import "../QtcTool.qbs" as QtcTool
+import qbs 1.0
+import QtcTool
 
 QtcTool {
     name: "qtcdebugger"
     condition: qbs.targetOS.contains("windows")
 
-    cpp.includePaths: [
-        buildDirectory,
-        "../../shared/registryaccess"
-    ]
+    cpp.includePaths: base.concat(["../../shared/registryaccess"])
     cpp.dynamicLibraries: [
         "psapi",
         "advapi32"

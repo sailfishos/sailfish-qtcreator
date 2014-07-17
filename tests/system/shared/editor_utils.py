@@ -1,6 +1,6 @@
 #############################################################################
 ##
-## Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+## Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ## Contact: http://www.qt-project.org/legal
 ##
 ## This file is part of Qt Creator.
@@ -75,6 +75,13 @@ def placeCursorToLine(editor, line, isRegex=False):
 def menuVisibleAtEditor(editor, menuInList):
     menuInList[0] = None
     try:
+        # Hack for Squish 5.0.1 handling menus of Qt5.2 on Mac (avoids crash) - remove asap
+        if platform.system() == 'Darwin':
+            for obj in object.topLevelObjects():
+                if className(obj) == "QMenu" and obj.visible and widgetContainsPoint(editor, obj.mapToGlobal(QPoint(0, 0))):
+                    menuInList[0] = obj
+                    return True
+            return False
         menu = waitForObject("{type='QMenu' unnamed='1' visible='1'}", 500)
         if platform.system() == 'Darwin':
             menu.activateWindow()
@@ -94,8 +101,6 @@ def widgetContainsPoint(widget, point):
 # at the same position where the text cursor is located at
 def openContextMenuOnTextCursorPosition(editor):
     rect = editor.cursorRect(editor.textCursor())
-    if platform.system() == 'Darwin':
-        JIRA.performWorkaroundForBug(8735, JIRA.Bug.CREATOR, editor)
     openContextMenu(editor, rect.x+rect.width/2, rect.y+rect.height/2, 0)
     menuInList = [None]
     waitFor("menuVisibleAtEditor(editor, menuInList)", 5000)
@@ -250,7 +255,7 @@ def verifyProperties(properties, expectedProps):
             result[key] = None
     return result
 
-def getEditorForFileSuffix(curFile):
+def getEditorForFileSuffix(curFile, treeViewSyntax=False):
     cppEditorSuffixes = ["cpp", "cc", "CC", "h", "H", "cp", "cxx", "C", "c++", "inl", "moc", "qdoc",
                          "tcc", "tpp", "t++", "c", "cu", "m", "mm", "hh", "hxx", "h++", "hpp", "hp"]
     qmlEditorSuffixes = ["qml", "qmlproject", "js", "qs", "qtt"]
@@ -258,25 +263,40 @@ def getEditorForFileSuffix(curFile):
     glslEditorSuffixes= ["frag", "vert", "fsh", "vsh", "glsl", "shader", "gsh"]
     pytEditorSuffixes = ["py", "pyw", "wsgi"]
     suffix = __getFileSuffix__(curFile)
-    if suffix in cppEditorSuffixes:
-        editor = waitForObject(":Qt Creator_CppEditor::Internal::CPPEditorWidget")
-    elif suffix in qmlEditorSuffixes:
-        editor = waitForObject(":Qt Creator_QmlJSEditor::QmlJSTextEditorWidget")
-    elif suffix in proEditorSuffixes:
-        editor = waitForObject(":Qt Creator_ProFileEditorWidget")
-    elif suffix in glslEditorSuffixes:
-        editor = waitForObject("{type='GLSLEditor::GLSLTextEditorWidget' unnamed='1' "
-                               "visible='1' window=':Qt Creator_Core::Internal::MainWindow'}")
-    elif suffix in pytEditorSuffixes:
-        editor = waitForObject(":Qt Creator_PythonEditor::EditorWidget")
-    else:
-        test.log("Trying PlainTextEditor (file suffix: %s)" % suffix)
-        try:
-            editor = waitForObject("{type='TextEditor::PlainTextEditorWidget' unnamed='1' "
-                                   "visible='1' window=':Qt Creator_Core::Internal::MainWindow'}", 3000)
-        except:
-            test.fatal("Unsupported file suffix for file '%s'" % curFile)
-            editor = None
+    expected = os.path.basename(curFile)
+    if treeViewSyntax:
+        expected = simpleFileName(curFile)
+    mainWindow = waitForObject(":Qt Creator_Core::Internal::MainWindow")
+    if not waitFor("expected in str(mainWindow.windowTitle)", 5000):
+        test.fatal("Window title (%s) did not switch to expected file (%s)."
+                   % (str(mainWindow.windowTitle), expected))
+    try:
+        if suffix in cppEditorSuffixes:
+            editor = waitForObject(":Qt Creator_CppEditor::Internal::CPPEditorWidget")
+        elif suffix in qmlEditorSuffixes:
+            editor = waitForObject(":Qt Creator_QmlJSEditor::QmlJSTextEditorWidget")
+        elif suffix in proEditorSuffixes:
+            editor = waitForObject(":Qt Creator_ProFileEditorWidget")
+        elif suffix in glslEditorSuffixes:
+            editor = waitForObject("{type='GLSLEditor::Internal::GLSLTextEditorWidget' unnamed='1' "
+                                   "visible='1' window=':Qt Creator_Core::Internal::MainWindow'}")
+        elif suffix in pytEditorSuffixes:
+            editor = waitForObject(":Qt Creator_PythonEditor::EditorWidget")
+        else:
+            test.log("Trying PlainTextEditor (file suffix: %s)" % suffix)
+            try:
+                editor = waitForObject(":Qt Creator_TextEditor::PlainTextEditorWidget", 3000)
+            except:
+                test.fatal("Unsupported file suffix for file '%s'" % curFile)
+                editor = None
+    except:
+        f = str(waitForObject(":Qt Creator_Core::Internal::MainWindow").windowTitle).split(" ", 1)[0]
+        if os.path.basename(curFile) == f:
+            test.fatal("Could not find editor although expected file matches.")
+        else:
+            test.fatal("Expected (%s) and current file (%s) do not match. Failed to get editor"
+                       % (os.path.basename(curFile), f))
+        editor = None
     return editor
 
 # helper that determines the file suffix of the given fileName
@@ -295,8 +315,7 @@ def maskSpecialCharsForSearchResult(filename):
 def validateSearchResult(expectedCount):
     searchResult = waitForObject(":Qt Creator_SearchResult_Core::Internal::OutputPaneToggleButton")
     ensureChecked(searchResult)
-    resultTreeView = waitForObject("{type='Find::Internal::SearchResultTreeView' unnamed='1' "
-                                   "visible='1' window=':Qt Creator_Core::Internal::MainWindow'}")
+    resultTreeView = waitForObject(":Qt Creator_Find::Internal::SearchResultTreeView")
     counterLabel = waitForObject("{type='QLabel' unnamed='1' visible='1' text?='*matches found.' "
                                  "window=':Qt Creator_Core::Internal::MainWindow'}")
     matches = cast((str(counterLabel.text)).split(" ", 1)[0], "int")
@@ -312,16 +331,28 @@ def validateSearchResult(expectedCount):
             rect = resultTreeView.visualRect(chIndex)
             doubleClick(resultTreeView, rect.x+5, rect.y+5, 0, Qt.LeftButton)
             editor = getEditorForFileSuffix(itemText)
-            waitFor("lineUnderCursor(editor) == text", 2000)
+            if not waitFor("lineUnderCursor(editor) == text", 2000):
+                test.warning("Jumping to search result '%s' is pretty slow." % text)
+                waitFor("lineUnderCursor(editor) == text", 2000)
             test.compare(lineUnderCursor(editor), text)
 
 # this function invokes context menu and command from it
 def invokeContextMenuItem(editorArea, command1, command2 = None):
     ctxtMenu = openContextMenuOnTextCursorPosition(editorArea)
-    activateItem(waitForObjectItem(objectMap.realName(ctxtMenu), command1, 2000))
+    if platform.system() == 'Darwin':
+        activateItem(ctxtMenu, command1)
+    else:
+        activateItem(waitForObjectItem(objectMap.realName(ctxtMenu), command1, 2000))
     if command2:
-        activateItem(waitForObjectItem("{title='%s' type='QMenu' visible='1' window=%s}"
-                                       % (command1, objectMap.realName(ctxtMenu)), command2, 2000))
+        # Hack for Squish 5.0.1 handling menus of Qt5.2 on Mac (avoids crash) - remove asap
+        if platform.system() == 'Darwin':
+            for obj in object.topLevelObjects():
+                if className(obj) == 'QMenu' and obj.visible and not obj == ctxtMenu:
+                    activateItem(obj, command2)
+                    break
+        else:
+            activateItem(waitForObjectItem("{title='%s' type='QMenu' visible='1' window=%s}"
+                                           % (command1, objectMap.realName(ctxtMenu)), command2, 2000))
 
 # this function invokes the "Find Usages" item from context menu
 # param editor an editor object
@@ -339,8 +370,8 @@ def invokeFindUsage(editor, line, typeOperation, n=1):
 def addBranchWildcardToRoot(rootNode):
     pos = rootNode.find(".")
     if pos == -1:
-        return rootNode + " (*)"
-    return rootNode[:pos] + " (*)" + rootNode[pos:]
+        return rootNode + " [[]*[]]"
+    return rootNode[:pos] + " [[]*[]]" + rootNode[pos:]
 
 def openDocument(treeElement):
     try:
@@ -353,7 +384,8 @@ def openDocument(treeElement):
             item = waitForObjectItem(navigator, treeElement)
         doubleClickItem(navigator, treeElement, 5, 5, 0, Qt.LeftButton)
         mainWindow = waitForObject(":Qt Creator_Core::Internal::MainWindow")
-        waitFor("item.text in str(mainWindow.windowTitle)")
+        expected = str(item.text).split("/")[-1]
+        waitFor("expected in str(mainWindow.windowTitle)")
         return True
     except:
         return False
@@ -381,7 +413,7 @@ def replaceLine(fileSpec, oldLine, newLine):
     if openDocumentPlaceCursor(fileSpec, oldLine) == None:
         return False
     editor = waitForObject(":Qt Creator_CppEditor::Internal::CPPEditorWidget")
-    for i in range(len(oldLine)):
+    for _ in oldLine:
         type(editor, "<Backspace>")
     type(editor, newLine)
     return True

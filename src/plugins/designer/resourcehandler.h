@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -37,9 +37,7 @@ QT_BEGIN_NAMESPACE
 #if QT_VERSION >= 0x050000
 class QDesignerFormWindowInterface;
 #else
-namespace qdesigner_internal {
-    class FormWindowBase;
-}
+namespace qdesigner_internal { class FormWindowBase; }
 #endif
 QT_END_NAMESPACE
 
@@ -73,7 +71,7 @@ public:
     virtual ~ResourceHandler();
 
 public slots:
-    void updateResources();
+    void updateResources(bool updateProjectResources = false);
 
 private:
     void ensureInitialized();
@@ -85,6 +83,7 @@ private:
     QStringList m_originalUiQrcPaths;
     ProjectExplorer::SessionNode *m_sessionNode;
     ProjectExplorer::NodesWatcher *m_sessionWatcher;
+    bool m_handlingResources;
 };
 
 } // namespace Internal

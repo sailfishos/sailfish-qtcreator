@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 BogDan Vatra <bog_dan_ro@yahoo.com>
+** Copyright (c) 2014 BogDan Vatra <bog_dan_ro@yahoo.com>
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -40,6 +40,8 @@ class QFileSystemWatcher;
 
 namespace Ui { class AndroidPackageCreationWidget; }
 QT_END_NAMESPACE
+
+namespace QmakeProjectManager { class QmakeBuildConfiguration; }
 
 namespace Android {
 namespace Internal {
@@ -102,12 +104,15 @@ private slots:
 
     void on_openPackageLocationCheckBox_toggled(bool checked);
 
+    void updateSigningWarning();
+    void activeBuildConfigurationChanged();
 private:
     AndroidPackageCreationStep *const m_step;
     Ui::AndroidPackageCreationWidget *const m_ui;
     CheckModel *m_qtLibsModel;
     CheckModel *m_prebundledLibs;
     QFileSystemWatcher *m_fileSystemWatcher;
+    QmakeProjectManager::QmakeBuildConfiguration *m_currentBuildConfiguration;
 };
 
 } // namespace Internal

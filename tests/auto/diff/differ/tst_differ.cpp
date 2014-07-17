@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -41,6 +41,7 @@ Q_DECLARE_METATYPE(QList<DiffEditor::Diff>);
 
 using namespace DiffEditor;
 
+QT_BEGIN_NAMESPACE
 namespace QTest {
     template<>
     char *toString(const Diff &diff)
@@ -64,6 +65,7 @@ namespace QTest {
         return qstrdup(ba.data());
     }
 }
+QT_END_NAMESPACE
 
 
 class tst_Differ: public QObject
@@ -466,6 +468,15 @@ void tst_Differ::cleanupSemantics_data()
                << Diff(Diff::Equal, QString("GHIJ"))
                << Diff(Diff::Delete, QString("KLMNO"))
                << Diff(Diff::Insert, QString("PQRST")));
+    QTest::newRow("Don't cleanup 4")
+               << (QList<Diff>()
+               << Diff(Diff::Delete, QString("ABC"))
+               << Diff(Diff::Equal, QString("DE"))
+               << Diff(Diff::Delete, QString("F")))
+               << (QList<Diff>()
+               << Diff(Diff::Delete, QString("ABC"))
+               << Diff(Diff::Equal, QString("DE"))
+               << Diff(Diff::Delete, QString("F")));
     QTest::newRow("Simple cleanup")
                << (QList<Diff>()
                << Diff(Diff::Delete, QString("A"))
@@ -589,6 +600,55 @@ void tst_Differ::cleanupSemantics_data()
                << Diff(Diff::Delete, QString("S"))
                << Diff(Diff::Equal, QString("TU"))
                << Diff(Diff::Insert, QString("VW")));
+    // All ambiguous tests below should return the same result, but they don't.
+    QTest::newRow("Ambiguous 1")
+               << (QList<Diff>()
+               << Diff(Diff::Equal, QString("A"))
+               << Diff(Diff::Delete, QString("X"))
+               << Diff(Diff::Insert, QString("W  "))
+               << Diff(Diff::Equal, QString("  "))
+               << Diff(Diff::Delete, QString("Y"))
+               << Diff(Diff::Insert, QString("Z"))
+               << Diff(Diff::Equal, QString("B")))
+               << (QList<Diff>()
+               << Diff(Diff::Equal, QString("A"))
+               << Diff(Diff::Delete, QString("X"))
+               << Diff(Diff::Insert, QString("W  "))
+               << Diff(Diff::Equal, QString("  "))
+               << Diff(Diff::Delete, QString("Y"))
+               << Diff(Diff::Insert, QString("Z"))
+               << Diff(Diff::Equal, QString("B")));
+    QTest::newRow("Ambiguous 2")
+               << (QList<Diff>()
+               << Diff(Diff::Equal, QString("A"))
+               << Diff(Diff::Delete, QString("X"))
+               << Diff(Diff::Insert, QString("W "))
+               << Diff(Diff::Equal, QString("  "))
+               << Diff(Diff::Delete, QString("Y"))
+               << Diff(Diff::Insert, QString(" Z"))
+               << Diff(Diff::Equal, QString("B")))
+               << (QList<Diff>()
+               << Diff(Diff::Equal, QString("A"))
+               << Diff(Diff::Delete, QString("X  Y"))
+               << Diff(Diff::Insert, QString("W    Z"))
+               << Diff(Diff::Equal, QString("B")));
+    QTest::newRow("Ambiguous 3")
+               << (QList<Diff>()
+               << Diff(Diff::Equal, QString("A"))
+               << Diff(Diff::Delete, QString("X"))
+               << Diff(Diff::Insert, QString("W"))
+               << Diff(Diff::Equal, QString("  "))
+               << Diff(Diff::Delete, QString("Y"))
+               << Diff(Diff::Insert, QString("  Z"))
+               << Diff(Diff::Equal, QString("B")))
+               << (QList<Diff>()
+               << Diff(Diff::Equal, QString("A"))
+               << Diff(Diff::Delete, QString("X"))
+               << Diff(Diff::Insert, QString("W"))
+               << Diff(Diff::Equal, QString("  "))
+               << Diff(Diff::Delete, QString("Y"))
+               << Diff(Diff::Insert, QString("  Z"))
+               << Diff(Diff::Equal, QString("B")));
 }
 
 void tst_Differ::cleanupSemantics()
@@ -679,6 +739,58 @@ void tst_Differ::cleanupSemanticsLossless_data()
                << Diff(Diff::Equal, QString("That "))
                << Diff(Diff::Insert, QString("cat "))
                << Diff(Diff::Equal, QString("cartoon")));
+    // All ambiguous tests below should return the same result, but they don't.
+    QTest::newRow("Ambiguous 1")
+               << (QList<Diff>()
+               << Diff(Diff::Equal, QString("A"))
+               << Diff(Diff::Delete, QString("X"))
+               << Diff(Diff::Insert, QString("W  "))
+               << Diff(Diff::Equal, QString("  "))
+               << Diff(Diff::Delete, QString("Y"))
+               << Diff(Diff::Insert, QString("Z"))
+               << Diff(Diff::Equal, QString("B")))
+               << (QList<Diff>()
+               << Diff(Diff::Equal, QString("A"))
+               << Diff(Diff::Delete, QString("X"))
+               << Diff(Diff::Insert, QString("W  "))
+               << Diff(Diff::Equal, QString("  "))
+               << Diff(Diff::Delete, QString("Y"))
+               << Diff(Diff::Insert, QString("Z"))
+               << Diff(Diff::Equal, QString("B")));
+    QTest::newRow("Ambiguous 2")
+               << (QList<Diff>()
+               << Diff(Diff::Equal, QString("A"))
+               << Diff(Diff::Delete, QString("X"))
+               << Diff(Diff::Insert, QString("W "))
+               << Diff(Diff::Equal, QString("  "))
+               << Diff(Diff::Delete, QString("Y"))
+               << Diff(Diff::Insert, QString(" Z"))
+               << Diff(Diff::Equal, QString("B")))
+               << (QList<Diff>()
+               << Diff(Diff::Equal, QString("A"))
+               << Diff(Diff::Delete, QString("X"))
+               << Diff(Diff::Insert, QString("W "))
+               << Diff(Diff::Equal, QString("  "))
+               << Diff(Diff::Delete, QString("Y"))
+               << Diff(Diff::Insert, QString(" Z"))
+               << Diff(Diff::Equal, QString("B")));
+    QTest::newRow("Ambiguous 3")
+               << (QList<Diff>()
+               << Diff(Diff::Equal, QString("A"))
+               << Diff(Diff::Delete, QString("X"))
+               << Diff(Diff::Insert, QString("W"))
+               << Diff(Diff::Equal, QString("  "))
+               << Diff(Diff::Delete, QString("Y"))
+               << Diff(Diff::Insert, QString("  Z"))
+               << Diff(Diff::Equal, QString("B")))
+               << (QList<Diff>()
+               << Diff(Diff::Equal, QString("A"))
+               << Diff(Diff::Delete, QString("X"))
+               << Diff(Diff::Insert, QString("W"))
+               << Diff(Diff::Equal, QString("  "))
+               << Diff(Diff::Delete, QString("Y"))
+               << Diff(Diff::Insert, QString("  Z"))
+               << Diff(Diff::Equal, QString("B")));
 }
 
 void tst_Differ::cleanupSemanticsLossless()

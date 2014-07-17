@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -64,7 +64,9 @@ public:
                     if (isCheckable(i) && source->isCheckable(j))
                         setChecked(i, source->checked(j));
                     break;
-                } else if (stateFile < sourceStateFile) {
+                } else if (((stateFile.first & UntrackedFile)
+                            == (sourceStateFile.first & UntrackedFile))
+                           && (stateFile < sourceStateFile)) {
                     break;
                 }
             }
@@ -86,6 +88,7 @@ private:
 GitSubmitEditor::GitSubmitEditor(const VcsBase::VcsBaseSubmitEditorParameters *parameters, QWidget *parent) :
     VcsBaseSubmitEditor(parameters, new GitSubmitEditorWidget(parent)),
     m_model(0),
+    m_commitEncoding(0),
     m_commitType(SimpleCommit),
     m_forceClose(false)
 {
@@ -111,9 +114,7 @@ void GitSubmitEditor::setCommitData(const CommitData &d)
     m_amendSHA1 = d.amendSHA1;
 
     GitSubmitEditorWidget *w = submitEditorWidget();
-    w->initialize(m_commitType, m_workingDirectory);
-    w->setPanelData(d.panelData);
-    w->setPanelInfo(d.panelInfo);
+    w->initialize(m_commitType, m_workingDirectory, d.panelData, d.panelInfo, d.enablePush);
     w->setHasUnmerged(false);
 
     setEmptyFileListEnabled(m_commitType == AmendCommit); // Allow for just correcting the message
@@ -153,7 +154,9 @@ void GitSubmitEditor::slotDiffSelected(const QList<int> &rows)
             unmergedFiles.push_back(fileName);
         else if (state & StagedFile)
             stagedFiles.push_back(fileName);
-        else if (state != UntrackedFile)
+        else if (state == UntrackedFile)
+            Core::EditorManager::openEditor(m_workingDirectory + QLatin1Char('/') + fileName);
+        else
             unstagedFiles.push_back(fileName);
     }
     if (!unstagedFiles.empty() || !stagedFiles.empty())
@@ -176,12 +179,16 @@ void GitSubmitEditor::updateFileModel()
     QString errorMessage, commitTemplate;
     CommitData data(m_commitType);
     if (client->getCommitData(m_workingDirectory, &commitTemplate, data, &errorMessage)) {
+        m_forceClose = false;
         setCommitData(data);
         submitEditorWidget()->refreshLog(m_workingDirectory);
+        widget()->setEnabled(true);
     } else {
-        VcsBase::VcsBaseOutputWindow::instance()->append(errorMessage);
+        // Nothing to commit left!
+        VcsBase::VcsBaseOutputWindow::instance()->appendError(errorMessage);
         m_forceClose = true;
-        Core::EditorManager::instance()->closeEditors(QList<IEditor*>() << this);
+        m_model->clear();
+        widget()->setEnabled(false);
     }
 }
 
@@ -200,13 +207,10 @@ QByteArray GitSubmitEditor::fileContents() const
 {
     const QString &text = submitEditorWidget()->descriptionText();
 
-    if (!m_commitEncoding.isEmpty()) {
-        // Do the encoding convert, When use user-defined encoding
-        // e.g. git config --global i18n.commitencoding utf-8
-        QTextCodec *codec = QTextCodec::codecForName(m_commitEncoding.toLocal8Bit());
-        if (codec)
-            return codec->fromUnicode(text);
-    }
+    // Do the encoding convert, When use user-defined encoding
+    // e.g. git config --global i18n.commitencoding utf-8
+    if (m_commitEncoding)
+        return m_commitEncoding->fromUnicode(text);
 
     // Using utf-8 as the default encoding
     return text.toUtf8();

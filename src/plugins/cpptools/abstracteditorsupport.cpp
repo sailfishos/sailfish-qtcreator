@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -38,7 +38,7 @@
 namespace CppTools {
 
 AbstractEditorSupport::AbstractEditorSupport(CppModelManagerInterface *modelmanager) :
-    m_modelmanager(modelmanager)
+    m_modelmanager(modelmanager), m_revision(1)
 {
 }
 
@@ -48,6 +48,7 @@ AbstractEditorSupport::~AbstractEditorSupport()
 
 void AbstractEditorSupport::updateDocument()
 {
+    ++m_revision;
     m_modelmanager->updateSourceFiles(QStringList(fileName()));
 }
 

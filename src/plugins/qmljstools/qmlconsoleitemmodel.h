@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -57,8 +57,6 @@ public:
     bool appendItem(QmlJS::ConsoleItem *item, int position = -1);
     bool appendMessage(QmlJS::ConsoleItem::ItemType itemType, const QString &message,
                        int position = -1);
-
-    QAbstractItemModel *model() { return this; }
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const;
 

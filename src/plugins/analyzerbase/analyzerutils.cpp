@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -85,7 +85,7 @@ CPlusPlus::Symbol *AnalyzerUtils::findSymbolUnderCursor()
     editorWidget->convertPosition(pos, &line, &column);
 
     const CPlusPlus::Snapshot &snapshot = CppTools::CppModelManagerInterface::instance()->snapshot();
-    CPlusPlus::Document::Ptr doc = snapshot.document(editor->document()->fileName());
+    CPlusPlus::Document::Ptr doc = snapshot.document(editor->document()->filePath());
     QTC_ASSERT(doc, return 0);
 
     // fetch the expression's code

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -43,16 +43,14 @@
 #include <QGridLayout>
 #include <QLabel>
 
-using namespace Find;
 using namespace ProjectExplorer;
 using namespace ProjectExplorer::Internal;
 using namespace TextEditor;
 
-AllProjectsFind::AllProjectsFind(ProjectExplorerPlugin *plugin)
-    : m_plugin(plugin),
-      m_configWidget(0)
+AllProjectsFind::AllProjectsFind()
+    :  m_configWidget(0)
 {
-    connect(m_plugin, SIGNAL(fileListChanged()), this, SLOT(handleFileListChanged()));
+    connect(ProjectExplorerPlugin::instance(), SIGNAL(fileListChanged()), this, SLOT(handleFileListChanged()));
 }
 
 QString AllProjectsFind::id() const
@@ -67,15 +65,14 @@ QString AllProjectsFind::displayName() const
 
 bool AllProjectsFind::isEnabled() const
 {
-    return BaseFileFind::isEnabled()
-            && m_plugin->session()->projects().count() > 0;
+    return BaseFileFind::isEnabled() && SessionManager::hasProjects();
 }
 
 Utils::FileIterator *AllProjectsFind::files(const QStringList &nameFilters,
                                             const QVariant &additionalParameters) const
 {
     Q_UNUSED(additionalParameters)
-    return filesForProjects(nameFilters, m_plugin->session()->projects());
+    return filesForProjects(nameFilters, SessionManager::projects());
 }
 
 Utils::FileIterator *AllProjectsFind::filesForProjects(const QStringList &nameFilters,
@@ -85,7 +82,8 @@ Utils::FileIterator *AllProjectsFind::filesForProjects(const QStringList &nameFi
     foreach (const QString &filter, nameFilters) {
         filterRegs << QRegExp(filter, Qt::CaseInsensitive, QRegExp::Wildcard);
     }
-    QMap<QString, QTextCodec *> openEditorEncodings = TextEditor::ITextEditor::openedTextEditorsEncodings();
+    QMap<QString, QTextCodec *> openEditorEncodings
+            = TextEditor::ITextEditorDocument::openedTextDocumentEncodings();
     QMap<QString, QTextCodec *> encodings;
     foreach (const Project *project, projects) {
         QStringList projectFiles = project->files(Project::AllFiles);

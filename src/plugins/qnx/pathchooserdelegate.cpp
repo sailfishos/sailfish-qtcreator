@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2012 - 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -60,6 +60,7 @@ QWidget *PathChooserDelegate::createEditor(QWidget *parent, const QStyleOptionVi
 
     Utils::PathChooser *editor = new Utils::PathChooser(parent);
 
+    editor->setHistoryCompleter(m_historyKey);
     editor->setAutoFillBackground(true); // To hide the text beneath the editor widget
     editor->lineEdit()->setMinimumWidth(0);
 
@@ -95,6 +96,11 @@ void PathChooserDelegate::updateEditorGeometry(QWidget *editor, const QStyleOpti
     Q_UNUSED(index);
 
     editor->setGeometry(option.rect);
+}
+
+void PathChooserDelegate::setHistoryCompleter(const QString &key)
+{
+    m_historyKey = key;
 }
 
 void PathChooserDelegate::emitCommitData()

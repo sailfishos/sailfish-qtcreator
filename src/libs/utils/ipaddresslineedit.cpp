@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -58,7 +58,7 @@ IpAddressLineEditPrivate::IpAddressLineEditPrivate()
 }
 
 IpAddressLineEdit::IpAddressLineEdit(QWidget* parent) :
-    BaseValidatingLineEdit(parent),
+    FancyLineEdit(parent),
     d(new IpAddressLineEditPrivate())
 {
     const char ipAddressRegExpPatternC[] = "^\\b(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\."
@@ -88,9 +88,9 @@ bool IpAddressLineEdit::validate(const QString &value, QString *errorMessage) co
     return true;
 }
 
-void IpAddressLineEdit::slotChanged(const QString &t)
+void IpAddressLineEdit::handleChanged(const QString &t)
 {
-    Utils::BaseValidatingLineEdit::slotChanged(t);
+    Utils::FancyLineEdit::handleChanged(t);
     if (isValid())
         emit validAddressChanged(t);
     else

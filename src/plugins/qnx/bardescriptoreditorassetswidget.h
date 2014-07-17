@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -42,9 +42,7 @@ QT_END_NAMESPACE
 namespace Qnx {
 namespace Internal {
 
-namespace Ui {
-class BarDescriptorEditorAssetsWidget;
-}
+namespace Ui { class BarDescriptorEditorAssetsWidget; }
 
 class BarDescriptorAsset;
 
@@ -56,16 +54,15 @@ public:
     explicit BarDescriptorEditorAssetsWidget(QWidget *parent = 0);
     ~BarDescriptorEditorAssetsWidget();
 
-    void clear();
-
-    void addAsset(const BarDescriptorAsset &asset);
-    QList<BarDescriptorAsset> assets() const;
-
     QStandardItemModel *assetsModel() const;
 
 public slots:
     void addAsset(const QString &fullPath);
     void removeAsset(const QString &fullPath);
+
+protected:
+    void updateWidgetValue(BarDescriptorDocument::Tag tag, const QVariant &value);
+    void emitChanged(BarDescriptorDocument::Tag tag);
 
 private slots:
     void addNewAsset();
@@ -73,10 +70,8 @@ private slots:
     void updateEntryCheckState(QStandardItem *item);
 
 private:
-    void connectAssetsModel();
-    void disconnectAssetsModel();
-
-    void addAssetInternal(const BarDescriptorAsset &asset);
+    void clear();
+    void addAsset(const BarDescriptorAsset &asset);
     bool hasAsset(const BarDescriptorAsset &asset);
 
     Ui::BarDescriptorEditorAssetsWidget *m_ui;

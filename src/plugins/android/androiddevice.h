@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 BogDan Vatra <bog_dan_ro@yahoo.com>
+** Copyright (c) 2014 BogDan Vatra <bog_dan_ro@yahoo.com>
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -45,10 +45,12 @@ public:
     ProjectExplorer::IDeviceWidget *createWidget();
     QList<Core::Id> actionIds() const;
     QString displayNameForActionId(Core::Id actionId) const;
-    void executeAction(Core::Id actionId, QWidget *parent = 0) const;
+    void executeAction(Core::Id actionId, QWidget *parent = 0);
     bool canAutoDetectPorts() const;
+    ProjectExplorer::DeviceProcessSignalOperation::Ptr signalOperation() const;
 
     ProjectExplorer::IDevice::Ptr clone() const;
+    QString qmlProfilerHost() const;
 
 protected:
     friend class AndroidDeviceFactory;

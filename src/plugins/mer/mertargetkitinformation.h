@@ -33,11 +33,14 @@ QT_FORWARD_DECLARE_CLASS(QPushButton);
 namespace Mer {
 namespace Internal {
 
+class MerTargetKitInformation;
+
 class  MerTargetKitInformationWidget : public ProjectExplorer::KitConfigWidget
 {
     Q_OBJECT
 public:
-    MerTargetKitInformationWidget(ProjectExplorer::Kit *kit, bool sitcky = false);
+    MerTargetKitInformationWidget(ProjectExplorer::Kit *kit,
+          const MerTargetKitInformation *kitInformation);
 
     QString displayName() const;
     QString toolTip() const;

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -76,6 +76,8 @@ public:
     static ReadResult readFile(const QString &fileName, const QTextCodec *defaultCodec,
                                QString *plainText, TextFileFormat *format, QString *errorString,
                                QByteArray *decodingErrorSample = 0);
+    static ReadResult readFileUTF8(const QString &fileName, const QTextCodec *defaultCodec,
+                                   QByteArray *plainText, QString *errorString);
 
     bool writeFile(const QString &fileName, QString plainText, QString *errorString) const;
 

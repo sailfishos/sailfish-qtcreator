@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -57,17 +57,18 @@ static const int layoutSpacing  = 5;
 static const int maxTitleWidth = 350;
 
 QueryValidatingLineEdit::QueryValidatingLineEdit(QWidget *parent)
-    : Utils::FilterLineEdit(parent)
+    : Utils::FancyLineEdit(parent)
     , m_valid(true)
     , m_okTextColor(palette().color(QPalette::Active, QPalette::Text))
     , m_errorTextColor(Qt::red)
 {
+    setFiltering(true);
     connect(this, SIGNAL(textChanged(QString)), this, SLOT(setValid()));
 }
 
 void QueryValidatingLineEdit::setTextColor(const QColor &c)
 {
-    QPalette pal = palette();
+    QPalette pal;
     pal.setColor(QPalette::Active, QPalette::Text, c);
     setPalette(pal);
 }
@@ -98,10 +99,10 @@ GerritDialog::GerritDialog(const QSharedPointer<GerritParameters> &p,
     , m_treeView(new QTreeView)
     , m_detailsBrowser(new QTextBrowser)
     , m_queryLineEdit(new QueryValidatingLineEdit)
-    , m_filterLineEdit(new Utils::FilterLineEdit)
+    , m_filterLineEdit(new Utils::FancyLineEdit)
     , m_repositoryChooser(new Utils::PathChooser)
     , m_buttonBox(new QDialogButtonBox(QDialogButtonBox::Close))
-    , m_repositoryChooserLabel(new QLabel(tr("Apply in: "), this))
+    , m_repositoryChooserLabel(new QLabel(tr("Apply in:") + QLatin1Char(' '), this))
     , m_fetchRunning(false)
 {
     setWindowTitle(tr("Gerrit %1@%2").arg(p->user, p->host));
@@ -123,6 +124,7 @@ GerritDialog::GerritDialog(const QSharedPointer<GerritParameters> &p,
     filterLayout->addWidget(m_queryLineEdit);
     filterLayout->addItem(new QSpacerItem(0, 0, QSizePolicy::MinimumExpanding, QSizePolicy::Ignored));
     m_filterLineEdit->setFixedWidth(300);
+    m_filterLineEdit->setFiltering(true);
     filterLayout->addWidget(m_filterLineEdit);
     connect(m_filterLineEdit, SIGNAL(filterChanged(QString)),
             m_filterModel, SLOT(setFilterFixedString(QString)));
@@ -156,6 +158,7 @@ GerritDialog::GerritDialog(const QSharedPointer<GerritParameters> &p,
     detailsLayout->addWidget(m_detailsBrowser);
 
     m_repositoryChooser->setExpectedKind(Utils::PathChooser::Directory);
+    m_repositoryChooser->setHistoryCompleter(QLatin1String("Git.RepoDir.History"));
     QHBoxLayout *repoPathLayout = new QHBoxLayout;
     repoPathLayout->addWidget(m_repositoryChooserLabel);
     repoPathLayout->addWidget(m_repositoryChooser);
@@ -233,7 +236,7 @@ void GerritDialog::updateCompletions(const QString &query)
     queries.removeAll(query);
     queries.prepend(query);
     m_queryModel->setStringList(queries);
-    m_parameters->saveQueries(Core::ICore::instance()->settings());
+    m_parameters->saveQueries(Core::ICore::settings());
 }
 
 GerritDialog::~GerritDialog()

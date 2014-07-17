@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -27,33 +27,20 @@
 **
 ****************************************************************************/
 
-import QtQuick 1.0
+import QtQuick 2.1
 import widgets 1.0
 
 Rectangle {
     id: rectangle1
     width: 1024
-    height: Math.min(3024, parent.height - y)
-
-    PageCaption {
-        id: pageCaption
-
-        x: 32
-        y: 8
-
-        anchors.rightMargin: 16
-        anchors.right: parent.right
-        anchors.leftMargin: 16
-        anchors.left: parent.left
-
-        caption: qsTr("Tutorials")
-    }
+    height: grid.contentHeight + 100
 
     CustomizedGridView {
+        id: grid
         anchors.rightMargin: 38
         anchors.bottomMargin: 60
         anchors.leftMargin: 38
-        anchors.topMargin: 102
+        anchors.topMargin: 82
         anchors.fill: parent
 
         model: tutorialsModel
@@ -62,7 +49,7 @@ Rectangle {
     SearchBar {
         id: searchBar
 
-        y: 60
+        y: 52
 
         anchors.right: parent.right
         anchors.rightMargin: 60

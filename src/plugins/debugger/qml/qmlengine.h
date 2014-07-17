@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,10 +30,10 @@
 #ifndef QMLENGINE_H
 #define QMLENGINE_H
 
-#include "debuggerengine.h"
 #include "interactiveinterpreter.h"
 #include "qmladapter.h"
 #include "qmlinspectoradapter.h"
+#include <debugger/debuggerengine.h>
 
 #include <projectexplorer/applicationlauncher.h>
 #include <qmldebug/qdebugmessageclient.h>
@@ -42,9 +42,7 @@
 
 #include <QTextDocument>
 
-namespace Core {
-class IEditor;
-}
+namespace Core { class IDocument; }
 
 namespace Debugger {
 namespace Internal {
@@ -181,7 +179,7 @@ private:
         const QString &oldBasePath, const QString &newBasePath) const;
     QString qmlImportPath() const;
 
-    void updateEditor(Core::IEditor *editor, const QTextDocument *document);
+    void updateDocument(Core::IDocument *document, const QTextDocument *textDocument);
     bool canEvaluateScript(const QString &script);
     bool adjustBreakpointLineAndColumn(const QString &filePath, quint32 *line,
                                        quint32 *column, bool *valid);

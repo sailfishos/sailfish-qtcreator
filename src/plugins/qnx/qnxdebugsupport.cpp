@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2012 - 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -31,16 +31,22 @@
 
 #include "qnxdebugsupport.h"
 #include "qnxconstants.h"
+#include "qnxdeviceconfiguration.h"
 #include "qnxrunconfiguration.h"
+#include "slog2inforunner.h"
 
 #include <debugger/debuggerengine.h>
 #include <debugger/debuggerrunconfigurationaspect.h>
+#include <debugger/debuggerrunner.h>
 #include <debugger/debuggerstartparameters.h>
 #include <projectexplorer/devicesupport/deviceapplicationrunner.h>
 #include <projectexplorer/devicesupport/deviceusedportsgatherer.h>
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/target.h>
 #include <utils/qtcassert.h>
+#include <utils/qtcprocess.h>
+
+#include <QFileInfo>
 
 using namespace ProjectExplorer;
 using namespace RemoteLinux;
@@ -65,6 +71,16 @@ QnxDebugSupport::QnxDebugSupport(QnxRunConfiguration *runConfig, Debugger::Debug
     connect(runner, SIGNAL(remoteStderr(QByteArray)), SLOT(handleRemoteOutput(QByteArray)));
 
     connect(m_engine, SIGNAL(requestRemoteSetup()), this, SLOT(handleAdapterSetupRequested()));
+
+    const QString applicationId = QFileInfo(runConfig->remoteExecutableFilePath()).fileName();
+    ProjectExplorer::IDevice::ConstPtr dev = ProjectExplorer::DeviceKitInformation::device(runConfig->target()->kit());
+    QnxDeviceConfiguration::ConstPtr qnxDevice = dev.dynamicCast<const QnxDeviceConfiguration>();
+
+    m_slog2Info = new Slog2InfoRunner(applicationId, qnxDevice, this);
+    connect(m_slog2Info, SIGNAL(output(QString,Utils::OutputFormat)), this, SLOT(handleApplicationOutput(QString,Utils::OutputFormat)));
+    connect(runner, SIGNAL(remoteProcessStarted()), m_slog2Info, SLOT(start()));
+    if (qnxDevice->qnxVersion() > 0x060500)
+        connect(m_slog2Info, SIGNAL(commandMissing()), this, SLOT(printMissingWarning()));
 }
 
 void QnxDebugSupport::handleAdapterSetupRequested()
@@ -72,7 +88,7 @@ void QnxDebugSupport::handleAdapterSetupRequested()
     QTC_ASSERT(state() == Inactive, return);
 
     if (m_engine)
-        m_engine->showMessage(tr("Preparing remote side...\n"), Debugger::AppStuff);
+        m_engine->showMessage(tr("Preparing remote side...") + QLatin1Char('\n'), Debugger::AppStuff);
     QnxAbstractRunSupport::handleAdapterSetupRequested();
 }
 
@@ -89,17 +105,16 @@ void QnxDebugSupport::startExecution()
     setState(StartingRemoteProcess);
 
     if (m_useQmlDebugger)
-        m_engine->startParameters().processArgs += QString::fromLocal8Bit(" -qmljsdebugger=port:%1,block").arg(m_qmlPort);
+        m_engine->startParameters().processArgs += QString::fromLatin1(" -qmljsdebugger=port:%1,block").arg(m_qmlPort);
 
-    QString remoteCommandLine;
+    QStringList arguments;
     if (m_useCppDebugger)
-        remoteCommandLine = QString::fromLatin1("%1 %2 %3")
-                .arg(commandPrefix(), executable()).arg(m_pdebugPort);
+        arguments << QString::number(m_pdebugPort);
     else if (m_useQmlDebugger && !m_useCppDebugger)
-        remoteCommandLine = QString::fromLatin1("%1 %2 %3")
-                .arg(commandPrefix(), executable(), m_engine->startParameters().processArgs);
-
-    appRunner()->start(device(), remoteCommandLine.toUtf8());
+        arguments = Utils::QtcProcess::splitArgs(m_engine->startParameters().processArgs);
+    appRunner()->setEnvironment(environment());
+    appRunner()->setWorkingDirectory(workingDirectory());
+    appRunner()->start(device(), executable(), arguments);
 }
 
 void QnxDebugSupport::handleRemoteProcessStarted()
@@ -126,12 +141,22 @@ void QnxDebugSupport::handleRemoteProcessFinished(bool success)
 
 void QnxDebugSupport::handleDebuggingFinished()
 {
+    // setFinished() will kill "pdebug", but we also have to kill
+    // the inferior process, as invoking "kill" in gdb doesn't work
+    // on QNX gdb
     setFinished();
+    m_slog2Info->stop();
+    killInferiorProcess();
 }
 
 QString QnxDebugSupport::executable() const
 {
     return m_useCppDebugger? QLatin1String(Constants::QNX_DEBUG_EXECUTABLE) : QnxAbstractRunSupport::executable();
+}
+
+void QnxDebugSupport::killInferiorProcess()
+{
+    device()->signalOperation()->killProcess(QnxAbstractRunSupport::executable());
 }
 
 void QnxDebugSupport::handleProgressReport(const QString &progressOutput)
@@ -160,4 +185,17 @@ void QnxDebugSupport::handleError(const QString &error)
         if (m_engine)
             m_engine->notifyEngineRemoteSetupFailed(tr("Initial setup failed: %1").arg(error));
     }
+}
+
+void QnxDebugSupport::printMissingWarning()
+{
+    if (m_engine)
+        m_engine->showMessage(tr("Warning: \"slog2info\" is not found on the device, debug output not available!"), Debugger::AppError);
+}
+
+void QnxDebugSupport::handleApplicationOutput(const QString &msg, Utils::OutputFormat outputFormat)
+{
+    Q_UNUSED(outputFormat);
+    if (m_engine)
+        m_engine->showMessage(msg, Debugger::AppOutput);
 }

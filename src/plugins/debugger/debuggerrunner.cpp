@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -40,11 +40,7 @@
 #include "debuggerstringutils.h"
 #include "debuggertooltipmanager.h"
 #include "breakhandler.h"
-
-#ifdef Q_OS_WIN
-#  include "peutils.h"
-#  include <utils/winutils.h>
-#endif
+#include "shared/peutils.h"
 
 #include <projectexplorer/localapplicationrunconfiguration.h> // For LocalApplication*
 #include <projectexplorer/environmentaspect.h> // For the environment
@@ -54,11 +50,12 @@
 #include <projectexplorer/target.h>
 #include <projectexplorer/taskhub.h>
 
+#include <utils/checkablemessagebox.h>
+#include <utils/fileutils.h>
 #include <utils/qtcassert.h>
 #include <utils/qtcprocess.h>
 #include <coreplugin/icore.h>
 
-#include <QErrorMessage>
 #include <QTcpServer>
 
 using namespace Debugger::Internal;
@@ -72,11 +69,9 @@ namespace Internal {
 
 DebuggerEngine *createCdbEngine(const DebuggerStartParameters &sp, QString *error);
 DebuggerEngine *createGdbEngine(const DebuggerStartParameters &sp);
-DebuggerEngine *createScriptEngine(const DebuggerStartParameters &sp);
 DebuggerEngine *createPdbEngine(const DebuggerStartParameters &sp);
 DebuggerEngine *createQmlEngine(const DebuggerStartParameters &sp);
 DebuggerEngine *createQmlCppEngine(const DebuggerStartParameters &sp, QString *error);
-DebuggerEngine *createLldbLibEngine(const DebuggerStartParameters &sp);
 DebuggerEngine *createLldbEngine(const DebuggerStartParameters &sp);
 
 static const char *engineTypeName(DebuggerEngineType et)
@@ -86,8 +81,6 @@ static const char *engineTypeName(DebuggerEngineType et)
         break;
     case Debugger::GdbEngineType:
         return "Gdb engine";
-    case Debugger::ScriptEngineType:
-        return "Script engine";
     case Debugger::CdbEngineType:
         return "Cdb engine";
     case Debugger::PdbEngineType:
@@ -96,8 +89,6 @@ static const char *engineTypeName(DebuggerEngineType et)
         return "QML engine";
     case Debugger::QmlCppEngineType:
         return "QML C++ engine";
-    case Debugger::LldbLibEngineType:
-        return "LLDB binary engine";
     case Debugger::LldbEngineType:
         return "LLDB command line engine";
     case Debugger::AllEngineTypes:
@@ -148,7 +139,7 @@ DebuggerRunControl::DebuggerRunControl(RunConfiguration *runConfiguration,
     d->m_engine = DebuggerRunControlFactory::createEngine(sp.masterEngineType, sp, &errorMessage);
 
     if (d->m_engine) {
-        DebuggerToolTipManager::instance()->registerEngine(d->m_engine);
+        DebuggerToolTipManager::registerEngine(d->m_engine);
     } else {
         debuggingFinished();
         Core::ICore::showWarningWithOptions(DebuggerRunControl::tr("Debugger"), errorMessage);
@@ -195,28 +186,35 @@ void DebuggerRunControl::start()
     // User canceled input dialog asking for executable when working on library project.
     if (d->m_engine->startParameters().startMode == StartInternal
         && d->m_engine->startParameters().executable.isEmpty()) {
-        appendMessage(tr("No executable specified.\n"), ErrorMessageFormat);
+        appendMessage(tr("No executable specified.") + QLatin1Char('\n'), ErrorMessageFormat);
         emit started();
         emit finished();
         return;
     }
 
     if (d->m_engine->startParameters().startMode == StartInternal) {
+        QStringList unhandledIds;
         foreach (const BreakpointModelId &id, debuggerCore()->breakHandler()->allBreakpointIds()) {
             if (d->m_engine->breakHandler()->breakpointData(id).enabled
-                    && !d->m_engine->acceptsBreakpoint(id)) {
+                    && !d->m_engine->acceptsBreakpoint(id))
+                unhandledIds.append(id.toString());
+        }
+        if (!unhandledIds.isEmpty()) {
+            QString warningMessage =
+                    DebuggerPlugin::tr("Some breakpoints cannot be handled by the debugger "
+                                       "languages currently active, and will be ignored.\n"
+                                       "Affected are breakpoints %1")
+                    .arg(unhandledIds.join(QLatin1String(", ")));
 
-                QString warningMessage =
-                        DebuggerPlugin::tr("Some breakpoints cannot be handled by the debugger "
-                                           "languages currently active, and will be ignored.");
+            debuggerCore()->showMessage(warningMessage, LogWarning);
 
-                debuggerCore()->showMessage(warningMessage, LogWarning);
-
-                QErrorMessage *msgBox = new QErrorMessage(debuggerCore()->mainWindow());
-                msgBox->setAttribute(Qt::WA_DeleteOnClose);
-                msgBox->showMessage(warningMessage);
-                break;
-            }
+            static bool checked = true;
+            if (checked)
+                CheckableMessageBox::information(Core::ICore::mainWindow(),
+                                                 tr("Debugger"),
+                                                 warningMessage,
+                                                 tr("&Show this message again."),
+                                                 &checked, QDialogButtonBox::Ok);
         }
     }
 
@@ -230,12 +228,12 @@ void DebuggerRunControl::start()
     d->m_engine->startDebugger(this);
 
     if (d->m_running)
-        appendMessage(tr("Debugging starts\n"), NormalMessageFormat);
+        appendMessage(tr("Debugging starts") + QLatin1Char('\n'), NormalMessageFormat);
 }
 
 void DebuggerRunControl::startFailed()
 {
-    appendMessage(tr("Debugging has failed\n"), NormalMessageFormat);
+    appendMessage(tr("Debugging has failed") + QLatin1Char('\n'), NormalMessageFormat);
     d->m_running = false;
     emit finished();
     d->m_engine->handleStartFailed();
@@ -243,7 +241,7 @@ void DebuggerRunControl::startFailed()
 
 void DebuggerRunControl::handleFinished()
 {
-    appendMessage(tr("Debugging has finished\n"), NormalMessageFormat);
+    appendMessage(tr("Debugging has finished") + QLatin1Char('\n'), NormalMessageFormat);
     if (d->m_engine)
         d->m_engine->handleFinished();
     debuggerCore()->runControlFinished(d->m_engine);
@@ -338,16 +336,13 @@ static DebuggerStartParameters localStartParameters(RunConfiguration *runConfigu
         return sp;
 
     Target *target = runConfiguration->target();
-    Kit *kit = target ? target->kit() : KitManager::instance()->defaultKit();
+    Kit *kit = target ? target->kit() : KitManager::defaultKit();
     if (!fillParameters(&sp, kit, errorMessage))
         return sp;
     sp.environment = environment->environment();
-    sp.workingDirectory = rc->workingDirectory();
 
-#if defined(Q_OS_WIN)
-    // Work around QTBUG-17529 (QtDeclarative fails with 'File name case mismatch' ...)
-    sp.workingDirectory = normalizePathName(sp.workingDirectory);
-#endif
+    // Normalize to work around QTBUG-17529 (QtDeclarative fails with 'File name case mismatch'...)
+    sp.workingDirectory = FileUtils::normalizePathName(rc->workingDirectory());
 
     sp.executable = rc->executable();
     if (sp.executable.isEmpty())
@@ -355,14 +350,12 @@ static DebuggerStartParameters localStartParameters(RunConfiguration *runConfigu
 
     sp.processArgs = rc->commandLineArguments();
     sp.useTerminal = rc->runMode() == LocalApplicationRunConfiguration::Console;
-    sp.dumperLibrary = rc->dumperLibrary();
-    sp.dumperLibraryLocations = rc->dumperLibraryLocations();
 
     if (target) {
         if (const Project *project = target->project()) {
             sp.projectSourceDirectory = project->projectDirectory();
             if (const BuildConfiguration *buildConfig = target->activeBuildConfiguration())
-                sp.projectBuildDirectory = buildConfig->buildDirectory();
+                sp.projectBuildDirectory = buildConfig->buildDirectory().toString();
             sp.projectSourceFiles = project->files(Project::ExcludeGeneratedFiles);
         }
     }
@@ -383,7 +376,7 @@ static DebuggerStartParameters localStartParameters(RunConfiguration *runConfigu
                 || server.listen(QHostAddress::LocalHostIPv6);
         if (!canListen) {
             if (errorMessage)
-                *errorMessage = DebuggerPlugin::tr("Not enough free ports for QML debugging. ");
+                *errorMessage = DebuggerPlugin::tr("Not enough free ports for QML debugging.") + QLatin1Char(' ');
             return sp;
         }
         sp.qmlServerAddress = server.serverAddress().toString();
@@ -400,11 +393,6 @@ static DebuggerStartParameters localStartParameters(RunConfiguration *runConfigu
     }
 
     sp.startMode = StartInternal;
-
-    // FIXME: If it's not yet build this will be empty and not filled
-    // when rebuild as the runConfiguration is not stored and therefore
-    // cannot be used to retrieve the dumper location.
-    //qDebug() << "DUMPER: " << sp.dumperLibrary << sp.dumperLibraryLocations;
     sp.displayName = rc->displayName();
 
     return sp;
@@ -427,11 +415,6 @@ static bool fixupEngineTypes(DebuggerStartParameters &sp, RunConfiguration *rc, 
 {
     if (sp.masterEngineType != NoEngineType)
         return true;
-
-    if (sp.executable.endsWith(_(".js"))) {
-        sp.masterEngineType = ScriptEngineType;
-        return true;
-    }
 
     if (sp.executable.endsWith(_(".py"))) {
         sp.masterEngineType = PdbEngineType;
@@ -466,10 +449,8 @@ static bool fixupEngineTypes(DebuggerStartParameters &sp, RunConfiguration *rc, 
 DebuggerRunControl *DebuggerRunControlFactory::doCreate
     (const DebuggerStartParameters &sp0, RunConfiguration *rc, QString *errorMessage)
 {
-    TaskHub *th = ProjectExplorerPlugin::instance()->taskHub();
-    th->clearTasks(Debugger::Constants::TASK_CATEGORY_DEBUGGER_DEBUGINFO);
-    th->clearTasks(Debugger::Constants::TASK_CATEGORY_DEBUGGER_TEST);
-    th->clearTasks(Debugger::Constants::TASK_CATEGORY_DEBUGGER_RUNTIME);
+    TaskHub::clearTasks(Debugger::Constants::TASK_CATEGORY_DEBUGGER_DEBUGINFO);
+    TaskHub::clearTasks(Debugger::Constants::TASK_CATEGORY_DEBUGGER_RUNTIME);
 
     DebuggerStartParameters sp = sp0;
     if (!debuggerCore()->boolSetting(AutoEnrichParameters)) {
@@ -518,8 +499,6 @@ DebuggerEngine *DebuggerRunControlFactory::createEngine(DebuggerEngineType et,
     switch (et) {
     case GdbEngineType:
         return createGdbEngine(sp);
-    case ScriptEngineType:
-        return createScriptEngine(sp);
     case CdbEngineType:
         return createCdbEngine(sp, errorMessage);
     case PdbEngineType:
@@ -528,8 +507,6 @@ DebuggerEngine *DebuggerRunControlFactory::createEngine(DebuggerEngineType et,
         return createQmlEngine(sp);
     case LldbEngineType:
         return createLldbEngine(sp);
-    case LldbLibEngineType:
-        return createLldbLibEngine(sp);
     case QmlCppEngineType:
         return createQmlCppEngine(sp, errorMessage);
     default:

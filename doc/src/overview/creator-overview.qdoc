@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (c) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (c) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator
@@ -23,7 +23,7 @@
 // **********************************************************************
 
 /*!
-    \contentspage index.html
+    \contentspage {Qt Creator Manual}
     \previouspage creator-getting-started.html
     \page creator-overview.html
     \nextpage creator-quick-tour.html
@@ -59,8 +59,7 @@
 
                 \QC provides two integrated visual editors, \QMLD and \QD.
                 To create intuitive, modern-looking, fluid user interfaces, you
-                can use \l{http://qt-project.org/doc/qt-5.0/qtquick/qtquick-index.html}
-                {Qt Quick}.
+                can use \l{Qt Quick}.
                 If you need a traditional user interface that is clearly
                 structured and enforces a platform look and feel, you can use
                 the integrated \QD. For more information, see
@@ -106,12 +105,14 @@
                 Qt Quick applications.
 
                 For more information, see \l{Debugging and Analyzing}.
-            \li \b {\l{Publishing}}
+            \li \b {Publishing}
 
                 \QC allows you to create installation packages for mobile
                 devices that are suitable for publishing to application stores
-                and other channels. For more information, see
-                \l{Publishing}.
-    \endtable
+                and other channels. You must make sure that the package contents
+                meet the requirements for publishing on the channel.
+
+                For more information, see \l{Publishing to Google Play}.
+\endtable
 
 */

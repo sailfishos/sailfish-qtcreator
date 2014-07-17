@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -61,6 +61,7 @@ using namespace Bookmarks;
 using namespace Bookmarks::Internal;
 using namespace ProjectExplorer;
 using namespace Core;
+using namespace Utils;
 
 BookmarkDelegate::BookmarkDelegate(QObject *parent)
     : QStyledItemDelegate(parent), m_normalPixmap(0), m_selectedPixmap(0)
@@ -219,6 +220,8 @@ BookmarkView::BookmarkView(QWidget *parent)  :
 
     connect(this, SIGNAL(clicked(QModelIndex)),
             this, SLOT(gotoBookmark(QModelIndex)));
+    connect(this, SIGNAL(activated(QModelIndex)),
+            this, SLOT(gotoBookmark(QModelIndex)));
 
     ICore::addContextObject(m_bookmarkContext);
 
@@ -280,21 +283,24 @@ void BookmarkView::removeBookmark(const QModelIndex& index)
     m_manager->removeBookmark(bm);
 }
 
+void BookmarkView::keyPressEvent(QKeyEvent *event)
+{
+    if (event->key() == Qt::Key_Delete) {
+        removeBookmark(currentIndex());
+        event->accept();
+        return;
+    }
+    QListView::keyPressEvent(event);
+}
+
 void BookmarkView::removeAll()
 {
-    const QString key = QLatin1String("Bookmarks.DontAskAgain");
-    QSettings *settings = ICore::settings();
-    bool checked = settings->value(key).toBool();
-    if (!checked) {
-        if (Utils::CheckableMessageBox::question(this,
-                tr("Remove All Bookmarks"),
-                tr("Are you sure you want to remove all bookmarks from all files in the current session?"),
-                tr("Do not &ask again."),
-                &checked, QDialogButtonBox::Yes | QDialogButtonBox::No, QDialogButtonBox::No)
-                    != QDialogButtonBox::Yes)
-            return;
-        settings->setValue(key, checked);
-    }
+    if (Utils::CheckableMessageBox::doNotAskAgainQuestion(this,
+            tr("Remove All Bookmarks"),
+            tr("Are you sure you want to remove all bookmarks from all files in the current session?"),
+            ICore::settings(),
+            QLatin1String("RemoveAllBookmarks")) != QDialogButtonBox::Yes)
+        return;
 
     // The performance of this function could be greatly improved.
     while (m_manager->rowCount()) {
@@ -343,7 +349,7 @@ BookmarkManager::BookmarkManager() :
     connect(Core::ICore::instance(), SIGNAL(contextChanged(QList<Core::IContext*>,Core::Context)),
             this, SLOT(updateActionStatus()));
 
-    connect(ProjectExplorerPlugin::instance()->session(), SIGNAL(sessionLoaded(QString)),
+    connect(SessionManager::instance(), SIGNAL(sessionLoaded(QString)),
             this, SLOT(loadBookmarks()));
 
     updateActionStatus();
@@ -426,7 +432,7 @@ void BookmarkManager::toggleBookmark()
     if (!editor)
         return;
 
-    toggleBookmark(editor->document()->fileName(), editor->currentLine());
+    toggleBookmark(editor->document()->filePath(), editor->currentLine());
 }
 
 void BookmarkManager::toggleBookmark(const QString &fileName, int lineNumber)
@@ -545,7 +551,7 @@ void BookmarkManager::documentPrevNext(bool next)
 {
     TextEditor::ITextEditor *editor = currentTextEditor();
     int editorLine = editor->currentLine();
-    QFileInfo fi(editor->document()->fileName());
+    QFileInfo fi(editor->document()->filePath());
     if (!m_bookmarksMap.contains(fi.path()))
         return;
 
@@ -567,8 +573,7 @@ void BookmarkManager::documentPrevNext(bool next)
             nextLine = markLine;
     }
 
-    Core::EditorManager *em = Core::EditorManager::instance();
-    em->addCurrentPositionToNavigationHistory();
+    EditorManager::addCurrentPositionToNavigationHistory();
     if (next) {
         if (nextLine == -1)
             editor->gotoLine(firstLine);
@@ -634,12 +639,6 @@ TextEditor::ITextEditor *BookmarkManager::currentTextEditor() const
     return qobject_cast<TextEditor::ITextEditor *>(currEditor);
 }
 
-/* Returns the current session. */
-SessionManager *BookmarkManager::sessionManager() const
-{
-    return ProjectExplorerPlugin::instance()->session();
-}
-
 BookmarkManager::State BookmarkManager::state() const
 {
     if (m_bookmarksMap.empty())
@@ -649,7 +648,7 @@ BookmarkManager::State BookmarkManager::state() const
     if (!editor)
         return HasBookMarks;
 
-    const QFileInfo fi(editor->document()->fileName());
+    const QFileInfo fi(editor->document()->filePath());
 
     const DirectoryFileBookmarksMap::const_iterator dit = m_bookmarksMap.constFind(fi.path());
     if (dit == m_bookmarksMap.constEnd())
@@ -815,7 +814,7 @@ void BookmarkManager::saveBookmarks()
     foreach (const Bookmark *bookmark, m_bookmarksList)
             list << bookmarkToString(bookmark);
 
-    sessionManager()->setValue(QLatin1String("Bookmarks"), list);
+    SessionManager::setValue(QLatin1String("Bookmarks"), list);
 }
 
 void BookmarkManager::operateTooltip(TextEditor::ITextEditor *textEditor, const QPoint &pos, Bookmark *mark)
@@ -824,16 +823,16 @@ void BookmarkManager::operateTooltip(TextEditor::ITextEditor *textEditor, const 
         return;
 
     if (mark->note().isEmpty())
-        Utils::ToolTip::instance()->hide();
+        ToolTip::hide();
     else
-        Utils::ToolTip::instance()->show(pos, Utils::TextContent(mark->note()), textEditor->widget());
+        ToolTip::show(pos, TextContent(mark->note()), textEditor->widget());
 }
 
 /* Loads the bookmarks from the session settings. */
 void BookmarkManager::loadBookmarks()
 {
     removeAllBookmarks();
-    const QStringList &list = sessionManager()->value(QLatin1String("Bookmarks")).toStringList();
+    const QStringList &list = SessionManager::value(QLatin1String("Bookmarks")).toStringList();
     foreach (const QString &bookmarkString, list)
         addBookmark(bookmarkString);
 
@@ -845,14 +844,14 @@ void BookmarkManager::handleBookmarkRequest(TextEditor::ITextEditor *textEditor,
                                             TextEditor::ITextEditor::MarkRequestKind kind)
 {
     if (kind == TextEditor::ITextEditor::BookmarkRequest && textEditor->document())
-        toggleBookmark(textEditor->document()->fileName(), line);
+        toggleBookmark(textEditor->document()->filePath(), line);
 }
 
 void BookmarkManager::handleBookmarkTooltipRequest(TextEditor::ITextEditor *textEditor, const QPoint &pos,
                                             int line)
 {
     if (textEditor->document()) {
-        const QFileInfo fi(textEditor->document()->fileName());
+        const QFileInfo fi(textEditor->document()->filePath());
         Bookmark *mark = findBookmark(fi.path(), fi.fileName(), line);
         operateTooltip(textEditor, pos, mark);
     }
@@ -877,7 +876,7 @@ int BookmarkViewFactory::priority() const
 
 Id BookmarkViewFactory::id() const
 {
-    return Id("Bookmarks");
+    return "Bookmarks";
 }
 
 QKeySequence BookmarkViewFactory::activationSequence() const

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -33,8 +33,9 @@
 #include "debugginghelperbuildtask.h"
 #include <coreplugin/dialogs/ioptionspage.h>
 
-#include <QWidget>
 #include <QIcon>
+#include <QPointer>
+#include <QWidget>
 
 QT_BEGIN_NAMESPACE
 class QTreeWidgetItem;
@@ -42,9 +43,7 @@ class QTextBrowser;
 class QUrl;
 QT_END_NAMESPACE
 
-namespace ProjectExplorer {
-class ToolChain;
-}
+namespace ProjectExplorer { class ToolChain; }
 
 namespace QtSupport {
 
@@ -63,12 +62,11 @@ class QtOptionsPageWidget : public QWidget
     Q_OBJECT
 
 public:
-    QtOptionsPageWidget(QWidget *parent);
+    QtOptionsPageWidget(QWidget *parent = 0);
     ~QtOptionsPageWidget();
     QList<BaseQtVersion *> versions() const;
     void finish();
     void apply();
-    QString searchKeywords() const;
 
 private:
     void updateDescriptionLabel();
@@ -106,10 +104,7 @@ private slots:
     void updateCurrentQtName();
     void buildDebuggingHelper(DebuggingHelperBuildTask::Tools tools
                               = DebuggingHelperBuildTask::AllTools);
-    void buildGdbHelper();
     void buildQmlDump();
-    void buildQmlDebuggingLibrary();
-    void buildQmlObserver();
     void slotShowDebuggingBuildLog();
     void debuggingHelperBuildFinished(int qtVersionId, const QString &output,
                                       DebuggingHelperBuildTask::Tools tools);
@@ -143,14 +138,12 @@ class QtOptionsPage : public Core::IOptionsPage
 public:
     QtOptionsPage();
 
-    QWidget *createPage(QWidget *parent);
+    QWidget *widget();
     void apply();
-    void finish() {}
-    bool matches(const QString &) const;
+    void finish();
 
 private:
-    QtOptionsPageWidget *m_widget;
-    QString m_searchKeywords;
+    QPointer<QtOptionsPageWidget> m_widget;
 };
 
 } //namespace Internal

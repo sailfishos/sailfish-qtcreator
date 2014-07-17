@@ -1,6 +1,6 @@
 #############################################################################
 ##
-## Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+## Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ## Contact: http://www.qt-project.org/legal
 ##
 ## This file is part of Qt Creator.
@@ -33,11 +33,8 @@ def main():
     startApplication("qtcreator" + SettingsPath)
     if not startedWithoutPluginError():
         return
-    targets = Targets.desktopTargetClasses()
-    if not checkDebuggingLibrary(Targets.intToArray(targets)):
-        test.fatal("Error while checking debugging libraries - leaving this test.")
-        invokeMenuItem("File", "Exit")
-        return
+    # Requires Qt 4.8
+    targets = Targets.desktopTargetClasses() ^ Targets.DESKTOP_474_GCC
     # using a temporary directory won't mess up a potentially existing
     workingDir = tempDir()
     checkedTargets, projectName = createNewQtQuickApplication(workingDir, targets=targets)
@@ -51,32 +48,31 @@ def main():
                            'onTriggered: console.log("Break here")'])
         invokeMenuItem("File", "Save All")
         filesAndLines = [
-                        { "%s.QML.qml/%s.main\\.qml" % (projectName,projectName) : 'onTriggered.*' },
+                        { "%s.Resources.qml\.qrc./.main\\.qml" % projectName : 'onTriggered.*' },
                         { "%s.Sources.main\\.cpp" % projectName : "viewer.setOrientation\\(.+\\);" }
                         ]
         test.log("Setting breakpoints")
         result = setBreakpointsForCurrentProject(filesAndLines)
         if result:
             expectedBreakpointsOrder = [{os.path.join(workingDir, projectName, "main.cpp"):10},
-                                        {os.path.join(workingDir, projectName, "qml", projectName, "main.qml"):13}]
+                                        {os.path.join(workingDir, projectName, "main.qml"):10}]
             # Only use 4.7.4 to work around QTBUG-25187
             availableConfigs = iterateBuildConfigs(len(checkedTargets), "Debug")
+            progressBarWait()
             if not availableConfigs:
                 test.fatal("Haven't found a suitable Qt version (need Qt 4.7.4) - leaving without debugging.")
             for kit, config in availableConfigs:
                 test.log("Selecting '%s' as build config" % config)
-                selectBuildConfig(len(checkedTargets), kit, config)
-                verifyBuildConfig(len(checkedTargets), kit, True, enableQmlDebug=True)
+                verifyBuildConfig(len(checkedTargets), kit, config, True, enableQmlDebug=True)
                 # explicitly build before start debugging for adding the executable as allowed program to WinFW
                 invokeMenuItem("Build", "Rebuild All")
-                waitForSignal("{type='ProjectExplorer::BuildManager' unnamed='1'}",
-                              "buildQueueFinished(bool)", 300000)
+                waitForCompile(300000)
                 if not checkCompile():
                     test.fatal("Compile had errors... Skipping current build config")
                     continue
                 allowAppThroughWinFW(workingDir, projectName, False)
                 if not doSimpleDebugging(len(checkedTargets), kit, config,
-                                         2, expectedBreakpointsOrder):
+                                         len(expectedBreakpointsOrder), expectedBreakpointsOrder):
                     try:
                         stopB = findObject(':Qt Creator.Stop_QToolButton')
                         if stopB.enabled:
@@ -88,6 +84,12 @@ def main():
                 ensureChecked(":Qt Creator_AppOutput_Core::Internal::OutputPaneToggleButton")
                 clickButton(waitForObject("{type='CloseButton' unnamed='1' visible='1' "
                                           "window=':Qt Creator_Core::Internal::MainWindow'}"))
+                if platform.system() == 'Darwin' and JIRA.isBugStillOpen(11595):
+                    try:
+                        expectedBreakpointsOrder.remove({os.path.join(workingDir, projectName, "main.cpp"):10})
+                        test.warning("Removed cpp file after first run. (QTCREATORBUG-11595)")
+                    except:
+                        pass
         else:
             test.fatal("Setting breakpoints failed - leaving without testing.")
     invokeMenuItem("File", "Exit")

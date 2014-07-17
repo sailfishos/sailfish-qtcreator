@@ -3,7 +3,14 @@ QTC_PLUGIN_DEPENDS += \
     coreplugin \
     debugger \
     projectexplorer \
-    qt4projectmanager \
+    qmakeprojectmanager \
     qtsupport \
     texteditor \
     analyzerbase
+
+QTC_LIB_DEPENDS += \
+    aggregation \
+    extensionsystem \
+    qmldebug \
+    ssh \
+    utils

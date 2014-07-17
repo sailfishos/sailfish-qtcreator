@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -29,19 +29,21 @@
 
 #include "designdocument.h"
 #include "designdocumentview.h"
+#include "documentmanager.h"
 
 #include <metainfo.h>
 #include <qmlobjectnode.h>
 #include <rewritingexception.h>
 #include <nodelistproperty.h>
 #include <variantproperty.h>
-#include <modelnodeoperations.h>
 #include <qmldesignerplugin.h>
 #include <viewmanager.h>
+#include <nodeinstanceview.h>
 
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/target.h>
+#include <projectexplorer/session.h>
 #include <qtsupport/qtkitinformation.h>
 #include <qtsupport/qtsupportconstants.h>
 #include <qtsupport/qtversionmanager.h>
@@ -50,7 +52,6 @@
 #include <QUrl>
 #include <QDebug>
 
-#include <QMessageBox>
 #include <QPlainTextEdit>
 #include <QApplication>
 
@@ -70,8 +71,6 @@ namespace QmlDesigner {
 DesignDocument::DesignDocument(QObject *parent) :
         QObject(parent),
         m_documentModel(Model::create("QtQuick.Item", 1, 0)),
-        m_inFileComponentModel(Model::create("QtQuick.Item", 1, 0)),
-        m_currentModel(m_documentModel.data()),
         m_subComponentManager(new SubComponentManager(m_documentModel.data(), this)),
         m_rewriterView (new RewriterView(RewriterView::Amend, m_documentModel.data())),
         m_documentLoaded(false),
@@ -85,7 +84,10 @@ DesignDocument::~DesignDocument()
 
 Model *DesignDocument::currentModel() const
 {
-    return m_currentModel.data();
+    if (m_inFileComponentModel)
+        return m_inFileComponentModel.data();
+
+    return m_documentModel.data();
 }
 
 Model *DesignDocument::documentModel() const
@@ -100,7 +102,7 @@ QWidget *DesignDocument::centralWidget() const
 
 QString DesignDocument::pathToQt() const
 {
-    QtSupport::BaseQtVersion *activeQtVersion = QtSupport::QtVersionManager::instance()->version(m_qtVersionId);
+    QtSupport::BaseQtVersion *activeQtVersion = QtSupport::QtVersionManager::version(m_qtVersionId);
     if (activeQtVersion && (activeQtVersion->qtVersion() >= QtSupport::QtVersionNumber(4, 7, 1))
             && (activeQtVersion->type() == QLatin1String(QtSupport::Constants::DESKTOPQT)
                 || activeQtVersion->type() == QLatin1String(QtSupport::Constants::SIMULATORQT)))
@@ -153,18 +155,23 @@ bool DesignDocument::loadInFileComponent(const ModelNode &componentNode)
 
     if (!componentNode.isRootNode()) {
         //change to subcomponent model
-
-        m_inFileComponentTextModifier.reset(createComponentTextModifier(m_documentTextModifier.data(), rewriterView(), componentText, componentNode));
-
-        changeToInFileComponentModel();
+        changeToInFileComponentModel(createComponentTextModifier(m_documentTextModifier.data(), rewriterView(), componentText, componentNode));
     }
 
     return true;
 }
 
-QmlModelView *DesignDocument::qmlModelView()
+AbstractView *DesignDocument::view()
 {
-    return viewManager().qmlModelView();
+    return viewManager().nodeInstanceView();
+}
+
+Model* DesignDocument::createInFileComponentModel()
+{
+    Model *model = Model::create("QtQuick.Item", 1, 0);
+    model->setFileUrl(m_documentModel->fileUrl());
+
+    return model;
 }
 
 /*!
@@ -177,7 +184,7 @@ QList<RewriterView::Error> DesignDocument::qmlSyntaxErrors() const
 
 bool DesignDocument::hasQmlSyntaxErrors() const
 {
-    return m_currentModel->rewriterView() && !m_currentModel->rewriterView()->errors().isEmpty();
+    return currentModel()->rewriterView() && !currentModel()->rewriterView()->errors().isEmpty();
 }
 
 QString DesignDocument::displayName() const
@@ -187,11 +194,10 @@ QString DesignDocument::displayName() const
 
 QString DesignDocument::simplfiedDisplayName() const
 {
-    if (rootModelNode().id().isEmpty()) {
+    if (rootModelNode().id().isEmpty())
         return rootModelNode().id();
-    } else {
+    else
         return rootModelNode().simplifiedTypeName();
-    }
 
     QStringList list = displayName().split(QLatin1Char('/'));
     return list.last();
@@ -212,7 +218,7 @@ void DesignDocument::updateFileName(const QString & /*oldFileName*/, const QStri
 
 QString DesignDocument::fileName() const
 {
-    return editor()->document()->fileName();
+    return editor()->document()->filePath();
 }
 
 int DesignDocument::qtVersionId() const
@@ -227,8 +233,7 @@ bool DesignDocument::isDocumentLoaded() const
 
 void DesignDocument::resetToDocumentModel()
 {
-    m_currentModel = m_documentModel.data();
-    m_rewriterView->setTextModifier(m_documentTextModifier.data());
+    m_inFileComponentModel.reset();
 }
 
 void DesignDocument::loadDocument(QPlainTextEdit *edit)
@@ -243,14 +248,13 @@ void DesignDocument::loadDocument(QPlainTextEdit *edit)
             this, SIGNAL(dirtyStateChanged(bool)));
 
     m_documentTextModifier.reset(new BaseTextEditModifier(dynamic_cast<TextEditor::BaseTextEditorWidget*>(plainTextEdit())));
+    m_documentModel->setTextModifier(m_documentTextModifier.data());
 
     m_inFileComponentTextModifier.reset();
 
-    //masterModel = Model::create(textModifier, searchPath, errors);
-
     updateFileName(QString(), fileName());
 
-    m_subComponentManager->update(QUrl::fromLocalFile(fileName()), m_currentModel->imports());
+    m_subComponentManager->update(QUrl::fromLocalFile(fileName()), currentModel()->imports());
 
     m_documentLoaded = true;
 }
@@ -260,95 +264,68 @@ void DesignDocument::changeToDocumentModel()
     viewManager().detachRewriterView();
     viewManager().detachViewsExceptRewriterAndComponetView();
 
-    m_currentModel = m_documentModel.data();
 
-    viewManager().attachRewriterView(m_documentTextModifier.data());
+    m_inFileComponentModel.reset();
+
+    viewManager().attachRewriterView();
     viewManager().attachViewsExceptRewriterAndComponetView();
 }
 
-void DesignDocument::changeToInFileComponentModel()
+void DesignDocument::changeToInFileComponentModel(ComponentTextModifier *textModifer)
 {
+    m_inFileComponentTextModifier.reset(textModifer);
     viewManager().detachRewriterView();
     viewManager().detachViewsExceptRewriterAndComponetView();
 
-    m_currentModel = m_inFileComponentModel.data();
+    m_inFileComponentModel.reset(createInFileComponentModel());
+    m_inFileComponentModel->setTextModifier(m_inFileComponentTextModifier.data());
 
-    viewManager().attachRewriterView(m_inFileComponentTextModifier.data());
+    viewManager().attachRewriterView();
     viewManager().attachViewsExceptRewriterAndComponetView();
-}
-
-void DesignDocument::changeToSubComponentAndPushOnCrumblePath(const ModelNode &componentNode)
-{
-    if (QmlDesignerPlugin::instance()->currentDesignDocument() != this)
-        return;
-
-    changeToSubComponent(componentNode);
-
-    QmlDesignerPlugin::instance()->viewManager().pushInFileComponentOnCrambleBar(componentNode.id());
 }
 
 void DesignDocument::changeToSubComponent(const ModelNode &componentNode)
 {
-    Q_ASSERT(m_documentModel);
-    QWeakPointer<Model> oldModel = m_currentModel;
-    Q_ASSERT(oldModel.data());
+    if (QmlDesignerPlugin::instance()->currentDesignDocument() != this)
+        return;
 
-    if (m_currentModel.data() == m_inFileComponentModel.data())
+    if (m_inFileComponentModel)
         changeToDocumentModel();
 
     bool subComponentLoaded = loadInFileComponent(componentNode);
 
     if (subComponentLoaded)
-        activateCurrentModel(m_inFileComponentTextModifier.data());
+        attachRewriterToModel();
 
-    if (!componentNode.id().isEmpty())
-        QmlDesignerPlugin::instance()->viewManager().pushInFileComponentOnCrambleBar(componentNode.id());
+    QmlDesignerPlugin::instance()->viewManager().pushInFileComponentOnCrumbleBar(componentNode);
+    QmlDesignerPlugin::instance()->viewManager().setComponentNode(componentNode);
 }
 
-void DesignDocument::changeToExternalSubComponent(const QString &fileName)
+void DesignDocument::changeToMaster()
 {
-    Core::EditorManager::openEditor(fileName, Core::Id(), Core::EditorManager::DoNotMakeVisible);
-}
-
-void DesignDocument::goIntoSelectedComponent()
-{
-    if (!m_currentModel)
+    if (QmlDesignerPlugin::instance()->currentDesignDocument() != this)
         return;
 
-    QList<ModelNode> selectedNodes;
-    if (rewriterView())
-        selectedNodes = qmlModelView()->selectedModelNodes();
+    if (m_inFileComponentModel)
+        changeToDocumentModel();
 
-    if (selectedNodes.count() == 1) {
-        viewManager().setComponentNode(selectedNodes.first());
-        ModelNodeOperations::goIntoComponent(selectedNodes.first());
-    }
+    QmlDesignerPlugin::instance()->viewManager().pushFileOnCrumbleBar(fileName());
+    QmlDesignerPlugin::instance()->viewManager().setComponentNode(rootModelNode());
 }
 
-void DesignDocument::activateCurrentModel(TextModifier *textModifier)
+void DesignDocument::attachRewriterToModel()
 {
     QApplication::setOverrideCursor(QCursor(Qt::WaitCursor));
-
     Q_ASSERT(m_documentModel);
-    Q_ASSERT(m_currentModel);
 
-    if (!plainTextEdit()->parent()) // hack to prevent changing owner of external text edit
-        m_stackedWidget->addWidget(plainTextEdit());
-
-    viewManager().attachRewriterView(textModifier);
+    viewManager().attachRewriterView();
 
     Q_ASSERT(m_documentModel);
     QApplication::restoreOverrideCursor();
 }
 
-void DesignDocument::activateDocumentModel()
-{
-    activateCurrentModel(m_documentTextModifier.data());
-}
-
 bool DesignDocument::isUndoAvailable() const
 {
-
     if (plainTextEdit())
         return plainTextEdit()->document()->isUndoAvailable();
     return false;
@@ -370,24 +347,24 @@ void DesignDocument::close()
 void DesignDocument::updateSubcomponentManager()
 {
     Q_ASSERT(m_subComponentManager);
-    m_subComponentManager->update(QUrl::fromLocalFile(fileName()), m_currentModel->imports());
+    m_subComponentManager->update(QUrl::fromLocalFile(fileName()), currentModel()->imports());
 }
 
 void DesignDocument::deleteSelected()
 {
-    if (!m_currentModel)
+    if (!currentModel())
         return;
 
     try {
-        RewriterTransaction transaction(rewriterView());
-        QList<ModelNode> toDelete = qmlModelView()->selectedModelNodes();
+        RewriterTransaction transaction(rewriterView(), QByteArrayLiteral("DesignDocument::deleteSelected"));
+        QList<ModelNode> toDelete = view()->selectedModelNodes();
         foreach (ModelNode node, toDelete) {
-            if (node.isValid() && !node.isRootNode() && QmlObjectNode(node).isValid())
+            if (node.isValid() && !node.isRootNode() && QmlObjectNode::isValidQmlObjectNode(node))
                 QmlObjectNode(node).destroy();
         }
 
     } catch (RewritingException &e) {
-        QMessageBox::warning(0, tr("Error"), e.description());
+        e.showException();
     }
 }
 
@@ -401,7 +378,7 @@ void DesignDocument::copySelected()
 
     DesignDocumentView view;
 
-    m_currentModel->attachView(&view);
+    currentModel()->attachView(&view);
 
     if (view.selectedModelNodes().isEmpty())
         return;
@@ -421,7 +398,7 @@ void DesignDocument::copySelected()
         if (!selectedNode.isValid())
             return;
 
-        m_currentModel->detachView(&view);
+        currentModel()->detachView(&view);
 
         copyModel->attachView(&view);
         view.replaceModel(selectedNode);
@@ -431,7 +408,7 @@ void DesignDocument::copySelected()
 
         view.toClipboard();
     } else { //multi items selected
-        m_currentModel->detachView(&view);
+        currentModel()->detachView(&view);
         copyModel->attachView(&view);
 
         foreach (ModelNode node, view.rootModelNode().allDirectSubModelNodes()) {
@@ -474,15 +451,15 @@ static void scatterItem(ModelNode pastedNode, const ModelNode targetNode, int of
         double targetHeight = 20;
         x = x + double(qrand()) / RAND_MAX * targetWidth - targetWidth / 2;
         y = y + double(qrand()) / RAND_MAX * targetHeight - targetHeight / 2;
-        pastedNode.variantProperty("x") = int(x);
-        pastedNode.variantProperty("y") = int(y);
+        pastedNode.variantProperty("x").setValue(int(x));
+        pastedNode.variantProperty("y").setValue(int(y));
     } else {
         double x = pastedNode.variantProperty("x").value().toDouble();
         double y = pastedNode.variantProperty("y").value().toDouble();
         x = x + offset;
         y = y + offset;
-        pastedNode.variantProperty("x") = int(x);
-        pastedNode.variantProperty("y") = int(y);
+        pastedNode.variantProperty("x").setValue(int(x));
+        pastedNode.variantProperty("y").setValue(int(y));
     }
 }
 
@@ -510,7 +487,7 @@ void DesignDocument::paste()
     if (rootNode.id() == "designer__Selection") {
         QList<ModelNode> selectedNodes = rootNode.allDirectSubModelNodes();
         pasteModel->detachView(&view);
-        m_currentModel->attachView(&view);
+        currentModel()->attachView(&view);
 
         ModelNode targetNode;
 
@@ -518,7 +495,7 @@ void DesignDocument::paste()
             targetNode = view.selectedModelNodes().first();
 
         //In case we copy and paste a selection we paste in the parent item
-        if ((view.selectedModelNodes().count() == selectedNodes.count()) && targetNode.isValid() && targetNode.parentProperty().isValid())
+        if ((view.selectedModelNodes().count() == selectedNodes.count()) && targetNode.isValid() && targetNode.hasParentProperty())
             targetNode = targetNode.parentProperty().parentModelNode();
 
         if (!targetNode.isValid())
@@ -534,7 +511,7 @@ void DesignDocument::paste()
         QList<ModelNode> pastedNodeList;
 
         try {
-            RewriterTransaction transaction(rewriterView());
+            RewriterTransaction transaction(rewriterView(), QByteArrayLiteral("DesignDocument::paste1"));
 
             int offset = double(qrand()) / RAND_MAX * 20 - 10;
 
@@ -552,10 +529,10 @@ void DesignDocument::paste()
         }
     } else {
         try {
-            RewriterTransaction transaction(rewriterView());
+            RewriterTransaction transaction(rewriterView(), QByteArrayLiteral("DesignDocument::paste2"));
 
             pasteModel->detachView(&view);
-            m_currentModel->attachView(&view);
+            currentModel()->attachView(&view);
             ModelNode pastedNode(view.insertModel(rootNode));
             ModelNode targetNode;
 
@@ -565,7 +542,7 @@ void DesignDocument::paste()
             if (!targetNode.isValid())
                 targetNode = view.rootModelNode();
 
-            if (targetNode.parentProperty().isValid() &&
+            if (targetNode.hasParentProperty() &&
                 (pastedNode.simplifiedTypeName() == targetNode.simplifiedTypeName()) &&
                 (pastedNode.variantProperty("width").value() == targetNode.variantProperty("width").value()) &&
                 (pastedNode.variantProperty("height").value() == targetNode.variantProperty("height").value()))
@@ -575,8 +552,11 @@ void DesignDocument::paste()
             PropertyName defaultProperty(targetNode.metaInfo().defaultPropertyName());
 
             scatterItem(pastedNode, targetNode);
-            if (targetNode.nodeListProperty(defaultProperty).isValid())
+            if (targetNode.metaInfo().propertyIsListProperty(defaultProperty)) {
                 targetNode.nodeListProperty(defaultProperty).reparentHere(pastedNode);
+            } else {
+                qWarning() << "Cannot reparent to" << targetNode;
+            }
 
             transaction.commit();
             NodeMetaInfo::clearCache();
@@ -590,11 +570,11 @@ void DesignDocument::paste()
 
 void DesignDocument::selectAll()
 {
-    if (!m_currentModel)
+    if (!currentModel())
         return;
 
     DesignDocumentView view;
-    m_currentModel->attachView(&view);
+    currentModel()->attachView(&view);
 
 
     QList<ModelNode> allNodesExceptRootNode(view.allModelNodes());
@@ -611,7 +591,7 @@ void DesignDocument::setEditor(Core::IEditor *editor)
 {
     m_textEditor = editor;
     connect(editor->document(),
-            SIGNAL(fileNameChanged(QString,QString)),
+            SIGNAL(filePathChanged(QString,QString)),
             SLOT(updateFileName(QString,QString)));
 
     updateActiveQtVersion();
@@ -659,9 +639,8 @@ void DesignDocument::redo()
 static bool isFileInProject(DesignDocument *designDocument, ProjectExplorer::Project *project)
 {
     foreach (const QString &fileNameInProject, project->files(ProjectExplorer::Project::ExcludeGeneratedFiles)) {
-        if (designDocument->fileName() == fileNameInProject) {
+        if (designDocument->fileName() == fileNameInProject)
             return true;
-        }
     }
 
     return false;
@@ -671,6 +650,9 @@ static inline QtSupport::BaseQtVersion *getActiveQtVersion(DesignDocument *desig
 {
     ProjectExplorer::ProjectExplorerPlugin *projectExplorer = ProjectExplorer::ProjectExplorerPlugin::instance();
     ProjectExplorer::Project *currentProject = projectExplorer->currentProject();
+
+    if (!currentProject)
+        currentProject = ProjectExplorer::SessionManager::projectForFile(designDocument->fileName());
 
     if (!currentProject)
         return 0;
@@ -713,7 +695,7 @@ void DesignDocument::updateActiveQtVersion()
 QString DesignDocument::contextHelpId() const
 {
     DesignDocumentView view;
-    m_currentModel->attachView(&view);
+    currentModel()->attachView(&view);
 
     QList<ModelNode> nodes = view.selectedModelNodes();
     QString helpId;

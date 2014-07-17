@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 BogDan Vatra <bog_dan_ro@yahoo.com>
+** Copyright (c) 2014 BogDan Vatra <bog_dan_ro@yahoo.com>
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -65,6 +65,14 @@ const char ANDROID_DEVICE_ID[] = "Android Device";
 const char ANDROID_MANIFEST_MIME_TYPE[] = "application/vnd.google.android.android_manifest";
 const char ANDROID_MANIFEST_EDITOR_ID[] = "Android.AndroidManifestEditor.Id";
 const char ANDROID_MANIFEST_EDITOR_CONTEXT[] = "Android.AndroidManifestEditor.Id";
+
+const char ANDROID_BUILDDIRECTORY[] = "android-build";
+const char JAVA_EDITOR_ID[] = "java.editor";
+const char C_JAVA_EDITOR[] = "Java Editor";
+const char JAVA_MIMETYPE[] = "text/x-java";
+const char WIZARD_JAVA[] = "Wizard.Java";
+const char JAVA_WIZARD_CATEGORY[] = "U.Java";
+const char JAVA_DISPLAY_CATEGORY[] = "Java";
 } // namespace Constants;
 } // namespace Android
 

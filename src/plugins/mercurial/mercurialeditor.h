@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Brian McGillion
+** Copyright (c) 2014 Brian McGillion
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -46,7 +46,7 @@ public:
 private:
     QSet<QString> annotationChanges() const;
     QString changeUnderCursor(const QTextCursor &cursor) const;
-    VcsBase::BaseAnnotationHighlighter *createAnnotationHighlighter(const QSet<QString> &changes, const QColor &bg) const;
+    VcsBase::BaseAnnotationHighlighter *createAnnotationHighlighter(const QSet<QString> &changes) const;
     QString decorateVersion(const QString &revision) const;
     QStringList annotationPreviousVersions(const QString &revision) const;
 

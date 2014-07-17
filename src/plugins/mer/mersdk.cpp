@@ -400,11 +400,11 @@ bool MerSdk::addTarget(const MerTarget &target)
     if (!kit)
         return false;
 
-    ProjectExplorer::ToolChainManager::instance()->registerToolChain(toolchain.data());
-    QtSupport::QtVersionManager::instance()->addVersion(version.data());
+    ProjectExplorer::ToolChainManager::registerToolChain(toolchain.data());
+    QtSupport::QtVersionManager::addVersion(version.data());
     QtSupport::QtKitInformation::setQtVersion(kit, version.data());
     ProjectExplorer::ToolChainKitInformation::setToolChain(kit, toolchain.data());
-    ProjectExplorer::KitManager::instance()->registerKit(kit);
+    ProjectExplorer::KitManager::registerKit(kit);
     toolchain.take();
     version.take();
     return true;
@@ -415,7 +415,7 @@ bool MerSdk::removeTarget(const MerTarget &target)
     if (MerSdkManager::verbose)
         qDebug() << "Uninstalling" << target.name() << "for" << virtualMachineName();
     //delete kit
-    foreach (ProjectExplorer::Kit *kit, ProjectExplorer::KitManager::instance()->kits()) {
+    foreach (ProjectExplorer::Kit *kit, ProjectExplorer::KitManager::kits()) {
         if (!kit->isAutoDetected())
             continue;
         ProjectExplorer::ToolChain* tc = ProjectExplorer::ToolChainKitInformation::toolChain(kit);
@@ -426,10 +426,10 @@ bool MerSdk::removeTarget(const MerTarget &target)
             MerToolChain *mertoolchain = static_cast<MerToolChain*>(tc);
             if (mertoolchain->virtualMachineName() == m_name && mertoolchain->targetName() == target.name()) {
                  QtSupport::BaseQtVersion *v = QtSupport::QtKitInformation::qtVersion(kit);
-                 ProjectExplorer::KitManager::instance()->deregisterKit(kit);
-                 ProjectExplorer::ToolChainManager::instance()->deregisterToolChain(tc);
+                 ProjectExplorer::KitManager::deregisterKit(kit);
+                 ProjectExplorer::ToolChainManager::deregisterToolChain(tc);
                  QTC_ASSERT(v && v->type() == QLatin1String(Constants::MER_QT), continue); //serious bug
-                 QtSupport::QtVersionManager::instance()->removeVersion(v);
+                 QtSupport::QtVersionManager::removeVersion(v);
                  target.deleteScripts();
                  return true;
             }

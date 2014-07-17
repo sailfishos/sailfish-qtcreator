@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -32,32 +32,16 @@
 
 #include "ssh_global.h"
 
-#include <QScopedPointer>
-
 namespace QSsh {
+
 class SshConnection;
 class SshConnectionParameters;
-namespace Internal { class SshConnectionManagerPrivate; }
 
-class QSSH_EXPORT SshConnectionManager
-{
-    friend class Internal::SshConnectionManagerPrivate;
-public:
-    static SshConnectionManager &instance();
+QSSH_EXPORT SshConnection *acquireConnection(const SshConnectionParameters &sshParams);
+QSSH_EXPORT void releaseConnection(SshConnection *connection);
 
-    SshConnection *acquireConnection(const SshConnectionParameters &sshParams);
-    void releaseConnection(SshConnection *connection);
-    // Make sure the next acquireConnection with the given parameters will return a new connection.
-    void forceNewConnection(const SshConnectionParameters &sshParams);
-
-private:
-    explicit SshConnectionManager();
-    virtual ~SshConnectionManager();
-    SshConnectionManager(const SshConnectionManager &);
-    SshConnectionManager &operator=(const SshConnectionManager &);
-
-    const QScopedPointer<Internal::SshConnectionManagerPrivate> d;
-};
+// Make sure the next acquireConnection with the given parameters will return a new connection.
+QSSH_EXPORT void forceNewConnection(const SshConnectionParameters &sshParams);
 
 } // namespace QSsh
 

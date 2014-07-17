@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -46,10 +46,10 @@ using namespace QmlJS;
 
     Example: Pass in the AST for "1 + 2" and NumberValue will be returned.
 
-    In normal cases only the call operator (or the equivalent value() method)
+    In normal cases only the call operator (or the equivalent value() function)
     will be used.
 
-    The reference() method has the special behavior of not resolving \l{Reference}s
+    The reference() function has the special behavior of not resolving \l{Reference}s
     which can be useful when interested in the identity of a variable instead
     of its value.
 
@@ -125,7 +125,17 @@ bool Evaluate::visit(AST::UiProgram *)
     return false;
 }
 
-bool Evaluate::visit(AST::UiImportList *)
+bool Evaluate::visit(AST::UiHeaderItemList *)
+{
+    return false;
+}
+
+bool Evaluate::visit(AST::UiQualifiedPragmaId *)
+{
+    return false;
+}
+
+bool Evaluate::visit(AST::UiPragma *)
 {
     return false;
 }
@@ -281,7 +291,17 @@ bool Evaluate::visit(AST::Elision *)
     return false;
 }
 
-bool Evaluate::visit(AST::PropertyNameAndValueList *)
+bool Evaluate::visit(AST::PropertyAssignmentList *)
+{
+    return false;
+}
+
+bool Evaluate::visit(AST::PropertyGetterSetter *)
+{
+    return false;
+}
+
+bool Evaluate::visit(AST::PropertyNameAndValue *)
 {
     return false;
 }

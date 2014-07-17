@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -45,7 +45,7 @@ class TEXTEDITOR_EXPORT IGenericProposalModel : public IAssistProposalModel
 {
 public:
     IGenericProposalModel();
-    virtual ~IGenericProposalModel();
+    ~IGenericProposalModel();
 
     virtual QIcon icon(int index) const = 0;
     virtual QString detail(int index) const = 0;
@@ -53,7 +53,7 @@ public:
     virtual void removeDuplicates() = 0;
     virtual void filter(const QString &prefix) = 0;
     virtual bool isSortable(const QString &prefix) const = 0;
-    virtual void sort() = 0;
+    virtual void sort(const QString &prefix) = 0;
     virtual bool supportsPrefixExpansion() const = 0;
     virtual QString proposalPrefix() const = 0;
     virtual bool keepPerfectMatch(AssistReason reason) const = 0;

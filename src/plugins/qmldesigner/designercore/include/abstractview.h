@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -55,9 +55,9 @@ namespace QmlDesigner {
 
 namespace QmlDesigner {
 
-class QmlModelView;
 class NodeInstanceView;
 class RewriterView;
+class QmlModelState;
 
 class WidgetInfo {
 
@@ -132,7 +132,7 @@ public:
     Model* model() const;
     bool isAttached() const;
 
-    RewriterTransaction beginRewriterTransaction();
+    RewriterTransaction beginRewriterTransaction(const QByteArray &identifier);
 
     ModelNode createModelNode(const TypeName &typeName,
                          int majorVersion,
@@ -146,16 +146,23 @@ public:
     ModelNode rootModelNode();
 
     void setSelectedModelNodes(const QList<ModelNode> &selectedNodeList);
+    void setSelectedModelNode(const ModelNode &modelNode);
     void selectModelNode(const ModelNode &node);
     void deselectModelNode(const ModelNode &node);
     void clearSelectedModelNodes();
+    bool hasSelectedModelNodes() const;
+    bool hasSingleSelectedModelNode() const;
+    bool isSelectedModelNode(const ModelNode &modelNode) const;
 
     QList<ModelNode> selectedModelNodes() const;
+    ModelNode firstSelectedModelNode() const;
+    ModelNode singleSelectedModelNode() const;
 
     ModelNode modelNodeForId(const QString &id);
     bool hasId(const QString &id) const;
+    QString generateNewId(const QString prefixName) const;
 
-    ModelNode modelNodeForInternalId(qint32 internalId);
+    ModelNode modelNodeForInternalId(qint32 internalId) const;
     bool hasModelNodeForInternalId(qint32 internalId) const;
 
     QList<ModelNode> allModelNodes() const;
@@ -205,7 +212,7 @@ public:
     virtual void rewriterBeginTransaction() = 0;
     virtual void rewriterEndTransaction() = 0;
 
-    virtual void actualStateChanged(const ModelNode &node) = 0; // base state is a invalid model node
+    virtual void currentStateChanged(const ModelNode &node) = 0; // base state is a invalid model node
 
     virtual void selectedNodesChanged(const QList<ModelNode> &selectedNodeList,
                                       const QList<ModelNode> &lastSelectedNodeList) = 0;
@@ -222,15 +229,17 @@ public:
 
     virtual void scriptFunctionsChanged(const ModelNode &node, const QStringList &scriptFunctionList) = 0;
 
-    QmlModelView *toQmlModelView();
 
     void changeRootNodeType(const TypeName &type, int majorVersion, int minorVersion);
 
     NodeInstanceView *nodeInstanceView() const;
     RewriterView *rewriterView() const;
 
-    void setAcutalStateNode(const ModelNode &node);
-    ModelNode actualStateNode() const;
+    void setCurrentStateNode(const ModelNode &node);
+    ModelNode currentStateNode() const;
+    QmlModelState currentState() const;
+
+    int majorQtQuickVersion() const;
 
     void resetView();
 

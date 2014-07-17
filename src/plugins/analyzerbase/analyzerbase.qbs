@@ -1,15 +1,17 @@
-import qbs.base 1.0
+import qbs 1.0
 
-import "../QtcPlugin.qbs" as QtcPlugin
+import QtcPlugin
 
 QtcPlugin {
     name: "AnalyzerBase"
 
     Depends { name: "Qt.widgets" }
+    Depends { name: "Utils" }
+    Depends { name: "QtcSsh" }
+
     Depends { name: "Core" }
     Depends { name: "CppTools" }
     Depends { name: "ProjectExplorer" }
-    Depends { name: "QtcSsh" }
     Depends { name: "TextEditor" }
 
     files: [
@@ -18,21 +20,15 @@ QtcPlugin {
         "analyzerconstants.h",
         "analyzermanager.cpp",
         "analyzermanager.h",
-        "analyzeroptionspage.cpp",
-        "analyzeroptionspage.h",
         "analyzerplugin.cpp",
         "analyzerplugin.h",
         "analyzerrunconfigwidget.cpp",
         "analyzerrunconfigwidget.h",
         "analyzerruncontrol.cpp",
         "analyzerruncontrol.h",
-        "analyzersettings.cpp",
-        "analyzersettings.h",
         "analyzerstartparameters.h",
         "analyzerutils.cpp",
         "analyzerutils.h",
-        "ianalyzerengine.cpp",
-        "ianalyzerengine.h",
         "ianalyzertool.cpp",
         "ianalyzertool.h",
         "startremotedialog.cpp",

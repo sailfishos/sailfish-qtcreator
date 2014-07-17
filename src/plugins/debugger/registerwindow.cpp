@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -230,9 +230,9 @@ void RegisterTreeView::contextMenuEvent(QContextMenuEvent *ev)
     const QPoint position = ev->globalPos();
     QAction *act = menu.exec(position);
 
-    if (act == actReload)
+    if (act == actReload) {
         engine->reloadRegisters();
-    else if (act == actEditMemory) {
+    } else if (act == actEditMemory) {
         const QString registerName = QString::fromLatin1(aRegister.name);
         engine->openMemoryView(address, 0,
             RegisterMemoryView::registerMarkup(address, registerName),

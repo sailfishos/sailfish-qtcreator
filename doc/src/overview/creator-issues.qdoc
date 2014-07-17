@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (c) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (c) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator
@@ -23,7 +23,7 @@
 // **********************************************************************
 
 /*!
-    \contentspage index.html
+    \contentspage {Qt Creator Manual}
     \previouspage creator-tips.html
     \page creator-known-issues.html
     \nextpage creator-glossary.html
@@ -103,10 +103,6 @@
             underscores, and hyphens.
 
         \li  Creating new CMake projects with \QC is not supported.
-
-        \li  On Windows, you must create projects for Maemo 5 and Harmattan
-            device types on the same partition where you installed Qt 4 SDK, \QC, and
-            MADDE.
 
         \li  If error messages displayed in the \gui {Compile Output} pane contain
             paths where slashes are missing (for example, C:QtSDK),

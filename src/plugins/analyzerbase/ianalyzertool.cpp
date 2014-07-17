@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 ** Author: Nicolas Arnaud-Cormos, KDAB (nicolas.arnaud-cormos@kdab.com)
 **
@@ -30,52 +30,14 @@
 
 #include "ianalyzertool.h"
 
-using namespace Core;
-
 namespace Analyzer {
 
 IAnalyzerTool::IAnalyzerTool(QObject *parent)
     : QObject(parent)
 {}
 
-Id IAnalyzerTool::defaultMenuGroup(StartMode mode)
-{
-    if (mode == StartRemote)
-        return Id(Constants::G_ANALYZER_REMOTE_TOOLS);
-    return Id(Constants::G_ANALYZER_TOOLS);
-}
-
-Id IAnalyzerTool::defaultActionId(const IAnalyzerTool *tool, StartMode mode)
-{
-    Id id = Id("Analyzer").withSuffix(tool->id().toString());
-    switch (mode) {
-    case StartLocal:
-        return id.withSuffix(".Local");
-    case StartRemote:
-        return id.withSuffix(".Remote");
-    case StartQml:
-    case StartQmlRemote:
-        return id.withSuffix(".Qml");
-    }
-    return Id();
-}
-
-QString IAnalyzerTool::defaultActionName(const IAnalyzerTool *tool, StartMode mode)
-{
-    QString base = tool->displayName();
-    if (mode == StartRemote)
-        return base + tr(" (External)");
-    return base;
-}
-
-AbstractAnalyzerSubConfig *IAnalyzerTool::createGlobalSettings()
-{
-    return 0;
-}
-
-AbstractAnalyzerSubConfig *IAnalyzerTool::createProjectSettings()
-{
-    return 0;
-}
+AnalyzerAction::AnalyzerAction(QObject *parent)
+    : QAction(parent)
+{}
 
 } // namespace Analyzer

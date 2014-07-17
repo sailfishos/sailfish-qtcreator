@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (c) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (c) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator
@@ -18,10 +18,10 @@
 
     /*!
 
-    \contentspage index.html
+    \contentspage {Qt Creator Manual}
     \previouspage creator-developing-bb10.html
     \page creator-developing-generic-linux.html
-    \nextpage creator-developing-maemo.html
+    \nextpage creator-developing-ios.html
 
     \title Connecting Embedded Linux Devices
 
@@ -29,7 +29,7 @@
     debug, and analyze applications on them from \QC.
 
     If you have a tool chain for building applications for embedded Linux
-    devices (with no MADDE support) installed on the development PC, you can add
+    devices installed on the development PC, you can add
     it to \QC. You can then select a \l{glossary-buildandrun-kit}{kit}
     with \gui {Embedded Linux} device type to
     build and run applications on embedded Linux devices.
@@ -76,19 +76,27 @@
 
                 \li In the \gui {The device's host name or IP address} field,
                     enter the host name or IP address of the device.
+                    This value will be available in the variable \c %{CurrentDevice:HostAddress}.
 
                 \li In the \gui {The user name to log into the device} field,
                     enter the user name to log into the device and run the
                     application as.
+                    This value will be available in the variable \c %{CurrentDevice:UserName}.
 
                 \li In the \gui {The authentication type} field, select whether
                     to use \gui Password or \gui Key authentication, and enter
                     the user's password or the file that contains the user's
                     private key.
+                    The latter will be available in the variable \c %{CurrentDevice:PrivateKeyFile}.
 
                 \li  Click \gui {Next} to create the connection.
 
             \endlist
+
+            All of these parameters can be edited later, as well as additional ones that the
+            wizard does not show because there are sensible default values. One of these is
+            the SSH port number, which is available in the variable \c %{CurrentDevice:SshPort}.
+
 
         \li Select \gui Tools > \gui Options > \gui {Build & Run} > \gui Kits
             > \gui Add to add a kit for building for the device. Select the
@@ -115,9 +123,10 @@
 
     When you run the project, \QC deploys the application as specified by the
     deploy steps. By default, \QC copies the application files to the device.
-    For more information, see \l{Deploying Applications to Linux-Based Devices}.
+    For more information, see \l{Deploying Applications to Embedded Linux Devices}.
 
     \endlist
 
+    \include linux-mobile/linuxdev-keys.qdocinc
+    \include linux-mobile/linuxdev-processes.qdocinc
 */
-

@@ -1,6 +1,6 @@
 #############################################################################
 ##
-## Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+## Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ## Contact: http://www.qt-project.org/legal
 ##
 ## This file is part of Qt Creator.
@@ -34,7 +34,8 @@ def addFileToProject(projectPath, category, fileTemplate, fileName):
     nameLineEdit = waitForObject("{name='nameLineEdit' type='Utils::FileNameValidatingLineEdit' "
                                  "visible='1'}")
     replaceEditorContent(nameLineEdit, fileName)
-    test.compare(waitForObject("{type='Utils::BaseValidatingLineEdit' unnamed='1' visible='1'}").text,
+    test.compare(waitForObject("{type='Utils::FancyLineEdit' unnamed='1' visible='1' "
+                               "toolTip?='Full path: *'}").text,
                  projectPath, "Verifying whether path is correct.")
     clickButton(waitForObject(":Next_QPushButton"))
     projCombo = waitForObject("{buddy={name='projectLabel' text='Add to project:' type='QLabel' "
@@ -48,10 +49,6 @@ def main():
     if not startedWithoutPluginError():
         return
     targets = Targets.desktopTargetClasses()
-    if not checkDebuggingLibrary(Targets.intToArray(targets)):
-        test.fatal("Error while checking debugging libraries - leaving this test.")
-        invokeMenuItem("File", "Exit")
-        return
 
     # empty Qt
     workingDir = tempDir()
@@ -78,6 +75,7 @@ def main():
             replaceEditorContent(editor, "")
             typeLines(editor, ["int main() {"])
             invokeMenuItem("File", "Save All")
+            progressBarWait(15000)
             setRunInTerminal(1, 0, False)
             performDebugging(workingDir, projectName, [singleTarget])
             invokeMenuItem("File", "Close All Projects and Editors")
@@ -87,19 +85,19 @@ def __handleAppOutputWaitForDebuggerFinish__():
     ensureChecked(":Qt Creator_AppOutput_Core::Internal::OutputPaneToggleButton")
     appOutput = waitForObject("{type='Core::OutputWindow' visible='1' "
                               "windowTitle='Application Output Window'}")
-    test.verify(waitFor("str(appOutput.plainText).endswith('Debugging has finished')", 20000),
-                "Verifying whether debugging has finished.")
+    if not test.verify(waitFor("str(appOutput.plainText).endswith('Debugging has finished')", 20000),
+                       "Verifying whether debugging has finished."):
+        test.log("Aborting debugging to let test continue.")
+        invokeMenuItem("Debug", "Abort Debugging")
+        waitFor("str(appOutput.plainText).endswith('Debugging has finished')", 5000)
 
 def performDebugging(workingDir, projectName, checkedTargets):
-    # for checking if it's a plain C application (as project names are set to match project type)
-    sampleC = re.compile("SampleC\d{3}")
     for kit, config in iterateBuildConfigs(len(checkedTargets), "Debug"):
         test.log("Selecting '%s' as build config" % config)
-        selectBuildConfig(len(checkedTargets), kit, config)
-        verifyBuildConfig(len(checkedTargets), kit, True)
+        verifyBuildConfig(len(checkedTargets), kit, config, True)
         progressBarWait(10000)
         invokeMenuItem("Build", "Rebuild All")
-        waitForSignal("{type='ProjectExplorer::BuildManager' unnamed='1'}", "buildQueueFinished(bool)")
+        waitForCompile()
         isMsvc = isMsvcConfig(len(checkedTargets), kit)
         allowAppThroughWinFW(workingDir, projectName, False)
         clickButton(waitForObject(":*Qt Creator.Start Debugging_Core::Internal::FancyToolButton"))
@@ -113,10 +111,7 @@ def performDebugging(workingDir, projectName, checkedTargets):
         invokeMenuItem("Debug", "Toggle Breakpoint")
         clickButton(waitForObject(":*Qt Creator.Start Debugging_Core::Internal::FancyToolButton"))
         handleDebuggerWarnings(config, isMsvc)
-        # on Mac the breakpoint won't get hit if it's a C++ based application and the breakpoint is
-        # set to an empty code line inside an empty main
-        if platform.system() != "Darwin" or sampleC.match(projectName):
-            clickButton(waitForObject(":*Qt Creator.Continue_Core::Internal::FancyToolButton"))
+        clickButton(waitForObject(":*Qt Creator.Continue_Core::Internal::FancyToolButton"))
         __handleAppOutputWaitForDebuggerFinish__()
         removeOldBreakpoints()
         deleteAppFromWinFW(workingDir, projectName, False)

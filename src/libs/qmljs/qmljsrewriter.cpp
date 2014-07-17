@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -282,9 +282,8 @@ void Rewriter::changeBinding(UiObjectInitializer *ast,
             }
 
             break;
-        }
         // for grouped properties:
-        else if (!prefix.isEmpty()) {
+        } else if (!prefix.isEmpty()) {
             if (UiObjectDefinition *def = cast<UiObjectDefinition *>(member)) {
                 if (toString(def->qualifiedTypeNameId) == prefix)
                     changeBinding(def->initializer, suffix, newValue, binding);
@@ -384,10 +383,10 @@ void Rewriter::removeBindingByName(UiObjectInitializer *ast, const QString &prop
         UiObjectMember *member = it->member;
 
         // run full name match (for ungrouped properties):
-        if (isMatchingPropertyMember(propertyName, member))
+        if (isMatchingPropertyMember(propertyName, member)) {
             removeMember(member);
         // check for grouped properties:
-        else if (!prefix.isEmpty()) {
+        } else if (!prefix.isEmpty()) {
             if (UiObjectDefinition *def = cast<UiObjectDefinition *>(member)) {
                 if (toString(def->qualifiedTypeNameId) == prefix)
                     removeGroupedProperty(def, propertyName);

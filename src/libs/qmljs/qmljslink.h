@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -48,7 +48,7 @@ class QMLJS_EXPORT Link
     Q_DECLARE_TR_FUNCTIONS(QmlJS::Link)
 
 public:
-    Link(const Snapshot &snapshot, const QStringList &importPaths, const LibraryInfo &builtins);
+    Link(const Snapshot &snapshot, const ViewerContext &vContext, const LibraryInfo &builtins);
 
     // Link all documents in snapshot, collecting all diagnostic messages (if messages != 0)
     ContextPtr operator()(QHash<QString, QList<DiagnosticMessage> > *messages = 0);

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -242,11 +242,10 @@ int LineForNewIncludeDirective::operator()(const QString &newIncludeFileName,
                 if (group.commonIncludeDir() == IncludeGroup::includeDir(pureIncludeFileName))
                     localBestIncludeGroup = group;
             }
-            if (!localBestIncludeGroup.isEmpty()) {
+            if (!localBestIncludeGroup.isEmpty())
                 bestGroup = localBestIncludeGroup;
-            } else {
+            else
                 bestGroup = groupsMixedIncludeDirs.last();
-            }
         }
     }
 
@@ -277,13 +276,11 @@ QList<IncludeGroup> IncludeGroup::detectIncludeGroupsByNewLines(QList<Document::
         if (isFirst) {
             isFirst = false;
             currentIncludes << include;
-        }
         // Include belongs to current group
-        else if (lastLine + 1 == include.line()) {
+        } else if (lastLine + 1 == include.line()) {
             currentIncludes << include;
-        }
         // Include is member of new group
-        else {
+        } else {
             result << IncludeGroup(currentIncludes);
             currentIncludes.clear();
             currentIncludes << include;
@@ -312,13 +309,11 @@ QList<IncludeGroup> IncludeGroup::detectIncludeGroupsByIncludeDir(const QList<In
         if (isFirst) {
             isFirst = false;
             currentIncludes << include;
-        }
         // Include belongs to current group
-        else if (lastDir == currentDirPrefix) {
+        } else if (lastDir == currentDirPrefix) {
             currentIncludes << include;
-        }
         // Include is member of new group
-        else {
+        } else {
             result << IncludeGroup(currentIncludes);
             currentIncludes.clear();
             currentIncludes << include;
@@ -347,13 +342,11 @@ QList<IncludeGroup> IncludeGroup::detectIncludeGroupsByIncludeType(const QList<I
         if (isFirst) {
             isFirst = false;
             currentIncludes << include;
-        }
         // Include belongs to current group
-        else if (lastIncludeType == currentIncludeType) {
+        } else if (lastIncludeType == currentIncludeType) {
             currentIncludes << include;
-        }
         // Include is member of new group
-        else {
+        } else {
             result << IncludeGroup(currentIncludes);
             currentIncludes.clear();
             currentIncludes << include;
@@ -430,7 +423,7 @@ int IncludeGroup::lineForNewInclude(const QString &newIncludeFileName,
         return -1;
 
     if (isSorted()) {
-        const Include newInclude(newIncludeFileName, QString(), -1, newIncludeType);
+        const Include newInclude(newIncludeFileName, QString(), 0, newIncludeType);
         const QList<Include>::const_iterator it = std::lower_bound(m_includes.begin(),
             m_includes.end(), newInclude, includeFileNamelessThen);
         if (it == m_includes.end())

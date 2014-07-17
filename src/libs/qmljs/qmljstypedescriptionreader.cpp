@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -36,13 +36,14 @@
 #include "qmljsinterpreter.h"
 #include "qmljsutils.h"
 
+#include <QDir>
+
 using namespace QmlJS;
 using namespace QmlJS::AST;
 using namespace LanguageUtils;
 
-TypeDescriptionReader::TypeDescriptionReader(const QString &data)
-    : _source(data)
-    , _objects(0)
+TypeDescriptionReader::TypeDescriptionReader(const QString &fileName, const QString &data)
+    : _fileName (fileName), _source(data), _objects(0)
 {
 }
 
@@ -93,12 +94,12 @@ void TypeDescriptionReader::readDocument(UiProgram *ast)
         return;
     }
 
-    if (!ast->imports || ast->imports->next) {
+    if (!ast->headers || ast->headers->next || !AST::cast<AST::UiImport *>(ast->headers->headerItem)) {
         addError(SourceLocation(), tr("Expected a single import."));
         return;
     }
 
-    UiImport *import = ast->imports->import;
+    UiImport *import = AST::cast<AST::UiImport *>(ast->headers->headerItem);
     if (toString(import->importUri) != QLatin1String("QtQuick.tooling")) {
         addError(import->importToken, tr("Expected import of QtQuick.tooling."));
         return;
@@ -111,10 +112,12 @@ void TypeDescriptionReader::readDocument(UiProgram *ast)
         version = ComponentVersion(versionString.left(dotIdx).toInt(),
                                    versionString.mid(dotIdx + 1).toInt());
     }
-    if (version > ComponentVersion(1, 1)) {
-        addError(import->versionToken, tr("Expected version 1.1 or lower."));
+    if (version.majorVersion() != 1) {
+        addError(import->versionToken, tr("Major version different from 1 not supported."));
         return;
     }
+    if (version.minorVersion() > 1)
+        addWarning(import->versionToken, tr("Reading only version 1.1 parts."));
 
     if (!ast->members || !ast->members->member || ast->members->next) {
         addError(SourceLocation(), tr("Expected document to contain a single object definition."));
@@ -160,7 +163,8 @@ void TypeDescriptionReader::readModule(UiObjectDefinition *ast)
 
 void TypeDescriptionReader::addError(const SourceLocation &loc, const QString &message)
 {
-    _errorMessage += QString::fromLatin1("%1:%2: %3\n").arg(
+    _errorMessage += QString::fromLatin1("%1:%2:%3: %4\n").arg(
+                QDir::toNativeSeparators(_fileName),
                 QString::number(loc.startLine),
                 QString::number(loc.startColumn),
                 message);
@@ -168,7 +172,8 @@ void TypeDescriptionReader::addError(const SourceLocation &loc, const QString &m
 
 void TypeDescriptionReader::addWarning(const SourceLocation &loc, const QString &message)
 {
-    _warningMessage += QString::fromLatin1("%1:%2: %3\n").arg(
+    _warningMessage += QString::fromLatin1("%1:%2:%3: %4\n").arg(
+                QDir::toNativeSeparators(_fileName),
                 QString::number(loc.startLine),
                 QString::number(loc.startColumn),
                 message);
@@ -191,7 +196,9 @@ void TypeDescriptionReader::readComponent(UiObjectDefinition *ast)
             else if (name == QLatin1String("Enum"))
                 readEnum(component, fmo);
             else
-                addWarning(component->firstSourceLocation(), tr("Expected only Property, Method, Signal and Enum object definitions."));
+                addWarning(component->firstSourceLocation(),
+                           tr("Expected only Property, Method, Signal and Enum object definitions, not '%1'.")
+                           .arg(name));
         } else if (script) {
             QString name = toString(script->qualifiedId);
             if (name == QLatin1String("name")) {
@@ -206,10 +213,17 @@ void TypeDescriptionReader::readComponent(UiObjectDefinition *ast)
                 readMetaObjectRevisions(script, fmo);
             } else if (name == QLatin1String("attachedType")) {
                 fmo->setAttachedTypeName(readStringBinding(script));
+            } else if (name == QLatin1String("isSingleton")) {
+                fmo->setIsSingleton(readBoolBinding(script));
+            } else if (name == QLatin1String("isCreatable")) {
+                fmo->setIsCreatable(readBoolBinding(script));
+            } else if (name == QLatin1String("isComposite")) {
+                fmo->setIsComposite(readBoolBinding(script));
             } else {
                 addWarning(script->firstSourceLocation(),
                            tr("Expected only name, prototype, defaultProperty, attachedType, exports "
-                              "and exportMetaObjectRevisions script bindings."));
+                              "isSingleton, isCreatable, isComposite and exportMetaObjectRevisions "
+                              "script bindings, not '%1'.").arg(name));
             }
         } else {
             addWarning(member->firstSourceLocation(), tr("Expected only script bindings and object definitions."));
@@ -223,6 +237,7 @@ void TypeDescriptionReader::readComponent(UiObjectDefinition *ast)
 
     // ### add implicit export into the package of c++ types
     fmo->addExport(fmo->className(), QmlJS::CppQmlTypes::cppPackage, ComponentVersion());
+    fmo->updateFingerprint();
     _objects->insert(fmo->className(), fmo);
 }
 
@@ -612,20 +627,27 @@ void TypeDescriptionReader::readEnumValues(AST::UiScriptBinding *ast, LanguageUt
         return;
     }
 
-    for (PropertyNameAndValueList *it = objectLit->properties; it; it = it->next) {
-        StringLiteralPropertyName *propName = dynamic_cast<StringLiteralPropertyName *>(it->name);
-        NumericLiteral *value = dynamic_cast<NumericLiteral *>(it->value);
-        UnaryMinusExpression *minus = dynamic_cast<UnaryMinusExpression *>(it->value);
-        if (minus)
-            value = dynamic_cast<NumericLiteral *>(minus->expression);
-        if (!propName || !value) {
-            addError(objectLit->firstSourceLocation(), tr("Expected object literal to contain only 'string: number' elements."));
+    for (PropertyAssignmentList *it = objectLit->properties; it; it = it->next) {
+        PropertyNameAndValue *assignement = AST::cast<PropertyNameAndValue *>(it->assignment);
+        if (assignement) {
+            StringLiteralPropertyName *propName = dynamic_cast<StringLiteralPropertyName *>(assignement->name);
+            NumericLiteral *value = dynamic_cast<NumericLiteral *>(assignement->value);
+            UnaryMinusExpression *minus = dynamic_cast<UnaryMinusExpression *>(assignement->value);
+            if (minus)
+                value = dynamic_cast<NumericLiteral *>(minus->expression);
+            if (!propName || !value) {
+                addError(objectLit->firstSourceLocation(), tr("Expected object literal to contain only 'string: number' elements."));
+                continue;
+            }
+
+            double v = value->value;
+            if (minus)
+                v = -v;
+            fme->addKey(propName->id.toString(), v);
             continue;
         }
-
-        double v = value->value;
-        if (minus)
-            v = -v;
-        fme->addKey(propName->id.toString(), v);
+        PropertyGetterSetter *getterSetter = AST::cast<PropertyGetterSetter *>(it->assignment);
+        if (getterSetter)
+            addError(objectLit->firstSourceLocation(), tr("Enum should not contain getter and setters, but only 'string: number' elements."));
     }
 }

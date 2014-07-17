@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -27,9 +27,10 @@
 **
 ****************************************************************************/
 
-#include "cpptoolsplugin.h"
 #include "cpppointerdeclarationformatter.h"
 #include "cpptoolsplugin.h"
+#include "cpptoolsplugin.h"
+#include "cpptoolstestcase.h"
 
 #include <texteditor/plaintexteditor.h>
 
@@ -48,11 +49,14 @@ using namespace CppTools;
 using namespace CppTools::Internal;
 
 using Utils::ChangeSet;
-typedef Utils::ChangeSet::Range Range;
 
 Q_DECLARE_METATYPE(Overview)
 
-static QString stripCursor(const QString &source)
+namespace {
+
+typedef Utils::ChangeSet::Range Range;
+
+QString stripCursor(const QString &source)
 {
     QString copy(source);
     const int pos = copy.indexOf(QLatin1Char('@'));
@@ -63,19 +67,16 @@ static QString stripCursor(const QString &source)
     return copy;
 }
 
-struct TestEnvironment
+class PointerDeclarationFormatterTestCase : public CppTools::Tests::TestCase
 {
-    QByteArray source;
-    Snapshot snapshot;
-    CppRefactoringFilePtr cppRefactoringFile;
-    TextEditor::BaseTextEditorWidget *editor;
-    Document::Ptr document;
-    QTextDocument *textDocument;
-    TranslationUnit *translationUnit;
-    Environment env;
-
-    TestEnvironment(const QByteArray &source, Document::ParseMode parseMode)
+public:
+    PointerDeclarationFormatterTestCase(const QByteArray &source,
+                                        const QString &expectedSource,
+                                        Document::ParseMode parseMode,
+                                        PointerDeclarationFormatter::CursorHandling cursorHandling)
     {
+        QVERIFY(succeededSoFar());
+
         // Find cursor position and remove cursor marker '@'
         int cursorPosition = 0;
         QString sourceWithoutCursorMarker = QLatin1String(source);
@@ -87,35 +88,37 @@ struct TestEnvironment
 
         // Write source to temprorary file
         const QString filePath = QDir::tempPath() + QLatin1String("/file.h");
-        document = Document::create(filePath);
-        Utils::FileSaver documentSaver(document->fileName());
-        documentSaver.write(sourceWithoutCursorMarker.toLatin1());
-        documentSaver.finalize();
+        Document::Ptr document = Document::create(filePath);
+        QVERIFY(writeFile(document->fileName(), sourceWithoutCursorMarker.toLatin1()));
 
         // Preprocess source
+        Environment env;
         Preprocessor preprocess(0, &env);
         const QByteArray preprocessedSource = preprocess.run(filePath, sourceWithoutCursorMarker);
 
         document->setUtf8Source(preprocessedSource);
         document->parse(parseMode);
         document->check();
-        translationUnit = document->translationUnit();
-        snapshot.insert(document);
-        editor = new TextEditor::PlainTextEditorWidget(0);
+        AST *ast = document->translationUnit()->ast();
+        QVERIFY(ast);
+
+        // Open file
+        QScopedPointer<TextEditor::BaseTextEditorWidget> editorWidget(
+            new TextEditor::PlainTextEditorWidget);
         QString error;
-        editor->open(&error, document->fileName(), document->fileName());
+        editorWidget->open(&error, document->fileName(), document->fileName());
+        QVERIFY(error.isEmpty());
 
         // Set cursor position
-        QTextCursor cursor = editor->textCursor();
+        QTextCursor cursor = editorWidget->textCursor();
         cursor.movePosition(QTextCursor::NextCharacter, QTextCursor::MoveAnchor, cursorPosition);
-        editor->setTextCursor(cursor);
+        editorWidget->setTextCursor(cursor);
 
-        textDocument = editor->document();
-        cppRefactoringFile = CppRefactoringChanges::file(editor, document);
-    }
+        QTextDocument *textDocument = editorWidget->document();
+        CppRefactoringFilePtr cppRefactoringFile
+            = CppRefactoringChanges::file(editorWidget.data(), document);
 
-    void applyFormatting(AST *ast, PointerDeclarationFormatter::CursorHandling cursorHandling)
-    {
+        // Prepare for formatting
         Overview overview;
         overview.showReturnTypes = true;
         overview.showArgumentNames = true;
@@ -126,23 +129,25 @@ struct TestEnvironment
         ChangeSet change = formatter.format(ast); // ChangeSet may be empty.
 
         // Apply change
-        QTextCursor cursor(textDocument);
-        change.apply(&cursor);
+        QTextCursor changeCursor(textDocument);
+        change.apply(&changeCursor);
+
+        // Compare
+        QCOMPARE(textDocument->toPlainText(), expectedSource);
     }
 };
+
+} // anonymous namespace
 
 void CppToolsPlugin::test_format_pointerdeclaration_in_simpledeclarations()
 {
     QFETCH(QString, source);
     QFETCH(QString, reformattedSource);
 
-    TestEnvironment env(source.toLatin1(), Document::ParseDeclaration);
-    AST *ast = env.translationUnit->ast();
-    QVERIFY(ast);
-
-    env.applyFormatting(ast, PointerDeclarationFormatter::RespectCursor);
-
-    QCOMPARE(env.textDocument->toPlainText(), reformattedSource);
+    PointerDeclarationFormatterTestCase(source.toLatin1(),
+                                        reformattedSource,
+                                        Document::ParseDeclaration,
+                                        PointerDeclarationFormatter::RespectCursor);
 }
 
 void CppToolsPlugin::test_format_pointerdeclaration_in_simpledeclarations_data()
@@ -363,13 +368,10 @@ void CppToolsPlugin::test_format_pointerdeclaration_in_controlflowstatements()
     QFETCH(QString, source);
     QFETCH(QString, reformattedSource);
 
-    TestEnvironment env(source.toLatin1(), Document::ParseStatement);
-    AST *ast = env.translationUnit->ast();
-    QVERIFY(ast);
-
-    env.applyFormatting(ast, PointerDeclarationFormatter::RespectCursor);
-
-    QCOMPARE(env.textDocument->toPlainText(), reformattedSource);
+    PointerDeclarationFormatterTestCase(source.toLatin1(),
+                                        reformattedSource,
+                                        Document::ParseStatement,
+                                        PointerDeclarationFormatter::RespectCursor);
 }
 
 void CppToolsPlugin::test_format_pointerdeclaration_in_controlflowstatements_data()
@@ -441,13 +443,10 @@ void CppToolsPlugin::test_format_pointerdeclaration_multiple_declarators()
     QFETCH(QString, source);
     QFETCH(QString, reformattedSource);
 
-    TestEnvironment env(source.toLatin1(), Document::ParseDeclaration);
-    AST *ast = env.translationUnit->ast();
-    QVERIFY(ast);
-
-    env.applyFormatting(ast, PointerDeclarationFormatter::RespectCursor);
-
-    QCOMPARE(env.textDocument->toPlainText(), reformattedSource);
+    PointerDeclarationFormatterTestCase(source.toLatin1(),
+                                        reformattedSource,
+                                        Document::ParseDeclaration,
+                                        PointerDeclarationFormatter::RespectCursor);
 }
 
 void CppToolsPlugin::test_format_pointerdeclaration_multiple_declarators_data()
@@ -499,13 +498,10 @@ void CppToolsPlugin::test_format_pointerdeclaration_multiple_matches()
     QFETCH(QString, source);
     QFETCH(QString, reformattedSource);
 
-    TestEnvironment env(source.toLatin1(), Document::ParseTranlationUnit);
-    AST *ast = env.translationUnit->ast();
-    QVERIFY(ast);
-
-    env.applyFormatting(ast, PointerDeclarationFormatter::IgnoreCursor);
-
-    QCOMPARE(env.textDocument->toPlainText(), reformattedSource);
+    PointerDeclarationFormatterTestCase(source.toLatin1(),
+                                        reformattedSource,
+                                        Document::ParseTranlationUnit,
+                                        PointerDeclarationFormatter::IgnoreCursor);
 }
 
 void CppToolsPlugin::test_format_pointerdeclaration_multiple_matches_data()
@@ -585,13 +581,10 @@ void CppToolsPlugin::test_format_pointerdeclaration_macros()
     QFETCH(QString, source);
     QFETCH(QString, reformattedSource);
 
-    TestEnvironment env(source.toLatin1(), Document::ParseTranlationUnit);
-    AST *ast = env.translationUnit->ast();
-    QVERIFY(ast);
-
-    env.applyFormatting(ast, PointerDeclarationFormatter::RespectCursor);
-
-    QCOMPARE(env.textDocument->toPlainText(), reformattedSource);
+    PointerDeclarationFormatterTestCase(source.toLatin1(),
+                                        reformattedSource,
+                                        Document::ParseTranlationUnit,
+                                        PointerDeclarationFormatter::RespectCursor);
 }
 
 void CppToolsPlugin::test_format_pointerdeclaration_macros_data()

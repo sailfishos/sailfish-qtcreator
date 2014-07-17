@@ -1,6 +1,6 @@
 #############################################################################
 ##
-## Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+## Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ## Contact: http://www.qt-project.org/legal
 ##
 ## This file is part of Qt Creator.
@@ -44,7 +44,8 @@ def main():
     if not startedWithoutPluginError():
         return
     # open example project
-    openQmakeProject(examplePath)
+    targets = Targets.desktopTargetClasses() ^ Targets.DESKTOP_501_DEFAULT ^ Targets.DESKTOP_521_DEFAULT
+    openQmakeProject(examplePath, targets)
     # create syntax error
     openDocument("propertyanimation.QML.qml.property-animation\\.qml")
     if not appendToLine(waitForObject(":Qt Creator_QmlJSEditor::QmlJSTextEditorWidget"), "Image {", "SyntaxError"):

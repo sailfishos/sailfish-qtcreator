@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -31,6 +31,8 @@
 #include "ldparser.h"
 #include "projectexplorerconstants.h"
 
+#include <utils/qtcassert.h>
+
 using namespace ProjectExplorer;
 
 LinuxIccParser::LinuxIccParser()
@@ -44,16 +46,19 @@ LinuxIccParser::LinuxIccParser()
                            " ((error|warning)( #\\d+)?: )?" // optional type (cap 4) and optional error number // TODO really optional ?
                            "(.*)$"));                       // description (cap 6)
     //m_firstLine.setMinimal(true);
+    QTC_CHECK(m_firstLine.isValid());
 
                                             // Note pattern also matches caret lines
     m_continuationLines.setPattern(QLatin1String("^\\s+"  // At least one whitespace
                                                  "(.*)$"));// description
     m_continuationLines.setMinimal(true);
+    QTC_CHECK(m_continuationLines.isValid());
 
     m_caretLine.setPattern(QLatin1String("^\\s*"          // Whitespaces
                                          "\\^"            // a caret
                                          "\\s*$"));       // and again whitespaces
     m_caretLine.setMinimal(true);
+    QTC_CHECK(m_caretLine.isValid());
 
     appendOutputParser(new LdParser);
 }
@@ -62,15 +67,16 @@ void LinuxIccParser::stdError(const QString &line)
 {
     if (m_expectFirstLine  && m_firstLine.indexIn(line) != -1) {
         // Clear out old task
-        m_temporary = ProjectExplorer::Task(Task::Unknown, m_firstLine.cap(6).trimmed(),
-                                            Utils::FileName::fromUserInput(m_firstLine.cap(1)),
-                                            m_firstLine.cap(2).toInt(),
-                                            Core::Id(Constants::TASK_CATEGORY_COMPILE));
+        Task::TaskType type = Task::Unknown;
         QString category = m_firstLine.cap(4);
         if (category == QLatin1String("error"))
-            m_temporary.type = Task::Error;
+            type = Task::Error;
         else if (category == QLatin1String("warning"))
-            m_temporary.type = Task::Warning;
+            type = Task::Warning;
+        m_temporary = ProjectExplorer::Task(type, m_firstLine.cap(6).trimmed(),
+                                            Utils::FileName::fromUserInput(m_firstLine.cap(1)),
+                                            m_firstLine.cap(2).toInt(),
+                                            Constants::TASK_CATEGORY_COMPILE);
 
         m_expectFirstLine = false;
     } else if (!m_expectFirstLine && m_caretLine.indexIn(line) != -1) {
@@ -147,7 +153,7 @@ void ProjectExplorerPlugin::testLinuxIccOutputParsers_data()
                 << Task(Task::Error,
                         QLatin1String("identifier \"f\" is undefined\nf(0);"),
                         Utils::FileName::fromUserInput(QLatin1String("main.cpp")), 13,
-                        Core::Id(Constants::TASK_CATEGORY_COMPILE)))
+                        Constants::TASK_CATEGORY_COMPILE))
             << QString();
 
     QTest::newRow("private function")
@@ -161,7 +167,7 @@ void ProjectExplorerPlugin::testLinuxIccOutputParsers_data()
                 << Task(Task::Error,
                         QLatin1String("function \"AClass::privatefunc\" (declared at line 4 of \"main.h\") is inaccessible\nb.privatefunc();"),
                         Utils::FileName::fromUserInput(QLatin1String("main.cpp")), 53,
-                        Core::Id(Constants::TASK_CATEGORY_COMPILE)))
+                        Constants::TASK_CATEGORY_COMPILE))
             << QString();
 
     QTest::newRow("simple warning")
@@ -175,7 +181,7 @@ void ProjectExplorerPlugin::testLinuxIccOutputParsers_data()
                 << Task(Task::Warning,
                         QLatin1String("use of \"=\" where \"==\" may have been intended\nwhile (a = true)"),
                         Utils::FileName::fromUserInput(QLatin1String("main.cpp")), 41,
-                        Core::Id(Constants::TASK_CATEGORY_COMPILE)))
+                        Constants::TASK_CATEGORY_COMPILE))
             << QString();
 }
 

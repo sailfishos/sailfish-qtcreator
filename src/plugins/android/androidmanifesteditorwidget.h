@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -35,9 +35,11 @@
 
 #include <QAbstractListModel>
 #include <QStackedWidget>
+#include <QScrollArea>
 #include <QTimer>
 
 QT_BEGIN_NAMESPACE
+class QCheckBox;
 class QDomDocument;
 class QDomElement;
 class QComboBox;
@@ -47,15 +49,16 @@ class QLineEdit;
 class QListView;
 class QSpinBox;
 class QToolButton;
+class QXmlStreamReader;
+class QXmlStreamWriter;
 QT_END_NAMESPACE
 
 namespace Core { class IEditor; }
 
-namespace TextEditor { class TextEditorActionHandler; }
-
 namespace Android {
 namespace Internal {
 class AndroidManifestEditor;
+class AndroidManifestEditorWidget;
 
 
 class PermissionsModel: public QAbstractListModel
@@ -77,16 +80,24 @@ private:
     QStringList m_permissions;
 };
 
-class AndroidManifestEditorWidget : public TextEditor::PlainTextEditorWidget
+class AndroidManifestTextEditorWidget : public TextEditor::PlainTextEditorWidget
+{
+public:
+    AndroidManifestTextEditorWidget(AndroidManifestEditorWidget *parent = 0);
+protected:
+    AndroidManifestEditorWidget *m_parent;
+};
+
+class AndroidManifestEditorWidget : public QScrollArea
 {
     Q_OBJECT
 public:
     enum EditorPage {
-        General,
-        Source
+        General = 0,
+        Source = 1
     };
 
-    explicit AndroidManifestEditorWidget(QWidget *parent, TextEditor::TextEditorActionHandler *ah);
+    explicit AndroidManifestEditorWidget();
 
     bool open(QString *errorString, const QString &fileName, const QString &realFileName);
 
@@ -97,17 +108,22 @@ public:
 
     void preSave();
 
+    Core::IEditor *editor() const;
+    TextEditor::PlainTextEditorWidget *textEditorWidget() const;
+
 public slots:
     void setDirty(bool dirty = true);
 
-protected:
-    TextEditor::BaseTextEditor *createEditor();
-    void resizeEvent(QResizeEvent *event);
+signals:
+    void guiChanged();
 
+protected:
+    bool eventFilter(QObject *obj, QEvent *event);
 private slots:
     void setLDPIIcon();
     void setMDPIIcon();
     void setHDPIIcon();
+    void defaultPermissionCheckBoxClicked();
     void addPermission();
     void removePermission();
     void updateAddRemovePermissionButtons();
@@ -115,6 +131,7 @@ private slots:
     void setPackageName();
     void gotoError();
     void updateInfoBar();
+    void updateSdkVersions();
     void startParseCheck();
     void delayedParseCheck();
 private:
@@ -124,7 +141,6 @@ private:
     void syncToEditor();
 
     bool checkDocument(QDomDocument doc, QString *errorMessage, int *errorLine, int *errorColumn);
-    bool setAndroidAppLibName(QDomDocument document, QDomElement activity, const QString &name);
     enum IconDPI { LowDPI, MediumDPI, HighDPI };
     QIcon icon(const QString &baseDir, IconDPI dpi);
     QString iconPath(const QString &baseDir, IconDPI dpi);
@@ -132,10 +148,21 @@ private:
 
     void updateInfoBar(const QString &errorMessage, int line, int column);
     void hideInfoBar();
+    Q_SLOT void updateTargetComboBox();
+
+    void parseManifest(QXmlStreamReader &reader, QXmlStreamWriter &writer);
+    void parseApplication(QXmlStreamReader &reader, QXmlStreamWriter &writer);
+    void parseActivity(QXmlStreamReader &reader, QXmlStreamWriter &writer);
+    bool parseMetaData(QXmlStreamReader &reader, QXmlStreamWriter &writer);
+    void parseUsesSdk(QXmlStreamReader &reader, QXmlStreamWriter &writer);
+    QString parseUsesPermission(QXmlStreamReader &reader, QXmlStreamWriter &writer, const QSet<QString> permissions);
+    QString parseComment(QXmlStreamReader &reader, QXmlStreamWriter &writer);
+    void parseUnknownElement(QXmlStreamReader &reader, QXmlStreamWriter &writer);
 
     bool m_dirty; // indicates that we need to call syncToEditor()
     bool m_stayClean;
     bool m_setAppName;
+    bool m_appNameInStringsXml;
     int m_errorLine;
     int m_errorColumn;
 
@@ -144,10 +171,12 @@ private:
     QLabel *m_packageNameWarning;
     QSpinBox *m_versionCode;
     QLineEdit *m_versionNameLinedit;
+    QComboBox *m_androidMinSdkVersion;
+    QComboBox *m_androidTargetSdkVersion;
 
     // Application
     QLineEdit *m_appNameLineEdit;
-    QLineEdit *m_targetLineEdit;
+    QComboBox *m_targetLineEdit;
     QToolButton *m_lIconButton;
     QToolButton *m_mIconButton;
     QToolButton *m_hIconButton;
@@ -156,15 +185,17 @@ private:
     QString m_hIconPath;
 
     // Permissions
+    QCheckBox *m_defaultPermissonsCheckBox;
     PermissionsModel *m_permissionsModel;
     QListView *m_permissionsListView;
     QPushButton *m_addPermissionButton;
     QPushButton *m_removePermissionButton;
     QComboBox *m_permissionsComboBox;
 
-    TextEditor::TextEditorActionHandler *m_ah;
-    QWidget *m_overlayWidget;
     QTimer m_timerParseCheck;
+    TextEditor::PlainTextEditorWidget *m_textEditorWidget;
+    QStackedWidget *m_stackedWidget;
+    AndroidManifestEditor *m_editor;
 };
 } // namespace Internal
 } // namespace Android

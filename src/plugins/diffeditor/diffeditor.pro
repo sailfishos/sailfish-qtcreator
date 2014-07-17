@@ -2,23 +2,27 @@ DEFINES += DIFFEDITOR_LIBRARY
 include(../../qtcreatorplugin.pri)
 
 HEADERS += diffeditor_global.h \
-        diffeditorconstants.h \
         diffeditor.h \
+        diffeditorconstants.h \
+        diffeditorcontroller.h \
+        diffeditordocument.h \
         diffeditorfactory.h \
-        diffeditorfile.h \
+        diffeditorguicontroller.h \
+        diffeditormanager.h \
         diffeditorplugin.h \
-        diffeditorwidget.h \
         differ.h \
-        diffshoweditor.h \
-        diffshoweditorfactory.h
+        diffutils.h \
+        sidebysidediffeditorwidget.h
 
 SOURCES += diffeditor.cpp \
+        diffeditorcontroller.cpp \
+        diffeditordocument.cpp \
         diffeditorfactory.cpp \
-        diffeditorfile.cpp \
+        diffeditorguicontroller.cpp \
+        diffeditormanager.cpp \
         diffeditorplugin.cpp \
-        diffeditorwidget.cpp \
         differ.cpp \
-        diffshoweditor.cpp \
-        diffshoweditorfactory.cpp
+        diffutils.cpp \
+        sidebysidediffeditorwidget.cpp
 
 RESOURCES +=

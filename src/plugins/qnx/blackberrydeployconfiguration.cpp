@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2012 - 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -35,17 +35,16 @@
 #include "blackberrydeployconfigurationwidget.h"
 #include "blackberrydeployinformation.h"
 
-#include "utils/checkablemessagebox.h"
-
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/target.h>
 #include <projectexplorer/projectexplorer.h>
-#include <qt4projectmanager/qt4nodes.h>
-#include <qt4projectmanager/qt4project.h>
-#include <qt4projectmanager/qt4buildconfiguration.h>
+#include <qmakeprojectmanager/qmakenodes.h>
+#include <qmakeprojectmanager/qmakeproject.h>
+#include <qmakeprojectmanager/qmakebuildconfiguration.h>
 #include <qtsupport/qtkitinformation.h>
 #include <coreplugin/icore.h>
 #include <ssh/sshconnection.h>
+#include <utils/checkablemessagebox.h>
 
 #include <QMessageBox>
 
@@ -53,7 +52,6 @@ using namespace Qnx;
 using namespace Qnx::Internal;
 
 namespace {
-const char DEPLOYMENT_INFO_SETTING[] = "Qnx.BlackBerry.DeploymentInfo";
 const char DEPLOYMENT_INFO_KEY[]     = "Qnx.BlackBerry.DeployInformation";
 const char BAR_DESC_SETUP[]          = "Qnx.BlackBerry.DeployInformation.BarDescriptorSetup";
 }
@@ -84,7 +82,7 @@ void BlackBerryDeployConfiguration::ctor()
 
 void BlackBerryDeployConfiguration::setupBarDescriptor()
 {
-    Qt4ProjectManager::Qt4BuildConfiguration *bc = qobject_cast<Qt4ProjectManager::Qt4BuildConfiguration *>(target()->activeBuildConfiguration());
+    QmakeProjectManager::QmakeBuildConfiguration *bc = qobject_cast<QmakeProjectManager::QmakeBuildConfiguration *>(target()->activeBuildConfiguration());
     if (!bc || !target()->kit())
         return;
 
@@ -92,8 +90,8 @@ void BlackBerryDeployConfiguration::setupBarDescriptor()
     QString projectName = target()->project()->displayName();
 
     QString targetName;
-    Qt4ProjectManager::Qt4Project *project =  static_cast<Qt4ProjectManager::Qt4Project *>(target()->project());
-    foreach (Qt4ProjectManager::Qt4ProFileNode *node, project->applicationProFiles()) {
+    QmakeProjectManager::QmakeProject *project =  static_cast<QmakeProjectManager::QmakeProject *>(target()->project());
+    foreach (QmakeProjectManager::QmakeProFileNode *node, project->applicationProFiles()) {
         QString target = node->targetInformation().target;
         if (!target.isEmpty()) {
             targetName = target;
@@ -113,9 +111,10 @@ void BlackBerryDeployConfiguration::setupBarDescriptor()
 
         QDialogButtonBox::StandardButton button = Utils::CheckableMessageBox::question(Core::ICore::mainWindow(),
                                              tr("Setup Application Descriptor File"),
-                                             tr("You need to set up a bar descriptor file to enable "
-                                                "packaging.\nDo you want Qt Creator to generate it for your project?"),
-                                             tr("Don't ask again for this project"), &m_appBarDesciptorSetup);
+                                             tr("You need to set up a BAR descriptor file to enable "
+                                                "packaging.\nDo you want Qt Creator to generate it for your project (%1)?")
+                                                                                       .arg(target()->project()->projectFilePath()),
+                                             tr("Do not ask again for this project"), &m_appBarDesciptorSetup);
 
         if (button == QDialogButtonBox::No)
             return;
@@ -133,7 +132,7 @@ void BlackBerryDeployConfiguration::setupBarDescriptor()
         if (!reader.fetch(barDescriptorTemplate)) {
             QMessageBox::warning(Core::ICore::mainWindow(),
                                  tr("Cannot Set up Application Descriptor File"),
-                                 tr("Reading the bar descriptor template failed."),
+                                 tr("Reading the BAR descriptor template failed."),
                                  QMessageBox::Ok);
             return;
         }
@@ -153,7 +152,7 @@ void BlackBerryDeployConfiguration::setupBarDescriptor()
         if (!writer.finalize()) {
             QMessageBox::warning(Core::ICore::mainWindow(),
                                  tr("Cannot Set up Application Descriptor File"),
-                                 tr("Writing the bar descriptor file failed."),
+                                 tr("Writing the BAR descriptor file failed."),
                                  QMessageBox::Ok);
             return;
         }

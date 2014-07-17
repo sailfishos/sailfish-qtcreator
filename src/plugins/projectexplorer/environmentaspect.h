@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -41,18 +41,13 @@
 
 namespace ProjectExplorer {
 
-class PROJECTEXPLORER_EXPORT EnvironmentAspect : public QObject, public IRunConfigurationAspect
+class PROJECTEXPLORER_EXPORT EnvironmentAspect : public IRunConfigurationAspect
 {
     Q_OBJECT
 
 public:
-    // from IRunConfigurationAspect:
-    QVariantMap toMap() const;
-    QString displayName() const;
-
+    // IRunConfigurationAspect:
     RunConfigWidget *createConfigurationWidget();
-
-    virtual RunConfiguration *runConfiguration() const { return m_runConfiguration; }
 
     virtual QList<int> possibleBaseEnvironments() const = 0;
     virtual QString baseEnvironmentDisplayName(int base) const = 0;
@@ -72,14 +67,13 @@ signals:
     void environmentChanged();
 
 protected:
-    EnvironmentAspect(const EnvironmentAspect *other, RunConfiguration *parent);
-    EnvironmentAspect(RunConfiguration *rc);
+    explicit EnvironmentAspect(RunConfiguration *rc);
     void fromMap(const QVariantMap &map);
+    void toMap(QVariantMap &map) const;
 
 private:
     mutable int m_base;
     QList<Utils::EnvironmentItem> m_changes;
-    RunConfiguration *m_runConfiguration;
 };
 
 } // namespace ProjectExplorer

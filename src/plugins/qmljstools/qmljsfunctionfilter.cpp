@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -39,11 +39,11 @@ using namespace QmlJSTools::Internal;
 Q_DECLARE_METATYPE(LocatorData::Entry)
 
 FunctionFilter::FunctionFilter(LocatorData *data, QObject *parent)
-    : Locator::ILocatorFilter(parent)
+    : Core::ILocatorFilter(parent)
     , m_data(data)
 {
     setId("Functions");
-    setDisplayName(tr("QML Methods and Functions"));
+    setDisplayName(tr("QML Functions"));
     setShortcutString(QString(QLatin1Char('m')));
     setIncludedByDefault(false);
 }
@@ -55,23 +55,24 @@ void FunctionFilter::refresh(QFutureInterface<void> &)
 {
 }
 
-static bool compareLexigraphically(const Locator::FilterEntry &a,
-                                   const Locator::FilterEntry &b)
+static bool compareLexigraphically(const Core::LocatorFilterEntry &a,
+                                   const Core::LocatorFilterEntry &b)
 {
     return a.displayName < b.displayName;
 }
 
-QList<Locator::FilterEntry> FunctionFilter::matchesFor(QFutureInterface<Locator::FilterEntry> &future, const QString &origEntry)
+QList<Core::LocatorFilterEntry> FunctionFilter::matchesFor(QFutureInterface<Core::LocatorFilterEntry> &future, const QString &origEntry)
 {
     QString entry = trimWildcards(origEntry);
-    QList<Locator::FilterEntry> goodEntries;
-    QList<Locator::FilterEntry> betterEntries;
+    QList<Core::LocatorFilterEntry> goodEntries;
+    QList<Core::LocatorFilterEntry> betterEntries;
     const QChar asterisk = QLatin1Char('*');
     QStringMatcher matcher(entry, Qt::CaseInsensitive);
     QRegExp regexp(asterisk + entry+ asterisk, Qt::CaseInsensitive, QRegExp::Wildcard);
     if (!regexp.isValid())
         return goodEntries;
     bool hasWildcard = (entry.contains(asterisk) || entry.contains(QLatin1Char('?')));
+    const Qt::CaseSensitivity caseSensitivityForPrefix = caseSensitivity(entry);
 
     QHashIterator<QString, QList<LocatorData::Entry> > it(m_data->entries());
     while (it.hasNext()) {
@@ -88,10 +89,10 @@ QList<Locator::FilterEntry> FunctionFilter::matchesFor(QFutureInterface<Locator:
                     || (!hasWildcard && matcher.indexIn(info.symbolName) != -1)) {
 
                 QVariant id = qVariantFromValue(info);
-                Locator::FilterEntry filterEntry(this, info.displayName, id/*, info.icon*/);
+                Core::LocatorFilterEntry filterEntry(this, info.displayName, id/*, info.icon*/);
                 filterEntry.extraInfo = info.extraInfo;
 
-                if (info.symbolName.startsWith(entry))
+                if (info.symbolName.startsWith(entry, caseSensitivityForPrefix))
                     betterEntries.append(filterEntry);
                 else
                     goodEntries.append(filterEntry);
@@ -108,7 +109,7 @@ QList<Locator::FilterEntry> FunctionFilter::matchesFor(QFutureInterface<Locator:
     return betterEntries;
 }
 
-void FunctionFilter::accept(Locator::FilterEntry selection) const
+void FunctionFilter::accept(Core::LocatorFilterEntry selection) const
 {
     const LocatorData::Entry entry = qvariant_cast<LocatorData::Entry>(selection.internalData);
     Core::EditorManager::openEditorAt(entry.fileName, entry.line, entry.column);

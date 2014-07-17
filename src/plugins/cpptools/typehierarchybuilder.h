@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -33,6 +33,7 @@
 #include "cpptools_global.h"
 #include "cppmodelmanagerinterface.h"
 
+#include <cplusplus/DependencyTable.h>
 #include <cplusplus/Overview.h>
 
 #include <QList>
@@ -52,6 +53,9 @@ public:
     CPlusPlus::Symbol *symbol() const;
     const QList<TypeHierarchy> &hierarchy() const;
 
+    bool operator==(const TypeHierarchy &other) const
+    { return _symbol == other._symbol; }
+
 private:
     CPlusPlus::Symbol *_symbol;
     QList<TypeHierarchy> _hierarchy;
@@ -66,14 +70,15 @@ public:
 
 private:
     void reset();
-    void buildDerived(TypeHierarchy *typeHierarchy);
+    void buildDerived(TypeHierarchy *typeHierarchy, const QStringList &dependencies);
+    QStringList filesDependingOn(CPlusPlus::Symbol *symbol) const;
 
     CPlusPlus::Symbol *_symbol;
     CPlusPlus::Snapshot _snapshot;
-    QStringList _dependencies;
     QSet<CPlusPlus::Symbol *> _visited;
     QHash<QString, QSet<QString> > _candidates;
     CPlusPlus::Overview _overview;
+    CPlusPlus::DependencyTable _dependencyTable;
 };
 
 } // CppTools

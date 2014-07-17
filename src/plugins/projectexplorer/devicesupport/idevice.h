@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -35,11 +35,11 @@
 
 #include <QAbstractSocket>
 #include <QList>
+#include <QObject>
 #include <QSharedPointer>
 #include <QVariantMap>
 
 QT_BEGIN_NAMESPACE
-class QObject;
 class QWidget;
 QT_END_NAMESPACE
 
@@ -47,20 +47,37 @@ namespace QSsh { class SshConnectionParameters; }
 namespace Utils { class PortList; }
 
 namespace ProjectExplorer {
+class DeviceProcess;
 class DeviceProcessList;
 
 namespace Internal { class IDevicePrivate; }
 
 class IDeviceWidget;
+class DeviceTester;
 
-class PROJECTEXPLORER_EXPORT DeviceProcessSupport
+class PROJECTEXPLORER_EXPORT DeviceProcessSignalOperation : public QObject
 {
+    Q_OBJECT
 public:
-    typedef QSharedPointer<const DeviceProcessSupport> Ptr;
+    ~DeviceProcessSignalOperation() {}
+    typedef QSharedPointer<DeviceProcessSignalOperation> Ptr;
 
-    virtual ~DeviceProcessSupport();
-    virtual QString killProcessByPidCommandLine(int pid) const = 0;
-    virtual QString killProcessByNameCommandLine(const QString &filePath) const = 0;
+    virtual void killProcess(int pid) = 0;
+    virtual void killProcess(const QString &filePath) = 0;
+    virtual void interruptProcess(int pid) = 0;
+    virtual void interruptProcess(const QString &filePath) = 0;
+
+    void setDebuggerCommand(const QString &cmd);
+
+signals:
+    // If the error message is empty the operation was successful
+    void finished(const QString &errorMessage);
+
+protected:
+    explicit DeviceProcessSignalOperation();
+
+    QString m_debuggerCommand;
+    QString m_errorMessage;
 };
 
 class PROJECTEXPLORER_EXPORT PortsGatheringMethod
@@ -72,7 +89,6 @@ public:
     virtual QByteArray commandLine(QAbstractSocket::NetworkLayerProtocol protocol) const = 0;
     virtual QList<int> usedPorts(const QByteArray &commandOutput) const = 0;
 };
-
 
 // See cpp file for documentation.
 class PROJECTEXPLORER_EXPORT IDevice
@@ -110,15 +126,20 @@ public:
     virtual IDeviceWidget *createWidget() = 0;
     virtual QList<Core::Id> actionIds() const = 0;
     virtual QString displayNameForActionId(Core::Id actionId) const = 0;
-    virtual void executeAction(Core::Id actionId, QWidget *parent = 0) const = 0;
+    virtual void executeAction(Core::Id actionId, QWidget *parent = 0) = 0;
 
-    virtual DeviceProcessSupport::Ptr processSupport() const;
     // Devices that can auto detect ports need not return a ports gathering method. Such devices can
     // obtain a free port on demand. eg: Desktop device.
     virtual bool canAutoDetectPorts() const { return false; }
     virtual PortsGatheringMethod::Ptr portsGatheringMethod() const;
     virtual bool canCreateProcessModel() const { return false; }
     virtual DeviceProcessList *createProcessListModel(QObject *parent = 0) const;
+    virtual bool hasDeviceTester() const { return false; }
+    virtual DeviceTester *createDeviceTester() const;
+
+    virtual bool canCreateProcess() const { return false; }
+    virtual DeviceProcess *createProcess(QObject *parent) const;
+    virtual DeviceProcessSignalOperation::Ptr signalOperation() const = 0;
 
     enum DeviceState { DeviceReadyToUse, DeviceConnected, DeviceDisconnected, DeviceStateUnknown };
     DeviceState deviceState() const;
@@ -138,10 +159,15 @@ public:
     QSsh::SshConnectionParameters sshParameters() const;
     void setSshParameters(const QSsh::SshConnectionParameters &sshParameters);
 
+    virtual QString qmlProfilerHost() const;
+
     Utils::PortList freePorts() const;
     void setFreePorts(const Utils::PortList &freePorts);
 
     MachineType machineType() const;
+
+    QString debugServerPath() const;
+    void setDebugServerPath(const QString &path);
 
 protected:
     IDevice();
@@ -159,6 +185,26 @@ private:
 
     Internal::IDevicePrivate *d;
     friend class DeviceManager;
+};
+
+
+class PROJECTEXPLORER_EXPORT DeviceTester : public QObject
+{
+    Q_OBJECT
+
+public:
+    enum TestResult { TestSuccess, TestFailure };
+
+    virtual void testDevice(const ProjectExplorer::IDevice::ConstPtr &deviceConfiguration) = 0;
+    virtual void stopTest() = 0;
+
+signals:
+    void progressMessage(const QString &message);
+    void errorMessage(const QString &message);
+    void finished(ProjectExplorer::DeviceTester::TestResult result);
+
+protected:
+    explicit DeviceTester(QObject *parent = 0);
 };
 
 } // namespace ProjectExplorer

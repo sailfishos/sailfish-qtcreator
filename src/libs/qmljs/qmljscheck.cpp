@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -538,10 +538,15 @@ Check::Check(Document::Ptr doc, const ContextPtr &context)
     , _scopeBuilder(&_scopeChain)
     , _importsOk(false)
     , _inStatementBinding(false)
+    , _imports(0)
+    , _isQtQuick2(false)
+
 {
-    const Imports *imports = context->imports(doc.data());
-    if (imports && !imports->importFailed())
+    _imports = context->imports(doc.data());
+    if (_imports && !_imports->importFailed()) {
         _importsOk = true;
+        _isQtQuick2 = isQtQuick2();
+    }
 
     _enabledMessages = Message::allMessageTypes().toSet();
     disableMessage(HintAnonymousFunctionSpacing);
@@ -737,6 +742,13 @@ void Check::visitQmlObject(Node *ast, UiQualifiedId *typeId,
             if (iter.error() != PrototypeIterator::NoError)
                 typeError = true;
             const ObjectValue *lastPrototype = prototypes.last();
+            foreach (const ObjectValue *objectValue, prototypes) {
+                if (objectValue->className() == QLatin1String("QGraphicsObject")
+                        && _isQtQuick2) {
+                    addMessage(WarnAboutQtQuick1InsteadQtQuick2, typeErrorLocation);
+                }
+            }
+
             if (iter.error() == PrototypeIterator::ReferenceResolutionError) {
                 if (const QmlPrototypeReference *ref =
                         value_cast<QmlPrototypeReference>(lastPrototype->prototype())) {
@@ -862,10 +874,11 @@ bool Check::visit(UiPublicMember *ast)
     if (ast->type == UiPublicMember::Property) {
         // check if the member type is valid
         if (!ast->memberType.isEmpty()) {
-            const QString &name = ast->memberType.toString();
+            const QStringRef name = ast->memberType;
             if (!name.isEmpty() && name.at(0).isLower()) {
-                if (!isValidBuiltinPropertyType(name))
-                    addMessage(ErrInvalidPropertyType, ast->typeToken, name);
+                const QString nameS = name.toString();
+                if (!isValidBuiltinPropertyType(nameS))
+                    addMessage(ErrInvalidPropertyType, ast->typeToken, nameS);
             }
 
             // warn about dubious use of var/variant
@@ -1354,6 +1367,16 @@ void Check::warnAboutUnnecessarySuppressions()
     }
 }
 
+bool Check::isQtQuick2() const
+{
+    foreach (const Import &import, _imports->all()) {
+        if (import.info.name() == QLatin1String("QtQuick")
+                && import.info.version().majorVersion() == 2)
+            return true;
+    }
+    return false;
+}
+
 bool Check::visit(NewExpression *ast)
 {
     checkNewExpression(ast->expression);
@@ -1463,7 +1486,7 @@ bool Check::visit(TypeOfExpression *ast)
 
 /// When something is changed here, also change ReadingContext::lookupProperty in
 /// texttomodelmerger.cpp
-/// ### Maybe put this into the context as a helper method.
+/// ### Maybe put this into the context as a helper function.
 const Value *Check::checkScopeObjectMember(const UiQualifiedId *id)
 {
     if (!_importsOk)

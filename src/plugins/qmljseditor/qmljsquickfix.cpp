@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,13 +30,13 @@
 #include "qmljsquickfix.h"
 #include "qmljscomponentfromobjectdef.h"
 #include "qmljseditor.h"
-#include "qmljs/parser/qmljsast_p.h"
 #include "qmljsquickfixassist.h"
 
 #include <extensionsystem/iplugin.h>
 #include <extensionsystem/pluginmanager.h>
 
 #include <qmljs/qmljsmodelmanagerinterface.h>
+#include <qmljs/parser/qmljsast_p.h>
 
 #include <QDebug>
 

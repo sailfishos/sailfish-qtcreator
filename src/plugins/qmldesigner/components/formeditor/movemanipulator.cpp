@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -115,7 +115,7 @@ bool MoveManipulator::itemsCanReparented() const
     foreach (FormEditorItem* item, m_itemList) {
         if (item
             && item->qmlItemNode().isValid()
-            && !item->qmlItemNode().canReparent())
+            && !item->qmlItemNode().instanceCanReparent())
             return false;
     }
 
@@ -159,7 +159,7 @@ void MoveManipulator::begin(const QPointF &beginPoint)
 
 //    setOpacityForAllElements(0.62);
 
-    m_rewriterTransaction = m_view->beginRewriterTransaction();
+    m_rewriterTransaction = m_view->beginRewriterTransaction(QByteArrayLiteral("MoveManipulator::begin"));
 }
 
 
@@ -277,7 +277,7 @@ void MoveManipulator::update(const QPointF& updatePoint, Snapper::Snapping useSn
                 continue;
 
             // don't support anchors for base state because it is not needed by the droptool
-            if (stateToBeManipulated == UseActualState) {
+            if (stateToBeManipulated == UseCurrentState) {
                 QmlAnchors anchors(item->qmlItemNode().anchors());
 
                 if (anchors.instanceHasAnchor(AnchorLine::Top))
@@ -298,10 +298,9 @@ void MoveManipulator::update(const QPointF& updatePoint, Snapper::Snapping useSn
                 if (anchors.instanceHasAnchor(AnchorLine::VerticalCenter))
                     anchors.setMargin(AnchorLine::VerticalCenter, m_beginVerticalCenterHash.value(item) + offsetVector.y());
 
-                setPosition(item->qmlItemNode(), positionInContainerSpace);
+                item->qmlItemNode().setPosition(positionInContainerSpace);
             } else {
-                item->qmlItemNode().modelNode().variantProperty("x").setValue(qRound(positionInContainerSpace.x()));
-                item->qmlItemNode().modelNode().variantProperty("y").setValue(qRound(positionInContainerSpace.y()));
+                item->qmlItemNode().setPostionInBaseState(positionInContainerSpace);
             }
         }
     }
@@ -347,12 +346,12 @@ void MoveManipulator::reparentTo(FormEditorItem *newParent)
     QVector<ModelNode> nodeReparentVector;
     NodeAbstractProperty parentProperty;
 
-    QmlItemNode parent(newParent->qmlItemNode());
-    if (parent.isValid()) {
-        if (parent.hasDefaultProperty())
-            parentProperty = parent.nodeAbstractProperty(parent.defaultProperty());
+    QmlItemNode parentItemNode(newParent->qmlItemNode());
+    if (parentItemNode.isValid()) {
+        if (parentItemNode.hasDefaultPropertyName())
+            parentProperty = parentItemNode.defaultNodeAbstractProperty();
         else
-            parentProperty = parent.nodeAbstractProperty("data");
+            parentProperty = parentItemNode.nodeAbstractProperty("data");
 
         foreach (FormEditorItem* item, m_itemList) {
             if (!item || !item->qmlItemNode().isValid())
@@ -415,14 +414,14 @@ void MoveManipulator::moveBy(double deltaX, double deltaY)
         if (anchors.instanceHasAnchor(AnchorLine::VerticalCenter))
             anchors.setMargin(AnchorLine::VerticalCenter, anchors.instanceMargin(AnchorLine::VerticalCenter) + deltaY);
 
-        setPosition(item->qmlItemNode(), QPointF(item->qmlItemNode().instanceValue("x").toDouble() + deltaX,
+        item->qmlItemNode().setPosition(QPointF(item->qmlItemNode().instanceValue("x").toDouble() + deltaX,
                                                   item->qmlItemNode().instanceValue("y").toDouble() + deltaY));
     }
 }
 
 void MoveManipulator::beginRewriterTransaction()
 {
-    m_rewriterTransaction = m_view->beginRewriterTransaction();
+    m_rewriterTransaction = m_view->beginRewriterTransaction(QByteArrayLiteral("MoveManipulator::beginRewriterTransaction"));
 }
 
 void MoveManipulator::endRewriterTransaction()
@@ -451,15 +450,6 @@ void MoveManipulator::deleteSnapLines()
 bool MoveManipulator::isActive() const
 {
     return m_isActive;
-}
-
-void MoveManipulator::setPosition(QmlItemNode itemNode, const QPointF &position)
-{
-    if (!itemNode.hasBindingProperty("x"))
-        itemNode.setVariantProperty("x", qRound(position.x()));
-
-    if (!itemNode.hasBindingProperty("y"))
-        itemNode.setVariantProperty("y", qRound(position.y()));
 }
 
 }

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -40,9 +40,7 @@ class QNetworkReply;
 class QWidget;
 QT_END_NAMESPACE
 
-namespace Core {
-class IOptionsPage;
-}
+namespace Core { class IOptionsPage; }
 
 namespace CodePaster {
 
@@ -58,7 +56,8 @@ public:
     enum Capabilities  {
         ListCapability = 0x1,
         PostCommentCapability = 0x2,
-        PostDescriptionCapability = 0x4
+        PostDescriptionCapability = 0x4,
+        PostUserNameCapability = 0x8
     };
 
     virtual ~Protocol();

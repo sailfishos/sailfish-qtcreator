@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -28,16 +28,18 @@
 ****************************************************************************/
 
 #include "coreplugin.h"
-#include "actionmanager.h"
 #include "designmode.h"
 #include "editmode.h"
-#include "editormanager.h"
-#include "fileiconprovider.h"
 #include "helpmanager.h"
 #include "mainwindow.h"
 #include "mimedatabase.h"
 #include "modemanager.h"
 #include "infobar.h"
+
+#include <coreplugin/actionmanager/actionmanager.h>
+#include <coreplugin/editormanager/editormanager.h>
+#include <coreplugin/find/findplugin.h>
+#include <coreplugin/locator/locator.h>
 
 #include <utils/savefile.h>
 
@@ -48,13 +50,19 @@
 using namespace Core;
 using namespace Core::Internal;
 
-CorePlugin::CorePlugin() :
-    m_mainWindow(new MainWindow), m_editMode(0), m_designMode(0)
+CorePlugin::CorePlugin() : m_editMode(0), m_designMode(0)
 {
+    qRegisterMetaType<Core::Id>();
+    m_mainWindow = new MainWindow;
+    m_findPlugin = new FindPlugin;
+    m_locator = new Locator;
 }
 
 CorePlugin::~CorePlugin()
 {
+    delete m_findPlugin;
+    delete m_locator;
+
     if (m_editMode) {
         removeObject(m_editMode);
         delete m_editMode;
@@ -65,9 +73,6 @@ CorePlugin::~CorePlugin()
             removeObject(m_designMode);
         delete m_designMode;
     }
-
-    // delete FileIconProvider singleton
-    delete FileIconProvider::instance();
 
     delete m_mainWindow;
 }
@@ -101,20 +106,26 @@ bool CorePlugin::initialize(const QStringList &arguments, QString *errorMessage)
     // Make sure we respect the process's umask when creating new files
     Utils::SaveFile::initializeUmask();
 
+    m_findPlugin->initialize(arguments, errorMessage);
+    m_locator->initialize(this, arguments, errorMessage);
+
     return success;
 }
 
 void CorePlugin::extensionsInitialized()
 {
-    m_mainWindow->mimeDatabase()->syncUserModifiedMimeTypes();
+    MimeDatabase::syncUserModifiedMimeTypes();
     if (m_designMode->designModeIsRequired())
         addObject(m_designMode);
+    m_findPlugin->extensionsInitialized();
+    m_locator->extensionsInitialized();
     m_mainWindow->extensionsInitialized();
 }
 
 bool CorePlugin::delayedInitialize()
 {
-    HelpManager::instance()->setupHelpManager();
+    HelpManager::setupHelpManager();
+    m_locator->delayedInitialize();
     return true;
 }
 
@@ -133,6 +144,7 @@ void CorePlugin::fileOpenRequest(const QString &f)
 
 ExtensionSystem::IPlugin::ShutdownFlag CorePlugin::aboutToShutdown()
 {
+    m_findPlugin->aboutToShutdown();
     m_mainWindow->aboutToShutdown();
     return SynchronousShutdown;
 }

@@ -32,13 +32,15 @@
 #include <algorithm>
 #include <utility>
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && (_MSC_VER < 1800)
 #    define va_copy(dst, src) ((dst) = (src))
 #elif defined(__INTEL_COMPILER) && !defined(va_copy)
 #    define va_copy __va_copy
 #endif
 
 using namespace CPlusPlus;
+
+const Token TranslationUnit::nullToken;
 
 TranslationUnit::TranslationUnit(Control *control, const StringLiteral *fileId)
     : _control(control),
@@ -58,28 +60,8 @@ TranslationUnit::TranslationUnit(Control *control, const StringLiteral *fileId)
 TranslationUnit::~TranslationUnit()
 {
     (void) _control->switchTranslationUnit(_previousTranslationUnit);
-    delete _tokens;
-    delete _comments;
-    delete _pool;
+    release();
 }
-
-bool TranslationUnit::qtMocRunEnabled() const
-{ return f._qtMocRunEnabled; }
-
-void TranslationUnit::setQtMocRunEnabled(bool onoff)
-{ f._qtMocRunEnabled = onoff; }
-
-bool TranslationUnit::cxx0xEnabled() const
-{ return f._cxx0xEnabled; }
-
-void TranslationUnit::setCxxOxEnabled(bool onoff)
-{ f._cxx0xEnabled = onoff; }
-
-bool TranslationUnit::objCEnabled() const
-{ return f._objCEnabled; }
-
-void TranslationUnit::setObjCEnabled(bool onoff)
-{ f._objCEnabled = onoff; }
 
 Control *TranslationUnit::control() const
 { return _control; }
@@ -113,29 +95,29 @@ const char *TranslationUnit::spell(unsigned index) const
     if (! index)
         return 0;
 
-    return _tokens->at(index).spell();
+    return tokenAt(index).spell();
 }
 
 unsigned TranslationUnit::commentCount() const
-{ return _comments->size(); }
+{ return unsigned(_comments->size()); }
 
 const Token &TranslationUnit::commentAt(unsigned index) const
 { return _comments->at(index); }
 
 const Identifier *TranslationUnit::identifier(unsigned index) const
-{ return _tokens->at(index).identifier; }
+{ return tokenAt(index).identifier; }
 
 const Literal *TranslationUnit::literal(unsigned index) const
-{ return _tokens->at(index).literal; }
+{ return tokenAt(index).literal; }
 
 const StringLiteral *TranslationUnit::stringLiteral(unsigned index) const
-{ return _tokens->at(index).string; }
+{ return tokenAt(index).string; }
 
 const NumericLiteral *TranslationUnit::numericLiteral(unsigned index) const
-{ return _tokens->at(index).number; }
+{ return tokenAt(index).number; }
 
 unsigned TranslationUnit::matchingBrace(unsigned index) const
-{ return _tokens->at(index).close_brace; }
+{ return tokenAt(index).close_brace; }
 
 MemoryPool *TranslationUnit::memoryPool() const
 { return _pool; }
@@ -157,13 +139,11 @@ void TranslationUnit::tokenize()
     f._tokenized = true;
 
     Lexer lex(this);
-    lex.setQtMocRunEnabled(f._qtMocRunEnabled);
-    lex.setCxxOxEnabled(f._cxx0xEnabled);
-    lex.setObjCEnabled(f._objCEnabled);
+    lex.setLanguageFeatures(_languageFeatures);
     lex.setScanCommentTokens(true);
 
     std::stack<unsigned> braces;
-    _tokens->push_back(Token()); // the first token needs to be invalid!
+    _tokens->push_back(nullToken); // the first token needs to be invalid!
 
     pushLineOffset(0);
     pushPreprocessorLine(0, 1, fileId());
@@ -217,7 +197,7 @@ void TranslationUnit::tokenize()
                             if (tk.is(T_TILDE)) {
                                 lex(&tk);
 
-                                // Get the total number of generated tokens and specifiy "null"
+                                // Get the total number of generated tokens and specify "null"
                                 // information for them.
                                 unsigned totalGenerated =
                                         static_cast<unsigned>(strtoul(tk.spell(), 0, 0));
@@ -266,11 +246,12 @@ void TranslationUnit::tokenize()
             }
             goto _Lrecognize;
         } else if (tk.f.kind == T_LBRACE) {
-            braces.push(_tokens->size());
+            braces.push(unsigned(_tokens->size()));
         } else if (tk.f.kind == T_RBRACE && ! braces.empty()) {
             const unsigned open_brace_index = braces.top();
             braces.pop();
-            (*_tokens)[open_brace_index].close_brace = _tokens->size();
+            if (open_brace_index < tokenCount())
+                (*_tokens)[open_brace_index].close_brace = unsigned(_tokens->size());
         } else if (tk.isComment()) {
             _comments->push_back(tk);
             continue; // comments are not in the regular token stream
@@ -298,7 +279,7 @@ void TranslationUnit::tokenize()
 
     for (; ! braces.empty(); braces.pop()) {
         unsigned open_brace_index = braces.top();
-        (*_tokens)[open_brace_index].close_brace = _tokens->size();
+        (*_tokens)[open_brace_index].close_brace = unsigned(_tokens->size());
     }
 }
 
@@ -319,10 +300,6 @@ bool TranslationUnit::parse(ParseMode mode)
     f._parsed = true;
 
     Parser parser(this);
-    parser.setQtMocRunEnabled(f._qtMocRunEnabled);
-    parser.setCxxOxEnabled(f._cxx0xEnabled);
-    parser.setObjCEnabled(f._objCEnabled);
-
     bool parsed = false;
 
     switch (mode) {
@@ -428,8 +405,7 @@ void TranslationUnit::getPosition(unsigned tokenOffset,
 
     // If this token is expanded we already have the information directly from the expansion
     // section header. Otherwise, we need to calculate it.
-    std::map<unsigned, std::pair<unsigned, unsigned> >::const_iterator it =
-            _expandedLineColumn.find(tokenOffset);
+    TokenLineColumn::const_iterator it = _expandedLineColumn.find(tokenOffset);
     if (it != _expandedLineColumn.end()) {
         lineNumber = it->second.first;
         columnNumber = it->second.second + 1;
@@ -473,7 +449,7 @@ void TranslationUnit::message(DiagnosticClient::Level level, unsigned index, con
     if (DiagnosticClient *client = control()->diagnosticClient()) {
         client->report(level, fileName, line, column, format, args);
     } else {
-        fprintf(stderr, "%s:%d: ", fileName->chars(), line);
+        fprintf(stderr, "%s:%u: ", fileName->chars(), line);
         const char *l = "error";
         if (level == DiagnosticClient::Warning)
             l = "warning";
@@ -532,13 +508,15 @@ void TranslationUnit::fatal(unsigned index, const char *format, ...)
 
 unsigned TranslationUnit::findPreviousLineOffset(unsigned tokenIndex) const
 {
-    unsigned lineOffset = _lineOffsets[findLineNumber(_tokens->at(tokenIndex).offset)];
+    unsigned lineOffset = _lineOffsets[findLineNumber(tokenAt(tokenIndex).offset)];
     return lineOffset;
 }
 
 bool TranslationUnit::maybeSplitGreaterGreaterToken(unsigned tokenIndex)
 {
-    Token &tok = _tokens->at(tokenIndex);
+    if (tokenIndex >= tokenCount())
+        return false;
+    Token &tok = (*_tokens)[tokenIndex];
     if (tok.kind() != T_GREATER_GREATER)
         return false;
 
@@ -554,8 +532,7 @@ bool TranslationUnit::maybeSplitGreaterGreaterToken(unsigned tokenIndex)
 
     _tokens->insert(_tokens->begin() + tokenIndex + 1, newGreater);
 
-    std::map<unsigned, std::pair<unsigned, unsigned> >::const_iterator it =
-            _expandedLineColumn.find(tok.offset);
+    TokenLineColumn::const_iterator it = _expandedLineColumn.find(tok.offset);
     if (it != _expandedLineColumn.end()) {
         const std::pair<unsigned, unsigned> newPosition(it->second.first, it->second.second + 1);
         _expandedLineColumn.insert(std::make_pair(newGreater.offset, newPosition));
@@ -564,9 +541,17 @@ bool TranslationUnit::maybeSplitGreaterGreaterToken(unsigned tokenIndex)
     return true;
 }
 
+void TranslationUnit::releaseTokensAndComments()
+{
+    delete _tokens;
+    _tokens = 0;
+    delete _comments;
+    _comments = 0;
+}
+
 void TranslationUnit::showErrorLine(unsigned index, unsigned column, FILE *out)
 {
-    unsigned lineOffset = _lineOffsets[findLineNumber(_tokens->at(index).offset)];
+    unsigned lineOffset = _lineOffsets[findLineNumber(tokenAt(index).offset)];
     for (const char *cp = _firstSourceChar + lineOffset + 1; *cp && *cp != '\n'; ++cp) {
         fputc(*cp, out);
     }
@@ -593,10 +578,5 @@ void TranslationUnit::resetAST()
 void TranslationUnit::release()
 {
     resetAST();
-    delete _tokens;
-    _tokens = 0;
-    delete _comments;
-    _comments = 0;
+    releaseTokensAndComments();
 }
-
-

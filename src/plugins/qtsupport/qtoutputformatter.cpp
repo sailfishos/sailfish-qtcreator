@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -41,10 +41,10 @@ using namespace QtSupport;
 
 QtOutputFormatter::QtOutputFormatter(ProjectExplorer::Project *project)
     : OutputFormatter()
-    , m_qmlError(QLatin1String("^(file:///.+"    // file url
+    , m_qmlError(QLatin1String("^((?:file|qrc):///.+"    // url
                                ":\\d+"           // colon, line
                                "(?::\\d+)?)"     // colon, column (optional)
-                               ":"))             // colon
+                               "[: \t]"))        // colon, space or tab
     , m_qtError(QLatin1String("Object::.*in (.*:\\d+)"))
     , m_qtAssert(QLatin1String("ASSERT: .* in file (.+, line \\d+)"))
     , m_qtAssertX(QLatin1String("ASSERT failure in .*: \".*\", file (.+, line \\d+)"))
@@ -187,7 +187,7 @@ void QtOutputFormatter::appendLine(QTextCursor &cursor, LinkResult lr,
 void QtOutputFormatter::handleLink(const QString &href)
 {
     if (!href.isEmpty()) {
-        QRegExp qmlLineColumnLink(QLatin1String("^(file:///.+)" // file url
+        QRegExp qmlLineColumnLink(QLatin1String("^((?:file|qrc):///.+)" // url
                                                 ":(\\d+)"            // line
                                                 ":(\\d+)$"));        // column
 
@@ -201,7 +201,7 @@ void QtOutputFormatter::handleLink(const QString &href)
             return;
         }
 
-        QRegExp qmlLineLink(QLatin1String("^(file:///.+)" // file url
+        QRegExp qmlLineLink(QLatin1String("^((?:file|qrc):///.+)" // url
                                           ":(\\d+)$"));  // line
 
         if (qmlLineLink.indexIn(href) != -1) {

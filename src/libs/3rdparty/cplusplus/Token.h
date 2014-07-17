@@ -173,6 +173,7 @@ enum Kind {
     T_SWITCH,
     T_TEMPLATE,
     T_THIS,
+    T_THREAD_LOCAL,
     T_THROW,
     T_TRUE,
     T_TRY,
@@ -189,6 +190,7 @@ enum Kind {
     T_WHILE,
 
     T___ATTRIBUTE__,
+    T___THREAD,
     T___TYPEOF__,
 
     // obj c++ @ keywords
@@ -334,7 +336,7 @@ public:
         unsigned kind       : 8;
         // The token starts a new line.
         unsigned newline    : 1;
-        // The token is preceeded by whitespace(s).
+        // The token is preceded by whitespace(s).
         unsigned whitespace : 1;
         // The token is joined with the previous one.
         unsigned joined     : 1;
@@ -352,7 +354,7 @@ public:
         unsigned generated  : 1;
         // Unused...
         unsigned pad        : 3;
-        // The token lenght.
+        // The token length.
         unsigned length     : 16;
     };
     union {
@@ -370,6 +372,22 @@ public:
         const Identifier *identifier;
         unsigned close_brace;
         unsigned lineno;
+    };
+};
+
+struct LanguageFeatures
+{
+    LanguageFeatures() : flags(0) {}
+
+    union {
+        unsigned int flags;
+        struct {
+            unsigned int qtEnabled : 1; // If Qt is used.
+            unsigned int qtMocRunEnabled : 1;
+            unsigned int qtKeywordsEnabled : 1; // If Qt is used but QT_NO_KEYWORDS defined
+            unsigned int cxx11Enabled : 1;
+            unsigned int objCEnabled : 1;
+        };
     };
 };
 

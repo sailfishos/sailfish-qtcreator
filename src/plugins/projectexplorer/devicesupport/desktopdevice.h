@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -49,10 +49,14 @@ public:
     IDeviceWidget *createWidget();
     QList<Core::Id> actionIds() const;
     QString displayNameForActionId(Core::Id actionId) const;
-    void executeAction(Core::Id actionId, QWidget *parent = 0) const;
+    void executeAction(Core::Id actionId, QWidget *parent = 0);
     bool canAutoDetectPorts() const;
     bool canCreateProcessModel() const;
     DeviceProcessList *createProcessListModel(QObject *parent) const;
+    bool canCreateProcess() const { return true; }
+    DeviceProcess *createProcess(QObject *parent) const;
+    DeviceProcessSignalOperation::Ptr signalOperation() const;
+    QString qmlProfilerHost() const;
 
     IDevice::Ptr clone() const;
 

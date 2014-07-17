@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -72,6 +72,7 @@ enum KnownType
     KT_QBasicAtomicInt = KT_Qt_Type + KT_HasSimpleDumper + 18,
     KT_QAtomicInt = KT_Qt_Type + KT_HasSimpleDumper + 19,
     KT_QStringRef = KT_Qt_Type + KT_HasSimpleDumper + 20,
+    KT_QTextCursor = KT_Qt_Type + KT_HasSimpleDumper + 21,
     KT_QObject = KT_Qt_Type + KT_HasSimpleDumper + KT_HasComplexDumper + 20,
     KT_QWindow = KT_Qt_Type + KT_HasSimpleDumper + KT_HasComplexDumper + 21,
     KT_QWidget = KT_Qt_Type + KT_HasSimpleDumper + KT_HasComplexDumper + 22,
@@ -166,6 +167,7 @@ enum KnownType
     // Types: STL
     KT_StdString = KT_STL_Type + KT_Editable + KT_HasSimpleDumper + 1,
     KT_StdWString = KT_STL_Type + KT_Editable + KT_HasSimpleDumper + 2,
+    KT_StdComplex = KT_STL_Type + KT_HasSimpleDumper + 3,
     // Types: STL containers
     KT_StdVector =  KT_STL_Type + KT_ContainerType + KT_HasSimpleDumper + 1,
     KT_StdList =  KT_STL_Type + KT_ContainerType + KT_HasSimpleDumper + 2,
@@ -173,7 +175,8 @@ enum KnownType
     KT_StdDeque =  KT_STL_Type + KT_ContainerType + KT_HasSimpleDumper + 4,
     KT_StdSet =  KT_STL_Type + KT_ContainerType + KT_HasSimpleDumper + 5,
     KT_StdMap =  KT_STL_Type + KT_ContainerType + KT_HasSimpleDumper + 6,
-    KT_StdMultiMap =  KT_STL_Type + KT_ContainerType + KT_HasSimpleDumper + 7
+    KT_StdMultiMap =  KT_STL_Type + KT_ContainerType + KT_HasSimpleDumper + 7,
+    KT_StdArray =  KT_STL_Type + KT_ContainerType + KT_HasSimpleDumper + 8
 };
 
 #endif // KNOWNTYPE_H

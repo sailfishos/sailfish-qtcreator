@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -129,10 +129,6 @@ public:
     void fromString(const QByteArray &str);
     void fromStringMultiple(const QByteArray &str);
 
-private:
-    friend class GdbResponse;
-    friend class GdbEngine;
-
     static QByteArray parseCString(const char *&from, const char *to);
     static QByteArray escapeCString(const QByteArray &ba);
     void parseResultOrValue(const char *&from, const char *to);
@@ -202,7 +198,10 @@ enum DebuggerEncoding
     Hex2EncodedUInt4                       = 23,
     Hex2EncodedUInt8                       = 24,
     Hex2EncodedFloat4                      = 25,
-    Hex2EncodedFloat8                      = 26
+    Hex2EncodedFloat8                      = 26,
+    IPv6AddressAndHexScopeId               = 27,
+    Hex2EncodedUtf8WithoutQuotes           = 28,
+    DateTimeInternal                       = 29
 };
 
 // Keep in sync with dumper.py, symbolgroupvalue.cpp of CDB

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -40,7 +40,7 @@ namespace {
 
 // ### does not necessarily give the full AST path!
 // intentionally does not contain lists like
-// UiImportList, SourceElements, UiObjectMemberList
+// UiHeaderItemList, SourceElements, UiObjectMemberList
 class AstPath: protected AST::Visitor
 {
     QList<AST::Node *> _path;
@@ -154,7 +154,7 @@ QmlJS::AST::Node *SemanticInfo::declaringMemberNoProperties(int cursorPosition) 
     AST::Node *node = rangeAt(cursorPosition);
 
     if (UiObjectDefinition *objectDefinition = cast<UiObjectDefinition*>(node)) {
-        const QString &name = objectDefinition->qualifiedTypeNameId->name.toString();
+        const QStringRef name = objectDefinition->qualifiedTypeNameId->name;
         if (!name.isEmpty() && name.at(0).isLower()) {
             QList<AST::Node *> path = rangePath(cursorPosition);
             if (path.size() > 1)
@@ -165,7 +165,7 @@ QmlJS::AST::Node *SemanticInfo::declaringMemberNoProperties(int cursorPosition) 
                 return path.at(path.size() - 3);
         }
     } else if (UiObjectBinding *objectBinding = cast<UiObjectBinding*>(node)) {
-        const QString &name = objectBinding->qualifiedTypeNameId->name.toString();
+        const QStringRef name = objectBinding->qualifiedTypeNameId->name;
         if (name.contains(QLatin1String("Gradient"))) {
             QList<AST::Node *> path = rangePath(cursorPosition);
             if (path.size() > 1)

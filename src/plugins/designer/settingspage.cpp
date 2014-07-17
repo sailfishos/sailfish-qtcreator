@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -51,10 +51,13 @@ SettingsPage::SettingsPage(QDesignerOptionsPageInterface *designerPage) :
     setCategoryIcon(QLatin1String(Designer::Constants::SETTINGS_CATEGORY_ICON));
 }
 
-QWidget *SettingsPage::createPage(QWidget *parent)
+QWidget *SettingsPage::widget()
 {
     m_initialized = true;
-    return m_designerPage->createPage(parent);
+    if (!m_widget)
+        m_widget = m_designerPage->createPage(0);
+    return m_widget;
+
 }
 
 void SettingsPage::apply()
@@ -67,6 +70,7 @@ void SettingsPage::finish()
 {
     if (m_initialized)
         m_designerPage->finish();
+    delete m_widget;
 }
 
 SettingsPageProvider::SettingsPageProvider(QObject *parent)
@@ -86,4 +90,44 @@ QList<Core::IOptionsPage *> SettingsPageProvider::pages() const
         FormEditorW::ensureInitStage(FormEditorW::RegisterPlugins);
     }
     return FormEditorW::instance()->optionsPages();
+}
+
+bool SettingsPageProvider::matches(const QString &searchKeyWord) const
+{
+    // to avoid fully initializing designer when typing something in the options' filter edit
+    // we hardcode matching of UI text from the designer pages, which are taken if the designer pages
+    // were not yet loaded
+    // luckily linguist cannot resolve the translated texts, so we do not end up with duplicate
+    // translatable strings for Qt Creator
+    static const struct { const char *context; const char *value; } uitext[] = {
+        {"EmbeddedOptionsPage", "Embedded Design"},
+        {"EmbeddedOptionsPage", "Device Profiles"},
+        {"FormEditorOptionsPage", "Forms"},
+        {"FormEditorOptionsPage", "Preview Zoom"},
+        {"FormEditorOptionsPage", "Default Zoom"},
+        {"FormEditorOptionsPage", "Default Grid"},
+        {"qdesigner_internal::GridPanel", "Visible"},
+        {"qdesigner_internal::GridPanel", "Snap"},
+        {"qdesigner_internal::GridPanel", "Reset"},
+        {"qdesigner_internal::GridPanel", "Grid"},
+        {"qdesigner_internal::GridPanel", "Grid &X"},
+        {"qdesigner_internal::GridPanel", "Grid &Y"},
+        {"PreviewConfigurationWidget", "Print/Preview Configuration"},
+        {"PreviewConfigurationWidget", "Style"},
+        {"PreviewConfigurationWidget", "Style sheet"},
+        {"PreviewConfigurationWidget", "Device skin"},
+        {"TemplateOptionsPage", "Template Paths"},
+        {"qdesigner_internal::TemplateOptionsWidget", "Additional Template Paths"}
+    };
+    static const size_t itemCount = sizeof(uitext)/sizeof(uitext[0]);
+    if (m_keywords.isEmpty()) {
+        m_keywords.reserve(itemCount);
+        for (size_t i = 0; i < itemCount; ++i)
+            m_keywords << QCoreApplication::translate(uitext[i].context, uitext[i].value).remove(QLatin1Char('&'));
+    }
+    foreach (const QString &key, m_keywords) {
+        if (key.contains(searchKeyWord, Qt::CaseInsensitive))
+            return true;
+    }
+    return false;
 }

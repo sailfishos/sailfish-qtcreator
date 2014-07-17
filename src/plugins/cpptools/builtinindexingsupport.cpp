@@ -16,6 +16,8 @@
 using namespace CppTools;
 using namespace CppTools::Internal;
 
+static const bool DumpFileNameWhileParsing = qgetenv("QTC_DUMP_FILENAME_WHILE_PARSING") == "1";
+
 namespace {
 
 static void parse(QFutureInterface<void> &future,
@@ -47,6 +49,8 @@ static void parse(QFutureInterface<void> &future,
     const QString conf = CppModelManagerInterface::configurationFileName();
     bool processingHeaders = false;
 
+    CppModelManager *cmm = CppModelManager::instance();
+    const QStringList fallbackIncludePaths = cmm->includePaths();
     for (int i = 0; i < files.size(); ++i) {
         if (future.isPaused())
             future.waitForResume();
@@ -57,15 +61,19 @@ static void parse(QFutureInterface<void> &future,
         const QString fileName = files.at(i);
 
         const bool isSourceFile = i < sourceCount;
-        if (isSourceFile)
+        if (isSourceFile) {
             (void) preproc->run(conf);
-
-        else if (! processingHeaders) {
+        } else if (!processingHeaders) {
             (void) preproc->run(conf);
 
             processingHeaders = true;
         }
 
+        QList<ProjectPart::Ptr> parts = cmm->projectPart(fileName);
+        QStringList includePaths = parts.isEmpty()
+                ? fallbackIncludePaths
+                : parts.first()->includePaths;
+        preproc->setIncludePaths(includePaths);
         preproc->run(fileName);
 
         future.setProgressValue(files.size() - preproc->todo().size());
@@ -93,7 +101,7 @@ public:
     ~BuiltinSymbolSearcher()
     {}
 
-    void runSearch(QFutureInterface<Find::SearchResultItem> &future)
+    void runSearch(QFutureInterface<Core::SearchResultItem> &future)
     {
         future.setProgressRange(0, m_snapshot.size());
         future.setProgressValue(0);
@@ -101,14 +109,13 @@ public:
 
         SearchSymbols search;
         search.setSymbolsToSearchFor(m_parameters.types);
-        search.setSeparateScope(true);
         CPlusPlus::Snapshot::const_iterator it = m_snapshot.begin();
 
-        QString findString = (m_parameters.flags & Find::FindRegularExpression
+        QString findString = (m_parameters.flags & Core::FindRegularExpression
                               ? m_parameters.text : QRegExp::escape(m_parameters.text));
-        if (m_parameters.flags & Find::FindWholeWords)
+        if (m_parameters.flags & Core::FindWholeWords)
             findString = QString::fromLatin1("\\b%1\\b").arg(findString);
-        QRegExp matcher(findString, (m_parameters.flags & Find::FindCaseSensitively
+        QRegExp matcher(findString, (m_parameters.flags & Core::FindCaseSensitively
                                      ? Qt::CaseSensitive : Qt::CaseInsensitive));
         while (it != m_snapshot.end()) {
             if (future.isPaused())
@@ -116,16 +123,25 @@ public:
             if (future.isCanceled())
                 break;
             if (m_fileNames.isEmpty() || m_fileNames.contains(it.value()->fileName())) {
-                QVector<Find::SearchResultItem> resultItems;
+                QVector<Core::SearchResultItem> resultItems;
                 QList<ModelItemInfo> modelInfos = search(it.value());
                 foreach (const ModelItemInfo &info, modelInfos) {
                     int index = matcher.indexIn(info.symbolName);
                     if (index != -1) {
-                        QStringList path = info.fullyQualifiedName.mid(0,
-                            info.fullyQualifiedName.size() - 1);
-                        Find::SearchResultItem item;
-                        item.path = path;
-                        item.text = info.symbolName;
+                        QString text = info.symbolName;
+                        QString scope = info.symbolScope;
+                        if (info.type == ModelItemInfo::Function) {
+                            QString name;
+                            info.unqualifiedNameAndScope(info.symbolName, &name, &scope);
+                            text = name + info.symbolType;
+                        } else if (info.type == ModelItemInfo::Declaration){
+                            text = ModelItemInfo::representDeclaration(info.symbolName,
+                                                                       info.symbolType);
+                        }
+
+                        Core::SearchResultItem item;
+                        item.path = scope.split(QLatin1String("::"), QString::SkipEmptyParts);
+                        item.text = text;
                         item.textMarkPos = -1;
                         item.textMarkLength = 0;
                         item.icon = info.icon;
@@ -157,7 +173,7 @@ BuiltinIndexingSupport::BuiltinIndexingSupport()
     : m_revision(0)
 {
     m_synchronizer.setCancelOnWait(true);
-    m_dumpFileNameWhileParsing = !qgetenv("QTCREATOR_DUMP_FILENAME_WHILE_PARSING").isNull();
+    m_dumpFileNameWhileParsing = DumpFileNameWhileParsing;
 }
 
 BuiltinIndexingSupport::~BuiltinIndexingSupport()
@@ -183,7 +199,7 @@ QFuture<void> BuiltinIndexingSupport::refreshSourceFiles(const QStringList &sour
         m_synchronizer.clearFutures();
 
         foreach (const QFuture<void> &future, futures) {
-            if (! (future.isFinished() || future.isCanceled()))
+            if (!(future.isFinished() || future.isCanceled()))
                 m_synchronizer.addFuture(future);
         }
     }
@@ -191,9 +207,8 @@ QFuture<void> BuiltinIndexingSupport::refreshSourceFiles(const QStringList &sour
     m_synchronizer.addFuture(result);
 
     if (mode == CppModelManagerInterface::ForcedProgressNotification || sourceFiles.count() > 1) {
-        Core::ICore::progressManager()->addTask(result,
-                                                QCoreApplication::translate("CppTools::Internal::BuiltinIndexingSupport", "Parsing"),
-                                                QLatin1String(CppTools::Constants::TASK_INDEX));
+        Core::ProgressManager::addTask(result, QCoreApplication::translate("CppTools::Internal::BuiltinIndexingSupport", "Parsing"),
+                                                CppTools::Constants::TASK_INDEX);
     }
 
     return result;

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -75,7 +75,7 @@ CodeStyleSettingsWidget::CodeStyleSettingsWidget(Project *project) : QWidget(), 
     const EditorConfiguration *config = m_project->editorConfiguration();
 
     QMap<Core::Id, ICodeStylePreferencesFactory *> factories
-            = TextEditor::TextEditorSettings::instance()->codeStyleFactories();
+            = TextEditor::TextEditorSettings::codeStyleFactories();
     QMapIterator<Core::Id, ICodeStylePreferencesFactory *> it(factories);
     while (it.hasNext()) {
         it.next();

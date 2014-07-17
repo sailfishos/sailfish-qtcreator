@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -71,8 +71,6 @@ public:
 
     enum Roles { File = Qt::UserRole, Line, MovedLine, Description, FileNotFound, Type, Category, Icon, Task_t };
 
-    QIcon taskTypeIcon(Task::TaskType t) const;
-
     int taskCount(const Core::Id &categoryId);
     int errorTaskCount(const Core::Id &categoryId);
     int warningTaskCount(const Core::Id &categoryId);
@@ -125,8 +123,6 @@ private:
     int m_maxSizeOfFileName;
     int m_lastMaxSizeIndex;
     QFont m_fileMeasurementFont;
-    const QIcon m_errorIcon;
-    const QIcon m_warningIcon;
     int m_sizeOfLineNumber;
     QFont m_lineMeasurementFont;
 };
@@ -183,7 +179,6 @@ private:
     QList<Core::Id> m_categoryIds;
 
     mutable QList<int> m_mapping;
-    mutable bool m_mappingUpToDate;
 
     TaskModel *m_sourceModel;
 };

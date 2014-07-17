@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (c) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (c) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator
@@ -23,8 +23,8 @@
 // **********************************************************************
 
 /*!
-    \contentspage index.html
-    \previouspage creator-tool-chains.html
+    \contentspage {Qt Creator Manual}
+    \previouspage creator-debuggers.html
     \page creator-build-settings.html
     \nextpage creator-run-settings.html
 
@@ -58,17 +58,6 @@
     If you only build and run with a single \l{glossary-buildandrun-kit}{kit},
     you can deselect the \gui {Shadow build}
     checkbox.
-
-    Shadow building is not supported for the following device types on
-    Windows:
-
-    \list
-
-        \li Maemo5
-
-        \li MeeGo Harmattan
-
-    \endlist
 
     To make in-source builds the default option for all projects, select
     \gui Tools > \gui Options > \gui {Build & Run} > \gui General, and enter a

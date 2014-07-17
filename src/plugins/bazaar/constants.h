@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Hugues Delorme
+** Copyright (c) 2014 Hugues Delorme
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -87,6 +87,7 @@ const char PULL[] = "Bazaar.Action.Pull";
 const char PUSH[] = "Bazaar.Action.Push";
 const char UPDATE[] = "Bazaar.Action.Update";
 const char COMMIT[] = "Bazaar.Action.Commit";
+const char UNCOMMIT[] = "Bazaar.Action.UnCommit";
 const char CREATE_REPOSITORY[] = "Bazaar.Action.CreateRepository";
 
 // Submit editor actions

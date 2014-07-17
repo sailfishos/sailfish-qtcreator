@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -32,14 +32,17 @@
 
 #include "codeassist/iassistprovider.h"
 
+#include <utils/qtcoverride.h>
+
 namespace TextEditor {
 namespace Internal {
 
 class ClipboardAssistProvider: public IAssistProvider
 {
 public:
-    virtual bool supportsEditor(const Core::Id &editorId) const;
-    virtual IAssistProcessor *createProcessor() const;
+    bool isAsynchronous() const;
+    bool supportsEditor(const Core::Id &editorId) const QTC_OVERRIDE;
+    IAssistProcessor *createProcessor() const QTC_OVERRIDE;
 };
 
 } // namespace Internal

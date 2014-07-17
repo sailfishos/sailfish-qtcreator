@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -27,7 +27,8 @@
 **
 ****************************************************************************/
 
-import QtQuick 1.0
+import QtQuick 2.1
+import QtQuick.Controls 1.0 as Controls
 
 // view displaying one item library section including its grid
 
@@ -77,18 +78,18 @@ Column {
 
         var currentItemX = sectionView.x + gridFrame.x + gridView.x + gridView.currentItem.x;
         var currentItemY = sectionView.y + gridFrame.y + gridView.y + gridView.currentItem.y
-        - gridView.contentY;  // workaround: GridView reports wrong contentY
+                - gridView.contentY;  // workaround: GridView reports wrong contentY
 
         if (currentItemY < flickable.contentY)
             pos = Math.max(0, currentItemY)
 
-            else if ((currentItemY + gridView.currentItem.height) >
-                     (flickable.contentY + flickable.height - 1))
-                pos = Math.min(Math.max(0, flickable.contentHeight - flickable.height),
-        currentItemY + gridView.currentItem.height - flickable.height + 1)
+        else if ((currentItemY + gridView.currentItem.height) >
+                 (flickable.contentY + flickable.height - 1))
+            pos = Math.min(Math.max(0, flickable.contentHeight - flickable.height),
+                           currentItemY + gridView.currentItem.height - flickable.height + 1)
 
-                if (pos >= 0)
-                    flickable.contentY = pos
+        if (pos >= 0)
+            flickable.contentY = pos
     }
 
     // internal
@@ -98,7 +99,7 @@ Column {
     Component {
         id: itemDelegate
 
-        ItemView {
+        SingleItemView {
             id: item
 
             width: cellWidth
@@ -114,12 +115,27 @@ Column {
         width: parent.width
         height: style.sectionTitleHeight
 
-        color: style.sectionTitleBackgroundColor
+        gradient: Gradient {
+            GradientStop {color: '#555' ; position: 0}
+            GradientStop {color: '#444' ; position: 1}
+        }
+
+        Rectangle {
+            color:"#333"
+            width: parent.width
+            height: 1
+        }
+
+        Rectangle {
+            color: "#333"
+            anchors.bottom: parent.bottom
+            width: parent.width
+            height: 1
+        }
 
         Item {
             id: arrow
 
-            Rectangle { y: 0; x: 0; height: 1; width: 11; color: style.sectionArrowColor }
             Rectangle { y: 1; x: 1; height: 1; width: 9;  color: style.sectionArrowColor }
             Rectangle { y: 2; x: 2; height: 1; width: 7;  color: style.sectionArrowColor }
             Rectangle { y: 3; x: 3; height: 1; width: 5;  color: style.sectionArrowColor }
@@ -127,24 +143,26 @@ Column {
             Rectangle { y: 5; x: 5; height: 1; width: 1;  color: style.sectionArrowColor }
 
             anchors.left: parent.left
-            anchors.leftMargin: 10
+            anchors.leftMargin: 4
             anchors.verticalCenter: parent.verticalCenter
             width: 11
             height: 6
 
             transformOrigin: Item.Center
         }
-        Text {
+        Controls.Label {
             id: text
 
             anchors.verticalCenter: parent.verticalCenter
             anchors.left: arrow.right
-            anchors.leftMargin: 12
+            anchors.leftMargin: 4
 
             text: sectionName  // to be set by model
             color: style.sectionTitleTextColor
             elide: Text.ElideMiddle
             font.bold: true
+            style: Text.Sunken
+            styleColor: "#292929"
         }
         MouseArea {
             id: mouseArea
@@ -160,6 +178,9 @@ Column {
     Item {
         id: gridFrame
 
+        Behavior on opacity { NumberAnimation{easing.type: Easing.Linear ; duration: 80} }
+        Behavior on height { NumberAnimation{easing.type: Easing.OutCubic ; duration: 140} }
+
         function toggleExpanded() {
             state = ((state == "")? "shrunk":"")
 
@@ -168,7 +189,8 @@ Column {
 
         clip: true
         width: entriesPerRow * cellWidth + 1
-        height: Math.ceil(sectionEntries.count / entriesPerRow) * cellHeight + 1
+        height: gridView.model !== undefined ? Math.ceil(gridView.count / sectionView.entriesPerRow) * cellHeight + 1 : 0
+
         anchors.horizontalCenter: parent.horizontalCenter
 
         GridView {
@@ -198,18 +220,18 @@ updated properly under all conditions */
         }
 
         states: [
-        State {
-            name: "shrunk"
-            PropertyChanges {
-                target: gridFrame
-                height: 0
-                opacity: 0
+            State {
+                name: "shrunk"
+                PropertyChanges {
+                    target: gridFrame
+                    height: 0
+                    opacity: 0
+                }
+                PropertyChanges {
+                    target: arrow
+                    rotation: -90
+                }
             }
-            PropertyChanges {
-                target: arrow
-                rotation: -90
-            }
-        }
         ]
     }
 

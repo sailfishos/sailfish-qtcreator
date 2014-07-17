@@ -32,7 +32,7 @@ using namespace CPlusPlus;
 Lexer::Lexer(TranslationUnit *unit)
     : _translationUnit(unit),
       _control(unit->control()),
-      _state(State_Default),
+      _state(0),
       _flags(0),
       _currentLine(1)
 {
@@ -44,7 +44,7 @@ Lexer::Lexer(TranslationUnit *unit)
 Lexer::Lexer(const char *firstChar, const char *lastChar)
     : _translationUnit(0),
       _control(0),
-      _state(State_Default),
+      _state(0),
       _flags(0),
       _currentLine(1)
 {
@@ -80,30 +80,6 @@ int Lexer::state() const
 
 void Lexer::setState(int state)
 { _state = state; }
-
-bool Lexer::qtMocRunEnabled() const
-{ return f._qtMocRunEnabled; }
-
-void Lexer::setQtMocRunEnabled(bool onoff)
-{ f._qtMocRunEnabled = onoff; }
-
-bool Lexer::cxx0xEnabled() const
-{ return f._cxx0xEnabled; }
-
-void Lexer::setCxxOxEnabled(bool onoff)
-{ f._cxx0xEnabled = onoff; }
-
-bool Lexer::objCEnabled() const
-{ return f._objCEnabled; }
-
-void Lexer::setObjCEnabled(bool onoff)
-{ f._objCEnabled = onoff; }
-
-bool Lexer::isIncremental() const
-{ return f._isIncremental; }
-
-void Lexer::setIncremental(bool isIncremental)
-{ f._isIncremental = isIncremental; }
 
 bool Lexer::scanCommentTokens() const
 { return f._scanCommentTokens; }
@@ -155,8 +131,21 @@ void Lexer::scan_helper(Token *tok)
   _Lagain:
     while (_yychar && std::isspace(_yychar)) {
         if (_yychar == '\n') {
-            tok->f.joined = false;
-            tok->f.newline = true;
+            tok->f.joined = s._newlineExpected;
+            tok->f.newline = !s._newlineExpected;
+
+            if (s._newlineExpected) {
+                s._newlineExpected = false;
+            } else {
+                switch (s._tokenKind) {
+                case T_EOF_SYMBOL:
+                case T_COMMENT:
+                case T_DOXY_COMMENT:
+                    break; // multiline tokens, don't break on newline
+                default: // Strings and C++ comments
+                    _state = 0;
+                }
+            }
         } else {
             tok->f.whitespace = true;
         }
@@ -169,13 +158,19 @@ void Lexer::scan_helper(Token *tok)
     _tokenStart = _currentChar;
     tok->offset = _currentChar - _firstChar;
 
-    if (_state == State_MultiLineComment || _state == State_MultiLineDoxyComment) {
-        const int originalState = _state;
+    if (_yychar) {
+        s._newlineExpected = false;
+    } else if (s._tokenKind) {
+        tok->f.kind = T_EOF_SYMBOL;
+        return;
+    }
 
-        if (! _yychar) {
-            tok->f.kind = T_EOF_SYMBOL;
-            return;
-        }
+    switch (s._tokenKind) {
+    case T_EOF_SYMBOL:
+        break;
+    case T_COMMENT:
+    case T_DOXY_COMMENT: {
+        const int originalKind = s._tokenKind;
 
         while (_yychar) {
             if (_yychar != '*')
@@ -184,7 +179,7 @@ void Lexer::scan_helper(Token *tok)
                 yyinp();
                 if (_yychar == '/') {
                     yyinp();
-                    _state = State_Default;
+                    _state = 0;
                     break;
                 }
             }
@@ -193,11 +188,25 @@ void Lexer::scan_helper(Token *tok)
         if (! f._scanCommentTokens)
             goto _Lagain;
 
-        else if (originalState == State_MultiLineComment)
-            tok->f.kind = T_COMMENT;
-        else
-            tok->f.kind = T_DOXY_COMMENT;
+        tok->f.kind = originalKind;
         return; // done
+    }
+    case T_CPP_COMMENT:
+    case T_CPP_DOXY_COMMENT: {
+        const Kind originalKind = (Kind)s._tokenKind;
+        tok->f.joined = true;
+        if (f._scanCommentTokens)
+            tok->f.kind = originalKind;
+        _state = 0;
+        scanCppComment(originalKind);
+        return;
+    }
+    default: // Strings
+        tok->f.joined = true;
+        tok->f.kind = s._tokenKind;
+        _state = 0;
+        scanUntilQuote(tok, '"');
+        return;
     }
 
     if (! _yychar) {
@@ -210,14 +219,7 @@ void Lexer::scan_helper(Token *tok)
 
     switch (ch) {
     case '\\':
-        while (_yychar != '\n' && std::isspace(_yychar))
-            yyinp();
-        // ### CPP_CHECK(! _yychar || _yychar == '\n');
-        if (_yychar == '\n') {
-            tok->f.joined = true;
-            tok->f.newline = false;
-            yyinp();
-        }
+        s._newlineExpected = true;
         goto _Lagain;
 
     case '"':
@@ -269,6 +271,9 @@ void Lexer::scan_helper(Token *tok)
         if (_yychar == ':') {
             yyinp();
             tok->f.kind = T_COLON_COLON;
+        } else if (_yychar == '>') {
+            yyinp();
+            tok->f.kind = T_RBRACKET;
         } else {
             tok->f.kind = T_COLON;
         }
@@ -312,7 +317,24 @@ void Lexer::scan_helper(Token *tok)
         break;
 
     case '?':
-        tok->f.kind = T_QUESTION;
+        if (_yychar == '?') {
+            yyinp();
+            if (_yychar == '(') {
+                yyinp();
+                tok->f.kind = T_LBRACKET;
+            } else if (_yychar == ')') {
+                yyinp();
+                tok->f.kind = T_RBRACKET;
+            } else if (_yychar == '<') {
+                yyinp();
+                tok->f.kind = T_LBRACE;
+            } else if (_yychar == '>') {
+                yyinp();
+                tok->f.kind = T_RBRACE;
+            }
+        } else {
+            tok->f.kind = T_QUESTION;
+        }
         break;
 
     case '+':
@@ -360,25 +382,24 @@ void Lexer::scan_helper(Token *tok)
         if (_yychar == '/') {
             yyinp();
 
-            bool doxy = false;
+            Kind commentType = T_CPP_COMMENT;
 
             if (_yychar == '/' || _yychar == '!') {
                 yyinp();
-                doxy = true;
+                commentType = T_CPP_DOXY_COMMENT;
             }
 
-            while (_yychar && _yychar != '\n')
-                yyinp();
+            scanCppComment(commentType);
 
             if (! f._scanCommentTokens)
                 goto _Lagain;
 
-            tok->f.kind = doxy ? T_CPP_DOXY_COMMENT : T_CPP_COMMENT;
+            tok->f.kind = commentType;
 
         } else if (_yychar == '*') {
             yyinp();
 
-            bool doxy = false;
+            Kind commentKind = T_COMMENT;
 
             if (_yychar == '*' || _yychar == '!') {
                 const char ch = _yychar;
@@ -392,7 +413,7 @@ void Lexer::scan_helper(Token *tok)
                     yyinp();
 
                 if (! _yychar || std::isspace(_yychar))
-                    doxy = true;
+                    commentKind = T_DOXY_COMMENT;
             }
 
             while (_yychar) {
@@ -409,12 +430,12 @@ void Lexer::scan_helper(Token *tok)
             if (_yychar)
                 yyinp();
             else
-                _state = doxy ? State_MultiLineDoxyComment : State_MultiLineComment;
+                s._tokenKind = commentKind;
 
             if (! f._scanCommentTokens)
                 goto _Lagain;
 
-            tok->f.kind = doxy ? T_DOXY_COMMENT : T_COMMENT;
+            tok->f.kind = commentKind;
 
         } else if (_yychar == '=') {
             yyinp();
@@ -428,6 +449,12 @@ void Lexer::scan_helper(Token *tok)
         if (_yychar == '=') {
             yyinp();
             tok->f.kind = T_PERCENT_EQUAL;
+        } else if (_yychar == '>') {
+            yyinp();
+            tok->f.kind = T_RBRACE;
+        } else if (_yychar == ':') {
+            yyinp();
+            tok->f.kind = T_POUND;
         } else {
             tok->f.kind = T_PERCENT;
         }
@@ -515,6 +542,12 @@ void Lexer::scan_helper(Token *tok)
         } else if (_yychar == '=') {
             yyinp();
             tok->f.kind = T_LESS_EQUAL;
+        } else if (_yychar == ':') {
+            yyinp();
+            tok->f.kind = T_LBRACKET;
+        } else if (_yychar == '%') {
+            yyinp();
+            tok->f.kind = T_LBRACE;
         } else {
             tok->f.kind = T_LESS;
         }
@@ -542,7 +575,7 @@ void Lexer::scan_helper(Token *tok)
         break;
 
     default: {
-        if (f._objCEnabled) {
+        if (_languageFeatures.objCEnabled) {
             if (ch == '@' && _yychar >= 'a' && _yychar <= 'z') {
                 const char *yytext = _currentChar;
 
@@ -618,8 +651,6 @@ void Lexer::scan_helper(Token *tok)
 
 void Lexer::scanStringLiteral(Token *tok, unsigned char hint)
 {
-    scanUntilQuote(tok, '"');
-
     if (hint == 'L')
         tok->f.kind = T_WIDE_STRING_LITERAL;
     else if (hint == 'U')
@@ -632,6 +663,8 @@ void Lexer::scanStringLiteral(Token *tok, unsigned char hint)
         tok->f.kind = T_AT_STRING_LITERAL;
     else
         tok->f.kind = T_STRING_LITERAL;
+
+    scanUntilQuote(tok, '"');
 }
 
 void Lexer::scanRawStringLiteral(Token *tok, unsigned char hint)
@@ -697,8 +730,6 @@ void Lexer::scanRawStringLiteral(Token *tok, unsigned char hint)
 
 void Lexer::scanCharLiteral(Token *tok, unsigned char hint)
 {
-    scanUntilQuote(tok, '\'');
-
     if (hint == 'L')
         tok->f.kind = T_WIDE_CHAR_LITERAL;
     else if (hint == 'U')
@@ -707,6 +738,8 @@ void Lexer::scanCharLiteral(Token *tok, unsigned char hint)
         tok->f.kind = T_UTF16_CHAR_LITERAL;
     else
         tok->f.kind = T_CHAR_LITERAL;
+
+    scanUntilQuote(tok, '\'');
 }
 
 void Lexer::scanUntilQuote(Token *tok, unsigned char quote)
@@ -717,13 +750,10 @@ void Lexer::scanUntilQuote(Token *tok, unsigned char quote)
     while (_yychar
            && _yychar != quote
            && _yychar != '\n') {
-        if (_yychar != '\\')
+        if (_yychar == '\\')
+            scanBackslash((Kind)tok->f.kind);
+        else
             yyinp();
-        else {
-            yyinp(); // skip `\\'
-            if (_yychar)
-                yyinp();
-        }
     }
     int yylen = _currentChar - yytext;
 
@@ -765,7 +795,7 @@ void Lexer::scanIdentifier(Token *tok, unsigned extraProcessedChars)
         yyinp();
     int yylen = _currentChar - yytext;
     if (f._scanKeywords)
-        tok->f.kind = classify(yytext, yylen, f._qtMocRunEnabled, f._cxx0xEnabled);
+        tok->f.kind = classify(yytext, yylen, _languageFeatures);
     else
         tok->f.kind = T_IDENTIFIER;
 
@@ -774,5 +804,38 @@ void Lexer::scanIdentifier(Token *tok, unsigned extraProcessedChars)
 
         if (control())
             tok->identifier = control()->identifier(yytext, yylen);
+    }
+}
+
+void Lexer::scanBackslash(Kind type)
+{
+    yyinp(); // skip '\\'
+    if (_yychar && !std::isspace(_yychar)) {
+        yyinp();
+        return;
+    }
+    while (_yychar != '\n' && std::isspace(_yychar))
+        yyinp();
+    if (!_yychar) {
+        s._tokenKind = type;
+        s._newlineExpected = true;
+        return;
+    }
+    if (_yychar == '\n') {
+        yyinp();
+        while (_yychar != '\n' && std::isspace(_yychar))
+            yyinp();
+        if (!_yychar)
+            s._tokenKind = type;
+    }
+}
+
+void Lexer::scanCppComment(Kind type)
+{
+    while (_yychar && _yychar != '\n') {
+        if (_yychar == '\\')
+            scanBackslash(type);
+        else if (_yychar)
+            yyinp();
     }
 }

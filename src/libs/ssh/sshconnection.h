@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -46,9 +46,7 @@ class SftpChannel;
 class SshDirectTcpIpTunnel;
 class SshRemoteProcess;
 
-namespace Internal {
-class SshConnectionPrivate;
-} // namespace Internal
+namespace Internal { class SshConnectionPrivate; }
 
 enum SshConnectionOption {
     SshIgnoreDefaultProxy = 0x1,
@@ -60,7 +58,15 @@ Q_DECLARE_FLAGS(SshConnectionOptions, SshConnectionOption)
 class QSSH_EXPORT SshConnectionParameters
 {
 public:
-    enum AuthenticationType { AuthenticationByPassword, AuthenticationByKey };
+    enum AuthenticationType {
+        AuthenticationTypePassword,
+        AuthenticationTypePublicKey,
+        AuthenticationTypeKeyboardInteractive,
+
+        // Some servers disable "password", others disable "keyboard-interactive".
+        AuthenticationTypeTryAllPasswordBasedMethods
+    };
+
     SshConnectionParameters();
 
     QString host;

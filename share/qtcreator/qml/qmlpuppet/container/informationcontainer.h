@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -43,6 +43,8 @@ class InformationContainer
 {
     friend QDataStream &operator>>(QDataStream &in, InformationContainer &container);
     friend QDataStream &operator<<(QDataStream &out, const InformationContainer &container);
+    friend bool operator ==(const InformationContainer &first, const InformationContainer &second);
+    friend bool operator <(const InformationContainer &first, const InformationContainer &second);
 
 public:
     InformationContainer();
@@ -68,6 +70,10 @@ private:
 
 QDataStream &operator<<(QDataStream &out, const InformationContainer &container);
 QDataStream &operator>>(QDataStream &in, InformationContainer &container);
+
+bool operator ==(const InformationContainer &first, const InformationContainer &second);
+bool operator <(const InformationContainer &first, const InformationContainer &second);
+QDebug operator <<(QDebug debug, const InformationContainer &container);
 
 } // namespace QmlDesigner
 

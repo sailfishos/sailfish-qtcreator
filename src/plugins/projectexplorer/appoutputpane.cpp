@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -36,7 +36,7 @@
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/outputwindow.h>
-#include <find/basetextfind.h>
+#include <coreplugin/find/basetextfind.h>
 #include <texteditor/fontsettings.h>
 #include <texteditor/texteditorsettings.h>
 #include <extensionsystem/pluginmanager.h>
@@ -101,7 +101,7 @@ void TabWidget::slotContextMenuRequested(const QPoint &pos)
 }
 
 AppOutputPane::RunControlTab::RunControlTab(RunControl *rc, Core::OutputWindow *w) :
-    runControl(rc), window(w), asyncClosing(false), behavivorOnOutput(Flash)
+    runControl(rc), window(w), asyncClosing(false), behaviorOnOutput(Flash)
 {
 }
 
@@ -167,7 +167,7 @@ AppOutputPane::AppOutputPane() :
 
     m_mainWidget->setLayout(layout);
 
-    connect(ProjectExplorerPlugin::instance()->session(), SIGNAL(aboutToUnloadSession(QString)),
+    connect(SessionManager::instance(), SIGNAL(aboutToUnloadSession(QString)),
             this, SLOT(aboutToUnloadSession()));
     connect(ProjectExplorerPlugin::instance(), SIGNAL(settingsChanged()),
             this, SLOT(updateFromSettings()));
@@ -301,7 +301,7 @@ void AppOutputPane::createNewOutputWindow(RunControl *rc)
             this, SLOT(appendMessage(ProjectExplorer::RunControl*,QString,Utils::OutputFormat)));
 
     Utils::OutputFormatter *formatter = rc->outputFormatter();
-    formatter->setFont(TextEditor::TextEditorSettings::instance()->fontSettings().font());
+    formatter->setFont(TextEditor::TextEditorSettings::fontSettings().font());
 
     // First look if we can reuse a tab
     const int size = m_runControlTabs.size();
@@ -327,11 +327,11 @@ void AppOutputPane::createNewOutputWindow(RunControl *rc)
     ow->setWindowTitle(tr("Application Output Window"));
     ow->setWindowIcon(QIcon(QLatin1String(Constants::ICON_WINDOW)));
     ow->setFormatter(formatter);
-    ow->setWordWrapEnabled(ProjectExplorerPlugin::instance()->projectExplorerSettings().wrapAppOutput);
-    ow->setMaxLineCount(ProjectExplorerPlugin::instance()->projectExplorerSettings().maxAppOutputLines);
+    ow->setWordWrapEnabled(ProjectExplorerPlugin::projectExplorerSettings().wrapAppOutput);
+    ow->setMaxLineCount(ProjectExplorerPlugin::projectExplorerSettings().maxAppOutputLines);
     Aggregation::Aggregate *agg = new Aggregation::Aggregate;
     agg->add(ow);
-    agg->add(new Find::BaseTextFind(ow));
+    agg->add(new Core::BaseTextFind(ow));
     m_runControlTabs.push_back(RunControlTab(rc, ow));
     m_tabWidget->addTab(ow, rc->displayName());
     if (debug)
@@ -341,7 +341,7 @@ void AppOutputPane::createNewOutputWindow(RunControl *rc)
 
 void AppOutputPane::handleOldOutput(Core::OutputWindow *window) const
 {
-    if (ProjectExplorerPlugin::instance()->projectExplorerSettings().cleanOldAppOutput)
+    if (ProjectExplorerPlugin::projectExplorerSettings().cleanOldAppOutput)
         window->clear();
     else
         window->grayOutOldContent();
@@ -352,8 +352,8 @@ void AppOutputPane::updateFromSettings()
     const int size = m_runControlTabs.size();
     for (int i = 0; i < size; i++) {
         RunControlTab &tab =m_runControlTabs[i];
-        tab.window->setWordWrapEnabled(ProjectExplorerPlugin::instance()->projectExplorerSettings().wrapAppOutput);
-        tab.window->setMaxLineCount(ProjectExplorerPlugin::instance()->projectExplorerSettings().maxAppOutputLines);
+        tab.window->setWordWrapEnabled(ProjectExplorerPlugin::projectExplorerSettings().wrapAppOutput);
+        tab.window->setMaxLineCount(ProjectExplorerPlugin::projectExplorerSettings().maxAppOutputLines);
     }
 }
 
@@ -364,7 +364,7 @@ void AppOutputPane::appendMessage(RunControl *rc, const QString &out, Utils::Out
         Core::OutputWindow *window = m_runControlTabs.at(index).window;
         window->appendMessage(out, format);
         if (format != Utils::NormalMessageFormat) {
-            if (m_runControlTabs.at(index).behavivorOnOutput == Flash)
+            if (m_runControlTabs.at(index).behaviorOnOutput == Flash)
                 flash();
             else
                 popup(NoModeSwitch);
@@ -377,11 +377,11 @@ void AppOutputPane::showTabFor(RunControl *rc)
     m_tabWidget->setCurrentIndex(tabWidgetIndexOf(indexOf(rc)));
 }
 
-void AppOutputPane::setBehaviorOnOutput(RunControl *rc, AppOutputPane::BehavivorOnOutput mode)
+void AppOutputPane::setBehaviorOnOutput(RunControl *rc, AppOutputPane::BehaviorOnOutput mode)
 {
     const int index = indexOf(rc);
     if (index != -1)
-        m_runControlTabs[index].behavivorOnOutput = mode;
+        m_runControlTabs[index].behaviorOnOutput = mode;
 }
 
 void AppOutputPane::reRunRunControl()
@@ -486,11 +486,10 @@ bool AppOutputPane::closeTab(int tabIndex, CloseTabMode closeTabMode)
 
 bool AppOutputPane::optionallyPromptToStop(RunControl *runControl)
 {
-    ProjectExplorerPlugin *pe = ProjectExplorerPlugin::instance();
-    ProjectExplorerSettings settings = pe->projectExplorerSettings();
+    ProjectExplorerSettings settings = ProjectExplorerPlugin::projectExplorerSettings();
     if (!runControl->promptToStop(&settings.prompToStopRunControl))
         return false;
-    pe->setProjectExplorerSettings(settings);
+    ProjectExplorerPlugin::setProjectExplorerSettings(settings);
     return true;
 }
 
@@ -569,6 +568,7 @@ void AppOutputPane::slotRunControlFinished()
     ProjectExplorer::RunControl *rc = qobject_cast<RunControl *>(sender());
     QMetaObject::invokeMethod(this, "slotRunControlFinished2", Qt::QueuedConnection,
                               Q_ARG(ProjectExplorer::RunControl *, rc));
+    rc->outputFormatter()->flush();
 }
 
 void AppOutputPane::slotRunControlFinished2(RunControl *sender)

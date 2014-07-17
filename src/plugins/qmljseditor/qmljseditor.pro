@@ -13,6 +13,7 @@ HEADERS += \
     qmlexpressionundercursor.h \
     qmlfilewizard.h \
     qmljshighlighter.h \
+    qmljshighlighterfactory.h \
     qmljshoverhandler.h \
     qmljspreviewrunner.h \
     qmljscomponentfromobjectdef.h \
@@ -34,7 +35,9 @@ HEADERS += \
     qmljsquickfix.h \
     qmljssemanticinfoupdater.h \
     qmljssemantichighlighter.h \
-    qmljswrapinloader.h
+    qmljswrapinloader.h \
+    qmljseditordocument.h \
+    qmljseditordocument_p.h
 
 SOURCES += \
     qmljseditor.cpp \
@@ -43,6 +46,7 @@ SOURCES += \
     qmlexpressionundercursor.cpp \
     qmlfilewizard.cpp \
     qmljshighlighter.cpp \
+    qmljshighlighterfactory.cpp \
     qmljshoverhandler.cpp \
     qmljspreviewrunner.cpp \
     qmljscomponentfromobjectdef.cpp \
@@ -65,7 +69,8 @@ SOURCES += \
     qmljsquickfix.cpp \
     qmljssemanticinfoupdater.cpp \
     qmljssemantichighlighter.cpp \
-    qmljswrapinloader.cpp
+    qmljswrapinloader.cpp \
+    qmljseditordocument.cpp
 
 RESOURCES += qmljseditor.qrc
 

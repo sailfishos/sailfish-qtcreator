@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2012 - 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -32,6 +32,7 @@
 #include "blackberryruncontrol.h"
 #include "blackberryapplicationrunner.h"
 #include "blackberryrunconfiguration.h"
+#include "blackberrydeviceconnectionmanager.h"
 
 #include <QIcon>
 #include <QTimer>
@@ -42,7 +43,7 @@ using namespace Qnx::Internal;
 BlackBerryRunControl::BlackBerryRunControl(BlackBerryRunConfiguration *runConfiguration)
     : ProjectExplorer::RunControl(runConfiguration, ProjectExplorer::NormalRunMode)
 {
-    m_runner = new BlackBerryApplicationRunner(false, runConfiguration, this);
+    m_runner = new BlackBerryApplicationRunner(BlackBerryApplicationRunner::LaunchFlags(), runConfiguration, this);
 
     connect(m_runner, SIGNAL(started()), this, SIGNAL(started()));
     connect(m_runner, SIGNAL(finished()), this, SIGNAL(finished()));

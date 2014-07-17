@@ -1,6 +1,6 @@
 #############################################################################
 ##
-## Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+## Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ## Contact: http://www.qt-project.org/legal
 ##
 ## This file is part of Qt Creator.
@@ -29,6 +29,8 @@
 
 import operator
 
+isQt4Build = False
+
 # for easier re-usage (because Python hasn't an enum type)
 class Targets:
     DESKTOP_474_GCC = 1
@@ -39,10 +41,12 @@ class Targets:
     EMBEDDED_LINUX = 32
     DESKTOP_480_MSVC2010 = 64
     DESKTOP_501_DEFAULT = 128
+    DESKTOP_521_DEFAULT = 256
 
     @staticmethod
     def desktopTargetClasses():
-        desktopTargets = Targets.DESKTOP_474_GCC | Targets.DESKTOP_480_GCC | Targets.DESKTOP_501_DEFAULT
+        desktopTargets = (Targets.DESKTOP_474_GCC | Targets.DESKTOP_480_GCC
+                          | Targets.DESKTOP_501_DEFAULT | Targets.DESKTOP_521_DEFAULT)
         if platform.system() in ('Windows', 'Microsoft'):
             desktopTargets |= Targets.DESKTOP_480_MSVC2010
         return desktopTargets
@@ -65,6 +69,8 @@ class Targets:
             return "Desktop 480 MSVC2010"
         elif target == Targets.DESKTOP_501_DEFAULT:
             return "Desktop 501 default"
+        elif target == Targets.DESKTOP_521_DEFAULT:
+            return "Desktop 521 default"
         else:
             return None
 
@@ -82,7 +88,7 @@ class Targets:
     def intToArray(targets):
         available = [Targets.DESKTOP_474_GCC, Targets.DESKTOP_480_GCC, Targets.SIMULATOR, Targets.MAEMO5,
                      Targets.HARMATTAN, Targets.EMBEDDED_LINUX, Targets.DESKTOP_480_MSVC2010,
-                     Targets.DESKTOP_501_DEFAULT]
+                     Targets.DESKTOP_501_DEFAULT, Targets.DESKTOP_521_DEFAULT]
         return filter(lambda x: x & targets == x, available)
 
     @staticmethod
@@ -96,13 +102,11 @@ class ProjectSettings:
 
 # this class defines some constants for the views of the creator's MainWindow
 class ViewConstants:
-    WELCOME = 0
-    EDIT = 1
-    DESIGN = 2
-    DEBUG = 3
-    PROJECTS = 4
-    ANALYZE = 5
-    HELP = 6
+    if isQt4Build:
+        EDIT, DESIGN, DEBUG, PROJECTS, ANALYZE, HELP = range(6)
+    else:
+        WELCOME, EDIT, DESIGN, DEBUG, PROJECTS, ANALYZE, HELP = range(7)
+    FIRST_AVAILABLE = 0
     # always adjust the following to the highest value of the available ViewConstants when adding new
     LAST_AVAILABLE = HELP
 
@@ -111,7 +115,7 @@ class ViewConstants:
     # if the provided argument does not match any of the ViewConstants it returns None
     @staticmethod
     def getToolTipForViewTab(viewTab):
-        if viewTab == ViewConstants.WELCOME:
+        if not isQt4Build and viewTab == ViewConstants.WELCOME:
             toolTip = ur'Switch to <b>Welcome</b> mode <span style="color: gray; font-size: small">(Ctrl\+|\u2303)%d</span>'
         elif viewTab == ViewConstants.EDIT:
             toolTip = ur'Switch to <b>Edit</b> mode <span style="color: gray; font-size: small">(Ctrl\+|\u2303)%d</span>'
@@ -136,13 +140,19 @@ class SubprocessType:
     USER_DEFINED=3
 
     @staticmethod
-    def getWindowType(subprocessType):
+    def getWindowType(subprocessType, qtQuickVersion="1.1"):
         if subprocessType == SubprocessType.QT_WIDGET:
             return "QMainWindow"
         if subprocessType == SubprocessType.QT_QUICK_APPLICATION:
-            return "QmlApplicationViewer"
+            qqv = "2"
+            if qtQuickVersion[0] == "1":
+                qqv = "1"
+            return "QtQuick%sApplicationViewer" % qqv
         if subprocessType == SubprocessType.QT_QUICK_UI:
-            return "QDeclarativeViewer"
+            if qtQuickVersion == "1.1":
+                return "QDeclarativeViewer"
+            else:
+                return "QQuickView"
         if subprocessType == SubprocessType.USER_DEFINED:
             return "user-defined"
         test.fatal("Could not determine the WindowType for SubprocessType %s" % subprocessType)
@@ -152,3 +162,18 @@ class QtInformation:
     QT_VERSION = 0
     QT_BINPATH = 1
     QT_LIBPATH = 2
+
+class LibType:
+    SHARED = 0
+    STATIC = 1
+    QT_PLUGIN = 2
+
+    @staticmethod
+    def getStringForLib(libType):
+        if libType == LibType.SHARED:
+            return "Shared Library"
+        if libType == LibType.STATIC:
+            return "Statically Linked Library"
+        if libType == LibType.QT_PLUGIN:
+            return "Qt Plugin"
+        return None

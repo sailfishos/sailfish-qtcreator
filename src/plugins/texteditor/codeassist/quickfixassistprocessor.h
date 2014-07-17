@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -32,16 +32,19 @@
 
 #include "iassistprocessor.h"
 
+#include <utils/qtcoverride.h>
+
 namespace TextEditor {
 
 class TEXTEDITOR_EXPORT QuickFixAssistProcessor : public IAssistProcessor
 {
 public:
     QuickFixAssistProcessor();
-    virtual ~QuickFixAssistProcessor();
+    ~QuickFixAssistProcessor();
 
     virtual const IAssistProvider *provider() const = 0;
-    virtual IAssistProposal *perform(const IAssistInterface *interface);
+
+    IAssistProposal *perform(const IAssistInterface *interface) QTC_OVERRIDE;
 };
 
 } // TextEditor

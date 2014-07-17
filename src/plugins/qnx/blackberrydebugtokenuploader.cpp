@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -37,6 +37,7 @@ namespace {
 static const char ERR_NO_ROUTE_HOST[] = "Cannot connect";
 static const char ERR_AUTH_FAILED[] = "Authentication failed";
 static const char ERR_DEVELOPMENT_MODE_DISABLED[] = "Device is not in the Development Mode";
+static const char ERR_FILE_NOT_EXIST[] = "File does not exist";
 }
 
 namespace Qnx {
@@ -48,6 +49,7 @@ BlackBerryDebugTokenUploader::BlackBerryDebugTokenUploader(QObject *parent) :
     addErrorStringMapping(QLatin1String(ERR_NO_ROUTE_HOST), NoRouteToHost);
     addErrorStringMapping(QLatin1String(ERR_AUTH_FAILED), AuthenticationFailed);
     addErrorStringMapping(QLatin1String(ERR_DEVELOPMENT_MODE_DISABLED), DevelopmentModeDisabled);
+    addErrorStringMapping(QLatin1String(ERR_FILE_NOT_EXIST), InvalidDebugTokenPath);
 }
 
 void BlackBerryDebugTokenUploader::uploadDebugToken(const QString &path,

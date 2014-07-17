@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -93,7 +93,8 @@ void FileWidget::comboBoxChanged()
 
 void FileWidget::onButtonReleased()
 {
-    QString newFile = QFileDialog::getOpenFileName(0, tr("Open File"), m_path.toLocalFile(), m_filter);
+    QString newFile = QFileDialog::getOpenFileName(this, tr("Open File"),
+                                                   m_path.toLocalFile(), m_filter);
     if (!newFile.isEmpty())
         setFileNameStr(newFile);
 }

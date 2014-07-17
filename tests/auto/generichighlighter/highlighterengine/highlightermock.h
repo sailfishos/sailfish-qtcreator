@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,7 +30,7 @@
 #ifndef HIGHLIGHTERMOCK_H
 #define HIGHLIGHTERMOCK_H
 
-#include "highlighter.h"
+#include <texteditor/generichighlighter/highlighter.h>
 
 #include <QList>
 
@@ -58,7 +58,7 @@ struct HighlightSequence
     QList<QTextCharFormat> m_formats;
 };
 
-class HighlighterMock : public TextEditor::Internal::Highlighter
+class HighlighterMock : public TextEditor::Highlighter
 {
 public:
     HighlighterMock(QTextDocument *parent = 0);

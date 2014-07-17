@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -27,25 +27,12 @@
 **
 ****************************************************************************/
 
-import QtQuick 1.1
-import qtcomponents 1.0
+import QtQuick 2.1
 
 Rectangle {
     id: delegate
     height: 240
     width: 216
-
-    Rectangle {
-        id: highlight
-        radius: 6
-        visible: isHighlighted
-        color: colors.strongForegroundColor
-        anchors.fill: parent
-        anchors.topMargin: 2
-        anchors.leftMargin: 4
-        anchors.rightMargin: 4
-        anchors.bottomMargin: 73
-    }
 
     property alias caption: captionItem.text
     property alias imageSource: imageItem.source
@@ -63,17 +50,6 @@ Rectangle {
         else
             searchBar.text += " " + tagStr
     }
-
-    CustomColors {
-        id: colors
-    }
-
-    CustomFonts {
-        id: fonts
-    }
-
-    QStyleItem { cursor: "pointinghandcursor"; anchors.fill: parent }
-
 
     BorderImage {
         id: image1
@@ -109,7 +85,7 @@ Rectangle {
             asynchronous: true
         }
 
-        Text {
+        NativeText {
             id: length
 
             visible: delegate.isVideo
@@ -135,13 +111,13 @@ Rectangle {
         anchors.left: parent.left
     }
 
-    Text {
+    NativeText {
         id: captionItem
         x: 16
         y: 170
         color: colors.strongForegroundColor
         text: qsTr("2D PAINTING EXAMPLE long description")
-        clip: true
+        elide: Text.ElideRight
         anchors.right: parent.right
         anchors.rightMargin: 16
         anchors.left: parent.left
@@ -151,7 +127,7 @@ Rectangle {
         font: fonts.standardCaption
     }
 
-    Text {
+    NativeText {
         id: descriptionItem
         height: 43
         color: "#7e7e7e"
@@ -181,7 +157,7 @@ Rectangle {
         anchors.rightMargin: 10
     }
 
-    Text {
+    NativeText {
         id: tags
         x: 16
         y: 198
@@ -228,6 +204,7 @@ Rectangle {
         id: mousearea1
         anchors.fill: parent
         hoverEnabled: true
+        cursorShape: Qt.PointingHandCursor
         onEntered: {
             delegate.state="hover"
         }
@@ -353,7 +330,6 @@ Rectangle {
         height: 32
         anchors.left: tags.right
         anchors.leftMargin: 6
-        clip: true
 
         spacing: 2
 
@@ -378,7 +354,7 @@ Rectangle {
                 onClicked: appendTag(modelData)
                 property bool hugeTag: (text.length > 12) && index > 1
                 property bool isExampleTag: text === "example"
-                visible: !hugeTag && !isExampleTag && index < 8
+                visible: !hugeTag && !isExampleTag && index < 8 && y < 32
             }
         }
     }

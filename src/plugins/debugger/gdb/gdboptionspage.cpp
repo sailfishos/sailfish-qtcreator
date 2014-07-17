@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -28,10 +28,10 @@
 ****************************************************************************/
 
 #include "gdboptionspage.h"
-#include "commonoptionspage.h"
-#include "debuggeractions.h"
-#include "debuggercore.h"
-#include "debuggerinternalconstants.h"
+#include <debugger/commonoptionspage.h>
+#include <debugger/debuggeractions.h>
+#include <debugger/debuggercore.h>
+#include <debugger/debuggerinternalconstants.h>
 
 #include <coreplugin/icore.h>
 
@@ -54,7 +54,7 @@ namespace Internal {
 class GdbOptionsPageWidget : public QWidget
 {
 public:
-    explicit GdbOptionsPageWidget(QWidget *parent);
+    explicit GdbOptionsPageWidget(QWidget *parent = 0);
 
     QGroupBox *groupBoxGeneral;
     QLabel *labelGdbWatchdogTimeout;
@@ -83,7 +83,6 @@ public:
     //QLineEdit *lineEditSelectedPluginBreakpointsPattern;
 
     Utils::SavedActionSet group;
-    QString searchKeywords;
 };
 
 GdbOptionsPageWidget::GdbOptionsPageWidget(QWidget *parent)
@@ -153,7 +152,7 @@ GdbOptionsPageWidget::GdbOptionsPageWidget(QWidget *parent)
     checkBoxLoadGdbDumpers->setText(GdbOptionsPage::tr("Load system GDB pretty printers"));
     checkBoxLoadGdbDumpers->setToolTip(GdbOptionsPage::tr(
         "Uses the default GDB pretty printers installed in your "
-        "system or linked to the libraries your application uses.\n"));
+        "system or linked to the libraries your application uses."));
 
     checkBoxIntelFlavor = new QCheckBox(groupBoxGeneral);
     checkBoxIntelFlavor->setText(GdbOptionsPage::tr("Use Intel style disassembly"));
@@ -210,9 +209,9 @@ GdbOptionsPageWidget::GdbOptionsPageWidget(QWidget *parent)
         "You can load additional debugging helpers or modify existing ones here.</p>"
         "%1</body></html>").arg(howToUsePython));
 
-    textEditCustomDumperCommands = new QTextEdit(groupBoxStartupCommands);
+    textEditCustomDumperCommands = new QTextEdit(groupBoxCustomDumperCommands);
     textEditCustomDumperCommands->setAcceptRichText(false);
-    textEditCustomDumperCommands->setToolTip(groupBoxStartupCommands->toolTip());
+    textEditCustomDumperCommands->setToolTip(groupBoxCustomDumperCommands->toolTip());
 
     /*
     groupBoxPluginDebugging = new QGroupBox(q);
@@ -297,19 +296,6 @@ GdbOptionsPageWidget::GdbOptionsPageWidget(QWidget *parent)
     //    setEnabled(dc->action(SelectedPluginBreakpoints)->value().toBool());
     //connect(radioButtonSelectedPluginBreakpoints, SIGNAL(toggled(bool)),
     //    lineEditSelectedPluginBreakpointsPattern, SLOT(setEnabled(bool)));
-
-    const QLatin1Char sep(' ');
-    QTextStream(&searchKeywords)
-            << sep << groupBoxGeneral->title()
-            << sep << checkBoxLoadGdbInit->text()
-            << sep << checkBoxLoadGdbDumpers->text()
-            << sep << checkBoxUseDynamicType->text()
-            << sep << labelGdbWatchdogTimeout->text()
-            << sep << checkBoxSkipKnownFrames->text()
-            << sep << checkBoxUseMessageBoxForSignals->text()
-            << sep << checkBoxAdjustBreakpointLocations->text();
-    ;
-    searchKeywords.remove(QLatin1Char('&'));
 }
 
 GdbOptionsPage::GdbOptionsPage()
@@ -325,9 +311,10 @@ GdbOptionsPage::~GdbOptionsPage()
 {
 }
 
-QWidget *GdbOptionsPage::createPage(QWidget *parent)
+QWidget *GdbOptionsPage::widget()
 {
-    m_widget = new GdbOptionsPageWidget(parent);
+    if (!m_widget)
+        m_widget = new GdbOptionsPageWidget;
     return m_widget;
 }
 
@@ -339,13 +326,10 @@ void GdbOptionsPage::apply()
 
 void GdbOptionsPage::finish()
 {
-    if (m_widget)
+    if (m_widget) {
         m_widget->group.finish();
-}
-
-bool GdbOptionsPage::matches(const QString &s) const
-{
-    return m_widget && m_widget->searchKeywords.contains(s, Qt::CaseInsensitive);
+        delete m_widget;
+    }
 }
 
 /////////////////////////////////////////////////////////////////////////
@@ -357,7 +341,7 @@ bool GdbOptionsPage::matches(const QString &s) const
 class GdbOptionsPageWidget2 : public QWidget
 {
 public:
-    explicit GdbOptionsPageWidget2(QWidget *parent);
+    explicit GdbOptionsPageWidget2(QWidget *parent = 0);
 
     QGroupBox *groupBoxDangerous;
     QLabel *labelDangerous;
@@ -371,7 +355,6 @@ public:
     QCheckBox *checkBoxMultiInferior;
 
     Utils::SavedActionSet group;
-    QString searchKeywords;
 };
 
 GdbOptionsPageWidget2::GdbOptionsPageWidget2(QWidget *parent)
@@ -398,7 +381,7 @@ GdbOptionsPageWidget2::GdbOptionsPageWidget2(QWidget *parent)
     checkBoxAutoEnrichParameters->setText(GdbOptionsPage::tr(
         "Use common locations for debug information"));
     checkBoxAutoEnrichParameters->setToolTip(GdbOptionsPage::tr(
-        "<html><head/><body>Add common paths to locations "
+        "<html><head/><body>Adds common paths to locations "
         "of debug information such as <i>/usr/src/debug</i> "
         "when starting GDB.</body></html>"));
 
@@ -418,7 +401,7 @@ GdbOptionsPageWidget2::GdbOptionsPageWidget2(QWidget *parent)
     checkBoxEnableReverseDebugging = new QCheckBox(groupBoxDangerous);
     checkBoxEnableReverseDebugging->setText(GdbOptionsPage::tr("Enable reverse debugging"));
     checkBoxEnableReverseDebugging->setToolTip(GdbOptionsPage::tr(
-        "<html><head/><body><p>Enable stepping backwards.</p><p>"
+        "<html><head/><body><p>Enables stepping backwards.</p><p>"
         "<b>Note:</b> This feature is very slow and unstable on the GDB side. "
         "It exhibits unpredictable behavior when going backwards over system "
         "calls and is very likely to destroy your debugging session.</p></body></html>"));
@@ -426,14 +409,14 @@ GdbOptionsPageWidget2::GdbOptionsPageWidget2(QWidget *parent)
     checkBoxAttemptQuickStart = new QCheckBox(groupBoxDangerous);
     checkBoxAttemptQuickStart->setText(GdbOptionsPage::tr("Attempt quick start"));
     checkBoxAttemptQuickStart->setToolTip(GdbOptionsPage::tr(
-        "<html><head/><body>Postpone reading debug information as long as possible. "
+        "<html><head/><body>Postpones reading debug information as long as possible. "
         "This can result in faster startup times at the price of not being able to "
         "set breakpoints by file and number.</body></html>"));
 
     checkBoxMultiInferior = new QCheckBox(groupBoxDangerous);
     checkBoxMultiInferior->setText(GdbOptionsPage::tr("Debug all children"));
     checkBoxMultiInferior->setToolTip(GdbOptionsPage::tr(
-        "<html><head/><body>Keep debugging all children after a fork."
+        "<html><head/><body>Keeps debugging all children after a fork."
         "</body></html>"));
 
 
@@ -460,16 +443,6 @@ GdbOptionsPageWidget2::GdbOptionsPageWidget2(QWidget *parent)
     group.insert(dc->action(AttemptQuickStart), checkBoxAttemptQuickStart);
     group.insert(dc->action(MultiInferior), checkBoxMultiInferior);
     group.insert(dc->action(EnableReverseDebugging), checkBoxEnableReverseDebugging);
-
-    const QLatin1Char sep(' ');
-    QTextStream(&searchKeywords)
-            << sep << groupBoxDangerous->title()
-            << sep << checkBoxTargetAsync->text()
-            << sep << checkBoxEnableReverseDebugging->text()
-            << sep << checkBoxAttemptQuickStart->text()
-            << sep << checkBoxMultiInferior->text()
-    ;
-    searchKeywords.remove(QLatin1Char('&'));
 }
 
 GdbOptionsPage2::GdbOptionsPage2()
@@ -485,9 +458,10 @@ GdbOptionsPage2::~GdbOptionsPage2()
 {
 }
 
-QWidget *GdbOptionsPage2::createPage(QWidget *parent)
+QWidget *GdbOptionsPage2::widget()
 {
-    m_widget = new GdbOptionsPageWidget2(parent);
+    if (!m_widget)
+        m_widget = new GdbOptionsPageWidget2;
     return m_widget;
 }
 
@@ -499,13 +473,10 @@ void GdbOptionsPage2::apply()
 
 void GdbOptionsPage2::finish()
 {
-    if (m_widget)
+    if (m_widget) {
         m_widget->group.finish();
-}
-
-bool GdbOptionsPage2::matches(const QString &s) const
-{
-    return m_widget && m_widget->searchKeywords.contains(s, Qt::CaseInsensitive);
+        delete m_widget;
+    }
 }
 
 } // namespace Internal

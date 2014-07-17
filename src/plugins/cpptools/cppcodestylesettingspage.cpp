@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -275,9 +275,8 @@ CppCodeStylePreferencesWidget::CppCodeStylePreferencesWidget(QWidget *parent)
     for (int i = 0; i < m_previews.size(); ++i)
         m_previews[i]->setPlainText(QLatin1String(defaultCodeStyleSnippets[i]));
 
-    TextEditor::TextEditorSettings *textEditorSettings = TextEditorSettings::instance();
-    decorateEditors(textEditorSettings->fontSettings());
-    connect(textEditorSettings, SIGNAL(fontSettingsChanged(TextEditor::FontSettings)),
+    decorateEditors(TextEditorSettings::fontSettings());
+    connect(TextEditorSettings::instance(), SIGNAL(fontSettingsChanged(TextEditor::FontSettings)),
        this, SLOT(decorateEditors(TextEditor::FontSettings)));
 
     setVisualizeWhitespace(true);
@@ -429,44 +428,6 @@ void CppCodeStylePreferencesWidget::slotCurrentPreferencesChanged(TextEditor::IC
         updatePreview();
 }
 
-QString CppCodeStylePreferencesWidget::searchKeywords() const
-{
-    QString rc;
-    QLatin1Char sep(' ');
-    QTextStream(&rc)
-       << sep << m_ui->tabSettingsWidget->searchKeywords()
-       << sep << m_ui->indentBlockBraces->text()
-       << sep << m_ui->indentBlockBody->text()
-       << sep << m_ui->indentClassBraces->text()
-       << sep << m_ui->indentEnumBraces->text()
-       << sep << m_ui->indentNamespaceBraces->text()
-       << sep << m_ui->indentNamespaceBody->text()
-       << sep << m_ui->indentAccessSpecifiers->text()
-       << sep << m_ui->indentDeclarationsRelativeToAccessSpecifiers->text()
-       << sep << m_ui->indentFunctionBody->text()
-       << sep << m_ui->indentFunctionBraces->text()
-       << sep << m_ui->indentSwitchLabels->text()
-       << sep << m_ui->indentCaseStatements->text()
-       << sep << m_ui->indentCaseBlocks->text()
-       << sep << m_ui->indentCaseBreak->text()
-       << sep << m_ui->bindStarToIdentifier->text()
-       << sep << m_ui->bindStarToTypeName->text()
-       << sep << m_ui->bindStarToLeftSpecifier->text()
-       << sep << m_ui->bindStarToRightSpecifier->text()
-       << sep << m_ui->contentGroupBox->title()
-       << sep << m_ui->bracesGroupBox->title()
-       << sep << m_ui->switchGroupBox->title()
-       << sep << m_ui->alignmentGroupBox->title()
-       << sep << m_ui->pointerReferencesGroupBox->title()
-       << sep << m_ui->extraPaddingConditions->text()
-       << sep << m_ui->alignAssignments->text()
-          ;
-    for (int i = 0; i < m_ui->categoryTab->count(); i++)
-        QTextStream(&rc) << sep << m_ui->categoryTab->tabText(i);
-    rc.remove(QLatin1Char('&'));
-    return rc;
-}
-
 void CppCodeStylePreferencesWidget::slotCodeStyleSettingsChanged()
 {
     if (m_blockUpdates)
@@ -504,7 +465,7 @@ void CppCodeStylePreferencesWidget::updatePreview()
     const TextEditor::TabSettings ts = cppCodeStylePreferences->currentTabSettings();
     QtStyleCodeFormatter formatter(ts, ccss);
     foreach (TextEditor::SnippetEditorWidget *preview, m_previews) {
-        preview->setTabSettings(ts);
+        preview->baseTextDocument()->setTabSettings(ts);
         preview->setCodeStyle(cppCodeStylePreferences);
 
         QTextDocument *doc = preview->document();
@@ -514,7 +475,7 @@ void CppCodeStylePreferencesWidget::updatePreview()
         QTextCursor tc = preview->textCursor();
         tc.beginEditBlock();
         while (block.isValid()) {
-            preview->indenter()->indentBlock(doc, block, QChar::Null, ts);
+            preview->baseTextDocument()->indenter()->indentBlock(doc, block, QChar::Null, ts);
 
             block = block.next();
         }
@@ -536,7 +497,7 @@ void CppCodeStylePreferencesWidget::decorateEditors(const TextEditor::FontSettin
     }
 
     foreach (TextEditor::SnippetEditorWidget *editor, m_previews) {
-        editor->setFontSettings(fontSettings);
+        editor->baseTextDocument()->setFontSettings(fontSettings);
         if (provider)
             provider->decorateEditor(editor);
     }
@@ -565,20 +526,20 @@ CppCodeStyleSettingsPage::CppCodeStyleSettingsPage(QWidget *parent) :
     setCategoryIcon(QLatin1String(Constants::SETTINGS_CATEGORY_CPP_ICON));
 }
 
-QWidget *CppCodeStyleSettingsPage::createPage(QWidget *parent)
+QWidget *CppCodeStyleSettingsPage::widget()
 {
-    CppCodeStylePreferences *originalCodeStylePreferences
-            = CppToolsSettings::instance()->cppCodeStyle();
-    m_pageCppCodeStylePreferences = new CppCodeStylePreferences(m_widget);
-    m_pageCppCodeStylePreferences->setDelegatingPool(originalCodeStylePreferences->delegatingPool());
-    m_pageCppCodeStylePreferences->setCodeStyleSettings(originalCodeStylePreferences->codeStyleSettings());
-    m_pageCppCodeStylePreferences->setCurrentDelegate(originalCodeStylePreferences->currentDelegate());
-    // we set id so that it won't be possible to set delegate to the original prefs
-    m_pageCppCodeStylePreferences->setId(originalCodeStylePreferences->id());
-    TextEditorSettings *settings = TextEditorSettings::instance();
-    m_widget = new CodeStyleEditor(settings->codeStyleFactory(CppTools::Constants::CPP_SETTINGS_ID),
-                                   m_pageCppCodeStylePreferences, parent);
-
+    if (!m_widget) {
+        CppCodeStylePreferences *originalCodeStylePreferences
+                = CppToolsSettings::instance()->cppCodeStyle();
+        m_pageCppCodeStylePreferences = new CppCodeStylePreferences(m_widget);
+        m_pageCppCodeStylePreferences->setDelegatingPool(originalCodeStylePreferences->delegatingPool());
+        m_pageCppCodeStylePreferences->setCodeStyleSettings(originalCodeStylePreferences->codeStyleSettings());
+        m_pageCppCodeStylePreferences->setCurrentDelegate(originalCodeStylePreferences->currentDelegate());
+        // we set id so that it won't be possible to set delegate to the original prefs
+        m_pageCppCodeStylePreferences->setId(originalCodeStylePreferences->id());
+        m_widget = new CodeStyleEditor(TextEditorSettings::codeStyleFactory(CppTools::Constants::CPP_SETTINGS_ID),
+                                       m_pageCppCodeStylePreferences);
+    }
     return m_widget;
 }
 
@@ -603,9 +564,9 @@ void CppCodeStyleSettingsPage::apply()
     }
 }
 
-bool CppCodeStyleSettingsPage::matches(const QString &s) const
+void CppCodeStyleSettingsPage::finish()
 {
-    return m_searchKeywords.contains(s, Qt::CaseInsensitive);
+    delete m_widget;
 }
 
 } // namespace Internal

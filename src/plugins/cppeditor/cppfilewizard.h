@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -42,16 +42,11 @@ class CppFileWizard : public Core::StandardFileWizard
     Q_OBJECT
 
 public:
-    typedef Core::BaseFileWizardParameters BaseFileWizardParameters;
+    explicit CppFileWizard(FileType type);
 
-    CppFileWizard(const BaseFileWizardParameters &parameters,
-                  FileType type,
-                  QObject *parent = 0);
-
-protected:
+private:
     QString fileContents(FileType type, const QString &baseName) const;
 
-protected:
     Core::GeneratedFiles generateFilesFromPath(const QString &path,
                                                const QString &fileName,
                                                QString *errorMessage) const;

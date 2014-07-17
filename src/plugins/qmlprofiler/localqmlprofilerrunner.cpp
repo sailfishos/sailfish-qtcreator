@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -33,7 +33,6 @@
 
 #include <analyzerbase/analyzerstartparameters.h>
 #include <projectexplorer/runconfiguration.h>
-#include <qmlprojectmanager/qmlprojectrunconfiguration.h>
 #include <projectexplorer/localapplicationrunconfiguration.h>
 #include <projectexplorer/environmentaspect.h>
 
@@ -45,30 +44,19 @@ LocalQmlProfilerRunner *LocalQmlProfilerRunner::createLocalRunner(
         RunConfiguration *runConfiguration,
         const Analyzer::AnalyzerStartParameters &sp,
         QString *errorMessage,
-        QmlProfilerEngine *engine)
+        QmlProfilerRunControl *engine)
 {
-    QmlProjectManager::QmlProjectRunConfiguration *rc1 =
-                qobject_cast<QmlProjectManager::QmlProjectRunConfiguration *>(runConfiguration);
-    LocalApplicationRunConfiguration *rc2 =
+    LocalApplicationRunConfiguration *larc =
                    qobject_cast<LocalApplicationRunConfiguration *>(runConfiguration);
-    QTC_ASSERT(rc1 || rc2, return 0);
+    QTC_ASSERT(larc, return 0);
     ProjectExplorer::EnvironmentAspect *environment
             = runConfiguration->extraAspect<ProjectExplorer::EnvironmentAspect>();
     QTC_ASSERT(environment, return 0);
     Configuration conf;
-    if (rc1) {
-        // This is a "plain" .qmlproject.
-        conf.executable = rc1->observerPath();
-        conf.executableArguments = rc1->viewerArguments();
-        conf.workingDirectory = rc1->workingDirectory();
-        conf.environment = environment->environment();
-    } else {
-        // FIXME: Check.
-        conf.executable = rc2->executable();
-        conf.executableArguments = rc2->commandLineArguments();
-        conf.workingDirectory = rc2->workingDirectory();
-        conf.environment = environment->environment();
-    }
+    conf.executable = larc->executable();
+    conf.executableArguments = larc->commandLineArguments();
+    conf.workingDirectory = larc->workingDirectory();
+    conf.environment = environment->environment();
 
     conf.port = sp.analyzerPort;
 
@@ -81,7 +69,7 @@ LocalQmlProfilerRunner *LocalQmlProfilerRunner::createLocalRunner(
 }
 
 LocalQmlProfilerRunner::LocalQmlProfilerRunner(const Configuration &configuration,
-                                               QmlProfilerEngine *engine) :
+                                               QmlProfilerRunControl *engine) :
     AbstractQmlProfilerRunner(engine),
     m_configuration(configuration),
     m_engine(engine)
@@ -97,7 +85,7 @@ LocalQmlProfilerRunner::~LocalQmlProfilerRunner()
 
 void LocalQmlProfilerRunner::start()
 {
-    if (m_engine->mode() != Analyzer::StartQml)
+    if (m_engine->mode() != Analyzer::StartLocal)
         return;
 
     QString arguments = QString::fromLatin1("-qmljsdebugger=port:%1,block").arg(m_configuration.port);
@@ -111,26 +99,32 @@ void LocalQmlProfilerRunner::start()
 
     m_launcher.setWorkingDirectory(m_configuration.workingDirectory);
     m_launcher.setEnvironment(m_configuration.environment);
-    connect(&m_launcher, SIGNAL(processExited(int)), this, SLOT(spontaneousStop(int)));
+    connect(&m_launcher, SIGNAL(processExited(int,QProcess::ExitStatus)),
+            this, SLOT(spontaneousStop(int,QProcess::ExitStatus)));
     m_launcher.start(ProjectExplorer::ApplicationLauncher::Gui, m_configuration.executable,
                      arguments);
 
     emit started();
 }
 
-void LocalQmlProfilerRunner::spontaneousStop(int exitCode)
+void LocalQmlProfilerRunner::spontaneousStop(int exitCode, QProcess::ExitStatus status)
 {
-    if (QmlProfilerPlugin::debugOutput)
-        qWarning("QmlProfiler: Application exited (exit code %d).", exitCode);
+    if (QmlProfilerPlugin::debugOutput) {
+        if (status == QProcess::CrashExit)
+            qWarning("QmlProfiler: Application crashed.");
+        else
+            qWarning("QmlProfiler: Application exited (exit code %d).", exitCode);
+    }
 
-    disconnect(&m_launcher, SIGNAL(processExited(int)), this, SLOT(spontaneousStop(int)));
+    disconnect(&m_launcher, SIGNAL(processExited(int,QProcess::ExitStatus)),
+               this, SLOT(spontaneousStop(int,QProcess::ExitStatus)));
 
     emit stopped();
 }
 
 void LocalQmlProfilerRunner::stop()
 {
-    if (m_engine->mode() != Analyzer::StartQml)
+    if (m_engine->mode() != Analyzer::StartLocal)
         return;
 
     if (QmlProfilerPlugin::debugOutput)

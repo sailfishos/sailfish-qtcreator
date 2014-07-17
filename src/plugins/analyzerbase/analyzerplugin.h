@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 ** Author: Nicolas Arnaud-Cormos, KDAB (nicolas.arnaud-cormos@kdab.com)
 **
@@ -48,7 +48,7 @@ public:
     virtual ~AnalyzerPlugin();
 
     bool initialize(const QStringList &arguments, QString *errorString);
-    void extensionsInitialized();
+    void extensionsInitialized() {}
 
     ShutdownFlag aboutToShutdown();
 };

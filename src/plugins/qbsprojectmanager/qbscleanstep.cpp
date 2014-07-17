@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -293,6 +293,7 @@ void QbsCleanStepConfigWidget::updateState()
         command += QLatin1String("--keep-going ");
     if (m_step->cleanAll())
         command += QLatin1String(" --all-artifacts");
+    m_ui->commandLineTextEdit->setPlainText(command);
 
     QString summary = tr("<b>Qbs:</b> %1").arg(command);
     if (m_summary !=  summary) {

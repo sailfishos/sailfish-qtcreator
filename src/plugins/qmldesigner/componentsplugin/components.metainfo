@@ -11,7 +11,7 @@ MetaInfo {
             version: "1.0"
             requiredImport: "QtQuick.Controls"
 
-            Property { name: "text"; type: "QString"; value: "Button"; }
+            Property { name: "text"; type: "binding"; value: "qsTr(\"Button\")"; }
         }
     }
 
@@ -39,7 +39,7 @@ MetaInfo {
             version: "1.0"
             requiredImport: "QtQuick.Controls"
 
-            Property { name: "text"; type: "QString"; value: "Check Box"; }
+            Property { name: "text"; type: "binding"; value: "qsTr(\"Check Box\")"; }
         }
     }
 
@@ -54,7 +54,7 @@ MetaInfo {
             version: "1.0"
             requiredImport: "QtQuick.Controls"
 
-            Property { name: "text"; type: "QString"; value: "Radio Button"; }
+            Property { name: "text"; type: "binding"; value: "qsTr(\"Radio Button\")"; }
         }
     }
 
@@ -108,7 +108,7 @@ MetaInfo {
             version: "1.0"
             requiredImport: "QtQuick.Controls"
 
-            Property { name: "text"; type: "QString"; value: "Label"; }
+            Property { name: "text"; type: "binding"; value: "qsTr(\"Label\")"; }
         }
     }
 
@@ -123,7 +123,7 @@ MetaInfo {
             version: "1.0"
             requiredImport: "QtQuick.Controls"
 
-            Property { name: "placeholderText"; type: "QString"; value: "Text Field"; }
+            Property { name: "placeholderText"; type: "binding"; value: "qsTr(\"Text Field\")"; }
         }
     }
 
@@ -226,6 +226,8 @@ MetaInfo {
 
             Property { name: "width"; type: "int"; value: 360; }
             Property { name: "height"; type: "int"; value: 300; }
+
+            Property { name: "title"; type: "binding"; value: "qsTr(\"Check Box\")"; }
         }
     }
 
@@ -348,6 +350,22 @@ MetaInfo {
             libraryIcon: ":/qtquickplugin/images/item-icon.png"
             version: "1.0"
             requiredImport: "QtQuick.Layouts"
+
+            Property { name: "width"; type: "int"; value: 100; }
+            Property { name: "height"; type: "int"; value: 100; }
+        }
+    }
+
+    Type {
+        name: "QtQuick.Controls.SplitView"
+        icon: ":/qtquickplugin/images/item-icon16.png"
+
+        ItemLibraryEntry {
+            name: "SplitView"
+            category: "Qt Quick - Layouts"
+            libraryIcon: ":/qtquickplugin/images/item-icon.png"
+            version: "1.0"
+            requiredImport: "QtQuick.Controls"
 
             Property { name: "width"; type: "int"; value: 100; }
             Property { name: "height"; type: "int"; value: 100; }

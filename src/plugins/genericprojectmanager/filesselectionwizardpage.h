@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -39,11 +39,12 @@ class QTreeView;
 class QLineEdit;
 QT_END_NAMESPACE
 
+namespace ProjectExplorer { class SelectableFilesModel; }
+
 namespace GenericProjectManager {
 namespace Internal {
 
 class GenericProjectWizardDialog;
-class SelectableFilesModel;
 
 class FilesSelectionWizardPage : public QWizardPage
 {
@@ -68,7 +69,7 @@ private:
     void createApplyButton(QVBoxLayout *layout);
 
     GenericProjectWizardDialog *m_genericProjectWizardDialog;
-    SelectableFilesModel *m_model;
+    ProjectExplorer::SelectableFilesModel *m_model;
 
     QLabel *m_hideFilesFilterLabel;
     QLineEdit *m_hideFilesfilterLineEdit;

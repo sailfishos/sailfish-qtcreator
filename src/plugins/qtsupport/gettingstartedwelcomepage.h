@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -35,7 +35,7 @@
 #include <QStringList>
 
 QT_BEGIN_NAMESPACE
-class QDeclarativeEngine;
+class QQmlEngine;
 class QFileInfo;
 QT_END_NAMESPACE
 
@@ -43,24 +43,6 @@ namespace QtSupport {
 namespace Internal {
 
 class ExamplesListModel;
-class GettingStartedWelcomePageWidget;
-
-class GettingStartedWelcomePage : public Utils::IWelcomePage
-{
-    Q_OBJECT
-
-public:
-    GettingStartedWelcomePage();
-    QUrl pageLocation() const;
-    QString title() const;
-    int priority() const;
-    void facilitateQml(QDeclarativeEngine *);
-    Id id() const;
-
-private:
-    QDeclarativeEngine *m_engine;
-};
-
 
 class ExamplesWelcomePage : public Utils::IWelcomePage
 {
@@ -74,7 +56,7 @@ public:
     QString title() const;
     int priority() const;
     bool hasSearchBar() const;
-    void facilitateQml(QDeclarativeEngine *);
+    void facilitateQml(QQmlEngine *);
     Id id() const;
     Q_INVOKABLE QStringList tagList() const;
     Q_INVOKABLE void openUrl(const QUrl &url);
@@ -92,7 +74,7 @@ public slots:
 private:
     ExamplesListModel *examplesModel() const;
     QString copyToAlternativeLocation(const QFileInfo &fileInfo, QStringList &filesToOpen, const QStringList &dependencies);
-    QDeclarativeEngine *m_engine;
+    QQmlEngine *m_engine;
     bool m_showExamples;
 };
 

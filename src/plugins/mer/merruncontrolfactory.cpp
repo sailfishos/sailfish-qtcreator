@@ -34,7 +34,6 @@
 #include <debugger/debuggerstartparameters.h>
 #include <debugger/debuggerkitinformation.h>
 #include <projectexplorer/target.h>
-#include <analyzerbase/ianalyzerengine.h>
 #include <analyzerbase/analyzermanager.h>
 #include <analyzerbase/analyzerruncontrol.h>
 #include <qtsupport/qtkitinformation.h>
@@ -125,16 +124,10 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, RunMode mo
         return runControl;
     }
     case QmlProfilerRunMode: {
-        Analyzer::IAnalyzerTool *tool = Analyzer::AnalyzerManager::toolFromRunMode(mode);
-        if (!tool) {
-            if (errorMessage)
-                *errorMessage = tr("No analyzer tool selected.");
-            return 0;
-        }
         Analyzer::AnalyzerStartParameters params = RemoteLinuxAnalyzeSupport::startParameters(rc, mode);
-        Analyzer::AnalyzerRunControl * const runControl = new Analyzer::AnalyzerRunControl(tool, params, runConfig);
+        Analyzer::AnalyzerRunControl * const runControl = Analyzer::AnalyzerManager::createRunControl(params, runConfig);
         RemoteLinuxAnalyzeSupport * const analyzeSupport =
-                new RemoteLinuxAnalyzeSupport(rc, runControl->engine(), mode);
+                new RemoteLinuxAnalyzeSupport(rc, runControl, mode);
         connect(runControl, SIGNAL(finished()), analyzeSupport, SLOT(handleProfilingFinished()));
         return runControl;
     }

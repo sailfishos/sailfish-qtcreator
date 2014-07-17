@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -38,6 +38,7 @@
 
 namespace Core {
 class IEditor;
+class IDocument;
 
 struct EditorToolBarPrivate;
 
@@ -81,7 +82,7 @@ public:
     void setCloseSplitIcon(const QIcon &icon);
 
 public slots:
-    void updateEditorStatus(IEditor *editor);
+    void updateDocumentStatus(Core::IDocument *document);
 
 signals:
     void closeClicked();
@@ -99,7 +100,7 @@ private slots:
     void listContextMenu(QPoint);
     void makeEditorWritable();
 
-    void checkEditorStatus();
+    void checkDocumentStatus();
     void closeEditor();
     void updateActionShortcuts();
 

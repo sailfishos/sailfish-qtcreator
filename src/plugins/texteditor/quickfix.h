@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -81,7 +81,7 @@ public:
     /*!
         Perform this quick-fix's operation.
 
-        Subclasses should implement this method to do the actual changes.
+        Subclasses should implement this function to do the actual changes.
      */
     virtual void perform() = 0;
 

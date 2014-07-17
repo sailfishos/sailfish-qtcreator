@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -39,6 +39,7 @@
 #include "documentmanager.h"
 #include "viewmanager.h"
 #include "shortcutmanager.h"
+#include <designeractionmanager.h>
 
 #include <QStringList>
 
@@ -82,14 +83,20 @@ public:
     ViewManager &viewManager();
     const ViewManager &viewManager() const;
 
+    DesignerActionManager &designerActionManager();
+    const DesignerActionManager &designerActionManager() const;
+
     DesignerSettings settings();
     void setSettings(const DesignerSettings &s);
 
     DesignDocument *currentDesignDocument() const;
     Internal::DesignModeWidget *mainWidget() const;
 
+    void switchToTextModeDeferred();
+
 private slots:
     void switchTextDesign();
+    void switschToTextMode();
     void onTextEditorsClosed(QList<Core::IEditor *> editors);
     void onCurrentEditorChanged(Core::IEditor *editor);
     void onCurrentModeChanged(Core::IMode *mode, Core::IMode *oldMode);

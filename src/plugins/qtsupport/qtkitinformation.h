@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -46,10 +46,6 @@ class QTSUPPORT_EXPORT QtKitInformation : public ProjectExplorer::KitInformation
 public:
     QtKitInformation();
 
-    Core::Id dataId() const;
-
-    unsigned int priority() const; // the higher the closer to the top.
-
     QVariant defaultValue(ProjectExplorer::Kit *k) const;
 
     QList<ProjectExplorer::Task> validate(const ProjectExplorer::Kit *k) const;
@@ -64,15 +60,11 @@ public:
     void addToEnvironment(const ProjectExplorer::Kit *k, Utils::Environment &env) const;
     ProjectExplorer::IOutputParser *createOutputParser(const ProjectExplorer::Kit *k) const;
 
+    static Core::Id id();
     static int qtVersionId(const ProjectExplorer::Kit *k);
     static void setQtVersionId(ProjectExplorer::Kit *k, const int id);
     static BaseQtVersion *qtVersion(const ProjectExplorer::Kit *k);
     static void setQtVersion(ProjectExplorer::Kit *k, const BaseQtVersion *v);
-
-    // Information derived from the Qt version:
-    // FIXME: This should be part of an RunConfigurationAspect...
-    static QString dumperLibrary(const ProjectExplorer::Kit *k);
-    static QStringList dumperLibraryLocations(const ProjectExplorer::Kit *k);
 
 private slots:
     void qtVersionsChanged(const QList<int> &addedIds,

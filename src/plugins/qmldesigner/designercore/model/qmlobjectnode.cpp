@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -33,11 +33,12 @@
 #include "variantproperty.h"
 #include "nodeproperty.h"
 #include <invalidmodelnodeexception.h>
-#include "qmlmodelview.h"
+#include "abstractview.h"
 #include "nodeinstance.h"
 #include "nodemetainfo.h"
 #include "bindingproperty.h"
 #include "nodelistproperty.h"
+#include "nodeinstanceview.h"
 
 namespace QmlDesigner {
 
@@ -53,7 +54,7 @@ void QmlObjectNode::setVariantProperty(const PropertyName &name, const QVariant 
 
         QmlPropertyChanges changeSet(currentState().propertyChanges(modelNode()));
         Q_ASSERT(changeSet.isValid());
-        changeSet.modelNode().variantProperty(name) = value;
+        changeSet.modelNode().variantProperty(name).setValue(value);
     }
 }
 
@@ -63,20 +64,20 @@ void QmlObjectNode::setBindingProperty(const PropertyName &name, const QString &
         throw new InvalidModelNodeException(__LINE__, __FUNCTION__, __FILE__);
 
     if (isInBaseState()) {
-        modelNode().bindingProperty(name) = expression; //basestate
+        modelNode().bindingProperty(name).setExpression(expression); //basestate
     } else {
         modelNode().validId();
 
         QmlPropertyChanges changeSet(currentState().propertyChanges(modelNode()));
         Q_ASSERT(changeSet.isValid());
-        changeSet.modelNode().bindingProperty(name) = expression;
+        changeSet.modelNode().bindingProperty(name).setExpression(expression);
     }
 }
 
 QmlModelState QmlObjectNode::currentState() const
 {
     if (isValid())
-        return qmlModelView()->currentState();
+        return QmlModelState(view()->currentStateNode());
     else
         return QmlModelState();
 }
@@ -128,7 +129,12 @@ bool QmlObjectNode::hasBindingProperty(const PropertyName &name) const
 
 NodeAbstractProperty QmlObjectNode::nodeAbstractProperty(const PropertyName &name) const
 {
-   return modelNode().nodeAbstractProperty(name);
+    return modelNode().nodeAbstractProperty(name);
+}
+
+NodeAbstractProperty QmlObjectNode::defaultNodeAbstractProperty() const
+{
+    return modelNode().defaultNodeAbstractProperty();
 }
 
 NodeProperty QmlObjectNode::nodeProperty(const PropertyName &name) const
@@ -229,7 +235,7 @@ bool QmlObjectNode::isInBaseState() const
     return currentState().isBaseState();
 }
 
-bool QmlObjectNode::canReparent() const
+bool QmlObjectNode::instanceCanReparent() const
 {
     return isInBaseState();
 }
@@ -251,7 +257,7 @@ QmlPropertyChanges QmlObjectNode::propertyChangeForCurrentState() const
 static void removeStateOperationsForChildren(const QmlObjectNode &node)
 {
     if (node.isValid()) {
-        foreach (const QmlModelStateOperation &stateOperation, node.allAffectingStatesOperations()) {
+        foreach (QmlModelStateOperation stateOperation, node.allAffectingStatesOperations()) {
             stateOperation.modelNode().destroy(); //remove of belonging StatesOperations
         }
 
@@ -272,7 +278,7 @@ void QmlObjectNode::destroy()
     if (!isValid())
         throw new InvalidModelNodeException(__LINE__, __FUNCTION__, __FILE__);
 
-    foreach (const QmlModelStateOperation &stateOperation, allAffectingStatesOperations()) {
+    foreach (QmlModelStateOperation stateOperation, allAffectingStatesOperations()) {
         stateOperation.modelNode().destroy(); //remove of belonging StatesOperations
     }
     removeStateOperationsForChildren(modelNode());
@@ -315,22 +321,20 @@ QList<QmlModelStateOperation> QmlObjectNode::allAffectingStatesOperations() cons
     return returnList;
 }
 
-static QList<QmlItemNode> allFxItemsRecursive(const QmlItemNode &fxNode)
+static QList<QmlItemNode> allQmlItemsRecursive(const QmlItemNode &qmlItemNode)
 {
-    QList<QmlItemNode> returnList;
+    QList<QmlItemNode> qmlItemNodeList;
 
-    if (fxNode.isValid()) {
-        returnList.append(fxNode);
-        QList<QmlItemNode> allChildNodes;
-        foreach (const ModelNode &node, fxNode.modelNode().allDirectSubModelNodes()) {
-            if (QmlItemNode(node).isValid())
-                allChildNodes.append(node);
-        }
-        foreach (const QmlItemNode &node, allChildNodes) {
-            returnList.append(allFxItemsRecursive(node));
+    if (qmlItemNode.isValid()) {
+        qmlItemNodeList.append(qmlItemNode);
+
+        foreach (const ModelNode &modelNode, qmlItemNode.modelNode().allDirectSubModelNodes()) {
+            if (QmlItemNode::isValidQmlItemNode(modelNode))
+                qmlItemNodeList.append(allQmlItemsRecursive(modelNode));
         }
     }
-    return returnList;
+
+    return qmlItemNodeList;
 }
 
 QList<QmlModelState> QmlObjectNode::allDefinedStates() const
@@ -340,14 +344,12 @@ QList<QmlModelState> QmlObjectNode::allDefinedStates() const
 
     QList<QmlModelState> returnList;
 
-    QList<QmlItemNode> allFxItems;
+    QList<QmlItemNode> allQmlItems;
 
-    QmlItemNode rootNode(qmlModelView()->rootModelNode());
+    if (QmlItemNode::isValidQmlItemNode(view()->rootModelNode()))
+        allQmlItems.append(allQmlItemsRecursive(view()->rootModelNode()));
 
-    if (rootNode.isValid())
-        allFxItems.append(allFxItemsRecursive(rootNode));
-
-    foreach (const QmlItemNode &item, allFxItems) {
+    foreach (const QmlItemNode &item, allQmlItems) {
         returnList.append(item.states().allStates());
     }
 
@@ -360,7 +362,7 @@ QList<QmlModelState> QmlObjectNode::allDefinedStates() const
     model.
 */
 
-void  QmlObjectNode::removeVariantProperty(const PropertyName &name)
+void  QmlObjectNode::removeProperty(const PropertyName &name)
 {
     if (!isValid())
         throw new InvalidModelNodeException(__LINE__, __FUNCTION__, __FILE__);
@@ -374,12 +376,12 @@ void  QmlObjectNode::removeVariantProperty(const PropertyName &name)
     }
 }
 
-QList<ModelNode> toModelNodeList(const QList<QmlObjectNode> &fxObjectNodeList)
+QList<ModelNode> toModelNodeList(const QList<QmlObjectNode> &qmlObjectNodeList)
 {
     QList<ModelNode> modelNodeList;
 
-    foreach (const QmlObjectNode &fxObjectNode, fxObjectNodeList)
-        modelNodeList.append(fxObjectNode.modelNode());
+    foreach (const QmlObjectNode &qmlObjectNode, qmlObjectNodeList)
+        modelNodeList.append(qmlObjectNode.modelNode());
 
     return modelNodeList;
 }
@@ -389,9 +391,8 @@ QList<QmlObjectNode> toQmlObjectNodeList(const QList<ModelNode> &modelNodeList)
     QList<QmlObjectNode> qmlObjectNodeList;
 
     foreach (const ModelNode &modelNode, modelNodeList) {
-        QmlObjectNode objectNode(modelNode);
-        if (objectNode.isValid())
-            qmlObjectNodeList.append(objectNode);
+        if (QmlObjectNode::isValidQmlObjectNode(modelNode))
+             qmlObjectNodeList.append(modelNode);
     }
 
     return qmlObjectNodeList;
@@ -404,11 +405,8 @@ bool QmlObjectNode::isAncestorOf(const QmlObjectNode &objectNode) const
 
 QVariant QmlObjectNode::instanceValue(const ModelNode &modelNode, const PropertyName &name)
 {
-    QmlModelView *modelView = qobject_cast<QmlModelView*>(modelNode.view());
-    if (!modelView)
-        throw new InvalidModelNodeException(__LINE__, __FUNCTION__, __FILE__);
-    Q_ASSERT(modelView->hasInstanceForModelNode(modelNode));
-    return modelView->instanceForModelNode(modelNode).property(name);
+    Q_ASSERT(modelNode.view()->nodeInstanceView()->hasInstanceForModelNode(modelNode));
+    return modelNode.view()->nodeInstanceView()->instanceForModelNode(modelNode).property(name);
 }
 
 QString QmlObjectNode::generateTranslatableText(const QString &text)
@@ -423,26 +421,42 @@ TypeName QmlObjectNode::instanceType(const PropertyName &name) const
 
 bool QmlObjectNode::instanceHasBinding(const PropertyName &name) const
 {
-    QmlModelView *modelView = qobject_cast<QmlModelView*>(modelNode().view());
-    if (!modelView)
-        throw new InvalidModelNodeException(__LINE__, __FUNCTION__, __FILE__);
-
     return nodeInstance().hasBindingForProperty(name);
 }
 
 NodeInstance QmlObjectNode::nodeInstance() const
 {
-    return qmlModelView()->nodeInstanceView()->instanceForNode(modelNode());
+    return nodeInstanceView()->instanceForModelNode(modelNode());
 }
 
 QmlObjectNode QmlObjectNode::nodeForInstance(const NodeInstance &instance) const
 {
-    return QmlObjectNode(ModelNode(instance.modelNode(), qmlModelView()));
+    return QmlObjectNode(ModelNode(instance.modelNode(), view()));
 }
 
 QmlItemNode QmlObjectNode::itemForInstance(const NodeInstance &instance) const
 {
-    return QmlItemNode(ModelNode(instance.modelNode(), qmlModelView()));
+    return QmlItemNode(ModelNode(instance.modelNode(), view()));
+}
+
+QmlObjectNode::QmlObjectNode()
+    : QmlModelNodeFacade()
+{
+}
+
+QmlObjectNode::QmlObjectNode(const ModelNode &modelNode)
+    : QmlModelNodeFacade(modelNode)
+{
+}
+
+bool QmlObjectNode::isValidQmlObjectNode(const ModelNode &modelNode)
+{
+    return isValidQmlModelNodeFacade(modelNode);
+}
+
+bool QmlObjectNode::isValid() const
+{
+    return isValidQmlObjectNode(modelNode());
 }
 
 bool QmlObjectNode::hasNodeParent() const
@@ -452,14 +466,14 @@ bool QmlObjectNode::hasNodeParent() const
 
 bool QmlObjectNode::hasInstanceParent() const
 {
-    return nodeInstance().parentId() >= 0 && qmlModelView()->nodeInstanceView()->hasInstanceForId(nodeInstance().parentId());
+    return nodeInstance().parentId() >= 0 && nodeInstanceView()->hasInstanceForId(nodeInstance().parentId());
 }
 
 bool QmlObjectNode::hasInstanceParentItem() const
 {
     return nodeInstance().parentId() >= 0
-            && qmlModelView()->nodeInstanceView()->hasInstanceForId(nodeInstance().parentId())
-            && QmlItemNode::isItemOrWindow(qmlModelView()->modelNodeForInternalId(nodeInstance().parentId()));
+            && nodeInstanceView()->hasInstanceForId(nodeInstance().parentId())
+            && QmlItemNode::isItemOrWindow(view()->modelNodeForInternalId(nodeInstance().parentId()));
 }
 
 
@@ -471,7 +485,7 @@ void QmlObjectNode::setParentProperty(const NodeAbstractProperty &parentProeprty
 QmlObjectNode QmlObjectNode::instanceParent() const
 {
     if (hasInstanceParent())
-        return nodeForInstance(qmlModelView()->nodeInstanceView()->instanceForId(nodeInstance().parentId()));
+        return nodeForInstance(nodeInstanceView()->instanceForId(nodeInstance().parentId()));
 
     return QmlObjectNode();
 }
@@ -479,7 +493,7 @@ QmlObjectNode QmlObjectNode::instanceParent() const
 QmlItemNode QmlObjectNode::instanceParentItem() const
 {
     if (hasInstanceParentItem())
-        return itemForInstance(qmlModelView()->nodeInstanceView()->instanceForId(nodeInstance().parentId()));
+        return itemForInstance(nodeInstanceView()->instanceForId(nodeInstance().parentId()));
 
     return QmlItemNode();
 }
@@ -499,20 +513,20 @@ QString QmlObjectNode::validId()
     return modelNode().validId();
 }
 
-bool QmlObjectNode::hasDefaultProperty() const
+bool QmlObjectNode::hasDefaultPropertyName() const
 {
     return modelNode().metaInfo().hasDefaultProperty();
 }
 
-PropertyName QmlObjectNode::defaultProperty() const
+PropertyName QmlObjectNode::defaultPropertyName() const
 {
     return modelNode().metaInfo().defaultPropertyName();
 }
 
 void QmlObjectNode::setParent(QmlObjectNode newParent)
 {
-    if (newParent.hasDefaultProperty())
-        newParent.modelNode().nodeAbstractProperty(newParent.defaultProperty()).reparentHere(modelNode());
+    if (newParent.hasDefaultPropertyName())
+        newParent.modelNode().defaultNodeAbstractProperty().reparentHere(modelNode());
 }
 
 QmlItemNode QmlObjectNode::toQmlItemNode() const

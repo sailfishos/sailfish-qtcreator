@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 ** Author: Nicolas Arnaud-Cormos, KDAB (nicolas.arnaud-cormos@kdab.com)
 **
@@ -66,15 +66,9 @@ bool AnalyzerPlugin::initialize(const QStringList &arguments, QString *errorStri
 
     // Task integration.
     //: Category under which Analyzer tasks are listed in Issues view
-    ProjectExplorer::ProjectExplorerPlugin::instance()->taskHub()
-            ->addCategory(Core::Id(Constants::ANALYZERTASK_ID), tr("Analyzer"));
+    ProjectExplorer::TaskHub::addCategory(Constants::ANALYZERTASK_ID, tr("Analyzer"));
 
     return true;
-}
-
-void AnalyzerPlugin::extensionsInitialized()
-{
-    AnalyzerManager::extensionsInitialized();
 }
 
 ExtensionSystem::IPlugin::ShutdownFlag AnalyzerPlugin::aboutToShutdown()

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -29,6 +29,12 @@
 
 #include "submiteditorfile.h"
 
+#include "vcsbasesubmiteditor.h"
+
+#include <utils/fileutils.h>
+
+#include <QFileInfo>
+
 using namespace VcsBase;
 using namespace VcsBase::Internal;
 
@@ -39,26 +45,18 @@ using namespace VcsBase::Internal;
     submit editor files.
 */
 
-SubmitEditorFile::SubmitEditorFile(const QString &mimeType, QObject *parent) :
+SubmitEditorFile::SubmitEditorFile(const QString &mimeType, VcsBaseSubmitEditor *parent) :
     Core::IDocument(parent),
     m_mimeType(mimeType),
-    m_modified(false)
+    m_modified(false),
+    m_editor(parent)
 {
+    setTemporary(true);
 }
 
-void SubmitEditorFile::rename(const QString &newName)
+bool SubmitEditorFile::setContents(const QByteArray &contents)
 {
-    Q_UNUSED(newName);
-    // We can't be renamed
-    return;
-}
-
-void SubmitEditorFile::setFileName(const QString &name)
-{
-    if (m_fileName == name)
-        return;
-    m_fileName = name;
-    emit changed();
+    return m_editor->setFileContents(contents);
 }
 
 void SubmitEditorFile::setModified(bool modified)
@@ -71,7 +69,16 @@ void SubmitEditorFile::setModified(bool modified)
 
 bool SubmitEditorFile::save(QString *errorString, const QString &fileName, bool autoSave)
 {
-    emit saveMe(errorString, fileName, autoSave);
+    const QString fName = fileName.isEmpty() ? filePath() : fileName;
+    Utils::FileSaver saver(fName, QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text);
+    saver.write(m_editor->fileContents());
+    if (!saver.finalize(errorString))
+        return false;
+    if (autoSave)
+        return true;
+    const QFileInfo fi(fName);
+    setFilePath(fi.absoluteFilePath());
+    setModified(false);
     if (!errorString->isEmpty())
         return false;
     emit changed();

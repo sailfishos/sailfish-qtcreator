@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,10 +30,10 @@
 #ifndef SESSIONDIALOG_H
 #define SESSIONDIALOG_H
 
+#include "ui_sessiondialog.h"
+
 #include <QString>
 #include <QDialog>
-
-#include "ui_sessiondialog.h"
 
 QT_BEGIN_NAMESPACE
 class QLineEdit;
@@ -41,16 +41,14 @@ class QPushButton;
 QT_END_NAMESPACE
 
 namespace ProjectExplorer {
-
-class SessionManager;
-
 namespace Internal {
 
 class SessionDialog : public QDialog
 {
     Q_OBJECT
+
 public:
-    SessionDialog(SessionManager *sessionManager, QWidget *parent = 0);
+    explicit SessionDialog(QWidget *parent = 0);
 
     void setAutoLoadSession(bool);
     bool autoLoadSession() const;
@@ -67,8 +65,8 @@ private slots:
 private:
     void addItems(bool setDefaultSession);
     void markItems();
+    void addSessionToUi(const QString &name, bool switchTo);
     Ui::SessionDialog m_ui;
-    SessionManager *m_sessionManager;
 };
 
 class SessionNameInputDialog : public QDialog

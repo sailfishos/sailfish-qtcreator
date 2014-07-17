@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,11 +30,12 @@
 #ifndef SETTINGSPAGE_H
 #define SETTINGSPAGE_H
 
-#include <QWidget>
-
 #include <vcsbase/vcsbaseoptionspage.h>
 
 #include "ui_settingspage.h"
+
+#include <QPointer>
+#include <QWidget>
 
 QT_BEGIN_NAMESPACE
 class QSettings;
@@ -53,8 +54,6 @@ public:
     GitSettings settings() const;
     void setSettings(const GitSettings &);
 
-    QString searchKeywords() const;
-
 private:
     Ui::SettingsPage m_ui;
 };
@@ -66,14 +65,13 @@ class SettingsPage : public VcsBase::VcsBaseOptionsPage
 public:
     SettingsPage();
 
-    QWidget *createPage(QWidget *parent);
+    QWidget *widget();
     void apply();
-    void finish() { }
-    bool matches(const QString &) const;
+    void finish();
 
 private:
     QString m_searchKeywords;
-    SettingsPageWidget* m_widget;
+    QPointer<SettingsPageWidget> m_widget;
 };
 
 } // namespace Internal

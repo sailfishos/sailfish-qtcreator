@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,46 +30,34 @@
 #ifndef CPPLOCATORFILTER_H
 #define CPPLOCATORFILTER_H
 
+#include "cpplocatordata.h"
 #include "searchsymbols.h"
 
-#include <locator/ilocatorfilter.h>
+#include <coreplugin/locator/ilocatorfilter.h>
 
 namespace CppTools {
 namespace Internal {
 
 class CppModelManager;
 
-class CppLocatorFilter : public Locator::ILocatorFilter
+class CppLocatorFilter : public Core::ILocatorFilter
 {
     Q_OBJECT
 
 public:
-    CppLocatorFilter(CppModelManager *manager);
+    CppLocatorFilter(CppLocatorData *locatorData);
     ~CppLocatorFilter();
 
-    QList<Locator::FilterEntry> matchesFor(QFutureInterface<Locator::FilterEntry> &future, const QString &entry);
-    void accept(Locator::FilterEntry selection) const;
+    QList<Core::LocatorFilterEntry> matchesFor(QFutureInterface<Core::LocatorFilterEntry> &future, const QString &entry);
+    void accept(Core::LocatorFilterEntry selection) const;
     void refresh(QFutureInterface<void> &future);
 
-    void reset();
+private:
+    virtual QList<QList<ModelItemInfo> > itemsToMatchUserInputAgainst() const;
+    virtual Core::LocatorFilterEntry filterEntryFromModelItemInfo(const ModelItemInfo &info);
 
 protected:
-    SearchSymbols search;
-
-    void flushPendingDocument(bool force);
-
-private slots:
-    void onDocumentUpdated(CPlusPlus::Document::Ptr updatedDoc);
-    void onAboutToRemoveFiles(const QStringList &files);
-
-private:
-    CppModelManager *m_manager;
-
-    QHash<QString, QList<ModelItemInfo> > m_searchList;
-    QString m_previousEntry;
-
-    mutable QMutex m_pendingDocumentsMutex;
-    QVector<CPlusPlus::Document::Ptr> m_pendingDocuments;
+    CppLocatorData *m_data;
 };
 
 } // namespace Internal

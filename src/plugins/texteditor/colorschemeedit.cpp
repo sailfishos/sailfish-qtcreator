@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -251,8 +251,6 @@ void ColorSchemeEdit::changeForeColor()
     const QColor newColor = QColorDialog::getColor(color, m_ui->boldCheckBox->window());
     if (!newColor.isValid())
         return;
-    QPalette p = m_ui->foregroundToolButton->palette();
-    p.setColor(QPalette::Active, QPalette::Button, newColor);
     m_ui->foregroundToolButton->setStyleSheet(colorButtonStyleSheet(newColor));
     m_ui->eraseForegroundToolButton->setEnabled(true);
 
@@ -329,7 +327,7 @@ void ColorSchemeEdit::checkCheckBoxes()
 
 void ColorSchemeEdit::setItemListBackground(const QColor &color)
 {
-    QPalette pal = m_ui->itemList->palette();
+    QPalette pal;
     pal.setColor(QPalette::Base, color);
     m_ui->itemList->setPalette(pal);
 }

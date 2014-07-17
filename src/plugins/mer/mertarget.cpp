@@ -28,6 +28,7 @@
 #include "merqtversion.h"
 #include "mersdkkitinformation.h"
 #include "mertargetkitinformation.h"
+#include <debugger/debuggeritemmanager.h>
 #include <debugger/debuggerkitinformation.h>
 #include <qtsupport/qtversionmanager.h>
 #include <qtsupport/qtkitinformation.h>
@@ -165,10 +166,14 @@ ProjectExplorer::Kit* MerTarget::createKit() const
         return 0;
     }
 
+    ProjectExplorer::ToolChain *tc =
+      ProjectExplorer::ToolChainManager::findToolChain(QLatin1String(Constants::MER_TOOLCHAIN_ID));
+    QTC_ASSERT(tc, return 0);
+
     ProjectExplorer::Kit *k = new ProjectExplorer::Kit();
     k->setAutoDetected(true);
     k->setDisplayName(QString::fromLatin1("%1-%2").arg(m_sdk->virtualMachineName(), m_name));
-    k->setIconPath(QLatin1String(Constants::MER_OPTIONS_CATEGORY_ICON));
+    k->setIconPath(Utils::FileName::fromString(QLatin1String(Constants::MER_OPTIONS_CATEGORY_ICON)));
     ProjectExplorer::SysRootKitInformation::setSysRoot(k, Utils::FileName::fromUserInput(sysroot));
 
     if (m_gccMachineDump.contains(QLatin1String("i486"))) {
@@ -188,8 +193,16 @@ ProjectExplorer::Kit* MerTarget::createKit() const
     }
     Utils::FileName gdbFileName = Utils::FileName::fromString(gdbDir + QLatin1String("/") + gdb);
 
-    Debugger::DebuggerKitInformation::setEngineType(k,Debugger::GdbEngineType);
-    Debugger::DebuggerKitInformation::setDebuggerCommand(k,gdbFileName);
+    Debugger::DebuggerItem debugger;
+    debugger.setCommand(gdbFileName);
+    debugger.setEngineType(Debugger::GdbEngineType);
+    const QString vmName = m_sdk->virtualMachineName();
+    debugger.setDisplayName(QObject::tr("Mer Debugger for %1").arg(tc->displayName())); // FIXME
+    debugger.setAutoDetected(true);
+    debugger.setAbi(tc->targetAbi());
+    QVariant id = Debugger::DebuggerItemManager::registerDebugger(debugger);
+    Debugger::DebuggerKitInformation::setDebugger(k, id);
+
     MerSdkKitInformation::setSdk(k,m_sdk);
     MerTargetKitInformation::setTargetName(k,name());
     return k;
@@ -200,11 +213,10 @@ MerQtVersion* MerTarget::createQtVersion() const
     const Utils::FileName qmake =
             Utils::FileName::fromString(targetPath() + QLatin1Char('/') +
                                         QLatin1String(Constants::MER_WRAPPER_QMAKE));
-    QtSupport::QtVersionManager *qtvm = QtSupport::QtVersionManager::instance();
     // Is there a qtversion present for this qmake?
-    QtSupport::BaseQtVersion *qtv = qtvm->qtVersionForQMakeBinary(qmake);
+    QtSupport::BaseQtVersion *qtv = QtSupport::QtVersionManager::qtVersionForQMakeBinary(qmake);
     if (qtv && !qtv->isValid()) {
-        qtvm->removeVersion(qtv);
+        QtSupport::QtVersionManager::removeVersion(qtv);
         qtv = 0;
     }
     if (!qtv)
@@ -229,8 +241,7 @@ MerToolChain* MerTarget::createToolChain() const
     const Utils::FileName gcc =
             Utils::FileName::fromString(targetPath() + QLatin1Char('/') +
                                         QLatin1String(Constants::MER_WRAPPER_GCC));
-    ProjectExplorer::ToolChainManager *tcm = ProjectExplorer::ToolChainManager::instance();
-    QList<ProjectExplorer::ToolChain *> toolChains = tcm->toolChains();
+    QList<ProjectExplorer::ToolChain *> toolChains = ProjectExplorer::ToolChainManager::toolChains();
 
     foreach (ProjectExplorer::ToolChain *tc, toolChains) {
         if (tc->compilerCommand() == gcc && tc->isAutoDetected()) {
@@ -238,7 +249,7 @@ MerToolChain* MerTarget::createToolChain() const
         }
     }
 
-    MerToolChain* mertoolchain = new MerToolChain(true);
+    MerToolChain* mertoolchain = new MerToolChain(ProjectExplorer::ToolChain::AutoDetection);
     const QString vmName = m_sdk->virtualMachineName();
     mertoolchain->setDisplayName(QString::fromLatin1("GCC (%1 %2)").arg(vmName, m_name));
     mertoolchain->setVirtualMachine(vmName);

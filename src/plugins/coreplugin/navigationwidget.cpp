@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -134,6 +134,7 @@ void NavigationWidgetPlaceHolder::currentModeAboutToChange(Core::IMode *mode)
 struct NavigationWidgetPrivate
 {
     explicit NavigationWidgetPrivate(QAction *toggleSideBarAction);
+    ~NavigationWidgetPrivate() { delete m_factoryModel; }
 
     QList<Internal::NavigationSubWidget *> m_subWidgets;
     QHash<QShortcut *, Core::Id> m_shortcutMap;
@@ -144,7 +145,7 @@ struct NavigationWidgetPrivate
     bool m_suppressed;
     int m_width;
     static NavigationWidget* m_instance;
-    QAction *m_toggleSideBarAction;
+    QAction *m_toggleSideBarAction; // does not take ownership
 };
 
 NavigationWidgetPrivate::NavigationWidgetPrivate(QAction *toggleSideBarAction) :
@@ -177,7 +178,7 @@ NavigationWidget *NavigationWidget::instance()
     return NavigationWidgetPrivate::m_instance;
 }
 
-void NavigationWidget::setFactories(const QList<INavigationWidgetFactory *> factories)
+void NavigationWidget::setFactories(const QList<INavigationWidgetFactory *> &factories)
 {
     Context navicontext(Core::Constants::C_NAVIGATION_PANE);
 
@@ -348,7 +349,7 @@ void NavigationWidget::restoreSettings(QSettings *settings)
 
     if (d->m_subWidgets.isEmpty())
         // Make sure we have at least the projects widget
-        insertSubItem(0, qMax(0, factoryIndex(Id("Projects"))));
+        insertSubItem(0, qMax(0, factoryIndex("Projects")));
 
     setShown(settings->value(QLatin1String("Navigation/Visible"), true).toBool());
 

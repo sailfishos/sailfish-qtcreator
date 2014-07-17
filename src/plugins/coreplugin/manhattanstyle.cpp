@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -274,18 +274,16 @@ void ManhattanStyle::polish(QWidget *widget)
         if (qobject_cast<QToolButton*>(widget)) {
             widget->setAttribute(Qt::WA_Hover);
             widget->setMaximumHeight(Utils::StyleHelper::navigationWidgetHeight() - 2);
-        }
-        else if (qobject_cast<QLineEdit*>(widget)) {
+        } else if (qobject_cast<QLineEdit*>(widget)) {
             widget->setAttribute(Qt::WA_Hover);
             widget->setMaximumHeight(Utils::StyleHelper::navigationWidgetHeight() - 2);
-        }
-        else if (qobject_cast<QLabel*>(widget))
+        } else if (qobject_cast<QLabel*>(widget)) {
             widget->setPalette(panelPalette(widget->palette()));
-        else if (widget->property("panelwidget_singlerow").toBool())
+        } else if (widget->property("panelwidget_singlerow").toBool()) {
             widget->setFixedHeight(Utils::StyleHelper::navigationWidgetHeight());
-        else if (qobject_cast<QStatusBar*>(widget))
+        } else if (qobject_cast<QStatusBar*>(widget)) {
             widget->setFixedHeight(Utils::StyleHelper::navigationWidgetHeight() + 2);
-        else if (qobject_cast<QComboBox*>(widget)) {
+        } else if (qobject_cast<QComboBox*>(widget)) {
             widget->setMaximumHeight(Utils::StyleHelper::navigationWidgetHeight() - 2);
             widget->setAttribute(Qt::WA_Hover);
         }
@@ -484,11 +482,12 @@ void ManhattanStyle::drawPrimitive(PrimitiveElement element, const QStyleOption 
                    // painter->drawLine(rect.bottomLeft()  + QPoint(1, 0), rect.bottomRight()  - QPoint(1, 0));
                     QColor highlight(255, 255, 255, 30);
                     painter->setPen(highlight);
-                }
-                else if (option->state & State_Enabled &&
-                         option->state & State_MouseOver) {
+                } else if (option->state & State_Enabled && option->state & State_MouseOver) {
                     QColor lighter(255, 255, 255, 37);
                     painter->fillRect(rect, lighter);
+                } else if (widget && widget->property("highlightWidget").toBool()) {
+                    QColor shade(0, 0, 0, 128);
+                    painter->fillRect(rect, shade);
                 }
                 if (option->state & State_HasFocus && (option->state & State_KeyboardFocusChange)) {
                     QColor highlight = option->palette.highlight().color();
@@ -781,7 +780,6 @@ void ManhattanStyle::drawControl(ControlElement element, const QStyleOption *opt
         {
             QRect rect = option->rect;
             bool horizontal = option->state & State_Horizontal;
-            rect = option->rect;
 
             // Map offset for global window gradient
             QPoint offset = widget->window()->mapToGlobal(option->rect.topLeft()) -
@@ -875,6 +873,8 @@ void ManhattanStyle::drawComplexControl(ComplexControl control, const QStyleOpti
             QStyleOptionToolButton label = *toolbutton;
 
             label.palette = panelPalette(option->palette, lightColored(widget));
+            if (widget && widget->property("highlightWidget").toBool())
+                label.palette.setColor(QPalette::ButtonText, Qt::red);
             int fw = pixelMetric(PM_DefaultFrameWidth, option, widget);
             label.rect = button.adjusted(fw, fw, -fw, -fw);
 

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -40,9 +40,7 @@ QT_BEGIN_NAMESPACE
 class QPoint;
 QT_END_NAMESPACE
 
-namespace Core {
-class IEditor;
-}
+namespace Core { class IEditor; }
 
 namespace TextEditor {
 
@@ -52,9 +50,10 @@ class BaseTextEditorWidget;
 class TEXTEDITOR_EXPORT BaseHoverHandler : public QObject
 {
     Q_OBJECT
+
 public:
     BaseHoverHandler(QObject *parent = 0);
-    virtual ~BaseHoverHandler();
+    ~BaseHoverHandler();
 
 private slots:
     void editorOpened(Core::IEditor *editor);
@@ -73,8 +72,6 @@ protected:
 
     void setLastHelpItemIdentified(const HelpItem &help);
     const HelpItem &lastHelpItemIdentified() const;
-
-    static BaseTextEditorWidget *baseTextEditor(ITextEditor *editor);
 
 private:
     void clear();

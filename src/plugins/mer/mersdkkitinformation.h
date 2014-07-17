@@ -33,12 +33,13 @@ namespace Mer {
 namespace Internal {
 
 class MerSdk;
+class MerSdkKitInformation;
 
 class  MerSdkKitInformationWidget : public ProjectExplorer::KitConfigWidget
 {
     Q_OBJECT
 public:
-    MerSdkKitInformationWidget(ProjectExplorer::Kit *kit, bool sticky = false);
+    MerSdkKitInformationWidget(ProjectExplorer::Kit *kit, const MerSdkKitInformation *kitInformation);
 
     QString displayName() const;
     QString toolTip() const;

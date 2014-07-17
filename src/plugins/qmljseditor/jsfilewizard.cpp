@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -88,15 +88,8 @@ public:
 
 using namespace QmlJSEditor;
 
-JsFileWizard::JsFileWizard(const BaseFileWizardParameters &parameters,
-                           QObject *parent):
-    Core::BaseFileWizard(parameters, parent)
+JsFileWizard::JsFileWizard()
 {
-}
-
-Core::FeatureSet JsFileWizard::requiredFeatures() const
-{
-    return Core::FeatureSet();
 }
 
 Core::GeneratedFiles JsFileWizard::generateFiles(const QWizard *w,
@@ -134,7 +127,6 @@ QWizard *JsFileWizard::createWizardDialog(QWidget *parent,
 {
     JsFileWizardDialog *wizardDialog = new JsFileWizardDialog(parent);
     wizardDialog->setWindowTitle(tr("New %1").arg(displayName()));
-    setupWizard(wizardDialog);
     wizardDialog->setPath(wizardDialogParameters.defaultPath());
     foreach (QWizardPage *p, wizardDialogParameters.extensionPages())
         BaseFileWizard::applyExtensionPageShortTitle(wizardDialog, wizardDialog->addPage(p));

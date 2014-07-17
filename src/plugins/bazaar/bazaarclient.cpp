@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Hugues Delorme
+** Copyright (c) 2014 Hugues Delorme
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,7 +30,9 @@
 #include "constants.h"
 
 #include <vcsbase/vcsbaseplugin.h>
+#include <vcsbase/vcsbaseoutputwindow.h>
 #include <vcsbase/vcsbaseeditorparameterwidget.h>
+#include <utils/synchronousprocess.h>
 
 #include <QDir>
 #include <QFileInfo>
@@ -39,6 +41,22 @@
 
 namespace Bazaar {
 namespace Internal {
+
+class BazaarDiffExitCodeInterpreter : public Utils::ExitCodeInterpreter
+{
+    Q_OBJECT
+public:
+    BazaarDiffExitCodeInterpreter(QObject *parent) : Utils::ExitCodeInterpreter(parent) {}
+    Utils::SynchronousProcessResponse::Result interpretExitCode(int code) const;
+
+};
+
+Utils::SynchronousProcessResponse::Result BazaarDiffExitCodeInterpreter::interpretExitCode(int code) const
+{
+    if (code < 0 || code > 2)
+        return Utils::SynchronousProcessResponse::FinishedError;
+    return Utils::SynchronousProcessResponse::Finished;
+}
 
 BazaarClient::BazaarClient(BazaarSettings *settings) :
     VcsBase::VcsBaseClient(settings)
@@ -85,6 +103,24 @@ BranchInfo BazaarClient::synchronousBranchQuery(const QString &repositoryRoot) c
     return BranchInfo(repositoryRoot, false);
 }
 
+//! Removes the last committed revision(s)
+bool BazaarClient::synchronousUncommit(const QString &workingDir,
+                                       const QString &revision,
+                                       const QStringList &extraOptions)
+{
+    QStringList args;
+    args << QLatin1String("uncommit")
+         << QLatin1String("--force")   // Say yes to all questions
+         << QLatin1String("--verbose") // Will print out what is being removed
+         << revisionSpec(revision)
+         << extraOptions;
+    QByteArray stdOut;
+    const bool success = vcsFullySynchronousExec(workingDir, args, &stdOut);
+    if (!stdOut.isEmpty())
+        VcsBase::VcsBaseOutputWindow::instance()->append(QString::fromUtf8(stdOut));
+    return success;
+}
+
 void BazaarClient::commit(const QString &repositoryRoot, const QStringList &files,
                           const QString &commitMessageFile, const QStringList &extraOptions)
 {
@@ -109,6 +145,16 @@ QString BazaarClient::findTopLevelForFile(const QFileInfo &file) const
                                                                    repositoryCheckFile) :
                 VcsBase::VcsBasePlugin::findRepositoryForDirectory(file.absolutePath(),
                                                                    repositoryCheckFile);
+}
+
+bool BazaarClient::managesFile(const QString &workingDirectory, const QString &fileName) const
+{
+    QStringList args(QLatin1String("status"));
+    args << fileName;
+    QByteArray stdOut;
+    if (!vcsFullySynchronousExec(workingDirectory, args, &stdOut))
+        return false;
+    return !stdOut.startsWith("unknown");
 }
 
 void BazaarClient::view(const QString &source, const QString &id, const QStringList &extraOptions)
@@ -139,6 +185,16 @@ QString BazaarClient::vcsCommandString(VcsCommand cmd) const
         return QLatin1String("branch");
     default:
         return VcsBaseClient::vcsCommandString(cmd);
+    }
+}
+
+Utils::ExitCodeInterpreter *BazaarClient::exitCodeInterpreter(VcsCommand cmd, QObject *parent) const
+{
+    switch (cmd) {
+    case DiffCommand:
+        return new BazaarDiffExitCodeInterpreter(parent);
+    default:
+        return 0;
     }
 }
 
@@ -219,9 +275,9 @@ public:
                               const BazaarCommandParameters &p, QWidget *parent = 0) :
         VcsBase::VcsBaseEditorParameterWidget(parent), m_client(client), m_params(p)
     {
-        mapSetting(addToggleButton(QLatin1String("-w"), tr("Ignore whitespace")),
+        mapSetting(addToggleButton(QLatin1String("-w"), tr("Ignore Whitespace")),
                    client->settings()->boolPointer(BazaarSettings::diffIgnoreWhiteSpaceKey));
-        mapSetting(addToggleButton(QLatin1String("-B"), tr("Ignore blank lines")),
+        mapSetting(addToggleButton(QLatin1String("-B"), tr("Ignore Blank Lines")),
                    client->settings()->boolPointer(BazaarSettings::diffIgnoreBlankLinesKey));
     }
 

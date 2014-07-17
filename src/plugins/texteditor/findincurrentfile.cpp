@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -37,14 +37,13 @@
 
 #include <QSettings>
 
-using namespace Find;
 using namespace TextEditor;
 using namespace TextEditor::Internal;
 
 FindInCurrentFile::FindInCurrentFile()
   : m_currentDocument(0)
 {
-    connect(Core::ICore::editorManager(), SIGNAL(currentEditorChanged(Core::IEditor*)),
+    connect(Core::EditorManager::instance(), SIGNAL(currentEditorChanged(Core::IEditor*)),
             this, SLOT(handleFileChange(Core::IEditor*)));
     handleFileChange(Core::EditorManager::currentEditor());
 }
@@ -64,32 +63,33 @@ Utils::FileIterator *FindInCurrentFile::files(const QStringList &nameFilters,
 {
     Q_UNUSED(nameFilters)
     QString fileName = additionalParameters.toString();
-    QMap<QString, QTextCodec *> openEditorEncodings = ITextEditor::openedTextEditorsEncodings();
+    QMap<QString, QTextCodec *> openEditorEncodings
+            = ITextEditorDocument::openedTextDocumentEncodings();
     QTextCodec *codec = openEditorEncodings.value(fileName);
     if (!codec)
-        codec = Core::EditorManager::instance()->defaultTextCodec();
+        codec = Core::EditorManager::defaultTextCodec();
     return new Utils::FileIterator(QStringList() << fileName, QList<QTextCodec *>() << codec);
 }
 
 QVariant FindInCurrentFile::additionalParameters() const
 {
-    return qVariantFromValue(m_currentDocument->fileName());
+    return qVariantFromValue(m_currentDocument->filePath());
 }
 
 QString FindInCurrentFile::label() const
 {
-    return tr("File '%1':").arg(QFileInfo(m_currentDocument->fileName()).fileName());
+    return tr("File '%1':").arg(QFileInfo(m_currentDocument->filePath()).fileName());
 }
 
 QString FindInCurrentFile::toolTip() const
 {
     // %2 is filled by BaseFileFind::runNewSearch
-    return tr("File path: %1\n%2").arg(QDir::toNativeSeparators(m_currentDocument->fileName()));
+    return tr("File path: %1\n%2").arg(QDir::toNativeSeparators(m_currentDocument->filePath()));
 }
 
 bool FindInCurrentFile::isEnabled() const
 {
-    return m_currentDocument && !m_currentDocument->fileName().isEmpty();
+    return m_currentDocument && !m_currentDocument->filePath().isEmpty();
 }
 
 void FindInCurrentFile::handleFileChange(Core::IEditor *editor)

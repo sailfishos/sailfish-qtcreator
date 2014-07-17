@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -46,6 +46,8 @@
 #include <utils/stringutils.h>
 #include <utils/qtcassert.h>
 #include <utils/qtcprocess.h>
+
+#include <QDir>
 
 using namespace Core;
 using namespace ProjectExplorer;
@@ -113,7 +115,7 @@ bool GenericMakeStep::init()
 
     ProcessParameters *pp = processParameters();
     pp->setMacroExpander(bc->macroExpander());
-    pp->setWorkingDirectory(bc->buildDirectory());
+    pp->setWorkingDirectory(bc->buildDirectory().toString());
     Utils::Environment env = bc->environment();
     // Force output to english for the parsers. Do this here and not in the toolchain's
     // addToEnvironment() to not screw up the users run environment.
@@ -290,7 +292,7 @@ void GenericMakeStepConfigWidget::updateMakeOverrrideLabel()
     if (!bc)
         bc = m_makeStep->target()->activeBuildConfiguration();
 
-    m_ui->makeLabel->setText(tr("Override %1:").arg(m_makeStep->makeCommand(bc->environment())));
+    m_ui->makeLabel->setText(tr("Override %1:").arg(QDir::toNativeSeparators(m_makeStep->makeCommand(bc->environment()))));
 }
 
 void GenericMakeStepConfigWidget::updateDetails()
@@ -301,7 +303,7 @@ void GenericMakeStepConfigWidget::updateDetails()
 
     ProcessParameters param;
     param.setMacroExpander(bc->macroExpander());
-    param.setWorkingDirectory(bc->buildDirectory());
+    param.setWorkingDirectory(bc->buildDirectory().toString());
     param.setEnvironment(bc->environment());
     param.setCommand(m_makeStep->makeCommand(bc->environment()));
     param.setArguments(m_makeStep->allArguments());

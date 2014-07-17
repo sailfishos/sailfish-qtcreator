@@ -27,7 +27,6 @@
 #include "merconstants.h"
 #include "meremulatordevicewidget.h"
 #include <utils/qtcassert.h>
-#include <remotelinux/linuxdevicetestdialog.h>
 
 #include <QProgressDialog>
 #include <QMessageBox>
@@ -185,7 +184,6 @@ QList<Core::Id> MerEmulatorDevice::actionIds() const
     QList<Core::Id> ids;
     ids << Core::Id(Constants::MER_EMULATOR_START_ACTION_ID);
     ids << Core::Id(Constants::MER_EMULATOR_DEPLOYKEY_ACTION_ID);
-    ids << Core::Id(Constants::MER_EMULATOR_TEST_ID);
     return ids;
 }
 
@@ -197,13 +195,12 @@ QString MerEmulatorDevice::displayNameForActionId(Core::Id actionId) const
         return tr("Regenerate SSH Keys");
     else if (actionId == Constants::MER_EMULATOR_START_ACTION_ID)
         return tr("Start Emulator");
-    else if (actionId == Constants::MER_EMULATOR_TEST_ID)
-        return tr("Test Emulator");
     return QString();
 }
 
 void MerEmulatorDevice::executeAction(Core::Id actionId, QWidget *parent) const
 {
+    Q_UNUSED(parent);
     QTC_ASSERT(actionIds().contains(actionId), return);
 
     if (actionId ==  Constants::MER_EMULATOR_DEPLOYKEY_ACTION_ID) {
@@ -212,10 +209,6 @@ void MerEmulatorDevice::executeAction(Core::Id actionId, QWidget *parent) const
         return;
     } else if (actionId == Constants::MER_EMULATOR_START_ACTION_ID) {
         MerVirtualBoxManager::startVirtualMachine(m_virtualMachine,false);
-        return;
-    } else if (actionId == Constants::MER_EMULATOR_TEST_ID) {
-        RemoteLinux::LinuxDeviceTestDialog dialog(sharedFromThis(), new RemoteLinux::GenericLinuxDeviceTester, parent);
-        dialog.exec();
         return;
     }
 }

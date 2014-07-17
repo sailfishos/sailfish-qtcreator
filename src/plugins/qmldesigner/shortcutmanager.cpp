@@ -3,7 +3,7 @@
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/icore.h>
-#include <coreplugin/editormanager/openeditorsmodel.h>
+#include <coreplugin/editormanager/documentmodel.h>
 #include <coreplugin/coreconstants.h>
 #include <utils/hostosinfo.h>
 
@@ -78,28 +78,29 @@ void ShortCutManager::registerActions(const Core::Context &qmlDesignerMainContex
             SLOT(toggleRightSidebar()));
 
     // Revert to saved
+    QObject *em = Core::EditorManager::instance();
     Core::ActionManager::registerAction(&m_revertToSavedAction,Core::Constants::REVERTTOSAVED, qmlDesignerMainContext);
-    connect(&m_revertToSavedAction, SIGNAL(triggered()), Core::ICore::editorManager(), SLOT(revertToSaved()));
+    connect(&m_revertToSavedAction, SIGNAL(triggered()), em, SLOT(revertToSaved()));
 
     //Save
     Core::ActionManager::registerAction(&m_saveAction, Core::Constants::SAVE, qmlDesignerMainContext);
-    connect(&m_saveAction, SIGNAL(triggered()), Core::ICore::editorManager(), SLOT(saveDocument()));
+    connect(&m_saveAction, SIGNAL(triggered()), em, SLOT(saveDocument()));
 
     //Save As
     Core::ActionManager::registerAction(&m_saveAsAction, Core::Constants::SAVEAS, qmlDesignerMainContext);
-    connect(&m_saveAsAction, SIGNAL(triggered()), Core::ICore::editorManager(), SLOT(saveDocumentAs()));
+    connect(&m_saveAsAction, SIGNAL(triggered()), em, SLOT(saveDocumentAs()));
 
     //Close Editor
     Core::ActionManager::registerAction(&m_closeCurrentEditorAction, Core::Constants::CLOSE, qmlDesignerMainContext);
-    connect(&m_closeCurrentEditorAction, SIGNAL(triggered()), Core::ICore::editorManager(), SLOT(closeEditor()));
+    connect(&m_closeCurrentEditorAction, SIGNAL(triggered()), em, SLOT(closeEditor()));
 
     //Close All
     Core::ActionManager::registerAction(&m_closeAllEditorsAction, Core::Constants::CLOSEALL, qmlDesignerMainContext);
-    connect(&m_closeAllEditorsAction, SIGNAL(triggered()), Core::ICore::editorManager(), SLOT(closeAllEditors()));
+    connect(&m_closeAllEditorsAction, SIGNAL(triggered()), em, SLOT(closeAllEditors()));
 
     //Close All Others Action
     Core::ActionManager::registerAction(&m_closeOtherEditorsAction, Core::Constants::CLOSEOTHERS, qmlDesignerMainContext);
-    connect(&m_closeOtherEditorsAction, SIGNAL(triggered()), Core::ICore::editorManager(), SLOT(closeOtherEditors()));
+    connect(&m_closeOtherEditorsAction, SIGNAL(triggered()), em, SLOT(closeOtherEditors()));
 
     // Undo / Redo
     Core::ActionManager::registerAction(&m_undoAction, Core::Constants::UNDO, qmlDesignerMainContext);
@@ -114,11 +115,19 @@ void ShortCutManager::registerActions(const Core::Context &qmlDesignerMainContex
 
     //Edit Menu
 
-    command = Core::ActionManager::registerAction(&m_deleteAction, QmlDesigner::Constants::DELETE, qmlDesignerFormEditorContext);
-    command = Core::ActionManager::registerAction(&m_deleteAction, QmlDesigner::Constants::DELETE, qmlDesignerNavigatorContext);
+    command = Core::ActionManager::registerAction(&m_deleteAction, QmlDesigner::Constants::C_BACKSPACE, qmlDesignerFormEditorContext);
+    command = Core::ActionManager::registerAction(&m_deleteAction, QmlDesigner::Constants::C_BACKSPACE, qmlDesignerNavigatorContext);
+    command->setDefaultKeySequence(QKeySequence(Qt::Key_Backspace));
+    command->setAttribute(Core::Command::CA_Hide); // don't show delete in other modes
+    if (Utils::HostOsInfo::isMacHost())
+        editMenu->addAction(command, Core::Constants::G_EDIT_COPYPASTE);
+
+    command = Core::ActionManager::registerAction(&m_deleteAction, QmlDesigner::Constants::C_DELETE, qmlDesignerFormEditorContext);
+    command = Core::ActionManager::registerAction(&m_deleteAction, QmlDesigner::Constants::C_DELETE, qmlDesignerNavigatorContext);
     command->setDefaultKeySequence(QKeySequence::Delete);
     command->setAttribute(Core::Command::CA_Hide); // don't show delete in other modes
-    editMenu->addAction(command, Core::Constants::G_EDIT_COPYPASTE);
+    if (!Utils::HostOsInfo::isMacHost())
+        editMenu->addAction(command, Core::Constants::G_EDIT_COPYPASTE);
 
     command = Core::ActionManager::registerAction(&m_cutAction, Core::Constants::CUT, qmlDesignerFormEditorContext);
     command = Core::ActionManager::registerAction(&m_cutAction, Core::Constants::CUT, qmlDesignerNavigatorContext);
@@ -158,42 +167,21 @@ void ShortCutManager::registerActions(const Core::Context &qmlDesignerMainContex
     viewsMenu->addAction(command);
 
     command = Core::ActionManager::registerAction(&m_hideSidebarsAction, Core::Constants::TOGGLE_SIDEBAR, qmlDesignerMainContext);
-
-    if (Utils::HostOsInfo::isMacHost()) {
-        // add second shortcut to trigger delete
-        QAction *deleteAction = new QAction(this);
-        deleteAction->setShortcut(QKeySequence(QLatin1String("Backspace")));
-        connect(deleteAction,
-                SIGNAL(triggered()),
-                &m_deleteAction,
-                SIGNAL(triggered()));
-    }
 }
 
 void ShortCutManager::updateActions(Core::IEditor* currentEditor)
 {
-    int openedCount = Core::ICore::editorManager()->openedEditors().count()
-                      + Core::ICore::editorManager()->openedEditorsModel()->restoredEditors().count();
-
-    QString fileName;
-    if (currentEditor) {
-        if (!currentEditor->document()->fileName().isEmpty()) {
-            QFileInfo fileInfo(currentEditor->document()->fileName());
-            fileName = fileInfo.fileName();
-        } else {
-            fileName = currentEditor->displayName();
-        }
-    }
+    int openedCount = Core::EditorManager::documentModel()->documentCount();
 
     m_saveAction.setEnabled(currentEditor != 0 && currentEditor->document()->isModified());
     m_saveAsAction.setEnabled(currentEditor != 0 && currentEditor->document()->isSaveAsAllowed());
     m_revertToSavedAction.setEnabled(currentEditor != 0
-                                      && !currentEditor->document()->fileName().isEmpty()
+                                      && !currentEditor->document()->filePath().isEmpty()
                                       && currentEditor->document()->isModified());
 
     QString quotedName;
-    if (!fileName.isEmpty())
-        quotedName = '"' + fileName + '"';
+    if (currentEditor)
+        quotedName = '"' + currentEditor->document()->displayName() + '"';
 
     m_saveAsAction.setText(tr("Save %1 As...").arg(quotedName));
     m_saveAction.setText(tr("&Save %1").arg(quotedName));
@@ -315,8 +303,12 @@ void ShortCutManager::redoAvailable(bool isAvailable)
 
 void ShortCutManager::goIntoComponent()
 {
-    if (currentDesignDocument())
-        currentDesignDocument()->goIntoSelectedComponent();
+    if (currentDesignDocument()
+            && currentDesignDocument()->currentModel()
+            && currentDesignDocument()->rewriterView()
+            && currentDesignDocument()->rewriterView()->hasSingleSelectedModelNode()) {
+        DocumentManager::goIntoComponent(currentDesignDocument()->rewriterView()->singleSelectedModelNode());
+    }
 }
 
 } // namespace QmlDesigner

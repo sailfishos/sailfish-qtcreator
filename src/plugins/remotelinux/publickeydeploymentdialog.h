@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -36,9 +36,7 @@
 #include <QProgressDialog>
 
 namespace RemoteLinux {
-namespace Internal {
-class PublicKeyDeploymentDialogPrivate;
-} // namespace Internal
+namespace Internal { class PublicKeyDeploymentDialogPrivate; }
 
 class REMOTELINUX_EXPORT PublicKeyDeploymentDialog : public QProgressDialog
 {

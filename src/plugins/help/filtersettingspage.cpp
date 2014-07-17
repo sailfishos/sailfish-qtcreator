@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -29,17 +29,18 @@
 
 #include "filtersettingspage.h"
 
-#include "filternamedialog.h"
 #include "helpconstants.h"
+
+#include <filternamedialog.h>
 
 #include <coreplugin/helpmanager.h>
 
 #include <QCoreApplication>
-
 #include <QFileDialog>
 #include <QMessageBox>
 
 using namespace Help::Internal;
+using namespace Core;
 
 FilterSettingsPage::FilterSettingsPage()
 {
@@ -50,29 +51,26 @@ FilterSettingsPage::FilterSettingsPage()
     setCategoryIcon(QLatin1String(Help::Constants::HELP_CATEGORY_ICON));
 }
 
-QWidget *FilterSettingsPage::createPage(QWidget *parent)
+QWidget *FilterSettingsPage::widget()
 {
-    QWidget *widget = new QWidget(parent);
-    m_ui.setupUi(widget);
+    if (!m_widget) {
+        m_widget = new QWidget;
+        m_ui.setupUi(m_widget);
 
-    updateFilterPage();
+        updateFilterPage();
 
-    connect(m_ui.attributeWidget, SIGNAL(itemChanged(QTreeWidgetItem*,int)),
-        this, SLOT(updateFilterMap()));
-    connect(m_ui.filterWidget,
-        SIGNAL(currentItemChanged(QListWidgetItem*,QListWidgetItem*)), this,
-        SLOT(updateAttributes(QListWidgetItem*)));
-    connect(m_ui.filterAddButton, SIGNAL(clicked()), this, SLOT(addFilter()));
-    connect(m_ui.filterRemoveButton, SIGNAL(clicked()), this,
-        SLOT(removeFilter()));
-    connect(Core::HelpManager::instance(), SIGNAL(documentationChanged()),
-        this, SLOT(updateFilterPage()));
-
-    if (m_searchKeywords.isEmpty()) {
-        m_searchKeywords = m_ui.filterGroupBox->title() + QLatin1Char(' ')
-            + m_ui.attributesGroupBox->title();
+        connect(m_ui.attributeWidget, SIGNAL(itemChanged(QTreeWidgetItem*,int)),
+                this, SLOT(updateFilterMap()));
+        connect(m_ui.filterWidget,
+                SIGNAL(currentItemChanged(QListWidgetItem*,QListWidgetItem*)), this,
+                SLOT(updateAttributes(QListWidgetItem*)));
+        connect(m_ui.filterAddButton, SIGNAL(clicked()), this, SLOT(addFilter()));
+        connect(m_ui.filterRemoveButton, SIGNAL(clicked()), this,
+                SLOT(removeFilter()));
+        connect(HelpManager::instance(), SIGNAL(documentationChanged()),
+                this, SLOT(updateFilterPage()));
     }
-    return widget;
+    return m_widget;
 }
 
 void FilterSettingsPage::updateFilterPage()
@@ -84,14 +82,13 @@ void FilterSettingsPage::updateFilterPage()
 
     QString lastTrUnfiltered;
     const QString trUnfiltered = tr("Unfiltered");
-    Core::HelpManager *manager = Core::HelpManager::instance();
-    if (manager->customValue(Help::Constants::WeAddedFilterKey).toInt() == 1) {
+    if (HelpManager::customValue(Help::Constants::WeAddedFilterKey).toInt() == 1) {
         lastTrUnfiltered =
-            manager->customValue(Help::Constants::PreviousFilterNameKey).toString();
+            HelpManager::customValue(Help::Constants::PreviousFilterNameKey).toString();
     }
 
-    Core::HelpManager::Filters filters = manager->userDefinedFilters();
-    Core::HelpManager::Filters::const_iterator it;
+    HelpManager::Filters filters = HelpManager::userDefinedFilters();
+    HelpManager::Filters::const_iterator it;
     for (it = filters.constBegin(); it != filters.constEnd(); ++it) {
         const QString &filter = it.key();
         if (filter == trUnfiltered || filter == lastTrUnfiltered)
@@ -104,7 +101,7 @@ void FilterSettingsPage::updateFilterPage()
     m_ui.filterWidget->addItems(m_filterMap.keys());
 
     QSet<QString> attributes;
-    filters = manager->filters();
+    filters = HelpManager::filters();
     for (it = filters.constBegin(); it != filters.constEnd(); ++it)
         attributes += it.value().toSet();
 
@@ -213,13 +210,12 @@ void FilterSettingsPage::apply()
     }
 
     if (changed) {
-        Core::HelpManager *manager = Core::HelpManager::instance();
         foreach (const QString &filter, m_removedFilters)
-           manager->removeUserDefinedFilter(filter);
+            HelpManager::removeUserDefinedFilter(filter);
 
         FilterMap::const_iterator it;
         for (it = m_filterMap.constBegin(); it != m_filterMap.constEnd(); ++it)
-            manager->addUserDefinedFilter(it.key(), it.value());
+            HelpManager::addUserDefinedFilter(it.key(), it.value());
 
         // emit this signal to the help plugin, since we don't want
         // to force gui help engine setup if we are not in help mode
@@ -229,13 +225,9 @@ void FilterSettingsPage::apply()
 
 void FilterSettingsPage::finish()
 {
-    disconnect(Core::HelpManager::instance(), SIGNAL(documentationChanged()),
+    disconnect(HelpManager::instance(), SIGNAL(documentationChanged()),
         this, SLOT(updateFilterPage()));
-}
-
-bool FilterSettingsPage::matches(const QString &s) const
-{
-    return m_searchKeywords.contains(s, Qt::CaseInsensitive);
+    delete m_widget;
 }
 
 QString FilterSettingsPage::msgFilterLabel(const QString &filter) const

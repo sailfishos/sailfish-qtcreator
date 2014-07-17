@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -37,7 +37,7 @@ void Core::Internal::ProgressManagerPrivate::cleanup()
 {
 }
 
-void Core::Internal::ProgressManagerPrivate::setApplicationLabel(const QString &text)
+void Core::Internal::ProgressManagerPrivate::doSetApplicationLabel(const QString &text)
 {
     Q_UNUSED(text)
 }

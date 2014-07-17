@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2012 - 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -39,10 +39,15 @@
 #include <utils/hostosinfo.h>
 #include <utils/qtcassert.h>
 
+#include <QFileInfo>
 #include <QTextStream>
 
 using namespace Qnx;
 using namespace Qnx::Internal;
+
+namespace {
+const QLatin1String NndkEnvFile("ndkEnvFile");
+}
 
 BlackBerryQtVersion::BlackBerryQtVersion()
     : QnxAbstractQtVersion()
@@ -52,10 +57,17 @@ BlackBerryQtVersion::BlackBerryQtVersion()
 BlackBerryQtVersion::BlackBerryQtVersion(QnxArchitecture arch, const Utils::FileName &path, bool isAutoDetected, const QString &autoDetectionSource, const QString &sdkPath)
     : QnxAbstractQtVersion(arch, path, isAutoDetected, autoDetectionSource)
 {
-    if (QnxUtils::isValidNdkPath(sdkPath))
-        setSdkPath(sdkPath);
-    else
+    if (!sdkPath.isEmpty()) {
+        if (QFileInfo(sdkPath).isDir()) {
+            setSdkPath(sdkPath);
+        } else {
+            m_ndkEnvFile = sdkPath;
+            setSdkPath(QFileInfo(sdkPath).absolutePath());
+        }
+
+    } else {
         setDefaultSdkPath();
+    }
 }
 
 BlackBerryQtVersion::~BlackBerryQtVersion()
@@ -78,13 +90,41 @@ QString BlackBerryQtVersion::description() const
     return tr("BlackBerry %1", "Qt Version is meant for BlackBerry").arg(archString());
 }
 
-QMultiMap<QString, QString> BlackBerryQtVersion::environment() const
+QVariantMap BlackBerryQtVersion::toMap() const
+{
+    QVariantMap result = QnxAbstractQtVersion::toMap();
+    result.insert(NndkEnvFile, m_ndkEnvFile);
+    return result;
+}
+
+void BlackBerryQtVersion::fromMap(const QVariantMap &map)
+{
+    QnxAbstractQtVersion::fromMap(map);
+    m_ndkEnvFile = map.value(NndkEnvFile).toString();
+}
+
+QList<Utils::EnvironmentItem> BlackBerryQtVersion::environment() const
 {
     QTC_CHECK(!sdkPath().isEmpty());
     if (sdkPath().isEmpty())
-        return QMultiMap<QString, QString>();
+        return QList<Utils::EnvironmentItem>();
 
-    return QnxUtils::parseEnvironmentFile(QnxUtils::envFilePath(sdkPath()));
+    QString envFile = m_ndkEnvFile.isEmpty() ? QnxUtils::envFilePath(sdkPath()) : m_ndkEnvFile;
+    QList<Utils::EnvironmentItem> env = QnxUtils::qnxEnvironmentFromNdkFile(envFile);
+
+    // BB NDK Host is having qmake executable which is using qt.conf file to specify
+    // base information. The qt.conf file is using 'CPUVARDIR' environment variable
+    // to provide correct information for both x86 and armle-v7 architectures.
+    // BlackBerryQtVersion represents as specific environment for each Qt4/Qt5
+    // and x86/armle-v7 combination. Therefore we need to explicitly specify
+    // CPUVARDIR to match expected architecture() otherwise qmake environment is
+    // always resolved to be for armle-v7 architecture only as it is specified
+    // BB NDK environment file.
+
+    env.append(Utils::EnvironmentItem(QLatin1String("CPUVARDIR"),
+            architecture() == X86 ? QLatin1String("x86") : QLatin1String("armle-v7")));
+
+    return env;
 }
 
 void BlackBerryQtVersion::setDefaultSdkPath()

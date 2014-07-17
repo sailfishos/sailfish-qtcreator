@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -33,12 +33,13 @@
 #include <projectexplorer/buildconfiguration.h>
 #include <projectexplorer/abi.h>
 
-namespace ProjectExplorer {
-class ToolChain;
-}
+namespace ProjectExplorer { class ToolChain; }
 
 namespace CMakeProjectManager {
+class CMakeBuildInfo;
+
 namespace Internal {
+class CMakeProject;
 
 class CMakeBuildConfigurationFactory;
 
@@ -52,9 +53,6 @@ public:
     ~CMakeBuildConfiguration();
 
     ProjectExplorer::NamedWidget *createConfigWidget();
-    QString buildDirectory() const;
-
-    void setBuildDirectory(const QString &buildDirectory);
 
     QVariantMap toMap() const;
 
@@ -71,9 +69,10 @@ protected:
     bool fromMap(const QVariantMap &map);
 
 private:
-    QString m_buildDirectory;
     QString m_msvcVersion;
     bool m_useNinja;
+
+    friend class CMakeProject;
 };
 
 class CMakeBuildConfigurationFactory : public ProjectExplorer::IBuildConfigurationFactory
@@ -84,11 +83,14 @@ public:
     CMakeBuildConfigurationFactory(QObject *parent = 0);
     ~CMakeBuildConfigurationFactory();
 
-    QList<Core::Id> availableCreationIds(const ProjectExplorer::Target *parent) const;
-    QString displayNameForId(const Core::Id id) const;
+    int priority(const ProjectExplorer::Target *parent) const;
+    QList<ProjectExplorer::BuildInfo *> availableBuilds(const ProjectExplorer::Target *parent) const;
+    int priority(const ProjectExplorer::Kit *k, const QString &projectPath) const;
+    QList<ProjectExplorer::BuildInfo *> availableSetups(const ProjectExplorer::Kit *k,
+                                                        const QString &projectPath) const;
+    ProjectExplorer::BuildConfiguration *create(ProjectExplorer::Target *parent,
+                                                const ProjectExplorer::BuildInfo *info) const;
 
-    bool canCreate(const ProjectExplorer::Target *parent, const Core::Id id) const;
-    CMakeBuildConfiguration *create(ProjectExplorer::Target *parent, const Core::Id id, const QString &name = QString());
     bool canClone(const ProjectExplorer::Target *parent, ProjectExplorer::BuildConfiguration *source) const;
     CMakeBuildConfiguration *clone(ProjectExplorer::Target *parent, ProjectExplorer::BuildConfiguration *source);
     bool canRestore(const ProjectExplorer::Target *parent, const QVariantMap &map) const;
@@ -96,6 +98,7 @@ public:
 
 private:
     bool canHandle(const ProjectExplorer::Target *t) const;
+    CMakeBuildInfo *createBuildInfo(const ProjectExplorer::Kit *k, const QString &sourceDir) const;
 };
 
 } // namespace Internal

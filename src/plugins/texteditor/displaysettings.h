@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -48,8 +48,6 @@ public:
 
     bool m_displayLineNumbers;
     bool m_textWrapping;
-    bool m_showWrapColumn;
-    int m_wrapColumn;
     bool m_visualizeWhitespace;
     bool m_displayFoldingMarkers;
     bool m_highlightCurrentLine;

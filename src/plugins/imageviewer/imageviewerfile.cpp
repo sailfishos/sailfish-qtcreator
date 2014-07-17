@@ -1,7 +1,7 @@
 /**************************************************************************
 **
-** Copyright (C) 2013 Denis Mingulov.
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Denis Mingulov.
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -61,7 +61,7 @@ bool ImageViewerFile::reload(QString *errorString,
         emit changed();
         return true;
     }
-    return m_editor->open(errorString, m_fileName, m_fileName);
+    return m_editor->open(errorString, filePath(), filePath());
 }
 
 bool ImageViewerFile::save(QString *errorString, const QString &fileName, bool autoSave)
@@ -72,18 +72,10 @@ bool ImageViewerFile::save(QString *errorString, const QString &fileName, bool a
     return false;
 }
 
-void ImageViewerFile::rename(const QString &newName)
+bool ImageViewerFile::setContents(const QByteArray &contents)
 {
-    const QString oldFilename = m_fileName;
-    m_fileName = newName;
-    m_editor->setDisplayName(QFileInfo(m_fileName).fileName());
-    emit fileNameChanged(oldFilename, newName);
-    emit changed();
-}
-
-QString ImageViewerFile::fileName() const
-{
-    return m_fileName;
+    Q_UNUSED(contents);
+    return false;
 }
 
 QString ImageViewerFile::defaultPath() const
@@ -114,12 +106,6 @@ bool ImageViewerFile::isSaveAsAllowed() const
 void ImageViewerFile::setMimetype(const QString &mimetype)
 {
     m_mimeType = mimetype;
-    emit changed();
-}
-
-void ImageViewerFile::setFileName(const QString &filename)
-{
-    m_fileName = filename;
     emit changed();
 }
 

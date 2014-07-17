@@ -1,6 +1,6 @@
 #############################################################################
 ##
-## Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+## Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ## Contact: http://www.qt-project.org/legal
 ##
 ## This file is part of Qt Creator.
@@ -52,19 +52,28 @@ def verifyChecked(objectName):
     return object
 
 def ensureChecked(objectName, shouldBeChecked = True, timeout=20000):
-    object = waitForObject(objectName, timeout)
-    # synchronize to avoid false positives
-    waitFor('object.checked == shouldBeChecked', 1000)
-    if object.checked ^ shouldBeChecked:
-        clickButton(object)
     if shouldBeChecked:
+        targetState = Qt.Checked
         state = "checked"
     else:
+        targetState = Qt.Unchecked
         state = "unchecked"
+    widget = waitForObject(objectName, timeout)
+    try:
+        # needed for transition Qt::PartiallyChecked -> Qt::Checked -> Qt::Unchecked
+        clicked = 0
+        while not waitFor('widget.checkState() == targetState', 1000) and clicked < 2:
+            clickButton(widget)
+            clicked += 1
+        test.verify(waitFor("widget.checkState() == targetState", 1000))
+    except:
+        # widgets not derived from QCheckbox don't have checkState()
+        if not waitFor('widget.checked == shouldBeChecked', 1000):
+            clickButton(widget)
+        test.verify(waitFor("widget.checked == shouldBeChecked", 1000))
     test.log("New state for QCheckBox: %s" % state,
              str(objectName))
-    test.verify(waitFor("object.checked == shouldBeChecked", 1000))
-    return object
+    return widget
 
 # verify that an object is in an expected enable state. Returns the object.
 # param objectSpec  specifies the object to check. It can either be a string determining an object
@@ -72,7 +81,7 @@ def ensureChecked(objectName, shouldBeChecked = True, timeout=20000):
 # param expectedState is the expected enable state of the object
 def verifyEnabled(objectSpec, expectedState = True):
     if isinstance(objectSpec, (str, unicode)):
-        waitFor("object.exists('" + objectSpec + "')", 20000)
+        waitFor("object.exists('" + str(objectSpec).replace("'", "\\'") + "')", 20000)
         foundObject = findObject(objectSpec)
     else:
         foundObject = objectSpec
@@ -112,19 +121,16 @@ def selectFromLocator(filter, itemName = None):
     doubleClick(wantedItem, 5, 5, 0, Qt.LeftButton)
 
 def wordUnderCursor(window):
-    cursor = window.textCursor()
-    oldposition = cursor.position()
-    cursor.movePosition(QTextCursor.StartOfWord)
-    cursor.movePosition(QTextCursor.EndOfWord, QTextCursor.KeepAnchor)
-    returnValue = cursor.selectedText()
-    cursor.setPosition(oldposition)
-    return returnValue
+    return textUnderCursor(window, QTextCursor.StartOfWord, QTextCursor.EndOfWord)
 
 def lineUnderCursor(window):
+    return textUnderCursor(window, QTextCursor.StartOfLine, QTextCursor.EndOfLine)
+
+def textUnderCursor(window, fromPos, toPos):
     cursor = window.textCursor()
     oldposition = cursor.position()
-    cursor.movePosition(QTextCursor.StartOfLine)
-    cursor.movePosition(QTextCursor.EndOfLine, QTextCursor.KeepAnchor)
+    cursor.movePosition(fromPos)
+    cursor.movePosition(toPos, QTextCursor.KeepAnchor)
     returnValue = cursor.selectedText()
     cursor.setPosition(oldposition)
     return returnValue
@@ -163,43 +169,6 @@ def which(program):
                 return cf
         return None
 
-signalObjects = {}
-
-# do not call this function directly - it's only a helper
-def __callbackFunction__(object, *args):
-    global signalObjects
-#    test.log("__callbackFunction__: "+objectMap.realName(object))
-    signalObjects[objectMap.realName(object)] += 1
-
-def waitForSignal(object, signal, timeout=30000):
-    global signalObjects
-    realName = prepareForSignal(object, signal)
-    beforeCount = signalObjects[realName]
-    waitFor("signalObjects[realName] > beforeCount", timeout)
-
-handledSignal = {}
-
-def prepareForSignal(object, signal):
-    global signalObjects
-    global handledSignal
-    overrideInstallLazySignalHandler()
-    realName = objectMap.realName(object)
-#    test.log("waitForSignal: "+realName)
-    if realName in handledSignal.keys():
-        if handledSignal[realName] != signal:
-            # The current implementation does not support this.
-            # When an object has two different handled signals, waitForSignal() will only wait
-            # for the first of them to be emitted.
-            test.warning("You are trying to handle two different signals from the same object.",
-                         "Adding %s to object %s, which already has handled signal %s. "
-                         "This can lead to unexpected results." % (signal, realName, handledSignal[realName]))
-    else:
-        handledSignal[realName] = signal
-    if not (realName in signalObjects):
-        signalObjects[realName] = 0
-    installLazySignalHandler(object, signal, "__callbackFunction__")
-    return realName
-
 # this function removes the user files of given pro file(s)
 # can be called with a single string object or a list of strings holding path(s) to
 # the pro file(s) returns False if it could not remove all user files or has been
@@ -231,6 +200,14 @@ def invokeMenuItem(menu, item, *subItems):
             waitForObject(":Qt Creator.QtCreator.MenuBar_QMenuBar", 2000)
         except:
             nativeMouseClick(waitForObject(":Qt Creator_Core::Internal::MainWindow", 1000), 20, 20, 0, Qt.LeftButton)
+    # HACK to avoid squish crash using Qt5.2 on Squish 5.0.1 - remove asap
+    if platform.system() == "Darwin" and not isQt4Build:
+        if menu == "Tools" and item == "Options...":
+            nativeType("<Command+,>")
+            return
+        if menu == "File" and item == "Exit":
+            nativeType("<Command+q>")
+            return
     menuObject = waitForObjectItem(":Qt Creator.QtCreator.MenuBar_QMenuBar", menu)
     waitFor("menuObject.visible", 1000)
     activateItem(menuObject)
@@ -345,7 +322,7 @@ def verifyOutput(string, substring, outputFrom, outputIn):
     else:
         test.passes("Output from " + outputFrom + " found at position " + str(index) + " of " + outputIn)
 
-# function that verifies the existance and the read permissions
+# function that verifies the existence and the read permissions
 # of the given file path
 # if the executing user hasn't the read permission it checks
 # the parent folders for their execute permission
@@ -373,13 +350,13 @@ def __checkParentAccess__(filePath):
 # this function checks for all configured Qt versions inside
 # options dialog and returns a dict holding the kits as keys
 # and a list of information of its configured Qt
-def getConfiguredKits(isMaddeDisabled=True):
+def getConfiguredKits():
     def __retrieveQtVersionName__(target, version):
         treeWidget = waitForObject(":QtSupport__Internal__QtVersionManager.qtdirList_QTreeWidget")
         return treeWidget.currentItem().text(0)
     # end of internal function for iterateQtVersions
     def __setQtVersionForKit__(kit, kitName, kitsQtVersionName):
-        treeView = waitForObject(":Kits_Or_Compilers_QTreeView")
+        treeView = waitForObject(":BuildAndRun_QTreeView")
         clickItem(treeView, kit, 5, 5, 0, Qt.LeftButton)
         qtVersionStr = str(waitForObject(":Kits_QtVersion_QComboBox").currentText)
         kitsQtVersionName[kitName] = qtVersionStr
@@ -393,8 +370,8 @@ def getConfiguredKits(isMaddeDisabled=True):
     iterateKits(True, True, __setQtVersionForKit__, kitsWithQtVersionName)
     # merge defined target names with their configured Qt versions and devices
     for kit, qtVersion in kitsWithQtVersionName.iteritems():
-        if isMaddeDisabled and kit in ('Fremantle', 'Harmattan') and qtVersion == 'None':
-                test.log("Found Kit '%s' with unassigned Qt version (disabled Madde plugin)" % kit)
+        if kit in ('Fremantle', 'Harmattan') and qtVersion == 'None':
+            test.log("Found Kit '%s' with unassigned Qt version (disabled Madde plugin)" % kit)
         elif qtVersion in qtVersionNames:
             result[kit] = targetsQtVersions[qtVersionNames.index(qtVersion)].items()[0]
         else:
@@ -429,70 +406,6 @@ def regexVerify(text, expectedTexts):
         if pattern.match(text):
             return True
     return False
-
-def checkDebuggingLibrary(kitIDs):
-    def __getQtVersionForKit__(kit, kitName):
-        treeView = waitForObject(":Kits_Or_Compilers_QTreeView")
-        clickItem(treeView, kit, 5, 5, 0, Qt.LeftButton)
-        return str(waitForObject(":Kits_QtVersion_QComboBox").currentText)
-    # end of internal function for iterate kits
-
-    # internal function to execute while iterating Qt versions
-    def __checkDebugLibsInternalFunc__(target, version, kitStrings):
-        built = failed = 0
-        container = ("container=':qt_tabwidget_stackedwidget.QtSupport__Internal__"
-                     "QtVersionManager_QtSupport::Internal::QtOptionsPageWidget'")
-        buildLogWindow = ("window={name='QtSupport__Internal__ShowBuildLog' type='QDialog' "
-                          "visible='1' windowTitle?='Debugging Helper Build Log*'}")
-        treeWidget = waitForObject(":QtSupport__Internal__QtVersionManager.qtdirList_QTreeWidget")
-        qtVersion = str(treeWidget.currentItem().text(0))
-        if qtVersion in kitStrings.values():
-            detailsButton = waitForObject("{%s type='Utils::DetailsButton' text='Details' "
-                                          "visible='1' unnamed='1' occurrence='2'}" % container)
-            ensureChecked(detailsButton)
-            gdbHelperStat = waitForObject("{%s type='QLabel' name='gdbHelperStatus' "
-                                          "visible='1'}" % container)
-            if 'Not yet built.' in str(gdbHelperStat.text):
-                clickButton(waitForObject("{%s type='QPushButton' name='gdbHelperBuildButton' "
-                                          "text='Build' visible='1'}" % container))
-                buildLog = waitForObject("{type='QPlainTextEdit' name='log' visible='1' %s}" % buildLogWindow)
-                if str(buildLog.plainText).endswith('Build succeeded.'):
-                    built += 1
-                    test.log("Successfully built GDB helper for Qt version %s" % qtVersion)
-                else:
-                    failed += 1
-                    test.fail("Building GDB Helper for Qt version %s failed" % qtVersion,
-                              buildLog.plainText)
-                clickButton(waitForObject("{type='QPushButton' text='Close' unnamed='1' "
-                                          "visible='1' %s}" % buildLogWindow))
-            else:
-                built += 1
-                test.log("GDB helper for Qt version %s is %s" % (qtVersion, str(gdbHelperStat.text)))
-            ensureChecked(detailsButton, False)
-        return (built, failed)
-    # end of internal function for iterateQtVersions
-    kits, qtv = iterateKits(True, False, __getQtVersionForKit__)
-    qtVersionsOfKits = zip(kits, qtv)
-    wantedKits = Targets.getTargetsAsStrings(kitIDs)
-    kitsQtV = dict([i for i in qtVersionsOfKits if i[0] in wantedKits])
-    test.log("Checking debug libraries for the following kit:Qt combinations: %s" % kitsQtV)
-    tv, builtAndFailedList = iterateQtVersions(False, True, __checkDebugLibsInternalFunc__, kitsQtV)
-    built = failed = 0
-    for current in builtAndFailedList:
-        if current[0]:
-            built += current[0]
-        if current[1]:
-            failed += current[1]
-    if failed > 0:
-        test.fail("%d of %d GDB Helper compilations failed." % (failed, failed+built))
-    else:
-        test.passes("%d GDB Helper found compiled or successfully built." % built)
-    if built == len(kitIDs):
-        test.log("Function executed for all given kits.")
-    else:
-        test.fatal("Something's wrong - function has skipped some kits.",
-                   "Expected %s kits but %s are built." % (len(kitIDs), built))
-    return failed == 0
 
 # function that opens Options Dialog and parses the configured Qt versions
 # param keepOptionsOpen set to True if the Options dialog should stay open when
@@ -548,7 +461,7 @@ def iterateQtVersions(keepOptionsOpen=False, alreadyOnOptionsDialog=False,
                         t,v,tb = sys.exc_info()
                         currResult = None
                         test.fatal("Function to additionally execute on Options Dialog could not be found or "
-                                   "an exception occured while executing it.", "%s(%s)" % (str(t), str(v)))
+                                   "an exception occurred while executing it.", "%s(%s)" % (str(t), str(v)))
                     additionalResult.append(currResult)
     if not keepOptionsOpen:
         clickButton(waitForObject(":Options.Cancel_QPushButton"))
@@ -584,7 +497,7 @@ def iterateKits(keepOptionsOpen=False, alreadyOnOptionsDialog=False,
     waitForObjectItem(":Options_QListView", "Build & Run")
     clickItem(":Options_QListView", "Build & Run", 14, 15, 0, Qt.LeftButton)
     clickOnTab(":Options.qt_tabwidget_tabbar_QTabBar", "Kits")
-    treeView = waitForObject(":Kits_Or_Compilers_QTreeView")
+    treeView = waitForObject(":BuildAndRun_QTreeView")
     model = treeView.model()
     test.compare(model.rowCount(), 2, "Verifying expected target section count")
     autoDetected = model.index(0, 0)
@@ -611,7 +524,7 @@ def iterateKits(keepOptionsOpen=False, alreadyOnOptionsDialog=False,
                     t,v,tb = sys.exc_info()
                     currResult = None
                     test.fatal("Function to additionally execute on Options Dialog could not be "
-                               "found or an exception occured while executing it.", "%s(%s)" %
+                               "found or an exception occurred while executing it.", "%s(%s)" %
                                (str(t), str(v)))
                 additionalResult.append(currResult)
     if not keepOptionsOpen:
@@ -690,17 +603,22 @@ def readFile(filename):
     return content
 
 def simpleFileName(navigatorFileName):
-    return ".".join(navigatorFileName.split(".")[-2:]).replace("\\","")
+    # try to find the last part of the given name, assume it's inside a (folder) structure
+    search = re.search(".*[^\\\\]\.(.*)$", navigatorFileName)
+    if search:
+        return search.group(1).replace("\\", "")
+    # it's just the filename
+    return navigatorFileName.replace("\\", "")
 
 def clickOnTab(tabBarStr, tabText, timeout=5000):
-    if platform.system() == 'Darwin':
-        if not waitFor("object.exists(tabBarStr)", timeout):
-            raise LookupError("Could not find QTabBar: %s" % objectMap.realName(tabBarStr))
-        tabBar = findObject(tabBarStr)
-        if not tabBar.visible:
-            test.log("Using workaround for Mac.")
-            setWindowState(tabBar, WindowState.Normal)
-    clickTab(waitForObject(tabBarStr, timeout), tabText)
+    if not waitFor("object.exists(tabBarStr)", timeout):
+        raise LookupError("Could not find QTabBar: %s" % objectMap.realName(tabBarStr))
+    tabBar = findObject(tabBarStr)
+    if platform.system() == 'Darwin' and not tabBar.visible:
+        test.log("Using workaround for Mac.")
+        setWindowState(tabBar, WindowState.Normal)
+    clickTab(tabBar, tabText)
+    waitFor("str(tabBar.tabText(tabBar.currentIndex)) == '%s'" % tabText, timeout)
 
 # constructs a string holding the properties for a QModelIndex
 # param property a string holding additional properties including their values
@@ -710,3 +628,35 @@ def getQModelIndexStr(property, container):
     if (container.startswith(":")):
         container = "'%s'" % container
     return ("{column='0' container=%s %s type='QModelIndex'}" % (container, property))
+
+def verifyItemOrder(items, text):
+    text = str(text)
+    lastIndex = 0
+    for item in items:
+        index = text.find(item)
+        test.verify(index > lastIndex, "'" + item + "' found at index " + str(index))
+        lastIndex = index
+
+def openVcsLog():
+    try:
+        foundObj = waitForObject("{type='QPlainTextEdit' unnamed='1' visible='1' "
+                                 "window=':Qt Creator_Core::Internal::MainWindow'}", 2000)
+        if className(foundObj) != 'QPlainTextEdit':
+            raise Exception("Found derived class, but not a pure QPlainTextEdit.")
+    except:
+        invokeMenuItem("Window", "Output Panes", "Version Control")
+
+def openGeneralMessages():
+    if not object.exists(":Qt Creator_Core::OutputWindow"):
+        invokeMenuItem("Window", "Output Panes", "General Messages")
+
+# function that retrieves a specific child object by its class
+# this is sometimes the best way to avoid using waitForObject() on objects that
+# occur more than once - but could easily be found by using a compound object
+# (e.g. search for Utils::PathChooser instead of Utils::FancyLineEdit and get the child)
+def getChildByClass(parent, classToSearchFor, occurrence=1):
+    children = [child for child in object.children(parent) if className(child) == classToSearchFor]
+    if len(children) < occurrence:
+        return None
+    else:
+        return children[occurrence - 1]

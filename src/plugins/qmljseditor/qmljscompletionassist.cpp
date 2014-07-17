@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -42,6 +42,7 @@
 #include <texteditor/completionsettings.h>
 
 #include <utils/qtcassert.h>
+#include <utils/qtcoverride.h>
 
 #include <qmljs/qmljsmodelmanagerinterface.h>
 #include <qmljs/parser/qmljsast_p.h>
@@ -136,7 +137,7 @@ public:
         , order(order)
     {}
 
-    virtual void operator()(const Value *base, const QString &name, const Value *value)
+    void operator()(const Value *base, const QString &name, const Value *value) QTC_OVERRIDE
     {
         Q_UNUSED(base)
         QVariant data;
@@ -164,7 +165,7 @@ public:
         , afterOn(afterOn)
     {}
 
-    virtual void operator ()(const Value *base, const QString &name, const Value *)
+    void operator ()(const Value *base, const QString &name, const Value *) QTC_OVERRIDE
     {
         const CppComponentValue *qmlBase = value_cast<CppComponentValue>(base);
 
@@ -246,34 +247,34 @@ private:
         (*_propertyProcessor)(_currentObject, name, value);
     }
 
-    virtual bool processProperty(const QString &name, const Value *value)
+    bool processProperty(const QString &name, const Value *value) QTC_OVERRIDE
     {
         process(name, value);
         return true;
     }
 
-    virtual bool processEnumerator(const QString &name, const Value *value)
+    bool processEnumerator(const QString &name, const Value *value) QTC_OVERRIDE
     {
         if (! _globalCompletion)
             process(name, value);
         return true;
     }
 
-    virtual bool processSignal(const QString &name, const Value *value)
+    bool processSignal(const QString &name, const Value *value) QTC_OVERRIDE
     {
         if (_globalCompletion)
             process(name, value);
         return true;
     }
 
-    virtual bool processSlot(const QString &name, const Value *value)
+    bool processSlot(const QString &name, const Value *value) QTC_OVERRIDE
     {
         if (_enumerateSlots)
             process(name, value);
         return true;
     }
 
-    virtual bool processGeneratedSlot(const QString &name, const Value *value)
+    bool processGeneratedSlot(const QString &name, const Value *value) QTC_OVERRIDE
     {
         if (_enumerateGeneratedSlots || (_currentObject && _currentObject->className().endsWith(QLatin1String("Keys")))) {
             // ### FIXME: add support for attached properties.
@@ -286,9 +287,8 @@ private:
     {
         if (! value)
             return;
-        else if (const ObjectValue *object = value->asObjectValue()) {
+        if (const ObjectValue *object = value->asObjectValue())
             processProperties(object);
-        }
     }
 
     void processProperties(const ObjectValue *object)
@@ -365,9 +365,8 @@ void QmlJSAssistProposalItem::applyContextualContent(TextEditor::BaseTextEditor 
     QString content = text();
     int cursorOffset = 0;
 
-    const CompletionSettings &completionSettings =
-            TextEditorSettings::instance()->completionSettings();
-    const bool autoInsertBrackets = completionSettings.m_autoInsertBrackets;
+    const bool autoInsertBrackets =
+        TextEditorSettings::completionSettings().m_autoInsertBrackets;
 
     if (autoInsertBrackets && data().canConvert<CompleteFunctionCall>()) {
         CompleteFunctionCall function = data().value<CompleteFunctionCall>();
@@ -406,10 +405,10 @@ public:
         , m_isVariadic(isVariadic)
     {}
 
-    virtual void reset() {}
-    virtual int size() const { return 1; }
-    virtual QString text(int index) const;
-    virtual int activeArgument(const QString &prefix) const;
+    void reset() QTC_OVERRIDE {}
+    int size() const QTC_OVERRIDE { return 1; }
+    QString text(int index) const QTC_OVERRIDE;
+    int activeArgument(const QString &prefix) const QTC_OVERRIDE;
 
 private:
     QString m_functionName;
@@ -987,13 +986,16 @@ const SemanticInfo &QmlJSCompletionAssistInterface::semanticInfo() const
 
 namespace {
 
-struct QmlJSLessThan
+class QmlJSLessThan
 {
+public:
+    QmlJSLessThan(const QString &searchString) : m_searchString(searchString)
+    { }
     bool operator() (const BasicProposalItem *a, const BasicProposalItem *b)
     {
         if (a->order() != b->order())
             return a->order() > b->order();
-        else if (a->text().isEmpty())
+        else if (a->text().isEmpty() && ! b->text().isEmpty())
             return true;
         else if (b->text().isEmpty())
             return false;
@@ -1003,8 +1005,14 @@ struct QmlJSLessThan
             return false;
         else if (a->text().at(0).isLower() && b->text().at(0).isUpper())
             return true;
+        int m1 = PersistentTrie::matchStrength(m_searchString, a->text());
+        int m2 = PersistentTrie::matchStrength(m_searchString, b->text());
+        if (m1 != m2)
+            return m1 > m2;
         return a->text() < b->text();
     }
+private:
+    QString m_searchString;
 };
 
 } // Anonymous
@@ -1025,9 +1033,9 @@ void QmlJSAssistProposalModel::filter(const QString &prefix)
     m_currentItems = newCurrentItems;
 }
 
-void QmlJSAssistProposalModel::sort()
+void QmlJSAssistProposalModel::sort(const QString &prefix)
 {
-    qSort(currentItems().first, currentItems().second, QmlJSLessThan());
+    qSort(currentItems().first, currentItems().second, QmlJSLessThan(prefix));
 }
 
 bool QmlJSAssistProposalModel::keepPerfectMatch(TextEditor::AssistReason reason) const

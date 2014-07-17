@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -71,6 +71,7 @@ struct QMakeStatics {
     QString strfalse;
     ProKey strCONFIG;
     ProKey strARGS;
+    ProKey strARGC;
     QString strDot;
     QString strDotDot;
     QString strever;
@@ -78,6 +79,7 @@ struct QMakeStatics {
     QString strhost_build;
     ProKey strTEMPLATE;
     ProKey strQMAKE_PLATFORM;
+    ProKey strQMAKESPEC;
 #ifdef PROEVALUATOR_FULL
     ProKey strREQUIRES;
 #endif

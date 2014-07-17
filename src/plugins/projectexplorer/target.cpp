@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -29,6 +29,7 @@
 
 #include "target.h"
 
+#include "buildinfo.h"
 #include "buildtargetinfo.h"
 #include "deploymentdata.h"
 #include "kit.h"
@@ -130,7 +131,7 @@ Target::Target(Project *project, Kit *k) :
     setDisplayName(d->m_kit->displayName());
     setIcon(d->m_kit->icon());
 
-    KitManager *km = KitManager::instance();
+    QObject *km = KitManager::instance();
     connect(km, SIGNAL(kitUpdated(ProjectExplorer::Kit*)),
             this, SLOT(handleKitUpdates(ProjectExplorer::Kit*)));
     connect(km, SIGNAL(kitRemoved(ProjectExplorer::Kit*)),
@@ -176,7 +177,7 @@ void Target::changeRunConfigurationEnabled()
 void Target::onBuildDirectoryChanged()
 {
     BuildConfiguration *bc = qobject_cast<BuildConfiguration *>(sender());
-    if (bc)
+    if (bc && activeBuildConfiguration() == bc)
         emit buildDirectoryChanged();
 }
 
@@ -237,6 +238,8 @@ void Target::addBuildConfiguration(BuildConfiguration *configuration)
             SLOT(changeEnvironment()));
     connect(configuration, SIGNAL(enabledChanged()),
             this, SLOT(changeBuildConfigurationEnabled()));
+    connect(configuration, SIGNAL(buildDirectoryChanged()),
+            SLOT(onBuildDirectoryChanged()));
 
     if (!activeBuildConfiguration())
         setActiveBuildConfiguration(configuration);
@@ -248,9 +251,7 @@ bool Target::removeBuildConfiguration(BuildConfiguration *configuration)
     if (!d->m_buildConfigurations.contains(configuration))
         return false;
 
-    ProjectExplorer::BuildManager *bm =
-            ProjectExplorer::ProjectExplorerPlugin::instance()->buildManager();
-    if (bm->isBuilding(configuration))
+    if (BuildManager::isBuilding(configuration))
         return false;
 
     d->m_buildConfigurations.removeOne(configuration);
@@ -325,9 +326,7 @@ bool Target::removeDeployConfiguration(DeployConfiguration *dc)
     if (!d->m_deployConfigurations.contains(dc))
         return false;
 
-    ProjectExplorer::BuildManager *bm =
-            ProjectExplorer::ProjectExplorerPlugin::instance()->buildManager();
-    if (bm->isBuilding(dc))
+    if (BuildManager::isBuilding(dc))
         return false;
 
     d->m_deployConfigurations.removeOne(dc);
@@ -531,16 +530,14 @@ void Target::updateDefaultBuildConfigurations()
         qWarning("No build configuration factory found for target id '%s'.", qPrintable(id().toString()));
         return;
     }
-    QList<Core::Id> bcIds = bcFactory->availableCreationIds(this);
-    foreach (Core::Id id, bcIds) {
-        if (!bcFactory->canCreate(this, id))
-            continue;
-        BuildConfiguration *bc = bcFactory->create(this, id, tr("Default build"));
+    QList<BuildInfo *> infoList = bcFactory->availableSetups(this->kit(), project()->projectFilePath());
+    foreach (BuildInfo *info, infoList) {
+        BuildConfiguration *bc = bcFactory->create(this, info);
         if (!bc)
             continue;
-        QTC_CHECK(bc->id() == id);
         addBuildConfiguration(bc);
     }
+    qDeleteAll(infoList);
 }
 
 void Target::updateDefaultDeployConfigurations()
@@ -556,15 +553,16 @@ void Target::updateDefaultDeployConfigurations()
         dcIds.append(dcFactory->availableCreationIds(this));
 
     QList<DeployConfiguration *> dcList = deployConfigurations();
+    QList<Core::Id> toCreate = dcIds;
 
     foreach (DeployConfiguration *dc, dcList) {
         if (dcIds.contains(dc->id()))
-            dcIds.removeOne(dc->id());
+            toCreate.removeOne(dc->id());
         else
             removeDeployConfiguration(dc);
     }
 
-    foreach (Core::Id id, dcIds) {
+    foreach (Core::Id id, toCreate) {
         foreach (DeployConfigurationFactory *dcFactory, dcFactories) {
             if (dcFactory->canCreate(this, id)) {
                 DeployConfiguration *dc = dcFactory->create(this, id);
@@ -658,27 +656,29 @@ void Target::updateDefaultRunConfigurations()
     }
 
     // Do actual changes:
-    foreach (RunConfiguration *rc, toRemove) {
-        removeRunConfiguration(rc);
-        existingConfigured.removeOne(rc); // make sure to also remove them from existingConfigured!
-    }
-
-    if (removeExistingUnconfigured) {
-        foreach (RunConfiguration *rc, existingUnconfigured)
-            removeRunConfiguration(rc);
-        existingUnconfigured.clear();
-    }
-
     foreach (RunConfiguration *rc, newConfigured)
         addRunConfiguration(rc);
     foreach (RunConfiguration *rc, newUnconfigured)
         addRunConfiguration(rc);
 
-    // Make sure a configured RC is active:
-    if (activeRunConfiguration() && !activeRunConfiguration()->isConfigured()) {
-        if (!existingConfigured.isEmpty())
+    // Generate complete list of RCs to remove later:
+    QList<RunConfiguration *> removalList;
+    foreach (RunConfiguration *rc, toRemove) {
+        removalList << rc;
+        existingConfigured.removeOne(rc); // make sure to also remove them from existingConfigured!
+    }
+
+    if (removeExistingUnconfigured) {
+        removalList.append(existingUnconfigured);
+        existingUnconfigured.clear();
+    }
+
+    // Make sure a configured RC will be active after we delete the RCs:
+    RunConfiguration *active = activeRunConfiguration();
+    if (removalList.contains(active)) {
+        if (!existingConfigured.isEmpty()) {
             setActiveRunConfiguration(existingConfigured.at(0));
-        else if (!newConfigured.isEmpty()) {
+        } else if (!newConfigured.isEmpty()) {
             RunConfiguration *selected = newConfigured.at(0);
             // Try to find a runconfiguration that matches the project name. That is a good
             // candidate for something to run initially.
@@ -689,8 +689,20 @@ void Target::updateDefaultRunConfigurations()
                 }
             }
             setActiveRunConfiguration(selected);
+        } else if (!newUnconfigured.isEmpty()){
+            setActiveRunConfiguration(newUnconfigured.at(0));
+        } else {
+            if (!removalList.isEmpty())
+                setActiveRunConfiguration(removalList.last());
+            // Nothing will be left after removal: We set this to the last of in the removal list
+            // since that gives us the minimum number of signals (one signal for the change here and
+            // one more when the last RC is removed and the active RC becomes 0).
         }
     }
+
+    // Remove the RCs that are no longer needed:
+    foreach (RunConfiguration *rc, removalList)
+        removeRunConfiguration(rc);
 }
 
 QVariant Target::namedSettings(const QString &name) const
@@ -770,9 +782,12 @@ bool Target::fromMap(const QVariantMap &map)
     if (!ProjectConfiguration::fromMap(map))
         return false;
 
-    d->m_kit = KitManager::instance()->find(id());
+    d->m_kit = KitManager::find(id());
     if (!d->m_kit)
         return false;
+
+    setDisplayName(d->m_kit->displayName()); // Overwrite displayname read from file
+    setDefaultDisplayName(d->m_kit->displayName());
 
     bool ok;
     int bcCount = map.value(QLatin1String(BC_COUNT_KEY), 0).toInt(&ok);

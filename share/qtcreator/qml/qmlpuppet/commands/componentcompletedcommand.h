@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -38,6 +38,7 @@ namespace QmlDesigner {
 class ComponentCompletedCommand
 {
     friend QDataStream &operator>>(QDataStream &in, ComponentCompletedCommand &command);
+    friend bool operator ==(const ComponentCompletedCommand &first, const ComponentCompletedCommand &second);
 
 public:
     ComponentCompletedCommand();
@@ -45,12 +46,17 @@ public:
 
     QVector<qint32> instances() const;
 
+    void sort();
+
 private:
     QVector<qint32> m_instanceVector;
 };
 
 QDataStream &operator<<(QDataStream &out, const ComponentCompletedCommand &command);
 QDataStream &operator>>(QDataStream &in, ComponentCompletedCommand &command);
+
+bool operator ==(const ComponentCompletedCommand &first, const ComponentCompletedCommand &second);
+QDebug operator <<(QDebug debug, const ComponentCompletedCommand &command);
 
 } // namespace QmlDesigner
 

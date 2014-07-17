@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -35,9 +35,7 @@
 
 #include <projectexplorer/runconfiguration.h>
 
-namespace Utils {
-class Environment;
-}
+namespace Utils { class Environment; }
 
 namespace Debugger {
 class DebuggerEngine;
@@ -72,7 +70,7 @@ public:
     void startFailed();
     void debuggingFinished();
     ProjectExplorer::RunConfiguration *runConfiguration() const;
-    DebuggerEngine *engine(); // FIXME: Remove. Only used by Maemo support.
+    DebuggerEngine *engine();
 
     void showMessage(const QString &msg, int channel);
 

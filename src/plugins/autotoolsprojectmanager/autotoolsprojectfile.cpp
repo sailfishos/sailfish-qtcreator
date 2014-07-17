@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (C) 2013 Openismus GmbH.
+** Copyright (C) 2014 Openismus GmbH.
 ** Authors: Peter Penz (ppenz@openismus.com)
 **          Patricia Santana Cruz (patriciasantanacruz@gmail.com)
 ** Contact: http://www.qt-project.org/legal
@@ -38,9 +38,9 @@ using namespace AutotoolsProjectManager::Internal;
 
 AutotoolsProjectFile::AutotoolsProjectFile(AutotoolsProject *project, const QString &fileName) :
     Core::IDocument(project),
-    m_project(project),
-    m_fileName(fileName)
+    m_project(project)
 {
+    setFilePath(fileName);
 }
 
 bool AutotoolsProjectFile::save(QString *errorString, const QString &fileName, bool autoSave)
@@ -50,11 +50,6 @@ bool AutotoolsProjectFile::save(QString *errorString, const QString &fileName, b
     Q_UNUSED(autoSave);
 
     return false;
-}
-
-QString AutotoolsProjectFile::fileName() const
-{
-    return m_fileName;
 }
 
 QString AutotoolsProjectFile::defaultPath() const
@@ -89,9 +84,4 @@ bool AutotoolsProjectFile::reload(QString *errorString, ReloadFlag flag, ChangeT
     Q_UNUSED(type);
 
     return false;
-}
-
-void AutotoolsProjectFile::rename(const QString &newName)
-{
-    Q_UNUSED(newName);
 }

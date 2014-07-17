@@ -13,7 +13,7 @@ Alternatively, this file may be used in accordance with the terms and conditions
     <url>http://www.qt-project.org</url>
     <dependencyList>
         <dependency name=\"Core\" version=\"$$QTCREATOR_VERSION\"/>
-        <dependency name=\"Qt4ProjectManager\" version=\"$$QTCREATOR_VERSION\"/>
+        <dependency name=\"QmakeProjectManager\" version=\"$$QTCREATOR_VERSION\"/>
         <dependency name=\"ProjectExplorer\" version=\"$$QTCREATOR_VERSION\"/>
         <dependency name=\"RemoteLinux\" version=\"$$QTCREATOR_VERSION\"/>
     </dependencyList>

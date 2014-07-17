@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -32,7 +32,7 @@
 
 #include <projectexplorer/projectnodes.h>
 
-#include <api/projectdata.h>
+#include <qbs.h>
 
 #include <QIcon>
 
@@ -55,16 +55,10 @@ class QbsFileNode : public ProjectExplorer::FileNode
 public:
     QbsFileNode(const QString &filePath, const ProjectExplorer::FileType fileType, bool generated,
                 int line);
-    int line() const { return m_line; }
-
-    void setLine(int l);
 
     QString displayName() const;
 
     bool update(const qbs::CodeLocation &loc);
-
-private:
-    int m_line;
 };
 
 // ---------------------------------------------------------------------------
@@ -80,9 +74,9 @@ class QbsBaseProjectNode : public ProjectExplorer::ProjectNode
 public:
     explicit QbsBaseProjectNode(const QString &path);
 
-    bool hasBuildTargets() const;
+    bool showInSimpleTree() const;
 
-    QList<ProjectAction> supportedActions(Node *node) const;
+    QList<ProjectExplorer::ProjectAction> supportedActions(Node *node) const;
 
     bool canAddSubProject(const QString &proFilePath) const;
 
@@ -90,17 +84,10 @@ public:
 
     bool removeSubProjects(const QStringList &proFilePaths);
 
-    bool addFiles(const ProjectExplorer::FileType fileType,
-                  const QStringList &filePaths,
-                  QStringList *notAdded = 0);
-    bool removeFiles(const ProjectExplorer::FileType fileType,
-                     const QStringList &filePaths,
-                     QStringList *notRemoved = 0);
-    bool deleteFiles(const ProjectExplorer::FileType fileType,
-                     const QStringList &filePaths);
-    bool renameFile(const ProjectExplorer::FileType fileType,
-                     const QString &filePath,
-                     const QString &newFilePath);
+    bool addFiles(const QStringList &filePaths, QStringList *notAdded = 0);
+    bool removeFiles(const QStringList &filePaths, QStringList *notRemoved = 0);
+    bool deleteFiles(const QStringList &filePaths);
+    bool renameFile(const QString &filePath, const QString &newFilePath);
 
     QList<ProjectExplorer::RunConfiguration *> runConfigurationsFor(Node *node);
 
@@ -151,6 +138,7 @@ public:
     explicit QbsProductNode(const qbs::ProductData &prd);
 
     bool isEnabled() const;
+    bool showInSimpleTree() const;
 
     void setQbsProductData(const qbs::ProductData prd);
     const qbs::ProductData qbsProductData() const { return m_qbsProductData; }
@@ -177,13 +165,14 @@ public:
     explicit QbsProjectNode(const QString &path);
     ~QbsProjectNode();
 
-    void update(const qbs::Project *prj);
+    void update(const qbs::Project &prj);
     void update(const qbs::ProjectData &prjData);
 
     QbsProject *project() const;
-    const qbs::Project *qbsProject() const;
+    const qbs::Project qbsProject() const;
     const qbs::ProjectData qbsProjectData() const;
 
+    bool showInSimpleTree() const;
 private:
     void ctor();
 
@@ -192,7 +181,7 @@ private:
 
     QbsProject *m_project;
 
-    const qbs::Project *m_qbsProject;
+    qbs::Project m_qbsProject;
     qbs::ProjectData m_qbsProjectData;
     static QIcon m_projectIcon;
 };

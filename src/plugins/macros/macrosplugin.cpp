@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Nicolas Arnaud-Cormos
+** Copyright (c) 2014 Nicolas Arnaud-Cormos
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -50,7 +50,6 @@
 #include <QKeySequence>
 #include <QMenu>
 
-using namespace Macros;
 using namespace Macros::Internal;
 
 MacrosPlugin::MacrosPlugin()
@@ -59,6 +58,7 @@ MacrosPlugin::MacrosPlugin()
 
 MacrosPlugin::~MacrosPlugin()
 {
+    delete m_macroManager;
 }
 
 bool MacrosPlugin::initialize(const QStringList &arguments, QString *errorMessage)

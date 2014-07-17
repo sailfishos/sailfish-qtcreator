@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (c) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (c) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator
@@ -23,7 +23,7 @@
 // **********************************************************************
 
 /*!
-    \contentspage index.html
+    \contentspage {Qt Creator Manual}
     \previouspage creator-overview.html
     \page creator-quick-tour.html
     \nextpage creator-configuring.html
@@ -42,8 +42,6 @@
 
         \li Read news from the online community and Qt labs
 
-        \li Send feedback to the development team
-
     \endlist
 
     \image qtcreator-breakdown.png
@@ -56,7 +54,7 @@
     output panes (7).
 
     You can use the locator (6) to to browse through projects, files, classes,
-    methods, documentation, and file systems.
+    functions, documentation, and file systems.
 
     \section1 Modes
 
@@ -139,6 +137,9 @@
 
         \li \gui {Type Hierarchy} shows the base classes of a class.
 
+        \li \gui {Include Hierarchy} shows which files are included in the current file
+            and which files include the current file.
+
     \endlist
 
     You can change the view of the sidebar in the following ways:
@@ -202,6 +203,11 @@
 
     \endlist
 
+    You can make additional files known to \QC, so that they become visible in
+    the \gui Projects view and known to the locator and search, but do not
+    affect the build system. Add the paths to the files to the \c OTHER_FILES
+    variable in the .pro file.
+
     \section2 Viewing the File System
 
     If you cannot see a file in the \gui Projects view, switch to the
@@ -237,6 +243,12 @@
 
     To view the base classes of a class, right-click the class and select
     \gui {Open Type Hierarchy}  or press \key {Ctrl+Shift+T}.
+
+    \section2 Viewing Include Hierarchy
+
+    To view which files are included in the current file and which files include
+    the current file, right-click in the editor and select \gui {Open Include Hierarchy}
+    or press \key {Ctrl+Shift+I}.
 
     \section1 Viewing Output
 
@@ -294,6 +306,15 @@
 
         \li \gui Compile - Selected output from the compiler. Open the
             \gui {Compile Output} pane for more detailed information.
+
+       \li \gui{Debug Information} - Lists debug information packages that might
+            be missing.
+
+       \li \gui{Debugger Runtime} - Errors encountered when starting \QC. For
+            example, information about missing DLLs.
+
+       \li \gui Deployment - Errors encountered between building an application
+            successfully and starting it on a device.
 
         \li \gui {My Tasks} - Entries from a task list file (.tasks) generated
             by \l{Showing Task List Files in Issues Pane}

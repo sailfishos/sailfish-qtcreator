@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Nicolas Arnaud-Cormos
+** Copyright (c) 2014 Nicolas Arnaud-Cormos
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -53,9 +53,10 @@ MacroOptionsPage::MacroOptionsPage(QObject *parent)
         TextEditor::Constants::TEXT_EDITOR_SETTINGS_TR_CATEGORY));
 }
 
-QWidget *MacroOptionsPage::createPage(QWidget *parent)
+QWidget *MacroOptionsPage::widget()
 {
-    m_widget = new MacroOptionsWidget(parent);
+    if (!m_widget)
+        m_widget = new MacroOptionsWidget;
     return m_widget;
 }
 
@@ -67,5 +68,5 @@ void MacroOptionsPage::apply()
 
 void MacroOptionsPage::finish()
 {
-    // Nothing to do
+    delete m_widget;
 }

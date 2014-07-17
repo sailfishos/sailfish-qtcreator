@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -48,9 +48,7 @@ class IMode;
 class Command;
 class NavigationWidget;
 struct NavigationWidgetPrivate;
-namespace Internal {
-class NavigationSubWidget;
-}
+namespace Internal { class NavigationSubWidget; }
 
 class CORE_EXPORT NavigationWidgetPlaceHolder : public QWidget
 {
@@ -85,7 +83,7 @@ public:
     explicit NavigationWidget(QAction *toggleSideBarAction);
     virtual ~NavigationWidget();
 
-    void setFactories(const QList<INavigationWidgetFactory*> factories);
+    void setFactories(const QList<INavigationWidgetFactory*> &factories);
 
     void saveSettings(QSettings *settings);
     void restoreSettings(QSettings *settings);

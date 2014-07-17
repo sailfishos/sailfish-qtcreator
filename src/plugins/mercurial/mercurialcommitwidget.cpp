@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Brian McGillion
+** Copyright (c) 2014 Brian McGillion
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -50,8 +50,7 @@ namespace Internal {
 // Retrieve the comment char format from the text editor.
 static QTextCharFormat commentFormat()
 {
-    const TextEditor::FontSettings settings = TextEditor::TextEditorSettings::instance()->fontSettings();
-    return settings.toTextCharFormat(TextEditor::C_COMMENT);
+    return TextEditor::TextEditorSettings::fontSettings().toTextCharFormat(TextEditor::C_COMMENT);
 }
 
 // Highlighter for Mercurial submit messages. Make the first line bold, indicates

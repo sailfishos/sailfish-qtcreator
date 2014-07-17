@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,7 +30,7 @@
 #ifndef TOOLSETTINGS_H
 #define TOOLSETTINGS_H
 
-#include "ioptionspage.h"
+#include <coreplugin/dialogs/ioptionspage.h>
 
 #include <QPointer>
 
@@ -46,13 +46,11 @@ class ToolSettings : public IOptionsPage
 public:
     explicit ToolSettings(QObject *parent = 0);
 
-    bool matches(const QString & searchKeyWord) const;
-    QWidget *createPage(QWidget *parent);
+    QWidget *widget();
     void apply();
     void finish();
 
 private:
-    QString m_searchKeywords;
     QPointer<ExternalToolConfig> m_widget;
 };
 

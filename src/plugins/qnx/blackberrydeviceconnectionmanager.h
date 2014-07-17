@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -60,9 +60,16 @@ public:
     void connectDevice(const ProjectExplorer::IDevice::ConstPtr &device);
     void disconnectDevice(const ProjectExplorer::IDevice::ConstPtr &device);
 
+    const QString privateKeyPath() const;
+    bool hasValidSSHKeys() const;
+    bool setSSHKeys(const QByteArray privateKeyContent, const QByteArray publicKeyContent,
+            QString *error);
+
 signals:
     void connectionOutput(Core::Id deviceId, const QString &output);
     void deviceAboutToConnect(Core::Id deviceId);
+    void deviceConnected();
+    void deviceDisconnected(Core::Id deviceId);
 
 public slots:
     void connectDevice(Core::Id deviceId);
@@ -76,6 +83,8 @@ private slots:
     void handleDeviceDisconnected();
 
     void handleProcessOutput(const QString &output);
+
+    void processPendingDeviceConnections();
 
 private:
     explicit BlackBerryDeviceConnectionManager();
@@ -91,6 +100,8 @@ private:
 
     static BlackBerryDeviceConnectionManager *m_instance;
     QMultiMap<BlackBerryDeviceConnection*, Core::Id> m_connections;
+
+    QList<ProjectExplorer::IDevice::ConstPtr> m_pendingDeviceConnections;
 };
 
 } // namespace Internal

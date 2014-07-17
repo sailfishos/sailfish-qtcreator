@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -43,18 +43,14 @@ using namespace CppEditor::Internal;
 
 enum { debugWizard = 0 };
 
-CppFileWizard::CppFileWizard(const BaseFileWizardParameters &parameters,
-                             FileType type,
-                             QObject *parent) :
-    Core::StandardFileWizard(parameters, parent),
-    m_type(type)
+CppFileWizard::CppFileWizard(FileType type)
+    : m_type(type)
 {
 }
 
 Core::GeneratedFiles CppFileWizard::generateFilesFromPath(const QString &path,
                                                           const QString &name,
                                                           QString * /*errorMessage*/) const
-
 {
     const QString mimeType = m_type == Source ? QLatin1String(Constants::CPP_SOURCE_MIMETYPE) : QLatin1String(Constants::CPP_HEADER_MIMETYPE);
     const QString fileName = Core::BaseFileWizard::buildFileName(path, name, preferredSuffix(mimeType));

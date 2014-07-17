@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -57,11 +57,8 @@ public:
 
     QbsBuildStep *qbsStep() const;
     QVariantMap qbsConfiguration() const;
-    QString buildDirectory() const;
 
     Internal::QbsProject *project() const;
-
-    QVariantMap toMap() const;
 
     ProjectExplorer::IOutputParser *createOutputParser() const;
 
@@ -72,6 +69,9 @@ public:
 
     void setChangedFiles(const QStringList &files);
     QStringList changedFiles() const;
+
+    void setActiveFileTags(const QStringList &fileTags);
+    QStringList activeFileTags() const;
 
     void setProducts(const QStringList &products);
     QStringList products() const;
@@ -93,12 +93,11 @@ private:
                                         const QString &displayName,
                                         const QVariantMap &buildData,
                                         const Utils::FileName &directory);
-    void setBuildDirectory(const Utils::FileName &dir);
 
     bool m_isParsing;
     bool m_parsingError;
-    Utils::FileName m_buildDirectory;
     QStringList m_changedFiles;
+    QStringList m_activeFileTags;
     QStringList m_products;
 
     friend class QbsBuildConfigurationFactory;
@@ -113,11 +112,14 @@ public:
     explicit QbsBuildConfigurationFactory(QObject *parent = 0);
     ~QbsBuildConfigurationFactory();
 
-    QList<Core::Id> availableCreationIds(const ProjectExplorer::Target *parent) const;
-    QString displayNameForId(const Core::Id id) const;
+    int priority(const ProjectExplorer::Target *parent) const;
+    QList<ProjectExplorer::BuildInfo *> availableBuilds(const ProjectExplorer::Target *parent) const;
+    int priority(const ProjectExplorer::Kit *k, const QString &projectPath) const;
+    QList<ProjectExplorer::BuildInfo *> availableSetups(const ProjectExplorer::Kit *k,
+                                                        const QString &projectPath) const;
+    ProjectExplorer::BuildConfiguration *create(ProjectExplorer::Target *parent,
+                                                const ProjectExplorer::BuildInfo *info) const;
 
-    bool canCreate(const ProjectExplorer::Target *parent, const Core::Id id) const;
-    ProjectExplorer::BuildConfiguration *create(ProjectExplorer::Target *parent, const Core::Id id, const QString &name = QString());
     bool canClone(const ProjectExplorer::Target *parent, ProjectExplorer::BuildConfiguration *source) const;
     ProjectExplorer::BuildConfiguration *clone(ProjectExplorer::Target *parent, ProjectExplorer::BuildConfiguration *source);
     bool canRestore(const ProjectExplorer::Target *parent, const QVariantMap &map) const;
@@ -125,6 +127,9 @@ public:
 
 private:
     bool canHandle(const ProjectExplorer::Target *t) const;
+    ProjectExplorer::BuildInfo *createBuildInfo(const ProjectExplorer::Kit *k,
+                                                const Utils::FileName &buildDirectory,
+                                                ProjectExplorer::BuildConfiguration::BuildType type) const;
 };
 
 } // namespace Internal

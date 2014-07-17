@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -32,6 +32,8 @@
 
 #include <coreplugin/dialogs/ioptionspage.h>
 
+#include <QPointer>
+
 QT_BEGIN_NAMESPACE
 class QDesignerOptionsPageInterface;
 QT_END_NAMESPACE
@@ -48,13 +50,14 @@ class SettingsPage : public Core::IOptionsPage
 public:
     explicit SettingsPage(QDesignerOptionsPageInterface *designerPage);
 
-    QWidget *createPage(QWidget *parent);
+    QWidget *widget();
     void apply();
     void finish();
 
 private:
     QDesignerOptionsPageInterface *m_designerPage;
     bool m_initialized;
+    QPointer<QWidget> m_widget;
 };
 
 class SettingsPageProvider : public Core::IOptionsPageProvider
@@ -65,9 +68,11 @@ public:
     SettingsPageProvider(QObject *parent = 0);
 
     QList<Core::IOptionsPage *> pages() const;
+    bool matches(const QString &searchKeyWord) const;
 
 private:
     mutable bool m_initialized;
+    mutable QStringList m_keywords;
 };
 
 } // namespace Internal

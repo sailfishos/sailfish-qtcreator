@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 BogDan Vatra <bog_dan_ro@yahoo.com>
+** Copyright (c) 2014 BogDan Vatra <bog_dan_ro@yahoo.com>
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -57,6 +57,9 @@ QList<Core::Id> AndroidDeployStepFactory::availableCreationIds(BuildStepList *pa
     if (!AndroidManager::supportsAndroid(parent->target()))
         return QList<Core::Id>();
     if (parent->contains(AndroidDeployStep::Id))
+        return QList<Core::Id>();
+    QtSupport::BaseQtVersion *qtVersion = QtSupport::QtKitInformation::qtVersion(parent->target()->kit());
+    if (qtVersion && qtVersion->qtVersion() >= QtSupport::QtVersionNumber(5, 2, 0))
         return QList<Core::Id>();
     return QList<Core::Id>() << AndroidDeployStep::Id;
 }

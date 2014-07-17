@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -56,7 +56,7 @@ namespace QmlDesigner {
 
 namespace  Internal {
 
-DebugView::DebugView(QObject *parent) : QmlModelView(parent),
+DebugView::DebugView(QObject *parent) : AbstractView(parent),
     m_debugViewWidget(new DebugViewWidget)
 {
 }
@@ -69,14 +69,15 @@ void DebugView::modelAttached(Model *model)
 {
     log(tr("Model attached"), tr("FileName %1").arg(model->fileUrl().toLocalFile()));
     m_debugViewWidget->setDebugViewEnabled(isDebugViewEnabled());
-    qDebug() << "enabled: " << isDebugViewEnabled();
-    QmlModelView::modelAttached(model);
+    if (isDebugViewEnabled())
+        qDebug() << tr("DebugView is enabled");
+    AbstractView::modelAttached(model);
 }
 
 void DebugView::modelAboutToBeDetached(Model *model)
 {
     log(tr("Model detached"), tr("FileName %1").arg(model->fileUrl().toLocalFile()));
-    QmlModelView::modelAboutToBeDetached(model);
+    AbstractView::modelAboutToBeDetached(model);
 }
 
 void DebugView::importsChanged(const QList<Import> &addedImports, const QList<Import> &removedImports)
@@ -85,12 +86,12 @@ void DebugView::importsChanged(const QList<Import> &addedImports, const QList<Im
         QString message;
         message += tr("Added imports:") += lineBreak;
         foreach (const Import &import, addedImports) {
-            message += import.toString() += lineBreak;
+            message += import.toImportString() += lineBreak;
         }
 
         message += tr("Removed imports:") += lineBreak;
         foreach (const Import &import, removedImports) {
-            message += import.toString() += lineBreak;
+            message += import.toImportString() += lineBreak;
         }
 
         log(tr("Imports changed:"), message);
@@ -147,8 +148,8 @@ void DebugView::nodeIdChanged(const ModelNode &node, const QString &newId, const
         QString string;
         message.setString(&string);
         message << node;
-        message << tr("New Id: ") << newId << lineBreak;
-        message << tr("Old Id: ") << oldId << lineBreak;
+        message << tr("New Id:") << ' ' << newId << lineBreak;
+        message << tr("Old Id:") << ' ' << oldId << lineBreak;
         log(tr("Node id changed:"), string);
     }
 }
@@ -369,6 +370,31 @@ void DebugView::nodeSourceChanged(const ModelNode &modelNode, const QString &new
 
         log(tr("Node Source Changed:"), string);
     }
+}
+
+void DebugView::nodeRemoved(const ModelNode &/*removedNode*/, const NodeAbstractProperty &/*parentProperty*/, AbstractView::PropertyChangeFlags /*propertyChange*/)
+{
+
+}
+
+void DebugView::nodeAboutToBeReparented(const ModelNode &/*node*/, const NodeAbstractProperty &/*newPropertyParent*/, const NodeAbstractProperty &/*oldPropertyParent*/, AbstractView::PropertyChangeFlags /*propertyChange*/)
+{
+
+}
+
+void DebugView::instancesToken(const QString &/*tokenName*/, int /*tokenNumber*/, const QVector<ModelNode> &/*nodeVector*/)
+{
+
+}
+
+void DebugView::currentStateChanged(const ModelNode &/*node*/)
+{
+
+}
+
+void DebugView::nodeOrderChanged(const NodeListProperty &/*listProperty*/, const ModelNode &/*movedNode*/, int /*oldIndex*/)
+{
+
 }
 
 void DebugView::log(const QString &title, const QString &message, bool highlight)

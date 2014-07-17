@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -29,6 +29,7 @@
 
 #include "qmljshoverhandler.h"
 #include "qmljseditor.h"
+#include "qmljseditordocument.h"
 #include "qmljseditoreditable.h"
 #include "qmlexpressionundercursor.h"
 
@@ -115,7 +116,7 @@ static inline QString getModuleName(const ScopeChain &scopeChain, const Document
         const QString moduleName = qmlValue->moduleName();
         const Imports *imports = scopeChain.context()->imports(qmlDocument.data());
         const ImportInfo importInfo = imports->info(qmlValue->className(), scopeChain.context().data());
-        if (importInfo.isValid() && importInfo.type() == ImportInfo::LibraryImport) {
+        if (importInfo.isValid() && importInfo.type() == ImportType::Library) {
             const int majorVersion = importInfo.version().majorVersion();
             const int minorVersion = importInfo.version().minorVersion();
             return moduleName + QString::number(majorVersion) + QLatin1Char('.')
@@ -127,20 +128,20 @@ static inline QString getModuleName(const ScopeChain &scopeChain, const Document
 
         const Imports *imports = scopeChain.context()->imports(qmlDocument.data());
         const ImportInfo importInfo = imports->info(typeName, scopeChain.context().data());
-        if (importInfo.isValid() && importInfo.type() == ImportInfo::LibraryImport) {
+        if (importInfo.isValid() && importInfo.type() == ImportType::Library) {
             const QString moduleName = importInfo.name();
             const int majorVersion = importInfo.version().majorVersion();
             const int minorVersion = importInfo.version().minorVersion();
             return moduleName + QString::number(majorVersion) + QLatin1Char('.')
                     + QString::number(minorVersion) ;
-        } else if (importInfo.isValid() && importInfo.type() == ImportInfo::DirectoryImport) {
+        } else if (importInfo.isValid() && importInfo.type() == ImportType::Directory) {
             const QString path = importInfo.path();
             const QDir dir(qmlDocument->path());
             // should probably try to make it relatve to some import path, not to the document path
             QString relativeDir = dir.relativeFilePath(path);
             const QString name = relativeDir.replace(QLatin1Char('/'), QLatin1Char('.'));
             return name;
-        } else if (importInfo.isValid() && importInfo.type() == ImportInfo::QrcDirectoryImport) {
+        } else if (importInfo.isValid() && importInfo.type() == ImportType::QrcDirectory) {
             QString path = QrcParser::normalizedQrcDirectoryPath(importInfo.path());
             path = path.mid(1, path.size() - ((path.size() > 1) ? 2 : 1));
             const QString name = path.replace(QLatin1Char('/'), QLatin1Char('.'));
@@ -160,21 +161,21 @@ bool HoverHandler::setQmlTypeHelp(const ScopeChain &scopeChain, const Document::
         helpIdPieces.prepend(moduleName);
         helpIdPieces.prepend(QLatin1String("QML"));
         helpId = helpIdPieces.join(QLatin1String("."));
-        if (!Core::HelpManager::instance()->linksForIdentifier(helpId).isEmpty())
+        if (!HelpManager::linksForIdentifier(helpId).isEmpty())
             break;
         if (helpIdPieces.size() > 3) {
             QString lm = helpIdPieces.value(2);
             helpIdPieces.removeAt(2);
             helpId = helpIdPieces.join(QLatin1String("."));
-            if (!Core::HelpManager::instance()->linksForIdentifier(helpId).isEmpty())
+            if (!HelpManager::linksForIdentifier(helpId).isEmpty())
                 break;
             helpIdPieces.replace(1, lm);
-            if (!Core::HelpManager::instance()->linksForIdentifier(helpId).isEmpty())
+            if (!HelpManager::linksForIdentifier(helpId).isEmpty())
                 break;
         }
         helpIdPieces.removeAt(1);
         helpId = helpIdPieces.join(QLatin1String("."));
-        if (!Core::HelpManager::instance()->linksForIdentifier(helpId).isEmpty())
+        if (!HelpManager::linksForIdentifier(helpId).isEmpty())
             break;
         return false;
     } while (0);
@@ -194,8 +195,8 @@ void HoverHandler::identifyMatch(TextEditor::ITextEditor *editor, int pos)
     if (!qmlEditor)
         return;
 
-    const QmlJSTools::SemanticInfo &semanticInfo = qmlEditor->semanticInfo();
-    if (! semanticInfo.isValid() || qmlEditor->isSemanticInfoOutdated())
+    const QmlJSTools::SemanticInfo &semanticInfo = qmlEditor->qmlJsEditorDocument()->semanticInfo();
+    if (!semanticInfo.isValid() || qmlEditor->qmlJsEditorDocument()->isSemanticInfoOutdated())
         return;
 
     QList<AST::Node *> rangePath = semanticInfo.rangePath(pos);
@@ -266,7 +267,8 @@ bool HoverHandler::matchDiagnosticMessage(QmlJSTextEditorWidget *qmlEditor, int 
             return true;
         }
     }
-    foreach (const QTextLayout::FormatRange &range, qmlEditor->diagnosticRanges()) {
+    foreach (const QTextLayout::FormatRange &range,
+             qmlEditor->qmlJsEditorDocument()->diagnosticRanges()) {
         if (pos >= range.start && pos < range.start+range.length) {
             setToolTip(range.format.toolTip());
             return true;
@@ -350,7 +352,7 @@ void HoverHandler::handleImport(const ScopeChain &scopeChain, AST::UiImport *nod
 
     foreach (const Import &import, imports->all()) {
         if (import.info.ast() == node) {
-            if (import.info.type() == ImportInfo::LibraryImport
+            if (import.info.type() == ImportType::Library
                     && !import.libraryPath.isEmpty()) {
                 QString msg = tr("Library at %1").arg(import.libraryPath);
                 const LibraryInfo &libraryInfo = scopeChain.context()->snapshot().libraryInfo(import.libraryPath);
@@ -378,18 +380,11 @@ void HoverHandler::reset()
 void HoverHandler::operateTooltip(TextEditor::ITextEditor *editor, const QPoint &point)
 {
     if (toolTip().isEmpty())
-        Utils::ToolTip::instance()->hide();
-    else {
-        if (m_colorTip.isValid()) {
-            Utils::ToolTip::instance()->show(point,
-                                                  Utils::ColorContent(m_colorTip),
-                                                  editor->widget());
-        } else {
-            Utils::ToolTip::instance()->show(point,
-                                                  Utils::TextContent(toolTip()),
-                                                  editor->widget());
-        }
-    }
+        Utils::ToolTip::hide();
+    else if (m_colorTip.isValid())
+        Utils::ToolTip::show(point, Utils::ColorContent(m_colorTip), editor->widget());
+    else
+        Utils::ToolTip::show(point, Utils::TextContent(toolTip()), editor->widget());
 }
 
 void HoverHandler::prettyPrintTooltip(const QmlJS::Value *value,
@@ -490,13 +485,13 @@ bool HoverHandler::setQmlHelpItem(const ScopeChain &scopeChain,
                 do {
                     helpId = QLatin1String("QML.") + moduleName + QLatin1Char('.') + className
                             + QLatin1String("::") + name;
-                    if (!Core::HelpManager::instance()->linksForIdentifier(helpId).isEmpty())
+                    if (!HelpManager::linksForIdentifier(helpId).isEmpty())
                         break;
                     helpId = QLatin1String("QML.") + className + QLatin1String("::") + name;
-                    if (!Core::HelpManager::instance()->linksForIdentifier(helpId).isEmpty())
+                    if (!HelpManager::linksForIdentifier(helpId).isEmpty())
                         break;
                     helpId = className + QLatin1String("::") + name;
-                    if (!Core::HelpManager::instance()->linksForIdentifier(helpId).isEmpty())
+                    if (!HelpManager::linksForIdentifier(helpId).isEmpty())
                         break;
                     helpId.clear();
                 } while (0);

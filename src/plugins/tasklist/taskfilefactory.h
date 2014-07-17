@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -33,11 +33,7 @@
 #include <coreplugin/idocumentfactory.h>
 #include <coreplugin/idocument.h>
 
-#include <QStringList>
-
-namespace ProjectExplorer {
-class Project;
-} // namespace ProjectExplorer
+namespace ProjectExplorer { class Project; }
 
 namespace TaskList {
 namespace Internal {
@@ -45,22 +41,16 @@ namespace Internal {
 class TaskFileFactory : public Core::IDocumentFactory
 {
     Q_OBJECT
+
 public:
     TaskFileFactory(QObject *parent = 0);
-    ~TaskFileFactory();
-
-    QStringList mimeTypes() const;
-
-    Core::Id id() const;
-    QString displayName() const;
 
     Core::IDocument *open(const QString &fileName);
-    Core::IDocument *open(ProjectExplorer::Project *context, const QString &fileName);
+    Core::IDocument *open(const QString &base, const QString &fileName);
 
     void closeAllFiles();
 
 private:
-    QStringList m_mimeTypes;
     QList<Core::IDocument *> m_openFiles;
 };
 

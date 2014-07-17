@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -84,6 +84,7 @@ QmlConsoleView::QmlConsoleView(QWidget *parent) :
     setFrameStyle(QFrame::NoFrame);
     setHeaderHidden(true);
     setRootIsDecorated(false);
+    setUniformRowHeights(true);
     setEditTriggers(QAbstractItemView::AllEditTriggers);
     setStyleSheet(QLatin1String("QTreeView::branch:has-siblings:!adjoins-item {"
                                 "border-image: none;"
@@ -107,9 +108,9 @@ QmlConsoleView::QmlConsoleView(QWidget *parent) :
     if (Utils::HostOsInfo::isAnyUnixHost() && !Utils::HostOsInfo::isMacHost()
             && baseName == QLatin1String("windows")) {
         // Sometimes we get the standard windows 95 style as a fallback
-        if (QStyleFactory::keys().contains(QLatin1String("Fusion")))
+        if (QStyleFactory::keys().contains(QLatin1String("Fusion"))) {
             baseName = QLatin1String("fusion"); // Qt5
-        else { // Qt4
+        } else { // Qt4
             // e.g. if we are running on a KDE4 desktop
             QByteArray desktopEnvironment = qgetenv("DESKTOP_SESSION");
             if (desktopEnvironment == "kde")
@@ -124,14 +125,16 @@ QmlConsoleView::QmlConsoleView(QWidget *parent) :
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
     setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
+    horizontalScrollBar()->setSingleStep(20);
+    verticalScrollBar()->setSingleStep(20);
 
     connect(this, SIGNAL(activated(QModelIndex)), SLOT(onRowActivated(QModelIndex)));
 }
 
 void QmlConsoleView::onScrollToBottom()
 {
-    // Keep scrolling to bottom if scroll bar is at maximum()
-    if (verticalScrollBar()->value() == verticalScrollBar()->maximum())
+    // Keep scrolling to bottom if scroll bar is not at maximum()
+    if (verticalScrollBar()->value() != verticalScrollBar()->maximum())
         scrollToBottom();
 }
 

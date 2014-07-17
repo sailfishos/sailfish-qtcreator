@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -58,6 +58,7 @@ public:
     bool contains(const Core::Id id) const;
 
     void insertStep(int position, BuildStep *step);
+    void appendStep(BuildStep *step) { insertStep(count(), step); }
     bool removeStep(int position);
     void moveStepUp(int position);
     BuildStep *at(int position);

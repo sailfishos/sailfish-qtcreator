@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -35,9 +35,7 @@
 
 namespace QmlDesigner {
 
-namespace Internal {
-    class ModelPrivate;
-}
+namespace Internal { class ModelPrivate; }
 
 class QMLDESIGNERCORE_EXPORT NodeProperty : public NodeAbstractProperty
 {

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -48,16 +48,10 @@ DeviceSettingsPage::DeviceSettingsPage(QObject *parent)
     setCategoryIcon(QLatin1String(":/projectexplorer/images/MaemoDevice.png"));
 }
 
-bool DeviceSettingsPage::matches(const QString &searchKeyWord) const
+QWidget *DeviceSettingsPage::widget()
 {
-    return m_keywords.contains(searchKeyWord, Qt::CaseInsensitive);
-}
-
-QWidget *DeviceSettingsPage::createPage(QWidget *parent)
-{
-    m_widget = new DeviceSettingsWidget(parent);
-    if (m_keywords.isEmpty())
-        m_keywords = m_widget->searchKeywords();
+    if (!m_widget)
+        m_widget = new DeviceSettingsWidget;
     return m_widget;
 }
 
@@ -68,6 +62,7 @@ void DeviceSettingsPage::apply()
 
 void DeviceSettingsPage::finish()
 {
+    delete m_widget;
 }
 
 } // namespace Internal

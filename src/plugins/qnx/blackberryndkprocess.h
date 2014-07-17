@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -56,8 +56,16 @@ public:
         UserStatus
     };
 
+    /**
+     * @brief Resolves full path to an NDK cmd-line tool.
+     * @return a full-path to the NDK cmd-line tool;
+     *         or empty QString when no default QNX configuration is found.
+     */
+    static const QString resolveNdkToolPath(const QString &tool);
+
 signals:
     void finished(int status);
+    void started();
 
 protected:
     explicit BlackBerryNdkProcess(const QString &command, QObject *parent = 0);
@@ -74,6 +82,7 @@ private slots:
 private:
     int errorLineToReturnStatus(const QString &line) const;
     virtual void processData(const QString &line);
+    virtual void resetResults();
 
     QProcess *m_process;
 

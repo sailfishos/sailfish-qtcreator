@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -54,7 +54,7 @@ class CPLUSPLUS_EXPORT FastPreprocessor: public Client
 public:
     FastPreprocessor(const Snapshot &snapshot);
 
-    QByteArray run(Document::Ptr newDoc, const QString &source);
+    QByteArray run(Document::Ptr newDoc, const QByteArray &source);
 
     // CPlusPlus::Client
     virtual void sourceNeeded(unsigned line, const QString &fileName, IncludeType mode);

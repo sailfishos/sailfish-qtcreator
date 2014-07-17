@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -28,6 +28,7 @@
 ****************************************************************************/
 
 #include "cpphighlighter.h"
+#include "cppeditorenums.h"
 
 #include <cpptools/cppdoxygen.h>
 #include <cpptools/cpptoolsreuse.h>
@@ -37,7 +38,6 @@
 #include <cplusplus/Lexer.h>
 
 #include <QTextDocument>
-#include <QDebug>
 
 using namespace CppEditor::Internal;
 using namespace TextEditor;
@@ -46,28 +46,46 @@ using namespace CPlusPlus;
 CppHighlighter::CppHighlighter(QTextDocument *document) :
     TextEditor::SyntaxHighlighter(document)
 {
+    static QVector<TextEditor::TextStyle> categories;
+    if (categories.isEmpty()) {
+        categories << TextEditor::C_NUMBER
+                   << TextEditor::C_STRING
+                   << TextEditor::C_TYPE
+                   << TextEditor::C_KEYWORD
+                   << TextEditor::C_OPERATOR
+                   << TextEditor::C_PREPROCESSOR
+                   << TextEditor::C_LABEL
+                   << TextEditor::C_COMMENT
+                   << TextEditor::C_DOXYGEN_COMMENT
+                   << TextEditor::C_DOXYGEN_TAG
+                   << TextEditor::C_VISUAL_WHITESPACE;
+    }
+    setTextFormatCategories(categories);
 }
 
 void CppHighlighter::highlightBlock(const QString &text)
 {
-    const int previousState = previousBlockState();
-    int state = 0, initialBraceDepth = 0;
-    if (previousState != -1) {
-        state = previousState & 0xff;
-        initialBraceDepth = previousState >> 8;
+    const int previousBlockState_ = previousBlockState();
+    int lexerState = 0, initialBraceDepth = 0;
+    if (previousBlockState_ != -1) {
+        lexerState = previousBlockState_ & 0xff;
+        initialBraceDepth = previousBlockState_ >> 8;
     }
 
     int braceDepth = initialBraceDepth;
 
+    // FIXME: Check defaults or get from document.
+    LanguageFeatures features;
+    features.cxx11Enabled = true;
+
     SimpleLexer tokenize;
-    tokenize.setQtMocRunEnabled(false);
-    tokenize.setObjCEnabled(false);
-    tokenize.setCxx0xEnabled(true);
+    tokenize.setLanguageFeatures(features);
 
-    int initialState = state;
-    const QList<Token> tokens = tokenize(text, initialState);
-    state = tokenize.state(); // refresh the state
+    int initialLexerState = lexerState;
+    const QList<Token> tokens = tokenize(text, initialLexerState);
+    lexerState = tokenize.state(); // refresh lexer state
 
+    initialLexerState &= ~0x80; // discard newline expected bit
     int foldingIndent = initialBraceDepth;
     if (TextBlockUserData *userData = BaseTextDocumentLayout::testUserData(currentBlock())) {
         userData->setFoldingIndent(0);
@@ -76,15 +94,15 @@ void CppHighlighter::highlightBlock(const QString &text)
     }
 
     if (tokens.isEmpty()) {
-        setCurrentBlockState(previousState);
+        setCurrentBlockState((braceDepth << 8) | lexerState);
         BaseTextDocumentLayout::clearParentheses(currentBlock());
         if (text.length())  {// the empty line can still contain whitespace
-            if (initialState == Lexer::State_MultiLineComment)
-                highlightLine(text, 0, text.length(), m_formats[CppCommentFormat]);
-            else if (initialState == Lexer::State_MultiLineDoxyComment)
-                highlightLine(text, 0, text.length(), m_formats[CppDoxygenCommentFormat]);
+            if (initialLexerState == T_COMMENT)
+                highlightLine(text, 0, text.length(), formatForCategory(CppCommentFormat));
+            else if (initialLexerState == T_DOXY_COMMENT)
+                highlightLine(text, 0, text.length(), formatForCategory(CppDoxygenCommentFormat));
             else
-                setFormat(0, text.length(), m_formats[CppVisualWhitespace]);
+                setFormat(0, text.length(), formatForCategory(CppVisualWhitespace));
         }
         BaseTextDocumentLayout::setFoldingIndent(currentBlock(), foldingIndent);
         return;
@@ -109,7 +127,7 @@ void CppHighlighter::highlightBlock(const QString &text)
         }
 
         if (previousTokenEnd != tk.begin())
-            setFormat(previousTokenEnd, tk.begin() - previousTokenEnd, m_formats[CppVisualWhitespace]);
+            setFormat(previousTokenEnd, tk.begin() - previousTokenEnd, formatForCategory(CppVisualWhitespace));
 
         if (tk.is(T_LPAREN) || tk.is(T_LBRACE) || tk.is(T_LBRACKET)) {
             const QChar c = text.at(tk.begin());
@@ -148,11 +166,11 @@ void CppHighlighter::highlightBlock(const QString &text)
             continue;
 
         if (i == 0 && tk.is(T_POUND)) {
-            highlightLine(text, tk.begin(), tk.length(), m_formats[CppPreprocessorFormat]);
+            highlightLine(text, tk.begin(), tk.length(), formatForCategory(CppPreprocessorFormat));
             expectPreprocessorKeyword = true;
         } else if (highlightCurrentWordAsPreprocessor &&
                    (tk.isKeyword() || tk.is(T_IDENTIFIER)) && isPPKeyword(text.midRef(tk.begin(), tk.length()))) {
-            setFormat(tk.begin(), tk.length(), m_formats[CppPreprocessorFormat]);
+            setFormat(tk.begin(), tk.length(), formatForCategory(CppPreprocessorFormat));
             const QStringRef ppKeyword = text.midRef(tk.begin(), tk.length());
             if (ppKeyword == QLatin1String("error")
                     || ppKeyword == QLatin1String("warning")
@@ -160,16 +178,14 @@ void CppHighlighter::highlightBlock(const QString &text)
                 onlyHighlightComments = true;
             }
 
-        } else if (tk.is(T_NUMERIC_LITERAL))
-            setFormat(tk.begin(), tk.length(), m_formats[CppNumberFormat]);
-
-        else if (tk.isStringLiteral() || tk.isCharLiteral())
-            highlightLine(text, tk.begin(), tk.length(), m_formats[CppStringFormat]);
-
-        else if (tk.isComment()) {
-            const int startPosition = initialState ? previousTokenEnd : tk.begin();
+        } else if (tk.is(T_NUMERIC_LITERAL)) {
+            setFormat(tk.begin(), tk.length(), formatForCategory(CppNumberFormat));
+        } else if (tk.isStringLiteral() || tk.isCharLiteral()) {
+            highlightLine(text, tk.begin(), tk.length(), formatForCategory(CppStringFormat));
+        } else if (tk.isComment()) {
+            const int startPosition = initialLexerState ? previousTokenEnd : tk.begin();
             if (tk.is(T_COMMENT) || tk.is(T_CPP_COMMENT))
-                highlightLine(text, startPosition, tk.end() - startPosition, m_formats[CppCommentFormat]);
+                highlightLine(text, startPosition, tk.end() - startPosition, formatForCategory(CppCommentFormat));
 
             else // a doxygen comment
                 highlightDoxygenComment(text, startPosition, tk.end() - startPosition);
@@ -177,8 +193,8 @@ void CppHighlighter::highlightBlock(const QString &text)
             // we need to insert a close comment parenthesis, if
             //  - the line starts in a C Comment (initalState != 0)
             //  - the first token of the line is a T_COMMENT (i == 0 && tk.is(T_COMMENT))
-            //  - is not a continuation line (tokens.size() > 1 || ! state)
-            if (initialState && i == 0 && (tokens.size() > 1 || ! state)) {
+            //  - is not a continuation line (tokens.size() > 1 || !state)
+            if (initialLexerState && i == 0 && (tokens.size() > 1 || !lexerState)) {
                 --braceDepth;
                 // unless we are at the end of the block, we reduce the folding indent
                 if (i == tokens.size()-1)
@@ -189,32 +205,32 @@ void CppHighlighter::highlightBlock(const QString &text)
                 parentheses.append(Parenthesis(Parenthesis::Closed, QLatin1Char('-'), tokenEnd));
 
                 // clear the initial state.
-                initialState = 0;
+                initialLexerState = 0;
             }
 
-        } else if (tk.isKeyword() || CppTools::isQtKeyword(text.midRef(tk.begin(), tk.length())) || tk.isObjCAtKeyword())
-            setFormat(tk.begin(), tk.length(), m_formats[CppKeywordFormat]);
-
-        else if (tk.isOperator())
-            setFormat(tk.begin(), tk.length(), m_formats[CppOperatorFormat]);
-
-        else if (i == 0 && tokens.size() > 1 && tk.is(T_IDENTIFIER) && tokens.at(1).is(T_COLON))
-            setFormat(tk.begin(), tk.length(), m_formats[CppLabelFormat]);
-
-        else if (tk.is(T_IDENTIFIER))
+        } else if (tk.isKeyword() || CppTools::isQtKeyword(text.midRef(tk.begin(), tk.length())) || tk.isObjCAtKeyword()) {
+            setFormat(tk.begin(), tk.length(), formatForCategory(CppKeywordFormat));
+        } else if (tk.isOperator()) {
+            setFormat(tk.begin(), tk.length(), formatForCategory(CppOperatorFormat));
+        } else if (i == 0 && tokens.size() > 1 && tk.is(T_IDENTIFIER) && tokens.at(1).is(T_COLON)) {
+            setFormat(tk.begin(), tk.length(), formatForCategory(CppLabelFormat));
+        } else if (tk.is(T_IDENTIFIER)) {
             highlightWord(text.midRef(tk.begin(), tk.length()), tk.begin(), tk.length());
-
+        }
     }
 
     // mark the trailing white spaces
     const int lastTokenEnd = tokens.last().end();
     if (text.length() > lastTokenEnd)
-        highlightLine(text, lastTokenEnd, text.length() - lastTokenEnd, m_formats[CppVisualWhitespace]);
+        highlightLine(text, lastTokenEnd, text.length() - lastTokenEnd, formatForCategory(CppVisualWhitespace));
 
-    if (! initialState && state && ! tokens.isEmpty()) {
-        parentheses.append(Parenthesis(Parenthesis::Opened, QLatin1Char('+'),
-                                       tokens.last().begin()));
-        ++braceDepth;
+    if (!initialLexerState && lexerState && !tokens.isEmpty()) {
+        const Token &lastToken = tokens.last();
+        if (lastToken.is(T_COMMENT) || lastToken.is(T_DOXY_COMMENT)) {
+            parentheses.append(Parenthesis(Parenthesis::Opened, QLatin1Char('+'),
+                                           lastToken.begin()));
+            ++braceDepth;
+        }
     }
 
     BaseTextDocumentLayout::setParentheses(currentBlock(), parentheses);
@@ -331,7 +347,7 @@ bool CppHighlighter::isPPKeyword(const QStringRef &text) const
 void CppHighlighter::highlightLine(const QString &text, int position, int length,
                                    const QTextCharFormat &format)
 {
-    QTextCharFormat visualSpaceFormat = m_formats[CppVisualWhitespace];
+    QTextCharFormat visualSpaceFormat = formatForCategory(CppVisualWhitespace);
     visualSpaceFormat.setBackground(format.background());
 
     const int end = position + length;
@@ -361,11 +377,11 @@ void CppHighlighter::highlightWord(QStringRef word, int position, int length)
             || (word.at(1) == QLatin1Char('T') && word.at(2) == QLatin1Char('_'))) { // QT_
             for (int i = 1; i < word.length(); ++i) {
                 const QChar &ch = word.at(i);
-                if (! (ch.isUpper() || ch == QLatin1Char('_')))
+                if (!(ch.isUpper() || ch == QLatin1Char('_')))
                     return;
             }
 
-            setFormat(position, length, m_formats[CppTypeFormat]);
+            setFormat(position, length, formatForCategory(CppTypeFormat));
         }
     }
 }
@@ -377,10 +393,10 @@ void CppHighlighter::highlightDoxygenComment(const QString &text, int position, 
     const QChar *uc = text.unicode();
     const QChar *it = uc + position;
 
-    const QTextCharFormat &format = m_formats[CppDoxygenCommentFormat];
-    const QTextCharFormat &kwFormat = m_formats[CppDoxygenTagFormat];
+    const QTextCharFormat &format = formatForCategory(CppDoxygenCommentFormat);
+    const QTextCharFormat &kwFormat = formatForCategory(CppDoxygenTagFormat);
 
-    while (! it->isNull()) {
+    while (!it->isNull()) {
         if (it->unicode() == QLatin1Char('\\') ||
             it->unicode() == QLatin1Char('@')) {
             ++it;

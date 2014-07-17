@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -50,13 +50,6 @@ void GradientLine::setGradient(const QLinearGradient &gradient)
     m_gradient = gradient;
     m_useGradient = true;
     readGradient();
-}
-
-static inline QColor invertColor(const QColor color)
-{
-    QColor c = color.toHsv();
-    c.setHsv(c.hue(), c.saturation(), 255 - c.value());
-    return c;
 }
 
 GradientLine::GradientLine(QWidget *parent) :
@@ -325,19 +318,6 @@ void GradientLine::mouseMoveEvent(QMouseEvent *event)
 void GradientLine::setup()
 {
 
-}
-
-static inline QColor normalizeColor(const QColor &color)
-{
-    QColor newColor = QColor(color.name());
-    newColor.setAlpha(color.alpha());
-    return newColor;
-}
-
-static inline qreal roundReal(qreal real)
-{
-    int i = real * 100;
-    return qreal(i) / 100;
 }
 
 void GradientLine::updateGradient()

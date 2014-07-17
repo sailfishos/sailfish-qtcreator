@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -66,7 +66,7 @@ The object can be invalid - you can check this by calling isValid().
 The object is invalid if you ask for meta information for
 an non-existing qml property. Also the node meta info can become invalid
 if the enclosing type is deregistered from the meta type system (e.g.
-a sub component qml file is deleted). Trying to call any accessor methods on an invalid
+a sub component qml file is deleted). Trying to call any accessor functions on an invalid
 NodeMetaInfo object will result in an InvalidMetaInfoException being thrown.
 
 \see QmlDesigner::MetaInfo, QmlDesigner::PropertyMetaInfo, QmlDesigner::EnumeratorMetaInfo
@@ -147,10 +147,11 @@ public:
                 TypeId typeId;
                 TypeName typeName = typeId(value).toUtf8();
                 if (typeName == "number") {
-                    if (value->asRealValue())
-                        typeName = "real";
-                    else
+                    if (value->asIntValue()) {
                         typeName = "int";
+                    } else {
+                        typeName = "real";
+                    }
                 }
                 m_properties.append(qMakePair(propertyName, typeName));
             }
@@ -545,7 +546,7 @@ NodeMetaInfoPrivate::NodeMetaInfoPrivate(Model *model, TypeName type, int maj, i
                     m_isFileComponent = true;
                     const Imports *imports = context()->imports(document());
                     ImportInfo importInfo = imports->info(lookupNameComponent().last(), context().data());
-                    if (importInfo.isValid() && importInfo.type() == ImportInfo::LibraryImport) {
+                    if (importInfo.isValid() && importInfo.type() == ImportType::Library) {
                         m_majorVersion = importInfo.version().majorVersion();
                         m_minorVersion = importInfo.version().minorVersion();
                     }
@@ -950,15 +951,14 @@ QString NodeMetaInfoPrivate::importDirectoryPath() const
         const Imports *imports = context()->imports(document());
         ImportInfo importInfo = imports->info(lookupNameComponent().last(), context().data());
 
-        if (importInfo.type() == ImportInfo::DirectoryImport) {
+        if (importInfo.type() == ImportType::Directory) {
             return importInfo.path();
-        } else if (importInfo.type() == ImportInfo::LibraryImport) {
+        } else if (importInfo.type() == ImportType::Library) {
             if (modelManager) {
                 foreach (const QString &importPath, modelManager->importPaths()) {
                     const QString targetPath = QDir(importPath).filePath(importInfo.path());
-                    if (QDir(targetPath).exists()) {
+                    if (QDir(targetPath).exists())
                         return targetPath;
-                    }
                 }
             }
         }
@@ -1032,12 +1032,27 @@ void NodeMetaInfoPrivate::setupPrototypes()
             description.majorVersion = qmlValue->componentVersion().majorVersion();
             LanguageUtils::FakeMetaObject::Export qtquickExport = qmlValue->metaObject()->exportInPackage("QtQuick");
             LanguageUtils::FakeMetaObject::Export cppExport = qmlValue->metaObject()->exportInPackage("<cpp>");
-            if (qtquickExport.isValid())
+
+            if (qtquickExport.isValid()) {
                 description.className = qtquickExport.package.toUtf8() + '.' + qtquickExport.type.toUtf8();
-            else if (qmlValue->moduleName().isEmpty() && cppExport.isValid())
-                description.className = cppExport.package.toUtf8() + '.' + cppExport.type.toUtf8();
-            else if (!qmlValue->moduleName().isEmpty())
-                description.className = qmlValue->moduleName().toUtf8() + '.' + description.className;
+            } else {
+                bool found = false;
+                if (cppExport.isValid()) {
+                    foreach (const LanguageUtils::FakeMetaObject::Export &exportValue, qmlValue->metaObject()->exports()) {
+                        if (exportValue.package.toUtf8() != "<cpp>") {
+                            found = true;
+                            description.className = exportValue.package.toUtf8() + '.' + exportValue.type.toUtf8();
+                        }
+                    }
+                }
+                if (!found) {
+                    if (qmlValue->moduleName().isEmpty() && cppExport.isValid()) {
+                        description.className = cppExport.package.toUtf8() + '.' + cppExport.type.toUtf8();
+                    } else if (!qmlValue->moduleName().isEmpty()) {
+                        description.className = qmlValue->moduleName().toUtf8() + '.' + description.className;
+                    }
+                }
+            }
             m_prototypes.append(description);
         } else {
             if (context()->lookupType(document(), QStringList() << ov->className())) {
@@ -1234,6 +1249,24 @@ NodeMetaInfo NodeMetaInfo::directSuperClass() const
     return NodeMetaInfo();
 }
 
+QList<TypeName> NodeMetaInfo::superClassNames() const
+{
+    QList<TypeName> list;
+
+    foreach (const Internal::TypeDescription &type,  m_privateData->prototypes()) {
+        list.append(type.className);
+    }
+    return list;
+}
+
+bool NodeMetaInfo::defaultPropertyIsComponent() const
+{
+    if (hasDefaultProperty())
+        return propertyTypeName(defaultPropertyName()) == "Component";
+
+    return false;
+}
+
 TypeName NodeMetaInfo::typeName() const
 {
     return m_privateData->qualfiedTypeName();
@@ -1307,6 +1340,11 @@ bool NodeMetaInfo::isSubclassOf(const TypeName &type, int majorVersion, int mino
     return false;
 }
 
+bool NodeMetaInfo::isGraphicalItem() const
+{
+    return isSubclassOf("QtQuick.Item", -1, -1) || isSubclassOf("QtQuick.Window.Window", -1, -1);
+}
+
 void NodeMetaInfo::clearCache()
 {
     Internal::NodeMetaInfoPrivate::clearCache();
@@ -1320,108 +1358,12 @@ bool NodeMetaInfo::isLayoutable() const
     return isSubclassOf("QtQuick.Positioner", -1, -1) || isSubclassOf("QtQuick.Layouts.Layout", -1, -1);
 }
 
-QStringList NodeMetaInfo::qtQuickEnums()
+bool NodeMetaInfo::isView() const
 {
-    static QStringList stringList = QStringList()
-
-/* Font*/
-
-    <<  QLatin1String("Font.Light")
-    <<  QLatin1String("Font.Normal")
-    <<  QLatin1String("Font.DemiBold")
-    <<  QLatin1String("Font.Bold")
-    <<  QLatin1String("Font.Black")
-
-/* Text*/
-
-    <<  QLatin1String("Text.AutoText")
-    <<  QLatin1String("Text.PlainText")
-    <<  QLatin1String("Text.RichText")
-    <<  QLatin1String("Text.StyledText")
-
-    << QLatin1String("Text.Normal")
-    << QLatin1String("Text.Outline")
-    << QLatin1String("Text.Raised")
-    << QLatin1String("Text.Sunken")
-
-    << QLatin1String("Text.AlignLeft")
-    << QLatin1String("Text.AlignRight")
-    << QLatin1String("Text.AlignHCenter")
-    << QLatin1String("Text.AlignJustify")
-
-    << QLatin1String("Text.AlignTop")
-    << QLatin1String("Text.AlignBottom")
-    << QLatin1String("Text.AlignVCenter")
-
-    << QLatin1String("Text.QtRendering")
-    << QLatin1String("Text.NativeRendering")
-
-    << QLatin1String("Text.NoWrap")
-    << QLatin1String("Text.WordWrap")
-    << QLatin1String("Text.WrapAnywhere")
-    << QLatin1String("Text.Wrap")
-
-/* Flickable */
-
-    << QLatin1String("Flickable.StopAtBounds")
-    << QLatin1String("Flickable.DragOverBounds")
-    << QLatin1String("Flickable.DragAndOvershootBounds")
-
-    << QLatin1String("Flickable.AutoFlickDirection")
-    << QLatin1String("Flickable.HorizontalFlick")
-    << QLatin1String("Flickable.VerticalFlick")
-    << QLatin1String("Flickable.HorizontalAndVerticalFlick")
-
-/* Grid */
-
-    << QLatin1String("Grid.LeftToRight")
-    << QLatin1String("Grid.TopToBottom")
-
-/* Flow */
-
-    << QLatin1String("Flow.LeftToRight")
-    << QLatin1String("Flow.TopToBottom")
-
-/* GridView */
-
-    << QLatin1String("GridView.NoSnap")
-    << QLatin1String("GridView.SnapToRow")
-    << QLatin1String("GridView.SnapOneRow");
-
-    return stringList;
-}
-
-static inline QStringList removeScope(QStringList enumList)
-{
-    QStringList stringList;
-
-    foreach (const QString &enumString, enumList) {
-        QStringList splittedString = enumString.split(QLatin1String("."));
-        Q_ASSERT(splittedString.count() == 2);
-        stringList.append(splittedString.last());
-    }
-
-    return stringList;
-}
-
-QStringList NodeMetaInfo::qtQuickEnumsWithoutScope()
-{
-    static QStringList stringList = removeScope(qtQuickEnums());
-    return stringList;
-}
-
-QString NodeMetaInfo::qtQuickEnumScopeForEnumString(const QString &inputEnumString)
-{
-    if (qtQuickEnumsWithoutScope().contains(inputEnumString)) {
-        foreach (const QString &enumString, qtQuickEnums()) {
-            QStringList splittedString = enumString.split(QLatin1String("."));
-            Q_ASSERT(splittedString.count() == 2);
-            if (splittedString.last() == inputEnumString)
-                return splittedString.first();
-        }
-    }
-
-    return QString();
+    return isValid() &&
+            (isSubclassOf("QtQuick.ListView", -1, -1) ||
+             isSubclassOf("QtQuick.GridView", -1, -1) ||
+             isSubclassOf("QtQuick.PathView", -1, -1));
 }
 
 } // namespace QmlDesigner

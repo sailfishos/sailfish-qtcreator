@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -67,28 +67,7 @@ ToolTip *ToolTip::instance()
 
 void ToolTip::show(const QPoint &pos, const TipContent &content, QWidget *w, const QRect &rect)
 {
-    if (acceptShow(content, pos, w, rect)) {
-        QWidget *target = 0;
-        if (HostOsInfo::isWindowsHost())
-            target = QApplication::desktop()->screen(Internal::screenNumber(pos, w));
-        else
-            target = w;
-
-        switch (content.typeId()) {
-            case TextContent::TEXT_CONTENT_ID:
-                m_tip = new TextTip(target);
-                break;
-            case ColorContent::COLOR_CONTENT_ID:
-                m_tip = new ColorTip(target);
-                break;
-            case WidgetContent::WIDGET_CONTENT_ID:
-                m_tip = new WidgetTip(target);
-                break;
-        }
-        setUp(pos, content, w, rect);
-        qApp->installEventFilter(this);
-        showTip();
-    }
+    instance()->showInternal(pos, content, w, rect);
 }
 
 void ToolTip::show(const QPoint &pos, const TipContent &content, QWidget *w)
@@ -118,7 +97,7 @@ bool ToolTip::acceptShow(const TipContent &content,
     }
 #if !defined(QT_NO_EFFECTS) && !defined(Q_OS_MAC)
     // While the effect takes places it might be that although the widget is actually on
-    // screen the isVisible method doesn't return true.
+    // screen the isVisible function doesn't return true.
     else if (m_tip
              && (QApplication::isEffectEnabled(Qt::UI_FadeTooltip)
                  || QApplication::isEffectEnabled(Qt::UI_AnimateTooltip))) {
@@ -162,17 +141,18 @@ bool ToolTip::tipChanged(const QPoint &pos, const TipContent &content, QWidget *
 
 void ToolTip::setTipRect(QWidget *w, const QRect &rect)
 {
-    if (!m_rect.isNull() && !w)
+    if (!m_rect.isNull() && !w) {
         qWarning("ToolTip::show: Cannot pass null widget if rect is set");
-    else{
+    } else {
         m_widget = w;
         m_rect = rect;
     }
 }
 
-bool ToolTip::isVisible() const
+bool ToolTip::isVisible()
 {
-    return m_tip && m_tip->isVisible();
+    ToolTip *t = instance();
+    return t->m_tip && t->m_tip->isVisible();
 }
 
 void ToolTip::showTip()
@@ -191,7 +171,7 @@ void ToolTip::showTip()
 
 void ToolTip::hide()
 {
-    hideTipWithDelay();
+    instance()->hideTipWithDelay();
 }
 
 void ToolTip::hideTipWithDelay()
@@ -210,6 +190,32 @@ void ToolTip::hideTipImmediately()
     m_showTimer.stop();
     m_hideDelayTimer.stop();
     qApp->removeEventFilter(this);
+}
+
+void ToolTip::showInternal(const QPoint &pos, const TipContent &content, QWidget *w, const QRect &rect)
+{
+    if (acceptShow(content, pos, w, rect)) {
+        QWidget *target = 0;
+        if (HostOsInfo::isWindowsHost())
+            target = QApplication::desktop()->screen(Internal::screenNumber(pos, w));
+        else
+            target = w;
+
+        switch (content.typeId()) {
+            case TextContent::TEXT_CONTENT_ID:
+                m_tip = new TextTip(target);
+                break;
+            case ColorContent::COLOR_CONTENT_ID:
+                m_tip = new ColorTip(target);
+                break;
+            case WidgetContent::WIDGET_CONTENT_ID:
+                m_tip = new WidgetTip(target);
+                break;
+        }
+        setUp(pos, content, w, rect);
+        qApp->installEventFilter(this);
+        showTip();
+    }
 }
 
 void ToolTip::placeTip(const QPoint &pos, QWidget *w)
@@ -252,7 +258,7 @@ bool ToolTip::eventFilter(QObject *o, QEvent *event)
     }
 #endif
     case QEvent::Leave:
-        if (o == m_tip)
+        if (o == m_tip && !m_tip->isAncestorOf(qApp->focusWidget()))
             hideTipWithDelay();
         break;
     case QEvent::Enter:
@@ -292,14 +298,4 @@ bool ToolTip::eventFilter(QObject *o, QEvent *event)
         break;
     }
     return false;
-}
-
-QFont ToolTip::font() const
-{
-    return QApplication::font("QTipLabel");
-}
-
-void ToolTip::setFont(const QFont &font)
-{
-    QApplication::setFont(font, "QTipLabel");
 }

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -274,6 +274,14 @@ ULONG64 SymbolGroupValue::readUnsignedValue(CIDebugDataSpaces *ds,
                                             std::string *errorMessage /* = 0 */)
 {
     return readPODFromMemory<ULONG64>(ds, address, debuggeeTypeSize, defaultValue, errorMessage);
+}
+
+LONG64 SymbolGroupValue::readSignedValue(CIDebugDataSpaces *ds,
+                                         ULONG64 address, ULONG debuggeeTypeSize,
+                                         LONG64 defaultValue,
+                                         std::string *errorMessage /* = 0 */)
+{
+    return readPODFromMemory<LONG64>(ds, address, debuggeeTypeSize, defaultValue, errorMessage);
 }
 
 // Note: sizeof(int) should always be 4 on Win32/Win64, no need to
@@ -739,7 +747,7 @@ std::string QtInfo::moduleName(Module m) const
 {
     // Must match the enumeration
     static const char* modNames[] =
-        {"Core", "Gui", "Widgets", "Network", "Script" };
+        {"Core", "Gui", "Widgets", "Network", "Script", "Qml" };
     std::ostringstream result;
     result << "Qt";
     if (version >= 5)
@@ -1070,10 +1078,16 @@ static KnownType knownClassTypeHelper(const std::string &type,
                     return KT_StdStack;
                 if (!type.compare(hPos, 5, "deque"))
                     return KT_StdDeque;
+                if (!type.compare(hPos, 5, "array"))
+                    return KT_StdArray;
                 break;
             case 6:
                 if (!type.compare(hPos, 6, "vector"))
                     return KT_StdVector;
+                break;
+            case 7:
+                if (!type.compare(hPos, 7, "complex"))
+                    return KT_StdComplex;
                 break;
             case 8:
                 if (!type.compare(hPos, 8, "multimap"))
@@ -1273,6 +1287,8 @@ static KnownType knownClassTypeHelper(const std::string &type,
             return KT_QFixedPoint;
         if (!type.compare(qPos, 11, "QScriptLine"))
             return KT_QScriptLine;
+        if (!type.compare(qPos, 11, "QTextCursor"))
+            return KT_QTextCursor;
         break;
     case 12:
         if (!type.compare(qPos, 12, "QKeySequence"))
@@ -1534,7 +1550,7 @@ bool readQt5StringData(const SymbolGroupValue &dV, int qtMajorVersion,
     if (!memory)
         return false;
     *array = reinterpret_cast<CharType *>(memory);
-    if ((*arraySize < *fullSize) && zeroTerminated)
+    if ((*arraySize <= *fullSize) && zeroTerminated)
         *(*array + *arraySize) = CharType(0);
     return true;
 }
@@ -1628,9 +1644,11 @@ static unsigned qSharedDataSize(const SymbolGroupValueContext &ctx)
 }
 
 /* Return the size of a QString */
-static unsigned qStringSize(const SymbolGroupValueContext &ctx)
+static unsigned qStringSize(const SymbolGroupValueContext &/*ctx*/)
 {
-    static const unsigned size = SymbolGroupValue::sizeOf(QtInfo::get(ctx).prependQtCoreModule("QString").c_str());
+//    static const unsigned size = SymbolGroupValue::sizeOf(QtInfo::get(ctx).prependQtCoreModule("QString").c_str());
+// FIXME: Workaround the issue that GetTypeSize returns strange values;
+    static const unsigned size = SymbolGroupValue::pointerSize();
     return size;
 }
 
@@ -1642,9 +1660,11 @@ static unsigned qListSize(const SymbolGroupValueContext &ctx)
 }
 
 /* Return the size of a QByteArray */
-static unsigned qByteArraySize(const SymbolGroupValueContext &ctx)
+static unsigned qByteArraySize(const SymbolGroupValueContext &/*ctx*/)
 {
-    static const unsigned size = SymbolGroupValue::sizeOf(QtInfo::get(ctx).prependQtCoreModule("QByteArray").c_str());
+//    static const unsigned size = SymbolGroupValue::sizeOf(QtInfo::get(ctx).prependQtCoreModule("QByteArray").c_str());
+// FIXME: Workaround the issue that GetTypeSize returns strange values;
+    static const unsigned size = SymbolGroupValue::pointerSize();
     return size;
 }
 
@@ -1773,7 +1793,7 @@ static bool dumpQStringFromQPrivateClass(const SymbolGroupValue &v,
             v.node()->symbolGroup()->addSymbol(v.module(), symbolName, std::string(), &errorMessage);
     if (!stringNode && errorMessage.find("DEBUG_ANY_ID") != std::string::npos) {
         // HACK:
-        // In some rare cases the the AddSymbol can't create a node with a given module name,
+        // In some rare cases the AddSymbol can't create a node with a given module name,
         // but is able to add the symbol without any modulename.
         dumpType = QtInfo::get(v.context()).prependModuleAndNameSpace("QString", "", QtInfo::get(v.context()).nameSpace);
         symbolName = SymbolGroupValue::pointedToSymbolName(stringAddress , dumpType);
@@ -1807,7 +1827,7 @@ static bool dumpQByteArrayFromQPrivateClass(const SymbolGroupValue &v,
  * Dump 2nd string past its QSharedData base class. */
 static inline bool dumpQFileInfo(const SymbolGroupValue &v, std::wostream &str)
 {
-    return dumpQStringFromQPrivateClass(v, QPDM_qSharedDataPadded, qStringSize(v.context()),  str);
+    return dumpQStringFromQPrivateClass(v, QPDM_qSharedDataPadded, 0,  str);
 }
 
 /* Dump QDir, for whose private class no debugging information is available.
@@ -1832,14 +1852,16 @@ static inline bool dumpQRegExp(const SymbolGroupValue &v, std::wostream &str)
 static inline bool dumpQFile(const SymbolGroupValue &v, std::wostream &str)
 {
     // Get address of the file name string, obtain value by dumping a QString at address
-    static unsigned qIoDevicePrivateSize = 0;
-    if (!qIoDevicePrivateSize) {
-        const std::string qIoDevicePrivateType = QtInfo::get(v.context()).prependQtCoreModule("QIODevicePrivate");
-        qIoDevicePrivateSize = padOffset(SymbolGroupValue::sizeOf(qIoDevicePrivateType.c_str()));
+    static unsigned qFileBasePrivateSize = 0;
+    if (!qFileBasePrivateSize) {
+        const QtInfo info = QtInfo::get(v.context());
+        const std::string qIoDevicePrivateType =info.prependQtCoreModule(
+                    info.version < 5 ? "QIODevicePrivate" : "QFileDevicePrivate");
+        qFileBasePrivateSize = padOffset(SymbolGroupValue::sizeOf(qIoDevicePrivateType.c_str()));
     }
-    if (!qIoDevicePrivateSize)
+    if (!qFileBasePrivateSize)
         return false;
-    return dumpQStringFromQPrivateClass(v, QPDM_qVirtual, qIoDevicePrivateSize,  str);
+    return dumpQStringFromQPrivateClass(v, QPDM_qVirtual, qFileBasePrivateSize,  str);
 }
 
 /* Dump QHostAddress, for whose private class no debugging information is available.
@@ -2093,10 +2115,33 @@ static bool dumpQTime(const SymbolGroupValue &v, std::wostream &str)
 static bool dumpQDateTime(const SymbolGroupValue &v, std::wostream &str)
 {
     // QDate is 64bit starting from Qt 5 which is always aligned 64bit.
-    const int qtVersion = QtInfo::get(v.context()).version;
-       const ULONG64 dateAddr = qtVersion < 5 ?
-       addressOfQPrivateMember(v, QPDM_qSharedData, 0) :
-       addressOfQPrivateMember(v, QPDM_None, 8);
+    if (QtInfo::get(v.context()).version == 5) {
+        int additionalOffset = 8 /*int64*/ + SymbolGroupValue::sizeOf("Qt::TimeSpec")
+                + SymbolGroupValue::intSize() + SymbolGroupValue::sizeOf("QTimeZone");
+        const ULONG64 statusAddr = addressOfQPrivateMember(v, QPDM_qSharedDataPadded,
+                                                           additionalOffset);
+        if (!statusAddr)
+            return false;
+
+        enum StatusFlag {
+            ValidDate = 0x04,
+            ValidTime = 0x08,
+            ValidDateTime = 0x10
+        };
+        const int status = SymbolGroupValue::readIntValue(v.context().dataspaces, statusAddr);
+        if (!(status & ValidDateTime || ((status & ValidDate) && (status & ValidTime))))
+            return true;
+        const ULONG64 msecsAddr = addressOfQPrivateMember(v, QPDM_qSharedDataPadded, 0);
+        if (!msecsAddr)
+            return false;
+        const LONG64 msecs = SymbolGroupValue::readSignedValue(
+                    v.context().dataspaces, msecsAddr, 8, 0);
+        if (msecs)
+            str << msecs;
+        return  true;
+    }
+
+    const ULONG64 dateAddr = addressOfQPrivateMember(v, QPDM_qSharedData, 0);
     if (!dateAddr)
         return false;
     const int date =
@@ -2106,7 +2151,7 @@ static bool dumpQDateTime(const SymbolGroupValue &v, std::wostream &str)
         str << L"<null>";
         return true;
     }
-    const ULONG64 timeAddr = dateAddr + (qtVersion < 5 ? SymbolGroupValue::intSize() : 8);
+    const ULONG64 timeAddr = dateAddr + SymbolGroupValue::intSize();
     const int time =
         SymbolGroupValue::readIntValue(v.context().dataspaces,
                                        timeAddr, SymbolGroupValue::intSize(), 0);
@@ -2346,6 +2391,18 @@ static inline bool dumpQWindow(const SymbolGroupValue &v, std::wostream &str, vo
     return true;
 }
 
+//Dump a QTextCursor
+static inline bool dumpQTextCursor(const SymbolGroupValue &v, std::wostream &str)
+{
+    const unsigned offset = SymbolGroupValue::pointerSize() + SymbolGroupValue::sizeOf("double");
+    const ULONG64 posAddr = addressOfQPrivateMember(v, QPDM_qSharedDataPadded, offset);
+    if (!posAddr)
+        return false;
+    const int position = SymbolGroupValue::readIntValue(v.context().dataspaces, posAddr);
+    str << position;
+    return true;
+}
+
 // Dump a std::string.
 static bool dumpStd_W_String(const SymbolGroupValue &v, int type, std::wostream &str,
                              MemoryHandle **memoryHandle = 0)
@@ -2377,6 +2434,21 @@ static bool dumpStd_W_String(const SymbolGroupValue &v, int type, std::wostream 
     else
         delete [] memory;
     return true;
+}
+
+// Dump a std::complex.
+static bool dumpStd_Complex(const SymbolGroupValue &v, std::wostream &str)
+{
+    if (const SymbolGroupValue &valArray = v[0u][0u]["_Val"]) {
+        if (const SymbolGroupValue &val0 = valArray["0"]) {
+            str << L'(' << val0.value();
+            if (const SymbolGroupValue &val1 = valArray["1"]) {
+                str << L", " << val1.value() << L')';
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 // QVariant employs a template for storage where anything bigger than the data union
@@ -2485,7 +2557,7 @@ static bool dumpQVariant(const SymbolGroupValue &v, std::wostream &str, void **s
         if (const SymbolGroupValue sv = dataV.typeCast(qtInfo.prependQtCoreModule("QString *").c_str())) {
             if (!dumpQString(sv, str)) {
                 // HACK:
-                // In some rare cases the the AddSymbol can't create a node with a given module name,
+                // In some rare cases the AddSymbol can't create a node with a given module name,
                 // but is able to add the symbol without any modulename.
                 if (const SymbolGroupValue svc = dataV.typeCast("QString *"))
                     dumpQString(svc, str);
@@ -2603,7 +2675,8 @@ static inline bool dumpQSharedPointer(const SymbolGroupValue &v, std::wostream &
     if (strongRef < 0 || weakRef < 0)
         return false;
     str << L"References: " << strongRef << '/' << weakRef;
-    *specialInfoIn = valueV.node();
+    if (specialInfoIn)
+        *specialInfoIn = valueV.node();
     return true;
 }
 
@@ -2638,10 +2711,8 @@ unsigned dumpSimpleType(SymbolGroupNode  *n, const SymbolGroupValueContext &ctx,
     const SymbolGroupValue v(n, ctx);
     if (!v) // Value as such has memory read error?
         return SymbolGroupNode::SimpleDumperFailed;
-    if (SymbolGroupValue::isPointerType(v.type()))
-        if (const ULONG64 pointerValue = v.pointerValue())
-            str << std::showbase << std::hex << pointerValue << std::dec << std::noshowbase << ' ';
 
+    unsigned rc = SymbolGroupNode::SimpleDumperNotApplicable;
     // Simple dump of size for containers
     if (kt & KT_ContainerType) {
         const int size = containerSize(kt, v);
@@ -2651,116 +2722,125 @@ unsigned dumpSimpleType(SymbolGroupNode  *n, const SymbolGroupValueContext &ctx,
             *containerSizeIn = size;
         if (size >= 0) {
             str << L'<' << size << L" items>";
-            *s = str.str();
-            return SymbolGroupNode::SimpleDumperOk;
+            rc = SymbolGroupNode::SimpleDumperOk;
+        } else {
+            rc = SymbolGroupNode::SimpleDumperFailed;
         }
-        return SymbolGroupNode::SimpleDumperFailed;
+    } else {
+        switch (kt) {
+        case KT_QChar:
+            rc = dumpQChar(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
+            break;
+        case KT_QByteArray:
+            rc = dumpQByteArray(v, str, memoryHandleIn) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
+            break;
+        case KT_QFileInfo:
+            rc = dumpQFileInfo(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
+            break;
+        case KT_QFile:
+            rc = dumpQFile(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
+            break;
+        case KT_QDir:
+            rc = dumpQDir(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
+            break;
+        case KT_QRegExp:
+            rc = dumpQRegExp(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
+            break;
+        case KT_QUrl:
+            rc = dumpQUrl(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
+            break;
+        case KT_QHostAddress:
+            rc = dumpQHostAddress(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
+            break;
+        case KT_QProcess:
+            rc = dumpQProcess(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
+            break;
+        case KT_QScriptValue:
+            rc = dumpQScriptValue(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
+            break;
+        case KT_QString:
+            rc = dumpQString(v, str, memoryHandleIn) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
+            break;
+        case KT_QStringRef:
+            rc = dumpQStringRef(v, str, memoryHandleIn) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
+            break;
+        case KT_QColor:
+            rc = dumpQColor(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
+            break;
+        case KT_QFlags:
+            rc = dumpQFlags(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
+            break;
+        case KT_QDate:
+            rc = dumpQDate(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
+            break;
+        case KT_QTime:
+            rc = dumpQTime(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
+            break;
+        case KT_QDateTime:
+            rc = dumpQDateTime(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
+            break;
+        case KT_QPoint:
+        case KT_QPointF:
+            rc = dumpQPoint_F(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
+            break;
+        case KT_QSize:
+        case KT_QSizeF:
+            rc = dumpQSize_F(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
+            break;
+        case KT_QLine:
+        case KT_QLineF:
+            rc = dumpQLine_F(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
+            break;
+        case KT_QPixmap:
+            rc = dumpQPixmap(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
+            break;
+        case KT_QImage:
+            rc = dumpQImage(v, str, memoryHandleIn) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
+            break;
+        case KT_QRect:
+            rc = dumpQRect(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
+            break;
+        case KT_QRectF:
+            rc = dumpQRectF(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
+            break;
+        case KT_QVariant:
+            rc = dumpQVariant(v, str, specialInfoIn) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
+            break;
+        case KT_QAtomicInt:
+            rc = dumpQAtomicInt(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
+            break;
+        case KT_QBasicAtomicInt:
+            rc = dumpQBasicAtomicInt(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
+            break;
+        case KT_QObject:
+            rc = dumpQObject(v, str, specialInfoIn) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
+            break;
+        case KT_QWidget:
+            rc = dumpQWidget(v, str, specialInfoIn) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
+            break;
+        case KT_QWindow:
+            rc = dumpQWindow(v, str, specialInfoIn) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
+            break;
+        case KT_QSharedPointer:
+            rc = dumpQSharedPointer(v, str, specialInfoIn) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
+            break;
+        case KT_StdString:
+        case KT_StdWString:
+            rc = dumpStd_W_String(v, kt, str, memoryHandleIn) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
+            break;
+        case KT_StdComplex:
+            rc = dumpStd_Complex(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
+            break;
+        case KT_QTextCursor:
+            rc = dumpQTextCursor(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
+            break;
+        default:
+            break;
+        }
     }
-    unsigned rc = SymbolGroupNode::SimpleDumperNotApplicable;
-    switch (kt) {
-    case KT_QChar:
-        rc = dumpQChar(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
-        break;
-    case KT_QByteArray:
-        rc = dumpQByteArray(v, str, memoryHandleIn) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
-        break;
-    case KT_QFileInfo:
-        rc = dumpQFileInfo(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
-        break;
-    case KT_QFile:
-        rc = dumpQFile(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
-        break;
-    case KT_QDir:
-        rc = dumpQDir(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
-        break;
-    case KT_QRegExp:
-        rc = dumpQRegExp(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
-        break;
-    case KT_QUrl:
-        rc = dumpQUrl(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
-        break;
-    case KT_QHostAddress:
-        rc = dumpQHostAddress(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
-        break;
-    case KT_QProcess:
-        rc = dumpQProcess(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
-        break;
-    case KT_QScriptValue:
-        rc = dumpQScriptValue(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
-        break;
-    case KT_QString:
-        rc = dumpQString(v, str, memoryHandleIn) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
-        break;
-    case KT_QStringRef:
-        rc = dumpQStringRef(v, str, memoryHandleIn) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
-        break;
-    case KT_QColor:
-        rc = dumpQColor(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
-        break;
-    case KT_QFlags:
-        rc = dumpQFlags(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
-        break;
-    case KT_QDate:
-        rc = dumpQDate(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
-        break;
-    case KT_QTime:
-        rc = dumpQTime(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
-        break;
-    case KT_QDateTime:
-        rc = dumpQDateTime(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
-        break;
-    case KT_QPoint:
-    case KT_QPointF:
-        rc = dumpQPoint_F(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
-        break;
-    case KT_QSize:
-    case KT_QSizeF:
-        rc = dumpQSize_F(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
-        break;
-    case KT_QLine:
-    case KT_QLineF:
-        rc = dumpQLine_F(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
-        break;
-    case KT_QPixmap:
-        rc = dumpQPixmap(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
-        break;
-    case KT_QImage:
-        rc = dumpQImage(v, str, memoryHandleIn) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
-        break;
-    case KT_QRect:
-        rc = dumpQRect(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
-        break;
-    case KT_QRectF:
-        rc = dumpQRectF(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
-        break;
-    case KT_QVariant:
-        rc = dumpQVariant(v, str, specialInfoIn) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
-        break;
-    case KT_QAtomicInt:
-        rc = dumpQAtomicInt(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
-        break;
-    case KT_QBasicAtomicInt:
-        rc = dumpQBasicAtomicInt(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
-        break;
-    case KT_QObject:
-        rc = dumpQObject(v, str, specialInfoIn) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
-        break;
-    case KT_QWidget:
-        rc = dumpQWidget(v, str, specialInfoIn) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
-        break;
-    case KT_QWindow:
-        rc = dumpQWindow(v, str, specialInfoIn) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
-        break;
-    case KT_QSharedPointer:
-        rc = dumpQSharedPointer(v, str, specialInfoIn) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
-        break;
-    case KT_StdString:
-    case KT_StdWString:
-        rc = dumpStd_W_String(v, kt, str, memoryHandleIn) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
-        break;
-    default:
-        break;
-    }
+    if (rc != SymbolGroupNode::SimpleDumperFailed && SymbolGroupValue::isPointerType(v.type()))
+        str << L" @" << std::showbase << std::hex << v.pointerValue() << std::dec << std::noshowbase;
+
     if (rc == SymbolGroupNode::SimpleDumperOk)
         *s = str.str();
     QTC_TRACE_OUT
@@ -3004,7 +3084,7 @@ static int assignQStringI(SymbolGroupNode  *n, const char *className,
                 << v.address() << ',' << data.stringLength << ')';
         std::wstring wOutput;
         std::string errorMessage;
-        return ExtensionContext::instance().call(callStr.str(), &wOutput, &errorMessage) ?
+        return ExtensionContext::instance().call(callStr.str(), 0, &wOutput, &errorMessage) ?
             assignQStringI(n, className, data, ctx, false) : 5;
     }
     // Write data.

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -52,9 +52,6 @@ public:
                  bool *removeOpenProjectAttribute, QString *errorMessage);
     void applyCodeStyle(Core::GeneratedFile *file) const;
 
-    QStringList getProjectChoices() const;
-    QStringList getProjectToolTips() const;
-
     void hideProjectComboBox();
 
     void setProjectIndex(int i);
@@ -64,7 +61,7 @@ public slots:
     void initializeVersionControlChoices();
 
 private:
-    void initProjectChoices(const QString &generatedProjectFilePath);
+    void initProjectChoices(const QList<Core::GeneratedFile> generatedFiles, const QVariantMap &extraValues);
     bool processProject(const QList<Core::GeneratedFile> &files,
                         bool *removeOpenProjectAttribute, QString *errorMessage);
     bool processVersionControl(const QList<Core::GeneratedFile> &files, QString *errorMessage);

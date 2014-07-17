@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -32,6 +32,8 @@
 
 #include "iassistproposal.h"
 
+#include <utils/qtcoverride.h>
+
 namespace TextEditor {
 
 class IGenericProposalModel;
@@ -40,14 +42,14 @@ class TEXTEDITOR_EXPORT GenericProposal : public IAssistProposal
 {
 public:
     GenericProposal(int cursorPos, IGenericProposalModel *model);
-    virtual ~GenericProposal();
+    ~GenericProposal();
 
-    virtual bool isFragile() const;
-    virtual int basePosition() const;
-    virtual bool isCorrective() const;
-    virtual void makeCorrection(BaseTextEditor *editor);
-    virtual IAssistProposalModel *model() const;
-    virtual IAssistProposalWidget *createWidget() const;
+    bool isFragile() const QTC_OVERRIDE;
+    int basePosition() const QTC_OVERRIDE;
+    bool isCorrective() const QTC_OVERRIDE;
+    void makeCorrection(BaseTextEditor *editor) QTC_OVERRIDE;
+    IAssistProposalModel *model() const QTC_OVERRIDE;
+    IAssistProposalWidget *createWidget() const QTC_OVERRIDE;
 
 protected:
     void moveBasePosition(int length);

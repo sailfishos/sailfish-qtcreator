@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -58,7 +58,6 @@ namespace Internal {
 
 class CMakeFile;
 class CMakeBuildSettingsWidget;
-class CMakeUiCodeModelSupport;
 
 struct CMakeBuildTarget
 {
@@ -81,7 +80,6 @@ public:
     ~CMakeProject();
 
     QString displayName() const;
-    Core::Id id() const;
     Core::IDocument *document() const;
     CMakeManager *projectManager() const;
 
@@ -94,10 +92,8 @@ public:
 
     CMakeBuildTarget buildTargetForTitle(const QString &title);
 
-    QString shadowBuildDirectory(const QString &projectFilePath, const ProjectExplorer::Kit *k,
-                                 const QString &bcName);
-
-    QString uicCommand() const;
+    static QString shadowBuildDirectory(const QString &projectFilePath, const ProjectExplorer::Kit *k,
+                                        const QString &bcName);
 
     bool isProjectFile(const QString &fileName);
 
@@ -119,27 +115,22 @@ private slots:
     void activeTargetWasChanged(ProjectExplorer::Target *target);
     void changeActiveBuildConfiguration(ProjectExplorer::BuildConfiguration*);
 
-    void editorChanged(Core::IEditor *editor);
-    void editorAboutToClose(Core::IEditor *editor);
-    void uiEditorContentsChanged();
-    void buildStateChanged(ProjectExplorer::Project *project);
     void updateRunConfigurations();
 
 private:
     void buildTree(CMakeProjectNode *rootNode, QList<ProjectExplorer::FileNode *> list);
     void gatherFileNodes(ProjectExplorer::FolderNode *parent, QList<ProjectExplorer::FileNode *> &list);
     ProjectExplorer::FolderNode *findOrCreateFolder(CMakeProjectNode *rootNode, QString directory);
-    void updateCodeModelSupportFromEditor(const QString &uiFileName, const QString &contents);
     void createUiCodeModelSupport();
     QString uiHeaderFile(const QString &uiFile);
     void updateRunConfigurations(ProjectExplorer::Target *t);
+    void updateApplicationAndDeploymentTargets();
 
     CMakeManager *m_manager;
     ProjectExplorer::Target *m_activeTarget;
     QString m_fileName;
     CMakeFile *m_file;
     QString m_projectName;
-    QString m_uicCommand;
 
     // TODO probably need a CMake specific node structure
     CMakeProjectNode *m_rootNode;
@@ -148,10 +139,6 @@ private:
     QFileSystemWatcher *m_watcher;
     QSet<QString> m_watchedFiles;
     QFuture<void> m_codeModelFuture;
-
-    QMap<QString, CMakeUiCodeModelSupport *> m_uiCodeModelSupport;
-    Core::IEditor *m_lastEditor;
-    bool m_dirtyUic;
 };
 
 class CMakeCbpParser : public QXmlStreamReader
@@ -204,7 +191,6 @@ public:
     CMakeFile(CMakeProject *parent, QString fileName);
 
     bool save(QString *errorString, const QString &fileName, bool autoSave);
-    QString fileName() const;
 
     QString defaultPath() const;
     QString suggestedFileName() const;
@@ -216,11 +202,8 @@ public:
     ReloadBehavior reloadBehavior(ChangeTrigger state, ChangeType type) const;
     bool reload(QString *errorString, ReloadFlag flag, ChangeType type);
 
-    void rename(const QString &newName);
-
 private:
     CMakeProject *m_project;
-    QString m_fileName;
 };
 
 class CMakeBuildSettingsWidget : public ProjectExplorer::NamedWidget

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -34,7 +34,8 @@
 #include "qmljsbind.h"
 #include "qmljsutils.h"
 #include "qmljsmodelmanagerinterface.h"
-#include <qmljs/qmljsqrcparser.h>
+#include "qmljsqrcparser.h"
+#include "qmljsconstants.h"
 
 #include <QDir>
 #include <QDebug>
@@ -83,6 +84,7 @@ public:
     ValueOwner *valueOwner;
     QStringList importPaths;
     LibraryInfo builtins;
+    ViewerContext vContext;
 
     QHash<ImportCacheKey, Import> importCache;
 
@@ -128,16 +130,17 @@ public:
     Initializes a context by resolving imports. This is an expensive operation.
 
     Instead of making a fresh context, consider reusing the one maintained in the
-    \l{QmlJSEditor::SemanticInfo} of a \l{QmlJSEditor::QmlJSTextEditorWidget}.
+    \l{QmlJSEditor::SemanticInfo} of a \l{QmlJSEditor::QmlJSEditorDocument}.
 */
 
-Link::Link(const Snapshot &snapshot, const QStringList &importPaths, const LibraryInfo &builtins)
+Link::Link(const Snapshot &snapshot, const ViewerContext &vContext, const LibraryInfo &builtins)
     : d(new LinkPrivate)
 {
     d->valueOwner = new ValueOwner;
     d->snapshot = snapshot;
-    d->importPaths = importPaths;
+    d->importPaths = vContext.paths;
     d->builtins = builtins;
+    d->vContext = vContext;
 
     d->diagnosticMessages = 0;
     d->allDiagnosticMessages = 0;
@@ -173,14 +176,14 @@ Link::Link(const Snapshot &snapshot, const QStringList &importPaths, const Libra
 ContextPtr Link::operator()(QHash<QString, QList<DiagnosticMessage> > *messages)
 {
     d->allDiagnosticMessages = messages;
-    return Context::create(d->snapshot, d->valueOwner, d->linkImports());
+    return Context::create(d->snapshot, d->valueOwner, d->linkImports(), d->vContext);
 }
 
 ContextPtr Link::operator()(const Document::Ptr &doc, QList<DiagnosticMessage> *messages)
 {
     d->document = doc;
     d->diagnosticMessages = messages;
-    return Context::create(d->snapshot, d->valueOwner, d->linkImports());
+    return Context::create(d->snapshot, d->valueOwner, d->linkImports(), d->vContext);
 }
 
 Link::~Link()
@@ -244,16 +247,16 @@ void LinkPrivate::populateImportedTypes(Imports *imports, Document::Ptr doc)
 
         if (!import.object) {
             switch (info.type()) {
-            case ImportInfo::FileImport:
-            case ImportInfo::DirectoryImport:
-            case ImportInfo::QrcFileImport:
-            case ImportInfo::QrcDirectoryImport:
+            case ImportType::File:
+            case ImportType::Directory:
+            case ImportType::QrcFile:
+            case ImportType::QrcDirectory:
                 import = importFileOrDirectory(doc, info);
                 break;
-            case ImportInfo::LibraryImport:
+            case ImportType::Library:
                 import = importNonFile(doc, info);
                 break;
-            case ImportInfo::UnknownFileImport:
+            case ImportType::UnknownFile:
                 imports->setImportFailed();
                 if (info.ast()) {
                     error(doc, info.ast()->fileNameToken,
@@ -290,8 +293,8 @@ Import LinkPrivate::importFileOrDirectory(Document::Ptr doc, const ImportInfo &i
 
     QString path = importInfo.path();
 
-    if (importInfo.type() == ImportInfo::DirectoryImport
-            || importInfo.type() == ImportInfo::ImplicitDirectoryImport) {
+    if (importInfo.type() == ImportType::Directory
+            || importInfo.type() == ImportType::ImplicitDirectory) {
         import.object = new ObjectValue(valueOwner);
 
         importLibrary(doc, path, &import);
@@ -303,23 +306,22 @@ Import LinkPrivate::importFileOrDirectory(Document::Ptr doc, const ImportInfo &i
                 import.object->setMember(targetName, importedDoc->bind()->rootObjectValue());
             }
         }
-    } else if (importInfo.type() == ImportInfo::FileImport) {
+    } else if (importInfo.type() == ImportType::File) {
         Document::Ptr importedDoc = snapshot.document(path);
         if (importedDoc)
             import.object = importedDoc->bind()->rootObjectValue();
-    } else if (importInfo.type() == ImportInfo::QrcFileImport) {
+    } else if (importInfo.type() == ImportType::QrcFile) {
         QLocale locale;
         QStringList filePaths = ModelManagerInterface::instance()
                 ->filesAtQrcPath(path, &locale, 0, ModelManagerInterface::ActiveQrcResources);
-        if (filePaths.isEmpty()) {
+        if (filePaths.isEmpty())
             filePaths = ModelManagerInterface::instance()->filesAtQrcPath(path);
-        }
         if (!filePaths.isEmpty()) {
             Document::Ptr importedDoc = snapshot.document(filePaths.at(0));
             if (importedDoc)
                 import.object = importedDoc->bind()->rootObjectValue();
         }
-    } else if (importInfo.type() == ImportInfo::QrcDirectoryImport){
+    } else if (importInfo.type() == ImportType::QrcDirectory){
         import.object = new ObjectValue(valueOwner);
 
         importLibrary(doc, path, &import);
@@ -328,7 +330,7 @@ Import LinkPrivate::importFileOrDirectory(Document::Ptr doc, const ImportInfo &i
                                                ->filesInQrcPath(path));
         while (iter.hasNext()) {
             iter.next();
-            if (Document::isQmlLikeLanguage(Document::guessLanguageFromSuffix(iter.key()))) {
+            if (Document::isQmlLikeLanguage(ModelManagerInterface::guessLanguageOfFile(iter.key()))) {
                 Document::Ptr importedDoc = snapshot.document(iter.value().at(0));
                 if (importedDoc && importedDoc->bind()->rootObjectValue()) {
                     const QString targetName = QFileInfo(iter.key()).baseName();
@@ -454,7 +456,7 @@ bool LinkPrivate::importLibrary(Document::Ptr doc,
         if (libraryInfo.pluginTypeInfoStatus() == LibraryInfo::NoTypeInfo) {
             ModelManagerInterface *modelManager = ModelManagerInterface::instance();
             if (modelManager) {
-                if (importInfo.type() == ImportInfo::LibraryImport) {
+                if (importInfo.type() == ImportType::Library) {
                     if (version.isValid()) {
                         const QString uri = importInfo.name();
                         modelManager->loadPluginTypes(
@@ -510,12 +512,12 @@ bool LinkPrivate::importLibrary(Document::Ptr doc,
 
 void LinkPrivate::error(const Document::Ptr &doc, const AST::SourceLocation &loc, const QString &message)
 {
-    appendDiagnostic(doc, DiagnosticMessage(DiagnosticMessage::Error, loc, message));
+    appendDiagnostic(doc, DiagnosticMessage(Severity::Error, loc, message));
 }
 
 void LinkPrivate::warning(const Document::Ptr &doc, const AST::SourceLocation &loc, const QString &message)
 {
-    appendDiagnostic(doc, DiagnosticMessage(DiagnosticMessage::Warning, loc, message));
+    appendDiagnostic(doc, DiagnosticMessage(Severity::Warning, loc, message));
 }
 
 void LinkPrivate::appendDiagnostic(const Document::Ptr &doc, const DiagnosticMessage &message)

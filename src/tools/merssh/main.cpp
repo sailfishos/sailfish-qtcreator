@@ -128,7 +128,7 @@ int main(int argc, char *argv[])
     parameters.userName = environment.value(QLatin1String(Mer::Constants::MER_SSH_USERNAME));
     parameters.port = environment.value(QLatin1String(Mer::Constants::MER_SSH_PORT)).toInt();
     parameters.privateKeyFile = environment.value(QLatin1String(Mer::Constants::MER_SSH_PRIVATE_KEY));
-    parameters.authenticationType = QSsh::SshConnectionParameters::AuthenticationByKey;
+    parameters.authenticationType = QSsh::SshConnectionParameters::AuthenticationTypePublicKey;
     parameters.timeout = 10;
     command->setSshParameters(parameters);
     command->setArguments(unquoteArguments(arguments));

@@ -8,7 +8,7 @@ QT += core gui widgets qml quick network
     QT += v8
 }
 
-QT += core-private qml-private quick-private gui-private script-private
+QT += core-private qml-private quick-private gui-private
 
 !isEmpty(QT.v8.name) {
     QT += v8-private
@@ -19,12 +19,14 @@ QT += core-private qml-private quick-private gui-private script-private
 }
 
 DEFINES += QWEAKPOINTER_ENABLE_ARROW
+DEFINES -= QT_CREATOR
 
 include (../instances/instances.pri)
 include (instances/instances.pri)
 include (../commands/commands.pri)
 include (../container/container.pri)
 include (../interfaces/interfaces.pri)
+include (../types/types.pri)
 
 QT_BREAKPAD_ROOT_PATH = $$(QT_BREAKPAD_ROOT_PATH)
 !isEmpty(QT_BREAKPAD_ROOT_PATH) {

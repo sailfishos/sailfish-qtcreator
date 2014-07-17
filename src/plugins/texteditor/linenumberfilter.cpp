@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -43,7 +43,6 @@ typedef QPair<int,int> LineColumn;
 Q_DECLARE_METATYPE(LineColumn)
 
 using namespace Core;
-using namespace Locator;
 using namespace TextEditor;
 using namespace TextEditor::Internal;
 
@@ -57,9 +56,9 @@ LineNumberFilter::LineNumberFilter(QObject *parent)
     setIncludedByDefault(true);
 }
 
-QList<FilterEntry> LineNumberFilter::matchesFor(QFutureInterface<Locator::FilterEntry> &, const QString &entry)
+QList<LocatorFilterEntry> LineNumberFilter::matchesFor(QFutureInterface<Core::LocatorFilterEntry> &, const QString &entry)
 {
-    QList<FilterEntry> value;
+    QList<LocatorFilterEntry> value;
     QStringList lineAndColumn = entry.split(QLatin1Char(':'));
     int sectionCount = lineAndColumn.size();
     int line = 0;
@@ -71,7 +70,7 @@ QList<FilterEntry> LineNumberFilter::matchesFor(QFutureInterface<Locator::Filter
         column = lineAndColumn.at(1).toInt(&ok);
     if (!ok)
         return value;
-    if (currentTextEditor() && (line > 0 || column > 0)) {
+    if (EditorManager::currentEditor() && (line > 0 || column > 0)) {
         LineColumn data;
         data.first = line;
         data.second = column - 1;  // column API is 0-based
@@ -82,29 +81,20 @@ QList<FilterEntry> LineNumberFilter::matchesFor(QFutureInterface<Locator::Filter
             text = tr("Line %1").arg(line);
         else
             text = tr("Column %1").arg(column);
-        value.append(FilterEntry(this, text, QVariant::fromValue(data)));
+        value.append(LocatorFilterEntry(this, text, QVariant::fromValue(data)));
     }
     return value;
 }
 
-void LineNumberFilter::accept(FilterEntry selection) const
+void LineNumberFilter::accept(LocatorFilterEntry selection) const
 {
-    ITextEditor *editor = currentTextEditor();
+    IEditor *editor = EditorManager::currentEditor();
     if (editor) {
-        Core::EditorManager *editorManager = Core::EditorManager::instance();
-        editorManager->addCurrentPositionToNavigationHistory();
+        EditorManager::addCurrentPositionToNavigationHistory();
         LineColumn data = selection.internalData.value<LineColumn>();
-        if (data.first < 1) { // jump to column in same line
-            int currLine, currColumn;
-            editor->convertPosition(editor->position(), &currLine, &currColumn);
-            data.first = currLine;
-        }
+        if (data.first < 1)  // jump to column in same line
+            data.first = editor->currentLine();
         editor->gotoLine(data.first, data.second);
-        Core::EditorManager::activateEditor(editor);
+        EditorManager::activateEditor(editor);
     }
-}
-
-ITextEditor *LineNumberFilter::currentTextEditor() const
-{
-    return qobject_cast<TextEditor::ITextEditor *>(EditorManager::currentEditor());
 }

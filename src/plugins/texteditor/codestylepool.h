@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -42,9 +42,7 @@ class ICodeStylePreferences;
 class ICodeStylePreferencesFactory;
 class TabSettings;
 
-namespace Internal {
-class CodeStylePoolPrivate;
-}
+namespace Internal { class CodeStylePoolPrivate; }
 
 class TEXTEDITOR_EXPORT CodeStylePool : public QObject
 {
@@ -58,14 +56,14 @@ public:
     QList<ICodeStylePreferences *> customCodeStyles() const;
 
     ICodeStylePreferences *cloneCodeStyle(ICodeStylePreferences *originalCodeStyle);
-    ICodeStylePreferences *createCodeStyle(const QString &id, const TabSettings &tabSettings,
+    ICodeStylePreferences *createCodeStyle(const QByteArray &id, const TabSettings &tabSettings,
                       const QVariant &codeStyleData, const QString &displayName);
     // ownership is passed to the pool
     void addCodeStyle(ICodeStylePreferences *codeStyle);
     // is removed and deleted
     void removeCodeStyle(ICodeStylePreferences *codeStyle);
 
-    ICodeStylePreferences *codeStyle(const QString &id) const;
+    ICodeStylePreferences *codeStyle(const QByteArray &id) const;
 
     void loadCustomCodeStyles();
 
@@ -81,7 +79,7 @@ private slots:
 
 private:
     QString settingsDir() const;
-    Utils::FileName settingsPath(const QString &id) const;
+    Utils::FileName settingsPath(const QByteArray &id) const;
     ICodeStylePreferences *loadCodeStyle(const Utils::FileName &fileName);
     void saveCodeStyle(ICodeStylePreferences *codeStyle) const;
 

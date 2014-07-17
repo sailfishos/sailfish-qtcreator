@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -176,7 +176,7 @@ void StyleHelper::verticalGradient(QPainter *painter, const QRect &spanRect, con
         QColor keyColor = baseColor(lightColored);
         key.sprintf("mh_vertical %d %d %d %d %d",
             spanRect.width(), spanRect.height(), clipRect.width(),
-            clipRect.height(), keyColor.rgb());;
+            clipRect.height(), keyColor.rgb());
 
         QPixmap pixmap;
         if (!QPixmapCache::find(key, pixmap)) {

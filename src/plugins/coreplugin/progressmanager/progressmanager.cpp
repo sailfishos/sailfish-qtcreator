@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -67,12 +67,12 @@ using namespace Core::Internal;
     for running tasks in Qt Creator.
 
     It tracks the progress of a task that it is told
-    about, and shows a progress indicator in the left hand tool bar
+    about, and shows a progress indicator in the lower right
     of Qt Creator's main window to the user.
     The progress indicator also allows the user to cancel the task.
 
     You get the single instance of this class via the
-    Core::ICore::progressManager() method.
+    ProgressManager::instance() function.
 
     \section1 Registering a task
     The ProgressManager API uses QtConcurrent as the basis for defining
@@ -110,7 +110,7 @@ using namespace Core::Internal;
     \endtable
 
     To register a task you create your \c QFuture<void> object, and call
-    addTask(). This method returns a
+    addTask(). This function returns a
     \l{Core::FutureProgress}{FutureProgress}
     object that you can use to further customize the progress bar's appearance.
     See the \l{Core::FutureProgress}{FutureProgress} documentation for
@@ -122,16 +122,16 @@ using namespace Core::Internal;
     \section2 Create a threaded task with QtConcurrent
     The first option is to directly use QtConcurrent to actually
     start a task concurrently in a different thread.
-    QtConcurrent has several different methods to run e.g.
-    a class method in a different thread. Qt Creator itself
+    QtConcurrent has several different functions to run e.g.
+    a class function in a different thread. Qt Creator itself
     adds a few more in \c{src/libs/qtconcurrent/runextensions.h}.
-    The QtConcurrent methods to run a concurrent task return a
+    The QtConcurrent functions to run a concurrent task return a
     \c QFuture object. This is what you want to give the
-    ProgressManager in the addTask() method.
+    ProgressManager in the addTask() function.
 
-    Have a look at e.g Locator::ILocatorFilter. Locator filters implement
-    a method \c refresh which takes a \c QFutureInterface object
-    as a parameter. These methods look something like:
+    Have a look at e.g Core::ILocatorFilter. Locator filters implement
+    a function \c refresh which takes a \c QFutureInterface object
+    as a parameter. These functions look something like:
     \code
     void Filter::refresh(QFutureInterface<void> &future) {
         future.setProgressRange(0, MAX);
@@ -145,16 +145,15 @@ using namespace Core::Internal;
     }
     \endcode
 
-    The actual refresh, which calls all the filters' refresh methods
+    The actual refresh, which calls all the filters' refresh functions
     in a different thread, looks like this:
     \code
     QFuture<void> task = QtConcurrent::run(&ILocatorFilter::refresh, filters);
-    Core::FutureProgress *progress = Core::ICore::instance()
-            ->progressManager()->addTask(task, tr("Indexing"),
-                                         Locator::Constants::TASK_INDEX);
+    Core::FutureProgress *progress = Core::ProgressManager::addTask(task, tr("Indexing"),
+                                                                    Locator::Constants::TASK_INDEX);
     \endcode
     First, we tell QtConcurrent to start a thread which calls all the filters'
-    refresh method. After that we register the returned QFuture object
+    refresh function. After that we register the returned QFuture object
     with the ProgressManager.
 
     \section2 Manually create QtConcurrent objects for your thread
@@ -166,9 +165,7 @@ using namespace Core::Internal;
     // We are already running in a different thread here
     QFutureInterface<void> *progressObject = new QFutureInterface<void>;
     progressObject->setProgressRange(0, MAX);
-    Core::ICore::progressManager()->addTask(
-        progressObject->future(),
-        tr("DoIt"), MYTASKTYPE);
+    Core::ProgressManager::addTask(progressObject->future(), tr("DoIt"), MYTASKTYPE);
     progressObject->reportStarted();
     // Do something
     ...
@@ -184,7 +181,7 @@ using namespace Core::Internal;
     We register the task with the ProgressManager, using the internal
     QFuture object that has been created for our QFutureInterface object.
     Next we report that the task has begun and start doing our actual
-    work, regularly reporting the progress via the methods
+    work, regularly reporting the progress via the functions
     in QFutureInterface. After the long taking operation has finished,
     we report so through the QFutureInterface object, and delete it
     afterwards.
@@ -192,7 +189,7 @@ using namespace Core::Internal;
     \section1 Customizing progress appearance
 
     You can set a custom widget to show below the progress bar itself,
-    using the FutureProgress object returned by the addTask() method.
+    using the FutureProgress object returned by the addTask() function.
     Also use this object to get notified when the user clicks on the
     progress indicator.
 */
@@ -231,8 +228,8 @@ using namespace Core::Internal;
     which can be used to further customize. The FutureProgress object's
     life is managed by the ProgressManager and is guaranteed to live only until
     the next event loop cycle, or until the next call of addTask.
-    If you want to use the returned FutureProgress later than directly after calling this method,
-    you will need to use protective methods (like wrapping the returned object in QPointer and
+    If you want to use the returned FutureProgress later than directly after calling this function,
+    you will need to use protective functions (like wrapping the returned object in QPointer and
     checking for 0 whenever you use it).
 */
 
@@ -245,7 +242,7 @@ using namespace Core::Internal;
 */
 
 /*!
-    \fn void Core::ProgressManager::cancelTasks(const QString &type)
+    \fn void Core::ProgressManager::cancelTasks(Core::Id type)
 
     Schedules a cancel for all running tasks of the given \a type.
     Please note that the cancel functionality depends on the
@@ -254,20 +251,19 @@ using namespace Core::Internal;
 */
 
 /*!
-    \fn void Core::ProgressManager::taskStarted(const QString &type)
+    \fn void Core::ProgressManager::taskStarted(Core::Id type)
 
     Sent whenever a task of a given \a type is started.
 */
 
 /*!
-    \fn void Core::ProgressManager::allTasksFinished(const QString &type)
+    \fn void Core::ProgressManager::allTasksFinished(Core::Id type)
 
     Sent when all tasks of a \a type have finished.
 */
 
-ProgressManagerPrivate::ProgressManagerPrivate(QObject *parent)
-  : ProgressManager(parent),
-    m_applicationTask(0),
+ProgressManagerPrivate::ProgressManagerPrivate()
+  : m_applicationTask(0),
     m_currentStatusDetailsWidget(0),
     m_opacityEffect(new QGraphicsOpacityEffect(this)),
     m_progressViewPinned(false),
@@ -335,7 +331,7 @@ void ProgressManagerPrivate::init()
     p.fill(Qt::transparent);
     toggleProgressView->setIcon(QIcon(p));
     Command *cmd = ActionManager::registerAction(toggleProgressView,
-                                                 Id("QtCreator.ToggleProgressDetails"),
+                                                 "QtCreator.ToggleProgressDetails",
                                                  Context(Constants::C_GLOBAL));
     cmd->setDefaultKeySequence(QKeySequence(Utils::HostOsInfo::isMacHost()
                                                ? tr("Ctrl+Shift+0")
@@ -348,10 +344,10 @@ void ProgressManagerPrivate::init()
     initInternal();
 }
 
-void ProgressManagerPrivate::cancelTasks(const QString &type)
+void ProgressManagerPrivate::doCancelTasks(Id type)
 {
     bool found = false;
-    QMap<QFutureWatcher<void> *, QString>::iterator task = m_runningTasks.begin();
+    QMap<QFutureWatcher<void> *, Id>::iterator task = m_runningTasks.begin();
     while (task != m_runningTasks.end()) {
         if (task.value() != type) {
             ++task;
@@ -399,7 +395,7 @@ bool ProgressManagerPrivate::eventFilter(QObject *obj, QEvent *event)
 
 void ProgressManagerPrivate::cancelAllRunningTasks()
 {
-    QMap<QFutureWatcher<void> *, QString>::const_iterator task = m_runningTasks.constBegin();
+    QMap<QFutureWatcher<void> *, Id>::const_iterator task = m_runningTasks.constBegin();
     while (task != m_runningTasks.constEnd()) {
         disconnect(task.key(), SIGNAL(finished()), this, SLOT(taskFinished()));
         if (m_applicationTask == task.key())
@@ -412,8 +408,8 @@ void ProgressManagerPrivate::cancelAllRunningTasks()
     updateSummaryProgressBar();
 }
 
-FutureProgress *ProgressManagerPrivate::addTask(const QFuture<void> &future, const QString &title,
-                                                const QString &type, ProgressFlags flags)
+FutureProgress *ProgressManagerPrivate::doAddTask(const QFuture<void> &future, const QString &title,
+                                                Id type, ProgressFlags flags)
 {
     // watch
     QFutureWatcher<void> *watcher = new QFutureWatcher<void>();
@@ -474,7 +470,7 @@ void ProgressManagerPrivate::taskFinished()
     QFutureWatcher<void> *task = static_cast<QFutureWatcher<void> *>(taskObject);
     if (m_applicationTask == task)
         disconnectApplicationTask();
-    QString type = m_runningTasks.value(task);
+    Id type = m_runningTasks.value(task);
     m_runningTasks.remove(task);
     delete task;
     updateSummaryProgressBar();
@@ -507,7 +503,7 @@ void ProgressManagerPrivate::updateSummaryProgressBar()
     stopFadeOfSummaryProgress();
 
     m_summaryProgressBar->setFinished(false);
-    QMapIterator<QFutureWatcher<void> *, QString> it(m_runningTasks);
+    QMapIterator<QFutureWatcher<void> *, Id> it(m_runningTasks);
     static const int TASK_RANGE = 100;
     int value = 0;
     while (it.hasNext()) {
@@ -564,12 +560,12 @@ void ProgressManagerPrivate::slotRemoveTask()
 {
     FutureProgress *progress = qobject_cast<FutureProgress *>(sender());
     QTC_ASSERT(progress, return);
-    QString type = progress->type();
+    Id type = progress->type();
     removeTask(progress);
     removeOldTasks(type, true);
 }
 
-void ProgressManagerPrivate::removeOldTasks(const QString &type, bool keepOne)
+void ProgressManagerPrivate::removeOldTasks(const Id type, bool keepOne)
 {
     bool firstFound = !keepOne; // start with false if we want to keep one
     QList<FutureProgress *>::iterator i = m_taskList.end();
@@ -601,7 +597,7 @@ void ProgressManagerPrivate::removeOneOldTask()
     }
     // no ended process, look for a task type with multiple running tasks and remove the oldest one
     for (QList<FutureProgress *>::iterator i = m_taskList.begin(); i != m_taskList.end(); ++i) {
-        QString type = (*i)->type();
+        Id type = (*i)->type();
 
         int taskCount = 0;
         foreach (FutureProgress *p, m_taskList)
@@ -716,4 +712,38 @@ void ToggleButton::paintEvent(QPaintEvent *event)
     arrowOpt.initFrom(this);
     arrowOpt.rect = QRect(rect().center().x() - 3, rect().center().y() - 6, 9, 9);
     s->drawPrimitive(QStyle::PE_IndicatorArrowUp, &arrowOpt, &p, this);
+}
+
+
+static ProgressManager *m_instance = 0;
+
+ProgressManager::ProgressManager()
+{
+    m_instance = this;
+}
+
+ProgressManager::~ProgressManager()
+{
+    m_instance = 0;
+}
+
+QObject *ProgressManager::instance()
+{
+    return m_instance;
+}
+
+FutureProgress *ProgressManager::addTask(const QFuture<void> &future, const QString &title, Id type, ProgressFlags flags)
+{
+    return m_instance->doAddTask(future, title, type, flags);
+}
+
+void ProgressManager::setApplicationLabel(const QString &text)
+{
+    m_instance->doSetApplicationLabel(text);
+}
+
+void ProgressManager::cancelTasks(const Id type)
+{
+    if (m_instance)
+        m_instance->doCancelTasks(type);
 }

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,6 +30,9 @@
 #ifndef QV8PROFILERDATAMODEL_H
 #define QV8PROFILERDATAMODEL_H
 
+#include "qmlprofilerbasemodel.h"
+#include <utils/fileinprojectfinder.h>
+
 #include <QObject>
 #include <QHash>
 
@@ -37,46 +40,43 @@
 #include <QXmlStreamWriter>
 
 namespace QmlProfiler {
-namespace Internal {
 
-class QmlProfilerDataModel;
-struct QV8EventSub;
-
-struct QV8EventData
-{
-    QV8EventData();
-    ~QV8EventData();
-
-    QString displayName;
-    QString eventHashStr;
-    QString filename;
-    QString functionName;
-    int line;
-    double totalTime; // given in milliseconds
-    double totalPercent;
-    double selfTime;
-    double selfPercent;
-    QHash <QString, QV8EventSub *> parentHash;
-    QHash <QString, QV8EventSub *> childrenHash;
-    int eventId;
-
-    QV8EventData &operator=(const QV8EventData &ref);
-};
-
-struct QV8EventSub {
-    QV8EventSub(QV8EventData *from) : reference(from), totalTime(0) {}
-    QV8EventSub(QV8EventSub *from) : reference(from->reference), totalTime(from->totalTime) {}
-
-    QV8EventData *reference;
-    qint64 totalTime;
-};
-
-class QV8ProfilerDataModel : public QObject
+class QV8ProfilerDataModel : public QmlProfilerBaseModel
 {
     Q_OBJECT
 public:
-    explicit QV8ProfilerDataModel(QObject *parent, QmlProfilerDataModel *profilerDataModel);
-    ~QV8ProfilerDataModel();
+    struct QV8EventSub;
+
+    struct QV8EventData
+    {
+        QV8EventData();
+        ~QV8EventData();
+
+        QString displayName;
+        QString eventHashStr;
+        QString filename;
+        QString functionName;
+        int line;
+        double totalTime; // given in milliseconds
+        double totalPercent;
+        double selfTime;
+        double SelfTimeInPercent;
+        QHash <QString, QV8EventSub *> parentHash;
+        QHash <QString, QV8EventSub *> childrenHash;
+        int eventId;
+
+        QV8EventData &operator=(const QV8EventData &ref);
+    };
+
+    struct QV8EventSub {
+        QV8EventSub(QV8EventData *from) : reference(from), totalTime(0) {}
+        QV8EventSub(QV8EventSub *from) : reference(from->reference), totalTime(from->totalTime) {}
+
+        QV8EventData *reference;
+        qint64 totalTime;
+    };
+
+    QV8ProfilerDataModel(Utils::FileInProjectFinder *fileFinder, QmlProfilerModelManager *parent = 0);
 
     void clear();
     bool isEmpty() const;
@@ -84,10 +84,11 @@ public:
     QV8EventData *v8EventDescription(int eventId) const;
 
     qint64 v8MeasuredTime() const;
-    void collectV8Statistics();
 
     void save(QXmlStreamWriter &stream);
     void load(QXmlStreamReader &stream);
+
+    void complete();
 
 public slots:
     void addV8Event(int depth,
@@ -96,13 +97,16 @@ public slots:
                     int lineNumber,
                     double totalTime,
                     double selfTime);
+    void detailsChanged(int requestId, const QString &newString);
+    void detailsDone();
 
 private:
     class QV8ProfilerDataModelPrivate;
-    QV8ProfilerDataModelPrivate *d;
+    void clearV8RootEvent();
+
+    Q_DECLARE_PRIVATE(QV8ProfilerDataModel)
 };
 
-} // namespace Internal
 } // namespace QmlProfiler
 
 #endif // QV8PROFILERDATAMODEL_H

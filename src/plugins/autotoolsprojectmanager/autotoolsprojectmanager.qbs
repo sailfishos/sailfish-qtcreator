@@ -1,14 +1,15 @@
-import qbs.base 1.0
+import qbs 1.0
 
-import "../QtcPlugin.qbs" as QtcPlugin
+import QtcPlugin
 
 QtcPlugin {
     name: "AutotoolsProjectManager"
 
     Depends { name: "Qt.widgets" }
+    Depends { name: "Utils" }
+
     Depends { name: "Core" }
     Depends { name: "ProjectExplorer" }
-    Depends { name: "QtSupport" }
     Depends { name: "CppTools" }
 
     files: [

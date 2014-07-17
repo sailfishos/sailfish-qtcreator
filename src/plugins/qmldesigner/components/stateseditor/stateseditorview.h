@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,7 +30,9 @@
 #ifndef STATESEDITORVIEW_H
 #define STATESEDITORVIEW_H
 
-#include <qmlmodelview.h>
+#include <abstractview.h>
+
+#include <qmlstate.h>
 
 namespace QmlDesigner {
 
@@ -38,15 +40,19 @@ namespace QmlDesigner {
 class StatesEditorModel;
 class StatesEditorWidget;
 
-class StatesEditorView : public QmlModelView {
+class StatesEditorView : public AbstractView {
     Q_OBJECT
 
 public:
     explicit StatesEditorView(QObject *parent = 0);
+    ~StatesEditorView();
 
     void renameState(int nodeId,const QString &newName);
     bool validStateName(const QString &name) const;
     QString currentStateName() const;
+    void setCurrentState(const QmlModelState &state);
+    QmlModelState baseState() const;
+    QmlModelStateGroup rootStateGroup() const;
 
     // AbstractView
     void modelAttached(Model *model) QTC_OVERRIDE;
@@ -70,8 +76,8 @@ public:
     void nodeOrderChanged(const NodeListProperty &listProperty, const ModelNode &movedNode, int oldIndex) QTC_OVERRIDE;
 
 
-    // QmlModelView
-    void actualStateChanged(const ModelNode &node) QTC_OVERRIDE;
+    // AbstractView
+    void currentStateChanged(const ModelNode &node) QTC_OVERRIDE;
 
     void scriptFunctionsChanged(const ModelNode &node, const QStringList &scriptFunctionList) QTC_OVERRIDE;
     void nodeIdChanged(const ModelNode &node, const QString &newId, const QString &oldId) QTC_OVERRIDE;
@@ -83,6 +89,19 @@ public:
 
     WidgetInfo widgetInfo() QTC_OVERRIDE;
 
+    void nodeCreated(const ModelNode &createdNode) QTC_OVERRIDE;
+    void propertiesAboutToBeRemoved(const QList<AbstractProperty> &propertyList) QTC_OVERRIDE;
+    void rootNodeTypeChanged(const QString &type, int majorVersion, int minorVersion) QTC_OVERRIDE;
+    void instancePropertyChange(const QList<QPair<ModelNode, PropertyName> > &propertyList) QTC_OVERRIDE;
+    void instancesCompleted(const QVector<ModelNode> &completedNodeList) QTC_OVERRIDE;
+    void instanceInformationsChange(const QMultiHash<ModelNode, InformationName> &informationChangeHash) QTC_OVERRIDE;
+    void instancesRenderImageChanged(const QVector<ModelNode> &nodeList) QTC_OVERRIDE;
+    void instancesChildrenChanged(const QVector<ModelNode> &nodeList) QTC_OVERRIDE;
+    void instancesToken(const QString &tokenName, int tokenNumber, const QVector<ModelNode> &nodeVector) QTC_OVERRIDE;
+    void nodeSourceChanged(const ModelNode &modelNode, const QString &newNodeSource) QTC_OVERRIDE;
+    void rewriterBeginTransaction() QTC_OVERRIDE;
+    void rewriterEndTransaction() QTC_OVERRIDE;
+    void importsChanged(const QList<Import> &addedImports, const QList<Import> &removedImports) QTC_OVERRIDE;
 
 public slots:
     void synchonizeCurrentStateFromWidget();
@@ -94,6 +113,7 @@ private:
     void resetModel();
     void addState();
     void duplicateCurrentState();
+    void checkForWindow();
 
 private:
     QWeakPointer<StatesEditorModel> m_statesEditorModel;

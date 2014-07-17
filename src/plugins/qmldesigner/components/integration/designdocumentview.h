@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -79,7 +79,7 @@ public:
     void rewriterBeginTransaction();
     void rewriterEndTransaction();
 
-    void actualStateChanged(const ModelNode &node) QTC_OVERRIDE;
+    void currentStateChanged(const ModelNode &node) QTC_OVERRIDE;
 
     void importsChanged(const QList<Import> &addedImports, const QList<Import> &removedImports) QTC_OVERRIDE;
 

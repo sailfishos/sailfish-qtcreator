@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -228,9 +228,9 @@ void EasingContextPane::setGraphDisplayMode(GraphDisplayMode newMode)
 
 void EasingContextPane::startAnimation()
 {
-    if (m_simulation->running())
+    if (m_simulation->running()) {
         m_simulation->stop();
-    else {
+    } else {
         m_simulation->animate(ui->durationSpinBox->value(), m_easingGraph->easingCurve());
         ui->playButton->setIcon(QIcon(QLatin1String(":/stopicon.png")));
     }

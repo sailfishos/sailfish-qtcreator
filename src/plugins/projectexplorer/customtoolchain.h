@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -33,6 +33,7 @@
 #include "projectexplorer_export.h"
 
 #include "abi.h"
+#include "customparser.h"
 #include "headerpath.h"
 #include "toolchain.h"
 #include "toolchainconfigwidget.h"
@@ -42,6 +43,8 @@
 QT_BEGIN_NAMESPACE
 class QPlainTextEdit;
 class QTextEdit;
+class QComboBox;
+class QPushButton;
 QT_END_NAMESPACE
 
 namespace Utils { class PathChooser; }
@@ -57,7 +60,21 @@ namespace Internal { class CustomToolChainFactory; }
 
 class PROJECTEXPLORER_EXPORT CustomToolChain : public ToolChain
 {
+    Q_DECLARE_TR_FUNCTIONS(CustomToolChain)
+
 public:
+    enum OutputParser
+    {
+        Gcc = 0,
+        Clang = 1,
+        LinuxIcc = 2,
+#if defined(Q_OS_WIN)
+        Msvc = 3,
+#endif
+        Custom,
+        OutputParserCount
+    };
+
     QString type() const;
     QString typeDisplayName() const;
     Abi targetAbi() const;
@@ -98,12 +115,18 @@ public:
 
     ToolChain *clone() const;
 
+    OutputParser outputParserType() const;
+    void setOutputParserType(OutputParser parser);
+    CustomParserSettings customParserSettings() const;
+    void setCustomParserSettings(const CustomParserSettings &settings);
+    static QString parserName(OutputParser parser);
+
 protected:
-    CustomToolChain(const QString &id, bool autodetect);
+    explicit CustomToolChain(const QString &id, Detection d);
     CustomToolChain(const CustomToolChain &);
 
 private:
-    CustomToolChain(bool autodetect);
+    explicit CustomToolChain(Detection d);
 
     Utils::FileName m_compilerCommand;
     Utils::FileName m_makeCommand;
@@ -113,6 +136,9 @@ private:
     QList<HeaderPath> m_systemHeaderPaths;
     QStringList m_cxx11Flags;
     QList<Utils::FileName> m_mkspecs;
+
+    OutputParser m_outputParser;
+    CustomParserSettings m_customParserSettings;
 
     friend class Internal::CustomToolChainFactory;
     friend class ToolChainFactory;
@@ -125,9 +151,7 @@ class CustomToolChainFactory : public ToolChainFactory
     Q_OBJECT
 
 public:
-    // Name used to display the name of the tool chain that will be created.
-    QString displayName() const;
-    QString id() const;
+    CustomToolChainFactory();
 
     bool canCreate();
     ToolChain *create();
@@ -157,6 +181,8 @@ public:
 
 private slots:
     void updateSummaries();
+    void errorParserChanged(int index);
+    void openCustomParserSettingsDialog();
 
 protected:
     void applyImpl();
@@ -175,6 +201,10 @@ protected:
     TextEditDetailsWidget *m_headerDetails;
     QLineEdit *m_cxx11Flags;
     QLineEdit *m_mkspecs;
+    QComboBox *m_errorParserComboBox;
+    QPushButton *m_customParserSettingsButton;
+
+    CustomParserSettings m_customParserSettings;
 };
 
 } // namespace Internal

@@ -13,6 +13,7 @@ include (instances/instances.pri)
 include (../../../../share/qtcreator/qml/qmlpuppet/interfaces/interfaces.pri)
 include (../../../../share/qtcreator/qml/qmlpuppet/commands/commands.pri)
 include (../../../../share/qtcreator/qml/qmlpuppet/container/container.pri)
+include (../../../../share/qtcreator/qml/qmlpuppet/types/types.pri)
 
 SOURCES += $$PWD/model/abstractview.cpp \
     $$PWD/model/rewriterview.cpp \
@@ -60,7 +61,6 @@ SOURCES += $$PWD/model/abstractview.cpp \
     $$PWD/model/plaintexteditmodifier.cpp \
     $$PWD/model/componenttextmodifier.cpp \
     $$PWD/model/textmodifier.cpp \
-    $$PWD/model/qmlmodelview.cpp \
     $$PWD/model/qmlitemnode.cpp \
     $$PWD/model/qmlstate.cpp \
     $$PWD/model/qmlchangeset.cpp \
@@ -77,7 +77,8 @@ SOURCES += $$PWD/model/abstractview.cpp \
     $$PWD/exceptions/rewritingexception.cpp \
     $$PWD/model/viewmanager.cpp \
     $$PWD/model/signalhandlerproperty.cpp \
-    $$PWD/model/internalsignalhandlerproperty.cpp
+    $$PWD/model/internalsignalhandlerproperty.cpp \
+    $$PWD/instances/puppetdialog.cpp
 
 HEADERS += $$PWD/include/qmldesignercorelib_global.h \
     $$PWD/include/abstractview.h \
@@ -129,7 +130,6 @@ HEADERS += $$PWD/include/qmldesignercorelib_global.h \
     $$PWD/include/textmodifier.h \
     $$PWD/model/modeltotextmerger.h \
     $$PWD/model/texttomodelmerger.h \
-    $$PWD/include/qmlmodelview.h \
     $$PWD/include/qmlitemnode.h \
     $$PWD/include/qmlstate.h \
     $$PWD/include/qmlchangeset.h \
@@ -149,7 +149,12 @@ HEADERS += $$PWD/include/qmldesignercorelib_global.h \
     $$PWD/include/rewritingexception.h \
     $$PWD/include/viewmanager.h \
     $$PWD/include/signalhandlerproperty.h \
-    $$PWD/model/internalsignalhandlerproperty.h
+    $$PWD/model/internalsignalhandlerproperty.h \
+    $$PWD/instances/puppetdialog.h
+
+FORMS += \
+    $$PWD/instances/puppetdialog.ui
+
 
 contains(CONFIG, plugin) {
   # If core.pri has been included in the qmldesigner plugin

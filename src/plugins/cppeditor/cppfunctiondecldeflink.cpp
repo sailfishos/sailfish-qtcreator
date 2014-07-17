@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -55,17 +55,17 @@ using namespace CppEditor;
 using namespace CppEditor::Internal;
 using namespace CppTools;
 using namespace TextEditor;
+using namespace Utils;
 
 FunctionDeclDefLinkFinder::FunctionDeclDefLinkFinder(QObject *parent)
     : QObject(parent)
 {
-    connect(&m_watcher, SIGNAL(finished()),
-            this, SLOT(onFutureDone()));
 }
 
 void FunctionDeclDefLinkFinder::onFutureDone()
 {
-    QSharedPointer<FunctionDeclDefLink> link = m_watcher.result();
+    QSharedPointer<FunctionDeclDefLink> link = m_watcher->result();
+    m_watcher.reset();
     if (link) {
         link->linkSelection = m_scannedSelection;
         link->nameSelection = m_nameSelection;
@@ -255,7 +255,9 @@ void FunctionDeclDefLinkFinder::startFindLinkAt(
     result->sourceFunctionDeclarator = funcDecl;
 
     // handle the rest in a thread
-    m_watcher.setFuture(QtConcurrent::run(&findLinkHelper, result, refactoringChanges));
+    m_watcher.reset(new QFutureWatcher<QSharedPointer<FunctionDeclDefLink> >());
+    connect(m_watcher.data(), SIGNAL(finished()), this, SLOT(onFutureDone()));
+    m_watcher->setFuture(QtConcurrent::run(&findLinkHelper, result, refactoringChanges));
 }
 
 FunctionDeclDefLink::FunctionDeclDefLink()
@@ -267,10 +269,6 @@ FunctionDeclDefLink::FunctionDeclDefLink()
     targetFunction = 0;
     targetDeclaration = 0;
     targetFunctionDeclarator = 0;
-}
-
-FunctionDeclDefLink::~FunctionDeclDefLink()
-{
 }
 
 bool FunctionDeclDefLink::isValid() const
@@ -300,7 +298,7 @@ void FunctionDeclDefLink::apply(CPPEditorWidget *editor, bool jumpToMatch)
     const int targetStart = newTargetFile->position(targetLine, targetColumn);
     const int targetEnd = targetStart + targetInitial.size();
     if (targetInitial == newTargetFile->textOf(targetStart, targetEnd)) {
-        const Utils::ChangeSet changeset = changes(snapshot, targetStart);
+        const ChangeSet changeset = changes(snapshot, targetStart);
         newTargetFile->setChangeSet(changeset);
         if (jumpToMatch) {
             const int jumpTarget = newTargetFile->position(targetFunction->line(), targetFunction->column());
@@ -308,10 +306,8 @@ void FunctionDeclDefLink::apply(CPPEditorWidget *editor, bool jumpToMatch)
         }
         newTargetFile->apply();
     } else {
-        Utils::ToolTip::instance()->show(
-                    editor->toolTipPosition(linkSelection),
-                    Utils::TextContent(
-                        tr("Target file was changed, could not apply changes")));
+        ToolTip::show(editor->toolTipPosition(linkSelection),
+                     TextContent(tr("Target file was changed, could not apply changes")));
     }
 }
 
@@ -567,11 +563,10 @@ Utils::ChangeSet FunctionDeclDefLink::changes(const Snapshot &snapshot, int targ
             newDeclText[i] = QLatin1Char('\n');
     }
     newDeclText.append(QLatin1String("{}"));
-    const QString newDeclTextPreprocessed =
-            QString::fromUtf8(typeOfExpression.preprocess(newDeclText.toUtf8()));
+    const QByteArray newDeclTextPreprocessed = typeOfExpression.preprocess(newDeclText.toUtf8());
 
     Document::Ptr newDeclDoc = Document::create(QLatin1String("<decl>"));
-    newDeclDoc->setUtf8Source(newDeclTextPreprocessed.toUtf8());
+    newDeclDoc->setUtf8Source(newDeclTextPreprocessed);
     newDeclDoc->parse(Document::ParseDeclaration);
     newDeclDoc->check();
 
@@ -778,9 +773,8 @@ Utils::ChangeSet FunctionDeclDefLink::changes(const Snapshot &snapshot, int targ
                 FullySpecifiedType type = rewriteType(newParam->type(), &env, control);
                 newTargetParam = overview.prettyType(type, newParam->name());
                 hadChanges = true;
-            }
             // otherwise preserve as much as possible from the existing parameter
-            else {
+            } else {
                 Symbol *targetParam = targetFunction->argumentAt(existingParamIndex);
                 Symbol *sourceParam = sourceFunction->argumentAt(existingParamIndex);
                 ParameterDeclarationAST *targetParamAst = targetParameterDecls.at(existingParamIndex);
@@ -833,9 +827,8 @@ Utils::ChangeSet FunctionDeclDefLink::changes(const Snapshot &snapshot, int targ
                     newTargetParam += overview.prettyType(replacementType, replacementName);
                     newTargetParam += targetFile->textOf(parameterTypeEnd, parameterEnd);
                     hadChanges = true;
-                }
                 // change the name only?
-                else if (!namesEqual(targetParam->name(), replacementName)) {
+                } else if (!namesEqual(targetParam->name(), replacementName)) {
                     DeclaratorIdAST *id = getDeclaratorId(targetParamAst->declarator);
                     const QString &replacementNameStr = overview.prettyName(replacementName);
                     if (id) {
@@ -878,9 +871,8 @@ Utils::ChangeSet FunctionDeclDefLink::changes(const Snapshot &snapshot, int targ
                         newTargetParam += rest;
                     }
                     hadChanges = true;
-                }
                 // change nothing - though the parameter might still have moved
-                else {
+                } else {
                     if (existingParamIndex != newParamIndex)
                         hadChanges = true;
                     newTargetParam = targetFile->textOf(parameterStart, parameterEnd);
@@ -934,9 +926,8 @@ Utils::ChangeSet FunctionDeclDefLink::changes(const Snapshot &snapshot, int targ
         if (!targetFunction->isConst() && !targetFunction->isVolatile()) {
             cvString.prepend(QLatin1Char(' '));
             changes.insert(targetFile->endOf(targetFunctionDeclarator->rparen_token), cvString);
-        }
         // modify/remove existing specifiers
-        else {
+        } else {
             SimpleSpecifierAST *constSpecifier = 0;
             SimpleSpecifierAST *volatileSpecifier = 0;
             for (SpecifierListAST *it = targetFunctionDeclarator->cv_qualifier_list; it; it = it->next) {
@@ -954,9 +945,8 @@ Utils::ChangeSet FunctionDeclDefLink::changes(const Snapshot &snapshot, int targ
                     changes.remove(targetFile->endOf(constSpecifier->specifier_token - 1), targetFile->endOf(constSpecifier));
                 if (!newFunction->isVolatile())
                     changes.remove(targetFile->endOf(volatileSpecifier->specifier_token - 1), targetFile->endOf(volatileSpecifier));
-            }
             // otherwise adjust, remove or extend the one existing specifier
-            else {
+            } else {
                 SimpleSpecifierAST *specifier = constSpecifier ? constSpecifier : volatileSpecifier;
                 QTC_ASSERT(specifier, return changes);
 

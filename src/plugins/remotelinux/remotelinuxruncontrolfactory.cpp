@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -40,6 +40,7 @@
 #include <analyzerbase/analyzerstartparameters.h>
 #include <analyzerbase/analyzermanager.h>
 #include <analyzerbase/analyzerruncontrol.h>
+#include <analyzerbase/ianalyzertool.h>
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/target.h>
 #include <utils/portlist.h>
@@ -106,16 +107,10 @@ RunControl *RemoteLinuxRunControlFactory::create(RunConfiguration *runConfig, Ru
         return runControl;
     }
     case QmlProfilerRunMode: {
-        IAnalyzerTool *tool = AnalyzerManager::toolFromRunMode(mode);
-        if (!tool) {
-            if (errorMessage)
-                *errorMessage = tr("No analyzer tool selected.");
-            return 0;
-        }
         AnalyzerStartParameters params = RemoteLinuxAnalyzeSupport::startParameters(rc, mode);
-        AnalyzerRunControl * const runControl = new AnalyzerRunControl(tool, params, runConfig);
+        AnalyzerRunControl *runControl = AnalyzerManager::createRunControl(params, runConfig);
         RemoteLinuxAnalyzeSupport * const analyzeSupport =
-                new RemoteLinuxAnalyzeSupport(rc, runControl->engine(), mode);
+                new RemoteLinuxAnalyzeSupport(rc, runControl, mode);
         connect(runControl, SIGNAL(finished()), analyzeSupport, SLOT(handleProfilingFinished()));
         return runControl;
     }
@@ -126,6 +121,7 @@ RunControl *RemoteLinuxRunControlFactory::create(RunConfiguration *runConfig, Ru
     }
 
     QTC_ASSERT(false, return 0);
+    return 0;
 }
 
 } // namespace Internal

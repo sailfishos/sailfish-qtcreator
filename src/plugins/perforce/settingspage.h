@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -49,7 +49,7 @@ class SettingsPageWidget : public QWidget
     Q_OBJECT
 
 public:
-    explicit SettingsPageWidget(QWidget *parent);
+    explicit SettingsPageWidget(QWidget *parent = 0);
 
     void setSettings(const PerforceSettings &);
     Settings settings() const;
@@ -75,14 +75,12 @@ class SettingsPage : public VcsBase::VcsBaseOptionsPage
 public:
     SettingsPage();
 
-    QWidget *createPage(QWidget *parent);
+    QWidget *widget();
     void apply();
-    void finish() { }
-    bool matches(const QString &) const;
+    void finish();
 
 private:
-    QString m_searchKeywords;
-    SettingsPageWidget* m_widget;
+    QPointer<SettingsPageWidget> m_widget;
 };
 
 } // namespace Internal

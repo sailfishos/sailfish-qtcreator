@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -29,11 +29,12 @@
 
 #include "qtcreatorintegration.h"
 #include "formwindoweditor.h"
-#include "formclasswizardpage.h"
 #include "formeditorw.h"
 #include "editordata.h"
 #include <widgethost.h>
+#include <designer/cpp/formclasswizardpage.h>
 
+#include <cpptools/cppmodelmanagerinterface.h>
 #include <cpptools/cpptoolsconstants.h>
 #include <cpptools/insertionpointlocator.h>
 #include <cpptools/symbolfinder.h>
@@ -59,6 +60,7 @@ enum { indentation = 4 };
 using namespace Designer::Internal;
 using namespace CPlusPlus;
 using namespace TextEditor;
+using namespace ProjectExplorer;
 
 static QString msgClassNotFound(const QString &uiClassName, const QList<Document::Ptr> &docList)
 {
@@ -131,15 +133,16 @@ static QList<Document::Ptr> findDocumentsIncluding(const Snapshot &docTable,
 {
     QList<Document::Ptr> docList;
     foreach (const Document::Ptr &doc, docTable) { // we go through all documents
-        const QStringList includes = doc->includedFiles();
-        foreach (const QString &include, includes) {
+        const QList<Document::Include> includes = doc->resolvedIncludes()
+            + doc->unresolvedIncludes();
+        foreach (const Document::Include &include, includes) {
             if (checkFileNameOnly) {
-                const QFileInfo fi(include);
+                const QFileInfo fi(include.unresolvedFileName());
                 if (fi.fileName() == fileName) { // we are only interested in docs which includes fileName only
                     docList.append(doc);
                 }
             } else {
-                if (include == fileName)
+                if (include.resolvedFileName() == fileName)
                     docList.append(doc);
             }
         }
@@ -157,27 +160,26 @@ static bool inherits(const Overview &o, const Class *klass, const QString &baseC
     return false;
 }
 
-// Check for a class name where haystack is a member class of an object.
-// So, haystack can be shorter (can have some namespaces omitted because of a
-// "using namespace" declaration, for example, comparing
-// "foo::Ui::form", against "using namespace foo; Ui::form".
-
-static bool matchMemberClassName(const QString &needle, const QString &hayStack)
+QString fullyQualifiedName(const LookupContext &context, const Name *name, Scope *scope)
 {
-    if (needle == hayStack)
-        return true;
-    if (!needle.endsWith(hayStack))
-        return false;
-    // Check if there really is a separator "::"
-    const int separatorPos = needle.size() - hayStack.size() - 1;
-    return separatorPos > 1 && needle.at(separatorPos) == QLatin1Char(':');
+    if (!name || !scope)
+        return QString();
+
+    const QList<LookupItem> items = context.lookup(name, scope);
+    if (items.isEmpty()) { // "ui_xxx.h" might not be generated and nothing is forward declared.
+        return Overview().prettyName(name);
+    } else {
+        Symbol *symbol = items.first().declaration();
+        return Overview().prettyName(LookupContext::fullyQualifiedName(symbol));
+    }
+    return QString();
 }
 
 // Find class definition in namespace (that is, the outer class
 // containing a member of the desired class type) or inheriting the desired class
 // in case of forms using the Multiple Inheritance approach
-static const Class *findClass(const Namespace *parentNameSpace,
-                                         const QString &className, QString *namespaceName)
+static const Class *findClass(const Namespace *parentNameSpace, const LookupContext &context,
+                              const QString &className, QString *namespaceName)
 {
     if (Designer::Constants::Internal::debug)
         qDebug() << Q_FUNC_INFO << className;
@@ -191,16 +193,22 @@ static const Class *findClass(const Namespace *parentNameSpace,
             // 1) we go through class members
             const unsigned classMemberCount = cl->memberCount();
             for (unsigned j = 0; j < classMemberCount; ++j)
-                if (const Declaration *decl = cl->memberAt(j)->asDeclaration()) {
+                if (Declaration *decl = cl->memberAt(j)->asDeclaration()) {
                 // we want to know if the class contains a member (so we look into
                 // a declaration) of uiClassName type
-                    const NamedType *nt = decl->type()->asNamedType();
+                    QString nameToMatch;
+                    if (const NamedType *nt = decl->type()->asNamedType()) {
+                        nameToMatch = fullyQualifiedName(context, nt->name(),
+                                                         decl->enclosingScope());
                     // handle pointers to member variables
-                    if (PointerType *pt = decl->type()->asPointerType())
-                        nt = pt->elementType()->asNamedType();
-
-                    if (nt && matchMemberClassName(className, o.prettyName(nt->name())))
-                            return cl;
+                    } else if (PointerType *pt = decl->type()->asPointerType()) {
+                        if (NamedType *nt = pt->elementType()->asNamedType()) {
+                            nameToMatch = fullyQualifiedName(context, nt->name(),
+                                                             decl->enclosingScope());
+                        }
+                    }
+                    if (!nameToMatch.isEmpty() && className == nameToMatch)
+                        return cl;
                 } // decl
             // 2) does it inherit the desired class
             if (inherits(o, cl, className))
@@ -211,7 +219,7 @@ static const Class *findClass(const Namespace *parentNameSpace,
                 QString tempNS = *namespaceName;
                 tempNS += o.prettyName(ns->name());
                 tempNS += QLatin1String("::");
-                if (const Class *cl = findClass(ns, className, &tempNS)) {
+                if (const Class *cl = findClass(ns, context, className, &tempNS)) {
                     *namespaceName = tempNS;
                     return cl;
                 }
@@ -225,8 +233,8 @@ static Function *findDeclaration(const Class *cl, const QString &functionName)
 {
     const QString funName = QString::fromUtf8(QMetaObject::normalizedSignature(functionName.toUtf8()));
     const unsigned mCount = cl->memberCount();
-    // we are interested only in declarations (can be decl of method or of a field)
-    // we are only interested in declarations of methods
+    // we are interested only in declarations (can be decl of function or of a field)
+    // we are only interested in declarations of functions
     const Overview overview;
     for (unsigned j = 0; j < mCount; ++j) { // go through all members
         if (Declaration *decl = cl->memberAt(j)->asDeclaration())
@@ -251,7 +259,7 @@ static Function *findDeclaration(const Class *cl, const QString &functionName)
     return 0;
 }
 
-// TODO: remove me, this is taken from cppeditor.cpp. Find some common place for this method
+// TODO: remove me, this is taken from cppeditor.cpp. Find some common place for this function
 static Document::Ptr findDefinition(Function *functionDeclaration, int *line)
 {
     if (CppTools::CppModelManagerInterface *cppModelManager = CppTools::CppModelManagerInterface::instance()) {
@@ -301,7 +309,7 @@ static void addDeclaration(const Snapshot &snapshot,
             tc.beginEditBlock();
             tc.insertText(loc.prefix() + declaration + loc.suffix());
             tc.setPosition(pos, QTextCursor::KeepAnchor);
-            editor->indentInsertedText(tc);
+            editor->baseTextDocument()->autoIndent(tc);
             tc.endEditBlock();
         }
     }
@@ -342,7 +350,7 @@ static Document::Ptr addDefinition(const Snapshot &docTable,
                 //! \todo use the InsertionPointLocator to insert at the correct place.
                 // (we'll have to extend that class first to do definition insertions)
 
-                const QString contents = editable->textDocument()->contents();
+                const QString contents = editable->textDocument()->plainText();
                 int column;
                 editable->convertPosition(contents.length(), line, &column);
                 editable->gotoLine(*line, column);
@@ -442,14 +450,15 @@ static QString addParameterNames(const QString &functionSignature, const QString
 typedef QPair<const Class *, Document::Ptr> ClassDocumentPtrPair;
 
 static ClassDocumentPtrPair
-        findClassRecursively(const Snapshot &docTable,
-                             const Document::Ptr &doc, const QString &className,
+        findClassRecursively(const LookupContext &context, const QString &className,
                              unsigned maxIncludeDepth, QString *namespaceName)
 {
+    const Document::Ptr doc = context.thisDocument();
+    const Snapshot docTable = context.snapshot();
     if (Designer::Constants::Internal::debug)
         qDebug() << Q_FUNC_INFO << doc->fileName() << className << maxIncludeDepth;
     // Check document
-    if (const Class *cl = findClass(doc->globalNamespace(), className, namespaceName))
+    if (const Class *cl = findClass(doc->globalNamespace(), context, className, namespaceName))
         return ClassDocumentPtrPair(cl, doc);
     if (maxIncludeDepth) {
         // Check the includes
@@ -458,7 +467,9 @@ static ClassDocumentPtrPair
             const Snapshot::const_iterator it = docTable.find(include);
             if (it != docTable.end()) {
                 const Document::Ptr includeDoc = it.value();
-                const ClassDocumentPtrPair irc = findClassRecursively(docTable, it.value(), className, recursionMaxIncludeDepth, namespaceName);
+                LookupContext context(includeDoc, docTable);
+                const ClassDocumentPtrPair irc = findClassRecursively(context, className,
+                    recursionMaxIncludeDepth, namespaceName);
                 if (irc.first)
                     return irc;
             }
@@ -490,13 +501,13 @@ static Document::Ptr getParsedDocument(const QString &fileName,
                                        CppTools::CppModelManagerInterface::WorkingCopy &workingCopy,
                                        Snapshot &snapshot)
 {
-    QString src;
+    QByteArray src;
     if (workingCopy.contains(fileName)) {
         src = workingCopy.source(fileName);
     } else {
         Utils::FileReader reader;
         if (reader.fetch(fileName)) // ### FIXME error reporting
-            src = QString::fromLocal8Bit(reader.data()); // ### FIXME encoding
+            src = QString::fromLocal8Bit(reader.data()).toUtf8();
     }
 
     Document::Ptr doc = snapshot.preprocessedDocument(src, fileName);
@@ -517,7 +528,7 @@ bool QtCreatorIntegration::navigateToSlot(const QString &objectName,
 
     const EditorData ed = m_few->activeEditor();
     QTC_ASSERT(ed, return false);
-    const QString currentUiFile = ed.formWindowEditor->document()->fileName();
+    const QString currentUiFile = ed.formWindowEditor->document()->filePath();
 #if 0
     return Designer::Internal::navigateToSlot(currentUiFile, objectName, signalSignature, parameterNames, errorMessage);
 #endif
@@ -530,21 +541,28 @@ bool QtCreatorIntegration::navigateToSlot(const QString &objectName,
     const QString uiFolder = fi.absolutePath();
     const QString uicedName = QLatin1String("ui_") + fi.completeBaseName() + QLatin1String(".h");
 
-    // Retrieve code model snapshot restricted to project of ui file.
-    const ProjectExplorer::Project *uiProject = ProjectExplorer::ProjectExplorerPlugin::instance()->session()->projectForFile(currentUiFile);
-    if (!uiProject) {
-        *errorMessage = tr("Internal error: No project could be found for %1.").arg(currentUiFile);
-        return false;
-    }
+    // Retrieve code model snapshot restricted to project of ui file or the working copy.
     Snapshot docTable = CppTools::CppModelManagerInterface::instance()->snapshot();
     Snapshot newDocTable;
-
-    for (Snapshot::iterator it = docTable.begin(); it != docTable.end(); ++it) {
-        const ProjectExplorer::Project *project = ProjectExplorer::ProjectExplorerPlugin::instance()->session()->projectForFile(it.key());
-        if (project == uiProject)
-            newDocTable.insert(it.value());
+    const Project *uiProject = SessionManager::projectForFile(currentUiFile);
+    if (uiProject) {
+        Snapshot::const_iterator end = docTable.end();
+        for (Snapshot::iterator it = docTable.begin(); it != end; ++it) {
+            const Project *project = SessionManager::projectForFile(it.key());
+            if (project == uiProject)
+                newDocTable.insert(it.value());
+        }
+    } else {
+        const CppTools::CppModelManagerInterface::WorkingCopy workingCopy =
+                CppTools::CppModelManagerInterface::instance()->workingCopy();
+        QHashIterator<QString, QPair<QByteArray, unsigned> > it = workingCopy.iterator();
+        while (it.hasNext()) {
+            it.next();
+            const QString fileName = it.key();
+            if (fileName != CppTools::CppModelManagerInterface::configurationFileName())
+                newDocTable.insert(docTable.document(fileName));
+        }
     }
-
     docTable = newDocTable;
 
     // take all docs, find the ones that include the ui_xx.h.
@@ -578,7 +596,8 @@ bool QtCreatorIntegration::navigateToSlot(const QString &objectName,
     Document::Ptr doc;
 
     foreach (const Document::Ptr &d, docMap) {
-        const ClassDocumentPtrPair cd = findClassRecursively(docTable, d, uiClass, 1u , &namespaceName);
+        LookupContext context(d, docTable);
+        const ClassDocumentPtrPair cd = findClassRecursively(context, uiClass, 1u , &namespaceName);
         if (cd.first) {
             cl = cd.first;
             doc = cd.second;
@@ -637,8 +656,7 @@ void QtCreatorIntegration::slotSyncSettingsToDesigner()
 {
 #if QT_VERSION > 0x040800
     // Set promotion-relevant parameters on integration.
-    const Core::MimeDatabase *mdb = Core::ICore::mimeDatabase();
-    setHeaderSuffix(mdb->preferredSuffixByType(QLatin1String(CppTools::Constants::CPP_HEADER_MIMETYPE)));
+    setHeaderSuffix(Core::MimeDatabase::preferredSuffixByType(QLatin1String(CppTools::Constants::CPP_HEADER_MIMETYPE)));
     setHeaderLowercase(FormClassWizardPage::lowercaseHeaderFiles());
 #endif
 }

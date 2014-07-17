@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2012 - 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -34,21 +34,42 @@
 
 #include <extensionsystem/iplugin.h>
 
+QT_BEGIN_NAMESPACE
+class QAction;
+QT_END_NAMESPACE
+
 namespace Qnx {
 namespace Internal {
 
-class QNXPlugin : public ExtensionSystem::IPlugin
+class QnxPlugin : public ExtensionSystem::IPlugin
 {
     Q_OBJECT
     Q_PLUGIN_METADATA(IID "org.qt-project.Qt.QtCreatorPlugin" FILE "Qnx.json")
 
 public:
-    QNXPlugin();
-    ~QNXPlugin();
+    QnxPlugin();
+    ~QnxPlugin();
 
     bool initialize(const QStringList &arguments, QString *errorString);
     void extensionsInitialized();
     ShutdownFlag aboutToShutdown();
+
+private slots:
+    void updateDebuggerActions();
+#ifdef WITH_TESTS
+    void testBarDescriptorDocumentSetValue_data();
+    void testBarDescriptorDocumentSetValue();
+
+    void testBarDescriptorDocumentSetBannerComment_data();
+    void testBarDescriptorDocumentSetBannerComment();
+
+    void testConfigurationManager_data();
+    void testConfigurationManager();
+#endif
+
+private:
+    QAction *m_debugSeparator;
+    QAction *m_attachToQnxApplication;
 };
 
 } // namespace Internal

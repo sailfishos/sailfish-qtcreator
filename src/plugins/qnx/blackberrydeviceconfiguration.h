@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2012 - 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -34,9 +34,7 @@
 
 #include <remotelinux/linuxdevice.h>
 
-namespace ProjectExplorer {
-class Kit;
-}
+namespace ProjectExplorer { class Kit; }
 
 namespace Qnx {
 namespace Internal {
@@ -62,12 +60,13 @@ public:
     ProjectExplorer::IDeviceWidget *createWidget();
     QList<Core::Id> actionIds() const;
     QString displayNameForActionId(Core::Id actionId) const;
-    void executeAction(Core::Id actionId, QWidget *parent) const;
+    void executeAction(Core::Id actionId, QWidget *parent);
     ProjectExplorer::IDevice::Ptr clone() const;
+    ProjectExplorer::DeviceProcessList *createProcessListModel(QObject *parent) const;
+    bool hasDeviceTester() const;
+    ProjectExplorer::DeviceProcessSignalOperation::Ptr signalOperation() const;
 
     static ConstPtr device(const ProjectExplorer::Kit *k);
-
-    ProjectExplorer::DeviceProcessSupport::Ptr processSupport() const;
 
 protected:
     BlackBerryDeviceConfiguration();

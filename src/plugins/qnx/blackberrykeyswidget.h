@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -32,19 +32,20 @@
 #ifndef BLACKBERRYKEYSWIDGET_H_H
 #define BLACKBERRYKEYSWIDGET_H_H
 
-#include "blackberryconfiguration.h"
-
 #include <QWidget>
-#include <QStandardItemModel>
+#include <QString>
 
 QT_BEGIN_NAMESPACE
-class QItemSelection;
+class QStandardItemModel;
+class QModelIndex;
 QT_END_NAMESPACE
 
 namespace Qnx {
 namespace Internal {
 
-class BlackBerryCertificateModel;
+class BlackBerryCertificate;
+class BlackBerrySigningUtils;
+class BlackBerryDebugTokenRequester;
 class Ui_BlackBerryKeysWidget;
 
 class BlackBerryKeysWidget : public QWidget
@@ -52,28 +53,38 @@ class BlackBerryKeysWidget : public QWidget
     Q_OBJECT
 public:
     explicit BlackBerryKeysWidget(QWidget *parent = 0);
-
-    void apply();
+    void saveSettings();
 
 private slots:
-    void registerKey();
-    void unregisterKey();
+    void certificateLoaded(int status);
     void createCertificate();
-    void importCertificate();
-    void deleteCertificate();
-    void handleSelectionChanged(
-            const QItemSelection &selected,
-            const QItemSelection &deselected);
+    void clearCertificate();
+    void loadDefaultCertificate();
+    void updateDebugTokenList();
+
+    void requestDebugToken();
+    void importDebugToken();
+    void editDebugToken();
+    void removeDebugToken();
+    void updateDebugToken(const QStringList &pins);
+    void requestFinished(int status);
+    void updateUi(const QModelIndex &index);
+
+protected:
+    void showEvent(QShowEvent *event);
 
 private:
-    void updateRegisterSection();
+    void updateKeysSection();
+    void updateCertificateSection();
+    void setCertificateError(const QString &error);
+    void setCreateCertificateVisible(bool show);
+    void initModel();
 
-    QString dataDir() const;
-    QString cskFilePath() const;
-    QString dbFilePath() const;
+    BlackBerrySigningUtils &m_utils;
 
     Ui_BlackBerryKeysWidget *m_ui;
-    BlackBerryCertificateModel *m_model;
+    QStandardItemModel *m_dtModel;
+    BlackBerryDebugTokenRequester *m_requester;
 };
 
 } // namespace Internal

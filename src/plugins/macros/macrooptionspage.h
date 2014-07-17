@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Nicolas Arnaud-Cormos
+** Copyright (c) 2014 Nicolas Arnaud-Cormos
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,16 +30,16 @@
 #ifndef MACROSPLUGIN_MACROOPTIONSPAGE_H
 #define MACROSPLUGIN_MACROOPTIONSPAGE_H
 
-#include "macros_global.h"
-
 #include <coreplugin/dialogs/ioptionspage.h>
+
+#include <QPointer>
 
 namespace Macros {
 namespace Internal {
 
 class MacroOptionsWidget;
 
-class MACROS_EXPORT MacroOptionsPage : public Core::IOptionsPage
+class MacroOptionsPage : public Core::IOptionsPage
 {
     Q_OBJECT
 
@@ -47,12 +47,12 @@ public:
     MacroOptionsPage(QObject *parent = 0);
 
     // IOptionsPage implementation
-    QWidget *createPage(QWidget *parent);
+    QWidget *widget();
     void apply();
     void finish();
 
 private:
-    Internal::MacroOptionsWidget *m_widget;
+    QPointer<MacroOptionsWidget> m_widget;
 };
 
 } // namespace Internal

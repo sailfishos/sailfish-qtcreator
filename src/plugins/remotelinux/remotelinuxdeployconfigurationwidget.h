@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -36,9 +36,7 @@
 namespace RemoteLinux {
 class RemoteLinuxDeployConfiguration;
 
-namespace Internal {
-class RemoteLinuxDeployConfigurationWidgetPrivate;
-} // namespace Internal
+namespace Internal { class RemoteLinuxDeployConfigurationWidgetPrivate; }
 
 class REMOTELINUX_EXPORT RemoteLinuxDeployConfigurationWidget
     : public ProjectExplorer::NamedWidget

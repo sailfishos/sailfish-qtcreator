@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -47,6 +47,11 @@
 
 namespace GenericProjectManager {
 namespace Internal {
+
+static const char *const ConfigFileTemplate =
+        "// Add predefined macros for your project here. For example:\n"
+        "// #define THE_ANSWER 42\n"
+        ;
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -108,40 +113,29 @@ QString GenericProjectWizardDialog::projectName() const
 //////////////////////////////////////////////////////////////////////////////
 
 GenericProjectWizard::GenericProjectWizard()
-    : Core::BaseFileWizard(parameters())
-{ }
-
-Core::FeatureSet GenericProjectWizard::requiredFeatures() const
 {
-    return Core::FeatureSet();
-}
-
-Core::BaseFileWizardParameters GenericProjectWizard::parameters()
-{
-    Core::BaseFileWizardParameters parameters(ProjectWizard);
+    setWizardKind(ProjectWizard);
     // TODO do something about the ugliness of standard icons in sizes different than 16, 32, 64, 128
     {
         QPixmap icon(22, 22);
         icon.fill(Qt::transparent);
         QPainter p(&icon);
         p.drawPixmap(3, 3, 16, 16, qApp->style()->standardIcon(QStyle::SP_DirIcon).pixmap(16));
-        parameters.setIcon(icon);
+        setIcon(icon);
     }
-    parameters.setDisplayName(tr("Import Existing Project"));
-    parameters.setId(QLatin1String("Z.Makefile"));
-    parameters.setDescription(tr("Imports existing projects that do not use qmake, CMake or Autotools. "
-                                 "This allows you to use Qt Creator as a code editor."));
-    parameters.setCategory(QLatin1String(ProjectExplorer::Constants::IMPORT_WIZARD_CATEGORY));
-    parameters.setDisplayCategory(QLatin1String(ProjectExplorer::Constants::IMPORT_WIZARD_CATEGORY_DISPLAY));
-    parameters.setFlags(Core::IWizard::PlatformIndependent);
-    return parameters;
+    setDisplayName(tr("Import Existing Project"));
+    setId(QLatin1String("Z.Makefile"));
+    setDescription(tr("Imports existing projects that do not use qmake, CMake or Autotools. "
+                      "This allows you to use Qt Creator as a code editor."));
+    setCategory(QLatin1String(ProjectExplorer::Constants::IMPORT_WIZARD_CATEGORY));
+    setDisplayCategory(QLatin1String(ProjectExplorer::Constants::IMPORT_WIZARD_CATEGORY_DISPLAY));
+    setFlags(Core::IWizard::PlatformIndependent);
 }
 
 QWizard *GenericProjectWizard::createWizardDialog(QWidget *parent,
                                                   const Core::WizardDialogParameters &wizardDialogParameters) const
 {
     GenericProjectWizardDialog *wizard = new GenericProjectWizardDialog(parent);
-    setupWizard(wizard);
 
     wizard->setPath(wizardDialogParameters.defaultPath());
 
@@ -166,9 +160,7 @@ Core::GeneratedFiles GenericProjectWizard::generateFiles(const QWizard *w,
     const QString configFileName = QFileInfo(dir, projectName + QLatin1String(".config")).absoluteFilePath();
     const QStringList paths = wizard->selectedPaths();
 
-    Core::MimeDatabase *mimeDatabase = Core::ICore::mimeDatabase();
-
-    Core::MimeType headerTy = mimeDatabase->findByType(QLatin1String("text/x-chdr"));
+    Core::MimeType headerTy = Core::MimeDatabase::findByType(QLatin1String("text/x-chdr"));
 
     QStringList nameFilters;
     foreach (const Core::MimeGlobPattern &gp, headerTy.globPatterns())
@@ -176,11 +168,15 @@ Core::GeneratedFiles GenericProjectWizard::generateFiles(const QWizard *w,
 
     QStringList includePaths;
     foreach (const QString &path, paths) {
-        QFileInfo fileInfo(dir, path);
+        QFileInfo fileInfo(path);
         QDir thisDir(fileInfo.absoluteFilePath());
 
-        if (! thisDir.entryList(nameFilters, QDir::Files).isEmpty())
-            includePaths.append(path);
+        if (! thisDir.entryList(nameFilters, QDir::Files).isEmpty()) {
+            QString relative = dir.relativeFilePath(path);
+            if (relative.isEmpty())
+                relative = QLatin1String(".");
+            includePaths.append(relative);
+        }
     }
 
     Core::GeneratedFile generatedCreatorFile(creatorFileName);
@@ -198,7 +194,7 @@ Core::GeneratedFiles GenericProjectWizard::generateFiles(const QWizard *w,
     generatedIncludesFile.setContents(includePaths.join(QLatin1String("\n")));
 
     Core::GeneratedFile generatedConfigFile(configFileName);
-    generatedConfigFile.setContents(QLatin1String("// ADD PREDEFINED MACROS HERE!\n"));
+    generatedConfigFile.setContents(QLatin1String(ConfigFileTemplate));
 
     Core::GeneratedFiles files;
     files.append(generatedFilesFile);

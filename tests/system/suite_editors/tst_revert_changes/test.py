@@ -1,6 +1,6 @@
 #############################################################################
 ##
-## Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+## Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ## Contact: http://www.qt-project.org/legal
 ##
 ## This file is part of Qt Creator.
@@ -43,7 +43,6 @@ def init():
         endShortCut = "<Ctrl+End>"
 
 def main():
-    global cppEditorStr
     folder = prepareTemplate(originalSources)
     if folder == None:
         test.fatal("Could not prepare test files - leaving test")
@@ -91,8 +90,6 @@ def __modifyProFile__():
 # re-order some stuff inside header
 def __modifyHeader__():
     global cppEditorStr, homeShortCut, endShortCut
-    if platform.system() == "Darwin":
-        JIRA.performWorkaroundForBug(8735, JIRA.Bug.CREATOR, waitForObject(cppEditorStr, 1000))
     if placeCursorToLine(cppEditorStr, "class.+", True):
         type(cppEditorStr, homeShortCut)
         markText(cppEditorStr, "Down", 5)

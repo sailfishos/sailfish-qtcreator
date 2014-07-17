@@ -27,6 +27,7 @@
 #include "mersdkkitinformation.h"
 
 #include <utils/environment.h>
+#include <qtsupport/baseqtversion.h>
 #include <qtsupport/qtkitinformation.h>
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/toolchain.h>
@@ -90,7 +91,7 @@ MerQtVersion *MerQtVersion::clone() const
 
 QList<Abi> MerQtVersion::detectQtAbis() const
 {
-    return qtAbisFromLibrary(qtCorePath(versionInfo(), qtVersionString()));
+    return qtAbisFromLibrary(qtCorePaths(versionInfo(), qtVersionString()));
 }
 
 QString MerQtVersion::description() const

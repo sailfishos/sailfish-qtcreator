@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -55,28 +55,26 @@ QmlJSToolsSettings::QmlJSToolsSettings(QObject *parent)
 {
     QTC_ASSERT(!m_globalCodeStyle, return);
 
-    TextEditorSettings *textEditorSettings = TextEditorSettings::instance();
-
     // code style factory
     ICodeStylePreferencesFactory *factory = new QmlJSCodeStylePreferencesFactory();
-    textEditorSettings->registerCodeStyleFactory(factory);
+    TextEditorSettings::registerCodeStyleFactory(factory);
 
     // code style pool
     CodeStylePool *pool = new CodeStylePool(factory, this);
-    textEditorSettings->registerCodeStylePool(Constants::QML_JS_SETTINGS_ID, pool);
+    TextEditorSettings::registerCodeStylePool(Constants::QML_JS_SETTINGS_ID, pool);
 
     // global code style settings
     m_globalCodeStyle = new SimpleCodeStylePreferences(this);
     m_globalCodeStyle->setDelegatingPool(pool);
     m_globalCodeStyle->setDisplayName(tr("Global", "Settings"));
-    m_globalCodeStyle->setId(QLatin1String(idKey));
+    m_globalCodeStyle->setId(idKey);
     pool->addCodeStyle(m_globalCodeStyle);
-    textEditorSettings->registerCodeStyle(QmlJSTools::Constants::QML_JS_SETTINGS_ID, m_globalCodeStyle);
+    TextEditorSettings::registerCodeStyle(QmlJSTools::Constants::QML_JS_SETTINGS_ID, m_globalCodeStyle);
 
     // built-in settings
     // Qt style
     SimpleCodeStylePreferences *qtCodeStyle = new SimpleCodeStylePreferences();
-    qtCodeStyle->setId(QLatin1String("qt"));
+    qtCodeStyle->setId("qt");
     qtCodeStyle->setDisplayName(tr("Qt"));
     qtCodeStyle->setReadOnly(true);
     TabSettings qtTabSettings;
@@ -119,13 +117,12 @@ QmlJSToolsSettings::QmlJSToolsSettings(QObject *parent)
                                     QString(), s, &legacyTabSettings);
             } else {
                 // delegating to global
-                legacyTabSettings = textEditorSettings->codeStyle()->currentTabSettings();
+                legacyTabSettings = TextEditorSettings::codeStyle()->currentTabSettings();
             }
 
             // create custom code style out of old settings
             ICodeStylePreferences *oldCreator = pool->createCodeStyle(
-                     QLatin1String("legacy"), legacyTabSettings,
-                     QVariant(), tr("Old Creator"));
+                     "legacy", legacyTabSettings, QVariant(), tr("Old Creator"));
 
             // change the current delegate and save
             m_globalCodeStyle->setCurrentDelegate(oldCreator);
@@ -137,32 +134,19 @@ QmlJSToolsSettings::QmlJSToolsSettings(QObject *parent)
     }
 
     // mimetypes to be handled
-    textEditorSettings->registerMimeTypeForLanguageId(
-                QLatin1String(Constants::QML_MIMETYPE),
-                Constants::QML_JS_SETTINGS_ID);
-    textEditorSettings->registerMimeTypeForLanguageId(
-                QLatin1String(Constants::QBS_MIMETYPE),
-                Constants::QML_JS_SETTINGS_ID);
-    textEditorSettings->registerMimeTypeForLanguageId(
-                QLatin1String(Constants::QMLPROJECT_MIMETYPE),
-                Constants::QML_JS_SETTINGS_ID);
-    textEditorSettings->registerMimeTypeForLanguageId(
-                QLatin1String(Constants::QMLTYPES_MIMETYPE),
-                Constants::QML_JS_SETTINGS_ID);
-    textEditorSettings->registerMimeTypeForLanguageId(
-                QLatin1String(Constants::JS_MIMETYPE),
-                Constants::QML_JS_SETTINGS_ID);
-    textEditorSettings->registerMimeTypeForLanguageId(
-                QLatin1String(Constants::JSON_MIMETYPE),
-                Constants::QML_JS_SETTINGS_ID);
+    TextEditorSettings::registerMimeTypeForLanguageId(Constants::QML_MIMETYPE, Constants::QML_JS_SETTINGS_ID);
+    TextEditorSettings::registerMimeTypeForLanguageId(Constants::QBS_MIMETYPE, Constants::QML_JS_SETTINGS_ID);
+    TextEditorSettings::registerMimeTypeForLanguageId(Constants::QMLPROJECT_MIMETYPE, Constants::QML_JS_SETTINGS_ID);
+    TextEditorSettings::registerMimeTypeForLanguageId(Constants::QMLTYPES_MIMETYPE, Constants::QML_JS_SETTINGS_ID);
+    TextEditorSettings::registerMimeTypeForLanguageId(Constants::JS_MIMETYPE, Constants::QML_JS_SETTINGS_ID);
+    TextEditorSettings::registerMimeTypeForLanguageId(Constants::JSON_MIMETYPE, Constants::QML_JS_SETTINGS_ID);
 }
 
 QmlJSToolsSettings::~QmlJSToolsSettings()
 {
-    TextEditor::TextEditorSettings *textEditorSettings = TextEditor::TextEditorSettings::instance();
-    textEditorSettings->unregisterCodeStyle(QmlJSTools::Constants::QML_JS_SETTINGS_ID);
-    textEditorSettings->unregisterCodeStylePool(QmlJSTools::Constants::QML_JS_SETTINGS_ID);
-    textEditorSettings->unregisterCodeStyleFactory(QmlJSTools::Constants::QML_JS_SETTINGS_ID);
+    TextEditorSettings::unregisterCodeStyle(QmlJSTools::Constants::QML_JS_SETTINGS_ID);
+    TextEditorSettings::unregisterCodeStylePool(QmlJSTools::Constants::QML_JS_SETTINGS_ID);
+    TextEditorSettings::unregisterCodeStyleFactory(QmlJSTools::Constants::QML_JS_SETTINGS_ID);
 
     delete m_globalCodeStyle;
     m_globalCodeStyle = 0;

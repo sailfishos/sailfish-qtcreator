@@ -1,6 +1,6 @@
 #############################################################################
 ##
-## Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+## Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ## Contact: http://www.qt-project.org/legal
 ##
 ## This file is part of Qt Creator.
@@ -28,26 +28,11 @@
 #############################################################################
 
 source("../../shared/qtcreator.py")
-source("../../shared/suites_qtta.py")
-
-global templateDir
-
-def copyToTemplateDir(filepath):
-    global templateDir
-    dst = os.path.join(templateDir, os.path.basename(filepath))
-    shutil.copyfile(filepath, dst)
-    return dst
 
 def main():
-    global templateDir
-    files = map(lambda record: os.path.normpath(os.path.join(srcPath, testData.field(record, "filename"))),
-                testData.dataset("files.tsv"))
-    for currentFile in files:
-        if not neededFilePresent(currentFile):
-            return
-    templateDir = tempDir()
-    files = map(copyToTemplateDir, files)
-
+    files = checkAndCopyFiles(testData.dataset("files.tsv"), "filename", tempDir())
+    if not files:
+        return
     startApplication("qtcreator" + SettingsPath)
     if not startedWithoutPluginError():
         return
@@ -61,8 +46,6 @@ def main():
                        "Skipping this file for now.")
             continue
 
-        if platform.system() == 'Darwin':
-            JIRA.performWorkaroundForBug(8735, JIRA.Bug.CREATOR, editor)
         contentBefore = readFile(currentFile)
         popupText = "The file %s was removed. Do you want to save it under a different name, or close the editor?"
         os.remove(currentFile)

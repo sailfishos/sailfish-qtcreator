@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -44,9 +44,7 @@ class GitoriousHostWizardPage;
 struct GitoriousProject;
 class GitoriousProjectWidget;
 
-namespace Ui {
-    class GitoriousProjectWizardPage;
-}
+namespace Ui { class GitoriousProjectWizardPage; }
 
 /* GitoriousProjectWizardPage: Let the user select a project via
  * GitoriousProjectWidget. As switching back and forth hosts (repopulating

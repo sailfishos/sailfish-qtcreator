@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -36,7 +36,7 @@
 
 namespace VcsBase {
 
-struct VcsBaseOutputWindowPrivate;
+class VcsBaseOutputWindowPrivate;
 
 class VCSBASE_EXPORT VcsBaseOutputWindow : public Core::IOutputPane
 {
@@ -76,6 +76,14 @@ public:
                                         const QString &executable,
                                         const QStringList &arguments);
 
+    enum MessageStyle {
+        None,
+        Error, // Red error text
+        Warning, // Dark yellow warning text
+        Command, // A bold command with timetamp "10:00 " + "Executing: vcs -diff"
+        Message, // A blue message text (e.g. "command has finished successfully")
+    };
+
 public slots:
     void setRepository(const QString &);
     void clearRepository();
@@ -85,15 +93,12 @@ public slots:
     // Set text from QProcess' output data using the Locale's converter.
     void setData(const QByteArray &data);
 
-    // Append text and pop up.
-    void append(const QString &text);
-    // Append data using the Locale's converter and pop up.
-    void appendData(const QByteArray &data);
+    // Append text with a certain style (none by default),
+    // and maybe pop up (silent by default)
+    void append(const QString &text, enum MessageStyle style = None, bool silently = false);
 
     // Silently append text, do not pop up.
     void appendSilently(const QString &text);
-    // Silently append data using the Locale's converter, do not pop up.
-    void appendDataSilently(const QByteArray &data);
 
     // Append red error text and pop up.
     void appendError(const QString &text);
@@ -110,8 +115,13 @@ public slots:
                        const QString &binary,
                        const QStringList &args);
 
+    // Append a blue message text and pop up.
+    void appendMessage(const QString &text);
+
 private:
     VcsBaseOutputWindow();
+
+    QString filterPasswordFromUrls(const QString &input);
 
     VcsBaseOutputWindowPrivate *d;
 };

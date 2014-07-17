@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -41,10 +41,10 @@
 
 QT_FORWARD_DECLARE_CLASS(QTimer)
 
-namespace Find {
-    struct SearchResultItem;
-    class SearchResult;
-} // namespace Find
+namespace Core {
+class SearchResultItem;
+class SearchResult;
+} // namespace Core
 
 namespace CppTools {
 class CppModelManagerInterface;
@@ -54,8 +54,8 @@ namespace Internal {
 class CppFindReferencesParameters
 {
 public:
-    CPlusPlus::LookupContext context;
-    CPlusPlus::Symbol *symbol;
+    QList<QByteArray> symbolId;
+    QByteArray symbolFileName;
 };
 
 class CppFindReferences: public QObject
@@ -78,13 +78,16 @@ public:
 
     CPlusPlus::DependencyTable updateDependencyTable(CPlusPlus::Snapshot snapshot);
 
-private Q_SLOTS:
+public slots:
+    void flushDependencyTable();
+
+private slots:
     void displayResults(int first, int last);
     void searchFinished();
     void cancel();
     void setPaused(bool paused);
-    void openEditor(const Find::SearchResultItem &item);
-    void onReplaceButtonClicked(const QString &text, const QList<Find::SearchResultItem> &items, bool preserveCase);
+    void openEditor(const Core::SearchResultItem &item);
+    void onReplaceButtonClicked(const QString &text, const QList<Core::SearchResultItem> &items, bool preserveCase);
     void searchAgain();
 
 private:
@@ -92,16 +95,17 @@ private:
                     const QString &replacement, bool replace);
     void findMacroUses(const CPlusPlus::Macro &macro, const QString &replacement,
                        bool replace);
-    void findAll_helper(Find::SearchResult *search);
+    void findAll_helper(Core::SearchResult *search, CPlusPlus::Symbol *symbol,
+                        const CPlusPlus::LookupContext &context);
     CPlusPlus::DependencyTable dependencyTable() const;
     void setDependencyTable(const CPlusPlus::DependencyTable &newTable);
-    void createWatcher(const QFuture<CPlusPlus::Usage> &future, Find::SearchResult *search);
-    bool findSymbol(CppFindReferencesParameters *parameters,
-                    const CPlusPlus::Snapshot &snapshot);
+    void createWatcher(const QFuture<CPlusPlus::Usage> &future, Core::SearchResult *search);
+    CPlusPlus::Symbol *findSymbol(const CppFindReferencesParameters &parameters,
+                    const CPlusPlus::Snapshot &snapshot, CPlusPlus::LookupContext *context);
 
 private:
-    QPointer<CppModelManagerInterface> _modelManager;
-    QMap<QFutureWatcher<CPlusPlus::Usage> *, QPointer<Find::SearchResult> > m_watchers;
+    QPointer<CppModelManagerInterface> m_modelManager;
+    QMap<QFutureWatcher<CPlusPlus::Usage> *, QPointer<Core::SearchResult> > m_watchers;
 
     mutable QMutex m_depsLock;
     CPlusPlus::DependencyTable m_deps;

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -49,19 +49,19 @@ public:
     LocalProcessList(const IDevice::ConstPtr &device, QObject *parent = 0);
     virtual Qt::ItemFlags flags(const QModelIndex &index) const;
 
-    static QList<DeviceProcess> getLocalProcesses();
+    static QList<DeviceProcessItem> getLocalProcesses();
 
 private:
     void doUpdate();
-    void doKillProcess(const DeviceProcess &process);
+    void doKillProcess(const DeviceProcessItem &process);
 
 private slots:
     void handleUpdate();
-    void reportDelayedKillStatus();
+    void reportDelayedKillStatus(const QString &errorMessage);
 
 private:
     const qint64 m_myPid;
-    QString m_error;
+
 };
 
 } // namespace Internal

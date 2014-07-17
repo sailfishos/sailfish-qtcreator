@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -29,6 +29,7 @@
 
 #include "qmlproject.h"
 #include "qmlprojectfile.h"
+#include "fileformat/qmlprojectfileformat.h"
 #include "fileformat/qmlprojectitem.h"
 #include "qmlprojectrunconfiguration.h"
 #include "qmlprojectconstants.h"
@@ -46,11 +47,12 @@
 #include <projectexplorer/target.h>
 #include <qtsupport/qtsupportconstants.h>
 
-#include <QDeclarativeComponent>
 #include <QDebug>
 
-namespace QmlProjectManager {
+using namespace Core;
+using namespace ProjectExplorer;
 
+namespace QmlProjectManager {
 namespace Internal {
 
 class QmlProjectKitMatcher : public ProjectExplorer::KitMatcher
@@ -106,10 +108,12 @@ QmlProject::QmlProject(Internal::Manager *manager, const QString &fileName)
     : m_manager(manager),
       m_fileName(fileName),
       m_defaultImport(UnknownImport),
-      m_modelManager(QmlJS::ModelManagerInterface::instance())
+      m_modelManager(QmlJS::ModelManagerInterface::instance()),
+      m_activeTarget(0)
 {
-    setProjectContext(Core::Context(QmlProjectManager::Constants::PROJECTCONTEXT));
-    setProjectLanguages(Core::Context(ProjectExplorer::Constants::LANG_QMLJS));
+    setId("QmlProjectManager.QmlProject");
+    setProjectContext(Context(QmlProjectManager::Constants::PROJECTCONTEXT));
+    setProjectLanguages(Context(ProjectExplorer::Constants::LANG_QMLJS));
 
     QFileInfo fileInfo(m_fileName);
     m_projectName = fileInfo.completeBaseName();
@@ -117,7 +121,7 @@ QmlProject::QmlProject(Internal::Manager *manager, const QString &fileName)
     m_file = new Internal::QmlProjectFile(this, fileName);
     m_rootNode = new Internal::QmlProjectNode(this, m_file);
 
-    Core::DocumentManager::addDocument(m_file, true);
+    DocumentManager::addDocument(m_file, true);
 
     m_manager->registerProject(this);
 }
@@ -126,7 +130,7 @@ QmlProject::~QmlProject()
 {
     m_manager->unregisterProject(this);
 
-    Core::DocumentManager::removeDocument(m_file);
+    DocumentManager::removeDocument(m_file);
 
     delete m_projectItem.data();
     delete m_rootNode;
@@ -140,7 +144,19 @@ void QmlProject::addedTarget(ProjectExplorer::Target *target)
         addedRunConfiguration(rc);
 }
 
-void QmlProject::onActiveTargetChanged(ProjectExplorer::Target * /*target*/)
+void QmlProject::onActiveTargetChanged(ProjectExplorer::Target *target)
+{
+    if (m_activeTarget)
+        disconnect(m_activeTarget, SIGNAL(kitChanged()), this, SLOT(onKitChanged()));
+    m_activeTarget = target;
+    if (m_activeTarget)
+        connect(target, SIGNAL(kitChanged()), this, SLOT(onKitChanged()));
+
+    // make sure e.g. the default qml imports are adapted
+    refresh(Configuration);
+}
+
+void QmlProject::onKitChanged()
 {
     // make sure e.g. the default qml imports are adapted
     refresh(Configuration);
@@ -157,7 +173,7 @@ void QmlProject::addedRunConfiguration(ProjectExplorer::RunConfiguration *rc)
 
 QDir QmlProject::projectDir() const
 {
-    return QFileInfo(document()->fileName()).dir();
+    return QFileInfo(projectFilePath()).dir();
 }
 
 QString QmlProject::filesFileName() const
@@ -177,27 +193,20 @@ static QmlProject::QmlImport detectImport(const QString &qml) {
 
 void QmlProject::parseProject(RefreshOptions options)
 {
-    Core::MessageManager *messageManager = Core::ICore::messageManager();
     if (options & Files) {
         if (options & ProjectFile)
             delete m_projectItem.data();
         if (!m_projectItem) {
-            Utils::FileReader reader;
-            if (reader.fetch(m_fileName)) {
-                QDeclarativeComponent *component = new QDeclarativeComponent(&m_engine, this);
-                component->setData(reader.data(), QUrl::fromLocalFile(m_fileName));
-                if (component->isReady()
-                    && qobject_cast<QmlProjectItem*>(component->create())) {
-                    m_projectItem = qobject_cast<QmlProjectItem*>(component->create());
-                    connect(m_projectItem.data(), SIGNAL(qmlFilesChanged(QSet<QString>,QSet<QString>)),
-                            this, SLOT(refreshFiles(QSet<QString>,QSet<QString>)));
-                } else {
-                    messageManager->printToOutputPane(tr("Error while loading project file %1.").arg(m_fileName), Core::MessageManager::NoModeSwitch);
-                    messageManager->printToOutputPane(component->errorString(), Core::MessageManager::NoModeSwitch);
-                }
-            } else {
-                messageManager->printToOutputPane(tr("QML project: %1").arg(reader.errorString()), Core::MessageManager::NoModeSwitch);
-            }
+              QString errorMessage;
+              m_projectItem = QmlProjectFileFormat::parseProjectFile(m_fileName, &errorMessage);
+              if (m_projectItem) {
+                  connect(m_projectItem.data(), SIGNAL(qmlFilesChanged(QSet<QString>,QSet<QString>)),
+                          this, SLOT(refreshFiles(QSet<QString>,QSet<QString>)));
+
+              } else {
+                  MessageManager::write(tr("Error while loading project file %1.").arg(m_fileName), MessageManager::NoModeSwitch);
+                  MessageManager::write(errorMessage);
+              }
         }
         if (m_projectItem) {
             m_projectItem.data()->setSourceDirectory(projectDir().path());
@@ -209,10 +218,8 @@ void QmlProject::parseProject(RefreshOptions options)
                 Utils::FileReader reader;
                 QString errorMessage;
                 if (!reader.fetch(mainFilePath, &errorMessage)) {
-                    messageManager->printToOutputPane(
-                                tr("Warning while loading project file %1.").arg(m_fileName),
-                                Core::MessageManager::NoModeSwitch);
-                    messageManager->printToOutputPane(errorMessage, Core::MessageManager::NoModeSwitch);
+                    MessageManager::write(tr("Warning while loading project file %1.").arg(m_fileName));
+                    MessageManager::write(errorMessage);
                 } else {
                     m_defaultImport = detectImport(QString::fromUtf8(reader.data()));
                 }
@@ -240,7 +247,7 @@ void QmlProject::refresh(RefreshOptions options)
             QmlJSTools::defaultProjectInfoForProject(this);
     projectInfo.importPaths = customImportPaths();
 
-    m_modelManager->updateProjectInfo(projectInfo);
+    m_modelManager->updateProjectInfo(projectInfo, this);
 }
 
 QStringList QmlProject::convertToAbsoluteFiles(const QStringList &paths) const
@@ -318,12 +325,7 @@ QString QmlProject::displayName() const
     return m_projectName;
 }
 
-Core::Id QmlProject::id() const
-{
-    return Core::Id("QmlProjectManager.QmlProject");
-}
-
-Core::IDocument *QmlProject::document() const
+IDocument *QmlProject::document() const
 {
     return m_file;
 }
@@ -335,7 +337,7 @@ ProjectExplorer::IProjectManager *QmlProject::projectManager() const
 
 bool QmlProject::supportsKit(ProjectExplorer::Kit *k, QString *errorMessage) const
 {
-    Core::Id deviceType = ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(k);
+    Id deviceType = ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(k);
     if (deviceType != ProjectExplorer::Constants::DESKTOP_DEVICE_TYPE) {
         if (errorMessage)
             *errorMessage = tr("Device type is not desktop.");
@@ -385,23 +387,21 @@ bool QmlProject::fromMap(const QVariantMap &map)
     if (!activeTarget()) {
         // find a kit that matches prerequisites (prefer default one)
         Internal::QmlProjectKitMatcher matcher(defaultImport());
-        ProjectExplorer::KitManager *kitManager = ProjectExplorer::KitManager::instance();
-        QList<ProjectExplorer::Kit*> kits = kitManager->kits(&matcher);
+        QList<Kit*> kits = KitManager::matchingKits(matcher);
 
         if (!kits.isEmpty()) {
-            ProjectExplorer::Kit *kit = 0;
-            if (kits.contains(kitManager->defaultKit())) {
-                kit = kitManager->defaultKit();
-            } else {
+            Kit *kit = 0;
+            if (kits.contains(KitManager::defaultKit()))
+                kit = KitManager::defaultKit();
+            else
                 kit = kits.first();
-            }
             addTarget(createTarget(kit));
         }
     }
 
     // addedTarget calls updateEnabled on the runconfigurations
     // which needs to happen after refresh
-    foreach (ProjectExplorer::Target *t, targets())
+    foreach (Target *t, targets())
         addedTarget(t);
 
     connect(this, SIGNAL(addedTarget(ProjectExplorer::Target*)),
@@ -409,6 +409,11 @@ bool QmlProject::fromMap(const QVariantMap &map)
 
     connect(this, SIGNAL(activeTargetChanged(ProjectExplorer::Target*)),
             this, SLOT(onActiveTargetChanged(ProjectExplorer::Target*)));
+
+    // make sure we get updates on kit changes
+    m_activeTarget = activeTarget();
+    if (m_activeTarget)
+        connect(m_activeTarget, SIGNAL(kitChanged()), this, SLOT(onKitChanged()));
 
     return true;
 }

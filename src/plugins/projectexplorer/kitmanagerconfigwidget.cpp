@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -35,6 +35,7 @@
 #include <utils/detailswidget.h>
 #include <utils/qtcassert.h>
 
+#include <QAction>
 #include <QFileDialog>
 #include <QGridLayout>
 #include <QLabel>
@@ -87,7 +88,7 @@ KitManagerConfigWidget::KitManagerConfigWidget(Kit *k) :
     connect(m_iconButton, SIGNAL(clicked()), this, SLOT(setIcon()));
     connect(m_nameEdit, SIGNAL(textChanged(QString)), this, SLOT(setDisplayName()));
 
-    KitManager *km = KitManager::instance();
+    QObject *km = KitManager::instance();
     connect(km, SIGNAL(unmanagedKitUpdated(ProjectExplorer::Kit*)),
             this, SLOT(workingCopyWasUpdated(ProjectExplorer::Kit*)));
     connect(km, SIGNAL(kitUpdated(ProjectExplorer::Kit*)),
@@ -98,10 +99,12 @@ KitManagerConfigWidget::~KitManagerConfigWidget()
 {
     qDeleteAll(m_widgets);
     m_widgets.clear();
+    qDeleteAll(m_actions);
+    m_actions.clear();
 
     KitManager::deleteKit(m_modifiedKit);
     // Make sure our workingCopy did not get registered somehow:
-    foreach (const Kit *k, KitManager::instance()->kits())
+    foreach (const Kit *k, KitManager::kits())
         QTC_CHECK(k->id() != Core::Id(WORKING_COPY_KIT_ID));
 }
 
@@ -113,7 +116,6 @@ QString KitManagerConfigWidget::displayName() const
 void KitManagerConfigWidget::apply()
 {
     bool mustSetDefault = m_isDefaultKit;
-    KitManager *km = KitManager::instance();
     bool mustRegister = false;
     if (!m_kit) {
         mustRegister = true;
@@ -121,10 +123,10 @@ void KitManagerConfigWidget::apply()
     }
     m_kit->copyFrom(m_modifiedKit);//m_isDefaultKit is reset in discard() here.
     if (mustRegister)
-        km->registerKit(m_kit);
+        KitManager::registerKit(m_kit);
 
     if (mustSetDefault)
-        km->setDefaultKit(m_kit);
+        KitManager::setDefaultKit(m_kit);
 
     m_isDefaultKit = mustSetDefault;
     emit dirty();
@@ -134,7 +136,7 @@ void KitManagerConfigWidget::discard()
 {
     if (m_kit) {
         m_modifiedKit->copyFrom(m_kit);
-        m_isDefaultKit = (m_kit == KitManager::instance()->defaultKit());
+        m_isDefaultKit = (m_kit == KitManager::defaultKit());
     } else {
         // This branch will only ever get reached once during setup of widget for a not-yet-existing
         // kit.
@@ -149,7 +151,7 @@ bool KitManagerConfigWidget::isDirty() const
 {
     return !m_kit
             || !m_kit->isEqual(m_modifiedKit)
-            || m_isDefaultKit != (KitManager::instance()->defaultKit() == m_kit);
+            || m_isDefaultKit != (KitManager::defaultKit() == m_kit);
 }
 
 bool KitManagerConfigWidget::isValid() const
@@ -174,6 +176,16 @@ void KitManagerConfigWidget::addConfigWidget(ProjectExplorer::KitConfigWidget *w
 
     QString name = widget->displayName();
     QString toolTip = widget->toolTip();
+
+    QAction *action = new QAction(tr("Mark as Mutable"), 0);
+    action->setCheckable(true);
+    action->setData(QVariant::fromValue(qobject_cast<QObject *>(widget)));
+    action->setChecked(widget->isMutable());
+    action->setEnabled(!widget->isSticky());
+    widget->mainWidget()->addAction(action);
+    widget->mainWidget()->setContextMenuPolicy(Qt::ActionsContextMenu);
+    connect(action, SIGNAL(toggled(bool)), this, SLOT(updateMutableState()));
+    m_actions << action;
 
     int row = m_layout->rowCount();
     m_layout->addWidget(widget->mainWidget(), row, WidgetColumn);
@@ -207,8 +219,6 @@ void KitManagerConfigWidget::makeStickySubWidgetsReadOnly()
         if (w->isSticky())
             w->makeReadOnly();
     }
-    m_iconButton->setEnabled(false);
-    m_nameEdit->setEnabled(false);
 }
 
 Kit *KitManagerConfigWidget::workingCopy() const
@@ -238,16 +248,19 @@ void KitManagerConfigWidget::removeKit()
 {
     if (!m_kit)
         return;
-    KitManager::instance()->deregisterKit(m_kit);
+    KitManager::deregisterKit(m_kit);
 }
 
 void KitManagerConfigWidget::setIcon()
 {
-    const QString path = QFileDialog::getOpenFileName(this, tr("Select Icon"), m_modifiedKit->iconPath(), tr("Images (*.png *.xpm *.jpg)"));
+    const Utils::FileName path = Utils::FileName::fromString(
+                QFileDialog::getOpenFileName(this, tr("Select Icon"),
+                                             m_modifiedKit->iconPath().toString(),
+                                             tr("Images (*.png *.xpm *.jpg)")));
     if (path.isEmpty())
         return;
 
-    const QIcon icon = QIcon(path);
+    const QIcon icon = Kit::icon(path);
     if (icon.isNull())
         return;
 
@@ -285,6 +298,18 @@ void KitManagerConfigWidget::kitWasUpdated(Kit *k)
     if (m_kit == k)
         discard();
     updateVisibility();
+}
+
+void KitManagerConfigWidget::updateMutableState()
+{
+    QAction *action = qobject_cast<QAction *>(sender());
+    if (!action)
+        return;
+    KitConfigWidget *widget = qobject_cast<KitConfigWidget *>(action->data().value<QObject *>());
+    if (!widget)
+        return;
+    widget->setMutable(action->isChecked());
+    emit dirty();
 }
 
 QLabel *KitManagerConfigWidget::createLabel(const QString &name, const QString &toolTip)

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -190,12 +190,16 @@ bool FunctionHintProposalWidget::eventFilter(QObject *obj, QEvent *e)
 {
     switch (e->type()) {
     case QEvent::ShortcutOverride:
-        if (static_cast<QKeyEvent*>(e)->key() == Qt::Key_Escape)
+        if (static_cast<QKeyEvent*>(e)->key() == Qt::Key_Escape) {
             d->m_escapePressed = true;
+            e->accept();
+        }
         break;
     case QEvent::KeyPress:
-        if (static_cast<QKeyEvent*>(e)->key() == Qt::Key_Escape)
+        if (static_cast<QKeyEvent*>(e)->key() == Qt::Key_Escape) {
             d->m_escapePressed = true;
+            e->accept();
+        }
         if (d->m_model->size() > 1) {
             QKeyEvent *ke = static_cast<QKeyEvent*>(e);
             if (ke->key() == Qt::Key_Up) {
@@ -208,12 +212,18 @@ bool FunctionHintProposalWidget::eventFilter(QObject *obj, QEvent *e)
             return false;
         }
         break;
-    case QEvent::KeyRelease:
-        if (static_cast<QKeyEvent*>(e)->key() == Qt::Key_Escape && d->m_escapePressed) {
-            abort();
-            return false;
+    case QEvent::KeyRelease: {
+            QKeyEvent *ke = static_cast<QKeyEvent*>(e);
+            if (ke->key() == Qt::Key_Escape && d->m_escapePressed) {
+                abort();
+                emit explicitlyAborted();
+                return false;
+            } else if (ke->key() == Qt::Key_Up || ke->key() == Qt::Key_Down) {
+                if (d->m_model->size() > 1)
+                    return false;
+            }
+            d->m_assistant->notifyChange();
         }
-        d->m_assistant->notifyChange();
         break;
     case QEvent::WindowDeactivate:
     case QEvent::FocusOut:

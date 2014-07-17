@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -40,6 +40,7 @@ namespace QmlDesigner {
 class ChangeBindingsCommand
 {
     friend QDataStream &operator>>(QDataStream &in, ChangeBindingsCommand &command);
+    friend QDebug operator <<(QDebug debug, const ChangeBindingsCommand &command);
 
 public:
     ChangeBindingsCommand();
@@ -53,6 +54,8 @@ private:
 
 QDataStream &operator<<(QDataStream &out, const ChangeBindingsCommand &command);
 QDataStream &operator>>(QDataStream &in, ChangeBindingsCommand &command);
+
+QDebug operator <<(QDebug debug, const ChangeBindingsCommand &command);
 
 } // namespace QmlDesigner
 

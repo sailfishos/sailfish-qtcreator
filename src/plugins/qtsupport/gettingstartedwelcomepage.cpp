@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -34,10 +34,7 @@
 #include "copytolocationdialog.h"
 
 #include <utils/pathchooser.h>
-
-#ifdef Q_OS_WIN
 #include <utils/winutils.h>
-#endif
 
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/documentmanager.h>
@@ -62,15 +59,26 @@
 #include <QPushButton>
 #include <QMessageBox>
 #include <QApplication>
-#include <QDeclarativeImageProvider>
-#include <QDeclarativeEngine>
-#include <QDeclarativeContext>
+#include <QQuickImageProvider>
+#include <QQmlEngine>
+#include <QQmlContext>
 #include <QDesktopServices>
 
 using namespace Utils;
 
 namespace QtSupport {
 namespace Internal {
+
+class ExampleDialog : public QDialog
+{
+    Q_OBJECT
+ public:
+    enum ResultCode { Copy = QDialog::Accepted + 1, Keep };
+    ExampleDialog(QWidget *parent = 0) : QDialog(parent) {};
+ private slots:
+    void handleCopyClicked() { done(Copy); };
+    void handleKeepClicked() { done(Keep); };
+};
 
 const char C_FALLBACK_ROOT[] = "ProjectsFallbackRoot";
 
@@ -138,7 +146,7 @@ public slots:
 
         if (Core::HelpManager::instance()) {
             QMutexLocker dataLock(&m_dataMutex);
-            m_fetchedData = Core::HelpManager::instance()->fileData(url);
+            m_fetchedData = Core::HelpManager::fileData(url);
         }
         m_waitcondition.wakeAll();
     }
@@ -160,27 +168,30 @@ public:
     bool m_shutdown;
 };
 
-class HelpImageProvider : public QDeclarativeImageProvider
+class HelpImageProvider : public QQuickImageProvider
 {
 public:
     HelpImageProvider()
-        : QDeclarativeImageProvider(QDeclarativeImageProvider::Image)
+        : QQuickImageProvider(QQuickImageProvider::Image)
     {
     }
 
     // gets called by declarative in separate thread
     QImage requestImage(const QString &id, QSize *size, const QSize &requestedSize)
     {
-        Q_UNUSED(size)
         QMutexLocker lock(&m_mutex);
 
         QUrl url = QUrl::fromEncoded(id.toLatin1());
 
-        if (!m_fetcher.asynchronousFetchData(url))
-            return QImage();
 
-        if (m_fetcher.data().isEmpty())
+        if (!m_fetcher.asynchronousFetchData(url) || m_fetcher.data().isEmpty()) {
+            if (size) {
+                size->setWidth(0);
+                size->setHeight(0);
+            }
             return QImage();
+        }
+
         QByteArray data = m_fetcher.data();
         QBuffer imgBuffer(&data);
         imgBuffer.open(QIODevice::ReadOnly);
@@ -188,48 +199,16 @@ public:
         QImage img = reader.read();
 
         m_fetcher.clearData();
-        return ScreenshotCropper::croppedImage(img, id, requestedSize);
+        img = ScreenshotCropper::croppedImage(img, id, requestedSize);
+        if (size)
+            *size = img.size();
+        return img;
+
     }
 private:
     Fetcher m_fetcher;
     QMutex m_mutex;
 };
-
-GettingStartedWelcomePage::GettingStartedWelcomePage() : m_engine(0)
-{
-
-}
-
-QUrl GettingStartedWelcomePage::pageLocation() const
-{
-    QString resourcePath = Core::ICore::resourcePath();
-#ifdef Q_OS_WIN
-    // normalize paths so QML doesn't freak out if it's wrongly capitalized on Windows
-    resourcePath = Utils::normalizePathName(resourcePath);
-#endif
-
-    return QUrl::fromLocalFile(resourcePath + QLatin1String("/welcomescreen/gettingstarted.qml"));
-}
-
-QString GettingStartedWelcomePage::title() const
-{
-    return tr("Getting Started");
-}
-
-int GettingStartedWelcomePage::priority() const
-{
-    return 4;
-}
-
-void GettingStartedWelcomePage::facilitateQml(QDeclarativeEngine *engine)
-{
-    m_engine = engine;
-}
-
-GettingStartedWelcomePage::Id GettingStartedWelcomePage::id() const
-{
-    return GettingStarted;
-}
 
 ExamplesWelcomePage::ExamplesWelcomePage()
     : m_engine(0),  m_showExamples(false)
@@ -267,18 +246,15 @@ QString ExamplesWelcomePage::title() const
 
 QUrl ExamplesWelcomePage::pageLocation() const
 {
-    QString resourcePath = Core::ICore::resourcePath();
-#ifdef Q_OS_WIN
     // normalize paths so QML doesn't freak out if it's wrongly capitalized on Windows
-    resourcePath = Utils::normalizePathName(resourcePath);
-#endif
+    const QString resourcePath = Utils::FileUtils::normalizePathName(Core::ICore::resourcePath());
     if (m_showExamples)
         return QUrl::fromLocalFile(resourcePath + QLatin1String("/welcomescreen/examples.qml"));
     else
         return QUrl::fromLocalFile(resourcePath + QLatin1String("/welcomescreen/tutorials.qml"));
 }
 
-void ExamplesWelcomePage::facilitateQml(QDeclarativeEngine *engine)
+void ExamplesWelcomePage::facilitateQml(QQmlEngine *engine)
 {
     m_engine = engine;
     m_engine->addImageProvider(QLatin1String("helpimage"), new HelpImageProvider);
@@ -289,11 +265,11 @@ void ExamplesWelcomePage::facilitateQml(QDeclarativeEngine *engine)
     proxy->sort(0);
     proxy->setFilterCaseSensitivity(Qt::CaseInsensitive);
 
-    QDeclarativeContext *rootContenxt = m_engine->rootContext();
+    QQmlContext *rootContenxt = m_engine->rootContext();
     if (m_showExamples) {
         proxy->setShowTutorialsOnly(false);
         rootContenxt->setContextProperty(QLatin1String("examplesModel"), proxy);
-        rootContenxt->setContextProperty(QLatin1String("qtVersionModel"), proxy->qtVersionModel());
+        rootContenxt->setContextProperty(QLatin1String("exampleSetModel"), proxy->exampleSetModel());
     } else {
         rootContenxt->setContextProperty(QLatin1String("tutorialsModel"), proxy);
     }
@@ -307,12 +283,12 @@ ExamplesWelcomePage::Id ExamplesWelcomePage::id() const
 
 void ExamplesWelcomePage::openSplitHelp(const QUrl &help)
 {
-    Core::ICore::helpManager()->handleHelpRequest(help.toString()+QLatin1String("?view=split"));
+    Core::HelpManager::handleHelpRequest(help.toString()+QLatin1String("?view=split"));
 }
 
 void ExamplesWelcomePage::openHelp(const QUrl &help)
 {
-    Core::ICore::helpManager()->handleHelpRequest(help.toString());
+    Core::HelpManager::handleHelpRequest(help.toString());
 }
 
 void ExamplesWelcomePage::openUrl(const QUrl &url)
@@ -335,11 +311,9 @@ QString ExamplesWelcomePage::copyToAlternativeLocation(const QFileInfo& proFileI
                                          Core::DocumentManager::projectsDirectory()).toString());
 
     while (QDialog::Accepted == d.exec()) {
-
         QString exampleDirName = proFileInfo.dir().dirName();
         QString destBaseDir = d.destinationPath();
         settings->setValue(QString::fromLatin1(C_FALLBACK_ROOT), destBaseDir);
-
         QDir toDirWithExamplesDir(destBaseDir);
         if (toDirWithExamplesDir.cd(exampleDirName)) {
             toDirWithExamplesDir.cdUp(); // step out, just to not be in the way
@@ -352,7 +326,7 @@ QString ExamplesWelcomePage::copyToAlternativeLocation(const QFileInfo& proFileI
             QString error;
             QString targetDir = destBaseDir + QLatin1Char('/') + exampleDirName;
             if (FileUtils::copyRecursively(FileName::fromString(projectDir),
-                                           FileName::fromString(targetDir), &error)) {
+                    FileName::fromString(targetDir), &error)) {
                 // set vars to new location
                 const QStringList::Iterator end = filesToOpen.end();
                 for (QStringList::Iterator it = filesToOpen.begin(); it != end; ++it)
@@ -362,7 +336,7 @@ QString ExamplesWelcomePage::copyToAlternativeLocation(const QFileInfo& proFileI
                     FileName targetFile = FileName::fromString(targetDir);
                     targetFile.appendPath(QDir(dependency).dirName());
                     if (!FileUtils::copyRecursively(FileName::fromString(dependency), targetFile,
-                                                    &error)) {
+                            &error)) {
                         QMessageBox::warning(Core::ICore::mainWindow(), tr("Cannot Copy Project"), error);
                         continue;
                     }
@@ -376,13 +350,15 @@ QString ExamplesWelcomePage::copyToAlternativeLocation(const QFileInfo& proFileI
                 QMessageBox::warning(Core::ICore::mainWindow(), tr("Cannot Copy Project"), error);
                 continue;
             }
+
         }
     }
     return QString();
+
 }
 
 void ExamplesWelcomePage::openProject(const QString &projectFile, const QStringList &additionalFilesToOpen,
-                                            const QUrl &help, const QStringList &dependencies, const QStringList &platforms)
+                                      const QUrl &help, const QStringList &dependencies, const QStringList &)
 {
     QString proFile = projectFile;
     if (proFile.isEmpty())
@@ -402,13 +378,12 @@ void ExamplesWelcomePage::openProject(const QString &projectFile, const QStringL
     ProjectExplorer::ProjectExplorerPlugin *peplugin = ProjectExplorer::ProjectExplorerPlugin::instance();
     if (proFile.isEmpty())
         return;
-    if (ProjectExplorer::Project *project = peplugin->openProject(proFile, &errorMessage)) {
+    if (peplugin->openProject(proFile, &errorMessage)) {
         Core::ICore::openFiles(filesToOpen);
-        if (project->needsConfiguration())
-            project->configureAsExampleProject(platforms);
         Core::ModeManager::activateMode(Core::Constants::MODE_EDIT);
         if (help.isValid())
-            Core::ICore::helpManager()->handleHelpRequest(help.toString() + QLatin1String("?view=split"));
+            Core::HelpManager::handleHelpRequest(help.toString() + QLatin1String("?view=split"));
+        Core::ModeManager::activateMode(ProjectExplorer::Constants::MODE_SESSION);
     }
     if (!errorMessage.isEmpty())
         QMessageBox::critical(Core::ICore::mainWindow(), tr("Failed to Open Project"), errorMessage);

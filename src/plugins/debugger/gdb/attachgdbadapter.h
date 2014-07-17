@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -31,7 +31,7 @@
 #define DEBUGGER_ATTACHGDBADAPTER_H
 
 #include "gdbengine.h"
-#include "localgdbprocess.h"
+#include "gdbprocess.h"
 
 namespace Debugger {
 namespace Internal {
@@ -50,18 +50,13 @@ public:
     explicit GdbAttachEngine(const DebuggerStartParameters &startParameters);
 
 private:
-    DumperHandling dumperHandling() const { return DumperLoadedByGdb; }
-
     void setupEngine();
     void setupInferior();
     void runEngine();
     void interruptInferior2();
     void shutdownEngine();
 
-    AbstractGdbProcess *gdbProc() { return &m_gdbProc; }
     void handleAttach(const GdbResponse &response);
-
-    LocalGdbProcess m_gdbProc;
 };
 
 } // namespace Internal

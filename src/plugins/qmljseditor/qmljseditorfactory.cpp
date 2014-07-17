@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -34,20 +34,10 @@
 #include "qmljseditorplugin.h"
 
 #include <qmljstools/qmljstoolsconstants.h>
-
-#include <extensionsystem/pluginmanager.h>
-#include <extensionsystem/pluginspec.h>
-
-#include <coreplugin/icore.h>
-#include <coreplugin/infobar.h>
-#include <coreplugin/editormanager/editormanager.h>
+#include <texteditor/texteditoractionhandler.h>
+#include <texteditor/texteditorsettings.h>
 
 #include <QCoreApplication>
-#include <QFileInfo>
-#include <QDebug>
-#include <QSettings>
-#include <QMessageBox>
-#include <QPushButton>
 
 namespace QmlJSEditor {
 namespace Internal {
@@ -55,36 +45,28 @@ namespace Internal {
 QmlJSEditorFactory::QmlJSEditorFactory(QObject *parent)
   : Core::IEditorFactory(parent)
 {
-    m_mimeTypes
-            << QLatin1String(QmlJSTools::Constants::QML_MIMETYPE)
-            << QLatin1String(QmlJSTools::Constants::QMLPROJECT_MIMETYPE)
-            << QLatin1String(QmlJSTools::Constants::QBS_MIMETYPE)
-            << QLatin1String(QmlJSTools::Constants::QMLTYPES_MIMETYPE)
-            << QLatin1String(QmlJSTools::Constants::JS_MIMETYPE)
-            << QLatin1String(QmlJSTools::Constants::JSON_MIMETYPE)
-            ;
+    setId(Constants::C_QMLJSEDITOR_ID);
+    setDisplayName(qApp->translate("OpenWith::Editors", Constants::C_QMLJSEDITOR_DISPLAY_NAME));
+
+    addMimeType(QmlJSTools::Constants::QML_MIMETYPE);
+    addMimeType(QmlJSTools::Constants::QMLPROJECT_MIMETYPE);
+    addMimeType(QmlJSTools::Constants::QBS_MIMETYPE);
+    addMimeType(QmlJSTools::Constants::QMLTYPES_MIMETYPE);
+    addMimeType(QmlJSTools::Constants::JS_MIMETYPE);
+    addMimeType(QmlJSTools::Constants::JSON_MIMETYPE);
+    new TextEditor::TextEditorActionHandler(this, Constants::C_QMLJSEDITOR_ID,
+          TextEditor::TextEditorActionHandler::Format
+        | TextEditor::TextEditorActionHandler::UnCommentSelection
+        | TextEditor::TextEditorActionHandler::UnCollapseAll
+        | TextEditor::TextEditorActionHandler::FollowSymbolUnderCursor);
+
 }
 
-Core::Id QmlJSEditorFactory::id() const
+Core::IEditor *QmlJSEditorFactory::createEditor()
 {
-    return Core::Id(Constants::C_QMLJSEDITOR_ID);
-}
-
-QString QmlJSEditorFactory::displayName() const
-{
-    return qApp->translate("OpenWith::Editors", Constants::C_QMLJSEDITOR_DISPLAY_NAME);
-}
-
-Core::IEditor *QmlJSEditorFactory::createEditor(QWidget *parent)
-{
-    QmlJSTextEditorWidget *rc = new QmlJSTextEditorWidget(parent);
-    QmlJSEditorPlugin::instance()->initializeEditor(rc);
+    QmlJSTextEditorWidget *rc = new QmlJSTextEditorWidget();
+    TextEditor::TextEditorSettings::initializeEditor(rc);
     return rc->editor();
-}
-
-QStringList QmlJSEditorFactory::mimeTypes() const
-{
-    return m_mimeTypes;
 }
 
 } // namespace Internal

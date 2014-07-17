@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -61,13 +61,28 @@ public:
     QString devicePin() const;
     QString deviceOS() const;
     QString hardwareId() const;
+    QString debugTokenAuthor() const;
+    QString debugTokenValidationError() const;
+    bool debugTokenValid() const;
+    QString scmBundle() const;
+    QString hostName() const;
+    bool isSimulator() const;
+    bool isProductionDevice() const;
 
 private:
     QString m_devicePin;
     QString m_deviceOS;
     QString m_hardwareId;
+    QString m_debugTokenAuthor;
+    QString m_scmBundle;
+    QString m_hostName;
+    QString m_debugTokenValidationError;
+    bool m_debugTokenValid;
+    bool m_isSimulator;
+    bool m_isProductionDevice;
 
     void processData(const QString &line);
+    void resetResults();
 };
 
 }

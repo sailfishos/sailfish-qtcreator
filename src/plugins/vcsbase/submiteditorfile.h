@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -33,6 +33,8 @@
 #include <coreplugin/idocument.h>
 
 namespace VcsBase {
+class VcsBaseSubmitEditor;
+
 namespace Internal {
 
 class SubmitEditorFile : public Core::IDocument
@@ -40,9 +42,9 @@ class SubmitEditorFile : public Core::IDocument
     Q_OBJECT
 public:
     explicit SubmitEditorFile(const QString &mimeType,
-                              QObject *parent = 0);
+                              VcsBaseSubmitEditor *parent = 0);
 
-    QString fileName() const { return m_fileName; }
+    bool setContents(const QByteArray &contents);
     QString defaultPath() const { return QString(); }
     QString suggestedFileName() const { return QString(); }
 
@@ -52,18 +54,13 @@ public:
     bool save(QString *errorString, const QString &fileName, bool autoSave);
     ReloadBehavior reloadBehavior(ChangeTrigger state, ChangeType type) const;
     bool reload(QString *errorString, ReloadFlag flag, ChangeType type);
-    void rename(const QString &newName);
 
-    void setFileName(const QString &name);
     void setModified(bool modified = true);
-
-signals:
-    void saveMe(QString *errorString, const QString &fileName, bool autoSave);
 
 private:
     const QString m_mimeType;
     bool m_modified;
-    QString m_fileName;
+    VcsBaseSubmitEditor *m_editor;
 };
 
 

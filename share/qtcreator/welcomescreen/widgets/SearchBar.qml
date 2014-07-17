@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -27,35 +27,39 @@
 **
 ****************************************************************************/
 
-import QtQuick 1.0
-import qtcomponents 1.0
+import QtQuick 2.2
+import QtQuick.Controls 1.1
+import QtQuick.Controls.Styles 1.1
 
 Rectangle {
     id: searchBar
+
     width: 930
-    height: 31
+    height: 27
     color: "#ffffff"
     radius: 6
     border.color: "#cccccc"
+
     property alias placeholderText: lineEdit.placeholderText
     property alias text: lineEdit.text
 
-    CustomFonts {
-        id: fonts
-    }
-
     TextField {
         id: lineEdit
-        placeholderText: qsTr("Search...")
+        anchors.topMargin: 1
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.rightMargin: 12
         anchors.leftMargin: 12
-        anchors.verticalCenter: parent.verticalCenter
-        background: Item {}
+        anchors.fill: parent
+        verticalAlignment: Text.AlignVCenter
         font.pixelSize: 14
-        font.bold: false
-        font.family: "Helvetica"
+        placeholderText:  qsTr("Search...")
+        style: TextFieldStyle {
+            background: Item {
+            }
+        }
     }
-
+    Accessible.name: text
+    Accessible.description: placeholderText
+    Accessible.role: Accessible.EditableText
 }

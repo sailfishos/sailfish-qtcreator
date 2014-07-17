@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -51,29 +51,24 @@ namespace Internal {
 class BaseVcsEditorFactoryPrivate
 {
 public:
-    BaseVcsEditorFactoryPrivate(const VcsBaseEditorParameters *t);
-
     const VcsBaseEditorParameters *m_type;
-    const Core::Id m_id;
-    QString m_displayName;
-    const QStringList m_mimeTypes;
-    TextEditor::TextEditorActionHandler *m_editorHandler;
+    QObject *m_describeReceiver;
+    const char *m_describeSlot;
 };
-
-BaseVcsEditorFactoryPrivate::BaseVcsEditorFactoryPrivate(const VcsBaseEditorParameters *t) :
-    m_type(t),
-    m_id(t->id),
-    m_mimeTypes(QStringList(QLatin1String(t->mimeType))),
-    m_editorHandler(new TextEditor::TextEditorActionHandler(t->context))
-{
-}
 
 } // namespace Internal
 
-BaseVcsEditorFactory::BaseVcsEditorFactory(const VcsBaseEditorParameters *t)
-  : d(new Internal::BaseVcsEditorFactoryPrivate(t))
+BaseVcsEditorFactory::BaseVcsEditorFactory(const VcsBaseEditorParameters *t,
+                                           QObject *describeReceiver, const char *describeSlot)
+  : d(new Internal::BaseVcsEditorFactoryPrivate)
 {
-    d->m_displayName = QCoreApplication::translate("VCS", t->displayName);
+    d->m_type = t;
+    d->m_describeReceiver = describeReceiver;
+    d->m_describeSlot = describeSlot;
+    setId(t->id);
+    setDisplayName(QCoreApplication::translate("VCS", t->displayName));
+    addMimeType(t->mimeType);
+    new TextEditor::TextEditorActionHandler(this, t->context);
 }
 
 BaseVcsEditorFactory::~BaseVcsEditorFactory()
@@ -81,33 +76,17 @@ BaseVcsEditorFactory::~BaseVcsEditorFactory()
     delete d;
 }
 
-QStringList BaseVcsEditorFactory::mimeTypes() const
+Core::IEditor *BaseVcsEditorFactory::createEditor()
 {
-    return d->m_mimeTypes;
-}
+    VcsBaseEditorWidget *vcsEditor = createVcsBaseEditor(d->m_type);
 
-Core::Id BaseVcsEditorFactory::id() const
-{
-    return d->m_id;
-}
+    vcsEditor->init();
+    if (d->m_describeReceiver)
+        connect(vcsEditor, SIGNAL(describeRequested(QString,QString)), d->m_describeReceiver, d->m_describeSlot);
 
-QString BaseVcsEditorFactory::displayName() const
-{
-    return d->m_displayName;
-}
+    vcsEditor->baseTextDocument()->setMimeType(mimeTypes().front());
 
-Core::IEditor *BaseVcsEditorFactory::createEditor(QWidget *parent)
-{
-    VcsBaseEditorWidget *vcsEditor = createVcsBaseEditor(d->m_type, parent);
-
-    vcsEditor ->setMimeType(d->m_mimeTypes.front());
-    d->m_editorHandler->setupActions(vcsEditor);
-
-    // Wire font settings and set initial values
-    TextEditor::TextEditorSettings *settings = TextEditor::TextEditorSettings::instance();
-    connect(settings, SIGNAL(fontSettingsChanged(TextEditor::FontSettings)),
-            vcsEditor, SLOT(setFontSettings(TextEditor::FontSettings)));
-    vcsEditor->setFontSettings(settings->fontSettings());
+    TextEditor::TextEditorSettings::initializeEditor(vcsEditor);
     return vcsEditor->editor();
 }
 

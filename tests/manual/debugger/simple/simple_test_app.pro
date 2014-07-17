@@ -37,15 +37,34 @@ maemo5 {
     INSTALLS += target
 }
 
-#*g++* {
-#    DEFINES += USE_CXX11
-#    QMAKE_CXXFLAGS += -std=c++0x
-#}
+*g++* {
+    DEFINES += USE_CXX11
+    QMAKE_CXXFLAGS += -std=c++0x
+}
 
-exists($$QMAKE_INCDIR_QT/QtCore/private/qobject_p.h):DEFINES += USE_PRIVATE
-exists(/usr/include/boost/optional.hpp): DEFINES += USE_BOOST
-exists(/usr/include/eigen2/Eigen/Core): DEFINES += USE_EIGEN
+exists($$QMAKE_INCDIR_QT/QtCore/private/qobject_p.h):DEFINES += HAS_PRIVATE
+exists(/usr/include/boost/optional.hpp): DEFINES += HAS_BOOST
+
+exists(/usr/include/eigen2/Eigen/Core) {
+    DEFINES += HAS_EIGEN2
+    INCLUDEPATH += /usr/include/eigen2
+}
+exists(/usr/include/eigen3/Eigen/Core) {
+    DEFINES += HAS_EIGEN3
+    INCLUDEPATH += /usr/include/eigen3
+}
+exists(/usr/local/include/eigen2/Eigen/Core) {
+    DEFINES += HAS_EIGEN2
+    INCLUDEPATH += /usr/local/include/eigen2
+}
+exists(/usr/local/include/eigen3/Eigen/Core) {
+    DEFINES += HAS_EIGEN3
+    INCLUDEPATH += /usr/local/include/eigen3
+}
 
 win32-msvc*:DEFINES += _CRT_SECURE_NO_WARNINGS
 # Use for semi-automated testing
 #DEFINES += USE_AUTORUN=1
+
+ANDROID_PACKAGE_SOURCE_DIR = $$PWD/android
+ANDROID_EXTRA_LIBS = $$OUT_PWD/libsimple_test_plugin.so

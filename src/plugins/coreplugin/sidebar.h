@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -46,9 +46,7 @@ namespace Core {
 class Command;
 struct SideBarPrivate;
 
-namespace Internal {
-class SideBarWidget;
-} // namespace Internal
+namespace Internal { class SideBarWidget; }
 
 /*
  * An item in the sidebar. Has a widget that is displayed in the sidebar and

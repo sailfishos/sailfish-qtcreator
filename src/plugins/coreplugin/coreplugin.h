@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -33,11 +33,15 @@
 #include <extensionsystem/iplugin.h>
 
 namespace Core {
+
 class DesignMode;
+class FindPlugin;
+
 namespace Internal {
 
 class EditMode;
 class MainWindow;
+class Locator;
 
 class CorePlugin : public ExtensionSystem::IPlugin
 {
@@ -57,12 +61,23 @@ public:
 public slots:
     void fileOpenRequest(const QString&);
 
+private slots:
+#if defined(WITH_TESTS)
+    void testVcsManager_data();
+    void testVcsManager();
+    // Locator:
+    void test_basefilefilter();
+    void test_basefilefilter_data();
+#endif
+
 private:
     void parseArguments(const QStringList & arguments);
 
     MainWindow *m_mainWindow;
     EditMode *m_editMode;
     DesignMode *m_designMode;
+    FindPlugin *m_findPlugin;
+    Locator *m_locator;
 };
 
 } // namespace Internal

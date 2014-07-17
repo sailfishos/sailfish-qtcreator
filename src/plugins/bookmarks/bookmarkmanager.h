@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -41,14 +41,6 @@
 #include <QListView>
 #include <QPixmap>
 #include <QStyledItemDelegate>
-
-namespace ProjectExplorer {
-class SessionManager;
-}
-
-namespace Core {
-class IEditor;
-}
 
 namespace Bookmarks {
 namespace Internal {
@@ -124,7 +116,6 @@ private slots:
 
 private:
     TextEditor::ITextEditor *currentTextEditor() const;
-    ProjectExplorer::SessionManager* sessionManager() const;
 
     void documentPrevNext(bool next);
 
@@ -161,6 +152,7 @@ protected slots:
 protected:
     void contextMenuEvent(QContextMenuEvent *event);
     void removeBookmark(const QModelIndex &index);
+    void keyPressEvent(QKeyEvent *event);
 private:
     BookmarkContext *m_bookmarkContext;
     QModelIndex m_contextMenuIndex;

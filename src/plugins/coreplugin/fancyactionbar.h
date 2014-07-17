@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -57,13 +57,8 @@ public:
     float fader() { return m_fader; }
     void setFader(float value) { m_fader = value; update(); }
 
-    void forceVisible(bool visible);
-
 private slots:
     void actionChanged();
-
-private:
-    bool m_hasForceVisible;
 };
 
 class FancyActionBar : public QWidget

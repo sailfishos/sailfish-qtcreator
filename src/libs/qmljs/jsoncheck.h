@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -37,6 +37,7 @@
 #include <qmljs/qmljsstaticanalysismessage.h>
 
 #include <utils/json.h>
+#include <utils/qtcoverride.h>
 
 #include <QStack>
 #include <QList>
@@ -48,21 +49,21 @@ class QMLJS_EXPORT JsonCheck : public AST::Visitor
 {
 public:
     JsonCheck(Document::Ptr doc);
-    virtual ~JsonCheck();
+    ~JsonCheck();
 
     QList<StaticAnalysis::Message> operator()(Utils::JsonSchema *schema);
 
 private:
-    virtual bool preVisit(AST::Node *);
-    virtual void postVisit(AST::Node *);
+    bool preVisit(AST::Node *) QTC_OVERRIDE;
+    void postVisit(AST::Node *) QTC_OVERRIDE;
 
-    virtual bool visit(AST::ObjectLiteral *ast);
-    virtual bool visit(AST::ArrayLiteral *ast);
-    virtual bool visit(AST::NullExpression *ast);
-    virtual bool visit(AST::TrueLiteral *ast);
-    virtual bool visit(AST::FalseLiteral *ast);
-    virtual bool visit(AST::NumericLiteral *ast);
-    virtual bool visit(AST::StringLiteral *ast);
+    bool visit(AST::ObjectLiteral *ast) QTC_OVERRIDE;
+    bool visit(AST::ArrayLiteral *ast) QTC_OVERRIDE;
+    bool visit(AST::NullExpression *ast) QTC_OVERRIDE;
+    bool visit(AST::TrueLiteral *ast) QTC_OVERRIDE;
+    bool visit(AST::FalseLiteral *ast) QTC_OVERRIDE;
+    bool visit(AST::NumericLiteral *ast) QTC_OVERRIDE;
+    bool visit(AST::StringLiteral *ast) QTC_OVERRIDE;
 
     struct AnalysisData
     {

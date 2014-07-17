@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -29,9 +29,12 @@
 
 #include "targetsettingspanel.h"
 
+#include "buildinfo.h"
 #include "buildsettingspropertiespage.h"
+#include "ipotentialkit.h"
 #include "kitoptionspage.h"
 #include "project.h"
+#include "projectimporter.h"
 #include "projectwindow.h"
 #include "runsettingspropertiespage.h"
 #include "target.h"
@@ -48,6 +51,7 @@
 #include <projectexplorer/runconfiguration.h>
 #include <utils/qtcassert.h>
 
+#include <QFileDialog>
 #include <QLabel>
 #include <QMenu>
 #include <QMessageBox>
@@ -69,11 +73,13 @@ namespace Internal {
 TargetSettingsPanelWidget::TargetSettingsPanelWidget(Project *project) :
     m_currentTarget(0),
     m_project(project),
+    m_importer(project->createProjectImporter()),
     m_selector(0),
     m_centralWidget(0),
     m_changeMenu(0),
     m_duplicateMenu(0),
-    m_lastAction(0)
+    m_lastAction(0),
+    m_importAction(0)
 {
     Q_ASSERT(m_project);
 
@@ -82,6 +88,11 @@ TargetSettingsPanelWidget::TargetSettingsPanelWidget(Project *project) :
 
     m_addMenu = new QMenu(this);
     m_targetMenu = new QMenu(this);
+
+    if (m_importer) {
+        m_importAction = new QAction(tr("Import existing build..."), this);
+        connect(m_importAction, SIGNAL(triggered()), this, SLOT(importTarget()));
+    }
 
     setFocusPolicy(Qt::NoFocus);
 
@@ -101,6 +112,7 @@ TargetSettingsPanelWidget::TargetSettingsPanelWidget(Project *project) :
 
 TargetSettingsPanelWidget::~TargetSettingsPanelWidget()
 {
+    delete m_importer;
 }
 
 bool TargetSettingsPanelWidget::event(QEvent *event)
@@ -181,9 +193,7 @@ void TargetSettingsPanelWidget::setupUi()
     // Now set the correct target
     int index = m_targets.indexOf(m_project->activeTarget());
     m_selector->setCurrentIndex(index);
-    m_selector->setCurrentSubIndex(0);
-
-    currentTargetChanged(index, 0);
+    currentTargetChanged(index, m_selector->currentSubIndex());
 
     connect(m_selector, SIGNAL(currentChanged(int,int)),
             this, SLOT(currentTargetChanged(int,int)));
@@ -270,7 +280,7 @@ void TargetSettingsPanelWidget::menuShown(int targetIndex)
 
 void TargetSettingsPanelWidget::changeActionTriggered(QAction *action)
 {
-    Kit *k = KitManager::instance()->find(action->data().value<Core::Id>());
+    Kit *k = KitManager::find(action->data().value<Core::Id>());
     Target *sourceTarget = m_targets.at(m_menuTargetIndex);
     Target *newTarget = cloneTarget(sourceTarget, k);
 
@@ -283,7 +293,7 @@ void TargetSettingsPanelWidget::changeActionTriggered(QAction *action)
 
 void TargetSettingsPanelWidget::duplicateActionTriggered(QAction *action)
 {
-    Kit *k = KitManager::instance()->find(action->data().value<Core::Id>());
+    Kit *k = KitManager::find(action->data().value<Core::Id>());
     Target *newTarget = cloneTarget(m_targets.at(m_menuTargetIndex), k);
 
     if (newTarget) {
@@ -294,13 +304,20 @@ void TargetSettingsPanelWidget::duplicateActionTriggered(QAction *action)
 
 void TargetSettingsPanelWidget::addActionTriggered(QAction *action)
 {
-    Kit *k = KitManager::instance()->find(action->data().value<Core::Id>());
-    QTC_ASSERT(!m_project->target(k), return);
+    const QVariant data = action->data();
+    if (data.canConvert<Core::Id>()) { // id of kit
+        Kit *k = KitManager::find(action->data().value<Core::Id>());
+        QTC_ASSERT(!m_project->target(k), return);
 
-    Target *target = m_project->createTarget(k);
-    if (!target)
-        return;
-    m_project->addTarget(target);
+        Target *target = m_project->createTarget(k);
+        if (!target)
+            return;
+        m_project->addTarget(target);
+    } else {
+        QTC_ASSERT(data.canConvert<IPotentialKit *>(), return);
+        IPotentialKit *potentialKit = data.value<IPotentialKit *>();
+        potentialKit->executeFromMenu();
+    }
 }
 
 Target *TargetSettingsPanelWidget::cloneTarget(Target *sourceTarget, Kit *k)
@@ -403,20 +420,22 @@ Target *TargetSettingsPanelWidget::cloneTarget(Target *sourceTarget, Kit *k)
 
         QString error;
         if (!buildconfigurationError.isEmpty())
-            error += tr("Build configurations:\n")
+            error += tr("Build configurations:")
+                    + QLatin1Char('\n')
                     + buildconfigurationError.join(QLatin1String("\n"));
 
         if (!deployconfigurationError.isEmpty()) {
             if (!error.isEmpty())
                 error.append(QLatin1Char('\n'));
-            error += tr("Deploy configurations:\n")
+            error += tr("Deploy configurations:")
+                    + QLatin1Char('\n')
                     + deployconfigurationError.join(QLatin1String("\n"));
         }
 
         if (!runconfigurationError.isEmpty()) {
             if (!error.isEmpty())
                 error.append(QLatin1Char('\n'));
-            error += tr("Run configurations ")
+            error += tr("Run configurations") + QLatin1Char(' ')
                     + runconfigurationError.join(QLatin1String("\n"));
         }
 
@@ -443,8 +462,7 @@ void TargetSettingsPanelWidget::removeTarget()
 
 void TargetSettingsPanelWidget::removeTarget(Target *t)
 {
-    ProjectExplorer::BuildManager *bm = ProjectExplorerPlugin::instance()->buildManager();
-    if (bm->isBuilding(t)) {
+    if (BuildManager::isBuilding(t)) {
         QMessageBox box;
         QPushButton *closeAnyway = box.addButton(tr("Cancel Build && Remove Kit"), QMessageBox::AcceptRole);
         QPushButton *cancelClose = box.addButton(tr("Do Not Remove"), QMessageBox::RejectRole);
@@ -455,7 +473,7 @@ void TargetSettingsPanelWidget::removeTarget(Target *t)
         box.exec();
         if (box.clickedButton() != closeAnyway)
             return;
-        bm->cancel();
+        BuildManager::cancel();
     } else {
         // We don't show the generic message box on removing the target, if we showed the still building one
         int ret = QMessageBox::warning(this, tr("Qt Creator"),
@@ -487,7 +505,9 @@ void TargetSettingsPanelWidget::targetAdded(ProjectExplorer::Target *target)
         if (m_targets.count() == pos ||
             m_targets.at(pos)->displayName() > target->displayName()) {
             m_targets.insert(pos, target);
-            m_selector->insertTarget(pos, target->displayName());
+            m_selector->insertTarget(pos, m_project->hasActiveBuildSettings() ? 0 : 1,
+                                     target->displayName());
+
             break;
         }
     }
@@ -550,6 +570,20 @@ void TargetSettingsPanelWidget::updateTargetButtons()
     m_addMenu->clear();
     m_targetMenu->clear();
 
+    if (m_importAction)
+        m_addMenu->addAction(m_importAction);
+    const QList<IPotentialKit *> potentialKits
+            = ExtensionSystem::PluginManager::getObjects<IPotentialKit>();
+    foreach (IPotentialKit *potentialKit, potentialKits) {
+        if (!potentialKit->isEnabled())
+            continue;
+        QAction *action = new QAction(potentialKit->displayName(), m_addMenu);
+        action->setData(QVariant::fromValue(potentialKit));
+        m_addMenu->addAction(action);
+    }
+    if (!m_addMenu->actions().isEmpty())
+        m_addMenu->addSeparator();
+
     m_changeMenu = m_targetMenu->addMenu(tr("Change Kit"));
     m_duplicateMenu = m_targetMenu->addMenu(tr("Copy to Kit"));
     QAction *removeAction = m_targetMenu->addAction(tr("Remove Kit"));
@@ -563,7 +597,7 @@ void TargetSettingsPanelWidget::updateTargetButtons()
             this, SLOT(duplicateActionTriggered(QAction*)));
     connect(removeAction, SIGNAL(triggered()), this, SLOT(removeTarget()));
 
-    QList<Kit *> kits = KitManager::instance()->kits();
+    QList<Kit *> kits = KitManager::kits();
     qSort(kits.begin(), kits.end(), diplayNameSorter);
     foreach (Kit *k, kits) {
         if (m_project->target(k))
@@ -572,7 +606,6 @@ void TargetSettingsPanelWidget::updateTargetButtons()
         createAction(k, m_changeMenu);
         createAction(k, m_duplicateMenu);
     }
-
     if (m_changeMenu->actions().isEmpty())
         m_changeMenu->setEnabled(false);
     if (m_duplicateMenu->actions().isEmpty())
@@ -602,6 +635,37 @@ void TargetSettingsPanelWidget::openTargetPreferences()
     }
     ICore::showOptionsDialog(Constants::PROJECTEXPLORER_SETTINGS_CATEGORY,
                              Constants::KITS_SETTINGS_PAGE_ID);
+}
+
+void TargetSettingsPanelWidget::importTarget()
+{
+    QString toImport = QFileDialog::getExistingDirectory(this, tr("Import directory"), m_project->projectDirectory());
+    importTarget(Utils::FileName::fromString(toImport));
+}
+
+void TargetSettingsPanelWidget::importTarget(const Utils::FileName &path)
+{
+    if (!m_importer)
+        return;
+
+    Target *target = 0;
+    BuildConfiguration *bc = 0;
+    QList<BuildInfo *> toImport = m_importer->import(path, false);
+    foreach (BuildInfo *info, toImport) {
+        target = m_project->target(info->kitId);
+        if (!target) {
+            target = new Target(m_project, KitManager::find(info->kitId));
+            m_project->addTarget(target);
+        }
+        bc = info->factory()->create(target, info);
+        QTC_ASSERT(bc, continue);
+        target->addBuildConfiguration(bc);
+    }
+    m_project->setActiveTarget(target);
+    if (target && bc)
+        target->setActiveBuildConfiguration(bc);
+
+    qDeleteAll(toImport);
 }
 
 int TargetSettingsPanelWidget::currentSubIndex() const

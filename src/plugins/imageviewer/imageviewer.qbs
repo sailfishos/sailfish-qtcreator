@@ -1,11 +1,14 @@
-import qbs.base 1.0
+import qbs 1.0
 
-import "../QtcPlugin.qbs" as QtcPlugin
+import QtcPlugin
 
 QtcPlugin {
     name: "ImageViewer"
 
     Depends { name: "Qt"; submodules: ["widgets", "svg"] }
+    Depends { name: "Aggregation" }
+    Depends { name: "Utils" }
+
     Depends { name: "Core" }
 
     files: [

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -49,15 +49,13 @@ class Id;
 }
 
 namespace ProjectExplorer {
-class BuildManager;
 class RunControl;
-class SessionManager;
 class RunConfiguration;
 class IRunControlFactory;
 class Project;
 class Node;
 class BuildConfiguration;
-class ProjectNode;
+class FolderNode;
 class TaskHub;
 
 namespace Internal { class ProjectExplorerSettings; }
@@ -81,18 +79,11 @@ public:
     Q_SLOT void openProjectWelcomePage(const QString &fileName);
     void unloadProject(Project *project);
 
-    SessionManager *session() const;
-
     static Project *currentProject();
     Node *currentNode() const;
 
     void setCurrentFile(Project *project, const QString &file);
     void setCurrentNode(Node *node);
-
-    Project *startupProject() const;
-
-    BuildManager *buildManager() const;
-    TaskHub *taskHub() const;
 
     bool saveModifiedFiles();
 
@@ -103,8 +94,8 @@ public:
     void extensionsInitialized();
     ShutdownFlag aboutToShutdown();
 
-    void setProjectExplorerSettings(const Internal::ProjectExplorerSettings &pes);
-    Internal::ProjectExplorerSettings projectExplorerSettings() const;
+    static void setProjectExplorerSettings(const Internal::ProjectExplorerSettings &pes);
+    static Internal::ProjectExplorerSettings projectExplorerSettings();
 
     void startRunControl(RunControl *runControl, RunMode runMode);
     static void showRunErrorMessage(const QString &errorMessage);
@@ -121,7 +112,7 @@ public:
     void runRunConfiguration(ProjectExplorer::RunConfiguration *rc, RunMode runMode,
                              const bool forceSkipDeploy = false);
 
-    void addExistingFiles(ProjectExplorer::ProjectNode *projectNode, const QStringList &filePaths);
+    void addExistingFiles(ProjectExplorer::FolderNode *projectNode, const QStringList &filePaths);
     void addExistingFiles(const QStringList &filePaths);
 
     void buildProject(ProjectExplorer::Project *p);
@@ -131,7 +122,12 @@ public:
 
     QList<RunControl *> runControls() const;
 
+    void initiateInlineRenaming();
+
     static QString displayNameForStepId(Core::Id stepId);
+
+    static QString directoryFor(Node *node);
+    static QString pathFor(Node *node);
 
 signals:
     void runControlStarted(ProjectExplorer::RunControl *rc);
@@ -195,6 +191,7 @@ private slots:
 
     void addNewFile();
     void addExistingFiles();
+    void addExistingDirectory();
     void addNewSubproject();
     void removeProject();
     void openFile();
@@ -233,7 +230,6 @@ private slots:
     void updateVariable(const QByteArray &variable);
     void updateRunWithoutDeployMenu();
 
-    void publishProject();
     void updateWelcomePage();
     void updateExternalFileWarning();
 
@@ -246,6 +242,9 @@ private slots:
     void testGccOutputParsers_data();
     void testGccOutputParsers();
 
+    void testCustomOutputParsers_data();
+    void testCustomOutputParsers();
+
     void testClangOutputParser_data();
     void testClangOutputParser();
 
@@ -257,6 +256,9 @@ private slots:
     void testGnuMakeParserTaskMangling_data();
     void testGnuMakeParserTaskMangling();
 
+    void testXcodebuildParserParsing_data();
+    void testXcodebuildParserParsing();
+
     void testMsvcOutputParsers_data();
     void testMsvcOutputParsers();
 
@@ -266,6 +268,8 @@ private slots:
     void testAbiOfBinary_data();
     void testAbiOfBinary();
     void testFlavorForOs();
+    void testAbiFromTargetTriplet_data();
+    void testAbiFromTargetTriplet();
 
     void testDeviceManager();
 
@@ -274,8 +278,6 @@ private slots:
 #endif
 
 private:
-    QString directoryFor(Node *node);
-    QString pathFor(Node *node);
     void deploy(QList<Project *>);
     int queue(QList<Project *>, QList<Core::Id> stepIds);
     void updateContextMenuActions();

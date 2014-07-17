@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -37,8 +37,9 @@
 
 namespace Core {
 
-class VcsManagerPrivate;
 class IVersionControl;
+
+namespace Internal { class MainWindow; }
 
 /* VcsManager:
  * 1) Provides functionality for finding the IVersionControl * for a given
@@ -57,36 +58,31 @@ class CORE_EXPORT VcsManager : public QObject
     Q_OBJECT
 
 public:
-    explicit VcsManager(QObject *parent = 0);
-    virtual ~VcsManager();
+    static VcsManager *instance();
 
-    void extensionsInitialized();
+    static void extensionsInitialized();
 
-    void resetVersionControlForDirectory(const QString &inputDirectory);
-    IVersionControl *findVersionControlForDirectory(const QString &directory,
-                                                    QString *topLevelDirectory = 0);
+    static void resetVersionControlForDirectory(const QString &inputDirectory);
+    static IVersionControl *findVersionControlForDirectory(const QString &directory,
+                                                           QString *topLevelDirectory = 0);
 
-    QStringList repositories(const IVersionControl *) const;
+    static QStringList repositories(const IVersionControl *);
 
-    IVersionControl *checkout(const QString &versionControlType,
+    static IVersionControl *checkout(const QString &versionControlType,
                               const QString &directory,
                               const QByteArray &url);
-    // Used only by Trac plugin.
-    bool findVersionControl(const QString &versionControl);
-    // Used only by Trac plugin.
-    QString repositoryUrl(const QString &directory);
 
     // Shows a confirmation dialog, whether the file should also be deleted
     // from revision control. Calls vcsDelete on the file. Returns false
     // if a failure occurs
-    bool promptToDelete(const QString &fileName);
-    bool promptToDelete(IVersionControl *versionControl, const QString &fileName);
+    static bool promptToDelete(const QString &fileName);
+    static bool promptToDelete(IVersionControl *versionControl, const QString &fileName);
 
     // Shows a confirmation dialog, whether the files in the list should be
     // added to revision control. Calls vcsAdd for each file.
-    void promptToAdd(const QString &directory, const QStringList &fileNames);
+    static void promptToAdd(const QString &directory, const QStringList &fileNames);
 
-    void emitRepositoryChanged(const QString &repository);
+    static void emitRepositoryChanged(const QString &repository);
 
     // Utility messages for adding files
     static QString msgAddToVcsTitle();
@@ -94,17 +90,28 @@ public:
     static QString msgAddToVcsFailedTitle();
     static QString msgToAddToVcsFailed(const QStringList &files, const IVersionControl *vc);
 
+    /*!
+     * Return a list of paths where tools that came with the VCS may be installed.
+     * This is helpful on windows where e.g. git comes with a lot of nice unix tools.
+     */
+    static QStringList additionalToolsPath();
+
 signals:
     void repositoryChanged(const QString &repository);
+    void configurationChanged(const IVersionControl *vcs);
 
 public slots:
-    void clearVersionControlCache();
+    static void clearVersionControlCache();
 
 private slots:
-    void configureVcs();
+    static void configureVcs();
+    void handleConfigurationChanges();
 
 private:
-    VcsManagerPrivate *d;
+    explicit VcsManager(QObject *parent = 0);
+    ~VcsManager();
+
+    friend class Core::Internal::MainWindow;
 };
 
 } // namespace Core

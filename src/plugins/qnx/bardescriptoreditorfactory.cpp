@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -32,37 +32,42 @@
 #include "bardescriptoreditorfactory.h"
 
 #include "qnxconstants.h"
+#include "bardescriptoreditor.h"
 #include "bardescriptoreditorwidget.h"
 
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/editormanager/ieditor.h>
+#include <texteditor/texteditoractionhandler.h>
 
 using namespace Qnx;
 using namespace Qnx::Internal;
 
+class BarDescriptorActionHandler : public TextEditor::TextEditorActionHandler
+{
+public:
+    BarDescriptorActionHandler(QObject *parent)
+        : TextEditor::TextEditorActionHandler(parent, Constants::QNX_BAR_DESCRIPTOR_EDITOR_CONTEXT)
+    {
+    }
+protected:
+    TextEditor::BaseTextEditorWidget *resolveTextEditorWidget(Core::IEditor *editor) const
+    {
+        BarDescriptorEditorWidget *w = qobject_cast<BarDescriptorEditorWidget *>(editor->widget());
+        return w ? w->sourceWidget() : 0;
+    }
+};
+
 BarDescriptorEditorFactory::BarDescriptorEditorFactory(QObject *parent)
     : Core::IEditorFactory(parent)
-    , m_mimeTypes(QStringList() << QLatin1String(Constants::QNX_BAR_DESCRIPTOR_MIME_TYPE))
 {
+    setId(Constants::QNX_BAR_DESCRIPTOR_EDITOR_ID);
+    setDisplayName(tr("Bar descriptor editor"));
+    addMimeType(Constants::QNX_BAR_DESCRIPTOR_MIME_TYPE);
+    new BarDescriptorActionHandler(this);
 }
 
-QStringList BarDescriptorEditorFactory::mimeTypes() const
+Core::IEditor *BarDescriptorEditorFactory::createEditor()
 {
-    return m_mimeTypes;
-}
-
-Core::Id BarDescriptorEditorFactory::id() const
-{
-    return Constants::QNX_BAR_DESCRIPTOR_EDITOR_ID;
-}
-
-QString BarDescriptorEditorFactory::displayName() const
-{
-    return tr("Bar descriptor editor");
-}
-
-Core::IEditor *BarDescriptorEditorFactory::createEditor(QWidget *parent)
-{
-    BarDescriptorEditorWidget *editorWidget = new BarDescriptorEditorWidget(parent);
-    return editorWidget->editor();
+    BarDescriptorEditor *editor = new BarDescriptorEditor();
+    return editor;
 }

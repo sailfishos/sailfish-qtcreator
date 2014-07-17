@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -97,14 +97,16 @@ void BuildProgress::updateState()
 {
     if (!m_taskWindow)
         return;
-    int errors = m_taskWindow->errorTaskCount(Core::Id(Constants::TASK_CATEGORY_BUILDSYSTEM))
-            + m_taskWindow->errorTaskCount(Core::Id(Constants::TASK_CATEGORY_COMPILE));
+    int errors = m_taskWindow->errorTaskCount(Constants::TASK_CATEGORY_BUILDSYSTEM)
+            + m_taskWindow->errorTaskCount(Constants::TASK_CATEGORY_COMPILE)
+            + m_taskWindow->errorTaskCount(Constants::TASK_CATEGORY_DEPLOYMENT);
     bool haveErrors = (errors > 0);
     m_errorIcon->setEnabled(haveErrors);
     m_errorLabel->setEnabled(haveErrors);
     m_errorLabel->setText(QString::number(errors));
-    int warnings = m_taskWindow->warningTaskCount(Core::Id(Constants::TASK_CATEGORY_BUILDSYSTEM))
-            + m_taskWindow->warningTaskCount(Core::Id(Constants::TASK_CATEGORY_COMPILE));
+    int warnings = m_taskWindow->warningTaskCount(Constants::TASK_CATEGORY_BUILDSYSTEM)
+            + m_taskWindow->warningTaskCount(Constants::TASK_CATEGORY_COMPILE)
+            + m_taskWindow->warningTaskCount(Constants::TASK_CATEGORY_DEPLOYMENT);
     bool haveWarnings = (warnings > 0);
     m_warningIcon->setEnabled(haveWarnings);
     m_warningLabel->setEnabled(haveWarnings);

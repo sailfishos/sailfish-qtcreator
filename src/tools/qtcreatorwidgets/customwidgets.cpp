@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -124,18 +124,6 @@ FancyLineEdit_CW::FancyLineEdit_CW(QObject *parent) :
         QLatin1String("A Line edit with a clickable menu pixmap"))
 {
 }
-
-FilterLineEdit_CW::FilterLineEdit_CW(QObject *parent) :
-   QObject(parent),
-   CustomWidget<Utils::FilterLineEdit>
-       (QLatin1String("<utils/filterlineedit.h>"),
-        false,
-        QLatin1String(groupC),
-        QIcon(),
-        QLatin1String("A Line edit customized for filtering"))
-{
-}
-
 
 QtColorButton_CW::QtColorButton_CW(QObject *parent) :
    QObject(parent),

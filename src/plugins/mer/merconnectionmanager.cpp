@@ -91,14 +91,12 @@ MerConnectionManager::MerConnectionManager():
     connect(KitManager::instance(), SIGNAL(kitUpdated(ProjectExplorer::Kit*)),
             SLOT(handleKitUpdated(ProjectExplorer::Kit*)));
 
-    SessionManager *session = ProjectExplorerPlugin::instance()->session();
-    connect(session, SIGNAL(startupProjectChanged(ProjectExplorer::Project*)),
+    connect(SessionManager::instance(), SIGNAL(startupProjectChanged(ProjectExplorer::Project*)),
             SLOT(handleStartupProjectChanged(ProjectExplorer::Project*)));
     connect(MerSdkManager::instance(), SIGNAL(sdksUpdated()), this, SLOT(update()));
-    connect(DeviceManager::instance(), SIGNAL(deviceListChanged()), SLOT(update()));
+    connect(DeviceManager::instance(), SIGNAL(updated()), SLOT(update()));
 
-    ProjectExplorerPlugin *projectExplorer = ProjectExplorerPlugin::instance();
-    connect(projectExplorer->buildManager(), SIGNAL(buildStateChanged(ProjectExplorer::Project*)),
+    connect(BuildManager::instance(), SIGNAL(buildStateChanged(ProjectExplorer::Project*)),
             this, SLOT(handleBuildStateChanged(ProjectExplorer::Project*)));
 
     m_instance = this;
@@ -184,9 +182,8 @@ void MerConnectionManager::handleTargetRemoved(Target *target)
 void MerConnectionManager::handleBuildStateChanged(Project* project)
 {
      Target* target = project->activeTarget();
-     ProjectExplorerPlugin *projectExplorer = ProjectExplorerPlugin::instance();
      if (target && target->kit() && MerSdkManager::isMerKit(target->kit())) {
-         if (projectExplorer->buildManager()->isBuilding(project)) {
+         if (BuildManager::isBuilding(project)) {
              if(m_sdkConnection->isConnected()) return;
              const QString vm = m_sdkConnection->virtualMachine();
              QTC_ASSERT(!vm.isEmpty(),return);
@@ -207,7 +204,7 @@ void MerConnectionManager::update()
     bool sdkRemoteButtonVisible = false;
     bool emulatorRemoteButtonVisible = false;
 
-    const Project* const p = ProjectExplorerPlugin::instance()->session()->startupProject();
+    const Project* const p = SessionManager::startupProject();
     if (p) {
         const Target* const activeTarget = p->activeTarget();
         const QList<Target *> targets =  p->targets();

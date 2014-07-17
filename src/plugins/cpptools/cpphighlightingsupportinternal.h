@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -49,17 +49,12 @@ public:
     virtual bool hightlighterHandlesDiagnostics() const
     { return false; }
 
+    virtual bool hightlighterHandlesIfdefedOutBlocks() const
+    { return false; }
+
     virtual QFuture<TextEditor::HighlightingResult> highlightingFuture(
             const CPlusPlus::Document::Ptr &doc,
             const CPlusPlus::Snapshot &snapshot) const;
-};
-
-class CppHighlightingSupportInternalFactory: public CppHighlightingSupportFactory
-{
-public:
-    virtual ~CppHighlightingSupportInternalFactory();
-
-    virtual CppHighlightingSupport *highlightingSupport(TextEditor::ITextEditor *editor);
 };
 
 } // namespace Internal

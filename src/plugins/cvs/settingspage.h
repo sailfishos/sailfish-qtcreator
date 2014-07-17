@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -45,7 +45,7 @@ QT_END_NAMESPACE
 namespace Cvs {
 namespace Internal {
 
-struct CvsSettings;
+class CvsSettings;
 
 class SettingsPageWidget : public QWidget
 {
@@ -56,8 +56,6 @@ public:
 
     CvsSettings settings() const;
     void setSettings(const CvsSettings &);
-
-    QString searchKeywords() const;
 
 private:
     Ui::SettingsPage m_ui;
@@ -71,14 +69,12 @@ class SettingsPage : public VcsBase::VcsBaseOptionsPage
 public:
     SettingsPage();
 
-    QWidget *createPage(QWidget *parent);
+    QWidget *widget();
     void apply();
-    void finish() {}
-    bool matches(const QString &) const;
+    void finish();
 
 private:
-    QString m_searchKeywords;
-    SettingsPageWidget *m_widget;
+    QPointer<SettingsPageWidget> m_widget;
 };
 
 } // namespace Cvs

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -71,7 +71,7 @@ protected:
 
     void thisObject();
 
-    void addResult(const FullySpecifiedType &ty, Scope *scope);
+    void addResult(const FullySpecifiedType &ty, Scope *scope, ClassOrNamespace *binding = 0);
     void addResults(const QList<Symbol *> &symbols);
     void addResults(const QList<LookupItem> &items);
 
@@ -104,6 +104,8 @@ protected:
     virtual bool visit(UnaryExpressionAST *ast);
     virtual bool visit(CompoundLiteralAST *ast);
     virtual bool visit(CompoundExpressionAST *ast);
+    virtual bool visit(LambdaExpressionAST *ast);
+    virtual bool visit(ReturnStatementAST *ast);
 
     //names
     virtual bool visit(QualifiedNameAST *ast);
@@ -124,6 +126,10 @@ protected:
 
 
 private:
+    ClassOrNamespace *findClassForTemplateParameterInExpressionScope(
+            ClassOrNamespace *resultBinding,
+            const FullySpecifiedType &ty) const;
+
     Scope *_scope;
     const LookupContext& _context;
     Bind bind;

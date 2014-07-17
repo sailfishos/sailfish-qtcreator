@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -49,22 +49,25 @@ using namespace QmlJS::AST;
 
     Information about the imports of a Document can be accessed with imports().
 
-    When dealing with a QmlJSEditor::QmlJSTextEditorWidget it is unnecessary to
+    When dealing with a QmlJSEditor::QmlJSEditorDocument it is unnecessary to
     construct a new Context manually. Instead use
-    QmlJSTextEditorWidget::semanticInfo()::context.
+    QmlJSEditorDocument::semanticInfo()::context.
 */
 
-ContextPtr Context::create(const QmlJS::Snapshot &snapshot, ValueOwner *valueOwner, const ImportsPerDocument &imports)
+ContextPtr Context::create(const QmlJS::Snapshot &snapshot, ValueOwner *valueOwner,
+                           const ImportsPerDocument &imports, const ViewerContext &vContext)
 {
-    QSharedPointer<Context> result(new Context(snapshot, valueOwner, imports));
+    QSharedPointer<Context> result(new Context(snapshot, valueOwner, imports, vContext));
     result->_ptr = result;
     return result;
 }
 
-Context::Context(const QmlJS::Snapshot &snapshot, ValueOwner *valueOwner, const ImportsPerDocument &imports)
+Context::Context(const QmlJS::Snapshot &snapshot, ValueOwner *valueOwner,
+                 const ImportsPerDocument &imports, const ViewerContext &vContext)
     : _snapshot(snapshot),
       _valueOwner(valueOwner),
-      _imports(imports)
+      _imports(imports),
+      _vContext(vContext)
 {
 }
 

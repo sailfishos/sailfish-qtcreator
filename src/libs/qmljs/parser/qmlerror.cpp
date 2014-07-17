@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -34,6 +34,8 @@
 #include <QtCore/qfile.h>
 #include <QtCore/qstringlist.h>
 
+
+
 QT_BEGIN_NAMESPACE
 
 /*!
@@ -59,7 +61,7 @@ QT_BEGIN_NAMESPACE
                ^
     \endcode
 
-    \note The QtQuick 1 version is named QDeclarativeError.
+    Note that the \l {Qt Quick 1} version is named QDeclarativeError
 
     \sa QQuickView::errors(), QmlComponent::errors()
 */
@@ -78,10 +80,11 @@ public:
     QString description;
     quint16 line;
     quint16 column;
+    QObject *object;
 };
 
 QmlErrorPrivate::QmlErrorPrivate()
-: line(0), column(0)
+: line(0), column(0), object()
 {
 }
 
@@ -116,6 +119,7 @@ QmlError &QmlError::operator=(const QmlError &other)
         d->description = other.d->description;
         d->line = other.d->line;
         d->column = other.d->column;
+        d->object = other.d->object;
     }
     return *this;
 }
@@ -137,7 +141,7 @@ bool QmlError::isValid() const
 }
 
 /*!
-    Returns the URL for the file that caused this error.
+    Returns the url for the file that caused this error.
 */
 QUrl QmlError::url() const
 {
@@ -209,6 +213,27 @@ void QmlError::setColumn(int column)
 }
 
 /*!
+    Returns the nearest object where this error occurred.
+    Exceptions in bound property expressions set this to the object
+    to which the property belongs. It will be 0 for all
+    other exceptions.
+ */
+QObject *QmlError::object() const
+{
+    if (d) return d->object;
+    else return 0;
+}
+
+/*!
+    Sets the nearest \a object where this error occurred.
+ */
+void QmlError::setObject(QObject *object)
+{
+    if (!d) d = new QmlErrorPrivate;
+    d->object = object;
+}
+
+/*!
     Returns the error as a human readable string.
 */
 QString QmlError::toString() const
@@ -237,6 +262,7 @@ QString QmlError::toString() const
 
 /*!
     \relates QmlError
+    \fn QDebug operator<<(QDebug debug, const QmlError &error)
 
     Outputs a human readable version of \a error to \a debug.
 */

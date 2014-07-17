@@ -12,9 +12,11 @@ QTC_PLUGIN_DEPENDS += \
 INCLUDEPATH *= \
     $$PWD \
     $$PWD/../../../share/qtcreator/qml/qmlpuppet/interfaces \
+    $$PWD/../../../share/qtcreator/qml/qmlpuppet/types \
     $$PWD/designercore \
     $$PWD/designercore/include \
     $$PWD/components/componentcore \
+    $$PWD/components/importmanager \
     $$PWD/components/formeditor \
     $$PWD/components/itemlibrary \
     $$PWD/components/navigator \

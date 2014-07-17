@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,7 +30,7 @@
 #ifndef DEVICESETTINGSWIDGET_H
 #define DEVICESETTINGSWIDGET_H
 
-#include "devicesupport/idevice.h"
+#include "idevice.h"
 
 #include <QList>
 #include <QString>
@@ -55,7 +55,7 @@ class DeviceSettingsWidget : public QWidget
 {
     Q_OBJECT
 public:
-    DeviceSettingsWidget(QWidget *parent);
+    DeviceSettingsWidget(QWidget *parent = 0);
     ~DeviceSettingsWidget();
 
     void saveSettings();
@@ -68,6 +68,7 @@ private slots:
     void removeDevice();
     void deviceNameEditingFinished();
     void setDefaultDevice();
+    void testDevice();
     void handleAdditionalActionRequest(int actionId);
     void handleProcessListRequested();
 

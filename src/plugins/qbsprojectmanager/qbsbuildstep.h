@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -65,6 +65,7 @@ public:
 
     bool dryRun() const;
     bool keepGoing() const;
+    bool checkTimestamps() const;
     int maxJobs() const;
     QString buildVariant() const;
 
@@ -79,6 +80,7 @@ signals:
 
 private slots:
     void buildingDone(bool success);
+    void reparsingDone();
     void handleTaskStarted(const QString &desciption, int max);
     void handleProgress(int value);
     void handleCommandDescriptionReport(const QString &highlight, const QString &message);
@@ -93,6 +95,7 @@ private:
 
     void setDryRun(bool dr);
     void setKeepGoing(bool kg);
+    void setCheckTimestamps(bool ts);
     void setMaxJobs(int jobcount);
 
     QVariantMap m_qbsConfiguration;
@@ -100,11 +103,13 @@ private:
 
     // Temporary data:
     QStringList m_changedFiles;
+    QStringList m_activeFileTags;
     QStringList m_products;
 
     QFutureInterface<bool> *m_fi;
     qbs::BuildJob *m_job;
     int m_progressBase;
+    bool m_lastWasSuccess;
     ProjectExplorer::IOutputParser *m_parser;
 
     friend class QbsBuildStepConfigWidget;
@@ -128,12 +133,12 @@ private slots:
     void changeBuildVariant(int);
     void changeDryRun(bool dr);
     void changeKeepGoing(bool kg);
+    void changeCheckTimestamps(bool ts);
     void changeJobCount(int count);
     void changeProperties();
 
     // QML debugging:
     void linkQmlDebuggingLibraryChecked(bool checked);
-    void buildQmlDebuggingHelper();
 
 private:
     Ui::QbsBuildStepConfigWidget *m_ui;

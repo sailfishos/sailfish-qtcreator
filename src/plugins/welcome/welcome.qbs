@@ -1,18 +1,19 @@
-import qbs.base 1.0
+import qbs 1.0
 
-import "../QtcPlugin.qbs" as QtcPlugin
+import QtcPlugin
 
 QtcPlugin {
     name: "Welcome"
+    minimumQtVersion: "5.1"
 
-    Depends { name: "Qt"; submodules: ["widgets", "network", "declarative"] }
+    Depends { name: "Qt"; submodules: ["widgets", "network"] }
+    Depends { name: "Qt.quick"; condition: product.condition; }
+    Depends { name: "Aggregation" }
+    Depends { name: "Utils" }
+
     Depends { name: "Core" }
-    Depends { name: "ProjectExplorer" }
-
-    cpp.includePaths: base.concat("../../shared/scriptwrapper")
 
     files: [
-        "welcome_global.h",
         "welcomeplugin.cpp",
         "welcomeplugin.h",
     ]

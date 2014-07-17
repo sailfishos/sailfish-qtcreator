@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -89,14 +89,17 @@ public:
     void setItems(const QList<FormEditorItem*> &itemList);
     QList<FormEditorItem*> items() const;
 
+    static QList<FormEditorItem*> toFormEditorItemList(const QList<QGraphicsItem*> &itemList);
     static QGraphicsItem* topMovableGraphicsItem(const QList<QGraphicsItem*> &itemList);
-    static FormEditorItem* topMovableFormEditorItem(const QList<QGraphicsItem*> &itemList);
+    static FormEditorItem* topMovableFormEditorItem(const QList<QGraphicsItem*> &itemList, bool selectOnlyContentItems);
     bool topItemIsMovable(const QList<QGraphicsItem*> &itemList);
     bool topSelectedItemIsMovable(const QList<QGraphicsItem*> &itemList);
     bool topItemIsResizeHandle(const QList<QGraphicsItem*> &itemList);
 
     static FormEditorItem* topFormEditorItem(const QList<QGraphicsItem*> &itemList);
     static FormEditorItem* topFormEditorItemWithRootItem(const QList<QGraphicsItem*> &itemList);
+
+    QList<FormEditorItem*> filterSelectedModelNodes(const QList<FormEditorItem*> &itemList) const;
 
 protected:
     virtual void selectedItemsChanged(const QList<FormEditorItem*> &itemList) = 0;

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -38,7 +38,7 @@
 namespace QmlDesigner {
 
 class ItemLibraryWidget;
-
+class ImportManagerView;
 
 class ItemLibraryView : public AbstractView
 {
@@ -98,7 +98,7 @@ public:
     void rewriterBeginTransaction() QTC_OVERRIDE;
     void rewriterEndTransaction() QTC_OVERRIDE;
 
-    void actualStateChanged(const ModelNode &node) QTC_OVERRIDE;
+    void currentStateChanged(const ModelNode &node) QTC_OVERRIDE;
 
     void setResourcePath(const QString &resourcePath);
 
@@ -107,6 +107,7 @@ protected:
 
 private:
     QWeakPointer<ItemLibraryWidget> m_widget;
+    ImportManagerView *m_importManagerView;
 };
 
 }

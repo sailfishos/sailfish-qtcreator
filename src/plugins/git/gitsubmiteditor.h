@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -36,9 +36,7 @@
 
 #include <QStringList>
 
-namespace VcsBase {
-    class SubmitFileModel;
-}
+namespace VcsBase { class SubmitFileModel; }
 
 namespace Git {
 namespace Internal {
@@ -55,7 +53,7 @@ public:
 
     void setCommitData(const CommitData &);
     GitSubmitEditorPanelData panelData() const;
-    bool forceClose() const { return m_forceClose; }
+    bool forceClose() { updateFileModel(); return m_forceClose; }
     CommitType commitType() const { return m_commitType; }
     QString amendSHA1() const;
 
@@ -77,7 +75,7 @@ private:
     inline const GitSubmitEditorWidget *submitEditorWidget() const;
 
     VcsBase::SubmitFileModel *m_model;
-    QString m_commitEncoding;
+    QTextCodec *m_commitEncoding;
     CommitType m_commitType;
     QString m_amendSHA1;
     bool m_forceClose;

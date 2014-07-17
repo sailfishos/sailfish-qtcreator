@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -42,27 +42,20 @@ class QTextCodec;
 QT_END_NAMESPACE
 
 namespace Core {
+    class CommandLocator;
     class IVersionControl;
     class IEditor;
 }
-namespace Utils {
-    class ParameterAction;
-}
+namespace Utils { class ParameterAction; }
 
-namespace VcsBase {
-    class VcsBaseSubmitEditor;
-}
-
-namespace Locator {
-    class CommandLocator;
-}
+namespace VcsBase { class VcsBaseSubmitEditor; }
 
 namespace Subversion {
 namespace Internal {
 
 class SubversionSubmitEditor;
 class SubversionControl;
-struct SubversionDiffParameters;
+class SubversionClient;
 
 struct SubversionResponse
 {
@@ -84,8 +77,6 @@ public:
 
     bool initialize(const QStringList &arguments, QString *errorMessage);
 
-    void svnDiff(const QString  &workingDir, const QStringList &files, QString diffname = QString());
-
     SubversionSubmitEditor *openSubversionSubmitEditor(const QString &fileName);
 
     SubversionSettings settings() const;
@@ -96,29 +87,15 @@ public:
     bool vcsDelete(const QString &workingDir, const QString &fileName);
     bool vcsMove(const QString &workingDir, const QString &from, const QString &to);
     bool managesDirectory(const QString &directory, QString *topLevel = 0) const;
+    bool managesFile(const QString &workingDirectory, const QString &fileName) const;
     bool vcsCheckout(const QString &directory, const QByteArray &url);
     QString vcsGetRepositoryURL(const QString &directory);
 
     static SubversionPlugin *instance();
 
-    // Add authorization options to the command line arguments.
-    static QStringList addAuthenticationOptions(const QStringList &args,
-                                                const QString &userName = QString(),
-                                                const QString &password = QString());
-
-    class Version {
-    public:
-        int majorVersion;
-        int minorVersion;
-        int patchVersion;
-    };
-
-    Version svnVersion();
-
 public slots:
     void vcsAnnotate(const QString &workingDir, const QString &file,
                      const QString &revision = QString(), int lineNumber = -1);
-    void svnDiff(const Subversion::Internal::SubversionDiffParameters &p);
 
 private slots:
     void addCurrentFile();
@@ -131,7 +108,7 @@ private slots:
     void revertAll();
     void filelogCurrentFile();
     void annotateCurrentFile();
-    void annotateVersion(const QString &file, const QString &revision, int lineNumber);
+    void annotateVersion(const QString &workingDirectory, const QString &file, const QString &revision, int lineNumber);
     void projectStatus();
     void describe(const QString &source, const QString &changeNr);
     void slotDescribe();
@@ -161,18 +138,18 @@ private:
     // Run using the settings' authentication options.
     SubversionResponse runSvn(const QString &workingDir,
                               const QStringList &arguments, int timeOut,
-                              unsigned flags, QTextCodec *outputCodec = 0);
+                              unsigned flags, QTextCodec *outputCodec = 0) const;
     // Run using custom authentication options.
     SubversionResponse runSvn(const QString &workingDir,
                               const QString &userName, const QString &password,
                               const QStringList &arguments, int timeOut,
-                              unsigned flags, QTextCodec *outputCodec = 0);
+                              unsigned flags, QTextCodec *outputCodec = 0) const;
 
     void filelog(const QString &workingDir,
-                 const QStringList &file = QStringList(),
+                 const QString &file = QString(),
                  bool enableAnnotationContextMenu = false);
-    void svnStatus(const QString &workingDir, const QStringList &relativePath = QStringList());
-    void svnUpdate(const QString &workingDir, const QStringList &relativePaths = QStringList());
+    void svnStatus(const QString &workingDir, const QString &relativePath = QString());
+    void svnUpdate(const QString &workingDir, const QString &relativePath = QString());
     bool checkSVNSubDir(const QDir &directory, const QString &fileName = QString()) const;
     void startCommit(const QString &workingDir, const QStringList &files = QStringList());
     bool commit(const QString &messageFile, const QStringList &subVersionFileList);
@@ -182,10 +159,11 @@ private:
     const QStringList m_svnDirectories;
 
     SubversionSettings m_settings;
+    SubversionClient *m_client;
     QString m_commitMessageFileName;
     QString m_commitRepository;
 
-    Locator::CommandLocator *m_commandLocator;
+    Core::CommandLocator *m_commandLocator;
     Utils::ParameterAction *m_addAction;
     Utils::ParameterAction *m_deleteAction;
     Utils::ParameterAction *m_revertAction;
@@ -212,9 +190,6 @@ private:
     QAction *m_submitRedoAction;
     QAction *m_menuAction;
     bool    m_submitActionTriggered;
-
-    QString m_svnVersionBinary;
-    QString m_svnVersion;
 
     static SubversionPlugin *m_subversionPluginInstance;
 };

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -35,13 +35,12 @@
 #include <utils/iwelcomepage.h>
 
 QT_BEGIN_NAMESPACE
-class QDeclarativeEngine;
+class QQmlEngine;
 QT_END_NAMESPACE
 
 namespace ProjectExplorer {
 
 class ProjectExplorerPlugin;
-class SessionManager;
 
 namespace Internal {
 
@@ -51,7 +50,7 @@ class SessionModel : public QAbstractListModel
 public:
     enum { DefaultSessionRole = Qt::UserRole+1, LastSessionRole, ActiveSessionRole, ProjectsPathRole, ProjectsDisplayRole };
 
-    SessionModel(SessionManager* manager, QObject* parent = 0);
+    explicit SessionModel(QObject *parent = 0);
     int rowCount(const QModelIndex &parent) const;
     QVariant data(const QModelIndex &index, int role) const;
 
@@ -62,9 +61,6 @@ public slots:
     void cloneSession(const QString &session);
     void deleteSession(const QString &session);
     void renameSession(const QString &session);
-
-private:
-    SessionManager *m_manager;
 };
 
 
@@ -91,10 +87,10 @@ class ProjectWelcomePage : public Utils::IWelcomePage
 public:
     ProjectWelcomePage();
 
-    void facilitateQml(QDeclarativeEngine *engine);
+    void facilitateQml(QQmlEngine *engine);
     QUrl pageLocation() const;
     QWidget *page() { return 0; }
-    QString title() const { return tr("Develop"); }
+    QString title() const { return tr("Projects"); }
     int priority() const { return 20; }
     Id id() const;
 

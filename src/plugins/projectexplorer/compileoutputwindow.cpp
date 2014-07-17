@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -36,10 +36,11 @@
 #include "taskhub.h"
 
 #include <coreplugin/outputwindow.h>
-#include <find/basetextfind.h>
+#include <coreplugin/find/basetextfind.h>
 #include <extensionsystem/pluginmanager.h>
 #include <texteditor/texteditorsettings.h>
 #include <texteditor/fontsettings.h>
+#include <utils/ansiescapecodehandler.h>
 
 #include <QIcon>
 #include <QTextCharFormat>
@@ -81,19 +82,17 @@ public:
 private slots:
     void fontSettingsChanged()
     {
-        setFont(TextEditor::TextEditorSettings::instance()->fontSettings().font());
+        setFont(TextEditor::TextEditorSettings::fontSettings().font());
     }
 
 protected:
     void mouseDoubleClickEvent(QMouseEvent *ev)
     {
         int line = cursorForPosition(ev->pos()).block().blockNumber();
-        if (unsigned taskid = m_taskids.value(line, 0)) {
-            TaskHub *hub = ExtensionSystem::PluginManager::getObject<TaskHub>();
-            hub->showTaskInEditor(taskid);
-        } else {
+        if (unsigned taskid = m_taskids.value(line, 0))
+            TaskHub::showTaskInEditor(taskid);
+        else
             QPlainTextEdit::mouseDoubleClickEvent(ev);
-        }
     }
 
 private:
@@ -103,8 +102,9 @@ private:
 } // namespace Internal
 } // namespace ProjectExplorer
 
-CompileOutputWindow::CompileOutputWindow(BuildManager * /*bm*/, QAction *cancelBuildAction) :
-    m_cancelBuildButton(new QToolButton)
+CompileOutputWindow::CompileOutputWindow(QAction *cancelBuildAction) :
+    m_cancelBuildButton(new QToolButton),
+    m_escapeCodeHandler(new Utils::AnsiEscapeCodeHandler)
 {
     Core::Context context(Constants::C_COMPILE_OUTPUT);
     m_outputWindow = new CompileOutputTextEdit(context);
@@ -127,7 +127,7 @@ CompileOutputWindow::CompileOutputWindow(BuildManager * /*bm*/, QAction *cancelB
 
     Aggregation::Aggregate *agg = new Aggregation::Aggregate;
     agg->add(m_outputWindow);
-    agg->add(new Find::BaseTextFind(m_outputWindow));
+    agg->add(new Core::BaseTextFind(m_outputWindow));
 
     qRegisterMetaType<QTextCharFormat>("QTextCharFormat");
 
@@ -143,11 +143,12 @@ CompileOutputWindow::~CompileOutputWindow()
     ExtensionSystem::PluginManager::removeObject(m_handler);
     delete m_handler;
     delete m_cancelBuildButton;
+    delete m_escapeCodeHandler;
 }
 
 void CompileOutputWindow::updateWordWrapMode()
 {
-    m_outputWindow->setWordWrapEnabled(ProjectExplorerPlugin::instance()->projectExplorerSettings().wrapAppOutput);
+    m_outputWindow->setWordWrapEnabled(ProjectExplorerPlugin::projectExplorerSettings().wrapAppOutput);
 }
 
 bool CompileOutputWindow::hasFocus() const
@@ -204,7 +205,9 @@ void CompileOutputWindow::appendText(const QString &text, ProjectExplorer::Build
 
     }
 
-    m_outputWindow->appendText(text, textFormat);
+    foreach (const Utils::FormattedText &output,
+             m_escapeCodeHandler->parseText(Utils::FormattedText(text, textFormat)))
+        m_outputWindow->appendText(output.text, output.format);
 }
 
 void CompileOutputWindow::clearContents()
@@ -270,6 +273,12 @@ void CompileOutputWindow::showPositionOf(const Task &task)
     QTextCursor newCursor(m_outputWindow->document()->findBlockByNumber(position));
     newCursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
     m_outputWindow->setTextCursor(newCursor);
+}
+
+void CompileOutputWindow::flush()
+{
+    if (m_escapeCodeHandler)
+        m_escapeCodeHandler->endFormatScope();
 }
 
 #include "compileoutputwindow.moc"

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,9 +30,10 @@
 #include "plaintexteditorfactory.h"
 #include "plaintexteditor.h"
 #include "basetextdocument.h"
+#include "texteditoractionhandler.h"
 #include "texteditorconstants.h"
 #include "texteditorplugin.h"
-#include "texteditoractionhandler.h"
+#include "texteditorsettings.h"
 
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/infobar.h>
@@ -46,33 +47,21 @@ using namespace TextEditor::Internal;
 PlainTextEditorFactory::PlainTextEditorFactory(QObject *parent)
   : Core::IEditorFactory(parent)
 {
-    m_actionHandler = new TextEditorActionHandler(
-        TextEditor::Constants::C_TEXTEDITOR,
+    setId(Core::Constants::K_DEFAULT_TEXT_EDITOR_ID);
+    setDisplayName(qApp->translate("OpenWith::Editors", Core::Constants::K_DEFAULT_TEXT_EDITOR_DISPLAY_NAME));
+    addMimeType(QLatin1String(TextEditor::Constants::C_TEXTEDITOR_MIMETYPE_TEXT));
+
+    new TextEditorActionHandler(this,
+        Core::Constants::K_DEFAULT_TEXT_EDITOR_ID,
         TextEditorActionHandler::Format |
         TextEditorActionHandler::UnCommentSelection |
         TextEditorActionHandler::UnCollapseAll);
-    m_mimeTypes << QLatin1String(TextEditor::Constants::C_TEXTEDITOR_MIMETYPE_TEXT);
 }
 
-PlainTextEditorFactory::~PlainTextEditorFactory()
+Core::IEditor *PlainTextEditorFactory::createEditor()
 {
-    delete m_actionHandler;
-}
-
-Core::Id PlainTextEditorFactory::id() const
-{
-    return Core::Id(Core::Constants::K_DEFAULT_TEXT_EDITOR_ID);
-}
-
-QString PlainTextEditorFactory::displayName() const
-{
-    return qApp->translate("OpenWith::Editors", Core::Constants::K_DEFAULT_TEXT_EDITOR_DISPLAY_NAME);
-}
-
-Core::IEditor *PlainTextEditorFactory::createEditor(QWidget *parent)
-{
-    PlainTextEditorWidget *rc = new PlainTextEditorWidget(parent);
-    TextEditorPlugin::instance()->initializeEditor(rc);
+    PlainTextEditorWidget *rc = new PlainTextEditorWidget();
+    TextEditorSettings::initializeEditor(rc);
     connect(rc, SIGNAL(configured(Core::IEditor*)),
             this, SLOT(updateEditorInfoBar(Core::IEditor*)));
     updateEditorInfoBar(rc->editor());
@@ -100,19 +89,9 @@ void PlainTextEditorFactory::updateEditorInfoBar(Core::IEditor *editor)
                                     tr("A highlight definition was not found for this file. "
                                        "Would you like to try to find one?"),
                                     Core::InfoBarEntry::GlobalSuppressionEnabled);
-            info.setCustomButtonInfo(tr("Show highlighter options..."),
+            info.setCustomButtonInfo(tr("Show Highlighter Options..."),
                                      textEditor, SLOT(acceptMissingSyntaxDefinitionInfo()));
             infoBar->addInfo(info);
         }
     }
-}
-
-void PlainTextEditorFactory::addMimeType(const QString &type)
-{
-    m_mimeTypes.append(type);
-}
-
-QStringList PlainTextEditorFactory::mimeTypes() const
-{
-    return m_mimeTypes;
 }

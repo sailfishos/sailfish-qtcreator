@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -60,8 +60,8 @@ IBuildStepFactory *findRestoreFactory(BuildStepList *parent, const QVariantMap &
     return 0;
 }
 
-const char * const STEPS_COUNT_KEY("ProjectExplorer.BuildStepList.StepsCount");
-const char * const STEPS_PREFIX("ProjectExplorer.BuildStepList.Step.");
+const char STEPS_COUNT_KEY[] = "ProjectExplorer.BuildStepList.StepsCount";
+const char STEPS_PREFIX[] = "ProjectExplorer.BuildStepList.Step.";
 
 } // namespace
 
@@ -184,10 +184,8 @@ void BuildStepList::insertStep(int position, BuildStep *step)
 
 bool BuildStepList::removeStep(int position)
 {
-    ProjectExplorer::BuildManager *bm =
-            ProjectExplorer::ProjectExplorerPlugin::instance()->buildManager();
     BuildStep *bs = at(position);
-    if (bm->isBuilding(bs))
+    if (BuildManager::isBuilding(bs))
         return false;
 
     emit aboutToRemoveStep(position);

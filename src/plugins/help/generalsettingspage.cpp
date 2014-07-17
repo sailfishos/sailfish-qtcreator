@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -29,12 +29,13 @@
 
 #include "generalsettingspage.h"
 
-#include "bookmarkmanager.h"
 #include "centralwidget.h"
 #include "helpconstants.h"
 #include "helpviewer.h"
 #include "localhelpmanager.h"
 #include "xbelsupport.h"
+
+#include <bookmarkmanager.h>
 
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/helpmanager.h>
@@ -53,6 +54,7 @@
 #include <QWebSettings>
 #endif
 
+using namespace Core;
 using namespace Help::Internal;
 
 GeneralSettingsPage::GeneralSettingsPage()
@@ -70,61 +72,54 @@ GeneralSettingsPage::GeneralSettingsPage()
     setCategoryIcon(QLatin1String(Help::Constants::HELP_CATEGORY_ICON));
 }
 
-QWidget *GeneralSettingsPage::createPage(QWidget *parent)
+QWidget *GeneralSettingsPage::widget()
 {
-    QWidget *widget = new QWidget(parent);
-    m_ui = new Ui::GeneralSettingsPage;
-    m_ui->setupUi(widget);
-    m_ui->sizeComboBox->setEditable(false);
-    m_ui->styleComboBox->setEditable(false);
+    if (!m_widget) {
+        m_widget = new QWidget;
+        m_ui = new Ui::GeneralSettingsPage;
+        m_ui->setupUi(m_widget);
+        m_ui->sizeComboBox->setEditable(false);
+        m_ui->styleComboBox->setEditable(false);
 
-    Core::HelpManager *manager = Core::HelpManager::instance();
-    m_font = qvariant_cast<QFont>(manager->customValue(QLatin1String("font"),
-        m_font));
+        m_font = qvariant_cast<QFont>(HelpManager::customValue(QLatin1String("font"), m_font));
 
-    updateFontSize();
-    updateFontStyle();
-    updateFontFamily();
+        updateFontSize();
+        updateFontStyle();
+        updateFontFamily();
 
-    m_homePage = manager->customValue(QLatin1String("HomePage"), QString())
-        .toString();
-    if (m_homePage.isEmpty()) {
-        m_homePage = manager->customValue(QLatin1String("DefaultHomePage"),
-            Help::Constants::AboutBlank).toString();
+        m_homePage = HelpManager::customValue(QLatin1String("HomePage"), QString())
+                .toString();
+        if (m_homePage.isEmpty()) {
+            m_homePage = HelpManager::customValue(QLatin1String("DefaultHomePage"),
+                                                  Help::Constants::AboutBlank).toString();
+        }
+        m_ui->homePageLineEdit->setText(m_homePage);
+
+        m_startOption = HelpManager::customValue(QLatin1String("StartOption"),
+                                                 Help::Constants::ShowLastPages).toInt();
+        m_ui->helpStartComboBox->setCurrentIndex(m_startOption);
+
+        m_contextOption = HelpManager::customValue(QLatin1String("ContextHelpOption"),
+                                                   Help::Constants::SideBySideIfPossible).toInt();
+        m_ui->contextHelpComboBox->setCurrentIndex(m_contextOption);
+
+        connect(m_ui->currentPageButton, SIGNAL(clicked()), this, SLOT(setCurrentPage()));
+        connect(m_ui->blankPageButton, SIGNAL(clicked()), this, SLOT(setBlankPage()));
+        connect(m_ui->defaultPageButton, SIGNAL(clicked()), this, SLOT(setDefaultPage()));
+
+        HelpViewer *viewer = CentralWidget::instance()->currentHelpViewer();
+        if (!viewer)
+            m_ui->currentPageButton->setEnabled(false);
+
+        m_ui->errorLabel->setVisible(false);
+        connect(m_ui->importButton, SIGNAL(clicked()), this, SLOT(importBookmarks()));
+        connect(m_ui->exportButton, SIGNAL(clicked()), this, SLOT(exportBookmarks()));
+
+        m_returnOnClose = HelpManager::customValue(QLatin1String("ReturnOnClose"),
+                                                   false).toBool();
+        m_ui->m_returnOnClose->setChecked(m_returnOnClose);
     }
-    m_ui->homePageLineEdit->setText(m_homePage);
-
-    m_startOption = manager->customValue(QLatin1String("StartOption"),
-        Help::Constants::ShowLastPages).toInt();
-    m_ui->helpStartComboBox->setCurrentIndex(m_startOption);
-
-    m_contextOption = manager->customValue(QLatin1String("ContextHelpOption"),
-        Help::Constants::SideBySideIfPossible).toInt();
-    m_ui->contextHelpComboBox->setCurrentIndex(m_contextOption);
-
-    connect(m_ui->currentPageButton, SIGNAL(clicked()), this, SLOT(setCurrentPage()));
-    connect(m_ui->blankPageButton, SIGNAL(clicked()), this, SLOT(setBlankPage()));
-    connect(m_ui->defaultPageButton, SIGNAL(clicked()), this, SLOT(setDefaultPage()));
-
-    HelpViewer *viewer = CentralWidget::instance()->currentHelpViewer();
-    if (!viewer)
-        m_ui->currentPageButton->setEnabled(false);
-
-    m_ui->errorLabel->setVisible(false);
-    connect(m_ui->importButton, SIGNAL(clicked()), this, SLOT(importBookmarks()));
-    connect(m_ui->exportButton, SIGNAL(clicked()), this, SLOT(exportBookmarks()));
-
-    if (m_searchKeywords.isEmpty()) {
-        QTextStream(&m_searchKeywords) << ' ' << m_ui->contextHelpLabel->text()
-           << ' ' << m_ui->startPageLabel->text() << ' ' << m_ui->homePageLabel->text();
-        m_searchKeywords.remove(QLatin1Char('&'));
-    }
-
-    m_returnOnClose = manager->customValue(QLatin1String("ReturnOnClose"),
-        false).toBool();
-    m_ui->m_returnOnClose->setChecked(m_returnOnClose);
-
-    return widget;
+    return m_widget;
 }
 
 void GeneralSettingsPage::apply()
@@ -157,10 +152,9 @@ void GeneralSettingsPage::apply()
     if (weight >= 0)    // Weight < 0 asserts...
         newFont.setWeight(weight);
 
-    Core::HelpManager *manager = Core::HelpManager::instance();
     if (newFont != m_font) {
         m_font = newFont;
-        manager->setCustomValue(QLatin1String("font"), newFont);
+        HelpManager::setCustomValue(QLatin1String("font"), newFont);
         emit fontChanged();
     }
 
@@ -170,19 +164,19 @@ void GeneralSettingsPage::apply()
     m_ui->homePageLineEdit->setText(homePage);
     if (m_homePage != homePage) {
         m_homePage = homePage;
-        manager->setCustomValue(QLatin1String("HomePage"), homePage);
+        HelpManager::setCustomValue(QLatin1String("HomePage"), homePage);
     }
 
     const int startOption = m_ui->helpStartComboBox->currentIndex();
     if (m_startOption != startOption) {
         m_startOption = startOption;
-        manager->setCustomValue(QLatin1String("StartOption"), startOption);
+        HelpManager::setCustomValue(QLatin1String("StartOption"), startOption);
     }
 
     const int helpOption = m_ui->contextHelpComboBox->currentIndex();
     if (m_contextOption != helpOption) {
         m_contextOption = helpOption;
-        manager->setCustomValue(QLatin1String("ContextHelpOption"), helpOption);
+        HelpManager::setCustomValue(QLatin1String("ContextHelpOption"), helpOption);
 
         QSettings *settings = Core::ICore::settings();
         settings->beginGroup(QLatin1String(Help::Constants::ID_MODE_HELP));
@@ -195,7 +189,7 @@ void GeneralSettingsPage::apply()
     const bool close = m_ui->m_returnOnClose->isChecked();
     if (m_returnOnClose != close) {
         m_returnOnClose = close;
-        manager->setCustomValue(QLatin1String("ReturnOnClose"), close);
+        HelpManager::setCustomValue(QLatin1String("ReturnOnClose"), close);
         emit returnOnCloseChanged();
     }
 }
@@ -214,17 +208,16 @@ void GeneralSettingsPage::setBlankPage()
 
 void GeneralSettingsPage::setDefaultPage()
 {
-    const QString &defaultHomePage = Core::HelpManager::instance()
-        ->customValue(QLatin1String("DefaultHomePage"), QString()).toString();
-    m_ui->homePageLineEdit->setText(defaultHomePage);
+    m_ui->homePageLineEdit->setText(
+        HelpManager::customValue(QLatin1String("DefaultHomePage"), QString()).toString());
 }
 
 void GeneralSettingsPage::importBookmarks()
 {
     m_ui->errorLabel->setVisible(false);
 
-    QString fileName = QFileDialog::getOpenFileName(0, tr("Import Bookmarks"),
-        QDir::currentPath(), tr("Files (*.xbel)"));
+    QString fileName = QFileDialog::getOpenFileName(Core::ICore::dialogParent(),
+        tr("Import Bookmarks"), QDir::currentPath(), tr("Files (*.xbel)"));
 
     if (fileName.isEmpty())
         return;
@@ -245,8 +238,8 @@ void GeneralSettingsPage::exportBookmarks()
 {
     m_ui->errorLabel->setVisible(false);
 
-    QString fileName = QFileDialog::getSaveFileName(0, tr("Save File"),
-        QLatin1String("untitled.xbel"), tr("Files (*.xbel)"));
+    QString fileName = QFileDialog::getSaveFileName(Core::ICore::dialogParent(),
+        tr("Save File"), QLatin1String("untitled.xbel"), tr("Files (*.xbel)"));
 
     QLatin1String suffix(".xbel");
     if (!fileName.endsWith(suffix))
@@ -344,13 +337,9 @@ int GeneralSettingsPage::closestPointSizeIndex(int desiredPointSize) const
     return closestIndex;
 }
 
-bool GeneralSettingsPage::matches(const QString &s) const
-{
-    return m_searchKeywords.contains(s, Qt::CaseInsensitive);
-}
-
 void GeneralSettingsPage::finish()
 {
+    delete m_widget;
     if (!m_ui) // page was never shown
         return;
     delete m_ui;

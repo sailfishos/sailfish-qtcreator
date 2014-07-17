@@ -1,5 +1,5 @@
 DEFINES += QTSUPPORT_LIBRARY
-QT += network declarative
+QT += network
 
 include(../../qtcreatorplugin.pri)
 
@@ -14,24 +14,27 @@ HEADERS += \
     qtoutputformatter.h \
     qtversionmanager.h \
     qtversionfactory.h \
+    uicodemodelsupport.h \
     baseqtversion.h \
     qmldumptool.h \
-    qmlobservertool.h \
-    qmldebugginglibrary.h \
     qtoptionspage.h \
     customexecutablerunconfiguration.h \
     customexecutableconfigurationwidget.h \
-    debugginghelper.h \
     debugginghelperbuildtask.h \
     qtsupportconstants.h \
     profilereader.h \
     qtparser.h \
-    gettingstartedwelcomepage.h \
     exampleslistmodel.h \
     screenshotcropper.h \
     qtconfigwidget.h \
     qtfeatureprovider.h \
-    copytolocationdialog.h
+    copytolocationdialog.h \
+    desktopqtversionfactory.h \
+    simulatorqtversionfactory.h \
+    desktopqtversion.h \
+    simulatorqtversion.h \
+    winceqtversionfactory.h \
+    winceqtversion.h
 
 SOURCES += \
     qtsupportplugin.cpp \
@@ -40,22 +43,31 @@ SOURCES += \
     qtoutputformatter.cpp \
     qtversionmanager.cpp \
     qtversionfactory.cpp \
+    uicodemodelsupport.cpp \
     baseqtversion.cpp \
     qmldumptool.cpp \
-    qmlobservertool.cpp \
-    qmldebugginglibrary.cpp \
     qtoptionspage.cpp \
     customexecutablerunconfiguration.cpp \
     customexecutableconfigurationwidget.cpp \
-    debugginghelper.cpp \
     debugginghelperbuildtask.cpp \
     profilereader.cpp \
     qtparser.cpp \
-    gettingstartedwelcomepage.cpp \
     exampleslistmodel.cpp \
     screenshotcropper.cpp \
     qtconfigwidget.cpp \
-    copytolocationdialog.cpp
+    copytolocationdialog.cpp \
+    desktopqtversionfactory.cpp \
+    simulatorqtversionfactory.cpp \
+    desktopqtversion.cpp \
+    simulatorqtversion.cpp \
+    winceqtversionfactory.cpp \
+    winceqtversion.cpp
+
+greaterThan(QT_MAJOR_VERSION, 4) {
+    QT += quick
+    HEADERS += gettingstartedwelcomepage.h
+    SOURCES += gettingstartedwelcomepage.cpp
+}
 
 FORMS   +=  \
     showbuildlog.ui \

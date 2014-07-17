@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (C) 2013 Openismus GmbH.
+** Copyright (C) 2014 Openismus GmbH.
 ** Authors: Peter Penz (ppenz@openismus.com)
 **          Patricia Santana Cruz (patriciasantanacruz@gmail.com)
 ** Contact: http://www.qt-project.org/legal
@@ -34,9 +34,7 @@
 
 #include <utils/wizard.h>
 
-namespace Utils {
-class PathChooser;
-}
+namespace Utils { class PathChooser; }
 
 namespace AutotoolsProjectManager {
 namespace Internal {
@@ -63,7 +61,6 @@ public:
     AutotoolsManager *autotoolsManager() const;
 
 private:
-   void init();
    AutotoolsManager *m_manager;
    QString m_buildDirectory;
    QString m_sourceDirectory;

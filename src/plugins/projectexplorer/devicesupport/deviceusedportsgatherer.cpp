@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -72,7 +72,7 @@ void DeviceUsedPortsGatherer::start(const IDevice::ConstPtr &device)
     QTC_ASSERT(device && device->portsGatheringMethod(), return);
 
     d->device = device;
-    d->connection = SshConnectionManager::instance().acquireConnection(device->sshParameters());
+    d->connection = QSsh::acquireConnection(device->sshParameters());
     connect(d->connection, SIGNAL(error(QSsh::SshError)), SLOT(handleConnectionError()));
     if (d->connection->state() == SshConnection::Connected) {
         handleConnectionEstablished();
@@ -108,7 +108,7 @@ void DeviceUsedPortsGatherer::stop()
         disconnect(d->process.data(), 0, this, 0);
     d->process.clear();
     disconnect(d->connection, 0, this, 0);
-    SshConnectionManager::instance().releaseConnection(d->connection);
+    QSsh::releaseConnection(d->connection);
     d->connection = 0;
 }
 
@@ -170,7 +170,8 @@ void DeviceUsedPortsGatherer::handleProcessClosed(int exitStatus)
 
     if (!errMsg.isEmpty()) {
         if (!d->remoteStderr.isEmpty()) {
-            errMsg += tr("\nRemote error output was: %1")
+            errMsg += QLatin1Char('\n');
+            errMsg += tr("Remote error output was: %1")
                 .arg(QString::fromUtf8(d->remoteStderr));
         }
         emit error(errMsg);

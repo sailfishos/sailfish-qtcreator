@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 BogDan Vatra <bog_dan_ro@yahoo.com>
+** Copyright (c) 2014 BogDan Vatra <bog_dan_ro@yahoo.com>
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -107,8 +107,8 @@ QString AndroidRunControl::displayName() const
 
 QIcon AndroidRunControl::icon() const
 {
-    return QIcon(QLatin1String(ProjectExplorer::Constants::ICON_DEBUG_SMALL));
+    return QIcon(QLatin1String(ProjectExplorer::Constants::ICON_RUN_SMALL));
 }
 
 } // namespace Internal
-} // namespace Qt4ProjectManager
+} // namespace Android

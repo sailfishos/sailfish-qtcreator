@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 BogDan Vatra <bog_dan_ro@yahoo.com>
+** Copyright (c) 2014 BogDan Vatra <bog_dan_ro@yahoo.com>
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -29,6 +29,7 @@
 
 #include "androiddevice.h"
 #include "androidconstants.h"
+#include "androidsignaloperation.h"
 
 #include <QCoreApplication>
 
@@ -78,7 +79,7 @@ QString AndroidDevice::displayNameForActionId(Core::Id actionId) const
     return QString();
 }
 
-void AndroidDevice::executeAction(Core::Id actionId, QWidget *parent) const
+void AndroidDevice::executeAction(Core::Id actionId, QWidget *parent)
 {
     Q_UNUSED(actionId)
     Q_UNUSED(parent)
@@ -89,9 +90,19 @@ bool AndroidDevice::canAutoDetectPorts() const
     return true;
 }
 
+DeviceProcessSignalOperation::Ptr AndroidDevice::signalOperation() const
+{
+    return DeviceProcessSignalOperation::Ptr(new AndroidSignalOperation());
+}
+
 IDevice::Ptr AndroidDevice::clone() const
 {
     return IDevice::Ptr(new AndroidDevice(*this));
+}
+
+QString AndroidDevice::qmlProfilerHost() const
+{
+    return QLatin1String("localhost");
 }
 
 } // namespace Internal

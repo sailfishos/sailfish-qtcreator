@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2012 - 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -45,10 +45,9 @@ namespace Qnx {
 namespace Internal {
 
 class BlackBerryDebugTokenUploader;
+class BlackBerrySigningUtils;
 
-namespace Ui {
-class BlackBerryDeviceConfigurationWidget;
-}
+namespace Ui { class BlackBerryDeviceConfigurationWidget; }
 
 class BlackBerryDeviceConfigurationWidget : public ProjectExplorer::IDeviceWidget
 {
@@ -65,12 +64,15 @@ private slots:
     void keyFileEditingFinished();
     void showPassword(bool showClearText);
     void debugTokenEditingFinished();
+    void importDebugToken();
     void requestDebugToken();
     void uploadDebugToken();
     void updateUploadButton();
     void uploadFinished(int status);
     void appendConnectionLog(Core::Id deviceId, const QString &line);
     void clearConnectionLog(Core::Id deviceId);
+    void populateDebugTokenCombo(const QString &current);
+    void updateDebugTokenCombo();
 
 private:
     void updateDeviceFromUi();
@@ -84,6 +86,7 @@ private:
     QProgressDialog *progressDialog;
 
     BlackBerryDebugTokenUploader *uploader;
+    BlackBerrySigningUtils &m_utils;
 };
 
 

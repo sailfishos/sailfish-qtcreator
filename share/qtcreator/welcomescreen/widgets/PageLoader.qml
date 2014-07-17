@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -27,17 +27,23 @@
 **
 ****************************************************************************/
 
-import QtQuick 1.0
+import QtQuick 2.1
 
 Item {
     id: pageLoader
 
     property alias model: repeater.model
 
+    height: repeater.height
+
     Repeater {
         id: repeater
+        height: itemAt(tab.currentIndex).height
         Loader {
-            anchors.fill: parent
+            id: loader
+            anchors.left: parent.left
+            anchors.right: parent.right
+            height: item.height
             property bool active: index === tab.currentIndex
             property bool wasActive
             onActiveChanged: {

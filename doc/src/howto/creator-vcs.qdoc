@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (c) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (c) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator
@@ -23,7 +23,7 @@
 // **********************************************************************
 
 /*!
-    \contentspage index.html
+    \contentspage {Qt Creator Manual}
     \previouspage creator-project-wizards.html
     \page creator-version-control.html
     \nextpage creator-configuring-projects.html
@@ -140,6 +140,11 @@
             For example, \c ssh-askpass or \c x11-ssh-askpass, depending on the
             ssh-askpass implementation that you use.
 
+        \li \gui {Patch command} specifies the path to the patch utility that is
+            used to apply changes in the format used to represent the diff
+            output. The \gui Revert command uses the patch utility to revert
+            partial changes.
+
     \endlist
 
     \section1 Creating VCS Repositories for New Projects
@@ -192,9 +197,10 @@
     \image qtcreator-vcs-diff.png
 
     With Git, the diff is displayed side-by-side in a \l{Comparing Files}
-    {diff editor} by default. To use the old diff view instead, select
-    \gui Tools > \gui Options > \gui {Version Control} > \gui Git, and deselect
-    the \gui {Show diff side-by-side} option.
+    {diff editor} by default. To use the inline diff view instead, select the
+    \gui {Switch to Text Diff Editor} option from the toolbar. In the inline
+    diff view, you can use context menu commands to apply, revert, stage, and
+    unstage hunks, as well as send them to a code pasting service.
 
     \section2 Viewing Versioning History and Change Details
 
@@ -238,12 +244,13 @@
 
     The \gui{Diff Selected Files} button brings up a diff view of the
     files selected in the file list. Since the commit page is just another
-    editor, you can go back to it by closing the diff view. You can also check
-    a diff view from the editor combo box showing the \gui{Opened files}.
+    editor, you can go back to it by closing the diff view. You can also switch
+    to an open diff view by selecting it in the \gui{Open Documents} pane in the
+    sidebar.
 
     \section2 Reverting Changes
 
-    All supported version control system support reverting your project to
+    All supported version control systems support reverting your project to
     known states. This functionality is generally called \e reverting.
 
     The changes discarded depend on the version control system.
@@ -305,10 +312,42 @@
 
     Bazaar is a free version control system sponsored by Canonical.
 
-    In addition to the standard version control system functions, you can
-    select \gui Tools > \gui Bazaar > \gui Pull to turn the branch into a
-    mirror of another branch. To update a mirror of the branch, select
-    \gui Push.
+    The \gui Bazaar submenu contains the following additional items:
+
+    \table
+        \header
+            \li Menu Item
+            \li Description
+        \row
+            \li \gui Pull
+            \li Turn the branch into a mirror of another branch.
+        \row
+            \li \gui Push
+            \li Update a mirror of the branch.
+        \row
+            \li \gui Uncommit
+            \li Remove the last committed revision.
+    \endtable
+
+    \section3 Uncommitting Revisions
+
+    In Bazaar, committing changes to a branch creates a new revision that holds
+    a snapshot of the state of the working tree. To remove the last committed
+    revision, select \gui Tools > \gui Bazaar > \gui Uncommit.
+
+    In the \gui Uncommit dialog, select options to keep tags that point to
+    removed revisions and to only remove the commits from the local branch when
+    in a checkout.
+
+    To remove all commits up to an entry in the revision log, specify the
+    revision in the \gui Revision field.
+
+    To test the outcome of the \gui Uncommit command without actually removing
+    anything, select \gui {Dry Run}.
+
+    \gui Uncommit leaves the working tree ready for a new commit. The only
+    change it might make is restoring pending merges that were present before
+    the commit.
 
     \section2 Using Additional ClearCase Functions
 
@@ -442,9 +481,21 @@
         \row
             \li \gui Merge
             \li Join the development histories in two branches together.
+
+                If the commit you are merging can be reached by following the
+                first commit's history, there is no divergent work to merge
+                together. To allow Git to move the branch pointer forward,
+                select \gui {Fast-Forward}. If you do not want to fast-forward
+                the branch, select \gui {No Fast-Forward}.
         \row
             \li \gui Rebase
             \li Copy local commits to the updated upstream head.
+        \row
+            \li \gui {Cherry Pick}
+            \li Cherry pick the top commit from the selected branch.
+        \row
+            \li \gui Track
+            \li Set the current branch to track the selected one.
     \endtable
 
     \section4 Applying Patches
@@ -567,6 +618,14 @@
     To refresh the list of changes, select \gui Refresh.
 
     \section3 Working with Git Tools
+
+    To start a graphical interface to Git, select \gui Tools > \gui Git >
+    \gui {Git Tools} > \gui {Git Gui}.
+
+    \note On Mac OS X, the default Git installation does not contain Git Gui. To
+    use Git Gui, install it separately. To start Git Gui from \QC, select
+    \gui Preferences > \gui {Version Control} > \gui Git, and set the path to
+    the environment that contains Git Gui in the \gui {Prepend to PATH} field.
 
     To start the commit viewer for Git, select \gui Tools > \gui Git >
     \gui {Git Tools} > \gui Gitk. You can also start the tool to view commits in

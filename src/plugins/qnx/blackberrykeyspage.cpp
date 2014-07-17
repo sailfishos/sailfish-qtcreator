@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -51,19 +51,21 @@ BlackBerryKeysPage::BlackBerryKeysPage(QObject *parent) :
                 Constants::QNX_BB_CATEGORY_TR));
 }
 
-QWidget *BlackBerryKeysPage::createPage(QWidget *parent)
+QWidget *BlackBerryKeysPage::widget()
 {
-    m_widget = new BlackBerryKeysWidget(parent);
+    if (!m_widget)
+        m_widget = new BlackBerryKeysWidget;
     return m_widget;
 }
 
 void BlackBerryKeysPage::apply()
 {
-    m_widget->apply();
+    m_widget->saveSettings();
 }
 
 void BlackBerryKeysPage::finish()
 {
+    delete m_widget;
 }
 
 } // namespace Internal

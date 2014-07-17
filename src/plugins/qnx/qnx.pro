@@ -51,20 +51,15 @@ SOURCES += qnxplugin.cpp \
     blackberryabstractdeploystep.cpp \
     blackberryndksettingswidget.cpp \
     blackberryndksettingspage.cpp \
-    blackberryconfiguration.cpp \
     bardescriptormagicmatcher.cpp \
     bardescriptoreditorfactory.cpp \
     bardescriptoreditor.cpp \
     bardescriptoreditorwidget.cpp \
     bardescriptordocument.cpp \
-    bardescriptordocumentnodehandlers.cpp \
     bardescriptorpermissionsmodel.cpp \
     blackberrykeyswidget.cpp \
     blackberrykeyspage.cpp \
-    blackberrycsjregistrar.cpp \
     blackberrycertificate.cpp \
-    blackberrycertificatemodel.cpp \
-    blackberryregisterkeydialog.cpp \
     blackberryimportcertificatedialog.cpp \
     blackberrycreatecertificatedialog.cpp \
     blackberrydebugtokenrequester.cpp \
@@ -72,10 +67,6 @@ SOURCES += qnxplugin.cpp \
     blackberrydebugtokenuploader.cpp \
     blackberrydebugtokenreader.cpp \
     blackberryndkprocess.cpp \
-    blackberrydeviceprocesssupport.cpp \
-    blackberrycheckdevmodestepfactory.cpp \
-    blackberrycheckdevmodestep.cpp \
-    blackberrycheckdevmodestepconfigwidget.cpp \
     blackberrydeviceconnection.cpp \
     blackberrydeviceconnectionmanager.cpp \
     blackberrydeviceinformation.cpp \
@@ -90,10 +81,30 @@ SOURCES += qnxplugin.cpp \
     bardescriptoreditorenvironmentwidget.cpp \
     bardescriptoreditorassetswidget.cpp \
     bardescriptoreditorabstractpanelwidget.cpp \
-    blackberrysetupwizard.cpp \
-    blackberrysetupwizardpages.cpp \
-    blackberryutils.cpp \
-    qnxdevicetester.cpp
+    blackberrysigningutils.cpp \
+    qnxdevicetester.cpp \
+    blackberryconfigurationmanager.cpp \
+    blackberrydevicelistdetector.cpp \
+    blackberrylogprocessrunner.cpp \
+    blackberryinstallwizardpages.cpp \
+    blackberryinstallwizard.cpp \
+    qnxdeviceprocesssignaloperation.cpp \
+    qnxdeviceprocesslist.cpp \
+    qnxtoolchain.cpp \
+    slog2inforunner.cpp \
+    blackberryversionnumber.cpp \
+    blackberrydebugtokenpinsdialog.cpp \
+    blackberrycheckdevicestatusstepfactory.cpp \
+    blackberrycheckdevicestatusstepconfigwidget.cpp \
+    blackberrycheckdevicestatusstep.cpp \
+    qnxattachdebugsupport.cpp \
+    qnxattachdebugdialog.cpp \
+    blackberrydeployqtlibrariesdialog.cpp \
+    blackberrysetuppage.cpp \
+    blackberrysetupwidget.cpp \
+    blackberryruntimeconfiguration.cpp \
+    blackberryapilevelconfiguration.cpp \
+    blackberrypotentialkit.cpp
 
 HEADERS += qnxplugin.h\
     qnxconstants.h \
@@ -144,20 +155,15 @@ HEADERS += qnxplugin.h\
     blackberryabstractdeploystep.h \
     blackberryndksettingswidget.h \
     blackberryndksettingspage.h \
-    blackberryconfiguration.h \
     bardescriptormagicmatcher.h \
     bardescriptoreditorfactory.h \
     bardescriptoreditor.h \
     bardescriptoreditorwidget.h \
     bardescriptordocument.h \
-    bardescriptordocumentnodehandlers.h \
     bardescriptorpermissionsmodel.h \
     blackberrykeyswidget.h \
     blackberrykeyspage.h \
-    blackberrycsjregistrar.h \
     blackberrycertificate.h \
-    blackberrycertificatemodel.h \
-    blackberryregisterkeydialog.h \
     blackberryimportcertificatedialog.h \
     blackberrycreatecertificatedialog.h \
     blackberrydebugtokenrequester.h \
@@ -165,10 +171,6 @@ HEADERS += qnxplugin.h\
     blackberrydebugtokenuploader.h \
     blackberrydebugtokenreader.h \
     blackberryndkprocess.h \
-    blackberrydeviceprocesssupport.h \
-    blackberrycheckdevmodestepfactory.h \
-    blackberrycheckdevmodestep.h \
-    blackberrycheckdevmodestepconfigwidget.h \
     blackberrydeviceconnection.h \
     blackberrydeviceconnectionmanager.h \
     blackberrydeviceinformation.h \
@@ -183,21 +185,39 @@ HEADERS += qnxplugin.h\
     bardescriptoreditorenvironmentwidget.h \
     bardescriptoreditorassetswidget.h \
     bardescriptoreditorabstractpanelwidget.h \
-    blackberrysetupwizard.h \
-    blackberrysetupwizardpages.h \
-    blackberryutils.h \
-    qnxdevicetester.h
+    blackberrysigningutils.h \
+    qnxdevicetester.h \
+    blackberryconfigurationmanager.h \
+    blackberrydevicelistdetector.h \
+    blackberrylogprocessrunner.h \
+    blackberryinstallwizardpages.h \
+    blackberryinstallwizard.h \
+    qnxdeviceprocesssignaloperation.h \
+    qnxdeviceprocesslist.h \
+    qnxtoolchain.h \
+    slog2inforunner.h \
+    blackberryversionnumber.h \
+    blackberrydebugtokenpinsdialog.h \
+    blackberrycheckdevicestatusstep.h \
+    blackberrycheckdevicestatusstepfactory.h \
+    blackberrycheckdevicestatusstepconfigwidget.h \
+    qnxattachdebugsupport.h \
+    qnxattachdebugdialog.h \
+    blackberrydeployqtlibrariesdialog.h \
+    blackberrysetuppage.h \
+    blackberrysetupwidget.h \
+    blackberryruntimeconfiguration.h \
+    blackberryapilevelconfiguration.h \
+    blackberrypotentialkit.h
 
 FORMS += \
     blackberrydeviceconfigurationwizardsetuppage.ui \
     blackberryrunconfigurationwidget.ui \
-    blackberrydeviceconfigurationwizardsshkeypage.ui \
     blackberrydeployconfigurationwidget.ui \
     blackberrydeviceconfigurationwidget.ui \
     qnxbaseqtconfigwidget.ui \
     blackberryndksettingswidget.ui \
     blackberrykeyswidget.ui \
-    blackberryregisterkeydialog.ui \
     blackberryimportcertificatedialog.ui \
     blackberrycreatecertificatedialog.ui \
     blackberrydebugtokenrequestdialog.ui \
@@ -210,11 +230,18 @@ FORMS += \
     bardescriptoreditorpermissionswidget.ui \
     bardescriptoreditorenvironmentwidget.ui \
     bardescriptoreditorassetswidget.ui \
-    blackberrysetupwizardkeyspage.ui \
-    blackberrysetupwizarddevicepage.ui \
-    blackberrysetupwizardfinishpage.ui
+    blackberrydeviceconfigurationwizardconfigpage.ui \
+    blackberrydeviceconfigurationwizardquerypage.ui \
+    blackberryinstallwizardtargetpage.ui \
+    blackberryinstallwizardndkpage.ui \
+    blackberryinstallwizardprocesspage.ui \
+    blackberryinstallwizardoptionpage.ui \
+    blackberrydebugtokenpinsdialog.ui \
+    blackberrycheckdevicestatusstepconfigwidget.ui \
+    blackberrydeployqtlibrariesdialog.ui
 
 include(../../private_headers.pri)
+include(./cascadesimport/cascadesimport.pri)
 
 greaterThan(QT_MAJOR_VERSION, 4) {
     QT += gui-private

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -73,8 +73,6 @@ public:
         // Linux
         GenericLinuxFlavor,
         AndroidLinuxFlavor,
-        HarmattanLinuxFlavor,
-        MaemoLinuxFlavor,
 
         // Mac
         GenericMacFlavor,
@@ -88,6 +86,7 @@ public:
         WindowsMsvc2008Flavor,
         WindowsMsvc2010Flavor,
         WindowsMsvc2012Flavor,
+        WindowsMsvc2013Flavor,
         WindowsMSysFlavor,
         WindowsCEFlavor,
 
@@ -116,6 +115,8 @@ public:
     Abi(const Architecture &a, const OS &o,
         const OSFlavor &so, const BinaryFormat &f, unsigned char w);
     Abi(const QString &abiString);
+
+    static Abi abiFromTargetTriplet(const QString &machineTriple);
 
     bool operator != (const Abi &other) const;
     bool operator == (const Abi &other) const;

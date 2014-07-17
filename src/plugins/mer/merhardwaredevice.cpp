@@ -29,7 +29,6 @@
 #include "merhardwaredevicewizardpages.h"
 
 #include <remotelinux/remotelinux_constants.h>
-#include <remotelinux/linuxdevicetestdialog.h>
 #include <utils/qtcassert.h>
 #include <utils/fileutils.h>
 #include <ssh/sshconnection.h>
@@ -113,7 +112,6 @@ QList<Core::Id> MerHardwareDevice::actionIds() const
 {
     QList<Core::Id> ids;
     //ids << Core::Id(Constants::MER_HARDWARE_DEPLOYKEY_ACTION_ID);
-    ids << Core::Id(Constants::MER_HARDWARE_TEST_ID);
     return ids;
 }
 
@@ -123,23 +121,18 @@ QString MerHardwareDevice::displayNameForActionId(Core::Id actionId) const
 
     if (actionId == Constants::MER_HARDWARE_DEPLOYKEY_ACTION_ID)
         return tr("Redeploy SSH Keys");
-    else if (actionId == Constants::MER_HARDWARE_TEST_ID)
-        return tr("Test");
     return QString();
 }
 
 
 void MerHardwareDevice::executeAction(Core::Id actionId, QWidget *parent) const
 {
+    Q_UNUSED(parent);
     QTC_ASSERT(actionIds().contains(actionId), return);
 
     if (actionId ==  Constants::MER_HARDWARE_DEPLOYKEY_ACTION_ID) {
 
         //TODO:
-        return;
-    } else if (actionId == Constants::MER_HARDWARE_TEST_ID) {
-        RemoteLinux::LinuxDeviceTestDialog dialog(sharedFromThis(), new RemoteLinux::GenericLinuxDeviceTester, parent);
-        dialog.exec();
         return;
     }
 }

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -66,7 +66,7 @@ static void showGraphicalShellError(QWidget *parent, const QString &app, const Q
     if (!error.isEmpty())
         mbox.setDetailedText(QApplication::translate("Core::Internal",
                                                      "'%1' returned the following error:\n\n%2").arg(app, error));
-    QAbstractButton *settingsButton = mbox.addButton(QApplication::translate("Core::Internal", "Settings..."),
+    QAbstractButton *settingsButton = mbox.addButton(Core::ICore::msgShowOptionsDialog(),
                                                      QMessageBox::ActionRole);
     mbox.exec();
     if (mbox.clickedButton() == settingsButton)
@@ -121,13 +121,14 @@ void FileUtils::openTerminal(const QString &path)
     // Get terminal application
     QString terminalEmulator;
     QStringList args;
-    if (HostOsInfo::isWindowsHost()) {
+    const OsType hostOs = HostOsInfo::hostOs();
+    if (hostOs == OsTypeWindows) {
         terminalEmulator = ConsoleProcess::defaultTerminalEmulator();
-    } else if (HostOsInfo::isMacHost()) {
+    } else if (hostOs == OsTypeMac) {
         terminalEmulator = ICore::resourcePath()
             + QLatin1String("/scripts/openTerminal.command");
     } else {
-        args = QtcProcess::splitArgs(ConsoleProcess::terminalEmulator(ICore::settings()));
+        args = QtcProcess::splitArgs(ConsoleProcess::terminalEmulator(ICore::settings()), hostOs);
         terminalEmulator = args.takeFirst();
         args.append(QString::fromLocal8Bit(qgetenv("SHELL")));
     }
@@ -138,6 +139,11 @@ void FileUtils::openTerminal(const QString &path)
                                                  fileInfo.absoluteFilePath() :
                                                  fileInfo.absolutePath());
     QProcess::startDetached(terminalEmulator, args, pwd);
+}
+
+QString FileUtils::msgFindInDirectory()
+{
+    return QApplication::translate("Core::Internal", "Find in This Directory...");
 }
 
 QString FileUtils::msgGraphicalShellAction()
@@ -159,7 +165,7 @@ QString FileUtils::msgTerminalAction()
 void FileUtils::removeFile(const QString &filePath, bool deleteFromFS)
 {
     // remove from version control
-    ICore::vcsManager()->promptToDelete(filePath);
+    VcsManager::promptToDelete(filePath);
 
     // remove from file system
     if (deleteFromFS) {
@@ -194,7 +200,7 @@ bool FileUtils::renameFile(const QString &orgFilePath, const QString &newFilePat
         return false;
 
     QString dir = QFileInfo(orgFilePath).absolutePath();
-    IVersionControl *vc = ICore::vcsManager()->findVersionControlForDirectory(dir);
+    IVersionControl *vc = VcsManager::findVersionControlForDirectory(dir);
 
     bool result = false;
     if (vc && vc->supportsOperation(IVersionControl::MoveOperation))

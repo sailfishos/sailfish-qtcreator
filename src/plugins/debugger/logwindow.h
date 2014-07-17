@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -77,6 +77,7 @@ public slots:
     void showOutput(int channel, const QString &output);
     void showInput(int channel, const QString &input);
     void doOutput();
+    void repeatLastCommand();
 
 signals:
     void showPage();
@@ -88,7 +89,6 @@ private:
     QTimer m_outputTimer;
     QString m_queuedOutput;
     Utils::FancyLineEdit *m_commandEdit;
-    QLabel *m_commandLabel;
     bool m_ignoreNextInputEcho;
 };
 

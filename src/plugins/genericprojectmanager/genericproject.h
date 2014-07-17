@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -60,7 +60,6 @@ public:
     QString configFileName() const;
 
     QString displayName() const;
-    Core::Id id() const;
     Core::IDocument *document() const;
     ProjectExplorer::IProjectManager *projectManager() const;
 
@@ -82,11 +81,6 @@ public:
 
     void refresh(RefreshOptions options);
 
-    QStringList includePaths() const;
-    void setIncludePaths(const QStringList &includePaths);
-
-    QByteArray defines() const;
-    QStringList allIncludePaths() const;
     QStringList projectIncludePaths() const;
     QStringList files() const;
 
@@ -112,9 +106,7 @@ private:
     QStringList m_rawFileList;
     QStringList m_files;
     QHash<QString, QString> m_rawListEntries;
-    QStringList m_includePaths;
     QStringList m_projectIncludePaths;
-    QByteArray m_defines;
 
     GenericProjectNode *m_rootNode;
     QFuture<void> m_codeModelFuture;
@@ -128,7 +120,6 @@ public:
     GenericProjectFile(GenericProject *parent, QString fileName, GenericProject::RefreshOptions options);
 
     bool save(QString *errorString, const QString &fileName, bool autoSave);
-    QString fileName() const;
 
     QString defaultPath() const;
     QString suggestedFileName() const;
@@ -136,14 +127,12 @@ public:
 
     bool isModified() const;
     bool isSaveAsAllowed() const;
-    void rename(const QString &newName);
 
     ReloadBehavior reloadBehavior(ChangeTrigger state, ChangeType type) const;
     bool reload(QString *errorString, ReloadFlag flag, ChangeType type);
 
 private:
     GenericProject *m_project;
-    QString m_fileName;
     GenericProject::RefreshOptions m_options;
 };
 

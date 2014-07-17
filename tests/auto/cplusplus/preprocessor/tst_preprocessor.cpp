@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,10 +30,14 @@
 #include <cplusplus/pp.h>
 
 #include <QtTest>
+#include <QFile>
 #include <QHash>
+#include <QSet>
 
 //TESTED_COMPONENT=src/libs/cplusplus
 using namespace CPlusPlus;
+
+typedef QByteArray _;
 
 #define DUMP_OUTPUT(x)     {QByteArray b(x);qDebug("output: [[%s]]", b.replace("\n", "<<\n").constData());}
 
@@ -113,9 +117,17 @@ public:
     }
 
     virtual void passedMacroDefinitionCheck(unsigned /*offset*/,
-                                            unsigned /*line*/,
-                                            const Macro &/*macro*/) {}
-    virtual void failedMacroDefinitionCheck(unsigned /*offset*/, const ByteArrayRef &/*name*/) {}
+                                            unsigned line,
+                                            const Macro &macro)
+    {
+        m_definitionsResolvedFromLines[macro.name()].append(line);
+    }
+
+    virtual void failedMacroDefinitionCheck(unsigned /*offset*/,
+                                            const ByteArrayRef &name)
+    {
+        m_unresolvedDefines.insert(name.toByteArray());
+    }
 
     virtual void notifyMacroReference(unsigned offset, unsigned line, const Macro &macro)
     {
@@ -246,6 +258,12 @@ public:
     QHash<QByteArray, QList<unsigned> > macroUsesLine() const
     { return m_macroUsesLine; }
 
+    QHash<QByteArray, QList<unsigned> > definitionsResolvedFromLines() const
+    { return m_definitionsResolvedFromLines; }
+
+    QSet<QByteArray> unresolvedDefines() const
+    { return m_unresolvedDefines; }
+
     const QList<int> macroArgsCount() const
     { return m_macroArgsCount; }
 
@@ -263,6 +281,8 @@ private:
     QList<QByteArray> m_definedMacros;
     QList<unsigned> m_definedMacrosLine;
     QHash<QByteArray, QList<unsigned> > m_macroUsesLine;
+    QHash<QByteArray, QList<unsigned> > m_definitionsResolvedFromLines;
+    QSet<QByteArray> m_unresolvedDefines;
     QList<int> m_macroArgsCount;
 };
 
@@ -323,6 +343,7 @@ private slots:
     void extra_va_args();
     void defined();
     void defined_data();
+    void defined_usage();
     void empty_macro_args();
     void macro_args_count();
     void invalid_param_count();
@@ -343,8 +364,6 @@ private slots:
     void comments_before_args();
     void comments_within();
     void comments_within_data();
-    void comments_within2();
-    void comments_within2_data();
     void multitokens_argument();
     void multitokens_argument_data();
     void multiline_strings();
@@ -355,6 +374,7 @@ private slots:
     void include_guard_data();
     void empty_trailing_lines();
     void empty_trailing_lines_data();
+    void undef();
 };
 
 // Remove all #... lines, and 'simplify' string, to allow easily comparing the result
@@ -568,6 +588,7 @@ void tst_Preprocessor::macro_uses_lines()
     QCOMPARE(client.macroUsesLine().value("NOTHING"), QList<unsigned>() << 13U);
     QCOMPARE(client.macroUsesLine().value("ENABLE"), QList<unsigned>() << 18U << 22U << 23U);
     QCOMPARE(client.macroUsesLine().value("ENABLE_COOL"), QList<unsigned>() << 21U);
+    QCOMPARE(client.definitionsResolvedFromLines().value("ENABLE_COOL"), QList<unsigned>() << 18U);
     QCOMPARE(client.expandedMacrosOffset(), QList<unsigned>()
              << buffer.lastIndexOf("FOO\n")
              << buffer.lastIndexOf("HEADER")
@@ -585,62 +606,59 @@ void tst_Preprocessor::multitokens_argument_data()
     QTest::addColumn<QByteArray>("input");
     QTest::addColumn<QByteArray>("output");
 
-    QByteArray original;
-    QByteArray expected;
-
-    original =
+    QTest::newRow("case 1") << _(
             "#define foo(ARGS) int f(ARGS)\n"
-            "foo(int a);\n";
-    expected =
+            "foo(int a);\n"
+        ) << _(
             "# 1 \"<stdin>\"\n"
             "\n"
             "# expansion begin 30,3 ~3 2:4 2:8 ~1\n"
             "int f(int a)\n"
             "# expansion end\n"
             "# 2 \"<stdin>\"\n"
-            "          ;\n";
-    QTest::newRow("case 1") << original << expected;
+            "          ;\n"
+    );
 
-    original =
+    QTest::newRow("case 2") << _(
             "#define foo(ARGS) int f(ARGS)\n"
             "foo(int   \n"
-            "    a);\n";
-    expected =
+            "    a);\n"
+        ) << _(
             "# 1 \"<stdin>\"\n"
             "\n"
             "# expansion begin 30,3 ~3 2:4 3:4 ~1\n"
             "int f(int a)\n"
             "# expansion end\n"
             "# 3 \"<stdin>\"\n"
-            "      ;\n";
-    QTest::newRow("case 2") << original << expected;
+            "      ;\n"
+    );
 
-    original =
+    QTest::newRow("case 3") << _(
             "#define foo(ARGS) int f(ARGS)\n"
-            "foo(int a = 0);\n";
-    expected =
+            "foo(int a = 0);\n"
+        ) << _(
             "# 1 \"<stdin>\"\n"
             "\n"
             "# expansion begin 30,3 ~3 2:4 2:8 2:10 2:12 ~1\n"
             "int f(int a = 0)\n"
             "# expansion end\n"
             "# 2 \"<stdin>\"\n"
-            "              ;\n";
-    QTest::newRow("case 3") << original << expected;
+            "              ;\n"
+    );
 
-    original =
+    QTest::newRow("case 4") << _(
             "#define foo(X) int f(X = 0)\n"
             "foo(int \n"
-            "    a);\n";
-    expected =
+            "    a);\n"
+        ) << _(
             "# 1 \"<stdin>\"\n"
             "\n"
             "# expansion begin 28,3 ~3 2:4 3:4 ~3\n"
             "int f(int a = 0)\n"
             "# expansion end\n"
             "# 3 \"<stdin>\"\n"
-            "      ;\n";
-    QTest::newRow("case 4") << original << expected;
+            "      ;\n"
+    );
 }
 
 void tst_Preprocessor::multitokens_argument()
@@ -1060,13 +1078,46 @@ void tst_Preprocessor::defined_data()
         "#endif\n";
 }
 
+void tst_Preprocessor::defined_usage()
+{
+    QByteArray output;
+    Environment env;
+    MockClient client(&env, &output);
+    Preprocessor pp(&client, &env);
+    QByteArray source =
+            "#define X\n"
+            "#define Y\n"
+            "#ifdef X\n"
+            "#endif\n"
+            "#ifdef Y\n"
+            "#endif\n"
+            "#ifndef X\n"
+            "#endif\n"
+            "#ifndef Y\n"
+            "#endif\n"
+            "#ifdef ABSENT\n"
+            "#endif\n"
+            "#ifndef ABSENT2\n"
+            "#endif\n"
+            "#if defined(ABSENT3)\n"
+            "#endif\n"
+            "#if defined(X)\n"
+            "#endif\n"
+            "#if defined(X) || defined(Y)\n"
+            "#endif\n"
+            ;
+    pp.run(QLatin1String("<stdin>"), source);
+    QHash<QByteArray, QList<unsigned> > definitionsResolvedFromLines =
+            client.definitionsResolvedFromLines();
+    QCOMPARE(definitionsResolvedFromLines["X"], QList<unsigned>() << 3 << 7 << 17 << 19);
+    QCOMPARE(definitionsResolvedFromLines["Y"], QList<unsigned>() << 5 << 9 << 19);
+    QCOMPARE(client.unresolvedDefines(), QSet<QByteArray>() << "ABSENT" << "ABSENT2" << "ABSENT3");
+}
+
 void tst_Preprocessor::dont_eagerly_expand_data()
 {
     QTest::addColumn<QByteArray>("input");
     QTest::addColumn<QByteArray>("output");
-
-    QByteArray original;
-    QByteArray expected;
 
     // Expansion must be processed upon invocation of the macro. Therefore a particular
     // identifier within a define must not be expanded (in the case it matches an
@@ -1074,31 +1125,33 @@ void tst_Preprocessor::dont_eagerly_expand_data()
     // it's actually "used". Naturally, if it's still not replaced after an invocation
     // it should then be expanded. This is consistent with clang and gcc for example.
 
-    original = "#define T int\n"
-               "#define FOO(T) T\n"
-               "FOO(double)\n";
-    expected =
+    QTest::newRow("case 1") << _(
+            "#define T int\n"
+            "#define FOO(T) T\n"
+            "FOO(double)\n"
+        ) << _(
             "# 1 \"<stdin>\"\n"
             "\n"
             "\n"
             "# expansion begin 31,3 3:4\n"
             "double\n"
             "# expansion end\n"
-            "# 4 \"<stdin>\"\n";
-    QTest::newRow("case 1") << original << expected;
+            "# 4 \"<stdin>\"\n"
+    );
 
-    original = "#define T int\n"
-               "#define FOO(X) T\n"
-               "FOO(double)\n";
-    expected =
+    QTest::newRow("case 2") << _(
+            "#define T int\n"
+            "#define FOO(X) T\n"
+            "FOO(double)\n"
+        ) << _(
             "# 1 \"<stdin>\"\n"
             "\n"
             "\n"
             "# expansion begin 31,3 ~1\n"
             "int\n"
             "# expansion end\n"
-            "# 4 \"<stdin>\"\n";
-    QTest::newRow("case 2") << original << expected;
+            "# 4 \"<stdin>\"\n"
+    );
 }
 
 void tst_Preprocessor::dont_eagerly_expand()
@@ -1108,25 +1161,36 @@ void tst_Preprocessor::dont_eagerly_expand()
 
 void tst_Preprocessor::comments_within()
 {
-    compare_input_output();
+    QFETCH(QByteArray, input);
+    QFETCH(QByteArray, without_comments);
+    QFETCH(QByteArray, with_comments);
+
+    Environment env;
+    Preprocessor preprocess(0, &env);
+    preprocess.setKeepComments(false);
+    QByteArray prep = preprocess.run(QLatin1String("<stdin>"), input);
+    QCOMPARE(prep.constData(), without_comments.constData());
+    preprocess.setKeepComments(true);
+    prep = preprocess.run(QLatin1String("<stdin>"), input);
+    QCOMPARE(prep.constData(), with_comments.constData());
 }
+
 void tst_Preprocessor::comments_within_data()
 {
     QTest::addColumn<QByteArray>("input");
-    QTest::addColumn<QByteArray>("output");
+    QTest::addColumn<QByteArray>("without_comments");
+    QTest::addColumn<QByteArray>("with_comments");
 
-    QByteArray original;
-    QByteArray expected;
-
-    original = "#define FOO int x;\n"
-               "\n"
-               "   // comment\n"
-               "   // comment\n"
-               "   // comment\n"
-               "   // comment\n"
-               "FOO\n"
-               "x = 10\n";
-    expected =
+    QTest::newRow("case 1") << _(
+            "#define FOO int x;\n"
+            "\n"
+            "   // comment\n"
+            "   // comment\n"
+            "   // comment\n"
+            "   // comment\n"
+            "FOO\n"
+            "x = 10\n"
+        ) << _(
             "# 1 \"<stdin>\"\n"
             "\n"
             "\n"
@@ -1138,19 +1202,32 @@ void tst_Preprocessor::comments_within_data()
             "int x;\n"
             "# expansion end\n"
             "# 8 \"<stdin>\"\n"
-            "x = 10\n";
-    QTest::newRow("case 1") << original << expected;
+            "x = 10\n"
+        ) << _(
+            "# 1 \"<stdin>\"\n"
+            "\n"
+            "\n"
+            "   // comment\n"
+            "   // comment\n"
+            "   // comment\n"
+            "   // comment\n"
+            "# expansion begin 76,3 ~3\n"
+            "int x;\n"
+            "# expansion end\n"
+            "# 8 \"<stdin>\"\n"
+            "x = 10\n"
+    );
 
-
-    original = "#define FOO int x;\n"
-               "\n"
-               "   /* comment\n"
-               "      comment\n"
-               "      comment\n"
-               "      comment */\n"
-               "FOO\n"
-               "x = 10\n";
-    expected =
+    QTest::newRow("case 2") << _(
+            "#define FOO int x;\n"
+            "\n"
+            "   /* comment\n"
+            "      comment\n"
+            "      comment\n"
+            "      comment */\n"
+            "FOO\n"
+            "x = 10\n"
+        ) << _(
             "# 1 \"<stdin>\"\n"
             "\n"
             "\n"
@@ -1162,21 +1239,34 @@ void tst_Preprocessor::comments_within_data()
             "int x;\n"
             "# expansion end\n"
             "# 8 \"<stdin>\"\n"
-            "x = 10\n";
-    QTest::newRow("case 2") << original << expected;
+            "x = 10\n"
+        ) << _(
+            "# 1 \"<stdin>\"\n"
+            "\n"
+            "\n"
+            "   /* comment\n"
+            "      comment\n"
+            "      comment\n"
+            "      comment */\n"
+            "# expansion begin 79,3 ~3\n"
+            "int x;\n"
+            "# expansion end\n"
+            "# 8 \"<stdin>\"\n"
+            "x = 10\n"
+    );
 
-
-    original = "#define FOO int x;\n"
-               "\n"
-               "   // comment\n"
-               "   // comment\n"
-               "   // comment\n"
-               "   // comment\n"
-               "FOO\n"
-               "// test\n"
-               "// test again\n"
-               "x = 10\n";
-    expected =
+    QTest::newRow("case 3") << _(
+            "#define FOO int x;\n"
+            "\n"
+            "   // comment\n"
+            "   // comment\n"
+            "   // comment\n"
+            "   // comment\n"
+            "FOO\n"
+            "// test\n"
+            "// test again\n"
+            "x = 10\n"
+        ) << _(
             "# 1 \"<stdin>\"\n"
             "\n"
             "\n"
@@ -1188,21 +1278,36 @@ void tst_Preprocessor::comments_within_data()
             "int x;\n"
             "# expansion end\n"
             "# 10 \"<stdin>\"\n"
-            "x = 10\n";
-    QTest::newRow("case 3") << original << expected;
+            "x = 10\n"
+        ) << _(
+            "# 1 \"<stdin>\"\n"
+            "\n"
+            "\n"
+            "   // comment\n"
+            "   // comment\n"
+            "   // comment\n"
+            "   // comment\n"
+            "# expansion begin 76,3 ~3\n"
+            "int x;\n"
+            "# expansion end\n"
+            "# 8 \"<stdin>\"\n"
+            "// test\n"
+            "// test again\n"
+            "x = 10\n"
+    );
 
-
-    original = "#define FOO int x;\n"
-               "\n"
-               "   /* comment\n"
-               "      comment\n"
-               "      comment\n"
-               "      comment */\n"
-               "FOO\n"
-               "/*  \n"
-               "*/\n"
-               "x = 10\n";
-    expected =
+    QTest::newRow("case 4") << _(
+            "#define FOO int x;\n"
+            "\n"
+            "   /* comment\n"
+            "      comment\n"
+            "      comment\n"
+            "      comment */\n"
+            "FOO\n"
+            "/*  \n"
+            "*/\n"
+            "x = 10\n"
+        ) << _(
             "# 1 \"<stdin>\"\n"
             "\n"
             "\n"
@@ -1214,17 +1319,33 @@ void tst_Preprocessor::comments_within_data()
             "int x;\n"
             "# expansion end\n"
             "# 10 \"<stdin>\"\n"
-            "x = 10\n";
-    QTest::newRow("case 4") << original << expected;
+            "x = 10\n"
+        ) << _(
+            "# 1 \"<stdin>\"\n"
+            "\n"
+            "\n"
+            "   /* comment\n"
+            "      comment\n"
+            "      comment\n"
+            "      comment */\n"
+            "# expansion begin 79,3 ~3\n"
+            "int x;\n"
+            "# expansion end\n"
+            "# 8 \"<stdin>\"\n"
+            "/*  \n"
+            "*/\n"
+            "x = 10\n"
+    );
 
-    original = "#define FOO(x, y) { (void)x; (void)y; }\n"
-               "\n"
-               "void foo() {\n"
-               "   FOO(10,\n"
-               "       //comment\n"
-               "       12\n"
-               "}\n";
-    expected =
+    QTest::newRow("case 5") << _(
+            "#define FOO(x, y) { (void)x; (void)y; }\n"
+            "\n"
+            "void foo() {\n"
+            "   FOO(10,\n"
+            "       //comment\n"
+            "       12\n"
+            "}\n"
+        ) << _(
             "# 1 \"<stdin>\"\n"
             "\n"
             "\n"
@@ -1232,17 +1353,27 @@ void tst_Preprocessor::comments_within_data()
             "# expansion begin 57,3 ~4 4:7 ~4 6:7 7:0 ~2\n"
             "{ (void)10; (void)12}; }\n"
             "# expansion end\n"
-            "# 8 \"<stdin>\"\n";
-    QTest::newRow("case 5") << original << expected;
+            "# 8 \"<stdin>\"\n"
+        ) << _(
+            "# 1 \"<stdin>\"\n"
+            "\n"
+            "\n"
+            "void foo() {\n"
+            "# expansion begin 57,3 ~4 4:7 ~5 6:7 7:0 ~2\n"
+            "{ (void)10; (void)/*comment*/ 12}; }\n"
+            "# expansion end\n"
+            "# 8 \"<stdin>\"\n"
+    );
 
-    original = "#define FOO(x, y) { (void)x; (void)y; }\n"
-               "\n"
-               "void foo() {\n"
-               "   FOO(10,\n"
-               "       //tricky*/comment\n"
-               "       12\n"
-               "}\n";
-    expected =
+    QTest::newRow("case 6") << _(
+            "#define FOO(x, y) { (void)x; (void)y; }\n"
+            "\n"
+            "void foo() {\n"
+            "   FOO(10,\n"
+            "       //tricky*/comment\n"
+            "       12\n"
+            "}\n"
+        ) << _(
             "# 1 \"<stdin>\"\n"
             "\n"
             "\n"
@@ -1250,28 +1381,159 @@ void tst_Preprocessor::comments_within_data()
             "# expansion begin 57,3 ~4 4:7 ~4 6:7 7:0 ~2\n"
             "{ (void)10; (void)12}; }\n"
             "# expansion end\n"
-            "# 8 \"<stdin>\"\n";
-    QTest::newRow("case 6") << original << expected;
+            "# 8 \"<stdin>\"\n"
+        ) << _(
+            "# 1 \"<stdin>\"\n"
+            "\n"
+            "\n"
+            "void foo() {\n"
+            "# expansion begin 57,3 ~4 4:7 ~5 6:7 7:0 ~2\n"
+            "{ (void)10; (void)/*tricky*|comment*/ 12}; }\n"
+            "# expansion end\n"
+            "# 8 \"<stdin>\"\n"
+    );
 
-    original =
-            "#define FOO 0 //coment\n"
+    QTest::newRow("case 7") << _(
+            "#define FOO 0 //comment\n"
             "#define BAR (1 == FOO)\n"
             "void foo() {\n"
             "    if (BAR) {}\n"
-            "}\n";
-    expected =
+            "}\n"
+        ) << _(
             "# 1 \"<stdin>\"\n"
             "\n"
             "\n"
             "void foo() {\n"
             "    if (\n"
-            "# expansion begin 67,3 ~5\n"
+            "# expansion begin 68,3 ~5\n"
             "(1 == 0)\n"
             "# expansion end\n"
             "# 4 \"<stdin>\"\n"
             "           ) {}\n"
-            "}\n";
-    QTest::newRow("case 7") << original << expected;
+            "}\n"
+        ) << _(
+            "# 1 \"<stdin>\"\n"
+            "              //comment\n"
+            "\n"
+            "void foo() {\n"
+            "    if (\n"
+            "# expansion begin 68,3 ~5\n"
+            "(1 == 0)\n"
+            "# expansion end\n"
+            "# 4 \"<stdin>\"\n"
+            "           ) {}\n"
+            "}\n"
+    );
+    QTest::newRow("case 8") << _(
+            "#define FOO /* comment */ 0\n"
+            "FOO\n"
+        ) << _(
+            "# 1 \"<stdin>\"\n"
+            "\n"
+            "# expansion begin 28,3 ~1\n"
+            "0\n"
+            "# expansion end\n"
+            "# 3 \"<stdin>\"\n"
+        ) << _(
+            "# 1 \"<stdin>\"\n"
+            "            /* comment */\n"
+            "# expansion begin 28,3 ~1\n"
+            "0\n"
+            "# expansion end\n"
+            "# 3 \"<stdin>\"\n"
+    );
+
+    QTest::newRow("case 9") << _(
+            "#define FOO /* comment1 */ /* comment2 */ 0\n"
+            "FOO\n"
+        ) << _(
+            "# 1 \"<stdin>\"\n"
+            "\n"
+            "# expansion begin 44,3 ~1\n"
+            "0\n"
+            "# expansion end\n"
+            "# 3 \"<stdin>\"\n"
+        ) << _(
+            "# 1 \"<stdin>\"\n"
+            "            /* comment1 */ /* comment2 */\n"
+            "# expansion begin 44,3 ~1\n"
+            "0\n"
+            "# expansion end\n"
+            "# 3 \"<stdin>\"\n"
+    );
+
+    QTest::newRow("case 10") << _(
+            "#define FOO /* comment1 */   /* comment2 */ 0 /* comment3\n"
+            "comment4 */\n"
+            "FOO\n"
+        ) << _(
+            "# 1 \"<stdin>\"\n"
+            "\n"
+            "\n"
+            "# expansion begin 70,3 ~1\n"
+            "0\n"
+            "# expansion end\n"
+            "# 4 \"<stdin>\"\n"
+        ) << _(
+            "# 1 \"<stdin>\"\n"
+            "            /* comment1 */ /* comment2 */ /* comment3\n"
+            "comment4 */\n"
+            "# expansion begin 70,3 ~1\n"
+            "0\n"
+            "# expansion end\n"
+            "# 4 \"<stdin>\"\n"
+    );
+
+    QTest::newRow("case 11") << _(
+            "#include <foo.h> // comment\n"
+        ) << _(
+            "# 1 \"<stdin>\"\n"
+            "\n"
+        ) << _(
+            "# 1 \"<stdin>\"\n"
+            "                 // comment\n"
+    );
+
+    QTest::newRow("joined") << _(
+            "// comment \\\n"
+            "\n"
+            "int foo = 4;"
+        ) << _(
+            "# 1 \"<stdin>\"\n"
+            "\n"
+            "\n"
+            "int foo = 4;"
+        ) << _(
+            "# 1 \"<stdin>\"\n"
+            "// comment \\\n"
+            "\n"
+            "int foo = 4;"
+    );
+
+    QTest::newRow("joined_unterminated") << _(
+            "// comment \\\n"
+            "\n"
+            "\n"
+            "\n"
+            "\n"
+            "\n"
+            "\n"
+            "\n"
+            "\n"
+            "\n"
+            "\n"
+            "int foo = 4;"
+        ) << _(
+            "# 1 \"<stdin>\"\n"
+            "# 12 \"<stdin>\"\n"
+            "int foo = 4;"
+        ) << _(
+            "# 1 \"<stdin>\"\n"
+            "// comment \\\n"
+            "\n"
+            "# 12 \"<stdin>\"\n"
+            "int foo = 4;"
+    );
 }
 
 void tst_Preprocessor::comments_before_args()
@@ -1296,180 +1558,6 @@ void tst_Preprocessor::comments_before_args()
              QString("int a=1;int b=2;int c=3;int d=4;int e=5;"));
 }
 
-void tst_Preprocessor::comments_within2()
-{
-    compare_input_output(true);
-}
-
-void tst_Preprocessor::comments_within2_data()
-{
-    QTest::addColumn<QByteArray>("input");
-    QTest::addColumn<QByteArray>("output");
-
-    QByteArray original;
-    QByteArray expected;
-
-    original = "#define FOO int x;\n"
-               "\n"
-               "   // comment\n"
-               "   // comment\n"
-               "   // comment\n"
-               "   // comment\n"
-               "FOO\n"
-               "x = 10\n";
-    expected =
-            "# 1 \"<stdin>\"\n"
-            "\n"
-            "\n"
-            "   // comment\n"
-            "   // comment\n"
-            "   // comment\n"
-            "   // comment\n"
-            "# expansion begin 76,3 ~3\n"
-            "int x;\n"
-            "# expansion end\n"
-            "# 8 \"<stdin>\"\n"
-            "x = 10\n";
-    QTest::newRow("case 1") << original << expected;
-
-
-    original = "#define FOO int x;\n"
-               "\n"
-               "   /* comment\n"
-               "      comment\n"
-               "      comment\n"
-               "      comment */\n"
-               "FOO\n"
-               "x = 10\n";
-    expected =
-            "# 1 \"<stdin>\"\n"
-            "\n"
-            "\n"
-            "   /* comment\n"
-            "      comment\n"
-            "      comment\n"
-            "      comment */\n"
-            "# expansion begin 79,3 ~3\n"
-            "int x;\n"
-            "# expansion end\n"
-            "# 8 \"<stdin>\"\n"
-            "x = 10\n";
-    QTest::newRow("case 2") << original << expected;
-
-
-    original = "#define FOO int x;\n"
-               "\n"
-               "   // comment\n"
-               "   // comment\n"
-               "   // comment\n"
-               "   // comment\n"
-               "FOO\n"
-               "// test\n"
-               "// test again\n"
-               "x = 10\n";
-    expected =
-            "# 1 \"<stdin>\"\n"
-            "\n"
-            "\n"
-            "   // comment\n"
-            "   // comment\n"
-            "   // comment\n"
-            "   // comment\n"
-            "# expansion begin 76,3 ~3\n"
-            "int x;\n"
-            "# expansion end\n"
-            "# 8 \"<stdin>\"\n"
-            "// test\n"
-            "// test again\n"
-            "x = 10\n";
-    QTest::newRow("case 3") << original << expected;
-
-
-    original = "#define FOO int x;\n"
-               "\n"
-               "void foo() {   /* comment\n"
-               "      comment\n"
-               "      comment\n"
-               "      comment */\n"
-               "FOO\n"
-               "/*  \n"
-               "*/\n"
-               "x = 10\n";
-    expected =
-            "# 1 \"<stdin>\"\n"
-            "\n"
-            "\n"
-            "void foo() {   /* comment\n"
-            "      comment\n"
-            "      comment\n"
-            "      comment */\n"
-            "# expansion begin 91,3 ~3\n"
-            "int x;\n"
-            "# expansion end\n"
-            "# 8 \"<stdin>\"\n"
-            "/*  \n"
-            "*/\n"
-            "x = 10\n";
-    QTest::newRow("case 4") << original << expected;
-
-
-    original = "#define FOO(x, y) { (void)x; (void)y; }\n"
-               "\n"
-               "void foo() {\n"
-               "   FOO(10,\n"
-               "       //comment\n"
-               "       12\n"
-               "}\n";
-    expected =
-            "# 1 \"<stdin>\"\n"
-            "\n"
-            "\n"
-            "void foo() {\n"
-            "# expansion begin 57,3 ~4 4:7 ~5 6:7 7:0 ~2\n"
-            "{ (void)10; (void)/*comment*/ 12}; }\n"
-            "# expansion end\n"
-            "# 8 \"<stdin>\"\n";
-    QTest::newRow("case 5") << original << expected;
-
-    original = "#define FOO(x, y) { (void)x; (void)y; }\n"
-               "\n"
-               "void foo() {\n"
-               "   FOO(10,\n"
-               "       //tricky*/comment\n"
-               "       12\n"
-               "}\n";
-    expected =
-            "# 1 \"<stdin>\"\n"
-            "\n"
-            "\n"
-            "void foo() {\n"
-            "# expansion begin 57,3 ~4 4:7 ~5 6:7 7:0 ~2\n"
-            "{ (void)10; (void)/*tricky*|comment*/ 12}; }\n"
-            "# expansion end\n"
-            "# 8 \"<stdin>\"\n";
-    QTest::newRow("case 6") << original << expected;
-
-    original =
-            "#define FOO 0 //coment\n"
-            "#define BAR (1 == FOO)\n"
-            "void foo() {\n"
-            "    if (BAR) {}\n"
-            "}\n";
-    expected =
-            "# 1 \"<stdin>\"\n"
-            "\n"
-            "\n"
-            "void foo() {\n"
-            "    if (\n"
-            "# expansion begin 67,3 ~5\n"
-            "(1 == 0)\n"
-            "# expansion end\n"
-            "# 4 \"<stdin>\"\n"
-            "           ) {}\n"
-            "}\n";
-    QTest::newRow("case 7") << original << expected;
-}
-
 void tst_Preprocessor::multiline_strings()
 {
     compare_input_output();
@@ -1480,15 +1568,14 @@ void tst_Preprocessor::multiline_strings_data()
     QTest::addColumn<QByteArray>("input");
     QTest::addColumn<QByteArray>("output");
 
-    QByteArray original;
-    QByteArray expected;
-
-    original = "const char *s = \"abc\\\n"
-               "xyz\";\n";
-    expected = "# 1 \"<stdin>\"\n"
-               "const char *s = \"abc\\\n"
-               "xyz\";\n";
-    QTest::newRow("case 1") << original << expected;
+    QTest::newRow("case 1") << _(
+            "const char *s = \"abc\\\n"
+            "xyz\";\n"
+        ) << _(
+            "# 1 \"<stdin>\"\n"
+            "const char *s = \"abc\\\n"
+            "xyz\";\n"
+    );
 }
 
 void tst_Preprocessor::skip_unknown_directives()
@@ -1501,24 +1588,21 @@ void tst_Preprocessor::skip_unknown_directives_data()
     QTest::addColumn<QByteArray>("input");
     QTest::addColumn<QByteArray>("output");
 
-    QByteArray original;
-    QByteArray expected;
-
     // We should skip "weird" things when preprocessing. Particularly useful when we preprocess
     // a particular expression from a document which has already been processed.
 
-    original = "# foo\n"
-               "# 10 \"file.cpp\"\n"
-               "# ()\n"
-               "#\n";
-    expected =
+    QTest::newRow("case 1") << _(
+            "# foo\n"
+            "# 10 \"file.cpp\"\n"
+            "# ()\n"
+            "#\n"
+        ) << _(
             "# 1 \"<stdin>\"\n"
             "\n"
             "\n"
             "\n"
             "\n"
-            ;
-    QTest::newRow("case 1") << original << expected;
+    );
 }
 
 void tst_Preprocessor::include_guard()
@@ -1616,23 +1700,21 @@ void tst_Preprocessor::empty_trailing_lines_data()
     QTest::addColumn<QByteArray>("input");
     QTest::addColumn<QByteArray>("output");
 
-    QByteArray original;
-    QByteArray expected;
+    const QByteArray original =
+            "\n"
+            "\n"
+            "\n"
+            "\n"
+            "\n"
+            "\n"
+            "\n"
+            "\n";
 
-    original =
-            "\n"
-            "\n"
-            "\n"
-            "\n"
-            "\n"
-            "\n"
-            "\n"
-            "\n"
-            ;
-    expected = "# 1 \"<stdin>\"\n" + original;
-    QTest::newRow("9 empty lines") << original << expected;
+    QTest::newRow("9 empty lines")
+            << original
+            << _("# 1 \"<stdin>\"\n") + original;
 
-    original =
+    QTest::newRow("11 empty lines") << _(
             "\n"
             "\n"
             "\n"
@@ -1643,32 +1725,66 @@ void tst_Preprocessor::empty_trailing_lines_data()
             "\n"
             "\n"
             "\n"
-            ;
-    expected =
+        ) << _(
             "# 1 \"<stdin>\"\n"
             "# 11 \"<stdin>\"\n"
-            ;
-    QTest::newRow("11 empty lines") << original << expected;
+    );
 
-    original =
+    QTest::newRow("1 include") << _(
             "#include <something>\n"
-            ;
-    expected =
+        ) << _(
             "# 1 \"<stdin>\"\n"
             "\n"
-            ;
-    QTest::newRow("1 include") << original << expected;
+    );
 
-    original =
+    QTest::newRow("1 empty line with 1 include") << _(
             "#include <something>\n"
             "\n"
-            ;
-    expected =
+        ) << _(
             "# 1 \"<stdin>\"\n"
             "\n"
             "\n"
-            ;
-    QTest::newRow("1 empty line with 1 include") << original << expected;
+    );
+}
+
+void tst_Preprocessor::undef()
+{
+    Environment env;
+    QByteArray output;
+    MockClient client(&env, &output);
+    Preprocessor preprocess(&client, &env);
+    QByteArray input =
+            "#define FOO\n"
+            "#define FOO2\n"
+            "#undef FOO\n"
+            "#undef BAR\n";
+    preprocess.run(QLatin1String("<stdin>"), input);
+    QCOMPARE(env.macroCount(), 4U);
+    Macro *macro = env.macroAt(0);
+    QCOMPARE(macro->name(), QByteArray("FOO"));
+    QCOMPARE(macro->offset(), 8U);
+    QCOMPARE(macro->line(), 1U);
+    QVERIFY(!macro->isHidden());
+    macro = env.macroAt(1);
+    QCOMPARE(macro->name(), QByteArray("FOO2"));
+    QCOMPARE(macro->offset(), 20U);
+    QCOMPARE(macro->line(), 2U);
+    QVERIFY(!macro->isHidden());
+    macro = env.macroAt(2);
+    QCOMPARE(macro->name(), QByteArray("FOO"));
+    QCOMPARE(macro->offset(), 32U);
+    QCOMPARE(macro->line(), 3U);
+    QVERIFY(macro->isHidden());
+    macro = env.macroAt(3);
+    QCOMPARE(macro->name(), QByteArray("BAR"));
+    QCOMPARE(macro->offset(), 43U);
+    QCOMPARE(macro->line(), 4U);
+    QVERIFY(macro->isHidden());
+    QList<QByteArray> macros = client.definedMacros();
+    QVERIFY(macros.contains("FOO"));
+    QVERIFY(macros.contains("FOO2"));
+    QCOMPARE(client.macroUsesLine()["FOO"], (QList<unsigned>() << 3U));
+    QVERIFY(client.macroUsesLine()["BAR"].isEmpty());
 }
 
 void tst_Preprocessor::compare_input_output(bool keepComments)

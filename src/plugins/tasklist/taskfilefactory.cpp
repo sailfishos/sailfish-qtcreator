@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -32,8 +32,8 @@
 #include "taskfile.h"
 
 #include <projectexplorer/projectexplorer.h>
+#include <projectexplorer/project.h>
 #include <coreplugin/icore.h>
-#include <coreplugin/id.h>
 #include <coreplugin/documentmanager.h>
 
 #include <QMessageBox>
@@ -45,38 +45,23 @@ using namespace TaskList::Internal;
 // --------------------------------------------------------------------------
 
 TaskFileFactory::TaskFileFactory(QObject * parent) :
-    Core::IDocumentFactory(parent),
-    m_mimeTypes(QStringList() << QLatin1String("text/x-tasklist"))
-{ }
-
-TaskFileFactory::~TaskFileFactory()
-{ }
-
-QStringList TaskFileFactory::mimeTypes() const
+    Core::IDocumentFactory(parent)
 {
-    return m_mimeTypes;
-}
-
-Core::Id TaskFileFactory::id() const
-{
-    return Core::Id("ProjectExplorer.TaskFileFactory");
-}
-
-QString TaskFileFactory::displayName() const
-{
-    return tr("Task file reader");
+    setId("ProjectExplorer.TaskFileFactory");
+    setDisplayName(tr("Task file reader"));
+    addMimeType(QLatin1String("text/x-tasklist"));
 }
 
 Core::IDocument *TaskFileFactory::open(const QString &fileName)
 {
-    ProjectExplorer::Project *context = ProjectExplorer::ProjectExplorerPlugin::currentProject();
-    return open(context, fileName);
+    ProjectExplorer::Project *project = ProjectExplorer::ProjectExplorerPlugin::currentProject();
+    return open(project ? project->projectDirectory() : QString(), fileName);
 }
 
-Core::IDocument *TaskFileFactory::open(ProjectExplorer::Project *context, const QString &fileName)
+Core::IDocument *TaskFileFactory::open(const QString &base, const QString &fileName)
 {
     TaskFile *file = new TaskFile(this);
-    file->setContext(context);
+    file->setBaseDir(base);
 
     QString errorString;
     if (!file->open(&errorString, fileName)) {

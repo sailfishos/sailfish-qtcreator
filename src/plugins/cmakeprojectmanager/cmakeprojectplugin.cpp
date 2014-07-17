@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -36,8 +36,9 @@
 #include "cmakeprojectconstants.h"
 #include "cmakelocatorfilter.h"
 #include "cmakefilecompletionassist.h"
+#include "cmakehighlighterfactory.h"
 
-#include <coreplugin/icore.h>
+#include <coreplugin/featureprovider.h>
 #include <coreplugin/mimedatabase.h>
 #include <texteditor/texteditoractionhandler.h>
 
@@ -46,6 +47,16 @@
 
 
 using namespace CMakeProjectManager::Internal;
+
+class CMakeFeatureProvider : public Core::IFeatureProvider
+{
+    Core::FeatureSet availableFeatures(const QString & /* platform */) const {
+        return Core::FeatureSet(Core::Id(CMakeProjectManager::Constants::CMAKE_SUPPORT_FEATURE));
+    }
+
+    QStringList availablePlatforms() const { return QStringList(); }
+    QString displayNameForPlatform(const QString & /* platform */) const { return QString(); }
+};
 
 CMakeProjectPlugin::CMakeProjectPlugin()
 {
@@ -57,7 +68,7 @@ CMakeProjectPlugin::~CMakeProjectPlugin()
 
 bool CMakeProjectPlugin::initialize(const QStringList & /*arguments*/, QString *errorMessage)
 {
-    if (!Core::ICore::mimeDatabase()->addMimeTypes(QLatin1String(":cmakeproject/CMakeProjectManager.mimetypes.xml"), errorMessage))
+    if (!Core::MimeDatabase::addMimeTypes(QLatin1String(":cmakeproject/CMakeProjectManager.mimetypes.xml"), errorMessage))
         return false;
     CMakeSettingsPage *cmp = new CMakeSettingsPage();
     addAutoReleasedObject(cmp);
@@ -70,6 +81,8 @@ bool CMakeProjectPlugin::initialize(const QStringList & /*arguments*/, QString *
     addAutoReleasedObject(new CMakeEditorFactory(manager));
     addAutoReleasedObject(new CMakeLocatorFilter);
     addAutoReleasedObject(new CMakeFileCompletionAssistProvider(cmp));
+    addAutoReleasedObject(new CMakeFeatureProvider);
+    addAutoReleasedObject(new CMakeHighlighterFactory);
     return true;
 }
 

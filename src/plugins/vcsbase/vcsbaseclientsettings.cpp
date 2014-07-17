@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Brian McGillion and Hugues Delorme
+** Copyright (c) 2014 Brian McGillion and Hugues Delorme
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -31,6 +31,7 @@
 
 #include <utils/environment.h>
 #include <utils/hostosinfo.h>
+#include <utils/qtcassert.h>
 
 #include <QSettings>
 #include <QVariant>
@@ -228,6 +229,9 @@ VcsBaseClientSettings::~VcsBaseClientSettings()
 
 void VcsBaseClientSettings::writeSettings(QSettings *settings) const
 {
+    QTC_ASSERT(!settingsGroup().isEmpty(), return);
+
+    settings->remove(settingsGroup());
     settings->beginGroup(settingsGroup());
     foreach (const QString &key, keys())
         settings->setValue(key, value(key));
@@ -353,10 +357,14 @@ QString VcsBaseClientSettings::binaryPath() const
 {
     if (d->m_binaryFullPath.isEmpty()) {
         d->m_binaryFullPath = Utils::Environment::systemEnvironment().searchInPath(
-                    stringValue(binaryPathKey), stringValue(pathKey).split(
-                        Utils::HostOsInfo::pathListSeparator()));
+                    stringValue(binaryPathKey), searchPathList());
     }
     return d->m_binaryFullPath;
+}
+
+QStringList VcsBaseClientSettings::searchPathList() const
+{
+    return stringValue(pathKey).split(Utils::HostOsInfo::pathListSeparator());
 }
 
 QString VcsBaseClientSettings::settingsGroup() const

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -36,6 +36,7 @@
 #include <QStringList>
 #include <QObject>
 #include <QScopedPointer>
+#include <QReadWriteLock>
 
 QT_BEGIN_NAMESPACE
 class QTime;
@@ -103,7 +104,8 @@ public:
     QStringList pluginPaths;
     QString extension;
     QList<QObject *> allObjects; // ### make this a QList<QPointer<QObject> > > ?
-    QStringList defaultDisabledPlugins;
+    QStringList defaultDisabledPlugins; // Plugins/Ignored from install settings
+    QStringList defaultEnabledPlugins; // Plugins/ForceEnabled from install settings
     QStringList disabledPlugins;
     QStringList forceEnabledPlugins;
     // delayed initialization
@@ -128,6 +130,8 @@ public:
     // used by tests
     static PluginSpec *createSpec();
     static PluginSpecPrivate *privateSpec(PluginSpec *spec);
+
+    mutable QReadWriteLock m_lock;
 
 private slots:
     void nextDelayedInitialize();

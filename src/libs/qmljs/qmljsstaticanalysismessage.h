@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -31,6 +31,7 @@
 #define QMLJS_STATICANALYSIS_QMLJSSTATICANALYSISMESSAGE_H
 
 #include "qmljs_global.h"
+#include "qmljsconstants.h"
 #include "parser/qmljsengine_p.h"
 
 #include <QRegExp>
@@ -39,15 +40,6 @@
 
 namespace QmlJS {
 namespace StaticAnalysis {
-
-enum Severity
-{
-    Hint,         // cosmetic or convention
-    MaybeWarning, // possibly a warning, insufficient information
-    Warning,      // could cause unintended behavior
-    MaybeError,   // possibly an error, insufficient information
-    Error         // definitely an error
-};
 
 enum Type
 {
@@ -128,13 +120,14 @@ enum Type
     ErrInvalidStringValuePattern = 320,
     ErrLongerStringValueExpected = 321,
     ErrShorterStringValueExpected = 322,
-    ErrInvalidArrayValueLength = 323
+    ErrInvalidArrayValueLength = 323,
+    WarnAboutQtQuick1InsteadQtQuick2 = 324
 };
 
 class QMLJS_EXPORT PrototypeMessageData {
 public:
     Type type;
-    Severity severity;
+    Severity::Enum severity;
     QString message;
     int placeholders;
 };
@@ -159,7 +152,7 @@ public:
     AST::SourceLocation location;
     QString message;
     Type type;
-    Severity severity;
+    Severity::Enum severity;
 
     static const PrototypeMessageData prototypeForMessageType(Type type);
 };

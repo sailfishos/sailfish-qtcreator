@@ -1,7 +1,7 @@
 /**************************************************************************
 **
-** Copyright (C) 2013 Denis Mingulov.
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Denis Mingulov.
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -46,8 +46,7 @@ public:
     explicit ImageViewerFile(ImageViewer *parent = 0);
 
     bool save(QString *errorString, const QString &fileName, bool autoSave);
-    void rename(const QString &newName);
-    QString fileName() const;
+    bool setContents(const QByteArray &contents);
 
     QString defaultPath() const;
     QString suggestedFileName() const;
@@ -60,10 +59,8 @@ public:
     bool reload(QString *errorString, ReloadFlag flag, ChangeType type);
 
     void setMimetype(const QString &mimetype);
-    void setFileName(const QString &filename);
 
 private:
-    QString m_fileName;
     QString m_mimeType;
     ImageViewer *m_editor;
 };

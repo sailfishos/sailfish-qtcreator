@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -29,10 +29,17 @@
 
 #include "qmljsdocument.h"
 #include "qmljsbind.h"
+#include "qmljsconstants.h"
+#include "qmljsimportdependencies.h"
 #include <qmljs/parser/qmljslexer_p.h>
 #include <qmljs/parser/qmljsparser_p.h>
 
+#include <utils/qtcassert.h>
+
+#include <QCryptographicHash>
 #include <QDir>
+
+#include <algorithm>
 
 using namespace QmlJS;
 using namespace QmlJS::AST;
@@ -81,56 +88,85 @@ using namespace QmlJS::AST;
 */
 
 
-bool Document::isQmlLikeLanguage(Document::Language language)
+bool Document::isQmlLikeLanguage(Language::Enum language)
 {
     switch (language) {
-    case QmlLanguage:
-    case QmlQtQuick1Language:
-    case QmlQtQuick2Language:
-    case QmlQbsLanguage:
-    case QmlProjectLanguage:
-    case QmlTypeInfoLanguage:
+    case Language::Qml:
+    case Language::QmlQtQuick1:
+    case Language::QmlQtQuick2:
+    case Language::QmlQbs:
+    case Language::QmlProject:
+    case Language::QmlTypeInfo:
         return true;
     default:
         return false;
     }
 }
 
-bool Document::isFullySupportedLanguage(Document::Language language)
+bool Document::isFullySupportedLanguage(Language::Enum language)
 {
     switch (language) {
-    case JavaScriptLanguage:
-    case JsonLanguage:
-    case QmlLanguage:
-    case QmlQtQuick1Language:
-    case QmlQtQuick2Language:
+    case Language::JavaScript:
+    case Language::Json:
+    case Language::Qml:
+    case Language::QmlQtQuick1:
+    case Language::QmlQtQuick2:
         return true;
-    case UnknownLanguage:
-    case QmlQbsLanguage:
-    case QmlProjectLanguage:
-    case QmlTypeInfoLanguage:
+    case Language::Unknown:
+    case Language::QmlQbs:
+    case Language::QmlProject:
+    case Language::QmlTypeInfo:
         break;
     }
     return false;
 }
 
-bool Document::isQmlLikeOrJsLanguage(Document::Language language)
+bool Document::isQmlLikeOrJsLanguage(Language::Enum language)
 {
     switch (language) {
-    case QmlLanguage:
-    case QmlQtQuick1Language:
-    case QmlQtQuick2Language:
-    case QmlQbsLanguage:
-    case QmlProjectLanguage:
-    case QmlTypeInfoLanguage:
-    case JavaScriptLanguage:
+    case Language::Qml:
+    case Language::QmlQtQuick1:
+    case Language::QmlQtQuick2:
+    case Language::QmlQbs:
+    case Language::QmlProject:
+    case Language::QmlTypeInfo:
+    case Language::JavaScript:
         return true;
     default:
         return false;
     }
 }
 
-Document::Document(const QString &fileName, Language language)
+QList<Language::Enum> Document::companionLanguages(Language::Enum language)
+{
+    QList<Language::Enum> langs;
+    langs << language;
+    switch (language) {
+    case Language::JavaScript:
+    case Language::Json:
+    case Language::QmlProject:
+    case Language::QmlTypeInfo:
+        break;
+    case Language::QmlQbs:
+        langs << Language::JavaScript;
+        break;
+    case Language::Qml:
+        langs << Language::QmlQtQuick1 << Language::QmlQtQuick2 << Language::JavaScript;
+        break;
+    case Language::QmlQtQuick1:
+    case Language::QmlQtQuick2:
+        langs << Language::Qml << Language::JavaScript;
+        break;
+    case Language::Unknown:
+        langs << Language::JavaScript << Language::Json << Language::QmlProject << Language:: QmlQbs
+              << Language::QmlTypeInfo << Language::QmlQtQuick1 << Language::QmlQtQuick2
+              << Language::Qml;
+        break;
+    }
+    return langs;
+}
+
+Document::Document(const QString &fileName, Language::Enum language)
     : _engine(0)
     , _ast(0)
     , _bind(0)
@@ -163,24 +199,11 @@ Document::~Document()
         delete _engine;
 }
 
-Document::MutablePtr Document::create(const QString &fileName, Language language)
+Document::MutablePtr Document::create(const QString &fileName, Language::Enum language)
 {
     Document::MutablePtr doc(new Document(fileName, language));
     doc->_ptr = doc;
     return doc;
-}
-
-Document::Language Document::guessLanguageFromSuffix(const QString &fileName)
-{
-    if (fileName.endsWith(QLatin1String(".qml"), Qt::CaseInsensitive))
-        return QmlLanguage;
-    if (fileName.endsWith(QLatin1String(".qbs"), Qt::CaseInsensitive))
-        return QmlQbsLanguage;
-    if (fileName.endsWith(QLatin1String(".js"), Qt::CaseInsensitive))
-        return JavaScriptLanguage;
-    if (fileName.endsWith(QLatin1String(".json"), Qt::CaseInsensitive))
-        return JsonLanguage;
-    return UnknownLanguage;
 }
 
 Document::Ptr Document::ptr() const
@@ -193,14 +216,24 @@ bool Document::isQmlDocument() const
     return isQmlLikeLanguage(_language);
 }
 
-Document::Language Document::language() const
+Language::Enum Document::language() const
 {
     return _language;
 }
 
-void Document::setLanguage(Document::Language l)
+void Document::setLanguage(Language::Enum l)
 {
     _language = l;
+}
+
+QString Document::importId() const
+{
+    return _fileName;
+}
+
+QByteArray Document::fingerprint() const
+{
+    return _fingerprint;
 }
 
 AST::UiProgram *Document::qmlProgram() const
@@ -244,6 +277,9 @@ QString Document::source() const
 void Document::setSource(const QString &source)
 {
     _source = source;
+    QCryptographicHash sha(QCryptographicHash::Sha1);
+    sha.addData(source.toUtf8());
+    _fingerprint = sha.result();
 }
 
 int Document::editorRevision() const
@@ -372,19 +408,86 @@ LibraryInfo::LibraryInfo(Status status)
     : _status(status)
     , _dumpStatus(NoTypeInfo)
 {
+    updateFingerprint();
 }
 
-LibraryInfo::LibraryInfo(const QmlDirParser &parser)
+LibraryInfo::LibraryInfo(const QmlDirParser &parser, const QByteArray &fingerprint)
     : _status(Found)
     , _components(parser.components().values())
     , _plugins(parser.plugins())
     , _typeinfos(parser.typeInfos())
+    , _fingerprint(fingerprint)
     , _dumpStatus(NoTypeInfo)
 {
+    if (_fingerprint.isEmpty())
+        updateFingerprint();
 }
 
 LibraryInfo::~LibraryInfo()
 {
+}
+
+QByteArray LibraryInfo::calculateFingerprint() const
+{
+    QCryptographicHash hash(QCryptographicHash::Sha1);
+    hash.addData(reinterpret_cast<const char *>(&_status), sizeof(_status));
+    int len = _components.size();
+    hash.addData(reinterpret_cast<const char *>(&len), sizeof(len));
+    foreach (const QmlDirParser::Component &component, _components) {
+        len = component.fileName.size();
+        hash.addData(reinterpret_cast<const char *>(&len), sizeof(len));
+        hash.addData(reinterpret_cast<const char *>(component.fileName.constData()), len * sizeof(QChar));
+        hash.addData(reinterpret_cast<const char *>(&component.majorVersion), sizeof(component.majorVersion));
+        hash.addData(reinterpret_cast<const char *>(&component.minorVersion), sizeof(component.minorVersion));
+        len = component.typeName.size();
+        hash.addData(reinterpret_cast<const char *>(&len), sizeof(len));
+        hash.addData(reinterpret_cast<const char *>(component.typeName.constData()), component.typeName.size() * sizeof(QChar));
+        int flags = (component.singleton ?  (1 << 0) : 0) + (component.internal ? (1 << 1) : 0);
+        hash.addData(reinterpret_cast<const char *>(&flags), sizeof(flags));
+    }
+    len = _plugins.size();
+    hash.addData(reinterpret_cast<const char *>(&len), sizeof(len));
+    foreach (const QmlDirParser::Plugin &plugin, _plugins) {
+        len = plugin.path.size();
+        hash.addData(reinterpret_cast<const char *>(&len), sizeof(len));
+        hash.addData(reinterpret_cast<const char *>(plugin.path.constData()), len * sizeof(QChar));
+        len = plugin.name.size();
+        hash.addData(reinterpret_cast<const char *>(&len), sizeof(len));
+        hash.addData(reinterpret_cast<const char *>(plugin.name.constData()), len * sizeof(QChar));
+    }
+    len = _typeinfos.size();
+    hash.addData(reinterpret_cast<const char *>(&len), sizeof(len));
+    foreach (const QmlDirParser::TypeInfo &typeinfo, _typeinfos) {
+        len = typeinfo.fileName.size();
+        hash.addData(reinterpret_cast<const char *>(&len), sizeof(len));
+        hash.addData(reinterpret_cast<const char *>(typeinfo.fileName.constData()), len * sizeof(QChar));
+    }
+    len = _metaObjects.size();
+    hash.addData(reinterpret_cast<const char *>(&len), sizeof(len));
+    QList<QByteArray> metaFingerprints;
+    foreach (const LanguageUtils::FakeMetaObject::ConstPtr &metaObject, _metaObjects)
+        metaFingerprints.append(metaObject->fingerprint());
+    std::sort(metaFingerprints.begin(), metaFingerprints.end());
+    foreach (const QByteArray &fp, metaFingerprints)
+        hash.addData(fp);
+    hash.addData(reinterpret_cast<const char *>(&_dumpStatus), sizeof(_dumpStatus));
+    len = _dumpError.size(); // localization dependent (avoid?)
+    hash.addData(reinterpret_cast<const char *>(&len), sizeof(len));
+    hash.addData(reinterpret_cast<const char *>(_dumpError.constData()), len * sizeof(QChar));
+
+    len = _moduleApis.size();
+    hash.addData(reinterpret_cast<const char *>(&len), sizeof(len));
+    foreach (const ModuleApiInfo &moduleInfo, _moduleApis)
+        moduleInfo.addToHash(hash); // make it order independent?
+
+    QByteArray res(hash.result());
+    res.append('L');
+    return res;
+}
+
+void LibraryInfo::updateFingerprint()
+{
+    _fingerprint = calculateFingerprint();
 }
 
 Snapshot::Snapshot()
@@ -395,21 +498,67 @@ Snapshot::~Snapshot()
 {
 }
 
+Snapshot::Snapshot(const Snapshot &o)
+    : _documents(o._documents),
+      _documentsByPath(o._documentsByPath),
+      _libraries(o._libraries),
+      _dependencies(o._dependencies)
+{
+}
+
 void Snapshot::insert(const Document::Ptr &document, bool allowInvalid)
 {
     if (document && (allowInvalid || document->qmlProgram() || document->jsProgram())) {
         const QString fileName = document->fileName();
         const QString path = document->path();
-
         remove(fileName);
         _documentsByPath[path].append(document);
         _documents.insert(fileName, document);
+        CoreImport cImport;
+        cImport.importId = document->importId();
+        cImport.language = document->language();
+        cImport.possibleExports << Export(ImportKey(ImportType::File, fileName),
+                                          QString(), true);
+        cImport.fingerprint = document->fingerprint();
+        _dependencies.addCoreImport(cImport);
     }
 }
 
 void Snapshot::insertLibraryInfo(const QString &path, const LibraryInfo &info)
 {
+    QTC_CHECK(info.fingerprint() == info.calculateFingerprint());
     _libraries.insert(QDir::cleanPath(path), info);
+    if (!info.wasFound()) return;
+    CoreImport cImport;
+    cImport.importId = path;
+    cImport.language = Language::Unknown;
+    QSet<ImportKey> packages;
+    foreach (const ModuleApiInfo &moduleInfo, info.moduleApis()) {
+        ImportKey iKey(ImportType::Library, moduleInfo.uri, moduleInfo.version.majorVersion(),
+                       moduleInfo.version.minorVersion());
+        packages.insert(iKey);
+    }
+    foreach (const LanguageUtils::FakeMetaObject::ConstPtr &metaO, info.metaObjects()) {
+        foreach (const LanguageUtils::FakeMetaObject::Export &e, metaO->exports()) {
+            ImportKey iKey(ImportType::Library, e.package, e.version.majorVersion(),
+                           e.version.minorVersion());
+            packages.insert(iKey);
+        }
+    }
+
+    QStringList splitPath = path.split(QLatin1Char('/'));
+    foreach (const ImportKey &importKey, packages) {
+        QString requiredPath = QStringList(splitPath.mid(0, splitPath.size() - importKey.splitPath.size()))
+                .join(QLatin1String("/"));
+        cImport.possibleExports << Export(importKey, requiredPath, true);
+    }
+    foreach (const QmlDirParser::Component &component, info.components()) {
+        foreach (const Export &e, cImport.possibleExports)
+            // renaming of type name not really represented here... fix?
+            _dependencies.addExport(component.fileName, e.exportName, e.pathRequired);
+    }
+    cImport.fingerprint = info.fingerprint();
+    _dependencies.addCoreImport(cImport);
 }
 
 void Snapshot::remove(const QString &fileName)
@@ -426,9 +575,19 @@ void Snapshot::remove(const QString &fileName)
     }
 }
 
+const QmlJS::ImportDependencies *Snapshot::importDependencies() const
+{
+    return &_dependencies;
+}
+
+QmlJS::ImportDependencies *Snapshot::importDependencies()
+{
+    return &_dependencies;
+}
+
 Document::MutablePtr Snapshot::documentFromSource(
         const QString &code, const QString &fileName,
-        Document::Language language) const
+        Language::Enum language) const
 {
     Document::MutablePtr newDoc = Document::create(fileName, language);
 
@@ -452,4 +611,16 @@ QList<Document::Ptr> Snapshot::documentsInDirectory(const QString &path) const
 LibraryInfo Snapshot::libraryInfo(const QString &path) const
 {
     return _libraries.value(QDir::cleanPath(path));
+}
+
+
+void ModuleApiInfo::addToHash(QCryptographicHash &hash) const
+{
+    int len = uri.length();
+    hash.addData(reinterpret_cast<const char *>(&len), sizeof(len));
+    hash.addData(reinterpret_cast<const char *>(uri.constData()), len * sizeof(QChar));
+    version.addToHash(hash);
+    len = cppName.length();
+    hash.addData(reinterpret_cast<const char *>(&len), sizeof(len));
+    hash.addData(reinterpret_cast<const char *>(cppName.constData()), len * sizeof(QChar));
 }

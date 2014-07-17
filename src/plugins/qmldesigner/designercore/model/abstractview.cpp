@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -32,7 +32,10 @@
 #include "model.h"
 #include "model_p.h"
 #include "internalnode_p.h"
-#include <qmlmodelview.h>
+#include "nodeinstanceview.h"
+#include <qmlstate.h>
+
+#include <utils/qtcassert.h>
 
 namespace QmlDesigner {
 
@@ -70,9 +73,9 @@ void AbstractView::setModel(Model *model)
     m_model = model;
 }
 
-RewriterTransaction AbstractView::beginRewriterTransaction()
+RewriterTransaction AbstractView::beginRewriterTransaction(const QByteArray &identifier)
 {
-    return RewriterTransaction(this);
+    return RewriterTransaction(this, identifier);
 }
 
 ModelNode AbstractView::createModelNode(const TypeName &typeName,
@@ -269,12 +272,32 @@ void AbstractView::setSelectedModelNodes(const QList<ModelNode> &selectedNodeLis
     model()->d->setSelectedNodes(toInternalNodeList(selectedNodeList));
 }
 
+void AbstractView::setSelectedModelNode(const ModelNode &modelNode)
+{
+    setSelectedModelNodes(QList<ModelNode>() << modelNode);
+}
+
 /*!
     Clears the selection.
 */
 void AbstractView::clearSelectedModelNodes()
 {
     model()->d->clearSelectedNodes();
+}
+
+bool AbstractView::hasSelectedModelNodes() const
+{
+    return !model()->d->selectedNodes().isEmpty();
+}
+
+bool AbstractView::hasSingleSelectedModelNode() const
+{
+    return model()->d->selectedNodes().count() == 1;
+}
+
+bool AbstractView::isSelectedModelNode(const ModelNode &modelNode) const
+{
+    return model()->d->selectedNodes().contains(modelNode.internalNode());
 }
 
 /*!
@@ -286,12 +309,29 @@ QList<ModelNode> AbstractView::selectedModelNodes() const
     return toModelNodeList(model()->d->selectedNodes());
 }
 
+ModelNode AbstractView::firstSelectedModelNode() const
+{
+    if (hasSelectedModelNodes())
+        return ModelNode(model()->d->selectedNodes().first(), model(), this);
+
+    return ModelNode();
+}
+
+ModelNode AbstractView::singleSelectedModelNode() const
+{
+    if (hasSingleSelectedModelNode())
+        return ModelNode(model()->d->selectedNodes().first(), model(), this);
+
+    return ModelNode();
+}
+
 /*!
     Adds \a node to the selection list.
 */
-void AbstractView::selectModelNode(const ModelNode &node)
+void AbstractView::selectModelNode(const ModelNode &modelNode)
 {
-    model()->d->selectNode(node.internalNode());
+    QTC_ASSERT(modelNode.isInHierarchy(), return);
+    model()->d->selectNode(modelNode.internalNode());
 }
 
 /*!
@@ -312,7 +352,33 @@ bool AbstractView::hasId(const QString &id) const
     return model()->d->hasId(id);
 }
 
-ModelNode AbstractView::modelNodeForInternalId(qint32 internalId)
+QString firstCharToLower(const QString string)
+{
+    QString resultString = string;
+
+    if (!resultString.isEmpty())
+        resultString[0] = resultString.at(0).toLower();
+
+    return resultString;
+}
+
+QString AbstractView::generateNewId(const QString prefixName) const
+{
+    int counter = 1;
+
+    QString newId = QString("%1%2").arg(firstCharToLower(prefixName)).arg(counter);
+    newId.remove(QRegExp(QLatin1String("[^a-zA-Z0-9_]")));
+
+    while (hasId(newId)) {
+        counter += 1;
+        newId = QString("%1%2").arg(firstCharToLower(prefixName)).arg(counter);
+        newId.remove(QRegExp(QLatin1String("[^a-zA-Z0-9_]")));
+    }
+
+    return newId;
+}
+
+ModelNode AbstractView::modelNodeForInternalId(qint32 internalId) const
 {
      return ModelNode(model()->d->nodeForInternalId(internalId), model(), this);
 }
@@ -320,11 +386,6 @@ ModelNode AbstractView::modelNodeForInternalId(qint32 internalId)
 bool AbstractView::hasModelNodeForInternalId(qint32 internalId) const
 {
     return model()->d->hasNodeForInternalId(internalId);
-}
-
-QmlModelView *AbstractView::toQmlModelView()
-{
-    return qobject_cast<QmlModelView*>(this);
 }
 
 NodeInstanceView *AbstractView::nodeInstanceView() const
@@ -443,11 +504,11 @@ void AbstractView::emitRewriterEndTransaction()
         model()->d->notifyRewriterEndTransaction();
 }
 
-void AbstractView::setAcutalStateNode(const ModelNode &node)
+void AbstractView::setCurrentStateNode(const ModelNode &node)
 {
     Internal::WriteLocker locker(m_model.data());
     if (model())
-        model()->d->notifyActualStateChanged(node);
+        model()->d->notifyCurrentStateChanged(node);
 }
 
 void AbstractView::changeRootNodeType(const TypeName &type, int majorVersion, int minorVersion)
@@ -457,12 +518,56 @@ void AbstractView::changeRootNodeType(const TypeName &type, int majorVersion, in
     m_model.data()->d->changeRootNodeType(type, majorVersion, minorVersion);
 }
 
-ModelNode AbstractView::actualStateNode() const
+ModelNode AbstractView::currentStateNode() const
 {
     if (model())
-        return ModelNode(m_model.data()->d->actualStateNode(), m_model.data(), const_cast<AbstractView*>(this));
+        return ModelNode(m_model.data()->d->currentStateNode(), m_model.data(), const_cast<AbstractView*>(this));
 
     return ModelNode();
+}
+
+QmlModelState AbstractView::currentState() const
+{
+    return QmlModelState(currentStateNode());
+}
+
+static int getMajorVersionFromImport(const Model *model)
+{
+    foreach (const Import &import, model->imports()) {
+        if (import.isLibraryImport() && import.url() == QLatin1String("QtQuick")) {
+            const QString versionString = import.version();
+            if (versionString.contains(QLatin1String("."))) {
+                const QString majorVersionString = versionString.split(QLatin1String(".")).first();
+                return majorVersionString.toInt();
+            }
+        }
+    }
+
+    return -1;
+}
+
+static int getMajorVersionFromNode(const ModelNode &modelNode)
+{
+    if (modelNode.metaInfo().isValid()) {
+        if (modelNode.type() == "QtQuick.QtObject" || modelNode.type() == "QtQuick.Item")
+            return modelNode.majorVersion();
+
+        foreach (const NodeMetaInfo &superClass,  modelNode.metaInfo().superClasses()) {
+            if (modelNode.type() == "QtQuick.QtObject" || modelNode.type() == "QtQuick.Item")
+                return superClass.majorVersion();
+        }
+    }
+
+    return 1; //default
+}
+
+int AbstractView::majorQtQuickVersion() const
+{
+    int majorVersionFromImport = getMajorVersionFromImport(model());
+    if (majorVersionFromImport >= 0)
+        return majorVersionFromImport;
+
+    return getMajorVersionFromNode(rootModelNode());
 }
 
 } // namespace QmlDesigner

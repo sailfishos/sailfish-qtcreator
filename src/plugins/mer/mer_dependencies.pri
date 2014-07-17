@@ -3,7 +3,7 @@ QTC_PLUGIN_DEPENDS += \
  coreplugin \ 
  projectexplorer \ 
  remotelinux \
- qt4projectmanager
+ qmakeprojectmanager
 QTC_LIB_DEPENDS += \
  ssh \
  utils

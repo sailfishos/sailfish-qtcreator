@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 AudioCodes Ltd.
+** Copyright (c) 2014 AudioCodes Ltd.
 ** Author: Orgad Shaneh <orgad.shaneh@audiocodes.com>
 ** Contact: http://www.qt-project.org/legal
 **
@@ -31,6 +31,7 @@
 #include "clearcasesubmiteditor.h"
 #include "clearcasesubmiteditorwidget.h"
 
+#include <coreplugin/idocument.h>
 #include <vcsbase/submiteditorwidget.h>
 #include <vcsbase/submitfilemodel.h>
 
@@ -40,7 +41,7 @@ ClearCaseSubmitEditor::ClearCaseSubmitEditor(const VcsBase::VcsBaseSubmitEditorP
                                              QWidget *parentWidget) :
     VcsBase::VcsBaseSubmitEditor(parameters, new ClearCaseSubmitEditorWidget(parentWidget))
 {
-    setDisplayName(tr("ClearCase Check In"));
+    document()->setDisplayName(tr("ClearCase Check In"));
 }
 
 ClearCaseSubmitEditorWidget *ClearCaseSubmitEditor::submitEditorWidget()

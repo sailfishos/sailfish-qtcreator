@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -49,9 +49,7 @@ public:
     SnippetEditor(SnippetEditorWidget *editorWidget);
 
     bool duplicateSupported() const { return false; }
-    Core::IEditor *duplicate(QWidget * /* parent */ ) { return 0; }
-    bool isTemporary() const { return false; }
-    Core::Id id() const;
+    Core::IEditor *duplicate() { return 0; }
 };
 
 class TEXTEDITOR_EXPORT SnippetEditorWidget : public BaseTextEditorWidget

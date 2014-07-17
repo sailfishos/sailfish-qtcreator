@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -40,7 +40,7 @@
 #include <utils/qtcassert.h>
 
 #if USE_BREAK_MODEL_TEST
-#include "modeltest.h"
+#include <modeltest.h>
 #endif
 
 #include <QTimerEvent>
@@ -335,7 +335,7 @@ void BreakHandler::saveBreakpoints()
             map.insert(_("message"), data.message);
         list.append(map);
     }
-    debuggerCore()->setSessionValue(QLatin1String("Breakpoints"), list);
+    DebuggerCore::setSessionValue("Breakpoints", list);
     //qDebug() << "SAVED BREAKPOINTS" << this << list.size();
 }
 
@@ -343,7 +343,7 @@ void BreakHandler::loadBreakpoints()
 {
     QTC_ASSERT(debuggerCore(), return);
     //qDebug() << "LOADING BREAKPOINTS...";
-    QVariant value = debuggerCore()->sessionValue(QLatin1String("Breakpoints"));
+    QVariant value = DebuggerCore::sessionValue("Breakpoints");
     QList<QVariant> list = value.toList();
     //clear();
     foreach (const QVariant &var, list) {
@@ -986,6 +986,8 @@ void BreakHandler::notifyBreakpointReleased(BreakpointModelId id)
             || it->data.type == WatchpointAtExpression
             || it->data.type == BreakpointByAddress)
         it->data.enabled = false;
+    else
+        it->data.address = 0;
     layoutChanged();
 }
 
@@ -1073,7 +1075,7 @@ void BreakHandler::handleAlienBreakpoint(const BreakpointResponse &response, Deb
         else
             setResponse(id, response);
     } else {
-        BreakpointModelId id(++currentId);
+        id = BreakpointModelId(++currentId);
         const int row = m_storage.size();
 
         beginInsertRows(QModelIndex(), row, row);

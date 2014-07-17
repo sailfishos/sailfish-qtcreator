@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -32,6 +32,9 @@
 #include "gitclient.h"
 
 #include <vcsbase/vcsbaseoutputwindow.h>
+#include <vcsbase/vcsbaseplugin.h>
+
+#include <utils/qtcassert.h>
 
 #include <QTreeView>
 #include <QLabel>
@@ -41,6 +44,9 @@
 #include <QItemSelectionModel>
 #include <QVBoxLayout>
 #include <QComboBox>
+#include <QPainter>
+
+using namespace VcsBase;
 
 namespace Git {
 namespace Internal {
@@ -55,6 +61,7 @@ enum Columns
 LogChangeWidget::LogChangeWidget(QWidget *parent)
     : QTreeView(parent)
     , m_model(new QStandardItemModel(0, ColumnCount, this))
+    , m_hasCustomDelegate(false)
 {
     QStringList headers;
     headers << tr("Sha1")<< tr("Subject");
@@ -67,16 +74,17 @@ LogChangeWidget::LogChangeWidget(QWidget *parent)
     connect(this, SIGNAL(doubleClicked(QModelIndex)), this, SLOT(emitDoubleClicked(QModelIndex)));
 }
 
-bool LogChangeWidget::init(const QString &repository, const QString &commit, bool includeRemote)
+bool LogChangeWidget::init(const QString &repository, const QString &commit, LogFlags flags)
 {
-    if (!populateLog(repository, commit, includeRemote))
+    if (!populateLog(repository, commit, flags))
         return false;
-    if (!m_model->rowCount()) {
-        VcsBase::VcsBaseOutputWindow::instance()->appendError(
-                    GitPlugin::instance()->gitClient()->msgNoCommits(includeRemote));
-        return false;
+    if (m_model->rowCount() > 0)
+        return true;
+    if (!(flags & Silent)) {
+        VcsBaseOutputWindow::instance()->appendError(
+                    GitPlugin::instance()->gitClient()->msgNoCommits(flags & IncludeRemotes));
     }
-    return true;
+    return false;
 }
 
 QString LogChangeWidget::commit() const
@@ -104,6 +112,12 @@ QString LogChangeWidget::earliestCommit() const
     return QString();
 }
 
+void LogChangeWidget::setItemDelegate(QAbstractItemDelegate *delegate)
+{
+    QTreeView::setItemDelegate(delegate);
+    m_hasCustomDelegate = true;
+}
+
 void LogChangeWidget::emitDoubleClicked(const QModelIndex &index)
 {
     if (index.isValid()) {
@@ -113,7 +127,27 @@ void LogChangeWidget::emitDoubleClicked(const QModelIndex &index)
     }
 }
 
-bool LogChangeWidget::populateLog(const QString &repository, const QString &commit, bool includeRemote)
+void LogChangeWidget::selectionChanged(const QItemSelection &selected,
+                                       const QItemSelection &deselected)
+{
+    QTreeView::selectionChanged(selected, deselected);
+    if (!m_hasCustomDelegate)
+        return;
+    const QModelIndexList previousIndexes = deselected.indexes();
+    if (previousIndexes.isEmpty())
+        return;
+    const QModelIndex current = currentIndex();
+    int row = current.row();
+    int previousRow = previousIndexes.first().row();
+    if (row < previousRow)
+        qSwap(row, previousRow);
+    for (int r = previousRow; r <= row; ++r) {
+        update(current.sibling(r, 0));
+        update(current.sibling(r, 1));
+    }
+}
+
+bool LogChangeWidget::populateLog(const QString &repository, const QString &commit, LogFlags flags)
 {
     const QString currentCommit = this->commit();
     int selected = currentCommit.isEmpty() ? 0 : -1;
@@ -123,12 +157,12 @@ bool LogChangeWidget::populateLog(const QString &repository, const QString &comm
     // Retrieve log using a custom format "Sha1:Subject [(refs)]"
     GitClient *client = GitPlugin::instance()->gitClient();
     QStringList arguments;
-    arguments << QLatin1String("--max-count=40") << QLatin1String("--format=%h:%s %d");
+    arguments << QLatin1String("--max-count=1000") << QLatin1String("--format=%h:%s %d");
     arguments << (commit.isEmpty() ? QLatin1String("HEAD") : commit);
-    if (!includeRemote)
+    if (!(flags & IncludeRemotes))
         arguments << QLatin1String("--not") << QLatin1String("--remotes");
     QString output;
-    if (!client->synchronousLog(repository, arguments, &output))
+    if (!client->synchronousLog(repository, arguments, &output, 0, VcsBasePlugin::NoOutput))
         return false;
     foreach (const QString &line, output.split(QLatin1Char('\n'))) {
         const int colonPos = line.indexOf(QLatin1Char(':'));
@@ -166,13 +200,13 @@ const QStandardItem *LogChangeWidget::currentItem(int column) const
 
 LogChangeDialog::LogChangeDialog(bool isReset, QWidget *parent) :
     QDialog(parent)
-    , widget(new LogChangeWidget)
+    , m_widget(new LogChangeWidget)
     , m_dialogButtonBox(new QDialogButtonBox(this))
     , m_resetTypeComboBox(0)
 {
     QVBoxLayout *layout = new QVBoxLayout(this);
     layout->addWidget(new QLabel(isReset ? tr("Reset to:") : tr("Select change:"), this));
-    layout->addWidget(widget);
+    layout->addWidget(m_widget);
     QHBoxLayout *popUpLayout = new QHBoxLayout;
     if (isReset) {
         popUpLayout->addWidget(new QLabel(tr("Reset type:"), this));
@@ -180,6 +214,9 @@ LogChangeDialog::LogChangeDialog(bool isReset, QWidget *parent) :
         m_resetTypeComboBox->addItem(tr("Hard"), QLatin1String("--hard"));
         m_resetTypeComboBox->addItem(tr("Mixed"), QLatin1String("--mixed"));
         m_resetTypeComboBox->addItem(tr("Soft"), QLatin1String("--soft"));
+        GitClient *client = GitPlugin::instance()->gitClient();
+        m_resetTypeComboBox->setCurrentIndex(client->settings()->intValue(
+                                                 GitSettings::lastResetIndexKey));
         popUpLayout->addWidget(m_resetTypeComboBox);
         popUpLayout->addItem(new QSpacerItem(0, 0, QSizePolicy::Expanding, QSizePolicy::Ignored));
     }
@@ -192,28 +229,38 @@ LogChangeDialog::LogChangeDialog(bool isReset, QWidget *parent) :
     connect(m_dialogButtonBox, SIGNAL(accepted()), this, SLOT(accept()));
     connect(m_dialogButtonBox, SIGNAL(rejected()), this, SLOT(reject()));
 
-    connect(widget, SIGNAL(doubleClicked(QModelIndex)), okButton, SLOT(animateClick()));
+    connect(m_widget, SIGNAL(doubleClicked(QModelIndex)), okButton, SLOT(animateClick()));
 
     setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
     resize(600, 400);
 }
 
-bool LogChangeDialog::runDialog(const QString &repository, const QString &commit, bool includeRemote)
+bool LogChangeDialog::runDialog(const QString &repository,
+                                const QString &commit,
+                                LogChangeWidget::LogFlags flags)
 {
-    if (!widget->init(repository, commit, includeRemote))
+    if (!m_widget->init(repository, commit, flags))
         return false;
 
-    return QDialog::exec() == QDialog::Accepted;
+    if (QDialog::exec() == QDialog::Accepted) {
+        if (m_resetTypeComboBox) {
+            GitClient *client = GitPlugin::instance()->gitClient();
+            client->settings()->setValue(GitSettings::lastResetIndexKey,
+                                         m_resetTypeComboBox->currentIndex());
+        }
+        return true;
+    }
+    return false;
 }
 
 QString LogChangeDialog::commit() const
 {
-    return widget->commit();
+    return m_widget->commit();
 }
 
 int LogChangeDialog::commitIndex() const
 {
-    return widget->commitIndex();
+    return m_widget->commitIndex();
 }
 
 QString LogChangeDialog::resetFlag() const
@@ -221,6 +268,41 @@ QString LogChangeDialog::resetFlag() const
     if (!m_resetTypeComboBox)
         return QString();
     return m_resetTypeComboBox->itemData(m_resetTypeComboBox->currentIndex()).toString();
+}
+
+LogChangeWidget *LogChangeDialog::widget() const
+{
+    return m_widget;
+}
+
+LogItemDelegate::LogItemDelegate(LogChangeWidget *widget) : m_widget(widget)
+{
+    m_widget->setItemDelegate(this);
+}
+
+int LogItemDelegate::currentRow() const
+{
+    return m_widget->commitIndex();
+}
+
+IconItemDelegate::IconItemDelegate(LogChangeWidget *widget, const QString &icon)
+    : LogItemDelegate(widget)
+    , m_icon(icon)
+{
+}
+
+void IconItemDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option,
+                             const QModelIndex &index) const
+{
+    QStyleOptionViewItem o = option;
+    if (index.column() == 0 && hasIcon(index.row())) {
+        const QSize size = option.decorationSize;
+        painter->save();
+        painter->drawPixmap(o.rect.x(), o.rect.y(), m_icon.pixmap(size.width(), size.height()));
+        painter->restore();
+        o.rect.translate(size.width(), 0);
+    }
+    QStyledItemDelegate::paint(painter, o, index);
 }
 
 } // namespace Internal

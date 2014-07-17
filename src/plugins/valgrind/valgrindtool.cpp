@@ -1,7 +1,8 @@
-/**************************************************************************
+/****************************************************************************
 **
-** Copyright (C) 2013 Kläralvdalens Datakonsult AB, a KDAB Group company.
-** Contact: Kläralvdalens Datakonsult AB (info@kdab.com)
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
+** Contact: http://www.qt-project.org/legal
+** Author: Nicolas Arnaud-Cormos, KDAB (nicolas.arnaud-cormos@kdab.com)
 **
 ** This file is part of Qt Creator.
 **
@@ -29,75 +30,136 @@
 
 #include "valgrindtool.h"
 
-#include <remotelinux/remotelinuxrunconfiguration.h>
+#include <analyzerbase/analyzermanager.h>
+#include <analyzerbase/analyzerruncontrol.h>
+#include <analyzerbase/startremotedialog.h>
 
-#include <debugger/debuggerrunconfigurationaspect.h>
-#include <projectexplorer/environmentaspect.h>
-#include <projectexplorer/localapplicationrunconfiguration.h>
-#include <projectexplorer/kitinformation.h>
+#include <coreplugin/icore.h>
+#include <coreplugin/imode.h>
+#include <coreplugin/modemanager.h>
+
 #include <projectexplorer/projectexplorer.h>
+#include <projectexplorer/project.h>
+#include <projectexplorer/buildconfiguration.h>
+#include <projectexplorer/session.h>
 #include <projectexplorer/target.h>
 
 #include <utils/qtcassert.h>
+#include <utils/checkablemessagebox.h>
 
-#include <QTcpServer>
+#include <QAction>
+#include <QDialog>
+#include <QDialogButtonBox>
+#include <QSettings>
 
+using namespace Analyzer;
+using namespace Core;
 using namespace ProjectExplorer;
-using namespace RemoteLinux;
 
 namespace Valgrind {
 namespace Internal {
 
-ValgrindTool::ValgrindTool(QObject *parent) :
-    Analyzer::IAnalyzerTool(parent)
+ValgrindTool::ValgrindTool(QObject *parent)
+    : IAnalyzerTool(parent)
+{}
+
+static bool buildTypeAccepted(IAnalyzerTool::ToolMode toolMode,
+                       BuildConfiguration::BuildType buildType)
 {
+    if (toolMode == IAnalyzerTool::AnyMode)
+        return true;
+    if (buildType == BuildConfiguration::Unknown)
+        return true;
+    if (buildType == BuildConfiguration::Debug
+            && toolMode == IAnalyzerTool::DebugMode)
+        return true;
+    if (buildType == BuildConfiguration::Release
+            && toolMode == IAnalyzerTool::ReleaseMode)
+        return true;
+    return false;
 }
 
-bool ValgrindTool::canRun(RunConfiguration *, RunMode mode) const
+static void startLocalTool(IAnalyzerTool *tool)
 {
-    return mode == runMode();
-}
+    // Make sure mode is shown.
+    AnalyzerManager::showMode();
 
-Analyzer::AnalyzerStartParameters ValgrindTool::createStartParameters(
-    RunConfiguration *runConfiguration, RunMode mode) const
-{
-    Q_UNUSED(mode);
-
-    Analyzer::AnalyzerStartParameters sp;
-    sp.displayName = runConfiguration->displayName();
-    if (LocalApplicationRunConfiguration *rc1 =
-            qobject_cast<LocalApplicationRunConfiguration *>(runConfiguration)) {
-        EnvironmentAspect *aspect = runConfiguration->extraAspect<EnvironmentAspect>();
-        if (aspect)
-            sp.environment = aspect->environment();
-        sp.workingDirectory = rc1->workingDirectory();
-        sp.debuggee = rc1->executable();
-        sp.debuggeeArgs = rc1->commandLineArguments();
-        const IDevice::ConstPtr device =
-                DeviceKitInformation::device(runConfiguration->target()->kit());
-        QTC_ASSERT(device, return sp);
-        QTC_ASSERT(device->type() == Constants::DESKTOP_DEVICE_TYPE, return sp);
-        QTcpServer server;
-        if (!server.listen(QHostAddress::LocalHost) && !server.listen(QHostAddress::LocalHostIPv6)) {
-            qWarning() << "Cannot open port on host for profiling.";
-            return sp;
+    // ### not sure if we're supposed to check if the RunConFiguration isEnabled
+    Project *pro = SessionManager::startupProject();
+    BuildConfiguration::BuildType buildType = BuildConfiguration::Unknown;
+    if (pro) {
+        if (const Target *target = pro->activeTarget()) {
+            // Build configuration is 0 for QML projects.
+            if (const BuildConfiguration *buildConfig = target->activeBuildConfiguration())
+                buildType = buildConfig->buildType();
         }
-        sp.connParams.host = server.serverAddress().toString();
-        sp.connParams.port = server.serverPort();
-        sp.startMode = Analyzer::StartLocal;
-    } else if (RemoteLinuxRunConfiguration *rc2 =
-               qobject_cast<RemoteLinuxRunConfiguration *>(runConfiguration)) {
-        sp.startMode = Analyzer::StartRemote;
-        sp.debuggee = rc2->remoteExecutableFilePath();
-        sp.connParams = DeviceKitInformation::device(rc2->target()->kit())->sshParameters();
-        sp.analyzerCmdPrefix = rc2->commandPrefix();
-        sp.debuggeeArgs = rc2->arguments();
-    } else {
-        // Might be S60DeviceRunfiguration, or something else ...
-        //sp.startMode = StartRemote;
-        sp.startMode = Analyzer::StartRemote;
     }
-    return sp;
+
+    // Check the project for whether the build config is in the correct mode
+    // if not, notify the user and urge him to use the correct mode.
+    if (!buildTypeAccepted(tool->toolMode(), buildType)) {
+        const QString currentMode = buildType == BuildConfiguration::Debug
+                ? AnalyzerManager::tr("Debug")
+                : AnalyzerManager::tr("Release");
+
+        QString toolModeString;
+        switch (tool->toolMode()) {
+            case IAnalyzerTool::DebugMode:
+                toolModeString = AnalyzerManager::tr("Debug");
+                break;
+            case IAnalyzerTool::ReleaseMode:
+                toolModeString = AnalyzerManager::tr("Release");
+                break;
+            default:
+                QTC_CHECK(false);
+        }
+        //const QString toolName = tool->displayName();
+        const QString toolName = AnalyzerManager::tr("Tool"); // FIXME
+        const QString title = AnalyzerManager::tr("Run %1 in %2 Mode?").arg(toolName).arg(currentMode);
+        const QString message = AnalyzerManager::tr("<html><head/><body><p>You are trying "
+            "to run the tool \"%1\" on an application in %2 mode. "
+            "The tool is designed to be used in %3 mode.</p><p>"
+            "Debug and Release mode run-time characteristics differ "
+            "significantly, analytical findings for one mode may or "
+            "may not be relevant for the other.</p><p>"
+            "Do you want to continue and run the tool in %2 mode?</p></body></html>")
+                .arg(toolName).arg(currentMode).arg(toolModeString);
+        if (Utils::CheckableMessageBox::doNotAskAgainQuestion(ICore::mainWindow(),
+                title, message, ICore::settings(), QLatin1String("AnalyzerCorrectModeWarning"),
+                QDialogButtonBox::Yes|QDialogButtonBox::Cancel,
+                QDialogButtonBox::Cancel, QDialogButtonBox::Yes) != QDialogButtonBox::Yes)
+            return;
+    }
+
+    ProjectExplorerPlugin::instance()->runProject(pro, tool->runMode());
+}
+
+static void startRemoteTool(IAnalyzerTool *tool)
+{
+    StartRemoteDialog dlg;
+    if (dlg.exec() != QDialog::Accepted)
+        return;
+
+    AnalyzerStartParameters sp;
+    sp.startMode = StartRemote;
+    sp.connParams = dlg.sshParams();
+    sp.debuggee = dlg.executable();
+    sp.debuggeeArgs = dlg.arguments();
+    sp.displayName = dlg.executable();
+    sp.workingDirectory = dlg.workingDirectory();
+
+    AnalyzerRunControl *rc = tool->createRunControl(sp, 0);
+    QObject::connect(AnalyzerManager::stopAction(), SIGNAL(triggered()), rc, SLOT(stopIt()));
+
+    ProjectExplorerPlugin::instance()->startRunControl(rc, tool->runMode());
+}
+
+void ValgrindTool::startTool(StartMode mode)
+{
+    if (mode == StartLocal)
+        startLocalTool(this);
+    if (mode == StartRemote)
+        startRemoteTool(this);
 }
 
 } // namespace Internal

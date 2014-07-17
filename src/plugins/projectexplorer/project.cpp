@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -29,6 +29,7 @@
 
 #include "project.h"
 
+#include "buildinfo.h"
 #include "buildconfiguration.h"
 #include "editorconfiguration.h"
 #include "projectexplorer.h"
@@ -83,6 +84,7 @@ public:
     ProjectPrivate();
     ~ProjectPrivate();
 
+    Core::Id m_id;
     QList<Target *> m_targets;
     Target *m_activeTarget;
     EditorConfiguration *m_editorConfiguration;
@@ -109,6 +111,17 @@ Project::~Project()
     qDeleteAll(d->m_targets);
     delete d->m_editorConfiguration;
     delete d;
+}
+
+Core::Id Project::id() const
+{
+    QTC_CHECK(d->m_id.isValid());
+    return d->m_id;
+}
+
+QString Project::projectFilePath() const
+{
+    return document()->filePath();
 }
 
 bool Project::hasActiveBuildSettings() const
@@ -169,9 +182,7 @@ bool Project::removeTarget(Target *target)
     if (!target || !d->m_targets.contains(target))
         return false;
 
-    ProjectExplorer::BuildManager *bm =
-            ProjectExplorer::ProjectExplorerPlugin::instance()->buildManager();
-    if (bm->isBuilding(target))
+    if (BuildManager::isBuilding(target))
         return false;
 
     if (target == activeTarget()) {
@@ -258,6 +269,11 @@ bool Project::setupTarget(Target *t)
     return true;
 }
 
+void Project::setId(Core::Id id)
+{
+    d->m_id = id;
+}
+
 Target *Project::restoreTarget(const QVariantMap &data)
 {
     Core::Id id = idFromMap(data);
@@ -267,7 +283,7 @@ Target *Project::restoreTarget(const QVariantMap &data)
         return 0;
     }
 
-    Kit *k = KitManager::instance()->find(id);
+    Kit *k = KitManager::find(id);
     if (!k) {
         qWarning("Warning: No kit '%s' found. Continuing.", qPrintable(id.toString()));
         return 0;
@@ -278,6 +294,7 @@ Target *Project::restoreTarget(const QVariantMap &data)
         delete t;
         return 0;
     }
+
     return t;
 }
 
@@ -307,7 +324,7 @@ bool Project::restoreSettings()
     This map is then saved in the .user file of the project.
     Just put all your data into the map.
 
-    \note Do not forget to call your base class' toMap method.
+    \note Do not forget to call your base class' toMap function.
     \note Do not forget to call setActiveBuildConfiguration when
     creating new build configurations.
 */
@@ -330,7 +347,7 @@ QVariantMap Project::toMap() const
 
 QString Project::projectDirectory() const
 {
-    return projectDirectory(document()->fileName());
+    return projectDirectory(document()->filePath());
 }
 
 QString Project::projectDirectory(const QString &top)
@@ -473,6 +490,44 @@ bool Project::supportsNoTargetPanel() const
 bool Project::needsSpecialDeployment() const
 {
     return false;
+}
+
+void Project::setup(QList<const BuildInfo *> infoList)
+{
+    QList<Target *> toRegister;
+    foreach (const BuildInfo *info, infoList) {
+        Kit *k = KitManager::find(info->kitId);
+        if (!k)
+            continue;
+        Target *t = target(k);
+        if (!t) {
+            foreach (Target *i, toRegister) {
+                if (i->kit() == k) {
+                    t = i;
+                    break;
+                }
+            }
+        }
+        if (!t) {
+            t = new Target(this, k);
+            toRegister << t;
+        }
+
+        BuildConfiguration *bc = info->factory()->create(t, info);
+        if (!bc)
+            continue;
+        t->addBuildConfiguration(bc);
+    }
+    foreach (Target *t, toRegister) {
+        t->updateDefaultDeployConfigurations();
+        t->updateDefaultRunConfigurations();
+        addTarget(t);
+    }
+}
+
+ProjectImporter *Project::createProjectImporter() const
+{
+    return 0;
 }
 
 void Project::onBuildDirectoryChanged()

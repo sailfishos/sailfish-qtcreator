@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -39,21 +39,15 @@ class JsFileWizard: public Core::BaseFileWizard
     Q_OBJECT
 
 public:
-    typedef Core::BaseFileWizardParameters BaseFileWizardParameters;
+    JsFileWizard();
 
-    explicit JsFileWizard(const BaseFileWizardParameters &parameters,
-                          QObject *parent = 0);
-
-    virtual Core::FeatureSet requiredFeatures() const;
-
-protected:
+private:
     QString fileContents(const QString &baseName, bool statelessLibrary) const;
 
-    virtual QWizard *createWizardDialog(QWidget *parent,
-                                        const Core::WizardDialogParameters &wizardDialogParameters) const;
+    QWizard *createWizardDialog(QWidget *parent,
+                                const Core::WizardDialogParameters &wizardDialogParameters) const;
 
-    virtual Core::GeneratedFiles generateFiles(const QWizard *w,
-                                               QString *errorMessage) const;
+    Core::GeneratedFiles generateFiles(const QWizard *w, QString *errorMessage) const;
 };
 
 } // namespace QmlJSEditor

@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Brian McGillion
+** Copyright (c) 2014 Brian McGillion
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -39,6 +39,7 @@
 #include <utils/fileutils.h>
 #include <utils/qtcassert.h>
 
+#include <QDateTime>
 #include <QDir>
 #include <QFileInfo>
 #include <QTextCodec>
@@ -130,12 +131,37 @@ bool MercurialClient::synchronousClone(const QString &workingDir,
     }
 }
 
+bool MercurialClient::synchronousPull(const QString &workingDir, const QString &srcLocation, const QStringList &extraOptions)
+{
+    QStringList args;
+    args << vcsCommandString(PullCommand) << extraOptions << srcLocation;
+    // Disable UNIX terminals to suppress SSH prompting
+    const unsigned flags =
+            VcsBase::VcsBasePlugin::SshPasswordPrompt
+            | VcsBase::VcsBasePlugin::ShowStdOutInLogWindow
+            | VcsBase::VcsBasePlugin::ShowSuccessMessage;
+    const QString binary = settings()->binaryPath();
+    const int timeoutSec = settings()->value(settings()->timeoutKey).toInt();
+
+    // cause mercurial doesn`t understand LANG
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    env.insert(QLatin1String("LANGUAGE"), QLatin1String("C"));
+    const Utils::SynchronousProcessResponse resp = VcsBase::VcsBasePlugin::runVcs(
+                workingDir, binary, args, timeoutSec * 1000, flags, 0, env);
+    const bool ok = resp.result == Utils::SynchronousProcessResponse::Finished;
+
+    parsePullOutput(resp.stdOut.trimmed());
+    return ok;
+}
+
 QString MercurialClient::branchQuerySync(const QString &repositoryRoot)
 {
-    QByteArray output;
-    if (vcsFullySynchronousExec(repositoryRoot, QStringList(QLatin1String("branch")), &output))
-        return QTextCodec::codecForLocale()->toUnicode(output).trimmed();
-
+    QFile branchFile(repositoryRoot + QLatin1String("/.hg/branch"));
+    if (branchFile.open(QFile::ReadOnly)) {
+        const QByteArray branch = branchFile.readAll().trimmed();
+        if (!branch.isEmpty())
+            return QString::fromLocal8Bit(branch);
+    }
     return QLatin1String("Unknown Branch");
 }
 
@@ -164,8 +190,8 @@ QStringList MercurialClient::parentRevisionsSync(const QString &workingDirectory
     QByteArray outputData;
     if (!vcsFullySynchronousExec(workingDirectory, args, &outputData))
         return QStringList();
-    QString output = QString::fromLocal8Bit(outputData);
-    output.remove(QLatin1Char('\r'));
+    const QString output = Utils::SynchronousProcess::normalizeNewlines(
+                QString::fromLocal8Bit(outputData));
     /* Looks like: \code
 changeset:   0:031a48610fba
 user: ...
@@ -207,8 +233,7 @@ QString MercurialClient::shortDescriptionSync(const QString &workingDirectory,
     QByteArray outputData;
     if (!vcsFullySynchronousExec(workingDirectory, args, &outputData))
         return revision;
-    description = QString::fromLocal8Bit(outputData);
-    description.remove(QLatin1Char('\r'));
+    description = Utils::SynchronousProcess::normalizeNewlines(QString::fromLocal8Bit(outputData));
     if (description.endsWith(QLatin1Char('\n')))
         description.truncate(description.size() - 1);
     return description;
@@ -235,6 +260,15 @@ QString MercurialClient::vcsGetRepositoryURL(const QString &directory)
     return QString();
 }
 
+bool MercurialClient::managesFile(const QString &workingDirectory, const QString &fileName) const
+{
+    QStringList args;
+    args << QLatin1String("status") << QLatin1String("--unknown") << fileName;
+    QByteArray output;
+    vcsFullySynchronousExec(workingDirectory, args, &output);
+    return output.isEmpty();
+}
+
 void MercurialClient::incoming(const QString &repositoryRoot, const QString &repository)
 {
     QStringList args;
@@ -253,8 +287,6 @@ void MercurialClient::incoming(const QString &repositoryRoot, const QString &rep
     VcsBase::VcsBaseEditorWidget *editor = createVcsEditor(Constants::DIFFLOG, title, repositoryRoot,
                                                      true, "incoming", id);
     VcsBase::Command *cmd = createCommand(repository, editor);
-    if (!repository.isEmpty() && VcsBase::VcsBasePlugin::isSshPromptConfigured())
-        cmd->setUnixTerminalDisabled(true);
     enqueueJob(cmd, args);
 }
 
@@ -270,7 +302,6 @@ void MercurialClient::outgoing(const QString &repositoryRoot)
                                                      "outgoing", repositoryRoot);
 
     VcsBase::Command *cmd = createCommand(repositoryRoot, editor);
-    cmd->setUnixTerminalDisabled(VcsBase::VcsBasePlugin::isSshPromptConfigured());
     enqueueJob(cmd, args);
 }
 
@@ -377,6 +408,20 @@ MercurialClient::StatusItem MercurialClient::parseStatusLine(const QString &line
     return item;
 }
 
+void MercurialClient::parsePullOutput(const QString &output)
+{
+    if (output.endsWith(QLatin1String("no changes found")))
+        return;
+
+    if (output.endsWith(QLatin1String("(run 'hg update' to get a working copy)"))) {
+        emit needUpdate();
+        return;
+    }
+
+    if (output.endsWith(QLatin1String("'hg merge' to merge)")))
+        emit needMerge();
+}
+
 // Collect all parameters required for a diff to be able to associate them
 // with a diff editor and re-run the diff with parameters.
 struct MercurialDiffParameters
@@ -395,9 +440,9 @@ public:
                                  const MercurialDiffParameters &p, QWidget *parent = 0) :
         VcsBase::VcsBaseEditorParameterWidget(parent), m_client(client), m_params(p)
     {
-        mapSetting(addToggleButton(QLatin1String("-w"), tr("Ignore whitespace")),
+        mapSetting(addToggleButton(QLatin1String("-w"), tr("Ignore Whitespace")),
                    client->settings()->boolPointer(MercurialSettings::diffIgnoreWhiteSpaceKey));
-        mapSetting(addToggleButton(QLatin1String("-B"), tr("Ignore blank lines")),
+        mapSetting(addToggleButton(QLatin1String("-B"), tr("Ignore Blank Lines")),
                    client->settings()->boolPointer(MercurialSettings::diffIgnoreBlankLinesKey));
     }
 

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -38,9 +38,7 @@ namespace ExtensionSystem {
 
 class PluginSpec;
 namespace Internal {
-namespace Ui {
-    class PluginErrorView;
-} // namespace Ui
+namespace Ui { class PluginErrorView; }
 } // namespace Internal
 
 class EXTENSIONSYSTEM_EXPORT PluginErrorView : public QWidget

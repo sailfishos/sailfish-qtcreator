@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -51,12 +51,6 @@ public:
         IgnoreAll = 2
     };
 
-    enum Utf8BomSetting {
-        AlwaysAdd = 0,
-        OnlyKeep = 1,
-        AlwaysDelete = 2
-    };
-
     enum ChangeTrigger {
         TriggerInternal,
         TriggerExternal
@@ -82,8 +76,16 @@ public:
     virtual ~IDocument();
 
     virtual bool save(QString *errorString, const QString &fileName = QString(), bool autoSave = false) = 0;
-    virtual QString fileName() const = 0;
+    virtual bool setContents(const QByteArray &contents);
+
+    QString filePath() const { return m_filePath; }
+    virtual void setFilePath(const QString &filePath);
+    QString displayName() const;
+    void setDisplayName(const QString &name);
+
     virtual bool isFileReadOnly() const;
+    bool isTemporary() const;
+    void setTemporary(bool temporary);
 
     virtual QString defaultPath() const = 0;
     virtual QString suggestedFileName() const = 0;
@@ -95,11 +97,10 @@ public:
 
     virtual ReloadBehavior reloadBehavior(ChangeTrigger state, ChangeType type) const;
     virtual bool reload(QString *errorString, ReloadFlag flag, ChangeType type) = 0;
-    virtual void rename(const QString &newName) = 0;
 
     virtual void checkPermissions();
 
-    bool autoSave(QString *errorString, const QString &fileName);
+    bool autoSave(QString *errorString, const QString &filePath);
     void setRestoredFrom(const QString &name);
     void removeAutoSaveFile();
 
@@ -114,9 +115,12 @@ signals:
     void aboutToReload();
     void reloadFinished(bool success);
 
-    void fileNameChanged(const QString &oldName, const QString &newName);
+    void filePathChanged(const QString &oldName, const QString &newName);
 
 private:
+    QString m_filePath;
+    QString m_displayName;
+    bool m_temporary;
     QString m_autoSaveName;
     InfoBar *m_infoBar;
     bool m_hasWriteWarning;

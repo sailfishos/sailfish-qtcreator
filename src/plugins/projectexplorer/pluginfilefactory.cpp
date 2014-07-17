@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -49,24 +49,11 @@ using namespace ProjectExplorer::Internal;
 */
 
 ProjectFileFactory::ProjectFileFactory(IProjectManager *manager)
-  : m_mimeTypes(manager->mimeType()),
-    m_manager(manager)
+    : m_manager(manager)
 {
-}
-
-QStringList ProjectFileFactory::mimeTypes() const
-{
-    return m_mimeTypes;
-}
-
-Core::Id ProjectFileFactory::id() const
-{
-    return Core::Id(Constants::FILE_FACTORY_ID);
-}
-
-QString ProjectFileFactory::displayName() const
-{
-    return tr("Project File Factory", "ProjectExplorer::ProjectFileFactory display name.");
+    setId(Constants::FILE_FACTORY_ID);
+    setDisplayName(tr("Project File Factory", "ProjectExplorer::ProjectFileFactory display name."));
+    addMimeType(manager->mimeType());
 }
 
 Core::IDocument *ProjectFileFactory::open(const QString &fileName)
@@ -95,7 +82,7 @@ QList<ProjectFileFactory *> ProjectFileFactory::createFactories(QString *filterS
         if (!filterString->isEmpty())
             *filterString += filterSeparator;
         const QString mimeType = manager->mimeType();
-        Core::MimeType mime = Core::ICore::mimeDatabase()->findByType(mimeType);
+        Core::MimeType mime = Core::MimeDatabase::findByType(mimeType);
         const QString pFilterString = mime.filterString();
         allGlobPatterns.append(mime.globPatterns());
         *filterString += pFilterString;

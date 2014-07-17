@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -38,13 +38,9 @@
 
 QT_FORWARD_DECLARE_CLASS(QPoint)
 
-namespace Core {
-class IEditor;
-}
+namespace Core { class IEditor; }
 
-namespace ProjectExplorer {
-class Abi;
-}
+namespace ProjectExplorer { class Abi; }
 
 namespace Debugger {
 

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -57,7 +57,7 @@ static QList<QStandardItem *> createFileRow(const QString &fileName, const QStri
     statusItem->setData(v);
     QStandardItem *fileItem = new QStandardItem(fileName);
     fileItem->setFlags(Qt::ItemIsSelectable|Qt::ItemIsEnabled);
-    fileItem->setIcon(Core::FileIconProvider::instance()->icon(QFileInfo(fileName)));
+    fileItem->setIcon(Core::FileIconProvider::icon(fileName));
     QList<QStandardItem *> row;
     row << statusItem << fileItem;
     return row;

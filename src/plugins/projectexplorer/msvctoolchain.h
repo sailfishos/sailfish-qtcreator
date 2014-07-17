@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -54,7 +54,7 @@ public:
                   };
 
     MsvcToolChain(const QString &name, const Abi &abi,
-                  const QString &varsBat, const QString &varsBatArg, bool autodetect = false);
+                  const QString &varsBat, const QString &varsBatArg, Detection d = ManualDetection);
     bool isValid() const;
     QList<Utils::FileName> suggestedMkspecList() const;
 
@@ -94,13 +94,12 @@ class MsvcToolChainFactory : public ToolChainFactory
     Q_OBJECT
 
 public:
-    QString displayName() const;
-    QString id() const;
+    MsvcToolChainFactory();
 
     QList<ToolChain *> autoDetect();
 
-    virtual bool canRestore(const QVariantMap &data);
-    virtual ToolChain *restore(const QVariantMap &data)
+    bool canRestore(const QVariantMap &data);
+    ToolChain *restore(const QVariantMap &data)
         { return MsvcToolChain::readFromMap(data); }
 
     ToolChainConfigWidget *configurationWidget(ToolChain *);

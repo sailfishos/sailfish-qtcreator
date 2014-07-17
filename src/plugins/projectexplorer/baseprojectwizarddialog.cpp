@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -89,7 +89,6 @@ BaseProjectWizardDialog::BaseProjectWizardDialog(Utils::ProjectIntroPage *introP
 
 void BaseProjectWizardDialog::init()
 {
-    Core::BaseFileWizard::setupWizard(this);
     if (d->introPageId == -1) {
         d->introPageId = addPage(d->introPage);
     } else {

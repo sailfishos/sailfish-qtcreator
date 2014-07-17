@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -119,7 +119,7 @@ void DesignDocumentView::rewriterEndTransaction()
 {
 }
 
-void DesignDocumentView::actualStateChanged(const ModelNode &/*node*/)
+void DesignDocumentView::currentStateChanged(const ModelNode &/*node*/)
 {
 }
 
@@ -151,7 +151,7 @@ void DesignDocumentView::toClipboard() const
     data->setText(toText());
     QStringList imports;
     foreach (const Import &import, model()->imports())
-        imports.append(import.toString());
+        imports.append(import.toImportString());
 
     data->setData("QmlDesigner::imports", stringListToArray(imports));
     clipboard->setMimeData(data);
@@ -208,7 +208,7 @@ void DesignDocumentView::fromText(QString text)
     QPlainTextEdit textEdit;
     QString imports;
     foreach (const Import &import, model()->imports())
-        imports += import.toString(true, true) + QLatin1Char('\n');
+        imports += QLatin1String("import ") + import.toString(true) + QLatin1Char(';') + QLatin1Char('\n');
 
     textEdit.setPlainText(imports + text);
     NotIndentingTextEditModifier modifier(&textEdit);

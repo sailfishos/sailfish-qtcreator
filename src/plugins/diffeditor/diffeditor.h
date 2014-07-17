@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -31,7 +31,7 @@
 #define DIFFEDITOR_H
 
 #include "diffeditor_global.h"
-#include "diffeditorwidget.h"
+#include "diffeditorcontroller.h"
 
 #include <coreplugin/editormanager/ieditor.h>
 #include <coreplugin/idocument.h>
@@ -39,35 +39,34 @@
 QT_BEGIN_NAMESPACE
 class QToolBar;
 class QComboBox;
+class QToolButton;
 QT_END_NAMESPACE
+
+namespace TextEditor { class BaseTextEditorWidget; }
 
 namespace DiffEditor {
 
-namespace Internal {
-class DiffEditorFile;
-}
+class DiffEditorDocument;
+class DiffEditorGuiController;
+class SideBySideDiffEditorWidget;
 
 class DIFFEDITOR_EXPORT DiffEditor : public Core::IEditor
 {
     Q_OBJECT
 public:
-    explicit DiffEditor(DiffEditorWidget *editorWidget);
+    DiffEditor();
+    DiffEditor(DiffEditor *other);
     virtual ~DiffEditor();
 
 public:
-    void setDiff(const QList<DiffEditorWidget::DiffFilesContents> &diffFileList,
-                 const QString &workingDirectory = QString());
-    void clear(const QString &message);
+    DiffEditorController *controller() const;
 
     // Core::IEditor
-    bool createNew(const QString &contents);
+    bool duplicateSupported() const { return false; }
+    Core::IEditor *duplicate();
+
     bool open(QString *errorString, const QString &fileName, const QString &realFileName);
     Core::IDocument *document();
-    QString displayName() const;
-    void setDisplayName(const QString &title);
-    Core::Id id() const;
-    bool isTemporary() const { return true; }
-    DiffEditorWidget *editorWidget() const { return m_editorWidget; }
 
     QWidget *toolBar();
 
@@ -75,18 +74,25 @@ public slots:
     void activateEntry(int index);
 
 private slots:
+    void slotCleared(const QString &message);
+    void slotDiffContentsChanged(const QList<DiffEditorController::DiffFilesContents> &diffFileList,
+                                 const QString &workingDirectory);
     void entryActivated(int index);
-
-protected:
-    QToolBar *m_toolWidget;
+    void slotDescriptionChanged(const QString &description);
+    void slotDescriptionVisibilityChanged();
 
 private:
+    void ctor();
     void updateEntryToolTip();
 
-    Internal::DiffEditorFile *m_file;
-    DiffEditorWidget *m_editorWidget;
+    QSharedPointer<DiffEditorDocument> m_document;
+    TextEditor::BaseTextEditorWidget *m_descriptionWidget;
+    SideBySideDiffEditorWidget *m_diffWidget;
+    DiffEditorController *m_controller;
+    DiffEditorGuiController *m_guiController;
+    QToolBar *m_toolBar;
     QComboBox *m_entriesComboBox;
-    mutable QString m_displayName;
+    QAction *m_toggleDescriptionAction;
 };
 
 } // namespace DiffEditor

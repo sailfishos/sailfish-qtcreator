@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2012 - 2014 BlackBerry Limited. All rights reserved
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -46,20 +46,38 @@ namespace Internal {
 
 class QnxAbstractQtVersion;
 
+class NdkInstallInformation
+{
+public:
+    QString path;
+    QString name;
+    QString host;
+    QString target;
+    QString version;
+    QString installationXmlFilePath;
+
+    bool isValid() { return !path.isEmpty() && !name.isEmpty() && !host.isEmpty()
+                && !target.isEmpty() && !version.isEmpty() && !installationXmlFilePath.isEmpty(); }
+};
+
 class QnxUtils
 {
 public:
     static QString addQuotes(const QString &string);
     static Qnx::QnxArchitecture cpudirToArch(const QString &cpuDir);
     static QStringList searchPaths(QnxAbstractQtVersion *qtVersion);
-    static QMultiMap<QString, QString> parseEnvironmentFile(const QString &fileName);
+    static QList<Utils::EnvironmentItem> qnxEnvironmentFromNdkFile(const QString &fileName);
     static bool isValidNdkPath(const QString & ndkPath);
-    static QString envFilePath(const QString & ndkPath);
-    static void prependQnxMapToEnvironment(const QMultiMap<QString, QString> &qnxMap, Utils::Environment &env);
+    static QString envFilePath(const QString & ndkPath, const QString& targetVersion = QString());
     static Utils::FileName executableWithExtension(const Utils::FileName &fileName);
     static QString dataDirPath();
     static QString qConfigPath();
-    static QString ndkVersion(const QString& ndkPath);
+    static QString defaultTargetVersion(const QString& ndkPath);
+    static QList<NdkInstallInformation> installedNdks();
+    static QString sdkInstallerPath(const QString& ndkPath);
+    static QString qdeInstallProcess(const QString& ndkPath, const QString &target,
+                                     const QString &option, const QString &version = QString());
+    static QList<Utils::EnvironmentItem> qnxEnvironment(const QString &ndk);
 };
 
 } // namespace Internal

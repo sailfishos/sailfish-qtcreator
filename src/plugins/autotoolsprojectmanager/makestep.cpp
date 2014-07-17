@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (C) 2013 Openismus GmbH.
+** Copyright (C) 2014 Openismus GmbH.
 ** Authors: Peter Penz (ppenz@openismus.com)
 **          Patricia Santana Cruz (patriciasantanacruz@gmail.com)
 ** Contact: http://www.qt-project.org/legal
@@ -186,7 +186,7 @@ bool MakeStep::init()
     // addToEnvironment() to not screw up the users run environment.
     env.set(QLatin1String("LC_ALL"), QLatin1String("C"));
     pp->setEnvironment(env);
-    pp->setWorkingDirectory(bc->buildDirectory());
+    pp->setWorkingDirectory(bc->buildDirectory().toString());
     pp->setCommand(tc ? tc->makeCommand(bc->environment()) : QLatin1String("make"));
     pp->setArguments(arguments);
     pp->resolveAll();
@@ -312,6 +312,8 @@ QString MakeStepConfigWidget::summaryText() const
 void MakeStepConfigWidget::updateDetails()
 {
     BuildConfiguration *bc = m_makeStep->buildConfiguration();
+    if (!bc)
+        bc = m_makeStep->target()->activeBuildConfiguration();
     ToolChain *tc = ProjectExplorer::ToolChainKitInformation::toolChain(m_makeStep->target()->kit());
 
     if (tc) {
@@ -321,7 +323,7 @@ void MakeStepConfigWidget::updateDetails()
         ProcessParameters param;
         param.setMacroExpander(bc->macroExpander());
         param.setEnvironment(bc->environment());
-        param.setWorkingDirectory(bc->buildDirectory());
+        param.setWorkingDirectory(bc->buildDirectory().toString());
         param.setCommand(tc->makeCommand(bc->environment()));
         param.setArguments(arguments);
         m_summaryText = param.summary(displayName());

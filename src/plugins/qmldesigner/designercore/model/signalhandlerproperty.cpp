@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -87,13 +87,6 @@ QString SignalHandlerProperty::source() const
         return internalNode()->signalHandlerProperty(name())->source();
 
     return QString();
-}
-
-SignalHandlerProperty& SignalHandlerProperty::operator= (const QString &source)
-{
-    setSource(source);
-
-    return *this;
 }
 
 } // namespace QmlDesigner

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -39,11 +39,15 @@ namespace QmlDesigner {
 class StatePreviewImageChangedCommand
 {
     friend QDataStream &operator>>(QDataStream &in, StatePreviewImageChangedCommand &command);
+    friend bool operator ==(const StatePreviewImageChangedCommand &first, const StatePreviewImageChangedCommand &second);
+
 public:
     StatePreviewImageChangedCommand();
     explicit StatePreviewImageChangedCommand(const QVector<ImageContainer> &imageVector);
 
     QVector<ImageContainer> previews() const;
+
+    void sort();
 
 private:
     QVector<ImageContainer> m_previewVector;
@@ -51,6 +55,9 @@ private:
 
 QDataStream &operator<<(QDataStream &out, const StatePreviewImageChangedCommand &command);
 QDataStream &operator>>(QDataStream &in, StatePreviewImageChangedCommand &command);
+
+bool operator ==(const StatePreviewImageChangedCommand &first, const StatePreviewImageChangedCommand &second);
+QDebug operator <<(QDebug debug, const StatePreviewImageChangedCommand &command);
 
 } // namespace QmlDesigner
 

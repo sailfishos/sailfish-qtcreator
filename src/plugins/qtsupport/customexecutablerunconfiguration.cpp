@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -32,7 +32,7 @@
 #include "qtkitinformation.h"
 
 #include <projectexplorer/buildconfiguration.h>
-#include <projectexplorer/environmentaspect.h>
+#include <projectexplorer/localenvironmentaspect.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/target.h>
 #include <projectexplorer/abi.h>
@@ -72,6 +72,8 @@ CustomExecutableRunConfiguration::CustomExecutableRunConfiguration(ProjectExplor
     m_workingDirectory(QLatin1String(ProjectExplorer::Constants::DEFAULT_WORKING_DIR)),
     m_runMode(Gui)
 {
+    addExtraAspect(new ProjectExplorer::LocalEnvironmentAspect(this));
+
     if (!parent->activeBuildConfiguration())
         m_workingDirectory = QLatin1String(ProjectExplorer::Constants::DEFAULT_WORKING_DIR_ALTERNATE);
     ctor();
@@ -296,16 +298,6 @@ void CustomExecutableRunConfiguration::setRunMode(ProjectExplorer::LocalApplicat
 QWidget *CustomExecutableRunConfiguration::createConfigurationWidget()
 {
     return new CustomExecutableConfigurationWidget(this);
-}
-
-QString CustomExecutableRunConfiguration::dumperLibrary() const
-{
-    return QtKitInformation::dumperLibrary(target()->kit());
-}
-
-QStringList CustomExecutableRunConfiguration::dumperLibraryLocations() const
-{
-    return QtKitInformation::dumperLibraryLocations(target()->kit());
 }
 
 ProjectExplorer::Abi CustomExecutableRunConfiguration::abi() const

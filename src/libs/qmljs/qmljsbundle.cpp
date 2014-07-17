@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -250,6 +250,8 @@ QStringList QmlBundle::maybeReadTrie(Trie &trie, Utils::JsonObjectValue *config,
 
 bool QmlBundle::readFrom(QString path, QStringList *errors)
 {
+    Utils::JsonMemoryPool pool;
+
     using namespace Utils;
     QFile f(path);
     if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) {
@@ -257,7 +259,7 @@ bool QmlBundle::readFrom(QString path, QStringList *errors)
             (*errors) << QString::fromLatin1("Could not open file at %1 .").arg(path);
         return false;
     }
-    JsonObjectValue *config = JsonValue::create(QString::fromUtf8(f.readAll()))->toObject();
+    JsonObjectValue *config = JsonValue::create(QString::fromUtf8(f.readAll()), &pool)->toObject();
     if (config == 0) {
         if (errors)
             (*errors) << QString::fromLatin1("Could not parse json object in file at %1 .").arg(path);
@@ -286,14 +288,14 @@ bool QmlBundle::readFrom(QString path, QStringList *errors)
     return errs.isEmpty();
 }
 
-QmlBundle QmlLanguageBundles::bundleForLanguage(Document::Language l) const
+QmlBundle QmlLanguageBundles::bundleForLanguage(Language::Enum l) const
 {
     if (m_bundles.contains(l))
         return m_bundles.value(l);
     return QmlBundle();
 }
 
-void QmlLanguageBundles::mergeBundleForLanguage(Document::Language l, const QmlBundle &bundle)
+void QmlLanguageBundles::mergeBundleForLanguage(Language::Enum l, const QmlBundle &bundle)
 {
     if (bundle.isEmpty())
         return;
@@ -303,14 +305,14 @@ void QmlLanguageBundles::mergeBundleForLanguage(Document::Language l, const QmlB
         m_bundles.insert(l,bundle);
 }
 
-QList<Document::Language> QmlLanguageBundles::languages() const
+QList<Language::Enum> QmlLanguageBundles::languages() const
 {
     return m_bundles.keys();
 }
 
 void QmlLanguageBundles::mergeLanguageBundles(const QmlLanguageBundles &o)
 {
-    foreach (Document::Language l, o.languages())
+    foreach (Language::Enum l, o.languages())
         mergeBundleForLanguage(l, o.bundleForLanguage(l));
 }
 

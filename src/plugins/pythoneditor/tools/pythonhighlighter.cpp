@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -40,9 +40,7 @@
 #include "pythonhighlighter.h"
 #include "lexical/pythonscanner.h"
 
-#include <texteditor/basetextdocumentlayout.h>
 #include <texteditor/basetextdocument.h>
-#include <texteditor/fontsettings.h>
 #include <texteditor/texteditorconstants.h>
 
 namespace PythonEditor {
@@ -67,30 +65,37 @@ using namespace PythonEditor::Internal;
  * @endcode
  */
 
-/// @return List that maps enum Format values to TextEditor plugin formats
-QVector<TextEditor::TextStyle> initFormatCategories()
+PythonHighlighter::PythonHighlighter(QTextDocument *parent) :
+    TextEditor::SyntaxHighlighter(parent)
 {
-    QVector<TextEditor::TextStyle> categories(Format_FormatsAmount);
-    categories[Format_Number] = TextEditor::C_NUMBER;
-    categories[Format_String] = TextEditor::C_STRING;
-    categories[Format_Keyword] = TextEditor::C_KEYWORD;
-    categories[Format_Type] = TextEditor::C_TYPE;
-    categories[Format_ClassField] = TextEditor::C_FIELD;
-    categories[Format_MagicAttr] = TextEditor::C_JS_SCOPE_VAR;
-    categories[Format_Operator] = TextEditor::C_OPERATOR;
-    categories[Format_Comment] = TextEditor::C_COMMENT;
-    categories[Format_Doxygen] = TextEditor::C_DOXYGEN_COMMENT;
-    categories[Format_Whitespace] = TextEditor::C_VISUAL_WHITESPACE;
-    categories[Format_Identifier] = TextEditor::C_TEXT;
-    categories[Format_ImportedModule] = TextEditor::C_STRING;
-
-    return categories;
+    init();
 }
 
 /// New instance created when opening any document in editor
 PythonHighlighter::PythonHighlighter(TextEditor::BaseTextDocument *parent) :
     TextEditor::SyntaxHighlighter(parent)
 {
+    init();
+}
+
+void PythonHighlighter::init()
+{
+    static QVector<TextEditor::TextStyle> categories;
+    if (categories.isEmpty()) {
+        categories << TextEditor::C_NUMBER
+                   << TextEditor::C_STRING
+                   << TextEditor::C_KEYWORD
+                   << TextEditor::C_TYPE
+                   << TextEditor::C_FIELD
+                   << TextEditor::C_JS_SCOPE_VAR
+                   << TextEditor::C_OPERATOR
+                   << TextEditor::C_COMMENT
+                   << TextEditor::C_DOXYGEN_COMMENT
+                   << TextEditor::C_TEXT
+                   << TextEditor::C_VISUAL_WHITESPACE
+                   << TextEditor::C_STRING;
+    }
+    setTextFormatCategories(categories);
 }
 
 /// Instance destroyed when one of documents closed from editor
@@ -99,23 +104,11 @@ PythonHighlighter::~PythonHighlighter()
 }
 
 /**
-  QtCreator has own fonts&color settings. Highlighter wants get access to
-  this settings before highlightBlock() called first time.
-  Settings provided by PyEditor::EditorWidget class.
-  */
-void PythonHighlighter::setFontSettings(const TextEditor::FontSettings &fs)
-{
-    QVector<TextEditor::TextStyle> categories = initFormatCategories();
-    m_formats = fs.toTextCharFormats(categories);
-    rehighlight();
-}
-
-/**
  * @brief Highlighter::highlightBlock highlights single line of Python code
  * @param text is single line without EOLN symbol. Access to all block data
- * can be obtained through inherited currentBlock() method.
+ * can be obtained through inherited currentBlock() function.
  *
- * This method receives state (int number) from previously highlighted block,
+ * This function receives state (int number) from previously highlighted block,
  * scans block using received state and sets initial highlighting for current
  * block. At the end, it saves internal state in current block.
  */
@@ -155,13 +148,13 @@ int PythonHighlighter::highlightLine(const QString &text, int initialState)
         if (format == Format_Keyword) {
             QString value = scanner.value(tk);
             if (isImportKeyword(value) && hasOnlyWhitespace) {
-                setFormat(tk.begin(), tk.length(), m_formats[format]);
+                setFormat(tk.begin(), tk.length(), formatForCategory(format));
                 highlightImport(scanner);
                 break;
             }
         }
 
-        setFormat(tk.begin(), tk.length(), m_formats[format]);
+        setFormat(tk.begin(), tk.length(), formatForCategory(format));
         if (format != Format_Whitespace)
             hasOnlyWhitespace = false;
     }
@@ -178,7 +171,7 @@ void PythonHighlighter::highlightImport(Scanner &scanner)
         Format format = tk.format();
         if (tk.format() == Format_Identifier)
             format = Format_ImportedModule;
-        setFormat(tk.begin(), tk.length(), m_formats[format]);
+        setFormat(tk.begin(), tk.length(), formatForCategory(format));
     }
 }
 

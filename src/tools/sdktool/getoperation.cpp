@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -69,9 +69,10 @@ int GetOperation::execute() const
 
     foreach (const QString &key, m_keys) {
         const QVariant result = get(map, key);
-        if (result.isValid())
-            return 2;
-        std::cout << qPrintable(result.toString()) << std::endl;
+        if (!result.isValid())
+            std::cout << "<invalid>" << std::endl;
+        else
+            std::cout << qPrintable(result.toString()) << std::endl;
     }
 
     return 0;

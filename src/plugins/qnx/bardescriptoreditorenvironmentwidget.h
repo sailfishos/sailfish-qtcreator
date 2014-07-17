@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -39,9 +39,7 @@
 namespace Qnx {
 namespace Internal {
 
-namespace Ui {
-class BarDescriptorEditorEnvironmentWidget;
-}
+namespace Ui { class BarDescriptorEditorEnvironmentWidget; }
 
 class BarDescriptorEditorEnvironmentWidget : public BarDescriptorEditorAbstractPanelWidget
 {
@@ -51,10 +49,9 @@ public:
     explicit BarDescriptorEditorEnvironmentWidget(QWidget *parent = 0);
     ~BarDescriptorEditorEnvironmentWidget();
 
-    void clear();
-
-    QList<Utils::EnvironmentItem> environment() const;
-    void appendEnvironmentItem(const Utils::EnvironmentItem &envItem);
+protected:
+    void updateWidgetValue(BarDescriptorDocument::Tag tag, const QVariant &value);
+    void emitChanged(BarDescriptorDocument::Tag tag);
 
 private:
     Ui::BarDescriptorEditorEnvironmentWidget *m_ui;

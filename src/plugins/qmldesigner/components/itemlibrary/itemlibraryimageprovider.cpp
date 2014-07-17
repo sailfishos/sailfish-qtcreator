@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -33,7 +33,7 @@ namespace QmlDesigner {
 namespace Internal {
 
 ItemLibraryImageProvider::ItemLibraryImageProvider() :
-        QDeclarativeImageProvider(QDeclarativeImageProvider::Pixmap)
+        QQuickImageProvider(QQuickImageProvider::Pixmap)
 {
 }
 
@@ -44,6 +44,10 @@ QPixmap ItemLibraryImageProvider::requestPixmap(const QString &id, QSize *size, 
         size->setWidth(pixmap.width());
         size->setHeight(pixmap.height());
     }
+
+    if (pixmap.isNull())
+        return pixmap;
+
     if (requestedSize.isValid())
         return pixmap.scaled(requestedSize);
     return pixmap;

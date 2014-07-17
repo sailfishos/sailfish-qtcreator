@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -101,8 +101,7 @@ void CustomDragAndDropIcon::mouseMoveEvent(QMouseEvent *event)
         resize(m_size);
         show();
         update();
-    }
-    else {
+    } else {
        move(-1000, -1000); // if no top level widget is found we are out of the main window
     }
     QWidget* target = QApplication::widgetAt(globalPos - QPoint(2,2)); //-(2, 2) because:

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -34,6 +34,7 @@
 
 #include <QWeakPointer>
 #include <QProcess>
+#include <QFile>
 
 QT_BEGIN_NAMESPACE
 class QLocalServer;
@@ -74,7 +75,12 @@ protected:
     void writeCommand(const QVariant &command);
     void dispatchCommand(const QVariant &command);
     NodeInstanceClientInterface *nodeInstanceClient() const;
-    QString missingQmlPuppetErrorMessage(const QString &applicationPath) const;
+    QString missingQmlPuppetErrorMessage(const QString &preMessage) const;
+    QString copyAndPasterMessage(const QString &pathToQt) const;
+    QString qmlPuppetApplicationName() const;
+    QString macOSBundlePath(const QString &path) const;
+    QString creatorQmlPuppetPath();
+    static bool checkPuppetVersion(const QString &qmlPuppetPath);
 
 signals:
     void processCrashed();
@@ -85,10 +91,11 @@ private slots:
     void readSecondDataStream();
     void readThirdDataStream();
 
+    void printEditorProcessOutput();
+    void printPreviewProcessOutput();
+    void printRenderProcessOutput();
 private:
-    QString qmlPuppetApplicationName() const;
-    QString macOSBundlePath(const QString &path) const;
-
+    QFile m_captureFileForTest;
     QWeakPointer<QLocalServer> m_localServer;
     QWeakPointer<QLocalSocket> m_firstSocket;
     QWeakPointer<QLocalSocket> m_secondSocket;

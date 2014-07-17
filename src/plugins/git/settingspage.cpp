@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -61,6 +61,7 @@ SettingsPageWidget::SettingsPageWidget(QWidget *parent) :
         m_ui.winHomeCheckBox->setVisible(false);
     }
     m_ui.repBrowserCommandPathChooser->setExpectedKind(Utils::PathChooser::ExistingCommand);
+    m_ui.repBrowserCommandPathChooser->setHistoryCompleter(QLatin1String("Git.RepoCommand.History"));
     m_ui.repBrowserCommandPathChooser->setPromptDialogTitle(tr("Git Repository Browser Command"));
 }
 
@@ -70,10 +71,8 @@ GitSettings SettingsPageWidget::settings() const
     rc.setValue(GitSettings::pathKey, m_ui.pathLineEdit->text());
     rc.setValue(GitSettings::logCountKey, m_ui.logCountSpinBox->value());
     rc.setValue(GitSettings::timeoutKey, m_ui.timeoutSpinBox->value());
-    rc.setValue(GitSettings::useDiffEditorKey, m_ui.useDiffEditorCheckBox->isChecked());
     rc.setValue(GitSettings::pullRebaseKey, m_ui.pullRebaseCheckBox->isChecked());
     rc.setValue(GitSettings::showTagsKey, m_ui.showTagsCheckBox->isChecked());
-    rc.setValue(GitSettings::promptOnSubmitKey, m_ui.promptToSubmitCheckBox->isChecked());
     rc.setValue(GitSettings::winSetHomeEnvironmentKey, m_ui.winHomeCheckBox->isChecked());
     rc.setValue(GitSettings::gitkOptionsKey, m_ui.gitkOptionsLineEdit->text().trimmed());
     rc.setValue(GitSettings::repositoryBrowserCmd, m_ui.repBrowserCommandPathChooser->path().trimmed());
@@ -85,34 +84,11 @@ void SettingsPageWidget::setSettings(const GitSettings &s)
     m_ui.pathLineEdit->setText(s.stringValue(GitSettings::pathKey));
     m_ui.logCountSpinBox->setValue(s.intValue(GitSettings::logCountKey));
     m_ui.timeoutSpinBox->setValue(s.intValue(GitSettings::timeoutKey));
-    m_ui.useDiffEditorCheckBox->setChecked(s.boolValue(GitSettings::useDiffEditorKey));
     m_ui.pullRebaseCheckBox->setChecked(s.boolValue(GitSettings::pullRebaseKey));
     m_ui.showTagsCheckBox->setChecked(s.boolValue(GitSettings::showTagsKey));
-    m_ui.promptToSubmitCheckBox->setChecked(s.boolValue(GitSettings::promptOnSubmitKey));
     m_ui.winHomeCheckBox->setChecked(s.boolValue(GitSettings::winSetHomeEnvironmentKey));
     m_ui.gitkOptionsLineEdit->setText(s.stringValue(GitSettings::gitkOptionsKey));
     m_ui.repBrowserCommandPathChooser->setPath(s.stringValue(GitSettings::repositoryBrowserCmd));
-}
-
-QString SettingsPageWidget::searchKeywords() const
-{
-    QString rc;
-    QLatin1Char sep(' ');
-    QTextStream(&rc)
-            << sep << m_ui.pathlabel->text()
-            << sep << m_ui.winHomeCheckBox->text()
-            << sep << m_ui.groupBox->title()
-            << sep << m_ui.logCountLabel->text()
-            << sep << m_ui.timeoutLabel->text()
-            << sep << m_ui.promptToSubmitCheckBox->text()
-            << sep << m_ui.promptToSubmitCheckBox->text()
-            << sep << m_ui.gitkGroupBox->title()
-            << sep << m_ui.gitkOptionsLabel->text()
-            << sep << m_ui.repBrowserGroupBox->title()
-            << sep << m_ui.repBrowserCommandLabel->text()
-               ;
-    rc.remove(QLatin1Char('&'));
-    return rc;
 }
 
 // -------- SettingsPage
@@ -123,12 +99,12 @@ SettingsPage::SettingsPage() :
     setDisplayName(tr("Git"));
 }
 
-QWidget *SettingsPage::createPage(QWidget *parent)
+QWidget *SettingsPage::widget()
 {
-    m_widget = new SettingsPageWidget(parent);
-    m_widget->setSettings(GitPlugin::instance()->settings());
-    if (m_searchKeywords.isEmpty())
-        m_searchKeywords = m_widget->searchKeywords();
+    if (!m_widget) {
+        m_widget = new SettingsPageWidget;
+        m_widget->setSettings(GitPlugin::instance()->settings());
+    }
     return m_widget;
 }
 
@@ -147,9 +123,9 @@ void SettingsPage::apply()
     GitPlugin::instance()->setSettings(newSettings);
 }
 
-bool SettingsPage::matches(const QString &s) const
+void SettingsPage::finish()
 {
-    return m_searchKeywords.contains(s, Qt::CaseInsensitive);
+    delete m_widget;
 }
 
 }

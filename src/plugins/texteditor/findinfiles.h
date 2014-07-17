@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -32,6 +32,8 @@
 
 #include "basefilefind.h"
 
+#include <utils/fileutils.h>
+
 #include <QPointer>
 #include <QStringListModel>
 
@@ -50,12 +52,12 @@ public:
 
     QString id() const;
     QString displayName() const;
-    void findAll(const QString &txt, Find::FindFlags findFlags);
+    void findAll(const QString &txt, Core::FindFlags findFlags);
     QWidget *createConfigWidget();
     void writeSettings(QSettings *settings);
     void readSettings(QSettings *settings);
 
-    void setDirectory(const QString &directory);
+    void setDirectory(const Utils::FileName &directory);
 
 protected:
     Utils::FileIterator *files(const QStringList &nameFilters,
@@ -64,12 +66,17 @@ protected:
     QString label() const;
     QString toolTip() const;
 
+public slots:
+    static void findOnFileSystem(const QString &path);
+
 private slots:
     void openFileBrowser();
 
 private:
+    Utils::FileName path() const;
+
     QStringListModel m_directoryStrings;
-    QString m_directorySetting;
+    Utils::FileName m_directorySetting;
     QPointer<QWidget> m_configWidget;
     QPointer<QComboBox> m_directory;
 };

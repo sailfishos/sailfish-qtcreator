@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2012 - 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -69,7 +69,7 @@ const char QNX_QNX_RUNCONFIGURATION_PREFIX[] = "Qt4ProjectManager.QNX.QNXRunConf
 
 const char QNX_CREATE_PACKAGE_BS_ID[] = "Qt4ProjectManager.QnxCreatePackageBuildStep";
 const char QNX_DEPLOY_PACKAGE_BS_ID[] = "Qt4ProjectManager.QnxDeployPackageBuildStep";
-const char QNX_CHECK_DEVELOPMENT_MODE_BS_ID[] = "Qt4ProjectManager.QnxCheckDevelopmentModeBuildStep";
+const char QNX_CHECK_DEVICE_STATUS_BS_ID[] = "Qt4ProjectManager.QnxCheckDeviceStatusBuildStep";
 
 const char QNX_PROFILEPATH_KEY[]   = "Qt4ProjectManager.QnxRunConfiguration.ProFilePath";
 
@@ -90,15 +90,19 @@ const char QNX_BB_PLATFORM_NAME[]  = "BlackBerry";
 
 const char QNX_DEBUG_EXECUTABLE[] = "pdebug";
 
+const char QNX_TOOLCHAIN_ID[] = "Qnx.QccToolChain";
+
 // BlackBerry settings constants
 const char QNX_BB_CATEGORY[] = "XF.BlackBerry";
 const char QNX_BB_CATEGORY_TR[] = QT_TRANSLATE_NOOP("BlackBerry", "BlackBerry");
 const char QNX_BB_CATEGORY_ICON[] = ":/qnx/images/target.png";
+const char QNX_BB_SETUP_ID[] = "ZA.BlackBerry Setup";
 const char QNX_BB_NDK_SETTINGS_ID[] = "ZZ.BlackBerry NDK Configuration";
 const char QNX_BB_SIGNING_ID[] = "ZZ.BlackBerry Signing Infrastructure Configuration";
 
 const char QNX_BAR_DESCRIPTOR_MIME_TYPE[] = "application/vnd.rim.qnx.bar_descriptor";
 const char QNX_BAR_DESCRIPTOR_EDITOR_ID[] = "Qnx.BarDescriptorEditor";
+const char QNX_BAR_DESCRIPTOR_EDITOR_CONTEXT[] = "Qnx.BarDescriptorEditor";
 
 const char QNX_TASK_CATEGORY_BARDESCRIPTOR[] = "Task.Category.BarDescriptor";
 
@@ -107,6 +111,29 @@ const char QNX_KEY_PATH[] = "path";
 const char QNX_KEY_ACTIVE[] = "active";
 
 const char QNX_BLACKBERRY_DEPLOY_CMD[] = "blackberry-deploy";
+
+const char QNX_BLACKBERRY_CASCADESIMPORTER_VERSION[] = "0.0.1";
+
+const char QNX_BLACKBERRY_CONFIGS_FILENAME[] = "bbndkconfigurations.xml";
+
+const char QNX_DEBUGGING_GROUP[] = "Debugger.Group.Qnx";
+
+const char QNX_BLACKBERRY_DEFAULT_DEPLOY_QT_BASEPATH[] = "/accounts/devuser/";
+
+const char QNX_OK_ICON[] = ":/qnx/images/ok.png";
+const char QNX_INFO_ICON[] = ":/qnx/images/info.png";
+const char QNX_WARNING_ICON[] = ":/qnx/images/warning.png";
+const char QNX_ERROR_ICON[] = ":/qnx/images/error.png";
+
+const char QNX_BLACKBERRY_SETUP_URL[] = "http://qt-project.org/wiki/Qt-Creator-with-BlackBerry-10";
+const char QNX_LEGACY_KEYS_URL[] = "https://developer.blackberry.com/native/documentation/core"
+        "/com.qnx.doc.native_sdk.devguide/topic/bbid_to_sa.html";
+const char QNX_REGISTER_KEYS_URL[] = "https://www.blackberry.com/SignedKeys/codesigning.html";
+
+const char QNX_BB_KEY_CONFIGURATION_TYPE[] = "BBConfigurationType";
+
+const char QNX_BB_APILEVEL_TYPE[] = "BBApiLevel";
+const char QNX_BB_RUNTIME_TYPE[] = "BBRuntime";
 
 } // namespace Constants
 } // namespace Qnx

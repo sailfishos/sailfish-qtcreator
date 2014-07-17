@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -32,23 +32,18 @@
 
 #include "abstractview.h"
 
-#include <rewriterview.h>
-#include <nodeinstanceview.h>
-#include <itemlibraryview.h>
-#include <navigatorview.h>
-#include <stateseditorview.h>
-#include <formeditorview.h>
-#include <propertyeditor.h>
-#include <componentview.h>
-#include <debugview.h>
+#include <QWidgetAction>
 
 namespace QmlDesigner {
 
 class DesignDocument;
+class AbstractCustomTool;
+class DesignerActionManager;
+class NodeInstanceView;
 
-namespace Internal {
-    class DesignModeWidget;
-}
+namespace Internal { class DesignModeWidget; }
+
+class ViewManagerData;
 
 class QMLDESIGNERCORE_EXPORT ViewManager
 {
@@ -56,7 +51,7 @@ public:
     ViewManager();
     ~ViewManager();
 
-    void attachRewriterView(TextModifier *textModifier);
+    void attachRewriterView();
     void detachRewriterView();
 
     void attachComponentView();
@@ -67,6 +62,7 @@ public:
 
     void setItemLibraryViewResourcePath(const QString &resourcePath);
     void setComponentNode(const ModelNode &componentNode);
+    void setComponentViewToMaster();
     void setNodeInstanceViewQtPath(const QString & qtPath);
 
     void resetPropertyEditorView();
@@ -79,12 +75,16 @@ public:
     void disableWidgets();
     void enableWidgets();
 
-    void pushFileOnCrambleBar(const QString &fileName);
-    void pushInFileComponentOnCrambleBar(const QString &componentId);
+    void pushFileOnCrumbleBar(const QString &fileName);
+    void pushInFileComponentOnCrumbleBar(const ModelNode &modelNode);
     void nextFileIsCalledInternally();
 
-    //used by DesignDocument ### find a better solution
-    QmlModelView *qmlModelView();
+    NodeInstanceView *nodeInstanceView();
+
+    QWidgetAction *componentViewAction();
+
+    DesignerActionManager &designerActionManager();
+    const DesignerActionManager &designerActionManager() const;
 
 private: // functions
     Q_DISABLE_COPY(ViewManager)
@@ -103,17 +103,7 @@ private: // functions
     void switchStateEditorViewToSavedState();
 
 private: // variables
-    QmlModelState m_savedState;
-    Internal::DebugView m_debugView;
-    ComponentView m_componentView;
-    FormEditorView m_formEditorView;
-    ItemLibraryView m_itemLibraryView;
-    NavigatorView m_navigatorView;
-    PropertyEditor m_propertyEditorView;
-    StatesEditorView m_statesEditorView;
-    NodeInstanceView m_nodeInstanceView;
-
-    QList<QWeakPointer<AbstractView> > m_additionalViews;
+    ViewManagerData *d;
 };
 
 } // namespace QmlDesigner

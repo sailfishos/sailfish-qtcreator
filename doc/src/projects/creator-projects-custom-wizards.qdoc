@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (c) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (c) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator
@@ -23,7 +23,7 @@
 // **********************************************************************
 
 /*!
-    \contentspage index.html
+    \contentspage {Qt Creator Manual}
     \previouspage creator-project-qmake-libraries.html
     \page creator-project-wizards.html
     \nextpage creator-version-control.html
@@ -113,7 +113,7 @@
             \code
 
             <wizard version="1" kind="project"
-            class="qt4project" firstpage="10"
+            class="qmakeproject" firstpage="10"
             id="A.HelloWorld" category="B.CustomProjects">
 
             \endcode
@@ -127,7 +127,7 @@
                 \c class.
 
             \li \c class specifies the type of the project. This attribute is
-                optional. Use the value \c qt4project to add Qt 4 specific pages.
+                optional. Use the value \c qmakeproject to add Qt specific pages.
 
             \li \c firstpage specifies the place of the new page in the standard
                 project wizard. The value 10 ensures that the custom page
@@ -585,10 +585,28 @@
             which is also defined in \gui {File Naming}.
 
         \li \c {%CurrentDate%} is replaced by the current date in the format
-            \c {yyyy-MM-dd}.
+            \c {YYYY-MM-DD} as specified by ISO 8601.
 
-        \li \c {%CurrentTime%} is replaced by the current time in the short
-            format of the locale.
+        \li \c {%CurrentTime%} is replaced by the current time in the format
+            \c {HH:MM:SS} as specified by ISO 8601.
+
+        \li \c {%CurrentDate:Locale%} is replaced by the current date in the short format
+            specified by the application's locale.
+
+        \li \c {%CurrentTime:Locale%} is replaced by the current time in the short format
+            specified by the application's locale.
+
+        \li \c {%CurrentDate:ISO%} is replaced by the current date in the format
+            \c {YYYY-MM-DD} as specified by ISO 8601.
+
+        \li \c {%CurrentTime:ISO%} is replaced by the current time in the format
+            \c {HH:MM:SS} as specified by ISO 8601.
+
+        \li \c {%CurrentDate:RFC%} is replaced by the current date in the format
+            \c {DD Mon YYYY}, where \c {Mon} is the three letter month name, as specified by RFC 2822.
+
+        \li \c {%CurrentTime:RFC%} is replaced by the current time in the format
+            \c {HH:MM:SS} as specified by RFC 2822.
 
     \endlist
 

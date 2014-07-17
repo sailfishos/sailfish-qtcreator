@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -70,6 +70,7 @@ private slots:
     void test_vim_change_a_word();
     void test_vim_change_replace();
     void test_vim_block_selection();
+    void test_vim_block_selection_insert();
     void test_vim_repeat();
     void test_vim_search();
     void test_vim_indent();
@@ -136,6 +137,7 @@ private slots:
     void test_vim_command_x();
     void test_vim_command_yyp();
     void test_vim_command_y_dollar();
+    void test_vim_command_percent();
 
     void test_vim_visual_d();
     void test_vim_Visual_d();

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,14 +30,14 @@
 #ifndef PYTHONEDITOR_EDITOR_H
 #define PYTHONEDITOR_EDITOR_H
 
-#include "pythoneditor_global.h"
 #include <texteditor/basetexteditor.h>
 
 namespace PythonEditor {
+namespace Internal {
 
 class EditorWidget;
 
-class PYEDITOR_EXPORT PythonEditor : public TextEditor::BaseTextEditor
+class PythonEditor : public TextEditor::BaseTextEditor
 {
     Q_OBJECT
 
@@ -46,10 +46,7 @@ public:
     virtual ~PythonEditor();
 
     bool duplicateSupported() const { return true; }
-    Core::IEditor *duplicate(QWidget *parent);
-
-    Core::Id id() const;
-    bool isTemporary() const { return false; }
+    Core::IEditor *duplicate();
 
     /**
       Opens file for editing, actual work performed by base class
@@ -59,6 +56,7 @@ public:
               const QString &realFileName);
 };
 
+} // namespace Internal
 } // namespace PythonEditor
 
 #endif // PYTHONEDITOR_EDITOR_H

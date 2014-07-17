@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (c) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (c) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator
@@ -36,14 +36,13 @@
 
     \list
 
-        \o  Overview topic, which describes the purpose of your plugin from the
-            viewpoint of \QC users
+        \li  Overview topic, which describes the purpose of your plugin from the
+             viewpoint of \QC users
 
-        \o  Procedure topics, which describe how to use your plugin as part of
-            \QC
+        \li  Procedure topics, which describe how to use your plugin as part of \QC
 
-        \o  Reference topics, which contain information that developers
-            occasionally need to look up (optional)
+        \li  Reference topics, which contain information that developers
+             occasionally need to look up (optional)
 
     \endlist
 
@@ -52,17 +51,18 @@
 
     \list
 
-        \o  Overview topic, which describes the architecture and use cases for
-            your plugin from the viewpoint of \QC developers
+        \li  Overview topic, which describes the architecture and use cases for
+             your plugin from the viewpoint of \QC developers
 
-        \o  API documentation, which is generated from code comments
+        \li  API documentation, which is generated from code comments
 
     \endlist
 
     \section1 Configuring the Documentation Project
 
     \QC documentation is written by using QDoc. For more information about using
-    QDoc, see \l{http://qt-project.org/doc/qdoc/}{QDoc Reference Documentation}.
+    QDoc, see the \l{http://qt-project.org/doc/qt-5.1/qdoc/qdoc-index.html}
+    {QDoc Manual}.
 
     QDoc finds the new topics automatically, when you place them as .qdoc files
     in the correct folder. However, to make the topics accessible to readers,
@@ -122,9 +122,9 @@
 
     \list
 
-        \o  nmake fixnavi (on Windows)
+        \li  nmake fixnavi (on Windows)
 
-        \o  make fixnavi (on Linux)
+        \li  make fixnavi (on Linux)
 
     \endlist
 
@@ -228,15 +228,15 @@
 
     \list
 
-        \o  Color reduction: Optimal 256 colors palette
+        \li  Color reduction: Optimal 256 colors palette
 
-        \o  Reduce colors to: 256
+        \li  Reduce colors to: 256
 
-        \o  Best compression (slow)
+        \li  Best compression (slow)
 
-        \o  Color quantization algorithm: NeuQuant neural-net (slow)
+        \li  Color quantization algorithm: NeuQuant neural-net (slow)
 
-        \o  External optimizers: OptiPNG o3
+        \li  External optimizers: OptiPNG o3
 
     \endlist
 
@@ -275,33 +275,44 @@
 
     \list
 
-        \o  nmake docs (on Windows)
-        \o  make docs (on Linux and Mac OS)
+        \li  nmake docs (on Windows)
+        \li  make docs (on Linux and Mac OS)
 
     \endlist
+
+    The \QC Manual HTML files are generated in the \c {doc/html} directory.
+    The Extending \QC Manual files are generated in the
+    \c {doc/html-dev} directory. The help files (.qch) are generated in the
+    \c {share/doc/qtcreator} directory in the \QC build directory on Windows and
+    Linux, and in the \c {bin/Qt Creator.app/Contents/Resources/app} directory
+    on Mac OS. You can view the HTML files in a browser and the help files in
+    the \QC \gui Help mode. For more information about adding the help files to
+    \QC, see
+    \l{http://qt-project.org/doc/qtcreator-2.8/creator-help.html#adding-external-documentation}
+    {Adding External Documentation}.
 
     Besides \c docs, you have the following options:
 
     \list
 
-        \o  html_docs - build \QC Manual in help format, but do not generate a
-            help file
+        \li  html_docs - build \QC Manual in help format, but do not generate a
+             help file
 
-        \o  dev_html_docs - build Extending \QC Manual in help format, but do
-            not generate a help file
+        \li  dev_html_docs - build Extending \QC Manual in help format, but do
+             not generate a help file
 
-        \o  qch_docs - build \QC Manual in help format and generate a help file
-            (.qch)
+        \li  qch_docs - build \QC Manual in help format and generate a help file
+             (.qch)
 
-        \o  dev_qch_docs - build Extending \QC Manual in help format and
-            generate a help file (.qch)
+        \li  dev_qch_docs - build Extending \QC Manual in help format and
+             generate a help file (.qch)
 
-        \o  docs_online - build \QC Manual and Extending \QC Manual in online
-            format
+        \li  docs_online - build \QC Manual and Extending \QC Manual in online
+             format
 
-        \o  html_docs_online - build \QC Manual in online format
+        \li  html_docs_online - build \QC Manual in online format
 
-        \o  dev_html_docs_online - build Extending \QC Manual in online format
+        \li  dev_html_docs_online - build Extending \QC Manual in online format
 
     \endlist
 

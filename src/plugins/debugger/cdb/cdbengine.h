@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,7 +30,9 @@
 #ifndef DEBUGGER_CDBENGINE_H
 #define DEBUGGER_CDBENGINE_H
 
-#include "debuggerengine.h"
+#include <debugger/debuggerengine.h>
+
+#include <projectexplorer/devicesupport/idevice.h>
 
 #include <QSharedPointer>
 #include <QProcess>
@@ -38,9 +40,7 @@
 #include <QVariant>
 #include <QTime>
 
-namespace Utils {
-class ConsoleProcess;
-}
+namespace Utils { class ConsoleProcess; }
 namespace Debugger {
 namespace Internal {
 
@@ -124,6 +124,7 @@ public:
     virtual void reloadRegisters();
     virtual void reloadSourceFiles();
     virtual void reloadFullStack();
+    void loadAdditionalQmlStack();
 
     static QString extensionLibraryName(bool is64Bit);
 
@@ -153,6 +154,10 @@ private slots:
     void consoleStubError(const QString &);
     void consoleStubProcessStarted();
     void consoleStubExited();
+
+    void createFullBacktrace();
+
+    void handleDoInterruptInferior(const QString &errorMessage);
 
 private:
     typedef QHash<BreakpointModelId, BreakpointResponse> PendingBreakPointMap;
@@ -193,7 +198,7 @@ private:
     void handleSessionAccessible(unsigned long cdbExState);
     void handleSessionInaccessible(unsigned long cdbExState);
     void handleSessionIdle(const QByteArray &message);
-    bool doInterruptInferior(SpecialStopMode sm);
+    void doInterruptInferior(SpecialStopMode sm);
     void doInterruptInferiorCustomSpecialStop(const QVariant &v);
     void doContinueInferior();
     inline void parseOutputLine(QByteArray line);
@@ -223,6 +228,7 @@ private:
     void ensureUsing32BitStackInWow64(const CdbBuiltinCommandPtr &cmd);
     void handleSwitchWow64Stack(const CdbBuiltinCommandPtr &cmd);
     void jumpToAddress(quint64 address);
+    void handleCreateFullBackTrace(const CdbBuiltinCommandPtr &cmd);
 
     // Extension commands
     void handleThreads(const CdbExtensionCommandPtr &);
@@ -236,6 +242,7 @@ private:
     void handleWidgetAt(const CdbExtensionCommandPtr &);
     void handleBreakPoints(const CdbExtensionCommandPtr &);
     void handleBreakPoints(const GdbMi &value);
+    void handleAdditionalQmlStack(const CdbExtensionCommandPtr &);
     NormalizedSourceFileName sourceMapNormalizeFileNameFromDebugger(const QString &f);
     void updateLocalVariable(const QByteArray &iname);
     void updateLocals(bool forNewStackFrame = false);
@@ -244,7 +251,6 @@ private:
     unsigned parseStackTrace(const GdbMi &data, bool sourceStepInto);
     void mergeStartParametersSourcePathMap();
 
-    const QByteArray m_creatorExtPrefix;
     const QByteArray m_tokenPrefix;
 
     QProcess m_process;
@@ -254,6 +260,7 @@ private:
     //! Debugger accessible (expecting commands)
     bool m_accessible;
     SpecialStopMode m_specialStopMode;
+    ProjectExplorer::DeviceProcessSignalOperation::Ptr m_signalOperation;
     int m_nextCommandToken;
     QList<CdbBuiltinCommandPtr> m_builtinCommandQueue;
     int m_currentBuiltinCommandIndex; //!< Current command whose output is recorded.
@@ -266,7 +273,6 @@ private:
     bool m_verboseLog;
     bool m_notifyEngineShutdownOnTermination;
     bool m_hasDebuggee;
-    bool m_cdbIs64Bit;
     enum Wow64State {
         wow64Uninitialized,
         noWow64Stack,

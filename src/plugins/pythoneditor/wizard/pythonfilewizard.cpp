@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -42,35 +42,17 @@
 namespace PythonEditor {
 
 /**
- * @brief GetDefaultParams
- * @return Default parameters for menu item "Files&Classes->Python->Python file"
- */
-static const Core::BaseFileWizardParameters GetDefaultParams()
-{
-    Core::BaseFileWizardParameters p(Core::IWizard::FileWizard);
-
-    p.setId(QLatin1String(Constants::C_PY_SOURCE_WIZARD_ID));
-    p.setCategory(QLatin1String(Constants::C_PY_WIZARD_CATEGORY));
-    p.setDisplayCategory(QLatin1String(Constants::C_PY_DISPLAY_CATEGORY));
-    p.setDisplayName(
-                FileWizard::tr(Constants::EN_PY_SOURCE_DISPLAY_NAME));
-    p.setDescription(
-                FileWizard::tr(Constants::EN_PY_SOURCE_DESCRIPTION));
-
-    return p;
-}
-
-/**
  * @brief Initialize wizard and add new option to "New..." dialog.
  * @param parent
  */
-FileWizard::FileWizard(QObject *parent)
-    :Core::BaseFileWizard(GetDefaultParams(), parent)
+FileWizard::FileWizard()
 {
-}
-
-FileWizard::~FileWizard()
-{
+    setWizardKind(Core::IWizard::FileWizard);
+    setId(QLatin1String(Constants::C_PY_SOURCE_WIZARD_ID));
+    setCategory(QLatin1String(Constants::C_PY_WIZARD_CATEGORY));
+    setDisplayCategory(QLatin1String(Constants::C_PY_DISPLAY_CATEGORY));
+    setDisplayName(FileWizard::tr(Constants::EN_PY_SOURCE_DISPLAY_NAME));
+    setDescription(FileWizard::tr(Constants::EN_PY_SOURCE_DESCRIPTION));
 }
 
 /**
@@ -84,7 +66,6 @@ QWizard *FileWizard::createWizardDialog(QWidget *parent,
 {
     Utils::FileWizardDialog *pDialog = new Utils::FileWizardDialog(parent);
     pDialog->setWindowTitle(tr("New %1").arg(displayName()));
-    setupWizard(pDialog);
     pDialog->setPath(params.defaultPath());
     foreach (QWizardPage *p, params.extensionPages())
         applyExtensionPageShortTitle(pDialog, pDialog->addPage(p));

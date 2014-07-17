@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -145,6 +145,9 @@ public:
     static ULONG64 readUnsignedValue(CIDebugDataSpaces *ds,
                                      ULONG64 address, ULONG debuggeeTypeSize, ULONG64 defaultValue = 0,
                                      std::string *errorMessage = 0);
+    static LONG64 readSignedValue(CIDebugDataSpaces *ds,
+                                  ULONG64 address, ULONG debuggeeTypeSize, LONG64 defaultValue = 0,
+                                  std::string *errorMessage = 0);
     static int readIntValue(CIDebugDataSpaces *ds,
                             ULONG64 address, int defaultValue = 0,
                             std::string *errorMessage = 0);
@@ -181,7 +184,7 @@ struct QtInfo
 {
     enum Module
     {
-        Core, Gui, Widgets, Network, Script
+        Core, Gui, Widgets, Network, Script, Qml
     };
 
     QtInfo() : version(0) {}

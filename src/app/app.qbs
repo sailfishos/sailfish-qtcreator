@@ -1,23 +1,19 @@
 import qbs
-import "../../qbs/defaults.js" as Defaults
 
 Application {
     name: project.ide_app_target
     consoleApplication: qbs.debugInformation
 
     cpp.rpaths: qbs.targetOS.contains("osx") ? ["@executable_path/.."]
-                                             : ["$ORIGIN/../lib/qtcreator"]
-    cpp.defines: Defaults.defines(qbs)
+                                             : ["$ORIGIN/../" + project.libDirName + "/qtcreator"]
+    cpp.defines: project.generalDefines
     cpp.linkerFlags: {
         if (qbs.buildVariant == "release" && (qbs.toolchain.contains("gcc") || qbs.toolchain.contains("mingw")))
             return ["-Wl,-s"]
     }
     cpp.includePaths: [
-        "..",
-        "../libs",
         "../shared/qtsingleapplication",
         "../shared/qtlockedfile",
-        buildDirectory
     ]
 
     Depends { name: "app_version_header" }

@@ -30,7 +30,6 @@
 #include "mersshkeydeploymentdialog.h"
 
 #include <utils/qtcassert.h>
-#include <remotelinux/linuxdevicetestdialog.h>
 #include <ssh/sshconnection.h>
 #include <utils/portlist.h>
 #include <QFileInfo>
@@ -80,7 +79,7 @@ ProjectExplorer::IDevice::Ptr MerDeviceFactory::create(Core::Id id) const
         sshParams.userName = wizard.userName();
         sshParams.port = wizard.sshPort();
         sshParams.timeout = wizard.timeout();
-        sshParams.authenticationType = QSsh::SshConnectionParameters::AuthenticationByKey;
+        sshParams.authenticationType = QSsh::SshConnectionParameters::AuthenticationTypePublicKey;
         sshParams.privateKeyFile = wizard.userPrivateKey();
 
         //hardcoded values requested by customer;
@@ -102,9 +101,6 @@ ProjectExplorer::IDevice::Ptr MerDeviceFactory::create(Core::Id id) const
             device->generateSshKey(wizard.rootName());
         }
 
-        RemoteLinux::GenericLinuxDeviceTester* tester = new RemoteLinux::GenericLinuxDeviceTester();
-        RemoteLinux::LinuxDeviceTestDialog dlg(device,tester);
-        dlg.exec();
         return device;
     }
 
@@ -134,7 +130,7 @@ ProjectExplorer::IDevice::Ptr MerDeviceFactory::create(Core::Id id) const
             sshParams.userName = wizard.userName();
             sshParams.port = wizard.sshPort();
             sshParams.timeout = wizard.timeout();
-            sshParams.authenticationType = QSsh::SshConnectionParameters::AuthenticationByPassword;
+            sshParams.authenticationType = QSsh::SshConnectionParameters::AuthenticationTypePassword;
             sshParams.password = wizard.password();
             MerSshKeyDeploymentDialog dlg;
             dlg.setSShParameters(sshParams);
@@ -150,7 +146,7 @@ ProjectExplorer::IDevice::Ptr MerDeviceFactory::create(Core::Id id) const
         sshParams.userName = wizard.userName();
         sshParams.port = wizard.sshPort();
         sshParams.timeout = wizard.timeout();
-        sshParams.authenticationType = QSsh::SshConnectionParameters::AuthenticationByKey;
+        sshParams.authenticationType = QSsh::SshConnectionParameters::AuthenticationTypePublicKey;
         sshParams.privateKeyFile = wizard.privateKeyFilePath();
 
         MerHardwareDevice::Ptr device = MerHardwareDevice::create(wizard.configurationName());
@@ -158,9 +154,6 @@ ProjectExplorer::IDevice::Ptr MerDeviceFactory::create(Core::Id id) const
         device->setFreePorts(Utils::PortList::fromString(wizard.freePorts()));
         //device->setFreePorts(Utils::PortList::fromString(QLatin1String("10000-10100")));
         device->setSshParameters(sshParams);
-        RemoteLinux::GenericLinuxDeviceTester* tester = new RemoteLinux::GenericLinuxDeviceTester();
-        RemoteLinux::LinuxDeviceTestDialog dlg(device,tester);
-        dlg.exec();
         return device;
     }
 

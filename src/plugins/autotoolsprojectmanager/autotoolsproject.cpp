@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (C) 2013 Openismus GmbH.
+** Copyright (C) 2014 Openismus GmbH.
 ** Authors: Peter Penz (ppenz@openismus.com)
 **          Patricia Santana Cruz (patriciasantanacruz@gmail.com)
 ** Contact: http://www.qt-project.org/legal
@@ -78,6 +78,7 @@ AutotoolsProject::AutotoolsProject(AutotoolsManager *manager, const QString &fil
     m_watchedFiles(),
     m_makefileParserThread(0)
 {
+    setId(Constants::AUTOTOOLS_PROJECT_ID);
     setProjectContext(Core::Context(Constants::PROJECT_CONTEXT));
     setProjectLanguages(Core::Context(ProjectExplorer::Constants::LANG_CXX));
 
@@ -108,11 +109,6 @@ QString AutotoolsProject::displayName() const
     return m_projectName;
 }
 
-Core::Id AutotoolsProject::id() const
-{
-    return Core::Id(Constants::AUTOTOOLS_PROJECT_ID);
-}
-
 Core::IDocument *AutotoolsProject::document() const
 {
     return m_file;
@@ -125,7 +121,12 @@ IProjectManager *AutotoolsProject::projectManager() const
 
 QString AutotoolsProject::defaultBuildDirectory() const
 {
-    return projectDirectory();
+    return defaultBuildDirectory(projectFilePath());
+}
+
+QString AutotoolsProject::defaultBuildDirectory(const QString &projectPath)
+{
+    return QFileInfo(projectPath).absolutePath();
 }
 
 ProjectNode *AutotoolsProject::rootProjectNode() const
@@ -152,7 +153,7 @@ bool AutotoolsProject::fromMap(const QVariantMap &map)
     // Load the project tree structure.
     loadProjectTree();
 
-    Kit *defaultKit = KitManager::instance()->defaultKit();
+    Kit *defaultKit = KitManager::defaultKit();
     if (!activeTarget() && defaultKit)
         addTarget(createTarget(defaultKit));
 
@@ -312,7 +313,7 @@ void AutotoolsProject::buildFileNodeTree(const QDir &directory,
             // AutotoolsProjectNode::addFileNodes() is a very expensive operation. It is
             // important to collect as much file nodes of the same parent folder as
             // possible before invoking it.
-            m_rootNode->addFileNodes(fileNodes, oldParentFolder);
+            oldParentFolder->addFileNodes(fileNodes);
             fileNodes.clear();
         }
 
@@ -329,7 +330,7 @@ void AutotoolsProject::buildFileNodeTree(const QDir &directory,
     }
 
     if (!fileNodes.isEmpty())
-        m_rootNode->addFileNodes(fileNodes, parentFolder);
+        parentFolder->addFileNodes(fileNodes);
 
     // Remove unused file nodes and empty folder nodes
     QHash<QString, Node *>::const_iterator it = nodeHash.constBegin();
@@ -337,12 +338,12 @@ void AutotoolsProject::buildFileNodeTree(const QDir &directory,
         if ((*it)->nodeType() == FileNodeType) {
             FileNode *fileNode = static_cast<FileNode *>(*it);
             FolderNode* parent = fileNode->parentFolderNode();
-            m_rootNode->removeFileNodes(QList<FileNode *>() << fileNode, parent);
+            parent->removeFileNodes(QList<FileNode *>() << fileNode);
 
             // Remove all empty parent folders
             while (parent->subFolderNodes().isEmpty() && parent->fileNodes().isEmpty()) {
                 FolderNode *grandParent = parent->parentFolderNode();
-                m_rootNode->removeFolderNodes(QList<FolderNode *>() << parent, grandParent);
+                grandParent->removeFolderNodes(QList<FolderNode *>() << parent);
                 parent = grandParent;
                 if (parent == m_rootNode)
                     break;
@@ -381,7 +382,7 @@ FolderNode *AutotoolsProject::insertFolderNode(const QDir &nodeDir, QHash<QStrin
         }
     }
 
-    m_rootNode->addFolderNodes(QList<FolderNode *>() << folder, parentFolder);
+    parentFolder->addFolderNodes(QList<FolderNode *>() << folder);
     nodes.insert(nodePath, folder);
 
     return folder;
@@ -417,6 +418,9 @@ void AutotoolsProject::updateCppCodeModel()
     CppTools::CppModelManagerInterface::ProjectInfo pinfo = modelManager->projectInfo(this);
     pinfo.clearProjectParts();
     CppTools::ProjectPart::Ptr part(new CppTools::ProjectPart);
+    part->project = this;
+    part->displayName = displayName();
+    part->projectFile = projectFilePath();
 
     if (activeTarget()) {
         ProjectExplorer::Kit *k = activeTarget()->kit();
@@ -429,7 +433,7 @@ void AutotoolsProject::updateCppCodeModel()
         part->files << CppTools::ProjectFile(file, CppTools::ProjectFile::CXXSource);
 
     part->includePaths += m_makefileParserThread->includePaths();
-    part->defines += m_makefileParserThread->defines();
+    part->projectDefines += m_makefileParserThread->defines();
     pinfo.appendProjectPart(part);
 
     modelManager->updateProjectInfo(pinfo);

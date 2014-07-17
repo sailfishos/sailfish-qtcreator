@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2012 - 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -32,9 +32,8 @@
 #ifndef QNX_INTERNAL_QNXDEVICECONFIGURATIONWIZARD_H
 #define QNX_INTERNAL_QNXDEVICECONFIGURATIONWIZARD_H
 
-#include <QWizard>
-
 #include <projectexplorer/devicesupport/idevice.h>
+#include <utils/wizard.h>
 
 namespace RemoteLinux {
 class GenericLinuxDeviceConfigurationWizardSetupPage;
@@ -44,7 +43,7 @@ class GenericLinuxDeviceConfigurationWizardFinalPage;
 namespace Qnx {
 namespace Internal {
 
-class QnxDeviceConfigurationWizard : public QWizard
+class QnxDeviceConfigurationWizard : public Utils::Wizard
 {
     Q_OBJECT
 public:

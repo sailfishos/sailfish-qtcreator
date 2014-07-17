@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -34,45 +34,32 @@
 #include "qtversionmanager.h"
 #include "qtparser.h"
 
-#include <utils/environment.h>
+#include <utils/buildablehelperlibrary.h>
 #include <utils/qtcassert.h>
 
 namespace QtSupport {
-namespace Internal {
-const char QT_INFORMATION[] = "QtSupport.QtInformation";
-} // namespace Internal
 
 QtKitInformation::QtKitInformation()
 {
     setObjectName(QLatin1String("QtKitInformation"));
+    setId(QtKitInformation::id());
+    setPriority(26000);
+
     connect(ProjectExplorer::KitManager::instance(), SIGNAL(kitsLoaded()),
             this, SLOT(kitsWereLoaded()));
-}
-
-Core::Id QtKitInformation::dataId() const
-{
-    static Core::Id id = Core::Id(Internal::QT_INFORMATION);
-    return id;
-}
-
-unsigned int QtKitInformation::priority() const
-{
-    return 26000;
 }
 
 QVariant QtKitInformation::defaultValue(ProjectExplorer::Kit *k) const
 {
     Q_UNUSED(k);
-    QtVersionManager *mgr = QtVersionManager::instance();
 
     // find "Qt in PATH":
-    Utils::FileName qmake = Utils::FileName::fromString(Utils::Environment::systemEnvironment()
-                                                        .searchInPath(QLatin1String("qmake")));
+    Utils::FileName qmake = Utils::BuildableHelperLibrary::findSystemQt(Utils::Environment::systemEnvironment());
 
     if (qmake.isEmpty())
         return -1;
 
-    QList<BaseQtVersion *> versionList = mgr->versions();
+    QList<BaseQtVersion *> versionList = QtVersionManager::versions();
     BaseQtVersion *fallBack = 0;
     foreach (BaseQtVersion *v, versionList) {
         if (qmake == v->qmakeCommand())
@@ -89,7 +76,7 @@ QVariant QtKitInformation::defaultValue(ProjectExplorer::Kit *k) const
 QList<ProjectExplorer::Task> QtKitInformation::validate(const ProjectExplorer::Kit *k) const
 {
     QList<ProjectExplorer::Task> result;
-    QTC_ASSERT(QtVersionManager::instance()->isLoaded(), return result);
+    QTC_ASSERT(QtVersionManager::isLoaded(), return result);
     BaseQtVersion *version = qtVersion(k);
     if (!version)
         return result;
@@ -98,7 +85,7 @@ QList<ProjectExplorer::Task> QtKitInformation::validate(const ProjectExplorer::K
 
 void QtKitInformation::fix(ProjectExplorer::Kit *k)
 {
-    QTC_ASSERT(QtVersionManager::instance()->isLoaded(), return);
+    QTC_ASSERT(QtVersionManager::isLoaded(), return);
     BaseQtVersion *version = qtVersion(k);
     if (!version && qtVersionId(k) >= 0) {
         qWarning("Qt version is no longer known, removing from kit \"%s\".", qPrintable(k->displayName()));
@@ -108,7 +95,7 @@ void QtKitInformation::fix(ProjectExplorer::Kit *k)
 
 ProjectExplorer::KitConfigWidget *QtKitInformation::createConfigWidget(ProjectExplorer::Kit *k) const
 {
-    return new Internal::QtKitConfigWidget(k, isSticky(k));
+    return new Internal::QtKitConfigWidget(k, this);
 }
 
 QString QtKitInformation::displayNamePostfix(const ProjectExplorer::Kit *k) const
@@ -138,13 +125,18 @@ ProjectExplorer::IOutputParser *QtKitInformation::createOutputParser(const Proje
     return 0;
 }
 
+Core::Id QtKitInformation::id()
+{
+    return "QtSupport.QtInformation";
+}
+
 int QtKitInformation::qtVersionId(const ProjectExplorer::Kit *k)
 {
     if (!k)
         return -1;
 
     int id = -1;
-    QVariant data = k->value(Core::Id(Internal::QT_INFORMATION), -1);
+    QVariant data = k->value(QtKitInformation::id(), -1);
     if (data.type() == QVariant::Int) {
         bool ok;
         id = data.toInt(&ok);
@@ -152,7 +144,7 @@ int QtKitInformation::qtVersionId(const ProjectExplorer::Kit *k)
             id = -1;
     } else {
         QString source = data.toString();
-        foreach (BaseQtVersion *v, QtVersionManager::instance()->versions()) {
+        foreach (BaseQtVersion *v, QtVersionManager::versions()) {
             if (v->autodetectionSource() != source)
                 continue;
             id = v->uniqueId();
@@ -164,12 +156,12 @@ int QtKitInformation::qtVersionId(const ProjectExplorer::Kit *k)
 
 void QtKitInformation::setQtVersionId(ProjectExplorer::Kit *k, const int id)
 {
-    k->setValue(Core::Id(Internal::QT_INFORMATION), id);
+    k->setValue(QtKitInformation::id(), id);
 }
 
 BaseQtVersion *QtKitInformation::qtVersion(const ProjectExplorer::Kit *k)
 {
-    return QtVersionManager::instance()->version(qtVersionId(k));
+    return QtVersionManager::version(qtVersionId(k));
 }
 
 void QtKitInformation::setQtVersion(ProjectExplorer::Kit *k, const BaseQtVersion *v)
@@ -180,36 +172,23 @@ void QtKitInformation::setQtVersion(ProjectExplorer::Kit *k, const BaseQtVersion
         setQtVersionId(k, v->uniqueId());
 }
 
-QString QtKitInformation::dumperLibrary(const ProjectExplorer::Kit *k)
-{
-    BaseQtVersion *version = QtKitInformation::qtVersion(k);
-    if (version)
-        return version->gdbDebuggingHelperLibrary();
-    return QString();
-}
-
-QStringList QtKitInformation::dumperLibraryLocations(const ProjectExplorer::Kit *k)
-{
-    BaseQtVersion *version = QtKitInformation::qtVersion(k);
-    if (version)
-        return version->debuggingHelperLibraryLocations();
-    return QStringList();
-}
-
 void QtKitInformation::qtVersionsChanged(const QList<int> &addedIds,
                                          const QList<int> &removedIds,
                                          const QList<int> &changedIds)
 {
     Q_UNUSED(addedIds);
     Q_UNUSED(removedIds);
-    foreach (ProjectExplorer::Kit *k, ProjectExplorer::KitManager::instance()->kits())
-        if (changedIds.contains(qtVersionId(k)))
+    foreach (ProjectExplorer::Kit *k, ProjectExplorer::KitManager::kits()) {
+        if (changedIds.contains(qtVersionId(k))) {
+            k->validate(); // Qt version may have become (in)valid
             notifyAboutUpdate(k);
+        }
+    }
 }
 
 void QtKitInformation::kitsWereLoaded()
 {
-    foreach (ProjectExplorer::Kit *k, ProjectExplorer::KitManager::instance()->kits())
+    foreach (ProjectExplorer::Kit *k, ProjectExplorer::KitManager::kits())
         fix(k);
 
     connect(QtVersionManager::instance(), SIGNAL(qtVersionsChanged(QList<int>,QList<int>,QList<int>)),

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -38,13 +38,7 @@
 
 QT_FORWARD_DECLARE_CLASS(QAction)
 
-namespace Utils {
-class JsonSchemaManager;
-}
-
-namespace TextEditor {
-class TextEditorActionHandler;
-} // namespace TextEditor
+namespace Utils { class JsonSchemaManager; }
 
 namespace Core {
 class Command;
@@ -53,18 +47,14 @@ class ActionManager;
 class IEditor;
 }
 
-namespace TextEditor {
-class ITextEditor;
-}
+namespace TextEditor { class ITextEditor; }
 
-namespace QmlJS {
-    class ModelManagerInterface;
-}
+namespace QmlJS { class ModelManagerInterface; }
 
 namespace QmlJSEditor {
 
 class QmlFileWizard;
-class QmlJSTextEditorWidget;
+class QmlJSEditorDocument;
 
 namespace Internal {
 
@@ -92,8 +82,6 @@ public:
 
     QmlJSQuickFixAssistProvider *quickFixAssistProvider() const;
 
-    void initializeEditor(QmlJSTextEditorWidget *editor);
-
     Utils::JsonSchemaManager *jsonManager() const;
 
 public Q_SLOTS:
@@ -115,13 +103,12 @@ private:
 
     QmlJS::ModelManagerInterface *m_modelManager;
     QmlJSEditorFactory *m_editor;
-    TextEditor::TextEditorActionHandler *m_actionHandler;
     QmlJSQuickFixAssistProvider *m_quickFixAssistProvider;
     QmlTaskManager *m_qmlTaskManager;
 
     QAction *m_reformatFileAction;
 
-    QPointer<QmlJSTextEditorWidget> m_currentEditor;
+    QPointer<QmlJSEditorDocument> m_currentDocument;
     QScopedPointer<Utils::JsonSchemaManager> m_jsonManager;
 };
 

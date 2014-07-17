@@ -4,20 +4,18 @@ SUBDIRS = qtpromaker \
      qmlpuppet \
      ../plugins/cpaster/frontend \
      sdktool \
-     merssh
+     merssh \
+     valgrindfake \
+     3rdparty \
+     buildoutputparser
 
 win32 {
     SUBDIRS += qtcdebugger
-    # win64interrupt only make sense for 64bit builds
-    ENV_CPU=$$(CPU)
-    ENV_LIBPATH=$$(LIBPATH)
-    contains(ENV_CPU, ^AMD64$) {
-        SUBDIRS += win64interrupt
-    } else:isEmpty(ENV_CPU):contains(ENV_LIBPATH, ^.*amd64.*$) {
-        SUBDIRS += win64interrupt
-    }
-} else {
-    SUBDIRS += valgrindfake
+    SUBDIRS += wininterrupt
+}
+
+mac {
+    SUBDIRS += iostool
 }
 
 QT_BREAKPAD_ROOT_PATH = $$(QT_BREAKPAD_ROOT_PATH)

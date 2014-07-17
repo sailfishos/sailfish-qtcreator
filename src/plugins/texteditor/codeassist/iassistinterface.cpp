@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -75,13 +75,13 @@ IAssistInterface::~IAssistInterface()
 */
 
 /*!
-    \fn const Core::IDocument *TextEditor::IAssistInterface::file() const
+    \fn QString TextEditor::IAssistInterface::fileName() const
 
     Returns the file associated.
 */
 
 /*!
-    \fn QTextDocument *TextEditor::IAssistInterface::document() const
+    \fn QTextDocument *TextEditor::IAssistInterface::textDocument() const
     Returns the document.
 */
 
@@ -90,7 +90,7 @@ IAssistInterface::~IAssistInterface()
 
     Detaches the interface. If it is necessary to take any special care in order to allow
     this interface to be run in a separate thread \a destination this needs to be done
-    in this method.
+    in this function.
 */
 
 /*!

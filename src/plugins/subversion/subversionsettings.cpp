@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -41,6 +41,7 @@ const QLatin1String SubversionSettings::useAuthenticationKey("Authentication");
 const QLatin1String SubversionSettings::userKey("User");
 const QLatin1String SubversionSettings::passwordKey("Password");
 const QLatin1String SubversionSettings::spaceIgnorantAnnotationKey("SpaceIgnorantAnnotation");
+const QLatin1String SubversionSettings::diffIgnoreWhiteSpaceKey("DiffIgnoreWhiteSpace");
 
 SubversionSettings::SubversionSettings()
 {
@@ -51,6 +52,7 @@ SubversionSettings::SubversionSettings()
     declareKey(userKey, QLatin1String(""));
     declareKey(passwordKey, QLatin1String(""));
     declareKey(spaceIgnorantAnnotationKey, true);
+    declareKey(diffIgnoreWhiteSpaceKey, false);
 }
 
 bool SubversionSettings::hasAuthentication() const

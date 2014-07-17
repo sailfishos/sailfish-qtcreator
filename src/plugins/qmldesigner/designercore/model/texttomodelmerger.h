@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -59,6 +59,8 @@ public:
     bool isActive() const;
 
     void setupImports(const QmlJS::Document::Ptr &doc, DifferenceHandler &differenceHandler);
+    void setupPossibleImports(const QmlJS::Snapshot &snapshot, const QmlJS::ViewerContext &viewContext);
+    void setupUsedImports();
     bool load(const QString &data, DifferenceHandler &differenceHandler);
 
     RewriterView *view() const

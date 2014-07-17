@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -49,6 +49,11 @@ QVector<ImageContainer> PixmapChangedCommand::images() const
     return m_imageVector;
 }
 
+void PixmapChangedCommand::sort()
+{
+    qSort(m_imageVector);
+}
+
 QDataStream &operator<<(QDataStream &out, const PixmapChangedCommand &command)
 {
     out << command.images();
@@ -61,6 +66,16 @@ QDataStream &operator>>(QDataStream &in, PixmapChangedCommand &command)
     in >> command.m_imageVector;
 
     return in;
+}
+
+bool operator ==(const PixmapChangedCommand &first, const PixmapChangedCommand &second)
+{
+    return first.m_imageVector == second.m_imageVector;
+}
+
+QDebug operator <<(QDebug debug, const PixmapChangedCommand &command)
+{
+    return debug.nospace() << "PixmapChangedCommand(" << command.images() << ")";
 }
 
 } // namespace QmlDesigner

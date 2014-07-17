@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -50,7 +50,34 @@ namespace {
     static const QLatin1Char kHash('#');
 }
 
-const Highlighter::KateFormatMap Highlighter::m_kateFormats;
+class HighlighterCodeFormatterData : public CodeFormatterData
+{
+public:
+    HighlighterCodeFormatterData() :
+        m_foldingIndentDelta(0),
+        m_originalObservableState(-1),
+        m_continueObservableState(-1)
+    {}
+
+    ~HighlighterCodeFormatterData() {}
+    int m_foldingIndentDelta;
+    int m_originalObservableState;
+    QStack<QString> m_foldingRegions;
+    int m_continueObservableState;
+};
+
+HighlighterCodeFormatterData *formatterData(const QTextBlock &block)
+{
+    HighlighterCodeFormatterData *data = 0;
+    if (TextBlockUserData *userData = BaseTextDocumentLayout::userData(block)) {
+        data = static_cast<HighlighterCodeFormatterData *>(userData->codeFormatterData());
+        if (!data) {
+            data = new HighlighterCodeFormatterData;
+            userData->setCodeFormatterData(data);
+        }
+    }
+    return data;
+}
 
 Highlighter::Highlighter(QTextDocument *parent) :
     TextEditor::SyntaxHighlighter(parent),
@@ -60,18 +87,41 @@ Highlighter::Highlighter(QTextDocument *parent) :
     m_persistentObservableStatesCounter(PersistentsStart),
     m_dynamicContextsCounter(0),
     m_isBroken(false)
-{}
+{
+    static QVector<TextEditor::TextStyle> categories;
+    if (categories.isEmpty()) {
+        categories << TextEditor::C_TEXT
+                   << TextEditor::C_VISUAL_WHITESPACE
+                   << TextEditor::C_KEYWORD
+                   << TextEditor::C_TYPE
+                   << TextEditor::C_COMMENT
+                   << TextEditor::C_NUMBER
+                   << TextEditor::C_NUMBER
+                   << TextEditor::C_NUMBER
+                   << TextEditor::C_STRING
+                   << TextEditor::C_STRING
+                   << TextEditor::C_TEXT // TODO : add style for alert (eg. yellow background)
+                   << TextEditor::C_TEXT // TODO : add style for error (eg. red underline)
+                   << TextEditor::C_FUNCTION
+                   << TextEditor::C_TEXT
+                   << TextEditor::C_TEXT
+                   << TextEditor::C_LOCAL;
+    }
+
+    setTextFormatCategories(categories);
+}
 
 Highlighter::~Highlighter()
 {}
 
-Highlighter::BlockData::BlockData() : m_foldingIndentDelta(0), m_originalObservableState(-1)
-{}
+// Mapping from Kate format strings to format ids.
+struct KateFormatMap
+{
+    KateFormatMap();
+    QHash<QString, Highlighter::TextFormatId> m_ids;
+};
 
-Highlighter::BlockData::~BlockData()
-{}
-
-Highlighter::KateFormatMap::KateFormatMap()
+KateFormatMap::KateFormatMap()
 {
     m_ids.insert(QLatin1String("dsNormal"), Highlighter::Normal);
     m_ids.insert(QLatin1String("dsKeyword"), Highlighter::Keyword);
@@ -82,19 +132,17 @@ Highlighter::KateFormatMap::KateFormatMap()
     m_ids.insert(QLatin1String("dsChar"), Highlighter::Char);
     m_ids.insert(QLatin1String("dsString"), Highlighter::String);
     m_ids.insert(QLatin1String("dsComment"), Highlighter::Comment);
-    m_ids.insert(QLatin1String("dsOthers"), Highlighter::Others);
     m_ids.insert(QLatin1String("dsAlert"), Highlighter::Alert);
+    m_ids.insert(QLatin1String("dsError"), Highlighter::Error);
     m_ids.insert(QLatin1String("dsFunction"), Highlighter::Function);
     m_ids.insert(QLatin1String("dsRegionMarker"), Highlighter::RegionMarker);
-    m_ids.insert(QLatin1String("dsError"), Highlighter::Error);
+    m_ids.insert(QLatin1String("dsOthers"), Highlighter::Others);
+    m_ids.insert(QLatin1String("dsIdentifier"), Highlighter::Identifier);
 }
 
-void Highlighter::configureFormat(TextFormatId id, const QTextCharFormat &format)
-{
-    m_creatorFormats[id] = format;
-}
+Q_GLOBAL_STATIC(KateFormatMap, kateFormatMap)
 
-void  Highlighter::setDefaultContext(const QSharedPointer<Context> &defaultContext)
+void Highlighter::setDefaultContext(const QSharedPointer<Context> &defaultContext)
 {
     m_defaultContext = defaultContext;
     m_persistentObservableStates.insert(m_defaultContext->name(), Default);
@@ -110,8 +158,6 @@ void Highlighter::highlightBlock(const QString &text)
 {
     if (!m_defaultContext.isNull() && !m_isBroken) {
         try {
-            if (!currentBlockUserData())
-                initializeBlockData();
             setupDataForBlock(text);
 
             handleContextChange(m_currentContext->lineBeginContext(),
@@ -122,9 +168,11 @@ void Highlighter::highlightBlock(const QString &text)
             while (progress.offset() < length)
                 iterateThroughRules(text, length, &progress, false, m_currentContext->rules());
 
-            handleContextChange(m_currentContext->lineEndContext(),
-                                m_currentContext->definition(),
-                                false);
+            if (extractObservableState(currentBlockState()) != WillContinue) {
+                handleContextChange(m_currentContext->lineEndContext(),
+                                    m_currentContext->definition(),
+                                    false);
+            }
             m_contexts.clear();
 
             if (m_indentationBasedFolding) {
@@ -140,7 +188,7 @@ void Highlighter::highlightBlock(const QString &text)
         }
     }
 
-    applyFormatToSpaces(text, m_creatorFormats.value(VisualWhitespace));
+    applyFormatToSpaces(text, formatForCategory(VisualWhitespace));
 }
 
 void Highlighter::setupDataForBlock(const QString &text)
@@ -163,8 +211,8 @@ void Highlighter::setupDataForBlock(const QString &text)
         else
             setupFromPersistent();
 
-        blockData(currentBlockUserData())->m_foldingRegions =
-            blockData(currentBlock().previous().userData())->m_foldingRegions;
+        formatterData(currentBlock())->m_foldingRegions =
+                formatterData(currentBlock().previous())->m_foldingRegions;
     }
 
     assignCurrentContext();
@@ -179,15 +227,10 @@ void Highlighter::setupDefault()
 
 void Highlighter::setupFromWillContinue()
 {
-    BlockData *previousData = blockData(currentBlock().previous().userData());
-    if (previousData->m_originalObservableState == Default ||
-        previousData->m_originalObservableState == -1) {
-        m_contexts.push_back(previousData->m_contextToContinue);
-    } else {
-        pushContextSequence(previousData->m_originalObservableState);
-    }
+    HighlighterCodeFormatterData *previousData = formatterData(currentBlock().previous());
+    pushContextSequence(previousData->m_continueObservableState);
 
-    BlockData *data = blockData(currentBlock().userData());
+    HighlighterCodeFormatterData *data = formatterData(currentBlock());
     data->m_originalObservableState = previousData->m_originalObservableState;
 
     if (currentBlockState() == -1 || extractObservableState(currentBlockState()) == Default)
@@ -196,7 +239,7 @@ void Highlighter::setupFromWillContinue()
 
 void Highlighter::setupFromContinued()
 {
-    BlockData *previousData = blockData(currentBlock().previous().userData());
+    HighlighterCodeFormatterData *previousData = formatterData(currentBlock().previous());
 
     Q_ASSERT(previousData->m_originalObservableState != WillContinue &&
              previousData->m_originalObservableState != Continued);
@@ -239,19 +282,19 @@ void Highlighter::iterateThroughRules(const QString &text,
 
             if (!m_indentationBasedFolding) {
                 if (!rule->beginRegion().isEmpty()) {
-                    blockData(currentBlockUserData())->m_foldingRegions.push(rule->beginRegion());
+                    formatterData(currentBlock())->m_foldingRegions.push(rule->beginRegion());
                     ++m_regionDepth;
                     if (progress->isOpeningBraceMatchAtFirstNonSpace())
-                        ++blockData(currentBlockUserData())->m_foldingIndentDelta;
+                        ++formatterData(currentBlock())->m_foldingIndentDelta;
                 }
                 if (!rule->endRegion().isEmpty()) {
                     QStack<QString> *currentRegions =
-                        &blockData(currentBlockUserData())->m_foldingRegions;
+                        &formatterData(currentBlock())->m_foldingRegions;
                     if (!currentRegions->isEmpty() && rule->endRegion() == currentRegions->top()) {
                         currentRegions->pop();
                         --m_regionDepth;
                         if (progress->isClosingBraceMatchAtNonEnd())
-                            --blockData(currentBlockUserData())->m_foldingIndentDelta;
+                            --formatterData(currentBlock())->m_foldingIndentDelta;
                     }
                 }
                 progress->clearBracesMatches();
@@ -388,48 +431,47 @@ void Highlighter::applyFormat(int offset,
         return;
     }
 
-    TextFormatId formatId = m_kateFormats.m_ids.value(itemData->style());
+    TextFormatId formatId = kateFormatMap()->m_ids.value(itemData->style(), Normal);
     if (formatId != Normal) {
-        QHash<TextFormatId, QTextCharFormat>::const_iterator cit =
-            m_creatorFormats.constFind(formatId);
-        if (cit != m_creatorFormats.constEnd()) {
-            QTextCharFormat format = cit.value();
-            if (itemData->isCustomized()) {
-                // Please notice that the following are applied every time for item data which have
-                // customizations. The configureFormats method could be used to provide a "one time"
-                // configuration, but it would probably require to traverse all item data from all
-                // definitions available/loaded (either to set the values or for some "notifying"
-                // strategy). This is because the highlighter does not really know on which
-                // definition(s) it is working. Since not many item data specify customizations I
-                // think this approach would fit better. If there are other ideas...
-                if (itemData->color().isValid())
-                    format.setForeground(itemData->color());
-                if (itemData->isItalicSpecified())
-                    format.setFontItalic(itemData->isItalic());
-                if (itemData->isBoldSpecified())
-                    format.setFontWeight(toFontWeight(itemData->isBold()));
-                if (itemData->isUnderlinedSpecified())
-                    format.setFontUnderline(itemData->isUnderlined());
-                if (itemData->isStrikeOutSpecified())
-                    format.setFontStrikeOut(itemData->isStrikeOut());
-            }
-
-            setFormat(offset, count, format);
+        QTextCharFormat format = formatForCategory(formatId);
+        if (itemData->isCustomized()) {
+            // Please notice that the following are applied every time for item data which have
+            // customizations. The configureFormats function could be used to provide a "one time"
+            // configuration, but it would probably require to traverse all item data from all
+            // definitions available/loaded (either to set the values or for some "notifying"
+            // strategy). This is because the highlighter does not really know on which
+            // definition(s) it is working. Since not many item data specify customizations I
+            // think this approach would fit better. If there are other ideas...
+            if (itemData->color().isValid())
+                format.setForeground(itemData->color());
+            if (itemData->isItalicSpecified())
+                format.setFontItalic(itemData->isItalic());
+            if (itemData->isBoldSpecified())
+                format.setFontWeight(toFontWeight(itemData->isBold()));
+            if (itemData->isUnderlinedSpecified())
+                format.setFontUnderline(itemData->isUnderlined());
+            if (itemData->isStrikeOutSpecified())
+                format.setFontStrikeOut(itemData->isStrikeOut());
         }
+
+        setFormat(offset, count, format);
     }
 }
 
 void Highlighter::createWillContinueBlock()
 {
-    BlockData *data = blockData(currentBlockUserData());
+    HighlighterCodeFormatterData *data = formatterData(currentBlock());
     const int currentObservableState = extractObservableState(currentBlockState());
     if (currentObservableState == Continued) {
-        BlockData *previousData = blockData(currentBlock().previous().userData());
+        HighlighterCodeFormatterData *previousData = formatterData(currentBlock().previous());
         data->m_originalObservableState = previousData->m_originalObservableState;
     } else if (currentObservableState != WillContinue) {
         data->m_originalObservableState = currentObservableState;
     }
-    data->m_contextToContinue = m_currentContext;
+    const QString currentSequence = currentContextSequence();
+    mapPersistentSequence(currentSequence);
+    data->m_continueObservableState = m_persistentObservableStates.value(currentSequence);
+    m_persistentContexts.insert(data->m_continueObservableState, m_contexts);
 
     setCurrentBlockState(computeState(WillContinue));
 }
@@ -443,8 +485,7 @@ void Highlighter::analyseConsistencyOfWillContinueBlock(const QString &text)
     }
 
     if (text.length() == 0 || text.at(text.length() - 1) != kBackSlash) {
-        BlockData *data = blockData(currentBlockUserData());
-        data->m_contextToContinue.clear();
+        HighlighterCodeFormatterData *data = formatterData(currentBlock());
         setCurrentBlockState(computeState(data->m_originalObservableState));
     }
 }
@@ -480,18 +521,6 @@ QString Highlighter::currentContextSequence() const
         sequence.append(m_contexts.at(i)->id());
 
     return sequence;
-}
-
-Highlighter::BlockData *Highlighter::initializeBlockData()
-{
-    BlockData *data = new BlockData;
-    setCurrentBlockUserData(data);
-    return data;
-}
-
-Highlighter::BlockData *Highlighter::blockData(QTextBlockUserData *userData)
-{
-    return static_cast<BlockData *>(userData);
 }
 
 void Highlighter::pushDynamicContext(const QSharedPointer<Context> &baseContext)
@@ -535,26 +564,27 @@ int Highlighter::computeState(const int observableState) const
 void Highlighter::applyRegionBasedFolding() const
 {
     int folding = 0;
-    BlockData *data = blockData(currentBlockUserData());
-    BlockData *previousData = blockData(currentBlock().previous().userData());
+    TextBlockUserData *currentBlockUserData = BaseTextDocumentLayout::userData(currentBlock());
+    HighlighterCodeFormatterData *data = formatterData(currentBlock());
+    HighlighterCodeFormatterData *previousData = formatterData(currentBlock().previous());
     if (previousData) {
         folding = extractRegionDepth(previousBlockState());
         if (data->m_foldingIndentDelta != 0) {
             folding += data->m_foldingIndentDelta;
             if (data->m_foldingIndentDelta > 0)
-                data->setFoldingStartIncluded(true);
+                currentBlockUserData->setFoldingStartIncluded(true);
             else
-                previousData->setFoldingEndIncluded(false);
+                BaseTextDocumentLayout::userData(currentBlock().previous())->setFoldingEndIncluded(false);
             data->m_foldingIndentDelta = 0;
         }
     }
-    data->setFoldingEndIncluded(true);
-    data->setFoldingIndent(folding);
+    currentBlockUserData->setFoldingEndIncluded(true);
+    currentBlockUserData->setFoldingIndent(folding);
 }
 
 void Highlighter::applyIndentationBasedFolding(const QString &text) const
 {
-    BlockData *data = blockData(currentBlockUserData());
+    TextBlockUserData *data = BaseTextDocumentLayout::userData(currentBlock());
     data->setFoldingEndIncluded(true);
 
     // If this line is empty, check its neighbours. They all might be part of the same block.

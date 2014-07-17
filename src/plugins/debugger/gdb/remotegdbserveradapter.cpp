@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -29,11 +29,13 @@
 
 #include "remotegdbserveradapter.h"
 
-#include "debuggeractions.h"
-#include "debuggercore.h"
-#include "debuggerprotocol.h"
-#include "debuggerstartparameters.h"
-#include "debuggerstringutils.h"
+#include "gdbprocess.h"
+
+#include <debugger/debuggeractions.h>
+#include <debugger/debuggercore.h>
+#include <debugger/debuggerprotocol.h>
+#include <debugger/debuggerstartparameters.h>
+#include <debugger/debuggerstringutils.h>
 
 #include <utils/hostosinfo.h>
 #include <utils/qtcassert.h>
@@ -61,7 +63,7 @@ GdbRemoteServerEngine::GdbRemoteServerEngine(const DebuggerStartParameters &star
     m_isMulti = false;
     m_targetPid = -1;
 #ifdef Q_OS_WIN
-    m_gdbProc.setUseCtrlCStub(!startParameters.remoteExecutable.isEmpty()); // This is only set for QNX
+    m_gdbProc->setUseCtrlCStub(startParameters.useCtrlCStub); // This is only set for QNX/BlackBerry
 #endif
     connect(&m_uploadProc, SIGNAL(error(QProcess::ProcessError)),
         SLOT(uploadProcError(QProcess::ProcessError)));
@@ -71,16 +73,6 @@ GdbRemoteServerEngine::GdbRemoteServerEngine(const DebuggerStartParameters &star
         SLOT(readUploadStandardError()));
     connect(&m_uploadProc, SIGNAL(finished(int)),
         SLOT(uploadProcFinished()));
-}
-
-GdbEngine::DumperHandling GdbRemoteServerEngine::dumperHandling() const
-{
-    using namespace ProjectExplorer;
-    const Abi abi = startParameters().toolChainAbi;
-    if (abi.os() == Abi::WindowsOS
-            || abi.binaryFormat() == Abi::ElfFormat)
-        return DumperLoadedByGdb;
-    return DumperLoadedByGdbPreload;
 }
 
 void GdbRemoteServerEngine::setupEngine()
@@ -99,9 +91,9 @@ void GdbRemoteServerEngine::setupEngine()
         m_uploadProc.waitForStarted();
     }
     if (!startParameters().workingDirectory.isEmpty())
-        m_gdbProc.setWorkingDirectory(startParameters().workingDirectory);
+        m_gdbProc->setWorkingDirectory(startParameters().workingDirectory);
     if (startParameters().environment.size())
-        m_gdbProc.setEnvironment(startParameters().environment.toStringList());
+        m_gdbProc->setEnvironment(startParameters().environment.toStringList());
 
     if (startParameters().remoteSetupNeeded)
         notifyEngineRequestRemoteSetup();
@@ -177,15 +169,10 @@ void GdbRemoteServerEngine::setupInferior()
         QFileInfo fi(sp.executable);
         executableFileName = fi.absoluteFilePath();
     }
-    QString symbolFileName;
-    if (!sp.symbolFileName.isEmpty()) {
-        QFileInfo fi(sp.symbolFileName);
-        symbolFileName = fi.absoluteFilePath();
-    }
 
     //const QByteArray sysroot = sp.sysroot.toLocal8Bit();
     //const QByteArray remoteArch = sp.remoteArchitecture.toLatin1();
-    const QString args = sp.processArgs;
+    const QString args = isMasterEngine() ? startParameters().processArgs : masterEngine()->startParameters().processArgs;
 
 //    if (!remoteArch.isEmpty())
 //        postCommand("set architecture " + remoteArch);
@@ -219,17 +206,12 @@ void GdbRemoteServerEngine::setupInferior()
     if (debuggerCore()->boolSetting(TargetAsync))
         postCommand("set target-async on", CB(handleSetTargetAsync));
 
-    if (executableFileName.isEmpty() && symbolFileName.isEmpty()) {
+    if (executableFileName.isEmpty()) {
         showMessage(tr("No symbol file given."), StatusBar);
         callTargetRemote();
         return;
     }
 
-    if (!symbolFileName.isEmpty()) {
-        postCommand("-file-symbol-file \""
-                    + symbolFileName.toLocal8Bit() + '"',
-                    CB(handleFileExecAndSymbols));
-    }
     if (!executableFileName.isEmpty()) {
         postCommand("-file-exec-and-symbols \"" + executableFileName.toLocal8Bit() + '"',
             CB(handleFileExecAndSymbols));
@@ -250,7 +232,8 @@ void GdbRemoteServerEngine::handleFileExecAndSymbols(const GdbResponse &response
         callTargetRemote();
     } else {
         QByteArray reason = response.data["msg"].data();
-        QString msg = tr("Reading debug information failed:\n");
+        QString msg = tr("Reading debug information failed:");
+        msg += QLatin1Char('\n');
         msg += QString::fromLocal8Bit(reason);
         if (reason.endsWith("No such file or directory.")) {
             showMessage(_("INFERIOR STARTUP: BINARY NOT FOUND"));
@@ -357,8 +340,11 @@ void GdbRemoteServerEngine::handleTargetQnx(const GdbResponse &response)
         showMessage(msgAttachedToStoppedInferior(), StatusBar);
 
         const qint64 pid = isMasterEngine() ? startParameters().attachPID : masterEngine()->startParameters().attachPID;
+        const QString remoteExecutable = isMasterEngine() ? startParameters().remoteExecutable : masterEngine()->startParameters().remoteExecutable;
         if (pid > -1)
             postCommand("attach " + QByteArray::number(pid), CB(handleAttach));
+        else if (!remoteExecutable.isEmpty())
+            postCommand("set nto-executable " + remoteExecutable.toLatin1(), CB(handleSetNtoExecutable));
         else
             handleInferiorPrepared();
     } else {
@@ -382,7 +368,7 @@ void GdbRemoteServerEngine::handleAttach(const GdbResponse &response)
     }
     case GdbResultError:
         if (response.data["msg"].data() == "ptrace: Operation not permitted.") {
-            notifyInferiorSetupFailed(DumperHelper::msgPtraceError(startParameters().startMode));
+            notifyInferiorSetupFailed(msgPtraceError(startParameters().startMode));
             break;
         }
         // if msg != "ptrace: ..." fall through
@@ -392,21 +378,32 @@ void GdbRemoteServerEngine::handleAttach(const GdbResponse &response)
     }
 }
 
+void GdbRemoteServerEngine::handleSetNtoExecutable(const GdbResponse &response)
+{
+    QTC_ASSERT(state() == InferiorSetupRequested, qDebug() << state());
+    switch (response.resultClass) {
+    case GdbResultDone:
+    case GdbResultRunning: {
+        showMessage(_("EXECUTABLE SET"));
+        showMessage(msgAttachedToStoppedInferior(), StatusBar);
+        handleInferiorPrepared();
+        break;
+    }
+    case GdbResultError:
+    default:
+        QString msg = QString::fromLocal8Bit(response.data["msg"].data());
+        notifyInferiorSetupFailed(msg);
+    }
+
+}
+
 void GdbRemoteServerEngine::runEngine()
 {
     QTC_ASSERT(state() == EngineRunRequested, qDebug() << state());
 
-    const QString remoteExecutable = startParameters().remoteExecutable;
+    const QString remoteExecutable = startParameters().remoteExecutable; // This is only set for pure QNX
     if (!remoteExecutable.isEmpty()) {
-        // Cannot use -exec-run for QNX gdb 7.4 as it does not support path parameter for the MI call
-        const bool useRun = m_isQnxGdb && m_gdbVersion > 70300;
-        QByteArray command = useRun ? "run" : "-exec-run";
-        command += " " + remoteExecutable.toLocal8Bit();
-
-        const QByteArray arguments = isMasterEngine() ? startParameters().processArgs.toLocal8Bit() : masterEngine()->startParameters().processArgs.toLocal8Bit();
-        command += " " + arguments;
-
-        postCommand(command, GdbEngine::RunRequest, CB(handleExecRun));
+        postCommand("-exec-run", GdbEngine::RunRequest, CB(handleExecRun));
     } else {
         notifyEngineRunAndInferiorStopOk();
         continueInferiorInternal();
@@ -433,12 +430,10 @@ void GdbRemoteServerEngine::interruptInferior2()
     if (debuggerCore()->boolSetting(TargetAsync)) {
         postCommand("-exec-interrupt", GdbEngine::Immediate,
             CB(handleInterruptInferior));
-#ifdef Q_OS_WIN
-    } else if (m_isQnxGdb) {
-        m_gdbProc.winInterruptByCtrlC();
-#endif
+    } else if (m_isQnxGdb && Utils::HostOsInfo::isWindowsHost()) {
+        m_gdbProc->winInterruptByCtrlC();
     } else {
-        bool ok = m_gdbProc.interrupt();
+        bool ok = m_gdbProc->interrupt();
         if (!ok) {
             // FIXME: Extra state needed?
             showMessage(_("NOTE: INFERIOR STOP NOT POSSIBLE"));

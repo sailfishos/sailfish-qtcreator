@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -33,7 +33,9 @@
 #include <QTreeView>
 #include <QStandardItemModel>
 #include <qmldebug/qmlprofilereventtypes.h>
-#include "qmlprofilerdatamodel.h"
+#include "qmlprofilermodelmanager.h"
+#include "qmlprofilereventsmodelproxy.h"
+#include "qmlprofilertreeview.h"
 
 #include <analyzerbase/ianalyzertool.h>
 
@@ -43,7 +45,8 @@ namespace QmlProfiler {
 namespace Internal {
 
 class QmlProfilerEventsMainView;
-class QmlProfilerEventsParentsAndChildrenView;
+class QmlProfilerEventChildrenView;
+class QmlProfilerEventRelativesView;
 
 enum ItemRole {
     EventHashStrRole = Qt::UserRole+1,
@@ -58,12 +61,11 @@ class QmlProfilerEventsWidget : public QWidget
     Q_OBJECT
 public:
     explicit QmlProfilerEventsWidget(QWidget *parent,
-                                     Analyzer::IAnalyzerTool *profilerTool,
+                                     QmlProfilerTool *profilerTool,
                                      QmlProfilerViewManager *container,
-                                     QmlProfilerDataModel *profilerDataModel );
+                                     QmlProfilerModelManager *profilerModelManager );
     ~QmlProfilerEventsWidget();
 
-    void switchToV8View();
     void clear();
 
     void getStatisticsInRange(qint64 rangeStart, qint64 rangeEnd);
@@ -76,16 +78,19 @@ public:
     void setShowExtendedStatistics(bool show);
     bool showExtendedStatistics() const;
 
-    bool isQml() const;
-    bool isV8() const;
+    void setShowJavaScript(bool show);
+    bool showJavaScript() const;
+
+    void setShowQml(bool show);
+    bool showQml() const;
 
 signals:
     void gotoSourceLocation(const QString &fileName, int lineNumber, int columnNumber);
-    void showEventInTimeline(int eventId);
+    void eventSelectedByHash(const QString &eventHash);
     void resized();
 
 public slots:
-    void updateSelectedEvent(int eventId) const;
+    void updateSelectedEvent(const QString &eventHash) const;
     void selectBySourceLocation(const QString &filename, int line, int column);
 
 private slots:
@@ -100,78 +105,47 @@ private:
     QmlProfilerEventsWidgetPrivate *d;
 };
 
-class QmlProfilerEventsMainView : public QTreeView
+class QmlProfilerEventsMainView : public QmlProfilerTreeView
 {
     Q_OBJECT
 public:
-    enum Fields {
-        Name,
-        Type,
-        Percent,
-        TotalDuration,
-        SelfPercent,
-        SelfDuration,
-        CallCount,
-        TimePerCall,
-        MaxTime,
-        MinTime,
-        MedianTime,
-        Details,
-
-        MaxFields
-    };
-
-    enum ViewTypes {
-        EventsView,
-        CallersView,
-        CalleesView,
-        V8ProfileView,
-
-        MaxViewTypes
-    };
-
-    explicit QmlProfilerEventsMainView(ViewTypes viewType,
-                                       QWidget *parent,
-                                       QmlProfilerDataModel *dataModel);
+    explicit QmlProfilerEventsMainView(QWidget *parent,
+                                       QmlProfilerEventsModelProxy *modelProxy);
     ~QmlProfilerEventsMainView();
 
     void setFieldViewable(Fields field, bool show);
-    void setViewType(ViewTypes type);
-    ViewTypes viewType() const;
     void setShowAnonymousEvents( bool showThem );
 
     QModelIndex selectedItem() const;
     void copyTableToClipboard() const;
     void copyRowToClipboard() const;
 
-    static QString displayTime(double time);
     static QString nameForType(int typeNumber);
 
     void getStatisticsInRange(qint64 rangeStart, qint64 rangeEnd);
-    bool isRangeGlobal(qint64 rangeStart, qint64 rangeEnd) const;
-    int selectedEventId() const;
+    QString selectedEventHash() const;
 
     void setShowExtendedStatistics(bool);
     bool showExtendedStatistics() const;
 
+
 signals:
     void gotoSourceLocation(const QString &fileName, int lineNumber, int columnNumber);
-    void eventSelected(int eventId);
-    void showEventInTimeline(int eventId);
+    void eventSelected(const QString &eventHash);
 
 public slots:
     void clear();
     void jumpToItem(const QModelIndex &index);
-    void selectEvent(int eventId);
-    void selectEventByLocation(const QString &filename, int line);
+    void selectEvent(const QString &eventHash);
+    void selectEventByLocation(const QString &filename, int line, int column);
     void buildModel();
-    void changeDetailsForEvent(int eventId, const QString &newString);
 
 private slots:
     void profilerDataModelStateChanged();
 
 private:
     void setHeaderLabels();
+    void parseModelProxy();
 
 private:
     class QmlProfilerEventsMainViewPrivate;
@@ -179,40 +153,30 @@ private:
 
 };
 
-class QmlProfilerEventsParentsAndChildrenView : public QTreeView
+class QmlProfilerEventRelativesView : public QmlProfilerTreeView
 {
     Q_OBJECT
 public:
-    enum SubViewType {
-        ParentsView,
-        ChildrenView,
-        V8ParentsView,
-        V8ChildrenView,
-        MaxSubtableTypes
-    };
-
-    explicit QmlProfilerEventsParentsAndChildrenView(SubViewType subtableType,
-                                                     QWidget *parent,
-                                                     QmlProfilerDataModel *model);
-    ~QmlProfilerEventsParentsAndChildrenView();
-
-    void setViewType(SubViewType type);
+    explicit QmlProfilerEventRelativesView(QmlProfilerModelManager *modelManager,
+                                           QmlProfilerEventRelativesModelProxy *modelProxy,
+                                           QWidget *parent );
+    ~QmlProfilerEventRelativesView();
 
 signals:
-    void eventClicked(int eventId);
+    void eventClicked(const QString &eventHash);
 
 public slots:
-    void displayEvent(int eventId);
+    void displayEvent(const QString &eventHash);
     void jumpToItem(const QModelIndex &);
     void clear();
 
 private:
-    void rebuildTree(void *profilerDataModel);
+    void rebuildTree(QmlProfilerEventParentsModelProxy::QmlEventRelativesMap eventMap);
     void updateHeader();
     QStandardItemModel *treeModel();
-    QmlProfilerDataModel *m_profilerDataModel;
 
-    SubViewType m_subtableType;
+    class QmlProfilerEventParentsViewPrivate;
+    QmlProfilerEventParentsViewPrivate *d;
 };
 
 } // namespace Internal

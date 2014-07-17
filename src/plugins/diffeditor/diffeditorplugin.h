@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -53,12 +53,8 @@ public:
 private slots:
     void diff();
 
-#ifdef WITH_TESTS
-    void testAssemblyRows();
-#endif // WITH_TESTS
-
 private:
-    QString getFileContents(const QString &fileName, QTextCodec *codec) const;
+    QString getFileContents(const QString &fileName) const;
 
 };
 

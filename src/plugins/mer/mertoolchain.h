@@ -34,7 +34,7 @@ namespace Internal {
 class MerToolChain : public ProjectExplorer::GccToolChain
 {
 public:
-    MerToolChain(bool autodetect, const QString &id
+    MerToolChain(Detection autodetect, const QString &id
                  = QLatin1String(Constants::MER_TOOLCHAIN_ID));
 
     void setVirtualMachine(const QString &name);

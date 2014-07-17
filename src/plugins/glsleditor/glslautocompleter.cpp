@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -85,8 +85,7 @@ bool GLSLCompleter::contextAllowsElectricCharacters(const QTextCursor &cursor) c
 
         if (pos < tk.end())
             return false;
-    }
-    else if (tk.isStringLiteral() || tk.isCharLiteral()) {
+    } else if (tk.isStringLiteral() || tk.isCharLiteral()) {
         const unsigned pos = cursor.selectionEnd() - cursor.block().position();
         if (pos <= tk.end())
             return false;

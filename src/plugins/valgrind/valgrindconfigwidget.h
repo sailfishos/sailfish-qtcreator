@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 ** Author: Milian Wolff, KDAB (milian.wolff@kdab.com)
 **
@@ -40,9 +40,7 @@ QT_END_NAMESPACE
 namespace Valgrind {
 namespace Internal {
 
-namespace Ui {
-class ValgrindConfigWidget;
-}
+namespace Ui { class ValgrindConfigWidget; }
 
 class ValgrindBaseSettings;
 

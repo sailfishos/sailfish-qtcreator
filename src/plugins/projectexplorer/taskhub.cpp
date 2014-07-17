@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -28,10 +28,13 @@
 ****************************************************************************/
 
 #include "taskhub.h"
-#include "projectexplorer.h"
+
 #include <coreplugin/ioutputpane.h>
+#include <utils/qtcassert.h>
 
 using namespace ProjectExplorer;
+
+TaskHub *m_instance = 0;
 
 class TaskMark : public TextEditor::BaseTextMark
 {
@@ -54,19 +57,19 @@ private:
 
 void TaskMark::updateLineNumber(int lineNumber)
 {
-    ProjectExplorerPlugin::instance()->taskHub()->updateTaskLineNumber(m_id, lineNumber);
+    TaskHub::updateTaskLineNumber(m_id, lineNumber);
     BaseTextMark::updateLineNumber(lineNumber);
 }
 
 void TaskMark::updateFileName(const QString &fileName)
 {
-    ProjectExplorerPlugin::instance()->taskHub()->updateTaskFileName(m_id, fileName);
+    TaskHub::updateTaskFileName(m_id, fileName);
     BaseTextMark::updateFileName(fileName);
 }
 
 void TaskMark::removedFromEditor()
 {
-    ProjectExplorerPlugin::instance()->taskHub()->updateTaskLineNumber(m_id, -1);
+    TaskHub::updateTaskLineNumber(m_id, -1);
 }
 
 bool TaskMark::isClickable() const
@@ -76,92 +79,90 @@ bool TaskMark::isClickable() const
 
 void TaskMark::clicked()
 {
-    ProjectExplorerPlugin::instance()->taskHub()->taskMarkClicked(m_id);
+    TaskHub::taskMarkClicked(m_id);
 }
 
 TaskHub::TaskHub()
     : m_errorIcon(QLatin1String(":/projectexplorer/images/compile_error.png")),
       m_warningIcon(QLatin1String(":/projectexplorer/images/compile_warning.png"))
 {
+    m_instance = this;
     qRegisterMetaType<ProjectExplorer::Task>("ProjectExplorer::Task");
     qRegisterMetaType<QList<ProjectExplorer::Task> >("QList<ProjectExplorer::Task>");
 }
 
 TaskHub::~TaskHub()
 {
-
+    m_instance = 0;
 }
 
-void TaskHub::addCategory(const Core::Id &categoryId, const QString &displayName, bool visible)
+void TaskHub::addCategory(Core::Id categoryId, const QString &displayName, bool visible)
 {
-    emit categoryAdded(categoryId, displayName, visible);
+    QTC_CHECK(!displayName.isEmpty());
+    emit m_instance->categoryAdded(categoryId, displayName, visible);
+}
+
+QObject *TaskHub::instance()
+{
+    return m_instance;
+}
+
+void TaskHub::addTask(Task::TaskType type, const QString &description, Core::Id category, const Utils::FileName &file, int line)
+{
+    addTask(Task(type, description, file, line, category));
 }
 
 void TaskHub::addTask(Task task)
 {
     if (task.line != -1 && !task.file.isEmpty()) {
-        bool visible = (task.type == Task::Warning || task.type == Task::Error);
-        TaskMark *mark = new TaskMark(task.taskId, task.file.toString(), task.line, visible);
-        mark->setIcon(taskTypeIcon(task.type));
+        TaskMark *mark = new TaskMark(task.taskId, task.file.toString(), task.line, !task.icon.isNull());
+        mark->setIcon(task.icon);
         mark->setPriority(TextEditor::ITextMark::LowPriority);
         task.addMark(mark);
-        emit taskAdded(task);
+        emit m_instance->taskAdded(task);
         mark->init();
     } else {
-        emit taskAdded(task);
+        emit m_instance->taskAdded(task);
     }
 }
 
-void TaskHub::clearTasks(const Core::Id &categoryId)
+void TaskHub::clearTasks(Core::Id categoryId)
 {
-    emit tasksCleared(categoryId);
+    emit m_instance->tasksCleared(categoryId);
 }
 
 void TaskHub::removeTask(const Task &task)
 {
-    emit taskRemoved(task);
+    emit m_instance->taskRemoved(task);
 }
 
 void TaskHub::updateTaskFileName(unsigned int id, const QString &fileName)
 {
-    emit taskFileNameUpdated(id, fileName);
+    emit m_instance->taskFileNameUpdated(id, fileName);
 }
 
 void TaskHub::updateTaskLineNumber(unsigned int id, int line)
 {
-    emit taskLineNumberUpdated(id, line);
+    emit m_instance->taskLineNumberUpdated(id, line);
 }
 
 void TaskHub::taskMarkClicked(unsigned int id)
 {
-    emit showTask(id);
+    emit m_instance->showTask(id);
 }
 
 void TaskHub::showTaskInEditor(unsigned int id)
 {
-    emit openTask(id);
+    emit m_instance->openTask(id);
 }
 
 void TaskHub::setCategoryVisibility(const Core::Id &categoryId, bool visible)
 {
-    emit categoryVisibilityChanged(categoryId, visible);
+    emit m_instance->categoryVisibilityChanged(categoryId, visible);
 }
 
 void TaskHub::requestPopup()
 {
-    emit popupRequested(Core::IOutputPane::NoModeSwitch);
-}
-
-QIcon TaskHub::taskTypeIcon(Task::TaskType t) const
-{
-    switch (t) {
-    case Task::Warning:
-        return m_warningIcon;
-    case Task::Error:
-        return m_errorIcon;
-    case Task::Unknown:
-        break;
-    }
-    return QIcon();
+    emit m_instance->popupRequested(Core::IOutputPane::NoModeSwitch);
 }
 

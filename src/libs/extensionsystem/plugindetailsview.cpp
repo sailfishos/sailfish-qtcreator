@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -32,6 +32,7 @@
 #include "pluginspec.h"
 
 #include <QDir>
+#include <QRegExp>
 
 /*!
     \class ExtensionSystem::PluginDetailsView
@@ -84,6 +85,8 @@ void PluginDetailsView::update(PluginSpec *spec)
     m_ui->description->setText(spec->description());
     m_ui->copyright->setText(spec->copyright());
     m_ui->license->setText(spec->license());
+    const QRegExp platforms = spec->platformSpecification();
+    m_ui->platforms->setText(platforms.isEmpty() ? tr("All") : platforms.pattern());
     QStringList depStrings;
     foreach (const PluginDependency &dep, spec->dependencies()) {
         QString depString = dep.name;

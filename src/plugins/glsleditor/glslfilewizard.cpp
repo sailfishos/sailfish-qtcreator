@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -52,21 +52,10 @@ public:
 
 using namespace GLSLEditor;
 
-GLSLFileWizard::GLSLFileWizard(const BaseFileWizardParameters &parameters,
-                               ShaderType shaderType, QObject *parent):
-    Core::BaseFileWizard(parameters, parent),
-    m_shaderType(shaderType)
+GLSLFileWizard::GLSLFileWizard(ShaderType shaderType)
+    : m_shaderType(shaderType)
 {
-}
-
-Core::FeatureSet GLSLFileWizard::requiredFeatures() const
-{
-    return Core::FeatureSet();
-}
-
-Core::IWizard::WizardFlags GLSLFileWizard::flags() const
-{
-    return Core::IWizard::PlatformIndependent;
+    setFlags(Core::IWizard::PlatformIndependent);
 }
 
 Core::GeneratedFiles GLSLFileWizard::generateFiles(const QWizard *w,
@@ -143,7 +132,6 @@ QWizard *GLSLFileWizard::createWizardDialog(QWidget *parent,
 {
     GLSLFileWizardDialog *wizardDialog = new GLSLFileWizardDialog(parent);
     wizardDialog->setWindowTitle(tr("New %1").arg(displayName()));
-    setupWizard(wizardDialog);
     wizardDialog->setPath(wizardDialogParameters.defaultPath());
     foreach (QWizardPage *p, wizardDialogParameters.extensionPages())
         BaseFileWizard::applyExtensionPageShortTitle(wizardDialog, wizardDialog->addPage(p));

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -49,7 +49,7 @@ bool ChangeImportsVisitor::add(QmlJS::AST::UiProgram *ast, const Import &import)
     if (!ast)
         return false;
 
-    if (ast->imports && ast->imports->import) {
+    if (ast->headers && ast->headers->headerItem) {
         int insertionPoint = 0;
         if (ast->members && ast->members->member)
             insertionPoint = ast->members->member->firstSourceLocation().begin();
@@ -61,9 +61,9 @@ bool ChangeImportsVisitor::add(QmlJS::AST::UiProgram *ast, const Import &import)
             if (!c.isSpace() && c != QLatin1Char(';'))
                 break;
         }
-        replace(insertionPoint+1, 0, QLatin1String("\n") + import.toString(false));
+        replace(insertionPoint+1, 0, QLatin1String("\n") + import.toImportString());
     } else {
-        replace(0, 0, import.toString(false) + QLatin1String("\n\n"));
+        replace(0, 0, import.toImportString() + QLatin1String("\n\n"));
     }
 
     setDidRewriting(true);
@@ -77,10 +77,11 @@ bool ChangeImportsVisitor::remove(QmlJS::AST::UiProgram *ast, const Import &impo
     if (!ast)
         return false;
 
-    for (UiImportList *iter = ast->imports; iter; iter = iter->next) {
-        if (equals(iter->import, import)) {
-            int start = iter->firstSourceLocation().begin();
-            int end = iter->lastSourceLocation().end();
+    for (UiHeaderItemList *iter = ast->headers; iter; iter = iter->next) {
+        UiImport *iterImport = AST::cast<UiImport *>(iter->headerItem);
+        if (equals(iterImport, import)) {
+            int start = iterImport->firstSourceLocation().begin();
+            int end = iterImport->lastSourceLocation().end();
             includeSurroundingWhitespace(start, end);
             replace(start, end - start, QString());
             setDidRewriting(true);

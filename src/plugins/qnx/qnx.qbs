@@ -1,28 +1,28 @@
-import qbs.base 1.0
+import qbs 1.0
 
-import "../QtcPlugin.qbs" as QtcPlugin
+import QtcPlugin
 
 QtcPlugin {
     name: "Qnx"
     provider: "BlackBerry"
 
+    Depends { name: "Qt"; submodules: ["widgets", "xml", "network"] }
+    Depends { name: "QtcSsh" }
+    Depends { name: "QmlDebug" }
+    Depends { name: "Utils" }
+
+    Depends { name: "AnalyzerBase" }
     Depends { name: "Core" }
     Depends { name: "Debugger" }
     Depends { name: "ProjectExplorer" }
     Depends { name: "QtSupport" }
-    Depends { name: "Qt4ProjectManager" }
+    Depends { name: "QmakeProjectManager" }
     Depends { name: "RemoteLinux" }
     Depends { name: "TextEditor" }
-    Depends { name: "QmlDebug" }
-    Depends { name: "Qt"; submodules: ["widgets", "xml", "network"] }
-
-    cpp.includePaths: base.concat("../../shared")
 
     files: [
         "bardescriptordocument.cpp",
         "bardescriptordocument.h",
-        "bardescriptordocumentnodehandlers.cpp",
-        "bardescriptordocumentnodehandlers.h",
         "bardescriptoreditor.cpp",
         "bardescriptoreditor.h",
         "bardescriptoreditorabstractpanelwidget.cpp",
@@ -60,12 +60,15 @@ QtcPlugin {
         "blackberryabstractdeploystep.h",
         "blackberryapplicationrunner.cpp",
         "blackberryapplicationrunner.h",
-        "blackberrycheckdevmodestep.cpp",
-        "blackberrycheckdevmodestep.h",
-        "blackberrycheckdevmodestepconfigwidget.cpp",
-        "blackberrycheckdevmodestepconfigwidget.h",
-        "blackberrycheckdevmodestepfactory.cpp",
-        "blackberrycheckdevmodestepfactory.h",
+        "blackberrycheckdevicestatusstep.cpp",
+        "blackberrycheckdevicestatusstep.h",
+        "blackberrycheckdevicestatusstepconfigwidget.cpp",
+        "blackberrycheckdevicestatusstepconfigwidget.h",
+        "blackberrycheckdevicestatusstepconfigwidget.ui",
+        "blackberrycheckdevicestatusstepfactory.cpp",
+        "blackberrycheckdevicestatusstepfactory.h",
+        "blackberryconfigurationmanager.cpp",
+        "blackberryconfigurationmanager.h",
         "blackberrycreatepackagestep.cpp",
         "blackberrycreatepackagestep.h",
         "blackberrycreatepackagestepconfigwidget.cpp",
@@ -84,6 +87,9 @@ QtcPlugin {
         "blackberrydeployconfigurationwidget.ui",
         "blackberrydeployinformation.cpp",
         "blackberrydeployinformation.h",
+        "blackberrydeployqtlibrariesdialog.cpp",
+        "blackberrydeployqtlibrariesdialog.h",
+        "blackberrydeployqtlibrariesdialog.ui",
         "blackberrydeploystep.cpp",
         "blackberrydeploystep.h",
         "blackberrydeploystepconfigwidget.cpp",
@@ -103,20 +109,33 @@ QtcPlugin {
         "blackberrydeviceconfigurationwidget.ui",
         "blackberrydeviceconfigurationwizard.cpp",
         "blackberrydeviceconfigurationwizard.h",
+        "blackberrydeviceconfigurationwizardconfigpage.ui",
         "blackberrydeviceconfigurationwizardpages.cpp",
         "blackberrydeviceconfigurationwizardpages.h",
+        "blackberrydeviceconfigurationwizardquerypage.ui",
         "blackberrydeviceconfigurationwizardsetuppage.ui",
-        "blackberrydeviceconfigurationwizardsshkeypage.ui",
         "blackberrydeviceconnection.cpp",
         "blackberrydeviceconnection.h",
         "blackberrydeviceconnectionmanager.cpp",
         "blackberrydeviceconnectionmanager.h",
-        "blackberrydeviceprocesssupport.h",
-        "blackberrydeviceprocesssupport.cpp",
+        "blackberrydevicelistdetector.cpp",
+        "blackberrydevicelistdetector.h",
+        "blackberryinstallwizard.cpp",
+        "blackberryinstallwizard.h",
+        "blackberryinstallwizardndkpage.ui",
+        "blackberryinstallwizardoptionpage.ui",
+        "blackberryinstallwizardpages.cpp",
+        "blackberryinstallwizardpages.h",
+        "blackberryinstallwizardprocesspage.ui",
+        "blackberryinstallwizardtargetpage.ui",
+        "blackberrylogprocessrunner.cpp",
+        "blackberrylogprocessrunner.h",
         "blackberryqtversion.cpp",
         "blackberryqtversion.h",
         "blackberryqtversionfactory.cpp",
         "blackberryqtversionfactory.h",
+        "blackberrypotentialkit.cpp",
+        "blackberrypotentialkit.h",
         "blackberryprocessparser.cpp",
         "blackberryprocessparser.h",
         "blackberryrunconfiguration.cpp",
@@ -130,6 +149,10 @@ QtcPlugin {
         "blackberryruncontrol.h",
         "blackberryruncontrolfactory.cpp",
         "blackberryruncontrolfactory.h",
+        "blackberrysetuppage.cpp",
+        "blackberrysetuppage.h",
+        "blackberrysetupwidget.cpp",
+        "blackberrysetupwidget.h",
         "blackberrysigningpasswordsdialog.h",
         "blackberrysigningpasswordsdialog.cpp",
         "blackberrysigningpasswordsdialog.ui",
@@ -138,10 +161,10 @@ QtcPlugin {
         "blackberryndksettingswidget.ui",
         "blackberryndksettingspage.cpp",
         "blackberryndksettingspage.h",
-        "blackberryconfiguration.cpp",
-        "blackberryconfiguration.h",
-        "blackberrycsjregistrar.cpp",
-        "blackberrycsjregistrar.h",
+        "blackberryapilevelconfiguration.cpp",
+        "blackberryapilevelconfiguration.h",
+        "blackberryruntimeconfiguration.cpp",
+        "blackberryruntimeconfiguration.h",
         "blackberrycertificate.cpp",
         "blackberrycertificate.h",
         "blackberrykeyspage.cpp",
@@ -149,17 +172,15 @@ QtcPlugin {
         "blackberrykeyswidget.cpp",
         "blackberrykeyswidget.h",
         "blackberrykeyswidget.ui",
-        "blackberrycertificatemodel.cpp",
-        "blackberrycertificatemodel.h",
-        "blackberryregisterkeydialog.cpp",
-        "blackberryregisterkeydialog.h",
-        "blackberryregisterkeydialog.ui",
         "blackberryimportcertificatedialog.cpp",
         "blackberryimportcertificatedialog.h",
         "blackberryimportcertificatedialog.ui",
         "blackberrycreatecertificatedialog.cpp",
         "blackberrycreatecertificatedialog.h",
         "blackberrycreatecertificatedialog.ui",
+        "blackberrydebugtokenpinsdialog.cpp",
+        "blackberrydebugtokenpinsdialog.h",
+        "blackberrydebugtokenpinsdialog.ui",
         "blackberrydebugtokenrequester.cpp",
         "blackberrydebugtokenrequester.h",
         "blackberrydebugtokenrequestdialog.cpp",
@@ -171,20 +192,21 @@ QtcPlugin {
         "blackberryndkprocess.h",
         "blackberrysshkeysgenerator.cpp",
         "blackberrysshkeysgenerator.h",
-        "blackberrysetupwizard.cpp",
-        "blackberrysetupwizard.h",
-        "blackberrysetupwizardpages.cpp",
-        "blackberrysetupwizardpages.h",
-        "blackberrysetupwizardkeyspage.ui",
-        "blackberrysetupwizarddevicepage.ui",
-        "blackberrysetupwizardfinishpage.ui",
-        "blackberryutils.cpp",
-        "blackberryutils.h",
+        "blackberrysigningutils.cpp",
+        "blackberrysigningutils.h",
+        "blackberryversionnumber.cpp",
+        "blackberryversionnumber.h",
         "pathchooserdelegate.cpp",
         "pathchooserdelegate.h",
+        "qnxtoolchain.cpp",
+        "qnxtoolchain.h",
         "qnx.qrc",
         "qnxabstractqtversion.cpp",
         "qnxabstractqtversion.h",
+        "qnxattachdebugsupport.cpp",
+        "qnxattachdebugsupport.h",
+        "qnxattachdebugdialog.cpp",
+        "qnxattachdebugdialog.h",
         "qnxbaseqtconfigwidget.cpp",
         "qnxbaseqtconfigwidget.h",
         "qnxbaseqtconfigwidget.ui",
@@ -209,6 +231,10 @@ QtcPlugin {
         "qnxdeviceconfigurationwizard.h",
         "qnxdeviceconfigurationwizardpages.cpp",
         "qnxdeviceconfigurationwizardpages.h",
+        "qnxdeviceprocesslist.cpp",
+        "qnxdeviceprocesslist.h",
+        "qnxdeviceprocesssignaloperation.cpp",
+        "qnxdeviceprocesssignaloperation.h",
         "qnxdevicetester.cpp",
         "qnxdevicetester.h",
         "qnxplugin.cpp",
@@ -227,7 +253,38 @@ QtcPlugin {
         "qnxruncontrolfactory.h",
         "qnxutils.cpp",
         "qnxutils.h",
+        "slog2inforunner.cpp",
+        "slog2inforunner.h",
         "images/target-small.png",
         "images/target.png",
     ]
+
+    Group {
+        name: "CascadesImport"
+        prefix: "cascadesimport/"
+        files: [
+            "cascadesimport.qrc",
+
+            "srcprojectwizardpage.ui",
+
+            "cascadesimportwizard.cpp",
+            "srcprojectwizardpage.cpp",
+            "srcprojectpathchooser.cpp",
+            "fileconverter.cpp",
+            "bardescriptorconverter.cpp",
+            "projectfileconverter.cpp",
+            "importlogconverter.cpp",
+            "importlog.cpp",
+
+            "cascadesimportwizard.h",
+            "srcprojectwizardpage.h",
+            "srcprojectpathchooser.h",
+            "fileconverter.h",
+            "bardescriptorconverter.h",
+            "projectfileconverter.h",
+            "importlogconverter.h",
+            "importlog.h",
+        ]
+    }
+
 }

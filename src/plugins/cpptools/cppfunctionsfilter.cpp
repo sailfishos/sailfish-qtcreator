@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -31,18 +31,36 @@
 
 using namespace CppTools::Internal;
 
-CppFunctionsFilter::CppFunctionsFilter(CppModelManager *manager)
-    : CppLocatorFilter(manager)
+CppFunctionsFilter::CppFunctionsFilter(CppLocatorData *locatorData)
+    : CppLocatorFilter(locatorData)
 {
     setId("Methods");
-    setDisplayName(tr("C++ Methods and Functions"));
+    setDisplayName(tr("C++ Functions"));
     setShortcutString(QString(QLatin1Char('m')));
     setIncludedByDefault(false);
-
-    search.setSymbolsToSearchFor(SymbolSearcher::Functions);
-    search.setSeparateScope(true);
 }
 
 CppFunctionsFilter::~CppFunctionsFilter()
 {
+}
+
+QList<QList<CppTools::ModelItemInfo> > CppFunctionsFilter::itemsToMatchUserInputAgainst() const
+{
+    return QList<QList<CppTools::ModelItemInfo> >() << m_data->functions();
+}
+
+Core::LocatorFilterEntry CppFunctionsFilter::filterEntryFromModelItemInfo(const CppTools::ModelItemInfo &info)
+{
+    const QVariant id = qVariantFromValue(info);
+
+    QString name = info.symbolName;
+    QString extraInfo = info.symbolScope;
+    info.unqualifiedNameAndScope(name, &name, &extraInfo);
+    if (extraInfo.isEmpty())
+        extraInfo = info.shortNativeFilePath();
+
+    Core::LocatorFilterEntry filterEntry(this, name + info.symbolType, id, info.icon);
+    filterEntry.extraInfo = extraInfo;
+
+    return filterEntry;
 }

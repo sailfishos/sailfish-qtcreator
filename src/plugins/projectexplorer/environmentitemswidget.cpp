@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -71,8 +71,7 @@ EnvironmentItemsWidget::EnvironmentItemsWidget(QWidget *parent) :
     QWidget(parent), d(new EnvironmentItemsWidgetPrivate)
 {
     d->m_editor = new TextEditor::SnippetEditorWidget(this);
-    TextEditor::TextEditorSettings *settings = TextEditor::TextEditorSettings::instance();
-    d->m_editor->setFontSettings(settings->fontSettings());
+    d->m_editor->baseTextDocument()->setFontSettings(TextEditor::TextEditorSettings::fontSettings());
     QVBoxLayout *layout = new QVBoxLayout(this);
     layout->addWidget(d->m_editor);
 }

@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (c) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator
@@ -26,13 +26,15 @@
 /*!
     \contentspage{index.html}{Qt Creator}
     \page index.html
-    \nextpage creator-overview.html
+    \nextpage creator-getting-started.html
 
     \title Qt Creator Manual
 
     \QC provides a cross-platform, complete integrated development environment
     (IDE) for application developers to create applications for multiple desktop
-    and mobile device platforms. It is available for Linux, Mac OS X and Windows
+    and mobile device platforms, such as \l{Connecting Android Devices}{Android}
+    and \l{Connecting iOS Devices}{iOS}. It is available for Linux, Mac OS X and
+    Windows
     operating systems. For more information, see \l{Supported Platforms}.
 
     \table
@@ -41,8 +43,7 @@
             \li \inlineimage creator_managingprojects.png
             \li \inlineimage creator_designinguserinterface.png
         \row
-            \li \list
-                \li \b {\l{Getting Started}}
+            \li \b {\l{Getting Started}}
                 \list
                     \li \l{IDE Overview}
                     \li \l{User Interface}
@@ -50,65 +51,51 @@
                     \li \l{Building and Running an Example}
                     \li \l{Tutorials}
                 \endlist
-            \endlist
-            \li \list
-                \li \b {\l{Managing Projects}}
+            \li \b {\l{Managing Projects}}
                 \list
                     \li \l{Creating Projects}
                     \li \l{Using Version Control Systems}
                     \li \l{Configuring Projects}
                     \li \l{Managing Sessions}
                 \endlist
-            \endlist
-            \li \list
             \li \b {\l{Designing User Interfaces}}
                 \list
                     \li \l{Developing Qt Quick Applications}
                     \li \l{Developing Widget Based Applications}
                     \li \l{Optimizing Applications for Mobile Devices}
                 \endlist
-            \endlist
         \row
             \li \inlineimage creator_coding.png
             \li \inlineimage creator_buildingrunning.png
             \li \inlineimage creator_testing.png
         \row
-            \li \list
             \li \b {\l{Coding}}
                 \list
                     \li \l{Writing Code}
                     \li \l{Finding}
                     \li \l{Refactoring}
                     \li \l{Configuring the Editor}
-                \endlist
             \endlist
-            \li \list
             \li \b {\l{Building and Running}}
                 \list
                     \li \l{Building for Multiple Platforms}
                     \li \l{Running on Multiple Platforms}
                     \li \l{Deploying to Mobile Devices}
                     \li \l{Connecting Mobile Devices}
-                \endlist
             \endlist
-            \li \list
             \li \b {\l{Debugging and Analyzing}}
                 \list
                     \li \l{Debugging}
                     \li \l{Analyzing Code}
                 \endlist
-            \endlist
         \row
-            \li \inlineimage creator_publishing.png
             \li \inlineimage creator_advanceduse.png
             \li \inlineimage creator_gettinghelp.png
+            \li
         \row
             \li \list
-            \li \b {\l{Publishing}}
+            \li \b {Publishing}
                 \list
-                    \li \l{Publishing Qt Content for MeeGo Harmattan Devices}
-                    \li \l{Publishing Qt Content for Maemo Devices}
-                    \li \l{Publishing Maemo Applications to Extras-devel}
                     \li \l{Publishing Qt Content for SailfishOS Devices}
                 \endlist
             \endlist
@@ -121,8 +108,6 @@
                     \li \l{Keyboard Shortcuts}
                     \li \l{Using External Tools}
                 \endlist
-            \endlist
-            \li \list
             \li \b {\l{Getting Help}}
                 \list
                     \li \l{Using the Help Mode}
@@ -131,7 +116,7 @@
                     \li \l{Known Issues}
                     \li \l{Glossary}
                 \endlist
-            \endlist
+            \li
         \row
             \li {3,1} \note To report bugs and suggestions to the Qt Bug
                 Tracker, select \gui {Help > Report Bug}.
@@ -155,7 +140,7 @@
             \list
                 \li \l{Creating a Qt Quick Application}
                 \li \l{Creating a Qt Widget Based Application}
-                \li \l{Creating an Android Application}
+                \li \l{Creating a Mobile Application}
                 \li \l{Creating a SailfishOS Application}
             \endlist
         \endlist
@@ -173,6 +158,7 @@
                 \li \l{Adding Kits}
                 \li \l{Adding Qt Versions}
                 \li \l{Adding Compilers}
+                \li \l{Adding Debuggers}
                 \li \l{Specifying Build Settings}
                 \li \l{Specifying Run Settings}
                 \li \l{Specifying Editor Settings}
@@ -192,10 +178,7 @@
                 \li \l {Creating Buttons}
                 \li \l {Creating Scalable Buttons and Borders}
                 \li \l {Creating Screens}
-                \li \l {Animating Screens}
-                \li \l {Adding User Interaction Methods}
                 \li \l {Exporting Designs from Graphics Software}
-                \li \l {Implementing Application Logic}
                 \li \l {Using QML Modules with Plugins}
             \endlist
             \li \l{Developing Widget Based Applications}
@@ -217,6 +200,7 @@
                 \li \l{Pasting and Fetching Code Snippets}
                 \li \l{Using Text Editing Macros}
                 \li \l{Comparing Files}
+                \li \l{Parsing C++ Files}
             \endlist
             \li \l{Finding}
             \list
@@ -224,6 +208,7 @@
                 \li \l{Searching with the Locator}
             \endlist
             \li \l{Refactoring}
+            \li \l{Beautifying Source Code}
             \li \l{Configuring the Editor}
             \list
                 \li \l{Specifying Text Editor Settings}
@@ -238,23 +223,23 @@
             \li \l{Deploying to Mobile Devices}
             \list
                 \li \l{Deploying Applications to Android Devices}
-                \li \l{Deploying BlackBerry 10 Devices}
-                \li \l{Deploying Applications to Linux-Based Devices}
-                \li \l{Deploying Applications to QNX Devices}
+                \li \l{Deploying Applications to BlackBerry 10 Devices}
+                \li \l{Deploying Applications to Embedded Linux Devices}
+                \li \l{Deploying Applications to QNX Neutrino Devices}
                 \li \l{Deploying Applications to SailfishOS Devices}
             \endlist
             \li \l{Connecting Mobile Devices}
             \list
                 \li \l{Connecting Android Devices}
+                \li \l{Connecting Bare Metal Devices}
                 \li \l{Connecting BlackBerry 10 Devices}
                 \li \l{Connecting Embedded Linux Devices}
-                \li \l{Connecting Maemo Devices}
-                \li \l{Connecting MeeGo Harmattan Devices}
+                \li \l{Connecting iOS Devices}
                 \li \l{Connecting QNX Devices}
                 \li \l{Connecting SailfishOS Devices}
+                \li \l{Connecting Windows Runtime Devices}
             \endlist
             \li \l{Customizing the Build Process}
-            \li \l{Using Maemo or MeeGo Harmattan Emulator}
         \endlist
         \li \l{Debugging and Analyzing}
         \list
@@ -281,11 +266,8 @@
             \endlist
 
         \endlist
-        \li \l{Publishing}
+        \li Publishing
         \list
-            \li \l{Publishing Qt Content for Maemo Devices}
-            \li \l{Publishing Qt Content for MeeGo Harmattan Devices}
-            \li \l{Publishing Maemo Applications to Extras-devel}
             \li \l{Publishing Qt Content for SailfishOS Devices}
         \endlist
         \li \l{Advanced Use}

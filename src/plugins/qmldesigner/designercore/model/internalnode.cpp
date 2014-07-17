@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -172,6 +172,11 @@ QVariant InternalNode::auxiliaryData(const PropertyName &name) const
 void InternalNode::setAuxiliaryData(const PropertyName &name, const QVariant &data)
 {
     m_auxiliaryDataHash.insert(name, data);
+}
+
+void InternalNode::removeAuxiliaryData(const PropertyName &name)
+{
+    m_auxiliaryDataHash.remove(name);
 }
 
 bool InternalNode::hasAuxiliaryData(const PropertyName &name) const

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -37,17 +37,18 @@
 
 #include <utils/qtcassert.h>
 
-#include <QDebug>
 #include <QCoreApplication>
-#include <QFile>
+#include <QDate>
+#include <QDebug>
 #include <QDir>
+#include <QFile>
 #include <QFileInfo>
-#include <QXmlStreamReader>
-#include <QXmlStreamAttribute>
-#include <QTemporaryFile>
-#include <QScriptEngine>
-
 #include <QIcon>
+#include <QScriptEngine>
+#include <QTemporaryFile>
+#include <QTime>
+#include <QXmlStreamAttribute>
+#include <QXmlStreamReader>
 
 enum { debug = 0 };
 
@@ -88,7 +89,6 @@ static const char fieldMandatoryAttributeC[] = "mandatory";
 static const char fieldControlElementC[] = "fieldcontrol";
 
 static const char filesElementC[] = "files";
-static const char filesGeneratorScriptAttributeC[] = "generatorscript";
 static const char fileElementC[] = "file";
 static const char fileSourceAttributeC[] = "source";
 static const char fileTargetAttributeC[] = "target";
@@ -268,36 +268,12 @@ static inline bool assignLanguageElementText(QXmlStreamReader &reader,
     return false;
 }
 
-// Copy&paste from above to call a setter of BaseFileParameters.
-// Implementation of a sophisticated mem_fun pattern is left
-// as an exercise to the reader.
-static inline bool assignLanguageElementText(QXmlStreamReader &reader,
-                                             const QString &desiredLanguage,
-                                             BaseFileWizardParameters *bp,
-                                             void (BaseFileWizardParameters::*setter)(const QString &))
-{
-    const QStringRef elementLanguage = reader.attributes().value(QLatin1String(langAttributeC));
-    if (elementLanguage.isEmpty()) {
-        // Try to find a translation for our built-in Wizards
-        const QString translated = QCoreApplication::translate("ProjectExplorer::CustomWizard", reader.readElementText().toLatin1().constData());
-        (bp->*setter)(translated);
-        return true;
-    }
-    if (elementLanguage == desiredLanguage) {
-        (bp->*setter)(reader.readElementText());
-        return true;
-    }
-    // Language mismatch: forward to end element.
-    skipOverElementText(reader);
-    return false;
-}
-
 // Read level sub-elements of "wizard"
 static bool parseCustomProjectElement(QXmlStreamReader &reader,
                                       const QString &configFileFullPath,
                                       const QString &language,
                                       CustomWizardParameters *p,
-                                      BaseFileWizardParameters *bp)
+                                      IWizard::Data *bp)
 {
     const QStringRef elementName = reader.name();
     if (elementName == QLatin1String(iconElementC)) {
@@ -307,23 +283,20 @@ static bool parseCustomProjectElement(QXmlStreamReader &reader,
             qWarning("Invalid icon path '%s' encountered in custom project template %s.",
                      qPrintable(path), qPrintable(configFileFullPath));
         } else {
-                bp->setIcon(icon);
+                bp->icon = icon;
         }
         return true;
     }
     if (elementName == QLatin1String(descriptionElementC)) {
-        assignLanguageElementText(reader, language, bp,
-                                  &BaseFileWizardParameters::setDescription);
+        assignLanguageElementText(reader, language, &bp->description);
         return true;
     }
     if (elementName == QLatin1String(displayNameElementC)) {
-        assignLanguageElementText(reader, language, bp,
-                                  &BaseFileWizardParameters::setDisplayName);
+        assignLanguageElementText(reader, language, &bp->displayName);
         return true;
     }
     if (elementName == QLatin1String(displayCategoryElementC)) {
-        assignLanguageElementText(reader, language, bp,
-                                  &BaseFileWizardParameters::setDisplayCategory);
+        assignLanguageElementText(reader, language, &bp->displayCategory);
         return true;
     }
     if (elementName == QLatin1String(fieldPageTitleElementC)) {
@@ -489,7 +462,6 @@ static inline IWizard::WizardKind kindAttribute(const QXmlStreamReader &r)
 
 static inline FeatureSet requiredFeatures(const QXmlStreamReader &reader)
 {
-    FeatureSet r;
     QString value = reader.attributes().value(QLatin1String(featuresRequiredC)).toString();
     QStringList stringList = value.split(QLatin1Char(','), QString::SkipEmptyParts);
     FeatureSet features;
@@ -503,7 +475,7 @@ static inline FeatureSet requiredFeatures(const QXmlStreamReader &reader)
 static inline IWizard::WizardFlags wizardFlags(const QXmlStreamReader &reader)
 {
     IWizard::WizardFlags flags;
-    QString value = reader.attributes().value(QLatin1String(platformIndependentC)).toString();
+    const QStringRef value = reader.attributes().value(QLatin1String(platformIndependentC));
 
     if (!value.isEmpty() && value == QLatin1String("true"))
         flags |= IWizard::PlatformIndependent;
@@ -530,14 +502,14 @@ static inline bool booleanAttributeValue(const QXmlStreamReader &r, const char *
 
 static inline int integerAttributeValue(const QXmlStreamReader &r, const char *name, int defaultValue)
 {
-    const QString sValue = r.attributes().value(QLatin1String(name)).toString();
+    const QStringRef sValue = r.attributes().value(QLatin1String(name));
     if (sValue.isEmpty())
         return defaultValue;
     bool ok;
-    const int value = sValue.toInt(&ok);
+    const int value = sValue.toString().toInt(&ok);
     if (!ok) {
         qWarning("Invalid integer value specification '%s' for attribute '%s'.",
-                 qPrintable(sValue), name);
+                 qPrintable(sValue.toString()), name);
         return defaultValue;
     }
     return value;
@@ -580,7 +552,7 @@ GeneratorScriptArgument::GeneratorScriptArgument(const QString &v) :
 CustomWizardParameters::ParseResult
      CustomWizardParameters::parse(QIODevice &device,
                                    const QString &configFileFullPath,
-                                   BaseFileWizardParameters *bp,
+                                   IWizard::Data *bp,
                                    QString *errorMessage)
 {
     int comboEntryCount = 0;
@@ -588,8 +560,8 @@ CustomWizardParameters::ParseResult
     QXmlStreamReader::TokenType token = QXmlStreamReader::EndDocument;
     ParseState state = ParseBeginning;
     clear();
-    bp->clear();
-    bp->setKind(IWizard::ProjectWizard);
+    *bp = IWizard::Data();
+    bp->kind = IWizard::ProjectWizard;
     const QString language = languageSetting();
     CustomWizardField field;
     do {
@@ -614,11 +586,12 @@ CustomWizardParameters::ParseResult
                 case ParseWithinWizard:
                     if (!booleanAttributeValue(reader, wizardEnabledAttributeC, true))
                         return ParseDisabled;
-                    bp->setId(attributeValue(reader, idAttributeC));
-                    bp->setCategory(attributeValue(reader, categoryAttributeC));
-                    bp->setKind(kindAttribute(reader));
-                    bp->setRequiredFeatures(requiredFeatures(reader));
-                    bp->setFlags(wizardFlags(reader));
+                    bp->id = attributeValue(reader, idAttributeC);
+                    id = bp->id;
+                    bp->category = attributeValue(reader, categoryAttributeC);
+                    bp->kind = kindAttribute(reader);
+                    bp->requiredFeatures = requiredFeatures(reader);
+                    bp->flags = wizardFlags(reader);
                     klass = attributeValue(reader, klassAttributeC);
                     firstPageId = integerAttributeValue(reader, firstPageAttributeC, -1);
                     break;
@@ -732,7 +705,7 @@ CustomWizardParameters::ParseResult
 
 CustomWizardParameters::ParseResult
      CustomWizardParameters::parse(const QString &configFileFullPath,
-                                   BaseFileWizardParameters *bp,
+                                   IWizard::Data *bp,
                                    QString *errorMessage)
 {
     QFile configFile(configFileFullPath);
@@ -853,7 +826,9 @@ bool replaceFieldHelper(ValueStringTransformation transform,
         if (nextPos == -1)
             break;
         if (nextPos == pos + 1) {
-            pos = nextPos; // Skip '%%'
+            pos = nextPos; // Replace '%%' with '%'
+            s->remove(pos, 1);
+            pos = pos + 1;
             continue;
         }
         // Evaluate field specification for modifiers
@@ -888,7 +863,7 @@ bool replaceFieldHelper(ValueStringTransformation transform,
         case 'c': // Capitalize first letter.
             replacement = it.value();
             if (!replacement.isEmpty())
-                replacement[0] = replacement.at(0).toUpper();
+                replacement[0] = replacement.at(0).toTitleCase();
             break;
         default:
             break;
@@ -995,13 +970,32 @@ bool CustomWizardContext::replaceFields(const FieldReplacementMap &fm, QString *
 
 void CustomWizardContext::reset()
 {
-    // Basic replacement fields: Suffixes.
+    // Basic replacement fields: Suffixes and date/time.
+    const QDate currentDate = QDate::currentDate();
+    const QTime currentTime = QTime::currentTime();
     baseReplacements.clear();
-    const MimeDatabase *mdb = ICore::mimeDatabase();
     baseReplacements.insert(QLatin1String("CppSourceSuffix"),
-                            mdb->preferredSuffixByType(QLatin1String(CppTools::Constants::CPP_SOURCE_MIMETYPE)));
+                            MimeDatabase::preferredSuffixByType(QLatin1String(CppTools::Constants::CPP_SOURCE_MIMETYPE)));
     baseReplacements.insert(QLatin1String("CppHeaderSuffix"),
-                            mdb->preferredSuffixByType(QLatin1String(CppTools::Constants::CPP_HEADER_MIMETYPE)));
+                            MimeDatabase::preferredSuffixByType(QLatin1String(CppTools::Constants::CPP_HEADER_MIMETYPE)));
+    baseReplacements.insert(QLatin1String("CurrentDate"),
+                            currentDate.toString(Qt::ISODate));
+    baseReplacements.insert(QLatin1String("CurrentTime"),
+                            currentTime.toString(Qt::ISODate));
+    baseReplacements.insert(QLatin1String("CurrentDate:ISO"),
+                            currentDate.toString(Qt::ISODate));
+    baseReplacements.insert(QLatin1String("CurrentTime:ISO"),
+                            currentTime.toString(Qt::ISODate));
+#if QT_VERSION >= 0x050200
+    baseReplacements.insert(QLatin1String("CurrentDate:RFC"),
+                            currentDate.toString(Qt::RFC2822Date));
+    baseReplacements.insert(QLatin1String("CurrentTime:RFC"),
+                            currentTime.toString(Qt::RFC2822Date));
+#endif
+    baseReplacements.insert(QLatin1String("CurrentDate:Locale"),
+                            currentDate.toString(Qt::DefaultLocaleShortDate));
+    baseReplacements.insert(QLatin1String("CurrentTime:Locale"),
+                            currentTime.toString(Qt::DefaultLocaleShortDate));
     replacements.clear();
     path.clear();
     targetPath.clear();

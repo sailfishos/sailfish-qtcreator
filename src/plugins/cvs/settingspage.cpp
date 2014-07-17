@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -48,48 +48,30 @@ SettingsPageWidget::SettingsPageWidget(QWidget *parent) :
 {
     m_ui.setupUi(this);
     m_ui.commandPathChooser->setExpectedKind(PathChooser::ExistingCommand);
+    m_ui.commandPathChooser->setHistoryCompleter(QLatin1String("Cvs.Command.History"));
     m_ui.commandPathChooser->setPromptDialogTitle(tr("CVS Command"));
 }
 
 CvsSettings SettingsPageWidget::settings() const
 {
     CvsSettings rc;
-    rc.cvsCommand = m_ui.commandPathChooser->rawPath();
-    rc.cvsBinaryPath = m_ui.commandPathChooser->path();
-    rc.cvsRoot = m_ui.rootLineEdit->text();
-    rc.cvsDiffOptions = m_ui.diffOptionsLineEdit->text();
-    rc.timeOutS = m_ui.timeOutSpinBox->value();
-    rc.promptToSubmit = m_ui.promptToSubmitCheckBox->isChecked();
-    rc.describeByCommitId = m_ui.describeByCommitIdCheckBox->isChecked();
+    rc.setValue(CvsSettings::binaryPathKey, m_ui.commandPathChooser->rawPath());
+    rc.setValue(CvsSettings::cvsRootKey, m_ui.rootLineEdit->text());
+    rc.setValue(CvsSettings::diffOptionsKey, m_ui.diffOptionsLineEdit->text());
+    rc.setValue(CvsSettings::timeoutKey, m_ui.timeOutSpinBox->value());
+    rc.setValue(CvsSettings::promptOnSubmitKey, m_ui.promptToSubmitCheckBox->isChecked());
+    rc.setValue(CvsSettings::describeByCommitIdKey, m_ui.describeByCommitIdCheckBox->isChecked());
     return rc;
 }
 
 void SettingsPageWidget::setSettings(const CvsSettings &s)
 {
-    m_ui.commandPathChooser->setPath(s.cvsCommand);
-    m_ui.rootLineEdit->setText(s.cvsRoot);
-    m_ui.diffOptionsLineEdit->setText(s.cvsDiffOptions);
-    m_ui.timeOutSpinBox->setValue(s.timeOutS);
-    m_ui.promptToSubmitCheckBox->setChecked(s.promptToSubmit);
-    m_ui.describeByCommitIdCheckBox->setChecked(s.describeByCommitId);
-}
-
-QString SettingsPageWidget::searchKeywords() const
-{
-    QString rc;
-    QLatin1Char sep(' ');
-    QTextStream(&rc)
-            << sep << m_ui.configGroupBox->title()
-            << sep << m_ui.commandLabel->text()
-            << sep << m_ui.rootLabel->text()
-            << sep << m_ui.miscGroupBox->title()
-            << sep << m_ui.timeOutLabel->text()
-            << sep << m_ui.diffOptionsLabel->text()
-            << sep << m_ui.promptToSubmitCheckBox->text()
-            << sep << m_ui.describeByCommitIdCheckBox->text()
-               ;
-    rc.remove(QLatin1Char('&'));
-    return rc;
+    m_ui.commandPathChooser->setPath(s.binaryPath());
+    m_ui.rootLineEdit->setText(s.stringValue(CvsSettings::cvsRootKey));
+    m_ui.diffOptionsLineEdit->setText(s.stringValue(CvsSettings::diffOptionsKey));
+    m_ui.timeOutSpinBox->setValue(s.intValue(CvsSettings::timeoutKey));
+    m_ui.promptToSubmitCheckBox->setChecked(s.boolValue(CvsSettings::promptOnSubmitKey));
+    m_ui.describeByCommitIdCheckBox->setChecked(s.boolValue(CvsSettings::describeByCommitIdKey));
 }
 
 SettingsPage::SettingsPage()
@@ -98,12 +80,12 @@ SettingsPage::SettingsPage()
     setDisplayName(tr("CVS"));
 }
 
-QWidget *SettingsPage::createPage(QWidget *parent)
+QWidget *SettingsPage::widget()
 {
-    m_widget = new SettingsPageWidget(parent);
-    m_widget->setSettings(CvsPlugin::instance()->settings());
-    if (m_searchKeywords.isEmpty())
-        m_searchKeywords = m_widget->searchKeywords();
+    if (!m_widget) {
+        m_widget = new SettingsPageWidget;
+        m_widget->setSettings(CvsPlugin::instance()->settings());
+    }
     return m_widget;
 }
 
@@ -112,7 +94,7 @@ void SettingsPage::apply()
     CvsPlugin::instance()->setSettings(m_widget->settings());
 }
 
-bool SettingsPage::matches(const QString &s) const
+void SettingsPage::finish()
 {
-    return m_searchKeywords.contains(s, Qt::CaseInsensitive);
+    delete m_widget;
 }

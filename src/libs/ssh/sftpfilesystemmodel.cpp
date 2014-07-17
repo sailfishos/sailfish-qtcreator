@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -113,7 +113,7 @@ SftpFileSystemModel::~SftpFileSystemModel()
 void SftpFileSystemModel::setSshConnection(const SshConnectionParameters &sshParams)
 {
     QSSH_ASSERT_AND_RETURN(!d->sshConnection);
-    d->sshConnection = SshConnectionManager::instance().acquireConnection(sshParams);
+    d->sshConnection = QSsh::acquireConnection(sshParams);
     connect(d->sshConnection, SIGNAL(error(QSsh::SshError)), SLOT(handleSshConnectionFailure()));
     if (d->sshConnection->state() == SshConnection::Connected) {
         handleSshConnectionEstablished();
@@ -267,7 +267,7 @@ void SftpFileSystemModel::shutDown()
     }
     if (d->sshConnection) {
         disconnect(d->sshConnection, 0, this, 0);
-        SshConnectionManager::instance().releaseConnection(d->sshConnection);
+        QSsh::releaseConnection(d->sshConnection);
         d->sshConnection = 0;
     }
     delete d->rootNode;
@@ -296,12 +296,12 @@ void SftpFileSystemModel::handleSshConnectionEstablished()
 {
     d->sftpChannel = d->sshConnection->createSftpChannel();
     connect(d->sftpChannel.data(), SIGNAL(initialized()), SLOT(handleSftpChannelInitialized()));
-    connect(d->sftpChannel.data(), SIGNAL(initializationFailed(QString)),
-        SLOT(handleSftpChannelInitializationFailed(QString)));
+    connect(d->sftpChannel.data(), SIGNAL(channelError(QString)),
+        SLOT(handleSftpChannelError(QString)));
     d->sftpChannel->initialize();
 }
 
-void SftpFileSystemModel::handleSftpChannelInitializationFailed(const QString &reason)
+void SftpFileSystemModel::handleSftpChannelError(const QString &reason)
 {
     emit connectionError(reason);
     beginResetModel();

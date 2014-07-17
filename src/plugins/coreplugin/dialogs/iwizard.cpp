@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -28,8 +28,8 @@
 ****************************************************************************/
 
 #include "iwizard.h"
-#include "icore.h"
-#include "featureprovider.h"
+#include <coreplugin/icore.h>
+#include <coreplugin/featureprovider.h>
 
 #include <extensionsystem/pluginmanager.h>
 
@@ -51,7 +51,7 @@
     instead use one of the predefined wizards and adapt it to your needs.
 
     To make your wizard known to the system, add your IWizard instance to the
-    plugin manager's object pool in your plugin's initialize method:
+    plugin manager's object pool in your plugin's initialize function:
     \code
         bool MyPlugin::initialize(const QStringList &arguments, QString *errorString)
         {
@@ -128,8 +128,12 @@
 */
 
 /*!
-    \fn void IWizard::runWizard(const QString &path, QWidget *parent)
-    This method is executed when the wizard has been selected by the user
+    \fn void IWizard::runWizard(const QString &path,
+                                      QWidget *parent,
+                                      const QString &platform,
+                                      const QVariantMap &variables)
+
+    This function is executed when the wizard has been selected by the user
     for execution. Any dialogs the wizard opens should use the given \a parent.
     The \a path argument is a suggestion for the location where files should be
     created. The wizard should fill this in its path selection elements as a

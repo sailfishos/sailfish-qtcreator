@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 BogDan Vatra <bog_dan_ro@yahoo.com>
+** Copyright (c) 2014 BogDan Vatra <bog_dan_ro@yahoo.com>
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -35,8 +35,8 @@
 #include <utils/environment.h>
 #include <utils/hostosinfo.h>
 
-#include <qt4projectmanager/qt4project.h>
-#include <qt4projectmanager/qt4projectmanagerconstants.h>
+#include <qmakeprojectmanager/qmakeproject.h>
+#include <qmakeprojectmanager/qmakeprojectmanagerconstants.h>
 
 #include <qtsupport/qtkitinformation.h>
 #include <qtsupport/qtsupportconstants.h>
@@ -46,9 +46,11 @@
 #include <projectexplorer/kit.h>
 #include <projectexplorer/projectexplorer.h>
 
+#include <proparser/profileevaluator.h>
+
 using namespace Android::Internal;
 using namespace ProjectExplorer;
-using namespace Qt4ProjectManager;
+using namespace QmakeProjectManager;
 
 AndroidQtVersion::AndroidQtVersion()
     : QtSupport::BaseQtVersion()
@@ -90,7 +92,7 @@ QString AndroidQtVersion::invalidReason() const
 
 QList<ProjectExplorer::Abi> AndroidQtVersion::detectQtAbis() const
 {
-    QList<ProjectExplorer::Abi> abis = qtAbisFromLibrary(qtCorePath(versionInfo(), qtVersionString()));
+    QList<ProjectExplorer::Abi> abis = qtAbisFromLibrary(qtCorePaths(versionInfo(), qtVersionString()));
     for (int i = 0; i < abis.count(); ++i) {
         abis[i] = Abi(abis.at(i).architecture(),
                       abis.at(i).os(),
@@ -104,30 +106,48 @@ QList<ProjectExplorer::Abi> AndroidQtVersion::detectQtAbis() const
 void AndroidQtVersion::addToEnvironment(const ProjectExplorer::Kit *k, Utils::Environment &env) const
 {
     // this env vars are used by qmake mkspecs to generate makefiles (check QTDIR/mkspecs/android-g++/qmake.conf for more info)
-    env.set(QLatin1String("ANDROID_NDK_HOST"), AndroidConfigurations::instance().config().toolchainHost);
-    env.set(QLatin1String("ANDROID_NDK_ROOT"), AndroidConfigurations::instance().config().ndkLocation.toUserOutput());
+    env.set(QLatin1String("ANDROID_NDK_HOST"), AndroidConfigurations::currentConfig().toolchainHost());
+    env.set(QLatin1String("ANDROID_NDK_ROOT"), AndroidConfigurations::currentConfig().ndkLocation().toUserOutput());
 
-    Qt4Project *qt4pro = qobject_cast<Qt4ProjectManager::Qt4Project *>(ProjectExplorerPlugin::instance()->currentProject());
-    if (!qt4pro || !qt4pro->activeTarget()
+    QmakeProject *qmakeProject = qobject_cast<QmakeProjectManager::QmakeProject *>(ProjectExplorerPlugin::instance()->currentProject());
+    if (!qmakeProject || !qmakeProject->activeTarget()
             || QtSupport::QtKitInformation::qtVersion(k)->type() != QLatin1String(Constants::ANDROIDQT))
         return;
 
-    Target *target = qt4pro->activeTarget();
+    Target *target = qmakeProject->activeTarget();
     if (DeviceTypeKitInformation::deviceTypeId(target->kit()) != Constants::ANDROID_DEVICE_TYPE)
         return;
-    if (AndroidConfigurations::instance().config().ndkLocation.isEmpty()
-            || AndroidConfigurations::instance().config().sdkLocation.isEmpty())
+    if (AndroidConfigurations::currentConfig().ndkLocation().isEmpty()
+            || AndroidConfigurations::currentConfig().sdkLocation().isEmpty())
         return;
 
     env.set(QLatin1String("ANDROID_NDK_PLATFORM"),
-            AndroidConfigurations::instance().bestMatch(AndroidManager::targetSDK(target)));
+            AndroidConfigurations::currentConfig().bestNdkPlatformMatch(AndroidManager::buildTargetSDK(target)));
+}
 
+Utils::Environment AndroidQtVersion::qmakeRunEnvironment() const
+{
+    Utils::Environment env = Utils::Environment::systemEnvironment();
+    env.set(QLatin1String("ANDROID_NDK_ROOT"), AndroidConfigurations::currentConfig().ndkLocation().toUserOutput());
+    return env;
 }
 
 QString AndroidQtVersion::description() const
 {
     //: Qt Version is meant for Android
     return tr("Android");
+}
+
+QString AndroidQtVersion::targetArch() const
+{
+    ensureMkSpecParsed();
+    return m_targetArch;
+}
+
+void AndroidQtVersion::parseMkSpec(ProFileEvaluator *evaluator) const
+{
+    m_targetArch = evaluator->value(QLatin1String("ANDROID_TARGET_ARCH"));
+    BaseQtVersion::parseMkSpec(evaluator);
 }
 
 Core::FeatureSet AndroidQtVersion::availableFeatures() const

@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (C) 2013 Openismus GmbH.
+** Copyright (C) 2014 Openismus GmbH.
 ** Authors: Peter Penz (ppenz@openismus.com)
 **          Patricia Santana Cruz (patriciasantanacruz@gmail.com)
 ** Contact: http://www.qt-project.org/legal
@@ -111,7 +111,7 @@ public:
     bool hasError() const;
 
     /**
-     * @return True, if the the has been cancelled by MakefileParserThread::cancel().
+     * @return True, if the parsing has been cancelled by MakefileParserThread::cancel().
      */
     bool isCanceled() const;
 

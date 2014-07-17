@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -36,46 +36,57 @@
 #include <QIcon>
 
 namespace ProjectExplorer {
-class Task;
+
+class ProjectExplorerPlugin;
 
 class PROJECTEXPLORER_EXPORT TaskHub : public QObject
 {
     Q_OBJECT
 public:
-    TaskHub();
-    virtual ~TaskHub();
+    static QObject *instance();
+
+    // Convenience overload
+    static void addTask(Task::TaskType type, const QString &description,
+                        Core::Id category,
+                        const Utils::FileName &file = Utils::FileName(),
+                        int line = -1);
 
 public slots:
-    void addCategory(const Core::Id &categoryId, const QString &displayName, bool visible = true);
-    void addTask(ProjectExplorer::Task task);
-    void clearTasks(const Core::Id &categoryId = Core::Id());
-    void removeTask(const ProjectExplorer::Task &task);
+    static void addTask(ProjectExplorer::Task task);
+    static void clearTasks(Core::Id categoryId = Core::Id());
+    static void removeTask(const ProjectExplorer::Task &task);
 
 public:
-    void updateTaskFileName(unsigned int id, const QString &fileName);
-    void updateTaskLineNumber(unsigned int id, int line);
-    void taskMarkClicked(unsigned int id);
-    void showTaskInEditor(unsigned int id);
-    void setCategoryVisibility(const Core::Id &categoryId, bool visible);
+    static void addCategory(Core::Id categoryId, const QString &displayName, bool visible = true);
+    static void updateTaskFileName(unsigned int id, const QString &fileName);
+    static void updateTaskLineNumber(unsigned int id, int line);
+    static void taskMarkClicked(unsigned int id);
+    static void showTaskInEditor(unsigned int id);
+    static void setCategoryVisibility(const Core::Id &categoryId, bool visible);
 
-    void requestPopup();
-
-    QIcon taskTypeIcon(ProjectExplorer::Task::TaskType t) const;
+    static void requestPopup();
 
 signals:
-    void categoryAdded(const Core::Id &categoryId, const QString &displayName, bool visible);
+    void categoryAdded(Core::Id categoryId, const QString &displayName, bool visible);
     void taskAdded(const ProjectExplorer::Task &task);
     void taskRemoved(const ProjectExplorer::Task &task);
-    void tasksCleared(const Core::Id &categoryId);
+    void tasksCleared(Core::Id categoryId);
     void taskFileNameUpdated(unsigned int id, const QString &fileName);
     void taskLineNumberUpdated(unsigned int id, int line);
     void categoryVisibilityChanged(const Core::Id &categoryId, bool visible);
     void popupRequested(int);
     void showTask(unsigned int id);
     void openTask(unsigned int id);
+
 private:
+    TaskHub();
+    ~TaskHub();
+
     const QIcon m_errorIcon;
     const QIcon m_warningIcon;
+
+    friend class ProjectExplorerPlugin;
 };
+
 } // namespace ProjectExplorer
 #endif // TASKHUB_H

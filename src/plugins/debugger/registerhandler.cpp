@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -31,7 +31,7 @@
 #include "watchdelegatewidgets.h"
 
 #if USE_REGISTER_MODEL_TEST
-#include "modeltest.h"
+#include <modeltest.h>
 #endif
 
 #include <utils/qtcassert.h>
@@ -293,7 +293,7 @@ static int bitWidthFromType(int type, int subType)
     return 0;
 }
 
-static const int TopLevelId = -1;
+static const uint TopLevelId = UINT_MAX;
 static bool isTopLevelItem(const QModelIndex &index)
 {
     return quintptr(index.internalId()) == quintptr(TopLevelId);
@@ -314,6 +314,7 @@ Register::Register(const QByteArray &name_)
 
 RegisterHandler::RegisterHandler()
 {
+    setObjectName(QLatin1String("RegisterModel"));
     m_base = 16;
     calculateWidth();
 #if USE_REGISTER_MODEL_TEST

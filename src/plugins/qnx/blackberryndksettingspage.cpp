@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -31,6 +31,8 @@
 
 #include "blackberryndksettingspage.h"
 #include "blackberryndksettingswidget.h"
+#include "blackberryconfigurationmanager.h"
+#include "blackberryapilevelconfiguration.h"
 #include "qnxconstants.h"
 
 #include <projectexplorer/projectexplorerconstants.h>
@@ -44,25 +46,38 @@ BlackBerryNDKSettingsPage::BlackBerryNDKSettingsPage(QObject *parent) :
     Core::IOptionsPage(parent)
 {
     setId(Core::Id(Constants::QNX_BB_NDK_SETTINGS_ID));
-    setDisplayName(tr("NDK"));
+    setDisplayName(tr("API Levels and Runtimes"));
     setCategory(Constants::QNX_BB_CATEGORY);
     setDisplayCategory(QCoreApplication::translate("BlackBerry",
                 Constants::QNX_BB_CATEGORY_TR));
     setCategoryIcon(QLatin1String(Constants::QNX_BB_CATEGORY_ICON));
 }
 
-QWidget *BlackBerryNDKSettingsPage::createPage(QWidget *parent)
+QWidget *BlackBerryNDKSettingsPage::widget()
 {
-    m_widget = new BlackBerryNDKSettingsWidget(parent);
+    if (!m_widget)
+        m_widget = new BlackBerryNDKSettingsWidget;
     return m_widget;
 }
 
 void BlackBerryNDKSettingsPage::apply()
 {
+    foreach (BlackBerryApiLevelConfiguration* config, m_widget->activatedApiLevels()) {
+        if (!config->isActive())
+            config->activate();
+    }
+
+    foreach (BlackBerryApiLevelConfiguration* config, m_widget->deactivatedApiLevels()) {
+        if (config->isActive())
+            config->deactivate();
+    }
+
+    BlackBerryConfigurationManager::instance()->setDefaultConfiguration(m_widget->defaultApiLevel());
 }
 
 void BlackBerryNDKSettingsPage::finish()
 {
+    delete m_widget;
 }
 
 } // namespace Internal

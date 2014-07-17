@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Brian McGillion
+** Copyright (c) 2014 Brian McGillion
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -49,7 +49,7 @@
 #include <coreplugin/documentmanager.h>
 #include <coreplugin/editormanager/editormanager.h>
 
-#include <locator/commandlocator.h>
+#include <coreplugin/locator/commandlocator.h>
 
 #include <utils/parameteraction.h>
 #include <utils/qtcassert.h>
@@ -140,6 +140,7 @@ bool MercurialPlugin::initialize(const QStringList & /* arguments */, QString * 
     mercurialSettings.readSettings(core->settings());
 
     connect(m_client, SIGNAL(changed(QVariant)), versionControl(), SLOT(changed(QVariant)));
+    connect(m_client, SIGNAL(needUpdate()), this, SLOT(update()));
 
     static const char *describeSlot = SLOT(view(QString,QString));
     const int editorCount = sizeof(editorParameters)/sizeof(editorParameters[0]);
@@ -151,7 +152,7 @@ bool MercurialPlugin::initialize(const QStringList & /* arguments */, QString * 
     addAutoReleasedObject(new CloneWizard);
 
     const QString prefix = QLatin1String("hg");
-    m_commandLocator = new Locator::CommandLocator("Mercurial", prefix, prefix);
+    m_commandLocator = new Core::CommandLocator("Mercurial", prefix, prefix);
     addAutoReleasedObject(m_commandLocator);
 
     createMenu();
@@ -161,16 +162,16 @@ bool MercurialPlugin::initialize(const QStringList & /* arguments */, QString * 
     return true;
 }
 
-const MercurialSettings &MercurialPlugin::settings() const
+const MercurialSettings &MercurialPlugin::settings()
 {
-    return mercurialSettings;
+    return m_instance->mercurialSettings;
 }
 
 void MercurialPlugin::setSettings(const MercurialSettings &settings)
 {
-    if (settings != mercurialSettings) {
-        mercurialSettings = settings;
-        static_cast<MercurialControl *>(versionControl())->emitConfigurationChanged();
+    if (settings != m_instance->mercurialSettings) {
+        m_instance->mercurialSettings = settings;
+        static_cast<MercurialControl *>(m_instance->versionControl())->emitConfigurationChanged();
     }
 }
 
@@ -179,7 +180,7 @@ void MercurialPlugin::createMenu()
     Core::Context context(Core::Constants::C_GLOBAL);
 
     // Create menu item for Mercurial
-    mercurialContainer = Core::ActionManager::createMenu(Core::Id("Mercurial.MercurialMenu"));
+    mercurialContainer = Core::ActionManager::createMenu("Mercurial.MercurialMenu");
     QMenu *menu = mercurialContainer->menu();
     menu->setTitle(tr("Me&rcurial"));
 
@@ -438,11 +439,11 @@ void MercurialPlugin::pull()
     const VcsBasePluginState state = currentState();
     QTC_ASSERT(state.hasTopLevel(), return);
 
-    SrcDestDialog dialog;
+    SrcDestDialog dialog(SrcDestDialog::incoming);
     dialog.setWindowTitle(tr("Pull Source"));
     if (dialog.exec() != QDialog::Accepted)
         return;
-    m_client->synchronousPull(state.topLevel(), dialog.getRepositoryString());
+    m_client->synchronousPull(dialog.workingDir(), dialog.getRepositoryString());
 }
 
 void MercurialPlugin::push()
@@ -450,11 +451,11 @@ void MercurialPlugin::push()
     const VcsBasePluginState state = currentState();
     QTC_ASSERT(state.hasTopLevel(), return);
 
-    SrcDestDialog dialog;
+    SrcDestDialog dialog(SrcDestDialog::outgoing);
     dialog.setWindowTitle(tr("Push Destination"));
     if (dialog.exec() != QDialog::Accepted)
         return;
-    m_client->synchronousPush(state.topLevel(), dialog.getRepositoryString());
+    m_client->synchronousPush(dialog.workingDir(), dialog.getRepositoryString());
 }
 
 void MercurialPlugin::update()
@@ -490,7 +491,7 @@ void MercurialPlugin::incoming()
     const VcsBasePluginState state = currentState();
     QTC_ASSERT(state.hasTopLevel(), return);
 
-    SrcDestDialog dialog;
+    SrcDestDialog dialog(SrcDestDialog::incoming);
     dialog.setWindowTitle(tr("Incoming Source"));
     if (dialog.exec() != QDialog::Accepted)
         return;
@@ -556,7 +557,7 @@ void MercurialPlugin::showCommitWidget(const QList<VcsBaseClient::StatusItem> &s
     // Keep the file alive, else it removes self and forgets its name
     saver.setAutoRemove(false);
     if (!saver.finalize()) {
-        VcsBase::VcsBaseOutputWindow::instance()->append(saver.errorString());
+        VcsBase::VcsBaseOutputWindow::instance()->appendError(saver.errorString());
         return;
     }
 
@@ -578,9 +579,9 @@ void MercurialPlugin::showCommitWidget(const QList<VcsBaseClient::StatusItem> &s
 
     const QString msg = tr("Commit changes for \"%1\".").
                         arg(QDir::toNativeSeparators(m_submitRepository));
-    commitEditor->setDisplayName(msg);
+    commitEditor->document()->setDisplayName(msg);
 
-    QString branch = m_client->branchQuerySync(m_submitRepository);
+    QString branch = versionControl()->vcsTopic(m_submitRepository);
     commitEditor->setFields(m_submitRepository, branch,
                             mercurialSettings.stringValue(MercurialSettings::userNameKey),
                             mercurialSettings.stringValue(MercurialSettings::userEmailKey), status);
@@ -595,7 +596,7 @@ void MercurialPlugin::commitFromEditor()
 {
     // Close the submit editor
     m_submitActionTriggered = true;
-    Core::ICore::editorManager()->closeEditor();
+    Core::EditorManager::closeEditor();
 }
 
 bool MercurialPlugin::submitEditorAboutToClose()
@@ -605,7 +606,7 @@ bool MercurialPlugin::submitEditorAboutToClose()
     Core::IDocument *editorFile = commitEditor->document();
     QTC_ASSERT(editorFile, return true);
 
-    bool dummyPrompt = mercurialSettings.boolValue(MercurialSettings::promptOnSubmitKey);
+    bool dummyPrompt = false;
     const VcsBaseSubmitEditor::PromptSubmitResult response =
             commitEditor->promptSubmit(tr("Close Commit Editor"), tr("Do you want to commit the changes?"),
                                        tr("Message check failed. Do you want to proceed?"),
@@ -630,7 +631,7 @@ bool MercurialPlugin::submitEditorAboutToClose()
         QStringList extraOptions;
         if (!commitEditor->committerInfo().isEmpty())
             extraOptions << QLatin1String("-u") << commitEditor->committerInfo();
-        m_client->commit(m_submitRepository, files, editorFile->fileName(),
+        m_client->commit(m_submitRepository, files, editorFile->filePath(),
                          extraOptions);
     }
     return true;

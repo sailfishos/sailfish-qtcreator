@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -27,13 +27,14 @@
 **
 ****************************************************************************/
 
-#include "highlightdefinition.h"
-#include "keywordlist.h"
-#include "itemdata.h"
-#include "context.h"
-#include "specificrules.h"
-#include "highlightermock.h"
 #include "formats.h"
+#include "highlightermock.h"
+
+#include <texteditor/generichighlighter/context.h>
+#include <texteditor/generichighlighter/highlightdefinition.h>
+#include <texteditor/generichighlighter/itemdata.h>
+#include <texteditor/generichighlighter/keywordlist.h>
+#include <texteditor/generichighlighter/specificrules.h>
 
 #include <QSharedPointer>
 #include <QScopedPointer>
@@ -57,7 +58,7 @@ class tst_HighlighterEngine : public QObject
 public:
     tst_HighlighterEngine();
 
-private slots:    
+private slots:
     void initTestCase();
     void init();
 
@@ -126,29 +127,13 @@ void tst_HighlighterEngine::initTestCase()
     createKeywords();
     createContexts();
     createItemDatas();
-
-    m_highlighterMock.reset(new HighlighterMock());
-    m_highlighterMock->setDefaultContext(m_definition->initialContext());
-    m_highlighterMock->setDocument(m_text.document());
-    m_highlighterMock->configureFormat(Highlighter::Keyword, Formats::instance().keywordFormat());
-    m_highlighterMock->configureFormat(Highlighter::DataType, Formats::instance().dataTypeFormat());
-    m_highlighterMock->configureFormat(Highlighter::Decimal, Formats::instance().decimalFormat());
-    m_highlighterMock->configureFormat(Highlighter::BaseN, Formats::instance().baseNFormat());
-    m_highlighterMock->configureFormat(Highlighter::Float, Formats::instance().floatFormat());
-    m_highlighterMock->configureFormat(Highlighter::Char, Formats::instance().charFormat());
-    m_highlighterMock->configureFormat(Highlighter::String, Formats::instance().stringFormat());
-    m_highlighterMock->configureFormat(Highlighter::Comment, Formats::instance().commentFormat());
-    m_highlighterMock->configureFormat(Highlighter::Alert, Formats::instance().alertFormat());
-    m_highlighterMock->configureFormat(Highlighter::Error, Formats::instance().errorFormat());
-    m_highlighterMock->configureFormat(Highlighter::Function, Formats::instance().functionFormat());
-    m_highlighterMock->configureFormat(Highlighter::RegionMarker,
-                                       Formats::instance().regionMarketFormat());
-    m_highlighterMock->configureFormat(Highlighter::Others, Formats::instance().othersFormat());
 }
 
 void tst_HighlighterEngine::init()
 {
-    m_highlighterMock->reset();
+    m_highlighterMock.reset(new HighlighterMock());
+    m_highlighterMock->setDefaultContext(m_definition->initialContext());
+    m_highlighterMock->setDocument(m_text.document());
 }
 
 void tst_HighlighterEngine::createKeywords()
@@ -201,6 +186,13 @@ void tst_HighlighterEngine::createContexts()
     nestedComment->setItemData("Other Comment");
     nestedComment->setLineEndContext("#stay");
     nestedComment->setDefinition(m_definition);
+
+    // SimpleNestedComment context
+    QSharedPointer<Context> simpleNestedComment =
+            m_definition->createContext("SimpleNestedComment", false);
+    simpleNestedComment->setItemData("Comment");
+    simpleNestedComment->setLineEndContext("#pop");
+    simpleNestedComment->setDefinition(m_definition);
 
     // Dummy context
     QSharedPointer<Context> dummy = m_definition->createContext("Dummy", false);
@@ -448,6 +440,22 @@ void tst_HighlighterEngine::createContexts()
     r27->setFirstNonSpace("true");
     r27->setDefinition(m_definition);
     normal->addRule(QSharedPointer<Rule>(r27));
+
+    Detect2CharsRule *r28 = new Detect2CharsRule;
+    r28->setChar("#");
+    r28->setChar1("#");
+    r28->setItemData("Comment");
+    r28->setContext("SimpleNestedComment");
+    r28->setDefinition(m_definition);
+    QSharedPointer<Rule> sr28(r28);
+    multiComment->addRule(sr28);
+    nestedComment->addRule(sr28);
+
+    LineContinueRule *r29 = new LineContinueRule;
+    r29->setItemData("Comment");
+    r29->setContext("#stay");
+    r29->setDefinition(m_definition);
+    simpleNestedComment->addRule(QSharedPointer<Rule>(r29));
 }
 
 void tst_HighlighterEngine::createItemDatas()
@@ -506,6 +514,7 @@ void tst_HighlighterEngine::test()
     QFETCH(QList<HighlightSequence>, sequences);
     QFETCH(QString, lines);
 
+    init();
     test(states, sequences, lines);
 }
 
@@ -605,7 +614,7 @@ void tst_HighlighterEngine::testSimpleLine_data()
     HighlightSequence seqi(seqd);
     seqi.add(9, 17, Formats::instance().commentFormat());
     HighlightSequence seqj(seqd);
-    seqj.add(9, 11, Formats::instance().commentFormat());    
+    seqj.add(9, 11, Formats::instance().commentFormat());
     HighlightSequence seqk(0, 3);
     HighlightSequence seql(0, 3, Formats::instance().keywordFormat());
     HighlightSequence seqm(0, 2);
@@ -713,6 +722,12 @@ void tst_HighlighterEngine::testLineContinue_data()
     seqe.add(3, 8);
     seqe.add(8, 9, Formats::instance().baseNFormat());
     seqe.add(9, 10);
+    HighlightSequence seqf(0, 9, Formats::instance().commentFormat());
+    seqf.add(9, 18, Formats::instance().errorFormat());
+    HighlightSequence seqg(0, 7, Formats::instance().commentFormat());
+    HighlightSequence seqh(0, 5, Formats::instance().commentFormat());
+    HighlightSequence seqi(0, 5, Formats::instance().errorFormat());
+    seqi.add(5, 8, Formats::instance().commentFormat());
 
     states << 1 << 2;
     sequences << seqa << seqb;
@@ -736,10 +751,17 @@ void tst_HighlighterEngine::testLineContinue_data()
     sequences << seqa << seqc << seqd << seqe;
     lines = "#define max\\\n    100\\\n000\nint i = 0;";
     QTest::newRow("case 3") << states << sequences << lines;
+
+    clear(&states, &sequences);
+    states << 4 << 1 << 1 << 2 << 3 << 0 << 1;
+    sequences << seqf << seqg << seqh << seqh << seqi << seqh;
+    lines = "/*int i; /# int j;\n##foo \\\nbar \\\nbaz  \nxxx#/yyy\nzzz*/";
+    QTest::newRow("case 4") << states << sequences << lines;
 }
 
 void tst_HighlighterEngine::setupForEditingLineContinue()
 {
+    init();
     m_highlighterMock->startNoTestCalls();
     m_text.setPlainText("#define max\\\n    xxx\\\nzzz");
     m_highlighterMock->endNoTestCalls();
@@ -944,7 +966,7 @@ void tst_HighlighterEngine::testPersistentStates_data()
     QTest::newRow("case 11") << states << sequences << text;
 
     clear(&states, &sequences);
-    states << 6;
+    states << 4;
     sequences << seql;
     text = "/*+/#=-";
     QTest::newRow("case 12") << states << sequences << text;

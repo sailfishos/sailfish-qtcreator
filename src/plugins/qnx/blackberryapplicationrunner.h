@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2012 - 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -34,6 +34,7 @@
 
 #include "blackberrydeviceconfiguration.h"
 #include "blackberryprocessparser.h"
+#include "blackberryversionnumber.h"
 
 #include <projectexplorer/runconfiguration.h>
 
@@ -44,29 +45,37 @@
 #include <QProcess>
 #include <QDateTime>
 
-namespace QSsh {
-class SshRemoteProcessRunner;
-}
+namespace QSsh { class SshRemoteProcessRunner; }
 
 namespace Qnx {
 namespace Internal {
 
 class BlackBerryRunConfiguration;
+class BlackBerryLogProcessRunner;
+class BlackBerryDeviceInformation;
 
 class BlackBerryApplicationRunner : public QObject
 {
     Q_OBJECT
 public:
-    explicit BlackBerryApplicationRunner(bool debugMode, BlackBerryRunConfiguration *runConfiguration, QObject *parent = 0);
+    enum LaunchFlag
+    {
+        CppDebugLaunch = 0x1,
+        QmlDebugLaunch = 0x2,
+        QmlDebugLaunchBlocking = 0x4,
+        QmlProfilerLaunch = 0x8
+    };
+    Q_DECLARE_FLAGS(LaunchFlags, LaunchFlag)
+
+public:
+    explicit BlackBerryApplicationRunner(const LaunchFlags &launchFlags, BlackBerryRunConfiguration *runConfiguration, QObject *parent = 0);
 
     bool isRunning() const;
     qint64 pid() const;
 
-    ProjectExplorer::RunControl::StopResult stop();
-
 public slots:
     void start();
-    void checkSlog2Info();
+    ProjectExplorer::RunControl::StopResult stop();
 
 signals:
     void output(const QString &msg, Utils::OutputFormat format);
@@ -76,37 +85,36 @@ signals:
     void startFailed(const QString &msg);
 
 private slots:
-    bool showQtMessage(const QString& pattern, const QString& line);
-    void tailApplicationLog();
     void startFinished(int exitCode, QProcess::ExitStatus exitStatus);
     void stopFinished(int exitCode, QProcess::ExitStatus exitStatus);
 
     void readStandardOutput();
     void readStandardError();
 
-    void handleTailOutput();
-    void handleTailError();
-    void handleTailConnectionError();
-
+    void disconnectFromDeviceSignals(Core::Id deviceId);
     void startRunningStateTimer();
     void determineRunningState();
     void readRunningStateStandardOutput();
 
-    void handleSlog2InfoFound();
-    void readLaunchTime();
-
     void setPid(qint64 pid);
     void setApplicationId(const QString &applicationId);
 
+    void launchApplication();
+    void checkDeployMode();
+    void startLogProcessRunner();
+
+    void displayConnectionOutput(Core::Id deviceId, const QString &output);
+    void checkDeviceRuntimeVersion(int status);
+
+    void checkQmlJsDebugArguments();
+    void checkQmlJsDebugArgumentsManifestLoaded();
+    void checkQmlJsDebugArgumentsManifestSaved();
+
 private:
     void reset();
-    void killTailProcess();
+    void queryDeviceInformation();
 
-    bool m_debugMode;
-    bool m_slog2infoFound;
-    bool m_currentLogs;
-
-    QDateTime m_launchDateTime;
+    LaunchFlags m_launchFlags;
 
     qint64 m_pid;
     QString m_appId;
@@ -119,17 +127,21 @@ private:
     BlackBerryDeviceConfiguration::ConstPtr m_device;
     QString m_barPackage;
     QSsh::SshConnectionParameters m_sshParams;
-    QString m_tailCommand;
 
     QProcess *m_launchProcess;
     QProcess *m_stopProcess;
     BlackBerryProcessParser m_launchStopProcessParser;
+    BlackBerryDeviceInformation *m_deviceInfo;
 
-    QSsh::SshRemoteProcessRunner *m_tailProcess;
-    QSsh::SshRemoteProcessRunner *m_testSlog2Process;
-    QSsh::SshRemoteProcessRunner *m_launchDateTimeProcess;
+    BlackBerryLogProcessRunner *m_logProcessRunner;
+
     QTimer *m_runningStateTimer;
     QProcess *m_runningStateProcess;
+
+    BlackBerryVersionNumber m_bbApiLevelVersion;
+
+    int m_qmlDebugServerPort;
+    QProcess *m_checkQmlJsDebugArgumentsProcess;
 };
 
 } // namespace Internal

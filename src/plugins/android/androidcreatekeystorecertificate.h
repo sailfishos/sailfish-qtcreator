@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 BogDan Vatra <bog_dan_ro@yahoo.com>
+** Copyright (c) 2014 BogDan Vatra <bog_dan_ro@yahoo.com>
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -62,11 +62,15 @@ public:
 private slots:
     PasswordStatus checkKeystorePassword();
     PasswordStatus checkCertificatePassword();
+    bool checkCertificateAlias();
+    bool checkCountryCode();
     void on_keystoreShowPassCheckBox_stateChanged(int state);
     void on_certificateShowPassCheckBox_stateChanged(int state);
     void on_buttonBox_accepted();
+    void on_samePasswordCheckBox_stateChanged(int state);
 
 private:
+    bool validateUserInput();
     Ui::AndroidCreateKeystoreCertificate *ui;
     Utils::FileName m_keystoreFilePath;
 };

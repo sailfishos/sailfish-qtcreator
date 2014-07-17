@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (c) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (c) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator
@@ -23,16 +23,16 @@
 // **********************************************************************
 
 /*!
-    \contentspage index.html
+    \contentspage {Qt Creator Manual}
     \previouspage creator-version-control.html
     \page creator-configuring-projects.html
     \nextpage creator-targets.html
 
     \title Configuring Projects
 
-    When you install an SDK for a target platform, such as Android or QNX, the
-    build and run settings for the development
-    targets delivered with the SDK might be set up automatically in \QC.
+    When you install Qt for a target platform, such as Android or QNX, the
+    build and run settings for the development targets might be set up
+    automatically in \QC.
 
     To view and modify the settings for currently open projects, switch to the
     \gui Projects mode by pressing \key Ctrl+5.
@@ -52,7 +52,7 @@
 
     Each kit consists of a set of values that define one environment, such as a
     device, compiler, and Qt version. For more information, see
-    \l{Adding Qt Versions} and \l{Adding Compilers}.
+    \l{Adding Qt Versions}, \l{Adding Compilers}, and \l{Adding Debuggers}.
 
     To copy the build and run settings for a kit to another kit, select
     \gui {Copy to Kit} in the kit menu.

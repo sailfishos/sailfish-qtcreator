@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -32,7 +32,6 @@
 #include "vcsbaseoutputwindow.h"
 
 #include <coreplugin/editormanager/editormanager.h>
-#include <coreplugin/icore.h>
 #include <coreplugin/progressmanager/progressmanager.h>
 
 #include <QStandardItemModel>
@@ -224,7 +223,7 @@ void CleanDialog::addFile(const QString &workingDirectory, QString fileName, boo
     // Tooltip with size information
     if (fi.isFile()) {
         const QString lastModified = fi.lastModified().toString(Qt::DefaultLocaleShortDate);
-        nameItem->setToolTip(tr("%n bytes, last modified %1", 0, fi.size()).arg(lastModified));
+        nameItem->setToolTip(tr("%n bytes, last modified %1.", 0, fi.size()).arg(lastModified));
     }
     d->m_filesModel->appendRow(nameItem);
 }
@@ -269,8 +268,7 @@ bool CleanDialog::promptToDelete()
     QFuture<void> task = QtConcurrent::run(cleanTask, &Internal::CleanFilesTask::run);
     const QString taskName = tr("Cleaning %1").
                              arg(QDir::toNativeSeparators(d->m_workingDirectory));
-    Core::ICore::progressManager()->addTask(task, taskName,
-                                                        QLatin1String("VcsBase.cleanRepository"));
+    Core::ProgressManager::addTask(task, taskName, "VcsBase.cleanRepository");
     return true;
 }
 

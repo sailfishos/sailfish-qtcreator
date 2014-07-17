@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -99,7 +99,7 @@ DebuggerStartParameters LinuxDeviceDebugSupport::startParameters(const RemoteLin
     }
     if (aspect->useCppDebugger()) {
         params.languages |= CppLanguage;
-        params.processArgs = runConfig->arguments();
+        params.processArgs = runConfig->arguments().join(QLatin1String(" "));
         params.startMode = AttachToRemoteServer;
         params.executable = runConfig->localExecutableFilePath();
         params.remoteChannel = device->sshParameters().host + QLatin1String(":-1");
@@ -112,7 +112,7 @@ DebuggerStartParameters LinuxDeviceDebugSupport::startParameters(const RemoteLin
     if (const Project *project = target->project()) {
         params.projectSourceDirectory = project->projectDirectory();
         if (const BuildConfiguration *buildConfig = target->activeBuildConfiguration())
-            params.projectBuildDirectory = buildConfig->buildDirectory();
+            params.projectBuildDirectory = buildConfig->buildDirectory().toString();
         params.projectSourceFiles = project->files(Project::ExcludeGeneratedFiles);
     }
 
@@ -142,7 +142,7 @@ void LinuxDeviceDebugSupport::handleRemoteSetupRequested()
 {
     QTC_ASSERT(state() == Inactive, return);
 
-    showMessage(tr("Checking available ports...\n"), LogStatus);
+    showMessage(tr("Checking available ports...") + QLatin1Char('\n'), LogStatus);
     AbstractRemoteLinuxRunSupport::handleRemoteSetupRequested();
 }
 
@@ -163,17 +163,29 @@ void LinuxDeviceDebugSupport::startExecution()
     connect(runner, SIGNAL(remoteStdout(QByteArray)), SLOT(handleRemoteOutput(QByteArray)));
     if (d->qmlDebugging && !d->cppDebugging)
         connect(runner, SIGNAL(remoteProcessStarted()), SLOT(handleRemoteProcessStarted()));
-    QString args = arguments();
+
+    QStringList args = arguments();
+    QString command;
+
     if (d->qmlDebugging)
-        args += QString::fromLocal8Bit(" -qmljsdebugger=port:%1,block").arg(d->qmlPort);
-    const QString remoteCommandLine = (d->qmlDebugging && !d->cppDebugging)
-        ? QString::fromLatin1("%1 %2 %3").arg(commandPrefix()).arg(remoteFilePath()).arg(args)
-        : QString::fromLatin1("%1 gdbserver :%2 %3 %4").arg(commandPrefix())
-              .arg(d->gdbServerPort).arg(remoteFilePath()).arg(args);
+        args.prepend(QString::fromLatin1("-qmljsdebugger=port:%1,block").arg(d->qmlPort));
+
+    if (d->qmlDebugging && !d->cppDebugging) {
+        command = remoteFilePath();
+    } else {
+        command = device()->debugServerPath();
+        if (command.isEmpty())
+            command = QLatin1String("gdbserver");
+        args.prepend(remoteFilePath());
+        args.prepend(QString::fromLatin1(":%1").arg(d->gdbServerPort));
+    }
+
     connect(runner, SIGNAL(finished(bool)), SLOT(handleAppRunnerFinished(bool)));
     connect(runner, SIGNAL(reportProgress(QString)), SLOT(handleProgressReport(QString)));
     connect(runner, SIGNAL(reportError(QString)), SLOT(handleAppRunnerError(QString)));
-    runner->start(device(), remoteCommandLine.toUtf8());
+    runner->setEnvironment(environment());
+    runner->setWorkingDirectory(workingDirectory());
+    runner->start(device(), command, args);
 }
 
 void LinuxDeviceDebugSupport::handleAppRunnerError(const QString &error)

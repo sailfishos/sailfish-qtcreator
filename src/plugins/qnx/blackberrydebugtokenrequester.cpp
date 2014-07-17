@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -34,8 +34,9 @@
 namespace {
 static const char PROCESS_NAME[] = "blackberry-debugtokenrequest";
 static const char ERR_WRONG_CSK_PASS[] = "The signature on the code signing request didn't verify.";
+static const char ERR_WRONG_CSK_PASS_10_2[] = "The specified CSK password is not valid.";
 static const char ERR_WRONG_KEYSTORE_PASS[] = "Failed to decrypt keystore, invalid password";
-static const char ERR_ILLEGAL_DEVICE_PIN[] = "Illegal device PIN";
+static const char ERR_WRONG_KEYSTORE_PASS_10_2[] = "Failed to decrypt keystore, invalid store password or store password not supplied.";
 static const char ERR_NETWORK_UNREACHABLE[] = "Network is unreachable";
 static const char ERR_NOT_YET_REGISTGERED[] = "Not yet registered to request debug tokens";
 }
@@ -47,15 +48,16 @@ BlackBerryDebugTokenRequester::BlackBerryDebugTokenRequester(QObject *parent) :
     BlackBerryNdkProcess(QLatin1String(PROCESS_NAME), parent)
 {
     addErrorStringMapping(QLatin1String(ERR_WRONG_CSK_PASS), WrongCskPassword);
+    addErrorStringMapping(QLatin1String(ERR_WRONG_CSK_PASS_10_2), WrongCskPassword);
     addErrorStringMapping(QLatin1String(ERR_WRONG_KEYSTORE_PASS), WrongKeystorePassword);
-    addErrorStringMapping(QLatin1String(ERR_WRONG_KEYSTORE_PASS), WrongKeystorePassword);
+    addErrorStringMapping(QLatin1String(ERR_WRONG_KEYSTORE_PASS_10_2), WrongKeystorePassword);
     addErrorStringMapping(QLatin1String(ERR_NETWORK_UNREACHABLE), NetworkUnreachable);
     addErrorStringMapping(QLatin1String(ERR_NOT_YET_REGISTGERED), NotYetRegistered);
 }
 
 void BlackBerryDebugTokenRequester::requestDebugToken(const QString &path,
-        const QString &cskPassword, const QString &keyStore,
-        const QString &keyStorePassword, const QString &devicePin)
+                                                      const QString &cskPassword, const QString &keyStore,
+                                                      const QString &keyStorePassword, const QString &devicePin)
 {
     QStringList arguments;
 
@@ -64,10 +66,14 @@ void BlackBerryDebugTokenRequester::requestDebugToken(const QString &path,
               << QLatin1String("-storepass")
               << keyStorePassword
               << QLatin1String("-cskpass")
-              << cskPassword
-              << QLatin1String("-devicepin")
-              << devicePin
-              << path;
+              << cskPassword;
+
+    // devicePin may contain multiple pins
+    QStringList pins = devicePin.split(QLatin1Char(','));
+    foreach (const QString &pin, pins)
+        arguments << QLatin1String("-devicepin") << pin;
+
+    arguments << path;
 
     start(arguments);
 

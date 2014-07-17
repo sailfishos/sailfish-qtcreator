@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -40,12 +40,14 @@ namespace Core { class Id; }
 namespace TextEditor {
 class ITextEditor;
 class BaseTextEditorWidget;
+class BaseTextDocument;
 class TabSettings;
 class ICodeStylePreferences;
 class TypingSettings;
 class StorageSettings;
 class BehaviorSettings;
 class ExtraEncodingSettings;
+class MarginSettings;
 }
 
 namespace ProjectExplorer {
@@ -72,6 +74,7 @@ public:
     const TextEditor::StorageSettings &storageSettings() const;
     const TextEditor::BehaviorSettings &behaviorSettings() const;
     const TextEditor::ExtraEncodingSettings &extraEncodingSettings() const;
+    const TextEditor::MarginSettings &marginSettings() const;
 
     TextEditor::ICodeStylePreferences *codeStyle() const;
     TextEditor::ICodeStylePreferences *codeStyle(Core::Id languageId) const;
@@ -88,6 +91,7 @@ signals:
     void storageSettingsChanged(const TextEditor::StorageSettings &);
     void behaviorSettingsChanged(const TextEditor::BehaviorSettings &);
     void extraEncodingSettingsChanged(const TextEditor::ExtraEncodingSettings &);
+    void marginSettingsChanged(const TextEditor::MarginSettings &);
 
 private slots:
 
@@ -95,16 +99,16 @@ private slots:
     void setStorageSettings(const TextEditor::StorageSettings &settings);
     void setBehaviorSettings(const TextEditor::BehaviorSettings &settings);
     void setExtraEncodingSettings(const TextEditor::ExtraEncodingSettings &settings);
+    void setMarginSettings(const TextEditor::MarginSettings &settings);
+
+    void setShowWrapColumn(bool onoff);
+    void setWrapColumn(int column);
 
     void setTextCodec(QTextCodec *textCodec);
 
     void slotAboutToRemoveProject(ProjectExplorer::Project *project);
 private:
     void switchSettings(TextEditor::BaseTextEditorWidget *baseTextEditor) const;
-    template <class NewSenderT, class OldSenderT>
-    void switchSettings_helper(const NewSenderT *newSender,
-                               const OldSenderT *oldSender,
-                               TextEditor::BaseTextEditorWidget *baseTextEditor) const;
 
     EditorConfigurationPrivate *d;
 };
@@ -113,7 +117,7 @@ private:
 // the file belongs to and return the project settings. If the file doesn't belong to any
 // project return the global settings.
 PROJECTEXPLORER_EXPORT TextEditor::TabSettings actualTabSettings(
-    const QString &fileName, const TextEditor::BaseTextEditorWidget *baseTextEditor);
+    const QString &fileName, const TextEditor::BaseTextDocument *baseTextDocument);
 
 } // ProjectExplorer
 

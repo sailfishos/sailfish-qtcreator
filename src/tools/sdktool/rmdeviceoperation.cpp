@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -28,34 +28,27 @@
 ****************************************************************************/
 
 #include "rmdeviceoperation.h"
+
 #include "adddeviceoperation.h"
-#include "addkeysoperation.h"
-#include "rmkeysoperation.h"
 #include "getoperation.h"
-#include <QDebug>
+
+#include "settings.h"
+
 #include <iostream>
-
-const char IdKey[] = "InternalId";
-const char DeviceManagerKey[] = "DeviceManager";
-const char DeviceListKey[] = "DeviceList";
-
-RmDeviceOperation::RmDeviceOperation()
-{
-}
 
 QString RmDeviceOperation::name() const
 {
-    return QLatin1String("removeDevice");
+    return QLatin1String("rmDev");
 }
 
 QString RmDeviceOperation::helpText() const
 {
-    return QLatin1String("remove a Kit to Qt Creator");
+    return QLatin1String("remove a Device from Qt Creator");
 }
 
 QString RmDeviceOperation::argumentsHelpText() const
 {
-    return QLatin1String("    --id <ID>                                  id of the device (required).\n");
+    return QLatin1String("    --id <ID>                                  id of the device to remove.\n");
 }
 
 bool RmDeviceOperation::setArguments(const QStringList &args)
@@ -65,12 +58,12 @@ bool RmDeviceOperation::setArguments(const QStringList &args)
     if (args.at(0) != QLatin1String("--id"))
         return false;
 
-    m_deviceId = args.at(1);
+    m_id = args.at(1);
 
-    if (m_deviceId.isEmpty())
-        std::cerr << "No device id given." << std::endl << std::endl;
+    if (m_id.isEmpty())
+        std::cerr << "No id given." << std::endl << std::endl;
 
-    return !m_deviceId.isEmpty();
+    return !m_id.isEmpty();
 }
 
 int RmDeviceOperation::execute() const
@@ -79,140 +72,47 @@ int RmDeviceOperation::execute() const
     if (map.isEmpty())
         map = AddDeviceOperation::initializeDevices();
 
-    QVariantMap result = removeDevice(map, m_deviceId);
+    QVariantMap result = rmDevice(map, m_id);
 
     if (result == map)
         return 2;
 
-    return save(result,QLatin1String("devices")) ? 0 : 3;
+    return save(result, QLatin1String("devices")) ? 0 : 3;
 }
-
-QVariantMap RmDeviceOperation::removeDevice(const QVariantMap &map, const QString &id)
-{
-    QVariantMap result = map;
-    QVariantMap managerMap = GetOperation::get(result, QLatin1String(DeviceManagerKey)).toMap();
-
-    QVariantList deviceList;
-    QVariantList devices = managerMap.value(QLatin1String(DeviceListKey)).toList();
-
-    foreach (const QVariant &deviceMap, devices) {
-        QString deviceId = GetOperation::get(deviceMap.toMap(), QLatin1String(IdKey)).toString();
-        if ( deviceId == id)
-            continue;
-        deviceList.append(deviceMap);
-    }
-
-    if (deviceList.count() == devices.count()) {
-        std::cerr << "Error: Device was not found." << std::endl;
-        return map;
-    }
-    QString key = QLatin1String(DeviceManagerKey) + QLatin1Char('/') + QLatin1String(DeviceListKey);
-    result = RmKeysOperation::rmKeys(result,  QStringList() << key);
-    return AddKeysOperation::addKeys(result,  KeyValuePairList() << KeyValuePair(key,deviceList));
-}
-
 
 #ifdef WITH_TESTS
 bool RmDeviceOperation::test() const
 {
-    QVariantMap map = AddDeviceOperation::addDevice(AddDeviceOperation::initializeDevices(),
-                                                 "testEmulator1",
-                                                 QLatin1String("testEmulator1"),
-                                                 QLatin1String("test.Type"),
-                                                 0,
-                                                 false,
-                                                 0,
-                                                 QLatin1String("localhost"),
-                                                 22,
-                                                 QLatin1String("user"),
-                                                 0,
-                                                 QLatin1String("/test/password"),
-                                                 QLatin1String("/test/privateKey"),
-                                                 0,
-                                                 QLatin1String("none"),
-                                                 1,
-                                                 QLatin1String("emualtorVM"),
-                                                 QLatin1String("/test/merMac"),
-                                                 QLatin1String("/test/subnet"),
-                                                 QLatin1String("/test/sharedSshPath"),
-                                                 QLatin1String("/test/sharedConfigPath"));
-
-    map = AddDeviceOperation::addDevice(map,
-                                        "testEmulator2",
-                                        QLatin1String("testEmulator2"),
-                                        QLatin1String("test.Type"),
-                                        0,
-                                        false,
-                                        0,
-                                        QLatin1String("localhost"),
-                                        22,
-                                        QLatin1String("user"),
-                                        0,
-                                        QLatin1String("/test/password"),
-                                        QLatin1String("/test/privateKey"),
-                                        0,
-                                        QLatin1String("none"),
-                                        1,
-                                        QLatin1String("emualtorVM"),
-                                        QLatin1String("/test/merMac"),
-                                        QLatin1String("/test/subnet"),
-                                        QLatin1String("/test/sharedSshPath"),
-                                        QLatin1String("/test/sharedConfigPath"));
-
-
-    if (map.count() != 1
-            || !map.contains(QLatin1String(DeviceManagerKey)))
-        return false;
-
-    QVariantMap managerMap = GetOperation::get(map, QLatin1String(DeviceManagerKey)).toMap();
-    QVariantList devices = managerMap.value(QLatin1String(DeviceListKey)).toList();
-    if (devices.count() != 2 )
-        return false;
-
-    foreach (const QVariant &deviceMap, devices) {
-        QString deviceId = GetOperation::get(deviceMap.toMap(), QLatin1String(IdKey)).toString();
-        if ( deviceId != QLatin1String("testEmulator2") && deviceId != QLatin1String("testEmulator1"))
-            return false;
-    }
-
-    QVariantMap result = removeDevice(map, QLatin1String("testEmulator2"));
-    if (result.count() != 1
-            || !result.contains(QLatin1String(DeviceManagerKey)))
-        return false;
-
-    managerMap = GetOperation::get(result, QLatin1String(DeviceManagerKey)).toMap();
-    devices = managerMap.value(QLatin1String(DeviceListKey)).toList();
-    if (devices.count() != 1 )
-        return false;
-
-    foreach (const QVariant &deviceMap, devices) {
-        QString deviceId = GetOperation::get(deviceMap.toMap(), QLatin1String(IdKey)).toString();
-        if ( deviceId != QLatin1String("testEmulator1"))
-            return false;
-    }
-
-    result = removeDevice(map, QLatin1String("unknown"));
-    if (result != map)
-        return false;
-
-    result = removeDevice(map, QLatin1String("testEmulator1"));
-    if (map.count() != 1
-            || !map.contains(QLatin1String(DeviceManagerKey)))
-        return false;
-
-    managerMap = GetOperation::get(result, QLatin1String(DeviceManagerKey)).toMap();
-    devices = managerMap.value(QLatin1String(DeviceListKey)).toList();
-    if (devices.count() != 1 )
-        return false;
-
-    foreach (const QVariant &deviceMap, devices) {
-        QString deviceId = GetOperation::get(deviceMap.toMap(), QLatin1String(IdKey)).toString();
-        if ( deviceId != QLatin1String("testEmulator2"))
-            return false;
-    }
-
     return true;
 }
 #endif
 
+QVariantMap RmDeviceOperation::rmDevice(const QVariantMap &map, const QString &id)
+{
+    QVariantMap result = map;
+
+
+    QVariantMap dmMap = map.value(QLatin1String(DEVICEMANAGER_ID)).toMap();
+
+    bool found = false;
+    QVariantList devList = GetOperation::get(dmMap, QLatin1String(DEVICE_LIST_ID)).toList();
+    for (int i = 0; i < devList.count(); ++i) {
+        QVariant value = devList.at(i);
+        if (value.type() != QVariant::Map)
+            continue;
+        QVariantMap deviceData = value.toMap();
+        QString devId = deviceData.value(QLatin1String(DEVICE_ID_ID)).toString();
+        if (devId == id) {
+            found = true;
+            devList.removeAt(i);
+            break;
+        }
+    }
+    dmMap.insert(QLatin1String(DEVICE_LIST_ID), devList);
+    result.insert(QLatin1String(DEVICEMANAGER_ID), dmMap);
+
+    if (!found)
+        std::cerr << "Device " << qPrintable(id) << " not found." << std::endl;
+    return result;
+}
 

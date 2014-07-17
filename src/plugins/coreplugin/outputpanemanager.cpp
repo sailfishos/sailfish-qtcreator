@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -121,7 +121,8 @@ OutputPaneManager::OutputPaneManager(QWidget *parent) :
     m_opToolBarWidgets(new QStackedWidget),
     m_minimizeIcon(QLatin1String(":/core/images/arrowdown.png")),
     m_maximizeIcon(QLatin1String(":/core/images/arrowup.png")),
-    m_maximised(false)
+    m_maximised(false),
+    m_outputPaneHeight(0)
 {
     setWindowTitle(tr("Output"));
 
@@ -242,7 +243,7 @@ void OutputPaneManager::init()
     const int n = m_panes.size();
 
     int shortcutNumber = 1;
-    const Id baseId = Id("QtCreator.Pane.");
+    const Id baseId = "QtCreator.Pane.";
     for (int i = 0; i != n; ++i) {
         IOutputPane *outPane = m_panes.at(i);
         const int idx = m_outputWidgetPane->addWidget(outPane->outputWidget(this));
@@ -288,6 +289,7 @@ void OutputPaneManager::init()
 
         bool visible = outPane->priorityInStatusBar() != -1;
         button->setVisible(visible);
+        m_buttonVisibility.insert(id, visible);
 
         connect(action, SIGNAL(triggered()), this, SLOT(shortcutTriggered()));
     }
@@ -362,20 +364,21 @@ void OutputPaneManager::buttonTriggered(int idx)
 
 void OutputPaneManager::readSettings()
 {
-    QMap<QString, bool> visibility;
     QSettings *settings = ICore::settings();
     int num = settings->beginReadArray(QLatin1String(outputPaneSettingsKeyC));
     for (int i = 0; i < num; ++i) {
         settings->setArrayIndex(i);
-        visibility.insert(settings->value(QLatin1String(outputPaneIdKeyC)).toString(),
+        m_buttonVisibility.insert(Id::fromSetting(settings->value(QLatin1String(outputPaneIdKeyC))),
                           settings->value(QLatin1String(outputPaneVisibleKeyC)).toBool());
     }
     settings->endArray();
 
     for (int i = 0; i < m_ids.size(); ++i) {
-        if (visibility.contains(m_ids.at(i).toString()))
-            m_buttons.at(i)->setVisible(visibility.value(m_ids.at(i).toString()));
+        if (m_buttonVisibility.contains(m_ids.at(i)))
+            m_buttons.at(i)->setVisible(m_buttonVisibility.value(m_ids.at(i)));
     }
+
+    m_outputPaneHeight = settings->value(QLatin1String("OutputPanePlaceHolder/Height"), 0).toInt();
 }
 
 void OutputPaneManager::slotNext()
@@ -472,9 +475,17 @@ void OutputPaneManager::showPage(int idx, int flags)
         ph = OutputPanePlaceHolder::getCurrent();
     }
 
-    if (ph) {
+    bool onlyFlash = !ph
+            || (m_panes.at(currentIndex())->hasFocus()
+                && !(flags & IOutputPane::WithFocus)
+                && idx != currentIndex());
+
+    if (onlyFlash) {
+        m_buttons.value(idx)->flash();
+    } else {
         // make the page visible
         ph->setVisible(true);
+
         ensurePageVisible(idx);
         IOutputPane *out = m_panes.at(idx);
         out->visibilityChanged(true);
@@ -483,10 +494,9 @@ void OutputPaneManager::showPage(int idx, int flags)
             ICore::raiseWindow(m_outputWidgetPane);
         }
 
+        ph->setDefaultHeight(m_outputPaneHeight);
         if (flags & IOutputPane::EnsureSizeHint)
             ph->ensureSizeHintAsMinimum();
-    } else {
-        m_buttons.value(idx)->flash();
     }
 }
 
@@ -503,6 +513,13 @@ void OutputPaneManager::focusInEvent(QFocusEvent *e)
 {
     if (QWidget *w = m_outputWidgetPane->currentWidget())
         w->setFocus(e->reason());
+}
+
+void OutputPaneManager::resizeEvent(QResizeEvent *e)
+{
+    if (e->size().height() == 0)
+        return;
+    m_outputPaneHeight = e->size().height();
 }
 
 void OutputPaneManager::setCurrentIndex(int idx)
@@ -538,7 +555,7 @@ void OutputPaneManager::popupMenu()
     foreach (IOutputPane *pane, m_panes) {
         QAction *act = menu.addAction(pane->displayName());
         act->setCheckable(true);
-        act->setChecked(m_buttons.at(idx)->isVisible());
+        act->setChecked(m_buttonVisibility.value(m_ids.at(idx)));
         act->setData(idx);
         ++idx;
     }
@@ -546,14 +563,17 @@ void OutputPaneManager::popupMenu()
     if (!result)
         return;
     idx = result->data().toInt();
+    Id id = m_ids.at(idx);
     QTC_ASSERT(idx >= 0 && idx < m_buttons.size(), return);
     QToolButton *button = m_buttons.at(idx);
-    if (button->isVisible()) {
+    if (m_buttonVisibility.value(id)) {
         m_panes.value(idx)->visibilityChanged(false);
         button->setChecked(false);
         button->hide();
+        m_buttonVisibility.insert(id, false);
     } else {
         button->show();
+        m_buttonVisibility.insert(id, true);
         showPage(idx, IOutputPane::ModeSwitch);
     }
 }
@@ -565,10 +585,12 @@ void OutputPaneManager::saveSettings() const
                               m_ids.size());
     for (int i = 0; i < m_ids.size(); ++i) {
         settings->setArrayIndex(i);
-        settings->setValue(QLatin1String(outputPaneIdKeyC), m_ids.at(i).toString());
-        settings->setValue(QLatin1String(outputPaneVisibleKeyC), m_buttons.at(i)->isVisible());
+        settings->setValue(QLatin1String(outputPaneIdKeyC), m_ids.at(i).toSetting());
+        settings->setValue(QLatin1String(outputPaneVisibleKeyC),
+                           m_buttonVisibility.value(m_ids.at(i)));
     }
     settings->endArray();
+    settings->setValue(QLatin1String("OutputPanePlaceHolder/Height"), m_outputPaneHeight);
 }
 
 void OutputPaneManager::clearPage()

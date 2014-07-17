@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Brian McGillion
+** Copyright (c) 2014 Brian McGillion
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -40,17 +40,14 @@ namespace Internal {
 class CloneWizard : public VcsBase::BaseCheckoutWizard
 {
     Q_OBJECT
-public:
-    CloneWizard(QObject *parent = 0);
 
-    QIcon icon() const;
-    QString description() const;
-    QString displayName() const;
+public:
+    CloneWizard();
 
 protected:
     QList<QWizardPage *> createParameterPages(const QString &path);
-    QSharedPointer<VcsBase::AbstractCheckoutJob> createJob(const QList<QWizardPage *> &parameterPages,
-                                                           QString *checkoutPath);
+    VcsBase::Command *createCommand(const QList<QWizardPage *> &parameterPages,
+                                    QString *checkoutPath);
 
 private:
     const QIcon m_icon;

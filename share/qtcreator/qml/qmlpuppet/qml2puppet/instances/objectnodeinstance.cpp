@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -29,7 +29,7 @@
 
 #include "objectnodeinstance.h"
 
-
+#include <enumeration.h>
 
 #include <QEvent>
 #include <QQmlContext>
@@ -209,7 +209,7 @@ bool ObjectNodeInstance::isGraphical() const
 
 bool ObjectNodeInstance::isLayoutable() const
 {
-    return true;
+    return false;
 }
 
 bool ObjectNodeInstance::equalGraphicsItem(QGraphicsItem * /*item*/) const
@@ -471,6 +471,9 @@ void ObjectNodeInstance::setPropertyVariant(const PropertyName &name, const QVar
         return;
 
     QVariant fixedValue = fixResourcePaths(value);
+
+    if (value.canConvert<Enumeration>())
+        fixedValue = QVariant::fromValue(value.value<Enumeration>().nameToString());
 
     QVariant oldValue = property.read();
     if (oldValue.type() == QVariant::Url) {
@@ -985,6 +988,29 @@ QObject *ObjectNodeInstance::createComponent(const QString &componentPath, QQmlC
     return object;
 }
 
+QObject *ObjectNodeInstance::createComponent(const QUrl &componentUrl, QQmlContext *context)
+{
+    ComponentCompleteDisabler disableComponentComplete;
+
+    Q_UNUSED(disableComponentComplete)
+
+    QQmlComponent component(context->engine(), componentUrl);
+    QObject *object = component.beginCreate(context);
+
+    tweakObjects(object);
+    component.completeCreate();
+
+    if (component.isError()) {
+        qDebug() << componentUrl;
+        foreach (const QQmlError &error, component.errors())
+            qDebug() << error;
+    }
+
+    QQmlEngine::setObjectOwnership(object, QQmlEngine::CppOwnership);
+
+    return object;
+}
+
 QObject *ObjectNodeInstance::createCustomParserObject(const QString &nodeSource, const QStringList &imports, QQmlContext *context)
 {
     ComponentCompleteDisabler disableComponentComplete;
@@ -1013,16 +1039,84 @@ QObject *ObjectNodeInstance::createCustomParserObject(const QString &nodeSource,
     return object;
 }
 
+static QQmlType *getQmlType(const QString &typeName, int majorNumber, int minorNumber)
+{
+     return  QQmlMetaType::qmlType(typeName.toUtf8(), majorNumber, minorNumber);
+}
+
+static bool isWindowMetaObject(const QMetaObject *metaObject)
+{
+    if (metaObject) {
+        if (metaObject->className() == QByteArrayLiteral("QWindow"))
+            return true;
+
+        return isWindowMetaObject(metaObject->superClass());
+    }
+
+    return false;
+}
+
+static bool isCrashingType(QQmlType *type)
+{
+    if (type) {
+        if (type->qmlTypeName() == QStringLiteral("QtMultimedia/MediaPlayer"))
+            return true;
+    }
+
+    return false;
+}
+
+static QObject *createDummyWindow(QQmlContext *context, const QUrl &sourceUrl)
+{
+    QQmlComponent component(context->engine());
+    QByteArray dummyWindow;
+    dummyWindow.append("import QtQuick 2.0\n");
+    dummyWindow.append("Item {\n");
+    dummyWindow.append("property string title\n");
+    dummyWindow.append("}\n");
+
+    component.setData(dummyWindow, sourceUrl);
+
+    return component.create();
+}
+
+static bool isWindow(QObject *object) {
+    if (object)
+        return isWindowMetaObject(object->metaObject());
+
+    return false;
+}
+
 QObject *ObjectNodeInstance::createPrimitive(const QString &typeName, int majorNumber, int minorNumber, QQmlContext *context)
 {
+    ComponentCompleteDisabler disableComponentComplete;
+
+    Q_UNUSED(disableComponentComplete)
+
     QObject *object = 0;
-    QQmlType *type = QQmlMetaType::qmlType(typeName.toUtf8(), majorNumber, minorNumber);
-    if (type)  {
-        if (type->typeName() == "QQmlComponent") {
-            object = new QQmlComponent(context->engine(), 0);
-        } else  {
-            object = type->create();
+    QQmlType *type = getQmlType(typeName, majorNumber, minorNumber);
+
+    if (isCrashingType(type)) {
+        object = new QObject;
+    } else if (type) {
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 2, 0)) // TODO remove hack later if we only support >= 5.2
+        if ( type->isComposite()) {
+             object = createComponent(type->sourceUrl(), context);
+        } else
+#endif
+        {
+            if (type->typeName() == "QQmlComponent") {
+                object = new QQmlComponent(context->engine(), 0);
+            } else  {
+                object = type->create();
+            }
         }
+
+        if (isWindow(object)) {
+            delete object;
+            object = createDummyWindow(context, type->sourceUrl());
+        }
+
     } else {
         qWarning() << "QuickDesigner: Cannot create an object of type"
                    << QString("%1 %2,%3").arg(typeName).arg(majorNumber).arg(minorNumber)

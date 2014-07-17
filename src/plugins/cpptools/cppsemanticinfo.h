@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -47,7 +47,7 @@ public:
     {
         const CPlusPlus::Snapshot snapshot;
         const QString fileName;
-        const QString code;
+        const QByteArray code;
         const int line;
         const int column;
         const unsigned revision;
@@ -59,7 +59,7 @@ public:
 
         Source(const CPlusPlus::Snapshot &snapshot,
                const QString &fileName,
-               const QString &code,
+               const QByteArray &code,
                int line, int column,
                unsigned revision,
                bool force)
@@ -78,7 +78,8 @@ public:
     SemanticInfo();
 
     unsigned revision;
-    bool forced: 1;
+    bool forced;
+    bool complete;
     CPlusPlus::Snapshot snapshot;
     CPlusPlus::Document::Ptr doc;
     LocalUseMap localUses;

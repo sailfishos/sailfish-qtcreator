@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -28,11 +28,11 @@
 ****************************************************************************/
 
 #include "qmlcppengine.h"
-#include "debuggerruncontrolfactory.h"
-#include "debuggerstartparameters.h"
-#include "stackhandler.h"
 #include "qmlengine.h"
-#include "watchhandler.h"
+#include <debugger/debuggerruncontrolfactory.h>
+#include <debugger/debuggerstartparameters.h>
+#include <debugger/stackhandler.h>
+#include <debugger/watchhandler.h>
 
 #include <utils/qtcassert.h>
 #include <texteditor/itexteditor.h>
@@ -46,8 +46,6 @@ namespace Internal {
 enum { debug = 0 };
 
 #define EDEBUG(s) do { if (debug) qDebug() << s; } while (0)
-
-const int ConnectionWaitTimeMs = 5000;
 
 DebuggerEngine *createQmlCppEngine(const DebuggerStartParameters &sp,
                                    QString *errorMessage)
@@ -699,9 +697,9 @@ void QmlCppEngine::slaveEngineStateChanged
             break;
         }
         case InferiorShutdownOk: {
-            if (state() == InferiorShutdownRequested)
+            if (state() == InferiorShutdownRequested) {
                 notifyInferiorShutdownOk();
-            else {
+            } else {
                 // we got InferiorExitOk before, but ignored it ...
                 notifyInferiorExited();
             }

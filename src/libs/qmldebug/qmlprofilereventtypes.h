@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -38,6 +38,9 @@ enum QmlEventType {
     Creating,
     Binding,
     HandlingSignal,
+    Javascript,
+    PixmapCacheEvent,
+    SceneGraphFrameEvent,
 
     MaximumQmlEventType
 };
@@ -46,18 +49,21 @@ enum BindingType {
     QmlBinding,
     V8Binding,
     OptimizedBinding,
+    QPainterEvent,
+    AnimationFrame,
 
     MaximumBindingType
 };
 
+enum AnimationThread {
+    GuiThread,
+    RenderThread,
+
+    MaximumAnimationThread
+};
+
 namespace Constants {
-const char TYPE_PAINTING_STR[] = "Painting";
-const char TYPE_COMPILING_STR[] = "Compiling";
-const char TYPE_CREATING_STR[] = "Creating";
-const char TYPE_BINDING_STR[] = "Binding";
-const char TYPE_HANDLINGSIGNAL_STR[] = "HandlingSignal";
-const char PROFILER_FILE_VERSION[] = "1.02";
-const int QML_MIN_LEVEL = 1;
+const int QML_MIN_LEVEL = 1; // Set to 0 to remove the empty line between models in the timeline
 }
 
 } // namespace QmlDebug

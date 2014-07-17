@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -43,30 +43,11 @@ namespace ProjectExplorer {
 // EnvironmentAspect:
 // --------------------------------------------------------------------
 
-EnvironmentAspect::EnvironmentAspect(RunConfiguration *rc) :
-    m_base(-1),
-    m_runConfiguration(rc)
+EnvironmentAspect::EnvironmentAspect(RunConfiguration *runConfig)
+    : IRunConfigurationAspect(runConfig), m_base(-1)
 {
-    QTC_CHECK(m_runConfiguration);
-}
-
-EnvironmentAspect::EnvironmentAspect(const EnvironmentAspect *other, RunConfiguration *parent) :
-    m_base(other->m_base),
-    m_changes(other->m_changes),
-    m_runConfiguration(parent)
-{ }
-
-QVariantMap EnvironmentAspect::toMap() const
-{
-    QVariantMap data;
-    data.insert(QLatin1String(BASE_KEY), m_base);
-    data.insert(QLatin1String(CHANGES_KEY), Utils::EnvironmentItem::toStringList(m_changes));
-    return data;
-}
-
-QString EnvironmentAspect::displayName() const
-{
-    return tr("Run Environment");
+    setDisplayName(tr("Run Environment"));
+    setId("EnvironmentAspect");
 }
 
 RunConfigWidget *EnvironmentAspect::createConfigurationWidget()
@@ -117,6 +98,12 @@ void EnvironmentAspect::fromMap(const QVariantMap &map)
 {
     m_base = map.value(QLatin1String(BASE_KEY), -1).toInt();
     m_changes = Utils::EnvironmentItem::fromStringList(map.value(QLatin1String(CHANGES_KEY)).toStringList());
+}
+
+void EnvironmentAspect::toMap(QVariantMap &data) const
+{
+    data.insert(QLatin1String(BASE_KEY), m_base);
+    data.insert(QLatin1String(CHANGES_KEY), Utils::EnvironmentItem::toStringList(m_changes));
 }
 
 } // namespace ProjectExplorer

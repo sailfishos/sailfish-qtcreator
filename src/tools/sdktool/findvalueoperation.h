@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -47,7 +47,8 @@ public:
     bool test() const;
 #endif
 
-    static QStringList findValues(const QVariantMap &map, const QVariant &value);
+    static QStringList findValue(const QVariant &in, const QVariant &value,
+                                  const QString &prefix = QString());
 
 private:
     QString m_file;

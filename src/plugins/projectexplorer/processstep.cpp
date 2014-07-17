@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -88,9 +88,7 @@ bool ProcessStep::init()
     pp->setArguments(m_arguments);
     pp->resolveAll();
 
-    IOutputParser *parser = target()->kit()->createOutputParser();
-    if (parser)
-        setOutputParser(parser);
+    setOutputParser(target()->kit()->createOutputParser());
     return AbstractProcessStep::init();
 }
 
@@ -238,6 +236,7 @@ ProcessStepConfigWidget::ProcessStepConfigWidget(ProcessStep *step)
 {
     m_ui.setupUi(this);
     m_ui.command->setExpectedKind(Utils::PathChooser::Command);
+    m_ui.command->setHistoryCompleter(QLatin1String("PE.ProcessStepCommand.History"));
     m_ui.workingDirectory->setExpectedKind(Utils::PathChooser::Directory);
 
     BuildConfiguration *bc = m_step->buildConfiguration();

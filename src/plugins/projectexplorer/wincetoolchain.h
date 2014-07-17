@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -48,7 +48,7 @@ public:
                    const QString &binPath,
                    const QString &includePath,
                    const QString &libPath,
-                   bool autodetect = false);
+                   Detection d = ManualDetection);
 
     QList<Utils::FileName> suggestedMkspecList() const;
 
@@ -104,8 +104,7 @@ class WinCEToolChainFactory : public ToolChainFactory
     Q_OBJECT
 
 public:
-    QString displayName() const;
-    QString id() const;
+    WinCEToolChainFactory();
 
     QList<ToolChain *> autoDetect();
 

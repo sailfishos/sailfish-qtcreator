@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -38,9 +38,7 @@
 
 #include <QFuture>
 
-namespace TextEditor {
-class ITextEditor;
-}
+namespace TextEditor { class ITextEditor; }
 
 namespace CppTools {
 
@@ -57,7 +55,8 @@ public:
         LabelUse,
         MacroUse,
         FunctionUse,
-        PseudoKeywordUse
+        PseudoKeywordUse,
+        StringUse
     };
 
 public:
@@ -67,6 +66,7 @@ public:
     virtual bool requiresSemanticInfo() const = 0;
 
     virtual bool hightlighterHandlesDiagnostics() const = 0;
+    virtual bool hightlighterHandlesIfdefedOutBlocks() const = 0;
 
     virtual QFuture<TextEditor::HighlightingResult> highlightingFuture(
             const CPlusPlus::Document::Ptr &doc,
@@ -78,14 +78,6 @@ protected:
 
 private:
     TextEditor::ITextEditor *m_editor;
-};
-
-class CPPTOOLS_EXPORT CppHighlightingSupportFactory
-{
-public:
-    virtual ~CppHighlightingSupportFactory() = 0;
-
-    virtual CppHighlightingSupport *highlightingSupport(TextEditor::ITextEditor *editor) = 0;
 };
 
 } // namespace CppTools

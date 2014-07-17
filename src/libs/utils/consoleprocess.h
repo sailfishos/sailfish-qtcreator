@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -71,9 +71,8 @@ public:
     void killProcess();
     void killStub();
 
-#ifdef Q_OS_WIN
     qint64 applicationMainThreadID() const;
-#else
+#ifndef Q_OS_WIN
     void detachStub();
 #endif
 
@@ -99,7 +98,7 @@ signals:
     void processError(const QString &error);
     // These reflect the state of the actual client process
     void processStarted();
-    void processStopped();
+    void processStopped(int, QProcess::ExitStatus);
 
     // These reflect the state of the console+stub
     void stubStarted();

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -56,6 +56,8 @@ public:
     ~AbstractRemoteLinuxDeployService();
 
     void setTarget(ProjectExplorer::Target *bc);
+    // Only use setDevice() as fallback if no target is available
+    void setDevice(const ProjectExplorer::IDevice::ConstPtr &device);
     void start();
     void stop();
 

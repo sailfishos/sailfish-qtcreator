@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -104,10 +104,12 @@ FileShareProtocolSettingsPage::FileShareProtocolSettingsPage(const QSharedPointe
     setDisplayCategory(QCoreApplication::translate("CodePaster", Constants::CPASTER_SETTINGS_TR_CATEGORY));
 }
 
-QWidget *FileShareProtocolSettingsPage::createPage(QWidget *parent)
+QWidget *FileShareProtocolSettingsPage::widget()
 {
-    m_widget = new FileShareProtocolSettingsWidget(parent);
-    m_widget->setSettings(*m_settings);
+    if (!m_widget) {
+        m_widget = new FileShareProtocolSettingsWidget;
+        m_widget->setSettings(*m_settings);
+    }
     return m_widget;
 }
 

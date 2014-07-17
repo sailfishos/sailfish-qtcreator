@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -44,6 +44,7 @@ class QTextDocument;
 QT_END_NAMESPACE
 
 namespace TextEditor {
+class BaseTextDocument;
 class BaseTextEditorWidget;
 class RefactoringChanges;
 class RefactoringFile;
@@ -66,6 +67,7 @@ public:
     // mustn't use the cursor to change the document
     const QTextCursor cursor() const;
     QString fileName() const;
+    BaseTextEditorWidget *editor() const;
 
     // converts 1-based line and column into 0-based source offset
     int position(unsigned line, unsigned column) const;
@@ -96,7 +98,7 @@ protected:
 
     void indentOrReindent(void (RefactoringChangesData::*mf)(const QTextCursor &,
                                                              const QString &,
-                                                             const BaseTextEditorWidget *) const,
+                                                             const BaseTextDocument *) const,
                           const QList<QPair<QTextCursor, QTextCursor> > &ranges);
 
 protected:
@@ -134,8 +136,6 @@ public:
     bool createFile(const QString &fileName, const QString &contents, bool reindent = true, bool openEditor = true) const;
     bool removeFile(const QString &fileName) const;
 
-    static BaseTextEditorWidget *editorForFile(const QString &fileName);
-
 protected:
     explicit RefactoringChanges(RefactoringChangesData *data);
 
@@ -160,10 +160,10 @@ public:
 
     virtual void indentSelection(const QTextCursor &selection,
                                  const QString &fileName,
-                                 const BaseTextEditorWidget *textEditor) const;
+                                 const BaseTextDocument *textEditor) const;
     virtual void reindentSelection(const QTextCursor &selection,
                                    const QString &fileName,
-                                   const BaseTextEditorWidget *textEditor) const;
+                                   const BaseTextDocument *textEditor) const;
     virtual void fileChanged(const QString &fileName);
 };
 

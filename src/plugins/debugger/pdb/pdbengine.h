@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,7 +30,7 @@
 #ifndef DEBUGGER_PDBENGINE_H
 #define DEBUGGER_PDBENGINE_H
 
-#include "debuggerengine.h"
+#include <debugger/debuggerengine.h>
 
 #include <QProcess>
 #include <QQueue>

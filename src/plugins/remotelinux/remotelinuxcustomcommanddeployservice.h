@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -32,9 +32,7 @@
 #include "abstractremotelinuxdeployservice.h"
 
 namespace RemoteLinux {
-namespace Internal {
-class RemoteLinuxCustomCommandDeployservicePrivate;
-} // namespace Internal
+namespace Internal { class RemoteLinuxCustomCommandDeployservicePrivate; }
 
 class REMOTELINUX_EXPORT RemoteLinuxCustomCommandDeployService
     : public AbstractRemoteLinuxDeployService

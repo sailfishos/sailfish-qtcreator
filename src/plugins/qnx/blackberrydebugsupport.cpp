@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2012 - 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -44,14 +44,18 @@ BlackBerryDebugSupport::BlackBerryDebugSupport(BlackBerryRunConfiguration *runCo
     : QObject(runControl->engine())
     , m_engine(runControl->engine())
 {
-    m_runner = new BlackBerryApplicationRunner(true, runConfig, this);
+    BlackBerryApplicationRunner::LaunchFlags launchFlags;
+    if (m_engine->startParameters().languages & Debugger::CppLanguage)
+        launchFlags |= BlackBerryApplicationRunner::CppDebugLaunch;
+    if (m_engine->startParameters().languages & Debugger::QmlLanguage)
+        launchFlags |= BlackBerryApplicationRunner::QmlDebugLaunch;
+    m_runner = new BlackBerryApplicationRunner(launchFlags, runConfig, this);
 
     connect(m_engine, SIGNAL(requestRemoteSetup()), this, SLOT(launchRemoteApplication()));
     connect(m_engine, SIGNAL(stateChanged(Debugger::DebuggerState)),
             this, SLOT(handleDebuggerStateChanged(Debugger::DebuggerState)));
 
     connect(m_runner, SIGNAL(started()), this, SLOT(handleStarted()));
-    connect(m_runner, SIGNAL(started()), m_runner, SLOT(checkSlog2Info()));
     connect(m_runner, SIGNAL(startFailed(QString)), this, SLOT(handleStartFailed(QString)));
     connect(m_runner, SIGNAL(output(QString,Utils::OutputFormat)),
             this, SLOT(handleApplicationOutput(QString,Utils::OutputFormat)));

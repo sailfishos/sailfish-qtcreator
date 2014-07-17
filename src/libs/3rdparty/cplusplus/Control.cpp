@@ -25,7 +25,6 @@
 #include "CoreTypes.h"
 #include "Symbols.h"
 #include "Names.h"
-#include "TypeMatcher.h"
 #include <map>
 #include <set>
 #include <algorithm>
@@ -479,8 +478,6 @@ public:
     TranslationUnit *translationUnit;
     DiagnosticClient *diagnosticClient;
 
-    TypeMatcher matcher;
-
     LiteralTable<Identifier> identifiers;
     LiteralTable<StringLiteral> stringLiterals;
     LiteralTable<NumericLiteral> numericLiterals;
@@ -584,7 +581,7 @@ const Identifier *Control::identifier(const char *chars, unsigned size)
 
 const Identifier *Control::identifier(const char *chars)
 {
-    unsigned length = std::strlen(chars);
+    const unsigned length = unsigned(std::strlen(chars));
     return identifier(chars, length);
 }
 
@@ -611,7 +608,7 @@ const StringLiteral *Control::stringLiteral(const char *chars, unsigned size)
 
 const StringLiteral *Control::stringLiteral(const char *chars)
 {
-    unsigned length = std::strlen(chars);
+    const unsigned length = unsigned(std::strlen(chars));
     return stringLiteral(chars, length);
 }
 
@@ -620,7 +617,7 @@ const NumericLiteral *Control::numericLiteral(const char *chars, unsigned size)
 
 const NumericLiteral *Control::numericLiteral(const char *chars)
 {
-    unsigned length = std::strlen(chars);
+    const unsigned length = unsigned(std::strlen(chars));
     return numericLiteral(chars, length);
 }
 
@@ -806,6 +803,11 @@ Symbol **Control::lastSymbol() const
         return 0;
 
     return &*d->symbols.begin() + d->symbols.size();
+}
+
+unsigned Control::symbolCount() const
+{
+    return unsigned(d->symbols.size());
 }
 
 bool Control::hasSymbol(Symbol *symbol) const

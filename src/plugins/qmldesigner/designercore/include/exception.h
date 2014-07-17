@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -47,14 +47,18 @@ public:
 
     virtual QString type() const = 0;
     virtual QString description() const;
+    virtual void showException(const QString &title = QString()) const;
 
     int line() const;
     QString function() const;
     QString file() const;
     QString backTrace() const;
 
+    void createWarning() const;
+
     static void setShouldAssert(bool assert);
     static bool shouldAssert();
+    static bool warnAboutException();
 
 private:
     int m_line;

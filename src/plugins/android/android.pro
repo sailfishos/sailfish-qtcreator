@@ -23,6 +23,7 @@ HEADERS += \
     androiddeploystep.h \
     androiddeploystepwidget.h \
     androiddeploystepfactory.h \
+    androiderrormessage.h \
     androidglobal.h \
     androidrunner.h \
     androiddebugsupport.h \
@@ -40,7 +41,21 @@ HEADERS += \
     androidmanifesteditorfactory.h \
     androidmanifesteditor.h \
     androidmanifesteditorwidget.h \
-    androidmanifestdocument.h
+    androidmanifestdocument.h \
+    androiddevicedialog.h \
+    androiddeployqtstep.h \
+    certificatesmodel.h \
+    androiddeployqtwidget.h \
+    createandroidmanifestwizard.h \
+    androidpotentialkit.h \
+    androidextralibrarylistmodel.h \
+    androidsignaloperation.h \
+    javaeditor.h \
+    javaeditorfactory.h \
+    javaindenter.h \
+    javaautocompleter.h \
+    javacompletionassistprovider.h \
+    javafilewizard.h
 
 SOURCES += \
     androidconfigurations.cpp \
@@ -59,6 +74,7 @@ SOURCES += \
     androiddeploystep.cpp \
     androiddeploystepwidget.cpp \
     androiddeploystepfactory.cpp \
+    androiderrormessage.cpp \
     androidrunner.cpp \
     androiddebugsupport.cpp \
     androidqtversionfactory.cpp \
@@ -75,14 +91,30 @@ SOURCES += \
     androidmanifesteditorfactory.cpp \
     androidmanifesteditor.cpp \
     androidmanifesteditorwidget.cpp \
-    androidmanifestdocument.cpp
+    androidmanifestdocument.cpp \
+    androiddevicedialog.cpp \
+    androiddeployqtstep.cpp \
+    certificatesmodel.cpp \
+    androiddeployqtwidget.cpp \
+    createandroidmanifestwizard.cpp \
+    androidpotentialkit.cpp \
+    androidextralibrarylistmodel.cpp \
+    androidsignaloperation.cpp \
+    javaeditor.cpp \
+    javaeditorfactory.cpp \
+    javaindenter.cpp \
+    javaautocompleter.cpp \
+    javacompletionassistprovider.cpp \
+    javafilewizard.cpp
 
 FORMS += \
     androidsettingswidget.ui \
     androidpackagecreationwidget.ui \
     androiddeploystepwidget.ui \
     addnewavddialog.ui \
-    androidcreatekeystorecertificate.ui
+    androidcreatekeystorecertificate.ui \
+    androiddevicedialog.ui \
+    androiddeployqtwidget.ui
 
 RESOURCES = android.qrc
 DEFINES += ANDROID_LIBRARY

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -77,7 +77,7 @@ void tst_PluginSpec::read()
     QCOMPARE(spec.experimental, false);
     QCOMPARE(spec.enabledInSettings, true);
     QCOMPARE(spec.vendor, QString("Digia Plc"));
-    QCOMPARE(spec.copyright, QString("(C) 2013 Digia Plc"));
+    QCOMPARE(spec.copyright, QString("(C) 2014 Digia Plc"));
     QCOMPARE(spec.license, QString("This is a default license bla\nblubbblubb\nend of terms"));
     QCOMPARE(spec.description, QString("This plugin is just a test.\n    it demonstrates the great use of the plugin spec."));
     QCOMPARE(spec.url, QString("http://qt.digi.com"));
@@ -246,9 +246,9 @@ void tst_PluginSpec::loadLibrary()
     PluginManager *manager = new PluginManager();
     QVERIFY(spec->read("testplugin/testplugin.xml"));
     QVERIFY(spec->resolveDependencies(QList<PluginSpec *>()));
-    QVERIFY(spec->loadLibrary());
+    QVERIFY2(spec->loadLibrary(), qPrintable(spec->errorString));
     QVERIFY(spec->plugin != 0);
-    QVERIFY(QString::fromLocal8Bit(spec->plugin->metaObject()->className()) == QString::fromLocal8Bit("MyPlugin::MyPluginImpl"));
+    QVERIFY(QLatin1String(spec->plugin->metaObject()->className()) == QLatin1String("MyPlugin::MyPluginImpl"));
     QCOMPARE(spec->state, PluginSpec::Loaded);
     QVERIFY(!spec->hasError);
     QCOMPARE(spec->plugin->pluginSpec(), ps);
@@ -261,7 +261,7 @@ void tst_PluginSpec::initializePlugin()
     Internal::PluginSpecPrivate spec(0);
     QVERIFY(spec.read("testplugin/testplugin.xml"));
     QVERIFY(spec.resolveDependencies(QList<PluginSpec *>()));
-    QVERIFY(spec.loadLibrary());
+    QVERIFY2(spec.loadLibrary(), qPrintable(spec.errorString));
     bool isInitialized;
     QMetaObject::invokeMethod(spec.plugin, "isInitialized",
                               Qt::DirectConnection, Q_RETURN_ARG(bool, isInitialized));
@@ -279,7 +279,7 @@ void tst_PluginSpec::initializeExtensions()
     Internal::PluginSpecPrivate spec(0);
     QVERIFY(spec.read("testplugin/testplugin.xml"));
     QVERIFY(spec.resolveDependencies(QList<PluginSpec *>()));
-    QVERIFY(spec.loadLibrary());
+    QVERIFY2(spec.loadLibrary(), qPrintable(spec.errorString));
     bool isExtensionsInitialized;
     QVERIFY(spec.initializePlugin());
     QMetaObject::invokeMethod(spec.plugin, "isExtensionsInitialized",

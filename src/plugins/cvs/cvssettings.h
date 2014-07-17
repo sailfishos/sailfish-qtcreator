@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,43 +30,29 @@
 #ifndef CVSSETTINGS_H
 #define CVSSETTINGS_H
 
-#include <QStringList>
-
-QT_BEGIN_NAMESPACE
-class QSettings;
-QT_END_NAMESPACE
+#include <vcsbase/vcsbaseclientsettings.h>
 
 namespace Cvs {
 namespace Internal {
 
-struct CvsSettings
+class CvsSettings : public VcsBase::VcsBaseClientSettings
 {
+public:
+    static const QLatin1String cvsRootKey;
+    static const QLatin1String diffOptionsKey;
+    static const QLatin1String describeByCommitIdKey;
+    static const QLatin1String diffIgnoreWhiteSpaceKey;
+    static const QLatin1String diffIgnoreBlankLinesKey;
+
     CvsSettings();
 
-    void fromSettings(QSettings *);
-    void toSettings(QSettings *) const;
+    int timeOutMs() const;
 
-    int timeOutMS() const { return timeOutS * 1000;  }
-    int longTimeOutMS() const { return timeOutS * 10000; }
-
-    // Add common options to the command line
     QStringList addOptions(const QStringList &args) const;
 
-    bool equals(const CvsSettings &s) const;
-
-    QString cvsCommand;
-    QString cvsBinaryPath;
-    QString cvsRoot;
-    QString cvsDiffOptions;
-    int timeOutS;
-    bool promptToSubmit;
-    bool describeByCommitId;
+protected:
+    void readLegacySettings(const QSettings *settings);
 };
-
-inline bool operator==(const CvsSettings &p1, const CvsSettings &p2)
-    { return p1.equals(p2); }
-inline bool operator!=(const CvsSettings &p1, const CvsSettings &p2)
-    { return !p1.equals(p2); }
 
 } // namespace Internal
 } // namespace Cvs

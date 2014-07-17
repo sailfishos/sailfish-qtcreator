@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (c) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (c) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator
@@ -17,7 +17,7 @@
 ****************************************************************************/
 
 /*!
-    \contentspage index.html
+    \contentspage {Qt Creator Manual}
     \previouspage creator-help.html
     \page creator-faq.html
     \nextpage creator-tips.html
@@ -50,11 +50,7 @@
 
         \li qtc-debugging-helper
 
-        \li qtc-qmldbg
-
         \li qtc-qmldump
-
-        \li qtc-qmlobserver
 
     \endlist
 
@@ -109,7 +105,7 @@
 
     \QC comes fully integrated with Qt documentation and examples using
     the Qt Help plugin. The integrated Qt Reference Documentation is available
-    for Qt 4.4 and later. \QC, \QSDK, and other Qt deliverables contain
+    for Qt 4.4 and later. \QC and other Qt deliverables contain
     documentation as .qch files. All the documentation is accessible in the
     \gui Help mode.
 
@@ -125,9 +121,9 @@
     \b {If I have a choice of GDB versions, which should I use?}
 
     On Linux and Windows, use the Python-enabled GDB versions that are
-    installed when you install \QC and Qt SDK. On Mac OS X, use the GDB
-    provided with Xcode. For a custom target, you can build your own
-    Python-enabled GDB. Follow the instructions in
+    installed when you install \QC and \QSDK. On Mac OS X, GDB is no longer
+    officially supported. To build your own Python-enabled GDB, follow the
+    instructions in
     \l{http://qt-project.org/wiki/QtCreatorBuildGdb}{Building GDB}.
 
     You must use Python version 2.6 or 2.7.
@@ -161,15 +157,16 @@
     Put jom.exe in a location in the %PATH%. Go to the \gui {Build Settings}
     and set jom.exe as the make command.
 
-    \note: Unlike GNU make, jom automatically detects your cores and spawns as
+    \note Unlike GNU make, jom automatically detects your cores and spawns as
     many parallel processes as your CPU has cores. You can override this
     behavior by using the \c{-j} parameter as described above.
 
-    \section1 Qt SDK Questions
+    \section1 Qt Installation Questions
 
-    \b {I cannot use QSslSocket with the SDK. What should I do?}
+    \b {I cannot use QSslSocket with the Qt I installed from binary packages.
+        What should I do?}
 
-    The Qt build in the SDK is built with QT_NO_OPENSSL defined. Rebuilding it
+    The Qt in the binary packages is built with QT_NO_OPENSSL defined. Rebuilding it
      is possible. For more information, see
      \l{http://www.qtcentre.org/threads/19222-Qssl}.
 
@@ -281,17 +278,17 @@
 
     The locator can be used to open files, but opening files is also just a
     step on the way to accomplish a task. For example, consider the following
-    use case: \e {Fix AMethod in SomeClass which comes from
+    use case: \e {Fix AFunction in SomeClass which comes from
     someclass.cpp/someclass.h}.
 
     With a tabbed user interface, developers would search for someclass.cpp in
-    the tab bar, and then search for \c {::AMethod}, only to find out that the
-    method is not located in that file. They would then search for someclass.h
+    the tab bar, and then search for \c {::AFunction}, only to find out that the
+    function is not located in that file. They would then search for someclass.h
     in the tab bar, find our that the function is inline, fix the problem, and
     forget where they came from.
 
-    With \QC, developers can type \c {Ctrl+K m AMet} to find the method.
-    Typically, they only need to type 3 to 4 characters of the method name.
+    With \QC, developers can type \c {Ctrl+K m AFun} to find the function.
+    Typically, they only need to type 3 to 4 characters of the function name.
     They can then fix the problem and press \key Alt+Back to go back to where
     they were.
 

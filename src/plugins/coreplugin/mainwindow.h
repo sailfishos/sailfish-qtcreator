@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -61,7 +61,6 @@ class ModeManager;
 class ProgressManager;
 class NavigationWidget;
 class RightPaneWidget;
-class ScriptManager;
 class SettingsDatabase;
 class VariableManager;
 class VcsManager;
@@ -97,18 +96,6 @@ public:
 
     Core::IDocument *openFiles(const QStringList &fileNames, ICore::OpenFilesFlags flags);
 
-    Core::ActionManager *actionManager() const;
-    Core::MessageManager *messageManager() const;
-    Core::EditorManager *editorManager() const;
-    Core::ProgressManager *progressManager() const;
-    Core::ScriptManager *scriptManager() const;
-    Core::VariableManager *variableManager() const;
-    Core::ModeManager *modeManager() const;
-    Core::MimeDatabase *mimeDatabase() const;
-    Core::HelpManager *helpManager() const;
-
-    VcsManager *vcsManager() const;
-    QSettings *settings(QSettings::Scope scope) const;
     inline SettingsDatabase *settingsDatabase() const { return m_settingsDatabase; }
     virtual QPrinter *printer() const;
     IContext * currentContextObject() const;
@@ -161,6 +148,7 @@ private slots:
     void setSidebarVisible(bool visible);
     void destroyVersionDialog();
     void openDelayedFiles();
+    void restoreWindowState();
 
 private:
     void updateContextObject(const QList<IContext *> &context);
@@ -174,8 +162,6 @@ private:
 
     ICore *m_coreImpl;
     Context m_additionalContexts;
-    QSettings *m_settings;
-    QSettings *m_globalSettings;
     SettingsDatabase *m_settingsDatabase;
     mutable QPrinter *m_printer;
     ActionManager *m_actionManager;
@@ -183,8 +169,7 @@ private:
     ExternalToolManager *m_externalToolManager;
     MessageManager *m_messageManager;
     ProgressManagerPrivate *m_progressManager;
-    ScriptManager *m_scriptManager;
-    QScopedPointer<VariableManager> m_variableManager;
+    VariableManager *m_variableManager;
     VcsManager *m_vcsManager;
     StatusBarManager *m_statusBarManager;
     ModeManager *m_modeManager;

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -34,6 +34,12 @@
 #include <QFutureInterface>
 #include <QProcess>
 #include <QStringList>
+#include <utils/qtcassert.h>
+
+#ifdef WITH_TESTS
+#include <QTest>
+#include <utils/fileutils.h>
+#endif
 
 namespace ClearCase {
 namespace Internal {
@@ -44,60 +50,108 @@ ClearCaseSync::ClearCaseSync(ClearCasePlugin *plugin, QSharedPointer<StatusMap> 
 {
 }
 
-void ClearCaseSync::run(QFutureInterface<void> &future, QStringList &files)
+QStringList ClearCaseSync::updateStatusHotFiles(const QString &viewRoot, int &total)
 {
-    ClearCaseSettings settings = m_plugin->settings();
-    const QString program = settings.ccBinaryPath;
-    if (program.isEmpty())
+    QStringList hotFiles;
+    // find all files whose permissions changed OR hijacked files
+    // (might have become checked out)
+    const StatusMap::Iterator send = m_statusMap->end();
+    for (StatusMap::Iterator it = m_statusMap->begin(); it != send; ++it) {
+        const QFileInfo fi(viewRoot, it.key());
+        const bool permChanged = it.value().permissions != fi.permissions();
+        if (permChanged || it.value().status == FileStatus::Hijacked) {
+            hotFiles.append(it.key());
+            it.value().status = FileStatus::Unknown;
+            ++total;
+        }
+    }
+    return hotFiles;
+}
+
+// Set status for all files to unknown until we're done indexing
+void ClearCaseSync::invalidateStatus(const QDir &viewRootDir,
+                                 const QStringList &files)
+{
+    foreach (const QString &file, files) {
+            m_plugin->setStatus(viewRootDir.absoluteFilePath(file), FileStatus::Unknown, false);
+    }
+}
+
+void ClearCaseSync::invalidateStatusAllFiles()
+{
+    const StatusMap::ConstIterator send = m_statusMap->end();
+    for (StatusMap::ConstIterator it = m_statusMap->begin(); it != send; ++it)
+        m_plugin->setStatus(it.key(), FileStatus::Unknown, false);
+}
+
+void ClearCaseSync::processCleartoolLsLine(const QDir &viewRootDir, const QString &buffer)
+{
+    const int atatpos = buffer.indexOf(QLatin1String("@@"));
+
+    if (atatpos == -1)
         return;
-    int total = files.size();
-    const bool hot = (total < 10);
-    int processed = 0;
+
+    // find first whitespace. anything before that is not interesting
+    const int wspos = buffer.indexOf(QRegExp(QLatin1String("\\s")));
+    const QString absFile =
+            viewRootDir.absoluteFilePath(
+                QDir::fromNativeSeparators(buffer.left(atatpos)));
+    QTC_CHECK(QFile(absFile).exists());
+    QTC_CHECK(!absFile.isEmpty());
+
+    QString ccState;
+    const QRegExp reState(QLatin1String("^\\s*\\[[^\\]]*\\]")); // [hijacked]; [loaded but missing]
+    if (reState.indexIn(buffer, wspos + 1, QRegExp::CaretAtOffset) != -1) {
+        ccState = reState.cap();
+        if (ccState.indexOf(QLatin1String("hijacked")) != -1)
+            m_plugin->setStatus(absFile, FileStatus::Hijacked, true);
+        else if (ccState.indexOf(QLatin1String("loaded but missing")) != -1)
+            m_plugin->setStatus(absFile, FileStatus::Missing, false);
+    }
+    else if (buffer.lastIndexOf(QLatin1String("CHECKEDOUT"), wspos) != -1)
+        m_plugin->setStatus(absFile, FileStatus::CheckedOut, true);
+    // don't care about checked-in files not listed in project
+    else if (m_statusMap->contains(absFile))
+        m_plugin->setStatus(absFile, FileStatus::CheckedIn, true);
+}
+
+void ClearCaseSync::updateTotalFilesCount(const QString view, ClearCaseSettings settings,
+                                          const int processed)
+{
+    settings = m_plugin->settings(); // Might have changed while task was running
+    settings.totalFiles[view] = processed;
+    m_plugin->setSettings(settings);
+}
+
+void ClearCaseSync::updateStatusForNotManagedFiles(const QStringList &files)
+{
+    foreach (const QString &file, files) {
+       QString absFile = QFileInfo(file).absoluteFilePath();
+       if (!m_statusMap->contains(absFile))
+           m_plugin->setStatus(absFile, FileStatus::NotManaged, false);
+    }
+}
+
+void ClearCaseSync::syncSnapshotView(QFutureInterface<void> &future, QStringList &files,
+                                     const ClearCaseSettings &settings)
+{
     QString view = m_plugin->currentView();
-    if (view.isEmpty())
-        emit updateStreamAndView();
+
+    int totalFileCount = files.size();
+    const bool hot = (totalFileCount < 10);
+    int processed = 0;
     if (!hot)
-        total = settings.totalFiles.value(view, total);
+        totalFileCount = settings.totalFiles.value(view, totalFileCount);
 
-    // refresh activities list
-    if (m_plugin->isUcm())
-        m_plugin->refreshActivities();
-
-    if (settings.disableIndexer)
-        return;
-
-    const bool isDynamic = m_plugin->isDynamic();
     const QString viewRoot = m_plugin->viewRoot();
     const QDir viewRootDir(viewRoot);
 
     QStringList args(QLatin1String("ls"));
     if (hot) {
-        // find all files whose permissions changed OR hijacked files
-        // (might have become checked out)
-        const StatusMap::Iterator send = m_statusMap->end();
-        for (StatusMap::Iterator it = m_statusMap->begin(); it != send; ++it) {
-            const QFileInfo fi(viewRoot, it.key());
-            const bool permChanged = it.value().permissions != fi.permissions();
-            if (permChanged || it.value().status == FileStatus::Hijacked) {
-                files.append(it.key());
-                it.value().status = FileStatus::Unknown;
-                ++total;
-            } else if (isDynamic && !fi.isWritable()) { // assume a read only file is checked in
-                it.value().status = FileStatus::CheckedIn;
-                ++total;
-            }
-        }
+        files << updateStatusHotFiles(viewRoot, totalFileCount);
         args << files;
     } else {
-        foreach (const QString &file, files) {
-            if (isDynamic) { // assume a read only file is checked in
-                const QFileInfo fi(viewRootDir, file);
-                if (!fi.isWritable())
-                    m_plugin->setStatus(fi.absoluteFilePath(), FileStatus::CheckedIn, false);
-            } else {
-                m_plugin->setStatus(viewRootDir.absoluteFilePath(file), FileStatus::Unknown, false);
-            }
-        }
+        invalidateStatus(viewRootDir, files);
         args << QLatin1String("-recurse");
 
         QStringList vobs;
@@ -111,9 +165,11 @@ void ClearCaseSync::run(QFutureInterface<void> &future, QStringList &files)
 
     // adding 1 for initial sync in which total is not accurate, to prevent finishing
     // (we don't want it to become green)
-    future.setProgressRange(0, total + 1);
+    future.setProgressRange(0, totalFileCount + 1);
     QProcess process;
     process.setWorkingDirectory(viewRoot);
+
+    const QString program = settings.ccBinaryPath;
 
     process.start(program, args);
     if (!process.waitForStarted())
@@ -124,55 +180,208 @@ void ClearCaseSync::run(QFutureInterface<void> &future, QStringList &files)
                process.bytesAvailable() && !future.isCanceled())
         {
             const QString line = QString::fromLocal8Bit(process.readLine().constData());
-
             buffer += line;
             if (buffer.endsWith(QLatin1Char('\n')) || process.atEnd()) {
-                const int atatpos = buffer.indexOf(QLatin1String("@@"));
-                if (atatpos != -1) { // probably managed file
-                    // find first whitespace. anything before that is not interesting
-                    const int wspos = buffer.indexOf(QRegExp(QLatin1String("\\s")));
-                    const QString absFile =
-                            viewRootDir.absoluteFilePath(
-                                QDir::fromNativeSeparators(buffer.left(atatpos)));
-
-                    QString ccState;
-                    const QRegExp reState(QLatin1String("^\\s*\\[[^\\]]*\\]")); // [hijacked]; [loaded but missing]
-                    if (reState.indexIn(buffer, wspos + 1, QRegExp::CaretAtOffset) != -1) {
-                        ccState = reState.cap();
-                        if (ccState.indexOf(QLatin1String("hijacked")) != -1)
-                            m_plugin->setStatus(absFile, FileStatus::Hijacked, true);
-                        else if (ccState.indexOf(QLatin1String("loaded but missing")) != -1)
-                            m_plugin->setStatus(absFile, FileStatus::Missing, false);
-                    }
-                    else if (buffer.lastIndexOf(QLatin1String("CHECKEDOUT"), wspos) != -1)
-                        m_plugin->setStatus(absFile, FileStatus::CheckedOut, true);
-                    // don't care about checked-in files not listed in project
-                    else if (m_statusMap->contains(absFile))
-                        m_plugin->setStatus(absFile, FileStatus::CheckedIn, true);
-                }
+                processCleartoolLsLine(viewRootDir, buffer);
                 buffer.clear();
-                future.setProgressValue(qMin(total, ++processed));
+                future.setProgressValue(qMin(totalFileCount, ++processed));
             }
         }
     }
 
     if (!future.isCanceled()) {
-        foreach (const QString &file, files) {
-           QString absFile = QFileInfo(file).absoluteFilePath();
-           if (!m_statusMap->contains(absFile))
-               m_plugin->setStatus(absFile, FileStatus::NotManaged, false);
-        }
-        future.setProgressValue(total + 1);
-        if (!hot) {
-            settings = m_plugin->settings(); // Might have changed while task was running
-            settings.totalFiles[view] = processed;
-            m_plugin->setSettings(settings);
-        }
+        updateStatusForNotManagedFiles(files);
+        future.setProgressValue(totalFileCount + 1);
+        if (!hot)
+            updateTotalFilesCount(view, settings, processed);
     }
+
     if (process.state() == QProcess::Running)
         process.kill();
+
     process.waitForFinished();
 }
+
+void ClearCaseSync::processCleartoolLscheckoutLine(const QString &buffer)
+{
+    QString absFile = buffer.trimmed();
+    m_plugin->setStatus(absFile, FileStatus::CheckedOut, true);
+}
+
+///
+/// Update the file status for dynamic views.
+///
+void ClearCaseSync::syncDynamicView(QFutureInterface<void> &future,
+                                    const ClearCaseSettings& settings)
+{
+    // Always invalidate status for all files
+    invalidateStatusAllFiles();
+
+    QStringList args(QLatin1String("lscheckout"));
+    args << QLatin1String("-avobs")
+         << QLatin1String("-me")
+         << QLatin1String("-cview")
+         << QLatin1String("-s");
+
+    const QString viewRoot = m_plugin->viewRoot();
+
+    QProcess process;
+    process.setWorkingDirectory(viewRoot);
+
+    const QString program = settings.ccBinaryPath;
+    process.start(program, args);
+    if (!process.waitForStarted())
+        return;
+
+    QString buffer;
+    int processed = 0;
+    while (process.waitForReadyRead() && !future.isCanceled()) {
+        while (process.state() == QProcess::Running &&
+               process.bytesAvailable() && !future.isCanceled()) {
+            const QString line = QString::fromLocal8Bit(process.readLine().constData());
+            buffer += line;
+            if (buffer.endsWith(QLatin1Char('\n')) || process.atEnd()) {
+                processCleartoolLscheckoutLine(buffer);
+                buffer.clear();
+                future.setProgressValue(++processed);
+            }
+        }
+    }
+
+    if (process.state() == QProcess::Running)
+        process.kill();
+
+    process.waitForFinished();
+}
+
+void ClearCaseSync::run(QFutureInterface<void> &future, QStringList &files)
+{
+    ClearCaseSettings settings = m_plugin->settings();
+    if (settings.disableIndexer)
+        return;
+
+    const QString program = settings.ccBinaryPath;
+    if (program.isEmpty())
+        return;
+
+    // refresh activities list
+    if (m_plugin->isUcm())
+        m_plugin->refreshActivities();
+
+    QString view = m_plugin->currentView();
+    if (view.isEmpty())
+        emit updateStreamAndView();
+
+    if (m_plugin->isDynamic())
+        syncDynamicView(future, settings);
+    else
+        syncSnapshotView(future, files, settings);
+}
+
+#ifdef WITH_TESTS
+namespace {
+class TempFile
+{
+public:
+    TempFile(const QString &fileName)
+        : m_fileName(fileName)
+    {
+        Utils::FileSaver srcSaver(fileName);
+        srcSaver.write(QByteArray());
+        srcSaver.finalize();
+
+    }
+
+    QString fileName() const { return m_fileName; }
+
+    ~TempFile()
+    {
+        QVERIFY(QFile::remove(m_fileName));
+    }
+
+private:
+    const QString m_fileName;
+};
+}
+
+void ClearCaseSync::verifyParseStatus(const QString &fileName,
+                                 const QString &cleartoolLsLine,
+                                 const FileStatus::Status status)
+{
+    QCOMPARE(m_statusMap->count(), 0);
+    processCleartoolLsLine(QDir(QLatin1String("/")), cleartoolLsLine);
+
+    if (status == FileStatus::CheckedIn) {
+        // The algorithm doesn't store checked in files in the index, unless it was there already
+        QCOMPARE(m_statusMap->count(), 0);
+        QCOMPARE(m_statusMap->contains(fileName), false);
+        m_plugin->setStatus(fileName, FileStatus::Unknown, false);
+        processCleartoolLsLine(QDir(QLatin1String("/")), cleartoolLsLine);
+    }
+
+    QCOMPARE(m_statusMap->count(), 1);
+    QCOMPARE(m_statusMap->contains(fileName), true);
+    QCOMPARE(m_statusMap->value(fileName).status, status);
+
+    QCOMPARE(m_statusMap->contains(QLatin1String(("notexisting"))), false);
+}
+
+void ClearCaseSync::verifyFileNotManaged()
+{
+    QCOMPARE(m_statusMap->count(), 0);
+    TempFile temp(QDir::currentPath() + QLatin1String("/notmanaged.cpp"));
+    const QString fileName = temp.fileName();
+
+    updateStatusForNotManagedFiles(QStringList(fileName));
+
+    QCOMPARE(m_statusMap->count(), 1);
+
+    QCOMPARE(m_statusMap->contains(fileName), true);
+    QCOMPARE(m_statusMap->value(fileName).status, FileStatus::NotManaged);
+}
+
+void ClearCaseSync::verifyFileCheckedOutDynamicView()
+{
+    QCOMPARE(m_statusMap->count(), 0);
+
+    QString fileName(QLatin1String("/hello.C"));
+    processCleartoolLscheckoutLine(fileName);
+
+    QCOMPARE(m_statusMap->count(), 1);
+
+    QVERIFY(m_statusMap->contains(fileName));
+    QCOMPARE(m_statusMap->value(fileName).status, FileStatus::CheckedOut);
+
+    QVERIFY(!m_statusMap->contains(QLatin1String(("notexisting"))));
+}
+
+void ClearCaseSync::verifyFileCheckedInDynamicView()
+{
+    QCOMPARE(m_statusMap->count(), 0);
+
+    QString fileName(QLatin1String("/hello.C"));
+
+    // checked in files are not kept in the index
+    QCOMPARE(m_statusMap->count(), 0);
+    QCOMPARE(m_statusMap->contains(fileName), false);
+}
+
+void ClearCaseSync::verifyFileNotManagedDynamicView()
+{
+    QCOMPARE(m_statusMap->count(), 0);
+    TempFile temp(QDir::currentPath() + QLatin1String("/notmanaged.cpp"));
+    const QString fileName = temp.fileName();
+
+    updateStatusForNotManagedFiles(QStringList(fileName));
+
+    QCOMPARE(m_statusMap->count(), 1);
+
+    QVERIFY(m_statusMap->contains(fileName));
+    QCOMPARE(m_statusMap->value(fileName).status, FileStatus::NotManaged);
+}
+
+#endif
+
 
 } // namespace Internal
 } // namespace ClearCase

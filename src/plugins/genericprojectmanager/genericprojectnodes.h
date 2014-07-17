@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -36,9 +36,7 @@
 #include <QHash>
 #include <QSet>
 
-namespace Core {
-class IDocument;
-}
+namespace Core { class IDocument; }
 
 namespace GenericProjectManager {
 namespace Internal {
@@ -53,28 +51,19 @@ public:
     Core::IDocument *projectFile() const;
     QString projectFilePath() const;
 
-    bool hasBuildTargets() const;
+    bool showInSimpleTree() const;
 
-    QList<ProjectExplorer::ProjectNode::ProjectAction> supportedActions(Node *node) const;
+    QList<ProjectExplorer::ProjectAction> supportedActions(Node *node) const;
 
     bool canAddSubProject(const QString &proFilePath) const;
 
     bool addSubProjects(const QStringList &proFilePaths);
     bool removeSubProjects(const QStringList &proFilePaths);
 
-    bool addFiles(const ProjectExplorer::FileType fileType,
-                          const QStringList &filePaths,
-                          QStringList *notAdded = 0);
-
-    bool removeFiles(const ProjectExplorer::FileType fileType,
-                             const QStringList &filePaths,
-                             QStringList *notRemoved = 0);
-    bool deleteFiles(const ProjectExplorer::FileType fileType,
-                             const QStringList &filePaths);
-
-    bool renameFile(const ProjectExplorer::FileType fileType,
-                             const QString &filePath,
-                             const QString &newFilePath);
+    bool addFiles(const QStringList &filePaths, QStringList *notAdded = 0);
+    bool removeFiles(const QStringList &filePaths, QStringList *notRemoved = 0);
+    bool deleteFiles(const QStringList &filePaths);
+    bool renameFile(const QString &filePath, const QString &newFilePath);
 
     QList<ProjectExplorer::RunConfiguration *> runConfigurationsFor(Node *node);
 
