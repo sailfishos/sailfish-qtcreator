@@ -517,6 +517,9 @@ QStringList ExamplesListModel::exampleSources(QString *examplesInstallPath, QStr
         }
     }
 
+    // Qt Creator shipped tutorials
+    sources << (resourceDir + QLatin1String("/qtcreator_tutorials.xml"));
+
     // Read keys from SDK installer
     QSettings *settings = Core::ICore::settings(QSettings::SystemScope);
     int size = settings->beginReadArray(QLatin1String("ExampleManifests"));
@@ -525,20 +528,9 @@ QStringList ExamplesListModel::exampleSources(QString *examplesInstallPath, QStr
         sources.append(settings->value(QLatin1String("Location")).toString());
     }
     settings->endArray();
-
-    size = settings->beginReadArray(QLatin1String("TutorialsManifests"));
-    for (int i = 0; i < size; ++i) {
-        settings->setArrayIndex(i);
-        sources.append(settings->value(QLatin1String("Location")).toString());
-    }
-    settings->endArray();
-
     // if the installer set something, that's enough for us
     if (size > 0)
         return sources;
-
-    // Qt Creator shipped tutorials
-    sources << (resourceDir + QLatin1String("/qtcreator_tutorials.xml"));
 
     // try to find a suitable Qt version
     m_updateOnQtVersionsChanged = true; // this must be updated when the Qt versions change
