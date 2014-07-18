@@ -11,7 +11,7 @@ defineReplace(prependAll) {
 }
 
 XMLPATTERNS = $$targetPath($$[QT_INSTALL_BINS]/xmlpatterns)
-LUPDATE = $$targetPath($$[QT_INSTALL_BINS]/lupdate) -locations none -no-ui-lines -no-sort
+LUPDATE = $$targetPath($$[QT_INSTALL_BINS]/lupdate) -locations relative -no-ui-lines -no-sort
 LRELEASE = $$targetPath($$[QT_INSTALL_BINS]/lrelease)
 LCONVERT = $$targetPath($$[QT_INSTALL_BINS]/lconvert)
 
@@ -53,8 +53,7 @@ plugin_sources -= src/plugins/plugins.pro \
     src/plugins/snippets \
     src/plugins/regexp
 sources = src/app src/libs $$plugin_sources src/shared share/qtcreator/qmldesigner \
-          share/qtcreator/welcomescreen share/qtcreator/welcomescreen/widgets \
-          src/plugins/mer/welcomepage src/plugins/mer/welcomepage/widgets
+          share/qtcreator/welcomescreen share/qtcreator/welcomescreen/widgets
 
 files = $$files($$PWD/*_??.ts) $$PWD/qtcreator_untranslated.ts
 for(file, files) {
