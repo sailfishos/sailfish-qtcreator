@@ -24,6 +24,8 @@
 #include "merconstants.h"
 #include "meroptionswidget.h"
 
+#include <utils/qtcassert.h>
+
 #include <QCoreApplication>
 
 namespace Mer {
@@ -42,7 +44,7 @@ MerOptionsPage::MerOptionsPage(QObject *parent)
 
 QWidget *MerOptionsPage::widget()
 {
-    Q_ASSERT(m_widget == 0);
+    QTC_CHECK(m_widget == 0);
 
     m_widget = new MerOptionsWidget();
     connect(m_widget, SIGNAL(updateSearchKeys()), SLOT(onUpdateSearchKeys()));
