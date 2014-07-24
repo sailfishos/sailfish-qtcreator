@@ -166,10 +166,6 @@ ProjectExplorer::Kit* MerTarget::createKit() const
         return 0;
     }
 
-    ProjectExplorer::ToolChain *tc =
-      ProjectExplorer::ToolChainManager::findToolChain(QLatin1String(Constants::MER_TOOLCHAIN_ID));
-    QTC_ASSERT(tc, return 0);
-
     ProjectExplorer::Kit *k = new ProjectExplorer::Kit();
     k->setAutoDetected(true);
     k->setDisplayName(QString::fromLatin1("%1-%2").arg(m_sdk->virtualMachineName(), m_name));
@@ -197,9 +193,9 @@ ProjectExplorer::Kit* MerTarget::createKit() const
     debugger.setCommand(gdbFileName);
     debugger.setEngineType(Debugger::GdbEngineType);
     const QString vmName = m_sdk->virtualMachineName();
-    debugger.setDisplayName(QObject::tr("Mer Debugger for %1").arg(tc->displayName())); // FIXME
+    debugger.setDisplayName(QObject::tr("GDB for %1 %2").arg(vmName, m_name));
     debugger.setAutoDetected(true);
-    debugger.setAbi(tc->targetAbi());
+    debugger.setAbi(ProjectExplorer::Abi::abiFromTargetTriplet(m_gccMachineDump)); // TODO is this OK?
     QVariant id = Debugger::DebuggerItemManager::registerDebugger(debugger);
     Debugger::DebuggerKitInformation::setDebugger(k, id);
 
