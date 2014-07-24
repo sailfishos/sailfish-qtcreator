@@ -466,6 +466,7 @@ Abi Abi::abiFromTargetTriplet(const QString &triple)
         } else if (p == QLatin1String("i386") || p == QLatin1String("i486") || p == QLatin1String("i586")
                    || p == QLatin1String("i686") || p == QLatin1String("x86")) {
             arch = Abi::X86Architecture;
+            width = 32;
         } else if (p.startsWith(QLatin1String("arm"))) {
             arch = Abi::ArmArchitecture;
             width = 32;
