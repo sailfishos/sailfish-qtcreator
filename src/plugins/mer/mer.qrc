@@ -7,19 +7,5 @@
         <file>images/sdk-run.png</file>
         <file>images/sdk-stop.png</file>
         <file>images/icon-s-sailfish-qtcreator.png</file>
-        <file>welcomepage/gettingstarted.qml</file>
-        <file>welcomepage/MerIconAndLink.qml</file>
-        <file>welcomepage/widgets/images/arrowBig.png</file>
-        <file>welcomepage/widgets/images/gettingStarted01.png</file>
-        <file>welcomepage/widgets/images/gettingStarted02.png</file>
-        <file>welcomepage/widgets/images/gettingStarted03.png</file>
-        <file>welcomepage/widgets/images/gettingStarted04.png</file>
-        <file>welcomepage/widgets/images/sailfish-icon-bug.png</file>
-        <file>welcomepage/widgets/images/sailfish-icon-irc-channel.png</file>
-        <file>welcomepage/widgets/images/sailfish-icon-mailing-list.png</file>
-        <file>welcomepage/widgets/images/sailfish-icon-twitter.png</file>
-        <file>welcomepage/widgets/images/sailfish-icon-buildrun.png</file>
-        <file>welcomepage/widgets/images/sailfish-icon-guideline.png</file>
-        <file>welcomepage/widgets/images/sailfish-icon-showcase.png</file>
     </qresource>
 </RCC>

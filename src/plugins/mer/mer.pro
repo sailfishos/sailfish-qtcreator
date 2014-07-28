@@ -120,11 +120,9 @@ HEADERS += \
     mersshkeydeploymentdialog.h
 
 SOURCES += \
-    $$PWD/jollawelcomepage.cpp \
     $$PWD/mermode.cpp
 
 HEADERS += \
-    $$PWD/jollawelcomepage.h \
     $$PWD/mermode.h
 
 contains(QT_CONFIG, webkit)|contains(QT_MODULES, webkit) {

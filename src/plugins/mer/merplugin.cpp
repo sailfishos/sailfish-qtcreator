@@ -32,7 +32,6 @@
 #include "mersdkmanager.h"
 #include "merconnectionmanager.h"
 #include "mervirtualboxmanager.h"
-#include "jollawelcomepage.h"
 #include "mermode.h"
 #include "merconnectionprompt.h"
 #include "meractionmanager.h"
@@ -75,7 +74,6 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
     addAutoReleasedObject(new MerDeployStepFactory);
     addAutoReleasedObject(new MerActionManager);
 
-    addAutoReleasedObject(new JollaWelcomePage);
     addAutoReleasedObject(new MerMode);
 
     return true;
