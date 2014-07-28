@@ -33,7 +33,6 @@ namespace Internal {
 
 MerOptionsPage::MerOptionsPage(QObject *parent)
     : Core::IOptionsPage(parent)
-    , m_widget(0)
 {
     setCategory(Core::Id(Constants::MER_OPTIONS_CATEGORY));
     setDisplayCategory(QCoreApplication::translate("Mer", Constants::MER_OPTIONS_CATEGORY_TR));
@@ -44,7 +43,8 @@ MerOptionsPage::MerOptionsPage(QObject *parent)
 
 QWidget *MerOptionsPage::widget()
 {
-    QTC_CHECK(m_widget == 0);
+    if (m_widget)
+      return m_widget;
 
     m_widget = new MerOptionsWidget();
     connect(m_widget, SIGNAL(updateSearchKeys()), SLOT(onUpdateSearchKeys()));
@@ -54,12 +54,14 @@ QWidget *MerOptionsPage::widget()
 
 void MerOptionsPage::apply()
 {
-    if (m_widget)
-        m_widget->store();
+    QTC_CHECK(m_widget);
+
+    m_widget->store();
 }
 
 void MerOptionsPage::finish()
 {
+    delete m_widget;
 }
 
 bool MerOptionsPage::matches(const QString &key) const

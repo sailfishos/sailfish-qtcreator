@@ -25,6 +25,8 @@
 
 #include <coreplugin/dialogs/ioptionspage.h>
 
+#include <QtCore/QPointer>
+
 namespace Mer {
 namespace Internal {
 
@@ -46,7 +48,7 @@ private slots:
     void onUpdateSearchKeys();
 
 private:
-    MerOptionsWidget *m_widget;
+    QPointer<MerOptionsWidget> m_widget;
     QString m_searchKeyWords;
 };
 
