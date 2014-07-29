@@ -36,7 +36,7 @@
         featuresRequired="QtSupport.Wizards.FeatureSailfishOS">
     <description>Creates a SailfishOS Qt Quick Application using Sailfish Silica components.</description>
     <displayname>SailfishOS Qt Quick Application</displayname>;
-    <displaycategory>SailfishOS</displaycategory>
+    <displaycategory>Applications</displaycategory>
     <files>
         <file source="src/template.cpp" target="src/%ProjectName%.cpp"/>
         <file source="template.desktop" target="%ProjectName%.desktop"/>
