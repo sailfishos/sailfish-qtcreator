@@ -1,4 +1,4 @@
-<plugin name=\"Mer\" version=\"$$QTCREATOR_VERSION\" compatVersion=\"$$QTCREATOR_COMPAT_VERSION\" experimental=\"false\">
+<plugin name=\"Mer\" version=\"$$QTCREATOR_VERSION\" compatVersion=\"$$QTCREATOR_COMPAT_VERSION\">
     <vendor>Jolla Ltd.</vendor>
     <copyright>(C) 2012 - 2013 Jolla Ltd.</copyright>
     <license>
