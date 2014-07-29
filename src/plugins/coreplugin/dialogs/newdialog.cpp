@@ -267,7 +267,7 @@ void NewDialog::setWizards(QList<IWizard*> wizards)
     }
 
     if (!availablePlatforms.isEmpty())
-        m_ui->comboBox->setCurrentIndex(1); //First Platform
+        m_ui->comboBox->setCurrentIndex(0); //All Templates
     else
         m_ui->comboBox->setDisabled(true);
 
@@ -291,8 +291,13 @@ void NewDialog::setWizards(QList<IWizard*> wizards)
 
 Core::IWizard *NewDialog::showDialog()
 {
+    static QVariant lastPlatform;
     static QString lastCategory;
     QModelIndex idx;
+
+    if (!lastPlatform.isNull()) {
+        m_ui->comboBox->setCurrentIndex(m_ui->comboBox->findData(lastPlatform));
+    }
 
     if (!lastCategory.isEmpty())
         foreach (QStandardItem* item, m_categoryItems) {
@@ -321,6 +326,7 @@ Core::IWizard *NewDialog::showDialog()
     QStandardItem *currentItem = m_model->itemFromIndex(m_twoLevelProxyModel->mapToSource(idx));
     if (currentItem)
         lastCategory = currentItem->data(Qt::UserRole).toString();
+    lastPlatform = m_ui->comboBox->currentData();
 
     if (retVal != Accepted)
         return 0;
