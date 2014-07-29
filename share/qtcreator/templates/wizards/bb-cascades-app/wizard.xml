@@ -37,6 +37,7 @@
     <icon>icon.png</icon>
     <displayname>BlackBerry Cascades Application</displayname>;
     <description>Creates a Cascades application for BlackBerry 10.</description>
+    <displaycategory>Applications</displaycategory>
     <files>
         <file source="assets/main.qml" openeditor="true"/>
         <file source="bar-descriptor.xml" openeditor="true"/>
