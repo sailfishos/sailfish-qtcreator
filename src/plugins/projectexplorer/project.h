@@ -36,6 +36,7 @@
 
 #include <QObject>
 #include <QFileSystemModel>
+#include <QSet>
 
 #include <functional>
 
@@ -147,7 +148,8 @@ public:
     void setNamedSettings(const QString &name, const QVariant &value);
 
     virtual bool needsConfiguration() const;
-    virtual void configureAsExampleProject(const QSet<Core::Id> &platforms);
+    virtual void configureAsExampleProject(const QSet<Core::Id> &platforms,
+                                           const QSet<Core::Id> &preferredFeauters = QSet<Core::Id>());
 
     virtual bool requiresTargetPanel() const;
     virtual ProjectImporter *projectImporter() const;
