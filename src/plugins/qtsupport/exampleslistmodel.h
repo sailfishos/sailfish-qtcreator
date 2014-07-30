@@ -74,7 +74,7 @@ enum ExampleRoles
     Name = Qt::UserRole, ProjectPath, Description, ImageUrl,
     DocUrl, FilesToOpen, MainFile, Tags, Difficulty, HasSourceCode,
     Type, Dependencies, IsVideo, VideoUrl, VideoLength, Platforms,
-    IsHighlighted
+    IsHighlighted, PreferredFeatures
 };
 
 enum InstructionalType
@@ -102,6 +102,7 @@ struct ExampleItem
     QString videoUrl;
     QString videoLength;
     QStringList platforms;
+    QStringList preferredFeatures;
 };
 
 class ExamplesListModel : public QAbstractListModel
