@@ -123,7 +123,7 @@ public:
 
     bool needsConfiguration() const;
 
-    void configureAsExampleProject(const QStringList &platforms);
+    void configureAsExampleProject(const QStringList &platforms, const QStringList &preferredFeatures = QStringList());
 
     bool supportsNoTargetPanel() const;
 
