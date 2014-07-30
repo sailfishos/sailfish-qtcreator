@@ -118,7 +118,7 @@ public:
 
     bool needsConfiguration() const override;
 
-    void configureAsExampleProject(const QSet<Core::Id> &platforms) override;
+    void configureAsExampleProject(const QSet<Core::Id> &platforms, const QSet<Core::Id> &preferredFeatures) override;
 
     bool requiresTargetPanel() const override;
 
