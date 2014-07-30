@@ -54,6 +54,7 @@ struct BaseProjectWizardDialogPrivate {
     int introPageId;
     QString selectedPlatform;
     Core::FeatureSet requiredFeatureSet;
+    Core::FeatureSet preferredFeatureSet;
 };
 
 BaseProjectWizardDialogPrivate::BaseProjectWizardDialogPrivate(Utils::ProjectIntroPage *page, int id) :
@@ -70,6 +71,7 @@ BaseProjectWizardDialog::BaseProjectWizardDialog(QWidget *parent,
 {
     setPath(parameters.defaultPath());
     setSelectedPlatform(parameters.selectedPlatform());
+    setPrefferedFeatures(parameters.preferredFeatures());
     setRequiredFeatures(parameters.requiredFeatures());
     init();
 }
@@ -83,6 +85,7 @@ BaseProjectWizardDialog::BaseProjectWizardDialog(Utils::ProjectIntroPage *introP
 {
     setPath(parameters.defaultPath());
     setSelectedPlatform(parameters.selectedPlatform());
+    setPrefferedFeatures(parameters.preferredFeatures());
     setRequiredFeatures(parameters.requiredFeatures());
     init();
 }
@@ -206,6 +209,16 @@ Core::FeatureSet BaseProjectWizardDialog::requiredFeatures() const
 void BaseProjectWizardDialog::setRequiredFeatures(const Core::FeatureSet &featureSet)
 {
     d->requiredFeatureSet = featureSet;
+}
+
+Core::FeatureSet BaseProjectWizardDialog::preferredFeatures() const
+{
+    return d->preferredFeatureSet;
+}
+
+void BaseProjectWizardDialog::setPrefferedFeatures(const Core::FeatureSet &featureSet)
+{
+    d->preferredFeatureSet = featureSet;
 }
 
 } // namespace ProjectExplorer

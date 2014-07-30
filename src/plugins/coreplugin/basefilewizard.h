@@ -66,12 +66,13 @@ public:
 
     explicit WizardDialogParameters(const QString &defaultPath, const WizardPageList &extensionPages,
                                     const QString &platform, const Core::FeatureSet &requiredFeatures,
-                                    DialogParameterFlags flags,
+                                    const Core::FeatureSet &preferredFeatures, DialogParameterFlags flags,
                                     QVariantMap extraValues)
         : m_defaultPath(defaultPath),
           m_extensionPages(extensionPages),
           m_selectedPlatform(platform),
           m_requiredFeatures(requiredFeatures),
+          m_preferredFeatures(preferredFeatures),
           m_parameterFlags(flags),
           m_extraValues(extraValues)
     {}
@@ -88,6 +89,9 @@ public:
     Core::FeatureSet requiredFeatures() const
     { return m_requiredFeatures; }
 
+    Core::FeatureSet preferredFeatures() const
+    { return m_preferredFeatures; }
+
     DialogParameterFlags flags() const
     { return m_parameterFlags; }
 
@@ -99,6 +103,7 @@ private:
     WizardPageList m_extensionPages;
     QString m_selectedPlatform;
     Core::FeatureSet m_requiredFeatures;
+    Core::FeatureSet m_preferredFeatures;
     DialogParameterFlags m_parameterFlags;
     QVariantMap m_extraValues;
 };
