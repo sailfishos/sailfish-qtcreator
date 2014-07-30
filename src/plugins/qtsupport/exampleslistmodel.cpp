@@ -591,10 +591,28 @@ BaseQtVersion *ExamplesListModel::findHighestQtVersion() const
 QStringList ExamplesListModel::exampleSources(QString *examplesInstallPath, QString *demosInstallPath)
 {
     QStringList sources;
+    QSettings *settings = Core::ICore::settings();
     QString resourceDir = Core::ICore::resourcePath() + QLatin1String("/welcomescreen/");
 
-    // Qt Creator shipped tutorials
-    sources << (resourceDir + QLatin1String("/qtcreator_tutorials.xml"));
+    // read extra tutorials settings
+    QString installedTutorials = settings->value(QLatin1String("Help/InstalledTutorials"),
+                                                 QString()).toString();
+    if (installedTutorials.isEmpty()) {
+        // Qt Creator shipped tutorials
+        sources << (resourceDir + QLatin1String("/qtcreator_tutorials.xml"));
+    } else {
+        if (debugExamples())
+            qWarning() << "Reading Help/InstalledTutorials from settings:" << installedTutorials;
+        QFileInfo fi(installedTutorials);
+        if (fi.isFile() && fi.isReadable()) {
+            sources.append(installedTutorials);
+            if (debugExamples())
+                qWarning() << "Adding tutorials set " << installedTutorials;
+        } else {
+            if (debugExamples())
+                qWarning() << "Manifest path " << installedTutorials << "is not a readable regular file, ignoring";
+        }
+    }
 
     QString examplesPath;
     QString demosPath;
