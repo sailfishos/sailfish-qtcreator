@@ -218,6 +218,7 @@ void BaseFileWizard::runWizard(const QString &path, QWidget *parent, const QStri
                                                                                            allExtensionPages,
                                                                                            platform,
                                                                                            requiredFeatures(),
+                                                                                           preferredFeatures(),
                                                                                            dialogParameterFlags,
                                                                                            extraValues)));
     QTC_ASSERT(!wizard.isNull(), return);

@@ -70,6 +70,7 @@ public:
         QString category;
         QString displayCategory;
         FeatureSet requiredFeatures;
+        FeatureSet preferredFeatures;
         IWizard::WizardFlags flags;
         QString descriptionImage;
     };
@@ -85,6 +86,7 @@ public:
     QString displayCategory() const { return m_data.displayCategory; }
     QString descriptionImage() const { return m_data.descriptionImage; }
     FeatureSet requiredFeatures() const { return m_data.requiredFeatures; }
+    FeatureSet preferredFeatures() const { return m_data.preferredFeatures; }
     WizardFlags flags() const { return m_data.flags; }
 
     void setData(const Data &data) { m_data = data; }
@@ -98,6 +100,8 @@ public:
     void setDescriptionImage(const QString &descriptionImage) { m_data.descriptionImage = descriptionImage; }
     void setRequiredFeatures(const FeatureSet &featureSet) { m_data.requiredFeatures = featureSet; }
     void addRequiredFeature(const Feature &feature) { m_data.requiredFeatures |= feature; }
+    void setPreferredFeatures(const FeatureSet &featureSet) { m_data.preferredFeatures = featureSet; }
+    void addPreferredFeature(const Feature &feature) { m_data.preferredFeatures |= feature; }
     void setFlags(WizardFlags flags) { m_data.flags = flags; }
 
     virtual void runWizard(const QString &path, QWidget *parent, const QString &platform, const QVariantMap &variables) = 0;

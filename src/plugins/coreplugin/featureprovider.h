@@ -73,6 +73,8 @@ public:
 
     FeatureSet(const FeatureSet &other) : QSet<Feature>(other) {}
 
+    using QSet<Feature>::isEmpty;
+
     FeatureSet &operator=(const FeatureSet &other)
     {
        QSet<Feature>::operator=(other);
