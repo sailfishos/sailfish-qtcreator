@@ -386,7 +386,8 @@ void ExamplesWelcomePage::openProject(const QString &projectFile,
                                       const QString &mainFile,
                                       const QUrl &help,
                                       const QStringList &dependencies,
-                                      const QStringList &)
+                                      const QStringList &platforms,
+                                      const QStringList &preferredFeatures)
 {
     QString proFile = projectFile;
     if (proFile.isEmpty())
@@ -415,8 +416,11 @@ void ExamplesWelcomePage::openProject(const QString &projectFile,
     QString errorMessage;
     if (proFile.isEmpty())
         return;
-    if (ProjectExplorer::ProjectExplorerPlugin::instance()->openProject(proFile, &errorMessage)) {
+    if (ProjectExplorer::Project *project =
+            ProjectExplorer::ProjectExplorerPlugin::instance()->openProject(proFile, &errorMessage)) {
         Core::ICore::openFiles(filesToOpen);
+        if (project->needsConfiguration() && (!platforms.isEmpty() || !preferredFeatures.isEmpty()))
+            project->configureAsExampleProject(platforms, preferredFeatures);
         Core::ModeManager::activateMode(Core::Constants::MODE_EDIT);
         if (help.isValid())
             openHelpInExtraWindow(help.toString());

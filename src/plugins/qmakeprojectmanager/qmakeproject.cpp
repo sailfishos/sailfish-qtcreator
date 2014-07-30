@@ -1338,8 +1338,14 @@ bool QmakeProject::needsConfiguration() const
     return targets().isEmpty();
 }
 
-void QmakeProject::configureAsExampleProject(const QStringList &platforms)
+void QmakeProject::configureAsExampleProject(const QStringList &platforms, const QStringList &preferredFeatures)
 {
+    QList<Kit *> preferredKits;
+    Core::FeatureSet featuresSet;
+    foreach(const QString& f, preferredFeatures) {
+        featuresSet |= Core::Feature(Core::Id::fromString(f));
+    }
+
     QList<const BuildInfo *> infoList;
     QList<Kit *> kits = KitManager::kits();
     foreach (Kit *k, kits) {
@@ -1354,10 +1360,20 @@ void QmakeProject::configureAsExampleProject(const QStringList &platforms)
             continue;
         foreach (BuildInfo *info, factory->availableSetups(k, projectFilePath().toString()))
             infoList << info;
+
+        if (!preferredFeatures.isEmpty() && version->availableFeatures().contains(featuresSet))
+            preferredKits << k;
     }
     setup(infoList);
     qDeleteAll(infoList);
     ProjectExplorerPlugin::requestProjectModeUpdate(this);
+
+    foreach (Kit *k, preferredKits) {
+        if (Target *t = target(k)) {
+            setActiveTarget(t);
+            break;
+        }
+    }
 }
 
 bool QmakeProject::requiresTargetPanel() const
