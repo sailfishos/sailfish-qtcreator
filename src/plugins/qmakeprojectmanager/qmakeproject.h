@@ -107,7 +107,7 @@ public:
 
     bool needsConfiguration() const final;
 
-    void configureAsExampleProject(const QSet<Core::Id> &platforms) final;
+    void configureAsExampleProject(const QSet<Core::Id> &platforms, const QSet<Core::Id> &preferredFeatures) final;
 
     bool requiresTargetPanel() const final;
 
