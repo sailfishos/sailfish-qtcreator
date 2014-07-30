@@ -61,7 +61,7 @@ public:
 
     ProjectExplorer::Tasks projectIssues(const ProjectExplorer::Kit *k) const final;
 
-    void configureAsExampleProject() final;
+    void configureAsExampleProject(const QSet<Core::Id> &preferredFeatures) final;
 
     ProjectExplorer::ProjectImporter *projectImporter() const final;
 

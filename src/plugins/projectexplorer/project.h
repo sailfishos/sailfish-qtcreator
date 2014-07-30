@@ -38,6 +38,7 @@
 
 #include <QObject>
 #include <QFileSystemModel>
+#include <QSet>
 
 #include <functional>
 
@@ -140,7 +141,7 @@ public:
 
     virtual bool needsConfiguration() const;
     bool needsBuildConfigurations() const;
-    virtual void configureAsExampleProject();
+    virtual void configureAsExampleProject(const QSet<Core::Id> &preferredFeauters = QSet<Core::Id>());
 
     virtual ProjectImporter *projectImporter() const;
 

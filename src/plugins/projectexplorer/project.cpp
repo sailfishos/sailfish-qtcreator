@@ -893,8 +893,9 @@ bool Project::needsBuildConfigurations() const
     return d->m_needsBuildConfigurations;
 }
 
-void Project::configureAsExampleProject()
+void Project::configureAsExampleProject(const QSet<Core::Id> &preferredFeatures)
 {
+    Q_UNUSED(preferredFeatures);
 }
 
 bool Project::knowsAllBuildExecutables() const
