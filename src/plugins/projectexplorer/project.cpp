@@ -957,7 +957,7 @@ bool Project::needsBuildConfigurations() const
     return d->m_needsBuildConfigurations;
 }
 
-void Project::configureAsExampleProject(Kit * /*kit*/)
+void Project::configureAsExampleProject(Kit * /*kit*/, const QSet<Utils::Id> & /*preferredFeatures*/)
 {
 }
 

@@ -52,6 +52,7 @@
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/rawprojectpart.h>
 #include <projectexplorer/runconfiguration.h>
+#include <projectexplorer/session.h>
 #include <projectexplorer/target.h>
 #include <projectexplorer/taskhub.h>
 #include <projectexplorer/toolchain.h>
@@ -1106,17 +1107,28 @@ void CentralizedFolderWatcher::delayedFolderChanged(const QString &folder)
         m_buildSystem->updateCodeModels();
 }
 
-void QmakeProject::configureAsExampleProject(Kit *kit)
+void QmakeProject::configureAsExampleProject(Kit *kit, const QSet<Utils::Id> &preferredFeatures)
 {
+    QList<Kit *> preferredKits;
+
     QList<BuildInfo> infoList;
     const QList<Kit *> kits(kit != nullptr ? QList<Kit *>({kit}) : KitManager::kits());
     for (Kit *k : kits) {
-        if (QtSupport::QtKitAspect::qtVersion(k) != nullptr) {
+        if (QtSupport::BaseQtVersion *version = QtSupport::QtKitAspect::qtVersion(k)) {
             if (auto factory = BuildConfigurationFactory::find(k, projectFilePath()))
                 infoList << factory->allAvailableSetups(k, projectFilePath());
+            if (!preferredFeatures.isEmpty() && version->features().contains(preferredFeatures))
+                preferredKits << k;
         }
     }
     setup(infoList);
+
+    foreach (Kit *k, preferredKits) {
+        if (Target *t = target(k)) {
+            SessionManager::setActiveTarget(this, t, SetActive::Cascade);
+            break;
+        }
+    }
 }
 
 void QmakeBuildSystem::updateBuildSystemData()
