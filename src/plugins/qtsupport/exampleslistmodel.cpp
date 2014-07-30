@@ -428,6 +428,10 @@ void ExamplesListModel::parseTutorials(QXmlStreamReader *reader, const QString &
                 item.dependencies.append(projectsOffset + slash + reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement));
             } else if (reader->name() == QLatin1String("tags")) {
                 item.tags = reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement).split(QLatin1Char(','));
+            }  else if (reader->name() == QLatin1String("platforms")) {
+                item.platforms = trimStringList(reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement).split(QLatin1Char(','), QString::SkipEmptyParts));
+            } else if (reader->name() == QLatin1String("preferredFeatures")) {
+                item.preferredFeatures = trimStringList(reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement).split(QLatin1Char(','), QString::SkipEmptyParts));
             }
             break;
         case QXmlStreamReader::EndElement:
