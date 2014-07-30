@@ -48,6 +48,7 @@
 #include <projectexplorer/deploymentdata.h>
 #include <projectexplorer/toolchain.h>
 #include <projectexplorer/headerpath.h>
+#include <projectexplorer/session.h>
 #include <projectexplorer/target.h>
 #include <projectexplorer/projectexplorer.h>
 #include <proparser/qmakevfs.h>
@@ -1307,8 +1308,10 @@ bool QmakeProject::needsConfiguration() const
     return targets().isEmpty();
 }
 
-void QmakeProject::configureAsExampleProject(const QSet<Core::Id> &platforms)
+void QmakeProject::configureAsExampleProject(const QSet<Core::Id> &platforms, const QSet<Core::Id> &preferredFeatures)
 {
+    QList<Kit *> preferredKits;
+
     QList<const BuildInfo *> infoList;
     QList<Kit *> kits = KitManager::kits();
     foreach (Kit *k, kits) {
@@ -1323,10 +1326,20 @@ void QmakeProject::configureAsExampleProject(const QSet<Core::Id> &platforms)
             continue;
         foreach (BuildInfo *info, factory->availableSetups(k, projectFilePath().toString()))
             infoList << info;
+
+        if (!preferredFeatures.isEmpty() && version->availableFeatures().contains(preferredFeatures))
+            preferredKits << k;
     }
     setup(infoList);
     qDeleteAll(infoList);
     ProjectExplorerPlugin::requestProjectModeUpdate(this);
+
+    foreach (Kit *k, preferredKits) {
+        if (Target *t = target(k)) {
+            SessionManager::setActiveTarget(this, t, SetActive::Cascade);
+            break;
+        }
+    }
 }
 
 bool QmakeProject::requiresTargetPanel() const
