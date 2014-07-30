@@ -389,7 +389,7 @@ QString ExamplesWelcomePage::copyToAlternativeLocation(const QFileInfo& proFileI
 }
 
 void ExamplesWelcomePage::openProject(const QString &projectFile, const QStringList &additionalFilesToOpen,
-                                      const QUrl &help, const QStringList &dependencies, const QStringList &)
+                                      const QUrl &help, const QStringList &dependencies, const QStringList &platforms, const QStringList &preferredFeatures)
 {
     QString proFile = projectFile;
     if (proFile.isEmpty())
@@ -409,12 +409,13 @@ void ExamplesWelcomePage::openProject(const QString &projectFile, const QStringL
     ProjectExplorer::ProjectExplorerPlugin *peplugin = ProjectExplorer::ProjectExplorerPlugin::instance();
     if (proFile.isEmpty())
         return;
-    if (peplugin->openProject(proFile, &errorMessage)) {
+    if (ProjectExplorer::Project *project = peplugin->openProject(proFile, &errorMessage)) {
         Core::ICore::openFiles(filesToOpen);
+        if (project->needsConfiguration() && (!platforms.isEmpty() || !preferredFeatures.isEmpty()))
+            project->configureAsExampleProject(platforms, preferredFeatures);
         Core::ModeManager::activateMode(Core::Constants::MODE_EDIT);
         if (help.isValid())
             Core::HelpManager::handleHelpRequest(help.toString() + QLatin1String("?view=split"));
-        Core::ModeManager::activateMode(ProjectExplorer::Constants::MODE_SESSION);
     }
     if (!errorMessage.isEmpty())
         QMessageBox::critical(Core::ICore::mainWindow(), tr("Failed to Open Project"), errorMessage);

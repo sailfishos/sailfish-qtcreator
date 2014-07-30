@@ -124,7 +124,7 @@ public:
     void setNamedSettings(const QString &name, const QVariant &value);
 
     virtual bool needsConfiguration() const;
-    virtual void configureAsExampleProject(const QStringList &platforms);
+    virtual void configureAsExampleProject(const QStringList &platforms, const QStringList &preferredFeauters = QStringList());
 
     virtual bool supportsNoTargetPanel() const;
     virtual ProjectImporter *createProjectImporter() const;

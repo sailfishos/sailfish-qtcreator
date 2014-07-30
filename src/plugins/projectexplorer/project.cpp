@@ -477,9 +477,10 @@ bool Project::needsConfiguration() const
     return false;
 }
 
-void Project::configureAsExampleProject(const QStringList &platforms)
+void Project::configureAsExampleProject(const QStringList &platforms,const QStringList &preferredFeatures)
 {
     Q_UNUSED(platforms);
+    Q_UNUSED(preferredFeatures);
 }
 
 bool Project::supportsNoTargetPanel() const
