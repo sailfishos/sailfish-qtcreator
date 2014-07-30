@@ -815,9 +815,10 @@ bool Project::needsBuildConfigurations() const
     return true;
 }
 
-void Project::configureAsExampleProject(const QSet<Core::Id> &platforms)
+void Project::configureAsExampleProject(const QSet<Core::Id> &platforms, const QSet<Core::Id> &preferredFeatures)
 {
     Q_UNUSED(platforms);
+    Q_UNUSED(preferredFeatures);
 }
 
 bool Project::needsSpecialDeployment() const
