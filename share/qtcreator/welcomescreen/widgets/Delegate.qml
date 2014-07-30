@@ -224,7 +224,8 @@ Rectangle {
                                            model.mainFile,
                                            model.docUrl,
                                            model.dependencies,
-                                           model.platforms)
+                                           model.platforms,
+                                           model.preferredFeatures)
             else
                 gettingStarted.openHelpInExtraWindow(model.docUrl);
         }
