@@ -46,11 +46,13 @@ const char MER_PARAM_USERNAME[] = "--username";
 const char MER_PARAM_PRIVATE_KEY_FILE[] = "--private-key-file";
 const char MER_PARAM_SSH_PORT[] = "--ssh-port";
 const char MER_PARAM_WWW_PORT[] = "--www-port";
+const char MER_PARAM_HEADLESS[] = "--headless";
 
 AddMerSdkOperation::AddMerSdkOperation():
     m_autoDetected(true),
     m_sshPort(0),
-    m_wwwPort(0)
+    m_wwwPort(0),
+    m_headless(false)
 {
 }
 
@@ -77,7 +79,8 @@ QString AddMerSdkOperation::argumentsHelpText() const
          + indent + QLatin1String(MER_PARAM_USERNAME) + QLatin1String(" <NAME>             mersdk ssh username (required).\n")
          + indent + QLatin1String(MER_PARAM_PRIVATE_KEY_FILE) + QLatin1String(" <FILE>     mersdk private key file (required).\n")
          + indent + QLatin1String(MER_PARAM_SSH_PORT) + QLatin1String(" <NUMBER>           mersdk ssh port (required).\n")
-         + indent + QLatin1String(MER_PARAM_WWW_PORT) + QLatin1String(" <NUMBER>           mersdk www port (required).\n");
+         + indent + QLatin1String(MER_PARAM_WWW_PORT) + QLatin1String(" <NUMBER>           mersdk www port (required).\n")
+         + indent + QLatin1String(MER_PARAM_HEADLESS) + QLatin1String("                    set headless mode.\n");
 }
 
 bool AddMerSdkOperation::setArguments(const QStringList &args)
@@ -177,6 +180,10 @@ bool AddMerSdkOperation::setArguments(const QStringList &args)
             m_wwwPort = next.toInt();
             continue;
         }
+        if (current == QLatin1String(MER_PARAM_HEADLESS)) {
+            m_headless = true;
+            continue;
+        }
     }
 
     const char MISSING[] = " parameter missing.";
@@ -232,7 +239,7 @@ int AddMerSdkOperation::execute() const
         map = initializeSdks();
 
     const QVariantMap result = addSdk(map, m_name, m_autoDetected, m_sharedHomePath, m_sharedTargetsPath, m_sharedSshPath,
-                                      m_sharedConfigPath, m_host, m_userName, m_privateKeyFile, m_sshPort, m_wwwPort);
+                                      m_sharedConfigPath, m_host, m_userName, m_privateKeyFile, m_sshPort, m_wwwPort,m_headless);
 
     if (result.isEmpty() || map == result)
         return -2;
@@ -259,7 +266,8 @@ QVariantMap AddMerSdkOperation::addSdk(const QVariantMap &map,
                                           const QString &userName,
                                           const QString &privateKeyFile,
                                           quint16 sshPort,
-                                          quint16 wwwPort)
+                                          quint16 wwwPort,
+                                          bool headless)
 {
     QStringList valueKeys = FindValueOperation::findValues(map, QVariant(sdkName));
     bool hasTarget = false;
@@ -299,6 +307,7 @@ QVariantMap AddMerSdkOperation::addSdk(const QVariantMap &map,
     data << KeyValuePair(QStringList() << sdk << QLatin1String(Mer::Constants::PRIVATE_KEY_FILE), QVariant(privateKeyFile));
     data << KeyValuePair(QStringList() << sdk << QLatin1String(Mer::Constants::SSH_PORT), QVariant(sshPort));
     data << KeyValuePair(QStringList() << sdk << QLatin1String(Mer::Constants::WWW_PORT), QVariant(wwwPort));
+    data << KeyValuePair(QStringList() << sdk << QLatin1String(Mer::Constants::HEADLESS), QVariant(headless));
     data << KeyValuePair(QStringList() << QLatin1String(Mer::Constants::MER_SDK_COUNT_KEY), QVariant(count + 1));
 
     return AddKeysOperation::addKeys(cleaned, data);
@@ -323,7 +332,7 @@ bool AddMerSdkOperation::test() const
                  QLatin1String("/test/sharedConfigPath"),
                  QLatin1String("host"),
                  QLatin1String("user"),
-                 QLatin1String("/test/privateKey"),22,80);
+                 QLatin1String("/test/privateKey"),22,80,false);
 
     const QString sdk = QString::fromLatin1(Mer::Constants::MER_SDK_DATA_KEY) + QString::number(0);
 
