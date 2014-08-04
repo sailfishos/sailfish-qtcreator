@@ -48,6 +48,7 @@ const char MER_PARAM_PRIVATE_KEY_FILE[] = "--private-key-file";
 const char MER_PARAM_SSH_PORT[] = "--ssh-port";
 const char MER_PARAM_WWW_PORT[] = "--www-port";
 const char MER_PARAM_HEADLESS[] = "--headless";
+const char MER_PARAM_INSTALLDIR[] = "--installdir";
 
 AddMerSdkOperation::AddMerSdkOperation():
     m_autoDetected(true),
@@ -70,7 +71,8 @@ QString AddMerSdkOperation::helpText() const
 QString AddMerSdkOperation::argumentsHelpText() const
 {
     const QString indent = QLatin1String("    ");
-    return indent + QLatin1String(MER_PARAM_VM_NAME) + QLatin1String(" <NAME>              mer sdk virtual machine name (required).\n")
+    return indent + QLatin1String(MER_PARAM_INSTALLDIR) + QLatin1String(" <DIR>            mer sdk install directory (required).\n")
+         + indent + QLatin1String(MER_PARAM_VM_NAME) + QLatin1String(" <NAME>              mer sdk virtual machine name (required).\n")
          + indent + QLatin1String(MER_PARAM_AUTODETECTED) + QLatin1String(" <BOOL>         is sdk autodetected.\n")
          + indent + QLatin1String(MER_PARAM_SHARED_HOME) + QLatin1String(" <PATH>          shared \"home\" folder (required).\n")
          + indent + QLatin1String(MER_PARAM_SHARED_TARGETS) + QLatin1String(" <PATH>       shared \"targets\" folder (required).\n")
@@ -91,6 +93,14 @@ bool AddMerSdkOperation::setArguments(const QStringList &args)
     for (int i = 0; i < args.count(); ++i) {
         const QString current = args.at(i);
         const QString next = ((i + 1) < args.count()) ? args.at(i + 1) : QString();
+
+        if (current == QLatin1String(MER_PARAM_INSTALLDIR)) {
+            if (next.isNull())
+                return false;
+            ++i; // skip next;
+            m_installDir = next;
+            continue;
+        }
 
         if (current == QLatin1String(MER_PARAM_VM_NAME)) {
             if (next.isNull())
@@ -198,6 +208,10 @@ bool AddMerSdkOperation::setArguments(const QStringList &args)
 
     const char MISSING[] = " parameter missing.";
     bool error = false;
+    if (m_installDir.isEmpty()) {
+        std::cerr << MER_PARAM_INSTALLDIR << MISSING << std::endl << std::endl;
+        error = true;
+    }
     if (m_name.isEmpty()) {
         std::cerr << MER_PARAM_VM_NAME << MISSING << std::endl << std::endl;
         error = true;
@@ -252,6 +266,7 @@ int AddMerSdkOperation::execute() const
     if (map.isEmpty())
         map = initializeSdks();
 
+    map.insert(QLatin1String(Mer::Constants::MER_SDK_INSTALLDIR), m_installDir);
     const QVariantMap result = addSdk(map, m_name, m_autoDetected, m_sharedHomePath, m_sharedTargetsPath, m_sharedSshPath,
                                       m_sharedSrcPath, m_sharedConfigPath, m_host, m_userName, m_privateKeyFile, m_sshPort,
                                       m_wwwPort, m_headless);
