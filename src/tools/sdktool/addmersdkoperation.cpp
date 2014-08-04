@@ -38,7 +38,7 @@
 const char MER_PARAM_VM_NAME[] = "--vm-name";
 const char MER_PARAM_AUTODETECTED[] = "--autodetected";
 const char MER_PARAM_SHARED_HOME[] = "--shared-home";
-const char MER_PARAM_SHARED_TARGET[] = "--shared-target";
+const char MER_PARAM_SHARED_TARGETS[] = "--shared-targets";
 const char MER_PARAM_SHARED_SSH[] = "--shared-ssh";
 const char MER_PARAM_HOST[] = "--host";
 const char MER_PARAM_USERNAME[] = "--username";
@@ -68,9 +68,9 @@ QString AddMerSdkOperation::argumentsHelpText() const
     const QString indent = QLatin1String("    ");
     return indent + QLatin1String(MER_PARAM_VM_NAME) + QLatin1String(" <NAME>              mer sdk virtual machine name (required).\n")
          + indent + QLatin1String(MER_PARAM_AUTODETECTED) + QLatin1String(" <BOOL>         is sdk autodetected.\n")
-         + indent + QLatin1String(MER_PARAM_SHARED_HOME) + QLatin1String(" <PATH>          shared home folder (required).\n")
-         + indent + QLatin1String(MER_PARAM_SHARED_TARGET) + QLatin1String(" <PATH>        shared target folder (required).\n")
-         + indent + QLatin1String(MER_PARAM_SHARED_SSH) + QLatin1String(" <PATH>           shared ssh folder (required).\n")
+         + indent + QLatin1String(MER_PARAM_SHARED_HOME) + QLatin1String(" <PATH>          shared \"home\" folder (required).\n")
+         + indent + QLatin1String(MER_PARAM_SHARED_TARGETS) + QLatin1String(" <PATH>       shared \"targets\" folder (required).\n")
+         + indent + QLatin1String(MER_PARAM_SHARED_SSH) + QLatin1String(" <PATH>           shared \"ssh\" folder (required).\n")
          + indent + QLatin1String(MER_PARAM_HOST) + QLatin1String(" <NAME>                 mersdk ssh hostname (required).\n")
          + indent + QLatin1String(MER_PARAM_USERNAME) + QLatin1String(" <NAME>             mersdk ssh username (required).\n")
          + indent + QLatin1String(MER_PARAM_PRIVATE_KEY_FILE) + QLatin1String(" <FILE>     mersdk private key file (required).\n")
@@ -110,7 +110,7 @@ bool AddMerSdkOperation::setArguments(const QStringList &args)
         }
 
 
-        if (current == QLatin1String(MER_PARAM_SHARED_TARGET)) {
+        if (current == QLatin1String(MER_PARAM_SHARED_TARGETS)) {
             if (next.isNull())
                 return false;
             ++i; // skip next;
@@ -179,7 +179,7 @@ bool AddMerSdkOperation::setArguments(const QStringList &args)
         error = true;
     }
     if (m_sharedTargetsPath.isEmpty()) {
-        std::cerr << MER_PARAM_SHARED_TARGET << MISSING << std::endl << std::endl;
+        std::cerr << MER_PARAM_SHARED_TARGETS << MISSING << std::endl << std::endl;
         error = true;
     }
     if (m_sharedSshPath.isEmpty()) {
