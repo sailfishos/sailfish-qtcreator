@@ -198,7 +198,7 @@ QString MerEmulatorDevice::displayNameForActionId(Core::Id actionId) const
     return QString();
 }
 
-void MerEmulatorDevice::executeAction(Core::Id actionId, QWidget *parent) const
+void MerEmulatorDevice::executeAction(Core::Id actionId, QWidget *parent)
 {
     Q_UNUSED(parent);
     QTC_ASSERT(actionIds().contains(actionId), return);

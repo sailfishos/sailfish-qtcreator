@@ -125,7 +125,7 @@ QString MerHardwareDevice::displayNameForActionId(Core::Id actionId) const
 }
 
 
-void MerHardwareDevice::executeAction(Core::Id actionId, QWidget *parent) const
+void MerHardwareDevice::executeAction(Core::Id actionId, QWidget *parent)
 {
     Q_UNUSED(parent);
     QTC_ASSERT(actionIds().contains(actionId), return);
