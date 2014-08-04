@@ -40,6 +40,7 @@ const char MER_PARAM_AUTODETECTED[] = "--autodetected";
 const char MER_PARAM_SHARED_HOME[] = "--shared-home";
 const char MER_PARAM_SHARED_TARGETS[] = "--shared-targets";
 const char MER_PARAM_SHARED_SSH[] = "--shared-ssh";
+const char MER_PARAM_SHARED_CONFIG[] = "--shared-config";
 const char MER_PARAM_HOST[] = "--host";
 const char MER_PARAM_USERNAME[] = "--username";
 const char MER_PARAM_PRIVATE_KEY_FILE[] = "--private-key-file";
@@ -71,6 +72,7 @@ QString AddMerSdkOperation::argumentsHelpText() const
          + indent + QLatin1String(MER_PARAM_SHARED_HOME) + QLatin1String(" <PATH>          shared \"home\" folder (required).\n")
          + indent + QLatin1String(MER_PARAM_SHARED_TARGETS) + QLatin1String(" <PATH>       shared \"targets\" folder (required).\n")
          + indent + QLatin1String(MER_PARAM_SHARED_SSH) + QLatin1String(" <PATH>           shared \"ssh\" folder (required).\n")
+         + indent + QLatin1String(MER_PARAM_SHARED_CONFIG) + QLatin1String(" <PATH>        shared \"config\" folder (required).\n")
          + indent + QLatin1String(MER_PARAM_HOST) + QLatin1String(" <NAME>                 mersdk ssh hostname (required).\n")
          + indent + QLatin1String(MER_PARAM_USERNAME) + QLatin1String(" <NAME>             mersdk ssh username (required).\n")
          + indent + QLatin1String(MER_PARAM_PRIVATE_KEY_FILE) + QLatin1String(" <FILE>     mersdk private key file (required).\n")
@@ -123,6 +125,15 @@ bool AddMerSdkOperation::setArguments(const QStringList &args)
                 return false;
             ++i; // skip next;
             m_sharedSshPath = next;
+            continue;
+        }
+
+
+        if (current == QLatin1String(MER_PARAM_SHARED_CONFIG)) {
+            if (next.isNull())
+                return false;
+            ++i; // skip next;
+            m_sharedConfigPath = next;
             continue;
         }
 
@@ -186,6 +197,10 @@ bool AddMerSdkOperation::setArguments(const QStringList &args)
         std::cerr << MER_PARAM_SHARED_SSH << MISSING << std::endl << std::endl;
         error = true;
     }
+    if (m_sharedConfigPath.isEmpty()) {
+        std::cerr << MER_PARAM_SHARED_CONFIG << MISSING << std::endl << std::endl;
+        error = true;
+    }
     if (m_host.isEmpty()) {
         std::cerr << MER_PARAM_HOST << MISSING << std::endl << std::endl;
         error = true;
@@ -217,7 +232,7 @@ int AddMerSdkOperation::execute() const
         map = initializeSdks();
 
     const QVariantMap result = addSdk(map, m_name, m_autoDetected, m_sharedHomePath, m_sharedTargetsPath, m_sharedSshPath,
-                                      m_host, m_userName, m_privateKeyFile, m_sshPort, m_wwwPort);
+                                      m_sharedConfigPath, m_host, m_userName, m_privateKeyFile, m_sshPort, m_wwwPort);
 
     if (result.isEmpty() || map == result)
         return -2;
@@ -239,6 +254,7 @@ QVariantMap AddMerSdkOperation::addSdk(const QVariantMap &map,
                                           const QString &sharedHomePath,
                                           const QString &sharedTargetsPath,
                                           const QString &sharedSshPath,
+                                          const QString &sharedConfigPath,
                                           const QString &host,
                                           const QString &userName,
                                           const QString &privateKeyFile,
@@ -277,6 +293,7 @@ QVariantMap AddMerSdkOperation::addSdk(const QVariantMap &map,
     data << KeyValuePair(QStringList() << sdk << QLatin1String(Mer::Constants::SHARED_HOME), QVariant(sharedHomePath));
     data << KeyValuePair(QStringList() << sdk << QLatin1String(Mer::Constants::SHARED_TARGET), QVariant(sharedTargetsPath));
     data << KeyValuePair(QStringList() << sdk << QLatin1String(Mer::Constants::SHARED_SSH), QVariant(sharedSshPath));
+    data << KeyValuePair(QStringList() << sdk << QLatin1String(Mer::Constants::SHARED_CONFIG), QVariant(sharedConfigPath));
     data << KeyValuePair(QStringList() << sdk << QLatin1String(Mer::Constants::HOST), QVariant(host));
     data << KeyValuePair(QStringList() << sdk << QLatin1String(Mer::Constants::USERNAME), QVariant(userName));
     data << KeyValuePair(QStringList() << sdk << QLatin1String(Mer::Constants::PRIVATE_KEY_FILE), QVariant(privateKeyFile));
