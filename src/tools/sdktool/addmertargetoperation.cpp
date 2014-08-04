@@ -29,6 +29,7 @@
 
 #include "addmertargetoperation.h"
 #include "../../plugins/mer/merconstants.h"
+#include "../../plugins/mer/mertargetsxmlparser.h"
 #include "utils/persistentsettings.h"
 #include "addkeysoperation.h"
 #include "findvalueoperation.h"
@@ -137,7 +138,9 @@ QVariantMap AddMerTargetOperation::initializeTargets() const
 {
     QVariantMap map;
     map.insert(QLatin1String(Mer::Constants::MER_TARGET_FILE_VERSION_KEY), 2);
+#ifndef USE_XMLPATTERNS
     map.insert(QLatin1String(Mer::Constants::MER_TARGET_COUNT_KEY), 0);
+#endif
     return map;
 }
 
@@ -161,6 +164,7 @@ QString AddMerTargetOperation::readCacheFile(const QString &cacheFile) const
 QVariantMap AddMerTargetOperation::addTarget(const QVariantMap &map, const QString &name, const QString &qmakeFileName,
                                              const QString &gccFileName) const
 {
+#ifndef USE_XMLPATTERNS
     QStringList valueKeys = FindValueOperation::findValues(map, QVariant(name));
     bool hasTarget = false;
     foreach (const QString &t, valueKeys) {
@@ -206,6 +210,50 @@ QVariantMap AddMerTargetOperation::addTarget(const QVariantMap &map, const QStri
     data << KeyValuePair(QStringList() << QLatin1String(Mer::Constants::MER_TARGET_COUNT_KEY), QVariant(count + 1));
 
     return AddKeysOperation::addKeys(cleaned, data);
+#else
+    bool hasTarget = false;
+    QVariantList targetData = map.value(QLatin1String(Mer::Constants::MER_TARGET_KEY)).toList();
+    foreach (const QVariant &data, targetData) {
+        Mer::MerTargetData d = data.value<Mer::MerTargetData>();
+        hasTarget = d.name == name;
+        if (hasTarget)
+            break;
+    }
+
+    if (hasTarget) {
+        std::cerr << "Error: Name " << qPrintable(name) << " already defined as target." << std::endl;
+        return QVariantMap();
+    }
+
+    const int count = targetData.count();
+    if (count < 0) {
+        std::cerr << "Error: Count found targets, file seems wrong." << std::endl;
+        return QVariantMap();
+    }
+
+    Mer::MerTargetData newTarget;
+    newTarget.name = name;
+
+    const QString qmake = readCacheFile(qmakeFileName);
+    if (qmake.isEmpty()){
+        std::cerr << "Error: Could not read file " << qPrintable(qmakeFileName) << std::endl;
+        return QVariantMap();
+    }
+    newTarget.qmakeQuery = qmake;
+
+    const QString gcc = readCacheFile(gccFileName);
+    if (gcc.isEmpty()) {
+        std::cerr << "Error: Could not read file " << qPrintable(gccFileName) << std::endl;
+        return QVariantMap();
+    }
+    newTarget.gccDumpMachine = gcc;
+
+    QVariantMap newMap = map;
+    targetData.append(QVariant::fromValue(newTarget));
+    newMap.insert(QLatin1String(Mer::Constants::MER_TARGET_KEY), targetData);
+
+    return newMap;
+#endif
 }
 
 QVariantMap AddMerTargetOperation::load(const QString &root) const
@@ -215,10 +263,22 @@ QVariantMap AddMerTargetOperation::load(const QString &root) const
     // Read values from original file:
     const Utils::FileName path = Utils::FileName::fromString(root + QLatin1String(MER_TARGETS_XML));
     if (path.toFileInfo().exists()) {
+#ifndef USE_XMLPATTERNS
         Utils::PersistentSettingsReader reader;
         if (!reader.load(path))
             return QVariantMap();
         map = reader.restoreValues();
+#else
+        Mer::MerTargetsXmlReader reader(path.toString());
+        if (reader.hasError())
+            return QVariantMap();
+        const QList<Mer::MerTargetData> targetData = reader.targetData();
+        QVariantList data;
+        foreach (const Mer::MerTargetData &td, targetData)
+            data.append(QVariant::fromValue(td));
+        map.insert(QLatin1String(Mer::Constants::MER_TARGET_FILE_VERSION_KEY), reader.version());
+        map.insert(QLatin1String(Mer::Constants::MER_TARGET_KEY), data);
+#endif
     }
     return map;
 }
@@ -232,9 +292,21 @@ bool AddMerTargetOperation::save(const QVariantMap &map, const QString &root) co
         return false;
     }
 
+#ifndef USE_XMLPATTERNS
     const Utils::PersistentSettingsWriter writer(path, QLatin1String("unknown"));
     return writer.save(map, 0)
             && QFile::setPermissions(path.toString(),
                                      QFile::ReadOwner | QFile::WriteOwner
                                      | QFile::ReadGroup | QFile::ReadOther);
+#else
+    const int version = map.value(QLatin1String(Mer::Constants::MER_TARGET_FILE_VERSION_KEY)).toInt();
+    const QVariantList targetData = map.value(QLatin1String(Mer::Constants::MER_TARGET_KEY)).toList();
+    QList<Mer::MerTargetData> data;
+    foreach (const QVariant &td, targetData)
+        data.append(td.value<Mer::MerTargetData>());
+    Mer::MerTargetsXmlWriter writer(path.toString(), version, data);
+    return !writer.hasError() && QFile::setPermissions(path.toString(),
+                                                       QFile::ReadOwner | QFile::WriteOwner
+                                                       | QFile::ReadGroup | QFile::ReadOther);
+#endif
 }
