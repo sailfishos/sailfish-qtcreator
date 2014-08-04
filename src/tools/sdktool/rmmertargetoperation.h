@@ -45,9 +45,13 @@ public:
 
     int execute() const;
 
+    static QVariantMap removeTarget(const QVariantMap &map, const QString &targetName);
 #ifdef WITH_TESTS
-    bool test() const { return false;};
+    bool test() const;
 #endif
+private:
+    QString m_targetsDir;
+    QString m_targetName;
 };
 
 #endif // RMMERTARGETOPERATION_H

@@ -50,13 +50,13 @@ public:
     bool test() const { return false; }
 #endif
 
+    static QVariantMap initializeTargets();
+    static QVariantMap addTarget(const QVariantMap &map, const QString &name, const QString &qmakeFileName,
+    const QString &gccFileName);
 private:
-    QVariantMap initializeTargets() const;
-    QVariantMap addTarget(const QVariantMap &map, const QString &name, const QString &qmakeFileName,
-                          const QString &gccFileName) const;
     QVariantMap load(const QString &root) const;
     bool save(const QVariantMap &map, const QString &root) const;
-    QString readCacheFile(const QString &cacheFile) const;
+    static QString readCacheFile(const QString &cacheFile);
 
 private:
     QString m_targetsDir;
