@@ -53,8 +53,8 @@ public:
     static QVariantMap initializeTargets();
     static QVariantMap addTarget(const QVariantMap &map, const QString &name, const QString &qmakeFileName,
     const QString &gccFileName);
-private:
-    QVariantMap load(const QString &root) const;
+    static QVariantMap load(const QString &root);
+private:   
     bool save(const QVariantMap &map, const QString &root) const;
     static QString readCacheFile(const QString &cacheFile);
 

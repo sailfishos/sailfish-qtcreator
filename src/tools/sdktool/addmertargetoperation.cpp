@@ -205,7 +205,7 @@ QVariantMap AddMerTargetOperation::addTarget(const QVariantMap &map, const QStri
     return newMap;
 }
 
-QVariantMap AddMerTargetOperation::load(const QString &root) const
+QVariantMap AddMerTargetOperation::load(const QString &root)
 {
     QVariantMap map;
 
