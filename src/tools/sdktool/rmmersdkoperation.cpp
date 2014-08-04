@@ -78,9 +78,9 @@ int RmMerSdkOperation::execute() const
     QVariantMap result = removeSdk(map, m_vmName);
 
     if (result == map)
-        return -2;
+        return 2;
 
-    return save(result,QLatin1String("mersdk")) ? 0 : -3;
+    return save(result,QLatin1String("mersdk")) ? 0 : 3;
 }
 
 QVariantMap RmMerSdkOperation::removeSdk(const QVariantMap &map, const QString &sdkName)
