@@ -99,7 +99,7 @@ int RmMerTargetOperation::execute() const
     if (result.isEmpty() || map == result)
         return -2;
 
-    return save(result, m_targetsDir) ? 0 : -1;
+    return AddMerTargetOperation::save(result, m_targetsDir) ? 0 : -1;
 }
 
 QVariantMap RmMerTargetOperation::removeTarget(const QVariantMap &map, const QString &targetName)
