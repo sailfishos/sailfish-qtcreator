@@ -36,7 +36,7 @@ public:
                         const QString &proFilePath);
     bool isEnabled() const;
 
-    QString commandPrefix() const;
+    Utils::Environment environment() const;
     QString defaultRemoteExecutableFilePath() const;
     QString disabledReason() const;
 protected:

@@ -98,17 +98,12 @@ QString MerRunConfiguration::defaultRemoteExecutableFilePath() const
     return executable;
 }
 
-QString MerRunConfiguration::commandPrefix() const
+Utils::Environment MerRunConfiguration::environment() const
 {
-  RemoteLinux::RemoteLinuxEnvironmentAspect *aspect =
-    extraAspect<RemoteLinux::RemoteLinuxEnvironmentAspect>();
-  QTC_ASSERT(aspect, return QString());
-
-  // required by qtbase not to direct logs to journald
-  QString qtbaselogs = QString::fromLatin1("QT_NO_JOURNALD_LOG=1");
-
-  return QString::fromLatin1("%1 %2")
-      .arg(qtbaselogs, aspect->userEnvironmentChangesAsString());
+    Utils::Environment env(RemoteLinuxRunConfiguration::environment());
+    // required by qtbase not to direct logs to journald
+    env.appendOrSet(QLatin1String("QT_NO_JOURNALD_LOG"), QLatin1String("1"));
+    return env;
 }
 
 } // Internal
