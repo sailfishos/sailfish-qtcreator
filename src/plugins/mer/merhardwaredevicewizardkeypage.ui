@@ -1,37 +1,41 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
  <class>Mer::Internal::MerHardwareDeviceWizardKeyPage</class>
- <widget class="QWidget" name="Mer::Internal::MerHardwareDeviceWizardKeyPage">
+ <widget class="QWizardPage" name="Mer::Internal::MerHardwareDeviceWizardKeyPage">
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>600</width>
-    <height>344</height>
+    <width>609</width>
+    <height>356</height>
    </rect>
   </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
+  </property>
   <property name="windowTitle">
-   <string>Form</string>
+   <string>WizardPage</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
+   <property name="leftMargin">
+    <number>0</number>
+   </property>
+   <property name="topMargin">
+    <number>0</number>
+   </property>
+   <property name="rightMargin">
+    <number>0</number>
+   </property>
+   <property name="bottomMargin">
+    <number>0</number>
+   </property>
    <item>
-    <widget class="QLabel" name="infoLabel1">
+    <widget class="QLabel" name="label">
      <property name="text">
-      <string>Please connect your device and activate the developer mode.</string>
-     </property>
-    </widget>
-   </item>
-   <item>
-    <widget class="QLabel" name="infoLabel2">
-     <property name="text">
-      <string>In &quot;Developer Mode Settings&quot; select &quot;Remote connection&quot; and generate the ssh password. </string>
-     </property>
-    </widget>
-   </item>
-   <item>
-    <widget class="QLabel" name="infoLabel3">
-     <property name="text">
-      <string>Type the generated password in the form below.</string>
+      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;ul&gt;&lt;li&gt;Please connect your device and activate the developer mode.&lt;/li&gt;&lt;li&gt;In &quot;Developer Mode Settings&quot; select &quot;Remote connection&quot; and generate the ssh password.&lt;/li&gt;&lt;li&gt;Type the generated password in the form below.&lt;/li&gt;&lt;/ul&gt;&lt;p/&gt;&lt;/body&gt;&lt;/html&gt;</string>
      </property>
     </widget>
    </item>
@@ -53,6 +57,9 @@
         <property name="text">
          <string>none</string>
         </property>
+        <property name="textInteractionFlags">
+         <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
+        </property>
        </widget>
       </item>
       <item row="1" column="0">
@@ -66,6 +73,9 @@
        <widget class="QLabel" name="sshPortLabelEdit">
         <property name="text">
          <string>none</string>
+        </property>
+        <property name="textInteractionFlags">
+         <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
         </property>
        </widget>
       </item>
@@ -81,6 +91,9 @@
         <property name="text">
          <string>none</string>
         </property>
+        <property name="textInteractionFlags">
+         <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
+        </property>
        </widget>
       </item>
       <item row="3" column="0">
@@ -91,9 +104,13 @@
        </widget>
       </item>
       <item row="3" column="1">
-       <layout class="QHBoxLayout" name="horizontalLayout_3">
+       <layout class="QHBoxLayout" name="horizontalLayout">
         <item>
-         <widget class="QLineEdit" name="passwordLineEdit"/>
+         <widget class="QLineEdit" name="passwordLineEdit">
+          <property name="echoMode">
+           <enum>QLineEdit::Password</enum>
+          </property>
+         </widget>
         </item>
         <item>
          <widget class="QPushButton" name="testButton">
@@ -103,7 +120,7 @@
          </widget>
         </item>
         <item>
-         <spacer name="horizontalSpacer_3">
+         <spacer name="horizontalSpacer">
           <property name="orientation">
            <enum>Qt::Horizontal</enum>
           </property>
@@ -125,28 +142,14 @@
        </widget>
       </item>
       <item row="4" column="1">
-       <layout class="QHBoxLayout" name="horizontalLayout">
-        <item>
-         <widget class="QLabel" name="connectionLabelEdit">
-          <property name="text">
-           <string>none</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <spacer name="horizontalSpacer">
-          <property name="orientation">
-           <enum>Qt::Horizontal</enum>
-          </property>
-          <property name="sizeHint" stdset="0">
-           <size>
-            <width>40</width>
-            <height>20</height>
-           </size>
-          </property>
-         </spacer>
-        </item>
-       </layout>
+       <widget class="QLabel" name="connectionLabelEdit">
+        <property name="text">
+         <string>none</string>
+        </property>
+        <property name="textInteractionFlags">
+         <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
+        </property>
+       </widget>
       </item>
      </layout>
     </widget>
@@ -156,63 +159,69 @@
      <property name="title">
       <string>SSH Key</string>
      </property>
-     <layout class="QFormLayout" name="formLayout_2">
-      <item row="0" column="0">
-       <widget class="QLabel" name="merSdkLabel">
-        <property name="text">
-         <string>Mer SDK Virtual Machine:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="1">
-       <layout class="QHBoxLayout" name="horizontalLayout_2">
-        <item>
-         <widget class="QComboBox" name="merSdkComboBox"/>
+     <layout class="QVBoxLayout" name="verticalLayout_2">
+      <item>
+       <layout class="QFormLayout" name="formLayout_2">
+        <item row="0" column="0">
+         <widget class="QLabel" name="merSdkLabel">
+          <property name="text">
+           <string>Mer SDK Virtual Machine:</string>
+          </property>
+         </widget>
         </item>
-        <item>
-         <spacer name="horizontalSpacer_2">
-          <property name="orientation">
-           <enum>Qt::Horizontal</enum>
+        <item row="0" column="1">
+         <widget class="QComboBox" name="merSdkComboBox">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
           </property>
-          <property name="sizeHint" stdset="0">
-           <size>
-            <width>40</width>
-            <height>20</height>
-           </size>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="QLabel" name="publicSshKeyLabel">
+          <property name="text">
+           <string>Public SSH key:</string>
           </property>
-         </spacer>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="QLabel" name="publicSshKeyLabelEdit">
+          <property name="text">
+           <string>none</string>
+          </property>
+          <property name="wordWrap">
+           <bool>true</bool>
+          </property>
+          <property name="textInteractionFlags">
+           <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="0">
+         <widget class="QLabel" name="privateSshKeyLabel">
+          <property name="text">
+           <string>Private SSH key:</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="1">
+         <widget class="QLabel" name="privateSshKeyLabelEdit">
+          <property name="text">
+           <string>none</string>
+          </property>
+          <property name="wordWrap">
+           <bool>true</bool>
+          </property>
+          <property name="textInteractionFlags">
+           <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
+          </property>
+         </widget>
         </item>
        </layout>
       </item>
-      <item row="1" column="0">
-       <widget class="QLabel" name="publicSshKeyLabel">
-        <property name="text">
-         <string>Public SSH key:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="1">
-       <widget class="QLabel" name="publicSshKeyLabelEdit">
-        <property name="text">
-         <string>none</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="0">
-       <widget class="QLabel" name="privateSshKeyLabel">
-        <property name="text">
-         <string>Private SSH key:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="1">
-       <widget class="QLabel" name="privateSshKeyLabelEdit">
-        <property name="text">
-         <string>none</string>
-        </property>
-       </widget>
-      </item>
-      <item row="3" column="1">
+      <item>
        <widget class="QCheckBox" name="sshCheckBox">
         <property name="text">
          <string>Generate new SSH keys</string>

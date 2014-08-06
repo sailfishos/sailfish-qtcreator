@@ -114,7 +114,7 @@ MerHardwareDeviceWizardKeyPage::MerHardwareDeviceWizardKeyPage(QWidget *parent)
       m_isIdle(true)
 {
     m_ui->setupUi(this);
-    setTitle(tr("Key Public Key Deployment"));
+    setTitle(tr("Public Key Deployment"));
     m_ui->sshCheckBox->setChecked(true);
     static QRegExp regExp(tr("MerSDK"));
     QList<MerSdk*> sdks = MerSdkManager::instance()->sdks();

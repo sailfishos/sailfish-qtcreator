@@ -34,7 +34,7 @@ MerHardwareDeviceWizard::MerHardwareDeviceWizard(QWidget *parent)
       m_keyPage(this),
       m_finalPage(this)
 {
-    setWindowTitle(tr("New Mer ARM Device  Setup"));
+    setWindowTitle(tr("New Mer ARM Device Setup"));
     addPage(&m_setupPage);
     addPage(&m_keyPage);
     addPage(&m_finalPage);
