@@ -37,6 +37,8 @@
 
 #include "settings.h"
 
+#include "../../plugins/mer/merconstants.h"
+
 #include <iostream>
 
 const char DEVICEMANAGER_ID[] = "DeviceManager";
@@ -239,7 +241,18 @@ bool AddDeviceOperation::setArguments(const QStringList &args)
         if (next.isNull())
             return false;
         ++i; // skip next;
-        KeyValuePair pair(current, next);
+        QString k = current;
+        if (current == QLatin1String("--virtualMachine"))
+            k = QString::fromStdString(Mer::Constants::MER_DEVICE_VIRTUAL_MACHINE);
+        else if (current == QLatin1String("--merMac"))
+            k = QString::fromStdString(Mer::Constants::MER_DEVICE_MAC);
+        else if (current == QLatin1String("--merSubnet"))
+            k = QString::fromStdString(Mer::Constants::MER_DEVICE_SUBNET);
+        else if (current == QLatin1String("--merSharedSsh"))
+            k = QString::fromStdString(Mer::Constants::MER_DEVICE_SHARED_SSH);
+        else if (current == QLatin1String("--merSharedConfig"))
+            k = QString::fromStdString(Mer::Constants::MER_DEVICE_SHARED_CONFIG);
+        KeyValuePair pair(k, next);
         if (!pair.value.isValid())
             return false;
         m_extra << pair;
