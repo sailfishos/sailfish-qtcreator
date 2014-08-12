@@ -50,6 +50,12 @@ MerSdk::MerSdk(QObject *parent) : QObject(parent)
     , m_headless(false)
 {
     connect(&m_watcher, SIGNAL(fileChanged(QString)), this, SLOT(handleTargetsFileChanged(QString)));
+
+    // Fired from handleTargetsFileChanged(), used to prevent removing and
+    // re-adding all targets due to non atomic targets file change.
+    m_updateTargetsTimer.setInterval(1000);
+    m_updateTargetsTimer.setSingleShot(true);
+    connect(&m_updateTargetsTimer, SIGNAL(timeout()), this, SLOT(updateTargets()));
 }
 
 MerSdk::~MerSdk()
@@ -354,7 +360,7 @@ void MerSdk::updateTargets()
 void MerSdk::handleTargetsFileChanged(const QString &file)
 {
     QTC_ASSERT(file == sharedTargetsPath() + QLatin1String(Constants::MER_TARGETS_FILENAME), return);
-    updateTargets();
+    m_updateTargetsTimer.start();
 }
 
 QList<MerTarget> MerSdk::readTargets(const Utils::FileName &fileName)

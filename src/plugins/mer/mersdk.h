@@ -27,6 +27,7 @@
 #include <coreplugin/id.h>
 #include <QFileSystemWatcher>
 #include <QStringList>
+#include <QTimer>
 
 namespace ProjectExplorer {
 class Kit;
@@ -133,6 +134,7 @@ private:
     int m_timeout;
     QList<MerTarget> m_targets;
     QFileSystemWatcher m_watcher;
+    QTimer m_updateTargetsTimer;
     bool m_headless;
 
 friend class MerSdkManager;
