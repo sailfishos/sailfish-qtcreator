@@ -29,6 +29,11 @@
 #include "mersdkkitinformation.h"
 #include "merconnectionprompt.h"
 
+#include <coreplugin/actionmanager/command.h>
+#include <coreplugin/actionmanager/actionmanager.h>
+#include <coreplugin/coreconstants.h>
+#include <coreplugin/icontext.h>
+#include <coreplugin/modemanager.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/target.h>
 #include <projectexplorer/session.h>
@@ -40,6 +45,7 @@
 #include <ssh/sshconnection.h>
 #include <utils/qtcassert.h>
 
+#include <QAction>
 #include <QIcon>
 
 using namespace ProjectExplorer;
@@ -47,12 +53,169 @@ using namespace ProjectExplorer;
 namespace Mer {
 namespace Internal {
 
+const QSize iconSize = QSize(24, 20);
+
+class MerConnectionAction : public QObject
+{
+    Q_OBJECT
+public:
+    explicit MerConnectionAction(MerConnection *connection, QObject *parent = 0);
+    ~MerConnectionAction();
+
+    void setId(const Core::Id &id) { m_id = id; }
+    void setName(const QString &name) { m_name = name; }
+    void setIcon(const QIcon &icon) { m_icon = icon; }
+    void setTaskCategory(Core::Id id) { m_taskId = id; }
+    void setStartTip(const QString &tip) { m_startTip = tip; }
+    void setStopTip(const QString &tip) { m_stopTip = tip; }
+    void setConnectingTip(const QString &tip) { m_connTip = tip; }
+    void setDisconnectingTip(const QString &tip) { m_discoTip = tip; }
+    void setStartingTip(const QString &tip) { m_startingTip = tip; }
+    void setClosingTip(const QString &tip) { m_closingTip = tip; }
+    void setVisible(bool visible) { m_visible = visible; }
+    void setEnabled(bool enabled) { m_enabled = enabled; }
+
+    void initialize();
+
+public slots:
+    void update();
+
+private slots:
+    void handleTriggered();
+    void onHasErrorChanged(bool hasError);
+
+private:
+    QPointer<MerConnection> m_connection;
+    Core::Id m_id;
+    QAction *m_action;
+    QIcon m_icon;
+    Core::Id m_taskId;
+    QString m_name;
+    QString m_startTip;
+    QString m_stopTip;
+    QString m_connTip;
+    QString m_discoTip;
+    QString m_closingTip;
+    QString m_startingTip;
+    bool m_uiInitalized;
+    bool m_visible;
+    bool m_enabled;
+};
+
+MerConnectionAction::MerConnectionAction(MerConnection *connection, QObject *parent)
+    : QObject(parent)
+    , m_connection(connection)
+    , m_action(new QAction(this))
+    , m_uiInitalized(false)
+    , m_visible(false)
+    , m_enabled(false)
+{
+    connect(m_connection, SIGNAL(stateChanged()), this, SLOT(update()));
+    connect(m_connection, SIGNAL(hasErrorChanged(bool)), this, SLOT(onHasErrorChanged(bool)));
+}
+
+MerConnectionAction::~MerConnectionAction()
+{
+}
+
+void MerConnectionAction::initialize()
+{
+    if (m_uiInitalized)
+        return;
+
+    m_action->setText(m_name);
+    m_action->setIcon(m_icon.pixmap(iconSize));
+    m_action->setToolTip(m_startTip);
+    connect(m_action, SIGNAL(triggered()), this, SLOT(handleTriggered()));
+
+    Core::Command *command =
+            Core::ActionManager::registerAction(m_action, m_id,
+                                                Core::Context(Core::Constants::C_GLOBAL));
+    command->setAttribute(Core::Command::CA_UpdateText);
+    command->setAttribute(Core::Command::CA_UpdateIcon);
+
+    Core::ModeManager::addAction(command->action(), 1);
+    m_action->setEnabled(m_enabled);
+    m_action->setVisible(m_visible);
+
+    TaskHub::addCategory(m_taskId, tr("Virtual Machine Error"));
+
+    m_uiInitalized = true;
+}
+
+void MerConnectionAction::update()
+{
+    QIcon::State state = QIcon::Off;
+    QString toolTip;
+    bool enabled = m_enabled;
+
+    switch (m_connection->state()) {
+    case MerConnection::Connected:
+        state = QIcon::On;
+        toolTip = m_stopTip;
+        MerConnectionManager::removeConnectionErrorTask(m_taskId);
+        break;
+    case MerConnection::Disconnected:
+        toolTip = m_startTip;
+        break;
+    case MerConnection::StartingVm:
+        enabled = false;
+        state = QIcon::On;
+        toolTip = m_startingTip;
+        break;
+    case MerConnection::TryConnect:
+    case MerConnection::Connecting:
+        enabled = false;
+        state = QIcon::On;
+        toolTip = m_connTip;
+        break;
+    case MerConnection::Disconnecting:
+        enabled = false;
+        toolTip = m_discoTip;
+        break;
+    case MerConnection::ClosingVm:
+        enabled = false;
+        toolTip = m_closingTip;
+        break;
+    default:
+        qWarning() << "MerConnection::update() - unknown state";
+        break;
+    }
+
+    m_action->setEnabled(enabled);
+    m_action->setVisible(m_visible);
+    m_action->setToolTip(toolTip);
+    m_action->setIcon(m_icon.pixmap(iconSize, QIcon::Normal, state));
+}
+
+void MerConnectionAction::handleTriggered()
+{
+    if (m_connection->state() == MerConnection::Disconnected) {
+        m_connection->connectTo();
+    } else if (m_connection->state() == MerConnection::Connected) {
+        m_connection->disconnectFrom();
+    }
+}
+
+void MerConnectionAction::onHasErrorChanged(bool hasError)
+{
+    // All task (including those created from e.g. merdeploysteps.cpp) are
+    // cleared on state change to Connected in update()
+
+    if (hasError) {
+        MerConnectionManager::createConnectionErrorTask(m_connection->virtualMachine(),
+                m_connection->errorString(), m_taskId);
+    }
+}
+
 MerConnectionManager *MerConnectionManager::m_instance = 0;
 ProjectExplorer::Project *MerConnectionManager::m_project = 0;
 
 MerConnectionManager::MerConnectionManager():
     m_emulatorConnection(new MerConnection()),
-    m_sdkConnection(new MerConnection())
+    m_emulatorAction(new MerConnectionAction(m_emulatorConnection.data())),
+    m_sdkConnection(new MerConnection()),
+    m_sdkAction(new MerConnectionAction(m_sdkConnection.data()))
 {
     QIcon emuIcon;
     emuIcon.addFile(QLatin1String(":/mer/images/emulator-run.png"));
@@ -62,31 +225,31 @@ MerConnectionManager::MerConnectionManager():
     sdkIcon.addFile(QLatin1String(":/mer/images/sdk-run.png"));
     sdkIcon.addFile(QLatin1String(":/mer/images/sdk-stop.png"), QSize(), QIcon::Normal, QIcon::On);
 
-    m_emulatorConnection->setName(tr("Emulator"));
-    m_emulatorConnection->setId(Constants::MER_EMULATOR_CONNECTON_ACTION_ID);
-    m_emulatorConnection->setIcon(emuIcon);
-    m_emulatorConnection->setStartTip(tr("Start Emulator"));
-    m_emulatorConnection->setStopTip(tr("Stop Emulator"));
-    m_emulatorConnection->setConnectingTip(tr("Connecting..."));
-    m_emulatorConnection->setDisconnectingTip(tr("Disconnecting..."));
-    m_emulatorConnection->setClosingTip(tr("Closing Emulator"));
-    m_emulatorConnection->setStartingTip(tr("Starting Emulator"));
-    m_emulatorConnection->setTaskCategory(Core::Id(Constants::MER_TASKHUB_EMULATOR_CATEGORY));
+    m_emulatorAction->setName(tr("Emulator"));
+    m_emulatorAction->setId(Constants::MER_EMULATOR_CONNECTON_ACTION_ID);
+    m_emulatorAction->setIcon(emuIcon);
+    m_emulatorAction->setStartTip(tr("Start Emulator"));
+    m_emulatorAction->setStopTip(tr("Stop Emulator"));
+    m_emulatorAction->setConnectingTip(tr("Connecting..."));
+    m_emulatorAction->setDisconnectingTip(tr("Disconnecting..."));
+    m_emulatorAction->setClosingTip(tr("Closing Emulator"));
+    m_emulatorAction->setStartingTip(tr("Starting Emulator"));
+    m_emulatorAction->setTaskCategory(Core::Id(Constants::MER_TASKHUB_EMULATOR_CATEGORY));
+    m_emulatorAction->initialize();
     m_emulatorConnection->setProbeTimeout(1000);
-    m_emulatorConnection->initialize();
 
-    m_sdkConnection->setName(tr("MerSdk"));
-    m_sdkConnection->setId(Constants::MER_SDK_CONNECTON_ACTION_ID);
-    m_sdkConnection->setIcon(sdkIcon);
-    m_sdkConnection->setStartTip(tr("Start SDK"));
-    m_sdkConnection->setStopTip(tr("Stop SDK"));
-    m_sdkConnection->setConnectingTip(tr("Connecting..."));
-    m_sdkConnection->setDisconnectingTip(tr("Disconnecting..."));
-    m_sdkConnection->setClosingTip(tr("Closing SDK"));
-    m_sdkConnection->setStartingTip(tr("Starting SDK"));
-    m_sdkConnection->setTaskCategory(Core::Id(Constants::MER_TASKHUB_SDK_CATEGORY));
+    m_sdkAction->setName(tr("MerSdk"));
+    m_sdkAction->setId(Constants::MER_SDK_CONNECTON_ACTION_ID);
+    m_sdkAction->setIcon(sdkIcon);
+    m_sdkAction->setStartTip(tr("Start SDK"));
+    m_sdkAction->setStopTip(tr("Stop SDK"));
+    m_sdkAction->setConnectingTip(tr("Connecting..."));
+    m_sdkAction->setDisconnectingTip(tr("Disconnecting..."));
+    m_sdkAction->setClosingTip(tr("Closing SDK"));
+    m_sdkAction->setStartingTip(tr("Starting SDK"));
+    m_sdkAction->setTaskCategory(Core::Id(Constants::MER_TASKHUB_SDK_CATEGORY));
+    m_sdkAction->initialize();
     m_sdkConnection->setProbeTimeout(1000);
-    m_sdkConnection->initialize();
 
     connect(KitManager::instance(), SIGNAL(kitUpdated(ProjectExplorer::Kit*)),
             SLOT(handleKitUpdated(ProjectExplorer::Kit*)));
@@ -243,12 +406,12 @@ void MerConnectionManager::update()
         }
     }
 
-    m_emulatorConnection->setEnabled(emulatorRemoteButtonEnabled);
-    m_emulatorConnection->setVisible(emulatorRemoteButtonVisible);
-    m_sdkConnection->setEnabled(sdkRemoteButtonEnabled);
-    m_sdkConnection->setVisible(sdkRemoteButtonVisible);
-    m_emulatorConnection->update();
-    m_sdkConnection->update();
+    m_emulatorAction->setEnabled(emulatorRemoteButtonEnabled);
+    m_emulatorAction->setVisible(emulatorRemoteButtonVisible);
+    m_sdkAction->setEnabled(sdkRemoteButtonEnabled);
+    m_sdkAction->setVisible(sdkRemoteButtonVisible);
+    m_emulatorAction->update();
+    m_sdkAction->update();
 }
 
 QString MerConnectionManager::testConnection(const QSsh::SshConnectionParameters &params) const
@@ -287,5 +450,22 @@ void MerConnectionManager::disconnectFrom(const QString &vmName)
     }
 }
 
+void MerConnectionManager::createConnectionErrorTask(const QString &vmName, const QString &error, Core::Id category)
+{
+    TaskHub::clearTasks(category);
+    TaskHub::addTask(Task(Task::Error,
+                          tr("%1: %2").arg(vmName, error),
+                          Utils::FileName() /* filename */,
+                          -1 /* linenumber */,
+                          category));
+}
+
+void MerConnectionManager::removeConnectionErrorTask(Core::Id category)
+{
+    TaskHub::clearTasks(category);
+}
+
 }
 }
+
+#include "merconnectionmanager.moc"

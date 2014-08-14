@@ -23,6 +23,7 @@
 #ifndef MERCONNECTIONMANAGER_H
 #define MERCONNECTIONMANAGER_H
 
+#include <coreplugin/id.h>
 #include <QObject>
 
 namespace ProjectExplorer {
@@ -42,6 +43,7 @@ namespace Internal {
 
 class MerSdk;
 class MerConnection;
+class MerConnectionAction;
 
 class MerConnectionManager : public QObject
 {
@@ -54,6 +56,8 @@ public:
     bool isConnected(const QString &vmName) const;
     void connectTo(const QString &vmName);
     void disconnectFrom(const QString &vmName);
+    static void createConnectionErrorTask(const QString &vmName, const QString &error, Core::Id category);
+    static void removeConnectionErrorTask(Core::Id category);
 private slots:
     void update();
     void handleStartupProjectChanged(ProjectExplorer::Project *project);
@@ -68,7 +72,9 @@ private:
     static MerConnectionManager *m_instance;
     static ProjectExplorer::Project *m_project;
     QScopedPointer<MerConnection> m_emulatorConnection;
+    QScopedPointer<MerConnectionAction> m_emulatorAction;
     QScopedPointer<MerConnection> m_sdkConnection;
+    QScopedPointer<MerConnectionAction> m_sdkAction;
 
     friend class MerPlugin;
 };

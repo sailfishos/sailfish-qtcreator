@@ -23,7 +23,6 @@
 #ifndef MERCONNECTION_H
 #define MERCONNECTION_H
 
-#include <coreplugin/id.h>
 #include <ssh/sshconnection.h>
 #include <qglobal.h>
 #include <QObject>
@@ -60,66 +59,42 @@ public:
     explicit MerConnection(QObject *parent = 0);
     ~MerConnection();
 
-    void setId(const Core::Id &id);
-    void setName(const QString &name);
-    void setIcon(const QIcon &icon);
-    void setStartTip(const QString &tip);
-    void setStopTip(const QString &tip);
-    void setConnectingTip(const QString &tip);
-    void setDisconnectingTip(const QString &tip);
-    void setStartingTip(const QString &tip);
-    void setClosingTip(const QString &tip);
-    void setVisible(bool visible);
-    void setEnabled(bool enabled);
-    void setTaskCategory(Core::Id id);
     void setVirtualMachine(const QString vm);
     void setConnectionParameters(const QSsh::SshConnectionParameters &sshParameters);
     void setProbeTimeout(int timeout);
     void setHeadless(bool headless);
     QSsh::SshConnectionParameters sshParameters() const;
     QString virtualMachine() const;
+    State state() const;
     bool isConnected() const;
-    void initialize();
-    void update();
+    bool hasError() const;
+    QString errorString() const;
     void connectTo();
     void disconnectFrom();
     void tryConnectTo();
     void setupConnection();
-    static void createConnectionErrorTask(const QString &vmName, const QString &error, Core::Id category);
-    static void removeConnectionErrorTask(Core::Id category);
+signals:
+    void stateChanged();
+    void hasErrorChanged(bool hasError);
 
 private slots:
-    void handleTriggered();
     void changeState(State state = NoStateTrigger);
 
 private:
     QSsh::SshConnection* createConnection(const QSsh::SshConnectionParameters &sshParameters);
 
 private:
-    Core::Id m_id;
-    QAction *m_action;
-    QIcon m_icon;
-    QString m_name;
-    QString m_startTip;
-    QString m_stopTip;
-    QString m_connTip;
-    QString m_discoTip;
-    QString m_closingTip;
-    QString m_startingTip;
-    bool m_uiInitalized;
     bool m_connectionInitialized;
-    bool m_visible;
-    bool m_enabled;
     QSsh::SshConnection* m_connection;
     QString m_vmName;
     State m_state;
-    Core::Id m_taskId;
     QSsh::SshConnectionParameters m_params;
     int m_vmStartupTimeOut;
     int m_vmCloseTimeOut;
     int m_probeTimeout;
     bool m_reportError;
     bool m_headless;
+    QString m_errorString;
 };
 
 }

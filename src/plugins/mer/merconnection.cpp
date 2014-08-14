@@ -24,17 +24,11 @@
 #include "merconstants.h"
 #include "mervirtualboxmanager.h"
 #include "merconnectionmanager.h"
-#include <coreplugin/actionmanager/command.h>
-#include <coreplugin/actionmanager/actionmanager.h>
-#include <coreplugin/coreconstants.h>
-#include <coreplugin/icontext.h>
-#include <coreplugin/modemanager.h>
 #include <ssh/sshconnection.h>
 #include <ssh/sshremoteprocessrunner.h>
 #include <utils/qtcassert.h>
 #include <projectexplorer/taskhub.h>
 #include <projectexplorer/projectexplorer.h>
-#include <QAction>
 #include <QTimer>
 
 namespace Mer {
@@ -43,15 +37,9 @@ namespace Internal {
 using namespace QSsh;
 using namespace ProjectExplorer;
 
-const QSize iconSize = QSize(24, 20);
-
 MerConnection::MerConnection(QObject *parent)
     : QObject(parent)
-    , m_action(new QAction(this))
-    , m_uiInitalized(false)
     , m_connectionInitialized(false)
-    , m_visible(false)
-    , m_enabled(false)
     , m_connection(0)
     , m_state(Disconnected)
     , m_vmStartupTimeOut(3000)
@@ -70,66 +58,6 @@ MerConnection::~MerConnection()
     m_connection = 0;
 }
 
-void MerConnection::setId(const Core::Id &id)
-{
-    m_id = id;
-}
-
-void MerConnection::setName(const QString &name)
-{
-    m_name = name;
-}
-
-void MerConnection::setIcon(const QIcon &icon)
-{
-    m_icon = icon;
-}
-
-void MerConnection::setStartTip(const QString &tip)
-{
-    m_startTip = tip;
-}
-
-void MerConnection::setStopTip(const QString &tip)
-{
-    m_stopTip = tip;
-}
-
-void MerConnection::setConnectingTip(const QString &tip)
-{
-    m_connTip = tip;
-}
-
-void MerConnection::setDisconnectingTip(const QString &tip)
-{
-    m_discoTip = tip;
-}
-
-void MerConnection::setClosingTip(const QString &tip)
-{
-    m_closingTip = tip;
-}
-
-void MerConnection::setStartingTip(const QString &tip)
-{
-    m_startingTip = tip;
-}
-
-void MerConnection::setVisible(bool visible)
-{
-    m_visible = visible;
-}
-
-void MerConnection::setEnabled(bool enabled)
-{
-    m_enabled = enabled;
-}
-
-void MerConnection::setTaskCategory(Core::Id id)
-{
-    m_taskId = id;
-}
-
 void MerConnection::setProbeTimeout(int timeout)
 {
     m_probeTimeout = timeout;
@@ -138,30 +66,6 @@ void MerConnection::setProbeTimeout(int timeout)
 void MerConnection::setHeadless(bool headless)
 {
     m_headless = headless;
-}
-
-void MerConnection::initialize()
-{
-    if (m_uiInitalized)
-        return;
-
-    m_action->setText(m_name);
-    m_action->setIcon(m_icon.pixmap(iconSize));
-    m_action->setToolTip(m_startTip);
-    connect(m_action, SIGNAL(triggered()), this, SLOT(handleTriggered()));
-
-    Core::Command *command =
-            Core::ActionManager::registerAction(m_action, m_id,
-                                                Core::Context(Core::Constants::C_GLOBAL));
-    command->setAttribute(Core::Command::CA_UpdateText);
-    command->setAttribute(Core::Command::CA_UpdateIcon);
-
-    Core::ModeManager::addAction(command->action(), 1);
-    m_action->setEnabled(m_enabled);
-    m_action->setVisible(m_visible);
-    m_uiInitalized = true;
-
-    TaskHub::addCategory(m_taskId, tr("Virtual Machine Error"));
 }
 
 bool MerConnection::isConnected() const
@@ -210,50 +114,20 @@ QString MerConnection::virtualMachine() const
     return m_vmName;
 }
 
-void MerConnection::update()
+MerConnection::State MerConnection::state() const
 {
-    QIcon::State state = QIcon::Off;
-    QString toolTip;
-    bool enabled = m_enabled;
-
-    switch (m_state) {
-    case Connected:
-        state = QIcon::On;
-        toolTip = m_stopTip;
-        break;
-    case Disconnected:
-        toolTip = m_startTip;
-        break;
-    case StartingVm:
-        enabled = false;
-        state = QIcon::On;
-        toolTip = m_startingTip;
-        break;
-    case TryConnect:
-    case Connecting:
-        enabled = false;
-        state = QIcon::On;
-        toolTip = m_connTip;
-        break;
-    case Disconnecting:
-        enabled = false;
-        toolTip = m_discoTip;
-        break;
-    case ClosingVm:
-        enabled = false;
-        toolTip = m_closingTip;
-        break;
-    default:
-        qWarning() << "MerConnection::update() - unknown state";
-        break;
-    }
-
-    m_action->setEnabled(enabled);
-    m_action->setVisible(m_visible);
-    m_action->setToolTip(toolTip);
-    m_action->setIcon(m_icon.pixmap(iconSize, QIcon::Normal, state));
+    return m_state;
 }
 
+bool MerConnection::hasError() const
+{
+    return !m_errorString.isEmpty();
+}
+
+QString MerConnection::errorString() const
+{
+    return m_errorString;
+}
 
 QSsh::SshConnection* MerConnection::createConnection(const SshConnectionParameters &params)
 {
@@ -294,11 +168,16 @@ void MerConnection::changeState(State stateTrigger)
     case Connecting:
         if (m_connection->state() == SshConnection::Connected) {
             m_state = Connected;
-            removeConnectionErrorTask(m_taskId);
+            if (hasError()) {
+              m_errorString.clear();
+              emit hasErrorChanged(false);
+            }
         } else if (m_connection->state() == SshConnection::Unconnected) {
             m_state = Disconnected; //broken
-            if (m_connection->errorState() != SshNoError && m_reportError)
-                createConnectionErrorTask(m_vmName, m_connection->errorString(),m_taskId);
+            if (m_connection->errorState() != SshNoError && m_reportError) {
+                m_errorString = m_connection->errorString();
+                emit hasErrorChanged(true);
+            }
         } else if (m_connection->state() == SshConnection::Connecting) {
             m_connection->disconnectFromHost();
             m_state = Disconnected;
@@ -337,7 +216,7 @@ void MerConnection::changeState(State stateTrigger)
     default:
         break;
     }
-    update();
+    emit stateChanged();
 }
 
 void MerConnection::connectTo()
@@ -360,40 +239,11 @@ void MerConnection::tryConnectTo()
     }
 }
 
-void MerConnection::handleTriggered()
-{
-    if (!m_connection)
-        return;
-
-    if (m_state == Disconnected) {
-        changeState(StartingVm);
-    } else if (m_state == Connected) {
-        changeState(Disconnecting);
-    }
-}
-
-
 void MerConnection::disconnectFrom()
 {
     if (m_state == Connected) {
         changeState(Disconnecting);
     }
-}
-
-
-void  MerConnection::createConnectionErrorTask(const QString &vmName, const QString &error, Core::Id category)
-{
-    TaskHub::clearTasks(category);
-    TaskHub::addTask(Task(Task::Error,
-                          tr("%1: %2").arg(vmName, error),
-                          Utils::FileName() /* filename */,
-                          -1 /* linenumber */,
-                          category));
-}
-
-void  MerConnection::removeConnectionErrorTask(Core::Id category)
-{
-    TaskHub::clearTasks(category);
 }
 
 } // Internal
