@@ -46,8 +46,14 @@
 #include "rmkitoperation.h"
 #include "rmqtoperation.h"
 #include "rmtoolchainoperation.h"
+#include "addmertargetoperation.h"
+#include "rmmertargetoperation.h"
+#include "addmersdkoperation.h"
+#include "rmmersdkoperation.h"
 
 #include <iostream>
+
+#include <app/app_version.h>
 
 #include <QCoreApplication>
 #include <QStringList>
@@ -170,6 +176,9 @@ int main(int argc, char *argv[])
 
     QCoreApplication a(argc, argv);
 
+    QCoreApplication::setApplicationName(QLatin1String("sdktool"));
+    QCoreApplication::setApplicationVersion(QLatin1String(Core::Constants::IDE_VERSION_LONG));
+
     Settings settings;
 
     QList<Operation *> operations;
@@ -191,7 +200,12 @@ int main(int argc, char *argv[])
                << new RmToolChainOperation
 
                << new FindKeyOperation
-               << new FindValueOperation;
+               << new FindValueOperation
+               
+               << new AddMerTargetOperation
+               << new RmMerTargetOperation
+               << new AddMerSdkOperation
+               << new RmMerSdkOperation;
 
 #ifdef WITH_TESTS
     std::cerr << std::endl << std::endl << "Starting tests..." << std::endl;
