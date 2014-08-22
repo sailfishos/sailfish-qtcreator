@@ -127,6 +127,7 @@ private:
     // dialogs
     void openAlreadyConnectingWarningBox();
     void openAlreadyDisconnectingWarningBox();
+    void openCloseVmQuestionBox();
     void openUnableToCloseVmWarningBox();
     void openRetrySshConnectionQuestionBox();
     void deleteMessageBox(QPointer<QMessageBox> &messageBox);
@@ -155,6 +156,7 @@ private:
     State m_state;
     QString m_errorString;
     VmState m_vmState;
+    bool m_vmStartedOutside;
     SshState m_sshState;
 
     // on-transition flags
@@ -188,6 +190,7 @@ private:
     QBasicTimer m_resetTimer;
 
     // dialogs
+    QPointer<QMessageBox> m_closeVmQuestionBox;
     QPointer<QMessageBox> m_unableToCloseVmWarningBox;
     QPointer<QMessageBox> m_retrySshConnectionQuestionBox;
 

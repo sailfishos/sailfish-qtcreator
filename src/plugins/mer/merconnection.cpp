@@ -178,6 +178,7 @@ MerConnection::MerConnection(QObject *parent)
     , m_headless(false)
     , m_state(Disconnected)
     , m_vmState(VmOff)
+    , m_vmStartedOutside(false)
     , m_sshState(SshNotConnected)
     , m_vmStmTransition(false) // intentionally do not execute ON_ENTRY during initialization
     , m_sshStmTransition(false) // intentionally do not execute ON_ENTRY during initialization
@@ -504,9 +505,11 @@ bool MerConnection::vmStmStep()
     case VmOff:
         ON_ENTRY {
             m_disconnectRequested = false;
+            m_vmStartedOutside = false;
         }
 
         if (m_cachedVmRunning) {
+            m_vmStartedOutside = true;
             vmStmTransition(VmRunning, "started outside");
         } else if (m_connectRequested) {
             vmStmTransition(VmStarting, "connect requested");
@@ -563,11 +566,24 @@ bool MerConnection::vmStmStep()
         } else if (m_disconnectRequested) {
             // waiting for ssh connection to disconnect first
             if (m_sshState == SshNotConnected || m_sshState == SshDisconnected) {
-                vmStmTransition(VmSoftClosing, "disconnect requested");
+                if (!m_vmStartedOutside) {
+                    vmStmTransition(VmSoftClosing, "disconnect requested");
+                } else {
+                    if (!m_closeVmQuestionBox) {
+                        openCloseVmQuestionBox();
+                    } else if (QAbstractButton *button = m_closeVmQuestionBox->clickedButton()) {
+                        if (button == m_closeVmQuestionBox->button(QMessageBox::Yes)) {
+                            vmStmTransition(VmSoftClosing, "disconnect requested+close allowed");
+                        } else {
+                            vmStmTransition(VmZombie, "disconnect requested+close denied");
+                        }
+                    }
+                }
             }
         }
 
         ON_EXIT {
+            deleteMessageBox(m_closeVmQuestionBox);
             sshStmScheduleExec();
         }
         break;
@@ -736,16 +752,20 @@ bool MerConnection::sshStmStep()
         } else if (m_cachedSshConnected) {
             sshStmTransition(SshConnected, "successfully connected");
         } else if (m_cachedSshError != QSsh::SshNoError) {
-            // To be accurate, the question to the user should be "Wait longer?" instead of "Try
-            // again?" - the m_sshTryConnectTimer is active so we are already trying again. But
-            // why to bother the user with implementation details?
-            if (!m_retrySshConnectionQuestionBox) {
-                openRetrySshConnectionQuestionBox();
-            } else if (QAbstractButton *button = m_retrySshConnectionQuestionBox->clickedButton()) {
-                if (button == m_retrySshConnectionQuestionBox->button(QMessageBox::Yes)) {
-                    sshStmTransition(SshConnecting, "connecting error+retry allowed");
-                } else {
-                    sshStmTransition(SshConnectingError, "connecting error+retry denied");
+            if (m_vmStartedOutside && !m_connectRequested) {
+                sshStmTransition(SshConnectingError, "connecting error+connect not requested");
+            } else {
+                // To be accurate, the question to the user should be "Wait longer?" instead of "Try
+                // again?" - the m_sshTryConnectTimer is active so we are already trying again. But
+                // why to bother the user with implementation details?
+                if (!m_retrySshConnectionQuestionBox) {
+                    openRetrySshConnectionQuestionBox();
+                } else if (QAbstractButton *button = m_retrySshConnectionQuestionBox->clickedButton()) {
+                    if (button == m_retrySshConnectionQuestionBox->button(QMessageBox::Yes)) {
+                        sshStmTransition(SshConnecting, "connecting error+retry allowed");
+                    } else {
+                        sshStmTransition(SshConnectingError, "connecting error+retry denied");
+                    }
                 }
             }
         }
@@ -925,6 +945,25 @@ void MerConnection::openAlreadyDisconnectingWarningBox()
             Core::ICore::dialogParent());
     box->setAttribute(Qt::WA_DeleteOnClose);
     box->open();
+}
+
+void MerConnection::openCloseVmQuestionBox()
+{
+    QTC_CHECK(!m_closeVmQuestionBox);
+
+    m_closeVmQuestionBox = new QMessageBox(
+            QMessageBox::Question,
+            tr("Close Virtual Machine"),
+            tr("Do you want to close the \"%1\" virtual machine?").arg(m_vmName),
+            QMessageBox::Yes | QMessageBox::No,
+            Core::ICore::dialogParent());
+    m_closeVmQuestionBox->setInformativeText(tr("This virtual machine has "
+                "been started outside of Qt Creator. Answer \"No\" to "
+                "disconnect and leave the virtual machine running."));
+    m_closeVmQuestionBox->setEscapeButton(QMessageBox::No);
+    connect(m_closeVmQuestionBox, SIGNAL(finished(int)),
+            this, SLOT(vmStmScheduleExec()));
+    m_closeVmQuestionBox->open();
 }
 
 void MerConnection::openUnableToCloseVmWarningBox()
