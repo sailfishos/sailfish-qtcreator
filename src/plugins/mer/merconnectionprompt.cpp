@@ -21,7 +21,7 @@
 ****************************************************************************/
 
 #include "merconnectionprompt.h"
-#include "merconnectionmanager.h"
+#include "merconnection.h"
 #include "mersdkmanager.h"
 #include "mervirtualboxmanager.h"
 
@@ -36,8 +36,8 @@
 namespace Mer {
 namespace Internal {
 
-MerConnectionPrompt::MerConnectionPrompt(const QString& vm, const MerPlugin *merplugin):
-    m_vm(vm)
+MerConnectionPrompt::MerConnectionPrompt(MerConnection *connection, const MerPlugin *merplugin):
+    m_connection(connection)
   ,m_merplugin(merplugin)
 {
 }
@@ -56,21 +56,15 @@ void MerConnectionPrompt::prompt(const MerConnectionPrompt::PromptRequest pr)
 
 void MerConnectionPrompt::startPrompt()
 {
-    if(!MerVirtualBoxManager::isVirtualMachineRegistered(m_vm)) {
-        QMessageBox::warning(0, tr("Start Virtual Machine"),
-                             tr("Virtual Machine '%1' is not installed! ").arg(m_vm), QMessageBox::Ok);
-        return;
-    }
-
     const QMessageBox::StandardButton response =
         QMessageBox::question(0, tr("Start Virtual Machine"),
                               tr("Virtual Machine '%1' is not running! Please start the "
                                  "Virtual Machine and retry after the Virtual Machine is "
                                  "running.\n\n"
-                                 "Start Virtual Machine now?").arg(m_vm),
+                                 "Start Virtual Machine now?").arg(m_connection->virtualMachine()),
                               QMessageBox::No | QMessageBox::Yes, QMessageBox::Yes);
     if (response == QMessageBox::Yes) {
-        MerConnectionManager::instance()->connectTo(m_vm);
+        m_connection->connectTo();
     }
 
     this->deleteLater();
@@ -82,7 +76,7 @@ void MerConnectionPrompt::closePrompt()
     foreach(const MerSdk* sdk, sdks) {
         if(sdk->isHeadless()) {
             const QString& vm = sdk->virtualMachineName();
-            if(MerConnectionManager::instance()->isConnected(vm)) {
+            if (sdk->connection()->state() == MerConnection::Connected) {
                 const QMessageBox::StandardButton response =
                         QMessageBox::question(0, tr("Stop Virtual Machine"),
                         tr("The headless virtual machine '%1' is still running!\n\n"
@@ -90,7 +84,7 @@ void MerConnectionPrompt::closePrompt()
                         QMessageBox::No | QMessageBox::Yes, QMessageBox::Yes);
 
                 if (response == QMessageBox::Yes) {
-                    MerConnectionManager::instance()->disconnectFrom(vm);
+                    sdk->connection()->disconnectFrom();
                     QTimer::singleShot(3000, const_cast<Mer::Internal::MerPlugin*> (m_merplugin), SIGNAL(asynchronousShutdownFinished()));
                 }
             }

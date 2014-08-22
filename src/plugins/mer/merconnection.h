@@ -81,14 +81,14 @@ public:
     void setSshParameters(const QSsh::SshConnectionParameters &sshParameters);
     void setHeadless(bool headless);
 
-    void reset();
-
     QSsh::SshConnectionParameters sshParameters() const;
     bool isHeadless() const;
     QString virtualMachine() const;
 
     State state() const;
     QString errorString() const;
+
+    bool isVirtualMachineOff() const;
 
 public slots:
     void refresh();
@@ -97,11 +97,15 @@ public slots:
 
 signals:
     void stateChanged();
+    void virtualMachineOffChanged(bool vmOff);
 
 protected:
     void timerEvent(QTimerEvent *event);
 
 private:
+    void scheduleReset();
+    void reset();
+
     // state machine
     void updateState();
     void vmStmTransition(VmState toState, const char *event);
@@ -140,6 +144,8 @@ private slots:
     void onRemoteShutdownProcessFinished();
 
 private:
+    static QMap<QString, int> s_usedVmNames;
+
     QPointer<QSsh::SshConnection> m_connection;
     QString m_vmName;
     QSsh::SshConnectionParameters m_params;
@@ -177,6 +183,9 @@ private:
     // state machine idle execution
     QBasicTimer m_vmStmExecTimer;
     QBasicTimer m_sshStmExecTimer;
+
+    // auto invoke reset after properties are changed
+    QBasicTimer m_resetTimer;
 
     // dialogs
     QPointer<QMessageBox> m_unableToCloseVmWarningBox;

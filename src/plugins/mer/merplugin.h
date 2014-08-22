@@ -24,10 +24,12 @@
 #define MERPLUGIN_H
 
 #include <extensionsystem/iplugin.h>
-#include <QStringList>
+#include <QMap>
 
 namespace Mer {
 namespace Internal {
+
+class MerConnection;
 
 class MerPlugin : public ExtensionSystem::IPlugin
 {
@@ -44,10 +46,10 @@ public:
 
 private slots:
     void handlePromptClosed(const QString& vm, bool accepted);
+    void handleConnectionStateChanged();
 
 private:
-    QStringList m_stopList;
-    bool m_wait;
+    QMap<QString, MerConnection *> m_stopList;
 
 #ifdef WITH_TESTS
     void verifyTargets(const QString &vm, QStringList expectedKits, QStringList expectedToolChains, QStringList expectedQtVersion);

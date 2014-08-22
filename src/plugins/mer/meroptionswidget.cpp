@@ -28,6 +28,7 @@
 #include "mersdkselectiondialog.h"
 #include "mervirtualboxmanager.h"
 #include "merconnectionmanager.h"
+#include "merconnection.h"
 
 #include <utils/fileutils.h>
 #include <ssh/sshconnection.h>
@@ -161,12 +162,10 @@ void MerOptionsWidget::onRemoveButtonClicked()
 void MerOptionsWidget::onTestConnectionButtonClicked()
 {
     MerSdk *sdk = m_sdks[m_virtualMachine];
-    if (MerVirtualBoxManager::isVirtualMachineRunning(sdk->virtualMachineName())) {
-        QSsh::SshConnectionParameters params = MerConnectionManager::parameters(sdk);
+    if (!sdk->connection()->isVirtualMachineOff()) {
+        QSsh::SshConnectionParameters params = sdk->connection()->sshParameters();
         if (m_sshPrivKeys.contains(sdk))
             params.privateKeyFile = m_sshPrivKeys[sdk];
-        else
-            params.privateKeyFile = sdk->privateKeyFile();
         m_ui->sdkDetailsWidget->setStatus(tr("Connecting to machine %1 ...").arg(sdk->virtualMachineName()));
         m_ui->sdkDetailsWidget->setTestButtonEnabled(false);
         m_status = MerConnectionManager::instance()->testConnection(params);
@@ -199,7 +198,7 @@ void MerOptionsWidget::onAuthorizeSshKey(const QString &file)
 void MerOptionsWidget::onStartVirtualMachineButtonClicked()
 {
     const MerSdk *sdk = m_sdks[m_virtualMachine];
-    MerVirtualBoxManager::startVirtualMachine(sdk->virtualMachineName(), sdk->isHeadless());
+    sdk->connection()->connectTo();
 }
 
 void MerOptionsWidget::onGenerateSshKey(const QString &privKeyPath)
@@ -236,7 +235,7 @@ void MerOptionsWidget::onSrcFolderApplyButtonClicked(const QString &newFolder)
         return;
     }
 
-    if (MerVirtualBoxManager::isVirtualMachineRunning(m_virtualMachine)) {
+    if (!sdk->connection()->isVirtualMachineOff()) {
         QMessageBox::information(0, tr("Stop Virtual Machine"),
                                  tr("Virtual Machine %1 is running. "
                                     "It must be stopped before the source folder can be changed.").arg(m_virtualMachine));
@@ -251,7 +250,7 @@ void MerOptionsWidget::onSrcFolderApplyButtonClicked(const QString &newFolder)
                                      "Do you want to start %1 now?").arg(m_virtualMachine).arg(newFolder),
                                   QMessageBox::No | QMessageBox::Yes, QMessageBox::Yes);
         if (response == QMessageBox::Yes)
-            MerVirtualBoxManager::startVirtualMachine(m_virtualMachine, sdk->isHeadless());
+            sdk->connection()->connectTo();
     }
     else {
         QMessageBox::warning(0, tr("Changing the source folder failed!"),

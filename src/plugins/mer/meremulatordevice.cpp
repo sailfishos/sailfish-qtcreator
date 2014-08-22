@@ -24,6 +24,7 @@
 
 #include "mersdkmanager.h"
 #include "mervirtualboxmanager.h"
+#include "merconnection.h"
 #include "merconstants.h"
 #include "meremulatordevicewidget.h"
 #include <utils/qtcassert.h>
@@ -165,6 +166,7 @@ ProjectExplorer::IDevice::Ptr MerEmulatorDevice::clone() const
 
 MerEmulatorDevice::MerEmulatorDevice():
     RemoteLinux::LinuxDevice(QString(), Core::Id(Constants::MER_DEVICE_TYPE_I486), Emulator, ManuallyAdded, Core::Id())
+    , m_connection(new MerConnection(0 /* not bug */))
 {
     setDeviceState(IDevice::DeviceStateUnknown);
 }
@@ -208,7 +210,7 @@ void MerEmulatorDevice::executeAction(Core::Id actionId, QWidget *parent)
         generateSshKey(QLatin1String(Constants::MER_DEVICE_ROOTUSER));
         return;
     } else if (actionId == Constants::MER_EMULATOR_START_ACTION_ID) {
-        MerVirtualBoxManager::startVirtualMachine(m_virtualMachine,false);
+        m_connection->connectTo();
         return;
     }
 }
@@ -216,7 +218,9 @@ void MerEmulatorDevice::executeAction(Core::Id actionId, QWidget *parent)
 void MerEmulatorDevice::fromMap(const QVariantMap &map)
 {
     IDevice::fromMap(map);
-    m_virtualMachine = map.value(QLatin1String(Constants::MER_DEVICE_VIRTUAL_MACHINE)).toString();
+    updateConnection();
+    m_connection->setVirtualMachine(
+            map.value(QLatin1String(Constants::MER_DEVICE_VIRTUAL_MACHINE)).toString());
     m_mac = map.value(QLatin1String(Constants::MER_DEVICE_MAC)).toString();
     m_subnet = map.value(QLatin1String(Constants::MER_DEVICE_SUBNET)).toString();
     m_sharedSshPath = map.value(QLatin1String(Constants::MER_DEVICE_SHARED_SSH)).toString();
@@ -226,7 +230,8 @@ void MerEmulatorDevice::fromMap(const QVariantMap &map)
 QVariantMap MerEmulatorDevice::toMap() const
 {
     QVariantMap map = IDevice::toMap();
-    map.insert(QLatin1String(Constants::MER_DEVICE_VIRTUAL_MACHINE), m_virtualMachine);
+    map.insert(QLatin1String(Constants::MER_DEVICE_VIRTUAL_MACHINE),
+            m_connection->virtualMachine());
     map.insert(QLatin1String(Constants::MER_DEVICE_MAC), m_mac);
     map.insert(QLatin1String(Constants::MER_DEVICE_SUBNET), m_subnet);
     map.insert(QLatin1String(Constants::MER_DEVICE_SHARED_SSH), m_sharedSshPath);
@@ -256,12 +261,12 @@ QString MerEmulatorDevice::subnet() const
 
 void MerEmulatorDevice::setVirtualMachine(const QString& machineName)
 {
-    m_virtualMachine = machineName;
+    m_connection->setVirtualMachine(machineName);
 }
 
 QString MerEmulatorDevice::virtualMachine() const
 {
-    return m_virtualMachine;
+    return m_connection->virtualMachine();
 }
 
 void MerEmulatorDevice::setSharedConfigPath(const QString &configPath)
@@ -308,6 +313,16 @@ QSsh::SshConnectionParameters MerEmulatorDevice::sshParametersForUser(const QSsh
     m_sshParams.privateKeyFile = privateKeyFile;
 
     return m_sshParams;
+}
+
+MerConnection *MerEmulatorDevice::connection() const
+{
+    return m_connection.data();
+}
+
+void MerEmulatorDevice::updateConnection()
+{
+    m_connection->setSshParameters(sshParameters());
 }
 
 #include "meremulatordevice.moc"

@@ -31,6 +31,7 @@
 #include "mersdkmanager.h"
 #include "mersdkkitinformation.h"
 #include "mertargetkitinformation.h"
+#include "merconnection.h"
 #include "merconnectionmanager.h"
 #include "meremulatordevice.h"
 #include "merconnectionprompt.h"
@@ -178,20 +179,9 @@ MerEmulatorStartStep::MerEmulatorStartStep(BuildStepList *bsl)
 
 MerEmulatorStartStep::MerEmulatorStartStep(ProjectExplorer::BuildStepList *bsl, MerEmulatorStartStep *bs)
     :MerProcessStep(bsl,bs)
-    , m_vm(bs->vitualMachine())
-    , m_ssh(bs->sshParams())
+    , m_connection(bs->m_connection)
 {
     setDefaultDisplayName(displayName());
-}
-
-QString MerEmulatorStartStep::vitualMachine()
-{
-    return m_vm;
-}
-
-QSsh::SshConnectionParameters MerEmulatorStartStep::sshParams()
-{
-    return m_ssh;
 }
 
 bool MerEmulatorStartStep::init()
@@ -202,9 +192,8 @@ bool MerEmulatorStartStep::init()
         return false;
     }
     const MerEmulatorDevice* device = static_cast<const MerEmulatorDevice*>(d.data());
-    m_vm = device->virtualMachine();
-    m_ssh = device->sshParameters();
-    return !m_vm.isEmpty();
+    m_connection = device->connection();
+    return true;
 }
 
 bool MerEmulatorStartStep::immutable() const
@@ -214,17 +203,17 @@ bool MerEmulatorStartStep::immutable() const
 
 void MerEmulatorStartStep::run(QFutureInterface<bool> &fi)
 {
-    MerConnectionManager *em = MerConnectionManager::instance();
-    if(em->isConnected(m_vm)) {
+    if(m_connection->state() == MerConnection::Connected) {
         emit addOutput(tr("Emulator is already running. Nothing to do."),MessageOutput);
         fi.reportResult(true);
         emit finished();
     } else {
         emit addOutput(tr("Starting Emulator..."), MessageOutput);
-        QString error = tr("Could not connect to %1 Virtual Machine.").arg(m_vm);
-        MerConnectionManager::createConnectionErrorTask(m_vm,error,Constants::MER_TASKHUB_EMULATOR_CATEGORY);
-        if(!MerVirtualBoxManager::isVirtualMachineRunning(m_vm)) {
-            MerConnectionPrompt *connectioPrompt = new MerConnectionPrompt(m_vm, 0);
+        QString vm = m_connection->virtualMachine();
+        QString error = tr("Could not connect to %1 Virtual Machine.").arg(vm);
+        MerConnectionManager::createConnectionErrorTask(vm,error,Constants::MER_TASKHUB_EMULATOR_CATEGORY);
+        if(!MerVirtualBoxManager::isVirtualMachineRunning(vm)) {
+            MerConnectionPrompt *connectioPrompt = new MerConnectionPrompt(m_connection, 0);
             connectioPrompt->prompt(MerConnectionPrompt::Start);
         }
         fi.reportResult(false);

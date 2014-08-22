@@ -30,6 +30,7 @@
 #include "meroptionspage.h"
 #include "merdeploystepfactory.h"
 #include "mersdkmanager.h"
+#include "merconnection.h"
 #include "merconnectionmanager.h"
 #include "mervirtualboxmanager.h"
 #include "mermode.h"
@@ -46,8 +47,7 @@
 namespace Mer {
 namespace Internal {
 
-MerPlugin::MerPlugin():
-    m_wait(false)
+MerPlugin::MerPlugin()
 {
 }
 
@@ -86,15 +86,14 @@ void MerPlugin::extensionsInitialized()
 ExtensionSystem::IPlugin::ShutdownFlag MerPlugin::aboutToShutdown()
 {
     m_stopList.clear();
-    m_wait=false;
     QList<MerSdk*> sdks = MerSdkManager::instance()->sdks();
     foreach(const MerSdk* sdk, sdks) {
         if(sdk->isHeadless()) {
-            const QString& vm = sdk->virtualMachineName();
-            if(MerConnectionManager::instance()->isConnected(vm)) {
-                Prompt * prompt = MerActionManager::createClosePrompt(vm);
+            MerConnection *connection = sdk->connection();
+            if(connection->state() == MerConnection::Connected) {
+                Prompt * prompt = MerActionManager::createClosePrompt(connection->virtualMachine());
                 connect(prompt,SIGNAL(closed(QString,bool)),this,SLOT(handlePromptClosed(QString,bool)));
-                m_stopList << vm;
+                m_stopList.insert(connection->virtualMachine(), connection);
             }
         }
     }
@@ -106,21 +105,30 @@ ExtensionSystem::IPlugin::ShutdownFlag MerPlugin::aboutToShutdown()
 
 void MerPlugin::handlePromptClosed(const QString& vm, bool accepted)
 {
-     m_stopList.removeAll(vm);
     if (accepted) {
-        MerConnectionManager::instance()->disconnectFrom(vm);
-        m_wait=true;
+        MerConnection *connection = m_stopList.value(vm);
+        connect(connection, SIGNAL(stateChanged()), this, SLOT(handleConnectionStateChanged()));
+        connection->disconnectFrom();
+    } else {
+        m_stopList.remove(vm);
     }
 
     if(m_stopList.isEmpty()) {
-        if(m_wait){
-             QTimer::singleShot(3000, this, SIGNAL(asynchronousShutdownFinished()));
-        }else{
-             emit asynchronousShutdownFinished();
-        }
-
+        emit asynchronousShutdownFinished();
     }
+}
 
+void MerPlugin::handleConnectionStateChanged()
+{
+    MerConnection *connection = qobject_cast<MerConnection *>(sender());
+
+    if (connection->state() == MerConnection::Disconnected) {
+        m_stopList.remove(connection->virtualMachine());
+
+        if (m_stopList.isEmpty()) {
+            emit asynchronousShutdownFinished();
+        }
+    }
 }
 
 } // Internal

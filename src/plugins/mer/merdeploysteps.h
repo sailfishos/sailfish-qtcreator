@@ -33,9 +33,12 @@
 #include "ui_merdeploystep.h"
 #include <projectexplorer/abstractprocessstep.h>
 #include <ssh/sshconnection.h>
+#include <QPointer>
 
 namespace Mer {
 namespace Internal {
+
+class MerConnection;
 
 class MerProcessStep: public ProjectExplorer::AbstractProcessStep
 {
@@ -62,10 +65,7 @@ public:
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget();
     static const Core::Id stepId();
     static QString displayName();
-    QString vitualMachine();
-    QSsh::SshConnectionParameters sshParams();
-    QString m_vm;
-    QSsh::SshConnectionParameters m_ssh;
+    QPointer<MerConnection> m_connection;
     friend class MerDeployStepFactory;
 };
 

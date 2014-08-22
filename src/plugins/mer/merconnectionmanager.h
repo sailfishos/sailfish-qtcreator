@@ -34,15 +34,12 @@ class Task;
 }
 
 namespace QSsh {
-class SshConnection;
 class SshConnectionParameters;
 }
 
 namespace Mer {
 namespace Internal {
 
-class MerSdk;
-class MerConnection;
 class MerConnectionAction;
 
 class MerConnectionManager : public QObject
@@ -51,11 +48,7 @@ class MerConnectionManager : public QObject
 public:
     static MerConnectionManager* instance();
     ~MerConnectionManager();
-    static QSsh::SshConnectionParameters parameters(const MerSdk *sdk);
     QString testConnection(const QSsh::SshConnectionParameters &params) const;
-    bool isConnected(const QString &vmName) const;
-    void connectTo(const QString &vmName);
-    void disconnectFrom(const QString &vmName);
     static void createConnectionErrorTask(const QString &vmName, const QString &error, Core::Id category);
     static void removeConnectionErrorTask(Core::Id category);
 private slots:
@@ -71,10 +64,8 @@ private:
 private:
     static MerConnectionManager *m_instance;
     static ProjectExplorer::Project *m_project;
-    QScopedPointer<MerConnection> m_emulatorConnection;
-    QScopedPointer<MerConnectionAction> m_emulatorAction;
-    QScopedPointer<MerConnection> m_sdkConnection;
-    QScopedPointer<MerConnectionAction> m_sdkAction;
+    MerConnectionAction *m_emulatorAction;
+    MerConnectionAction *m_sdkAction;
 
     friend class MerPlugin;
 };

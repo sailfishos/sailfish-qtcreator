@@ -171,6 +171,8 @@ private:
     bool m_finished;
 };
 
+QMap<QString, int> MerConnection::s_usedVmNames;
+
 MerConnection::MerConnection(QObject *parent)
     : QObject(parent)
     , m_headless(false)
@@ -192,66 +194,47 @@ MerConnection::MerConnection(QObject *parent)
 
 MerConnection::~MerConnection()
 {
+    if (!m_vmName.isEmpty())
+        --s_usedVmNames[m_vmName];
 }
 
 void MerConnection::setVirtualMachine(const QString &virtualMachine)
 {
+    if (m_vmName == virtualMachine)
+        return;
+
+    if (!m_vmName.isEmpty())
+        --s_usedVmNames[m_vmName];
+
     m_vmName = virtualMachine;
+    scheduleReset();
+
+    // Do this right now to prevent unexpected behavior
+    m_cachedVmRunning = false;
+    m_vmStatePollTimer.stop();
+
+    if (!m_vmName.isEmpty()) {
+        if (++s_usedVmNames[m_vmName] != 1)
+            qWarning() << "MerConnection: Another instance for VM" << m_vmName << "already exists";
+    }
 }
 
 void MerConnection::setSshParameters(const QSsh::SshConnectionParameters &sshParameters)
 {
+    if (m_params == sshParameters)
+        return;
+
     m_params = sshParameters;
+    scheduleReset();
 }
 
 void MerConnection::setHeadless(bool headless)
 {
+    if (m_headless == headless)
+        return;
+
     m_headless = headless;
-}
-
-void MerConnection::reset()
-{
-    DBG << "RESET";
-
-    m_vmStartingTimeoutTimer.stop();
-    m_vmSoftClosingTimeoutTimer.stop();
-    m_vmHardClosingTimeoutTimer.stop();
-    m_vmStatePollTimer.stop();
-    m_sshTryConnectTimer.stop();
-
-    delete m_connection;
-
-    m_vmState = VmOff;
-    m_vmStmTransition = true;
-    m_sshState = SshNotConnected;
-    m_sshStmTransition = true;
-
-    m_connectRequested = false;
-    m_disconnectRequested = false;
-    m_connectLaterRequested = false;
-    m_disconnectLaterRequested = false;
-
-    m_cachedVmRunning = false;
-    m_cachedSshConnected = false;
-    m_cachedSshError = QSsh::SshNoError;
-    m_cachedSshErrorString.clear();
-
-    m_vmWantFastPollState = 0;
-
-    delete m_unableToCloseVmWarningBox;
-    delete m_retrySshConnectionQuestionBox;
-
-    delete m_remoteShutdownProcess;
-
-    if (m_state != Disconnected) {
-        m_state = Disconnected;
-        emit stateChanged();
-    }
-
-    if (!m_vmName.isEmpty()) {
-        vmPollState();
-        m_vmStatePollTimer.start(VM_STATE_POLLING_INTERVAL_NORMAL, this);
-    }
+    scheduleReset();
 }
 
 QSsh::SshConnectionParameters MerConnection::sshParameters() const
@@ -277,6 +260,11 @@ MerConnection::State MerConnection::state() const
 QString MerConnection::errorString() const
 {
     return m_errorString;
+}
+
+bool MerConnection::isVirtualMachineOff() const
+{
+    return !m_cachedVmRunning && m_vmState != VmStarting;
 }
 
 void MerConnection::refresh()
@@ -350,7 +338,32 @@ void MerConnection::timerEvent(QTimerEvent *event)
     } else if (event->timerId() == m_sshStmExecTimer.timerId()) {
         m_sshStmExecTimer.stop();
         sshStmExec();
+    } else if (event->timerId() == m_resetTimer.timerId()) {
+        m_resetTimer.stop();
+        reset();
     }
+}
+
+void MerConnection::scheduleReset()
+{
+    m_resetTimer.start(0, this);
+}
+
+void MerConnection::reset()
+{
+    DBG << "RESET";
+
+    // Just do the best for the possibly updated SSH parameters to get in effect
+    if (m_sshState == SshConnectingError || m_sshState == SshConnectionLost)
+        delete m_connection; // see sshTryConnect()
+
+    if (!m_vmName.isEmpty() && !m_vmStatePollTimer.isActive()) {
+        m_vmStatePollTimer.start(VM_STATE_POLLING_INTERVAL_NORMAL, this);
+        vmPollState();
+    }
+
+    vmStmScheduleExec();
+    sshStmScheduleExec();
 }
 
 void MerConnection::updateState()
@@ -871,6 +884,7 @@ void MerConnection::vmPollState()
         DBG << "VM running:" << m_cachedVmRunning << "-->" << vmRunning;
         m_cachedVmRunning = vmRunning;
         vmStmScheduleExec();
+        emit virtualMachineOffChanged(!m_cachedVmRunning);
     }
 }
 

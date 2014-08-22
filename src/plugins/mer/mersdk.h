@@ -40,6 +40,7 @@ class FileName;
 namespace Mer {
 namespace Internal {
 
+class MerConnection;
 class MerQtVersion;
 class MerToolChain;
 class MerTarget;
@@ -102,6 +103,8 @@ public:
     void attach();
     void detach();
 
+    MerConnection *connection() const;
+
 signals:
     void targetsChanged(const QStringList &targets);
     void privateKeyChanged(const QString &file);
@@ -120,22 +123,16 @@ private:
 
 private:
     bool m_autoDetected;
-    QString m_name;
+    MerConnection *m_connection;
     QString m_sharedHomePath;
     QString m_sharedTargetsPath;
     QString m_sharedSshPath;
     QString m_sharedConfigPath;
     QString m_sharedSrcPath;
-    QString m_host;
-    QString m_userName;
-    QString m_privateKeyFile;
-    quint16 m_sshPort;
     quint16 m_wwwPort;
-    int m_timeout;
     QList<MerTarget> m_targets;
     QFileSystemWatcher m_watcher;
     QTimer m_updateTargetsTimer;
-    bool m_headless;
 
 friend class MerSdkManager;
 };

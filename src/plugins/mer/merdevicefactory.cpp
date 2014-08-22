@@ -90,6 +90,7 @@ ProjectExplorer::IDevice::Ptr MerDeviceFactory::create(Core::Id id) const
         device->setDisplayName(wizard.configName());
         device->setFreePorts(Utils::PortList::fromString(wizard.freePorts()));
         device->setSshParameters(sshParams);
+        device->updateConnection();
         device->setSharedConfigPath(wizard.sharedConfigPath());
         device->setSharedSshPath(wizard.sharedSshPath());
 

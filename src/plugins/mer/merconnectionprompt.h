@@ -24,12 +24,15 @@
 #define MERCONNECTIONREQUEST_H
 
 #include <QObject>
+#include <QPointer>
 #include <QString>
 
 #include "merplugin.h"
 
 namespace Mer {
 namespace Internal {
+
+class MerConnection;
 
 class MerConnectionPrompt : public QObject
 {
@@ -40,7 +43,7 @@ public:
         Close
     };
 
-    MerConnectionPrompt(const QString& vm = QString(), const Mer::Internal::MerPlugin *merplugin = 0);
+    MerConnectionPrompt(MerConnection *connection, const Mer::Internal::MerPlugin *merplugin = 0);
 
 public slots:
     void prompt(const MerConnectionPrompt::PromptRequest pr);
@@ -50,7 +53,7 @@ private slots:
     void closePrompt();
 
 private:
-    QString m_vm;
+    QPointer<MerConnection> m_connection;
     const MerPlugin *m_merplugin;
 };
 
