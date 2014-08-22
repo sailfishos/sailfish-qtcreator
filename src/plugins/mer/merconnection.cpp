@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2013 Jolla Ltd.
+** Copyright (C) 2012 - 2014 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -23,44 +23,185 @@
 #include "merconnection.h"
 #include "merconstants.h"
 #include "mervirtualboxmanager.h"
-#include "merconnectionmanager.h"
-#include <ssh/sshconnection.h>
+#include <coreplugin/icore.h>
 #include <ssh/sshremoteprocessrunner.h>
 #include <utils/qtcassert.h>
-#include <projectexplorer/taskhub.h>
-#include <projectexplorer/projectexplorer.h>
+#include <QMessageBox>
+#include <QTime>
 #include <QTimer>
+#include <QTimerEvent>
+
+#if 0
+# define DBG qDebug() << m_vmName << QTime::currentTime()
+#else
+# define DBG if (false) qDebug()
+#endif
 
 namespace Mer {
 namespace Internal {
 
-using namespace QSsh;
-using namespace ProjectExplorer;
+namespace {
+const int VM_STATE_POLLING_INTERVAL_NORMAL = 10000;
+const int VM_STATE_POLLING_INTERVAL_FAST   = 1000;
+const int VM_START_TIMEOUT                 = 10000;
+const int VM_SOFT_CLOSE_TIMEOUT            = 15000; // via sdk-shutdown command
+const int VM_HARD_CLOSE_TIMEOUT            = 15000; // via ACPI poweroff
+// Note that SshConnection already internally operates with (much longer)
+// timeouts and ability to recover with only limited state information exposed
+// outside, so these numbers cannot really be interpreted as that a new network
+// connection attempt will happen every <number> of milliseconds.
+const int SSH_TRY_CONNECT_INTERVAL_NORMAL  = 1000;
+const int SSH_TRY_CONNECT_INTERVAL_SLOW    = 10000;
+const int DISMISS_MESSAGE_BOX_DELAY        = 2000;
+}
+
+// Most of the obscure handling here is because "shutdown" command newer exits "successfully" :)
+class MerConnectionRemoteShutdownProcess : public QObject
+{
+    Q_OBJECT
+
+public:
+    MerConnectionRemoteShutdownProcess(QObject *parent)
+        : QObject(parent)
+        , m_runner(0)
+        , m_connectionError(QSsh::SshNoError)
+        , m_processStarted(false)
+        , m_processClosed(false)
+        , m_exitStatus(QSsh::SshRemoteProcess::FailedToStart)
+        , m_finished(false)
+    {
+        if (m_runner)
+            m_runner->cancel();
+    }
+
+    void run(const QSsh::SshConnectionParameters &sshParams)
+    {
+        delete m_runner, m_runner = new QSsh::SshRemoteProcessRunner(this);
+        m_connectionError = QSsh::SshNoError;
+        m_connectionErrorString.clear();
+        m_processStarted = false;
+        m_processClosed = false;
+        m_exitStatus = QSsh::SshRemoteProcess::FailedToStart;
+        m_finished = false;
+        connect(m_runner, SIGNAL(processStarted()), this, SLOT(onProcessStarted()));
+        connect(m_runner, SIGNAL(processClosed(int)), this, SLOT(onProcessClosed(int)));
+        connect(m_runner, SIGNAL(connectionError()), this, SLOT(onConnectionError()));
+        m_runner->run("sdk-shutdown", sshParams);
+    }
+
+    // Note: SshRemoteProcessRunner states: "Does not stop remote process, just
+    // frees SSH-related process resources."
+    void cancel()
+    {
+        QTC_ASSERT(m_runner, return);
+        m_runner->cancel();
+    }
+
+    bool isFinished() const { return m_finished; }
+    bool isError() const { return isConnectionError() || isProcessError(); }
+
+    bool isConnectionError() const
+    {
+        return m_finished && !m_processStarted &&
+            m_connectionError != QSsh::SshNoError;
+    }
+
+    bool isProcessError() const
+    {
+        return m_finished && m_processClosed &&
+            m_exitStatus != QSsh::SshRemoteProcess::NormalExit;
+    }
+
+    QSsh::SshError connectionError() const
+    {
+        return m_connectionError;
+    }
+
+    QString connectionErrorString() const
+    {
+        return m_connectionErrorString;
+    }
+
+    QString readAllStandardOutput() const
+    {
+        QTC_ASSERT(m_runner, return QString());
+        return QString::fromUtf8(m_runner->readAllStandardOutput());
+    }
+
+    QString readAllStandardError() const
+    {
+        QTC_ASSERT(m_runner, return QString());
+        return QString::fromUtf8(m_runner->readAllStandardError());
+    }
+
+signals:
+    void finished();
+
+private slots:
+    void onProcessStarted()
+    {
+        m_processStarted = true;
+    }
+
+    void onProcessClosed(int exitStatus)
+    {
+        m_processClosed = true;
+        m_exitStatus = exitStatus;
+        m_finished = true;
+        emit finished();
+    }
+
+    void onConnectionError()
+    {
+        if (!m_processStarted) {
+            m_connectionError = m_runner->lastConnectionError();
+            m_connectionErrorString = m_runner->lastConnectionErrorString();
+        }
+        m_finished = true;
+        emit finished();
+    }
+
+private:
+    QSsh::SshRemoteProcessRunner *m_runner;
+    QSsh::SshError m_connectionError;
+    QString m_connectionErrorString;
+    bool m_processStarted;
+    bool m_processClosed;
+    int m_exitStatus;
+    bool m_finished;
+};
 
 MerConnection::MerConnection(QObject *parent)
     : QObject(parent)
-    , m_connectionInitialized(false)
-    , m_connection(0)
-    , m_state(Disconnected)
-    , m_vmStartupTimeOut(3000)
-    , m_vmCloseTimeOut(3000)
-    , m_probeTimeout(3000)
-    , m_reportError(true)
     , m_headless(false)
+    , m_state(Disconnected)
+    , m_vmState(VmOff)
+    , m_sshState(SshNotConnected)
+    , m_vmStmTransition(false) // intentionally do not execute ON_ENTRY during initialization
+    , m_sshStmTransition(false) // intentionally do not execute ON_ENTRY during initialization
+    , m_connectRequested(false)
+    , m_disconnectRequested(false)
+    , m_connectLaterRequested(false)
+    , m_cachedVmRunning(false)
+    , m_cachedSshConnected(false)
+    , m_cachedSshError(QSsh::SshNoError)
+    , m_vmWantFastPollState(0)
 {
 
 }
 
 MerConnection::~MerConnection()
 {
-    if (m_connection)
-        m_connection->deleteLater();
-    m_connection = 0;
 }
 
-void MerConnection::setProbeTimeout(int timeout)
+void MerConnection::setVirtualMachine(const QString &virtualMachine)
 {
-    m_probeTimeout = timeout;
+    m_vmName = virtualMachine;
+}
+
+void MerConnection::setSshParameters(const QSsh::SshConnectionParameters &sshParameters)
+{
+    m_params = sshParameters;
 }
 
 void MerConnection::setHeadless(bool headless)
@@ -68,45 +209,59 @@ void MerConnection::setHeadless(bool headless)
     m_headless = headless;
 }
 
-bool MerConnection::isConnected() const
+void MerConnection::reset()
 {
-    return m_state == Connected;
+    DBG << "RESET";
+
+    m_vmStartingTimeoutTimer.stop();
+    m_vmSoftClosingTimeoutTimer.stop();
+    m_vmHardClosingTimeoutTimer.stop();
+    m_vmStatePollTimer.stop();
+    m_sshTryConnectTimer.stop();
+
+    delete m_connection;
+
+    m_vmState = VmOff;
+    m_vmStmTransition = true;
+    m_sshState = SshNotConnected;
+    m_sshStmTransition = true;
+
+    m_connectRequested = false;
+    m_disconnectRequested = false;
+    m_connectLaterRequested = false;
+    m_disconnectLaterRequested = false;
+
+    m_cachedVmRunning = false;
+    m_cachedSshConnected = false;
+    m_cachedSshError = QSsh::SshNoError;
+    m_cachedSshErrorString.clear();
+
+    m_vmWantFastPollState = 0;
+
+    delete m_unableToCloseVmWarningBox;
+    delete m_retrySshConnectionQuestionBox;
+
+    delete m_remoteShutdownProcess;
+
+    if (m_state != Disconnected) {
+        m_state = Disconnected;
+        emit stateChanged();
+    }
+
+    if (!m_vmName.isEmpty()) {
+        vmPollState();
+        m_vmStatePollTimer.start(VM_STATE_POLLING_INTERVAL_NORMAL, this);
+    }
 }
 
-SshConnectionParameters MerConnection::sshParameters() const
+QSsh::SshConnectionParameters MerConnection::sshParameters() const
 {
     return m_params;
 }
 
-void MerConnection::setVirtualMachine(const QString &virtualMachine)
+bool MerConnection::isHeadless() const
 {
-    if(m_vmName != virtualMachine) {
-        m_vmName = virtualMachine;
-        m_connectionInitialized = false;
-    }
-}
-
-void MerConnection::setSshParameters(const SshConnectionParameters &sshParameters)
-{
-    if(m_params != sshParameters) {
-        m_params = sshParameters;
-        m_connectionInitialized = false;
-    }
-}
-
-void MerConnection::setupConnection()
-{
-    if (m_connectionInitialized)
-        return;
-
-    if (m_connection) {
-        m_connection->disconnect();
-        m_connection->deleteLater();
-    }
-
-    m_connection = createConnection(m_params);
-    m_state = Disconnected;
-    m_connectionInitialized = true;
+    return m_headless;
 }
 
 QString MerConnection::virtualMachine() const
@@ -119,132 +274,785 @@ MerConnection::State MerConnection::state() const
     return m_state;
 }
 
-bool MerConnection::hasError() const
-{
-    return !m_errorString.isEmpty();
-}
-
 QString MerConnection::errorString() const
 {
     return m_errorString;
 }
 
-QSsh::SshConnection* MerConnection::createConnection(const SshConnectionParameters &params)
+void MerConnection::refresh()
 {
-    SshConnection *connection = new SshConnection(params);
-    connect(connection, SIGNAL(connected()), this, SLOT(changeState()));
-    connect(connection, SIGNAL(error(QSsh::SshError)), this, SLOT(changeState()));
-    connect(connection, SIGNAL(disconnected()), this, SLOT(changeState()));
-    return connection;
-}
+    DBG << "Refresh requested";
 
-void MerConnection::changeState(State stateTrigger)
-{
-    QTC_ASSERT(!m_vmName.isEmpty(), return);
-    QTC_ASSERT(m_connectionInitialized, return);
-
-    if (stateTrigger != NoStateTrigger)
-        m_state = stateTrigger;
-
-    switch (m_state) {
-    case StartingVm:
-        if (MerVirtualBoxManager::isVirtualMachineRunning(m_vmName)) {
-            m_state = Connecting;
-            m_reportError = true;
-            m_connection->connectToHost();
-        } else {
-            MerVirtualBoxManager::startVirtualMachine(m_vmName,m_headless);
-            QTimer::singleShot(m_vmStartupTimeOut, this, SLOT(changeState()));
-        }
-        break;
-    case TryConnect:
-        if (m_connection->state() == SshConnection::Unconnected) {
-            m_state = Connecting;
-            m_reportError = false;
-            m_connection->connectToHost();
-            QTimer::singleShot(m_probeTimeout, this, SLOT(changeState()));
-        }
-        break;
-    case Connecting:
-        if (m_connection->state() == SshConnection::Connected) {
-            m_state = Connected;
-            if (hasError()) {
-              m_errorString.clear();
-              emit hasErrorChanged(false);
-            }
-        } else if (m_connection->state() == SshConnection::Unconnected) {
-            m_state = Disconnected; //broken
-            if (m_connection->errorState() != SshNoError && m_reportError) {
-                m_errorString = m_connection->errorString();
-                emit hasErrorChanged(true);
-            }
-        } else if (m_connection->state() == SshConnection::Connecting) {
-            m_connection->disconnectFromHost();
-            m_state = Disconnected;
-        }
-        break;
-    case Connected:
-        if(m_connection->state() == SshConnection::Unconnected) {
-            m_state = Disconnected;
-        } else if (m_connection->state() == SshConnection::Connecting) {
-            m_state = Connecting;
-        } //Connected
-        break;
-    case Disconnecting:
-        if (m_connection->state() == SshConnection::Connected ||
-                m_connection->state() == SshConnection::Connecting) {
-            m_connection->disconnectFromHost();
-        } else if (m_connection->state() == SshConnection::Unconnected) {
-            QSsh::SshConnectionParameters sshParams = m_connection->connectionParameters();
-            QSsh::SshRemoteProcessRunner *runner = new QSsh::SshRemoteProcessRunner(m_connection);
-            connect(runner, SIGNAL(processClosed(int)), runner, SLOT(deleteLater()));
-            runner->run("sdk-shutdown", sshParams);
-            QTimer::singleShot(m_vmCloseTimeOut, this, SLOT(changeState()));
-            m_state = ClosingVm;
-        }
-        break;
-    case ClosingVm:
-        if (MerVirtualBoxManager::isVirtualMachineRunning(m_vmName)) {
-            qWarning() << "Could not close virtual machine" << m_vmName;
-            qWarning() << "Trying force..";
-            MerVirtualBoxManager::shutVirtualMachine(m_vmName);
-        }
-        m_state = Disconnected;
-        break;
-    case Disconnected:
-        break;
-    default:
-        break;
-    }
-    emit stateChanged();
+    vmPollState();
 }
 
 void MerConnection::connectTo()
 {
-    if (!m_connection)
+    DBG << "Connect requested";
+
+    if (m_connectRequested || m_connectLaterRequested) {
         return;
-
-    if (m_state == Disconnected)
-        changeState(StartingVm);
-}
-
-//connects only if vm running;
-void MerConnection::tryConnectTo()
-{
-    if (!MerVirtualBoxManager::isVirtualMachineRunning(m_vmName))
+    } else if (m_disconnectRequested) {
+        openAlreadyDisconnectingWarningBox();
         return;
-
-    if (m_state == Disconnected) {
-        changeState(TryConnect);
     }
+
+    if (m_state == Error) {
+        m_disconnectRequested = true;
+        m_connectLaterRequested = true;
+    } else {
+        m_connectRequested = true;
+    }
+
+    vmPollState();
+    vmStmScheduleExec();
+    sshStmScheduleExec();
 }
 
 void MerConnection::disconnectFrom()
 {
-    if (m_state == Connected) {
-        changeState(Disconnecting);
+    DBG << "Disconnect requested";
+
+    if (m_disconnectRequested && !m_connectLaterRequested) {
+        return;
+    } else if (m_connectRequested || m_connectLaterRequested) {
+        openAlreadyConnectingWarningBox();
+        return;
     }
+
+    m_disconnectRequested = true;
+
+    sshStmScheduleExec();
+    vmStmScheduleExec();
+}
+
+void MerConnection::timerEvent(QTimerEvent *event)
+{
+    if (event->timerId() == m_vmStartingTimeoutTimer.timerId()) {
+        DBG << "VM starting timeout";
+        m_vmStartingTimeoutTimer.stop();
+        vmStmScheduleExec();
+    } else if (event->timerId() == m_vmSoftClosingTimeoutTimer.timerId()) {
+        DBG << "VM soft-closing timeout";
+        m_vmSoftClosingTimeoutTimer.stop();
+        vmStmScheduleExec();
+    } else if (event->timerId() == m_vmHardClosingTimeoutTimer.timerId()) {
+        DBG << "VM hard-closing timeout";
+        m_vmHardClosingTimeoutTimer.stop();
+        vmStmScheduleExec();
+    } else if (event->timerId() == m_vmStatePollTimer.timerId()) {
+        vmPollState();
+    } else if (event->timerId() == m_sshTryConnectTimer.timerId()) {
+        sshTryConnect();
+    } else if (event->timerId() == m_vmStmExecTimer.timerId()) {
+        m_vmStmExecTimer.stop();
+        vmStmExec();
+    } else if (event->timerId() == m_sshStmExecTimer.timerId()) {
+        m_sshStmExecTimer.stop();
+        sshStmExec();
+    }
+}
+
+void MerConnection::updateState()
+{
+    State oldState = m_state;
+
+    switch (m_vmState) {
+        case VmOff:
+            m_state = Disconnected;
+            break;
+
+        case VmStarting:
+            m_state = StartingVm;
+            break;
+
+        case VmStartingError:
+            m_state = Error;
+            m_errorString = tr("Failed to start virtual machine \"%1\"").arg(m_vmName);
+            break;
+
+        case VmRunning:
+            switch (m_sshState) {
+                case SshNotConnected:
+                case SshConnecting:
+                    m_state = Connecting;
+                    break;
+
+                case SshConnectingError:
+                    m_state = Error;
+                    m_errorString = tr("Failed to establish SSH conection with virtual machine "
+                            "\"%1\": %2 %3")
+                        .arg(m_vmName)
+                        .arg((int)m_cachedSshError)
+                        .arg(m_cachedSshErrorString);
+                    if (m_cachedSshError == QSsh::SshTimeoutError) {
+                        m_errorString += QString::fromLatin1(" (%1)")
+                            .arg(tr("Consider increasing SSH connection timeout in options."));
+                    }
+                    break;
+
+                case SshConnected:
+                    m_state = Connected;
+                    break;
+
+                case SshDisconnecting:
+                case SshDisconnected:
+                    m_state = Disconnecting;
+                    break;
+
+                case SshConnectionLost:
+                    m_state = Error;
+                    m_errorString = tr("SSH conection with virtual machine \"%1\" has been "
+                            "lost: %2 %3")
+                        .arg(m_vmName)
+                        .arg((int)m_cachedSshError)
+                        .arg(m_cachedSshErrorString);
+                    break;
+            }
+            break;
+
+        case VmZombie:
+            m_state = Disconnected;
+            break;
+
+        case VmSoftClosing:
+        case VmHardClosing:
+            m_state = ClosingVm;
+            break;
+    }
+
+    if (m_state == oldState) {
+        return;
+    }
+
+    if (m_state != Error) {
+        m_errorString.clear();
+    }
+
+    DBG << "***" << str(oldState) << "-->" << str(m_state);
+    if (m_state == Error)
+        qWarning() << "MerConnection:" << m_errorString;
+
+    if (m_state == Disconnected && m_connectLaterRequested) {
+        m_state = StartingVm; // important
+        m_connectLaterRequested = false;
+        m_connectRequested = true;
+        QTC_CHECK(m_disconnectRequested == false);
+
+        vmPollState();
+        vmStmScheduleExec();
+        sshStmScheduleExec();
+    }
+
+    emit stateChanged();
+}
+
+void MerConnection::vmStmTransition(VmState toState, const char *event)
+{
+    DBG << qPrintable(QString::fromLatin1("VM_STATE: %1 --%2--> %3")
+            .arg(QLatin1String(str(m_vmState)))
+            .arg(QString::fromLatin1(event).replace(QLatin1Char(' '), QLatin1Char('-')))
+            .arg(QLatin1String(str(toState))));
+
+    m_vmState = toState;
+    m_vmStmTransition = true;
+}
+
+bool MerConnection::vmStmExiting()
+{
+    return m_vmStmTransition;
+}
+
+bool MerConnection::vmStmEntering()
+{
+    bool rv = m_vmStmTransition;
+    m_vmStmTransition = false;
+    return rv;
+}
+
+// Avoid invoking directly - use vmStmScheduleExec() to get consecutive events "merged".
+void MerConnection::vmStmExec()
+{
+    bool changed = false;
+
+    while (vmStmStep())
+        changed = true;
+
+    if (changed)
+        updateState();
+}
+
+bool MerConnection::vmStmStep()
+{
+#define ON_ENTRY if (vmStmEntering())
+#define ON_EXIT if (vmStmExiting())
+
+    switch (m_vmState) {
+    case VmOff:
+        ON_ENTRY {
+            m_disconnectRequested = false;
+        }
+
+        if (m_cachedVmRunning) {
+            vmStmTransition(VmRunning, "started outside");
+        } else if (m_connectRequested) {
+            vmStmTransition(VmStarting, "connect requested");
+        }
+
+        ON_EXIT {
+            ;
+        }
+        break;
+
+    case VmStarting:
+        ON_ENTRY {
+            vmWantFastPollState(true);
+            m_vmStartingTimeoutTimer.start(VM_START_TIMEOUT, this);
+
+            MerVirtualBoxManager::startVirtualMachine(m_vmName, m_headless);
+        }
+
+        if (m_cachedVmRunning) {
+            vmStmTransition(VmRunning, "successfully started");
+        } else if (!m_vmStartingTimeoutTimer.isActive()) {
+            vmStmTransition(VmStartingError, "timeout waiting to start");
+        }
+
+        ON_EXIT {
+            vmWantFastPollState(false);
+            m_vmStartingTimeoutTimer.stop();
+        }
+        break;
+
+    case VmStartingError:
+        ON_ENTRY {
+            m_connectRequested = false;
+        }
+
+        if (m_cachedVmRunning) {
+            vmStmTransition(VmRunning, "recovered"); /* spontaneously or with user intervention */
+        } else if (m_disconnectRequested) {
+            vmStmTransition(VmOff, "disconnect requested");
+        }
+
+        ON_EXIT {
+            ;
+        }
+        break;
+
+    case VmRunning:
+        ON_ENTRY {
+            sshStmScheduleExec();
+        }
+
+        if (!m_cachedVmRunning) {
+            vmStmTransition(VmOff, "closed outside");
+        } else if (m_disconnectRequested) {
+            // waiting for ssh connection to disconnect first
+            if (m_sshState == SshNotConnected || m_sshState == SshDisconnected) {
+                vmStmTransition(VmSoftClosing, "disconnect requested");
+            }
+        }
+
+        ON_EXIT {
+            sshStmScheduleExec();
+        }
+        break;
+
+    case VmZombie:
+        ON_ENTRY {
+            m_disconnectRequested = false;
+        }
+
+        if (!m_cachedVmRunning) {
+            vmStmTransition(VmOff, "closed outside");
+        } else if (m_connectRequested) {
+            vmStmTransition(VmRunning, "connect requested");
+        }
+
+        ON_EXIT {
+            deleteMessageBox(m_unableToCloseVmWarningBox);
+        }
+        break;
+
+    case VmSoftClosing:
+        ON_ENTRY {
+            vmWantFastPollState(true);
+            m_vmSoftClosingTimeoutTimer.start(VM_SOFT_CLOSE_TIMEOUT, this);
+
+            if (m_connection && m_sshState != SshConnectingError) {
+                m_remoteShutdownProcess = new MerConnectionRemoteShutdownProcess(this);
+                connect(m_remoteShutdownProcess, SIGNAL(finished()),
+                        this, SLOT(onRemoteShutdownProcessFinished()));
+                m_remoteShutdownProcess->run(m_connection->connectionParameters());
+            } else {
+                // see transition on !m_remoteShutdownProcess
+            }
+        }
+
+        if (!m_cachedVmRunning) {
+            vmStmTransition(VmOff, "successfully closed");
+        } else if (!m_remoteShutdownProcess) {
+            vmStmTransition(VmHardClosing, "no previous successful connection");
+        } else if (m_remoteShutdownProcess->isError()) {
+            // be quiet - no message box
+            if (m_remoteShutdownProcess->isConnectionError()) {
+                qWarning() << "MerConnection: could not connect to the" << m_vmName
+                    << "virtual machine to soft-close it. Connection error:"
+                    << m_remoteShutdownProcess->connectionError()
+                    << m_remoteShutdownProcess->connectionErrorString();
+            } else /* if (m_remoteShutdownProcess->isProcessError()) */ {
+                qWarning() << "MerConnection: failed to soft-close the" << m_vmName
+                    << "virtual machine. Command output:\n"
+                    << "\tSTDOUT [[[" << m_remoteShutdownProcess->readAllStandardOutput() << "]]]\n"
+                    << "\tSTDERR [[[" << m_remoteShutdownProcess->readAllStandardError() << "]]]";
+            }
+            vmStmTransition(VmHardClosing, "failed to soft-close");
+        } else if (!m_vmSoftClosingTimeoutTimer.isActive()) {
+            // be quiet - no message box
+            qWarning() << "MerConnection: timeout waiting for the" << m_vmName
+                << "virtual machine to soft-close";
+            vmStmTransition(VmHardClosing, "timeout waiting to soft-close");
+        }
+
+        ON_EXIT {
+            vmWantFastPollState(false);
+            m_vmSoftClosingTimeoutTimer.stop();
+            delete m_remoteShutdownProcess;
+        }
+        break;
+
+    case VmHardClosing:
+        ON_ENTRY {
+            vmWantFastPollState(true);
+            m_vmHardClosingTimeoutTimer.start(VM_HARD_CLOSE_TIMEOUT, this);
+
+            MerVirtualBoxManager::shutVirtualMachine(m_vmName);
+        }
+
+        if (!m_cachedVmRunning) {
+            vmStmTransition(VmOff, "successfully closed");
+        } else if (!m_vmHardClosingTimeoutTimer.isActive()) {
+            qWarning() << "MerConnection: timeout waiting for the" << m_vmName
+                << "virtual machine to hard-close.";
+            openUnableToCloseVmWarningBox(); // Keep open until leaving VmZombie
+            vmStmTransition(VmZombie, "timeout waiting to hard-close");
+        }
+
+        ON_EXIT {
+            vmWantFastPollState(false);
+            m_vmHardClosingTimeoutTimer.stop();
+        }
+        break;
+    }
+
+    return m_vmStmTransition;
+
+#undef ON_ENTRY
+#undef ON_EXIT
+}
+
+void MerConnection::sshStmTransition(SshState toState, const char *event)
+{
+    DBG << qPrintable(QString::fromLatin1("SSH_STATE: %1 --%2--> %3")
+            .arg(QLatin1String(str(m_sshState)))
+            .arg(QString::fromLatin1(event).replace(QLatin1Char(' '), QLatin1Char('-')))
+            .arg(QLatin1String(str(toState))));
+
+    m_sshState = toState;
+    m_sshStmTransition = true;
+}
+
+bool MerConnection::sshStmExiting()
+{
+    return m_sshStmTransition;
+}
+
+bool MerConnection::sshStmEntering()
+{
+    bool rv = m_sshStmTransition;
+    m_sshStmTransition = false;
+    return rv;
+}
+
+// Avoid invoking directly - use sshStmScheduleExec() to get consecutive events "merged".
+void MerConnection::sshStmExec()
+{
+    bool changed = false;
+
+    while (sshStmStep())
+        changed = true;
+
+    if (changed)
+        updateState();
+}
+
+bool MerConnection::sshStmStep()
+{
+#define ON_ENTRY if (sshStmEntering())
+#define ON_EXIT if (sshStmExiting())
+
+    switch (m_sshState) {
+    case SshNotConnected:
+        ON_ENTRY {
+            delete m_connection;
+            vmStmScheduleExec();
+        }
+
+        if (m_vmState == VmRunning) {
+            sshStmTransition(SshConnecting, "VM running");
+        }
+
+        ON_EXIT {
+            ;
+        }
+        break;
+
+    case SshConnecting:
+        ON_ENTRY {
+            delete m_connection;
+            m_cachedSshError = QSsh::SshNoError;
+            m_cachedSshErrorString.clear();
+            createConnection();
+            m_connection->connectToHost();
+            m_sshTryConnectTimer.start(SSH_TRY_CONNECT_INTERVAL_NORMAL, this);
+        }
+
+        if (m_vmState != VmRunning) { // intentionally give precedence over m_cachedSshConnected
+            sshStmTransition(SshNotConnected, "VM not running");
+        } else if (m_cachedSshConnected) {
+            sshStmTransition(SshConnected, "successfully connected");
+        } else if (m_cachedSshError != QSsh::SshNoError) {
+            // To be accurate, the question to the user should be "Wait longer?" instead of "Try
+            // again?" - the m_sshTryConnectTimer is active so we are already trying again. But
+            // why to bother the user with implementation details?
+            if (!m_retrySshConnectionQuestionBox) {
+                openRetrySshConnectionQuestionBox();
+            } else if (QAbstractButton *button = m_retrySshConnectionQuestionBox->clickedButton()) {
+                if (button == m_retrySshConnectionQuestionBox->button(QMessageBox::Yes)) {
+                    sshStmTransition(SshConnecting, "connecting error+retry allowed");
+                } else {
+                    sshStmTransition(SshConnectingError, "connecting error+retry denied");
+                }
+            }
+        }
+
+        ON_EXIT {
+            m_sshTryConnectTimer.stop();
+            deleteMessageBox(m_retrySshConnectionQuestionBox);
+        }
+        break;
+
+    case SshConnectingError:
+        ON_ENTRY {
+            m_connectRequested = false;
+            m_sshTryConnectTimer.start(SSH_TRY_CONNECT_INTERVAL_SLOW, this);
+        }
+
+        if (m_vmState != VmRunning) { // intentionally give precedence over m_cachedSshConnected
+            sshStmTransition(SshNotConnected, "VM not running");
+        } else if (m_cachedSshConnected) {
+            sshStmTransition(SshConnected, "recovered");
+        } else if (m_disconnectRequested) {
+            sshStmTransition(SshDisconnected, "disconnect requested");
+        }
+
+        ON_EXIT {
+            m_sshTryConnectTimer.stop();
+        }
+        break;
+
+    case SshConnected:
+        ON_ENTRY {
+            m_connectRequested = false;
+        }
+
+        if (m_vmState != VmRunning) {
+            sshStmTransition(SshNotConnected, "VM not running");
+        } else if (!m_cachedSshConnected) {
+            sshStmTransition(SshConnectionLost, "connection lost");
+        } else if (m_disconnectRequested) {
+            sshStmTransition(SshDisconnecting, "disconnect requested");
+        }
+
+        ON_EXIT {
+            ;
+        }
+        break;
+
+    case SshDisconnecting:
+        ON_ENTRY {
+            m_connection->disconnectFromHost();
+        }
+
+        if (!m_cachedSshConnected) {
+            sshStmTransition(SshDisconnected, "successfully disconnected");
+        }
+
+        ON_EXIT {
+            ;
+        }
+        break;
+
+    case SshDisconnected:
+        ON_ENTRY {
+            delete m_connection;
+            vmStmScheduleExec();
+        }
+
+        if (m_vmState != VmRunning) {
+            sshStmTransition(SshNotConnected, "VM not running");
+        }
+
+        ON_EXIT {
+            ;
+        }
+        break;
+
+    case SshConnectionLost:
+        ON_ENTRY {
+            vmWantFastPollState(true);
+            m_sshTryConnectTimer.start(SSH_TRY_CONNECT_INTERVAL_NORMAL, this);
+        }
+
+        if (m_vmState != VmRunning) { // intentionally give precedence over m_cachedSshConnected
+            sshStmTransition(SshNotConnected, "VM not running");
+        } else if (m_cachedSshConnected) {
+            sshStmTransition(SshConnected, "recovered");
+        } else if (m_disconnectRequested) {
+            sshStmTransition(SshDisconnected, "disconnect requested");
+        }
+
+        ON_EXIT {
+            vmWantFastPollState(false);
+            m_sshTryConnectTimer.stop();
+        }
+        break;
+    }
+
+    return m_sshStmTransition;
+
+#undef ON_ENTRY
+#undef ON_EXIT
+}
+
+void MerConnection::createConnection()
+{
+    QTC_CHECK(m_connection == 0);
+
+    m_connection = new QSsh::SshConnection(m_params, this);
+    connect(m_connection, SIGNAL(connected()), this, SLOT(onSshConnected()));
+    connect(m_connection, SIGNAL(disconnected()), this, SLOT(onSshDisconnected()));
+    connect(m_connection, SIGNAL(error(QSsh::SshError)), this, SLOT(onSshError(QSsh::SshError)));
+}
+
+void MerConnection::vmWantFastPollState(bool want)
+{
+    if (want) {
+        // max one for VM state machine, one for SSH state machine
+        QTC_CHECK(m_vmWantFastPollState < 2);
+        if (++m_vmWantFastPollState == 1) {
+            DBG << "Start fast VM state polling";
+            m_vmStatePollTimer.start(VM_STATE_POLLING_INTERVAL_FAST, this);
+        }
+    } else {
+        QTC_CHECK(m_vmWantFastPollState > 0);
+        if (--m_vmWantFastPollState == 0) {
+            DBG << "Stop fast VM state polling";
+            m_vmStatePollTimer.start(VM_STATE_POLLING_INTERVAL_NORMAL, this);
+        }
+    }
+}
+
+void MerConnection::vmPollState()
+{
+    bool vmRunning = MerVirtualBoxManager::isVirtualMachineRunning(m_vmName);
+    if (vmRunning != m_cachedVmRunning) {
+        DBG << "VM running:" << m_cachedVmRunning << "-->" << vmRunning;
+        m_cachedVmRunning = vmRunning;
+        vmStmScheduleExec();
+    }
+}
+
+void MerConnection::sshTryConnect()
+{
+    if (!m_connection || (m_connection->state() == QSsh::SshConnection::Unconnected &&
+                /* Important: retry only after an SSH connection error is reported to us! Otherwise
+                 * we would end trying-again endlessly, suppressing any SSH error. */
+                m_cachedSshError != QSsh::SshNoError)) {
+        DBG << "SSH try connect";
+        delete m_connection;
+        createConnection();
+        m_connection->connectToHost();
+    }
+}
+
+void MerConnection::openAlreadyConnectingWarningBox()
+{
+    QMessageBox *box = new QMessageBox(
+            QMessageBox::Warning,
+            tr("Already Connecting to Virtual Machine"),
+            tr("Already connecting to the \"%1\" virtual machine - please repeat later.")
+            .arg(m_vmName),
+            QMessageBox::Ok,
+            Core::ICore::dialogParent());
+    box->setAttribute(Qt::WA_DeleteOnClose);
+    box->open();
+}
+
+void MerConnection::openAlreadyDisconnectingWarningBox()
+{
+    QMessageBox *box = new QMessageBox(
+            QMessageBox::Warning,
+            tr("Already Disconnecting from Virtual Machine"),
+            tr("Already disconnecting from the \"%1\" virtual machine - please repeat later.")
+            .arg(m_vmName),
+            QMessageBox::Ok,
+            Core::ICore::dialogParent());
+    box->setAttribute(Qt::WA_DeleteOnClose);
+    box->open();
+}
+
+void MerConnection::openUnableToCloseVmWarningBox()
+{
+    QTC_CHECK(!m_unableToCloseVmWarningBox);
+
+    m_unableToCloseVmWarningBox = new QMessageBox(
+            QMessageBox::Warning,
+            tr("Unable to Close Virtual Machine"),
+            tr("Timeout waiting for the \"%1\" virtual machine to close.").arg(m_vmName),
+            QMessageBox::Ok,
+            Core::ICore::dialogParent());
+    m_unableToCloseVmWarningBox->open();
+}
+
+void MerConnection::openRetrySshConnectionQuestionBox()
+{
+    QTC_CHECK(!m_retrySshConnectionQuestionBox);
+
+    m_retrySshConnectionQuestionBox = new QMessageBox(
+            QMessageBox::Question,
+            tr("Cannot Connect to Virtual Machine"),
+            tr("Could not connect to the \"%1\" virtual machine. Do you want to try again?")
+            .arg(m_vmName),
+            QMessageBox::Yes | QMessageBox::No,
+            Core::ICore::dialogParent());
+    QString informativeText = tr("Connection error: %1 %2")
+        .arg(m_cachedSshError)
+        .arg(m_cachedSshErrorString);
+    if (m_cachedSshError == QSsh::SshTimeoutError) {
+        informativeText += QString::fromLatin1("\n\n(%1)")
+            .arg(tr("Consider increasing SSH connection timeout in options."));
+    }
+    m_retrySshConnectionQuestionBox->setInformativeText(informativeText);
+    connect(m_retrySshConnectionQuestionBox, SIGNAL(finished(int)),
+            this, SLOT(sshStmScheduleExec()));
+    m_retrySshConnectionQuestionBox->open();
+}
+
+void MerConnection::deleteMessageBox(QPointer<QMessageBox> &messageBox)
+{
+    if (!messageBox)
+        return;
+
+    if (!messageBox->isVisible()) {
+        delete messageBox;
+    } else {
+        messageBox->setEnabled(false);
+        QTimer::singleShot(DISMISS_MESSAGE_BOX_DELAY, messageBox, SLOT(deleteLater()));
+        messageBox->disconnect(this);
+        messageBox = 0;
+    }
+}
+
+const char *MerConnection::str(State state)
+{
+    static const char *strings[] = {
+        "Disconnected",
+        "StartingVm",
+        "Connecting",
+        "Error",
+        "Connected",
+        "Disconnecting",
+        "ClosingVm",
+    };
+
+    return strings[state];
+}
+
+const char *MerConnection::str(VmState vmState)
+{
+    static const char *strings[] = {
+        "VmOff",
+        "VmStarting",
+        "VmStartingError",
+        "VmRunning",
+        "VmSoftClosing",
+        "VmHardClosing",
+        "VmZombie",
+    };
+
+    return strings[vmState];
+}
+
+const char *MerConnection::str(SshState sshState)
+{
+    static const char *strings[] = {
+        "SshNotConnected",
+        "SshConnecting",
+        "SshConnectingError",
+        "SshConnected",
+        "SshDisconnecting",
+        "SshDisconnected",
+        "SshConnectionLost",
+    };
+
+    return strings[sshState];
+}
+
+void MerConnection::vmStmScheduleExec()
+{
+    m_vmStmExecTimer.start(0, this);
+}
+
+void MerConnection::sshStmScheduleExec()
+{
+    m_sshStmExecTimer.start(0, this);
+}
+
+void MerConnection::onSshConnected()
+{
+    DBG << "SSH connected";
+    m_cachedSshConnected = true;
+    m_cachedSshError = QSsh::SshNoError;
+    m_cachedSshErrorString.clear();
+    sshStmScheduleExec();
+}
+
+void MerConnection::onSshDisconnected()
+{
+    DBG << "SSH disconnected";
+    m_cachedSshConnected = false;
+    vmPollState();
+    sshStmScheduleExec();
+}
+
+void MerConnection::onSshError(QSsh::SshError error)
+{
+    DBG << "SSH error:" << error << m_connection->errorString();
+    m_cachedSshError = error;
+    m_cachedSshErrorString = m_connection->errorString();
+    vmPollState();
+    sshStmScheduleExec();
+}
+
+void MerConnection::onRemoteShutdownProcessFinished()
+{
+    DBG << "Remote shutdown process finished. Succeeded:" << !m_remoteShutdownProcess->isError();
+    vmStmScheduleExec();
 }
 
 } // Internal
 } // Mer
+
+#include "merconnection.moc"

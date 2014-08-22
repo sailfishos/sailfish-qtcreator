@@ -82,7 +82,6 @@ public slots:
 
 private slots:
     void handleTriggered();
-    void onHasErrorChanged(bool hasError);
 
 private:
     QPointer<MerConnection> m_connection;
@@ -111,7 +110,6 @@ MerConnectionAction::MerConnectionAction(MerConnection *connection, QObject *par
     , m_enabled(false)
 {
     connect(m_connection, SIGNAL(stateChanged()), this, SLOT(update()));
-    connect(m_connection, SIGNAL(hasErrorChanged(bool)), this, SLOT(onHasErrorChanged(bool)));
 }
 
 MerConnectionAction::~MerConnectionAction()
@@ -153,6 +151,7 @@ void MerConnectionAction::update()
     case MerConnection::Connected:
         state = QIcon::On;
         toolTip = m_stopTip;
+        // Clear all error tasks - including those created from e.g. merdeploysteps.cpp
         MerConnectionManager::removeConnectionErrorTask(m_taskId);
         break;
     case MerConnection::Disconnected:
@@ -163,7 +162,6 @@ void MerConnectionAction::update()
         state = QIcon::On;
         toolTip = m_startingTip;
         break;
-    case MerConnection::TryConnect:
     case MerConnection::Connecting:
         enabled = false;
         state = QIcon::On;
@@ -176,6 +174,11 @@ void MerConnectionAction::update()
     case MerConnection::ClosingVm:
         enabled = false;
         toolTip = m_closingTip;
+        break;
+    case MerConnection::Error:
+        MerConnectionManager::createConnectionErrorTask(m_connection->virtualMachine(),
+                m_connection->errorString(), m_taskId);
+        toolTip = m_startTip;
         break;
     default:
         qWarning() << "MerConnection::update() - unknown state";
@@ -194,17 +197,8 @@ void MerConnectionAction::handleTriggered()
         m_connection->connectTo();
     } else if (m_connection->state() == MerConnection::Connected) {
         m_connection->disconnectFrom();
-    }
-}
-
-void MerConnectionAction::onHasErrorChanged(bool hasError)
-{
-    // All task (including those created from e.g. merdeploysteps.cpp) are
-    // cleared on state change to Connected in update()
-
-    if (hasError) {
-        MerConnectionManager::createConnectionErrorTask(m_connection->virtualMachine(),
-                m_connection->errorString(), m_taskId);
+    } else if (m_connection->state() == MerConnection::Error) {
+        m_connection->connectTo();
     }
 }
 
@@ -236,7 +230,6 @@ MerConnectionManager::MerConnectionManager():
     m_emulatorAction->setStartingTip(tr("Starting Emulator"));
     m_emulatorAction->setTaskCategory(Core::Id(Constants::MER_TASKHUB_EMULATOR_CATEGORY));
     m_emulatorAction->initialize();
-    m_emulatorConnection->setProbeTimeout(1000);
 
     m_sdkAction->setName(tr("MerSdk"));
     m_sdkAction->setId(Constants::MER_SDK_CONNECTON_ACTION_ID);
@@ -249,7 +242,6 @@ MerConnectionManager::MerConnectionManager():
     m_sdkAction->setStartingTip(tr("Starting SDK"));
     m_sdkAction->setTaskCategory(Core::Id(Constants::MER_TASKHUB_SDK_CATEGORY));
     m_sdkAction->initialize();
-    m_sdkConnection->setProbeTimeout(1000);
 
     connect(KitManager::instance(), SIGNAL(kitUpdated(ProjectExplorer::Kit*)),
             SLOT(handleKitUpdated(ProjectExplorer::Kit*)));
@@ -279,9 +271,9 @@ MerConnectionManager* MerConnectionManager::instance()
 bool MerConnectionManager::isConnected(const QString &vmName) const
 {
     if(m_emulatorConnection->virtualMachine() == vmName) {
-        return m_emulatorConnection->isConnected();
+        return m_emulatorConnection->state() == MerConnection::Connected;
     }else if(m_sdkConnection->virtualMachine() == vmName) {
-        return m_sdkConnection->isConnected();
+        return m_sdkConnection->state() == MerConnection::Connected;
     }
     return false;
 }
@@ -326,8 +318,6 @@ void MerConnectionManager::handleStartupProjectChanged(ProjectExplorer::Project 
 
     m_project = project;
     update();
-    m_emulatorConnection->tryConnectTo();
-    m_sdkConnection->tryConnectTo();
 }
 
 void MerConnectionManager::handleTargetAdded(Target *target)
@@ -347,14 +337,11 @@ void MerConnectionManager::handleBuildStateChanged(Project* project)
      Target* target = project->activeTarget();
      if (target && target->kit() && MerSdkManager::isMerKit(target->kit())) {
          if (BuildManager::isBuilding(project)) {
-             if(m_sdkConnection->isConnected()) return;
-             const QString vm = m_sdkConnection->virtualMachine();
-             QTC_ASSERT(!vm.isEmpty(),return);
-             if (!MerVirtualBoxManager::isVirtualMachineRunning(vm)) {
+             if (m_sdkConnection->state() != MerConnection::Connected) {
+                 const QString vm = m_sdkConnection->virtualMachine();
+                 QTC_ASSERT(!vm.isEmpty(), return);
                  MerConnectionPrompt *connectioPrompt = new MerConnectionPrompt(vm);
                  connectioPrompt->prompt(MerConnectionPrompt::Start);
-             } else {
-                 m_sdkConnection->connectTo();
              }
          }
      }
@@ -384,7 +371,7 @@ void MerConnectionManager::update()
                     m_sdkConnection->setVirtualMachine(sdkName);
                     m_sdkConnection->setHeadless(sdk->isHeadless());
                     m_sdkConnection->setSshParameters(parameters(sdk));
-                    m_sdkConnection->setupConnection();
+                    m_sdkConnection->reset();
                 }
             }
 
@@ -399,7 +386,7 @@ void MerConnectionManager::update()
                           const QString &emulatorName = emu->virtualMachine();
                           m_emulatorConnection->setVirtualMachine(emulatorName);
                           m_emulatorConnection->setSshParameters(device->sshParameters());
-                          m_emulatorConnection->setupConnection();
+                          m_emulatorConnection->reset();
                     }
                 }
             }
