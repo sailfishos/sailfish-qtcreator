@@ -1,5 +1,6 @@
 QTC_LIB_DEPENDS += \
- ssh
+ ssh \
+ utils
 
 include(../../../qtcreator.pri)
 include(../../rpath.pri)
