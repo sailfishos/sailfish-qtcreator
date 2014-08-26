@@ -31,10 +31,7 @@
 #include "mersdkmanager.h"
 #include "mersdkkitinformation.h"
 #include "mertargetkitinformation.h"
-#include "merconnection.h"
-#include "merconnectionmanager.h"
 #include "meremulatordevice.h"
-#include "merconnectionprompt.h"
 #include "mervirtualboxmanager.h"
 #include <utils/qtcassert.h>
 #include <projectexplorer/buildstep.h>
@@ -58,30 +55,6 @@ using namespace ProjectExplorer;
 
 namespace Mer {
 namespace Internal {
-
-class MerSimpleBuildStepConfigWidget : public BuildStepConfigWidget {
-public:
-
-    MerSimpleBuildStepConfigWidget(const QString& displayText, const QString& summaryText)
-        :m_displayText(displayText),m_summaryText(summaryText){}
-
-    QString summaryText() const
-    {
-        return QString::fromLatin1("<b>%1:</b> %2").arg(displayName()).arg(m_summaryText);
-    }
-
-    QString displayName() const
-    {
-        return m_displayText;
-    }
-
-     bool showWidget() const { return false; }
-
-private:
-    QString m_displayText;
-    QString m_summaryText;
-};
-
 
 MerProcessStep::MerProcessStep(ProjectExplorer::BuildStepList *bsl,const Core::Id id)
     :AbstractProcessStep(bsl,id)
@@ -172,14 +145,13 @@ QString MerEmulatorStartStep::displayName()
 }
 
 MerEmulatorStartStep::MerEmulatorStartStep(BuildStepList *bsl)
-    : MerProcessStep(bsl, stepId())
+    : MerAbstractVmStartStep(bsl, stepId())
 {
     setDefaultDisplayName(displayName());
 }
 
 MerEmulatorStartStep::MerEmulatorStartStep(ProjectExplorer::BuildStepList *bsl, MerEmulatorStartStep *bs)
-    :MerProcessStep(bsl,bs)
-    , m_connection(bs->m_connection)
+    : MerAbstractVmStartStep(bsl, bs)
 {
     setDefaultDisplayName(displayName());
 }
@@ -192,38 +164,10 @@ bool MerEmulatorStartStep::init()
         return false;
     }
     const MerEmulatorDevice* device = static_cast<const MerEmulatorDevice*>(d.data());
-    m_connection = device->connection();
-    return true;
-}
 
-bool MerEmulatorStartStep::immutable() const
-{
-    return false;
-}
+    setConnection(device->connection());
 
-void MerEmulatorStartStep::run(QFutureInterface<bool> &fi)
-{
-    if(m_connection->state() == MerConnection::Connected) {
-        emit addOutput(tr("Emulator is already running. Nothing to do."),MessageOutput);
-        fi.reportResult(true);
-        emit finished();
-    } else {
-        emit addOutput(tr("Starting Emulator..."), MessageOutput);
-        QString vm = m_connection->virtualMachine();
-        QString error = tr("Could not connect to %1 Virtual Machine.").arg(vm);
-        MerConnectionManager::createConnectionErrorTask(vm,error,Constants::MER_TASKHUB_EMULATOR_CATEGORY);
-        if(!MerVirtualBoxManager::isVirtualMachineRunning(vm)) {
-            MerConnectionPrompt *connectioPrompt = new MerConnectionPrompt(m_connection, 0);
-            connectioPrompt->prompt(MerConnectionPrompt::Start);
-        }
-        fi.reportResult(false);
-        emit finished();
-    }
-}
-
-BuildStepConfigWidget *MerEmulatorStartStep::createConfigWidget()
-{
-    return new MerSimpleBuildStepConfigWidget(displayName(),tr("Starts Emulator virtual machine, if necessary."));
+    return MerAbstractVmStartStep::init();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////

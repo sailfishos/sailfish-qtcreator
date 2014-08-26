@@ -24,10 +24,12 @@
 #include "merdevicefactory.h"
 #include "merqtversionfactory.h"
 #include "mertoolchainfactory.h"
+#include "meraddvmstartbuildstepprojectlistener.h"
 #include "merdeployconfigurationfactory.h"
 #include "merrunconfigurationfactory.h"
 #include "merruncontrolfactory.h"
 #include "meroptionspage.h"
+#include "merbuildstepfactory.h"
 #include "merdeploystepfactory.h"
 #include "mersdkmanager.h"
 #include "merconnection.h"
@@ -68,9 +70,11 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
     addAutoReleasedObject(new MerDeviceFactory);
     addAutoReleasedObject(new MerQtVersionFactory);
     addAutoReleasedObject(new MerToolChainFactory);
+    addAutoReleasedObject(new MerAddVmStartBuildStepProjectListener);
     addAutoReleasedObject(new MerDeployConfigurationFactory);
     addAutoReleasedObject(new MerRunConfigurationFactory);
     addAutoReleasedObject(new MerRunControlFactory);
+    addAutoReleasedObject(new MerBuildStepFactory);
     addAutoReleasedObject(new MerDeployStepFactory);
     addAutoReleasedObject(new MerActionManager);
 

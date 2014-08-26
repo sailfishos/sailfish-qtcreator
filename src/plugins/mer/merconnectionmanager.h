@@ -57,7 +57,6 @@ private slots:
     void handleKitUpdated(ProjectExplorer::Kit *kit);
     void handleTargetAdded(ProjectExplorer::Target *target);
     void handleTargetRemoved(ProjectExplorer::Target *target);
-    void handleBuildStateChanged(ProjectExplorer::Project* project);
 private:
     MerConnectionManager();
 

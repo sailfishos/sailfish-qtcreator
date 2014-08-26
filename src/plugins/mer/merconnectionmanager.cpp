@@ -27,7 +27,6 @@
 #include "mervirtualboxmanager.h"
 #include "meremulatordevice.h"
 #include "mersdkkitinformation.h"
-#include "merconnectionprompt.h"
 
 #include <coreplugin/actionmanager/command.h>
 #include <coreplugin/actionmanager/actionmanager.h>
@@ -41,7 +40,6 @@
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/taskhub.h>
 #include <projectexplorer/devicesupport/devicemanager.h>
-#include <projectexplorer/buildmanager.h>
 #include <ssh/sshconnection.h>
 #include <utils/qtcassert.h>
 
@@ -174,7 +172,6 @@ void MerConnectionAction::update()
     case MerConnection::Connected:
         state = QIcon::On;
         toolTip = m_stopTip;
-        // Clear all error tasks - including those created from e.g. merdeploysteps.cpp
         MerConnectionManager::removeConnectionErrorTask(m_taskId);
         break;
     case MerConnection::Disconnected:
@@ -274,9 +271,6 @@ MerConnectionManager::MerConnectionManager():
     connect(MerSdkManager::instance(), SIGNAL(sdksUpdated()), this, SLOT(update()));
     connect(DeviceManager::instance(), SIGNAL(updated()), SLOT(update()));
 
-    connect(BuildManager::instance(), SIGNAL(buildStateChanged(ProjectExplorer::Project*)),
-            this, SLOT(handleBuildStateChanged(ProjectExplorer::Project*)));
-
     m_instance = this;
 }
 
@@ -332,21 +326,6 @@ void MerConnectionManager::handleTargetRemoved(Target *target)
 {
     if (target && MerSdkManager::isMerKit(target->kit()))
         update();
-}
-
-void MerConnectionManager::handleBuildStateChanged(Project* project)
-{
-     Target* target = project->activeTarget();
-     if (target && target->kit() && MerSdkManager::isMerKit(target->kit())) {
-         if (BuildManager::isBuilding(project)) {
-             MerSdk* sdk = MerSdkKitInformation::sdk(target->kit());
-             QTC_ASSERT(sdk, return);
-             if (sdk->connection()->state() != MerConnection::Connected) {
-                 MerConnectionPrompt *connectioPrompt = new MerConnectionPrompt(sdk->connection());
-                 connectioPrompt->prompt(MerConnectionPrompt::Start);
-             }
-         }
-     }
 }
 
 void MerConnectionManager::update()
