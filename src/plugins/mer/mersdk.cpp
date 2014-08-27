@@ -291,6 +291,7 @@ QVariantMap MerSdk::toMap() const
     result.insert(QLatin1String(USERNAME), userName());
     result.insert(QLatin1String(PRIVATE_KEY_FILE), privateKeyFile());
     result.insert(QLatin1String(SSH_PORT), QString::number(sshPort()));
+    result.insert(QLatin1String(SSH_TIMEOUT), QString::number(timeout()));
     result.insert(QLatin1String(WWW_PORT), QString::number(wwwPort()));
     result.insert(QLatin1String(HEADLESS), isHeadless());
     int count = 0;
@@ -320,6 +321,7 @@ bool MerSdk::fromMap(const QVariantMap &data)
     setUserName(data.value(QLatin1String(USERNAME)).toString());
     setPrivateKeyFile( data.value(QLatin1String(PRIVATE_KEY_FILE)).toString());
     setSshPort(data.value(QLatin1String(SSH_PORT)).toUInt());
+    setTimeout(data.value(QLatin1String(SSH_TIMEOUT), timeout()).toUInt());
     setWwwPort(data.value(QLatin1String(WWW_PORT)).toUInt());
     setHeadless(data.value(QLatin1String(HEADLESS)).toBool());
 
