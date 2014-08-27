@@ -32,13 +32,13 @@
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/icontext.h>
+#include <coreplugin/messagemanager.h>
 #include <coreplugin/modemanager.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/target.h>
 #include <projectexplorer/session.h>
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/projectexplorer.h>
-#include <projectexplorer/taskhub.h>
 #include <projectexplorer/devicesupport/devicemanager.h>
 #include <ssh/sshconnection.h>
 #include <utils/qtcassert.h>
@@ -63,7 +63,6 @@ public:
     void setId(const Core::Id &id) { m_id = id; }
     void setName(const QString &name) { m_name = name; }
     void setIcon(const QIcon &icon) { m_icon = icon; }
-    void setTaskCategory(Core::Id id) { m_taskId = id; }
     void setStartTip(const QString &tip) { m_startTip = tip; }
     void setStopTip(const QString &tip) { m_stopTip = tip; }
     void setConnectingTip(const QString &tip) { m_connTip = tip; }
@@ -88,7 +87,6 @@ private:
     Core::Id m_id;
     QAction *m_action;
     QIcon m_icon;
-    Core::Id m_taskId;
     QString m_name;
     QString m_startTip;
     QString m_stopTip;
@@ -136,8 +134,6 @@ void MerConnectionAction::initialize()
     m_action->setEnabled(m_enabled);
     m_action->setVisible(m_visible);
 
-    TaskHub::addCategory(m_taskId, tr("Virtual Machine Error"));
-
     m_uiInitalized = true;
 }
 
@@ -172,7 +168,6 @@ void MerConnectionAction::update()
     case MerConnection::Connected:
         state = QIcon::On;
         toolTip = m_stopTip;
-        MerConnectionManager::removeConnectionErrorTask(m_taskId);
         break;
     case MerConnection::Disconnected:
         toolTip = m_startTip;
@@ -196,8 +191,10 @@ void MerConnectionAction::update()
         toolTip = m_closingTip;
         break;
     case MerConnection::Error:
-        MerConnectionManager::createConnectionErrorTask(m_connection->virtualMachine(),
-                m_connection->errorString(), m_taskId);
+        Core::MessageManager::write(tr("Error connecting to \"%1\" virtual machine: %2")
+            .arg(m_connection->virtualMachine())
+            .arg(m_connection->errorString()),
+            Core::MessageManager::Flash);
         toolTip = m_startTip;
         break;
     default:
@@ -248,7 +245,6 @@ MerConnectionManager::MerConnectionManager():
     m_emulatorAction->setDisconnectingTip(tr("Disconnecting..."));
     m_emulatorAction->setClosingTip(tr("Closing Emulator"));
     m_emulatorAction->setStartingTip(tr("Starting Emulator"));
-    m_emulatorAction->setTaskCategory(Core::Id(Constants::MER_TASKHUB_EMULATOR_CATEGORY));
     m_emulatorAction->initialize();
 
     m_sdkAction->setName(tr("MerSdk"));
@@ -260,7 +256,6 @@ MerConnectionManager::MerConnectionManager():
     m_sdkAction->setDisconnectingTip(tr("Disconnecting..."));
     m_sdkAction->setClosingTip(tr("Closing SDK"));
     m_sdkAction->setStartingTip(tr("Starting SDK"));
-    m_sdkAction->setTaskCategory(Core::Id(Constants::MER_TASKHUB_SDK_CATEGORY));
     m_sdkAction->initialize();
 
     connect(KitManager::instance(), SIGNAL(kitUpdated(ProjectExplorer::Kit*)),
@@ -390,21 +385,6 @@ QString MerConnectionManager::testConnection(const QSsh::SshConnectionParameters
     else
         result = tr("Connected");
     return result;
-}
-
-void MerConnectionManager::createConnectionErrorTask(const QString &vmName, const QString &error, Core::Id category)
-{
-    TaskHub::clearTasks(category);
-    TaskHub::addTask(Task(Task::Error,
-                          tr("%1: %2").arg(vmName, error),
-                          Utils::FileName() /* filename */,
-                          -1 /* linenumber */,
-                          category));
-}
-
-void MerConnectionManager::removeConnectionErrorTask(Core::Id category)
-{
-    TaskHub::clearTasks(category);
 }
 
 }

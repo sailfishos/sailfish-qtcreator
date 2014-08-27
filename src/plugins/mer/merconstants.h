@@ -42,8 +42,6 @@ const char MER_OPTIONS_CATEGORY_ICON[] = ":/mer/images/icon-s-sailfish-qtcreator
 const char MER_OPTIONS_ID[] = "A.Mer";
 const char MER_OPTIONS_NAME[] = QT_TRANSLATE_NOOP("Mer", "SDK");
 
-const char MER_TASKHUB_EMULATOR_CATEGORY[] = "QmakeProjectManager.TaskHub.Emulator.Mer";
-const char MER_TASKHUB_SDK_CATEGORY[] = "QmakeProjectManager.TaskHub.Sdk.Mer";
 const char MER_DEVICE_TYPE_I486[] = "Mer.Device.Type.i486";
 const char MER_DEVICE_TYPE_ARM[] = "Mer.Device.Type.Arm";
 const char MER_i486_IDENTIFIER[] = "i486";

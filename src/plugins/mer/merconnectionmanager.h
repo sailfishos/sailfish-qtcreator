@@ -49,8 +49,6 @@ public:
     static MerConnectionManager* instance();
     ~MerConnectionManager();
     QString testConnection(const QSsh::SshConnectionParameters &params) const;
-    static void createConnectionErrorTask(const QString &vmName, const QString &error, Core::Id category);
-    static void removeConnectionErrorTask(Core::Id category);
 private slots:
     void update();
     void handleStartupProjectChanged(ProjectExplorer::Project *project);
