@@ -28,11 +28,14 @@
 #include "merconstants.h"
 #include "meremulatordevicewidget.h"
 #include <utils/qtcassert.h>
+#include <coreplugin/icore.h>
 
 #include <QProgressDialog>
 #include <QMessageBox>
 #include <QTimer>
 #include <QFileInfo>
+
+using Core::ICore;
 
 namespace Mer {
 namespace Internal {
@@ -130,7 +133,7 @@ private slots:
             break;
         }
         case Error:
-            QMessageBox::critical(this, tr("Cannot Authorize Keys"), m_error);
+            QMessageBox::critical(ICore::dialogParent(), tr("Cannot Authorize Keys"), m_error);
             setValue(0);
             setLabelText(tr("Error occured"));
             setCancelButtonText(tr("Close"));
@@ -297,7 +300,7 @@ void MerEmulatorDevice::generateSshKey(const QString& user) const
         QString privateKeyFile = m_sharedConfigPath +
                 index.arg(virtualMachine()).replace(QLatin1String(" "),QLatin1String("_")) + user;
         PublicKeyDeploymentDialog dialog(privateKeyFile, virtualMachine(),
-                                         user, sharedSshPath());
+                                         user, sharedSshPath(), ICore::dialogParent());
         dialog.exec();
     }
 }

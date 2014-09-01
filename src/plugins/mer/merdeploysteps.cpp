@@ -45,6 +45,7 @@
 #include <qtsupport/baseqtversion.h>
 #include <qtsupport/qtkitinformation.h>
 #include <qmakeprojectmanager/qmakebuildconfiguration.h>
+#include <coreplugin/icore.h>
 #include <coreplugin/idocument.h>
 #include <extensionsystem/pluginmanager.h>
 #include <coreplugin/variablemanager.h>
@@ -52,6 +53,7 @@
 #include <QTimer>
 
 using namespace ProjectExplorer;
+using Core::ICore;
 
 namespace Mer {
 namespace Internal {
@@ -475,7 +477,7 @@ void RpmInfo::info()
         message.append(QLatin1String("</li>"));
     }
     message.append(QLatin1String("</ul>"));
-    QMessageBox::information(0, tr("Packages created"),message);
+    QMessageBox::information(ICore::dialogParent(), tr("Packages created"),message);
     this->deleteLater();
 }
 

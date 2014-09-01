@@ -32,6 +32,7 @@
 
 #include <utils/fileutils.h>
 #include <ssh/sshconnection.h>
+#include <coreplugin/icore.h>
 
 #include <QStandardItemModel>
 #include <QStandardItem>
@@ -39,6 +40,8 @@
 #include <QDesktopServices>
 #include <QUrl>
 #include <QMessageBox>
+
+using Core::ICore;
 
 namespace Mer {
 namespace Internal {
@@ -133,7 +136,7 @@ void MerOptionsWidget::onSdkChanged(const QString &sdkName)
 
 void MerOptionsWidget::onAddButtonClicked()
 {
-    MerSdkSelectionDialog dialog(this);
+    MerSdkSelectionDialog dialog(ICore::dialogParent());
     dialog.setWindowTitle(tr("Add Mer SDK"));
     if (dialog.exec() != QDialog::Accepted)
         return;
@@ -193,9 +196,10 @@ void MerOptionsWidget::onAuthorizeSshKey(const QString &file)
         QString error;
         const bool success = MerSdkManager::instance()->authorizePublicKey(path, pubKeyPath, error);
         if (!success)
-            QMessageBox::critical(this, tr("Cannot Authorize Keys"), error);
+            QMessageBox::critical(ICore::dialogParent(), tr("Cannot Authorize Keys"), error);
         else
-            QMessageBox::information(this, tr("Key Authorized "), tr("Key %1 added to \n %2").arg(pubKeyPath).arg(path));
+            QMessageBox::information(ICore::dialogParent(), tr("Key Authorized "),
+                    tr("Key %1 added to \n %2").arg(pubKeyPath).arg(path));
     }
 }
 
@@ -209,9 +213,10 @@ void MerOptionsWidget::onGenerateSshKey(const QString &privKeyPath)
 {
     QString error;
     if (!MerSdkManager::generateSshKey(privKeyPath, error)) {
-       QMessageBox::critical(this, tr("Could not generate key."), error);
+       QMessageBox::critical(ICore::dialogParent(), tr("Could not generate key."), error);
     } else {
-       QMessageBox::information(this, tr("Key generated"), tr("Key pair generated \n %1 \n You should authorize key now.").arg(privKeyPath));
+       QMessageBox::information(ICore::dialogParent(), tr("Key generated"),
+               tr("Key pair generated \n %1 \n You should authorize key now.").arg(privKeyPath));
        m_ui->sdkDetailsWidget->setPrivateKeyFile(privKeyPath);
     }
 }
@@ -233,14 +238,14 @@ void MerOptionsWidget::onSrcFolderApplyButtonClicked(const QString &newFolder)
     MerSdk *sdk = m_sdks[m_virtualMachine];
 
     if (newFolder == sdk->sharedSrcPath()) {
-        QMessageBox::information(0, tr("Choose a new folder"),
+        QMessageBox::information(ICore::dialogParent(), tr("Choose a new folder"),
                                  tr("The given folder (%1) is the current alternative source folder. "
                                     "Please choose another folder if you want to change it.").arg(sdk->sharedSrcPath()));
         return;
     }
 
     if (!sdk->connection()->isVirtualMachineOff()) {
-        QMessageBox::information(0, tr("Stop Virtual Machine"),
+        QMessageBox::information(ICore::dialogParent(), tr("Stop Virtual Machine"),
                                  tr("Virtual Machine %1 is running. "
                                     "It must be stopped before the source folder can be changed.").arg(m_virtualMachine));
     }
@@ -249,7 +254,7 @@ void MerOptionsWidget::onSrcFolderApplyButtonClicked(const QString &newFolder)
         sdk->setSharedSrcPath(newFolder);
 
         const QMessageBox::StandardButton response =
-            QMessageBox::question(0, tr("Success!"),
+            QMessageBox::question(ICore::dialogParent(), tr("Success!"),
                                   tr("Alternative source folder for %1 changed to %2.\n\n"
                                      "Do you want to start %1 now?").arg(m_virtualMachine).arg(newFolder),
                                   QMessageBox::No | QMessageBox::Yes, QMessageBox::Yes);
@@ -257,7 +262,7 @@ void MerOptionsWidget::onSrcFolderApplyButtonClicked(const QString &newFolder)
             sdk->connection()->connectTo();
     }
     else {
-        QMessageBox::warning(0, tr("Changing the source folder failed!"),
+        QMessageBox::warning(ICore::dialogParent(), tr("Changing the source folder failed!"),
                              tr("Unable to change the alternative source folder to %1").arg(newFolder));
     }
 

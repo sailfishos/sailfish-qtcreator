@@ -187,7 +187,8 @@ Prompt::Prompt()
 void Prompt::show()
 {
     const QMessageBox::StandardButton response =
-        QMessageBox::question(0, m_title, m_text, QMessageBox::No | QMessageBox::Yes, QMessageBox::Yes);
+        QMessageBox::question(ICore::dialogParent(), m_title, m_text,
+                QMessageBox::No | QMessageBox::Yes, QMessageBox::Yes);
     if (response == QMessageBox::Yes) {
         emit closed(m_vm,true);
     } else {
