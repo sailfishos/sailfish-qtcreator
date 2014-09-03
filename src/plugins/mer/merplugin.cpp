@@ -36,7 +36,6 @@
 #include "merconnectionmanager.h"
 #include "mervirtualboxmanager.h"
 #include "mermode.h"
-#include "merconnectionprompt.h"
 #include "meractionmanager.h"
 
 #include <coreplugin/icore.h>
