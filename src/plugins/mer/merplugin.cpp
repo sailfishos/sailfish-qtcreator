@@ -93,7 +93,7 @@ ExtensionSystem::IPlugin::ShutdownFlag MerPlugin::aboutToShutdown()
     foreach(const MerSdk* sdk, sdks) {
         if(sdk->isHeadless()) {
             MerConnection *connection = sdk->connection();
-            if(connection->state() == MerConnection::Connected) {
+            if(!connection->isVirtualMachineOff()) {
                 Prompt * prompt = MerActionManager::createClosePrompt(connection->virtualMachine());
                 connect(prompt,SIGNAL(closed(QString,bool)),this,SLOT(handlePromptClosed(QString,bool)));
                 m_stopList.insert(connection->virtualMachine(), connection);
@@ -111,7 +111,8 @@ void MerPlugin::handlePromptClosed(const QString& vm, bool accepted)
     if (accepted) {
         MerConnection *connection = m_stopList.value(vm);
         connect(connection, SIGNAL(stateChanged()), this, SLOT(handleConnectionStateChanged()));
-        connection->disconnectFrom();
+        connect(connection, SIGNAL(lockDownFailed()), this, SLOT(handleLockDownFailed()));
+        connection->lockDown(true);
     } else {
         m_stopList.remove(vm);
     }
@@ -131,6 +132,17 @@ void MerPlugin::handleConnectionStateChanged()
         if (m_stopList.isEmpty()) {
             emit asynchronousShutdownFinished();
         }
+    }
+}
+
+void MerPlugin::handleLockDownFailed()
+{
+    MerConnection *connection = qobject_cast<MerConnection *>(sender());
+
+    m_stopList.remove(connection->virtualMachine());
+
+    if (m_stopList.isEmpty()) {
+        emit asynchronousShutdownFinished();
     }
 }
 

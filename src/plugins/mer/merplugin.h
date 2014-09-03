@@ -47,6 +47,7 @@ public:
 private slots:
     void handlePromptClosed(const QString& vm, bool accepted);
     void handleConnectionStateChanged();
+    void handleLockDownFailed();
 
 private:
     QMap<QString, MerConnection *> m_stopList;
