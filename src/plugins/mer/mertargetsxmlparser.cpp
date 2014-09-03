@@ -241,7 +241,8 @@ MerTargetsXmlReader::MerTargetsXmlReader(const QString &fileName, QObject *paren
         return;
     }
 
-    d->query.setQuery(QString::fromLatin1("doc('%1')").arg(fileName));
+    QUrl docfile = QUrl::fromLocalFile(fileName);
+    d->query.setQuery(QString::fromLatin1("doc('%1')").arg(docfile.toString()));
     d->query.setMessageHandler(&d->messageHandler);
     d->error = !d->query.isValid();
     if (d->error) {
