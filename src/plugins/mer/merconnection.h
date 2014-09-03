@@ -89,6 +89,7 @@ public:
     QString errorString() const;
 
     bool isVirtualMachineOff() const;
+    bool lockDown(bool lockDown);
 
 public slots:
     void refresh();
@@ -98,6 +99,7 @@ public slots:
 signals:
     void stateChanged();
     void virtualMachineOffChanged(bool vmOff);
+    void lockDownFailed();
 
 protected:
     void timerEvent(QTimerEvent *event);
@@ -130,6 +132,7 @@ private:
     void openCloseVmQuestionBox();
     void openUnableToCloseVmWarningBox();
     void openRetrySshConnectionQuestionBox();
+    void openRetryLockDownQuestionBox();
     void deleteMessageBox(QPointer<QMessageBox> &messageBox);
 
     static const char *str(State state);
@@ -163,7 +166,10 @@ private:
     bool m_vmStmTransition;
     bool m_sshStmTransition;
 
-    // state machine inputs
+    // state machine inputs (notice the difference in handling
+    // m_lockDownRequested compared to m_{dis,}connectRequested!)
+    bool m_lockDownRequested;
+    bool m_lockDownFailed;
     bool m_connectRequested;
     bool m_disconnectRequested;
     bool m_connectLaterRequested;
@@ -193,6 +199,7 @@ private:
     QPointer<QMessageBox> m_closeVmQuestionBox;
     QPointer<QMessageBox> m_unableToCloseVmWarningBox;
     QPointer<QMessageBox> m_retrySshConnectionQuestionBox;
+    QPointer<QMessageBox> m_retryLockDownQuestionBox;
 
     QPointer<MerConnectionRemoteShutdownProcess> m_remoteShutdownProcess;
 };

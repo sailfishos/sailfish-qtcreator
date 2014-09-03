@@ -26,6 +26,7 @@
 #include <coreplugin/icore.h>
 #include <ssh/sshremoteprocessrunner.h>
 #include <utils/qtcassert.h>
+#include <QEventLoop>
 #include <QMessageBox>
 #include <QTime>
 #include <QTimer>
@@ -182,6 +183,8 @@ MerConnection::MerConnection(QObject *parent)
     , m_sshState(SshNotConnected)
     , m_vmStmTransition(false) // intentionally do not execute ON_ENTRY during initialization
     , m_sshStmTransition(false) // intentionally do not execute ON_ENTRY during initialization
+    , m_lockDownRequested(false)
+    , m_lockDownFailed(false)
     , m_connectRequested(false)
     , m_disconnectRequested(false)
     , m_connectLaterRequested(false)
@@ -268,6 +271,45 @@ bool MerConnection::isVirtualMachineOff() const
     return !m_cachedVmRunning && m_vmState != VmStarting;
 }
 
+bool MerConnection::lockDown(bool lockDown)
+{
+    QTC_ASSERT(m_lockDownRequested != lockDown, return false);
+
+    m_lockDownRequested = lockDown;
+
+    if (m_lockDownRequested) {
+        DBG << "Lockdown begin";
+        m_connectLaterRequested = false;
+        vmPollState();
+        vmStmScheduleExec();
+        sshStmScheduleExec();
+
+        if (isVirtualMachineOff()) {
+            return true;
+        }
+
+        QEventLoop loop;
+        connect(this, SIGNAL(virtualMachineOffChanged(bool)), &loop, SLOT(quit()));
+        connect(this, SIGNAL(lockDownFailed()), &loop, SLOT(quit()));
+        loop.exec();
+
+        if (m_lockDownFailed) {
+            DBG << "Lockdown failed";
+            m_lockDownRequested = false;
+            m_lockDownFailed = false;
+            return false;
+        } else {
+            return true;
+        }
+    } else {
+        DBG << "Lockdown end";
+        vmPollState();
+        vmStmScheduleExec();
+        sshStmScheduleExec();
+        return true;
+    }
+}
+
 void MerConnection::refresh()
 {
     DBG << "Refresh requested";
@@ -279,7 +321,10 @@ void MerConnection::connectTo()
 {
     DBG << "Connect requested";
 
-    if (m_connectRequested || m_connectLaterRequested) {
+    if (m_lockDownRequested) {
+        qWarning() << "MerConnection: connect request for" << m_vmName << "ignored: lockdown active";
+        return;
+    } else if (m_connectRequested || m_connectLaterRequested) {
         return;
     } else if (m_disconnectRequested) {
         openAlreadyDisconnectingWarningBox();
@@ -302,7 +347,9 @@ void MerConnection::disconnectFrom()
 {
     DBG << "Disconnect requested";
 
-    if (m_disconnectRequested && !m_connectLaterRequested) {
+    if (m_lockDownRequested) {
+        return;
+    } else if (m_disconnectRequested && !m_connectLaterRequested) {
         return;
     } else if (m_connectRequested || m_connectLaterRequested) {
         openAlreadyConnectingWarningBox();
@@ -511,6 +558,8 @@ bool MerConnection::vmStmStep()
         if (m_cachedVmRunning) {
             m_vmStartedOutside = true;
             vmStmTransition(VmRunning, "started outside");
+        } else if (m_lockDownRequested) {
+            // noop
         } else if (m_connectRequested) {
             vmStmTransition(VmStarting, "connect requested");
         }
@@ -547,6 +596,8 @@ bool MerConnection::vmStmStep()
 
         if (m_cachedVmRunning) {
             vmStmTransition(VmRunning, "recovered"); /* spontaneously or with user intervention */
+        } else if (m_lockDownRequested) {
+            vmStmTransition(VmOff, "lock down requested");
         } else if (m_disconnectRequested) {
             vmStmTransition(VmOff, "disconnect requested");
         }
@@ -563,6 +614,11 @@ bool MerConnection::vmStmStep()
 
         if (!m_cachedVmRunning) {
             vmStmTransition(VmOff, "closed outside");
+        } else if (m_lockDownRequested) {
+            // waiting for ssh connection to disconnect first
+            if (m_sshState == SshNotConnected || m_sshState == SshDisconnected) {
+                vmStmTransition(VmSoftClosing, "lock down requested");
+            }
         } else if (m_disconnectRequested) {
             // waiting for ssh connection to disconnect first
             if (m_sshState == SshNotConnected || m_sshState == SshDisconnected) {
@@ -591,10 +647,15 @@ bool MerConnection::vmStmStep()
     case VmZombie:
         ON_ENTRY {
             m_disconnectRequested = false;
+            QTC_CHECK(!m_lockDownRequested || m_lockDownFailed);
         }
 
         if (!m_cachedVmRunning) {
             vmStmTransition(VmOff, "closed outside");
+        } else if (m_lockDownRequested) {
+            if (!m_lockDownFailed) { // prevent endless loop
+                vmStmTransition(VmSoftClosing, "lock down requested");
+            }
         } else if (m_connectRequested) {
             vmStmTransition(VmRunning, "connect requested");
         }
@@ -664,8 +725,22 @@ bool MerConnection::vmStmStep()
         } else if (!m_vmHardClosingTimeoutTimer.isActive()) {
             qWarning() << "MerConnection: timeout waiting for the" << m_vmName
                 << "virtual machine to hard-close.";
-            openUnableToCloseVmWarningBox(); // Keep open until leaving VmZombie
-            vmStmTransition(VmZombie, "timeout waiting to hard-close");
+            if (m_lockDownRequested) {
+                if (!m_retryLockDownQuestionBox) {
+                    openRetryLockDownQuestionBox();
+                } else if (QAbstractButton *button = m_retryLockDownQuestionBox->clickedButton()) {
+                    if (button == m_retryLockDownQuestionBox->button(QMessageBox::Yes)) {
+                        vmStmTransition(VmHardClosing, "lock down error+retry allowed");
+                    } else {
+                        m_lockDownFailed = true;
+                        emit lockDownFailed();
+                        vmStmTransition(VmZombie, "lock down error+retry denied");
+                    }
+                }
+            } else {
+                openUnableToCloseVmWarningBox(); // Keep open until leaving VmZombie
+                vmStmTransition(VmZombie, "timeout waiting to hard-close");
+            }
         }
 
         ON_EXIT {
@@ -728,7 +803,9 @@ bool MerConnection::sshStmStep()
             vmStmScheduleExec();
         }
 
-        if (m_vmState == VmRunning) {
+        if (m_lockDownRequested) {
+            m_connectRequested = false;
+        } else if (m_vmState == VmRunning) {
             sshStmTransition(SshConnecting, "VM running");
         }
 
@@ -786,6 +863,8 @@ bool MerConnection::sshStmStep()
             sshStmTransition(SshNotConnected, "VM not running");
         } else if (m_cachedSshConnected) {
             sshStmTransition(SshConnected, "recovered");
+        } else if (m_lockDownRequested) {
+            sshStmTransition(SshNotConnected, "lock down requested");
         } else if (m_disconnectRequested) {
             sshStmTransition(SshDisconnected, "disconnect requested");
         }
@@ -804,6 +883,8 @@ bool MerConnection::sshStmStep()
             sshStmTransition(SshNotConnected, "VM not running");
         } else if (!m_cachedSshConnected) {
             sshStmTransition(SshConnectionLost, "connection lost");
+        } else if (m_lockDownRequested) {
+            sshStmTransition(SshDisconnecting, "lock down requested");
         } else if (m_disconnectRequested) {
             sshStmTransition(SshDisconnecting, "disconnect requested");
         }
@@ -852,6 +933,8 @@ bool MerConnection::sshStmStep()
             sshStmTransition(SshNotConnected, "VM not running");
         } else if (m_cachedSshConnected) {
             sshStmTransition(SshConnected, "recovered");
+        } else if (m_lockDownRequested) {
+            sshStmTransition(SshDisconnected, "lock down requested");
         } else if (m_disconnectRequested) {
             sshStmTransition(SshDisconnected, "disconnect requested");
         }
@@ -1001,6 +1084,22 @@ void MerConnection::openRetrySshConnectionQuestionBox()
     connect(m_retrySshConnectionQuestionBox, SIGNAL(finished(int)),
             this, SLOT(sshStmScheduleExec()));
     m_retrySshConnectionQuestionBox->open();
+}
+
+void MerConnection::openRetryLockDownQuestionBox()
+{
+    QTC_CHECK(!m_retryLockDownQuestionBox);
+
+    m_retryLockDownQuestionBox = new QMessageBox(
+            QMessageBox::Question,
+            tr("Unable to Close Virtual Machine"),
+            tr("Timeout waiting for the \"%1\" virtual machine to close. Do you want to try again?")
+            .arg(m_vmName),
+            QMessageBox::Yes | QMessageBox::No,
+            Core::ICore::dialogParent());
+    connect(m_retryLockDownQuestionBox, SIGNAL(finished(int)),
+            this, SLOT(vmStmScheduleExec()));
+    m_retryLockDownQuestionBox->open();
 }
 
 void MerConnection::deleteMessageBox(QPointer<QMessageBox> &messageBox)
