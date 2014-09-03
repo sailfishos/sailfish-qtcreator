@@ -57,7 +57,7 @@
            <enum>QFormLayout::ExpandingFieldsGrow</enum>
           </property>
           <property name="formAlignment">
-           <set>Qt::AlignLeft|Qt::AlignTop</set>
+           <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
           </property>
           <item row="0" column="0">
            <widget class="QLabel" name="nameLabel">
@@ -169,14 +169,64 @@
          <property name="title">
           <string>Shared folders</string>
          </property>
-         <layout class="QGridLayout" name="gridLayout">
-          <item row="0" column="2">
-           <widget class="QPushButton" name="srcFolderApplyButton">
-            <property name="toolTip">
-             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Change the alternative source location folder.&lt;/span&gt;&lt;/p&gt;&lt;p&gt;By default MerSDK can read project sources only from your home directory. You can specify here another location for your projects. You will need to stop MerSDK before this setting can be changed.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+         <layout class="QFormLayout" name="formLayout_2">
+          <item row="0" column="0">
+           <widget class="QLabel" name="srcFolderLabel">
+            <property name="text">
+             <string>Alt source folder:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <layout class="QHBoxLayout" name="horizontalLayout_3">
+            <item>
+             <widget class="Utils::PathChooser" name="srcFolderPathChooser" native="true">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="toolTip">
+               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;The alternative source folder path.&lt;/span&gt;&lt;/p&gt;&lt;p&gt;Your projects can be located under your home folder or under this folder.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="srcFolderApplyButton">
+              <property name="toolTip">
+               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Change the alternative source location folder.&lt;/span&gt;&lt;/p&gt;&lt;p&gt;By default MerSDK can read project sources only from your home directory. You can specify here another location for your projects. You will need to stop MerSDK before this setting can be changed.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+              </property>
+              <property name="text">
+               <string>Change</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="homeFolderLabel">
+            <property name="enabled">
+             <bool>false</bool>
             </property>
             <property name="text">
-             <string>Change</string>
+             <string>Home folder:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QLabel" name="homeFolderPathLabel">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+            <property name="text">
+             <string/>
+            </property>
+            <property name="wordWrap">
+             <bool>true</bool>
+            </property>
+            <property name="textInteractionFlags">
+             <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
             </property>
            </widget>
           </item>
@@ -255,52 +305,6 @@
             </property>
             <property name="textInteractionFlags">
              <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="0">
-           <widget class="QLabel" name="homeFolderLabel">
-            <property name="enabled">
-             <bool>false</bool>
-            </property>
-            <property name="text">
-             <string>Home folder:</string>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="1">
-           <widget class="Utils::PathChooser" name="srcFolderPathChooser" native="true">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="toolTip">
-             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;The alternative source folder path.&lt;/span&gt;&lt;/p&gt;&lt;p&gt;Your projects can be located under your home folder or under this folder.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="1">
-           <widget class="QLabel" name="homeFolderPathLabel">
-            <property name="enabled">
-             <bool>false</bool>
-            </property>
-            <property name="text">
-             <string/>
-            </property>
-            <property name="wordWrap">
-             <bool>true</bool>
-            </property>
-            <property name="textInteractionFlags">
-             <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="0">
-           <widget class="QLabel" name="srcFolderLabel">
-            <property name="text">
-             <string>Alt source folder:</string>
             </property>
            </widget>
           </item>
