@@ -245,11 +245,34 @@ void MerOptionsWidget::onSrcFolderApplyButtonClicked(const QString &newFolder)
     }
 
     if (!sdk->connection()->isVirtualMachineOff()) {
-        QMessageBox::information(ICore::dialogParent(), tr("Stop Virtual Machine"),
-                                 tr("Virtual Machine %1 is running. "
-                                    "It must be stopped before the source folder can be changed.").arg(m_virtualMachine));
+        QPointer<QMessageBox> questionBox = new QMessageBox(QMessageBox::Question,
+                tr("Close Virtual Machine"),
+                tr("Close the \"%1\" virtual machine?").arg(m_virtualMachine),
+                QMessageBox::Yes | QMessageBox::No,
+                ICore::dialogParent());
+        questionBox->setInformativeText(
+                tr("Virtual machine must be closed before the source folder can be changed."));
+        if (questionBox->exec() != QMessageBox::Yes) {
+            // reset the path in the chooser
+            m_ui->sdkDetailsWidget->setSrcFolderChooserPath(sdk->sharedSrcPath());
+            return;
+        }
     }
-    else if (MerVirtualBoxManager::updateSharedFolder(m_virtualMachine, QLatin1String("src1"), newFolder)) {
+
+    if (!sdk->connection()->lockDown(true)) {
+        QMessageBox::warning(ICore::dialogParent(), tr("Failed"),
+                tr("Alternative source folder not changed"));
+        // reset the path in the chooser
+        m_ui->sdkDetailsWidget->setSrcFolderChooserPath(sdk->sharedSrcPath());
+        return;
+    }
+
+    bool ok = MerVirtualBoxManager::updateSharedFolder(m_virtualMachine,
+            QLatin1String("src1"), newFolder);
+
+    sdk->connection()->lockDown(false);
+
+    if (ok) {
         // remember to update this value
         sdk->setSharedSrcPath(newFolder);
 
@@ -264,10 +287,9 @@ void MerOptionsWidget::onSrcFolderApplyButtonClicked(const QString &newFolder)
     else {
         QMessageBox::warning(ICore::dialogParent(), tr("Changing the source folder failed!"),
                              tr("Unable to change the alternative source folder to %1").arg(newFolder));
+        // reset the path in the chooser
+        m_ui->sdkDetailsWidget->setSrcFolderChooserPath(sdk->sharedSrcPath());
     }
-
-    // update the path in the chooser
-    m_ui->sdkDetailsWidget->setSrcFolderChooserPath(sdk->sharedSrcPath());
 }
 
 void MerOptionsWidget::update()
