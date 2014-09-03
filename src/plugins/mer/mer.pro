@@ -65,7 +65,6 @@ SOURCES += \
     meremulatordevicewizard.cpp \
     merhardwaredevicewizard.cpp \
     meremulatordevicewizardpages.cpp \
-    meractionmanager.cpp \
     merrpmpackagingstep.cpp \
     merrpmpackagingwidget.cpp \
     merrpminstaller.cpp \
@@ -117,7 +116,6 @@ HEADERS += \
     meremulatordevicewizard.h \
     merhardwaredevicewizard.h \
     meremulatordevicewizardpages.h \
-    meractionmanager.h \
     merrpmpackagingstep.h \
     merrpmpackagingwidget.h \
     merrpminstaller.h \

@@ -45,7 +45,7 @@ public:
     ShutdownFlag aboutToShutdown();
 
 private slots:
-    void handlePromptClosed(const QString& vm, bool accepted);
+    void handlePromptClosed(int result);
     void handleConnectionStateChanged();
     void handleLockDownFailed();
 

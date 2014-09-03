@@ -36,7 +36,6 @@
 #include "merconnectionmanager.h"
 #include "mervirtualboxmanager.h"
 #include "mermode.h"
-#include "meractionmanager.h"
 
 #include <coreplugin/icore.h>
 #include <coreplugin/mimedatabase.h>
@@ -47,6 +46,10 @@
 
 namespace Mer {
 namespace Internal {
+
+namespace {
+const char *VM_NAME_PROPERTY = "merVmName";
+}
 
 MerPlugin::MerPlugin()
 {
@@ -75,7 +78,6 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
     addAutoReleasedObject(new MerRunControlFactory);
     addAutoReleasedObject(new MerBuildStepFactory);
     addAutoReleasedObject(new MerDeployStepFactory);
-    addAutoReleasedObject(new MerActionManager);
 
     addAutoReleasedObject(new MerMode);
 
@@ -94,9 +96,17 @@ ExtensionSystem::IPlugin::ShutdownFlag MerPlugin::aboutToShutdown()
         if(sdk->isHeadless()) {
             MerConnection *connection = sdk->connection();
             if(!connection->isVirtualMachineOff()) {
-                Prompt * prompt = MerActionManager::createClosePrompt(connection->virtualMachine());
-                connect(prompt,SIGNAL(closed(QString,bool)),this,SLOT(handlePromptClosed(QString,bool)));
+                QMessageBox *prompt = new QMessageBox(
+                        QMessageBox::Question,
+                        tr("Close Virtual Machine"),
+                        tr("The headless virtual machine \"%1\" is still running.\n\n"
+                            "Close the virtual machine now?").arg(connection->virtualMachine()),
+                        QMessageBox::Yes | QMessageBox::No,
+                        Core::ICore::dialogParent());
+                prompt->setProperty(VM_NAME_PROPERTY, connection->virtualMachine());
+                connect(prompt, SIGNAL(finished(int)), this, SLOT(handlePromptClosed(int)));
                 m_stopList.insert(connection->virtualMachine(), connection);
+                prompt->open();
             }
         }
     }
@@ -106,9 +116,14 @@ ExtensionSystem::IPlugin::ShutdownFlag MerPlugin::aboutToShutdown()
         return AsynchronousShutdown;
 }
 
-void MerPlugin::handlePromptClosed(const QString& vm, bool accepted)
+void MerPlugin::handlePromptClosed(int result)
 {
-    if (accepted) {
+    QMessageBox *prompt = qobject_cast<QMessageBox *>(sender());
+    prompt->deleteLater();
+
+    QString vm = prompt->property(VM_NAME_PROPERTY).toString();
+
+    if (result == QMessageBox::Yes) {
         MerConnection *connection = m_stopList.value(vm);
         connect(connection, SIGNAL(stateChanged()), this, SLOT(handleConnectionStateChanged()));
         connect(connection, SIGNAL(lockDownFailed()), this, SLOT(handleLockDownFailed()));
