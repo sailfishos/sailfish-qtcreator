@@ -383,7 +383,7 @@ void MerConnectionManager::update()
                     QTC_ASSERT(!sdkName.isEmpty(), continue);
                     m_sdkConnection->setVirtualMachine(sdkName);
                     m_sdkConnection->setHeadless(sdk->isHeadless());
-                    m_sdkConnection->setConnectionParameters(parameters(sdk));
+                    m_sdkConnection->setSshParameters(parameters(sdk));
                     m_sdkConnection->setupConnection();
                 }
             }
@@ -398,7 +398,7 @@ void MerConnectionManager::update()
                           const MerEmulatorDevice* emu = static_cast<const MerEmulatorDevice*>(device.data());
                           const QString &emulatorName = emu->virtualMachine();
                           m_emulatorConnection->setVirtualMachine(emulatorName);
-                          m_emulatorConnection->setConnectionParameters(device->sshParameters());
+                          m_emulatorConnection->setSshParameters(device->sshParameters());
                           m_emulatorConnection->setupConnection();
                     }
                 }

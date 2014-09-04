@@ -59,8 +59,8 @@ public:
     explicit MerConnection(QObject *parent = 0);
     ~MerConnection();
 
-    void setVirtualMachine(const QString vm);
-    void setConnectionParameters(const QSsh::SshConnectionParameters &sshParameters);
+    void setVirtualMachine(const QString &virtualMachine);
+    void setSshParameters(const QSsh::SshConnectionParameters &sshParameters);
     void setProbeTimeout(int timeout);
     void setHeadless(bool headless);
     QSsh::SshConnectionParameters sshParameters() const;

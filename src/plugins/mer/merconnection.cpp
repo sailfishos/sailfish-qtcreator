@@ -78,15 +78,15 @@ SshConnectionParameters MerConnection::sshParameters() const
     return m_params;
 }
 
-void MerConnection::setVirtualMachine(const QString vm)
+void MerConnection::setVirtualMachine(const QString &virtualMachine)
 {
-    if(m_vmName != vm) {
-        m_vmName = vm;
+    if(m_vmName != virtualMachine) {
+        m_vmName = virtualMachine;
         m_connectionInitialized = false;
     }
 }
 
-void MerConnection::setConnectionParameters(const SshConnectionParameters &sshParameters)
+void MerConnection::setSshParameters(const SshConnectionParameters &sshParameters)
 {
     if(m_params != sshParameters) {
         m_params = sshParameters;
