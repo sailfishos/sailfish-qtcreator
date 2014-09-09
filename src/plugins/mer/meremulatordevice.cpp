@@ -24,14 +24,18 @@
 
 #include "mersdkmanager.h"
 #include "mervirtualboxmanager.h"
+#include "merconnection.h"
 #include "merconstants.h"
 #include "meremulatordevicewidget.h"
 #include <utils/qtcassert.h>
+#include <coreplugin/icore.h>
 
 #include <QProgressDialog>
 #include <QMessageBox>
 #include <QTimer>
 #include <QFileInfo>
+
+using Core::ICore;
 
 namespace Mer {
 namespace Internal {
@@ -129,7 +133,7 @@ private slots:
             break;
         }
         case Error:
-            QMessageBox::critical(this, tr("Cannot Authorize Keys"), m_error);
+            QMessageBox::critical(ICore::dialogParent(), tr("Cannot Authorize Keys"), m_error);
             setValue(0);
             setLabelText(tr("Error occured"));
             setCancelButtonText(tr("Close"));
@@ -165,6 +169,7 @@ ProjectExplorer::IDevice::Ptr MerEmulatorDevice::clone() const
 
 MerEmulatorDevice::MerEmulatorDevice():
     RemoteLinux::LinuxDevice(QString(), Core::Id(Constants::MER_DEVICE_TYPE_I486), Emulator, ManuallyAdded, Core::Id())
+    , m_connection(new MerConnection(0 /* not bug */))
 {
     setDeviceState(IDevice::DeviceStateUnknown);
 }
@@ -208,7 +213,7 @@ void MerEmulatorDevice::executeAction(Core::Id actionId, QWidget *parent)
         generateSshKey(QLatin1String(Constants::MER_DEVICE_ROOTUSER));
         return;
     } else if (actionId == Constants::MER_EMULATOR_START_ACTION_ID) {
-        MerVirtualBoxManager::startVirtualMachine(m_virtualMachine,false);
+        m_connection->connectTo();
         return;
     }
 }
@@ -216,7 +221,9 @@ void MerEmulatorDevice::executeAction(Core::Id actionId, QWidget *parent)
 void MerEmulatorDevice::fromMap(const QVariantMap &map)
 {
     IDevice::fromMap(map);
-    m_virtualMachine = map.value(QLatin1String(Constants::MER_DEVICE_VIRTUAL_MACHINE)).toString();
+    updateConnection();
+    m_connection->setVirtualMachine(
+            map.value(QLatin1String(Constants::MER_DEVICE_VIRTUAL_MACHINE)).toString());
     m_mac = map.value(QLatin1String(Constants::MER_DEVICE_MAC)).toString();
     m_subnet = map.value(QLatin1String(Constants::MER_DEVICE_SUBNET)).toString();
     m_sharedSshPath = map.value(QLatin1String(Constants::MER_DEVICE_SHARED_SSH)).toString();
@@ -226,7 +233,8 @@ void MerEmulatorDevice::fromMap(const QVariantMap &map)
 QVariantMap MerEmulatorDevice::toMap() const
 {
     QVariantMap map = IDevice::toMap();
-    map.insert(QLatin1String(Constants::MER_DEVICE_VIRTUAL_MACHINE), m_virtualMachine);
+    map.insert(QLatin1String(Constants::MER_DEVICE_VIRTUAL_MACHINE),
+            m_connection->virtualMachine());
     map.insert(QLatin1String(Constants::MER_DEVICE_MAC), m_mac);
     map.insert(QLatin1String(Constants::MER_DEVICE_SUBNET), m_subnet);
     map.insert(QLatin1String(Constants::MER_DEVICE_SHARED_SSH), m_sharedSshPath);
@@ -256,12 +264,12 @@ QString MerEmulatorDevice::subnet() const
 
 void MerEmulatorDevice::setVirtualMachine(const QString& machineName)
 {
-    m_virtualMachine = machineName;
+    m_connection->setVirtualMachine(machineName);
 }
 
 QString MerEmulatorDevice::virtualMachine() const
 {
-    return m_virtualMachine;
+    return m_connection->virtualMachine();
 }
 
 void MerEmulatorDevice::setSharedConfigPath(const QString &configPath)
@@ -292,7 +300,7 @@ void MerEmulatorDevice::generateSshKey(const QString& user) const
         QString privateKeyFile = m_sharedConfigPath +
                 index.arg(virtualMachine()).replace(QLatin1String(" "),QLatin1String("_")) + user;
         PublicKeyDeploymentDialog dialog(privateKeyFile, virtualMachine(),
-                                         user, sharedSshPath());
+                                         user, sharedSshPath(), ICore::dialogParent());
         dialog.exec();
     }
 }
@@ -308,6 +316,16 @@ QSsh::SshConnectionParameters MerEmulatorDevice::sshParametersForUser(const QSsh
     m_sshParams.privateKeyFile = privateKeyFile;
 
     return m_sshParams;
+}
+
+MerConnection *MerEmulatorDevice::connection() const
+{
+    return m_connection.data();
+}
+
+void MerEmulatorDevice::updateConnection()
+{
+    m_connection->setSshParameters(sshParameters());
 }
 
 #include "meremulatordevice.moc"

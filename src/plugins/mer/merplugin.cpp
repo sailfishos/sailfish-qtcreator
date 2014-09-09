@@ -24,17 +24,18 @@
 #include "merdevicefactory.h"
 #include "merqtversionfactory.h"
 #include "mertoolchainfactory.h"
+#include "meraddvmstartbuildstepprojectlistener.h"
 #include "merdeployconfigurationfactory.h"
 #include "merrunconfigurationfactory.h"
 #include "merruncontrolfactory.h"
 #include "meroptionspage.h"
+#include "merbuildstepfactory.h"
 #include "merdeploystepfactory.h"
 #include "mersdkmanager.h"
+#include "merconnection.h"
 #include "merconnectionmanager.h"
 #include "mervirtualboxmanager.h"
 #include "mermode.h"
-#include "merconnectionprompt.h"
-#include "meractionmanager.h"
 
 #include <coreplugin/icore.h>
 #include <coreplugin/mimedatabase.h>
@@ -46,8 +47,11 @@
 namespace Mer {
 namespace Internal {
 
-MerPlugin::MerPlugin():
-    m_wait(false)
+namespace {
+const char *VM_NAME_PROPERTY = "merVmName";
+}
+
+MerPlugin::MerPlugin()
 {
 }
 
@@ -68,11 +72,12 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
     addAutoReleasedObject(new MerDeviceFactory);
     addAutoReleasedObject(new MerQtVersionFactory);
     addAutoReleasedObject(new MerToolChainFactory);
+    addAutoReleasedObject(new MerAddVmStartBuildStepProjectListener);
     addAutoReleasedObject(new MerDeployConfigurationFactory);
     addAutoReleasedObject(new MerRunConfigurationFactory);
     addAutoReleasedObject(new MerRunControlFactory);
+    addAutoReleasedObject(new MerBuildStepFactory);
     addAutoReleasedObject(new MerDeployStepFactory);
-    addAutoReleasedObject(new MerActionManager);
 
     addAutoReleasedObject(new MerMode);
 
@@ -86,15 +91,22 @@ void MerPlugin::extensionsInitialized()
 ExtensionSystem::IPlugin::ShutdownFlag MerPlugin::aboutToShutdown()
 {
     m_stopList.clear();
-    m_wait=false;
     QList<MerSdk*> sdks = MerSdkManager::instance()->sdks();
     foreach(const MerSdk* sdk, sdks) {
         if(sdk->isHeadless()) {
-            const QString& vm = sdk->virtualMachineName();
-            if(MerConnectionManager::instance()->isConnected(vm)) {
-                Prompt * prompt = MerActionManager::createClosePrompt(vm);
-                connect(prompt,SIGNAL(closed(QString,bool)),this,SLOT(handlePromptClosed(QString,bool)));
-                m_stopList << vm;
+            MerConnection *connection = sdk->connection();
+            if(!connection->isVirtualMachineOff()) {
+                QMessageBox *prompt = new QMessageBox(
+                        QMessageBox::Question,
+                        tr("Close Virtual Machine"),
+                        tr("The headless virtual machine \"%1\" is still running.\n\n"
+                            "Close the virtual machine now?").arg(connection->virtualMachine()),
+                        QMessageBox::Yes | QMessageBox::No,
+                        Core::ICore::dialogParent());
+                prompt->setProperty(VM_NAME_PROPERTY, connection->virtualMachine());
+                connect(prompt, SIGNAL(finished(int)), this, SLOT(handlePromptClosed(int)));
+                m_stopList.insert(connection->virtualMachine(), connection);
+                prompt->open();
             }
         }
     }
@@ -104,23 +116,49 @@ ExtensionSystem::IPlugin::ShutdownFlag MerPlugin::aboutToShutdown()
         return AsynchronousShutdown;
 }
 
-void MerPlugin::handlePromptClosed(const QString& vm, bool accepted)
+void MerPlugin::handlePromptClosed(int result)
 {
-     m_stopList.removeAll(vm);
-    if (accepted) {
-        MerConnectionManager::instance()->disconnectFrom(vm);
-        m_wait=true;
+    QMessageBox *prompt = qobject_cast<QMessageBox *>(sender());
+    prompt->deleteLater();
+
+    QString vm = prompt->property(VM_NAME_PROPERTY).toString();
+
+    if (result == QMessageBox::Yes) {
+        MerConnection *connection = m_stopList.value(vm);
+        connect(connection, SIGNAL(stateChanged()), this, SLOT(handleConnectionStateChanged()));
+        connect(connection, SIGNAL(lockDownFailed()), this, SLOT(handleLockDownFailed()));
+        connection->lockDown(true);
+    } else {
+        m_stopList.remove(vm);
     }
 
     if(m_stopList.isEmpty()) {
-        if(m_wait){
-             QTimer::singleShot(3000, this, SIGNAL(asynchronousShutdownFinished()));
-        }else{
-             emit asynchronousShutdownFinished();
-        }
-
+        emit asynchronousShutdownFinished();
     }
+}
 
+void MerPlugin::handleConnectionStateChanged()
+{
+    MerConnection *connection = qobject_cast<MerConnection *>(sender());
+
+    if (connection->state() == MerConnection::Disconnected) {
+        m_stopList.remove(connection->virtualMachine());
+
+        if (m_stopList.isEmpty()) {
+            emit asynchronousShutdownFinished();
+        }
+    }
+}
+
+void MerPlugin::handleLockDownFailed()
+{
+    MerConnection *connection = qobject_cast<MerConnection *>(sender());
+
+    m_stopList.remove(connection->virtualMachine());
+
+    if (m_stopList.isEmpty()) {
+        emit asynchronousShutdownFinished();
+    }
 }
 
 } // Internal

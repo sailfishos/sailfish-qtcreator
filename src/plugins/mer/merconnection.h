@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2013 Jolla Ltd.
+** Copyright (C) 2012 - 2014 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -23,35 +23,52 @@
 #ifndef MERCONNECTION_H
 #define MERCONNECTION_H
 
-#include <coreplugin/id.h>
 #include <ssh/sshconnection.h>
-#include <qglobal.h>
+#include <QtGlobal>
+#include <QBasicTimer>
 #include <QObject>
-#include <QIcon>
-#include <coreplugin/id.h>
+#include <QPointer>
 
 QT_BEGIN_NAMESPACE
-class QAction;
+class QMessageBox;
 QT_END_NAMESPACE
-
-namespace QSsh {
-class SshConnection;
-class SshConnectionParameters;
-}
 
 namespace Mer {
 namespace Internal {
 
+class MerConnectionRemoteShutdownProcess;
+
 class MerConnection : public QObject
 {
     Q_OBJECT
+    Q_ENUMS(State)
+
+    enum VmState {
+        VmOff,
+        VmStarting,
+        VmStartingError,
+        VmRunning,
+        VmSoftClosing,
+        VmHardClosing,
+        VmZombie,
+    };
+
+    enum SshState {
+        SshNotConnected,
+        SshConnecting,
+        SshConnectingError,
+        SshConnected,
+        SshDisconnecting,
+        SshDisconnected,
+        SshConnectionLost,
+    };
+
 public:
     enum State {
-        NoStateTrigger = -1,
         Disconnected,
         StartingVm,
-        TryConnect,
         Connecting,
+        Error,
         Connected,
         Disconnecting,
         ClosingVm
@@ -60,66 +77,131 @@ public:
     explicit MerConnection(QObject *parent = 0);
     ~MerConnection();
 
-    void setId(const Core::Id &id);
-    void setName(const QString &name);
-    void setIcon(const QIcon &icon);
-    void setStartTip(const QString &tip);
-    void setStopTip(const QString &tip);
-    void setConnectingTip(const QString &tip);
-    void setDisconnectingTip(const QString &tip);
-    void setStartingTip(const QString &tip);
-    void setClosingTip(const QString &tip);
-    void setVisible(bool visible);
-    void setEnabled(bool enabled);
-    void setTaskCategory(Core::Id id);
-    void setVirtualMachine(const QString vm);
-    void setConnectionParameters(const QSsh::SshConnectionParameters &sshParameters);
-    void setProbeTimeout(int timeout);
+    void setVirtualMachine(const QString &virtualMachine);
+    void setSshParameters(const QSsh::SshConnectionParameters &sshParameters);
     void setHeadless(bool headless);
+
     QSsh::SshConnectionParameters sshParameters() const;
+    bool isHeadless() const;
     QString virtualMachine() const;
-    bool isConnected() const;
-    void initialize();
-    void update();
+
+    State state() const;
+    QString errorString() const;
+
+    bool isVirtualMachineOff() const;
+    bool lockDown(bool lockDown);
+
+public slots:
+    void refresh();
     void connectTo();
     void disconnectFrom();
-    void tryConnectTo();
-    void setupConnection();
-    static void createConnectionErrorTask(const QString &vmName, const QString &error, Core::Id category);
-    static void removeConnectionErrorTask(Core::Id category);
+
+signals:
+    void stateChanged();
+    void virtualMachineOffChanged(bool vmOff);
+    void lockDownFailed();
+
+protected:
+    void timerEvent(QTimerEvent *event);
+
+private:
+    void scheduleReset();
+    void reset();
+
+    // state machine
+    void updateState();
+    void vmStmTransition(VmState toState, const char *event);
+    bool vmStmExiting();
+    bool vmStmEntering();
+    void vmStmExec();
+    bool vmStmStep();
+    void sshStmTransition(SshState toState, const char *event);
+    bool sshStmExiting();
+    bool sshStmEntering();
+    void sshStmExec();
+    bool sshStmStep();
+
+    void createConnection();
+    void vmWantFastPollState(bool want);
+    void vmPollState();
+    void sshTryConnect();
+
+    // dialogs
+    void openAlreadyConnectingWarningBox();
+    void openAlreadyDisconnectingWarningBox();
+    void openCloseVmQuestionBox();
+    void openUnableToCloseVmWarningBox();
+    void openRetrySshConnectionQuestionBox();
+    void openRetryLockDownQuestionBox();
+    void deleteMessageBox(QPointer<QMessageBox> &messageBox);
+
+    static const char *str(State state);
+    static const char *str(VmState vmState);
+    static const char *str(SshState sshState);
 
 private slots:
-    void handleTriggered();
-    void changeState(State state = NoStateTrigger);
+    void vmStmScheduleExec();
+    void sshStmScheduleExec();
+    void onSshConnected();
+    void onSshDisconnected();
+    void onSshError(QSsh::SshError error);
+    void onRemoteShutdownProcessFinished();
 
 private:
-    QSsh::SshConnection* createConnection(const QSsh::SshConnectionParameters &sshParameters);
+    static QMap<QString, int> s_usedVmNames;
 
-private:
-    Core::Id m_id;
-    QAction *m_action;
-    QIcon m_icon;
-    QString m_name;
-    QString m_startTip;
-    QString m_stopTip;
-    QString m_connTip;
-    QString m_discoTip;
-    QString m_closingTip;
-    QString m_startingTip;
-    bool m_uiInitalized;
-    bool m_connectionInitialized;
-    bool m_visible;
-    bool m_enabled;
-    QSsh::SshConnection* m_connection;
+    QPointer<QSsh::SshConnection> m_connection;
     QString m_vmName;
-    State m_state;
-    Core::Id m_taskId;
     QSsh::SshConnectionParameters m_params;
-    int m_vmStartupTimeOut;
-    int m_vmCloseTimeOut;
-    int m_probeTimeout;
-    bool m_reportError;
     bool m_headless;
+
+    // state
+    State m_state;
+    QString m_errorString;
+    VmState m_vmState;
+    bool m_vmStartedOutside;
+    SshState m_sshState;
+
+    // on-transition flags
+    bool m_vmStmTransition;
+    bool m_sshStmTransition;
+
+    // state machine inputs (notice the difference in handling
+    // m_lockDownRequested compared to m_{dis,}connectRequested!)
+    bool m_lockDownRequested;
+    bool m_lockDownFailed;
+    bool m_connectRequested;
+    bool m_disconnectRequested;
+    bool m_connectLaterRequested;
+    bool m_cachedVmRunning;
+    bool m_cachedSshConnected;
+    QSsh::SshError m_cachedSshError;
+    QString m_cachedSshErrorString;
+
+    // timeout timers
+    QBasicTimer m_vmStartingTimeoutTimer;
+    QBasicTimer m_vmSoftClosingTimeoutTimer;
+    QBasicTimer m_vmHardClosingTimeoutTimer;
+
+    // background task timers
+    int m_vmWantFastPollState;
+    QBasicTimer m_vmStatePollTimer;
+    QBasicTimer m_sshTryConnectTimer;
+
+    // state machine idle execution
+    QBasicTimer m_vmStmExecTimer;
+    QBasicTimer m_sshStmExecTimer;
+
+    // auto invoke reset after properties are changed
+    QBasicTimer m_resetTimer;
+
+    // dialogs
+    QPointer<QMessageBox> m_closeVmQuestionBox;
+    QPointer<QMessageBox> m_unableToCloseVmWarningBox;
+    QPointer<QMessageBox> m_retrySshConnectionQuestionBox;
+    QPointer<QMessageBox> m_retryLockDownQuestionBox;
+
+    QPointer<MerConnectionRemoteShutdownProcess> m_remoteShutdownProcess;
 };
 
 }

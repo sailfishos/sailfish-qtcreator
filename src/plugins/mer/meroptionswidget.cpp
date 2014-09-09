@@ -28,9 +28,11 @@
 #include "mersdkselectiondialog.h"
 #include "mervirtualboxmanager.h"
 #include "merconnectionmanager.h"
+#include "merconnection.h"
 
 #include <utils/fileutils.h>
 #include <ssh/sshconnection.h>
+#include <coreplugin/icore.h>
 
 #include <QStandardItemModel>
 #include <QStandardItem>
@@ -38,6 +40,8 @@
 #include <QDesktopServices>
 #include <QUrl>
 #include <QMessageBox>
+
+using Core::ICore;
 
 namespace Mer {
 namespace Internal {
@@ -59,6 +63,7 @@ MerOptionsWidget::MerOptionsWidget(QWidget *parent)
     connect(m_ui->removeButton, SIGNAL(clicked()), SLOT(onRemoveButtonClicked()));
     connect(m_ui->startVirtualMachineButton, SIGNAL(clicked()), SLOT(onStartVirtualMachineButtonClicked()));
     connect(m_ui->sdkDetailsWidget, SIGNAL(testConnectionButtonClicked()), SLOT(onTestConnectionButtonClicked()));
+    connect(m_ui->sdkDetailsWidget, SIGNAL(sshTimeoutChanged(int)), SLOT(onSshTimeoutChanged(int)));
     connect(m_ui->sdkDetailsWidget, SIGNAL(headlessCheckBoxToggled(bool)), SLOT(onHeadlessCheckBoxToggled(bool)));
     connect(m_ui->sdkDetailsWidget, SIGNAL(srcFolderApplyButtonClicked(QString)), SLOT(onSrcFolderApplyButtonClicked(QString)));
     onSdksUpdated();
@@ -97,6 +102,8 @@ void MerOptionsWidget::store()
     foreach (MerSdk *sdk, sdks) {
         if (m_sshPrivKeys.contains(sdk))
             sdk->setPrivateKeyFile(m_sshPrivKeys[sdk]);
+        if (m_sshTimeout.contains(sdk))
+            sdk->setTimeout(m_sshTimeout[sdk]);
         if (m_headless.contains(sdk))
             sdk->setHeadless(m_headless[sdk]);
     }
@@ -114,6 +121,7 @@ void MerOptionsWidget::store()
         sdkManager->addSdk(sdk);
 
     m_sshPrivKeys.clear();
+    m_sshTimeout.clear();
     m_headless.clear();
 }
 
@@ -128,7 +136,7 @@ void MerOptionsWidget::onSdkChanged(const QString &sdkName)
 
 void MerOptionsWidget::onAddButtonClicked()
 {
-    MerSdkSelectionDialog dialog(this);
+    MerSdkSelectionDialog dialog(ICore::dialogParent());
     dialog.setWindowTitle(tr("Add Mer SDK"));
     if (dialog.exec() != QDialog::Accepted)
         return;
@@ -161,12 +169,10 @@ void MerOptionsWidget::onRemoveButtonClicked()
 void MerOptionsWidget::onTestConnectionButtonClicked()
 {
     MerSdk *sdk = m_sdks[m_virtualMachine];
-    if (MerVirtualBoxManager::isVirtualMachineRunning(sdk->virtualMachineName())) {
-        QSsh::SshConnectionParameters params = MerConnectionManager::parameters(sdk);
+    if (!sdk->connection()->isVirtualMachineOff()) {
+        QSsh::SshConnectionParameters params = sdk->connection()->sshParameters();
         if (m_sshPrivKeys.contains(sdk))
             params.privateKeyFile = m_sshPrivKeys[sdk];
-        else
-            params.privateKeyFile = sdk->privateKeyFile();
         m_ui->sdkDetailsWidget->setStatus(tr("Connecting to machine %1 ...").arg(sdk->virtualMachineName()));
         m_ui->sdkDetailsWidget->setTestButtonEnabled(false);
         m_status = MerConnectionManager::instance()->testConnection(params);
@@ -190,25 +196,27 @@ void MerOptionsWidget::onAuthorizeSshKey(const QString &file)
         QString error;
         const bool success = MerSdkManager::instance()->authorizePublicKey(path, pubKeyPath, error);
         if (!success)
-            QMessageBox::critical(this, tr("Cannot Authorize Keys"), error);
+            QMessageBox::critical(ICore::dialogParent(), tr("Cannot Authorize Keys"), error);
         else
-            QMessageBox::information(this, tr("Key Authorized "), tr("Key %1 added to \n %2").arg(pubKeyPath).arg(path));
+            QMessageBox::information(ICore::dialogParent(), tr("Key Authorized "),
+                    tr("Key %1 added to \n %2").arg(pubKeyPath).arg(path));
     }
 }
 
 void MerOptionsWidget::onStartVirtualMachineButtonClicked()
 {
     const MerSdk *sdk = m_sdks[m_virtualMachine];
-    MerVirtualBoxManager::startVirtualMachine(sdk->virtualMachineName(), sdk->isHeadless());
+    sdk->connection()->connectTo();
 }
 
 void MerOptionsWidget::onGenerateSshKey(const QString &privKeyPath)
 {
     QString error;
     if (!MerSdkManager::generateSshKey(privKeyPath, error)) {
-       QMessageBox::critical(this, tr("Could not generate key."), error);
+       QMessageBox::critical(ICore::dialogParent(), tr("Could not generate key."), error);
     } else {
-       QMessageBox::information(this, tr("Key generated"), tr("Key pair generated \n %1 \n You should authorize key now.").arg(privKeyPath));
+       QMessageBox::information(ICore::dialogParent(), tr("Key generated"),
+               tr("Key pair generated \n %1 \n You should authorize key now.").arg(privKeyPath));
        m_ui->sdkDetailsWidget->setPrivateKeyFile(privKeyPath);
     }
 }
@@ -230,36 +238,58 @@ void MerOptionsWidget::onSrcFolderApplyButtonClicked(const QString &newFolder)
     MerSdk *sdk = m_sdks[m_virtualMachine];
 
     if (newFolder == sdk->sharedSrcPath()) {
-        QMessageBox::information(0, tr("Choose a new folder"),
+        QMessageBox::information(ICore::dialogParent(), tr("Choose a new folder"),
                                  tr("The given folder (%1) is the current alternative source folder. "
                                     "Please choose another folder if you want to change it.").arg(sdk->sharedSrcPath()));
         return;
     }
 
-    if (MerVirtualBoxManager::isVirtualMachineRunning(m_virtualMachine)) {
-        QMessageBox::information(0, tr("Stop Virtual Machine"),
-                                 tr("Virtual Machine %1 is running. "
-                                    "It must be stopped before the source folder can be changed.").arg(m_virtualMachine));
+    if (!sdk->connection()->isVirtualMachineOff()) {
+        QPointer<QMessageBox> questionBox = new QMessageBox(QMessageBox::Question,
+                tr("Close Virtual Machine"),
+                tr("Close the \"%1\" virtual machine?").arg(m_virtualMachine),
+                QMessageBox::Yes | QMessageBox::No,
+                ICore::dialogParent());
+        questionBox->setInformativeText(
+                tr("Virtual machine must be closed before the source folder can be changed."));
+        if (questionBox->exec() != QMessageBox::Yes) {
+            // reset the path in the chooser
+            m_ui->sdkDetailsWidget->setSrcFolderChooserPath(sdk->sharedSrcPath());
+            return;
+        }
     }
-    else if (MerVirtualBoxManager::updateSharedFolder(m_virtualMachine, QLatin1String("src1"), newFolder)) {
+
+    if (!sdk->connection()->lockDown(true)) {
+        QMessageBox::warning(ICore::dialogParent(), tr("Failed"),
+                tr("Alternative source folder not changed"));
+        // reset the path in the chooser
+        m_ui->sdkDetailsWidget->setSrcFolderChooserPath(sdk->sharedSrcPath());
+        return;
+    }
+
+    bool ok = MerVirtualBoxManager::updateSharedFolder(m_virtualMachine,
+            QLatin1String("src1"), newFolder);
+
+    sdk->connection()->lockDown(false);
+
+    if (ok) {
         // remember to update this value
         sdk->setSharedSrcPath(newFolder);
 
         const QMessageBox::StandardButton response =
-            QMessageBox::question(0, tr("Success!"),
+            QMessageBox::question(ICore::dialogParent(), tr("Success!"),
                                   tr("Alternative source folder for %1 changed to %2.\n\n"
                                      "Do you want to start %1 now?").arg(m_virtualMachine).arg(newFolder),
                                   QMessageBox::No | QMessageBox::Yes, QMessageBox::Yes);
         if (response == QMessageBox::Yes)
-            MerVirtualBoxManager::startVirtualMachine(m_virtualMachine, sdk->isHeadless());
+            sdk->connection()->connectTo();
     }
     else {
-        QMessageBox::warning(0, tr("Changing the source folder failed!"),
+        QMessageBox::warning(ICore::dialogParent(), tr("Changing the source folder failed!"),
                              tr("Unable to change the alternative source folder to %1").arg(newFolder));
+        // reset the path in the chooser
+        m_ui->sdkDetailsWidget->setSrcFolderChooserPath(sdk->sharedSrcPath());
     }
-
-    // update the path in the chooser
-    m_ui->sdkDetailsWidget->setSrcFolderChooserPath(sdk->sharedSrcPath());
 }
 
 void MerOptionsWidget::update()
@@ -275,6 +305,11 @@ void MerOptionsWidget::update()
             m_ui->sdkDetailsWidget->setPrivateKeyFile(m_sshPrivKeys[sdk]);
         else
             m_ui->sdkDetailsWidget->setPrivateKeyFile(sdk->privateKeyFile());
+
+        if (m_sshTimeout.contains(sdk))
+            m_ui->sdkDetailsWidget->setSshTimeout(m_sshTimeout[sdk]);
+        else
+            m_ui->sdkDetailsWidget->setSshTimeout(sdk->timeout());
 
         if (m_headless.contains(sdk))
             m_ui->sdkDetailsWidget->setHeadless(m_headless[sdk]);
@@ -295,6 +330,12 @@ void MerOptionsWidget::onSshKeyChanged(const QString &file)
 {
     //store keys to be saved on save click
     m_sshPrivKeys[m_sdks[m_virtualMachine]] = file;
+}
+
+void MerOptionsWidget::onSshTimeoutChanged(int timeout)
+{
+    //store keys to be saved on save click
+    m_sshTimeout[m_sdks[m_virtualMachine]] = timeout;
 }
 
 void MerOptionsWidget::onHeadlessCheckBoxToggled(bool checked)

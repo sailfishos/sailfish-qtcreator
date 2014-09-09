@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2013 Jolla Ltd.
+** Copyright (C) 2014 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -20,49 +20,39 @@
 **
 ****************************************************************************/
 
-#ifndef MERPLUGIN_H
-#define MERPLUGIN_H
+#ifndef MERADDVMSTARTBUILDSTEPPROJECTLISTENER_H
+#define MERADDVMSTARTBUILDSTEPPROJECTLISTENER_H
 
-#include <extensionsystem/iplugin.h>
-#include <QMap>
+#include "merprojectlistener.h"
+
+namespace ProjectExplorer {
+class BuildConfiguration;
+}
 
 namespace Mer {
 namespace Internal {
 
-class MerConnection;
-
-class MerPlugin : public ExtensionSystem::IPlugin
+// Rationale: it is not possible to simply override
+// QmakeBuildConfigurationFactory::restore() in order to... See differencies in
+// implementation of IBuildConfigurationFactory::find() for "create" and
+// "restore" case - priority is not considere in latter case.
+class MerAddVmStartBuildStepProjectListener : public MerProjectListener
 {
     Q_OBJECT
-    Q_PLUGIN_METADATA(IID "org.qt-project.Qt.QtCreatorPlugin" FILE "plugins/mer/Mer.json")
-
 public:
-    MerPlugin();
-    ~MerPlugin();
+    explicit MerAddVmStartBuildStepProjectListener(QObject *parent = 0);
+    ~MerAddVmStartBuildStepProjectListener();
 
-    bool initialize(const QStringList &arguments, QString *errorMessage);
-    void extensionsInitialized();
-    ShutdownFlag aboutToShutdown();
-
-private slots:
-    void handlePromptClosed(int result);
-    void handleConnectionStateChanged();
-    void handleLockDownFailed();
+protected:
+    // From MerProjectListener
+    bool handleProject(QmakeProjectManager::QmakeProject *project);
+    bool forgetProject(ProjectExplorer::Project *project);
 
 private:
-    QMap<QString, MerConnection *> m_stopList;
-
-#ifdef WITH_TESTS
-    void verifyTargets(const QString &vm, QStringList expectedKits, QStringList expectedToolChains, QStringList expectedQtVersion);
-    void testMerSshOutputParsers_data();
-    void testMerSshOutputParsers();
-    void testMerSdkManager_data();
-    void testMerSdkManager();
-#endif
-
+    static void ensureHasVmStartStep(ProjectExplorer::BuildConfiguration *bc);
 };
 
 } // Internal
 } // Mer
 
-#endif // MERPLUGIN_H
+#endif // MERADDVMSTARTBUILDSTEPPROJECTLISTENER_H

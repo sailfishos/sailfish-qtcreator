@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2013 Jolla Ltd.
+** Copyright (C) 2014 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -20,41 +20,31 @@
 **
 ****************************************************************************/
 
-#ifndef MERCONNECTIONREQUEST_H
-#define MERCONNECTIONREQUEST_H
+#ifndef MERBUILDSTEPS_H
+#define MERBUILDSTEPS_H
 
-#include <QObject>
-#include <QString>
-
-#include "merplugin.h"
+#include "merabstractvmstartstep.h"
 
 namespace Mer {
 namespace Internal {
 
-class MerConnectionPrompt : public QObject
+class MerConnection;
+
+class MerSdkStartStep : public MerAbstractVmStartStep
 {
     Q_OBJECT
+
 public:
-    enum PromptRequest {
-        Start = 0,
-        Close
-    };
+    explicit MerSdkStartStep(ProjectExplorer::BuildStepList *bsl);
+    MerSdkStartStep(ProjectExplorer::BuildStepList *bsl, MerSdkStartStep *bs);
 
-    MerConnectionPrompt(const QString& vm = QString(), const Mer::Internal::MerPlugin *merplugin = 0);
+    bool init();
 
-public slots:
-    void prompt(const MerConnectionPrompt::PromptRequest pr);
-
-private slots:
-    void startPrompt();
-    void closePrompt();
-
-private:
-    QString m_vm;
-    const MerPlugin *m_merplugin;
+    static const Core::Id stepId();
+    static QString displayName();
 };
 
-}
-}
+} // namespace Internal
+} // namespace Mer
 
-#endif // MERCONNECTIONREQUEST_H
+#endif // MERBUILDSTEPS_H

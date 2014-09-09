@@ -56,6 +56,7 @@ public:
     void setStatus(const QString &status);
     void setPrivateKeyFile(const QString &path);
     void setTestButtonEnabled(bool enabled);
+    void setSshTimeout(int timeout);
     void setHeadless(bool enabled);
     void setSrcFolderChooserPath(const QString &path);
 
@@ -64,6 +65,7 @@ signals:
     void sshKeyChanged(const QString &key);
     void authorizeSshKey(const QString &key);
     void testConnectionButtonClicked();
+    void sshTimeoutChanged(int timeout);
     void headlessCheckBoxToggled(bool checked);
     void srcFolderApplyButtonClicked(const QString &path);
 

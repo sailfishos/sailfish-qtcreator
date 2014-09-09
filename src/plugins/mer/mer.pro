@@ -41,6 +41,9 @@ SOURCES += \
     meroptionswidget.cpp \
     mersdkdetailswidget.cpp \
     mersdkselectiondialog.cpp \
+    merabstractvmstartstep.cpp \
+    meraddvmstartbuildstepprojectlistener.cpp \
+    merbuildstepfactory.cpp \
     merdeploystepfactory.cpp \
     mersshparser.cpp \
     mertarget.cpp \
@@ -51,6 +54,7 @@ SOURCES += \
     mertargetsxmlparser.cpp \
     merdevicexmlparser.cpp \
     merprojectlistener.cpp \
+    merbuildsteps.cpp \
     merdeploysteps.cpp \
     merdeployconfiguration.cpp \
     mertargetkitinformation.cpp \
@@ -61,8 +65,6 @@ SOURCES += \
     meremulatordevicewizard.cpp \
     merhardwaredevicewizard.cpp \
     meremulatordevicewizardpages.cpp \
-    merconnectionprompt.cpp \
-    meractionmanager.cpp \
     merrpmpackagingstep.cpp \
     merrpmpackagingwidget.cpp \
     merrpminstaller.cpp \
@@ -90,6 +92,7 @@ HEADERS += \
     meroptionswidget.h \
     mersdkdetailswidget.h \
     mersdkselectiondialog.h \
+    merbuildstepfactory.h \
     merdeploystepfactory.h \
     mersshparser.h \
     mertarget.h \
@@ -100,6 +103,9 @@ HEADERS += \
     mertargetsxmlparser.h \
     merdevicexmlparser.h \
     merprojectlistener.h \
+    merabstractvmstartstep.h \
+    meraddvmstartbuildstepprojectlistener.h \
+    merbuildsteps.h \
     merdeploysteps.h \
     merdeployconfiguration.h \
     mertargetkitinformation.h \
@@ -110,8 +116,6 @@ HEADERS += \
     meremulatordevicewizard.h \
     merhardwaredevicewizard.h \
     meremulatordevicewizardpages.h \
-    merconnectionprompt.h \
-    meractionmanager.h \
     merrpmpackagingstep.h \
     merrpmpackagingwidget.h \
     merrpminstaller.h \

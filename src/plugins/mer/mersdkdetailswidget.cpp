@@ -46,6 +46,7 @@ MerSdkDetailsWidget::MerSdkDetailsWidget(QWidget *parent)
     connect(m_ui->privateKeyPathChooser, SIGNAL(editingFinished()), SLOT(onPathChooserEditingFinished()));
     connect(m_ui->privateKeyPathChooser, SIGNAL(browsingFinished()), SLOT(onPathChooserEditingFinished()));
     connect(m_ui->testConnectionPushButton, SIGNAL(clicked()), SIGNAL(testConnectionButtonClicked()));
+    connect(m_ui->sshTimeoutSpinBox, SIGNAL(valueChanged(int)), SIGNAL(sshTimeoutChanged(int)));
     connect(m_ui->headlessCheckBox, SIGNAL(toggled(bool)), SIGNAL(headlessCheckBoxToggled(bool)));
     connect(m_ui->srcFolderApplyButton, SIGNAL(clicked()), SLOT(onSrcFolderApplyButtonClicked()));
 
@@ -117,6 +118,11 @@ void MerSdkDetailsWidget::setPrivateKeyFile(const QString &path)
 void MerSdkDetailsWidget::setStatus(const QString &status)
 {
     m_ui->statusLabelText->setText(status);
+}
+
+void MerSdkDetailsWidget::setSshTimeout(int timeout)
+{
+    m_ui->sshTimeoutSpinBox->setValue(timeout);
 }
 
 void MerSdkDetailsWidget::setHeadless(bool enabled)

@@ -62,9 +62,13 @@ MerEmulatorDeviceWidget::~MerEmulatorDeviceWidget()
 
 void MerEmulatorDeviceWidget::timeoutEditingFinished()
 {
-    SshConnectionParameters sshParams = device()->sshParameters();
+    if(device()->type() != Constants::MER_DEVICE_TYPE_I486) return;
+    MerEmulatorDevice* device = static_cast<MerEmulatorDevice*>(this->device().data());
+
+    SshConnectionParameters sshParams = device->sshParameters();
     sshParams.timeout = m_ui->timeoutSpinBox->value();
-    device()->setSshParameters(sshParams);
+    device->setSshParameters(sshParams);
+    device->updateConnection();
 }
 
 void MerEmulatorDeviceWidget::userNameEditingFinished()
@@ -85,6 +89,7 @@ void MerEmulatorDeviceWidget::userNameEditingFinished()
         sshParams.privateKeyFile = privKey;
         m_ui->sshKeyLabelEdit->setText(privKey);
         device->setSshParameters(sshParams);
+        device->updateConnection();
     }
 }
 

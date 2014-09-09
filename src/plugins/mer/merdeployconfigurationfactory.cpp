@@ -141,6 +141,13 @@ ProjectExplorer::DeployConfiguration *MerDeployConfigurationFactory::restore(
         delete dc;
         return 0;
     }
+
+    Core::Id type = ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(parent->kit());
+    if (type != Constants::MER_DEVICE_TYPE_ARM) {
+      if (!dc->stepList()->contains(MerEmulatorStartStep::stepId()))
+        dc->stepList()->insertStep(0, new MerEmulatorStartStep(dc->stepList()));
+    }
+
     return dc;
 }
 

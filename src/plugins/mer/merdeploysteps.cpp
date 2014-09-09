@@ -31,11 +31,8 @@
 #include "mersdkmanager.h"
 #include "mersdkkitinformation.h"
 #include "mertargetkitinformation.h"
-#include "merconnectionmanager.h"
 #include "meremulatordevice.h"
-#include "merconnectionprompt.h"
 #include "mervirtualboxmanager.h"
-#include "merconnection.h"
 #include <utils/qtcassert.h>
 #include <projectexplorer/buildstep.h>
 #include <projectexplorer/buildconfiguration.h>
@@ -48,6 +45,7 @@
 #include <qtsupport/baseqtversion.h>
 #include <qtsupport/qtkitinformation.h>
 #include <qmakeprojectmanager/qmakebuildconfiguration.h>
+#include <coreplugin/icore.h>
 #include <coreplugin/idocument.h>
 #include <extensionsystem/pluginmanager.h>
 #include <coreplugin/variablemanager.h>
@@ -55,33 +53,10 @@
 #include <QTimer>
 
 using namespace ProjectExplorer;
+using Core::ICore;
 
 namespace Mer {
 namespace Internal {
-
-class MerSimpleBuildStepConfigWidget : public BuildStepConfigWidget {
-public:
-
-    MerSimpleBuildStepConfigWidget(const QString& displayText, const QString& summaryText)
-        :m_displayText(displayText),m_summaryText(summaryText){}
-
-    QString summaryText() const
-    {
-        return QString::fromLatin1("<b>%1:</b> %2").arg(displayName()).arg(m_summaryText);
-    }
-
-    QString displayName() const
-    {
-        return m_displayText;
-    }
-
-     bool showWidget() const { return false; }
-
-private:
-    QString m_displayText;
-    QString m_summaryText;
-};
-
 
 MerProcessStep::MerProcessStep(ProjectExplorer::BuildStepList *bsl,const Core::Id id)
     :AbstractProcessStep(bsl,id)
@@ -172,27 +147,15 @@ QString MerEmulatorStartStep::displayName()
 }
 
 MerEmulatorStartStep::MerEmulatorStartStep(BuildStepList *bsl)
-    : MerProcessStep(bsl, stepId())
+    : MerAbstractVmStartStep(bsl, stepId())
 {
     setDefaultDisplayName(displayName());
 }
 
 MerEmulatorStartStep::MerEmulatorStartStep(ProjectExplorer::BuildStepList *bsl, MerEmulatorStartStep *bs)
-    :MerProcessStep(bsl,bs)
-    , m_vm(bs->vitualMachine())
-    , m_ssh(bs->sshParams())
+    : MerAbstractVmStartStep(bsl, bs)
 {
     setDefaultDisplayName(displayName());
-}
-
-QString MerEmulatorStartStep::vitualMachine()
-{
-    return m_vm;
-}
-
-QSsh::SshConnectionParameters MerEmulatorStartStep::sshParams()
-{
-    return m_ssh;
 }
 
 bool MerEmulatorStartStep::init()
@@ -203,39 +166,10 @@ bool MerEmulatorStartStep::init()
         return false;
     }
     const MerEmulatorDevice* device = static_cast<const MerEmulatorDevice*>(d.data());
-    m_vm = device->virtualMachine();
-    m_ssh = device->sshParameters();
-    return !m_vm.isEmpty();
-}
 
-bool MerEmulatorStartStep::immutable() const
-{
-    return false;
-}
+    setConnection(device->connection());
 
-void MerEmulatorStartStep::run(QFutureInterface<bool> &fi)
-{
-    MerConnectionManager *em = MerConnectionManager::instance();
-    if(em->isConnected(m_vm)) {
-        emit addOutput(tr("Emulator is already running. Nothing to do."),MessageOutput);
-        fi.reportResult(true);
-        emit finished();
-    } else {
-        emit addOutput(tr("Starting Emulator..."), MessageOutput);
-        QString error = tr("Could not connect to %1 Virtual Machine.").arg(m_vm);
-        MerConnection::createConnectionErrorTask(m_vm,error,Constants::MER_TASKHUB_EMULATOR_CATEGORY);
-        if(!MerVirtualBoxManager::isVirtualMachineRunning(m_vm)) {
-            MerConnectionPrompt *connectioPrompt = new MerConnectionPrompt(m_vm, 0);
-            connectioPrompt->prompt(MerConnectionPrompt::Start);
-        }
-        fi.reportResult(false);
-        emit finished();
-    }
-}
-
-BuildStepConfigWidget *MerEmulatorStartStep::createConfigWidget()
-{
-    return new MerSimpleBuildStepConfigWidget(displayName(),tr("Starts Emulator virtual machine, if necessary."));
+    return MerAbstractVmStartStep::init();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -543,7 +477,7 @@ void RpmInfo::info()
         message.append(QLatin1String("</li>"));
     }
     message.append(QLatin1String("</ul>"));
-    QMessageBox::information(0, tr("Packages created"),message);
+    QMessageBox::information(ICore::dialogParent(), tr("Packages created"),message);
     this->deleteLater();
 }
 

@@ -23,6 +23,7 @@
 #ifndef MERCONNECTIONMANAGER_H
 #define MERCONNECTIONMANAGER_H
 
+#include <coreplugin/id.h>
 #include <QObject>
 
 namespace ProjectExplorer {
@@ -33,15 +34,13 @@ class Task;
 }
 
 namespace QSsh {
-class SshConnection;
 class SshConnectionParameters;
 }
 
 namespace Mer {
 namespace Internal {
 
-class MerSdk;
-class MerConnection;
+class MerConnectionAction;
 
 class MerConnectionManager : public QObject
 {
@@ -49,26 +48,21 @@ class MerConnectionManager : public QObject
 public:
     static MerConnectionManager* instance();
     ~MerConnectionManager();
-    static QSsh::SshConnectionParameters parameters(const MerSdk *sdk);
     QString testConnection(const QSsh::SshConnectionParameters &params) const;
-    bool isConnected(const QString &vmName) const;
-    void connectTo(const QString &vmName);
-    void disconnectFrom(const QString &vmName);
 private slots:
     void update();
     void handleStartupProjectChanged(ProjectExplorer::Project *project);
     void handleKitUpdated(ProjectExplorer::Kit *kit);
     void handleTargetAdded(ProjectExplorer::Target *target);
     void handleTargetRemoved(ProjectExplorer::Target *target);
-    void handleBuildStateChanged(ProjectExplorer::Project* project);
 private:
     MerConnectionManager();
 
 private:
     static MerConnectionManager *m_instance;
     static ProjectExplorer::Project *m_project;
-    QScopedPointer<MerConnection> m_emulatorConnection;
-    QScopedPointer<MerConnection> m_sdkConnection;
+    MerConnectionAction *m_emulatorAction;
+    MerConnectionAction *m_sdkAction;
 
     friend class MerPlugin;
 };

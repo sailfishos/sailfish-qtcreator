@@ -26,9 +26,12 @@
 //#include <projectexplorer/devicesupport/idevice.h>
 #include <remotelinux/linuxdevice.h>
 #include <QCoreApplication>
+#include <QSharedPointer>
 
 namespace Mer {
 namespace Internal {
+
+class MerConnection;
 
 class MerEmulatorDevice : public RemoteLinux::LinuxDevice
 {
@@ -68,10 +71,15 @@ public:
 
     QSsh::SshConnectionParameters sshParametersForUser(const QSsh::SshConnectionParameters &sshParams, const QLatin1String &user) const;
 
+    MerConnection *connection() const;
+    // ATTENTION! Call this when sshParameters are changed! Unfortunately
+    // IDevice API does not allow to hook this.
+    void updateConnection();
+
 private:
     MerEmulatorDevice();
 private:
-    QString m_virtualMachine;
+    QSharedPointer<MerConnection> m_connection; // all clones share the connection
     QString m_mac;
     QString m_subnet;
     QString m_sharedSshPath;

@@ -65,6 +65,7 @@ private slots:
     void onGenerateSshKey(const QString &path);
     void onAuthorizeSshKey(const QString &file);
     void onSshKeyChanged(const QString &file);
+    void onSshTimeoutChanged(int timeout);
     void onHeadlessCheckBoxToggled(bool checked);
     void onSrcFolderApplyButtonClicked(const QString &path);
     void update();
@@ -75,6 +76,7 @@ private:
     QString m_status;
     QMap<QString, MerSdk*> m_sdks;
     QMap<MerSdk*, QString> m_sshPrivKeys;
+    QMap<MerSdk*, int> m_sshTimeout;
     QMap<MerSdk*, bool> m_headless;
 };
 

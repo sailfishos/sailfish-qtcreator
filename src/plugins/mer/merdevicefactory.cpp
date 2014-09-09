@@ -32,8 +32,11 @@
 #include <utils/qtcassert.h>
 #include <ssh/sshconnection.h>
 #include <utils/portlist.h>
+#include <coreplugin/icore.h>
 #include <QFileInfo>
 #include <QMessageBox>
+
+using Core::ICore;
 
 namespace Mer {
 namespace Internal {
@@ -90,6 +93,7 @@ ProjectExplorer::IDevice::Ptr MerDeviceFactory::create(Core::Id id) const
         device->setDisplayName(wizard.configName());
         device->setFreePorts(Utils::PortList::fromString(wizard.freePorts()));
         device->setSshParameters(sshParams);
+        device->updateConnection();
         device->setSharedConfigPath(wizard.sharedConfigPath());
         device->setSharedSshPath(wizard.sharedSshPath());
 
@@ -120,7 +124,7 @@ ProjectExplorer::IDevice::Ptr MerDeviceFactory::create(Core::Id id) const
             QString error;
 
             if (!MerSdkManager::generateSshKey(privKeyPath, error)) {
-                QMessageBox::critical(0, tr("Could not generate key."), error);
+                QMessageBox::critical(ICore::dialogParent(), tr("Could not generate key."), error);
             }
         }
 
@@ -132,7 +136,7 @@ ProjectExplorer::IDevice::Ptr MerDeviceFactory::create(Core::Id id) const
             sshParams.timeout = wizard.timeout();
             sshParams.authenticationType = QSsh::SshConnectionParameters::AuthenticationTypePassword;
             sshParams.password = wizard.password();
-            MerSshKeyDeploymentDialog dlg;
+            MerSshKeyDeploymentDialog dlg(ICore::dialogParent());
             dlg.setSShParameters(sshParams);
             dlg.setPublicKeyPath(wizard.publicKeyFilePath());
             if (dlg.exec() == QDialog::Rejected) {
