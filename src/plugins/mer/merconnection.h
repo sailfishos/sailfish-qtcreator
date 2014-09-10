@@ -129,6 +129,7 @@ private:
     // dialogs
     void openAlreadyConnectingWarningBox();
     void openAlreadyDisconnectingWarningBox();
+    void openVmNotRegisteredWarningBox();
     void openCloseVmQuestionBox();
     void openUnableToCloseVmWarningBox();
     void openRetrySshConnectionQuestionBox();

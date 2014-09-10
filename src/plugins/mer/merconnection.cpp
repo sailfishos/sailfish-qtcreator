@@ -340,6 +340,11 @@ void MerConnection::connectTo()
         return;
     }
 
+    if (!MerVirtualBoxManager::isVirtualMachineRegistered(m_vmName)) {
+        openVmNotRegisteredWarningBox();
+        return;
+    }
+
     if (m_state == Error) {
         m_disconnectRequested = true;
         m_connectLaterRequested = true;
@@ -1032,6 +1037,19 @@ void MerConnection::openAlreadyDisconnectingWarningBox()
             QMessageBox::Warning,
             tr("Already Disconnecting from Virtual Machine"),
             tr("Already disconnecting from the \"%1\" virtual machine - please repeat later.")
+            .arg(m_vmName),
+            QMessageBox::Ok,
+            Core::ICore::dialogParent());
+    box->setAttribute(Qt::WA_DeleteOnClose);
+    box->open();
+}
+
+void MerConnection::openVmNotRegisteredWarningBox()
+{
+    QMessageBox *box = new QMessageBox(
+            QMessageBox::Warning,
+            tr("Virtual Machine Not Found"),
+            tr("No virtual machine with the name \"%1\" found. Check your installation.")
             .arg(m_vmName),
             QMessageBox::Ok,
             Core::ICore::dialogParent());
