@@ -72,6 +72,14 @@ MerOptionsWidget::MerOptionsWidget(QWidget *parent)
 MerOptionsWidget::~MerOptionsWidget()
 {
     delete m_ui;
+
+    // Destroy newly created but not-applied SDKs
+    QSet<MerSdk *> currentSdks = MerSdkManager::instance()->sdks().toSet();
+    foreach (MerSdk *sdk, m_sdks) {
+        if (!currentSdks.contains(sdk)) {
+            delete sdk;
+        }
+    }
 }
 
 void MerOptionsWidget::setSdk(const QString &vmName)
@@ -157,7 +165,10 @@ void MerOptionsWidget::onRemoveButtonClicked()
         return;
 
     if (m_sdks.contains(vmName)) {
-         m_sdks.remove(vmName);
+         MerSdk *removed = m_sdks.take(vmName);
+         QList<MerSdk *> currentSdks = MerSdkManager::instance()->sdks();
+         if (!currentSdks.contains(removed))
+             delete removed;
          if (!m_sdks.isEmpty())
              m_virtualMachine = m_sdks.keys().last();
          else
