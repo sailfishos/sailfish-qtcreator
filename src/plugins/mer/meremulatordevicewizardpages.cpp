@@ -163,7 +163,8 @@ void MerEmualtorVMPage::handleEmulatorVmChanged(const QString &vmName)
 bool MerEmualtorVMPage::isComplete() const
 {
     return !configName().isEmpty()
-            && !ProjectExplorer::DeviceManager::instance()->hasDevice(configName());
+            && !ProjectExplorer::DeviceManager::instance()->hasDevice(configName())
+            && !emulatorVm().isEmpty();
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
