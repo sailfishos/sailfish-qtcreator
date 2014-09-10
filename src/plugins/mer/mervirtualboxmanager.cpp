@@ -261,7 +261,8 @@ VirtualMachineInfo virtualMachineInfoFromOutput(const QString &output)
     QRegExp rexp(QLatin1String("(?:Forwarding\\(\\d+\\)=\"(\\w+),(\\w+),(.*),(\\d+),(.*),(\\d+)\")"
                                "|(?:SharedFolderNameMachineMapping\\d+=\"(\\w+)\"\\W*"
                                "SharedFolderPathMachineMapping\\d+=\"(.*)\")"
-                               "|(?:macaddress\\d+=\"(.*)\")"));
+                               "|(?:macaddress\\d+=\"(.*)\")"
+                               "|(?:SessionType=\"(.*)\")"));
 
     rexp.setMinimal(true);
     int pos = 0;
@@ -297,6 +298,8 @@ VirtualMachineInfo virtualMachineInfoFromOutput(const QString &output)
                 macFields.removeFirst();
                 info.macs << macFields.join(QLatin1String(":"));
             }
+        } else if (rexp.cap(0).startsWith(QLatin1String("SessionType"))) {
+            info.headless = rexp.cap(10) == QLatin1String("headless");
         }
     }
 

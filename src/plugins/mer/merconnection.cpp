@@ -266,8 +266,17 @@ QString MerConnection::errorString() const
     return m_errorString;
 }
 
-bool MerConnection::isVirtualMachineOff() const
+bool MerConnection::isVirtualMachineOff(bool *runningHeadless) const
 {
+    if (runningHeadless) {
+        if (m_cachedVmRunning)
+            *runningHeadless = MerVirtualBoxManager::fetchVirtualMachineInfo(m_vmName).headless;
+        else if (m_vmState == VmStarting) // try to be accurate
+            *runningHeadless = m_headless;
+        else
+            *runningHeadless = false;
+    }
+
     return !m_cachedVmRunning && m_vmState != VmStarting;
 }
 

@@ -88,7 +88,7 @@ public:
     State state() const;
     QString errorString() const;
 
-    bool isVirtualMachineOff() const;
+    bool isVirtualMachineOff(bool *runningHeadless = 0) const;
     bool lockDown(bool lockDown);
 
 public slots:
