@@ -22,6 +22,7 @@
 
 #include "mersdkselectiondialog.h"
 #include "ui_mersdkselectiondialog.h"
+#include "merconnection.h"
 #include "mervirtualboxmanager.h"
 
 #include <QListWidgetItem>
@@ -36,9 +37,14 @@ MerSdkSelectionDialog::MerSdkSelectionDialog(QWidget *parent)
 {
     m_ui->setupUi(this);
 
-    const QStringList registeredSdks = MerVirtualBoxManager::fetchRegisteredVirtualMachines();
-    foreach (const QString &sdk, registeredSdks)
-        new QListWidgetItem(sdk, m_ui->virtualMachineListWidget);
+    const QSet<QString> usedVMs = MerConnection::usedVirtualMachines().toSet();
+    const QStringList registeredVMs = MerVirtualBoxManager::fetchRegisteredVirtualMachines();
+    foreach (const QString &vm, registeredVMs) {
+        // add only unused machines
+        if (!usedVMs.contains(vm)) {
+            new QListWidgetItem(vm, m_ui->virtualMachineListWidget);
+        }
+    }
 
     m_ui->buttonBox->button(QDialogButtonBox::Ok)->setText(tr("Add"));
 

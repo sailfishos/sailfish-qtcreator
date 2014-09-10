@@ -91,6 +91,8 @@ public:
     bool isVirtualMachineOff(bool *runningHeadless = 0) const;
     bool lockDown(bool lockDown);
 
+    static QStringList usedVirtualMachines();
+
 public slots:
     void refresh();
     void connectTo();

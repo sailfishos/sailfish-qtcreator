@@ -198,8 +198,10 @@ MerConnection::MerConnection(QObject *parent)
 
 MerConnection::~MerConnection()
 {
-    if (!m_vmName.isEmpty())
-        --s_usedVmNames[m_vmName];
+    if (!m_vmName.isEmpty()) {
+        if (--s_usedVmNames[m_vmName] == 0)
+            s_usedVmNames.remove(m_vmName);
+    }
 }
 
 void MerConnection::setVirtualMachine(const QString &virtualMachine)
@@ -207,8 +209,10 @@ void MerConnection::setVirtualMachine(const QString &virtualMachine)
     if (m_vmName == virtualMachine)
         return;
 
-    if (!m_vmName.isEmpty())
-        --s_usedVmNames[m_vmName];
+    if (!m_vmName.isEmpty()) {
+        if (--s_usedVmNames[m_vmName] == 0)
+            s_usedVmNames.remove(m_vmName);
+    }
 
     m_vmName = virtualMachine;
     scheduleReset();
@@ -317,6 +321,16 @@ bool MerConnection::lockDown(bool lockDown)
         sshStmScheduleExec();
         return true;
     }
+}
+
+// Rationale: Consider the use case of adding a new SDK/emulator. User should
+// be presented with the list of all _unused_ VMs. It is not enough to simply
+// collect VMs associated with all MerSdkManager::sdks and
+// DeviceManager::devices of type MerEmulatorDevice - until the button Apply/OK
+// is clicked, some instances may exist not reachable this way.
+QStringList MerConnection::usedVirtualMachines()
+{
+    return s_usedVmNames.keys();
 }
 
 void MerConnection::refresh()
