@@ -518,10 +518,6 @@ void MerConnection::updateState()
         m_errorString.clear();
     }
 
-    DBG << "***" << str(oldState) << "-->" << str(m_state);
-    if (m_state == Error)
-        qWarning() << "MerConnection:" << m_errorString;
-
     if (m_state == Disconnected && m_connectLaterRequested) {
         m_state = StartingVm; // important
         m_connectLaterRequested = false;
@@ -532,6 +528,10 @@ void MerConnection::updateState()
         vmStmScheduleExec();
         sshStmScheduleExec();
     }
+
+    DBG << "***" << str(oldState) << "-->" << str(m_state);
+    if (m_state == Error)
+        qWarning() << "MerConnection:" << m_errorString;
 
     emit stateChanged();
 }
@@ -944,6 +944,8 @@ bool MerConnection::sshStmStep()
 
         if (m_vmState != VmRunning) {
             sshStmTransition(SshNotConnected, "VM not running");
+        } else if (m_connectRequested) {
+            sshStmTransition(SshConnecting, "connect requested");
         }
 
         ON_EXIT {
