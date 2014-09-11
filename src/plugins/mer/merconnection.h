@@ -132,6 +132,7 @@ private:
     void openAlreadyConnectingWarningBox();
     void openAlreadyDisconnectingWarningBox();
     void openVmNotRegisteredWarningBox();
+    void openResetVmQuestionBox();
     void openCloseVmQuestionBox();
     void openUnableToCloseVmWarningBox();
     void openRetrySshConnectionQuestionBox();
@@ -199,6 +200,7 @@ private:
     QBasicTimer m_resetTimer;
 
     // dialogs
+    QPointer<QMessageBox> m_resetVmQuestionBox;
     QPointer<QMessageBox> m_closeVmQuestionBox;
     QPointer<QMessageBox> m_unableToCloseVmWarningBox;
     QPointer<QMessageBox> m_retrySshConnectionQuestionBox;

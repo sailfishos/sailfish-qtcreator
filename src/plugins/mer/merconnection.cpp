@@ -650,8 +650,18 @@ bool MerConnection::vmStmStep()
         } else if (m_disconnectRequested) {
             // waiting for ssh connection to disconnect first
             if (m_sshState == SshNotConnected || m_sshState == SshDisconnected) {
-                if (!m_vmStartedOutside) {
+                if (!m_vmStartedOutside && !m_connectLaterRequested) {
                     vmStmTransition(VmSoftClosing, "disconnect requested");
+                } else if (m_connectLaterRequested) {
+                    if (!m_resetVmQuestionBox) {
+                        openResetVmQuestionBox();
+                    } else if (QAbstractButton *button = m_resetVmQuestionBox->clickedButton()) {
+                        if (button == m_resetVmQuestionBox->button(QMessageBox::Yes)) {
+                            vmStmTransition(VmSoftClosing, "disconnect&connect later requested+reset allowed");
+                        } else {
+                            vmStmTransition(VmZombie, "disconnect&connect later requested+reset denied");
+                        }
+                    }
                 } else {
                     if (!m_closeVmQuestionBox) {
                         openCloseVmQuestionBox();
@@ -667,6 +677,7 @@ bool MerConnection::vmStmStep()
         }
 
         ON_EXIT {
+            deleteMessageBox(m_resetVmQuestionBox);
             deleteMessageBox(m_closeVmQuestionBox);
             sshStmScheduleExec();
         }
@@ -1073,6 +1084,27 @@ void MerConnection::openVmNotRegisteredWarningBox()
     box->open();
 }
 
+void MerConnection::openResetVmQuestionBox()
+{
+    QTC_CHECK(!m_resetVmQuestionBox);
+
+    m_resetVmQuestionBox = new QMessageBox(
+            QMessageBox::Question,
+            tr("Reset Virtual Machine"),
+            tr("Connection to the \"%1\" virtual machine failed recently. "
+                "Do you want to reset the virtual machine first?").arg(m_vmName),
+            QMessageBox::Yes | QMessageBox::No,
+            Core::ICore::dialogParent());
+    if (m_vmStartedOutside) {
+        m_resetVmQuestionBox->setInformativeText(tr("This virtual machine has "
+                    "been started outside of Qt Creator."));
+    }
+    m_resetVmQuestionBox->setEscapeButton(QMessageBox::No);
+    connect(m_resetVmQuestionBox, SIGNAL(finished(int)),
+            this, SLOT(vmStmScheduleExec()));
+    m_resetVmQuestionBox->open();
+}
+
 void MerConnection::openCloseVmQuestionBox()
 {
     QTC_CHECK(!m_closeVmQuestionBox);
@@ -1080,7 +1112,7 @@ void MerConnection::openCloseVmQuestionBox()
     m_closeVmQuestionBox = new QMessageBox(
             QMessageBox::Question,
             tr("Close Virtual Machine"),
-            tr("Do you want to close the \"%1\" virtual machine?").arg(m_vmName),
+            tr("Do you really want to close the \"%1\" virtual machine?").arg(m_vmName),
             QMessageBox::Yes | QMessageBox::No,
             Core::ICore::dialogParent());
     m_closeVmQuestionBox->setInformativeText(tr("This virtual machine has "
