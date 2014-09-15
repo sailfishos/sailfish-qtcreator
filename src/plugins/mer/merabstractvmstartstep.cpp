@@ -113,10 +113,11 @@ void MerAbstractVmStartStep::run(QFutureInterface<bool> &fi)
                     tr("The \"%1\" virtual machine is not running. Do you want to start it now?")
                     .arg(m_connection->virtualMachine()),
                     QMessageBox::Yes | QMessageBox::No,
-                    Core::ICore::dialogParent());
+                    Core::ICore::mainWindow());
             m_questionBox->setEscapeButton(QMessageBox::No);
             connect(m_questionBox, SIGNAL(finished(int)), this, SLOT(onQuestionBoxFinished()));
-            m_questionBox->open();
+            m_questionBox->show();
+            m_questionBox->raise();
         } else {
             beginConnect();
         }
