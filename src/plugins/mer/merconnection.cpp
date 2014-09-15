@@ -785,6 +785,7 @@ bool MerConnection::vmStmStep()
         ON_EXIT {
             vmWantFastPollState(false);
             m_vmHardClosingTimeoutTimer.stop();
+            deleteMessageBox(m_retryLockDownQuestionBox);
         }
         break;
     }
