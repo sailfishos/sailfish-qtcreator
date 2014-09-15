@@ -198,8 +198,10 @@ MerConnection::MerConnection(QObject *parent)
 
 MerConnection::~MerConnection()
 {
-    if (!m_vmName.isEmpty())
-        --s_usedVmNames[m_vmName];
+    if (!m_vmName.isEmpty()) {
+        if (--s_usedVmNames[m_vmName] == 0)
+            s_usedVmNames.remove(m_vmName);
+    }
 }
 
 void MerConnection::setVirtualMachine(const QString &virtualMachine)
@@ -207,8 +209,10 @@ void MerConnection::setVirtualMachine(const QString &virtualMachine)
     if (m_vmName == virtualMachine)
         return;
 
-    if (!m_vmName.isEmpty())
-        --s_usedVmNames[m_vmName];
+    if (!m_vmName.isEmpty()) {
+        if (--s_usedVmNames[m_vmName] == 0)
+            s_usedVmNames.remove(m_vmName);
+    }
 
     m_vmName = virtualMachine;
     scheduleReset();
@@ -266,8 +270,17 @@ QString MerConnection::errorString() const
     return m_errorString;
 }
 
-bool MerConnection::isVirtualMachineOff() const
+bool MerConnection::isVirtualMachineOff(bool *runningHeadless) const
 {
+    if (runningHeadless) {
+        if (m_cachedVmRunning)
+            *runningHeadless = MerVirtualBoxManager::fetchVirtualMachineInfo(m_vmName).headless;
+        else if (m_vmState == VmStarting) // try to be accurate
+            *runningHeadless = m_headless;
+        else
+            *runningHeadless = false;
+    }
+
     return !m_cachedVmRunning && m_vmState != VmStarting;
 }
 
@@ -310,6 +323,16 @@ bool MerConnection::lockDown(bool lockDown)
     }
 }
 
+// Rationale: Consider the use case of adding a new SDK/emulator. User should
+// be presented with the list of all _unused_ VMs. It is not enough to simply
+// collect VMs associated with all MerSdkManager::sdks and
+// DeviceManager::devices of type MerEmulatorDevice - until the button Apply/OK
+// is clicked, some instances may exist not reachable this way.
+QStringList MerConnection::usedVirtualMachines()
+{
+    return s_usedVmNames.keys();
+}
+
 void MerConnection::refresh()
 {
     DBG << "Refresh requested";
@@ -328,6 +351,11 @@ void MerConnection::connectTo()
         return;
     } else if (m_disconnectRequested) {
         openAlreadyDisconnectingWarningBox();
+        return;
+    }
+
+    if (!MerVirtualBoxManager::isVirtualMachineRegistered(m_vmName)) {
+        openVmNotRegisteredWarningBox();
         return;
     }
 
@@ -490,10 +518,6 @@ void MerConnection::updateState()
         m_errorString.clear();
     }
 
-    DBG << "***" << str(oldState) << "-->" << str(m_state);
-    if (m_state == Error)
-        qWarning() << "MerConnection:" << m_errorString;
-
     if (m_state == Disconnected && m_connectLaterRequested) {
         m_state = StartingVm; // important
         m_connectLaterRequested = false;
@@ -504,6 +528,10 @@ void MerConnection::updateState()
         vmStmScheduleExec();
         sshStmScheduleExec();
     }
+
+    DBG << "***" << str(oldState) << "-->" << str(m_state);
+    if (m_state == Error)
+        qWarning() << "MerConnection:" << m_errorString;
 
     emit stateChanged();
 }
@@ -622,8 +650,18 @@ bool MerConnection::vmStmStep()
         } else if (m_disconnectRequested) {
             // waiting for ssh connection to disconnect first
             if (m_sshState == SshNotConnected || m_sshState == SshDisconnected) {
-                if (!m_vmStartedOutside) {
+                if (!m_vmStartedOutside && !m_connectLaterRequested) {
                     vmStmTransition(VmSoftClosing, "disconnect requested");
+                } else if (m_connectLaterRequested) {
+                    if (!m_resetVmQuestionBox) {
+                        openResetVmQuestionBox();
+                    } else if (QAbstractButton *button = m_resetVmQuestionBox->clickedButton()) {
+                        if (button == m_resetVmQuestionBox->button(QMessageBox::Yes)) {
+                            vmStmTransition(VmSoftClosing, "disconnect&connect later requested+reset allowed");
+                        } else {
+                            vmStmTransition(VmZombie, "disconnect&connect later requested+reset denied");
+                        }
+                    }
                 } else {
                     if (!m_closeVmQuestionBox) {
                         openCloseVmQuestionBox();
@@ -639,6 +677,7 @@ bool MerConnection::vmStmStep()
         }
 
         ON_EXIT {
+            deleteMessageBox(m_resetVmQuestionBox);
             deleteMessageBox(m_closeVmQuestionBox);
             sshStmScheduleExec();
         }
@@ -916,6 +955,8 @@ bool MerConnection::sshStmStep()
 
         if (m_vmState != VmRunning) {
             sshStmTransition(SshNotConnected, "VM not running");
+        } else if (m_connectRequested) {
+            sshStmTransition(SshConnecting, "connect requested");
         }
 
         ON_EXIT {
@@ -1030,6 +1071,40 @@ void MerConnection::openAlreadyDisconnectingWarningBox()
     box->open();
 }
 
+void MerConnection::openVmNotRegisteredWarningBox()
+{
+    QMessageBox *box = new QMessageBox(
+            QMessageBox::Warning,
+            tr("Virtual Machine Not Found"),
+            tr("No virtual machine with the name \"%1\" found. Check your installation.")
+            .arg(m_vmName),
+            QMessageBox::Ok,
+            Core::ICore::dialogParent());
+    box->setAttribute(Qt::WA_DeleteOnClose);
+    box->open();
+}
+
+void MerConnection::openResetVmQuestionBox()
+{
+    QTC_CHECK(!m_resetVmQuestionBox);
+
+    m_resetVmQuestionBox = new QMessageBox(
+            QMessageBox::Question,
+            tr("Reset Virtual Machine"),
+            tr("Connection to the \"%1\" virtual machine failed recently. "
+                "Do you want to reset the virtual machine first?").arg(m_vmName),
+            QMessageBox::Yes | QMessageBox::No,
+            Core::ICore::dialogParent());
+    if (m_vmStartedOutside) {
+        m_resetVmQuestionBox->setInformativeText(tr("This virtual machine has "
+                    "been started outside of Qt Creator."));
+    }
+    m_resetVmQuestionBox->setEscapeButton(QMessageBox::No);
+    connect(m_resetVmQuestionBox, SIGNAL(finished(int)),
+            this, SLOT(vmStmScheduleExec()));
+    m_resetVmQuestionBox->open();
+}
+
 void MerConnection::openCloseVmQuestionBox()
 {
     QTC_CHECK(!m_closeVmQuestionBox);
@@ -1037,7 +1112,7 @@ void MerConnection::openCloseVmQuestionBox()
     m_closeVmQuestionBox = new QMessageBox(
             QMessageBox::Question,
             tr("Close Virtual Machine"),
-            tr("Do you want to close the \"%1\" virtual machine?").arg(m_vmName),
+            tr("Do you really want to close the \"%1\" virtual machine?").arg(m_vmName),
             QMessageBox::Yes | QMessageBox::No,
             Core::ICore::dialogParent());
     m_closeVmQuestionBox->setInformativeText(tr("This virtual machine has "

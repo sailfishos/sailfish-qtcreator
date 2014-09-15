@@ -34,7 +34,7 @@ namespace Internal {
 class VirtualMachineInfo
 {
 public:
-    VirtualMachineInfo() : sshPort(0), wwwPort(0) {}
+    VirtualMachineInfo() : sshPort(0), wwwPort(0), headless(false) {}
     QString sharedHome;
     QString sharedTargets;
     QString sharedConfig;
@@ -44,6 +44,7 @@ public:
     quint16 wwwPort;
     QList<quint16> freePorts;
     QStringList macs;
+    bool headless;
 };
 
 class MerVirtualBoxManager : public QObject

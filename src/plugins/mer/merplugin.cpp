@@ -93,21 +93,20 @@ ExtensionSystem::IPlugin::ShutdownFlag MerPlugin::aboutToShutdown()
     m_stopList.clear();
     QList<MerSdk*> sdks = MerSdkManager::instance()->sdks();
     foreach(const MerSdk* sdk, sdks) {
-        if(sdk->isHeadless()) {
-            MerConnection *connection = sdk->connection();
-            if(!connection->isVirtualMachineOff()) {
-                QMessageBox *prompt = new QMessageBox(
-                        QMessageBox::Question,
-                        tr("Close Virtual Machine"),
-                        tr("The headless virtual machine \"%1\" is still running.\n\n"
-                            "Close the virtual machine now?").arg(connection->virtualMachine()),
-                        QMessageBox::Yes | QMessageBox::No,
-                        Core::ICore::dialogParent());
-                prompt->setProperty(VM_NAME_PROPERTY, connection->virtualMachine());
-                connect(prompt, SIGNAL(finished(int)), this, SLOT(handlePromptClosed(int)));
-                m_stopList.insert(connection->virtualMachine(), connection);
-                prompt->open();
-            }
+        MerConnection *connection = sdk->connection();
+        bool headless = false;
+        if (!connection->isVirtualMachineOff(&headless) && headless) {
+            QMessageBox *prompt = new QMessageBox(
+                    QMessageBox::Question,
+                    tr("Close Virtual Machine"),
+                    tr("The headless virtual machine \"%1\" is still running.\n\n"
+                        "Close the virtual machine now?").arg(connection->virtualMachine()),
+                    QMessageBox::Yes | QMessageBox::No,
+                    Core::ICore::dialogParent());
+            prompt->setProperty(VM_NAME_PROPERTY, connection->virtualMachine());
+            connect(prompt, SIGNAL(finished(int)), this, SLOT(handlePromptClosed(int)));
+            m_stopList.insert(connection->virtualMachine(), connection);
+            prompt->open();
         }
     }
     if(m_stopList.isEmpty())

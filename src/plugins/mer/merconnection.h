@@ -88,8 +88,10 @@ public:
     State state() const;
     QString errorString() const;
 
-    bool isVirtualMachineOff() const;
+    bool isVirtualMachineOff(bool *runningHeadless = 0) const;
     bool lockDown(bool lockDown);
+
+    static QStringList usedVirtualMachines();
 
 public slots:
     void refresh();
@@ -129,6 +131,8 @@ private:
     // dialogs
     void openAlreadyConnectingWarningBox();
     void openAlreadyDisconnectingWarningBox();
+    void openVmNotRegisteredWarningBox();
+    void openResetVmQuestionBox();
     void openCloseVmQuestionBox();
     void openUnableToCloseVmWarningBox();
     void openRetrySshConnectionQuestionBox();
@@ -196,6 +200,7 @@ private:
     QBasicTimer m_resetTimer;
 
     // dialogs
+    QPointer<QMessageBox> m_resetVmQuestionBox;
     QPointer<QMessageBox> m_closeVmQuestionBox;
     QPointer<QMessageBox> m_unableToCloseVmWarningBox;
     QPointer<QMessageBox> m_retrySshConnectionQuestionBox;

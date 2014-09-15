@@ -20,7 +20,7 @@
 **
 ****************************************************************************/
 #include "merconstants.h"
-#include "mersdkmanager.h"
+#include "merconnection.h"
 #include "meremulatordevicewizardpages.h"
 #include "meremulatordevicewizard.h"
 #include "ui_meremulatordevicewizardvmpage.h"
@@ -57,19 +57,13 @@ MerEmualtorVMPage::MerEmualtorVMPage(QWidget *parent): QWizardPage(parent),
     m_ui->timeoutSpinBox->setMaximum(65535);
     m_ui->timeoutSpinBox->setValue(30);
 
-    QList<MerSdk*> sdks = MerSdkManager::instance()->sdks();
-    QStringList vmNames;
-    foreach (const MerSdk *s, sdks) {
-        vmNames << s->virtualMachineName();
-    }
-
     static QRegExp regExp(tr("Emulator"));
 
+    const QSet<QString> usedVMs = MerConnection::usedVirtualMachines().toSet();
     const QStringList registeredVMs = MerVirtualBoxManager::fetchRegisteredVirtualMachines();
-
     foreach (const QString &vm, registeredVMs) {
-        //add remove machine wich are sdks
-        if(!vmNames.contains(vm)) {
+        // add only unused machines
+        if (!usedVMs.contains(vm)) {
             m_ui->emulatorComboBox->addItem(vm);
             if (regExp.indexIn(vm) != -1) {
                 //preselect emulator
@@ -163,7 +157,8 @@ void MerEmualtorVMPage::handleEmulatorVmChanged(const QString &vmName)
 bool MerEmualtorVMPage::isComplete() const
 {
     return !configName().isEmpty()
-            && !ProjectExplorer::DeviceManager::instance()->hasDevice(configName());
+            && !ProjectExplorer::DeviceManager::instance()->hasDevice(configName())
+            && !emulatorVm().isEmpty();
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
