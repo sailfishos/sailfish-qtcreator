@@ -84,6 +84,8 @@ static QString vBoxManagePath()
     }
 }
 
+MerVirtualBoxManager *MerVirtualBoxManager::m_instance = 0;
+
 MerVirtualBoxManager::MerVirtualBoxManager(QObject *parent):
     QObject(parent)
 {
