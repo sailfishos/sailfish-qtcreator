@@ -57,8 +57,8 @@ public:
     static bool isVirtualMachineRegistered(const QString &vmName);
     static QStringList fetchRegisteredVirtualMachines();
     static VirtualMachineInfo fetchVirtualMachineInfo(const QString &vmName);
-    static bool startVirtualMachine(const QString &vmName, bool headless);
-    static bool shutVirtualMachine(const QString &vmName);
+    static void startVirtualMachine(const QString &vmName, bool headless);
+    static void shutVirtualMachine(const QString &vmName);
     static bool updateSharedFolder(const QString &vmName, const QString &mountName, const QString &newFolder);
 private:
     MerVirtualBoxManager(QObject *parent = 0);
