@@ -102,7 +102,7 @@ ExtensionSystem::IPlugin::ShutdownFlag MerPlugin::aboutToShutdown()
                     tr("The headless virtual machine \"%1\" is still running.\n\n"
                         "Close the virtual machine now?").arg(connection->virtualMachine()),
                     QMessageBox::Yes | QMessageBox::No,
-                    Core::ICore::dialogParent());
+                    Core::ICore::mainWindow());
             prompt->setProperty(VM_NAME_PROPERTY, connection->virtualMachine());
             connect(prompt, SIGNAL(finished(int)), this, SLOT(handlePromptClosed(int)));
             m_stopList.insert(connection->virtualMachine(), connection);

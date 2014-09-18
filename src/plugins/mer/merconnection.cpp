@@ -71,8 +71,6 @@ public:
         , m_exitStatus(QSsh::SshRemoteProcess::FailedToStart)
         , m_finished(false)
     {
-        if (m_runner)
-            m_runner->cancel();
     }
 
     void run(const QSsh::SshConnectionParameters &sshParams)
@@ -785,6 +783,7 @@ bool MerConnection::vmStmStep()
         ON_EXIT {
             vmWantFastPollState(false);
             m_vmHardClosingTimeoutTimer.stop();
+            deleteMessageBox(m_retryLockDownQuestionBox);
         }
         break;
     }
@@ -1053,9 +1052,10 @@ void MerConnection::openAlreadyConnectingWarningBox()
             tr("Already connecting to the \"%1\" virtual machine - please repeat later.")
             .arg(m_vmName),
             QMessageBox::Ok,
-            Core::ICore::dialogParent());
+            Core::ICore::mainWindow());
     box->setAttribute(Qt::WA_DeleteOnClose);
-    box->open();
+    box->show();
+    box->raise();
 }
 
 void MerConnection::openAlreadyDisconnectingWarningBox()
@@ -1066,9 +1066,10 @@ void MerConnection::openAlreadyDisconnectingWarningBox()
             tr("Already disconnecting from the \"%1\" virtual machine - please repeat later.")
             .arg(m_vmName),
             QMessageBox::Ok,
-            Core::ICore::dialogParent());
+            Core::ICore::mainWindow());
     box->setAttribute(Qt::WA_DeleteOnClose);
-    box->open();
+    box->show();
+    box->raise();
 }
 
 void MerConnection::openVmNotRegisteredWarningBox()
@@ -1079,9 +1080,10 @@ void MerConnection::openVmNotRegisteredWarningBox()
             tr("No virtual machine with the name \"%1\" found. Check your installation.")
             .arg(m_vmName),
             QMessageBox::Ok,
-            Core::ICore::dialogParent());
+            Core::ICore::mainWindow());
     box->setAttribute(Qt::WA_DeleteOnClose);
-    box->open();
+    box->show();
+    box->raise();
 }
 
 void MerConnection::openResetVmQuestionBox()
@@ -1094,7 +1096,7 @@ void MerConnection::openResetVmQuestionBox()
             tr("Connection to the \"%1\" virtual machine failed recently. "
                 "Do you want to reset the virtual machine first?").arg(m_vmName),
             QMessageBox::Yes | QMessageBox::No,
-            Core::ICore::dialogParent());
+            Core::ICore::mainWindow());
     if (m_vmStartedOutside) {
         m_resetVmQuestionBox->setInformativeText(tr("This virtual machine has "
                     "been started outside of Qt Creator."));
@@ -1102,7 +1104,8 @@ void MerConnection::openResetVmQuestionBox()
     m_resetVmQuestionBox->setEscapeButton(QMessageBox::No);
     connect(m_resetVmQuestionBox, SIGNAL(finished(int)),
             this, SLOT(vmStmScheduleExec()));
-    m_resetVmQuestionBox->open();
+    m_resetVmQuestionBox->show();
+    m_resetVmQuestionBox->raise();
 }
 
 void MerConnection::openCloseVmQuestionBox()
@@ -1114,14 +1117,15 @@ void MerConnection::openCloseVmQuestionBox()
             tr("Close Virtual Machine"),
             tr("Do you really want to close the \"%1\" virtual machine?").arg(m_vmName),
             QMessageBox::Yes | QMessageBox::No,
-            Core::ICore::dialogParent());
+            Core::ICore::mainWindow());
     m_closeVmQuestionBox->setInformativeText(tr("This virtual machine has "
                 "been started outside of Qt Creator. Answer \"No\" to "
                 "disconnect and leave the virtual machine running."));
     m_closeVmQuestionBox->setEscapeButton(QMessageBox::No);
     connect(m_closeVmQuestionBox, SIGNAL(finished(int)),
             this, SLOT(vmStmScheduleExec()));
-    m_closeVmQuestionBox->open();
+    m_closeVmQuestionBox->show();
+    m_closeVmQuestionBox->raise();
 }
 
 void MerConnection::openUnableToCloseVmWarningBox()
@@ -1133,8 +1137,9 @@ void MerConnection::openUnableToCloseVmWarningBox()
             tr("Unable to Close Virtual Machine"),
             tr("Timeout waiting for the \"%1\" virtual machine to close.").arg(m_vmName),
             QMessageBox::Ok,
-            Core::ICore::dialogParent());
-    m_unableToCloseVmWarningBox->open();
+            Core::ICore::mainWindow());
+    m_unableToCloseVmWarningBox->show();
+    m_unableToCloseVmWarningBox->raise();
 }
 
 void MerConnection::openRetrySshConnectionQuestionBox()
@@ -1147,7 +1152,7 @@ void MerConnection::openRetrySshConnectionQuestionBox()
             tr("Could not connect to the \"%1\" virtual machine. Do you want to try again?")
             .arg(m_vmName),
             QMessageBox::Yes | QMessageBox::No,
-            Core::ICore::dialogParent());
+            Core::ICore::mainWindow());
     QString informativeText = tr("Connection error: %1 %2")
         .arg(m_cachedSshError)
         .arg(m_cachedSshErrorString);
@@ -1158,7 +1163,8 @@ void MerConnection::openRetrySshConnectionQuestionBox()
     m_retrySshConnectionQuestionBox->setInformativeText(informativeText);
     connect(m_retrySshConnectionQuestionBox, SIGNAL(finished(int)),
             this, SLOT(sshStmScheduleExec()));
-    m_retrySshConnectionQuestionBox->open();
+    m_retrySshConnectionQuestionBox->show();
+    m_retrySshConnectionQuestionBox->raise();
 }
 
 void MerConnection::openRetryLockDownQuestionBox()
@@ -1171,10 +1177,11 @@ void MerConnection::openRetryLockDownQuestionBox()
             tr("Timeout waiting for the \"%1\" virtual machine to close. Do you want to try again?")
             .arg(m_vmName),
             QMessageBox::Yes | QMessageBox::No,
-            Core::ICore::dialogParent());
+            Core::ICore::mainWindow());
     connect(m_retryLockDownQuestionBox, SIGNAL(finished(int)),
             this, SLOT(vmStmScheduleExec()));
-    m_retryLockDownQuestionBox->open();
+    m_retryLockDownQuestionBox->show();
+    m_retryLockDownQuestionBox->raise();
 }
 
 void MerConnection::deleteMessageBox(QPointer<QMessageBox> &messageBox)

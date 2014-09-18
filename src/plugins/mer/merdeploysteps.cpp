@@ -477,7 +477,7 @@ void RpmInfo::info()
         message.append(QLatin1String("</li>"));
     }
     message.append(QLatin1String("</ul>"));
-    QMessageBox::information(ICore::dialogParent(), tr("Packages created"),message);
+    QMessageBox::information(ICore::mainWindow(), tr("Packages created"),message);
     this->deleteLater();
 }
 
