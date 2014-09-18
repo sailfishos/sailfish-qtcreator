@@ -71,8 +71,6 @@ public:
         , m_exitStatus(QSsh::SshRemoteProcess::FailedToStart)
         , m_finished(false)
     {
-        if (m_runner)
-            m_runner->cancel();
     }
 
     void run(const QSsh::SshConnectionParameters &sshParams)
