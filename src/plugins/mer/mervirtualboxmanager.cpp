@@ -84,6 +84,8 @@ static QString vBoxManagePath()
     }
 }
 
+MerVirtualBoxManager *MerVirtualBoxManager::m_instance = 0;
+
 MerVirtualBoxManager::MerVirtualBoxManager(QObject *parent):
     QObject(parent)
 {
@@ -181,41 +183,45 @@ VirtualMachineInfo MerVirtualBoxManager::fetchVirtualMachineInfo(const QString &
     return virtualMachineInfoFromOutput(QString::fromLocal8Bit(process.readAllStandardOutput()));
 }
 
-bool MerVirtualBoxManager::startVirtualMachine(const QString &vmName,bool headless)
+void MerVirtualBoxManager::startVirtualMachine(const QString &vmName,bool headless)
 {
     // Start VM if it is not running
     if (isVirtualMachineRunning(vmName))
-        return true;
+        return;
 
-    if(isVirtualMachineRegistered(vmName)) {
-        QStringList arguments;
-        arguments.append(QLatin1String(STARTVM));
-        arguments.append(vmName);
-        if (headless) {
-            arguments.append(QLatin1String(TYPE));
-            arguments.append(QLatin1String(HEADLESS));
-        }
-
-        return QProcess::execute(vBoxManagePath(), arguments);
+    if (!isVirtualMachineRegistered(vmName)) {
+        qWarning() << "MerVirtualBoxManager: VM not registered:" << vmName;
+        return;
     }
 
-    return false;
+    QStringList arguments;
+    arguments.append(QLatin1String(STARTVM));
+    arguments.append(vmName);
+    if (headless) {
+        arguments.append(QLatin1String(TYPE));
+        arguments.append(QLatin1String(HEADLESS));
+    }
+
+    QProcess *process = new QProcess(instance());
+    connect(process, SIGNAL(error(QProcess::ProcessError)), process, SLOT(deleteLater()));
+    connect(process, SIGNAL(finished(int,QProcess::ExitStatus)), process, SLOT(deleteLater()));
+    process->start(vBoxManagePath(), arguments);
 }
 
-bool MerVirtualBoxManager::shutVirtualMachine(const QString &vmName)
+void MerVirtualBoxManager::shutVirtualMachine(const QString &vmName)
 {
     if (!isVirtualMachineRunning(vmName))
-        return true;
+        return;
+
     QStringList arguments;
     arguments.append(QLatin1String(CONTROLVM));
     arguments.append(vmName);
     arguments.append(QLatin1String(ACPI_POWER_BUTTON));
-    QProcess process;
-    process.start(vBoxManagePath(), arguments);
-    if (!process.waitForFinished())
-        return false;
 
-    return isVirtualMachineRunning(vmName);
+    QProcess *process = new QProcess(instance());
+    connect(process, SIGNAL(error(QProcess::ProcessError)), process, SLOT(deleteLater()));
+    connect(process, SIGNAL(finished(int,QProcess::ExitStatus)), process, SLOT(deleteLater()));
+    process->start(vBoxManagePath(), arguments);
 }
 
 QStringList MerVirtualBoxManager::fetchRegisteredVirtualMachines()
