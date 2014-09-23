@@ -347,11 +347,12 @@ void MerConnectionManager::update()
             }
 
             if (MerSdkManager::hasMerDevice(t->kit())) {
-                emulatorRemoteButtonVisible = true;
                 if (t == activeTarget) {
-                    emulatorRemoteButtonEnabled =
+                    bool hasEmulatorDevice =
                             DeviceTypeKitInformation::deviceTypeId(t->kit()) == Core::Id(Constants::MER_DEVICE_TYPE_I486);
-                    if(emulatorRemoteButtonEnabled) {
+                    if (hasEmulatorDevice) {
+                          emulatorRemoteButtonVisible = true;
+                          emulatorRemoteButtonEnabled = true;
                           const IDevice::ConstPtr device = DeviceKitInformation::device(t->kit());
                           const MerEmulatorDevice* emu = static_cast<const MerEmulatorDevice*>(device.data());
                           m_emulatorAction->setConnection(emu->connection());
