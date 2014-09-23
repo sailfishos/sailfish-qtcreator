@@ -22,6 +22,7 @@
 
 #include "mermanagementwebview.h"
 #include "ui_mermanagementwebview.h"
+#include "merconnection.h"
 #include "mersdkkitinformation.h"
 #include "mersdkmanager.h"
 
@@ -37,6 +38,7 @@ namespace Mer {
 namespace Internal {
 
 const char CONTROLCENTER_URL_BASE[] = "http://127.0.0.1/";
+const char START_VM_URL[] = "about:blank#startVM";
 
 class MerManagementWebViewSdksModel : public QAbstractListModel
 {
@@ -271,25 +273,51 @@ void MerManagementWebView::selectActiveSdkVm()
 void MerManagementWebView::handleLoadFinished(bool success)
 {
     if (!success) {
-        // one cannot be sure here
-        QString vmName = m_selectedSdk ? m_selectedSdk->virtualMachineName() : QLatin1String("SDK");
+        QString vmStatus = QLatin1String("<h1>The SDK VM is not ready.</h1>");
+        if (m_selectedSdk) { // one cannot be sure here
+            QString vmName = m_selectedSdk->virtualMachineName();
+            if (m_selectedSdk->connection()->isVirtualMachineOff()) {
+                vmStatus = QString::fromLatin1(
+                        "<h1>The \"%1\" VM is not running.</h1>"
+                        "<p><a href=\"%2\">Start the virtual machine!</a></p>"
+                        )
+                    .arg(vmName)
+                    .arg(QLatin1String(START_VM_URL));
+            } else {
+                vmStatus = QString::fromLatin1(
+                        "<h1>The \"%1\" VM is not ready.</h1>"
+                        "<p>The virtual machine is running but not responding.</p>"
+                        )
+                    .arg(vmName);
+            }
+        }
 
         ui->webView->setHtml(
-                             QString::fromLatin1(
-                                           "<html>"
-                                           "<head></head>"
-                                           "<body>"
-                                           "<div style='text-align: center; vertical-align: middle;'>"
-                                           "<h1>The \"%1\" VM is not responding.</h1>"
-                                           "<p><h1>Create a new SailfishOS project (or open an existing one) and press the <em>Start SDK</em> button on the lower left.</h1></p>"
-                                           "</div>"
-                                           "</body>"
-                                           "</html>")
-                             .arg(vmName)
-                             );
+                QString::fromLatin1(
+                    "<html>"
+                    "<head></head>"
+                    "<body style='margin: 0px; text-align: center;'>"
+                    "  <div style='background-color: #EBEBEB; border-bottom: 1px solid #737373; "
+                    "              padding-top: 1px; padding-left: 6px; padding-right: 6px;'>"
+                    "  %1"
+                    "  </div>"
+                    "  <div style='padding-left: 24px; padding-right: 24px;'>"
+                    "    <p>An SDK virtual machine can be controlled with the "
+                    "    <img src=\"qrc:/mer/images/sdk-run.png\"/> button &ndash; available on "
+                    "    the lower left side <em>when a SailfishOS project is open</em>.</p>"
+                    "  </div>"
+                    "</body>"
+                    "</html>")
+                .arg(vmStatus)
+                );
         m_loaded = false;
         if (m_autoFailReload)
             QTimer::singleShot(5000,this,SLOT(reloadPage()));
+    } else if (ui->webView->url() == QUrl(QLatin1String(START_VM_URL))) {
+        if (m_selectedSdk) {
+            m_selectedSdk->connection()->connectTo();
+        }
+        QTimer::singleShot(5000, this, SLOT(reloadPage()));
     } else if (ui->webView->url().toString() != QLatin1String("about:blank")) {
         m_loaded = true;
     }
@@ -297,8 +325,10 @@ void MerManagementWebView::handleLoadFinished(bool success)
 
 void MerManagementWebView::reloadPage()
 {
-    if (ui->webView->url().isEmpty() || ui->webView->url().toString() == QLatin1String("about:blank"))
+    if (ui->webView->url().isEmpty() ||
+            ui->webView->url().matches(QUrl(QLatin1String("about:blank")), QUrl::RemoveFragment)) {
         resetWebView();
+    }
 }
 
 void MerManagementWebView::setAutoFailReload(bool enabled)
