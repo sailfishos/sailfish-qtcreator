@@ -23,6 +23,7 @@
 #ifndef MERMANAGEMENTWEBVIEW_H
 #define MERMANAGEMENTWEBVIEW_H
 
+#include <QPointer>
 #include <QUrl>
 #include <QWidget>
 
@@ -33,6 +34,9 @@ namespace Ui {
 class MerManagementWebView;
 }
 
+class MerSdk;
+class MerManagementWebViewSdksModel;
+
 class MerManagementWebView : public QWidget
 {
     Q_OBJECT
@@ -42,18 +46,23 @@ public:
     ~MerManagementWebView();
 
 public slots:
-    void setUrl(const QUrl &url);
     void setAutoFailReload(bool enabled);
+
+private:
+    void resetWebView();
 
 private slots:
     void on_webView_urlChanged(const QUrl &url);
-    void on_urlLineEdit_returnPressed();
+    void on_sdksComboBox_currentIndexChanged(int index);
     void on_homeButton_clicked();
+    void selectActiveSdkVm();
     void handleLoadFinished(bool success);
     void reloadPage();
 
 private:
     Ui::MerManagementWebView *ui;
+    MerManagementWebViewSdksModel *m_sdksModel;
+    QPointer<MerSdk> m_selectedSdk;
     bool m_loaded;
     bool m_autoFailReload;
 };

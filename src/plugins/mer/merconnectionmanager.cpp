@@ -288,16 +288,6 @@ void MerConnectionManager::handleKitUpdated(Kit *kit)
 
 void MerConnectionManager::handleStartupProjectChanged(ProjectExplorer::Project *project)
 {
-    if (project != m_project && project) {
-        // handle all target related changes, add, remove, etc...
-        connect(project, SIGNAL(addedTarget(ProjectExplorer::Target*)),
-                SLOT(handleTargetAdded(ProjectExplorer::Target*)));
-        connect(project, SIGNAL(removedTarget(ProjectExplorer::Target*)),
-                SLOT(handleTargetRemoved(ProjectExplorer::Target*)));
-        connect(project, SIGNAL(activeTargetChanged(ProjectExplorer::Target*)),
-                SLOT(update()));
-    }
-
     if (m_project) {
         disconnect(m_project, SIGNAL(addedTarget(ProjectExplorer::Target*)),
                    this, SLOT(handleTargetAdded(ProjectExplorer::Target*)));
@@ -308,6 +298,16 @@ void MerConnectionManager::handleStartupProjectChanged(ProjectExplorer::Project 
     }
 
     m_project = project;
+
+    if (m_project) {
+        connect(m_project, SIGNAL(addedTarget(ProjectExplorer::Target*)),
+                SLOT(handleTargetAdded(ProjectExplorer::Target*)));
+        connect(m_project, SIGNAL(removedTarget(ProjectExplorer::Target*)),
+                SLOT(handleTargetRemoved(ProjectExplorer::Target*)));
+        connect(m_project, SIGNAL(activeTargetChanged(ProjectExplorer::Target*)),
+                SLOT(update()));
+    }
+
     update();
 }
 
