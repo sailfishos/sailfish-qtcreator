@@ -51,8 +51,6 @@ using namespace ProjectExplorer;
 namespace Mer {
 namespace Internal {
 
-const QSize iconSize = QSize(24, 20);
-
 class MerConnectionAction : public QObject
 {
     Q_OBJECT
@@ -62,7 +60,8 @@ public:
 
     void setId(const Core::Id &id) { m_id = id; }
     void setName(const QString &name) { m_name = name; }
-    void setIcon(const QIcon &icon) { m_icon = icon; }
+    void setIconOff(const QIcon &icon) { m_iconOff = icon; }
+    void setIconOn(const QIcon &icon) { m_iconOn = icon; }
     void setStartTip(const QString &tip) { m_startTip = tip; }
     void setStopTip(const QString &tip) { m_stopTip = tip; }
     void setConnectingTip(const QString &tip) { m_connTip = tip; }
@@ -86,7 +85,8 @@ private:
     QPointer<MerConnection> m_connection;
     Core::Id m_id;
     QAction *m_action;
-    QIcon m_icon;
+    QIcon m_iconOff;
+    QIcon m_iconOn;
     QString m_name;
     QString m_startTip;
     QString m_stopTip;
@@ -120,7 +120,7 @@ void MerConnectionAction::initialize()
         return;
 
     m_action->setText(m_name);
-    m_action->setIcon(m_icon.pixmap(iconSize));
+    m_action->setIcon(m_iconOff);
     m_action->setToolTip(m_startTip);
     connect(m_action, SIGNAL(triggered()), this, SLOT(handleTriggered()));
 
@@ -205,7 +205,7 @@ void MerConnectionAction::update()
     m_action->setEnabled(enabled);
     m_action->setVisible(m_visible);
     m_action->setToolTip(toolTip);
-    m_action->setIcon(m_icon.pixmap(iconSize, QIcon::Normal, state));
+    m_action->setIcon(state == QIcon::Off ? m_iconOff : m_iconOn);
 }
 
 void MerConnectionAction::handleTriggered()
@@ -228,17 +228,15 @@ MerConnectionManager::MerConnectionManager():
     m_emulatorAction(new MerConnectionAction(this)),
     m_sdkAction(new MerConnectionAction(this))
 {
-    QIcon emuIcon;
-    emuIcon.addFile(QLatin1String(":/mer/images/emulator-run.png"));
-    emuIcon.addFile(QLatin1String(":/mer/images/emulator-stop.png"), QSize(), QIcon::Normal,
-                    QIcon::On);
-    QIcon sdkIcon;
-    sdkIcon.addFile(QLatin1String(":/mer/images/sdk-run.png"));
-    sdkIcon.addFile(QLatin1String(":/mer/images/sdk-stop.png"), QSize(), QIcon::Normal, QIcon::On);
+    QIcon emuIconOff(QLatin1String(":/mer/images/emulator-run.png"));
+    QIcon emuIconOn(QLatin1String(":/mer/images/emulator-stop.png"));
+    QIcon sdkIconOff(QLatin1String(":/mer/images/sdk-run.png"));
+    QIcon sdkIconOn(QLatin1String(":/mer/images/sdk-stop.png"));
 
     m_emulatorAction->setName(tr("Emulator"));
     m_emulatorAction->setId(Constants::MER_EMULATOR_CONNECTON_ACTION_ID);
-    m_emulatorAction->setIcon(emuIcon);
+    m_emulatorAction->setIconOff(emuIconOff);
+    m_emulatorAction->setIconOn(emuIconOn);
     m_emulatorAction->setStartTip(tr("Start Emulator"));
     m_emulatorAction->setStopTip(tr("Stop Emulator"));
     m_emulatorAction->setConnectingTip(tr("Connecting..."));
@@ -249,7 +247,8 @@ MerConnectionManager::MerConnectionManager():
 
     m_sdkAction->setName(tr("MerSdk"));
     m_sdkAction->setId(Constants::MER_SDK_CONNECTON_ACTION_ID);
-    m_sdkAction->setIcon(sdkIcon);
+    m_sdkAction->setIconOff(sdkIconOff);
+    m_sdkAction->setIconOn(sdkIconOn);
     m_sdkAction->setStartTip(tr("Start SDK"));
     m_sdkAction->setStopTip(tr("Stop SDK"));
     m_sdkAction->setConnectingTip(tr("Connecting..."));
