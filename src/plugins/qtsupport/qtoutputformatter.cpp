@@ -42,6 +42,10 @@ using namespace Utils;
 
 namespace QtSupport {
 
+// Prefix added by the default QT_MESSAGE_PATTERN on Sailfish
+#define SAILFISH_PREFIX_REGEXP \
+    "(?:\\[[DWCF]\\] [^\\s]+ - )"
+
 // "file" or "qrc", colon, optional '//', '/' and further characters
 #define QML_URL_REGEXP \
     "(?:file|qrc):(?://)?/.+"
@@ -52,10 +56,10 @@ class QtOutputFormatterPrivate
 {
 public:
     QtOutputFormatterPrivate(Project *proj)
-        : qmlError(QLatin1String("(" QML_URL_REGEXP    // url
-                                  ":\\d+"           // colon, line
-                                  "(?::\\d+)?)"     // colon, column (optional)
-                                  "[: \t]"))        // colon, space or tab
+        : qmlError(QLatin1String("^" SAILFISH_PREFIX_REGEXP "(" QML_URL_REGEXP    // url
+                                   ":\\d+"           // colon, line
+                                   "(?::\\d+)?)"     // colon, column (optional)
+                                   "[: \t]"))        // colon, space or tab
         , qtError(QLatin1String("Object::.*in (.*:\\d+)"))
         , qtAssert(QLatin1String("ASSERT: .* in file (.+, line \\d+)"))
         , qtAssertX(QLatin1String("ASSERT failure in .*: \".*\", file (.+, line \\d+)"))
