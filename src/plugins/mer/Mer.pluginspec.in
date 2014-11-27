@@ -10,7 +10,7 @@ Other Usage
 Alternatively, this file may be used in accordance with the terms and conditions contained in a signed written agreement between you and Digia.</license>
     <category>Device Support</category>
     <description>Support for Mer.</description>
-    <url>http://www.qt-project.org</url>
+    <url>https://github.com/sailfish-sdk</url>
     <dependencyList>
         <dependency name=\"Core\" version=\"$$QTCREATOR_VERSION\"/>
         <dependency name=\"QmakeProjectManager\" version=\"$$QTCREATOR_VERSION\"/>
