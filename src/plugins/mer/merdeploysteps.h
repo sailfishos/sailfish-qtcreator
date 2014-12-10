@@ -39,6 +39,8 @@
 namespace Mer {
 namespace Internal {
 
+class MerDeployConfiguration;
+
 class MerProcessStep: public ProjectExplorer::AbstractProcessStep
 {
 public:
@@ -47,6 +49,9 @@ public:
     bool init();
     QString arguments() const;
     void setArguments(const QString &arguments);
+
+protected:
+    MerDeployConfiguration *deployConfiguration() const;
 
 private:
     QString m_arguments;
@@ -142,6 +147,23 @@ public slots:
     void info();
 private:
     QStringList m_list;
+};
+
+class MerRpmValidationStep : public MerProcessStep
+{
+    Q_OBJECT
+public:
+    explicit MerRpmValidationStep(ProjectExplorer::BuildStepList *bsl);
+    MerRpmValidationStep(ProjectExplorer::BuildStepList *bsl, MerRpmValidationStep *bs);
+    bool init();
+    bool immutable() const;
+    void run(QFutureInterface<bool> &fi);
+    ProjectExplorer::BuildStepConfigWidget *createConfigWidget();
+    static const Core::Id stepId();
+    static QString displayName();
+    friend class MerDeployStepFactory;
+private:
+    MerMb2RpmBuildStep *m_packagingStep;
 };
 
 class MerDeployStepWidget : public ProjectExplorer::BuildStepConfigWidget

@@ -28,11 +28,14 @@
 ****************************************************************************/
 #include "merconstants.h"
 #include "merdeploysteps.h"
+#include "merdeployconfiguration.h"
 #include "mersdkmanager.h"
 #include "mersdkkitinformation.h"
+#include "mersettings.h"
 #include "mertargetkitinformation.h"
 #include "meremulatordevice.h"
 #include "mervirtualboxmanager.h"
+#include "merrpmvalidationparser.h"
 #include <utils/qtcassert.h>
 #include <projectexplorer/buildstep.h>
 #include <projectexplorer/buildconfiguration.h>
@@ -132,6 +135,11 @@ QString MerProcessStep::arguments() const
 void MerProcessStep::setArguments(const QString &arguments)
 {
     m_arguments = arguments;
+}
+
+MerDeployConfiguration *MerProcessStep::deployConfiguration() const
+{
+    return qobject_cast<MerDeployConfiguration *>(AbstractProcessStep::deployConfiguration());
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -479,6 +487,89 @@ void RpmInfo::info()
     message.append(QLatin1String("</ul>"));
     QMessageBox::information(ICore::mainWindow(), tr("Packages created"),message);
     this->deleteLater();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+const Core::Id MerRpmValidationStep::stepId()
+{
+    return Core::Id("QmakeProjectManager.MerRpmValidationStep");
+}
+
+QString MerRpmValidationStep::displayName()
+{
+    return QLatin1String("RPM Validation");
+}
+
+MerRpmValidationStep::MerRpmValidationStep(BuildStepList *bsl)
+    : MerProcessStep(bsl, stepId())
+{
+    setEnabled(MerSettings::rpmValidationByDefault());
+    setDefaultDisplayName(displayName());
+}
+
+
+MerRpmValidationStep::MerRpmValidationStep(ProjectExplorer::BuildStepList *bsl, MerRpmValidationStep *bs)
+    :MerProcessStep(bsl,bs)
+{
+    setEnabled(MerSettings::rpmValidationByDefault());
+    setDefaultDisplayName(displayName());
+}
+
+bool MerRpmValidationStep::init()
+{
+    if (!MerProcessStep::init()) {
+        return false;
+    }
+
+    m_packagingStep = deployConfiguration()->earlierBuildStep<MerMb2RpmBuildStep>(this);
+    if (!m_packagingStep) {
+        emit addOutput(tr("Cannot validate: No previous \"%1\" step found")
+                .arg(MerMb2RpmBuildStep::displayName()),
+                ErrorMessageOutput);
+        return false;
+    }
+
+    setOutputParser(new MerRpmValidationParser);
+
+    return true;
+}
+
+bool MerRpmValidationStep::immutable() const
+{
+    return false;
+}
+
+void MerRpmValidationStep::run(QFutureInterface<bool> &fi)
+{
+    emit addOutput(tr("Validating RPM package..."), MessageOutput);
+
+    const QString packageFile = m_packagingStep->packagesFilePath().first();
+    if(!packageFile.endsWith(QLatin1String(".rpm"))){
+        const QString message((tr("No package to validate found in %1")).arg(packageFile));
+        emit addOutput(message, ErrorMessageOutput);
+        fi.reportResult(false);
+        emit finished();
+        return;
+    }
+
+    // hack
+    ProcessParameters *pp = processParameters();
+    QString deployCommand = pp->command();
+    deployCommand.replace(QLatin1String(Constants::MER_WRAPPER_DEPLOY),QLatin1String(Constants::MER_WRAPPER_RPMVALIDATION));
+    pp->setCommand(deployCommand);
+    pp->setArguments(packageFile);
+
+    AbstractProcessStep::run(fi);
+}
+
+BuildStepConfigWidget *MerRpmValidationStep::createConfigWidget()
+{
+    MerDeployStepWidget *widget = new MerDeployStepWidget(this);
+    widget->setDisplayName(displayName());
+    widget->setSummaryText(tr("Validates RPM package."));
+    widget->setCommandText(QLatin1String("rpmvalidation"));
+    return widget;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////

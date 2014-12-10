@@ -51,7 +51,8 @@ const char* wrapperScripts[] =
     MER_WRAPPER_GCC,
     MER_WRAPPER_DEPLOY,
     MER_WRAPPER_RPM,
-    MER_WRAPPER_RPMBUILD
+    MER_WRAPPER_RPMBUILD,
+    MER_WRAPPER_RPMVALIDATION,
 };
 
 MerTarget::MerTarget(MerSdk* mersdk):

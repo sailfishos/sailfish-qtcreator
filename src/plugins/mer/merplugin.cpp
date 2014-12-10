@@ -28,6 +28,7 @@
 #include "merdeployconfigurationfactory.h"
 #include "merrunconfigurationfactory.h"
 #include "merruncontrolfactory.h"
+#include "mergeneraloptionspage.h"
 #include "meroptionspage.h"
 #include "merbuildstepfactory.h"
 #include "merdeploystepfactory.h"
@@ -36,6 +37,7 @@
 #include "merconnectionmanager.h"
 #include "mervirtualboxmanager.h"
 #include "mermode.h"
+#include "mersettings.h"
 
 #include <coreplugin/icore.h>
 #include <coreplugin/mimedatabase.h>
@@ -65,10 +67,13 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
 
     MerSdkManager::verbose = arguments.count(QLatin1String("-mer-verbose"));
 
+    new MerSettings(this);
+
     addAutoReleasedObject(new MerSdkManager);
     addAutoReleasedObject(new MerVirtualBoxManager);
     addAutoReleasedObject(new MerConnectionManager);
     addAutoReleasedObject(new MerOptionsPage);
+    addAutoReleasedObject(new MerGeneralOptionsPage);
     addAutoReleasedObject(new MerDeviceFactory);
     addAutoReleasedObject(new MerQtVersionFactory);
     addAutoReleasedObject(new MerToolChainFactory);
