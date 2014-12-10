@@ -329,7 +329,7 @@ const Core::Id MerMb2RpmDeployStep::stepId()
 
 QString MerMb2RpmDeployStep::displayName()
 {
-    return QLatin1String("Rpm");
+    return QLatin1String("RPM");
 }
 
 MerMb2RpmDeployStep::MerMb2RpmDeployStep(BuildStepList *bsl)
@@ -359,7 +359,7 @@ bool MerMb2RpmDeployStep::immutable() const
 
 void MerMb2RpmDeployStep::run(QFutureInterface<bool> &fi)
 {
-    emit addOutput(tr("Deploying rpm package..."), MessageOutput);
+    emit addOutput(tr("Deploying RPM package..."), MessageOutput);
     AbstractProcessStep::run(fi);
 }
 
@@ -367,7 +367,7 @@ BuildStepConfigWidget *MerMb2RpmDeployStep::createConfigWidget()
 {
     MerDeployStepWidget *widget = new MerDeployStepWidget(this);
     widget->setDisplayName(displayName());
-    widget->setSummaryText(tr("Deploys rpm package."));
+    widget->setSummaryText(tr("Deploys RPM package."));
     return widget;
 }
 
@@ -382,7 +382,7 @@ const Core::Id MerMb2RpmBuildStep::stepId()
 
 QString MerMb2RpmBuildStep::displayName()
 {
-    return QLatin1String("Rpm");
+    return QLatin1String("RPM");
 }
 
 MerMb2RpmBuildStep::MerMb2RpmBuildStep(BuildStepList *bsl)
@@ -421,7 +421,7 @@ bool MerMb2RpmBuildStep::immutable() const
 //TODO: This is hack
 void MerMb2RpmBuildStep::run(QFutureInterface<bool> &fi)
 {
-    emit addOutput(tr("Building rpm package..."), MessageOutput);
+    emit addOutput(tr("Building RPM package..."), MessageOutput);
     AbstractProcessStep::run(fi);
 }
 //TODO: This is hack
@@ -443,7 +443,7 @@ BuildStepConfigWidget *MerMb2RpmBuildStep::createConfigWidget()
 {
     MerDeployStepWidget *widget = new MerDeployStepWidget(this);
     widget->setDisplayName(displayName());
-    widget->setSummaryText(tr("Builds rpm package."));
+    widget->setSummaryText(tr("Builds RPM package."));
     widget->setCommandText(QLatin1String("mb2 rpm"));
     return widget;
 }
