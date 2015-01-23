@@ -41,7 +41,8 @@ using namespace QtSupport;
 
 QtOutputFormatter::QtOutputFormatter(ProjectExplorer::Project *project)
     : OutputFormatter()
-    , m_qmlError(QLatin1String("^((?:file|qrc):///.+"    // url
+    , m_qmlError(QLatin1String("^(?:\\[[DWCF]\\] [^\\s]+ - )?" // sailfish default QT_MESSAGE_PATTERN
+                               "((?:file|qrc):///.+"    // url
                                ":\\d+"           // colon, line
                                "(?::\\d+)?)"     // colon, column (optional)
                                "[: \t]"))        // colon, space or tab
