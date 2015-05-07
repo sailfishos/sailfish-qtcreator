@@ -205,10 +205,113 @@ Building for Sailfish SDK
 3. run qmake:
 	qmake ../digia-qt-creator/qtcreator.pro -r -after "DEFINES+=IDE_COPY_SETTINGS_FROM_VARIANT=. IDE_SETTINGSVARIANT=SailfishAlpha4" QTC_PREFIX=
 
-4. build QtCreator, intaller, artifacts etc as defined in 
+4. build QtCreator, intaller, artifacts etc as defined in
 	http://qt-project.org/wiki/Building-Qt-Creator-Packages
 
+Compiling Qt Creator for Sailfish SDK on OS X
+---------------------------------------------
 
+This section provides step by step instructions for compiling Qt and Qt Creator
+for Sailfish SDK on OS X. The easiest way to build both Qt and Qt Creator is to
+use the build scripts 'buildqt5.sh' and 'buildqtc.sh' from the Sailfish SDK
+build tools repository (https://github.com/sailfish-sdk/sdk-build-tools).
+
+By default the build scripts use Qt 5.2.1 but to build on OS X 10.10, Qt 5.4.0
+or newer is required. The instructions below assume you're building on OS X
+10.10. For other prerequisites, please see the README.md file at the root of
+the Sailfish SDK build tools repository.
+
+  1.   Create a working directory in which to extract Qt source code and
+       checkout the required build tools and Qt Creator source repositories:
+
+         mkdir ~/invariant
+
+       Note that the script 'buildqt5.sh' expects to find Qt source code in a
+       directory called 'invariant' under your home directory. For convenience,
+       this same directory is used here for other required sources as well.
+
+  2.   Download Qt 5.4.0 from http://download.qt.io/archive/qt/5.4/5.4.0/single/qt-everywhere-opensource-src-5.4.0.tar.gz
+       and extract the archive into the directory created in step 1:
+
+         tar -xf ~/Downloads/qt-everywhere-opensource-src-5.4.0.tar.gz -C ~/invariant
+
+  3.   Clone the build tools and Qt Creator source repositories into the
+       directory created in step 1:
+
+         cd ~/invariant
+         git clone https://github.com/sailfish-sdk/sdk-build-tools.git
+         git clone https://github.com/sailfish-sdk/sailfish-qtcreator.git
+
+       You should now have the following directory structure in your home
+       directory:
+
+         /
+           Users/
+             username/
+               invariant/
+                 qt-everywhere-opensource-src-5.4.0/
+                 sailfish-qtcreator/
+                 sdk-build-tools/
+
+
+  4.   To build version 5.4.0 of Qt, the 'buildqt5.sh' script in
+       'sdk-build-tools' needs to be modified. Find this line near the top of
+       the file:
+
+         QT_SOURCE_PACKAGE=qt-everywhere-opensource-src-5.2.1
+
+       and change it to:
+
+         QT_SOURCE_PACKAGE=qt-everywhere-opensource-src-5.4.0
+
+  5.   Build a dynamic version of Qt by running the build script without any
+       options:
+
+         cd ~/invariant/sdk-build-tools
+         ./buildqt5.sh
+
+       Verify that the source directory shown matches the path where you extracted
+       the Qt source package, e.g., '/Users/username/invariant/qt-everywhere-opensource-src-5.4.0'
+       and answer "y" to the "Do you want continue?" prompt to start the build.
+
+       Once the compilation finishes, the binaries can be found in a directory
+       matching the source directory but with "-build" appended to the name:
+
+         /
+           Users/
+             username/
+               invariant/
+                 qt-everywhere-opensource-src-5.4.0/
+                 qt-everywhere-opensource-src-5.4.0-build/
+                 ...
+
+  6.   Build Qt Creator using the version of Qt built in step 5. To do this,
+       you need to supply the full path of the Qt build directory to the
+       'buildqtc.sh' script:
+
+         ./buildqtc.sh --qtc-src ~/invariant/sailfish-qtcreator --qt-dir ~/invariant/qt-everywhere-opensource-src-5.4.0-build
+
+       Verify that the Qt Creator source and Qt directories shown match the
+       paths in steps 3 and 5, respectively. Answer "y" to the "Do you want
+       continue?" prompt to start the build.
+
+       When the compilation finishes, the final Qt Creator application bundle
+       can be found in the 'qtc-build' directory in the directory where you
+       started the build:
+
+         /
+           Users/
+             username/
+               invariant/
+                 ...
+                 sdk-build-tools/
+                   qtc-build/
+                     bin/
+                       Qt Creator.app
+                     ...
+
+         No installation step is required, you can simply double click
+         'Qt Creator.app' in the Finder to run it.
 
 Third-party Components
 ======================
@@ -327,6 +430,3 @@ we thank the authors who made this possible:
   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE."
-
-
-
