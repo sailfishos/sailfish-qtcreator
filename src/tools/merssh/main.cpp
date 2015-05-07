@@ -27,6 +27,7 @@
 #include "makecommand.h"
 #include "deploycommand.h"
 #include "rpmcommand.h"
+#include "rpmvalidationcommand.h"
 #include <mer/merconstants.h>
 #include <QCoreApplication>
 #include <QProcessEnvironment>
@@ -93,6 +94,7 @@ int main(int argc, char *argv[])
     CommandFactory::registerCommand<MakeCommand>(QLatin1String("make"));
     CommandFactory::registerCommand<DeployCommand>(QLatin1String("deploy"));
     CommandFactory::registerCommand<RpmCommand>(QLatin1String("rpm"));
+    CommandFactory::registerCommand<RpmValidationCommand>(QLatin1String("rpmvalidation"));
     CommandFactory::registerCommand<GenerateKeysCommand>(QLatin1String("generatesshkeys"));
 
     QStringList arguments  = QCoreApplication::arguments();

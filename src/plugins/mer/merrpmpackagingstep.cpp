@@ -300,7 +300,7 @@ const Core::Id MerRpmPackagingStep::stepId()
 
 QString MerRpmPackagingStep::displayName()
 {
-    return tr("Build Rpm Package Locally");
+    return tr("Build RPM Package Locally");
 }
 
 

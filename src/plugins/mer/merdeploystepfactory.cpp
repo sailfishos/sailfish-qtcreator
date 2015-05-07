@@ -51,6 +51,7 @@ QList<Core::Id> MerDeployStepFactory::availableCreationIds(BuildStepList *parent
     ids << MerMb2RpmDeployStep::stepId();
     ids << MerMb2RpmBuildStep::stepId();
     ids << MerRpmPackagingStep::stepId();
+    ids << MerRpmValidationStep::stepId();
     ids << MerUploadAndInstallRpmStep::stepId();
     ids << MerLocalRsyncDeployStep::stepId();
 
@@ -69,6 +70,8 @@ QString MerDeployStepFactory::displayNameForId(const Core::Id id) const
         return MerMb2RpmBuildStep::displayName();
     if (id == MerRpmPackagingStep::stepId())
         return MerRpmPackagingStep::displayName();
+    if (id == MerRpmValidationStep::stepId())
+        return MerRpmValidationStep::displayName();
     if (id == MerUploadAndInstallRpmStep::stepId())
         return MerUploadAndInstallRpmStep::displayName();
     if (id == MerLocalRsyncDeployStep::stepId())
@@ -94,6 +97,8 @@ BuildStep *MerDeployStepFactory::create(BuildStepList *parent, const Core::Id id
         return new MerMb2RpmBuildStep(parent);
     if (id == MerRpmPackagingStep::stepId())
         return new MerRpmPackagingStep(parent);
+    if (id == MerRpmValidationStep::stepId())
+        return new MerRpmValidationStep(parent);
     if (id == MerUploadAndInstallRpmStep::stepId())
         return new MerUploadAndInstallRpmStep(parent);
     if (id == MerLocalRsyncDeployStep::stepId())
@@ -136,6 +141,8 @@ BuildStep *MerDeployStepFactory::clone(BuildStepList *parent, BuildStep *product
         return new MerMb2RpmBuildStep(parent, other);
     if (MerRpmPackagingStep * const other = qobject_cast<MerRpmPackagingStep *>(product))
         return new MerRpmPackagingStep(parent, other);
+    if (MerRpmValidationStep * const other = qobject_cast<MerRpmValidationStep *>(product))
+        return new MerRpmValidationStep(parent, other);
     if (MerUploadAndInstallRpmStep * const other = qobject_cast<MerUploadAndInstallRpmStep *>(product))
         return new MerUploadAndInstallRpmStep(parent, other);
     if (MerLocalRsyncDeployStep * const other = qobject_cast<MerLocalRsyncDeployStep *>(product))

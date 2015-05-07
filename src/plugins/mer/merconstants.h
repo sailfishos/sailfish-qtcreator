@@ -41,6 +41,8 @@ const char MER_OPTIONS_CATEGORY_TR[] = QT_TRANSLATE_NOOP("Mer", "Mer");
 const char MER_OPTIONS_CATEGORY_ICON[] = ":/mer/images/icon-s-sailfish-qtcreator.png";
 const char MER_OPTIONS_ID[] = "A.Mer";
 const char MER_OPTIONS_NAME[] = QT_TRANSLATE_NOOP("Mer", "SDK");
+const char MER_GENERAL_OPTIONS_ID[] = "A.MerGeneral";
+const char MER_GENERAL_OPTIONS_NAME[] = QT_TRANSLATE_NOOP("Mer", "General");
 
 const char MER_DEVICE_TYPE_I486[] = "Mer.Device.Type.i486";
 const char MER_DEVICE_TYPE_ARM[] = "Mer.Device.Type.Arm";
@@ -66,6 +68,7 @@ const char MER_WRAPPER_MAKE[] = "make" SCRIPT_EXTENSION;
 const char MER_WRAPPER_GCC[] = "gcc" SCRIPT_EXTENSION;
 const char MER_WRAPPER_DEPLOY[] = "deploy" SCRIPT_EXTENSION;
 const char MER_WRAPPER_RPM[] = "rpm" SCRIPT_EXTENSION;
+const char MER_WRAPPER_RPMVALIDATION[] = "rpmvalidation" SCRIPT_EXTENSION;
 
 const char MER_SDK_DEFAULTUSER[] = "mersdk";
 const char MER_DEVICE_DEFAULTUSER[] = "nemo";
