@@ -12,6 +12,7 @@ RESOURCES += \
     mer.qrc
 
 FORMS += \
+    mergeneraloptionswidget.ui \
     meroptionswidget.ui \
     mersdkdetailswidget.ui \
     mersdkselectiondialog.ui \
@@ -26,9 +27,11 @@ FORMS += \
 
 SOURCES += \
     merplugin.cpp \
+    mersettings.cpp \
     merqtversion.cpp \
     merqtversionfactory.cpp \
     mertoolchain.cpp \
+    mergeneraloptionspage.cpp \
     meroptionspage.cpp \
     merdevicefactory.cpp \
     merdeployconfigurationfactory.cpp \
@@ -38,6 +41,7 @@ SOURCES += \
     merrunconfiguration.cpp \
     merrunconfigurationfactory.cpp \
     merruncontrolfactory.cpp \
+    mergeneraloptionswidget.cpp \
     meroptionswidget.cpp \
     mersdkdetailswidget.cpp \
     mersdkselectiondialog.cpp \
@@ -57,6 +61,7 @@ SOURCES += \
     merbuildsteps.cpp \
     merdeploysteps.cpp \
     merdeployconfiguration.cpp \
+    merrpmvalidationparser.cpp \
     mertargetkitinformation.cpp \
     meremulatordevice.cpp \
     meremulatordevicewidget.cpp \
@@ -76,9 +81,11 @@ SOURCES += \
 HEADERS += \
     merplugin.h \
     merconstants.h \
+    mersettings.h \
     merqtversion.h \
     merqtversionfactory.h \
     mertoolchain.h \
+    mergeneraloptionspage.h \
     meroptionspage.h \
     merdevicefactory.h \
     mertoolchainfactory.h \
@@ -89,6 +96,7 @@ HEADERS += \
     merrunconfiguration.h \
     merrunconfigurationfactory.h \
     merruncontrolfactory.h \
+    mergeneraloptionswidget.h \
     meroptionswidget.h \
     mersdkdetailswidget.h \
     mersdkselectiondialog.h \
@@ -108,6 +116,7 @@ HEADERS += \
     merbuildsteps.h \
     merdeploysteps.h \
     merdeployconfiguration.h \
+    merrpmvalidationparser.h \
     mertargetkitinformation.h \
     meremulatordevice.h \
     meremulatordevicewidget.h \
