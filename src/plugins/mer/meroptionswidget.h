@@ -68,7 +68,12 @@ private slots:
     void onSshTimeoutChanged(int timeout);
     void onHeadlessCheckBoxToggled(bool checked);
     void onSrcFolderApplyButtonClicked(const QString &path);
+    void onResizeDiskImageButtonClicked(const QString &uuid, int capacity, int newCapacity);
     void update();
+
+private:
+    bool showCloseVirtualMachineDialog(const QString &informativeText);
+    bool showStartVirtualMachineDialog(const QString &informativeText);
 
 private:
     Ui::MerOptionsWidget *m_ui;

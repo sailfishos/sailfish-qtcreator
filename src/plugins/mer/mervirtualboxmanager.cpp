@@ -36,9 +36,12 @@ const char LIST[] = "list";
 const char RUNNINGVMS[] = "runningvms";
 const char VMS[] = "vms";
 const char SHOWVMINFO[] = "showvminfo";
+const char SHOWHDINFO[] = "showhdinfo";
 const char MACHINE_READABLE[] = "--machinereadable";
 const char STARTVM[] = "startvm";
 const char CONTROLVM[] = "controlvm";
+const char MODIFYHD[] = "modifyhd";
+const char RESIZE[] = "--resize";
 const char ACPI_POWER_BUTTON[] = "acpipowerbutton";
 const char TYPE[] = "--type";
 const char HEADLESS[] = "headless";
@@ -52,6 +55,9 @@ namespace Mer {
 namespace Internal {
 
 static VirtualMachineInfo virtualMachineInfoFromOutput(const QString &output);
+static VirtualMachineDiskImageInfo virtualMachineDiskImageInfoFromOutput(const QString &output);
+static QString getVBoxManageOutput(const QStringList& arguments, bool *ok);
+static int getVirtualMachineDiskImageCapacity(const QString &uuid);
 static bool isVirtualMachineListed(const QString &vmName, const QString &output);
 static QStringList listedVirtualMachines(const QString &output);
 
@@ -168,6 +174,29 @@ bool MerVirtualBoxManager::updateSharedFolder(const QString &vmName, const QStri
     return true;
 }
 
+bool MerVirtualBoxManager::resizeDiskImage(const QString &vmName, const QString &uuid, int capacity)
+{
+    if (isVirtualMachineRunning(vmName)) {
+        qWarning() << "Virtual machine " << vmName << " is running, unable to resize disk image.";
+        return false;
+    }
+
+    QStringList args;
+    args.append(QLatin1String(MODIFYHD));
+    args.append(uuid);
+    args.append(QLatin1String(RESIZE));
+    args.append(QString::number(capacity));
+
+    QProcess proc;
+    proc.start(vBoxManagePath(), args);
+    if (!proc.waitForFinished()) {
+        qWarning() << "VBoxManage failed to resize disk image with UUID " << uuid;
+        return false;
+    }
+
+    return true;
+}
+
 VirtualMachineInfo MerVirtualBoxManager::fetchVirtualMachineInfo(const QString &vmName)
 {
     VirtualMachineInfo info;
@@ -175,12 +204,31 @@ VirtualMachineInfo MerVirtualBoxManager::fetchVirtualMachineInfo(const QString &
     arguments.append(QLatin1String(SHOWVMINFO));
     arguments.append(vmName);
     arguments.append(QLatin1String(MACHINE_READABLE));
-    QProcess process;
-    process.start(vBoxManagePath(), arguments);
-    if (!process.waitForFinished())
+
+    bool ok = false;
+    const QString output = getVBoxManageOutput(arguments, &ok);
+
+    if (!ok)
         return info;
 
-    return virtualMachineInfoFromOutput(QString::fromLocal8Bit(process.readAllStandardOutput()));
+    return virtualMachineInfoFromOutput(output);
+}
+
+VirtualMachineDiskImageInfo MerVirtualBoxManager::fetchVirtualMachineDiskImageInfo(const QString &vmName)
+{
+    VirtualMachineDiskImageInfo info;
+    QStringList arguments;
+    arguments.append(QLatin1String(SHOWVMINFO));
+    arguments.append(vmName);
+    arguments.append(QLatin1String(MACHINE_READABLE));
+
+    bool ok = false;
+    const QString output = getVBoxManageOutput(arguments, &ok);
+
+    if (!ok)
+        return info;
+
+    return virtualMachineDiskImageInfoFromOutput(output);
 }
 
 void MerVirtualBoxManager::startVirtualMachine(const QString &vmName,bool headless)
@@ -263,7 +311,7 @@ VirtualMachineInfo virtualMachineInfoFromOutput(const QString &output)
 
     // Get ssh port, shared home and shared targets
     // 1 Name, 2 Protocol, 3 Host IP, 4 Host Port, 5 Guest IP, 6 Guest Port, 7 Shared Folder Name,
-    // 8 Shared Folder Path 9 mac
+    // 8 Shared Folder Path, 9 MAC Addresses, 10 Session Type
     QRegExp rexp(QLatin1String("(?:Forwarding\\(\\d+\\)=\"(\\w+),(\\w+),(.*),(\\d+),(.*),(\\d+)\")"
                                "|(?:SharedFolderNameMachineMapping\\d+=\"(\\w+)\"\\W*"
                                "SharedFolderPathMachineMapping\\d+=\"(.*)\")"
@@ -310,6 +358,84 @@ VirtualMachineInfo virtualMachineInfoFromOutput(const QString &output)
     }
 
     return info;
+}
+
+VirtualMachineDiskImageInfo virtualMachineDiskImageInfoFromOutput(const QString &output)
+{
+    VirtualMachineDiskImageInfo info;
+
+    // Look for UUID of the disk in the smallest SATA controller instance.
+    // Controllers with disks are named "SATA-ImageUUID-0-0", "SATA-ImageUUID-1-0",
+    // and so on. Controllers with no disks won't appear in the output, since they
+    // have no UUIDs associated with them. Each SATA controller has one device, so
+    // the port is always "0".
+    //
+    // The captured subexpressions are:
+    //   1 = SATA controller instance (\\d+)
+    //   2 = Disk image UUID (.*).
+    QRegExp rexp(QLatin1String("(?:\"SATA-ImageUUID-(\\d+)-0\"=\"(.*)\")"));
+    rexp.setMinimal(true);
+
+    int pos = 0;
+    int controller = -1;
+    QString uuid;
+
+    while ((pos = rexp.indexIn(output, pos)) != -1) {
+        pos += rexp.matchedLength();
+        if ((controller < 0) || (controller > rexp.cap(1).toInt())) {
+            controller = rexp.cap(1).toInt();
+            uuid = rexp.cap(2);
+        }
+    }
+
+    // If a UUID was found, fetch the capacity of the disk image.
+    if (controller >= 0) {
+        info.uuid = uuid;
+        info.capacity = getVirtualMachineDiskImageCapacity(uuid);
+    }
+
+    return info;
+}
+
+QString getVBoxManageOutput(const QStringList& arguments, bool *ok)
+{
+    QString output;
+    QProcess process;
+    process.start(QLatin1String(VBOXMANAGE), arguments);
+    const bool processOk = process.waitForFinished();
+
+    if (processOk)
+        output = QString::fromLocal8Bit(process.readAllStandardOutput());
+
+    if (ok)
+        *ok = processOk;
+
+    return output;
+}
+
+int getVirtualMachineDiskImageCapacity(const QString& uuid)
+{
+    int capacity = 0;
+
+    if (!uuid.isEmpty()) {
+        QStringList arguments;
+        arguments.append(QLatin1String(SHOWHDINFO));
+        arguments.append(uuid);
+
+        bool ok = false;
+        const QString output = getVBoxManageOutput(arguments, &ok);
+
+        if (ok) {
+            // Get disk image file capacity in megabytes.
+            QRegExp rexp(QLatin1String("(?:Capacity:\\s*(\\d+)\\s*MBytes)"));
+
+            if (rexp.indexIn(output) != -1) {
+                capacity = rexp.cap(1).toInt();
+            }
+        }
+    }
+
+    return capacity;
 }
 
 } // Internal

@@ -47,6 +47,14 @@ public:
     bool headless;
 };
 
+class VirtualMachineDiskImageInfo
+{
+public:
+    VirtualMachineDiskImageInfo() : capacity(0) {}
+    QString uuid;
+    int capacity;
+};
+
 class MerVirtualBoxManager : public QObject
 {
     Q_OBJECT
@@ -57,9 +65,12 @@ public:
     static bool isVirtualMachineRegistered(const QString &vmName);
     static QStringList fetchRegisteredVirtualMachines();
     static VirtualMachineInfo fetchVirtualMachineInfo(const QString &vmName);
+    static VirtualMachineDiskImageInfo fetchVirtualMachineDiskImageInfo(const QString &vmName);
     static void startVirtualMachine(const QString &vmName, bool headless);
     static void shutVirtualMachine(const QString &vmName);
     static bool updateSharedFolder(const QString &vmName, const QString &mountName, const QString &newFolder);
+    static bool resizeDiskImage(const QString &vmName, const QString &uuid, int capacity);
+
 private:
     MerVirtualBoxManager(QObject *parent = 0);
 

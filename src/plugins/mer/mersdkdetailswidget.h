@@ -59,6 +59,8 @@ public:
     void setSshTimeout(int timeout);
     void setHeadless(bool enabled);
     void setSrcFolderChooserPath(const QString &path);
+    void setDiskImageCapacity(int capacity);
+    void resetDiskImageCapacity();
 
 signals:
     void generateSshKey(const QString &key);
@@ -68,12 +70,14 @@ signals:
     void sshTimeoutChanged(int timeout);
     void headlessCheckBoxToggled(bool checked);
     void srcFolderApplyButtonClicked(const QString &path);
+    void resizeDiskImageButtonClicked(const QString &uuid, int capacity, int newCapacity);
 
 private slots:
     void onAuthorizeSshKeyButtonClicked();
     void onGenerateSshKeyButtonClicked();
     void onPathChooserEditingFinished();
     void onSrcFolderApplyButtonClicked();
+    void onResizeDiskImageButtonClicked();
 
 
 private:
@@ -81,6 +85,8 @@ private:
     QIcon m_invalidIcon;
     QIcon m_warningIcon;
     bool m_updateConnection;
+    QString m_diskImageUuid;
+    int m_diskImageCapacity;
 };
 
 } // Internal

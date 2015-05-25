@@ -49,6 +49,7 @@ MerSdkDetailsWidget::MerSdkDetailsWidget(QWidget *parent)
     connect(m_ui->sshTimeoutSpinBox, SIGNAL(valueChanged(int)), SIGNAL(sshTimeoutChanged(int)));
     connect(m_ui->headlessCheckBox, SIGNAL(toggled(bool)), SIGNAL(headlessCheckBoxToggled(bool)));
     connect(m_ui->srcFolderApplyButton, SIGNAL(clicked()), SLOT(onSrcFolderApplyButtonClicked()));
+    connect(m_ui->resizeDiskImageButton, SIGNAL(clicked()), SLOT(onResizeDiskImageButtonClicked()));
 
     m_ui->privateKeyPathChooser->setExpectedKind(Utils::PathChooser::File);
     m_ui->privateKeyPathChooser->setPromptDialogTitle(tr("Select SSH Key"));
@@ -71,6 +72,35 @@ QString MerSdkDetailsWidget::searchKeyWordMatchString() const
 void MerSdkDetailsWidget::setSrcFolderChooserPath(const QString& path)
 {
     m_ui->srcFolderPathChooser->setPath(QDir::toNativeSeparators(path));
+}
+
+void MerSdkDetailsWidget::setDiskImageCapacity(int capacity)
+{
+    m_diskImageCapacity = capacity;
+    resetDiskImageCapacity();
+}
+
+void MerSdkDetailsWidget::resetDiskImageCapacity()
+{
+#ifdef MER_NO_BUILD_ENGINE_RESIZE
+
+    const bool resizingEnabled = false;
+
+    m_ui->resizeDiskImageButton->setVisible(false);
+    m_ui->groupBox->adjustSize();
+
+#else // !MER_NO_BUILD_ENGINE_RESIZE
+
+    const bool resizingEnabled = !m_diskImageUuid.isEmpty()
+            && (m_diskImageCapacity > 0)
+            && (m_diskImageCapacity < m_ui->diskImageCapacitySpinBox->maximum());
+
+#endif
+
+    m_ui->diskImageCapacitySpinBox->setMinimum(m_diskImageCapacity);
+    m_ui->diskImageCapacitySpinBox->setValue(m_diskImageCapacity);
+    m_ui->diskImageCapacitySpinBox->setEnabled(resizingEnabled);
+    m_ui->resizeDiskImageButton->setEnabled(resizingEnabled);
 }
 
 void MerSdkDetailsWidget::setSdk(const MerSdk *sdk)
@@ -101,6 +131,18 @@ void MerSdkDetailsWidget::setSdk(const MerSdk *sdk)
     }
 
     m_ui->userNameLabelText->setText(sdk->userName());
+
+    // Fetch the UUID of the primary disk image and its capacity in megabytes.
+    // Instead of being stored in the MerSdk object, this information needs to
+    // be queried again every time setSdk() is called because taking a snapshot
+    // of the virtual machine could change the UUID of the disk image, or the
+    // image could have been resized manually outside of Qt Creator.
+    const VirtualMachineDiskImageInfo info = MerVirtualBoxManager::fetchVirtualMachineDiskImageInfo(sdk->virtualMachineName());
+
+    m_diskImageUuid = info.uuid;
+    m_diskImageCapacity = info.capacity;
+
+    resetDiskImageCapacity();
 }
 
 void MerSdkDetailsWidget::setTestButtonEnabled(bool enabled)
@@ -141,6 +183,13 @@ void MerSdkDetailsWidget::onSrcFolderApplyButtonClicked()
         }
         emit srcFolderApplyButtonClicked(path);
     }
+}
+
+void MerSdkDetailsWidget::onResizeDiskImageButtonClicked()
+{
+    emit resizeDiskImageButtonClicked(m_diskImageUuid,
+                                      m_ui->diskImageCapacitySpinBox->minimum(),
+                                      m_ui->diskImageCapacitySpinBox->value());
 }
 
 void MerSdkDetailsWidget::onAuthorizeSshKeyButtonClicked()

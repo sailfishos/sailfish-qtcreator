@@ -66,6 +66,7 @@ MerOptionsWidget::MerOptionsWidget(QWidget *parent)
     connect(m_ui->sdkDetailsWidget, SIGNAL(sshTimeoutChanged(int)), SLOT(onSshTimeoutChanged(int)));
     connect(m_ui->sdkDetailsWidget, SIGNAL(headlessCheckBoxToggled(bool)), SLOT(onHeadlessCheckBoxToggled(bool)));
     connect(m_ui->sdkDetailsWidget, SIGNAL(srcFolderApplyButtonClicked(QString)), SLOT(onSrcFolderApplyButtonClicked(QString)));
+    connect(m_ui->sdkDetailsWidget, SIGNAL(resizeDiskImageButtonClicked(QString,int,int)), SLOT(onResizeDiskImageButtonClicked(QString,int,int)));
     onSdksUpdated();
 }
 
@@ -249,58 +250,119 @@ void MerOptionsWidget::onSrcFolderApplyButtonClicked(const QString &newFolder)
     MerSdk *sdk = m_sdks[m_virtualMachine];
 
     if (newFolder == sdk->sharedSrcPath()) {
-        QMessageBox::information(this, tr("Choose a new folder"),
+        QMessageBox::information(this,
+                                 tr("Choose a new folder"),
                                  tr("The given folder (%1) is the current alternative source folder. "
                                     "Please choose another folder if you want to change it.").arg(sdk->sharedSrcPath()));
         return;
     }
 
-    if (!sdk->connection()->isVirtualMachineOff()) {
-        QPointer<QMessageBox> questionBox = new QMessageBox(QMessageBox::Question,
-                tr("Close Virtual Machine"),
-                tr("Close the \"%1\" virtual machine?").arg(m_virtualMachine),
-                QMessageBox::Yes | QMessageBox::No,
-                this);
-        questionBox->setInformativeText(
-                tr("Virtual machine must be closed before the source folder can be changed."));
-        if (questionBox->exec() != QMessageBox::Yes) {
-            // reset the path in the chooser
-            m_ui->sdkDetailsWidget->setSrcFolderChooserPath(sdk->sharedSrcPath());
-            return;
+    const bool vmIsOff = sdk->connection()->isVirtualMachineOff();
+    const bool vmWasClosed = !vmIsOff && showCloseVirtualMachineDialog(tr("Virtual machine must be closed before the source folder can be changed."));
+    bool updateOk = false;
+
+    if (vmIsOff || vmWasClosed) {
+        if (sdk->connection()->lockDown(true)) {
+            updateOk = MerVirtualBoxManager::updateSharedFolder(m_virtualMachine, QLatin1String("src1"), newFolder);
+            sdk->connection()->lockDown(false);
+        }
+
+        if (updateOk) {
+            // Remember to update this value
+            sdk->setSharedSrcPath(newFolder);
+
+            if (vmWasClosed && showStartVirtualMachineDialog(tr("Alternative source folder for %1 changed to %2.").arg(m_virtualMachine).arg(newFolder))) {
+                sdk->connection()->connectTo();
+            }
+        } else {
+            QMessageBox::warning(this,
+                                 tr("Changing the source folder failed!"),
+                                 tr("Unable to change the alternative source folder to %1").arg(newFolder));
         }
     }
 
-    if (!sdk->connection()->lockDown(true)) {
-        QMessageBox::warning(this, tr("Failed"),
-                tr("Alternative source folder not changed"));
-        // reset the path in the chooser
+    if (!updateOk) {
+        // Reset the path in the chooser
         m_ui->sdkDetailsWidget->setSrcFolderChooserPath(sdk->sharedSrcPath());
+    }
+}
+
+void MerOptionsWidget::onResizeDiskImageButtonClicked(const QString &uuid, int capacity, int newCapacity)
+{
+    MerSdk *sdk = m_sdks[m_virtualMachine];
+
+    if (newCapacity == capacity) {
+        QMessageBox::information(this,
+                                 tr("Choose a Larger Capacity"),
+                                 tr("The given capacity (%1 MB) is the current capacity of the disk image. "
+                                    "Please choose a value greater than the current capacity to resize the disk image.").arg(newCapacity));
         return;
     }
 
-    bool ok = MerVirtualBoxManager::updateSharedFolder(m_virtualMachine,
-            QLatin1String("src1"), newFolder);
+    const bool vmIsOff = sdk->connection()->isVirtualMachineOff();
+    const bool vmWasClosed = !vmIsOff && showCloseVirtualMachineDialog(tr("Virtual machine must be closed before the disk image can be resized."));
+    bool resizeOk = false;
 
-    sdk->connection()->lockDown(false);
+    if (vmIsOff || vmWasClosed) {
+        if (sdk->connection()->lockDown(true)) {
+            resizeOk = MerVirtualBoxManager::resizeDiskImage(m_virtualMachine, uuid, capacity);
+            sdk->connection()->lockDown(false);
+        }
 
-    if (ok) {
-        // remember to update this value
-        sdk->setSharedSrcPath(newFolder);
+        if (resizeOk) {
+            m_ui->sdkDetailsWidget->setDiskImageCapacity(capacity);
 
-        const QMessageBox::StandardButton response =
-            QMessageBox::question(this, tr("Success!"),
-                                  tr("Alternative source folder for %1 changed to %2.\n\n"
-                                     "Do you want to start %1 now?").arg(m_virtualMachine).arg(newFolder),
-                                  QMessageBox::No | QMessageBox::Yes, QMessageBox::Yes);
-        if (response == QMessageBox::Yes)
-            sdk->connection()->connectTo();
+            if (vmWasClosed && showStartVirtualMachineDialog(tr("Disk image successfully resized to %1 MB.").arg(capacity))) {
+                sdk->connection()->connectTo();
+            }
+        } else {
+            QMessageBox::warning(this,
+                                 tr("Resizing the Disk Image Failed!"),
+                                 tr("Unable to resize disk image to %1 MB").arg(capacity));
+        }
     }
-    else {
-        QMessageBox::warning(this, tr("Changing the source folder failed!"),
-                             tr("Unable to change the alternative source folder to %1").arg(newFolder));
-        // reset the path in the chooser
-        m_ui->sdkDetailsWidget->setSrcFolderChooserPath(sdk->sharedSrcPath());
+
+    if (!resizeOk) {
+        m_ui->sdkDetailsWidget->resetDiskImageCapacity();
     }
+}
+
+bool MerOptionsWidget::showCloseVirtualMachineDialog(const QString &informativeText)
+{
+    QPointer<QMessageBox> questionBox =
+        new QMessageBox(QMessageBox::Question,
+                        tr("Close Virtual Machine"),
+                        tr("Close the \"%1\" virtual machine?").arg(m_virtualMachine),
+                        QMessageBox::Yes | QMessageBox::No,
+                        this);
+
+    questionBox->setInformativeText(informativeText);
+    questionBox->setDefaultButton(QMessageBox::No);
+
+    const int response = questionBox->exec();
+
+    delete questionBox;
+
+    return (response == QMessageBox::Yes);
+}
+
+bool MerOptionsWidget::showStartVirtualMachineDialog(const QString &informativeText)
+{
+    QPointer<QMessageBox> questionBox =
+        new QMessageBox(QMessageBox::Question,
+                        tr("Start Virtual Machine"),
+                        tr("Start the \"%1\" virtual machine?").arg(m_virtualMachine),
+                        QMessageBox::Yes | QMessageBox::No,
+                        this);
+
+    questionBox->setInformativeText(informativeText);
+    questionBox->setDefaultButton(QMessageBox::Yes);
+
+    const int response = questionBox->exec();
+
+    delete questionBox;
+
+    return (response == QMessageBox::Yes);
 }
 
 void MerOptionsWidget::update()
