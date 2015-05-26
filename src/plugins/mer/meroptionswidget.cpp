@@ -329,40 +329,29 @@ void MerOptionsWidget::onResizeDiskImageButtonClicked(const QString &uuid, int c
 
 bool MerOptionsWidget::showCloseVirtualMachineDialog(const QString &informativeText)
 {
-    QPointer<QMessageBox> questionBox =
-        new QMessageBox(QMessageBox::Question,
-                        tr("Close Virtual Machine"),
-                        tr("Close the \"%1\" virtual machine?").arg(m_virtualMachine),
-                        QMessageBox::Yes | QMessageBox::No,
-                        this);
+    QMessageBox questionBox(QMessageBox::Question,
+                            tr("Close Virtual Machine"),
+                            tr("Close the \"%1\" virtual machine?").arg(m_virtualMachine),
+                            QMessageBox::Yes | QMessageBox::No);
 
-    questionBox->setInformativeText(informativeText);
-    questionBox->setDefaultButton(QMessageBox::No);
+    questionBox.setInformativeText(informativeText);
+    questionBox.setDefaultButton(QMessageBox::No);
 
-    const int response = questionBox->exec();
-
-    delete questionBox;
-
-    return (response == QMessageBox::Yes);
+    return (questionBox.exec() == QMessageBox::Yes);
 }
 
 bool MerOptionsWidget::showStartVirtualMachineDialog(const QString &informativeText)
 {
-    QPointer<QMessageBox> questionBox =
-        new QMessageBox(QMessageBox::Question,
-                        tr("Start Virtual Machine"),
-                        tr("Start the \"%1\" virtual machine?").arg(m_virtualMachine),
-                        QMessageBox::Yes | QMessageBox::No,
-                        this);
+    QMessageBox questionBox(QMessageBox::Question,
+                            tr("Start Virtual Machine"),
+                            tr("Start the \"%1\" virtual machine?").arg(m_virtualMachine),
+                            QMessageBox::Yes | QMessageBox::No,
+                            this);
 
-    questionBox->setInformativeText(informativeText);
-    questionBox->setDefaultButton(QMessageBox::Yes);
+    questionBox.setInformativeText(informativeText);
+    questionBox.setDefaultButton(QMessageBox::Yes);
 
-    const int response = questionBox->exec();
-
-    delete questionBox;
-
-    return (response == QMessageBox::Yes);
+    return (questionBox.exec() == QMessageBox::Yes);
 }
 
 void MerOptionsWidget::update()
