@@ -61,6 +61,7 @@ public:
     void setSrcFolderChooserPath(const QString &path);
     void setDiskImageCapacity(int capacity);
     void resetDiskImageCapacity();
+    void setResizeButtonEnabled(bool enabled);
 
 signals:
     void generateSshKey(const QString &key);
@@ -70,15 +71,15 @@ signals:
     void sshTimeoutChanged(int timeout);
     void headlessCheckBoxToggled(bool checked);
     void srcFolderApplyButtonClicked(const QString &path);
-    void resizeDiskImageButtonClicked(const QString &uuid, int capacity, int newCapacity);
+    void resizeDiskImageButtonClicked(const QString &uuid, int capacity);
 
 private slots:
     void onAuthorizeSshKeyButtonClicked();
     void onGenerateSshKeyButtonClicked();
     void onPathChooserEditingFinished();
     void onSrcFolderApplyButtonClicked();
+    void onDiskImageCapacityChanged(int capacity);
     void onResizeDiskImageButtonClicked();
-
 
 private:
     Ui::MerSdkDetailsWidget *m_ui;

@@ -68,7 +68,7 @@ private slots:
     void onSshTimeoutChanged(int timeout);
     void onHeadlessCheckBoxToggled(bool checked);
     void onSrcFolderApplyButtonClicked(const QString &path);
-    void onResizeDiskImageButtonClicked(const QString &uuid, int capacity, int newCapacity);
+    void onResizeDiskImageButtonClicked(const QString &uuid, int capacity);
     void update();
 
 private:

@@ -49,6 +49,7 @@ MerSdkDetailsWidget::MerSdkDetailsWidget(QWidget *parent)
     connect(m_ui->sshTimeoutSpinBox, SIGNAL(valueChanged(int)), SIGNAL(sshTimeoutChanged(int)));
     connect(m_ui->headlessCheckBox, SIGNAL(toggled(bool)), SIGNAL(headlessCheckBoxToggled(bool)));
     connect(m_ui->srcFolderApplyButton, SIGNAL(clicked()), SLOT(onSrcFolderApplyButtonClicked()));
+    connect(m_ui->diskImageCapacitySpinBox, SIGNAL(valueChanged(int)), SLOT(onDiskImageCapacityChanged(int)));
     connect(m_ui->resizeDiskImageButton, SIGNAL(clicked()), SLOT(onResizeDiskImageButtonClicked()));
 
     m_ui->privateKeyPathChooser->setExpectedKind(Utils::PathChooser::File);
@@ -100,7 +101,12 @@ void MerSdkDetailsWidget::resetDiskImageCapacity()
     m_ui->diskImageCapacitySpinBox->setMinimum(m_diskImageCapacity);
     m_ui->diskImageCapacitySpinBox->setValue(m_diskImageCapacity);
     m_ui->diskImageCapacitySpinBox->setEnabled(resizingEnabled);
-    m_ui->resizeDiskImageButton->setEnabled(resizingEnabled);
+    m_ui->resizeDiskImageButton->setEnabled(false);
+}
+
+void MerSdkDetailsWidget::setResizeButtonEnabled(bool enabled)
+{
+    m_ui->resizeDiskImageButton->setEnabled(enabled);
 }
 
 void MerSdkDetailsWidget::setSdk(const MerSdk *sdk)
@@ -185,11 +191,14 @@ void MerSdkDetailsWidget::onSrcFolderApplyButtonClicked()
     }
 }
 
+void MerSdkDetailsWidget::onDiskImageCapacityChanged(int capacity)
+{
+    m_ui->resizeDiskImageButton->setEnabled(capacity > m_diskImageCapacity);
+}
+
 void MerSdkDetailsWidget::onResizeDiskImageButtonClicked()
 {
-    emit resizeDiskImageButtonClicked(m_diskImageUuid,
-                                      m_ui->diskImageCapacitySpinBox->minimum(),
-                                      m_ui->diskImageCapacitySpinBox->value());
+    emit resizeDiskImageButtonClicked(m_diskImageUuid, m_ui->diskImageCapacitySpinBox->value());
 }
 
 void MerSdkDetailsWidget::onAuthorizeSshKeyButtonClicked()

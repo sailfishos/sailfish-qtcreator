@@ -66,7 +66,7 @@ MerOptionsWidget::MerOptionsWidget(QWidget *parent)
     connect(m_ui->sdkDetailsWidget, SIGNAL(sshTimeoutChanged(int)), SLOT(onSshTimeoutChanged(int)));
     connect(m_ui->sdkDetailsWidget, SIGNAL(headlessCheckBoxToggled(bool)), SLOT(onHeadlessCheckBoxToggled(bool)));
     connect(m_ui->sdkDetailsWidget, SIGNAL(srcFolderApplyButtonClicked(QString)), SLOT(onSrcFolderApplyButtonClicked(QString)));
-    connect(m_ui->sdkDetailsWidget, SIGNAL(resizeDiskImageButtonClicked(QString,int,int)), SLOT(onResizeDiskImageButtonClicked(QString,int,int)));
+    connect(m_ui->sdkDetailsWidget, SIGNAL(resizeDiskImageButtonClicked(QString,int)), SLOT(onResizeDiskImageButtonClicked(QString,int)));
     onSdksUpdated();
 }
 
@@ -287,23 +287,17 @@ void MerOptionsWidget::onSrcFolderApplyButtonClicked(const QString &newFolder)
     }
 }
 
-void MerOptionsWidget::onResizeDiskImageButtonClicked(const QString &uuid, int capacity, int newCapacity)
+void MerOptionsWidget::onResizeDiskImageButtonClicked(const QString &uuid, int capacity)
 {
     MerSdk *sdk = m_sdks[m_virtualMachine];
-
-    if (newCapacity == capacity) {
-        QMessageBox::information(this,
-                                 tr("Choose a Larger Capacity"),
-                                 tr("The given capacity (%1 MB) is the current capacity of the disk image. "
-                                    "Please choose a value greater than the current capacity to resize the disk image.").arg(newCapacity));
-        return;
-    }
 
     const bool vmIsOff = sdk->connection()->isVirtualMachineOff();
     const bool vmWasClosed = !vmIsOff && showCloseVirtualMachineDialog(tr("Virtual machine must be closed before the disk image can be resized."));
     bool resizeOk = false;
 
     if (vmIsOff || vmWasClosed) {
+        m_ui->sdkDetailsWidget->setResizeButtonEnabled(false);
+
         if (sdk->connection()->lockDown(true)) {
             resizeOk = MerVirtualBoxManager::resizeDiskImage(m_virtualMachine, uuid, capacity);
             sdk->connection()->lockDown(false);
@@ -320,6 +314,8 @@ void MerOptionsWidget::onResizeDiskImageButtonClicked(const QString &uuid, int c
                                  tr("Resizing the Disk Image Failed!"),
                                  tr("Unable to resize disk image to %1 MB").arg(capacity));
         }
+
+        m_ui->sdkDetailsWidget->setResizeButtonEnabled(true);
     }
 
     if (!resizeOk) {
