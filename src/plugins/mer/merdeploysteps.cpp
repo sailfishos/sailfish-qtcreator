@@ -116,6 +116,15 @@ bool MerProcessStep::init()
     ProcessParameters *pp = processParameters();
 
     Utils::Environment env = bc ? bc->environment() : Utils::Environment::systemEnvironment();
+
+    // By default, MER_SSH_PROJECT_PATH is set to the project explorer variable
+    // "%{CurrentProject:Path}". If multiple projects are open, "CurrentProject" may
+    // not be the project set as active (i.e. the project being deployed), leading
+    // to RPM build looking for files in the wrong project. Instead, MER_SSH_PROJECT_PATH
+    // needs to be set to the source directory of the active project. Note that this path
+    // is the same, whether or not shadow builds are enabled.
+    env.set(QLatin1String(Constants::MER_SSH_PROJECT_PATH), project()->projectDirectory());
+
     //TODO HACK
     if(!device.isNull())
         env.appendOrSet(QLatin1String(Constants::MER_SSH_DEVICE_NAME),device->displayName());
