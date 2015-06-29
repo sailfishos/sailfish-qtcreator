@@ -68,7 +68,12 @@ private slots:
     void onSshTimeoutChanged(int timeout);
     void onHeadlessCheckBoxToggled(bool checked);
     void onSrcFolderApplyButtonClicked(const QString &path);
+    void onWwwPortApplyButtonClicked(int port);
     void update();
+
+private:
+    bool showCloseVirtualMachineDialog(const QString &informativeText);
+    bool showStartVirtualMachineDialog(const QString &informativeText);
 
 private:
     Ui::MerOptionsWidget *m_ui;

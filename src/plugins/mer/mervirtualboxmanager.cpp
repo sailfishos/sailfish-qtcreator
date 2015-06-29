@@ -39,6 +39,7 @@ const char SHOWVMINFO[] = "showvminfo";
 const char MACHINE_READABLE[] = "--machinereadable";
 const char STARTVM[] = "startvm";
 const char CONTROLVM[] = "controlvm";
+const char MODIFYVM[] = "modifyvm";
 const char ACPI_POWER_BUTTON[] = "acpipowerbutton";
 const char TYPE[] = "--type";
 const char HEADLESS[] = "headless";
@@ -47,6 +48,10 @@ const char SHARE_NAME[] = "--name";
 const char REMOVE_SHARED[] = "remove";
 const char HOSTPATH[] = "--hostpath";
 const char ADD_SHARED[] = "add";
+const char NAT_PORT_FORWARD[] = "--natpf1";
+const char NAT_PORT_FORWARD_DELETE[] = "delete";
+const char NAT_PORT_FORWARD_RULE_NAME[] = "guestwww";
+const char NAT_PORT_FORWARD_RULE_FORMAT[] = "guestwww,tcp,127.0.0.1,%1,,9292";
 
 namespace Mer {
 namespace Internal {
@@ -162,6 +167,36 @@ bool MerVirtualBoxManager::updateSharedFolder(const QString &vmName, const QStri
     aproc.start(vBoxManagePath(), aargs);
     if (!aproc.waitForFinished()) {
         qWarning() << "VBoxManage failed to add " << mountName;
+        return false;
+    }
+
+    return true;
+}
+
+bool MerVirtualBoxManager::updateWwwPort(const QString &vmName, int port)
+{
+    QStringList rargs;
+    rargs.append(QLatin1String(MODIFYVM));
+    rargs.append(vmName);
+    rargs.append(QLatin1String(NAT_PORT_FORWARD));
+    rargs.append(QLatin1String(NAT_PORT_FORWARD_DELETE));
+    rargs.append(QLatin1String(NAT_PORT_FORWARD_RULE_NAME));
+    QProcess rproc;
+    rproc.start(vBoxManagePath(), rargs);
+    if (!rproc.waitForFinished()) {
+        qWarning() << "VBoxManage failed to remove NAT port forwarding rule " << QLatin1String(NAT_PORT_FORWARD_RULE_NAME);
+        return false;
+    }
+
+    QStringList aargs;
+    aargs.append(QLatin1String(MODIFYVM));
+    aargs.append(vmName);
+    aargs.append(QLatin1String(NAT_PORT_FORWARD));
+    aargs.append(QString::fromLatin1(NAT_PORT_FORWARD_RULE_FORMAT).arg(port));
+    QProcess aproc;
+    aproc.start(vBoxManagePath(), aargs);
+    if (!aproc.waitForFinished()) {
+        qWarning() << "VBoxManage failed to add NAT port forwarding rule for port " << port;
         return false;
     }
 

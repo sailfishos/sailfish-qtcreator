@@ -49,6 +49,8 @@ MerSdkDetailsWidget::MerSdkDetailsWidget(QWidget *parent)
     connect(m_ui->sshTimeoutSpinBox, SIGNAL(valueChanged(int)), SIGNAL(sshTimeoutChanged(int)));
     connect(m_ui->headlessCheckBox, SIGNAL(toggled(bool)), SIGNAL(headlessCheckBoxToggled(bool)));
     connect(m_ui->srcFolderApplyButton, SIGNAL(clicked()), SLOT(onSrcFolderApplyButtonClicked()));
+    connect(m_ui->wwwPortSpinBox, SIGNAL(valueChanged(int)), SLOT(onWwwPortChanged(int)));
+    connect(m_ui->wwwPortApplyButton, SIGNAL(clicked()), SLOT(onWwwPortApplyButtonClicked()));
 
     m_ui->privateKeyPathChooser->setExpectedKind(Utils::PathChooser::File);
     m_ui->privateKeyPathChooser->setPromptDialogTitle(tr("Select SSH Key"));
@@ -73,11 +75,31 @@ void MerSdkDetailsWidget::setSrcFolderChooserPath(const QString& path)
     m_ui->srcFolderPathChooser->setPath(QDir::toNativeSeparators(path));
 }
 
+void MerSdkDetailsWidget::setWwwPort(int port)
+{
+    if ((port >= m_ui->wwwPortSpinBox->minimum()) && (port <= m_ui->wwwPortSpinBox->maximum())) {
+        m_wwwPort = port;
+
+        m_ui->wwwPortSpinBox->setValue(m_wwwPort);
+        m_ui->wwwPortApplyButton->setEnabled(false);
+    }
+}
+
+void MerSdkDetailsWidget::resetWwwPort()
+{
+    m_ui->wwwPortSpinBox->setValue(m_wwwPort);
+    m_ui->wwwPortApplyButton->setEnabled(false);
+}
+
+void MerSdkDetailsWidget::setWwwPortApplyButtonEnabled(bool enabled)
+{
+    m_ui->wwwPortApplyButton->setEnabled(enabled);
+}
+
 void MerSdkDetailsWidget::setSdk(const MerSdk *sdk)
 {
     m_ui->nameLabelText->setText(sdk->virtualMachineName());
     m_ui->sshPortLabelText->setText(QString::number(sdk->sshPort()));
-    m_ui->wwwPortLabelText->setText(QString::number(sdk->wwwPort()));
     m_ui->homeFolderPathLabel->setText(QDir::toNativeSeparators(sdk->sharedHomePath()));
     m_ui->targetFolderPathLabel->setText(QDir::toNativeSeparators(sdk->sharedTargetsPath()));
     m_ui->sshFolderPathLabel->setText(QDir::toNativeSeparators(sdk->sharedSshPath()));
@@ -101,6 +123,8 @@ void MerSdkDetailsWidget::setSdk(const MerSdk *sdk)
     }
 
     m_ui->userNameLabelText->setText(sdk->userName());
+
+    setWwwPort(sdk->wwwPort());
 }
 
 void MerSdkDetailsWidget::setTestButtonEnabled(bool enabled)
@@ -141,6 +165,16 @@ void MerSdkDetailsWidget::onSrcFolderApplyButtonClicked()
         }
         emit srcFolderApplyButtonClicked(path);
     }
+}
+
+void MerSdkDetailsWidget::onWwwPortChanged(int port)
+{
+    m_ui->wwwPortApplyButton->setEnabled(m_wwwPort != port);
+}
+
+void MerSdkDetailsWidget::onWwwPortApplyButtonClicked()
+{
+    emit wwwPortApplyButtonClicked(m_ui->wwwPortSpinBox->value());
 }
 
 void MerSdkDetailsWidget::onAuthorizeSshKeyButtonClicked()

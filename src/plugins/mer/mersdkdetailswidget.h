@@ -59,6 +59,9 @@ public:
     void setSshTimeout(int timeout);
     void setHeadless(bool enabled);
     void setSrcFolderChooserPath(const QString &path);
+    void setWwwPort(int port);
+    void resetWwwPort();
+    void setWwwPortApplyButtonEnabled(bool enabled);
 
 signals:
     void generateSshKey(const QString &key);
@@ -68,12 +71,15 @@ signals:
     void sshTimeoutChanged(int timeout);
     void headlessCheckBoxToggled(bool checked);
     void srcFolderApplyButtonClicked(const QString &path);
+    void wwwPortApplyButtonClicked(int port);
 
 private slots:
     void onAuthorizeSshKeyButtonClicked();
     void onGenerateSshKeyButtonClicked();
     void onPathChooserEditingFinished();
     void onSrcFolderApplyButtonClicked();
+    void onWwwPortChanged(int port);
+    void onWwwPortApplyButtonClicked();
 
 
 private:
@@ -81,6 +87,7 @@ private:
     QIcon m_invalidIcon;
     QIcon m_warningIcon;
     bool m_updateConnection;
+    int m_wwwPort;
 };
 
 } // Internal

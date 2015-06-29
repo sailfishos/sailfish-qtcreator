@@ -66,6 +66,7 @@ MerOptionsWidget::MerOptionsWidget(QWidget *parent)
     connect(m_ui->sdkDetailsWidget, SIGNAL(sshTimeoutChanged(int)), SLOT(onSshTimeoutChanged(int)));
     connect(m_ui->sdkDetailsWidget, SIGNAL(headlessCheckBoxToggled(bool)), SLOT(onHeadlessCheckBoxToggled(bool)));
     connect(m_ui->sdkDetailsWidget, SIGNAL(srcFolderApplyButtonClicked(QString)), SLOT(onSrcFolderApplyButtonClicked(QString)));
+    connect(m_ui->sdkDetailsWidget, SIGNAL(wwwPortApplyButtonClicked(int)), SLOT(onWwwPortApplyButtonClicked(int)));
     onSdksUpdated();
 }
 
@@ -249,58 +250,105 @@ void MerOptionsWidget::onSrcFolderApplyButtonClicked(const QString &newFolder)
     MerSdk *sdk = m_sdks[m_virtualMachine];
 
     if (newFolder == sdk->sharedSrcPath()) {
-        QMessageBox::information(this, tr("Choose a new folder"),
+        QMessageBox::information(this,
+                                 tr("Choose a new folder"),
                                  tr("The given folder (%1) is the current alternative source folder. "
                                     "Please choose another folder if you want to change it.").arg(sdk->sharedSrcPath()));
         return;
     }
 
-    if (!sdk->connection()->isVirtualMachineOff()) {
-        QPointer<QMessageBox> questionBox = new QMessageBox(QMessageBox::Question,
-                tr("Close Virtual Machine"),
-                tr("Close the \"%1\" virtual machine?").arg(m_virtualMachine),
-                QMessageBox::Yes | QMessageBox::No,
-                this);
-        questionBox->setInformativeText(
-                tr("Virtual machine must be closed before the source folder can be changed."));
-        if (questionBox->exec() != QMessageBox::Yes) {
-            // reset the path in the chooser
-            m_ui->sdkDetailsWidget->setSrcFolderChooserPath(sdk->sharedSrcPath());
-            return;
+    const bool vmIsOff = sdk->connection()->isVirtualMachineOff();
+    const bool vmWasClosed = !vmIsOff && showCloseVirtualMachineDialog(tr("Virtual machine must be closed before the source folder can be changed."));
+    bool updateOk = false;
+
+    if (vmIsOff || vmWasClosed) {
+        if (sdk->connection()->lockDown(true)) {
+            updateOk = MerVirtualBoxManager::updateSharedFolder(m_virtualMachine, QLatin1String("src1"), newFolder);
+            sdk->connection()->lockDown(false);
+        }
+
+        if (updateOk) {
+            // Remember to update this value
+            sdk->setSharedSrcPath(newFolder);
+
+            if (vmWasClosed && showStartVirtualMachineDialog(tr("Alternative source folder for %1 changed to %2.").arg(m_virtualMachine).arg(newFolder))) {
+                sdk->connection()->connectTo();
+            }
+        } else {
+            QMessageBox::warning(this,
+                                 tr("Changing the source folder failed!"),
+                                 tr("Unable to change the alternative source folder to %1").arg(newFolder));
         }
     }
 
-    if (!sdk->connection()->lockDown(true)) {
-        QMessageBox::warning(this, tr("Failed"),
-                tr("Alternative source folder not changed"));
-        // reset the path in the chooser
-        m_ui->sdkDetailsWidget->setSrcFolderChooserPath(sdk->sharedSrcPath());
-        return;
-    }
-
-    bool ok = MerVirtualBoxManager::updateSharedFolder(m_virtualMachine,
-            QLatin1String("src1"), newFolder);
-
-    sdk->connection()->lockDown(false);
-
-    if (ok) {
-        // remember to update this value
-        sdk->setSharedSrcPath(newFolder);
-
-        const QMessageBox::StandardButton response =
-            QMessageBox::question(this, tr("Success!"),
-                                  tr("Alternative source folder for %1 changed to %2.\n\n"
-                                     "Do you want to start %1 now?").arg(m_virtualMachine).arg(newFolder),
-                                  QMessageBox::No | QMessageBox::Yes, QMessageBox::Yes);
-        if (response == QMessageBox::Yes)
-            sdk->connection()->connectTo();
-    }
-    else {
-        QMessageBox::warning(this, tr("Changing the source folder failed!"),
-                             tr("Unable to change the alternative source folder to %1").arg(newFolder));
-        // reset the path in the chooser
+    if (!updateOk) {
+        // Reset the path in the chooser
         m_ui->sdkDetailsWidget->setSrcFolderChooserPath(sdk->sharedSrcPath());
     }
+}
+
+void MerOptionsWidget::onWwwPortApplyButtonClicked(int port)
+{
+    MerSdk *sdk = m_sdks[m_virtualMachine];
+
+    const bool vmIsOff = sdk->connection()->isVirtualMachineOff();
+    const bool vmWasClosed = !vmIsOff && showCloseVirtualMachineDialog(tr("Virtual machine must be closed before the web port can be changed."));
+    bool updateOk = false;
+
+    if (vmIsOff || vmWasClosed) {
+        // Disable the WWW port "Change" button so that it cannot be clicked
+        // multiple times while the port change is in progress.
+        m_ui->sdkDetailsWidget->setWwwPortApplyButtonEnabled(false);
+
+        if (sdk->connection()->lockDown(true)) {
+            updateOk = MerVirtualBoxManager::updateWwwPort(m_virtualMachine, port);
+            sdk->connection()->lockDown(false);
+        }
+
+        if (updateOk) {
+            m_ui->sdkDetailsWidget->setWwwPort(port);
+            sdk->setWwwPort(port);
+
+            if (vmWasClosed && showStartVirtualMachineDialog(tr("Web port successfully changed to %1.").arg(port))) {
+                sdk->connection()->connectTo();
+            }
+        } else {
+            QMessageBox::warning(this,
+                                 tr("Changing web port failed!"),
+                                 tr("Unable to change web port to %1").arg(port));
+        }
+    }
+
+    if (!updateOk) {
+        m_ui->sdkDetailsWidget->resetWwwPort();
+    }
+}
+
+bool MerOptionsWidget::showCloseVirtualMachineDialog(const QString &informativeText)
+{
+    QMessageBox questionBox(QMessageBox::Question,
+                            tr("Close Virtual Machine"),
+                            tr("Close the \"%1\" virtual machine?").arg(m_virtualMachine),
+                            QMessageBox::Yes | QMessageBox::No);
+
+    questionBox.setInformativeText(informativeText);
+    questionBox.setDefaultButton(QMessageBox::No);
+
+    return (questionBox.exec() == QMessageBox::Yes);
+}
+
+bool MerOptionsWidget::showStartVirtualMachineDialog(const QString &informativeText)
+{
+    QMessageBox questionBox(QMessageBox::Question,
+                            tr("Start Virtual Machine"),
+                            tr("Start the \"%1\" virtual machine?").arg(m_virtualMachine),
+                            QMessageBox::Yes | QMessageBox::No,
+                            this);
+
+    questionBox.setInformativeText(informativeText);
+    questionBox.setDefaultButton(QMessageBox::Yes);
+
+    return (questionBox.exec() == QMessageBox::Yes);
 }
 
 void MerOptionsWidget::update()
