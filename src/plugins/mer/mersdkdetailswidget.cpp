@@ -38,6 +38,7 @@ MerSdkDetailsWidget::MerSdkDetailsWidget(QWidget *parent)
     , m_invalidIcon(QLatin1String(":/mer/images/compile_error.png"))
     , m_warningIcon(QLatin1String(":/mer/images/warning.png"))
     , m_updateConnection(false)
+    , m_wwwPort(8080)
 {
     m_ui->setupUi(this);
 
