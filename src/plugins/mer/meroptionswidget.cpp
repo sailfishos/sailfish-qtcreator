@@ -258,10 +258,10 @@ void MerOptionsWidget::onSrcFolderApplyButtonClicked(const QString &newFolder)
     }
 
     const bool vmIsOff = sdk->connection()->isVirtualMachineOff();
-    const bool vmWasClosed = !vmIsOff && showCloseVirtualMachineDialog(tr("Virtual machine must be closed before the source folder can be changed."));
+    const bool vmWillBeClosed = !vmIsOff && showCloseVirtualMachineDialog(tr("Virtual machine must be closed before the source folder can be changed."));
     bool updateOk = false;
 
-    if (vmIsOff || vmWasClosed) {
+    if (vmIsOff || vmWillBeClosed) {
         if (sdk->connection()->lockDown(true)) {
             updateOk = MerVirtualBoxManager::updateSharedFolder(m_virtualMachine, QLatin1String("src1"), newFolder);
             sdk->connection()->lockDown(false);
@@ -271,7 +271,7 @@ void MerOptionsWidget::onSrcFolderApplyButtonClicked(const QString &newFolder)
             // Remember to update this value
             sdk->setSharedSrcPath(newFolder);
 
-            if (vmWasClosed && showStartVirtualMachineDialog(tr("Alternative source folder for %1 changed to %2.").arg(m_virtualMachine).arg(newFolder))) {
+            if (vmWillBeClosed && showStartVirtualMachineDialog(tr("Alternative source folder for %1 changed to %2.").arg(m_virtualMachine).arg(newFolder))) {
                 sdk->connection()->connectTo();
             }
         } else {
@@ -292,10 +292,10 @@ void MerOptionsWidget::onWwwPortApplyButtonClicked(int port)
     MerSdk *sdk = m_sdks[m_virtualMachine];
 
     const bool vmIsOff = sdk->connection()->isVirtualMachineOff();
-    const bool vmWasClosed = !vmIsOff && showCloseVirtualMachineDialog(tr("Virtual machine must be closed before the web port can be changed."));
+    const bool vmWillBeClosed = !vmIsOff && showCloseVirtualMachineDialog(tr("Virtual machine must be closed before the web port can be changed."));
     bool updateOk = false;
 
-    if (vmIsOff || vmWasClosed) {
+    if (vmIsOff || vmWillBeClosed) {
         // Disable the WWW port "Change" button so that it cannot be clicked
         // multiple times while the port change is in progress.
         m_ui->sdkDetailsWidget->setWwwPortApplyButtonEnabled(false);
@@ -309,7 +309,7 @@ void MerOptionsWidget::onWwwPortApplyButtonClicked(int port)
             m_ui->sdkDetailsWidget->setWwwPort(port);
             sdk->setWwwPort(port);
 
-            if (vmWasClosed && showStartVirtualMachineDialog(tr("Web port successfully changed to %1.").arg(port))) {
+            if (vmWillBeClosed && showStartVirtualMachineDialog(tr("Web port successfully changed to %1.").arg(port))) {
                 sdk->connection()->connectTo();
             }
         } else {
