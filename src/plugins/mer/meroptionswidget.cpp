@@ -291,36 +291,15 @@ void MerOptionsWidget::onWwwPortApplyButtonClicked(int port)
 {
     MerSdk *sdk = m_sdks[m_virtualMachine];
 
-    const bool vmIsOff = sdk->connection()->isVirtualMachineOff();
-    const bool vmWillBeClosed = !vmIsOff && showCloseVirtualMachineDialog(tr("Virtual machine must be closed before the web port can be changed."));
-    bool updateOk = false;
-
-    if (vmIsOff || vmWillBeClosed) {
-        // Disable the WWW port "Change" button so that it cannot be clicked
-        // multiple times while the port change is in progress.
-        m_ui->sdkDetailsWidget->setWwwPortApplyButtonEnabled(false);
-
-        if (sdk->connection()->lockDown(true)) {
-            updateOk = MerVirtualBoxManager::updateWwwPort(m_virtualMachine, port);
-            sdk->connection()->lockDown(false);
-        }
-
-        if (updateOk) {
-            m_ui->sdkDetailsWidget->setWwwPort(port);
-            sdk->setWwwPort(port);
-
-            if (vmWillBeClosed && showStartVirtualMachineDialog(tr("Web port successfully changed to %1.").arg(port))) {
-                sdk->connection()->connectTo();
-            }
-        } else {
-            QMessageBox::warning(this,
-                                 tr("Changing web port failed!"),
-                                 tr("Unable to change web port to %1").arg(port));
-        }
-    }
-
-    if (!updateOk) {
+    if (MerVirtualBoxManager::updateWwwPort(m_virtualMachine, port)) {
+        m_ui->sdkDetailsWidget->setWwwPort(port);
+        sdk->setWwwPort(port);
+    } else {
         m_ui->sdkDetailsWidget->resetWwwPort();
+
+        QMessageBox::warning(this,
+                             tr("Changing web port failed!"),
+                             tr("Unable to change web port to %1").arg(port));
     }
 }
 

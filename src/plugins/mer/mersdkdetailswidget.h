@@ -61,7 +61,6 @@ public:
     void setSrcFolderChooserPath(const QString &path);
     void setWwwPort(int port);
     void resetWwwPort();
-    void setWwwPortApplyButtonEnabled(bool enabled);
 
 signals:
     void generateSshKey(const QString &key);

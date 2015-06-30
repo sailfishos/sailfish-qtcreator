@@ -39,7 +39,6 @@ const char SHOWVMINFO[] = "showvminfo";
 const char MACHINE_READABLE[] = "--machinereadable";
 const char STARTVM[] = "startvm";
 const char CONTROLVM[] = "controlvm";
-const char MODIFYVM[] = "modifyvm";
 const char ACPI_POWER_BUTTON[] = "acpipowerbutton";
 const char TYPE[] = "--type";
 const char HEADLESS[] = "headless";
@@ -48,7 +47,7 @@ const char SHARE_NAME[] = "--name";
 const char REMOVE_SHARED[] = "remove";
 const char HOSTPATH[] = "--hostpath";
 const char ADD_SHARED[] = "add";
-const char NAT_PORT_FORWARD[] = "--natpf1";
+const char NAT_PORT_FORWARD[] = "natpf1";
 const char NAT_PORT_FORWARD_DELETE[] = "delete";
 const char NAT_PORT_FORWARD_RULE_NAME[] = "guestwww";
 const char NAT_PORT_FORWARD_RULE_FORMAT[] = "guestwww,tcp,127.0.0.1,%1,,9292";
@@ -176,7 +175,7 @@ bool MerVirtualBoxManager::updateSharedFolder(const QString &vmName, const QStri
 bool MerVirtualBoxManager::updateWwwPort(const QString &vmName, int port)
 {
     QStringList rargs;
-    rargs.append(QLatin1String(MODIFYVM));
+    rargs.append(QLatin1String(CONTROLVM));
     rargs.append(vmName);
     rargs.append(QLatin1String(NAT_PORT_FORWARD));
     rargs.append(QLatin1String(NAT_PORT_FORWARD_DELETE));
@@ -189,7 +188,7 @@ bool MerVirtualBoxManager::updateWwwPort(const QString &vmName, int port)
     }
 
     QStringList aargs;
-    aargs.append(QLatin1String(MODIFYVM));
+    aargs.append(QLatin1String(CONTROLVM));
     aargs.append(vmName);
     aargs.append(QLatin1String(NAT_PORT_FORWARD));
     aargs.append(QString::fromLatin1(NAT_PORT_FORWARD_RULE_FORMAT).arg(port));

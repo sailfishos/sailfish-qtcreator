@@ -92,11 +92,6 @@ void MerSdkDetailsWidget::resetWwwPort()
     m_ui->wwwPortApplyButton->setEnabled(false);
 }
 
-void MerSdkDetailsWidget::setWwwPortApplyButtonEnabled(bool enabled)
-{
-    m_ui->wwwPortApplyButton->setEnabled(enabled);
-}
-
 void MerSdkDetailsWidget::setSdk(const MerSdk *sdk)
 {
     m_ui->nameLabelText->setText(sdk->virtualMachineName());
