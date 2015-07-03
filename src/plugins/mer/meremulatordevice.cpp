@@ -168,10 +168,9 @@ ProjectExplorer::IDevice::Ptr MerEmulatorDevice::clone() const
 }
 
 MerEmulatorDevice::MerEmulatorDevice():
-    RemoteLinux::LinuxDevice(QString(), Core::Id(Constants::MER_DEVICE_TYPE_I486), Emulator, ManuallyAdded, Core::Id())
+    MerDevice(QString(), Core::Id(Constants::MER_DEVICE_TYPE_I486), Emulator, ManuallyAdded, Core::Id())
     , m_connection(new MerConnection(0 /* not bug */))
 {
-    setDeviceState(IDevice::DeviceStateUnknown);
 }
 
 QString MerEmulatorDevice::displayType() const
@@ -220,24 +219,22 @@ void MerEmulatorDevice::executeAction(Core::Id actionId, QWidget *parent)
 
 void MerEmulatorDevice::fromMap(const QVariantMap &map)
 {
-    IDevice::fromMap(map);
+    MerDevice::fromMap(map);
     updateConnection();
     m_connection->setVirtualMachine(
             map.value(QLatin1String(Constants::MER_DEVICE_VIRTUAL_MACHINE)).toString());
     m_mac = map.value(QLatin1String(Constants::MER_DEVICE_MAC)).toString();
     m_subnet = map.value(QLatin1String(Constants::MER_DEVICE_SUBNET)).toString();
-    m_sharedSshPath = map.value(QLatin1String(Constants::MER_DEVICE_SHARED_SSH)).toString();
     m_sharedConfigPath = map.value(QLatin1String(Constants::MER_DEVICE_SHARED_CONFIG)).toString();
 }
 
 QVariantMap MerEmulatorDevice::toMap() const
 {
-    QVariantMap map = IDevice::toMap();
+    QVariantMap map = MerDevice::toMap();
     map.insert(QLatin1String(Constants::MER_DEVICE_VIRTUAL_MACHINE),
             m_connection->virtualMachine());
     map.insert(QLatin1String(Constants::MER_DEVICE_MAC), m_mac);
     map.insert(QLatin1String(Constants::MER_DEVICE_SUBNET), m_subnet);
-    map.insert(QLatin1String(Constants::MER_DEVICE_SHARED_SSH), m_sharedSshPath);
     map.insert(QLatin1String(Constants::MER_DEVICE_SHARED_CONFIG), m_sharedConfigPath);
     return map;
 }
@@ -280,16 +277,6 @@ void MerEmulatorDevice::setSharedConfigPath(const QString &configPath)
 QString MerEmulatorDevice::sharedConfigPath() const
 {
     return m_sharedConfigPath;
-}
-
-void MerEmulatorDevice::setSharedSshPath(const QString &sshPath)
-{
-    m_sharedSshPath = sshPath;
-}
-
-QString MerEmulatorDevice::sharedSshPath() const
-{
-    return m_sharedSshPath;
 }
 
 void MerEmulatorDevice::generateSshKey(const QString& user) const

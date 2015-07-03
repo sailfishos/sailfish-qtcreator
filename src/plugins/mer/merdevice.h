@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2014 Jolla Ltd.
+** Copyright (C) 2015 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -20,44 +20,44 @@
 **
 ****************************************************************************/
 
-#ifndef MERHARDWAREDEVICE_H
-#define MERHARDWAREDEVICE_H
+#ifndef MERDEVICE_H
+#define MERDEVICE_H
 
-#include "merdevice.h"
+#include <QSharedPointer>
+
+#include <remotelinux/linuxdevice.h>
 
 namespace Mer {
 namespace Internal {
 
-class MerHardwareDevice : public MerDevice
+class MerDevice : public RemoteLinux::LinuxDevice
 {
     Q_DECLARE_TR_FUNCTIONS(Mer::Internal::MerDevice)
+
 public:
-    typedef QSharedPointer<MerHardwareDevice> Ptr;
-    typedef QSharedPointer<const MerHardwareDevice> ConstPtr;
-
-    static Ptr create();
-    static Ptr create(const QString &name, Origin origin = ManuallyAdded, Core::Id id = Core::Id());
-
-    QString displayType() const;
-    ProjectExplorer::IDevice::Ptr clone() const;
+    typedef QSharedPointer<MerDevice> Ptr;
+    typedef QSharedPointer<const MerDevice> ConstPtr;
 
     void fromMap(const QVariantMap &map);
     QVariantMap toMap() const;
 
-    QList<Core::Id> actionIds() const;
-    QString displayNameForActionId(Core::Id actionId) const;
-    void executeAction(Core::Id actionId, QWidget *parent);
-    ProjectExplorer::IDeviceWidget* createWidget();
+    void setSharedSshPath(const QString &sshPath);
+    QString sharedSshPath() const;
 
 protected:
-    MerHardwareDevice();
-    MerHardwareDevice(const QString &name, Core::Id type, MachineType machineType, Origin origin,
-              Core::Id id);
+    MerDevice();
+    MerDevice(const QString &name, Core::Id type, MachineType machineType, Origin origin,
+            Core::Id id);
+    ~MerDevice() = 0;
+
 private:
-    MerHardwareDevice &operator=(const MerHardwareDevice &);
+    MerDevice &operator=(const MerDevice &);
+
+private:
+    QString m_sharedSshPath;
 };
 
 }
 }
 
-#endif // MERHARDWAREDEVICE_H
+#endif // MERDEVICE_H

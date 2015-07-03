@@ -33,6 +33,7 @@ SOURCES += \
     mertoolchain.cpp \
     mergeneraloptionspage.cpp \
     meroptionspage.cpp \
+    merdevice.cpp \
     merdevicefactory.cpp \
     merdeployconfigurationfactory.cpp \
     mersdkmanager.cpp \
@@ -87,6 +88,7 @@ HEADERS += \
     mertoolchain.h \
     mergeneraloptionspage.h \
     meroptionspage.h \
+    merdevice.h \
     merdevicefactory.h \
     mertoolchainfactory.h \
     merdeployconfigurationfactory.h \

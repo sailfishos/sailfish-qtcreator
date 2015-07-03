@@ -24,16 +24,17 @@
 ****************************************************************************/
 
 //#include <projectexplorer/devicesupport/idevice.h>
-#include <remotelinux/linuxdevice.h>
 #include <QCoreApplication>
 #include <QSharedPointer>
+
+#include "merdevice.h"
 
 namespace Mer {
 namespace Internal {
 
 class MerConnection;
 
-class MerEmulatorDevice : public RemoteLinux::LinuxDevice
+class MerEmulatorDevice : public MerDevice
 {
     Q_DECLARE_TR_FUNCTIONS(Mer::Internal::MerEmulatorDevice)
 
@@ -54,9 +55,6 @@ public:
 
     void setSharedConfigPath(const QString &configPath);
     QString sharedConfigPath() const;
-
-    void setSharedSshPath(const QString &sshPath);
-    QString sharedSshPath() const;
 
     void setVirtualMachine(const QString& machineName);
     QString virtualMachine() const;
@@ -82,7 +80,6 @@ private:
     QSharedPointer<MerConnection> m_connection; // all clones share the connection
     QString m_mac;
     QString m_subnet;
-    QString m_sharedSshPath;
     QString m_sharedConfigPath;
 
 };
