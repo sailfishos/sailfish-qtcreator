@@ -38,11 +38,12 @@ public:
     static Ptr create();
     static Ptr create(const QString &name, Origin origin = ManuallyAdded, Core::Id id = Core::Id());
 
-    QString displayType() const;
     ProjectExplorer::IDevice::Ptr clone() const;
 
     void fromMap(const QVariantMap &map);
     QVariantMap toMap() const;
+
+    ProjectExplorer::Abi::Architecture architecture() const;
 
     QList<Core::Id> actionIds() const;
     QString displayNameForActionId(Core::Id actionId) const;
@@ -51,8 +52,7 @@ public:
 
 protected:
     MerHardwareDevice();
-    MerHardwareDevice(const QString &name, Core::Id type, MachineType machineType, Origin origin,
-              Core::Id id);
+    MerHardwareDevice(const QString &name, Origin origin, Core::Id id);
 private:
     MerHardwareDevice &operator=(const MerHardwareDevice &);
 };

@@ -102,7 +102,7 @@ bool MerProcessStep::init()
     IDevice::ConstPtr device = DeviceKitInformation::device(this->target()->kit());
 
     //TODO: HACK
-    if (device.isNull() && DeviceTypeKitInformation::deviceTypeId(this->target()->kit()) != Constants::MER_DEVICE_TYPE_ARM) {
+    if (device.isNull() && dynamic_cast<MerMb2RpmBuildStep *>(this) == 0) {
         addOutput(tr("Cannot deploy: Missing MerDevice information in the kit"),ErrorMessageOutput);
         return false;
     }
@@ -178,11 +178,11 @@ MerEmulatorStartStep::MerEmulatorStartStep(ProjectExplorer::BuildStepList *bsl, 
 bool MerEmulatorStartStep::init()
 {
     IDevice::ConstPtr d = DeviceKitInformation::device(this->target()->kit());
-    if(d.isNull() || d->type() != Constants::MER_DEVICE_TYPE_I486) {
+    const MerEmulatorDevice* device = dynamic_cast<const MerEmulatorDevice*>(d.data());
+    if (!device) {
         setEnabled(false);
         return false;
     }
-    const MerEmulatorDevice* device = static_cast<const MerEmulatorDevice*>(d.data());
 
     setConnection(device->connection());
 
@@ -289,24 +289,12 @@ bool MerLocalRsyncDeployStep::init()
         return false;
     }
 
-    IDevice::ConstPtr device = DeviceKitInformation::device(this->target()->kit());
-
-    //TODO: HACK
-    if (device.isNull() && DeviceTypeKitInformation::deviceTypeId(this->target()->kit()) != Constants::MER_DEVICE_TYPE_ARM) {
-        addOutput(tr("Cannot deploy: Missing MerDevice information in the kit"),ErrorMessageOutput);
-        return false;
-    }
-
-
     const QString projectDirectory = bc->isShadowBuild() ? bc->rawBuildDirectory().toString() : project()->projectDirectory();
     const QString deployCommand = QLatin1String("rsync");
 
     ProcessParameters *pp = processParameters();
 
     Utils::Environment env = bc ? bc->environment() : Utils::Environment::systemEnvironment();
-    //TODO HACK
-    if(!device.isNull())
-        env.appendOrSet(QLatin1String(Constants::MER_SSH_DEVICE_NAME),device->displayName());
     pp->setMacroExpander(bc ? bc->macroExpander() : Core::VariableManager::macroExpander());
     pp->setEnvironment(env);
     pp->setWorkingDirectory(projectDirectory);

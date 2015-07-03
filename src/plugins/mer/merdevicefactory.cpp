@@ -34,6 +34,7 @@
 #include <utils/portlist.h>
 #include <coreplugin/icore.h>
 #include <QFileInfo>
+#include <QInputDialog>
 #include <QMessageBox>
 
 using Core::ICore;
@@ -48,31 +49,35 @@ MerDeviceFactory::MerDeviceFactory()
 
 QString MerDeviceFactory::displayNameForId(Core::Id type) const
 {
-    if (type == Constants::MER_DEVICE_TYPE_I486)
-        return tr("Mer Emulator Device");
-    if (type == Constants::MER_DEVICE_TYPE_ARM)
-        return tr("Mer ARM Device");
+    if (type == Constants::MER_DEVICE_TYPE)
+        return tr("Mer Device");
     return QString();
 }
 
 bool MerDeviceFactory::canCreate(Core::Id type)
 {
-    return type == Core::Id(Constants::MER_DEVICE_TYPE_I486) ||
-           type == Core::Id(Constants::MER_DEVICE_TYPE_ARM);
+    return type == Core::Id(Constants::MER_DEVICE_TYPE);
 }
-
 
 QList<Core::Id> MerDeviceFactory::availableCreationIds() const
 {
-    return QList<Core::Id>() << Core::Id(Constants::MER_DEVICE_TYPE_I486)
-                             << Core::Id(Constants::MER_DEVICE_TYPE_ARM);
+    return QList<Core::Id>() << Core::Id(Constants::MER_DEVICE_TYPE);
 }
 
 ProjectExplorer::IDevice::Ptr MerDeviceFactory::create(Core::Id id) const
 {
-    QTC_ASSERT(canCreate(id), return ProjectExplorer::IDevice::Ptr());
+    QTC_ASSERT(id == Constants::MER_DEVICE_TYPE, return ProjectExplorer::IDevice::Ptr());
 
-    if(id == Constants::MER_DEVICE_TYPE_I486) {
+    QStringList choices = QStringList() << tr("Emulator") << tr("Physical device");
+    bool ok;
+    QString machineType = QInputDialog::getItem(ICore::dialogParent(),
+            tr("Create Mer Device"),
+            tr("Add an emulator or physical device?"),
+            choices, 0, false, &ok);
+    if (!ok)
+        return ProjectExplorer::IDevice::Ptr();
+
+    if (machineType == choices.first()) {
         MerEmulatorDeviceWizard wizard;
         if (wizard.exec() != QDialog::Accepted)
             return ProjectExplorer::IDevice::Ptr();
@@ -106,9 +111,7 @@ ProjectExplorer::IDevice::Ptr MerDeviceFactory::create(Core::Id id) const
         }
 
         return device;
-    }
-
-    if(id == Constants::MER_DEVICE_TYPE_ARM) {
+    } else {
         MerHardwareDeviceWizard wizard;
         if (wizard.exec() != QDialog::Accepted)
             return ProjectExplorer::IDevice::Ptr();
@@ -172,17 +175,15 @@ bool MerDeviceFactory::canRestore(const QVariantMap &map) const
 ProjectExplorer::IDevice::Ptr MerDeviceFactory::restore(const QVariantMap &map) const
 {
     QTC_ASSERT(canRestore(map), return ProjectExplorer::IDevice::Ptr());
-    if(ProjectExplorer::IDevice::typeFromMap(map) == Constants::MER_DEVICE_TYPE_I486) {
+    if (MerDevice::workaround_machineTypeFromMap(map) == ProjectExplorer::IDevice::Emulator) {
         const ProjectExplorer::IDevice::Ptr device = MerEmulatorDevice::create();
         device->fromMap(map);
         return device;
-    }
-    if(ProjectExplorer::IDevice::typeFromMap(map) == Constants::MER_DEVICE_TYPE_ARM) {
+    } else {
         const ProjectExplorer::IDevice::Ptr device = MerHardwareDevice::create();
         device->fromMap(map);
         return device;
     }
-    return ProjectExplorer::IDevice::Ptr();
 }
 
 } // Internal

@@ -27,6 +27,16 @@
 namespace Mer {
 namespace Internal {
 
+namespace {
+    //! \todo Add IDevice::machineTypeFromMap and remove this workaround
+    const char workaround_MachineTypeKey[] = "workaround_MachineType";
+}
+
+QString MerDevice::displayType() const
+{
+    return tr("Mer Device");
+}
+
 void MerDevice::fromMap(const QVariantMap &map)
 {
     IDevice::fromMap(map);
@@ -37,7 +47,15 @@ QVariantMap MerDevice::toMap() const
 {
     QVariantMap map = IDevice::toMap();
     map.insert(QLatin1String(Constants::MER_DEVICE_SHARED_SSH), m_sharedSshPath);
+    map.insert(QLatin1String(workaround_MachineTypeKey), machineType());
     return map;
+}
+
+ProjectExplorer::IDevice::MachineType
+    MerDevice::workaround_machineTypeFromMap(const QVariantMap &map)
+{
+    return static_cast<MachineType>(
+            map.value(QLatin1String(workaround_MachineTypeKey), Hardware).toInt());
 }
 
 void MerDevice::setSharedSshPath(const QString &sshPath)
@@ -54,9 +72,8 @@ MerDevice::MerDevice()
 {
 }
 
-MerDevice::MerDevice(const QString &name, Core::Id type, MachineType machineType, Origin origin,
-        Core::Id id)
-    : RemoteLinux::LinuxDevice(name, type, machineType, origin, id)
+MerDevice::MerDevice(const QString &name, MachineType machineType, Origin origin, Core::Id id)
+    : RemoteLinux::LinuxDevice(name, Core::Id(Constants::MER_DEVICE_TYPE), machineType, origin, id)
 {
     setDeviceState(IDevice::DeviceStateUnknown);
 }

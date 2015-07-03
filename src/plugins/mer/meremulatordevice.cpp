@@ -168,14 +168,9 @@ ProjectExplorer::IDevice::Ptr MerEmulatorDevice::clone() const
 }
 
 MerEmulatorDevice::MerEmulatorDevice():
-    MerDevice(QString(), Core::Id(Constants::MER_DEVICE_TYPE_I486), Emulator, ManuallyAdded, Core::Id())
+    MerDevice(QString(), Emulator, ManuallyAdded, Core::Id())
     , m_connection(new MerConnection(0 /* not bug */))
 {
-}
-
-QString MerEmulatorDevice::displayType() const
-{
-    return tr("Mer Emulator");
 }
 
 ProjectExplorer::IDeviceWidget *MerEmulatorDevice::createWidget()
@@ -237,6 +232,11 @@ QVariantMap MerEmulatorDevice::toMap() const
     map.insert(QLatin1String(Constants::MER_DEVICE_SUBNET), m_subnet);
     map.insert(QLatin1String(Constants::MER_DEVICE_SHARED_CONFIG), m_sharedConfigPath);
     return map;
+}
+
+ProjectExplorer::Abi::Architecture MerEmulatorDevice::architecture() const
+{
+    return ProjectExplorer::Abi::X86Architecture;
 }
 
 void MerEmulatorDevice::setMac(const QString& mac)

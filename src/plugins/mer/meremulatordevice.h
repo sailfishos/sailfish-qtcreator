@@ -44,7 +44,6 @@ public:
 
     static Ptr create();
     ProjectExplorer::IDevice::Ptr clone() const;
-    QString displayType() const;
     ProjectExplorer::IDeviceWidget *createWidget();
     QList<Core::Id> actionIds() const;
     QString displayNameForActionId(Core::Id actionId) const;
@@ -52,6 +51,8 @@ public:
 
     void fromMap(const QVariantMap &map);
     QVariantMap toMap() const;
+
+    ProjectExplorer::Abi::Architecture architecture() const;
 
     void setSharedConfigPath(const QString &configPath);
     QString sharedConfigPath() const;

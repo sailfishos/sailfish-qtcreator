@@ -25,6 +25,7 @@
 
 #include <QSharedPointer>
 
+#include <projectexplorer/abi.h>
 #include <remotelinux/linuxdevice.h>
 
 namespace Mer {
@@ -38,16 +39,21 @@ public:
     typedef QSharedPointer<MerDevice> Ptr;
     typedef QSharedPointer<const MerDevice> ConstPtr;
 
+    QString displayType() const;
+
     void fromMap(const QVariantMap &map);
     QVariantMap toMap() const;
+
+    virtual ProjectExplorer::Abi::Architecture architecture() const = 0;
+
+    static MachineType workaround_machineTypeFromMap(const QVariantMap &map);
 
     void setSharedSshPath(const QString &sshPath);
     QString sharedSshPath() const;
 
 protected:
     MerDevice();
-    MerDevice(const QString &name, Core::Id type, MachineType machineType, Origin origin,
-            Core::Id id);
+    MerDevice(const QString &name, MachineType machineType, Origin origin, Core::Id id);
     ~MerDevice() = 0;
 
 private:

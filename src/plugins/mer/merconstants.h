@@ -44,8 +44,7 @@ const char MER_OPTIONS_NAME[] = QT_TRANSLATE_NOOP("Mer", "SDK");
 const char MER_GENERAL_OPTIONS_ID[] = "A.MerGeneral";
 const char MER_GENERAL_OPTIONS_NAME[] = QT_TRANSLATE_NOOP("Mer", "General");
 
-const char MER_DEVICE_TYPE_I486[] = "Mer.Device.Type.i486";
-const char MER_DEVICE_TYPE_ARM[] = "Mer.Device.Type.Arm";
+const char MER_DEVICE_TYPE[] = "Mer.Device.Type";
 const char MER_i486_IDENTIFIER[] = "i486";
 const char MER_ARM_IDENTIFIER[] = "arm";
 const char MER_SAILFISH_MENU[] = "Mer.Sailfish.Menu";

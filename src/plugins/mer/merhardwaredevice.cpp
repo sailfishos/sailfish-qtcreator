@@ -51,20 +51,13 @@ MerHardwareDevice::Ptr MerHardwareDevice::create(const QString &name,
                                  Origin origin,
                                  Core::Id id)
 {
-    return Ptr(new MerHardwareDevice(name, Constants::MER_DEVICE_TYPE_ARM, IDevice::Hardware, origin, id));
-}
-
-QString MerHardwareDevice::displayType() const
-{
-    return QLatin1String("Mer ARM");
+    return Ptr(new MerHardwareDevice(name, origin, id));
 }
 
 MerHardwareDevice::MerHardwareDevice(const QString &name,
-                     Core::Id type,
-                     MachineType machineType,
                      Origin origin,
                      Core::Id id)
-    : MerDevice(name, type, machineType, origin, id)
+    : MerDevice(name, IDevice::Hardware, origin, id)
 {
 }
 
@@ -86,6 +79,12 @@ QVariantMap MerHardwareDevice::toMap() const
 {
     QVariantMap map = MerDevice::toMap();
     return map;
+}
+
+ProjectExplorer::Abi::Architecture MerHardwareDevice::architecture() const
+{
+    //! \todo allow X86 hw devices
+    return ProjectExplorer::Abi::ArmArchitecture;
 }
 
 ProjectExplorer::IDeviceWidget *MerHardwareDevice::createWidget()
