@@ -47,6 +47,8 @@ QList<Core::Id> MerDeployStepFactory::availableCreationIds(BuildStepList *parent
         return ids;
 
     ids << MerEmulatorStartStep::stepId();
+    ids << MerConnectionTestStep::stepId();
+    ids << MerPrepareTargetStep::stepId();
     ids << MerMb2RsyncDeployStep::stepId();
     ids << MerMb2RpmDeployStep::stepId();
     ids << MerMb2RpmBuildStep::stepId();
@@ -62,6 +64,10 @@ QString MerDeployStepFactory::displayNameForId(const Core::Id id) const
 {
     if (id == MerEmulatorStartStep::stepId())
         return MerEmulatorStartStep::displayName();
+    if (id == MerConnectionTestStep::stepId())
+        return MerConnectionTestStep::displayName();
+    if (id == MerPrepareTargetStep::stepId())
+        return MerPrepareTargetStep::displayName();
     if (id == MerMb2RsyncDeployStep::stepId())
         return MerMb2RsyncDeployStep::displayName();
     if (id == MerMb2RpmDeployStep::stepId())
@@ -89,6 +95,10 @@ BuildStep *MerDeployStepFactory::create(BuildStepList *parent, const Core::Id id
 {
     if (id == MerEmulatorStartStep::stepId())
         return new MerEmulatorStartStep(parent);
+    if (id == MerConnectionTestStep::stepId())
+        return new MerConnectionTestStep(parent);
+    if (id == MerPrepareTargetStep::stepId())
+        return new MerPrepareTargetStep(parent);
     if (id == MerMb2RsyncDeployStep::stepId())
         return new MerMb2RsyncDeployStep(parent);
     if (id == MerMb2RpmDeployStep::stepId())
@@ -133,6 +143,10 @@ BuildStep *MerDeployStepFactory::clone(BuildStepList *parent, BuildStep *product
     QTC_ASSERT(canClone(parent, product), return 0);
     if (MerEmulatorStartStep * const other = qobject_cast<MerEmulatorStartStep *>(product))
         return new MerEmulatorStartStep(parent, other);
+    if (MerConnectionTestStep * const other = qobject_cast<MerConnectionTestStep *>(product))
+        return new MerConnectionTestStep(parent, other);
+    if (MerPrepareTargetStep * const other = qobject_cast<MerPrepareTargetStep *>(product))
+        return new MerPrepareTargetStep(parent, other);
     if (MerMb2RsyncDeployStep * const other = qobject_cast<MerMb2RsyncDeployStep *>(product))
         return new MerMb2RsyncDeployStep(parent, other);
     if (MerMb2RpmDeployStep * const other = qobject_cast<MerMb2RpmDeployStep *>(product))

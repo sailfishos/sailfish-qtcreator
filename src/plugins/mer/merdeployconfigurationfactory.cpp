@@ -89,17 +89,14 @@ DeployConfiguration *MerDeployConfigurationFactory::create(Target *parent, const
     QTC_ASSERT(canCreate(parent, id), return 0);
 
     ProjectExplorer::DeployConfiguration *dc = 0;
-    const IDevice::ConstPtr device = ProjectExplorer::DeviceKitInformation::device(parent->kit());
 
      if (id == MerRpmDeployConfiguration::configurationId()) {
          dc = new MerRpmDeployConfiguration(parent, id);
-         if (device && device->machineType() == ProjectExplorer::IDevice::Emulator)
-            dc->stepList()->insertStep(0, new MerEmulatorStartStep(dc->stepList()));
+         dc->stepList()->insertStep(0, new MerPrepareTargetStep(dc->stepList()));
          dc->stepList()->insertStep(1, new MerMb2RpmDeployStep(dc->stepList()));
      } else if (id == MerRsyncDeployConfiguration::configurationId()) {
          dc = new MerRsyncDeployConfiguration(parent, id);
-         if (device && device->machineType() == ProjectExplorer::IDevice::Emulator)
-             dc->stepList()->insertStep(0, new MerEmulatorStartStep(dc->stepList()));
+         dc->stepList()->insertStep(0, new MerPrepareTargetStep(dc->stepList()));
          dc->stepList()->insertStep(1, new MerMb2RsyncDeployStep(dc->stepList()));
      } else if (id == MerMb2RpmBuildConfiguration::configurationId()) {
          dc = new MerMb2RpmBuildConfiguration(parent, id);
@@ -137,11 +134,8 @@ ProjectExplorer::DeployConfiguration *MerDeployConfigurationFactory::restore(
         return 0;
     }
 
-    const IDevice::ConstPtr device = ProjectExplorer::DeviceKitInformation::device(parent->kit());
-    if (device && device->machineType() == ProjectExplorer::IDevice::Emulator) {
-      if (!dc->stepList()->contains(MerEmulatorStartStep::stepId()))
-        dc->stepList()->insertStep(0, new MerEmulatorStartStep(dc->stepList()));
-    }
+    if (!dc->stepList()->contains(MerPrepareTargetStep::stepId()))
+        dc->stepList()->insertStep(0, new MerPrepareTargetStep(dc->stepList()));
 
     return dc;
 }

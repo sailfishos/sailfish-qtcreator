@@ -69,6 +69,61 @@ public:
     friend class MerDeployStepFactory;
 };
 
+class MerConnectionTestStep : public ProjectExplorer::BuildStep
+{
+    Q_OBJECT
+
+public:
+    explicit MerConnectionTestStep(ProjectExplorer::BuildStepList *bsl);
+    MerConnectionTestStep(ProjectExplorer::BuildStepList *bsl, MerConnectionTestStep *bs);
+
+    bool init();
+    void run(QFutureInterface<bool> &fi);
+    ProjectExplorer::BuildStepConfigWidget *createConfigWidget();
+    bool immutable() const;
+    bool runInGuiThread() const;
+
+    static const Core::Id stepId();
+    static QString displayName();
+
+private slots:
+    void onConnected();
+    void onConnectionFailure();
+    void checkForCancel();
+
+private:
+    void finish(bool result);
+
+private:
+    QFutureInterface<bool> *m_futureInterface;
+    QSsh::SshConnection *m_connection;
+    QTimer *m_checkForCancelTimer;
+};
+
+class MerPrepareTargetStep : public ProjectExplorer::BuildStep
+{
+    Q_OBJECT
+
+public:
+    explicit MerPrepareTargetStep(ProjectExplorer::BuildStepList *bsl);
+    MerPrepareTargetStep(ProjectExplorer::BuildStepList *bsl, MerPrepareTargetStep *bs);
+
+    bool init();
+    void run(QFutureInterface<bool> &fi);
+    ProjectExplorer::BuildStepConfigWidget *createConfigWidget();
+    bool immutable() const;
+    bool runInGuiThread() const;
+
+    static const Core::Id stepId();
+    static QString displayName();
+
+private slots:
+    void onImplFinished();
+
+private:
+    ProjectExplorer::BuildStep *m_impl;
+};
+
 class MerMb2RsyncDeployStep : public MerProcessStep
 {
     Q_OBJECT
