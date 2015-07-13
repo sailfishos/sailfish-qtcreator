@@ -46,8 +46,8 @@ QList<Core::Id> MerDeployStepFactory::availableCreationIds(BuildStepList *parent
     if (!qobject_cast<MerDeployConfiguration *>(parent->parent()))
         return ids;
 
-    ids << MerEmulatorStartStep::stepId();
-    ids << MerConnectionTestStep::stepId();
+    // Intentionally omit MerEmulatorStartStep and MerConnectionTestStep - these
+    // are available wrapped by MerPrepareTargetStep
     ids << MerPrepareTargetStep::stepId();
     ids << MerMb2RsyncDeployStep::stepId();
     ids << MerMb2RpmDeployStep::stepId();
@@ -62,10 +62,6 @@ QList<Core::Id> MerDeployStepFactory::availableCreationIds(BuildStepList *parent
 
 QString MerDeployStepFactory::displayNameForId(const Core::Id id) const
 {
-    if (id == MerEmulatorStartStep::stepId())
-        return MerEmulatorStartStep::displayName();
-    if (id == MerConnectionTestStep::stepId())
-        return MerConnectionTestStep::displayName();
     if (id == MerPrepareTargetStep::stepId())
         return MerPrepareTargetStep::displayName();
     if (id == MerMb2RsyncDeployStep::stepId())
@@ -93,10 +89,6 @@ bool MerDeployStepFactory::canCreate(BuildStepList *parent, const Core::Id id) c
 
 BuildStep *MerDeployStepFactory::create(BuildStepList *parent, const Core::Id id)
 {
-    if (id == MerEmulatorStartStep::stepId())
-        return new MerEmulatorStartStep(parent);
-    if (id == MerConnectionTestStep::stepId())
-        return new MerConnectionTestStep(parent);
     if (id == MerPrepareTargetStep::stepId())
         return new MerPrepareTargetStep(parent);
     if (id == MerMb2RsyncDeployStep::stepId())
