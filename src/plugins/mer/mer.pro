@@ -19,11 +19,11 @@ FORMS += \
     merdeploystep.ui \
     meremulatordevicewidget.ui \
     merhardwaredevicewidget.ui \
-    merhardwaredevicewizardgeneralpage.ui \
+    merhardwaredevicewizardselectionpage.ui \
     meremulatordevicewizardvmpage.ui \
     meremulatordevicewizardsshpage.ui \
     merrpmpackagingwidget.ui \
-    merhardwaredevicewizardkeypage.ui
+    merhardwaredevicewizardsetuppage.ui
 
 SOURCES += \
     merplugin.cpp \

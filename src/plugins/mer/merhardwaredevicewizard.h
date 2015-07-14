@@ -54,8 +54,8 @@ public:
 
 
 private:
-    MerHardwareDeviceWizardGeneralPage m_setupPage;
-    MerHardwareDeviceWizardKeyPage m_keyPage;
+    MerHardwareDeviceWizardSelectionPage m_selectionPage;
+    MerHardwareDeviceWizardSetupPage m_setupPage;
     RemoteLinux::GenericLinuxDeviceConfigurationWizardFinalPage m_finalPage;
 };
 

@@ -29,49 +29,55 @@ namespace Mer {
 namespace Internal {
 
 namespace Ui {
-    class MerHardwareDeviceWizardGeneralPage;
-    class MerHardwareDeviceWizardKeyPage;
+    class MerHardwareDeviceWizardSelectionPage;
+    class MerHardwareDeviceWizardSetupPage;
 }
 
-class MerHardwareDeviceWizardGeneralPage : public QWizardPage
+class MerHardwareDeviceWizardSelectionPage : public QWizardPage
 {
     Q_OBJECT
 public:
-    explicit MerHardwareDeviceWizardGeneralPage(QWidget *parent = 0);
+    explicit MerHardwareDeviceWizardSelectionPage(QWidget *parent = 0);
 
-    QString configName() const;
     QString hostName() const;
     QString userName() const;
     QString password() const;
-    QString freePorts() const;
     int timeout() const;
     int sshPort() const;
 
     bool isComplete() const;
 
+private slots:
+    void handleTestConnectionClicked();
+
 private:
-    Ui::MerHardwareDeviceWizardGeneralPage *m_ui;
+    Ui::MerHardwareDeviceWizardSelectionPage *m_ui;
+    bool m_isIdle;
+    bool m_connectionTestOk;
 };
 
-class MerHardwareDeviceWizardKeyPage : public QWizardPage
+class MerHardwareDeviceWizardSetupPage : public QWizardPage
 {
     Q_OBJECT
 public:
-    explicit MerHardwareDeviceWizardKeyPage(QWidget *parent = 0);
+    explicit MerHardwareDeviceWizardSetupPage(QWidget *parent = 0);
+
     void initializePage();
+
+    QString configName() const;
+    QString freePorts() const;
     QString publicKeyFilePath() const;
     QString privateKeyFilePath() const;
     bool isNewSshKeysRquired() const;
     QString sharedSshPath() const;
-    QString password() const;
+
     bool isComplete() const;
+
 private slots:
     void handleSdkVmChanged(const QString &vmName);
-    void handleTestConnectionClicked();
 
 private:
-    Ui::MerHardwareDeviceWizardKeyPage *m_ui;
-    bool m_isIdle;
+    Ui::MerHardwareDeviceWizardSetupPage *m_ui;
 };
 
 }
