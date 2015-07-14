@@ -174,6 +174,7 @@ ProjectExplorer::Kit* MerTarget::createKit() const
     ProjectExplorer::SysRootKitInformation::setSysRoot(k, Utils::FileName::fromUserInput(sysroot));
 
     ProjectExplorer::DeviceTypeKitInformation::setDeviceTypeId(k, Constants::MER_DEVICE_TYPE);
+    k->setMutable(ProjectExplorer::DeviceKitInformation::id(), true);
 
     const QString gdb = Utils::HostOsInfo::withExecutableSuffix(m_defaultGdb);
     QString gdbDir = QCoreApplication::applicationDirPath();
