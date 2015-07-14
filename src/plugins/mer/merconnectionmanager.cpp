@@ -367,7 +367,8 @@ void MerConnectionManager::update()
     m_sdkAction->update();
 }
 
-QString MerConnectionManager::testConnection(const QSsh::SshConnectionParameters &params) const
+QString MerConnectionManager::testConnection(const QSsh::SshConnectionParameters &params,
+        bool *ok) const
 {
     QSsh::SshConnectionParameters p = params;
     QSsh::SshConnection connection(p);
@@ -377,6 +378,8 @@ QString MerConnectionManager::testConnection(const QSsh::SshConnectionParameters
     connect(&connection, SIGNAL(disconnected()), &loop, SLOT(quit()));
     connection.connectToHost();
     loop.exec();
+    if (ok != 0)
+        *ok = connection.errorState() == QSsh::SshNoError;
     QString result;
     if (connection.errorState() != QSsh::SshNoError)
         result = connection.errorString();
