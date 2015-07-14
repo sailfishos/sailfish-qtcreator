@@ -78,7 +78,7 @@ ProjectExplorer::IDevice::Ptr MerDeviceFactory::create(Core::Id id) const
         return ProjectExplorer::IDevice::Ptr();
 
     if (machineType == choices.first()) {
-        MerEmulatorDeviceWizard wizard;
+        MerEmulatorDeviceWizard wizard(ICore::dialogParent());
         if (wizard.exec() != QDialog::Accepted)
             return ProjectExplorer::IDevice::Ptr();
 
@@ -112,7 +112,7 @@ ProjectExplorer::IDevice::Ptr MerDeviceFactory::create(Core::Id id) const
 
         return device;
     } else {
-        MerHardwareDeviceWizard wizard;
+        MerHardwareDeviceWizard wizard(ICore::dialogParent());
         if (wizard.exec() != QDialog::Accepted)
             return ProjectExplorer::IDevice::Ptr();
 
