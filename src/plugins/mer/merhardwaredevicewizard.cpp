@@ -66,6 +66,11 @@ ProjectExplorer::Abi::Architecture MerHardwareDeviceWizard::architecture() const
     return m_selectionPage.architecture();
 }
 
+QString MerHardwareDeviceWizard::deviceName() const
+{
+    return m_selectionPage.deviceName();
+}
+
 QString MerHardwareDeviceWizard::privateKeyFilePath() const
 {
     return m_setupPage.privateKeyFilePath();

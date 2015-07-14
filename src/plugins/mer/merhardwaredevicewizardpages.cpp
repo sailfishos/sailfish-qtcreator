@@ -105,6 +105,11 @@ ProjectExplorer::Abi::Architecture MerHardwareDeviceWizardSelectionPage::archite
     return m_architecture;
 }
 
+QString MerHardwareDeviceWizardSelectionPage::deviceName() const
+{
+    return m_deviceName;
+}
+
 void MerHardwareDeviceWizardSelectionPage::handleTestConnectionClicked()
 {
     m_ui->testButton->setEnabled(false);
@@ -127,12 +132,13 @@ void MerHardwareDeviceWizardSelectionPage::handleTestConnectionClicked()
 
     m_ui->connectionLabelEdit->setText(tr("Detecting device properties..."));
     m_architecture = detectArchitecture(sshParams, &m_connectionTestOk);
+    m_deviceName = detectDeviceName(sshParams, &m_connectionTestOk);
     if (!m_connectionTestOk) {
         m_ui->connectionLabelEdit->setText(tr("Could autodetect device properties"));
         goto end;
     }
 
-    m_ui->connectionLabelEdit->setText(tr("Connected"));
+    m_ui->connectionLabelEdit->setText(tr("Connected %1 device").arg(m_deviceName));
 
 end:
     m_ui->testButton->setEnabled(true);
@@ -183,6 +189,49 @@ ProjectExplorer::Abi::Architecture MerHardwareDeviceWizardSelectionPage::detectA
     return architecture;
 }
 
+QString MerHardwareDeviceWizardSelectionPage::detectDeviceName(
+        const QSsh::SshConnectionParameters &sshParams, bool *ok)
+{
+    if (!*ok) {
+        return QString();
+    }
+
+    QSsh::SshRemoteProcessRunner runner;
+    QEventLoop loop;
+    connect(&runner, SIGNAL(connectionError()), &loop, SLOT(quit()));
+    connect(&runner, SIGNAL(processClosed(int)), &loop, SLOT(quit()));
+    runner.run("cat /etc/hw-release", sshParams);
+    loop.exec();
+
+    if (runner.lastConnectionError() != QSsh::SshNoError
+            || runner.processExitStatus() != QSsh::SshRemoteProcess::NormalExit
+            || runner.processExitCode() != 0) {
+        *ok = false;
+        qWarning() << "Failed to read /etc/hw-release on target";
+        return QString();
+    }
+
+    const QString output = QString::fromLatin1(runner.readAllStandardOutput());
+
+    QString deviceName;
+    QRegExp regExp(QStringLiteral("^NAME=\"?([^\"]+)\"?\\s*$"));
+    foreach (const QString &line, output.split(QLatin1Char('\n'))) {
+        if (regExp.indexIn(line) != -1) {
+            deviceName = regExp.cap(1);
+            break;
+        }
+    }
+
+    if (deviceName.isEmpty()) {
+        *ok = false;
+        qWarning() << "Invalid output from reading /etc/hw-release on target [" << output << "]";
+        return QString();
+    }
+
+    *ok = true;
+    return deviceName;
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
 MerHardwareDeviceWizardSetupPage::MerHardwareDeviceWizardSetupPage(QWidget *parent)
@@ -217,7 +266,7 @@ void MerHardwareDeviceWizardSetupPage::initializePage()
 
    const QString arch = ProjectExplorer::Abi::toString(wizard->architecture()).toUpper();
 
-   QString preferredName = tr("SailfishOS Device (%1)").arg(arch);
+   QString preferredName = QStringLiteral("%1 (%2)").arg(wizard->deviceName()).arg(arch);
    int i = 1;
    QString tryName = preferredName;
    while (ProjectExplorer::DeviceManager::instance()->hasDevice(tryName))

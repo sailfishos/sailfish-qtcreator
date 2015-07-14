@@ -45,6 +45,7 @@ public:
     QString userName() const;
     QString password() const;
     ProjectExplorer::Abi::Architecture architecture() const;
+    QString deviceName() const;
     QString privateKeyFilePath() const;
     QString publicKeyFilePath() const;
     QString configurationName() const;

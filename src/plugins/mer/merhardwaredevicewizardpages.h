@@ -52,6 +52,7 @@ public:
     int sshPort() const;
 
     ProjectExplorer::Abi::Architecture architecture() const;
+    QString deviceName() const;
 
     bool isComplete() const;
 
@@ -61,10 +62,12 @@ private slots:
 private:
     static ProjectExplorer::Abi::Architecture detectArchitecture(
             const QSsh::SshConnectionParameters &sshParams, bool *ok);
+    static QString detectDeviceName(const QSsh::SshConnectionParameters &sshParams, bool *ok);
 
 private:
     Ui::MerHardwareDeviceWizardSelectionPage *m_ui;
     ProjectExplorer::Abi::Architecture m_architecture;
+    QString m_deviceName;
     bool m_isIdle;
     bool m_connectionTestOk;
 };
