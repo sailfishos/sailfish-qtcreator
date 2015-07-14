@@ -28,6 +28,7 @@
 #include "ui_merhardwaredevicewizardselectionpage.h"
 #include "ui_merhardwaredevicewizardsetuppage.h"
 #include <projectexplorer/devicesupport/devicemanager.h>
+#include <ssh/sshremoteprocessrunner.h>
 #include <utils/qtcassert.h>
 #include <utils/portlist.h>
 #include <QDir>
@@ -39,6 +40,7 @@ namespace Internal {
 MerHardwareDeviceWizardSelectionPage::MerHardwareDeviceWizardSelectionPage(QWidget *parent)
     : QWizardPage(parent)
     , m_ui(new Ui::MerHardwareDeviceWizardSelectionPage)
+    , m_architecture(ProjectExplorer::Abi::UnknownArchitecture)
     , m_isIdle(true)
     , m_connectionTestOk(false)
 {
@@ -98,8 +100,14 @@ int MerHardwareDeviceWizardSelectionPage::timeout() const
     return m_ui->timeoutSpinBox->value();
 }
 
+ProjectExplorer::Abi::Architecture MerHardwareDeviceWizardSelectionPage::architecture() const
+{
+    return m_architecture;
+}
+
 void MerHardwareDeviceWizardSelectionPage::handleTestConnectionClicked()
 {
+    m_ui->testButton->setEnabled(false);
     m_isIdle = false;
     completeChanged();
 
@@ -112,13 +120,67 @@ void MerHardwareDeviceWizardSelectionPage::handleTestConnectionClicked()
     sshParams.password = password();
 
     m_ui->connectionLabelEdit->setText(tr("Connecting to machine %1 ...").arg(hostName()));
-    m_ui->testButton->setEnabled(false);
     m_ui->connectionLabelEdit->setText(MerConnectionManager::instance()->testConnection(sshParams,
                 &m_connectionTestOk));
-    m_ui->testButton->setEnabled(true);
+    if (!m_connectionTestOk)
+        goto end;
 
+    m_ui->connectionLabelEdit->setText(tr("Detecting device properties..."));
+    m_architecture = detectArchitecture(sshParams, &m_connectionTestOk);
+    if (!m_connectionTestOk) {
+        m_ui->connectionLabelEdit->setText(tr("Could autodetect device properties"));
+        goto end;
+    }
+
+    m_ui->connectionLabelEdit->setText(tr("Connected"));
+
+end:
+    m_ui->testButton->setEnabled(true);
     m_isIdle = true;
     completeChanged();
+}
+
+ProjectExplorer::Abi::Architecture MerHardwareDeviceWizardSelectionPage::detectArchitecture(
+        const QSsh::SshConnectionParameters &sshParams, bool *ok)
+{
+    if (!*ok) {
+        return ProjectExplorer::Abi::UnknownArchitecture;
+    }
+
+    QSsh::SshRemoteProcessRunner runner;
+    QEventLoop loop;
+    connect(&runner, SIGNAL(connectionError()), &loop, SLOT(quit()));
+    connect(&runner, SIGNAL(processClosed(int)), &loop, SLOT(quit()));
+    runner.run("uname --machine", sshParams);
+    loop.exec();
+
+    if (runner.lastConnectionError() != QSsh::SshNoError
+            || runner.processExitStatus() != QSsh::SshRemoteProcess::NormalExit
+            || runner.processExitCode() != 0) {
+        *ok = false;
+        qWarning() << "Failed to execute uname on target";
+        return ProjectExplorer::Abi::UnknownArchitecture;
+    }
+
+    const QString output = QString::fromLatin1(runner.readAllStandardOutput()).trimmed();
+    if (output.isEmpty()) {
+        *ok = false;
+        qWarning() << "Empty output from uname executed on target";
+        return ProjectExplorer::Abi::UnknownArchitecture;
+    }
+
+    // Does not seem ideal, but works well
+    ProjectExplorer::Abi::Architecture architecture =
+        ProjectExplorer::Abi::abiFromTargetTriplet(output).architecture();
+    if (architecture == ProjectExplorer::Abi::UnknownArchitecture) {
+        *ok = false;
+        qWarning() << "Could not parse architecture from uname executed on target (output:"
+            << output << ")";
+        return ProjectExplorer::Abi::UnknownArchitecture;
+    }
+
+    *ok = true;
+    return architecture;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -129,13 +191,6 @@ MerHardwareDeviceWizardSetupPage::MerHardwareDeviceWizardSetupPage(QWidget *pare
 {
     m_ui->setupUi(this);
     setTitle(tr("Configure Connection"));
-
-    QString preferredName = tr("SailfishOS Device");
-    int i = 1;
-    QString tryName = preferredName;
-    while (ProjectExplorer::DeviceManager::instance()->hasDevice(tryName))
-        tryName = preferredName + QString::number(++i);
-    m_ui->configLineEdit->setText(tryName);
 
     m_ui->freePortsLineEdit->setText(QLatin1String("10000-10100"));
 
@@ -159,6 +214,15 @@ void MerHardwareDeviceWizardSetupPage::initializePage()
 {
    const MerHardwareDeviceWizard* wizard = qobject_cast<MerHardwareDeviceWizard*>(this->wizard());
    QTC_ASSERT(wizard,return);
+
+   const QString arch = ProjectExplorer::Abi::toString(wizard->architecture()).toUpper();
+
+   QString preferredName = tr("SailfishOS Device (%1)").arg(arch);
+   int i = 1;
+   QString tryName = preferredName;
+   while (ProjectExplorer::DeviceManager::instance()->hasDevice(tryName))
+       tryName = preferredName + QString::number(++i);
+   m_ui->configLineEdit->setText(tryName);
 
    m_ui->hostLabelEdit->setText(wizard->hostName());
    m_ui->usernameLabelEdit->setText(wizard->userName());

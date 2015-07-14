@@ -157,6 +157,7 @@ ProjectExplorer::IDevice::Ptr MerDeviceFactory::create(Core::Id id) const
         sshParams.privateKeyFile = wizard.privateKeyFilePath();
 
         MerHardwareDevice::Ptr device = MerHardwareDevice::create(wizard.configurationName());
+        device->setArchitecture(wizard.architecture());
         device->setSharedSshPath(wizard.sharedSshPath());
         device->setFreePorts(Utils::PortList::fromString(wizard.freePorts()));
         //device->setFreePorts(Utils::PortList::fromString(QLatin1String("10000-10100")));

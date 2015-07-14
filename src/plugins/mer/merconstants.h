@@ -163,6 +163,7 @@ const char MER_DEVICE_MAC[] = "MER_DEVICE_MAC";
 const char MER_DEVICE_SUBNET[] = "MER_DEVICE_SUBNET";
 const char MER_DEVICE_SHARED_SSH[] = "MER_DEVICE_SHARED_SSH";
 const char MER_DEVICE_SHARED_CONFIG[]= "MER_DEVICE_SHARED_CONFIG";
+const char MER_DEVICE_ARCHITECTURE[]= "MER_DEVICE_ARCHITECTURE";
 } // namespace Constants
 } // namespace Mer
 

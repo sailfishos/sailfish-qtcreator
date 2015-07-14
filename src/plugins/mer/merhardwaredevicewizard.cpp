@@ -61,6 +61,11 @@ QString MerHardwareDeviceWizard::password() const
     return m_selectionPage.password();
 }
 
+ProjectExplorer::Abi::Architecture MerHardwareDeviceWizard::architecture() const
+{
+    return m_selectionPage.architecture();
+}
+
 QString MerHardwareDeviceWizard::privateKeyFilePath() const
 {
     return m_setupPage.privateKeyFilePath();

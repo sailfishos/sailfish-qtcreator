@@ -44,6 +44,7 @@ public:
     QVariantMap toMap() const;
 
     ProjectExplorer::Abi::Architecture architecture() const;
+    void setArchitecture(const ProjectExplorer::Abi::Architecture &architecture);
 
     QList<Core::Id> actionIds() const;
     QString displayNameForActionId(Core::Id actionId) const;
@@ -55,6 +56,9 @@ protected:
     MerHardwareDevice(const QString &name, Origin origin, Core::Id id);
 private:
     MerHardwareDevice &operator=(const MerHardwareDevice &);
+
+private:
+    ProjectExplorer::Abi::Architecture m_architecture;
 };
 
 }

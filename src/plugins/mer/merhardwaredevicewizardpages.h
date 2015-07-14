@@ -25,6 +25,12 @@
 
 #include <QWizardPage>
 
+#include <projectexplorer/abi.h>
+
+namespace QSsh {
+    class SshConnectionParameters;
+}
+
 namespace Mer {
 namespace Internal {
 
@@ -45,13 +51,20 @@ public:
     int timeout() const;
     int sshPort() const;
 
+    ProjectExplorer::Abi::Architecture architecture() const;
+
     bool isComplete() const;
 
 private slots:
     void handleTestConnectionClicked();
 
 private:
+    static ProjectExplorer::Abi::Architecture detectArchitecture(
+            const QSsh::SshConnectionParameters &sshParams, bool *ok);
+
+private:
     Ui::MerHardwareDeviceWizardSelectionPage *m_ui;
+    ProjectExplorer::Abi::Architecture m_architecture;
     bool m_isIdle;
     bool m_connectionTestOk;
 };

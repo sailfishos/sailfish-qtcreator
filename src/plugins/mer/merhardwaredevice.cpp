@@ -57,7 +57,8 @@ MerHardwareDevice::Ptr MerHardwareDevice::create(const QString &name,
 MerHardwareDevice::MerHardwareDevice(const QString &name,
                      Origin origin,
                      Core::Id id)
-    : MerDevice(name, IDevice::Hardware, origin, id)
+    : MerDevice(name, IDevice::Hardware, origin, id),
+      m_architecture(ProjectExplorer::Abi::UnknownArchitecture)
 {
 }
 
@@ -73,18 +74,26 @@ MerHardwareDevice::MerHardwareDevice()
 void MerHardwareDevice::fromMap(const QVariantMap &map)
 {
     MerDevice::fromMap(map);
+    m_architecture = static_cast<ProjectExplorer::Abi::Architecture>(
+            map.value(QLatin1String(Constants::MER_DEVICE_ARCHITECTURE),
+                ProjectExplorer::Abi::UnknownArchitecture).toInt());
 }
 
 QVariantMap MerHardwareDevice::toMap() const
 {
     QVariantMap map = MerDevice::toMap();
+    map.insert(QLatin1String(Constants::MER_DEVICE_ARCHITECTURE), m_architecture);
     return map;
 }
 
 ProjectExplorer::Abi::Architecture MerHardwareDevice::architecture() const
 {
-    //! \todo allow X86 hw devices
-    return ProjectExplorer::Abi::ArmArchitecture;
+    return m_architecture;
+}
+
+void MerHardwareDevice::setArchitecture(const ProjectExplorer::Abi::Architecture &architecture)
+{
+    m_architecture = architecture;
 }
 
 ProjectExplorer::IDeviceWidget *MerHardwareDevice::createWidget()
