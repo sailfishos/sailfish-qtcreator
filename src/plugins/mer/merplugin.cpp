@@ -21,6 +21,7 @@
 ****************************************************************************/
 
 #include "merplugin.h"
+#include "merconstants.h"
 #include "merdevicefactory.h"
 #include "merqtversionfactory.h"
 #include "mertoolchainfactory.h"
@@ -39,8 +40,11 @@
 #include "mermode.h"
 #include "mersettings.h"
 
+#include <coreplugin/actionmanager/command.h>
+#include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/mimedatabase.h>
+#include <coreplugin/modemanager.h>
 
 #include <QtPlugin>
 #include <QMessageBox>
@@ -85,6 +89,14 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
     addAutoReleasedObject(new MerDeployStepFactory);
 
     addAutoReleasedObject(new MerMode);
+
+    Core::Command *emulatorConnectionCommand =
+        Core::ActionManager::command(Constants::MER_EMULATOR_CONNECTON_ACTION_ID);
+    Core::ModeManager::addAction(emulatorConnectionCommand->action(), 1);
+
+    Core::Command *sdkConnectionCommand =
+        Core::ActionManager::command(Constants::MER_SDK_CONNECTON_ACTION_ID);
+    Core::ModeManager::addAction(sdkConnectionCommand->action(), 1);
 
     return true;
 }
