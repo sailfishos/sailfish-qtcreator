@@ -173,11 +173,8 @@ ProjectExplorer::Kit* MerTarget::createKit() const
     k->setIconPath(Utils::FileName::fromString(QLatin1String(Constants::MER_OPTIONS_CATEGORY_ICON)));
     ProjectExplorer::SysRootKitInformation::setSysRoot(k, Utils::FileName::fromUserInput(sysroot));
 
-    if (m_gccMachineDump.contains(QLatin1String("i486"))) {
-        ProjectExplorer::DeviceTypeKitInformation::setDeviceTypeId(k, Constants::MER_DEVICE_TYPE_I486);
-    } else if (m_gccMachineDump.contains(QLatin1String("arm"))) {
-        ProjectExplorer::DeviceTypeKitInformation::setDeviceTypeId(k, Constants::MER_DEVICE_TYPE_ARM);
-    }
+    ProjectExplorer::DeviceTypeKitInformation::setDeviceTypeId(k, Constants::MER_DEVICE_TYPE);
+    k->setMutable(ProjectExplorer::DeviceKitInformation::id(), true);
 
     const QString gdb = Utils::HostOsInfo::withExecutableSuffix(m_defaultGdb);
     QString gdbDir = QCoreApplication::applicationDirPath();

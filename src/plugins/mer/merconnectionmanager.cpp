@@ -347,13 +347,11 @@ void MerConnectionManager::update()
 
             if (MerSdkManager::hasMerDevice(t->kit())) {
                 if (t == activeTarget) {
-                    bool hasEmulatorDevice =
-                            DeviceTypeKitInformation::deviceTypeId(t->kit()) == Core::Id(Constants::MER_DEVICE_TYPE_I486);
-                    if (hasEmulatorDevice) {
+                    const IDevice::ConstPtr device = DeviceKitInformation::device(t->kit());
+                    const auto emu = dynamic_cast<const MerEmulatorDevice *>(device.data());
+                    if (emu) {
                           emulatorRemoteButtonVisible = true;
                           emulatorRemoteButtonEnabled = true;
-                          const IDevice::ConstPtr device = DeviceKitInformation::device(t->kit());
-                          const MerEmulatorDevice* emu = static_cast<const MerEmulatorDevice*>(device.data());
                           m_emulatorAction->setConnection(emu->connection());
                     }
                 }
@@ -369,7 +367,8 @@ void MerConnectionManager::update()
     m_sdkAction->update();
 }
 
-QString MerConnectionManager::testConnection(const QSsh::SshConnectionParameters &params) const
+QString MerConnectionManager::testConnection(const QSsh::SshConnectionParameters &params,
+        bool *ok) const
 {
     QSsh::SshConnectionParameters p = params;
     QSsh::SshConnection connection(p);
@@ -379,6 +378,8 @@ QString MerConnectionManager::testConnection(const QSsh::SshConnectionParameters
     connect(&connection, SIGNAL(disconnected()), &loop, SLOT(quit()));
     connection.connectToHost();
     loop.exec();
+    if (ok != 0)
+        *ok = connection.errorState() == QSsh::SshNoError;
     QString result;
     if (connection.errorState() != QSsh::SshNoError)
         result = connection.errorString();

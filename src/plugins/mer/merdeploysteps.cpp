@@ -61,6 +61,46 @@ using Core::ICore;
 namespace Mer {
 namespace Internal {
 
+namespace {
+const int CONNECTION_TEST_CHECK_FOR_CANCEL_INTERVAL = 2000;
+}
+
+class MerConnectionTestStepConfigWidget : public ProjectExplorer::SimpleBuildStepConfigWidget
+{
+    Q_OBJECT
+
+public:
+    MerConnectionTestStepConfigWidget(MerConnectionTestStep *step)
+        : SimpleBuildStepConfigWidget(step)
+    {
+    }
+
+    QString summaryText() const
+    {
+        return QString::fromLatin1("<b>%1:</b> %2")
+            .arg(displayName())
+            .arg(tr("Verifies connection to the device can be established."));
+    }
+};
+
+class MerPrepareTargetStepConfigWidget : public ProjectExplorer::SimpleBuildStepConfigWidget
+{
+    Q_OBJECT
+
+public:
+    MerPrepareTargetStepConfigWidget(MerPrepareTargetStep *step)
+        : SimpleBuildStepConfigWidget(step)
+    {
+    }
+
+    QString summaryText() const
+    {
+        return QString::fromLatin1("<b>%1:</b> %2")
+            .arg(displayName())
+            .arg(tr("Prepares target device for deployment"));
+    }
+};
+
 MerProcessStep::MerProcessStep(ProjectExplorer::BuildStepList *bsl,const Core::Id id)
     :AbstractProcessStep(bsl,id)
 {
@@ -102,7 +142,7 @@ bool MerProcessStep::init()
     IDevice::ConstPtr device = DeviceKitInformation::device(this->target()->kit());
 
     //TODO: HACK
-    if (device.isNull() && DeviceTypeKitInformation::deviceTypeId(this->target()->kit()) != Constants::MER_DEVICE_TYPE_ARM) {
+    if (device.isNull() && dynamic_cast<MerMb2RpmBuildStep *>(this) == 0) {
         addOutput(tr("Cannot deploy: Missing MerDevice information in the kit"),ErrorMessageOutput);
         return false;
     }
@@ -178,15 +218,213 @@ MerEmulatorStartStep::MerEmulatorStartStep(ProjectExplorer::BuildStepList *bsl, 
 bool MerEmulatorStartStep::init()
 {
     IDevice::ConstPtr d = DeviceKitInformation::device(this->target()->kit());
-    if(d.isNull() || d->type() != Constants::MER_DEVICE_TYPE_I486) {
+    const MerEmulatorDevice* device = dynamic_cast<const MerEmulatorDevice*>(d.data());
+    if (!device) {
         setEnabled(false);
         return false;
     }
-    const MerEmulatorDevice* device = static_cast<const MerEmulatorDevice*>(d.data());
 
     setConnection(device->connection());
 
     return MerAbstractVmStartStep::init();
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////
+
+const Core::Id MerConnectionTestStep::stepId()
+{
+    return Core::Id("QmakeProjectManager.MerConnectionTestStep");
+}
+
+QString MerConnectionTestStep::displayName()
+{
+    return tr("Test Device Connection");
+}
+
+MerConnectionTestStep::MerConnectionTestStep(ProjectExplorer::BuildStepList *bsl)
+    : BuildStep(bsl, stepId())
+{
+    setDefaultDisplayName(displayName());
+}
+
+MerConnectionTestStep::MerConnectionTestStep(ProjectExplorer::BuildStepList *bsl,
+        MerConnectionTestStep *bs)
+    : BuildStep(bsl, bs)
+{
+    setDefaultDisplayName(displayName());
+}
+
+bool MerConnectionTestStep::init()
+{
+    IDevice::ConstPtr d = DeviceKitInformation::device(this->target()->kit());
+    if (!d) {
+        setEnabled(false);
+        return false;
+    }
+
+    return true;
+}
+
+void MerConnectionTestStep::run(QFutureInterface<bool> &fi)
+{
+    IDevice::ConstPtr d = DeviceKitInformation::device(this->target()->kit());
+    if (!d) {
+        fi.reportResult(false);
+        emit finished();
+        return;
+    }
+
+    m_futureInterface = &fi;
+
+    m_connection = new QSsh::SshConnection(d->sshParameters(), this);
+    connect(m_connection, SIGNAL(connected()),
+            this, SLOT(onConnected()));
+    connect(m_connection, SIGNAL(error(QSsh::SshError)),
+            this, SLOT(onConnectionFailure()));
+
+    emit addOutput(tr("%1: Testing connection to \"%2\"...")
+            .arg(displayName()).arg(d->displayName()), MessageOutput);
+
+    m_checkForCancelTimer = new QTimer(this);
+    connect(m_checkForCancelTimer, SIGNAL(timeout()),
+            this, SLOT(checkForCancel()));
+    m_checkForCancelTimer->start(CONNECTION_TEST_CHECK_FOR_CANCEL_INTERVAL);
+
+    m_connection->connectToHost();
+}
+
+ProjectExplorer::BuildStepConfigWidget *MerConnectionTestStep::createConfigWidget()
+{
+    return new MerConnectionTestStepConfigWidget(this);
+}
+
+bool MerConnectionTestStep::immutable() const
+{
+    return false;
+}
+
+bool MerConnectionTestStep::runInGuiThread() const
+{
+    return true;
+}
+
+void MerConnectionTestStep::onConnected()
+{
+    finish(true);
+}
+
+void MerConnectionTestStep::onConnectionFailure()
+{
+    finish(false);
+}
+
+void MerConnectionTestStep::checkForCancel()
+{
+    if (m_futureInterface->isCanceled()) {
+        finish(false);
+    }
+}
+
+void MerConnectionTestStep::finish(bool result)
+{
+    m_connection->disconnect(this);
+    m_connection->deleteLater(), m_connection = 0;
+
+    m_futureInterface->reportResult(result);
+    m_futureInterface = 0;
+
+    delete m_checkForCancelTimer, m_checkForCancelTimer = 0;
+
+    emit finished();
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////
+
+/*!
+ * \class MerPrepareTargetStep
+ * Wraps either MerEmulatorStartStep or MerConnectionTestStep based on IDevice::machineType
+ */
+
+const Core::Id MerPrepareTargetStep::stepId()
+{
+    return Core::Id("QmakeProjectManager.MerPrepareTargetStep");
+}
+
+QString MerPrepareTargetStep::displayName()
+{
+    return tr("Prepare Target");
+}
+
+MerPrepareTargetStep::MerPrepareTargetStep(ProjectExplorer::BuildStepList *bsl)
+    : BuildStep(bsl, stepId())
+{
+    setDefaultDisplayName(displayName());
+}
+
+MerPrepareTargetStep::MerPrepareTargetStep(ProjectExplorer::BuildStepList *bsl,
+        MerPrepareTargetStep *bs)
+    : BuildStep(bsl, bs)
+{
+    setDefaultDisplayName(displayName());
+}
+
+bool MerPrepareTargetStep::init()
+{
+    IDevice::ConstPtr d = DeviceKitInformation::device(this->target()->kit());
+    if (!d) {
+        setEnabled(false);
+        return false;
+    }
+
+    if (d->machineType() == IDevice::Emulator) {
+        m_impl = new MerEmulatorStartStep(qobject_cast<BuildStepList *>(parent()));
+    } else {
+        m_impl = new MerConnectionTestStep(qobject_cast<BuildStepList *>(parent()));
+    }
+
+    if (!m_impl->init()) {
+        delete m_impl, m_impl = 0;
+        setEnabled(false);
+        return false;
+    }
+
+    connect(m_impl, SIGNAL(addTask(ProjectExplorer::Task)),
+            this, SIGNAL(addTask(ProjectExplorer::Task)));
+    connect(m_impl,
+            SIGNAL(addOutput(QString,ProjectExplorer::BuildStep::OutputFormat,ProjectExplorer::BuildStep::OutputNewlineSetting)),
+            this,
+            SIGNAL(addOutput(QString,ProjectExplorer::BuildStep::OutputFormat,ProjectExplorer::BuildStep::OutputNewlineSetting)));
+    connect(m_impl, SIGNAL(finished()),
+            this, SLOT(onImplFinished()));
+
+    return true;
+}
+
+void MerPrepareTargetStep::run(QFutureInterface<bool> &fi)
+{
+    m_impl->run(fi);
+}
+
+ProjectExplorer::BuildStepConfigWidget *MerPrepareTargetStep::createConfigWidget()
+{
+    return new MerPrepareTargetStepConfigWidget(this);
+}
+
+bool MerPrepareTargetStep::immutable() const
+{
+    return false;
+}
+
+bool MerPrepareTargetStep::runInGuiThread() const
+{
+    return true;
+}
+
+void MerPrepareTargetStep::onImplFinished()
+{
+    m_impl->disconnect(this);
+    m_impl->deleteLater(), m_impl = 0;
+    emit finished();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -289,24 +527,12 @@ bool MerLocalRsyncDeployStep::init()
         return false;
     }
 
-    IDevice::ConstPtr device = DeviceKitInformation::device(this->target()->kit());
-
-    //TODO: HACK
-    if (device.isNull() && DeviceTypeKitInformation::deviceTypeId(this->target()->kit()) != Constants::MER_DEVICE_TYPE_ARM) {
-        addOutput(tr("Cannot deploy: Missing MerDevice information in the kit"),ErrorMessageOutput);
-        return false;
-    }
-
-
     const QString projectDirectory = bc->isShadowBuild() ? bc->rawBuildDirectory().toString() : project()->projectDirectory();
     const QString deployCommand = QLatin1String("rsync");
 
     ProcessParameters *pp = processParameters();
 
     Utils::Environment env = bc ? bc->environment() : Utils::Environment::systemEnvironment();
-    //TODO HACK
-    if(!device.isNull())
-        env.appendOrSet(QLatin1String(Constants::MER_SSH_DEVICE_NAME),device->displayName());
     pp->setMacroExpander(bc ? bc->macroExpander() : Core::VariableManager::macroExpander());
     pp->setEnvironment(env);
     pp->setWorkingDirectory(projectDirectory);
@@ -630,3 +856,5 @@ QString MerDeployStepWidget::commnadText() const
 
 } // Internal
 } // Mer
+
+#include "merdeploysteps.moc"

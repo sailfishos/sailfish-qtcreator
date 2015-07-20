@@ -122,7 +122,7 @@ QString MerMb2RpmBuildConfiguration::displayName()
 
 Core::Id MerMb2RpmBuildConfiguration::configurationId()
 {
-    return Core::Id("QmakeProjectManager.MerArmDeployConfiguration");
+    return Core::Id("QmakeProjectManager.MerMb2RpmBuildConfiguration");
 }
 
 ////////////////////////////////////////////////////////////////////////////////////

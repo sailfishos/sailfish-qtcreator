@@ -21,6 +21,7 @@
 ****************************************************************************/
 
 #include "mertoolchain.h"
+#include "meremulatordevice.h"
 #include "mertoolchainfactory.h"
 #include "mersdkmanager.h"
 #include "mersshparser.h"
@@ -125,20 +126,13 @@ QList<Task> MerToolChain::validateKit(const Kit *kit) const
     if (!result.isEmpty())
         return result;
 
-    Core::Id type = DeviceTypeKitInformation::deviceTypeId(kit);
-
-    if (type == Constants::MER_DEVICE_TYPE_I486 && targetAbi().architecture() != ProjectExplorer::Abi::X86Architecture) {
+    IDevice::ConstPtr d = DeviceKitInformation::device(kit);
+    const MerDevice* device = dynamic_cast<const MerDevice*>(d.data());
+    if (device && device->architecture() != targetAbi().architecture()) {
         const QString message =
                 QCoreApplication::translate("ProjectExplorer::MerToolChain",
-                                            "MerToolChain '%1' can not be used for device with i486 architecture").arg(displayName());
-        result << Task(Task::Error, message, Utils::FileName(), -1,
-                       Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
-    }
-
-    if (type == Constants::MER_DEVICE_TYPE_ARM && targetAbi().architecture() != ProjectExplorer::Abi::ArmArchitecture) {
-        const QString message =
-                QCoreApplication::translate("ProjectExplorer::MerToolChain",
-                                            "MerToolChain '%1' can not be used for device with arm architecture").arg(displayName());
+                                            "MerToolChain '%1' can not be used for device with %2 architecture")
+                .arg(displayName()).arg(ProjectExplorer::Abi::toString(device->architecture()));
         result << Task(Task::Error, message, Utils::FileName(), -1,
                        Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
     }

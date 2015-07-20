@@ -24,6 +24,7 @@
 #define MERHARDWAREDEVICEWIZARD_H
 
 #include "merhardwaredevicewizardpages.h"
+#include <projectexplorer/abi.h>
 #include <remotelinux/genericlinuxdeviceconfigurationwizardpages.h>
 #include <QWizard>
 
@@ -43,6 +44,8 @@ public:
     QString hostName() const;
     QString userName() const;
     QString password() const;
+    ProjectExplorer::Abi::Architecture architecture() const;
+    QString deviceName() const;
     QString privateKeyFilePath() const;
     QString publicKeyFilePath() const;
     QString configurationName() const;
@@ -54,8 +57,8 @@ public:
 
 
 private:
-    MerHardwareDeviceWizardGeneralPage m_setupPage;
-    MerHardwareDeviceWizardKeyPage m_keyPage;
+    MerHardwareDeviceWizardSelectionPage m_selectionPage;
+    MerHardwareDeviceWizardSetupPage m_setupPage;
     RemoteLinux::GenericLinuxDeviceConfigurationWizardFinalPage m_finalPage;
 };
 

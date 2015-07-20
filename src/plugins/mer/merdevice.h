@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2014 Jolla Ltd.
+** Copyright (C) 2015 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -20,48 +20,50 @@
 **
 ****************************************************************************/
 
-#ifndef MERHARDWAREDEVICE_H
-#define MERHARDWAREDEVICE_H
+#ifndef MERDEVICE_H
+#define MERDEVICE_H
 
-#include "merdevice.h"
+#include <QSharedPointer>
+
+#include <projectexplorer/abi.h>
+#include <remotelinux/linuxdevice.h>
 
 namespace Mer {
 namespace Internal {
 
-class MerHardwareDevice : public MerDevice
+class MerDevice : public RemoteLinux::LinuxDevice
 {
     Q_DECLARE_TR_FUNCTIONS(Mer::Internal::MerDevice)
+
 public:
-    typedef QSharedPointer<MerHardwareDevice> Ptr;
-    typedef QSharedPointer<const MerHardwareDevice> ConstPtr;
+    typedef QSharedPointer<MerDevice> Ptr;
+    typedef QSharedPointer<const MerDevice> ConstPtr;
 
-    static Ptr create();
-    static Ptr create(const QString &name, Origin origin = ManuallyAdded, Core::Id id = Core::Id());
-
-    ProjectExplorer::IDevice::Ptr clone() const;
+    QString displayType() const;
 
     void fromMap(const QVariantMap &map);
     QVariantMap toMap() const;
 
-    ProjectExplorer::Abi::Architecture architecture() const;
-    void setArchitecture(const ProjectExplorer::Abi::Architecture &architecture);
+    virtual ProjectExplorer::Abi::Architecture architecture() const = 0;
 
-    QList<Core::Id> actionIds() const;
-    QString displayNameForActionId(Core::Id actionId) const;
-    void executeAction(Core::Id actionId, QWidget *parent);
-    ProjectExplorer::IDeviceWidget* createWidget();
+    static MachineType workaround_machineTypeFromMap(const QVariantMap &map);
+
+    void setSharedSshPath(const QString &sshPath);
+    QString sharedSshPath() const;
 
 protected:
-    MerHardwareDevice();
-    MerHardwareDevice(const QString &name, Origin origin, Core::Id id);
-private:
-    MerHardwareDevice &operator=(const MerHardwareDevice &);
+    MerDevice();
+    MerDevice(const QString &name, MachineType machineType, Origin origin, Core::Id id);
+    ~MerDevice() = 0;
 
 private:
-    ProjectExplorer::Abi::Architecture m_architecture;
+    MerDevice &operator=(const MerDevice &);
+
+private:
+    QString m_sharedSshPath;
 };
 
 }
 }
 
-#endif // MERHARDWAREDEVICE_H
+#endif // MERDEVICE_H

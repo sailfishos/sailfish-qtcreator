@@ -51,22 +51,15 @@ MerHardwareDevice::Ptr MerHardwareDevice::create(const QString &name,
                                  Origin origin,
                                  Core::Id id)
 {
-    return Ptr(new MerHardwareDevice(name, Constants::MER_DEVICE_TYPE_ARM, IDevice::Hardware, origin, id));
-}
-
-QString MerHardwareDevice::displayType() const
-{
-    return QLatin1String("Mer ARM");
+    return Ptr(new MerHardwareDevice(name, origin, id));
 }
 
 MerHardwareDevice::MerHardwareDevice(const QString &name,
-                     Core::Id type,
-                     MachineType machineType,
                      Origin origin,
                      Core::Id id)
-    : RemoteLinux::LinuxDevice(name, type, machineType, origin, id)
+    : MerDevice(name, IDevice::Hardware, origin, id),
+      m_architecture(ProjectExplorer::Abi::UnknownArchitecture)
 {
-    setDeviceState(IDevice::DeviceStateUnknown);
 }
 
 ProjectExplorer::IDevice::Ptr MerHardwareDevice::clone() const
@@ -76,30 +69,31 @@ ProjectExplorer::IDevice::Ptr MerHardwareDevice::clone() const
 
 MerHardwareDevice::MerHardwareDevice()
 {
-    setDeviceState(IDevice::DeviceStateUnknown);
-}
-
-void MerHardwareDevice::setSharedSshPath(const QString &sshPath)
-{
-    m_sharedSshPath = sshPath;
-}
-
-QString MerHardwareDevice::sharedSshPath() const
-{
-    return m_sharedSshPath;
 }
 
 void MerHardwareDevice::fromMap(const QVariantMap &map)
 {
-    IDevice::fromMap(map);
-    m_sharedSshPath = map.value(QLatin1String(Constants::MER_DEVICE_SHARED_SSH)).toString();
+    MerDevice::fromMap(map);
+    m_architecture = static_cast<ProjectExplorer::Abi::Architecture>(
+            map.value(QLatin1String(Constants::MER_DEVICE_ARCHITECTURE),
+                ProjectExplorer::Abi::UnknownArchitecture).toInt());
 }
 
 QVariantMap MerHardwareDevice::toMap() const
 {
-    QVariantMap map = IDevice::toMap();
-    map.insert(QLatin1String(Constants::MER_DEVICE_SHARED_SSH), m_sharedSshPath);
+    QVariantMap map = MerDevice::toMap();
+    map.insert(QLatin1String(Constants::MER_DEVICE_ARCHITECTURE), m_architecture);
     return map;
+}
+
+ProjectExplorer::Abi::Architecture MerHardwareDevice::architecture() const
+{
+    return m_architecture;
+}
+
+void MerHardwareDevice::setArchitecture(const ProjectExplorer::Abi::Architecture &architecture)
+{
+    m_architecture = architecture;
 }
 
 ProjectExplorer::IDeviceWidget *MerHardwareDevice::createWidget()

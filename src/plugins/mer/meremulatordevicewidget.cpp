@@ -62,7 +62,7 @@ MerEmulatorDeviceWidget::~MerEmulatorDeviceWidget()
 
 void MerEmulatorDeviceWidget::timeoutEditingFinished()
 {
-    if(device()->type() != Constants::MER_DEVICE_TYPE_I486) return;
+    Q_ASSERT(dynamic_cast<MerEmulatorDevice *>(this->device().data()) != 0);
     MerEmulatorDevice* device = static_cast<MerEmulatorDevice*>(this->device().data());
 
     SshConnectionParameters sshParams = device->sshParameters();
@@ -73,7 +73,7 @@ void MerEmulatorDeviceWidget::timeoutEditingFinished()
 
 void MerEmulatorDeviceWidget::userNameEditingFinished()
 {
-    if(device()->type() != Constants::MER_DEVICE_TYPE_I486) return;
+    Q_ASSERT(dynamic_cast<MerEmulatorDevice *>(this->device().data()) != 0);
     MerEmulatorDevice* device = static_cast<MerEmulatorDevice*>(this->device().data());
 
     if(!device->sharedConfigPath().isEmpty()) {
@@ -121,7 +121,7 @@ void MerEmulatorDeviceWidget::initGui()
             = new QRegExpValidator(QRegExp(PortList::regularExpression()), this);
     m_ui->portsLineEdit->setValidator(portsValidator);
 
-    if(device()->type() != Constants::MER_DEVICE_TYPE_I486) return;
+    Q_ASSERT(dynamic_cast<MerEmulatorDevice *>(this->device().data()) != 0);
     const MerEmulatorDevice* device = static_cast<MerEmulatorDevice*>(this->device().data());
     const SshConnectionParameters &sshParams = device->sshParameters();
     m_ui->timeoutSpinBox->setValue(sshParams.timeout);

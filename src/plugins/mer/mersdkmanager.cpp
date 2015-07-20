@@ -590,7 +590,8 @@ void MerSdkManager::updateDevices()
         IDevice::ConstPtr d = DeviceManager::instance()->deviceAt(i);
         if (MerDeviceFactory::canCreate(d->type())) {
             MerDeviceData xmlData;
-            if(d->type() == Constants::MER_DEVICE_TYPE_ARM) {
+            if (d->machineType() == IDevice::Hardware) {
+                Q_ASSERT(dynamic_cast<const MerHardwareDevice*>(d.data()) != 0);
                 const MerHardwareDevice* device = static_cast<const MerHardwareDevice*>(d.data());
                 xmlData.m_ip = device->sshParameters().host;
                 xmlData.m_name = device->displayName();
@@ -601,9 +602,8 @@ void MerSdkManager::updateDevices()
                     xmlData.m_sshKeyPath = QDir::fromNativeSeparators(
                                 path.remove(QDir::toNativeSeparators(device->sharedSshPath() +
                                                                      QDir::separator())));
-            }
-
-            if(d->type() == Constants::MER_DEVICE_TYPE_I486) {
+            } else {
+                Q_ASSERT(dynamic_cast<const MerEmulatorDevice*>(d.data()) != 0);
                 const MerEmulatorDevice* device = static_cast<const MerEmulatorDevice*>(d.data());
                 //TODO: fix me
                 QString mac = device->mac();
