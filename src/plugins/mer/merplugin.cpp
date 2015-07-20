@@ -23,6 +23,7 @@
 #include "merplugin.h"
 #include "merconstants.h"
 #include "merdevicefactory.h"
+#include "meremulatormodedialog.h"
 #include "merqtversionfactory.h"
 #include "mertoolchainfactory.h"
 #include "meraddvmstartbuildstepprojectlistener.h"
@@ -41,12 +42,15 @@
 #include "mersettings.h"
 
 #include <coreplugin/actionmanager/command.h>
+#include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/actionmanager/actionmanager.h>
+#include <coreplugin/coreconstants.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/mimedatabase.h>
 #include <coreplugin/modemanager.h>
 
 #include <QtPlugin>
+#include <QMenu>
 #include <QMessageBox>
 #include <QTimer>
 
@@ -97,6 +101,20 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
     Core::Command *sdkConnectionCommand =
         Core::ActionManager::command(Constants::MER_SDK_CONNECTON_ACTION_ID);
     Core::ModeManager::addAction(sdkConnectionCommand->action(), 1);
+
+    Core::ActionContainer *toolsMenu =
+        Core::ActionManager::actionContainer(Core::Constants::M_TOOLS);
+
+    Core::ActionContainer *menu = Core::ActionManager::createMenu(Constants::MER_TOOLS_MENU);
+    menu->menu()->setTitle(tr("Me&r"));
+    toolsMenu->addMenu(menu);
+
+    MerEmulatorModeDialog *emulatorModeDialog = new MerEmulatorModeDialog(this);
+    Core::Command *emulatorModeCommand =
+        Core::ActionManager::registerAction(emulatorModeDialog->action(),
+                                            Constants::MER_EMULATOR_MODE_ACTION_ID,
+                                            Core::Context(Core::Constants::C_GLOBAL));
+    menu->addAction(emulatorModeCommand);
 
     return true;
 }

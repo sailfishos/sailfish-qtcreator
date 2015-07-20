@@ -30,6 +30,7 @@
 #include <QDir>
 #include <QProcess>
 #include <QSettings>
+#include <QSize>
 
 const char VBOXMANAGE[] = "VBoxManage";
 const char LIST[] = "list";
@@ -47,6 +48,8 @@ const char SHARE_NAME[] = "--name";
 const char REMOVE_SHARED[] = "remove";
 const char HOSTPATH[] = "--hostpath";
 const char ADD_SHARED[] = "add";
+const char SETEXTRADATA[] = "setextradata";
+const char CUSTOM_VIDEO_MODE1[] = "CustomVideoMode1";
 
 namespace Mer {
 namespace Internal {
@@ -236,6 +239,29 @@ QStringList MerVirtualBoxManager::fetchRegisteredVirtualMachines()
         return vms;
 
     return listedVirtualMachines(QString::fromLocal8Bit(process.readAllStandardOutput()));
+}
+
+bool MerVirtualBoxManager::setVideoMode(const QString &vmName, const QSize &size, int depth)
+{
+    QString videoMode = QStringLiteral("%1x%2x%3")
+        .arg(size.width())
+        .arg(size.height())
+        .arg(depth);
+
+    QStringList args;
+    args.append(QLatin1String(SETEXTRADATA));
+    args.append(vmName);
+    args.append(QLatin1String(CUSTOM_VIDEO_MODE1));
+    args.append(videoMode);
+
+    QProcess process;
+    process.start(vBoxManagePath(), args);
+    if (!process.waitForFinished()) {
+        qWarning() << "VBoxManage failed to set video mode " << videoMode;
+        return false;
+    }
+
+    return true;
 }
 
 bool isVirtualMachineListed(const QString &vmName, const QString &output)
