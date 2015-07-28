@@ -12,136 +12,131 @@ RESOURCES += \
     mer.qrc
 
 FORMS += \
-    mergeneraloptionswidget.ui \
-    meroptionswidget.ui \
-    mersdkdetailswidget.ui \
-    mersdkselectiondialog.ui \
     merdeploystep.ui \
     meremulatordevicewidget.ui \
+    meremulatordevicewizardsshpage.ui \
+    meremulatordevicewizardvmpage.ui \
     meremulatormodedialog.ui \
+    mergeneraloptionswidget.ui \
     merhardwaredevicewidget.ui \
     merhardwaredevicewizardselectionpage.ui \
-    meremulatordevicewizardvmpage.ui \
-    meremulatordevicewizardsshpage.ui \
+    merhardwaredevicewizardsetuppage.ui \
+    meroptionswidget.ui \
     merrpmpackagingwidget.ui \
-    merhardwaredevicewizardsetuppage.ui
+    mersdkdetailswidget.ui \
+    mersdkselectiondialog.ui \
 
 SOURCES += \
-    merplugin.cpp \
-    mersettings.cpp \
-    merqtversion.cpp \
-    merqtversionfactory.cpp \
-    mertoolchain.cpp \
-    mergeneraloptionspage.cpp \
-    meroptionspage.cpp \
-    merdevice.cpp \
-    merdevicefactory.cpp \
-    merdeployconfigurationfactory.cpp \
-    mersdkmanager.cpp \
-    mersdk.cpp \
-    mersftpdeployconfiguration.cpp \
-    merrunconfiguration.cpp \
-    merrunconfigurationfactory.cpp \
-    merruncontrolfactory.cpp \
-    mergeneraloptionswidget.cpp \
-    meroptionswidget.cpp \
-    mersdkdetailswidget.cpp \
-    mersdkselectiondialog.cpp \
     merabstractvmstartstep.cpp \
     meraddvmstartbuildstepprojectlistener.cpp \
     merbuildstepfactory.cpp \
-    merdeploystepfactory.cpp \
-    mersshparser.cpp \
-    mertarget.cpp \
+    merbuildsteps.cpp \
     merconnection.cpp \
     merconnectionmanager.cpp \
-    mervirtualboxmanager.cpp \
-    mersdkkitinformation.cpp \
-    mertargetsxmlparser.cpp \
-    merdevicexmlparser.cpp \
-    merprojectlistener.cpp \
-    merbuildsteps.cpp \
-    merdeploysteps.cpp \
     merdeployconfiguration.cpp \
-    merrpmvalidationparser.cpp \
-    mertargetkitinformation.cpp \
+    merdeployconfigurationfactory.cpp \
+    merdeploystepfactory.cpp \
+    merdeploysteps.cpp \
+    merdevice.cpp \
+    merdevicefactory.cpp \
+    merdevicexmlparser.cpp \
     meremulatordevice.cpp \
     meremulatordevicewidget.cpp \
+    meremulatordevicewizard.cpp \
+    meremulatordevicewizardpages.cpp \
     meremulatormodedialog.cpp \
+    mergeneraloptionspage.cpp \
+    mergeneraloptionswidget.cpp \
     merhardwaredevice.cpp \
     merhardwaredevicewidget.cpp \
-    meremulatordevicewizard.cpp \
     merhardwaredevicewizard.cpp \
-    meremulatordevicewizardpages.cpp \
+    merhardwaredevicewizardpages.cpp \
+    mermode.cpp \
+    meroptionspage.cpp \
+    meroptionswidget.cpp \
+    merplugin.cpp \
+    merprojectlistener.cpp \
+    merqtversion.cpp \
+    merqtversionfactory.cpp \
+    merrpminstaller.cpp \
     merrpmpackagingstep.cpp \
     merrpmpackagingwidget.cpp \
-    merrpminstaller.cpp \
+    merrpmvalidationparser.cpp \
+    merrunconfiguration.cpp \
+    merrunconfigurationfactory.cpp \
+    merruncontrolfactory.cpp \
+    mersdk.cpp \
+    mersdkdetailswidget.cpp \
+    mersdkkitinformation.cpp \
+    mersdkmanager.cpp \
+    mersdkselectiondialog.cpp \
+    mersettings.cpp \
+    mersftpdeployconfiguration.cpp \
+    mersshkeydeploymentdialog.cpp \
+    mersshparser.cpp \
+    mertarget.cpp \
+    mertargetkitinformation.cpp \
+    mertargetsxmlparser.cpp \
+    mertoolchain.cpp \
     meruploadandinstallrpmsteps.cpp \
-    merhardwaredevicewizardpages.cpp \
-    mersshkeydeploymentdialog.cpp
-
+    mervirtualboxmanager.cpp \
 
 HEADERS += \
-    merplugin.h \
+    merabstractvmstartstep.h \
+    meraddvmstartbuildstepprojectlistener.h \
+    merbuildstepfactory.h \
+    merbuildsteps.h \
+    merconnection.h \
+    merconnectionmanager.h \
     merconstants.h \
-    mersettings.h \
-    merqtversion.h \
-    merqtversionfactory.h \
-    mertoolchain.h \
-    mergeneraloptionspage.h \
-    meroptionspage.h \
+    merdeployconfiguration.h \
+    merdeployconfigurationfactory.h \
+    merdeploystepfactory.h \
+    merdeploysteps.h \
     merdevice.h \
     merdevicefactory.h \
-    mertoolchainfactory.h \
-    merdeployconfigurationfactory.h \
-    mersdkmanager.h \
-    mersdk.h \
-    mersftpdeployconfiguration.h \
+    merdevicexmlparser.h \
+    meremulatordevice.h \
+    meremulatordevicewidget.h \
+    meremulatordevicewizard.h \
+    meremulatordevicewizardpages.h \
+    meremulatormodedialog.h \
+    mergeneraloptionspage.h \
+    mergeneraloptionswidget.h \
+    merhardwaredevice.h \
+    merhardwaredevicewidget.h \
+    merhardwaredevicewizard.h \
+    merhardwaredevicewizardpages.h \
+    mermode.h \
+    meroptionspage.h \
+    meroptionswidget.h \
+    merplugin.h \
+    merprojectlistener.h \
+    merqtversion.h \
+    merqtversionfactory.h \
+    merrpminstaller.h \
+    merrpmpackagingstep.h \
+    merrpmpackagingwidget.h \
+    merrpmvalidationparser.h \
     merrunconfiguration.h \
     merrunconfigurationfactory.h \
     merruncontrolfactory.h \
-    mergeneraloptionswidget.h \
-    meroptionswidget.h \
+    mersdk.h \
     mersdkdetailswidget.h \
+    mersdkkitinformation.h \
+    mersdkmanager.h \
     mersdkselectiondialog.h \
-    merbuildstepfactory.h \
-    merdeploystepfactory.h \
+    mersettings.h \
+    mersftpdeployconfiguration.h \
+    mersshkeydeploymentdialog.h \
     mersshparser.h \
     mertarget.h \
-    merconnection.h \
-    merconnectionmanager.h \
-    mervirtualboxmanager.h \
-    mersdkkitinformation.h \
-    mertargetsxmlparser.h \
-    merdevicexmlparser.h \
-    merprojectlistener.h \
-    merabstractvmstartstep.h \
-    meraddvmstartbuildstepprojectlistener.h \
-    merbuildsteps.h \
-    merdeploysteps.h \
-    merdeployconfiguration.h \
-    merrpmvalidationparser.h \
     mertargetkitinformation.h \
-    meremulatordevice.h \
-    meremulatordevicewidget.h \
-    meremulatormodedialog.h \
-    merhardwaredevice.h \
-    merhardwaredevicewidget.h \
-    meremulatordevicewizard.h \
-    merhardwaredevicewizard.h \
-    meremulatordevicewizardpages.h \
-    merrpmpackagingstep.h \
-    merrpmpackagingwidget.h \
-    merrpminstaller.h \
+    mertargetsxmlparser.h \
+    mertoolchain.h \
+    mertoolchainfactory.h \
     meruploadandinstallrpmsteps.h \
-    merhardwaredevicewizardpages.h \
-    mersshkeydeploymentdialog.h
-
-SOURCES += \
-    $$PWD/mermode.cpp
-
-HEADERS += \
-    $$PWD/mermode.h
+    mervirtualboxmanager.h \
 
 contains(QT_CONFIG, webkit)|contains(QT_MODULES, webkit) {
     QT += webkit
