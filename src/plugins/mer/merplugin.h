@@ -24,6 +24,7 @@
 #define MERPLUGIN_H
 
 #include <extensionsystem/iplugin.h>
+
 #include <QMap>
 
 namespace Mer {

@@ -23,9 +23,10 @@
 #ifndef MERTARGETKITINFORMATION_H
 #define MERTARGETKITINFORMATION_H
 
-#include <projectexplorer/kitinformation.h>
-#include <projectexplorer/kitconfigwidget.h>
 #include "mertarget.h"
+
+#include <projectexplorer/kitconfigwidget.h>
+#include <projectexplorer/kitinformation.h>
 
 QT_FORWARD_DECLARE_CLASS(QComboBox);
 QT_FORWARD_DECLARE_CLASS(QPushButton);

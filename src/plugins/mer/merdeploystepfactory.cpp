@@ -21,10 +21,11 @@
 ****************************************************************************/
 
 #include "merdeploystepfactory.h"
-#include "merdeploysteps.h"
+
 #include "merdeployconfiguration.h"
-#include "merrpmpackagingstep.h"
+#include "merdeploysteps.h"
 #include "merrpminstaller.h"
+#include "merrpmpackagingstep.h"
 #include "meruploadandinstallrpmsteps.h"
 
 #include <projectexplorer/buildsteplist.h>

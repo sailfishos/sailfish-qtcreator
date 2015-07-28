@@ -21,22 +21,23 @@
 ****************************************************************************/
 
 #include "merhardwaredevice.h"
-#include "merhardwaredevicewidget.h"
+
 #include "merconstants.h"
+#include "merdevicefactory.h"
+#include "merhardwaredevicewidget.h"
+#include "merhardwaredevicewizardpages.h"
 #include "mersdkmanager.h"
 #include "mervirtualboxmanager.h"
-#include "merdevicefactory.h"
-#include "merhardwaredevicewizardpages.h"
 
-#include <remotelinux/remotelinux_constants.h>
-#include <utils/qtcassert.h>
-#include <utils/fileutils.h>
-#include <ssh/sshconnection.h>
 #include <projectexplorer/devicesupport/devicemanager.h>
+#include <remotelinux/remotelinux_constants.h>
+#include <ssh/sshconnection.h>
+#include <utils/fileutils.h>
+#include <utils/qtcassert.h>
 
 #include <QDir>
-#include <QTimer>
 #include <QProgressDialog>
+#include <QTimer>
 #include <QWizard>
 
 namespace Mer {

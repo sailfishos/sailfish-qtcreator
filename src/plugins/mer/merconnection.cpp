@@ -21,11 +21,14 @@
 ****************************************************************************/
 
 #include "merconnection.h"
+
 #include "merconstants.h"
 #include "mervirtualboxmanager.h"
+
 #include <coreplugin/icore.h>
 #include <ssh/sshremoteprocessrunner.h>
 #include <utils/qtcassert.h>
+
 #include <QEventLoop>
 #include <QMessageBox>
 #include <QTime>

@@ -21,11 +21,14 @@
 ****************************************************************************/
 
 #include "mermode.h"
+
 #include "merconstants.h"
 #if !defined(QT_NO_WEBKIT)
 #include "mermanagementwebview.h"
 #endif
+
 #include <coreplugin/modemanager.h>
+
 #include <QDebug>
 
 namespace Mer {

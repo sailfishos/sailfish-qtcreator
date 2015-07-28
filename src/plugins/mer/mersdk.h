@@ -23,8 +23,9 @@
 #ifndef MERSDK_H
 #define MERSDK_H
 
-#include <ssh/sshconnection.h>
 #include <coreplugin/id.h>
+#include <ssh/sshconnection.h>
+
 #include <QFileSystemWatcher>
 #include <QStringList>
 #include <QTimer>

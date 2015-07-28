@@ -23,8 +23,8 @@
 #ifndef MERTARGETSXMLPARSER_H
 #define MERTARGETSXMLPARSER_H
 
-#include <QObject>
 #include <QMetaType>
+#include <QObject>
 
 namespace Utils { class FileName; }
 

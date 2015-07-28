@@ -23,9 +23,10 @@
 #ifndef MERSSHKEYDEPLOYMENTDIALOG_H
 #define MERSSHKEYDEPLOYMENTDIALOG_H
 
-#include <QProgressDialog>
 #include <remotelinux/sshkeydeployer.h>
 #include <ssh/sshconnection.h>
+
+#include <QProgressDialog>
 
 namespace Mer {
 namespace Internal {

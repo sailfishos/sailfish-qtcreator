@@ -21,6 +21,7 @@
 ****************************************************************************/
 
 #include "merbuildstepfactory.h"
+
 #include "merbuildsteps.h"
 
 #include <projectexplorer/buildsteplist.h>

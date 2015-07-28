@@ -21,25 +21,26 @@
 ****************************************************************************/
 
 #include "merconnectionmanager.h"
+
 #include "merconnection.h"
-#include "mersdkmanager.h"
 #include "merconstants.h"
-#include "mervirtualboxmanager.h"
 #include "meremulatordevice.h"
 #include "mersdkkitinformation.h"
+#include "mersdkmanager.h"
+#include "mervirtualboxmanager.h"
 
-#include <coreplugin/actionmanager/command.h>
 #include <coreplugin/actionmanager/actionmanager.h>
+#include <coreplugin/actionmanager/command.h>
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/icontext.h>
 #include <coreplugin/messagemanager.h>
 #include <coreplugin/modemanager.h>
-#include <projectexplorer/project.h>
-#include <projectexplorer/target.h>
-#include <projectexplorer/session.h>
-#include <projectexplorer/kitinformation.h>
-#include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/devicesupport/devicemanager.h>
+#include <projectexplorer/kitinformation.h>
+#include <projectexplorer/project.h>
+#include <projectexplorer/projectexplorer.h>
+#include <projectexplorer/session.h>
+#include <projectexplorer/target.h>
 #include <ssh/sshconnection.h>
 #include <utils/qtcassert.h>
 

@@ -22,11 +22,13 @@
 
 #include "mersdkdetailswidget.h"
 #include "ui_mersdkdetailswidget.h"
+
 #include "merconstants.h"
-#include "mervirtualboxmanager.h"
 #include "mersdkmanager.h"
+#include "mervirtualboxmanager.h"
 
 #include <utils/hostosinfo.h>
+
 #include <QFileDialog>
 
 namespace Mer {

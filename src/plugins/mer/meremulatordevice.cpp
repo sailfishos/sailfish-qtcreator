@@ -1,5 +1,3 @@
-#include "meremulatordevice.h"
-
 /****************************************************************************
 **
 ** Copyright (C) 2012 - 2014 Jolla Ltd.
@@ -22,22 +20,24 @@
 **
 ****************************************************************************/
 
-#include "mersdkmanager.h"
-#include "mervirtualboxmanager.h"
+#include "meremulatordevice.h"
+
 #include "merconnection.h"
 #include "merconstants.h"
 #include "meremulatordevicewidget.h"
+#include "mersdkmanager.h"
+#include "mervirtualboxmanager.h"
 
+#include <coreplugin/icore.h>
 #include <utils/fileutils.h>
 #include <utils/qtcassert.h>
-#include <coreplugin/icore.h>
 
 #include <QDir>
-#include <QProgressDialog>
+#include <QFileInfo>
 #include <QMessageBox>
+#include <QProgressDialog>
 #include <QTextStream>
 #include <QTimer>
-#include <QFileInfo>
 
 using Core::ICore;
 

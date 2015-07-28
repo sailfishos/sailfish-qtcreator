@@ -27,8 +27,9 @@
 **
 ****************************************************************************/
 
-#include "merconstants.h"
 #include "merrpmvalidationparser.h"
+
+#include "merconstants.h"
 #include "mersettings.h"
 
 #include <projectexplorer/projectexplorerconstants.h>

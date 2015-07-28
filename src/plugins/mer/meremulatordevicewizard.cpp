@@ -1,4 +1,5 @@
 #include "meremulatordevicewizard.h"
+
 #include "mersdkmanager.h"
 
 namespace Mer {

@@ -21,22 +21,23 @@
 ****************************************************************************/
 
 #include "merqtversion.h"
+
 #include "merconstants.h"
+#include "mersdkkitinformation.h"
 #include "mersdkmanager.h"
 #include "mervirtualboxmanager.h"
-#include "mersdkkitinformation.h"
 
-#include <utils/environment.h>
-#include <qtsupport/baseqtversion.h>
-#include <qtsupport/qtkitinformation.h>
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/toolchain.h>
-#include <utils/qtcassert.h>
+#include <qtsupport/baseqtversion.h>
+#include <qtsupport/qtkitinformation.h>
+#include <utils/environment.h>
 #include <utils/hostosinfo.h>
+#include <utils/qtcassert.h>
 
 #include <QCoreApplication>
-#include <QFileInfo>
 #include <QDir>
+#include <QFileInfo>
 
 using namespace ProjectExplorer;
 

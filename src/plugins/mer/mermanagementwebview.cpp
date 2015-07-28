@@ -22,15 +22,15 @@
 
 #include "mermanagementwebview.h"
 #include "ui_mermanagementwebview.h"
+
 #include "merconnection.h"
 #include "mersdkkitinformation.h"
 #include "mersdkmanager.h"
 
-#include <utils/qtcassert.h>
-
 #include <projectexplorer/project.h>
 #include <projectexplorer/session.h>
 #include <projectexplorer/target.h>
+#include <utils/qtcassert.h>
 
 #include <QTimer>
 

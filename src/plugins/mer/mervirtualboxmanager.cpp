@@ -21,10 +21,11 @@
 ****************************************************************************/
 
 #include "mervirtualboxmanager.h"
+
 #include "merconstants.h"
 
-#include <utils/qtcassert.h>
 #include <utils/hostosinfo.h>
+#include <utils/qtcassert.h>
 
 #include <QDebug>
 #include <QDir>

@@ -28,12 +28,14 @@
 ****************************************************************************/
 
 #include "merdeployconfiguration.h"
-#include <projectexplorer/projectnodes.h>
-#include <projectexplorer/project.h>
-#include <projectexplorer/target.h>
+
 #include <coreplugin/idocument.h>
-#include <QVBoxLayout>
+#include <projectexplorer/project.h>
+#include <projectexplorer/projectnodes.h>
+#include <projectexplorer/target.h>
+
 #include <QLabel>
+#include <QVBoxLayout>
 
 using namespace ProjectExplorer;
 

@@ -24,10 +24,11 @@
 #define MERCONNECTION_H
 
 #include <ssh/sshconnection.h>
-#include <QtGlobal>
+
 #include <QBasicTimer>
 #include <QObject>
 #include <QPointer>
+#include <QtGlobal>
 
 QT_BEGIN_NAMESPACE
 class QMessageBox;

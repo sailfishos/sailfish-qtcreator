@@ -24,8 +24,10 @@
 #define MERHARDWAREDEVICEWIZARD_H
 
 #include "merhardwaredevicewizardpages.h"
+
 #include <projectexplorer/abi.h>
 #include <remotelinux/genericlinuxdeviceconfigurationwizardpages.h>
+
 #include <QWizard>
 
 namespace QSsh {

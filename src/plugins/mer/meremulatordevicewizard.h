@@ -2,6 +2,7 @@
 #define MEREMULATORDEVICEWIZARD_H
 
 #include "meremulatordevicewizardpages.h"
+
 #include <QWizard>
 
 namespace Mer {

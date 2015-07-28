@@ -21,27 +21,29 @@
 ****************************************************************************/
 
 #include "merruncontrolfactory.h"
+
 #include "merconstants.h"
 #include "meremulatordevice.h"
 #include "merrunconfiguration.h"
+#include "mersdkkitinformation.h"
 #include "mersdkmanager.h"
 #include "mertoolchain.h"
 #include "mervirtualboxmanager.h"
-#include "mersdkkitinformation.h"
 
+#include <analyzerbase/analyzermanager.h>
+#include <analyzerbase/analyzerruncontrol.h>
+#include <debugger/debuggerkitinformation.h>
 #include <debugger/debuggerplugin.h>
 #include <debugger/debuggerrunner.h>
 #include <debugger/debuggerstartparameters.h>
-#include <debugger/debuggerkitinformation.h>
 #include <projectexplorer/target.h>
-#include <analyzerbase/analyzermanager.h>
-#include <analyzerbase/analyzerruncontrol.h>
 #include <qtsupport/qtkitinformation.h>
-#include <utils/portlist.h>
-#include <utils/qtcassert.h>
+#include <remotelinux/remotelinuxanalyzesupport.h>
 #include <remotelinux/remotelinuxdebugsupport.h>
 #include <remotelinux/remotelinuxruncontrol.h>
-#include <remotelinux/remotelinuxanalyzesupport.h>
+#include <utils/portlist.h>
+#include <utils/qtcassert.h>
+
 using namespace Debugger;
 using namespace ProjectExplorer;
 using namespace Mer;

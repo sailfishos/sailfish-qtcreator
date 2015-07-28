@@ -23,8 +23,8 @@
 #ifndef MERDEVICEXMLPARSER_H
 #define MERDEVICEXMLPARSER_H
 
-#include <QObject>
 #include <QMetaType>
+#include <QObject>
 
 namespace Utils { class FileName; }
 

@@ -21,16 +21,17 @@
 ****************************************************************************/
 
 #include "merqtversionfactory.h"
-#include "merqtversion.h"
+
 #include "merconstants.h"
-#include "mersdkmanager.h"
+#include "merqtversion.h"
 #include "mersdk.h"
+#include "mersdkmanager.h"
 
 #include <utils/qtcassert.h>
 
-#include <QFileInfo>
 #include <QDesktopServices>
 #include <QDir>
+#include <QFileInfo>
 
 namespace Mer {
 namespace Internal {

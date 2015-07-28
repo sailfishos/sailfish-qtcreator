@@ -26,32 +26,36 @@
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
-#include "merconstants.h"
+
 #include "merdeploysteps.h"
+
+#include "merconstants.h"
 #include "merdeployconfiguration.h"
-#include "mersdkmanager.h"
+#include "meremulatordevice.h"
+#include "merrpmvalidationparser.h"
 #include "mersdkkitinformation.h"
+#include "mersdkmanager.h"
 #include "mersettings.h"
 #include "mertargetkitinformation.h"
-#include "meremulatordevice.h"
 #include "mervirtualboxmanager.h"
-#include "merrpmvalidationparser.h"
-#include <utils/qtcassert.h>
-#include <projectexplorer/buildstep.h>
-#include <projectexplorer/buildconfiguration.h>
-#include <projectexplorer/buildsteplist.h>
-#include <projectexplorer/kitinformation.h>
-#include <projectexplorer/projectexplorerconstants.h>
-#include <projectexplorer/project.h>
-#include <projectexplorer/projectnodes.h>
-#include <projectexplorer/target.h>
-#include <qtsupport/baseqtversion.h>
-#include <qtsupport/qtkitinformation.h>
-#include <qmakeprojectmanager/qmakebuildconfiguration.h>
+
 #include <coreplugin/icore.h>
 #include <coreplugin/idocument.h>
-#include <extensionsystem/pluginmanager.h>
 #include <coreplugin/variablemanager.h>
+#include <extensionsystem/pluginmanager.h>
+#include <projectexplorer/buildconfiguration.h>
+#include <projectexplorer/buildstep.h>
+#include <projectexplorer/buildsteplist.h>
+#include <projectexplorer/kitinformation.h>
+#include <projectexplorer/project.h>
+#include <projectexplorer/projectexplorerconstants.h>
+#include <projectexplorer/projectnodes.h>
+#include <projectexplorer/target.h>
+#include <qmakeprojectmanager/qmakebuildconfiguration.h>
+#include <qtsupport/baseqtversion.h>
+#include <qtsupport/qtkitinformation.h>
+#include <utils/qtcassert.h>
+
 #include <QMessageBox>
 #include <QTimer>
 

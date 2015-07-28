@@ -21,21 +21,24 @@
 ****************************************************************************/
 
 #include "mersdk.h"
-#include "mertarget.h"
+
 #include "merconnection.h"
 #include "merconstants.h"
-#include "mersdkmanager.h"
-#include "mertoolchain.h"
 #include "merqtversion.h"
+#include "mersdkmanager.h"
+#include "mertarget.h"
 #include "mertargetsxmlparser.h"
-#include <utils/persistentsettings.h>
-#include <utils/qtcassert.h>
-#include <projectexplorer/toolchainmanager.h>
+#include "mertoolchain.h"
+
 #include <projectexplorer/kitinformation.h>
-#include <qtsupport/qtversionmanager.h>
+#include <projectexplorer/toolchainmanager.h>
 #include <qtsupport/qtkitinformation.h>
 #include <qtsupport/qtversionfactory.h>
+#include <qtsupport/qtversionmanager.h>
 #include <utils/hostosinfo.h>
+#include <utils/persistentsettings.h>
+#include <utils/qtcassert.h>
+
 #include <QDir>
 
 using namespace Mer::Constants;

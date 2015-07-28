@@ -20,12 +20,13 @@
 **
 ****************************************************************************/
 
-#include "merconstants.h"
 #include "mergeneraloptionswidget.h"
+#include "ui_mergeneraloptionswidget.h"
+
+#include "merconstants.h"
 #include "merdeployconfiguration.h"
 #include "merdeploysteps.h"
 #include "mersettings.h"
-#include "ui_mergeneraloptionswidget.h"
 
 namespace Mer {
 namespace Internal {

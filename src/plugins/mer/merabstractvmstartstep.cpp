@@ -21,6 +21,7 @@
 ****************************************************************************/
 
 #include "merabstractvmstartstep.h"
+
 #include "merconnection.h"
 #include "merconnectionmanager.h"
 #include "merconstants.h"
