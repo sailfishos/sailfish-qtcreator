@@ -21,12 +21,15 @@
 ****************************************************************************/
 
 #include "rpmcommand.h"
+
 #include "merremoteprocess.h"
+
 #include <mer/merconstants.h>
-#include <QFile>
+
 #include <QDir>
-#include <QStringList>
 #include <QEventLoop>
+#include <QFile>
+#include <QStringList>
 
 RpmCommand::RpmCommand()
 {

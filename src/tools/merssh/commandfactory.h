@@ -24,6 +24,7 @@
 #define COMMANDFACTORY_H
 
 #include "command.h"
+
 #include <QMap>
 #include <QSharedPointer>
 

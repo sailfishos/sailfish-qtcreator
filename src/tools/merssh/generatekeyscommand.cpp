@@ -21,7 +21,9 @@
 ****************************************************************************/
 
 #include "generatekeyscommand.h"
+
 #include <ssh/sshkeygenerator.h>
+
 #include <QFile>
 
 GenerateKeysCommand::GenerateKeysCommand()

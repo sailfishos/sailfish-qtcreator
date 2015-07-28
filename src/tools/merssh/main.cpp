@@ -21,19 +21,21 @@
 ****************************************************************************/
 
 #include "commandfactory.h"
-#include "qmakecommand.h"
-#include "generatekeyscommand.h"
-#include "gcccommand.h"
-#include "makecommand.h"
 #include "deploycommand.h"
+#include "gcccommand.h"
+#include "generatekeyscommand.h"
+#include "makecommand.h"
+#include "qmakecommand.h"
 #include "rpmcommand.h"
 #include "rpmvalidationcommand.h"
+
 #include <mer/merconstants.h>
+
 #include <QCoreApplication>
-#include <QProcessEnvironment>
-#include <QFile>
-#include <QStringList>
 #include <QDir>
+#include <QFile>
+#include <QProcessEnvironment>
+#include <QStringList>
 #include <QTimer>
 
 void printUsage()

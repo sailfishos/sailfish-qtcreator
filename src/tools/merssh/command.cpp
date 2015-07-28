@@ -21,9 +21,11 @@
 ****************************************************************************/
 
 #include "command.h"
+
 #include <utils/hostosinfo.h>
-#include <QFile>
+
 #include <QDir>
+#include <QFile>
 
 Command::Command()
 {
