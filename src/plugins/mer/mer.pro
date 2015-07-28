@@ -18,6 +18,7 @@ FORMS += \
     mersdkselectiondialog.ui \
     merdeploystep.ui \
     meremulatordevicewidget.ui \
+    meremulatormodedialog.ui \
     merhardwaredevicewidget.ui \
     merhardwaredevicewizardselectionpage.ui \
     meremulatordevicewizardvmpage.ui \
@@ -66,6 +67,7 @@ SOURCES += \
     mertargetkitinformation.cpp \
     meremulatordevice.cpp \
     meremulatordevicewidget.cpp \
+    meremulatormodedialog.cpp \
     merhardwaredevice.cpp \
     merhardwaredevicewidget.cpp \
     meremulatordevicewizard.cpp \
@@ -122,6 +124,7 @@ HEADERS += \
     mertargetkitinformation.h \
     meremulatordevice.h \
     meremulatordevicewidget.h \
+    meremulatormodedialog.h \
     merhardwaredevice.h \
     merhardwaredevicewidget.h \
     meremulatordevicewizard.h \

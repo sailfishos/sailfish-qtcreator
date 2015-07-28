@@ -70,6 +70,14 @@ public:
 
     QSsh::SshConnectionParameters sshParametersForUser(const QSsh::SshConnectionParameters &sshParams, const QLatin1String &user) const;
 
+    QMap<QString, QSize> availableDeviceModels() const;
+    QString deviceModel() const;
+    void setDeviceModel(const QString &deviceModel);
+    Qt::Orientation orientation() const;
+    void setOrientation(Qt::Orientation orientation);
+    bool isViewScaled() const;
+    void setViewScaled(bool viewScaled);
+
     MerConnection *connection() const;
     // ATTENTION! Call this when sshParameters are changed! Unfortunately
     // IDevice API does not allow to hook this.
@@ -77,12 +85,17 @@ public:
 
 private:
     MerEmulatorDevice();
+
+    void setVideoMode();
+
 private:
     QSharedPointer<MerConnection> m_connection; // all clones share the connection
     QString m_mac;
     QString m_subnet;
     QString m_sharedConfigPath;
-
+    QString m_deviceModel;
+    Qt::Orientation m_orientation;
+    bool m_viewScaled;
 };
 
 }

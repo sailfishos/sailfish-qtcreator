@@ -55,6 +55,9 @@ const char MER_SAILFISH_OTHER_GROUP_MENU[] = "Mer.Sailfish.Other.Group.Menu";
 const char MER_SAILFISH_START_ICON[] = ":/mer/images/sdk-run.png";
 const char MER_SAILFISH_STOP_ICON[] = ":/mer/images/sdk-stop.png";
 
+const char MER_TOOLS_MENU[] = "Mer.Tools.Menu";
+const char MER_EMULATOR_MODE_ACTION_ID[] = "Mer.Emulator.Mode.Action";
+
 #ifdef Q_OS_WIN
 #define SCRIPT_EXTENSION ".cmd"
 #else // Q_OS_WIN
@@ -129,6 +132,7 @@ const char MER_WIZARD_FEATURE_EMULATOR[] = "Mer.Wizard.Feature.Emulator";
 const char MER_SDK_FILENAME[] = "/qtcreator/mersdk.xml";
 const char MER_TARGETS_FILENAME[] = "/targets.xml";
 const char MER_DEVICES_FILENAME[] = "/devices.xml";
+const char MER_COMPOSITOR_CONFIG_FILENAME[] = "65-emul-wayland-ui-scale.conf";
 const char MER_DEBUGGER_i486_FILENAME[] = "gdb-i486-meego-linux-gnu";
 const char MER_DEBUGGER_ARM_FILENAME[] = "gdb-armv7hl-meego-linux-gnueabi";
 const char MER_DEBUGGER_DEFAULT_FILENAME[] = "gdb";
@@ -164,6 +168,10 @@ const char MER_DEVICE_SUBNET[] = "MER_DEVICE_SUBNET";
 const char MER_DEVICE_SHARED_SSH[] = "MER_DEVICE_SHARED_SSH";
 const char MER_DEVICE_SHARED_CONFIG[]= "MER_DEVICE_SHARED_CONFIG";
 const char MER_DEVICE_ARCHITECTURE[]= "MER_DEVICE_ARCHITECTURE";
+const char MER_DEVICE_DEVICE_MODEL[]= "MER_DEVICE_DEVICE_MODEL";
+const char MER_DEVICE_ORIENTATION[]= "MER_DEVICE_ORIENTATION";
+const char MER_DEVICE_VIEW_SCALED[]= "MER_DEVICE_VIEW_SCALED";
+
 } // namespace Constants
 } // namespace Mer
 

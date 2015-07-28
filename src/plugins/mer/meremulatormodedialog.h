@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 Jolla Ltd.
+** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
 **
@@ -27,59 +27,65 @@
 **
 ****************************************************************************/
 
-#ifndef FANCYACTIONBAR_H
-#define FANCYACTIONBAR_H
+#ifndef MEREMULATORMODEDIALOG_H
+#define MEREMULATORMODEDIALOG_H
 
-#include <QToolButton>
+#include <QObject>
+#include <QPointer>
 
 QT_BEGIN_NAMESPACE
-class QVBoxLayout;
+class QAction;
+class QDialog;
 QT_END_NAMESPACE
 
-namespace Core {
+namespace ProjectExplorer {
+    class Kit;
+    class Project;
+    class Target;
+}
+
+namespace Mer {
 namespace Internal {
 
-class FancyToolButton : public QToolButton
-{
-    Q_OBJECT
+class MerEmulatorDevice;
 
-    Q_PROPERTY(float fader READ fader WRITE setFader)
+namespace Ui {
+    class MerEmulatorModeDialog;
+}
 
-public:
-    FancyToolButton(QWidget *parent = 0);
-
-    void paintEvent(QPaintEvent *event);
-    bool event(QEvent *e);
-    QSize sizeHint() const;
-    QSize minimumSizeHint() const;
-
-    float m_fader;
-    float fader() { return m_fader; }
-    void setFader(float value) { m_fader = value; update(); }
-
-private slots:
-    friend class FancyActionBar;
-    void actionChanged();
-};
-
-class FancyActionBar : public QWidget
+class MerEmulatorModeDialog : public QObject
 {
     Q_OBJECT
 
 public:
-    FancyActionBar(QWidget *parent = 0);
+    MerEmulatorModeDialog(QObject *parent = 0);
+    ~MerEmulatorModeDialog();
 
-    void paintEvent(QPaintEvent *event);
-    void insertAction(int index, QAction *action);
-    void addProjectSelector(QAction *action);
-    QLayout *actionsLayout() const;
-    QSize minimumSizeHint() const;
+public:
+    QAction *action() const;
 
 private:
-    QVBoxLayout *m_actionsLayout;
+    void setEmulator(MerEmulatorDevice *emulator);
+
+private slots:
+    void onStartupProjectChanged(ProjectExplorer::Project *project);
+    void onActiveTargetChanged(ProjectExplorer::Target *target);
+    void onTargetKitChanged();
+    void onKitUpdated(ProjectExplorer::Kit *kit);
+    void execDialog();
+    void guessOptimalViewMode();
+
+private:
+    QAction *m_action;
+    QDialog *m_dialog;
+    Ui::MerEmulatorModeDialog *m_ui;
+    QPointer<ProjectExplorer::Project> m_project;
+    QPointer<ProjectExplorer::Target> m_target;
+    ProjectExplorer::Kit *m_kit;
+    MerEmulatorDevice *m_emulator;
 };
 
 } // namespace Internal
-} // namespace Core
+} // namespace Mer
 
-#endif // FANCYACTIONBAR_H
+#endif // MEREMULATORMODEDIALOG_H

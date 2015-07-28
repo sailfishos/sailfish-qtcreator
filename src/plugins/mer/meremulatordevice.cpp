@@ -27,11 +27,15 @@
 #include "merconnection.h"
 #include "merconstants.h"
 #include "meremulatordevicewidget.h"
+
+#include <utils/fileutils.h>
 #include <utils/qtcassert.h>
 #include <coreplugin/icore.h>
 
+#include <QDir>
 #include <QProgressDialog>
 #include <QMessageBox>
+#include <QTextStream>
 #include <QTimer>
 #include <QFileInfo>
 
@@ -39,6 +43,11 @@ using Core::ICore;
 
 namespace Mer {
 namespace Internal {
+
+namespace {
+    const int VIDEO_MODE_DEPTH = 32;
+    const int SCALE_DOWN_FACTOR = 2;
+}
 
 class PublicKeyDeploymentDialog : public QProgressDialog
 {
@@ -170,6 +179,9 @@ ProjectExplorer::IDevice::Ptr MerEmulatorDevice::clone() const
 MerEmulatorDevice::MerEmulatorDevice():
     MerDevice(QString(), Emulator, ManuallyAdded, Core::Id())
     , m_connection(new MerConnection(0 /* not bug */))
+    , m_deviceModel(availableDeviceModels().keys().first())
+    , m_orientation(Qt::Vertical)
+    , m_viewScaled(false)
 {
 }
 
@@ -221,6 +233,10 @@ void MerEmulatorDevice::fromMap(const QVariantMap &map)
     m_mac = map.value(QLatin1String(Constants::MER_DEVICE_MAC)).toString();
     m_subnet = map.value(QLatin1String(Constants::MER_DEVICE_SUBNET)).toString();
     m_sharedConfigPath = map.value(QLatin1String(Constants::MER_DEVICE_SHARED_CONFIG)).toString();
+    m_deviceModel = map.value(QLatin1String(Constants::MER_DEVICE_DEVICE_MODEL)).toString();
+    m_orientation = static_cast<Qt::Orientation>(
+            map.value(QLatin1String(Constants::MER_DEVICE_ORIENTATION)).toInt());
+    m_viewScaled = map.value(QLatin1String(Constants::MER_DEVICE_VIEW_SCALED)).toBool();
 }
 
 QVariantMap MerEmulatorDevice::toMap() const
@@ -231,6 +247,9 @@ QVariantMap MerEmulatorDevice::toMap() const
     map.insert(QLatin1String(Constants::MER_DEVICE_MAC), m_mac);
     map.insert(QLatin1String(Constants::MER_DEVICE_SUBNET), m_subnet);
     map.insert(QLatin1String(Constants::MER_DEVICE_SHARED_CONFIG), m_sharedConfigPath);
+    map.insert(QLatin1String(Constants::MER_DEVICE_DEVICE_MODEL), m_deviceModel);
+    map.insert(QLatin1String(Constants::MER_DEVICE_ORIENTATION), m_orientation);
+    map.insert(QLatin1String(Constants::MER_DEVICE_VIEW_SCALED), m_viewScaled);
     return map;
 }
 
@@ -305,6 +324,68 @@ QSsh::SshConnectionParameters MerEmulatorDevice::sshParametersForUser(const QSsh
     return m_sshParams;
 }
 
+QMap<QString, QSize> MerEmulatorDevice::availableDeviceModels() const
+{
+    // Not using initializer list - seems like GCC 4.4. fails on it
+    static QMap<QString, QSize> modes;
+    if (!modes.isEmpty()) {
+        return modes;
+    }
+
+    modes.insert(tr("Jolla Phone"), QSize(540, 960));
+    modes.insert(tr("Jolla Tablet"), QSize(1536, 2048));
+
+    return modes;
+}
+
+QString MerEmulatorDevice::deviceModel() const
+{
+    return m_deviceModel;
+}
+
+void MerEmulatorDevice::setDeviceModel(const QString &deviceModel)
+{
+    QTC_CHECK(availableDeviceModels().contains(deviceModel));
+    QTC_CHECK(!virtualMachine().isEmpty());
+
+    // Intentionally do not check for equal value - better for synchronization
+    // with VB settings
+
+    m_deviceModel = deviceModel;
+
+    setVideoMode();
+}
+
+Qt::Orientation MerEmulatorDevice::orientation() const
+{
+    return m_orientation;
+}
+
+void MerEmulatorDevice::setOrientation(Qt::Orientation orientation)
+{
+    // Intentionally do not check for equal value - better for synchronization
+    // with VB settings
+
+    m_orientation = orientation;
+
+    setVideoMode();
+}
+
+bool MerEmulatorDevice::isViewScaled() const
+{
+    return m_viewScaled;
+}
+
+void MerEmulatorDevice::setViewScaled(bool viewScaled)
+{
+    // Intentionally do not check for equal value - better for synchronization
+    // with VB settings
+
+    m_viewScaled = viewScaled;
+
+    setVideoMode();
+}
+
 MerConnection *MerEmulatorDevice::connection() const
 {
     return m_connection.data();
@@ -313,6 +394,37 @@ MerConnection *MerEmulatorDevice::connection() const
 void MerEmulatorDevice::updateConnection()
 {
     m_connection->setSshParameters(sshParameters());
+}
+
+void MerEmulatorDevice::setVideoMode()
+{
+    QSize realSize = availableDeviceModels().value(m_deviceModel);
+    if (m_orientation == Qt::Horizontal) {
+        realSize.transpose();
+    }
+    QSize virtualSize = realSize;
+    if (m_viewScaled) {
+        realSize /= SCALE_DOWN_FACTOR;
+    }
+
+    MerVirtualBoxManager::setVideoMode(virtualMachine(), realSize, VIDEO_MODE_DEPTH);
+
+    //! \todo Does not support multiple emulators (not supported at other places anyway).
+    QTC_ASSERT(!sharedConfigPath().isEmpty(), return);
+    const QString file = QDir(sharedConfigPath())
+        .absoluteFilePath(QLatin1String(Constants::MER_COMPOSITOR_CONFIG_FILENAME));
+    Utils::FileSaver saver(file, QIODevice::WriteOnly);
+
+    // Keep environment clean if scaling is disabled - may help in case of errors
+    const QString maybeCommentOut = m_viewScaled ? QString() : QString(QStringLiteral("#"));
+
+    QTextStream(saver.file())
+        << maybeCommentOut << "QT_QPA_EGLFS_SCALE=" << SCALE_DOWN_FACTOR << endl
+        << maybeCommentOut << "QT_QPA_EGLFS_WIDTH=" << virtualSize.width() << endl
+        << maybeCommentOut << "QT_QPA_EGLFS_HEIGHT=" << virtualSize.height() << endl;
+
+    bool ok = saver.finalize();
+    QTC_CHECK(ok);
 }
 
 #include "meremulatordevice.moc"

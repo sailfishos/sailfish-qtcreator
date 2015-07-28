@@ -130,7 +130,6 @@ void MerConnectionAction::initialize()
     command->setAttribute(Core::Command::CA_UpdateText);
     command->setAttribute(Core::Command::CA_UpdateIcon);
 
-    Core::ModeManager::addAction(command->action(), 1);
     m_action->setEnabled(m_enabled);
     m_action->setVisible(m_visible);
 
