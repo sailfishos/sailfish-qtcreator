@@ -24,6 +24,7 @@
 
 #include "merconnection.h"
 #include "merconstants.h"
+#include "meremulatordevicetester.h"
 #include "meremulatordevicewidget.h"
 #include "mersdkmanager.h"
 #include "mervirtualboxmanager.h"
@@ -222,6 +223,11 @@ void MerEmulatorDevice::executeAction(Core::Id actionId, QWidget *parent)
         m_connection->connectTo();
         return;
     }
+}
+
+ProjectExplorer::DeviceTester *MerEmulatorDevice::createDeviceTester() const
+{
+    return new MerEmulatorDeviceTester;
 }
 
 void MerEmulatorDevice::fromMap(const QVariantMap &map)
