@@ -27,10 +27,6 @@
 
 #include <QPointer>
 
-QT_BEGIN_NAMESPACE
-class QMessageBox;
-QT_END_NAMESPACE
-
 namespace Mer {
 namespace Internal {
 
@@ -55,18 +51,13 @@ public:
 protected:
     void setConnection(MerConnection *connection);
 
-private:
-    void beginConnect();
-
 private slots:
     void onStateChanged();
-    void onQuestionBoxFinished();
     void checkForCancel();
 
 private:
     QPointer<MerConnection> m_connection;
     QFutureInterface<bool> *m_futureInterface;
-    QMessageBox *m_questionBox;
     QTimer *m_checkForCancelTimer;
 };
 
