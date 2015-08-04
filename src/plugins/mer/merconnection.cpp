@@ -348,6 +348,8 @@ void MerConnection::connectTo()
     if (m_lockDownRequested) {
         qWarning() << "MerConnection: connect request for" << m_vmName << "ignored: lockdown active";
         return;
+    } else if (m_state == Connected) {
+        return;
     } else if (m_connectRequested || m_connectLaterRequested) {
         return;
     } else if (m_disconnectRequested) {
@@ -377,6 +379,8 @@ void MerConnection::disconnectFrom()
     DBG << "Disconnect requested";
 
     if (m_lockDownRequested) {
+        return;
+    } else if (m_state == Disconnected) {
         return;
     } else if (m_disconnectRequested && !m_connectLaterRequested) {
         return;
