@@ -96,6 +96,9 @@ public:
     State state() const;
     QString errorString() const;
 
+    bool isAutoConnectEnabled() const;
+    void setAutoConnectEnabled(bool autoConnectEnabled);
+
     bool isVirtualMachineOff(bool *runningHeadless = 0) const;
     bool lockDown(bool lockDown);
 
@@ -183,6 +186,7 @@ private:
     // m_lockDownRequested compared to m_{dis,}connectRequested!)
     bool m_lockDownRequested;
     bool m_lockDownFailed;
+    bool m_autoConnectEnabled;
     bool m_connectRequested;
     bool m_disconnectRequested;
     bool m_connectLaterRequested;

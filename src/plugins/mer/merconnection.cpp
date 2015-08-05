@@ -186,6 +186,7 @@ MerConnection::MerConnection(QObject *parent)
     , m_sshStmTransition(false) // intentionally do not execute ON_ENTRY during initialization
     , m_lockDownRequested(false)
     , m_lockDownFailed(false)
+    , m_autoConnectEnabled(true)
     , m_connectRequested(false)
     , m_disconnectRequested(false)
     , m_connectLaterRequested(false)
@@ -270,6 +271,21 @@ MerConnection::State MerConnection::state() const
 QString MerConnection::errorString() const
 {
     return m_errorString;
+}
+
+bool MerConnection::isAutoConnectEnabled() const
+{
+    return m_autoConnectEnabled;
+}
+
+void MerConnection::setAutoConnectEnabled(bool autoConnectEnabled)
+{
+    QTC_ASSERT(m_autoConnectEnabled != autoConnectEnabled, return);
+
+    m_autoConnectEnabled = autoConnectEnabled;
+
+    vmStmScheduleExec();
+    sshStmScheduleExec();
 }
 
 bool MerConnection::isVirtualMachineOff(bool *runningHeadless) const
@@ -723,6 +739,10 @@ bool MerConnection::vmStmStep()
                     }
                 }
             }
+        } else if (m_vmStartedOutside && !m_autoConnectEnabled) {
+            if (m_sshState == SshNotConnected || m_sshState == SshDisconnected) {
+                vmStmTransition(VmZombie, "started outside+auto connect disabled");
+            }
         }
 
         ON_EXIT {
@@ -896,7 +916,11 @@ bool MerConnection::sshStmStep()
             m_connectRequested = false;
             m_connectOptions = NoConnectOption;
         } else if (m_vmState == VmRunning) {
-            sshStmTransition(SshConnecting, "VM running");
+            if (m_connectRequested) {
+                sshStmTransition(SshConnecting, "VM running&connect requested");
+            } else if (m_autoConnectEnabled) {
+                sshStmTransition(SshConnecting, "VM running&auto connect enabled");
+            }
         }
 
         ON_EXIT {
@@ -907,6 +931,7 @@ bool MerConnection::sshStmStep()
     case SshConnecting:
         ON_ENTRY {
             delete m_connection;
+            m_cachedSshConnected = false;
             m_cachedSshError = QSsh::SshNoError;
             m_cachedSshErrorString.clear();
             createConnection();
@@ -916,6 +941,8 @@ bool MerConnection::sshStmStep()
 
         if (m_vmState != VmRunning) { // intentionally give precedence over m_cachedSshConnected
             sshStmTransition(SshNotConnected, "VM not running");
+        } else if (!m_connectRequested && !m_autoConnectEnabled) {
+            sshStmTransition(SshNotConnected, "auto connect disabled while auto connecting");
         } else if (m_cachedSshConnected) {
             sshStmTransition(SshConnected, "successfully connected");
         } else if (m_cachedSshError != QSsh::SshNoError) {
