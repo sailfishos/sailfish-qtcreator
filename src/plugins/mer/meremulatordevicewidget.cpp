@@ -22,18 +22,19 @@
 
 #include "meremulatordevicewidget.h"
 #include "ui_meremulatordevicewidget.h"
-#include "mervirtualboxmanager.h"
-#include "meremulatordevice.h"
-#include "merconstants.h"
-#include "mersdkmanager.h"
 
-#include <utils/portlist.h>
-#include <utils/fancylineedit.h>
+#include "merconstants.h"
+#include "meremulatordevice.h"
+#include "mersdkmanager.h"
+#include "mervirtualboxmanager.h"
+
 #include <ssh/sshconnection.h>
 #include <ssh/sshkeycreationdialog.h>
+#include <utils/fancylineedit.h>
+#include <utils/portlist.h>
 
-#include <QTextStream>
 #include <QDir>
+#include <QTextStream>
 
 using namespace ProjectExplorer;
 using namespace QSsh;

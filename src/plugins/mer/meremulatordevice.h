@@ -23,11 +23,10 @@
 **
 ****************************************************************************/
 
-//#include <projectexplorer/devicesupport/idevice.h>
+#include "merdevice.h"
+
 #include <QCoreApplication>
 #include <QSharedPointer>
-
-#include "merdevice.h"
 
 namespace Mer {
 namespace Internal {

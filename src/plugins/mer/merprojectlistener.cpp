@@ -21,21 +21,18 @@
 ****************************************************************************/
 
 #include "merprojectlistener.h"
+
 #include "mersdkmanager.h"
 
+#include <coreplugin/icore.h>
+#include <coreplugin/progressmanager/futureprogress.h>
+#include <coreplugin/progressmanager/progressmanager.h>
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/session.h>
 #include <projectexplorer/target.h>
-
-#include <qmakeprojectmanager/qmakeproject.h>
 #include <qmakeprojectmanager/qmakenodes.h>
-
-#include <coreplugin/icore.h>
-#include <coreplugin/progressmanager/progressmanager.h>
-#include <coreplugin/progressmanager/futureprogress.h>
-
+#include <qmakeprojectmanager/qmakeproject.h>
 #include <qtsupport/qtkitinformation.h>
-
 #include <utils/fileutils.h>
 
 using namespace ProjectExplorer;

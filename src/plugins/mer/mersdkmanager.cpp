@@ -21,32 +21,33 @@
 ****************************************************************************/
 
 #include "mersdkmanager.h"
-#include "merconstants.h"
-#include "merqtversion.h"
-#include "mertoolchain.h"
-#include "mervirtualboxmanager.h"
+
 #include "merconnectionmanager.h"
-#include "mersdkkitinformation.h"
-#include "merplugin.h"
+#include "merconstants.h"
 #include "merdevicefactory.h"
-#include "mertarget.h"
+#include "merdevicexmlparser.h"
 #include "meremulatordevice.h"
 #include "merhardwaredevice.h"
-#include "merdevicexmlparser.h"
+#include "merplugin.h"
+#include "merqtversion.h"
+#include "mersdkkitinformation.h"
+#include "mertarget.h"
 #include "mertargetkitinformation.h"
+#include "mertoolchain.h"
+#include "mervirtualboxmanager.h"
 
-#include <coreplugin/icore.h>
 #include <coreplugin/coreconstants.h>
+#include <coreplugin/icore.h>
 #include <extensionsystem/pluginmanager.h>
-#include <utils/qtcassert.h>
-#include <utils/persistentsettings.h>
+#include <projectexplorer/devicesupport/devicemanager.h>
+#include <projectexplorer/kit.h>
 #include <projectexplorer/kitmanager.h>
 #include <projectexplorer/toolchainmanager.h>
-#include <projectexplorer/kit.h>
-#include <projectexplorer/devicesupport/devicemanager.h>
-#include <qtsupport/qtversionmanager.h>
 #include <qtsupport/qtkitinformation.h>
+#include <qtsupport/qtversionmanager.h>
 #include <ssh/sshkeygenerator.h>
+#include <utils/persistentsettings.h>
+#include <utils/qtcassert.h>
 
 #include <QDesktopServices>
 #include <QDir>

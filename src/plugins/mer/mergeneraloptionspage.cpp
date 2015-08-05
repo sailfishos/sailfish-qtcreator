@@ -21,6 +21,7 @@
 ****************************************************************************/
 
 #include "mergeneraloptionspage.h"
+
 #include "merconstants.h"
 #include "mergeneraloptionswidget.h"
 

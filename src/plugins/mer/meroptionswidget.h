@@ -25,8 +25,8 @@
 
 #include "mersdk.h"
 
-#include <QWidget>
 #include <QTimer>
+#include <QWidget>
 
 QT_BEGIN_NAMESPACE
 class QStandardItemModel;

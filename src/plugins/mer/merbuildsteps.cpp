@@ -21,6 +21,7 @@
 ****************************************************************************/
 
 #include "merbuildsteps.h"
+
 #include "mersdk.h"
 #include "mersdkkitinformation.h"
 

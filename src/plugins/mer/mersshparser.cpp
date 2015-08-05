@@ -21,8 +21,9 @@
 ****************************************************************************/
 
 #include "mersshparser.h"
-#include <projectexplorer/task.h>
+
 #include <projectexplorer/projectexplorerconstants.h>
+#include <projectexplorer/task.h>
 
 using namespace ProjectExplorer;
 

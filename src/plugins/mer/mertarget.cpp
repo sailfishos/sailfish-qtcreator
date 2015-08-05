@@ -21,21 +21,24 @@
 ****************************************************************************/
 
 #include "mertarget.h"
-#include "mersdk.h"
+
 #include "merconstants.h"
-#include "mersdkmanager.h"
-#include "mertoolchain.h"
 #include "merqtversion.h"
+#include "mersdk.h"
 #include "mersdkkitinformation.h"
+#include "mersdkmanager.h"
 #include "mertargetkitinformation.h"
+#include "mertoolchain.h"
+
 #include <debugger/debuggeritemmanager.h>
 #include <debugger/debuggerkitinformation.h>
-#include <qtsupport/qtversionmanager.h>
+#include <projectexplorer/toolchainmanager.h>
 #include <qtsupport/qtkitinformation.h>
 #include <qtsupport/qtversionfactory.h>
-#include <projectexplorer/toolchainmanager.h>
+#include <qtsupport/qtversionmanager.h>
 #include <utils/hostosinfo.h>
 #include <utils/qtcassert.h>
+
 #include <QDir>
 #include <QStringList>
 

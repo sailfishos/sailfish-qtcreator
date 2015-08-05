@@ -28,10 +28,10 @@
 ****************************************************************************/
 
 #include "meremulatormodedialog.h"
-
 #include "ui_meremulatormodedialog.h"
-#include "meremulatordevice.h"
+
 #include "merconnection.h"
+#include "meremulatordevice.h"
 
 #include <coreplugin/icore.h>
 #include <projectexplorer/kitinformation.h>

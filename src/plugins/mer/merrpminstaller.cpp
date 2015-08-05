@@ -28,8 +28,10 @@
 ****************************************************************************/
 
 #include "merrpminstaller.h"
-#include "meremulatordevice.h"
+
 #include "merconstants.h"
+#include "meremulatordevice.h"
+
 #include <ssh/sshconnection.h>
 
 namespace Mer {

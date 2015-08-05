@@ -21,10 +21,11 @@
 ****************************************************************************/
 
 #include "merdeployconfigurationfactory.h"
-#include "merdeployconfiguration.h"
+
 #include "merconstants.h"
-#include "merdevicefactory.h"
+#include "merdeployconfiguration.h"
 #include "merdeploysteps.h"
+#include "merdevicefactory.h"
 #include "merrpmpackagingstep.h"
 #include "meruploadandinstallrpmsteps.h"
 
@@ -34,7 +35,6 @@
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/target.h>
 #include <remotelinux/genericdirectuploadstep.h>
-
 #include <utils/qtcassert.h>
 
 using namespace ProjectExplorer;

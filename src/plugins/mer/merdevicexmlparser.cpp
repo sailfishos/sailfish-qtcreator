@@ -26,12 +26,12 @@
 
 #include <QAbstractMessageHandler>
 #include <QAbstractXmlReceiver>
+#include <QFileInfo>
+#include <QStack>
+#include <QXmlQuery>
 #include <QXmlSchema>
 #include <QXmlSchemaValidator>
-#include <QXmlQuery>
 #include <QXmlStreamWriter>
-#include <QStack>
-#include <QFileInfo>
 
 //Parser for:
 //https://wiki.merproject.org/wiki/SDK_on_VirtualBox/Design

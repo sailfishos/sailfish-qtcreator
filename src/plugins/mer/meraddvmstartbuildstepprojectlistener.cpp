@@ -22,13 +22,13 @@
 
 #include "meraddvmstartbuildstepprojectlistener.h"
 
+#include "merbuildsteps.h"
+
 #include <projectexplorer/buildconfiguration.h>
 #include <projectexplorer/buildsteplist.h>
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/target.h>
 #include <qmakeprojectmanager/qmakeproject.h>
-
-#include "merbuildsteps.h"
 
 using namespace ProjectExplorer;
 using namespace QmakeProjectManager;

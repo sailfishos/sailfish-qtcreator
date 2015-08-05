@@ -23,10 +23,11 @@
 #ifndef COMMAND_H
 #define COMMAND_H
 
-#include <QStringList>
-#include <QCoreApplication>
-#include <QTimer>
 #include <ssh/sshconnection.h>
+
+#include <QCoreApplication>
+#include <QStringList>
+#include <QTimer>
 
 class Command
 {

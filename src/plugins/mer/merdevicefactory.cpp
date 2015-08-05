@@ -21,18 +21,20 @@
 ****************************************************************************/
 
 #include "merdevicefactory.h"
-#include "meremulatordevicewizard.h"
-#include "meremulatordevice.h"
-#include "merhardwaredevicewizard.h"
-#include "merhardwaredevice.h"
+
 #include "merconstants.h"
+#include "meremulatordevice.h"
+#include "meremulatordevicewizard.h"
+#include "merhardwaredevice.h"
+#include "merhardwaredevicewizard.h"
 #include "mersdkmanager.h"
 #include "mersshkeydeploymentdialog.h"
 
-#include <utils/qtcassert.h>
+#include <coreplugin/icore.h>
 #include <ssh/sshconnection.h>
 #include <utils/portlist.h>
-#include <coreplugin/icore.h>
+#include <utils/qtcassert.h>
+
 #include <QFileInfo>
 #include <QInputDialog>
 #include <QMessageBox>

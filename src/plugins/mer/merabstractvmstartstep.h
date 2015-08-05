@@ -24,6 +24,7 @@
 #define MERABSTRACTVMSTARTSTEP_H
 
 #include <projectexplorer/buildstep.h>
+
 #include <QPointer>
 
 QT_BEGIN_NAMESPACE

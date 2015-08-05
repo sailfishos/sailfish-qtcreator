@@ -23,10 +23,10 @@
 #ifndef MERDEVICE_H
 #define MERDEVICE_H
 
-#include <QSharedPointer>
-
 #include <projectexplorer/abi.h>
 #include <remotelinux/linuxdevice.h>
+
+#include <QSharedPointer>
 
 namespace Mer {
 namespace Internal {

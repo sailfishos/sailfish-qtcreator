@@ -21,9 +21,11 @@
 ****************************************************************************/
 
 #include "gcccommand.h"
+
 #include <mer/merconstants.h>
-#include <QFile>
+
 #include <QDir>
+#include <QFile>
 #include <QStringList>
 
 GccCommand::GccCommand()

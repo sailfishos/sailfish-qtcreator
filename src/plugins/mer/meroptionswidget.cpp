@@ -20,26 +20,27 @@
 **
 ****************************************************************************/
 
-#include "merconstants.h"
 #include "meroptionswidget.h"
-#include "ui_meroptionswidget.h"
+
+#include "merconnection.h"
+#include "merconnectionmanager.h"
+#include "merconstants.h"
 #include "mersdkdetailswidget.h"
 #include "mersdkmanager.h"
 #include "mersdkselectiondialog.h"
 #include "mervirtualboxmanager.h"
-#include "merconnectionmanager.h"
-#include "merconnection.h"
+#include "ui_meroptionswidget.h"
 
-#include <utils/fileutils.h>
-#include <ssh/sshconnection.h>
 #include <coreplugin/icore.h>
+#include <ssh/sshconnection.h>
+#include <utils/fileutils.h>
 
-#include <QStandardItemModel>
-#include <QStandardItem>
-#include <QDir>
 #include <QDesktopServices>
-#include <QUrl>
+#include <QDir>
 #include <QMessageBox>
+#include <QStandardItem>
+#include <QStandardItemModel>
+#include <QUrl>
 
 using Core::ICore;
 

@@ -21,17 +21,20 @@
 ****************************************************************************/
 
 #include "mertargetkitinformation.h"
-#include "mersdkkitinformation.h"
+
 #include "merconstants.h"
 #include "merdevicefactory.h"
-#include "mersdk.h"
-#include "mersdkmanager.h"
 #include "meroptionspage.h"
-#include <projectexplorer/projectexplorerconstants.h>
-#include <extensionsystem/pluginmanager.h>
+#include "mersdk.h"
+#include "mersdkkitinformation.h"
+#include "mersdkmanager.h"
+
 #include <coreplugin/icore.h>
-#include <QPushButton>
+#include <extensionsystem/pluginmanager.h>
+#include <projectexplorer/projectexplorerconstants.h>
+
 #include <QComboBox>
+#include <QPushButton>
 
 namespace Mer {
 namespace Internal {

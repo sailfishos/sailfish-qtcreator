@@ -21,14 +21,14 @@
 ****************************************************************************/
 
 #include "merrunconfigurationfactory.h"
-#include "merdevicefactory.h"
+
 #include "merconstants.h"
+#include "merdevicefactory.h"
 #include "merrunconfiguration.h"
 
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/target.h>
 #include <qmakeprojectmanager/qmakeproject.h>
-
 #include <utils/qtcassert.h>
 
 using namespace Mer::Constants;

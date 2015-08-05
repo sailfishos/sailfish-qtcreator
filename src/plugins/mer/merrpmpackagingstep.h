@@ -31,6 +31,7 @@
 #define MERRPMPACKAGINGSTEP_H
 
 #include "mersdk.h"
+
 #include <remotelinux/abstractpackagingstep.h>
 #include <utils/environment.h>
 #include <utils/fileutils.h>

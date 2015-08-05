@@ -21,14 +21,15 @@
 ****************************************************************************/
 
 #include "merremoteprocess.h"
+
 #include <mer/merconstants.h>
 #include <ssh/sshremoteprocessrunner.h>
 
-#include <QFile>
-#include <QSettings>
 #include <QCoreApplication>
 #include <QDir>
+#include <QFile>
 #include <QProcessEnvironment>
+#include <QSettings>
 #include <QSocketNotifier>
 
 MerRemoteProcess::MerRemoteProcess(QObject *parent)

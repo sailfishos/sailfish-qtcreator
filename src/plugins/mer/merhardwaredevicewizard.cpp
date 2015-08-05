@@ -21,6 +21,7 @@
 ****************************************************************************/
 
 #include "merhardwaredevicewizard.h"
+
 #include <ssh/sshconnection.h>
 
 using namespace QSsh;

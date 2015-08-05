@@ -20,17 +20,18 @@
 **
 ****************************************************************************/
 
-#include "merconstants.h"
 #include "merrunconfiguration.h"
+
+#include "merconstants.h"
 #include "merdeployconfiguration.h"
-#include <remotelinux/remotelinuxenvironmentaspect.h>
 #include "projectexplorer/kitinformation.h"
 
-#include <projectexplorer/target.h>
-#include <projectexplorer/project.h>
-#include <projectexplorer/deploymentdata.h>
 #include <projectexplorer/deployconfiguration.h>
+#include <projectexplorer/deploymentdata.h>
 #include <projectexplorer/kitinformation.h>
+#include <projectexplorer/project.h>
+#include <projectexplorer/target.h>
+#include <remotelinux/remotelinuxenvironmentaspect.h>
 
 namespace Mer {
 namespace Internal {

@@ -28,17 +28,17 @@
 ****************************************************************************/
 
 #include "meruploadandinstallrpmsteps.h"
-//#include "merrpmpackagingstep.h"
+
 #include "merdeploysteps.h"
 #include "merrpminstaller.h"
 
-#include <projectexplorer/project.h>
 #include <coreplugin/idocument.h>
+#include <projectexplorer/project.h>
+#include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/target.h>
 #include <qtsupport/qtkitinformation.h>
 #include <remotelinux/abstractuploadandinstallpackageservice.h>
 #include <remotelinux/remotelinuxdeployconfiguration.h>
-#include <projectexplorer/projectexplorerconstants.h>
 #include <ssh/sshconnection.h>
 
 using namespace ProjectExplorer;

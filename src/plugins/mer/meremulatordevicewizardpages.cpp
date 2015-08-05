@@ -19,15 +19,19 @@
 ** conditions contained in a signed written agreement between you and Digia.
 **
 ****************************************************************************/
-#include "merconstants.h"
-#include "merconnection.h"
+
 #include "meremulatordevicewizardpages.h"
-#include "meremulatordevicewizard.h"
 #include "ui_meremulatordevicewizardvmpage.h"
 #include "ui_meremulatordevicewizardsshpage.h"
+
+#include "merconnection.h"
+#include "merconstants.h"
+#include "meremulatordevicewizard.h"
 #include "mervirtualboxmanager.h"
-#include <utils/qtcassert.h>
+
 #include <projectexplorer/devicesupport/devicemanager.h>
+#include <utils/qtcassert.h>
+
 #include <QDir>
 
 namespace Mer {

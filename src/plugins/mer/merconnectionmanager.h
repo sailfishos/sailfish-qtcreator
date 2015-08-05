@@ -24,6 +24,7 @@
 #define MERCONNECTIONMANAGER_H
 
 #include <coreplugin/id.h>
+
 #include <QObject>
 
 namespace ProjectExplorer {

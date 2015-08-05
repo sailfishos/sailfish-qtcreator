@@ -26,12 +26,12 @@
 
 #include <QAbstractMessageHandler>
 #include <QAbstractXmlReceiver>
+#include <QFileInfo>
+#include <QStack>
+#include <QXmlQuery>
 #include <QXmlSchema>
 #include <QXmlSchemaValidator>
-#include <QXmlQuery>
 #include <QXmlStreamWriter>
-#include <QStack>
-#include <QFileInfo>
 
 const char TARGET[] = "target";
 const char TARGETS[] = "targets";

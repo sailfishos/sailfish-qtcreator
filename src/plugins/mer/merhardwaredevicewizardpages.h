@@ -23,9 +23,9 @@
 #ifndef MERHARDWAREDEVICEWIZARDPAGES_H
 #define MERHARDWAREDEVICEWIZARDPAGES_H
 
-#include <QWizardPage>
-
 #include <projectexplorer/abi.h>
+
+#include <QWizardPage>
 
 namespace QSsh {
     class SshConnectionParameters;

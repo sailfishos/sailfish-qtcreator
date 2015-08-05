@@ -26,8 +26,8 @@
 #include <ssh/sshconnection.h>
 #include <ssh/sshremoteprocessrunner.h>
 
-#include <QObject>
 #include <QEventLoop>
+#include <QObject>
 
 QT_BEGIN_NAMESPACE
 class QFile;

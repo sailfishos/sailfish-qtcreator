@@ -23,8 +23,8 @@
 #ifndef VIRTUALBOXMANAGER_H
 #define VIRTUALBOXMANAGER_H
 
-#include <QObject>
 #include <QHash>
+#include <QObject>
 #include <QString>
 #include <QStringList>
 

@@ -21,38 +21,39 @@
 ****************************************************************************/
 
 #include "merplugin.h"
-#include "merconstants.h"
-#include "merdevicefactory.h"
-#include "meremulatormodedialog.h"
-#include "merqtversionfactory.h"
-#include "mertoolchainfactory.h"
+
 #include "meraddvmstartbuildstepprojectlistener.h"
-#include "merdeployconfigurationfactory.h"
-#include "merrunconfigurationfactory.h"
-#include "merruncontrolfactory.h"
-#include "mergeneraloptionspage.h"
-#include "meroptionspage.h"
 #include "merbuildstepfactory.h"
-#include "merdeploystepfactory.h"
-#include "mersdkmanager.h"
 #include "merconnection.h"
 #include "merconnectionmanager.h"
-#include "mervirtualboxmanager.h"
+#include "merconstants.h"
+#include "merdeployconfigurationfactory.h"
+#include "merdeploystepfactory.h"
+#include "merdevicefactory.h"
+#include "meremulatormodedialog.h"
+#include "mergeneraloptionspage.h"
 #include "mermode.h"
+#include "meroptionspage.h"
+#include "merqtversionfactory.h"
+#include "merrunconfigurationfactory.h"
+#include "merruncontrolfactory.h"
+#include "mersdkmanager.h"
 #include "mersettings.h"
+#include "mertoolchainfactory.h"
+#include "mervirtualboxmanager.h"
 
-#include <coreplugin/actionmanager/command.h>
 #include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/actionmanager/actionmanager.h>
+#include <coreplugin/actionmanager/command.h>
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/mimedatabase.h>
 #include <coreplugin/modemanager.h>
 
-#include <QtPlugin>
 #include <QMenu>
 #include <QMessageBox>
 #include <QTimer>
+#include <QtPlugin>
 
 namespace Mer {
 namespace Internal {

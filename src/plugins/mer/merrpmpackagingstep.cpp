@@ -27,18 +27,20 @@
 **
 ****************************************************************************/
 
-#include "merrpmpackagingwidget.h"
 #include "merrpmpackagingstep.h"
-#include "mersdkmanager.h"
-#include "merconstants.h"
-#include "mersdkkitinformation.h"
 
-#include <qmakeprojectmanager/qmakebuildconfiguration.h>
-#include <projectexplorer/target.h>
-#include <projectexplorer/project.h>
-#include <projectexplorer/buildconfiguration.h>
+#include "merconstants.h"
+#include "merrpmpackagingwidget.h"
+#include "mersdkkitinformation.h"
+#include "mersdkmanager.h"
+
 #include <coreplugin/idocument.h>
+#include <projectexplorer/buildconfiguration.h>
+#include <projectexplorer/project.h>
+#include <projectexplorer/target.h>
+#include <qmakeprojectmanager/qmakebuildconfiguration.h>
 #include <qtsupport/qtkitinformation.h>
+
 #include <QProcess>
 
 namespace {

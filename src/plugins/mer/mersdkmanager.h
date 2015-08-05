@@ -24,6 +24,7 @@
 #define MERSDKMANAGER_H
 
 #include "mersdk.h"
+
 #include <ssh/sshconnection.h>
 #include <utils/environment.h>
 

@@ -21,16 +21,17 @@
 ****************************************************************************/
 
 #include "mertoolchain.h"
+
 #include "meremulatordevice.h"
-#include "mertoolchainfactory.h"
 #include "mersdkmanager.h"
 #include "mersshparser.h"
+#include "mertoolchainfactory.h"
 
+#include <projectexplorer/projectexplorerconstants.h>
+#include <qtsupport/qtkitinformation.h>
+#include <qtsupport/qtversionmanager.h>
 #include <utils/environment.h>
 #include <utils/qtcassert.h>
-#include <qtsupport/qtversionmanager.h>
-#include <qtsupport/qtkitinformation.h>
-#include <projectexplorer/projectexplorerconstants.h>
 
 #include <QDir>
 

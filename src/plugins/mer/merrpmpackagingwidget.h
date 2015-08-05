@@ -31,6 +31,7 @@
 #define MERRPMPACKAGINGWIDGET_H
 
 #include "projectexplorer/buildstep.h"
+
 #include <utils/fileutils.h>
 
 namespace Mer {
