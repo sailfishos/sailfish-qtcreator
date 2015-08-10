@@ -313,7 +313,10 @@ void MerEmulatorDevice::generateSshKey(const QString& user) const
                 index.arg(virtualMachine()).replace(QLatin1String(" "),QLatin1String("_")) + user;
         PublicKeyDeploymentDialog dialog(privateKeyFile, virtualMachine(),
                                          user, sharedSshPath(), ICore::dialogParent());
+
+        connection()->setAutoConnectEnabled(false);
         dialog.exec();
+        connection()->setAutoConnectEnabled(true);
     }
 }
 
