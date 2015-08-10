@@ -29,7 +29,8 @@ namespace Internal {
 
 namespace {
     //! \todo Add IDevice::machineTypeFromMap and remove this workaround
-    const char workaround_MachineTypeKey[] = "workaround_MachineType";
+    // See MachineTypeKey in projectexplorer/devicesupport/idevice.cpp
+    const char workaround_MachineTypeKey[] = "Type";
 }
 
 QString MerDevice::displayType() const
@@ -47,7 +48,6 @@ QVariantMap MerDevice::toMap() const
 {
     QVariantMap map = IDevice::toMap();
     map.insert(QLatin1String(Constants::MER_DEVICE_SHARED_SSH), m_sharedSshPath);
-    map.insert(QLatin1String(workaround_MachineTypeKey), machineType());
     return map;
 }
 
