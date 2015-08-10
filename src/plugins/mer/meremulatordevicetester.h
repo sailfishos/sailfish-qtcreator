@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Jolla Ltd.
+** Copyright (C) 2015 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -20,48 +20,36 @@
 **
 ****************************************************************************/
 
-#ifndef MERABSTRACTVMSTARTSTEP_H
-#define MERABSTRACTVMSTARTSTEP_H
+#ifndef MEREMULATORDEVICETESTER_H
+#define MEREMULATORDEVICETESTER_H
 
-#include <projectexplorer/buildstep.h>
+#include "meremulatordevice.h"
 
-#include <QPointer>
+#include <remotelinux/linuxdevicetester.h>
 
 namespace Mer {
 namespace Internal {
 
-class MerConnection;
-
-class MerAbstractVmStartStep : public ProjectExplorer::BuildStep
+class MerEmulatorDeviceTester : public RemoteLinux::GenericLinuxDeviceTester
 {
     Q_OBJECT
 
 public:
-    explicit MerAbstractVmStartStep(ProjectExplorer::BuildStepList *bsl, const Core::Id id);
-    MerAbstractVmStartStep(ProjectExplorer::BuildStepList *bsl, MerAbstractVmStartStep *bs);
+    explicit MerEmulatorDeviceTester(QObject *parent = 0);
+    ~MerEmulatorDeviceTester();
 
-    bool init();
-    void run(QFutureInterface<bool> &fi);
-    ProjectExplorer::BuildStepConfigWidget *createConfigWidget();
-    bool immutable() const;
-    bool runInGuiThread() const;
-
-    MerConnection *connection() const;
-
-protected:
-    void setConnection(MerConnection *connection);
+    void testDevice(const ProjectExplorer::IDevice::ConstPtr &deviceConfiguration);
+    void stopTest();
 
 private slots:
-    void onStateChanged();
-    void checkForCancel();
+    void onConnectionStateChanged();
 
 private:
-    QPointer<MerConnection> m_connection;
-    QFutureInterface<bool> *m_futureInterface;
-    QTimer *m_checkForCancelTimer;
+    MerEmulatorDevice::ConstPtr m_device;
+    bool m_pastVmStart;
 };
 
-} // namespace Internal
-} // namespace Mer
+}
+}
 
-#endif // MERABSTRACTVMSTARTSTEP_H
+#endif // MEREMULATORDEVICETESTER_H

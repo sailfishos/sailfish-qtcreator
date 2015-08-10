@@ -189,6 +189,7 @@ MerConnection::MerConnection(QObject *parent)
     , m_connectRequested(false)
     , m_disconnectRequested(false)
     , m_connectLaterRequested(false)
+    , m_connectOptions(NoConnectOption)
     , m_cachedVmRunning(false)
     , m_cachedSshConnected(false)
     , m_cachedSshError(QSsh::SshNoError)
@@ -341,12 +342,20 @@ void MerConnection::refresh()
     vmPollState();
 }
 
-void MerConnection::connectTo()
+void MerConnection::connectTo(ConnectOptions options)
 {
     DBG << "Connect requested";
 
+    // Turning AskStartVm off always overrides
+    if ((m_connectOptions & AskStartVm) && !(options & AskStartVm)) {
+        m_connectOptions &= ~AskStartVm;
+        vmStmScheduleExec();
+    }
+
     if (m_lockDownRequested) {
         qWarning() << "MerConnection: connect request for" << m_vmName << "ignored: lockdown active";
+        return;
+    } else if (m_state == Connected) {
         return;
     } else if (m_connectRequested || m_connectLaterRequested) {
         return;
@@ -363,8 +372,12 @@ void MerConnection::connectTo()
     if (m_state == Error) {
         m_disconnectRequested = true;
         m_connectLaterRequested = true;
+        const ConnectOptions reconnectOptionsMask =
+            AskStartVm;
+        m_connectOptions = options & ~reconnectOptionsMask;
     } else {
         m_connectRequested = true;
+        m_connectOptions = options;
     }
 
     vmPollState();
@@ -377,6 +390,8 @@ void MerConnection::disconnectFrom()
     DBG << "Disconnect requested";
 
     if (m_lockDownRequested) {
+        return;
+    } else if (m_state == Disconnected) {
         return;
     } else if (m_disconnectRequested && !m_connectLaterRequested) {
         return;
@@ -452,6 +467,7 @@ void MerConnection::updateState()
             m_state = Disconnected;
             break;
 
+        case VmAskBeforeStarting:
         case VmStarting:
             m_state = StartingVm;
             break;
@@ -590,11 +606,42 @@ bool MerConnection::vmStmStep()
         } else if (m_lockDownRequested) {
             // noop
         } else if (m_connectRequested) {
-            vmStmTransition(VmStarting, "connect requested");
+            if (m_connectOptions & AskStartVm) {
+                vmStmTransition(VmAskBeforeStarting, "connect requested&ask before start VM");
+            } else {
+                vmStmTransition(VmStarting, "connect requested");
+            }
         }
 
         ON_EXIT {
             ;
+        }
+        break;
+
+    case VmAskBeforeStarting:
+        ON_ENTRY {
+            ;
+        }
+
+        if (m_cachedVmRunning) {
+            m_vmStartedOutside = true;
+            vmStmTransition(VmRunning, "started outside");
+        } else if (m_lockDownRequested) {
+            vmStmTransition(VmOff, "lock down requested");
+        } else if (!m_startVmQuestionBox) {
+            openStartVmQuestionBox();
+        } else if (QAbstractButton *button = m_startVmQuestionBox->clickedButton()) {
+            if (button == m_startVmQuestionBox->button(QMessageBox::Yes)) {
+                vmStmTransition(VmStarting, "start VM allowed");
+            } else {
+                m_connectRequested = false;
+                m_connectOptions = NoConnectOption;
+                vmStmTransition(VmOff, "start VM denied");
+            }
+        }
+
+        ON_EXIT {
+            deleteMessageBox(m_startVmQuestionBox);
         }
         break;
 
@@ -621,6 +668,7 @@ bool MerConnection::vmStmStep()
     case VmStartingError:
         ON_ENTRY {
             m_connectRequested = false;
+            m_connectOptions = NoConnectOption;
         }
 
         if (m_cachedVmRunning) {
@@ -846,6 +894,7 @@ bool MerConnection::sshStmStep()
 
         if (m_lockDownRequested) {
             m_connectRequested = false;
+            m_connectOptions = NoConnectOption;
         } else if (m_vmState == VmRunning) {
             sshStmTransition(SshConnecting, "VM running");
         }
@@ -897,6 +946,7 @@ bool MerConnection::sshStmStep()
     case SshConnectingError:
         ON_ENTRY {
             m_connectRequested = false;
+            m_connectOptions = NoConnectOption;
             m_sshTryConnectTimer.start(SSH_TRY_CONNECT_INTERVAL_SLOW, this);
         }
 
@@ -918,6 +968,7 @@ bool MerConnection::sshStmStep()
     case SshConnected:
         ON_ENTRY {
             m_connectRequested = false;
+            m_connectOptions = NoConnectOption;
         }
 
         if (m_vmState != VmRunning) {
@@ -1089,6 +1140,24 @@ void MerConnection::openVmNotRegisteredWarningBox()
     box->raise();
 }
 
+void MerConnection::openStartVmQuestionBox()
+{
+    QTC_CHECK(!m_startVmQuestionBox);
+
+    m_startVmQuestionBox = new QMessageBox(
+            QMessageBox::Question,
+            tr("Start Virtual Machine"),
+            tr("The \"%1\" virtual machine is not running. Do you want to start it now?")
+            .arg(m_vmName),
+            QMessageBox::Yes | QMessageBox::No,
+            Core::ICore::mainWindow());
+    m_startVmQuestionBox->setEscapeButton(QMessageBox::No);
+    connect(m_startVmQuestionBox, SIGNAL(finished(int)),
+            this, SLOT(vmStmScheduleExec()));
+    m_startVmQuestionBox->show();
+    m_startVmQuestionBox->raise();
+}
+
 void MerConnection::openResetVmQuestionBox()
 {
     QTC_CHECK(!m_resetVmQuestionBox);
@@ -1221,6 +1290,7 @@ const char *MerConnection::str(VmState vmState)
 {
     static const char *strings[] = {
         "VmOff",
+        "VmAskBeforeStarting",
         "VmStarting",
         "VmStartingError",
         "VmRunning",

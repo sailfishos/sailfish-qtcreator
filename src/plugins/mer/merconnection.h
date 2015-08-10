@@ -46,6 +46,7 @@ class MerConnection : public QObject
 
     enum VmState {
         VmOff,
+        VmAskBeforeStarting,
         VmStarting,
         VmStartingError,
         VmRunning,
@@ -75,6 +76,12 @@ public:
         ClosingVm
     };
 
+    enum ConnectOption {
+        NoConnectOption = 0x00,
+        AskStartVm = 0x01,
+    };
+    Q_DECLARE_FLAGS(ConnectOptions, ConnectOption)
+
     explicit MerConnection(QObject *parent = 0);
     ~MerConnection();
 
@@ -96,7 +103,7 @@ public:
 
 public slots:
     void refresh();
-    void connectTo();
+    void connectTo(Mer::Internal::MerConnection::ConnectOptions options = NoConnectOption);
     void disconnectFrom();
 
 signals:
@@ -133,6 +140,7 @@ private:
     void openAlreadyConnectingWarningBox();
     void openAlreadyDisconnectingWarningBox();
     void openVmNotRegisteredWarningBox();
+    void openStartVmQuestionBox();
     void openResetVmQuestionBox();
     void openCloseVmQuestionBox();
     void openUnableToCloseVmWarningBox();
@@ -178,6 +186,7 @@ private:
     bool m_connectRequested;
     bool m_disconnectRequested;
     bool m_connectLaterRequested;
+    ConnectOptions m_connectOptions;
     bool m_cachedVmRunning;
     bool m_cachedSshConnected;
     QSsh::SshError m_cachedSshError;
@@ -201,6 +210,7 @@ private:
     QBasicTimer m_resetTimer;
 
     // dialogs
+    QPointer<QMessageBox> m_startVmQuestionBox;
     QPointer<QMessageBox> m_resetVmQuestionBox;
     QPointer<QMessageBox> m_closeVmQuestionBox;
     QPointer<QMessageBox> m_unableToCloseVmWarningBox;
@@ -209,6 +219,8 @@ private:
 
     QPointer<MerConnectionRemoteShutdownProcess> m_remoteShutdownProcess;
 };
+
+Q_DECLARE_OPERATORS_FOR_FLAGS(MerConnection::ConnectOptions)
 
 }
 }

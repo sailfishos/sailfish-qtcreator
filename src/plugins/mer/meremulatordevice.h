@@ -48,6 +48,8 @@ public:
     QString displayNameForActionId(Core::Id actionId) const;
     void executeAction(Core::Id actionId, QWidget *parent);
 
+    ProjectExplorer::DeviceTester *createDeviceTester() const;
+
     void fromMap(const QVariantMap &map);
     QVariantMap toMap() const;
 

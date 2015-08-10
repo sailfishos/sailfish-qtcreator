@@ -33,8 +33,6 @@
 #include <projectexplorer/target.h>
 #include <utils/qtcassert.h>
 
-#include <QMessageBox>
-
 using namespace ProjectExplorer;
 
 namespace Mer {
@@ -67,7 +65,6 @@ MerAbstractVmStartStep::MerAbstractVmStartStep(BuildStepList *bsl, const Core::I
     : BuildStep(bsl, id)
     , m_connection(0)
     , m_futureInterface(0)
-    , m_questionBox(0)
     , m_checkForCancelTimer(0)
 {
 }
@@ -76,7 +73,6 @@ MerAbstractVmStartStep::MerAbstractVmStartStep(BuildStepList *bsl, MerAbstractVm
     : BuildStep(bsl, bs)
     , m_connection(bs->m_connection)
     , m_futureInterface(0)
-    , m_questionBox(0)
     , m_checkForCancelTimer(0)
 {
 }
@@ -105,23 +101,14 @@ void MerAbstractVmStartStep::run(QFutureInterface<bool> &fi)
     } else {
         emit addOutput(tr("%1: Starting \"%2\" virtual machine...")
                 .arg(displayName()).arg(m_connection->virtualMachine()), MessageOutput);
-        connect(m_connection, SIGNAL(stateChanged()), this, SLOT(onStateChanged()));
         m_futureInterface = &fi;
-        if (m_connection->isVirtualMachineOff()) {
-            m_questionBox = new QMessageBox(
-                    QMessageBox::Question,
-                    displayName(),
-                    tr("The \"%1\" virtual machine is not running. Do you want to start it now?")
-                    .arg(m_connection->virtualMachine()),
-                    QMessageBox::Yes | QMessageBox::No,
-                    Core::ICore::mainWindow());
-            m_questionBox->setEscapeButton(QMessageBox::No);
-            connect(m_questionBox, SIGNAL(finished(int)), this, SLOT(onQuestionBoxFinished()));
-            m_questionBox->show();
-            m_questionBox->raise();
-        } else {
-            beginConnect();
-        }
+
+        m_checkForCancelTimer = new QTimer(this);
+        connect(m_checkForCancelTimer, SIGNAL(timeout()), this, SLOT(checkForCancel()));
+        m_checkForCancelTimer->start(CHECK_FOR_CANCEL_INTERVAL);
+
+        connect(m_connection, SIGNAL(stateChanged()), this, SLOT(onStateChanged()));
+        m_connection->connectTo(MerConnection::AskStartVm);
     }
 }
 
@@ -150,14 +137,6 @@ void MerAbstractVmStartStep::setConnection(MerConnection *connection)
     m_connection = connection;
 }
 
-void MerAbstractVmStartStep::beginConnect()
-{
-    m_checkForCancelTimer = new QTimer(this);
-    connect(m_checkForCancelTimer, SIGNAL(timeout()), this, SLOT(checkForCancel()));
-    m_checkForCancelTimer->start(CHECK_FOR_CANCEL_INTERVAL);
-    m_connection->connectTo();
-}
-
 void MerAbstractVmStartStep::onStateChanged()
 {
     switch (m_connection->state()) {
@@ -174,36 +153,11 @@ void MerAbstractVmStartStep::onStateChanged()
         return;
     }
 
-    if (m_questionBox) {
-        m_questionBox->setEnabled(false);
-        QTimer::singleShot(DISMISS_MESSAGE_BOX_DELAY, m_questionBox, SLOT(deleteLater()));
-        m_questionBox->disconnect(this);
-        m_questionBox = 0;
-    }
-
     m_connection->disconnect(this);
     m_connection = 0;
     m_futureInterface = 0;
     delete m_checkForCancelTimer, m_checkForCancelTimer = 0;
     emit finished();
-}
-
-void MerAbstractVmStartStep::onQuestionBoxFinished()
-{
-    QAbstractButton *button = m_questionBox->clickedButton();
-
-    if (button == m_questionBox->button(QMessageBox::Yes)) {
-        beginConnect();
-    } else {
-        m_connection->disconnect(this);
-        m_connection = 0;
-        m_futureInterface->reportResult(false);
-        m_futureInterface = 0;
-        emit finished();
-    }
-
-    m_questionBox->deleteLater(); // it's the sender
-    m_questionBox = 0;
 }
 
 void MerAbstractVmStartStep::checkForCancel()
