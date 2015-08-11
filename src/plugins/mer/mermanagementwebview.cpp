@@ -273,6 +273,7 @@ void MerManagementWebView::selectActiveSdkVm()
 void MerManagementWebView::handleLoadFinished(bool success)
 {
     if (!success) {
+        bool autoReloadHint = false;
         QString vmStatus = QLatin1String("<h1>The SDK VM is not ready.</h1>");
         if (m_selectedSdk) { // one cannot be sure here
             QString vmName = m_selectedSdk->virtualMachineName();
@@ -284,6 +285,7 @@ void MerManagementWebView::handleLoadFinished(bool success)
                     .arg(vmName)
                     .arg(QLatin1String(START_VM_URL));
             } else {
+                autoReloadHint = true;
                 vmStatus = QString::fromLatin1(
                         "<h1>The \"%1\" VM is not ready.</h1>"
                         "<p>The virtual machine is running but not responding.</p>"
@@ -311,7 +313,7 @@ void MerManagementWebView::handleLoadFinished(bool success)
                 .arg(vmStatus)
                 );
         m_loaded = false;
-        if (m_autoFailReload)
+        if (m_autoFailReload && autoReloadHint)
             QTimer::singleShot(5000,this,SLOT(reloadPage()));
     } else if (ui->webView->url() == QUrl(QLatin1String(START_VM_URL))) {
         if (m_selectedSdk) {
