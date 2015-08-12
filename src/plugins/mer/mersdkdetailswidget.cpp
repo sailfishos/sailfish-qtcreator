@@ -30,6 +30,7 @@
 #include <utils/hostosinfo.h>
 
 #include <QFileDialog>
+#include <QMessageBox>
 
 namespace Mer {
 namespace Internal {
@@ -142,6 +143,9 @@ void MerSdkDetailsWidget::onSrcFolderApplyButtonClicked()
             }
         }
         emit srcFolderApplyButtonClicked(path);
+    } else {
+        QMessageBox::warning(this, tr("Invalid path"),
+                tr("Not a valid source folder path: %1").arg(m_ui->srcFolderPathChooser->path()));
     }
 }
 
