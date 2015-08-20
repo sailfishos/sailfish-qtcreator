@@ -117,7 +117,7 @@ MerProcessStep::MerProcessStep(ProjectExplorer::BuildStepList *bsl, MerProcessSt
 
 }
 
-bool MerProcessStep::init()
+bool MerProcessStep::init(InitOptions options)
 {
     QmakeProjectManager::QmakeBuildConfiguration *bc = qobject_cast<QmakeProjectManager::QmakeBuildConfiguration*>(buildConfiguration());
     if (!bc)
@@ -146,7 +146,7 @@ bool MerProcessStep::init()
     IDevice::ConstPtr device = DeviceKitInformation::device(this->target()->kit());
 
     //TODO: HACK
-    if (device.isNull() && dynamic_cast<MerMb2RpmBuildStep *>(this) == 0) {
+    if (device.isNull() && !(options & DoNotNeedDevice)) {
         addOutput(tr("Cannot deploy: Missing MerDevice information in the kit"),ErrorMessageOutput);
         return false;
     }
@@ -647,7 +647,7 @@ MerMb2RpmBuildStep::MerMb2RpmBuildStep(ProjectExplorer::BuildStepList *bsl, MerM
 
 bool MerMb2RpmBuildStep::init()
 {
-    bool success = MerProcessStep::init();
+    bool success = MerProcessStep::init(DoNotNeedDevice);
     m_packages.clear();
     const MerSdk *const sdk = MerSdkKitInformation::sdk(target()->kit());
     m_sharedHome = QDir::cleanPath(sdk->sharedHomePath());
@@ -757,7 +757,7 @@ MerRpmValidationStep::MerRpmValidationStep(ProjectExplorer::BuildStepList *bsl, 
 
 bool MerRpmValidationStep::init()
 {
-    if (!MerProcessStep::init()) {
+    if (!MerProcessStep::init(DoNotNeedDevice)) {
         return false;
     }
 
