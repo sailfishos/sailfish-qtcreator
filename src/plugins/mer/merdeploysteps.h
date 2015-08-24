@@ -44,9 +44,15 @@ class MerDeployConfiguration;
 class MerProcessStep: public ProjectExplorer::AbstractProcessStep
 {
 public:
+    enum InitOption {
+        NoInitOption = 0x00,
+        DoNotNeedDevice = 0x01,
+    };
+    Q_DECLARE_FLAGS(InitOptions, InitOption)
+
     explicit MerProcessStep(ProjectExplorer::BuildStepList *bsl,const Core::Id id);
     MerProcessStep(ProjectExplorer::BuildStepList *bsl, MerProcessStep *bs);
-    bool init();
+    bool init(InitOptions options = NoInitOption);
     QString arguments() const;
     void setArguments(const QString &arguments);
 
@@ -56,6 +62,8 @@ protected:
 private:
     QString m_arguments;
 };
+
+Q_DECLARE_OPERATORS_FOR_FLAGS(MerProcessStep::InitOptions)
 
 class MerEmulatorStartStep : public MerAbstractVmStartStep
 {

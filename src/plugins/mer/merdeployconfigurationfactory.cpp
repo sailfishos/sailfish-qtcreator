@@ -134,8 +134,10 @@ ProjectExplorer::DeployConfiguration *MerDeployConfigurationFactory::restore(
         return 0;
     }
 
-    if (!dc->stepList()->contains(MerPrepareTargetStep::stepId()))
+    if (!dc->stepList()->contains(MerPrepareTargetStep::stepId())
+            && id != MerMb2RpmBuildConfiguration::configurationId()) {
         dc->stepList()->insertStep(0, new MerPrepareTargetStep(dc->stepList()));
+    }
 
     return dc;
 }
