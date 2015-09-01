@@ -40,6 +40,8 @@
 #include <QTextStream>
 #include <QTimer>
 
+#include <functional>
+
 using Core::ICore;
 
 namespace Mer {
@@ -180,10 +182,17 @@ ProjectExplorer::IDevice::Ptr MerEmulatorDevice::clone() const
 MerEmulatorDevice::MerEmulatorDevice():
     MerDevice(QString(), Emulator, ManuallyAdded, Core::Id())
     , m_connection(new MerConnection(0 /* not bug */))
-    , m_deviceModel(availableDeviceModels().keys().first())
     , m_orientation(Qt::Vertical)
     , m_viewScaled(false)
 {
+    m_virtualMachineChangedConnection =
+        QObject::connect(m_connection.data(), &MerConnection::virtualMachineChanged,
+                         std::bind(&MerEmulatorDevice::updateAvailableDeviceModels, this));
+}
+
+MerEmulatorDevice::~MerEmulatorDevice()
+{
+    QObject::disconnect(m_virtualMachineChangedConnection);
 }
 
 ProjectExplorer::IDeviceWidget *MerEmulatorDevice::createWidget()
@@ -335,16 +344,7 @@ QSsh::SshConnectionParameters MerEmulatorDevice::sshParametersForUser(const QSsh
 
 QMap<QString, QSize> MerEmulatorDevice::availableDeviceModels() const
 {
-    // Not using initializer list - seems like GCC 4.4. fails on it
-    static QMap<QString, QSize> modes;
-    if (!modes.isEmpty()) {
-        return modes;
-    }
-
-    modes.insert(tr("Jolla Phone"), QSize(540, 960));
-    modes.insert(tr("Jolla Tablet"), QSize(1536, 2048));
-
-    return modes;
+    return m_availableDeviceModels;
 }
 
 QString MerEmulatorDevice::deviceModel() const
@@ -403,6 +403,71 @@ MerConnection *MerEmulatorDevice::connection() const
 void MerEmulatorDevice::updateConnection()
 {
     m_connection->setSshParameters(sshParameters());
+}
+
+/*
+ * The list of available device models is associated with each emulator VM via `vboxmanage
+ * setextradata`.
+ *
+ * Storage format:
+ *
+ * IT MUST START WITH AN EMPTY LINE! This is to deal with vboxmanage prepending output with
+ * (possibly localized) string "Value: ".
+ *
+ * CSV data, with headline in form '#V<version>'.
+ *
+ * Columns:
+ * - Device model (string)
+ * - Horizontal screen size (number)
+ * - Vertical screen size (number)
+ *
+ * ----example-begin----
+ * \n
+ * #V1\n
+ * Jolla Phone,540,960\n
+ * Jolla Tablet,1536,2048\n
+ * ----end----
+ */
+void MerEmulatorDevice::updateAvailableDeviceModels()
+{
+    const QString data = MerVirtualBoxManager::getExtraData(virtualMachine(),
+            QLatin1String(Constants::MER_DEVICE_MODELS_KEY));
+    QStringList lines = data.split(QLatin1Char('\n'));
+    if (lines.count() < 3) {
+        qWarning() << "Invalid device models configuration - at least three lines expected";
+        return;
+    }
+
+    // vboxmanage output starts with (possibly localized) string "Value: " :/
+    lines.removeFirst();
+
+    const QString header = lines.takeFirst();
+    if (header != QLatin1String("#V1")) {
+        qWarning() << "Invalid device models configuratin - invalid header";
+        return;
+    }
+
+    foreach (const QString &line, lines) {
+        const QStringList fields = line.split(QLatin1Char(','));
+        if (fields.count() != 3) {
+            qWarning() << "Invalid device models configuration - invcorrect field count";
+            return;
+        }
+
+        const QString name = fields.at(0);
+        const QSize screenSize = QSize(fields.at(1).toInt(), fields.at(2).toInt());
+
+        qWarning() << "Adding model" << name << screenSize;
+        m_availableDeviceModels.insert(name, screenSize);
+    }
+
+    if (!m_availableDeviceModels.isEmpty()) {
+        if (!m_availableDeviceModels.contains(m_deviceModel)) {
+            m_deviceModel = m_availableDeviceModels.keys().first();
+        }
+    } else {
+        m_deviceModel = QString();
+    }
 }
 
 void MerEmulatorDevice::setVideoMode()
