@@ -185,14 +185,18 @@ MerEmulatorDevice::MerEmulatorDevice():
     , m_orientation(Qt::Vertical)
     , m_viewScaled(false)
 {
+#if __cplusplus >= 201103L
     m_virtualMachineChangedConnection =
         QObject::connect(m_connection.data(), &MerConnection::virtualMachineChanged,
                          std::bind(&MerEmulatorDevice::updateAvailableDeviceModels, this));
+#endif
 }
 
 MerEmulatorDevice::~MerEmulatorDevice()
 {
+#if __cplusplus >= 201103L
     QObject::disconnect(m_virtualMachineChangedConnection);
+#endif
 }
 
 ProjectExplorer::IDeviceWidget *MerEmulatorDevice::createWidget()
@@ -344,6 +348,9 @@ QSsh::SshConnectionParameters MerEmulatorDevice::sshParametersForUser(const QSsh
 
 QMap<QString, QSize> MerEmulatorDevice::availableDeviceModels() const
 {
+#if __cplusplus < 201103L
+    updateAvailableDeviceModels();
+#endif
     return m_availableDeviceModels;
 }
 
