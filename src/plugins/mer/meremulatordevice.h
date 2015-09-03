@@ -94,7 +94,9 @@ private:
 
 private:
     QSharedPointer<MerConnection> m_connection; // all clones share the connection
+#if __cplusplus >= 201103L
     QMetaObject::Connection m_virtualMachineChangedConnection;
+#endif
     QString m_mac;
     QString m_subnet;
     QString m_sharedConfigPath;
