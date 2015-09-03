@@ -132,6 +132,7 @@ const char MER_WIZARD_FEATURE_EMULATOR[] = "Mer.Wizard.Feature.Emulator";
 const char MER_SDK_FILENAME[] = "/qtcreator/mersdk.xml";
 const char MER_TARGETS_FILENAME[] = "/targets.xml";
 const char MER_DEVICES_FILENAME[] = "/devices.xml";
+const char MER_DEVICE_MODELS_KEY[] = "Mer/DeviceModels";
 const char MER_COMPOSITOR_CONFIG_FILENAME[] = "65-emul-wayland-ui-scale.conf";
 const char MER_DEBUGGER_i486_FILENAME[] = "gdb-i486-meego-linux-gnu";
 const char MER_DEBUGGER_ARM_FILENAME[] = "gdb-armv7hl-meego-linux-gnueabi";

@@ -228,6 +228,8 @@ void MerConnection::setVirtualMachine(const QString &virtualMachine)
         if (++s_usedVmNames[m_vmName] != 1)
             qWarning() << "MerConnection: Another instance for VM" << m_vmName << "already exists";
     }
+
+    emit virtualMachineChanged();
 }
 
 void MerConnection::setSshParameters(const QSsh::SshConnectionParameters &sshParameters)

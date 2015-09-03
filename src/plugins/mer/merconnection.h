@@ -111,6 +111,7 @@ public slots:
 
 signals:
     void stateChanged();
+    void virtualMachineChanged();
     void virtualMachineOffChanged(bool vmOff);
     void lockDownFailed();
 

@@ -43,6 +43,8 @@ public:
 
     static Ptr create();
     ProjectExplorer::IDevice::Ptr clone() const;
+    ~MerEmulatorDevice();
+
     ProjectExplorer::IDeviceWidget *createWidget();
     QList<Core::Id> actionIds() const;
     QString displayNameForActionId(Core::Id actionId) const;
@@ -87,14 +89,17 @@ public:
 private:
     MerEmulatorDevice();
 
+    void updateAvailableDeviceModels();
     void setVideoMode();
 
 private:
     QSharedPointer<MerConnection> m_connection; // all clones share the connection
+    QMetaObject::Connection m_virtualMachineChangedConnection;
     QString m_mac;
     QString m_subnet;
     QString m_sharedConfigPath;
     QString m_deviceModel;
+    QMap<QString, QSize> m_availableDeviceModels;
     Qt::Orientation m_orientation;
     bool m_viewScaled;
 };

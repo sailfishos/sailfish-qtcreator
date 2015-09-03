@@ -49,6 +49,7 @@ const char SHARE_NAME[] = "--name";
 const char REMOVE_SHARED[] = "remove";
 const char HOSTPATH[] = "--hostpath";
 const char ADD_SHARED[] = "add";
+const char GETEXTRADATA[] = "getextradata";
 const char SETEXTRADATA[] = "setextradata";
 const char CUSTOM_VIDEO_MODE1[] = "CustomVideoMode1";
 
@@ -263,6 +264,22 @@ bool MerVirtualBoxManager::setVideoMode(const QString &vmName, const QSize &size
     }
 
     return true;
+}
+
+QString MerVirtualBoxManager::getExtraData(const QString &vmName, const QString &key)
+{
+    QStringList arguments;
+    arguments.append(QLatin1String(GETEXTRADATA));
+    arguments.append(vmName);
+    arguments.append(key);
+    QProcess process;
+    process.start(vBoxManagePath(), arguments);
+    if (!process.waitForFinished()) {
+        qWarning() << "VBoxManage failed to getextradata";
+        return QString();
+    }
+
+    return QString::fromLocal8Bit(process.readAllStandardOutput());
 }
 
 bool isVirtualMachineListed(const QString &vmName, const QString &output)

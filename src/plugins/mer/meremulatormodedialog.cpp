@@ -41,6 +41,7 @@
 #include <utils/qtcassert.h>
 
 #include <QDesktopWidget>
+#include <QPushButton>
 
 using namespace Mer;
 using namespace Mer::Internal;
@@ -159,6 +160,8 @@ void MerEmulatorModeDialog::execDialog()
     m_ui->deviceNameLabel->setText(m_emulator->displayName());
 
     const QMap<QString, QSize> models = m_emulator->availableDeviceModels();
+    const bool supportsMultipleModels = !models.isEmpty();
+
     int currentModelIndex = -1;
     for (auto it = models.begin(); it != models.end(); ++it) {
         const QString label = QStringLiteral("%1 (%2x%3)")
@@ -187,7 +190,11 @@ void MerEmulatorModeDialog::execDialog()
     connect(m_ui->portraitRadioButton, &QRadioButton::toggled,
             this, &MerEmulatorModeDialog::guessOptimalViewMode);
 
-    if (m_emulator->connection()->isVirtualMachineOff()) {
+    m_ui->unsupportedLabel->setVisible(!supportsMultipleModels);
+    m_ui->contentWrapper->setEnabled(supportsMultipleModels);
+    m_ui->buttonBox->button(QDialogButtonBox::Ok)->setEnabled(supportsMultipleModels);
+
+    if (m_emulator->connection()->isVirtualMachineOff() || !supportsMultipleModels) {
         m_ui->restartEmulatorCheckBox->setChecked(false);
         m_ui->restartEmulatorCheckBox->setEnabled(false);
     }
