@@ -455,16 +455,19 @@ void MerEmulatorDevice::updateAvailableDeviceModels()
     }
 
     foreach (const QString &line, lines) {
+        if (line.trimmed().isEmpty()) {
+            continue;
+        }
+
         const QStringList fields = line.split(QLatin1Char(','));
         if (fields.count() != 3) {
-            qWarning() << "Invalid device models configuration - invcorrect field count";
+            qWarning() << "Invalid device models configuration - incorrect fields count";
             return;
         }
 
         const QString name = fields.at(0);
         const QSize screenSize = QSize(fields.at(1).toInt(), fields.at(2).toInt());
 
-        qWarning() << "Adding model" << name << screenSize;
         m_availableDeviceModels.insert(name, screenSize);
     }
 
