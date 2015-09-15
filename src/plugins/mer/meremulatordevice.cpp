@@ -254,7 +254,7 @@ void MerEmulatorDevice::fromMap(const QVariantMap &map)
     m_sharedConfigPath = map.value(QLatin1String(Constants::MER_DEVICE_SHARED_CONFIG)).toString();
     m_deviceModel = map.value(QLatin1String(Constants::MER_DEVICE_DEVICE_MODEL)).toString();
     m_orientation = static_cast<Qt::Orientation>(
-            map.value(QLatin1String(Constants::MER_DEVICE_ORIENTATION)).toInt());
+            map.value(QLatin1String(Constants::MER_DEVICE_ORIENTATION), Qt::Vertical).toInt());
     m_viewScaled = map.value(QLatin1String(Constants::MER_DEVICE_VIEW_SCALED)).toBool();
 }
 
