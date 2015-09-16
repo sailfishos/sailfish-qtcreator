@@ -62,31 +62,45 @@ static QStringList listedVirtualMachines(const QString &output);
 
 static QString vBoxManagePath()
 {
-    if (Utils::HostOsInfo::isWindowsHost()) {
-        static QString path;
-        if (path.isEmpty()) {
-            path = QString::fromLocal8Bit(qgetenv("VBOX_INSTALL_PATH"));
-            if (path.isEmpty()) {
-                // env var name for VirtualBox 4.3.12 changed to this
-                path = QString::fromLocal8Bit(qgetenv("VBOX_MSI_INSTALL_PATH"));
-                if (path.isEmpty()) {
-                    // Not found in environment? Look up registry.
-                    QSettings s(QLatin1String("HKEY_LOCAL_MACHINE\\SOFTWARE\\Oracle\\VirtualBox"),
-                                QSettings::NativeFormat);
-                    path = s.value(QLatin1String("InstallDir")).toString();
-                    if (path.startsWith(QLatin1Char('"')) && path.endsWith(QLatin1Char('"')))
-                        path = path.mid(1, path.length() - 2); // remove quotes
-                }
-            }
-
-            if (!path.isEmpty())
-                path.append(QDir::separator() + QLatin1String(VBOXMANAGE));
-        }
-        QTC_ASSERT(!path.isEmpty(), return path);
+    static QString path;
+    if (!path.isNull()) {
         return path;
-    } else {
-        return QLatin1String(VBOXMANAGE);
     }
+
+    if (Utils::HostOsInfo::isWindowsHost()) {
+        path = QString::fromLocal8Bit(qgetenv("VBOX_INSTALL_PATH"));
+        if (path.isEmpty()) {
+            // env var name for VirtualBox 4.3.12 changed to this
+            path = QString::fromLocal8Bit(qgetenv("VBOX_MSI_INSTALL_PATH"));
+            if (path.isEmpty()) {
+                // Not found in environment? Look up registry.
+                QSettings s(QLatin1String("HKEY_LOCAL_MACHINE\\SOFTWARE\\Oracle\\VirtualBox"),
+                            QSettings::NativeFormat);
+                path = s.value(QLatin1String("InstallDir")).toString();
+                if (path.startsWith(QLatin1Char('"')) && path.endsWith(QLatin1Char('"')))
+                    path = path.mid(1, path.length() - 2); // remove quotes
+            }
+        }
+
+        if (!path.isEmpty())
+            path.append(QDir::separator() + QLatin1String(VBOXMANAGE));
+    } else {
+        QStringList searchPaths = QProcessEnvironment::systemEnvironment()
+            .value(QLatin1String("PATH")).split(QLatin1Char(':'));
+        // VBox 5 installs here for compatibility with Mac OS X 10.11
+        searchPaths.append(QLatin1String("/usr/local/bin"));
+
+        foreach (const QString &searchPath, searchPaths) {
+            QDir dir(searchPath);
+            if (dir.exists(QLatin1String(VBOXMANAGE))) {
+                path = dir.absoluteFilePath(QLatin1String(VBOXMANAGE));
+                break;
+            }
+        }
+    }
+
+    QTC_ASSERT(!path.isEmpty(), return path);
+    return path;
 }
 
 MerVirtualBoxManager *MerVirtualBoxManager::m_instance = 0;
