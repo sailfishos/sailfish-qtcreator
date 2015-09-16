@@ -85,7 +85,18 @@ static QString vBoxManagePath()
         if (!path.isEmpty())
             path.append(QDir::separator() + QLatin1String(VBOXMANAGE));
     } else {
-        path = QLatin1String(VBOXMANAGE);
+        QStringList searchPaths = QProcessEnvironment::systemEnvironment()
+            .value(QLatin1String("PATH")).split(QLatin1Char(':'));
+        // VBox 5 installs here for compatibility with Mac OS X 10.11
+        searchPaths.append(QLatin1String("/usr/local/bin"));
+
+        foreach (const QString &searchPath, searchPaths) {
+            QDir dir(searchPath);
+            if (dir.exists(QLatin1String(VBOXMANAGE))) {
+                path = dir.absoluteFilePath(QLatin1String(VBOXMANAGE));
+                break;
+            }
+        }
     }
 
     QTC_ASSERT(!path.isEmpty(), return path);
