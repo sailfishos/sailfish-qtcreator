@@ -74,6 +74,7 @@ public:
     QString displayCategory() const { return m_displayCategory; }
     QString descriptionImage() const { return m_descriptionImage; }
     FeatureSet requiredFeatures() const { return m_requiredFeatures; }
+    FeatureSet preferredFeatures() const { return m_preferredFeatures; }
     WizardFlags flags() const { return m_flags; }
 
     void setId(const Id id) { m_id = id; }
@@ -85,7 +86,9 @@ public:
     void setDisplayCategory(const QString &displayCategory) { m_displayCategory = displayCategory; }
     void setDescriptionImage(const QString &descriptionImage) { m_descriptionImage = descriptionImage; }
     void setRequiredFeatures(const FeatureSet &featureSet) { m_requiredFeatures = featureSet; }
+    void setPreferredFeatures(const FeatureSet &featureSet) { m_preferredFeatures = featureSet; }
     void addRequiredFeature(const Feature &feature) { m_requiredFeatures |= feature; }
+    void addPreferredFeature(const Feature &feature) { m_preferredFeatures |= feature; }
     void setFlags(WizardFlags flags) { m_flags = flags; }
 
     QString runPath(const QString &defaultPath);
@@ -133,6 +136,7 @@ private:
     QString m_category;
     QString m_displayCategory;
     FeatureSet m_requiredFeatures;
+    FeatureSet m_preferredFeatures;
     WizardFlags m_flags;
     QString m_descriptionImage;
 
