@@ -78,6 +78,8 @@ protected:
 
     QSet<Core::Id> requiredFeatures() const;
     void setRequiredFeatures(const QSet<Core::Id> &featureSet);
+    QSet<Core::Id> preferredFeatures() const;
+    void setPreferredFeatures(const QSet<Core::Id> &featureSet);
 
 private:
     void init();

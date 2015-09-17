@@ -67,6 +67,7 @@ public:
     QString displayCategory() const { return m_displayCategory; }
     QString descriptionImage() const { return m_descriptionImage; }
     QSet<Id> requiredFeatures() const { return m_requiredFeatures; }
+    QSet<Id> preferredFeatures() const { return m_preferredFeatures; }
     WizardFlags flags() const { return m_flags; }
     QSet<Id> supportedProjectTypes() const { return m_supportedProjectTypes; }
 
@@ -80,7 +81,9 @@ public:
     void setDisplayCategory(const QString &displayCategory) { m_displayCategory = displayCategory; }
     void setDescriptionImage(const QString &descriptionImage) { m_descriptionImage = descriptionImage; }
     void setRequiredFeatures(const QSet<Id> &featureSet) { m_requiredFeatures = featureSet; }
+    void setPreferredFeatures(const QSet<Id> &featureSet) { m_preferredFeatures = featureSet; }
     void addRequiredFeature(const Id &feature) { m_requiredFeatures |= feature; }
+    void addPreferredFeature(const Id &feature) { m_preferredFeatures |= feature; }
     void setFlags(WizardFlags flags) { m_flags = flags; }
 
     QString runPath(const QString &defaultPath);
@@ -132,6 +135,7 @@ private:
     QString m_displayCategory;
     QString m_descriptionImage;
     QSet<Id> m_requiredFeatures;
+    QSet<Id> m_preferredFeatures;;
     QSet<Id> m_supportedProjectTypes;
     WizardFlags m_flags;
     Id m_id;
