@@ -71,7 +71,7 @@ BaseProjectWizardDialog::BaseProjectWizardDialog(QWidget *parent,
 {
     setPath(parameters.defaultPath());
     setSelectedPlatform(parameters.selectedPlatform());
-    setPrefferedFeatures(parameters.preferredFeatures());
+    setPreferredFeatures(parameters.preferredFeatures());
     setRequiredFeatures(parameters.requiredFeatures());
     init();
 }
@@ -85,7 +85,7 @@ BaseProjectWizardDialog::BaseProjectWizardDialog(Utils::ProjectIntroPage *introP
 {
     setPath(parameters.defaultPath());
     setSelectedPlatform(parameters.selectedPlatform());
-    setPrefferedFeatures(parameters.preferredFeatures());
+    setPreferredFeatures(parameters.preferredFeatures());
     setRequiredFeatures(parameters.requiredFeatures());
     init();
 }
@@ -216,7 +216,7 @@ Core::FeatureSet BaseProjectWizardDialog::preferredFeatures() const
     return d->preferredFeatureSet;
 }
 
-void BaseProjectWizardDialog::setPrefferedFeatures(const Core::FeatureSet &featureSet)
+void BaseProjectWizardDialog::setPreferredFeatures(const Core::FeatureSet &featureSet)
 {
     d->preferredFeatureSet = featureSet;
 }
