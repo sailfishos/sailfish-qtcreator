@@ -49,7 +49,7 @@ QList<Core::Id> MerBuildStepFactory::availableCreationIds(BuildStepList *parent)
     return ids;
 }
 
-QString MerBuildStepFactory::displayNameForId(const Core::Id id) const
+QString MerBuildStepFactory::displayNameForId(Core::Id id) const
 {
     if (id == MerSdkStartStep::stepId())
         return MerSdkStartStep::displayName();
@@ -57,12 +57,12 @@ QString MerBuildStepFactory::displayNameForId(const Core::Id id) const
     return QString();
 }
 
-bool MerBuildStepFactory::canCreate(BuildStepList *parent, const Core::Id id) const
+bool MerBuildStepFactory::canCreate(BuildStepList *parent, Core::Id id) const
 {
     return availableCreationIds(parent).contains(id) && !parent->contains(id);
 }
 
-BuildStep *MerBuildStepFactory::create(BuildStepList *parent, const Core::Id id)
+BuildStep *MerBuildStepFactory::create(BuildStepList *parent, Core::Id id)
 {
     if (id == MerSdkStartStep::stepId())
         return new MerSdkStartStep(parent);

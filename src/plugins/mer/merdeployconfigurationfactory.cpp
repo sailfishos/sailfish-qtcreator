@@ -62,7 +62,7 @@ QList<Core::Id> MerDeployConfigurationFactory::availableCreationIds(Target *pare
     return ids;
 }
 
-QString MerDeployConfigurationFactory::displayNameForId(const Core::Id id) const
+QString MerDeployConfigurationFactory::displayNameForId(Core::Id id) const
 {
     if (id == MerRsyncDeployConfiguration::configurationId())
         return MerRsyncDeployConfiguration::displayName();
@@ -76,7 +76,7 @@ QString MerDeployConfigurationFactory::displayNameForId(const Core::Id id) const
     return QString();
 }
 
-bool MerDeployConfigurationFactory::canCreate(Target *parent, const Core::Id id) const
+bool MerDeployConfigurationFactory::canCreate(Target *parent, Core::Id id) const
 {
     if (canHandle(parent) && availableCreationIds(parent).contains(id))
         return true;
@@ -84,7 +84,7 @@ bool MerDeployConfigurationFactory::canCreate(Target *parent, const Core::Id id)
     return false;
 }
 
-DeployConfiguration *MerDeployConfigurationFactory::create(Target *parent, const Core::Id id)
+DeployConfiguration *MerDeployConfigurationFactory::create(Target *parent, Core::Id id)
 {
     QTC_ASSERT(canCreate(parent, id), return 0);
 

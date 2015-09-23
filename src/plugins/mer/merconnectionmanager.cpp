@@ -59,7 +59,7 @@ public:
     explicit MerConnectionAction(QObject *parent = 0);
     ~MerConnectionAction();
 
-    void setId(const Core::Id &id) { m_id = id; }
+    void setId(Core::Id id) { m_id = id; }
     void setName(const QString &name) { m_name = name; }
     void setIconOff(const QIcon &icon) { m_iconOff = icon; }
     void setIconOn(const QIcon &icon) { m_iconOn = icon; }

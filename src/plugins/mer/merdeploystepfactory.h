@@ -34,10 +34,10 @@ public:
     explicit MerDeployStepFactory(QObject *parent = 0);
 
     QList<Core::Id> availableCreationIds(ProjectExplorer::BuildStepList *parent) const;
-    QString displayNameForId(const Core::Id id) const;
+    QString displayNameForId(Core::Id id) const;
 
-    bool canCreate(ProjectExplorer::BuildStepList *parent, const Core::Id id) const;
-    ProjectExplorer::BuildStep *create(ProjectExplorer::BuildStepList *parent, const Core::Id id);
+    bool canCreate(ProjectExplorer::BuildStepList *parent, Core::Id id) const;
+    ProjectExplorer::BuildStep *create(ProjectExplorer::BuildStepList *parent, Core::Id id);
 
     bool canRestore(ProjectExplorer::BuildStepList *parent, const QVariantMap &map) const;
     ProjectExplorer::BuildStep *restore(ProjectExplorer::BuildStepList *parent,

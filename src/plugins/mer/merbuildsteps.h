@@ -40,7 +40,7 @@ public:
 
     bool init();
 
-    static const Core::Id stepId();
+    static Core::Id stepId();
     static QString displayName();
 };
 

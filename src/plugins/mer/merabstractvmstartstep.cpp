@@ -61,7 +61,7 @@ public:
     }
 };
 
-MerAbstractVmStartStep::MerAbstractVmStartStep(BuildStepList *bsl, const Core::Id id)
+MerAbstractVmStartStep::MerAbstractVmStartStep(BuildStepList *bsl, Core::Id id)
     : BuildStep(bsl, id)
     , m_connection(0)
     , m_futureInterface(0)

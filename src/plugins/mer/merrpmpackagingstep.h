@@ -61,7 +61,7 @@ public:
     MerRpmPackagingStep(ProjectExplorer::BuildStepList *buildConfig,
                              MerRpmPackagingStep *other);
     virtual ~MerRpmPackagingStep();
-    static const Core::Id stepId();
+    static Core::Id stepId();
     static QString displayName();
 
 protected:

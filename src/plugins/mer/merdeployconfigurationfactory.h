@@ -36,11 +36,11 @@ public:
     explicit MerDeployConfigurationFactory(QObject *parent = 0);
 
     QList<Core::Id> availableCreationIds(ProjectExplorer::Target *parent) const;
-    QString displayNameForId(const Core::Id id) const;
+    QString displayNameForId(Core::Id id) const;
 
-    bool canCreate(ProjectExplorer::Target *parent, const Core::Id id) const;
+    bool canCreate(ProjectExplorer::Target *parent, Core::Id id) const;
     ProjectExplorer::DeployConfiguration *create(ProjectExplorer::Target *parent,
-                                                 const Core::Id id);
+                                                 Core::Id id);
 
     bool canRestore(ProjectExplorer::Target *parent, const QVariantMap &map) const;
     ProjectExplorer::DeployConfiguration *restore(ProjectExplorer::Target *parent,

@@ -37,7 +37,7 @@ class MerAbstractVmStartStep : public ProjectExplorer::BuildStep
     Q_OBJECT
 
 public:
-    explicit MerAbstractVmStartStep(ProjectExplorer::BuildStepList *bsl, const Core::Id id);
+    explicit MerAbstractVmStartStep(ProjectExplorer::BuildStepList *bsl, Core::Id id);
     MerAbstractVmStartStep(ProjectExplorer::BuildStepList *bsl, MerAbstractVmStartStep *bs);
 
     bool init();

@@ -105,7 +105,7 @@ public:
     }
 };
 
-MerProcessStep::MerProcessStep(ProjectExplorer::BuildStepList *bsl,const Core::Id id)
+MerProcessStep::MerProcessStep(ProjectExplorer::BuildStepList *bsl, Core::Id id)
     :AbstractProcessStep(bsl,id)
 {
 
@@ -197,7 +197,7 @@ MerDeployConfiguration *MerProcessStep::deployConfiguration() const
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
-const Core::Id MerEmulatorStartStep::stepId()
+Core::Id MerEmulatorStartStep::stepId()
 {
     return Core::Id("QmakeProjectManager.MerEmulatorStartStep");
 }
@@ -235,7 +235,7 @@ bool MerEmulatorStartStep::init()
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
-const Core::Id MerConnectionTestStep::stepId()
+Core::Id MerConnectionTestStep::stepId()
 {
     return Core::Id("QmakeProjectManager.MerConnectionTestStep");
 }
@@ -349,7 +349,7 @@ void MerConnectionTestStep::finish(bool result)
  * Wraps either MerEmulatorStartStep or MerConnectionTestStep based on IDevice::machineType
  */
 
-const Core::Id MerPrepareTargetStep::stepId()
+Core::Id MerPrepareTargetStep::stepId()
 {
     return Core::Id("QmakeProjectManager.MerPrepareTargetStep");
 }
@@ -433,7 +433,7 @@ void MerPrepareTargetStep::onImplFinished()
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
-const Core::Id MerMb2RsyncDeployStep::stepId()
+Core::Id MerMb2RsyncDeployStep::stepId()
 {
     return Core::Id("QmakeProjectManager.MerRsyncDeployStep");
 }
@@ -483,7 +483,7 @@ BuildStepConfigWidget *MerMb2RsyncDeployStep::createConfigWidget()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const Core::Id MerLocalRsyncDeployStep::stepId()
+Core::Id MerLocalRsyncDeployStep::stepId()
 {
     return Core::Id("QmakeProjectManager.MerLocalRsyncDeployStep");
 }
@@ -569,7 +569,7 @@ BuildStepConfigWidget *MerLocalRsyncDeployStep::createConfigWidget()
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-const Core::Id MerMb2RpmDeployStep::stepId()
+Core::Id MerMb2RpmDeployStep::stepId()
 {
     return Core::Id("QmakeProjectManager.MerRpmDeployStep");
 }
@@ -622,7 +622,7 @@ BuildStepConfigWidget *MerMb2RpmDeployStep::createConfigWidget()
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-const Core::Id MerMb2RpmBuildStep::stepId()
+Core::Id MerMb2RpmBuildStep::stepId()
 {
     return Core::Id("QmakeProjectManager.MerRpmBuildStep");
 }
@@ -730,7 +730,7 @@ void RpmInfo::info()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const Core::Id MerRpmValidationStep::stepId()
+Core::Id MerRpmValidationStep::stepId()
 {
     return Core::Id("QmakeProjectManager.MerRpmValidationStep");
 }

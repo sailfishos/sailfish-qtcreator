@@ -37,7 +37,7 @@ namespace Mer {
 namespace Internal {
 
 namespace {
-QString pathFromId(const Core::Id id)
+QString pathFromId(Core::Id id)
 {
     const QString idStr = id.toString();
     if (idStr.startsWith(QLatin1String(MER_RUNCONFIGURATION_PREFIX)))
@@ -71,7 +71,7 @@ QList<Core::Id> MerRunConfigurationFactory::availableCreationIds(
     return result;
 }
 
-QString MerRunConfigurationFactory::displayNameForId(const Core::Id id) const
+QString MerRunConfigurationFactory::displayNameForId(Core::Id id) const
 {
     const QString path = pathFromId(id);
     if (path.isEmpty())
@@ -83,7 +83,7 @@ QString MerRunConfigurationFactory::displayNameForId(const Core::Id id) const
     return QString();
 }
 
-bool MerRunConfigurationFactory::canCreate(ProjectExplorer::Target *parent, const Core::Id id) const
+bool MerRunConfigurationFactory::canCreate(ProjectExplorer::Target *parent, Core::Id id) const
 {
     if (!canHandle(parent))
         return false;
@@ -97,7 +97,7 @@ bool MerRunConfigurationFactory::canCreate(ProjectExplorer::Target *parent, cons
 }
 
 ProjectExplorer::RunConfiguration *MerRunConfigurationFactory::doCreate(
-        ProjectExplorer::Target *parent, const Core::Id id)
+        ProjectExplorer::Target *parent, Core::Id id)
 {
     if (!canCreate(parent, id))
         return 0;

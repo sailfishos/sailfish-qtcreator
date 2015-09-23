@@ -50,7 +50,7 @@ public:
     };
     Q_DECLARE_FLAGS(InitOptions, InitOption)
 
-    explicit MerProcessStep(ProjectExplorer::BuildStepList *bsl,const Core::Id id);
+    explicit MerProcessStep(ProjectExplorer::BuildStepList *bsl, Core::Id id);
     MerProcessStep(ProjectExplorer::BuildStepList *bsl, MerProcessStep *bs);
     bool init(InitOptions options = NoInitOption);
     QString arguments() const;
@@ -72,7 +72,7 @@ public:
     explicit MerEmulatorStartStep(ProjectExplorer::BuildStepList *bsl);
     MerEmulatorStartStep(ProjectExplorer::BuildStepList *bsl, MerEmulatorStartStep *bs);
     bool init();
-    static const Core::Id stepId();
+    static Core::Id stepId();
     static QString displayName();
     friend class MerDeployStepFactory;
 };
@@ -91,7 +91,7 @@ public:
     bool immutable() const;
     bool runInGuiThread() const;
 
-    static const Core::Id stepId();
+    static Core::Id stepId();
     static QString displayName();
 
 private slots:
@@ -122,7 +122,7 @@ public:
     bool immutable() const;
     bool runInGuiThread() const;
 
-    static const Core::Id stepId();
+    static Core::Id stepId();
     static QString displayName();
 
 private slots:
@@ -142,7 +142,7 @@ public:
     bool immutable() const;
     void run(QFutureInterface<bool> &fi);
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget();
-    static const Core::Id stepId();
+    static Core::Id stepId();
     static QString displayName();
 private:
     friend class MerDeployStepFactory;
@@ -158,7 +158,7 @@ public:
     bool immutable() const;
     void run(QFutureInterface<bool> &fi);
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget();
-    static const Core::Id stepId();
+    static Core::Id stepId();
     static QString displayName();
     friend class MerDeployStepFactory;
 };
@@ -173,7 +173,7 @@ public:
     bool immutable() const;
     void run(QFutureInterface<bool> &fi);
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget();
-    static const Core::Id stepId();
+    static Core::Id stepId();
     static QString displayName();
     friend class MerDeployStepFactory;
 };
@@ -189,7 +189,7 @@ public:
     bool immutable() const;
     void run(QFutureInterface<bool> &fi);
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget();
-    static const Core::Id stepId();
+    static Core::Id stepId();
     static QString displayName();
     friend class MerDeployStepFactory;
     void processFinished(int exitCode, QProcess::ExitStatus status);
@@ -222,7 +222,7 @@ public:
     bool immutable() const;
     void run(QFutureInterface<bool> &fi);
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget();
-    static const Core::Id stepId();
+    static Core::Id stepId();
     static QString displayName();
     friend class MerDeployStepFactory;
 private:

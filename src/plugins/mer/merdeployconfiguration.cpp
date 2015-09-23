@@ -42,7 +42,7 @@ using namespace ProjectExplorer;
 namespace Mer {
 namespace Internal {
 
-MerDeployConfiguration::MerDeployConfiguration(Target *parent, const Core::Id id,const QString& displayName)
+MerDeployConfiguration::MerDeployConfiguration(Target *parent, Core::Id id,const QString& displayName)
     : RemoteLinux::RemoteLinuxDeployConfiguration(parent, id, displayName)
 {
     setDisplayName(displayName);
@@ -57,7 +57,7 @@ MerDeployConfiguration::MerDeployConfiguration(ProjectExplorer::Target *target, 
 
 ////////////////////////////////////////////////////////////////////////////////////
 
-MerRpmDeployConfiguration::MerRpmDeployConfiguration(Target *parent, const Core::Id id)
+MerRpmDeployConfiguration::MerRpmDeployConfiguration(Target *parent, Core::Id id)
     : MerDeployConfiguration(parent, id,displayName())
 {
     init();
@@ -85,7 +85,7 @@ Core::Id MerRpmDeployConfiguration::configurationId()
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 
-MerRsyncDeployConfiguration::MerRsyncDeployConfiguration(Target *parent, const Core::Id id)
+MerRsyncDeployConfiguration::MerRsyncDeployConfiguration(Target *parent, Core::Id id)
     : MerDeployConfiguration(parent, id,displayName())
 {
 }
@@ -107,7 +107,7 @@ Core::Id MerRsyncDeployConfiguration::configurationId()
 
 /////////////////////////////////////////////////////////////////////////////////////
 //TODO:HACK
-MerMb2RpmBuildConfiguration::MerMb2RpmBuildConfiguration(Target *parent, const Core::Id id)
+MerMb2RpmBuildConfiguration::MerMb2RpmBuildConfiguration(Target *parent, Core::Id id)
     : MerDeployConfiguration(parent, id,displayName())
 {
 }
@@ -129,7 +129,7 @@ Core::Id MerMb2RpmBuildConfiguration::configurationId()
 
 ////////////////////////////////////////////////////////////////////////////////////
 
-MerRpmBuildDeployConfiguration::MerRpmBuildDeployConfiguration(Target *parent, const Core::Id id)
+MerRpmBuildDeployConfiguration::MerRpmBuildDeployConfiguration(Target *parent, Core::Id id)
     : MerDeployConfiguration(parent, id, displayName())
 {
 

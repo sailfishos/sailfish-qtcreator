@@ -28,7 +28,7 @@ namespace Mer {
 namespace Internal {
 
 MerSftpDeployConfiguration::MerSftpDeployConfiguration(ProjectExplorer::Target *target,
-                                                       const Core::Id id)
+                                                       Core::Id id)
     : RemoteLinux::RemoteLinuxDeployConfiguration(target, id,
                                                   tr("Mer", Constants::MER_SFTP_DEPLOY_STRING))
 {

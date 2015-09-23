@@ -295,7 +295,7 @@ bool MerRpmPackagingStep::createPackage(QProcess *buildProc,const QFutureInterfa
     return true;
 }
 
-const Core::Id MerRpmPackagingStep::stepId()
+Core::Id MerRpmPackagingStep::stepId()
 {
     return Core::Id("QmakeProjectManager.MerRpmPackagingStep");
 }

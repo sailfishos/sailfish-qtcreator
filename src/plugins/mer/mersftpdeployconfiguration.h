@@ -33,7 +33,7 @@ class MerSftpDeployConfiguration : public RemoteLinux::RemoteLinuxDeployConfigur
     Q_OBJECT
 
 public:
-    MerSftpDeployConfiguration(ProjectExplorer::Target *target, const Core::Id id);
+    MerSftpDeployConfiguration(ProjectExplorer::Target *target, Core::Id id);
 
     MerSftpDeployConfiguration(ProjectExplorer::Target *target,
                                MerSftpDeployConfiguration *source);
