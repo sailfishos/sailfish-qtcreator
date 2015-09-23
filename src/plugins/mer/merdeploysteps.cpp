@@ -152,7 +152,7 @@ bool MerProcessStep::init(InitOptions options)
     }
 
 
-    const QString projectDirectory = bc->isShadowBuild() ? bc->rawBuildDirectory().toString() : project()->projectDirectory();
+    const QString projectDirectory = bc->isShadowBuild() ? bc->rawBuildDirectory().toString() : project()->projectDirectory().toString();
     const QString wrapperScriptsDir =  MerSdkManager::sdkToolsDirectory() + merSdk->virtualMachineName()
             + QLatin1Char('/') + target;
     const QString deployCommand = wrapperScriptsDir + QLatin1Char('/') + QLatin1String(Constants::MER_WRAPPER_DEPLOY);
@@ -167,7 +167,7 @@ bool MerProcessStep::init(InitOptions options)
     // to RPM build looking for files in the wrong project. Instead, MER_SSH_PROJECT_PATH
     // needs to be set to the source directory of the active project. Note that this path
     // is the same, whether or not shadow builds are enabled.
-    env.set(QLatin1String(Constants::MER_SSH_PROJECT_PATH), project()->projectDirectory());
+    env.set(QLatin1String(Constants::MER_SSH_PROJECT_PATH), project()->projectDirectory().toString());
 
     //TODO HACK
     if(!device.isNull())
@@ -531,7 +531,7 @@ bool MerLocalRsyncDeployStep::init()
         return false;
     }
 
-    const QString projectDirectory = bc->isShadowBuild() ? bc->rawBuildDirectory().toString() : project()->projectDirectory();
+    const QString projectDirectory = bc->isShadowBuild() ? bc->rawBuildDirectory().toString() : project()->projectDirectory().toString();
     const QString deployCommand = QLatin1String("rsync");
 
     ProcessParameters *pp = processParameters();

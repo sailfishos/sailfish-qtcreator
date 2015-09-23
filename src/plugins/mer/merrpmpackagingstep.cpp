@@ -187,7 +187,7 @@ QString MerRpmPackagingStep::packageFileName() const
 
 bool MerRpmPackagingStep::prepareBuildDir()
 {
-    const bool inSourceBuild = QFileInfo(cachedPackageDirectory()) == QFileInfo(project()->projectDirectory());
+    const bool inSourceBuild = QFileInfo(cachedPackageDirectory()) == project()->projectDirectory().toFileInfo();
     const QString rpmDirPath = cachedPackageDirectory() + QLatin1String("/rpmbuild");
     const QString magicFilePath = rpmDirPath + QLatin1Char('/') + MagicFileName;
 
