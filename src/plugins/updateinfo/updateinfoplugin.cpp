@@ -38,12 +38,16 @@
 #include <coreplugin/progressmanager/progressmanager.h>
 #include <coreplugin/progressmanager/futureprogress.h>
 #include <coreplugin/settingsdatabase.h>
-#include <utils/qtcassert.h>
+
+#include <qtconcurrentrun.h>
 
 #include <QBasicTimer>
 #include <QDomDocument>
 #include <QFile>
+#include <QFutureWatcher>
 #include <QMenu>
+#include <QProcess>
+#include <QtPlugin>
 
 namespace {
     static const quint32 OneMinute = 60000;
@@ -58,7 +62,9 @@ class UpdateInfoPluginPrivate
 {
 public:
     UpdateInfoPluginPrivate()
-        : m_settingsPage(0)
+        : progressUpdateInfoButton(0),
+          checkUpdateInfoWatcher(0),
+          m_settingsPage(0)
     {
     }
 
@@ -66,8 +72,10 @@ public:
     QString updaterRunUiArgument;
     QString updaterCheckOnlyArgument;
 
-    QPointer<QProcess> checkUpdatesProcess;
+    QFuture<QDomDocument> lastCheckUpdateInfoTask;
     QPointer<FutureProgress> updateInfoProgress;
+    UpdateInfoButton *progressUpdateInfoButton;
+    QFutureWatcher<QDomDocument> *checkUpdateInfoWatcher;
 
     QBasicTimer m_timer;
     QDate m_lastDayChecked;
@@ -83,16 +91,17 @@ UpdateInfoPlugin::UpdateInfoPlugin()
 
 UpdateInfoPlugin::~UpdateInfoPlugin()
 {
-    if (d->checkUpdatesProcess) {
-        d->checkUpdatesProcess->terminate(); // TODO kill?
-        d->checkUpdatesProcess->waitForFinished(-1);
-    }
+    d->lastCheckUpdateInfoTask.cancel();
+    d->lastCheckUpdateInfoTask.waitForFinished();
 
     delete d;
 }
 
 bool UpdateInfoPlugin::delayedInitialize()
 {
+    d->checkUpdateInfoWatcher = new QFutureWatcher<QDomDocument>(this);
+    connect(d->checkUpdateInfoWatcher, SIGNAL(finished()), this, SLOT(parseUpdates()));
+
     d->m_timer.start(OneMinute, this);
     return true;
 }
@@ -169,7 +178,7 @@ void UpdateInfoPlugin::timerEvent(QTimerEvent *event)
 {
     if (event->timerId() == d->m_timer.timerId()) {
         const QDate today = QDate::currentDate();
-        if ((d->m_lastDayChecked == today) || d->checkUpdatesProcess)
+        if ((d->m_lastDayChecked == today) || (d->lastCheckUpdateInfoTask.isRunning()))
             return; // we checked already or the update task is still running
 
         bool check = false;
@@ -180,7 +189,8 @@ void UpdateInfoPlugin::timerEvent(QTimerEvent *event)
             check = true; // we are behind schedule, force check
 
         if (check) {
-            startUpdaterCheckOnly();
+            d->lastCheckUpdateInfoTask = QtConcurrent::run(this, &UpdateInfoPlugin::update);
+            d->checkUpdateInfoWatcher->setFuture(d->lastCheckUpdateInfoTask);
         }
     } else {
         // not triggered from our timer
@@ -190,52 +200,20 @@ void UpdateInfoPlugin::timerEvent(QTimerEvent *event)
 
 // -- private slots
 
-void UpdateInfoPlugin::onCheckUpdatesError(QProcess::ProcessError error)
+void UpdateInfoPlugin::parseUpdates()
 {
-    d->m_lastDayChecked = QDate::currentDate();
-    saveSettings();
-
-    qWarning() << "Could not execute updater application. Error:" << error;
-    delete d->checkUpdatesProcess;
-}
-
-void UpdateInfoPlugin::onCheckUpdatesFinished(int exitCode, QProcess::ExitStatus exitStatus)
-{
-    d->m_lastDayChecked = QDate::currentDate();
-    saveSettings();
-
-    if (exitStatus != QProcess::NormalExit) {
-        qWarning() << "Updater application crashed";
-        delete d->checkUpdatesProcess;
-        return;
-    } else if (exitCode != 0) {
-        delete d->checkUpdatesProcess;
-        return;
-    }
-
-    QByteArray output = d->checkUpdatesProcess->readAllStandardOutput();
-    delete d->checkUpdatesProcess;
-
-    QDomDocument updatesDomDocument;
-    QString error;
-    if (!updatesDomDocument.setContent(output, &error)) {
-        qWarning() << "Error parsing updater application output:" << error;
-        return;
-    }
-
+    QDomDocument updatesDomDocument = d->checkUpdateInfoWatcher->result();
     if (updatesDomDocument.isNull() || !updatesDomDocument.firstChildElement().hasChildNodes())
         return;
 
-    // add a task to the progress manager
-    QFutureInterface<void> fakeTask;
-    fakeTask.reportFinished();
-    d->updateInfoProgress = ProgressManager::addTask(fakeTask.future(), tr("Updates available"),
-            "Update.GetInfo", ProgressManager::KeepOnFinish);
+    // add the finished task to the progress manager
+    d->updateInfoProgress = ProgressManager::addTask(d->lastCheckUpdateInfoTask, tr("Updates "
+        "available"), "Update.GetInfo", ProgressManager::KeepOnFinish);
     d->updateInfoProgress->setKeepOnFinish(FutureProgress::KeepOnFinish);
 
-    UpdateInfoButton *button = new UpdateInfoButton();
-    d->updateInfoProgress->setWidget(button);
-    connect(button, SIGNAL(released()), this, SLOT(startUpdaterUiApplication()));
+    d->progressUpdateInfoButton = new UpdateInfoButton();
+    d->updateInfoProgress->setWidget(d->progressUpdateInfoButton);
+    connect(d->progressUpdateInfoButton, SIGNAL(released()), this, SLOT(startUpdaterUiApplication()));
 }
 
 void UpdateInfoPlugin::startUpdaterUiApplication()
@@ -247,16 +225,37 @@ void UpdateInfoPlugin::startUpdaterUiApplication()
 
 // -- private
 
-void UpdateInfoPlugin::startUpdaterCheckOnly()
+QDomDocument UpdateInfoPlugin::update()
 {
-    QTC_ASSERT(!d->checkUpdatesProcess, return);
+    if (QThread::currentThread() == QCoreApplication::instance()->thread()) {
+        qWarning() << Q_FUNC_INFO << " was not designed to run in main/ gui thread, it is using "
+            "QProcess::waitForFinished()";
+    }
 
-    d->checkUpdatesProcess = new QProcess(this);
-    connect(d->checkUpdatesProcess, SIGNAL(error(QProcess::ProcessError)),
-            this, SLOT(onCheckUpdatesError(QProcess::ProcessError)));
-    connect(d->checkUpdatesProcess, SIGNAL(finished(int,QProcess::ExitStatus)),
-            this, SLOT(onCheckUpdatesFinished(int,QProcess::ExitStatus)));
-    d->checkUpdatesProcess->start(d->updaterProgram, QStringList() << d->updaterCheckOnlyArgument);
+    // start
+    QProcess updater;
+    updater.start(d->updaterProgram, QStringList() << d->updaterCheckOnlyArgument);
+    while (updater.state() != QProcess::NotRunning) {
+        if (!updater.waitForFinished(1000)
+                && d->lastCheckUpdateInfoTask.isCanceled()) {
+            updater.kill();
+            updater.waitForFinished(-1);
+            return QDomDocument();
+        }
+    }
+
+    // process return value
+    QDomDocument updates;
+    if (updater.exitStatus() != QProcess::CrashExit) {
+        d->m_timer.stop();
+        updates.setContent(updater.readAllStandardOutput());
+        saveSettings(); // force writing out the last update date
+    } else {
+        qWarning() << "Updater application crashed.";
+    }
+
+    d->m_lastDayChecked = QDate::currentDate();
+    return updates;
 }
 
 template <typename T>

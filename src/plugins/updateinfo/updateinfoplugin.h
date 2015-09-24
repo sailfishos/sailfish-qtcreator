@@ -32,7 +32,6 @@
 
 #include <extensionsystem/iplugin.h>
 
-#include <QProcess>
 #include <QTime>
 #include <QDomDocument>
 
@@ -70,12 +69,11 @@ protected:
     void timerEvent(QTimerEvent *event);
 
 private slots:
-    void onCheckUpdatesError(QProcess::ProcessError error);
-    void onCheckUpdatesFinished(int exitCode, QProcess::ExitStatus exitStatus);
+    void parseUpdates();
     void startUpdaterUiApplication();
 
 private:
-    void startUpdaterCheckOnly();
+    QDomDocument update();
     template <typename T> void settingsHelper(T *settings);
 
 private:
