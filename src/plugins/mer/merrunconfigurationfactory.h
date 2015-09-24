@@ -35,7 +35,7 @@ class MerRunConfigurationFactory : public ProjectExplorer::IRunConfigurationFact
 public:
     explicit MerRunConfigurationFactory(QObject *parent = 0);
 
-    QList<Core::Id> availableCreationIds(ProjectExplorer::Target *parent) const;
+    QList<Core::Id> availableCreationIds(ProjectExplorer::Target *parent, CreationMode mode) const;
     QString displayNameForId(Core::Id id) const;
 
     bool canCreate(ProjectExplorer::Target *parent, Core::Id id) const;

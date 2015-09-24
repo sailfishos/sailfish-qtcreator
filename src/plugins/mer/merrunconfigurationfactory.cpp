@@ -54,8 +54,10 @@ MerRunConfigurationFactory::MerRunConfigurationFactory(QObject *parent)
 }
 
 QList<Core::Id> MerRunConfigurationFactory::availableCreationIds(
-        ProjectExplorer::Target *parent) const
+        ProjectExplorer::Target *parent, CreationMode mode) const
 {
+    Q_UNUSED(mode);
+
     QList<Core::Id>result;
     if (!canHandle(parent))
         return result;
