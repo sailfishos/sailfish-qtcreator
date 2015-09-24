@@ -47,7 +47,6 @@
 #include <coreplugin/actionmanager/command.h>
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/icore.h>
-#include <coreplugin/mimedatabase.h>
 #include <coreplugin/modemanager.h>
 
 #include <QMenu>
