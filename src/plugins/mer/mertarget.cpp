@@ -30,6 +30,7 @@
 #include "mertargetkitinformation.h"
 #include "mertoolchain.h"
 
+#include <debugger/debuggeritem.h>
 #include <debugger/debuggeritemmanager.h>
 #include <debugger/debuggerkitinformation.h>
 #include <projectexplorer/toolchainmanager.h>
