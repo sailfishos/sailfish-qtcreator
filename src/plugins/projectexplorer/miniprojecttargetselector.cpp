@@ -553,11 +553,6 @@ KitAreaWidget::KitAreaWidget(QWidget *parent) : QWidget(parent),
 {
     m_layout->setMargin(3);
     setKit(0);
-
-    QPalette p;
-    p.setColor(QPalette::Window, QColor(70, 70, 70, 255));
-    setPalette(p);
-    setAutoFillBackground(true);
 }
 
 void KitAreaWidget::setKit(Kit *k)
