@@ -41,7 +41,6 @@
 
 #include <coreplugin/icore.h>
 #include <coreplugin/idocument.h>
-#include <coreplugin/variablemanager.h>
 #include <extensionsystem/pluginmanager.h>
 #include <projectexplorer/buildconfiguration.h>
 #include <projectexplorer/buildstep.h>
@@ -54,6 +53,7 @@
 #include <qmakeprojectmanager/qmakebuildconfiguration.h>
 #include <qtsupport/baseqtversion.h>
 #include <qtsupport/qtkitinformation.h>
+#include <utils/macroexpander.h>
 #include <utils/qtcassert.h>
 
 #include <QMessageBox>
@@ -172,7 +172,7 @@ bool MerProcessStep::init(InitOptions options)
     //TODO HACK
     if(!device.isNull())
         env.appendOrSet(QLatin1String(Constants::MER_SSH_DEVICE_NAME),device->displayName());
-    pp->setMacroExpander(bc ? bc->macroExpander() : Core::VariableManager::macroExpander());
+    pp->setMacroExpander(bc ? bc->macroExpander() : Utils::globalMacroExpander());
     pp->setEnvironment(env);
     pp->setWorkingDirectory(projectDirectory);
     pp->setCommand(deployCommand);
@@ -537,7 +537,7 @@ bool MerLocalRsyncDeployStep::init()
     ProcessParameters *pp = processParameters();
 
     Utils::Environment env = bc ? bc->environment() : Utils::Environment::systemEnvironment();
-    pp->setMacroExpander(bc ? bc->macroExpander() : Core::VariableManager::macroExpander());
+    pp->setMacroExpander(bc ? bc->macroExpander() : Utils::globalMacroExpander());
     pp->setEnvironment(env);
     pp->setWorkingDirectory(projectDirectory);
     pp->setCommand(deployCommand);
