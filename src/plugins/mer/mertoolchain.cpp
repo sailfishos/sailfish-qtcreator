@@ -76,7 +76,7 @@ QString MerToolChain::type() const
 QString MerToolChain::makeCommand(const Utils::Environment &environment) const
 {
     const QString make = QLatin1String(Constants::MER_WRAPPER_MAKE);
-    const QString makePath = environment.searchInPath(make);
+    const QString makePath = environment.searchInPath(make).toString();
     if (!makePath.isEmpty())
         return makePath;
 
