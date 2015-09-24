@@ -172,7 +172,7 @@ ProjectExplorer::Kit* MerTarget::createKit() const
 
     ProjectExplorer::Kit *k = new ProjectExplorer::Kit();
     k->setAutoDetected(true);
-    k->setDisplayName(QString::fromLatin1("%1-%2").arg(m_sdk->virtualMachineName(), m_name));
+    k->setUnexpandedDisplayName(QString::fromLatin1("%1-%2").arg(m_sdk->virtualMachineName(), m_name));
     k->setIconPath(Utils::FileName::fromString(QLatin1String(Constants::MER_OPTIONS_CATEGORY_ICON)));
     ProjectExplorer::SysRootKitInformation::setSysRoot(k, Utils::FileName::fromUserInput(sysroot));
 
