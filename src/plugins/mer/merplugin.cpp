@@ -197,5 +197,3 @@ void MerPlugin::handleLockDownFailed()
 
 } // Internal
 } // Mer
-
-Q_EXPORT_PLUGIN2(Mer, Mer::Internal::MerPlugin)
