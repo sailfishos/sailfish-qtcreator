@@ -227,7 +227,7 @@ MerQtVersion* MerTarget::createQtVersion() const
     const QString vmName = m_sdk->virtualMachineName();
     merqtv->setVirtualMachineName(vmName);
     merqtv->setTargetName(m_name);
-    merqtv->setDisplayName(
+    merqtv->setUnexpandedDisplayName(
                 QString::fromLatin1("Qt %1 in %2 %3").arg(qtv->qtVersionString(),
                                                           vmName, m_name));
     return merqtv;
