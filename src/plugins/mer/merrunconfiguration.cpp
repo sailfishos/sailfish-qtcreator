@@ -37,8 +37,8 @@ namespace Mer {
 namespace Internal {
 
 MerRunConfiguration::MerRunConfiguration(ProjectExplorer::Target *parent, Core::Id id,
-                                         const QString &proFilePath)
-    : RemoteLinux::RemoteLinuxRunConfiguration(parent, id, proFilePath)
+                                         const QString &targetName)
+    : RemoteLinux::RemoteLinuxRunConfiguration(parent, id, targetName)
 {
     ctor();
 }

@@ -33,7 +33,7 @@ class MerRunConfiguration : public RemoteLinux::RemoteLinuxRunConfiguration
     Q_OBJECT
 public:
     MerRunConfiguration(ProjectExplorer::Target *parent, Core::Id id,
-                        const QString &proFilePath);
+                        const QString &targetName);
     bool isEnabled() const;
 
     Utils::Environment environment() const;
