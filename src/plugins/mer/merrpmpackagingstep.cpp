@@ -103,7 +103,7 @@ bool MerRpmPackagingStep::init()
         raiseError(tr("Packaging failed: No mer target."));
         return false;
     }
-    m_fileName = QFileInfo(project()->document()->filePath()).baseName();
+    m_fileName = project()->document()->filePath().toFileInfo().baseName();
     const QString wrapperScriptsDir = version->qmakeCommand().parentDir().toString();
     m_rpmCommand = wrapperScriptsDir + QLatin1Char('/') + QLatin1String(Constants::MER_WRAPPER_RPMBUILD);
     QString sharedHome =  MerSdkKitInformation::sdk(target()->kit())->sharedHomePath();
