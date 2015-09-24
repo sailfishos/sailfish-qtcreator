@@ -1343,7 +1343,7 @@ void QmakeProject::configureAsExampleProject(const QStringList &platforms, const
     QList<Kit *> preferredKits;
     Core::FeatureSet featuresSet;
     foreach(const QString& f, preferredFeatures) {
-        featuresSet |= Core::Feature(Core::Id::fromString(f));
+        featuresSet |= Core::Feature::fromString(f);
     }
 
     QList<const BuildInfo *> infoList;
