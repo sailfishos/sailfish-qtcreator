@@ -484,7 +484,7 @@ MerSdk* MerSdkManager::createSdk(const QString &vmName)
 
     QString sshDirectory;
     if(info.sharedConfig.isEmpty())
-        sshDirectory = QDir::fromNativeSeparators(QDesktopServices::storageLocation(QDesktopServices::HomeLocation))+ QLatin1String("/.ssh");
+        sshDirectory = QDir::fromNativeSeparators(QStandardPaths::writableLocation(QStandardPaths::HomeLocation))+ QLatin1String("/.ssh");
     else
         sshDirectory = info.sharedConfig + QLatin1String("/ssh/private_keys/engine/") + QLatin1String(MER_SDK_DEFAULTUSER);
     sdk->setPrivateKeyFile(QDir::toNativeSeparators(sshDirectory));
