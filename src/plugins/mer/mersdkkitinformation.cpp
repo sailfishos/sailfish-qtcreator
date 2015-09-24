@@ -205,7 +205,7 @@ void MerSdkKitInformationWidget::handleManageClicked()
     MerOptionsPage *page = ExtensionSystem::PluginManager::getObject<MerOptionsPage>();
     if (page)
         page->setSdk(m_combo->currentText());
-    Core::ICore::showOptionsDialog(Constants::MER_OPTIONS_CATEGORY,Constants::MER_OPTIONS_ID);
+    Core::ICore::showOptionsDialog(Constants::MER_OPTIONS_ID);
 }
 
 void MerSdkKitInformationWidget::handleCurrentIndexChanged()
