@@ -252,7 +252,7 @@ MerToolChain* MerTarget::createToolChain() const
     mertoolchain->setDisplayName(QString::fromLatin1("GCC (%1 %2)").arg(vmName, m_name));
     mertoolchain->setVirtualMachine(vmName);
     mertoolchain->setTargetName(m_name);
-    mertoolchain->setCompilerCommand(gcc);
+    mertoolchain->resetToolChain(gcc);
     return mertoolchain;
 }
 
