@@ -194,7 +194,7 @@ ProjectExplorer::Kit* MerTarget::createKit() const
     debugger.setCommand(gdbFileName);
     debugger.setEngineType(Debugger::GdbEngineType);
     const QString vmName = m_sdk->virtualMachineName();
-    debugger.setDisplayName(QObject::tr("GDB for %1 %2").arg(vmName, m_name));
+    debugger.setUnexpandedDisplayName(QObject::tr("GDB for %1 %2").arg(vmName, m_name));
     debugger.setAutoDetected(true);
     debugger.setAbi(ProjectExplorer::Abi::abiFromTargetTriplet(m_gccMachineDump)); // TODO is this OK?
     QVariant id = Debugger::DebuggerItemManager::registerDebugger(debugger);
