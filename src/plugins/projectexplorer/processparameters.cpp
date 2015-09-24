@@ -148,7 +148,7 @@ Utils::Environment ProcessParameters::effectiveEnvironment() const
         m_effectiveEnvironment.clear();
          Utils::Environment::const_iterator i;
         for (i = environment().constBegin(); i != environment().constEnd(); ++i)
-            m_effectiveEnvironment.appendOrSet(Utils::expandMacros(i.key(), m_macroExpander), Utils::expandMacros(i.value(), m_macroExpander));
+            m_effectiveEnvironment.appendOrSet(m_macroExpander->expand(i.key()), m_macroExpander->expand(i.value()));
     }
     return m_effectiveEnvironment;
 }
