@@ -287,7 +287,7 @@ QString MerVirtualBoxManager::getExtraData(const QString &vmName, const QString 
     arguments.append(vmName);
     arguments.append(key);
     QProcess process;
-    process.start(vBoxManagePath(), arguments);
+    process.start(vBoxManagePath(), arguments, QIODevice::ReadWrite | QIODevice::Text);
     if (!process.waitForFinished()) {
         qWarning() << "VBoxManage failed to getextradata";
         return QString();
