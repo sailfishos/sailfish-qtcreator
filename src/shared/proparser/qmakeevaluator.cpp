@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -196,17 +197,17 @@ QMakeEvaluator::~QMakeEvaluator()
 {
 }
 
-void QMakeEvaluator::initFrom(const QMakeEvaluator &other)
+void QMakeEvaluator::initFrom(const QMakeEvaluator *other)
 {
-    Q_ASSERT_X(&other, "QMakeEvaluator::visitProFile", "Project not prepared");
-    m_functionDefs = other.m_functionDefs;
-    m_valuemapStack = other.m_valuemapStack;
+    Q_ASSERT_X(other, "QMakeEvaluator::visitProFile", "Project not prepared");
+    m_functionDefs = other->m_functionDefs;
+    m_valuemapStack = other->m_valuemapStack;
     m_valuemapInited = true;
-    m_qmakespec = other.m_qmakespec;
-    m_qmakespecName = other.m_qmakespecName;
-    m_mkspecPaths = other.m_mkspecPaths;
-    m_featureRoots = other.m_featureRoots;
-    m_dirSep = other.m_dirSep;
+    m_qmakespec = other->m_qmakespec;
+    m_qmakespecName = other->m_qmakespecName;
+    m_mkspecPaths = other->m_mkspecPaths;
+    m_featureRoots = other->m_featureRoots;
+    m_dirSep = other->m_dirSep;
 }
 
 //////// Evaluator tools /////////
@@ -1354,7 +1355,7 @@ QMakeEvaluator::VisitReturn QMakeEvaluator::visitProFile(
             return ReturnFalse;
 #endif
 
-        initFrom(*baseEnv->evaluator);
+        initFrom(baseEnv->evaluator);
     } else {
         if (!m_valuemapInited)
             loadDefaults();
@@ -1894,7 +1895,7 @@ QMakeEvaluator::VisitReturn QMakeEvaluator::evaluateFeatureFile(
         }
 #ifdef QMAKE_BUILTIN_PRFS
         fn.prepend(QLatin1String(":/qmake/features/"));
-        if (QFileInfo(fn).exists())
+        if (QFileInfo::exists(fn))
             goto cool;
 #endif
         fn = QLatin1String(""); // Indicate failed lookup. See comment above.

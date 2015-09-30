@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -31,7 +32,6 @@
 #include "modelnodecontextmenu_helper.h"
 
 #include <cmath>
-#include <QByteArray>
 #include <nodeabstractproperty.h>
 #include <nodemetainfo.h>
 #include <modelnode.h>
@@ -43,6 +43,10 @@
 #include <qmlanchors.h>
 #include <limits>
 
+#include <utils/algorithm.h>
+
+#include <QByteArray>
+
 namespace QmlDesigner {
 
 const PropertyName auxDataString("anchors_");
@@ -52,7 +56,7 @@ static inline QList<QmlItemNode> siblingsForNode(const QmlItemNode &itemNode)
     QList<QmlItemNode> siblingList;
 
     if (itemNode.isValid() && itemNode.modelNode().hasParentProperty()) {
-        QList<ModelNode> modelNodes = itemNode.modelNode().parentProperty().parentModelNode().allDirectSubModelNodes();
+        QList<ModelNode> modelNodes = itemNode.modelNode().parentProperty().parentModelNode().directSubModelNodes();
         foreach (const ModelNode &node, modelNodes) {
             QmlItemNode childItemNode = node;
             if (childItemNode.isValid())
@@ -182,7 +186,7 @@ void toFront(const SelectionContext &selectionState)
             maximumZ++;
             node.setVariantProperty("z", maximumZ);
         }
-    } catch (RewritingException &e) { //better save then sorry
+    } catch (const RewritingException &e) { //better save then sorry
         e.showException();
     }
 }
@@ -200,7 +204,7 @@ void toBack(const SelectionContext &selectionState)
             node.setVariantProperty("z", minimumZ);
         }
 
-    } catch (RewritingException &e) { //better save then sorry
+    } catch (const RewritingException &e) { //better save then sorry
         e.showException();
     }
 }
@@ -220,7 +224,7 @@ void raise(const SelectionContext &selectionState)
                 node.setVariantProperty("z", z);
             }
         }
-    } catch (RewritingException &e) { //better save then sorry
+    } catch (const RewritingException &e) { //better save then sorry
          e.showException();
     }
 }
@@ -241,7 +245,7 @@ void lower(const SelectionContext &selectionState)
                 node.setVariantProperty("z", z);
             }
         }
-    } catch (RewritingException &e) { //better save then sorry
+    } catch (const RewritingException &e) { //better save then sorry
         e.showException();
     }
 }
@@ -265,7 +269,7 @@ void setVisible(const SelectionContext &selectionState)
 
     try {
         selectionState.selectedModelNodes().first().variantProperty("visible").setValue(selectionState.toggled());
-    } catch (RewritingException &e) { //better save then sorry
+    } catch (const RewritingException &e) { //better save then sorry
         e.showException();
     }
 }
@@ -278,7 +282,7 @@ void setFillWidth(const SelectionContext &selectionState)
 
     try {
         selectionState.firstSelectedModelNode().variantProperty("Layout.fillWidth").setValue(selectionState.toggled());
-    } catch (RewritingException &e) { //better save then sorry
+    } catch (const RewritingException &e) { //better save then sorry
         e.showException();
     }
 }
@@ -291,7 +295,7 @@ void setFillHeight(const SelectionContext &selectionState)
 
     try {
         selectionState.firstSelectedModelNode().variantProperty("Layout.fillHeight").setValue(selectionState.toggled());
-    } catch (RewritingException &e) { //better save then sorry
+    } catch (const RewritingException &e) { //better save then sorry
         e.showException();
     }
 }
@@ -307,7 +311,7 @@ void resetSize(const SelectionContext &selectionState)
             node.removeProperty("width");
             node.removeProperty("height");
         }
-    } catch (RewritingException &e) { //better save then sorry
+    } catch (const RewritingException &e) { //better save then sorry
         e.showException();
     }
 }
@@ -323,7 +327,7 @@ void resetPosition(const SelectionContext &selectionState)
             node.removeProperty("x");
             node.removeProperty("y");
         }
-    } catch (RewritingException &e) { //better save then sorry
+    } catch (const RewritingException &e) { //better save then sorry
         e.showException();
     }
 }
@@ -362,7 +366,7 @@ static inline void backupPropertyAndRemove(ModelNode node, const PropertyName &p
 }
 
 
-static inline void restoreProperty(ModelNode node, const PropertyName &propertyName)
+static inline void restoreProperty(const ModelNode &node, const PropertyName &propertyName)
 {
     if (node.hasAuxiliaryData(auxDataString + propertyName))
         node.variantProperty(propertyName).setValue(node.auxiliaryData(auxDataString + propertyName));
@@ -388,7 +392,7 @@ void anchorsFill(const SelectionContext &selectionState)
         }
 
         transaction.commit();
-    } catch (RewritingException &e) { //better save then sorry
+    } catch (const RewritingException &e) { //better save then sorry
         e.showException();
     }
 }
@@ -479,7 +483,7 @@ static void layoutHelperFunction(const SelectionContext &selectionContext,
                 RewriterTransaction transaction(selectionContext.view(), QByteArrayLiteral("DesignerActionManager|layoutHelperFunction2"));
 
                 QList<ModelNode> sortedSelectedNodes =  selectionContext.selectedModelNodes();
-                qSort(sortedSelectedNodes.begin(), sortedSelectedNodes.end(), lessThan);
+                Utils::sort(sortedSelectedNodes, lessThan);
 
                 setUpperLeftPostionToNode(layoutNode, sortedSelectedNodes);
                 reparentToNodeAndRemovePositionForModelNodes(layoutNode, sortedSelectedNodes);

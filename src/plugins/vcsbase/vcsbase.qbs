@@ -1,7 +1,5 @@
 import qbs 1.0
 
-import QtcPlugin
-
 QtcPlugin {
     name: "VcsBase"
 
@@ -15,27 +13,20 @@ QtcPlugin {
     Depends { name: "ProjectExplorer" }
     Depends { name: "CppTools" }
 
+    pluginRecommends: [
+        "CodePaster"
+    ]
+
     files: [
         "baseannotationhighlighter.cpp",
         "baseannotationhighlighter.h",
-        "basecheckoutwizard.cpp",
-        "basecheckoutwizard.h",
-        "basecheckoutwizardpage.cpp",
-        "basecheckoutwizardpage.h",
-        "basecheckoutwizardpage.ui",
         "basevcseditorfactory.cpp",
         "basevcseditorfactory.h",
         "basevcssubmiteditorfactory.cpp",
         "basevcssubmiteditorfactory.h",
-        "checkoutprogresswizardpage.cpp",
-        "checkoutprogresswizardpage.h",
-        "checkoutwizarddialog.cpp",
-        "checkoutwizarddialog.h",
         "cleandialog.cpp",
         "cleandialog.h",
         "cleandialog.ui",
-        "command.cpp",
-        "command.h",
         "commonsettingspage.cpp",
         "commonsettingspage.h",
         "commonsettingspage.ui",
@@ -43,8 +34,8 @@ QtcPlugin {
         "commonvcssettings.h",
         "corelistener.cpp",
         "corelistener.h",
-        "diffhighlighter.cpp",
-        "diffhighlighter.h",
+        "diffandloghighlighter.cpp",
+        "diffandloghighlighter.h",
         "nicknamedialog.cpp",
         "nicknamedialog.h",
         "nicknamedialog.ui",
@@ -70,18 +61,26 @@ QtcPlugin {
         "vcsbaseeditorparameterwidget.h",
         "vcsbaseoptionspage.cpp",
         "vcsbaseoptionspage.h",
-        "vcsbaseoutputwindow.cpp",
-        "vcsbaseoutputwindow.h",
         "vcsbaseplugin.cpp",
         "vcsbaseplugin.h",
         "vcsbasesubmiteditor.cpp",
         "vcsbasesubmiteditor.h",
-        "vcsconfigurationpage.cpp",
-        "vcsconfigurationpage.h",
+        "vcscommand.cpp",
+        "vcscommand.h",
+        "vcsoutputwindow.cpp",
+        "vcsoutputwindow.h",
         "vcsplugin.cpp",
         "vcsplugin.h",
+        "vcsprojectcache.cpp",
+        "vcsprojectcache.h",
         "images/diff.png",
         "images/removesubmitfield.png",
         "images/submit.png",
+        "wizard/vcsconfigurationpage.cpp",
+        "wizard/vcsconfigurationpage.h",
+        "wizard/vcscommandpage.cpp",
+        "wizard/vcscommandpage.h",
+        "wizard/vcsjsextension.cpp",
+        "wizard/vcsjsextension.h",
     ]
 }

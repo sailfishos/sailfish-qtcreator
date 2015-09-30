@@ -222,7 +222,7 @@ int Function::methodKey() const
 void Function::setMethodKey(int key)
 { f._methodKey = key; }
 
-bool Function::isSignatureEqualTo(const Function *other) const
+bool Function::isSignatureEqualTo(const Function *other, Matcher *matcher) const
 {
     if (! other)
         return false;
@@ -230,30 +230,19 @@ bool Function::isSignatureEqualTo(const Function *other) const
         return false;
     else if (isVolatile() != other->isVolatile())
         return false;
-
-    const Name *l = unqualifiedName();
-    const Name *r = other->unqualifiedName();
-    if (l == r || (l && l->isEqualTo(r))) {
-        const unsigned argc = argumentCount();
-        if (argc != other->argumentCount())
-            return false;
-        for (unsigned i = 0; i < argc; ++i) {
-            Symbol *l = argumentAt(i);
-            Symbol *r = other->argumentAt(i);
-            if (! l->type().isEqualTo(r->type()))
-                return false;
-        }
-        return true;
-    }
-    return false;
-}
-
-bool Function::isEqualTo(const Type *other) const
-{
-    const Function *o = other->asFunctionType();
-    if (!isSignatureEqualTo(o))
+    else if (! Matcher::match(unqualifiedName(), other->unqualifiedName(), matcher))
         return false;
-    return _returnType.isEqualTo(o->_returnType);
+
+    const unsigned argc = argumentCount();
+    if (argc != other->argumentCount())
+        return false;
+    for (unsigned i = 0; i < argc; ++i) {
+        Symbol *l = argumentAt(i);
+        Symbol *r = other->argumentAt(i);
+        if (! l->type().match(r->type(), matcher))
+            return false;
+    }
+    return true;
 }
 
 void Function::accept0(TypeVisitor *visitor)
@@ -460,20 +449,6 @@ Enum::~Enum()
 FullySpecifiedType Enum::type() const
 { return FullySpecifiedType(const_cast<Enum *>(this)); }
 
-bool Enum::isEqualTo(const Type *other) const
-{
-    const Enum *o = other->asEnumType();
-    if (! o)
-        return false;
-    const Name *l = unqualifiedName();
-    const Name *r = o->unqualifiedName();
-    if (l == r)
-        return true;
-    else if (! l)
-        return false;
-    return l->isEqualTo(r);
-}
-
 bool Enum::isScoped() const
 {
     return _isScoped;
@@ -506,10 +481,12 @@ void Enum::visitSymbol0(SymbolVisitor *visitor)
 
 Template::Template(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name)
     : Scope(translationUnit, sourceLocation, name)
+    , _isExplicitInstantiation(false)
 { }
 
 Template::Template(Clone *clone, Subst *subst, Template *original)
     : Scope(clone, subst, original)
+    , _isExplicitInstantiation(original->_isExplicitInstantiation)
 { }
 
 Template::~Template()
@@ -543,9 +520,6 @@ Symbol *Template::declaration() const
 FullySpecifiedType Template::type() const
 { return FullySpecifiedType(const_cast<Template *>(this)); }
 
-bool Template::isEqualTo(const Type *other) const
-{ return other == this; }
-
 void Template::visitSymbol0(SymbolVisitor *visitor)
 {
     if (visitor->visit(this)) {
@@ -565,6 +539,56 @@ bool Template::match0(const Type *otherType, Matcher *matcher) const
     return false;
 }
 
+ExplicitInstantiation::ExplicitInstantiation(TranslationUnit *translationUnit,
+                                             unsigned sourceLocation, const Name *name)
+    : Scope(translationUnit, sourceLocation, name)
+{ }
+
+ExplicitInstantiation::ExplicitInstantiation(Clone *clone, Subst *subst, ExplicitInstantiation *original)
+    : Scope(clone, subst, original)
+{ }
+
+ExplicitInstantiation::~ExplicitInstantiation()
+{ }
+
+Symbol *ExplicitInstantiation::declaration() const
+{
+    if (isEmpty())
+        return 0;
+
+    if (Symbol *s = memberAt(memberCount() - 1)) {
+        if (s->isClass() || s->isForwardClassDeclaration() ||
+            s->isTemplate() || s->isExplicitInstantiation() ||
+            s->isFunction() || s->isDeclaration()) {
+            return s;
+        }
+    }
+
+    return 0;
+}
+
+FullySpecifiedType ExplicitInstantiation::type() const
+{ return FullySpecifiedType(const_cast<ExplicitInstantiation *>(this)); }
+
+void ExplicitInstantiation::visitSymbol0(SymbolVisitor *visitor)
+{
+    if (visitor->visit(this)) {
+        for (unsigned i = 0; i < memberCount(); ++i) {
+            visitSymbol(memberAt(i), visitor);
+        }
+    }
+}
+
+void ExplicitInstantiation::accept0(TypeVisitor *visitor)
+{ visitor->visit(this); }
+
+bool ExplicitInstantiation::match0(const Type *otherType, Matcher *matcher) const
+{
+    if (const ExplicitInstantiation *otherTy = otherType->asExplicitInstantiationType())
+        return matcher->match(this, otherTy);
+    return false;
+}
+
 Namespace::Namespace(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name)
     : Scope(translationUnit, sourceLocation, name)
     , _isInline(false)
@@ -577,18 +601,6 @@ Namespace::Namespace(Clone *clone, Subst *subst, Namespace *original)
 
 Namespace::~Namespace()
 { }
-
-bool Namespace::isEqualTo(const Type *other) const
-{
-    const Namespace *o = other->asNamespaceType();
-    if (! o)
-        return false;
-    const Name *l = unqualifiedName();
-    const Name *r = o->unqualifiedName();
-    if (l == r || (l && l->isEqualTo(r)))
-        return true;
-    return false;
-}
 
 void Namespace::accept0(TypeVisitor *visitor)
 { visitor->visit(this); }
@@ -639,6 +651,12 @@ bool BaseClass::isVirtual() const
 void BaseClass::setVirtual(bool isVirtual)
 { _isVirtual = isVirtual; }
 
+bool BaseClass::isVariadic() const
+{ return _isVariadic; }
+
+void BaseClass::setVariadic(bool isVariadic)
+{ _isVariadic = isVariadic; }
+
 void BaseClass::visitSymbol0(SymbolVisitor *visitor)
 { visitor->visit(this); }
 
@@ -656,19 +674,6 @@ ForwardClassDeclaration::~ForwardClassDeclaration()
 
 FullySpecifiedType ForwardClassDeclaration::type() const
 { return FullySpecifiedType(const_cast<ForwardClassDeclaration *>(this)); }
-
-bool ForwardClassDeclaration::isEqualTo(const Type *other) const
-{
-    if (const ForwardClassDeclaration *otherClassFwdTy = other->asForwardClassDeclarationType()) {
-        if (name() == otherClassFwdTy->name())
-            return true;
-        else if (name() && otherClassFwdTy->name())
-            return name()->isEqualTo(otherClassFwdTy->name());
-
-        return false;
-    }
-    return false;
-}
 
 void ForwardClassDeclaration::visitSymbol0(SymbolVisitor *visitor)
 { visitor->visit(this); }
@@ -737,19 +742,6 @@ void Class::addBaseClass(BaseClass *baseClass)
 
 FullySpecifiedType Class::type() const
 { return FullySpecifiedType(const_cast<Class *>(this)); }
-
-bool Class::isEqualTo(const Type *other) const
-{
-    const Class *o = other->asClassType();
-    if (! o)
-        return false;
-    const Name *l = unqualifiedName();
-    const Name *r = o->unqualifiedName();
-    if (l == r || (l && l->isEqualTo(r)))
-        return true;
-    else
-        return false;
-}
 
 void Class::visitSymbol0(SymbolVisitor *visitor)
 {
@@ -901,20 +893,6 @@ void ObjCClass::addProtocol(ObjCBaseProtocol *protocol)
 FullySpecifiedType ObjCClass::type() const
 { return FullySpecifiedType(const_cast<ObjCClass *>(this)); }
 
-bool ObjCClass::isEqualTo(const Type *other) const
-{
-    const ObjCClass *o = other->asObjCClassType();
-    if (!o)
-        return false;
-
-    const Name *l = unqualifiedName();
-    const Name *r = o->unqualifiedName();
-    if (l == r || (l && l->isEqualTo(r)))
-        return true;
-    else
-        return false;
-}
-
 void ObjCClass::visitSymbol0(SymbolVisitor *visitor)
 {
     if (visitor->visit(this)) {
@@ -967,20 +945,6 @@ void ObjCProtocol::addProtocol(ObjCBaseProtocol *protocol)
 FullySpecifiedType ObjCProtocol::type() const
 { return FullySpecifiedType(const_cast<ObjCProtocol *>(this)); }
 
-bool ObjCProtocol::isEqualTo(const Type *other) const
-{
-    const ObjCProtocol *o = other->asObjCProtocolType();
-    if (!o)
-        return false;
-
-    const Name *l = unqualifiedName();
-    const Name *r = o->unqualifiedName();
-    if (l == r || (l && l->isEqualTo(r)))
-        return true;
-    else
-        return false;
-}
-
 void ObjCProtocol::visitSymbol0(SymbolVisitor *visitor)
 {
     if (visitor->visit(this)) {
@@ -1016,20 +980,6 @@ ObjCForwardClassDeclaration::~ObjCForwardClassDeclaration()
 FullySpecifiedType ObjCForwardClassDeclaration::type() const
 { return FullySpecifiedType(); }
 
-bool ObjCForwardClassDeclaration::isEqualTo(const Type *other) const
-{
-    if (const ObjCForwardClassDeclaration *otherFwdClass = other->asObjCForwardClassDeclarationType()) {
-        if (name() == otherFwdClass->name())
-            return true;
-        else if (name() && otherFwdClass->name())
-            return name()->isEqualTo(otherFwdClass->name());
-        else
-            return false;
-    }
-
-    return false;
-}
-
 void ObjCForwardClassDeclaration::visitSymbol0(SymbolVisitor *visitor)
 { visitor->visit(this); }
 
@@ -1060,20 +1010,6 @@ ObjCForwardProtocolDeclaration::~ObjCForwardProtocolDeclaration()
 FullySpecifiedType ObjCForwardProtocolDeclaration::type() const
 { return FullySpecifiedType(); }
 
-bool ObjCForwardProtocolDeclaration::isEqualTo(const Type *other) const
-{
-    if (const ObjCForwardProtocolDeclaration *otherFwdProtocol = other->asObjCForwardProtocolDeclarationType()) {
-        if (name() == otherFwdProtocol->name())
-            return true;
-        else if (name() && otherFwdProtocol->name())
-            return name()->isEqualTo(otherFwdProtocol->name());
-        else
-            return false;
-    }
-
-    return false;
-}
-
 void ObjCForwardProtocolDeclaration::visitSymbol0(SymbolVisitor *visitor)
 { visitor->visit(this); }
 
@@ -1101,30 +1037,6 @@ ObjCMethod::ObjCMethod(Clone *clone, Subst *subst, ObjCMethod *original)
 
 ObjCMethod::~ObjCMethod()
 { }
-
-bool ObjCMethod::isEqualTo(const Type *other) const
-{
-    const ObjCMethod *o = other->asObjCMethodType();
-    if (! o)
-        return false;
-
-    const Name *l = unqualifiedName();
-    const Name *r = o->unqualifiedName();
-    if (l == r || (l && l->isEqualTo(r))) {
-        if (argumentCount() != o->argumentCount())
-            return false;
-        else if (! _returnType.isEqualTo(o->_returnType))
-            return false;
-        for (unsigned i = 0; i < argumentCount(); ++i) {
-            Symbol *l = argumentAt(i);
-            Symbol *r = o->argumentAt(i);
-            if (! l->type().isEqualTo(r->type()))
-                return false;
-        }
-        return true;
-    }
-    return false;
-}
 
 void ObjCMethod::accept0(TypeVisitor *visitor)
 { visitor->visit(this); }

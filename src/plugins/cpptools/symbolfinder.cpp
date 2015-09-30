@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -70,11 +71,11 @@ public:
     {
         if (_oper) {
             if (const Name *name = fun->unqualifiedName()) {
-                    if (_oper->isEqualTo(name))
+                    if (_oper->match(name))
                         _result.append(fun);
             }
         } else if (Function *decl = _declaration->type()->asFunctionType()) {
-            if (fun->isEqualTo(decl))
+            if (fun->match(decl))
                 _result.append(fun);
         }
 
@@ -148,7 +149,7 @@ Function *SymbolFinder::findMatchingDefinition(Symbol *declaration,
 
             QList<Function *> viableFunctions;
 
-            ClassOrNamespace *enclosingType = context.lookupType(declaration);
+            LookupScope *enclosingType = context.lookupType(declaration);
             if (!enclosingType)
                 continue; // nothing to do
 
@@ -175,7 +176,7 @@ Function *SymbolFinder::findMatchingDefinition(Symbol *declaration,
 
             foreach (Function *fun, viableFunctions) {
                 if (!(fun->unqualifiedName()
-                      && fun->unqualifiedName()->isEqualTo(declaration->unqualifiedName()))) {
+                      && fun->unqualifiedName()->match(declaration->unqualifiedName()))) {
                     continue;
                 }
                 if (fun->argumentCount() == declarationTy->argumentCount()) {
@@ -187,7 +188,7 @@ Function *SymbolFinder::findMatchingDefinition(Symbol *declaration,
                     for (; argIt < argc; ++argIt) {
                         Symbol *arg = fun->argumentAt(argIt);
                         Symbol *otherArg = declarationTy->argumentAt(argIt);
-                        if (!arg->type().isEqualTo(otherArg->type()))
+                        if (!arg->type().match(otherArg->type()))
                             break;
                     }
 
@@ -211,13 +212,15 @@ Function *SymbolFinder::findMatchingDefinition(Symbol *declaration,
     return 0;
 }
 
-Class *SymbolFinder::findMatchingClassDeclaration(Symbol *declaration, const Snapshot &snapshot)
+Class *SymbolFinder::findMatchingClassDeclaration(Symbol *declaration, const Snapshot &snapshot,
+                                                  const LookupContext *context)
 {
     if (!declaration->identifier())
         return 0;
 
     QString declFile = QString::fromUtf8(declaration->fileName(), declaration->fileNameLength());
 
+    const bool useLocalContext = !context;
     foreach (const QString &file, fileIterationOrder(declFile, snapshot)) {
         Document::Ptr doc = snapshot.document(file);
         if (!doc) {
@@ -229,9 +232,13 @@ Class *SymbolFinder::findMatchingClassDeclaration(Symbol *declaration, const Sna
                                             declaration->identifier()->size()))
             continue;
 
-        LookupContext context(doc, snapshot);
+        QScopedPointer<LookupContext> localContext;
+        if (useLocalContext) {
+            localContext.reset(new LookupContext(doc, snapshot));
+            context = localContext.data();
+        }
 
-        ClassOrNamespace *type = context.lookupType(declaration);
+        LookupScope *type = context->lookupType(declaration);
         if (!type)
             continue;
 
@@ -252,7 +259,7 @@ static void findDeclarationOfSymbol(Symbol *s,
 {
     if (Declaration *decl = s->asDeclaration()) {
         if (Function *declFunTy = decl->type()->asFunctionType()) {
-            if (functionType->isEqualTo(declFunTy))
+            if (functionType->match(declFunTy))
                 typeMatch->prepend(decl);
             else if (functionType->argumentCount() == declFunTy->argumentCount())
                 argumentCountMatch->prepend(decl);
@@ -278,9 +285,9 @@ void SymbolFinder::findMatchingDeclaration(const LookupContext &context,
 
     const Name *functionName = functionType->name();
     if (!functionName)
-        return; // anonymous function names are not valid c++
+        return;
 
-    ClassOrNamespace *binding = 0;
+    LookupScope *binding = 0;
     const QualifiedNameId *qName = functionName->asQualifiedNameId();
     if (qName) {
         if (qName->base())
@@ -316,7 +323,7 @@ void SymbolFinder::findMatchingDeclaration(const LookupContext &context,
 
         if (funcId) {
             for (Symbol *s = scope->find(funcId); s; s = s->next()) {
-                if (!s->name() || !funcId->isEqualTo(s->identifier()) || !s->type()->isFunctionType())
+                if (!s->name() || !funcId->match(s->identifier()) || !s->type()->isFunctionType())
                     continue;
                 findDeclarationOfSymbol(s, functionType, typeMatch, argumentCountMatch, nameMatch);
             }

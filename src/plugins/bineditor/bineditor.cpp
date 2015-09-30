@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -55,18 +56,6 @@
 #include <QToolTip>
 #include <QWheelEvent>
 
-// QByteArray::toLower() is broken, it stops at the first \0
-static void lower(QByteArray &ba)
-{
-    char *data = ba.data();
-    char *end = data + ba.size();
-    while (data != end) {
-        if (*data >= 0x41 && *data <= 0x5A)
-            *data += 0x20;
-        ++data;
-    }
-}
-
 static QByteArray calculateHexPattern(const QByteArray &pattern)
 {
     QByteArray result;
@@ -84,7 +73,7 @@ static QByteArray calculateHexPattern(const QByteArray &pattern)
     return result;
 }
 
-namespace BINEditor {
+namespace BinEditor {
 
 BinEditorWidget::BinEditorWidget(QWidget *parent)
     : QAbstractScrollArea(parent)
@@ -561,7 +550,7 @@ int BinEditorWidget::dataIndexOf(const QByteArray &pattern, int from, bool caseS
         ::memcpy(b + trailing, data.constData(), m_blockSize);
 
         if (!caseSensitive)
-            ::lower(buffer);
+            buffer = buffer.toLower();
 
         int pos = matcher.indexIn(buffer, from - (block * m_blockSize) + trailing);
         if (pos >= 0)
@@ -594,7 +583,7 @@ int BinEditorWidget::dataLastIndexOf(const QByteArray &pattern, int from, bool c
         ::memcpy(b, data.constData(), m_blockSize);
 
         if (!caseSensitive)
-            ::lower(buffer);
+            buffer = buffer.toLower();
 
         int pos = buffer.lastIndexOf(pattern, from - (block * m_blockSize));
         if (pos >= 0)
@@ -617,7 +606,7 @@ int BinEditorWidget::find(const QByteArray &pattern_arg, int from,
     bool caseSensitiveSearch = (findFlags & QTextDocument::FindCaseSensitively);
 
     if (!caseSensitiveSearch)
-        ::lower(pattern);
+        pattern = pattern.toLower();
 
     bool backwards = (findFlags & QTextDocument::FindBackward);
     int found = backwards ? dataLastIndexOf(pattern, from, caseSensitiveSearch)
@@ -733,7 +722,7 @@ void BinEditorWidget::paintEvent(QPaintEvent *e)
         patternData = dataMid(patternOffset, m_numVisibleLines * m_bytesPerLine + (topLine*m_bytesPerLine - patternOffset));
         patternDataHex = patternData;
         if (!m_caseSensitiveSearch)
-            ::lower(patternData);
+            patternData = patternData.toLower();
     }
 
     int foundPatternAt = findPattern(patternData, patternDataHex, patternOffset, patternOffset, &matchLength);
@@ -1278,12 +1267,19 @@ void BinEditorWidget::keyPressEvent(QKeyEvent *e)
 
 
     MoveMode moveMode = e->modifiers() & Qt::ShiftModifier ? KeepAnchor : MoveAnchor;
+    bool ctrlPressed = e->modifiers() & Qt::ControlModifier;
     switch (e->key()) {
     case Qt::Key_Up:
-        setCursorPosition(m_cursorPosition - m_bytesPerLine, moveMode);
+        if (ctrlPressed)
+            verticalScrollBar()->triggerAction(QScrollBar::SliderSingleStepSub);
+        else
+            setCursorPosition(m_cursorPosition - m_bytesPerLine, moveMode);
         break;
     case Qt::Key_Down:
-        setCursorPosition(m_cursorPosition + m_bytesPerLine, moveMode);
+        if (ctrlPressed)
+            verticalScrollBar()->triggerAction(QScrollBar::SliderSingleStepAdd);
+        else
+            setCursorPosition(m_cursorPosition + m_bytesPerLine, moveMode);
         break;
     case Qt::Key_Right:
         setCursorPosition(m_cursorPosition + 1, moveMode);
@@ -1296,12 +1292,13 @@ void BinEditorWidget::keyPressEvent(QKeyEvent *e)
         int line = qMax(0, m_cursorPosition / m_bytesPerLine - verticalScrollBar()->value());
         verticalScrollBar()->triggerAction(e->key() == Qt::Key_PageUp ?
                                            QScrollBar::SliderPageStepSub : QScrollBar::SliderPageStepAdd);
-        setCursorPosition((verticalScrollBar()->value() + line) * m_bytesPerLine + m_cursorPosition % m_bytesPerLine, moveMode);
+        if (!ctrlPressed)
+            setCursorPosition((verticalScrollBar()->value() + line) * m_bytesPerLine + m_cursorPosition % m_bytesPerLine, moveMode);
     } break;
 
     case Qt::Key_Home: {
         int pos;
-        if (e->modifiers() & Qt::ControlModifier)
+        if (ctrlPressed)
             pos = 0;
         else
             pos = m_cursorPosition/m_bytesPerLine * m_bytesPerLine;
@@ -1309,7 +1306,7 @@ void BinEditorWidget::keyPressEvent(QKeyEvent *e)
     } break;
     case Qt::Key_End: {
         int pos;
-        if (e->modifiers() & Qt::ControlModifier)
+        if (ctrlPressed)
             pos = m_size;
         else
             pos = m_cursorPosition/m_bytesPerLine * m_bytesPerLine + 15;
@@ -1379,8 +1376,9 @@ void BinEditorWidget::copy(bool raw)
                              tr("You cannot copy more than 4 MB of binary data."));
         return;
     }
-    const QByteArray &data = dataMid(selStart, selectionLength);
+    QByteArray data = dataMid(selStart, selectionLength);
     if (raw) {
+        data.replace(0, ' ');
         QApplication::clipboard()->setText(QString::fromLatin1(data));
         return;
     }
@@ -1402,7 +1400,7 @@ void BinEditorWidget::highlightSearchResults(const QByteArray &pattern, QTextDoc
     m_searchPattern = pattern;
     m_caseSensitiveSearch = (findFlags & QTextDocument::FindCaseSensitively);
     if (!m_caseSensitiveSearch)
-        ::lower(m_searchPattern);
+        m_searchPattern = m_searchPattern.toLower();
     m_searchPatternHex = calculateHexPattern(pattern);
     viewport()->update();
 }
@@ -1571,6 +1569,7 @@ void BinEditorWidget::updateContents()
     m_oldData = m_data;
     m_data.clear();
     setSizes(baseAddress() + cursorPosition(), m_size, m_blockSize);
+    viewport()->update();
 }
 
 QPoint BinEditorWidget::offsetToPos(int offset) const
@@ -1616,4 +1615,4 @@ void BinEditorWidget::setMarkup(const QList<Markup> &markup)
     viewport()->update();
 }
 
-} // namespace BINEditor
+} // namespace BinEditor

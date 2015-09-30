@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -40,6 +41,7 @@ namespace ProjectExplorer {
 static const char failureRe[] = "\\*\\* BUILD FAILED \\*\\*$";
 static const char successRe[] = "\\*\\* BUILD SUCCEEDED \\*\\*$";
 static const char buildRe[] = "=== BUILD (AGGREGATE )?TARGET (.*) OF PROJECT (.*) WITH .* ===$";
+static const char signatureChangeRe[] = "(.+): replacing existing signature$";
 
 XcodebuildParser::XcodebuildParser() :
     m_fatalErrorCount(0),
@@ -52,6 +54,8 @@ XcodebuildParser::XcodebuildParser() :
     QTC_CHECK(m_successRe.isValid());
     m_buildRe.setPattern(QLatin1String(buildRe));
     QTC_CHECK(m_buildRe.isValid());
+    m_replacingSignatureRe.setPattern(QLatin1String(signatureChangeRe));
+    QTC_CHECK(m_replacingSignatureRe.isValid());
 }
 
 bool XcodebuildParser::hasFatalErrors() const
@@ -73,6 +77,16 @@ void XcodebuildParser::stdOutput(const QString &line)
             m_xcodeBuildParserState = OutsideXcodebuild;
             return;
         }
+        if (m_replacingSignatureRe.indexIn(lne) > -1) {
+            Task task(Task::Warning,
+                      QCoreApplication::translate("ProjectExplorer::XcodebuildParser",
+                                                  "Replacing signature"),
+                      Utils::FileName::fromString(m_replacingSignatureRe.cap(1)), /* filename */
+                      -1, /* line */
+                      Constants::TASK_CATEGORY_COMPILE);
+            taskAdded(task, 1);
+            return;
+        }
         IOutputParser::stdError(line);
     } else {
         IOutputParser::stdOutput(line);
@@ -91,7 +105,7 @@ void XcodebuildParser::stdError(const QString &line)
                                               "Xcodebuild failed."),
                   Utils::FileName(), /* filename */
                   -1, /* line */
-                  ProjectExplorer::Constants::TASK_CATEGORY_COMPILE);
+                  Constants::TASK_CATEGORY_COMPILE);
         taskAdded(task);
         return;
     }
@@ -213,14 +227,14 @@ void ProjectExplorerPlugin::testXcodebuildParserParsing_data()
                                    "unknownErr")
             << OutputParserTester::STDERR
             << QString() << QString()
-            << (QList<ProjectExplorer::Task>()
-                << ProjectExplorer::Task(
+            << (QList<Task>()
+                << Task(
                     Task::Error,
                     QCoreApplication::translate("ProjectExplorer::XcodebuildParser",
                                                 "Xcodebuild failed."),
                     Utils::FileName(), /* filename */
                     -1, /* line */
-                    ProjectExplorer::Constants::TASK_CATEGORY_COMPILE))
+                    Constants::TASK_CATEGORY_COMPILE))
             << QString()
             << XcodebuildParser::UnknownXcodebuildState;
     QTest::newRow("switch out->unknown")
@@ -230,16 +244,36 @@ void ProjectExplorerPlugin::testXcodebuildParserParsing_data()
                                    "unknownErr")
             << OutputParserTester::STDERR
             << QString() << QString::fromLatin1("outErr\n")
-            << (QList<ProjectExplorer::Task>()
-                << ProjectExplorer::Task(
+            << (QList<Task>()
+                << Task(
                     Task::Error,
                     QCoreApplication::translate("ProjectExplorer::XcodebuildParser",
                                                 "Xcodebuild failed."),
                     Utils::FileName(), /* filename */
                     -1, /* line */
-                    ProjectExplorer::Constants::TASK_CATEGORY_COMPILE))
+                    Constants::TASK_CATEGORY_COMPILE))
             << QString()
             << XcodebuildParser::UnknownXcodebuildState;
+    QTest::newRow("inside catch codesign replace signature")
+            << XcodebuildParser::InXcodebuild
+            << QString::fromLatin1("/somepath/somefile.app: replacing existing signature") << OutputParserTester::STDOUT
+            << QString() << QString()
+            << (QList<Task>()
+                << Task(Task::Warning,
+                        QCoreApplication::translate("ProjectExplorer::XcodebuildParser",
+                                                    "Replacing signature"),
+                        Utils::FileName::fromString(QLatin1String("/somepath/somefile.app")), /* filename */
+                        -1, /* line */
+                        Constants::TASK_CATEGORY_COMPILE))
+            << QString()
+            << XcodebuildParser::InXcodebuild;
+    QTest::newRow("outside forward codesign replace signature")
+            << XcodebuildParser::OutsideXcodebuild
+            << QString::fromLatin1("/somepath/somefile.app: replacing existing signature") << OutputParserTester::STDOUT
+            << QString::fromLatin1("/somepath/somefile.app: replacing existing signature\n") << QString()
+            << QList<Task>()
+            << QString()
+            << XcodebuildParser::OutsideXcodebuild;
 }
 
 void ProjectExplorerPlugin::testXcodebuildParserParsing()

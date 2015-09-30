@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -34,11 +35,14 @@
 
 #include <coreplugin/documentmanager.h>
 #include <coreplugin/icore.h>
-#include <vcsbase/vcsbaseoutputwindow.h>
+#include <vcsbase/vcsoutputwindow.h>
+#include <coreplugin/messagebox.h>
 
 #include <QMessageBox>
 #include <QProcess>
 #include <QPushButton>
+
+using namespace VcsBase;
 
 namespace Git {
 namespace Internal {
@@ -47,35 +51,35 @@ class MergeToolProcess : public QProcess
 {
 public:
     MergeToolProcess(QObject *parent = 0) :
-        QProcess(parent),
-        m_window(VcsBase::VcsBaseOutputWindow::instance())
+        QProcess(parent)
     {
     }
 
 protected:
-    qint64 readData(char *data, qint64 maxlen)
+    qint64 readData(char *data, qint64 maxlen) override
     {
         qint64 res = QProcess::readData(data, maxlen);
         if (res > 0)
-            m_window->append(QString::fromLocal8Bit(data, res));
+            VcsOutputWindow::append(QString::fromLocal8Bit(data, res));
         return res;
     }
 
-    qint64 writeData(const char *data, qint64 len)
+    qint64 writeData(const char *data, qint64 len) override
     {
         if (len > 0)
-            m_window->append(QString::fromLocal8Bit(data, len));
+            VcsOutputWindow::append(QString::fromLocal8Bit(data, len));
         return QProcess::writeData(data, len);
     }
-
-private:
-    VcsBase::VcsBaseOutputWindow *m_window;
 };
 
 MergeTool::MergeTool(QObject *parent) :
     QObject(parent),
     m_process(0),
-    m_gitClient(GitPlugin::instance()->gitClient())
+    m_mergeType(NormalMerge),
+    m_localState(UnknownState),
+    m_remoteState(UnknownState),
+    m_client(GitPlugin::instance()->client()),
+    m_merging(false)
 {
 }
 
@@ -89,18 +93,18 @@ bool MergeTool::start(const QString &workingDirectory, const QStringList &files)
     QStringList arguments;
     arguments << QLatin1String("mergetool") << QLatin1String("-y");
     if (!files.isEmpty()) {
-        if (m_gitClient->gitVersion() < 0x010708) {
-            QMessageBox::warning(Core::ICore::dialogParent(), tr("Error"),
-                                 tr("File input for the merge tool requires Git 1.7.8, or later."));
+        if (m_client->gitVersion() < 0x010708) {
+            Core::AsynchronousMessageBox::warning(tr("Error"),
+                                                   tr("File input for the merge tool requires Git 1.7.8, or later."));
             return false;
         }
         arguments << files;
     }
     m_process = new MergeToolProcess(this);
     m_process->setWorkingDirectory(workingDirectory);
-    const QString binary = m_gitClient->gitBinaryPath();
-    VcsBase::VcsBaseOutputWindow::instance()->appendCommand(workingDirectory, binary, arguments);
-    m_process->start(binary, arguments);
+    const Utils::FileName binary = m_client->vcsBinary();
+    VcsOutputWindow::appendCommand(workingDirectory, binary, arguments);
+    m_process->start(binary.toString(), arguments);
     if (m_process->waitForStarted()) {
         connect(m_process, SIGNAL(finished(int)), this, SLOT(done()));
         connect(m_process, SIGNAL(readyRead()), this, SLOT(readData()));
@@ -190,7 +194,7 @@ void MergeTool::chooseAction()
     msgBox.setWindowTitle(tr("Merge Conflict"));
     msgBox.setIcon(QMessageBox::Question);
     msgBox.setStandardButtons(QMessageBox::Abort);
-    msgBox.setText(tr("%1 merge conflict for '%2'\nLocal: %3\nRemote: %4")
+    msgBox.setText(tr("%1 merge conflict for \"%2\"\nLocal: %3\nRemote: %4")
                    .arg(mergeTypeName())
                    .arg(m_fileName)
                    .arg(stateName(m_localState, m_localInfo))
@@ -225,6 +229,7 @@ void MergeTool::chooseAction()
     ba.append(key.toChar().toLatin1());
     ba.append('\n');
     m_process->write(ba);
+    m_process->waitForBytesWritten();
 }
 
 void MergeTool::addButton(QMessageBox *msgBox, const QString &text, char key)
@@ -254,22 +259,22 @@ void MergeTool::readData()
             } else {
                 m_process->write("n\n");
             }
+            m_process->waitForBytesWritten();
         }
     }
 }
 
 void MergeTool::done()
 {
-    VcsBase::VcsBaseOutputWindow *outputWindow = VcsBase::VcsBaseOutputWindow::instance();
     const QString workingDirectory = m_process->workingDirectory();
     int exitCode = m_process->exitCode();
     if (!exitCode) {
-        outputWindow->appendMessage(tr("Merge tool process finished successfully."));
-        m_gitClient->continueCommandIfNeeded(workingDirectory);
+        VcsOutputWindow::appendMessage(tr("Merge tool process finished successfully."));
     } else {
-        outputWindow->appendError(tr("Merge tool process terminated with exit code %1")
+        VcsOutputWindow::appendError(tr("Merge tool process terminated with exit code %1")
                                   .arg(exitCode));
     }
+    m_client->continueCommandIfNeeded(workingDirectory, exitCode == 0);
     GitPlugin::instance()->gitVersionControl()->emitRepositoryChanged(workingDirectory);
     deleteLater();
 }

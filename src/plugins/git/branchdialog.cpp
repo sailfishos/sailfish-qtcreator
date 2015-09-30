@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -39,7 +40,7 @@
 
 #include <utils/qtcassert.h>
 #include <utils/execmenu.h>
-#include <vcsbase/vcsbaseoutputwindow.h>
+#include <vcsbase/vcsoutputwindow.h>
 #include <coreplugin/documentmanager.h>
 
 #include <QAction>
@@ -50,13 +51,15 @@
 
 #include <QDebug>
 
+using namespace VcsBase;
+
 namespace Git {
 namespace Internal {
 
 BranchDialog::BranchDialog(QWidget *parent) :
     QDialog(parent),
     m_ui(new Ui::BranchDialog),
-    m_model(new BranchModel(GitPlugin::instance()->gitClient(), this))
+    m_model(new BranchModel(GitPlugin::instance()->client(), this))
 {
     setModal(false);
     setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
@@ -99,7 +102,7 @@ void BranchDialog::refresh(const QString &repository, bool force)
     m_ui->repositoryLabel->setText(StashDialog::msgRepositoryLabel(m_repository));
     QString errorMessage;
     if (!m_model->refresh(m_repository, &errorMessage))
-        VcsBase::VcsBaseOutputWindow::instance()->appendError(errorMessage);
+        VcsOutputWindow::appendError(errorMessage);
 
     m_ui->branchView->expandAll();
 }
@@ -152,19 +155,23 @@ void BranchDialog::add()
 
     QStringList localNames = m_model->localBranchNames();
 
-    QString suggestedNameBase = trackedBranch.mid(trackedBranch.lastIndexOf(QLatin1Char('/')) + 1);
-    QString suggestedName = suggestedNameBase;
-    int i = 2;
-    while (localNames.contains(suggestedName)) {
-        suggestedName = suggestedNameBase + QString::number(i);
-        ++i;
+    QString suggestedName;
+    if (!isTag) {
+        QString suggestedNameBase;
+        suggestedNameBase = trackedBranch.mid(trackedBranch.lastIndexOf(QLatin1Char('/')) + 1);
+        suggestedName = suggestedNameBase;
+        int i = 2;
+        while (localNames.contains(suggestedName)) {
+            suggestedName = suggestedNameBase + QString::number(i);
+            ++i;
+        }
     }
 
     BranchAddDialog branchAddDialog(localNames, true, this);
     branchAddDialog.setBranchName(suggestedName);
     branchAddDialog.setTrackedBranchName(isTag ? QString() : trackedBranch, !isLocal);
 
-    if (branchAddDialog.exec() == QDialog::Accepted && m_model) {
+    if (branchAddDialog.exec() == QDialog::Accepted) {
         QModelIndex idx = m_model->addBranch(branchAddDialog.branchName(), branchAddDialog.track(), trackedIndex);
         if (!idx.isValid())
             return;
@@ -187,10 +194,10 @@ void BranchDialog::checkout()
     const QString currentBranch = m_model->fullName(m_model->currentBranch());
     const QString nextBranch = m_model->fullName(idx);
     const QString popMessageStart = QCoreApplication::applicationName() +
-            QLatin1String(" ") + nextBranch + QLatin1String("-AutoStash ");
+            QLatin1Char(' ') + nextBranch + QLatin1String("-AutoStash ");
 
     BranchCheckoutDialog branchCheckoutDialog(this, currentBranch, nextBranch);
-    GitClient *gitClient = GitPlugin::instance()->gitClient();
+    GitClient *gitClient = GitPlugin::instance()->client();
 
     if (gitClient->gitStatus(m_repository, StatusMode(NoUntracked | NoSubmodules)) != GitClient::StatusChanged)
         branchCheckoutDialog.foundNoLocalChanges();
@@ -208,7 +215,7 @@ void BranchDialog::checkout()
         !branchCheckoutDialog.hasStashForNextBranch()) {
         // No local changes and no Auto Stash - no need to open dialog
         m_model->checkoutBranch(idx);
-    } else if (branchCheckoutDialog.exec() == QDialog::Accepted && m_model) {
+    } else if (branchCheckoutDialog.exec() == QDialog::Accepted) {
 
         if (branchCheckoutDialog.makeStashOfCurrentBranch()) {
             if (gitClient->synchronousStash(m_repository,
@@ -256,11 +263,11 @@ void BranchDialog::remove()
     const bool wasMerged = isTag ? true : m_model->branchIsMerged(selected);
     QString message;
     if (isTag)
-        message = tr("Would you like to delete the tag '%1'?").arg(branchName);
+        message = tr("Would you like to delete the tag \"%1\"?").arg(branchName);
     else if (wasMerged)
-        message = tr("Would you like to delete the branch '%1'?").arg(branchName);
+        message = tr("Would you like to delete the branch \"%1\"?").arg(branchName);
     else
-        message = tr("Would you like to delete the <b>unmerged</b> branch '%1'?").arg(branchName);
+        message = tr("Would you like to delete the <b>unmerged</b> branch \"%1\"?").arg(branchName);
 
     if (QMessageBox::question(this, isTag ? tr("Delete Tag") : tr("Delete Branch"),
                               message, QMessageBox::Yes | QMessageBox::No,
@@ -292,7 +299,7 @@ void BranchDialog::rename()
 
     branchAddDialog.exec();
 
-    if (branchAddDialog.result() == QDialog::Accepted && m_model) {
+    if (branchAddDialog.result() == QDialog::Accepted) {
         if (branchAddDialog.branchName() == oldName)
             return;
         if (isTag)
@@ -309,8 +316,7 @@ void BranchDialog::diff()
     QString fullName = m_model->fullName(selectedIndex(), true);
     if (fullName.isEmpty())
         return;
-    // Do not pass working dir by reference since it might change
-    GitPlugin::instance()->gitClient()->diffBranch(QString(m_repository), QStringList(), fullName);
+    GitPlugin::instance()->client()->diffBranch(m_repository, fullName);
 }
 
 void BranchDialog::log()
@@ -318,8 +324,7 @@ void BranchDialog::log()
     QString branchName = m_model->fullName(selectedIndex(), true);
     if (branchName.isEmpty())
         return;
-    // Do not pass working dir by reference since it might change
-    GitPlugin::instance()->gitClient()->log(QString(m_repository), QString(), false, QStringList(branchName));
+    GitPlugin::instance()->client()->log(m_repository, QString(), false, QStringList(branchName));
 }
 
 void BranchDialog::reset()
@@ -329,10 +334,10 @@ void BranchDialog::reset()
     if (currentName.isEmpty() || branchName.isEmpty())
         return;
 
-    if (QMessageBox::question(this, tr("Git Reset"), tr("Hard reset branch '%1' to '%2'?")
+    if (QMessageBox::question(this, tr("Git Reset"), tr("Hard reset branch \"%1\" to \"%2\"?")
                               .arg(currentName).arg(branchName),
                               QMessageBox::Yes, QMessageBox::No) == QMessageBox::Yes) {
-        GitPlugin::instance()->gitClient()->reset(QString(m_repository), QLatin1String("--hard"),
+        GitPlugin::instance()->client()->reset(QString(m_repository), QLatin1String("--hard"),
                                                   branchName);
 
     }
@@ -346,7 +351,7 @@ void BranchDialog::merge()
     QTC_CHECK(idx != m_model->currentBranch()); // otherwise the button would not be enabled!
 
     const QString branch = m_model->fullName(idx, true);
-    GitClient *client = GitPlugin::instance()->gitClient();
+    GitClient *client = GitPlugin::instance()->client();
     bool allowFastForward = true;
     if (client->isFastForwardMerge(m_repository, branch)) {
         QMenu popup;
@@ -369,7 +374,7 @@ void BranchDialog::rebase()
     QTC_CHECK(idx != m_model->currentBranch()); // otherwise the button would not be enabled!
 
     const QString baseBranch = m_model->fullName(idx, true);
-    GitClient *client = GitPlugin::instance()->gitClient();
+    GitClient *client = GitPlugin::instance()->client();
     if (client->beginStashScope(m_repository, QLatin1String("rebase")))
         client->rebase(m_repository, baseBranch);
 }
@@ -382,7 +387,7 @@ void BranchDialog::cherryPick()
     QTC_CHECK(idx != m_model->currentBranch()); // otherwise the button would not be enabled!
 
     const QString branch = m_model->fullName(idx, true);
-    GitPlugin::instance()->gitClient()->synchronousCherryPick(m_repository, branch);
+    GitPlugin::instance()->client()->synchronousCherryPick(m_repository, branch);
 }
 
 void BranchDialog::setRemoteTracking()

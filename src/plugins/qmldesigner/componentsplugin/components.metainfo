@@ -171,7 +171,7 @@ MetaInfo {
             libraryIcon: ":/componentsplugin/images/sliderh.png"
             version: "1.0"
             requiredImport: "QtQuick.Controls"
-            Property { name: "orientation"; type: "int"; value: "0"; }
+            Property { name: "orientation"; type: "Enumeration"; value: "Qt.Vertical"; }
         }
     }
 
@@ -213,7 +213,7 @@ MetaInfo {
         }
     }
 
- Type {
+    Type {
         name: "QtQuick.Controls.GroupBox"
         icon: ":/componentsplugin/images/window16.png"
 
@@ -227,18 +227,18 @@ MetaInfo {
             Property { name: "width"; type: "int"; value: 360; }
             Property { name: "height"; type: "int"; value: 300; }
 
-            Property { name: "title"; type: "binding"; value: "qsTr(\"Check Box\")"; }
+            Property { name: "title"; type: "binding"; value: "qsTr(\"Group Box\")"; }
         }
     }
 
     Type {
         name: "QtQuick.Controls.Frame"
-        icon: ":/desktopplugin//images/window16.png"
+        icon: ":/componentsplugin//images/window16.png"
 
         ItemLibraryEntry {
             name: "Frame"
             category: "Qt Quick - Controls"
-            libraryIcon: ":/desktopplugin/images/window.png"
+            libraryIcon: ":/componentsplugin/images/window.png"
             version: "1.0"
             requiredImport: "QtQuick.Controls"
 
@@ -249,57 +249,27 @@ MetaInfo {
 
     Type {
         name: "QtQuick.Controls.ToolButton"
-        icon: ":/desktopplugin/images/button16.png"
+        icon: ":/componentsplugin/images/button16.png"
 
         ItemLibraryEntry {
             name: "Tool Button"
             category: "Qt Quick - Controls"
-            libraryIcon: ":/desktopplugin/images/button.png"
+            libraryIcon: ":/componentsplugin/images/button.png"
             version: "1.0"
             requiredImport: "QtQuick.Controls"
 
 
-        }
-    }
-
-
-    Type {
-        name: "QtQuick.Controls.ToolBar"
-        icon: ":/desktopplugin/images/toolbar16.png"
-
-        ItemLibraryEntry {
-            name: "Tool Bar"
-            category: "Qt Quick - Controls"
-            libraryIcon: ":/desktopplugin/images/toolbar.png"
-            version: "1.0"
-            requiredImport: "QtQuick.Controls"
-
-            Property { name: "width"; type: "int"; value: 360; }
-            Property { name: "height"; type: "int"; value: 50; }
-        }
-    }
-
-    Type {
-        name: "QtQuick.Controls.StatusBar"
-        icon: ":/desktopplugin/images/toolbar16.png"
-
-        ItemLibraryEntry {
-            name: "Status Bar"
-            category: "Qt Quick - Controls"
-            libraryIcon: ":/desktopplugin/images/toolbar.png"
-            version: "1.0"
-            requiredImport: "QtQuick.Controls"
         }
     }
 
     Type {
         name: "QtQuick.Controls.Dial"
-        //icon: ":/desktopplugin/images/progressbar16.png"
+        //icon: ":/componentsplugin/images/progressbar16.png"
 
         ItemLibraryEntry {
             name: "Dial"
             category: "Qt Quick - Controls"
-            //libraryIcon: ":/desktopplugin/images/progressbar.png"
+            //libraryIcon: ":/componentsplugin/images/progressbar.png"
             version: "1.0"
             requiredImport: "QtQuick.Controls"
 

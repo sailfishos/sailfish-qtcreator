@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -41,11 +42,11 @@ namespace QmlProjectManager {
 namespace Internal {
 
 QmlProjectNode::QmlProjectNode(QmlProject *project, Core::IDocument *projectFile)
-    : ProjectExplorer::ProjectNode(QFileInfo(projectFile->filePath()).absoluteFilePath()),
+    : ProjectExplorer::ProjectNode(projectFile->filePath()),
       m_project(project),
       m_projectFile(projectFile)
 {
-    setDisplayName(QFileInfo(projectFile->filePath()).completeBaseName());
+    setDisplayName(projectFile->filePath().toFileInfo().completeBaseName());
     // make overlay
     const QSize desiredSize = QSize(16, 16);
     const QIcon projectBaseIcon(QLatin1String(":/qmlproject/images/qmlfolder.png"));
@@ -62,7 +63,7 @@ Core::IDocument *QmlProjectNode::projectFile() const
 { return m_projectFile; }
 
 QString QmlProjectNode::projectFilePath() const
-{ return m_projectFile->filePath(); }
+{ return m_projectFile->filePath().toString(); }
 
 void QmlProjectNode::refresh()
 {
@@ -79,7 +80,7 @@ void QmlProjectNode::refresh()
                                               /* generated = */ false);
 
     QStringList files = m_project->files();
-    files.removeAll(m_project->filesFileName());
+    files.removeAll(m_project->filesFileName().toString());
 
     addFileNodes(QList<FileNode *>()
                  << projectFilesNode);
@@ -113,7 +114,8 @@ void QmlProjectNode::refresh()
         QList<FileNode *> fileNodes;
         foreach (const QString &file, it.value()) {
             FileType fileType = SourceType; // ### FIXME
-            FileNode *fileNode = new FileNode(file, fileType, /*generated = */ false);
+            FileNode *fileNode = new FileNode(Utils::FileName::fromString(file),
+                                              fileType, /*generated = */ false);
             fileNodes.append(fileNode);
         }
 
@@ -128,7 +130,7 @@ ProjectExplorer::FolderNode *QmlProjectNode::findOrCreateFolderByName(const QStr
     if (! end)
         return 0;
 
-    QString baseDir = QFileInfo(path()).path();
+    Utils::FileName folderPath = path().parentDir();
 
     QString folderName;
     for (int i = 0; i < end; ++i) {
@@ -144,7 +146,8 @@ ProjectExplorer::FolderNode *QmlProjectNode::findOrCreateFolderByName(const QStr
     else if (FolderNode *folder = m_folderByName.value(folderName))
         return folder;
 
-    FolderNode *folder = new FolderNode(baseDir + QLatin1Char('/') + folderName);
+    folderPath.appendPath(folderName);
+    FolderNode *folder = new FolderNode(folderPath);
     folder->setDisplayName(component);
 
     m_folderByName.insert(folderName, folder);
@@ -219,12 +222,6 @@ bool QmlProjectNode::deleteFiles(const QStringList & /*filePaths*/)
 bool QmlProjectNode::renameFile(const QString & /*filePath*/, const QString & /*newFilePath*/)
 {
     return true;
-}
-
-QList<ProjectExplorer::RunConfiguration *> QmlProjectNode::runConfigurationsFor(Node *node)
-{
-    Q_UNUSED(node)
-    return QList<ProjectExplorer::RunConfiguration *>();
 }
 
 } // namespace Internal

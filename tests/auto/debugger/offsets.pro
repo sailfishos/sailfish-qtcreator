@@ -1,10 +1,17 @@
 QT -= gui widgets
 include(../qttest.pri)
-include(../../../src/private_headers.pri)
 
-greaterThan(QT_MAJOR_VERSION, 4) {
-greaterThan(QT_MINOR_VERSION, 1): QT += core_private
-else: QT += core-private
+QT += core-private
+
+CONFIG -= c++11 # Fails to build with boost (due to #define private public)
+
+exists(/usr/include/boost/unordered/unordered_set.hpp) {
+    DEFINES += HAS_BOOST
+}
+
+exists(/usr/local/include/boost/unordered/unordered_set.hpp) {
+    DEFINES += HAS_BOOST
+    INCLUDEPATH += /usr/local/include
 }
 
 SOURCES += tst_offsets.cpp

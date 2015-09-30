@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -46,7 +47,7 @@ QMLRewriter::QMLRewriter(QmlDesigner::TextModifier &textModifier):
 {
 }
 
-bool QMLRewriter::operator()(QmlJS::AST::UiProgram *ast)
+bool QMLRewriter::operator()(UiProgram *ast)
 {
     setDidRewriting(false);
 
@@ -70,7 +71,7 @@ QString QMLRewriter::textBetween(int startPosition, int endPosition) const
     return m_textModifier->text().mid(startPosition, endPosition - startPosition);
 }
 
-QString QMLRewriter::textAt(const QmlJS::AST::SourceLocation &location) const
+QString QMLRewriter::textAt(const SourceLocation &location) const
 {
     return m_textModifier->text().mid(location.offset, location.length);
 }
@@ -153,7 +154,7 @@ QString QMLRewriter::removeIndentation(const QString &text, unsigned depth)
     return result;
 }
 
-QmlJS::AST::SourceLocation QMLRewriter::calculateLocation(QmlJS::AST::UiQualifiedId *id)
+SourceLocation QMLRewriter::calculateLocation(UiQualifiedId *id)
 {
     Q_ASSERT(id != 0);
 
@@ -169,7 +170,7 @@ QmlJS::AST::SourceLocation QMLRewriter::calculateLocation(QmlJS::AST::UiQualifie
     return SourceLocation(startLocation.offset, endLocation.end() - startLocation.offset);
 }
 
-bool QMLRewriter::isMissingSemicolon(QmlJS::AST::UiObjectMember *member)
+bool QMLRewriter::isMissingSemicolon(UiObjectMember *member)
 {
     UiScriptBinding *binding = AST::cast<UiScriptBinding *>(member);
     if (binding)
@@ -178,7 +179,7 @@ bool QMLRewriter::isMissingSemicolon(QmlJS::AST::UiObjectMember *member)
         return false;
 }
 
-bool QMLRewriter::isMissingSemicolon(QmlJS::AST::Statement *stmt)
+bool QMLRewriter::isMissingSemicolon(Statement *stmt)
 {
     if (ExpressionStatement *eStmt = AST::cast<ExpressionStatement *>(stmt)) {
         return !eStmt->semicolonToken.isValid();
@@ -313,7 +314,7 @@ UiObjectMemberList *QMLRewriter::searchMemberToInsertAfter(UiObjectMemberList *m
         else if (UiScriptBinding *scriptBinding = cast<UiScriptBinding*>(member))
             orderedMembers[toString(scriptBinding->qualifiedId)] = iter;
         else if (cast<UiPublicMember*>(member))
-            orderedMembers[QLatin1String("property")] = iter;
+            orderedMembers[QStringLiteral("property")] = iter;
     }
 
     int idx = propertyOrder.indexOf(propertyName);

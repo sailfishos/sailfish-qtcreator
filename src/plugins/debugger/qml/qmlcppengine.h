@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -35,22 +36,21 @@
 namespace Debugger {
 namespace Internal {
 
-class QmlCppEnginePrivate;
+class QmlEngine;
 
 class QmlCppEngine : public DebuggerEngine
 {
     Q_OBJECT
 
 public:
-    QmlCppEngine(const DebuggerStartParameters &sp, QString *errorMessage);
+    QmlCppEngine(const DebuggerRunParameters &sp, QStringList *errors);
     ~QmlCppEngine();
 
     bool canDisplayTooltip() const;
-    bool setToolTipExpression(const QPoint &mousePos,
-        TextEditor::ITextEditor * editor, const DebuggerToolTipContext &);
-    void updateWatchData(const WatchData &data,
-        const WatchUpdateFlags &flags);
-    void watchDataSelected(const QByteArray &iname);
+    bool canHandleToolTip(const DebuggerToolTipContext &) const;
+    void updateItem(const QByteArray &iname);
+    void expandItem(const QByteArray &iname);
+    void selectWatchData(const QByteArray &iname);
 
     void watchPoint(const QPoint &);
     void fetchMemory(MemoryAgent *, QObject *, quint64 addr, quint64 length);
@@ -67,7 +67,7 @@ public:
     void reloadSourceFiles();
     void reloadFullStack();
 
-    void setRegisterValue(int regnr, const QString &value);
+    void setRegisterValue(const QByteArray &name, const QString &value);
     bool hasCapability(unsigned cap) const;
 
     bool isSynchronous() const;
@@ -77,17 +77,16 @@ public:
     void updateAll();
 
     void attemptBreakpointSynchronization();
-    bool acceptsBreakpoint(BreakpointModelId id) const;
+    bool acceptsBreakpoint(Breakpoint bp) const;
     void selectThread(ThreadId threadId);
 
-    void assignValueInDebugger(const WatchData *data,
+    void assignValueInDebugger(WatchItem *item,
         const QString &expr, const QVariant &value);
 
-    DebuggerEngine *cppEngine() const;
+    DebuggerEngine *cppEngine() { return m_cppEngine; }
     DebuggerEngine *qmlEngine() const;
 
-    void notifyEngineRemoteSetupDone(int gdbServerPort, int qmlPort);
-    void notifyEngineRemoteSetupFailed(const QString &message);
+    void notifyEngineRemoteSetupFinished(const RemoteSetupResult &result);
 
     void showMessage(const QString &msg, int channel = LogDebug,
         int timeout = -1) const;
@@ -97,6 +96,8 @@ public:
 
 protected:
     void detachDebugger();
+    void reloadDebuggingHelpers();
+    void debugLastCommand();
     void executeStep();
     void executeStepOut();
     void executeNext();
@@ -128,19 +129,17 @@ protected:
     void notifyInferiorSetupOk();
     void notifyEngineRemoteServerRunning(const QByteArray &, int pid);
 
-signals:
-    void aboutToNotifyInferiorSetupOk();
-
 private:
     void engineStateChanged(DebuggerState newState);
     void setState(DebuggerState newState, bool forced = false);
     void slaveEngineStateChanged(DebuggerEngine *slaveEngine, DebuggerState state);
 
-    void readyToExecuteQmlStep();
     void setActiveEngine(DebuggerEngine *engine);
 
 private:
-    QmlCppEnginePrivate *d;
+    QmlEngine *m_qmlEngine;
+    DebuggerEngine *m_cppEngine;
+    DebuggerEngine *m_activeEngine;
 };
 
 } // namespace Internal

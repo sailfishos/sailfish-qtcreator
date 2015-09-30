@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -67,31 +68,30 @@ public:
     QHash<QString, QmlDebugClient *> plugins;
 
     void advertisePlugins();
-    void connectDeviceSignals();
+    void flush();
 
 public Q_SLOTS:
     void connected();
+    void disconnected();
+    void error(QAbstractSocket::SocketError error);
     void readyRead();
-    void deviceAboutToClose();
+    void stateChanged(QAbstractSocket::SocketState state);
 };
 
 QmlDebugConnectionPrivate::QmlDebugConnectionPrivate(QmlDebugConnection *c)
     : QObject(c), q(c), protocol(0), device(0), gotHello(false)
 {
-    protocol = new QPacketProtocol(q, this);
-    QObject::connect(c, SIGNAL(connected()), this, SLOT(connected()));
-    QObject::connect(protocol, SIGNAL(readyRead()), this, SLOT(readyRead()));
 }
 
 void QmlDebugConnectionPrivate::advertisePlugins()
 {
-    if (!q->isConnected() || !gotHello)
+    if (!q->isOpen())
         return;
 
     QPacket pack;
     pack << serverId << 1 << plugins.keys();
     protocol->send(pack);
-    q->flush();
+    flush();
 }
 
 void QmlDebugConnectionPrivate::connected()
@@ -100,7 +100,36 @@ void QmlDebugConnectionPrivate::connected()
     QDataStream str;
     pack << serverId << 0 << protocolVersion << plugins.keys() << QDataStream().version();
     protocol->send(pack);
-    q->flush();
+    flush();
+}
+
+void QmlDebugConnectionPrivate::disconnected()
+{
+    if (gotHello) {
+        gotHello = false;
+        QHash<QString, QmlDebugClient*>::iterator iter = plugins.begin();
+        for (; iter != plugins.end(); ++iter)
+            iter.value()->stateChanged(QmlDebugClient::NotConnected);
+        emit q->closed();
+    }
+    delete protocol;
+    protocol = 0;
+    if (device) {
+        // Don't immediately delete it as it may do some cleanup on returning from a signal.
+        device->deleteLater();
+        device = 0;
+    }
+}
+
+void QmlDebugConnectionPrivate::error(QAbstractSocket::SocketError socketError)
+{
+    //: %1=error code, %2=error message
+    emit q->errorMessage(tr("Error: (%1) %2").arg(socketError)
+             .arg(device ? device->errorString() : tr("<device is gone>")));
+    if (socketError == QAbstractSocket::RemoteHostClosedError)
+        emit q->error(QDebugSupport::RemoteClosedConnectionError);
+    else
+        emit q->error(QDebugSupport::UnknownError);
 }
 
 void QmlDebugConnectionPrivate::readyRead()
@@ -154,11 +183,12 @@ void QmlDebugConnectionPrivate::readyRead()
 
         QHash<QString, QmlDebugClient *>::Iterator iter = plugins.begin();
         for (; iter != plugins.end(); ++iter) {
-            ClientStatus newStatus = Unavailable;
+            QmlDebugClient::State newState = QmlDebugClient::Unavailable;
             if (serverPlugins.contains(iter.key()))
-                newStatus = Enabled;
-            iter.value()->statusChanged(newStatus);
+                newState = QmlDebugClient::Enabled;
+            iter.value()->stateChanged(newState);
         }
+        emit q->opened();
     }
 
     while (protocol->packetsAvailable()) {
@@ -193,13 +223,13 @@ void QmlDebugConnectionPrivate::readyRead()
                 QHash<QString, QmlDebugClient *>::Iterator iter = plugins.begin();
                 for (; iter != plugins.end(); ++iter) {
                     const QString pluginName = iter.key();
-                    ClientStatus newStatus = Unavailable;
+                    QmlDebugClient::State newState = QmlDebugClient::Unavailable;
                     if (serverPlugins.contains(pluginName))
-                        newStatus = Enabled;
+                        newState = QmlDebugClient::Enabled;
 
                     if (oldServerPlugins.contains(pluginName)
                             != serverPlugins.contains(pluginName)) {
-                        iter.value()->statusChanged(newStatus);
+                        iter.value()->stateChanged(newState);
                     }
                 }
             } else {
@@ -219,94 +249,66 @@ void QmlDebugConnectionPrivate::readyRead()
     }
 }
 
-void QmlDebugConnectionPrivate::deviceAboutToClose()
+void QmlDebugConnectionPrivate::stateChanged(QAbstractSocket::SocketState state)
 {
-    // This is nasty syntax but we want to emit our own aboutToClose signal (by calling QIODevice::close())
-    // without calling the underlying device close fn as that would cause an infinite loop
-    q->QIODevice::close();
+    switch (state) {
+    case QAbstractSocket::UnconnectedState:
+        emit q->stateMessage(tr("Network connection dropped"));
+        break;
+    case QAbstractSocket::HostLookupState:
+        emit q->stateMessage(tr("Resolving host"));
+        break;
+    case QAbstractSocket::ConnectingState:
+        emit q->stateMessage(tr("Establishing network connection ..."));
+        break;
+    case QAbstractSocket::ConnectedState:
+        emit q->stateMessage(tr("Network connection established"));
+        break;
+    case QAbstractSocket::ClosingState:
+        emit q->stateMessage(tr("Network connection closing"));
+        break;
+    case QAbstractSocket::BoundState:
+        emit q->errorMessage(tr("Socket state changed to BoundState. This should not happen!"));
+        break;
+    case QAbstractSocket::ListeningState:
+        emit q->errorMessage(tr("Socket state changed to ListeningState. This should not happen!"));
+        break;
+    }
 }
 
 QmlDebugConnection::QmlDebugConnection(QObject *parent)
-    : QIODevice(parent), d(new QmlDebugConnectionPrivate(this))
+    : QObject(parent), d(new QmlDebugConnectionPrivate(this))
 {
 }
 
 QmlDebugConnection::~QmlDebugConnection()
 {
+    d->disconnected();
     QHash<QString, QmlDebugClient*>::iterator iter = d->plugins.begin();
-    for (; iter != d->plugins.end(); ++iter) {
+    for (; iter != d->plugins.end(); ++iter)
         iter.value()->d_func()->connection = 0;
-        iter.value()->statusChanged(NotConnected);
-    }
 }
 
-bool QmlDebugConnection::isConnected() const
+bool QmlDebugConnection::isOpen() const
 {
-    return state() == QAbstractSocket::ConnectedState;
+    // gotHello can only be set if the connection is open.
+    return d->gotHello;
 }
 
-qint64 QmlDebugConnection::readData(char *data, qint64 maxSize)
+bool QmlDebugConnection::isConnecting() const
 {
-    return d->device->read(data, maxSize);
-}
-
-qint64 QmlDebugConnection::writeData(const char *data, qint64 maxSize)
-{
-    return d->device->write(data, maxSize);
-}
-
-void QmlDebugConnection::internalError(QAbstractSocket::SocketError socketError)
-{
-    setErrorString(d->device->errorString());
-    emit error(socketError);
-}
-
-qint64 QmlDebugConnection::bytesAvailable() const
-{
-    return d->device->bytesAvailable();
-}
-
-bool QmlDebugConnection::isSequential() const
-{
-    return true;
+    return !isOpen() && d->device;
 }
 
 void QmlDebugConnection::close()
 {
-    if (isOpen()) {
-        QIODevice::close();
-        d->device->close();
-        emit stateChanged(QAbstractSocket::UnconnectedState);
-
-        QHash<QString, QmlDebugClient*>::iterator iter = d->plugins.begin();
-        for (; iter != d->plugins.end(); ++iter) {
-            iter.value()->statusChanged(NotConnected);
-        }
-    }
+    if (d->device && d->device->isOpen())
+        d->device->close(); // will trigger disconnected() at some point.
 }
 
-bool QmlDebugConnection::waitForConnected(int msecs)
+void QmlDebugConnectionPrivate::flush()
 {
-    QAbstractSocket *socket = qobject_cast<QAbstractSocket*>(d->device);
-    if (socket)
-        return socket->waitForConnected(msecs);
-    return false;
-}
-
-// For ease of refactoring we use QAbstractSocket's states even if we're actually using a OstChannel underneath
-// since serial ports have a subset of the socket states afaics
-QAbstractSocket::SocketState QmlDebugConnection::state() const
-{
-    QAbstractSocket *socket = qobject_cast<QAbstractSocket*>(d->device);
-    if (socket)
-        return socket->state();
-
-    return QAbstractSocket::UnconnectedState;
-}
-
-void QmlDebugConnection::flush()
-{
-    QAbstractSocket *socket = qobject_cast<QAbstractSocket*>(d->device);
+    QAbstractSocket *socket = qobject_cast<QAbstractSocket*>(device);
     if (socket) {
         socket->flush();
         return;
@@ -315,23 +317,21 @@ void QmlDebugConnection::flush()
 
 void QmlDebugConnection::connectToHost(const QString &hostName, quint16 port)
 {
+    d->disconnected();
+    emit stateMessage(tr("Connecting to debug server at %1:%2 ...")
+             .arg(hostName).arg(QString::number(port)));
     QTcpSocket *socket = new QTcpSocket(d);
     socket->setProxy(QNetworkProxy::NoProxy);
     d->device = socket;
-    d->connectDeviceSignals();
-    d->gotHello = false;
-    connect(socket, SIGNAL(stateChanged(QAbstractSocket::SocketState)), this, SIGNAL(stateChanged(QAbstractSocket::SocketState)));
-    connect(socket, SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(internalError(QAbstractSocket::SocketError)));
-    connect(socket, SIGNAL(connected()), this, SIGNAL(connected()));
+    d->protocol = new QPacketProtocol(d->device, this);
+    connect(d->protocol, SIGNAL(readyRead()), d, SLOT(readyRead()));
+    connect(socket, SIGNAL(stateChanged(QAbstractSocket::SocketState)),
+            d, SLOT(stateChanged(QAbstractSocket::SocketState)));
+    connect(socket, SIGNAL(error(QAbstractSocket::SocketError)),
+            d, SLOT(error(QAbstractSocket::SocketError)));
+    connect(socket, SIGNAL(connected()), d, SLOT(connected()));
+    connect(socket, SIGNAL(disconnected()), d, SLOT(disconnected()));
     socket->connectToHost(hostName, port);
-    QIODevice::open(ReadWrite | Unbuffered);
-}
-
-void QmlDebugConnectionPrivate::connectDeviceSignals()
-{
-    connect(device, SIGNAL(bytesWritten(qint64)), q, SIGNAL(bytesWritten(qint64)));
-    connect(device, SIGNAL(readyRead()), q, SIGNAL(readyRead()));
-    connect(device, SIGNAL(aboutToClose()), this, SLOT(deviceAboutToClose()));
 }
 
 //
@@ -376,20 +376,22 @@ QString QmlDebugClient::name() const
     return d->name;
 }
 
-float QmlDebugClient::serviceVersion() const
+int QmlDebugClient::remoteVersion() const
 {
     Q_D(const QmlDebugClient);
+    // The version is internally saved as float for compatibility reasons. Exposing that to clients
+    // is a bad idea because floats cannot be properly compared. IEEE 754 floats represent integers
+    // exactly up to about 2^24, so the cast shouldn't be a problem for any realistic version
+    // numbers.
     if (d->connection && d->connection->d->serverPlugins.contains(d->name))
-        return d->connection->d->serverPlugins.value(d->name);
+        return static_cast<int>(d->connection->d->serverPlugins.value(d->name));
     return -1;
 }
 
-ClientStatus QmlDebugClient::status() const
+QmlDebugClient::State QmlDebugClient::state() const
 {
     Q_D(const QmlDebugClient);
-    if (!d->connection
-            || !d->connection->isConnected()
-            || !d->connection->d->gotHello)
+    if (!d->connection || !d->connection->isOpen())
         return NotConnected;
 
     if (d->connection->d->serverPlugins.contains(d->name))
@@ -401,16 +403,16 @@ ClientStatus QmlDebugClient::status() const
 void QmlDebugClient::sendMessage(const QByteArray &message)
 {
     Q_D(QmlDebugClient);
-    if (status() != Enabled)
+    if (state() != Enabled)
         return;
 
     QPacket pack;
     pack << d->name << message;
     d->connection->d->protocol->send(pack);
-    d->connection->flush();
+    d->connection->d->flush();
 }
 
-void QmlDebugClient::statusChanged(ClientStatus)
+void QmlDebugClient::stateChanged(State)
 {
 }
 

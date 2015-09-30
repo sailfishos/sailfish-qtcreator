@@ -1,7 +1,6 @@
 import qbs
-import "../autotest.qbs" as Autotest
 
-Autotest {
+QtcAutotest {
     name: "ChangeSet autotest"
     Depends { name: "Utils" }
     Depends { name: "Qt.gui" } // TODO: Remove once qbs bug is fixed.

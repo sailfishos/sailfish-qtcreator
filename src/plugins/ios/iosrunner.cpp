@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -56,9 +57,9 @@ namespace Ios {
 namespace Internal {
 
 IosRunner::IosRunner(QObject *parent, IosRunConfiguration *runConfig, bool cppDebug, bool qmlDebug)
-    : QObject(parent), m_toolHandler(0), m_bundleDir(runConfig->bundleDir().toString()),
+    : QObject(parent), m_toolHandler(0), m_bundleDir(runConfig->bundleDirectory().toString()),
       m_arguments(runConfig->commandLineArguments()),
-      m_device(ProjectExplorer::DeviceKitInformation::device(runConfig->target()->kit())),
+      m_device(DeviceKitInformation::device(runConfig->target()->kit())),
       m_cppDebug(cppDebug), m_qmlDebug(qmlDebug), m_cleanExit(false),
       m_qmlPort(0), m_pid(0)
 {
@@ -116,7 +117,7 @@ void IosRunner::start()
     }
     m_cleanExit = false;
     m_qmlPort = 0;
-    if (!QFileInfo(m_bundleDir).exists()) {
+    if (!QFileInfo::exists(m_bundleDir)) {
         TaskHub::addTask(Task::Warning,
                          tr("Could not find %1.").arg(m_bundleDir),
                          ProjectExplorer::Constants::TASK_CATEGORY_DEPLOYMENT);
@@ -217,11 +218,11 @@ void IosRunner::handleErrorMsg(IosToolHandler *handler, const QString &msg)
         TaskHub::addTask(Task::Warning,
                          tr("Run failed. The settings in the Organizer window of Xcode might be incorrect."),
                          ProjectExplorer::Constants::TASK_CATEGORY_DEPLOYMENT);
-    } else if (msg.contains(lockedErr)) {
+    } else if (res.contains(lockedErr)) {
         QString message = tr("The device is locked, please unlock.");
         TaskHub::addTask(Task::Error, message,
                          ProjectExplorer::Constants::TASK_CATEGORY_DEPLOYMENT);
-        res.replace(lockedErr, msg);
+        res.replace(lockedErr, message);
     }
     QRegExp qmlPortRe(QLatin1String("QML Debugger: Waiting for connection on port ([0-9]+)..."));
     int index = qmlPortRe.indexIn(msg);

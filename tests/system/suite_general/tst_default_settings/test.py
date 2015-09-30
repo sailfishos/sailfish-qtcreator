@@ -1,7 +1,7 @@
 #############################################################################
 ##
-## Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-## Contact: http://www.qt-project.org/legal
+## Copyright (C) 2015 The Qt Company Ltd.
+## Contact: http://www.qt.io/licensing
 ##
 ## This file is part of Qt Creator.
 ##
@@ -9,20 +9,21 @@
 ## Licensees holding valid commercial Qt licenses may use this file in
 ## accordance with the commercial license agreement provided with the
 ## Software or, alternatively, in accordance with the terms contained in
-## a written agreement between you and Digia.  For licensing terms and
-## conditions see http://qt.digia.com/licensing.  For further information
-## use the contact form at http://qt.digia.com/contact-us.
+## a written agreement between you and The Qt Company.  For licensing terms and
+## conditions see http://www.qt.io/terms-conditions.  For further information
+## use the contact form at http://www.qt.io/contact-us.
 ##
 ## GNU Lesser General Public License Usage
 ## Alternatively, this file may be used under the terms of the GNU Lesser
-## General Public License version 2.1 as published by the Free Software
-## Foundation and appearing in the file LICENSE.LGPL included in the
-## packaging of this file.  Please review the following information to
-## ensure the GNU Lesser General Public License version 2.1 requirements
-## will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+## General Public License version 2.1 or version 3 as published by the Free
+## Software Foundation and appearing in the file LICENSE.LGPLv21 and
+## LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+## following information to ensure the GNU Lesser General Public License
+## requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+## http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 ##
-## In addition, as a special exception, Digia gives you certain additional
-## rights.  These rights are described in the Digia Qt LGPL Exception
+## In addition, as a special exception, The Qt Company gives you certain additional
+## rights.  These rights are described in The Qt Company LGPL Exception
 ## version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 ##
 #############################################################################
@@ -81,8 +82,10 @@ def __checkBuildAndRun__():
     clickOnTab(":Options.qt_tabwidget_tabbar_QTabBar", "Qt Versions")
     __iterateTree__(":QtSupport__Internal__QtVersionManager.qtdirList_QTreeWidget",
                     __qtFunc__, foundQt, qmakePath)
+    test.verify(not qmakePath or len(foundQt) == 1,
+                "Was qmake from %s autodetected? Found %s" % (qmakePath, foundQt))
     if foundQt:
-        foundQt = foundQt[0]
+        foundQt = foundQt[0]    # qmake from "which" should be used in kits
     # check kits
     clickOnTab(":Options.qt_tabwidget_tabbar_QTabBar", "Kits")
     __iterateTree__(":BuildAndRun_QTreeView", __kitFunc__, foundQt, foundCompilerNames)
@@ -125,12 +128,16 @@ def __dbgFunc__(it, foundDbg):
     foundDbg.append(str(pathLineEdit.text))
 
 def __qtFunc__(it, foundQt, qmakePath):
-    foundQt.append(it)
     qtPath = str(waitForObject(":QtSupport__Internal__QtVersionManager.qmake_QLabel").text)
     if platform.system() in ('Microsoft', 'Windows'):
         qtPath = qtPath.lower()
         qmakePath = qmakePath.lower()
-    test.compare(qtPath, qmakePath, "Verifying found and expected Qt version are equal.")
+    test.verify(os.path.isfile(qtPath) and os.access(qtPath, os.X_OK),
+                "Verifying found Qt (%s) is executable." % qtPath)
+    # Two Qt versions will be found when using qtchooser: QTCREATORBUG-14697
+    # Only add qmake from "which" to list
+    if qtPath == qmakePath:
+        foundQt.append(it)
     try:
         errorLabel = findObject(":QtSupport__Internal__QtVersionManager.errorLabel.QLabel")
         test.warning("Detected error or warning: '%s'" % errorLabel.text)
@@ -143,7 +150,10 @@ def __kitFunc__(it, foundQt, foundCompNames):
     test.compare(it, "Desktop (default)", "Verifying whether default Desktop kit has been created.")
     if foundQt:
         test.compare(qtVersionStr, foundQt, "Verifying if Qt versions match.")
-    compilerCombo = waitForObject(":Compiler:_QComboBox")
+    compilerCombo = findObject(":Compiler:_QComboBox")
+    test.compare(compilerCombo.enabled, compilerCombo.count > 1,
+                 "Verifying whether compiler combo is enabled/disabled correctly.")
+
     test.verify(str(compilerCombo.currentText) in foundCompNames,
                 "Verifying if one of the found compilers had been set.")
     if currentSelectedTreeItem:
@@ -215,10 +225,11 @@ def __getExpectedDebuggers__():
     result = []
     if platform.system() in ('Microsoft', 'Windows'):
         result.extend(__getCDB__())
-    debuggers = ["gdb", "lldb"]
-    result.extend(filter(None, map(which, debuggers)))
+    for debugger in ["gdb", "lldb"]:
+        result.extend(findAllFilesInPATH(debugger))
     if platform.system() == 'Linux':
-        result.extend(findAllFilesInPATH("lldb-*"))
+        result.extend(filter(lambda s: not ("lldb-platform" in s or "lldb-gdbserver" in s),
+                             findAllFilesInPATH("lldb-*")))
     if platform.system() == 'Darwin':
         xcodeLLDB = getOutputFromCmdline("xcrun --find lldb").strip("\n")
         if xcodeLLDB and os.path.exists(xcodeLLDB) and xcodeLLDB not in result:
@@ -230,9 +241,13 @@ def __getCDB__():
     possibleLocations = ["C:\\Program Files\\Debugging Tools for Windows (x64)",
                          "C:\\Program Files (x86)\\Debugging Tools for Windows (x86)",
                          "C:\\Program Files (x86)\\Windows Kits\\8.0\\Debuggers\\x86",
+                         "C:\\Program Files (x86)\\Windows Kits\\8.0\\Debuggers\\x64",
                          "C:\\Program Files\\Windows Kits\\8.0\\Debuggers\\x86",
+                         "C:\\Program Files\\Windows Kits\\8.0\\Debuggers\\x64",
                          "C:\\Program Files (x86)\\Windows Kits\\8.1\\Debuggers\\x86",
-                         "C:\\Program Files\\Windows Kits\\8.1\\Debuggers\\x86"]
+                         "C:\\Program Files (x86)\\Windows Kits\\8.1\\Debuggers\\x64",
+                         "C:\\Program Files\\Windows Kits\\8.1\\Debuggers\\x86",
+                         "C:\\Program Files\\Windows Kits\\8.1\\Debuggers\\x64"]
     for cdbPath in possibleLocations:
         cdb = os.path.join(cdbPath, "cdb.exe")
         if os.path.exists(cdb):
@@ -284,12 +299,8 @@ def __compareDebuggers__(foundDebuggers, expectedDebuggers):
     else:
         foundSet = set(foundDebuggers)
         expectedSet = set(expectedDebuggers)
-    if not (test.verify(not foundSet.symmetric_difference(expectedSet),
-                        "Verifying expected and found debuggers match.")):
-        test.log("Found debuggers: %s" % foundDebuggers,
-                 "Expected debuggers: %s" % expectedDebuggers)
-        return False
-    return True
+    return test.compare(foundSet, expectedSet,
+                        "Verifying expected and found debuggers match.")
 
 def __lowerStrs__(iterable):
     for it in iterable:

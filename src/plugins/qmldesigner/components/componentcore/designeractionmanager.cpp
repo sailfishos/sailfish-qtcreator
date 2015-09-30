@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -99,9 +100,10 @@ public:
             QmlItemNode itemNode = QmlItemNode(selectionContext().currentSingleSelectedNode());
             if (itemNode.isValid()) {
                 bool flag = false;
-            if (itemNode.modelNode().hasProperty(m_propertyName)
-                    || itemNode.propertyAffectedByCurrentState(m_propertyName))
-                flag = itemNode.modelValue(m_propertyName).toBool();
+                if (itemNode.modelNode().hasProperty(m_propertyName)
+                        || itemNode.propertyAffectedByCurrentState(m_propertyName)) {
+                    flag = itemNode.modelValue(m_propertyName).toBool();
+                }
                 defaultAction()->setChecked(flag);
             } else {
                 defaultAction()->setEnabled(false);
@@ -138,52 +140,58 @@ public:
     }
 };
 
-class SelectionModelNodeAction : public MenuDesignerAction
+class SelectionModelNodeAction : public ActionGroup
 {
 public:
     SelectionModelNodeAction(const QString &displayName, const QByteArray &menuId, int priority) :
-        MenuDesignerAction(displayName, menuId, priority,
+        ActionGroup(displayName, menuId, priority,
                            &SelectionContextFunctors::always, &SelectionContextFunctors::selectionEnabled)
 
     {}
 
     virtual void updateContext()
     {
-        m_menu->clear();
-        if (m_selectionContext.isValid()) {
-            m_action->setEnabled(isEnabled(m_selectionContext));
-            m_action->setVisible(isVisible(m_selectionContext));
+        menu()->clear();
+        if (selectionContext().isValid()) {
+            action()->setEnabled(isEnabled(selectionContext()));
+            action()->setVisible(isVisible(selectionContext()));
         } else {
             return;
         }
-        if (m_action->isEnabled()) {
+        if (action()->isEnabled()) {
             ModelNode parentNode;
-            if (m_selectionContext.singleNodeIsSelected()
-                    && !m_selectionContext.currentSingleSelectedNode().isRootNode()
-                    && m_selectionContext.currentSingleSelectedNode().hasParentProperty()) {
+            if (selectionContext().singleNodeIsSelected()
+                    && !selectionContext().currentSingleSelectedNode().isRootNode()
+                    && selectionContext().currentSingleSelectedNode().hasParentProperty()) {
 
                 ActionTemplate *selectionAction = new ActionTemplate(QString(), &ModelNodeOperations::select);
-                selectionAction->setParent(m_menu.data());
+                selectionAction->setParent(menu());
 
-                parentNode = m_selectionContext.currentSingleSelectedNode().parentProperty().parentModelNode();
-                m_selectionContext.setTargetNode(parentNode);
+                parentNode = selectionContext().currentSingleSelectedNode().parentProperty().parentModelNode();
+
                 selectionAction->setText(QString(QT_TRANSLATE_NOOP("QmlDesignerContextMenu", "Select parent: %1")).arg(
                                              captionForModelNode(parentNode)));
-                selectionAction->setSelectionContext(m_selectionContext);
 
-                m_menu->addAction(selectionAction);
+                SelectionContext nodeSelectionContext = selectionContext();
+                nodeSelectionContext.setTargetNode(parentNode);
+                selectionAction->setSelectionContext(nodeSelectionContext);
+
+                menu()->addAction(selectionAction);
             }
-            foreach (const ModelNode &node, m_selectionContext.view()->allModelNodes()) {
-                if (node != m_selectionContext.currentSingleSelectedNode()
+            foreach (const ModelNode &node, selectionContext().view()->allModelNodes()) {
+                if (node != selectionContext().currentSingleSelectedNode()
                         && node != parentNode
-                        && contains(node, m_selectionContext.scenePosition())
+                        && contains(node, selectionContext().scenePosition())
                         && !node.isRootNode()) {
-                    m_selectionContext.setTargetNode(node);
+                    selectionContext().setTargetNode(node);
                     QString what = QString(QT_TRANSLATE_NOOP("QmlDesignerContextMenu", "Select: %1")).arg(captionForModelNode(node));
                     ActionTemplate *selectionAction = new ActionTemplate(what, &ModelNodeOperations::select);
-                    selectionAction->setSelectionContext(m_selectionContext);
 
-                    m_menu->addAction(selectionAction);
+                    SelectionContext nodeSelectionContext = selectionContext();
+                    nodeSelectionContext.setTargetNode(node);
+                    selectionAction->setSelectionContext(nodeSelectionContext);
+
+                    menu()->addAction(selectionAction);
                 }
             }
         }
@@ -249,7 +257,7 @@ bool selectionCanBeLayouted(const SelectionContext &context)
 bool hasQtQuickLayoutImport(const SelectionContext &context)
 {
     if (context.view() && context.view()->model()) {
-        Import import = Import::createLibraryImport(QLatin1String("QtQuick.Layouts"), QLatin1String("1.0"));
+        Import import = Import::createLibraryImport(QStringLiteral("QtQuick.Layouts"), QStringLiteral("1.0"));
         return context.view()->model()->hasImport(import, true, true);
     }
 
@@ -320,7 +328,7 @@ void DesignerActionManager::createDefaultDesignerActions()
 
     addDesignerAction(new SelectionModelNodeAction(selectionCategoryDisplayName, selectionCategory, prioritySelectionCategory));
 
-    addDesignerAction(new MenuDesignerAction(stackCategoryDisplayName, stackCategory, priorityStackCategory, &selectionNotEmpty));
+    addDesignerAction(new ActionGroup(stackCategoryDisplayName, stackCategory, priorityStackCategory, &selectionNotEmpty));
         addDesignerAction(new ModelNodeAction
                    (toFrontDisplayName, stackCategory, 200, &toFront, &singleSelection));
         addDesignerAction(new ModelNodeAction
@@ -333,7 +341,7 @@ void DesignerActionManager::createDefaultDesignerActions()
         addDesignerAction(new ModelNodeAction
                    (resetZDisplayName, stackCategory, 100, &resetZ, &selectionNotEmptyAndHasZProperty));
 
-    addDesignerAction(new MenuDesignerAction(editCategoryDisplayName, editCategory, priorityEditCategory, &selectionNotEmpty));
+    addDesignerAction(new ActionGroup(editCategoryDisplayName, editCategory, priorityEditCategory, &selectionNotEmpty));
         addDesignerAction(new ModelNodeAction
                    (resetPositionDisplayName, editCategory, 200, &resetPosition, &selectionNotEmptyAndHasXorYProperty));
         addDesignerAction(new ModelNodeAction
@@ -341,14 +349,14 @@ void DesignerActionManager::createDefaultDesignerActions()
         addDesignerAction(new VisiblityModelNodeAction
                    (visibilityDisplayName, editCategory, 160, &setVisible, &singleSelectedItem));
 
-    addDesignerAction(new MenuDesignerAction(anchorsCategoryDisplayName, anchorsCategory,
+    addDesignerAction(new ActionGroup(anchorsCategoryDisplayName, anchorsCategory,
                     priorityAnchorsCategory, &singleSelectionAndInBaseState));
         addDesignerAction(new ModelNodeAction
                    (anchorsFillDisplayName, anchorsCategory, 200, &anchorsFill, &singleSelectionItemIsNotAnchoredAndSingleSelectionNotRoot));
         addDesignerAction(new ModelNodeAction
                    (anchorsResetDisplayName, anchorsCategory, 180, &anchorsReset, &singleSelectionItemIsAnchored));
 
-    addDesignerAction(new MenuDesignerAction(layoutCategoryDisplayName, layoutCategory,
+    addDesignerAction(new ActionGroup(layoutCategoryDisplayName, layoutCategory,
                     priorityLayoutCategory, &layoutOptionVisible));
         addDesignerAction(new ModelNodeAction
                    (layoutRowPositionerDisplayName,
@@ -430,16 +438,16 @@ void DesignerActionManager::createDefaultDesignerActions()
 
 }
 
-void DesignerActionManager::addDesignerAction(AbstractDesignerAction *newAction)
+void DesignerActionManager::addDesignerAction(ActionInterface *newAction)
 {
-    m_designerActions.append(QSharedPointer<AbstractDesignerAction>(newAction));
+    m_designerActions.append(QSharedPointer<ActionInterface>(newAction));
     m_designerActionManagerView->setDesignerActionList(designerActions());
 }
 
-QList<AbstractDesignerAction* > DesignerActionManager::designerActions() const
+QList<ActionInterface* > DesignerActionManager::designerActions() const
 {
-    QList<AbstractDesignerAction* > list;
-    foreach (const QSharedPointer<AbstractDesignerAction> &pointer, m_designerActions) {
+    QList<ActionInterface* > list;
+    foreach (const QSharedPointer<ActionInterface> &pointer, m_designerActions) {
         list.append(pointer.data());
     }
 

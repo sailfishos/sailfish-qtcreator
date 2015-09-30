@@ -15,16 +15,10 @@ SUBDIRS += \
     ioutils \
     qtcprocess \
     utils \
-    utils_stringutils \
     filesearch \
+    sdktool \
     valgrind
 
-lessThan(QT_MAJOR_VERSION, 5) {
-  contains(QT_CONFIG, declarative) {
-    SUBDIRS += qml
-  }
-} else {
-  qtHaveModule(declarative) {
-    SUBDIRS += qml
-  }
+qtHaveModule(declarative) {
+    SUBDIRS += qml timeline
 }

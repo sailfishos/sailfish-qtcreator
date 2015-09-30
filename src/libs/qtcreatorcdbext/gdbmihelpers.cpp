@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -363,6 +364,34 @@ const wchar_t *valueType(ULONG type)
     return L"";
 }
 
+// Description of a DEBUG_VALUE type field
+const int valueSize(ULONG type)
+{
+    switch (type) {
+    case DEBUG_VALUE_INT8:
+        return 1;
+    case DEBUG_VALUE_INT16:
+        return 2;
+    case DEBUG_VALUE_INT32:
+        return 4;
+    case DEBUG_VALUE_INT64:
+        return 8;
+    case DEBUG_VALUE_FLOAT32:
+        return 4;
+    case DEBUG_VALUE_FLOAT64:
+        return 8;
+    case DEBUG_VALUE_FLOAT80:
+        return 10;
+    case DEBUG_VALUE_FLOAT128:
+        return 16;
+    case DEBUG_VALUE_VECTOR64:
+        return 8;
+    case DEBUG_VALUE_VECTOR128:
+        return 16;
+    }
+    return 0;
+}
+
 // Format a 128bit vector register by adding digits in reverse order
 void formatVectorRegister(std::ostream &str, const unsigned char *array, int size)
 {
@@ -420,6 +449,7 @@ void formatDebugValue(std::ostream &str, const DEBUG_VALUE &dv, CIDebugControl *
 
 Register::Register() : subRegister(false), pseudoRegister(false)
 {
+    size = 0;
     value.Type = DEBUG_VALUE_INT32;
     value.I32 = 0;
 }
@@ -496,6 +526,7 @@ Registers getRegisters(CIDebugRegisters *regs,
         reg.pseudoRegister = true;
         reg.name = buf;
         reg.description = valueType(type);
+        reg.size = valueSize(type);
         reg.value = value;
         rc.push_back(reg);
     }
@@ -742,6 +773,14 @@ static bool gdbmiFormatBreakpoint(std::ostream &str,
                 const std::string module = moduleNameByOffset(symbols, memoryRange.first);
                 if (!module.empty())
                     str << ",module=\"" << module << '"';
+                ULONG lineNumber = 0;
+                std::string srcFile = sourceFileNameByOffset(symbols, memoryRange.first, &lineNumber);
+                if (!srcFile.empty()) {
+                    // replace all backslashes with slashes
+                    replace(srcFile, '\\', '/');
+                    str << ",srcfile=\"" << srcFile << '"';
+                    str << ",srcline=\"" << lineNumber << '"';
+                }
             } // symbols
             // Report the memory of watchpoints for comparing bitfields
             if (dataSpaces && memoryRange.second > 0) {
@@ -755,7 +794,7 @@ static bool gdbmiFormatBreakpoint(std::ostream &str,
     // Expression
     if (verbose > 1) {
         char buf[BufSize];
-        if (SUCCEEDED(bp->GetOffsetExpression(buf, BUFSIZ, 0)))
+        if (SUCCEEDED(bp->GetOffsetExpression(buf, BufSize, 0)))
             str << ",expression=\"" << gdbmiStringFormat(buf) << '"';
     }
     return true;

@@ -8,7 +8,7 @@ INCLUDEPATH *= $$IDE_SOURCE_TREE/src/libs/3rdparty
 
 include(../3rdparty/cplusplus/cplusplus.pri)
 
-greaterThan(QT_MAJOR_VERSION, 4): QT += concurrent
+QT += concurrent
 
 #DEFINES += DEBUG_INCLUDE_GUARD_TRACKING
 
@@ -36,6 +36,7 @@ HEADERS += \
     $$PWD/NamePrettyPrinter.h \
     $$PWD/TypeOfExpression.h \
     $$PWD/TypePrettyPrinter.h \
+    $$PWD/TypeResolver.h \
     $$PWD/ResolveExpression.h \
     $$PWD/LookupItem.h \
     $$PWD/AlreadyConsideredClassContainer.h \
@@ -44,7 +45,6 @@ HEADERS += \
     $$PWD/ASTPath.h \
     $$PWD/SnapshotSymbolVisitor.h \
     $$PWD/SymbolNameVisitor.h \
-    $$PWD/DeprecatedGenTemplateInstance.h \
     $$PWD/FindUsages.h \
     $$PWD/DependencyTable.h \
     $$PWD/PreprocessorClient.h \
@@ -57,7 +57,6 @@ HEADERS += \
     $$PWD/pp-scanner.h \
     $$PWD/findcdbbreakpoint.h \
     $$PWD/PPToken.h \
-    $$PWD/Dumpers.h \
     $$PWD/cppmodelmanagerbase.h
 
 SOURCES += \
@@ -68,6 +67,7 @@ SOURCES += \
     $$PWD/NamePrettyPrinter.cpp \
     $$PWD/TypeOfExpression.cpp \
     $$PWD/TypePrettyPrinter.cpp \
+    $$PWD/TypeResolver.cpp \
     $$PWD/ResolveExpression.cpp \
     $$PWD/LookupItem.cpp \
     $$PWD/LookupContext.cpp \
@@ -75,7 +75,6 @@ SOURCES += \
     $$PWD/ASTPath.cpp \
     $$PWD/SnapshotSymbolVisitor.cpp \
     $$PWD/SymbolNameVisitor.cpp \
-    $$PWD/DeprecatedGenTemplateInstance.cpp \
     $$PWD/FindUsages.cpp \
     $$PWD/DependencyTable.cpp \
     $$PWD/PreprocessorClient.cpp \
@@ -86,7 +85,6 @@ SOURCES += \
     $$PWD/pp-scanner.cpp \
     $$PWD/findcdbbreakpoint.cpp \
     $$PWD/PPToken.cpp \
-    $$PWD/Dumpers.cpp \
     $$PWD/cppmodelmanagerbase.cpp
 
 RESOURCES += $$PWD/cplusplus.qrc

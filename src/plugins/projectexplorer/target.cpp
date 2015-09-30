@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -47,6 +48,7 @@
 #include <extensionsystem/pluginmanager.h>
 #include <projectexplorer/projectexplorer.h>
 #include <utils/qtcassert.h>
+#include <utils/algorithm.h>
 
 #include <QDebug>
 #include <QIcon>
@@ -136,6 +138,22 @@ Target::Target(Project *project, Kit *k) :
             this, SLOT(handleKitUpdates(ProjectExplorer::Kit*)));
     connect(km, SIGNAL(kitRemoved(ProjectExplorer::Kit*)),
             this, SLOT(handleKitRemoval(ProjectExplorer::Kit*)));
+
+    Utils::MacroExpander *expander = macroExpander();
+    expander->setDisplayName(tr("Target Settings"));
+    expander->setAccumulating(true);
+
+    expander->registerSubProvider([this] { return kit()->macroExpander(); });
+
+    expander->registerVariable("sourceDir", tr("Source directory"),
+            [project] { return project->projectDirectory().toUserOutput(); });
+
+    // Legacy support.
+    expander->registerVariable(Constants::VAR_CURRENTPROJECT_NAME,
+            QCoreApplication::translate("ProjectExplorer", "Name of current project"),
+            [project] { return project->displayName(); },
+            false);
+
 }
 
 Target::~Target()
@@ -218,9 +236,7 @@ void Target::addBuildConfiguration(BuildConfiguration *configuration)
 
     // Check that we don't have a configuration with the same displayName
     QString configurationDisplayName = configuration->displayName();
-    QStringList displayNames;
-    foreach (const BuildConfiguration *bc, d->m_buildConfigurations)
-        displayNames << bc->displayName();
+    QStringList displayNames = Utils::transform(d->m_buildConfigurations, &BuildConfiguration::displayName);
     configurationDisplayName = Project::makeUnique(configurationDisplayName, displayNames);
     if (configurationDisplayName != configuration->displayName()) {
         if (configuration->usesDefaultDisplayName())
@@ -302,9 +318,7 @@ void Target::addDeployConfiguration(DeployConfiguration *dc)
 
     // Check that we don't have a configuration with the same displayName
     QString configurationDisplayName = dc->displayName();
-    QStringList displayNames;
-    foreach (const DeployConfiguration *current, d->m_deployConfigurations)
-        displayNames << current->displayName();
+    QStringList displayNames = Utils::transform(d->m_deployConfigurations, &DeployConfiguration::displayName);
     configurationDisplayName = Project::makeUnique(configurationDisplayName, displayNames);
     dc->setDisplayName(configurationDisplayName);
 
@@ -405,9 +419,7 @@ void Target::addRunConfiguration(RunConfiguration* runConfiguration)
 
     // Check that we don't have a configuration with the same displayName
     QString configurationDisplayName = runConfiguration->displayName();
-    QStringList displayNames;
-    foreach (const RunConfiguration *rc, d->m_runConfigurations)
-        displayNames << rc->displayName();
+    QStringList displayNames = Utils::transform(d->m_runConfigurations, &RunConfiguration::displayName);
     configurationDisplayName = Project::makeUnique(configurationDisplayName, displayNames);
     runConfiguration->setDisplayName(configurationDisplayName);
 
@@ -530,7 +542,7 @@ void Target::updateDefaultBuildConfigurations()
         qWarning("No build configuration factory found for target id '%s'.", qPrintable(id().toString()));
         return;
     }
-    QList<BuildInfo *> infoList = bcFactory->availableSetups(this->kit(), project()->projectFilePath());
+    QList<BuildInfo *> infoList = bcFactory->availableSetups(this->kit(), project()->projectFilePath().toString());
     foreach (BuildInfo *info, infoList) {
         BuildConfiguration *bc = bcFactory->create(this, info);
         if (!bc)
@@ -599,33 +611,35 @@ void Target::updateDefaultRunConfigurations()
     int configuredCount = existingConfigured.count();
 
     // find all RC ids that can get created:
-    QList<Core::Id> factoryIds;
+    QList<Core::Id> availableFactoryIds;
     foreach (IRunConfigurationFactory *rcFactory, rcFactories)
-        factoryIds.append(rcFactory->availableCreationIds(this));
+        availableFactoryIds.append(rcFactory->availableCreationIds(this));
+
+    QList<Core::Id> autoCreateFactoryIds;
+    foreach (IRunConfigurationFactory *rcFactory, rcFactories)
+        autoCreateFactoryIds.append(rcFactory->availableCreationIds(this,
+                                                                    IRunConfigurationFactory::AutoCreate));
 
     // Put outdated RCs into toRemove, do not bother with factories
     // that produce already existing RCs
     QList<RunConfiguration *> toRemove;
     QList<Core::Id> toIgnore;
     foreach (RunConfiguration *rc, existingConfigured) {
-        if (factoryIds.contains(rc->id()))
+        if (availableFactoryIds.contains(rc->id()))
             toIgnore.append(rc->id()); // Already there
         else
             toRemove << rc;
     }
     foreach (Core::Id i, toIgnore)
-        factoryIds.removeAll(i);
+        autoCreateFactoryIds.removeAll(i);
     configuredCount -= toRemove.count();
 
     // Create new RCs and put them into newConfigured/newUnconfigured
-    foreach (Core::Id id, factoryIds) {
-        IRunConfigurationFactory *factory = 0;
-        foreach (IRunConfigurationFactory *i, rcFactories) {
-            if (i->canCreate(this, id)) {
-                factory = i;
-                break;
-            }
-        }
+    foreach (Core::Id id, autoCreateFactoryIds) {
+        IRunConfigurationFactory *factory = Utils::findOrDefault(rcFactories,
+                                                          [this, id] (IRunConfigurationFactory *i) {
+                                                                return i->canCreate(this, id);
+                                                          });
         if (!factory)
             continue;
 
@@ -682,12 +696,8 @@ void Target::updateDefaultRunConfigurations()
             RunConfiguration *selected = newConfigured.at(0);
             // Try to find a runconfiguration that matches the project name. That is a good
             // candidate for something to run initially.
-            foreach (RunConfiguration *rc, newConfigured) {
-                if (rc->displayName() == project()->displayName()) {
-                    selected = rc;
-                    break;
-                }
-            }
+            selected = Utils::findOr(newConfigured, selected,
+                                     Utils::equal(&RunConfiguration::displayName, project()->displayName()));
             setActiveRunConfiguration(selected);
         } else if (!newUnconfigured.isEmpty()){
             setActiveRunConfiguration(newUnconfigured.at(0));

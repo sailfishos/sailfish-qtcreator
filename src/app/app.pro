@@ -2,8 +2,10 @@ include(../../qtcreator.pri)
 include(../shared/qtsingleapplication/qtsingleapplication.pri)
 
 TEMPLATE = app
+CONFIG += qtc_runnable
 TARGET = $$IDE_APP_TARGET
 DESTDIR = $$IDE_APP_PATH
+QT -= testlib
 
 HEADERS += ../tools/qtcreatorcrashhandler/crashhandlersetup.h
 SOURCES += main.cpp ../tools/qtcreatorcrashhandler/crashhandlersetup.cpp
@@ -34,7 +36,7 @@ win32 {
     INSTALLS    += target
 }
 
-OTHER_FILES += qtcreator.rc \
+DISTFILES += qtcreator.rc \
     Info.plist.in \
     $$PWD/app_version.h.in
 

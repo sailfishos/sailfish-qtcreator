@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -50,7 +51,6 @@
 #include <qmakeprojectmanager/qmakenodes.h>
 #include <qtsupport/qtkitinformation.h>
 #include <qtsupport/qtparser.h>
-#include <coreplugin/variablemanager.h>
 #include <utils/stringutils.h>
 #include <utils/qtcassert.h>
 #include <utils/qtcprocess.h>
@@ -110,17 +110,18 @@ bool IosBuildStep::init()
     BuildConfiguration *bc = buildConfiguration();
     if (!bc)
         bc = target()->activeBuildConfiguration();
+    if (!bc)
+        emit addTask(Task::buildConfigurationMissingTask());
 
-    m_tasks.clear();
     ToolChain *tc = ToolChainKitInformation::toolChain(target()->kit());
-    if (!tc) {
-        Task t = Task(Task::Error, tr("Qt Creator needs a compiler set up to build. Configure a compiler in the kit preferences."),
-                      Utils::FileName(), -1,
-                      Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
-        m_tasks.append(t);
-        emit addTask(t);
+    if (!tc)
+        emit addTask(Task::compilerMissingTask());
+
+    if (!bc || !tc) {
+        emitFaultyConfigurationMessage();
         return false;
     }
+
     ProcessParameters *pp = processParameters();
     pp->setMacroExpander(bc->macroExpander());
     pp->setWorkingDirectory(bc->buildDirectory().toString());
@@ -197,8 +198,8 @@ QStringList IosBuildStep::defaultArguments() const
     case BuildConfiguration::Unknown :
         break;
     default:
-        qDebug() << "IosBuildStep had an unknown buildType "
-                 << target()->activeBuildConfiguration()->buildType();
+        qCWarning(iosLog) << "IosBuildStep had an unknown buildType "
+                          << target()->activeBuildConfiguration()->buildType();
     }
     if (tc->type() == QLatin1String("gcc") || tc->type() == QLatin1String("clang")) {
         GccToolChain *gtc = static_cast<GccToolChain *>(tc);
@@ -217,19 +218,6 @@ QString IosBuildStep::buildCommand() const
 
 void IosBuildStep::run(QFutureInterface<bool> &fi)
 {
-    bool canContinue = true;
-    foreach (const Task &t, m_tasks) {
-        addTask(t);
-        canContinue = false;
-    }
-    if (!canContinue) {
-        emit addOutput(tr("Configuration is faulty. Check the Issues output pane for details."),
-                       BuildStep::MessageOutput);
-        fi.reportResult(false);
-        emit finished();
-        return;
-    }
-
     AbstractProcessStep::run(fi);
 }
 
@@ -362,7 +350,7 @@ bool IosBuildStepFactory::canCreate(BuildStepList *parent, const Id id) const
             && parent->id() != ProjectExplorer::Constants::BUILDSTEPS_BUILD)
         return false;
     Kit *kit = parent->target()->kit();
-    Core::Id deviceType = DeviceTypeKitInformation::deviceTypeId(kit);
+    Id deviceType = DeviceTypeKitInformation::deviceTypeId(kit);
     return ((deviceType == Constants::IOS_DEVICE_TYPE
             || deviceType == Constants::IOS_SIMULATOR_TYPE)
             && id == IOS_BUILD_STEP_ID);
@@ -415,7 +403,7 @@ BuildStep *IosBuildStepFactory::restore(BuildStepList *parent, const QVariantMap
 QList<Id> IosBuildStepFactory::availableCreationIds(BuildStepList *parent) const
 {
     Kit *kit = parent->target()->kit();
-    Core::Id deviceType = DeviceTypeKitInformation::deviceTypeId(kit);
+    Id deviceType = DeviceTypeKitInformation::deviceTypeId(kit);
     if (deviceType == Constants::IOS_DEVICE_TYPE
             || deviceType == Constants::IOS_SIMULATOR_TYPE)
         return QList<Id>() << Id(IOS_BUILD_STEP_ID);

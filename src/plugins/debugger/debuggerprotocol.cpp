@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -34,9 +35,7 @@
 #include <QDebug>
 #include <QHostAddress>
 #include <QRegExp>
-#if QT_VERSION >= 0x050200
 #include <QTimeZone>
-#endif
 
 #include <ctype.h>
 
@@ -63,11 +62,6 @@ void skipCommas(const char *&from, const char *to)
 {
     while (*from == ',' && from != to)
         ++from;
-}
-
-QTextStream &operator<<(QTextStream &os, const GdbMi &mi)
-{
-    return os << mi.toString();
 }
 
 void GdbMi::parseResultOrValue(const char *&from, const char *to)
@@ -239,7 +233,7 @@ void GdbMi::parseTuple_helper(const char *&from, const char *to)
         //qDebug() << "\n=======\n" << qPrintable(child.toString()) << "\n========\n";
         if (!child.isValid())
             return;
-        m_children += child;
+        m_children.push_back(child);
         skipCommas(from, to);
     }
 }
@@ -259,7 +253,7 @@ void GdbMi::parseList(const char *&from, const char *to)
         GdbMi child;
         child.parseResultOrValue(from, to);
         if (child.isValid())
-            m_children += child;
+            m_children.push_back(child);
         skipCommas(from, to);
     }
 }
@@ -271,7 +265,7 @@ static QByteArray ind(int indent)
 
 void GdbMi::dumpChildren(QByteArray * str, bool multiline, int indent) const
 {
-    for (int i = 0; i < m_children.size(); ++i) {
+    for (size_t i = 0; i < m_children.size(); ++i) {
         if (i != 0) {
             *str += ',';
             if (multiline)
@@ -372,12 +366,13 @@ void GdbMi::fromStringMultiple(const QByteArray &ba)
     parseTuple_helper(from, to);
 }
 
-GdbMi GdbMi::operator[](const char *name) const
+const GdbMi &GdbMi::operator[](const char *name) const
 {
-    for (int i = 0, n = m_children.size(); i < n; ++i)
+    static GdbMi empty;
+    for (int i = 0, n = int(m_children.size()); i < n; ++i)
         if (m_children.at(i).m_name == name)
             return m_children.at(i);
-    return GdbMi();
+    return empty;
 }
 
 qulonglong GdbMi::toAddress() const
@@ -396,19 +391,19 @@ qulonglong GdbMi::toAddress() const
 //
 //////////////////////////////////////////////////////////////////////////////////
 
-QByteArray GdbResponse::stringFromResultClass(GdbResultClass resultClass)
+QByteArray DebuggerResponse::stringFromResultClass(ResultClass resultClass)
 {
     switch (resultClass) {
-        case GdbResultDone: return "done";
-        case GdbResultRunning: return "running";
-        case GdbResultConnected: return "connected";
-        case GdbResultError: return "error";
-        case GdbResultExit: return "exit";
+        case ResultDone: return "done";
+        case ResultRunning: return "running";
+        case ResultConnected: return "connected";
+        case ResultError: return "error";
+        case ResultExit: return "exit";
         default: return "unknown";
     }
 }
 
-QByteArray GdbResponse::toString() const
+QByteArray DebuggerResponse::toString() const
 {
     QByteArray result;
     if (token != -1)
@@ -428,12 +423,16 @@ QByteArray GdbResponse::toString() const
 //
 //////////////////////////////////////////////////////////////////////////////////
 
+// Tested in tests/auto/debugger/tst_gdb.cpp
+
 void extractGdbVersion(const QString &msg,
     int *gdbVersion, int *gdbBuildVersion, bool *isMacGdb, bool *isQnxGdb)
 {
     const QChar dot(QLatin1Char('.'));
 
-    const bool ignoreParenthesisContent = msg.contains(QLatin1String("rubenvb"));
+    const bool ignoreParenthesisContent = msg.contains(QLatin1String("rubenvb"))
+                                       || msg.contains(QLatin1String("openSUSE"));
+
     const QChar parOpen(QLatin1Char('('));
     const QChar parClose(QLatin1Char(')'));
 
@@ -512,7 +511,6 @@ static QTime timeFromData(int ms)
     return ms == -1 ? QTime() : QTime(0, 0, 0, 0).addMSecs(ms);
 }
 
-#if QT_VERSION >= 0x050200
 // Stolen and adapted from qdatetime.cpp
 static void getDateTime(qint64 msecs, int status, QDate *date, QTime *time)
 {
@@ -559,7 +557,6 @@ static void getDateTime(qint64 msecs, int status, QDate *date, QTime *time)
     *date = (status & NullDate) ? QDate() : QDate::fromJulianDay(jd);
     *time = (status & NullTime) ? QTime() : QTime::fromMSecsSinceStartOfDay(ds);
 }
-#endif
 
 QString decodeData(const QByteArray &ba, int encoding)
 {
@@ -688,7 +685,6 @@ QString decodeData(const QByteArray &ba, int encoding)
             return QString::fromUtf8(decodedBa);
         }
         case DateTimeInternal: { // 29, DateTimeInternal: msecs, spec, offset, tz, status
-#if QT_VERSION >= 0x050200
             int p0 = ba.indexOf('/');
             int p1 = ba.indexOf('/', p0 + 1);
             int p2 = ba.indexOf('/', p1 + 1);
@@ -719,14 +715,160 @@ QString decodeData(const QByteArray &ba, int encoding)
                 dateTime = QDateTime(date, time, spec);
             }
             return dateTime.toString();
-#else
-            // "Very plain".
-            return QString::fromLatin1(ba);
-#endif
+        }
+        case Hex2EncodedFloat4: {
+            const QByteArray s = QByteArray::fromHex(ba);
+            QTC_ASSERT(s.size() == 4, break);
+            union { char c[4]; float f; } u = { { s[3], s[2], s[1], s[0] } };
+            return QString::number(u.f);
+        }
+        case Hex2EncodedFloat8: {
+            const QByteArray s = QByteArray::fromHex(ba);
+            QTC_ASSERT(s.size() == 8, break);
+            union { char c[8]; double d; } u = { { s[7], s[6], s[5], s[4], s[3], s[2], s[1], s[0] } };
+            return QString::number(u.d);
+        }
+        case SpecialEmptyValue: {
+            return QCoreApplication::translate("Debugger::Internal::WatchHandler", "<empty>");
+        }
+        case SpecialUninitializedValue:  {
+            return QCoreApplication::translate("Debugger::Internal::WatchHandler", "<uninitialized>");
+        }
+        case SpecialInvalidValue:  {
+            return QCoreApplication::translate("Debugger::Internal::WatchHandler", "<invalid>");
+        }
+        case SpecialNotAccessibleValue:  {
+            return QCoreApplication::translate("Debugger::Internal::WatchHandler", "<not accessible>");
+        }
+        case SpecialItemCountValue:  {
+            return QCoreApplication::translate("Debugger::Internal::WatchHandler", "<%n items>", 0, ba.toInt());
+        }
+        case SpecialMinimumItemCountValue:  {
+            return QCoreApplication::translate("Debugger::Internal::WatchHandler", "<at least %n items>", 0, ba.toInt());
+        }
+        case SpecialNotCallableValue:  {
+            return QCoreApplication::translate("Debugger::Internal::WatchHandler", "<not callable>");
+        }
+        case SpecialNullReferenceValue:  {
+            return QCoreApplication::translate("Debugger::Internal::WatchHandler", "<null reference>");
+        }
+        case SpecialOptimizedOutValue:  {
+            return QCoreApplication::translate("Debugger::Internal::WatchHandler", "<optimized out>");
+        }
+        case SpecialEmptyStructureValue:  {
+            return QLatin1String("{...}");
         }
     }
     qDebug() << "ENCODING ERROR: " << encoding;
     return QCoreApplication::translate("Debugger", "<Encoding error>");
+}
+
+//////////////////////////////////////////////////////////////////////////////////
+//
+// DebuggerCommand
+//
+//////////////////////////////////////////////////////////////////////////////////
+
+void DebuggerCommand::argHelper(const char *name, const QByteArray &data)
+{
+    args.append('"');
+    args.append(name);
+    args.append("\":");
+    args.append(data);
+    args.append(",");
+}
+
+void DebuggerCommand::arg(const char *name, int value)
+{
+    argHelper(name, QByteArray::number(value));
+}
+
+void DebuggerCommand::arg(const char *name, qlonglong value)
+{
+    argHelper(name, QByteArray::number(value));
+}
+
+void DebuggerCommand::arg(const char *name, qulonglong value)
+{
+    argHelper(name, QByteArray::number(value));
+}
+
+void DebuggerCommand::arg(const char *name, const QString &value)
+{
+    arg(name, value.toUtf8().data());
+}
+
+void DebuggerCommand::arg(const char *name, const QByteArray &value)
+{
+    arg(name, value.data());
+}
+
+void DebuggerCommand::arg(const char *name, const char *value)
+{
+    args.append('"');
+    args.append(name);
+    args.append("\":\"");
+    args.append(value);
+    args.append("\",");
+}
+
+void DebuggerCommand::arg(const char *name, const QList<int> &list)
+{
+    beginList(name);
+    foreach (int item, list) {
+        args.append(QByteArray::number(item));
+        args.append(',');
+    }
+    endList();
+}
+
+void DebuggerCommand::arg(const char *value)
+{
+    args.append("\"");
+    args.append(value);
+    args.append("\",");
+}
+
+void DebuggerCommand::beginList(const char *name)
+{
+    if (name) {
+        args += '"';
+        args += name;
+        args += "\":";
+    }
+    args += '[';
+}
+
+void DebuggerCommand::endList()
+{
+    if (args.endsWith(','))
+        args.chop(1);
+    args += "],";
+}
+
+void DebuggerCommand::beginGroup(const char *name)
+{
+    if (name) {
+        args += '"';
+        args += name;
+        args += "\":";
+    }
+    args += '{';
+}
+
+void DebuggerCommand::endGroup()
+{
+    if (args.endsWith(','))
+        args.chop(1);
+    args += "},";
+}
+
+QByteArray DebuggerCommand::arguments() const
+{
+    QByteArray result = args;
+    if (result.endsWith(','))
+        result.chop(1);
+    return result;
 }
 
 } // namespace Internal

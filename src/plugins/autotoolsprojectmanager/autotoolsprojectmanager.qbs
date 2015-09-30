@@ -1,7 +1,5 @@
 import qbs 1.0
 
-import QtcPlugin
-
 QtcPlugin {
     name: "AutotoolsProjectManager"
 
@@ -11,6 +9,7 @@ QtcPlugin {
     Depends { name: "Core" }
     Depends { name: "ProjectExplorer" }
     Depends { name: "CppTools" }
+    Depends { name: "QtSupport" }
 
     files: [
         "autogenstep.cpp",
@@ -27,7 +26,6 @@ QtcPlugin {
         "autotoolsopenprojectwizard.h",
         "autotoolsproject.cpp",
         "autotoolsproject.h",
-        "autotoolsproject.qrc",
         "autotoolsprojectconstants.h",
         "autotoolsprojectfile.cpp",
         "autotoolsprojectfile.h",

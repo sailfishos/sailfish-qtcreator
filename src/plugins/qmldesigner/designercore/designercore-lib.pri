@@ -1,8 +1,7 @@
 include($$PWD/filemanager/filemanager.pri)
 include (../config.pri)
 
-QT += script \
-    network
+QT += network
 
 DEFINES += TEST_EXPORTS
 DEFINES += DESIGNER_CORE_LIBRARY
@@ -25,7 +24,6 @@ SOURCES += $$PWD/model/abstractview.cpp \
     $$PWD/model/internalproperty.cpp \
     $$PWD/model/model.cpp \
     $$PWD/model/modelnode.cpp \
-    $$PWD/model/painteventfilter.cpp \
     $$PWD/model/internalnode.cpp \
     $$PWD/model/propertyparser.cpp \
     $$PWD/model/propertycontainer.cpp \
@@ -78,6 +76,7 @@ SOURCES += $$PWD/model/abstractview.cpp \
     $$PWD/model/viewmanager.cpp \
     $$PWD/model/signalhandlerproperty.cpp \
     $$PWD/model/internalsignalhandlerproperty.cpp \
+    $$PWD/model/anchorline.cpp \
     $$PWD/instances/puppetdialog.cpp
 
 HEADERS += $$PWD/include/qmldesignercorelib_global.h \
@@ -96,7 +95,6 @@ HEADERS += $$PWD/include/qmldesignercorelib_global.h \
     $$PWD/include/propertycontainer.h \
     $$PWD/model/internalnode_p.h \
     $$PWD/model/model_p.h \
-    $$PWD/model/painteventfilter_p.h \
     $$PWD/include/propertyparser.h \
     $$PWD/pluginmanager/widgetpluginmanager.h \
     $$PWD/pluginmanager/widgetpluginpath.h \
@@ -150,6 +148,7 @@ HEADERS += $$PWD/include/qmldesignercorelib_global.h \
     $$PWD/include/viewmanager.h \
     $$PWD/include/signalhandlerproperty.h \
     $$PWD/model/internalsignalhandlerproperty.h \
+    $$PWD/include/anchorline.h \
     $$PWD/instances/puppetdialog.h
 
 FORMS += \

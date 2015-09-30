@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of the Qt Graphical Effects module.
 **
@@ -17,7 +17,7 @@
 **     notice, this list of conditions and the following disclaimer in
 **     the documentation and/or other materials provided with the
 **     distribution.
-**   * Neither the name of Digia Plc and its Subsidiary(-ies) nor the names
+**   * Neither the name of The Qt Company Ltd and its Subsidiary(-ies) nor the names
 **     of its contributors may be used to endorse or promote products derived
 **     from this software without specific prior written permission.
 **
@@ -50,6 +50,8 @@ Item {
     property bool integer: false
     property Component trackDelegate
     property string handleSource: "images/slider_handle.png"
+
+    signal clicked
 
     width: 20
     height: 100
@@ -131,6 +133,8 @@ Item {
                     var realValue = (maximum - minimum) * handleY / mouseArea.height + minimum;
                     value = colorSlider.integer ? Math.round(realValue) : realValue;
                 }
+
+                onReleased: colorSlider.clicked()
 
                 onPositionChanged: {
                     if (pressed) {

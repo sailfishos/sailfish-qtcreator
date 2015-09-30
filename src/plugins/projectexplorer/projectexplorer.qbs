@@ -1,13 +1,10 @@
 import qbs 1.0
 
-import QtcFunctions
-import QtcPlugin
-
 QtcPlugin {
     name: "ProjectExplorer"
 
-    Depends { name: "Qt"; submodules: ["widgets", "xml", "network", "script"] }
-    Depends { name: "Qt.quick"; condition: QtcFunctions.versionIsAtLeast(Qt.core.version, "5.1"); }
+    Depends { name: "Qt"; submodules: ["widgets", "xml", "network", "qml"] }
+    Depends { name: "Qt.quick" }
     Depends { name: "Aggregation" }
     Depends { name: "QtcSsh" }
     Depends { name: "Utils" }
@@ -36,7 +33,7 @@ QtcPlugin {
             "buildconfiguration.cpp", "buildconfiguration.h",
             "buildconfigurationmodel.cpp", "buildconfigurationmodel.h",
             "buildenvironmentwidget.cpp", "buildenvironmentwidget.h",
-            "buildinfo.h",
+            "buildinfo.cpp", "buildinfo.h",
             "buildmanager.cpp", "buildmanager.h",
             "buildprogress.cpp", "buildprogress.h",
             "buildsettingspropertiespage.cpp", "buildsettingspropertiespage.h",
@@ -48,6 +45,7 @@ QtcPlugin {
             "clangparser.cpp", "clangparser.h",
             "codestylesettingspropertiespage.cpp", "codestylesettingspropertiespage.h", "codestylesettingspropertiespage.ui",
             "compileoutputwindow.cpp", "compileoutputwindow.h",
+            "configtaskhandler.cpp", "configtaskhandler.h",
             "copytaskhandler.cpp", "copytaskhandler.h",
             "corelistenercheckingforrunningbuild.cpp", "corelistenercheckingforrunningbuild.h",
             "currentprojectfilter.cpp", "currentprojectfilter.h",
@@ -60,6 +58,11 @@ QtcPlugin {
             "deployconfiguration.cpp", "deployconfiguration.h",
             "deployconfigurationmodel.cpp", "deployconfigurationmodel.h",
             "deploymentdata.h",
+            "deploymentdataview.cpp",
+            "deploymentdataview.h",
+            "deploymentdataview.ui",
+            "deploymentdatamodel.cpp",
+            "deploymentdatamodel.h",
             "doubletabwidget.cpp", "doubletabwidget.h", "doubletabwidget.ui",
             "editorconfiguration.cpp", "editorconfiguration.h",
             "editorsettingspropertiespage.cpp", "editorsettingspropertiespage.h", "editorsettingspropertiespage.ui",
@@ -67,6 +70,7 @@ QtcPlugin {
             "environmentaspectwidget.cpp", "environmentaspectwidget.h",
             "environmentitemswidget.cpp", "environmentitemswidget.h",
             "environmentwidget.cpp", "environmentwidget.h",
+            "expanddata.cpp", "expanddata.h",
             "foldernavigationwidget.cpp", "foldernavigationwidget.h",
             "gccparser.cpp", "gccparser.h",
             "gcctoolchain.cpp", "gcctoolchain.h",
@@ -78,11 +82,11 @@ QtcPlugin {
             "ipotentialkit.cpp",
             "ipotentialkit.h",
             "iprojectmanager.h",
-            "iprojectproperties.h",
             "itaskhandler.h",
             "kit.cpp", "kit.h",
             "kitchooser.cpp", "kitchooser.h",
             "kitconfigwidget.cpp", "kitconfigwidget.h",
+            "kitfeatureprovider.h",
             "kitinformation.cpp", "kitinformation.h",
             "kitinformationconfigwidget.cpp", "kitinformationconfigwidget.h",
             "kitmanager.cpp", "kitmanager.h",
@@ -99,7 +103,7 @@ QtcPlugin {
             "namedwidget.cpp", "namedwidget.h",
             "nodesvisitor.cpp", "nodesvisitor.h",
             "osparser.cpp", "osparser.h",
-            "pluginfilefactory.cpp", "pluginfilefactory.h",
+            "panelswidget.cpp", "panelswidget.h",
             "processparameters.cpp", "processparameters.h",
             "processstep.cpp", "processstep.h", "processstep.ui",
             "project.cpp", "project.h",
@@ -115,11 +119,16 @@ QtcPlugin {
             "projectmacroexpander.cpp", "projectmacroexpander.h",
             "projectmodels.cpp", "projectmodels.h",
             "projectnodes.cpp", "projectnodes.h",
+            "projectpanelfactory.cpp", "projectpanelfactory.h",
+            "projecttree.cpp",
+            "projecttree.h",
             "projecttreewidget.cpp", "projecttreewidget.h",
             "projectwindow.cpp", "projectwindow.h",
             "projectwizardpage.cpp", "projectwizardpage.h", "projectwizardpage.ui",
+            "propertiespanel.cpp", "propertiespanel.h",
             "removetaskhandler.cpp", "removetaskhandler.h",
             "runconfiguration.cpp", "runconfiguration.h",
+            "runconfigurationaspects.cpp", "runconfigurationaspects.h",
             "runconfigurationmodel.cpp", "runconfigurationmodel.h",
             "runsettingspropertiespage.cpp", "runsettingspropertiespage.h",
             "selectablefilesmodel.cpp", "selectablefilesmodel.h",
@@ -150,10 +159,28 @@ QtcPlugin {
 
     Group {
         name: "Project Welcome Page"
-        condition: QtcFunctions.versionIsAtLeast(Qt.core.version, "5.1")
         files: [
             "projectwelcomepage.cpp",
             "projectwelcomepage.h"
+        ]
+    }
+
+    Group {
+        name: "JsonWizard"
+        prefix: "jsonwizard/"
+        files: [
+            "jsonfieldpage.cpp", "jsonfieldpage.h",
+            "jsonfilepage.cpp", "jsonfilepage.h",
+            "jsonkitspage.cpp", "jsonkitspage.h",
+            "jsonprojectpage.cpp", "jsonprojectpage.h",
+            "jsonsummarypage.cpp", "jsonsummarypage.h",
+            "jsonwizard.cpp", "jsonwizard.h",
+            "jsonwizardfactory.cpp", "jsonwizardfactory.h",
+            "jsonwizardfilegenerator.cpp", "jsonwizardfilegenerator.h",
+            "jsonwizardgeneratorfactory.cpp", "jsonwizardgeneratorfactory.h",
+            "jsonwizardpagefactory.cpp", "jsonwizardpagefactory.h",
+            "jsonwizardpagefactory_p.cpp", "jsonwizardpagefactory_p.h",
+            "jsonwizardscannergenerator.cpp", "jsonwizardscannergenerator.h"
         ]
     }
 
@@ -186,7 +213,6 @@ QtcPlugin {
             "devicesettingspage.cpp", "devicesettingspage.h",
             "devicesettingswidget.cpp", "devicesettingswidget.h", "devicesettingswidget.ui",
             "devicetestdialog.cpp", "devicetestdialog.h", "devicetestdialog.ui",
-            "devicetypekitchooser.cpp", "devicetypekitchooser.h",
             "deviceusedportsgatherer.cpp", "deviceusedportsgatherer.h",
             "idevice.cpp", "idevice.h",
             "idevicefactory.cpp", "idevicefactory.h",
@@ -206,7 +232,6 @@ QtcPlugin {
         files: [
             "BuildSettings.png",
             "CodeStyleSettings.png",
-            "Desktop.png",
             "DeviceConnected.png",
             "DeviceDisconnected.png",
             "DeviceReadyToUse.png",
@@ -221,8 +246,6 @@ QtcPlugin {
             "clean.png",
             "clean_small.png",
             "closetab.png",
-            "compile_error.png",
-            "compile_warning.png",
             "debugger_start.png",
             "debugger_start_small.png",
             "findallprojects.png",

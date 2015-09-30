@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -43,6 +44,7 @@
 #include <projectexplorer/gcctoolchain.h>
 #include <projectexplorer/projectexplorerconstants.h>
 #include <debugger/debuggeritemmanager.h>
+#include <debugger/debuggeritem.h>
 #include <debugger/debuggerkitinformation.h>
 #include <qtsupport/baseqtversion.h>
 #include <qtsupport/qtkitinformation.h>
@@ -61,7 +63,9 @@ using namespace QtSupport;
 using namespace Utils;
 using namespace Debugger;
 
-const bool debugProbe = false;
+namespace {
+Q_LOGGING_CATEGORY(kitSetupLog, "qtc.ios.kitSetup")
+}
 
 namespace Ios {
 namespace Internal {
@@ -72,15 +76,8 @@ const QLatin1String ignoreAllDevicesKey("IgnoreAllDevices");
 void IosConfigurations::updateAutomaticKitList()
 {
     QMap<QString, Platform> platforms = IosProbe::detectPlatforms();
-    {
-        QMapIterator<QString, Platform> iter(platforms);
-        while (iter.hasNext()) {
-            iter.next();
-            const Platform &p = iter.value();
-            setDeveloperPath(p.developerPath);
-            break;
-        }
-    }
+    if (!platforms.isEmpty())
+        setDeveloperPath(platforms.begin().value().developerPath);
     // filter out all non iphone, non base, non clang or cxx11 platforms, as we don't set up kits for those
     {
         QMap<QString, Platform>::iterator iter(platforms.begin());
@@ -91,9 +88,8 @@ void IosConfigurations::updateAutomaticKitList()
                     || !p.compilerPath.toString().contains(QLatin1String("clang")))
                 iter = platforms.erase(iter);
             else {
-                if (debugProbe)
-                    qDebug() << "keeping" << p.name << " " << p.compilerPath.toString() << " "
-                             << p.backendFlags;
+                qCDebug(kitSetupLog) << "keeping" << p.name << " " << p.compilerPath.toString() << " "
+                                     << p.backendFlags;
                 ++iter;
             }
         }
@@ -128,22 +124,24 @@ void IosConfigurations::updateAutomaticKitList()
             if (p.compilerPath == toolchain->compilerCommand()
                     && p.backendFlags == toolchain->platformCodeGenFlags()) {
                 found = true;
-                if (p.architecture == QLatin1String("i386")
-                        && toolchain->targetAbi().wordWidth() != 32) {
-                    if (debugProbe)
-                        qDebug() << "resetting api of " << toolchain->displayName();
+                if ((p.architecture == QLatin1String("i386")
+                        && toolchain->targetAbi().wordWidth() != 32) ||
+                        (p.architecture == QLatin1String("x86_64")
+                        && toolchain->targetAbi().wordWidth() != 64)) {
+                        qCDebug(kitSetupLog) << "resetting api of " << toolchain->displayName();
                     toolchain->setTargetAbi(Abi(Abi::X86Architecture,
                                                 Abi::MacOS, Abi::GenericMacFlavor,
-                                                Abi::MachOFormat, 32));
+                                                Abi::MachOFormat,
+                                                p.architecture.endsWith(QLatin1String("64"))
+                                                    ? 64 : 32));
                 }
                 platformToolchainMap[p.name] = toolchain;
-                if (debugProbe)
-                    qDebug() << p.name << " -> " << toolchain->displayName();
+                qCDebug(kitSetupLog) << p.name << " -> " << toolchain->displayName();
             }
         }
         if (!found && (tc->displayName().startsWith(QLatin1String("iphone"))
                        || tc->displayName().startsWith(QLatin1String("mac")))) {
-            qDebug() << "removing toolchain" << tc->displayName();
+            qCWarning(kitSetupLog) << "removing toolchain" << tc->displayName();
             ToolChainManager::deregisterToolChain(tc);
         }
     }
@@ -173,20 +171,21 @@ void IosConfigurations::updateAutomaticKitList()
                     }
                 }
                 if (unique) break;
-                displayName = baseDisplayName + QLatin1String("-") + QString::number(iVers);
+                displayName = baseDisplayName + QLatin1Char('-') + QString::number(iVers);
             }
             toolchain->setDisplayName(displayName);
             toolchain->setPlatformCodeGenFlags(p.backendFlags);
             toolchain->setPlatformLinkerFlags(p.backendFlags);
-            toolchain->setCompilerCommand(p.compilerPath);
-            if (p.architecture == QLatin1String("i386")) {
-                if (debugProbe)
-                    qDebug() << "setting toolchain Abi for " << toolchain->displayName();
+            toolchain->resetToolChain(p.compilerPath);
+            if (p.architecture == QLatin1String("i386")
+                    || p.architecture == QLatin1String("x86_64")) {
+                qCDebug(kitSetupLog) << "setting toolchain Abi for " << toolchain->displayName();
                 toolchain->setTargetAbi(Abi(Abi::X86Architecture,Abi::MacOS, Abi::GenericMacFlavor,
-                                            Abi::MachOFormat, 32));
+                                            Abi::MachOFormat,
+                                            p.architecture.endsWith(QLatin1String("64"))
+                                                ? 64 : 32));
             }
-            if (debugProbe)
-                qDebug() << "adding toolchain " << p.name;
+            qCDebug(kitSetupLog) << "adding toolchain " << p.name;
             ToolChainManager::registerToolChain(toolchain);
             platformToolchainMap.insert(p.name, toolchain);
             QMapIterator<QString, Platform> iter2(iter);
@@ -203,8 +202,7 @@ void IosConfigurations::updateAutomaticKitList()
     }
     QMap<Abi::Architecture, QList<BaseQtVersion *> > qtVersionsForArch;
     foreach (BaseQtVersion *qtVersion, QtVersionManager::versions()) {
-        if (debugProbe)
-            qDebug() << "qt type " << qtVersion->type();
+        qCDebug(kitSetupLog) << "qt type " << qtVersion->type();
         if (qtVersion->type() != QLatin1String(Constants::IOSQT)) {
             if (qtVersion->qmakeProperty("QMAKE_PLATFORM").contains(QLatin1String("ios"))
                     || qtVersion->qmakeProperty("QMAKE_XSPEC").contains(QLatin1String("ios"))) {
@@ -215,8 +213,7 @@ void IosConfigurations::updateAutomaticKitList()
                             qtVersion->isAutodetected(),
                             qtVersion->autodetectionSource());
                 if (iosVersion && iosVersion->type() == QLatin1String(Constants::IOSQT)) {
-                    if (debugProbe)
-                        qDebug() << "converting QT to iOS QT for " << qtVersion->qmakeCommand().toUserOutput();
+                    qCDebug(kitSetupLog) << "converting QT to iOS QT for " << qtVersion->qmakeCommand().toUserOutput();
                     QtVersionManager::removeVersion(qtVersion);
                     QtVersionManager::addVersion(iosVersion);
                     qtVersion = iosVersion;
@@ -232,13 +229,12 @@ void IosConfigurations::updateAutomaticKitList()
         QList<Abi> qtAbis = qtVersion->qtAbis();
         if (qtAbis.empty())
             continue;
-        if (debugProbe)
-            qDebug() << "qt arch " << qtAbis.first().architecture();
+        qCDebug(kitSetupLog) << "qt arch " << qtAbis.first().architecture();
         foreach (const Abi &abi, qtAbis)
             qtVersionsForArch[abi.architecture()].append(qtVersion);
     }
 
-    const DebuggerItem *possibleDebugger = DebuggerItemManager::findByEngineType(Debugger::LldbEngineType);
+    const DebuggerItem *possibleDebugger = DebuggerItemManager::findByEngineType(LldbEngineType);
     QVariant debuggerId = (possibleDebugger ? possibleDebugger->id() : QVariant());
 
     QList<Kit *> existingKits;
@@ -247,8 +243,7 @@ void IosConfigurations::updateAutomaticKitList()
         Core::Id deviceKind = DeviceTypeKitInformation::deviceTypeId(k);
         if (deviceKind != Constants::IOS_DEVICE_TYPE
                 && deviceKind != Constants::IOS_SIMULATOR_TYPE) {
-            if (debugProbe)
-                qDebug() << "skipping existing kit with deviceKind " << deviceKind.toString();
+            qCDebug(kitSetupLog) << "skipping existing kit with deviceKind " << deviceKind.toString();
             continue;
         }
         if (!k->isAutoDetected())
@@ -266,17 +261,14 @@ void IosConfigurations::updateAutomaticKitList()
             if (!pToolchain)
                 continue;
             Core::Id pDeviceType;
-            if (debugProbe)
-                qDebug() << "guaranteeing kit for " << p.name ;
+            qCDebug(kitSetupLog) << "guaranteeing kit for " << p.name ;
             if (p.name.startsWith(QLatin1String("iphoneos-"))) {
                 pDeviceType = Constants::IOS_DEVICE_TYPE;
             } else if (p.name.startsWith(QLatin1String("iphonesimulator-"))) {
                 pDeviceType = Constants::IOS_SIMULATOR_TYPE;
-                if (debugProbe)
-                    qDebug() << "pDeviceType " << pDeviceType.toString();
+                qCDebug(kitSetupLog) << "pDeviceType " << pDeviceType.toString();
             } else {
-                if (debugProbe)
-                    qDebug() << "skipping non ios kit " << p.name;
+                qCDebug(kitSetupLog) << "skipping non ios kit " << p.name;
                 // we looked up only the ios qt build above...
                 continue;
                 //pDeviceType = Constants::DESKTOP_DEVICE_TYPE;
@@ -299,9 +291,8 @@ void IosConfigurations::updateAutomaticKitList()
                         // new Xcode is used). Change?
                         kitExists = true;
                         kitAtt = k;
-                        if (debugProbe)
-                            qDebug() << "found existing kit " << k->displayName() << " for " << p.name
-                                     << "," << qt->displayName();
+                        qCDebug(kitSetupLog) << "found existing kit " << k->displayName() << " for " << p.name
+                                 << "," << qt->displayName();
                         if (i<kitMatched.size())
                             kitMatched.replace(i, true);
                         break;
@@ -310,8 +301,7 @@ void IosConfigurations::updateAutomaticKitList()
                 if (kitExists) {
                     kitAtt->blockNotification();
                 } else {
-                    if (debugProbe)
-                        qDebug() << "setting up new kit for " << p.name;
+                    qCDebug(kitSetupLog) << "setting up new kit for " << p.name;
                     kitAtt = new Kit;
                     kitAtt->setAutoDetected(true);
                     QString baseDisplayName = tr("%1 %2").arg(p.name, qt->displayName());
@@ -325,20 +315,20 @@ void IosConfigurations::updateAutomaticKitList()
                             }
                         }
                         if (unique) break;
-                        displayName = baseDisplayName + QLatin1String("-") + QString::number(iVers);
+                        displayName = baseDisplayName + QLatin1Char('-') + QString::number(iVers);
                     }
-                    kitAtt->setDisplayName(displayName);
+                    kitAtt->setUnexpandedDisplayName(displayName);
                 }
-                kitAtt->setIconPath(Utils::FileName::fromString(
+                kitAtt->setIconPath(FileName::fromString(
                                         QLatin1String(Constants::IOS_SETTINGS_CATEGORY_ICON)));
                 DeviceTypeKitInformation::setDeviceTypeId(kitAtt, pDeviceType);
                 ToolChainKitInformation::setToolChain(kitAtt, pToolchain);
                 QtKitInformation::setQtVersion(kitAtt, qt);
-                if ((!Debugger::DebuggerKitInformation::debugger(kitAtt)
-                        || !Debugger::DebuggerKitInformation::debugger(kitAtt)->isValid()
-                        || Debugger::DebuggerKitInformation::debugger(kitAtt)->engineType() != Debugger::LldbEngineType)
+                if ((!DebuggerKitInformation::debugger(kitAtt)
+                        || !DebuggerKitInformation::debugger(kitAtt)->isValid()
+                        || DebuggerKitInformation::debugger(kitAtt)->engineType() != LldbEngineType)
                         && debuggerId.isValid())
-                    Debugger::DebuggerKitInformation::setDebugger(kitAtt,
+                    DebuggerKitInformation::setDebugger(kitAtt,
                                                                   debuggerId);
 
                 kitAtt->setMutable(DeviceKitInformation::id(), true);
@@ -346,7 +336,7 @@ void IosConfigurations::updateAutomaticKitList()
                 kitAtt->setSticky(ToolChainKitInformation::id(), true);
                 kitAtt->setSticky(DeviceTypeKitInformation::id(), true);
                 kitAtt->setSticky(SysRootKitInformation::id(), true);
-                kitAtt->setSticky(Debugger::DebuggerKitInformation::id(), false);
+                kitAtt->setSticky(DebuggerKitInformation::id(), false);
 
                 SysRootKitInformation::setSysRoot(kitAtt, p.sdkPath);
                 // QmakeProjectManager::QmakeKitInformation::setMkspec(newKit,
@@ -363,7 +353,7 @@ void IosConfigurations::updateAutomaticKitList()
     for (int i = 0; i < kitMatched.size(); ++i) {
         // deleting extra (old) kits
         if (!kitMatched.at(i)) {
-            qDebug() << "deleting kit " << existingKits.at(i)->displayName();
+            qCWarning(kitSetupLog) << "deleting kit " << existingKits.at(i)->displayName();
             KitManager::deregisterKit(existingKits.at(i));
         }
     }
@@ -380,8 +370,6 @@ void IosConfigurations::initialize()
 {
     QTC_CHECK(m_instance == 0);
     m_instance = new IosConfigurations(0);
-    m_instance->updateSimulators();
-    QTimer::singleShot(10000, IosDeviceManager::instance(), SLOT(monitorAvailableDevices()));
 }
 
 bool IosConfigurations::ignoreAllDevices()
@@ -430,22 +418,25 @@ void IosConfigurations::updateSimulators()
     // currently we have just one simulator
     DeviceManager *devManager = DeviceManager::instance();
     Core::Id devId = Constants::IOS_SIMULATOR_DEVICE_ID;
-    QMap<QString, Platform> platforms = IosProbe::detectPlatforms();
-    QMapIterator<QString, Platform> iter(platforms);
-    Utils::FileName simulatorPath;
     IDevice::ConstPtr dev = devManager->find(devId);
-    if (!dev.isNull())
-        return;
-    IosSimulator *newDev = new IosSimulator(devId);
-    devManager->addDevice(IDevice::ConstPtr(newDev));
+    if (dev.isNull()) {
+        dev = IDevice::ConstPtr(new IosSimulator(devId));
+        devManager->addDevice(dev);
+    }
+    IosSimulator::updateAvailableDevices();
 }
 
 void IosConfigurations::setDeveloperPath(const FileName &devPath)
 {
+    static bool hasDevPath = false;
     if (devPath != m_instance->m_developerPath) {
         m_instance->m_developerPath = devPath;
         m_instance->save();
-        updateAutomaticKitList();
+        if (!hasDevPath && !devPath.isEmpty()) {
+            hasDevPath = true;
+            QTimer::singleShot(1000, IosDeviceManager::instance(), SLOT(monitorAvailableDevices()));
+            m_instance->updateSimulators();
+        }
         emit m_instance->updated();
     }
 }

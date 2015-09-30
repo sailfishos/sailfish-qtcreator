@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -32,8 +33,10 @@
 #include "projectexplorersettings.h"
 #include "runconfiguration.h"
 #include "session.h"
+#include "windebuginterface.h"
 
 #include <coreplugin/actionmanager/actionmanager.h>
+#include <coreplugin/actionmanager/command.h>
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/outputwindow.h>
 #include <coreplugin/find/basetextfind.h>
@@ -42,6 +45,8 @@
 #include <extensionsystem/pluginmanager.h>
 #include <extensionsystem/invoker.h>
 
+#include <utils/algorithm.h>
+#include <utils/outputformatter.h>
 #include <utils/qtcassert.h>
 
 #include <QAction>
@@ -58,9 +63,9 @@ enum { debug = 0 };
 using namespace ProjectExplorer;
 using namespace ProjectExplorer::Internal;
 
-static QObject *debuggerCore()
+static QObject *debuggerPlugin()
 {
-    return ExtensionSystem::PluginManager::getObjectByName(QLatin1String("DebuggerCore"));
+    return ExtensionSystem::PluginManager::getObjectByName(QLatin1String("DebuggerPlugin"));
 }
 
 static QString msgAttachDebuggerTooltip(const QString &handleDescription = QString())
@@ -80,19 +85,49 @@ public:
     TabWidget(QWidget *parent = 0);
 signals:
     void contextMenuRequested(const QPoint &pos, const int index);
+protected:
+    bool eventFilter(QObject *object, QEvent *event);
 private slots:
     void slotContextMenuRequested(const QPoint &pos);
+private:
+    int m_tabIndexForMiddleClick;
 };
 
 }
 }
 
 TabWidget::TabWidget(QWidget *parent)
-    : QTabWidget(parent)
+    : QTabWidget(parent), m_tabIndexForMiddleClick(-1)
 {
+    tabBar()->installEventFilter(this);
     setContextMenuPolicy(Qt::CustomContextMenu);
     connect(this, SIGNAL(customContextMenuRequested(QPoint)),
             this, SLOT(slotContextMenuRequested(QPoint)));
+}
+
+bool TabWidget::eventFilter(QObject *object, QEvent *event)
+{
+    if (object == tabBar()) {
+        if (event->type() == QEvent::MouseButtonPress) {
+            QMouseEvent *me = static_cast<QMouseEvent *>(event);
+            if (me->button() == Qt::MiddleButton) {
+                m_tabIndexForMiddleClick = tabBar()->tabAt(me->pos());
+                event->accept();
+                return true;
+            }
+        } else if (event->type() == QEvent::MouseButtonRelease) {
+            QMouseEvent *me = static_cast<QMouseEvent *>(event);
+            if (me->button() == Qt::MiddleButton) {
+                int tab = tabBar()->tabAt(me->pos());
+                if (tab != -1 && tab == m_tabIndexForMiddleClick)
+                    emit tabCloseRequested(tab);
+                m_tabIndexForMiddleClick = -1;
+                event->accept();
+                return true;
+            }
+        }
+    }
+    return QTabWidget::eventFilter(object, event);
 }
 
 void TabWidget::slotContextMenuRequested(const QPoint &pos)
@@ -119,7 +154,7 @@ AppOutputPane::AppOutputPane() :
     setObjectName(QLatin1String("AppOutputPane")); // Used in valgrind engine
 
     // Rerun
-    m_reRunButton->setIcon(QIcon(QLatin1String(ProjectExplorer::Constants::ICON_RUN_SMALL)));
+    m_reRunButton->setIcon(QIcon(QLatin1String(Constants::ICON_RUN_SMALL)));
     m_reRunButton->setToolTip(tr("Re-run this run-configuration"));
     m_reRunButton->setAutoRaise(true);
     m_reRunButton->setEnabled(false);
@@ -127,15 +162,13 @@ AppOutputPane::AppOutputPane() :
             this, SLOT(reRunRunControl()));
 
     // Stop
-    Core::Context globalcontext(Core::Constants::C_GLOBAL);
-
     QIcon stopIcon = QIcon(QLatin1String(Constants::ICON_STOP));
     stopIcon.addFile(QLatin1String(Constants::ICON_STOP_SMALL));
     m_stopAction->setIcon(stopIcon);
     m_stopAction->setToolTip(tr("Stop"));
     m_stopAction->setEnabled(false);
 
-    Core::Command *cmd = Core::ActionManager::registerAction(m_stopAction, Constants::STOP, globalcontext);
+    Core::Command *cmd = Core::ActionManager::registerAction(m_stopAction, Constants::STOP);
 
     m_stopButton->setDefaultAction(cmd->action());
     m_stopButton->setAutoRaise(true);
@@ -146,7 +179,7 @@ AppOutputPane::AppOutputPane() :
     // Attach
     m_attachButton->setToolTip(msgAttachDebuggerTooltip());
     m_attachButton->setEnabled(false);
-    m_attachButton->setIcon(QIcon(QLatin1String(ProjectExplorer::Constants::ICON_DEBUG_SMALL)));
+    m_attachButton->setIcon(QIcon(QLatin1String(Constants::ICON_DEBUG_SMALL)));
     m_attachButton->setAutoRaise(true);
 
     connect(m_attachButton, SIGNAL(clicked()),
@@ -171,6 +204,11 @@ AppOutputPane::AppOutputPane() :
             this, SLOT(aboutToUnloadSession()));
     connect(ProjectExplorerPlugin::instance(), SIGNAL(settingsChanged()),
             this, SLOT(updateFromSettings()));
+
+#ifdef Q_OS_WIN
+    connect(this, &AppOutputPane::allRunControlsFinished,
+            WinDebugInterface::instance(), &WinDebugInterface::stop);
+#endif
 }
 
 AppOutputPane::~AppOutputPane()
@@ -231,10 +269,9 @@ void AppOutputPane::updateCloseActions()
 
 bool AppOutputPane::aboutToClose() const
 {
-    foreach (const RunControlTab &rt, m_runControlTabs)
-        if (rt.runControl->isRunning() && !rt.runControl->promptToStop())
-            return false;
-    return true;
+    return Utils::allOf(m_runControlTabs, [](const RunControlTab &rt) {
+        return !rt.runControl->isRunning() || rt.runControl->promptToStop();
+    });
 }
 
 void AppOutputPane::aboutToUnloadSession()
@@ -275,7 +312,10 @@ void AppOutputPane::visibilityChanged(bool /* b */)
 
 bool AppOutputPane::hasFocus() const
 {
-    return m_tabWidget->currentWidget() && m_tabWidget->currentWidget()->hasFocus();
+    QWidget *widget = m_tabWidget->currentWidget();
+    if (!widget)
+        return false;
+    return widget->window()->focusWidget() == widget;
 }
 
 bool AppOutputPane::canFocus() const
@@ -400,9 +440,9 @@ void AppOutputPane::attachToRunControl()
 {
     const int index = currentIndex();
     QTC_ASSERT(index != -1, return);
-    ProjectExplorer::RunControl *rc = m_runControlTabs.at(index).runControl;
+    RunControl *rc = m_runControlTabs.at(index).runControl;
     QTC_ASSERT(rc->isRunning(), return);
-    ExtensionSystem::Invoker<void>(debuggerCore(), "attachExternalApplication", rc);
+    ExtensionSystem::Invoker<void>(debuggerPlugin(), "attachExternalApplication", rc);
 }
 
 void AppOutputPane::stopRunControl()
@@ -439,19 +479,17 @@ bool AppOutputPane::closeTab(int tabIndex, CloseTabMode closeTabMode)
     int index = indexOf(m_tabWidget->widget(tabIndex));
     QTC_ASSERT(index != -1, return true);
 
-    RunControlTab &tab = m_runControlTabs[index];
-
     if (debug)
-            qDebug() << "OutputPane::closeTab tab " << tabIndex << tab.runControl
-                        << tab.window << tab.asyncClosing;
+        qDebug() << "OutputPane::closeTab tab " << tabIndex << m_runControlTabs[index].runControl
+                        << m_runControlTabs[index].window << m_runControlTabs[index].asyncClosing;
     // Prompt user to stop
-    if (tab.runControl->isRunning()) {
+    if (m_runControlTabs[index].runControl->isRunning()) {
         switch (closeTabMode) {
         case CloseTabNoPrompt:
             break;
         case CloseTabWithPrompt:
             QWidget *tabWidget = m_tabWidget->widget(tabIndex);
-            if (!tab.runControl->promptToStop())
+            if (!m_runControlTabs[index].runControl->promptToStop())
                 return false;
             // The event loop has run, thus the ordering might have changed, a tab might
             // have been closed, so do some strange things...
@@ -459,28 +497,30 @@ bool AppOutputPane::closeTab(int tabIndex, CloseTabMode closeTabMode)
             index = indexOf(tabWidget);
             if (tabIndex == -1 || index == -1)
                 return false;
-            tab = m_runControlTabs[index];
             break;
         }
-        if (tab.runControl->isRunning()) { // yes it might have stopped already, then just close
+        if (m_runControlTabs[index].runControl->isRunning()) { // yes it might have stopped already, then just close
             QWidget *tabWidget = m_tabWidget->widget(tabIndex);
-            if (tab.runControl->stop() == RunControl::AsynchronousStop) {
-                tab.asyncClosing = true;
+            if (m_runControlTabs[index].runControl->stop() == RunControl::AsynchronousStop) {
+                m_runControlTabs[index].asyncClosing = true;
                 return false;
             }
             tabIndex = m_tabWidget->indexOf(tabWidget);
             index = indexOf(tabWidget);
             if (tabIndex == -1 || index == -1)
                 return false;
-            tab = m_runControlTabs[index];
         }
     }
 
     m_tabWidget->removeTab(tabIndex);
-    delete tab.runControl;
-    delete tab.window;
+    delete m_runControlTabs[index].runControl;
+    delete m_runControlTabs[index].window;
     m_runControlTabs.removeAt(index);
     updateCloseActions();
+
+    if (m_runControlTabs.isEmpty())
+        hide();
+
     return true;
 }
 
@@ -508,10 +548,10 @@ void AppOutputPane::enableButtons()
 void AppOutputPane::enableButtons(const RunControl *rc /* = 0 */, bool isRunning /*  = false */)
 {
     if (rc) {
-        m_reRunButton->setEnabled(!isRunning);
-        m_reRunButton->setIcon(rc->icon());
+        m_reRunButton->setEnabled(!isRunning && rc->supportsReRunning());
+        m_reRunButton->setIcon(QIcon(rc->icon()));
         m_stopAction->setEnabled(isRunning);
-        if (isRunning && debuggerCore() && rc->applicationProcessHandle().isValid()) {
+        if (isRunning && debuggerPlugin() && rc->applicationProcessHandle().isValid()) {
             m_attachButton->setEnabled(true);
             m_attachButton->setToolTip(msgAttachDebuggerTooltip(rc->applicationProcessHandle().toString()));
         } else {
@@ -520,7 +560,7 @@ void AppOutputPane::enableButtons(const RunControl *rc /* = 0 */, bool isRunning
         }
     } else {
         m_reRunButton->setEnabled(false);
-        m_reRunButton->setIcon(QIcon(QLatin1String(ProjectExplorer::Constants::ICON_RUN_SMALL)));
+        m_reRunButton->setIcon(QIcon(QLatin1String(Constants::ICON_RUN_SMALL)));
         m_attachButton->setEnabled(false);
         m_attachButton->setToolTip(msgAttachDebuggerTooltip());
         m_stopAction->setEnabled(false);
@@ -565,7 +605,7 @@ void AppOutputPane::slotRunControlStarted()
 
 void AppOutputPane::slotRunControlFinished()
 {
-    ProjectExplorer::RunControl *rc = qobject_cast<RunControl *>(sender());
+    RunControl *rc = qobject_cast<RunControl *>(sender());
     QMetaObject::invokeMethod(this, "slotRunControlFinished2", Qt::QueuedConnection,
                               Q_ARG(ProjectExplorer::RunControl *, rc));
     rc->outputFormatter()->flush();
@@ -575,7 +615,9 @@ void AppOutputPane::slotRunControlFinished2(RunControl *sender)
 {
     const int senderIndex = indexOf(sender);
 
-    QTC_ASSERT(senderIndex != -1, return);
+    // This slot is queued, so the stop() call in closeTab might lead to this slot, after closeTab already cleaned up
+    if (senderIndex == -1)
+        return;
 
     // Enable buttons for current
     RunControl *current = currentRunControl();
@@ -599,10 +641,9 @@ void AppOutputPane::slotRunControlFinished2(RunControl *sender)
 
 bool AppOutputPane::isRunning() const
 {
-    foreach (const RunControlTab &rt, m_runControlTabs)
-        if (rt.runControl->isRunning())
-            return true;
-    return false;
+    return Utils::anyOf(m_runControlTabs, [](const RunControlTab &rt) {
+        return rt.runControl->isRunning();
+    });
 }
 
 bool AppOutputPane::canNext() const
@@ -628,14 +669,6 @@ void AppOutputPane::goToPrev()
 bool AppOutputPane::canNavigate() const
 {
     return false;
-}
-
-QList<RunControl *> AppOutputPane::runControls() const
-{
-    QList<RunControl *> result;
-    foreach (const RunControlTab& tab, m_runControlTabs)
-        result << tab.runControl;
-    return result;
 }
 
 #include "appoutputpane.moc"

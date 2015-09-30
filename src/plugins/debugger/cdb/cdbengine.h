@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -31,6 +32,7 @@
 #define DEBUGGER_CDBENGINE_H
 
 #include <debugger/debuggerengine.h>
+#include <debugger/breakhandler.h>
 
 #include <projectexplorer/devicesupport/idevice.h>
 
@@ -40,18 +42,20 @@
 #include <QVariant>
 #include <QTime>
 
+#include <functional>
+
 namespace Utils { class ConsoleProcess; }
 namespace Debugger {
 namespace Internal {
 
 class DisassemblerAgent;
-struct CdbBuiltinCommand;
-struct CdbExtensionCommand;
+class CdbCommand;
+class CdbResponse;
 struct MemoryViewCookie;
 class ByteArrayInputStream;
 class GdbMi;
 
-class CdbEngine : public Debugger::DebuggerEngine
+class CdbEngine : public DebuggerEngine
 {
     Q_OBJECT
 
@@ -66,29 +70,28 @@ public:
         CommandListBreakPoints = 0x10
     };
 
-    typedef QSharedPointer<CdbBuiltinCommand> CdbBuiltinCommandPtr;
-    typedef QSharedPointer<CdbExtensionCommand> CdbExtensionCommandPtr;
-    typedef void (CdbEngine::*BuiltinCommandHandler)(const CdbBuiltinCommandPtr &);
-    typedef void (CdbEngine::*ExtensionCommandHandler)(const CdbExtensionCommandPtr &);
+    typedef QSharedPointer<CdbCommand> CdbCommandPtr;
+    typedef std::function<void(const CdbResponse &)> CommandHandler;
 
-    CdbEngine(const DebuggerStartParameters &sp);
+    CdbEngine(const DebuggerRunParameters &sp);
     ~CdbEngine();
 
     // Factory function that returns 0 if the debug engine library cannot be found.
 
-    virtual bool setToolTipExpression(const QPoint &mousePos, TextEditor::ITextEditor *editor,
-                                      const DebuggerToolTipContext &ctx);
+    virtual bool canHandleToolTip(const DebuggerToolTipContext &context) const;
+
+    virtual DebuggerEngine *cppEngine() { return this; }
+
     virtual void setupEngine();
     virtual void setupInferior();
     virtual void runEngine();
     virtual void shutdownInferior();
     virtual void shutdownEngine();
+    virtual void abortDebugger();
     virtual void detachDebugger();
-    virtual void updateWatchData(const WatchData &data,
-                                 const WatchUpdateFlags & flags = WatchUpdateFlags());
     virtual bool hasCapability(unsigned cap) const;
     virtual void watchPoint(const QPoint &);
-    virtual void setRegisterValue(int regnr, const QString &value);
+    virtual void setRegisterValue(const QByteArray &name, const QString &value);
 
     virtual void executeStep();
     virtual void executeStepOut();
@@ -102,14 +105,14 @@ public:
     virtual void executeRunToLine(const ContextData &data);
     virtual void executeRunToFunction(const QString &functionName);
     virtual void executeJumpToLine(const ContextData &data);
-    virtual void assignValueInDebugger(const WatchData *w, const QString &expr, const QVariant &value);
+    virtual void assignValueInDebugger(WatchItem *w, const QString &expr, const QVariant &value);
     virtual void executeDebuggerCommand(const QString &command, DebuggerLanguages languages);
 
     virtual void activateFrame(int index);
     virtual void selectThread(ThreadId threadId);
 
     virtual bool stateAcceptsBreakpointChanges() const;
-    virtual bool acceptsBreakpoint(BreakpointModelId id) const;
+    virtual bool acceptsBreakpoint(Breakpoint bp) const;
     virtual void attemptBreakpointSynchronization();
 
     virtual void fetchDisassembler(DisassemblerAgent *agent);
@@ -136,16 +139,14 @@ private slots:
     void postCommand(const QByteArray &cmd, unsigned flags);
     void postBuiltinCommand(const QByteArray &cmd,
                             unsigned flags,
-                            BuiltinCommandHandler handler,
-                            unsigned nextCommandFlag = 0,
-                            const QVariant &cookie = QVariant());
+                            CommandHandler handler,
+                            unsigned nextCommandFlag = 0);
 
     void postExtensionCommand(const QByteArray &cmd,
                               const QByteArray &arguments,
                               unsigned flags,
-                              ExtensionCommandHandler handler,
-                              unsigned nextCommandFlag = 0,
-                              const QVariant &cookie = QVariant());
+                              CommandHandler handler,
+                              unsigned nextCommandFlag = 0);
 
     void postCommandSequence(unsigned mask);
     void operateByInstructionTriggered(bool);
@@ -185,7 +186,7 @@ private:
     };
 
 
-    bool startConsole(const DebuggerStartParameters &sp, QString *errorMessage);
+    bool startConsole(const DebuggerRunParameters &sp, QString *errorMessage);
     void init();
     unsigned examineStopReason(const GdbMi &stopReason, QString *message,
                                QString *exceptionBoxMessage,
@@ -194,7 +195,7 @@ private:
     bool commandsPending() const;
     void handleExtensionMessage(char t, int token, const QByteArray &what, const QByteArray &message);
     bool doSetupEngine(QString *errorMessage);
-    bool launchCDB(const DebuggerStartParameters &sp, QString *errorMessage);
+    bool launchCDB(const DebuggerRunParameters &sp, QString *errorMessage);
     void handleSessionAccessible(unsigned long cdbExState);
     void handleSessionInaccessible(unsigned long cdbExState);
     void handleSessionIdle(const QByteArray &message);
@@ -209,45 +210,43 @@ private:
     void postWidgetAtCommand();
     void handleCustomSpecialStop(const QVariant &v);
     void postFetchMemory(const MemoryViewCookie &c);
-    inline void postDisassemblerCommand(quint64 address, const QVariant &cookie = QVariant());
+    inline void postDisassemblerCommand(quint64 address, DisassemblerAgent *agent);
     void postDisassemblerCommand(quint64 address, quint64 endAddress,
-                                 const QVariant &cookie = QVariant());
+                                 DisassemblerAgent *agent);
     void postResolveSymbol(const QString &module, const QString &function,
-                           const QVariant &cookie =  QVariant());
-    void evaluateExpression(QByteArray exp, const QVariant &cookie = QVariant());
+                           DisassemblerAgent *agent);
     // Builtin commands
-    void dummyHandler(const CdbBuiltinCommandPtr &);
-    void handleStackTrace(const CdbExtensionCommandPtr &);
-    void handleRegisters(const CdbBuiltinCommandPtr &);
-    void handleDisassembler(const CdbBuiltinCommandPtr &);
-    void handleJumpToLineAddressResolution(const CdbBuiltinCommandPtr &);
-    void handleExpression(const CdbExtensionCommandPtr &);
-    void handleResolveSymbol(const CdbBuiltinCommandPtr &command);
-    void handleResolveSymbol(const QList<quint64> &addresses, const QVariant &cookie);
-    void handleCheckWow64(const CdbBuiltinCommandPtr &cmd);
-    void ensureUsing32BitStackInWow64(const CdbBuiltinCommandPtr &cmd);
-    void handleSwitchWow64Stack(const CdbBuiltinCommandPtr &cmd);
+    void dummyHandler(const CdbResponse &);
+    void handleStackTrace(const CdbResponse &);
+    void handleRegisters(const CdbResponse &);
+    void handleDisassembler(const CdbResponse &, DisassemblerAgent *agent);
+    void handleJumpToLineAddressResolution(const CdbResponse &response, const ContextData &context);
+    void handleExpression(const CdbResponse &command, BreakpointModelId id, const GdbMi &stopReason);
+    void handleResolveSymbol(const CdbResponse &command, const QString &symbol, DisassemblerAgent *agent);
+    void handleResolveSymbolHelper(const QList<quint64> &addresses, DisassemblerAgent *agent);
+    void handleBreakInsert(const CdbResponse &response);
+    void handleCheckWow64(const CdbResponse &response, const GdbMi &stack);
+    void ensureUsing32BitStackInWow64(const CdbResponse &response, const GdbMi &stack);
+    void handleSwitchWow64Stack(const CdbResponse &response);
     void jumpToAddress(quint64 address);
-    void handleCreateFullBackTrace(const CdbBuiltinCommandPtr &cmd);
+    void handleCreateFullBackTrace(const CdbResponse &response);
 
     // Extension commands
-    void handleThreads(const CdbExtensionCommandPtr &);
-    void handlePid(const CdbExtensionCommandPtr &reply);
-    void handleLocals(const CdbExtensionCommandPtr &reply);
-    void handleAddWatch(const CdbExtensionCommandPtr &reply);
-    void handleExpandLocals(const CdbExtensionCommandPtr &reply);
-    void handleRegisters(const CdbExtensionCommandPtr &reply);
-    void handleModules(const CdbExtensionCommandPtr &reply);
-    void handleMemory(const CdbExtensionCommandPtr &);
-    void handleWidgetAt(const CdbExtensionCommandPtr &);
-    void handleBreakPoints(const CdbExtensionCommandPtr &);
+    void handleThreads(const CdbResponse &response);
+    void handlePid(const CdbResponse &response);
+    void handleLocals(const CdbResponse &response, bool partialUpdate);
+    void handleExpandLocals(const CdbResponse &response);
+    void handleRegistersExt(const CdbResponse &response);
+    void handleModules(const CdbResponse &response);
+    void handleMemory(const CdbResponse &response, const MemoryViewCookie &memViewCookie);
+    void handleWidgetAt(const CdbResponse &response);
+    void handleBreakPoints(const CdbResponse &response);
     void handleBreakPoints(const GdbMi &value);
-    void handleAdditionalQmlStack(const CdbExtensionCommandPtr &);
+    void handleAdditionalQmlStack(const CdbResponse &response);
     NormalizedSourceFileName sourceMapNormalizeFileNameFromDebugger(const QString &f);
-    void updateLocalVariable(const QByteArray &iname);
-    void updateLocals(bool forNewStackFrame = false);
+    void doUpdateLocals(const UpdateParameters &params) override;
+    void updateAll() override;
     int elapsedLogTime() const;
-    void addLocalsOptions(ByteArrayInputStream &s) const;
     unsigned parseStackTrace(const GdbMi &data, bool sourceStepInto);
     void mergeStartParametersSourcePathMap();
 
@@ -262,16 +261,15 @@ private:
     SpecialStopMode m_specialStopMode;
     ProjectExplorer::DeviceProcessSignalOperation::Ptr m_signalOperation;
     int m_nextCommandToken;
-    QList<CdbBuiltinCommandPtr> m_builtinCommandQueue;
+    QList<CdbCommandPtr> m_builtinCommandQueue;
     int m_currentBuiltinCommandIndex; //!< Current command whose output is recorded.
-    QList<CdbExtensionCommandPtr> m_extensionCommandQueue;
+    QList<CdbCommandPtr> m_extensionCommandQueue;
     QMap<QString, NormalizedSourceFileName> m_normalizedFileCache;
     const QByteArray m_extensionCommandPrefixBA; //!< Library name used as prefix
     bool m_operateByInstructionPending; //!< Creator operate by instruction action changed.
     bool m_operateByInstruction;
     bool m_verboseLogPending; //!< Creator verbose log action changed.
     bool m_verboseLog;
-    bool m_notifyEngineShutdownOnTermination;
     bool m_hasDebuggee;
     enum Wow64State {
         wow64Uninitialized,
@@ -286,9 +284,11 @@ private:
     int m_watchPointX;
     int m_watchPointY;
     PendingBreakPointMap m_pendingBreakpointMap;
+    PendingBreakPointMap m_insertSubBreakpointMap;
+    PendingBreakPointMap m_pendingSubBreakpointMap;
+    bool m_autoBreakPointCorrection;
     QHash<QString, QString> m_fileNameModuleHash;
     QMultiHash<QString, quint64> m_symbolAddressCache;
-    QHash<QByteArray, QString> m_watchInameToName;
     bool m_ignoreCdbOutput;
     QVariantList m_customSpecialStopData;
     QList<SourcePathMapping> m_sourcePathMappings;

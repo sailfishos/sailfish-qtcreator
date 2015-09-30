@@ -1,5 +1,4 @@
 import qbs 1.0
-import QtcTool
 
 QtcTool {
     name: "cpaster"
@@ -14,7 +13,6 @@ QtcTool {
     cpp.rpaths: [
         "$ORIGIN/../" + project.libDirName + "/qtcreator",
         "$ORIGIN/../" + project.libDirName + "/qtcreator/plugins",
-        "$ORIGIN/../" + project.libDirName + "/qtcreator/plugins/QtProject"
     ]
 
     Group {

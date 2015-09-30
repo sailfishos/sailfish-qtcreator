@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of the Qt Quick Controls module of the Qt Toolkit.
 **
@@ -17,7 +17,7 @@
 **     notice, this list of conditions and the following disclaimer in
 **     the documentation and/or other materials provided with the
 **     distribution.
-**   * Neither the name of Digia Plc and its Subsidiary(-ies) nor the names
+**   * Neither the name of The Qt Company Ltd and its Subsidiary(-ies) nor the names
 **     of its contributors may be used to endorse or promote products derived
 **     from this software without specific prior written permission.
 **
@@ -57,7 +57,8 @@ ButtonRow {
 
         onClicked:  {
             if (checked) {
-                anchorBackend.verticalCentered = false;
+                if (anchorBackend.bottomAnchored)
+                    anchorBackend.verticalCentered = false;
                 anchorBackend.topAnchored = true;
             } else {
                 anchorBackend.topAnchored = false;
@@ -75,7 +76,8 @@ ButtonRow {
 
         onClicked: {
             if (checked) {
-                anchorBackend.verticalCentered = false;
+                if (anchorBackend.topAnchored)
+                    anchorBackend.verticalCentered = false;
                 anchorBackend.bottomAnchored = true;
             } else {
                 anchorBackend.bottomAnchored = false;
@@ -94,7 +96,8 @@ ButtonRow {
 
         onClicked: {
             if (checked) {
-                anchorBackend.verticalCentered = false;
+                if (anchorBackend.rightAnchored)
+                    anchorBackend.horizontalCentered = false;
                 anchorBackend.leftAnchored = true;
             } else {
                 anchorBackend.leftAnchored = false;
@@ -112,7 +115,8 @@ ButtonRow {
 
         onClicked: {
             if (checked) {
-                anchorBackend.verticalCentered = false;
+                if (anchorBackend.leftAnchored)
+                    anchorBackend.horizontalCentered = false;
                 anchorBackend.rightAnchored = true;
             } else {
                 anchorBackend.rightAnchored = false;
@@ -156,8 +160,10 @@ ButtonRow {
 
         onClicked: {
             if (checked) {
-                anchorBackend.topAnchored = false;
-                anchorBackend.bottomAnchored = false;
+                if (anchorBackend.topAnchored && anchorBackend.bottomAnchored) {
+                    anchorBackend.topAnchored = false;
+                    anchorBackend.bottomAnchored = false;
+                }
                 anchorBackend.verticalCentered = true;
             } else {
                 anchorBackend.verticalCentered = false;
@@ -175,8 +181,10 @@ ButtonRow {
 
         onClicked: {
             if (checked) {
-                anchorBackend.leftAnchored = false;
-                anchorBackend.rightAnchored = false;
+                if (anchorBackend.leftAnchored && anchorBackend.rightAnchored) {
+                    anchorBackend.leftAnchored = false;
+                    anchorBackend.rightAnchored = false;
+                }
                 anchorBackend.horizontalCentered = true;
             } else {
                 anchorBackend.horizontalCentered = false;

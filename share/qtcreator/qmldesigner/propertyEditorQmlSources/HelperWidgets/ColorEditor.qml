@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -34,76 +35,105 @@ import QtQuick.Controls 1.0 as Controls
 
 
 Column {
+    id: colorEditor
 
     width: parent.width - 8
 
-    property alias color: colorButton.color
+    property color color
 
     property bool supportGradient: false
 
     property alias caption: label.text
 
-    property variant backendendValue
+    property variant backendValue
 
-    property variant value: backendendValue.value
+    property variant value: backendValue.value
+
+    property alias gradientPropertyName: gradientLine.gradientPropertyName
+
+    function isNotInGradientMode() {
+         return (buttonRow.checkedIndex !== 1)
+    }
 
     onValueChanged: {
-        color = value
+        colorEditor.color = colorEditor.value
+    }
+
+    onBackendValueChanged: {
+        colorEditor.color = colorEditor.value
     }
 
     Timer {
         id: colorEditorTimer
         repeat: false
         interval: 100
+        running: false
         onTriggered: {
-            if (backendendValue !== undefined)
-                backendendValue.value = colorEditor.color
+            if (backendValue !== undefined)
+                backendValue.value = colorEditor.color
         }
     }
 
-    id: colorEditor
-
     onColorChanged: {
-        if (!gradientLine.isCompleted)
+        if (!gradientLine.isInValidState)
             return;
-        textField.text = gradientLine.colorToString(color);
 
-        if (supportGradient && gradientLine.visible)
+        if (supportGradient && gradientLine.hasGradient) {
+            textField.text = convertColorToString(color)
             gradientLine.currentColor = color
+        }
 
-        if (buttonRow.checkedIndex !== 1)
+        if (isNotInGradientMode()) {
             //Delay setting the color to keep ui responsive
             colorEditorTimer.restart()
+        }
     }
 
     GradientLine {
-        property bool isCompleted: false
+        property bool isInValidState: false
         visible: buttonRow.checkedIndex === 1
         id: gradientLine
 
         width: parent.width
 
         onCurrentColorChanged: {
-            if (supportGradient && gradientLine.visible)
+            if (supportGradient && gradientLine.hasGradient)
                 colorEditor.color = gradientLine.currentColor
         }
 
         onHasGradientChanged: {
-            print("hasGradient")
              if (!supportGradient)
                  return
 
-            if (gradientLine.hasGradient)
+            if (gradientLine.hasGradient) {
                 buttonRow.initalChecked = 1
-            else
+                colorEditor.color = gradientLine.currentColor
+            } else {
                 buttonRow.initalChecked = 0
+                colorEditor.color = colorEditor.value
+            }
             buttonRow.checkedIndex = buttonRow.initalChecked
         }
 
-        Component.onCompleted: {
-            colorEditor.color = gradientLine.currentColor
-            isCompleted= true
+        Connections {
+            target: modelNodeBackend
+            onSelectionToBeChanged: {
+                colorEditorTimer.stop()
+                gradientLine.isInValidState = false
+            }
         }
+
+        Connections {
+            target: modelNodeBackend
+            onSelectionChanged: {
+                if (supportGradient && gradientLine.hasGradient) {
+                    colorEditor.color = gradientLine.currentColor
+                    gradientLine.currentColor = color
+                }
+                gradientLine.isInValidState = true
+            }
+        }
+
     }
 
     SectionLayout {
@@ -131,22 +161,31 @@ Column {
             LineEdit {
                 id: textField
 
+                writeValueManually: true
+
                 validator: RegExpValidator {
                     regExp: /#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?/g
                 }
 
                 showTranslateCheckBox: false
 
-                backendValue: colorEditor.backendendValue
+                backendValue: colorEditor.backendValue
 
                 onAccepted: {
-                    colorEditor.color = textField.text
+                    colorEditor.color = colorFromString(textField.text)
                 }
+
+                onCommitData: {
+                    colorEditor.color = colorFromString(textField.text)
+                    if (isNotInGradientMode())
+                        backendValue.value = colorEditor.color
+                }
+
                 Layout.fillWidth: true
             }
             ColorCheckButton {
                 id: checkButton
-                color: backendendValue.value
+                color: colorEditor.color
             }
 
             ButtonRow {
@@ -157,19 +196,20 @@ Column {
                 ButtonRowButton {
                     iconSource: "images/icon_color_solid.png"
                     onClicked: {
-                        colorEditor.backendendValue.resetValue()
+                        colorEditor.backendValue.resetValue()
                         gradientLine.deleteGradient()
                     }
-
+                    tooltip: qsTr("Solid Color")
                 }
                 ButtonRowButton {
                     visible: supportGradient
                     iconSource: "images/icon_color_gradient.png"
                     onClicked: {
-                        colorEditor.backendendValue.resetValue()
+                        colorEditor.backendValue.resetValue()
                         gradientLine.addGradient()
                     }
 
+                    tooltip: qsTr("Gradient")
                 }
                 ButtonRowButton {
                     iconSource: "images/icon_color_none.png"
@@ -177,7 +217,7 @@ Column {
                         colorEditor.color = "#00000000"
                         gradientLine.deleteGradient()
                     }
-
+                    tooltip: qsTr("Transparent")
                 }
             }
 
@@ -186,6 +226,13 @@ Column {
         }
 
         ColorButton {
+            property color bindedColor: colorEditor.color
+
+            //prevent the binding to be deleted by assignment
+            onBindedColorChanged: {
+                colorButton.color = colorButton.bindedColor
+            }
+
             enabled: buttonRow.checkedIndex !== 2
             opacity: checkButton.checked ? 1 : 0
             id: colorButton
@@ -197,6 +244,7 @@ Column {
 
             sliderMargins: Math.max(0, label.width - colorButton.width) + 4
 
+            onClicked: colorEditor.color = colorButton.color
         }
 
         SecondColumnLayout {

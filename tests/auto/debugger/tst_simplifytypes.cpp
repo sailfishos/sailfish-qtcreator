@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -47,6 +48,8 @@ const char *description[] =
     "g++_wstringvector",
     "g++_unordered_set",
     "g++_unordered_map",
+    "g++_stdvector_int_ptr",
+    "g++_stdmap_char_ptr",
 
     "libc++_stringvector",
     "libc++_unordered_map",
@@ -61,8 +64,10 @@ const char *description[] =
     "msvc_stringvector",
     "msvc_wstringvector",
 
-    "boost_shared_ptr",
     "std_shared_ptr",
+
+    "boost_shared_ptr",
+    "boost_unordered_set",
 };
 
 const char *input[] =
@@ -80,6 +85,9 @@ const char *input[] =
 "std::unordered_set<int, std::hash<int>, std::equal_to<int>, std::allocator<int> >",
 "std::unordered_map<int, int, std::hash<int>, std::equal_to<int>, std::allocator<std::pair<int const, int> > >",
 
+"std::vector<int *, std::allocator<int*> >",
+"std::map<const char *, Foo, std::less<const char *>, std::allocator<std::pair<char const* const, Foo> > >",
+
 // libc++
 "std::__1::vector<std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> >, std::__1::allocator<std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > > >",
 
@@ -96,10 +104,11 @@ const char *input[] =
 "class std::set<std::basic_string<char,std::char_traits<char>,std::allocator<char> >,std::less<std::basic_string<char,std::char_traits<char>,std::allocator<char> > >,std::allocator<std::basic_string<char,std::char_traits<char>,std::allocator<char> > > >",
 "class std::vector<std::basic_string<char,std::char_traits<char>,std::allocator<char> >,std::allocator<std::basic_string<char,std::char_traits<char>,std::allocator<char> > > >",
 "class std::vector<std::basic_string<unsigned short,std::char_traits<unsigned short>,std::allocator<unsigned short> >,std::allocator<std::basic_string<unsigned short,std::char_traits<unsigned short>,std::allocator<unsigned short> > > >",
-// boost
-"boost::shared_ptr<int>::element_type",
 // std
 "std::shared_ptr<int>::element_type",
+// boost
+"boost::shared_ptr<int>::element_type",
+"boost::unordered_set<int, boost::hash<int>, std::equal_to<int>, std::allocator<int> >",
 };
 
 const char *output[] =
@@ -115,6 +124,8 @@ const char *output[] =
     "std::vector<std::wstring>",
     "std::unordered_set<int>",
     "std::unordered_map<int, int>",
+    "std::vector<int *>",
+    "std::map<const char *, Foo>",
     // libc++
     "std::vector<std::string>",
     "std::unordered_map<std::string, float>",
@@ -128,10 +139,11 @@ const char *output[] =
     "std::set<std::string>",
     "std::vector<std::string>",
     "std::vector<std::wstring>",
-    // boost
-    "int",
     // std
     "int",
+    // boost
+    "int",
+    "boost::unordered_set<int>",
 };
 
 class SimplifyTypesTest : public QObject

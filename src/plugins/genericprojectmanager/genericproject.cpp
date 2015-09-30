@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -36,9 +37,8 @@
 #include <coreplugin/documentmanager.h>
 #include <coreplugin/icontext.h>
 #include <coreplugin/icore.h>
-#include <coreplugin/mimedatabase.h>
 #include <cpptools/cpptoolsconstants.h>
-#include <cpptools/cppmodelmanagerinterface.h>
+#include <cpptools/cppmodelmanager.h>
 #include <extensionsystem/pluginmanager.h>
 #include <projectexplorer/abi.h>
 #include <projectexplorer/buildsteplist.h>
@@ -46,7 +46,9 @@
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/kitmanager.h>
 #include <projectexplorer/projectexplorerconstants.h>
+#include <qtsupport/baseqtversion.h>
 #include <qtsupport/customexecutablerunconfiguration.h>
+#include <qtsupport/qtkitinformation.h>
 #include <utils/fileutils.h>
 #include <utils/qtcassert.h>
 
@@ -92,6 +94,23 @@ GenericProject::GenericProject(Manager *manager, const QString &fileName)
     DocumentManager::addDocument(m_configIDocument);
 
     m_rootNode = new GenericProjectNode(this, m_creatorIDocument);
+
+    FileNode *projectFilesNode = new FileNode(Utils::FileName::fromString(m_filesFileName),
+                                              ProjectFileType,
+                                              /* generated = */ false);
+
+    FileNode *projectIncludesNode = new FileNode(Utils::FileName::fromString(m_includesFileName),
+                                                 ProjectFileType,
+                                                 /* generated = */ false);
+
+    FileNode *projectConfigNode = new FileNode(Utils::FileName::fromString(m_configFileName),
+                                               ProjectFileType,
+                                               /* generated = */ false);
+
+    m_rootNode->addFileNodes(QList<FileNode *>()
+                             << projectFilesNode
+                             << projectIncludesNode
+                             << projectConfigNode);
 
     m_manager->registerProject(this);
 }
@@ -141,18 +160,25 @@ static QStringList readLines(const QString &absoluteFileName)
 
 bool GenericProject::saveRawFileList(const QStringList &rawFileList)
 {
+    bool result = saveRawList(rawFileList, filesFileName());
+    refresh(GenericProject::Files);
+    return result;
+}
+
+bool GenericProject::saveRawList(const QStringList &rawList, const QString &fileName)
+{
+    DocumentManager::expectFileChange(fileName);
     // Make sure we can open the file for writing
-    Utils::FileSaver saver(filesFileName(), QIODevice::Text);
+    Utils::FileSaver saver(fileName, QIODevice::Text);
     if (!saver.hasError()) {
         QTextStream stream(saver.file());
-        foreach (const QString &filePath, rawFileList)
+        foreach (const QString &filePath, rawList)
             stream << filePath << QLatin1Char('\n');
         saver.setResult(&stream);
     }
-    if (!saver.finalize(ICore::mainWindow()))
-        return false;
-    refresh(GenericProject::Files);
-    return true;
+    bool result = saver.finalize(ICore::mainWindow());
+    DocumentManager::unexpectFileChange(fileName);
+    return result;
 }
 
 bool GenericProject::addFiles(const QStringList &filePaths)
@@ -163,7 +189,30 @@ bool GenericProject::addFiles(const QStringList &filePaths)
     foreach (const QString &filePath, filePaths)
         newList.append(baseDir.relativeFilePath(filePath));
 
-    return saveRawFileList(newList);
+
+    QSet<QString> includes = projectIncludePaths().toSet();
+    QSet<QString> toAdd;
+
+    foreach (const QString &filePath, filePaths) {
+        QString directory = QFileInfo(filePath).absolutePath();
+        if (!includes.contains(directory)
+                && !toAdd.contains(directory))
+            toAdd << directory;
+    }
+
+    const QDir dir(projectDirectory().toString());
+    foreach (const QString &path, toAdd) {
+        QString relative = dir.relativeFilePath(path);
+        if (relative.isEmpty())
+            relative = QLatin1Char('.');
+        m_rawProjectIncludePaths.append(relative);
+    }
+
+    bool result = saveRawList(newList, filesFileName());
+    result &= saveRawList(m_rawProjectIncludePaths, includesFileName());
+    refresh(GenericProject::Everything);
+
+    return result;
 }
 
 bool GenericProject::removeFiles(const QStringList &filePaths)
@@ -214,7 +263,8 @@ void GenericProject::parseProject(RefreshOptions options)
     }
 
     if (options & Configuration) {
-        m_projectIncludePaths = processEntries(readLines(includesFileName()));
+        m_rawProjectIncludePaths = readLines(includesFileName());
+        m_projectIncludePaths = processEntries(m_rawProjectIncludePaths);
 
         // TODO: Possibly load some configuration from the project file
         //QSettings projectInfo(m_fileName, QSettings::IniFormat);
@@ -227,7 +277,7 @@ void GenericProject::parseProject(RefreshOptions options)
 void GenericProject::refresh(RefreshOptions options)
 {
     QSet<QString> oldFileList;
-    if (!(options & Configuration))
+    if (options & Files)
         oldFileList = m_files.toSet();
 
     parseProject(options);
@@ -235,43 +285,7 @@ void GenericProject::refresh(RefreshOptions options)
     if (options & Files)
         m_rootNode->refresh(oldFileList);
 
-    CppTools::CppModelManagerInterface *modelManager =
-        CppTools::CppModelManagerInterface::instance();
-
-    if (modelManager) {
-        CppTools::CppModelManagerInterface::ProjectInfo pinfo = modelManager->projectInfo(this);
-        pinfo.clearProjectParts();
-        CppTools::ProjectPart::Ptr part(new CppTools::ProjectPart);
-        part->project = this;
-        part->displayName = displayName();
-        part->projectFile = projectFilePath();
-
-        part->includePaths += projectIncludePaths();
-
-        Kit *k = activeTarget() ? activeTarget()->kit() : KitManager::defaultKit();
-        if (ToolChain *tc = ToolChainKitInformation::toolChain(k)) {
-            QStringList cxxflags; // FIXME: Can we do better?
-            part->evaluateToolchain(tc, cxxflags, cxxflags,
-                                    SysRootKitInformation::sysRoot(k));
-        }
-
-        part->cxxVersion = CppTools::ProjectPart::CXX11; // assume C++11
-        part->projectConfigFile = configFileName();
-
-        // ### add _defines.
-
-        // Add any C/C++ files to be parsed
-        CppTools::ProjectFileAdder adder(part->files);
-        foreach (const QString &file, files())
-            adder.maybeAdd(file);
-
-        m_codeModelFuture.cancel();
-
-        pinfo.appendProjectPart(part);
-        setProjectLanguage(ProjectExplorer::Constants::LANG_CXX, !part->files.isEmpty());
-
-        m_codeModelFuture = modelManager->updateProjectInfo(pinfo);
-    }
+    refreshCppCodeModel();
 }
 
 /**
@@ -327,6 +341,37 @@ QStringList GenericProject::processEntries(const QStringList &paths,
     }
     absolutePaths.removeDuplicates();
     return absolutePaths;
+}
+
+void GenericProject::refreshCppCodeModel()
+{
+    CppTools::CppModelManager *modelManager = CppTools::CppModelManager::instance();
+
+    m_codeModelFuture.cancel();
+
+    CppTools::ProjectInfo pInfo(this);
+    CppTools::ProjectPartBuilder ppBuilder(pInfo);
+
+    CppTools::ProjectPart::QtVersion activeQtVersion = CppTools::ProjectPart::NoQt;
+    if (QtSupport::BaseQtVersion *qtVersion =
+            QtSupport::QtKitInformation::qtVersion(activeTarget()->kit())) {
+        if (qtVersion->qtVersion() < QtSupport::QtVersionNumber(5,0,0))
+            activeQtVersion = CppTools::ProjectPart::Qt4;
+        else
+            activeQtVersion = CppTools::ProjectPart::Qt5;
+    }
+
+    ppBuilder.setQtVersion(activeQtVersion);
+    ppBuilder.setIncludePaths(projectIncludePaths());
+    ppBuilder.setConfigFileName(configFileName());
+    ppBuilder.setCxxFlags(QStringList() << QLatin1String("-std=c++11"));
+
+    const QList<Id> languages = ppBuilder.createProjectPartsForFiles(files());
+    foreach (Id language, languages)
+        setProjectLanguage(language, true);
+
+    pInfo.finish();
+    m_codeModelFuture = modelManager->updateProjectInfo(pInfo);
 }
 
 QStringList GenericProject::projectIncludePaths() const
@@ -408,7 +453,9 @@ GenericProjectFile::GenericProjectFile(GenericProject *parent, QString fileName,
       m_project(parent),
       m_options(options)
 {
-    setFilePath(fileName);
+    setId("Generic.ProjectFile");
+    setMimeType(QLatin1String(Constants::GENERICMIMETYPE));
+    setFilePath(Utils::FileName::fromString(fileName));
 }
 
 bool GenericProjectFile::save(QString *, const QString &, bool)
@@ -424,11 +471,6 @@ QString GenericProjectFile::defaultPath() const
 QString GenericProjectFile::suggestedFileName() const
 {
     return QString();
-}
-
-QString GenericProjectFile::mimeType() const
-{
-    return QLatin1String(Constants::GENERICMIMETYPE);
 }
 
 bool GenericProjectFile::isModified() const

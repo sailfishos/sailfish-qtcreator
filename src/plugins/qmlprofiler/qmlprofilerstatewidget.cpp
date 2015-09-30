@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -30,7 +31,6 @@
 #include "qmlprofilerstatewidget.h"
 
 #include <QPainter>
-
 #include <QVBoxLayout>
 #include <QLabel>
 #include <QProgressBar>
@@ -71,7 +71,7 @@ QmlProfilerStateWidget::QmlProfilerStateWidget(QmlProfilerStateManager *stateMan
     QVBoxLayout *layout = new QVBoxLayout(this);
     resize(200,70);
 
-    d->shadowPic.load(QLatin1String(":/qmlprofiler/dialog_shadow.png"));
+    d->shadowPic.load(QLatin1String(":/timeline/dialog_shadow.png"));
 
     d->text = new QLabel(this);
     d->text->setAlignment(Qt::AlignCenter);
@@ -102,7 +102,6 @@ QmlProfilerStateWidget::QmlProfilerStateWidget(QmlProfilerStateManager *stateMan
             this, SLOT(profilerStateChanged()));
 
     updateDisplay();
-    connect(parent,SIGNAL(resized()),this,SLOT(reposition()));
 }
 
 QmlProfilerStateWidget::~QmlProfilerStateWidget()
@@ -188,57 +187,46 @@ void QmlProfilerStateWidget::paintEvent(QPaintEvent *event)
 
 }
 
-void QmlProfilerStateWidget::updateDisplay()
+void QmlProfilerStateWidget::showText(const QString &text, bool showProgress)
 {
-    // When datamodel is acquiring data
-    if (!d->loadingDone && !d->emptyList && !d->appKilled) {
-        setVisible(true);
-        d->text->setText(tr("Loading data"));
+    setVisible(true);
+    if (showProgress) {
         if (d->isRecording) {
             d->isRecording = false;
             d->estimatedProfilingTime = d->profilingTimer.elapsed();
             emit newTimeEstimation(d->estimatedProfilingTime);
         }
         d->progressBar->setValue(d->m_modelManager->progress() * 1000);
-        d->progressBar->setVisible(true);
-        resize(300,70);
-        reposition();
+    }
+    d->progressBar->setVisible(showProgress);
+    d->text->setText(text);
+    resize(300, 70);
+    reposition();
+}
+
+void QmlProfilerStateWidget::updateDisplay()
+{
+    // When datamodel is acquiring data
+    if (!d->loadingDone && !d->emptyList && !d->appKilled) {
+        showText(tr("Loading data"), true);
         return;
     }
 
     // When application is being profiled
     if (d->isRecording) {
-        setVisible(true);
-        d->progressBar->setVisible(false);
-        d->text->setText(tr("Profiling application"));
-        resize(200,70);
-        reposition();
+        showText(tr("Profiling application"));
         return;
     }
 
     // After profiling, there is an empty trace
     if (d->traceAvailable && d->loadingDone && d->emptyList) {
-        setVisible(true);
-        d->progressBar->setVisible(false);
-        d->text->setText(tr("No QML events recorded"));
-        resize(200,70);
-        reposition();
+        showText(tr("No QML events recorded"));
         return;
     }
 
     // Application died before all data could be read
     if (!d->loadingDone && !d->emptyList && d->appKilled) {
-        setVisible(true);
-        d->text->setText(tr("Application stopped before loading all data"));
-        if (d->isRecording) {
-            d->isRecording = false;
-            d->estimatedProfilingTime = d->profilingTimer.elapsed();
-            emit newTimeEstimation(d->estimatedProfilingTime);
-        }
-        d->progressBar->setValue(d->m_modelManager->progress() * 1000);
-        d->progressBar->setVisible(true);
-        resize(300,70);
-        reposition();
+        showText(tr("Application stopped before loading all data"), true);
         return;
     }
 
@@ -265,13 +253,14 @@ void QmlProfilerStateWidget::profilerStateChanged()
         if (d->m_profilerState->currentState() == QmlProfilerStateManager::AppStarting)
             d->appKilled = false;
 
-    d->isRecording = d->m_profilerState->serverRecording();
-    if (d->isRecording)
+    if (d->m_profilerState->serverRecording()) {
         d->profilingTimer.start();
-    else {
+        d->isRecording = true;
+    } else if (d->isRecording) {
         // estimated time in ns
         d->estimatedProfilingTime = d->profilingTimer.elapsed() * 1e6;
         emit newTimeEstimation(d->estimatedProfilingTime);
+        d->isRecording = false;
     }
     updateDisplay();
 }

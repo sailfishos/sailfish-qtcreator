@@ -1,5 +1,4 @@
 import qbs 1.0
-import QtcTool
 
 QtcTool {
     name: "iostool"
@@ -15,10 +14,10 @@ QtcTool {
         "iosdevicemanager.cpp",
         "iosdevicemanager.h"
     ]
-    cpp.linkerFlags: base.concat(["-sectcreate", "__TEXT", "__info_plist", path + "/Info.plist"])
     cpp.frameworks: base.concat(["CoreFoundation", "CoreServices", "IOKit", "Security",
                                  "SystemConfiguration"])
     cpp.dynamicLibraries: base.concat(["ssl", "bz2"])
+    cpp.infoPlistFile: "Info.plist"
 
-    toolInstallDir: project.ide_libexec_path + "/ios"
+    installDir: project.ide_libexec_path + "/ios"
 }

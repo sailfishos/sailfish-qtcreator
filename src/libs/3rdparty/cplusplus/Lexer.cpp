@@ -29,6 +29,28 @@
 
 using namespace CPlusPlus;
 
+/*!
+    \class Lexer
+    \brief The Lexer generates tokens from an UTF-8 encoded source text.
+
+    \sa Token
+*/
+
+/*!
+    \fn static void Lexer::yyinp_utf8(const char *&currentSourceChar, unsigned char &yychar, unsigned &utf16charCounter)
+
+    Process a single unicode code point in an UTF-8 encoded source.
+
+    \a currentSourceChar points to the UTF-8 encoded source.
+    \a yychar must be the byte pointed to by \a currentSourceChar.
+
+    Points \a currentSourceChar to the byte of the next code point
+    and modifies \a yychar to the value pointed by the updated
+    \a currentSourceChar. \a utf16charCounter will be incremented by
+    the number of UTF-16 code units that were needed for that code
+    point.
+*/
+
 Lexer::Lexer(TranslationUnit *unit)
     : _translationUnit(unit),
       _control(unit->control()),
@@ -63,6 +85,7 @@ void Lexer::setSource(const char *firstChar, const char *lastChar)
     _firstChar = firstChar;
     _lastChar = lastChar;
     _currentChar = _firstChar - 1;
+    _currentCharUtf16 = -1;
     _tokenStart = _currentChar;
     _yychar = '\n';
 }
@@ -101,34 +124,20 @@ void Lexer::pushLineStartOffset()
     ++_currentLine;
 
     if (_translationUnit)
-        _translationUnit->pushLineOffset(_currentChar - _firstChar);
+        _translationUnit->pushLineOffset(_currentCharUtf16);
 }
-
-unsigned Lexer::tokenOffset() const
-{ return _tokenStart - _firstChar; }
-
-unsigned Lexer::tokenLength() const
-{ return _currentChar - _tokenStart; }
-
-const char *Lexer::tokenBegin() const
-{ return _tokenStart; }
-
-const char *Lexer::tokenEnd() const
-{ return _currentChar; }
-
-unsigned Lexer::currentLine() const
-{ return _currentLine; }
 
 void Lexer::scan(Token *tok)
 {
     tok->reset();
     scan_helper(tok);
-    tok->f.length = _currentChar - _tokenStart;
+    tok->f.bytes = _currentChar - _tokenStart;
+    tok->f.utf16chars = _currentCharUtf16 - _tokenStartUtf16;
 }
 
 void Lexer::scan_helper(Token *tok)
 {
-  _Lagain:
+  again:
     while (_yychar && std::isspace(_yychar)) {
         if (_yychar == '\n') {
             tok->f.joined = s._newlineExpected;
@@ -156,7 +165,10 @@ void Lexer::scan_helper(Token *tok)
         tok->lineno = _currentLine;
 
     _tokenStart = _currentChar;
-    tok->offset = _currentChar - _firstChar;
+    tok->byteOffset = _currentChar - _firstChar;
+
+    _tokenStartUtf16 = _currentCharUtf16;
+    tok->utf16charOffset = _currentCharUtf16;
 
     if (_yychar) {
         s._newlineExpected = false;
@@ -186,7 +198,7 @@ void Lexer::scan_helper(Token *tok)
         }
 
         if (! f._scanCommentTokens)
-            goto _Lagain;
+            goto again;
 
         tok->f.kind = originalKind;
         return; // done
@@ -220,7 +232,7 @@ void Lexer::scan_helper(Token *tok)
     switch (ch) {
     case '\\':
         s._newlineExpected = true;
-        goto _Lagain;
+        goto again;
 
     case '"':
         scanStringLiteral(tok);
@@ -293,24 +305,28 @@ void Lexer::scan_helper(Token *tok)
                 tok->f.kind = T_ERROR;
             }
         } else if (std::isdigit(_yychar)) {
+            if (f._ppMode) {
+                scanPreprocessorNumber(tok, true);
+                break;
+            }
+
             const char *yytext = _currentChar - 2;
-            do {
-                if (_yychar == 'e' || _yychar == 'E') {
+            yyinp();
+            scanDigitSequence(); // this is optional: we already skipped over the first digit
+            scanExponentPart();
+            if (!scanOptionalFloatingSuffix())
+                scanOptionalUserDefinedLiteral(tok);
+            if (std::isalnum(_yychar) || _yychar == '_') {
+                do {
                     yyinp();
-                    if (_yychar == '-' || _yychar == '+') {
-                        yyinp();
-                        // ### CPP_CHECK(std::isdigit(_yychar));
-                    }
-                } else if (std::isalnum(_yychar) || _yychar == '.') {
-                    yyinp();
-                } else {
-                    break;
-                }
-            } while (_yychar);
-            int yylen = _currentChar - yytext;
-            tok->f.kind = T_NUMERIC_LITERAL;
-            if (control())
-                tok->number = control()->numericLiteral(yytext, yylen);
+                } while (std::isalnum(_yychar) || _yychar == '_');
+                tok->f.kind = T_ERROR;
+            } else {
+                int yylen = _currentChar - yytext;
+                tok->f.kind = T_NUMERIC_LITERAL;
+                if (control())
+                    tok->number = control()->numericLiteral(yytext, yylen);
+            }
         } else {
             tok->f.kind = T_DOT;
         }
@@ -392,7 +408,7 @@ void Lexer::scan_helper(Token *tok)
             scanCppComment(commentType);
 
             if (! f._scanCommentTokens)
-                goto _Lagain;
+                goto again;
 
             tok->f.kind = commentType;
 
@@ -407,7 +423,7 @@ void Lexer::scan_helper(Token *tok)
                 yyinp();
 
                 if (ch == '*' && _yychar == '/')
-                    goto _Ldone;
+                    goto done;
 
                 if (_yychar == '<')
                     yyinp();
@@ -426,14 +442,14 @@ void Lexer::scan_helper(Token *tok)
                 }
             }
 
-        _Ldone:
+        done:
             if (_yychar)
                 yyinp();
             else
                 s._tokenKind = commentKind;
 
             if (! f._scanCommentTokens)
-                goto _Lagain;
+                goto again;
 
             tok->f.kind = commentKind;
 
@@ -636,10 +652,13 @@ void Lexer::scan_helper(Token *tok)
             } else {
                 scanIdentifier(tok);
             }
-        } else if (std::isalpha(ch) || ch == '_' || ch == '$') {
-            scanIdentifier(tok);
+        } else if (std::isalpha(ch) || ch == '_' || ch == '$' || isByteOfMultiByteCodePoint(ch)) {
+            scanIdentifier(tok, _currentChar - _tokenStart - 1);
         } else if (std::isdigit(ch)) {
-            scanNumericLiteral(tok);
+            if (f._ppMode)
+                scanPreprocessorNumber(tok, false);
+            else
+                scanNumericLiteral(tok);
         } else {
             tok->f.kind = T_ERROR;
         }
@@ -665,6 +684,7 @@ void Lexer::scanStringLiteral(Token *tok, unsigned char hint)
         tok->f.kind = T_STRING_LITERAL;
 
     scanUntilQuote(tok, '"');
+    scanOptionalUserDefinedLiteral(tok);
 }
 
 void Lexer::scanRawStringLiteral(Token *tok, unsigned char hint)
@@ -740,6 +760,7 @@ void Lexer::scanCharLiteral(Token *tok, unsigned char hint)
         tok->f.kind = T_CHAR_LITERAL;
 
     scanUntilQuote(tok, '\'');
+    scanOptionalUserDefinedLiteral(tok);
 }
 
 void Lexer::scanUntilQuote(Token *tok, unsigned char quote)
@@ -764,26 +785,159 @@ void Lexer::scanUntilQuote(Token *tok, unsigned char quote)
         tok->string = control()->stringLiteral(yytext, yylen);
 }
 
+bool Lexer::scanDigitSequence()
+{
+    if (!std::isdigit(_yychar))
+        return false;
+    yyinp();
+    while (std::isdigit(_yychar))
+        yyinp();
+    return true;
+}
+
+bool Lexer::scanExponentPart()
+{
+    if (_yychar != 'e' && _yychar != 'E')
+        return false;
+    yyinp();
+    if (_yychar == '+' || _yychar == '-')
+        yyinp();
+    return scanDigitSequence();
+}
+
+bool Lexer::scanOptionalFloatingSuffix()
+{
+    if (_yychar == 'f' || _yychar == 'l' || _yychar == 'F' || _yychar == 'L') {
+        yyinp();
+        return true;
+    }
+    return false;
+}
+
+bool Lexer::scanOptionalIntegerSuffix(bool allowU)
+{
+    switch(_yychar) {
+    case 'u':
+    case 'U':
+        if (allowU) {
+            yyinp();
+            scanOptionalIntegerSuffix(false);
+        }
+        return true;
+    case 'l':
+        yyinp();
+        if (_yychar == 'l')
+            yyinp();
+        return true;
+    case 'L':
+        yyinp();
+        if (_yychar == 'L')
+            yyinp();
+        return true;
+    default:
+        return false;
+    }
+}
+
+void Lexer::scanOptionalUserDefinedLiteral(Token *tok)
+{
+    if (_languageFeatures.cxx11Enabled && _yychar == '_') {
+        tok->f.userDefinedLiteral = true;
+        while (std::isalnum(_yychar) || _yychar == '_' || isByteOfMultiByteCodePoint(_yychar))
+            yyinp();
+    }
+}
+
 void Lexer::scanNumericLiteral(Token *tok)
 {
     const char *yytext = _currentChar - 1;
-    while (_yychar) {
-        if (_yychar == 'e' || _yychar == 'E') {
+    if (*yytext == '0' && _yychar) {
+        if (_yychar == 'x' || _yychar == 'X') {
             yyinp();
-            if (_yychar == '-' || _yychar == '+') {
+            while (std::isdigit(_yychar) ||
+                   (_yychar >= 'a' && _yychar <= 'f') ||
+                   (_yychar >= 'A' && _yychar <= 'F')) {
                 yyinp();
-                // ### CPP_CHECK(std::isdigit(_yychar));
             }
-        } else if (std::isalnum(_yychar) || _yychar == '.') {
+            if (!scanOptionalIntegerSuffix())
+                scanOptionalUserDefinedLiteral(tok);
+            goto theEnd;
+        } else if (_yychar == 'b' || _yychar == 'B') { // see n3472
+            yyinp();
+            while (_yychar == '0' || _yychar == '1')
+                yyinp();
+            if (!scanOptionalIntegerSuffix())
+                scanOptionalUserDefinedLiteral(tok);
+            goto theEnd;
+        } else if (_yychar >= '0' && _yychar <= '7') {
+            do {
+                yyinp();
+            } while (_yychar >= '0' && _yychar <= '7');
+            if (!scanOptionalIntegerSuffix())
+                scanOptionalUserDefinedLiteral(tok);
+            goto theEnd;
+        }
+    }
+
+    while (_yychar) {
+        if (_yychar == '.') {
+            yyinp();
+            scanDigitSequence(); // this is optional: "1." is a valid floating point number
+            scanExponentPart();
+            if (!scanOptionalFloatingSuffix())
+                scanOptionalUserDefinedLiteral(tok);
+            break;
+        } else if (_yychar == 'e' || _yychar == 'E') {
+            if (scanExponentPart() && !scanOptionalFloatingSuffix())
+                scanOptionalUserDefinedLiteral(tok);
+            break;
+        } else if (std::isdigit(_yychar)) {
             yyinp();
         } else {
+            if (!scanOptionalIntegerSuffix())
+                scanOptionalUserDefinedLiteral(tok);
             break;
         }
     }
+
+theEnd:
+    if (std::isalnum(_yychar) || _yychar == '_') {
+        do {
+            yyinp();
+        } while (std::isalnum(_yychar) || _yychar == '_');
+        tok->f.kind = T_ERROR;
+    } else {
+        int yylen = _currentChar - yytext;
+        tok->f.kind = T_NUMERIC_LITERAL;
+        if (control())
+            tok->number = control()->numericLiteral(yytext, yylen);
+    }
+}
+
+void Lexer::scanPreprocessorNumber(Token *tok, bool dotAlreadySkipped)
+{
+    const char *yytext = _currentChar - (dotAlreadySkipped ? 2 : 1);
+    if (dotAlreadySkipped &&
+            (!_yychar || (_yychar && !std::isdigit(_yychar)))) {
+        tok->f.kind = T_DOT;
+        return;
+    }
+
+    while (_yychar) {
+        if (_yychar == 'e' || _yychar == 'E') {
+            yyinp();
+            if (_yychar == '+' || _yychar == '-')
+                yyinp();
+        } else if (std::isalnum(_yychar) || _yychar == '_' || _yychar == '.') {
+            yyinp();
+        } else {
+            scanOptionalUserDefinedLiteral(tok);
+            break;
+        }
+    }
+
     int yylen = _currentChar - yytext;
-
     tok->f.kind = T_NUMERIC_LITERAL;
-
     if (control())
         tok->number = control()->numericLiteral(yytext, yylen);
 }
@@ -791,8 +945,10 @@ void Lexer::scanNumericLiteral(Token *tok)
 void Lexer::scanIdentifier(Token *tok, unsigned extraProcessedChars)
 {
     const char *yytext = _currentChar - 1 - extraProcessedChars;
-    while (std::isalnum(_yychar) || _yychar == '_' || _yychar == '$')
+    while (std::isalnum(_yychar) || _yychar == '_' || _yychar == '$'
+            || isByteOfMultiByteCodePoint(_yychar)) {
         yyinp();
+    }
     int yylen = _currentChar - yytext;
     if (f._scanKeywords)
         tok->f.kind = classify(yytext, yylen, _languageFeatures);

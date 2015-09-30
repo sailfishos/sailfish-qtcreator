@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,39 +9,43 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
 
 #include "syntaxhighlighter.h"
-#include "basetextdocument.h"
-#include "basetextdocumentlayout.h"
+#include "textdocument.h"
+#include "textdocumentlayout.h"
 #include "texteditorsettings.h"
 #include "fontsettings.h"
 
+#include <utils/algorithm.h>
 #include <utils/qtcassert.h>
 
+#include <QTextDocument>
+#include <QPointer>
 #include <qtimer.h>
 
 #include <math.h>
 
-using namespace TextEditor;
+namespace TextEditor {
 
-class TextEditor::SyntaxHighlighterPrivate
+class SyntaxHighlighterPrivate
 {
     SyntaxHighlighter *q_ptr;
     Q_DECLARE_PUBLIC(SyntaxHighlighter)
@@ -72,15 +76,15 @@ public:
     }
 
     void applyFormatChanges(int from, int charsRemoved, int charsAdded);
-    void updateFormatsForCategories(const TextEditor::FontSettings &fontSettings);
+    void updateFormatsForCategories(const FontSettings &fontSettings);
 
     QVector<QTextCharFormat> formatChanges;
     QTextBlock currentBlock;
     bool rehighlightPending;
     bool inReformatBlocks;
-    BaseTextDocumentLayout::FoldValidator foldValidator;
+    TextDocumentLayout::FoldValidator foldValidator;
     QVector<QTextCharFormat> formats;
-    QVector<TextEditor::TextStyle> formatCategories;
+    QVector<TextStyle> formatCategories;
 };
 
 static bool adjustRange(QTextLayout::FormatRange &range, int from, int charsRemoved, int charsAdded) {
@@ -278,14 +282,8 @@ SyntaxHighlighter::SyntaxHighlighter(QTextDocument *parent)
     : QObject(parent), d_ptr(new SyntaxHighlighterPrivate)
 {
     d_ptr->q_ptr = this;
-    setDocument(parent);
-}
-
-SyntaxHighlighter::SyntaxHighlighter(BaseTextDocument *parent)
-    : d_ptr(new SyntaxHighlighterPrivate)
-{
-    d_ptr->q_ptr = this;
-    parent->setSyntaxHighlighter(this); // Extra logic (including setting the parent).
+    if (parent)
+        setDocument(parent);
 }
 
 /*!
@@ -297,7 +295,8 @@ SyntaxHighlighter::SyntaxHighlighter(QTextEdit *parent)
     : QObject(parent), d_ptr(new SyntaxHighlighterPrivate)
 {
     d_ptr->q_ptr = this;
-    setDocument(parent->document());
+    if (parent)
+        setDocument(parent->document());
 }
 
 /*!
@@ -331,7 +330,7 @@ void SyntaxHighlighter::setDocument(QTextDocument *doc)
                 this, SLOT(_q_reformatBlocks(int,int,int)));
         d->rehighlightPending = true;
         QTimer::singleShot(0, this, SLOT(_q_delayedRehighlight()));
-        d->foldValidator.setup(qobject_cast<BaseTextDocumentLayout *>(doc->documentLayout()));
+        d->foldValidator.setup(qobject_cast<TextDocumentLayout *>(doc->documentLayout()));
     }
 }
 
@@ -659,7 +658,7 @@ void SyntaxHighlighter::setExtraAdditionalFormats(const QTextBlock& block,
     if (block.layout() == 0 || blockLength == 0)
         return;
 
-    qSort(formats.begin(), formats.end(), byStartOfRange);
+    Utils::sort(formats, byStartOfRange);
 
     const QList<QTextLayout::FormatRange> all = block.layout()->additionalFormats();
     QList<QTextLayout::FormatRange> previousSemanticFormats;
@@ -678,7 +677,7 @@ void SyntaxHighlighter::setExtraAdditionalFormats(const QTextBlock& block,
     }
 
     if (formats.size() == previousSemanticFormats.size()) {
-        qSort(previousSemanticFormats.begin(), previousSemanticFormats.end(), byStartOfRange);
+        Utils::sort(previousSemanticFormats, byStartOfRange);
 
         int index = 0;
         for (; index != formats.size(); ++index) {
@@ -738,13 +737,13 @@ QList<QColor> SyntaxHighlighter::generateColors(int n, const QColor &background)
     return result;
 }
 
-void SyntaxHighlighter::setFontSettings(const TextEditor::FontSettings &fontSettings)
+void SyntaxHighlighter::setFontSettings(const FontSettings &fontSettings)
 {
     Q_D(SyntaxHighlighter);
     d->updateFormatsForCategories(fontSettings);
 }
 
-void SyntaxHighlighter::setTextFormatCategories(const QVector<TextEditor::TextStyle> &categories)
+void SyntaxHighlighter::setTextFormatCategories(const QVector<TextStyle> &categories)
 {
     Q_D(SyntaxHighlighter);
     d->formatCategories = categories;
@@ -759,10 +758,11 @@ QTextCharFormat SyntaxHighlighter::formatForCategory(int category) const
     return d->formats.at(category);
 }
 
-void SyntaxHighlighterPrivate::updateFormatsForCategories(const TextEditor::FontSettings &fontSettings)
+void SyntaxHighlighterPrivate::updateFormatsForCategories(const FontSettings &fontSettings)
 {
     formats = fontSettings.toTextCharFormats(formatCategories);
 }
 
+} // namespace TextEditor
 
 #include "moc_syntaxhighlighter.cpp"

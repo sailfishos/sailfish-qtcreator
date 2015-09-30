@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -128,12 +129,6 @@
 #define USE_WEBKITLIB 0
 #endif
 
-#if QT_VERSION >= 0x040500
-#define USE_SHARED_POINTER 1
-#else
-#define USE_SHARED_POINTER 0
-#endif
-
 #if QT_VERSION >= 0x050200
 #define USE_TIMEZONE 1
 #else
@@ -142,7 +137,7 @@
 
 void dummyStatement(...) {}
 
-#if USE_CXX11 && defined(__GNUC__) && defined(__STRICT_ANSI__)
+#if defined(__GNUC__) && defined(__STRICT_ANSI__)
 #undef __STRICT_ANSI__ // working around compile error with MinGW
 #endif
 
@@ -161,14 +156,12 @@ void dummyStatement(...) {}
 #include <QString>
 #include <QStringList>
 #include <QSettings>
+#include <QSharedPointer>
 #include <QStack>
 #include <QThread>
 #include <QVariant>
 #include <QVector>
 #include <QUrl>
-#if USE_SHARED_POINTER
-#include <QSharedPointer>
-#endif
 
 #if USE_GUILIB
 #include <QAction>
@@ -182,9 +175,9 @@ void dummyStatement(...) {}
 #include <QStandardItemModel>
 #include <QTextCursor>
 #include <QTextDocument>
-#if USE_TIMEZONE
-#include <QTimeZone>
-#endif
+# if QT_VERSION >= QT_VERSION_CHECK(5, 2, 0)
+#  include <QTimeZone>
+# endif
 #endif
 
 #if USE_SCRIPTLIB
@@ -201,10 +194,8 @@ void dummyStatement(...) {}
 #include <QHostAddress>
 #include <QNetworkRequest>
 
-#if USE_CXX11
 #include <array>
 #include <unordered_map>
-#endif
 #include <complex>
 #include <deque>
 #include <iostream>
@@ -412,7 +403,7 @@ class XX : virtual public Foo { public: XX() { } };
 
 class Y : virtual public Foo { public: Y() { } };
 
-class D : public X, public Y { int diamond; };
+class D : public X, public Y { int diamond; D(){Q_UNUSED(diamond);} };
 
 
 namespace peekandpoke {
@@ -729,7 +720,7 @@ namespace qdatetime {
 
     void testQTimeZone()
     {
-#if USE_TIMEZONE
+#if QT_VERSION >= QT_VERSION_CHECK(5, 2, 0)
         QTimeZone zz;
         QTimeZone tz("UTC+05:00");
         BREAK_HERE;
@@ -2468,7 +2459,6 @@ namespace qset {
 
 namespace qsharedpointer {
 
-    #if USE_SHARED_POINTER
 
     class EmployeeData : public QSharedData
     {
@@ -2563,11 +2553,6 @@ namespace qsharedpointer {
         testQSharedPointer5();
     }
 
-    #else
-
-    void testQSharedPointer() {}
-
-    #endif
 
 } // namespace qsharedpointer
 
@@ -2613,7 +2598,6 @@ namespace stdarray {
 
     void testStdArray()
     {
-        #if USE_CXX11
         std::array<int, 4> a = { { 1, 2, 3, 4} };
         std::array<QString, 4> b = { { "1", "2", "3", "4"} };
         BREAK_HERE;
@@ -2622,7 +2606,6 @@ namespace stdarray {
         // Check a <4 items> std::array<QString, 4u>.
         // Continue.
         dummyStatement(&a, &b);
-        #endif
     }
 
 } // namespace stdcomplex
@@ -2858,7 +2841,6 @@ namespace stdlist {
 
 namespace stdunorderedmap {
 
-#if USE_CXX11
     void testStdUnorderedMapStringFoo()
     {
         // This is not supposed to work with the compiled dumpers.
@@ -3051,11 +3033,9 @@ namespace stdunorderedmap {
         // Continue.
         dummyStatement(&map);
     }
-#endif
 
     void testStdUnorderedMap()
     {
-#if USE_CXX11
         testStdUnorderedMapStringFoo();
         testStdUnorderedMapCharStarFoo();
         testStdUnorderedMapUIntUInt();
@@ -3066,7 +3046,6 @@ namespace stdunorderedmap {
         testStdUnorderedMapStringFloat();
         testStdUnorderedMapIntString();
         testStdUnorderedMapStringPointer();
-#endif
     }
 
 } // namespace stdunorderedmap
@@ -3262,6 +3241,34 @@ namespace stdmap {
         dummyStatement(&map);
     }
 
+    void testStdMultiMapUIntFloat()
+    {
+        typedef std::pair<uint, float> V;
+        std::multimap<uint, float> map;
+        map.insert(V(11, 11.0f));
+        map.insert(V(22, 22.0f));
+        map.insert(V(22, 33.0f));
+        map.insert(V(22, 34.0f));
+        map.insert(V(22, 35.0f));
+        map.insert(V(22, 36.0f));
+        BREAK_HERE;
+        // Expand map.
+        // Check map <6 items> std:multimap<unsigned int, float>.
+        // Check map.0 11 float.
+        // Check map.5 22 float.
+        // Continue.
+        dummyStatement(&map);
+    }
+
+    void testStdMultiSetInt()
+    {
+#ifndef Q_CC_MSVC
+        std::multiset<int> set = {1, 1, 2, 3, 3, 3};
+        BREAK_HERE;
+        dummyStatement(&set);
+#endif
+    }
+
     void testStdMap()
     {
         testStdMapStringFoo();
@@ -3274,6 +3281,8 @@ namespace stdmap {
         testStdMapStringFloat();
         testStdMapIntString();
         testStdMapStringPointer();
+        testStdMultiMapUIntFloat();
+        testStdMultiSetInt();
     }
 
 } // namespace stdmap
@@ -3283,46 +3292,38 @@ namespace stdptr {
 
     void testStdUniquePtrInt()
     {
-        #ifdef USE_CXX11
         std::unique_ptr<int> p(new int(32));
         BREAK_HERE;
         // Check p 32 std::unique_ptr<int, std::default_delete<int> >.
         // Continue.
         dummyStatement(&p);
-        #endif
     }
 
     void testStdUniquePtrFoo()
     {
-        #ifdef USE_CXX11
         std::unique_ptr<Foo> p(new Foo);
         BREAK_HERE;
         // Check p 32 std::unique_ptr<Foo, std::default_delete<Foo> >.
         // Continue.
         dummyStatement(&p);
-        #endif
     }
 
     void testStdSharedPtrInt()
     {
-        #ifdef USE_CXX11
         std::shared_ptr<int> p(new int(32));
         BREAK_HERE;
         // Check p 32 std::shared_ptr<int, std::default_delete<int> >.
         // Continue.
         dummyStatement(&p);
-        #endif
     }
 
     void testStdSharedPtrFoo()
     {
-        #ifdef USE_CXX11
         std::shared_ptr<Foo> p(new Foo);
         BREAK_HERE;
         // Check p 32 std::shared_ptr<Foo, std::default_delete<int> >.
         // Continue.
         dummyStatement(&p);
-        #endif
     }
 
     void testStdPtr()
@@ -3340,7 +3341,6 @@ namespace lambda {
 
     void testLambda()
     {
-#ifdef USE_CXX11
         std::string x;
         auto f = [&] () -> const std::string & {
                 int z = x.size();
@@ -3350,7 +3350,6 @@ namespace lambda {
         auto c = f();
         BREAK_HERE;
         dummyStatement(&x, &f, &c);
-#endif
     }
 
 } // namespace lambda
@@ -5104,7 +5103,7 @@ namespace basic {
         dummyStatement(&foo);
     }
 
-    // https://bugreports.qt-project.org/browse/QTCREATORBUG-5326
+    // https://bugreports.qt.io/browse/QTCREATORBUG-5326
 
     void testChar()
     {
@@ -5352,7 +5351,11 @@ namespace basic {
         // Locals and Expressions view. It is only support on gdb with Python.
 
         const char *s = "aöa";
+        const char cs[] = "aöa";
+        char cc[] = "aöa";
         const wchar_t *w = L"aöa";
+        const wchar_t cw[] = L"aöa";
+        wchar_t ww[] = L"aöa";
         QString u;
         BREAK_HERE;
         // Expand s.
@@ -5372,7 +5375,7 @@ namespace basic {
             u = QString::fromUtf16((ushort *)w);
 
         // Make sure to undo "Change Format".
-        dummyStatement(s, w);
+        dummyStatement(s, w, &ww, &cw, &cc, &cs);
     }
 
     typedef void *VoidPtr;
@@ -5525,12 +5528,13 @@ namespace basic {
 
     void testLongEvaluation1()
     {
-#if USE_TIMEZONE
-        QTimeZone tz("UTC+05:00");
         QDateTime time = QDateTime::currentDateTime();
         const int N = 10000;
         QDateTime x = time;
+#if QT_VERSION >= QT_VERSION_CHECK(5, 2, 0)
+        QTimeZone tz("UTC+05:00");
         x.setTimeZone(tz);
+#endif
         QDateTime bigv[N];
         for (int i = 0; i < 10000; ++i) {
             bigv[i] = time;
@@ -5546,7 +5550,6 @@ namespace basic {
         // Continue.
         // Note: This is expected to _not_ take up to a minute.
         dummyStatement(&bigv);
-#endif
     }
 
     void testLongEvaluation2()
@@ -5935,6 +5938,9 @@ namespace sse {
         __m128 sseA, sseB;
         sseA = _mm_loadu_ps(a);
         sseB = _mm_loadu_ps(b);
+
+        __m128i sseAi;
+        sseAi = _mm_set_epi32(1, 3, 5, 7);
         BREAK_HERE;
         // Expand a b.
         // CheckType sseA __m128.
@@ -6354,7 +6360,7 @@ namespace bug842 {
 
     void test842()
     {
-        // https://bugreports.qt-project.org/browse/QTCREATORBUG-842
+        // https://bugreports.qt.io/browse/QTCREATORBUG-842
         qWarning("Test");
         BREAK_HERE;
         // Continue.
@@ -6369,7 +6375,7 @@ namespace bug3611 {
 
     void test3611()
     {
-        // https://bugreports.qt-project.org/browse/QTCREATORBUG-3611
+        // https://bugreports.qt.io/browse/QTCREATORBUG-3611
         typedef unsigned char byte;
         byte f = '2';
         int *x = (int*)&f;
@@ -6391,7 +6397,7 @@ namespace bug3611 {
 
 namespace bug4019 {
 
-    // https://bugreports.qt-project.org/browse/QTCREATORBUG-4019
+    // https://bugreports.qt.io/browse/QTCREATORBUG-4019
 
     class A4019
     {
@@ -6417,7 +6423,7 @@ namespace bug4019 {
 
 namespace bug4997 {
 
-    // https://bugreports.qt-project.org/browse/QTCREATORBUG-4997
+    // https://bugreports.qt.io/browse/QTCREATORBUG-4997
 
     void test4997()
     {
@@ -6431,7 +6437,7 @@ namespace bug4997 {
 
 namespace bug4904 {
 
-    // https://bugreports.qt-project.org/browse/QTCREATORBUG-4904
+    // https://bugreports.qt.io/browse/QTCREATORBUG-4904
 
     struct CustomStruct {
         int id;
@@ -6466,7 +6472,7 @@ namespace bug4904 {
 
 namespace bug5046 {
 
-    // https://bugreports.qt-project.org/browse/QTCREATORBUG-5046
+    // https://bugreports.qt.io/browse/QTCREATORBUG-5046
 
     struct Foo { int a, b, c; };
 
@@ -6495,12 +6501,12 @@ namespace bug5046 {
 
 namespace bug5106 {
 
-    // https://bugreports.qt-project.org/browse/QTCREATORBUG-5106
+    // https://bugreports.qt.io/browse/QTCREATORBUG-5106
 
     class A5106
     {
     public:
-            A5106(int a, int b) : m_a(a), m_b(b) {}
+            A5106(int a, int b) : m_a(a), m_b(b) {Q_UNUSED(m_a);Q_UNUSED(m_b);}
             virtual int test() { return 5; }
     private:
             int m_a, m_b;
@@ -6509,7 +6515,7 @@ namespace bug5106 {
     class B5106 : public A5106
     {
     public:
-            B5106(int c, int a, int b) : A5106(a, b), m_c(c) {}
+            B5106(int c, int a, int b) : A5106(a, b), m_c(c) {Q_UNUSED(m_c);}
             virtual int test() { return 4; BREAK_HERE; }
     private:
             int m_c;
@@ -6527,7 +6533,7 @@ namespace bug5106 {
 
 namespace bug5184 {
 
-    // https://bugreports.qt-project.org/browse/QTCREATORBUG-5184
+    // https://bugreports.qt.io/browse/QTCREATORBUG-5184
 
     // Note: The report there shows type field "QUrl &" instead of QUrl.
     // It's unclear how this can happen. It should never have been like
@@ -6600,7 +6606,7 @@ namespace qc42170 {
 
 namespace bug5799 {
 
-    // https://bugreports.qt-project.org/browse/QTCREATORBUG-5799
+    // https://bugreports.qt.io/browse/QTCREATORBUG-5799
 
     typedef struct { int m1; int m2; } S1;
 
@@ -6640,7 +6646,7 @@ namespace bug5799 {
 
 namespace bug6813 {
 
-    // https://bugreports.qt-project.org/browse/QTCREATORBUG-6813
+    // https://bugreports.qt.io/browse/QTCREATORBUG-6813
     void test6813()
     {
       int foo = 0;
@@ -6718,7 +6724,7 @@ namespace cp42895 {
 
 namespace bug6465 {
 
-    // https://bugreports.qt-project.org/browse/QTCREATORBUG-6465
+    // https://bugreports.qt.io/browse/QTCREATORBUG-6465
 
     void test6465()
     {
@@ -7083,9 +7089,9 @@ namespace sanity {
 } // namespace sanity
 
 
-template <class X> int ffff(X x)
+template <class X> int ffff(X)
 {
-    return sizeof(x);
+    return sizeof(X);
 }
 
 int main(int argc, char *argv[])

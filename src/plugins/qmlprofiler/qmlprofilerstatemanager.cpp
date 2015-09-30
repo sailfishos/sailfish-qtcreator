@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -36,7 +37,6 @@
 //#define _DEBUG_PROFILERSTATE_
 
 namespace QmlProfiler {
-namespace Internal {
 
 inline QString stringForState(int state) {
     switch (state) {
@@ -64,6 +64,7 @@ public:
     QmlProfilerStateManager::QmlProfilerState m_currentState;
     bool m_clientRecording;
     bool m_serverRecording;
+    quint64 m_recordingFeatures;
 };
 QmlProfilerStateManager::QmlProfilerStateManager(QObject *parent) :
     QObject(parent),d(new QmlProfilerStateManagerPrivate(this))
@@ -71,6 +72,7 @@ QmlProfilerStateManager::QmlProfilerStateManager(QObject *parent) :
     d->m_currentState = Idle;
     d->m_clientRecording = true;
     d->m_serverRecording = false;
+    d->m_recordingFeatures = 0;
 }
 
 QmlProfilerStateManager::~QmlProfilerStateManager()
@@ -91,6 +93,11 @@ bool QmlProfilerStateManager::clientRecording()
 bool QmlProfilerStateManager::serverRecording()
 {
     return d->m_serverRecording;
+}
+
+quint64 QmlProfilerStateManager::recordingFeatures() const
+{
+    return d->m_recordingFeatures;
 }
 
 QString QmlProfilerStateManager::currentStateAsString()
@@ -173,5 +180,12 @@ void QmlProfilerStateManager::setServerRecording(bool recording)
     }
 }
 
+void QmlProfilerStateManager::setRecordingFeatures(quint64 features)
+{
+    if (d->m_recordingFeatures != features) {
+        d->m_recordingFeatures = features;
+        emit recordingFeaturesChanged(features);
+    }
 }
+
 }

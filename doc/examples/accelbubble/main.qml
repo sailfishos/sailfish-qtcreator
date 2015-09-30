@@ -1,7 +1,7 @@
 /**************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator
 **
@@ -16,7 +16,7 @@
 **     notice, this list of conditions and the following disclaimer in
 **     the documentation and/or other materials provided with the
 **     distribution.
-**   * Neither the name of Digia Plc and its Subsidiary(-ies) nor
+**   * Neither the name of The Qt Company Ltd and its Subsidiary(-ies) nor
 **     the names of its contributors may be used to endorse or promote
 **     products derived from this software without specific prior written
 **     permission.
@@ -35,8 +35,8 @@
 **
 **************************************************************************/
 
-import QtQuick 2.2
-import QtQuick.Controls 1.1
+import QtQuick 2.5
+import QtQuick.Controls 1.4
 
 import QtSensors 5.0
 
@@ -46,6 +46,20 @@ ApplicationWindow {
     width: 640
     height: 480
     visible: true
+
+    menuBar: MenuBar {
+        Menu {
+            title: qsTr("File")
+            MenuItem {
+                text: qsTr("&Open")
+                onTriggered: console.log("Open action triggered");
+            }
+            MenuItem {
+                text: qsTr("Exit")
+                onTriggered: Qt.quit();
+            }
+        }
+    }
 
     Image {
         id: bubble
@@ -104,15 +118,5 @@ ApplicationWindow {
     }
     function calcRoll(x, y, z) {
         return -(Math.atan(x / Math.sqrt(y * y + z * z)) * 57.2957795);
-    }
-
-    menuBar: MenuBar {
-        Menu {
-            title: qsTr("File")
-            MenuItem {
-                text: qsTr("Exit")
-                onTriggered: Qt.quit();
-            }
-        }
     }
 }

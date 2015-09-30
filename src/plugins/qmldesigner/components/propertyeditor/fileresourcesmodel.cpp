@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -35,7 +36,7 @@
 
 #include <QFileDialog>
 #include <QDirIterator>
-#include <qmlanchorbindingproxy.h>
+#include <qmlmodelnodeproxy.h>
 
 static QString s_lastBrowserPath;
 
@@ -44,19 +45,19 @@ FileResourcesModel::FileResourcesModel(QObject *parent) :
 {
 }
 
-void FileResourcesModel::setAnchorBackend(const QVariant anchorBackend)
+void FileResourcesModel::setModelNodeBackend(const QVariant &modelNodeBackend)
 {
 
-    QObject* anchorBackendObject = anchorBackend.value<QObject*>();
+    QObject* modelNodeBackendObject = modelNodeBackend.value<QObject*>();
 
-    const QmlDesigner::Internal::QmlAnchorBindingProxy *backendCasted =
-            qobject_cast<const QmlDesigner::Internal::QmlAnchorBindingProxy *>(anchorBackendObject);
+    const QmlDesigner::QmlModelNodeProxy *backendObjectCasted =
+            qobject_cast<const QmlDesigner::QmlModelNodeProxy *>(modelNodeBackendObject);
 
-    if (backendCasted)
-        m_path = backendCasted->getItemNode().modelNode().model()->fileUrl();
+    if (backendObjectCasted)
+        m_path = backendObjectCasted->qmlItemNode().modelNode().model()->fileUrl();
 
     setupModel();
-    emit anchorBackendChanged();
+    emit modelNodeBackendChanged();
 }
 
 QString FileResourcesModel::fileName() const
@@ -91,7 +92,10 @@ QUrl FileResourcesModel::path() const
 
 void FileResourcesModel::setFilter(const QString &filter)
 {
-    m_filter = filter;
+    if (m_filter != filter) {
+        m_filter = filter;
+        setupModel();
+    }
 }
 
 QString FileResourcesModel::filter() const
@@ -124,15 +128,15 @@ void FileResourcesModel::openFileDialog()
 
     //If that one is not valid we try the path for the current file
     if (path.isEmpty() && !m_fileName.isEmpty())
-        path = QFileInfo(modelPath + QLatin1String("/") + m_fileName.toString()).absoluteDir().absolutePath();
+        path = QFileInfo(modelPath + QStringLiteral("/") + m_fileName.toString()).absoluteDir().absolutePath();
 
 
     //Next we try to fall back to the path any file browser was opened with
-    if (!QFileInfo(path).exists())
+    if (!QFileInfo::exists(path))
         path = s_lastBrowserPath;
 
     //The last fallback is to try the path of the document
-    if (!QFileInfo(path).exists())
+    if (!QFileInfo::exists(path))
         path = modelPath;
 
     QString newFile = QFileDialog::getOpenFileName(Core::ICore::mainWindow(), tr("Open File"), path, m_filter);
@@ -148,6 +152,11 @@ void FileResourcesModel::openFileDialog()
 void FileResourcesModel::registerDeclarativeType()
 {
     qmlRegisterType<FileResourcesModel>("HelperWidgets",2,0,"FileResourcesModel");
+}
+
+QVariant FileResourcesModel::modelNodeBackend() const
+{
+    return QVariant();
 }
 
 void FileResourcesModel::setupModel()
@@ -168,4 +177,6 @@ void FileResourcesModel::setupModel()
     }
 
     m_lock = false;
+
+    emit fileModelChanged();
 }

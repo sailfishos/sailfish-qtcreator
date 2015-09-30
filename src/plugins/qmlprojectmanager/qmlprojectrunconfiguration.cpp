@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -32,28 +33,30 @@
 #include "qmlprojectmanagerconstants.h"
 #include "qmlprojectrunconfigurationwidget.h"
 #include "qmlprojectenvironmentaspect.h"
-#include <coreplugin/mimedatabase.h>
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/editormanager/ieditor.h>
 #include <coreplugin/icore.h>
+#include <coreplugin/idocument.h>
 #include <projectexplorer/target.h>
 #include <qtsupport/qtkitinformation.h>
 #include <qtsupport/qtoutputformatter.h>
 #include <qtsupport/qtsupportconstants.h>
 
 #include <utils/fileutils.h>
+#include <utils/mimetypes/mimedatabase.h>
 #include <utils/qtcprocess.h>
 #include <utils/winutils.h>
 
 using namespace Core;
+using namespace ProjectExplorer;
 using namespace QmlProjectManager::Internal;
 
 namespace QmlProjectManager {
 
 const char M_CURRENT_FILE[] = "CurrentFile";
 
-QmlProjectRunConfiguration::QmlProjectRunConfiguration(ProjectExplorer::Target *parent, Id id) :
-    ProjectExplorer::LocalApplicationRunConfiguration(parent, id),
+QmlProjectRunConfiguration::QmlProjectRunConfiguration(Target *parent, Id id) :
+    LocalApplicationRunConfiguration(parent, id),
     m_scriptFile(QLatin1String(M_CURRENT_FILE)),
     m_isEnabled(false)
 {
@@ -62,9 +65,9 @@ QmlProjectRunConfiguration::QmlProjectRunConfiguration(ProjectExplorer::Target *
     ctor();
 }
 
-QmlProjectRunConfiguration::QmlProjectRunConfiguration(ProjectExplorer::Target *parent,
+QmlProjectRunConfiguration::QmlProjectRunConfiguration(Target *parent,
                                                        QmlProjectRunConfiguration *source) :
-    ProjectExplorer::LocalApplicationRunConfiguration(parent, source),
+    LocalApplicationRunConfiguration(parent, source),
     m_currentFileFilename(source->m_currentFileFilename),
     m_mainScriptFilename(source->m_mainScriptFilename),
     m_scriptFile(source->m_scriptFile),
@@ -101,6 +104,7 @@ void QmlProjectRunConfiguration::ctor()
         setDisplayName(tr("QML Scene", "QMLRunConfiguration display name."));
     else
         setDisplayName(tr("QML Viewer", "QMLRunConfiguration display name."));
+    updateEnabled();
 }
 
 QString QmlProjectRunConfiguration::executable() const
@@ -114,9 +118,9 @@ QString QmlProjectRunConfiguration::executable() const
     return version->qmlviewerCommand();
 }
 
-ProjectExplorer::LocalApplicationRunConfiguration::RunMode QmlProjectRunConfiguration::runMode() const
+ApplicationLauncher::Mode QmlProjectRunConfiguration::runMode() const
 {
-    return Gui;
+    return ApplicationLauncher::Gui;
 }
 
 QString QmlProjectRunConfiguration::commandLineArguments() const
@@ -141,8 +145,7 @@ QString QmlProjectRunConfiguration::commandLineArguments() const
 
 QString QmlProjectRunConfiguration::workingDirectory() const
 {
-    QFileInfo projectFile(target()->project()->projectFilePath());
-    return canonicalCapsPath(projectFile.absolutePath());
+    return canonicalCapsPath(target()->project()->projectFilePath().toFileInfo().absolutePath());
 }
 
 /* QtDeclarative checks explicitly that the capitalization for any URL / path
@@ -212,23 +215,23 @@ void QmlProjectRunConfiguration::setScriptSource(MainScriptSource source,
     } else { // FileInSettings
         m_scriptFile = settingsPath;
         m_mainScriptFilename
-                = target()->project()->projectDirectory() + QLatin1Char('/') + m_scriptFile;
+                = target()->project()->projectDirectory().toString() + QLatin1Char('/') + m_scriptFile;
     }
     updateEnabled();
 
     emit scriptSourceChanged();
 }
 
-ProjectExplorer::Abi QmlProjectRunConfiguration::abi() const
+Abi QmlProjectRunConfiguration::abi() const
 {
-    ProjectExplorer::Abi hostAbi = ProjectExplorer::Abi::hostAbi();
-    return ProjectExplorer::Abi(hostAbi.architecture(), hostAbi.os(), hostAbi.osFlavor(),
-                                ProjectExplorer::Abi::RuntimeQmlFormat, hostAbi.wordWidth());
+    Abi hostAbi = Abi::hostAbi();
+    return Abi(hostAbi.architecture(), hostAbi.os(), hostAbi.osFlavor(),
+               Abi::RuntimeQmlFormat, hostAbi.wordWidth());
 }
 
 QVariantMap QmlProjectRunConfiguration::toMap() const
 {
-    QVariantMap map(ProjectExplorer::RunConfiguration::toMap());
+    QVariantMap map(RunConfiguration::toMap());
 
     map.insert(QLatin1String(Constants::QML_VIEWER_ARGUMENTS_KEY), m_qmlViewerArgs);
     map.insert(QLatin1String(Constants::QML_MAINSCRIPT_KEY),  m_scriptFile);
@@ -256,29 +259,30 @@ void QmlProjectRunConfiguration::changeCurrentFile(IEditor *editor)
         editor = EditorManager::currentEditor();
 
     if (editor)
-        m_currentFileFilename = editor->document()->filePath();
+        m_currentFileFilename = editor->document()->filePath().toString();
     updateEnabled();
 }
 
 void QmlProjectRunConfiguration::updateEnabled()
 {
     bool qmlFileFound = false;
+    Utils::MimeDatabase mdb;
     if (mainScriptSource() == FileInEditor) {
         IDocument *document = EditorManager::currentDocument();
         if (document) {
-            m_currentFileFilename = document->filePath();
-            if (MimeDatabase::findByFile(mainScript()).type() == QLatin1String("application/x-qml"))
+            m_currentFileFilename = document->filePath().toString();
+            if (mdb.mimeTypeForFile(mainScript()).matchesName(QLatin1String("text/x-qml")))
                 qmlFileFound = true;
         }
         if (!document
-                || MimeDatabase::findByFile(mainScript()).type() == QLatin1String("application/x-qmlproject")) {
+                || mdb.mimeTypeForFile(mainScript()).matchesName(QLatin1String("application/x-qmlproject"))) {
             // find a qml file with lowercase filename. This is slow, but only done
             // in initialization/other border cases.
-            foreach (const QString &filename, target()->project()->files(ProjectExplorer::Project::AllFiles)) {
+            foreach (const QString &filename, target()->project()->files(Project::AllFiles)) {
                 const QFileInfo fi(filename);
 
                 if (!filename.isEmpty() && fi.baseName()[0].isLower()
-                        && MimeDatabase::findByFile(fi).type() == QLatin1String("application/x-qml"))
+                        && mdb.mimeTypeForFile(fi).matchesName(QLatin1String("text/x-qml")))
                 {
                     m_currentFileFilename = filename;
                     qmlFileFound = true;
@@ -291,8 +295,7 @@ void QmlProjectRunConfiguration::updateEnabled()
         qmlFileFound = !mainScript().isEmpty();
     }
 
-    bool newValue = QFileInfo(executable()).exists() && qmlFileFound;
-
+    bool newValue = QFileInfo::exists(executable()) && qmlFileFound;
 
     // Always emit change signal to force reevaluation of run/debug buttons
     m_isEnabled = newValue;
@@ -302,8 +305,7 @@ void QmlProjectRunConfiguration::updateEnabled()
 bool QmlProjectRunConfiguration::isValidVersion(QtSupport::BaseQtVersion *version)
 {
     if (version
-            && (version->type() == QLatin1String(QtSupport::Constants::DESKTOPQT)
-                || version->type() == QLatin1String(QtSupport::Constants::SIMULATORQT))
+            && version->type() == QLatin1String(QtSupport::Constants::DESKTOPQT)
             && !version->qmlviewerCommand().isEmpty()) {
         return true;
     }

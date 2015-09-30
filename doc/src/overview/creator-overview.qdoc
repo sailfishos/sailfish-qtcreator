@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (c) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator
 **
@@ -80,7 +80,8 @@
             \li \b {\l{Building and Running}}
 
                 \QC is integrated with cross-platform systems for build
-                automation: qmake and CMake. In addition, you can import
+                automation: qmake, Qbs, CMake, and Autotools. In addition, you
+                can import
                 projects as \e {generic projects} and fully control the steps
                 and commands used to build the project.
 
@@ -91,11 +92,11 @@
                 different setups and target platforms.
 
                 For more information, see \l{Building and Running}.
-            \li \b {\l{Debugging and Analyzing}}
+            \li \b {\l{Testing}}
 
                 \QC is integrated to several external native debuggers: GNU
                 Symbolic Debugger (GDB), Microsoft Console Debugger (CDB), and
-                internal JavaScript debugger. In the \gui Debug mode, you
+                internal JavaScript debugger. In the \uicontrol Debug mode, you
                 can inspect the state of your application while debugging.
 
                 The memory and CPU power available on devices are limited and
@@ -104,7 +105,11 @@
                 execution. In addition, the QML Profiler enables you to profile
                 Qt Quick applications.
 
-                For more information, see \l{Debugging and Analyzing}.
+                \QC is integrated to the \l{Qt Test} framework for unit testing
+                Qt based applications and libraries. You can use \QC to build
+                and run autotests (commercial only).
+
+                For more information, see \l{Testing}.
             \li \b {Publishing}
 
                 \QC allows you to create installation packages for mobile

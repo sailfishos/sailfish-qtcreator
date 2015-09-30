@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,27 +9,27 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
 
 #include "pathchooser.h"
 
-#include "fancylineedit.h"
 #include "environment.h"
 #include "qtcassert.h"
 
@@ -37,10 +37,10 @@
 #include "hostosinfo.h"
 
 #include <QDebug>
-#include <QDesktopServices>
 #include <QFileDialog>
 #include <QHBoxLayout>
 #include <QPushButton>
+#include <QStandardPaths>
 
 /*!
     \class Utils::PathChooser
@@ -52,33 +52,21 @@
     This class has some validation logic for embedding into QWizardPage.
 */
 
+static QString appBundleExpandedPath(const QString &path)
+{
+    if (Utils::HostOsInfo::hostOs() == Utils::OsTypeMac && path.endsWith(QLatin1String(".app"))) {
+        // possibly expand to Foo.app/Contents/MacOS/Foo
+        QFileInfo info(path);
+        if (info.isDir()) {
+            QString exePath = path + QLatin1String("/Contents/MacOS/") + info.completeBaseName();
+            if (QFileInfo(exePath).exists())
+                return exePath;
+        }
+    }
+    return path;
+}
+
 namespace Utils {
-
-// ------------------ PathValidatingLineEdit
-
-class PathValidatingLineEdit : public FancyLineEdit
-{
-public:
-    explicit PathValidatingLineEdit(PathChooser *chooser, QWidget *parent = 0);
-
-protected:
-    virtual bool validate(const QString &value, QString *errorMessage) const;
-
-private:
-    PathChooser *m_chooser;
-};
-
-PathValidatingLineEdit::PathValidatingLineEdit(PathChooser *chooser, QWidget *parent) :
-    FancyLineEdit(parent),
-    m_chooser(chooser)
-{
-    QTC_ASSERT(chooser, return);
-}
-
-bool PathValidatingLineEdit::validate(const QString &value, QString *errorMessage) const
-{
-    return m_chooser->validatePath(value, errorMessage);
-}
 
 // ------------------ BinaryVersionToolTipEventFilter
 // Event filter to be installed on a lineedit used for entering
@@ -148,7 +136,7 @@ QString BinaryVersionToolTipEventFilter::toolVersion(const QString &binary, cons
     if (!proc.waitForStarted())
         return QString();
     if (!proc.waitForFinished()) {
-        Utils::SynchronousProcess::stopProcess(proc);
+        SynchronousProcess::stopProcess(proc);
         return QString();
     }
     return QString::fromLocal8Bit(QByteArray(proc.readAllStandardOutput()
@@ -175,12 +163,12 @@ private:
 class PathChooserPrivate
 {
 public:
-    PathChooserPrivate(PathChooser *chooser);
+    PathChooserPrivate();
 
     QString expandedPath(const QString &path) const;
 
     QHBoxLayout *m_hLayout;
-    PathValidatingLineEdit *m_lineEdit;
+    FancyLineEdit *m_lineEdit;
 
     PathChooser::Kind m_acceptingKind;
     QString m_dialogTitleOverride;
@@ -192,9 +180,9 @@ public:
     QList<QAbstractButton *> m_buttons;
 };
 
-PathChooserPrivate::PathChooserPrivate(PathChooser *chooser) :
+PathChooserPrivate::PathChooserPrivate() :
     m_hLayout(new QHBoxLayout),
-    m_lineEdit(new PathValidatingLineEdit(chooser)),
+    m_lineEdit(new FancyLineEdit),
     m_acceptingKind(PathChooser::ExistingDirectory),
     m_binaryVersionToolTipEventFilter(0)
 {
@@ -211,8 +199,8 @@ QString PathChooserPrivate::expandedPath(const QString &input) const
     switch (m_acceptingKind) {
     case PathChooser::Command:
     case PathChooser::ExistingCommand: {
-        const QString expanded = m_environment.searchInPath(path, QStringList(m_baseDirectory));
-        return expanded.isEmpty() ? path : expanded;
+        const FileName expanded = m_environment.searchInPath(path, QStringList(m_baseDirectory));
+        return expanded.isEmpty() ? path : expanded.toString();
     }
     case PathChooser::Any:
         break;
@@ -229,27 +217,28 @@ QString PathChooserPrivate::expandedPath(const QString &input) const
 
 PathChooser::PathChooser(QWidget *parent) :
     QWidget(parent),
-    d(new PathChooserPrivate(this))
+    d(new PathChooserPrivate)
 {
     d->m_hLayout->setContentsMargins(0, 0, 0, 0);
 
-    connect(d->m_lineEdit, SIGNAL(validReturnPressed()), this, SIGNAL(returnPressed()));
-    connect(d->m_lineEdit, SIGNAL(textChanged(QString)), this, SIGNAL(changed(QString)));
-    connect(d->m_lineEdit, SIGNAL(validChanged()), this, SIGNAL(validChanged()));
-    connect(d->m_lineEdit, SIGNAL(validChanged(bool)), this, SIGNAL(validChanged(bool)));
-    connect(d->m_lineEdit, SIGNAL(editingFinished()), this, SIGNAL(editingFinished()));
-    connect(d->m_lineEdit, SIGNAL(textChanged(QString)), this, SLOT(slotTextChanged()));
+    connect(d->m_lineEdit, &FancyLineEdit::validReturnPressed, this, &PathChooser::returnPressed);
+    connect(d->m_lineEdit, &QLineEdit::textChanged, this, &PathChooser::changed);
+    connect(d->m_lineEdit, &FancyLineEdit::validChanged, this, &PathChooser::validChanged);
+    connect(d->m_lineEdit, &QLineEdit::editingFinished, this, &PathChooser::editingFinished);
+    connect(d->m_lineEdit, &QLineEdit::textChanged, this, [this] { emit pathChanged(path()); });
 
     d->m_lineEdit->setMinimumWidth(120);
     d->m_hLayout->addWidget(d->m_lineEdit);
     d->m_hLayout->setSizeConstraint(QLayout::SetMinimumSize);
 
-    addButton(browseButtonLabel(), this, SLOT(slotBrowse()));
+    addButton(browseButtonLabel(), this, [this] { slotBrowse(); });
 
     setLayout(d->m_hLayout);
     setFocusProxy(d->m_lineEdit);
     setFocusPolicy(d->m_lineEdit->focusPolicy());
     setEnvironment(Environment::systemEnvironment());
+
+    d->m_lineEdit->setValidationFunction(defaultValidationFunction());
 }
 
 PathChooser::~PathChooser()
@@ -257,21 +246,21 @@ PathChooser::~PathChooser()
     delete d;
 }
 
-void PathChooser::addButton(const QString &text, QObject *receiver, const char *slotFunc)
+void PathChooser::addButton(const QString &text, QObject *context, const std::function<void ()> &callback)
 {
-    insertButton(d->m_buttons.count(), text, receiver, slotFunc);
+    insertButton(d->m_buttons.count(), text, context, callback);
 }
 
-void PathChooser::insertButton(int index, const QString &text, QObject *receiver, const char *slotFunc)
+void PathChooser::insertButton(int index, const QString &text, QObject *context, const std::function<void ()> &callback)
 {
-    QPushButton *button = new QPushButton;
+    auto button = new QPushButton;
     button->setText(text);
-    connect(button, SIGNAL(clicked()), receiver, slotFunc);
+    connect(button, &QAbstractButton::clicked, context, callback);
     d->m_hLayout->insertWidget(index + 1/*line edit*/, button);
     d->m_buttons.insert(index, button);
 }
 
-QString Utils::PathChooser::browseButtonLabel()
+QString PathChooser::browseButtonLabel()
 {
     return HostOsInfo::isMacHost() ? tr("Choose...") : tr("Browse...");
 }
@@ -296,7 +285,7 @@ void PathChooser::setBaseDirectory(const QString &directory)
 
 FileName PathChooser::baseFileName() const
 {
-    return Utils::FileName::fromString(d->m_baseDirectory);
+    return FileName::fromString(d->m_baseDirectory);
 }
 
 void PathChooser::setBaseFileName(const FileName &base)
@@ -305,7 +294,7 @@ void PathChooser::setBaseFileName(const FileName &base)
     triggerChanged();
 }
 
-void PathChooser::setEnvironment(const Utils::Environment &env)
+void PathChooser::setEnvironment(const Environment &env)
 {
     QString oldExpand = path();
     d->m_environment = env;
@@ -317,17 +306,17 @@ void PathChooser::setEnvironment(const Utils::Environment &env)
 
 QString PathChooser::path() const
 {
-    return d->expandedPath(QDir::fromNativeSeparators(d->m_lineEdit->text()));
+    return d->expandedPath(rawPath());
 }
 
 QString PathChooser::rawPath() const
 {
-    return QDir::fromNativeSeparators(d->m_lineEdit->text());
+    return FileName::fromUserInput(QDir::fromNativeSeparators(d->m_lineEdit->text())).toString();
 }
 
 FileName PathChooser::fileName() const
 {
-    return Utils::FileName::fromString(path());
+    return FileName::fromString(path());
 }
 
 void PathChooser::setPath(const QString &path)
@@ -335,7 +324,7 @@ void PathChooser::setPath(const QString &path)
     d->m_lineEdit->setText(QDir::toNativeSeparators(path));
 }
 
-void PathChooser::setFileName(const Utils::FileName &fn)
+void PathChooser::setFileName(const FileName &fn)
 {
     d->m_lineEdit->setText(fn.toUserOutput());
 }
@@ -387,20 +376,13 @@ void PathChooser::slotBrowse()
         newPath = QFileDialog::getOpenFileName(this,
                 makeDialogTitle(tr("Choose Executable")), predefined,
                 d->m_dialogFilter);
-        if (HostOsInfo::hostOs() == OsTypeMac && newPath.endsWith(QLatin1String(".app"))) {
-            // possibly expand to Foo.app/Contents/MacOS/Foo
-            QFileInfo info(newPath);
-            if (info.isDir()) {
-                QString exePath = newPath + QLatin1String("/Contents/MacOS/") + info.completeBaseName();
-                if (QFileInfo(exePath).isExecutable())
-                    newPath = exePath;
-            }
-        }
+        newPath = appBundleExpandedPath(newPath);
         break;
     case PathChooser::File: // fall through
         newPath = QFileDialog::getOpenFileName(this,
                 makeDialogTitle(tr("Choose File")), predefined,
                 d->m_dialogFilter);
+        newPath = appBundleExpandedPath(newPath);
         break;
     case PathChooser::SaveFile:
         newPath = QFileDialog::getSaveFileName(this,
@@ -440,11 +422,6 @@ void PathChooser::slotBrowse()
     triggerChanged();
 }
 
-void PathChooser::slotTextChanged()
-{
-    emit pathChanged(path());
-}
-
 bool PathChooser::isValid() const
 {
     return d->m_lineEdit->isValid();
@@ -460,8 +437,14 @@ void PathChooser::triggerChanged()
     d->m_lineEdit->triggerChanged();
 }
 
-bool PathChooser::validatePath(const QString &path, QString *errorMessage)
+FancyLineEdit::ValidationFunction PathChooser::defaultValidationFunction() const
 {
+    return std::bind(&PathChooser::validatePath, this, std::placeholders::_1, std::placeholders::_2);
+}
+
+bool PathChooser::validatePath(FancyLineEdit *edit, QString *errorMessage) const
+{
+    const QString path = edit->text();
     QString expandedPath = d->expandedPath(path);
 
     if (path.isEmpty()) {
@@ -472,7 +455,7 @@ bool PathChooser::validatePath(const QString &path, QString *errorMessage)
 
     if (expandedPath.isEmpty()) {
         if (errorMessage)
-            *errorMessage = tr("The path '%1' expanded to an empty string.").arg(QDir::toNativeSeparators(path));
+            *errorMessage = tr("The path \"%1\" expanded to an empty string.").arg(QDir::toNativeSeparators(path));
         return false;
     }
     const QFileInfo fi(expandedPath);
@@ -482,52 +465,52 @@ bool PathChooser::validatePath(const QString &path, QString *errorMessage)
     case PathChooser::ExistingDirectory: // fall through
         if (!fi.exists()) {
             if (errorMessage)
-                *errorMessage = tr("The path '%1' does not exist.").arg(QDir::toNativeSeparators(expandedPath));
+                *errorMessage = tr("The path \"%1\" does not exist.").arg(QDir::toNativeSeparators(expandedPath));
             return false;
         }
         if (!fi.isDir()) {
             if (errorMessage)
-                *errorMessage = tr("The path '%1' is not a directory.").arg(QDir::toNativeSeparators(expandedPath));
+                *errorMessage = tr("The path \"%1\" is not a directory.").arg(QDir::toNativeSeparators(expandedPath));
             return false;
         }
         break;
     case PathChooser::File: // fall through
         if (!fi.exists()) {
             if (errorMessage)
-                *errorMessage = tr("The path '%1' does not exist.").arg(QDir::toNativeSeparators(expandedPath));
+                *errorMessage = tr("The path \"%1\" does not exist.").arg(QDir::toNativeSeparators(expandedPath));
             return false;
         }
         break;
     case PathChooser::SaveFile:
         if (!fi.absoluteDir().exists()) {
             if (errorMessage)
-                *errorMessage = tr("The directory '%1' does not exist.").arg(QDir::toNativeSeparators(fi.absolutePath()));
+                *errorMessage = tr("The directory \"%1\" does not exist.").arg(QDir::toNativeSeparators(fi.absolutePath()));
             return false;
         }
         break;
     case PathChooser::ExistingCommand:
         if (!fi.exists()) {
             if (errorMessage)
-                *errorMessage = tr("The path '%1' does not exist.").arg(QDir::toNativeSeparators(expandedPath));
+                *errorMessage = tr("The path \"%1\" does not exist.").arg(QDir::toNativeSeparators(expandedPath));
             return false;
         }
         if (!fi.isExecutable()) {
             if (errorMessage)
-                *errorMessage = tr("Cannot execute '%1'.").arg(QDir::toNativeSeparators(expandedPath));
+                *errorMessage = tr("Cannot execute \"%1\".").arg(QDir::toNativeSeparators(expandedPath));
             return false;
         }
         break;
     case PathChooser::Directory:
         if (fi.exists() && !fi.isDir()) {
             if (errorMessage)
-                *errorMessage = tr("The path '%1' is not a directory.").arg(QDir::toNativeSeparators(expandedPath));
+                *errorMessage = tr("The path \"%1\" is not a directory.").arg(QDir::toNativeSeparators(expandedPath));
             return false;
         }
         break;
     case PathChooser::Command: // fall through
         if (fi.exists() && !fi.isExecutable()) {
             if (errorMessage)
-                *errorMessage = tr("Cannot execute '%1'.").arg(QDir::toNativeSeparators(expandedPath));
+                *errorMessage = tr("Cannot execute \"%1\".").arg(QDir::toNativeSeparators(expandedPath));
             return false;
         }
         break;
@@ -578,9 +561,15 @@ bool PathChooser::validatePath(const QString &path, QString *errorMessage)
     default:
         ;
     }
+
     if (errorMessage)
         *errorMessage = tr("Full path: <b>%1</b>").arg(QDir::toNativeSeparators(expandedPath));
     return true;
+}
+
+void PathChooser::setValidationFunction(const FancyLineEdit::ValidationFunction &fn)
+{
+    d->m_lineEdit->setValidationFunction(fn);
 }
 
 QString PathChooser::label()
@@ -594,7 +583,7 @@ QString PathChooser::homePath()
     // does not let people actually display the contents of their home
     // directory. Alternatively, create a QtCreator-specific directory?
     if (HostOsInfo::isWindowsHost())
-        return QDesktopServices::storageLocation(QDesktopServices::DocumentsLocation);
+        return QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
     return QDir::homePath();
 }
 

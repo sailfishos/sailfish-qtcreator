@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -37,7 +38,10 @@
 
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/actioncontainer.h>
+#include <coreplugin/actionmanager/command.h>
+
 #include <coreplugin/coreconstants.h>
+#include <coreplugin/icontext.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/id.h>
 #include <coreplugin/coreplugin.h>
@@ -93,8 +97,10 @@ public:
 
 FindPluginPrivate::FindPluginPrivate(FindPlugin *q) :
     m_currentDocumentFind(0), m_findToolBar(0), m_findDialog(0),
+    m_searchResultWindow(0),
     m_findCompletionModel(new QStringListModel(q)),
-    m_replaceCompletionModel(new QStringListModel(q))
+    m_replaceCompletionModel(new QStringListModel(q)),
+    m_openFindDialog(0)
 {
 }
 
@@ -129,6 +135,11 @@ void FindPlugin::initialize(const QStringList &, QString *)
     d->m_currentDocumentFind = new Internal::CurrentDocumentFind;
 
     d->m_findToolBar = new Internal::FindToolBar(this, d->m_currentDocumentFind);
+    auto *findToolBarContext = new IContext(this);
+    findToolBarContext->setWidget(d->m_findToolBar);
+    findToolBarContext->setContext(Context(Constants::C_FINDTOOLBAR));
+    ICore::addContextObject(findToolBarContext);
+
     d->m_findDialog = new Internal::FindToolWindow(this);
     d->m_searchResultWindow = new SearchResultWindow(d->m_findDialog);
     ExtensionSystem::PluginManager::addObject(d->m_searchResultWindow);
@@ -175,8 +186,7 @@ void FindPlugin::openFindFilter()
 
 void FindPlugin::openFindDialog(IFindFilter *filter)
 {
-    if (d->m_currentDocumentFind->candidateIsEnabled())
-        d->m_currentDocumentFind->acceptCandidate();
+    d->m_currentDocumentFind->acceptCandidate();
     const QString currentFindString =
         d->m_currentDocumentFind->isEnabled() ?
         d->m_currentDocumentFind->currentFindString() : QString();
@@ -188,41 +198,40 @@ void FindPlugin::openFindDialog(IFindFilter *filter)
 
 void FindPlugin::setupMenu()
 {
-    Core::ActionContainer *medit = Core::ActionManager::actionContainer(Core::Constants::M_EDIT);
-    Core::ActionContainer *mfind = Core::ActionManager::createMenu(Constants::M_FIND);
-    medit->addMenu(mfind, Core::Constants::G_EDIT_FIND);
+    ActionContainer *medit = ActionManager::actionContainer(Constants::M_EDIT);
+    ActionContainer *mfind = ActionManager::createMenu(Constants::M_FIND);
+    medit->addMenu(mfind, Constants::G_EDIT_FIND);
     mfind->menu()->setTitle(tr("&Find/Replace"));
     mfind->appendGroup(Constants::G_FIND_CURRENTDOCUMENT);
     mfind->appendGroup(Constants::G_FIND_FILTERS);
     mfind->appendGroup(Constants::G_FIND_FLAGS);
     mfind->appendGroup(Constants::G_FIND_ACTIONS);
-    Core::Context globalcontext(Core::Constants::C_GLOBAL);
-    Core::Command *cmd;
-    mfind->addSeparator(globalcontext, Constants::G_FIND_FLAGS);
-    mfind->addSeparator(globalcontext, Constants::G_FIND_ACTIONS);
+    Command *cmd;
+    mfind->addSeparator(Constants::G_FIND_FLAGS);
+    mfind->addSeparator(Constants::G_FIND_ACTIONS);
 
-    Core::ActionContainer *mfindadvanced = Core::ActionManager::createMenu(Constants::M_FIND_ADVANCED);
+    ActionContainer *mfindadvanced = ActionManager::createMenu(Constants::M_FIND_ADVANCED);
     mfindadvanced->menu()->setTitle(tr("Advanced Find"));
     mfind->addMenu(mfindadvanced, Constants::G_FIND_FILTERS);
     d->m_openFindDialog = new QAction(tr("Open Advanced Find..."), this);
     d->m_openFindDialog->setIconText(tr("Advanced..."));
-    cmd = Core::ActionManager::registerAction(d->m_openFindDialog, Constants::ADVANCED_FIND, globalcontext);
+    cmd = ActionManager::registerAction(d->m_openFindDialog, Constants::ADVANCED_FIND);
     cmd->setDefaultKeySequence(QKeySequence(tr("Ctrl+Shift+F")));
     mfindadvanced->addAction(cmd);
-    connect(d->m_openFindDialog, SIGNAL(triggered()), this, SLOT(openFindFilter()));
+    connect(d->m_openFindDialog, &QAction::triggered,
+            this, &FindPlugin::openFindFilter);
 }
 
 void FindPlugin::setupFilterMenuItems()
 {
     QList<IFindFilter*> findInterfaces =
         ExtensionSystem::PluginManager::getObjects<IFindFilter>();
-    Core::Command *cmd;
-    Core::Context globalcontext(Core::Constants::C_GLOBAL);
+    Command *cmd;
 
-    Core::ActionContainer *mfindadvanced = Core::ActionManager::actionContainer(Constants::M_FIND_ADVANCED);
+    ActionContainer *mfindadvanced = ActionManager::actionContainer(Constants::M_FIND_ADVANCED);
     d->m_filterActions.clear();
     bool haveEnabledFilters = false;
-    const Core::Id base("FindFilter.");
+    const Id base("FindFilter.");
     foreach (IFindFilter *filter, findInterfaces) {
         QAction *action = new QAction(QLatin1String("    ") + filter->displayName(), this);
         bool isEnabled = filter->isEnabled();
@@ -230,13 +239,12 @@ void FindPlugin::setupFilterMenuItems()
             haveEnabledFilters = true;
         action->setEnabled(isEnabled);
         action->setData(qVariantFromValue(filter));
-        cmd = Core::ActionManager::registerAction(action,
-            base.withSuffix(filter->id()), globalcontext);
+        cmd = ActionManager::registerAction(action, base.withSuffix(filter->id()));
         cmd->setDefaultKeySequence(filter->defaultShortcut());
         mfindadvanced->addAction(cmd);
         d->m_filterActions.insert(filter, action);
-        connect(action, SIGNAL(triggered(bool)), this, SLOT(openFindFilter()));
-        connect(filter, SIGNAL(enabledChanged(bool)), this, SLOT(filterChanged()));
+        connect(action, &QAction::triggered, this, &FindPlugin::openFindFilter);
+        connect(filter, &IFindFilter::enabledChanged, this, &FindPlugin::filterChanged);
     }
     d->m_findDialog->setFindFilters(findInterfaces);
     d->m_openFindDialog->setEnabled(haveEnabledFilters);
@@ -292,7 +300,7 @@ bool FindPlugin::hasFindFlag(FindFlag flag)
 
 void FindPlugin::writeSettings()
 {
-    QSettings *settings = Core::ICore::settings();
+    QSettings *settings = ICore::settings();
     settings->beginGroup(QLatin1String("Find"));
     settings->setValue(QLatin1String("Backward"), hasFindFlag(FindBackward));
     settings->setValue(QLatin1String("CaseSensitively"), hasFindFlag(FindCaseSensitively));
@@ -309,7 +317,7 @@ void FindPlugin::writeSettings()
 
 void FindPlugin::readSettings()
 {
-    QSettings *settings = Core::ICore::settings();
+    QSettings *settings = ICore::settings();
     settings->beginGroup(QLatin1String("Find"));
     bool block = blockSignals(true);
     setBackward(settings->value(QLatin1String("Backward"), false).toBool());

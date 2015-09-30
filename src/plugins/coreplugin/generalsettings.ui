@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>527</width>
-    <height>359</height>
+    <height>366</height>
    </rect>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
@@ -72,6 +72,16 @@
          </spacer>
         </item>
        </layout>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="themeLabel">
+        <property name="text">
+         <string>Theme:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="Core::Internal::ThemeSettingsWidget" name="themeWidget" native="true"/>
       </item>
       <item row="2" column="0">
        <widget class="QLabel" name="languageLabel">
@@ -181,7 +191,17 @@
         </property>
        </widget>
       </item>
-      <item row="2" column="0" colspan="4">
+      <item row="2" column="0">
+       <widget class="QLabel" name="patchCommandLabel">
+        <property name="text">
+         <string>Patch command:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1" colspan="2">
+       <widget class="Utils::PathChooser" name="patchChooser" native="true"/>
+      </item>
+      <item row="3" column="0" colspan="4">
        <layout class="QHBoxLayout" name="horizontalLayout_2">
         <item>
          <widget class="QLabel" name="modifiedLabel">
@@ -227,7 +247,7 @@
         </item>
        </layout>
       </item>
-      <item row="3" column="0" colspan="4">
+      <item row="4" column="0" colspan="4">
        <layout class="QHBoxLayout" name="horizontalLayout_5">
         <item>
          <widget class="QCheckBox" name="autoSaveCheckBox">
@@ -290,6 +310,49 @@
         </item>
        </layout>
       </item>
+      <item row="5" column="0" colspan="4">
+       <layout class="QHBoxLayout" name="horizontalLayout_4">
+        <item>
+         <widget class="QCheckBox" name="warnBeforeOpeningBigFiles">
+          <property name="text">
+           <string>Warn before opening text files greater than</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QSpinBox" name="bigFilesLimitSpinBox">
+          <property name="suffix">
+           <string>MB</string>
+          </property>
+          <property name="minimum">
+           <number>1</number>
+          </property>
+          <property name="maximum">
+           <number>500</number>
+          </property>
+          <property name="value">
+           <number>5</number>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <spacer name="horizontalSpacer_4">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+       </layout>
+      </item>
      </layout>
     </widget>
    </item>
@@ -314,6 +377,22 @@
    <extends>QToolButton</extends>
    <header location="global">utils/qtcolorbutton.h</header>
   </customwidget>
+  <customwidget>
+   <class>Utils::PathChooser</class>
+   <extends>QWidget</extends>
+   <header location="global">utils/pathchooser.h</header>
+   <container>1</container>
+   <slots>
+    <signal>editingFinished()</signal>
+    <signal>browsingFinished()</signal>
+   </slots>
+  </customwidget>
+  <customwidget>
+   <class>Core::Internal::ThemeSettingsWidget</class>
+   <extends>QWidget</extends>
+   <header location="global">coreplugin/themesettingswidget.h</header>
+   <container>1</container>
+  </customwidget>
  </customwidgets>
  <resources>
   <include location="core.qrc"/>
@@ -326,12 +405,28 @@
    <slot>setEnabled(bool)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>161</x>
-     <y>262</y>
+     <x>181</x>
+     <y>310</y>
     </hint>
     <hint type="destinationlabel">
-     <x>342</x>
-     <y>263</y>
+     <x>340</x>
+     <y>311</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>warnBeforeOpeningBigFiles</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>bigFilesLimitSpinBox</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>124</x>
+     <y>330</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>305</x>
+     <y>332</y>
     </hint>
    </hints>
   </connection>

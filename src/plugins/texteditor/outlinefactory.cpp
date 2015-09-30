@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -44,8 +45,7 @@ namespace Internal {
 OutlineWidgetStack::OutlineWidgetStack(OutlineFactory *factory) :
     QStackedWidget(),
     m_factory(factory),
-    m_syncWithEditor(true),
-    m_position(-1)
+    m_syncWithEditor(true)
 {
     QLabel *label = new QLabel(tr("No outline available"), this);
     label->setAlignment(Qt::AlignCenter);
@@ -90,32 +90,37 @@ QToolButton *OutlineWidgetStack::filterButton()
     return m_filterButton;
 }
 
-static inline QString outLineKey(int position)
-{
-    return QLatin1String("Outline.") + QString::number(position) + QLatin1String(".SyncWithEditor");
-}
-
 void OutlineWidgetStack::restoreSettings(int position)
 {
-    m_position = position; // save it so that we can save/restore in updateCurrentEditor
-
     QSettings *settings = Core::ICore::settings();
-    const bool toggleSync = settings->value(outLineKey(position), true).toBool();
-    toggleSyncButton()->setChecked(toggleSync);
+    settings->beginGroup(QLatin1String("Sidebar.Outline.") + QString::number(position));
 
+    bool syncWithEditor = true;
+    m_widgetSettings.clear();
+    foreach (const QString &key, settings->allKeys()) {
+        if (key == QLatin1String("SyncWithEditor")) {
+            syncWithEditor = settings->value(key).toBool();
+            continue;
+        }
+        m_widgetSettings.insert(key, settings->value(key));
+    }
+    settings->endGroup();
+
+    toggleSyncButton()->setChecked(syncWithEditor);
     if (IOutlineWidget *outlineWidget = qobject_cast<IOutlineWidget*>(currentWidget()))
-        outlineWidget->restoreSettings(position);
+        outlineWidget->restoreSettings(m_widgetSettings);
 }
 
 void OutlineWidgetStack::saveSettings(int position)
 {
-    Q_ASSERT(position == m_position);
-
     QSettings *settings = Core::ICore::settings();
-    settings->setValue(outLineKey(position), toggleSyncButton()->isEnabled());
+    settings->beginGroup(QLatin1String("Sidebar.Outline.") + QString::number(position));
 
-    if (IOutlineWidget *outlineWidget = qobject_cast<IOutlineWidget*>(currentWidget()))
-        outlineWidget->saveSettings(position);
+    settings->setValue(QLatin1String("SyncWithEditor"), toggleSyncButton()->isChecked());
+    for (auto iter = m_widgetSettings.constBegin(); iter != m_widgetSettings.constEnd(); ++iter)
+        settings->setValue(iter.key(), iter.value());
+
+    settings->endGroup();
 }
 
 bool OutlineWidgetStack::isCursorSynchronized() const
@@ -138,7 +143,7 @@ void OutlineWidgetStack::updateFilterMenu()
             m_filterMenu->addAction(filterAction);
         }
     }
-    m_filterButton->setEnabled(!m_filterMenu->actions().isEmpty());
+    m_filterButton->setVisible(!m_filterMenu->actions().isEmpty());
 }
 
 void OutlineWidgetStack::updateCurrentEditor(Core::IEditor *editor)
@@ -157,21 +162,29 @@ void OutlineWidgetStack::updateCurrentEditor(Core::IEditor *editor)
     if (newWidget != currentWidget()) {
         // delete old widget
         if (IOutlineWidget *outlineWidget = qobject_cast<IOutlineWidget*>(currentWidget())) {
-            if (m_position > -1)
-                outlineWidget->saveSettings(m_position);
+            QVariantMap widgetSettings = outlineWidget->settings();
+            for (auto iter = widgetSettings.constBegin(); iter != widgetSettings.constEnd(); ++iter)
+                m_widgetSettings.insert(iter.key(), iter.value());
             removeWidget(outlineWidget);
             delete outlineWidget;
         }
         if (newWidget) {
-            if (m_position > -1)
-                newWidget->restoreSettings(m_position);
+            newWidget->restoreSettings(m_widgetSettings);
             newWidget->setCursorSynchronization(m_syncWithEditor);
             addWidget(newWidget);
             setCurrentWidget(newWidget);
+            setFocusProxy(newWidget);
         }
 
         updateFilterMenu();
     }
+}
+
+OutlineFactory::OutlineFactory()
+{
+    setDisplayName(tr("Outline"));
+    setId("Outline");
+    setPriority(600);
 }
 
 QList<IOutlineWidgetFactory*> OutlineFactory::widgetFactories() const
@@ -182,26 +195,6 @@ QList<IOutlineWidgetFactory*> OutlineFactory::widgetFactories() const
 void OutlineFactory::setWidgetFactories(QList<IOutlineWidgetFactory*> factories)
 {
     m_factories = factories;
-}
-
-QString OutlineFactory::displayName() const
-{
-    return tr("Outline");
-}
-
-int OutlineFactory::priority() const
-{
-    return 600;
-}
-
-Core::Id OutlineFactory::id() const
-{
-    return "Outline";
-}
-
-QKeySequence OutlineFactory::activationSequence() const
-{
-    return QKeySequence();
 }
 
 Core::NavigationView OutlineFactory::createWidget()

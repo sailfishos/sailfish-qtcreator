@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (c) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator
 **
@@ -36,6 +36,13 @@
         \li \l {Creating Qt Quick Projects}
 
             You can use wizards to create Qt Quick projects.
+
+        \li \l{Qt Quick UI Forms}
+
+            Some of the wizards create Qt Quick projects that contain UI forms
+            (.ui.qml files). The forms use a purely declarative subset of the
+            QML language and you can edit them in the Design mode.
+
         \li \l {Using Qt Quick Designer}
 
             You can use the code editor (Edit mode) or the visual editor (Design
@@ -43,14 +50,18 @@
 
         \li \l {Creating Components}
 
-            You can use predefined QML types to create components or use a set
-            of Qt Quick Controls for creating classic desktop-style user
-            interfaces using Qt Quick 2.1 (available since Qt 5.1).
+            You can use basic QML types to create your own components that you
+            can combine with ready-made Qt Quick Controls and Layouts
+            (available since Qt 5.1).
         \li \l {Creating Screens}
 
-            You can use predefined QML types, Qt Quick Controls, and your own
-            components to create screens. You can use states and transitions to
-            navigate between screens.
+            You can combine basic QML types with ready-made Qt Quick Controls,
+            Dialogs, and Layouts (available since Qt 5.1) to create screens. You
+            can use states and transitions to navigate between screens.
+        \li \l {Using Qt Quick Designer Extensions}
+
+            \QMLD contains commercial features that make developing Qt Quick
+            applications faster and easier.
         \li \l {Exporting Designs from Graphics Software}
 
             You can export designs from graphics software, such as Adobe

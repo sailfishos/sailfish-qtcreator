@@ -43,6 +43,7 @@ public:
     bool isFunctionType() const;
     bool isNamespaceType() const;
     bool isTemplateType() const;
+    bool isExplicitInstantiationType() const;
     bool isClassType() const;
     bool isEnumType() const;
     bool isForwardClassDeclarationType() const;
@@ -64,6 +65,7 @@ public:
     virtual const Function *asFunctionType() const { return 0; }
     virtual const Namespace *asNamespaceType() const { return 0; }
     virtual const Template *asTemplateType() const { return 0; }
+    virtual const ExplicitInstantiation *asExplicitInstantiationType() const { return 0; }
     virtual const Class *asClassType() const { return 0; }
     virtual const Enum *asEnumType() const { return 0; }
     virtual const ForwardClassDeclaration *asForwardClassDeclarationType() const { return 0; }
@@ -85,6 +87,7 @@ public:
     virtual Function *asFunctionType() { return 0; }
     virtual Namespace *asNamespaceType() { return 0; }
     virtual Template *asTemplateType() { return 0; }
+    virtual ExplicitInstantiation *asExplicitInstantiationType() { return 0; }
     virtual Class *asClassType() { return 0; }
     virtual Enum *asEnumType() { return 0; }
     virtual ForwardClassDeclaration *asForwardClassDeclarationType() { return 0; }
@@ -97,10 +100,7 @@ public:
     void accept(TypeVisitor *visitor);
     static void accept(Type *type, TypeVisitor *visitor);
 
-    static bool match(const Type *type, const Type *otherType, Matcher *matcher);
-
-
-    virtual bool isEqualTo(const Type *other) const = 0; // ### remove
+    bool match(const Type *other, Matcher *matcher = 0) const;
 
 protected:
     virtual void accept0(TypeVisitor *visitor) = 0;
@@ -111,6 +111,5 @@ protected: // for Matcher
 };
 
 } // namespace CPlusPlus
-
 
 #endif // CPLUSPLUS_TYPE_H

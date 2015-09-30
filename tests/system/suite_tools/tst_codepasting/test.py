@@ -1,7 +1,7 @@
 #############################################################################
 ##
-## Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-## Contact: http://www.qt-project.org/legal
+## Copyright (C) 2015 The Qt Company Ltd.
+## Contact: http://www.qt.io/licensing
 ##
 ## This file is part of Qt Creator.
 ##
@@ -9,20 +9,21 @@
 ## Licensees holding valid commercial Qt licenses may use this file in
 ## accordance with the commercial license agreement provided with the
 ## Software or, alternatively, in accordance with the terms contained in
-## a written agreement between you and Digia.  For licensing terms and
-## conditions see http://qt.digia.com/licensing.  For further information
-## use the contact form at http://qt.digia.com/contact-us.
+## a written agreement between you and The Qt Company.  For licensing terms and
+## conditions see http://www.qt.io/terms-conditions.  For further information
+## use the contact form at http://www.qt.io/contact-us.
 ##
 ## GNU Lesser General Public License Usage
 ## Alternatively, this file may be used under the terms of the GNU Lesser
-## General Public License version 2.1 as published by the Free Software
-## Foundation and appearing in the file LICENSE.LGPL included in the
-## packaging of this file.  Please review the following information to
-## ensure the GNU Lesser General Public License version 2.1 requirements
-## will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+## General Public License version 2.1 or version 3 as published by the Free
+## Software Foundation and appearing in the file LICENSE.LGPLv21 and
+## LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+## following information to ensure the GNU Lesser General Public License
+## requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+## http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 ##
-## In addition, as a special exception, Digia gives you certain additional
-## rights.  These rights are described in the Digia Qt LGPL Exception
+## In addition, as a special exception, The Qt Company gives you certain additional
+## rights.  These rights are described in The Qt Company LGPL Exception
 ## version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 ##
 #############################################################################
@@ -40,7 +41,7 @@ def main():
     startApplication("qtcreator" + SettingsPath)
     if not startedWithoutPluginError():
         return
-    protocolsToTest = ["Paste.KDE.Org", "Pastebin.Ca"]
+    protocolsToTest = ["Paste.KDE.Org"]  # , "Pastebin.Ca"]
     # Be careful with Pastebin.Com, there are only 10 pastes per 24h
     # for all machines using the same IP-address like you.
     # protocolsToTest += ["Pastebin.Com"]
@@ -71,8 +72,11 @@ def main():
         aut.readStderr()
         clickButton(waitForObject(":Send to Codepaster.Paste_QPushButton"))
         outputWindow = waitForObject(":Qt Creator_Core::OutputWindow")
-        waitFor("not outputWindow.plainText.isEmpty()", 20000)
-        output = str(outputWindow.plainText)
+        waitFor("'http://' in str(outputWindow.plainText)", 20000)
+        try:
+            output = str(outputWindow.plainText).splitlines()[-1]
+        except:
+            output = ""
         stdErrOut = aut.readStderr()
         match = re.search("^%s protocol error: (.*)$" % protocol, stdErrOut, re.MULTILINE)
         if match:
@@ -91,6 +95,7 @@ def main():
         clickButton(waitForObject(":*Qt Creator.Clear_QToolButton"))
         invokeMenuItem('File', 'Revert "main.cpp" to Saved')
         clickButton(waitForObject(":Revert to Saved.Proceed_QPushButton"))
+        snooze(1)   # "Close All" might be disabled
         invokeMenuItem("File", "Close All")
         if not pasteId:
             test.fatal("Could not get id of paste to %s" % protocol)
@@ -99,6 +104,14 @@ def main():
         selectFromCombo(":CodePaster__Internal__PasteSelectDialog.protocolBox_QComboBox", protocol)
         pasteModel = waitForObject(":CodePaster__Internal__PasteSelectDialog.listWidget_QListWidget").model()
         waitFor("pasteModel.rowCount() > 1", 20000)
+        if (pasteId not in dumpItems(pasteModel)):
+            test.warning("Fetching too fast for server of %s - waiting 3s and trying to refresh."
+                         % protocol)
+            snooze(3)
+            clickButton("{text='Refresh' type='QPushButton' unnamed='1' visible='1' "
+                        "window=':CodePaster__Internal__PasteSelectDialog_CodePaster::PasteSelectDialog'}")
+            waitFor("pasteModel.rowCount() == 1", 1000)
+            waitFor("pasteModel.rowCount() > 1", 20000)
         if protocol == 'Pastebin.Ca':
             description = description[:32]
         if pasteId == -1:

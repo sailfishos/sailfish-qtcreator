@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -34,9 +35,11 @@
 #include "invalidpropertyexception.h"
 #include "invalidargumentexception.h"
 
-#include <QWeakPointer>
-
+#include <QPointer>
+#include <QFileInfo>
 #include <QHashIterator>
+
+#include <utils/algorithm.h>
 
 #include "abstractview.h"
 #include "nodeinstanceview.h"
@@ -58,6 +61,8 @@
 #include "rewritingexception.h"
 #include "invalididexception.h"
 #include "textmodifier.h"
+
+#include <qmljs/qmljsmodelmanagerinterface.h>
 
 /*!
 \defgroup CoreModel
@@ -94,7 +99,7 @@ ModelPrivate::~ModelPrivate()
 
 void ModelPrivate::detachAllViews()
 {
-    foreach (const QWeakPointer<AbstractView> &view, m_viewList)
+    foreach (const QPointer<AbstractView> &view, m_viewList)
         detachView(view.data(), true);
 
     m_viewList.clear();
@@ -152,7 +157,7 @@ void ModelPrivate::notifyImportsChanged(const QList<Import> &addedImports, const
     try {
         if (rewriterView())
             rewriterView()->importsChanged(addedImports, removedImports);
-    } catch (RewritingException &e) {
+    } catch (const RewritingException &e) {
         description = e.description();
         resetModel = true;
     }
@@ -162,7 +167,7 @@ void ModelPrivate::notifyImportsChanged(const QList<Import> &addedImports, const
     if (nodeInstanceView())
         nodeInstanceView()->importsChanged(addedImports, removedImports);
 
-    foreach (const QWeakPointer<AbstractView> &view, m_viewList)
+    foreach (const QPointer<AbstractView> &view, m_viewList)
         view->importsChanged(addedImports, removedImports);
 
     if (resetModel)
@@ -181,7 +186,7 @@ void ModelPrivate::setFileUrl(const QUrl &fileUrl)
     if (oldPath != fileUrl) {
         m_fileUrl = fileUrl;
 
-        foreach (const QWeakPointer<AbstractView> &view, m_viewList)
+        foreach (const QPointer<AbstractView> &view, m_viewList)
             view->fileUrlChanged(oldPath, fileUrl);
     }
 }
@@ -304,7 +309,7 @@ void ModelPrivate::changeNodeId(const InternalNode::Pointer& internalNodePointer
 
     try {
         notifyNodeIdChanged(internalNodePointer, id, oldId);
-    } catch (RewritingException &e) {
+    } catch (const RewritingException &e) {
         throw InvalidIdException(__LINE__, __FUNCTION__, __FILE__, id, e.description());
     }
 }
@@ -332,12 +337,12 @@ void ModelPrivate::notifyAuxiliaryDataChanged(const InternalNodePointer &interna
             ModelNode node(internalNode, model(), rewriterView());
             rewriterView()->auxiliaryDataChanged(node, name, data);
         }
-    } catch (RewritingException &e) {
+    } catch (const RewritingException &e) {
         description = e.description();
         resetModel = true;
     }
 
-    foreach (const QWeakPointer<AbstractView> &view, m_viewList) {
+    foreach (const QPointer<AbstractView> &view, m_viewList) {
         Q_ASSERT(view != 0);
         ModelNode node(internalNode, model(), view.data());
         view->auxiliaryDataChanged(node, name, data);
@@ -363,12 +368,12 @@ void ModelPrivate::notifyNodeSourceChanged(const InternalNodePointer &internalNo
             ModelNode node(internalNode, model(), rewriterView());
             rewriterView()->nodeSourceChanged(node, newNodeSource);
         }
-    } catch (RewritingException &e) {
+    } catch (const RewritingException &e) {
         description = e.description();
         resetModel = true;
     }
 
-    foreach (const QWeakPointer<AbstractView> &view, m_viewList) {
+    foreach (const QPointer<AbstractView> &view, m_viewList) {
         Q_ASSERT(view != 0);
         ModelNode node(internalNode, model(), view.data());
         view->nodeSourceChanged(node, newNodeSource);
@@ -392,7 +397,7 @@ void ModelPrivate::notifyRootNodeTypeChanged(const QString &type, int majorVersi
     try {
         if (rewriterView())
             rewriterView()->rootNodeTypeChanged(type, majorVersion, minorVersion);
-    } catch (RewritingException &e) {
+    } catch (const RewritingException &e) {
         description = e.description();
         resetModel = true;
     }
@@ -400,7 +405,7 @@ void ModelPrivate::notifyRootNodeTypeChanged(const QString &type, int majorVersi
     if (nodeInstanceView())
         nodeInstanceView()->rootNodeTypeChanged(type, majorVersion, minorVersion);
 
-    foreach (const QWeakPointer<AbstractView> &view, m_viewList) {
+    foreach (const QPointer<AbstractView> &view, m_viewList) {
         Q_ASSERT(view != 0);
         view->rootNodeTypeChanged(type, majorVersion, minorVersion);
 
@@ -415,7 +420,7 @@ void ModelPrivate::notifyInstancePropertyChange(const QList<QPair<ModelNode, Pro
     // no need to notify the rewriter or the instance view
 
     typedef QPair<ModelNode, PropertyName> ModelNodePropertyPair;
-    foreach (const QWeakPointer<AbstractView> &view, m_viewList) {
+    foreach (const QPointer<AbstractView> &view, m_viewList) {
         Q_ASSERT(view != 0);
 
         QList<QPair<ModelNode, PropertyName> > adaptedPropertyList;
@@ -438,12 +443,12 @@ void ModelPrivate::notifyInstancesCompleted(const QVector<ModelNode> &nodeVector
     try {
         if (rewriterView())
             rewriterView()->instancesCompleted(toModelNodeVector(internalVector, rewriterView()));
-    } catch (RewritingException &e) {
+    } catch (const RewritingException &e) {
         description = e.description();
         resetModel = true;
     }
 
-    foreach (const QWeakPointer<AbstractView> &view, m_viewList) {
+    foreach (const QPointer<AbstractView> &view, m_viewList) {
         Q_ASSERT(view != 0);
         view->instancesCompleted(toModelNodeVector(internalVector, view.data()));
     }
@@ -476,12 +481,12 @@ void ModelPrivate::notifyInstancesInformationsChange(const QMultiHash<ModelNode,
     try {
         if (rewriterView())
             rewriterView()->instanceInformationsChange(convertModelNodeInformationHash(informationChangeHash, rewriterView()));
-    } catch (RewritingException &e) {
+    } catch (const RewritingException &e) {
         description = e.description();
         resetModel = true;
     }
 
-    foreach (const QWeakPointer<AbstractView> &view, m_viewList) {
+    foreach (const QPointer<AbstractView> &view, m_viewList) {
         Q_ASSERT(view != 0);
         view->instanceInformationsChange(convertModelNodeInformationHash(informationChangeHash, view.data()));
     }
@@ -503,12 +508,12 @@ void ModelPrivate::notifyInstancesRenderImageChanged(const QVector<ModelNode> &n
     try {
         if (rewriterView())
             rewriterView()->instancesRenderImageChanged(toModelNodeVector(internalVector, rewriterView()));
-    } catch (RewritingException &e) {
+    } catch (const RewritingException &e) {
         description = e.description();
         resetModel = true;
     }
 
-    foreach (const QWeakPointer<AbstractView> &view, m_viewList) {
+    foreach (const QPointer<AbstractView> &view, m_viewList) {
         Q_ASSERT(view != 0);
         view->instancesRenderImageChanged(toModelNodeVector(internalVector, view.data()));
     }
@@ -530,12 +535,12 @@ void ModelPrivate::notifyInstancesPreviewImageChanged(const QVector<ModelNode> &
     try {
         if (rewriterView())
             rewriterView()->instancesPreviewImageChanged(toModelNodeVector(internalVector, rewriterView()));
-    } catch (RewritingException &e) {
+    } catch (const RewritingException &e) {
         description = e.description();
         resetModel = true;
     }
 
-    foreach (const QWeakPointer<AbstractView> &view, m_viewList) {
+    foreach (const QPointer<AbstractView> &view, m_viewList) {
         Q_ASSERT(view != 0);
         view->instancesPreviewImageChanged(toModelNodeVector(internalVector, view.data()));
     }
@@ -557,12 +562,12 @@ void ModelPrivate::notifyInstancesChildrenChanged(const QVector<ModelNode> &node
     try {
         if (rewriterView())
             rewriterView()->instancesChildrenChanged(toModelNodeVector(internalVector, rewriterView()));
-    } catch (RewritingException &e) {
+    } catch (const RewritingException &e) {
         description = e.description();
         resetModel = true;
     }
 
-    foreach (const QWeakPointer<AbstractView> &view, m_viewList) {
+    foreach (const QPointer<AbstractView> &view, m_viewList) {
         Q_ASSERT(view != 0);
         view->instancesChildrenChanged(toModelNodeVector(internalVector, view.data()));
     }
@@ -584,12 +589,12 @@ void ModelPrivate::notifyCurrentStateChanged(const ModelNode &node)
     try {
         if (rewriterView())
             rewriterView()->currentStateChanged(ModelNode(node.internalNode(), model(), rewriterView()));
-    } catch (RewritingException &e) {
+    } catch (const RewritingException &e) {
         description = e.description();
         resetModel = true;
     }
 
-    foreach (const QWeakPointer<AbstractView> &view, m_viewList) {
+    foreach (const QPointer<AbstractView> &view, m_viewList) {
         Q_ASSERT(view != 0);
         view->currentStateChanged(ModelNode(node.internalNode(), model(), view.data()));
     }
@@ -609,12 +614,12 @@ void ModelPrivate::notifyRewriterBeginTransaction()
     try {
         if (rewriterView())
             rewriterView()->rewriterBeginTransaction();
-    } catch (RewritingException &e) {
+    } catch (const RewritingException &e) {
         description = e.description();
         resetModel = true;
     }
 
-    foreach (const QWeakPointer<AbstractView> &view, m_viewList) {
+    foreach (const QPointer<AbstractView> &view, m_viewList) {
         Q_ASSERT(view != 0);
         view->rewriterBeginTransaction();
     }
@@ -634,12 +639,12 @@ void ModelPrivate::notifyRewriterEndTransaction()
     try {
         if (rewriterView())
             rewriterView()->rewriterEndTransaction();
-    } catch (RewritingException &e) {
+    } catch (const RewritingException &e) {
         description = e.description();
         resetModel = true;
     }
 
-    foreach (const QWeakPointer<AbstractView> &view, m_viewList) {
+    foreach (const QPointer<AbstractView> &view, m_viewList) {
         Q_ASSERT(view != 0);
         view->rewriterEndTransaction();
     }
@@ -662,12 +667,12 @@ void ModelPrivate::notifyInstanceToken(const QString &token, int number, const Q
     try {
         if (rewriterView())
             rewriterView()->instancesToken(token, number, toModelNodeVector(internalVector, rewriterView()));
-    } catch (RewritingException &e) {
+    } catch (const RewritingException &e) {
         description = e.description();
         resetModel = true;
     }
 
-    foreach (const QWeakPointer<AbstractView> &view, m_viewList) {
+    foreach (const QPointer<AbstractView> &view, m_viewList) {
         Q_ASSERT(view != 0);
         view->instancesToken(token, number, toModelNodeVector(internalVector, view.data()));
     }
@@ -689,12 +694,12 @@ void ModelPrivate::notifyCustomNotification(const AbstractView *senderView, cons
     try {
         if (rewriterView())
             rewriterView()->customNotification(senderView, identifier, toModelNodeList(internalList, rewriterView()), data);
-    } catch (RewritingException &e) {
+    } catch (const RewritingException &e) {
         description = e.description();
         resetModel = true;
     }
 
-    foreach (const QWeakPointer<AbstractView> &view, m_viewList) {
+    foreach (const QPointer<AbstractView> &view, m_viewList) {
         Q_ASSERT(view != 0);
         view->customNotification(senderView, identifier, toModelNodeList(internalList, view.data()), data);
     }
@@ -722,7 +727,7 @@ void ModelPrivate::notifyPropertiesRemoved(const QList<PropertyPair> &propertyPa
 
             rewriterView()->propertiesRemoved(propertyList);
         }
-    } catch (RewritingException &e) {
+    } catch (const RewritingException &e) {
         description = e.description();
         resetModel = true;
     }
@@ -737,7 +742,7 @@ void ModelPrivate::notifyPropertiesRemoved(const QList<PropertyPair> &propertyPa
         nodeInstanceView()->propertiesRemoved(propertyList);
     }
 
-    foreach (const QWeakPointer<AbstractView> &view, m_viewList) {
+    foreach (const QPointer<AbstractView> &view, m_viewList) {
         QList<AbstractProperty> propertyList;
         Q_ASSERT(view != 0);
         foreach (const PropertyPair &propertyPair, propertyPairList) {
@@ -767,12 +772,12 @@ void ModelPrivate::notifyPropertiesAboutToBeRemoved(const QList<InternalProperty
 
             rewriterView()->propertiesAboutToBeRemoved(propertyList);
         }
-    } catch (RewritingException &e) {
+    } catch (const RewritingException &e) {
         description = e.description();
         resetModel = true;
     }
 
-    foreach (const QWeakPointer<AbstractView> &view, m_viewList) {
+    foreach (const QPointer<AbstractView> &view, m_viewList) {
         QList<AbstractProperty> propertyList;
         Q_ASSERT(view != 0);
         foreach (const InternalProperty::Pointer &property, internalPropertyList) {
@@ -781,7 +786,7 @@ void ModelPrivate::notifyPropertiesAboutToBeRemoved(const QList<InternalProperty
         }
         try {
             view->propertiesAboutToBeRemoved(propertyList);
-        } catch (RewritingException &e) {
+        } catch (const RewritingException &e) {
             description = e.description();
             resetModel = true;
         }
@@ -851,7 +856,7 @@ void ModelPrivate::notifyNodeCreated(const InternalNode::Pointer &newInternalNod
             ModelNode createdNode(newInternalNodePointer, model(), rewriterView());
             rewriterView()->nodeCreated(createdNode);
         }
-    } catch (RewritingException &e) {
+    } catch (const RewritingException &e) {
         description = e.description();
         resetModel = true;
     }
@@ -861,7 +866,7 @@ void ModelPrivate::notifyNodeCreated(const InternalNode::Pointer &newInternalNod
         nodeInstanceView()->nodeCreated(createdNode);
     }
 
-    foreach (const QWeakPointer<AbstractView> &view, m_viewList) {
+    foreach (const QPointer<AbstractView> &view, m_viewList) {
         Q_ASSERT(view != 0);
         ModelNode createdNode(newInternalNodePointer, model(), view.data());
         view->nodeCreated(createdNode);
@@ -881,12 +886,12 @@ void ModelPrivate::notifyNodeAboutToBeRemoved(const InternalNode::Pointer &inter
             ModelNode modelNode(internalNodePointer, model(), rewriterView());
             rewriterView()->nodeAboutToBeRemoved(modelNode);
         }
-    } catch (RewritingException &e) {
+    } catch (const RewritingException &e) {
         description = e.description();
         resetModel = true;
     }
 
-    foreach (const QWeakPointer<AbstractView> &view, m_viewList) {
+    foreach (const QPointer<AbstractView> &view, m_viewList) {
         Q_ASSERT(view != 0);
         ModelNode modelNode(internalNodePointer, model(), view.data());
         view->nodeAboutToBeRemoved(modelNode);
@@ -915,7 +920,7 @@ void ModelPrivate::notifyNodeRemoved(const InternalNodePointer &internalNodePoin
             NodeAbstractProperty parentProperty(parentPropertyName, parentNodePointer, model(), rewriterView());
             rewriterView()->nodeRemoved(modelNode, parentProperty, propertyChange);
         }
-    } catch (RewritingException &e) {
+    } catch (const RewritingException &e) {
         description = e.description();
         resetModel = true;
     }
@@ -926,7 +931,7 @@ void ModelPrivate::notifyNodeRemoved(const InternalNodePointer &internalNodePoin
         nodeInstanceView()->nodeRemoved(modelNode, parentProperty, propertyChange);
     }
 
-    foreach (const QWeakPointer<AbstractView> &view, m_viewList) {
+    foreach (const QPointer<AbstractView> &view, m_viewList) {
         Q_ASSERT(view != 0);
         ModelNode modelNode(internalNodePointer, model(), view.data());
         NodeAbstractProperty parentProperty(parentPropertyName, parentNodePointer, model(), view.data());
@@ -948,12 +953,12 @@ void ModelPrivate::notifyNodeIdChanged(const InternalNode::Pointer& internalNode
             ModelNode modelNode(internalNodePointer, model(), rewriterView());
             rewriterView()->nodeIdChanged(modelNode, newId, oldId);
         }
-    } catch (RewritingException &e) {
+    } catch (const RewritingException &e) {
         description = e.description();
         resetModel = true;
     }
 
-    foreach (const QWeakPointer<AbstractView> &view, m_viewList) {
+    foreach (const QPointer<AbstractView> &view, m_viewList) {
         Q_ASSERT(view != 0);
         ModelNode modelNode(internalNodePointer, model(), view.data());
         view->nodeIdChanged(modelNode, newId, oldId);
@@ -982,12 +987,12 @@ void ModelPrivate::notifyBindingPropertiesChanged(const QList<InternalBindingPro
             }
             rewriterView()->bindingPropertiesChanged(propertyList, propertyChange);
         }
-    } catch (RewritingException &e) {
+    } catch (const RewritingException &e) {
         description = e.description();
         resetModel = true;
     }
 
-    foreach (const QWeakPointer<AbstractView> &view, m_viewList) {
+    foreach (const QPointer<AbstractView> &view, m_viewList) {
         Q_ASSERT(view != 0);
         QList<BindingProperty> propertyList;
         foreach (const InternalBindingPropertyPointer &bindingProperty, internalPropertyList) {
@@ -1023,12 +1028,12 @@ void ModelPrivate::notifySignalHandlerPropertiesChanged(const QVector<InternalSi
             }
             rewriterView()->signalHandlerPropertiesChanged(propertyList, propertyChange);
         }
-    } catch (RewritingException &e) {
+    } catch (const RewritingException &e) {
         description = e.description();
         resetModel = true;
     }
 
-    foreach (const QWeakPointer<AbstractView> &view, m_viewList) {
+    foreach (const QPointer<AbstractView> &view, m_viewList) {
         Q_ASSERT(view != 0);
         QVector<SignalHandlerProperty> propertyList;
         foreach (const InternalSignalHandlerPropertyPointer &signalHandlerProperty, internalPropertyList) {
@@ -1060,7 +1065,7 @@ void ModelPrivate::notifyScriptFunctionsChanged(const InternalNodePointer &inter
             ModelNode node(internalNodePointer, model(), rewriterView());
             rewriterView()->scriptFunctionsChanged(node, scriptFunctionList);
         }
-    } catch (RewritingException &e) {
+    } catch (const RewritingException &e) {
         description = e.description();
         resetModel = true;
     }
@@ -1070,7 +1075,7 @@ void ModelPrivate::notifyScriptFunctionsChanged(const InternalNodePointer &inter
         nodeInstanceView()->scriptFunctionsChanged(node, scriptFunctionList);
     }
 
-    foreach (const QWeakPointer<AbstractView> &view, m_viewList) {
+    foreach (const QPointer<AbstractView> &view, m_viewList) {
         Q_ASSERT(view != 0);
 
         ModelNode node(internalNodePointer, model(), view.data());
@@ -1101,13 +1106,13 @@ void ModelPrivate::notifyVariantPropertiesChanged(const InternalNodePointer &int
             ModelNode node(internalNodePointer, model(), rewriterView());
             rewriterView()->variantPropertiesChanged(propertyList, propertyChange);
         }
-    } catch (RewritingException &e) {
+    } catch (const RewritingException &e) {
         description = e.description();
         resetModel = true;
     }
 
 
-    foreach (const QWeakPointer<AbstractView> &view, m_viewList) {
+    foreach (const QPointer<AbstractView> &view, m_viewList) {
         QList<VariantProperty> propertyList;
         Q_ASSERT(view != 0);
         foreach (const PropertyName &propertyName, propertyNameList) {
@@ -1158,12 +1163,12 @@ void ModelPrivate::notifyNodeAboutToBeReparent(const InternalNodePointer &intern
             ModelNode modelNode(internalNodePointer, model(), rewriterView());
             rewriterView()->nodeAboutToBeReparented(modelNode, newProperty, oldProperty, propertyChange);
         }
-    } catch (RewritingException &e) {
+    } catch (const RewritingException &e) {
         description = e.description();
         resetModel = true;
     }
 
-    foreach (const QWeakPointer<AbstractView> &view, m_viewList) {
+    foreach (const QPointer<AbstractView> &view, m_viewList) {
         NodeAbstractProperty newProperty;
         NodeAbstractProperty oldProperty;
 
@@ -1219,12 +1224,12 @@ void ModelPrivate::notifyNodeReparent(const InternalNode::Pointer &internalNodeP
             ModelNode node(internalNodePointer, model(), rewriterView());
             rewriterView()->nodeReparented(node, newProperty, oldProperty, propertyChange);
         }
-    } catch (RewritingException &e) {
+    } catch (const RewritingException &e) {
         description = e.description();
         resetModel = true;
     }
 
-    foreach (const QWeakPointer<AbstractView> &view, m_viewList) {
+    foreach (const QPointer<AbstractView> &view, m_viewList) {
         NodeAbstractProperty newProperty;
         NodeAbstractProperty oldProperty;
 
@@ -1269,12 +1274,12 @@ void ModelPrivate::notifyNodeOrderChanged(const InternalNodeListPropertyPointer 
             rewriterView()->nodeOrderChanged(NodeListProperty(internalListPropertyPointer, model(), rewriterView()),
                                ModelNode(internalNodePointer, model(), rewriterView()),
                                oldIndex);
-    } catch (RewritingException &e) {
+    } catch (const RewritingException &e) {
         description = e.description();
         resetModel = true;
     }
 
-    foreach (const QWeakPointer<AbstractView> &view, m_viewList) {
+    foreach (const QPointer<AbstractView> &view, m_viewList) {
         Q_ASSERT(!view.isNull());
         view->nodeOrderChanged(NodeListProperty(internalListPropertyPointer, model(), view.data()),
                                    ModelNode(internalNodePointer, model(), view.data()),
@@ -1302,7 +1307,7 @@ void ModelPrivate::setSelectedNodes(const QList<InternalNode::Pointer> &selected
     }
 
     sortedSelectedList = sortedSelectedList.toSet().toList();
-    qSort(sortedSelectedList);
+    Utils::sort(sortedSelectedList);
 
     if (sortedSelectedList == m_selectedInternalNodeList)
         return;
@@ -1320,6 +1325,13 @@ void ModelPrivate::clearSelectedNodes()
     const QList<InternalNode::Pointer> lastSelectedNodeList = m_selectedInternalNodeList;
     m_selectedInternalNodeList.clear();
     changeSelectedNodes(m_selectedInternalNodeList, lastSelectedNodeList);
+}
+
+void ModelPrivate::removeAuxiliaryData(const InternalNodePointer &node, const PropertyName &name)
+{
+    node->removeAuxiliaryData(name);
+
+    notifyAuxiliaryDataChanged(node, name, QVariant());
 }
 
 QList<ModelNode> ModelPrivate::toModelNodeList(const QList<InternalNode::Pointer> &internalNodeList, AbstractView *view) const
@@ -1361,7 +1373,7 @@ QVector<Internal::InternalNode::Pointer> ModelPrivate::toInternalNodeVector(cons
 void ModelPrivate::changeSelectedNodes(const QList<InternalNode::Pointer> &newSelectedNodeList,
                                        const QList<InternalNode::Pointer> &oldSelectedNodeList)
 {
-    foreach (const QWeakPointer<AbstractView> &view, m_viewList) {
+    foreach (const QPointer<AbstractView> &view, m_viewList) {
         Q_ASSERT(view != 0);
         view->selectedNodesChanged(toModelNodeList(newSelectedNodeList, view.data()), toModelNodeList(oldSelectedNodeList, view.data()));
     }
@@ -1809,7 +1821,22 @@ QString Model::pathForImport(const Import &import)
     if (!rewriterView())
         return QString();
 
-   return  rewriterView()->pathForImport(import);
+    return  rewriterView()->pathForImport(import);
+}
+
+QStringList Model::importPaths() const
+{
+    if (rewriterView())
+        return rewriterView()->importDirectories();
+
+    QStringList importPathList;
+
+    QString documentDirectoryPath = QFileInfo(fileUrl().toLocalFile()).absolutePath();
+
+    if (!documentDirectoryPath.isEmpty())
+        importPathList.append(documentDirectoryPath);
+
+    return importPathList;
 }
 
 RewriterView *Model::rewriterView() const
@@ -1853,19 +1880,6 @@ void Model::setTextModifier(TextModifier *textModifier)
 {
     d->m_textModifier = textModifier;
 }
-
-#if 0
-/*!
- \brief Creates a new empty model
- \param uiFilePath path to the ui file
- \param[out] errorMessage returns a error message
- \return new created model
-*/
-Model *Model::create(const QString &rootType)
-{
-    return Internal::ModelPrivate::create(rootType);
-}
-#endif
 
 /*!
   \brief Returns the URL against which relative URLs within the model should be resolved.

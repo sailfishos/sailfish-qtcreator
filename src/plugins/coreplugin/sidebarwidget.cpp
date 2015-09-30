@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -32,6 +33,7 @@
 #include "navigationsubwidget.h"
 
 #include <coreplugin/coreconstants.h>
+#include <utils/algorithm.h>
 
 #include <QToolBar>
 #include <QToolButton>
@@ -51,7 +53,7 @@ public:
     explicit SideBarComboBox(SideBarWidget *sideBarWidget) : m_sideBarWidget(sideBarWidget) {}
 
 private:
-    virtual const Core::Command *command(const QString &text) const
+    virtual const Command *command(const QString &text) const
         { return m_sideBarWidget->command(text); }
 
     SideBarWidget *m_sideBarWidget;
@@ -78,11 +80,11 @@ SideBarWidget::SideBarWidget(SideBar *sideBar, const QString &id)
     connect(m_splitAction, SIGNAL(triggered()), this, SIGNAL(splitMe()));
     m_toolbar->addAction(m_splitAction);
 
-    QAction *closeAction = new QAction(tr("Close"), m_toolbar);
-    closeAction->setToolTip(tr("Close"));
-    closeAction->setIcon(QIcon(QLatin1String(Constants::ICON_CLOSE_DOCUMENT)));
-    connect(closeAction, SIGNAL(triggered()), this, SIGNAL(closeMe()));
-    m_toolbar->addAction(closeAction);
+    m_closeAction = new QAction(tr("Close"), m_toolbar);
+    m_closeAction->setToolTip(tr("Close"));
+    m_closeAction->setIcon(QIcon(QLatin1String(Constants::ICON_CLOSE_SPLIT_BOTTOM)));
+    connect(m_closeAction, SIGNAL(triggered()), this, SIGNAL(closeMe()));
+    m_toolbar->addAction(m_closeAction);
 
     QVBoxLayout *lay = new QVBoxLayout();
     lay->setMargin(0);
@@ -91,7 +93,7 @@ SideBarWidget::SideBarWidget(SideBar *sideBar, const QString &id)
     lay->addWidget(m_toolbar);
 
     QStringList titleList = m_sideBar->availableItemTitles();
-    qSort(titleList);
+    Utils::sort(titleList);
     QString t = id;
     if (titleList.count()) {
         foreach (const QString &itemTitle, titleList)
@@ -158,7 +160,7 @@ void SideBarWidget::updateAvailableItems()
     QStringList titleList = m_sideBar->availableItemTitles();
     if (!currentTitle.isEmpty() && !titleList.contains(currentTitle))
         titleList.append(currentTitle);
-    qSort(titleList);
+    Utils::sort(titleList);
 
     foreach (const QString &itemTitle, titleList)
         m_comboBox->addItem(itemTitle, m_sideBar->idForTitle(itemTitle));
@@ -198,13 +200,21 @@ void SideBarWidget::setCurrentIndex(int)
     emit currentWidgetChanged();
 }
 
-Core::Command *SideBarWidget::command(const QString &id) const
+Command *SideBarWidget::command(const QString &title) const
 {
-    const QMap<QString, Core::Command*> shortcutMap = m_sideBar->shortcutMap();
-    QMap<QString, Core::Command*>::const_iterator r = shortcutMap.find(id);
+    const QString id = m_sideBar->idForTitle(title);
+    if (id.isEmpty())
+        return 0;
+    const QMap<QString, Command*> shortcutMap = m_sideBar->shortcutMap();
+    QMap<QString, Command*>::const_iterator r = shortcutMap.find(id);
     if (r != shortcutMap.end())
         return r.value();
     return 0;
+}
+
+void SideBarWidget::setCloseIcon(const QIcon &icon)
+{
+    m_closeAction->setIcon(icon);
 }
 
 } // namespace Internal

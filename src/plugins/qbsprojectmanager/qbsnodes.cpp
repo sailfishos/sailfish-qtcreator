@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -38,10 +39,9 @@
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/target.h>
 #include <qtsupport/qtsupportconstants.h>
+#include <utils/algorithm.h>
 #include <utils/hostosinfo.h>
 #include <utils/qtcassert.h>
-
-#include <qbs.h>
 
 #include <QDir>
 #include <QStyle>
@@ -87,6 +87,35 @@ namespace Internal {
 QIcon QbsGroupNode::m_groupIcon;
 QIcon QbsProjectNode::m_projectIcon;
 QIcon QbsProductNode::m_productIcon;
+
+static QbsProjectNode *parentQbsProjectNode(ProjectExplorer::Node *node)
+{
+    for (ProjectExplorer::FolderNode *pn = node->projectNode(); pn; pn = pn->parentFolderNode()) {
+        QbsProjectNode *prjNode = dynamic_cast<QbsProjectNode *>(pn);
+        if (prjNode)
+            return prjNode;
+    }
+    return 0;
+}
+
+static QbsProductNode *parentQbsProductNode(ProjectExplorer::Node *node)
+{
+    for (; node; node = node->parentFolderNode()) {
+        QbsProductNode *prdNode = dynamic_cast<QbsProductNode *>(node);
+        if (prdNode)
+            return prdNode;
+    }
+    return 0;
+}
+
+static qbs::GroupData findMainQbsGroup(const qbs::ProductData &productData)
+{
+    foreach (const qbs::GroupData &grp, productData.groups()) {
+        if (grp.name() == productData.name() && grp.location() == productData.location())
+            return grp;
+    }
+    return qbs::GroupData();
+}
 
 class FileTreeNode {
 public:
@@ -216,12 +245,31 @@ public:
     bool m_isFile;
 };
 
+
+static QList<ProjectExplorer::ProjectAction> supportedNodeActions(ProjectExplorer::Node *node,
+                                                                  bool managesFiles)
+{
+    QList<ProjectExplorer::ProjectAction> actions;
+    const QbsProject * const project = parentQbsProjectNode(node)->project();
+    if (!project->isProjectEditable())
+        return actions;
+    if (managesFiles)
+        actions << ProjectExplorer::AddNewFile << ProjectExplorer::AddExistingFile;
+    if (node->nodeType() == ProjectExplorer::FileNodeType
+            && !project->qbsProject().buildSystemFiles().contains(node->path().toString())) {
+        actions << ProjectExplorer::RemoveFile << ProjectExplorer::Rename;
+    }
+    return actions;
+}
+
 // ----------------------------------------------------------------------
 // QbsFileNode:
 // ----------------------------------------------------------------------
 
-QbsFileNode::QbsFileNode(const QString &filePath, const ProjectExplorer::FileType fileType,
-                         bool generated, int line) :
+QbsFileNode::QbsFileNode(const Utils::FileName &filePath,
+                         const ProjectExplorer::FileType fileType,
+                         bool generated,
+                         int line) :
     ProjectExplorer::FileNode(filePath, fileType, generated, line)
 { }
 
@@ -233,20 +281,23 @@ QString QbsFileNode::displayName() const
     return ProjectExplorer::FileNode::displayName() + QLatin1Char(':') + QString::number(l);
 }
 
-bool QbsFileNode::update(const qbs::CodeLocation &loc)
-{
-    const QString oldPath = path();
-    const int oldLine = line();
 
-    setPathAndLine(loc.fileName(), loc.line());
-    return (line() != oldLine || path() != oldPath);
+QbsFolderNode::QbsFolderNode(const Utils::FileName &folderPath, ProjectExplorer::NodeType nodeType,
+                             const QString &displayName)
+    : ProjectExplorer::FolderNode(folderPath, nodeType, displayName)
+{
+}
+
+QList<ProjectExplorer::ProjectAction> QbsFolderNode::supportedActions(ProjectExplorer::Node *node) const
+{
+    return supportedNodeActions(node, false);
 }
 
 // ---------------------------------------------------------------------------
 // QbsBaseProjectNode:
 // ---------------------------------------------------------------------------
 
-QbsBaseProjectNode::QbsBaseProjectNode(const QString &path) :
+QbsBaseProjectNode::QbsBaseProjectNode(const Utils::FileName &path) :
     ProjectExplorer::ProjectNode(path)
 { }
 
@@ -306,28 +357,21 @@ bool QbsBaseProjectNode::renameFile(const QString &filePath, const QString &newF
     return false;
 }
 
-QList<ProjectExplorer::RunConfiguration *> QbsBaseProjectNode::runConfigurationsFor(ProjectExplorer::Node *node)
-{
-    Q_UNUSED(node);
-    return QList<ProjectExplorer::RunConfiguration *>();
-}
-
 // --------------------------------------------------------------------
 // QbsGroupNode:
 // --------------------------------------------------------------------
 
-QbsGroupNode::QbsGroupNode(const qbs::GroupData *grp, const QString &productPath) :
-    QbsBaseProjectNode(QString()),
-    m_qbsGroupData(0)
+QbsGroupNode::QbsGroupNode(const qbs::GroupData &grp, const QString &productPath) :
+    QbsBaseProjectNode(Utils::FileName())
 {
     if (m_groupIcon.isNull())
         m_groupIcon = QIcon(QString::fromLatin1(Constants::QBS_GROUP_ICON));
 
     setIcon(m_groupIcon);
 
-    QbsFileNode *idx = new QbsFileNode(grp->location().fileName(),
+    QbsFileNode *idx = new QbsFileNode(Utils::FileName::fromString(grp.location().filePath()),
                                        ProjectExplorer::ProjectFileType, false,
-                                       grp->location().line());
+                                       grp.location().line());
     addFileNodes(QList<ProjectExplorer::FileNode *>() << idx);
 
     updateQbsGroupData(grp, productPath, true, true);
@@ -335,47 +379,111 @@ QbsGroupNode::QbsGroupNode(const qbs::GroupData *grp, const QString &productPath
 
 bool QbsGroupNode::isEnabled() const
 {
-    if (!parentFolderNode() || !m_qbsGroupData)
+    if (!parentFolderNode() || !m_qbsGroupData.isValid())
         return false;
     return static_cast<QbsProductNode *>(parentFolderNode())->isEnabled()
-            && m_qbsGroupData->isEnabled();
+            && m_qbsGroupData.isEnabled();
 }
 
-void QbsGroupNode::updateQbsGroupData(const qbs::GroupData *grp, const QString &productPath,
+QList<ProjectExplorer::ProjectAction> QbsGroupNode::supportedActions(ProjectExplorer::Node *node) const
+{
+    return supportedNodeActions(node, true);
+}
+
+bool QbsGroupNode::addFiles(const QStringList &filePaths, QStringList *notAdded)
+{
+    QStringList notAddedDummy;
+    if (!notAdded)
+        notAdded = &notAddedDummy;
+
+    QbsProjectNode *prjNode = parentQbsProjectNode(this);
+    if (!prjNode || !prjNode->qbsProject().isValid()) {
+        *notAdded += filePaths;
+        return false;
+    }
+
+    QbsProductNode *prdNode = parentQbsProductNode(this);
+    if (!prdNode || !prdNode->qbsProductData().isValid()) {
+        *notAdded += filePaths;
+        return false;
+    }
+
+    return prjNode->project()->addFilesToProduct(this, filePaths, prdNode->qbsProductData(),
+                                                 m_qbsGroupData, notAdded);
+}
+
+bool QbsGroupNode::removeFiles(const QStringList &filePaths, QStringList *notRemoved)
+{
+    QStringList notRemovedDummy;
+    if (!notRemoved)
+        notRemoved = &notRemovedDummy;
+
+    QbsProjectNode *prjNode = parentQbsProjectNode(this);
+    if (!prjNode || !prjNode->qbsProject().isValid()) {
+        *notRemoved += filePaths;
+        return false;
+    }
+
+    QbsProductNode *prdNode = parentQbsProductNode(this);
+    if (!prdNode || !prdNode->qbsProductData().isValid()) {
+        *notRemoved += filePaths;
+        return false;
+    }
+
+    return prjNode->project()->removeFilesFromProduct(this, filePaths, prdNode->qbsProductData(),
+                                                      m_qbsGroupData, notRemoved);
+}
+
+bool QbsGroupNode::renameFile(const QString &filePath, const QString &newFilePath)
+{
+    QbsProjectNode * const prjNode = parentQbsProjectNode(this);
+    if (!prjNode || !prjNode->qbsProject().isValid())
+        return false;
+    QbsProductNode * const prdNode = parentQbsProductNode(this);
+    if (!prdNode || !prdNode->qbsProductData().isValid())
+        return false;
+
+    return prjNode->project()->renameFileInProduct(this, filePath, newFilePath,
+                                                   prdNode->qbsProductData(), m_qbsGroupData);
+}
+
+void QbsGroupNode::updateQbsGroupData(const qbs::GroupData &grp, const QString &productPath,
                                       bool productWasEnabled, bool productIsEnabled)
 {
-    Q_ASSERT(grp);
+    QTC_ASSERT(grp.isValid(), return);
 
     if (grp == m_qbsGroupData && productPath == m_productPath)
         return;
 
-    bool groupWasEnabled = productWasEnabled && m_qbsGroupData && m_qbsGroupData->isEnabled();
-    bool groupIsEnabled = productIsEnabled && grp->isEnabled();
+    bool groupWasEnabled = productWasEnabled && m_qbsGroupData.isValid()
+            && m_qbsGroupData.isEnabled();
+    bool groupIsEnabled = productIsEnabled && grp.isEnabled();
     bool updateExisting = groupWasEnabled != groupIsEnabled;
 
     m_productPath = productPath;
     m_qbsGroupData = grp;
 
-    setPath(grp->location().fileName());
-    setDisplayName(grp->name());
+    setPath(Utils::FileName::fromString(grp.location().filePath()));
+    setDisplayName(grp.name());
 
     QbsFileNode *idx = 0;
     foreach (ProjectExplorer::FileNode *fn, fileNodes()) {
-        idx = qobject_cast<QbsFileNode *>(fn);
+        idx = dynamic_cast<QbsFileNode *>(fn);
         if (idx)
             break;
     }
-    if (idx->update(grp->location()) || updateExisting)
-        idx->emitNodeUpdated();
+    QTC_ASSERT(idx, return);
+    idx->setPathAndLine(Utils::FileName::fromString(grp.location().filePath()),
+                        grp.location().line());
 
-    setupFiles(this, grp->allFilePaths(), productPath, updateExisting);
+    setupFiles(this, grp, grp.allFilePaths(), productPath, updateExisting);
 
     if (updateExisting)
         emitNodeUpdated();
 }
 
-void QbsGroupNode::setupFiles(QbsBaseProjectNode *root, const QStringList &files,
-                              const QString &productPath, bool updateExisting)
+void QbsGroupNode::setupFiles(ProjectExplorer::FolderNode *root, const qbs::GroupData &group,
+        const QStringList &files, const QString &productPath, bool updateExisting)
 {
     // Build up a tree of nodes:
     FileTreeNode tree;
@@ -393,10 +501,10 @@ void QbsGroupNode::setupFiles(QbsBaseProjectNode *root, const QStringList &files
     FileTreeNode::reorder(&tree, productPath);
     FileTreeNode::simplify(&tree);
 
-    setupFolder(root, &tree, productPath, updateExisting);
+    setupFolder(root, group, &tree, productPath, updateExisting);
 }
 
-void QbsGroupNode::setupFolder(ProjectExplorer::FolderNode *root,
+void QbsGroupNode::setupFolder(ProjectExplorer::FolderNode *root, const qbs::GroupData &group,
                                const FileTreeNode *fileTree, const QString &baseDir,
                                bool updateExisting)
 {
@@ -407,7 +515,7 @@ void QbsGroupNode::setupFolder(ProjectExplorer::FolderNode *root,
 
     QList<ProjectExplorer::FileNode *> filesToRemove;
     foreach (ProjectExplorer::FileNode *fn, root->fileNodes()) {
-        if (!qobject_cast<QbsFileNode *>(fn))
+        if (!dynamic_cast<QbsFileNode *>(fn))
             filesToRemove << fn;
     }
     QList<ProjectExplorer::FileNode *> filesToAdd;
@@ -420,14 +528,15 @@ void QbsGroupNode::setupFolder(ProjectExplorer::FolderNode *root,
     }
 
     foreach (FileTreeNode *c, fileTree->children) {
-        QString path = c->path();
+        Utils::FileName path = Utils::FileName::fromString(c->path());
 
         // Handle files:
         if (c->isFile()) {
+            const ProjectExplorer::FileType newFileType = fileType(group, c->path());
             ProjectExplorer::FileNode *fn = 0;
             foreach (ProjectExplorer::FileNode *f, root->fileNodes()) {
                 // There can be one match only here!
-                if (f->path() != path)
+                if (f->path() != path || f->fileType() != newFileType)
                     continue;
                 fn = f;
                 break;
@@ -437,7 +546,7 @@ void QbsGroupNode::setupFolder(ProjectExplorer::FolderNode *root,
                 if (updateExisting)
                     fn->emitNodeUpdated();
             } else {
-                fn = new ProjectExplorer::FileNode(path, ProjectExplorer::UnknownFileType, false);
+                fn = new ProjectExplorer::FileNode(path, newFileType, false);
                 filesToAdd.append(fn);
             }
             continue;
@@ -451,16 +560,18 @@ void QbsGroupNode::setupFolder(ProjectExplorer::FolderNode *root,
                 break;
             }
             if (!fn) {
-                fn = new FolderNode(c->path());
+                fn = new QbsFolderNode(Utils::FileName::fromString(c->path()),
+                                       ProjectExplorer::FolderNodeType,
+                                       displayNameFromPath(c->path(), baseDir));
                 root->addFolderNodes(QList<FolderNode *>() << fn);
             } else {
                 foldersToRemove.removeOne(fn);
                 if (updateExisting)
                     fn->emitNodeUpdated();
+                fn->setDisplayName(displayNameFromPath(c->path(), baseDir));
             }
-            fn->setDisplayName(displayNameFromPath(c->path(), baseDir));
 
-            setupFolder(fn, c, c->path(), updateExisting);
+            setupFolder(fn, group, c, c->path(), updateExisting);
         }
     }
     root->removeFileNodes(filesToRemove);
@@ -468,24 +579,47 @@ void QbsGroupNode::setupFolder(ProjectExplorer::FolderNode *root,
     root->addFileNodes(filesToAdd);
 }
 
+ProjectExplorer::FileType QbsGroupNode::fileType(const qbs::GroupData &group,
+                                                 const QString &filePath)
+{
+    if (!group.isValid())
+        return ProjectExplorer::UnknownFileType;
+    const qbs::SourceArtifact artifact = Utils::findOrDefault(group.allSourceArtifacts(),
+            [filePath](const qbs::SourceArtifact &sa) { return sa.filePath() == filePath; });
+    QTC_ASSERT(artifact.isValid(), return ProjectExplorer::UnknownFileType);
+    if (artifact.fileTags().contains(QLatin1String("c"))
+            || artifact.fileTags().contains(QLatin1String("cpp"))
+            || artifact.fileTags().contains(QLatin1String("objc"))
+            || artifact.fileTags().contains(QLatin1String("objcpp"))) {
+        return ProjectExplorer::SourceType;
+    }
+    if (artifact.fileTags().contains(QLatin1String("hpp")))
+        return ProjectExplorer::HeaderType;
+    if (artifact.fileTags().contains(QLatin1String("qrc")))
+        return ProjectExplorer::ResourceType;
+    if (artifact.fileTags().contains(QLatin1String("ui")))
+        return ProjectExplorer::FormType;
+    return ProjectExplorer::UnknownFileType;
+}
+
 // --------------------------------------------------------------------
 // QbsProductNode:
 // --------------------------------------------------------------------
 
-QbsProductNode::QbsProductNode(const qbs::ProductData &prd) :
-    QbsBaseProjectNode(prd.location().fileName())
+QbsProductNode::QbsProductNode(const qbs::Project &project, const qbs::ProductData &prd) :
+    QbsBaseProjectNode(Utils::FileName::fromString(prd.location().filePath()))
 {
     if (m_productIcon.isNull())
         m_productIcon = generateIcon(QString::fromLatin1(Constants::QBS_PRODUCT_OVERLAY_ICON));
 
     setIcon(m_productIcon);
 
-    ProjectExplorer::FileNode *idx = new QbsFileNode(prd.location().fileName(),
-                                                     ProjectExplorer::ProjectFileType, false,
-                                                     prd.location().line());
+    auto idx = new QbsFileNode(Utils::FileName::fromString(prd.location().filePath()),
+                               ProjectExplorer::ProjectFileType, false,
+                               prd.location().line());
     addFileNodes(QList<ProjectExplorer::FileNode *>() << idx);
 
-    setQbsProductData(prd);
+    setQbsProductData(project, prd);
 }
 
 bool QbsProductNode::isEnabled() const
@@ -498,7 +632,65 @@ bool QbsProductNode::showInSimpleTree() const
     return true;
 }
 
-void QbsProductNode::setQbsProductData(const qbs::ProductData prd)
+QList<ProjectExplorer::ProjectAction> QbsProductNode::supportedActions(ProjectExplorer::Node *node) const
+{
+    return supportedNodeActions(node, true);
+}
+
+bool QbsProductNode::addFiles(const QStringList &filePaths, QStringList *notAdded)
+{
+    QStringList notAddedDummy;
+    if (!notAdded)
+        notAdded = &notAddedDummy;
+
+    QbsProjectNode *prjNode = parentQbsProjectNode(this);
+    if (!prjNode || !prjNode->qbsProject().isValid()) {
+        *notAdded += filePaths;
+        return false;
+    }
+
+    qbs::GroupData grp = findMainQbsGroup(m_qbsProductData);
+    if (grp.isValid()) {
+        return prjNode->project()->addFilesToProduct(this, filePaths, m_qbsProductData, grp,
+                                                     notAdded);
+    }
+
+    QTC_ASSERT(false, return false);
+}
+
+bool QbsProductNode::removeFiles(const QStringList &filePaths, QStringList *notRemoved)
+{
+    QStringList notRemovedDummy;
+    if (!notRemoved)
+        notRemoved = &notRemovedDummy;
+
+    QbsProjectNode *prjNode = parentQbsProjectNode(this);
+    if (!prjNode || !prjNode->qbsProject().isValid()) {
+        *notRemoved += filePaths;
+        return false;
+    }
+
+    qbs::GroupData grp = findMainQbsGroup(m_qbsProductData);
+    if (grp.isValid()) {
+        return prjNode->project()->removeFilesFromProduct(this, filePaths, m_qbsProductData, grp,
+                                                          notRemoved);
+    }
+
+    QTC_ASSERT(false, return false);
+}
+
+bool QbsProductNode::renameFile(const QString &filePath, const QString &newFilePath)
+{
+    QbsProjectNode * const prjNode = parentQbsProjectNode(this);
+    if (!prjNode || !prjNode->qbsProject().isValid())
+        return false;
+    const qbs::GroupData grp = findMainQbsGroup(m_qbsProductData);
+    QTC_ASSERT(grp.isValid(), return false);
+    return prjNode->project()->renameFileInProduct(this, filePath, newFilePath, m_qbsProductData,
+                                                   grp);
+}
+
+void QbsProductNode::setQbsProductData(const qbs::Project &project, const qbs::ProductData prd)
 {
     if (m_qbsProductData == prd)
         return;
@@ -507,19 +699,20 @@ void QbsProductNode::setQbsProductData(const qbs::ProductData prd)
     bool productIsEnabled = prd.isEnabled();
     bool updateExisting = productWasEnabled != productIsEnabled;
 
-    setDisplayName(prd.name());
-    setPath(prd.location().fileName());
-    const QString &productPath = QFileInfo(prd.location().fileName()).absolutePath();
+    setDisplayName(QbsProject::productDisplayName(project, prd));
+    setPath(Utils::FileName::fromString(prd.location().filePath()));
+    const QString &productPath = QFileInfo(prd.location().filePath()).absolutePath();
 
     // Find the QbsFileNode we added earlier:
     QbsFileNode *idx = 0;
     foreach (ProjectExplorer::FileNode *fn, fileNodes()) {
-        idx = qobject_cast<QbsFileNode *>(fn);
+        idx = dynamic_cast<QbsFileNode *>(fn);
         if (idx)
             break;
     }
-    if (idx->update(prd.location()) || updateExisting)
-        idx->emitNodeUpdated();
+    QTC_ASSERT(idx, return);
+    idx->setPathAndLine(Utils::FileName::fromString(prd.location().filePath()),
+                        prd.location().line());
 
     QList<ProjectExplorer::ProjectNode *> toAdd;
     QList<ProjectExplorer::ProjectNode *> toRemove = subProjectNodes();
@@ -527,15 +720,15 @@ void QbsProductNode::setQbsProductData(const qbs::ProductData prd)
     foreach (const qbs::GroupData &grp, prd.groups()) {
         if (grp.name() == prd.name() && grp.location() == prd.location()) {
             // Set implicit product group right onto this node:
-            QbsGroupNode::setupFiles(this, grp.allFilePaths(), productPath, updateExisting);
+            QbsGroupNode::setupFiles(this, grp, grp.allFilePaths(), productPath, updateExisting);
             continue;
         }
         QbsGroupNode *gn = findGroupNode(grp.name());
         if (gn) {
             toRemove.removeOne(gn);
-            gn->updateQbsGroupData(&grp, productPath, productWasEnabled, productIsEnabled);
+            gn->updateQbsGroupData(grp, productPath, productWasEnabled, productIsEnabled);
         } else {
-            gn = new QbsGroupNode(&grp, productPath);
+            gn = new QbsGroupNode(grp, productPath);
             toAdd.append(gn);
         }
     }
@@ -548,11 +741,10 @@ void QbsProductNode::setQbsProductData(const qbs::ProductData prd)
         emitNodeUpdated();
 }
 
-QList<ProjectExplorer::RunConfiguration *> QbsProductNode::runConfigurationsFor(ProjectExplorer::Node *node)
+QList<ProjectExplorer::RunConfiguration *> QbsProductNode::runConfigurations() const
 {
-    Q_UNUSED(node);
     QList<ProjectExplorer::RunConfiguration *> result;
-    QbsProjectNode *pn = qobject_cast<QbsProjectNode *>(projectNode());
+    QbsProjectNode *pn = dynamic_cast<QbsProjectNode *>(projectNode());
     if (!isEnabled() || !pn || !pn->qbsProject().isValid()
             || pn->qbsProject().targetExecutable(m_qbsProductData, qbs::InstallOptions()).isEmpty()) {
         return result;
@@ -562,7 +754,7 @@ QList<ProjectExplorer::RunConfiguration *> QbsProductNode::runConfigurationsFor(
         QbsRunConfiguration *qbsRc = qobject_cast<QbsRunConfiguration *>(rc);
         if (!qbsRc)
             continue;
-        if (qbsRc->qbsProduct() == qbsProductData().name())
+        if (qbsRc->uniqueProductName() == QbsProject::uniqueProductName(qbsProductData()))
             result << qbsRc;
     }
 
@@ -573,7 +765,7 @@ QbsGroupNode *QbsProductNode::findGroupNode(const QString &name)
 {
     foreach (ProjectExplorer::ProjectNode *n, subProjectNodes()) {
         QbsGroupNode *qn = static_cast<QbsGroupNode *>(n);
-        if (qn->qbsGroupData()->name() == name)
+        if (qn->qbsGroupData().name() == name)
             return qn;
     }
     return 0;
@@ -583,16 +775,8 @@ QbsGroupNode *QbsProductNode::findGroupNode(const QString &name)
 // QbsProjectNode:
 // --------------------------------------------------------------------
 
-QbsProjectNode::QbsProjectNode(QbsProject *project) :
-    QbsBaseProjectNode(project->projectFilePath()),
-    m_project(project)
-{
-    ctor();
-}
-
-QbsProjectNode::QbsProjectNode(const QString &path) :
-    QbsBaseProjectNode(path),
-    m_project(0)
+QbsProjectNode::QbsProjectNode(const Utils::FileName &path) :
+    QbsBaseProjectNode(path)
 {
     ctor();
 }
@@ -602,13 +786,7 @@ QbsProjectNode::~QbsProjectNode()
     // do not delete m_project
 }
 
-void QbsProjectNode::update(const qbs::Project &prj)
-{
-    update(prj.isValid() ? prj.projectData() : qbs::ProjectData());
-    m_qbsProject = prj;
-}
-
-void QbsProjectNode::update(const qbs::ProjectData &prjData)
+void QbsProjectNode::update(const qbs::Project &qbsProject, const qbs::ProjectData &prjData)
 {
     QList<ProjectExplorer::ProjectNode *> toAdd;
     QList<ProjectExplorer::ProjectNode *> toRemove = subProjectNodes();
@@ -616,21 +794,22 @@ void QbsProjectNode::update(const qbs::ProjectData &prjData)
     foreach (const qbs::ProjectData &subData, prjData.subProjects()) {
         QbsProjectNode *qn = findProjectNode(subData.name());
         if (!qn) {
-            QbsProjectNode *subProject = new QbsProjectNode(subData.location().fileName());
-            subProject->update(subData);
+            auto subProject =
+                    new QbsProjectNode(Utils::FileName::fromString(subData.location().filePath()));
+            subProject->update(qbsProject, subData);
             toAdd << subProject;
         } else {
-            qn->update(subData);
+            qn->update(qbsProject, subData);
             toRemove.removeOne(qn);
         }
     }
 
     foreach (const qbs::ProductData &prd, prjData.products()) {
-        QbsProductNode *qn = findProductNode(prd.name());
+        QbsProductNode *qn = findProductNode(QbsProject::uniqueProductName(prd));
         if (!qn) {
-            toAdd << new QbsProductNode(prd);
+            toAdd << new QbsProductNode(qbsProject, prd);
         } else {
-            qn->setQbsProductData(prd);
+            qn->setQbsProductData(qbsProject, prd);
             toRemove.removeOne(qn);
         }
     }
@@ -638,32 +817,21 @@ void QbsProjectNode::update(const qbs::ProjectData &prjData)
     if (!prjData.name().isEmpty())
         setDisplayName(prjData.name());
     else
-        setDisplayName(m_project->displayName());
+        setDisplayName(project()->displayName());
 
     removeProjectNodes(toRemove);
     addProjectNodes(toAdd);
-
-    m_qbsProjectData = prjData;
+    m_projectData = prjData;
 }
 
 QbsProject *QbsProjectNode::project() const
 {
-    if (!m_project && projectNode())
-        return static_cast<QbsProjectNode *>(projectNode())->project();
-    return m_project;
+    return static_cast<QbsProjectNode *>(parentFolderNode())->project();
 }
 
 const qbs::Project QbsProjectNode::qbsProject() const
 {
-    QbsProjectNode *parent = qobject_cast<QbsProjectNode *>(projectNode());
-    if (!m_qbsProject.isValid() && parent != this)
-        return parent->qbsProject();
-    return m_qbsProject;
-}
-
-const qbs::ProjectData QbsProjectNode::qbsProjectData() const
-{
-    return m_qbsProjectData;
+    return project()->qbsProject();
 }
 
 bool QbsProjectNode::showInSimpleTree() const
@@ -681,11 +849,11 @@ void QbsProjectNode::ctor()
                  << new ProjectExplorer::FileNode(path(), ProjectExplorer::ProjectFileType, false));
 }
 
-QbsProductNode *QbsProjectNode::findProductNode(const QString &name)
+QbsProductNode *QbsProjectNode::findProductNode(const QString &uniqueName)
 {
     foreach (ProjectExplorer::ProjectNode *n, subProjectNodes()) {
-        QbsProductNode *qn = qobject_cast<QbsProductNode *>(n);
-        if (qn && qn->qbsProductData().name() == name)
+        QbsProductNode *qn = dynamic_cast<QbsProductNode *>(n);
+        if (qn && QbsProject::uniqueProductName(qn->qbsProductData()) == uniqueName)
             return qn;
     }
     return 0;
@@ -694,11 +862,61 @@ QbsProductNode *QbsProjectNode::findProductNode(const QString &name)
 QbsProjectNode *QbsProjectNode::findProjectNode(const QString &name)
 {
     foreach (ProjectExplorer::ProjectNode *n, subProjectNodes()) {
-        QbsProjectNode *qn = qobject_cast<QbsProjectNode *>(n);
+        QbsProjectNode *qn = dynamic_cast<QbsProjectNode *>(n);
         if (qn && qn->qbsProjectData().name() == name)
             return qn;
     }
     return 0;
+}
+
+// --------------------------------------------------------------------
+// QbsRootProjectNode:
+// --------------------------------------------------------------------
+
+QbsRootProjectNode::QbsRootProjectNode(QbsProject *project) :
+    QbsProjectNode(project->projectFilePath()),
+    m_project(project),
+    m_buildSystemFiles(new ProjectExplorer::FolderNode(project->projectDirectory(),
+                                                       ProjectExplorer::FolderNodeType,
+                                                       QCoreApplication::translate("QbsRootProjectNode", "Qbs files")))
+{
+    addFolderNodes(QList<FolderNode *>() << m_buildSystemFiles);
+}
+
+void QbsRootProjectNode::update()
+{
+    QStringList buildSystemFiles = unreferencedBuildSystemFiles(m_project->qbsProject());
+
+    QStringList projectBuildSystemFiles;
+    Utils::FileName base = m_project->projectDirectory();
+    foreach (const QString &f, buildSystemFiles) {
+        if (Utils::FileName::fromString(f).isChildOf(base))
+                projectBuildSystemFiles.append(f);
+    }
+    QbsGroupNode::setupFiles(m_buildSystemFiles, qbs::GroupData(), projectBuildSystemFiles,
+                             base.toString(), false);
+
+    update(m_project->qbsProject(), m_project->qbsProjectData());
+}
+
+static QSet<QString> referencedBuildSystemFiles(const qbs::ProjectData &data)
+{
+    QSet<QString> result;
+    result.insert(data.location().filePath());
+    foreach (const qbs::ProjectData &subProject, data.subProjects())
+        result.unite(referencedBuildSystemFiles(subProject));
+    foreach (const qbs::ProductData &product, data.products()) {
+        result.insert(product.location().filePath());
+        foreach (const qbs::GroupData &group, product.groups())
+            result.insert(group.location().filePath());
+    }
+
+    return result;
+}
+
+QStringList QbsRootProjectNode::unreferencedBuildSystemFiles(const qbs::Project &p) const
+{
+    return p.buildSystemFiles().subtract(referencedBuildSystemFiles(p.projectData())).toList();
 }
 
 } // namespace Internal

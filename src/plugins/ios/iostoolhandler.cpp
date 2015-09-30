@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -30,26 +31,27 @@
 #include "iostoolhandler.h"
 #include "iosconfigurations.h"
 #include "iosconstants.h"
+#include "iossimulator.h"
 
 #include <coreplugin/icore.h>
 #include <utils/qtcassert.h>
 #include <utils/fileutils.h>
 
-#include <QProcess>
-#include <QXmlStreamReader>
-#include <QSocketNotifier>
-#include <QDebug>
 #include <QCoreApplication>
-#include <QList>
-#include <QScopedArrayPointer>
-#include <QProcessEnvironment>
 #include <QFileInfo>
+#include <QList>
+#include <QLoggingCategory>
+#include <QProcess>
+#include <QProcessEnvironment>
+#include <QScopedArrayPointer>
+#include <QSocketNotifier>
 #include <QTimer>
+#include <QXmlStreamReader>
 
 #include <string.h>
 #include <errno.h>
 
-static const bool debugToolHandler = false;
+static Q_LOGGING_CATEGORY(toolHandlerLog, "qtc.ios.toolhandler")
 
 namespace Ios {
 
@@ -125,7 +127,7 @@ public:
         OpAppRun
     };
 
-    explicit IosToolHandlerPrivate(IosDeviceType::Enum devType, IosToolHandler *q);
+    explicit IosToolHandlerPrivate(const IosDeviceType &devType, IosToolHandler *q);
     virtual ~IosToolHandlerPrivate() {}
     virtual void requestTransferApp(const QString &bundlePath, const QString &deviceId,
                                     int timeout = 1000) = 0;
@@ -169,7 +171,7 @@ protected:
     IosToolHandler::RunKind runKind;
     State state;
     Op op;
-    IosDeviceType::Enum devType;
+    IosDeviceType devType;
     static const int lookaheadSize = 67;
     int iBegin, iEnd, gdbSocket;
     QList<ParserState> stack;
@@ -178,7 +180,7 @@ protected:
 class IosDeviceToolHandlerPrivate : public IosToolHandlerPrivate
 {
 public:
-    explicit IosDeviceToolHandlerPrivate(IosDeviceType::Enum devType, IosToolHandler *q);
+    explicit IosDeviceToolHandlerPrivate(const IosDeviceType &devType, IosToolHandler *q);
     virtual void requestTransferApp(const QString &bundlePath, const QString &deviceId,
                                     int timeout = 1000);
     virtual void requestRunApp(const QString &bundlePath, const QStringList &extraArgs,
@@ -191,7 +193,7 @@ public:
 class IosSimulatorToolHandlerPrivate : public IosToolHandlerPrivate
 {
 public:
-    explicit IosSimulatorToolHandlerPrivate(IosDeviceType::Enum devType, IosToolHandler *q);
+    explicit IosSimulatorToolHandlerPrivate(const IosDeviceType &devType, IosToolHandler *q);
     virtual void requestTransferApp(const QString &bundlePath, const QString &deviceId,
                                     int timeout = 1000);
     virtual void requestRunApp(const QString &bundlePath, const QStringList &extraArgs,
@@ -203,7 +205,7 @@ private:
     void addDeviceArguments(QStringList &args) const;
 };
 
-IosToolHandlerPrivate::IosToolHandlerPrivate(IosDeviceType::Enum devType,
+IosToolHandlerPrivate::IosToolHandlerPrivate(const IosDeviceType &devType,
                                              Ios::IosToolHandler *q) :
     q(q), state(NonStarted), devType(devType), iBegin(0), iEnd(0),
     gdbSocket(-1)
@@ -214,14 +216,20 @@ IosToolHandlerPrivate::IosToolHandlerPrivate(IosDeviceType::Enum devType,
         if (k.startsWith(QLatin1String("DYLD_")))
             env.remove(k);
     QStringList frameworkPaths;
-    QString xcPath = IosConfigurations::developerPath().appendPath(QLatin1String("../OtherFrameworks")).toFileInfo().canonicalFilePath();
-    if (!xcPath.isEmpty())
-        frameworkPaths << xcPath;
+    Utils::FileName xcPath = IosConfigurations::developerPath();
+    QString privateFPath = xcPath.appendPath(QLatin1String("Platforms/iPhoneSimulator.platform/Developer/Library/PrivateFrameworks")).toFileInfo().canonicalFilePath();
+    if (!privateFPath.isEmpty())
+        frameworkPaths << privateFPath;
+    QString otherFPath = xcPath.appendPath(QLatin1String("../OtherFrameworks")).toFileInfo().canonicalFilePath();
+    if (!otherFPath.isEmpty())
+        frameworkPaths << otherFPath;
+    QString sharedFPath = xcPath.appendPath(QLatin1String("../SharedFrameworks")).toFileInfo().canonicalFilePath();
+    if (!sharedFPath.isEmpty())
+        frameworkPaths << sharedFPath;
     frameworkPaths << QLatin1String("/System/Library/Frameworks")
                    << QLatin1String("/System/Library/PrivateFrameworks");
-    env.insert(QLatin1String("DYLD_FALLBACK_FRAMEWORK_PATH"), frameworkPaths.join(QLatin1String(":")));
-    if (debugToolHandler)
-        qDebug() << "IosToolHandler runEnv:" << env.toStringList();
+    env.insert(QLatin1String("DYLD_FALLBACK_FRAMEWORK_PATH"), frameworkPaths.join(QLatin1Char(':')));
+    qCDebug(toolHandlerLog) << "IosToolHandler runEnv:" << env.toStringList();
     process.setProcessEnvironment(env);
     QObject::connect(&process, SIGNAL(readyReadStandardOutput()), q, SLOT(subprocessHasData()));
     QObject::connect(&process, SIGNAL(finished(int,QProcess::ExitStatus)),
@@ -241,26 +249,24 @@ void IosToolHandlerPrivate::start(const QString &exe, const QStringList &args)
 {
     QTC_CHECK(state == NonStarted);
     state = Starting;
-    if (debugToolHandler)
-        qDebug() << "running " << exe << args;
+    qCDebug(toolHandlerLog) << "running " << exe << args;
     process.start(exe, args);
     state = StartedInferior;
 }
 
 void IosToolHandlerPrivate::stop(int errorCode)
 {
-    if (debugToolHandler)
-        qDebug() << "IosToolHandlerPrivate::stop";
+    qCDebug(toolHandlerLog) << "IosToolHandlerPrivate::stop";
     State oldState = state;
     state = Stopped;
     switch (oldState) {
     case NonStarted:
-        qDebug() << "IosToolHandler::stop() when state was NonStarted";
+        qCWarning(toolHandlerLog) << "IosToolHandler::stop() when state was NonStarted";
         // pass
     case Starting:
         switch (op){
         case OpNone:
-            qDebug() << "IosToolHandler::stop() when op was OpNone";
+            qCWarning(toolHandlerLog) << "IosToolHandler::stop() when op was OpNone";
             break;
         case OpAppTransfer:
             didTransferApp(bundlePath, deviceId, IosToolHandler::Failure);
@@ -280,7 +286,8 @@ void IosToolHandlerPrivate::stop(int errorCode)
         return;
     }
     if (process.state() != QProcess::NotRunning) {
-        process.terminate();
+        process.write("k\n\r");
+        process.closeWriteChannel();
         killTimer.start(1500);
     }
 }
@@ -343,8 +350,7 @@ void IosToolHandlerPrivate::subprocessError(QProcess::ProcessError error)
         errorMsg(IosToolHandler::tr("iOS tool Error %1").arg(error));
     stop(-1);
     if (error == QProcess::FailedToStart) {
-        if (debugToolHandler)
-            qDebug() << "IosToolHandler::finished(" << this << ")";
+        qCDebug(toolHandlerLog) << "IosToolHandler::finished(" << this << ")";
         emit q->finished(q);
     }
 }
@@ -352,8 +358,7 @@ void IosToolHandlerPrivate::subprocessError(QProcess::ProcessError error)
 void IosToolHandlerPrivate::subprocessFinished(int exitCode, QProcess::ExitStatus exitStatus)
 {
     stop((exitStatus == QProcess::NormalExit) ? exitCode : -1 );
-    if (debugToolHandler)
-        qDebug() << "IosToolHandler::finished(" << this << ")";
+    qCDebug(toolHandlerLog) << "IosToolHandler::finished(" << this << ")";
     killTimer.stop();
     emit q->finished(q);
 }
@@ -362,7 +367,7 @@ void IosToolHandlerPrivate::processXml()
 {
     while (!outputParser.atEnd()) {
         QXmlStreamReader::TokenType tt = outputParser.readNext();
-        //qDebug() << "processXml, tt=" << tt;
+        //qCDebug(toolHandlerLog) << "processXml, tt=" << tt;
         switch (tt) {
         case QXmlStreamReader::NoToken:
             // The reader has not yet read anything.
@@ -438,7 +443,7 @@ void IosToolHandlerPrivate::processXml()
                 else if (statusStr.compare(QLatin1String("failure"), Qt::CaseInsensitive) == 0)
                     status = Ios::IosToolHandler::Failure;
                 emit didTransferApp(bundlePath, deviceId, status);
-            } else if (elName == QLatin1String("device_info")) {
+            } else if (elName == QLatin1String("device_info") || elName == QLatin1String("deviceinfo")) {
                 stack.append(ParserState(ParserState::DeviceInfo));
             } else if (elName == QLatin1String("inferior_pid")) {
                 stack.append(ParserState(ParserState::InferiorPid));
@@ -449,7 +454,7 @@ void IosToolHandlerPrivate::processXml()
                 int qmlServerPort = attributes.value(QLatin1String("qml_server")).toString().toInt();
                 gotServerPorts(bundlePath, deviceId, gdbServerPort, qmlServerPort);
             } else {
-                qDebug() << "unexpected element " << elName;
+                qCWarning(toolHandlerLog) << "unexpected element " << elName;
             }
             break;
         }
@@ -533,19 +538,18 @@ void IosToolHandlerPrivate::processXml()
     }
     if (outputParser.hasError()
             && outputParser.error() != QXmlStreamReader::PrematureEndOfDocumentError) {
-        qDebug() << "error parsing iosTool output:" << outputParser.errorString();
+        qCWarning(toolHandlerLog) << "error parsing iosTool output:" << outputParser.errorString();
         stop(-1);
     }
 }
 
 void IosToolHandlerPrivate::subprocessHasData()
 {
-    if (debugToolHandler)
-        qDebug() << "subprocessHasData, state:" << state;
+    qCDebug(toolHandlerLog) << "subprocessHasData, state:" << state;
     while (true) {
         switch (state) {
         case NonStarted:
-            qDebug() << "IosToolHandler unexpected state in subprocessHasData: NonStarted";
+            qCWarning(toolHandlerLog) << "IosToolHandler unexpected state in subprocessHasData: NonStarted";
             // pass
         case Starting:
         case StartedInferior:
@@ -560,8 +564,7 @@ void IosToolHandlerPrivate::subprocessHasData()
                 }
                 if (rRead == 0)
                     return;
-                if (debugToolHandler)
-                    qDebug() << "subprocessHasData read " << QByteArray(buf, rRead);
+                qCDebug(toolHandlerLog) << "subprocessHasData read " << QByteArray(buf, rRead);
                 outputParser.addData(QByteArray(buf, rRead));
                 processXml();
             }
@@ -577,7 +580,7 @@ void IosToolHandlerPrivate::subprocessHasData()
 
 // IosDeviceToolHandlerPrivate
 
-IosDeviceToolHandlerPrivate::IosDeviceToolHandlerPrivate(IosDeviceType::Enum devType,
+IosDeviceToolHandlerPrivate::IosDeviceToolHandlerPrivate(const IosDeviceType &devType,
                                                          IosToolHandler *q)
     : IosToolHandlerPrivate(devType, q)
 { }
@@ -636,7 +639,7 @@ bool IosDeviceToolHandlerPrivate::expectsFileDescriptor()
 
 // IosSimulatorToolHandlerPrivate
 
-IosSimulatorToolHandlerPrivate::IosSimulatorToolHandlerPrivate(IosDeviceType::Enum devType,
+IosSimulatorToolHandlerPrivate::IosSimulatorToolHandlerPrivate(const IosDeviceType &devType,
                                                          IosToolHandler *q)
     : IosToolHandlerPrivate(devType, q)
 { }
@@ -683,7 +686,7 @@ void IosSimulatorToolHandlerPrivate::requestDeviceInfo(const QString &deviceId, 
     Q_UNUSED(timeout);
     this->deviceId = deviceId;
     QStringList args;
-    args << QLatin1String("showsdks");
+    args << QLatin1String("showdevicetypes");
     op = OpDeviceInfo;
     start(IosToolHandler::iosSimulatorToolPath(), args);
 }
@@ -695,27 +698,11 @@ bool IosSimulatorToolHandlerPrivate::expectsFileDescriptor()
 
 void IosSimulatorToolHandlerPrivate::addDeviceArguments(QStringList &args) const
 {
-    switch (devType) {
-    case IosDeviceType::IosDevice:
-        qDebug() << "IosSimulatorToolHandlerPrivate has device type IosDeviceType";
-        break;
-    case IosDeviceType::SimulatedIphone:
-        args << QLatin1String("--family") << QLatin1String("iphone");
-        break;
-    case IosDeviceType::SimulatedIpad:
-        args << QLatin1String("--family") << QLatin1String("ipad");
-        break;
-    case IosDeviceType::SimulatedIphoneRetina4Inch:
-        args << QLatin1String("--family") << QLatin1String("iphone")
-             << QLatin1String("--retina") << QLatin1String("--tall");
-        break;
-    case IosDeviceType::SimulatedIphoneRetina3_5Inch:
-        args << QLatin1String("--family") << QLatin1String("iphone") << QLatin1String("--retina");
-        break;
-    case IosDeviceType::SimulatedIpadRetina:
-        args << QLatin1String("--family") << QLatin1String("ipad") << QLatin1String("--retina");
-        break;
+    if (devType.type != IosDeviceType::SimulatedDevice) {
+        qCWarning(toolHandlerLog) << "IosSimulatorToolHandlerPrivate device type is not SimulatedDevice";
+        return;
     }
+    args << QLatin1String("--devicetypeid") << devType.identifier;
 }
 
 void IosToolHandlerPrivate::killProcess()
@@ -737,17 +724,17 @@ QString IosToolHandler::iosSimulatorToolPath()
     Utils::FileName devPath = Internal::IosConfigurations::developerPath();
     bool version182 = devPath.appendPath(QLatin1String(
         "Platforms/iPhoneSimulator.platform/Developer/Library/PrivateFrameworks/iPhoneSimulatorRemoteClient.framework"))
-            .toFileInfo().exists();
+            .exists();
     QString res = Core::ICore::libexecPath() + QLatin1String("/ios/iossim");
     if (version182)
         res = res.append(QLatin1String("_1_8_2"));
     return res;
 }
 
-IosToolHandler::IosToolHandler(IosDeviceType::Enum devType, QObject *parent) :
+IosToolHandler::IosToolHandler(const Internal::IosDeviceType &devType, QObject *parent) :
     QObject(parent)
 {
-    if (devType == IosDeviceType::IosDevice)
+    if (devType.type == Internal::IosDeviceType::IosDevice)
         d = new Internal::IosDeviceToolHandlerPrivate(devType, this);
     else
         d = new Internal::IosSimulatorToolHandlerPrivate(devType, this);

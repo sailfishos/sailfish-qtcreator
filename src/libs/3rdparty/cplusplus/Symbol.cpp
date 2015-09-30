@@ -165,8 +165,8 @@ void Symbol::setSourceLocation(unsigned sourceLocation, TranslationUnit *transla
 
     if (translationUnit) {
         const Token &tk = translationUnit->tokenAt(sourceLocation);
-        _isGenerated = tk.f.generated;
-        translationUnit->getPosition(tk.offset, &_line, &_column, &_fileId);
+        _isGenerated = tk.generated();
+        translationUnit->getPosition(tk.utf16charsBegin(), &_line, &_column, &_fileId);
     } else {
         _isGenerated = false;
         _line = 0;
@@ -360,6 +360,9 @@ bool Symbol::isNamespace() const
 
 bool Symbol::isTemplate() const
 { return asTemplate() != 0; }
+
+bool Symbol::isExplicitInstantiation() const
+{ return asExplicitInstantiation() != 0; }
 
 bool Symbol::isClass() const
 { return asClass() != 0; }

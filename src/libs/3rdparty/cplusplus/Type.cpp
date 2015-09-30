@@ -68,6 +68,9 @@ bool Type::isNamespaceType() const
 bool Type::isTemplateType() const
 { return asTemplateType() != 0; }
 
+bool Type::isExplicitInstantiationType() const
+{ return asExplicitInstantiationType() != 0; }
+
 bool Type::isClassType() const
 { return asClassType() != 0; }
 
@@ -107,7 +110,7 @@ void Type::accept(Type *type, TypeVisitor *visitor)
     type->accept(visitor);
 }
 
-bool Type::match(const Type *type, const Type *otherType, Matcher *matcher)
+bool Type::match(const Type *other, Matcher *matcher) const
 {
-    return Matcher::match(type, otherType, matcher);
+    return Matcher::match(this, other, matcher);
 }

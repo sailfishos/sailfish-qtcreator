@@ -1,8 +1,6 @@
 import qbs 1.0
 import qbs.FileInfo
 
-import QtcPlugin
-
 QtcPlugin {
     name: "QbsProjectManager"
 
@@ -29,7 +27,6 @@ QtcPlugin {
     property bool useInternalQbsProducts: project.qbsSubModuleExists && !project.useExternalQbs
 
     Depends { name: "Qt"; submodules: [ "widgets", "script" ] }
-    Depends { name: "Aggregation" }
     Depends {
         name: "qbscore"
         condition: product.useInternalQbsProducts
@@ -61,7 +58,9 @@ QtcPlugin {
     cpp.dynamicLibraries: base.concat(externalQbsDynamicLibraries)
 
     files: [
-        "qbsprojectmanager.qrc",
+        "customqbspropertiesdialog.h",
+        "customqbspropertiesdialog.cpp",
+        "customqbspropertiesdialog.ui",
         "defaultpropertyprovider.cpp",
         "defaultpropertyprovider.h",
         "propertyprovider.h",
@@ -76,6 +75,7 @@ QtcPlugin {
         "qbscleanstep.cpp",
         "qbscleanstep.h",
         "qbscleanstepconfigwidget.ui",
+        "qbsconstants.h",
         "qbsdeployconfigurationfactory.cpp",
         "qbsdeployconfigurationfactory.h",
         "qbsinstallstep.cpp",
@@ -87,18 +87,22 @@ QtcPlugin {
         "qbsnodes.h",
         "qbsparser.cpp",
         "qbsparser.h",
+        "qbsprofilessettingspage.cpp",
+        "qbsprofilessettingspage.h",
+        "qbsprofilessettingswidget.ui",
         "qbsproject.cpp",
         "qbsproject.h",
         "qbsprojectfile.cpp",
         "qbsprojectfile.h",
         "qbsprojectmanager.cpp",
         "qbsprojectmanager.h",
+        "qbsprojectmanager.qrc",
         "qbsprojectmanager_global.h",
         "qbsprojectmanagerconstants.h",
         "qbsprojectmanagerplugin.cpp",
         "qbsprojectmanagerplugin.h",
-        "qbspropertylineedit.cpp",
-        "qbspropertylineedit.h",
+        "qbsprojectparser.cpp",
+        "qbsprojectparser.h",
         "qbsrunconfiguration.cpp",
         "qbsrunconfiguration.h"
     ]

@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -38,10 +39,15 @@
 
 #include <coreplugin/idocument.h>
 #include <coreplugin/icontext.h>
+#include <coreplugin/icore.h>
 #include <projectexplorer/buildmanager.h>
 #include <projectexplorer/kitmanager.h>
-#include <limits>
+
+#include <utils/algorithm.h>
+#include <utils/macroexpander.h>
 #include <utils/qtcassert.h>
+
+#include <limits>
 
 /*!
     \class ProjectExplorer::Project
@@ -87,16 +93,20 @@ public:
     Core::Id m_id;
     QList<Target *> m_targets;
     Target *m_activeTarget;
-    EditorConfiguration *m_editorConfiguration;
+    EditorConfiguration m_editorConfiguration;
     Core::Context m_projectContext;
     Core::Context m_projectLanguages;
     QVariantMap m_pluginSettings;
-    SettingsAccessor *m_accessor;
+    Internal::UserFileAccessor *m_accessor;
+
+    KitMatcher m_requiredKitMatcher;
+    KitMatcher m_preferredKitMatcher;
+
+    Utils::MacroExpander m_macroExpander;
 };
 
 ProjectPrivate::ProjectPrivate() :
     m_activeTarget(0),
-    m_editorConfiguration(new EditorConfiguration()),
     m_accessor(0)
 { }
 
@@ -104,12 +114,15 @@ ProjectPrivate::~ProjectPrivate()
 { delete m_accessor; }
 
 Project::Project() : d(new ProjectPrivate)
-{ }
+{
+    d->m_macroExpander.setDisplayName(tr("Project"));
+    d->m_macroExpander.registerVariable("Project:Name", tr("Project Name"),
+            [this] { return displayName(); });
+}
 
 Project::~Project()
 {
     qDeleteAll(d->m_targets);
-    delete d->m_editorConfiguration;
     delete d;
 }
 
@@ -119,7 +132,7 @@ Core::Id Project::id() const
     return d->m_id;
 }
 
-QString Project::projectFilePath() const
+Utils::FileName Project::projectFilePath() const
 {
     return document()->filePath();
 }
@@ -223,22 +236,14 @@ void Project::setActiveTarget(Target *target)
     }
 }
 
-Target *Project::target(const Core::Id id) const
+Target *Project::target(Core::Id id) const
 {
-    foreach (Target *target, d->m_targets) {
-        if (target->id() == id)
-            return target;
-    }
-    return 0;
+    return Utils::findOrDefault(d->m_targets, Utils::equal(&Target::id, id));
 }
 
 Target *Project::target(Kit *k) const
 {
-    foreach (Target *target, d->m_targets) {
-        if (target->kit() == k)
-            return target;
-    }
-    return 0;
+    return Utils::findOrDefault(d->m_targets, Utils::equal(&Target::kit, k));
 }
 
 bool Project::supportsKit(Kit *k, QString *errorMessage) const
@@ -302,15 +307,16 @@ void Project::saveSettings()
 {
     emit aboutToSaveSettings();
     if (!d->m_accessor)
-        d->m_accessor = new SettingsAccessor(this);
-    d->m_accessor->saveSettings(toMap());
+        d->m_accessor = new Internal::UserFileAccessor(this);
+    if (!targets().isEmpty())
+        d->m_accessor->saveSettings(toMap(), Core::ICore::mainWindow());
 }
 
 bool Project::restoreSettings()
 {
     if (!d->m_accessor)
-        d->m_accessor = new SettingsAccessor(this);
-    QVariantMap map(d->m_accessor->restoreSettings());
+        d->m_accessor = new Internal::UserFileAccessor(this);
+    QVariantMap map(d->m_accessor->restoreSettings(Core::ICore::mainWindow()));
     bool ok = fromMap(map);
     if (ok)
         emit settingsLoaded();
@@ -339,23 +345,22 @@ QVariantMap Project::toMap() const
     for (int i = 0; i < ts.size(); ++i)
         map.insert(QString::fromLatin1(TARGET_KEY_PREFIX) + QString::number(i), ts.at(i)->toMap());
 
-    map.insert(QLatin1String(EDITOR_SETTINGS_KEY), d->m_editorConfiguration->toMap());
+    map.insert(QLatin1String(EDITOR_SETTINGS_KEY), d->m_editorConfiguration.toMap());
     map.insert(QLatin1String(PLUGIN_SETTINGS_KEY), d->m_pluginSettings);
 
     return map;
 }
 
-QString Project::projectDirectory() const
+Utils::FileName Project::projectDirectory() const
 {
-    return projectDirectory(document()->filePath());
+    return projectDirectory(projectFilePath());
 }
 
-QString Project::projectDirectory(const QString &top)
+Utils::FileName Project::projectDirectory(const Utils::FileName &top)
 {
     if (top.isEmpty())
-        return QString();
-    QFileInfo info(top);
-    return info.absoluteDir().path();
+        return Utils::FileName();
+    return Utils::FileName::fromString(top.toFileInfo().absoluteDir().path());
 }
 
 
@@ -363,7 +368,7 @@ bool Project::fromMap(const QVariantMap &map)
 {
     if (map.contains(QLatin1String(EDITOR_SETTINGS_KEY))) {
         QVariantMap values(map.value(QLatin1String(EDITOR_SETTINGS_KEY)).toMap());
-        d->m_editorConfiguration->fromMap(values);
+        d->m_editorConfiguration.fromMap(values);
     }
 
     if (map.contains(QLatin1String(PLUGIN_SETTINGS_KEY)))
@@ -399,10 +404,10 @@ bool Project::fromMap(const QVariantMap &map)
 
 EditorConfiguration *Project::editorConfiguration() const
 {
-    return d->m_editorConfiguration;
+    return &d->m_editorConfiguration;
 }
 
-QString Project::generatedUiHeader(const QString & /* formFile */) const
+QString Project::generatedUiHeader(const Utils::FileName & /* formFile */) const
 {
     return QString();
 }
@@ -483,9 +488,9 @@ void Project::configureAsExampleProject(const QStringList &platforms,const QStri
     Q_UNUSED(preferredFeatures);
 }
 
-bool Project::supportsNoTargetPanel() const
+bool Project::requiresTargetPanel() const
 {
-    return false;
+    return true;
 }
 
 bool Project::needsSpecialDeployment() const
@@ -502,12 +507,7 @@ void Project::setup(QList<const BuildInfo *> infoList)
             continue;
         Target *t = target(k);
         if (!t) {
-            foreach (Target *i, toRegister) {
-                if (i->kit() == k) {
-                    t = i;
-                    break;
-                }
-            }
+            t = Utils::findOrDefault(toRegister, Utils::equal(&Target::kit, k));
         }
         if (!t) {
             t = new Target(this, k);
@@ -526,9 +526,34 @@ void Project::setup(QList<const BuildInfo *> infoList)
     }
 }
 
+Utils::MacroExpander *Project::macroExpander() const
+{
+    return &d->m_macroExpander;
+}
+
 ProjectImporter *Project::createProjectImporter() const
 {
     return 0;
+}
+
+KitMatcher Project::requiredKitMatcher() const
+{
+    return d->m_requiredKitMatcher;
+}
+
+void Project::setRequiredKitMatcher(const KitMatcher &matcher)
+{
+    d->m_requiredKitMatcher = matcher;
+}
+
+KitMatcher Project::preferredKitMatcher() const
+{
+    return d->m_preferredKitMatcher;
+}
+
+void Project::setPreferredKitMatcher(const KitMatcher &matcher)
+{
+    d->m_preferredKitMatcher = matcher;
 }
 
 void Project::onBuildDirectoryChanged()

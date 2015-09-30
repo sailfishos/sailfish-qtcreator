@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>557</width>
-    <height>233</height>
+    <width>723</width>
+    <height>247</height>
    </rect>
   </property>
   <layout class="QFormLayout" name="formLayout">
@@ -58,7 +58,7 @@
    <item row="1" column="0">
     <widget class="QLabel" name="jobsLabel">
      <property name="text">
-      <string>Parallel Jobs:</string>
+      <string>Parallel jobs:</string>
      </property>
     </widget>
    </item>
@@ -108,7 +108,7 @@
         <string/>
        </property>
        <property name="pixmap">
-        <pixmap>:/projectexplorer/images/compile_warning.png</pixmap>
+        <pixmap resource="../coreplugin/core.qrc">:/core/images/warning.png</pixmap>
        </property>
       </widget>
      </item>
@@ -142,7 +142,7 @@
     </widget>
    </item>
    <item row="3" column="1">
-    <widget class="QbsPropertyLineEdit" name="propertyEdit">
+    <widget class="Utils::FancyLineEdit" name="propertyEdit">
      <property name="toolTip">
       <string>Properties to pass to the project.</string>
      </property>
@@ -181,12 +181,23 @@
       </widget>
      </item>
      <item>
-      <widget class="QCheckBox" name="checkTimestampCheckBox">
-       <property name="toolTip">
-        <string>Instead of using the file timestamps that are stored in the build graph, retrieve the timestamps from the file system.</string>
-       </property>
+      <widget class="QCheckBox" name="showCommandLinesCheckBox">
        <property name="text">
-        <string>Check timestamps</string>
+        <string>Show command lines</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QCheckBox" name="installCheckBox">
+       <property name="text">
+        <string>Install</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QCheckBox" name="cleanInstallRootCheckBox">
+       <property name="text">
+        <string>Clean install root</string>
        </property>
       </widget>
      </item>
@@ -243,11 +254,13 @@
  </widget>
  <customwidgets>
   <customwidget>
-   <class>QbsPropertyLineEdit</class>
+   <class>Utils::FancyLineEdit</class>
    <extends>QLineEdit</extends>
-   <header location="global">qbsprojectmanager/qbspropertylineedit.h</header>
+   <header location="global">utils/fancylineedit.h</header>
   </customwidget>
  </customwidgets>
- <resources/>
+ <resources>
+  <include location="../coreplugin/core.qrc"/>
+ </resources>
  <connections/>
 </ui>

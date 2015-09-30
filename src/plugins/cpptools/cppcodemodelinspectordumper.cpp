@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,30 +9,35 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
 
 #include "cppcodemodelinspectordumper.h"
+#include "cppmodelmanager.h"
+
+#include "cppworkingcopy.h"
 
 #include <app/app_version.h>
 #include <coreplugin/icore.h>
 #include <cpptools/cppprojectfile.h>
 #include <projectexplorer/project.h>
+#include <utils/algorithm.h>
 
 #include <cplusplus/CppDocument.h>
 #include <cplusplus/Token.h>
@@ -87,44 +92,38 @@ QString Utils::toString(CPlusPlus::Document::DiagnosticMessage::Level level)
     return QString();
 }
 
-QString Utils::toString(ProjectPart::CVersion cVersion)
+QString Utils::toString(ProjectPart::LanguageVersion languageVersion)
 {
-#define CASE_CVERSION(x) case ProjectPart::x: return QLatin1String(#x)
-    switch (cVersion) {
-    CASE_CVERSION(C89);
-    CASE_CVERSION(C99);
-    CASE_CVERSION(C11);
+#define CASE_LANGUAGEVERSION(x) case ProjectPart::x: return QLatin1String(#x)
+    switch (languageVersion) {
+    CASE_LANGUAGEVERSION(C89);
+    CASE_LANGUAGEVERSION(C99);
+    CASE_LANGUAGEVERSION(C11);
+    CASE_LANGUAGEVERSION(CXX98);
+    CASE_LANGUAGEVERSION(CXX03);
+    CASE_LANGUAGEVERSION(CXX11);
+    CASE_LANGUAGEVERSION(CXX14);
+    CASE_LANGUAGEVERSION(CXX17);
     // no default to get a compiler warning if anything is added
     }
-#undef CASE_CVERSION
+#undef CASE_LANGUAGEVERSION
     return QString();
 }
 
-QString Utils::toString(ProjectPart::CXXVersion cxxVersion)
-{
-#define CASE_CXXVERSION(x) case ProjectPart::x: return QLatin1String(#x)
-    switch (cxxVersion) {
-    CASE_CXXVERSION(CXX98);
-    CASE_CXXVERSION(CXX11);
-    // no default to get a compiler warning if anything is added
-    }
-#undef CASE_CXXVERSION
-    return QString();
-}
-
-QString Utils::toString(ProjectPart::CXXExtensions cxxExtension)
+QString Utils::toString(ProjectPart::LanguageExtensions languageExtension)
 {
     QString result;
 
-#define CASE_CXXEXTENSION(ext) if (cxxExtension & ProjectPart::ext) \
+#define CASE_LANGUAGE_EXTENSION(ext) if (languageExtension & ProjectPart::ext) \
     result += QLatin1String(#ext ", ");
 
-    CASE_CXXEXTENSION(NoExtensions);
-    CASE_CXXEXTENSION(GnuExtensions);
-    CASE_CXXEXTENSION(MicrosoftExtensions);
-    CASE_CXXEXTENSION(BorlandExtensions);
-    CASE_CXXEXTENSION(OpenMPExtensions);
-#undef CASE_CXXEXTENSION
+    CASE_LANGUAGE_EXTENSION(NoExtensions);
+    CASE_LANGUAGE_EXTENSION(GnuExtensions);
+    CASE_LANGUAGE_EXTENSION(MicrosoftExtensions);
+    CASE_LANGUAGE_EXTENSION(BorlandExtensions);
+    CASE_LANGUAGE_EXTENSION(OpenMPExtensions);
+    CASE_LANGUAGE_EXTENSION(ObjectiveCExtensions);
+#undef CASE_LANGUAGE_EXTENSION
     if (result.endsWith(QLatin1String(", ")))
         result.chop(2);
     return result;
@@ -149,8 +148,8 @@ QString Utils::toString(const QList<ProjectFile> &projectFiles)
     QStringList filesList;
     foreach (const ProjectFile &projectFile, projectFiles)
         filesList << QDir::toNativeSeparators(projectFile.path);
-    qSort(filesList);
-    return filesList.join(QLatin1String("\n"));
+    ::Utils::sort(filesList);
+    return filesList.join(QLatin1Char('\n'));
 }
 
 QString Utils::toString(ProjectFile::Kind kind)
@@ -387,7 +386,7 @@ QString Utils::toString(CPlusPlus::Kind kind)
 QString Utils::partsForFile(const QString &fileName)
 {
     const QList<ProjectPart::Ptr> parts
-        = CppModelManagerInterface::instance()->projectPart(fileName);
+        = CppModelManager::instance()->projectPart(fileName);
     QString result;
     foreach (const ProjectPart::Ptr &part, parts)
         result += part->displayName + QLatin1Char(',');
@@ -409,7 +408,19 @@ QString Utils::pathListToString(const QStringList &pathList)
     QStringList result;
     foreach (const QString &path, pathList)
         result << QDir::toNativeSeparators(path);
-    return result.join(QLatin1String("\n"));
+    return result.join(QLatin1Char('\n'));
+}
+
+QString Utils::pathListToString(const ProjectPart::HeaderPaths &pathList)
+{
+    QStringList result;
+    foreach (const ProjectPart::HeaderPath &path, pathList) {
+        result << QString(QLatin1String("%1 (%2 path)")).arg(
+                      QDir::toNativeSeparators(path.path),
+                      path.isFrameworkPath() ? QLatin1String("framework") : QLatin1String("include")
+                      );
+    }
+    return result.join(QLatin1Char('\n'));
 }
 
 QList<CPlusPlus::Document::Ptr> Utils::snapshotToList(const CPlusPlus::Snapshot &snapshot)
@@ -457,7 +468,7 @@ Dumper::~Dumper()
     m_out << "*** END Code Model Inspection Report\n";
 }
 
-void Dumper::dumpProjectInfos( const QList<CppModelManagerInterface::ProjectInfo> &projectInfos)
+void Dumper::dumpProjectInfos( const QList<ProjectInfo> &projectInfos)
 {
     const QByteArray i1 = indent(1);
     const QByteArray i2 = indent(2);
@@ -465,10 +476,10 @@ void Dumper::dumpProjectInfos( const QList<CppModelManagerInterface::ProjectInfo
     const QByteArray i4 = indent(4);
 
     m_out << "Projects loaded: " << projectInfos.size() << "{{{1\n";
-    foreach (const CppModelManagerInterface::ProjectInfo &info, projectInfos) {
+    foreach (const ProjectInfo &info, projectInfos) {
         const QPointer<ProjectExplorer::Project> project = info.project();
-        m_out << i1 << "Project " << project->displayName() << " (" << project->projectFilePath()
-              << "){{{2\n";
+        m_out << i1 << "Project " << project->displayName()
+              << " (" << project->projectFilePath().toUserOutput() << "){{{2\n";
 
         const QList<ProjectPart::Ptr> projectParts = info.projectParts();
         foreach (const ProjectPart::Ptr &part, projectParts) {
@@ -476,18 +487,18 @@ void Dumper::dumpProjectInfos( const QList<CppModelManagerInterface::ProjectInfo
             QString projectFilePath = QLatin1String("<None>");
             if (ProjectExplorer::Project *project = part->project) {
                 projectName = project->displayName();
-                projectFilePath = project->projectFilePath();
+                projectFilePath = project->projectFilePath().toUserOutput();
             }
             if (!part->projectConfigFile.isEmpty())
                 m_out << i3 << "Project Config File: " << part->projectConfigFile << "\n";
-            m_out << i2 << "Project Part \"" << part->projectFile << "\"{{{3\n";
-            m_out << i3 << "Project Part Name  : " << part->displayName << "\n";
-            m_out << i3 << "Project Name       : " << projectName << "\n";
-            m_out << i3 << "Project File       : " << projectFilePath << "\n";
-            m_out << i3 << "C Version          : " << Utils::toString(part->cVersion) << "\n";
-            m_out << i3 << "CXX Version        : " << Utils::toString(part->cxxVersion) << "\n";
-            m_out << i3 << "CXX Extensions     : " << Utils::toString(part->cxxExtensions) << "\n";
-            m_out << i3 << "Qt Version         : " << Utils::toString(part->qtVersion) << "\n";
+            m_out << i2 << "Project Part \"" << part->id() << "\"{{{3\n";
+            m_out << i3 << "Project Part Name   : " << part->displayName << "\n";
+            m_out << i3 << "Project Name        : " << projectName << "\n";
+            m_out << i3 << "Project File        : " << projectFilePath << "\n";
+            m_out << i3 << "Lanugage Version    : " << Utils::toString(part->languageVersion)<<"\n";
+            m_out << i3 << "Lanugage Extensions : " << Utils::toString(part->languageExtensions)
+                  << "\n";
+            m_out << i3 << "Qt Version          : " << Utils::toString(part->qtVersion) << "\n";
 
             if (!part->files.isEmpty()) {
                 m_out << i3 << "Files:{{{4\n";
@@ -510,16 +521,14 @@ void Dumper::dumpProjectInfos( const QList<CppModelManagerInterface::ProjectInfo
                     m_out << i4 << defineLine << "\n";
             }
 
-            if (!part->includePaths.isEmpty()) {
-                m_out << i3 << "Include Paths:{{{4\n";
-                foreach (const QString &includePath, part->includePaths)
-                    m_out << i4 << includePath << "\n";
-            }
-
-            if (!part->frameworkPaths.isEmpty()) {
-                m_out << i3 << "Framework Paths:{{{4\n";
-                foreach (const QString &frameworkPath, part->frameworkPaths)
-                    m_out << i4 << frameworkPath << "\n";
+            if (!part->headerPaths.isEmpty()) {
+                m_out << i3 << "Header Paths:{{{4\n";
+                foreach (const ProjectPart::HeaderPath &headerPath, part->headerPaths)
+                    m_out << i4 << headerPath.path
+                          << (headerPath.type == ProjectPart::HeaderPath::IncludePath
+                              ? "(include path)"
+                              : "(framework path)")
+                          << "\n";
             }
 
             if (!part->precompiledHeaders.isEmpty()) {
@@ -567,32 +576,32 @@ void Dumper::dumpSnapshot(const CPlusPlus::Snapshot &snapshot, const QString &ti
     }
 }
 
-void Dumper::dumpWorkingCopy(const CppModelManagerInterface::WorkingCopy &workingCopy)
+void Dumper::dumpWorkingCopy(const WorkingCopy &workingCopy)
 {
     m_out << "Working Copy contains " << workingCopy.size() << " entries{{{1\n";
 
     const QByteArray i1 = indent(1);
-    QHashIterator<QString, QPair<QByteArray, unsigned> > it = workingCopy.iterator();
+    QHashIterator< ::Utils::FileName, QPair<QByteArray, unsigned> > it = workingCopy.iterator();
     while (it.hasNext()) {
         it.next();
-        const QString filePath = it.key();
+        const ::Utils::FileName &filePath = it.key();
         unsigned sourcRevision = it.value().second;
         m_out << i1 << "rev=" << sourcRevision << ", " << filePath << "\n";
     }
 }
 
-void Dumper::dumpMergedEntities(const QStringList &mergedIncludePaths,
-                                const QStringList &mergedFrameworkPaths,
+void Dumper::dumpMergedEntities(const ProjectPart::HeaderPaths &mergedHeaderPaths,
                                 const QByteArray &mergedMacros)
 {
     m_out << "Merged Entities{{{1\n";
     const QByteArray i2 = indent(2);
     const QByteArray i3 = indent(3);
 
-    m_out << i2 << "Merged Include Paths{{{2\n";
-    dumpStringList(mergedIncludePaths, i3);
-    m_out << i2 << "Merged Framework Paths{{{2\n";
-    dumpStringList(mergedFrameworkPaths, i3);
+    m_out << i2 << "Merged Header Paths{{{2\n";
+    foreach (const ProjectPart::HeaderPath &hp, mergedHeaderPaths)
+        m_out << i3 << hp.path
+              << (hp.isFrameworkPath() ? " (framework path)" : " (include path)")
+              << "\n";
     m_out << i2 << "Merged Defines{{{2\n";
     m_out << mergedMacros;
 }
@@ -660,8 +669,9 @@ void Dumper::dumpDocuments(const QList<CPlusPlus::Document::Ptr> &documents, boo
                 const QString type = use.isFunctionLike()
                         ? QLatin1String("function-like") : QLatin1String("object-like");
                 m_out << i4 << "at line " << use.beginLine() << ", "
-                      << QString::fromUtf8(use.macro().name()) << ", begin=" << use.begin()
-                      << ", end=" << use.end() << ", " << type << ", args="
+                      << use.macro().nameToQString().size()
+                      << ", begin=" << use.utf16charsBegin() << ", end=" << use.utf16charsEnd()
+                      << ", " << type << ", args="
                       << use.arguments().size() << "\n";
             }
         }

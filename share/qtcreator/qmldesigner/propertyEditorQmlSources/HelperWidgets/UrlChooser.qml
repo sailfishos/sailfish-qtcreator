@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of the Qt Quick Controls module of the Qt Toolkit.
 **
@@ -17,7 +17,7 @@
 **     notice, this list of conditions and the following disclaimer in
 **     the documentation and/or other materials provided with the
 **     distribution.
-**   * Neither the name of Digia Plc and its Subsidiary(-ies) nor the names
+**   * Neither the name of The Qt Company Ltd and its Subsidiary(-ies) nor the names
 **     of its contributors may be used to endorse or promote products derived
 **     from this software without specific prior written permission.
 **
@@ -48,18 +48,26 @@ RowLayout {
     id: urlChooser
     property variant backendValue
 
-    property color textColor: "white"
+    property color textColor: colorLogic.highlight ? colorLogic.textColor : "white"
 
     property string filter: "*.png *.gif *.jpg *.bmp *.jpeg *.svg"
 
 
     FileResourcesModel {
-        anchorBackendProperty: anchorBackend
+        modelNodeBackendProperty: modelNodeBackend
         filter: urlChooser.filter
         id: fileModel
     }
 
+    ColorLogic {
+        id: colorLogic
+        backendValue: urlChooser.backendValue
+    }
+
     Controls.ComboBox {
+        id: comboBox
+
+        property bool isComplete: false
 
         property string textValue: backendValue.value
         onTextValueChanged: {
@@ -67,7 +75,7 @@ RowLayout {
         }
 
         Layout.fillWidth: true
-        id: comboBox
+
         editable: true
         style: CustomComboBoxStyle {
             textColor: urlChooser.textColor
@@ -76,11 +84,17 @@ RowLayout {
         model: fileModel.fileModel
 
         onModelChanged: {
+            if (!comboBox.isComplete)
+                return;
+
             editText = backendValue.valueToString
         }
 
         onCurrentTextChanged: {
             if (backendValue === undefined)
+                return;
+
+            if (!comboBox.isComplete)
                 return;
 
             if (backendValue.value !== currentText)
@@ -90,12 +104,13 @@ RowLayout {
         Component.onCompleted: {
             //Hack to style the text input
             for (var i = 0; i < comboBox.children.length; i++) {
-                print(comboBox.children[i])
                 if (comboBox.children[i].text !== undefined) {
                     comboBox.children[i].color = urlChooser.textColor
                     comboBox.children[i].anchors.rightMargin = 34
                 }
             }
+            comboBox.isComplete = true
+            editText = backendValue.valueToString
         }
 
     }

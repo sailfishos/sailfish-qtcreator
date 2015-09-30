@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -30,10 +31,57 @@
 #ifndef DEBUGGER_PROTOCOL_H
 #define DEBUGGER_PROTOCOL_H
 
-#include <QVariant>
+#include <QByteArray>
+#include <QList>
+#include <QString>
+
+#include <functional>
+#include <vector>
 
 namespace Debugger {
 namespace Internal {
+
+class DebuggerResponse;
+
+// Convenience structure to build up backend commands.
+class DebuggerCommand
+{
+public:
+    typedef std::function<void(const DebuggerResponse &)> Callback;
+
+    DebuggerCommand() : flags(0) {}
+    DebuggerCommand(const char *f, int flags = 0, Callback cb = Callback())
+        : function(f), callback(cb), flags(flags)
+    {}
+    DebuggerCommand(const char *f, Callback cb)
+        : function(f), callback(cb), flags(0)
+    {}
+    DebuggerCommand(const QByteArray &f) : function(f), flags(0) {}
+
+    void arg(const char *name);
+    void arg(const char *name, int value);
+    void arg(const char *name, qlonglong value);
+    void arg(const char *name, qulonglong value);
+    void arg(const char *name, const QString &value);
+    void arg(const char *name, const QByteArray &value);
+    void arg(const char *name, const char *value);
+    void arg(const char *name, const QList<int> &list);
+
+    void beginList(const char *name = 0);
+    void endList();
+    void beginGroup(const char *name = 0);
+    void endGroup();
+    QByteArray arguments() const;
+
+    QByteArray function;
+    QByteArray args;
+    Callback callback;
+    uint postTime; // msecsSinceStartOfDay
+    int flags;
+
+private:
+    void argHelper(const char *name, const QByteArray &value);
+};
 
 /*
 
@@ -92,34 +140,25 @@ public:
 
     QByteArray m_name;
     QByteArray m_data;
-    QList<GdbMi> m_children;
+    std::vector<GdbMi> m_children;
 
-    enum Type {
-        Invalid,
-        Const,
-        Tuple,
-        List
-    };
+    enum Type { Invalid, Const, Tuple, List };
 
     Type m_type;
 
-    inline Type type() const { return m_type; }
-    inline QByteArray name() const { return m_name; }
-    inline bool hasName(const char *name) const { return m_name == name; }
+    Type type() const { return m_type; }
+    const QByteArray &name() const { return m_name; }
+    bool hasName(const char *name) const { return m_name == name; }
 
-    inline bool isValid() const { return m_type != Invalid; }
-    inline bool isConst() const { return m_type == Const; }
-    inline bool isTuple() const { return m_type == Tuple; }
-    inline bool isList() const { return m_type == List; }
+    bool isValid() const { return m_type != Invalid; }
+    bool isList() const { return m_type == List; }
 
-
-    inline QByteArray data() const { return m_data; }
-    inline const QList<GdbMi> &children() const { return m_children; }
-    inline int childCount() const { return m_children.size(); }
+    const QByteArray &data() const { return m_data; }
+    const std::vector<GdbMi> &children() const { return m_children; }
+    int childCount() const { return int(m_children.size()); }
 
     const GdbMi &childAt(int index) const { return m_children[index]; }
-    GdbMi &childAt(int index) { return m_children[index]; }
-    GdbMi operator[](const char *name) const;
+    const GdbMi &operator[](const char *name) const;
 
     QByteArray toString(bool multiline = false, int indent = 0) const;
     qulonglong toAddress() const;
@@ -137,31 +176,31 @@ public:
     void parseTuple_helper(const char *&from, const char *to);
     void parseList(const char *&from, const char *to);
 
+private:
     void dumpChildren(QByteArray *str, bool multiline, int indent) const;
 };
 
-enum GdbResultClass
+enum ResultClass
 {
     // "done" | "running" | "connected" | "error" | "exit"
-    GdbResultUnknown,
-    GdbResultDone,
-    GdbResultRunning,
-    GdbResultConnected,
-    GdbResultError,
-    GdbResultExit
+    ResultUnknown,
+    ResultDone,
+    ResultRunning,
+    ResultConnected,
+    ResultError,
+    ResultExit
 };
 
-class GdbResponse
+class DebuggerResponse
 {
 public:
-    GdbResponse() : token(-1), resultClass(GdbResultUnknown) {}
+    DebuggerResponse() : token(-1), resultClass(ResultUnknown) {}
     QByteArray toString() const;
-    static QByteArray stringFromResultClass(GdbResultClass resultClass);
+    static QByteArray stringFromResultClass(ResultClass resultClass);
 
     int            token;
-    GdbResultClass resultClass;
+    ResultClass    resultClass;
     GdbMi          data;
-    QVariant       cookie;
     QByteArray     logStreamOutput;
     QByteArray     consoleStreamOutput;
 };
@@ -201,7 +240,17 @@ enum DebuggerEncoding
     Hex2EncodedFloat8                      = 26,
     IPv6AddressAndHexScopeId               = 27,
     Hex2EncodedUtf8WithoutQuotes           = 28,
-    DateTimeInternal                       = 29
+    DateTimeInternal                       = 29,
+    SpecialEmptyValue                      = 30,
+    SpecialUninitializedValue              = 31,
+    SpecialInvalidValue                    = 32,
+    SpecialNotAccessibleValue              = 33,
+    SpecialItemCountValue                  = 34,
+    SpecialMinimumItemCountValue           = 35,
+    SpecialNotCallableValue                = 36,
+    SpecialNullReferenceValue              = 37,
+    SpecialOptimizedOutValue               = 38,
+    SpecialEmptyStructureValue             = 39
 };
 
 // Keep in sync with dumper.py, symbolgroupvalue.cpp of CDB
@@ -210,9 +259,9 @@ enum DebuggerDisplay {
     DisplayImageData                       = 1,
     DisplayUtf16String                     = 2,
     DisplayImageFile                       = 3,
-    DisplayProcess                         = 4,
-    DisplayLatin1String                    = 5,
-    DisplayUtf8String                      = 6
+    DisplayLatin1String                    = 4,
+    DisplayUtf8String                      = 5,
+    DisplayPlotData                        = 6
 };
 // Decode string data as returned by the dumper helpers.
 QString decodeData(const QByteArray &baIn, int encoding);

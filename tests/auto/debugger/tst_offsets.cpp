@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -37,6 +38,11 @@
 #include <private/qfile_p.h>
 #include <private/qfileinfo_p.h>
 #include <private/qobject_p.h>
+
+#ifdef HAS_BOOST
+#include <boost/version.hpp>
+#include <boost/unordered/unordered_set.hpp>
+#endif
 
 class tst_offsets : public QObject
 {
@@ -77,7 +83,27 @@ void tst_offsets::offsets_data()
         QFilePrivate *p = 0;
         QTestData &data = QTest::newRow("QFilePrivate::fileName")
                 << int((char *)&p->fileName - (char *)p);
-        if (qtVersion > 0x50200)
+        if (qtVersion >= 0x50500)
+#ifdef Q_OS_WIN
+#   ifdef Q_CC_MSVC
+            data << 176 << 248;
+#   else // MinGW
+            data << 164 << 248;
+#   endif
+#else
+            data << 156 << 248;
+#endif
+        else if (qtVersion >= 0x50400)
+#ifdef Q_OS_WIN
+#   ifdef Q_CC_MSVC
+            data << 196 << 272;
+#   else // MinGW
+            data << 188 << 272;
+#   endif
+#else
+            data << 180 << 272;
+#endif
+        else if (qtVersion > 0x50200)
 #ifdef Q_OS_WIN
 #   ifdef Q_CC_MSVC
             data << 184 << 272;
@@ -187,6 +213,20 @@ void tst_offsets::offsets_data()
 #endif
     }
 
+#ifdef HAS_BOOST
+#if BOOST_VERSION >= (1 * 100000 + 54 * 100)
+    {
+        boost::unordered::unordered_set<int> *p = 0;
+
+        QTest::newRow("boost::unordered::unordered_set::size")
+            << int((char *)&p->table_.size_ - (char *)p) << 8 << 16;
+        QTest::newRow("boost::unordered::unordered_set::bucket_count")
+            << int((char *)&p->table_.bucket_count_ - (char *)p) << 4 << 8;
+        QTest::newRow("boost::unordered::unordered_set::buckets_")
+            << int((char *)&p->table_.buckets_ - (char *)p) << 20 << 40;
+    }
+#endif
+#endif
 }
 
 

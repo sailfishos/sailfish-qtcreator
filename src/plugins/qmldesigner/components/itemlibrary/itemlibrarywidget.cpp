@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -30,10 +31,13 @@
 #include "itemlibrarywidget.h"
 
 #include <utils/fileutils.h>
+#include <utils/qtcassert.h>
+#include <utils/stylehelper.h>
+
 #include <coreplugin/coreconstants.h>
+#include <coreplugin/icore.h>
 #include "itemlibrarymodel.h"
 #include "itemlibraryimageprovider.h"
-#include "customdraganddrop.h"
 #include <model.h>
 #include <metainfo.h>
 #include "rewritingexception.h"
@@ -49,53 +53,39 @@
 #include <QMenu>
 #include <QApplication>
 #include <QTimer>
-
+#include <QShortcut>
 #include <QQuickItem>
 
-enum {
-    debug = false
-};
+#include <private/qquickwidget_p.h> // mouse ungrabbing workaround on quickitems
+#include <private/qquickwindow_p.h> // mouse ungrabbing workaround on quickitems
+
 
 namespace QmlDesigner {
 
 ItemLibraryWidget::ItemLibraryWidget(QWidget *parent) :
     QFrame(parent),
-    m_iconProvider(m_resIconSize),
     m_itemIconSize(24, 24),
     m_resIconSize(24, 24),
-    m_itemsView(new QQuickView()),
-    m_resourcesView(new Internal::ItemLibraryTreeView(this)),
-    m_filterFlag(QtBasic),
-    m_itemLibraryId(-1)
+    m_iconProvider(m_resIconSize),
+    m_itemViewQuickWidget(new QQuickWidget),
+    m_resourcesView(new ItemLibraryTreeView(this)),
+    m_filterFlag(QtBasic)
 {
-    Internal::registerQmlTypes();
+    ItemLibraryModel::registerQmlTypes();
 
     setWindowTitle(tr("Library", "Title of library view"));
 
     /* create Items view and its model */
-    m_itemsView->setResizeMode(QQuickView::SizeRootObjectToView);
-    m_itemsView->engine()->setOutputWarningsToStandardError(debug);
-    m_itemLibraryModel = new Internal::ItemLibraryModel(this);
-    m_itemLibraryModel->setItemIconSize(m_itemIconSize);
+    m_itemViewQuickWidget->setResizeMode(QQuickWidget::SizeRootObjectToView);
+    m_itemLibraryModel = new ItemLibraryModel(this);
 
-    QQmlContext *rootContext = m_itemsView->rootContext();
-    rootContext->setContextProperty(QLatin1String("itemLibraryModel"), m_itemLibraryModel.data());
-    rootContext->setContextProperty(QLatin1String("itemLibraryIconWidth"), m_itemIconSize.width());
-    rootContext->setContextProperty(QLatin1String("itemLibraryIconHeight"), m_itemIconSize.height());
+    QQmlContext *rootContext = m_itemViewQuickWidget->rootContext();
+    rootContext->setContextProperty(QStringLiteral("itemLibraryModel"), m_itemLibraryModel.data());
+    rootContext->setContextProperty(QStringLiteral("itemLibraryIconWidth"), m_itemIconSize.width());
+    rootContext->setContextProperty(QStringLiteral("itemLibraryIconHeight"), m_itemIconSize.height());
+    rootContext->setContextProperty(QStringLiteral("rootView"), this);
 
-    QColor highlightColor = palette().highlight().color();
-    if (0.5*highlightColor.saturationF()+0.75-highlightColor.valueF() < 0)
-        highlightColor.setHsvF(highlightColor.hsvHueF(),0.1 + highlightColor.saturationF()*2.0, highlightColor.valueF());
-    m_itemsView->rootContext()->setContextProperty(QLatin1String("highlightColor"), highlightColor);
-
-    // loading the qml has to come after all needed context properties are set
-    m_itemsView->setSource(QUrl("qrc:/ItemLibrary/qml/ItemsView.qml"));
-
-    QQuickItem *rootItem = qobject_cast<QQuickItem*>(m_itemsView->rootObject());
-    connect(rootItem, SIGNAL(itemSelected(int)), this, SLOT(showItemInfo(int)));
-    connect(rootItem, SIGNAL(itemDragged(int)), this, SLOT(startDragAndDropDelayed(int)));
-    connect(this, SIGNAL(scrollItemsView(QVariant)), rootItem, SLOT(scrollView(QVariant)));
-    connect(this, SIGNAL(resetItemsView()), rootItem, SLOT(resetView()));
+    m_itemViewQuickWidget->rootContext()->setContextProperty(QStringLiteral("highlightColor"), Utils::StyleHelper::notTooBrightHighlightColor());
 
     /* create Resources view and its model */
     m_resourcesFileSystemModel = new QFileSystemModel(this);
@@ -104,7 +94,7 @@ ItemLibraryWidget::ItemLibraryWidget(QWidget *parent) :
     m_resourcesView->setIconSize(m_resIconSize);
 
     /* create image provider for loading item icons */
-    m_itemsView->engine()->addImageProvider(QLatin1String("qmldesigner_itemlibrary"), new Internal::ItemLibraryImageProvider);
+    m_itemViewQuickWidget->engine()->addImageProvider(QStringLiteral("qmldesigner_itemlibrary"), new Internal::ItemLibraryImageProvider);
 
     /* other widgets */
     QTabBar *tabBar = new QTabBar(this);
@@ -116,14 +106,14 @@ ItemLibraryWidget::ItemLibraryWidget(QWidget *parent) :
     connect(tabBar, SIGNAL(currentChanged(int)), this, SLOT(updateSearch()));
 
     m_filterLineEdit = new Utils::FancyLineEdit(this);
-    m_filterLineEdit->setObjectName(QLatin1String("itemLibrarySearchInput"));
+    m_filterLineEdit->setObjectName(QStringLiteral("itemLibrarySearchInput"));
     m_filterLineEdit->setPlaceholderText(tr("<Filter>", "Library search input hint text"));
     m_filterLineEdit->setDragEnabled(false);
     m_filterLineEdit->setMinimumWidth(75);
     m_filterLineEdit->setTextMargins(0, 0, 20, 0);
     m_filterLineEdit->setFiltering(true);
     QWidget *lineEditFrame = new QWidget(this);
-    lineEditFrame->setObjectName(QLatin1String("itemLibrarySearchInputFrame"));
+    lineEditFrame->setObjectName(QStringLiteral("itemLibrarySearchInputFrame"));
     QGridLayout *lineEditLayout = new QGridLayout(lineEditFrame);
     lineEditLayout->setMargin(2);
     lineEditLayout->setSpacing(0);
@@ -133,13 +123,13 @@ ItemLibraryWidget::ItemLibraryWidget(QWidget *parent) :
     lineEditLayout->addItem(new QSpacerItem(5, 5, QSizePolicy::Fixed, QSizePolicy::Fixed), 1, 2);
     connect(m_filterLineEdit.data(), SIGNAL(filterChanged(QString)), this, SLOT(setSearchFilter(QString)));
 
-    QWidget *container = createWindowContainer(m_itemsView.data());
+
     m_stackedWidget = new QStackedWidget(this);
-    m_stackedWidget->addWidget(container);
+    m_stackedWidget->addWidget(m_itemViewQuickWidget.data());
     m_stackedWidget->addWidget(m_resourcesView.data());
 
     QWidget *spacer = new QWidget(this);
-    spacer->setObjectName(QLatin1String("itemLibrarySearchInputSpacer"));
+    spacer->setObjectName(QStringLiteral("itemLibrarySearchInputSpacer"));
     spacer->setFixedHeight(4);
 
     QGridLayout *layout = new QGridLayout(this);
@@ -154,8 +144,14 @@ ItemLibraryWidget::ItemLibraryWidget(QWidget *parent) :
     setSearchFilter(QString());
 
     /* style sheets */
-    setStyleSheet(QLatin1String(Utils::FileReader::fetchQrc(":/qmldesigner/stylesheet.css")));
-    m_resourcesView->setStyleSheet(QLatin1String(Utils::FileReader::fetchQrc(":/qmldesigner/scrollbar.css")));
+    setStyleSheet(QString::fromUtf8(Utils::FileReader::fetchQrc(":/qmldesigner/stylesheet.css")));
+    m_resourcesView->setStyleSheet(QString::fromUtf8(Utils::FileReader::fetchQrc(":/qmldesigner/scrollbar.css")));
+
+    m_qmlSourceUpdateShortcut = new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_F5), this);
+    connect(m_qmlSourceUpdateShortcut, SIGNAL(activated()), this, SLOT(reloadQmlSource()));
+
+    // init the first load of the QML UI elements
+    reloadQmlSource();
 }
 
 void ItemLibraryWidget::setItemLibraryInfo(ItemLibraryInfo *itemLibraryInfo)
@@ -233,8 +229,7 @@ void ItemLibraryWidget::setSearchFilter(const QString &searchFilter)
 {
     if (m_stackedWidget->currentIndex() == 0) {
         m_itemLibraryModel->setSearchText(searchFilter);
-        emit resetItemsView();
-        m_itemsView->update();
+        m_itemViewQuickWidget->update();
     } else {
         QStringList nameFilterList;
         if (searchFilter.contains('.')) {
@@ -296,6 +291,19 @@ void ItemLibraryWidget::setCurrentIndexOfStackedWidget(int index)
     m_stackedWidget->setCurrentIndex(index);
 }
 
+QString ItemLibraryWidget::qmlSourcesPath()
+{
+    return Core::ICore::resourcePath() + QStringLiteral("/qmldesigner/itemLibraryQmlSources");
+}
+
+void ItemLibraryWidget::reloadQmlSource()
+{
+    QString itemLibraryQmlFilePath = qmlSourcesPath() + QStringLiteral("/ItemsView.qml");
+    QTC_ASSERT(QFileInfo::exists(itemLibraryQmlFilePath), return);
+    m_itemViewQuickWidget->engine()->clearComponentCache();
+    m_itemViewQuickWidget->setSource(QUrl::fromLocalFile(itemLibraryQmlFilePath));
+}
+
 void ItemLibraryWidget::setImportFilter(FilterChangeFlag flag)
 {
     return;
@@ -316,13 +324,13 @@ void ItemLibraryWidget::setImportFilter(FilterChangeFlag flag)
     try {
         block = true;
         if (flag == QtBasic)
-            removeImport(QLatin1String("com.nokia.meego"));
+            removeImport(QStringLiteral("com.nokia.meego"));
         else if (flag == Meego)
-            addImport(QLatin1String("com.nokia.meego"), QLatin1String("1.0"));
+            addImport(QStringLiteral("com.nokia.meego"), QStringLiteral("1.0"));
         QApplication::restoreOverrideCursor();
         block = false;
         m_filterFlag = flag;
-    } catch (RewritingException &) {
+    } catch (const RewritingException &) {
         QApplication::restoreOverrideCursor();
         m_filterFlag = oldfilterFlag;
         block = false;
@@ -366,26 +374,26 @@ void ItemLibraryWidget::setResourcePath(const QString &resourcePath)
     updateSearch();
 }
 
-void ItemLibraryWidget::startDragAndDropDelayed(int itemLibraryId)
+static void ungrabMouseOnQMLWorldWorkAround(QQuickWidget *quickWidget)
 {
-    m_itemLibraryId = itemLibraryId;
-    QTimer::singleShot(0, this, SLOT(startDragAndDrop()));
+    const QQuickWidgetPrivate *widgetPrivate = QQuickWidgetPrivate::get(quickWidget);
+    if (widgetPrivate && widgetPrivate->offscreenWindow && widgetPrivate->offscreenWindow->mouseGrabberItem())
+        widgetPrivate->offscreenWindow->mouseGrabberItem()->ungrabMouse();
 }
 
-void ItemLibraryWidget::startDragAndDrop()
+void ItemLibraryWidget::startDragAndDrop(QVariant itemLibraryId)
 {
-    QMimeData *mimeData = m_itemLibraryModel->getMimeData(m_itemLibraryId);
+    m_currentitemLibraryEntry = itemLibraryId.value<ItemLibraryEntry>();
+
+    QMimeData *mimeData = m_itemLibraryModel->getMimeData(m_currentitemLibraryEntry);
     QDrag *drag = new QDrag(this);
 
-    drag->setPixmap(m_itemLibraryModel->getIcon(m_itemLibraryId).pixmap(32, 32));
+    drag->setPixmap(m_currentitemLibraryEntry.libraryEntryIconPath());
     drag->setMimeData(mimeData);
 
     drag->exec();
-}
 
-void ItemLibraryWidget::showItemInfo(int /*itemLibId*/)
-{
-//    qDebug() << "showing item info about id" << itemLibId;
+    ungrabMouseOnQMLWorldWorkAround(m_itemViewQuickWidget.data());
 }
 
 void ItemLibraryWidget::removeImport(const QString &name)

@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -43,6 +44,8 @@
 #include <coreplugin/minisplitter.h>
 #include <coreplugin/sidebar.h>
 #include <coreplugin/editortoolbar.h>
+#include <coreplugin/editormanager/editormanager.h>
+#include <coreplugin/idocument.h>
 #include <coreplugin/inavigationwidgetfactory.h>
 #include <extensionsystem/pluginmanager.h>
 
@@ -86,7 +89,7 @@ DocumentWarningWidget::DocumentWarningWidget(DesignModeWidget *parent) :
     m_errorMessage->setForegroundRole(QPalette::ToolTipText);
     m_goToError->setText(tr("<a href=\"goToError\">Go to error</a>"));
     m_goToError->setForegroundRole(QPalette::Link);
-    connect(m_goToError, SIGNAL(linkActivated(QString)), this, SLOT(goToError()));
+    connect(m_goToError, &QLabel::linkActivated, this, &DocumentWarningWidget::goToError);
 
     QVBoxLayout *layout = new QVBoxLayout(this);
     layout->setMargin(20);
@@ -173,7 +176,7 @@ void DocumentWarningWidget::goToError()
 DesignModeWidget::DesignModeWidget(QWidget *parent) :
     QWidget(parent),
     m_mainSplitter(0),
-    m_toolBar(Core::EditorManager::createToolBar(this)),
+    m_toolBar(new Core::EditorToolBar(this)),
     m_crumbleBar(new CrumbleBar(this)),
     m_isDisabled(false),
     m_showSidebars(true),
@@ -232,8 +235,8 @@ void DesignModeWidget::readSettings()
     QSettings *settings = Core::ICore::settings();
 
     settings->beginGroup("Bauhaus");
-    m_leftSideBar->readSettings(settings, QLatin1String("LeftSideBar"));
-    m_rightSideBar->readSettings(settings, QLatin1String("RightSideBar"));
+    m_leftSideBar->readSettings(settings, QStringLiteral("LeftSideBar"));
+    m_rightSideBar->readSettings(settings, QStringLiteral("RightSideBar"));
     if (settings->contains("MainSplitter")) {
         const QByteArray splitterState = settings->value("MainSplitter").toByteArray();
         m_mainSplitter->restoreState(splitterState);
@@ -247,8 +250,8 @@ void DesignModeWidget::saveSettings()
     QSettings *settings = Core::ICore::settings();
 
     settings->beginGroup("Bauhaus");
-    m_leftSideBar->saveSettings(settings, QLatin1String("LeftSideBar"));
-    m_rightSideBar->saveSettings(settings, QLatin1String("RightSideBar"));
+    m_leftSideBar->saveSettings(settings, QStringLiteral("LeftSideBar"));
+    m_rightSideBar->saveSettings(settings, QStringLiteral("RightSideBar"));
     settings->setValue("MainSplitter", m_mainSplitter->saveState());
     settings->endGroup();
 }
@@ -288,7 +291,7 @@ void DesignModeWidget::updateErrorStatus(const QList<RewriterView::Error> &error
     }
 }
 
-TextEditor::ITextEditor *DesignModeWidget::textEditor() const
+TextEditor::BaseTextEditor *DesignModeWidget::textEditor() const
 {
     return currentDesignDocument()->textEditor();
 }
@@ -404,8 +407,8 @@ void DesignModeWidget::setup()
     m_toolBar->setToolbarCreationFlags(Core::EditorToolBar::FlagsStandalone);
     m_toolBar->setNavigationVisible(true);
 
-    connect(m_toolBar, SIGNAL(goForwardClicked()), this, SLOT(toolBarOnGoForwardClicked()));
-    connect(m_toolBar, SIGNAL(goBackClicked()), this, SLOT(toolBarOnGoBackClicked()));
+    connect(m_toolBar, &Core::EditorToolBar::goForwardClicked, this, &DesignModeWidget::toolBarOnGoForwardClicked);
+    connect(m_toolBar, &Core::EditorToolBar::goBackClicked, this, &DesignModeWidget::toolBarOnGoBackClicked);
 
     if (currentDesignDocument())
         setupNavigatorHistory(currentDesignDocument()->textEditor());
@@ -428,8 +431,8 @@ void DesignModeWidget::setup()
     viewManager().enableWidgets();
     m_leftSideBar->setEnabled(true);
     m_rightSideBar->setEnabled(true);
-    m_leftSideBar->setCloseWhenEmpty(true);
-    m_rightSideBar->setCloseWhenEmpty(true);
+    m_leftSideBar->setCloseWhenEmpty(false);
+    m_rightSideBar->setCloseWhenEmpty(false);
 
     readSettings();
 
@@ -498,15 +501,17 @@ ViewManager &DesignModeWidget::viewManager()
 
 void DesignModeWidget::resizeEvent(QResizeEvent *event)
 {
-    if (m_warningWidget)
-        m_warningWidget->move(QPoint(event->size().width() / 2, event->size().height() / 2));
+    if (m_warningWidget) {
+        QPoint warningWidgetCenterPoint = m_warningWidget->rect().center();
+        m_warningWidget->move(QPoint(event->size().width() / 2, event->size().height() / 2) - warningWidgetCenterPoint);
+    }
     QWidget::resizeEvent(event);
 }
 
 void DesignModeWidget::setupNavigatorHistory(Core::IEditor *editor)
 {
     if (!m_keepNavigatorHistory)
-        addNavigatorHistoryEntry(editor->document()->filePath());
+        addNavigatorHistoryEntry(editor->document()->filePath().toString());
 
     const bool canGoBack = m_navigatorHistoryCounter > 0;
     const bool canGoForward = m_navigatorHistoryCounter < (m_navigatorHistory.size() - 1);
