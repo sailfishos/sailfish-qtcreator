@@ -60,12 +60,12 @@ public:
     MerRpmPackagingStep(ProjectExplorer::BuildStepList *bsl);
     MerRpmPackagingStep(ProjectExplorer::BuildStepList *buildConfig,
                              MerRpmPackagingStep *other);
-    virtual ~MerRpmPackagingStep();
+    ~MerRpmPackagingStep() override;
     static Core::Id stepId();
     static QString displayName();
 
 protected:
-    bool init();
+    bool init() override;
 
 private slots:
     void handleBuildOutput();

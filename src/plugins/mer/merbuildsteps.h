@@ -38,7 +38,7 @@ public:
     explicit MerSdkStartStep(ProjectExplorer::BuildStepList *bsl);
     MerSdkStartStep(ProjectExplorer::BuildStepList *bsl, MerSdkStartStep *bs);
 
-    bool init();
+    bool init() override;
 
     static Core::Id stepId();
     static QString displayName();

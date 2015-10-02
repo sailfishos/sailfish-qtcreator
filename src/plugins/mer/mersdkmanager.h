@@ -62,7 +62,7 @@ public:
     static bool validateKit(const ProjectExplorer::Kit* kit);
     static bool generateSshKey(const QString &privKeyPath, QString &error);
 
-    ~MerSdkManager();
+    ~MerSdkManager() override;
     QList<MerSdk*> sdks() const;
     MerSdk* sdk(const QString &virtualMachineName) const;
     MerSdk* createSdk(const QString &vmName);

@@ -39,11 +39,11 @@ class MerPlugin : public ExtensionSystem::IPlugin
 
 public:
     MerPlugin();
-    ~MerPlugin();
+    ~MerPlugin() override;
 
-    bool initialize(const QStringList &arguments, QString *errorMessage);
-    void extensionsInitialized();
-    ShutdownFlag aboutToShutdown();
+    bool initialize(const QStringList &arguments, QString *errorMessage) override;
+    void extensionsInitialized() override;
+    ShutdownFlag aboutToShutdown() override;
 
 private slots:
     void handlePromptClosed(int result);

@@ -52,7 +52,7 @@ class MerVirtualBoxManager : public QObject
     Q_OBJECT
 public:
     static MerVirtualBoxManager* instance();
-    ~MerVirtualBoxManager();
+    ~MerVirtualBoxManager() override;
     static bool isVirtualMachineRunning(const QString &vmName);
     static bool isVirtualMachineRegistered(const QString &vmName);
     static QStringList fetchRegisteredVirtualMachines();

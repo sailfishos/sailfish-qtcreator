@@ -50,7 +50,7 @@ class MerSdk : public QObject
 {
     Q_OBJECT
 public:
-    virtual ~MerSdk();
+    ~MerSdk() override;
 
     bool isAutoDetected() const;
     void setAutodetect(bool autoDetected);

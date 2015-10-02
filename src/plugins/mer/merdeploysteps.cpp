@@ -79,7 +79,7 @@ public:
     {
     }
 
-    QString summaryText() const
+    QString summaryText() const override
     {
         return QString::fromLatin1("<b>%1:</b> %2")
             .arg(displayName())
@@ -97,7 +97,7 @@ public:
     {
     }
 
-    QString summaryText() const
+    QString summaryText() const override
     {
         return QString::fromLatin1("<b>%1:</b> %2")
             .arg(displayName())

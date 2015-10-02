@@ -38,7 +38,7 @@ public:
     MerSshKeyDeploymentDialog(QWidget *parent = 0);
     void setPublicKeyPath(const QString& file);
     void setSShParameters(const QSsh::SshConnectionParameters& parameters);
-    int exec();
+    int exec() override;
 private slots:
     void handleDeploymentError(const QString &errorMsg);
     void handleDeploymentSuccess();

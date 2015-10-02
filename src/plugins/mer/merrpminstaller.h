@@ -42,7 +42,7 @@ class MerRpmInstaller: public RemoteLinux::AbstractRemoteLinuxPackageInstaller
 public:
     explicit MerRpmInstaller(QObject *parent);
     void installPackage(const ProjectExplorer::IDevice::ConstPtr &deviceConfig,
-        const QString &packageFilePath, bool removePackageFile);
+        const QString &packageFilePath, bool removePackageFile) override;
 
 private slots:
     void handleInstallerErrorOutput(const QString &output);

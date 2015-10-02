@@ -41,12 +41,12 @@ class MerAddVmStartBuildStepProjectListener : public MerProjectListener
     Q_OBJECT
 public:
     explicit MerAddVmStartBuildStepProjectListener(QObject *parent = 0);
-    ~MerAddVmStartBuildStepProjectListener();
+    ~MerAddVmStartBuildStepProjectListener() override;
 
 protected:
     // From MerProjectListener
-    bool handleProject(QmakeProjectManager::QmakeProject *project);
-    bool forgetProject(ProjectExplorer::Project *project);
+    bool handleProject(QmakeProjectManager::QmakeProject *project) override;
+    bool forgetProject(ProjectExplorer::Project *project) override;
 
 private:
     static void ensureHasVmStartStep(ProjectExplorer::BuildConfiguration *bc);

@@ -39,10 +39,10 @@ public:
     typedef QSharedPointer<MerDevice> Ptr;
     typedef QSharedPointer<const MerDevice> ConstPtr;
 
-    QString displayType() const;
+    QString displayType() const override;
 
-    void fromMap(const QVariantMap &map);
-    QVariantMap toMap() const;
+    void fromMap(const QVariantMap &map) override;
+    QVariantMap toMap() const override;
 
     virtual ProjectExplorer::Abi::Architecture architecture() const = 0;
 
@@ -54,7 +54,7 @@ public:
 protected:
     MerDevice();
     MerDevice(const QString &name, MachineType machineType, Origin origin, Core::Id id);
-    ~MerDevice() = 0;
+    ~MerDevice() override = 0;
 
 private:
     MerDevice &operator=(const MerDevice &);

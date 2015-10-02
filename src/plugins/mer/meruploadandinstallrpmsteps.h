@@ -49,8 +49,8 @@ public:
     MerUploadAndInstallRpmStep(ProjectExplorer::BuildStepList *bsl,
         MerUploadAndInstallRpmStep *other);
 
-    bool initInternal(QString *error = 0);
-    void  run(QFutureInterface<bool> &fi);
+    bool initInternal(QString *error = 0) override;
+    void  run(QFutureInterface<bool> &fi) override;
     static Core::Id stepId();
     static QString displayName();
 

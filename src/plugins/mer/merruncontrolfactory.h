@@ -36,9 +36,9 @@ public:
     explicit MerRunControlFactory(QObject *parent = 0);
 
     bool canRun(ProjectExplorer::RunConfiguration *runConfiguration,
-                Core::Id mode) const;
+                Core::Id mode) const override;
     ProjectExplorer::RunControl *create(ProjectExplorer::RunConfiguration *runConfiguration,
-                                        Core::Id mode, QString *errorMessage);
+                                        Core::Id mode, QString *errorMessage) override;
 };
 
 } // namespace Internal

@@ -79,8 +79,8 @@ public:
     }
 
 protected:
-    virtual void handleMessage(QtMsgType /*type*/, const QString &description,
-                               const QUrl &identifier, const QSourceLocation &sourceLocation)
+    void handleMessage(QtMsgType /*type*/, const QString &description,
+                       const QUrl &identifier, const QSourceLocation &sourceLocation) override
     {
         m_description = description;
         m_identifier = identifier;
@@ -110,7 +110,7 @@ public:
 
 
 protected:
-    virtual void startElement(const QXmlName &name)
+    void startElement(const QXmlName &name) override
     {
         const QString element = name.localName(m_namePool);
         if (element == QLatin1String(DEVICE))
@@ -121,7 +121,7 @@ protected:
 
     }
 
-    virtual void endElement()
+    void endElement() override
     {
         const QString element = m_currentElementStack.pop();
         if (element == QLatin1String(DEVICE)) {
@@ -135,8 +135,8 @@ protected:
         }
     }
 
-    virtual void attribute(const QXmlName &name,
-                           const QStringRef &value)
+    void attribute(const QXmlName &name,
+                   const QStringRef &value) override
     {
         const QString attributeName = name.localName(m_namePool);
         const QString attributeValue = value.toString();
@@ -150,7 +150,7 @@ protected:
         }
     }
 
-    virtual void characters(const QStringRef &value)
+    void characters(const QStringRef &value) override
     {
         const QString element = m_currentElementStack.top();
         if (element == QLatin1String(IP))
@@ -169,32 +169,32 @@ protected:
             m_currentDevice.m_index = value.toString().toInt();
     }
 
-    virtual void comment(const QString &/*value*/)
+    void comment(const QString &/*value*/) override
     {
     }
 
-    virtual void startDocument()
+    void startDocument() override
     {
     }
 
-    virtual void endDocument()
+    void endDocument() override
     {
     }
 
-    virtual void processingInstruction(const QXmlName &/*target*/, const QString &/*value*/)
+    void processingInstruction(const QXmlName &/*target*/, const QString &/*value*/) override
     {
     }
 
-    virtual void atomicValue(const QVariant &/*value*/)
+    void atomicValue(const QVariant &/*value*/) override
     {
     }
-    virtual void namespaceBinding(const QXmlName &/*name*/)
+    void namespaceBinding(const QXmlName &/*name*/) override
     {
     }
-    virtual void startOfSequence()
+    void startOfSequence() override
     {
     }
-    virtual void endOfSequence()
+    void endOfSequence() override
     {
     }
 

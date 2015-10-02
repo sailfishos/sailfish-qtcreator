@@ -38,7 +38,7 @@ class MerEmulatorDeviceWidget : public ProjectExplorer::IDeviceWidget
 public:
     explicit MerEmulatorDeviceWidget(const ProjectExplorer::IDevice::Ptr &deviceConfig,
                                           QWidget *parent = 0);
-    ~MerEmulatorDeviceWidget();
+    ~MerEmulatorDeviceWidget() override;
 
 private slots:
     void timeoutEditingFinished();

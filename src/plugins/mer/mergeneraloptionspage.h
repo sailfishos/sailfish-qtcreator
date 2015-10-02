@@ -37,10 +37,10 @@ class MerGeneralOptionsPage : public Core::IOptionsPage
 public:
     explicit MerGeneralOptionsPage(QObject *parent = 0);
 
-    QWidget *widget();
-    void apply();
-    void finish();
-    bool matches(const QString &key) const;
+    QWidget *widget() override;
+    void apply() override;
+    void finish() override;
+    bool matches(const QString &key) const override;
 
 private:
     QPointer<MerGeneralOptionsWidget> m_widget;

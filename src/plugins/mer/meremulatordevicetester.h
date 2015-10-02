@@ -38,8 +38,8 @@ public:
     explicit MerEmulatorDeviceTester(QObject *parent = 0);
     ~MerEmulatorDeviceTester();
 
-    void testDevice(const ProjectExplorer::IDevice::ConstPtr &deviceConfiguration);
-    void stopTest();
+    void testDevice(const ProjectExplorer::IDevice::ConstPtr &deviceConfiguration) override;
+    void stopTest() override;
 
 private slots:
     void onConnectionStateChanged();

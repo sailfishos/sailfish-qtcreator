@@ -57,7 +57,7 @@ class MerConnectionAction : public QObject
     Q_OBJECT
 public:
     explicit MerConnectionAction(QObject *parent = 0);
-    ~MerConnectionAction();
+    ~MerConnectionAction() override;
 
     void setId(Core::Id id) { m_id = id; }
     void setName(const QString &name) { m_name = name; }

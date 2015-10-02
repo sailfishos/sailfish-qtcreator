@@ -57,7 +57,7 @@ public:
     {
     }
 
-    AbstractRemoteLinuxPackageInstaller *packageInstaller() const { return m_installer; }
+    AbstractRemoteLinuxPackageInstaller *packageInstaller() const override { return m_installer; }
 
 private:
     QString uploadDir() const

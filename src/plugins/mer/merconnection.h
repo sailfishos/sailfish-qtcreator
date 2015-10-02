@@ -83,7 +83,7 @@ public:
     Q_DECLARE_FLAGS(ConnectOptions, ConnectOption)
 
     explicit MerConnection(QObject *parent = 0);
-    ~MerConnection();
+    ~MerConnection() override;
 
     void setVirtualMachine(const QString &virtualMachine);
     void setSshParameters(const QSsh::SshConnectionParameters &sshParameters);
@@ -116,7 +116,7 @@ signals:
     void lockDownFailed();
 
 protected:
-    void timerEvent(QTimerEvent *event);
+    void timerEvent(QTimerEvent *event) override;
 
 private:
     void scheduleReset();

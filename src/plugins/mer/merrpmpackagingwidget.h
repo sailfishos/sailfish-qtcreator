@@ -46,10 +46,10 @@ class MerRpmPackagingWidget : public ProjectExplorer::BuildStepConfigWidget
 
 public:
     MerRpmPackagingWidget(MerRpmPackagingStep *step);
-    ~MerRpmPackagingWidget();
+    ~MerRpmPackagingWidget() override;
 
-    virtual QString summaryText() const;
-    virtual QString displayName() const;
+    QString summaryText() const override;
+    QString displayName() const override;
 
 private slots:
     void initGui();

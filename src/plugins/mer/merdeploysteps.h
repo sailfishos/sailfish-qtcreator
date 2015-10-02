@@ -52,7 +52,8 @@ public:
 
     explicit MerProcessStep(ProjectExplorer::BuildStepList *bsl, Core::Id id);
     MerProcessStep(ProjectExplorer::BuildStepList *bsl, MerProcessStep *bs);
-    bool init(InitOptions options = NoInitOption);
+    bool init() override { return init(NoInitOption); }
+    bool init(InitOptions options);
     QString arguments() const;
     void setArguments(const QString &arguments);
 
@@ -71,7 +72,7 @@ class MerEmulatorStartStep : public MerAbstractVmStartStep
 public:
     explicit MerEmulatorStartStep(ProjectExplorer::BuildStepList *bsl);
     MerEmulatorStartStep(ProjectExplorer::BuildStepList *bsl, MerEmulatorStartStep *bs);
-    bool init();
+    bool init() override;
     static Core::Id stepId();
     static QString displayName();
     friend class MerDeployStepFactory;
@@ -85,11 +86,11 @@ public:
     explicit MerConnectionTestStep(ProjectExplorer::BuildStepList *bsl);
     MerConnectionTestStep(ProjectExplorer::BuildStepList *bsl, MerConnectionTestStep *bs);
 
-    bool init();
-    void run(QFutureInterface<bool> &fi);
-    ProjectExplorer::BuildStepConfigWidget *createConfigWidget();
-    bool immutable() const;
-    bool runInGuiThread() const;
+    bool init() override;
+    void run(QFutureInterface<bool> &fi) override;
+    ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
+    bool immutable() const override;
+    bool runInGuiThread() const override;
 
     static Core::Id stepId();
     static QString displayName();
@@ -116,11 +117,11 @@ public:
     explicit MerPrepareTargetStep(ProjectExplorer::BuildStepList *bsl);
     MerPrepareTargetStep(ProjectExplorer::BuildStepList *bsl, MerPrepareTargetStep *bs);
 
-    bool init();
-    void run(QFutureInterface<bool> &fi);
-    ProjectExplorer::BuildStepConfigWidget *createConfigWidget();
-    bool immutable() const;
-    bool runInGuiThread() const;
+    bool init() override;
+    void run(QFutureInterface<bool> &fi) override;
+    ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
+    bool immutable() const override;
+    bool runInGuiThread() const override;
 
     static Core::Id stepId();
     static QString displayName();
@@ -138,10 +139,10 @@ class MerMb2RsyncDeployStep : public MerProcessStep
 public:
     explicit MerMb2RsyncDeployStep(ProjectExplorer::BuildStepList *bsl);
     MerMb2RsyncDeployStep(ProjectExplorer::BuildStepList *bsl, MerMb2RsyncDeployStep *bs);
-    bool init();
-    bool immutable() const;
-    void run(QFutureInterface<bool> &fi);
-    ProjectExplorer::BuildStepConfigWidget *createConfigWidget();
+    bool init() override;
+    bool immutable() const override;
+    void run(QFutureInterface<bool> &fi) override;
+    ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
     static Core::Id stepId();
     static QString displayName();
 private:
@@ -154,10 +155,10 @@ class MerLocalRsyncDeployStep : public MerProcessStep
 public:
     explicit MerLocalRsyncDeployStep(ProjectExplorer::BuildStepList *bsl);
     MerLocalRsyncDeployStep(ProjectExplorer::BuildStepList *bsl, MerLocalRsyncDeployStep *bs);
-    bool init();
-    bool immutable() const;
-    void run(QFutureInterface<bool> &fi);
-    ProjectExplorer::BuildStepConfigWidget *createConfigWidget();
+    bool init() override;
+    bool immutable() const override;
+    void run(QFutureInterface<bool> &fi) override;
+    ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
     static Core::Id stepId();
     static QString displayName();
     friend class MerDeployStepFactory;
@@ -169,10 +170,10 @@ class MerMb2RpmDeployStep : public MerProcessStep
 public:
     explicit MerMb2RpmDeployStep(ProjectExplorer::BuildStepList *bsl);
     MerMb2RpmDeployStep(ProjectExplorer::BuildStepList *bsl, MerMb2RpmDeployStep *bs);
-    bool init();
-    bool immutable() const;
-    void run(QFutureInterface<bool> &fi);
-    ProjectExplorer::BuildStepConfigWidget *createConfigWidget();
+    bool init() override;
+    bool immutable() const override;
+    void run(QFutureInterface<bool> &fi) override;
+    ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
     static Core::Id stepId();
     static QString displayName();
     friend class MerDeployStepFactory;
@@ -185,15 +186,15 @@ class MerMb2RpmBuildStep : public MerProcessStep
 public:
     explicit MerMb2RpmBuildStep(ProjectExplorer::BuildStepList *bsl);
     MerMb2RpmBuildStep(ProjectExplorer::BuildStepList *bsl, MerMb2RpmBuildStep *bs);
-    bool init();
-    bool immutable() const;
-    void run(QFutureInterface<bool> &fi);
-    ProjectExplorer::BuildStepConfigWidget *createConfigWidget();
+    bool init() override;
+    bool immutable() const override;
+    void run(QFutureInterface<bool> &fi) override;
+    ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
     static Core::Id stepId();
     static QString displayName();
     friend class MerDeployStepFactory;
-    void processFinished(int exitCode, QProcess::ExitStatus status);
-    void stdOutput(const QString &line);
+    void processFinished(int exitCode, QProcess::ExitStatus status) override;
+    void stdOutput(const QString &line) override;
     QStringList packagesFilePath() const;
 private:
     QString m_sharedHome;
@@ -218,10 +219,10 @@ class MerRpmValidationStep : public MerProcessStep
 public:
     explicit MerRpmValidationStep(ProjectExplorer::BuildStepList *bsl);
     MerRpmValidationStep(ProjectExplorer::BuildStepList *bsl, MerRpmValidationStep *bs);
-    bool init();
-    bool immutable() const;
-    void run(QFutureInterface<bool> &fi);
-    ProjectExplorer::BuildStepConfigWidget *createConfigWidget();
+    bool init() override;
+    bool immutable() const override;
+    void run(QFutureInterface<bool> &fi) override;
+    ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
     static Core::Id stepId();
     static QString displayName();
     friend class MerDeployStepFactory;

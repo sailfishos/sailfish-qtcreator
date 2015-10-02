@@ -42,20 +42,20 @@ public:
     void setTargetName(const QString &name);
     QString targetName() const;
 
-    QString type() const;
-    QVariantMap toMap() const;
-    bool fromMap(const QVariantMap &data);
+    QString type() const override;
+    QVariantMap toMap() const override;
+    bool fromMap(const QVariantMap &data) override;
 
-    QString makeCommand(const Utils::Environment &environment) const;
+    QString makeCommand(const Utils::Environment &environment) const override;
 
-    ToolChain *clone() const;
-    ProjectExplorer::IOutputParser *outputParser() const;
-    QList<Utils::FileName> suggestedMkspecList() const;
-    QList<ProjectExplorer::Task> validateKit(const ProjectExplorer::Kit *kit) const;
+    ToolChain *clone() const override;
+    ProjectExplorer::IOutputParser *outputParser() const override;
+    QList<Utils::FileName> suggestedMkspecList() const override;
+    QList<ProjectExplorer::Task> validateKit(const ProjectExplorer::Kit *kit) const override;
 
     QList<ProjectExplorer::HeaderPath> systemHeaderPaths(const QStringList &cxxflags,
-                                                         const Utils::FileName &sysRoot) const;
-    void addToEnvironment(Utils::Environment &env) const;
+                                                         const Utils::FileName &sysRoot) const override;
+    void addToEnvironment(Utils::Environment &env) const override;
 private:
     QString m_vmName;
     QString m_targetName;

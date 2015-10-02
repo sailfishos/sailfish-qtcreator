@@ -49,7 +49,7 @@ public:
     };
 
     explicit MerSdkDetailsWidget(QWidget *parent = 0);
-    ~MerSdkDetailsWidget();
+    ~MerSdkDetailsWidget() override;
 
     QString searchKeyWordMatchString() const;
     void setSdk(const MerSdk *sdk);

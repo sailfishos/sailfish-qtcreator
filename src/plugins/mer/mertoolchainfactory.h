@@ -37,8 +37,8 @@ public:
 
     //QList<ProjectExplorer::ToolChain *> autoDetect();
 
-    bool canRestore(const QVariantMap &data);
-    ProjectExplorer::ToolChain *restore(const QVariantMap &data);
+    bool canRestore(const QVariantMap &data) override;
+    ProjectExplorer::ToolChain *restore(const QVariantMap &data) override;
 };
 
 } // Internal

@@ -50,8 +50,8 @@ public:
     MerSdk *sdkAt(int row) const;
     int activeSdkIndex() const;
 
-    int rowCount(const QModelIndex &parent = QModelIndex()) const;
-    QVariant data(const QModelIndex &index, int role) const;
+    int rowCount(const QModelIndex &parent = QModelIndex()) const override;
+    QVariant data(const QModelIndex &index, int role) const override;
 
 signals:
     void activeSdkIndexChanged(int index);
