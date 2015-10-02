@@ -41,16 +41,8 @@ namespace Internal {
 
 MerTargetKitInformation::MerTargetKitInformation()
 {
-}
-
-Core::Id MerTargetKitInformation::dataId() const
-{
-    return Core::Id(Constants::MER_TARGET_KIT_INFORMATION);
-}
-
-unsigned int MerTargetKitInformation::priority() const
-{
-    return 23;
+    setId(Constants::MER_TARGET_KIT_INFORMATION);
+    setPriority(23);
 }
 
 QVariant MerTargetKitInformation::defaultValue(ProjectExplorer::Kit *kit) const

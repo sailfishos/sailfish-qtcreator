@@ -66,8 +66,6 @@ class MerSdkKitInformation : public ProjectExplorer::KitInformation
     Q_OBJECT
 public:
     explicit MerSdkKitInformation();
-    Core::Id dataId() const;
-    unsigned int priority() const;
     QVariant defaultValue(ProjectExplorer::Kit *kit) const;
     QList<ProjectExplorer::Task> validate(const ProjectExplorer::Kit *kit) const;
     ItemList toUserOutput(const ProjectExplorer::Kit *kit) const;
