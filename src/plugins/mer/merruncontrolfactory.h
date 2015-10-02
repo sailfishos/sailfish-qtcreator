@@ -35,7 +35,6 @@ class MerRunControlFactory : public ProjectExplorer::IRunControlFactory
 public:
     explicit MerRunControlFactory(QObject *parent = 0);
 
-    QString displayName() const;
     ProjectExplorer::RunConfigWidget *createConfigurationWidget(
             ProjectExplorer::RunConfiguration *runConfiguration);
 

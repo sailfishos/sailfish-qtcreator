@@ -144,11 +144,6 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, Core::Id m
     return 0;
 }
 
-QString MerRunControlFactory::displayName() const
-{
-    return tr("Run on remote Mer device");
-}
-
 RunConfigWidget *MerRunControlFactory::createConfigurationWidget(RunConfiguration * /*config*/)
 {
     return 0;
