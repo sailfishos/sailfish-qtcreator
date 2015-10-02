@@ -72,6 +72,7 @@ public:
     ProjectExplorer::KitConfigWidget *createConfigWidget(ProjectExplorer::Kit *kit) const;
     void addToEnvironment(const ProjectExplorer::Kit *kit, Utils::Environment &env) const;
 
+    static Core::Id id();
     static void setSdk(ProjectExplorer::Kit *kit, const MerSdk* sdk);
     static MerSdk* sdk(const ProjectExplorer::Kit *kit);
 };

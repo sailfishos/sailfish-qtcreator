@@ -73,6 +73,7 @@ public:
     ProjectExplorer::KitConfigWidget *createConfigWidget(ProjectExplorer::Kit *kit) const;
     void addToEnvironment(const ProjectExplorer::Kit *kit, Utils::Environment &env) const;
 
+    static Core::Id id();
     static void setTargetName(ProjectExplorer::Kit *kit, const QString& targetName);
     static QString targetName(const ProjectExplorer::Kit *kit);
 

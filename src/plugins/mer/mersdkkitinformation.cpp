@@ -40,7 +40,7 @@ namespace Internal {
 
 MerSdkKitInformation::MerSdkKitInformation()
 {
-    setDataId(Constants::MER_SDK_KIT_INFORMATION);
+    setId(MerSdkKitInformation::id());
     setPriority(24);
 }
 
@@ -89,6 +89,11 @@ ProjectExplorer::KitInformation::ItemList MerSdkKitInformation::toUserOutput(con
 ProjectExplorer::KitConfigWidget *MerSdkKitInformation::createConfigWidget(ProjectExplorer::Kit *kit) const
 {
     return new MerSdkKitInformationWidget(kit, this);
+}
+
+Core::Id MerSdkKitInformation::id()
+{
+    return "Mer.Sdk.Kit.Information";
 }
 
 void MerSdkKitInformation::setSdk(ProjectExplorer::Kit *kit, const MerSdk* sdk)

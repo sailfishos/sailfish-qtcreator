@@ -41,7 +41,7 @@ namespace Internal {
 
 MerTargetKitInformation::MerTargetKitInformation()
 {
-    setId(Constants::MER_TARGET_KIT_INFORMATION);
+    setId(MerTargetKitInformation::id());
     setPriority(23);
 }
 
@@ -87,6 +87,10 @@ ProjectExplorer::KitConfigWidget *MerTargetKitInformation::createConfigWidget(Pr
     return new MerTargetKitInformationWidget(kit, this);
 }
 
+Core::Id MerTargetKitInformation::id()
+{
+    return "Mer.Target.Kit.Information";
+}
 void MerTargetKitInformation::setTargetName(ProjectExplorer::Kit *kit, const QString& targetName)
 {
     if(kit->value(Core::Id(Constants::TARGET)) != targetName)
