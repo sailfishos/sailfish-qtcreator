@@ -179,15 +179,12 @@ void MerToolChain::addToEnvironment(Utils::Environment &env) const
     env.appendOrSet(QLatin1String(Constants::MER_SSH_SDK_TOOLS),compilerCommand().parentDir().toString());
 }
 
-QString MerToolChainFactory::displayName() const
+MerToolChainFactory::MerToolChainFactory()
 {
-    return tr("Mer");
+    setId(Constants::MER_TOOLCHAIN_ID);
+    setDisplayName(tr("Mer"));
 }
 
-QString MerToolChainFactory::id() const
-{
-    return QLatin1String(Constants::MER_TOOLCHAIN_ID);
-}
 /*
 QList<ToolChain *> MerToolChainFactory::autoDetect()
 {
