@@ -143,8 +143,3 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, Core::Id m
 //    }
     return 0;
 }
-
-RunConfigWidget *MerRunControlFactory::createConfigurationWidget(RunConfiguration * /*config*/)
-{
-    return 0;
-}

@@ -35,9 +35,6 @@ class MerRunControlFactory : public ProjectExplorer::IRunControlFactory
 public:
     explicit MerRunControlFactory(QObject *parent = 0);
 
-    ProjectExplorer::RunConfigWidget *createConfigurationWidget(
-            ProjectExplorer::RunConfiguration *runConfiguration);
-
     bool canRun(ProjectExplorer::RunConfiguration *runConfiguration,
                 Core::Id mode) const;
     ProjectExplorer::RunControl *create(ProjectExplorer::RunConfiguration *runConfiguration,
