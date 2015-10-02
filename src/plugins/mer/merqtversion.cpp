@@ -100,11 +100,6 @@ QString MerQtVersion::description() const
     return QCoreApplication::translate("QtVersion", "Mer ", "Qt Version is meant for Mer");
 }
 
-bool MerQtVersion::supportsShadowBuilds() const
-{
-    return true;
-}
-
 QString MerQtVersion::platformName() const
 {
     return QLatin1String(Constants::MER_PLATFORM);

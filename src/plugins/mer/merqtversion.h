@@ -49,7 +49,6 @@ public:
 
     QString description() const;
 
-    bool supportsShadowBuilds() const;
     QString platformName() const;
     QString platformDisplayName() const;
 
