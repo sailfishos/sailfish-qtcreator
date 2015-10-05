@@ -281,17 +281,17 @@ void MerConnectionTestStep::run(QFutureInterface<bool> &fi)
     m_futureInterface = &fi;
 
     m_connection = new QSsh::SshConnection(d->sshParameters(), this);
-    connect(m_connection, SIGNAL(connected()),
-            this, SLOT(onConnected()));
-    connect(m_connection, SIGNAL(error(QSsh::SshError)),
-            this, SLOT(onConnectionFailure()));
+    connect(m_connection, &QSsh::SshConnection::connected,
+            this, &MerConnectionTestStep::onConnected);
+    connect(m_connection, &QSsh::SshConnection::error,
+            this, &MerConnectionTestStep::onConnectionFailure);
 
     emit addOutput(tr("%1: Testing connection to \"%2\"...")
             .arg(displayName()).arg(d->displayName()), MessageOutput);
 
     m_checkForCancelTimer = new QTimer(this);
-    connect(m_checkForCancelTimer, SIGNAL(timeout()),
-            this, SLOT(checkForCancel()));
+    connect(m_checkForCancelTimer, &QTimer::timeout,
+            this, &MerConnectionTestStep::checkForCancel);
     m_checkForCancelTimer->start(CONNECTION_TEST_CHECK_FOR_CANCEL_INTERVAL);
 
     m_connection->connectToHost();
@@ -392,14 +392,12 @@ bool MerPrepareTargetStep::init()
         return false;
     }
 
-    connect(m_impl, SIGNAL(addTask(ProjectExplorer::Task)),
-            this, SIGNAL(addTask(ProjectExplorer::Task)));
-    connect(m_impl,
-            SIGNAL(addOutput(QString,ProjectExplorer::BuildStep::OutputFormat,ProjectExplorer::BuildStep::OutputNewlineSetting)),
-            this,
-            SIGNAL(addOutput(QString,ProjectExplorer::BuildStep::OutputFormat,ProjectExplorer::BuildStep::OutputNewlineSetting)));
-    connect(m_impl, SIGNAL(finished()),
-            this, SLOT(onImplFinished()));
+    connect(m_impl, &ProjectExplorer::BuildStep::addTask,
+            this, &MerPrepareTargetStep::addTask);
+    connect(m_impl, &ProjectExplorer::BuildStep::addOutput,
+            this, &MerPrepareTargetStep::addOutput);
+    connect(m_impl, &ProjectExplorer::BuildStep::finished,
+            this, &MerPrepareTargetStep::onImplFinished);
 
     return true;
 }
@@ -711,7 +709,7 @@ void MerMb2RpmBuildStep::stdOutput(const QString &line)
 RpmInfo::RpmInfo(const QStringList& list):
     m_list(list)
 {
-    QTimer::singleShot(0,this,SLOT(info()));
+    QTimer::singleShot(0, this, &RpmInfo::info);
 }
 
 void RpmInfo::info()
@@ -819,8 +817,8 @@ MerDeployStepWidget::MerDeployStepWidget(MerProcessStep *step)
 {
     m_ui.setupUi(this);
     m_ui.commandArgumentsLineEdit->setText(m_step->arguments());
-    connect(m_ui.commandArgumentsLineEdit, SIGNAL(textEdited(QString)),
-            this, SLOT(commandArgumentsLineEditTextEdited()));
+    connect(m_ui.commandArgumentsLineEdit, &QLineEdit::textEdited,
+            this, &MerDeployStepWidget::commandArgumentsLineEditTextEdited);
 }
 
 QString MerDeployStepWidget::summaryText() const

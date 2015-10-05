@@ -139,7 +139,8 @@ ExtensionSystem::IPlugin::ShutdownFlag MerPlugin::aboutToShutdown()
                     QMessageBox::Yes | QMessageBox::No,
                     Core::ICore::mainWindow());
             prompt->setProperty(VM_NAME_PROPERTY, connection->virtualMachine());
-            connect(prompt, SIGNAL(finished(int)), this, SLOT(handlePromptClosed(int)));
+            connect(prompt, &QMessageBox::finished,
+                    this, &MerPlugin::handlePromptClosed);
             m_stopList.insert(connection->virtualMachine(), connection);
             prompt->open();
         }
@@ -159,8 +160,10 @@ void MerPlugin::handlePromptClosed(int result)
 
     if (result == QMessageBox::Yes) {
         MerConnection *connection = m_stopList.value(vm);
-        connect(connection, SIGNAL(stateChanged()), this, SLOT(handleConnectionStateChanged()));
-        connect(connection, SIGNAL(lockDownFailed()), this, SLOT(handleLockDownFailed()));
+        connect(connection, &MerConnection::stateChanged,
+                this, &MerPlugin::handleConnectionStateChanged);
+        connect(connection, &MerConnection::lockDownFailed,
+                this, &MerPlugin::handleLockDownFailed);
         connection->lockDown(true);
     } else {
         m_stopList.remove(vm);

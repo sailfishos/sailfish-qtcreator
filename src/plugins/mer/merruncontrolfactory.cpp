@@ -121,6 +121,7 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, Core::Id m
             return 0;
         LinuxDeviceDebugSupport * const debugSupport =
                 new LinuxDeviceDebugSupport(rc, runControl);
+        // TODO: handleDebuggingFinished is private
         connect(runControl, SIGNAL(finished()), debugSupport, SLOT(handleDebuggingFinished()));
         return runControl;
     } else if (mode == ProjectExplorer::Constants::QML_PROFILER_RUN_MODE) {
@@ -128,6 +129,7 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, Core::Id m
         Analyzer::AnalyzerRunControl * const runControl = Analyzer::AnalyzerManager::createRunControl(params, runConfig);
         RemoteLinuxAnalyzeSupport * const analyzeSupport =
                 new RemoteLinuxAnalyzeSupport(rc, runControl, mode);
+        // TODO: handleProfilingFinished is private
         connect(runControl, SIGNAL(finished()), analyzeSupport, SLOT(handleProfilingFinished()));
         return runControl;
     } else {

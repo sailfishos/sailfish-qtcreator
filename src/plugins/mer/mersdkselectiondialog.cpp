@@ -49,14 +49,16 @@ MerSdkSelectionDialog::MerSdkSelectionDialog(QWidget *parent)
 
     m_ui->buttonBox->button(QDialogButtonBox::Ok)->setText(tr("Add"));
 
-    connect(m_ui->virtualMachineListWidget, SIGNAL(itemSelectionChanged()),
-            SLOT(handleItemSelectionChanged()));
-    connect(m_ui->virtualMachineListWidget, SIGNAL(itemDoubleClicked(QListWidgetItem*)),
-            SLOT(handleItemDoubleClicked()));
+    connect(m_ui->virtualMachineListWidget, &QListWidget::itemSelectionChanged,
+            this, &MerSdkSelectionDialog::handleItemSelectionChanged);
+    connect(m_ui->virtualMachineListWidget, &QListWidget::itemDoubleClicked,
+            this, &MerSdkSelectionDialog::handleItemDoubleClicked);
     handleItemSelectionChanged();
 
-    connect(m_ui->buttonBox, SIGNAL(accepted()), SLOT(accept()));
-    connect(m_ui->buttonBox, SIGNAL(rejected()), SLOT(reject()));
+    connect(m_ui->buttonBox, &QDialogButtonBox::accepted,
+            this, &MerSdkSelectionDialog::accept);
+    connect(m_ui->buttonBox, &QDialogButtonBox::rejected,
+            this, &MerSdkSelectionDialog::reject);
 }
 
 MerSdkSelectionDialog::~MerSdkSelectionDialog()

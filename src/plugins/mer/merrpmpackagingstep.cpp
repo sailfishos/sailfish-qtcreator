@@ -127,10 +127,10 @@ void MerRpmPackagingStep::  run(QFutureInterface<bool> &fi)
     setPackagingStarted();
     // TODO: Make the build process asynchronous; i.e. no waitFor()-functions etc.
     QProcess * const buildProc = new QProcess;
-    connect(buildProc, SIGNAL(readyReadStandardOutput()), this,
-        SLOT(handleBuildOutput()));
-    connect(buildProc, SIGNAL(readyReadStandardError()), this,
-        SLOT(handleBuildOutput()));
+    connect(buildProc, &QProcess::readyReadStandardOutput,
+            this, &MerRpmPackagingStep::handleBuildOutput);
+    connect(buildProc, &QProcess::readyReadStandardError,
+            this, &MerRpmPackagingStep::handleBuildOutput);
 
     const bool success = prepareBuildDir() && createSpecFile() && createPackage(buildProc, fi);
 

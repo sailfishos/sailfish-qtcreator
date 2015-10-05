@@ -112,9 +112,12 @@ MerTargetKitInformationWidget::MerTargetKitInformationWidget(ProjectExplorer::Ki
       m_manageButton(new QPushButton(tr("Manage...")))
 {
     refresh();
-    connect(m_combo, SIGNAL(currentIndexChanged(int)), this, SLOT(handleCurrentIndexChanged()));
-    connect(m_manageButton, SIGNAL(clicked()), this, SLOT(handleManageClicked()));
-    connect(MerSdkManager::instance(), SIGNAL(sdksUpdated()), this, SLOT(handleSdksUpdated()));
+    connect(m_combo, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+            this, &MerTargetKitInformationWidget::handleCurrentIndexChanged);
+    connect(m_manageButton, &QPushButton::clicked,
+            this, &MerTargetKitInformationWidget::handleManageClicked);
+    connect(MerSdkManager::instance(), &MerSdkManager::sdksUpdated,
+            this, &MerTargetKitInformationWidget::handleSdksUpdated);
 }
 
 QString MerTargetKitInformationWidget::displayName() const

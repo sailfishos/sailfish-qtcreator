@@ -49,10 +49,14 @@ MerEmulatorDeviceWidget::MerEmulatorDeviceWidget(
     m_ui(new Ui::MerEmulatorDeviceWidget)
 {
     m_ui->setupUi(this);
-    connect(m_ui->userLineEdit, SIGNAL(editingFinished()), SLOT(userNameEditingFinished()));
-    connect(m_ui->timeoutSpinBox, SIGNAL(editingFinished()), SLOT(timeoutEditingFinished()));
-    connect(m_ui->timeoutSpinBox, SIGNAL(valueChanged(int)), SLOT(timeoutEditingFinished()));
-    connect(m_ui->portsLineEdit, SIGNAL(editingFinished()), SLOT(handleFreePortsChanged()));
+    connect(m_ui->userLineEdit, &QLineEdit::editingFinished,
+            this, &MerEmulatorDeviceWidget::userNameEditingFinished);
+    connect(m_ui->timeoutSpinBox, &QSpinBox::editingFinished,
+            this, &MerEmulatorDeviceWidget::timeoutEditingFinished);
+    connect(m_ui->timeoutSpinBox, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+            this, &MerEmulatorDeviceWidget::timeoutEditingFinished);
+    connect(m_ui->portsLineEdit, &QLineEdit::editingFinished,
+            this, &MerEmulatorDeviceWidget::handleFreePortsChanged);
     initGui();
 }
 

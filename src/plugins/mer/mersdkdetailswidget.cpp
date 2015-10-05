@@ -44,14 +44,22 @@ MerSdkDetailsWidget::MerSdkDetailsWidget(QWidget *parent)
 {
     m_ui->setupUi(this);
 
-    connect(m_ui->authorizeSshKeyPushButton, SIGNAL(clicked()), SLOT(onAuthorizeSshKeyButtonClicked()));
-    connect(m_ui->generateSshKeyPushButton, SIGNAL(clicked()), SLOT(onGenerateSshKeyButtonClicked()));
-    connect(m_ui->privateKeyPathChooser, SIGNAL(editingFinished()), SLOT(onPathChooserEditingFinished()));
-    connect(m_ui->privateKeyPathChooser, SIGNAL(browsingFinished()), SLOT(onPathChooserEditingFinished()));
-    connect(m_ui->testConnectionPushButton, SIGNAL(clicked()), SIGNAL(testConnectionButtonClicked()));
-    connect(m_ui->sshTimeoutSpinBox, SIGNAL(valueChanged(int)), SIGNAL(sshTimeoutChanged(int)));
-    connect(m_ui->headlessCheckBox, SIGNAL(toggled(bool)), SIGNAL(headlessCheckBoxToggled(bool)));
-    connect(m_ui->srcFolderApplyButton, SIGNAL(clicked()), SLOT(onSrcFolderApplyButtonClicked()));
+    connect(m_ui->authorizeSshKeyPushButton, &QPushButton::clicked,
+            this, &MerSdkDetailsWidget::onAuthorizeSshKeyButtonClicked);
+    connect(m_ui->generateSshKeyPushButton, &QPushButton::clicked,
+            this, &MerSdkDetailsWidget::onGenerateSshKeyButtonClicked);
+    connect(m_ui->privateKeyPathChooser, &Utils::PathChooser::editingFinished,
+            this, &MerSdkDetailsWidget::onPathChooserEditingFinished);
+    connect(m_ui->privateKeyPathChooser, &Utils::PathChooser::browsingFinished,
+            this, &MerSdkDetailsWidget::onPathChooserEditingFinished);
+    connect(m_ui->testConnectionPushButton, &QPushButton::clicked,
+            this, &MerSdkDetailsWidget::testConnectionButtonClicked);
+    connect(m_ui->sshTimeoutSpinBox, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+            this, &MerSdkDetailsWidget::sshTimeoutChanged);
+    connect(m_ui->headlessCheckBox, &QCheckBox::toggled,
+            this, &MerSdkDetailsWidget::headlessCheckBoxToggled);
+    connect(m_ui->srcFolderApplyButton, &QPushButton::clicked,
+            this, &MerSdkDetailsWidget::onSrcFolderApplyButtonClicked);
 
     m_ui->privateKeyPathChooser->setExpectedKind(Utils::PathChooser::File);
     m_ui->privateKeyPathChooser->setPromptDialogTitle(tr("Select SSH Key"));

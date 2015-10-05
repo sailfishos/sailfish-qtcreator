@@ -87,10 +87,14 @@ MerSdkManager::MerSdkManager()
       m_writer(0),
       m_reinstall(false)
 {
-    connect(Core::ICore::instance(), SIGNAL(saveSettingsRequested()), SLOT(storeSdks()));
-    connect(KitManager::instance(), SIGNAL(kitsLoaded()), SLOT(initialize()));
-    connect(DeviceManager::instance(), SIGNAL(devicesLoaded()), SLOT(updateDevices()));
-    connect(DeviceManager::instance(), SIGNAL(updated()), SLOT(updateDevices()));
+    connect(Core::ICore::instance(), &Core::ICore::saveSettingsRequested,
+            this, &MerSdkManager::storeSdks);
+    connect(KitManager::instance(), &KitManager::kitsLoaded,
+            this, &MerSdkManager::initialize);
+    connect(DeviceManager::instance(), &DeviceManager::devicesLoaded,
+            this, &MerSdkManager::updateDevices);
+    connect(DeviceManager::instance(), &DeviceManager::updated,
+            this, &MerSdkManager::updateDevices);
     m_writer = new Utils::PersistentSettingsWriter(settingsFileName(), QLatin1String("MerSDKs"));
     m_instance = this;
     ProjectExplorer::KitManager::registerKitInformation(new MerSdkKitInformation);
@@ -449,9 +453,12 @@ void MerSdkManager::addSdk(MerSdk *sdk)
     if (m_sdks.contains(sdk->virtualMachineName()))
         return;
     m_sdks.insert(sdk->virtualMachineName(), sdk);
-    connect(sdk, SIGNAL(targetsChanged(QStringList)), this, SIGNAL(sdksUpdated()));
-    connect(sdk, SIGNAL(privateKeyChanged(QString)), this, SIGNAL(sdksUpdated()));
-    connect(sdk, SIGNAL(headlessChanged(bool)), this, SIGNAL(sdksUpdated()));
+    connect(sdk, &MerSdk::targetsChanged,
+            this, &MerSdkManager::sdksUpdated);
+    connect(sdk, &MerSdk::privateKeyChanged,
+            this, &MerSdkManager::sdksUpdated);
+    connect(sdk, &MerSdk::headlessChanged,
+            this, &MerSdkManager::sdksUpdated);
     sdk->attach();
     emit sdksUpdated();
 }
@@ -462,8 +469,10 @@ void MerSdkManager::removeSdk(MerSdk *sdk)
     if (!m_sdks.contains(sdk->virtualMachineName()))
         return;
     m_sdks.remove(sdk->virtualMachineName());
-    disconnect(sdk, SIGNAL(targetsChanged(QStringList)), this, SIGNAL(sdksUpdated()));
-    disconnect(sdk, SIGNAL(privateKeyChanged(QString)), this, SIGNAL(sdksUpdated()));
+    disconnect(sdk, &MerSdk::targetsChanged,
+               this, &MerSdkManager::sdksUpdated);
+    disconnect(sdk, &MerSdk::privateKeyChanged,
+               this, &MerSdkManager::sdksUpdated);
     sdk->detach();
     emit sdksUpdated();
 }
@@ -750,7 +759,7 @@ void MerPlugin::testMerSdkManager()
     QVERIFY2(QFile::remove(targetFile), "Could not remove target.xml");
     QVERIFY2(QFile::copy(runFile, targetFile), "Could not copy run.xml to target.xml");
 
-    QSignalSpy spy(sdk, SIGNAL(targetsChanged(QStringList)));
+    QSignalSpy spy(sdk, &MerSdk::targetsChanged);
     int i = 0;
     while (spy.count() == 0 && i++ < 50)
         QTest::qWait(200);

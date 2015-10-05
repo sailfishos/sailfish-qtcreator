@@ -123,7 +123,8 @@ void MerConnectionAction::initialize()
     m_action->setText(m_name);
     m_action->setIcon(m_iconOff);
     m_action->setToolTip(m_startTip);
-    connect(m_action, SIGNAL(triggered()), this, SLOT(handleTriggered()));
+    connect(m_action, &QAction::triggered,
+            this, &MerConnectionAction::handleTriggered);
 
     Core::Command *command =
             Core::ActionManager::registerAction(m_action, m_id,
@@ -147,8 +148,10 @@ void MerConnectionAction::setConnection(MerConnection *connection)
 
     m_connection = connection;
 
-    if (m_connection)
-        connect(m_connection, SIGNAL(stateChanged()), this, SLOT(update()));
+    if (m_connection) {
+        connect(m_connection, &MerConnection::stateChanged,
+                this, &MerConnectionAction::update);
+    }
 
     update();
 }
@@ -257,13 +260,14 @@ MerConnectionManager::MerConnectionManager():
     m_sdkAction->setStartingTip(tr("Starting SDK"));
     m_sdkAction->initialize();
 
-    connect(KitManager::instance(), SIGNAL(kitUpdated(ProjectExplorer::Kit*)),
-            SLOT(handleKitUpdated(ProjectExplorer::Kit*)));
-
-    connect(SessionManager::instance(), SIGNAL(startupProjectChanged(ProjectExplorer::Project*)),
-            SLOT(handleStartupProjectChanged(ProjectExplorer::Project*)));
-    connect(MerSdkManager::instance(), SIGNAL(sdksUpdated()), this, SLOT(update()));
-    connect(DeviceManager::instance(), SIGNAL(updated()), SLOT(update()));
+    connect(KitManager::instance(), &KitManager::kitUpdated,
+            this, &MerConnectionManager::handleKitUpdated);
+    connect(SessionManager::instance(), &SessionManager::startupProjectChanged,
+            this, &MerConnectionManager::handleStartupProjectChanged);
+    connect(MerSdkManager::instance(), &MerSdkManager::sdksUpdated,
+            this, &MerConnectionManager::update);
+    connect(DeviceManager::instance(), &DeviceManager::updated,
+            this, &MerConnectionManager::update);
 
     m_instance = this;
 }
@@ -288,23 +292,23 @@ void MerConnectionManager::handleKitUpdated(Kit *kit)
 void MerConnectionManager::handleStartupProjectChanged(ProjectExplorer::Project *project)
 {
     if (m_project) {
-        disconnect(m_project, SIGNAL(addedTarget(ProjectExplorer::Target*)),
-                   this, SLOT(handleTargetAdded(ProjectExplorer::Target*)));
-        disconnect(m_project, SIGNAL(removedTarget(ProjectExplorer::Target*)),
-                   this, SLOT(handleTargetRemoved(ProjectExplorer::Target*)));
-        disconnect(m_project, SIGNAL(activeTargetChanged(ProjectExplorer::Target*)),
-                   this, SLOT(update()));
+        disconnect(m_project, &ProjectExplorer::Project::addedTarget,
+                   this, &MerConnectionManager::handleTargetAdded);
+        disconnect(m_project, &ProjectExplorer::Project::removedTarget,
+                   this, &MerConnectionManager::handleTargetRemoved);
+        disconnect(m_project, &ProjectExplorer::Project::activeTargetChanged,
+                   this, &MerConnectionManager::update);
     }
 
     m_project = project;
 
     if (m_project) {
-        connect(m_project, SIGNAL(addedTarget(ProjectExplorer::Target*)),
-                SLOT(handleTargetAdded(ProjectExplorer::Target*)));
-        connect(m_project, SIGNAL(removedTarget(ProjectExplorer::Target*)),
-                SLOT(handleTargetRemoved(ProjectExplorer::Target*)));
-        connect(m_project, SIGNAL(activeTargetChanged(ProjectExplorer::Target*)),
-                SLOT(update()));
+        connect(m_project, &ProjectExplorer::Project::addedTarget,
+                this, &MerConnectionManager::handleTargetAdded);
+        connect(m_project, &ProjectExplorer::Project::removedTarget,
+                this, &MerConnectionManager::handleTargetRemoved);
+        connect(m_project, &ProjectExplorer::Project::activeTargetChanged,
+                this, &MerConnectionManager::update);
     }
 
     update();
@@ -373,9 +377,9 @@ QString MerConnectionManager::testConnection(const QSsh::SshConnectionParameters
     QSsh::SshConnectionParameters p = params;
     QSsh::SshConnection connection(p);
     QEventLoop loop;
-    connect(&connection, SIGNAL(connected()), &loop, SLOT(quit()));
-    connect(&connection, SIGNAL(error(QSsh::SshError)), &loop, SLOT(quit()));
-    connect(&connection, SIGNAL(disconnected()), &loop, SLOT(quit()));
+    connect(&connection, &QSsh::SshConnection::connected, &loop, &QEventLoop::quit);
+    connect(&connection, &QSsh::SshConnection::error, &loop, &QEventLoop::quit);
+    connect(&connection, &QSsh::SshConnection::disconnected, &loop, &QEventLoop::quit);
     connection.connectToHost();
     loop.exec();
     if (ok != 0)

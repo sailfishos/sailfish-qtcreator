@@ -77,15 +77,18 @@ MerManagementWebViewSdksModel::MerManagementWebViewSdksModel(QObject *parent)
     , m_activeSdk(0)
 {
     m_endResetTimer->setSingleShot(true);
-    connect(m_endResetTimer, SIGNAL(timeout()), this, SLOT(endReset()));
+    connect(m_endResetTimer, &QTimer::timeout,
+            this, &MerManagementWebViewSdksModel::endReset);
 
-    connect(MerSdkManager::instance(), SIGNAL(initialized()), this, SLOT(onSdksUpdated()));
-    connect(MerSdkManager::instance(), SIGNAL(sdksUpdated()), this, SLOT(onSdksUpdated()));
+    connect(MerSdkManager::instance(), &MerSdkManager::initialized,
+            this, &MerManagementWebViewSdksModel::onSdksUpdated);
+    connect(MerSdkManager::instance(), &MerSdkManager::sdksUpdated,
+            this, &MerManagementWebViewSdksModel::onSdksUpdated);
 
     connect(ProjectExplorer::SessionManager::instance(),
-            SIGNAL(startupProjectChanged(ProjectExplorer::Project*)),
+            &ProjectExplorer::SessionManager::startupProjectChanged,
             this,
-            SLOT(onStartupProjectChanged(ProjectExplorer::Project*)));
+            &MerManagementWebViewSdksModel::onStartupProjectChanged);
 }
 
 MerSdk *MerManagementWebViewSdksModel::sdkAt(int row) const
@@ -145,15 +148,15 @@ QVariant MerManagementWebViewSdksModel::data(const QModelIndex &index, int role)
 void MerManagementWebViewSdksModel::onStartupProjectChanged(ProjectExplorer::Project *project)
 {
     if (m_startupProject) {
-        disconnect(m_startupProject, SIGNAL(activeTargetChanged(ProjectExplorer::Target*)),
-                this, SLOT(onActiveTargetChanged(ProjectExplorer::Target*)));
+        disconnect(m_startupProject, &ProjectExplorer::Project::activeTargetChanged,
+                this, &MerManagementWebViewSdksModel::onActiveTargetChanged);
     }
 
     m_startupProject = project;
 
     if (m_startupProject) {
-        connect(m_startupProject, SIGNAL(activeTargetChanged(ProjectExplorer::Target*)),
-                this, SLOT(onActiveTargetChanged(ProjectExplorer::Target*)));
+        connect(m_startupProject, &ProjectExplorer::Project::activeTargetChanged,
+                this, &MerManagementWebViewSdksModel::onActiveTargetChanged);
         onActiveTargetChanged(m_startupProject->activeTarget());
     } else {
         onActiveTargetChanged(0);
@@ -213,11 +216,15 @@ MerManagementWebView::MerManagementWebView(QWidget *parent)
 {
     ui->setupUi(this);
     ui->sdksComboBox->setModel(m_sdksModel);
-    connect(m_sdksModel, SIGNAL(modelReset()), this, SLOT(selectActiveSdkVm()));
-    connect(m_sdksModel, SIGNAL(activeSdkIndexChanged(int)), this, SLOT(selectActiveSdkVm()));
+    connect(m_sdksModel, &MerManagementWebViewSdksModel::modelReset,
+            this, &MerManagementWebView::selectActiveSdkVm);
+    connect(m_sdksModel, &MerManagementWebViewSdksModel::activeSdkIndexChanged,
+            this, &MerManagementWebView::selectActiveSdkVm);
     selectActiveSdkVm();
-    connect(ui->webView->page(), SIGNAL(linkHovered(QString,QString,QString)), ui->statusBarLabel, SLOT(setText(QString)));
-    connect(ui->webView->page(), SIGNAL(loadFinished(bool)), SLOT(handleLoadFinished(bool)));
+    connect(ui->webView->page(), &QWebPage::linkHovered,
+            ui->statusBarLabel, &QLabel::setText);
+    connect(ui->webView->page(), &QWebPage::loadFinished,
+            this, &MerManagementWebView::handleLoadFinished);
 }
 
 MerManagementWebView::~MerManagementWebView()
@@ -230,8 +237,8 @@ void MerManagementWebView::resetWebView()
     QUrl url;
 
     if (m_selectedSdk) {
-        disconnect(m_selectedSdk->connection(), SIGNAL(virtualMachineOffChanged(bool)),
-                ui->webView, SLOT(reload()));
+        disconnect(m_selectedSdk->connection(), &MerConnection::virtualMachineOffChanged,
+                ui->webView, &QWebView::reload);
     }
 
     m_selectedSdk = m_sdksModel->sdkAt(ui->sdksComboBox->currentIndex());
@@ -239,8 +246,8 @@ void MerManagementWebView::resetWebView()
     if (m_selectedSdk) {
         url = QUrl(QLatin1String(CONTROLCENTER_URL_BASE));
         url.setPort(m_selectedSdk->wwwPort());
-        connect(m_selectedSdk->connection(), SIGNAL(virtualMachineOffChanged(bool)),
-                ui->webView, SLOT(reload()));
+        connect(m_selectedSdk->connection(), &MerConnection::virtualMachineOffChanged,
+                ui->webView, &QWebView::reload);
     } else {
         url = QLatin1String("about:blank");
     }
@@ -314,12 +321,12 @@ void MerManagementWebView::handleLoadFinished(bool success)
                 );
         m_loaded = false;
         if (m_autoFailReload && autoReloadHint)
-            QTimer::singleShot(5000,this,SLOT(reloadPage()));
+            QTimer::singleShot(5000, this, &MerManagementWebView::reloadPage);
     } else if (ui->webView->url() == QUrl(QLatin1String(START_VM_URL))) {
         if (m_selectedSdk) {
             m_selectedSdk->connection()->connectTo();
         }
-        QTimer::singleShot(5000, this, SLOT(reloadPage()));
+        QTimer::singleShot(5000, this, &MerManagementWebView::reloadPage);
     } else if (ui->webView->url().toString() != QLatin1String("about:blank")) {
         m_loaded = true;
     }

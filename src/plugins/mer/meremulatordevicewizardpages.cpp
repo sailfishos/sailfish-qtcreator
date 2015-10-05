@@ -75,8 +75,12 @@ MerEmualtorVMPage::MerEmualtorVMPage(QWidget *parent): QWizardPage(parent),
             }
         }
     }
-    connect(m_ui->emulatorComboBox,SIGNAL(currentIndexChanged(QString)),this,SLOT(handleEmulatorVmChanged(QString)));
-    connect(m_ui->configNameLineEdit, SIGNAL(textChanged(QString)), SIGNAL(completeChanged()));
+    connect(m_ui->emulatorComboBox,
+            static_cast<void (QComboBox::*)(const QString &)>(&QComboBox::currentIndexChanged),
+            this,
+            &MerEmualtorVMPage::handleEmulatorVmChanged);
+    connect(m_ui->configNameLineEdit, &QLineEdit::textChanged,
+            this, &MerEmualtorVMPage::completeChanged);
     handleEmulatorVmChanged(m_ui->emulatorComboBox->currentText());
 }
 

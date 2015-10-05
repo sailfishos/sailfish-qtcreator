@@ -45,7 +45,8 @@ namespace Internal {
 MerProjectListener::MerProjectListener(QObject *parent)
     : QObject(parent)
 {
-    connect(MerSdkManager::instance(), SIGNAL(initialized()), SLOT(init()));
+    connect(MerSdkManager::instance(), &MerSdkManager::initialized,
+            this, &MerProjectListener::init);
 }
 
 void MerProjectListener::init()
@@ -56,10 +57,10 @@ void MerProjectListener::init()
     foreach (Project *project, projects)
         onProjectAdded(project);
 
-    connect(SessionManager::instance(), SIGNAL(projectAdded(ProjectExplorer::Project*)),
-            SLOT(onProjectAdded(ProjectExplorer::Project*)));
-    connect(SessionManager::instance(), SIGNAL(projectRemoved(ProjectExplorer::Project*)),
-            SLOT(onProjectRemoved(ProjectExplorer::Project*)));
+    connect(SessionManager::instance(), &SessionManager::projectAdded,
+            this, &MerProjectListener::onProjectAdded);
+    connect(SessionManager::instance(), &SessionManager::projectRemoved,
+            this, &MerProjectListener::onProjectRemoved);
 }
 
 void MerProjectListener::onTargetAddedToProject(Target *target)
@@ -84,10 +85,10 @@ void MerProjectListener::onTargetRemovedFromProject(Target *target)
 
 void MerProjectListener::onProjectAdded(Project *project)
 {
-    connect(project, SIGNAL(addedTarget(ProjectExplorer::Target*)),
-            SLOT(onTargetAddedToProject(ProjectExplorer::Target*)));
-    connect(project, SIGNAL(removedTarget(ProjectExplorer::Target*)),
-            SLOT(onTargetRemovedFromProject(ProjectExplorer::Target*)));
+    connect(project, &Project::addedTarget,
+            this, &MerProjectListener::onTargetAddedToProject);
+    connect(project, &Project::removedTarget,
+            this, &MerProjectListener::onTargetRemovedFromProject);
 
     const QList<Kit *> merKits = MerSdkManager::instance()->merKits();
     foreach (Kit *kit, merKits) {

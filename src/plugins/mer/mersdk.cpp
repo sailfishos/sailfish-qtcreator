@@ -55,13 +55,15 @@ MerSdk::MerSdk(QObject *parent) : QObject(parent)
     params.timeout = 30;
     m_connection->setSshParameters(params);
 
-    connect(&m_watcher, SIGNAL(fileChanged(QString)), this, SLOT(handleTargetsFileChanged(QString)));
+    connect(&m_watcher, &QFileSystemWatcher::fileChanged,
+            this, &MerSdk::handleTargetsFileChanged);
 
     // Fired from handleTargetsFileChanged(), used to prevent removing and
     // re-adding all targets due to non atomic targets file change.
     m_updateTargetsTimer.setInterval(1000);
     m_updateTargetsTimer.setSingleShot(true);
-    connect(&m_updateTargetsTimer, SIGNAL(timeout()), this, SLOT(updateTargets()));
+    connect(&m_updateTargetsTimer, &QTimer::timeout,
+            this, &MerSdk::updateTargets);
 }
 
 MerSdk::~MerSdk()
@@ -266,7 +268,8 @@ void MerSdk::attach()
 // call the uninstall all the targets.
 void MerSdk::detach()
 {
-    disconnect(&m_watcher, SIGNAL(fileChanged(QString)), this, SLOT(handleTargetsFileChanged(QString)));
+    disconnect(&m_watcher, &QFileSystemWatcher::fileChanged,
+               this, &MerSdk::handleTargetsFileChanged);
     if (!m_watcher.files().isEmpty())
             m_watcher.removePaths(m_watcher.files());
     foreach (const MerTarget &target , m_targets) {

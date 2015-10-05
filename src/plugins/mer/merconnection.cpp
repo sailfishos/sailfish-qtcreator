@@ -85,9 +85,12 @@ public:
         m_processClosed = false;
         m_exitStatus = QSsh::SshRemoteProcess::FailedToStart;
         m_finished = false;
-        connect(m_runner, SIGNAL(processStarted()), this, SLOT(onProcessStarted()));
-        connect(m_runner, SIGNAL(processClosed(int)), this, SLOT(onProcessClosed(int)));
-        connect(m_runner, SIGNAL(connectionError()), this, SLOT(onConnectionError()));
+        connect(m_runner, &QSsh::SshRemoteProcessRunner::processStarted,
+                this, &MerConnectionRemoteShutdownProcess::onProcessStarted);
+        connect(m_runner, &QSsh::SshRemoteProcessRunner::processClosed,
+                this, &MerConnectionRemoteShutdownProcess::onProcessClosed);
+        connect(m_runner, &QSsh::SshRemoteProcessRunner::connectionError,
+                this, &MerConnectionRemoteShutdownProcess::onConnectionError);
         m_runner->run("sdk-shutdown", sshParams);
     }
 
@@ -322,8 +325,10 @@ bool MerConnection::lockDown(bool lockDown)
         }
 
         QEventLoop loop;
-        connect(this, SIGNAL(virtualMachineOffChanged(bool)), &loop, SLOT(quit()));
-        connect(this, SIGNAL(lockDownFailed()), &loop, SLOT(quit()));
+        connect(this, &MerConnection::virtualMachineOffChanged,
+                &loop, &QEventLoop::quit);
+        connect(this, &MerConnection::lockDownFailed,
+                &loop, &QEventLoop::quit);
         loop.exec();
 
         if (m_lockDownFailed) {
@@ -782,8 +787,8 @@ bool MerConnection::vmStmStep()
 
             if (m_connection && m_sshState != SshConnectingError) {
                 m_remoteShutdownProcess = new MerConnectionRemoteShutdownProcess(this);
-                connect(m_remoteShutdownProcess, SIGNAL(finished()),
-                        this, SLOT(onRemoteShutdownProcessFinished()));
+                connect(m_remoteShutdownProcess, &MerConnectionRemoteShutdownProcess::finished,
+                        this, &MerConnection::onRemoteShutdownProcessFinished);
                 m_remoteShutdownProcess->run(m_connection->connectionParameters());
             } else {
                 // see transition on !m_remoteShutdownProcess
@@ -1080,9 +1085,12 @@ void MerConnection::createConnection()
     QTC_CHECK(m_connection == 0);
 
     m_connection = new QSsh::SshConnection(m_params, this);
-    connect(m_connection, SIGNAL(connected()), this, SLOT(onSshConnected()));
-    connect(m_connection, SIGNAL(disconnected()), this, SLOT(onSshDisconnected()));
-    connect(m_connection, SIGNAL(error(QSsh::SshError)), this, SLOT(onSshError(QSsh::SshError)));
+    connect(m_connection, &QSsh::SshConnection::connected,
+            this, &MerConnection::onSshConnected);
+    connect(m_connection, &QSsh::SshConnection::disconnected,
+            this, &MerConnection::onSshDisconnected);
+    connect(m_connection, &QSsh::SshConnection::error,
+            this, &MerConnection::onSshError);
 }
 
 void MerConnection::vmWantFastPollState(bool want)
@@ -1181,8 +1189,8 @@ void MerConnection::openStartVmQuestionBox()
             QMessageBox::Yes | QMessageBox::No,
             Core::ICore::mainWindow());
     m_startVmQuestionBox->setEscapeButton(QMessageBox::No);
-    connect(m_startVmQuestionBox, SIGNAL(finished(int)),
-            this, SLOT(vmStmScheduleExec()));
+    connect(m_startVmQuestionBox, &QMessageBox::finished,
+            this, &MerConnection::vmStmScheduleExec);
     m_startVmQuestionBox->show();
     m_startVmQuestionBox->raise();
 }
@@ -1203,8 +1211,8 @@ void MerConnection::openResetVmQuestionBox()
                     "been started outside of Qt Creator."));
     }
     m_resetVmQuestionBox->setEscapeButton(QMessageBox::No);
-    connect(m_resetVmQuestionBox, SIGNAL(finished(int)),
-            this, SLOT(vmStmScheduleExec()));
+    connect(m_resetVmQuestionBox, &QMessageBox::finished,
+            this, &MerConnection::vmStmScheduleExec);
     m_resetVmQuestionBox->show();
     m_resetVmQuestionBox->raise();
 }
@@ -1223,8 +1231,8 @@ void MerConnection::openCloseVmQuestionBox()
                 "been started outside of Qt Creator. Answer \"No\" to "
                 "disconnect and leave the virtual machine running."));
     m_closeVmQuestionBox->setEscapeButton(QMessageBox::No);
-    connect(m_closeVmQuestionBox, SIGNAL(finished(int)),
-            this, SLOT(vmStmScheduleExec()));
+    connect(m_closeVmQuestionBox, &QMessageBox::finished,
+            this, &MerConnection::vmStmScheduleExec);
     m_closeVmQuestionBox->show();
     m_closeVmQuestionBox->raise();
 }
@@ -1262,8 +1270,8 @@ void MerConnection::openRetrySshConnectionQuestionBox()
             .arg(tr("Consider increasing SSH connection timeout in options."));
     }
     m_retrySshConnectionQuestionBox->setInformativeText(informativeText);
-    connect(m_retrySshConnectionQuestionBox, SIGNAL(finished(int)),
-            this, SLOT(sshStmScheduleExec()));
+    connect(m_retrySshConnectionQuestionBox, &QMessageBox::finished,
+            this, &MerConnection::sshStmScheduleExec);
     m_retrySshConnectionQuestionBox->show();
     m_retrySshConnectionQuestionBox->raise();
 }
@@ -1279,8 +1287,8 @@ void MerConnection::openRetryLockDownQuestionBox()
             .arg(m_vmName),
             QMessageBox::Yes | QMessageBox::No,
             Core::ICore::mainWindow());
-    connect(m_retryLockDownQuestionBox, SIGNAL(finished(int)),
-            this, SLOT(vmStmScheduleExec()));
+    connect(m_retryLockDownQuestionBox, &QMessageBox::finished,
+            this, &MerConnection::vmStmScheduleExec);
     m_retryLockDownQuestionBox->show();
     m_retryLockDownQuestionBox->raise();
 }
@@ -1294,7 +1302,7 @@ void MerConnection::deleteMessageBox(QPointer<QMessageBox> &messageBox)
         delete messageBox;
     } else {
         messageBox->setEnabled(false);
-        QTimer::singleShot(DISMISS_MESSAGE_BOX_DELAY, messageBox, SLOT(deleteLater()));
+        QTimer::singleShot(DISMISS_MESSAGE_BOX_DELAY, messageBox, &QObject::deleteLater);
         messageBox->disconnect(this);
         messageBox = 0;
     }

@@ -104,10 +104,12 @@ void MerAbstractVmStartStep::run(QFutureInterface<bool> &fi)
         m_futureInterface = &fi;
 
         m_checkForCancelTimer = new QTimer(this);
-        connect(m_checkForCancelTimer, SIGNAL(timeout()), this, SLOT(checkForCancel()));
+        connect(m_checkForCancelTimer, &QTimer::timeout,
+                this, &MerAbstractVmStartStep::checkForCancel);
         m_checkForCancelTimer->start(CHECK_FOR_CANCEL_INTERVAL);
 
-        connect(m_connection, SIGNAL(stateChanged()), this, SLOT(onStateChanged()));
+        connect(m_connection, &MerConnection::stateChanged,
+                this, &MerAbstractVmStartStep::onStateChanged);
         m_connection->connectTo(MerConnection::AskStartVm);
     }
 }

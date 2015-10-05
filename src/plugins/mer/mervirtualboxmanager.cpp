@@ -222,8 +222,10 @@ void MerVirtualBoxManager::startVirtualMachine(const QString &vmName,bool headle
     }
 
     QProcess *process = new QProcess(instance());
-    connect(process, SIGNAL(error(QProcess::ProcessError)), process, SLOT(deleteLater()));
-    connect(process, SIGNAL(finished(int,QProcess::ExitStatus)), process, SLOT(deleteLater()));
+    connect(process, static_cast<void (QProcess::*)(QProcess::ProcessError)>(&QProcess::error),
+            process, &QObject::deleteLater);
+    connect(process, static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(&QProcess::finished),
+            process, &QObject::deleteLater);
     process->start(vBoxManagePath(), arguments);
 }
 
@@ -238,8 +240,10 @@ void MerVirtualBoxManager::shutVirtualMachine(const QString &vmName)
     arguments.append(QLatin1String(ACPI_POWER_BUTTON));
 
     QProcess *process = new QProcess(instance());
-    connect(process, SIGNAL(error(QProcess::ProcessError)), process, SLOT(deleteLater()));
-    connect(process, SIGNAL(finished(int,QProcess::ExitStatus)), process, SLOT(deleteLater()));
+    connect(process, static_cast<void (QProcess::*)(QProcess::ProcessError)>(&QProcess::error),
+            process, &QProcess::deleteLater);
+    connect(process, static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(&QProcess::finished),
+            process, &QProcess::deleteLater);
     process->start(vBoxManagePath(), arguments);
 }
 

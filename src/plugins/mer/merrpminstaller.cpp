@@ -40,7 +40,8 @@ namespace Internal {
 MerRpmInstaller::MerRpmInstaller(QObject *parent)
     : AbstractRemoteLinuxPackageInstaller(parent)
 {
-    connect(this, SIGNAL(stderrData(QString)), SLOT(handleInstallerErrorOutput(QString)));
+    connect(this, &MerRpmInstaller::stderrData,
+            this, &MerRpmInstaller::handleInstallerErrorOutput);
 }
 
 void MerRpmInstaller::installPackage(const ProjectExplorer::IDevice::ConstPtr &deviceConfig, const QString &packageFilePath, bool removePackageFile)

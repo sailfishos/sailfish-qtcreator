@@ -83,7 +83,7 @@ public:
         setLabelText(title);
         m_sshDirectoryPath = m_sharedPath + QLatin1Char('/') + m_user+ QLatin1Char('/')
                  + QLatin1String(Constants::MER_AUTHORIZEDKEYS_FOLDER);
-        QTimer::singleShot(0, this, SLOT(updateState()));
+        QTimer::singleShot(0, this, &PublicKeyDeploymentDialog::updateState);
     }
 
 private slots:
@@ -96,7 +96,7 @@ private slots:
             setCancelButtonText(tr("Close"));
             setValue(0);
             show();
-            QTimer::singleShot(1, this, SLOT(updateState()));
+            QTimer::singleShot(1, this, &PublicKeyDeploymentDialog::updateState);
             break;
         case RemoveOldKeys:
             m_state = GenerateSsh;
@@ -109,7 +109,7 @@ private slots:
                 QFile(m_sshDirectoryPath).remove();
             }
             setValue(1);
-            QTimer::singleShot(0, this, SLOT(updateState()));
+            QTimer::singleShot(0, this, &PublicKeyDeploymentDialog::updateState);
             break;
         case GenerateSsh:
             m_state = Deploy;
@@ -122,7 +122,7 @@ private slots:
                 m_state = Error;
                 }
             }
-            QTimer::singleShot(0, this, SLOT(updateState()));
+            QTimer::singleShot(0, this, &PublicKeyDeploymentDialog::updateState);
             break;
         case Deploy: {
             m_state = Idle;
@@ -130,7 +130,7 @@ private slots:
             if(m_sharedPath.isEmpty()) {
                 m_state = Error;
                 m_error.append(tr("SharedPath for emulator not found for this device"));
-                QTimer::singleShot(0, this, SLOT(updateState()));
+                QTimer::singleShot(0, this, &PublicKeyDeploymentDialog::updateState);
                 return;
             }
 
@@ -141,7 +141,7 @@ private slots:
                 setLabelText(tr("Deployed"));
                 setCancelButtonText(tr("Close"));
             }
-            QTimer::singleShot(0, this, SLOT(updateState()));
+            QTimer::singleShot(0, this, &PublicKeyDeploymentDialog::updateState);
             break;
         }
         case Error:

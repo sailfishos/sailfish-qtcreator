@@ -55,18 +55,30 @@ MerOptionsWidget::MerOptionsWidget(QWidget *parent)
     , m_status(tr("Not connected."))
 {
     m_ui->setupUi(this);
-    connect(MerSdkManager::instance(), SIGNAL(sdksUpdated()), SLOT(onSdksUpdated()));
-    connect(m_ui->sdkDetailsWidget, SIGNAL(authorizeSshKey(QString)), SLOT(onAuthorizeSshKey(QString)));
-    connect(m_ui->sdkDetailsWidget, SIGNAL(generateSshKey(QString)), SLOT(onGenerateSshKey(QString)));
-    connect(m_ui->sdkDetailsWidget, SIGNAL(sshKeyChanged(QString)), SLOT(onSshKeyChanged(QString)));
-    connect(m_ui->sdkComboBox, SIGNAL(activated(QString)), SLOT(onSdkChanged(QString)));
-    connect(m_ui->addButton, SIGNAL(clicked()), SLOT(onAddButtonClicked()));
-    connect(m_ui->removeButton, SIGNAL(clicked()), SLOT(onRemoveButtonClicked()));
-    connect(m_ui->startVirtualMachineButton, SIGNAL(clicked()), SLOT(onStartVirtualMachineButtonClicked()));
-    connect(m_ui->sdkDetailsWidget, SIGNAL(testConnectionButtonClicked()), SLOT(onTestConnectionButtonClicked()));
-    connect(m_ui->sdkDetailsWidget, SIGNAL(sshTimeoutChanged(int)), SLOT(onSshTimeoutChanged(int)));
-    connect(m_ui->sdkDetailsWidget, SIGNAL(headlessCheckBoxToggled(bool)), SLOT(onHeadlessCheckBoxToggled(bool)));
-    connect(m_ui->sdkDetailsWidget, SIGNAL(srcFolderApplyButtonClicked(QString)), SLOT(onSrcFolderApplyButtonClicked(QString)));
+    connect(MerSdkManager::instance(), &MerSdkManager::sdksUpdated,
+            this, &MerOptionsWidget::onSdksUpdated);
+    connect(m_ui->sdkDetailsWidget, &MerSdkDetailsWidget::authorizeSshKey,
+            this, &MerOptionsWidget::onAuthorizeSshKey);
+    connect(m_ui->sdkDetailsWidget, &MerSdkDetailsWidget::generateSshKey,
+            this, &MerOptionsWidget::onGenerateSshKey);
+    connect(m_ui->sdkDetailsWidget, &MerSdkDetailsWidget::sshKeyChanged,
+            this, &MerOptionsWidget::onSshKeyChanged);
+    connect(m_ui->sdkComboBox, static_cast<void (QComboBox::*)(const QString &)>(&QComboBox::activated),
+            this, &MerOptionsWidget::onSdkChanged);
+    connect(m_ui->addButton, &QPushButton::clicked,
+            this, &MerOptionsWidget::onAddButtonClicked);
+    connect(m_ui->removeButton, &QPushButton::clicked,
+            this, &MerOptionsWidget::onRemoveButtonClicked);
+    connect(m_ui->startVirtualMachineButton, &QPushButton::clicked,
+            this, &MerOptionsWidget::onStartVirtualMachineButtonClicked);
+    connect(m_ui->sdkDetailsWidget, &MerSdkDetailsWidget::testConnectionButtonClicked,
+            this, &MerOptionsWidget::onTestConnectionButtonClicked);
+    connect(m_ui->sdkDetailsWidget, &MerSdkDetailsWidget::sshTimeoutChanged,
+            this, &MerOptionsWidget::onSshTimeoutChanged);
+    connect(m_ui->sdkDetailsWidget, &MerSdkDetailsWidget::headlessCheckBoxToggled,
+            this, &MerOptionsWidget::onHeadlessCheckBoxToggled);
+    connect(m_ui->sdkDetailsWidget, &MerSdkDetailsWidget::srcFolderApplyButtonClicked,
+            this, &MerOptionsWidget::onSrcFolderApplyButtonClicked);
     onSdksUpdated();
 }
 

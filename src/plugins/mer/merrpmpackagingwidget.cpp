@@ -56,7 +56,7 @@ MerRpmPackagingWidget::MerRpmPackagingWidget(MerRpmPackagingStep *step)
 {
     m_ui->setupUi(this);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    QTimer::singleShot(0, this, SLOT(initGui()));
+    QTimer::singleShot(0, this, &MerRpmPackagingWidget::initGui);
 }
 
 MerRpmPackagingWidget::~MerRpmPackagingWidget()

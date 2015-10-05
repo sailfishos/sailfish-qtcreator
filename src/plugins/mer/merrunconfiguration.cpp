@@ -52,7 +52,8 @@ MerRunConfiguration::MerRunConfiguration(ProjectExplorer::Target *parent,
 
 void MerRunConfiguration::ctor()
 {
-    connect(target(),SIGNAL(activeDeployConfigurationChanged(ProjectExplorer::DeployConfiguration*)),this,SIGNAL(enabledChanged()));
+    connect(target(), &ProjectExplorer::Target::activeDeployConfigurationChanged,
+            this, &MerRunConfiguration::enabledChanged);
 }
 
 QString MerRunConfiguration::disabledReason() const

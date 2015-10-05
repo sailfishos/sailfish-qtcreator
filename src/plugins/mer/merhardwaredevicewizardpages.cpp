@@ -64,10 +64,14 @@ MerHardwareDeviceWizardSelectionPage::MerHardwareDeviceWizardSelectionPage(QWidg
 
     m_ui->connectionLabelEdit->setText(tr("Not connected"));
 
-    connect(m_ui->hostNameLineEdit, SIGNAL(textChanged(QString)), SIGNAL(completeChanged()));
-    connect(m_ui->usernameLineEdit, SIGNAL(textChanged(QString)), SIGNAL(completeChanged()));
-    connect(m_ui->passwordLineEdit, SIGNAL(textChanged(QString)), SIGNAL(completeChanged()));
-    connect(m_ui->testButton, SIGNAL(clicked()), SLOT(handleTestConnectionClicked()));
+    connect(m_ui->hostNameLineEdit, &QLineEdit::textChanged,
+            this, &MerHardwareDeviceWizardSelectionPage::completeChanged);
+    connect(m_ui->usernameLineEdit, &QLineEdit::textChanged,
+            this, &MerHardwareDeviceWizardSelectionPage::completeChanged);
+    connect(m_ui->passwordLineEdit, &QLineEdit::textChanged,
+            this, &MerHardwareDeviceWizardSelectionPage::completeChanged);
+    connect(m_ui->testButton, &QPushButton::clicked,
+            this, &MerHardwareDeviceWizardSelectionPage::handleTestConnectionClicked);
 }
 
 bool MerHardwareDeviceWizardSelectionPage::isComplete() const
@@ -159,8 +163,10 @@ ProjectExplorer::Abi::Architecture MerHardwareDeviceWizardSelectionPage::detectA
 
     QSsh::SshRemoteProcessRunner runner;
     QEventLoop loop;
-    connect(&runner, SIGNAL(connectionError()), &loop, SLOT(quit()));
-    connect(&runner, SIGNAL(processClosed(int)), &loop, SLOT(quit()));
+    connect(&runner, &QSsh::SshRemoteProcessRunner::connectionError,
+            &loop, &QEventLoop::quit);
+    connect(&runner, &QSsh::SshRemoteProcessRunner::processClosed,
+            &loop, &QEventLoop::quit);
     runner.run("uname --machine", sshParams);
     loop.exec();
 
@@ -202,8 +208,10 @@ QString MerHardwareDeviceWizardSelectionPage::detectDeviceName(
 
     QSsh::SshRemoteProcessRunner runner;
     QEventLoop loop;
-    connect(&runner, SIGNAL(connectionError()), &loop, SLOT(quit()));
-    connect(&runner, SIGNAL(processClosed(int)), &loop, SLOT(quit()));
+    connect(&runner, &QSsh::SshRemoteProcessRunner::connectionError,
+            &loop, &QEventLoop::quit);
+    connect(&runner, &QSsh::SshRemoteProcessRunner::processClosed,
+            &loop, &QEventLoop::quit);
     runner.run("cat /etc/hw-release", sshParams);
     loop.exec();
 
@@ -259,8 +267,12 @@ MerHardwareDeviceWizardSetupPage::MerHardwareDeviceWizardSetupPage(QWidget *pare
         }
     }
 
-    connect(m_ui->configLineEdit, SIGNAL(textChanged(QString)), SIGNAL(completeChanged()));
-    connect(m_ui->merSdkComboBox,SIGNAL(currentIndexChanged(QString)),this,SLOT(handleSdkVmChanged(QString)));
+    connect(m_ui->configLineEdit, &QLineEdit::textChanged,
+            this, &MerHardwareDeviceWizardSetupPage::completeChanged);
+    connect(m_ui->merSdkComboBox,
+            static_cast<void (QComboBox::*)(const QString &)>(&QComboBox::currentIndexChanged),
+            this,
+            &MerHardwareDeviceWizardSetupPage::handleSdkVmChanged);
 }
 
 void MerHardwareDeviceWizardSetupPage::initializePage()
