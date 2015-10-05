@@ -29,9 +29,9 @@ class DeployCommand : public Command
 {
 public:
     DeployCommand();
-    QString name() const;
-    int execute();
-    bool isValid() const;
+    QString name() const override;
+    int execute() override;
+    bool isValid() const override;
 };
 
 #endif // DEPLOYCOMMAND_H

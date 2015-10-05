@@ -83,7 +83,7 @@ public:
         Q_ASSERT(command);
         QTimer::singleShot(0, this, &CommandInvoker::execute);
     }
-    ~CommandInvoker(){}
+    ~CommandInvoker() override {}
 private slots:
     void execute(){
         QCoreApplication::exit(m_command->execute());

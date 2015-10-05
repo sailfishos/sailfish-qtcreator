@@ -29,9 +29,9 @@ class MakeCommand : public Command
 {
 public:
     MakeCommand();
-    QString name() const;
-    int execute();
-    bool isValid() const;
+    QString name() const override;
+    int execute() override;
+    bool isValid() const override;
 };
 
 #endif // MAKECOMMAND_H
