@@ -37,10 +37,14 @@ MerRemoteProcess::MerRemoteProcess(QObject *parent)
     , m_cache(false)
     , m_interactive(true)
 {
-    connect(this, SIGNAL(processStarted()), SLOT(onProcessStarted()));
-    connect(this, SIGNAL(readyReadStandardOutput()), SLOT(onStandardOutput()));
-    connect(this, SIGNAL(readyReadStandardError()), SLOT(onStandardError()));
-    connect(this, SIGNAL(connectionError()), SLOT(onConnectionError()));
+    connect(this, &MerRemoteProcess::processStarted,
+            this, &MerRemoteProcess::onProcessStarted);
+    connect(this, &MerRemoteProcess::readyReadStandardOutput,
+            this, &MerRemoteProcess::onStandardOutput);
+    connect(this, &MerRemoteProcess::readyReadStandardError,
+            this, &MerRemoteProcess::onStandardError);
+    connect(this, &MerRemoteProcess::connectionError,
+            this, &MerRemoteProcess::onConnectionError);
 }
 
 MerRemoteProcess::~MerRemoteProcess()
@@ -66,8 +70,10 @@ void MerRemoteProcess::setIntercative(bool enabled)
 int MerRemoteProcess::executeAndWait()
 {
     QEventLoop loop;
-    QObject::connect(this, SIGNAL(connectionError()), &loop, SLOT(quit()));
-    QObject::connect(this, SIGNAL(processClosed(int)), &loop, SLOT(quit()));
+    connect(this, &MerRemoteProcess::connectionError,
+            &loop, &QEventLoop::quit);
+    connect(this, &MerRemoteProcess::processClosed,
+            &loop, &QEventLoop::quit);
     QSsh::SshRemoteProcessRunner::run(m_command.toUtf8(), m_sshConnectionParams);
     loop.exec();
     if(processExitStatus() == QSsh::SshRemoteProcess::NormalExit)
@@ -85,7 +91,8 @@ void MerRemoteProcess::onProcessStarted()
             return;
         }
         QSocketNotifier * const notifier = new QSocketNotifier(0, QSocketNotifier::Read, this);
-        connect(notifier, SIGNAL(activated(int)), SLOT(handleStdin()));
+        connect(notifier, &QSocketNotifier::activated,
+                this, &MerRemoteProcess::handleStdin);
     }
 }
 
