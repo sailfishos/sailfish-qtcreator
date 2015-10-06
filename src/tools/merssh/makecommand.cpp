@@ -41,14 +41,15 @@ QString MakeCommand::name() const
 
 int MakeCommand::execute()
 {
-    const QString projectPathParameter = projectPath().isEmpty() ? QString() : QLatin1String(" -p ") +
-    QLatin1String("'") + projectPath() +   QLatin1String("'");
+    const QString projectPathParameter = projectPath().isEmpty()
+        ? QString()
+        : QLatin1String(" -p ") + QLatin1Char('\'') + projectPath() +   QLatin1Char('\'');
 
     QString command = QLatin1String("mb2") +
                       projectPathParameter +
                       QLatin1String(" -t ") +
                       targetName() +
-                      QLatin1Char(' ') + arguments().join(QLatin1String(" ")) + QLatin1Char(' ');
+                      QLatin1Char(' ') + arguments().join(QLatin1Char(' ')) + QLatin1Char(' ');
 
     MerRemoteProcess process;
     process.setSshParameters(sshParameters());

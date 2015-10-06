@@ -43,13 +43,14 @@ QString RpmCommand::name() const
 
 int RpmCommand::execute()
 {
-    const QString projectPathParameter = projectPath().isEmpty() ? QString() : QLatin1String(" -p ") +
-    QLatin1String("'") + projectPath() +   QLatin1String("'");
+    const QString projectPathParameter = projectPath().isEmpty()
+        ? QString()
+        : QLatin1String(" -p ") + QLatin1Char('\'') + projectPath() +   QLatin1Char('\'');
     const QString targetParameter = QLatin1String(" -t ") +  targetName();
     QString command = QLatin1String("mb2") +
                       projectPathParameter +
                       targetParameter +
-                      QLatin1Char(' ') + arguments().join(QLatin1String(" ")) + QLatin1Char(' ');
+                      QLatin1Char(' ') + arguments().join(QLatin1Char(' ')) + QLatin1Char(' ');
     MerRemoteProcess process;
     process.setSshParameters(sshParameters());
     process.setCommand(remotePathMapping(command));
