@@ -547,7 +547,7 @@ bool MerSdkManager::generateSshKey(const QString &privKeyPath, QString &error)
     QFileInfo finfo(privKeyPath);
 
     if (finfo.exists()) {
-        error.append(tr("Error: File '%1' exists.\n").arg(privKeyPath));
+        error.append(tr("Error: File \"%1\" exists.\n").arg(privKeyPath));
         return false;
     }
 

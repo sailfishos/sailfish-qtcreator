@@ -132,7 +132,7 @@ QList<Task> MerToolChain::validateKit(const Kit *kit) const
     if (device && device->architecture() != targetAbi().architecture()) {
         const QString message =
                 QCoreApplication::translate("ProjectExplorer::MerToolChain",
-                                            "MerToolChain '%1' can not be used for device with %2 architecture")
+                                            "MerToolChain \"%1\" can not be used for device with %2 architecture")
                 .arg(displayName()).arg(ProjectExplorer::Abi::toString(device->architecture()));
         result << Task(Task::Error, message, Utils::FileName(), -1,
                        Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
@@ -144,14 +144,14 @@ QList<Task> MerToolChain::validateKit(const Kit *kit) const
         const QString message =
                 QCoreApplication::translate("ProjectExplorer::MerToolChain",
                                             "No available Qt version found which can be used with "
-                                            "toolchain '%1'.").arg(displayName());
+                                            "toolchain \"%1\".").arg(displayName());
         result << Task(Task::Error, message, Utils::FileName(), -1,
                        Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
 
     } else if (!Internal::MerSdkManager::validateKit(kit)) {
         const QString message =
                 QCoreApplication::translate("ProjectExplorer::MerToolChain",
-                                            "The toolchain '%1' does not match mersdk or qt version").
+                                            "The toolchain \"%1\" does not match mersdk or qt version").
                                                                 arg(displayName());
         result << Task(Task::Error, message, Utils::FileName(), -1,
                        Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));

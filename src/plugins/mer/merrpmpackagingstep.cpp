@@ -200,20 +200,20 @@ bool MerRpmPackagingStep::prepareBuildDir()
     QString error;
 
     if (!Utils::FileUtils::removeRecursively(Utils::FileName::fromString(rpmDirPath), &error)) {
-        raiseError(tr("Packaging failed: Could not remove directory '%1': %2")
+        raiseError(tr("Packaging failed: Could not remove directory \"%1\": %2")
             .arg(rpmDirPath, error));
         return false;
     }
 
     QDir buildDir(cachedPackageDirectory());
     if (!buildDir.mkdir(QLatin1String("rpmbuild"))) {
-        raiseError(tr("Could not create rpmbuild directory '%1'.").arg(rpmDirPath));
+        raiseError(tr("Could not create rpmbuild directory \"%1\".").arg(rpmDirPath));
         return false;
     }
 
     QFile magicFile(magicFilePath);
     if (!magicFile.open(QIODevice::WriteOnly)) {
-        raiseError(tr("Error: Could not create file '%1'.")
+        raiseError(tr("Error: Could not create file \"%1\".")
             .arg(QDir::toNativeSeparators(magicFilePath)));
         return false;
     }
@@ -228,7 +228,7 @@ bool MerRpmPackagingStep::createSpecFile()
     const QString specFilePath = rpmDirPath + QLatin1Char('/') + SpecFileName;
     QFile specFile(specFilePath);
     if (!specFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        raiseError(tr("Error: Could not create file '%1'.").arg(QDir::toNativeSeparators(specFilePath)));
+        raiseError(tr("Error: Could not create file \"%1\".").arg(QDir::toNativeSeparators(specFilePath)));
         return false;
     }
 
@@ -269,17 +269,17 @@ bool MerRpmPackagingStep::createPackage(QProcess *buildProc,const QFutureInterfa
     buildProc->setEnvironment(m_environment.toStringList());
     buildProc->setWorkingDirectory(cachedPackageDirectory());
 
-    emit addOutput(tr("Package Creation: Running command '%1 %2' .").arg(m_rpmCommand).arg(m_rpmArgs.join(QLatin1String(" "))),BuildStep::MessageOutput);
+    emit addOutput(tr("Package Creation: Running command \"%1 %2\" .").arg(m_rpmCommand).arg(m_rpmArgs.join(QLatin1String(" "))),BuildStep::MessageOutput);
 
     buildProc->start(m_rpmCommand, m_rpmArgs);
     if (!buildProc->waitForStarted()) {
-        raiseError(tr("Packaging failed: Could not start command '%1'. Reason: %2")
+        raiseError(tr("Packaging failed: Could not start command \"%1\". Reason: %2")
             .arg(m_rpmCommand, buildProc->errorString()));
         return false;
     }
     buildProc->waitForFinished(-1);
     if (buildProc->error() != QProcess::UnknownError || buildProc->exitCode() != 0) {
-        QString mainMessage = tr("Packaging Error: Command '%1'  failed.")
+        QString mainMessage = tr("Packaging Error: Command \"%1\"  failed.")
             .arg(m_rpmCommand);
         if (buildProc->error() != QProcess::UnknownError)
             mainMessage += tr(" Reason: %1").arg(buildProc->errorString());

@@ -139,13 +139,13 @@ QList<Task> MerQtVersion::validateKit(const Kit *kit)
     if (!tc) {
         const QString message =
                 QCoreApplication::translate("QtVersion", "No available toolchains found to build "
-                                            "for Qt version '%1'.").arg(version->displayName());
+                                            "for Qt version \"%1\".").arg(version->displayName());
         result << Task(Task::Error, message, Utils::FileName(), -1,
                        Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
 
     } else if (!MerSdkManager::validateKit(kit)) {
         const QString message =
-                QCoreApplication::translate("QtVersion", "This Qt version '%1' does not match Mer SDK or toolchain.").
+                QCoreApplication::translate("QtVersion", "This Qt version \"%1\" does not match Mer SDK or toolchain.").
                 arg(version->displayName());
         result << Task(Task::Error, message, Utils::FileName(), -1,
                        Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
@@ -200,11 +200,11 @@ QList<ProjectExplorer::Task> MerQtVersion::reportIssuesImpl(const QString &proFi
         if (!proFileClean.startsWith(sharedHomeClean) && !proFileClean.startsWith(sharedSrcClean)) {
             QString message =  QCoreApplication::translate("QtVersion", "Project is outside of mer workspace");
             if(!sdk->sharedHomePath().isEmpty() && !sdk->sharedSrcPath().isEmpty())
-              message = QCoreApplication::translate("QtVersion", "Project is outside of Mer shared home '%1' and mer shared src '%2'")
+              message = QCoreApplication::translate("QtVersion", "Project is outside of Mer shared home \"%1\" and mer shared src \"%2\"")
                       .arg(QDir::toNativeSeparators(QDir::toNativeSeparators(sdk->sharedHomePath())))
                       .arg(QDir::toNativeSeparators(QDir::toNativeSeparators(sdk->sharedSrcPath())));
             else if(!sdk->sharedHomePath().isEmpty())
-              message = QCoreApplication::translate("QtVersion", "Project is outside of shared home '%1'")
+              message = QCoreApplication::translate("QtVersion", "Project is outside of shared home \"%1\"")
                       .arg(QDir::toNativeSeparators(QDir::toNativeSeparators(sdk->sharedHomePath())));
             ProjectExplorer::Task task(ProjectExplorer::Task::Error,message,Utils::FileName(), -1, Core::Id());
             results.append(task);
