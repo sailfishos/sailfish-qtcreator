@@ -29,11 +29,13 @@
 
 #include <QCoreApplication>
 
+using namespace Core;
+
 namespace Mer {
 namespace Internal {
 
 MerGeneralOptionsPage::MerGeneralOptionsPage(QObject *parent)
-    : Core::IOptionsPage(parent)
+    : IOptionsPage(parent)
 {
     setCategory(Core::Id(Constants::MER_OPTIONS_CATEGORY));
     setDisplayCategory(QCoreApplication::translate("Mer", Constants::MER_OPTIONS_CATEGORY_TR));

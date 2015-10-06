@@ -33,6 +33,7 @@
 #include <projectexplorer/target.h>
 #include <utils/qtcassert.h>
 
+using namespace Core;
 using namespace ProjectExplorer;
 
 namespace Mer {
@@ -43,7 +44,7 @@ const int CHECK_FOR_CANCEL_INTERVAL = 2000;
 const int DISMISS_MESSAGE_BOX_DELAY = 2000;
 }
 
-class MerAbstractVmStartStepConfigWidget : public ProjectExplorer::SimpleBuildStepConfigWidget
+class MerAbstractVmStartStepConfigWidget : public SimpleBuildStepConfigWidget
 {
     Q_OBJECT
 
@@ -114,7 +115,7 @@ void MerAbstractVmStartStep::run(QFutureInterface<bool> &fi)
     }
 }
 
-ProjectExplorer::BuildStepConfigWidget *MerAbstractVmStartStep::createConfigWidget()
+BuildStepConfigWidget *MerAbstractVmStartStep::createConfigWidget()
 {
     return new MerAbstractVmStartStepConfigWidget(this);
 }

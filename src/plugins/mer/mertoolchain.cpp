@@ -36,6 +36,8 @@
 #include <QDir>
 
 using namespace ProjectExplorer;
+using namespace QtSupport;
+using namespace Utils;
 
 namespace Mer {
 namespace Internal {
@@ -73,7 +75,7 @@ QString MerToolChain::type() const
     return QLatin1String(Constants::MER_TOOLCHAIN_TYPE);
 }
 
-QString MerToolChain::makeCommand(const Utils::Environment &environment) const
+QString MerToolChain::makeCommand(const Environment &environment) const
 {
     const QString make = QLatin1String(Constants::MER_WRAPPER_MAKE);
     const QString makePath = environment.searchInPath(make).toString();
@@ -83,11 +85,11 @@ QString MerToolChain::makeCommand(const Utils::Environment &environment) const
     return make;
 }
 
-QList<Utils::FileName> MerToolChain::suggestedMkspecList() const
+QList<FileName> MerToolChain::suggestedMkspecList() const
 {
-    QList<Utils::FileName> mkSpecList = GccToolChain::suggestedMkspecList();
+    QList<FileName> mkSpecList = GccToolChain::suggestedMkspecList();
     if (mkSpecList.isEmpty())
-        mkSpecList << Utils::FileName::fromString(QLatin1String("linux-g++"));
+        mkSpecList << FileName::fromString(QLatin1String("linux-g++"));
     return mkSpecList;
 }
 
@@ -133,19 +135,19 @@ QList<Task> MerToolChain::validateKit(const Kit *kit) const
         const QString message =
                 QCoreApplication::translate("ProjectExplorer::MerToolChain",
                                             "MerToolChain \"%1\" can not be used for device with %2 architecture")
-                .arg(displayName()).arg(ProjectExplorer::Abi::toString(device->architecture()));
-        result << Task(Task::Error, message, Utils::FileName(), -1,
+                .arg(displayName()).arg(Abi::toString(device->architecture()));
+        result << Task(Task::Error, message, FileName(), -1,
                        Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
     }
 
-    QtSupport::BaseQtVersion *version = QtSupport::QtKitInformation::qtVersion(kit);
+    BaseQtVersion *version = QtKitInformation::qtVersion(kit);
 
     if (!version) {
         const QString message =
                 QCoreApplication::translate("ProjectExplorer::MerToolChain",
                                             "No available Qt version found which can be used with "
                                             "toolchain \"%1\".").arg(displayName());
-        result << Task(Task::Error, message, Utils::FileName(), -1,
+        result << Task(Task::Error, message, FileName(), -1,
                        Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
 
     } else if (!Internal::MerSdkManager::validateKit(kit)) {
@@ -153,13 +155,13 @@ QList<Task> MerToolChain::validateKit(const Kit *kit) const
                 QCoreApplication::translate("ProjectExplorer::MerToolChain",
                                             "The toolchain \"%1\" does not match mersdk or qt version").
                                                                 arg(displayName());
-        result << Task(Task::Error, message, Utils::FileName(), -1,
+        result << Task(Task::Error, message, FileName(), -1,
                        Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
     }
     return result;
 }
 
-QList<HeaderPath> MerToolChain::systemHeaderPaths(const QStringList &cxxflags, const Utils::FileName &sysRoot) const
+QList<HeaderPath> MerToolChain::systemHeaderPaths(const QStringList &cxxflags, const FileName &sysRoot) const
 {
     Q_UNUSED(cxxflags)
     if (m_headerPathsOnHost.isEmpty()) {
@@ -172,7 +174,7 @@ QList<HeaderPath> MerToolChain::systemHeaderPaths(const QStringList &cxxflags, c
 }
 
 
-void MerToolChain::addToEnvironment(Utils::Environment &env) const
+void MerToolChain::addToEnvironment(Environment &env) const
 {
     GccToolChain::addToEnvironment(env);
     env.appendOrSet(QLatin1String(Constants::MER_SSH_TARGET_NAME),m_targetName);
@@ -203,7 +205,7 @@ QList<ToolChain *> MerToolChainFactory::autoDetect()
                                             QLatin1String(Constants::MER_WRAPPER_GCC),
                                             QDir::Files);
             if (gcc.count()) {
-                MerToolChain *tc = new MerToolChain(true, Utils::FileName(gcc.first()));
+                MerToolChain *tc = new MerToolChain(true, FileName(gcc.first()));
                 tc->setDisplayName(QString::fromLocal8Bit("GCC (%1 %2)").arg(sdkName,
                                                                              target.baseName()));
                 result.append(tc);

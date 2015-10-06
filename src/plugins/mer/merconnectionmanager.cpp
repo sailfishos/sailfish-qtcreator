@@ -47,7 +47,9 @@
 #include <QAction>
 #include <QIcon>
 
+using namespace Core;
 using namespace ProjectExplorer;
+using namespace QSsh;
 
 namespace Mer {
 namespace Internal {
@@ -126,11 +128,11 @@ void MerConnectionAction::initialize()
     connect(m_action, &QAction::triggered,
             this, &MerConnectionAction::handleTriggered);
 
-    Core::Command *command =
-            Core::ActionManager::registerAction(m_action, m_id,
-                                                Core::Context(Core::Constants::C_GLOBAL));
-    command->setAttribute(Core::Command::CA_UpdateText);
-    command->setAttribute(Core::Command::CA_UpdateIcon);
+    Command *command =
+            ActionManager::registerAction(m_action, m_id,
+                                                Context(Core::Constants::C_GLOBAL));
+    command->setAttribute(Command::CA_UpdateText);
+    command->setAttribute(Command::CA_UpdateIcon);
 
     m_action->setEnabled(m_enabled);
     m_action->setVisible(m_visible);
@@ -194,10 +196,10 @@ void MerConnectionAction::update()
         toolTip = m_closingTip;
         break;
     case MerConnection::Error:
-        Core::MessageManager::write(tr("Error connecting to \"%1\" virtual machine: %2")
+        MessageManager::write(tr("Error connecting to \"%1\" virtual machine: %2")
             .arg(m_connection->virtualMachine())
             .arg(m_connection->errorString()),
-            Core::MessageManager::Flash);
+            MessageManager::Flash);
         toolTip = m_startTip;
         break;
     default:
@@ -225,7 +227,7 @@ void MerConnectionAction::handleTriggered()
 }
 
 MerConnectionManager *MerConnectionManager::m_instance = 0;
-ProjectExplorer::Project *MerConnectionManager::m_project = 0;
+Project *MerConnectionManager::m_project = 0;
 
 MerConnectionManager::MerConnectionManager():
     m_emulatorAction(new MerConnectionAction(this)),
@@ -289,25 +291,25 @@ void MerConnectionManager::handleKitUpdated(Kit *kit)
         update();
 }
 
-void MerConnectionManager::handleStartupProjectChanged(ProjectExplorer::Project *project)
+void MerConnectionManager::handleStartupProjectChanged(Project *project)
 {
     if (m_project) {
-        disconnect(m_project, &ProjectExplorer::Project::addedTarget,
+        disconnect(m_project, &Project::addedTarget,
                    this, &MerConnectionManager::handleTargetAdded);
-        disconnect(m_project, &ProjectExplorer::Project::removedTarget,
+        disconnect(m_project, &Project::removedTarget,
                    this, &MerConnectionManager::handleTargetRemoved);
-        disconnect(m_project, &ProjectExplorer::Project::activeTargetChanged,
+        disconnect(m_project, &Project::activeTargetChanged,
                    this, &MerConnectionManager::update);
     }
 
     m_project = project;
 
     if (m_project) {
-        connect(m_project, &ProjectExplorer::Project::addedTarget,
+        connect(m_project, &Project::addedTarget,
                 this, &MerConnectionManager::handleTargetAdded);
-        connect(m_project, &ProjectExplorer::Project::removedTarget,
+        connect(m_project, &Project::removedTarget,
                 this, &MerConnectionManager::handleTargetRemoved);
-        connect(m_project, &ProjectExplorer::Project::activeTargetChanged,
+        connect(m_project, &Project::activeTargetChanged,
                 this, &MerConnectionManager::update);
     }
 
@@ -371,21 +373,21 @@ void MerConnectionManager::update()
     m_sdkAction->update();
 }
 
-QString MerConnectionManager::testConnection(const QSsh::SshConnectionParameters &params,
+QString MerConnectionManager::testConnection(const SshConnectionParameters &params,
         bool *ok) const
 {
-    QSsh::SshConnectionParameters p = params;
-    QSsh::SshConnection connection(p);
+    SshConnectionParameters p = params;
+    SshConnection connection(p);
     QEventLoop loop;
-    connect(&connection, &QSsh::SshConnection::connected, &loop, &QEventLoop::quit);
-    connect(&connection, &QSsh::SshConnection::error, &loop, &QEventLoop::quit);
-    connect(&connection, &QSsh::SshConnection::disconnected, &loop, &QEventLoop::quit);
+    connect(&connection, &SshConnection::connected, &loop, &QEventLoop::quit);
+    connect(&connection, &SshConnection::error, &loop, &QEventLoop::quit);
+    connect(&connection, &SshConnection::disconnected, &loop, &QEventLoop::quit);
     connection.connectToHost();
     loop.exec();
     if (ok != 0)
-        *ok = connection.errorState() == QSsh::SshNoError;
+        *ok = connection.errorState() == SshNoError;
     QString result;
-    if (connection.errorState() != QSsh::SshNoError)
+    if (connection.errorState() != SshNoError)
         result = connection.errorString();
     else
         result = tr("Connected");

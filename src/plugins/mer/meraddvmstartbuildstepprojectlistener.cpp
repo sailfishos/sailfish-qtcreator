@@ -30,6 +30,7 @@
 #include <projectexplorer/target.h>
 #include <qmakeprojectmanager/qmakeproject.h>
 
+using namespace Core;
 using namespace ProjectExplorer;
 using namespace QmakeProjectManager;
 
@@ -45,7 +46,7 @@ MerAddVmStartBuildStepProjectListener::~MerAddVmStartBuildStepProjectListener()
 {
 }
 
-bool MerAddVmStartBuildStepProjectListener::handleProject(QmakeProjectManager::QmakeProject *project)
+bool MerAddVmStartBuildStepProjectListener::handleProject(QmakeProject *project)
 {
     foreach (Target *target, project->targets()) {
         foreach (BuildConfiguration *bc, target->buildConfigurations()) {
@@ -56,7 +57,7 @@ bool MerAddVmStartBuildStepProjectListener::handleProject(QmakeProjectManager::Q
     return true;
 }
 
-bool MerAddVmStartBuildStepProjectListener::forgetProject(ProjectExplorer::Project *project)
+bool MerAddVmStartBuildStepProjectListener::forgetProject(Project *project)
 {
     Q_UNUSED(project);
     return true;

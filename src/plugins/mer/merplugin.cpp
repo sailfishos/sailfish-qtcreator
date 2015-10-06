@@ -54,6 +54,9 @@
 #include <QTimer>
 #include <QtPlugin>
 
+using namespace Core;
+using namespace ExtensionSystem;
+
 namespace Mer {
 namespace Internal {
 
@@ -94,26 +97,26 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
 
     addAutoReleasedObject(new MerMode);
 
-    Core::Command *emulatorConnectionCommand =
-        Core::ActionManager::command(Constants::MER_EMULATOR_CONNECTON_ACTION_ID);
-    Core::ModeManager::addAction(emulatorConnectionCommand->action(), 1);
+    Command *emulatorConnectionCommand =
+        ActionManager::command(Constants::MER_EMULATOR_CONNECTON_ACTION_ID);
+    ModeManager::addAction(emulatorConnectionCommand->action(), 1);
 
-    Core::Command *sdkConnectionCommand =
-        Core::ActionManager::command(Constants::MER_SDK_CONNECTON_ACTION_ID);
-    Core::ModeManager::addAction(sdkConnectionCommand->action(), 1);
+    Command *sdkConnectionCommand =
+        ActionManager::command(Constants::MER_SDK_CONNECTON_ACTION_ID);
+    ModeManager::addAction(sdkConnectionCommand->action(), 1);
 
-    Core::ActionContainer *toolsMenu =
-        Core::ActionManager::actionContainer(Core::Constants::M_TOOLS);
+    ActionContainer *toolsMenu =
+        ActionManager::actionContainer(Core::Constants::M_TOOLS);
 
-    Core::ActionContainer *menu = Core::ActionManager::createMenu(Constants::MER_TOOLS_MENU);
+    ActionContainer *menu = ActionManager::createMenu(Constants::MER_TOOLS_MENU);
     menu->menu()->setTitle(tr("Me&r"));
     toolsMenu->addMenu(menu);
 
     MerEmulatorModeDialog *emulatorModeDialog = new MerEmulatorModeDialog(this);
-    Core::Command *emulatorModeCommand =
-        Core::ActionManager::registerAction(emulatorModeDialog->action(),
+    Command *emulatorModeCommand =
+        ActionManager::registerAction(emulatorModeDialog->action(),
                                             Constants::MER_EMULATOR_MODE_ACTION_ID,
-                                            Core::Context(Core::Constants::C_GLOBAL));
+                                            Context(Core::Constants::C_GLOBAL));
     menu->addAction(emulatorModeCommand);
 
     return true;
@@ -123,7 +126,7 @@ void MerPlugin::extensionsInitialized()
 {
 }
 
-ExtensionSystem::IPlugin::ShutdownFlag MerPlugin::aboutToShutdown()
+IPlugin::ShutdownFlag MerPlugin::aboutToShutdown()
 {
     m_stopList.clear();
     QList<MerSdk*> sdks = MerSdkManager::instance()->sdks();
@@ -137,7 +140,7 @@ ExtensionSystem::IPlugin::ShutdownFlag MerPlugin::aboutToShutdown()
                     tr("The headless virtual machine \"%1\" is still running.\n\n"
                         "Close the virtual machine now?").arg(connection->virtualMachine()),
                     QMessageBox::Yes | QMessageBox::No,
-                    Core::ICore::mainWindow());
+                    ICore::mainWindow());
             prompt->setProperty(VM_NAME_PROPERTY, connection->virtualMachine());
             connect(prompt, &QMessageBox::finished,
                     this, &MerPlugin::handlePromptClosed);

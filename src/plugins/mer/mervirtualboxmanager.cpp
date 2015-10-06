@@ -33,6 +33,8 @@
 #include <QSettings>
 #include <QSize>
 
+using namespace Utils;
+
 const char VBOXMANAGE[] = "VBoxManage";
 const char LIST[] = "list";
 const char RUNNINGVMS[] = "runningvms";
@@ -67,7 +69,7 @@ static QString vBoxManagePath()
         return path;
     }
 
-    if (Utils::HostOsInfo::isWindowsHost()) {
+    if (HostOsInfo::isWindowsHost()) {
         path = QString::fromLocal8Bit(qgetenv("VBOX_INSTALL_PATH"));
         if (path.isEmpty()) {
             // env var name for VirtualBox 4.3.12 changed to this

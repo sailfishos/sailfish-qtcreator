@@ -57,11 +57,13 @@
 #include <QtTest>
 #endif
 
+using namespace ExtensionSystem;
 using namespace Mer::Constants;
 using namespace ProjectExplorer;
 using namespace QtSupport;
 using namespace Core;
 using namespace QSsh;
+using namespace Utils;
 
 namespace Mer {
 namespace Internal {
@@ -69,17 +71,17 @@ namespace Internal {
 MerSdkManager *MerSdkManager::m_instance = 0;
 bool MerSdkManager::verbose = false;
 
-static Utils::FileName globalSettingsFileName()
+static FileName globalSettingsFileName()
 {
-    QSettings *globalSettings = ExtensionSystem::PluginManager::globalSettings();
-    return Utils::FileName::fromString(QFileInfo(globalSettings->fileName()).absolutePath()
+    QSettings *globalSettings = PluginManager::globalSettings();
+    return FileName::fromString(QFileInfo(globalSettings->fileName()).absolutePath()
                                        + QLatin1String(MER_SDK_FILENAME));
 }
 
-static Utils::FileName settingsFileName()
+static FileName settingsFileName()
 {
-     QFileInfo settingsLocation(ExtensionSystem::PluginManager::settings()->fileName());
-     return Utils::FileName::fromString(settingsLocation.absolutePath() + QLatin1String(MER_SDK_FILENAME));
+     QFileInfo settingsLocation(PluginManager::settings()->fileName());
+     return FileName::fromString(settingsLocation.absolutePath() + QLatin1String(MER_SDK_FILENAME));
 }
 
 MerSdkManager::MerSdkManager()
@@ -87,7 +89,7 @@ MerSdkManager::MerSdkManager()
       m_writer(0),
       m_reinstall(false)
 {
-    connect(Core::ICore::instance(), &Core::ICore::saveSettingsRequested,
+    connect(ICore::instance(), &ICore::saveSettingsRequested,
             this, &MerSdkManager::storeSdks);
     connect(KitManager::instance(), &KitManager::kitsLoaded,
             this, &MerSdkManager::initialize);
@@ -95,10 +97,10 @@ MerSdkManager::MerSdkManager()
             this, &MerSdkManager::updateDevices);
     connect(DeviceManager::instance(), &DeviceManager::updated,
             this, &MerSdkManager::updateDevices);
-    m_writer = new Utils::PersistentSettingsWriter(settingsFileName(), QLatin1String("MerSDKs"));
+    m_writer = new PersistentSettingsWriter(settingsFileName(), QLatin1String("MerSDKs"));
     m_instance = this;
-    ProjectExplorer::KitManager::registerKitInformation(new MerSdkKitInformation);
-    ProjectExplorer::KitManager::registerKitInformation(new MerTargetKitInformation);
+    KitManager::registerKitInformation(new MerSdkKitInformation);
+    KitManager::registerKitInformation(new MerTargetKitInformation);
 }
 
 MerSdkManager::~MerSdkManager()
@@ -174,7 +176,7 @@ QList<MerToolChain *> MerSdkManager::merToolChains() const
 QList<MerQtVersion *> MerSdkManager::merQtVersions() const
 {
     QList<MerQtVersion*> qtversions;
-    foreach (BaseQtVersion *qtVersion, QtSupport::QtVersionManager::versions()) {
+    foreach (BaseQtVersion *qtVersion, QtVersionManager::versions()) {
         if (!qtVersion->isAutodetected())
             continue;
         if (qtVersion->type() != QLatin1String(Constants::MER_QT))
@@ -195,16 +197,16 @@ QList<MerSdk*> MerSdkManager::sdks() const
     return m_sdks.values();
 }
 
-const Utils::FileName& MerSdkManager::checkInstallLocation(const Utils::FileName &local,
-                                                           const Utils::FileName &global)
+const FileName& MerSdkManager::checkInstallLocation(const FileName &local,
+                                                           const FileName &global)
 {
-    Utils::PersistentSettingsReader lReader;
+    PersistentSettingsReader lReader;
     if (!lReader.load(local)) {
         // local file not found
         return global;
     }
 
-    Utils::PersistentSettingsReader gReader;
+    PersistentSettingsReader gReader;
     if (!gReader.load(global)) {
         // global file read failed, use the local file then.
         return local;
@@ -232,7 +234,7 @@ const Utils::FileName& MerSdkManager::checkInstallLocation(const Utils::FileName
 
 void MerSdkManager::restore()
 {
-    Utils::FileName settings = checkInstallLocation(settingsFileName(), globalSettingsFileName());
+    FileName settings = checkInstallLocation(settingsFileName(), globalSettingsFileName());
 
     QList<MerSdk*> sdks = restoreSdks(settings);
     foreach (MerSdk *sdk, sdks) {
@@ -240,20 +242,20 @@ void MerSdkManager::restore()
             // This is executed if the user has reinstalled MerSDK to
             // a different directory. Clean up all the existing Mer
             // kits, which contain paths to the old install directory.
-            foreach (ProjectExplorer::Kit *kit, ProjectExplorer::KitManager::kits()) {
+            foreach (Kit *kit, KitManager::kits()) {
                 if (!kit->isAutoDetected())
                     continue;
-                ProjectExplorer::ToolChain *tc = ProjectExplorer::ToolChainKitInformation::toolChain(kit);
+                ToolChain *tc = ToolChainKitInformation::toolChain(kit);
                 if (!tc)
                     continue;
 
                 if (tc->type() == QLatin1String(Constants::MER_TOOLCHAIN_TYPE)) {
                     if (MerSdkManager::verbose)
                         qDebug() << "Removing Mer kit due to reinstall";
-                    QtSupport::BaseQtVersion *v = QtSupport::QtKitInformation::qtVersion(kit);
-                    ProjectExplorer::KitManager::deregisterKit(kit);
-                    ProjectExplorer::ToolChainManager::deregisterToolChain(tc);
-                    QtSupport::QtVersionManager::removeVersion(v);
+                    BaseQtVersion *v = QtKitInformation::qtVersion(kit);
+                    KitManager::deregisterKit(kit);
+                    ToolChainManager::deregisterToolChain(tc);
+                    QtVersionManager::removeVersion(v);
                 }
             }
         }
@@ -262,10 +264,10 @@ void MerSdkManager::restore()
     }
 }
 
-QList<MerSdk*> MerSdkManager::restoreSdks(const Utils::FileName &fileName)
+QList<MerSdk*> MerSdkManager::restoreSdks(const FileName &fileName)
 {
     QList<MerSdk*> result;
-    Utils::PersistentSettingsReader reader;
+    PersistentSettingsReader reader;
     if (!reader.load(fileName))
         return result;
     QVariantMap data = reader.restoreValues();
@@ -312,7 +314,7 @@ void MerSdkManager::storeSdks() const
         ++count;
     }
     data.insert(QLatin1String(MER_SDK_COUNT_KEY), count);
-    m_writer->save(data, Core::ICore::mainWindow());
+    m_writer->save(data, ICore::mainWindow());
 }
 
 bool MerSdkManager::isMerKit(const Kit *kit)
@@ -367,13 +369,13 @@ bool MerSdkManager::hasMerDevice(Kit *kit)
 
 QString MerSdkManager::sdkToolsDirectory()
 {
-    return QFileInfo(ExtensionSystem::PluginManager::settings()->fileName()).absolutePath() +
+    return QFileInfo(PluginManager::settings()->fileName()).absolutePath() +
             QLatin1String(Constants::MER_SDK_TOOLS);
 }
 
 QString MerSdkManager::globalSdkToolsDirectory()
 {
-    return QFileInfo(ExtensionSystem::PluginManager::globalSettings()->fileName()).absolutePath() +
+    return QFileInfo(PluginManager::globalSettings()->fileName()).absolutePath() +
             QLatin1String(Constants::MER_SDK_TOOLS);
 }
 
@@ -388,7 +390,7 @@ bool MerSdkManager::authorizePublicKey(const QString &authorizedKeysPath,
         return success;
     }
 
-    Utils::FileReader pubKeyReader;
+    FileReader pubKeyReader;
     success = pubKeyReader.fetch(pubKeyPath);
     if (!success) {
         error.append(tr("Error: %1").arg(pubKeyReader.errorString()));
@@ -407,7 +409,7 @@ bool MerSdkManager::authorizePublicKey(const QString &authorizedKeysPath,
     QFileInfo akFi(authorizedKeysPath);
     if (!akFi.exists()) {
         //create new key
-        Utils::FileSaver authKeysSaver(authorizedKeysPath, QIODevice::WriteOnly);
+        FileSaver authKeysSaver(authorizedKeysPath, QIODevice::WriteOnly);
         authKeysSaver.write(publicKey);
         success = authKeysSaver.finalize();
         if (!success) {
@@ -417,7 +419,7 @@ bool MerSdkManager::authorizePublicKey(const QString &authorizedKeysPath,
         QFile::setPermissions(authorizedKeysPath, QFile::ReadOwner|QFile::WriteOwner);
     } else {
         //append
-        Utils::FileReader authKeysReader;
+        FileReader authKeysReader;
         success = authKeysReader.fetch(authorizedKeysPath);
         if (!success) {
             error.append(tr("Error: %1").arg(authKeysReader.errorString()));
@@ -429,7 +431,7 @@ bool MerSdkManager::authorizePublicKey(const QString &authorizedKeysPath,
             return success;
         }
         // File does not contain the public key. Append it to file.
-        Utils::FileSaver authorizedKeysSaver(authorizedKeysPath, QIODevice::Append);
+        FileSaver authorizedKeysSaver(authorizedKeysPath, QIODevice::Append);
         authorizedKeysSaver.write("\n");
         authorizedKeysSaver.write(publicKey);
         success = authorizedKeysSaver.finalize();
@@ -516,7 +518,7 @@ bool MerSdkManager::validateKit(const Kit *kit)
     if (!kit)
         return false;
     ToolChain* toolchain = ToolChainKitInformation::toolChain(kit);
-    QtSupport::BaseQtVersion* version = QtSupport::QtKitInformation::qtVersion(kit);
+    BaseQtVersion* version = QtKitInformation::qtVersion(kit);
     Core::Id deviceType = DeviceTypeKitInformation::deviceTypeId(kit);
     MerSdk* sdk = MerSdkKitInformation::sdk(kit);
 
@@ -565,7 +567,7 @@ bool MerSdkManager::generateSshKey(const QString &privKeyPath, QString &error)
         return false;
     }
 
-    Utils::FileSaver privKeySaver(privKeyPath);
+    FileSaver privKeySaver(privKeyPath);
     privKeySaver.write(keyGen.privateKey());
     success = privKeySaver.finalize();
     if (!success) {
@@ -580,7 +582,7 @@ bool MerSdkManager::generateSshKey(const QString &privKeyPath, QString &error)
         tmp_perm.close();
     }
 
-    Utils::FileSaver pubKeySaver(privKeyPath + QLatin1String(".pub"));
+    FileSaver pubKeySaver(privKeyPath + QLatin1String(".pub"));
     const QByteArray publicKey = keyGen.publicKey();
     pubKeySaver.write(publicKey);
     success = pubKeySaver.finalize();
@@ -652,7 +654,7 @@ void MerSdkManager::updateDevices()
 void MerPlugin::verifyTargets(const QString &vm, QStringList expectedKits, QStringList expectedToolChains, QStringList expectedQtVersions)
 {
     MerSdkManager *sdkManager = MerSdkManager::instance();
-    QList<ProjectExplorer::Kit*> kits = sdkManager->merKits();
+    QList<Kit*> kits = sdkManager->merKits();
     QList<MerToolChain*> toolchains = sdkManager->merToolChains();
     QList<MerQtVersion*> qtversions = sdkManager->merQtVersions();
 
