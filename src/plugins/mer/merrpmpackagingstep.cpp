@@ -269,7 +269,10 @@ bool MerRpmPackagingStep::createPackage(QProcess *buildProc,const QFutureInterfa
     buildProc->setEnvironment(m_environment.toStringList());
     buildProc->setWorkingDirectory(cachedPackageDirectory());
 
-    emit addOutput(tr("Package Creation: Running command \"%1 %2\" .").arg(m_rpmCommand).arg(m_rpmArgs.join(QLatin1String(" "))),BuildStep::MessageOutput);
+    emit addOutput(tr("Package Creation: Running command \"%1 %2\" .")
+                   .arg(m_rpmCommand)
+                   .arg(m_rpmArgs.join(QLatin1Char(' '))),
+                   BuildStep::MessageOutput);
 
     buildProc->start(m_rpmCommand, m_rpmArgs);
     if (!buildProc->waitForStarted()) {

@@ -87,7 +87,7 @@ void MerEmulatorDeviceWidget::userNameEditingFinished()
         const QString& user = m_ui->userLineEdit->text();
         //TODO fix me:
         const QString privKey = device->sharedConfigPath() +
-                index.arg(device->virtualMachine()).replace(QLatin1String(" "),QLatin1String("_"))
+                index.arg(device->virtualMachine()).replace(QLatin1Char(' '),QLatin1Char('_'))
                 + user;
 
         sshParams.userName = user;

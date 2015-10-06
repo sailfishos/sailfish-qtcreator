@@ -139,7 +139,7 @@ void MerEmualtorVMPage::handleEmulatorVmChanged(const QString &vmName)
     QStringList freePorts;
     foreach (quint16 port, info.freePorts)
         freePorts << QString::number(port);
-    m_ui->portsLineEdit->setText(freePorts.join(QLatin1String(",")));
+    m_ui->portsLineEdit->setText(freePorts.join(QLatin1Char(',')));
 
     QString configFolder(QDir::toNativeSeparators(info.sharedConfig));
     QString sshFolder(QDir::toNativeSeparators(info.sharedSsh));
@@ -195,7 +195,7 @@ void MerEmualtorSshPage::initializePage()
    QTC_ASSERT(wizard,return);
    //TODO: fix me
    QString sshKeyPath(QDir::toNativeSeparators(wizard->sharedConfigPath() +
-                      index.arg(wizard->emulatorVm()).replace(QLatin1String(" "),QLatin1String("_")) +
+                      index.arg(wizard->emulatorVm()).replace(QLatin1Char(' '),QLatin1Char('_')) +
                       QLatin1String("%1")));
    if(!wizard->sharedConfigPath().isEmpty()) {
        m_ui->userSshKeyLabelEdit->setText(sshKeyPath.arg(userName()));

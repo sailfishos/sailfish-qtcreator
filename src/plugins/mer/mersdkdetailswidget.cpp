@@ -146,7 +146,7 @@ void MerSdkDetailsWidget::onSrcFolderApplyButtonClicked()
     if (m_ui->srcFolderPathChooser->isValid()) {
         QString path = m_ui->srcFolderPathChooser->path();
         if (Utils::HostOsInfo::isWindowsHost()) {
-            if (!path.endsWith(QLatin1String("\\")) && !path.endsWith(QLatin1String("/"))) {
+            if (!path.endsWith(QLatin1Char('\\')) && !path.endsWith(QLatin1Char('/'))) {
                 path = path + QLatin1Char('\\');
             }
         }

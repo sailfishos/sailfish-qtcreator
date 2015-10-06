@@ -364,7 +364,7 @@ VirtualMachineInfo virtualMachineInfoFromOutput(const QString &output)
             }
             if(!macFields.isEmpty()) {
                 macFields.removeFirst();
-                info.macs << macFields.join(QLatin1String(":"));
+                info.macs << macFields.join(QLatin1Char(':'));
             }
         } else if (rexp.cap(0).startsWith(QLatin1String("SessionType"))) {
             info.headless = rexp.cap(10) == QLatin1String("headless");

@@ -215,7 +215,7 @@ void MerOptionsWidget::onAuthorizeSshKey(const QString &file)
     const QStringList authorizedKeysPaths = QStringList()
             << sshDirectoryPath + QLatin1String("root/") + QLatin1String(Constants::MER_AUTHORIZEDKEYS_FOLDER)
             << sshDirectoryPath + sdk->userName()
-               + QLatin1String("/") + QLatin1String(Constants::MER_AUTHORIZEDKEYS_FOLDER);
+               + QLatin1Char('/') + QLatin1String(Constants::MER_AUTHORIZEDKEYS_FOLDER);
     foreach (const QString &path, authorizedKeysPaths) {
         QString error;
         const bool success = MerSdkManager::instance()->authorizePublicKey(path, pubKeyPath, error);

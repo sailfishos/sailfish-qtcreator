@@ -163,7 +163,7 @@ ProjectExplorer::Kit* MerTarget::createKit() const
 {
     if (!isValid())
         return 0;
-    const QString sysroot(m_sdk->sharedTargetsPath() + QLatin1String("/") + m_name);
+    const QString sysroot(m_sdk->sharedTargetsPath() + QLatin1Char('/') + m_name);
 
     Utils::FileName path = Utils::FileName::fromString(sysroot);
     if (!path.toFileInfo().exists()) {
@@ -189,7 +189,7 @@ ProjectExplorer::Kit* MerTarget::createKit() const
         dir.cdUp();
         gdbDir = dir.path();
     }
-    Utils::FileName gdbFileName = Utils::FileName::fromString(gdbDir + QLatin1String("/") + gdb);
+    Utils::FileName gdbFileName = Utils::FileName::fromString(gdbDir + QLatin1Char('/') + gdb);
 
     Debugger::DebuggerItem debugger;
     debugger.setCommand(gdbFileName);

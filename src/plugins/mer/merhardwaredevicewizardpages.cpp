@@ -314,7 +314,7 @@ void MerHardwareDeviceWizardSetupPage::handleSdkVmChanged(const QString &vmName)
     QString index(QLatin1String("/ssh/private_keys/%1/"));
     //TODO: fix me
     QString sshKeyPath(QDir::toNativeSeparators(sdk->sharedConfigPath() +
-                       index.arg(wizard->configurationName()).replace(QLatin1String(" "),QLatin1String("_")) +
+                       index.arg(wizard->configurationName()).replace(QLatin1Char(' '),QLatin1Char('_')) +
                        wizard->userName()));
     m_ui->privateSshKeyLabelEdit->setText(sshKeyPath);
     m_ui->publicSshKeyLabelEdit->setText(sshKeyPath + QLatin1String(".pub"));
