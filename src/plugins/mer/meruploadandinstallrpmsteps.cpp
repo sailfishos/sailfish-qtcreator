@@ -74,13 +74,13 @@ private:
 } // anonymous namespace
 
 
-MerUploadAndInstallRpmStep::MerUploadAndInstallRpmStep(ProjectExplorer::BuildStepList *bsl)
+MerUploadAndInstallRpmStep::MerUploadAndInstallRpmStep(BuildStepList *bsl)
     : AbstractRemoteLinuxDeployStep(bsl, stepId())
 {
     ctor();
 }
 
-MerUploadAndInstallRpmStep::MerUploadAndInstallRpmStep(ProjectExplorer::BuildStepList *bsl,
+MerUploadAndInstallRpmStep::MerUploadAndInstallRpmStep(BuildStepList *bsl,
      MerUploadAndInstallRpmStep *other) : AbstractRemoteLinuxDeployStep(bsl, other)
 {
     ctor();

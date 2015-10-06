@@ -38,19 +38,20 @@
 #include <QVBoxLayout>
 
 using namespace ProjectExplorer;
+using namespace RemoteLinux;
 
 namespace Mer {
 namespace Internal {
 
 MerDeployConfiguration::MerDeployConfiguration(Target *parent, Core::Id id,const QString& displayName)
-    : RemoteLinux::RemoteLinuxDeployConfiguration(parent, id, displayName)
+    : RemoteLinuxDeployConfiguration(parent, id, displayName)
 {
     setDisplayName(displayName);
     setDefaultDisplayName(displayName);
 }
 
-MerDeployConfiguration::MerDeployConfiguration(ProjectExplorer::Target *target, MerDeployConfiguration *source)
-    : RemoteLinux::RemoteLinuxDeployConfiguration(target, source)
+MerDeployConfiguration::MerDeployConfiguration(Target *target, MerDeployConfiguration *source)
+    : RemoteLinuxDeployConfiguration(target, source)
 {
     cloneSteps(source);
 }

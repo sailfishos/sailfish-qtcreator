@@ -42,7 +42,9 @@
 #include <QStandardItemModel>
 #include <QUrl>
 
-using Core::ICore;
+using namespace Core;
+using namespace QSsh;
+using namespace Utils;
 
 namespace Mer {
 namespace Internal {
@@ -194,7 +196,7 @@ void MerOptionsWidget::onTestConnectionButtonClicked()
 {
     MerSdk *sdk = m_sdks[m_virtualMachine];
     if (!sdk->connection()->isVirtualMachineOff()) {
-        QSsh::SshConnectionParameters params = sdk->connection()->sshParameters();
+        SshConnectionParameters params = sdk->connection()->sshParameters();
         if (m_sshPrivKeys.contains(sdk))
             params.privateKeyFile = m_sshPrivKeys[sdk];
         m_ui->sdkDetailsWidget->setStatus(tr("Connecting to machine %1 ...").arg(sdk->virtualMachineName()));

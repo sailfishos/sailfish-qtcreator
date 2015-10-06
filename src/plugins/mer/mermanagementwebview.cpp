@@ -34,6 +34,9 @@
 
 #include <QTimer>
 
+using namespace ProjectExplorer;
+using namespace Utils;
+
 namespace Mer {
 namespace Internal {
 
@@ -57,8 +60,8 @@ signals:
     void activeSdkIndexChanged(int index);
 
 private slots:
-    void onStartupProjectChanged(ProjectExplorer::Project *project);
-    void onActiveTargetChanged(ProjectExplorer::Target *target);
+    void onStartupProjectChanged(Project *project);
+    void onActiveTargetChanged(Target *target);
     void onSdksUpdated();
     void beginReset();
     void endReset();
@@ -66,7 +69,7 @@ private slots:
 private:
     QList<MerSdk *> m_sdks;
     QTimer *const m_endResetTimer;
-    ProjectExplorer::Project *m_startupProject;
+    Project *m_startupProject;
     MerSdk *m_activeSdk;
 };
 
@@ -85,8 +88,8 @@ MerManagementWebViewSdksModel::MerManagementWebViewSdksModel(QObject *parent)
     connect(MerSdkManager::instance(), &MerSdkManager::sdksUpdated,
             this, &MerManagementWebViewSdksModel::onSdksUpdated);
 
-    connect(ProjectExplorer::SessionManager::instance(),
-            &ProjectExplorer::SessionManager::startupProjectChanged,
+    connect(SessionManager::instance(),
+            &SessionManager::startupProjectChanged,
             this,
             &MerManagementWebViewSdksModel::onStartupProjectChanged);
 }
@@ -145,17 +148,17 @@ QVariant MerManagementWebViewSdksModel::data(const QModelIndex &index, int role)
     }
 }
 
-void MerManagementWebViewSdksModel::onStartupProjectChanged(ProjectExplorer::Project *project)
+void MerManagementWebViewSdksModel::onStartupProjectChanged(Project *project)
 {
     if (m_startupProject) {
-        disconnect(m_startupProject, &ProjectExplorer::Project::activeTargetChanged,
+        disconnect(m_startupProject, &Project::activeTargetChanged,
                 this, &MerManagementWebViewSdksModel::onActiveTargetChanged);
     }
 
     m_startupProject = project;
 
     if (m_startupProject) {
-        connect(m_startupProject, &ProjectExplorer::Project::activeTargetChanged,
+        connect(m_startupProject, &Project::activeTargetChanged,
                 this, &MerManagementWebViewSdksModel::onActiveTargetChanged);
         onActiveTargetChanged(m_startupProject->activeTarget());
     } else {
@@ -163,7 +166,7 @@ void MerManagementWebViewSdksModel::onStartupProjectChanged(ProjectExplorer::Pro
     }
 }
 
-void MerManagementWebViewSdksModel::onActiveTargetChanged(ProjectExplorer::Target *target)
+void MerManagementWebViewSdksModel::onActiveTargetChanged(Target *target)
 {
     int oldActiveSdkIndex = activeSdkIndex();
 

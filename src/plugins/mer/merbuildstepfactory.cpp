@@ -29,6 +29,7 @@
 #include <utils/qtcassert.h>
 
 using namespace ProjectExplorer;
+using namespace QmakeProjectManager;
 
 namespace Mer {
 namespace Internal {
@@ -41,7 +42,7 @@ MerBuildStepFactory::MerBuildStepFactory(QObject *parent)
 QList<Core::Id> MerBuildStepFactory::availableCreationIds(BuildStepList *parent) const
 {
     QList<Core::Id> ids;
-    if (!qobject_cast<QmakeProjectManager::QmakeBuildConfiguration *>(parent->parent()))
+    if (!qobject_cast<QmakeBuildConfiguration *>(parent->parent()))
         return ids;
 
     ids << MerSdkStartStep::stepId();

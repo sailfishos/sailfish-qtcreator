@@ -37,6 +37,10 @@
 
 #include <QDir>
 
+using namespace ProjectExplorer;
+using namespace QSsh;
+using namespace Utils;
+
 namespace Mer {
 namespace Internal {
 
@@ -44,7 +48,7 @@ namespace Internal {
 MerHardwareDeviceWizardSelectionPage::MerHardwareDeviceWizardSelectionPage(QWidget *parent)
     : QWizardPage(parent)
     , m_ui(new Ui::MerHardwareDeviceWizardSelectionPage)
-    , m_architecture(ProjectExplorer::Abi::UnknownArchitecture)
+    , m_architecture(Abi::UnknownArchitecture)
     , m_isIdle(true)
     , m_connectionTestOk(false)
 {
@@ -108,7 +112,7 @@ int MerHardwareDeviceWizardSelectionPage::timeout() const
     return m_ui->timeoutSpinBox->value();
 }
 
-ProjectExplorer::Abi::Architecture MerHardwareDeviceWizardSelectionPage::architecture() const
+Abi::Architecture MerHardwareDeviceWizardSelectionPage::architecture() const
 {
     return m_architecture;
 }
@@ -124,12 +128,12 @@ void MerHardwareDeviceWizardSelectionPage::handleTestConnectionClicked()
     m_isIdle = false;
     completeChanged();
 
-    QSsh::SshConnectionParameters sshParams;
+    SshConnectionParameters sshParams;
     sshParams.host = hostName();
     sshParams.userName = userName();
     sshParams.port = sshPort();
     sshParams.timeout = timeout();
-    sshParams.authenticationType = QSsh::SshConnectionParameters::AuthenticationTypePassword;
+    sshParams.authenticationType = SshConnectionParameters::AuthenticationTypePassword;
     sshParams.password = password();
 
     m_ui->connectionLabelEdit->setText(tr("Connecting to machine %1 ...").arg(hostName()));
@@ -154,45 +158,45 @@ end:
     completeChanged();
 }
 
-ProjectExplorer::Abi::Architecture MerHardwareDeviceWizardSelectionPage::detectArchitecture(
-        const QSsh::SshConnectionParameters &sshParams, bool *ok)
+Abi::Architecture MerHardwareDeviceWizardSelectionPage::detectArchitecture(
+        const SshConnectionParameters &sshParams, bool *ok)
 {
     if (!*ok) {
-        return ProjectExplorer::Abi::UnknownArchitecture;
+        return Abi::UnknownArchitecture;
     }
 
-    QSsh::SshRemoteProcessRunner runner;
+    SshRemoteProcessRunner runner;
     QEventLoop loop;
-    connect(&runner, &QSsh::SshRemoteProcessRunner::connectionError,
+    connect(&runner, &SshRemoteProcessRunner::connectionError,
             &loop, &QEventLoop::quit);
-    connect(&runner, &QSsh::SshRemoteProcessRunner::processClosed,
+    connect(&runner, &SshRemoteProcessRunner::processClosed,
             &loop, &QEventLoop::quit);
     runner.run("uname --machine", sshParams);
     loop.exec();
 
-    if (runner.lastConnectionError() != QSsh::SshNoError
-            || runner.processExitStatus() != QSsh::SshRemoteProcess::NormalExit
+    if (runner.lastConnectionError() != SshNoError
+            || runner.processExitStatus() != SshRemoteProcess::NormalExit
             || runner.processExitCode() != 0) {
         *ok = false;
         qWarning() << "Failed to execute uname on target";
-        return ProjectExplorer::Abi::UnknownArchitecture;
+        return Abi::UnknownArchitecture;
     }
 
     const QString output = QString::fromLatin1(runner.readAllStandardOutput()).trimmed();
     if (output.isEmpty()) {
         *ok = false;
         qWarning() << "Empty output from uname executed on target";
-        return ProjectExplorer::Abi::UnknownArchitecture;
+        return Abi::UnknownArchitecture;
     }
 
     // Does not seem ideal, but works well
-    ProjectExplorer::Abi::Architecture architecture =
-        ProjectExplorer::Abi::abiFromTargetTriplet(output).architecture();
-    if (architecture == ProjectExplorer::Abi::UnknownArchitecture) {
+    Abi::Architecture architecture =
+        Abi::abiFromTargetTriplet(output).architecture();
+    if (architecture == Abi::UnknownArchitecture) {
         *ok = false;
         qWarning() << "Could not parse architecture from uname executed on target (output:"
             << output << ")";
-        return ProjectExplorer::Abi::UnknownArchitecture;
+        return Abi::UnknownArchitecture;
     }
 
     *ok = true;
@@ -200,23 +204,23 @@ ProjectExplorer::Abi::Architecture MerHardwareDeviceWizardSelectionPage::detectA
 }
 
 QString MerHardwareDeviceWizardSelectionPage::detectDeviceName(
-        const QSsh::SshConnectionParameters &sshParams, bool *ok)
+        const SshConnectionParameters &sshParams, bool *ok)
 {
     if (!*ok) {
         return QString();
     }
 
-    QSsh::SshRemoteProcessRunner runner;
+    SshRemoteProcessRunner runner;
     QEventLoop loop;
-    connect(&runner, &QSsh::SshRemoteProcessRunner::connectionError,
+    connect(&runner, &SshRemoteProcessRunner::connectionError,
             &loop, &QEventLoop::quit);
-    connect(&runner, &QSsh::SshRemoteProcessRunner::processClosed,
+    connect(&runner, &SshRemoteProcessRunner::processClosed,
             &loop, &QEventLoop::quit);
     runner.run("cat /etc/hw-release", sshParams);
     loop.exec();
 
-    if (runner.lastConnectionError() != QSsh::SshNoError
-            || runner.processExitStatus() != QSsh::SshRemoteProcess::NormalExit
+    if (runner.lastConnectionError() != SshNoError
+            || runner.processExitStatus() != SshRemoteProcess::NormalExit
             || runner.processExitCode() != 0) {
         *ok = false;
         qWarning() << "Failed to read /etc/hw-release on target";
@@ -280,12 +284,12 @@ void MerHardwareDeviceWizardSetupPage::initializePage()
    const MerHardwareDeviceWizard* wizard = qobject_cast<MerHardwareDeviceWizard*>(this->wizard());
    QTC_ASSERT(wizard,return);
 
-   const QString arch = ProjectExplorer::Abi::toString(wizard->architecture()).toUpper();
+   const QString arch = Abi::toString(wizard->architecture()).toUpper();
 
    QString preferredName = QStringLiteral("%1 (%2)").arg(wizard->deviceName()).arg(arch);
    int i = 1;
    QString tryName = preferredName;
-   while (ProjectExplorer::DeviceManager::instance()->hasDevice(tryName))
+   while (DeviceManager::instance()->hasDevice(tryName))
        tryName = preferredName + QString::number(++i);
    m_ui->configLineEdit->setText(tryName);
 
@@ -346,7 +350,7 @@ bool MerHardwareDeviceWizardSetupPage::isComplete() const
 {
     return !configName().isEmpty()
         && !freePorts().isEmpty()
-        && !ProjectExplorer::DeviceManager::instance()->hasDevice(configName());
+        && !DeviceManager::instance()->hasDevice(configName());
 }
 
 }

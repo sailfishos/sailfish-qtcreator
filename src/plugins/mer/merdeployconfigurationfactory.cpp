@@ -51,7 +51,7 @@ QList<Core::Id> MerDeployConfigurationFactory::availableCreationIds(Target *pare
 {
     QList<Core::Id> ids;
     //TODO: canHandle(parent)
-    Core::Id type = ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(parent->kit());
+    Core::Id type = DeviceTypeKitInformation::deviceTypeId(parent->kit());
     if (type == Constants::MER_DEVICE_TYPE) {
         ids << MerMb2RpmBuildConfiguration::configurationId()
             << MerRsyncDeployConfiguration::configurationId()
@@ -88,7 +88,7 @@ DeployConfiguration *MerDeployConfigurationFactory::create(Target *parent, Core:
 {
     QTC_ASSERT(canCreate(parent, id), return 0);
 
-    ProjectExplorer::DeployConfiguration *dc = 0;
+    DeployConfiguration *dc = 0;
 
      if (id == MerRpmDeployConfiguration::configurationId()) {
          dc = new MerRpmDeployConfiguration(parent, id);
@@ -113,14 +113,14 @@ DeployConfiguration *MerDeployConfigurationFactory::create(Target *parent, Core:
 }
 
 
-bool MerDeployConfigurationFactory::canRestore(ProjectExplorer::Target *parent,
+bool MerDeployConfigurationFactory::canRestore(Target *parent,
                                                const QVariantMap &map) const
 {
     return canCreate(parent, ProjectExplorer::idFromMap(map));
 }
 
-ProjectExplorer::DeployConfiguration *MerDeployConfigurationFactory::restore(
-        ProjectExplorer::Target *parent, const QVariantMap &map)
+DeployConfiguration *MerDeployConfigurationFactory::restore(
+        Target *parent, const QVariantMap &map)
 {
     if (!canRestore(parent, map))
         return 0;
@@ -142,14 +142,14 @@ ProjectExplorer::DeployConfiguration *MerDeployConfigurationFactory::restore(
     return dc;
 }
 
-bool MerDeployConfigurationFactory::canClone(ProjectExplorer::Target *parent,
-                                             ProjectExplorer::DeployConfiguration *source) const
+bool MerDeployConfigurationFactory::canClone(Target *parent,
+                                             DeployConfiguration *source) const
 {
     return canCreate(parent, source->id());
 }
 
-ProjectExplorer::DeployConfiguration *MerDeployConfigurationFactory::clone(
-        ProjectExplorer::Target *parent, ProjectExplorer::DeployConfiguration *source)
+DeployConfiguration *MerDeployConfigurationFactory::clone(
+        Target *parent, DeployConfiguration *source)
 {
     if (!canClone(parent, source))
         return 0;
@@ -166,9 +166,9 @@ ProjectExplorer::DeployConfiguration *MerDeployConfigurationFactory::clone(
     return 0;
 }
 
-bool MerDeployConfigurationFactory::canHandle(ProjectExplorer::Target *t) const
+bool MerDeployConfigurationFactory::canHandle(Target *t) const
 {
-    return MerDeviceFactory::canCreate(ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(t->kit()));
+    return MerDeviceFactory::canCreate(DeviceTypeKitInformation::deviceTypeId(t->kit()));
 }
 
 } // Internal

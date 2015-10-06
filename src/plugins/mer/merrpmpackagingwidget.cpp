@@ -50,7 +50,7 @@ namespace Mer {
 namespace Internal {
 
 MerRpmPackagingWidget::MerRpmPackagingWidget(MerRpmPackagingStep *step)
-    : ProjectExplorer::BuildStepConfigWidget(),
+    : BuildStepConfigWidget(),
       m_step(step),
       m_ui(new Ui::MerRpmPackagingWidget)
 {

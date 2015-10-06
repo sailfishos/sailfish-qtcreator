@@ -33,6 +33,8 @@
 #include <QXmlSchemaValidator>
 #include <QXmlStreamWriter>
 
+using namespace Utils;
+
 const char TARGET[] = "target";
 const char TARGETS[] = "targets";
 const char OUTPUT[] = "output";
@@ -212,7 +214,7 @@ MerTargetsXmlReader::MerTargetsXmlReader(const QString &fileName, QObject *paren
     : QObject(parent),
       d(new MerTargetsXmlReaderPrivate)
 {
-    Utils::FileReader reader;
+    FileReader reader;
     d->error = !reader.fetch(fileName, QIODevice::ReadOnly);
     if (d->error) {
         d->errorString = reader.errorString();
@@ -222,7 +224,7 @@ MerTargetsXmlReader::MerTargetsXmlReader(const QString &fileName, QObject *paren
     QXmlSchema schema;
     schema.setMessageHandler(&d->messageHandler);
 
-    Utils::FileReader schemeReader;
+    FileReader schemeReader;
     d->error = !schemeReader.fetch(QString::fromLatin1("%1/mer/targets.xsd").arg(sharedDirPath()),
             QIODevice::ReadOnly);
     if (d->error) {
@@ -295,7 +297,7 @@ class MerTargetsXmlWriterPrivate
 public:
     MerTargetsXmlWriterPrivate(const QString &fileName) : fileSaver(fileName, QIODevice::WriteOnly) {}
 
-    Utils::FileSaver fileSaver;
+    FileSaver fileSaver;
 };
 
 MerTargetsXmlWriter::MerTargetsXmlWriter(const QString &fileName, int version,
