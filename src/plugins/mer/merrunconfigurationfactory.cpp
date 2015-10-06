@@ -40,11 +40,7 @@ namespace Internal {
 namespace {
 QString stringFromId(Core::Id id)
 {
-    const QString idStr = id.toString();
-    if (idStr.startsWith(QLatin1String(MER_RUNCONFIGURATION_PREFIX)))
-        return idStr.mid(QString::fromLatin1(MER_RUNCONFIGURATION_PREFIX).size());
-
-    return QString();
+    return id.suffixAfter(MER_RUNCONFIGURATION_PREFIX);
 }
 } // Anonymous
 
