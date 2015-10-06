@@ -193,7 +193,7 @@ bool Command::isValid() const
 
     if (!currentPath.startsWith(cleanSharedHome) && (sharedSourcePath().isEmpty() ||
                                                      !currentPath.startsWith(cleanSharedSrc))) {
-        QString message = QString::fromLatin1("Project ERROR: Project is outside of shared home '%1' and shared src '%2'.")
+        QString message = QString::fromLatin1("Project ERROR: Project is outside of shared home \"%1\" and shared src \"%2\".")
                 .arg(QDir::toNativeSeparators(sharedHomePath())).arg(QDir::toNativeSeparators(sharedSourcePath()));
         fprintf(stderr, "%s", qPrintable(message));
         fflush(stderr);

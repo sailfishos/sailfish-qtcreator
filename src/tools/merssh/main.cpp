@@ -79,7 +79,7 @@ QStringList unquoteArguments(QStringList args) {
         }  else if (arg.indexOf(QLatin1Char(' ')) == -1) {
             result.append(arg);
         } else {
-            QString message = QString::fromLatin1("Unquoted argument found  '%1', which should be quoted. Skipping...\n").arg(arg);
+            QString message = QString::fromLatin1("Unquoted argument found  \"%1\", which should be quoted. Skipping...\n").arg(arg);
             fprintf(stderr, "%s", qPrintable(message));
             fflush(stderr);
         }
