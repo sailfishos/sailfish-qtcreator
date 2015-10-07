@@ -22,6 +22,8 @@
 
 #include "mersshkeydeploymentdialog.h"
 
+using namespace RemoteLinux;
+
 namespace Mer {
 namespace Internal {
 
@@ -37,9 +39,9 @@ MerSshKeyDeploymentDialog::MerSshKeyDeploymentDialog(QWidget *parent)
     setValue(0);
     connect(this, &MerSshKeyDeploymentDialog::canceled,
             this, &MerSshKeyDeploymentDialog::handleCanceled);
-    connect(&m_sshDeployer, &RemoteLinux::SshKeyDeployer::error,
+    connect(&m_sshDeployer, &SshKeyDeployer::error,
             this, &MerSshKeyDeploymentDialog::handleDeploymentError);
-    connect(&m_sshDeployer, &RemoteLinux::SshKeyDeployer::finishedSuccessfully,
+    connect(&m_sshDeployer, &SshKeyDeployer::finishedSuccessfully,
             this, &MerSshKeyDeploymentDialog::handleDeploymentSuccess);
 }
 

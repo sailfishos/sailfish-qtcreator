@@ -34,6 +34,8 @@
 
 #include <QDir>
 
+using namespace ProjectExplorer;
+
 namespace Mer {
 namespace Internal {
 
@@ -53,7 +55,7 @@ MerEmualtorVMPage::MerEmualtorVMPage(QWidget *parent): QWizardPage(parent),
 
     int i = 1;
     QString tryName = preferredName;
-    while (ProjectExplorer::DeviceManager::instance()->hasDevice(tryName))
+    while (DeviceManager::instance()->hasDevice(tryName))
         tryName = preferredName + QString::number(++i);
 
     m_ui->configNameLineEdit->setText(tryName);
@@ -165,7 +167,7 @@ void MerEmualtorVMPage::handleEmulatorVmChanged(const QString &vmName)
 bool MerEmualtorVMPage::isComplete() const
 {
     return !configName().isEmpty()
-            && !ProjectExplorer::DeviceManager::instance()->hasDevice(configName())
+            && !DeviceManager::instance()->hasDevice(configName())
             && !emulatorVm().isEmpty();
 }
 

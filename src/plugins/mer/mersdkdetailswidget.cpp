@@ -32,6 +32,8 @@
 #include <QFileDialog>
 #include <QMessageBox>
 
+using namespace Utils;
+
 namespace Mer {
 namespace Internal {
 
@@ -48,9 +50,9 @@ MerSdkDetailsWidget::MerSdkDetailsWidget(QWidget *parent)
             this, &MerSdkDetailsWidget::onAuthorizeSshKeyButtonClicked);
     connect(m_ui->generateSshKeyPushButton, &QPushButton::clicked,
             this, &MerSdkDetailsWidget::onGenerateSshKeyButtonClicked);
-    connect(m_ui->privateKeyPathChooser, &Utils::PathChooser::editingFinished,
+    connect(m_ui->privateKeyPathChooser, &PathChooser::editingFinished,
             this, &MerSdkDetailsWidget::onPathChooserEditingFinished);
-    connect(m_ui->privateKeyPathChooser, &Utils::PathChooser::browsingFinished,
+    connect(m_ui->privateKeyPathChooser, &PathChooser::browsingFinished,
             this, &MerSdkDetailsWidget::onPathChooserEditingFinished);
     connect(m_ui->testConnectionPushButton, &QPushButton::clicked,
             this, &MerSdkDetailsWidget::testConnectionButtonClicked);
@@ -61,7 +63,7 @@ MerSdkDetailsWidget::MerSdkDetailsWidget(QWidget *parent)
     connect(m_ui->srcFolderApplyButton, &QPushButton::clicked,
             this, &MerSdkDetailsWidget::onSrcFolderApplyButtonClicked);
 
-    m_ui->privateKeyPathChooser->setExpectedKind(Utils::PathChooser::File);
+    m_ui->privateKeyPathChooser->setExpectedKind(PathChooser::File);
     m_ui->privateKeyPathChooser->setPromptDialogTitle(tr("Select SSH Key"));
 }
 
@@ -145,7 +147,7 @@ void MerSdkDetailsWidget::onSrcFolderApplyButtonClicked()
 {
     if (m_ui->srcFolderPathChooser->isValid()) {
         QString path = m_ui->srcFolderPathChooser->path();
-        if (Utils::HostOsInfo::isWindowsHost()) {
+        if (HostOsInfo::isWindowsHost()) {
             if (!path.endsWith(QLatin1Char('\\')) && !path.endsWith(QLatin1Char('/'))) {
                 path = path + QLatin1Char('\\');
             }

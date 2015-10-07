@@ -24,6 +24,9 @@
 
 #include "merconstants.h"
 
+using namespace ProjectExplorer;
+using namespace RemoteLinux;
+
 namespace Mer {
 namespace Internal {
 
@@ -51,7 +54,7 @@ QVariantMap MerDevice::toMap() const
     return map;
 }
 
-ProjectExplorer::IDevice::MachineType
+IDevice::MachineType
     MerDevice::workaround_machineTypeFromMap(const QVariantMap &map)
 {
     return static_cast<MachineType>(
@@ -73,7 +76,7 @@ MerDevice::MerDevice()
 }
 
 MerDevice::MerDevice(const QString &name, MachineType machineType, Origin origin, Core::Id id)
-    : RemoteLinux::LinuxDevice(name, Core::Id(Constants::MER_DEVICE_TYPE), machineType, origin, id)
+    : LinuxDevice(name, Core::Id(Constants::MER_DEVICE_TYPE), machineType, origin, id)
 {
     setDeviceState(IDevice::DeviceStateUnknown);
 }

@@ -40,6 +40,11 @@
 #include <QTimer>
 #include <QWizard>
 
+using namespace ProjectExplorer;
+using namespace RemoteLinux;
+using namespace QSsh;
+using namespace Utils;
+
 namespace Mer {
 namespace Internal {
 
@@ -59,11 +64,11 @@ MerHardwareDevice::MerHardwareDevice(const QString &name,
                      Origin origin,
                      Core::Id id)
     : MerDevice(name, IDevice::Hardware, origin, id),
-      m_architecture(ProjectExplorer::Abi::UnknownArchitecture)
+      m_architecture(Abi::UnknownArchitecture)
 {
 }
 
-ProjectExplorer::IDevice::Ptr MerHardwareDevice::clone() const
+IDevice::Ptr MerHardwareDevice::clone() const
 {
     return Ptr(new MerHardwareDevice(*this));
 }
@@ -75,9 +80,9 @@ MerHardwareDevice::MerHardwareDevice()
 void MerHardwareDevice::fromMap(const QVariantMap &map)
 {
     MerDevice::fromMap(map);
-    m_architecture = static_cast<ProjectExplorer::Abi::Architecture>(
+    m_architecture = static_cast<Abi::Architecture>(
             map.value(QLatin1String(Constants::MER_DEVICE_ARCHITECTURE),
-                ProjectExplorer::Abi::UnknownArchitecture).toInt());
+                Abi::UnknownArchitecture).toInt());
 }
 
 QVariantMap MerHardwareDevice::toMap() const
@@ -87,17 +92,17 @@ QVariantMap MerHardwareDevice::toMap() const
     return map;
 }
 
-ProjectExplorer::Abi::Architecture MerHardwareDevice::architecture() const
+Abi::Architecture MerHardwareDevice::architecture() const
 {
     return m_architecture;
 }
 
-void MerHardwareDevice::setArchitecture(const ProjectExplorer::Abi::Architecture &architecture)
+void MerHardwareDevice::setArchitecture(const Abi::Architecture &architecture)
 {
     m_architecture = architecture;
 }
 
-ProjectExplorer::IDeviceWidget *MerHardwareDevice::createWidget()
+IDeviceWidget *MerHardwareDevice::createWidget()
 {
     return new MerHardwareDeviceWidget(sharedFromThis());
 }

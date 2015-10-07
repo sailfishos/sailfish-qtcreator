@@ -33,6 +33,8 @@
 #include <QXmlSchemaValidator>
 #include <QXmlStreamWriter>
 
+using namespace Utils;
+
 //Parser for:
 //https://wiki.merproject.org/wiki/SDK_on_VirtualBox/Design
 
@@ -251,7 +253,7 @@ MerDevicesXmlReader::MerDevicesXmlReader(const QString &fileName, QObject *paren
     : QObject(parent),
       d(new MerDevicesXmlReaderPrivate)
 {
-    Utils::FileReader reader;
+    FileReader reader;
     d->error = !reader.fetch(fileName, QIODevice::ReadOnly);
     if (d->error) {
         d->errorString = reader.errorString();
@@ -261,7 +263,7 @@ MerDevicesXmlReader::MerDevicesXmlReader(const QString &fileName, QObject *paren
     QXmlSchema schema;
     schema.setMessageHandler(&d->messageHandler);
 
-    Utils::FileReader schemeReader;
+    FileReader schemeReader;
     d->error = !schemeReader.fetch(QString::fromLatin1("%1/mer/devices.xsd").arg(sharedDirPath()),
             QIODevice::ReadOnly);
     if (d->error) {
@@ -343,7 +345,7 @@ class MerDevicesXmlWriterPrivate
 public:
     MerDevicesXmlWriterPrivate(const QString &fileName) : fileSaver(fileName, QIODevice::WriteOnly) {}
 
-    Utils::FileSaver fileSaver;
+    FileSaver fileSaver;
 };
 
 MerDevicesXmlWriter::MerDevicesXmlWriter(const QString &fileName,
@@ -399,7 +401,7 @@ MerDevicesXmlWriter::MerDevicesXmlWriter(const QString &fileName,
         // Only devices that are of type=vbox are overwritten.
         // REMOVE THESE LINES
         // STARTS HERE
-        Utils::FileReader fileReader;
+        FileReader fileReader;
         if (fileReader.fetch(fileName)) {
             QXmlStreamReader xmlReader(fileReader.data());
             while (!xmlReader.atEnd()) {

@@ -37,6 +37,7 @@
 #include <texteditor/texteditorsettings.h>
 
 using namespace ProjectExplorer;
+using namespace Utils;
 
 namespace Mer {
 namespace Internal {
@@ -64,16 +65,16 @@ void MerRpmValidationParser::stdOutput(const QString &line)
         const QString message(tr("RPM Validation: %1: %2")
                 .arg(m_section)
                 .arg(trimmed));
-        newTask(Task(Task::Error, message, Utils::FileName(), -1,
-                    Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM)));
+        newTask(Task(Task::Error, message, FileName(), -1,
+                     Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM)));
         return;
     } else if (m_warningRexp.indexIn(trimmed) != -1) {
         trimmed.remove(m_warningRexp);
         const QString message(tr("RPM Validation: %1: %2")
                 .arg(m_section)
                 .arg(trimmed));
-        newTask(Task(Task::Warning, message, Utils::FileName(), -1,
-                    Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM)));
+        newTask(Task(Task::Warning, message, FileName(), -1,
+                     Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM)));
         return;
     } else if (m_infoRexp.indexIn(trimmed) != -1) {
         trimmed.remove(m_infoRexp);

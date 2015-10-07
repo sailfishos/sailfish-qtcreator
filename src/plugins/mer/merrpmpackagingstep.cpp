@@ -43,6 +43,12 @@
 
 #include <QProcess>
 
+using namespace Core;
+using namespace ProjectExplorer;
+using namespace QmakeProjectManager;
+using namespace QtSupport;
+using namespace Utils;
+
 namespace {
 const QLatin1String MagicFileName(".qtcreator");
 const QLatin1String SpecFileName("qtcreator.spec");
@@ -52,12 +58,12 @@ const QLatin1String SpecFileName("qtcreator.spec");
 namespace Mer {
 namespace Internal {
 
-MerRpmPackagingStep::MerRpmPackagingStep(ProjectExplorer::BuildStepList *bsl) : AbstractPackagingStep(bsl, stepId())
+MerRpmPackagingStep::MerRpmPackagingStep(BuildStepList *bsl) : AbstractPackagingStep(bsl, stepId())
 {
     ctor();
 }
 
-MerRpmPackagingStep::MerRpmPackagingStep(ProjectExplorer::BuildStepList *bsl, MerRpmPackagingStep *other) : AbstractPackagingStep(bsl, other)
+MerRpmPackagingStep::MerRpmPackagingStep(BuildStepList *bsl, MerRpmPackagingStep *other) : AbstractPackagingStep(bsl, other)
 {
     ctor();
 }
@@ -87,13 +93,13 @@ bool MerRpmPackagingStep::init()
         return false;
     }
 
-    QtSupport::BaseQtVersion *version = QtSupport::QtKitInformation::qtVersion(target()->kit());
+    BaseQtVersion *version = QtKitInformation::qtVersion(target()->kit());
     if (!version) {
         raiseError(tr("Packaging failed: No Qt version."));
         return false;
     }
 
-    ProjectExplorer::BuildConfiguration *bc = buildConfiguration();
+    BuildConfiguration *bc = buildConfiguration();
     if (!bc)
         bc = target()->activeBuildConfiguration();
 
@@ -143,7 +149,7 @@ void MerRpmPackagingStep::  run(QFutureInterface<bool> &fi)
 }
 
 
-ProjectExplorer::BuildStepConfigWidget *MerRpmPackagingStep::createConfigWidget()
+BuildStepConfigWidget *MerRpmPackagingStep::createConfigWidget()
 {
     return new MerRpmPackagingWidget(this);
 }
@@ -199,7 +205,7 @@ bool MerRpmPackagingStep::prepareBuildDir()
 
     QString error;
 
-    if (!Utils::FileUtils::removeRecursively(Utils::FileName::fromString(rpmDirPath), &error)) {
+    if (!FileUtils::removeRecursively(FileName::fromString(rpmDirPath), &error)) {
         raiseError(tr("Packaging failed: Could not remove directory \"%1\": %2")
             .arg(rpmDirPath, error));
         return false;
