@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -32,10 +32,11 @@
 #include <cstring>
 
 using namespace CPlusPlus;
+using namespace CPlusPlus::Internal;
 
 bool ByteArrayRef::startsWith(const char *s) const
 {
-    int l = std::strlen(s);
+    const int l = int(std::strlen(s));
     if (l > m_length)
         return false;
     return !qstrncmp(start(), s, l);
@@ -52,7 +53,7 @@ int ByteArrayRef::count(char ch) const
     return num;
 }
 
-void Internal::PPToken::squeezeSource()
+void PPToken::squeezeSource()
 {
     if (hasSource()) {
         m_src = m_src.mid(offset, f.length);

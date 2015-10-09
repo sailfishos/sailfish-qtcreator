@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -34,6 +34,7 @@
 #include <nodeproperty.h>
 #include <nodemetainfo.h>
 #include <qmlobjectnode.h>
+#include <bindingproperty.h>
 
 //using namespace QmlDesigner;
 
@@ -150,12 +151,15 @@ void PropertyEditorValue::setValue(const QVariant &value)
     if (m_value.isValid())
         emit valueChangedQml();
     emit isBoundChanged();
+}
 
+QString PropertyEditorValue::enumeration() const
+{
+    return m_value.value<QmlDesigner::Enumeration>().nameToString();
 }
 
 QString PropertyEditorValue::expression() const
 {
-
     return m_expression;
 }
 
@@ -220,17 +224,22 @@ void PropertyEditorValue::setIsValid(bool valid)
 
 bool PropertyEditorValue::isTranslated() const
 {
-    if (modelNode().isValid() && modelNode().metaInfo().isValid() && modelNode().metaInfo().hasProperty(name()))
+    if (modelNode().isValid() && modelNode().metaInfo().isValid() && modelNode().metaInfo().hasProperty(name())) {
         if (modelNode().metaInfo().propertyTypeName(name()) == "QString" || modelNode().metaInfo().propertyTypeName(name()) == "string") {
             const QmlDesigner::QmlObjectNode objectNode(modelNode());
             if (objectNode.isValid() && objectNode.hasBindingProperty(name())) {
-                //qsTr()
                 QRegExp rx("qsTr(\"*\")");
+                //qsTr()
                 rx.setPatternSyntax(QRegExp::Wildcard);
-                return rx.exactMatch(expression());
+                if (objectNode.propertyAffectedByCurrentState(name())) {
+                    return rx.exactMatch(expression());
+                } else {
+                    return rx.exactMatch(modelNode().bindingProperty(name()).expression());
+                }
             }
             return false;
         }
+    }
     return false;
 }
 
@@ -262,11 +271,18 @@ void PropertyEditorValue::resetValue()
     }
 }
 
+void PropertyEditorValue::setEnumeration(const QString &scope, const QString &name)
+{
+    QmlDesigner::Enumeration newEnumeration(scope, name);
+
+    setValueWithEmit(QVariant::fromValue(newEnumeration));
+}
+
 void PropertyEditorValue::registerDeclarativeTypes()
 {
-    qmlRegisterType<PropertyEditorValue>("Bauhaus",1,0,"PropertyEditorValue");
-    qmlRegisterType<PropertyEditorNodeWrapper>("Bauhaus",1,0,"PropertyEditorNodeWrapper");
-    qmlRegisterType<QDeclarativePropertyMap>("Bauhaus",1,0,"QDeclarativePropertyMap");
+    qmlRegisterType<PropertyEditorValue>("HelperWidgets",2,0,"PropertyEditorValue");
+    qmlRegisterType<PropertyEditorNodeWrapper>("HelperWidgets",2,0,"PropertyEditorNodeWrapper");
+    qmlRegisterType<QQmlPropertyMap>("HelperWidgets",2,0,"QQmlPropertyMap");
 }
 
 PropertyEditorNodeWrapper::PropertyEditorNodeWrapper(PropertyEditorValue* parent) : QObject(parent), m_valuesPropertyMap(this)
@@ -306,7 +322,7 @@ QmlDesigner::PropertyName PropertyEditorNodeWrapper::propertyName() const
     return m_editorValue->name();
 }
 
-QDeclarativePropertyMap* PropertyEditorNodeWrapper::properties()
+QQmlPropertyMap *PropertyEditorNodeWrapper::properties()
 {
     return &m_valuesPropertyMap;
 }
@@ -356,14 +372,14 @@ void PropertyEditorNodeWrapper::changeValue(const QString &propertyName)
     if (name.isNull())
         return;
     if (m_modelNode.isValid()) {
-        QmlDesigner::QmlObjectNode fxObjectNode(m_modelNode);
+        QmlDesigner::QmlObjectNode qmlObjectNode(m_modelNode);
 
         PropertyEditorValue *valueObject = qvariant_cast<PropertyEditorValue *>(m_valuesPropertyMap.value(name));
 
         if (valueObject->value().isValid())
-            fxObjectNode.setVariantProperty(name, valueObject->value());
+            qmlObjectNode.setVariantProperty(name, valueObject->value());
         else
-            fxObjectNode.removeVariantProperty(name);
+            qmlObjectNode.removeProperty(name);
     }
 }
 
@@ -372,17 +388,17 @@ void PropertyEditorNodeWrapper::setup()
     Q_ASSERT(m_editorValue);
     Q_ASSERT(m_editorValue->modelNode().isValid());
     if ((m_editorValue->modelNode().isValid() && m_modelNode.isValid())) {
-        QmlDesigner::QmlObjectNode fxObjectNode(m_modelNode);
+        QmlDesigner::QmlObjectNode qmlObjectNode(m_modelNode);
         foreach ( const QString &propertyName, m_valuesPropertyMap.keys())
             m_valuesPropertyMap.clear(propertyName);
         foreach (QObject *object, m_valuesPropertyMap.children())
             delete object;
 
         foreach (const QmlDesigner::PropertyName &propertyName, m_modelNode.metaInfo().propertyNames()) {
-            if (fxObjectNode.isValid()) {
+            if (qmlObjectNode.isValid()) {
                 PropertyEditorValue *valueObject = new PropertyEditorValue(&m_valuesPropertyMap);
                 valueObject->setName(propertyName);
-                valueObject->setValue(fxObjectNode.instanceValue(propertyName));
+                valueObject->setValue(qmlObjectNode.instanceValue(propertyName));
                 connect(valueObject, SIGNAL(valueChanged(QString,QVariant)), &m_valuesPropertyMap, SIGNAL(valueChanged(QString,QVariant)));
                 m_valuesPropertyMap.insert(propertyName, QVariant::fromValue(valueObject));
             }

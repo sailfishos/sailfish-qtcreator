@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (c) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (c) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator
@@ -23,7 +23,7 @@
 // **********************************************************************
 
 /*!
-    \contentspage index.html
+    \contentspage {Qt Creator Manual}
     \previouspage creator-qml-modules-with-plugins.html
     \page creator-using-qt-designer.html
     \nextpage adding-plugins.html
@@ -35,8 +35,7 @@
 
     \image qtcreator-formedit.png
 
-    For more information about \QD, see the
-    \l{http://qt-project.org/doc/qt-5.0/qtdesigner/qtdesigner-manual.html}{Qt Designer Manual}.
+    For more information about \QD, see the \l{Qt Designer Manual}.
 
     Generally, the integrated \QD contains the same functions as the standalone
     \QD. The following sections describe the differences.
@@ -119,4 +118,10 @@
             the context menu.
 
     \endlist
+
+    \section1 Adding Widgets
+
+    You can use Qt APIs to create plugins that extend Qt applications. This
+    enables you to add your own widgets to \QD. For more information, see
+    \l{Adding Qt Designer Plugins}.
 */

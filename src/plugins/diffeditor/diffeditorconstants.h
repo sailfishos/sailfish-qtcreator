@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,14 +30,13 @@
 #ifndef DIFFEDITORCONSTANTS_H
 #define DIFFEDITORCONSTANTS_H
 
+#include <QtGlobal>
+
 namespace DiffEditor {
 namespace Constants {
 
 const char DIFF_EDITOR_ID[] = "Diff Editor";
 const char DIFF_EDITOR_DISPLAY_NAME[] = QT_TRANSLATE_NOOP("DiffEditor", "Diff Editor");
-const char DIFF_EDITOR_MIMETYPE[] = "text/x-patch";
-const char DIFF_SHOW_EDITOR_ID[] = "Show Editor";
-const char DIFF_SHOW_EDITOR_DISPLAY_NAME[] = QT_TRANSLATE_NOOP("ShowEditor", "Show Editor");
 const char G_TOOLS_DIFF[] = "QtCreator.Group.Tools.Options";
 
 } // namespace Constants

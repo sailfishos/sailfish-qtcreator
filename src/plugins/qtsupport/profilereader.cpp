@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -48,20 +48,21 @@ static QString format(const QString &fileName, int lineNo, const QString &msg)
 ProMessageHandler::ProMessageHandler(bool verbose)
     : m_verbose(verbose)
 {
-    QObject::connect(this, SIGNAL(errorFound(QString,Core::MessageManager::PrintToOutputPaneFlags)),
-                     Core::ICore::messageManager(), SLOT(printToOutputPane(QString,Core::MessageManager::PrintToOutputPaneFlags)),
+    QObject::connect(this, SIGNAL(writeMessage(QString,Core::MessageManager::PrintToOutputPaneFlags)),
+                     Core::MessageManager::instance(), SLOT(write(QString,Core::MessageManager::PrintToOutputPaneFlags)),
                      Qt::QueuedConnection);
 }
 
 void ProMessageHandler::message(int type, const QString &msg, const QString &fileName, int lineNo)
 {
     if ((type & CategoryMask) == ErrorMessage && ((type & SourceMask) == SourceParser || m_verbose))
-        emit errorFound(format(fileName, lineNo, msg), Core::MessageManager::NoModeSwitch);
+        emit writeMessage(format(fileName, lineNo, msg), Core::MessageManager::NoModeSwitch);
 }
 
-void ProMessageHandler::fileMessage(const QString &)
+void ProMessageHandler::fileMessage(const QString &msg)
 {
-    // we ignore these...
+    if (m_verbose)
+        emit writeMessage(msg, Core::MessageManager::NoModeSwitch);
 }
 
 
@@ -76,6 +77,12 @@ ProFileReader::~ProFileReader()
 {
     foreach (ProFile *pf, m_proFiles)
         pf->deref();
+}
+
+void ProFileReader::setCumulative(bool on)
+{
+    ProMessageHandler::setVerbose(!on);
+    ProFileEvaluator::setCumulative(on);
 }
 
 void ProFileReader::aboutToEval(ProFile *, ProFile *pro, EvalFileType type)

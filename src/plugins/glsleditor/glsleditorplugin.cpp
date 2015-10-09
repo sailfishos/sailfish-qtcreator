@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -34,6 +34,7 @@
 #include "glslfilewizard.h"
 #include "glslhoverhandler.h"
 #include "glslcompletionassist.h"
+#include "glslhighlighterfactory.h"
 
 #include <coreplugin/icore.h>
 #include <coreplugin/coreconstants.h>
@@ -47,9 +48,7 @@
 #include <projectexplorer/taskhub.h>
 #include <extensionsystem/pluginmanager.h>
 #include <texteditor/texteditorconstants.h>
-#include <texteditor/texteditorsettings.h>
 #include <texteditor/textfilewizard.h>
-#include <texteditor/texteditoractionhandler.h>
 #include <utils/qtcassert.h>
 
 #include <glsl/glslengine.h>
@@ -71,42 +70,64 @@ using namespace TextEditor;
 namespace GLSLEditor {
 namespace Internal {
 
-GLSLEditorPlugin *GLSLEditorPlugin::m_instance = 0;
+class GLSLEditorPluginPrivate
+{
+public:
+    GLSLEditorPluginPrivate() :
+        m_editor(0),
+        m_glsl_120_frag(0),
+        m_glsl_120_vert(0),
+        m_glsl_120_common(0),
+        m_glsl_es_100_frag(0),
+        m_glsl_es_100_vert(0),
+        m_glsl_es_100_common(0)
+    {}
+
+    ~GLSLEditorPluginPrivate()
+    {
+        delete m_glsl_120_frag;
+        delete m_glsl_120_vert;
+        delete m_glsl_120_common;
+        delete m_glsl_es_100_frag;
+        delete m_glsl_es_100_vert;
+        delete m_glsl_es_100_common;
+    }
+
+    GLSLEditorFactory *m_editor;
+    QPointer<TextEditor::ITextEditor> m_currentTextEditable;
+
+    GLSLEditorPlugin::InitFile *m_glsl_120_frag;
+    GLSLEditorPlugin::InitFile *m_glsl_120_vert;
+    GLSLEditorPlugin::InitFile *m_glsl_120_common;
+    GLSLEditorPlugin::InitFile *m_glsl_es_100_frag;
+    GLSLEditorPlugin::InitFile *m_glsl_es_100_vert;
+    GLSLEditorPlugin::InitFile *m_glsl_es_100_common;
+};
+
+static GLSLEditorPluginPrivate *dd = 0;
+static GLSLEditorPlugin *m_instance = 0;
 
 GLSLEditorPlugin::InitFile::~InitFile()
 {
     delete engine;
 }
 
-GLSLEditorPlugin::GLSLEditorPlugin() :
-    m_editor(0),
-    m_actionHandler(0),
-    m_glsl_120_frag(0),
-    m_glsl_120_vert(0),
-    m_glsl_120_common(0),
-    m_glsl_es_100_frag(0),
-    m_glsl_es_100_vert(0),
-    m_glsl_es_100_common(0)
+GLSLEditorPlugin::GLSLEditorPlugin()
 {
     m_instance = this;
+    dd = new GLSLEditorPluginPrivate;
 }
 
 GLSLEditorPlugin::~GLSLEditorPlugin()
 {
-    removeObject(m_editor);
-    delete m_actionHandler;
-    delete m_glsl_120_frag;
-    delete m_glsl_120_vert;
-    delete m_glsl_120_common;
-    delete m_glsl_es_100_frag;
-    delete m_glsl_es_100_vert;
-    delete m_glsl_es_100_common;
+    removeObject(dd->m_editor);
+    delete dd;
     m_instance = 0;
 }
 
 bool GLSLEditorPlugin::initialize(const QStringList & /*arguments*/, QString *errorMessage)
 {
-    if (!ICore::mimeDatabase()->addMimeTypes(QLatin1String(":/glsleditor/GLSLEditor.mimetypes.xml"), errorMessage))
+    if (!MimeDatabase::addMimeTypes(QLatin1String(":/glsleditor/GLSLEditor.mimetypes.xml"), errorMessage))
         return false;
 
 //    m_modelManager = new ModelManager(this);
@@ -114,16 +135,10 @@ bool GLSLEditorPlugin::initialize(const QStringList & /*arguments*/, QString *er
 
     addAutoReleasedObject(new GLSLHoverHandler(this));
 
-    m_editor = new GLSLEditorFactory(this);
-    addObject(m_editor);
+    dd->m_editor = new GLSLEditorFactory(this);
+    addObject(dd->m_editor);
 
     addAutoReleasedObject(new GLSLCompletionAssistProvider);
-
-    m_actionHandler = new TextEditorActionHandler(Constants::C_GLSLEDITOR_ID,
-                                                              TextEditorActionHandler::Format
-                                                              | TextEditorActionHandler::UnCommentSelection
-                                                              | TextEditorActionHandler::UnCollapseAll);
-    m_actionHandler->initializeActions();
 
     ActionContainer *contextMenu = ActionManager::createMenu(GLSLEditor::Constants::M_CONTEXT);
     ActionContainer *glslToolsMenu = ActionManager::createMenu(Id(Constants::M_TOOLS_GLSL));
@@ -146,61 +161,65 @@ bool GLSLEditorPlugin::initialize(const QStringList & /*arguments*/, QString *er
 
     errorMessage->clear();
 
-    FileIconProvider *iconProvider = FileIconProvider::instance();
-    MimeDatabase *mimeDatabase = ICore::mimeDatabase();
-    iconProvider->registerIconOverlayForMimeType(QIcon(QLatin1String(":/glsleditor/images/glslfile.png")),
-                                                 mimeDatabase->findByType(QLatin1String(GLSLEditor::Constants::GLSL_MIMETYPE)));
-    iconProvider->registerIconOverlayForMimeType(QIcon(QLatin1String(":/glsleditor/images/glslfile.png")),
-                                                 mimeDatabase->findByType(QLatin1String(GLSLEditor::Constants::GLSL_MIMETYPE_VERT)));
-    iconProvider->registerIconOverlayForMimeType(QIcon(QLatin1String(":/glsleditor/images/glslfile.png")),
-                                                 mimeDatabase->findByType(QLatin1String(GLSLEditor::Constants::GLSL_MIMETYPE_FRAG)));
-    iconProvider->registerIconOverlayForMimeType(QIcon(QLatin1String(":/glsleditor/images/glslfile.png")),
-                                                 mimeDatabase->findByType(QLatin1String(GLSLEditor::Constants::GLSL_MIMETYPE_VERT_ES)));
-    iconProvider->registerIconOverlayForMimeType(QIcon(QLatin1String(":/glsleditor/images/glslfile.png")),
-                                                 mimeDatabase->findByType(QLatin1String(GLSLEditor::Constants::GLSL_MIMETYPE_FRAG_ES)));
+    FileIconProvider::registerIconOverlayForMimeType(":/glsleditor/images/glslfile.png", Constants::GLSL_MIMETYPE);
+    FileIconProvider::registerIconOverlayForMimeType(":/glsleditor/images/glslfile.png", Constants::GLSL_MIMETYPE_VERT);
+    FileIconProvider::registerIconOverlayForMimeType(":/glsleditor/images/glslfile.png", Constants::GLSL_MIMETYPE_FRAG);
+    FileIconProvider::registerIconOverlayForMimeType(":/glsleditor/images/glslfile.png", Constants::GLSL_MIMETYPE_VERT_ES);
+    FileIconProvider::registerIconOverlayForMimeType(":/glsleditor/images/glslfile.png", Constants::GLSL_MIMETYPE_FRAG_ES);
 
-    QObject *core = ICore::instance();
-    BaseFileWizardParameters fragWizardParameters(IWizard::FileWizard);
-    fragWizardParameters.setCategory(QLatin1String(Constants::WIZARD_CATEGORY_GLSL));
-    fragWizardParameters.setDisplayCategory(QCoreApplication::translate("GLSLEditor", Constants::WIZARD_TR_CATEGORY_GLSL));
-    fragWizardParameters.setDescription
+    IWizard *wizard = new GLSLFileWizard(GLSLFileWizard::FragmentShaderES);
+    wizard->setWizardKind(IWizard::FileWizard);
+    wizard->setCategory(QLatin1String(Constants::WIZARD_CATEGORY_GLSL));
+    wizard->setDisplayCategory(QCoreApplication::translate("GLSLEditor", Constants::WIZARD_TR_CATEGORY_GLSL));
+    wizard->setDescription
         (tr("Creates a fragment shader in the OpenGL/ES 2.0 Shading "
             "Language (GLSL/ES). Fragment shaders generate the final "
             "pixel colors for triangles, points and lines rendered "
             "with OpenGL."));
-    fragWizardParameters.setDisplayName(tr("Fragment Shader (OpenGL/ES 2.0)"));
-    fragWizardParameters.setId(QLatin1String("F.GLSL"));
-    addAutoReleasedObject(new GLSLFileWizard(fragWizardParameters, GLSLFileWizard::FragmentShaderES, core));
+    wizard->setDisplayName(tr("Fragment Shader (OpenGL/ES 2.0)"));
+    wizard->setId(QLatin1String("F.GLSL"));
+    addAutoReleasedObject(wizard);
 
-    BaseFileWizardParameters vertWizardParameters(IWizard::FileWizard);
-    vertWizardParameters.setCategory(QLatin1String(Constants::WIZARD_CATEGORY_GLSL));
-    vertWizardParameters.setDisplayCategory(QCoreApplication::translate("GLSLEditor", Constants::WIZARD_TR_CATEGORY_GLSL));
-    vertWizardParameters.setDescription
+    wizard = new GLSLFileWizard(GLSLFileWizard::VertexShaderES);
+    wizard->setWizardKind(IWizard::FileWizard);
+    wizard->setCategory(QLatin1String(Constants::WIZARD_CATEGORY_GLSL));
+    wizard->setDisplayCategory(QCoreApplication::translate("GLSLEditor", Constants::WIZARD_TR_CATEGORY_GLSL));
+    wizard->setDescription
         (tr("Creates a vertex shader in the OpenGL/ES 2.0 Shading "
             "Language (GLSL/ES). Vertex shaders transform the "
             "positions, normals and texture co-ordinates of "
             "triangles, points and lines rendered with OpenGL."));
-    vertWizardParameters.setDisplayName(tr("Vertex Shader (OpenGL/ES 2.0)"));
-    vertWizardParameters.setId(QLatin1String("G.GLSL"));
-    addAutoReleasedObject(new GLSLFileWizard(vertWizardParameters, GLSLFileWizard::VertexShaderES, core));
+    wizard->setDisplayName(tr("Vertex Shader (OpenGL/ES 2.0)"));
+    wizard->setId(QLatin1String("G.GLSL"));
+    addAutoReleasedObject(wizard);
 
-    fragWizardParameters.setDescription
+    wizard = new GLSLFileWizard(GLSLFileWizard::FragmentShaderDesktop);
+    wizard->setWizardKind(IWizard::FileWizard);
+    wizard->setCategory(QLatin1String(Constants::WIZARD_CATEGORY_GLSL));
+    wizard->setDisplayCategory(QCoreApplication::translate("GLSLEditor", Constants::WIZARD_TR_CATEGORY_GLSL));
+    wizard->setDescription
         (tr("Creates a fragment shader in the Desktop OpenGL Shading "
             "Language (GLSL). Fragment shaders generate the final "
             "pixel colors for triangles, points and lines rendered "
             "with OpenGL."));
-    fragWizardParameters.setDisplayName(tr("Fragment Shader (Desktop OpenGL)"));
-    fragWizardParameters.setId(QLatin1String("J.GLSL"));
-    addAutoReleasedObject(new GLSLFileWizard(fragWizardParameters, GLSLFileWizard::FragmentShaderDesktop, core));
+    wizard->setDisplayName(tr("Fragment Shader (Desktop OpenGL)"));
+    wizard->setId(QLatin1String("J.GLSL"));
+    addAutoReleasedObject(wizard);
 
-    vertWizardParameters.setDescription
+    wizard = new GLSLFileWizard(GLSLFileWizard::VertexShaderDesktop);
+    wizard->setWizardKind(IWizard::FileWizard);
+    wizard->setCategory(QLatin1String(Constants::WIZARD_CATEGORY_GLSL));
+    wizard->setDisplayCategory(QCoreApplication::translate("GLSLEditor", Constants::WIZARD_TR_CATEGORY_GLSL));
+    wizard->setDescription
         (tr("Creates a vertex shader in the Desktop OpenGL Shading "
             "Language (GLSL). Vertex shaders transform the "
             "positions, normals and texture co-ordinates of "
             "triangles, points and lines rendered with OpenGL."));
-    vertWizardParameters.setDisplayName(tr("Vertex Shader (Desktop OpenGL)"));
-    vertWizardParameters.setId(QLatin1String("K.GLSL"));
-    addAutoReleasedObject(new GLSLFileWizard(vertWizardParameters, GLSLFileWizard::VertexShaderDesktop, core));
+    wizard->setDisplayName(tr("Vertex Shader (Desktop OpenGL)"));
+    wizard->setId(QLatin1String("K.GLSL"));
+    addAutoReleasedObject(wizard);
+
+    addAutoReleasedObject(new GLSLHighlighterFactory);
 
     return true;
 }
@@ -215,23 +234,7 @@ ExtensionSystem::IPlugin::ShutdownFlag GLSLEditorPlugin::aboutToShutdown()
     return IPlugin::aboutToShutdown();
 }
 
-void GLSLEditorPlugin::initializeEditor(GLSLEditor::GLSLTextEditorWidget *editor)
-{
-    QTC_CHECK(m_instance);
-    m_actionHandler->setupActions(editor);
-    TextEditorSettings::instance()->initializeEditor(editor);
-}
-
-GLSLEditorPlugin::InitFile *GLSLEditorPlugin::getInitFile(const QString &fileName, InitFile **initFile) const
-{
-    if (*initFile)
-        return *initFile;
-    *initFile = new GLSLEditorPlugin::InitFile;
-    parseGlslFile(fileName, *initFile);
-    return *initFile;
-}
-
-QByteArray GLSLEditorPlugin::glslFile(const QString &fileName) const
+static QByteArray glslFile(const QString &fileName)
 {
     QFile file(ICore::resourcePath() + QLatin1String("/glsl/") + fileName);
     if (file.open(QFile::ReadOnly))
@@ -239,7 +242,7 @@ QByteArray GLSLEditorPlugin::glslFile(const QString &fileName) const
     return QByteArray();
 }
 
-void GLSLEditorPlugin::parseGlslFile(const QString &fileName, InitFile *initFile) const
+static void parseGlslFile(const QString &fileName, GLSLEditorPlugin::InitFile *initFile)
 {
     // Parse the builtins for any langugage variant so we can use all keywords.
     const int variant = GLSL::Lexer::Variant_All;
@@ -250,28 +253,37 @@ void GLSLEditorPlugin::parseGlslFile(const QString &fileName, InitFile *initFile
     initFile->ast = parser.parse();
 }
 
-const GLSLEditorPlugin::InitFile *GLSLEditorPlugin::fragmentShaderInit(int variant) const
+static GLSLEditorPlugin::InitFile *getInitFile(const char *fileName, GLSLEditorPlugin::InitFile **initFile)
 {
-    if (variant & GLSL::Lexer::Variant_GLSL_120)
-        return getInitFile(QLatin1String("glsl_120.frag"), &m_glsl_120_frag);
-    else
-        return getInitFile(QLatin1String("glsl_es_100.frag"), &m_glsl_es_100_frag);
+    if (*initFile)
+        return *initFile;
+    *initFile = new GLSLEditorPlugin::InitFile;
+    parseGlslFile(QLatin1String(fileName), *initFile);
+    return *initFile;
 }
 
-const GLSLEditorPlugin::InitFile *GLSLEditorPlugin::vertexShaderInit(int variant) const
+const GLSLEditorPlugin::InitFile *GLSLEditorPlugin::fragmentShaderInit(int variant)
 {
     if (variant & GLSL::Lexer::Variant_GLSL_120)
-        return getInitFile(QLatin1String("glsl_120.vert"), &m_glsl_120_vert);
+        return getInitFile("glsl_120.frag", &dd->m_glsl_120_frag);
     else
-        return getInitFile(QLatin1String("glsl_es_100.vert"), &m_glsl_es_100_vert);
+        return getInitFile("glsl_es_100.frag", &dd->m_glsl_es_100_frag);
 }
 
-const GLSLEditorPlugin::InitFile *GLSLEditorPlugin::shaderInit(int variant) const
+const GLSLEditorPlugin::InitFile *GLSLEditorPlugin::vertexShaderInit(int variant)
 {
     if (variant & GLSL::Lexer::Variant_GLSL_120)
-        return getInitFile(QLatin1String("glsl_120_common.glsl"), &m_glsl_120_common);
+        return getInitFile("glsl_120.vert", &dd->m_glsl_120_vert);
     else
-        return getInitFile(QLatin1String("glsl_es_100_common.glsl"), &m_glsl_es_100_common);
+        return getInitFile("glsl_es_100.vert", &dd->m_glsl_es_100_vert);
+}
+
+const GLSLEditorPlugin::InitFile *GLSLEditorPlugin::shaderInit(int variant)
+{
+    if (variant & GLSL::Lexer::Variant_GLSL_120)
+        return getInitFile("glsl_120_common.glsl", &dd->m_glsl_120_common);
+    else
+        return getInitFile("glsl_es_100_common.glsl", &dd->m_glsl_es_100_common);
 }
 
 } // namespace Internal

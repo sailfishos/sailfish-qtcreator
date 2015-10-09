@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -32,8 +32,18 @@
 #include <QCoreApplication>
 #include <QDateTime>
 #include <QDebug>
+#include <QHostAddress>
+#include <QRegExp>
+#if QT_VERSION >= 0x050200
+#include <QTimeZone>
+#endif
 
 #include <ctype.h>
+
+#define QTC_ASSERT_STRINGIFY_HELPER(x) #x
+#define QTC_ASSERT_STRINGIFY(x) QTC_ASSERT_STRINGIFY_HELPER(x)
+#define QTC_ASSERT_STRING(cond) qDebug("SOFT ASSERT: \"" cond"\" in file " __FILE__ ", line " QTC_ASSERT_STRINGIFY(__LINE__))
+#define QTC_ASSERT(cond, action) if (cond) {} else { QTC_ASSERT_STRING(#cond); action; } do {} while (0)
 
 namespace Debugger {
 namespace Internal {
@@ -46,7 +56,7 @@ uchar fromhex(uchar c)
         return 10 + c - 'a';
     if (c >= 'A' && c <= 'Z')
         return 10 + c - 'A';
-    return -1;
+    return UCHAR_MAX;
 }
 
 void skipCommas(const char *&from, const char *to)
@@ -137,7 +147,7 @@ QByteArray GdbMi::parseCString(const char *&from, const char *to)
                         uchar prod = 0;
                         while (true) {
                             uchar val = fromhex(c);
-                            if (val == uchar(-1))
+                            if (val == UCHAR_MAX)
                                 break;
                             prod = prod * 16 + val;
                             if (++chars == 3 || src == end)
@@ -502,6 +512,55 @@ static QTime timeFromData(int ms)
     return ms == -1 ? QTime() : QTime(0, 0, 0, 0).addMSecs(ms);
 }
 
+#if QT_VERSION >= 0x050200
+// Stolen and adapted from qdatetime.cpp
+static void getDateTime(qint64 msecs, int status, QDate *date, QTime *time)
+{
+    enum {
+        SECS_PER_DAY = 86400,
+        MSECS_PER_DAY = 86400000,
+        SECS_PER_HOUR = 3600,
+        MSECS_PER_HOUR = 3600000,
+        SECS_PER_MIN = 60,
+        MSECS_PER_MIN = 60000,
+        TIME_T_MAX = 2145916799,  // int maximum 2037-12-31T23:59:59 UTC
+        JULIAN_DAY_FOR_EPOCH = 2440588 // result of julianDayFromDate(1970, 1, 1)
+    };
+
+    // Status of date/time
+    enum StatusFlag {
+        NullDate            = 0x01,
+        NullTime            = 0x02,
+        ValidDate           = 0x04,
+        ValidTime           = 0x08,
+        ValidDateTime       = 0x10,
+        TimeZoneCached      = 0x20,
+        SetToStandardTime   = 0x40,
+        SetToDaylightTime   = 0x80
+    };
+
+    qint64 jd = JULIAN_DAY_FOR_EPOCH;
+    qint64 ds = 0;
+
+    if (qAbs(msecs) >= MSECS_PER_DAY) {
+        jd += (msecs / MSECS_PER_DAY);
+        msecs %= MSECS_PER_DAY;
+    }
+
+    if (msecs < 0) {
+        ds = MSECS_PER_DAY - msecs - 1;
+        jd -= ds / MSECS_PER_DAY;
+        ds = ds % MSECS_PER_DAY;
+        ds = MSECS_PER_DAY - ds - 1;
+    } else {
+        ds = msecs;
+    }
+
+    *date = (status & NullDate) ? QDate() : QDate::fromJulianDay(jd);
+    *time = (status & NullTime) ? QTime() : QTime::fromMSecsSinceStartOfDay(ds);
+}
+#endif
+
 QString decodeData(const QByteArray &ba, int encoding)
 {
     switch (encoding) {
@@ -599,17 +658,71 @@ QString decodeData(const QByteArray &ba, int encoding)
         }
         case JulianDate: { // 14, an integer count
             const QDate date = dateFromData(ba.toInt());
-            return date.toString(Qt::TextDate);
+            return date.isValid() ? date.toString(Qt::TextDate) : QLatin1String("(invalid)");
         }
         case MillisecondsSinceMidnight: {
             const QTime time = timeFromData(ba.toInt());
-            return time.toString(Qt::TextDate);
+            return time.isValid() ? time.toString(Qt::TextDate) : QLatin1String("(invalid)");
         }
         case JulianDateAndMillisecondsSinceMidnight: {
             const int p = ba.indexOf('/');
             const QDate date = dateFromData(ba.left(p).toInt());
             const QTime time = timeFromData(ba.mid(p + 1 ).toInt());
-            return QDateTime(date, time).toString(Qt::TextDate);
+            const QDateTime dateTime = QDateTime(date, time);
+            return dateTime.isValid() ? dateTime.toString(Qt::TextDate) : QLatin1String("(invalid)");
+        }
+        case IPv6AddressAndHexScopeId: { // 27, 16 hex-encoded bytes, "%" and the string-encoded scope
+            const int p = ba.indexOf('%');
+            QHostAddress ip6(QString::fromLatin1(p == -1 ? ba : ba.left(p)));
+            if (ip6.isNull())
+                break;
+
+            const QByteArray scopeId = p == -1 ? QByteArray() : QByteArray::fromHex(ba.mid(p + 1));
+            if (!scopeId.isEmpty())
+                ip6.setScopeId(QString::fromUtf16(reinterpret_cast<const ushort *>(scopeId.constData()),
+                                                  scopeId.length() / 2));
+            return ip6.toString();
+        }
+        case Hex2EncodedUtf8WithoutQuotes: { // 28, %02x encoded 8 bit UTF-8 data without quotes
+            const QByteArray decodedBa = QByteArray::fromHex(ba);
+            return QString::fromUtf8(decodedBa);
+        }
+        case DateTimeInternal: { // 29, DateTimeInternal: msecs, spec, offset, tz, status
+#if QT_VERSION >= 0x050200
+            int p0 = ba.indexOf('/');
+            int p1 = ba.indexOf('/', p0 + 1);
+            int p2 = ba.indexOf('/', p1 + 1);
+            int p3 = ba.indexOf('/', p2 + 1);
+
+            qint64 msecs = ba.left(p0).toLongLong();
+            ++p0;
+            Qt::TimeSpec spec = Qt::TimeSpec(ba.mid(p0, p1 - p0).toInt());
+            ++p1;
+            qulonglong offset = ba.mid(p1, p2 - p1).toInt();
+            ++p2;
+            QByteArray timeZoneId = QByteArray::fromHex(ba.mid(p2, p3 - p2));
+            ++p3;
+            int status = ba.mid(p3).toInt();
+
+            QDate date;
+            QTime time;
+            getDateTime(msecs, status, &date, &time);
+
+            QDateTime dateTime;
+            if (spec == Qt::OffsetFromUTC) {
+                dateTime = QDateTime(date, time, spec, offset);
+            } else if (spec == Qt::TimeZone) {
+                if (!QTimeZone::isTimeZoneIdAvailable(timeZoneId))
+                    return QLatin1String("<unavailable>");
+                dateTime = QDateTime(date, time, QTimeZone(timeZoneId));
+            } else {
+                dateTime = QDateTime(date, time, spec);
+            }
+            return dateTime.toString();
+#else
+            // "Very plain".
+            return QString::fromLatin1(ba);
+#endif
         }
     }
     qDebug() << "ENCODING ERROR: " << encoding;

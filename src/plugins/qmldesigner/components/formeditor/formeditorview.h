@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,16 +30,14 @@
 #ifndef FORMEDITORVIEW_H
 #define FORMEDITORVIEW_H
 
-#include <qmlmodelview.h>
+#include <abstractview.h>
 
 QT_BEGIN_NAMESPACE
 class QGraphicsScene;
 class QGraphicsSceneMouseEvent;
 QT_END_NAMESPACE
 
-namespace Utils {
-class CrumblePath;
-}
+namespace Utils { class CrumblePath; }
 
 namespace QmlDesigner {
 
@@ -57,7 +55,7 @@ class DragTool;
 class ItemLibraryEntry;
 class QmlItemNode;
 
-class QMLDESIGNERCORE_EXPORT FormEditorView : public QmlModelView
+class QMLDESIGNERCORE_EXPORT FormEditorView : public AbstractView
 {
     Q_OBJECT
 
@@ -100,7 +98,7 @@ public:
     void changeToSelectionTool(QGraphicsSceneMouseEvent *event);
     void changeToResizeTool();
     void changeToTransformTools();
-    void changeToCustomTool(const ModelNode &modelNode);
+    void changeToCustomTool();
     void changeToCustomTool(AbstractCustomTool *customTool);
 
     void registerTool(AbstractCustomTool *tool);
@@ -123,7 +121,12 @@ public:
     double spacing() const;
     void deActivateItemCreator();
 
-    void actualStateChanged(const ModelNode &node) QTC_OVERRIDE;
+    void currentStateChanged(const ModelNode &node) QTC_OVERRIDE;
+
+    void nodeRemoved(const ModelNode &removedNode, const NodeAbstractProperty &parentProperty, PropertyChangeFlags propertyChange) QTC_OVERRIDE;
+    void nodeAboutToBeReparented(const ModelNode &node, const NodeAbstractProperty &newPropertyParent, const NodeAbstractProperty &oldPropertyParent, PropertyChangeFlags propertyChange) QTC_OVERRIDE;
+    void nodeSourceChanged(const ModelNode &modelNode, const QString &newNodeSource) QTC_OVERRIDE;
+    void nodeOrderChanged(const NodeListProperty &listProperty, const ModelNode &movedNode, int oldIndex) QTC_OVERRIDE;
 
 protected:
     void reset();

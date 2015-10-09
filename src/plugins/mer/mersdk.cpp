@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2013 Jolla Ltd.
+** Copyright (C) 2012 - 2014 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -21,20 +21,24 @@
 ****************************************************************************/
 
 #include "mersdk.h"
-#include "mertarget.h"
+
+#include "merconnection.h"
 #include "merconstants.h"
-#include "mersdkmanager.h"
-#include "mertoolchain.h"
 #include "merqtversion.h"
+#include "mersdkmanager.h"
+#include "mertarget.h"
 #include "mertargetsxmlparser.h"
-#include <utils/persistentsettings.h>
-#include <utils/qtcassert.h>
-#include <projectexplorer/toolchainmanager.h>
+#include "mertoolchain.h"
+
 #include <projectexplorer/kitinformation.h>
-#include <qtsupport/qtversionmanager.h>
+#include <projectexplorer/toolchainmanager.h>
 #include <qtsupport/qtkitinformation.h>
 #include <qtsupport/qtversionfactory.h>
+#include <qtsupport/qtversionmanager.h>
 #include <utils/hostosinfo.h>
+#include <utils/persistentsettings.h>
+#include <utils/qtcassert.h>
+
 #include <QDir>
 
 using namespace Mer::Constants;
@@ -44,11 +48,13 @@ namespace Internal {
 
 MerSdk::MerSdk(QObject *parent) : QObject(parent)
     , m_autoDetected(false)
-    , m_sshPort(-1)
+    , m_connection(new MerConnection(this))
     , m_wwwPort(-1)
-    , m_timeout(30)
-    , m_headless(false)
 {
+    QSsh::SshConnectionParameters params = m_connection->sshParameters();
+    params.timeout = 30;
+    m_connection->setSshParameters(params);
+
     connect(&m_watcher, SIGNAL(fileChanged(QString)), this, SLOT(handleTargetsFileChanged(QString)));
 
     // Fired from handleTargetsFileChanged(), used to prevent removing and
@@ -65,15 +71,15 @@ MerSdk::~MerSdk()
 
 void MerSdk::setHeadless(bool enabled)
 {
-    if (m_headless != enabled) {
-        m_headless = enabled;
+    if (m_connection->isHeadless() != enabled) {
+        m_connection->setHeadless(enabled);
         emit headlessChanged(enabled);
     }
 }
 
 bool MerSdk::isHeadless() const
 {
-    return m_headless;
+    return m_connection->isHeadless();
 }
 
 bool MerSdk::isAutoDetected() const
@@ -88,12 +94,12 @@ void MerSdk::setAutodetect(bool autoDetected)
 
 void MerSdk::setVirtualMachineName(const QString &name)
 {
-    m_name = name;
+    m_connection->setVirtualMachine(name);
 }
 
 QString MerSdk::virtualMachineName() const
 {
-    return m_name;
+    return m_connection->virtualMachine();
 }
 
 void MerSdk::setSharedHomePath(const QString &homePath)
@@ -169,12 +175,14 @@ QString MerSdk::sharedSrcPath() const
 
 void MerSdk::setSshPort(quint16 port)
 {
-    m_sshPort = port;
+    QSsh::SshConnectionParameters params = m_connection->sshParameters();
+    params.port = port;
+    m_connection->setSshParameters(params);
 }
 
 quint16 MerSdk::sshPort() const
 {
-    return m_sshPort;
+    return m_connection->sshParameters().port;
 }
 
 void MerSdk::setWwwPort(quint16 port)
@@ -189,45 +197,53 @@ quint16 MerSdk::wwwPort() const
 
 void MerSdk::setPrivateKeyFile(const QString &file)
 {
-    if (m_privateKeyFile != file) {
-        m_privateKeyFile = file;
+    QSsh::SshConnectionParameters params = m_connection->sshParameters();
+    if (params.privateKeyFile != file) {
+        params.privateKeyFile = file;
+        m_connection->setSshParameters(params);
         emit privateKeyChanged(file);
     }
 }
 
 QString MerSdk::privateKeyFile() const
 {
-    return m_privateKeyFile;
+    return m_connection->sshParameters().privateKeyFile;
 }
 
 void MerSdk::setHost(const QString &host)
 {
-    m_host = host;
+    QSsh::SshConnectionParameters params = m_connection->sshParameters();
+    params.host = host;
+    m_connection->setSshParameters(params);
 }
 
 QString MerSdk::host() const
 {
-    return m_host;
+    return m_connection->sshParameters().host;
 }
 
 void MerSdk::setUserName(const QString &username)
 {
-    m_userName = username;
+    QSsh::SshConnectionParameters params = m_connection->sshParameters();
+    params.userName = username;
+    m_connection->setSshParameters(params);
 }
 
 QString MerSdk::userName() const
 {
-    return m_userName;
+    return m_connection->sshParameters().userName;
 }
 
 void MerSdk::setTimeout(int timeout)
 {
-    m_timeout = timeout;
+    QSsh::SshConnectionParameters params = m_connection->sshParameters();
+    params.timeout = timeout;
+    m_connection->setSshParameters(params);
 }
 
 int MerSdk::timeout() const
 {
-    return m_timeout;
+    return m_connection->sshParameters().timeout;
 }
 
 // call the install all the targets and track the changes
@@ -259,6 +275,11 @@ void MerSdk::detach()
     m_targets.clear();
 }
 
+MerConnection *MerSdk::connection() const
+{
+    return m_connection;
+}
+
 QVariantMap MerSdk::toMap() const
 {
     QVariantMap result;
@@ -273,6 +294,7 @@ QVariantMap MerSdk::toMap() const
     result.insert(QLatin1String(USERNAME), userName());
     result.insert(QLatin1String(PRIVATE_KEY_FILE), privateKeyFile());
     result.insert(QLatin1String(SSH_PORT), QString::number(sshPort()));
+    result.insert(QLatin1String(SSH_TIMEOUT), QString::number(timeout()));
     result.insert(QLatin1String(WWW_PORT), QString::number(wwwPort()));
     result.insert(QLatin1String(HEADLESS), isHeadless());
     int count = 0;
@@ -302,6 +324,7 @@ bool MerSdk::fromMap(const QVariantMap &data)
     setUserName(data.value(QLatin1String(USERNAME)).toString());
     setPrivateKeyFile( data.value(QLatin1String(PRIVATE_KEY_FILE)).toString());
     setSshPort(data.value(QLatin1String(SSH_PORT)).toUInt());
+    setTimeout(data.value(QLatin1String(SSH_TIMEOUT), timeout()).toUInt());
     setWwwPort(data.value(QLatin1String(WWW_PORT)).toUInt());
     setHeadless(data.value(QLatin1String(HEADLESS)).toBool());
 
@@ -325,7 +348,7 @@ bool MerSdk::fromMap(const QVariantMap &data)
 
 bool MerSdk::isValid() const
 {
-    return !m_name.isEmpty()
+    return !m_connection->virtualMachine().isEmpty()
             && !m_sharedHomePath.isEmpty()
             && !m_sharedSshPath.isEmpty()
             && !m_sharedTargetsPath.isEmpty();
@@ -406,11 +429,11 @@ bool MerSdk::addTarget(const MerTarget &target)
     if (!kit)
         return false;
 
-    ProjectExplorer::ToolChainManager::instance()->registerToolChain(toolchain.data());
-    QtSupport::QtVersionManager::instance()->addVersion(version.data());
+    ProjectExplorer::ToolChainManager::registerToolChain(toolchain.data());
+    QtSupport::QtVersionManager::addVersion(version.data());
     QtSupport::QtKitInformation::setQtVersion(kit, version.data());
     ProjectExplorer::ToolChainKitInformation::setToolChain(kit, toolchain.data());
-    ProjectExplorer::KitManager::instance()->registerKit(kit);
+    ProjectExplorer::KitManager::registerKit(kit);
     toolchain.take();
     version.take();
     return true;
@@ -421,7 +444,7 @@ bool MerSdk::removeTarget(const MerTarget &target)
     if (MerSdkManager::verbose)
         qDebug() << "Uninstalling" << target.name() << "for" << virtualMachineName();
     //delete kit
-    foreach (ProjectExplorer::Kit *kit, ProjectExplorer::KitManager::instance()->kits()) {
+    foreach (ProjectExplorer::Kit *kit, ProjectExplorer::KitManager::kits()) {
         if (!kit->isAutoDetected())
             continue;
         ProjectExplorer::ToolChain* tc = ProjectExplorer::ToolChainKitInformation::toolChain(kit);
@@ -430,12 +453,13 @@ bool MerSdk::removeTarget(const MerTarget &target)
         }
         if (tc->type() == QLatin1String(Constants::MER_TOOLCHAIN_TYPE)) {
             MerToolChain *mertoolchain = static_cast<MerToolChain*>(tc);
-            if (mertoolchain->virtualMachineName() == m_name && mertoolchain->targetName() == target.name()) {
+            if (mertoolchain->virtualMachineName() == m_connection->virtualMachine() &&
+                    mertoolchain->targetName() == target.name()) {
                  QtSupport::BaseQtVersion *v = QtSupport::QtKitInformation::qtVersion(kit);
-                 ProjectExplorer::KitManager::instance()->deregisterKit(kit);
-                 ProjectExplorer::ToolChainManager::instance()->deregisterToolChain(tc);
+                 ProjectExplorer::KitManager::deregisterKit(kit);
+                 ProjectExplorer::ToolChainManager::deregisterToolChain(tc);
                  QTC_ASSERT(v && v->type() == QLatin1String(Constants::MER_QT), continue); //serious bug
-                 QtSupport::QtVersionManager::instance()->removeVersion(v);
+                 QtSupport::QtVersionManager::removeVersion(v);
                  target.deleteScripts();
                  return true;
             }

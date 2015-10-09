@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -77,10 +77,6 @@ const QList<QByteArray> SshCapabilities::CompressionAlgorithms
     = QList<QByteArray>() << "none";
 
 const QByteArray SshCapabilities::SshConnectionService("ssh-connection");
-
-const QByteArray SshCapabilities::PublicKeyAuthMethod("publickey");
-const QByteArray SshCapabilities::PasswordAuthMethod("password");
-
 
 QByteArray SshCapabilities::findBestMatch(const QList<QByteArray> &myCapabilities,
     const QList<QByteArray> &serverCapabilities)

@@ -7,6 +7,7 @@ SUBDIRS += \
     debugger \
     diff \
     extensionsystem \
+    externaltool \
     environment \
     generichighlighter \
     profilewriter \
@@ -15,12 +16,15 @@ SUBDIRS += \
     qtcprocess \
     utils \
     utils_stringutils \
-    filesearch
+    filesearch \
+    valgrind
 
-!win32 {
-    SUBDIRS += valgrind
+lessThan(QT_MAJOR_VERSION, 5) {
+  contains(QT_CONFIG, declarative) {
+    SUBDIRS += qml
+  }
+} else {
+  qtHaveModule(declarative) {
+    SUBDIRS += qml
+  }
 }
-
-#contains (QT_CONFIG, declarative) {
-#SUBDIRS += qml
-#}

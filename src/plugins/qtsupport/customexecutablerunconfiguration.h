@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -69,8 +69,6 @@ public:
     QString commandLineArguments() const;
 
     QWidget *createConfigurationWidget();
-    QString dumperLibrary() const;
-    QStringList dumperLibraryLocations() const;
 
     ProjectExplorer::Abi abi() const;
 
@@ -104,8 +102,6 @@ private:
     QString m_workingDirectory;
     QString m_cmdArguments;
     RunMode m_runMode;
-    bool m_userSetName;
-    QString m_userName;
 };
 
 class CustomExecutableRunConfigurationFactory : public ProjectExplorer::IRunConfigurationFactory

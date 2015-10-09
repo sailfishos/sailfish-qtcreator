@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -69,6 +69,7 @@ const char RUNCONTEXTMENU[]       = "ProjectExplorer.RunContextMenu";
 const char STOP[]                 = "ProjectExplorer.Stop";
 const char ADDNEWFILE[]           = "ProjectExplorer.AddNewFile";
 const char ADDEXISTINGFILES[]     = "ProjectExplorer.AddExistingFiles";
+const char ADDEXISTINGDIRECTORY[] = "ProjectExplorer.AddExistingDirectory";
 const char ADDNEWSUBPROJECT[]     = "ProjectExplorer.AddNewSubproject";
 const char REMOVEPROJECT[]        = "ProjectExplorer.RemoveProject";
 const char OPENFILE[]             = "ProjectExplorer.OpenFile";
@@ -162,13 +163,12 @@ const char ICON_STOP[]            = ":/projectexplorer/images/stop.png";
 const char ICON_STOP_SMALL[]      = ":/projectexplorer/images/stop_small.png";
 const char ICON_WINDOW[]          = ":/projectexplorer/images/window.png";
 
-const char TASK_BUILD[]           = "ProjectExplorer.Task.Build";
-
 // Mime types
 const char C_SOURCE_MIMETYPE[]    = "text/x-csrc";
 const char C_HEADER_MIMETYPE[]    = "text/x-chdr";
 const char CPP_SOURCE_MIMETYPE[]  = "text/x-c++src";
 const char CPP_HEADER_MIMETYPE[]  = "text/x-c++hdr";
+const char LINGUIST_MIMETYPE[]    = "application/x-linguist";
 const char FORM_MIMETYPE[]        = "application/x-designer";
 const char QML_MIMETYPE[]         = "application/x-qml"; // separate def also in qmljstoolsconstants.h
 const char RESOURCE_MIMETYPE[]    = "application/vnd.qt.xml.resource";
@@ -179,6 +179,7 @@ const char PROJECTEXPLORER_SETTINGS_TR_CATEGORY[] = QT_TRANSLATE_NOOP("ProjectEx
 const char PROJECTEXPLORER_SETTINGS_CATEGORY_ICON[]  = ":/core/images/category_buildrun.png";
 const char PROJECTEXPLORER_SETTINGS_ID[] = "A.ProjectExplorer.ProjectExplorer";
 const char TOOLCHAIN_SETTINGS_PAGE_ID[] = "M.ProjectExplorer.ToolChainOptions";
+const char DEBUGGER_SETTINGS_PAGE_ID[] = "N.ProjectExplorer.DebuggerOptions";
 const char KITS_SETTINGS_PAGE_ID[] = "D.ProjectExplorer.KitsOptions";
 
 // Device settings page
@@ -188,6 +189,7 @@ const char DEVICE_SETTINGS_PAGE_ID[] = "AA.Device Settings";
 // Task categories
 const char TASK_CATEGORY_COMPILE[] = "Task.Category.Compile";
 const char TASK_CATEGORY_BUILDSYSTEM[] = "Task.Category.Buildsystem";
+const char TASK_CATEGORY_DEPLOYMENT[] = "Task.Category.Deploy";
 
 // Wizard categories
 const char QT_PROJECT_WIZARD_CATEGORY[] = "H.QtProjects";
@@ -198,9 +200,6 @@ const char QT_APPLICATION_WIZARD_CATEGORY_DISPLAY[] = QT_TRANSLATE_NOOP("Project
 
 const char LIBRARIES_WIZARD_CATEGORY[] = "G.Libraries";
 const char LIBRARIES_WIZARD_CATEGORY_DISPLAY[] = QT_TRANSLATE_NOOP("ProjectExplorer", "Libraries");
-
-const char PROJECT_WIZARD_CATEGORY[] = "I.Projects"; // (after Qt)
-const char PROJECT_WIZARD_CATEGORY_DISPLAY[] = QT_TRANSLATE_NOOP("ProjectExplorer", "Non-Qt Project");
 
 const char IMPORT_WIZARD_CATEGORY[] = "T.Import";
 const char IMPORT_WIZARD_CATEGORY_DISPLAY[] = QT_TRANSLATE_NOOP("ProjectExplorer", "Import Project");
@@ -245,6 +244,21 @@ const char VAR_CURRENTKIT_FILESYSTEMNAME[] = "CurrentKit:FileSystemName";
 const char VAR_CURRENTKIT_ID[] = "CurrentKit:Id";
 const char VAR_CURRENTBUILD_NAME[] = "CurrentBuild:Name";
 const char VAR_CURRENTBUILD_TYPE[] = "CurrentBuild:Type";
+const char VAR_CURRENTSESSION_PREFIX[] = "CurrentSession";
+const char VAR_CURRENTSESSION_NAME[] = "CurrentSession:Name";
+const char VAR_CURRENTDEVICE_HOSTADDRESS[] = "CurrentDevice:HostAddress";
+const char VAR_CURRENTDEVICE_SSHPORT[] = "CurrentDevice:SshPort";
+const char VAR_CURRENTDEVICE_USERNAME[] = "CurrentDevice:UserName";
+const char VAR_CURRENTDEVICE_PRIVATEKEYFILE[] = "CurrentDevice:PrivateKeyFile";
+
+const char HIDE_FILE_FILTER_SETTING[] = "GenericProject/FileFilter";
+const char HIDE_FILE_FILTER_DEFAULT[] = "Makefile*; *.o; *.obj; *~; *.files; *.config; *.creator; *.user; *.includes; *.autosave";
+
+const char SHOW_FILE_FILTER_SETTING[] = "GenericProject/ShowFileFilter";
+const char SHOW_FILE_FILTER_DEFAULT[] = "*.c; *.cc; *.cpp; *.cp; *.cxx; *.c++; *.h; *.hh; *.hpp; *.hxx;";
+
+// Unconfigured Panel
+const char UNCONFIGURED_PANEL_PAGE_ID[] = "UnconfiguredPanel";
 
 } // namespace Constants
 

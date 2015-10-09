@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Brian McGillion
+** Copyright (c) 2014 Brian McGillion
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -43,6 +43,7 @@ QT_END_NAMESPACE
 namespace Core {
 class ActionContainer;
 class ActionManager;
+class CommandLocator;
 class ICore;
 class Id;
 class IEditor;
@@ -50,7 +51,6 @@ class IEditor;
 
 namespace Utils { class ParameterAction; }
 namespace VcsBase { class VcsBaseSubmitEditor; }
-namespace Locator { class CommandLocator; }
 
 namespace Mercurial {
 namespace Internal {
@@ -72,10 +72,10 @@ public:
     bool initialize(const QStringList &arguments, QString *errorMessage);
 
     static MercurialPlugin *instance() { return m_instance; }
-    MercurialClient *client() const { return m_client; }
+    static MercurialClient *client() { return m_instance->m_client; }
 
-    const MercurialSettings &settings() const;
-    void setSettings(const MercurialSettings &settings);
+    static const MercurialSettings &settings();
+    static void setSettings(const MercurialSettings &settings);
 
 private slots:
     // File menu action slots
@@ -143,7 +143,7 @@ private:
     MercurialClient *m_client;
 
     Core::ICore *core;
-    Locator::CommandLocator *m_commandLocator;
+    Core::CommandLocator *m_commandLocator;
     Core::ActionContainer *mercurialContainer;
 
     QList<QAction *> m_repositoryActionList;

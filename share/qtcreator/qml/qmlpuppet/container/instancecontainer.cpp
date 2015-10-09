@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,6 +30,7 @@
 #include "instancecontainer.h"
 
 #include <QDataStream>
+#include <QDebug>
 
 namespace QmlDesigner {
 
@@ -122,4 +123,35 @@ QDataStream &operator>>(QDataStream &in, InstanceContainer &container)
 
     return in;
 }
+
+QDebug operator <<(QDebug debug, const InstanceContainer &command)
+{
+    debug.nospace() << "InstanceContainer("
+                    << "instanceId: " << command.instanceId() << ", "
+                    << "type: " << command.type() << ", "
+                    << "majorNumber: " << command.majorNumber() << ", "
+                    << "minorNumber: " << command.minorNumber() << ", ";
+
+    if (!command.componentPath().isEmpty())
+        debug.nospace() << "componentPath: " << command.componentPath() << ", ";
+
+    if (!command.nodeSource().isEmpty())
+        debug.nospace() << "nodeSource: " << command.nodeSource() << ", ";
+
+    if (command.nodeSourceType() == InstanceContainer::NoSource)
+        debug.nospace() << "nodeSourceType: NoSource, ";
+    else if (command.nodeSourceType() == InstanceContainer::CustomParserSource)
+        debug.nospace() << "nodeSourceType: CustomParserSource, ";
+    else
+        debug.nospace() << "nodeSourceType: ComponentSource, ";
+
+    if (command.metaType() == InstanceContainer::ObjectMetaType)
+        debug.nospace() << "metatype: ObjectMetaType";
+    else
+        debug.nospace() << "metatype: ItemMetaType";
+
+    return debug.nospace() << ")";
+
+}
+
 } // namespace QmlDesigner

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (c) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (c) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator
@@ -23,7 +23,7 @@
 // **********************************************************************
 
 /*!
-    \contentspage index.html
+    \contentspage {Qt Creator Manual}
     \previouspage creator-running-targets.html
     \page creator-deployment.html
     \nextpage creator-deploying-android.html
@@ -47,15 +47,12 @@
             When you deploy the application to a BlackBerry 10 device, \QC generates a
             BAR package in the build directory and deploys it to the connected
             device.
-        \li \l{Deploying Applications to Linux-Based Devices}
+        \li \l{Deploying Applications to Embedded Linux Devices}
 
-            When you deploy the application to a Linux-based device, such
-            as embedded Linux, MeeGo 1.2 Harmattan, or Maemo 5/Fremantle, \QC
+            When you deploy the application to a generic Linux-based device, \QC
             copies the application files to the connected device. You
             can test and debug the application on the device.
-            You can create Debian installation packages for MeeGo Harmattan and
-            Maemo 5/Fremantle devices.
-        \li  \l{Deploying Applications to QNX Devices}
+        \li  \l{Deploying Applications to QNX Neutrino Devices}
 
             When you deploy the application to a BlackBerry, \QC  generates a
             BAR package in the build directory and deploys it to the connected
@@ -67,15 +64,4 @@
             When you deploy an application to a SailfishOS device or emulator,
             \QC copies the binary files to the device or to the emulator.
     \endlist
-
-    \section1 Related Topics
-
-    \list
-        \li \l{Publishing}
-
-            When you are ready to publish the application on a publishing
-            channel, you must make sure that the installation file meets the
-            requirements for publishing on the channel.
-    \endlist
-
 */

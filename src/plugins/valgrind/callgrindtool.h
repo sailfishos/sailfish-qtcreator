@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -45,19 +45,18 @@ public:
     CallgrindTool(QObject *parent);
     ~CallgrindTool();
 
-    Core::Id id() const;
     ProjectExplorer::RunMode runMode() const;
-    QString displayName() const;
-    QString description() const;
     ToolMode toolMode() const;
 
-    void extensionsInitialized();
-
-    Analyzer::IAnalyzerEngine *createEngine(const Analyzer::AnalyzerStartParameters &sp,
+    Analyzer::AnalyzerRunControl *createRunControl(const Analyzer::AnalyzerStartParameters &sp,
         ProjectExplorer::RunConfiguration *runConfiguration = 0);
     QWidget *createWidgets();
 
     void startTool(Analyzer::StartMode mode);
+    void loadExternalXmlLogFile();
+
+public slots:
+    void handleShowCostsOfFunction();
 
 private:
     CallgrindToolPrivate *d;

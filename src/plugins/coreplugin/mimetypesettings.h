@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,7 +30,7 @@
 #ifndef MIMETYPESETTINGSPAGE_H
 #define MIMETYPESETTINGSPAGE_H
 
-#include "ioptionspage.h"
+#include <coreplugin/dialogs/ioptionspage.h>
 
 namespace Core {
 namespace Internal {
@@ -45,8 +45,7 @@ public:
     MimeTypeSettings(QObject *parent = 0);
     virtual ~MimeTypeSettings();
 
-    virtual bool matches(const QString &s) const;
-    virtual QWidget *createPage(QWidget *parent);
+    virtual QWidget *widget();
     virtual void apply();
     virtual void finish();
 

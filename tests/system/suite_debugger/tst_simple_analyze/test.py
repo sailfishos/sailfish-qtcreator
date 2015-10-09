@@ -1,6 +1,6 @@
 #############################################################################
 ##
-## Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+## Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ## Contact: http://www.qt-project.org/legal
 ##
 ## This file is part of Qt Creator.
@@ -30,12 +30,17 @@
 source("../../shared/qtcreator.py")
 
 def main():
+    if isQt4Build:
+        test.log("QML Profiler is only available if Creator was built on Qt 5")
+        return
     startApplication("qtcreator" + SettingsPath)
     if not startedWithoutPluginError():
         return
     # using a temporary directory won't mess up a potentially existing
     workingDir = tempDir()
-    checkedTargets, projectName = createNewQtQuickApplication(workingDir)
+    # we need a Qt >= 4.8
+    analyzerTargets = Targets.desktopTargetClasses() ^ Targets.DESKTOP_474_GCC
+    checkedTargets, projectName = createNewQtQuickApplication(workingDir, targets=analyzerTargets)
     editor = waitForObject(":Qt Creator_QmlJSEditor::QmlJSTextEditorWidget")
     if placeCursorToLine(editor, "MouseArea.*", True):
         type(editor, '<Up>')
@@ -54,62 +59,92 @@ def main():
         invokeMenuItem("File", "Save All")
         availableConfigs = iterateBuildConfigs(len(checkedTargets), "Debug")
         if not availableConfigs:
-            test.fatal("Haven't found a suitable Qt version (need Qt 4.7.4) - leaving without debugging.")
-        for kit, config in availableConfigs:
-            qtVersion = selectBuildConfig(len(checkedTargets), kit, config)[0]
-            if qtVersion == "4.7.4":
-                test.xverify(False, "Skipping Qt 4.7.4 to avoid QTCREATORBUG-9185")
-                continue
-            test.log("Selected kit using Qt %s" % qtVersion)
-            progressBarWait() # progress bars move buttons
-            verifyBuildConfig(len(checkedTargets), kit, True, enableQmlDebug=True)
-            # explicitly build before start debugging for adding the executable as allowed program to WinFW
-            invokeMenuItem("Build", "Rebuild All")
-            waitForSignal("{type='ProjectExplorer::BuildManager' unnamed='1'}",
-                          "buildQueueFinished(bool)")
-            if not checkCompile():
-                test.fatal("Compile had errors... Skipping current build config")
-                continue
-            allowAppThroughWinFW(workingDir, projectName, False)
-            switchViewTo(ViewConstants.ANALYZE)
-            selectFromCombo(":Analyzer Toolbar.AnalyzerManagerToolBox_QComboBox", "QML Profiler")
-            recordButton = waitForObject("{container=':Qt Creator.Analyzer Toolbar_QDockWidget' "
-                                         "type='QToolButton' unnamed='1' visible='1' "
-                                         "toolTip?='*able profiling'}")
-            if not test.verify(recordButton.checked, "Verifying recording is enabled."):
-                test.log("Enabling recording for the test run")
-                clickButton(recordButton)
-            clickButton(waitForObject(":Analyzer Toolbar.Start_QToolButton"))
-            stopButton = waitForObject(":Qt Creator.Stop_QToolButton")
-            elapsedLabel = waitForObject(":Analyzer Toolbar.Elapsed:_QLabel", 3000)
-            waitFor('"Elapsed:    5" in str(elapsedLabel.text)', 20000)
-            clickButton(stopButton)
-            if safeClickTab("JavaScript"):
-                model = waitForObject(":JavaScript.QmlProfilerV8ProfileTable_QmlProfiler::"
-                                      "Internal::QmlProfilerEventsMainView").model()
-                test.compare(model.rowCount(), 1) # Could change, see QTCREATORBUG-8994
-                test.compare([str(model.index(0, column).data()) for column in range(6)],
-                             ['<program>', '100.00 %', '0.000 \xc2\xb5s', '0.00 %', '0.000 \xc2\xb5s', 'Main Program'])
-            if safeClickTab("Events"):
-                model = waitForObject(":Events.QmlProfilerEventsTable_QmlProfiler::"
-                                      "Internal::QmlProfilerEventsMainView").model()
-                if qtVersion.startswith("5."):
-                    compareEventsTab(model, "events_qt50.tsv")
-                    numberOfMsRows = 3
-                else:
-                    if qtVersion.startswith("4.8"):
-                        compareEventsTab(model, "events_qt48.tsv")
-                    else:
-                        compareEventsTab(model, "events_qt47.tsv")
-                    test.verify(str(model.index(0, 8).data()).endswith(' ms'))
-                    test.xverify(str(model.index(1, 8).data()).endswith(' ms')) # QTCREATORBUG-8996
-                    numberOfMsRows = 2
-                test.compare(dumpItems(model, column=2)[0], '100.00 %')
-                for i in [3, 5, 6, 7]:
-                    for item in dumpItems(model, column=i)[:numberOfMsRows]:
-                        test.verify(item.endswith(' ms'), "Verify that '%s' ends with ' ms'" % item)
-            deleteAppFromWinFW(workingDir, projectName, False)
+            test.fatal("Haven't found a suitable Qt version (need Qt 4.8) - leaving without debugging.")
+        else:
+            performTest(workingDir, projectName, len(checkedTargets), availableConfigs, False)
+            performTest(workingDir, projectName, len(checkedTargets), availableConfigs, True)
     invokeMenuItem("File", "Exit")
+
+def performTest(workingDir, projectName, targetCount, availableConfigs, disableOptimizer):
+    def __elapsedTime__(elapsedTimeLabelText):
+        return float(re.search("Elapsed:\s+(-?\d+\.\d+) s", elapsedTimeLabelText).group(1))
+
+    for kit, config in availableConfigs:
+        # switching from MSVC to MinGW build will fail on the clean step of 'Rebuild All' because
+        # of differences between MSVC's and MinGW's Makefile (so clean before switching kits)
+        invokeMenuItem('Build', 'Clean Project "%s"' % projectName)
+        qtVersion = verifyBuildConfig(targetCount, kit, config, True, enableQmlDebug=True)[0]
+        test.log("Selected kit using Qt %s" % qtVersion)
+        if disableOptimizer:
+            batchEditRunEnvironment(targetCount, kit, ["QML_DISABLE_OPTIMIZER=1"])
+            switchViewTo(ViewConstants.EDIT)
+        # explicitly build before start debugging for adding the executable as allowed program to WinFW
+        invokeMenuItem("Build", "Rebuild All")
+        waitForCompile()
+        if not checkCompile():
+            test.fatal("Compile had errors... Skipping current build config")
+            continue
+        allowAppThroughWinFW(workingDir, projectName, False)
+        switchViewTo(ViewConstants.ANALYZE)
+        selectFromCombo(":Analyzer Toolbar.AnalyzerManagerToolBox_QComboBox", "QML Profiler")
+        recordButton = waitForObject("{container=':Qt Creator.Analyzer Toolbar_QDockWidget' "
+                                     "type='QToolButton' unnamed='1' visible='1' "
+                                     "toolTip?='*able profiling'}")
+        if not test.verify(recordButton.checked, "Verifying recording is enabled."):
+            test.log("Enabling recording for the test run")
+            clickButton(recordButton)
+        startButton = waitForObject(":Analyzer Toolbar.Start_QToolButton")
+        clickButton(startButton)
+        stopButton = waitForObject(":Qt Creator.Stop_QToolButton")
+        elapsedLabel = waitForObject(":Analyzer Toolbar.Elapsed:_QLabel", 3000)
+        waitFor('"Elapsed:    5" in str(elapsedLabel.text)', 20000)
+        clickButton(stopButton)
+        test.verify(waitFor("not stopButton.enabled", 5000), "stopButton should be disabled")
+        test.verify(waitFor("startButton.enabled", 2000), "startButton should be enabled")
+        try:
+            test.verify(waitFor("__elapsedTime__(str(elapsedLabel.text)) > 0", 2000),
+                        "Elapsed time should be positive in string '%s'" % str(elapsedLabel.text))
+        except:
+            test.fatal("Could not read elapsed time from '%s'" % str(elapsedLabel.text))
+        if safeClickTab("JavaScript"):
+            model = findObject(":JavaScript.QmlProfilerEventsTable_QmlProfiler::"
+                               "Internal::QV8ProfilerEventsMainView").model()
+            test.compare(model.rowCount(), 0)
+        if safeClickTab("Events"):
+            colPercent, colTotal, colCalls, colMean, colMedian, colLongest, colShortest = range(2, 9)
+            model = waitForObject(":Events.QmlProfilerEventsTable_QmlProfiler::"
+                                  "Internal::QmlProfilerEventsMainView").model()
+            if qtVersion.startswith("5."):
+                if disableOptimizer:
+                    compareEventsTab(model, "events_qt50_nonOptimized.tsv")
+                else:
+                    compareEventsTab(model, "events_qt50.tsv")
+                numberOfMsRows = 3
+            else:
+                if disableOptimizer:
+                    compareEventsTab(model, "events_qt48_nonOptimized.tsv")
+                else:
+                    compareEventsTab(model, "events_qt48.tsv")
+                numberOfMsRows = 2
+            test.compare(dumpItems(model, column=colPercent)[0], '100.00 %')
+            for i in [colTotal, colMean, colMedian, colLongest, colShortest]:
+                for item in dumpItems(model, column=i)[:numberOfMsRows]:
+                    test.verify(item.endswith(' ms'), "Verify that '%s' ends with ' ms'" % item)
+                for item in dumpItems(model, column=i):
+                    test.verify(not item.startswith('0.000 '),
+                                "Check for implausible durations (QTCREATORBUG-8996): %s" % item)
+            for row in range(model.rowCount()):
+                if str(model.index(row, colCalls).data()) == "1":
+                    for col in [colMedian, colLongest, colShortest]:
+                        test.compare(model.index(row, colMean).data(), model.index(row, col).data(),
+                                     "For just one call, no differences in execution time may be shown.")
+                elif str(model.index(row, colCalls).data()) == "2":
+                    test.compare(model.index(row, colMedian).data(), model.index(row, colLongest).data(),
+                                 "For two calls, median and longest time must be the same.")
+        deleteAppFromWinFW(workingDir, projectName, False)
+        progressBarWait(15000, False)   # wait for "Build" progressbar to disappear
+        clickButton(waitForObject(":Analyzer Toolbar.Clear_QToolButton"))
+        test.verify(waitFor("model.rowCount() == 0", 3000), "Analyzer results cleared.")
 
 def compareEventsTab(model, file):
     significantColumns = [0, 1, 4, 9]

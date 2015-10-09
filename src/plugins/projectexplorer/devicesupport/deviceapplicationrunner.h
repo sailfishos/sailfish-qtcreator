@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -34,24 +34,15 @@
 #include "../projectexplorer_export.h"
 
 #include <QObject>
+#include <QProcess>
+
+QT_BEGIN_NAMESPACE
+class QStringList;
+QT_END_NAMESPACE
+
+namespace Utils { class Environment; }
 
 namespace ProjectExplorer {
-
-class PROJECTEXPLORER_EXPORT DeviceApplicationHelperAction : public QObject
-{
-    Q_OBJECT
-public:
-    ~DeviceApplicationHelperAction();
-    virtual void start() = 0;
-    virtual void stop() = 0;
-signals:
-    void reportProgress(const QString &progressOutput);
-    void reportError(const QString &errorOutput);
-    void finished(bool success);
-
-protected:
-    DeviceApplicationHelperAction(QObject *parent = 0);
-};
 
 class PROJECTEXPLORER_EXPORT DeviceApplicationRunner : public QObject
 {
@@ -60,14 +51,12 @@ public:
     explicit DeviceApplicationRunner(QObject *parent = 0);
     virtual ~DeviceApplicationRunner();
 
-    void start(const IDevice::ConstPtr &device, const QByteArray &commandLine);
-    void stop(const QByteArray &stopCommand);
+    void setEnvironment(const Utils::Environment &env);
+    void setWorkingDirectory(const QString &workingDirectory);
 
-    // Use these if you need to do something before and after the application is run, respectively.
-    // Typically, the post-run action reverts the effects of the pre-run action.
-    // If you only have a pre-run action, you probably want a deploy step instead.
-    void setPreRunAction(DeviceApplicationHelperAction *action);
-    void setPostRunAction(DeviceApplicationHelperAction *action);
+    void start(const IDevice::ConstPtr &device, const QString &command,
+               const QStringList &arguments);
+    void stop();
 
 signals:
     void remoteStdout(const QByteArray &output);
@@ -78,20 +67,13 @@ signals:
     void finished(bool success);
 
 private slots:
-    void handleConnected();
-    void handleConnectionFailure();
-    void handleHelperActionFinished(bool success);
-    void handleStopTimeout();
-    void handleApplicationFinished(int exitStatus);
+    void handleApplicationError(QProcess::ProcessError error);
+    void handleApplicationFinished();
     void handleRemoteStdout();
     void handleRemoteStderr();
 
 private:
-    void addAction(DeviceApplicationHelperAction *&target, DeviceApplicationHelperAction *source);
-    void connectToServer();
-    void executePreRunAction();
-    void executePostRunAction();
-    void runApplication();
+    void doReportError(const QString &message);
     void setFinished();
 
     class DeviceApplicationRunnerPrivate;

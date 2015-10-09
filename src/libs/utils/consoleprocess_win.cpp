@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -75,7 +75,10 @@ bool ConsoleProcess::start(const QString &program, const QString &args)
         pcmd = program;
         pargs = args;
     } else {
-        QtcProcess::prepareCommand(program, args, &pcmd, &pargs, &d->m_environment, &d->m_workingDir);
+        QtcProcess::Arguments outArgs;
+        QtcProcess::prepareCommand(program, args, &pcmd, &outArgs, OsTypeWindows,
+                                   &d->m_environment, &d->m_workingDir);
+        pargs = outArgs.toWindowsArgs();
     }
 
     const QString err = stubServerListen();
@@ -261,7 +264,7 @@ void ConsoleProcess::inferiorExited()
     cleanupInferior();
     d->m_appStatus = QProcess::NormalExit;
     d->m_appCode = chldStatus;
-    emit processStopped();
+    emit processStopped(d->m_appCode, d->m_appStatus);
 }
 
 void ConsoleProcess::cleanupStub()
@@ -288,7 +291,7 @@ void ConsoleProcess::stubExited()
         cleanupInferior();
         d->m_appStatus = QProcess::CrashExit;
         d->m_appCode = -1;
-        emit processStopped();
+        emit processStopped(d->m_appCode, d->m_appStatus);
     }
     emit stubStopped();
 }

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,6 +30,8 @@
 #ifndef CHANGESELECTIONDIALOG_H
 #define CHANGESELECTIONDIALOG_H
 
+#include <coreplugin/id.h>
+
 #include <QDialog>
 #include <QProcessEnvironment>
 
@@ -39,6 +41,7 @@ class QLabel;
 class QLineEdit;
 class QPlainTextEdit;
 class QProcess;
+class QStringListModel;
 QT_END_NAMESPACE
 
 namespace Git {
@@ -52,11 +55,13 @@ enum ChangeCommand {
     Show
 };
 
+namespace Ui { class ChangeSelectionDialog; }
+
 class ChangeSelectionDialog : public QDialog
 {
     Q_OBJECT
 public:
-    ChangeSelectionDialog(const QString &workingDirectory, QWidget *parent);
+    ChangeSelectionDialog(const QString &workingDirectory, Core::Id id, QWidget *parent);
     ~ChangeSelectionDialog();
 
     QString change() const;
@@ -68,7 +73,9 @@ private slots:
     void chooseWorkingDirectory();
     void selectCommitFromRecentHistory();
     void setDetails(int exitCode);
+    void recalculateCompletion();
     void recalculateDetails();
+    void changeTextChanged(const QString &text);
     void acceptCheckout();
     void acceptCherryPick();
     void acceptRevert();
@@ -77,22 +84,14 @@ private slots:
 private:
     void enableButtons(bool b);
 
+    Ui::ChangeSelectionDialog *m_ui;
+
     QProcess *m_process;
     QString m_gitBinaryPath;
     QProcessEnvironment m_gitEnvironment;
-
-    QLineEdit *m_workingDirEdit;
-    QLineEdit *m_changeNumberEdit;
-    QPushButton *m_selectDirButton;
-    QPushButton *m_selectFromHistoryButton;
-    QPushButton *m_showButton;
-    QPushButton *m_cherryPickButton;
-    QPushButton *m_revertButton;
-    QPushButton *m_checkoutButton;
-    QPushButton *m_closeButton;
-    QPlainTextEdit *m_detailsText;
-
     ChangeCommand m_command;
+    QStringListModel *m_changeModel;
+    QString m_oldWorkingDir;
 };
 
 } // namespace Internal

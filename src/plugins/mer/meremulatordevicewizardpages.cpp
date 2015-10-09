@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2013 Jolla Ltd.
+** Copyright (C) 2012 - 2014 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -19,15 +19,19 @@
 ** conditions contained in a signed written agreement between you and Digia.
 **
 ****************************************************************************/
-#include "merconstants.h"
-#include "mersdkmanager.h"
+
 #include "meremulatordevicewizardpages.h"
-#include "meremulatordevicewizard.h"
 #include "ui_meremulatordevicewizardvmpage.h"
 #include "ui_meremulatordevicewizardsshpage.h"
+
+#include "merconnection.h"
+#include "merconstants.h"
+#include "meremulatordevicewizard.h"
 #include "mervirtualboxmanager.h"
-#include <utils/qtcassert.h>
+
 #include <projectexplorer/devicesupport/devicemanager.h>
+#include <utils/qtcassert.h>
+
 #include <QDir>
 
 namespace Mer {
@@ -57,19 +61,13 @@ MerEmualtorVMPage::MerEmualtorVMPage(QWidget *parent): QWizardPage(parent),
     m_ui->timeoutSpinBox->setMaximum(65535);
     m_ui->timeoutSpinBox->setValue(30);
 
-    QList<MerSdk*> sdks = MerSdkManager::instance()->sdks();
-    QStringList vmNames;
-    foreach (const MerSdk *s, sdks) {
-        vmNames << s->virtualMachineName();
-    }
-
     static QRegExp regExp(tr("Emulator"));
 
+    const QSet<QString> usedVMs = MerConnection::usedVirtualMachines().toSet();
     const QStringList registeredVMs = MerVirtualBoxManager::fetchRegisteredVirtualMachines();
-
     foreach (const QString &vm, registeredVMs) {
-        //add remove machine wich are sdks
-        if(!vmNames.contains(vm)) {
+        // add only unused machines
+        if (!usedVMs.contains(vm)) {
             m_ui->emulatorComboBox->addItem(vm);
             if (regExp.indexIn(vm) != -1) {
                 //preselect emulator
@@ -163,7 +161,8 @@ void MerEmualtorVMPage::handleEmulatorVmChanged(const QString &vmName)
 bool MerEmualtorVMPage::isComplete() const
 {
     return !configName().isEmpty()
-            && !ProjectExplorer::DeviceManager::instance()->hasDevice(configName());
+            && !ProjectExplorer::DeviceManager::instance()->hasDevice(configName())
+            && !emulatorVm().isEmpty();
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////

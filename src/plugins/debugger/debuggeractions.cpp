@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -33,6 +33,7 @@
 #include "registerpostmortemaction.h"
 #endif
 
+#include <coreplugin/icore.h>
 #include <utils/savedaction.h>
 #include <utils/qtcassert.h>
 
@@ -50,8 +51,9 @@ static const char sourcePathMappingTargetKeyC[] = "Target";
 namespace Debugger {
 namespace Internal {
 
-void GlobalDebuggerOptions::toSettings(QSettings *s) const
+void GlobalDebuggerOptions::toSettings() const
 {
+    QSettings *s = Core::ICore::settings();
     s->beginWriteArray(QLatin1String(sourcePathMappingArrayNameC));
     if (!sourcePathMap.isEmpty()) {
         const QString sourcePathMappingSourceKey = QLatin1String(sourcePathMappingSourceKeyC);
@@ -67,8 +69,9 @@ void GlobalDebuggerOptions::toSettings(QSettings *s) const
     s->endArray();
 }
 
-void GlobalDebuggerOptions::fromSettings(QSettings *s)
+void GlobalDebuggerOptions::fromSettings()
 {
+    QSettings *s = Core::ICore::settings();
     sourcePathMap.clear();
     if (const int count = s->beginReadArray(QLatin1String(sourcePathMappingArrayNameC))) {
         const QString sourcePathMappingSourceKey = QLatin1String(sourcePathMappingSourceKeyC);
@@ -88,9 +91,8 @@ void GlobalDebuggerOptions::fromSettings(QSettings *s)
 //
 //////////////////////////////////////////////////////////////////////////
 
-DebuggerSettings::DebuggerSettings(QSettings *settings)
+DebuggerSettings::DebuggerSettings()
 {
-    m_settings = settings;
     const QString debugModeGroup = QLatin1String(debugModeSettingsGroupC);
     const QString cdbSettingsGroup = QLatin1String(cdbSettingsGroupC);
 
@@ -98,7 +100,7 @@ DebuggerSettings::DebuggerSettings(QSettings *settings)
 
     item = new SavedAction(this);
     insertItem(SettingsDialog, item);
-    item->setText(tr("Debugger Properties..."));
+    item->setText(tr("Configure Debugger..."));
 
     //
     // View
@@ -519,7 +521,7 @@ DebuggerSettings::DebuggerSettings(QSettings *settings)
         "does not provide reliable information as it does not use scope "
         "information, it is switched off by default."));
     item->setCheckable(true);
-    item->setDefaultValue(false);
+    item->setDefaultValue(true);
     insertItem(UseToolTipsInMainEditor, item);
 
     item = new SavedAction(this);
@@ -539,6 +541,15 @@ DebuggerSettings::DebuggerSettings(QSettings *settings)
     item->setCheckable(true);
     item->setDefaultValue(false);
     insertItem(UseToolTipsInBreakpointsView, item);
+
+    item = new SavedAction(this);
+    item->setSettingsKey(debugModeGroup, QLatin1String("UseToolTipsInBreakpointsView"));
+    item->setText(tr("Use Tooltips in Stack View when Debugging"));
+    item->setToolTip(tr("Checking this will enable tooltips in the stack "
+        "view during debugging."));
+    item->setCheckable(true);
+    item->setDefaultValue(true);
+    insertItem(UseToolTipsInStackView, item);
 
     item = new SavedAction(this);
     item->setSettingsKey(debugModeGroup, QLatin1String("UseAddressInBreakpointsView"));
@@ -667,14 +678,16 @@ void DebuggerSettings::insertItem(int code, SavedAction *item)
 
 void DebuggerSettings::readSettings()
 {
+    QSettings *settings = Core::ICore::settings();
     foreach (SavedAction *item, m_items)
-        item->readSettings(m_settings);
+        item->readSettings(settings);
 }
 
 void DebuggerSettings::writeSettings() const
 {
+    QSettings *settings = Core::ICore::settings();
     foreach (SavedAction *item, m_items)
-        item->writeSettings(m_settings);
+        item->writeSettings(settings);
 }
 
 SavedAction *DebuggerSettings::item(int code) const

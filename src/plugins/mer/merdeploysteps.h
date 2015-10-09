@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2012 - 2014 Jolla Ltd.
+** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
 **
@@ -31,42 +31,105 @@
 #define MERDEPLOYSTEPS_H
 
 #include "ui_merdeploystep.h"
+#include "merabstractvmstartstep.h"
+
 #include <projectexplorer/abstractprocessstep.h>
 #include <ssh/sshconnection.h>
 
 namespace Mer {
 namespace Internal {
 
+class MerDeployConfiguration;
+
 class MerProcessStep: public ProjectExplorer::AbstractProcessStep
 {
 public:
+    enum InitOption {
+        NoInitOption = 0x00,
+        DoNotNeedDevice = 0x01,
+    };
+    Q_DECLARE_FLAGS(InitOptions, InitOption)
+
     explicit MerProcessStep(ProjectExplorer::BuildStepList *bsl,const Core::Id id);
     MerProcessStep(ProjectExplorer::BuildStepList *bsl, MerProcessStep *bs);
-    bool init();
+    bool init(InitOptions options = NoInitOption);
     QString arguments() const;
     void setArguments(const QString &arguments);
+
+protected:
+    MerDeployConfiguration *deployConfiguration() const;
 
 private:
     QString m_arguments;
 };
 
-class MerEmulatorStartStep : public MerProcessStep
+Q_DECLARE_OPERATORS_FOR_FLAGS(MerProcessStep::InitOptions)
+
+class MerEmulatorStartStep : public MerAbstractVmStartStep
 {
     Q_OBJECT
 public:
     explicit MerEmulatorStartStep(ProjectExplorer::BuildStepList *bsl);
     MerEmulatorStartStep(ProjectExplorer::BuildStepList *bsl, MerEmulatorStartStep *bs);
     bool init();
-    bool immutable() const;
-    void run(QFutureInterface<bool> &fi);
-    ProjectExplorer::BuildStepConfigWidget *createConfigWidget();
     static const Core::Id stepId();
     static QString displayName();
-    QString vitualMachine();
-    QSsh::SshConnectionParameters sshParams();
-    QString m_vm;
-    QSsh::SshConnectionParameters m_ssh;
     friend class MerDeployStepFactory;
+};
+
+class MerConnectionTestStep : public ProjectExplorer::BuildStep
+{
+    Q_OBJECT
+
+public:
+    explicit MerConnectionTestStep(ProjectExplorer::BuildStepList *bsl);
+    MerConnectionTestStep(ProjectExplorer::BuildStepList *bsl, MerConnectionTestStep *bs);
+
+    bool init();
+    void run(QFutureInterface<bool> &fi);
+    ProjectExplorer::BuildStepConfigWidget *createConfigWidget();
+    bool immutable() const;
+    bool runInGuiThread() const;
+
+    static const Core::Id stepId();
+    static QString displayName();
+
+private slots:
+    void onConnected();
+    void onConnectionFailure();
+    void checkForCancel();
+
+private:
+    void finish(bool result);
+
+private:
+    QFutureInterface<bool> *m_futureInterface;
+    QSsh::SshConnection *m_connection;
+    QTimer *m_checkForCancelTimer;
+};
+
+class MerPrepareTargetStep : public ProjectExplorer::BuildStep
+{
+    Q_OBJECT
+
+public:
+    explicit MerPrepareTargetStep(ProjectExplorer::BuildStepList *bsl);
+    MerPrepareTargetStep(ProjectExplorer::BuildStepList *bsl, MerPrepareTargetStep *bs);
+
+    bool init();
+    void run(QFutureInterface<bool> &fi);
+    ProjectExplorer::BuildStepConfigWidget *createConfigWidget();
+    bool immutable() const;
+    bool runInGuiThread() const;
+
+    static const Core::Id stepId();
+    static QString displayName();
+
+private slots:
+    void onImplFinished();
+
+private:
+    ProjectExplorer::BuildStep *m_impl;
 };
 
 class MerMb2RsyncDeployStep : public MerProcessStep
@@ -147,6 +210,23 @@ public slots:
     void info();
 private:
     QStringList m_list;
+};
+
+class MerRpmValidationStep : public MerProcessStep
+{
+    Q_OBJECT
+public:
+    explicit MerRpmValidationStep(ProjectExplorer::BuildStepList *bsl);
+    MerRpmValidationStep(ProjectExplorer::BuildStepList *bsl, MerRpmValidationStep *bs);
+    bool init();
+    bool immutable() const;
+    void run(QFutureInterface<bool> &fi);
+    ProjectExplorer::BuildStepConfigWidget *createConfigWidget();
+    static const Core::Id stepId();
+    static QString displayName();
+    friend class MerDeployStepFactory;
+private:
+    MerMb2RpmBuildStep *m_packagingStep;
 };
 
 class MerDeployStepWidget : public ProjectExplorer::BuildStepConfigWidget

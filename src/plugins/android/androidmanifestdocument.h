@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -31,13 +31,13 @@
 #define ANDROIDMANIFESTDOCUMENT_H
 
 #include <coreplugin/textdocument.h>
-#include <texteditor/basetextdocument.h>
+#include <texteditor/plaintexteditor.h>
 
 namespace Android {
 namespace Internal {
 class AndroidManifestEditorWidget;
 
-class AndroidManifestDocument : public TextEditor::BaseTextDocument
+class AndroidManifestDocument : public TextEditor::PlainTextDocument
 {
 public:
     explicit AndroidManifestDocument(AndroidManifestEditorWidget *editorWidget);

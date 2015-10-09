@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2013 Jolla Ltd.
+** Copyright (C) 2012 - 2014 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -22,12 +22,15 @@
 
 #include "mersdkdetailswidget.h"
 #include "ui_mersdkdetailswidget.h"
+
 #include "merconstants.h"
-#include "mervirtualboxmanager.h"
 #include "mersdkmanager.h"
+#include "mervirtualboxmanager.h"
 
 #include <utils/hostosinfo.h>
+
 #include <QFileDialog>
+#include <QMessageBox>
 
 namespace Mer {
 namespace Internal {
@@ -46,6 +49,7 @@ MerSdkDetailsWidget::MerSdkDetailsWidget(QWidget *parent)
     connect(m_ui->privateKeyPathChooser, SIGNAL(editingFinished()), SLOT(onPathChooserEditingFinished()));
     connect(m_ui->privateKeyPathChooser, SIGNAL(browsingFinished()), SLOT(onPathChooserEditingFinished()));
     connect(m_ui->testConnectionPushButton, SIGNAL(clicked()), SIGNAL(testConnectionButtonClicked()));
+    connect(m_ui->sshTimeoutSpinBox, SIGNAL(valueChanged(int)), SIGNAL(sshTimeoutChanged(int)));
     connect(m_ui->headlessCheckBox, SIGNAL(toggled(bool)), SIGNAL(headlessCheckBoxToggled(bool)));
     connect(m_ui->srcFolderApplyButton, SIGNAL(clicked()), SLOT(onSrcFolderApplyButtonClicked()));
 
@@ -119,6 +123,11 @@ void MerSdkDetailsWidget::setStatus(const QString &status)
     m_ui->statusLabelText->setText(status);
 }
 
+void MerSdkDetailsWidget::setSshTimeout(int timeout)
+{
+    m_ui->sshTimeoutSpinBox->setValue(timeout);
+}
+
 void MerSdkDetailsWidget::setHeadless(bool enabled)
 {
     m_ui->headlessCheckBox->setChecked(enabled);
@@ -134,6 +143,9 @@ void MerSdkDetailsWidget::onSrcFolderApplyButtonClicked()
             }
         }
         emit srcFolderApplyButtonClicked(path);
+    } else {
+        QMessageBox::warning(this, tr("Invalid path"),
+                tr("Not a valid source folder path: %1").arg(m_ui->srcFolderPathChooser->path()));
     }
 }
 

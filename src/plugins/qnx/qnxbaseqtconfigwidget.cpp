@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2012 - 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -52,6 +52,7 @@ QnxBaseQtConfigWidget::QnxBaseQtConfigWidget(QnxAbstractQtVersion *version)
     m_ui->sdkLabel->setText(version->sdkDescription());
 
     m_ui->sdkPath->setExpectedKind(Utils::PathChooser::ExistingDirectory);
+    m_ui->sdkPath->setHistoryCompleter(QLatin1String("Qnx.Sdk.History"));
     m_ui->sdkPath->setPath(version->sdkPath());
 
     connect(m_ui->sdkPath, SIGNAL(changed(QString)), this, SLOT(updateSdkPath(QString)));

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -387,7 +387,7 @@ void QmlLiveTextPreview::associateEditor(Core::IEditor *editor)
     using namespace TextEditor;
     if (editor->id() == QmlJSEditor::Constants::C_QMLJSEDITOR_ID) {
         QTC_ASSERT(QLatin1String(editor->widget()->metaObject()->className()) ==
-                   QLatin1String("QmlJSEditor::QmlJSTextEditorWidget"),
+                   QLatin1String("QmlJSEditor::Internal::QmlJSTextEditorWidget"),
                    return);
 
         BaseTextEditorWidget *editWidget
@@ -397,7 +397,7 @@ void QmlLiveTextPreview::associateEditor(Core::IEditor *editor)
         if (!m_editors.contains(editWidget)) {
             m_editors << editWidget;
             if (m_inspectorAdapter) {
-                connect(editWidget, SIGNAL(changed()), SLOT(editorContentsChanged()));
+                connect(editWidget, SIGNAL(textChanged()), SLOT(editorContentsChanged()));
                 connect(editWidget,
                         SIGNAL(selectedElementsChanged(QList<QmlJS::AST::UiObjectMember*>,QString)),
                         SLOT(changeSelectedElements(QList<QmlJS::AST::UiObjectMember*>,QString)));
@@ -642,7 +642,7 @@ void QmlLiveTextPreview::editorContentsChanged()
 
 void QmlLiveTextPreview::onAutomaticUpdateFailed()
 {
-    showSyncWarning(AutomaticUpdateFailed, QString(), -1, -1);
+    showSyncWarning(AutomaticUpdateFailed, QString(), UINT_MAX, UINT_MAX);
 }
 
 QList<int> QmlLiveTextPreview::objectReferencesForOffset(quint32 offset)
@@ -713,7 +713,7 @@ void QmlLiveTextPreview::showSyncWarning(
 
     foreach (TextEditor::BaseTextEditorWidget *editor, m_editors) {
         if (editor) {
-            Core::InfoBar *infoBar = editor->editorDocument()->infoBar();
+            Core::InfoBar *infoBar = editor->baseTextDocument()->infoBar();
             Core::InfoBarEntry info(Core::Id(INFO_OUT_OF_SYNC), errorMessage);
             BaseToolsClient *toolsClient = m_inspectorAdapter->toolsClient();
             if (toolsClient && toolsClient->supportReload())
@@ -734,7 +734,7 @@ void QmlLiveTextPreview::removeOutofSyncInfo()
 {
     foreach (TextEditor::BaseTextEditorWidget *editor, m_editors) {
         if (editor) {
-            Core::InfoBar *infoBar = editor->editorDocument()->infoBar();
+            Core::InfoBar *infoBar = editor->baseTextDocument()->infoBar();
             infoBar->removeInfo(Core::Id(INFO_OUT_OF_SYNC));
         }
     }

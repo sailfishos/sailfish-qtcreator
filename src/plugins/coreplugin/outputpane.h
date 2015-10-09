@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -42,9 +42,7 @@ namespace Core {
 
 class IMode;
 
-namespace Internal {
-class OutputPaneManager;
-}
+namespace Internal { class OutputPaneManager; }
 struct OutputPanePlaceHolderPrivate;
 
 class CORE_EXPORT OutputPanePlaceHolder : public QWidget
@@ -61,6 +59,7 @@ public:
 
     void unmaximize();
     bool isMaximized() const;
+    void setDefaultHeight(int height);
     void ensureSizeHintAsMinimum();
 
 private slots:

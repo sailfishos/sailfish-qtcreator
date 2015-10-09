@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -34,13 +34,9 @@
 
 #include <QPointer>
 
-namespace TextEditor {
-class BaseTextEditor;
-}
+namespace TextEditor { class BaseTextEditor; }
 
-namespace QmlEditorWidgets {
-class ContextPaneWidget;
-}
+namespace QmlEditorWidgets { class ContextPaneWidget; }
 
 namespace QmlJSEditor {
 
@@ -66,6 +62,8 @@ public slots:
    void onEnabledChanged(bool);
 
 private:
+   void indentLines(int startLine, int endLine);
+
     QmlEditorWidgets::ContextPaneWidget* contextWidget();
     QPointer<QmlEditorWidgets::ContextPaneWidget> m_widget;
     QmlJS::Document::Ptr m_doc;

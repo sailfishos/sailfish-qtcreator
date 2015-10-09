@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -38,40 +38,38 @@
 
 namespace Core {
 
-namespace Internal {
-class MessageOutputWindow;
-}
+namespace Internal { class MainWindow; }
 
 class CORE_EXPORT MessageManager : public QObject
 {
     Q_OBJECT
 
 public:
-    MessageManager();
-    ~MessageManager();
+    static QObject *instance();
 
-    void init();
+    static void showOutputPane();
 
-    static MessageManager *instance() { return m_instance; }
-
-    void showOutputPane();
     enum PrintToOutputPaneFlag {
-        NoModeSwitch = Core::IOutputPane::NoModeSwitch,
-        ModeSwitch = Core::IOutputPane::ModeSwitch,
-        WithFocus = Core::IOutputPane::WithFocus,
-        EnsureSizeHint = Core::IOutputPane::EnsureSizeHint,
-        Silent = 256,
-        Flash = 512 };
+        NoModeSwitch   = IOutputPane::NoModeSwitch,
+        ModeSwitch     = IOutputPane::ModeSwitch,
+        WithFocus      = IOutputPane::WithFocus,
+        EnsureSizeHint = IOutputPane::EnsureSizeHint,
+        Silent         = 256,
+        Flash          = 512
+    };
 
     Q_DECLARE_FLAGS(PrintToOutputPaneFlags, PrintToOutputPaneFlag)
 
+    static void write(const QString &text); // imply NoModeSwitch
+
 public slots:
-    void printToOutputPane(const QString &text, Core::MessageManager::PrintToOutputPaneFlags flags);
+    static void write(const QString &text, Core::MessageManager::PrintToOutputPaneFlags flags);
 
 private:
-    Internal::MessageOutputWindow *m_messageOutputWindow;
-
-    static MessageManager *m_instance;
+    MessageManager();
+    ~MessageManager();
+    static void init();
+    friend class Core::Internal::MainWindow;
 };
 
 } // namespace Core

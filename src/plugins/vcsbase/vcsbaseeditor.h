@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -54,6 +54,8 @@ class VcsBaseEditorWidgetPrivate;
 
 class DiffHighlighter;
 class BaseAnnotationHighlighter;
+class VcsBaseEditorParameterWidget;
+class Command;
 
 // Documentation inside
 enum EditorContentType
@@ -82,12 +84,13 @@ public:
 
     QString fileName;
     QByteArray chunk;
+    QByteArray header;
 };
 
 class VCSBASE_EXPORT VcsBaseEditorWidget : public TextEditor::BaseTextEditorWidget
 {
     Q_PROPERTY(QString source READ source WRITE setSource)
-    Q_PROPERTY(QString diffBaseDirectory READ diffBaseDirectory WRITE setDiffBaseDirectory)
+    Q_PROPERTY(QString workingDirectory READ workingDirectory WRITE setWorkingDirectory)
     Q_PROPERTY(QTextCodec *codec READ codec WRITE setCodec)
     Q_PROPERTY(QString annotateRevisionTextFormat READ annotateRevisionTextFormat WRITE setAnnotateRevisionTextFormat)
     Q_PROPERTY(QString copyRevisionTextFormat READ copyRevisionTextFormat WRITE setCopyRevisionTextFormat)
@@ -104,6 +107,7 @@ protected:
     // Pattern for log entry. hash/revision number must be in the first capture group
     void setLogEntryPattern(const QRegExp &pattern);
     virtual bool supportChangeLinks() const;
+    virtual QString fileNameForLine(int line) const;
 
 public:
     virtual void init();
@@ -141,8 +145,8 @@ public:
     void setCodec(QTextCodec *);
 
     // Base directory for diff views
-    QString diffBaseDirectory() const;
-    void setDiffBaseDirectory(const QString &d);
+    QString workingDirectory() const;
+    void setWorkingDirectory(const QString &wd);
 
     bool isModified() const;
 
@@ -183,9 +187,10 @@ public:
                               const QStringList &fileNames,
                               const QString &revision = QString());
 
-    bool setConfigurationWidget(QWidget *w);
-    QWidget *configurationWidget() const;
+    bool setConfigurationWidget(VcsBaseEditorParameterWidget *w);
+    VcsBaseEditorParameterWidget *configurationWidget() const;
 
+    void setCommand(Command *command);
     /* Tagging editors: Sometimes, an editor should be re-used, for example, when showing
      * a diff of the same file with different diff-options. In order to be able to find
      * the editor, they get a 'tag' containing type and parameters (dynamic property string). */
@@ -198,14 +203,12 @@ signals:
     // handled by the editor manager for convenience. They are emitted
     // for LogOutput/AnnotateOutput content types.
     void describeRequested(const QString &source, const QString &change);
-    void annotateRevisionRequested(const QString &source, const QString &change, int lineNumber);
+    void annotateRevisionRequested(const QString &workingDirectory, const QString &file,
+                                   const QString &change, int lineNumber);
     void diffChunkApplied(const VcsBase::DiffChunk &dc);
     void diffChunkReverted(const VcsBase::DiffChunk &dc);
 
 public slots:
-    // Convenience slot to set data read from stdout, will use the
-    // documents' codec to decode
-    void setPlainTextData(const QByteArray &data);
     void reportCommandFinished(bool ok, int exitCode, const QVariant &data);
 
 protected:
@@ -216,9 +219,6 @@ protected:
     void mouseReleaseEvent(QMouseEvent *e);
     void mouseDoubleClickEvent(QMouseEvent *e);
     void keyPressEvent(QKeyEvent *);
-
-public slots:
-    void setFontSettings(const TextEditor::FontSettings &);
 
 private slots:
     void slotActivateAnnotation();
@@ -236,6 +236,8 @@ protected:
      * source and version control. */
     virtual QString findDiffFile(const QString &f) const;
 
+    virtual void addDiffActions(QMenu *menu, const DiffChunk &chunk);
+
     virtual void addChangeActions(QMenu *menu, const QString &change);
 
     // Implement to return a set of change identifiers in
@@ -244,11 +246,10 @@ protected:
     // Implement to identify a change number at the cursor position
     virtual QString changeUnderCursor(const QTextCursor &) const = 0;
     // Factory functions for highlighters
-    virtual BaseAnnotationHighlighter *createAnnotationHighlighter(const QSet<QString> &changes,
-                                                                   const QColor &bg) const = 0;
+    virtual BaseAnnotationHighlighter *createAnnotationHighlighter(const QSet<QString> &changes) const = 0;
     // Returns a local file name from the diff file specification
     // (text cursor at position above change hunk)
-    QString fileNameFromDiffSpecification(const QTextBlock &inBlock) const;
+    QString fileNameFromDiffSpecification(const QTextBlock &inBlock, QString *header = 0) const;
 
     // Implement to return decorated annotation change for "Annotate version"
     virtual QString decorateVersion(const QString &revision) const;

@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2012 - 2014 Jolla Ltd.
+** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
 **
@@ -29,18 +29,20 @@
 
 #include "merrpmpackagingwidget.h"
 #include "ui_merrpmpackagingwidget.h"
+
 #include "merrpmpackagingstep.h"
+
 #include <coreplugin/editormanager/editormanager.h>
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/target.h>
-#include <qt4projectmanager/qt4buildconfiguration.h>
+#include <qmakeprojectmanager/qmakebuildconfiguration.h>
 #include <utils/qtcassert.h>
 
-#include <QTimer>
 #include <QFileDialog>
 #include <QImageReader>
 #include <QMessageBox>
+#include <QTimer>
 
 using namespace ProjectExplorer;
 

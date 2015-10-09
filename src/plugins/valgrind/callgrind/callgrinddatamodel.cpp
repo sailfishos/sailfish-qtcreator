@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -43,18 +43,6 @@
 
 namespace Valgrind {
 namespace Callgrind {
-
-//BEGIN Helper
-
-namespace {
-    // minimum amount of columns, i.e.:
-    // function name
-    // file name
-    // object name
-    // num called
-    // Additional to this, 2 * ParseData::events().size will be shown (inclusive + self cost)
-    const int MinColumnSize = 4;
-}
 
 //BEGIN DataModel::Private
 

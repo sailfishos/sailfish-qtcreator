@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2013 Jolla Ltd.
+** Copyright (C) 2012 - 2014 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -21,15 +21,17 @@
 ****************************************************************************/
 
 #include "mertoolchain.h"
-#include "mertoolchainfactory.h"
+
+#include "meremulatordevice.h"
 #include "mersdkmanager.h"
 #include "mersshparser.h"
+#include "mertoolchainfactory.h"
 
+#include <projectexplorer/projectexplorerconstants.h>
+#include <qtsupport/qtkitinformation.h>
+#include <qtsupport/qtversionmanager.h>
 #include <utils/environment.h>
 #include <utils/qtcassert.h>
-#include <qtsupport/qtversionmanager.h>
-#include <qtsupport/qtkitinformation.h>
-#include <projectexplorer/projectexplorerconstants.h>
 
 #include <QDir>
 
@@ -40,7 +42,7 @@ namespace Internal {
 
 using namespace ProjectExplorer;
 
-MerToolChain::MerToolChain(bool autodetected,const QString &id)
+MerToolChain::MerToolChain(Detection autodetected,const QString &id)
     : GccToolChain(id, autodetected)
 {
 
@@ -125,20 +127,13 @@ QList<Task> MerToolChain::validateKit(const Kit *kit) const
     if (!result.isEmpty())
         return result;
 
-    Core::Id type = DeviceTypeKitInformation::deviceTypeId(kit);
-
-    if (type == Constants::MER_DEVICE_TYPE_I486 && targetAbi().architecture() != ProjectExplorer::Abi::X86Architecture) {
+    IDevice::ConstPtr d = DeviceKitInformation::device(kit);
+    const MerDevice* device = dynamic_cast<const MerDevice*>(d.data());
+    if (device && device->architecture() != targetAbi().architecture()) {
         const QString message =
                 QCoreApplication::translate("ProjectExplorer::MerToolChain",
-                                            "MerToolChain '%1' can not be used for device with i486 architecture").arg(displayName());
-        result << Task(Task::Error, message, Utils::FileName(), -1,
-                       Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
-    }
-
-    if (type == Constants::MER_DEVICE_TYPE_ARM && targetAbi().architecture() != ProjectExplorer::Abi::ArmArchitecture) {
-        const QString message =
-                QCoreApplication::translate("ProjectExplorer::MerToolChain",
-                                            "MerToolChain '%1' can not be used for device with arm architecture").arg(displayName());
+                                            "MerToolChain '%1' can not be used for device with %2 architecture")
+                .arg(displayName()).arg(ProjectExplorer::Abi::toString(device->architecture()));
         result << Task(Task::Error, message, Utils::FileName(), -1,
                        Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
     }
@@ -229,7 +224,7 @@ bool MerToolChainFactory::canRestore(const QVariantMap &data)
 
 ToolChain *MerToolChainFactory::restore(const QVariantMap &data)
 {
-    MerToolChain *tc = new MerToolChain(true);
+    MerToolChain *tc = new MerToolChain(ToolChain::AutoDetection); // TODO: unsure
     if (!tc->fromMap(data)) {
         delete tc;
         return 0;

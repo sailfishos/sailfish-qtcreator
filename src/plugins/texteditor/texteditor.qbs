@@ -1,21 +1,17 @@
-import qbs.base 1.0
+import qbs 1.0
 
-import "../QtcPlugin.qbs" as QtcPlugin
+import QtcPlugin
 
 QtcPlugin {
     name: "TextEditor"
 
     Depends { name: "Qt"; submodules: ["widgets", "xml", "network", "script", "printsupport"] }
-    Depends { name: "Core" }
-    Depends { name: "Find" }
-    Depends { name: "Locator" }
+    Depends { name: "Aggregation" }
+    Depends { name: "Utils" }
 
-    cpp.includePaths: base.concat([
-        "generichighlighter",
-        "snippets",
-        "codeassist",
-        "."
-    ])
+    Depends { name: "Core" }
+
+    cpp.includePaths: base.concat([path]) // Needed for the highlighterengine autotest.
 
     files: [
         "autocompleter.cpp",
@@ -85,10 +81,13 @@ QtcPlugin {
         "fontsettingspage.ui",
         "helpitem.cpp",
         "helpitem.h",
+        "highlighterutils.cpp",
+        "highlighterutils.h",
         "icodestylepreferences.cpp",
         "icodestylepreferences.h",
         "icodestylepreferencesfactory.cpp",
         "icodestylepreferencesfactory.h",
+        "ihighlighterfactory.h",
         "indenter.cpp",
         "indenter.h",
         "ioutlinewidget.h",
@@ -98,6 +97,8 @@ QtcPlugin {
         "itextmark.h",
         "linenumberfilter.cpp",
         "linenumberfilter.h",
+        "marginsettings.cpp",
+        "marginsettings.h",
         "normalindenter.cpp",
         "normalindenter.h",
         "outlinefactory.cpp",
@@ -268,8 +269,11 @@ QtcPlugin {
         ]
     }
 
-    Export {
-        Depends { name: "Find" }
-        Depends { name: "Locator" }
+    Group {
+        name: "Tests"
+        condition: project.testsEnabled
+        files: [
+            "basetexteditor_test.cpp",
+        ]
     }
 }

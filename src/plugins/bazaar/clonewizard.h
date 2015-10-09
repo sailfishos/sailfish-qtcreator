@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Hugues Delorme
+** Copyright (c) 2014 Hugues Delorme
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -42,19 +42,12 @@ class CloneWizard : public VcsBase::BaseCheckoutWizard
     Q_OBJECT
 
 public:
-    CloneWizard(QObject *parent = 0);
-
-    QIcon icon() const;
-    QString description() const;
-    QString displayName() const;
-
-protected:
-    QList<QWizardPage *> createParameterPages(const QString &path);
-    QSharedPointer<VcsBase::AbstractCheckoutJob> createJob(const QList<QWizardPage *> &parameterPages,
-                                                           QString *checkoutPath);
+    CloneWizard();
 
 private:
-    const QIcon m_icon;
+    QList<QWizardPage *> createParameterPages(const QString &path);
+    VcsBase::Command *createCommand(const QList<QWizardPage *> &parameterPages,
+                                    QString *checkoutPath);
 };
 
 } // namespace Internal

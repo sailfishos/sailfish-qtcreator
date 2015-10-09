@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -35,18 +35,15 @@
 #include <extensionsystem/iplugin.h>
 
 #include <QtPlugin>
-#include <QStringList>
 #include <QAction>
 
-namespace TextEditor {
-class TextEditorActionHandler;
-class ITextEditor;
-} // namespace TextEditor
+namespace TextEditor { class ITextEditor; }
 
 namespace CppEditor {
 namespace Internal {
 
 class CPPEditorWidget;
+class CppCodeModelInspectorDialog;
 class CppQuickFixCollector;
 class CppQuickFixAssistProvider;
 
@@ -75,97 +72,77 @@ public:
 signals:
     void outlineSortingChanged(bool sort);
     void typeHierarchyRequested();
+    void includeHierarchyRequested();
 
 public slots:
     void openDeclarationDefinitionInNextSplit();
     void openTypeHierarchy();
+    void openIncludeHierarchy();
     void findUsages();
+    void showPreProcessorDialog();
     void renameSymbolUnderCursor();
     void switchDeclarationDefinition();
 
     void setSortedOutline(bool sorted);
 
 private slots:
-    void onTaskStarted(const QString &type);
-    void onAllTasksFinished(const QString &type);
-    void currentEditorChanged(Core::IEditor *editor);
+    void onTaskStarted(Core::Id type);
+    void onAllTasksFinished(Core::Id type);
+    void inspectCppCodeModel();
 
 #ifdef WITH_TESTS
 private slots:
     // The following tests expect that no projects are loaded on start-up.
-    void test_SwitchMethodDeclarationDefinition_fromFunctionDeclarationSymbol();
-    void test_SwitchMethodDeclarationDefinition_fromFunctionDefinitionSymbol();
-    void test_SwitchMethodDeclarationDefinition_fromFunctionBody();
-    void test_SwitchMethodDeclarationDefinition_fromReturnType();
+    void test_SwitchMethodDeclarationDefinition_data();
+    void test_SwitchMethodDeclarationDefinition();
 
-    void test_FollowSymbolUnderCursor_globalVarFromFunction();
-    void test_FollowSymbolUnderCursor_funLocalVarHidesClassMember();
-    void test_FollowSymbolUnderCursor_funLocalVarHidesNamespaceMemberIntroducedByUsingDirective();
-    void test_FollowSymbolUnderCursor_loopLocalVarHidesOuterScopeVariable1();
-    void test_FollowSymbolUnderCursor_loopLocalVarHidesOuterScopeVariable2();
-    void test_FollowSymbolUnderCursor_subsequentDefinedClassMember();
-    void test_FollowSymbolUnderCursor_classMemberHidesOuterTypeDef();
-    void test_FollowSymbolUnderCursor_globalVarFromEnum();
-    void test_FollowSymbolUnderCursor_selfInitialization();
-    void test_FollowSymbolUnderCursor_pointerToClassInClassDefinition();
-    void test_FollowSymbolUnderCursor_previouslyDefinedMemberFromArrayDefinition();
-    void test_FollowSymbolUnderCursor_outerStaticMemberVariableFromInsideSubclass();
-    void test_FollowSymbolUnderCursor_memberVariableFollowingDotOperator();
-    void test_FollowSymbolUnderCursor_memberVariableFollowingArrowOperator();
-    void test_FollowSymbolUnderCursor_staticMemberVariableFollowingScopeOperator();
-    void test_FollowSymbolUnderCursor_staticMemberVariableFollowingDotOperator();
-    void test_FollowSymbolUnderCursor_staticMemberVariableFollowingArrowOperator();
-    void test_FollowSymbolUnderCursor_previouslyDefinedEnumValueFromInsideEnum();
-    void test_FollowSymbolUnderCursor_nsMemberHidesNsMemberIntroducedByUsingDirective();
-    void test_FollowSymbolUnderCursor_baseClassFunctionIntroducedByUsingDeclaration();
-    void test_FollowSymbolUnderCursor_funWithSameNameAsBaseClassFunIntroducedByUsingDeclaration();
-    void test_FollowSymbolUnderCursor_funLocalVarHidesOuterClass();
-    void test_FollowSymbolUnderCursor_using_QTCREATORBUG7903_globalNamespace();
-    void test_FollowSymbolUnderCursor_using_QTCREATORBUG7903_namespace();
-    void test_FollowSymbolUnderCursor_using_QTCREATORBUG7903_insideFunction();
+    void test_FollowSymbolUnderCursor_multipleDocuments_data();
+    void test_FollowSymbolUnderCursor_multipleDocuments();
 
-    void test_doxygen_comments_qt_style();
-    void test_doxygen_comments_qt_style_continuation();
-    void test_doxygen_comments_java_style();
-    void test_doxygen_comments_java_style_continuation();
-    void test_doxygen_comments_cpp_styleA();
-    void test_doxygen_comments_cpp_styleB();
-    void test_doxygen_comments_cpp_styleA_indented();
-    void test_doxygen_comments_cpp_styleA_continuation();
-    void test_doxygen_comments_cpp_styleA_indented_continuation();
-    void test_doxygen_comments_cpp_styleA_corner_case();
+    void test_FollowSymbolUnderCursor_data();
+    void test_FollowSymbolUnderCursor();
 
-    void test_quickfix_GenerateGetterSetter_basicGetterWithPrefix();
-    void test_quickfix_GenerateGetterSetter_basicGetterWithPrefixAndNamespace();
+    void test_FollowSymbolUnderCursor_QObject_connect_data();
+    void test_FollowSymbolUnderCursor_QObject_connect();
+
+    void test_FollowSymbolUnderCursor_classOperator_onOperatorToken_data();
+    void test_FollowSymbolUnderCursor_classOperator_onOperatorToken();
+
+    void test_FollowSymbolUnderCursor_classOperator_data();
+    void test_FollowSymbolUnderCursor_classOperator();
+
+    void test_FollowSymbolUnderCursor_classOperator_inOp_data();
+    void test_FollowSymbolUnderCursor_classOperator_inOp();
+
+    void test_FollowSymbolUnderCursor_virtualFunctionCall_data();
+    void test_FollowSymbolUnderCursor_virtualFunctionCall();
+    void test_FollowSymbolUnderCursor_virtualFunctionCall_multipleDocuments();
+
+    void test_doxygen_comments_data();
+    void test_doxygen_comments();
+
+    void test_quickfix_data();
+    void test_quickfix();
+
     void test_quickfix_GenerateGetterSetter_basicGetterWithPrefixAndNamespaceToCpp();
-    void test_quickfix_GenerateGetterSetter_basicGetterWithoutPrefix();
-    void test_quickfix_GenerateGetterSetter_customType();
-    void test_quickfix_GenerateGetterSetter_constMember();
-    void test_quickfix_GenerateGetterSetter_pointerToNonConst();
-    void test_quickfix_GenerateGetterSetter_pointerToConst();
-    void test_quickfix_GenerateGetterSetter_staticMember();
-    void test_quickfix_GenerateGetterSetter_secondDeclarator();
-    void test_quickfix_GenerateGetterSetter_triggeringRightAfterPointerSign();
-    void test_quickfix_GenerateGetterSetter_notTriggeringOnMemberFunction();
-    void test_quickfix_GenerateGetterSetter_notTriggeringOnMemberArray();
-    void test_quickfix_GenerateGetterSetter_notTriggeringWhenGetterOrSetterExist();
 
-    void test_quickfix_ReformatPointerDeclaration();
-
-    void test_quickfix_InsertDefFromDecl_basic();
     void test_quickfix_InsertDefFromDecl_afterClass();
     void test_quickfix_InsertDefFromDecl_headerSource_basic1();
     void test_quickfix_InsertDefFromDecl_headerSource_basic2();
+    void test_quickfix_InsertDefFromDecl_headerSource_basic3();
     void test_quickfix_InsertDefFromDecl_headerSource_namespace1();
     void test_quickfix_InsertDefFromDecl_headerSource_namespace2();
-    void test_quickfix_InsertDefFromDecl_freeFunction();
     void test_quickfix_InsertDefFromDecl_insideClass();
     void test_quickfix_InsertDefFromDecl_notTriggeringWhenDefinitionExists();
-    void test_quickfix_InsertDefFromDecl_notTriggeringStatement();
     void test_quickfix_InsertDefFromDecl_findRightImplementationFile();
     void test_quickfix_InsertDefFromDecl_ignoreSurroundingGeneratedDeclarations();
     void test_quickfix_InsertDefFromDecl_respectWsInOperatorNames1();
     void test_quickfix_InsertDefFromDecl_respectWsInOperatorNames2();
+    void test_quickfix_InsertDefFromDecl_macroUsesAtEndOfFile1();
+    void test_quickfix_InsertDefFromDecl_macroUsesAtEndOfFile2();
+    void test_quickfix_InsertDefFromDecl_erroneousStatementAtEndOfFile();
+    void test_quickfix_InsertDefFromDecl_rvalueReference();
+    void test_quickfix_InsertDefFromDecl_findImplementationFile();
 
     void test_quickfix_InsertDeclFromDef();
 
@@ -216,36 +193,23 @@ private slots:
     void test_quickfix_MoveFuncDefToDecl_FreeFuncToCpp();
     void test_quickfix_MoveFuncDefToDecl_FreeFuncToCppNS();
     void test_quickfix_MoveFuncDefToDecl_CtorWithInitialization();
+    void test_quickfix_MoveFuncDefToDecl_structWithAssignedVariable();
 
-    void test_quickfix_AssignToLocalVariable_freeFunction();
-    void test_quickfix_AssignToLocalVariable_memberFunction();
-    void test_quickfix_AssignToLocalVariable_staticMemberFunction();
-    void test_quickfix_AssignToLocalVariable_newExpression();
     void test_quickfix_AssignToLocalVariable_templates();
-    void test_quickfix_AssignToLocalVariable_noInitializationList();
-    void test_quickfix_AssignToLocalVariable_noVoidFunction();
-    void test_quickfix_AssignToLocalVariable_noVoidMemberFunction();
-    void test_quickfix_AssignToLocalVariable_noVoidStaticMemberFunction();
-    void test_quickfix_AssignToLocalVariable_noFunctionInExpression();
-    void test_quickfix_AssignToLocalVariable_noFunctionInFunction();
-    void test_quickfix_AssignToLocalVariable_noReturnClass1();
-    void test_quickfix_AssignToLocalVariable_noReturnClass2();
-    void test_quickfix_AssignToLocalVariable_noReturnFunc1();
-    void test_quickfix_AssignToLocalVariable_noReturnFunc2();
-    void test_quickfix_AssignToLocalVariable_noSignatureMatch();
 
-    void test_quickfix_InsertVirtualMethods_onlyDecl();
-    void test_quickfix_InsertVirtualMethods_onlyDeclWithoutVirtual();
-    void test_quickfix_InsertVirtualMethods_Access();
-    void test_quickfix_InsertVirtualMethods_Superclass();
-    void test_quickfix_InsertVirtualMethods_SuperclassOverride();
-    void test_quickfix_InsertVirtualMethods_PureVirtualOnlyDecl();
-    void test_quickfix_InsertVirtualMethods_PureVirtualInside();
-    void test_quickfix_InsertVirtualMethods_inside();
-    void test_quickfix_InsertVirtualMethods_outside();
+    void test_quickfix_ExtractLiteralAsParameter_typeDeduction_data();
+    void test_quickfix_ExtractLiteralAsParameter_typeDeduction();
+    void test_quickfix_ExtractLiteralAsParameter_freeFunction_separateFiles();
+    void test_quickfix_ExtractLiteralAsParameter_memberFunction_separateFiles();
+
+    void test_quickfix_InsertVirtualMethods_data();
+    void test_quickfix_InsertVirtualMethods();
     void test_quickfix_InsertVirtualMethods_implementationFile();
-    void test_quickfix_InsertVirtualMethods_notrigger_allImplemented();
     void test_quickfix_InsertVirtualMethods_BaseClassInNamespace();
+
+    // tests for "Include Hiererchy"
+    void test_includehierarchy_data();
+    void test_includehierarchy();
 
     // The following tests depend on the projects that are loaded on startup
     // and will be skipped in case no projects are loaded.
@@ -268,14 +232,16 @@ private:
 
     static CppEditorPlugin *m_instance;
 
-    TextEditor::TextEditorActionHandler *m_actionHandler;
     bool m_sortedOutline;
     QAction *m_renameSymbolUnderCursorAction;
     QAction *m_findUsagesAction;
-    QAction *m_updateCodeModelAction;
+    QAction *m_reparseExternallyChangedFiles;
     QAction *m_openTypeHierarchyAction;
+    QAction *m_openIncludeHierarchyAction;
 
     CppQuickFixAssistProvider *m_quickFixProvider;
+
+    QPointer<CppCodeModelInspectorDialog> m_cppCodeModelInspectorDialog;
 
     QPointer<TextEditor::ITextEditor> m_currentEditor;
 };
@@ -287,15 +253,10 @@ class CppEditorFactory : public Core::IEditorFactory
 public:
     CppEditorFactory(CppEditorPlugin *owner);
 
-    // IEditorFactory
-    QStringList mimeTypes() const;
-    Core::IEditor *createEditor(QWidget *parent);
-    Core::Id id() const;
-    QString displayName() const;
+    Core::IEditor *createEditor();
 
 private:
     CppEditorPlugin *m_owner;
-    QStringList m_mimeTypes;
 };
 
 } // namespace Internal

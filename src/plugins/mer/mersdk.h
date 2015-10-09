@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2013 Jolla Ltd.
+** Copyright (C) 2012 - 2014 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -23,8 +23,9 @@
 #ifndef MERSDK_H
 #define MERSDK_H
 
-#include <ssh/sshconnection.h>
 #include <coreplugin/id.h>
+#include <ssh/sshconnection.h>
+
 #include <QFileSystemWatcher>
 #include <QStringList>
 #include <QTimer>
@@ -40,6 +41,7 @@ class FileName;
 namespace Mer {
 namespace Internal {
 
+class MerConnection;
 class MerQtVersion;
 class MerToolChain;
 class MerTarget;
@@ -102,6 +104,8 @@ public:
     void attach();
     void detach();
 
+    MerConnection *connection() const;
+
 signals:
     void targetsChanged(const QStringList &targets);
     void privateKeyChanged(const QString &file);
@@ -120,22 +124,16 @@ private:
 
 private:
     bool m_autoDetected;
-    QString m_name;
+    MerConnection *m_connection;
     QString m_sharedHomePath;
     QString m_sharedTargetsPath;
     QString m_sharedSshPath;
     QString m_sharedConfigPath;
     QString m_sharedSrcPath;
-    QString m_host;
-    QString m_userName;
-    QString m_privateKeyFile;
-    quint16 m_sshPort;
     quint16 m_wwwPort;
-    int m_timeout;
     QList<MerTarget> m_targets;
     QFileSystemWatcher m_watcher;
     QTimer m_updateTargetsTimer;
-    bool m_headless;
 
 friend class MerSdkManager;
 };

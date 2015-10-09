@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -37,9 +37,7 @@
 namespace Qnx {
 namespace Internal {
 
-namespace Ui {
-class BarDescriptorEditorGeneralWidget;
-}
+namespace Ui { class BarDescriptorEditorGeneralWidget; }
 
 class BarDescriptorEditorGeneralWidget : public BarDescriptorEditorAbstractPanelWidget
 {
@@ -49,19 +47,9 @@ public:
     explicit BarDescriptorEditorGeneralWidget(QWidget *parent = 0);
     ~BarDescriptorEditorGeneralWidget();
 
-    void clear();
-
-    QString orientation() const;
-    void setOrientation(const QString &orientation);
-
-    QString chrome() const;
-    void setChrome(const QString &chrome);
-
-    bool transparent() const;
-    void setTransparent(bool transparent);
-
-    void appendApplicationArgument(const QString &argument);
-    QStringList applicationArguments() const;
+protected:
+    void updateWidgetValue(BarDescriptorDocument::Tag tag, const QVariant &value);
+    void emitChanged(BarDescriptorDocument::Tag tag);
 
 private:
     Ui::BarDescriptorEditorGeneralWidget *m_ui;

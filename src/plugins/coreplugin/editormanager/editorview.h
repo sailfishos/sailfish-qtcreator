@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -57,7 +57,7 @@ class IContext;
 class IDocument;
 class IEditor;
 class InfoBarDisplay;
-class OpenEditorsModel;
+class DocumentModel;
 class EditorToolBar;
 
 namespace Internal {
@@ -91,6 +91,7 @@ public:
     bool hasEditor(IEditor *editor) const;
 
     QList<IEditor *> editors() const;
+    IEditor *editorForDocument(const IDocument *document) const;
 
     void showEditorStatusBar(const QString &id,
                            const QString &infoText,
@@ -164,6 +165,7 @@ class SplitterOrView  : public QWidget
     Q_OBJECT
 public:
     explicit SplitterOrView(Core::IEditor *editor = 0);
+    explicit SplitterOrView(EditorView *view);
     ~SplitterOrView();
 
     void split(Qt::Orientation orientation);

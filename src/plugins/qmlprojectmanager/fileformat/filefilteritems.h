@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -36,13 +36,9 @@
 #include <QSet>
 #include <QTimer>
 
-#include <qdeclarative.h>
-
 QT_FORWARD_DECLARE_CLASS(QDir)
 
-namespace Utils {
-class FileSystemWatcher;
-}
+namespace Utils { class FileSystemWatcher; }
 
 namespace QmlProjectManager {
 
@@ -180,11 +176,5 @@ public:
 };
 
 } // namespace QmlProjectManager
-
-QML_DECLARE_TYPE(QmlProjectManager::QmlFileFilterItem)
-QML_DECLARE_TYPE(QmlProjectManager::JsFileFilterItem)
-QML_DECLARE_TYPE(QmlProjectManager::ImageFileFilterItem)
-QML_DECLARE_TYPE(QmlProjectManager::CssFileFilterItem)
-QML_DECLARE_TYPE(QmlProjectManager::OtherFileFilterItem)
 
 #endif // FILEFILTERITEMS_HPROJECTITEM_H

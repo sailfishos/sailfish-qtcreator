@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -51,8 +51,6 @@
 #include <coreplugin/mimedatabase.h>
 #include <extensionsystem/pluginmanager.h>
 #include <texteditor/basetextdocument.h>
-#include <texteditor/fontsettings.h>
-#include <texteditor/tabsettings.h>
 #include <texteditor/texteditorconstants.h>
 #include <texteditor/texteditorsettings.h>
 #include <texteditor/syntaxhighlighter.h>
@@ -64,7 +62,7 @@
 #include <QFileInfo>
 #include <QSignalMapper>
 #include <QTimer>
-#include <QDebug>
+#include <QTextBlock>
 
 #include <QMenu>
 #include <QComboBox>
@@ -142,14 +140,25 @@ void Document::addRange(const QTextCursor &cursor, GLSL::Scope *scope)
     _cursors.append(c);
 }
 
-GLSLTextEditorWidget::GLSLTextEditorWidget(QWidget *parent) :
-    TextEditor::BaseTextEditorWidget(parent),
-    m_outlineCombo(0)
+GLSLTextEditorWidget::GLSLTextEditorWidget(QWidget *parent)
+    : TextEditor::BaseTextEditorWidget(parent)
 {
+    baseTextDocument()->setIndenter(new GLSLIndenter());
+    ctor();
+}
+
+GLSLTextEditorWidget::GLSLTextEditorWidget(GLSLTextEditorWidget *other)
+    : TextEditor::BaseTextEditorWidget(other)
+{
+    ctor();
+}
+
+void GLSLTextEditorWidget::ctor()
+{
+    m_outlineCombo = 0;
     setParenthesesMatchingEnabled(true);
     setMarksVisible(true);
     setCodeFoldingSupported(true);
-    setIndenter(new GLSLIndenter());
     setAutoCompleter(new GLSLCompleter());
 
     m_updateDocumentTimer = new QTimer(this);
@@ -159,7 +168,7 @@ GLSLTextEditorWidget::GLSLTextEditorWidget(QWidget *parent) :
 
     connect(this, SIGNAL(textChanged()), this, SLOT(updateDocument()));
 
-    new Highlighter(baseTextDocument().data());
+    new Highlighter(baseTextDocument());
 
 //    if (m_modelManager) {
 //        m_semanticHighlighter->setModelManager(m_modelManager);
@@ -189,60 +198,24 @@ bool GLSLTextEditorWidget::isOutdated() const
     return false;
 }
 
-Core::IEditor *GLSLEditorEditable::duplicate(QWidget *parent)
+Core::IEditor *GLSLEditorEditable::duplicate()
 {
-    GLSLTextEditorWidget *newEditor = new GLSLTextEditorWidget(parent);
-    newEditor->duplicateFrom(editorWidget());
-    GLSLEditorPlugin::instance()->initializeEditor(newEditor);
+    GLSLTextEditorWidget *newEditor = new GLSLTextEditorWidget(
+                qobject_cast<GLSLTextEditorWidget *>(editorWidget()));
+    TextEditor::TextEditorSettings::initializeEditor(newEditor);
     return newEditor->editor();
-}
-
-Core::Id GLSLEditorEditable::id() const
-{
-    return Core::Id(GLSLEditor::Constants::C_GLSLEDITOR_ID);
 }
 
 bool GLSLEditorEditable::open(QString *errorString, const QString &fileName, const QString &realFileName)
 {
-    editorWidget()->setMimeType(Core::ICore::mimeDatabase()->findByFile(QFileInfo(fileName)).type());
+    baseTextDocument()->setMimeType(Core::MimeDatabase::findByFile(QFileInfo(fileName)).type());
     bool b = TextEditor::BaseTextEditor::open(errorString, fileName, realFileName);
     return b;
 }
 
-void GLSLTextEditorWidget::setFontSettings(const TextEditor::FontSettings &fs)
+TextEditor::CompletionAssistProvider *GLSLEditorEditable::completionAssistProvider()
 {
-    TextEditor::BaseTextEditorWidget::setFontSettings(fs);
-    Highlighter *highlighter = qobject_cast<Highlighter*>(baseTextDocument()->syntaxHighlighter());
-    if (!highlighter)
-        return;
-
-    /*
-        NumberFormat,
-        StringFormat,
-        TypeFormat,
-        KeywordFormat,
-        LabelFormat,
-        CommentFormat,
-        VisualWhitespace,
-     */
-    static QVector<TextEditor::TextStyle> categories;
-    if (categories.isEmpty()) {
-        categories << TextEditor::C_NUMBER
-                   << TextEditor::C_STRING
-                   << TextEditor::C_TYPE
-                   << TextEditor::C_KEYWORD
-                   << TextEditor::C_OPERATOR
-                   << TextEditor::C_PREPROCESSOR
-                   << TextEditor::C_LABEL
-                   << TextEditor::C_COMMENT
-                   << TextEditor::C_DOXYGEN_COMMENT
-                   << TextEditor::C_DOXYGEN_TAG
-                   << TextEditor::C_VISUAL_WHITESPACE
-                   << TextEditor::C_REMOVED_LINE;
-    }
-
-    highlighter->setFormats(fs.toTextCharFormats(categories));
-    highlighter->rehighlight();
+    return ExtensionSystem::PluginManager::getObject<GLSLCompletionAssistProvider>();
 }
 
 QString GLSLTextEditorWidget::wordUnderCursor() const
@@ -289,11 +262,6 @@ void GLSLTextEditorWidget::createToolBar(GLSLEditorEditable *editor)
     editor->insertExtraToolBarWidget(TextEditor::BaseTextEditor::Left, m_outlineCombo);
 }
 
-bool GLSLTextEditorWidget::event(QEvent *e)
-{
-    return BaseTextEditorWidget::event(e);
-}
-
 void GLSLTextEditorWidget::unCommentSelection()
 {
     Utils::unCommentSelection(this);
@@ -308,7 +276,7 @@ void GLSLTextEditorWidget::updateDocumentNow()
 {
     m_updateDocumentTimer->stop();
 
-    int variant = languageVariant(mimeType());
+    int variant = languageVariant(baseTextDocument()->mimeType());
     const QString contents = toPlainText(); // get the code from the editor
     const QByteArray preprocessedCode = contents.toLatin1(); // ### use the QtCreator C++ preprocessor.
 
@@ -318,16 +286,19 @@ void GLSLTextEditorWidget::updateDocumentNow()
     Parser parser(doc->_engine, preprocessedCode.constData(), preprocessedCode.size(), variant);
     TranslationUnitAST *ast = parser.parse();
     if (ast != 0 || extraSelections(CodeWarningsSelection).isEmpty()) {
-        GLSLEditorPlugin *plugin = GLSLEditorPlugin::instance();
-
         Semantic sem;
         Scope *globalScope = engine->newNamespace();
         doc->_globalScope = globalScope;
-        sem.translationUnit(plugin->shaderInit(variant)->ast, globalScope, plugin->shaderInit(variant)->engine);
-        if (variant & Lexer::Variant_VertexShader)
-            sem.translationUnit(plugin->vertexShaderInit(variant)->ast, globalScope, plugin->vertexShaderInit(variant)->engine);
-        if (variant & Lexer::Variant_FragmentShader)
-            sem.translationUnit(plugin->fragmentShaderInit(variant)->ast, globalScope, plugin->fragmentShaderInit(variant)->engine);
+        const GLSLEditorPlugin::InitFile *file = GLSLEditorPlugin::shaderInit(variant);
+        sem.translationUnit(file->ast, globalScope, file->engine);
+        if (variant & Lexer::Variant_VertexShader) {
+            file = GLSLEditorPlugin::vertexShaderInit(variant);
+            sem.translationUnit(file->ast, globalScope, file->engine);
+        }
+        if (variant & Lexer::Variant_FragmentShader) {
+            file = GLSLEditorPlugin::fragmentShaderInit(variant);
+            sem.translationUnit(file->ast, globalScope, file->engine);
+        }
         sem.translationUnit(ast, globalScope, engine);
 
         CreateRanges createRanges(document(), doc);
@@ -404,11 +375,6 @@ int GLSLTextEditorWidget::languageVariant(const QString &type)
     return variant;
 }
 
-Document::Ptr GLSLTextEditorWidget::glslDocument() const
-{
-    return m_glslDocument;
-}
-
 TextEditor::IAssistInterface *GLSLTextEditorWidget::createAssistInterface(
     TextEditor::AssistKind kind,
     TextEditor::AssistReason reason) const
@@ -416,9 +382,9 @@ TextEditor::IAssistInterface *GLSLTextEditorWidget::createAssistInterface(
     if (kind == TextEditor::Completion)
         return new GLSLCompletionAssistInterface(document(),
                                                  position(),
-                                                 editor()->document()->fileName(),
+                                                 editor()->document()->filePath(),
                                                  reason,
-                                                 mimeType(),
-                                                 glslDocument());
+                                                 baseTextDocument()->mimeType(),
+                                                 m_glslDocument);
     return BaseTextEditorWidget::createAssistInterface(kind, reason);
 }

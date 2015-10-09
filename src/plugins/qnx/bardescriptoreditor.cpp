@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -35,24 +35,32 @@
 #include "bardescriptoreditorwidget.h"
 #include "bardescriptordocument.h"
 
-#include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/task.h>
 #include <projectexplorer/taskhub.h>
+#include <texteditor/texteditorconstants.h>
+#include <texteditor/basetexteditor.h>
+#include <texteditor/tabsettings.h>
+#include <utils/linecolumnlabel.h>
 #include <utils/qtcassert.h>
 
 #include <QAction>
+#include <QStyle>
+#include <QTextBlock>
 #include <QToolBar>
 
-using namespace Qnx;
-using namespace Qnx::Internal;
+using namespace ProjectExplorer;
 
-BarDescriptorEditor::BarDescriptorEditor(BarDescriptorEditorWidget *editorWidget)
-    : Core::IEditor()
+namespace Qnx {
+namespace Internal {
+
+BarDescriptorEditor::BarDescriptorEditor()
 {
-    setWidget(editorWidget);
+    setId(Constants::QNX_BAR_DESCRIPTOR_EDITOR_ID);
+    m_file = new BarDescriptorDocument(this);
 
-    m_file = new BarDescriptorDocument(editorWidget);
+    BarDescriptorEditorWidget *editorWidget = new BarDescriptorEditorWidget(this);
+    setWidget(editorWidget);
 
     m_toolBar = new QToolBar(editorWidget);
 
@@ -80,47 +88,39 @@ BarDescriptorEditor::BarDescriptorEditor(BarDescriptorEditorWidget *editorWidget
     m_actionGroup->addAction(sourceAction);
 
     generalAction->setChecked(true);
-}
 
-bool BarDescriptorEditor::createNew(const QString &contents)
-{
-    Q_UNUSED(contents);
-    return false;
+    m_cursorPositionLabel = new Utils::LineColumnLabel;
+    const int spacing = editorWidget->style()->pixelMetric(QStyle::PM_LayoutHorizontalSpacing) / 2;
+    m_cursorPositionLabel->setContentsMargins(spacing, 0, spacing, 0);
+
+    QWidget *spacer = new QWidget;
+    spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    m_toolBar->addWidget(spacer);
+
+    m_cursorPositionAction = m_toolBar->addWidget(m_cursorPositionLabel);
+    connect(editorWidget->sourceWidget(), SIGNAL(cursorPositionChanged()), this, SLOT(updateCursorPosition()));
+
+    setContext(Core::Context(Constants::QNX_BAR_DESCRIPTOR_EDITOR_CONTEXT,
+            TextEditor::Constants::C_TEXTEDITOR));
 }
 
 bool BarDescriptorEditor::open(QString *errorString, const QString &fileName, const QString &realFileName)
 {
     QTC_ASSERT(fileName == realFileName, return false);
-    return m_file->open(errorString, fileName);
+
+    bool result = m_file->open(errorString, fileName);
+    if (result) {
+        BarDescriptorEditorWidget *editorWidget = qobject_cast<BarDescriptorEditorWidget *>(widget());
+        QTC_ASSERT(editorWidget, return false);
+        editorWidget->setFilePath(fileName);
+    }
+
+    return result;
 }
 
 Core::IDocument *BarDescriptorEditor::document()
 {
     return m_file;
-}
-
-Core::Id BarDescriptorEditor::id() const
-{
-    return Constants::QNX_BAR_DESCRIPTOR_EDITOR_ID;
-}
-
-QString BarDescriptorEditor::displayName() const
-{
-    return m_displayName;
-}
-
-void BarDescriptorEditor::setDisplayName(const QString &title)
-{
-    if (title == m_displayName)
-        return;
-
-    m_displayName = title;
-    emit changed();
-}
-
-bool BarDescriptorEditor::isTemporary() const
-{
-    return false;
 }
 
 QWidget *BarDescriptorEditor::toolBar()
@@ -141,40 +141,31 @@ void BarDescriptorEditor::changeEditorPage(QAction *action)
     setActivePage(static_cast<EditorPage>(action->data().toInt()));
 }
 
-ProjectExplorer::TaskHub *BarDescriptorEditor::taskHub()
-{
-    return ProjectExplorer::ProjectExplorerPlugin::instance()->taskHub();
-}
-
 void BarDescriptorEditor::setActivePage(BarDescriptorEditor::EditorPage page)
 {
     BarDescriptorEditorWidget *editorWidget = qobject_cast<BarDescriptorEditorWidget *>(widget());
     QTC_ASSERT(editorWidget, return);
 
-    int prevPage = editorWidget->currentIndex();
-
-    if (prevPage == page)
-        return;
-
-    if (page == Source) {
-        editorWidget->setXmlSource(m_file->xmlSource());
-    } else if (prevPage == Source) {
-        taskHub()->clearTasks(Constants::QNX_TASK_CATEGORY_BARDESCRIPTOR);
-        QString errorMsg;
-        int errorLine;
-        if (!m_file->loadContent(editorWidget->xmlSource(), &errorMsg, &errorLine)) {
-            const ProjectExplorer::Task task(ProjectExplorer::Task::Error, errorMsg, Utils::FileName::fromString(m_file->fileName()),
-                                       errorLine, Constants::QNX_TASK_CATEGORY_BARDESCRIPTOR);
-            taskHub()->addTask(task);
-            taskHub()->requestPopup();
-
-            foreach (QAction *action, m_actionGroup->actions())
-                if (action->data().toInt() == Source)
-                    action->setChecked(true);
-
-            return;
-        }
-    }
-
+    m_cursorPositionAction->setVisible(page == Source);
     editorWidget->setCurrentIndex(page);
 }
+
+void BarDescriptorEditor::updateCursorPosition()
+{
+    BarDescriptorEditorWidget *editorWidget = qobject_cast<BarDescriptorEditorWidget *>(widget());
+    QTC_ASSERT(editorWidget, return);
+
+    const QTextCursor cursor = editorWidget->sourceWidget()->textCursor();
+    const QTextBlock block = cursor.block();
+    const int line = block.blockNumber() + 1;
+    const int column = cursor.position() - block.position();
+    m_cursorPositionLabel->setText(tr("Line: %1, Col: %2").arg(line)
+                                   .arg(editorWidget->sourceWidget()->baseTextDocument()
+                                        ->tabSettings().columnAt(block.text(), column)+1),
+                                   tr("Line: 9999, Col: 999"));
+    if (!block.isVisible())
+        editorWidget->sourceWidget()->ensureCursorVisible();
+}
+
+} // namespace Internal
+} // namespace Qnx

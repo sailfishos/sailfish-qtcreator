@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,7 +30,7 @@
 #ifndef BASEFILEFIND_P_H
 #define BASEFILEFIND_P_H
 
-#include <find/ifindfilter.h>
+#include <coreplugin/find/ifindfilter.h>
 
 #include <QVariant>
 #include <QLabel>
@@ -52,7 +52,7 @@ class FileFindParameters
 {
 public:
     QString text;
-    Find::FindFlags flags;
+    Core::FindFlags flags;
     QStringList nameFilters;
     QVariant additionalParameters;
 };

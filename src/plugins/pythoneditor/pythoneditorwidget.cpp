@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -45,9 +45,22 @@
 #include <texteditor/autocompleter.h>
 
 namespace PythonEditor {
+namespace Internal {
 
 EditorWidget::EditorWidget(QWidget *parent)
-    :TextEditor::BaseTextEditorWidget(parent)
+    : TextEditor::BaseTextEditorWidget(parent)
+{
+    baseTextDocument()->setIndenter(new PythonIndenter());
+    ctor();
+}
+
+EditorWidget::EditorWidget(EditorWidget *other)
+    : TextEditor::BaseTextEditorWidget(other)
+{
+    ctor();
+}
+
+void EditorWidget::ctor()
 {
     m_commentDefinition.multiLineStart.clear();
     m_commentDefinition.multiLineEnd.clear();
@@ -57,8 +70,7 @@ EditorWidget::EditorWidget(QWidget *parent)
     setMarksVisible(true);
     setCodeFoldingSupported(true);
 
-    setIndenter(new PythonIndenter());
-    new PythonHighlighter(baseTextDocument().data());
+    new PythonHighlighter(baseTextDocument());
 }
 
 EditorWidget::~EditorWidget()
@@ -73,23 +85,10 @@ void EditorWidget::unCommentSelection()
     Utils::unCommentSelection(this, m_commentDefinition);
 }
 
-/**
-  Handles common IDE fonts&colors settings
-  (Tools -> Options -> Text editor -> Fonts and colors)
-  */
-void EditorWidget::setFontSettings(const TextEditor::FontSettings &fs)
-{
-    TextEditor::BaseTextEditorWidget::setFontSettings(fs);
-
-    PythonHighlighter *highlighter =
-            qobject_cast<PythonHighlighter *>(baseTextDocument()->syntaxHighlighter());
-    if (highlighter)
-        highlighter->setFontSettings(fs);
-}
-
 TextEditor::BaseTextEditor *EditorWidget::createEditor()
 {
     return new PythonEditor(this);
 }
 
+} // namespace Internal
 } // namespace PythonEditor

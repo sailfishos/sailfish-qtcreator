@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -31,7 +31,7 @@
 #define QMLPROFILERTOOL_H
 
 #include <analyzerbase/ianalyzertool.h>
-#include <analyzerbase/ianalyzerengine.h>
+#include <analyzerbase/analyzerruncontrol.h>
 
 QT_BEGIN_NAMESPACE
 class QMessageBox;
@@ -48,23 +48,11 @@ public:
     explicit QmlProfilerTool(QObject *parent);
     ~QmlProfilerTool();
 
-    Core::Id id() const;
     ProjectExplorer::RunMode runMode() const;
-    QString displayName() const;
-    QString description() const;
     ToolMode toolMode() const;
 
-    void extensionsInitialized() {}
-
-    Analyzer::IAnalyzerEngine *createEngine(const Analyzer::AnalyzerStartParameters &sp,
+    Analyzer::AnalyzerRunControl *createRunControl(const Analyzer::AnalyzerStartParameters &sp,
         ProjectExplorer::RunConfiguration *runConfiguration = 0);
-
-    bool canRun(ProjectExplorer::RunConfiguration *runConfiguration,
-                ProjectExplorer::RunMode mode) const;
-
-    Analyzer::AnalyzerStartParameters createStartParameters(
-            ProjectExplorer::RunConfiguration *runConfiguration,
-            ProjectExplorer::RunMode mode) const;
 
     QWidget *createWidgets();
     void startTool(Analyzer::StartMode mode);

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -29,11 +29,15 @@
 
 #include "cppmodelmanagerinterface.h"
 
-#include <projectexplorer/toolchain.h>
-#include <projectexplorer/headerpath.h>
 #include <cplusplus/pp-engine.h>
 
-#include <QtCore/QSet>
+#include <projectexplorer/headerpath.h>
+#include <projectexplorer/toolchain.h>
+
+#include <QSet>
+
+using namespace CppTools;
+using namespace ProjectExplorer;
 
 /*!
     \enum CppTools::CppModelManagerInterface::ProgressNotificationMode
@@ -44,15 +48,16 @@
 
     \value ForcedProgressNotification
            Notify regardless of the number of files requested for update.
-
     \value ReservedProgressNotification
            Notify only if more than one file is requested for update.
 */
 
 /*!
     \enum CppTools::CppModelManagerInterface::QtVersion
+
     Allows C++ parser engine to inject headers or change inner settings as
     needed to parse Qt language extensions for concrete major Qt version
+
     \value UnknownQt
            Parser may choose any policy
     \value NoQt
@@ -63,25 +68,56 @@
            Parser may enable tricks for Qt v5.x
 */
 
-using namespace CppTools;
-using namespace ProjectExplorer;
+/*!
+    \fn virtual QFuture<void> updateProjectInfo(const ProjectInfo &pinfo) = 0;
+    \param pinfo Updated ProjectInfo.
+    \return A future that reports progress and allows to cancel the reparsing operation.
+
+    This function is expected to be called by the project managers to update the
+    code model with new project information.
+
+    In particular, the function should be called in case:
+        1. A new project is opened/created
+        2. The project configuration changed. This includes
+             2.1 Changes of defines, includes, framework paths
+             2.2 Addition/Removal of project files
+
+    \sa CppTools::CppModelManagerInterface::updateSourceFiles()
+*/
+
+/*!
+    \fn virtual QFuture<void> updateSourceFiles(const QStringList &sourceFiles, ProgressNotificationMode mode = ReservedProgressNotification) = 0;
+    \param sourceFiles List of source file to update. The items are absolute paths.
+    \param mode The progress modification mode.
+    \return A future that reports progress and allows to cancel the reparsing operation.
+
+    Trigger an asynchronous reparsing of the given source files.
+
+    This function is not meant to be called by the project managers.
+
+    \sa CppTools::CppModelManagerInterface::ProgressNotificationMode
+    \sa CppTools::CppModelManagerInterface::updateProjectInfo()
+*/
 
 ProjectPart::ProjectPart()
-    : cVersion(C89)
+    : project(0)
+    , cVersion(C89)
     , cxxVersion(CXX11)
     , cxxExtensions(NoExtensions)
     , qtVersion(UnknownQt)
     , cWarningFlags(ProjectExplorer::ToolChain::WarningsDefault)
     , cxxWarningFlags(ProjectExplorer::ToolChain::WarningsDefault)
+
 {
 }
 
-/**
- * @brief Retrieves info from concrete compiler using it's flags.
- * @param tc Either nullptr or toolchain for project's active target.
- * @param cxxflags C++ or Objective-C++ flags.
- * @param cflags C or ObjectiveC flags if possible, \a cxxflags otherwise.
- */
+/*!
+    \brief Retrieves info from concrete compiler using it's flags.
+
+    \param tc Either nullptr or toolchain for project's active target.
+    \param cxxflags C++ or Objective-C++ flags.
+    \param cflags C or ObjectiveC flags if possible, \a cxxflags otherwise.
+*/
 void ProjectPart::evaluateToolchain(const ToolChain *tc,
                                     const QStringList &cxxflags,
                                     const QStringList &cflags,
@@ -89,6 +125,7 @@ void ProjectPart::evaluateToolchain(const ToolChain *tc,
 {
     if (!tc)
         return;
+
     ToolChain::CompilerFlags cxx = tc->compilerFlags(cxxflags);
     ToolChain::CompilerFlags c = (cxxflags == cflags)
             ? cxx : tc->compilerFlags(cflags);
@@ -112,50 +149,40 @@ void ProjectPart::evaluateToolchain(const ToolChain *tc,
     if (cxx & ToolChain::MicrosoftExtensions)
         cxxExtensions |= MicrosoftExtensions;
     if (cxx & ToolChain::OpenMP)
-        cxxExtensions |= OpenMP;
+        cxxExtensions |= OpenMPExtensions;
 
     cWarningFlags = tc->warningFlags(cflags);
     cxxWarningFlags = tc->warningFlags(cxxflags);
 
-    QList<HeaderPath> headers = tc->systemHeaderPaths(cxxflags, sysRoot);
+    const QList<HeaderPath> headers = tc->systemHeaderPaths(cxxflags, sysRoot);
     foreach (const HeaderPath &header, headers)
         if (header.kind() == HeaderPath::FrameworkHeaderPath)
             frameworkPaths << header.path();
         else
             includePaths << header.path();
 
-    QByteArray macros = tc->predefinedMacros(cxxflags);
-    if (!macros.isEmpty()) {
-        if (!defines.isEmpty())
-            defines += '\n';
-        defines += macros;
-        defines += '\n';
-    }
+    toolchainDefines = tc->predefinedMacros(cxxflags);
 }
-
-static CppModelManagerInterface *g_instance = 0;
 
 const QString CppModelManagerInterface::configurationFileName()
 { return CPlusPlus::Preprocessor::configurationFileName; }
 
-CppModelManagerInterface::CppModelManagerInterface(QObject *parent)
-    : QObject(parent)
+const QString CppModelManagerInterface::editorConfigurationFileName()
 {
-    Q_ASSERT(! g_instance);
-    g_instance = this;
+    return QLatin1String("<per-editor-defines>");
 }
 
+CppModelManagerInterface::CppModelManagerInterface(QObject *parent)
+    : CPlusPlus::CppModelManagerBase(parent)
+{ }
+
 CppModelManagerInterface::~CppModelManagerInterface()
-{
-    Q_ASSERT(g_instance == this);
-    g_instance = 0;
-}
+{ }
 
 CppModelManagerInterface *CppModelManagerInterface::instance()
 {
-    return g_instance;
+    return qobject_cast<CppModelManagerInterface *>(CPlusPlus::CppModelManagerBase::instance());
 }
-
 
 void CppModelManagerInterface::ProjectInfo::clearProjectParts()
 {
@@ -166,34 +193,54 @@ void CppModelManagerInterface::ProjectInfo::clearProjectParts()
     m_defines.clear();
 }
 
-void CppModelManagerInterface::ProjectInfo::appendProjectPart(
-        const ProjectPart::Ptr &part)
+void CppModelManagerInterface::ProjectInfo::appendProjectPart(const ProjectPart::Ptr &part)
 {
     if (!part)
         return;
 
     m_projectParts.append(part);
 
-    // update include paths
+    // Update include paths
     QSet<QString> incs = QSet<QString>::fromList(m_includePaths);
     foreach (const QString &ins, part->includePaths)
         incs.insert(ins);
     m_includePaths = incs.toList();
 
-    // update framework paths
+    // Update framework paths
     QSet<QString> frms = QSet<QString>::fromList(m_frameworkPaths);
     foreach (const QString &frm, part->frameworkPaths)
         frms.insert(frm);
     m_frameworkPaths = frms.toList();
 
-    // update source files
+    // Update source files
     QSet<QString> srcs = QSet<QString>::fromList(m_sourceFiles);
     foreach (const ProjectFile &file, part->files)
         srcs.insert(file.path);
     m_sourceFiles = srcs.toList();
 
-    // update defines
+    // Update defines
     if (!m_defines.isEmpty())
         m_defines.append('\n');
-    m_defines.append(part->defines);
+    m_defines.append(part->toolchainDefines);
+    m_defines.append(part->projectDefines);
+    if (!part->projectConfigFile.isEmpty()) {
+        m_defines.append('\n');
+        m_defines += readProjectConfigFile(part);
+        m_defines.append('\n');
+    }
 }
+
+QByteArray CppModelManagerInterface::readProjectConfigFile(const ProjectPart::Ptr &part)
+{
+    QByteArray result;
+
+    QFile f(part->projectConfigFile);
+    if (f.open(QIODevice::ReadOnly)) {
+        QTextStream is(&f);
+        result = is.readAll().toUtf8();
+        f.close();
+    }
+
+    return result;
+}
+

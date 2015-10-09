@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -70,7 +70,7 @@ void RemoteLinuxEnvironmentAspectWidget::fetchEnvironment()
     disconnect(button, SIGNAL(clicked()), this, SLOT(fetchEnvironment()));
     connect(button, SIGNAL(clicked()), this, SLOT(stopFetchEnvironment()));
     button->setText(tr("Cancel Fetch Operation"));
-    deviceEnvReader->start(aspect()->runConfiguration()->environmentPreparationCommand());
+    deviceEnvReader->start();
 }
 
 void RemoteLinuxEnvironmentAspectWidget::fetchEnvironmentFinished()

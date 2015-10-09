@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -58,9 +58,6 @@ public:
     static const QList<QByteArray> CompressionAlgorithms;
 
     static const QByteArray SshConnectionService;
-
-    static const QByteArray PublicKeyAuthMethod;
-    static const QByteArray PasswordAuthMethod;
 
     static QByteArray findBestMatch(const QList<QByteArray> &myCapabilities,
         const QList<QByteArray> &serverCapabilities);

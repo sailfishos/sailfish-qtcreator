@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2013 Jolla Ltd.
+** Copyright (C) 2012 - 2014 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -26,8 +26,8 @@
 #include <ssh/sshconnection.h>
 #include <ssh/sshremoteprocessrunner.h>
 
-#include <QObject>
 #include <QEventLoop>
+#include <QObject>
 
 QT_BEGIN_NAMESPACE
 class QFile;

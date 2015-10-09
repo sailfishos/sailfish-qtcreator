@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -31,11 +31,7 @@
 #define HIGHLIGHTEREXCEPTION_H
 
 namespace TextEditor {
-namespace Internal {
-
-class HighlighterException {};
-
-} // namespace Internal
+namespace Internal { class HighlighterException {}; }
 } // namespace TextEditor
 
 #endif // HIGHLIGHTEREXCEPTION_H

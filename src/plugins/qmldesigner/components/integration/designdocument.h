@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -57,7 +57,7 @@ class TextModifier;
 class QmlObjectNode;
 class CrumbleBarInfo;
 class ViewManager;
-class QmlModelView;
+class AbstractView;
 
 class QMLDESIGNERCORE_EXPORT DesignDocument: public QObject
 {
@@ -70,7 +70,7 @@ public:
     QString simplfiedDisplayName() const;
 
     void loadDocument(QPlainTextEdit *edit);
-    void activateDocumentModel();
+    void attachRewriterToModel();
     void close();
     void updateSubcomponentManager();
 
@@ -97,8 +97,6 @@ public:
 
     void resetToDocumentModel();
 
-    void goIntoSelectedComponent();
-
     void changeToDocumentModel();
 
 signals:
@@ -119,16 +117,14 @@ public slots:
     void undo();
     void redo();
     void updateActiveQtVersion();
-    void changeToSubComponentAndPushOnCrumblePath(const ModelNode &componentNode);
     void changeToSubComponent(const ModelNode &componentNode);
-    void changeToExternalSubComponent(const QString &m_oldFileName);
+    void changeToMaster();
 
 private slots:
     void updateFileName(const QString &oldFileName, const QString &newFileName);
 
 private: // functions
-    void changeToInFileComponentModel();
-    void activateCurrentModel(TextModifier *textModifier);
+    void changeToInFileComponentModel(ComponentTextModifier *textModifer);
 
     QWidget *centralWidget() const;
     QString pathToQt() const;
@@ -140,13 +136,13 @@ private: // functions
 
     bool loadInFileComponent(const ModelNode &componentNode);
 
-    QmlModelView *qmlModelView();
+    AbstractView *view();
+
+    Model *createInFileComponentModel();
 
 private: // variables
-    QScopedPointer<QStackedWidget> m_stackedWidget;
     QScopedPointer<Model> m_documentModel;
     QScopedPointer<Model> m_inFileComponentModel;
-    QWeakPointer<Model> m_currentModel;
     QWeakPointer<Core::IEditor> m_textEditor;
     QScopedPointer<BaseTextEditModifier> m_documentTextModifier;
     QScopedPointer<ComponentTextModifier> m_inFileComponentTextModifier;

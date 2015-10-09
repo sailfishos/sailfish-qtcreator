@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,14 +30,10 @@
 #ifndef THREADSHANDLER_H
 #define THREADSHANDLER_H
 
-#include <QAbstractTableModel>
-#include <QIcon>
-
 #include "threaddata.h"
 
-QT_BEGIN_NAMESPACE
-class QSortFilterProxyModel;
-QT_END_NAMESPACE
+#include <QAbstractTableModel>
+#include <QIcon>
 
 ////////////////////////////////////////////////////////////////////////
 //
@@ -57,7 +53,7 @@ class ThreadsHandler : public QAbstractTableModel
 public:
     ThreadsHandler();
 
-    int currentThreadIndex() const { return m_currentIndex; }
+    int currentThreadIndex() const;
     ThreadId currentThread() const;
     ThreadId threadAt(int index) const;
     void setCurrentThread(ThreadId id);
@@ -92,17 +88,16 @@ private:
     QVariant headerData(int section, Qt::Orientation orientation,
         int role = Qt::DisplayRole) const;
     Qt::ItemFlags flags(const QModelIndex &index) const;
+    void sort(int, Qt::SortOrder);
     void updateThreadBox();
-    void dataChanged(int index);
+    void threadDataChanged(ThreadId id);
 
     Threads m_threads;
-    int m_currentIndex;
+    ThreadId m_currentId;
     const QIcon m_positionIcon;
     const QIcon m_emptyIcon;
 
     bool m_resetLocationScheduled;
-
-    //QSortFilterProxyModel *m_proxyModel;
 };
 
 } // namespace Internal

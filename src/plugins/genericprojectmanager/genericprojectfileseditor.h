@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -35,34 +35,21 @@
 
 #include <coreplugin/editormanager/ieditorfactory.h>
 
-namespace TextEditor {
-class TextEditorActionHandler;
-}
-
 namespace GenericProjectManager {
 namespace Internal {
 
 class Manager;
 class ProjectFilesEditor;
 class ProjectFilesEditorWidget;
-class ProjectFilesFactory;
 
 class ProjectFilesFactory: public Core::IEditorFactory
 {
     Q_OBJECT
 
 public:
-    ProjectFilesFactory(Manager *manager, TextEditor::TextEditorActionHandler *handler);
+    ProjectFilesFactory(Manager *manager);
 
-    Core::IEditor *createEditor(QWidget *parent);
-
-    QStringList mimeTypes() const;
-    Core::Id id() const;
-    QString displayName() const;
-
-private:
-    TextEditor::TextEditorActionHandler *m_actionHandler;
-    QStringList m_mimeTypes;
+    Core::IEditor *createEditor();
 };
 
 class ProjectFilesEditor : public TextEditor::BaseTextEditor
@@ -72,10 +59,8 @@ class ProjectFilesEditor : public TextEditor::BaseTextEditor
 public:
     ProjectFilesEditor(ProjectFilesEditorWidget *editorWidget);
 
-    Core::Id id() const;
     bool duplicateSupported() const;
-    Core::IEditor *duplicate(QWidget *parent);
-    bool isTemporary() const { return false; }
+    Core::IEditor *duplicate();
 };
 
 class ProjectFilesEditorWidget : public TextEditor::BaseTextEditorWidget
@@ -83,16 +68,13 @@ class ProjectFilesEditorWidget : public TextEditor::BaseTextEditorWidget
     Q_OBJECT
 
 public:
-    ProjectFilesEditorWidget(QWidget *parent, ProjectFilesFactory *factory,
-                       TextEditor::TextEditorActionHandler *handler);
+    ProjectFilesEditorWidget(QWidget *parent = 0);
+    ProjectFilesEditorWidget(ProjectFilesEditorWidget *other);
 
-    ProjectFilesFactory *factory() const;
-    TextEditor::TextEditorActionHandler *actionHandler() const;
     TextEditor::BaseTextEditor *createEditor();
 
 private:
-    ProjectFilesFactory *m_factory;
-    TextEditor::TextEditorActionHandler *m_actionHandler;
+    ProjectFilesEditorWidget(TextEditor::BaseTextEditorWidget *); // avoid stupidity
 };
 
 } // namespace Internal

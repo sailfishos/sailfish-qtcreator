@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -58,7 +58,7 @@ public:
     explicit Parser(QObject *parent = 0);
     ~Parser();
 
-    // get and take ownership of the parsing results. If this method is not called the repository
+    // get and take ownership of the parsing results. If this function is not called the repository
     // will be destroyed when the parser is destroyed. Subsequent calls return null.
     ParseData *takeData();
 

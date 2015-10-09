@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2012 - 2014 Jolla Ltd.
+** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
 **
@@ -28,17 +28,17 @@
 ****************************************************************************/
 
 #include "meruploadandinstallrpmsteps.h"
-//#include "merrpmpackagingstep.h"
+
 #include "merdeploysteps.h"
 #include "merrpminstaller.h"
 
-#include <projectexplorer/project.h>
 #include <coreplugin/idocument.h>
+#include <projectexplorer/project.h>
+#include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/target.h>
 #include <qtsupport/qtkitinformation.h>
 #include <remotelinux/abstractuploadandinstallpackageservice.h>
 #include <remotelinux/remotelinuxdeployconfiguration.h>
-#include <projectexplorer/projectexplorerconstants.h>
 #include <ssh/sshconnection.h>
 
 using namespace ProjectExplorer;
@@ -105,7 +105,7 @@ bool MerUploadAndInstallRpmStep::initInternal(QString *error)
 
     if (!m_packagingStep) {
         if (error)
-            *error = tr("No Rpm package build step found.");
+            *error = tr("No previous \"%1\" step found.").arg(MerMb2RpmBuildStep::displayName());
         return false;
     }
 
@@ -119,7 +119,7 @@ Core::Id MerUploadAndInstallRpmStep::stepId()
 
 QString MerUploadAndInstallRpmStep::displayName()
 {
-    return tr("Deploy Local Rpm package via SFTP upload");
+    return tr("Deploy Local RPM package via SFTP upload");
 }
 
 void  MerUploadAndInstallRpmStep::run(QFutureInterface<bool> &fi)

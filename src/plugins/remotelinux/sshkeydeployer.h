@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -33,14 +33,10 @@
 
 #include <QObject>
 
-namespace QSsh {
-class SshConnectionParameters;
-}
+namespace QSsh { class SshConnectionParameters; }
 
 namespace RemoteLinux {
-namespace Internal {
-class SshKeyDeployerPrivate;
-}
+namespace Internal { class SshKeyDeployerPrivate; }
 
 class REMOTELINUX_EXPORT SshKeyDeployer : public QObject
 {

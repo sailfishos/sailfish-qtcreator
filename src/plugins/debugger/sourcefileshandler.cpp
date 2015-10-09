@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -39,7 +39,9 @@ namespace Internal {
 
 SourceFilesHandler::SourceFilesHandler()
 {
+    setObjectName(QLatin1String("SourceFilesModel"));
     QSortFilterProxyModel *proxy = new QSortFilterProxyModel(this);
+    proxy->setObjectName(QLatin1String("SourceFilesProxyModel"));
     proxy->setSourceModel(this);
     m_proxyModel = proxy;
 }

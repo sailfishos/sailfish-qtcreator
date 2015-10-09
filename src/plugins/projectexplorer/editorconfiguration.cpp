@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -42,6 +42,7 @@
 #include <texteditor/behaviorsettings.h>
 #include <texteditor/extraencodingsettings.h>
 #include <texteditor/tabsettings.h>
+#include <texteditor/marginsettings.h>
 #include <texteditor/icodestylepreferencesfactory.h>
 
 #include <QLatin1String>
@@ -54,7 +55,6 @@ static const QLatin1String kUseGlobal("EditorConfiguration.UseGlobal");
 static const QLatin1String kCodec("EditorConfiguration.Codec");
 static const QLatin1String kCodeStylePrefix("EditorConfiguration.CodeStyle.");
 static const QLatin1String kCodeStyleCount("EditorConfiguration.CodeStyle.Count");
-static const QLatin1String kId("Project");
 
 using namespace TextEditor;
 
@@ -64,11 +64,11 @@ struct EditorConfigurationPrivate
 {
     EditorConfigurationPrivate()
         : m_useGlobal(true)
-        , m_typingSettings(TextEditorSettings::instance()->typingSettings())
-        , m_storageSettings(TextEditorSettings::instance()->storageSettings())
-        , m_behaviorSettings(TextEditorSettings::instance()->behaviorSettings())
-        , m_extraEncodingSettings(TextEditorSettings::instance()->extraEncodingSettings())
-        , m_textCodec(Core::EditorManager::instance()->defaultTextCodec())
+        , m_typingSettings(TextEditorSettings::typingSettings())
+        , m_storageSettings(TextEditorSettings::storageSettings())
+        , m_behaviorSettings(TextEditorSettings::behaviorSettings())
+        , m_extraEncodingSettings(TextEditorSettings::extraEncodingSettings())
+        , m_textCodec(Core::EditorManager::defaultTextCodec())
     {
     }
 
@@ -78,6 +78,7 @@ struct EditorConfigurationPrivate
     StorageSettings m_storageSettings;
     BehaviorSettings m_behaviorSettings;
     ExtraEncodingSettings m_extraEncodingSettings;
+    MarginSettings m_marginSettings;
     QTextCodec *m_textCodec;
 
     QMap<Core::Id, ICodeStylePreferences *> m_languageCodeStylePreferences;
@@ -85,21 +86,19 @@ struct EditorConfigurationPrivate
 
 EditorConfiguration::EditorConfiguration() : d(new EditorConfigurationPrivate)
 {
-    TextEditorSettings *textEditorSettings = TextEditorSettings::instance();
-
-    const QMap<Core::Id, ICodeStylePreferences *> languageCodeStylePreferences = textEditorSettings->codeStyles();
+    const QMap<Core::Id, ICodeStylePreferences *> languageCodeStylePreferences = TextEditorSettings::codeStyles();
     QMapIterator<Core::Id, ICodeStylePreferences *> itCodeStyle(languageCodeStylePreferences);
     while (itCodeStyle.hasNext()) {
         itCodeStyle.next();
         Core::Id languageId = itCodeStyle.key();
         // global prefs for language
         ICodeStylePreferences *originalPreferences = itCodeStyle.value();
-        ICodeStylePreferencesFactory *factory = textEditorSettings->codeStyleFactory(languageId);
+        ICodeStylePreferencesFactory *factory = TextEditorSettings::codeStyleFactory(languageId);
         // clone of global prefs for language - it will became project prefs for language
         ICodeStylePreferences *preferences = factory->createCodeStyle();
         // project prefs can point to the global language pool, which contains also the global language prefs
-        preferences->setDelegatingPool(textEditorSettings->codeStylePool(languageId));
-        preferences->setId(languageId.toString() + QLatin1String("Project"));
+        preferences->setDelegatingPool(TextEditorSettings::codeStylePool(languageId));
+        preferences->setId(languageId.name() + "Project");
         preferences->setDisplayName(tr("Project %1", "Settings, %1 is a language (C++ or QML)").arg(factory->displayName()));
         // project prefs by default point to global prefs (which in turn can delegate to anything else or not)
         preferences->setCurrentDelegate(originalPreferences);
@@ -108,15 +107,14 @@ EditorConfiguration::EditorConfiguration() : d(new EditorConfigurationPrivate)
 
     // clone of global prefs (not language specific), for project scope
     d->m_defaultCodeStyle = new SimpleCodeStylePreferences(this);
-    d->m_defaultCodeStyle->setDelegatingPool(textEditorSettings->codeStylePool());
+    d->m_defaultCodeStyle->setDelegatingPool(TextEditorSettings::codeStylePool());
     d->m_defaultCodeStyle->setDisplayName(tr("Project", "Settings"));
-    d->m_defaultCodeStyle->setId(kId);
+    d->m_defaultCodeStyle->setId("Project");
     // if setCurrentDelegate is 0 values are read from *this prefs
     d->m_defaultCodeStyle->setCurrentDelegate(d->m_useGlobal
-                    ? TextEditorSettings::instance()->codeStyle() : 0);
+                    ? TextEditorSettings::codeStyle() : 0);
 
-    const SessionManager *session = ProjectExplorerPlugin::instance()->session();
-    connect(session, SIGNAL(aboutToRemoveProject(ProjectExplorer::Project*)),
+    connect(SessionManager::instance(), SIGNAL(aboutToRemoveProject(ProjectExplorer::Project*)),
             this, SLOT(slotAboutToRemoveProject(ProjectExplorer::Project*)));
 }
 
@@ -133,14 +131,13 @@ bool EditorConfiguration::useGlobalSettings() const
 
 void EditorConfiguration::cloneGlobalSettings()
 {
-    TextEditorSettings *textEditorSettings = TextEditorSettings::instance();
-
-    d->m_defaultCodeStyle->setTabSettings(textEditorSettings->codeStyle()->tabSettings());
-    setTypingSettings(textEditorSettings->typingSettings());
-    setStorageSettings(textEditorSettings->storageSettings());
-    setBehaviorSettings(textEditorSettings->behaviorSettings());
-    setExtraEncodingSettings(textEditorSettings->extraEncodingSettings());
-    d->m_textCodec = Core::EditorManager::instance()->defaultTextCodec();
+    d->m_defaultCodeStyle->setTabSettings(TextEditorSettings::codeStyle()->tabSettings());
+    setTypingSettings(TextEditorSettings::typingSettings());
+    setStorageSettings(TextEditorSettings::storageSettings());
+    setBehaviorSettings(TextEditorSettings::behaviorSettings());
+    setExtraEncodingSettings(TextEditorSettings::extraEncodingSettings());
+    setMarginSettings(TextEditorSettings::marginSettings());
+    d->m_textCodec = Core::EditorManager::defaultTextCodec();
 }
 
 QTextCodec *EditorConfiguration::textCodec() const
@@ -166,6 +163,11 @@ const BehaviorSettings &EditorConfiguration::behaviorSettings() const
 const ExtraEncodingSettings &EditorConfiguration::extraEncodingSettings() const
 {
     return d->m_extraEncodingSettings;
+}
+
+const MarginSettings &EditorConfiguration::marginSettings() const
+{
+    return d->m_marginSettings;
 }
 
 ICodeStylePreferences *EditorConfiguration::codeStyle() const
@@ -208,6 +210,7 @@ QVariantMap EditorConfiguration::toMap() const
     d->m_storageSettings.toMap(kPrefix, &map);
     d->m_behaviorSettings.toMap(kPrefix, &map);
     d->m_extraEncodingSettings.toMap(kPrefix, &map);
+    d->m_marginSettings.toMap(kPrefix, &map);
 
     return map;
 }
@@ -219,7 +222,7 @@ void EditorConfiguration::fromMap(const QVariantMap &map)
     const QByteArray &codecName = map.value(kCodec, d->m_textCodec->name()).toByteArray();
     d->m_textCodec = QTextCodec::codecForName(codecName);
     if (!d->m_textCodec)
-        d->m_textCodec = Core::EditorManager::instance()->defaultTextCodec();
+        d->m_textCodec = Core::EditorManager::defaultTextCodec();
 
     const int codeStyleCount = map.value(kCodeStyleCount, 0).toInt();
     for (int i = 0; i < codeStyleCount; ++i) {
@@ -240,6 +243,7 @@ void EditorConfiguration::fromMap(const QVariantMap &map)
     d->m_storageSettings.fromMap(kPrefix, map);
     d->m_behaviorSettings.fromMap(kPrefix, map);
     d->m_extraEncodingSettings.fromMap(kPrefix, map);
+    d->m_marginSettings.fromMap(kPrefix, map);
 }
 
 void EditorConfiguration::configureEditor(ITextEditor *textEditor) const
@@ -248,7 +252,7 @@ void EditorConfiguration::configureEditor(ITextEditor *textEditor) const
     if (baseTextEditor)
         baseTextEditor->setCodeStyle(codeStyle(baseTextEditor->languageSettingsId()));
     if (!d->m_useGlobal) {
-        textEditor->setTextCodec(d->m_textCodec, ITextEditor::TextCodecFromProjectSetting);
+        textEditor->textDocument()->setCodec(d->m_textCodec);
         if (baseTextEditor)
             switchSettings(baseTextEditor);
     }
@@ -258,7 +262,7 @@ void EditorConfiguration::deconfigureEditor(ITextEditor *textEditor) const
 {
     BaseTextEditorWidget *baseTextEditor = qobject_cast<BaseTextEditorWidget *>(textEditor->widget());
     if (baseTextEditor)
-        baseTextEditor->setCodeStyle(TextEditorSettings::instance()->codeStyle(baseTextEditor->languageSettingsId()));
+        baseTextEditor->setCodeStyle(TextEditorSettings::codeStyle(baseTextEditor->languageSettingsId()));
 
     // TODO: what about text codec and switching settings?
 }
@@ -267,53 +271,61 @@ void EditorConfiguration::setUseGlobalSettings(bool use)
 {
     d->m_useGlobal = use;
     d->m_defaultCodeStyle->setCurrentDelegate(d->m_useGlobal
-                    ? TextEditorSettings::instance()->codeStyle() : 0);
-    const SessionManager *session = ProjectExplorerPlugin::instance()->session();
-    QList<Core::IEditor *> opened = Core::EditorManager::instance()->openedEditors();
+                    ? TextEditorSettings::codeStyle() : 0);
+    QList<Core::IEditor *> opened = Core::EditorManager::documentModel()->editorsForDocuments(
+                Core::EditorManager::documentModel()->openedDocuments());
     foreach (Core::IEditor *editor, opened) {
         if (BaseTextEditorWidget *baseTextEditor = qobject_cast<BaseTextEditorWidget *>(editor->widget())) {
-            Project *project = session->projectForFile(editor->document()->fileName());
+            Project *project = SessionManager::projectForFile(editor->document()->filePath());
             if (project && project->editorConfiguration() == this)
                 switchSettings(baseTextEditor);
         }
     }
 }
 
-void EditorConfiguration::switchSettings(BaseTextEditorWidget *baseTextEditor) const
+static void switchSettings_helper(const QObject *newSender, const QObject *oldSender,
+                                                BaseTextEditorWidget *baseTextEditor)
 {
-    if (d->m_useGlobal)
-        switchSettings_helper(TextEditorSettings::instance(), this, baseTextEditor);
-    else
-        switchSettings_helper(this, TextEditorSettings::instance(), baseTextEditor);
-}
-
-template <class NewSenderT, class OldSenderT>
-void EditorConfiguration::switchSettings_helper(const NewSenderT *newSender,
-                                                const OldSenderT *oldSender,
-                                                BaseTextEditorWidget *baseTextEditor) const
-{
-    baseTextEditor->setTypingSettings(newSender->typingSettings());
-    baseTextEditor->setStorageSettings(newSender->storageSettings());
-    baseTextEditor->setBehaviorSettings(newSender->behaviorSettings());
-    baseTextEditor->setExtraEncodingSettings(newSender->extraEncodingSettings());
-
-    disconnect(oldSender, SIGNAL(typingSettingsChanged(TextEditor::TypingSettings)),
+    QObject::disconnect(oldSender, SIGNAL(marginSettingsChanged(TextEditor::MarginSettings)),
+                        baseTextEditor, SLOT(setMarginSettings(TextEditor::MarginSettings)));
+    QObject::disconnect(oldSender, SIGNAL(typingSettingsChanged(TextEditor::TypingSettings)),
                baseTextEditor, SLOT(setTypingSettings(TextEditor::TypingSettings)));
-    disconnect(oldSender, SIGNAL(storageSettingsChanged(TextEditor::StorageSettings)),
+    QObject::disconnect(oldSender, SIGNAL(storageSettingsChanged(TextEditor::StorageSettings)),
                baseTextEditor, SLOT(setStorageSettings(TextEditor::StorageSettings)));
-    disconnect(oldSender, SIGNAL(behaviorSettingsChanged(TextEditor::BehaviorSettings)),
+    QObject::disconnect(oldSender, SIGNAL(behaviorSettingsChanged(TextEditor::BehaviorSettings)),
                baseTextEditor, SLOT(setBehaviorSettings(TextEditor::BehaviorSettings)));
-    disconnect(oldSender, SIGNAL(extraEncodingSettingsChanged(TextEditor::ExtraEncodingSettings)),
+    QObject::disconnect(oldSender, SIGNAL(extraEncodingSettingsChanged(TextEditor::ExtraEncodingSettings)),
                baseTextEditor, SLOT(setExtraEncodingSettings(TextEditor::ExtraEncodingSettings)));
 
-    connect(newSender, SIGNAL(typingSettingsChanged(TextEditor::TypingSettings)),
+    QObject::connect(newSender, SIGNAL(marginSettingsChanged(TextEditor::MarginSettings)),
+                     baseTextEditor, SLOT(setMarginSettings(TextEditor::MarginSettings)));
+    QObject::connect(newSender, SIGNAL(typingSettingsChanged(TextEditor::TypingSettings)),
             baseTextEditor, SLOT(setTypingSettings(TextEditor::TypingSettings)));
-    connect(newSender, SIGNAL(storageSettingsChanged(TextEditor::StorageSettings)),
+    QObject::connect(newSender, SIGNAL(storageSettingsChanged(TextEditor::StorageSettings)),
             baseTextEditor, SLOT(setStorageSettings(TextEditor::StorageSettings)));
-    connect(newSender, SIGNAL(behaviorSettingsChanged(TextEditor::BehaviorSettings)),
+    QObject::connect(newSender, SIGNAL(behaviorSettingsChanged(TextEditor::BehaviorSettings)),
             baseTextEditor, SLOT(setBehaviorSettings(TextEditor::BehaviorSettings)));
-    connect(newSender, SIGNAL(extraEncodingSettingsChanged(TextEditor::ExtraEncodingSettings)),
+    QObject::connect(newSender, SIGNAL(extraEncodingSettingsChanged(TextEditor::ExtraEncodingSettings)),
             baseTextEditor, SLOT(setExtraEncodingSettings(TextEditor::ExtraEncodingSettings)));
+}
+
+void EditorConfiguration::switchSettings(BaseTextEditorWidget *baseTextEditor) const
+{
+    if (d->m_useGlobal) {
+        baseTextEditor->setMarginSettings(TextEditorSettings::marginSettings());
+        baseTextEditor->setTypingSettings(TextEditorSettings::typingSettings());
+        baseTextEditor->setStorageSettings(TextEditorSettings::storageSettings());
+        baseTextEditor->setBehaviorSettings(TextEditorSettings::behaviorSettings());
+        baseTextEditor->setExtraEncodingSettings(TextEditorSettings::extraEncodingSettings());
+        switchSettings_helper(TextEditorSettings::instance(), this, baseTextEditor);
+    } else {
+        baseTextEditor->setMarginSettings(marginSettings());
+        baseTextEditor->setTypingSettings(typingSettings());
+        baseTextEditor->setStorageSettings(storageSettings());
+        baseTextEditor->setBehaviorSettings(behaviorSettings());
+        baseTextEditor->setExtraEncodingSettings(extraEncodingSettings());
+        switchSettings_helper(this, TextEditorSettings::instance(), baseTextEditor);
+    }
 }
 
 void EditorConfiguration::setTypingSettings(const TextEditor::TypingSettings &settings)
@@ -340,9 +352,33 @@ void EditorConfiguration::setExtraEncodingSettings(const TextEditor::ExtraEncodi
     emit extraEncodingSettingsChanged(d->m_extraEncodingSettings);
 }
 
+void EditorConfiguration::setMarginSettings(const MarginSettings &settings)
+{
+    if (d->m_marginSettings != settings) {
+        d->m_marginSettings = settings;
+        emit marginSettingsChanged(d->m_marginSettings);
+    }
+}
+
 void EditorConfiguration::setTextCodec(QTextCodec *textCodec)
 {
     d->m_textCodec = textCodec;
+}
+
+void EditorConfiguration::setShowWrapColumn(bool onoff)
+{
+    if (d->m_marginSettings.m_showMargin != onoff) {
+        d->m_marginSettings.m_showMargin = onoff;
+        emit marginSettingsChanged(d->m_marginSettings);
+    }
+}
+
+void EditorConfiguration::setWrapColumn(int column)
+{
+    if (d->m_marginSettings.m_marginColumn != column) {
+        d->m_marginSettings.m_marginColumn = column;
+        emit marginSettingsChanged(d->m_marginSettings);
+    }
 }
 
 void EditorConfiguration::slotAboutToRemoveProject(ProjectExplorer::Project *project)
@@ -350,15 +386,13 @@ void EditorConfiguration::slotAboutToRemoveProject(ProjectExplorer::Project *pro
     if (project->editorConfiguration() != this)
         return;
 
-    Core::EditorManager *em = Core::ICore::editorManager();
-    const SessionManager *session = ProjectExplorerPlugin::instance()->session();
-    QList<Core::IEditor*> editors = em->openedEditors();
-    for (int i = 0; i < editors.count(); i++) {
-        Core::IEditor *editor = editors.at(i);
+    Core::DocumentModel *model = Core::EditorManager::documentModel();
+    QList<Core::IEditor *> editors = model->editorsForDocuments(model->openedDocuments());
+    foreach (Core::IEditor *editor, editors) {
         if (TextEditor::ITextEditor *textEditor = qobject_cast<TextEditor::ITextEditor*>(editor)) {
             Core::IDocument *document = editor->document();
             if (document) {
-                Project *editorProject = session->projectForFile(document->fileName());
+                Project *editorProject = SessionManager::projectForFile(document->filePath());
                 if (project == editorProject)
                     deconfigureEditor(textEditor);
             }
@@ -367,17 +401,13 @@ void EditorConfiguration::slotAboutToRemoveProject(ProjectExplorer::Project *pro
 }
 
 TabSettings actualTabSettings(const QString &fileName,
-                                     const BaseTextEditorWidget *baseTextEditor)
+                              const BaseTextDocument *baseTextdocument)
 {
-    if (baseTextEditor) {
-        return baseTextEditor->tabSettings();
-    } else {
-        const SessionManager *session = ProjectExplorerPlugin::instance()->session();
-        if (Project *project = session->projectForFile(fileName))
-            return project->editorConfiguration()->codeStyle()->tabSettings();
-        else
-            return TextEditorSettings::instance()->codeStyle()->tabSettings();
-    }
+    if (baseTextdocument)
+        return baseTextdocument->tabSettings();
+    if (Project *project = SessionManager::projectForFile(fileName))
+        return project->editorConfiguration()->codeStyle()->tabSettings();
+    return TextEditorSettings::codeStyle()->tabSettings();
 }
 
 } // ProjectExplorer

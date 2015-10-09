@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -47,15 +47,9 @@ class ResourceEditorFactory : public Core::IEditorFactory
 public:
     explicit ResourceEditorFactory(ResourceEditorPlugin *plugin);
 
-    virtual QStringList mimeTypes() const;
-
-    // IEditorFactory
-    Core::Id id() const;
-    QString displayName() const;
-    Core::IEditor *createEditor(QWidget *parent);
+    Core::IEditor *createEditor();
 
 private:
-    const QStringList m_mimeTypes;
     ResourceEditorPlugin *m_plugin;
 };
 

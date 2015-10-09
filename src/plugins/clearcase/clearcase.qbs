@@ -1,20 +1,20 @@
-import qbs.base 1.0
+import qbs 1.0
 
-import "../QtcPlugin.qbs" as QtcPlugin
+import QtcPlugin
 
 QtcPlugin {
     name: "ClearCase"
 //    provider: "AudioCodes"
 
-    condition: !qbs.targetOS.contains("osx")
+    pluginspecreplacements: ({"CLEARCASE_DISABLED_STR": (qbs.targetOS.contains("osx") ? "true": "false")})
 
     Depends { name: "Qt.widgets" }
+    Depends { name: "Utils" }
+
     Depends { name: "Core" }
     Depends { name: "TextEditor" }
     Depends { name: "ProjectExplorer" }
-    Depends { name: "Find" }
     Depends { name: "VcsBase" }
-    Depends { name: "Locator" }
 
     files: [
         "activityselector.cpp",

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -33,6 +33,7 @@
 
 #include "resizehandleitem.h"
 
+#include <nodemetainfo.h>
 
 #include <QGraphicsSceneMouseEvent>
 #include <QDebug>
@@ -48,6 +49,9 @@ SelectionTool::SelectionTool(FormEditorView *editorView)
     m_singleSelectionManipulator(editorView),
     m_selectionIndicator(editorView->scene()->manipulatorLayerItem()),
     m_resizeIndicator(editorView->scene()->manipulatorLayerItem()),
+    m_anchorIndicator(editorView->scene()->manipulatorLayerItem()),
+    m_bindingIndicator(editorView->scene()->manipulatorLayerItem()),
+    m_contentNotEditableIndicator(editorView->scene()->manipulatorLayerItem()),
     m_selectOnlyContentItems(false)
 {
     m_selectionIndicator.setCursor(Qt::ArrowCursor);
@@ -141,32 +145,19 @@ void SelectionTool::hoverMoveEvent(const QList<QGraphicsItem*> &itemList,
         }
     }
 
-    FormEditorItem *topSelectableItem = 0;
-
-    foreach (QGraphicsItem* item, itemList)
-    {
-        FormEditorItem *formEditorItem = FormEditorItem::fromQGraphicsItem(item);
-
-        if (formEditorItem
-            && formEditorItem->qmlItemNode().isValid()
-            && !formEditorItem->qmlItemNode().instanceIsInLayoutable()
-            && formEditorItem->qmlItemNode().instanceIsMovable()
-            && (formEditorItem->qmlItemNode().hasShowContent() || !m_selectOnlyContentItems))
-        {
-            topSelectableItem = formEditorItem;
-            break;
-        }
-    }
+    FormEditorItem *topSelectableItem = topMovableFormEditorItem(itemList, m_selectOnlyContentItems);
 
     scene()->highlightBoundingRect(topSelectableItem);
+
+    m_contentNotEditableIndicator.setItems(toFormEditorItemList(itemList));
 }
 
 void SelectionTool::mouseReleaseEvent(const QList<QGraphicsItem*> &itemList,
                                       QGraphicsSceneMouseEvent *event)
 {
-    if (m_singleSelectionManipulator.isActive())
+    if (m_singleSelectionManipulator.isActive()) {
         m_singleSelectionManipulator.end(event->scenePos());
-    else if (m_rubberbandSelectionManipulator.isActive()) {
+    } else if (m_rubberbandSelectionManipulator.isActive()) {
 
         QPointF mouseMovementVector = m_rubberbandSelectionManipulator.beginPoint() - event->scenePos();
         if (mouseMovementVector.toPoint().manhattanLength() < s_startDragDistance) {
@@ -258,6 +249,8 @@ void SelectionTool::clear()
     m_singleSelectionManipulator.clear();
     m_selectionIndicator.clear();
     m_resizeIndicator.clear();
+    m_anchorIndicator.clear();
+    m_bindingIndicator.clear();
 
     AbstractFormEditorTool::clear();
 }
@@ -266,12 +259,19 @@ void SelectionTool::selectedItemsChanged(const QList<FormEditorItem*> &itemList)
 {
     m_selectionIndicator.setItems(itemList);
     m_resizeIndicator.setItems(itemList);
+    m_anchorIndicator.setItems(itemList);
+    m_bindingIndicator.setItems(itemList);
 }
 
 void SelectionTool::formEditorItemsChanged(const QList<FormEditorItem*> &itemList)
 {
-    m_selectionIndicator.updateItems(itemList);
-    m_resizeIndicator.updateItems(itemList);
+    const QList<FormEditorItem*> selectedItemList = filterSelectedModelNodes(itemList);
+
+    m_selectionIndicator.updateItems(selectedItemList);
+    m_resizeIndicator.updateItems(selectedItemList);
+    m_anchorIndicator.updateItems(selectedItemList);
+    m_bindingIndicator.updateItems(selectedItemList);
+    m_contentNotEditableIndicator.updateItems(selectedItemList);
 }
 
 void SelectionTool::instancesCompleted(const QList<FormEditorItem*> &/*itemList*/)

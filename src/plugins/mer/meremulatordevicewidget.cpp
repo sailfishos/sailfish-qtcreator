@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2013 Jolla Ltd.
+** Copyright (C) 2012 - 2014 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -22,18 +22,19 @@
 
 #include "meremulatordevicewidget.h"
 #include "ui_meremulatordevicewidget.h"
-#include "mervirtualboxmanager.h"
-#include "meremulatordevice.h"
-#include "merconstants.h"
-#include "mersdkmanager.h"
 
-#include <utils/portlist.h>
-#include <utils/fancylineedit.h>
+#include "merconstants.h"
+#include "meremulatordevice.h"
+#include "mersdkmanager.h"
+#include "mervirtualboxmanager.h"
+
 #include <ssh/sshconnection.h>
 #include <ssh/sshkeycreationdialog.h>
+#include <utils/fancylineedit.h>
+#include <utils/portlist.h>
 
-#include <QTextStream>
 #include <QDir>
+#include <QTextStream>
 
 using namespace ProjectExplorer;
 using namespace QSsh;
@@ -62,14 +63,18 @@ MerEmulatorDeviceWidget::~MerEmulatorDeviceWidget()
 
 void MerEmulatorDeviceWidget::timeoutEditingFinished()
 {
-    SshConnectionParameters sshParams = device()->sshParameters();
+    Q_ASSERT(dynamic_cast<MerEmulatorDevice *>(this->device().data()) != 0);
+    MerEmulatorDevice* device = static_cast<MerEmulatorDevice*>(this->device().data());
+
+    SshConnectionParameters sshParams = device->sshParameters();
     sshParams.timeout = m_ui->timeoutSpinBox->value();
-    device()->setSshParameters(sshParams);
+    device->setSshParameters(sshParams);
+    device->updateConnection();
 }
 
 void MerEmulatorDeviceWidget::userNameEditingFinished()
 {
-    if(device()->type() != Constants::MER_DEVICE_TYPE_I486) return;
+    Q_ASSERT(dynamic_cast<MerEmulatorDevice *>(this->device().data()) != 0);
     MerEmulatorDevice* device = static_cast<MerEmulatorDevice*>(this->device().data());
 
     if(!device->sharedConfigPath().isEmpty()) {
@@ -85,6 +90,7 @@ void MerEmulatorDeviceWidget::userNameEditingFinished()
         sshParams.privateKeyFile = privKey;
         m_ui->sshKeyLabelEdit->setText(privKey);
         device->setSshParameters(sshParams);
+        device->updateConnection();
     }
 }
 
@@ -116,7 +122,7 @@ void MerEmulatorDeviceWidget::initGui()
             = new QRegExpValidator(QRegExp(PortList::regularExpression()), this);
     m_ui->portsLineEdit->setValidator(portsValidator);
 
-    if(device()->type() != Constants::MER_DEVICE_TYPE_I486) return;
+    Q_ASSERT(dynamic_cast<MerEmulatorDevice *>(this->device().data()) != 0);
     const MerEmulatorDevice* device = static_cast<MerEmulatorDevice*>(this->device().data());
     const SshConnectionParameters &sshParams = device->sshParameters();
     m_ui->timeoutSpinBox->setValue(sshParams.timeout);

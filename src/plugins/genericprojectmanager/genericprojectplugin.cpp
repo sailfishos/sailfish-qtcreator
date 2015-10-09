@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -36,7 +36,6 @@
 #include "genericprojectfileseditor.h"
 #include "genericmakestep.h"
 #include "genericproject.h"
-#include "selectablefilesmodel.h"
 
 #include <coreplugin/icore.h>
 #include <coreplugin/mimedatabase.h>
@@ -45,9 +44,8 @@
 
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/projectexplorer.h>
+#include <projectexplorer/selectablefilesmodel.h>
 
-
-#include <texteditor/texteditoractionhandler.h>
 
 #include <QtPlugin>
 #include <QDebug>
@@ -69,19 +67,14 @@ bool GenericProjectPlugin::initialize(const QStringList &, QString *errorMessage
 {
     using namespace Core;
 
-    Core::MimeDatabase *mimeDB = ICore::mimeDatabase();
-
     const QLatin1String mimetypesXml(":genericproject/GenericProjectManager.mimetypes.xml");
 
-    if (! mimeDB->addMimeTypes(mimetypesXml, errorMessage))
+    if (!MimeDatabase::addMimeTypes(mimetypesXml, errorMessage))
         return false;
 
     Manager *manager = new Manager;
 
-    TextEditor::TextEditorActionHandler *actionHandler =
-            new TextEditor::TextEditorActionHandler(Constants::C_FILESEDITOR);
-
-    m_projectFilesEditorFactory = new ProjectFilesFactory(manager, actionHandler);
+    m_projectFilesEditorFactory = new ProjectFilesFactory(manager);
     addObject(m_projectFilesEditorFactory);
 
     addAutoReleasedObject(manager);
@@ -89,13 +82,13 @@ bool GenericProjectPlugin::initialize(const QStringList &, QString *errorMessage
     addAutoReleasedObject(new GenericProjectWizard);
     addAutoReleasedObject(new GenericBuildConfigurationFactory);
 
-    const Core::Context projectContext(Constants::PROJECTCONTEXT);
-    Core::ActionContainer *mproject =
-            Core::ActionManager::actionContainer(ProjectExplorer::Constants::M_PROJECTCONTEXT);
+    const Context projectContext(Constants::PROJECTCONTEXT);
+    ActionContainer *mproject =
+            ActionManager::actionContainer(ProjectExplorer::Constants::M_PROJECTCONTEXT);
     m_editFilesAction = new QAction(tr("Edit Files..."), this);
 
-    Core::Command *command = Core::ActionManager::registerAction(m_editFilesAction, "GenericProjectManager.EditFiles", projectContext);
-    command->setAttribute(Core::Command::CA_Hide);
+    Command *command = ActionManager::registerAction(m_editFilesAction, "GenericProjectManager.EditFiles", projectContext);
+    command->setAttribute(Command::CA_Hide);
     mproject->addAction(command, ProjectExplorer::Constants::G_PROJECT_FILES);
     connect(m_editFilesAction, SIGNAL(triggered()), this, SLOT(editFiles()));
 
@@ -117,7 +110,7 @@ void GenericProjectPlugin::updateContextMenu(ProjectExplorer::Project *project, 
 void GenericProjectPlugin::editFiles()
 {
     GenericProject *genericProject = static_cast<GenericProject *>(m_contextMenuProject);
-    SelectableFilesDialog sfd(QFileInfo(genericProject->document()->fileName()).path(), genericProject->files(),
+    ProjectExplorer::SelectableFilesDialogEditFiles sfd(QFileInfo(genericProject->projectFilePath()).path(), genericProject->files(),
                               Core::ICore::mainWindow());
     if (sfd.exec() == QDialog::Accepted)
         genericProject->setFiles(sfd.selectedFiles());

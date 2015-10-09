@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -35,7 +35,6 @@
 #include <QStringList>
 
 namespace TextEditor {
-class  TextEditorActionHandler;
 namespace Internal {
 
 class PlainTextEditorFactory : public Core::IEditorFactory
@@ -44,23 +43,12 @@ class PlainTextEditorFactory : public Core::IEditorFactory
 
 public:
     PlainTextEditorFactory(QObject *parent = 0);
-    virtual ~PlainTextEditorFactory();
 
-    void addMimeType(const QString &type);
-    virtual QStringList mimeTypes() const;
-    //Core::IEditorFactory
-    Core::Id id() const;
-    QString displayName() const;
-    Core::IEditor *createEditor(QWidget *parent);
-
-    TextEditor::TextEditorActionHandler *actionHandler() const { return m_actionHandler; }
+    using Core::IEditorFactory::addMimeType;
+    Core::IEditor *createEditor();
 
 private slots:
     void updateEditorInfoBar(Core::IEditor *editor);
-
-private:
-    QStringList m_mimeTypes;
-    TextEditor::TextEditorActionHandler *m_actionHandler;
 };
 
 } // namespace Internal

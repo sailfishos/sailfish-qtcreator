@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -42,17 +42,13 @@ namespace Internal {
 class TemplateInfo
 {
 public:
-    TemplateInfo();
-
     QString templateName;
     QString templatePath;
     QString displayName;
     QString description;
     QString openFile;
-    QString wizardId;
     QString featuresRequired;
-
-    int priority;
+    QString priority;
 };
 
 class QmlApp : public QObject
@@ -66,11 +62,8 @@ public:
     QString mainQmlFileName() const;
     QString projectDirectory() const;
     QString projectName() const;
-    const TemplateInfo &templateInfo() const;
     QString templateDirectory() const;
 
-    static QString templateRootDirectory();
-    static QStringList templateNames();
     static QList<TemplateInfo> templateInfos();
 
     Core::GeneratedFiles generateFiles(QString *errorMessage);

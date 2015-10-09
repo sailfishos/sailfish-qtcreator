@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -44,8 +44,8 @@
     and only if all required features are available, the wizard is displayed
     when creating a new file or project.
 
-    Qt4VersionManager creates an instance of IFeatureProvider and provides Qt specific features for the available
-    versions of Qt.
+    The QtSupport plugin creates an instance of IFeatureProvider and provides Qt specific
+    features for the available versions of Qt.
 
     \sa Core::IWizard
     \sa QtSupport::QtVersionManager
@@ -63,7 +63,7 @@
 */
 
 /*!
-    \fn FeatureProvider::Features availableFeatures() const;
+    \fn FetureSet IFeatureProvider::availableFeatures(const QString &platform) const
     Returns available features provided by this manager.
     \sa FeatureProvider::Features
 */
@@ -95,13 +95,13 @@
 
 
 /*!
-    \fn bool Features::~contains(const Feature &feature)()
+    \fn bool FeatureSet::contains(const Feature &feature) const
 
     Returns true if \a feature is available.
 */
 
 /*!
-    \fn bool Features::~contains(const Features &features)()
+    \fn bool FeatureSet::contains(const FeatureSet &features) const
 
     Returns true if all \a features are available.
 */

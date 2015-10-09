@@ -300,7 +300,7 @@ QVariantMap AddMerSdkOperation::addSdk(const QVariantMap &map,
                                           quint16 wwwPort,
                                           bool headless)
 {
-    QStringList valueKeys = FindValueOperation::findValues(map, QVariant(sdkName));
+    QStringList valueKeys = FindValueOperation::findValue(map, QVariant(sdkName));
     bool hasTarget = false;
     foreach (const QString &t, valueKeys) {
         if (t.endsWith(QLatin1Char('/') + QLatin1String(Mer::Constants::VM_NAME))) {

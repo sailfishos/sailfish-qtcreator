@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -54,9 +54,7 @@ class QToolBar;
 #if QT_VERSION >= 0x050000
 class QDesignerFormWindowManagerInterface;
 #else
-namespace qdesigner_internal {
-    class QDesignerFormWindowManager;
-}
+namespace qdesigner_internal { class QDesignerFormWindowManager; }
 #endif
 
 QT_END_NAMESPACE
@@ -80,7 +78,7 @@ class SettingsPage;
 class DesignerContext;
 
 /** FormEditorW is a singleton that stores the Designer CoreInterface and
-  * performs centralized operations. The instance() method will return an
+  * performs centralized operations. The instance() function will return an
   * instance. However, it must be manually deleted when unloading the
   * plugin. Since fully initializing Designer at startup is expensive, the
   * class has an internal partial initialisation stage "RegisterPlugins"
@@ -113,7 +111,7 @@ public:
     // Deletes an existing instance if there is one.
     static void deleteInstance();
 
-    EditorData createEditor(QWidget *parent);
+    EditorData createEditor(QWidget *parent = 0);
 
     inline QDesignerFormEditorInterface *designerEditor() const { return m_formeditor; }
     inline QWidget * const*designerSubWindows() const { return m_designerSubWindows; }
@@ -129,7 +127,6 @@ private slots:
     void toolChanged(int);
     void print();
     void setPreviewMenuEnabled(bool e);
-    void switchSourceForm();
     void updateShortcut(QObject *command);
     void closeFormEditorsForXmlEditors(QList<Core::IEditor*> editors);
 
@@ -162,7 +159,8 @@ private:
                                          const QString &keySequence = QString());
     Core::Command *addToolAction(QAction *a,
                                  const Core::Context &context, const Core::Id &id,
-                                 Core::ActionContainer *c1, const QString &keySequence = QString());
+                                 Core::ActionContainer *c1, const QString &keySequence = QString(),
+                                 Core::Id groupId = Core::Id());
     QToolBar *createEditorToolBar() const;
 
     static FormEditorW *m_self;
@@ -189,7 +187,6 @@ private:
     QActionGroup *m_actionGroupPreviewInStyle;
     QMenu *m_previewInStyleMenu;
     QAction *m_actionAboutPlugins;
-    QAction *m_actionSwitchSource;
     QSignalMapper *m_shortcutMapper;
 
     DesignerContext *m_context;

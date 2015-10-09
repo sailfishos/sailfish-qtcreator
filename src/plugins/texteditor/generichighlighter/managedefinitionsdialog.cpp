@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -84,9 +84,9 @@ void ManageDefinitionsDialog::populateDefinitionsWidget()
 
         for (int j = 0; j < 3; ++j) {
             QTableWidgetItem *item = new QTableWidgetItem;
-            if (j == 0)
+            if (j == 0) {
                 item->setText(downloadData.name);
-            else if (j == 1) {
+            } else if (j == 1) {
                 item->setText(dirVersion);
                 item->setTextAlignment(Qt::AlignCenter);
             } else if (j == 2) {

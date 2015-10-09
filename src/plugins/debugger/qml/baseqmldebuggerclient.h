@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,7 +30,7 @@
 #ifndef BASEQMLDEBUGGERCLIENT_H
 #define BASEQMLDEBUGGERCLIENT_H
 
-#include "debuggerengine.h"
+#include <debugger/debuggerengine.h>
 #include <qmldebug/qmldebugclient.h>
 
 namespace Debugger {

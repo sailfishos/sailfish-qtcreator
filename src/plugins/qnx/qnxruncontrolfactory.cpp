@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2012 - 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -48,6 +48,7 @@
 #include <analyzerbase/analyzerstartparameters.h>
 #include <analyzerbase/analyzermanager.h>
 #include <analyzerbase/analyzerruncontrol.h>
+#include <analyzerbase/ianalyzertool.h>
 #include <projectexplorer/environmentaspect.h>
 #include <projectexplorer/buildconfiguration.h>
 #include <projectexplorer/project.h>
@@ -62,7 +63,7 @@ using namespace ProjectExplorer;
 using namespace Qnx;
 using namespace Qnx::Internal;
 
-DebuggerStartParameters createStartParameters(const QnxRunConfiguration *runConfig)
+static DebuggerStartParameters createDebuggerStartParameters(const QnxRunConfiguration *runConfig)
 {
     DebuggerStartParameters params;
     Target *target = runConfig->target();
@@ -75,17 +76,18 @@ DebuggerStartParameters createStartParameters(const QnxRunConfiguration *runConf
     params.startMode = AttachToRemoteServer;
     params.debuggerCommand = DebuggerKitInformation::debuggerCommand(k).toString();
     params.sysRoot = SysRootKitInformation::sysRoot(k).toString();
+    params.useCtrlCStub = true;
 
     if (ToolChain *tc = ToolChainKitInformation::toolChain(k))
         params.toolChainAbi = tc->targetAbi();
 
-    params.symbolFileName = runConfig->localExecutableFilePath();
+    params.executable = runConfig->localExecutableFilePath();
     params.remoteExecutable = runConfig->remoteExecutableFilePath();
     params.remoteChannel = device->sshParameters().host + QLatin1String(":-1");
     params.displayName = runConfig->displayName();
     params.remoteSetupNeeded = true;
     params.closeMode = KillAtClose;
-    params.processArgs = runConfig->arguments();
+    params.processArgs = runConfig->arguments().join(QLatin1String(" "));
 
     Debugger::DebuggerRunConfigurationAspect *aspect
             = runConfig->extraAspect<Debugger::DebuggerRunConfigurationAspect>();
@@ -101,7 +103,7 @@ DebuggerStartParameters createStartParameters(const QnxRunConfiguration *runConf
     if (const ProjectExplorer::Project *project = runConfig->target()->project()) {
         params.projectSourceDirectory = project->projectDirectory();
         if (const ProjectExplorer::BuildConfiguration *buildConfig = runConfig->target()->activeBuildConfiguration())
-            params.projectBuildDirectory = buildConfig->buildDirectory();
+            params.projectBuildDirectory = buildConfig->buildDirectory().toString();
         params.projectSourceFiles = project->files(ProjectExplorer::Project::ExcludeGeneratedFiles);
     }
 
@@ -113,7 +115,7 @@ DebuggerStartParameters createStartParameters(const QnxRunConfiguration *runConf
     return params;
 }
 
-AnalyzerStartParameters createAnalyzerStartParameters(const QnxRunConfiguration *runConfig, RunMode mode)
+static AnalyzerStartParameters createAnalyzerStartParameters(const QnxRunConfiguration *runConfig, RunMode mode)
 {
     AnalyzerStartParameters params;
     Target *target = runConfig->target();
@@ -124,11 +126,11 @@ AnalyzerStartParameters createAnalyzerStartParameters(const QnxRunConfiguration 
         return params;
 
     if (mode == QmlProfilerRunMode)
-        params.startMode = StartQmlRemote;
+        params.startMode = StartLocal;
+    params.runMode = mode;
     params.debuggee = runConfig->remoteExecutableFilePath();
-    params.debuggeeArgs = runConfig->arguments();
+    params.debuggeeArgs = runConfig->arguments().join(QLatin1String(" "));
     params.connParams = DeviceKitInformation::device(runConfig->target()->kit())->sshParameters();
-    params.analyzerCmdPrefix = runConfig->commandPrefix();
     params.displayName = runConfig->displayName();
     params.sysroot = SysRootKitInformation::sysRoot(runConfig->target()->kit()).toString();
     params.analyzerHost = params.connParams.host;
@@ -155,15 +157,15 @@ bool QnxRunControlFactory::canRun(RunConfiguration *runConfiguration, RunMode mo
         return false;
     }
 
-
     const QnxRunConfiguration * const rc = qobject_cast<QnxRunConfiguration *>(runConfiguration);
-    if (mode == DebugRunMode || mode == QmlProfilerRunMode) {
-        const QnxDeviceConfiguration::ConstPtr dev = DeviceKitInformation::device(runConfiguration->target()->kit())
-                  .dynamicCast<const QnxDeviceConfiguration>();
-        if (dev.isNull())
-            return false;
+    const QnxDeviceConfiguration::ConstPtr dev = DeviceKitInformation::device(runConfiguration->target()->kit())
+            .dynamicCast<const QnxDeviceConfiguration>();
+    if (dev.isNull())
+        return false;
+
+    if (mode == DebugRunMode || mode == QmlProfilerRunMode)
         return rc->portsUsedByDebuggers() <= dev->freePorts().count();
-    }
+
     return true;
 }
 
@@ -177,7 +179,7 @@ RunControl *QnxRunControlFactory::create(RunConfiguration *runConfig, RunMode mo
     case NormalRunMode:
         return new QnxRunControl(rc);
     case DebugRunMode: {
-        const DebuggerStartParameters params = createStartParameters(rc);
+        const DebuggerStartParameters params = createDebuggerStartParameters(rc);
         DebuggerRunControl * const runControl = DebuggerPlugin::createDebugger(params, rc, errorMessage);
         if (!runControl)
             return 0;
@@ -188,15 +190,9 @@ RunControl *QnxRunControlFactory::create(RunConfiguration *runConfig, RunMode mo
         return runControl;
     }
     case QmlProfilerRunMode: {
-        IAnalyzerTool *tool = AnalyzerManager::toolFromRunMode(mode);
-        if (!tool) {
-            if (errorMessage)
-                *errorMessage = tr("No analyzer tool selected.");
-            return 0;
-        }
         const AnalyzerStartParameters params = createAnalyzerStartParameters(rc, mode);
-        AnalyzerRunControl * const runControl = new AnalyzerRunControl(tool, params, runConfig);
-        QnxAnalyzeSupport * const analyzeSupport = new QnxAnalyzeSupport(rc, runControl->engine());
+        AnalyzerRunControl *runControl = AnalyzerManager::createRunControl(params, runConfig);
+        QnxAnalyzeSupport * const analyzeSupport = new QnxAnalyzeSupport(rc, runControl);
         connect(runControl, SIGNAL(finished()), analyzeSupport, SLOT(handleProfilingFinished()));
         return runControl;
     }

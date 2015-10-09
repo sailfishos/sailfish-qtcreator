@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -121,8 +121,9 @@ void CMakeManager::runCMake(ProjectExplorer::Project *project)
     CMakeBuildConfiguration *bc
             = static_cast<CMakeBuildConfiguration *>(cmakeProject->activeTarget()->activeBuildConfiguration());
 
-    CMakeOpenProjectWizard copw(this, CMakeOpenProjectWizard::WantToUpdate,
-                                CMakeOpenProjectWizard::BuildInfo(bc));
+    CMakeBuildInfo info(bc);
+
+    CMakeOpenProjectWizard copw(Core::ICore::mainWindow(), this, CMakeOpenProjectWizard::WantToUpdate, &info);
     if (copw.exec() == QDialog::Accepted)
         cmakeProject->parseCMakeLists();
 }
@@ -207,7 +208,7 @@ QString CMakeManager::findCbpFile(const QDir &directory)
 {
     // Find the cbp file
     //   the cbp file is named like the project() command in the CMakeList.txt file
-    //   so this method below could find the wrong cbp file, if the user changes the project()
+    //   so this function below could find the wrong cbp file, if the user changes the project()
     //   2name
     QDateTime t;
     QString file;
@@ -290,22 +291,24 @@ QString CMakeSettingsPage::findCmakeExecutable() const
     return Utils::Environment::systemEnvironment().searchInPath(QLatin1String("cmake"));
 }
 
-QWidget *CMakeSettingsPage::createPage(QWidget *parent)
+QWidget *CMakeSettingsPage::widget()
 {
-    QWidget *outerWidget = new QWidget(parent);
-    QFormLayout *formLayout = new QFormLayout(outerWidget);
-    formLayout->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
-    m_pathchooser = new Utils::PathChooser;
-    m_pathchooser->setExpectedKind(Utils::PathChooser::ExistingCommand);
-    formLayout->addRow(tr("Executable:"), m_pathchooser);
-    formLayout->addItem(new QSpacerItem(0, 0, QSizePolicy::Ignored, QSizePolicy::MinimumExpanding));
+    if (!m_widget) {
+        m_widget = new QWidget;
+        QFormLayout *formLayout = new QFormLayout(m_widget);
+        formLayout->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
+        m_pathchooser = new Utils::PathChooser;
+        m_pathchooser->setExpectedKind(Utils::PathChooser::ExistingCommand);
+        m_pathchooser->setHistoryCompleter(QLatin1String("Cmake.Command.History"));
+        formLayout->addRow(tr("Executable:"), m_pathchooser);
+        formLayout->addItem(new QSpacerItem(0, 0, QSizePolicy::Ignored, QSizePolicy::MinimumExpanding));
+
+        m_preferNinja = new QCheckBox(tr("Prefer Ninja generator (CMake 2.8.9 or higher required)"));
+        formLayout->addRow(m_preferNinja);
+    }
     m_pathchooser->setPath(m_cmakeValidatorForUser.cmakeExecutable());
-
-    m_preferNinja = new QCheckBox(tr("Prefer Ninja generator (CMake 2.8.9 or higher required)"));
     m_preferNinja->setChecked(preferNinja());
-    formLayout->addRow(m_preferNinja);
-
-    return outerWidget;
+    return m_widget;
 }
 
 void CMakeSettingsPage::saveSettings() const
@@ -328,7 +331,7 @@ void CMakeSettingsPage::apply()
 
 void CMakeSettingsPage::finish()
 {
-
+    delete m_widget;
 }
 
 QString CMakeSettingsPage::cmakeExecutable() const

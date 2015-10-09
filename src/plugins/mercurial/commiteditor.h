@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Brian McGillion
+** Copyright (c) 2014 Brian McGillion
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -35,9 +35,7 @@
 
 #include <QFileInfo>
 
-namespace VcsBase {
-class SubmitFileModel;
-}
+namespace VcsBase { class SubmitFileModel; }
 
 namespace Mercurial {
 namespace Internal {

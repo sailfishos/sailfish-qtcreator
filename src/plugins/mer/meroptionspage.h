@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2013 Jolla Ltd.
+** Copyright (C) 2012 - 2014 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -25,6 +25,8 @@
 
 #include <coreplugin/dialogs/ioptionspage.h>
 
+#include <QtCore/QPointer>
+
 namespace Mer {
 namespace Internal {
 
@@ -35,7 +37,7 @@ class MerOptionsPage : public Core::IOptionsPage
 public:
     explicit MerOptionsPage(QObject *parent = 0);
 
-    QWidget *createPage(QWidget *parent);
+    QWidget *widget();
     void apply();
     void finish();
     bool matches(const QString &key) const;
@@ -46,7 +48,7 @@ private slots:
     void onUpdateSearchKeys();
 
 private:
-    MerOptionsWidget *m_widget;
+    QPointer<MerOptionsWidget> m_widget;
     QString m_searchKeyWords;
 };
 

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -43,10 +43,13 @@
 #include <utils/qtcassert.h>
 #include <utils/stringutils.h>
 
+#include <QDebug>
+
 static const char BUILD_STEP_LIST_COUNT[] = "ProjectExplorer.BuildConfiguration.BuildStepListCount";
 static const char BUILD_STEP_LIST_PREFIX[] = "ProjectExplorer.BuildConfiguration.BuildStepList.";
 static const char CLEAR_SYSTEM_ENVIRONMENT_KEY[] = "ProjectExplorer.BuildConfiguration.ClearSystemEnvironment";
 static const char USER_ENVIRONMENT_CHANGES_KEY[] = "ProjectExplorer.BuildConfiguration.UserEnvironmentChanges";
+static const char BUILDDIRECTORY_KEY[] = "ProjectExplorer.BuildConfiguration.BuildDirectory";
 
 namespace ProjectExplorer {
 namespace Internal {
@@ -66,7 +69,7 @@ bool BuildConfigMacroExpander::resolveMacro(const QString &name, QString *ret)
         return true;
     }
     if (name == QLatin1String("buildDir")) {
-        *ret = QDir::toNativeSeparators(m_bc->buildDirectory());
+        *ret = m_bc->buildDirectory().toUserOutput();
         return true;
     }
     *ret = Core::VariableManager::value(name.toUtf8());
@@ -93,13 +96,15 @@ BuildConfiguration::BuildConfiguration(Target *target, const Core::Id id) :
 
     connect(target, SIGNAL(kitChanged()),
             this, SLOT(handleKitUpdate()));
+    connect(this, SIGNAL(environmentChanged()), this, SLOT(emitBuildDirectoryChanged()));
 }
 
 BuildConfiguration::BuildConfiguration(Target *target, BuildConfiguration *source) :
     ProjectConfiguration(target, source),
     m_clearSystemEnvironment(source->m_clearSystemEnvironment),
     m_userEnvironmentChanges(source->m_userEnvironmentChanges),
-    m_macroExpander(0)
+    m_macroExpander(0),
+    m_buildDirectory(source->m_buildDirectory)
 {
     Q_ASSERT(target);
     // Do not clone stepLists here, do that in the derived constructor instead
@@ -115,6 +120,23 @@ BuildConfiguration::BuildConfiguration(Target *target, BuildConfiguration *sourc
 BuildConfiguration::~BuildConfiguration()
 {
     delete m_macroExpander;
+}
+
+Utils::FileName BuildConfiguration::buildDirectory() const
+{
+    QString path = QDir::cleanPath(environment().expandVariables(m_buildDirectory.toString()));
+    return Utils::FileName::fromString(QDir::cleanPath(QDir(target()->project()->projectDirectory()).absoluteFilePath(path)));
+}
+
+Utils::FileName BuildConfiguration::rawBuildDirectory() const
+{
+    return m_buildDirectory;
+}
+
+void BuildConfiguration::setBuildDirectory(const Utils::FileName &dir)
+{
+    m_buildDirectory = dir;
+    emitBuildDirectoryChanged();
 }
 
 QList<NamedWidget *> BuildConfiguration::createSubConfigWidgets()
@@ -150,6 +172,7 @@ QVariantMap BuildConfiguration::toMap() const
     QVariantMap map(ProjectConfiguration::toMap());
     map.insert(QLatin1String(CLEAR_SYSTEM_ENVIRONMENT_KEY), m_clearSystemEnvironment);
     map.insert(QLatin1String(USER_ENVIRONMENT_CHANGES_KEY), Utils::EnvironmentItem::toStringList(m_userEnvironmentChanges));
+    map.insert(QLatin1String(BUILDDIRECTORY_KEY), m_buildDirectory.toString());
 
     map.insert(QLatin1String(BUILD_STEP_LIST_COUNT), m_stepLists.count());
     for (int i = 0; i < m_stepLists.count(); ++i)
@@ -162,6 +185,7 @@ bool BuildConfiguration::fromMap(const QVariantMap &map)
 {
     m_clearSystemEnvironment = map.value(QLatin1String(CLEAR_SYSTEM_ENVIRONMENT_KEY)).toBool();
     m_userEnvironmentChanges = Utils::EnvironmentItem::fromStringList(map.value(QLatin1String(USER_ENVIRONMENT_CHANGES_KEY)).toStringList());
+    m_buildDirectory = Utils::FileName::fromString(map.value(QLatin1String(BUILDDIRECTORY_KEY)).toString());
 
     emitEnvironmentChanged();
 
@@ -202,12 +226,20 @@ void BuildConfiguration::emitEnvironmentChanged()
     if (env == m_cachedEnvironment)
         return;
     m_cachedEnvironment = env;
-    emit environmentChanged();
+    emit environmentChanged(); // might trigger buildDirectoryChanged signal!
 }
 
 void BuildConfiguration::handleKitUpdate()
 {
     emitEnvironmentChanged();
+}
+
+void BuildConfiguration::emitBuildDirectoryChanged()
+{
+    if (buildDirectory() != m_lastEmmitedBuildDirectory) {
+        m_lastEmmitedBuildDirectory = buildDirectory();
+        emit buildDirectoryChanged();
+    }
 }
 
 Target *BuildConfiguration::target() const
@@ -301,7 +333,7 @@ IBuildConfigurationFactory::~IBuildConfigurationFactory()
 IBuildConfigurationFactory *IBuildConfigurationFactory::find(Target *parent, const QVariantMap &map)
 {
     QList<IBuildConfigurationFactory *> factories
-            = ExtensionSystem::PluginManager::instance()->getObjects<IBuildConfigurationFactory>();
+            = ExtensionSystem::PluginManager::getObjects<IBuildConfigurationFactory>();
     foreach (IBuildConfigurationFactory *factory, factories) {
         if (factory->canRestore(parent, map))
             return factory;
@@ -309,23 +341,45 @@ IBuildConfigurationFactory *IBuildConfigurationFactory::find(Target *parent, con
     return 0;
 }
 
+// setup
+IBuildConfigurationFactory *IBuildConfigurationFactory::find(Kit *k, const QString &projectPath)
+{
+    QList<IBuildConfigurationFactory *> factories
+            = ExtensionSystem::PluginManager::instance()->getObjects<IBuildConfigurationFactory>();
+    IBuildConfigurationFactory *factory = 0;
+    int priority = -1;
+    foreach (IBuildConfigurationFactory *i, factories) {
+        int iPriority = i->priority(k, projectPath);
+        if (iPriority > priority) {
+            factory = i;
+            priority = iPriority;
+        }
+    }
+    return factory;
+}
+
 // create
 IBuildConfigurationFactory * IBuildConfigurationFactory::find(Target *parent)
 {
     QList<IBuildConfigurationFactory *> factories
-            = ExtensionSystem::PluginManager::instance()->getObjects<IBuildConfigurationFactory>();
-    foreach (IBuildConfigurationFactory *factory, factories) {
-        if (!factory->availableCreationIds(parent).isEmpty())
-            return factory;
+            = ExtensionSystem::PluginManager::getObjects<IBuildConfigurationFactory>();
+    IBuildConfigurationFactory *factory = 0;
+    int priority = -1;
+    foreach (IBuildConfigurationFactory *i, factories) {
+        int iPriority = i->priority(parent);
+        if (iPriority > priority) {
+            factory = i;
+            priority = iPriority;
+        }
     }
-    return 0;
+    return factory;
 }
 
 // clone
 IBuildConfigurationFactory *IBuildConfigurationFactory::find(Target *parent, BuildConfiguration *bc)
 {
     QList<IBuildConfigurationFactory *> factories
-            = ExtensionSystem::PluginManager::instance()->getObjects<IBuildConfigurationFactory>();
+            = ExtensionSystem::PluginManager::getObjects<IBuildConfigurationFactory>();
     foreach (IBuildConfigurationFactory *factory, factories) {
         if (factory->canClone(parent, bc))
             return factory;

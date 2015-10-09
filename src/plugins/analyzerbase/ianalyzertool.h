@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 ** Author: Nicolas Arnaud-Cormos, KDAB (nicolas.arnaud-cormos@kdab.com)
 **
@@ -34,19 +34,17 @@
 #include "analyzerbase_global.h"
 #include "analyzerstartparameters.h"
 
+#include <coreplugin/id.h>
 #include <projectexplorer/projectexplorerconstants.h>
 
 #include <QObject>
+#include <QAction>
 
-namespace ProjectExplorer {
-class RunConfiguration;
-}
+namespace ProjectExplorer { class RunConfiguration; }
 
 namespace Analyzer {
 
-class IAnalyzerOutputPaneAdapter;
-class IAnalyzerEngine;
-class AbstractAnalyzerSubConfig;
+class AnalyzerRunControl;
 
 
 /**
@@ -69,23 +67,8 @@ class ANALYZER_EXPORT IAnalyzerTool : public QObject
 public:
     explicit IAnalyzerTool(QObject *parent = 0);
 
-    /// Returns a unique ID for this tool.
-    virtual Core::Id id() const = 0;
     /// Returns the run mode for this tool.
     virtual ProjectExplorer::RunMode runMode() const = 0;
-    /// Returns a short user readable display name for this tool.
-    virtual QString displayName() const = 0;
-    /// Returns a user readable description name for this tool.
-    virtual QString description() const = 0;
-    /// Returns an id for the start action.
-    virtual Core::Id actionId(StartMode mode) const
-        { return defaultActionId(this, mode); }
-    /// Returns the menu group the start action should go to.
-    virtual Core::Id menuGroup(StartMode mode) const
-        { return defaultMenuGroup(mode); }
-    /// Returns a short user readable action name for this tool.
-    virtual QString actionName(StartMode mode) const
-        { return defaultActionName(this, mode); }
 
     /**
      * The mode in which this tool should preferably be run
@@ -101,14 +84,6 @@ public:
     };
     virtual ToolMode toolMode() const = 0;
 
-    /// Convenience implementation.
-    static Core::Id defaultMenuGroup(StartMode mode);
-    static Core::Id defaultActionId(const IAnalyzerTool *tool, StartMode mode);
-    static QString defaultActionName(const IAnalyzerTool *tool, StartMode mode);
-
-    /// This gets called after all analyzation tools where initialized.
-    virtual void extensionsInitialized() = 0;
-
     /// Creates all widgets used by the tool.
     /// Returns a control widget which will be shown in the status bar when
     /// this tool is selected. Must be non-zero.
@@ -116,32 +91,44 @@ public:
 
     /// Returns a new engine for the given start parameters.
     /// Called each time the tool is launched.
-    virtual IAnalyzerEngine *createEngine(const AnalyzerStartParameters &sp,
-        ProjectExplorer::RunConfiguration *runConfiguration = 0) = 0;
-
-    /// Returns true if the tool can be run
-    virtual bool canRun(ProjectExplorer::RunConfiguration *runConfiguration,
-                        ProjectExplorer::RunMode mode) const = 0;
-
-    /// Create the start parameters for the run control factory
-    virtual AnalyzerStartParameters createStartParameters(
-            ProjectExplorer::RunConfiguration *runConfiguration,
-            ProjectExplorer::RunMode mode) const = 0;
+    virtual AnalyzerRunControl *createRunControl(const AnalyzerStartParameters &sp,
+        ProjectExplorer::RunConfiguration *runConfiguration) = 0;
 
     virtual void startTool(StartMode mode) = 0;
-
-    /// Called when tools gets selected.
-    virtual void toolSelected() const {}
-
-    /// Called when tools gets deselected.
-    virtual void toolDeselected() const {}
-
-    /// Factory method to create the global tool setting
-    virtual AbstractAnalyzerSubConfig *createGlobalSettings();
-
-    /// Factory method to create the project tool setting
-    virtual AbstractAnalyzerSubConfig *createProjectSettings();
 };
+
+/**
+ * This class represents an analyzation action, i.e. a tool that runs in a specific mode.
+ *
+*/
+
+class ANALYZER_EXPORT AnalyzerAction : public QAction
+{
+    Q_OBJECT
+
+public:
+    explicit AnalyzerAction(QObject *parent = 0);
+
+public:
+    IAnalyzerTool *tool() const { return m_tool; }
+    void setTool(IAnalyzerTool *tool) { m_tool = tool; }
+
+    StartMode startMode() const { return m_startMode; }
+    void setStartMode(StartMode startMode) { m_startMode = startMode; }
+
+    Core::Id menuGroup() const { return m_menuGroup; }
+    void setMenuGroup(Core::Id menuGroup) { m_menuGroup = menuGroup; }
+
+    Core::Id id() const { return m_id; }
+    void setId(Core::Id id) { m_id = id; }
+
+protected:
+    IAnalyzerTool *m_tool;
+    StartMode m_startMode;
+    Core::Id m_menuGroup;
+    Core::Id m_id;
+};
+
 
 } // namespace Analyzer
 

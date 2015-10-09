@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -84,6 +84,9 @@ QmlProjectRunConfigurationWidget::QmlProjectRunConfigurationWidget(QmlProjectRun
     layout->addWidget(detailsWidget);
 
     updateFileComboBox();
+
+    connect(rc, SIGNAL(scriptSourceChanged()),
+            this, SLOT(updateFileComboBox()));
 }
 
 static bool caseInsensitiveLessThan(const QString &s1, const QString &s2)

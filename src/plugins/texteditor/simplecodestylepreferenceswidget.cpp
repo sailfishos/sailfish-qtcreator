@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -92,11 +92,6 @@ void SimpleCodeStylePreferencesWidget::slotTabSettingsChanged(const TextEditor::
         return;
 
     current->setTabSettings(settings);
-}
-
-QString SimpleCodeStylePreferencesWidget::searchKeywords() const
-{
-    return m_tabSettingsWidget->searchKeywords();
 }
 
 void SimpleCodeStylePreferencesWidget::setFlat(bool on)

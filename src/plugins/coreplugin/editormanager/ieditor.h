@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -47,15 +47,14 @@ public:
     IEditor(QObject *parent = 0) : IContext(parent) {}
     virtual ~IEditor() {}
 
-    virtual bool createNew(const QString &contents = QString()) = 0;
+    void setId(Core::Id id);
+    Core::Id id() const;
+
     virtual bool open(QString *errorString, const QString &fileName, const QString &realFileName) = 0;
     virtual IDocument *document() = 0;
-    virtual Core::Id id() const = 0;
-    virtual QString displayName() const = 0;
-    virtual void setDisplayName(const QString &title) = 0;
 
     virtual bool duplicateSupported() const { return false; }
-    virtual IEditor *duplicate(QWidget * /*parent*/) { return 0; }
+    virtual IEditor *duplicate() { return 0; }
 
     virtual QByteArray saveState() const { return QByteArray(); }
     virtual bool restoreState(const QByteArray &/*state*/) { return true; }
@@ -64,14 +63,12 @@ public:
     virtual int currentColumn() const { return 0; }
     virtual void gotoLine(int line, int column = 0) { Q_UNUSED(line) Q_UNUSED(column) }
 
-    virtual bool isTemporary() const = 0;
-
     virtual QWidget *toolBar() = 0;
 
     virtual bool isDesignModePreferred() const { return false; }
 
-signals:
-    void changed();
+private:
+    Core::Id m_id;
 };
 
 } // namespace Core

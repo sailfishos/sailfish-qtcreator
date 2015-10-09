@@ -1,47 +1,53 @@
-import qbs.base 1.0
+import qbs 1.0
 
-import "../QtcPlugin.qbs" as QtcPlugin
+import QtcPlugin
 
 QtcPlugin {
     name: "PythonEditor"
 
     Depends { name: "Qt.widgets" }
+    Depends { name: "Utils" }
+
     Depends { name: "Core" }
     Depends { name: "TextEditor" }
-    Depends { name: "CppTools" }
     Depends { name: "QtSupport" }
     Depends { name: "ProjectExplorer" }
 
-    files: [
-        "pythoneditor.cpp",
-        "pythoneditor.h",
-        "pythoneditor_global.h",
-        "pythoneditorconstants.h",
-        "pythoneditorfactory.cpp",
-        "pythoneditorfactory.h",
-        "pythoneditorplugin.cpp",
-        "pythoneditorplugin.h",
-        "pythoneditorplugin.qrc",
-        "pythoneditorwidget.cpp",
-        "pythoneditorwidget.h",
-        "tools/lexical/sourcecodestream.h",
-        "tools/lexical/pythonscanner.h",
-        "tools/lexical/pythonformattoken.h",
-        "tools/lexical/pythonscanner.cpp",
-        "tools/pythonhighlighter.h",
-        "tools/pythonindenter.cpp",
-        "tools/pythonhighlighter.cpp",
-        "tools/pythonindenter.h",
-        "wizard/pythonfilewizard.h",
-        "wizard/pythonfilewizard.cpp",
-        "wizard/pythonclasswizard.h",
-        "wizard/pythonclassnamepage.h",
-        "wizard/pythonclasswizarddialog.h",
-        "wizard/pythonsourcegenerator.h",
-        "wizard/pythonclasswizarddialog.cpp",
-        "wizard/pythonclasswizard.cpp",
-        "wizard/pythonclassnamepage.cpp",
-        "wizard/pythonsourcegenerator.cpp"
-    ]
+    Group {
+        name: "General"
+        files: [
+            "pythoneditor.cpp", "pythoneditor.h",
+            "pythoneditorconstants.h",
+            "pythoneditorfactory.cpp", "pythoneditorfactory.h",
+            "pythoneditorplugin.cpp", "pythoneditorplugin.h",
+            "pythoneditorplugin.qrc",
+            "pythoneditorwidget.cpp", "pythoneditorwidget.h",
+        ]
+    }
+
+    Group {
+        name: "Tools"
+        prefix: "tools/"
+        files: [
+            "lexical/pythonformattoken.h",
+            "lexical/pythonscanner.h", "lexical/pythonscanner.cpp",
+            "lexical/sourcecodestream.h",
+            "pythonhighlighter.h", "pythonhighlighter.cpp",
+            "pythonhighlighterfactory.h", "pythonhighlighterfactory.cpp",
+            "pythonindenter.cpp", "pythonindenter.h"
+        ]
+    }
+
+    Group {
+        name: "Wizard"
+        prefix: "wizard/"
+        files: [
+            "pythonclassnamepage.cpp", "pythonclassnamepage.h",
+            "pythonclasswizard.h", "pythonclasswizard.cpp",
+            "pythonclasswizarddialog.h", "pythonclasswizarddialog.cpp",
+            "pythonfilewizard.h", "pythonfilewizard.cpp",
+            "pythonsourcegenerator.h", "pythonsourcegenerator.cpp"
+        ]
+    }
 }
 

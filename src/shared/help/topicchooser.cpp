@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -44,6 +44,7 @@ TopicChooser::TopicChooser(QWidget *parent, const QString &keyword,
     ui.setupUi(this);
 
     setFocusProxy(ui.lineEdit);
+    ui.lineEdit->setFiltering(true);
     ui.lineEdit->installEventFilter(this);
     ui.lineEdit->setPlaceholderText(tr("Filter"));
     ui.label->setText(tr("Choose a topic for <b>%1</b>:").arg(keyword));

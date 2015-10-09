@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -60,9 +60,6 @@ public:
     FolderNavigationWidget(QWidget *parent = 0);
 
     bool autoSynchronization() const;
-
-    static void findOnFileSystem(const QString &pathIn);
-    static QString msgFindOnFileSystem();
     bool hiddenFilesFilter() const;
 
 public slots:
@@ -73,6 +70,7 @@ private slots:
     void setCurrentFile(const QString &filePath);
     void slotOpenItem(const QModelIndex &viewIndex);
     void setHiddenFilesFilter(bool filter);
+    void ensureCurrentIndex();
 
 protected:
     virtual void contextMenuEvent(QContextMenuEvent *ev);

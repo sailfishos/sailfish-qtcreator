@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -60,6 +60,8 @@ enum SshPacketType {
     SSH_MSG_USERAUTH_BANNER = 53,
     SSH_MSG_USERAUTH_PK_OK = 60,
     SSH_MSG_USERAUTH_PASSWD_CHANGEREQ = 60,
+    SSH_MSG_USERAUTH_INFO_REQUEST = 60,
+    SSH_MSG_USERAUTH_INFO_RESPONSE = 61,
 
     SSH_MSG_GLOBAL_REQUEST = 80,
     SSH_MSG_REQUEST_SUCCESS = 81,

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -44,9 +44,7 @@ QT_END_NAMESPACE
 namespace Gitorious {
 namespace Internal {
 
-namespace Ui {
-    class GitoriousHostWidget;
-}
+namespace Ui { class GitoriousHostWidget; }
 
 /* A page listing gitorious hosts with browse/add options. isValid() and the
  * related change signals are provided for use within a QWizardPage.

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -223,11 +223,6 @@ inline static bool isBinaryDigit(QChar ch)
 inline static bool isValidIntegerSuffix(QChar ch)
 {
     return (ch == QLatin1Char('l') || ch == QLatin1Char('L'));
-}
-
-inline static bool isValidComplexSuffix(QChar ch)
-{
-    return (ch == QLatin1Char('j') || ch == QLatin1Char('J'));
 }
 
 FormatToken Scanner::readNumber()

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -32,15 +32,13 @@
 
 #include "qmlprojectmanager_global.h"
 
-#include <projectexplorer/runconfiguration.h>
+#include <projectexplorer/localapplicationrunconfiguration.h>
 
 #include <QPointer>
 
 QT_FORWARD_DECLARE_CLASS(QStringListModel)
 
-namespace Core {
-    class IEditor;
-}
+namespace Core { class IEditor; }
 
 namespace QtSupport { class BaseQtVersion; }
 
@@ -52,7 +50,7 @@ namespace Internal {
     class QmlProjectRunConfigurationWidget;
 }
 
-class QMLPROJECTMANAGER_EXPORT QmlProjectRunConfiguration : public ProjectExplorer::RunConfiguration
+class QMLPROJECTMANAGER_EXPORT QmlProjectRunConfiguration : public ProjectExplorer::LocalApplicationRunConfiguration
 {
     Q_OBJECT
     friend class Internal::QmlProjectRunConfigurationFactory;
@@ -62,9 +60,10 @@ class QMLPROJECTMANAGER_EXPORT QmlProjectRunConfiguration : public ProjectExplor
 public:
     QmlProjectRunConfiguration(ProjectExplorer::Target *parent, Core::Id id);
 
-    QString viewerPath() const;
-    QString observerPath() const;
-    QString viewerArguments() const;
+    QString executable() const;
+    RunMode runMode() const;
+    QString commandLineArguments() const;
+
     QString workingDirectory() const;
     QtSupport::BaseQtVersion *qtVersion() const;
 
@@ -86,9 +85,11 @@ public:
     QVariantMap toMap() const;
 
     ProjectExplorer::Abi abi() const;
+signals:
+    void scriptSourceChanged();
 
 private slots:
-    void changeCurrentFile(Core::IEditor*);
+    void changeCurrentFile(Core::IEditor* = 0);
     void updateEnabled();
 
 protected:
@@ -108,11 +109,8 @@ private:
     // absolute path to selected main script (if being used)
     QString m_mainScriptFilename;
 
-    int m_qtVersionId;
     QString m_scriptFile;
     QString m_qmlViewerArgs;
-
-    QPointer<Internal::QmlProjectRunConfigurationWidget> m_configurationWidget;
 
     bool m_isEnabled;
 };

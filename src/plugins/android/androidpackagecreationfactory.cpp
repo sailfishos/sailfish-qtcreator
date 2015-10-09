@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 BogDan Vatra <bog_dan_ro@yahoo.com>
+** Copyright (c) 2014 BogDan Vatra <bog_dan_ro@yahoo.com>
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -36,6 +36,8 @@
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/target.h>
 
+#include <qtsupport/qtkitinformation.h>
+
 using namespace ProjectExplorer;
 
 namespace Android {
@@ -53,6 +55,9 @@ QList<Core::Id> AndroidPackageCreationFactory::availableCreationIds(BuildStepLis
     if (!AndroidManager::supportsAndroid(parent->target()))
         return QList<Core::Id>();
     if (parent->contains(AndroidPackageCreationStep::CreatePackageId))
+        return QList<Core::Id>();
+    QtSupport::BaseQtVersion *qtVersion = QtSupport::QtKitInformation::qtVersion(parent->target()->kit());
+    if (qtVersion && qtVersion->qtVersion() >= QtSupport::QtVersionNumber(5, 2, 0))
         return QList<Core::Id>();
     return QList<Core::Id>() << AndroidPackageCreationStep::CreatePackageId;
 }

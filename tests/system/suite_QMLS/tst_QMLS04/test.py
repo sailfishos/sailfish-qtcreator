@@ -1,6 +1,6 @@
 #############################################################################
 ##
-## Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+## Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ## Contact: http://www.qt-project.org/legal
 ##
 ## This file is part of Qt Creator.
@@ -56,8 +56,7 @@ def main():
         test.passes("Refactoring was properly applied in source file")
     else:
         test.fail("Refactoring of Text to MyComponent failed in source file. Content of editor:\n%s" % codeText)
-    myCompTE = "SampleApp.QML.qml/SampleApp.MyComponent\\.qml"
-    appeared = False
+    myCompTE = "SampleApp.Resources.qml\\.qrc./.MyComponent\\.qml"
     # there should be new QML file generated with name "MyComponent.qml"
     try:
         waitForObjectItem(":Qt Creator_Utils::NavigationTreeView", myCompTE, 3000)
@@ -69,6 +68,7 @@ def main():
             #save and exit
             invokeMenuItem("File", "Save All")
             invokeMenuItem("File", "Exit")
+            return
     test.passes("Refactoring - file MyComponent.qml was generated properly in project explorer")
     # open MyComponent.qml file for verification
     if not openDocument(myCompTE):
@@ -86,7 +86,6 @@ def main():
     #save and exit
     invokeMenuItem("File", "Save All")
     # check if new file was created in file system
-    test.verify(os.path.exists(projectDir + "/SampleApp/qml/SampleApp/MyComponent.qml"),
+    test.verify(os.path.exists(os.path.join(projectDir, "SampleApp", "MyComponent.qml")),
                 "Verifying if MyComponent.qml exists in file system after save")
     invokeMenuItem("File", "Exit")
-

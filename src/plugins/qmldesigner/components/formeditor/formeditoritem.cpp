@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -31,7 +31,7 @@
 #include "formeditorscene.h"
 
 #include <modelnode.h>
-
+#include <nodemetainfo.h>
 
 #include <QDebug>
 #include <QPainter>
@@ -39,7 +39,6 @@
 #include <QTimeLine>
 
 #include <cmath>
-
 
 namespace QmlDesigner {
 
@@ -54,6 +53,7 @@ FormEditorItem::FormEditorItem(const QmlItemNode &qmlItemNode, FormEditorScene* 
     m_qmlItemNode(qmlItemNode),
     m_borderWidth(1.0),
     m_highlightBoundingRect(false),
+    m_blurContent(false),
     m_isContentVisible(true),
     m_isFormEditorVisible(true)
 {
@@ -83,16 +83,29 @@ void FormEditorItem::setup()
 
 QRectF FormEditorItem::boundingRect() const
 {
-    return m_paintedBoundingRect;
+    return m_boundingRect;
+}
+
+QPainterPath FormEditorItem::shape() const
+{
+    QPainterPath painterPath;
+    painterPath.addRect(m_selectionBoundingRect);
+
+    return painterPath;
+}
+
+bool FormEditorItem::contains(const QPointF &point) const
+{
+    return m_selectionBoundingRect.contains(point);
 }
 
 void FormEditorItem::updateGeometry()
 {
     prepareGeometryChange();
-    m_boundingRect = qmlItemNode().instanceBoundingRect().adjusted(0, 0, 1., 1.);
-    m_paintedBoundingRect = qmlItemNode().instancePaintedBoundingRect().united(m_boundingRect);
+    m_selectionBoundingRect = qmlItemNode().instanceBoundingRect().adjusted(0, 0, 1., 1.);
+    m_paintedBoundingRect = qmlItemNode().instancePaintedBoundingRect();
+    m_boundingRect = m_paintedBoundingRect.united(m_selectionBoundingRect);
     setTransform(qmlItemNode().instanceTransformWithContentTransform());
-    setTransform(m_attentionTransform, true);
     //the property for zValue is called z in QGraphicsObject
     if (qmlItemNode().instanceValue("z").isValid())
         setZValue(qmlItemNode().instanceValue("z").toDouble());
@@ -104,67 +117,27 @@ void FormEditorItem::updateVisibilty()
 //    setOpacity(nodeInstance().opacity());
 }
 
-void FormEditorItem::showAttention()
-{
-    if (m_attentionTimeLine.isNull()) {
-        m_attentionTimeLine = new QTimeLine(500, this);
-        m_attentionTimeLine->setCurveShape(QTimeLine::SineCurve);
-        connect(m_attentionTimeLine.data(), SIGNAL(valueChanged(qreal)), SLOT(changeAttention(qreal)));
-        connect(m_attentionTimeLine.data(), SIGNAL(finished()), m_attentionTimeLine.data(), SLOT(deleteLater()));
-
-        m_attentionTimeLine->start();
-    }
-}
-
-void FormEditorItem::changeAttention(qreal value)
-{
-    if (QGraphicsItem::parentItem() == scene()->formLayerItem()) {
-        setAttentionHighlight(value);
-    } else {
-        setAttentionHighlight(value);
-        setAttentionScale(value);
-    }
-}
 
 FormEditorView *FormEditorItem::formEditorView() const
 {
     return scene()->editorView();
 }
 
-void FormEditorItem::setAttentionScale(double sinusScale)
-{
-    if (!qFuzzyIsNull(sinusScale)) {
-        double scale = std::sqrt(sinusScale);
-        m_attentionTransform.reset();
-        QPointF centerPoint(qmlItemNode().instanceBoundingRect().center());
-        m_attentionTransform.translate(centerPoint.x(), centerPoint.y());
-        m_attentionTransform.scale(scale * 0.15 + 1.0, scale * 0.15 + 1.0);
-        m_attentionTransform.translate(-centerPoint.x(), -centerPoint.y());
-        m_inverseAttentionTransform = m_attentionTransform.inverted();
-        prepareGeometryChange();
-        setTransform(qmlItemNode().instanceTransformWithContentTransform());
-        setTransform(m_attentionTransform, true);
-    } else {
-        m_attentionTransform.reset();
-        prepareGeometryChange();
-        setTransform(qmlItemNode().instanceTransform());
-    }
-}
-
-void FormEditorItem::setAttentionHighlight(double value)
-{
-    if (QGraphicsItem::parentItem() == scene()->formLayerItem())
-        m_borderWidth = value * 4;
-    else
-        m_borderWidth = 1. + value * 3;
-
-    update();
-}
-
 void FormEditorItem::setHighlightBoundingRect(bool highlight)
 {
     if (m_highlightBoundingRect != highlight) {
         m_highlightBoundingRect = highlight;
+        update();
+    }
+}
+
+void FormEditorItem::blurContent(bool blurContent)
+{
+    if (!scene())
+        return;
+
+    if (m_blurContent != blurContent) {
+        m_blurContent = blurContent;
         update();
     }
 }
@@ -235,20 +208,23 @@ void FormEditorItem::paintBoundingRect(QPainter *painter) const
 
     QPen pen;
     pen.setJoinStyle(Qt::MiterJoin);
-    pen.setStyle(Qt::DotLine);
 
     QColor frameColor("#AAAAAA");
 
     if (scene()->showBoundingRects()) {
-        if (m_highlightBoundingRect)
+        if (m_highlightBoundingRect) {
             pen.setColor(frameColor);
-        else
+        } else {
             pen.setColor(frameColor.darker(150));
+            pen.setStyle(Qt::DotLine);
+        }
     } else {
-        if (m_highlightBoundingRect)
+        if (m_highlightBoundingRect) {
             pen.setColor(frameColor);
-        else
+        } else {
             pen.setColor(Qt::transparent);
+            pen.setStyle(Qt::DotLine);
+        }
     }
 
     painter->setPen(pen);
@@ -257,30 +233,18 @@ void FormEditorItem::paintBoundingRect(QPainter *painter) const
     painter->drawRect(m_boundingRect.adjusted(0., 0., -1., -1.));
 }
 
-void FormEditorItem::paintPlaceHolderForInvisbleItem(QPainter *painter) const
+static void paintTextInPlaceHolderForInvisbleItem(QPainter *painter,
+                                                  const QString &id,
+                                                  const QString &typeName,
+                                                  const QRectF &boundingRect)
 {
-    qreal stripesWidth = 12;
-
-    QRegion innerRegion = QRegion(m_boundingRect.adjusted(stripesWidth, stripesWidth, -stripesWidth, -stripesWidth).toRect());
-    QRegion outerRegion  = QRegion(m_boundingRect.toRect()) - innerRegion;
-
-    painter->setClipRegion(outerRegion);
-    painter->setClipping(true);
-    painter->fillRect(m_boundingRect.adjusted(1, 1, -1, -1), Qt::BDiagPattern);
-    painter->setClipping(false);
-
-    QString displayText = qmlItemNode().id();
-
-    if (displayText.isEmpty())
-        displayText = qmlItemNode().simplifiedTypeName();
+    QString displayText = id.isEmpty() ? typeName : id;
 
     QTextOption textOption;
     textOption.setAlignment(Qt::AlignTop);
     textOption.setWrapMode(QTextOption::WrapAtWordBoundaryOrAnywhere);
 
-    if (m_boundingRect.height() > 60) {
-        painter->save();
-
+    if (boundingRect.height() > 60) {
         QFont font;
         font.setStyleHint(QFont::SansSerif);
         font.setBold(true);
@@ -289,25 +253,63 @@ void FormEditorItem::paintPlaceHolderForInvisbleItem(QPainter *painter) const
 
         QFontMetrics fm(font);
         painter->rotate(90);
-        if (fm.width(displayText) > (m_boundingRect.height() - 32) && displayText.length() > 4) {
+        if (fm.width(displayText) > (boundingRect.height() - 32) && displayText.length() > 4) {
 
-            displayText = fm.elidedText(displayText, Qt::ElideRight, m_boundingRect.height() - 32, Qt::TextShowMnemonic);
+            displayText = fm.elidedText(displayText, Qt::ElideRight, boundingRect.height() - 32, Qt::TextShowMnemonic);
         }
 
         QRectF rotatedBoundingBox;
-        rotatedBoundingBox.setWidth(m_boundingRect.height());
+        rotatedBoundingBox.setWidth(boundingRect.height());
         rotatedBoundingBox.setHeight(12);
-        rotatedBoundingBox.setY(-m_boundingRect.width() + 12);
+        rotatedBoundingBox.setY(-boundingRect.width() + 12);
         rotatedBoundingBox.setX(20);
 
         painter->setFont(font);
         painter->setPen(QColor(48, 48, 96, 255));
+        painter->setClipping(false);
         painter->drawText(rotatedBoundingBox, displayText, textOption);
-
-        painter->restore();
     }
 }
 
+void paintDecorationInPlaceHolderForInvisbleItem(QPainter *painter, const QRectF &boundingRect)
+{
+    qreal stripesWidth = 12;
+
+    QRegion innerRegion = QRegion(boundingRect.adjusted(stripesWidth, stripesWidth, -stripesWidth, -stripesWidth).toRect());
+    QRegion outerRegion  = QRegion(boundingRect.toRect()) - innerRegion;
+
+    painter->setClipRegion(outerRegion);
+    painter->setClipping(true);
+    painter->fillRect(boundingRect.adjusted(1, 1, -1, -1), Qt::BDiagPattern);
+}
+
+void FormEditorItem::paintPlaceHolderForInvisbleItem(QPainter *painter) const
+{
+    painter->save();
+    paintDecorationInPlaceHolderForInvisbleItem(painter, m_boundingRect);
+    paintTextInPlaceHolderForInvisbleItem(painter, qmlItemNode().id(), qmlItemNode().simplifiedTypeName(), m_boundingRect);
+    painter->restore();
+}
+
+void FormEditorItem::paintComponentContentVisualisation(QPainter *painter, const QRectF &clippinRectangle) const
+{
+    painter->setBrush(QColor(0, 0, 0, 150));
+    painter->fillRect(clippinRectangle, Qt::BDiagPattern);
+}
+
+QList<FormEditorItem *> FormEditorItem::offspringFormEditorItemsRecursive(const FormEditorItem *formEditorItem) const
+{
+    QList<FormEditorItem*> formEditorItemList;
+
+    foreach (QGraphicsItem *item, formEditorItem->childItems()) {
+        FormEditorItem *formEditorItem = fromQGraphicsItem(item);
+        if (formEditorItem) {
+            formEditorItemList.append(formEditorItem);
+        }
+    }
+
+    return formEditorItemList;
+}
 
 void FormEditorItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWidget *)
 {
@@ -323,11 +325,17 @@ void FormEditorItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *, 
         if (scene()->showBoundingRects() && m_boundingRect.width() > 15 && m_boundingRect.height() > 15)
             paintPlaceHolderForInvisbleItem(painter);
     } else {
-        qmlItemNode().paintInstance(painter);
+        if (m_blurContent)
+            painter->drawPixmap(m_paintedBoundingRect.topLeft(), qmlItemNode().instanceBlurredRenderPixmap());
+        else
+            painter->drawPixmap(m_paintedBoundingRect.topLeft(), qmlItemNode().instanceRenderPixmap());
     }
 
     if (!qmlItemNode().isRootModelNode())
         paintBoundingRect(painter);
+
+//    if (qmlItemNode().modelNode().metaInfo().isSubclassOf("QtQuick.Loader", -1, -1))
+//        paintComponentContentVisualisation(painter, boundingRect());
 
     painter->restore();
 }
@@ -408,8 +416,18 @@ QList<FormEditorItem*> FormEditorItem::childFormEditorItems() const
     return formEditorItemList;
 }
 
+QList<FormEditorItem *> FormEditorItem::offspringFormEditorItems() const
+{
+    return offspringFormEditorItemsRecursive(this);
+}
+
 bool FormEditorItem::isContainer() const
 {
+    NodeMetaInfo nodeMetaInfo = qmlItemNode().modelNode().metaInfo();
+
+    if (nodeMetaInfo.isValid())
+        return !nodeMetaInfo.defaultPropertyIsComponent();
+
     return true;
 }
 

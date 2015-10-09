@@ -3,7 +3,7 @@
 
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2013 Jolla Ltd.
+** Copyright (C) 2012 - 2014 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -23,14 +23,17 @@
 **
 ****************************************************************************/
 
-//#include <projectexplorer/devicesupport/idevice.h>
-#include <remotelinux/linuxdevice.h>
+#include "merdevice.h"
+
 #include <QCoreApplication>
+#include <QSharedPointer>
 
 namespace Mer {
 namespace Internal {
 
-class MerEmulatorDevice : public RemoteLinux::LinuxDevice
+class MerConnection;
+
+class MerEmulatorDevice : public MerDevice
 {
     Q_DECLARE_TR_FUNCTIONS(Mer::Internal::MerEmulatorDevice)
 
@@ -40,20 +43,22 @@ public:
 
     static Ptr create();
     ProjectExplorer::IDevice::Ptr clone() const;
-    QString displayType() const;
+    ~MerEmulatorDevice();
+
     ProjectExplorer::IDeviceWidget *createWidget();
     QList<Core::Id> actionIds() const;
     QString displayNameForActionId(Core::Id actionId) const;
-    void executeAction(Core::Id actionId, QWidget *parent) const;
+    void executeAction(Core::Id actionId, QWidget *parent);
+
+    ProjectExplorer::DeviceTester *createDeviceTester() const;
 
     void fromMap(const QVariantMap &map);
     QVariantMap toMap() const;
 
+    ProjectExplorer::Abi::Architecture architecture() const;
+
     void setSharedConfigPath(const QString &configPath);
     QString sharedConfigPath() const;
-
-    void setSharedSshPath(const QString &sshPath);
-    QString sharedSshPath() const;
 
     void setVirtualMachine(const QString& machineName);
     QString virtualMachine() const;
@@ -68,15 +73,37 @@ public:
 
     QSsh::SshConnectionParameters sshParametersForUser(const QSsh::SshConnectionParameters &sshParams, const QLatin1String &user) const;
 
+    QMap<QString, QSize> availableDeviceModels() const;
+    QString deviceModel() const;
+    void setDeviceModel(const QString &deviceModel);
+    Qt::Orientation orientation() const;
+    void setOrientation(Qt::Orientation orientation);
+    bool isViewScaled() const;
+    void setViewScaled(bool viewScaled);
+
+    MerConnection *connection() const;
+    // ATTENTION! Call this when sshParameters are changed! Unfortunately
+    // IDevice API does not allow to hook this.
+    void updateConnection();
+
 private:
     MerEmulatorDevice();
+
+    void updateAvailableDeviceModels();
+    void setVideoMode();
+
 private:
-    QString m_virtualMachine;
+    QSharedPointer<MerConnection> m_connection; // all clones share the connection
+#if __cplusplus >= 201103L
+    QMetaObject::Connection m_virtualMachineChangedConnection;
+#endif
     QString m_mac;
     QString m_subnet;
-    QString m_sharedSshPath;
     QString m_sharedConfigPath;
-
+    QString m_deviceModel;
+    QMap<QString, QSize> m_availableDeviceModels;
+    Qt::Orientation m_orientation;
+    bool m_viewScaled;
 };
 
 }

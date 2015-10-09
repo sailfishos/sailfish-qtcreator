@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -71,7 +71,7 @@ protected:
 class Transition : public Animation
 {
 public :
-    Transition() : Animation() {}
+    Transition() : Animation(), m_duration(100) {}
     virtual ~Transition() {}
     void setDuration(int duration) { m_duration = duration; }
     void setStartImage(const QImage &image) { m_primaryImage = image; }

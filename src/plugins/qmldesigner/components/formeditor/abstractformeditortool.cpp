@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -77,6 +77,19 @@ QList<FormEditorItem*> AbstractFormEditorTool::items() const
     return m_itemList;
 }
 
+QList<FormEditorItem *> AbstractFormEditorTool::toFormEditorItemList(const QList<QGraphicsItem *> &itemList)
+{
+    QList<FormEditorItem *> formEditorItemList;
+
+    foreach (QGraphicsItem *graphicsItem, itemList) {
+        FormEditorItem *formEditorItem = qgraphicsitem_cast<FormEditorItem*>(graphicsItem);
+        if (formEditorItem)
+            formEditorItemList.append(formEditorItem);
+    }
+
+    return formEditorItemList;
+}
+
 bool AbstractFormEditorTool::topItemIsMovable(const QList<QGraphicsItem*> & itemList)
 {
     QGraphicsItem *firstSelectableItem = topMovableGraphicsItem(itemList);
@@ -84,7 +97,7 @@ bool AbstractFormEditorTool::topItemIsMovable(const QList<QGraphicsItem*> & item
         return false;
 
     FormEditorItem *formEditorItem = FormEditorItem::fromQGraphicsItem(firstSelectableItem);
-    QList<QmlItemNode> selectedNodes = view()->selectedQmlItemNodes();
+    QList<ModelNode> selectedNodes = view()->selectedModelNodes();
 
     if (formEditorItem != 0
        && selectedNodes.contains(formEditorItem->qmlItemNode()))
@@ -96,15 +109,16 @@ bool AbstractFormEditorTool::topItemIsMovable(const QList<QGraphicsItem*> & item
 
 bool AbstractFormEditorTool::topSelectedItemIsMovable(const QList<QGraphicsItem*> &itemList)
 {
-    QList<QmlItemNode> selectedNodes = view()->selectedQmlItemNodes();
+    QList<ModelNode> selectedNodes = view()->selectedModelNodes();
 
     foreach (QGraphicsItem *item, itemList) {
         FormEditorItem *formEditorItem = FormEditorItem::fromQGraphicsItem(item);
         if (formEditorItem
             && selectedNodes.contains(formEditorItem->qmlItemNode())
             && formEditorItem->qmlItemNode().instanceIsMovable()
+            && formEditorItem->qmlItemNode().modelIsMovable()
             && !formEditorItem->qmlItemNode().instanceIsInLayoutable()
-            && (formEditorItem->qmlItemNode().hasShowContent()))
+            && (formEditorItem->qmlItemNode().instanceHasShowContent()))
             return true;
     }
 
@@ -113,6 +127,7 @@ bool AbstractFormEditorTool::topSelectedItemIsMovable(const QList<QGraphicsItem*
         if (formEditorItem
             && formEditorItem->qmlItemNode().isValid()
             && formEditorItem->qmlItemNode().instanceIsMovable()
+            && formEditorItem->qmlItemNode().modelIsMovable()
             && !formEditorItem->qmlItemNode().instanceIsInLayoutable()
             && selectedNodes.contains(formEditorItem->qmlItemNode()))
             return true;
@@ -137,12 +152,16 @@ QGraphicsItem *AbstractFormEditorTool::topMovableGraphicsItem(const QList<QGraph
 
     return 0;
 }
-FormEditorItem *AbstractFormEditorTool::topMovableFormEditorItem(const QList<QGraphicsItem*> &itemList)
+FormEditorItem *AbstractFormEditorTool::topMovableFormEditorItem(const QList<QGraphicsItem*> &itemList, bool selectOnlyContentItems)
 {
     foreach (QGraphicsItem *item, itemList) {
         FormEditorItem *formEditorItem = FormEditorItem::fromQGraphicsItem(item);
         if (formEditorItem
-           && (formEditorItem->qmlItemNode().hasShowContent()))
+                && formEditorItem->qmlItemNode().isValid()
+                && !formEditorItem->qmlItemNode().instanceIsInLayoutable()
+                && formEditorItem->qmlItemNode().instanceIsMovable()
+                && formEditorItem->qmlItemNode().modelIsMovable()
+                && (formEditorItem->qmlItemNode().instanceHasShowContent() || !selectOnlyContentItems))
             return formEditorItem;
     }
 
@@ -171,6 +190,18 @@ FormEditorItem* AbstractFormEditorTool::topFormEditorItemWithRootItem(const QLis
     return 0;
 }
 
+QList<FormEditorItem *> AbstractFormEditorTool::filterSelectedModelNodes(const QList<FormEditorItem *> &itemList) const
+{
+    QList<FormEditorItem *> filteredItemList;
+
+    foreach (FormEditorItem *item, itemList) {
+        if (view()->isSelectedModelNode(item->qmlItemNode()))
+            filteredItemList.append(item);
+    }
+
+    return filteredItemList;
+}
+
 void AbstractFormEditorTool::dropEvent(QGraphicsSceneDragDropEvent * /* event */)
 {
 }
@@ -185,14 +216,6 @@ void AbstractFormEditorTool::dragEnterEvent(QGraphicsSceneDragDropEvent * event)
     } else {
         event->ignore();
     }
-}
-
-static inline bool checkIfNodeIsAView(const ModelNode &node)
-{
-    return node.metaInfo().isValid() &&
-            (node.metaInfo().isSubclassOf("QtQuick.ListView", -1, -1) ||
-             node.metaInfo().isSubclassOf("QtQuick.GridView", -1, -1) ||
-             node.metaInfo().isSubclassOf("QtQuick.PathView", -1, -1));
 }
 
 void AbstractFormEditorTool::mousePressEvent(const QList<QGraphicsItem*> & /*itemList*/, QGraphicsSceneMouseEvent *event)
@@ -213,8 +236,10 @@ void AbstractFormEditorTool::mouseDoubleClickEvent(const QList<QGraphicsItem*> &
 {
     if (event->button() == Qt::LeftButton) {
         FormEditorItem *formEditorItem = topFormEditorItem(itemList);
-        if (formEditorItem)
-            view()->changeToCustomTool(formEditorItem->qmlItemNode().modelNode());
+        if (formEditorItem) {
+            view()->setSelectedModelNode(formEditorItem->qmlItemNode().modelNode());
+            view()->changeToCustomTool();
+        }
     }
 }
 

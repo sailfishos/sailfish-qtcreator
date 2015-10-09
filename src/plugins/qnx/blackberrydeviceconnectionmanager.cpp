@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -33,11 +33,18 @@
 
 #include "blackberrydeviceconfiguration.h"
 #include "blackberrydeviceconnection.h"
+#include "blackberryconfigurationmanager.h"
 #include "qnxconstants.h"
 
+#include <coreplugin/icore.h>
 #include <projectexplorer/devicesupport/devicemanager.h>
 #include <ssh/sshconnection.h>
+#include <ssh/sshkeygenerator.h>
+#include <utils/fileutils.h>
 #include <utils/qtcassert.h>
+
+#include <QFileInfo>
+#include <QDir>
 
 using namespace Qnx;
 using namespace Qnx::Internal;
@@ -59,7 +66,7 @@ void BlackBerryDeviceConnectionManager::initialize()
     ProjectExplorer::DeviceManager *deviceManager = ProjectExplorer::DeviceManager::instance();
     connect(deviceManager, SIGNAL(deviceAdded(Core::Id)), this, SLOT(connectDevice(Core::Id)));
     connect(deviceManager, SIGNAL(deviceRemoved(Core::Id)), this, SLOT(disconnectDevice(Core::Id)));
-    connect(deviceManager, SIGNAL(deviceListChanged()), this, SLOT(handleDeviceListChanged()));
+    connect(deviceManager, SIGNAL(deviceListReplaced()), this, SLOT(handleDeviceListChanged()));
 }
 
 void BlackBerryDeviceConnectionManager::killAllConnections()
@@ -103,6 +110,16 @@ void BlackBerryDeviceConnectionManager::connectDevice(Core::Id deviceId)
             ProjectExplorer::DeviceManager::instance()->find(deviceId);
     if (device.isNull())
         return;
+
+    // BlackBerry Device connection needs the Qnx environments to be set
+    // in order to find the Connect.jar package.
+    // Let's delay the device connections at startup till the Qnx settings are loaded.
+    if (BlackBerryConfigurationManager::instance()->apiLevels().isEmpty()) {
+        m_pendingDeviceConnections << device;
+        connect(BlackBerryConfigurationManager::instance(), SIGNAL(settingsLoaded()),
+                this, SLOT(processPendingDeviceConnections()), Qt::UniqueConnection);
+        return;
+    }
 
     connectDevice(device);
 }
@@ -164,6 +181,59 @@ void BlackBerryDeviceConnectionManager::disconnectDevice(const ProjectExplorer::
     disconnectDevice(device->id());
 }
 
+/*!
+ * @brief Returns default private key path in local settings.
+ * @return the default private key path
+ */
+const QString BlackBerryDeviceConnectionManager::privateKeyPath() const
+{
+    return Core::ICore::userResourcePath() + QLatin1String("/qnx/id_rsa");
+}
+
+/*!
+ * @brief Checks validity of default SSH keys used for connecting to a device.
+ * @return true, if the default SSH keys are valid
+ */
+bool BlackBerryDeviceConnectionManager::hasValidSSHKeys() const
+{
+    const QString privateKey = privateKeyPath();
+    QFileInfo privateKeyFileInfo(privateKey);
+    QFileInfo publicKeyFileInfo(privateKey + QLatin1String(".pub"));
+
+    return privateKeyFileInfo.exists() && privateKeyFileInfo.isReadable()
+            && publicKeyFileInfo.exists() && publicKeyFileInfo.isReadable();
+}
+
+/*!
+ * @brief Stores a new private and public SSH key in local settings.
+ * @param privateKeyContent the private key content
+ * @param publicKeyContent the public key content
+ */
+bool BlackBerryDeviceConnectionManager::setSSHKeys(const QByteArray privateKeyContent,
+        const QByteArray publicKeyContent, QString *error)
+{
+    const QString privateKey = privateKeyPath();
+    const QString publicKey = privateKey + QLatin1String(".pub");
+
+    QFileInfo fileInfo(privateKey);
+    QDir dir = fileInfo.dir();
+    if (!dir.exists())
+        dir.mkpath(QLatin1String("."));
+
+    Utils::FileSaver privSaver(privateKey);
+    privSaver.write(privateKeyContent);
+    if (!privSaver.finalize(error))
+        return false;
+    QFile::setPermissions(privateKey, QFile::ReadOwner | QFile::WriteOwner);
+
+    Utils::FileSaver pubSaver(publicKey);
+    pubSaver.write(publicKeyContent);
+    if (!pubSaver.finalize(error))
+        return false;
+
+    return true;
+}
+
 void BlackBerryDeviceConnectionManager::disconnectDevice(Core::Id deviceId)
 {
     BlackBerryDeviceConnection *connection = m_connections.key(deviceId);
@@ -198,6 +268,8 @@ void BlackBerryDeviceConnectionManager::handleDeviceConnected()
                                                     ProjectExplorer::IDevice::DeviceReadyToUse);
         }
     }
+
+    emit deviceConnected();
 }
 
 void BlackBerryDeviceConnectionManager::handleDeviceDisconnected()
@@ -206,9 +278,11 @@ void BlackBerryDeviceConnectionManager::handleDeviceDisconnected()
     QTC_ASSERT(connection, return);
 
     QList<Core::Id> disconnectedDevices = m_connections.values(connection);
-    foreach (Core::Id id, disconnectedDevices)
+    foreach (Core::Id id, disconnectedDevices) {
         ProjectExplorer::DeviceManager::instance()->setDeviceState(id,
                                                     ProjectExplorer::IDevice::DeviceDisconnected);
+        emit deviceDisconnected(id);
+    }
 }
 
 void BlackBerryDeviceConnectionManager::handleDeviceAboutToConnect()
@@ -229,6 +303,20 @@ void BlackBerryDeviceConnectionManager::handleProcessOutput(const QString &outpu
     QList<Core::Id> deviceIds = m_connections.values(connection);
     foreach (Core::Id deviceId, deviceIds)
         emit connectionOutput(deviceId, output);
+}
+
+void BlackBerryDeviceConnectionManager::processPendingDeviceConnections()
+{
+    if (m_pendingDeviceConnections.isEmpty()
+            || BlackBerryConfigurationManager::instance()->apiLevels().isEmpty())
+        return;
+
+    foreach (ProjectExplorer::IDevice::ConstPtr device, m_pendingDeviceConnections)
+        connectDevice(device);
+
+    m_pendingDeviceConnections.clear();
+    disconnect(BlackBerryConfigurationManager::instance(), SIGNAL(settingsLoaded()),
+            this, SLOT(processPendingDeviceConnections()));
 }
 
 BlackBerryDeviceConnection *BlackBerryDeviceConnectionManager::connectionForHost(const QString &host) const

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -43,6 +43,7 @@ namespace ProjectExplorer {
 
 namespace Internal {
 class ClangToolChainFactory;
+class GccToolChainConfigWidget;
 class GccToolChainFactory;
 class MingwToolChainFactory;
 class LinuxIccToolChainFactory;
@@ -55,7 +56,7 @@ class LinuxIccToolChainFactory;
 class PROJECTEXPLORER_EXPORT GccToolChain : public ToolChain
 {
 public:
-    GccToolChain(const QString &id, bool autodetect);
+    GccToolChain(const QString &id, Detection d);
     QString type() const;
     QString typeDisplayName() const;
     Abi targetAbi() const;
@@ -91,10 +92,17 @@ public:
 
     ToolChain *clone() const;
 
+    static void addCommandPathToEnvironment(const Utils::FileName &command, Utils::Environment &env);
+
 protected:
     typedef QList<QPair<QStringList, QByteArray> > GccCache;
 
     GccToolChain(const GccToolChain &);
+
+    typedef QPair<QStringList, QByteArray> CacheItem;
+
+    void setMacroCache(const QStringList &allCxxflags, const QByteArray &macroCache) const;
+    QByteArray macroCache(const QStringList &allCxxflags) const;
 
     virtual QString defaultDisplayName() const;
     virtual CompilerFlags defaultCompilerFlags() const;
@@ -102,7 +110,10 @@ protected:
     virtual QList<Abi> detectSupportedAbis() const;
     virtual QString detectVersion() const;
 
-    static QList<HeaderPath> gccHeaderPaths(const Utils::FileName &gcc, const QStringList &args, const QStringList &env, const Utils::FileName &sysrootPath);
+    // Reinterpret options for compiler drivers inheriting from GccToolChain (e.g qcc) to apply -Wp option
+    // that passes the initial options directly down to the gcc compiler
+    virtual QStringList reinterpretOptions(const QStringList &argument) const { return argument; }
+    static QList<HeaderPath> gccHeaderPaths(const Utils::FileName &gcc, const QStringList &args, const QStringList &env);
 
     static const int PREDEFINED_MACROS_CACHE_SIZE;
     mutable GccCache m_predefinedMacros;
@@ -122,7 +133,7 @@ protected:
     };
 
 private:
-    GccToolChain(bool autodetect);
+    explicit GccToolChain(Detection d);
 
     void updateSupportedAbis() const;
 
@@ -135,6 +146,7 @@ private:
     mutable QList<HeaderPath> m_headerPaths;
     mutable QString m_version;
 
+    friend class Internal::GccToolChainConfigWidget;
     friend class Internal::GccToolChainFactory;
     friend class ToolChainFactory;
 };
@@ -146,6 +158,7 @@ private:
 class PROJECTEXPLORER_EXPORT ClangToolChain : public GccToolChain
 {
 public:
+    explicit ClangToolChain(Detection d);
     QString type() const;
     QString typeDisplayName() const;
     QString makeCommand(const Utils::Environment &environment) const;
@@ -164,8 +177,6 @@ protected:
     virtual CompilerFlags defaultCompilerFlags() const;
 
 private:
-    ClangToolChain(bool autodetect);
-
     friend class Internal::ClangToolChainFactory;
     friend class ToolChainFactory;
 };
@@ -186,7 +197,7 @@ public:
     QList<Utils::FileName> suggestedMkspecList() const;
 
 private:
-    MingwToolChain(bool autodetect);
+    explicit MingwToolChain(Detection d);
 
     friend class Internal::MingwToolChainFactory;
     friend class ToolChainFactory;
@@ -210,7 +221,7 @@ public:
     QList<Utils::FileName> suggestedMkspecList() const;
 
 private:
-    LinuxIccToolChain(bool autodetect);
+    explicit LinuxIccToolChain(Detection d);
 
     friend class Internal::LinuxIccToolChainFactory;
     friend class ToolChainFactory;

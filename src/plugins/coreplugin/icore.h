@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -43,25 +43,12 @@ class QWidget;
 template <class T> class QList;
 QT_END_NAMESPACE
 
-namespace Utils {
-class AppMainWindow;
-}
-
 namespace Core {
 class IWizard;
-class ActionManager;
 class Context;
-class EditorManager;
-class DocumentManager;
-class HelpManager;
 class IContext;
-class MessageManager;
-class MimeDatabase;
-class ModeManager;
 class ProgressManager;
-class ScriptManager;
 class SettingsDatabase;
-class VariableManager;
 class VcsManager;
 
 namespace Internal { class MainWindow; }
@@ -86,24 +73,13 @@ public:
                                   const QVariantMap &extraVariables = QVariantMap());
 
     static bool showOptionsDialog(Id group, Id page, QWidget *parent = 0);
+    static QString msgShowOptionsDialog();
 
     static bool showWarningWithOptions(const QString &title, const QString &text,
                                        const QString &details = QString(),
                                        Id settingsCategory = Id(),
                                        Id settingsId = Id(),
                                        QWidget *parent = 0);
-
-    static QT_DEPRECATED ActionManager *actionManager(); // Use Actionmanager::... directly.
-    static QT_DEPRECATED DocumentManager *documentManager(); // Use DocumentManager::... directly.
-    static MessageManager *messageManager();
-    static EditorManager *editorManager();
-    static ProgressManager *progressManager();
-    static ScriptManager *scriptManager();
-    static QT_DEPRECATED VariableManager *variableManager(); // Use VariableManager::... directly.
-    static VcsManager *vcsManager();
-    static QT_DEPRECATED ModeManager *modeManager(); // Use ModeManager::... directly.
-    static MimeDatabase *mimeDatabase();
-    static HelpManager *helpManager();
 
     static QSettings *settings(QSettings::Scope scope = QSettings::UserScope);
     static SettingsDatabase *settingsDatabase();
@@ -113,12 +89,13 @@ public:
     static QString resourcePath();
     static QString userResourcePath();
     static QString documentationPath();
+    static QString libexecPath();
 
     static QString versionString();
     static QString buildCompatibilityString();
 
     static QWidget *mainWindow();
-    static Utils::AppMainWindow *appMainWindow();
+    static QWidget *dialogParent();
     static QStatusBar *statusBar();
     /* Raises and activates the window for the widget. This contains workarounds for X11. */
     static void raiseWindow(QWidget *widget);
@@ -141,6 +118,7 @@ public:
 
     static void emitNewItemsDialogRequested();
 
+public slots:
     static void saveSettings();
 
 signals:

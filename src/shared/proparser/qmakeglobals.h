@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -54,9 +54,10 @@ class QMakeEvaluator;
 class QMakeBaseKey
 {
 public:
-    QMakeBaseKey(const QString &_root, bool _hostBuild);
+    QMakeBaseKey(const QString &_root, const QString &_stash, bool _hostBuild);
 
     QString root;
+    QString stash;
     bool hostBuild;
 };
 
@@ -105,6 +106,7 @@ public:
     QProcessEnvironment environment;
 #endif
     QString qmake_abslocation;
+    QStringList qmake_args;
 
     QString qmakespec, xqmakespec;
     QString user_template, user_template_prefix;
@@ -135,6 +137,7 @@ public:
 
     QString expandEnvVars(const QString &str) const;
     QString shadowedPath(const QString &fileName) const;
+    QStringList splitPathList(const QString &value) const;
 
 private:
     QString getEnv(const QString &) const;

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -43,7 +43,7 @@ class CORE_EXPORT IEditorFactory : public Core::IDocumentFactory
 public:
     IEditorFactory(QObject *parent = 0) : IDocumentFactory(parent) {}
 
-    virtual IEditor *createEditor(QWidget *parent) = 0;
+    virtual IEditor *createEditor() = 0;
     virtual IDocument *open(const QString &);
 };
 

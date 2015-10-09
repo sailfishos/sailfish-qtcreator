@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -50,9 +50,8 @@ ProjectFile::ProjectFile(const QString &file, Kind kind)
 
 ProjectFile::Kind ProjectFile::classify(const QString &file)
 {
-    const Core::MimeDatabase *mimeDatabase = Core::ICore::mimeDatabase();
     const QFileInfo fi(file);
-    const Core::MimeType mimeType = mimeDatabase->findByFile(fi);
+    const Core::MimeType mimeType = Core::MimeDatabase::findByFile(fi);
     if (!mimeType)
         return Unclassified;
     const QString mt = mimeType.type();
@@ -64,6 +63,8 @@ ProjectFile::Kind ProjectFile::classify(const QString &file)
         return CXXSource;
     if (mt == QLatin1String(CppTools::Constants::CPP_HEADER_MIMETYPE))
         return CXXHeader;
+    if (mt == QLatin1String(CppTools::Constants::OBJECTIVE_C_SOURCE_MIMETYPE))
+        return ObjCSource;
     if (mt == QLatin1String(CppTools::Constants::OBJECTIVE_CPP_SOURCE_MIMETYPE))
         return ObjCXXSource;
     return Unclassified;
@@ -107,6 +108,7 @@ ProjectFileAdder::ProjectFileAdder(QList<ProjectFile> &files)
     addMapping(CppTools::Constants::C_HEADER_MIMETYPE, ProjectFile::CHeader);
     addMapping(CppTools::Constants::CPP_SOURCE_MIMETYPE, ProjectFile::CXXSource);
     addMapping(CppTools::Constants::CPP_HEADER_MIMETYPE, ProjectFile::CXXHeader);
+    addMapping(CppTools::Constants::OBJECTIVE_C_SOURCE_MIMETYPE, ProjectFile::ObjCSource);
     addMapping(CppTools::Constants::OBJECTIVE_CPP_SOURCE_MIMETYPE, ProjectFile::ObjCXXSource);
 }
 
@@ -127,8 +129,7 @@ bool ProjectFileAdder::maybeAdd(const QString &path)
 
 void ProjectFileAdder::addMapping(const char *mimeName, ProjectFile::Kind kind)
 {
-    const Core::MimeDatabase *mimeDatabase = Core::ICore::mimeDatabase();
-    Core::MimeType mimeType = mimeDatabase->findByType(QLatin1String(mimeName));
+    Core::MimeType mimeType = Core::MimeDatabase::findByType(QLatin1String(mimeName));
     if (!mimeType.isNull())
         m_mapping.append(Pair(mimeType, kind));
 }

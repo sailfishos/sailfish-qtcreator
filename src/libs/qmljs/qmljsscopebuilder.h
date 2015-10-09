@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -44,9 +44,7 @@ class ObjectValue;
 class Value;
 class ScopeChain;
 
-namespace AST {
-    class Node;
-}
+namespace AST { class Node; }
 
 class QMLJS_EXPORT ScopeBuilder
 {

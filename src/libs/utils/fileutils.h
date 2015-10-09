@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -36,6 +36,8 @@
 #include <QXmlStreamWriter> // Mac.
 #include <QMetaType>
 
+namespace Utils {class FileName; }
+
 QT_BEGIN_NAMESPACE
 class QFile;
 class QTemporaryFile;
@@ -45,6 +47,9 @@ class QDataStream;
 class QDateTime;
 class QFileInfo;
 class QDir;
+
+QTCREATOR_UTILS_EXPORT QDebug operator<<(QDebug dbg, const Utils::FileName &c);
+
 QT_END_NAMESPACE
 
 namespace Utils {
@@ -56,6 +61,7 @@ public:
     explicit FileName(const QFileInfo &info);
     QFileInfo toFileInfo() const;
     static FileName fromString(const QString &filename);
+    static FileName fromLatin1(const QByteArray &filename);
     static FileName fromUserInput(const QString &filename);
     QString toString() const;
     QString toUserOutput() const;
@@ -75,8 +81,8 @@ public:
 
     Utils::FileName relativeChildPath(const FileName &parent) const;
     Utils::FileName &appendPath(const QString &s);
-    Utils::FileName &append(const QString &str);
-    Utils::FileName &append(QChar str);
+    Utils::FileName &appendString(const QString &str);
+    Utils::FileName &appendString(QChar str);
 
     using QString::size;
     using QString::count;
@@ -96,7 +102,11 @@ public:
     static bool isFileNewerThan(const FileName &filePath, const QDateTime &timeStamp);
     static FileName resolveSymlinks(const FileName &path);
     static QString shortNativePath(const FileName &path);
+    static QString fileSystemFriendlyName(const QString &name);
+    static int indexOfQmakeUnfriendly(const QString &name, int startpos = 0);
+    static QString qmakeFriendlyName(const QString &name);
     static bool makeWritable(const FileName &path);
+    static QString normalizePathName(const QString &name);
 };
 
 class QTCREATOR_UTILS_EXPORT FileReader

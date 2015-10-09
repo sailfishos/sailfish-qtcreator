@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2013 Jolla Ltd.
+** Copyright (C) 2012 - 2014 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -20,15 +20,15 @@
 **
 ****************************************************************************/
 
-#ifndef MERDEVICE_H
-#define MERDEVICE_H
+#ifndef MERHARDWAREDEVICE_H
+#define MERHARDWAREDEVICE_H
 
-#include <remotelinux/linuxdevice.h>
+#include "merdevice.h"
 
 namespace Mer {
 namespace Internal {
 
-class MerHardwareDevice : public RemoteLinux::LinuxDevice
+class MerHardwareDevice : public MerDevice
 {
     Q_DECLARE_TR_FUNCTIONS(Mer::Internal::MerDevice)
 public:
@@ -38,31 +38,30 @@ public:
     static Ptr create();
     static Ptr create(const QString &name, Origin origin = ManuallyAdded, Core::Id id = Core::Id());
 
-    QString displayType() const;
     ProjectExplorer::IDevice::Ptr clone() const;
-
-    void setSharedSshPath(const QString &sshPath);
-    QString sharedSshPath() const;
 
     void fromMap(const QVariantMap &map);
     QVariantMap toMap() const;
 
+    ProjectExplorer::Abi::Architecture architecture() const;
+    void setArchitecture(const ProjectExplorer::Abi::Architecture &architecture);
+
     QList<Core::Id> actionIds() const;
     QString displayNameForActionId(Core::Id actionId) const;
-    void executeAction(Core::Id actionId, QWidget *parent) const;
+    void executeAction(Core::Id actionId, QWidget *parent);
     ProjectExplorer::IDeviceWidget* createWidget();
 
 protected:
     MerHardwareDevice();
-    MerHardwareDevice(const QString &name, Core::Id type, MachineType machineType, Origin origin,
-              Core::Id id);
+    MerHardwareDevice(const QString &name, Origin origin, Core::Id id);
 private:
     MerHardwareDevice &operator=(const MerHardwareDevice &);
+
 private:
-    QString m_sharedSshPath;
+    ProjectExplorer::Abi::Architecture m_architecture;
 };
 
 }
 }
 
-#endif // MERDEVICE_H
+#endif // MERHARDWAREDEVICE_H

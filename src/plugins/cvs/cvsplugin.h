@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -42,13 +42,13 @@ class QTextCodec;
 QT_END_NAMESPACE
 
 namespace Core {
+class CommandLocator;
 class IEditorFactory;
 class IVersionControl;
 }
 
 namespace Utils { class ParameterAction; }
 namespace VcsBase { class VcsBaseSubmitEditor; }
-namespace Locator { class CommandLocator; }
 
 namespace Cvs {
 namespace Internal {
@@ -56,6 +56,7 @@ namespace Internal {
 struct CvsDiffParameters;
 class CvsSubmitEditor;
 class CvsControl;
+class CvsClient;
 
 struct CvsResponse
 {
@@ -79,8 +80,6 @@ public:
 
     bool initialize(const QStringList &arguments, QString *errorMessage);
 
-    void cvsDiff(const QString &workingDir, const QStringList &files);
-
     CvsSubmitEditor *openCVSSubmitEditor(const QString &fileName);
 
     CvsSettings settings() const;
@@ -90,13 +89,15 @@ public:
     bool vcsAdd(const QString &workingDir, const QString &fileName);
     bool vcsDelete(const QString &workingDir, const QString &fileName);
     bool managesDirectory(const QString &directory, QString *topLevel = 0) const;
+    bool managesFile(const QString &workingDirectory, const QString &fileName) const;
     // cvs 'edit' is used to implement 'open' (cvsnt).
     bool edit(const QString &topLevel, const QStringList &files);
 
     static CvsPlugin *instance();
 
 public slots:
-    void vcsAnnotate(const QString &file, const QString &revision /* = QString() */, int lineNumber);
+    void vcsAnnotate(const QString &workingDirectory, const QString &file,
+                     const QString &revision, int lineNumber);
 
 private slots:
     void addCurrentFile();
@@ -122,7 +123,6 @@ private slots:
     void editCurrentFile();
     void uneditCurrentFile();
     void uneditCurrentRepository();
-    void cvsDiff(const Cvs::Internal::CvsDiffParameters &p);
 #ifdef WITH_TESTS
     void testDiffFileResolving_data();
     void testDiffFileResolving();
@@ -142,7 +142,8 @@ private:
     CvsResponse runCvs(const QString &workingDirectory,
                        const QStringList &arguments,
                        int timeOut,
-                       unsigned flags, QTextCodec *outputCodec = 0);
+                       unsigned flags,
+                       QTextCodec *outputCodec = 0) const;
 
     void annotate(const QString &workingDir, const QString &file,
                   const QString &revision = QString(), int lineNumber= -1);
@@ -150,25 +151,27 @@ private:
     bool describe(const QString &toplevel, const QString &source, const QString &changeNr, QString *errorMessage);
     bool describe(const QString &repository, QList<CvsLogEntry> entries, QString *errorMessage);
     void filelog(const QString &workingDir,
-                 const QStringList &files = QStringList(),
+                 const QString &file = QString(),
                  bool enableAnnotationContextMenu = false);
     bool unedit(const QString &topLevel, const QStringList &files);
-    bool status(const QString &topLevel, const QStringList &files, const QString &title);
-    bool update(const QString &topLevel, const QStringList &files);
+    bool status(const QString &topLevel, const QString &file, const QString &title);
+    bool update(const QString &topLevel, const QString &file);
     bool checkCVSDirectory(const QDir &directory) const;
     // Quick check if files are modified
     bool diffCheckModified(const QString &topLevel, const QStringList &files, bool *modified);
     QString findTopLevelForDirectoryI(const QString &directory) const;
-    void startCommit(const QString &workingDir, const QStringList &files = QStringList());
+    void startCommit(const QString &workingDir, const QString &file = QString());
     bool commit(const QString &messageFile, const QStringList &subVersionFileList);
     void cleanCommitMessageFile();
     inline CvsControl *cvsVersionControl() const;
 
     CvsSettings m_settings;
+    CvsClient *m_client;
+
     QString m_commitMessageFileName;
     QString m_commitRepository;
 
-    Locator::CommandLocator *m_commandLocator;
+    Core::CommandLocator *m_commandLocator;
     Utils::ParameterAction *m_addAction;
     Utils::ParameterAction *m_deleteAction;
     Utils::ParameterAction *m_revertAction;

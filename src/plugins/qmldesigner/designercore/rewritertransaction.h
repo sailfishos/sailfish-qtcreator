@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -42,7 +42,7 @@ class QMLDESIGNERCORE_EXPORT RewriterTransaction
 {
 public:
     RewriterTransaction();
-    RewriterTransaction(AbstractView *view);
+    RewriterTransaction(AbstractView *view, const QByteArray &identifier);
     ~RewriterTransaction();
     void commit();
     void rollback();
@@ -55,7 +55,11 @@ protected:
     AbstractView *view();
 private:
    QWeakPointer<AbstractView> m_view;
+   QByteArray m_identifier;
    mutable bool m_valid;
+   int m_identifierNumber;
+   static QList<QByteArray> m_identifierList;
+   static bool m_activeIdentifier;
 };
 
 } //QmlDesigner

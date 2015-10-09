@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -45,7 +45,7 @@ class QLabel;
 class QListView;
 QT_END_NAMESPACE
 
-namespace Utils { class FilterLineEdit; }
+namespace Utils { class FancyLineEdit; }
 
 namespace Core {
 namespace Internal {
@@ -79,7 +79,6 @@ private slots:
     void currentChanged(const QModelIndex &current);
     void currentTabChanged(int);
     void filter(const QString &text);
-    void ensureAllCategoryWidgets();
 
 private:
     SettingsDialog(QWidget *parent);
@@ -100,7 +99,7 @@ private:
     Id m_currentCategory;
     Id m_currentPage;
     QStackedLayout *m_stackedLayout;
-    Utils::FilterLineEdit *m_filterLineEdit;
+    Utils::FancyLineEdit *m_filterLineEdit;
     QListView *m_categoryList;
     QLabel *m_headerLabel;
     bool m_running;

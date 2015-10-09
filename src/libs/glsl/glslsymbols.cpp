@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -109,9 +109,9 @@ QList<Symbol *> Namespace::members() const
 void Namespace::add(Symbol *symbol)
 {
     Symbol *&sym = _members[symbol->name()];
-    if (! sym)
+    if (! sym) {
         sym = symbol;
-    else if (Function *fun = symbol->asFunction()) {
+    } else if (Function *fun = symbol->asFunction()) {
         if (OverloadSet *o = sym->asOverloadSet()) {
             o->addFunction(fun);
         } else if (Function *firstFunction = sym->asFunction()) {
@@ -121,8 +121,7 @@ void Namespace::add(Symbol *symbol)
             o->addFunction(firstFunction);
             o->addFunction(fun);
             sym = o;
-        }
-        else {
+        } else {
             // ### warning? return false?
         }
     } else {

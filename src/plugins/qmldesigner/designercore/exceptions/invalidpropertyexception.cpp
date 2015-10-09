@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -48,6 +48,7 @@ InvalidPropertyException::InvalidPropertyException(int line,
                                                    const QString &argument)
  : Exception(line, function, file), m_argument(argument)
 {
+    createWarning();
 }
 
 /*!

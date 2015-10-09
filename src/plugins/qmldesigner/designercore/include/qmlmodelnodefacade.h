@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -35,19 +35,24 @@
 
 namespace QmlDesigner {
 
-class QmlModelView;
+class AbstractView;
+class NodeInstanceView;
 
 class QMLDESIGNERCORE_EXPORT QmlModelNodeFacade
 {
 public:
-    operator ModelNode() const { return m_modelNode; }
-    ModelNode modelNode() const { return  m_modelNode; }
+    operator ModelNode() const;
+    ModelNode modelNode();
+    const ModelNode modelNode() const;
+    static bool isValidQmlModelNodeFacade(const ModelNode &modelNode);
     virtual bool isValid() const;
     virtual ~QmlModelNodeFacade();
     QmlModelNodeFacade();
 
+    AbstractView *view() const;
+    static NodeInstanceView *nodeInstanceView(const ModelNode &modelNode);
+    NodeInstanceView *nodeInstanceView() const;
     bool isRootNode() const;
-    QmlModelView* qmlModelView() const;
 
 protected:
     QmlModelNodeFacade(const ModelNode &modelNode);

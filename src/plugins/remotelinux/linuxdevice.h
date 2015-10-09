@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -41,14 +41,6 @@ namespace Utils { class PortList; }
 
 namespace RemoteLinux {
 namespace Internal { class LinuxDevicePrivate; }
-class AbstractLinuxDeviceTester;
-
-class REMOTELINUX_EXPORT LinuxDeviceProcessSupport : public ProjectExplorer::DeviceProcessSupport
-{
-public:
-    QString killProcessByPidCommandLine(int pid) const;
-    QString killProcessByNameCommandLine(const QString &filePath) const;
-};
 
 class REMOTELINUX_EXPORT LinuxDevice : public ProjectExplorer::IDevice
 {
@@ -66,15 +58,18 @@ public:
     ProjectExplorer::IDeviceWidget *createWidget();
     QList<Core::Id> actionIds() const;
     QString displayNameForActionId(Core::Id actionId) const;
-    void executeAction(Core::Id actionId, QWidget *parent) const;
+    void executeAction(Core::Id actionId, QWidget *parent);
     ProjectExplorer::IDevice::Ptr clone() const;
 
-    ProjectExplorer::DeviceProcessSupport::Ptr processSupport() const;
+    bool canCreateProcess() const { return true; }
+    ProjectExplorer::DeviceProcess *createProcess(QObject *parent) const;
     bool canAutoDetectPorts() const;
     ProjectExplorer::PortsGatheringMethod::Ptr portsGatheringMethod() const;
     bool canCreateProcessModel() const { return true; }
     ProjectExplorer::DeviceProcessList *createProcessListModel(QObject *parent) const;
-    virtual AbstractLinuxDeviceTester *createDeviceTester() const;
+    bool hasDeviceTester() const { return true; }
+    ProjectExplorer::DeviceTester *createDeviceTester() const;
+    ProjectExplorer::DeviceProcessSignalOperation::Ptr signalOperation() const;
 
 protected:
     LinuxDevice() {}

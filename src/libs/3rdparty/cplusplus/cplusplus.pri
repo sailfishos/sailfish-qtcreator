@@ -1,7 +1,3 @@
-
-DEPENDPATH += $$PWD
-INCLUDEPATH += $$PWD
-
 HEADERS += \
     $$PWD/cppassert.h \
     $$PWD/CPlusPlus.h \
@@ -10,7 +6,7 @@ HEADERS += \
     $$PWD/ASTMatcher.h \
     $$PWD/ASTPatternBuilder.h \
     $$PWD/ASTfwd.h \
-    $$PWD/TypeMatcher.h \
+    $$PWD/Matcher.h \
     $$PWD/CPlusPlusForwardDeclarations.h \
     $$PWD/Control.h \
     $$PWD/CoreTypes.h \
@@ -35,7 +31,8 @@ HEADERS += \
     $$PWD/TypeVisitor.h \
     $$PWD/ObjectiveCTypeQualifiers.h \
     $$PWD/QtContextKeywords.h \
-    $$PWD/Templates.h
+    $$PWD/Templates.h \
+    $$PWD/SafeMatcher.h
 
 SOURCES += \
     $$PWD/AST.cpp \
@@ -45,7 +42,7 @@ SOURCES += \
     $$PWD/ASTClone.cpp \
     $$PWD/ASTPatternBuilder.cpp \
     $$PWD/ASTMatcher.cpp \
-    $$PWD/TypeMatcher.cpp \
+    $$PWD/Matcher.cpp \
     $$PWD/Control.cpp \
     $$PWD/CoreTypes.cpp \
     $$PWD/DiagnosticClient.cpp \
@@ -71,4 +68,5 @@ SOURCES += \
     $$PWD/Type.cpp \
     $$PWD/TypeVisitor.cpp \
     $$PWD/QtContextKeywords.cpp \
-    $$PWD/Templates.cpp
+    $$PWD/Templates.cpp \
+    $$PWD/SafeMatcher.cpp

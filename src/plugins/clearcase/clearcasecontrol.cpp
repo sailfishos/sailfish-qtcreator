@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 AudioCodes Ltd.
+** Copyright (c) 2014 AudioCodes Ltd.
 ** Author: Orgad Shaneh <orgad.shaneh@audiocodes.com>
 ** Contact: http://www.qt-project.org/legal
 **
@@ -52,11 +52,15 @@ QString ClearCaseControl::displayName() const
 
 Core::Id ClearCaseControl::id() const
 {
-    return Core::Id(ClearCase::Constants::VCS_ID_CLEARCASE);
+    return Constants::VCS_ID_CLEARCASE;
 }
 
 bool ClearCaseControl::isConfigured() const
 {
+#ifdef WITH_TESTS
+    if (m_plugin->isFakeCleartool())
+        return true;
+#endif
     const QString binary = m_plugin->settings().ccBinaryPath;
     if (binary.isEmpty())
         return false;
@@ -83,12 +87,23 @@ bool ClearCaseControl::supportsOperation(Operation operation) const
     return rc;
 }
 
-Core::IVersionControl::OpenSupportMode ClearCaseControl::openSupportMode() const
+Core::IVersionControl::OpenSupportMode ClearCaseControl::openSupportMode(const QString &fileName) const
 {
-    if (m_plugin->isDynamic())
-        return IVersionControl::OpenMandatory; // Checkout is the only option for dynamic views
-    else
+    if (m_plugin->isDynamic()) {
+        // NB! Has to use managesFile() and not vcsStatus() since the index can only be guaranteed
+        // to be up to date if the file has been explicitly opened, which is not the case when
+        // doing a search and replace as a part of a refactoring.
+        if (m_plugin->managesFile(QFileInfo(fileName).absolutePath(), fileName)) {
+            // Checkout is the only option for managed files in dynamic views
+            return IVersionControl::OpenMandatory;
+        } else {
+            // Not managed files can be edited without noticing the VCS
+            return IVersionControl::NoOpen;
+        }
+
+    } else {
         return IVersionControl::OpenOptional; // Snapshot views supports Hijack and check out
+    }
 }
 
 bool ClearCaseControl::vcsOpen(const QString &fileName)
@@ -134,6 +149,11 @@ bool ClearCaseControl::managesDirectory(const QString &directory, QString *topLe
     return m_plugin->managesDirectory(directory, topLevel);
 }
 
+bool ClearCaseControl::managesFile(const QString &workingDirectory, const QString &fileName) const
+{
+    return m_plugin->managesFile(workingDirectory, fileName);
+}
+
 bool ClearCaseControl::vcsAnnotate(const QString &file, int line)
 {
     const QFileInfo fi(file);
@@ -148,6 +168,8 @@ QString ClearCaseControl::vcsOpenText() const
 
 QString ClearCaseControl::vcsMakeWritableText() const
 {
+    if (m_plugin->isDynamic())
+        return QString();
     return tr("&Hijack");
 }
 
@@ -177,26 +199,6 @@ bool ClearCaseControl::vcsCheckout(const QString & /*directory*/, const QByteArr
 }
 
 bool ClearCaseControl::vcsCreateRepository(const QString &)
-{
-    return false;
-}
-
-QString ClearCaseControl::vcsCreateSnapshot(const QString &)
-{
-    return QString();
-}
-
-QStringList ClearCaseControl::vcsSnapshots(const QString &)
-{
-    return QStringList();
-}
-
-bool ClearCaseControl::vcsRestoreSnapshot(const QString &, const QString &)
-{
-    return false;
-}
-
-bool ClearCaseControl::vcsRemoveSnapshot(const QString &, const QString &)
 {
     return false;
 }

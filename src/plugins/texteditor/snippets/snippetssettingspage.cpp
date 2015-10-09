@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -39,11 +39,12 @@
 #include <texteditor/texteditorsettings.h>
 #include <extensionsystem/pluginmanager.h>
 
-#include <QModelIndex>
 #include <QAbstractTableModel>
 #include <QList>
-#include <QTextStream>
 #include <QMessageBox>
+#include <QModelIndex>
+#include <QPointer>
+#include <QTextStream>
 
 namespace TextEditor {
 namespace Internal {
@@ -269,11 +270,12 @@ public:
 
     Core::Id id() const { return m_id; }
     const QString &displayName() const { return m_displayName; }
-    bool isKeyword(const QString &s) const { return m_keywords.contains(s, Qt::CaseInsensitive); }
     void configureUi(QWidget *parent);
 
     void apply();
     void finish();
+
+    QPointer<QWidget> m_widget;
 
 private slots:
     void loadSnippetGroup(int index);
@@ -302,7 +304,6 @@ private:
     const QString m_settingsPrefix;
     SnippetsTableModel *m_model;
     bool m_snippetsCollectionChanged;
-    QString m_keywords;
     SnippetsSettings m_settings;
     Ui::SnippetsSettingsPage m_ui;
 };
@@ -334,7 +335,7 @@ void SnippetsSettingsPagePrivate::configureUi(QWidget *w)
     foreach (ISnippetProvider *provider, providers) {
         m_ui.groupCombo->addItem(provider->displayName(), provider->groupId());
         SnippetEditorWidget *snippetEditor = new SnippetEditorWidget(w);
-        snippetEditor->setFontSettings(TextEditorSettings::instance()->fontSettings());
+        snippetEditor->baseTextDocument()->setFontSettings(TextEditorSettings::fontSettings());
         provider->decorateEditor(snippetEditor);
         m_ui.snippetsEditorStack->insertWidget(m_ui.groupCombo->count() - 1, snippetEditor);
         connect(snippetEditor, SIGNAL(snippetContentChanged()), this, SLOT(setSnippetContent()));
@@ -349,8 +350,6 @@ void SnippetsSettingsPagePrivate::configureUi(QWidget *w)
     m_ui.snippetsTable->setModel(m_model);
 
     m_ui.revertButton->setEnabled(false);
-
-    QTextStream(&m_keywords) << m_displayName;
 
     loadSettings();
     loadSnippetGroup(m_ui.groupCombo->currentIndex());
@@ -542,7 +541,7 @@ void SnippetsSettingsPagePrivate::decorateEditors(const TextEditor::FontSettings
         ExtensionSystem::PluginManager::getObjects<ISnippetProvider>();
     for (int i = 0; i < m_ui.groupCombo->count(); ++i) {
         SnippetEditorWidget *snippetEditor = editorAt(i);
-        snippetEditor->setFontSettings(fontSettings);
+        snippetEditor->baseTextDocument()->setFontSettings(fontSettings);
         const QString &id = m_ui.groupCombo->itemData(i).toString();
         // This list should be quite short... Re-iterating over it is ok.
         foreach (const ISnippetProvider *provider, providers) {
@@ -566,16 +565,13 @@ SnippetsSettingsPage::~SnippetsSettingsPage()
     delete d;
 }
 
-bool SnippetsSettingsPage::matches(const QString &s) const
+QWidget *SnippetsSettingsPage::widget()
 {
-    return d->isKeyword(s);
-}
-
-QWidget *SnippetsSettingsPage::createPage(QWidget *parent)
-{
-    QWidget *w = new QWidget(parent);
-    d->configureUi(w);
-    return w;
+    if (!d->m_widget) {
+        d->m_widget = new QWidget;
+        d->configureUi(d->m_widget);
+    }
+    return d->m_widget;
 }
 
 void SnippetsSettingsPage::apply()
@@ -586,6 +582,7 @@ void SnippetsSettingsPage::apply()
 void SnippetsSettingsPage::finish()
 {
     d->finish();
+    delete d->m_widget;
 }
 
 } // Internal

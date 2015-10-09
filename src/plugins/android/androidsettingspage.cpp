@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 BogDan Vatra <bog_dan_ro@yahoo.com>
+** Copyright (c) 2014 BogDan Vatra <bog_dan_ro@yahoo.com>
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -36,6 +36,8 @@
 
 #include <QCoreApplication>
 
+using namespace ProjectExplorer;
+
 namespace Android {
 namespace Internal {
 
@@ -50,53 +52,21 @@ AndroidSettingsPage::AndroidSettingsPage(QObject *parent)
     setCategoryIcon(QLatin1String(Constants::ANDROID_SETTINGS_CATEGORY_ICON));
 }
 
-bool AndroidSettingsPage::matches(const QString &searchKeyWord) const
+QWidget *AndroidSettingsPage::widget()
 {
-    return m_keywords.contains(searchKeyWord, Qt::CaseInsensitive);
-}
-
-QWidget *AndroidSettingsPage::createPage(QWidget *parent)
-{
-    m_widget = new AndroidSettingsWidget(parent);
-    if (m_keywords.isEmpty())
-        m_keywords = m_widget->searchKeywords();
+    if (!m_widget)
+        m_widget = new AndroidSettingsWidget;
     return m_widget;
 }
 
 void AndroidSettingsPage::apply()
 {
     m_widget->saveSettings();
-
-    QList<ProjectExplorer::ToolChain *> existingToolChains = ProjectExplorer::ToolChainManager::instance()->toolChains();
-    QList<ProjectExplorer::ToolChain *> toolchains = AndroidToolChainFactory::createToolChainsForNdk(AndroidConfigurations::instance().config().ndkLocation);
-    foreach (ProjectExplorer::ToolChain *tc, toolchains) {
-        bool found = false;
-        for (int i = 0; i < existingToolChains.count(); ++i) {
-            if (*(existingToolChains.at(i)) == *tc) {
-                found = true;
-                break;
-            }
-        }
-        if (found)
-            delete tc;
-        else
-            ProjectExplorer::ToolChainManager::instance()->registerToolChain(tc);
-    }
-
-    for (int i = 0; i < existingToolChains.count(); ++i) {
-        ProjectExplorer::ToolChain *tc = existingToolChains.at(i);
-        if (tc->type() == QLatin1String(Constants::ANDROID_TOOLCHAIN_TYPE)) {
-            if (!tc->isValid()) {
-                ProjectExplorer::ToolChainManager::instance()->deregisterToolChain(tc);
-            }
-        }
-    }
-
-    AndroidConfigurations::instance().updateAutomaticKitList();
 }
 
 void AndroidSettingsPage::finish()
 {
+    delete m_widget;
 }
 
 } // namespace Internal

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -35,9 +35,7 @@
 #include <QStringList>
 #include <QHash>
 
-namespace Core {
-class IDocument;
-}
+namespace Core { class IDocument; }
 
 namespace QmlProjectManager {
 
@@ -54,29 +52,19 @@ public:
     Core::IDocument *projectFile() const;
     QString projectFilePath() const;
 
-    virtual bool hasBuildTargets() const;
+    virtual bool showInSimpleTree() const;
 
-    virtual QList<ProjectExplorer::ProjectNode::ProjectAction> supportedActions(Node *node) const;
+    virtual QList<ProjectExplorer::ProjectAction> supportedActions(Node *node) const;
 
     virtual bool canAddSubProject(const QString &proFilePath) const;
 
     virtual bool addSubProjects(const QStringList &proFilePaths);
     virtual bool removeSubProjects(const QStringList &proFilePaths);
 
-    virtual bool addFiles(const ProjectExplorer::FileType fileType,
-                          const QStringList &filePaths,
-                          QStringList *notAdded = 0);
-
-    virtual bool removeFiles(const ProjectExplorer::FileType fileType,
-                             const QStringList &filePaths,
-                             QStringList *notRemoved = 0);
-
-    virtual bool deleteFiles(const ProjectExplorer::FileType fileType,
-                             const QStringList &filePaths);
-
-    virtual bool renameFile(const ProjectExplorer::FileType fileType,
-                             const QString &filePath,
-                             const QString &newFilePath);
+    virtual bool addFiles(const QStringList &filePaths, QStringList *notAdded = 0);
+    virtual bool removeFiles(const QStringList &filePaths, QStringList *notRemoved = 0);
+    virtual bool deleteFiles(const QStringList &filePaths);
+    virtual bool renameFile(const QString &filePath, const QString &newFilePath);
     virtual QList<ProjectExplorer::RunConfiguration *> runConfigurationsFor(Node *node);
 
 

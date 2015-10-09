@@ -14319,7 +14319,7 @@ Ids must begin with a lowercase letter.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::ConsoleAppWizard</name>
+    <name>QmakeProjectManager::Internal::ConsoleAppWizard</name>
     <message>
         <source>Qt4 Console Application</source>
         <translation type="obsolete">Qt4 控制台应用</translation>
@@ -14346,7 +14346,7 @@ Preselects a desktop Qt for building the application if available.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::ConsoleAppWizardDialog</name>
+    <name>QmakeProjectManager::Internal::ConsoleAppWizardDialog</name>
     <message>
         <source>This wizard generates a Qt4 console application project. The application derives from QCoreApplication and does not provide a GUI.</source>
         <translation type="obsolete">本向导创建一个Qt4控制台应用项目，该应用继承自QCoreApplication，没有图形界面。</translation>
@@ -14357,7 +14357,7 @@ Preselects a desktop Qt for building the application if available.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::DesignerExternalEditor</name>
+    <name>QmakeProjectManager::Internal::DesignerExternalEditor</name>
     <message>
         <source>Qt Designer is not responding (%1).</source>
         <translation>Qt设计师无响应 (%1)。</translation>
@@ -14368,14 +14368,14 @@ Preselects a desktop Qt for building the application if available.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::EmbeddedPropertiesPanel</name>
+    <name>QmakeProjectManager::Internal::EmbeddedPropertiesPanel</name>
     <message>
         <source>Embedded Linux</source>
         <translation type="obsolete">嵌入式 Linux</translation>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::EmptyProjectWizard</name>
+    <name>QmakeProjectManager::Internal::EmptyProjectWizard</name>
     <message>
         <source>Empty Qt4 Project</source>
         <translation type="obsolete">空的 Qt4 项目</translation>
@@ -14394,7 +14394,7 @@ Preselects a desktop Qt for building the application if available.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::EmptyProjectWizardDialog</name>
+    <name>QmakeProjectManager::Internal::EmptyProjectWizardDialog</name>
     <message>
         <source>This wizard generates an empty Qt4 project. Add files to it later on by using the other wizards.</source>
         <translation type="obsolete">本向导将创建一个空的Qt4项目，稍后使用其他向导添加文件.</translation>
@@ -14405,7 +14405,7 @@ Preselects a desktop Qt for building the application if available.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::ExternalQtEditor</name>
+    <name>QmakeProjectManager::Internal::ExternalQtEditor</name>
     <message>
         <source>Unable to start &quot;%1&quot;</source>
         <translation>无法启动&quot;%1&quot; </translation>
@@ -14416,7 +14416,7 @@ Preselects a desktop Qt for building the application if available.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::FilesPage</name>
+    <name>QmakeProjectManager::Internal::FilesPage</name>
     <message>
         <source>Class Information</source>
         <translation>类信息</translation>
@@ -14427,7 +14427,7 @@ Preselects a desktop Qt for building the application if available.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::GuiAppWizard</name>
+    <name>QmakeProjectManager::Internal::GuiAppWizard</name>
     <message>
         <source>Qt4 Gui Application</source>
         <translation type="obsolete">Qt4 GUI 应用</translation>
@@ -14458,7 +14458,7 @@ Preselects a desktop Qt for building the application if available.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::GuiAppWizardDialog</name>
+    <name>QmakeProjectManager::Internal::GuiAppWizardDialog</name>
     <message>
         <source>This wizard generates a Qt4 GUI application project. The application derives by default from QApplication and includes an empty widget.</source>
         <translation type="obsolete">本向导将创建一个Qt4 GUI应用项目，应用程序默认继承自QApplication并且包含一个空白的窗体。</translation>
@@ -14473,7 +14473,7 @@ Preselects a desktop Qt for building the application if available.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::LibraryWizard</name>
+    <name>QmakeProjectManager::Internal::LibraryWizard</name>
     <message>
         <source>C++ Library</source>
         <translation>C++ 库</translation>
@@ -14496,7 +14496,7 @@ Preselects a desktop Qt for building the application if available.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::LibraryWizardDialog</name>
+    <name>QmakeProjectManager::Internal::LibraryWizardDialog</name>
     <message>
         <source>Shared library</source>
         <translation type="obsolete">共享库</translation>
@@ -14543,7 +14543,7 @@ Preselects a desktop Qt for building the application if available.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::ModulesPage</name>
+    <name>QmakeProjectManager::Internal::ModulesPage</name>
     <message>
         <source>Select required modules</source>
         <translation type="obsolete">选择需要的模块</translation>
@@ -14558,7 +14558,7 @@ Preselects a desktop Qt for building the application if available.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::ProEditor</name>
+    <name>QmakeProjectManager::Internal::ProEditor</name>
     <message>
         <source>New</source>
         <translation type="obsolete">新建</translation>
@@ -14613,7 +14613,7 @@ Preselects a desktop Qt for building the application if available.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::ProEditorModel</name>
+    <name>QmakeProjectManager::Internal::ProEditorModel</name>
     <message>
         <source>&lt;Global Scope&gt;</source>
         <translation type="obsolete">&lt;全局范围&gt;</translation>
@@ -14652,7 +14652,7 @@ Preselects a desktop Qt for building the application if available.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::ProjectLoadWizard</name>
+    <name>QmakeProjectManager::Internal::ProjectLoadWizard</name>
     <message>
         <source>Import existing build settings</source>
         <translation type="obsolete">导入现有的构建设置</translation>
@@ -14683,7 +14683,7 @@ Preselects a desktop Qt for building the application if available.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::Qt4BuildEnvironmentWidget</name>
+    <name>QmakeProjectManager::Internal::QmakeBuildEnvironmentWidget</name>
     <message>
         <source>Clear system environment</source>
         <translation type="obsolete">清除系统环境变量</translation>
@@ -14694,7 +14694,7 @@ Preselects a desktop Qt for building the application if available.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::Qt4PriFileNode</name>
+    <name>QmakeProjectManager::Internal::QmakePriFileNode</name>
     <message>
         <source>Headers</source>
         <translation type="obsolete">头文件</translation>
@@ -14773,7 +14773,7 @@ Preselects a desktop Qt for building the application if available.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::Qt4ProFileNode</name>
+    <name>QmakeProjectManager::Internal::QmakeProFileNode</name>
     <message>
         <source>Error while parsing file %1. Giving up.</source>
         <translation type="obsolete">解析文件 &apos;%1&apos;时发生错误，终止。</translation>
@@ -14784,7 +14784,7 @@ Preselects a desktop Qt for building the application if available.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::Qt4ProjectConfigWidget</name>
+    <name>QmakeProjectManager::Internal::QmakeProjectConfigWidget</name>
     <message>
         <source>Configuration Name:</source>
         <translation type="obsolete">配置名称:</translation>
@@ -14940,7 +14940,7 @@ Preselects a desktop Qt for building the application if available.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::Qt4ProjectManagerPlugin</name>
+    <name>QmakeProjectManager::Internal::QmakeProjectManagerPlugin</name>
     <message>
         <source>Run qmake</source>
         <translation>执行qmake </translation>
@@ -15015,7 +15015,7 @@ Preselects a desktop Qt for building the application if available.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::Qt4RunConfiguration</name>
+    <name>QmakeProjectManager::Internal::QmakeRunConfiguration</name>
     <message>
         <source>Qt4RunConfiguration</source>
         <translation type="obsolete">Qt4 运行配置</translation>
@@ -15050,7 +15050,7 @@ Preselects a desktop Qt for building the application if available.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::Qt4RunConfigurationWidget</name>
+    <name>QmakeProjectManager::Internal::QmakeRunConfigurationWidget</name>
     <message>
         <source>Running executable: &lt;b&gt;%1&lt;/b&gt; %2 (in terminal)</source>
         <translation type="obsolete">正在执行程序: &lt;b&gt;%1&lt;/b&gt; %2 (在控制台)</translation>
@@ -15141,7 +15141,7 @@ Preselects a desktop Qt for building the application if available.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::QtOptionsPageWidget</name>
+    <name>QmakeProjectManager::Internal::QtOptionsPageWidget</name>
     <message>
         <source>&lt;specify a name&gt;</source>
         <translation type="obsolete">&lt;指定一个名字&gt;</translation>
@@ -15267,7 +15267,7 @@ Preselects a desktop Qt for building the application if available.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::QtVersionManager</name>
+    <name>QmakeProjectManager::Internal::QtVersionManager</name>
     <message>
         <source>Qt versions</source>
         <translation type="obsolete">Qt 版本</translation>
@@ -15402,14 +15402,14 @@ p, li { white-space: pre-wrap; }
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::QtWizard</name>
+    <name>QmakeProjectManager::Internal::QtWizard</name>
     <message>
         <source>The project %1 could not be opened.</source>
         <translation type="obsolete">无法打开项目 %1 </translation>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::ValueEditor</name>
+    <name>QmakeProjectManager::Internal::ValueEditor</name>
     <message>
         <source>Edit Variable</source>
         <translation type="obsolete">编辑变量</translation>
@@ -15484,7 +15484,7 @@ p, li { white-space: pre-wrap; }
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::MakeStep</name>
+    <name>QmakeProjectManager::MakeStep</name>
     <message>
         <source>Make</source>
         <comment>Qt4 MakeStep display name.</comment>
@@ -15537,7 +15537,7 @@ p, li { white-space: pre-wrap; }
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::MakeStepConfigWidget</name>
+    <name>QmakeProjectManager::MakeStepConfigWidget</name>
     <message>
         <source>Override %1:</source>
         <translation>覆盖 %1:</translation>
@@ -15572,14 +15572,14 @@ p, li { white-space: pre-wrap; }
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MakeStepFactory</name>
+    <name>QmakeProjectManager::Internal::MakeStepFactory</name>
     <message>
         <source>Make</source>
         <translation>Make</translation>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::QMakeStep</name>
+    <name>QmakeProjectManager::QMakeStep</name>
     <message>
         <source>
 &lt;font color=&quot;#ff0000&quot;&gt;&lt;b&gt;No valid Qt version set. Set one in Preferences &lt;/b&gt;&lt;/font&gt;
@@ -15671,7 +15671,7 @@ p, li { white-space: pre-wrap; }
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::QMakeStepConfigWidget</name>
+    <name>QmakeProjectManager::QMakeStepConfigWidget</name>
     <message>
         <source>&lt;b&gt;QMake:&lt;/b&gt; No Qt version set. QMake can not be run.</source>
         <translation type="obsolete">&lt;b&gt;QMake:&lt;/b&gt; 没有设置 Qt 版本. QMake 无法运行.</translation>
@@ -15730,7 +15730,7 @@ p, li { white-space: pre-wrap; }
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Qt4Manager</name>
+    <name>QmakeProjectManager::QmakeManager</name>
     <message>
         <source>Loading project %1 ...</source>
         <translation type="obsolete">载入项目 %1 ...</translation>
@@ -15777,7 +15777,7 @@ p, li { white-space: pre-wrap; }
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::QtVersionManager</name>
+    <name>QmakeProjectManager::QtVersionManager</name>
     <message>
         <source>MinGW from %1</source>
         <translation type="obsolete">MinGW 从%1</translation>
@@ -19566,7 +19566,7 @@ Will not be applied to whitespace in comments and strings.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::ClassDefinition</name>
+    <name>QmakeProjectManager::Internal::ClassDefinition</name>
     <message>
         <source>Form</source>
         <translation>界面</translation>
@@ -19673,7 +19673,7 @@ Will not be applied to whitespace in comments and strings.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::CustomWidgetPluginWizardPage</name>
+    <name>QmakeProjectManager::Internal::CustomWidgetPluginWizardPage</name>
     <message>
         <source>WizardPage</source>
         <translation>向导页面</translation>
@@ -19712,7 +19712,7 @@ Will not be applied to whitespace in comments and strings.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::CustomWidgetWidgetsWizardPage</name>
+    <name>QmakeProjectManager::Internal::CustomWidgetWidgetsWizardPage</name>
     <message>
         <source>Custom Qt Widget Wizard</source>
         <translation>自定义 Qt 控件向导</translation>
@@ -19735,7 +19735,7 @@ Will not be applied to whitespace in comments and strings.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::GettingStartedWelcomePageWidget</name>
+    <name>QmakeProjectManager::Internal::GettingStartedWelcomePageWidget</name>
     <message>
         <source>Form</source>
         <translation type="obsolete">界面</translation>
@@ -19901,7 +19901,7 @@ Will not be applied to whitespace in comments and strings.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::S60DevicesPreferencePane</name>
+    <name>QmakeProjectManager::Internal::S60DevicesPreferencePane</name>
     <message>
         <source>Form</source>
         <translation type="obsolete">界面</translation>
@@ -21546,7 +21546,7 @@ Reason: %2</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::ClassList</name>
+    <name>QmakeProjectManager::Internal::ClassList</name>
     <message>
         <source>&lt;New class&gt;</source>
         <translation>&lt;新类&gt;</translation>
@@ -21561,7 +21561,7 @@ Reason: %2</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::CustomWidgetWizard</name>
+    <name>QmakeProjectManager::Internal::CustomWidgetWizard</name>
     <message>
         <source>Qt4 Designer Custom Widget</source>
         <translation type="obsolete">Qt4 设计师自定义控件</translation>
@@ -21580,7 +21580,7 @@ Reason: %2</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::CustomWidgetWizardDialog</name>
+    <name>QmakeProjectManager::Internal::CustomWidgetWizardDialog</name>
     <message>
         <source>This wizard generates a Qt4 Designer Custom Widget or a Qt4 Designer Custom Widget Collection project.</source>
         <translation type="obsolete">本向导将创建一个Qt4设计师自定义控件或者一个Qt4设计师自定义控件集合项目。</translation>
@@ -21599,7 +21599,7 @@ Reason: %2</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::PluginGenerator</name>
+    <name>QmakeProjectManager::Internal::PluginGenerator</name>
     <message>
         <source>Cannot open icon file %1.</source>
         <translation type="obsolete">无法打开图标文件 %1.</translation>
@@ -21614,14 +21614,14 @@ Reason: %2</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::GettingStartedWelcomePage</name>
+    <name>QmakeProjectManager::Internal::GettingStartedWelcomePage</name>
     <message>
         <source>Getting Started</source>
         <translation type="obsolete">入门</translation>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::S60DeviceRunConfiguration</name>
+    <name>QmakeProjectManager::Internal::S60DeviceRunConfiguration</name>
     <message>
         <source>QtS60DeviceRunConfiguration</source>
         <translation type="obsolete">Qt S60 设备运行配置</translation>
@@ -21638,7 +21638,7 @@ Reason: %2</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::S60DeviceRunConfigurationWidget</name>
+    <name>QmakeProjectManager::Internal::S60DeviceRunConfigurationWidget</name>
     <message>
         <source>Device:</source>
         <translation type="obsolete">设备:</translation>
@@ -21718,14 +21718,14 @@ Reason: %2</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::S60DeviceRunConfigurationFactory</name>
+    <name>QmakeProjectManager::Internal::S60DeviceRunConfigurationFactory</name>
     <message>
         <source>%1 on Symbian Device</source>
         <translation type="obsolete">Symbian 设备上的 %1</translation>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::S60DeviceRunControlBase</name>
+    <name>QmakeProjectManager::Internal::S60DeviceRunControlBase</name>
     <message>
         <source>Deploying</source>
         <translation type="obsolete">部署中</translation>
@@ -21848,7 +21848,7 @@ Check if the phone is connected and App TRK is running.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::S60DeviceRunControl</name>
+    <name>QmakeProjectManager::Internal::S60DeviceRunControl</name>
     <message>
         <source>Launching</source>
         <translation type="obsolete">正在启动</translation>
@@ -21905,7 +21905,7 @@ Check if the phone is connected and App TRK is running.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::S60DeviceDebugRunControl</name>
+    <name>QmakeProjectManager::Internal::S60DeviceDebugRunControl</name>
     <message>
         <source>Warning: Cannot locate the symbol file belonging to %1.</source>
         <translation type="obsolete">警告：无法打开属于%1的符号文件.</translation>
@@ -21943,14 +21943,14 @@ Check if the phone is connected and App TRK is running.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::S60DevicesWidget</name>
+    <name>QmakeProjectManager::Internal::S60DevicesWidget</name>
     <message>
         <source>No Qt installed</source>
         <translation type="obsolete">没有安装Qt </translation>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::S60EmulatorRunConfigurationWidget</name>
+    <name>QmakeProjectManager::Internal::S60EmulatorRunConfigurationWidget</name>
     <message>
         <source>Name:</source>
         <translation type="obsolete">名称:</translation>
@@ -21961,7 +21961,7 @@ Check if the phone is connected and App TRK is running.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::S60EmulatorRunConfiguration</name>
+    <name>QmakeProjectManager::Internal::S60EmulatorRunConfiguration</name>
     <message>
         <source>%1 in Symbian Emulator</source>
         <extracomment>S60 emulator run configuration default display name, %1 is base pro-File name
@@ -21980,14 +21980,14 @@ S60 emulator run configuration default display name, %1 is base pro-File name</e
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::S60EmulatorRunConfigurationFactory</name>
+    <name>QmakeProjectManager::Internal::S60EmulatorRunConfigurationFactory</name>
     <message>
         <source>%1 in Symbian Emulator</source>
         <translation type="obsolete">%1 在塞班模拟器上</translation>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::S60EmulatorRunControl</name>
+    <name>QmakeProjectManager::Internal::S60EmulatorRunControl</name>
     <message>
         <source>Starting %1...</source>
         <translation type="obsolete">启动%1 ...</translation>
@@ -22014,7 +22014,7 @@ S60 emulator run configuration default display name, %1 is base pro-File name</e
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::S60Manager</name>
+    <name>QmakeProjectManager::Internal::S60Manager</name>
     <message>
         <source>Run in Emulator</source>
         <translation type="obsolete">在模拟器中执行</translation>
@@ -22029,7 +22029,7 @@ S60 emulator run configuration default display name, %1 is base pro-File name</e
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Qt4BuildConfigurationFactory</name>
+    <name>QmakeProjectManager::QmakeBuildConfigurationFactory</name>
     <message>
         <source>Using Default Qt Version</source>
         <translation type="obsolete">使用默认Qt版本</translation>
@@ -22581,7 +22581,7 @@ S60 emulator run configuration default display name, %1 is base pro-File name</e
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::S60Devices::Device</name>
+    <name>QmakeProjectManager::Internal::S60Devices::Device</name>
     <message>
         <source>Id:</source>
         <translation type="obsolete">ID:</translation>
@@ -22850,7 +22850,7 @@ S60 emulator run configuration default display name, %1 is base pro-File name</e
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::TestWizardPage</name>
+    <name>QmakeProjectManager::Internal::TestWizardPage</name>
     <message>
         <source>WizardPage</source>
         <translation>向导页面</translation>
@@ -23446,7 +23446,7 @@ S60 emulator run configuration default display name, %1 is base pro-File name</e
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MaemoRunConfiguration</name>
+    <name>QmakeProjectManager::Internal::MaemoRunConfiguration</name>
     <message>
         <source>%1 on Maemo device</source>
         <translation type="obsolete">Maemo 设备上的 %1</translation>
@@ -23478,7 +23478,7 @@ S60 emulator run configuration default display name, %1 is base pro-File name</e
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MaemoRunConfigurationFactory</name>
+    <name>QmakeProjectManager::Internal::MaemoRunConfigurationFactory</name>
     <message>
         <source>%1 on Maemo Device</source>
         <translation type="obsolete">Maemo 设备上的 %1</translation>
@@ -23489,21 +23489,21 @@ S60 emulator run configuration default display name, %1 is base pro-File name</e
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MaemoRunControlFactory</name>
+    <name>QmakeProjectManager::Internal::MaemoRunControlFactory</name>
     <message>
         <source>Run on device</source>
         <translation type="obsolete">在设备上运行</translation>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MaemoSshConnection</name>
+    <name>QmakeProjectManager::Internal::MaemoSshConnection</name>
     <message>
         <source>Could not connect to host</source>
         <translation type="obsolete">无法连接主机</translation>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MaemoInteractiveSshConnection</name>
+    <name>QmakeProjectManager::Internal::MaemoInteractiveSshConnection</name>
     <message>
         <source>Could not start remote shell: %1</source>
         <translation type="obsolete">不能启动远程 shell: %1</translation>
@@ -23518,7 +23518,7 @@ S60 emulator run configuration default display name, %1 is base pro-File name</e
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MaemoSftpConnection</name>
+    <name>QmakeProjectManager::Internal::MaemoSftpConnection</name>
     <message>
         <source>Error setting up SFTP subsystem: %1</source>
         <translation type="obsolete">设置 SFTP 子系统发生错误: %1</translation>
@@ -23533,7 +23533,7 @@ S60 emulator run configuration default display name, %1 is base pro-File name</e
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager</name>
+    <name>QmakeProjectManager</name>
     <message>
         <source>Qt Versions</source>
         <translation>Qt 版本</translation>
@@ -24615,7 +24615,7 @@ You can choose between stashing the changes or discarding them.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::S60CreatePackageStepWidget</name>
+    <name>QmakeProjectManager::Internal::S60CreatePackageStepWidget</name>
     <message>
         <source>Form</source>
         <translation type="obsolete">界面</translation>
@@ -26766,7 +26766,7 @@ Previous decimal signed value (big endian): %4</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::Qt4Target</name>
+    <name>QmakeProjectManager::Internal::QmakeTarget</name>
     <message>
         <source>Desktop</source>
         <comment>Qt4 Desktop target display name</comment>
@@ -28069,14 +28069,14 @@ Requires &lt;b&gt;Qt 4.7.4&lt;/b&gt; or newer.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::QMakeStepFactory</name>
+    <name>QmakeProjectManager::Internal::QMakeStepFactory</name>
     <message>
         <source>qmake</source>
         <translation>qmake</translation>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MaemoConfigTestDialog</name>
+    <name>QmakeProjectManager::Internal::MaemoConfigTestDialog</name>
     <message>
         <source>Testing configuration...</source>
         <translation type="obsolete">测试配置...</translation>
@@ -28175,7 +28175,7 @@ Did you start Qemu?</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MaemoManager</name>
+    <name>QmakeProjectManager::Internal::MaemoManager</name>
     <message>
         <source>Start Maemo Emulator</source>
         <translation type="obsolete">启动Maemo模拟器</translation>
@@ -28186,7 +28186,7 @@ Did you start Qemu?</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MaemoPackageCreationWidget</name>
+    <name>QmakeProjectManager::Internal::MaemoPackageCreationWidget</name>
     <message>
         <source>Package Creation</source>
         <translation type="obsolete">生成包</translation>
@@ -28253,7 +28253,7 @@ Did you start Qemu?</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MaemoRunConfigurationWidget</name>
+    <name>QmakeProjectManager::Internal::MaemoRunConfigurationWidget</name>
     <message>
         <source>Run configuration name:</source>
         <translation type="obsolete">运行配置名称:</translation>
@@ -28391,7 +28391,7 @@ Did you start Qemu?</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MaemoSettingsWidget</name>
+    <name>QmakeProjectManager::Internal::MaemoSettingsWidget</name>
     <message>
         <source>New Device Configuration %1</source>
         <comment>Standard Configuration name with number</comment>
@@ -28451,7 +28451,7 @@ Did you start Qemu?</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MaemoSshConfigDialog</name>
+    <name>QmakeProjectManager::Internal::MaemoSshConfigDialog</name>
     <message>
         <source>Stop deploying</source>
         <translation type="obsolete">停止部署</translation>
@@ -28496,14 +28496,14 @@ Did you start Qemu?</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MaemoSshThread</name>
+    <name>QmakeProjectManager::Internal::MaemoSshThread</name>
     <message>
         <source>Error in cryptography backend: %1</source>
         <translation type="obsolete">后台加密发生错误:%1</translation>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::S60CreatePackageStep</name>
+    <name>QmakeProjectManager::Internal::S60CreatePackageStep</name>
     <message>
         <source>Create sis Package</source>
         <comment>Create sis package build step name</comment>
@@ -28578,7 +28578,7 @@ Did you start Qemu?</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::S60CreatePackageStepFactory</name>
+    <name>QmakeProjectManager::Internal::S60CreatePackageStepFactory</name>
     <message>
         <source>Create sis Package</source>
         <translation type="obsolete">创建sis包</translation>
@@ -28589,7 +28589,7 @@ Did you start Qemu?</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::S60CreatePackageStepConfigWidget</name>
+    <name>QmakeProjectManager::Internal::S60CreatePackageStepConfigWidget</name>
     <message>
         <source>self-signed</source>
         <translation type="obsolete">自签名</translation>
@@ -28628,7 +28628,7 @@ Did you start Qemu?</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::S60DevicesBaseWidget</name>
+    <name>QmakeProjectManager::Internal::S60DevicesBaseWidget</name>
     <message>
         <source>Default</source>
         <translation type="obsolete">默认</translation>
@@ -28647,14 +28647,14 @@ Did you start Qemu?</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::S60DevicesModel</name>
+    <name>QmakeProjectManager::Internal::S60DevicesModel</name>
     <message>
         <source>No Qt installed</source>
         <translation type="obsolete">没有安装Qt </translation>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::GnuPocS60DevicesWidget</name>
+    <name>QmakeProjectManager::Internal::GnuPocS60DevicesWidget</name>
     <message>
         <source>Step 1 of 2: Choose GnuPoc folder</source>
         <translation type="obsolete">步骤1／2：选择GnuPoc文件夹</translation>
@@ -28673,7 +28673,7 @@ Did you start Qemu?</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::Qt4BuildConfigurationFactory</name>
+    <name>QmakeProjectManager::Internal::QmakeBuildConfigurationFactory</name>
     <message>
         <source>Using Qt Version &quot;%1&quot;</source>
         <translation type="obsolete">使用Qt版本 &quot;%1&quot;</translation>
@@ -28706,7 +28706,7 @@ Did you start Qemu?</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Qt4Project</name>
+    <name>QmakeProjectManager::QmakeProject</name>
     <message>
         <source>Debug</source>
         <translation>Debug</translation>
@@ -28915,7 +28915,7 @@ Did you start Qemu?</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MobileGuiAppWizard</name>
+    <name>QmakeProjectManager::Internal::MobileGuiAppWizard</name>
     <message>
         <source>Mobile Qt Application</source>
         <translation type="obsolete">移动Qt应用</translation>
@@ -28934,7 +28934,7 @@ Preselects Qt for Simulator and mobile targets if available</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::BaseQt4ProjectWizardDialog</name>
+    <name>QmakeProjectManager::Internal::BaseQmakeProjectWizardDialog</name>
     <message>
         <source>Modules</source>
         <translation>模块</translation>
@@ -28953,7 +28953,7 @@ Preselects Qt for Simulator and mobile targets if available</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::TargetSetupPage</name>
+    <name>QmakeProjectManager::Internal::TargetSetupPage</name>
     <message>
         <source>Qt Creator can set up the following targets:</source>
         <translation type="obsolete">Qt Creator可以设置如下目标:</translation>
@@ -29087,7 +29087,7 @@ Preselects Qt for Simulator and mobile targets if available</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::TestWizard</name>
+    <name>QmakeProjectManager::Internal::TestWizard</name>
     <message>
         <source>Qt Unit Test</source>
         <translation>Qt单元测试</translation>
@@ -29102,7 +29102,7 @@ Preselects Qt for Simulator and mobile targets if available</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::TestWizardDialog</name>
+    <name>QmakeProjectManager::Internal::TestWizardDialog</name>
     <message>
         <source>This wizard generates a Qt unit test consisting of a single source file with a test class.</source>
         <translation>本向导将创建一个Qt单元测试，其中包括一个含有测试类的源文件。</translation>
@@ -29612,7 +29612,7 @@ with a password, which you can enter below.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MaemoPackageContents</name>
+    <name>QmakeProjectManager::Internal::MaemoPackageContents</name>
     <message>
         <source>Local File Path</source>
         <translation type="obsolete">本地文件路径</translation>
@@ -29623,7 +29623,7 @@ with a password, which you can enter below.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MaemoPackageCreationStep</name>
+    <name>QmakeProjectManager::Internal::MaemoPackageCreationStep</name>
     <message>
         <source>Creating package file ...</source>
         <translation type="obsolete">创建包文件...</translation>
@@ -29850,7 +29850,7 @@ with a password, which you can enter below.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::QtVersion</name>
+    <name>QmakeProjectManager::QtVersion</name>
     <message>
         <source>The Qt version is invalid: %1</source>
         <extracomment>%1: Reason for being invalid</extracomment>
@@ -30793,7 +30793,7 @@ Id必须以小写字母开头。</translation>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::QemuRuntimeManager</name>
+    <name>QmakeProjectManager::Internal::QemuRuntimeManager</name>
     <message>
         <source>Start Maemo Emulator</source>
         <translation type="obsolete">启动Maemo模拟器</translation>
@@ -31181,7 +31181,7 @@ Id必须以小写字母开头。</translation>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::LibraryDetailsWidget</name>
+    <name>QmakeProjectManager::Internal::LibraryDetailsWidget</name>
     <message>
         <source>Library:</source>
         <translation>库:</translation>
@@ -33944,7 +33944,7 @@ import QtQuick 1.0 use import Qt 4.7 instead</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::AddLibraryWizard</name>
+    <name>QmakeProjectManager::Internal::AddLibraryWizard</name>
     <message>
         <source>Add Library</source>
         <translation>添加库</translation>
@@ -33963,7 +33963,7 @@ import QtQuick 1.0 use import Qt 4.7 instead</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::LibraryTypePage</name>
+    <name>QmakeProjectManager::Internal::LibraryTypePage</name>
     <message>
         <source>Library Type</source>
         <translation>库类型</translation>
@@ -34012,7 +34012,7 @@ Adds the library and include paths to the .pro file.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::DetailsPage</name>
+    <name>QmakeProjectManager::Internal::DetailsPage</name>
     <message>
         <source>System Library</source>
         <translation>系统库</translation>
@@ -34047,7 +34047,7 @@ Adds the library and include paths to the .pro file.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::SummaryPage</name>
+    <name>QmakeProjectManager::Internal::SummaryPage</name>
     <message>
         <source>Summary</source>
         <translation>汇总</translation>
@@ -34058,7 +34058,7 @@ Adds the library and include paths to the .pro file.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::LibraryDetailsController</name>
+    <name>QmakeProjectManager::Internal::LibraryDetailsController</name>
     <message>
         <source>Linkage:</source>
         <translation>链接:</translation>
@@ -34085,7 +34085,7 @@ Adds the library and include paths to the .pro file.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::QmlDumpTool</name>
+    <name>QmakeProjectManager::QmlDumpTool</name>
     <message>
         <source>Only available for Qt for Desktop and Qt for Qt Simulator.</source>
         <translation>仅限 Qt 桌面版 或者 Qt 模拟器版本。</translation>
@@ -34128,7 +34128,7 @@ Reason: %2</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::QmlObserverTool</name>
+    <name>QmakeProjectManager::QmlObserverTool</name>
     <message>
         <source>Only available for Qt for Desktop or Qt for Qt Simulator.</source>
         <translation>仅限 Qt 桌面版 或者 Qt 模拟器版本。</translation>
@@ -34164,7 +34164,7 @@ Reason: %2</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MaemoDebugSupport</name>
+    <name>QmakeProjectManager::Internal::MaemoDebugSupport</name>
     <message>
         <source>No device configuration set for run configuration.</source>
         <translation type="obsolete">没有在运行配置中设置任何设备配置.</translation>
@@ -34207,7 +34207,7 @@ Reason: %2</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MaemoDeployableListModel</name>
+    <name>QmakeProjectManager::Internal::MaemoDeployableListModel</name>
     <message>
         <source>File already in list.</source>
         <translation type="obsolete">文件已在列表中.</translation>
@@ -34246,14 +34246,14 @@ Reason: %2</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MaemoProFilesUpdateDialog</name>
+    <name>QmakeProjectManager::Internal::MaemoProFilesUpdateDialog</name>
     <message>
         <source>Updateable Project Files</source>
         <translation type="obsolete">可更新的项目文件</translation>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MaemoQemuManager</name>
+    <name>QmakeProjectManager::Internal::MaemoQemuManager</name>
     <message>
         <source>Start Maemo Emulator</source>
         <translation type="obsolete">启动Maemo模拟器</translation>
@@ -34280,7 +34280,7 @@ Reason: %2</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MaemoRemoteMounter</name>
+    <name>QmakeProjectManager::Internal::MaemoRemoteMounter</name>
     <message>
         <source>No directories to mount</source>
         <translation type="obsolete">没有目录将被挂载</translation>
@@ -34361,7 +34361,7 @@ stderr was: %1</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MaemoRemoteMountsModel</name>
+    <name>QmakeProjectManager::Internal::MaemoRemoteMountsModel</name>
     <message>
         <source>Local directory</source>
         <translation type="obsolete">本地目录</translation>
@@ -34372,7 +34372,7 @@ stderr was: %1</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MaemoRunControl</name>
+    <name>QmakeProjectManager::Internal::MaemoRunControl</name>
     <message>
         <source>No device configuration set for run configuration.</source>
         <translation type="obsolete">没有在运行配置中设置任何设备配置.</translation>
@@ -34391,7 +34391,7 @@ stderr was: %1</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MaemoTemplatesManager</name>
+    <name>QmakeProjectManager::Internal::MaemoTemplatesManager</name>
     <message>
         <source>Error creating Maemo packaging directory &apos;%1&apos;.</source>
         <translation type="obsolete">创建Maemo包目录&apos;%1&apos;时出错.</translation>
@@ -34454,7 +34454,7 @@ stderr was: %1</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::PassphraseForKeyDialog</name>
+    <name>QmakeProjectManager::PassphraseForKeyDialog</name>
     <message>
         <source>Passphrase:</source>
         <translation type="obsolete">口令:</translation>
@@ -34477,7 +34477,7 @@ stderr was: %1</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::S60DeployConfigurationWidget</name>
+    <name>QmakeProjectManager::Internal::S60DeployConfigurationWidget</name>
     <message>
         <source>Device:</source>
         <translation type="obsolete">设备:</translation>
@@ -34628,7 +34628,7 @@ stderr was: %1</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::S60DeployStep</name>
+    <name>QmakeProjectManager::Internal::S60DeployStep</name>
     <message>
         <source>Unable to remove existing file &apos;%1&apos;: %2</source>
         <translation type="obsolete">现存文件 &apos;%1&apos; 无法被删除: %2</translation>
@@ -34778,21 +34778,21 @@ Check if the phone is connected and App TRK is running.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::S60DeployStepWidget</name>
+    <name>QmakeProjectManager::Internal::S60DeployStepWidget</name>
     <message>
         <source>Deploy SIS Package</source>
         <translation type="obsolete">部署SIS包</translation>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::S60DeployStepFactory</name>
+    <name>QmakeProjectManager::Internal::S60DeployStepFactory</name>
     <message>
         <source>Deploy SIS Package</source>
         <translation type="obsolete">部署SIS包</translation>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::SbsV2Parser</name>
+    <name>QmakeProjectManager::SbsV2Parser</name>
     <message>
         <source>SBSv2 build log</source>
         <translation type="obsolete">SBSv2构建日志</translation>
@@ -34813,7 +34813,7 @@ Check if the phone is connected and App TRK is running.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::AbstractMobileApp</name>
+    <name>QmakeProjectManager::AbstractMobileApp</name>
     <message>
         <source>Could not open desktop file template</source>
         <translation type="obsolete">无法打开桌面文件模板</translation>
@@ -34832,7 +34832,7 @@ Check if the phone is connected and App TRK is running.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::AbstractMobileAppWizardDialog</name>
+    <name>QmakeProjectManager::Internal::AbstractMobileAppWizardDialog</name>
     <message>
         <source>Qt Versions</source>
         <translation type="obsolete">Qt版本</translation>
@@ -34858,7 +34858,7 @@ Preselects Qt for Simulator and mobile targets if available.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MobileAppWizardOptionsPage</name>
+    <name>QmakeProjectManager::Internal::MobileAppWizardOptionsPage</name>
     <message>
         <source>Automatically Rotate Orientation</source>
         <translation type="obsolete">自动旋转方向</translation>
@@ -34885,7 +34885,7 @@ Preselects Qt for Simulator and mobile targets if available.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::QtQuickApp</name>
+    <name>QmakeProjectManager::Internal::QtQuickApp</name>
     <message>
         <source>The QML import path &apos;%1&apos; cannot be found.</source>
         <translation type="obsolete">QML导入路径&apos;%1&apos;无法找到。</translation>
@@ -34912,7 +34912,7 @@ Preselects Qt for Simulator and mobile targets if available.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::QtQuickAppWizardDialog</name>
+    <name>QmakeProjectManager::Internal::QtQuickAppWizardDialog</name>
     <message>
         <source>New Qt Quick Application</source>
         <translation>新建Qt Quick程序</translation>
@@ -34935,7 +34935,7 @@ Preselects Qt for Simulator and mobile targets if available.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::QtQuickAppWizard</name>
+    <name>QmakeProjectManager::Internal::QtQuickAppWizard</name>
     <message>
         <source>Qt Quick Application</source>
         <translation type="obsolete">Qt Quick应用程序</translation>
@@ -35036,7 +35036,7 @@ Requires &lt;b&gt;Qt 5.0&lt;/b&gt; or newer.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::QtQuickAppWizardSourcesPage</name>
+    <name>QmakeProjectManager::Internal::QtQuickAppWizardSourcesPage</name>
     <message>
         <source>Select QML File</source>
         <translation type="obsolete">选择QMl文件</translation>
@@ -35979,7 +35979,7 @@ Local pulls are not applied to the master branch.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::DebuggingHelper</name>
+    <name>QmakeProjectManager::Internal::DebuggingHelper</name>
     <message>
         <source>Used to extract QML type information from library-based plugins.</source>
         <translation type="obsolete">使用基于库的插件来解压QML类型的信息。</translation>
@@ -36390,7 +36390,7 @@ Local pulls are not applied to the master branch.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::RvctToolChainConfigWidget</name>
+    <name>QmakeProjectManager::Internal::RvctToolChainConfigWidget</name>
     <message>
         <source>Form</source>
         <translation type="obsolete">界面</translation>
@@ -36503,7 +36503,7 @@ Previous Qt versions have limitations in building suitable SIS files.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::WinscwToolChainConfigWidget</name>
+    <name>QmakeProjectManager::Internal::WinscwToolChainConfigWidget</name>
     <message>
         <source>Dialog</source>
         <translation type="obsolete">对话框</translation>
@@ -36522,7 +36522,7 @@ Previous Qt versions have limitations in building suitable SIS files.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::QtVersionInfo</name>
+    <name>QmakeProjectManager::Internal::QtVersionInfo</name>
     <message>
         <source>Version name:</source>
         <translation type="obsolete">版本名称:</translation>
@@ -40150,7 +40150,7 @@ Please build the debugging helpers on the Qt version options page.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::QmlDebuggingLibrary</name>
+    <name>QmakeProjectManager::QmlDebuggingLibrary</name>
     <message>
         <source>Only available for Qt 4.7.1 or newer.</source>
         <translation>仅可用于 Qt 4.7.1 或更新版本。</translation>
@@ -40179,7 +40179,7 @@ Reason: %2</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Qt4Target</name>
+    <name>QmakeProjectManager::QmakeTarget</name>
     <message>
         <source>Desktop</source>
         <comment>Qt4 Desktop target display name</comment>
@@ -40202,14 +40202,14 @@ Reason: %2</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MaemoDeviceConfigurations</name>
+    <name>QmakeProjectManager::Internal::MaemoDeviceConfigurations</name>
     <message>
         <source>(default for %1)</source>
         <translation type="obsolete">(默认 %1)</translation>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MaemoDeviceConfigurationsSettingsWidget</name>
+    <name>QmakeProjectManager::Internal::MaemoDeviceConfigurationsSettingsWidget</name>
     <message>
         <source>Physical Device</source>
         <translation type="obsolete">物理设备</translation>
@@ -40248,28 +40248,28 @@ Reason: %2</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MaemoDeviceConfigWizardStartPage</name>
+    <name>QmakeProjectManager::Internal::MaemoDeviceConfigWizardStartPage</name>
     <message>
         <source>General Information</source>
         <translation type="obsolete">概要</translation>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MaemoDeviceConfigWizardPreviousKeySetupCheckPage</name>
+    <name>QmakeProjectManager::Internal::MaemoDeviceConfigWizardPreviousKeySetupCheckPage</name>
     <message>
         <source>Device Status Check</source>
         <translation type="obsolete">检测设备状态</translation>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MaemoDeviceConfigWizardReuseKeysCheckPage</name>
+    <name>QmakeProjectManager::Internal::MaemoDeviceConfigWizardReuseKeysCheckPage</name>
     <message>
         <source>Existing Keys Check</source>
         <translation type="obsolete">现有密钥检测</translation>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MaemoDeviceConfigWizardKeyCreationPage</name>
+    <name>QmakeProjectManager::Internal::MaemoDeviceConfigWizardKeyCreationPage</name>
     <message>
         <source>Key Creation</source>
         <translation type="obsolete">密钥创建</translation>
@@ -40300,7 +40300,7 @@ Reason: %2</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MaemoDeviceConfigWizardKeyDeploymentPage</name>
+    <name>QmakeProjectManager::Internal::MaemoDeviceConfigWizardKeyDeploymentPage</name>
     <message>
         <source>Key Deployment</source>
         <translation type="obsolete">公钥部署</translation>
@@ -40323,7 +40323,7 @@ Reason: %2</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MaemoDeviceConfigWizardFinalPage</name>
+    <name>QmakeProjectManager::Internal::MaemoDeviceConfigWizardFinalPage</name>
     <message>
         <source>Setup Finished</source>
         <translation type="obsolete">设置完成</translation>
@@ -40338,14 +40338,14 @@ Reason: %2</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MaemoDeviceConfigWizard</name>
+    <name>QmakeProjectManager::Internal::MaemoDeviceConfigWizard</name>
     <message>
         <source>New Device Configuration Setup</source>
         <translation type="obsolete">新设备配置设置</translation>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MaemoGlobal</name>
+    <name>QmakeProjectManager::Internal::MaemoGlobal</name>
     <message>
         <source>
 Did you start Qemu?</source>
@@ -40388,7 +40388,7 @@ Is the device connected and set up for network access?</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MaemoKeyDeployer</name>
+    <name>QmakeProjectManager::Internal::MaemoKeyDeployer</name>
     <message>
         <source>Could not read public key file &apos;%1&apos;.</source>
         <translation type="obsolete">无法读取公钥文件 &apos;%1&apos;.</translation>
@@ -40403,14 +40403,14 @@ Is the device connected and set up for network access?</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MaemoPerTargetDeviceConfigurationListModel</name>
+    <name>QmakeProjectManager::Internal::MaemoPerTargetDeviceConfigurationListModel</name>
     <message>
         <source>(default)</source>
         <translation type="obsolete">(默认)</translation>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MaemoPublishedProjectModel</name>
+    <name>QmakeProjectManager::Internal::MaemoPublishedProjectModel</name>
     <message>
         <source>Include in package</source>
         <translation type="obsolete">包含到包</translation>
@@ -40425,7 +40425,7 @@ Is the device connected and set up for network access?</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MaemoPublisherFremantleFree</name>
+    <name>QmakeProjectManager::Internal::MaemoPublisherFremantleFree</name>
     <message>
         <source>Canceled.</source>
         <translation type="obsolete">已取消.</translation>
@@ -40558,7 +40558,7 @@ Is the device connected and set up for network access?</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MaemoPublishingUploadSettingsPageFremantleFree</name>
+    <name>QmakeProjectManager::Internal::MaemoPublishingUploadSettingsPageFremantleFree</name>
     <message>
         <source>Publishing to Fremantle&apos;s &quot;Extras-devel/free&quot; Repository</source>
         <translation type="obsolete">发布到Fremantle&apos;s &quot;Extras-devel/free&quot;仓库</translation>
@@ -40573,14 +40573,14 @@ Is the device connected and set up for network access?</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MaemoPublishingWizardFactoryFremantleFree</name>
+    <name>QmakeProjectManager::Internal::MaemoPublishingWizardFactoryFremantleFree</name>
     <message>
         <source>Publish for &quot;Fremantle Extras-devel free&quot; repository</source>
         <translation type="obsolete">发布到&quot;Fremantle Extras-devel free&quot; 仓库</translation>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MaemoPublishingWizardFremantleFree</name>
+    <name>QmakeProjectManager::Internal::MaemoPublishingWizardFremantleFree</name>
     <message>
         <source>Publishing to Fremantle&apos;s &quot;Extras-devel free&quot; Repository</source>
         <translation type="obsolete">发布到Fremantle的&quot;Extras-devel free&quot; 仓库</translation>
@@ -40599,14 +40599,14 @@ Is the device connected and set up for network access?</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MaemoRemoteProcessesDialog</name>
+    <name>QmakeProjectManager::Internal::MaemoRemoteProcessesDialog</name>
     <message>
         <source>Remote Error</source>
         <translation type="obsolete">远程错误</translation>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MaemoRemoteProcessList</name>
+    <name>QmakeProjectManager::Internal::MaemoRemoteProcessList</name>
     <message>
         <source>Connection failure: %1</source>
         <translation type="obsolete">连接失败: %1</translation>
@@ -40635,21 +40635,21 @@ Remote stderr was: %1</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MaemoDeviceConfigurationsSettingsPage</name>
+    <name>QmakeProjectManager::Internal::MaemoDeviceConfigurationsSettingsPage</name>
     <message>
         <source>Maemo Device Configurations</source>
         <translation type="obsolete">Maemo设备配置</translation>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MaemoQemuSettingsPage</name>
+    <name>QmakeProjectManager::Internal::MaemoQemuSettingsPage</name>
     <message>
         <source>Qemu Settings</source>
         <translation type="obsolete">Qemu 设置</translation>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MaemoQemuCrashDialog</name>
+    <name>QmakeProjectManager::Internal::MaemoQemuCrashDialog</name>
     <message>
         <source>Qemu error</source>
         <translation type="obsolete">Qemu 错误</translation>
@@ -40664,7 +40664,7 @@ Remote stderr was: %1</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MaemoToolChainFactory</name>
+    <name>QmakeProjectManager::Internal::MaemoToolChainFactory</name>
     <message>
         <source>Maemo GCC</source>
         <translation type="obsolete">Maemo GCC</translation>
@@ -40679,7 +40679,7 @@ Remote stderr was: %1</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MaemoToolChainConfigWidget</name>
+    <name>QmakeProjectManager::Internal::MaemoToolChainConfigWidget</name>
     <message>
         <source>MADDE Root: %1&lt;br&gt;Target Root: %2</source>
         <translation type="obsolete">MADDE Root: %1&lt;br&gt;目标 Root: %2</translation>
@@ -40690,7 +40690,7 @@ Remote stderr was: %1</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MaemoUsedPortsGatherer</name>
+    <name>QmakeProjectManager::Internal::MaemoUsedPortsGatherer</name>
     <message>
         <source>Connection error: %1</source>
         <translation type="obsolete">连接错误:%1</translation>
@@ -40715,7 +40715,7 @@ Remote error output was: %1</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::Qt4MaemoDeployConfigurationFactory</name>
+    <name>QmakeProjectManager::Internal::QmakeMaemoDeployConfigurationFactory</name>
     <message>
         <source>Deploy to Maemo5 device</source>
         <translation type="obsolete">部署到Maemo5 设备</translation>
@@ -40726,7 +40726,7 @@ Remote error output was: %1</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::AbstractQt4MaemoTarget</name>
+    <name>QmakeProjectManager::Internal::AbstractQmakeMaemoTarget</name>
     <message>
         <source>File &apos;%1&apos; does not exist</source>
         <translation type="obsolete">文件&apos;%1&apos;不存在</translation>
@@ -40761,7 +40761,7 @@ Do you want to add them to the project?</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::AbstractDebBasedQt4MaemoTarget</name>
+    <name>QmakeProjectManager::Internal::AbstractDebBasedQmakeMaemoTarget</name>
     <message>
         <source>Debian changelog file &apos;%1&apos; has unexpected format.</source>
         <translation type="obsolete">Debian修改日志文件&apos;%1&apos;格式未知.</translation>
@@ -40808,7 +40808,7 @@ Do you want to add them to the project?</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::CodaRunControl</name>
+    <name>QmakeProjectManager::Internal::CodaRunControl</name>
     <message>
         <source>No device is connected. Please connect a device and try again.</source>
         <translation type="obsolete">没有设备连接。请连接设备后再试。</translation>
@@ -40879,7 +40879,7 @@ Do you want to add them to the project?</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::GcceToolChainFactory</name>
+    <name>QmakeProjectManager::Internal::GcceToolChainFactory</name>
     <message>
         <source>GCCE</source>
         <translation type="obsolete">GCCE</translation>
@@ -40894,7 +40894,7 @@ Do you want to add them to the project?</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::Qt4SymbianTarget</name>
+    <name>QmakeProjectManager::Internal::QmakeSymbianTarget</name>
     <message>
         <source>&lt;b&gt;Device:&lt;/b&gt; Not connected</source>
         <translation type="obsolete">&lt;b&gt;设备:&lt;/b&gt; 没有连接</translation>
@@ -40913,7 +40913,7 @@ Do you want to add them to the project?</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::RvctToolChainFactory</name>
+    <name>QmakeProjectManager::Internal::RvctToolChainFactory</name>
     <message>
         <source>ARMv5</source>
         <translation type="obsolete">ARMv5</translation>
@@ -40933,7 +40933,7 @@ Do you want to add them to the project?</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::S60CertificateInfo</name>
+    <name>QmakeProjectManager::Internal::S60CertificateInfo</name>
     <message>
         <source>The certificate &quot;%1&quot; has already expired and cannot be used.
 Expiration date: %2.</source>
@@ -40990,7 +40990,7 @@ Valid from: %2.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::S60CreatePackageParser</name>
+    <name>QmakeProjectManager::Internal::S60CreatePackageParser</name>
     <message>
         <source>The binary package &apos;%1&apos; was patched to be installable after being self-signed.
 %2
@@ -41006,7 +41006,7 @@ Use a developer certificate or any other signing option to prevent this patching
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::S60PublisherOvi</name>
+    <name>QmakeProjectManager::Internal::S60PublisherOvi</name>
     <message>
         <source>Error while reading .pro file %1: %2</source>
         <translation type="obsolete">打开 .pro 文件 %1 出错: %2</translation>
@@ -41093,14 +41093,14 @@ Use a developer certificate or any other signing option to prevent this patching
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::S60PublishingWizardFactoryOvi</name>
+    <name>QmakeProjectManager::Internal::S60PublishingWizardFactoryOvi</name>
     <message>
         <source>Publish Qt Symbian Applications to Ovi Store</source>
         <translation type="obsolete">发布Qt Symbian 应用到Ovi 商店</translation>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::S60PublishingWizardOvi</name>
+    <name>QmakeProjectManager::Internal::S60PublishingWizardOvi</name>
     <message>
         <source>Publishing to Ovi Store</source>
         <translation type="obsolete">发布到Ovi 商店</translation>
@@ -41119,7 +41119,7 @@ Use a developer certificate or any other signing option to prevent this patching
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::S60RunControlBase</name>
+    <name>QmakeProjectManager::Internal::S60RunControlBase</name>
     <message>
         <source>Launching</source>
         <translation type="obsolete">正在启动</translation>
@@ -41142,7 +41142,7 @@ Use a developer certificate or any other signing option to prevent this patching
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::TrkRunControl</name>
+    <name>QmakeProjectManager::Internal::TrkRunControl</name>
     <message>
         <source>No device is connected. Please connect a device and try again.</source>
         <translation type="obsolete">没有设备连接。请连接设备后再试。</translation>
@@ -41187,7 +41187,7 @@ Check if the phone is connected and App TRK is running.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::WinscwToolChainFactory</name>
+    <name>QmakeProjectManager::Internal::WinscwToolChainFactory</name>
     <message>
         <source>WINSCW</source>
         <translation type="obsolete">WINSCW</translation>
@@ -41198,7 +41198,7 @@ Check if the phone is connected and App TRK is running.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Qt4BaseTargetFactory</name>
+    <name>QmakeProjectManager::QmakeBaseTargetFactory</name>
     <message>
         <source>%1 Debug</source>
         <extracomment>Name of a debug build configuration to created by a project wizard, %1 being the Qt version name. We recommend not translating it.</extracomment>
@@ -41224,7 +41224,7 @@ Check if the phone is connected and App TRK is running.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Qt4DefaultTargetSetupWidget</name>
+    <name>QmakeProjectManager::QmakeDefaultTargetSetupWidget</name>
     <message>
         <source>Add build from:</source>
         <translation type="obsolete">从添加构建:</translation>
@@ -41311,7 +41311,7 @@ Check if the phone is connected and App TRK is running.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::AbstractMobileAppWizardDialog</name>
+    <name>QmakeProjectManager::AbstractMobileAppWizardDialog</name>
     <message>
         <source>Qt Versions</source>
         <translation type="obsolete">Qt 版本</translation>
@@ -41346,7 +41346,7 @@ Check if the phone is connected and App TRK is running.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::Html5AppWizardDialog</name>
+    <name>QmakeProjectManager::Internal::Html5AppWizardDialog</name>
     <message>
         <source>New HTML5 Application</source>
         <translation>新的HTML5 应用</translation>
@@ -41361,7 +41361,7 @@ Check if the phone is connected and App TRK is running.</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::Html5AppWizard</name>
+    <name>QmakeProjectManager::Internal::Html5AppWizard</name>
     <message>
         <source>HTML5 Application</source>
         <translation>HTML5 应用</translation>
@@ -41376,14 +41376,14 @@ You can build the application and deploy it on desktop and mobile target platfor
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::Html5AppWizardOptionsPage</name>
+    <name>QmakeProjectManager::Internal::Html5AppWizardOptionsPage</name>
     <message>
         <source>Select HTML File</source>
         <translation>选择HTML文件</translation>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MobileAppWizardGenericOptionsPage</name>
+    <name>QmakeProjectManager::Internal::MobileAppWizardGenericOptionsPage</name>
     <message>
         <source>Automatically Rotate Orientation</source>
         <translation>自动旋转方向</translation>
@@ -41406,7 +41406,7 @@ You can build the application and deploy it on desktop and mobile target platfor
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MobileAppWizardMaemoOptionsPage</name>
+    <name>QmakeProjectManager::Internal::MobileAppWizardMaemoOptionsPage</name>
     <message>
         <source>The file is not a valid image.</source>
         <translation type="obsolete">不是一个合法的图片文件.</translation>
@@ -41437,7 +41437,7 @@ You can build the application and deploy it on desktop and mobile target platfor
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::SubdirsProjectWizard</name>
+    <name>QmakeProjectManager::Internal::SubdirsProjectWizard</name>
     <message>
         <source>Subdirs Project</source>
         <translation>子目录项目</translation>
@@ -41461,7 +41461,7 @@ You can build the application and deploy it on desktop and mobile target platfor
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::SubdirsProjectWizardDialog</name>
+    <name>QmakeProjectManager::Internal::SubdirsProjectWizardDialog</name>
     <message>
         <source>This wizard generates a Qt4 subdirs project. Add subprojects to it later on by using the other wizards.</source>
         <translation type="obsolete">本向导将创建一个Qt4子目录项目，稍后可以用其他向导添加子项目。</translation>
@@ -41472,7 +41472,7 @@ You can build the application and deploy it on desktop and mobile target platfor
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::TargetSetupPage</name>
+    <name>QmakeProjectManager::TargetSetupPage</name>
     <message>
         <source>Target Setup</source>
         <translation type="obsolete">目标设置</translation>
@@ -43987,7 +43987,7 @@ Do you want to continue?</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::CodaRunControl</name>
+    <name>QmakeProjectManager::CodaRunControl</name>
     <message>
         <source>No device is connected. Please connect a device and try again.
 </source>
@@ -44094,7 +44094,7 @@ Do you want to continue?</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::S60DeviceRunConfiguration</name>
+    <name>QmakeProjectManager::S60DeviceRunConfiguration</name>
     <message>
         <source>%1 on Symbian Device</source>
         <extracomment>S60 device runconfiguration default display name, %1 is base pro-File name</extracomment>
@@ -44107,14 +44107,14 @@ Do you want to continue?</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::S60DeviceRunConfigurationFactory</name>
+    <name>QmakeProjectManager::S60DeviceRunConfigurationFactory</name>
     <message>
         <source>%1 on Symbian Device</source>
         <translation type="obsolete">Symbian 设备上的 %1</translation>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::S60CommandPublishStep</name>
+    <name>QmakeProjectManager::Internal::S60CommandPublishStep</name>
     <message>
         <source>Running %1</source>
         <extracomment>%1 is a name of the Publish Step i.e. Clean Step</extracomment>
@@ -44122,7 +44122,7 @@ Do you want to continue?</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::S60PublishingBuildSettingsPageOvi</name>
+    <name>QmakeProjectManager::Internal::S60PublishingBuildSettingsPageOvi</name>
     <message>
         <source>No valid Qt version has been detected.&lt;br&gt;Define a correct Qt version in &quot;Options &gt; Qt4&quot;</source>
         <translation type="obsolete">没有检测到有效的Qt版本.&lt;br&gt;请定义一个有效的Qt 版本在&quot;选项&gt; Qt4&quot;</translation>
@@ -44133,7 +44133,7 @@ Do you want to continue?</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::S60RunControlBase</name>
+    <name>QmakeProjectManager::S60RunControlBase</name>
     <message>
         <source>Launching</source>
         <translation type="obsolete">正在启动</translation>
@@ -44154,7 +44154,7 @@ Do you want to continue?</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::SymbianQtConfigWidget</name>
+    <name>QmakeProjectManager::Internal::SymbianQtConfigWidget</name>
     <message>
         <source>S60 SDK:</source>
         <translation type="obsolete">S60 SDK:</translation>
@@ -44165,14 +44165,14 @@ Do you want to continue?</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Qt4BuildConfiguration</name>
+    <name>QmakeProjectManager::QmakeBuildConfiguration</name>
     <message>
         <source>Parsing the .pro file</source>
         <translation>正在解析.pro文件</translation>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Qt4ProFileNode</name>
+    <name>QmakeProjectManager::QmakeProFileNode</name>
     <message>
         <source>Error while parsing file %1. Giving up.</source>
         <translation>分析文件%1时发生错误，放弃中。</translation>
@@ -44183,7 +44183,7 @@ Do you want to continue?</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::QtQuickComponentSetOptionsPage</name>
+    <name>QmakeProjectManager::Internal::QtQuickComponentSetOptionsPage</name>
     <message>
         <source>Select QML File</source>
         <translation>选择QML文件</translation>
@@ -49574,7 +49574,7 @@ Qt Creator 知道一个相似的URI.</translation>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Qt4PriFileNode</name>
+    <name>QmakeProjectManager::QmakePriFileNode</name>
     <message>
         <source>Headers</source>
         <translation>头文件</translation>
@@ -49637,7 +49637,7 @@ Qt Creator 知道一个相似的URI.</translation>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::PngIconScaler</name>
+    <name>QmakeProjectManager::Internal::PngIconScaler</name>
     <message>
         <source>Wrong Icon Size</source>
         <translation>错误的图标大小</translation>
@@ -52011,7 +52011,7 @@ p, li { white-space: pre-wrap; }
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MakeStep</name>
+    <name>QmakeProjectManager::Internal::MakeStep</name>
     <message>
         <source>Make arguments:</source>
         <translation>Make 参数:</translation>
@@ -52022,7 +52022,7 @@ p, li { white-space: pre-wrap; }
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::QMakeStep</name>
+    <name>QmakeProjectManager::Internal::QMakeStep</name>
     <message>
         <source>qmake build configuration:</source>
         <translation>qmake 构建配置:</translation>
@@ -52049,7 +52049,7 @@ p, li { white-space: pre-wrap; }
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::Html5AppWizardSourcesPage</name>
+    <name>QmakeProjectManager::Internal::Html5AppWizardSourcesPage</name>
     <message>
         <source>WizardPage</source>
         <translation>向导页面</translation>
@@ -52092,7 +52092,7 @@ p, li { white-space: pre-wrap; }
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MobileAppWizardHarmattanOptionsPage</name>
+    <name>QmakeProjectManager::Internal::MobileAppWizardHarmattanOptionsPage</name>
     <message>
         <source>WizardPage</source>
         <translation>向导页面</translation>
@@ -52111,7 +52111,7 @@ p, li { white-space: pre-wrap; }
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::MobileLibraryWizardOptionPage</name>
+    <name>QmakeProjectManager::Internal::MobileLibraryWizardOptionPage</name>
     <message>
         <source>WizardPage</source>
         <translation>向导页面</translation>
@@ -57999,7 +57999,7 @@ Do you want to add it to the project?</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::QmakeKitConfigWidget</name>
+    <name>QmakeProjectManager::Internal::QmakeKitConfigWidget</name>
     <message>
         <source>The mkspec to use when building the project with qmake.&lt;br&gt;This setting is ignored when using other build systems.</source>
         <translation>用qmake构建项目时使用的mkspec。&lt;br&gt;当使用其他构建系统时该设置被忽略。</translation>
@@ -58010,7 +58010,7 @@ Do you want to add it to the project?</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::QmakeKitInformation</name>
+    <name>QmakeProjectManager::QmakeKitInformation</name>
     <message>
         <source>No Qt version set, so mkspec is ignored.</source>
         <translation>未设置Qt版本，所以mkspec被忽略。</translation>
@@ -58025,7 +58025,7 @@ Do you want to add it to the project?</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Qt4TargetSetupWidget</name>
+    <name>QmakeProjectManager::QmakeTargetSetupWidget</name>
     <message>
         <source>Manage...</source>
         <translation>管理...</translation>
@@ -58042,14 +58042,14 @@ Do you want to add it to the project?</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::UnconfiguredProjectPanel</name>
+    <name>QmakeProjectManager::Internal::UnconfiguredProjectPanel</name>
     <message>
         <source>Configure Project</source>
         <translation>配置项目</translation>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::TargetSetupPageWrapper</name>
+    <name>QmakeProjectManager::Internal::TargetSetupPageWrapper</name>
     <message>
         <source>Configure Project</source>
         <translation>配置项目</translation>
@@ -58072,7 +58072,7 @@ Do you want to add it to the project?</source>
     </message>
 </context>
 <context>
-    <name>Qt4ProjectManager::Internal::ImportWidget</name>
+    <name>QmakeProjectManager::Internal::ImportWidget</name>
     <message>
         <source>Import Build from...</source>
         <translation>导入构建，从...</translation>

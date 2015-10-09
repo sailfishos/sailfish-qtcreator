@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -33,6 +33,8 @@
 #include "debuggeractions.h"
 #include "debuggercore.h"
 
+#include <coreplugin/mainwindow.h>
+#include <utils/checkablemessagebox.h>
 #include <utils/pathchooser.h>
 #include <utils/qtcassert.h>
 #include <utils/savedaction.h>
@@ -168,6 +170,7 @@ BreakpointDialog::BreakpointDialog(BreakpointModelId id, QWidget *parent)
     m_labelType->setBuddy(m_comboBoxType);
 
     m_pathChooserFileName = new Utils::PathChooser(groupBoxBasic);
+    m_pathChooserFileName->setHistoryCompleter(QLatin1String("Debugger.Breakpoint.File.History"));
     m_pathChooserFileName->setExpectedKind(Utils::PathChooser::File);
     m_labelFileName = new QLabel(tr("&File name:"), groupBoxBasic);
     m_labelFileName->setBuddy(m_pathChooserFileName);
@@ -579,12 +582,12 @@ void BreakpointDialog::typeChanged(int)
     case BreakpointByAddress:
     case WatchpointAtAddress:
         setParts(AddressPart|AllConditionParts|TracePointPart, m_savedParameters);
-        setPartsEnabled(AddressPart|AllConditionParts|TracePointPart|TracePointPart);
+        setPartsEnabled(AddressPart|AllConditionParts|TracePointPart);
         clearOtherParts(AddressPart|AllConditionParts|TracePointPart);
         break;
     case WatchpointAtExpression:
         setParts(ExpressionPart|AllConditionParts|TracePointPart, m_savedParameters);
-        setPartsEnabled(ExpressionPart|AllConditionParts|TracePointPart|TracePointPart);
+        setPartsEnabled(ExpressionPart|AllConditionParts|TracePointPart);
         clearOtherParts(ExpressionPart|AllConditionParts|TracePointPart);
         break;
     case BreakpointOnQmlSignalEmit:
@@ -748,11 +751,14 @@ void BreakTreeView::contextMenuEvent(QContextMenuEvent *ev)
         selectedIndices.append(indexUnderMouse);
 
     BreakHandler *handler = breakHandler();
-    BreakpointModelIds selectedIds = handler->findBreakpointsByIndex(selectedIndices);
+    BreakpointModelIds selectedIds;
+    foreach (BreakpointModelId id, handler->findBreakpointsByIndex(selectedIndices))
+        if (id.isMajor())
+            selectedIds.append(id);
 
     const int rowCount = model()->rowCount();
     QAction *deleteAction = new QAction(tr("Delete Breakpoint"), &menu);
-    deleteAction->setEnabled(!selectedIds.isEmpty());
+    deleteAction->setEnabled(!selectedIds.empty());
 
     QAction *deleteAllAction = new QAction(tr("Delete All Breakpoints"), &menu);
     deleteAllAction->setEnabled(model()->rowCount() > 0);
@@ -862,11 +868,12 @@ void BreakTreeView::setBreakpointsEnabled(const BreakpointModelIds &ids, bool en
 
 void BreakTreeView::deleteAllBreakpoints()
 {
-    if (QMessageBox::warning(debuggerCore()->mainWindow(),
+    if (Utils::CheckableMessageBox::doNotAskAgainQuestion(Core::ICore::dialogParent(),
            tr("Remove All Breakpoints"),
            tr("Are you sure you want to remove all breakpoints "
               "from all files in the current session?"),
-           QMessageBox::Yes|QMessageBox::No) == QMessageBox::Yes)
+           Core::ICore::settings(),
+           QLatin1String("RemoveAllBreakpoints")) == QDialogButtonBox::Yes)
         deleteBreakpoints(breakHandler()->allBreakpointIds());
 }
 

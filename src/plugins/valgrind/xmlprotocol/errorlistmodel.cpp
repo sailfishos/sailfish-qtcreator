@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 ** Author: Frank Osterfeld, KDAB (frank.osterfeld@kdab.com)
 **
@@ -239,7 +239,7 @@ int ErrorListModel::rowCount(const QModelIndex &parent) const
 {
     if (parent.isValid())
         return 0;
-    return qMax(1, d->errors.count());
+    return d->errors.count();
 }
 
 int ErrorListModel::columnCount(const QModelIndex &parent) const

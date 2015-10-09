@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -41,11 +41,11 @@ namespace QmlProjectManager {
 namespace Internal {
 
 QmlProjectNode::QmlProjectNode(QmlProject *project, Core::IDocument *projectFile)
-    : ProjectExplorer::ProjectNode(QFileInfo(projectFile->fileName()).absoluteFilePath()),
+    : ProjectExplorer::ProjectNode(QFileInfo(projectFile->filePath()).absoluteFilePath()),
       m_project(project),
       m_projectFile(projectFile)
 {
-    setDisplayName(QFileInfo(projectFile->fileName()).completeBaseName());
+    setDisplayName(QFileInfo(projectFile->filePath()).completeBaseName());
     // make overlay
     const QSize desiredSize = QSize(16, 16);
     const QIcon projectBaseIcon(QLatin1String(":/qmlproject/images/qmlfolder.png"));
@@ -62,15 +62,15 @@ Core::IDocument *QmlProjectNode::projectFile() const
 { return m_projectFile; }
 
 QString QmlProjectNode::projectFilePath() const
-{ return m_projectFile->fileName(); }
+{ return m_projectFile->filePath(); }
 
 void QmlProjectNode::refresh()
 {
     using namespace ProjectExplorer;
 
     // remove the existing nodes.
-    removeFileNodes(fileNodes(), this);
-    removeFolderNodes(subFolderNodes(), this);
+    removeFileNodes(fileNodes());
+    removeFolderNodes(subFolderNodes());
 
     //ProjectExplorerPlugin::instance()->setCurrentNode(0); // ### remove me
 
@@ -82,8 +82,7 @@ void QmlProjectNode::refresh()
     files.removeAll(m_project->filesFileName());
 
     addFileNodes(QList<FileNode *>()
-                 << projectFilesNode,
-                 this);
+                 << projectFilesNode);
 
     QHash<QString, QStringList> filesInDirectory;
 
@@ -118,7 +117,7 @@ void QmlProjectNode::refresh()
             fileNodes.append(fileNode);
         }
 
-        addFileNodes(fileNodes, folder);
+        folder->addFileNodes(fileNodes);
     }
 
     m_folderByName.clear();
@@ -154,7 +153,7 @@ ProjectExplorer::FolderNode *QmlProjectNode::findOrCreateFolderByName(const QStr
     if (! parent)
         parent = this;
 
-    addFolderNodes(QList<FolderNode*>() << folder, parent);
+    parent->addFolderNodes(QList<FolderNode*>() << folder);
 
     return folder;
 }
@@ -165,18 +164,22 @@ ProjectExplorer::FolderNode *QmlProjectNode::findOrCreateFolderByName(const QStr
     return findOrCreateFolderByName(components, components.length());
 }
 
-bool QmlProjectNode::hasBuildTargets() const
+bool QmlProjectNode::showInSimpleTree() const
 {
     return true;
 }
 
-QList<ProjectExplorer::ProjectNode::ProjectAction> QmlProjectNode::supportedActions(Node *node) const
+QList<ProjectExplorer::ProjectAction> QmlProjectNode::supportedActions(Node *node) const
 {
     Q_UNUSED(node);
-    QList<ProjectAction> actions;
-    actions.append(AddNewFile);
-    actions.append(EraseFile);
-    actions.append(Rename);
+    QList<ProjectExplorer::ProjectAction> actions;
+    actions.append(ProjectExplorer::AddNewFile);
+    actions.append(ProjectExplorer::EraseFile);
+    if (node->nodeType() == ProjectExplorer::FileNodeType) {
+        ProjectExplorer::FileNode *fileNode = static_cast<ProjectExplorer::FileNode *>(node);
+        if (fileNode->fileType() != ProjectExplorer::ProjectFileType)
+            actions.append(ProjectExplorer::Rename);
+    }
     return actions;
 }
 
@@ -198,26 +201,22 @@ bool QmlProjectNode::removeSubProjects(const QStringList &proFilePaths)
     return false;
 }
 
-bool QmlProjectNode::addFiles(const ProjectExplorer::FileType /*fileType*/,
-                              const QStringList &filePaths, QStringList * /*notAdded*/)
+bool QmlProjectNode::addFiles(const QStringList &filePaths, QStringList * /*notAdded*/)
 {
     return m_project->addFiles(filePaths);
 }
 
-bool QmlProjectNode::removeFiles(const ProjectExplorer::FileType /*fileType*/,
-                                 const QStringList & /*filePaths*/, QStringList * /*notRemoved*/)
+bool QmlProjectNode::removeFiles(const QStringList & /*filePaths*/, QStringList * /*notRemoved*/)
 {
     return false;
 }
 
-bool QmlProjectNode::deleteFiles(const ProjectExplorer::FileType /*fileType*/,
-                                 const QStringList & /*filePaths*/)
+bool QmlProjectNode::deleteFiles(const QStringList & /*filePaths*/)
 {
     return true;
 }
 
-bool QmlProjectNode::renameFile(const ProjectExplorer::FileType /*fileType*/,
-                                    const QString & /*filePath*/, const QString & /*newFilePath*/)
+bool QmlProjectNode::renameFile(const QString & /*filePath*/, const QString & /*newFilePath*/)
 {
     return true;
 }

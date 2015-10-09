@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -46,10 +46,9 @@ class GdbOptionsPage : public Core::IOptionsPage
 public:
     GdbOptionsPage();
     ~GdbOptionsPage();
-    QWidget *createPage(QWidget *parent);
+    QWidget *widget();
     void apply();
     void finish();
-    bool matches(const QString &) const;
 
 private:
     QPointer<GdbOptionsPageWidget> m_widget;
@@ -63,10 +62,9 @@ class GdbOptionsPage2 : public Core::IOptionsPage
 public:
     GdbOptionsPage2();
     ~GdbOptionsPage2();
-    QWidget *createPage(QWidget *parent);
+    QWidget *widget();
     void apply();
     void finish();
-    bool matches(const QString &) const;
 
 private:
     QPointer<GdbOptionsPageWidget2> m_widget;

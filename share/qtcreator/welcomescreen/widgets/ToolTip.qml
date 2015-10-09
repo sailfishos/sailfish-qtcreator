@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -27,14 +27,12 @@
 **
 ****************************************************************************/
 
-import QtQuick 1.1
+import QtQuick 2.1
 
 Item {
     id: toolTip
 
     property alias text: text.text
-
-
     property int margin: 4
 
     width: text.width + margin * 2
@@ -100,7 +98,7 @@ Item {
         }
     }
 
-    Text {
+    NativeText {
         x: toolTip.margin
         y: toolTip.margin
         id: text

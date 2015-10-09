@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -28,6 +28,8 @@
 ****************************************************************************/
 
 #include "propertyabstractcontainer.h"
+
+#include <QDebug>
 
 namespace QmlDesigner {
 
@@ -80,5 +82,20 @@ QDataStream &operator>>(QDataStream &in, PropertyAbstractContainer &container)
 
     return in;
 }
+
+QDebug operator <<(QDebug debug, const PropertyAbstractContainer &container)
+{
+    debug.nospace() << "PropertyAbstractContainer("
+                    << "instanceId: " << container.instanceId() << ", "
+                    << "name: " << container.name();
+
+    if (!container.dynamicTypeName().isEmpty())
+        debug.nospace() << ", " << "dynamicTypeName: " << container.dynamicTypeName();
+
+    debug.nospace() << ")";
+
+    return debug;
+}
+
 
 } // namespace QmlDesigner

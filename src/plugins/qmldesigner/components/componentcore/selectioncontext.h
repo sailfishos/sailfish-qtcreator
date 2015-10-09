@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -28,7 +28,8 @@
 ****************************************************************************/
 
 #include <qmldesignercorelib_global.h>
-#include <qmlmodelview.h>
+#include <abstractview.h>
+#include <QPointF>
 
 #ifndef SELECTIONCONTEXT_H
 #define SELECTIONCONTEXT_H
@@ -39,7 +40,7 @@ class QMLDESIGNERCORE_EXPORT SelectionContext {
 
 public:
     SelectionContext();
-    SelectionContext(QmlModelView *qmlModelView);
+    SelectionContext(AbstractView *view);
 
     void setTargetNode(const ModelNode &modelNode);
     ModelNode targetNode() const;
@@ -48,15 +49,17 @@ public:
     bool isInBaseState() const;
 
     ModelNode currentSingleSelectedNode() const;
+    ModelNode firstSelectedModelNode() const;
     QList<ModelNode> selectedModelNodes() const;
+    bool hasSingleSelectedModelNode() const;
 
-    QmlModelView *qmlModelView() const;
+    AbstractView *view() const;
 
     void setShowSelectionTools(bool show);
     bool showSelectionTools() const;
 
-    void setScenePos(const QPoint &postition);
-    QPoint scenePos() const;
+    void setScenePosition(const QPointF &postition);
+    QPointF scenePosition() const;
 
     void setToggled(bool toggled);
     bool toggled() const;
@@ -64,12 +67,10 @@ public:
     bool isValid() const;
 
 private:
-    QWeakPointer<QmlModelView> m_qmlModelView;
+    QWeakPointer<AbstractView> m_view;
     ModelNode m_targetNode;
-    bool m_isInBaseState;
-    QList<ModelNode> m_selectedModelNodes;
     bool m_showSelectionTools;
-    QPoint m_scenePosition;
+    QPointF m_scenePosition;
     bool m_toggled;
 };
 

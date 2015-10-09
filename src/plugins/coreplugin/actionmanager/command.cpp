@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -29,8 +29,8 @@
 
 #include "command_p.h"
 
-#include "icontext.h"
-#include "id.h"
+#include <coreplugin/icontext.h>
+#include <coreplugin/id.h>
 
 #include <utils/hostosinfo.h>
 
@@ -198,11 +198,6 @@
     Returns whether the Command is scriptable for the given context.
     A scriptable command can be called from a script without the need for the user to
     interact with it.
-*/
-
-/*!
-    \fn Command::~Command()
-    \internal
 */
 
 using namespace Core;

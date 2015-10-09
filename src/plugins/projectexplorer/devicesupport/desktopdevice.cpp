@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -28,10 +28,12 @@
 ****************************************************************************/
 
 #include "desktopdevice.h"
-#include "projectexplorerconstants.h"
+#include "desktopdeviceprocess.h"
 #include "deviceprocesslist.h"
 #include "localprocesslist.h"
 #include "desktopdeviceconfigurationwidget.h"
+#include "desktopprocesssignaloperation.h"
+#include <projectexplorer/projectexplorerconstants.h>
 
 #include <ssh/sshconnection.h>
 #include <utils/portlist.h>
@@ -87,7 +89,7 @@ QString DesktopDevice::displayNameForActionId(Core::Id actionId) const
     return QString();
 }
 
-void DesktopDevice::executeAction(Core::Id actionId, QWidget *parent) const
+void DesktopDevice::executeAction(Core::Id actionId, QWidget *parent)
 {
     Q_UNUSED(actionId);
     Q_UNUSED(parent);
@@ -106,6 +108,21 @@ bool DesktopDevice::canCreateProcessModel() const
 DeviceProcessList *DesktopDevice::createProcessListModel(QObject *parent) const
 {
     return new Internal::LocalProcessList(sharedFromThis(), parent);
+}
+
+DeviceProcess *DesktopDevice::createProcess(QObject *parent) const
+{
+    return new Internal::DesktopDeviceProcess(sharedFromThis(), parent);
+}
+
+DeviceProcessSignalOperation::Ptr DesktopDevice::signalOperation() const
+{
+    return DeviceProcessSignalOperation::Ptr(new DesktopProcessSignalOperation());
+}
+
+QString DesktopDevice::qmlProfilerHost() const
+{
+    return QLatin1String("localhost");
 }
 
 IDevice::Ptr DesktopDevice::clone() const

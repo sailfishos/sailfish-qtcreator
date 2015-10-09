@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Brian McGillion and Hugues Delorme
+** Copyright (c) 2014 Brian McGillion and Hugues Delorme
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -32,9 +32,12 @@
 
 #include "vcsbase_global.h"
 
+#include <utils/synchronousprocess.h>
+
 #include <QObject>
 
 QT_BEGIN_NAMESPACE
+class QMutex;
 class QStringList;
 class QVariant;
 class QProcessEnvironment;
@@ -46,65 +49,88 @@ namespace VcsBase {
 
 namespace Internal { class CommandPrivate; }
 
+class VCSBASE_EXPORT ProgressParser
+{
+public:
+    ProgressParser();
+    virtual ~ProgressParser();
+
+protected:
+    virtual void parseProgress(const QString &text) = 0;
+    void setProgressAndMaximum(int value, int maximum);
+
+private:
+    void setFuture(QFutureInterface<void> *future);
+
+    QFutureInterface<void> *m_future;
+    QMutex *m_futureMutex;
+    friend class Command;
+};
+
 class VCSBASE_EXPORT Command : public QObject
 {
     Q_OBJECT
 
 public:
-    // Where to report command termination with exit code if desired
-    enum TerminationReportMode
-    {
-        NoReport,
-        ReportStdout,  // This assumes UTF8
-        ReportStderr
-    };
-
     Command(const QString &binary,
             const QString &workingDirectory,
             const QProcessEnvironment &environment);
     ~Command();
 
-    void addJob(const QStringList &arguments);
-    void addJob(const QStringList &arguments, int timeout);
+    void addJob(const QStringList &arguments, Utils::ExitCodeInterpreter *interpreter = 0);
+    void addJob(const QStringList &arguments, int timeout, Utils::ExitCodeInterpreter *interpreter = 0);
     void execute();
+    void abort();
     bool lastExecutionSuccess() const;
     int lastExecutionExitCode() const;
-
-    // Clean output from carriage return and ANSI color codes
-    // Workaround until all relevant commands support "--no-color"
-    static void removeColorCodes(QByteArray *data);
 
     const QString &binaryPath() const;
     const QString &workingDirectory() const;
     const QProcessEnvironment &processEnvironment() const;
 
-    // Report command termination with exit code
-    TerminationReportMode reportTerminationMode() const;
-    void setTerminationReportMode(TerminationReportMode m);
-
     int defaultTimeout() const;
     void setDefaultTimeout(int timeout);
 
-    // Disable Terminal on UNIX (see VCS SSH handling)
-    bool unixTerminalDisabled() const;
-    void setUnixTerminalDisabled(bool);
-
-    bool expectChanges() const;
-    void setExpectChanges(bool);
-
-    static QString msgTimeout(int seconds);
+    unsigned flags() const;
+    void addFlags(unsigned f);
 
     const QVariant &cookie() const;
     void setCookie(const QVariant &cookie);
 
+    QTextCodec *codec() const;
+    void setCodec(QTextCodec *codec);
+
+    void setProgressParser(ProgressParser *parser);
+    void setProgressiveOutput(bool progressive);
+
+    Utils::SynchronousProcessResponse runVcs(const QStringList &arguments, int timeoutMS,
+                                             Utils::ExitCodeInterpreter *interpreter = 0);
+    // Make sure to not pass through the event loop at all:
+    bool runFullySynchronous(const QStringList &arguments, int timeoutMS,
+                             QByteArray *outputData, QByteArray *errorData);
+
 private:
     void run(QFutureInterface<void> &future);
+    Utils::SynchronousProcessResponse runSynchronous(const QStringList &arguments, int timeoutMS,
+                                                     Utils::ExitCodeInterpreter *interpreter = 0);
+    void emitRepositoryChanged();
+
+public slots:
+    void cancel();
 
 signals:
-    void outputData(const QByteArray &);
+    void output(const QString &);
     void errorText(const QString &);
     void finished(bool ok, int exitCode, const QVariant &cookie);
     void success(const QVariant &cookie);
+
+private slots:
+    void bufferedOutput(const QString &text);
+    void bufferedError(const QString &text);
+    void coreAboutToClose();
+
+signals:
+    void terminate(); // Internal
 
 private:
     class Internal::CommandPrivate *const d;

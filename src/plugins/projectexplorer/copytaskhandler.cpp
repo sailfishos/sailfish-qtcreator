@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -45,11 +45,11 @@ void CopyTaskHandler::handle(const ProjectExplorer::Task &task)
     switch (task.type) {
     case Task::Error:
         //: Task is of type: error
-        type = tr("error: ");
+        type = tr("error:") + QLatin1Char(' ');
         break;
     case Task::Warning:
         //: Task is of type: warning
-        type = tr("warning: ");
+        type = tr("warning:") + QLatin1Char(' ');
         break;
     default:
         break;

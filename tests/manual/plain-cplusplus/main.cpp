@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -140,9 +140,13 @@ int runWithNewPreprocessor(int argc, char *argv[])
 void parse(const char *fileName, const char *source, unsigned size)
 {
     Control control;
+
+    LanguageFeatures features;
+    features.cxx11Enabled = true;
+
     TranslationUnit unit(&control, control.stringLiteral(fileName));
     unit.setSource(source, size);
-    unit.setCxxOxEnabled(true);
+    unit.setLanguageFeatures(features);
     unit.parse();
 
 #if 1

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -78,8 +78,8 @@ public slots:
     void setGeneratedFilesFilterEnabled(bool filter);
 
 private slots:
-    void aboutToHasBuildTargetsChanged(ProjectExplorer::ProjectNode *node);
-    void hasBuildTargetsChanged(ProjectExplorer::ProjectNode *node);
+    void aboutToShowInSimpleTreeChanged(ProjectExplorer::FolderNode *node);
+    void showInSimpleTreeChanged(ProjectExplorer::FolderNode *node);
     void foldersAboutToBeAdded(FolderNode *parentFolder, const QList<FolderNode*> &newFolders);
     void foldersAdded();
 

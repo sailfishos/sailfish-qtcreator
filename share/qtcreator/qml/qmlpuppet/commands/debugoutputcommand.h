@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -39,6 +39,7 @@ namespace QmlDesigner {
 class DebugOutputCommand
 {
     friend QDataStream &operator>>(QDataStream &in, DebugOutputCommand &command);
+    friend bool operator ==(const DebugOutputCommand &first, const DebugOutputCommand &second);
 
 public:
     enum Type {
@@ -61,6 +62,9 @@ private:
 
 QDataStream &operator<<(QDataStream &out, const DebugOutputCommand &command);
 QDataStream &operator>>(QDataStream &in, DebugOutputCommand &command);
+
+bool operator ==(const DebugOutputCommand &first, const DebugOutputCommand &second);
+QDebug operator <<(QDebug debug, const DebugOutputCommand &command);
 
 } // namespace QmlDesigner
 

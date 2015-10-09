@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -48,6 +48,7 @@
 #include <QDebug>
 #include <QMenu>
 
+using namespace Core;
 using namespace QmlJSTools;
 using namespace QmlJSTools::Internal;
 
@@ -71,10 +72,8 @@ QmlJSToolsPlugin::~QmlJSToolsPlugin()
 bool QmlJSToolsPlugin::initialize(const QStringList &arguments, QString *error)
 {
     Q_UNUSED(arguments)
-    Q_UNUSED(error)
 
-    if (!Core::ICore::mimeDatabase()
-            ->addMimeTypes(QLatin1String(":/qmljstools/QmlJSTools.mimetypes.xml"), error))
+    if (!MimeDatabase::addMimeTypes(QLatin1String(":/qmljstools/QmlJSTools.mimetypes.xml"), error))
         return false;
 
     m_settings = new QmlJSToolsSettings(this); // force registration of qmljstools settings
@@ -83,8 +82,8 @@ bool QmlJSToolsPlugin::initialize(const QStringList &arguments, QString *error)
     m_modelManager = new ModelManager(this);
     m_consoleManager = new QmlConsoleManager(this);
 
-//    Core::VCSManager *vcsManager = core->vcsManager();
-//    Core::DocumentManager *fileManager = core->fileManager();
+//    VCSManager *vcsManager = core->vcsManager();
+//    DocumentManager *fileManager = core->fileManager();
 //    connect(vcsManager, SIGNAL(repositoryChanged(QString)),
 //            m_modelManager, SLOT(updateModifiedSourceFiles()));
 //    connect(fileManager, SIGNAL(filesChangedInternally(QStringList)),
@@ -97,8 +96,8 @@ bool QmlJSToolsPlugin::initialize(const QStringList &arguments, QString *error)
     addAutoReleasedObject(new BasicBundleProvider);
 
     // Menus
-    Core::ActionContainer *mtools = Core::ActionManager::actionContainer(Core::Constants::M_TOOLS);
-    Core::ActionContainer *mqmljstools = Core::ActionManager::createMenu(Constants::M_TOOLS_QMLJS);
+    ActionContainer *mtools = ActionManager::actionContainer(Core::Constants::M_TOOLS);
+    ActionContainer *mqmljstools = ActionManager::createMenu(Constants::M_TOOLS_QMLJS);
     QMenu *menu = mqmljstools->menu();
     menu->setTitle(tr("&QML/JS"));
     menu->setEnabled(true);
@@ -106,17 +105,17 @@ bool QmlJSToolsPlugin::initialize(const QStringList &arguments, QString *error)
 
     // Update context in global context
     m_resetCodeModelAction = new QAction(tr("Reset Code Model"), this);
-    Core::Context globalContext(Core::Constants::C_GLOBAL);
-    Core::Command *cmd = Core::ActionManager::registerAction(
-                m_resetCodeModelAction, Core::Id(Constants::RESET_CODEMODEL), globalContext);
+    Context globalContext(Core::Constants::C_GLOBAL);
+    Command *cmd = ActionManager::registerAction(
+                m_resetCodeModelAction, Constants::RESET_CODEMODEL, globalContext);
     connect(m_resetCodeModelAction, SIGNAL(triggered()), m_modelManager, SLOT(resetCodeModel()));
     mqmljstools->addAction(cmd);
 
     // watch task progress
-    connect(Core::ICore::progressManager(), SIGNAL(taskStarted(QString)),
-            this, SLOT(onTaskStarted(QString)));
-    connect(Core::ICore::progressManager(), SIGNAL(allTasksFinished(QString)),
-            this, SLOT(onAllTasksFinished(QString)));
+    connect(ProgressManager::instance(), SIGNAL(taskStarted(Core::Id)),
+            this, SLOT(onTaskStarted(Core::Id)));
+    connect(ProgressManager::instance(), SIGNAL(allTasksFinished(Core::Id)),
+            this, SLOT(onAllTasksFinished(Core::Id)));
 
     return true;
 }
@@ -131,15 +130,15 @@ ExtensionSystem::IPlugin::ShutdownFlag QmlJSToolsPlugin::aboutToShutdown()
     return SynchronousShutdown;
 }
 
-void QmlJSToolsPlugin::onTaskStarted(const QString &type)
+void QmlJSToolsPlugin::onTaskStarted(Core::Id type)
 {
-    if (type == QLatin1String(QmlJSTools::Constants::TASK_INDEX))
+    if (type == QmlJS::Constants::TASK_INDEX)
         m_resetCodeModelAction->setEnabled(false);
 }
 
-void QmlJSToolsPlugin::onAllTasksFinished(const QString &type)
+void QmlJSToolsPlugin::onAllTasksFinished(Core::Id type)
 {
-    if (type == QLatin1String(QmlJSTools::Constants::TASK_INDEX))
+    if (type == QmlJS::Constants::TASK_INDEX)
         m_resetCodeModelAction->setEnabled(true);
 }
 

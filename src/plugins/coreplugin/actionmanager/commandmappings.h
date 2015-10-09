@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -40,9 +40,11 @@ class QTreeWidget;
 class QTreeWidgetItem;
 QT_END_NAMESPACE
 
+namespace Utils { class FancyLineEdit; }
+
 namespace Core {
 
-namespace Internal {  namespace Ui { class CommandMappings; }  }
+namespace Internal { class CommandMappingsPrivate; }
 
 class CORE_EXPORT CommandMappings : public Core::IOptionsPage
 {
@@ -50,6 +52,8 @@ class CORE_EXPORT CommandMappings : public Core::IOptionsPage
 
 public:
     CommandMappings(QObject *parent = 0);
+    ~CommandMappings();
+    virtual bool hasConflicts() const;
 
 protected slots:
     void commandChanged(QTreeWidgetItem *current);
@@ -60,7 +64,7 @@ protected slots:
 
 protected:
     // IOptionsPage
-    QWidget *createPage(QWidget *parent);
+    QWidget *widget();
     virtual void apply() {}
     virtual void finish();
 
@@ -77,10 +81,10 @@ protected:
     void setTargetEditTitle(const QString &s);
     void setTargetHeader(const QString &s);
     void setModified(QTreeWidgetItem *item, bool modified);
-    virtual void markPossibleCollisions(QTreeWidgetItem *) {}
-    virtual void resetCollisionMarkers() {}
+
 private:
-    Internal::Ui::CommandMappings *m_page;
+    friend class Internal::CommandMappingsPrivate;
+    Internal::CommandMappingsPrivate *d;
 };
 
 } // namespace Core

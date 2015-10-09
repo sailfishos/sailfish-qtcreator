@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -35,8 +35,8 @@
 namespace QmlProjectManager {
 namespace Constants {
 
-const char *const PROJECTCONTEXT     = "QmlProject.ProjectContext";
-const char *const QMLPROJECT_MIMETYPE        = QmlJSTools::Constants::QMLPROJECT_MIMETYPE;
+const char PROJECTCONTEXT[]     = "QmlProject.ProjectContext";
+const char * const QMLPROJECT_MIMETYPE = QmlJSTools::Constants::QMLPROJECT_MIMETYPE;
 
 } // namespace Constants
 } // namespace QmlProjectManager

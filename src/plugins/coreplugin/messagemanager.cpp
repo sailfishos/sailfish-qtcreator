@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -34,12 +34,18 @@
 
 using namespace Core;
 
-MessageManager *MessageManager::m_instance = 0;
+static MessageManager *m_instance = 0;
+Internal::MessageOutputWindow *m_messageOutputWindow = 0;
+
+QObject *MessageManager::instance()
+{
+    return m_instance;
+}
 
 MessageManager::MessageManager()
-    : m_messageOutputWindow(0)
 {
     m_instance = this;
+    m_messageOutputWindow = 0;
     qRegisterMetaType<Core::MessageManager::PrintToOutputPaneFlags>();
 }
 
@@ -49,7 +55,6 @@ MessageManager::~MessageManager()
         ExtensionSystem::PluginManager::removeObject(m_messageOutputWindow);
         delete m_messageOutputWindow;
     }
-
     m_instance = 0;
 }
 
@@ -65,7 +70,12 @@ void MessageManager::showOutputPane()
         m_messageOutputWindow->popup(IOutputPane::ModeSwitch);
 }
 
-void MessageManager::printToOutputPane(const QString &text, PrintToOutputPaneFlags flags)
+void MessageManager::write(const QString &text)
+{
+    write(text, NoModeSwitch);
+}
+
+void MessageManager::write(const QString &text, PrintToOutputPaneFlags flags)
 {
     if (!m_messageOutputWindow)
         return;

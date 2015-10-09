@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -27,12 +27,12 @@
 **
 ****************************************************************************/
 
-#include "devicesupport/deviceprocessesdialog.h"
-#include "devicesupport/deviceprocesslist.h"
-#include "kitchooser.h"
-#include "kitinformation.h"
+#include "deviceprocessesdialog.h"
+#include "deviceprocesslist.h"
+#include <projectexplorer/kitchooser.h>
+#include <projectexplorer/kitinformation.h>
 
-#include <utils/filterlineedit.h>
+#include <utils/fancylineedit.h>
 #include <utils/qtcassert.h>
 
 #include <QDialogButtonBox>
@@ -104,7 +104,7 @@ public slots:
     void handleProcessListUpdated();
     void handleProcessKilled();
     void updateButtons();
-    DeviceProcess selectedProcess() const;
+    DeviceProcessItem selectedProcess() const;
 
 public:
     QWidget *q;
@@ -115,7 +115,7 @@ public:
 
     QTreeView *procView;
     QTextBrowser *errorText;
-    FilterLineEdit *processFilterLineEdit;
+    FancyLineEdit *processFilterLineEdit;
     QPushButton *updateListButton;
     QPushButton *killProcessButton;
     QPushButton *acceptButton;
@@ -135,9 +135,11 @@ DeviceProcessesDialogPrivate::DeviceProcessesDialogPrivate(KitChooser *chooser, 
 
     processList = 0;
 
-    processFilterLineEdit = new FilterLineEdit(q);
+    processFilterLineEdit = new FancyLineEdit(q);
     processFilterLineEdit->setPlaceholderText(DeviceProcessesDialog::tr("Filter"));
     processFilterLineEdit->setFocus(Qt::TabFocusReason);
+    processFilterLineEdit->setHistoryCompleter(QLatin1String("DeviceProcessDialogFilter"));
+    processFilterLineEdit->setFiltering(true);
 
     kitChooser->populate();
 
@@ -184,6 +186,8 @@ DeviceProcessesDialogPrivate::DeviceProcessesDialogPrivate(KitChooser *chooser, 
 //    QFrame *line = new QFrame(this);
 //    line->setFrameShape(QFrame::HLine);
 //    line->setFrameShadow(QFrame::Sunken);
+
+    proxyModel.setFilterRegExp(processFilterLineEdit->text());
 
     connect(processFilterLineEdit, SIGNAL(textChanged(QString)),
         &proxyModel, SLOT(setFilterRegExp(QString)));
@@ -277,11 +281,11 @@ void DeviceProcessesDialogPrivate::updateButtons()
     errorText->setVisible(!errorText->document()->isEmpty());
 }
 
-DeviceProcess DeviceProcessesDialogPrivate::selectedProcess() const
+DeviceProcessItem DeviceProcessesDialogPrivate::selectedProcess() const
 {
     const QModelIndexList indexes = procView->selectionModel()->selectedIndexes();
     if (indexes.empty() || !processList)
-        return DeviceProcess();
+        return DeviceProcessItem();
     return processList->at(proxyModel.mapToSource(indexes.first()).row());
 }
 
@@ -355,7 +359,7 @@ void DeviceProcessesDialog::showAllDevices()
     d->updateDevice();
 }
 
-DeviceProcess DeviceProcessesDialog::currentProcess() const
+DeviceProcessItem DeviceProcessesDialog::currentProcess() const
 {
     return d->selectedProcess();
 }

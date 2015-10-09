@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -45,13 +45,9 @@
 QT_FORWARD_DECLARE_CLASS(QMenu)
 QT_FORWARD_DECLARE_CLASS(QHelpEvent)
 
-namespace Core {
-class IEditor;
-}
+namespace Core { class IEditor; }
 
-namespace TextEditor {
-class FontSettings;
-}
+namespace TextEditor { class FontSettings; }
 
 namespace BINEditor {
 
@@ -108,7 +104,6 @@ public:
     Core::IEditor *editor() const { return m_ieditor; }
     void setEditor(Core::IEditor *ieditor) { m_ieditor = ieditor; }
 
-    bool hasSelection() const { return m_cursorPosition != m_anchorPosition; }
     int selectionStart() const { return qMin(m_anchorPosition, m_cursorPosition); }
     int selectionEnd() const { return qMax(m_anchorPosition, m_cursorPosition); }
 
@@ -118,8 +113,6 @@ public:
     bool isRedoAvailable() const { return m_redoStack.size(); }
 
     QString addressString(quint64 address);
-
-    bool isMemoryView() const; // Is a debugger memory view without file?
 
     static const int SearchStride = 1024 * 1024;
 

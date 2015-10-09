@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -33,7 +33,8 @@
 namespace QmlDesigner {
 namespace Constants {
 
-const char DELETE[]               = "QmlDesigner.Delete";
+const char C_BACKSPACE[]            = "QmlDesigner.Backspace";
+const char C_DELETE[]               = "QmlDesigner.Delete";
 
 // Context
 const char C_QMLDESIGNER[]         = "QmlDesigner::QmlDesignerMain";

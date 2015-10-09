@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -75,12 +75,6 @@ QmlProjectItem::QmlProjectItem(QObject *parent) :
 QmlProjectItem::~QmlProjectItem()
 {
     delete d_ptr;
-}
-
-QDeclarativeListProperty<QmlProjectContentItem> QmlProjectItem::content()
-{
-    Q_D(QmlProjectItem);
-    return QDeclarativeListProperty<QmlProjectContentItem>(this, d->content);
 }
 
 QString QmlProjectItem::sourceDirectory() const
@@ -192,6 +186,12 @@ void QmlProjectItem::setMainFile(const QString &mainFilePath)
         return;
     d->mainFile = mainFilePath;
     emit mainFileChanged();
+}
+
+void QmlProjectItem::appendContent(QmlProjectContentItem *contentItem)
+{
+    Q_D(QmlProjectItem);
+    d->content.append(contentItem);
 }
 
 } // namespace QmlProjectManager

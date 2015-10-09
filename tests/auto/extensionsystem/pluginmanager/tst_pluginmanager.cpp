@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -90,6 +90,7 @@ void tst_PluginManager::init()
 
 void tst_PluginManager::cleanup()
 {
+    m_pm->shutdown();
     delete m_pm;
     delete m_objectAdded;
     delete m_aboutToRemoveObject;
@@ -201,13 +202,15 @@ void tst_PluginManager::circularPlugins()
 {
     m_pm->setPluginPaths(QStringList() << pluginFolder(QLatin1String("circularplugins")));
     m_pm->loadPlugins();
-    foreach (PluginSpec *spec, m_pm->plugins()) {
+    QList<PluginSpec *> plugins = m_pm->plugins();
+    QCOMPARE(plugins.count(), 3);
+    foreach (PluginSpec *spec, plugins) {
         if (spec->name() == "plugin1") {
             QVERIFY(spec->hasError());
             QCOMPARE(spec->state(), PluginSpec::Resolved);
             QCOMPARE(spec->plugin(), (IPlugin*)0);
         } else if (spec->name() == "plugin2") {
-            QVERIFY(!spec->hasError());
+            QVERIFY2(!spec->hasError(), qPrintable(spec->errorString()));
             QCOMPARE(spec->state(), PluginSpec::Running);
         } else if (spec->name() == "plugin3") {
             QVERIFY(spec->hasError());

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -93,13 +93,6 @@ QString BindingProperty::expression() const
     return QString();
 }
 
-BindingProperty& BindingProperty::operator= (const QString &expression)
-{
-    setExpression(expression);
-
-    return *this;
-}
-
 static ModelNode resolveBinding(const QString &binding, ModelNode currentNode, AbstractView* view)
 {
     int i = 0;
@@ -112,13 +105,13 @@ static ModelNode resolveBinding(const QString &binding, ModelNode currentNode, A
             else
                 return ModelNode(); //binding not valid
         } else if (currentNode.hasProperty(element.toUtf8())) {
-            if (currentNode.property(element.toUtf8()).isNodeProperty()) {
+            if (currentNode.property(element.toUtf8()).isNodeProperty())
                 currentNode = currentNode.nodeProperty(element.toUtf8()).modelNode();
-            } else {
+            else if (view->hasId(element))
                 currentNode = view->modelNodeForId(element); //id
-                if (!currentNode.isValid())
-                    return ModelNode(); //binding not valid
-            }
+            else
+                return ModelNode(); //binding not valid
+
         } else {
             currentNode = view->modelNodeForId(element); //id
         }
@@ -192,9 +185,8 @@ QList<ModelNode> BindingProperty::resolveToModelNodeList() const
         string.remove(0, 1);
         QStringList simplifiedList = commaSeparatedSimplifiedStringList(string);
         foreach (const QString &nodeId, simplifiedList) {
-            ModelNode modelNode = view()->modelNodeForId(nodeId);
-            if (modelNode.isValid())
-                returnList.append(modelNode);
+            if (view()->hasId(nodeId))
+                returnList.append(view()->modelNodeForId(nodeId));
         }
     }
     return returnList;

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -76,7 +76,7 @@ signals:
     void deviceAdded(Core::Id id);
     void deviceRemoved(Core::Id id);
     void deviceUpdated(Core::Id id);
-    void deviceListChanged();
+    void deviceListReplaced(); // For bulk changes via the settings dialog.
     void updated(); // Emitted for all of the above.
 
     void devicesLoaded(); // Emitted once load() is done
@@ -109,6 +109,8 @@ private:
     static void copy(const DeviceManager *source, DeviceManager *target, bool deep);
 
     Internal::DeviceManagerPrivate * const d;
+
+    static DeviceManager *m_instance;
 
     friend class Internal::DeviceManagerPrivate;
     friend class ProjectExplorerPlugin;

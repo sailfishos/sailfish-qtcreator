@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,13 +30,18 @@
 #include "linuxdevice.h"
 
 #include "genericlinuxdeviceconfigurationwidget.h"
-#include "linuxdevicetestdialog.h"
+#include "linuxdeviceprocess.h"
+#include "linuxdevicetester.h"
 #include "publickeydeploymentdialog.h"
 #include "remotelinux_constants.h"
+#include "remotelinuxsignaloperation.h"
 
 #include <coreplugin/id.h>
 #include <projectexplorer/devicesupport/sshdeviceprocesslist.h>
+#include <ssh/sshremoteprocessrunner.h>
 #include <utils/qtcassert.h>
+
+#include <QTimer>
 
 using namespace ProjectExplorer;
 
@@ -72,9 +77,9 @@ private:
             "done").arg(QLatin1String(Delimiter0)).arg(QLatin1String(Delimiter1));
     }
 
-    QList<DeviceProcess> buildProcessList(const QString &listProcessesReply) const
+    QList<DeviceProcessItem> buildProcessList(const QString &listProcessesReply) const
     {
-        QList<DeviceProcess> processes;
+        QList<DeviceProcessItem> processes;
         const QStringList lines = listProcessesReply.split(QString::fromLatin1(Delimiter0)
                 + QString::fromLatin1(Delimiter1), QString::SkipEmptyParts);
         foreach (const QString &line, lines) {
@@ -104,7 +109,7 @@ private:
                         + QLatin1Char(']');
             }
 
-            DeviceProcess process;
+            DeviceProcessItem process;
             process.pid = pid;
             process.cmdLine = command;
             process.exe = elements.at(3);
@@ -115,23 +120,6 @@ private:
         return processes;
     }
 };
-
-
-QString LinuxDeviceProcessSupport::killProcessByPidCommandLine(int pid) const
-{
-    return QLatin1String("kill -9 ") + QString::number(pid);
-}
-
-QString LinuxDeviceProcessSupport::killProcessByNameCommandLine(const QString &filePath) const
-{
-    return QString::fromLatin1("cd /proc; for pid in `ls -d [0123456789]*`; "
-            "do "
-                "if [ \"`readlink /proc/$pid/exe`\" = \"%1\" ]; then "
-                "    kill $pid; sleep 1; kill -9 $pid; "
-                "fi; "
-            "done").arg(filePath);
-}
-
 
 class LinuxPortsGatheringMethod : public ProjectExplorer::PortsGatheringMethod
 {
@@ -192,30 +180,25 @@ ProjectExplorer::IDeviceWidget *LinuxDevice::createWidget()
 
 QList<Core::Id> LinuxDevice::actionIds() const
 {
-    return QList<Core::Id>() << Core::Id(Constants::GenericTestDeviceActionId)
-            << Core::Id(Constants::GenericDeployKeyToDeviceActionId);
+    return QList<Core::Id>() << Core::Id(Constants::GenericDeployKeyToDeviceActionId);
 }
 
 QString LinuxDevice::displayNameForActionId(Core::Id actionId) const
 {
     QTC_ASSERT(actionIds().contains(actionId), return QString());
 
-    if (actionId == Constants::GenericTestDeviceActionId)
-        return tr("Test");
     if (actionId == Constants::GenericDeployKeyToDeviceActionId)
         return tr("Deploy Public Key...");
     return QString(); // Can't happen.
 }
 
-void LinuxDevice::executeAction(Core::Id actionId, QWidget *parent) const
+void LinuxDevice::executeAction(Core::Id actionId, QWidget *parent)
 {
     QTC_ASSERT(actionIds().contains(actionId), return);
 
     QDialog *d = 0;
     const LinuxDevice::ConstPtr device = sharedFromThis().staticCast<const LinuxDevice>();
-    if (actionId == Constants::GenericTestDeviceActionId)
-        d = new LinuxDeviceTestDialog(device, createDeviceTester(), parent);
-    else if (actionId == Constants::GenericDeployKeyToDeviceActionId)
+    if (actionId == Constants::GenericDeployKeyToDeviceActionId)
         d = PublicKeyDeploymentDialog::createDialog(device, parent);
     if (d)
         d->exec();
@@ -244,9 +227,9 @@ ProjectExplorer::IDevice::Ptr LinuxDevice::clone() const
     return Ptr(new LinuxDevice(*this));
 }
 
-DeviceProcessSupport::Ptr LinuxDevice::processSupport() const
+DeviceProcess *LinuxDevice::createProcess(QObject *parent) const
 {
-    return DeviceProcessSupport::Ptr(new LinuxDeviceProcessSupport);
+    return new LinuxDeviceProcess(sharedFromThis(), parent);
 }
 
 bool LinuxDevice::canAutoDetectPorts() const
@@ -264,9 +247,14 @@ DeviceProcessList *LinuxDevice::createProcessListModel(QObject *parent) const
     return new LinuxDeviceProcessList(sharedFromThis(), parent);
 }
 
-AbstractLinuxDeviceTester *LinuxDevice::createDeviceTester() const
+DeviceTester *LinuxDevice::createDeviceTester() const
 {
     return new GenericLinuxDeviceTester;
+}
+
+DeviceProcessSignalOperation::Ptr LinuxDevice::signalOperation() const
+{
+    return DeviceProcessSignalOperation::Ptr(new RemoteLinuxSignalOperation(sshParameters()));
 }
 
 } // namespace RemoteLinux

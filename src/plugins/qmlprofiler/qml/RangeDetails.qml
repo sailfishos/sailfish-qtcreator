@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -27,7 +27,7 @@
 **
 ****************************************************************************/
 
-import QtQuick 1.0
+import QtQuick 2.1
 import Monitor 1.0
 
 Item {
@@ -35,7 +35,7 @@ Item {
 
     property string duration
     property string label
-    property string type
+    property string dialogTitle
     property string file
     property int line
     property int column
@@ -43,41 +43,64 @@ Item {
 
     property bool locked: view.selectionLocked
 
-    width: col.width + 45
+    width: col.width + 25
     height: col.height + 30
     z: 1
     visible: false
     x: 200
     y: 25
 
-    property int yoffset: root.scrollY
-    onYoffsetChanged: {
-        y = relativey + yoffset
-        fitInView();
-    }
-    property int relativey : y - yoffset
-    onYChanged: relativey = y - yoffset
-
     // keep inside view
     Connections {
         target: root
         onWidthChanged: fitInView();
-        onCandidateHeightChanged: fitInView();
+        onHeightChanged: fitInView();
+    }
+
+    //property int eventInfo
+
+    ListModel {
+        id: eventInfo
+    }
+
+    function showInfo(eventData) {
+        eventInfo.clear();
+        rangeDetails.dialogTitle = eventData[0]["title"];
+        for (var i = 1; i < eventData.length; i++) {
+            for (var k in eventData[i]) {
+                eventInfo.append({"content" : k});
+                eventInfo.append({"content" : eventData[i][k]})
+            }
+        }
+        rangeDetails.visible = true;
+    }
+
+    function setLocation(location) {
+        if (location.hasOwnProperty("file")) { // not empty
+            file = location.file;
+            line = location.line;
+            column = location.column;
+        } else {
+            // reset to default values
+            file = "";
+            line = 0;
+            column = -1;
+        }
     }
 
     function fitInView() {
         // don't reposition if it does not fit
-        if (root.width < width || root.candidateHeight < height)
+        if (root.width < width || root.height < height)
             return;
 
         if (x + width > root.width)
             x = root.width - width;
         if (x < 0)
             x = 0;
-        if (y - yoffset + height > root.candidateHeight)
-            y = root.candidateHeight - height + yoffset;
-        if (y < yoffset)
-            y = yoffset;
+        if (y + height > root.height)
+            y = root.height - height;
+        if (y < 0)
+            y = 0;
     }
 
     // shadow
@@ -122,7 +145,7 @@ Item {
     //title
     Text {
         id: typeTitle
-        text: "  "+rangeDetails.type
+        text: "  "+rangeDetails.dialogTitle
         font.bold: true
         height: 18
         y: 2
@@ -141,60 +164,32 @@ Item {
         border.color: "#a0a0a0"
 
         //details
-        Column {
+        Grid {
             id: col
             x: 10
             y: 5
-            Detail {
-                label: qsTr("Duration:")
-                content: rangeDetails.duration < 1000 ? rangeDetails.duration + "μs" : Math.floor(rangeDetails.duration/10)/100 + "ms"
-            }
-            Detail {
-                opacity: content.length !== 0 ? 1 : 0
-                label: qsTr("Details:")
-                content: {
-                    var inputString = rangeDetails.label;
-                    if (inputString.length > 7 && inputString.substring(0,7) == "file://") {
-                        var pos = inputString.lastIndexOf("/");
-                        return inputString.substr(pos+1);
-                    }
-                    var maxLen = 40;
-                    if (inputString.length > maxLen)
-                        inputString = inputString.substring(0,maxLen)+"...";
+            spacing: 5
+            columns: 2
 
-                    return inputString;
+            Repeater {
+                model: eventInfo
+                Detail {
+                    text: content
                 }
-            }
-            Detail {
-                opacity: content.length !== 0 ? 1 : 0
-                label: qsTr("Location:")
-                content: {
-                    var file = rangeDetails.file;
-                    var pos = file.lastIndexOf("/");
-                    if (pos != -1)
-                        file = file.substr(pos+1);
-                    return (file.length !== 0) ? (file + ":" + rangeDetails.line) : "";
-                }
-            }
-            Detail {
-                visible: isBindingLoop
-                opacity: content.length != 0 ? 1 : 0
-                label: qsTr("Binding loop detected")
             }
         }
     }
 
     MouseArea {
-        width: col.width + 45
-        height: col.height + 30
+        anchors.fill: parent
         drag.target: parent
         drag.minimumX: 0
         drag.maximumX: root.width - parent.width
-        drag.minimumY: yoffset
-        drag.maximumY: root.candidateHeight - parent.height + yoffset
+        drag.minimumY: 0
+        drag.maximumY: root.height - parent.height
         onClicked: {
             root.gotoSourceLocation(file, line, column);
-            root.recenterOnItem(view.selectedItem);
+            root.recenterOnItem(view.selectedModel, view.selectedItem);
         }
     }
 
@@ -217,7 +212,7 @@ Item {
 
     Text {
         id: closeIcon
-        x: col.width + 30
+        x: col.width + 10
         y: 4
         text:"X"
         color: "white"
@@ -225,7 +220,7 @@ Item {
             anchors.fill: parent
             onClicked: {
                 root.hideRangeDetails();
-                view.selectedItem = -1;
+                view.selectFromId(view.selectedModel, -1);
             }
         }
     }

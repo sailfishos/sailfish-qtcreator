@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -45,9 +45,7 @@ QT_END_NAMESPACE
 namespace Qnx {
 namespace Internal {
 
-namespace Ui {
-class BarDescriptorEditorEntryPointWidget;
-}
+namespace Ui { class BarDescriptorEditorEntryPointWidget; }
 
 class BarDescriptorEditorEntryPointWidget : public BarDescriptorEditorAbstractPanelWidget
 {
@@ -57,25 +55,15 @@ public:
     explicit BarDescriptorEditorEntryPointWidget(QWidget *parent = 0);
     ~BarDescriptorEditorEntryPointWidget();
 
-    void clear();
-
-    QString applicationName() const;
-    void setApplicationName(const QString &applicationName);
-
-    QString applicationDescription() const;
-    void setApplicationDescription(const QString &applicationDescription);
-
-    QString applicationIconFileName() const;
-    void setApplicationIcon(const QString &iconPath);
-
-    QStringList splashScreens() const;
-    void appendSplashScreen(const QString &splashScreenPath);
-
     void setAssetsModel(QStandardItemModel *assetsModel);
 
 signals:
     void imageAdded(const QString &path);
     void imageRemoved(const QString &path);
+
+protected:
+    void updateWidgetValue(BarDescriptorDocument::Tag tag, const QVariant &value);
+    void emitChanged(BarDescriptorDocument::Tag tag);
 
 private slots:
     void setApplicationIconDelayed(const QString &iconPath);

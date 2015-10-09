@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,7 +30,7 @@
 #ifndef QMLOUTLINEMODEL_H
 #define QMLOUTLINEMODEL_H
 
-#include "qmljseditor.h"
+#include "qmljseditordocument.h"
 #include <utils/changeset.h>
 #include <qmljs/qmljsdocument.h>
 #include <qmljs/qmljsicons.h>
@@ -81,7 +81,7 @@ public:
         NonElementBindingType // can be filtered out
     };
 
-    QmlOutlineModel(QmlJSTextEditorWidget *editor);
+    QmlOutlineModel(QmlJSEditorDocument *editor);
 
     // QStandardItemModel
     QStringList mimeTypes() const;
@@ -122,7 +122,7 @@ private:
     QModelIndex enterTestCase(QmlJS::AST::ObjectLiteral *objectLiteral);
     void leaveTestCase();
 
-    QModelIndex enterTestCaseProperties(QmlJS::AST::PropertyNameAndValueList *propertyNameAndValueList);
+    QModelIndex enterTestCaseProperties(QmlJS::AST::PropertyAssignmentList *propertyAssignmentList);
     void leaveTestCaseProperties();
 
 private:
@@ -139,7 +139,9 @@ private:
     static QString asString(QmlJS::AST::UiQualifiedId *id);
     static QmlJS::AST::SourceLocation getLocation(QmlJS::AST::UiObjectMember *objMember);
     static QmlJS::AST::SourceLocation getLocation(QmlJS::AST::ExpressionNode *exprNode);
-    static QmlJS::AST::SourceLocation getLocation(QmlJS::AST::PropertyNameAndValueList *propertyNode);
+    static QmlJS::AST::SourceLocation getLocation(QmlJS::AST::PropertyAssignmentList *propertyNode);
+    static QmlJS::AST::SourceLocation getLocation(QmlJS::AST::PropertyNameAndValue *propertyNode);
+    static QmlJS::AST::SourceLocation getLocation(QmlJS::AST::PropertyGetterSetter *propertyNode);
     QIcon getIcon(QmlJS::AST::UiQualifiedId *objDef);
 
     QString getAnnotation(QmlJS::AST::UiObjectInitializer *objInitializer);
@@ -157,7 +159,7 @@ private:
     QHash<QmlOutlineItem*,QIcon> m_itemToIcon;
     QHash<QmlOutlineItem*,QmlJS::AST::Node*> m_itemToNode;
     QHash<QmlOutlineItem*,QmlJS::AST::UiQualifiedId*> m_itemToIdNode;
-    QmlJSTextEditorWidget *m_textEditor;
+    QmlJSEditorDocument *m_editorDocument;
 
 
     friend class QmlOutlineModelSync;

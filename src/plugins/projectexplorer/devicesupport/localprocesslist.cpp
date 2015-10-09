@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -51,9 +51,6 @@
 #include <utils/winutils.h>
 #include <tlhelp32.h>
 #include <psapi.h>
-#ifndef PROCESS_SUSPEND_RESUME
-#define PROCESS_SUSPEND_RESUME 0x0800
-#endif
 #endif
 
 namespace ProjectExplorer {
@@ -101,9 +98,9 @@ LocalProcessList::LocalProcessList(const IDevice::ConstPtr &device, QObject *par
 {
 }
 
-QList<DeviceProcess> LocalProcessList::getLocalProcesses()
+QList<DeviceProcessItem> LocalProcessList::getLocalProcesses()
 {
-    QList<DeviceProcess> processes;
+    QList<DeviceProcessItem> processes;
 
     PROCESSENTRY32 pe;
     pe.dwSize = sizeof(PROCESSENTRY32);
@@ -112,7 +109,7 @@ QList<DeviceProcess> LocalProcessList::getLocalProcesses()
         return processes;
 
     for (bool hasNext = Process32First(snapshot, &pe); hasNext; hasNext = Process32Next(snapshot, &pe)) {
-        DeviceProcess p;
+        DeviceProcessItem p;
         p.pid = pe.th32ProcessID;
         // Image has the absolute path, but can fail.
         const QString image = imageName(pe.th32ProcessID);
@@ -125,27 +122,7 @@ QList<DeviceProcess> LocalProcessList::getLocalProcesses()
     return processes;
 }
 
-void LocalProcessList::doKillProcess(const DeviceProcess &process)
-{
-    const DWORD rights = PROCESS_QUERY_INFORMATION|PROCESS_SET_INFORMATION
-            |PROCESS_VM_OPERATION|PROCESS_VM_WRITE|PROCESS_VM_READ
-            |PROCESS_DUP_HANDLE|PROCESS_TERMINATE|PROCESS_CREATE_THREAD|PROCESS_SUSPEND_RESUME;
-    m_error.clear();
-    if (const HANDLE handle = OpenProcess(rights, FALSE, process.pid)) {
-        if (!TerminateProcess(handle, UINT(-1))) {
-          m_error = tr("Cannot terminate process %1: %2").
-                    arg(process.pid).arg(Utils::winErrorMessage(GetLastError()));
-        }
-        CloseHandle(handle);
-    } else {
-        m_error = tr("Cannot open process %1: %2").
-                  arg(process.pid).arg(Utils::winErrorMessage(GetLastError()));
-    }
-    QTimer::singleShot(0, this, SLOT(reportDelayedKillStatus()));
-}
-
 #endif //Q_OS_WIN
-
 
 #ifdef Q_OS_UNIX
 LocalProcessList::LocalProcessList(const IDevice::ConstPtr &device, QObject *parent)
@@ -166,15 +143,15 @@ static bool isUnixProcessId(const QString &procname)
 
 static const char procDirC[] = "/proc/";
 
-static QList<DeviceProcess> getLocalProcessesUsingProc(const QDir &procDir)
+static QList<DeviceProcessItem> getLocalProcessesUsingProc(const QDir &procDir)
 {
-    QList<DeviceProcess> processes;
+    QList<DeviceProcessItem> processes;
     const QString procDirPath = QLatin1String(procDirC);
     const QStringList procIds = procDir.entryList();
     foreach (const QString &procId, procIds) {
         if (!isUnixProcessId(procId))
             continue;
-        DeviceProcess proc;
+        DeviceProcessItem proc;
         proc.pid = procId.toInt();
         const QString root = procDirPath + procId;
 
@@ -216,22 +193,17 @@ static QList<DeviceProcess> getLocalProcessesUsingProc(const QDir &procDir)
 }
 
 // Determine UNIX processes by running ps
-static QList<DeviceProcess> getLocalProcessesUsingPs()
+static QList<DeviceProcessItem> getLocalProcessesUsingPs()
 {
-#ifdef Q_OS_MAC
-    static const char formatC[] = "pid state command";
-#else
-    static const char formatC[] = "pid,state,cmd";
-#endif
-    QList<DeviceProcess> processes;
+    QList<DeviceProcessItem> processes;
     QProcess psProcess;
     QStringList args;
-    args << QLatin1String("-e") << QLatin1String("-o") << QLatin1String(formatC);
+    args << QLatin1String("-e") << QLatin1String("-o") << QLatin1String("pid,comm,args");
     psProcess.start(QLatin1String("ps"), args);
     if (psProcess.waitForStarted()) {
         QByteArray output;
         if (Utils::SynchronousProcess::readDataFromProcess(psProcess, 30000, &output, 0, false)) {
-            // Split "457 S+   /Users/foo.app"
+            // Split "457 /Users/foo.app arg1 arg2"
             const QStringList lines = QString::fromLocal8Bit(output).split(QLatin1Char('\n'));
             const int lineCount = lines.size();
             const QChar blank = QLatin1Char(' ');
@@ -240,10 +212,14 @@ static QList<DeviceProcess> getLocalProcessesUsingPs()
                 const int pidSep = line.indexOf(blank);
                 const int cmdSep = pidSep != -1 ? line.indexOf(blank, pidSep + 1) : -1;
                 if (cmdSep > 0) {
-                    DeviceProcess procData;
+                    const int argsSep = cmdSep != -1 ? line.indexOf(blank, cmdSep + 1) : -1;
+                    DeviceProcessItem procData;
                     procData.pid = line.left(pidSep).toInt();
-                    procData.exe = line.mid(cmdSep + 1);
                     procData.cmdLine = line.mid(cmdSep + 1);
+                    if (argsSep == -1)
+                        procData.exe = line.mid(cmdSep + 1);
+                    else
+                        procData.exe = line.mid(cmdSep + 1, argsSep - cmdSep -1);
                     processes.push_back(procData);
                 }
             }
@@ -252,22 +228,21 @@ static QList<DeviceProcess> getLocalProcessesUsingPs()
     return processes;
 }
 
-QList<DeviceProcess> LocalProcessList::getLocalProcesses()
+QList<DeviceProcessItem> LocalProcessList::getLocalProcesses()
 {
     const QDir procDir = QDir(QLatin1String(procDirC));
     return procDir.exists() ? getLocalProcessesUsingProc(procDir) : getLocalProcessesUsingPs();
 }
 
-void LocalProcessList::doKillProcess(const DeviceProcess &process)
-{
-    if (kill(process.pid, SIGKILL) == -1)
-        m_error = QString::fromLocal8Bit(strerror(errno));
-    else
-        m_error.clear();
-    QTimer::singleShot(0, this, SLOT(reportDelayedKillStatus()));
-}
-
 #endif // QT_OS_UNIX
+
+void LocalProcessList::doKillProcess(const DeviceProcessItem &process)
+{
+    DeviceProcessSignalOperation::Ptr signalOperation = device()->signalOperation();
+    connect(signalOperation.data(), SIGNAL(finished(QString)),
+            SLOT(reportDelayedKillStatus(QString)));
+    signalOperation->killProcess(process.pid);
+}
 
 Qt::ItemFlags LocalProcessList::flags(const QModelIndex &index) const
 {
@@ -287,12 +262,12 @@ void LocalProcessList::doUpdate()
     QTimer::singleShot(0, this, SLOT(handleUpdate()));
 }
 
-void LocalProcessList::reportDelayedKillStatus()
+void LocalProcessList::reportDelayedKillStatus(const QString &errorMessage)
 {
-    if (m_error.isEmpty())
+    if (errorMessage.isEmpty())
         reportProcessKilled();
     else
-        reportError(m_error);
+        reportError(errorMessage);
 }
 
 } // namespace Internal

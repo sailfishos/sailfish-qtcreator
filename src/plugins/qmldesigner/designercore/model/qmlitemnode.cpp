@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -31,9 +31,21 @@
 #include <metainfo.h>
 #include "qmlchangeset.h"
 #include "nodelistproperty.h"
+#include "variantproperty.h"
+#include "bindingproperty.h"
 #include "qmlanchors.h"
 #include "invalidmodelnodeexception.h"
-#include "qmlmodelview.h"
+#include "itemlibraryinfo.h"
+
+#include "plaintexteditmodifier.h"
+#include "rewriterview.h"
+#include "modelmerger.h"
+#include "rewritingexception.h"
+
+#include <QUrl>
+#include <QPlainTextEdit>
+#include <QFileInfo>
+#include <QDir>
 
 namespace QmlDesigner {
 
@@ -48,9 +60,199 @@ bool QmlItemNode::isItemOrWindow(const ModelNode &modelNode)
     return false;
 }
 
+static QmlItemNode createQmlItemNodeFromSource(AbstractView *view, const QString &source, const QPointF &position)
+{
+    QScopedPointer<Model> inputModel(Model::create("QtQuick.Item", 1, 0, view->model()));
+    inputModel->setFileUrl(view->model()->fileUrl());
+    QPlainTextEdit textEdit;
+
+    textEdit.setPlainText(source);
+    NotIndentingTextEditModifier modifier(&textEdit);
+
+    QScopedPointer<RewriterView> rewriterView(new RewriterView(RewriterView::Amend, 0));
+    rewriterView->setCheckSemanticErrors(false);
+    rewriterView->setTextModifier(&modifier);
+    inputModel->setRewriterView(rewriterView.data());
+
+    if (rewriterView->errors().isEmpty() && rewriterView->rootModelNode().isValid()) {
+        ModelNode rootModelNode = rewriterView->rootModelNode();
+        inputModel->detachView(rewriterView.data());
+
+        rootModelNode.variantProperty("x").setValue(qRound(position.x()));
+        rootModelNode.variantProperty("y").setValue(qRound(position.y()));
+
+        ModelMerger merger(view);
+        return merger.insertModel(rootModelNode);
+    }
+
+    return QmlItemNode();
+}
+
+
+QmlItemNode QmlItemNode::createQmlItemNode(AbstractView *view, const ItemLibraryEntry &itemLibraryEntry, const QPointF &position, QmlItemNode parentQmlItemNode)
+{
+    if (!parentQmlItemNode.isValid())
+        parentQmlItemNode = QmlItemNode(view->rootModelNode());
+
+    Q_ASSERT(parentQmlItemNode.isValid());
+
+    QmlItemNode newQmlItemNode;
+
+    try {
+        RewriterTransaction transaction = view->beginRewriterTransaction(QByteArrayLiteral("QmlItemNode::createQmlItemNode"));
+
+        NodeMetaInfo metaInfo = view->model()->metaInfo(itemLibraryEntry.typeName());
+
+        int minorVersion = metaInfo.minorVersion();
+        int majorVersion = metaInfo.majorVersion();
+
+        if (itemLibraryEntry.typeName().contains('.')) {
+
+            const QString newImportUrl = itemLibraryEntry.requiredImport();
+
+            if (!itemLibraryEntry.requiredImport().isEmpty()) {
+                const QString newImportVersion = QString("%1.%2").arg(QString::number(itemLibraryEntry.majorVersion()), QString::number(itemLibraryEntry.minorVersion()));
+
+                Import newImport = Import::createLibraryImport(newImportUrl, newImportVersion);
+                if (itemLibraryEntry.majorVersion() == -1 && itemLibraryEntry.minorVersion() == -1)
+                    newImport = Import::createFileImport(newImportUrl, QString());
+                else
+                    newImport = Import::createLibraryImport(newImportUrl, newImportVersion);
+
+                foreach (const Import &import, view->model()->imports()) {
+                    if (import.isLibraryImport()
+                            && import.url() == newImport.url()
+                            && import.version() == newImport.version()) {
+                        // reuse this import
+                        newImport = import;
+                        break;
+                    }
+                }
+
+                if (!view->model()->hasImport(newImport, true, true))
+                    view->model()->changeImports(QList<Import>() << newImport, QList<Import>());
+            }
+        }
+
+        typedef QPair<PropertyName, QString> PropertyBindingEntry;
+        QList<PropertyBindingEntry> propertyBindingList;
+        if (itemLibraryEntry.qmlSource().isEmpty()) {
+            QList<QPair<PropertyName, QVariant> > propertyPairList;
+            propertyPairList.append(qMakePair(PropertyName("x"), QVariant(qRound(position.x()))));
+            propertyPairList.append(qMakePair(PropertyName("y"), QVariant(qRound(position.y()))));
+
+            foreach (const PropertyContainer &property, itemLibraryEntry.properties()) {
+                if (property.type() == QLatin1String("binding")) {
+                    propertyBindingList.append(PropertyBindingEntry(property.name(), property.value().toString()));
+                } else {
+                    propertyPairList.append(qMakePair(property.name(), property.value()));
+                }
+            }
+
+            newQmlItemNode = QmlItemNode(view->createModelNode(itemLibraryEntry.typeName(), majorVersion, minorVersion, propertyPairList));
+        } else {
+            newQmlItemNode = createQmlItemNodeFromSource(view, itemLibraryEntry.qmlSource(), position);
+        }
+
+        if (parentQmlItemNode.hasDefaultPropertyName())
+            parentQmlItemNode.nodeAbstractProperty(parentQmlItemNode.defaultPropertyName()).reparentHere(newQmlItemNode);
+
+        if (!newQmlItemNode.isValid())
+            return newQmlItemNode;
+
+        newQmlItemNode.setId(view->generateNewId(itemLibraryEntry.name()));
+
+        if (!view->currentState().isBaseState()) {
+            newQmlItemNode.modelNode().variantProperty("opacity").setValue(0);
+            newQmlItemNode.setVariantProperty("opacity", 1);
+        }
+
+        foreach (const PropertyBindingEntry &propertyBindingEntry, propertyBindingList)
+            newQmlItemNode.modelNode().bindingProperty(propertyBindingEntry.first).setExpression(propertyBindingEntry.second);
+
+        Q_ASSERT(newQmlItemNode.isValid());
+    }
+    catch (RewritingException &e) {
+        e.showException();
+    }
+
+    Q_ASSERT(newQmlItemNode.isValid());
+
+    return newQmlItemNode;
+}
+
+static void checkImageImport(AbstractView *view)
+{
+    const QString newImportUrl = QLatin1String("QtQuick");
+    const QString newImportVersion = QLatin1String("1.1");
+    Import newImport = Import::createLibraryImport(newImportUrl, newImportVersion);
+
+    foreach (const Import &import, view->model()->imports()) {
+        if (import.isLibraryImport()
+            && import.url() == newImport.url()) {
+            // reuse this import
+            newImport = import;
+            break;
+        }
+    }
+
+    if (!view->model()->hasImport(newImport, true, true))
+        view->model()->changeImports(QList<Import>() << newImport, QList<Import>());
+}
+
+QmlItemNode QmlItemNode::createQmlItemNodeFromImage(AbstractView *view, const QString &imageName, const QPointF &position, QmlItemNode parentQmlItemNode)
+{
+    QmlItemNode newQmlItemNode;
+    if (!parentQmlItemNode.isValid())
+        parentQmlItemNode = QmlItemNode(view->rootModelNode());
+
+    if (parentQmlItemNode.isValid()) {
+        RewriterTransaction transaction = view->beginRewriterTransaction(QByteArrayLiteral("QmlItemNode::createQmlItemNodeFromImage"));
+
+        checkImageImport(view);
+
+        if (view->model()->hasNodeMetaInfo("QtQuick.Image")) {
+            NodeMetaInfo metaInfo = view->model()->metaInfo("QtQuick.Image");
+            QList<QPair<PropertyName, QVariant> > propertyPairList;
+            propertyPairList.append(qMakePair(PropertyName("x"), QVariant(qRound(position.x()))));
+            propertyPairList.append(qMakePair(PropertyName("y"), QVariant(qRound(position.y()))));
+
+            QString relativeImageName = imageName;
+
+            //use relative path
+            if (QFileInfo(view->model()->fileUrl().toLocalFile()).exists()) {
+                QDir fileDir(QFileInfo(view->model()->fileUrl().toLocalFile()).absolutePath());
+                relativeImageName = fileDir.relativeFilePath(imageName);
+                propertyPairList.append(qMakePair(PropertyName("source"), QVariant(relativeImageName)));
+            }
+
+            newQmlItemNode = QmlItemNode(view->createModelNode("QtQuick.Image", metaInfo.majorVersion(), metaInfo.minorVersion(), propertyPairList));
+            parentQmlItemNode.defaultNodeAbstractProperty().reparentHere(newQmlItemNode);
+
+            newQmlItemNode.setId(view->generateNewId("image"));
+
+            if (!view->currentState().isBaseState()) {
+                newQmlItemNode.modelNode().variantProperty("opacity").setValue(0);
+                newQmlItemNode.setVariantProperty("opacity", 1);
+            }
+
+            Q_ASSERT(newQmlItemNode.isValid());
+        }
+        Q_ASSERT(newQmlItemNode.isValid());
+    }
+
+
+    return newQmlItemNode;
+}
+
 bool QmlItemNode::isValid() const
 {
-    return QmlModelNodeFacade::isValid() && modelNode().metaInfo().isValid() && isItemOrWindow(modelNode());
+    return isValidQmlItemNode(modelNode());
+}
+
+bool QmlItemNode::isValidQmlItemNode(const ModelNode &modelNode)
+{
+    return isValidQmlObjectNode(modelNode) && modelNode.metaInfo().isValid() && isItemOrWindow(modelNode);
 }
 
 bool QmlItemNode::isRootNode() const
@@ -67,7 +269,7 @@ QStringList QmlModelStateGroup::names() const
 
     if (modelNode().property("states").isNodeListProperty()) {
         foreach (const ModelNode &node, modelNode().nodeListProperty("states").toModelNodeList()) {
-            if (QmlModelState(node).isValid())
+            if (QmlModelState::isValidQmlModelState(node))
                 returnList.append(QmlModelState(node).name());
         }
     }
@@ -88,81 +290,47 @@ QmlModelStateGroup QmlItemNode::states() const
 
 QList<QmlItemNode> QmlItemNode::children() const
 {
-    QList<QmlItemNode> returnList;
+    QList<ModelNode> childrenList;
 
     if (isValid()) {
 
-        QList<ModelNode> modelNodeList;
+        if (modelNode().hasNodeListProperty("children"))
+                childrenList.append(modelNode().nodeListProperty("children").toModelNodeList());
 
-        if (modelNode().hasProperty("children")) {
-            if (modelNode().property("children").isNodeListProperty())
-                modelNodeList.append(modelNode().nodeListProperty("children").toModelNodeList());
-        }
-
-        if (modelNode().hasProperty("data")) {
-            if (modelNode().property("data").isNodeListProperty())
-                modelNodeList.append(modelNode().nodeListProperty("data").toModelNodeList());
-        }
-
-        foreach (const ModelNode &modelNode, modelNodeList) {
-            if (QmlItemNode(modelNode).isValid())  //if ModelNode is FxItem
-                returnList.append(modelNode);
+        if (modelNode().hasNodeListProperty("data")) {
+            foreach (const ModelNode &node, modelNode().nodeListProperty("data").toModelNodeList()) {
+                if (QmlItemNode::isValidQmlItemNode(node))
+                    childrenList.append(node);
+            }
         }
     }
-    return returnList;
+
+    return toQmlItemNodeList(childrenList);
 }
 
 QList<QmlObjectNode> QmlItemNode::resources() const
 {
-    QList<QmlObjectNode> returnList;
+    QList<ModelNode> resourcesList;
 
     if (isValid()) {
-        QList<ModelNode> modelNodeList;
-        if (modelNode().hasProperty("resources")) {
-            if (modelNode().property("resources").isNodeListProperty())
-                modelNodeList.append(modelNode().nodeListProperty("resources").toModelNodeList());
-        }
 
-        if (modelNode().hasProperty("data")) {
-            if (modelNode().property("data").isNodeListProperty())
-                modelNodeList.append(modelNode().nodeListProperty("data").toModelNodeList());
-        }
+        if (modelNode().hasNodeListProperty("resources"))
+                resourcesList.append(modelNode().nodeListProperty("resources").toModelNodeList());
 
-        foreach (const ModelNode &node, modelNodeList) {
-            if (!QmlObjectNode(node).isValid()) //if ModelNode is no FxItem
-                returnList.append(node);
+        if (modelNode().hasNodeListProperty("data")) {
+            foreach (const ModelNode &node, modelNode().nodeListProperty("data").toModelNodeList()) {
+                if (!QmlItemNode::isValidQmlItemNode(node))
+                    resourcesList.append(node);
+            }
         }
     }
-    return returnList;
-}
 
-QList<QmlObjectNode> QmlItemNode::defaultPropertyChildren() const
-{
-    QList<QmlObjectNode> returnList;
-    if (isValid()) {
-        QList<ModelNode> modelNodeList;
-        if (modelNode().property(defaultProperty()).isNodeListProperty())
-            modelNodeList.append(modelNode().nodeListProperty(defaultProperty()).toModelNodeList());
-
-        foreach (const ModelNode &node, modelNodeList) {
-            if (!QmlObjectNode(node).isValid()) //if ModelNode is no FxItem
-                returnList.append(node);
-        }
-    }
-    return returnList;
+    return toQmlObjectNodeList(resourcesList);
 }
 
 QList<QmlObjectNode> QmlItemNode::allDirectSubNodes() const
 {
-    QList<QmlObjectNode> returnList;
-    if (isValid()) {
-        QList<ModelNode> modelNodeList = modelNode().allDirectSubModelNodes();
-
-        foreach (const ModelNode &node, modelNodeList) {
-                returnList.append(node);
-        }
-    }
-    return returnList;
+    return toQmlObjectNodeList(modelNode().allDirectSubModelNodes());
 }
 
 QmlAnchors QmlItemNode::anchors() const
@@ -172,11 +340,17 @@ QmlAnchors QmlItemNode::anchors() const
 
 bool QmlItemNode::hasChildren() const
 {
+    if (modelNode().hasNodeListProperty("children"))
+        return true;
+
     return !children().isEmpty();
 }
 
 bool QmlItemNode::hasResources() const
 {
+    if (modelNode().hasNodeListProperty("resources"))
+        return true;
+
     return !resources().isEmpty();
 }
 
@@ -185,14 +359,14 @@ bool QmlItemNode::instanceHasAnchors() const
     return anchors().instanceHasAnchors();
 }
 
-bool QmlItemNode::hasShowContent() const
+bool QmlItemNode::instanceHasShowContent() const
 {
     return nodeInstance().hasContent();
 }
 
-bool QmlItemNode::canReparent() const
+bool QmlItemNode::instanceCanReparent() const
 {
-    return QmlObjectNode::canReparent() && !anchors().instanceHasAnchors() && !instanceIsAnchoredBySibling();
+    return QmlObjectNode::instanceCanReparent() && !anchors().instanceHasAnchors() && !instanceIsAnchoredBySibling();
 }
 
 bool QmlItemNode::instanceIsAnchoredBySibling() const
@@ -223,6 +397,29 @@ bool QmlItemNode::instanceIsInLayoutable() const
 bool QmlItemNode::instanceHasRotationTransform() const
 {
     return nodeInstance().transform().type() > QTransform::TxScale;
+}
+
+bool itemIsMovable(const ModelNode &modelNode)
+{
+    if (modelNode.metaInfo().isSubclassOf("QtQuick.Controls.Tab", -1, -1))
+        return false;
+
+    return true;
+}
+
+
+bool QmlItemNode::modelIsMovable() const
+{
+    return !modelNode().hasBindingProperty("x")
+            && !modelNode().hasBindingProperty("y")
+            && itemIsMovable(modelNode());
+}
+
+bool QmlItemNode::modelIsResizable() const
+{
+    return !modelNode().hasBindingProperty("width")
+            && !modelNode().hasBindingProperty("height")
+            && itemIsMovable(modelNode());
 }
 
 QRectF  QmlItemNode::instanceBoundingRect() const
@@ -267,11 +464,10 @@ QTransform QmlItemNode::instanceSceneContentItemTransform() const
 
 QPointF QmlItemNode::instanceScenePosition() const
 {
-    QmlItemNode parentNode = instanceParent().toQmlItemNode();
-    if (!parentNode.isValid())
-        parentNode = modelNode().parentProperty().parentQmlObjectNode().toQmlItemNode();
-    if (parentNode.isValid())
-        return parentNode.instanceSceneTransform().map(nodeInstance().position());
+    if (hasInstanceParentItem())
+        return instanceParentItem().instanceSceneTransform().map(nodeInstance().position());
+     else if (modelNode().hasParentProperty() && QmlItemNode::isValidQmlItemNode(modelNode().parentProperty().parentModelNode()))
+        return QmlItemNode(modelNode().parentProperty().parentModelNode()).instanceSceneTransform().map(nodeInstance().position());
 
     return QPointF();
 }
@@ -296,25 +492,14 @@ bool QmlItemNode::instanceIsRenderPixmapNull() const
     return nodeInstance().renderPixmap().isNull();
 }
 
-void QmlItemNode::paintInstance(QPainter *painter)
+QPixmap QmlItemNode::instanceRenderPixmap() const
 {
-    if (nodeInstance().isValid())
-        nodeInstance().paint(painter);
+    return nodeInstance().renderPixmap();
 }
 
-void QmlItemNode::selectNode()
+QPixmap QmlItemNode::instanceBlurredRenderPixmap() const
 {
-    modelNode().selectNode();
-}
-
-void QmlItemNode::deselectNode()
-{
-    modelNode().deselectNode();
-}
-
-bool QmlItemNode::isSelected() const
-{
-    return modelNode().isSelected();
+    return nodeInstance().blurredRenderPixmap();
 }
 
 QList<QmlModelState> QmlModelStateGroup::allStates() const
@@ -326,8 +511,8 @@ QList<QmlModelState> QmlModelStateGroup::allStates() const
 
     if (modelNode().property("states").isNodeListProperty()) {
         foreach (const ModelNode &node, modelNode().nodeListProperty("states").toModelNodeList()) {
-            if (QmlModelState(node).isValid())
-                returnList.append(QmlModelState(node));
+            if (QmlModelState::isValidQmlModelState(node))
+                returnList.append(node);
         }
     }
     return returnList;
@@ -352,7 +537,7 @@ QmlModelState QmlModelStateGroup::addState(const QString &name)
     PropertyListType propertyList;
     propertyList.append(qMakePair(PropertyName("name"), QVariant(name)));
 
-    ModelNode newState = QmlObjectNode(modelNode()).qmlModelView()->createQmlState(propertyList);
+    ModelNode newState = QmlModelState::createQmlState(modelNode().view(), propertyList);
     modelNode().nodeListProperty("states").reparentHere(newState);
 
     return newState;
@@ -396,9 +581,8 @@ QList<QmlItemNode> toQmlItemNodeList(const QList<ModelNode> &modelNodeList)
     QList<QmlItemNode> qmlItemNodeList;
 
     foreach (const ModelNode &modelNode, modelNodeList) {
-        QmlItemNode itemNode(modelNode);
-        if (itemNode.isValid())
-            qmlItemNodeList.append(itemNode);
+        if (QmlItemNode::isValidQmlItemNode(modelNode))
+            qmlItemNodeList.append(modelNode);
     }
 
     return qmlItemNodeList;
@@ -417,6 +601,34 @@ const QList<QmlItemNode> QmlItemNode::allSubModelNodes() const
 bool QmlItemNode::hasAnySubModelNodes() const
 {
     return modelNode().hasAnySubModelNodes();
+}
+
+void QmlItemNode::setPosition(const QPointF &position)
+{
+    if (!hasBindingProperty("x")
+            && !anchors().instanceHasAnchor(AnchorLine::Left)
+            && !anchors().instanceHasAnchor(AnchorLine::HorizontalCenter))
+        setVariantProperty("x", qRound(position.x()));
+
+    if (!hasBindingProperty("y")
+            && !anchors().instanceHasAnchor(AnchorLine::Top)
+            && !anchors().instanceHasAnchor(AnchorLine::VerticalCenter))
+        setVariantProperty("y", qRound(position.y()));
+}
+
+void QmlItemNode::setPostionInBaseState(const QPointF &position)
+{
+    modelNode().variantProperty("x").setValue(qRound(position.x()));
+    modelNode().variantProperty("y").setValue(qRound(position.y()));
+}
+
+void QmlItemNode::setSize(const QSizeF &size)
+{
+    if (!hasBindingProperty("width") && !anchors().instanceHasAnchor(AnchorLine::Right))
+        setVariantProperty("width", qRound(size.width()));
+
+    if (!hasBindingProperty("height") && !anchors().instanceHasAnchor(AnchorLine::Bottom))
+        setVariantProperty("height", qRound(size.height()));
 }
 
 } //QmlDesigner

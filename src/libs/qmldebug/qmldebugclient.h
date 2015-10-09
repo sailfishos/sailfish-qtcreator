@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -32,6 +32,8 @@
 
 #include "qmldebug_global.h"
 #include <qtcpsocket.h>
+
+#include <QDataStream>
 
 namespace QmlDebug {
 
@@ -103,6 +105,18 @@ private:
     friend class QmlDebugConnection;
     friend class QmlDebugConnectionPrivate;
     QScopedPointer<QmlDebugClientPrivate> d_ptr;
+
+public:
+    static int s_dataStreamVersion;
+};
+
+class QMLDEBUG_EXPORT QmlDebugStream : public QDataStream
+{
+public:
+    QmlDebugStream();
+    explicit QmlDebugStream(QIODevice *d);
+    QmlDebugStream(QByteArray *ba, QIODevice::OpenMode flags);
+    QmlDebugStream(const QByteArray &ba);
 };
 
 } // namespace QmlDebug

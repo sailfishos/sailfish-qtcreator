@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -46,7 +46,8 @@ QT_END_NAMESPACE
 namespace ProjectExplorer {
 namespace Internal {
 
-struct CustomWizardField {
+class CustomWizardField {
+public:
     // Parameters of the widget control are stored as map
     typedef QMap<QString, QString> ControlAttributeMap;
     CustomWizardField();
@@ -98,7 +99,7 @@ struct GeneratorScriptArgument {
     unsigned flags;
 };
 
-struct CustomWizardParameters
+class CustomWizardParameters
 {
 public:
     enum ParseResult { ParseOk, ParseDisabled, ParseFailed };
@@ -106,11 +107,12 @@ public:
     CustomWizardParameters();
     void clear();
     ParseResult parse(QIODevice &device, const QString &configFileFullPath,
-                      Core::BaseFileWizardParameters *bp, QString *errorMessage);
+                      Core::IWizard::Data *bp, QString *errorMessage);
     ParseResult parse(const QString &configFileFullPath,
-                      Core::BaseFileWizardParameters *bp, QString *errorMessage);
+                      Core::IWizard::Data *bp, QString *errorMessage);
     QString toString() const;
 
+    QString id;
     QString directory;
     QString klass;
     QList<CustomWizardFile> files;
@@ -125,7 +127,8 @@ public:
 };
 
 // Documentation inside.
-struct CustomWizardContext {
+class CustomWizardContext {
+public:
     typedef QMap<QString, QString> FieldReplacementMap;
     typedef QSharedPointer<QTemporaryFile> TemporaryFilePtr;
     typedef QList<TemporaryFilePtr> TemporaryFilePtrList;

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -161,12 +161,12 @@ bool ProjectIntroPage::validate()
     // Name valid? Ignore 'DisplayingInitialText' state.
     bool nameValid = false;
     switch (d->m_ui.nameLineEdit->state()) {
-    case BaseValidatingLineEdit::Invalid:
+    case FancyLineEdit::Invalid:
         displayStatusMessage(Error, d->m_ui.nameLineEdit->errorMessage());
         return false;
-    case BaseValidatingLineEdit::DisplayingInitialText:
+    case FancyLineEdit::DisplayingInitialText:
         break;
-    case BaseValidatingLineEdit::Valid:
+    case FancyLineEdit::Valid:
         nameValid = true;
         break;
     }
@@ -183,7 +183,7 @@ bool ProjectIntroPage::validate()
 
     if (projectDirFile.isDir()) {
         displayStatusMessage(Warning, tr("The project already exists."));
-        return nameValid;;
+        return nameValid;
     }
     // Not a directory, but something else, likely causing directory creation to fail
     displayStatusMessage(Error, tr("A file with that name already exists."));

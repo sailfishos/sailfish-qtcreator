@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -40,6 +40,7 @@ namespace QmlDesigner {
 class ChangeAuxiliaryCommand
 {
     friend QDataStream &operator>>(QDataStream &in, ChangeAuxiliaryCommand &command);
+    friend QDebug operator <<(QDebug debug, const ChangeAuxiliaryCommand &command);
 
 public:
     ChangeAuxiliaryCommand();
@@ -53,6 +54,8 @@ private:
 
 QDataStream &operator<<(QDataStream &out, const ChangeAuxiliaryCommand &command);
 QDataStream &operator>>(QDataStream &in, ChangeAuxiliaryCommand &command);
+
+QDebug operator <<(QDebug debug, const ChangeAuxiliaryCommand &command);
 
 } // namespace QmlDesigner
 

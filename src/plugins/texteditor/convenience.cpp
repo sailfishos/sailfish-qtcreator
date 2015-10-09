@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -61,7 +61,8 @@ QString textAt(QTextCursor tc, int pos, int length)
     tc.setPosition(pos);
     tc.setPosition(pos + length, QTextCursor::KeepAnchor);
 
-    return tc.selectedText();
+    // selectedText() returns U+2029 (PARAGRAPH SEPARATOR) instead of newline
+    return tc.selectedText().replace(QChar::ParagraphSeparator, QLatin1Char('\n'));
 }
 
 } // Util

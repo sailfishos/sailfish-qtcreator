@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -32,24 +32,17 @@
 
 #include <coreplugin/editormanager/ieditorfactory.h>
 
-namespace TextEditor { class TextEditorActionHandler; }
-
 namespace Android {
 namespace Internal {
 
 class AndroidManifestEditorFactory : public Core::IEditorFactory
 {
     Q_OBJECT
+
 public:
     explicit AndroidManifestEditorFactory(QObject *parent = 0);
 
-    QStringList mimeTypes() const;
-    Core::Id id() const;
-    QString displayName() const;
-
-    Core::IEditor *createEditor(QWidget *parent);
-private:
-    TextEditor::TextEditorActionHandler *m_actionHandler;
+    Core::IEditor *createEditor();
 };
 
 } // namespace Internal

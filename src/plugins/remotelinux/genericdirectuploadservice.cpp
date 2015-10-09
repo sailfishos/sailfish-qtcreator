@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -52,9 +52,10 @@ class GenericDirectUploadServicePrivate
 {
 public:
     GenericDirectUploadServicePrivate()
-        : incremental(false), stopRequested(false), state(Inactive) {}
+        : incremental(false), ignoreMissingFiles(false), stopRequested(false), state(Inactive) {}
 
     bool incremental;
+    bool ignoreMissingFiles;
     bool stopRequested;
     State state;
     QList<DeployableFile> filesToUpload;
@@ -89,6 +90,11 @@ void GenericDirectUploadService::setIncrementalDeployment(bool incremental)
     d->incremental = incremental;
 }
 
+void GenericDirectUploadService::setIgnoreMissingFiles(bool ignoreMissingFiles)
+{
+    d->ignoreMissingFiles = ignoreMissingFiles;
+}
+
 bool GenericDirectUploadService::isDeploymentNecessary() const
 {
     d->filesToUpload.clear();
@@ -117,8 +123,8 @@ void GenericDirectUploadService::doDeploy()
 
     d->uploader = connection()->createSftpChannel();
     connect(d->uploader.data(), SIGNAL(initialized()), SLOT(handleSftpInitialized()));
-    connect(d->uploader.data(), SIGNAL(initializationFailed(QString)),
-        SLOT(handleSftpInitializationFailed(QString)));
+    connect(d->uploader.data(), SIGNAL(channelError(QString)),
+        SLOT(handleSftpChannelError(QString)));
     d->uploader->initialize();
     d->state = InitializingSftp;
 }
@@ -140,7 +146,7 @@ void GenericDirectUploadService::handleSftpInitialized()
     uploadNextFile();
 }
 
-void GenericDirectUploadService::handleSftpInitializationFailed(const QString &message)
+void GenericDirectUploadService::handleSftpChannelError(const QString &message)
 {
     QTC_ASSERT(d->state == InitializingSftp, setFinished(); return);
 
@@ -269,10 +275,17 @@ void GenericDirectUploadService::handleMkdirFinished(int exitStatus)
             const SftpJobId job = d->uploader->uploadFile(df.localFilePath().toString(),
                     remoteFilePath, SftpOverwriteExisting);
             if (job == SftpInvalidJob) {
-                emit errorMessage(tr("Failed to upload file '%1': "
-                    "Could not open for reading.").arg(nativePath));
-                setFinished();
-                handleDeploymentDone();
+                const QString message = tr("Failed to upload file '%1': "
+                                           "Could not open for reading.").arg(nativePath);
+                if (d->ignoreMissingFiles) {
+                    emit warningMessage(message);
+                    d->filesToUpload.removeFirst();
+                    uploadNextFile();
+                } else {
+                    emit errorMessage(message);
+                    setFinished();
+                    handleDeploymentDone();
+                }
             }
         }
     }

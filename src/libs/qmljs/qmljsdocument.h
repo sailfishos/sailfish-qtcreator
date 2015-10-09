@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -38,11 +38,14 @@
 #include "parser/qmldirparser_p.h"
 #include "parser/qmljsengine_p.h"
 #include "qmljs_global.h"
+#include "qmljsconstants.h"
+#include "qmljsimportdependencies.h"
 
 namespace QmlJS {
 
 class Bind;
 class Snapshot;
+class ImportDependencies;
 
 class QMLJS_EXPORT Document
 {
@@ -50,37 +53,26 @@ public:
     typedef QSharedPointer<const Document> Ptr;
     typedef QSharedPointer<Document> MutablePtr;
 
-    enum Language
-    {
-        UnknownLanguage = 0,
-        JavaScriptLanguage = 1,
-        JsonLanguage = 2,
-        QmlLanguage = 3,
-        QmlQtQuick1Language = 4,
-        QmlQtQuick2Language = 5,
-        QmlQbsLanguage = 6,
-        QmlProjectLanguage = 7,
-        QmlTypeInfoLanguage = 8
-    };
-
-    static bool isQmlLikeLanguage(Language languge);
-    static bool isFullySupportedLanguage(Language language);
-    static bool isQmlLikeOrJsLanguage(Language language);
+    static bool isQmlLikeLanguage(Language::Enum languge);
+    static bool isFullySupportedLanguage(Language::Enum language);
+    static bool isQmlLikeOrJsLanguage(Language::Enum language);
+    static QList<Language::Enum> companionLanguages(Language::Enum language);
 protected:
-    Document(const QString &fileName, Language language);
+    Document(const QString &fileName, Language::Enum language);
 
 public:
     ~Document();
 
-    static MutablePtr create(const QString &fileName, Language language);
-    static Language guessLanguageFromSuffix(const QString &fileName);
+    static MutablePtr create(const QString &fileName, Language::Enum language);
 
     Document::Ptr ptr() const;
 
     bool isQmlDocument() const;
-    Language language() const;
-    void setLanguage(Language l);
+    Language::Enum language() const;
+    void setLanguage(Language::Enum l);
 
+    QString importId() const;
+    QByteArray fingerprint() const;
     AST::UiProgram *qmlProgram() const;
     AST::Program *jsProgram() const;
     AST::ExpressionNode *expression() const;
@@ -123,8 +115,9 @@ private:
     QString _componentName;
     QString _source;
     QWeakPointer<Document> _ptr;
+    QByteArray _fingerprint;
     int _editorRevision;
-    Language _language;
+    Language::Enum _language;
     bool _parsedCorrectly;
 
     // for documentFromSource
@@ -137,6 +130,8 @@ public:
     QString uri;
     LanguageUtils::ComponentVersion version;
     QString cppName;
+
+    void addToHash(QCryptographicHash &hash) const;
 };
 
 class QMLJS_EXPORT LibraryInfo
@@ -164,14 +159,20 @@ private:
     typedef QList<LanguageUtils::FakeMetaObject::ConstPtr> FakeMetaObjectList;
     FakeMetaObjectList _metaObjects;
     QList<ModuleApiInfo> _moduleApis;
+    QByteArray _fingerprint;
 
     PluginTypeInfoStatus _dumpStatus;
     QString _dumpError;
 
 public:
     explicit LibraryInfo(Status status = NotScanned);
-    explicit LibraryInfo(const QmlDirParser &parser);
+    explicit LibraryInfo(const QmlDirParser &parser, const QByteArray &fingerprint = QByteArray());
     ~LibraryInfo();
+
+    QByteArray calculateFingerprint() const;
+    void updateFingerprint();
+    QByteArray fingerprint() const
+    { return _fingerprint; }
 
     QList<QmlDirParser::Component> components() const
     { return _components; }
@@ -200,6 +201,9 @@ public:
     bool wasScanned() const
     { return _status != NotScanned; }
 
+    bool wasFound() const
+    { return _status != NotFound; }
+
     PluginTypeInfoStatus pluginTypeInfoStatus() const
     { return _dumpStatus; }
 
@@ -216,9 +220,11 @@ class QMLJS_EXPORT Snapshot
     QHash<QString, Document::Ptr> _documents;
     QHash<QString, QList<Document::Ptr> > _documentsByPath;
     QHash<QString, LibraryInfo> _libraries;
+    ImportDependencies _dependencies;
 
 public:
     Snapshot();
+    Snapshot(const Snapshot &o);
     ~Snapshot();
 
     typedef _Base::iterator iterator;
@@ -231,13 +237,16 @@ public:
     void insertLibraryInfo(const QString &path, const LibraryInfo &info);
     void remove(const QString &fileName);
 
+    const ImportDependencies *importDependencies() const;
+    ImportDependencies *importDependencies();
+
     Document::Ptr document(const QString &fileName) const;
     QList<Document::Ptr> documentsInDirectory(const QString &path) const;
     LibraryInfo libraryInfo(const QString &path) const;
 
     Document::MutablePtr documentFromSource(const QString &code,
                                      const QString &fileName,
-                                     Document::Language language) const;
+                                     Language::Enum language) const;
 };
 
 } // namespace QmlJS

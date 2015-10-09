@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -48,7 +48,7 @@
 
     Guidelines for implementing the class:
     \list
-        \li Return \c false from the implemented method if you want to prevent
+        \li Return \c false from the implemented function if you want to prevent
             the event.
         \li Add your implementing object to the plugin managers objects:
             \c{ExtensionSystem::PluginManager::instance()->addObject(yourImplementingObject)}

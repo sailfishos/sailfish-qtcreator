@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -46,6 +46,7 @@ class TEXTEDITOR_EXPORT IAssistProvider : public QObject
 public:
     IAssistProvider() {}
 
+    virtual bool isAsynchronous() const = 0;
     virtual bool supportsEditor(const Core::Id &editorId) const = 0;
     virtual IAssistProcessor *createProcessor() const = 0;
 };

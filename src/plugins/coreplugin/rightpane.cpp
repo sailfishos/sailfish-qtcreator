@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -145,6 +145,8 @@ RightPaneWidget *RightPaneWidget::instance()
 
 void RightPaneWidget::setWidget(QWidget *widget)
 {
+    if (widget == m_widget)
+        return;
     clearWidget();
     m_widget = widget;
     if (m_widget) {

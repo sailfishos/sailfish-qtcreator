@@ -1,6 +1,6 @@
 #############################################################################
 ##
-## Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+## Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ## Contact: http://www.qt-project.org/legal
 ##
 ## This file is part of Qt Creator.
@@ -60,13 +60,15 @@ def handlePackagingMessageBoxes():
             break
 
 def main():
+    test.log("Welcome mode is not scriptable at the moment")
+    return
     global sdkPath, webPageContentLoadedValue
     # open Qt Creator
     startApplication("qtcreator" + SettingsPath)
     if not startedWithoutPluginError():
         return
     installLazySignalHandler(":QWebPage","loadFinished(bool)", "webPageContentLoaded")
-    installLazySignalHandler(":*Qt Creator_Help::Internal::HelpViewer", "loadFinished(bool)",
+    installLazySignalHandler(":Qt Creator_Help::Internal::HelpViewer", "loadFinished(bool)",
                              "webPageContentLoaded")
     qt5sdkPath = qt5SDKPath()
     qchs = [os.path.join(sdkPath, "Documentation", "qt.qch"),

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -69,7 +69,7 @@ QString FileShareProtocol::name() const
 
 unsigned FileShareProtocol::capabilities() const
 {
-    return ListCapability|PostDescriptionCapability;
+    return ListCapability | PostDescriptionCapability | PostUserNameCapability;
 }
 
 bool FileShareProtocol::hasSettings() const
@@ -205,11 +205,10 @@ void FileShareProtocol::paste(const QString &text,
         saver.setResult(&writer);
     }
     if (!saver.finalize()) {
-        Core::ICore::messageManager()->printToOutputPane(saver.errorString(), Core::MessageManager::NoModeSwitch);
+        Core::MessageManager::write(saver.errorString());
         return;
     }
 
-    const QString msg = tr("Pasted: %1").arg(saver.fileName());
-    Core::ICore::messageManager()->printToOutputPane(msg, Core::MessageManager::NoModeSwitch);
+    Core::MessageManager::write(tr("Pasted: %1").arg(saver.fileName()));
 }
 } // namespace CodePaster

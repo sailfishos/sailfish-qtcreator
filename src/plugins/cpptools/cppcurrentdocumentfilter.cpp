@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -36,11 +36,11 @@
 using namespace CppTools::Internal;
 using namespace CPlusPlus;
 
-CppCurrentDocumentFilter::CppCurrentDocumentFilter(CppModelManager *manager, Core::EditorManager *editorManager)
+CppCurrentDocumentFilter::CppCurrentDocumentFilter(CppModelManager *manager)
     : m_modelManager(manager)
 {
     setId("Methods in current Document");
-    setDisplayName(tr("C++ Methods in Current Document"));
+    setDisplayName(tr("C++ Symbols in Current Document"));
     setShortcutString(QString(QLatin1Char('.')));
     setIncludedByDefault(false);
 
@@ -49,21 +49,19 @@ CppCurrentDocumentFilter::CppCurrentDocumentFilter(CppModelManager *manager, Cor
                                  SymbolSearcher::Functions |
                                  SymbolSearcher::Classes);
 
-    search.setSeparateScope(true);
-
     connect(manager, SIGNAL(documentUpdated(CPlusPlus::Document::Ptr)),
             this,    SLOT(onDocumentUpdated(CPlusPlus::Document::Ptr)));
-    connect(editorManager, SIGNAL(currentEditorChanged(Core::IEditor*)),
+    connect(Core::EditorManager::instance(), SIGNAL(currentEditorChanged(Core::IEditor*)),
             this,          SLOT(onCurrentEditorChanged(Core::IEditor*)));
-    connect(editorManager, SIGNAL(editorAboutToClose(Core::IEditor*)),
+    connect(Core::EditorManager::instance(), SIGNAL(editorAboutToClose(Core::IEditor*)),
             this,          SLOT(onEditorAboutToClose(Core::IEditor*)));
 }
 
-QList<Locator::FilterEntry> CppCurrentDocumentFilter::matchesFor(QFutureInterface<Locator::FilterEntry> &future, const QString & origEntry)
+QList<Core::LocatorFilterEntry> CppCurrentDocumentFilter::matchesFor(QFutureInterface<Core::LocatorFilterEntry> &future, const QString & origEntry)
 {
     QString entry = trimWildcards(origEntry);
-    QList<Locator::FilterEntry> goodEntries;
-    QList<Locator::FilterEntry> betterEntries;
+    QList<Core::LocatorFilterEntry> goodEntries;
+    QList<Core::LocatorFilterEntry> betterEntries;
     QStringMatcher matcher(entry, Qt::CaseInsensitive);
     const QChar asterisk = QLatin1Char('*');
     QRegExp regexp(asterisk + entry + asterisk, Qt::CaseInsensitive, QRegExp::Wildcard);
@@ -81,20 +79,33 @@ QList<Locator::FilterEntry> CppCurrentDocumentFilter::matchesFor(QFutureInterfac
             m_itemsOfCurrentDoc = search(thisDocument);
     }
 
+    const Qt::CaseSensitivity caseSensitivityForPrefix = caseSensitivity(entry);
+
     foreach (const ModelItemInfo & info, m_itemsOfCurrentDoc)
     {
         if (future.isCanceled())
             break;
 
-        if ((hasWildcard && regexp.exactMatch(info.symbolName))
-            || (!hasWildcard && matcher.indexIn(info.symbolName) != -1))
-        {
-            QString symbolName = info.symbolName;// + (info.type == ModelItemInfo::Declaration ? ";" : " {...}");
-            QVariant id = qVariantFromValue(info);
-            Locator::FilterEntry filterEntry(this, symbolName, id, info.icon);
-            filterEntry.extraInfo = info.symbolType;
+        QString matchString = info.symbolName;
+        if (info.type == ModelItemInfo::Declaration)
+            matchString = ModelItemInfo::representDeclaration(info.symbolName, info.symbolType);
+        else if (info.type == ModelItemInfo::Function)
+            matchString += info.symbolType;
 
-            if (info.symbolName.startsWith(entry))
+        if ((hasWildcard && regexp.exactMatch(matchString))
+            || (!hasWildcard && matcher.indexIn(matchString) != -1))
+        {
+            QVariant id = qVariantFromValue(info);
+            QString name = matchString;
+            QString extraInfo = info.symbolScope;
+            if (info.type == ModelItemInfo::Function) {
+                if (info.unqualifiedNameAndScope(matchString, &name, &extraInfo))
+                    name += info.symbolType;
+            }
+            Core::LocatorFilterEntry filterEntry(this, name, id, info.icon);
+            filterEntry.extraInfo = extraInfo;
+
+            if (matchString.startsWith(entry, caseSensitivityForPrefix))
                 betterEntries.append(filterEntry);
             else
                 goodEntries.append(filterEntry);
@@ -107,7 +118,7 @@ QList<Locator::FilterEntry> CppCurrentDocumentFilter::matchesFor(QFutureInterfac
     return betterEntries;
 }
 
-void CppCurrentDocumentFilter::accept(Locator::FilterEntry selection) const
+void CppCurrentDocumentFilter::accept(Core::LocatorFilterEntry selection) const
 {
     ModelItemInfo info = qvariant_cast<CppTools::ModelItemInfo>(selection.internalData);
     Core::EditorManager::openEditorAt(info.fileName, info.line, info.column);
@@ -127,7 +138,7 @@ void CppCurrentDocumentFilter::onDocumentUpdated(Document::Ptr doc)
 void CppCurrentDocumentFilter::onCurrentEditorChanged(Core::IEditor * currentEditor)
 {
     if (currentEditor)
-        m_currentFileName = currentEditor->document()->fileName();
+        m_currentFileName = currentEditor->document()->filePath();
     else
         m_currentFileName.clear();
     m_itemsOfCurrentDoc.clear();
@@ -136,7 +147,7 @@ void CppCurrentDocumentFilter::onCurrentEditorChanged(Core::IEditor * currentEdi
 void CppCurrentDocumentFilter::onEditorAboutToClose(Core::IEditor * editorAboutToClose)
 {
     if (!editorAboutToClose) return;
-    if (m_currentFileName == editorAboutToClose->document()->fileName()) {
+    if (m_currentFileName == editorAboutToClose->document()->filePath()) {
         m_currentFileName.clear();
         m_itemsOfCurrentDoc.clear();
     }

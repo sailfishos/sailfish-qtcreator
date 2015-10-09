@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -31,7 +31,7 @@
 #include "formeditorw.h"
 #include "formwindoweditor.h"
 #include "editordata.h"
-#include "designerxmleditor.h"
+#include "designerxmleditorwidget.h"
 
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/icore.h>
@@ -48,39 +48,25 @@ namespace Designer {
 namespace Internal {
 
 FormEditorFactory::FormEditorFactory()
-  : Core::IEditorFactory(Core::ICore::instance()),
-    m_mimeTypes(QLatin1String(FORM_MIMETYPE))
+  : Core::IEditorFactory(Core::ICore::instance())
 {
-    Core::FileIconProvider *iconProvider = Core::FileIconProvider::instance();
-    iconProvider->registerIconOverlayForSuffix(QIcon(QLatin1String(":/formeditor/images/qt_ui.png")),
-                                               QLatin1String("ui"));
+    setId(K_DESIGNER_XML_EDITOR_ID);
+    setDisplayName(qApp->translate("Designer", C_DESIGNER_XML_DISPLAY_NAME));
+    addMimeType(FORM_MIMETYPE);
+
+    Core::FileIconProvider::registerIconOverlayForSuffix(":/formeditor/images/qt_ui.png", "ui");
 }
 
-Core::Id FormEditorFactory::id() const
+Core::IEditor *FormEditorFactory::createEditor()
 {
-    return Core::Id(K_DESIGNER_XML_EDITOR_ID);
-}
-
-QString FormEditorFactory::displayName() const
-{
-    return qApp->translate("Designer", C_DESIGNER_XML_DISPLAY_NAME);
-}
-
-Core::IEditor *FormEditorFactory::createEditor(QWidget *parent)
-{
-    const EditorData data = FormEditorW::instance()->createEditor(parent);
+    const EditorData data = FormEditorW::instance()->createEditor();
     if (data.formWindowEditor) {
         Core::InfoBarEntry info(Core::Id(Constants::INFO_READ_ONLY),
                                 tr("This file can only be edited in <b>Design</b> mode."));
-        info.setCustomButtonInfo(tr("Switch mode"), this, SLOT(designerModeClicked()));
+        info.setCustomButtonInfo(tr("Switch Mode"), this, SLOT(designerModeClicked()));
         data.formWindowEditor->document()->infoBar()->addInfo(info);
     }
     return data.formWindowEditor;
-}
-
-QStringList FormEditorFactory::mimeTypes() const
-{
-    return m_mimeTypes;
 }
 
 void FormEditorFactory::designerModeClicked()
@@ -90,5 +76,3 @@ void FormEditorFactory::designerModeClicked()
 
 } // namespace Internal
 } // namespace Designer
-
-

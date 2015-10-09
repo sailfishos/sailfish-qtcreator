@@ -1,6 +1,6 @@
 #############################################################################
 ##
-## Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+## Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ## Contact: http://www.qt-project.org/legal
 ##
 ## This file is part of Qt Creator.
@@ -42,7 +42,7 @@ def main():
     startApplication("qtcreator" + SettingsPath)
     if not startedWithoutPluginError():
         return
-    openQmakeProject(os.path.join(templateDir, proFile))
+    openQmakeProject(os.path.join(templateDir, proFile), Targets.DESKTOP_480_GCC)
     qmlFiles = ["focus.QML.qml.focus\\.qml", "focus.QML.qml.Core.ListMenu\\.qml"]
     checkOutlineFor(qmlFiles)
     testModify()
@@ -63,6 +63,8 @@ def buildTreeFromOutline():
     global outline
     model = waitForObject(outline).model()
     waitFor("model.rowCount() > 0")
+    if platform.system() == 'Darwin':
+        snooze(1) # if model updates delayed processChildren() results in AUT crash
     return processChildren(model, QModelIndex(), 0)
 
 def processChildren(model, startIndex, level):
@@ -75,7 +77,7 @@ def processChildren(model, startIndex, level):
     return children
 
 def testModify():
-    global qmlEditor, outline
+    global qmlEditor
     if not openDocument("focus.QML.qml.focus\\.qml"):
         test.fatal("Failed to open file focus.qml")
         return

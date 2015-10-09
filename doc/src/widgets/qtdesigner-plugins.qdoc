@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (c) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (c) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator
@@ -23,7 +23,7 @@
 // **********************************************************************
 
 /*!
-    \contentspage index.html
+    \contentspage {Qt Creator Manual}
     \previouspage creator-using-qt-designer.html
     \page adding-plugins.html
     \nextpage creator-usability.html
@@ -41,15 +41,14 @@
     and to change the default plugin path, see \l{How to Create Qt Plugins}.
 
     For more information about how to create plugins for \QD, see
-    \l{http://qt-project.org/doc/qt-5.0/qtdesigner/designer-using-custom-widgets.html}
-    {Using Custom Widgets with Qt Designer}.
+    \l{Using Custom Widgets with Qt Designer}.
 
     \section1 Locating Qt Designer Plugins
 
     \QD fetches plugins from the standard locations and loads the plugins
     that match its build key. \QD is delivered both as a standalone application
-    and as part of the SDK, where it is integrated into \QC. The correct folder
-    to place the plugins depends on which one you use.
+    and integrated into \QC. The correct folder to place the plugins depends on
+    whether you use the standalone \QD or the integrated \QD.
 
     The integrated \QD fetches plugins from the \c {%SDK%\bin\designer} folder
     on Windows and Linux. For information about how to configure plugins on
@@ -75,8 +74,7 @@
     \QC uses its own set of Qt Libraries located in the bundle, and therefore,
     you need to configure the \QD plugins that you want to use with \QC.
     Fore more information about how to deploy applications to Mac OS, see
-    \l{http://qt-project.org/doc/qt-5.0/qtdoc/deployment-mac.html}
-    {Deploying an Application on Mac OS X}.
+    \l{Qt for Mac OS X - Deployment}.
 
     The following example illustrates how to configure version 5.2.1 of the
     \l{http://qwt.sourceforge.net/}{Qwt - Qt Widgets for Technical Applications}
@@ -130,7 +128,7 @@
 
     \section1 Matching Build Keys
 
-    The \QC that is included in pre-built SDK packages on Windows is built with
+    The \QC that is included in pre-built Qt packages on Windows is built with
     the Microsoft Visual Studio compiler, whereas the version of Qt shipped for
     building applications is configured and built to use the MinGW/g++ compiler.
     Plugins built by using this version of Qt cannot be loaded by \QC because

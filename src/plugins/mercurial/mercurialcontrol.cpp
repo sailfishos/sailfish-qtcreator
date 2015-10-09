@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Brian McGillion
+** Copyright (c) 2014 Brian McGillion
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -33,6 +33,8 @@
 #include <vcsbase/vcsbaseclientsettings.h>
 #include <vcsbase/vcsbaseconstants.h>
 
+#include <coreplugin/vcsmanager.h>
+
 #include <QFileInfo>
 #include <QVariant>
 #include <QStringList>
@@ -40,8 +42,29 @@
 
 using namespace Mercurial::Internal;
 
+class MercurialTopicCache : public Core::IVersionControl::TopicCache
+{
+public:
+    MercurialTopicCache(MercurialClient *client) : m_client(client) {}
+
+protected:
+    QString trackFile(const QString &repository)
+    {
+        return repository + QLatin1String("/.hg/branch");
+    }
+
+    QString refreshTopic(const QString &repository)
+    {
+        return m_client->branchQuerySync(repository);
+    }
+
+private:
+    MercurialClient *m_client;
+};
+
 MercurialControl::MercurialControl(MercurialClient *client)
-    : mercurialClient(client)
+    : Core::IVersionControl(new MercurialTopicCache(client))
+    , mercurialClient(client)
 {
 }
 
@@ -62,6 +85,11 @@ bool MercurialControl::managesDirectory(const QString &directory, QString *topLe
     if (topLevel)
         *topLevel = topLevelFound;
     return !topLevelFound.isEmpty();
+}
+
+bool MercurialControl::managesFile(const QString &workingDirectory, const QString &fileName) const
+{
+    return mercurialClient->managesFile(workingDirectory, fileName);
 }
 
 bool MercurialControl::isConfigured() const
@@ -122,26 +150,6 @@ bool MercurialControl::vcsMove(const QString &from, const QString &to)
 bool MercurialControl::vcsCreateRepository(const QString &directory)
 {
     return mercurialClient->synchronousCreateRepository(directory);
-}
-
-QString MercurialControl::vcsCreateSnapshot(const QString &)
-{
-    return QString();
-}
-
-QStringList MercurialControl::vcsSnapshots(const QString &)
-{
-    return QStringList();
-}
-
-bool MercurialControl::vcsRestoreSnapshot(const QString &, const QString &)
-{
-    return false;
-}
-
-bool MercurialControl::vcsRemoveSnapshot(const QString &, const QString &)
-{
-    return false;
 }
 
 bool MercurialControl::vcsAnnotate(const QString &file, int line)

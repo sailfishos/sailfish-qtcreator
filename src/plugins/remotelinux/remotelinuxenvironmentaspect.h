@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -46,7 +46,7 @@ class REMOTELINUX_EXPORT RemoteLinuxEnvironmentAspect : public ProjectExplorer::
 
 public:
     RemoteLinuxEnvironmentAspect(ProjectExplorer::RunConfiguration *rc);
-    RemoteLinuxEnvironmentAspect *clone(ProjectExplorer::RunConfiguration *parent) const;
+    RemoteLinuxEnvironmentAspect *create(ProjectExplorer::RunConfiguration *parent) const;
     ProjectExplorer::RunConfigWidget *createConfigurationWidget();
 
     QList<int> possibleBaseEnvironments() const;
@@ -65,8 +65,6 @@ private:
         CleanBaseEnvironment = 0,
         RemoteBaseEnvironment = 1
     };
-
-    RemoteLinuxEnvironmentAspect(const RemoteLinuxEnvironmentAspect *other, ProjectExplorer::RunConfiguration *parent);
 
     Utils::Environment m_remoteEnvironment;
 };

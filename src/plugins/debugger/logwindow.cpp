@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -41,12 +41,14 @@
 #include <QMenu>
 #include <QSyntaxHighlighter>
 #include <QPlainTextEdit>
+#include <QPushButton>
 #include <QFileDialog>
+#include <QToolButton>
 
 #include <aggregation/aggregate.h>
 #include <coreplugin/findplaceholder.h>
 #include <coreplugin/minisplitter.h>
-#include <find/basetextfind.h>
+#include <coreplugin/find/basetextfind.h>
 
 #include <utils/savedaction.h>
 #include <utils/fancylineedit.h>
@@ -367,12 +369,18 @@ LogWindow::LogWindow(QWidget *parent)
     m_inputText->setSizePolicy(QSizePolicy::MinimumExpanding,
         QSizePolicy::MinimumExpanding);
 
-    m_commandLabel = new QLabel(tr("Command:"), this);
     m_commandEdit = new Utils::FancyLineEdit(this);
     m_commandEdit->setFrame(false);
     m_commandEdit->setHistoryCompleter(QLatin1String("DebuggerInput"));
+
+    QToolButton *repeatButton = new QToolButton(this);
+    repeatButton->setIcon(QIcon(QLatin1String(":/debugger/images/debugger_stepover_small.png")));
+    repeatButton->setIconSize(QSize(12, 12));
+    repeatButton->setToolTip(tr("Repeat last command for debug reasons."));
+
     QHBoxLayout *commandBox = new QHBoxLayout;
-    commandBox->addWidget(m_commandLabel);
+    commandBox->addWidget(repeatButton);
+    commandBox->addWidget(new QLabel(tr("Command:"), this));
     commandBox->addWidget(m_commandEdit);
     commandBox->setMargin(2);
     commandBox->setSpacing(6);
@@ -400,11 +408,11 @@ LogWindow::LogWindow(QWidget *parent)
 
     Aggregation::Aggregate *aggregate = new Aggregation::Aggregate;
     aggregate->add(m_combinedText);
-    aggregate->add(new Find::BaseTextFind(m_combinedText));
+    aggregate->add(new Core::BaseTextFind(m_combinedText));
 
     aggregate = new Aggregation::Aggregate;
     aggregate->add(m_inputText);
-    aggregate->add(new Find::BaseTextFind(m_inputText));
+    aggregate->add(new Core::BaseTextFind(m_inputText));
 
     connect(m_inputText, SIGNAL(statusMessageRequested(QString,int)),
         SIGNAL(statusMessageRequested(QString,int)));
@@ -414,6 +422,8 @@ LogWindow::LogWindow(QWidget *parent)
         SLOT(sendCommand()));
     connect(m_inputText, SIGNAL(executeLineRequested()),
         SLOT(executeLine()));
+    connect(repeatButton, SIGNAL(clicked()),
+        SLOT(repeatLastCommand()));
 
     connect(&m_outputTimer, SIGNAL(timeout()), SLOT(doOutput()));
 
@@ -423,13 +433,22 @@ LogWindow::LogWindow(QWidget *parent)
 void LogWindow::executeLine()
 {
     m_ignoreNextInputEcho = true;
-    debuggerCore()->executeDebuggerCommand(m_inputText->textCursor().block().text(),
-                                           CppLanguage);
+    debuggerCore()->currentEngine()->
+        executeDebuggerCommand(m_inputText->textCursor().block().text(), CppLanguage);
+}
+
+void LogWindow::repeatLastCommand()
+{
+    debuggerCore()->currentEngine()->debugLastCommand();
 }
 
 void LogWindow::sendCommand()
 {
-    debuggerCore()->executeDebuggerCommand(m_commandEdit->text(), CppLanguage);
+    DebuggerEngine *engine = debuggerCore()->currentEngine();
+    if (engine->acceptsDebuggerCommands())
+        engine->executeDebuggerCommand(m_commandEdit->text(), CppLanguage);
+    else
+        showOutput(LogError, tr("User commands are not accepted in the current state."));
 }
 
 void LogWindow::showOutput(int channel, const QString &output)

@@ -1,35 +1,40 @@
-import qbs.base 1.0
+import qbs 1.0
 
-import "../QtcPlugin.qbs" as QtcPlugin
+import QtcPlugin
 
 QtcPlugin {
     name: "DiffEditor"
 
     Depends { name: "Qt.widgets" }
+    Depends { name: "Aggregation" }
+    Depends { name: "Utils" }
+
     Depends { name: "Core" }
     Depends { name: "TextEditor" }
-    Depends { name: "Find" }
-
 
     files: [
         "diffeditor.cpp",
         "diffeditor.h",
         "diffeditor_global.h",
         "diffeditorconstants.h",
+        "diffeditorcontroller.cpp",
+        "diffeditorcontroller.h",
+        "diffeditordocument.cpp",
+        "diffeditordocument.h",
         "diffeditorfactory.cpp",
         "diffeditorfactory.h",
-        "diffeditorfile.cpp",
-        "diffeditorfile.h",
+        "diffeditorguicontroller.cpp",
+        "diffeditorguicontroller.h",
+        "diffeditormanager.cpp",
+        "diffeditormanager.h",
         "diffeditorplugin.cpp",
         "diffeditorplugin.h",
-        "diffeditorwidget.cpp",
-        "diffeditorwidget.h",
         "differ.cpp",
         "differ.h",
-        "diffshoweditor.cpp",
-        "diffshoweditor.h",
-        "diffshoweditorfactory.cpp",
-        "diffshoweditorfactory.h",
+        "diffutils.cpp",
+        "diffutils.h",
+        "sidebysidediffeditorwidget.cpp",
+        "sidebysidediffeditorwidget.h",
     ]
 }
 

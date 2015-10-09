@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Brian McGillion and Hugues Delorme
+** Copyright (c) 2014 Brian McGillion and Hugues Delorme
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -82,6 +82,8 @@ public:
     QVariant::Type valueType(const QString &key) const;
 
     QString binaryPath() const;
+
+    QStringList searchPathList() const;
 
 protected:
     QString settingsGroup() const;

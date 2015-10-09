@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -29,6 +29,8 @@
 
 #include "statepreviewimagechangedcommand.h"
 
+#include <QDebug>
+
 namespace QmlDesigner {
 
 StatePreviewImageChangedCommand::StatePreviewImageChangedCommand()
@@ -45,6 +47,11 @@ QVector<ImageContainer> StatePreviewImageChangedCommand::previews()const
     return m_previewVector;
 }
 
+void StatePreviewImageChangedCommand::sort()
+{
+    qSort(m_previewVector);
+}
+
 QDataStream &operator<<(QDataStream &out, const StatePreviewImageChangedCommand &command)
 {
     out << command.previews();
@@ -58,4 +65,16 @@ QDataStream &operator>>(QDataStream &in, StatePreviewImageChangedCommand &comman
 
     return in;
 }
+
+bool operator ==(const StatePreviewImageChangedCommand &first, const StatePreviewImageChangedCommand &second)
+{
+    return first.m_previewVector == second.m_previewVector;
+}
+
+QDebug operator <<(QDebug debug, const StatePreviewImageChangedCommand &command)
+{
+    return debug.nospace() << "StatePreviewImageChangedCommand(" << command.previews() << ")";
+
+}
+
 } // namespace QmlDesigner

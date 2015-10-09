@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -680,10 +680,8 @@ void BaseTextDocumentLayout::setFolded(const QTextBlock &block, bool folded)
 {
     if (folded)
         userData(block)->setFolded(true);
-    else {
-        if (TextBlockUserData *userData = testUserData(block))
-            return userData->setFolded(false);
-    }
+    else if (TextBlockUserData *userData = testUserData(block))
+        return userData->setFolded(false);
 }
 
 void BaseTextDocumentLayout::requestExtraAreaUpdate()

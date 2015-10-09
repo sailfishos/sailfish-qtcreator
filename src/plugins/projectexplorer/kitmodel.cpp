@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -57,7 +57,7 @@ public:
         if (kn)
             kn->childNodes.append(this);
 
-        widget = KitManager::instance()->createConfigWidget(k);
+        widget = KitManager::createConfigWidget(k);
         if (widget) {
             if (k && k->isAutoDetected())
                 widget->makeStickySubWidgetsReadOnly();
@@ -89,8 +89,18 @@ public:
 KitModel::KitModel(QBoxLayout *parentLayout, QObject *parent) :
     QAbstractItemModel(parent),
     m_parentLayout(parentLayout),
-    m_defaultNode(0)
+    m_defaultNode(0),
+    m_keepUnique(true)
 {
+    m_root = new KitNode(0);
+    m_autoRoot = new KitNode(m_root);
+    m_manualRoot = new KitNode(m_root);
+
+    foreach (Kit *k, KitManager::kits())
+        addKit(k);
+
+    changeDefaultKit();
+
     connect(KitManager::instance(), SIGNAL(kitAdded(ProjectExplorer::Kit*)),
             this, SLOT(addKit(ProjectExplorer::Kit*)));
     connect(KitManager::instance(), SIGNAL(kitRemoved(ProjectExplorer::Kit*)),
@@ -99,15 +109,6 @@ KitModel::KitModel(QBoxLayout *parentLayout, QObject *parent) :
             this, SLOT(updateKit(ProjectExplorer::Kit*)));
     connect(KitManager::instance(), SIGNAL(defaultkitChanged()),
             this, SLOT(changeDefaultKit()));
-
-    m_root = new KitNode(0);
-    m_autoRoot = new KitNode(m_root);
-    m_manualRoot = new KitNode(m_root);
-
-    foreach (Kit *k, KitManager::instance()->kits())
-        addKit(k);
-
-    changeDefaultKit();
 }
 
 KitModel::~KitModel()
@@ -285,8 +286,8 @@ void KitModel::apply()
     }
 
     // Update kits:
-    KitManager *km = KitManager::instance();
-    bool unique = km->setKeepDisplayNameUnique(false);
+    bool unique = KitManager::setKeepDisplayNameUnique(false);
+    m_keepUnique = false;
     nodes = m_autoRoot->childNodes; // These can be dirty due to being made default!
     nodes.append(m_manualRoot->childNodes);
     foreach (KitNode *n, nodes) {
@@ -297,7 +298,8 @@ void KitModel::apply()
             emit dataChanged(index(n, 0), index(n, columnCount(QModelIndex())));
         }
     }
-    km->setKeepDisplayNameUnique(unique);
+    m_keepUnique = unique;
+    KitManager::setKeepDisplayNameUnique(unique);
 }
 
 void KitModel::markForRemoval(Kit *k)
@@ -470,12 +472,13 @@ void KitModel::removeKit(Kit *k)
 
 void KitModel::updateKit(Kit *k)
 {
-    k->setDisplayName(findNameFor(k, k->displayName()));
+    if (m_keepUnique)
+        k->setDisplayName(findNameFor(k, k->displayName()));
 }
 
 void KitModel::changeDefaultKit()
 {
-    Kit *defaultKit = KitManager::instance()->defaultKit();
+    Kit *defaultKit = KitManager::defaultKit();
     QList<KitNode *> nodes = m_autoRoot->childNodes;
     nodes << m_manualRoot->childNodes;
     foreach (KitNode *n, nodes) {

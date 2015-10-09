@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -53,9 +53,7 @@ class CppCodeStylePreferences;
 
 namespace Internal {
 
-namespace Ui {
-class CppCodeStyleSettingsPage;
-}
+namespace Ui { class CppCodeStyleSettingsPage; }
 
 class CppCodeStylePreferencesWidget : public QWidget
 {
@@ -65,8 +63,6 @@ public:
     virtual ~CppCodeStylePreferencesWidget();
 
     void setCodeStyle(CppTools::CppCodeStylePreferences *codeStylePreferences);
-
-    QString searchKeywords() const;
 
 private slots:
     void decorateEditors(const TextEditor::FontSettings &fontSettings);
@@ -95,13 +91,11 @@ class CppCodeStyleSettingsPage : public Core::IOptionsPage
 public:
     explicit CppCodeStyleSettingsPage(QWidget *parent = 0);
 
-    QWidget *createPage(QWidget *parent);
+    QWidget *widget();
     void apply();
-    void finish() { }
-    bool matches(const QString &) const;
+    void finish();
 
 private:
-    QString m_searchKeywords;
     CppCodeStylePreferences *m_pageCppCodeStylePreferences;
     QPointer<TextEditor::CodeStyleEditor> m_widget;
 };

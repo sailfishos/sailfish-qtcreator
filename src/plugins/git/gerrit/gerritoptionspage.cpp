@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -55,12 +55,13 @@ GerritOptionsPage::~GerritOptionsPage()
     delete m_widget;
 }
 
-QWidget *GerritOptionsPage::createPage(QWidget *parent)
+QWidget *GerritOptionsPage::widget()
 {
-    GerritOptionsWidget *gow = new GerritOptionsWidget(parent);
-    gow->setParameters(*m_parameters);
-    m_widget = gow;
-    return gow;
+    if (!m_widget) {
+        m_widget = new GerritOptionsWidget;
+        m_widget->setParameters(*m_parameters);
+    }
+    return m_widget;
 }
 
 void GerritOptionsPage::apply()
@@ -73,14 +74,14 @@ void GerritOptionsPage::apply()
             else
                 newParameters.setPortFlagBySshType();
             *m_parameters = newParameters;
-            m_parameters->toSettings(Core::ICore::instance()->settings());
+            m_parameters->toSettings(Core::ICore::settings());
         }
     }
 }
 
-bool GerritOptionsPage::matches(const QString &s) const
+void GerritOptionsPage::finish()
 {
-    return s.contains(QLatin1String("gerrit"), Qt::CaseInsensitive);
+    delete m_widget;
 }
 
 GerritOptionsWidget::GerritOptionsWidget(QWidget *parent)
@@ -99,9 +100,11 @@ GerritOptionsWidget::GerritOptionsWidget(QWidget *parent)
     formLayout->addRow(tr("&User:"), m_userLineEdit);
     m_sshChooser->setExpectedKind(Utils::PathChooser::ExistingCommand);
     m_sshChooser->setCommandVersionArguments(QStringList(QLatin1String("-V")));
+    m_sshChooser->setHistoryCompleter(QLatin1String("Git.SshCommand.History"));
     formLayout->addRow(tr("&ssh:"), m_sshChooser);
     formLayout->addRow(tr("&Repository:"), m_repositoryChooser);
     m_repositoryChooser->setToolTip(tr("Default repository where patches will be applied."));
+    m_repositoryChooser->setHistoryCompleter(QLatin1String("Git.RepoDir.History"));
     formLayout->addRow(tr("Pr&ompt:"), m_promptPathCheckBox);
     m_promptPathCheckBox->setToolTip(tr("If checked, user will always be\n"
                                         "asked to confirm the repository path."));
@@ -113,6 +116,7 @@ GerritOptionsWidget::GerritOptionsWidget(QWidget *parent)
     "Determines the protocol used to form a URL in case\n"
     "\"canonicalWebUrl\" is not configured in the file\n"
     "\"gerrit.config\"."));
+    setTabOrder(m_sshChooser, m_portSpinBox);
 }
 
 GerritParameters GerritOptionsWidget::parameters() const

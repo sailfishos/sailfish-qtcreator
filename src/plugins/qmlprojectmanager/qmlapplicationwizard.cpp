@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -35,93 +35,57 @@
 #include <projectexplorer/customwizard/customwizard.h>
 #include <projectexplorer/kitmanager.h>
 #include <projectexplorer/projectexplorerconstants.h>
-#include <qt4projectmanager/qt4project.h>
-#include <qt4projectmanager/qt4projectmanagerconstants.h>
+#include <qmakeprojectmanager/qmakeproject.h>
+#include <qmakeprojectmanager/qmakeprojectmanagerconstants.h>
 #include <qtsupport/qtkitinformation.h>
 
 #include "qmlprojectmanager.h"
 #include "qmlproject.h"
+#include "qmlapplicationwizardpages.h"
 
 #include <QIcon>
 
 using namespace Core;
 using namespace ExtensionSystem;
 using namespace ProjectExplorer;
-using namespace Qt4ProjectManager;
+using namespace QmakeProjectManager;
 
 namespace QmlProjectManager {
 namespace Internal {
 
-QmlApplicationWizardDialog::QmlApplicationWizardDialog(QmlApp *qmlApp, QWidget *parent, const WizardDialogParameters &parameters)
-    : BaseProjectWizardDialog(parent, parameters),
-      m_qmlApp(qmlApp)
+QmlApplicationWizardDialog::QmlApplicationWizardDialog(QWidget *parent, const WizardDialogParameters &parameters)
+    : BaseProjectWizardDialog(parent, parameters)
 {
     setWindowTitle(tr("New Qt Quick UI Project"));
     setIntroDescription(tr("This wizard generates a Qt Quick UI project."));
+    m_componentSetPage = new QmlComponentSetPage;
+    const int pageId = addPage(m_componentSetPage);
+    wizardProgress()->item(pageId)->setTitle(tr("Component Set"));
 }
 
-QmlApp *QmlApplicationWizardDialog::qmlApp() const
+TemplateInfo QmlApplicationWizardDialog::templateInfo() const
 {
-    return m_qmlApp;
+    return m_componentSetPage->templateInfo();
 }
 
-QmlApplicationWizard::QmlApplicationWizard(const BaseFileWizardParameters &parameters,
-                                                   const TemplateInfo &templateInfo, QObject *parent)
-    : BaseFileWizard(parameters, parent),
-      m_qmlApp(new QmlApp(this))
+
+QmlApplicationWizard::QmlApplicationWizard()
+    : m_qmlApp(new QmlApp(this))
 {
-    m_qmlApp->setTemplateInfo(templateInfo);
-}
-
-void QmlApplicationWizard::createInstances(ExtensionSystem::IPlugin *plugin)
-{
-    foreach (const TemplateInfo &templateInfo, QmlApp::templateInfos()) {
-        BaseFileWizardParameters parameters;
-        parameters.setDisplayName(templateInfo.displayName);
-        parameters.setDescription(templateInfo.description);
-        const QString imagePath = templateInfo.templatePath + QLatin1String("/template.png");
-        if (QFileInfo(imagePath).exists())
-            parameters.setDescriptionImage(imagePath);
-        parameters.setCategory(
-                    QLatin1String(ProjectExplorer::Constants::QT_APPLICATION_WIZARD_CATEGORY));
-        parameters.setDisplayCategory(
-                    QLatin1String(ProjectExplorer::Constants::QT_APPLICATION_WIZARD_CATEGORY_DISPLAY));
-        parameters.setKind(IWizard::ProjectWizard);
-        parameters.setId(templateInfo.wizardId);
-
-        QStringList stringList =
-                templateInfo.featuresRequired.split(QLatin1Char(','), QString::SkipEmptyParts);;
-        FeatureSet features;
-        foreach (const QString &string, stringList) {
-            Feature feature(Id::fromString(string.trimmed()));
-            features |= feature;
-        }
-
-        parameters.setRequiredFeatures(features);
-        parameters.setIcon(QIcon(QLatin1String(Qt4ProjectManager::Constants::ICON_QTQUICK_APP)));
-        QmlApplicationWizard *wizard = new QmlApplicationWizard(parameters, templateInfo);
-        plugin->addAutoReleasedObject(wizard);
-    }
-}
-
-BaseFileWizardParameters QmlApplicationWizard::parameters()
-{
-    BaseFileWizardParameters params(ProjectWizard);
-    params.setCategory(QLatin1String(ProjectExplorer::Constants::QT_APPLICATION_WIZARD_CATEGORY));
-    params.setId(QLatin1String("QA.QMLB Application"));
-    params.setIcon(QIcon(QLatin1String(Qt4ProjectManager::Constants::ICON_QTQUICK_APP)));
-    params.setDisplayCategory(
-                QLatin1String(ProjectExplorer::Constants::QT_APPLICATION_WIZARD_CATEGORY_DISPLAY));
-    params.setDisplayName(tr("Qt Quick Application"));
-    params.setDescription(tr("Creates a Qt Quick application project."));
-    return params;
+    setWizardKind(ProjectWizard);
+    setCategory(QLatin1String(ProjectExplorer::Constants::QT_APPLICATION_WIZARD_CATEGORY));
+    setId(QLatin1String("QA.QMLB Application"));
+    setIcon(QIcon(QLatin1String(QmakeProjectManager::Constants::ICON_QTQUICK_APP)));
+    setDisplayCategory(
+         QLatin1String(ProjectExplorer::Constants::QT_APPLICATION_WIZARD_CATEGORY_DISPLAY));
+    setDisplayName(tr("Qt Quick UI"));
+    setDescription(tr("Creates a Qt Quick UI project."));
 }
 
 QWizard *QmlApplicationWizard::createWizardDialog(QWidget *parent,
     const WizardDialogParameters &wizardDialogParameters) const
 {
-    QmlApplicationWizardDialog *wizardDialog = new QmlApplicationWizardDialog(m_qmlApp,
-                                                                              parent, wizardDialogParameters);
+    QmlApplicationWizardDialog *wizardDialog = new QmlApplicationWizardDialog(parent, wizardDialogParameters);
 
     connect(wizardDialog, SIGNAL(projectParametersChanged(QString,QString)), m_qmlApp,
         SLOT(setProjectNameAndBaseDirectory(QString,QString)));
@@ -136,32 +100,17 @@ QWizard *QmlApplicationWizard::createWizardDialog(QWidget *parent,
     return wizardDialog;
 }
 
-void QmlApplicationWizard::writeUserFile(const QString &fileName) const
+GeneratedFiles QmlApplicationWizard::generateFiles(const QWizard *w,
+                                                   QString *errorMessage) const
 {
-    Manager *manager = ExtensionSystem::PluginManager::getObject<Manager>();
-
-    QmlProject *project = new QmlProject(manager, fileName);
-    QtSupport::QtVersionKitMatcher featureMatcher(requiredFeatures());
-    QList<ProjectExplorer::Kit *> kits = ProjectExplorer::KitManager::instance()->kits();
-    foreach (ProjectExplorer::Kit *kit, kits)
-        if (featureMatcher.matches(kit)
-                && project->supportsKit(kit, 0)) // checks for desktop device
-            project->addTarget(project->createTarget(kit));
-
-    project->saveSettings();
-    delete project;
-}
-
-GeneratedFiles QmlApplicationWizard::generateFiles(const QWizard * /*wizard*/,
-                                                       QString *errorMessage) const
-{
+    const QmlApplicationWizardDialog *wizard = qobject_cast<const QmlApplicationWizardDialog*>(w);
+    m_qmlApp->setTemplateInfo(wizard->templateInfo());
     return m_qmlApp->generateFiles(errorMessage);
 }
 
 bool QmlApplicationWizard::postGenerateFiles(const QWizard * /*wizard*/, const GeneratedFiles &l,
     QString *errorMessage)
 {
-    writeUserFile(m_qmlApp->creatorFileName());
     return ProjectExplorer::CustomProjectWizard::postGenerateOpen(l, errorMessage);
 }
 

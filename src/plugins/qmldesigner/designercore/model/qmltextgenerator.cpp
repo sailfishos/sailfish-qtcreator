@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -111,21 +111,10 @@ QString QmlTextGenerator::toQml(const AbstractProperty &property, int indentDept
         if (property.name() == "id")
             return stringValue;
 
-        if (variantProperty.parentModelNode().metaInfo().isValid()
-                && variantProperty.parentModelNode().metaInfo().propertyIsEnumType(variantProperty.name())) {
-            return variantProperty.parentModelNode().metaInfo().propertyEnumScope(variantProperty.name())
-                    + QLatin1String(".") + stringValue;
-            //Enums do not work with alias properties. This is a workaround.
-        } else if (variantProperty.parentModelNode().metaInfo().isValid()
-                   //Enums are not strings
-                   && variantProperty.parentModelNode().metaInfo().propertyTypeName(variantProperty.name())
-                   != ("string")
-                   && variantProperty.parentModelNode().metaInfo().propertyTypeName(variantProperty.name())
-                   != ("QString")
-                   //We check if the value of the property is one of the known Qt Quick enums.
-                   && NodeMetaInfo::qtQuickEnumsWithoutScope().contains(stringValue)
-                   ) {
-            return NodeMetaInfo::qtQuickEnumScopeForEnumString(stringValue) + QLatin1String(".") + stringValue;
+          if (false) {
+          }
+        if (variantProperty.holdsEnumeration()) {
+            return variantProperty.enumeration().toString();
         } else {
 
             switch (value.type()) {
@@ -138,6 +127,7 @@ QString QmlTextGenerator::toQml(const AbstractProperty &property, int indentDept
             case QVariant::Color:
                 return QString(QLatin1String("\"%1\"")).arg(properColorName(value.value<QColor>()));
 
+            case static_cast<QVariant::Type>(QMetaType::Float):
             case QVariant::Double:
                 return doubleToString(value.toDouble());
             case QVariant::Int:

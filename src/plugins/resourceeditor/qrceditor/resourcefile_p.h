@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -84,6 +84,10 @@ public:
     QString alias;
     QIcon icon;
 
+    // not used, only loaded and saved
+    QString compress;
+    QString threshold;
+
 private:
     bool m_checked;
     bool m_exists;
@@ -135,12 +139,6 @@ public:
     QString errorMessage() const { return m_error_message; }
     void refresh();
 
-private:
-    QString resolvePath(const QString &path) const;
-    QStringList prefixList() const;
-    QStringList fileList(int pref_idx) const;
-
-public:
     int prefixCount() const;
     QString prefix(int idx) const;
     QString lang(int idx) const;
@@ -150,35 +148,30 @@ public:
     QString file(int prefix_idx, int file_idx) const;
     QString alias(int prefix_idx, int file_idx) const;
 
-    void addFile(int prefix_idx, const QString &file, int file_idx = -1);
-    void addPrefix(const QString &prefix, int prefix_idx = -1);
+    int addFile(int prefix_idx, const QString &file, int file_idx = -1);
+    int addPrefix(const QString &prefix, const QString &lang, int prefix_idx = -1);
 
     void removePrefix(int prefix_idx);
     void removeFile(int prefix_idx, int file_idx);
 
-    void replacePrefix(int prefix_idx, const QString &prefix);
-    void replaceLang(int prefix_idx, const QString &lang);
+    bool replacePrefix(int prefix_idx, const QString &prefix);
+    bool replaceLang(int prefix_idx, const QString &lang);
+    bool replacePrefixAndLang(int prefix_idx, const QString &prefix, const QString &lang);
     void replaceAlias(int prefix_idx, int file_idx, const QString &alias);
 
     bool renameFile(const QString fileName, const QString &newFileName);
 
-private:
     void replaceFile(int pref_idx, int file_idx, const QString &file);
-public:
-    int indexOfPrefix(const QString &prefix) const;
+    int indexOfPrefix(const QString &prefix, const QString &lang) const;
     int indexOfFile(int pref_idx, const QString &file) const;
 
-    bool contains(const QString &prefix, const QString &file = QString()) const;
+    bool contains(const QString &prefix, const QString &lang, const QString &file = QString()) const;
     bool contains(int pref_idx, const QString &file) const;
 
     QString relativePath(const QString &abs_path) const;
     QString absolutePath(const QString &rel_path) const;
 
     static QString fixPrefix(const QString &prefix);
-    bool split(const QString &path, QString *prefix, QString *file) const;
-
-private:
-    bool isEmpty() const;
 
 private:
     PrefixList m_prefix_list;
@@ -192,6 +185,7 @@ public:
 
 private:
     void clearPrefixList();
+    int indexOfPrefix(const QString &prefix, const QString &lang, int skip) const;
 };
 
 /*!
@@ -239,8 +233,7 @@ public:
     virtual void changeLang(const QModelIndex &idx, const QString &lang);
     virtual void changeAlias(const QModelIndex &idx, const QString &alias);
     virtual QModelIndex deleteItem(const QModelIndex &idx);
-    QModelIndex getIndex(const QString &prefix, const QString &file);
-    QModelIndex getIndex(const QString &prefixed_file);
+    QModelIndex getIndex(const QString &prefix, const QString &lang, const QString &file);
     QModelIndex prefixIndex(const QModelIndex &sel_idx) const;
 
     QString absolutePath(const QString &path) const

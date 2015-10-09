@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -39,10 +39,7 @@ namespace Constants {
 const char PROJECT_ID[] = "Qbs.QbsProject";
 
 // MIME types:
-const char MIME_TYPE[] = "application/vnd.qtproject.qbsproject";
-
-// Progress reports:
-const char QBS_EVALUATE[] = "Qbs.QbsEvaluate";
+const char MIME_TYPE[] = "application/x-qt.qbs+qml";
 
 // Actions:
 const char ACTION_REPARSE_QBS[] = "Qbs.Reparse";
@@ -51,6 +48,8 @@ const char ACTION_BUILD_FILE_CONTEXT[] = "Qbs.BuildFileCtx";
 const char ACTION_BUILD_FILE[] = "Qbs.BuildFile";
 const char ACTION_BUILD_PRODUCT_CONTEXT[] = "Qbs.BuildProductCtx";
 const char ACTION_BUILD_PRODUCT[] = "Qbs.BuildProduct";
+const char ACTION_BUILD_SUBPROJECT_CONTEXT[] = "Qbs.BuildSubprojectCtx";
+const char ACTION_BUILD_SUBPROJECT[] = "Qbs.BuildSubproduct";
 
 // Ids:
 const char QBS_BUILDSTEP_ID[] = "Qbs.BuildStep";
@@ -65,6 +64,10 @@ static const char QBS_CONFIG_VARIANT_KEY[] = "qbs.buildVariant";
 static const char QBS_CONFIG_PROFILE_KEY[] = "qbs.profile";
 static const char QBS_CONFIG_DECLARATIVE_DEBUG_KEY[] = "Qt.declarative.qmlDebugging";
 static const char QBS_CONFIG_QUICK_DEBUG_KEY[] = "Qt.quick.qmlDebugging";
+
+// Icons:
+static const char QBS_GROUP_ICON[] = ":/qbsprojectmanager/images/groups.png";
+static const char QBS_PRODUCT_OVERLAY_ICON[] = ":/qbsprojectmanager/images/productgear.png";
 
 } // namespace Constants
 } // namespace QbsProjectManager

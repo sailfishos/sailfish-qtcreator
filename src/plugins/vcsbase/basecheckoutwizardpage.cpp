@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,6 +30,7 @@
 #include "basecheckoutwizardpage.h"
 #include "ui_basecheckoutwizardpage.h"
 
+#include <QDir>
 #include <QIcon>
 
 /*!
@@ -75,6 +76,7 @@ BaseCheckoutWizardPage::BaseCheckoutWizardPage(QWidget *parent) :
             this, SLOT(slotChanged()));
 
     d->ui.pathChooser->setExpectedKind(Utils::PathChooser::ExistingDirectory);
+    d->ui.pathChooser->setHistoryCompleter(QLatin1String("Vcs.CheckoutDir.History"));
     connect(d->ui.pathChooser, SIGNAL(validChanged()), this, SLOT(slotChanged()));
 
     d->ui.branchComboBox->setEnabled(false);
@@ -104,9 +106,14 @@ void BaseCheckoutWizardPage::addRepositoryControl(QWidget *w)
 
 bool BaseCheckoutWizardPage::checkIsValid() const
 {
-    return d->ui.pathChooser->isValid()
-            && !d->ui.checkoutDirectoryLineEdit->text().isEmpty()
-            && !d->ui.repositoryLineEdit->text().isEmpty();
+    if (!d->ui.pathChooser->isValid() || d->ui.repositoryLineEdit->text().isEmpty())
+        return false;
+
+    const QString checkoutDirectory = d->ui.checkoutDirectoryLineEdit->text();
+    if (checkoutDirectory.isEmpty())
+        return false;
+    const QDir dir(d->ui.pathChooser->path() + QLatin1Char('/') + checkoutDirectory);
+    return !dir.exists() || (dir.count() <= 2);
 }
 
 void BaseCheckoutWizardPage::addRepositoryControl(QString &description, QWidget *w)

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -95,6 +95,7 @@ private:
     Manager();
 
     void clear();
+    int foo();
 
     bool m_isDownloadingDefinitionsSpec;
     QList<DefinitionDownloader *> m_downloaders;

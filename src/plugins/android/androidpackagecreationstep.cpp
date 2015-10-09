@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 BogDan Vatra <bog_dan_ro@yahoo.com>
+** Copyright (c) 2014 BogDan Vatra <bog_dan_ro@yahoo.com>
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -36,14 +36,15 @@
 #include "androidmanager.h"
 #include "androidgdbserverkitinformation.h"
 #include "androidtoolchain.h"
+#include "certificatesmodel.h"
 
 #include <projectexplorer/buildsteplist.h>
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/runconfiguration.h>
 #include <projectexplorer/target.h>
-#include <qt4projectmanager/qt4buildconfiguration.h>
-#include <qt4projectmanager/qt4project.h>
-#include <qt4projectmanager/qt4nodes.h>
+#include <qmakeprojectmanager/qmakebuildconfiguration.h>
+#include <qmakeprojectmanager/qmakeproject.h>
+#include <qmakeprojectmanager/qmakenodes.h>
 #include <qtsupport/qtkitinformation.h>
 
 #include <coreplugin/icore.h>
@@ -66,52 +67,12 @@ namespace Internal {
 
 namespace {
     const QLatin1String KeystoreLocationKey("KeystoreLocation");
+    const QLatin1String SignPackageKey("SignPackage");
     const QLatin1String AliasString("Alias name:");
     const QLatin1String CertificateSeparator("*******************************************");
 }
 
-using namespace Qt4ProjectManager;
-
-class CertificatesModel: public QAbstractListModel
-{
-public:
-    CertificatesModel(const QString &rowCertificates, QObject *parent)
-        : QAbstractListModel(parent)
-    {
-        int from = rowCertificates.indexOf(AliasString);
-        QPair<QString, QString> item;
-        while (from > -1) {
-            from += 11;// strlen(AliasString);
-            const int eol = rowCertificates.indexOf(QLatin1Char('\n'), from);
-            item.first = rowCertificates.mid(from, eol - from).trimmed();
-            const int eoc = rowCertificates.indexOf(CertificateSeparator, eol);
-            item.second = rowCertificates.mid(eol + 1, eoc - eol - 2).trimmed();
-            from = rowCertificates.indexOf(AliasString, eoc);
-            m_certs.push_back(item);
-        }
-    }
-
-protected:
-    int rowCount(const QModelIndex &parent = QModelIndex()) const
-    {
-        if (parent.isValid())
-            return 0;
-        return m_certs.size();
-    }
-
-    QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const
-    {
-        if (!index.isValid() || (role != Qt::DisplayRole && role != Qt::ToolTipRole))
-            return QVariant();
-        if (role == Qt::DisplayRole)
-            return m_certs[index.row()].first;
-        return m_certs[index.row()].second;
-    }
-
-private:
-    QVector<QPair<QString, QString> > m_certs;
-};
-
+using namespace QmakeProjectManager;
 
 AndroidPackageCreationStep::AndroidPackageCreationStep(BuildStepList *bsl)
     : BuildStep(bsl, CreatePackageId)
@@ -131,23 +92,24 @@ void AndroidPackageCreationStep::ctor()
     setDefaultDisplayName(tr("Packaging for Android"));
     m_openPackageLocation = true;
     m_bundleQt = false;
+    m_signPackage = false;
     connect(&m_outputParser, SIGNAL(addTask(ProjectExplorer::Task)), this, SIGNAL(addTask(ProjectExplorer::Task)));
 }
 
 bool AndroidPackageCreationStep::init()
 {
-    const Qt4BuildConfiguration *bc = qobject_cast<Qt4BuildConfiguration *>(target()->activeBuildConfiguration());
+    const QmakeBuildConfiguration *bc = qobject_cast<QmakeBuildConfiguration *>(target()->activeBuildConfiguration());
     if (!bc) {
         raiseError(tr("Cannot create Android package: current build configuration is not Qt 4."));
         return false;
     }
-    Qt4Project *project = static_cast<Qt4Project *>(target()->project());
+    QmakeProject *project = static_cast<QmakeProject *>(target()->project());
     m_outputParser.setProjectFileList(project->files(Project::AllFiles));
 
     // Copying
     m_androidDir = AndroidManager::dirPath(target());
     Utils::FileName path = m_androidDir;
-    QString androidTargetArch = project->rootQt4ProjectNode()->singleVariableValue(Qt4ProjectManager::AndroidArchVar);
+    QString androidTargetArch = project->rootQmakeProjectNode()->singleVariableValue(QmakeProjectManager::AndroidArchVar);
     if (androidTargetArch.isEmpty()) {
         raiseError(tr("Cannot create Android package: No ANDROID_TARGET_ARCH set in make spec."));
         return false;
@@ -156,19 +118,19 @@ bool AndroidPackageCreationStep::init()
     Utils::FileName androidLibPath = path.appendPath(QLatin1String("libs/") + androidTargetArch);
     m_gdbServerDestination = androidLibPath.appendPath(QLatin1String("gdbserver"));
     m_gdbServerSource = AndroidGdbServerKitInformation::gdbServer(target()->kit());
-    m_debugBuild = bc->qmakeBuildConfiguration() & QtSupport::BaseQtVersion::DebugBuild;
 
     if (!AndroidManager::createAndroidTemplatesIfNecessary(target()))
         return false;
 
-    AndroidManager::updateTarget(target(), AndroidManager::targetSDK(target()), AndroidManager::applicationName(target()));
-    m_antToolPath = AndroidConfigurations::instance().antToolPath();
+    AndroidManager::updateTarget(target(), AndroidManager::buildTargetSDK(target()), AndroidManager::applicationName(target()));
+    m_antToolPath = AndroidConfigurations::currentConfig().antToolPath();
     m_apkPathUnsigned = AndroidManager::apkPath(target(), AndroidManager::ReleaseBuildUnsigned);
     m_apkPathSigned = AndroidManager::apkPath(target(), AndroidManager::ReleaseBuildSigned);
+    m_signPackageForRun = m_signPackage;
     m_keystorePathForRun = m_keystorePath;
     m_certificatePasswdForRun = m_certificatePasswd;
-    m_jarSigner = AndroidConfigurations::instance().jarsignerPath();
-    m_zipAligner = AndroidConfigurations::instance().zipalignPath();
+    m_jarSigner = AndroidConfigurations::currentConfig().jarsignerPath();
+    m_zipAligner = AndroidConfigurations::currentConfig().zipalignPath();
     m_environment = bc->environment();
 
     ProjectExplorer::ToolChain *tc = ProjectExplorer::ToolChainKitInformation::toolChain(target()->kit());
@@ -176,6 +138,10 @@ bool AndroidPackageCreationStep::init()
         return false;
 
     initCheckRequiredLibrariesForRun();
+
+    if (m_signPackage && (bc->qmakeBuildConfiguration() & QtSupport::BaseQtVersion::DebugBuild))
+        emit addOutput(tr("Warning: Signing a debug package."), BuildStep::ErrorMessageOutput);
+
     return true;
 }
 
@@ -281,7 +247,7 @@ void AndroidPackageCreationStep::checkRequiredLibraries()
         return;
     AndroidToolChain *atc = static_cast<AndroidToolChain *>(tc);
 
-    readelfProc.start(AndroidConfigurations::instance().readelfPath(target()->activeRunConfiguration()->abi().architecture(), atc->ndkToolChainVersion()).toString(),
+    readelfProc.start(AndroidConfigurations::currentConfig().readelfPath(target()->activeRunConfiguration()->abi().architecture(), atc->ndkToolChainVersion()).toString(),
                       QStringList() << QLatin1String("-d") << QLatin1String("-W") << appPath);
     if (!readelfProc.waitForFinished(-1)) {
         readelfProc.kill();
@@ -302,7 +268,7 @@ void AndroidPackageCreationStep::initCheckRequiredLibrariesForRun()
     AndroidToolChain *atc = static_cast<AndroidToolChain *>(tc);
 
     m_appPath = Utils::FileName::fromString(AndroidManager::targetApplicationPath(target()));
-    m_readElf = AndroidConfigurations::instance().readelfPath(target()->activeRunConfiguration()->abi().architecture(),
+    m_readElf = AndroidConfigurations::currentConfig().readelfPath(target()->activeRunConfiguration()->abi().architecture(),
                                                               atc->ndkToolChainVersion());
     m_qtLibs = AndroidManager::qtLibs(target());
     m_availableQtLibs = AndroidManager::availableQtLibsWithDependencies(target());
@@ -398,10 +364,8 @@ QAbstractItemModel *AndroidPackageCreationStep::keystoreCertificates()
         if (!m_keystorePasswd.length())
             return 0;
         params << m_keystorePasswd;
-        Utils::Environment env = Utils::Environment::systemEnvironment();
-        env.set(QLatin1String("LANG"), QLatin1String("C"));
-        keytoolProc.setProcessEnvironment(env.toProcessEnvironment());
-        keytoolProc.start(AndroidConfigurations::instance().keytoolPath().toString(), params);
+        params << QLatin1String("-J-Duser.language=en");
+        keytoolProc.start(AndroidConfigurations::currentConfig().keytoolPath().toString(), params);
         if (!keytoolProc.waitForStarted() || !keytoolProc.waitForFinished()) {
             QMessageBox::critical(0, tr("Error"),
                                   tr("Failed to run keytool"));
@@ -418,11 +382,22 @@ QAbstractItemModel *AndroidPackageCreationStep::keystoreCertificates()
     return new CertificatesModel(rawCerts, this);
 }
 
+bool AndroidPackageCreationStep::signPackage() const
+{
+    return m_signPackage;
+}
+
+void AndroidPackageCreationStep::setSignPackage(bool b)
+{
+    m_signPackage = b;
+}
+
 bool AndroidPackageCreationStep::fromMap(const QVariantMap &map)
 {
     if (!BuildStep::fromMap(map))
         return false;
     m_keystorePath = Utils::FileName::fromString(map.value(KeystoreLocationKey).toString());
+    m_signPackage = map.value(SignPackageKey).toBool();
     return true;
 }
 
@@ -430,6 +405,7 @@ QVariantMap AndroidPackageCreationStep::toMap() const
 {
     QVariantMap map(BuildStep::toMap());
     map.insert(KeystoreLocationKey, m_keystorePath.toString());
+    map.insert(SignPackageKey, m_signPackage);
     return map;
 }
 
@@ -456,8 +432,8 @@ void AndroidPackageCreationStep::collectFiles(QList<DeployItem> *deployList,
     if (!version)
         return;
 
-    Qt4Project *project = static_cast<Qt4Project *>(target()->project());
-    QString androidTargetArch = project->rootQt4ProjectNode()->singleVariableValue(Qt4ProjectManager::AndroidArchVar);
+    QmakeProject *project = static_cast<QmakeProject *>(target()->project());
+    QString androidTargetArch = project->rootQmakeProjectNode()->singleVariableValue(QmakeProjectManager::AndroidArchVar);
 
     QString androidAssetsPath = m_androidDir.toString() + QLatin1String("/assets/");
     QString androidJarPath = m_androidDir.toString() + QLatin1String("/libs/");
@@ -560,7 +536,7 @@ void AndroidPackageCreationStep::collectFiles(QList<DeployItem> *deployList,
     }
 }
 
-void AndroidPackageCreationStep::removeManagedFilesFromPackage()
+void AndroidPackageCreationStep::removeManagedFilesFromPackage(const Utils::FileName &qtLibraryDir)
 {
     // Clean up all files managed by Qt Creator
     {
@@ -573,6 +549,12 @@ void AndroidPackageCreationStep::removeManagedFilesFromPackage()
                 bool isQtLibrary = dirIt.fileInfo().path().startsWith(androidLibPath)
                         && dirIt.fileName().startsWith(QLatin1String("libQt5"))
                         && dirIt.fileName().endsWith(QLatin1String(".so"));
+
+                if (isQtLibrary) {
+                    Utils::FileName qtLibraryFile = qtLibraryDir;
+                    qtLibraryFile.appendPath(dirIt.fileName());
+                    isQtLibrary = qtLibraryFile.toFileInfo().exists();
+                }
 
                 if (dirIt.filePath().contains(AndroidManager::libraryPrefix()) || isQtLibrary)
                     QFile::remove(dirIt.filePath());
@@ -629,9 +611,12 @@ bool AndroidPackageCreationStep::createPackage()
     emit addOutput(tr("Copy Qt app & libs to Android package ..."), MessageOutput);
 
     QStringList build;
+    // build << QLatin1String("-silent"); //TODO depends on ant 1.9.0, enabled, not *now*
     build << QLatin1String("clean");
     QFile::remove(m_gdbServerDestination.toString());
-    if (m_debugBuild || !m_certificateAlias.length()) {
+    if (m_signPackageForRun) {
+        build << QLatin1String("release");
+    } else {
         build << QLatin1String("debug");
         QDir dir;
         dir.mkpath(m_gdbServerDestination.toFileInfo().absolutePath());
@@ -640,8 +625,6 @@ bool AndroidPackageCreationStep::createPackage()
                        .arg(m_gdbServerDestination.toUserOutput()));
             return false;
         }
-    } else {
-        build << QLatin1String("release");
     }
 
     QList<DeployItem> deployFiles;
@@ -659,7 +642,7 @@ bool AndroidPackageCreationStep::createPackage()
             collectFiles(&deployFiles, &importsAndPlugins);
 
         // Remove files from package if they are not needed
-        removeManagedFilesFromPackage();
+        removeManagedFilesFromPackage(version->libraryPath());
 
         // Deploy files to package
         if (bundleQt) {
@@ -705,7 +688,7 @@ bool AndroidPackageCreationStep::createPackage()
         return false;
     }
 
-    if (!(m_debugBuild) && m_certificateAlias.length()) {
+    if (m_signPackageForRun) {
         emit addOutput(tr("Signing package ..."), MessageOutput);
         while (true) {
             if (m_certificatePasswdForRun.isEmpty())
@@ -719,7 +702,9 @@ bool AndroidPackageCreationStep::createPackage()
 
             QByteArray keyPass = m_certificatePasswdForRun.toUtf8();
             build.clear();
-            build << QLatin1String("-verbose") << QLatin1String("-keystore") << m_keystorePathForRun.toUserOutput()
+            build << QLatin1String("-verbose") << QLatin1String("-digestalg") << QLatin1String("SHA1")
+                  << QLatin1String("-sigalg") << QLatin1String("MD5withRSA")
+                  << QLatin1String("-keystore") << m_keystorePathForRun.toUserOutput()
                   << QLatin1String("-storepass") << m_keystorePasswd
                   << m_apkPathUnsigned.toUserOutput()
                   << m_certificateAlias;
@@ -764,7 +749,7 @@ void AndroidPackageCreationStep::stripAndroidLibs(const QStringList & files, Abi
 {
     QProcess stripProcess;
     foreach (const QString &file, files) {
-        stripProcess.start(AndroidConfigurations::instance().stripPath(architecture, ndkToolchainVersion).toString(),
+        stripProcess.start(AndroidConfigurations::currentConfig().stripPath(architecture, ndkToolchainVersion).toString(),
                            QStringList()<<QLatin1String("--strip-unneeded") << file);
         stripProcess.waitForStarted();
         if (!stripProcess.waitForFinished())
@@ -816,7 +801,7 @@ bool AndroidPackageCreationStep::runCommand(QProcess *buildProc
         QString mainMessage = tr("Packaging Error: Command '%1 %2' failed.")
                 .arg(program).arg(arguments.join(QLatin1String(" ")));
         if (buildProc->error() != QProcess::UnknownError)
-            mainMessage += tr(" Reason: %1").arg(buildProc->errorString());
+            mainMessage += QLatin1Char(' ') + tr("Reason: %1").arg(buildProc->errorString());
         else
             mainMessage += tr("Exit code: %1").arg(buildProc->exitCode());
         raiseError(mainMessage);
@@ -881,7 +866,7 @@ void AndroidPackageCreationStep::certificatePassword()
 
 void AndroidPackageCreationStep::showInGraphicalShell()
 {
-    Core::FileUtils::showInGraphicalShell(Core::ICore::instance()->mainWindow(), m_apkPathSigned.toString());
+    Core::FileUtils::showInGraphicalShell(Core::ICore::mainWindow(), m_apkPathSigned.toString());
 }
 
 void AndroidPackageCreationStep::raiseError(const QString &shortMsg,
@@ -889,10 +874,10 @@ void AndroidPackageCreationStep::raiseError(const QString &shortMsg,
 {
     emit addOutput(detailedMsg.isNull() ? shortMsg : detailedMsg, BuildStep::ErrorOutput);
     emit addTask(Task(Task::Error, shortMsg, Utils::FileName::fromString(QString()), -1,
-                      TASK_CATEGORY_BUILDSYSTEM));
+                      TASK_CATEGORY_DEPLOYMENT));
 }
 
 const Core::Id AndroidPackageCreationStep::CreatePackageId("Qt4ProjectManager.AndroidPackageCreationStep");
 
 } // namespace Internal
-} // namespace Qt4ProjectManager
+} // namespace Android

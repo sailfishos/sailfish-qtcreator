@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -33,6 +33,7 @@
 #include "commonvcssettings.h"
 #include "vcsbaseoutputwindow.h"
 #include "corelistener.h"
+#include "command.h"
 
 #include <coreplugin/documentmanager.h>
 #include <coreplugin/icore.h>
@@ -59,7 +60,7 @@
 
 using namespace Utils;
 
-enum { debug = 0, debugRepositorySearch = 0, debugExecution = 0 };
+enum { debug = 0, debugRepositorySearch = 0 };
 
 /*!
     \namespace VcsBase
@@ -94,8 +95,8 @@ struct State
 
     bool equals(const State &rhs) const;
 
-    inline bool hasFile() const     { return !currentFile.isEmpty(); }
-    inline bool hasProject() const  { return !currentProjectPath.isEmpty(); }
+    inline bool hasFile() const     { return !currentFileTopLevel.isEmpty(); }
+    inline bool hasProject() const  { return !currentProjectTopLevel.isEmpty(); }
     inline bool isEmpty() const     { return !hasFile() && !hasProject(); }
 
     QString currentFile;
@@ -205,11 +206,11 @@ public slots:
 StateListener::StateListener(QObject *parent) :
         QObject(parent)
 {
-    connect(Core::ICore::editorManager(), SIGNAL(currentEditorChanged(Core::IEditor*)),
+    connect(Core::EditorManager::instance(), SIGNAL(currentEditorChanged(Core::IEditor*)),
             this, SLOT(slotStateChanged()));
-    connect(Core::ICore::editorManager(), SIGNAL(currentEditorStateChanged(Core::IEditor*)),
+    connect(Core::EditorManager::instance(), SIGNAL(currentDocumentStateChanged()),
             this, SLOT(slotStateChanged()));
-    connect(Core::ICore::vcsManager(), SIGNAL(repositoryChanged(QString)),
+    connect(Core::VcsManager::instance(), SIGNAL(repositoryChanged(QString)),
             this, SLOT(slotStateChanged()));
 
     if (ProjectExplorer::ProjectExplorerPlugin *pe = ProjectExplorer::ProjectExplorerPlugin::instance())
@@ -219,25 +220,27 @@ StateListener::StateListener(QObject *parent) :
 
 static inline QString displayNameOfEditor(const QString &fileName)
 {
-    const QList<Core::IEditor*> editors = Core::EditorManager::instance()->editorsForFileName(fileName);
-    if (!editors.isEmpty())
-        return editors.front()->displayName();
+    Core::IDocument *document = Core::EditorManager::documentModel()->documentForFilePath(fileName);
+    if (document)
+        return document->displayName();
     return QString();
 }
 
 void StateListener::slotStateChanged()
 {
-    Core::VcsManager *vcsManager = Core::ICore::vcsManager();
-
     // Get the current file. Are we on a temporary submit editor indicated by
     // temporary path prefix or does the file contains a hash, indicating a project
     // folder?
     State state;
-    Core::IEditor *currentEditor = Core::EditorManager::currentEditor();
-    if (!currentEditor || !currentEditor->document())
+    Core::IDocument *currentDocument = Core::EditorManager::currentDocument();
+    if (!currentDocument) {
         state.currentFile.clear();
-    else
-        state.currentFile = currentEditor->document()->fileName();
+    } else {
+        state.currentFile = currentDocument->filePath();
+        if (state.currentFile.isEmpty()) {
+            state.currentFile = VcsBasePlugin::source(currentDocument);
+        }
+    }
     QScopedPointer<QFileInfo> currentFileInfo; // Instantiate QFileInfo only once if required.
     if (!state.currentFile.isEmpty()) {
         const bool isTempFile = state.currentFile.startsWith(QDir::tempPath());
@@ -266,10 +269,16 @@ void StateListener::slotStateChanged()
     if (!state.currentFile.isEmpty()) {
         if (currentFileInfo.isNull())
             currentFileInfo.reset(new QFileInfo(state.currentFile));
-        state.currentFileDirectory = currentFileInfo->absolutePath();
-        state.currentFileName = currentFileInfo->fileName();
-        fileControl = vcsManager->findVersionControlForDirectory(state.currentFileDirectory,
-                                                                 &state.currentFileTopLevel);
+        if (currentFileInfo->isDir()) {
+            state.currentFile.clear();
+            state.currentFileDirectory = currentFileInfo->absoluteFilePath();
+        } else {
+            state.currentFileDirectory = currentFileInfo->absolutePath();
+            state.currentFileName = currentFileInfo->fileName();
+        }
+        fileControl = Core::VcsManager::findVersionControlForDirectory(
+                    state.currentFileDirectory,
+                    &state.currentFileTopLevel);
         if (!fileControl)
             state.clearFile();
     }
@@ -278,7 +287,7 @@ void StateListener::slotStateChanged()
     if (const ProjectExplorer::Project *currentProject = ProjectExplorer::ProjectExplorerPlugin::currentProject()) {
         state.currentProjectPath = currentProject->projectDirectory();
         state.currentProjectName = currentProject->displayName();
-        projectControl = vcsManager->findVersionControlForDirectory(state.currentProjectPath,
+        projectControl = Core::VcsManager::findVersionControlForDirectory(state.currentProjectPath,
                                                                     &state.currentProjectTopLevel);
         if (projectControl) {
             // If we have both, let the file's one take preference
@@ -289,9 +298,13 @@ void StateListener::slotStateChanged()
         }
     }
     // Assemble state and emit signal.
-    Core::IVersionControl *vc = state.currentFile.isEmpty() ? projectControl : fileControl;
-    if (!vc) // Need a repository to patch
-        state.clearPatchFile();
+    Core::IVersionControl *vc = fileControl;
+    if (!vc)
+        vc = projectControl;
+    if (!vc) {
+        state.clearPatchFile(); // Need a repository to patch
+        Core::EditorManager::setWindowTitleVcsTopic(QString());
+    }
     if (debug)
         qDebug() << state << (vc ? vc->displayName() : QString(QLatin1String("No version control")));
     emit stateChanged(state, vc);
@@ -391,13 +404,12 @@ QString VcsBasePluginState::currentProjectTopLevel() const
     return data->m_state.currentProjectTopLevel;
 }
 
-QStringList VcsBasePluginState::relativeCurrentProject() const
+QString VcsBasePluginState::relativeCurrentProject() const
 {
-    QStringList rc;
-    QTC_ASSERT(hasProject(), return rc);
+    QTC_ASSERT(hasProject(), return QString());
     if (data->m_state.currentProjectTopLevel != data->m_state.currentProjectPath)
-        rc.append(QDir(data->m_state.currentProjectTopLevel).relativeFilePath(data->m_state.currentProjectPath));
-    return rc;
+        return QDir(data->m_state.currentProjectTopLevel).relativeFilePath(data->m_state.currentProjectPath);
+    return QString();
 }
 
 bool VcsBasePluginState::hasTopLevel() const
@@ -485,8 +497,9 @@ VCSBASE_EXPORT QDebug operator<<(QDebug in, const VcsBasePluginState &state)
     the virtual submitEditorAboutToClose() to trigger the submit process.
 */
 
-struct VcsBasePluginPrivate
+class VcsBasePluginPrivate
 {
+public:
     explicit VcsBasePluginPrivate();
 
     inline bool supportsRepositoryCreation() const;
@@ -495,22 +508,13 @@ struct VcsBasePluginPrivate
     Core::IVersionControl *m_versionControl;
     VcsBasePluginState m_state;
     int m_actionState;
-    QAction *m_testSnapshotAction;
-    QAction *m_testListSnapshotsAction;
-    QAction *m_testRestoreSnapshotAction;
-    QAction *m_testRemoveSnapshotAction;
-    QString m_testLastSnapshot;
 
     static Internal::StateListener *m_listener;
 };
 
 VcsBasePluginPrivate::VcsBasePluginPrivate() :
     m_versionControl(0),
-    m_actionState(-1),
-    m_testSnapshotAction(0),
-    m_testListSnapshotsAction(0),
-    m_testRestoreSnapshotAction(0),
-    m_testRemoveSnapshotAction(0)
+    m_actionState(-1)
 {
 }
 
@@ -548,7 +552,7 @@ void VcsBasePlugin::initializeVcs(Core::IVersionControl *vc)
             SLOT(slotStateChanged(VcsBase::Internal::State,Core::IVersionControl*)));
     // VCSes might have become (un-)available, so clear the VCS directory cache
     connect(vc, SIGNAL(configurationChanged()),
-            Core::ICore::vcsManager(), SLOT(clearVersionControlCache()));
+            Core::VcsManager::instance(), SLOT(clearVersionControlCache()));
     connect(vc, SIGNAL(configurationChanged()),
             VcsBasePluginPrivate::m_listener, SLOT(slotStateChanged()));
 }
@@ -582,6 +586,7 @@ void VcsBasePlugin::slotStateChanged(const VcsBase::Internal::State &newInternal
             d->m_state.setState(newInternalState);
             updateActions(VcsEnabled);
         }
+        Core::EditorManager::setWindowTitleVcsTopic(vc->vcsTopic(d->m_state.topLevel()));
     } else {
         // Some other VCS plugin or state changed: Reset us to empty state.
         const ActionState newActionState = vc ? OtherVcsEnabled : NoVcsEnabled;
@@ -625,9 +630,9 @@ void VcsBasePlugin::promptToDeleteCurrentFile()
 {
     const VcsBasePluginState state = currentState();
     QTC_ASSERT(state.hasFile(), return);
-    const bool rc = Core::ICore::vcsManager()->promptToDelete(versionControl(), state.currentFile());
+    const bool rc = Core::VcsManager::promptToDelete(versionControl(), state.currentFile());
     if (!rc)
-        QMessageBox::warning(0, tr("Version Control"),
+        QMessageBox::warning(Core::ICore::dialogParent(), tr("Version Control"),
                              tr("The file '%1' could not be deleted.").
                              arg(QDir::toNativeSeparators(state.currentFile())),
                              QMessageBox::Ok);
@@ -646,14 +651,14 @@ void VcsBasePlugin::createRepository()
     // Find current starting directory
     QString directory;
     if (const ProjectExplorer::Project *currentProject = ProjectExplorer::ProjectExplorerPlugin::currentProject())
-        directory = QFileInfo(currentProject->document()->fileName()).absolutePath();
+        directory = QFileInfo(currentProject->document()->filePath()).absolutePath();
     // Prompt for a directory that is not under version control yet
     QWidget *mw = Core::ICore::mainWindow();
     do {
         directory = QFileDialog::getExistingDirectory(mw, tr("Choose Repository Directory"), directory);
         if (directory.isEmpty())
             return;
-        const Core::IVersionControl *managingControl = Core::ICore::vcsManager()->findVersionControlForDirectory(directory);
+        const Core::IVersionControl *managingControl = Core::VcsManager::findVersionControlForDirectory(directory);
         if (managingControl == 0)
             break;
         const QString question = tr("The directory '%1' is already managed by a version control system (%2)."
@@ -694,62 +699,6 @@ bool VcsBasePlugin::raiseSubmitEditor() const
     return true;
 }
 
-// For internal tests: Create actions driving IVersionControl's snapshot interface.
-QList<QAction*> VcsBasePlugin::createSnapShotTestActions()
-{
-    if (!d->m_testSnapshotAction) {
-        d->m_testSnapshotAction = new QAction(QLatin1String("Take snapshot"), this);
-        connect(d->m_testSnapshotAction, SIGNAL(triggered()), this, SLOT(slotTestSnapshot()));
-        d->m_testListSnapshotsAction = new QAction(QLatin1String("List snapshots"), this);
-        connect(d->m_testListSnapshotsAction, SIGNAL(triggered()), this, SLOT(slotTestListSnapshots()));
-        d->m_testRestoreSnapshotAction = new QAction(QLatin1String("Restore snapshot"), this);
-        connect(d->m_testRestoreSnapshotAction, SIGNAL(triggered()), this, SLOT(slotTestRestoreSnapshot()));
-        d->m_testRemoveSnapshotAction = new QAction(QLatin1String("Remove snapshot"), this);
-        connect(d->m_testRemoveSnapshotAction, SIGNAL(triggered()), this, SLOT(slotTestRemoveSnapshot()));
-    }
-    QList<QAction*> rc;
-    rc << d->m_testSnapshotAction << d->m_testListSnapshotsAction << d->m_testRestoreSnapshotAction
-       << d->m_testRemoveSnapshotAction;
-    return rc;
-}
-
-void VcsBasePlugin::slotTestSnapshot()
-{
-    QTC_ASSERT(currentState().hasTopLevel(), return);
-    d->m_testLastSnapshot = versionControl()->vcsCreateSnapshot(currentState().topLevel());
-    qDebug() << "Snapshot " << d->m_testLastSnapshot;
-    VcsBaseOutputWindow::instance()->append(QLatin1String("Snapshot: ") + d->m_testLastSnapshot);
-    if (!d->m_testLastSnapshot.isEmpty())
-        d->m_testRestoreSnapshotAction->setText(QLatin1String("Restore snapshot ") + d->m_testLastSnapshot);
-}
-
-void VcsBasePlugin::slotTestListSnapshots()
-{
-    QTC_ASSERT(currentState().hasTopLevel(), return);
-    const QStringList snapshots = versionControl()->vcsSnapshots(currentState().topLevel());
-    qDebug() << "Snapshots " << snapshots;
-    VcsBaseOutputWindow::instance()->append(QLatin1String("Snapshots: ") + snapshots.join(QLatin1String(", ")));
-}
-
-void VcsBasePlugin::slotTestRestoreSnapshot()
-{
-    QTC_ASSERT(currentState().hasTopLevel() && !d->m_testLastSnapshot.isEmpty(), return);
-    const bool ok = versionControl()->vcsRestoreSnapshot(currentState().topLevel(), d->m_testLastSnapshot);
-    const QString msg = d->m_testLastSnapshot+ (ok ? QLatin1String(" restored") : QLatin1String(" failed"));
-    qDebug() << msg;
-    VcsBaseOutputWindow::instance()->append(msg);
-}
-
-void VcsBasePlugin::slotTestRemoveSnapshot()
-{
-    QTC_ASSERT(currentState().hasTopLevel() && !d->m_testLastSnapshot.isEmpty(), return);
-    const bool ok = versionControl()->vcsRemoveSnapshot(currentState().topLevel(), d->m_testLastSnapshot);
-    const QString msg = d->m_testLastSnapshot+ (ok ? QLatin1String(" removed") : QLatin1String(" failed"));
-    qDebug() << msg;
-    VcsBaseOutputWindow::instance()->append(msg);
-    d->m_testLastSnapshot.clear();
-}
-
 // Find top level for version controls like git/Mercurial that have
 // a directory at the top of the repository.
 // Note that checking for the existence of files is preferred over directories
@@ -778,16 +727,16 @@ QString VcsBasePlugin::findRepositoryForDirectory(const QString &dirS,
                 qDebug() << "<VcsBasePlugin::findRepositoryForDirectory> " << absDirPath;
             return absDirPath;
         }
-    } while (directory.cdUp());
+    } while (!directory.isRoot() && directory.cdUp());
     if (debugRepositorySearch)
         qDebug() << "<VcsBasePlugin::findRepositoryForDirectory bailing out at " << directory.absolutePath();
     return QString();
 }
 
 // Is SSH prompt configured?
-static inline QString sshPrompt()
+QString VcsBasePlugin::sshPrompt()
 {
-    return VcsBase::Internal::VcsPlugin::instance()->settings().sshPasswordPrompt;
+    return Internal::VcsPlugin::instance()->settings().sshPasswordPrompt;
 }
 
 bool VcsBasePlugin::isSshPromptConfigured()
@@ -795,254 +744,43 @@ bool VcsBasePlugin::isSshPromptConfigured()
     return !sshPrompt().isEmpty();
 }
 
-void VcsBasePlugin::setProcessEnvironment(QProcessEnvironment *e, bool forceCLocale)
+static const char SOURCE_PROPERTY[] = "qtcreator_source";
+
+void VcsBasePlugin::setSource(Core::IDocument *editor, const QString &source)
+{
+    editor->setProperty(SOURCE_PROPERTY, source);
+}
+
+QString VcsBasePlugin::source(Core::IDocument *editor)
+{
+    return editor->property(SOURCE_PROPERTY).toString();
+}
+
+void VcsBasePlugin::setProcessEnvironment(QProcessEnvironment *e,
+                                          bool forceCLocale,
+                                          const QString &sshPromptBinary)
 {
     if (forceCLocale)
         e->insert(QLatin1String("LANG"), QString(QLatin1Char('C')));
-    const QString sshPromptBinary = sshPrompt();
     if (!sshPromptBinary.isEmpty())
         e->insert(QLatin1String("SSH_ASKPASS"), sshPromptBinary);
 }
 
-// Run a process fully synchronously, returning Utils::SynchronousProcessResponse
+// Run a process synchronously, returning Utils::SynchronousProcessResponse
 // response struct and using the VcsBasePlugin flags as applicable
-static SynchronousProcessResponse runVcsFullySynchronously(const QString &workingDir,
-                              const QString &binary,
-                              const QStringList &arguments,
-                              int timeOutMS,
-                              QProcessEnvironment env,
-                              unsigned flags,
-                              QTextCodec *outputCodec = 0)
-{
-    SynchronousProcessResponse response;
-    if (binary.isEmpty()) {
-        response.result = SynchronousProcessResponse::StartFailed;
-        return response;
-    }
-
-    VcsBase::VcsBaseOutputWindow *outputWindow = VcsBase::VcsBaseOutputWindow::instance();
-
-    // Set up process
-    unsigned processFlags = 0;
-    if (VcsBasePlugin::isSshPromptConfigured() && (flags & VcsBasePlugin::SshPasswordPrompt))
-        processFlags |= SynchronousProcess::UnixTerminalDisabled;
-    QSharedPointer<QProcess> process = SynchronousProcess::createProcess(processFlags);
-    if (!workingDir.isEmpty())
-        process->setWorkingDirectory(workingDir);
-    process->setProcessEnvironment(env);
-    if (flags & VcsBasePlugin::MergeOutputChannels)
-        process->setProcessChannelMode(QProcess::MergedChannels);
-
-    // Start
-    process->start(binary, arguments, QIODevice::ReadOnly);
-    process->closeWriteChannel();
-    if (!process->waitForStarted()) {
-        response.result = SynchronousProcessResponse::StartFailed;
-        return response;
-    }
-
-    // process output
-    QByteArray stdOut;
-    QByteArray stdErr;
-    const bool timedOut =
-            !SynchronousProcess::readDataFromProcess(*process.data(), timeOutMS,
-                                                            &stdOut, &stdErr, true);
-
-    if (!stdErr.isEmpty()) {
-        response.stdErr = QString::fromLocal8Bit(stdErr).remove(QLatin1Char('\r'));
-        if (!(flags & VcsBasePlugin::SuppressStdErrInLogWindow))
-            outputWindow->append(response.stdErr);
-    }
-
-    if (!stdOut.isEmpty()) {
-        response.stdOut = (outputCodec ? outputCodec->toUnicode(stdOut) : QString::fromLocal8Bit(stdOut))
-                          .remove(QLatin1Char('\r'));
-        if (flags & VcsBasePlugin::ShowStdOutInLogWindow)
-            outputWindow->append(response.stdOut);
-    }
-
-    // Result
-    if (timedOut) {
-        response.result = SynchronousProcessResponse::Hang;
-    } else if (process->exitStatus() != QProcess::NormalExit) {
-        response.result = SynchronousProcessResponse::TerminatedAbnormally;
-    } else {
-        response.result = process->exitCode() == 0 ?
-                          SynchronousProcessResponse::Finished :
-                          SynchronousProcessResponse::FinishedError;
-    }
-    return response;
-}
-
-
-SynchronousProcessResponse VcsBasePlugin::runVcs(const QString &workingDir,
-                      const QString &binary,
-                      const QStringList &arguments,
-                      int timeOutMS,
-                      unsigned flags,
-                      QTextCodec *outputCodec)
-{
-    const QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
-    return runVcs(workingDir, binary, arguments, timeOutMS, env,
-                  flags, outputCodec);
-}
-
 SynchronousProcessResponse VcsBasePlugin::runVcs(const QString &workingDir,
                                                  const QString &binary,
                                                  const QStringList &arguments,
                                                  int timeOutMS,
-                                                 QProcessEnvironment env,
                                                  unsigned flags,
-                                                 QTextCodec *outputCodec)
+                                                 QTextCodec *outputCodec,
+                                                 const QProcessEnvironment &env)
 {
-    SynchronousProcessResponse response;
-
-    if (binary.isEmpty()) {
-        response.result = SynchronousProcessResponse::StartFailed;
-        return response;
-    }
-
-    VcsBase::VcsBaseOutputWindow *outputWindow = VcsBase::VcsBaseOutputWindow::instance();
-
-    if (!(flags & SuppressCommandLogging))
-        outputWindow->appendCommand(workingDir, binary, arguments);
-
-    const bool sshPromptConfigured = VcsBasePlugin::isSshPromptConfigured();
-    if (debugExecution) {
-        QDebug nsp = qDebug().nospace();
-        nsp << "VcsBasePlugin::runVcs" << workingDir << binary << arguments
-                << timeOutMS;
-        if (flags & ShowStdOutInLogWindow)
-            nsp << "stdout";
-        if (flags & SuppressStdErrInLogWindow)
-            nsp << "suppress_stderr";
-        if (flags & SuppressFailMessageInLogWindow)
-            nsp << "suppress_fail_msg";
-        if (flags & MergeOutputChannels)
-            nsp << "merge_channels";
-        if (flags & SshPasswordPrompt)
-            nsp << "ssh (" << sshPromptConfigured << ')';
-        if (flags & SuppressCommandLogging)
-            nsp << "suppress_log";
-        if (flags & ForceCLocale)
-            nsp << "c_locale";
-        if (flags & FullySynchronously)
-            nsp << "fully_synchronously";
-        if (flags & ExpectRepoChanges)
-            nsp << "expect_repo_changes";
-        if (outputCodec)
-            nsp << " Codec: " << outputCodec->name();
-    }
-
-    VcsBase::VcsBasePlugin::setProcessEnvironment(&env, (flags & ForceCLocale));
-
-    // TODO tell the document manager about expected repository changes
-    //    if (flags & ExpectRepoChanges)
-    //        Core::DocumentManager::expectDirectoryChange(workingDir);
-    if (flags & FullySynchronously) {
-        response = runVcsFullySynchronously(workingDir, binary, arguments, timeOutMS,
-                                             env, flags, outputCodec);
-    } else {
-        // Run, connect stderr to the output window
-        SynchronousProcess process;
-        if (!workingDir.isEmpty())
-            process.setWorkingDirectory(workingDir);
-
-        process.setProcessEnvironment(env);
-        process.setTimeout(timeOutMS);
-        if (outputCodec)
-            process.setStdOutCodec(outputCodec);
-
-        // Suppress terminal on UNIX for ssh prompts if it is configured.
-        if (sshPromptConfigured && (flags & SshPasswordPrompt))
-            process.setFlags(SynchronousProcess::UnixTerminalDisabled);
-
-        // connect stderr to the output window if desired
-        if (flags & MergeOutputChannels) {
-            process.setProcessChannelMode(QProcess::MergedChannels);
-        } else {
-            if (!(flags & SuppressStdErrInLogWindow)) {
-                process.setStdErrBufferedSignalsEnabled(true);
-                connect(&process, SIGNAL(stdErrBuffered(QString,bool)), outputWindow, SLOT(append(QString)));
-            }
-        }
-
-        // connect stdout to the output window if desired
-        if (flags & ShowStdOutInLogWindow) {
-            process.setStdOutBufferedSignalsEnabled(true);
-            connect(&process, SIGNAL(stdOutBuffered(QString,bool)), outputWindow, SLOT(append(QString)));
-        }
-
-        process.setTimeOutMessageBoxEnabled(true);
-
-        // Run!
-        response = process.run(binary, arguments);
-    }
-
-    // Success/Fail message in appropriate window?
-    if (response.result == SynchronousProcessResponse::Finished) {
-        if (flags & ShowSuccessMessage)
-            outputWindow->append(response.exitMessage(binary, timeOutMS));
-    } else {
-        if (!(flags & SuppressFailMessageInLogWindow))
-            outputWindow->appendError(response.exitMessage(binary, timeOutMS));
-    }
-    // TODO tell the document manager that the directory now received all expected changes
-    // if (flags & ExpectRepoChanges)
-    //    Core::DocumentManager::unexpectDirectoryChange(workingDir);
-
-    return response;
-}
-
-bool VcsBasePlugin::runFullySynchronous(const QString &workingDirectory,
-                                        const QString &binary,
-                                        const QStringList &arguments,
-                                        const QProcessEnvironment &env,
-                                        QByteArray* outputText,
-                                        QByteArray* errorText,
-                                        int timeoutMS,
-                                        unsigned flags)
-{
-    if (binary.isEmpty())
-        return false;
-
-    if (!(flags & SuppressCommandLogging))
-        VcsBase::VcsBaseOutputWindow::instance()->appendCommand(workingDirectory, binary, arguments);
-
-    // TODO tell the document manager about expected repository changes
-    // if (flags & ExpectRepoChanges)
-    //    Core::DocumentManager::expectDirectoryChange(workingDirectory);
-    QProcess process;
-    process.setWorkingDirectory(workingDirectory);
-    process.setProcessEnvironment(env);
-
-    process.start(binary, arguments);
-    process.closeWriteChannel();
-    if (!process.waitForStarted()) {
-        if (errorText) {
-            const QString msg = QString::fromLatin1("Unable to execute '%1': %2:")
-                                .arg(binary, process.errorString());
-            *errorText = msg.toLocal8Bit();
-        }
-        return false;
-    }
-
-    if (!SynchronousProcess::readDataFromProcess(process, timeoutMS, outputText, errorText, true)) {
-        if (errorText)
-            errorText->append(tr("Error: Executable timed out after %1s.").arg(timeoutMS / 1000).toLocal8Bit());
-        SynchronousProcess::stopProcess(process);
-        return false;
-    }
-    // TODO tell the document manager that the directory now received all expected changes
-    // if (flags & ExpectRepoChanges)
-    //    Core::DocumentManager::unexpectDirectoryChange(workingDirectory);
-
-    if (process.exitStatus() == QProcess::NormalExit && process.exitCode() == 0) {
-        if (flags & ExpectRepoChanges)
-            Core::ICore::vcsManager()->emitRepositoryChanged(workingDirectory);
-        return true;
-    }
-    return false;
+    Command command(binary, workingDir,
+                    env.isEmpty() ? QProcessEnvironment::systemEnvironment() : env);
+    command.addFlags(flags);
+    command.setCodec(outputCodec);
+    return command.runVcs(arguments, timeOutMS);
 }
 
 bool VcsBasePlugin::runPatch(const QByteArray &input, const QString &workingDirectory,
@@ -1080,7 +818,7 @@ bool VcsBasePlugin::runPatch(const QByteArray &input, const QString &workingDire
     if (!stdOut.isEmpty())
         ow->append(QString::fromLocal8Bit(stdOut));
     if (!stdErr.isEmpty())
-        ow->append(QString::fromLocal8Bit(stdErr));
+        ow->appendError(QString::fromLocal8Bit(stdErr));
 
     if (patchProcess.exitStatus() != QProcess::NormalExit) {
         ow->appendError(tr("'%1' crashed.").arg(patch));

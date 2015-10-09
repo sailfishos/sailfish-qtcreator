@@ -1,6 +1,6 @@
 #############################################################################
 ##
-## Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+## Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ## Contact: http://www.qt-project.org/legal
 ##
 ## This file is part of Qt Creator.
@@ -28,7 +28,6 @@
 #############################################################################
 
 source("../../shared/qtcreator.py")
-source("../../shared/suites_qtta.py")
 
 class ExpectedResult:
     def __init__(self, file, lineNumber, lineContent):
@@ -79,7 +78,7 @@ def main():
     if not startedWithoutPluginError():
         return
     # open example project
-    openQmakeProject(examplePath)
+    openQmakeProject(examplePath, Targets.DESKTOP_480_GCC)
     # open qml file
     openDocument("propertyanimation.QML.qml.color-animation\\.qml")
     # get editor

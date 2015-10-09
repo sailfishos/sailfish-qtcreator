@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -59,8 +59,7 @@ namespace Internal {
 PerforceEditor::PerforceEditor(const VcsBase::VcsBaseEditorParameters *type,
                                QWidget *parent)  :
     VcsBase::VcsBaseEditorWidget(type, parent),
-    m_changeNumberPattern(QLatin1String("^\\d+$")),
-    m_plugin(PerforcePlugin::perforcePluginInstance())
+    m_changeNumberPattern(QLatin1String("^\\d+$"))
 {
     QTC_CHECK(m_changeNumberPattern.isValid());
     // Diff format:
@@ -110,16 +109,15 @@ QString PerforceEditor::changeUnderCursor(const QTextCursor &c) const
     return m_changeNumberPattern.exactMatch(change) ? change : QString();
 }
 
-VcsBase::BaseAnnotationHighlighter *PerforceEditor::createAnnotationHighlighter(const QSet<QString> &changes,
-                                                                                const QColor &bg) const
+VcsBase::BaseAnnotationHighlighter *PerforceEditor::createAnnotationHighlighter(const QSet<QString> &changes) const
 {
-    return new PerforceAnnotationHighlighter(changes, bg);
+    return new PerforceAnnotationHighlighter(changes);
 }
 
 QString PerforceEditor::findDiffFile(const QString &f) const
 {
     QString errorMessage;
-    const QString fileName = m_plugin->fileNameFromPerforceName(f.trimmed(), false, &errorMessage);
+    const QString fileName = PerforcePlugin::fileNameFromPerforceName(f.trimmed(), false, &errorMessage);
     if (fileName.isEmpty())
         qWarning("%s", qPrintable(errorMessage));
     return fileName;

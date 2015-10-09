@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -40,7 +40,7 @@ using namespace QmlJS;
     a specific location.
     \sa Document Context ScopeBuilder
 
-    A ScopeChain is used to perform global lookup with the lookup() method and
+    A ScopeChain is used to perform global lookup with the lookup() function and
     to access information about the enclosing scopes.
 
     Once constructed for a Document in a Context it represents the root scope of
@@ -50,9 +50,9 @@ using namespace QmlJS;
     It is an error to use the same ScopeChain from multiple threads; use a copy.
     Copying is cheap. Initial construction is currently expensive.
 
-    When a QmlJSEditor::QmlJSTextEditorWidget is available, there's no need to
+    When a QmlJSEditor::QmlJSEditorDocument is available, there's no need to
     construct a new ScopeChain. Instead use
-    QmlJSTextEditorWidget::semanticInfo()::scopeChain().
+    QmlJSEditorDocument::semanticInfo()::scopeChain().
 */
 
 QmlComponentChain::QmlComponentChain(const Document::Ptr &document)
@@ -258,7 +258,7 @@ void ScopeChain::update() const
         m_all += m_cppContextProperties;
 
     // the root scope in js files doesn't see instantiating components
-    if (m_document->language() != Document::JavaScriptLanguage || m_jsScopes.count() != 1) {
+    if (m_document->language() != Language::JavaScript || m_jsScopes.count() != 1) {
         if (m_qmlComponentScope) {
             foreach (const QmlComponentChain *parent, m_qmlComponentScope->instantiatingComponents())
                 collectScopes(parent, &m_all);
@@ -312,8 +312,8 @@ void ScopeChain::initializeRootScope()
         if (!m_document->bind()->isJsLibrary()) {
             foreach (Document::Ptr otherDoc, snapshot) {
                 foreach (const ImportInfo &import, otherDoc->bind()->imports()) {
-                    if ((import.type() == ImportInfo::FileImport && m_document->fileName() == import.path())
-                            || (import.type() == ImportInfo::QrcFileImport
+                    if ((import.type() == ImportType::File && m_document->fileName() == import.path())
+                            || (import.type() == ImportType::QrcFile
                                 && ModelManagerInterface::instance()->filesAtQrcPath(import.path())
                                 .contains(m_document->fileName()))) {
                         QmlComponentChain *component = new QmlComponentChain(otherDoc);

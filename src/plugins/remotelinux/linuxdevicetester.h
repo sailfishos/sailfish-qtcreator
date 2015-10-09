@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -40,31 +40,9 @@ namespace ProjectExplorer { class DeviceUsedPortsGatherer; }
 
 namespace RemoteLinux {
 
-namespace Internal {
-class GenericLinuxDeviceTesterPrivate;
-}
+namespace Internal { class GenericLinuxDeviceTesterPrivate; }
 
-class REMOTELINUX_EXPORT AbstractLinuxDeviceTester : public QObject
-{
-    Q_OBJECT
-
-public:
-    enum TestResult { TestSuccess, TestFailure };
-
-    virtual void testDevice(const ProjectExplorer::IDevice::ConstPtr &deviceConfiguration) = 0;
-    virtual void stopTest() = 0;
-
-signals:
-    void progressMessage(const QString &message);
-    void errorMessage(const QString &message);
-    void finished(RemoteLinux::AbstractLinuxDeviceTester::TestResult result);
-
-protected:
-    explicit AbstractLinuxDeviceTester(QObject *parent = 0);
-};
-
-
-class REMOTELINUX_EXPORT GenericLinuxDeviceTester : public AbstractLinuxDeviceTester
+class REMOTELINUX_EXPORT GenericLinuxDeviceTester : public ProjectExplorer::DeviceTester
 {
     Q_OBJECT
 
@@ -85,7 +63,7 @@ private slots:
     void handlePortListReady();
 
 private:
-    void setFinished(TestResult result);
+    void setFinished(ProjectExplorer::DeviceTester::TestResult result);
 
     Internal::GenericLinuxDeviceTesterPrivate * const d;
 };

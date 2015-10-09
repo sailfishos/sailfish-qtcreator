@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (c) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (c) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator
@@ -23,7 +23,7 @@
 // **********************************************************************
 
 /*!
-    \contentspage index.html
+    \contentspage {Qt Creator Manual}
     \previouspage creator-editor-functions.html
     \page creator-coding-navigating.html
     \nextpage creator-highlighting.html
@@ -151,12 +151,14 @@
 
     You can also select the symbol and press \key F2, or right-click the symbol
     and select \gui {Follow Symbol Under Cursor} to move to its definition or
-    declaration. This feature is supported for namespaces, classes, methods,
+    declaration. This feature is supported for namespaces, classes, functions,
     variables, include statements, and macros.
 
-    To switch between the definition and declaration of a symbol, press
-    \key {Shift+F2} or right-click the symbol and select \gui {Switch Between
-    Method Declaration/Definition}.
+    To switch between the definition and declaration of a function, place the
+    cursor on either and press \key {Shift+F2} or right-click and select \gui
+    {Switch Between Function Declaration/Definition}. For example, this allows
+    you to navigate from anywhere within a function body directly to the function
+    declaration.
 
     Links are opened in the same split by default. To open links in the next
     split, prepend \key {Ctrl+E} to the shortcut. For example, press \key {Ctrl+E,F2}
@@ -168,12 +170,29 @@
     If you change the default behavior, the shortcuts for opening link targets
     in the next split are used to open them in the current split.
 
-    \section1 Using Update Code Model
+    \section1 Reparsing Externally Changed Files
 
-    To refresh the internal information in \QC pertaining to your code,
-    select \gui{Tools} > \gui{C++} > \gui{Update Code Model}.
+    If source files are modified from outside \QC, the opened files will be
+    reparsed automatically. For all other files, you can use \gui{Tools} >
+    \gui{C++} > \gui{Reparse Externally Changed Files} to update the code
+    model.
 
-    \note In \QC indexing updates the code automatically. Use
-    \gui{Update Code Model} only as an emergency command.
+    \section1 Inspecting the Code Model
 
+    When you report a bug that is related to the C++ code model, the \QC
+    developers might ask you to write information about the internal state of
+    the code model into a log file and to deliver the file to them for
+    inspection.
+
+    To view information about the C++ code model in the
+    \gui {C++ Code Model Inspector} dialog and write it to a log file, select
+    \gui Tools > \gui C++ > \gui {Inspect C++ Code Model} or press
+    \key {Ctrl+Shift+F12}.
+
+    \QC generates the code model inspection log file in a temporary folder.
+
+    \QC underlines semantic errors in olive in the C++ code editor. To
+    check the correct paths for includes that are not resolved or that are
+    resolved to the wrong file, select \gui {Project Parts} >
+    \gui {Include Paths}.
 */

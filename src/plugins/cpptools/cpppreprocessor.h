@@ -9,6 +9,10 @@
 #include <QHash>
 #include <QPointer>
 
+QT_BEGIN_NAMESPACE
+class QTextCodec;
+QT_END_NAMESPACE
+
 namespace CppTools {
 namespace Internal {
 
@@ -23,6 +27,8 @@ public:
     static QString cleanPath(const QString &path);
 
     CppPreprocessor(QPointer<CppModelManager> modelManager, bool dumpFileNameWhileParsing = false);
+    CppPreprocessor(QPointer<CppModelManager> modelManager, const CPlusPlus::Snapshot &snapshot,
+                    bool dumpFileNameWhileParsing = false);
     virtual ~CppPreprocessor();
 
     void setRevision(unsigned revision);
@@ -35,16 +41,22 @@ public:
     void removeFromCache(const QString &fileName);
     void resetEnvironment();
 
+    CPlusPlus::Snapshot snapshot() const
+    { return m_snapshot; }
+
     const QSet<QString> &todo() const
     { return m_todo; }
 
     CppModelManager *modelManager() const
     { return m_modelManager.data(); }
 
+    void setGlobalSnapshot(const CPlusPlus::Snapshot &snapshot) { m_globalSnapshot = snapshot; }
+
 protected:
     CPlusPlus::Document::Ptr switchDocument(CPlusPlus::Document::Ptr doc);
 
-    void getFileContents(const QString &absoluteFilePath, QString *contents, unsigned *revision) const;
+    bool getFileContents(const QString &absoluteFilePath, QByteArray *contents,
+                         unsigned *revision) const;
     bool checkFile(const QString &absoluteFilePath) const;
     QString resolveFile(const QString &fileName, IncludeType type);
     QString resolveFile_helper(const QString &fileName, IncludeType type);
@@ -68,9 +80,11 @@ protected:
     virtual void sourceNeeded(unsigned line, const QString &fileName, IncludeType type);
 
 private:
+    CppPreprocessor();
     void addFrameworkPath(const QString &frameworkPath);
 
     CPlusPlus::Snapshot m_snapshot;
+    CPlusPlus::Snapshot m_globalSnapshot;
     QPointer<CppModelManager> m_modelManager;
     bool m_dumpFileNameWhileParsing;
     CPlusPlus::Environment m_env;
@@ -84,6 +98,7 @@ private:
     QSet<QString> m_processed;
     unsigned m_revision;
     QHash<QString, QString> m_fileNameCache;
+    QTextCodec *m_defaultCodec;
 };
 
 } // namespace Internal

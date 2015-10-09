@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -33,6 +33,7 @@
 #include "qmljsindenter.h"
 
 #include <qmljs/parser/qmljsast_p.h>
+#include <texteditor/basetextdocument.h>
 #include <texteditor/tabsettings.h>
 #include <projectexplorer/editorconfiguration.h>
 
@@ -50,7 +51,7 @@ public:
 
     virtual void indentSelection(const QTextCursor &selection,
                                  const QString &fileName,
-                                 const TextEditor::BaseTextEditorWidget *textEditor) const
+                                 const TextEditor::BaseTextDocument *textDocument) const
     {
         // ### shares code with QmlJSTextEditor::indent
         QTextDocument *doc = selection.document();
@@ -59,7 +60,7 @@ public:
         const QTextBlock end = doc->findBlock(selection.selectionEnd()).next();
 
         const TextEditor::TabSettings &tabSettings =
-            ProjectExplorer::actualTabSettings(fileName, textEditor);
+            ProjectExplorer::actualTabSettings(fileName, textDocument);
         CreatorCodeFormatter codeFormatter(tabSettings);
         codeFormatter.updateStateUntil(block);
 
@@ -74,10 +75,10 @@ public:
 
     virtual void reindentSelection(const QTextCursor &selection,
                                    const QString &fileName,
-                                   const TextEditor::BaseTextEditorWidget *textEditor) const
+                                   const TextEditor::BaseTextDocument *textDocument) const
     {
         const TextEditor::TabSettings &tabSettings =
-            ProjectExplorer::actualTabSettings(fileName, textEditor);
+            ProjectExplorer::actualTabSettings(fileName, textDocument);
 
         QmlJSEditor::Internal::Indenter indenter;
         indenter.reindent(selection.document(), selection, tabSettings);
@@ -123,7 +124,7 @@ QmlJSRefactoringFile::QmlJSRefactoringFile(const QString &fileName, const QShare
     : RefactoringFile(fileName, data)
 {
     // the RefactoringFile is invalid if its not for a file with qml or js code
-    if (languageOfFile(fileName) == Document::UnknownLanguage)
+    if (ModelManagerInterface::guessLanguageOfFile(fileName) == Language::Unknown)
         m_fileName.clear();
 }
 
@@ -141,7 +142,8 @@ Document::Ptr QmlJSRefactoringFile::qmljsDocument() const
         const QString name = fileName();
         const Snapshot &snapshot = data()->m_snapshot;
 
-        Document::MutablePtr newDoc = snapshot.documentFromSource(source, name, languageOfFile(name));
+        Document::MutablePtr newDoc = snapshot.documentFromSource(source, name,
+                                                                  ModelManagerInterface::guessLanguageOfFile(name));
         newDoc->parse();
         m_qmljsDocument = newDoc;
     }

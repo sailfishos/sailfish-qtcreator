@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (C) 2013 Openismus GmbH.
+** Copyright (C) 2014 Openismus GmbH.
 ** Authors: Peter Penz (ppenz@openismus.com)
 **          Patricia Santana Cruz (patriciasantanacruz@gmail.com)
 ** Contact: http://www.qt-project.org/legal
@@ -34,9 +34,7 @@
 
 #include <projectexplorer/projectnodes.h>
 
-namespace Core {
-class IDocument;
-}
+namespace Core { class IDocument; }
 
 namespace AutotoolsProjectManager {
 namespace Internal {
@@ -59,29 +57,23 @@ class AutotoolsProjectNode : public ProjectExplorer::ProjectNode
 public:
     AutotoolsProjectNode(AutotoolsProject *project, Core::IDocument *projectFile);
 
-    bool hasBuildTargets() const;
-    QList<ProjectExplorer::ProjectNode::ProjectAction> supportedActions(Node *node) const;
+    bool showInSimpleTree() const;
+    QList<ProjectExplorer::ProjectAction> supportedActions(Node *node) const;
     bool canAddSubProject(const QString &proFilePath) const;
     bool addSubProjects(const QStringList &proFilePaths);
     bool removeSubProjects(const QStringList &proFilePaths);
-    bool addFiles(const ProjectExplorer::FileType fileType,
-                           const QStringList &filePaths,
-                           QStringList *notAdded = 0);
-    bool removeFiles(const ProjectExplorer::FileType fileType,
-                              const QStringList &filePaths,
-                              QStringList *notRemoved = 0);
-    bool deleteFiles(const ProjectExplorer::FileType fileType,
-                             const QStringList &filePaths);
-    bool renameFile(const ProjectExplorer::FileType fileType,
-                             const QString &filePath,
-                             const QString &newFilePath);
+    bool addFiles(const QStringList &filePaths, QStringList *notAdded = 0);
+    bool removeFiles(const QStringList &filePaths, QStringList *notRemoved = 0);
+    bool deleteFiles(const QStringList &filePaths);
+    bool renameFile(const QString &filePath,
+                    const QString &newFilePath);
     QList<ProjectExplorer::RunConfiguration *> runConfigurationsFor(Node *node);
 
 private:
     AutotoolsProject *m_project;
     Core::IDocument *m_projectFile;
 
-    // TODO: AutotoolsProject calls the protected method addFileNodes() from AutotoolsProjectNode.
+    // TODO: AutotoolsProject calls the protected function addFileNodes() from AutotoolsProjectNode.
     // Instead of this friend declaration, a public interface might be preferable.
     friend class AutotoolsProject;
 };

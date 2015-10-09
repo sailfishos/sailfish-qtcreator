@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (c) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (c) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator
@@ -23,7 +23,7 @@
 // **********************************************************************
 
 /*!
-    \contentspage index.html
+    \contentspage {Qt Creator Manual}
     \previouspage creator-configuring-projects.html
     \page creator-targets.html
     \nextpage creator-project-qmake.html
@@ -44,13 +44,15 @@
 
         \li Android Device
 
+        \li Bare Metal Device
+
         \li BlackBerry 10 Device
 
         \li Generic Linux Device
 
-        \li Maemo5/Fremantle Device
+        \li iOS Device
 
-        \li MeeGo 1.2 Harmattan Device
+        \li iOS Simulator
 
         \li QNX Device
 
@@ -91,9 +93,11 @@
             if they are installed on the development PC, but were not detected
             automatically. For more information, see \l{Adding Compilers}.
 
-        \li In the \gui Debugger field, select \gui Auto-detect to automatically
-            detect a suitable debugger or \gui Edit to edit the currently selected
-            debugger. For more information, see \l{Selecting the Debugger}.
+        \li In the \gui Debugger field, select the debugger to debug the project
+            on the target platform. \QC automatically detects available
+            debuggers and displays a suitable debugger in the field. You can
+            add debuggers to the list. For more information, see
+            \l{Adding Debuggers}.
 
         \li In the \gui {Qt version} field, select the Qt version to use for
             building the project. You can add Qt versions to the list if they
@@ -110,40 +114,4 @@
 
     \endlist
 
-    \section1 Selecting the Debugger
-
-    To automatically detect a suitable debugger in the \gui Debugger field,
-    select \gui {Auto-detect}. This should work for the CDB engine
-    and for the GDB engine for local debugging on Linux or Mac OS.
-
-    To edit the selected debugger, select \gui Edit. In the
-    \gui {Debugger for} dialog, specify the type of debugger to use
-    (\gui {GDB Engine}, \gui {CDB Engine}, or \gui {LLDB Engine}) and the path
-    to the debugger binary:
-
-    \list
-
-    \li For the \gui {CDB Engine} (Windows only), specify the path to the Windows
-    Console Debugger executable.
-
-   \li For the \gui {GDB Engine}, specify the path to the GDB executable. The
-    executable must be built with Python scripting support enabled
-    (except when debugging on Mac OS). The options you have depend on the
-    development and target platform:
-
-    \list
-
-        \li For debugging on embedded devices using a different ABI, you must
-            provide a special executable.
-
-        \li For debugging on Windows using MinGW, select a Windows executable of
-            GDB with Python scripting enabled. You can download it from
-            \l{http://builds.qt-project.org/job/gdb-windows}.
-
-    \endlist
-
-    \li For the \gui {LLDB Engine} (experimental), specify the path to the LLDB
-    executable.
-
-    \endlist
 */

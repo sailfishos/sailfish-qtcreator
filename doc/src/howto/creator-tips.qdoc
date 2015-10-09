@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (c) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (c) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator
@@ -23,7 +23,7 @@
 // **********************************************************************
 
 /*!
-    \contentspage index.html
+    \contentspage {Qt Creator Manual}
     \previouspage creator-faq.html
     \page creator-tips.html
     \nextpage creator-known-issues.html
@@ -212,7 +212,7 @@
     \section1 Locating Files
 
     The \gui Locator provides one of the easiest ways in \QC to browse
-    through projects, files, classes, methods, documentation and file systems.
+    through projects, files, classes, functions, documentation and file systems.
     To quickly access files not directly mentioned in your project, you can
     create your own locator filters. That way you can locate files in a
     directory structure you have defined.

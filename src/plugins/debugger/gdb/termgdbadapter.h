@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -31,7 +31,6 @@
 #define DEBUGGER_TERMGDBADAPTER_H
 
 #include "gdbengine.h"
-#include "localgdbprocess.h"
 
 #include <utils/consoleprocess.h>
 
@@ -53,16 +52,12 @@ public:
     ~GdbTermEngine();
 
 private:
-    DumperHandling dumperHandling() const;
-
     void setupEngine();
     void handleGdbStartFailed();
     void setupInferior();
     void runEngine();
     void interruptInferior2();
     void shutdownEngine();
-
-    AbstractGdbProcess *gdbProc() { return &m_gdbProc; }
 
     void handleStubAttached(const GdbResponse &response);
 
@@ -71,7 +66,6 @@ private:
     Q_SLOT void stubError(const QString &msg);
 
     Utils::ConsoleProcess m_stubProc;
-    LocalGdbProcess m_gdbProc;
 };
 
 } // namespace Internal

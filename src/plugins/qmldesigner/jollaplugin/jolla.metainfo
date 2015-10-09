@@ -1,36 +1,95 @@
-<metainfo>
-  <node name="com.jolla.components.Button" icon=":/jollaplugin/images/button16.png">
-    <itemlibraryentry name="Button" category="Components Jolla" libraryIcon=":/jollaplugin/images/button.png" version="1.0" requiredImport="com.jolla.components">
-    </itemlibraryentry>
-  </node>
-  <node name="com.jolla.components.Label" icon=":/jollaplugin/images/label16.png">
-    <itemlibraryentry name="Label" category="Components Jolla" libraryIcon=":/jollaplugin/images/label.png" version="1.0" requiredImport="com.jolla.components">
-      <property name="text" type="QString" value="Label"/>
-    </itemlibraryentry>
-  </node>
-  <node name="com.jolla.components.Slider" icon=":/jollaplugin/images/slider16.png">
-    <itemlibraryentry name="Slider" category="Components Jolla" libraryIcon=":/jollaplugin/images/slider.png" version="1.0" requiredImport="com.jolla.components">
-      <property name="width" type="int" value="100"/>
-      <property name="height" type="int" value="20"/>
-    </itemlibraryentry>
-  </node>
-  <node name="com.jolla.components.Switch" icon=":/jollaplugin/images/switchbutton16.png">
-    <itemlibraryentry name="Switch" category="Components Jolla" libraryIcon=":/jollaplugin/images/switchbutton.png" version="1.0" requiredImport="com.jolla.components">
-      <property name="width" type="int" value="40"/>
-      <property name="height" type="int" value="20"/>
-    </itemlibraryentry>
-  </node>
-  <node name="com.jolla.components.TextArea" icon=":/jollaplugin/images/textarea16.png">
-    <itemlibraryentry name="TextArea" category="Components Jolla" libraryIcon=":/jollaplugin/images/textarea.png" version="1.0" requiredImport="com.jolla.components">
-      <property name="width" type="int" value="100"/>
-      <property name="height" type="int" value="100"/>
-      <property name="text" type="QString" value="TextArea"/>
-    </itemlibraryentry>
-  </node>
-  <node name="com.jolla.components.TextField" icon=":/jollaplugin/images/textfield16.png">
-    <itemlibraryentry name="TextField" category="Components Jolla" libraryIcon=":/jollaplugin/images/textfield.png" version="1.0" requiredImport="com.jolla.components">
-      <property name="width" type="int" value="100"/>
-      <property name="height" type="int" value="20"/>
-    </itemlibraryentry>
-  </node>
-</metainfo>
+MetaInfo {
+
+    Type {
+        name: "com.jolla.components.Button"
+        icon: ":/jollaplugin/images/button16.png"
+
+        ItemLibraryEntry {
+            name: "Button";
+            category: "Components Jolla"
+            libraryIcon: ":/jollaplugin/images/button.png"
+            version: "1.0"
+            requiredImport: "com.jolla.components"
+        }
+    }
+
+    Type {
+        name: "com.jolla.components.Label"
+        icon: ":/jollaplugin/images/label16.png"
+
+        ItemLibraryEntry {
+            name: "Label";
+            category: "Components Jolla"
+            libraryIcon: ":/jollaplugin/images/label.png"
+            version: "1.0"
+            requiredImport: "com.jolla.components"
+
+            Property { name: "text"; type: "QString"; value: "Label"; }
+        }
+    }
+
+    Type {
+        name: "com.jolla.components.Slider"
+        icon: ":/jollaplugin/images/slider16.png"
+
+        ItemLibraryEntry {
+            name: "Slider";
+            category: "Components Jolla"
+            libraryIcon: ":/jollaplugin/images/slider.png"
+            version: "1.0"
+            requiredImport: "com.jolla.components"
+
+            Property { name: "width"; type: "int"; value: "100"; }
+            Property { name: "height"; type: "int"; value: "20"; }
+        }
+    }
+
+    Type {
+        name: "com.jolla.components.Switch"
+        icon: ":/jollaplugin/images/switchbutton16.png"
+
+        ItemLibraryEntry {
+            name: "Switch";
+            category: "Components Jolla"
+            libraryIcon: ":/jollaplugin/images/switchbutton.png"
+            version: "1.0"
+            requiredImport: "com.jolla.components"
+
+            Property { name: "width"; type: "int"; value: "40"; }
+            Property { name: "height"; type: "int"; value: "20"; }
+        }
+    }
+
+    Type {
+        name: "com.jolla.components.TextArea"
+        icon: ":/jollaplugin/images/textarea16.png"
+
+        ItemLibraryEntry {
+            name: "TextArea";
+            category: "Components Jolla"
+            libraryIcon: ":/jollaplugin/images/textarea.png"
+            version: "1.0"
+            requiredImport: "com.jolla.components"
+
+            Property { name: "width"; type: "int"; value: "100"; }
+            Property { name: "height"; type: "int"; value: "100"; }
+            Property { name: "text"; type: "QString"; value: "TextArea"; }
+        }
+    }
+
+    Type {
+        name: "com.jolla.components.TextField"
+        icon: ":/jollaplugin/images/textfield16.png"
+
+        ItemLibraryEntry {
+            name: "TextField";
+            category: "Components Jolla"
+            libraryIcon: ":/jollaplugin/images/textfield.png"
+            version: "1.0"
+            requiredImport: "com.jolla.components"
+
+            Property { name: "width"; type: "int"; value: "100"; }
+            Property { name: "height"; type: "int"; value: "20"; }
+        }
+    }
+}

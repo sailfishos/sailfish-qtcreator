@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -29,9 +29,9 @@
 
 #include "bookmarkmanager.h"
 
-#include "localhelpmanager.h"
+#include <localhelpmanager.h>
 
-#include <utils/filterlineedit.h>
+#include <utils/fancylineedit.h>
 #include <utils/styledbar.h>
 
 #include <QMenu>
@@ -236,8 +236,7 @@ void BookmarkDialog::customContextMenuRequested(const QPoint &point)
         if (index.isValid())
             name = index.data().toString();
         ui.bookmarkFolders->setCurrentIndex(ui.bookmarkFolders->findText(name));
-    }
-    else if (picked == renameItem) {
+    } else if (picked == renameItem) {
         BookmarkModel *model = bookmarkManager->treeBookmarkModel();
         if (QStandardItem *item = model->itemFromIndex(proxyIndex)) {
             item->setEditable(true);
@@ -397,15 +396,14 @@ void BookmarkWidget::customContextMenuRequested(const QPoint &point)
     if (!pickedAction)
         return;
 
-    if (pickedAction == showItem)
+    if (pickedAction == showItem) {
         emit linkActivated(data);
-    else if (pickedAction == showItemNewTab)
+    } else if (pickedAction == showItemNewTab) {
         emit createPage(QUrl(data), false);
-    else if (pickedAction == removeItem) {
+    } else if (pickedAction == removeItem) {
         bookmarkManager->removeBookmarkItem(treeView,
             filterBookmarkModel->mapToSource(index));
-    }
-    else if (pickedAction == renameItem) {
+    } else if (pickedAction == renameItem) {
         const QModelIndex &source = filterBookmarkModel->mapToSource(index);
         QStandardItem *item =
             bookmarkManager->treeBookmarkModel()->itemFromIndex(source);
@@ -426,7 +424,8 @@ void BookmarkWidget::setup(bool showButtons)
     vlayout->setMargin(0);
     vlayout->setSpacing(0);
 
-    searchField = new Utils::FilterLineEdit(this);
+    searchField = new Utils::FancyLineEdit(this);
+    searchField->setFiltering(true);
     setFocusProxy(searchField);
 
     Utils::StyledBar *toolbar = new Utils::StyledBar(this);

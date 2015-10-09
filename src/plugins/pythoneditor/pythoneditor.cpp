@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -45,10 +45,12 @@
 #include <QFileInfo>
 
 namespace PythonEditor {
+namespace Internal {
 
 PythonEditor::PythonEditor(EditorWidget *editorWidget)
     :BaseTextEditor(editorWidget)
 {
+    setId(Constants::C_PYTHONEDITOR_ID);
     setContext(Core::Context(Constants::C_PYTHONEDITOR_ID,
                              TextEditor::Constants::C_TEXTEDITOR));
 }
@@ -57,37 +59,21 @@ PythonEditor::~PythonEditor()
 {
 }
 
-Core::IEditor *PythonEditor::duplicate(QWidget *parent)
+Core::IEditor *PythonEditor::duplicate()
 {
-    EditorWidget *widget = new EditorWidget(parent);
-    widget->duplicateFrom(editorWidget());
-    PythonEditorPlugin::initializeEditor(widget);
-
+    EditorWidget *widget = new EditorWidget(qobject_cast<EditorWidget *>(editorWidget()));
+    TextEditor::TextEditorSettings::initializeEditor(widget);
     return widget->editor();
-}
-
-/**
- * @returns Unique editor class identifier, that is Constants::C_PYTHONEDITOR_ID
- */
-Core::Id PythonEditor::id() const
-{
-    return Core::Id(Constants::C_PYTHONEDITOR_ID);
 }
 
 bool PythonEditor::open(QString *errorString,
                         const QString &fileName,
                         const QString &realFileName)
 {
-    Core::MimeType mimeType;
-    Core::MimeDatabase *mimeDB = Core::ICore::instance()->mimeDatabase();
-
-    mimeType = mimeDB->findByFile(QFileInfo(fileName));
-    editorWidget()->setMimeType(mimeType.type());
-
-    bool status = TextEditor::BaseTextEditor::open(errorString,
-                                                   fileName,
-                                                   realFileName);
-    return status;
+    Core::MimeType mimeType = Core::MimeDatabase::findByFile(QFileInfo(fileName));
+    baseTextDocument()->setMimeType(mimeType.type());
+    return TextEditor::BaseTextEditor::open(errorString, fileName, realFileName);
 }
 
+} // namespace Internal
 } // namespace PythonEditor

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -72,6 +72,8 @@ public:
     }
 
     FeatureSet(const FeatureSet &other) : QSet<Feature>(other) {}
+
+    using QSet<Feature>::isEmpty;
 
     FeatureSet &operator=(const FeatureSet &other)
     {

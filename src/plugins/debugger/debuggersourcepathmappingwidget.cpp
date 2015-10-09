@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -49,8 +49,7 @@ using namespace Utils;
 #if defined(Q_OS_WIN)
 static const char* qtBuildPaths[] = {
     "Q:/qt5_workdir/w/s",
-    "C:/iwmake/build_mingw_opensource",
-    "C:/ndk_buildrepos/qt-desktop/src"};
+    "C:/work/build/qt5_workdir/w/s"};
 #elif defined(Q_OS_MAC)
 static const char* qtBuildPaths[] = {};
 #else
@@ -244,6 +243,7 @@ DebuggerSourcePathMappingWidget::DebuggerSourcePathMappingWidget(QWidget *parent
 
     // Edit part
     m_targetChooser->setExpectedKind(PathChooser::ExistingDirectory);
+    m_targetChooser->setHistoryCompleter(QLatin1String("Debugger.MappingTarget.History"));
     connect(m_sourceLineEdit, SIGNAL(textChanged(QString)),
             this, SLOT(slotEditSourceFieldChanged()));
     connect(m_targetChooser, SIGNAL(changed(QString)),
@@ -431,7 +431,7 @@ DebuggerSourcePathMappingWidget::SourcePathMap
     //        We could query the QtVersion for this information directly, but then we
     //        will need to add a dependency on QtSupport to the debugger.
     //
-    //        The profile could also get a method to extract the required information from
+    //        The profile could also get a function to extract the required information from
     //        its information to avoid this dependency (as we do for the environment).
     const QString qtInstallPath = findQtInstallPath(qmake);
     SourcePathMap rc = in;

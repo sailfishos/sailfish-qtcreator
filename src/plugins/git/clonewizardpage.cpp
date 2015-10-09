@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -31,7 +31,9 @@
 #include "gitplugin.h"
 #include "gitclient.h"
 
-#include <vcsbase/checkoutjobs.h>
+#include <vcsbase/command.h>
+
+#include <QCheckBox>
 
 namespace Git {
 
@@ -43,12 +45,14 @@ struct CloneWizardPagePrivate {
     const QString mainLinePostfix;
     const QString gitPostFix;
     const QString protocolDelimiter;
+    QCheckBox *recursiveCheckBox;
 };
 
 CloneWizardPagePrivate::CloneWizardPagePrivate() :
     mainLinePostfix(QLatin1String("/mainline.git")),
     gitPostFix(QLatin1String(".git")),
-    protocolDelimiter(QLatin1String("://"))
+    protocolDelimiter(QLatin1String("://")),
+    recursiveCheckBox(0)
 {
 }
 
@@ -68,6 +72,8 @@ CloneWizardPage::CloneWizardPage(QWidget *parent) :
     setTitle(tr("Location"));
     setSubTitle(tr("Specify repository URL, checkout directory and path."));
     setRepositoryLabel(tr("Clone URL:"));
+    d->recursiveCheckBox = new QCheckBox(tr("Recursive"));
+    addLocalControl(d->recursiveCheckBox);
 }
 
 CloneWizardPage::~CloneWizardPage()
@@ -112,25 +118,26 @@ QString CloneWizardPage::directoryFromRepository(const QString &urlIn) const
     return url;
 }
 
-QSharedPointer<VcsBase::AbstractCheckoutJob> CloneWizardPage::createCheckoutJob(QString *checkoutPath) const
+VcsBase::Command *CloneWizardPage::createCheckoutJob(QString *checkoutPath) const
 {
      const Internal::GitClient *client = Internal::GitPlugin::instance()->gitClient();
      const QString workingDirectory = path();
      const QString checkoutDir = directory();
      *checkoutPath = workingDirectory + QLatin1Char('/') + checkoutDir;
 
-     const QString binary = client->gitBinaryPath();
-
-     VcsBase::ProcessCheckoutJob *job = new VcsBase::ProcessCheckoutJob;
-     const QProcessEnvironment env = client->processEnvironment();
      const QString checkoutBranch = branch();
 
      QStringList args(QLatin1String("clone"));
      if (!checkoutBranch.isEmpty())
          args << QLatin1String("--branch") << checkoutBranch;
-     args << repository() << checkoutDir;
-     job->addStep(binary, args, workingDirectory, env);
-     return QSharedPointer<VcsBase::AbstractCheckoutJob>(job);
+     if (d->recursiveCheckBox->isChecked())
+         args << QLatin1String("--recursive");
+     args << QLatin1String("--progress") << repository() << checkoutDir;
+     VcsBase::Command *command = new VcsBase::Command(client->gitBinaryPath(), workingDirectory,
+                                                      client->processEnvironment());
+     command->addFlags(VcsBase::VcsBasePlugin::MergeOutputChannels);
+     command->addJob(args, -1);
+     return command;
 }
 
 QStringList CloneWizardPage::branches(const QString &repository, int *current)

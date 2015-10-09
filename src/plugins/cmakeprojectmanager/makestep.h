@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -38,9 +38,7 @@ class QListWidget;
 class QListWidgetItem;
 QT_END_NAMESPACE
 
-namespace ProjectExplorer {
-class ToolChain;
-}
+namespace ProjectExplorer { class ToolChain; }
 
 namespace CMakeProjectManager {
 namespace Internal {
@@ -85,8 +83,12 @@ public slots:
     void setUseNinja(bool);
     void activeBuildConfigurationChanged();
 
+private slots:
+    void buildTargetsChanged();
+
 signals:
     void makeCommandChanged();
+    void targetsToBuildChanged();
 
 protected:
     void processStarted();
@@ -127,6 +129,8 @@ private slots:
     void additionalArgumentsEdited();
     void updateDetails();
     void buildTargetsChanged();
+    void selectedBuildTargetsChanged();
+
 private:
     MakeStep *m_makeStep;
     QListWidget *m_buildTargetsList;

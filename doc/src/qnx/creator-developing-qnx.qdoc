@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2011 - 2014 Research In Motion
 **
 ** Contact: Research In Motion (blackberry-qt@qnx.com)
 ** Contact: KDAB (info@kdab.com)
@@ -19,10 +19,10 @@
 ****************************************************************************/
 
 /*!
-    \contentspage index.html
-    \previouspage creator-developing-mer.html
+    \contentspage {Qt Creator Manual}
+    \previouspage creator-developing-ios.html
     \page creator-developing-qnx.html
-    \nextpage creator-build-process-customizing.html
+    \nextpage creator-developing-mer.html
 
     \title Connecting QNX Devices
 

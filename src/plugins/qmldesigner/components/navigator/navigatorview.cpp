@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -39,21 +39,22 @@
 #include <nodelistproperty.h>
 #include <variantproperty.h>
 #include <QHeaderView>
+#include <qmlitemnode.h>
 
 static inline void setScenePos(const QmlDesigner::ModelNode &modelNode,const QPointF &pos)
 {
-    QmlDesigner::QmlItemNode parentNode = modelNode.parentProperty().parentQmlObjectNode().toQmlItemNode();
-    if (parentNode.isValid()) {
+    if (modelNode.hasParentProperty() && QmlDesigner::QmlItemNode::isValidQmlItemNode(modelNode.parentProperty().parentModelNode())) {
+        QmlDesigner::QmlItemNode parentNode = modelNode.parentProperty().parentQmlObjectNode().toQmlItemNode();
         QPointF localPos = parentNode.instanceSceneTransform().inverted().map(pos);
-        modelNode.variantProperty("x") = localPos.toPoint().x();
-        modelNode.variantProperty("y") = localPos.toPoint().y();
+        modelNode.variantProperty("x").setValue(localPos.toPoint().x());
+        modelNode.variantProperty("y").setValue(localPos.toPoint().y());
     }
 }
 
 namespace QmlDesigner {
 
 NavigatorView::NavigatorView(QObject* parent) :
-        QmlModelView(parent),
+        AbstractView(parent),
         m_blockSelectionChangedSignal(false),
         m_widget(new NavigatorWidget(this)),
         m_treeModel(new NavigatorTreeModel(this))
@@ -114,7 +115,7 @@ WidgetInfo NavigatorView::widgetInfo()
 
 void NavigatorView::modelAttached(Model *model)
 {
-    QmlModelView::modelAttached(model);
+    AbstractView::modelAttached(model);
 
     m_treeModel->setView(this);
 
@@ -132,8 +133,9 @@ void NavigatorView::modelAttached(Model *model)
 
 void NavigatorView::modelAboutToBeDetached(Model *model)
 {
+    m_treeModel->removeSubTree(rootModelNode());
     m_treeModel->clearView();
-    QmlModelView::modelAboutToBeDetached(model);
+    AbstractView::modelAboutToBeDetached(model);
 }
 
 void NavigatorView::importsChanged(const QList<Import> &/*addedImports*/, const QList<Import> &/*removedImports*/)
@@ -274,8 +276,13 @@ void NavigatorView::rewriterEndTransaction()
 {
 }
 
-void NavigatorView::actualStateChanged(const ModelNode &/*node*/)
+void NavigatorView::currentStateChanged(const ModelNode &/*node*/)
 {
+}
+
+void NavigatorView::instancesToken(const QString &/*tokenName*/, int /*tokenNumber*/, const QVector<ModelNode> &/*nodeVector*/)
+{
+
 }
 
 void NavigatorView::nodeOrderChanged(const NodeListProperty &listProperty, const ModelNode &node, int oldIndex)
@@ -303,7 +310,7 @@ void NavigatorView::leftButtonClicked()
 
     foreach (const ModelNode &node, selectedModelNodes()) {
         if (!node.isRootNode() && !node.parentProperty().parentModelNode().isRootNode()) {
-            if (QmlItemNode(node).isValid()) {
+            if (QmlItemNode::isValidQmlItemNode(node)) {
                 QPointF scenePos = QmlItemNode(node).instanceScenePosition();
                 node.parentProperty().parentModelNode().parentProperty().reparentHere(node);
                 if (!scenePos.isNull())
@@ -330,13 +337,16 @@ void NavigatorView::rightButtonClicked()
             if (index >= 0) { //for the first node the semantics are not clear enough. Wrapping would be irritating.
                 ModelNode newParent = node.parentProperty().toNodeListProperty().at(index);
 
-                if (QmlItemNode(node).isValid()) {
+                if (QmlItemNode::isValidQmlItemNode(node)
+                        && QmlItemNode::isValidQmlItemNode(newParent)
+                        && !newParent.metaInfo().defaultPropertyIsComponent()) {
                     QPointF scenePos = QmlItemNode(node).instanceScenePosition();
                     newParent.nodeAbstractProperty(newParent.metaInfo().defaultPropertyName()).reparentHere(node);
                     if (!scenePos.isNull())
                         setScenePos(node, scenePos);
                 } else {
-                    newParent.nodeAbstractProperty(newParent.metaInfo().defaultPropertyName()).reparentHere(node);
+                    if (newParent.metaInfo().isValid() && !newParent.metaInfo().defaultPropertyIsComponent())
+                        newParent.nodeAbstractProperty(newParent.metaInfo().defaultPropertyName()).reparentHere(node);
                 }
             }
         }

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -37,23 +37,18 @@
 
 QT_FORWARD_DECLARE_CLASS(QFileInfo)
 
-namespace Utils {
-class AbstractMacroExpander;
-}
+namespace Utils { class AbstractMacroExpander; }
 
 namespace Core {
 
-class VariableManagerPrivate;
+namespace Internal { class MainWindow; }
 
 class CORE_EXPORT VariableManager : public QObject
 {
     Q_OBJECT
 
 public:
-    VariableManager();
-    ~VariableManager();
-
-    static VariableManager *instance();
+    static QObject *instance();
 
     static void insert(const QByteArray &variable, const QString &value);
     static bool remove(const QByteArray &variable);
@@ -78,6 +73,12 @@ public:
 
 signals:
     void variableUpdateRequested(const QByteArray &variable);
+
+private:
+    VariableManager();
+    ~VariableManager();
+
+    friend class Core::Internal::MainWindow;
 };
 
 } // namespace Core

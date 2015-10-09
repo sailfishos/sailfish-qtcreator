@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -32,12 +32,19 @@
 
 #include "operation.h"
 
+#include <QString>
+
+extern const char DEVICEMANAGER_ID[];
+extern const char DEFAULT_DEVICES_ID[];
+extern const char DEVICE_LIST_ID[];
+
+extern const char DEVICE_ID_ID[];
+
 class AddDeviceOperation : public Operation
 {
 public:
     AddDeviceOperation();
 
-public:
     QString name() const;
     QString helpText() const;
     QString argumentsHelpText() const;
@@ -47,55 +54,50 @@ public:
     int execute() const;
 
 #ifdef WITH_TESTS
-    //TODO:
-    bool test() const { return false; }
+    bool test() const;
 #endif
-    static QVariantMap initializeDevices();
+
     static QVariantMap addDevice(const QVariantMap &map,
-                                 const QByteArray &internalId,
-                                 const QString &displayName,
-                                 const QString &type,
-                                 int origin,
-                                 bool sdkProvided,
-                                 int machineType,
-                                 const QString &host,
-                                 int port,
-                                 const QString &userName,
-                                 int autheticationType,
-                                 const QString &password,
-                                 const QString &privateKeyFil,
-                                 int timeout,
-                                 const QString &freePorts,
-                                 int version,
-                                 const QString &virtualMachine = QString(),
-                                 const QString &merMac = QString(),
-                                 const QString &merSubnet = QString(),
-                                 const QString &sharedSshPath = QString(),
-                                 const QString &sharedConfigPath = QString());
-private:    
-    static QString param(const QString &text);
+                                 const QString &id, const QString &displayName, int type,
+                                 int auth, const QString &hwPlatform, const QString &swPlatform,
+                                 const QString &debugServer, const QString &freePorts,
+                                 const QString &host, const QString &keyFile,
+                                 int origin, const QString &osType, const QString &passwd,
+                                 int sshPort, int timeout, const QString &uname, int version,
+                                 const KeyValuePairList &extra);
+
+    static QVariantMap initializeDevices();
+
+    static bool exists(const QString &id);
+    static bool exists(const QVariantMap &map, const QString &id);
 
 private:
-    QByteArray m_internalId;
-    QString m_displayName;
-    QString m_type;
-    int m_origin;
-    bool m_sdkProvided;
+    static KeyValuePairList createDevice(const QString &id, const QString &displayName, int type,
+                                         int auth, const QString &hwPlatform, const QString &swPlatform,
+                                         const QString &debugServer, const QString &freePorts,
+                                         const QString &host, const QString &keyFile,
+                                         int origin, const QString &osType, const QString &passwd,
+                                         int sshPort, int timeout, const QString &uname, int version,
+                                         const KeyValuePairList &extra);
+
+    int m_authentication;
+    QString m_b2q_platformHardware;
+    QString m_b2q_platformSoftware;
+    QString m_debugServer;
+    QString m_freePortsSpec;
     QString m_host;
-    int m_port;
-    QString m_userName;
-    int m_autheticationType;
+    QString m_id;
+    QString m_keyFile;
+    QString m_displayName;
+    int m_origin;
+    QString m_osType;
     QString m_password;
-    QString m_privateKeyFile;
+    int m_sshPort;
     int m_timeout;
-    QString m_freePorts;
-    int m_machineType;
+    int m_type;
+    QString m_uname;
     int m_version;
-    QString m_merVirtualMachine;
-    QString m_merMac;
-    QString m_merSubnet;
-    QString m_merSharedSshPath;
-    QString m_merSharedConfigPath;
+    KeyValuePairList m_extra;
 };
 
 #endif // ADDDEVICEOPERATION_H

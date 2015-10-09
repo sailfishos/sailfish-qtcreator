@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -76,8 +76,11 @@ private:
 
 #ifdef WITH_TESTS
 private slots:
+    void testDebuggerMatching_data();
+    void testDebuggerMatching();
+
     void testBenchmark();
-    void testStateMachine();
+//    void testStateMachine();
 #endif
 };
 

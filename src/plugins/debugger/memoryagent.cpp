@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -83,8 +83,6 @@ namespace Internal {
     \sa Debugger::MemoryView,  Debugger::RegisterMemoryView
 */
 
-namespace { const int DataRange = 1024 * 1024; }
-
 MemoryAgent::MemoryAgent(DebuggerEngine *engine)
     : QObject(engine), m_engine(engine)
 {
@@ -110,7 +108,7 @@ void MemoryAgent::closeEditors()
     foreach (QPointer<IEditor> editor, m_editors)
         if (editor)
             editors.append(editor.data());
-    EditorManager::instance()->closeEditors(editors);
+    EditorManager::closeEditors(editors);
     m_editors.clear();
 }
 
@@ -181,8 +179,8 @@ bool MemoryAgent::doCreateBinEditor(quint64 addr, unsigned flags,
                 Core::Constants::K_DEFAULT_BINARY_EDITOR_ID, &title);
     if (!editor)
         return false;
-    editor->setProperty(Constants::OPENED_BY_DEBUGGER, QVariant(true));
-    editor->setProperty(Constants::OPENED_WITH_MEMORY, QVariant(true));
+    editor->document()->setProperty(Constants::OPENED_BY_DEBUGGER, QVariant(true));
+    editor->document()->setTemporary(true);
     QWidget *editorBinEditor = editor->widget();
     connectBinEditorWidget(editorBinEditor);
     MemoryView::setBinEditorReadOnly(editorBinEditor, readOnly);
@@ -190,7 +188,6 @@ bool MemoryAgent::doCreateBinEditor(quint64 addr, unsigned flags,
     MemoryView::setBinEditorRange(editorBinEditor, addr, MemoryAgent::DataRange, MemoryAgent::BinBlockSize);
     MemoryView::setBinEditorMarkup(editorBinEditor, ml);
     m_editors << editor;
-    EditorManager::activateEditor(editor);
     return true;
 }
 
@@ -254,7 +251,7 @@ void MemoryAgent::updateContents()
 
 bool MemoryAgent::hasVisibleEditor() const
 {
-    QList<IEditor *> visible = EditorManager::instance()->visibleEditors();
+    QList<IEditor *> visible = EditorManager::visibleEditors();
     foreach (QPointer<IEditor> editor, m_editors)
         if (visible.contains(editor.data()))
             return true;

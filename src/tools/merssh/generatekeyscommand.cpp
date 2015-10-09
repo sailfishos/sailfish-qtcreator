@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2013 Jolla Ltd.
+** Copyright (C) 2012 - 2014 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -21,7 +21,9 @@
 ****************************************************************************/
 
 #include "generatekeyscommand.h"
+
 #include <ssh/sshkeygenerator.h>
+
 #include <QFile>
 
 GenerateKeysCommand::GenerateKeysCommand()

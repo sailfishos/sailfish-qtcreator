@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -36,9 +36,7 @@
 
 #include <QProcess>
 
-namespace Utils {
-class Environment;
-}
+namespace Utils { class Environment; }
 
 namespace ProjectExplorer {
 struct ApplicationLauncherPrivate;
@@ -71,11 +69,10 @@ public:
 signals:
     void appendMessage(const QString &message, Utils::OutputFormat format);
     void processStarted();
-    void processExited(int exitCode);
+    void processExited(int exitCode, QProcess::ExitStatus);
     void bringToForegroundRequested(qint64 pid);
 
 private slots:
-    void processStopped();
     void guiProcessError();
     void consoleProcessError(const QString &error);
     void readStandardOutput();

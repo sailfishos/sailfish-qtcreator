@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -84,8 +84,8 @@ LocalApplicationRunControl::LocalApplicationRunControl(LocalApplicationRunConfig
             this, SLOT(slotAppendMessage(QString,Utils::OutputFormat)));
     connect(&m_applicationLauncher, SIGNAL(processStarted()),
             this, SLOT(processStarted()));
-    connect(&m_applicationLauncher, SIGNAL(processExited(int)),
-            this, SLOT(processExited(int)));
+    connect(&m_applicationLauncher, SIGNAL(processExited(int,QProcess::ExitStatus)),
+            this, SLOT(processExited(int,QProcess::ExitStatus)));
     connect(&m_applicationLauncher, SIGNAL(bringToForegroundRequested(qint64)),
             this, SLOT(bringApplicationToForeground(qint64)));
 }
@@ -98,15 +98,15 @@ void LocalApplicationRunControl::start()
 {
     emit started();
     if (m_executable.isEmpty()) {
-        appendMessage(tr("No executable specified.\n"), Utils::ErrorMessageFormat);
+        appendMessage(tr("No executable specified.") + QLatin1Char('\n'), Utils::ErrorMessageFormat);
         emit finished();
     }  else if (!QFileInfo(m_executable).exists()){
-        appendMessage(tr("Executable %1 does not exist.\n").arg(m_executable),
+        appendMessage(tr("Executable %1 does not exist.").arg(QDir::toNativeSeparators(m_executable)) + QLatin1Char('\n'),
                       Utils::ErrorMessageFormat);
         emit finished();
     } else {
         m_running = true;
-        QString msg = tr("Starting %1...\n").arg(QDir::toNativeSeparators(m_executable));
+        QString msg = tr("Starting %1...").arg(QDir::toNativeSeparators(m_executable)) + QLatin1Char('\n');
         appendMessage(msg, Utils::NormalMessageFormat);
         m_applicationLauncher.start(m_runMode, m_executable, m_commandLineArguments);
         setApplicationProcessHandle(ProcessHandle(m_applicationLauncher.applicationPID()));
@@ -141,13 +141,19 @@ void LocalApplicationRunControl::processStarted()
     setApplicationProcessHandle(ProcessHandle(m_applicationLauncher.applicationPID()));
 }
 
-void LocalApplicationRunControl::processExited(int exitCode)
+void LocalApplicationRunControl::processExited(int exitCode, QProcess::ExitStatus status)
 {
     m_running = false;
     setApplicationProcessHandle(ProcessHandle());
-    QString msg = tr("%1 exited with code %2\n")
-        .arg(QDir::toNativeSeparators(m_executable)).arg(exitCode);
-    appendMessage(msg, Utils::NormalMessageFormat);
+    QString msg;
+    if (status == QProcess::CrashExit) {
+        msg = tr("%1 crashed")
+                .arg(QDir::toNativeSeparators(m_executable));
+    } else {
+        msg = tr("%1 exited with code %2")
+                .arg(QDir::toNativeSeparators(m_executable)).arg(exitCode);
+    }
+    appendMessage(msg + QLatin1Char('\n'), Utils::NormalMessageFormat);
     emit finished();
 }
 

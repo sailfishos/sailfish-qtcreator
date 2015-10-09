@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -36,6 +36,11 @@ QT_BEGIN_NAMESPACE
 class QAction;
 QT_END_NAMESPACE
 
+namespace ProjectExplorer {
+class Node;
+class Project;
+}
+
 namespace ResourceEditor {
 namespace Internal {
 
@@ -50,7 +55,6 @@ class ResourceEditorPlugin : public ExtensionSystem::IPlugin
 
 public:
     ResourceEditorPlugin();
-    virtual ~ResourceEditorPlugin();
 
     // IPlugin
     bool initialize(const QStringList &arguments, QString *errorMessage = 0);
@@ -61,6 +65,17 @@ private slots:
     void onRedo();
     void onRefresh();
 
+    void addPrefixContextMenu();
+    void renamePrefixContextMenu();
+    void removePrefixContextMenu();
+    void renameFileContextMenu();
+    void removeFileContextMenu();
+
+    void openEditorContextMenu();
+    void openTextEditorContextMenu();
+
+    void updateContextActions(ProjectExplorer::Node*,ProjectExplorer::Project*);
+
 public:
     void onUndoStackChanged(ResourceEditorW const *editor, bool canUndo, bool canRedo);
 
@@ -68,11 +83,20 @@ private:
     ResourceEditorW * currentEditor() const;
 
 private:
-    ResourceWizard *m_wizard;
-    ResourceEditorFactory *m_editor;
     QAction *m_redoAction;
     QAction *m_undoAction;
     QAction *m_refreshAction;
+
+    // project tree's folder context menu
+    QAction *m_addPrefix;
+    QAction *m_removePrefix;
+    QAction *m_renamePrefix;
+
+    QAction *m_renameResourceFile;
+    QAction *m_removeResourceFile;
+
+    QAction *m_openInEditor;
+    QAction *m_openInTextEditor;
 };
 
 } // namespace Internal

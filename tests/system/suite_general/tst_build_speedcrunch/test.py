@@ -1,6 +1,6 @@
 #############################################################################
 ##
-## Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+## Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ## Contact: http://www.qt-project.org/legal
 ##
 ## This file is part of Qt Creator.
@@ -46,7 +46,7 @@ def main():
     startApplication("qtcreator" + SettingsPath)
     if not startedWithoutPluginError():
         return
-    suitableKits = Targets.DESKTOP_474_GCC | Targets.DESKTOP_480_GCC
+    suitableKits = Targets.DESKTOP_480_GCC
     if platform.system() in ('Windows', 'Microsoft'):
         suitableKits |= Targets.DESKTOP_480_MSVC2010
     checkedTargets = openQmakeProject(SpeedCrunchPath, suitableKits)
@@ -65,9 +65,9 @@ def main():
             continue
         test.log("Testing build configuration: " + config)
         invokeMenuItem("Build", "Run qmake")
-        waitForSignal("{type='ProjectExplorer::BuildManager' unnamed='1'}", "buildQueueFinished(bool)")
+        waitForCompile()
         invokeMenuItem("Build", "Rebuild All")
-        waitForSignal("{type='ProjectExplorer::BuildManager' unnamed='1'}", "buildQueueFinished(bool)", 300000)
+        waitForCompile(300000)
         checkCompile()
         checkLastBuild()
 

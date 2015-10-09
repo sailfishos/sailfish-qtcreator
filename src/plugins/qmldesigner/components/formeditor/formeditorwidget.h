@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -31,8 +31,6 @@
 #define FORMEDITORWIDGET_H
 
 #include <QWidget>
-
-#include "formeditorcrumblebar.h"
 
 QT_BEGIN_NAMESPACE
 class QActionGroup;
@@ -78,8 +76,6 @@ public:
     void centerScene();
 
     void setFocus();
-
-    FormEditorCrumbleBar *formEditorCrumbleBar() const;
 
 protected:
     void wheelEvent(QWheelEvent *event);

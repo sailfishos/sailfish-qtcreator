@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -35,19 +35,20 @@
 
 QT_BEGIN_NAMESPACE
 class QComboBox;
+class QGridLayout;
 class QLabel;
 class QStackedWidget;
 QT_END_NAMESPACE
 
 namespace ProjectExplorer {
 class Kit;
+class KitConfigWidget;
 class Project;
 class Target;
 class BuildConfiguration;
 class DeployConfiguration;
 class ProjectConfiguration;
 class RunConfiguration;
-class SessionManager;
 
 namespace Internal {
 
@@ -75,7 +76,7 @@ class ProjectListWidget : public ListWidget
 {
     Q_OBJECT
 public:
-    explicit ProjectListWidget(SessionManager *sessionManager, QWidget *parent = 0);
+    explicit ProjectListWidget(QWidget *parent = 0);
 private slots:
     void addProject(ProjectExplorer::Project *project);
     void removeProject(ProjectExplorer::Project *project);
@@ -85,8 +86,26 @@ private slots:
 private:
     QListWidgetItem *itemForProject(Project *project);
     QString fullName(ProjectExplorer::Project *project);
-    SessionManager *m_sessionManager;
     bool m_ignoreIndexChange;
+};
+
+class KitAreaWidget : public QWidget
+{
+    Q_OBJECT
+public:
+    explicit KitAreaWidget(QWidget *parent = 0);
+
+public slots:
+    void setKit(ProjectExplorer::Kit *k);
+
+private slots:
+    void updateKit(ProjectExplorer::Kit *k);
+
+private:
+    QGridLayout *m_layout;
+    Kit *m_kit;
+    QList<KitConfigWidget *> m_widgets;
+    QList<QLabel *> m_labels;
 };
 
 class GenericListWidget : public ListWidget
@@ -114,7 +133,7 @@ class MiniProjectTargetSelector : public QWidget
 {
     Q_OBJECT
 public:
-    explicit MiniProjectTargetSelector(QAction *projectAction, SessionManager *sessionManager, QWidget *parent = 0);
+    explicit MiniProjectTargetSelector(QAction *projectAction, QWidget *parent = 0);
     void setVisible(bool visible);
 
     void keyPressEvent(QKeyEvent *ke);
@@ -175,10 +194,10 @@ private:
     QWidget *createTitleLabel(const QString &text);
 
     QAction *m_projectAction;
-    SessionManager *m_sessionManager;
 
     enum TYPES { PROJECT = 0, TARGET = 1, BUILD = 2, DEPLOY = 3, RUN = 4, LAST = 5 };
     ProjectListWidget *m_projectListWidget;
+    KitAreaWidget *m_kitAreaWidget;
     QVector<GenericListWidget *> m_listWidgets;
     QVector<QWidget *> m_titleWidgets;
     QLabel *m_summaryLabel;

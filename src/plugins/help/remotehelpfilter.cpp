@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -85,31 +85,31 @@ RemoteHelpFilter::RemoteHelpFilter()
     setIncludedByDefault(false);
     setShortcutString(QLatin1String("r"));
 
-    m_remoteUrls.append(QLatin1String("http://www.bing.com/search?q=%1"));
-    m_remoteUrls.append(QLatin1String("http://www.google.com/search?q=%1"));
-    m_remoteUrls.append(QLatin1String("http://search.yahoo.com/search?p=%1"));
-    m_remoteUrls.append(QLatin1String("http://www.cplusplus.com/reference/stl/%1"));
-    m_remoteUrls.append(QLatin1String("http://en.wikipedia.org/w/index.php?search=%1"));
+    m_remoteUrls.append(QLatin1String("https://www.bing.com/search?q=%1"));
+    m_remoteUrls.append(QLatin1String("https://www.google.com/search?q=%1"));
+    m_remoteUrls.append(QLatin1String("https://search.yahoo.com/search?p=%1"));
+    m_remoteUrls.append(QLatin1String("https://www.cplusplus.com/reference/stl/%1"));
+    m_remoteUrls.append(QLatin1String("https://en.wikipedia.org/w/index.php?search=%1"));
 }
 
 RemoteHelpFilter::~RemoteHelpFilter()
 {
 }
 
-QList<Locator::FilterEntry> RemoteHelpFilter::matchesFor(QFutureInterface<Locator::FilterEntry> &future, const QString &pattern)
+QList<Core::LocatorFilterEntry> RemoteHelpFilter::matchesFor(QFutureInterface<Core::LocatorFilterEntry> &future, const QString &pattern)
 {
-    QList<Locator::FilterEntry> entries;
+    QList<Core::LocatorFilterEntry> entries;
     foreach (const QString &url, m_remoteUrls) {
         if (future.isCanceled())
             break;
 
-        entries.append(Locator::FilterEntry(this, url.arg(pattern), QVariant(),
+        entries.append(Core::LocatorFilterEntry(this, url.arg(pattern), QVariant(),
             m_icon));
     }
     return entries;
 }
 
-void RemoteHelpFilter::accept(Locator::FilterEntry selection) const
+void RemoteHelpFilter::accept(Core::LocatorFilterEntry selection) const
 {
     const QString &url = selection.displayName;
     if (!url.isEmpty())

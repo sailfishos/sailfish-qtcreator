@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -28,17 +28,16 @@
 ****************************************************************************/
 
 #include "qmljseditor.h"
+
 #include "qmljseditoreditable.h"
 #include "qmljseditorconstants.h"
-#include "qmljshighlighter.h"
+#include "qmljseditordocument.h"
 #include "qmljseditorplugin.h"
 #include "qmloutlinemodel.h"
 #include "qmljsfindreferences.h"
-#include "qmljssemanticinfoupdater.h"
 #include "qmljsautocompleter.h"
 #include "qmljscompletionassist.h"
 #include "qmljsquickfixassist.h"
-#include "qmljssemantichighlighter.h"
 
 #include <qmljs/qmljsbind.h>
 #include <qmljs/qmljsevaluate.h>
@@ -46,8 +45,7 @@
 #include <qmljs/qmljsmodelmanagerinterface.h>
 #include <qmljs/qmljsutils.h>
 
-#include <qmljstools/qmljsindenter.h>
-#include <qmljstools/qmljsqtstylecodeformatter.h>
+#include <qmljstools/qmljstoolsconstants.h>
 
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/actioncontainer.h>
@@ -88,442 +86,77 @@
 #include <QTreeView>
 
 enum {
-    UPDATE_DOCUMENT_DEFAULT_INTERVAL = 100,
     UPDATE_USES_DEFAULT_INTERVAL = 150,
     UPDATE_OUTLINE_INTERVAL = 500 // msecs after new semantic info has been arrived / cursor has moved
 };
 
+using namespace Core;
 using namespace QmlJS;
 using namespace QmlJS::AST;
 using namespace QmlJSTools;
 
 namespace QmlJSEditor {
-using namespace Internal;
-
-namespace {
-
-class FindIdDeclarations: protected Visitor
-{
-public:
-    typedef QHash<QString, QList<AST::SourceLocation> > Result;
-
-    Result operator()(Document::Ptr doc)
-    {
-        _ids.clear();
-        _maybeIds.clear();
-        if (doc && doc->qmlProgram())
-            doc->qmlProgram()->accept(this);
-        return _ids;
-    }
-
-protected:
-    QString asString(AST::UiQualifiedId *id)
-    {
-        QString text;
-        for (; id; id = id->next) {
-            if (!id->name.isEmpty())
-                text += id->name;
-            else
-                text += QLatin1Char('?');
-
-            if (id->next)
-                text += QLatin1Char('.');
-        }
-
-        return text;
-    }
-
-    void accept(AST::Node *node)
-    { AST::Node::acceptChild(node, this); }
-
-    using Visitor::visit;
-    using Visitor::endVisit;
-
-    virtual bool visit(AST::UiScriptBinding *node)
-    {
-        if (asString(node->qualifiedId) == QLatin1String("id")) {
-            if (AST::ExpressionStatement *stmt = AST::cast<AST::ExpressionStatement*>(node->statement)) {
-                if (AST::IdentifierExpression *idExpr = AST::cast<AST::IdentifierExpression *>(stmt->expression)) {
-                    if (!idExpr->name.isEmpty()) {
-                        const QString &id = idExpr->name.toString();
-                        QList<AST::SourceLocation> *locs = &_ids[id];
-                        locs->append(idExpr->firstSourceLocation());
-                        locs->append(_maybeIds.value(id));
-                        _maybeIds.remove(id);
-                        return false;
-                    }
-                }
-            }
-        }
-
-        accept(node->statement);
-
-        return false;
-    }
-
-    virtual bool visit(AST::IdentifierExpression *node)
-    {
-        if (!node->name.isEmpty()) {
-            const QString &name = node->name.toString();
-
-            if (_ids.contains(name))
-                _ids[name].append(node->identifierToken);
-            else
-                _maybeIds[name].append(node->identifierToken);
-        }
-        return false;
-    }
-
-private:
-    Result _ids;
-    Result _maybeIds;
-};
-
-class FindDeclarations: protected Visitor
-{
-    QList<Declaration> _declarations;
-    int _depth;
-
-public:
-    QList<Declaration> operator()(AST::Node *node)
-    {
-        _depth = -1;
-        _declarations.clear();
-        accept(node);
-        return _declarations;
-    }
-
-protected:
-    using Visitor::visit;
-    using Visitor::endVisit;
-
-    QString asString(AST::UiQualifiedId *id)
-    {
-        QString text;
-        for (; id; id = id->next) {
-            if (!id->name.isEmpty())
-                text += id->name;
-            else
-                text += QLatin1Char('?');
-
-            if (id->next)
-                text += QLatin1Char('.');
-        }
-
-        return text;
-    }
-
-    void accept(AST::Node *node)
-    { AST::Node::acceptChild(node, this); }
-
-    void init(Declaration *decl, AST::UiObjectMember *member)
-    {
-        const SourceLocation first = member->firstSourceLocation();
-        const SourceLocation last = member->lastSourceLocation();
-        decl->startLine = first.startLine;
-        decl->startColumn = first.startColumn;
-        decl->endLine = last.startLine;
-        decl->endColumn = last.startColumn + last.length;
-    }
-
-    void init(Declaration *decl, AST::ExpressionNode *expressionNode)
-    {
-        const SourceLocation first = expressionNode->firstSourceLocation();
-        const SourceLocation last = expressionNode->lastSourceLocation();
-        decl->startLine = first.startLine;
-        decl->startColumn = first.startColumn;
-        decl->endLine = last.startLine;
-        decl->endColumn = last.startColumn + last.length;
-    }
-
-    virtual bool visit(AST::UiObjectDefinition *node)
-    {
-        ++_depth;
-
-        Declaration decl;
-        init(&decl, node);
-
-        decl.text.fill(QLatin1Char(' '), _depth);
-        if (node->qualifiedTypeNameId)
-            decl.text.append(asString(node->qualifiedTypeNameId));
-        else
-            decl.text.append(QLatin1Char('?'));
-
-        _declarations.append(decl);
-
-        return true; // search for more bindings
-    }
-
-    virtual void endVisit(AST::UiObjectDefinition *)
-    {
-        --_depth;
-    }
-
-    virtual bool visit(AST::UiObjectBinding *node)
-    {
-        ++_depth;
-
-        Declaration decl;
-        init(&decl, node);
-
-        decl.text.fill(QLatin1Char(' '), _depth);
-
-        decl.text.append(asString(node->qualifiedId));
-        decl.text.append(QLatin1String(": "));
-
-        if (node->qualifiedTypeNameId)
-            decl.text.append(asString(node->qualifiedTypeNameId));
-        else
-            decl.text.append(QLatin1Char('?'));
-
-        _declarations.append(decl);
-
-        return true; // search for more bindings
-    }
-
-    virtual void endVisit(AST::UiObjectBinding *)
-    {
-        --_depth;
-    }
-
-    virtual bool visit(AST::UiScriptBinding *)
-    {
-        ++_depth;
-
-#if 0 // ### ignore script bindings for now.
-        Declaration decl;
-        init(&decl, node);
-
-        decl.text.fill(QLatin1Char(' '), _depth);
-        decl.text.append(asString(node->qualifiedId));
-
-        _declarations.append(decl);
-#endif
-
-        return false; // more more bindings in this subtree.
-    }
-
-    virtual void endVisit(AST::UiScriptBinding *)
-    {
-        --_depth;
-    }
-
-    virtual bool visit(AST::FunctionExpression *)
-    {
-        return false;
-    }
-
-    virtual bool visit(AST::FunctionDeclaration *ast)
-    {
-        if (ast->name.isEmpty())
-            return false;
-
-        Declaration decl;
-        init(&decl, ast);
-
-        decl.text.fill(QLatin1Char(' '), _depth);
-        decl.text += ast->name;
-
-        decl.text += QLatin1Char('(');
-        for (FormalParameterList *it = ast->formals; it; it = it->next) {
-            if (!it->name.isEmpty())
-                decl.text += it->name;
-
-            if (it->next)
-                decl.text += QLatin1String(", ");
-        }
-
-        decl.text += QLatin1Char(')');
-
-        _declarations.append(decl);
-
-        return false;
-    }
-
-    virtual bool visit(AST::VariableDeclaration *ast)
-    {
-        if (ast->name.isEmpty())
-            return false;
-
-        Declaration decl;
-        decl.text.fill(QLatin1Char(' '), _depth);
-        decl.text += ast->name;
-
-        const SourceLocation first = ast->identifierToken;
-        decl.startLine = first.startLine;
-        decl.startColumn = first.startColumn;
-        decl.endLine = first.startLine;
-        decl.endColumn = first.startColumn + first.length;
-
-        _declarations.append(decl);
-
-        return false;
-    }
-};
-
-class CreateRanges: protected AST::Visitor
-{
-    QTextDocument *_textDocument;
-    QList<Range> _ranges;
-
-public:
-    QList<Range> operator()(QTextDocument *textDocument, Document::Ptr doc)
-    {
-        _textDocument = textDocument;
-        _ranges.clear();
-        if (doc && doc->ast() != 0)
-            doc->ast()->accept(this);
-        return _ranges;
-    }
-
-protected:
-    using AST::Visitor::visit;
-
-    virtual bool visit(AST::UiObjectBinding *ast)
-    {
-        if (ast->initializer && ast->initializer->lbraceToken.length)
-            _ranges.append(createRange(ast, ast->initializer));
-        return true;
-    }
-
-    virtual bool visit(AST::UiObjectDefinition *ast)
-    {
-        if (ast->initializer && ast->initializer->lbraceToken.length)
-            _ranges.append(createRange(ast, ast->initializer));
-        return true;
-    }
-
-    virtual bool visit(AST::FunctionExpression *ast)
-    {
-        _ranges.append(createRange(ast));
-        return true;
-    }
-
-    virtual bool visit(AST::FunctionDeclaration *ast)
-    {
-        _ranges.append(createRange(ast));
-        return true;
-    }
-
-    virtual bool visit(AST::UiScriptBinding *ast)
-    {
-        if (AST::Block *block = AST::cast<AST::Block *>(ast->statement))
-            _ranges.append(createRange(ast, block));
-        return true;
-    }
-
-    Range createRange(AST::UiObjectMember *member, AST::UiObjectInitializer *ast)
-    {
-        return createRange(member, member->firstSourceLocation(), ast->rbraceToken);
-    }
-
-    Range createRange(AST::FunctionExpression *ast)
-    {
-        return createRange(ast, ast->lbraceToken, ast->rbraceToken);
-    }
-
-    Range createRange(AST::UiScriptBinding *ast, AST::Block *block)
-    {
-        return createRange(ast, block->lbraceToken, block->rbraceToken);
-    }
-
-    Range createRange(AST::Node *ast, AST::SourceLocation start, AST::SourceLocation end)
-    {
-        Range range;
-
-        range.ast = ast;
-
-        range.begin = QTextCursor(_textDocument);
-        range.begin.setPosition(start.begin());
-
-        range.end = QTextCursor(_textDocument);
-        range.end.setPosition(end.end());
-
-        return range;
-    }
-
-};
-
-} // end of anonymous namespace
-
+namespace Internal {
 
 QmlJSTextEditorWidget::QmlJSTextEditorWidget(QWidget *parent) :
-    TextEditor::BaseTextEditorWidget(parent),
-    m_outlineCombo(0),
-    m_outlineModel(new QmlOutlineModel(this)),
-    m_modelManager(0),
-    m_futureSemanticInfoRevision(0),
-    m_contextPane(0),
-    m_findReferences(new FindReferences(this)),
-    m_semanticHighlighter(new SemanticHighlighter(this))
+    TextEditor::BaseTextEditorWidget(new QmlJSEditorDocument, parent)
 {
-    m_semanticInfoUpdater = new SemanticInfoUpdater(this);
-    m_semanticInfoUpdater->start();
+    ctor();
+}
+
+QmlJSTextEditorWidget::QmlJSTextEditorWidget(QmlJSTextEditorWidget *other)
+    : TextEditor::BaseTextEditorWidget(other)
+{
+    ctor();
+}
+
+void QmlJSTextEditorWidget::ctor()
+{
+    m_qmlJsEditorDocument = static_cast<QmlJSEditorDocument *>(baseTextDocument());
+    m_outlineCombo = 0;
+    m_contextPane = 0;
+    m_findReferences = new FindReferences(this);
 
     setParenthesesMatchingEnabled(true);
     setMarksVisible(true);
     setCodeFoldingSupported(true);
-    setIndenter(new Indenter);
     setAutoCompleter(new AutoCompleter);
-
-    m_updateDocumentTimer = new QTimer(this);
-    m_updateDocumentTimer->setInterval(UPDATE_DOCUMENT_DEFAULT_INTERVAL);
-    m_updateDocumentTimer->setSingleShot(true);
-    connect(m_updateDocumentTimer, SIGNAL(timeout()), this, SLOT(reparseDocumentNow()));
+    setLanguageSettingsId(QmlJSTools::Constants::QML_JS_SETTINGS_ID);
 
     m_updateUsesTimer = new QTimer(this);
     m_updateUsesTimer->setInterval(UPDATE_USES_DEFAULT_INTERVAL);
     m_updateUsesTimer->setSingleShot(true);
-    connect(m_updateUsesTimer, SIGNAL(timeout()), this, SLOT(updateUsesNow()));
-
-    m_updateSemanticInfoTimer = new QTimer(this);
-    m_updateSemanticInfoTimer->setInterval(UPDATE_DOCUMENT_DEFAULT_INTERVAL);
-    m_updateSemanticInfoTimer->setSingleShot(true);
-    connect(m_updateSemanticInfoTimer, SIGNAL(timeout()), this, SLOT(updateSemanticInfoNow()));
-
-    connect(this, SIGNAL(textChanged()), this, SLOT(reparseDocument()));
-
-    connect(this, SIGNAL(textChanged()), this, SLOT(updateUses()));
-    connect(this, SIGNAL(cursorPositionChanged()), this, SLOT(updateUses()));
-
-    m_updateOutlineTimer = new QTimer(this);
-    m_updateOutlineTimer->setInterval(UPDATE_OUTLINE_INTERVAL);
-    m_updateOutlineTimer->setSingleShot(true);
-    connect(m_updateOutlineTimer, SIGNAL(timeout()), this, SLOT(updateOutlineNow()));
+    connect(m_updateUsesTimer, SIGNAL(timeout()), this, SLOT(updateUses()));
+    connect(this, SIGNAL(cursorPositionChanged()), m_updateUsesTimer, SLOT(start()));
 
     m_updateOutlineIndexTimer = new QTimer(this);
     m_updateOutlineIndexTimer->setInterval(UPDATE_OUTLINE_INTERVAL);
     m_updateOutlineIndexTimer->setSingleShot(true);
     connect(m_updateOutlineIndexTimer, SIGNAL(timeout()), this, SLOT(updateOutlineIndexNow()));
 
-    m_cursorPositionTimer  = new QTimer(this);
-    m_cursorPositionTimer->setInterval(UPDATE_OUTLINE_INTERVAL);
-    m_cursorPositionTimer->setSingleShot(true);
-    connect(m_cursorPositionTimer, SIGNAL(timeout()), this, SLOT(updateCursorPositionNow()));
-
-    baseTextDocument()->setSyntaxHighlighter(new Highlighter(document()));
     baseTextDocument()->setCodec(QTextCodec::codecForName("UTF-8")); // qml files are defined to be utf-8
 
     m_modelManager = QmlJS::ModelManagerInterface::instance();
     m_contextPane = ExtensionSystem::PluginManager::getObject<QmlJS::IContextPane>();
 
+    m_modelManager->activateScan();
 
+    m_contextPaneTimer  = new QTimer(this);
+    m_contextPaneTimer->setInterval(UPDATE_OUTLINE_INTERVAL);
+    m_contextPaneTimer->setSingleShot(true);
+    connect(m_contextPaneTimer, SIGNAL(timeout()), this, SLOT(updateContextPane()));
     if (m_contextPane) {
-        connect(this, SIGNAL(cursorPositionChanged()), this, SLOT(onCursorPositionChanged()));
+        connect(this, SIGNAL(cursorPositionChanged()), m_contextPaneTimer, SLOT(start()));
         connect(m_contextPane, SIGNAL(closed()), this, SLOT(showTextMarker()));
     }
     m_oldCursorPosition = -1;
 
-    if (m_modelManager) {
-        connect(m_modelManager, SIGNAL(documentUpdated(QmlJS::Document::Ptr)),
-                this, SLOT(onDocumentUpdated(QmlJS::Document::Ptr)));
-        connect(m_modelManager, SIGNAL(libraryInfoUpdated(QString,QmlJS::LibraryInfo)),
-                this, SLOT(updateSemanticInfo()));
-        connect(this->document(), SIGNAL(modificationChanged(bool)), this, SLOT(modificationChanged(bool)));
-    }
+    connect(this->document(), SIGNAL(modificationChanged(bool)), this, SLOT(modificationChanged(bool)));
 
-    connect(m_semanticInfoUpdater, SIGNAL(updated(QmlJSTools::SemanticInfo)),
-            this, SLOT(acceptNewSemanticInfo(QmlJSTools::SemanticInfo)));
+    connect(m_qmlJsEditorDocument, SIGNAL(updateCodeWarnings(QmlJS::Document::Ptr)),
+            this, SLOT(updateCodeWarnings(QmlJS::Document::Ptr)));
+    connect(m_qmlJsEditorDocument, SIGNAL(semanticInfoUpdated(QmlJSTools::SemanticInfo)),
+            this, SLOT(semanticInfoUpdated(QmlJSTools::SemanticInfo)));
 
     connect(this, SIGNAL(refactorMarkerClicked(TextEditor::RefactorMarker)),
             SLOT(onRefactorMarkerClicked(TextEditor::RefactorMarker)));
@@ -533,40 +166,6 @@ QmlJSTextEditorWidget::QmlJSTextEditorWidget(QWidget *parent) :
 
 QmlJSTextEditorWidget::~QmlJSTextEditorWidget()
 {
-    m_semanticInfoUpdater->abort();
-    m_semanticInfoUpdater->wait();
-}
-
-SemanticInfo QmlJSTextEditorWidget::semanticInfo() const
-{
-    return m_semanticInfo;
-}
-
-int QmlJSTextEditorWidget::editorRevision() const
-{
-    return document()->revision();
-}
-
-QVector<QTextLayout::FormatRange> QmlJSTextEditorWidget::diagnosticRanges() const
-{
-    // this exist mainly because getting the tooltip from the additional formats
-    // requires the use of private api (you have to extract it from
-    // cursor.block().layout()->specialInfo.addFormatIndex (for the .format through .formats.at()),
-    // and use .addFormat to get the range). So a separate bookkeeping is used.
-    return m_diagnosticRanges;
-}
-
-bool QmlJSTextEditorWidget::isSemanticInfoOutdated() const
-{
-    if (m_semanticInfo.revision() != editorRevision())
-        return true;
-
-    return false;
-}
-
-QmlOutlineModel *QmlJSTextEditorWidget::outlineModel() const
-{
-    return m_outlineModel;
 }
 
 QModelIndex QmlJSTextEditorWidget::outlineModelIndex()
@@ -578,37 +177,19 @@ QModelIndex QmlJSTextEditorWidget::outlineModelIndex()
     return m_outlineModelIndex;
 }
 
-Core::IEditor *QmlJSEditor::duplicate(QWidget *parent)
+IEditor *QmlJSEditor::duplicate()
 {
-    QmlJSTextEditorWidget *newEditor = new QmlJSTextEditorWidget(parent);
-    newEditor->duplicateFrom(editorWidget());
-    QmlJSEditorPlugin::instance()->initializeEditor(newEditor);
+    QmlJSTextEditorWidget *newEditor = new QmlJSTextEditorWidget(
+                qobject_cast<QmlJSTextEditorWidget *>(editorWidget()));
+    TextEditor::TextEditorSettings::initializeEditor(newEditor);
     return newEditor->editor();
-}
-
-Core::Id QmlJSEditor::id() const
-{
-    return Core::Id(Constants::C_QMLJSEDITOR_ID);
 }
 
 bool QmlJSEditor::open(QString *errorString, const QString &fileName, const QString &realFileName)
 {
     bool b = TextEditor::BaseTextEditor::open(errorString, fileName, realFileName);
-    editorWidget()->setMimeType(Core::ICore::mimeDatabase()->findByFile(QFileInfo(fileName)).type());
+    baseTextDocument()->setMimeType(MimeDatabase::findByFile(QFileInfo(fileName)).type());
     return b;
-}
-
-void QmlJSTextEditorWidget::reparseDocument()
-{
-    m_updateDocumentTimer->start();
-}
-
-void QmlJSTextEditorWidget::reparseDocumentNow()
-{
-    m_updateDocumentTimer->stop();
-
-    const QString fileName = editorDocument()->fileName();
-    m_modelManager->updateSourceFiles(QStringList() << fileName, false);
 }
 
 static void appendExtraSelectionsForMessages(
@@ -647,26 +228,9 @@ static void appendExtraSelectionsForMessages(
     }
 }
 
-void QmlJSTextEditorWidget::onDocumentUpdated(QmlJS::Document::Ptr doc)
+void QmlJSTextEditorWidget::updateCodeWarnings(QmlJS::Document::Ptr doc)
 {
-    if (editorDocument()->fileName() != doc->fileName())
-        return;
-
-    if (doc->editorRevision() != editorRevision()) {
-        // Maybe a dependency changed and our semantic info is now outdated.
-        // Ignore 0-revision documents though, we get them when a file is initially opened
-        // in an editor.
-        if (doc->editorRevision() != 0)
-            updateSemanticInfo();
-        return;
-    }
-
-    //qDebug() << doc->fileName() << "was reparsed";
-
     if (doc->ast()) {
-        // got a correctly parsed (or recovered) file.
-        m_futureSemanticInfoRevision = doc->editorRevision();
-        m_semanticInfoUpdater->update(doc, m_modelManager->snapshot());
         setExtraSelections(CodeWarningsSelection, QList<QTextEdit::ExtraSelection>());
     } else if (Document::isFullySupportedLanguage(doc->language())) {
         // show parsing errors
@@ -681,20 +245,19 @@ void QmlJSTextEditorWidget::onDocumentUpdated(QmlJS::Document::Ptr doc)
 void QmlJSTextEditorWidget::modificationChanged(bool changed)
 {
     if (!changed && m_modelManager)
-        m_modelManager->fileChangedOnDisk(editorDocument()->fileName());
+        m_modelManager->fileChangedOnDisk(baseTextDocument()->filePath());
 }
 
 void QmlJSTextEditorWidget::jumpToOutlineElement(int /*index*/)
 {
     QModelIndex index = m_outlineCombo->view()->currentIndex();
-    AST::SourceLocation location = m_outlineModel->sourceLocation(index);
+    AST::SourceLocation location = m_qmlJsEditorDocument->outlineModel()->sourceLocation(index);
 
     if (!location.isValid())
         return;
 
-    Core::EditorManager *editorManager = Core::EditorManager::instance();
-    editorManager->cutForwardNavigationHistory();
-    editorManager->addCurrentPositionToNavigationHistory();
+    EditorManager::cutForwardNavigationHistory();
+    EditorManager::addCurrentPositionToNavigationHistory();
 
     QTextCursor cursor = textCursor();
     cursor.setPosition(location.offset);
@@ -703,33 +266,12 @@ void QmlJSTextEditorWidget::jumpToOutlineElement(int /*index*/)
     setFocus();
 }
 
-void QmlJSTextEditorWidget::updateOutlineNow()
-{
-    if (!m_semanticInfo.document)
-        return;
-
-    if (m_semanticInfo.document->editorRevision() != editorRevision()) {
-        m_updateOutlineTimer->start();
-        return;
-    }
-
-    m_outlineModel->update(m_semanticInfo);
-
-    QTreeView *treeView = static_cast<QTreeView*>(m_outlineCombo->view());
-    treeView->expandAll();
-
-    updateOutlineIndexNow();
-}
-
 void QmlJSTextEditorWidget::updateOutlineIndexNow()
 {
-    if (m_updateOutlineTimer->isActive())
-        return; // updateOutlineNow will call this function soon anyway
-
-    if (!m_outlineModel->document())
+    if (!m_qmlJsEditorDocument->outlineModel()->document())
         return;
 
-    if (m_outlineModel->document()->editorRevision() != editorRevision()) {
+    if (m_qmlJsEditorDocument->outlineModel()->document()->editorRevision() != document()->revision()) {
         m_updateOutlineIndexTimer->start();
         return;
     }
@@ -748,13 +290,14 @@ void QmlJSTextEditorWidget::updateOutlineIndexNow()
         m_outlineCombo->blockSignals(blocked);
     }
 }
-
+} // namespace Internal
 } // namespace QmlJSEditor
 
 class QtQuickToolbarMarker {};
 Q_DECLARE_METATYPE(QtQuickToolbarMarker)
 
 namespace QmlJSEditor {
+namespace Internal {
 
 template <class T>
 static QList<TextEditor::RefactorMarker> removeMarkersOfType(const QList<TextEditor::RefactorMarker> &markers)
@@ -767,17 +310,18 @@ static QList<TextEditor::RefactorMarker> removeMarkersOfType(const QList<TextEdi
     return result;
 }
 
-void QmlJSTextEditorWidget::updateCursorPositionNow()
+void QmlJSTextEditorWidget::updateContextPane()
 {
-    if (m_contextPane && document() && semanticInfo().isValid()
-            && document()->revision() == semanticInfo().document->editorRevision())
+    const SemanticInfo info = m_qmlJsEditorDocument->semanticInfo();
+    if (m_contextPane && document() && info.isValid()
+            && document()->revision() == info.document->editorRevision())
     {
-        Node *oldNode = m_semanticInfo.declaringMemberNoProperties(m_oldCursorPosition);
-        Node *newNode = m_semanticInfo.declaringMemberNoProperties(position());
+        Node *oldNode = info.declaringMemberNoProperties(m_oldCursorPosition);
+        Node *newNode = info.declaringMemberNoProperties(position());
         if (oldNode != newNode && m_oldCursorPosition != -1)
-            m_contextPane->apply(editor(), semanticInfo().document, 0, newNode, false);
+            m_contextPane->apply(editor(), info.document, 0, newNode, false);
 
-        if (m_contextPane->isAvailable(editor(), semanticInfo().document, newNode) &&
+        if (m_contextPane->isAvailable(editor(), info.document, newNode) &&
             !m_contextPane->widget()->isVisible()) {
             QList<TextEditor::RefactorMarker> markers = removeMarkersOfType<QtQuickToolbarMarker>(refactorMarkers());
             if (UiObjectMember *m = newNode->uiObjectMemberCast()) {
@@ -810,33 +354,22 @@ void QmlJSTextEditorWidget::updateCursorPositionNow()
 void QmlJSTextEditorWidget::showTextMarker()
 {
     m_oldCursorPosition = -1;
-    updateCursorPositionNow();
+    updateContextPane();
 }
 
 void QmlJSTextEditorWidget::updateUses()
 {
-    if (m_semanticHighlighter->startRevision() != editorRevision())
-        m_semanticHighlighter->cancel();
-    m_updateUsesTimer->start();
-}
-
-
-void QmlJSTextEditorWidget::updateUsesNow()
-{
-    if (isSemanticInfoOutdated()) {
-        updateUses();
+    if (m_qmlJsEditorDocument->isSemanticInfoOutdated()) // will be updated when info is updated
         return;
-    }
-
-    m_updateUsesTimer->stop();
 
     QList<QTextEdit::ExtraSelection> selections;
-    foreach (const AST::SourceLocation &loc, m_semanticInfo.idLocations.value(wordUnderCursor())) {
+    foreach (const AST::SourceLocation &loc,
+             m_qmlJsEditorDocument->semanticInfo().idLocations.value(wordUnderCursor())) {
         if (! loc.isValid())
             continue;
 
         QTextEdit::ExtraSelection sel;
-        sel.format = m_occurrencesFormat;
+        sel.format = baseTextDocument()->fontSettings().toTextCharFormat(TextEditor::C_OCCURRENCES);
         sel.cursor = textCursor();
         sel.cursor.setPosition(loc.begin());
         sel.cursor.setPosition(loc.end(), QTextCursor::KeepAnchor);
@@ -958,10 +491,10 @@ void QmlJSTextEditorWidget::setSelectedElements()
         endPos = textCursor().position();
     }
 
-    if (m_semanticInfo.isValid()) {
+    if (m_qmlJsEditorDocument->semanticInfo().isValid()) {
         SelectedElement selectedMembers;
-        QList<UiObjectMember *> members = selectedMembers(m_semanticInfo.document,
-                                                          startPos, endPos);
+        QList<UiObjectMember *> members
+                = selectedMembers(m_qmlJsEditorDocument->semanticInfo().document, startPos, endPos);
         if (!members.isEmpty()) {
             foreach (UiObjectMember *m, members) {
                 offsets << m;
@@ -973,33 +506,11 @@ void QmlJSTextEditorWidget::setSelectedElements()
     emit selectedElementsChanged(offsets, wordAtCursor);
 }
 
-void QmlJSTextEditorWidget::updateFileName()
+void QmlJSTextEditorWidget::applyFontSettings()
 {
-}
-
-void QmlJSTextEditorWidget::setFontSettings(const TextEditor::FontSettings &fs)
-{
-    TextEditor::BaseTextEditorWidget::setFontSettings(fs);
-    Highlighter *highlighter = qobject_cast<Highlighter*>(baseTextDocument()->syntaxHighlighter());
-    if (!highlighter)
-        return;
-
-    highlighter->setFormats(fs.toTextCharFormats(highlighterFormatCategories()));
-    highlighter->rehighlight();
-
-    m_occurrencesFormat = fs.toTextCharFormat(TextEditor::C_OCCURRENCES);
-    m_occurrencesUnusedFormat = fs.toTextCharFormat(TextEditor::C_OCCURRENCES_UNUSED);
-    m_occurrencesUnusedFormat.setUnderlineStyle(QTextCharFormat::WaveUnderline);
-    m_occurrencesUnusedFormat.setUnderlineColor(m_occurrencesUnusedFormat.foreground().color());
-    m_occurrencesUnusedFormat.clearForeground();
-    m_occurrencesUnusedFormat.setToolTip(tr("Unused variable"));
-    m_occurrenceRenameFormat = fs.toTextCharFormat(TextEditor::C_OCCURRENCES_RENAME);
-
-    // only set the background, we do not want to modify foreground properties set by the syntax highlighter or the link
-    m_occurrencesFormat.clearForeground();
-    m_occurrenceRenameFormat.clearForeground();
-
-    m_semanticHighlighter->updateFontSettings(fs);
+    TextEditor::BaseTextEditorWidget::applyFontSettings();
+    if (!m_qmlJsEditorDocument->isSemanticInfoOutdated())
+        updateUses();
 }
 
 
@@ -1039,7 +550,7 @@ void QmlJSTextEditorWidget::createToolBar(QmlJSEditor *editor)
 {
     m_outlineCombo = new QComboBox;
     m_outlineCombo->setMinimumContentsLength(22);
-    m_outlineCombo->setModel(m_outlineModel);
+    m_outlineCombo->setModel(m_qmlJsEditorDocument->outlineModel());
 
     QTreeView *treeView = new QTreeView;
 
@@ -1062,16 +573,21 @@ void QmlJSTextEditorWidget::createToolBar(QmlJSEditor *editor)
     m_outlineCombo->setSizePolicy(policy);
 
     connect(m_outlineCombo, SIGNAL(activated(int)), this, SLOT(jumpToOutlineElement(int)));
-    connect(this, SIGNAL(cursorPositionChanged()), m_updateOutlineIndexTimer, SLOT(start()));
+    connect(m_qmlJsEditorDocument->outlineModel(), SIGNAL(updated()),
+            m_outlineCombo->view()/*QTreeView*/, SLOT(expandAll()));
+    connect(m_qmlJsEditorDocument->outlineModel(), SIGNAL(updated()),
+            this, SLOT(updateOutlineIndexNow()));
 
-    connect(editorDocument(), SIGNAL(changed()), this, SLOT(updateFileName()));
+    connect(this, SIGNAL(cursorPositionChanged()), m_updateOutlineIndexTimer, SLOT(start()));
 
     editor->insertExtraToolBarWidget(TextEditor::BaseTextEditor::Left, m_outlineCombo);
 }
 
-TextEditor::BaseTextEditorWidget::Link QmlJSTextEditorWidget::findLinkAt(const QTextCursor &cursor, bool /*resolveTarget*/)
+TextEditor::BaseTextEditorWidget::Link QmlJSTextEditorWidget::findLinkAt(const QTextCursor &cursor,
+                                                                         bool /*resolveTarget*/,
+                                                                         bool /*inNextSplit*/)
 {
-    const SemanticInfo semanticInfo = m_semanticInfo;
+    const SemanticInfo semanticInfo = m_qmlJsEditorDocument->semanticInfo();
     if (! semanticInfo.isValid())
         return Link();
 
@@ -1083,7 +599,7 @@ TextEditor::BaseTextEditorWidget::Link QmlJSTextEditorWidget::findLinkAt(const Q
     if (AST::UiImport *importAst = cast<AST::UiImport *>(node)) {
         // if it's a file import, link to the file
         foreach (const ImportInfo &import, semanticInfo.document->bind()->imports()) {
-            if (import.ast() == importAst && import.type() == ImportInfo::FileImport) {
+            if (import.ast() == importAst && import.type() == ImportType::File) {
                 BaseTextEditorWidget::Link link(import.path());
                 link.linkTextStart = importAst->firstSourceLocation().begin();
                 link.linkTextEnd = importAst->lastSourceLocation().end();
@@ -1152,20 +668,21 @@ TextEditor::BaseTextEditorWidget::Link QmlJSTextEditorWidget::findLinkAt(const Q
 
 void QmlJSTextEditorWidget::findUsages()
 {
-    m_findReferences->findUsages(editorDocument()->fileName(), textCursor().position());
+    m_findReferences->findUsages(baseTextDocument()->filePath(), textCursor().position());
 }
 
 void QmlJSTextEditorWidget::renameUsages()
 {
-    m_findReferences->renameUsages(editorDocument()->fileName(), textCursor().position());
+    m_findReferences->renameUsages(baseTextDocument()->filePath(), textCursor().position());
 }
 
 void QmlJSTextEditorWidget::showContextPane()
 {
-    if (m_contextPane && m_semanticInfo.isValid()) {
-        Node *newNode = m_semanticInfo.declaringMemberNoProperties(position());
-        ScopeChain scopeChain = m_semanticInfo.scopeChain(m_semanticInfo.rangePath(position()));
-        m_contextPane->apply(editor(), m_semanticInfo.document,
+    const SemanticInfo info = m_qmlJsEditorDocument->semanticInfo();
+    if (m_contextPane && info.isValid()) {
+        Node *newNode = info.declaringMemberNoProperties(position());
+        ScopeChain scopeChain = info.scopeChain(info.rangePath(position()));
+        m_contextPane->apply(editor(), info.document,
                              &scopeChain,
                              newNode, false, true);
         m_oldCursorPosition = position();
@@ -1187,7 +704,7 @@ void QmlJSTextEditorWidget::contextMenuEvent(QContextMenuEvent *e)
 
     QSignalMapper mapper;
     connect(&mapper, SIGNAL(mapped(int)), this, SLOT(performQuickFix(int)));
-    if (! isSemanticInfoOutdated()) {
+    if (!m_qmlJsEditorDocument->isSemanticInfoOutdated()) {
         TextEditor::IAssistInterface *interface =
                 createAssistInterface(TextEditor::QuickFix, TextEditor::ExplicitlyInvoked);
         if (interface) {
@@ -1214,14 +731,16 @@ void QmlJSTextEditorWidget::contextMenuEvent(QContextMenuEvent *e)
 
     refactoringMenu->setEnabled(!refactoringMenu->isEmpty());
 
-    if (Core::ActionContainer *mcontext = Core::ActionManager::actionContainer(Constants::M_CONTEXT)) {
+    if (ActionContainer *mcontext = ActionManager::actionContainer(Constants::M_CONTEXT)) {
         QMenu *contextMenu = mcontext->menu();
         foreach (QAction *action, contextMenu->actions()) {
             menu->addAction(action);
             if (action->objectName() == QLatin1String(Constants::M_REFACTORING_MENU_INSERTION_POINT))
                 menu->addMenu(refactoringMenu);
             if (action->objectName() == QLatin1String(Constants::SHOW_QT_QUICK_HELPER)) {
-                bool enabled = m_contextPane->isAvailable(editor(), semanticInfo().document, m_semanticInfo.declaringMemberNoProperties(position()));
+                bool enabled = m_contextPane->isAvailable(
+                            editor(), m_qmlJsEditorDocument->semanticInfo().document,
+                            m_qmlJsEditorDocument->semanticInfo().declaringMemberNoProperties(position()));
                 action->setEnabled(enabled);
             }
         }
@@ -1264,7 +783,9 @@ void QmlJSTextEditorWidget::wheelEvent(QWheelEvent *event)
     BaseTextEditorWidget::wheelEvent(event);
 
     if (visible)
-        m_contextPane->apply(editor(), semanticInfo().document, 0, m_semanticInfo.declaringMemberNoProperties(m_oldCursorPosition), false, true);
+        m_contextPane->apply(editor(), m_qmlJsEditorDocument->semanticInfo().document, 0,
+                             m_qmlJsEditorDocument->semanticInfo().declaringMemberNoProperties(m_oldCursorPosition),
+                             false, true);
 }
 
 void QmlJSTextEditorWidget::resizeEvent(QResizeEvent *event)
@@ -1284,75 +805,27 @@ void QmlJSTextEditorWidget::unCommentSelection()
     Utils::unCommentSelection(this);
 }
 
-void QmlJSTextEditorWidget::setTabSettings(const TextEditor::TabSettings &ts)
+QmlJSEditorDocument *QmlJSTextEditorWidget::qmlJsEditorDocument() const
 {
-    QmlJSTools::CreatorCodeFormatter formatter(ts);
-    formatter.invalidateCache(document());
-
-    TextEditor::BaseTextEditorWidget::setTabSettings(ts);
+    return m_qmlJsEditorDocument;
 }
 
-void QmlJSTextEditorWidget::updateSemanticInfo()
+void QmlJSTextEditorWidget::semanticInfoUpdated(const SemanticInfo &semanticInfo)
 {
-    // If the editor is newer than the future semantic info, new semantic infos
-    // won't be accepted anyway. What we need is a reparse.
-    if (editorRevision() != m_futureSemanticInfoRevision)
-        return;
-
-    // Save time by not doing it for non-active editors.
-    if (Core::EditorManager::currentEditor() != editor())
-        return;
-
-    m_updateSemanticInfoTimer->start();
-}
-
-void QmlJSTextEditorWidget::updateSemanticInfoNow()
-{
-    // If the editor is newer than the future semantic info, new semantic infos
-    // won't be accepted anyway. What we need is a reparse.
-    if (editorRevision() != m_futureSemanticInfoRevision)
-        return;
-
-    m_updateSemanticInfoTimer->stop();
-
-    m_semanticInfoUpdater->reupdate(m_modelManager->snapshot());
-}
-
-void QmlJSTextEditorWidget::acceptNewSemanticInfo(const SemanticInfo &semanticInfo)
-{
-    if (semanticInfo.revision() != editorRevision()) {
-        // ignore outdated semantic infos
-        return;
+    if (isVisible()) {
+         // trigger semantic highlighting and model update if necessary
+        baseTextDocument()->triggerPendingUpdates();
     }
 
-    //qDebug() << file()->fileName() << "got new semantic info";
-
-    m_semanticInfo = semanticInfo;
-    Document::Ptr doc = semanticInfo.document;
-
-    // create the ranges
-    CreateRanges createRanges;
-    m_semanticInfo.ranges = createRanges(document(), doc);
-
-    // Refresh the ids
-    FindIdDeclarations updateIds;
-    m_semanticInfo.idLocations = updateIds(doc);
-
     if (m_contextPane) {
-        Node *newNode = m_semanticInfo.declaringMemberNoProperties(position());
+        Node *newNode = semanticInfo.declaringMemberNoProperties(position());
         if (newNode) {
             m_contextPane->apply(editor(), semanticInfo.document, 0, newNode, true);
-            m_cursorPositionTimer->start(); //update text marker
+            m_contextPaneTimer->start(); //update text marker
         }
     }
 
-    // update outline
-    m_updateOutlineTimer->start();
-
-    if (Core::EditorManager::currentEditor() == editor())
-        m_semanticHighlighter->rerun(m_semanticInfo);
-
-    emit semanticInfoUpdated();
+    updateUses();
 }
 
 void QmlJSTextEditorWidget::onRefactorMarkerClicked(const TextEditor::RefactorMarker &marker)
@@ -1361,20 +834,15 @@ void QmlJSTextEditorWidget::onRefactorMarkerClicked(const TextEditor::RefactorMa
         showContextPane();
 }
 
-void QmlJSTextEditorWidget::onCursorPositionChanged()
-{
-    m_cursorPositionTimer->start();
-}
-
 QModelIndex QmlJSTextEditorWidget::indexForPosition(unsigned cursorPosition, const QModelIndex &rootIndex) const
 {
     QModelIndex lastIndex = rootIndex;
 
-
-    const int rowCount = m_outlineModel->rowCount(rootIndex);
+    QmlOutlineModel *model = m_qmlJsEditorDocument->outlineModel();
+    const int rowCount = model->rowCount(rootIndex);
     for (int i = 0; i < rowCount; ++i) {
-        QModelIndex childIndex = m_outlineModel->index(i, 0, rootIndex);
-        AST::SourceLocation location = m_outlineModel->sourceLocation(childIndex);
+        QModelIndex childIndex = model->index(i, 0, rootIndex);
+        AST::SourceLocation location = model->sourceLocation(childIndex);
 
         if ((cursorPosition >= location.offset)
               && (cursorPosition <= location.offset + location.length)) {
@@ -1394,32 +862,8 @@ bool QmlJSTextEditorWidget::hideContextPane()
 {
     bool b = (m_contextPane) && m_contextPane->widget()->isVisible();
     if (b)
-        m_contextPane->apply(editor(), semanticInfo().document, 0, 0, false);
+        m_contextPane->apply(editor(), m_qmlJsEditorDocument->semanticInfo().document, 0, 0, false);
     return b;
-}
-
-QVector<TextEditor::TextStyle> QmlJSTextEditorWidget::highlighterFormatCategories()
-{
-    /*
-        NumberFormat,
-        StringFormat,
-        TypeFormat,
-        KeywordFormat,
-        LabelFormat,
-        CommentFormat,
-        VisualWhitespace,
-     */
-    static QVector<TextEditor::TextStyle> categories;
-    if (categories.isEmpty()) {
-        categories << TextEditor::C_NUMBER
-                << TextEditor::C_STRING
-                << TextEditor::C_TYPE
-                << TextEditor::C_KEYWORD
-                << TextEditor::C_FIELD
-                << TextEditor::C_COMMENT
-                << TextEditor::C_VISUAL_WHITESPACE;
-    }
-    return categories;
 }
 
 TextEditor::IAssistInterface *QmlJSTextEditorWidget::createAssistInterface(
@@ -1429,9 +873,9 @@ TextEditor::IAssistInterface *QmlJSTextEditorWidget::createAssistInterface(
     if (assistKind == TextEditor::Completion) {
         return new QmlJSCompletionAssistInterface(document(),
                                                   position(),
-                                                  editor()->document()->fileName(),
+                                                  editor()->document()->filePath(),
                                                   reason,
-                                                  m_semanticInfo);
+                                                  m_qmlJsEditorDocument->semanticInfo());
     } else if (assistKind == TextEditor::QuickFix) {
         return new QmlJSQuickFixAssistInterface(const_cast<QmlJSTextEditorWidget *>(this), reason);
     }
@@ -1442,9 +886,9 @@ QString QmlJSTextEditorWidget::foldReplacementText(const QTextBlock &block) cons
 {
     const int curlyIndex = block.text().indexOf(QLatin1Char('{'));
 
-    if (curlyIndex != -1 && m_semanticInfo.isValid()) {
+    if (curlyIndex != -1 && m_qmlJsEditorDocument->semanticInfo().isValid()) {
         const int pos = block.position() + curlyIndex;
-        Node *node = m_semanticInfo.rangeAt(pos);
+        Node *node = m_qmlJsEditorDocument->semanticInfo().rangeAt(pos);
 
         const QString objectId = idOfObject(node);
         if (!objectId.isEmpty())
@@ -1454,4 +898,5 @@ QString QmlJSTextEditorWidget::foldReplacementText(const QTextBlock &block) cons
     return TextEditor::BaseTextEditorWidget::foldReplacementText(block);
 }
 
+} // namespace Internal
 } // namespace QmlJSEditor

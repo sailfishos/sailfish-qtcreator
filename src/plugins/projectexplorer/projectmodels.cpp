@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -40,9 +40,9 @@
 
 #include <QFont>
 
-using namespace ProjectExplorer;
-using namespace ProjectExplorer::Internal;
-using Core::FileIconProvider;
+namespace ProjectExplorer {
+
+using namespace Internal;
 
 namespace {
 
@@ -136,13 +136,17 @@ bool sortNodes(Node *n1, Node *n2)
 
     // must be file nodes
     {
+        int result = caseFriendlyCompare(n1->displayName(), n2->displayName());
+        if (result != 0)
+            return result < 0;
+
         const QString filePath1 = n1->path();
         const QString filePath2 = n2->path();
 
         const QString fileName1 = QFileInfo(filePath1).fileName();
         const QString fileName2 = QFileInfo(filePath2).fileName();
 
-        int result = caseFriendlyCompare(fileName1, fileName2);
+        result = caseFriendlyCompare(fileName1, fileName2);
         if (result != 0) {
             return result < 0; // sort by filename
         } else {
@@ -171,11 +175,11 @@ FlatModel::FlatModel(SessionNode *rootNode, QObject *parent)
     NodesWatcher *watcher = new NodesWatcher(this);
     m_rootNode->registerWatcher(watcher);
 
-    connect(watcher, SIGNAL(aboutToChangeHasBuildTargets(ProjectExplorer::ProjectNode*)),
-            this, SLOT(aboutToHasBuildTargetsChanged(ProjectExplorer::ProjectNode*)));
+    connect(watcher, SIGNAL(aboutToChangeShowInSimpleTree(ProjectExplorer::FolderNode*)),
+            this, SLOT(aboutToShowInSimpleTreeChanged(ProjectExplorer::FolderNode*)));
 
-    connect(watcher, SIGNAL(hasBuildTargetsChanged(ProjectExplorer::ProjectNode*)),
-            this, SLOT(hasBuildTargetsChanged(ProjectExplorer::ProjectNode*)));
+    connect(watcher, SIGNAL(showInSimpleTreeChanged(ProjectExplorer::FolderNode*)),
+            this, SLOT(showInSimpleTreeChanged(ProjectExplorer::FolderNode*)));
 
     connect(watcher, SIGNAL(foldersAboutToBeAdded(FolderNode*,QList<FolderNode*>)),
             this, SLOT(foldersAboutToBeAdded(FolderNode*,QList<FolderNode*>)));
@@ -266,19 +270,20 @@ QVariant FlatModel::data(const QModelIndex &index, int role) const
         case Qt::DisplayRole: {
             QString name = node->displayName();
 
-            if (node->parentFolderNode()
+            if (node->nodeType() == ProjectNodeType
+                    && node->parentFolderNode()
                     && node->parentFolderNode()->nodeType() == SessionNodeType) {
-                const QString vcsTopic = node->vcsTopic();
+                const QString vcsTopic = static_cast<ProjectNode *>(node)->vcsTopic();
 
                 if (!vcsTopic.isEmpty())
-                    name += QLatin1String(" (") + vcsTopic + QLatin1Char(')');
+                    name += QLatin1String(" [") + vcsTopic + QLatin1Char(']');
             }
 
             result = name;
             break;
         }
         case Qt::EditRole: {
-            result = node->displayName();
+            result = QFileInfo(node->path()).fileName();
             break;
         }
         case Qt::ToolTipRole: {
@@ -289,7 +294,7 @@ QVariant FlatModel::data(const QModelIndex &index, int role) const
             if (folderNode)
                 result = folderNode->icon();
             else
-                result = FileIconProvider::instance()->icon(QFileInfo(node->path()));
+                result = Core::FileIconProvider::icon(node->path());
             break;
         }
         case Qt::FontRole: {
@@ -326,7 +331,7 @@ Qt::ItemFlags FlatModel::flags(const QModelIndex &index) const
             return 0; // no flags for session node...
         if (!qobject_cast<ProjectNode *>(node)) {
             // either folder or file node
-            if (node->projectNode()->supportedActions(node).contains(ProjectNode::Rename))
+            if (node->supportedActions(node).contains(ProjectExplorer::Rename))
                 f = f | Qt::ItemIsEditable;
         }
     }
@@ -561,14 +566,9 @@ FolderNode *FlatModel::visibleFolderNode(FolderNode *node) const
 bool FlatModel::filter(Node *node) const
 {
     bool isHidden = false;
-    if (node->nodeType() == SessionNodeType) {
-        isHidden = false;
-    } else if (ProjectNode *projectNode = qobject_cast<ProjectNode*>(node)) {
-        if (m_filterProjects && projectNode->parentFolderNode() != m_rootNode)
-            isHidden = !projectNode->hasBuildTargets();
-    } else if (node->nodeType() == FolderNodeType || node->nodeType() == VirtualFolderNodeType) {
+    if (FolderNode *folderNode = qobject_cast<FolderNode*>(node)) {
         if (m_filterProjects)
-            isHidden = true;
+            isHidden = !folderNode->showInSimpleTree();
     } else if (FileNode *fileNode = qobject_cast<FileNode*>(node)) {
         if (m_filterGeneratedFiles)
             isHidden = fileNode->isGenerated();
@@ -757,7 +757,7 @@ void FlatModel::removed(FolderNode* parentNode, const QList<Node*> &newNodeList)
     }
 }
 
-void FlatModel::aboutToHasBuildTargetsChanged(ProjectExplorer::ProjectNode* node)
+void FlatModel::aboutToShowInSimpleTreeChanged(ProjectExplorer::FolderNode* node)
 {
     if (!m_filterProjects)
         return;
@@ -772,7 +772,7 @@ void FlatModel::aboutToHasBuildTargetsChanged(ProjectExplorer::ProjectNode* node
             m_childNodes.remove(fn);
 }
 
-void FlatModel::hasBuildTargetsChanged(ProjectExplorer::ProjectNode *node)
+void FlatModel::showInSimpleTreeChanged(ProjectExplorer::FolderNode *node)
 {
     if (!m_filterProjects)
         return;
@@ -822,6 +822,9 @@ void FlatModel::removeFromCache(QList<FolderNode *> list)
 
 void FlatModel::changedSortKey(FolderNode *folderNode, Node *node)
 {
+    if (!m_childNodes.contains(folderNode))
+        return; // The directory was not yet mapped, so there is no need to sort it.
+
     QList<Node *> nodes = m_childNodes.value(folderNode);
     int oldIndex = nodes.indexOf(node);
 
@@ -899,7 +902,6 @@ void FlatModel::nodeUpdated(Node *node)
     emit dataChanged(idx, idx);
 }
 
-namespace ProjectExplorer {
 namespace Internal {
 
 int caseFriendlyCompare(const QString &a, const QString &b)
@@ -911,5 +913,6 @@ int caseFriendlyCompare(const QString &a, const QString &b)
 }
 
 }
-}
+
+} // namespace ProjectExplorer
 

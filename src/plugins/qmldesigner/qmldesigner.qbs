@@ -1,6 +1,6 @@
-import qbs.base 1.0
+import qbs 1.0
 
-import "../QtcPlugin.qbs" as QtcPlugin
+import QtcPlugin
 
 QtcPlugin {
     name: "QmlDesigner"
@@ -13,7 +13,7 @@ QtcPlugin {
     Depends { name: "QmlEditorWidgets" }
     Depends { name: "TextEditor" }
     Depends { name: "QmlJSEditor" }
-    Depends { name: "Qt4ProjectManager" }
+    Depends { name: "QmakeProjectManager" }
     Depends { name: "QmlProjectManager" }
     Depends { name: "ProjectExplorer" }
     Depends { name: "LanguageUtils" }

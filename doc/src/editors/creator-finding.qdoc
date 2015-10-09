@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (c) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (c) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator
@@ -23,8 +23,8 @@
 // **********************************************************************
 
 /*!
-    \contentspage index.html
-    \previouspage creator-diff-editor.html
+    \contentspage {Qt Creator Manual}
+    \previouspage creator-clang-codemodel.html
     \page creator-finding-overview.html
     \nextpage creator-editor-finding.html
 
@@ -45,7 +45,7 @@
         \li \l{Searching with the Locator}
 
             The locator provides one of the easiest ways in \QC to browse
-            through projects, files, classes, methods, documentation and
+            through projects, files, classes, functions, documentation and
             file systems.
 
     \endlist

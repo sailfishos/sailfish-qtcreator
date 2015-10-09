@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -42,7 +42,7 @@
 #include <QQueue>
 
 using namespace CppEditor;
-using namespace Internal;
+using namespace CppEditor::Internal;
 using namespace CPlusPlus;
 
 namespace {
@@ -85,7 +85,7 @@ void CppElementEvaluator::execute()
         return;
 
     const Snapshot &snapshot = m_modelManager->snapshot();
-    Document::Ptr doc = snapshot.document(m_editor->editorDocument()->fileName());
+    Document::Ptr doc = snapshot.document(m_editor->baseTextDocument()->filePath());
     if (!doc)
         return;
 
@@ -113,7 +113,7 @@ void CppElementEvaluator::execute()
             return;
 
         const LookupItem &lookupItem = lookupItems.first(); // ### TODO: select best candidate.
-        handleLookupItemMatch(snapshot, lookupItem, typeOfExpression.context());
+        handleLookupItemMatch(snapshot, lookupItem, typeOfExpression.context(), scope);
     }
 }
 
@@ -130,7 +130,7 @@ void CppElementEvaluator::checkDiagnosticMessage(int pos)
 
 bool CppElementEvaluator::matchIncludeFile(const CPlusPlus::Document::Ptr &document, unsigned line)
 {
-    foreach (const Document::Include &includeFile, document->includes()) {
+    foreach (const Document::Include &includeFile, document->resolvedIncludes()) {
         if (includeFile.line() == line) {
             m_element = QSharedPointer<CppElement>(new CppInclude(includeFile));
             return true;
@@ -155,11 +155,17 @@ bool CppElementEvaluator::matchMacroInUse(const CPlusPlus::Document::Ptr &docume
 
 void CppElementEvaluator::handleLookupItemMatch(const Snapshot &snapshot,
                                                 const LookupItem &lookupItem,
-                                                const LookupContext &context)
+                                                const LookupContext &context,
+                                                const Scope *scope)
 {
     Symbol *declaration = lookupItem.declaration();
     if (!declaration) {
         const QString &type = Overview().prettyType(lookupItem.type(), QString());
+        //  special case for bug QTCREATORBUG-4780
+        if (scope && scope->isFunction()
+                && lookupItem.type().isEqualTo(scope->asFunction()->returnType())) {
+            return;
+        }
         m_element = QSharedPointer<CppElement>(new Unknown(type));
     } else {
         const FullySpecifiedType &type = declaration->type();
@@ -170,14 +176,21 @@ void CppElementEvaluator::handleLookupItemMatch(const Snapshot &snapshot,
                    || (declaration->isTemplate() && declaration->asTemplate()->declaration()
                        && (declaration->asTemplate()->declaration()->isClass()
                            || declaration->asTemplate()->declaration()->isForwardClassDeclaration()))) {
+            LookupContext contextToUse = context;
             if (declaration->isForwardClassDeclaration())
                 if (Symbol *classDeclaration =
                         m_symbolFinder.findMatchingClassDeclaration(declaration, snapshot)) {
                     declaration = classDeclaration;
+                    const QString fileName = QString::fromUtf8(declaration->fileName(),
+                                                               declaration->fileNameLength());
+                    const Document::Ptr declarationDocument = snapshot.document(fileName);
+                    if (declarationDocument != context.thisDocument())
+                        contextToUse = LookupContext(declarationDocument, snapshot);
                 }
+
             CppClass *cppClass = new CppClass(declaration);
             if (m_lookupBaseClasses)
-                cppClass->lookupBases(declaration, context);
+                cppClass->lookupBases(declaration, contextToUse);
             if (m_lookupDerivedClasses)
                 cppClass->lookupDerived(declaration, snapshot);
             m_element = QSharedPointer<CppElement>(cppClass);
@@ -266,10 +279,11 @@ CppMacro::CppMacro(const Macro &macro)
 
 // CppDeclarableElement
 
-CppDeclarableElement::CppDeclarableElement(Symbol *declaration) : CppElement()
+CppDeclarableElement::CppDeclarableElement(Symbol *declaration)
+    : CppElement()
+    , declaration(declaration)
+    , icon(Icons().iconForSymbol(declaration))
 {
-    icon = Icons().iconForSymbol(declaration);
-
     Overview overview;
     overview.showArgumentNames = true;
     overview.showReturnTypes = true;
@@ -301,6 +315,11 @@ CppClass::CppClass(Symbol *declaration) : CppDeclarableElement(declaration)
 {
     helpCategory = TextEditor::HelpItem::ClassOrNamespace;
     tooltip = qualifiedName;
+}
+
+bool CppClass::operator==(const CppClass &other)
+{
+    return this->declaration == other.declaration;
 }
 
 void CppClass::lookupBases(Symbol *declaration, const CPlusPlus::LookupContext &context)

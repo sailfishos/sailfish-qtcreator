@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -176,6 +176,30 @@ int ExpressionUnderCursor::startOfExpression_helper(BackwardsScanner &tk, int in
                     else if (tk[lessIndex - 1].is(T_SLOT))
                         return startOfExpression(tk, lessIndex);
                 }
+            } else if (tk[matchingBraceIndex - 1].is(T_RBRACE)) {
+                // lambda: [](){} ()
+                int leftBraceIndex = tk.startOfMatchingBrace(matchingBraceIndex);
+                if (matchingBraceIndex != leftBraceIndex) {
+                    int currentIndex = leftBraceIndex;
+                    while (currentIndex >= 0) {
+                        if (tk[currentIndex-1].is(T_RPAREN)) {
+                            int leftParenIndex = tk.startOfMatchingBrace(currentIndex);
+                            if (tk[leftParenIndex-1].is(T_THROW)) {
+                                currentIndex = leftParenIndex-1;
+                            } else if (tk[leftParenIndex-1].is(T_RBRACKET)) {
+                                int leftBracketIndex = tk.startOfMatchingBrace(leftParenIndex);
+                                if (leftBracketIndex != leftParenIndex-1)
+                                    return leftBracketIndex;
+                            }
+                        } else if (tk[currentIndex-1].is(T_RBRACKET)) {
+                            int leftBracketIndex = tk.startOfMatchingBrace(currentIndex);
+                            if (leftBracketIndex != currentIndex-1)
+                                return leftBracketIndex;
+                        } else {
+                            --currentIndex;
+                        }
+                    }
+                }
             }
             return startOfExpression(tk, matchingBraceIndex);
         }
@@ -239,19 +263,20 @@ int ExpressionUnderCursor::startOfFunctionCall(const QTextCursor &cursor) const
     forever {
         const Token &tk = scanner[index - 1];
 
-        if (tk.is(T_EOF_SYMBOL))
+        if (tk.is(T_EOF_SYMBOL)) {
             break;
-        else if (tk.is(T_LPAREN))
+        } else if (tk.is(T_LPAREN)) {
             return scanner.startPosition() + tk.begin();
-        else if (tk.is(T_RPAREN)) {
+        } else if (tk.is(T_RPAREN)) {
             int matchingBrace = scanner.startOfMatchingBrace(index);
 
             if (matchingBrace == index) // If no matching brace found
                 return -1;
 
             index = matchingBrace;
-        } else
+        } else {
             --index;
+        }
     }
 
     return -1;

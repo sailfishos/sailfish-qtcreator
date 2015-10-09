@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -74,7 +74,7 @@ using namespace ProjectExplorer;
 
     Enables or disables a BuildStep.
 
-    Disabled BuildSteps immediately return true from their run method.
+    Disabled BuildSteps immediately return true from their run function.
     Should be called from init().
 */
 
@@ -188,6 +188,14 @@ void AbstractProcessStep::run(QFutureInterface<bool> &fi)
     if (!wd.exists())
         wd.mkpath(wd.absolutePath());
 
+    QString effectiveCommand = m_param.effectiveCommand();
+    if (!QFileInfo(effectiveCommand).exists()) {
+        processStartupFailed();
+        fi.reportResult(false);
+        emit finished();
+        return;
+    }
+
     m_process = new Utils::QtcProcess();
 #ifdef Q_OS_WIN
     m_process->setUseCtrlCStub(true);
@@ -203,7 +211,7 @@ void AbstractProcessStep::run(QFutureInterface<bool> &fi)
     connect(m_process, SIGNAL(finished(int,QProcess::ExitStatus)),
             this, SLOT(slotProcessFinished(int,QProcess::ExitStatus)));
 
-    m_process->setCommand(m_param.effectiveCommand(), m_param.effectiveArguments());
+    m_process->setCommand(effectiveCommand, m_param.effectiveArguments());
     m_process->start();
     if (!m_process->waitForStarted()) {
         processStartupFailed();
@@ -300,6 +308,9 @@ void AbstractProcessStep::processStartupFailed()
 
 bool AbstractProcessStep::processSucceeded(int exitCode, QProcess::ExitStatus status)
 {
+    if (outputParser() && outputParser()->hasFatalErrors())
+        return false;
+
     return exitCode == 0 && status == QProcess::NormalExit;
 }
 

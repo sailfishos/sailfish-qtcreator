@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -42,9 +42,9 @@ using namespace Analyzer;
 using namespace Valgrind;
 using namespace Valgrind::Internal;
 
-CallgrindEngine::CallgrindEngine(IAnalyzerTool *tool, const AnalyzerStartParameters &sp,
+CallgrindRunControl::CallgrindRunControl(const AnalyzerStartParameters &sp,
          ProjectExplorer::RunConfiguration *runConfiguration)
-    : ValgrindEngine(tool, sp, runConfiguration)
+    : ValgrindRunControl(sp, runConfiguration)
     , m_markAsPaused(false)
 {
     connect(&m_runner, SIGNAL(finished()), this, SLOT(slotFinished()));
@@ -55,28 +55,27 @@ CallgrindEngine::CallgrindEngine(IAnalyzerTool *tool, const AnalyzerStartParamet
     m_progress->setProgressRange(0, 2);
 }
 
-void CallgrindEngine::showStatusMessage(const QString &msg)
+void CallgrindRunControl::showStatusMessage(const QString &msg)
 {
     AnalyzerManager::showStatusMessage(msg);
 }
 
-QStringList CallgrindEngine::toolArguments() const
+QStringList CallgrindRunControl::toolArguments() const
 {
     QStringList arguments;
 
-    ValgrindBaseSettings *callgrindSettings = m_settings->subConfig<ValgrindBaseSettings>();
-    QTC_ASSERT(callgrindSettings, return arguments);
+    QTC_ASSERT(m_settings, return arguments);
 
-    if (callgrindSettings->enableCacheSim())
+    if (m_settings->enableCacheSim())
         arguments << QLatin1String("--cache-sim=yes");
 
-    if (callgrindSettings->enableBranchSim())
+    if (m_settings->enableBranchSim())
         arguments << QLatin1String("--branch-sim=yes");
 
-    if (callgrindSettings->collectBusEvents())
+    if (m_settings->collectBusEvents())
         arguments << QLatin1String("--collect-bus=yes");
 
-    if (callgrindSettings->collectSystime())
+    if (m_settings->collectSystime())
         arguments << QLatin1String("--collect-systime=yes");
 
     if (m_markAsPaused)
@@ -89,28 +88,28 @@ QStringList CallgrindEngine::toolArguments() const
     return arguments;
 }
 
-QString CallgrindEngine::progressTitle() const
+QString CallgrindRunControl::progressTitle() const
 {
     return tr("Profiling");
 }
 
-Valgrind::ValgrindRunner * CallgrindEngine::runner()
+Valgrind::ValgrindRunner * CallgrindRunControl::runner()
 {
     return &m_runner;
 }
 
-bool CallgrindEngine::start()
+bool CallgrindRunControl::startEngine()
 {
-    emit outputReceived(tr("Profiling %1\n").arg(executable()), Utils::NormalMessageFormat);
-    return ValgrindEngine::start();
+    appendMessage(tr("Profiling %1").arg(executable()) + QLatin1Char('\n'), Utils::NormalMessageFormat);
+    return ValgrindRunControl::startEngine();
 }
 
-void CallgrindEngine::dump()
+void CallgrindRunControl::dump()
 {
     m_runner.controller()->run(Valgrind::Callgrind::CallgrindController::Dump);
 }
 
-void CallgrindEngine::setPaused(bool paused)
+void CallgrindRunControl::setPaused(bool paused)
 {
     if (m_markAsPaused == paused)
         return;
@@ -126,7 +125,7 @@ void CallgrindEngine::setPaused(bool paused)
     }
 }
 
-void CallgrindEngine::setToggleCollectFunction(const QString &toggleCollectFunction)
+void CallgrindRunControl::setToggleCollectFunction(const QString &toggleCollectFunction)
 {
     if (toggleCollectFunction.isEmpty())
         return;
@@ -134,32 +133,32 @@ void CallgrindEngine::setToggleCollectFunction(const QString &toggleCollectFunct
     m_argumentForToggleCollect = QLatin1String("--toggle-collect=") + toggleCollectFunction;
 }
 
-void CallgrindEngine::reset()
+void CallgrindRunControl::reset()
 {
     m_runner.controller()->run(Valgrind::Callgrind::CallgrindController::ResetEventCounters);
 }
 
-void CallgrindEngine::pause()
+void CallgrindRunControl::pause()
 {
     m_runner.controller()->run(Valgrind::Callgrind::CallgrindController::Pause);
 }
 
-void CallgrindEngine::unpause()
+void CallgrindRunControl::unpause()
 {
     m_runner.controller()->run(Valgrind::Callgrind::CallgrindController::UnPause);
 }
 
-Valgrind::Callgrind::ParseData *CallgrindEngine::takeParserData()
+Valgrind::Callgrind::ParseData *CallgrindRunControl::takeParserData()
 {
     return m_runner.parser()->takeData();
 }
 
-void CallgrindEngine::slotFinished()
+void CallgrindRunControl::slotFinished()
 {
     emit parserDataReady(this);
 }
 
-void CallgrindEngine::slotStarted()
+void CallgrindRunControl::slotStarted()
 {
-    m_progress->setProgressValue(1);;
+    m_progress->setProgressValue(1);
 }

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,9 +30,10 @@
 #include "checkoutwizard.h"
 #include "checkoutwizardpage.h"
 #include "subversionplugin.h"
+#include "subversionclient.h"
 
 #include <coreplugin/iversioncontrol.h>
-#include <vcsbase/checkoutjobs.h>
+#include <vcsbase/command.h>
 #include <vcsbase/vcsbaseconstants.h>
 #include <vcsbase/vcsconfigurationpage.h>
 #include <utils/qtcassert.h>
@@ -42,25 +43,12 @@
 namespace Subversion {
 namespace Internal {
 
-CheckoutWizard::CheckoutWizard(QObject *parent) :
-        VcsBase::BaseCheckoutWizard(parent)
+CheckoutWizard::CheckoutWizard()
 {
     setId(QLatin1String(VcsBase::Constants::VCS_ID_SUBVERSION));
-}
-
-QIcon CheckoutWizard::icon() const
-{
-    return QIcon(QLatin1String(":/subversion/images/subversion.png"));
-}
-
-QString CheckoutWizard::description() const
-{
-    return tr("Checks out a Subversion repository and tries to load the contained project.");
-}
-
-QString CheckoutWizard::displayName() const
-{
-    return tr("Subversion Checkout");
+    setIcon(QIcon(QLatin1String(":/subversion/images/subversion.png")));
+    setDescription(tr("Checks out a Subversion repository and tries to load the contained project."));
+    setDisplayName(tr("Subversion Checkout"));
 }
 
 QList<QWizardPage*> CheckoutWizard::createParameterPages(const QString &path)
@@ -75,12 +63,12 @@ QList<QWizardPage*> CheckoutWizard::createParameterPages(const QString &path)
     return rc;
 }
 
-QSharedPointer<VcsBase::AbstractCheckoutJob> CheckoutWizard::createJob(const QList<QWizardPage*> &parameterPages,
-                                                                    QString *checkoutPath)
+VcsBase::Command *CheckoutWizard::createCommand(const QList<QWizardPage*> &parameterPages,
+                                                QString *checkoutPath)
 {
     // Collect parameters for the checkout command.
     const CheckoutWizardPage *cwp = qobject_cast<const CheckoutWizardPage *>(parameterPages.front());
-    QTC_ASSERT(cwp, return QSharedPointer<VcsBase::AbstractCheckoutJob>());
+    QTC_ASSERT(cwp, return 0);
     const SubversionSettings settings = SubversionPlugin::instance()->settings();
     const QString binary = settings.binaryPath();
     const QString directory = cwp->directory();
@@ -91,11 +79,12 @@ QSharedPointer<VcsBase::AbstractCheckoutJob> CheckoutWizard::createJob(const QLi
     if (settings.hasAuthentication()) {
         const QString user = settings.stringValue(SubversionSettings::userKey);
         const QString pwd = settings.stringValue(SubversionSettings::passwordKey);
-        args = SubversionPlugin::addAuthenticationOptions(args, user, pwd);
+        args = SubversionClient::addAuthenticationOptions(args, user, pwd);
     }
-    VcsBase::ProcessCheckoutJob *job = new VcsBase::ProcessCheckoutJob;
-    job->addStep(binary, args, workingDirectory);
-    return QSharedPointer<VcsBase::AbstractCheckoutJob>(job);
+    VcsBase::Command *command = new VcsBase::Command(binary, workingDirectory,
+                                                     QProcessEnvironment::systemEnvironment());
+    command->addJob(args, -1);
+    return command;
 }
 
 } // namespace Internal

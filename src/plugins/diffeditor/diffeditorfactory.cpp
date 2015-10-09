@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -27,10 +27,10 @@
 **
 ****************************************************************************/
 
-#include "diffeditorfactory.h"
 #include "diffeditor.h"
-#include "diffeditorwidget.h"
 #include "diffeditorconstants.h"
+#include "diffeditorfactory.h"
+#include "sidebysidediffeditorwidget.h"
 
 #include <QCoreApplication>
 
@@ -39,31 +39,15 @@ namespace DiffEditor {
 namespace Internal {
 
 DiffEditorFactory::DiffEditorFactory(QObject *parent)
-    : IEditorFactory(parent),
-      m_mimeTypes(QLatin1String(Constants::DIFF_EDITOR_MIMETYPE))
+    : IEditorFactory(parent)
 {
+    setId(Constants::DIFF_EDITOR_ID);
+    setDisplayName(qApp->translate("DiffEditorFactory", Constants::DIFF_EDITOR_DISPLAY_NAME));
 }
 
-Core::Id DiffEditorFactory::id() const
+Core::IEditor *DiffEditorFactory::createEditor()
 {
-    return Constants::DIFF_EDITOR_ID;
-}
-
-QString DiffEditorFactory::displayName() const
-{
-    return qApp->translate("DiffEditorFactory", Constants::DIFF_EDITOR_DISPLAY_NAME);
-}
-
-Core::IEditor *DiffEditorFactory::createEditor(QWidget *parent)
-{
-    DiffEditorWidget *editorWidget = new DiffEditorWidget(parent);
-    DiffEditor *editor = new DiffEditor(editorWidget);
-    return editor;
-}
-
-QStringList DiffEditorFactory::mimeTypes() const
-{
-    return m_mimeTypes;
+    return new DiffEditor();
 }
 
 } // namespace Internal

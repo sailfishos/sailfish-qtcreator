@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 AudioCodes Ltd.
+** Copyright (c) 2014 AudioCodes Ltd.
 ** Author: Orgad Shaneh <orgad.shaneh@audiocodes.com>
 ** Contact: http://www.qt-project.org/legal
 **
@@ -36,7 +36,6 @@
 #include <utils/qtcassert.h>
 #include <vcsbase/diffhighlighter.h>
 
-#include <QDebug>
 #include <QDir>
 #include <QFileInfo>
 #include <QTextBlock>
@@ -94,8 +93,7 @@ QString ClearCaseEditor::changeUnderCursor(const QTextCursor &c) const
     return QString();
 }
 
-VcsBase::BaseAnnotationHighlighter *ClearCaseEditor::createAnnotationHighlighter(const QSet<QString> &changes,
-                                                                                 const QColor &bg) const
+VcsBase::BaseAnnotationHighlighter *ClearCaseEditor::createAnnotationHighlighter(const QSet<QString> &changes) const
 {
-    return new ClearCaseAnnotationHighlighter(changes, bg);
+    return new ClearCaseAnnotationHighlighter(changes);
 }

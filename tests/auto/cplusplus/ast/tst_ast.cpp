@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -45,16 +45,19 @@ class tst_AST: public QObject
     Control control;
 
 public:
-
     TranslationUnit *parse(const QByteArray &source,
                            TranslationUnit::ParseMode mode,
                            bool blockErrors = false,
                            bool qtMocRun = false)
     {
         const StringLiteral *fileId = control.stringLiteral("<stdin>");
+        LanguageFeatures features;
+        features.objCEnabled = true;
+        features.qtEnabled = qtMocRun;
+        features.qtKeywordsEnabled = qtMocRun;
+        features.qtMocRunEnabled = qtMocRun;
         TranslationUnit *unit = new TranslationUnit(&control, fileId);
-        unit->setObjCEnabled(true);
-        unit->setQtMocRunEnabled(qtMocRun);
+        unit->setLanguageFeatures(features);
         unit->setSource(source.constData(), source.length());
         unit->blockErrors(blockErrors);
         unit->parse(mode);
@@ -94,11 +97,17 @@ public:
 
 private slots:
     void initTestCase();
+    void cleanup();
+
+    // line/column positions
+    void line_and_column_1();
+
     // declarations
     void gcc_attributes_1();
     void gcc_attributes_2();
     void gcc_attributes_3();
     void crash_test_1();
+    void thread_local_1();
 
     // expressions
     void simple_name_1();
@@ -147,6 +156,10 @@ private slots:
     void cpp_constructor_multiple_args();
     void cpp_constructor_function_try_catch();
 
+    // Q_PROPERTY
+    void cpp_qproperty();
+    void cpp_qproperty_data();
+
     // objc++
     void objc_simple_class();
     void objc_attributes_followed_by_at_keyword();
@@ -155,6 +168,10 @@ private slots:
     void objc_method_attributes_1();
     void objc_selector_error_recovery_1();
     void objc_selector_error_recovery_2();
+    void objc_try_statement_1();
+    void objc_try_statement_2();
+    void objc_try_statement_3();
+    void objc_throw_statement();
 
     // expressions with (square) brackets
     void normal_array_access();
@@ -164,6 +181,10 @@ private slots:
 
     // Qt "keywords"
     void q_enum_1();
+
+    void incomplete_ast();
+    void unnamed_class();
+    void unnamed_class_data();
 };
 
 void tst_AST::gcc_attributes_1()
@@ -226,6 +247,16 @@ void tst_AST::crash_test_1()
     QSharedPointer<TranslationUnit> unit(parseStatement("decltype auto\n"));
     AST *ast = unit->ast();
     QVERIFY(ast);
+}
+
+void tst_AST::thread_local_1()
+{
+    QSharedPointer<TranslationUnit> unit(parseStatement("__thread int i;\n"));
+    AST *ast = unit->ast();
+    QVERIFY(ast);
+    QCOMPARE(diag.errorCount, 0);
+    QCOMPARE(Token::name(T_THREAD_LOCAL), "thread_local");
+    QCOMPARE(Token::name(T___THREAD), "__thread");
 }
 
 void tst_AST::simple_declaration_1()
@@ -1226,6 +1257,39 @@ void tst_AST::cpp_constructor_function_try_catch()
     QVERIFY(funDecl->parameter_declaration_clause->parameter_declaration_list != 0);
 }
 
+void tst_AST::cpp_qproperty()
+{
+    QFETCH(QByteArray, source);
+    QVERIFY(!source.isEmpty());
+
+    const QByteArray sourceWithinClass = "class C { " + source + " };";
+    QSharedPointer<TranslationUnit> unit(parseDeclaration(sourceWithinClass, false, true));
+    QVERIFY(unit->ast());
+
+    QCOMPARE(diag.errorCount, 0);
+}
+
+void tst_AST::cpp_qproperty_data()
+{
+    QTest::addColumn<QByteArray>("source");
+
+    QTest::newRow("read-final")
+        << QByteArray("Q_PROPERTY(bool focus READ hasFocus FINAL)");
+    QTest::newRow("read-write-final")
+        << QByteArray("Q_PROPERTY(bool focus READ hasFocus WRITE setFocus FINAL)");
+    QTest::newRow("member-final")
+        << QByteArray("Q_PROPERTY(bool focus MEMBER m_focus FINAL)");
+    QTest::newRow("member-read-final")
+        << QByteArray("Q_PROPERTY(bool focus MEMBER m_focus READ m_focus FINAL)");
+    QTest::newRow("member-read-write-final")
+        << QByteArray("Q_PROPERTY(bool focus MEMBER m_focus READ hasFocus WRITE setFocus FINAL)");
+
+    QTest::newRow("all")
+        << QByteArray("Q_PROPERTY(bool focus MEMBER m_focus READ hasFocus WRITE setFocus"
+                      " RESET resetFocus NOTIFY focusChanged REVISION 1 DESIGNABLE true"
+                      " SCRIPTABLE true STORED true USER true CONSTANT FINAL)");
+}
+
 void tst_AST::objc_simple_class()
 {
     QSharedPointer<TranslationUnit> unit(parseDeclaration("\n"
@@ -1374,6 +1438,76 @@ void tst_AST::objc_selector_error_recovery_2()
                                                           ));
     AST *ast = unit->ast();
     QVERIFY(ast);
+}
+
+void tst_AST::objc_try_statement_1()
+{
+    QSharedPointer<TranslationUnit> unit(
+                parseDeclaration(
+                    "\n"
+                    "void tst() {\n"
+                    "    @try {\n"
+                    "        something();\n"
+                    "    }\n"
+                    "}\n"
+                    ));
+    AST *ast = unit->ast();
+    QVERIFY(ast);
+    QCOMPARE(diag.errorCount, 0);
+}
+
+void tst_AST::objc_try_statement_2()
+{
+    QSharedPointer<TranslationUnit> unit(
+                parseDeclaration(
+                    "void tst() {\n"
+                    "    @try {\n"
+                    "        something();\n"
+                    "    } @catch (NSException *e) {\n"
+                    "        another_thing();\n"
+                    "    } @catch (UIException *e) { \n"
+                    "        one_more_thing();\n"
+                    "    } @finally {\n"
+                    "        nothing();\n"
+                    "    }\n"
+                    "}\n"
+                    ));
+    AST *ast = unit->ast();
+    QVERIFY(ast);
+    QCOMPARE(diag.errorCount, 0);
+}
+
+void tst_AST::objc_try_statement_3()
+{
+    QSharedPointer<TranslationUnit> unit(
+                parseDeclaration(
+                    "void tst() {\n"
+                    "    @try {\n"
+                    "        get_banana();\n"
+                    "    } @catch (...) {\n"
+                    "        printf(\"Oek?\");\n"
+                    "    }\n"
+                    "}\n"
+                    ));
+    AST *ast = unit->ast();
+    QVERIFY(ast);
+    QCOMPARE(diag.errorCount, 0);
+}
+
+void tst_AST::objc_throw_statement()
+{
+    QSharedPointer<TranslationUnit> unit(
+                parseDeclaration(
+                    "void tst() {\n"
+                    "    NSException *up = [NSException exceptionWithName:@\"NoException\"\n"
+                    "                                              reason:@\"No Reason :-)\"\n"
+                    "                                            userInfo:nil];\n"
+                    "    @throw up;\n"
+                    "}\n"
+                    ));
+    AST *ast = unit->ast();
+    QVERIFY(ast);
+    QCOMPARE(diag.errorCount, 0);
 }
 
 void tst_AST::normal_array_access()
@@ -1604,9 +1738,72 @@ void tst_AST::q_enum_1()
     QCOMPARE(unit->spell(e->identifier_token), "e");
 }
 
+void tst_AST::incomplete_ast()
+{
+    QSharedPointer<TranslationUnit> unit(parseStatement("class A { virtual void a() =\n"));
+    AST *ast = unit->ast();
+    QVERIFY(ast);
+}
+
+static ClassSpecifierAST *classSpecifierInSimpleDeclaration(SimpleDeclarationAST *simpleDeclaration)
+{
+    Q_ASSERT(simpleDeclaration);
+    SpecifierListAST *specifier = simpleDeclaration->decl_specifier_list;
+    Q_ASSERT(specifier);
+    Q_ASSERT(specifier->value);
+    return specifier->value->asClassSpecifier();
+}
+
+void tst_AST::unnamed_class()
+{
+    QFETCH(QByteArray, source);
+    QVERIFY(!source.isEmpty());
+
+    QSharedPointer<TranslationUnit> unit(parseDeclaration(source));
+    QVERIFY(unit->ast());
+    SimpleDeclarationAST *simpleDeclaration = unit->ast()->asSimpleDeclaration();
+    QVERIFY(simpleDeclaration);
+    ClassSpecifierAST *clazz = classSpecifierInSimpleDeclaration(simpleDeclaration);
+
+    QVERIFY(clazz);
+    QVERIFY(clazz->name);
+    QVERIFY(clazz->name->asAnonymousName());
+
+    QCOMPARE(diag.errorCount, 0);
+}
+
+void tst_AST::unnamed_class_data()
+{
+    QTest::addColumn<QByteArray>("source");
+
+    typedef QByteArray _;
+    QTest::newRow("unnamed-only") << _("class {};");
+    QTest::newRow("unnamed-derived") << _("class : B {};");
+    QTest::newRow("unnamed-__attribute__") << _("class __attribute__((aligned(8))){};");
+}
+
 void tst_AST::initTestCase()
 {
     control.setDiagnosticClient(&diag);
+}
+
+void tst_AST::cleanup()
+{
+    diag.errorCount = 0;
+}
+
+void tst_AST::line_and_column_1()
+{
+    QSharedPointer<TranslationUnit> unit(parseDeclaration("\n"
+                                                          "int i;\n",
+                                                          false, true));
+    unsigned line, column = 0;
+    QVERIFY(unit->ast());
+    QVERIFY(unit->tokenAt(1).is(T_INT));
+    unit->getTokenPosition(1, &line, &column);
+    QEXPECT_FAIL("", "See QTCREATORBUG-9799.", Continue);
+    QCOMPARE(line, 2U);
+    QCOMPARE(column, 1U);
 }
 
 QTEST_APPLESS_MAIN(tst_AST)

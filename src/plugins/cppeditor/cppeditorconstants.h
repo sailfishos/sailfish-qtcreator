@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -41,12 +41,18 @@ const char SWITCH_DECLARATION_DEFINITION[] = "CppEditor.SwitchDeclarationDefinit
 const char OPEN_DECLARATION_DEFINITION_IN_NEXT_SPLIT[] = "CppEditor.OpenDeclarationDefinitionInNextSplit";
 const char RENAME_SYMBOL_UNDER_CURSOR[] = "CppEditor.RenameSymbolUnderCursor";
 const char FIND_USAGES[] = "CppEditor.FindUsages";
+const char OPEN_PREPROCESSOR_DIALOG[] = "CppEditor.OpenPreprocessorDialog";
 const char M_REFACTORING_MENU_INSERTION_POINT[] = "CppEditor.RefactorGroup";
 const char UPDATE_CODEMODEL[] = "CppEditor.UpdateCodeModel";
+const char INSPECT_CPP_CODEMODEL[] = "CppEditor.InspectCppCodeModel";
 
 const int TYPE_HIERARCHY_PRIORITY = 700;
 const char TYPE_HIERARCHY_ID[] = "CppEditor.TypeHierarchy";
 const char OPEN_TYPE_HIERARCHY[] = "CppEditor.OpenTypeHierarchy";
+
+const int INCLUDE_HIERARCHY_PRIORITY = 800;
+const char INCLUDE_HIERARCHY_ID[] = "CppEditor.IncludeHierarchy";
+const char OPEN_INCLUDE_HIERARCHY[] = "CppEditor.OpenIncludeHierarchy";
 
 const char C_SOURCE_MIMETYPE[] = "text/x-csrc";
 const char C_HEADER_MIMETYPE[] = "text/x-chdr";
@@ -57,6 +63,8 @@ const char WIZARD_CATEGORY[] = "O.C++";
 const char WIZARD_TR_CATEGORY[] = QT_TRANSLATE_NOOP("CppEditor", "C++");
 
 const char CPP_SNIPPETS_GROUP_ID[] = "C++";
+
+const char CPP_PREPROCESSOR_PROJECT_PREFIX[] = "CppPreprocessorProject-";
 
 } // namespace Constants
 } // namespace CppEditor

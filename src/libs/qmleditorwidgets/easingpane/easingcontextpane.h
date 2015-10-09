@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -36,14 +36,10 @@
 
 QT_BEGIN_NAMESPACE
 class QVariant;
-namespace Ui {
-    class EasingContextPane;
-}
+namespace Ui { class EasingContextPane; }
 QT_END_NAMESPACE
 
-namespace QmlJS {
-    class PropertyReader;
-}
+namespace QmlJS { class PropertyReader; }
 
 namespace QmlEditorWidgets {
 class EasingSimulation;

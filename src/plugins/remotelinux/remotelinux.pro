@@ -35,7 +35,6 @@ HEADERS += \
     packageuploader.h \
     linuxdevicetester.h \
     remotelinux_constants.h \
-    linuxdevicetestdialog.h \
     remotelinuxenvironmentreader.h \
     sshkeydeployer.h \
     typespecificdeviceconfigurationlistmodel.h \
@@ -48,7 +47,9 @@ HEADERS += \
     remotelinuxcheckforfreediskspacestep.h \
     remotelinuxdeploymentdatamodel.h \
     remotelinuxanalyzesupport.h \
-    abstractremotelinuxrunsupport.h
+    abstractremotelinuxrunsupport.h \
+    linuxdeviceprocess.h \
+    remotelinuxsignaloperation.h
 
 SOURCES += \
     embeddedlinuxqtversion.cpp \
@@ -81,7 +82,6 @@ SOURCES += \
     remotelinuxpackageinstaller.cpp \
     packageuploader.cpp \
     linuxdevicetester.cpp \
-    linuxdevicetestdialog.cpp \
     remotelinuxenvironmentreader.cpp \
     sshkeydeployer.cpp \
     typespecificdeviceconfigurationlistmodel.cpp \
@@ -94,11 +94,12 @@ SOURCES += \
     remotelinuxcheckforfreediskspacestep.cpp \
     remotelinuxdeploymentdatamodel.cpp \
     remotelinuxanalyzesupport.cpp \
-    abstractremotelinuxrunsupport.cpp
+    abstractremotelinuxrunsupport.cpp \
+    linuxdeviceprocess.cpp \
+    remotelinuxsignaloperation.cpp
 
 FORMS += \
     genericlinuxdeviceconfigurationwizardsetuppage.ui \
-    linuxdevicetestdialog.ui \
     remotelinuxdeployconfigurationwidget.ui \
     genericlinuxdeviceconfigurationwidget.ui \
     remotelinuxcheckforfreediskspacestepwidget.ui

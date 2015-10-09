@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -60,7 +60,7 @@ public:
     virtual QIcon icon() const;
 private slots:
     void processStarted();
-    void processExited(int exitCode);
+    void processExited(int exitCode, QProcess::ExitStatus status);
     void slotAppendMessage(const QString &err, Utils::OutputFormat isError);
 private:
     ProjectExplorer::ApplicationLauncher m_applicationLauncher;

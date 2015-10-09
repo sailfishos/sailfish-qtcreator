@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -115,9 +115,8 @@ void ChangePropertyVisitor::replaceInMembers(UiObjectInitializer *initializer,
             }
 
             break;
-        }
         // for grouped properties:
-        else if (!prefix.isEmpty()) {
+        } else if (!prefix.isEmpty()) {
             if (UiObjectDefinition *def = cast<UiObjectDefinition *>(member)) {
                 if (toString(def->qualifiedTypeNameId) == prefix)
                     replaceInMembers(def->initializer, suffix);

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -98,6 +98,24 @@
 #endif // USE_UNINITIALIZED_AUTOBREAK
 #endif
 
+#ifdef HAS_BOOST
+#ifndef ANDROID
+#define USE_BOOST 1
+#endif
+#endif
+
+#ifdef HAS_PRIVATE
+#define USE_PRIVATE 1
+#endif
+
+#ifdef HAS_EIGEN2
+#define USE_EIGEN 1
+#endif
+
+#ifdef HAS_EIGEN3
+#define USE_EIGEN 1
+#endif
+
 #ifdef QT_SCRIPT_LIB
 #define USE_SCRIPTLIB 1
 #else
@@ -114,6 +132,12 @@
 #define USE_SHARED_POINTER 1
 #else
 #define USE_SHARED_POINTER 0
+#endif
+
+#if QT_VERSION >= 0x050200
+#define USE_TIMEZONE 1
+#else
+#define USE_TIMEZONE 0
 #endif
 
 void dummyStatement(...) {}
@@ -158,6 +182,9 @@ void dummyStatement(...) {}
 #include <QStandardItemModel>
 #include <QTextCursor>
 #include <QTextDocument>
+#if USE_TIMEZONE
+#include <QTimeZone>
+#endif
 #endif
 
 #if USE_SCRIPTLIB
@@ -176,6 +203,7 @@ void dummyStatement(...) {}
 
 #if USE_CXX11
 #include <array>
+#include <unordered_map>
 #endif
 #include <complex>
 #include <deque>
@@ -192,6 +220,7 @@ void dummyStatement(...) {}
 #include <vector>
 
 #include <stdarg.h>
+#include <stdint.h>
 
 #include "../simple/deep/deep/simple_test_app.h"
 
@@ -206,7 +235,7 @@ void dummyStatement(...) {}
 #endif
 
 #if USE_EIGEN
-#include <eigen2/Eigen/Core>
+#include <Eigen/Core>
 #endif
 
 #if USE_PRIVATE
@@ -214,9 +243,11 @@ void dummyStatement(...) {}
 #endif
 
 #if defined(__GNUC__) && !defined(__llvm__) && !defined(Q_OS_MAC)
+#  ifndef ANDROID
 #    define USE_GCC_EXT 1
 #    undef __DEPRECATED
 #    include <ext/hash_set>
+#  endif
 #endif
 
 #ifdef Q_OS_WIN
@@ -388,7 +419,6 @@ namespace peekandpoke {
 
     void testAnonymousStructs()
     {
-        #ifndef Q_CC_RVCT
         union {
             struct { int i; int b; };
             struct { float f; };
@@ -424,7 +454,6 @@ namespace peekandpoke {
         // Continue.
 
         dummyStatement(&a);
-        #endif
     }
 
     void testComplexWatchers()
@@ -529,7 +558,6 @@ namespace anon {
 
     void testAnonymous()
     {
-    #ifndef Q_CC_RVCT
         TestAnonymous a;
         BREAK_HERE;
         // Expand a a.#1 a.#2.
@@ -565,7 +593,6 @@ namespace anon {
         // Continue.
 
         dummyStatement(&a, &s, &m);
-    #endif
     }
 
 } // namespace anon
@@ -700,6 +727,16 @@ namespace undefined {
 
 namespace qdatetime {
 
+    void testQTimeZone()
+    {
+#if USE_TIMEZONE
+        QTimeZone zz;
+        QTimeZone tz("UTC+05:00");
+        BREAK_HERE;
+        dummyStatement(&zz, &tz);
+#endif
+    }
+
     void testQDate()
     {
         QDate date;
@@ -760,6 +797,7 @@ namespace qdatetime {
 
     void testDateTime()
     {
+        testQTimeZone();
         testQDate();
         testQDateTime();
         testQTime();
@@ -1020,16 +1058,44 @@ namespace qhash {
 
 namespace qhostaddress {
 
-    void testQHostAddress()
+    void testQHostAddress1()
     {
         QHostAddress ha1(129u * 256u * 256u * 256u + 130u);
         QHostAddress ha2("127.0.0.1");
+        uint ip2 = ha2.toIPv4Address();
         BREAK_HERE;
         // Check ha1 129.0.0.130 QHostAddress.
         // Check ha2 "127.0.0.1" QHostAddress.
         // Continue.
-        dummyStatement(&ha1, &ha2);
+        dummyStatement(&ha1, &ha2, &ip2);
     }
+
+    void testQHostAddress2()
+    {
+        QIPv6Address addr;
+        for (int i = 0; i != 16; ++i)
+            addr.c[i] = i;
+        addr.c[4] = 0;
+        addr.c[5] = 0;
+        addr.c[6] = 0;
+        addr.c[7] = 0;
+        addr.c[12] = 0;
+        addr.c[13] = 0;
+        addr.c[14] = 0;
+        addr.c[15] = 0;
+        QHostAddress ha1(addr);
+        ha1.setScopeId(QLatin1String("wlan0"));
+        BREAK_HERE;
+        // Continue.
+        dummyStatement(&ha1);
+    }
+
+    void testQHostAddress()
+    {
+        testQHostAddress1();
+        testQHostAddress2();
+    }
+
 
 } // namespace qhostaddress
 
@@ -1719,7 +1785,9 @@ namespace qobject {
         QObject child(&parent);
         child.setObjectName("A Child");
         QObject::connect(&child, SIGNAL(destroyed()), &parent, SLOT(deleteLater()));
+        QObject::connect(&child, SIGNAL(destroyed()), &child, SLOT(deleteLater()));
         QObject::disconnect(&child, SIGNAL(destroyed()), &parent, SLOT(deleteLater()));
+        QObject::disconnect(&child, SIGNAL(destroyed()), &child, SLOT(deleteLater()));
         child.setObjectName("A renamed Child");
         BREAK_HERE;
         // Check child "A renamed Child" QObject.
@@ -1751,10 +1819,20 @@ namespace qobject {
             Q_PROPERTY(QString myProp1 READ myProp1 WRITE setMyProp1)
             QString myProp1() const { return m_myProp1; }
             Q_SLOT void setMyProp1(const QString&mt) { m_myProp1 = mt; }
+            Q_INVOKABLE void foo() {}
 
             Q_PROPERTY(QString myProp2 READ myProp2 WRITE setMyProp2)
             QString myProp2() const { return m_myProp2; }
             Q_SLOT void setMyProp2(const QString&mt) { m_myProp2 = mt; }
+
+            Q_PROPERTY(long myProp3 READ myProp3)
+            long myProp3() const { return 54; }
+
+            Q_PROPERTY(long myProp4 READ myProp4)
+            long myProp4() const { return 44; }
+
+            Q_SIGNAL void sigFoo();
+            Q_SIGNAL void sigBar(int);
 
         public:
             Ui *m_ui;
@@ -1771,6 +1849,7 @@ namespace qobject {
         Names::Bar::TestObject test;
         test.setMyProp1("HELLO");
         test.setMyProp2("WORLD");
+        test.setObjectName("An object");
         QString s = test.myProp1();
         s += test.myProp2();
         BREAK_HERE;
@@ -2777,6 +2856,220 @@ namespace stdlist {
 
 } // namespace stdlist
 
+namespace stdunorderedmap {
+
+#if USE_CXX11
+    void testStdUnorderedMapStringFoo()
+    {
+        // This is not supposed to work with the compiled dumpers.
+        std::unordered_map<std::string, Foo> map;
+        map["22.0"] = Foo(22);
+        map["33.0"] = Foo(33);
+        map["44.0"] = Foo(44);
+        BREAK_HERE;
+        // Expand map map.0 map.0.second map.2 map.2.second.
+        // Check map <3 items> std::unordered_map<QString, Foo>.
+        // Check map.0   std::pair<QString const, Foo>.
+        // Check map.0.first "22.0" QString.
+        // CheckType map.0.second Foo.
+        // Check map.0.second.a 22 int.
+        // Check map.1   std::pair<QString const, Foo>.
+        // Check map.2.first "44.0" QString.
+        // CheckType map.2.second Foo.
+        // Check map.2.second.a 44 int.
+        // Continue.
+        dummyStatement(&map);
+    }
+
+    void testStdUnorderedMapCharStarFoo()
+    {
+        std::unordered_map<const char *, Foo> map;
+        map["22.0"] = Foo(22);
+        map["33.0"] = Foo(33);
+        BREAK_HERE;
+        // Expand map map.0 map.0.first map.0.second map.1 map.1.second.
+        // Check map <2 items> std::unordered_map<char const*, Foo>.
+        // Check map.0   std::pair<char const* const, Foo>.
+        // CheckType map.0.first char *.
+        // Check map.0.first.*first 50 '2' char.
+        // CheckType map.0.second Foo.
+        // Check map.0.second.a 22 int.
+        // Check map.1   std::pair<char const* const, Foo>.
+        // CheckType map.1.first char *.
+        // Check map.1.first.*first 51 '3' char.
+        // CheckType map.1.second Foo.
+        // Check map.1.second.a 33 int.
+        // Continue.
+        dummyStatement(&map);
+    }
+
+    void testStdUnorderedMapUIntUInt()
+    {
+        std::unordered_map<uint, uint> map;
+        map[11] = 1;
+        map[22] = 2;
+        BREAK_HERE;
+        // Expand map.
+        // Check map <2 items> std::unordered_map<unsigned int, unsigned int>.
+        // Check map.11 1 unsigned int.
+        // Check map.22 2 unsigned int.
+        // Continue.
+        dummyStatement(&map);
+    }
+
+    void testStdUnorderedMapUIntStringList()
+    {
+#if 0
+        std::unordered_map<uint, QStringList> map;
+        map[11] = QStringList() << "11";
+        map[22] = QStringList() << "22";
+        BREAK_HERE;
+        // Expand map map.0 map.0.first map.0.second map.1 map.1.second.
+        // Check map <2 items> std::unordered_map<unsigned int, QStringList>.
+        // Check map.0   std::pair<unsigned int const, QStringList>.
+        // Check map.0.first 11 unsigned int.
+        // Check map.0.second <1 items> QStringList.
+        // Check map.0.second.0 "11" QString.
+        // Check map.1   std::pair<unsigned int const, QStringList>.
+        // Check map.1.first 22 unsigned int.
+        // Check map.1.second <1 items> QStringList.
+        // Check map.1.second.0 "22" QString.
+        // Continue.
+        dummyStatement(&map);
+#endif
+    }
+
+    void testStdUnorderedMapUIntStringListTypedef()
+    {
+#if 0
+        typedef std::unordered_map<uint, QStringList> T;
+        T map;
+        map[11] = QStringList() << "11";
+        map[22] = QStringList() << "22";
+        BREAK_HERE;
+        // Check map <2 items> stdmap::T.
+        // Continue.
+        dummyStatement(&map);
+#endif
+    }
+
+    void testStdUnorderedMapUIntFloat()
+    {
+        std::unordered_map<uint, float> map;
+        map[11] = 11.0;
+        map[22] = 22.0;
+        BREAK_HERE;
+        // Expand map.
+        // Check map <2 items> std::unordered_map<unsigned int, float>.
+        // Check map.11 11 float.
+        // Check map.22 22 float.
+        // Continue.
+        dummyStatement(&map);
+    }
+
+    void testStdUnorderedMapUIntFloatIterator()
+    {
+        typedef std::unordered_map<int, float> Map;
+        Map map;
+        map[11] = 11.0;
+        map[22] = 22.0;
+        map[33] = 33.0;
+        map[44] = 44.0;
+        map[55] = 55.0;
+        map[66] = 66.0;
+
+        Map::iterator it1 = map.begin();
+        Map::iterator it2 = it1; ++it2;
+        Map::iterator it3 = it2; ++it3;
+        Map::iterator it4 = it3; ++it4;
+        Map::iterator it5 = it4; ++it5;
+        Map::iterator it6 = it5; ++it6;
+
+        BREAK_HERE;
+        // Expand map.
+        // Check map <6 items> stdmap::Map.
+        // Check map.11 11 float.
+        // Check it1.first 11 int.
+        // Check it1.second 11 float.
+        // Check it6.first 66 int.
+        // Check it6.second 66 float.
+        // Continue.
+        dummyStatement(&map, &it1, &it2, &it3, &it4, &it5, &it6);
+    }
+
+    void testStdUnorderedMapStringFloat()
+    {
+        std::unordered_map<std::string, float> map;
+        map["11.0"] = 11.0;
+        map["22.0"] = 22.0;
+        BREAK_HERE;
+        // Expand map map.0 map.1.
+        // Check map <2 items> std::unordered_map<QString, float>.
+        // Check map.0   std::pair<QString const, float>.
+        // Check map.0.first "11.0" QString.
+        // Check map.0.second 11 float.
+        // Check map.1   std::pair<QString const, float>.
+        // Check map.1.first "22.0" QString.
+        // Check map.1.second 22 float.
+        // Continue.
+        dummyStatement(&map);
+    }
+
+    void testStdUnorderedMapIntString()
+    {
+        std::unordered_map<int, QString> map;
+        map[11] = "11.0";
+        map[22] = "22.0";
+        BREAK_HERE;
+        // Expand map map.0 map.1.
+        // Check map <2 items> std::unordered_map<int, QString>.
+        // Check map.0   std::pair<int const, QString>.
+        // Check map.0.first 11 int.
+        // Check map.0.second "11.0" QString.
+        // Check map.1   std::pair<int const, QString>.
+        // Check map.1.first 22 int.
+        // Check map.1.second "22.0" QString.
+        // Continue.
+        dummyStatement(&map);
+    }
+
+    void testStdUnorderedMapStringPointer()
+    {
+        QObject ob;
+        std::unordered_map<std::string, QPointer<QObject> > map;
+        map["Hallo"] = QPointer<QObject>(&ob);
+        map["Welt"] = QPointer<QObject>(&ob);
+        map["."] = QPointer<QObject>(&ob);
+        BREAK_HERE;
+        // Expand map map.0 map.2.
+        // Check map <3 items> std::unordered_map<QString, QPointer<QObject>>.
+        // Check map.0   std::pair<QString const, QPointer<QObject>>.
+        // Check map.0.first "." QString.
+        // CheckType map.0.second QPointer<QObject>.
+        // Check map.2   std::pair<QString const, QPointer<QObject>>.
+        // Check map.2.first "Welt" QString.
+        // Continue.
+        dummyStatement(&map);
+    }
+#endif
+
+    void testStdUnorderedMap()
+    {
+#if USE_CXX11
+        testStdUnorderedMapStringFoo();
+        testStdUnorderedMapCharStarFoo();
+        testStdUnorderedMapUIntUInt();
+        testStdUnorderedMapUIntStringList();
+        testStdUnorderedMapUIntStringListTypedef();
+        testStdUnorderedMapUIntFloat();
+        testStdUnorderedMapUIntFloatIterator();
+        testStdUnorderedMapStringFloat();
+        testStdUnorderedMapIntString();
+        testStdUnorderedMapStringPointer();
+#endif
+    }
+
+} // namespace stdunorderedmap
 
 namespace stdmap {
 
@@ -3042,6 +3335,25 @@ namespace stdptr {
 
 } // namespace stdptr
 
+
+namespace lambda {
+
+    void testLambda()
+    {
+#ifdef USE_CXX11
+        std::string x;
+        auto f = [&] () -> const std::string & {
+                int z = x.size();
+                Q_UNUSED(z);
+                return x;
+         };
+        auto c = f();
+        BREAK_HERE;
+        dummyStatement(&x, &f, &c);
+#endif
+    }
+
+} // namespace lambda
 
 namespace stdset {
 
@@ -3723,6 +4035,18 @@ namespace qstring  {
         dummyStatement(&str, &string, pstring);
     }
 
+    void testQString4()
+    {
+        QString str;
+        for (int i = 0; i < 1000000; ++i)
+            str += QString::fromLatin1("%1 ").arg(i);
+        BREAK_HERE;
+        BREAK_HERE;
+        BREAK_HERE;
+        BREAK_HERE;
+        dummyStatement(&str);
+    }
+
     void testQStringRef()
     {
         QString str = "Hello";
@@ -3738,6 +4062,7 @@ namespace qstring  {
         testQString1();
         testQString2();
         testQString3();
+        testQString4();
         testQStringRef();
         testQStringQuotes();
     }
@@ -3926,7 +4251,7 @@ namespace qthread {
                 // Check j 3 int.
                 // CheckType this qthread::Thread.
                 // Check this.@1  QThread.
-                // Check this.@1.@1 "This is thread #3" QObject.
+                // Check this.@1.@1 "Thread #3" QObject.
                 // Continue.
                 dummyStatement(this);
             }
@@ -3944,7 +4269,7 @@ namespace qthread {
         Thread thread[N];
         for (int i = 0; i != N; ++i) {
             thread[i].setId(i);
-            thread[i].setObjectName("This is thread #" + QString::number(i));
+            thread[i].setObjectName("Thread #" + QString::number(i));
             thread[i].start();
         }
         BREAK_HERE;
@@ -3955,9 +4280,9 @@ namespace qthread {
         // Expand thread.13.@1.
         // CheckType thread qthread::Thread [14].
         // Check thread.0  qthread::Thread.
-        // Check thread.0.@1.@1 "This is thread #0" qthread::Thread.
+        // Check thread.0.@1.@1 "Thread #0" qthread::Thread.
         // Check thread.13  qthread::Thread.
-        // Check thread.13.@1.@1 "This is thread #13" qthread::Thread.
+        // Check thread.13.@1.@1 "Thread #13" qthread::Thread.
         // Continue.
         for (int i = 0; i != N; ++i) {
             thread[i].wait();
@@ -3970,8 +4295,9 @@ namespace qthread {
 Q_DECLARE_METATYPE(QHostAddress)
 Q_DECLARE_METATYPE(QList<int>)
 Q_DECLARE_METATYPE(QStringList)
-#define COMMA ,
-Q_DECLARE_METATYPE(QMap<uint COMMA QStringList>)
+
+typedef QMap<uint, QStringList> QMapUIntQStringList;
+Q_DECLARE_METATYPE(QMapUIntQStringList)
 
 namespace qvariant {
 
@@ -4143,6 +4469,7 @@ namespace qvariant {
         // FIXME: Known to break
         //QString type = var.typeName();
         var.setValue(my);
+        const char *name = QMetaType::typeName(var.userType());
         BREAK_HERE;
         // Expand my my.0 my.0.value my.1 my.1.value var var.data var.data.0 var.data.0.value var.data.1 var.data.1.value.
         // Check my <2 items> qvariant::MyType.
@@ -4168,7 +4495,7 @@ namespace qvariant {
         var.setValue(my);
         var.setValue(my);
         var.setValue(my);
-        dummyStatement(&var);
+        dummyStatement(&var, &name);
     }
 
     void testQVariant6()
@@ -4227,12 +4554,7 @@ namespace qvariant {
         BREAK_HERE;
         // Check vm <0 items> QVariantMap.
         // Continue.
-        vm["a"] = QVariant(1);
-        vm["b"] = QVariant(2);
-        vm["c"] = QVariant("Some String");
-        vm["d"] = QVariant(21);
-        vm["e"] = QVariant(22);
-        vm["f"] = QVariant("2Some String");
+        vm["abd"] = QVariant(1);
         BREAK_HERE;
         // Expand vm vm.0 vm.5.
         // Check vm <6 items> QVariantMap.
@@ -4664,12 +4986,12 @@ namespace basic {
     {
         quint64 u64 = ULLONG_MAX;
         qint64 s64 = LLONG_MAX;
-        quint32 u32 = ULONG_MAX;
-        qint32 s32 = LONG_MAX;
+        quint32 u32 = UINT_MAX;
+        qint32 s32 = INT_MAX;
         quint64 u64s = 0;
         qint64 s64s = LLONG_MIN;
         quint32 u32s = 0;
-        qint32 s32s = LONG_MIN;
+        qint32 s32s = INT_MIN;
 
         BREAK_HERE;
         // Check u64 18446744073709551615 quint64.
@@ -4685,6 +5007,16 @@ namespace basic {
         dummyStatement(&u64, &s64, &u32, &s32, &u64s, &s64s, &u32s, &s32s);
     }
 
+    void testStdInt()
+    {
+        uint8_t u8 = 64;
+        int8_t s8 =  65;
+        BREAK_HERE;
+        // Check u8 64 uint8_t
+        // Check u8 65 int8_t
+
+        dummyStatement(&u8, &s8);
+    }
 
     void testArray1()
     {
@@ -5193,8 +5525,12 @@ namespace basic {
 
     void testLongEvaluation1()
     {
+#if USE_TIMEZONE
+        QTimeZone tz("UTC+05:00");
         QDateTime time = QDateTime::currentDateTime();
         const int N = 10000;
+        QDateTime x = time;
+        x.setTimeZone(tz);
         QDateTime bigv[N];
         for (int i = 0; i < 10000; ++i) {
             bigv[i] = time;
@@ -5210,6 +5546,7 @@ namespace basic {
         // Continue.
         // Note: This is expected to _not_ take up to a minute.
         dummyStatement(&bigv);
+#endif
     }
 
     void testLongEvaluation2()
@@ -5453,6 +5790,7 @@ namespace basic {
     {
         testInheritance();
         testInt();
+        testStdInt();
         testReference1();
         testReference2();
         testReference3("hello");
@@ -5481,7 +5819,7 @@ namespace basic {
         testColoredMemoryView();
         testLongEvaluation1();
         testLongEvaluation2();
-        testFork();
+//        testFork();
         testFunctionPointer();
         testMemberPointer();
         testMemberFunctionPointer();
@@ -6745,8 +7083,16 @@ namespace sanity {
 } // namespace sanity
 
 
+template <class X> int ffff(X x)
+{
+    return sizeof(x);
+}
+
 int main(int argc, char *argv[])
 {
+    int z = ffff(3) + ffff(2.0);
+    Q_UNUSED(z);
+
     #if USE_GUILIB
     QApplication app(argc, argv);
     #else
@@ -6796,12 +7142,14 @@ int main(int argc, char *argv[])
     stdlist::testStdList();
     stdhashset::testStdHashSet();
     stdmap::testStdMap();
+    stdunorderedmap::testStdUnorderedMap();
     stdset::testStdSet();
     stdstack::testStdStack();
     stdstream::testStdStream();
     stdstring::testStdString();
     stdvector::testStdVector();
     stdptr::testStdPtr();
+    lambda::testLambda();
 
     qbytearray::testQByteArray();
     qdatetime::testDateTime();

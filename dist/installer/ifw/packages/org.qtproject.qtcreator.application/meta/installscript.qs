@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of the Qt SDK.
@@ -73,7 +73,7 @@ registerCommonWindowsFileTypeExtensions = function()
     for (var i = 0; i < headerExtensions.length; ++i) {
         component.addOperation( "RegisterFileType",
                                 headerExtensions[i],
-                                component.qtCreatorBinaryPath + " -client '%1'",
+                                component.qtCreatorBinaryPath + " -client \"%1\"",
                                 "C++ Header file",
                                 "text/plain",
                                 component.qtCreatorBinaryPath + ",3",
@@ -85,7 +85,7 @@ registerCommonWindowsFileTypeExtensions = function()
     for (var i = 0; i < cppExtensions.length; ++i) {
         component.addOperation( "RegisterFileType",
                                 cppExtensions[i],
-                                component.qtCreatorBinaryPath + " -client '%1'",
+                                component.qtCreatorBinaryPath + " -client \"%1\"",
                                 "C++ Source file",
                                 "text/plain",
                                 component.qtCreatorBinaryPath + ",2",
@@ -94,7 +94,7 @@ registerCommonWindowsFileTypeExtensions = function()
 
     component.addOperation( "RegisterFileType",
                             "c",
-                            component.qtCreatorBinaryPath + " -client '%1'",
+                            component.qtCreatorBinaryPath + " -client \"%1\"",
                             "C Source file",
                             "text/plain",
                             component.qtCreatorBinaryPath + ",1",
@@ -105,38 +105,45 @@ registerWindowsFileTypeExtensions = function()
 {
     component.addOperation( "RegisterFileType",
                             "ui",
-                            component.qtCreatorBinaryPath + " -client '%1'",
+                            component.qtCreatorBinaryPath + " -client \"%1\"",
                             "Qt UI file",
                             "text/plain",
                             component.qtCreatorBinaryPath + ",4",
                             "ProgId=QtProject.QtCreator.ui");
     component.addOperation( "RegisterFileType",
                             "pro",
-                            component.qtCreatorBinaryPath + " -client '%1'",
+                            component.qtCreatorBinaryPath + " -client \"%1\"",
                             "Qt Project file",
                             "text/plain",
                             component.qtCreatorBinaryPath + ",5",
                             "ProgId=QtProject.QtCreator.pro");
     component.addOperation( "RegisterFileType",
                             "pri",
-                            component.qtCreatorBinaryPath + " -client '%1'",
+                            component.qtCreatorBinaryPath + " -client \"%1\"",
                             "Qt Project Include file",
                             "text/plain",
                             component.qtCreatorBinaryPath + ",6",
                             "ProgId=QtProject.QtCreator.pri");
     component.addOperation( "RegisterFileType",
+                            "qbs",
+                            component.qtCreatorBinaryPath + " -client \"%1\"",
+                            "Qbs Project file",
+                            "text/plain",
+                            component.qtCreatorBinaryPath + ",5",
+                            "ProgId=QtProject.QtCreator.qbs");
+    component.addOperation( "RegisterFileType",
                             "qs",
-                            component.qtCreatorBinaryPath + " -client '%1'",
+                            component.qtCreatorBinaryPath + " -client \"%1\"",
                             "Qt Script file",
                             "text/plain",
                             component.qtCreatorBinaryPath + ",0",
                             "ProgId=QtProject.QtCreator.qs");
     component.addOperation( "RegisterFileType",
                             "qml",
-                            component.qtCreatorBinaryPath + " -client '%1'",
+                            component.qtCreatorBinaryPath + " -client \"%1\"",
                             "Qt Quick Markup language file",
                             "text/plain",
-                            component.qtCreatorBinaryPath + ",0",
+                            component.qtCreatorBinaryPath + ",7",
                             "ProgId=QtProject.QtCreator.qml");
 }
 
@@ -146,49 +153,54 @@ Component.prototype.createOperations = function()
     component.createOperations();
     if ( installer.value("os") == "win" )
     {
-        component.addOperation( "SetPluginPathOnQtCore",
-                                "@TargetDir@/bin",
-                                "@TargetDir@/plugins");
-        component.addOperation( "SetImportsPathOnQtCore",
-                                "@TargetDir@/bin",
-                                "@TargetDir@/bin");
         component.addOperation( "CreateShortcut",
                                 component.qtCreatorBinaryPath,
                                 "@StartMenuDir@/Qt Creator.lnk",
                                 "workingDirectory=@homeDir@" );
-        component.addElevatedOperation("Execute", "{0,3010,1638}", "@TargetDir@\\lib\\vcredist_msvc2010\\vcredist_x86.exe", "/norestart", "/q");
+
+        // only install c runtime if it is needed, no minor version check of the c runtime till we need it
+        if (installer.value("HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\VisualStudio\\10.0\\VC\\VCRedist\\x86\\Installed") != 1) {
+           // return value 3010 means it need a reboot, but in most cases it is not needed for run Qt application
+           // return value 5100 means there's a newer version of the runtime already installed
+           component.addElevatedOperation("Execute", "{0,1638,3010,5100}", "@TargetDir@\\lib\\vcredist_msvc2010\\vcredist_x86.exe", "/norestart", "/q");
+        }
+
         registerWindowsFileTypeExtensions();
 
-        try {
-            if (component.userInterface("AssociateCommonFiletypesForm").AssociateCommonFiletypesCheckBox
-                .checked) {
-                    registerCommonWindowsFileTypeExtensions();
-            }
-        } catch(e) {
-            print(e);
+        if (component.userInterface("AssociateCommonFiletypesForm").AssociateCommonFiletypesCheckBox
+            .checked) {
+                registerCommonWindowsFileTypeExtensions();
         }
     }
     if ( installer.value("os") == "x11" )
     {
-        component.addOperation( "SetPluginPathOnQtCore",
-                                "@TargetDir@/lib/qtcreator",
-                                "@TargetDir@/lib/qtcreator/plugins");
-        component.addOperation( "SetImportsPathOnQtCore",
-                                "@TargetDir@/lib/qtcreator",
-                                "@TargetDir@/bin");
-
         component.addOperation( "InstallIcons", "@TargetDir@/share/icons" );
         component.addOperation( "CreateDesktopEntry",
                                 "QtProject-qtcreator.desktop",
-                                "Type=Application\nExec=" + component.qtCreatorBinaryPath + "\nPath=@TargetDir@\nName=Qt Creator\nGenericName=The IDE of choice for Qt development.\nGenericName[de]=Die IDE der Wahl zur Qt Entwicklung\nIcon=QtProject-qtcreator\nTerminal=false\nCategories=Development;IDE;Qt;\nMimeType=text/x-c++src;text/x-c++hdr;text/x-xsrc;application/x-designer;application/vnd.nokia.qt.qmakeprofile;application/vnd.nokia.xml.qt.resource;text/x-qml;"
+                                "Type=Application\nExec=" + component.qtCreatorBinaryPath + "\nPath=@TargetDir@\nName=Qt Creator\nGenericName=The IDE of choice for Qt development.\nGenericName[de]=Die IDE der Wahl zur Qt Entwicklung\nIcon=QtProject-qtcreator\nTerminal=false\nCategories=Development;IDE;Qt;\nMimeType=text/x-c++src;text/x-c++hdr;text/x-xsrc;application/x-designer;application/vnd.nokia.qt.qmakeprofile;application/vnd.nokia.xml.qt.resource;text/x-qml;text/x-qt.qml;text/x-qt.qbs;"
                                 );
     }
 }
 
+function isRoot()
+{
+    if (installer.value("os") == "x11" || installer.value("os") == "mac")
+    {
+        var id = installer.execute("/usr/bin/id", new Array("-u"))[0];
+        id = id.replace(/(\r\n|\n|\r)/gm,"");
+        if (id === "0")
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 Component.prototype.installationFinishedPageIsShown = function()
 {
+    isroot = isRoot();
     try {
-        if (component.installed && installer.isInstaller() && installer.status == QInstaller.Success) {
+        if (component.installed && installer.isInstaller() && installer.status == QInstaller.Success && !isroot) {
             installer.addWizardPageItem( component, "LaunchQtCreatorCheckBoxForm", QInstaller.InstallationFinished );
         }
     } catch(e) {
@@ -199,7 +211,7 @@ Component.prototype.installationFinishedPageIsShown = function()
 Component.prototype.installationFinished = function()
 {
     try {
-        if (component.installed && installer.isInstaller() && installer.status == QInstaller.Success) {
+        if (component.installed && installer.isInstaller() && installer.status == QInstaller.Success && !isroot) {
             var isLaunchQtCreatorCheckBoxChecked = component.userInterface("LaunchQtCreatorCheckBoxForm").launchQtCreatorCheckBox.checked;
             if (isLaunchQtCreatorCheckBoxChecked)
                 installer.executeDetached(component.qtCreatorBinaryPath, new Array(), "@homeDir@");

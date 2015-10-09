@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -39,19 +39,41 @@ using namespace GLSLEditor;
 using namespace GLSLEditor::Internal;
 using namespace TextEditor;
 
+Highlighter::Highlighter(QTextDocument *parent)
+    : TextEditor::SyntaxHighlighter(parent)
+{
+    init();
+}
+
 Highlighter::Highlighter(BaseTextDocument *parent)
     : TextEditor::SyntaxHighlighter(parent)
 {
+    init();
+}
+
+void Highlighter::init()
+{
+    static QVector<TextEditor::TextStyle> categories;
+    if (categories.isEmpty()) {
+        categories << TextEditor::C_NUMBER
+                   << TextEditor::C_STRING
+                   << TextEditor::C_TYPE
+                   << TextEditor::C_KEYWORD
+                   << TextEditor::C_OPERATOR
+                   << TextEditor::C_PREPROCESSOR
+                   << TextEditor::C_LABEL
+                   << TextEditor::C_COMMENT
+                   << TextEditor::C_DOXYGEN_COMMENT
+                   << TextEditor::C_DOXYGEN_TAG
+                   << TextEditor::C_VISUAL_WHITESPACE
+                   << TextEditor::C_REMOVED_LINE;
+    }
+    setTextFormatCategories(categories);
 }
 
 Highlighter::~Highlighter()
 {
 
-}
-
-void Highlighter::setFormats(const QVector<QTextCharFormat> &formats)
-{
-    qCopy(formats.begin(), formats.end(), m_formats);
 }
 
 void Highlighter::highlightBlock(const QString &text)
@@ -70,8 +92,9 @@ void Highlighter::highlightBlock(const QString &text)
     lex.setState(state);
     lex.setScanKeywords(false);
     lex.setScanComments(true);
-    const int variant =
-        GLSLTextEditorWidget::languageVariant(static_cast<BaseTextDocument*>(parent())->mimeType());
+    const int variant = GLSLTextEditorWidget::languageVariant(parent()
+                         ? static_cast<BaseTextDocument*>(parent())->mimeType()
+                         : QString());
     lex.setVariant(variant);
 
     int initialState = state;
@@ -96,7 +119,7 @@ void Highlighter::highlightBlock(const QString &text)
         setCurrentBlockState(previousState);
         BaseTextDocumentLayout::clearParentheses(currentBlock());
         if (text.length()) // the empty line can still contain whitespace
-            setFormat(0, text.length(), m_formats[GLSLVisualWhitespace]);
+            setFormat(0, text.length(), formatForCategory(GLSLVisualWhitespace));
         BaseTextDocumentLayout::setFoldingIndent(currentBlock(), foldingIndent);
         return;
     }
@@ -120,7 +143,7 @@ void Highlighter::highlightBlock(const QString &text)
 
         if (previousTokenEnd != tk.begin()) {
             setFormat(previousTokenEnd, tk.begin() - previousTokenEnd,
-                      m_formats[GLSLVisualWhitespace]);
+                      formatForCategory(GLSLVisualWhitespace));
         }
 
         if (tk.is(GLSL::Parser::T_LEFT_PAREN) || tk.is(GLSL::Parser::T_LEFT_BRACE) || tk.is(GLSL::Parser::T_LEFT_BRACKET)) {
@@ -157,17 +180,17 @@ void Highlighter::highlightBlock(const QString &text)
             highlightAsPreprocessor = false;
 
         if (false /* && i == 0 && tk.is(GLSL::Parser::T_POUND)*/) {
-            highlightLine(text, tk.begin(), tk.length, m_formats[GLSLPreprocessorFormat]);
+            highlightLine(text, tk.begin(), tk.length, formatForCategory(GLSLPreprocessorFormat));
             highlightAsPreprocessor = true;
 
-        } else if (highlightCurrentWordAsPreprocessor && isPPKeyword(text.midRef(tk.begin(), tk.length)))
-            setFormat(tk.begin(), tk.length, m_formats[GLSLPreprocessorFormat]);
+        } else if (highlightCurrentWordAsPreprocessor && isPPKeyword(text.midRef(tk.begin(), tk.length))) {
+            setFormat(tk.begin(), tk.length, formatForCategory(GLSLPreprocessorFormat));
 
-        else if (tk.is(GLSL::Parser::T_NUMBER))
-            setFormat(tk.begin(), tk.length, m_formats[GLSLNumberFormat]);
+        } else if (tk.is(GLSL::Parser::T_NUMBER)) {
+            setFormat(tk.begin(), tk.length, formatForCategory(GLSLNumberFormat));
 
-        else if (tk.is(GLSL::Parser::T_COMMENT)) {
-            highlightLine(text, tk.begin(), tk.length, m_formats[GLSLCommentFormat]);
+        } else if (tk.is(GLSL::Parser::T_COMMENT)) {
+            highlightLine(text, tk.begin(), tk.length, formatForCategory(GLSLCommentFormat));
 
             // we need to insert a close comment parenthesis, if
             //  - the line starts in a C Comment (initalState != 0)
@@ -190,9 +213,9 @@ void Highlighter::highlightBlock(const QString &text)
         } else if (tk.is(GLSL::Parser::T_IDENTIFIER)) {
             int kind = lex.findKeyword(data.constData() + tk.position, tk.length);
             if (kind == GLSL::Parser::T_RESERVED)
-                setFormat(tk.position, tk.length, m_formats[GLSLReservedKeyword]);
+                setFormat(tk.position, tk.length, formatForCategory(GLSLReservedKeyword));
             else if (kind != GLSL::Parser::T_IDENTIFIER)
-                setFormat(tk.position, tk.length, m_formats[GLSLKeywordFormat]);
+                setFormat(tk.position, tk.length, formatForCategory(GLSLKeywordFormat));
         }
     }
 
@@ -245,7 +268,7 @@ void Highlighter::highlightBlock(const QString &text)
 void Highlighter::highlightLine(const QString &text, int position, int length,
                                 const QTextCharFormat &format)
 {
-    const QTextCharFormat visualSpaceFormat = m_formats[GLSLVisualWhitespace];
+    const QTextCharFormat visualSpaceFormat = formatForCategory(GLSLVisualWhitespace);
 
     const int end = position + length;
     int index = position;
@@ -362,16 +385,16 @@ void Highlighter::highlightBlock(const QString &text)
     for (int i = 0; i < tokens.size(); ++i) {
         const GLSL::Token &tk = tokens.at(i);
 
-        if (tk.is(GLSL::Parser::T_NUMBER))
-            setFormat(tk.position, tk.length, m_formats[GLSLNumberFormat]);
-        else if (tk.is(GLSL::Parser::T_COMMENT))
-            setFormat(tk.position, tk.length, Qt::darkGreen); // ### FIXME: m_formats[GLSLCommentFormat]);
-        else if (tk.is(GLSL::Parser::T_IDENTIFIER)) {
+        if (tk.is(GLSL::Parser::T_NUMBER)) {
+            setFormat(tk.position, tk.length, formatForCategory(GLSLNumberFormat);
+        } else if (tk.is(GLSL::Parser::T_COMMENT)) {
+            setFormat(tk.position, tk.length, Qt::darkGreen); // ### FIXME: formatForCategory(GLSLCommentFormat);
+        } else if (tk.is(GLSL::Parser::T_IDENTIFIER)) {
             int kind = lex.findKeyword(data.constData() + tk.position, tk.length);
             if (kind == GLSL::Parser::T_RESERVED)
-                setFormat(tk.position, tk.length, m_formats[GLSLReservedKeyword]);
+                setFormat(tk.position, tk.length, formatForCategory(GLSLReservedKeyword);
             else if (kind != GLSL::Parser::T_IDENTIFIER)
-                setFormat(tk.position, tk.length, m_formats[GLSLKeywordFormat]);
+                setFormat(tk.position, tk.length, formatForCategory(GLSLKeywordFormat);
         } else if (tk.is(GLSL::Parser::T_LEFT_PAREN) || tk.is(GLSL::Parser::T_LEFT_BRACE) || tk.is(GLSL::Parser::T_LEFT_BRACKET)) {
             const QChar c = text.at(tk.begin());
             parentheses.append(Parenthesis(Parenthesis::Opened, c, tk.begin()));

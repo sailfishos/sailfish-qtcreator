@@ -1,21 +1,19 @@
-import qbs.base 1.0
+import qbs 1.0
 
-import "../QtcPlugin.qbs" as QtcPlugin
+import QtcPlugin
 
 QtcPlugin {
     name: "CodePaster"
 
     Depends { name: "Qt"; submodules: ["widgets", "network"] }
+    Depends { name: "Utils" }
+
     Depends { name: "Core" }
     Depends { name: "TextEditor" }
 
     cpp.includePaths: base.concat("../../shared/cpaster")
 
     files: [
-        "codepasterprotocol.cpp",
-        "codepasterprotocol.h",
-        "codepastersettings.cpp",
-        "codepastersettings.h",
         "columnindicatortextedit.cpp",
         "columnindicatortextedit.h",
         "cpasterconstants.h",

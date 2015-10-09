@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -54,7 +54,7 @@ QWidget  *ComponentAction::createWidget(QWidget *parent)
 {
     QComboBox *comboBox = new QComboBox(parent);
     comboBox->setMinimumWidth(120);
-    comboBox->setToolTip(tr("Edit sub components defined in this file"));
+    comboBox->setToolTip(tr("Edit sub components defined in this file."));
     comboBox->setModel(m_componentView->standardItemModel());
     comboBox->setCurrentIndex(-1);
     connect(comboBox, SIGNAL(activated(int)), SLOT(emitCurrentComponentChanged(int)));
@@ -68,9 +68,12 @@ void ComponentAction::emitCurrentComponentChanged(int index)
     if (dontEmitCurrentComponentChanged)
         return;
 
-    ModelNode componentNode = m_componentView->modelNode(index);
+    ModelNode componentModelNode = m_componentView->modelNode(index);
 
-    emit currentComponentChanged(componentNode);
+    if (componentModelNode.isRootNode())
+        emit changedToMaster();
+    else
+        emit currentComponentChanged(componentModelNode);
 }
 
 } // namespace QmlDesigner

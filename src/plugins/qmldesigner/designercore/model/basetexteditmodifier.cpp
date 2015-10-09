@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,7 +30,7 @@
 #include "basetexteditmodifier.h"
 
 #include <qmljs/qmljsmodelmanagerinterface.h>
-#include <qmljseditor/qmljseditor.h>
+#include <qmljseditor/qmljseditordocument.h>
 #include <texteditor/tabsettings.h>
 #include <utils/changeset.h>
 
@@ -47,13 +47,14 @@ void BaseTextEditModifier::indent(int offset, int length)
         return;
 
     if (TextEditor::BaseTextEditorWidget *bte = qobject_cast<TextEditor::BaseTextEditorWidget*>(plainTextEdit())) {
+        TextEditor::BaseTextDocument *btd = bte->baseTextDocument();
         // find the applicable block:
-        QTextDocument *doc = bte->document();
+        QTextDocument *doc = btd->document();
         QTextCursor tc(doc);
         tc.beginEditBlock();
         tc.setPosition(offset);
         tc.setPosition(offset + length, QTextCursor::KeepAnchor);
-        bte->indentInsertedText(tc);
+        btd->autoIndent(tc);
         tc.endEditBlock();
     }
 }
@@ -61,24 +62,27 @@ void BaseTextEditModifier::indent(int offset, int length)
 int BaseTextEditModifier::indentDepth() const
 {
     if (TextEditor::BaseTextEditorWidget *bte = qobject_cast<TextEditor::BaseTextEditorWidget*>(plainTextEdit()))
-        return bte->tabSettings().m_indentSize;
+        return bte->baseTextDocument()->tabSettings().m_indentSize;
     else
         return 0;
 }
 
 bool BaseTextEditModifier::renameId(const QString &oldId, const QString &newId)
 {
-    if (QmlJSEditor::QmlJSTextEditorWidget *qmljse = qobject_cast<QmlJSEditor::QmlJSTextEditorWidget*>(plainTextEdit())) {
-        Utils::ChangeSet changeSet;
-        foreach (const QmlJS::AST::SourceLocation &loc, qmljse->semanticInfo().idLocations.value(oldId)) {
-            changeSet.replace(loc.begin(), loc.end(), newId);
+    if (TextEditor::BaseTextEditorWidget *bte = qobject_cast<TextEditor::BaseTextEditorWidget*>(plainTextEdit())) {
+        if (QmlJSEditor::QmlJSEditorDocument *document
+                = qobject_cast<QmlJSEditor::QmlJSEditorDocument *>(bte->baseTextDocument())) {
+            Utils::ChangeSet changeSet;
+            foreach (const QmlJS::AST::SourceLocation &loc,
+                    document->semanticInfo().idLocations.value(oldId)) {
+                changeSet.replace(loc.begin(), loc.end(), newId);
+            }
+            QTextCursor tc = bte->textCursor();
+            changeSet.apply(&tc);
+            return true;
         }
-        QTextCursor tc = qmljse->textCursor();
-        changeSet.apply(&tc);
-        return true;
-    } else {
-        return false;
     }
+    return false;
 }
 
 QmlJS::Snapshot BaseTextEditModifier::getSnapshot() const

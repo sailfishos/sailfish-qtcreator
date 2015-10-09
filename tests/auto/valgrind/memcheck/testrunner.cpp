@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 ** Author: Milian Wolff, KDAB (milian.wolff@kdab.com)
 **
@@ -76,7 +76,8 @@ TestRunner::TestRunner(QObject *parent)
 QString TestRunner::runTestBinary(const QString &binary, const QStringList &vArgs)
 {
     const QString binPath = appBinDir + QDir::separator() + binary;
-    Q_ASSERT(QFileInfo(binPath).isExecutable());
+    if (!QFileInfo(binPath).isExecutable())
+        qFatal("No such test app: %s", qPrintable(binPath));
     m_runner->setValgrindArguments(QStringList() << "--num-callers=50" << "--track-origins=yes" << vArgs);
     m_runner->setDebuggeeExecutable(binPath);
     m_runner->start();

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -33,25 +33,21 @@
 #include "qtversionfactory.h"
 #include "baseqtversion.h"
 #include "qtfeatureprovider.h"
-
-// only for legay restore
-#include <projectexplorer/gcctoolchain.h>
-
-#include <qtsupport/debugginghelper.h>
+#include "qtsupportconstants.h"
 
 #include <coreplugin/icore.h>
 #include <coreplugin/helpmanager.h>
 
 #include <extensionsystem/pluginmanager.h>
 
+#include <projectexplorer/toolchainmanager.h>
+
+#include <utils/buildablehelperlibrary.h>
 #include <utils/filesystemwatcher.h>
 #include <utils/hostosinfo.h>
 #include <utils/persistentsettings.h>
 #include <utils/qtcprocess.h>
 #include <utils/qtcassert.h>
-#ifdef Q_OS_WIN
-#    include <utils/winutils.h>
-#endif
 
 #include <QDebug>
 #include <QDir>
@@ -61,46 +57,47 @@
 #include <QStringList>
 #include <QTimer>
 
-using namespace QtSupport;
-using namespace QtSupport::Internal;
+using namespace Utils;
 
-static const char QTVERSION_DATA_KEY[] = "QtVersion.";
-static const char QTVERSION_TYPE_KEY[] = "QtVersion.Type";
-static const char QTVERSION_FILE_VERSION_KEY[] = "Version";
-static const char QTVERSION_FILENAME[] = "/qtcreator/qtversion.xml";
-static const char QTVERSION_LEGACY_FILENAME[] = "/qtversion.xml"; // TODO: pre 2.6, remove later
+namespace QtSupport {
 
-// legacy settings
-static const char QtVersionsSectionName[] = "QtVersions";
+using namespace Internal;
+
+struct QMakeAssignment
+{
+    QString variable;
+    QString op;
+    QString value;
+};
+
+const char QTVERSION_DATA_KEY[] = "QtVersion.";
+const char QTVERSION_TYPE_KEY[] = "QtVersion.Type";
+const char QTVERSION_FILE_VERSION_KEY[] = "Version";
+const char QTVERSION_FILENAME[] = "/qtcreator/qtversion.xml";
+const char QTVERSION_LEGACY_FILENAME[] = "/qtversion.xml"; // TODO: pre 2.6, remove later
+
+static QMap<int, BaseQtVersion *> m_versions;
+static int m_idcount = 0;
+// managed by QtProjectManagerPlugin
+static QtVersionManager *m_instance = 0;
+static FileSystemWatcher *m_configFileWatcher = 0;
+static QTimer *m_fileWatcherTimer = 0;
+static PersistentSettingsWriter *m_writer = 0;
 
 enum { debug = 0 };
 
-template<class T>
-static T *createToolChain(const QString &id)
-{
-    QList<ProjectExplorer::ToolChainFactory *> factories =
-            ExtensionSystem::PluginManager::getObjects<ProjectExplorer::ToolChainFactory>();
-    foreach (ProjectExplorer::ToolChainFactory *f, factories) {
-       if (f->id() == id) {
-           Q_ASSERT(f->canCreate());
-           return static_cast<T *>(f->create());
-       }
-    }
-    return 0;
-}
-
-static Utils::FileName globalSettingsFileName()
+static FileName globalSettingsFileName()
 {
     QSettings *globalSettings = ExtensionSystem::PluginManager::globalSettings();
-    return Utils::FileName::fromString(QFileInfo(globalSettings->fileName()).absolutePath()
+    return FileName::fromString(QFileInfo(globalSettings->fileName()).absolutePath()
                                        + QLatin1String(QTVERSION_FILENAME));
 }
 
-static Utils::FileName settingsFileName(const QString &path)
+static FileName settingsFileName(const QString &path)
 {
     QSettings *settings = ExtensionSystem::PluginManager::settings();
     QFileInfo settingsLocation(settings->fileName());
-    return Utils::FileName::fromString(settingsLocation.absolutePath() + path);
+    return FileName::fromString(settingsLocation.absolutePath() + path);
 }
 
 
@@ -110,30 +107,67 @@ bool qtVersionNumberCompare(BaseQtVersion *a, BaseQtVersion *b)
     return a->qtVersion() > b->qtVersion() || (a->qtVersion() == b->qtVersion() && a->uniqueId() < b->uniqueId());
 }
 
+static QString findQMakeLine(const QString &makefile, const QString &key)
+{
+    QFile fi(makefile);
+    if (fi.exists() && fi.open(QFile::ReadOnly)) {
+        QTextStream ts(&fi);
+        while (!ts.atEnd()) {
+            const QString line = ts.readLine();
+            if (line.startsWith(key))
+                return line;
+        }
+    }
+    return QString();
+}
+
+/// This function trims the "#Command /path/to/qmake" from the line
+static QString trimLine(const QString line)
+{
+
+    // Actually the first space after #Command: /path/to/qmake
+    const int firstSpace = line.indexOf(QLatin1Char(' '), 11);
+    return line.mid(firstSpace).trimmed();
+}
+
+static void parseArgs(const QString &args,
+                      QList<QMakeAssignment> *assignments,
+                      QList<QMakeAssignment> *afterAssignments,
+                      QString *additionalArguments);
+static BaseQtVersion::QmakeBuildConfigs qmakeBuildConfigFromCmdArgs(QList<QMakeAssignment> *assignments,
+                                                                    BaseQtVersion::QmakeBuildConfigs defaultBuildConfig);
+static bool restoreQtVersions();
+static void findSystemQt();
+static void saveQtVersions();
+static void updateDocumentation();
+
+
 // --------------------------------------------------------------------------
 // QtVersionManager
 // --------------------------------------------------------------------------
-QtVersionManager *QtVersionManager::m_self = 0;
 
-QtVersionManager::QtVersionManager() :
-    m_configFileWatcher(0),
-    m_fileWatcherTimer(new QTimer(this)),
-    m_writer(0)
+QtVersionManager::QtVersionManager()
 {
-    m_self = this;
+    m_instance = this;
+    m_configFileWatcher = 0;
+    m_fileWatcherTimer = new QTimer(this);
+    m_writer = 0;
     m_idcount = 1;
 
-    qRegisterMetaType<Utils::FileName>();
+    qRegisterMetaType<FileName>();
 
     // Give the file a bit of time to settle before reading it...
     m_fileWatcherTimer->setInterval(2000);
     connect(m_fileWatcherTimer, SIGNAL(timeout()), SLOT(updateFromInstaller()));
 }
 
-void QtVersionManager::extensionsInitialized()
+void QtVersionManager::triggerQtVersionRestore()
 {
+    disconnect(ProjectExplorer::ToolChainManager::instance(), SIGNAL(toolChainsLoaded()),
+               this, SLOT(triggerQtVersionRestore()));
+
     bool success = restoreQtVersions();
-    updateFromInstaller(false);
+    m_instance->updateFromInstaller(false);
     if (!success) {
         // We did neither restore our settings or upgraded
         // in that case figure out if there's a qt in path
@@ -141,17 +175,17 @@ void QtVersionManager::extensionsInitialized()
         findSystemQt();
     }
 
-    emit qtVersionsLoaded();
-    emit qtVersionsChanged(m_versions.keys(), QList<int>(), QList<int>());
+    emit m_instance->qtVersionsLoaded();
+    emit m_instance->qtVersionsChanged(m_versions.keys(), QList<int>(), QList<int>());
     saveQtVersions();
 
-    const Utils::FileName configFileName = globalSettingsFileName();
+    const FileName configFileName = globalSettingsFileName();
     if (configFileName.toFileInfo().exists()) {
-        m_configFileWatcher = new Utils::FileSystemWatcher(this);
+        m_configFileWatcher = new FileSystemWatcher(m_instance);
         connect(m_configFileWatcher, SIGNAL(fileChanged(QString)),
                 m_fileWatcherTimer, SLOT(start()));
         m_configFileWatcher->addFile(configFileName.toString(),
-                                     Utils::FileSystemWatcher::WatchModifiedDate);
+                                     FileSystemWatcher::WatchModifiedDate);
     } // exists
 }
 
@@ -161,7 +195,7 @@ bool QtVersionManager::delayedInitialize()
     return true;
 }
 
-bool QtVersionManager::isLoaded() const
+bool QtVersionManager::isLoaded()
 {
     return m_writer;
 }
@@ -173,21 +207,27 @@ QtVersionManager::~QtVersionManager()
     m_versions.clear();
 }
 
-QtVersionManager *QtVersionManager::instance()
+void QtVersionManager::initialized()
 {
-    return m_self;
+    connect(ProjectExplorer::ToolChainManager::instance(), SIGNAL(toolChainsLoaded()),
+            QtVersionManager::instance(), SLOT(triggerQtVersionRestore()));
 }
 
-bool QtVersionManager::restoreQtVersions()
+QObject *QtVersionManager::instance()
+{
+    return m_instance;
+}
+
+static bool restoreQtVersions()
 {
     QTC_ASSERT(!m_writer, return false);
-    m_writer = new Utils::PersistentSettingsWriter(settingsFileName(QLatin1String(QTVERSION_FILENAME)),
+    m_writer = new PersistentSettingsWriter(settingsFileName(QLatin1String(QTVERSION_FILENAME)),
                                                    QLatin1String("QtCreatorQtVersions"));
 
     QList<QtVersionFactory *> factories = ExtensionSystem::PluginManager::getObjects<QtVersionFactory>();
 
-    Utils::PersistentSettingsReader reader;
-    Utils::FileName filename = settingsFileName(QLatin1String(QTVERSION_FILENAME));
+    PersistentSettingsReader reader;
+    FileName filename = settingsFileName(QLatin1String(QTVERSION_FILENAME));
 
     // Read Qt Creator 2.5 qtversions.xml once:
     if (!filename.toFileInfo().exists())
@@ -246,11 +286,11 @@ void QtVersionManager::updateFromInstaller(bool emitSignal)
 {
     m_fileWatcherTimer->stop();
 
-    const Utils::FileName path = globalSettingsFileName();
+    const FileName path = globalSettingsFileName();
     // Handle overwritting of data:
     if (m_configFileWatcher) {
         m_configFileWatcher->removeFile(path.toString());
-        m_configFileWatcher->addFile(path.toString(), Utils::FileSystemWatcher::WatchModifiedDate);
+        m_configFileWatcher->addFile(path.toString(), FileSystemWatcher::WatchModifiedDate);
     }
 
     QList<int> added;
@@ -258,7 +298,7 @@ void QtVersionManager::updateFromInstaller(bool emitSignal)
     QList<int> changed;
 
     QList<QtVersionFactory *> factories = ExtensionSystem::PluginManager::getObjects<QtVersionFactory>();
-    Utils::PersistentSettingsReader reader;
+    PersistentSettingsReader reader;
     QVariantMap data;
     if (reader.load(path))
         data = reader.restoreValues();
@@ -309,7 +349,9 @@ void QtVersionManager::updateFromInstaller(bool emitSignal)
                 if (debug)
                     qDebug() << " Qt version found with same autodetection source" << autoDetectionSource << " => Migrating id:" << id;
                 m_versions.remove(id);
-                qtversionMap[QLatin1String("Id")] = id;
+                qtversionMap[QLatin1String(Constants::QTVERSIONID)] = id;
+                qtversionMap[QLatin1String(Constants::QTVERSIONNAME)] = v->displayName();
+                delete v;
 
                 if (BaseQtVersion *qtv = factory->restore(type, qtversionMap)) {
                     Q_ASSERT(qtv->isAutodetected());
@@ -347,7 +389,7 @@ void QtVersionManager::updateFromInstaller(bool emitSignal)
             qDebug() << "";
         }
     }
-    foreach (BaseQtVersion *qtVersion, QtVersionManager::instance()->versions()) {
+    foreach (BaseQtVersion *qtVersion, QtVersionManager::versions()) {
         if (qtVersion->autodetectionSource().startsWith(QLatin1String("SDK."))) {
             if (!sdkVersions.contains(qtVersion->autodetectionSource())) {
                 if (debug)
@@ -368,10 +410,9 @@ void QtVersionManager::updateFromInstaller(bool emitSignal)
     }
     if (emitSignal)
         emit qtVersionsChanged(added, removed, changed);
-    saveQtVersions();
 }
 
-void QtVersionManager::saveQtVersions()
+static void saveQtVersions()
 {
     if (!m_writer)
         return;
@@ -392,9 +433,9 @@ void QtVersionManager::saveQtVersions()
     m_writer->save(data, Core::ICore::mainWindow());
 }
 
-void QtVersionManager::findSystemQt()
+static void findSystemQt()
 {
-    Utils::FileName systemQMakePath = QtSupport::DebuggingHelperLibrary::findSystemQt(Utils::Environment::systemEnvironment());
+    FileName systemQMakePath = BuildableHelperLibrary::findSystemQt(Environment::systemEnvironment());
     if (systemQMakePath.isNull())
         return;
 
@@ -415,7 +456,7 @@ void QtVersionManager::addVersion(BaseQtVersion *version)
     int uniqueId = version->uniqueId();
     m_versions.insert(uniqueId, version);
 
-    emit qtVersionsChanged(QList<int>() << uniqueId, QList<int>(), QList<int>());
+    emit m_instance->qtVersionsChanged(QList<int>() << uniqueId, QList<int>(), QList<int>());
     saveQtVersions();
 }
 
@@ -423,15 +464,13 @@ void QtVersionManager::removeVersion(BaseQtVersion *version)
 {
     QTC_ASSERT(version != 0, return);
     m_versions.remove(version->uniqueId());
-    emit qtVersionsChanged(QList<int>(), QList<int>() << version->uniqueId(), QList<int>());
+    emit m_instance->qtVersionsChanged(QList<int>(), QList<int>() << version->uniqueId(), QList<int>());
     saveQtVersions();
     delete version;
 }
 
-void QtVersionManager::updateDocumentation()
+static void updateDocumentation()
 {
-    Core::HelpManager *helpManager = Core::HelpManager::instance();
-    Q_ASSERT(helpManager);
     QStringList files;
     foreach (BaseQtVersion *v, m_versions) {
         const QStringList docPaths = QStringList() << v->documentationPath() + QLatin1Char('/')
@@ -443,10 +482,10 @@ void QtVersionManager::updateDocumentation()
                 files << docPath + helpFile;
         }
     }
-    helpManager->registerDocumentation(files);
+    Core::HelpManager::registerDocumentation(files);
 }
 
-void QtVersionManager::updateDumpFor(const Utils::FileName &qmakeCommand)
+void QtVersionManager::updateDumpFor(const FileName &qmakeCommand)
 {
     foreach (BaseQtVersion *v, versions()) {
         if (v->qmakeCommand() == qmakeCommand)
@@ -460,7 +499,7 @@ int QtVersionManager::getUniqueId()
     return m_idcount++;
 }
 
-QList<BaseQtVersion *> QtVersionManager::versions() const
+QList<BaseQtVersion *> QtVersionManager::versions()
 {
     QList<BaseQtVersion *> versions;
     QTC_ASSERT(isLoaded(), return versions);
@@ -470,7 +509,7 @@ QList<BaseQtVersion *> QtVersionManager::versions() const
     return versions;
 }
 
-QList<BaseQtVersion *> QtVersionManager::validVersions() const
+QList<BaseQtVersion *> QtVersionManager::validVersions()
 {
     QList<BaseQtVersion *> results;
     QTC_ASSERT(isLoaded(), return results);
@@ -482,44 +521,13 @@ QList<BaseQtVersion *> QtVersionManager::validVersions() const
     return results;
 }
 
-bool QtVersionManager::isValidId(int id) const
+bool QtVersionManager::isValidId(int id)
 {
     QTC_ASSERT(isLoaded(), return false);
     return m_versions.contains(id);
 }
 
-Core::FeatureSet QtVersionManager::availableFeatures(const QString &platformName) const
-{
-    Core::FeatureSet features;
-    foreach (BaseQtVersion *const qtVersion, validVersions()) {
-        if (qtVersion->isValid() && ((qtVersion->platformName() == platformName) || platformName.isEmpty()))
-            features |= qtVersion->availableFeatures();
-    }
-
-    return features;
-}
-
-QStringList QtVersionManager::availablePlatforms() const
-{
-    QStringList platforms;
-    foreach (BaseQtVersion *const qtVersion, validVersions()) {
-        if (qtVersion->isValid() && !qtVersion->platformName().isEmpty())
-            platforms.append(qtVersion->platformName());
-    }
-    platforms.removeDuplicates();
-    return platforms;
-}
-
-QString QtVersionManager::displayNameForPlatform(const QString &string) const
-{
-    foreach (BaseQtVersion *const qtVersion, validVersions()) {
-        if (qtVersion->platformName() == string)
-            return qtVersion->platformDisplayName();
-    }
-    return QString();
-}
-
-BaseQtVersion *QtVersionManager::version(int id) const
+BaseQtVersion *QtVersionManager::version(int id)
 {
     QTC_ASSERT(isLoaded(), return 0);
     QMap<int, BaseQtVersion *>::const_iterator it = m_versions.find(id);
@@ -537,7 +545,8 @@ public:
     }
 };
 
-bool QtVersionManager::equals(BaseQtVersion *a, BaseQtVersion *b)
+// This function is really simplistic...
+static bool equals(BaseQtVersion *a, BaseQtVersion *b)
 {
     return a->equals(b);
 }
@@ -602,14 +611,14 @@ void QtVersionManager::setNewQtVersions(QList<BaseQtVersion *> newVersions)
     saveQtVersions();
 
     if (!changedVersions.isEmpty() || !addedVersions.isEmpty() || !removedVersions.isEmpty())
-        emit qtVersionsChanged(addedVersions, removedVersions, changedVersions);
+        emit m_instance->qtVersionsChanged(addedVersions, removedVersions, changedVersions);
 }
 
 // Returns the version that was used to build the project in that directory
 // That is returns the directory
 // To find out whether we already have a qtversion for that directory call
 // QtVersion *QtVersionManager::qtVersionForDirectory(const QString directory);
-Utils::FileName QtVersionManager::findQMakeBinaryFromMakefile(const QString &makefile)
+FileName QtVersionManager::findQMakeBinaryFromMakefile(const QString &makefile)
 {
     bool debugAdding = false;
     QFile fi(makefile);
@@ -623,21 +632,21 @@ Utils::FileName QtVersionManager::findQMakeBinaryFromMakefile(const QString &mak
                     qDebug()<<"#~~ QMAKE is:"<<r1.cap(1).trimmed();
                 QFileInfo qmake(r1.cap(1).trimmed());
                 QString qmakePath = qmake.filePath();
-                if (Utils::HostOsInfo::isWindowsHost()
+                if (HostOsInfo::isWindowsHost()
                         && !qmakePath.endsWith(QLatin1String(".exe"))) {
                     qmakePath.append(QLatin1String(".exe"));
                 }
                 // Is qmake still installed?
                 QFileInfo fi(qmakePath);
                 if (fi.exists())
-                    return Utils::FileName(fi);
+                    return FileName(fi);
             }
         }
     }
-    return Utils::FileName();
+    return FileName();
 }
 
-BaseQtVersion *QtVersionManager::qtVersionForQMakeBinary(const Utils::FileName &qmakePath)
+BaseQtVersion *QtVersionManager::qtVersionForQMakeBinary(const FileName &qmakePath)
 {
     foreach (BaseQtVersion *version, versions()) {
         if (version->qmakeCommand() == qmakePath) {
@@ -707,11 +716,11 @@ QPair<BaseQtVersion::QmakeBuildConfigs, QString> QtVersionManager::scanMakeFile(
             dumpQMakeAssignments(assignments);
 
         foreach (const QMakeAssignment &qa, assignments)
-            Utils::QtcProcess::addArg(&result2, qa.variable + qa.op + qa.value);
+            QtcProcess::addArg(&result2, qa.variable + qa.op + qa.value);
         if (!afterAssignments.isEmpty()) {
-            Utils::QtcProcess::addArg(&result2, QLatin1String("-after"));
+            QtcProcess::addArg(&result2, QLatin1String("-after"));
             foreach (const QMakeAssignment &qa, afterAssignments)
-                Utils::QtcProcess::addArg(&result2, qa.variable + qa.op + qa.value);
+                QtcProcess::addArg(&result2, qa.variable + qa.op + qa.value);
         }
     }
 
@@ -729,36 +738,13 @@ QPair<BaseQtVersion::QmakeBuildConfigs, QString> QtVersionManager::scanMakeFile(
     return qMakePair(result, result2);
 }
 
-QString QtVersionManager::findQMakeLine(const QString &makefile, const QString &key)
-{
-    QFile fi(makefile);
-    if (fi.exists() && fi.open(QFile::ReadOnly)) {
-        QTextStream ts(&fi);
-        while (!ts.atEnd()) {
-            const QString line = ts.readLine();
-            if (line.startsWith(key))
-                return line;
-        }
-    }
-    return QString();
-}
-
-/// This function trims the "#Command /path/to/qmake" from the the line
-QString QtVersionManager::trimLine(const QString line)
-{
-
-    // Actually the first space after #Command: /path/to/qmake
-    const int firstSpace = line.indexOf(QLatin1Char(' '), 11);
-    return line.mid(firstSpace).trimmed();
-}
-
-void QtVersionManager::parseArgs(const QString &args, QList<QMakeAssignment> *assignments, QList<QMakeAssignment> *afterAssignments, QString *additionalArguments)
+static void parseArgs(const QString &args, QList<QMakeAssignment> *assignments, QList<QMakeAssignment> *afterAssignments, QString *additionalArguments)
 {
     QRegExp regExp(QLatin1String("([^\\s\\+-]*)\\s*(\\+=|=|-=|~=)(.*)"));
     bool after = false;
     bool ignoreNext = false;
     *additionalArguments = args;
-    Utils::QtcProcess::ArgIterator ait(additionalArguments);
+    QtcProcess::ArgIterator ait(additionalArguments);
     while (ait.next()) {
         if (ignoreNext) {
             // Ignoring
@@ -800,7 +786,7 @@ void QtVersionManager::parseArgs(const QString &args, QList<QMakeAssignment> *as
 }
 
 /// This function extracts all the CONFIG+=debug, CONFIG+=release
-BaseQtVersion::QmakeBuildConfigs QtVersionManager::qmakeBuildConfigFromCmdArgs(QList<QMakeAssignment> *assignments, BaseQtVersion::QmakeBuildConfigs defaultBuildConfig)
+static BaseQtVersion::QmakeBuildConfigs qmakeBuildConfigFromCmdArgs(QList<QMakeAssignment> *assignments, BaseQtVersion::QmakeBuildConfigs defaultBuildConfig)
 {
     BaseQtVersion::QmakeBuildConfigs result = defaultBuildConfig;
     QList<QMakeAssignment> oldAssignments = *assignments;
@@ -842,15 +828,33 @@ BaseQtVersion::QmakeBuildConfigs QtVersionManager::qmakeBuildConfigFromCmdArgs(Q
 
 Core::FeatureSet QtFeatureProvider::availableFeatures(const QString &platformName) const
 {
-     return QtVersionManager::instance()->availableFeatures(platformName);
+    Core::FeatureSet features;
+    foreach (BaseQtVersion *const qtVersion, QtVersionManager::validVersions()) {
+        if (qtVersion->platformName() == platformName || platformName.isEmpty())
+            features |= qtVersion->availableFeatures();
+    }
+
+    return features;
 }
 
 QStringList QtFeatureProvider::availablePlatforms() const
 {
-    return QtVersionManager::instance()->availablePlatforms();
+    QStringList platforms;
+    foreach (BaseQtVersion *const qtVersion, QtVersionManager::validVersions()) {
+        if (!qtVersion->platformName().isEmpty())
+            platforms.append(qtVersion->platformName());
+    }
+    platforms.removeDuplicates();
+    return platforms;
 }
 
 QString QtFeatureProvider::displayNameForPlatform(const QString &string) const
 {
-    return QtVersionManager::instance()->displayNameForPlatform(string);
+    foreach (BaseQtVersion *const qtVersion, QtVersionManager::validVersions()) {
+        if (qtVersion->platformName() == string)
+            return qtVersion->platformDisplayName();
+    }
+    return QString();
 }
+
+} // namespace QtVersion

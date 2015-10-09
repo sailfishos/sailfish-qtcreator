@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -43,14 +43,14 @@ public:
 private slots:
     void handleConnectionError();
     void handleListProcessFinished(int exitStatus);
-    void handleKillProcessFinished(int exitStatus);
+    void handleKillProcessFinished(const QString &errorString);
 
 private:
     virtual QString listProcessesCommandLine() const = 0;
-    virtual QList<DeviceProcess> buildProcessList(const QString &listProcessesReply) const = 0;
+    virtual QList<DeviceProcessItem> buildProcessList(const QString &listProcessesReply) const = 0;
 
     void doUpdate();
-    void doKillProcess(const DeviceProcess &process);
+    void doKillProcess(const DeviceProcessItem &process);
 
     void handleProcessError(const QString &errorMessage);
     void setFinished();

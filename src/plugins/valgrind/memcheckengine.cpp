@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 ** Author: Nicolas Arnaud-Cormos, KDAB (nicolas.arnaud-cormos@kdab.com)
 **
@@ -32,7 +32,8 @@
 
 #include "valgrindsettings.h"
 
-#include <analyzerbase/analyzersettings.h>
+#include <projectexplorer/projectexplorer.h>
+#include <projectexplorer/taskhub.h>
 
 #include <valgrind/xmlprotocol/error.h>
 #include <valgrind/xmlprotocol/status.h>
@@ -40,14 +41,15 @@
 #include <utils/qtcassert.h>
 
 using namespace Analyzer;
+using namespace ProjectExplorer;
 using namespace Valgrind::XmlProtocol;
 
 namespace Valgrind {
 namespace Internal {
 
-MemcheckEngine::MemcheckEngine(IAnalyzerTool *tool, const AnalyzerStartParameters &sp,
+MemcheckRunControl::MemcheckRunControl(const AnalyzerStartParameters &sp,
         ProjectExplorer::RunConfiguration *runConfiguration)
-    : ValgrindEngine(tool, sp, runConfiguration)
+    : ValgrindRunControl(sp, runConfiguration)
 {
     connect(&m_parser, SIGNAL(error(Valgrind::XmlProtocol::Error)),
             SIGNAL(parserError(Valgrind::XmlProtocol::Error)));
@@ -61,61 +63,81 @@ MemcheckEngine::MemcheckEngine(IAnalyzerTool *tool, const AnalyzerStartParameter
     m_progress->setProgressRange(0, XmlProtocol::Status::Finished + 1);
 }
 
-QString MemcheckEngine::progressTitle() const
+QString MemcheckRunControl::progressTitle() const
 {
     return tr("Analyzing Memory");
 }
 
-Valgrind::ValgrindRunner *MemcheckEngine::runner()
+Valgrind::ValgrindRunner *MemcheckRunControl::runner()
 {
     return &m_runner;
 }
 
-bool MemcheckEngine::start()
+bool MemcheckRunControl::startEngine()
 {
     m_runner.setParser(&m_parser);
 
-    emit outputReceived(tr("Analyzing memory of %1\n").arg(executable()),
+    // Clear about-to-be-outdated tasks.
+    TaskHub::clearTasks(Analyzer::Constants::ANALYZERTASK_ID);
+
+    appendMessage(tr("Analyzing memory of %1").arg(executable()) + QLatin1Char('\n'),
                         Utils::NormalMessageFormat);
-    return ValgrindEngine::start();
+    return ValgrindRunControl::startEngine();
 }
 
-void MemcheckEngine::stop()
+void MemcheckRunControl::stopEngine()
 {
     disconnect(&m_parser, SIGNAL(internalError(QString)),
                this, SIGNAL(internalParserError(QString)));
-    ValgrindEngine::stop();
+    ValgrindRunControl::stopEngine();
 }
 
-QStringList MemcheckEngine::toolArguments() const
+QStringList MemcheckRunControl::toolArguments() const
 {
     QStringList arguments;
     arguments << QLatin1String("--gen-suppressions=all");
 
-    ValgrindBaseSettings *memcheckSettings = m_settings->subConfig<ValgrindBaseSettings>();
-    QTC_ASSERT(memcheckSettings, return arguments);
+    QTC_ASSERT(m_settings, return arguments);
 
-    if (memcheckSettings->trackOrigins())
+    if (m_settings->trackOrigins())
         arguments << QLatin1String("--track-origins=yes");
 
-    foreach (const QString &file, memcheckSettings->suppressionFiles())
+    if (m_settings->showReachable())
+        arguments << QLatin1String("--show-reachable=yes");
+
+    QString leakCheckValue;
+    switch (m_settings->leakCheckOnFinish()) {
+    case ValgrindBaseSettings::LeakCheckOnFinishNo:
+        leakCheckValue = QLatin1String("no");
+        break;
+    case ValgrindBaseSettings::LeakCheckOnFinishYes:
+        leakCheckValue = QLatin1String("full");
+        break;
+    case ValgrindBaseSettings::LeakCheckOnFinishSummaryOnly:
+    default:
+        leakCheckValue = QLatin1String("summary");
+        break;
+    }
+    arguments << QLatin1String("--leak-check=") + leakCheckValue;
+
+    foreach (const QString &file, m_settings->suppressionFiles())
         arguments << QString::fromLatin1("--suppressions=%1").arg(file);
 
-    arguments << QString::fromLatin1("--num-callers=%1").arg(memcheckSettings->numCallers());
+    arguments << QString::fromLatin1("--num-callers=%1").arg(m_settings->numCallers());
     return arguments;
 }
 
-QStringList MemcheckEngine::suppressionFiles() const
+QStringList MemcheckRunControl::suppressionFiles() const
 {
-    return m_settings->subConfig<ValgrindBaseSettings>()->suppressionFiles();
+    return m_settings->suppressionFiles();
 }
 
-void MemcheckEngine::status(const Status &status)
+void MemcheckRunControl::status(const Status &status)
 {
     m_progress->setProgressValue(status.state() + 1);
 }
 
-void MemcheckEngine::receiveLogMessage(const QByteArray &b)
+void MemcheckRunControl::receiveLogMessage(const QByteArray &b)
 {
     QString error = QString::fromLocal8Bit(b);
     // workaround https://bugs.kde.org/show_bug.cgi?id=255888
@@ -126,7 +148,7 @@ void MemcheckEngine::receiveLogMessage(const QByteArray &b)
     if (error.isEmpty())
         return;
 
-    stop();
+    stopEngine();
 
     QString file;
     int line = -1;
@@ -138,7 +160,9 @@ void MemcheckEngine::receiveLogMessage(const QByteArray &b)
         line = suppressionError.cap(2).toInt();
     }
 
-    emit taskToBeAdded(ProjectExplorer::Task::Error, error, file, line);
+    TaskHub::addTask(Task(Task::Error, error, Utils::FileName::fromUserInput(file), line,
+                          Analyzer::Constants::ANALYZERTASK_ID));
+    TaskHub::requestPopup();
 }
 
 } // namespace Internal

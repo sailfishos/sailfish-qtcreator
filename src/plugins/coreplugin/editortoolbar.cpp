@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -34,7 +34,7 @@
 #include <coreplugin/icore.h>
 
 #include <coreplugin/editormanager/editormanager.h>
-#include <coreplugin/editormanager/openeditorsmodel.h>
+#include <coreplugin/editormanager/documentmodel.h>
 #include <coreplugin/actionmanager/actionmanager.h>
 
 #include <utils/hostosinfo.h>
@@ -57,7 +57,7 @@ namespace Core {
 struct EditorToolBarPrivate {
     explicit EditorToolBarPrivate(QWidget *parent, EditorToolBar *q);
 
-    Core::OpenEditorsModel *m_editorsListModel;
+    Core::DocumentModel *m_editorsListModel;
     QComboBox *m_editorList;
     QToolButton *m_closeEditorButton;
     QToolButton *m_lockButton;
@@ -115,7 +115,7 @@ EditorToolBar::EditorToolBar(QWidget *parent) :
     d->m_lockButton->setAutoRaise(true);
     d->m_lockButton->setEnabled(false);
 
-    d->m_editorsListModel = EditorManager::instance()->openedEditorsModel();
+    d->m_editorsListModel = EditorManager::documentModel();
     connect(d->m_goBackAction, SIGNAL(triggered()), this, SIGNAL(goBackClicked()));
     connect(d->m_goForwardAction, SIGNAL(triggered()), this, SIGNAL(goForwardClicked()));
 
@@ -207,7 +207,7 @@ EditorToolBar::~EditorToolBar()
 void EditorToolBar::removeToolbarForEditor(IEditor *editor)
 {
     QTC_ASSERT(editor, return);
-    disconnect(editor, SIGNAL(changed()), this, SLOT(checkEditorStatus()));
+    disconnect(editor->document(), SIGNAL(changed()), this, SLOT(checkDocumentStatus()));
 
     QWidget *toolBar = editor->toolBar();
     if (toolBar != 0) {
@@ -238,20 +238,20 @@ void EditorToolBar::closeEditor()
         return;
 
     if (d->m_isStandalone)
-        EditorManager::instance()->closeEditor(current);
+        EditorManager::closeEditor(current);
     emit closeClicked();
 }
 
 void EditorToolBar::addEditor(IEditor *editor)
 {
     QTC_ASSERT(editor, return);
-    connect(editor, SIGNAL(changed()), this, SLOT(checkEditorStatus()));
+    connect(editor->document(), SIGNAL(changed()), this, SLOT(checkDocumentStatus()));
     QWidget *toolBar = editor->toolBar();
 
     if (toolBar && !d->m_isStandalone)
         addCenterToolBar(toolBar);
 
-    updateEditorStatus(editor);
+    updateDocumentStatus(editor->document());
 }
 
 void EditorToolBar::addCenterToolBar(QWidget *toolBar)
@@ -278,7 +278,7 @@ void EditorToolBar::setToolbarCreationFlags(ToolbarCreationFlags flags)
 {
     d->m_isStandalone = flags & FlagsStandalone;
     if (d->m_isStandalone) {
-        EditorManager *em = EditorManager::instance();
+        QWidget *em = EditorManager::instance();
         connect(em, SIGNAL(currentEditorChanged(Core::IEditor*)), SLOT(updateEditorListSelection(Core::IEditor*)));
 
         disconnect(d->m_editorList, SIGNAL(activated(int)), this, SIGNAL(listSelectionActivated(int)));
@@ -290,51 +290,54 @@ void EditorToolBar::setToolbarCreationFlags(ToolbarCreationFlags flags)
 
 void EditorToolBar::setCurrentEditor(IEditor *editor)
 {
-    QTC_ASSERT(editor, return);
-    d->m_editorList->setCurrentIndex(d->m_editorsListModel->indexOf(editor).row());
+    IDocument *document = editor ? editor->document() : 0;
+    d->m_editorList->setCurrentIndex(d->m_editorsListModel->rowOfDocument(document));
 
     // If we never added the toolbar from the editor,  we will never change
     // the editor, so there's no need to update the toolbar either.
     if (!d->m_isStandalone)
-        updateToolBar(editor->toolBar());
+        updateToolBar(editor ? editor->toolBar() : 0);
 
-    updateEditorStatus(editor);
+    updateDocumentStatus(document);
 }
 
 void EditorToolBar::updateEditorListSelection(IEditor *newSelection)
 {
     if (newSelection)
-        d->m_editorList->setCurrentIndex(d->m_editorsListModel->indexOf(newSelection).row());
+        d->m_editorList->setCurrentIndex(d->m_editorsListModel->rowOfDocument(newSelection->document()));
 }
 
 void EditorToolBar::changeActiveEditor(int row)
 {
-    EditorManager *em = ICore::editorManager();
-    QAbstractItemModel *model = d->m_editorList->model();
-    em->activateEditorForIndex(model->index(row, 0));
+    EditorManager::activateEditorForEntry(d->m_editorsListModel->documentAtRow(row));
 }
 
 void EditorToolBar::listContextMenu(QPoint pos)
 {
-    QModelIndex index = d->m_editorsListModel->index(d->m_editorList->currentIndex(), 0);
-    QString fileName = d->m_editorsListModel->data(index, Qt::UserRole + 1).toString();
-    if (fileName.isEmpty())
+    DocumentModel::Entry *entry = EditorManager::documentModel()->documentAtRow(
+                d->m_editorList->currentIndex());
+    QString fileName = entry ? entry->fileName() : QString();
+    QString shortFileName = entry ? QFileInfo(fileName).fileName() : QString();
+    if (fileName.isEmpty() || shortFileName.isEmpty())
         return;
     QMenu menu;
     QAction *copyPath = menu.addAction(tr("Copy Full Path to Clipboard"));
+    QAction *copyFileName = menu.addAction(tr("Copy File Name to Clipboard"));
     menu.addSeparator();
-    EditorManager::instance()->addSaveAndCloseEditorActions(&menu, index);
+    EditorManager::addSaveAndCloseEditorActions(&menu, entry);
     menu.addSeparator();
-    EditorManager::instance()->addNativeDirActions(&menu, index);
+    EditorManager::addNativeDirActions(&menu, entry);
     QAction *result = menu.exec(d->m_editorList->mapToGlobal(pos));
     if (result == copyPath)
         QApplication::clipboard()->setText(QDir::toNativeSeparators(fileName));
+    if (result == copyFileName)
+        QApplication::clipboard()->setText(shortFileName);
 }
 
 void EditorToolBar::makeEditorWritable()
 {
-    if (IEditor *current = EditorManager::currentEditor())
-        EditorManager::instance()->makeFileWritable(current->document());
+    if (IDocument *current = EditorManager::currentDocument())
+        EditorManager::makeFileWritable(current);
 }
 
 void EditorToolBar::setCanGoBack(bool canGoBack)
@@ -355,20 +358,22 @@ void EditorToolBar::updateActionShortcuts()
     d->m_closeSplitButton->setToolTip(ActionManager::command(Constants::REMOVE_CURRENT_SPLIT)->stringWithAppendedShortcut(tr("Remove Split")));
 }
 
-void EditorToolBar::checkEditorStatus()
+void EditorToolBar::checkDocumentStatus()
 {
-    IEditor *editor = qobject_cast<IEditor *>(sender());
-    IEditor *current = EditorManager::currentEditor();
+    IDocument *document = qobject_cast<IDocument *>(sender());
+    QTC_ASSERT(document, return);
+    DocumentModel::Entry *entry = EditorManager::documentModel()->documentAtRow(
+                d->m_editorList->currentIndex());
 
-    if (current == editor)
-        updateEditorStatus(editor);
+    if (entry && entry->document && entry->document == document)
+        updateDocumentStatus(document);
 }
 
-void EditorToolBar::updateEditorStatus(IEditor *editor)
+void EditorToolBar::updateDocumentStatus(IDocument *document)
 {
-    d->m_closeEditorButton->setEnabled(editor != 0);
+    d->m_closeEditorButton->setEnabled(document != 0);
 
-    if (!editor || !editor->document()) {
+    if (!document) {
         d->m_lockButton->setIcon(QIcon());
         d->m_lockButton->setEnabled(false);
         d->m_lockButton->setToolTip(QString());
@@ -376,13 +381,13 @@ void EditorToolBar::updateEditorStatus(IEditor *editor)
         return;
     }
 
-    d->m_editorList->setCurrentIndex(d->m_editorsListModel->indexOf(editor).row());
+    d->m_editorList->setCurrentIndex(d->m_editorsListModel->rowOfDocument(document));
 
-    if (editor->document()->fileName().isEmpty()) {
+    if (document->filePath().isEmpty()) {
         d->m_lockButton->setIcon(QIcon());
         d->m_lockButton->setEnabled(false);
         d->m_lockButton->setToolTip(QString());
-    } else if (editor->document()->isFileReadOnly()) {
+    } else if (document->isFileReadOnly()) {
         d->m_lockButton->setIcon(QIcon(d->m_editorsListModel->lockedIcon()));
         d->m_lockButton->setEnabled(true);
         d->m_lockButton->setToolTip(tr("Make Writable"));
@@ -391,13 +396,10 @@ void EditorToolBar::updateEditorStatus(IEditor *editor)
         d->m_lockButton->setEnabled(false);
         d->m_lockButton->setToolTip(tr("File is writable"));
     }
-    IEditor *current = EditorManager::currentEditor();
-    if (editor == current)
-        d->m_editorList->setToolTip(
-                current->document()->fileName().isEmpty()
-                ? current->displayName()
-                    : QDir::toNativeSeparators(editor->document()->fileName())
-                    );
+    d->m_editorList->setToolTip(
+            document->filePath().isEmpty()
+            ? document->displayName()
+            : QDir::toNativeSeparators(document->filePath()));
 }
 
 void EditorToolBar::setNavigationVisible(bool isVisible)

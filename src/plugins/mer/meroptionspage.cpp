@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2013 Jolla Ltd.
+** Copyright (C) 2012 - 2014 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -21,8 +21,11 @@
 ****************************************************************************/
 
 #include "meroptionspage.h"
+
 #include "merconstants.h"
 #include "meroptionswidget.h"
+
+#include <utils/qtcassert.h>
 
 #include <QCoreApplication>
 
@@ -31,7 +34,6 @@ namespace Internal {
 
 MerOptionsPage::MerOptionsPage(QObject *parent)
     : Core::IOptionsPage(parent)
-    , m_widget(0)
 {
     setCategory(Core::Id(Constants::MER_OPTIONS_CATEGORY));
     setDisplayCategory(QCoreApplication::translate("Mer", Constants::MER_OPTIONS_CATEGORY_TR));
@@ -40,9 +42,12 @@ MerOptionsPage::MerOptionsPage(QObject *parent)
     setDisplayName(QCoreApplication::translate("Mer", Constants::MER_OPTIONS_NAME));
 }
 
-QWidget *MerOptionsPage::createPage(QWidget *parent)
+QWidget *MerOptionsPage::widget()
 {
-    m_widget = new MerOptionsWidget(parent);
+    if (m_widget)
+      return m_widget;
+
+    m_widget = new MerOptionsWidget();
     connect(m_widget, SIGNAL(updateSearchKeys()), SLOT(onUpdateSearchKeys()));
     m_searchKeyWords = m_widget->searchKeyWordMatchString();
     return m_widget;
@@ -50,12 +55,14 @@ QWidget *MerOptionsPage::createPage(QWidget *parent)
 
 void MerOptionsPage::apply()
 {
-    if (m_widget)
-        m_widget->store();
+    QTC_CHECK(m_widget);
+
+    m_widget->store();
 }
 
 void MerOptionsPage::finish()
 {
+    delete m_widget;
 }
 
 bool MerOptionsPage::matches(const QString &key) const

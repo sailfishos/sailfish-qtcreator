@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -29,11 +29,20 @@
 
 #include "qnxanalyzesupport.h"
 
-#include <analyzerbase/ianalyzerengine.h>
+#include "qnxdeviceconfiguration.h"
+#include "qnxrunconfiguration.h"
+#include "slog2inforunner.h"
+
+#include <analyzerbase/analyzerruncontrol.h>
 #include <analyzerbase/analyzerstartparameters.h>
 #include <projectexplorer/devicesupport/deviceapplicationrunner.h>
+#include <projectexplorer/kitinformation.h>
+#include <projectexplorer/target.h>
 
 #include <utils/qtcassert.h>
+#include <utils/qtcprocess.h>
+
+#include <QFileInfo>
 
 using namespace ProjectExplorer;
 
@@ -41,9 +50,9 @@ using namespace Qnx;
 using namespace Qnx::Internal;
 
 QnxAnalyzeSupport::QnxAnalyzeSupport(QnxRunConfiguration *runConfig,
-                                     Analyzer::IAnalyzerEngine *engine)
-    : QnxAbstractRunSupport(runConfig, engine)
-    , m_engine(engine)
+                                     Analyzer::AnalyzerRunControl *runControl)
+    : QnxAbstractRunSupport(runConfig, runControl)
+    , m_runControl(runControl)
     , m_qmlPort(-1)
 {
     const DeviceApplicationRunner *runner = appRunner();
@@ -54,17 +63,27 @@ QnxAnalyzeSupport::QnxAnalyzeSupport(QnxRunConfiguration *runConfig,
     connect(runner, SIGNAL(remoteStdout(QByteArray)), SLOT(handleRemoteOutput(QByteArray)));
     connect(runner, SIGNAL(remoteStderr(QByteArray)), SLOT(handleRemoteOutput(QByteArray)));
 
-    connect(m_engine, SIGNAL(starting(const Analyzer::IAnalyzerEngine*)),
+    connect(m_runControl, SIGNAL(starting(const Analyzer::AnalyzerRunControl*)),
             SLOT(handleAdapterSetupRequested()));
     connect(&m_outputParser, SIGNAL(waitingForConnectionOnPort(quint16)),
             SLOT(remoteIsRunning()));
+
+    ProjectExplorer::IDevice::ConstPtr dev = ProjectExplorer::DeviceKitInformation::device(runConfig->target()->kit());
+    QnxDeviceConfiguration::ConstPtr qnxDevice = dev.dynamicCast<const QnxDeviceConfiguration>();
+
+    const QString applicationId = QFileInfo(runConfig->remoteExecutableFilePath()).fileName();
+    m_slog2Info = new Slog2InfoRunner(applicationId, qnxDevice, this);
+    connect(m_slog2Info, SIGNAL(output(QString,Utils::OutputFormat)), this, SLOT(showMessage(QString,Utils::OutputFormat)));
+    connect(runner, SIGNAL(remoteProcessStarted()), m_slog2Info, SLOT(start()));
+    if (qnxDevice->qnxVersion() > 0x060500)
+        connect(m_slog2Info, SIGNAL(commandMissing()), this, SLOT(printMissingWarning()));
 }
 
 void QnxAnalyzeSupport::handleAdapterSetupRequested()
 {
     QTC_ASSERT(state() == Inactive, return);
 
-    showMessage(tr("Preparing remote side...\n"), Utils::NormalMessageFormat);
+    showMessage(tr("Preparing remote side...") + QLatin1Char('\n'), Utils::NormalMessageFormat);
     QnxAbstractRunSupport::handleAdapterSetupRequested();
 }
 
@@ -78,21 +97,25 @@ void QnxAnalyzeSupport::startExecution()
 
     setState(StartingRemoteProcess);
 
-    const QString args = m_engine->startParameters().debuggeeArgs +
-            QString::fromLatin1(" -qmljsdebugger=port:%1,block").arg(m_qmlPort);
-    const QString command = QString::fromLatin1("%1 %2 %3").arg(commandPrefix(), executable(), args);
-    appRunner()->start(device(), command.toUtf8());
+    const QStringList args = QStringList()
+            << Utils::QtcProcess::splitArgs(m_runControl->startParameters().debuggeeArgs)
+            << QString::fromLatin1("-qmljsdebugger=port:%1,block").arg(m_qmlPort);
+    appRunner()->setEnvironment(environment());
+    appRunner()->setWorkingDirectory(workingDirectory());
+    appRunner()->start(device(), executable(), args);
 }
 
 void QnxAnalyzeSupport::handleRemoteProcessFinished(bool success)
 {
-    if (m_engine || state() == Inactive)
+    if (!m_runControl)
         return;
 
     if (!success)
         showMessage(tr("The %1 process closed unexpectedly.").arg(executable()),
                     Utils::NormalMessageFormat);
-    m_engine->notifyRemoteFinished(success);
+    m_runControl->notifyRemoteFinished();
+
+    m_slog2Info->stop();
 }
 
 void QnxAnalyzeSupport::handleProfilingFinished()
@@ -124,13 +147,18 @@ void QnxAnalyzeSupport::handleError(const QString &error)
 
 void QnxAnalyzeSupport::remoteIsRunning()
 {
-    if (m_engine)
-        m_engine->notifyRemoteSetupDone(m_qmlPort);
+    if (m_runControl)
+        m_runControl->notifyRemoteSetupDone(m_qmlPort);
 }
 
 void QnxAnalyzeSupport::showMessage(const QString &msg, Utils::OutputFormat format)
 {
-    if (state() != Inactive && m_engine)
-        m_engine->logApplicationMessage(msg, format);
+    if (state() != Inactive && m_runControl)
+        m_runControl->logApplicationMessage(msg, format);
     m_outputParser.processOutput(msg);
+}
+
+void QnxAnalyzeSupport::printMissingWarning()
+{
+    showMessage(tr("Warning: \"slog2info\" is not found on the device, debug output not available!"), Utils::ErrorMessageFormat);
 }

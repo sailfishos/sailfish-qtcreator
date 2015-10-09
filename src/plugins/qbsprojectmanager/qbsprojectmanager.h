@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -34,9 +34,13 @@
 
 #include <projectexplorer/iprojectmanager.h>
 
-#include <qbs.h>
+namespace qbs {
+class Settings;
+class Preferences;
+} // namespace qbs
 
 #include <QString>
+#include <QVariantMap>
 
 namespace ProjectExplorer {
 class Kit;
@@ -52,6 +56,8 @@ class QbsProject;
 class QbsProjectManagerPlugin;
 } // namespace Internal
 
+class DefaultPropertyProvider;
+
 class QbsManager : public ProjectExplorer::IProjectManager
 {
     Q_OBJECT
@@ -63,28 +69,27 @@ public:
     QString mimeType() const;
     ProjectExplorer::Project *openProject(const QString &fileName, QString *errorString);
 
-    // QBS settings management:
+    // QBS profiles management:
     QString profileForKit(const ProjectExplorer::Kit *k) const;
     void setProfileForKit(const QString &name, const ProjectExplorer::Kit *k);
-    QStringList profileNames() const;
 
     static qbs::Settings *settings();
-    static qbs::Preferences *preferences();
     Internal::QbsLogSink *logSink() { return m_logSink; }
 
 private slots:
     void pushKitsToQbs();
 
 private:
-
     void addProfile(const QString &name, const QVariantMap &data);
     void removeCreatorProfiles();
+    void addQtProfileFromKit(const QString &profileName, const ProjectExplorer::Kit *k);
     void addProfileFromKit(const ProjectExplorer::Kit *k);
 
     Internal::QbsProjectManagerPlugin *m_plugin;
     Internal::QbsLogSink *m_logSink;
     static qbs::Settings *m_settings;
-    static qbs::Preferences *m_preferences;
+
+    DefaultPropertyProvider *m_defaultPropertyProvider;
 };
 
 } // namespace QbsProjectManager

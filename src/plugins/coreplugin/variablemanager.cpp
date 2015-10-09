@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -78,7 +78,7 @@ public:
     Examples of this are \c{CurrentDocument:FilePath} and \c{CurrentDocument:Selection}.
 
     When the variable manager is requested to replace variables in a string, it looks for
-    variable names enclosed in ${ and }, like ${CurrentDocument:FilePath}.
+    variable names enclosed in %{ and }, like %{CurrentDocument:FilePath}.
 
     \note The names of the variables are stored as QByteArray. They are typically
     7-bit-clean. In cases where this is not possible, UTF-8 encoding is
@@ -91,40 +91,40 @@ public:
     the variable its value when requested. A typical setup is to
 
     \list 1
-    \o Register the variables in ExtensionSystem::IPlugin::initialize():
-       \code
-       static const char kMyVariable[] = "MyVariable";
+    \li Register the variables in ExtensionSystem::IPlugin::initialize():
+        \code
+        static const char kMyVariable[] = "MyVariable";
 
-       bool MyPlugin::initialize(const QStringList &arguments, QString *errorString)
-       {
-       [...]
-       VariableManager::registerVariable(kMyVariable, tr("The current value of whatever I want."));
-       connect(VariableManager::instance(), SIGNAL(variableUpdateRequested(QByteArray)),
-               this, SLOT(updateVariable(QByteArray)));
-       [...]
-       }
-       \endcode
+        bool MyPlugin::initialize(const QStringList &arguments, QString *errorString)
+        {
+        [...]
+        VariableManager::registerVariable(kMyVariable, tr("The current value of whatever I want."));
+        connect(VariableManager::instance(), SIGNAL(variableUpdateRequested(QByteArray)),
+                this, SLOT(updateVariable(QByteArray)));
+        [...]
+        }
+        \endcode
 
-    \o Set the variable value when requested:
-       \code
-       void MyPlugin::updateVariable(const QByteArray &variable)
-       {
-           if (variable == kMyVariable) {
-               QString value;
-               // do whatever is necessary to retrieve the value
-               [...]
-               VariableManager::insert(variable, value);
-           }
-       }
-       \endcode
+    \li Set the variable value when requested:
+        \code
+        void MyPlugin::updateVariable(const QByteArray &variable)
+        {
+            if (variable == kMyVariable) {
+                QString value;
+                // do whatever is necessary to retrieve the value
+                [...]
+                VariableManager::insert(variable, value);
+            }
+        }
+        \endcode
     \endlist
 
     If there are conditions where your variable is not valid, you should call
     VariableManager::remove(kMyVariable) in updateVariable().
 
-    For variables that refer to a file, you should use the convenience methods
+    For variables that refer to a file, you should use the convenience functions
     VariableManager::registerFileVariables(), VariableManager::fileVariableValue() and
-    VariableManager::isFileVariable(). The methods take a variable prefix, like \c MyFileVariable,
+    VariableManager::isFileVariable(). The functions take a variable prefix, like \c MyFileVariable,
     and automatically handle standardized postfixes like \c{:FilePath},
     \c{:Path} and \c{:FileBaseName}, resulting in the combined variables, such as
     \c{MyFileVariable:FilePath}.
@@ -159,20 +159,20 @@ public:
     There are several different ways to expand a string, covering the different use cases,
     listed here sorted by relevance:
     \list
-    \o Using VariableManager::expandedString(). This is the most comfortable way to get a string
-       with variable values expanded, but also the least flexible one. If this is sufficient for
-       you, use it.
-    \o Using the Utils::expandMacros() methods. These take a string and a macro expander (for which
-       you would use the one provided by the variable manager). Mostly the same as
-       VariableManager::expandedString(), but also has a variant that does the replacement inline
-       instead of returning a new string.
-    \o Using Utils::QtcProcess::expandMacros(). This expands the string while conforming to the
-       quoting rules of the platform it is run on. Use this method with the variable manager's
-       macro expander if your string will be passed as a command line parameter string to an
-       external command.
-    \o Writing your own macro expander that nests the variable manager's macro expander. And then
-       doing one of the above. This allows you to expand additional "local" variables/macros,
-       that do not come from the variable manager.
+    \li Using VariableManager::expandedString(). This is the most comfortable way to get a string
+        with variable values expanded, but also the least flexible one. If this is sufficient for
+        you, use it.
+    \li Using the Utils::expandMacros() functions. These take a string and a macro expander (for which
+        you would use the one provided by the variable manager). Mostly the same as
+        VariableManager::expandedString(), but also has a variant that does the replacement inline
+        instead of returning a new string.
+    \li Using Utils::QtcProcess::expandMacros(). This expands the string while conforming to the
+        quoting rules of the platform it is run on. Use this function with the variable manager's
+        macro expander if your string will be passed as a command line parameter string to an
+        external command.
+    \li Writing your own macro expander that nests the variable manager's macro expander. And then
+        doing one of the above. This allows you to expand additional "local" variables/macros,
+        that do not come from the variable manager.
     \endlist
 
 */
@@ -208,7 +208,7 @@ VariableManager::~VariableManager()
  * Used to set the \a value of a \a variable. Most of the time this is only done when
  * requested by VariableManager::variableUpdateRequested(). If the value of the variable
  * does not change, or changes very seldom, you can also keep the value up to date by calling
- * this method whenever the value changes.
+ * this function whenever the value changes.
  *
  * As long as insert() was never called for a variable, it will not have a value, not even
  * an empty string, meaning that the variable will not be expanded when expanding strings.
@@ -273,10 +273,10 @@ Utils::AbstractMacroExpander *VariableManager::macroExpander()
 }
 
 /*!
- * Returns the variable manager instance, for connecting to signals. All other methods are static
- * and should be called as class methods, not through the instance.
+ * Returns the variable manager instance, for connecting to signals. All other functions are static
+ * and should be called as class functions, not through the instance.
  */
-VariableManager *VariableManager::instance()
+QObject *VariableManager::instance()
 {
     return variableManagerInstance;
 }
@@ -294,7 +294,7 @@ void VariableManager::registerVariable(const QByteArray &variable, const QString
 }
 
 /*!
- * Convenience method to register several variables with the same \a prefix, that have a file
+ * Convenience function to register several variables with the same \a prefix, that have a file
  * as a value. Takes the prefix and registers variables like \c{prefix:FilePath} and
  * \c{prefix:Path}, with descriptions that start with the given \a heading.
  * For example \c{registerFileVariables("CurrentDocument", tr("Current Document"))} registers

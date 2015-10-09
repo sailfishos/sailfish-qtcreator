@@ -1,5 +1,6 @@
 QTC_LIB_DEPENDS += \
- ssh
+ ssh \
+ utils
 
 include(../../../qtcreator.pri)
 include(../../rpath.pri)
@@ -20,7 +21,8 @@ SOURCES = \
     merremoteprocess.cpp \
     makecommand.cpp \
     deploycommand.cpp \
-    rpmcommand.cpp
+    rpmcommand.cpp \
+    rpmvalidationcommand.cpp
 
 HEADERS += \
     command.h \
@@ -31,7 +33,8 @@ HEADERS += \
     merremoteprocess.h \
     makecommand.h \
     deploycommand.h \
-    rpmcommand.h
+    rpmcommand.h \
+    rpmvalidationcommand.h
 
 DESTDIR = $$IDE_LIBEXEC_PATH
 

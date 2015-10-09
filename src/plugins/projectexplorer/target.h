@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,7 +30,6 @@
 #ifndef TARGET_H
 #define TARGET_H
 
-#include "devicesupport/idevice.h"
 #include "projectconfiguration.h"
 #include "projectexplorer_export.h"
 

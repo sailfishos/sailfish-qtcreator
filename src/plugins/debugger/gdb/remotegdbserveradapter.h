@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -31,7 +31,6 @@
 #define REMOTEGDBSERVERADAPTER_H
 
 #include "gdbengine.h"
-#include "localgdbprocess.h"
 
 namespace Debugger {
 namespace Internal {
@@ -50,20 +49,16 @@ public:
     explicit GdbRemoteServerEngine(const DebuggerStartParameters &startParameters);
 
 private:
-    DumperHandling dumperHandling() const;
-
     void setupEngine();
     void setupInferior();
     void runEngine();
     void interruptInferior2();
     void shutdownEngine();
 
-    AbstractGdbProcess *gdbProc() { return &m_gdbProc; }
-
 signals:
     /*
      * For "external" clients of a debugger run control that need to do
-     * further setup before the debugger is started (e.g. Maemo).
+     * further setup before the debugger is started (e.g. RemoteLinux).
      * Afterwards, handleSetupDone() or handleSetupFailed() must be called
      * to continue or abort debugging, respectively.
      * This signal is only emitted if the start parameters indicate that
@@ -91,11 +86,11 @@ private:
     void handleTargetExtendedAttach(const GdbResponse &response);
     void handleTargetQnx(const GdbResponse &response);
     void handleAttach(const GdbResponse &response);
+    void handleSetNtoExecutable(const GdbResponse &response);
     void handleInterruptInferior(const GdbResponse &response);
     void handleExecRun(const GdbResponse &response);
 
     QProcess m_uploadProc;
-    LocalGdbProcess m_gdbProc;
     bool m_isMulti;
     int m_targetPid;
     QByteArray m_serverChannel;

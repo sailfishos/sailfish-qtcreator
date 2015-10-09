@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -36,7 +36,7 @@ using namespace QmlDesigner;
 using namespace QmlJS::AST;
 
 ASTObjectTextExtractor::ASTObjectTextExtractor(const QString &text):
-        m_document(Document::create("<ASTObjectTextExtractor>", Document::QmlLanguage))
+        m_document(Document::create("<ASTObjectTextExtractor>", Language::Qml))
 {
     m_document->setSource(text);
     m_document->parseQml();

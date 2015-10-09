@@ -1,5 +1,5 @@
-import qbs.base 1.0
-import "../QtcLibrary.qbs" as QtcLibrary
+import qbs 1.0
+import QtcLibrary
 
 QtcLibrary {
     name: "Utils"
@@ -11,7 +11,8 @@ QtcLibrary {
         cpp.dynamicLibraries: [
             "user32",
             "iphlpapi",
-            "ws2_32"
+            "ws2_32",
+            "shell32",
         ]
     }
     Properties {
@@ -25,12 +26,12 @@ QtcLibrary {
     files: [
         "annotateditemdelegate.cpp",
         "annotateditemdelegate.h",
+        "ansiescapecodehandler.cpp",
+        "ansiescapecodehandler.h",
         "appmainwindow.cpp",
         "appmainwindow.h",
         "basetreeview.cpp",
         "basetreeview.h",
-        "basevalidatinglineedit.cpp",
-        "basevalidatinglineedit.h",
         "bracematcher.cpp",
         "bracematcher.h",
         "buildablehelperlibrary.cpp",
@@ -43,6 +44,8 @@ QtcLibrary {
         "classnamevalidatinglineedit.h",
         "codegeneration.cpp",
         "codegeneration.h",
+        "completinglineedit.cpp",
+        "completinglineedit.h",
         "completingtextedit.cpp",
         "completingtextedit.h",
         "consoleprocess.cpp",
@@ -62,6 +65,8 @@ QtcLibrary {
         "environment.h",
         "environmentmodel.cpp",
         "environmentmodel.h",
+        "execmenu.cpp",
+        "execmenu.h",
         "faketooltip.cpp",
         "faketooltip.h",
         "fancylineedit.cpp",
@@ -83,10 +88,10 @@ QtcLibrary {
         "filewizardpage.cpp",
         "filewizardpage.h",
         "filewizardpage.ui",
-        "filterlineedit.cpp",
-        "filterlineedit.h",
         "flowlayout.cpp",
         "flowlayout.h",
+        "function.cpp",
+        "function.h",
         "historycompleter.cpp",
         "historycompleter.h",
         "hostosinfo.h",
@@ -102,6 +107,7 @@ QtcLibrary {
         "linecolumnlabel.cpp",
         "linecolumnlabel.h",
         "listutils.h",
+        "logging.h",
         "multitask.h",
         "navigationtreeview.cpp",
         "navigationtreeview.h",
@@ -110,6 +116,7 @@ QtcLibrary {
         "newclasswidget.cpp",
         "newclasswidget.h",
         "newclasswidget.ui",
+        "osspecificaspects.h",
         "outputformat.h",
         "outputformatter.cpp",
         "outputformatter.h",
@@ -146,6 +153,8 @@ QtcLibrary {
         "settingsselector.cpp",
         "settingsselector.h",
         "settingsutils.h",
+        "sleep.cpp",
+        "sleep.h",
         "statuslabel.cpp",
         "statuslabel.h",
         "stringutils.cpp",
@@ -168,6 +177,8 @@ QtcLibrary {
         "unixutils.h",
         "utils.qrc",
         "utils_global.h",
+        "winutils.cpp",
+        "winutils.h",
         "wizard.cpp",
         "wizard.h",
         "images/arrow.png",
@@ -200,8 +211,6 @@ QtcLibrary {
         condition: qbs.targetOS.contains("windows")
         files: [
             "consoleprocess_win.cpp",
-            "winutils.cpp",
-            "winutils.h",
         ]
     }
 
@@ -214,7 +223,6 @@ QtcLibrary {
     }
 
     Export {
-        cpp.includePaths: [ ".." ]
         Depends { name: "Qt"; submodules: ["concurrent", "widgets" ] }
     }
 }

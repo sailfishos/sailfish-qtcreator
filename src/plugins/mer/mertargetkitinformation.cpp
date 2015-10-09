@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2013 Jolla Ltd.
+** Copyright (C) 2012 - 2014 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -21,17 +21,20 @@
 ****************************************************************************/
 
 #include "mertargetkitinformation.h"
-#include "mersdkkitinformation.h"
+
 #include "merconstants.h"
 #include "merdevicefactory.h"
-#include "mersdk.h"
-#include "mersdkmanager.h"
 #include "meroptionspage.h"
-#include <projectexplorer/projectexplorerconstants.h>
-#include <extensionsystem/pluginmanager.h>
+#include "mersdk.h"
+#include "mersdkkitinformation.h"
+#include "mersdkmanager.h"
+
 #include <coreplugin/icore.h>
-#include <QPushButton>
+#include <extensionsystem/pluginmanager.h>
+#include <projectexplorer/projectexplorerconstants.h>
+
 #include <QComboBox>
+#include <QPushButton>
 
 namespace Mer {
 namespace Internal {
@@ -89,7 +92,7 @@ ProjectExplorer::KitInformation::ItemList MerTargetKitInformation::toUserOutput(
 
 ProjectExplorer::KitConfigWidget *MerTargetKitInformation::createConfigWidget(ProjectExplorer::Kit *kit) const
 {
-    return new MerTargetKitInformationWidget(kit);
+    return new MerTargetKitInformationWidget(kit, this);
 }
 
 void MerTargetKitInformation::setTargetName(ProjectExplorer::Kit *kit, const QString& targetName)
@@ -106,8 +109,9 @@ void MerTargetKitInformation::addToEnvironment(const ProjectExplorer::Kit *kit, 
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 
-MerTargetKitInformationWidget::MerTargetKitInformationWidget(ProjectExplorer::Kit *kit, bool sticky)
-    : ProjectExplorer::KitConfigWidget(kit,sticky),
+MerTargetKitInformationWidget::MerTargetKitInformationWidget(ProjectExplorer::Kit *kit,
+        const MerTargetKitInformation *kitInformation)
+    : ProjectExplorer::KitConfigWidget(kit, kitInformation),
       m_combo(new QComboBox),
       m_manageButton(new QPushButton(tr("Manage...")))
 {

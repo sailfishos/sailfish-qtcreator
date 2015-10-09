@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -55,14 +55,20 @@ namespace Internal {
 // SysRootInformationConfigWidget:
 // --------------------------------------------------------------------------
 
-SysRootInformationConfigWidget::SysRootInformationConfigWidget(Kit *k, bool sticky) :
-    KitConfigWidget(k, sticky),
+SysRootInformationConfigWidget::SysRootInformationConfigWidget(Kit *k, const KitInformation *ki) :
+    KitConfigWidget(k, ki),
     m_ignoreChange(false)
 {
     m_chooser = new Utils::PathChooser;
     m_chooser->setExpectedKind(Utils::PathChooser::ExistingDirectory);
+    m_chooser->setHistoryCompleter(QLatin1String("PE.SysRoot.History"));
     m_chooser->setFileName(SysRootKitInformation::sysRoot(k));
     connect(m_chooser, SIGNAL(changed(QString)), this, SLOT(pathWasChanged()));
+}
+
+SysRootInformationConfigWidget::~SysRootInformationConfigWidget()
+{
+    delete m_chooser;
 }
 
 QString SysRootInformationConfigWidget::displayName() const
@@ -73,7 +79,7 @@ QString SysRootInformationConfigWidget::displayName() const
 QString SysRootInformationConfigWidget::toolTip() const
 {
     return tr("The root directory of the system image to use.<br>"
-                  "Leave empty when building for the desktop.");
+              "Leave empty when building for the desktop.");
 }
 
 void SysRootInformationConfigWidget::refresh()
@@ -108,15 +114,14 @@ void SysRootInformationConfigWidget::pathWasChanged()
 // ToolChainInformationConfigWidget:
 // --------------------------------------------------------------------------
 
-ToolChainInformationConfigWidget::ToolChainInformationConfigWidget(Kit *k, bool sticky) :
-    KitConfigWidget(k, sticky), m_isReadOnly(false)
+ToolChainInformationConfigWidget::ToolChainInformationConfigWidget(Kit *k, const KitInformation *ki) :
+    KitConfigWidget(k, ki)
 {
-    ToolChainManager *tcm = ToolChainManager::instance();
-
     m_comboBox = new QComboBox;
     m_comboBox->setEnabled(false);
+    m_comboBox->setToolTip(toolTip());
 
-    foreach (ToolChain *tc, tcm->toolChains())
+    foreach (ToolChain *tc, ToolChainManager::toolChains())
         toolChainAdded(tc);
 
     updateComboBox();
@@ -124,16 +129,23 @@ ToolChainInformationConfigWidget::ToolChainInformationConfigWidget(Kit *k, bool 
     refresh();
     connect(m_comboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(currentToolChainChanged(int)));
 
-    m_manageButton = new QPushButton(tr("Manage..."));
+    m_manageButton = new QPushButton(KitConfigWidget::msgManage());
     m_manageButton->setContentsMargins(0, 0, 0, 0);
     connect(m_manageButton, SIGNAL(clicked()), this, SLOT(manageToolChains()));
 
+    QObject *tcm = ToolChainManager::instance();
     connect(tcm, SIGNAL(toolChainAdded(ProjectExplorer::ToolChain*)),
             this, SLOT(toolChainAdded(ProjectExplorer::ToolChain*)));
     connect(tcm, SIGNAL(toolChainRemoved(ProjectExplorer::ToolChain*)),
             this, SLOT(toolChainRemoved(ProjectExplorer::ToolChain*)));
     connect(tcm, SIGNAL(toolChainUpdated(ProjectExplorer::ToolChain*)),
             this, SLOT(toolChainUpdated(ProjectExplorer::ToolChain*)));
+}
+
+ToolChainInformationConfigWidget::~ToolChainInformationConfigWidget()
+{
+    delete m_comboBox;
+    delete m_manageButton;
 }
 
 QString ToolChainInformationConfigWidget::displayName() const
@@ -199,8 +211,7 @@ void ToolChainInformationConfigWidget::manageToolChains()
 void ToolChainInformationConfigWidget::currentToolChainChanged(int idx)
 {
     const QString id = m_comboBox->itemData(idx).toString();
-    ToolChain *tc = ToolChainManager::instance()->findToolChain(id);
-    ToolChainKitInformation::setToolChain(m_kit, tc);
+    ToolChainKitInformation::setToolChain(m_kit, ToolChainManager::findToolChain(id));
 }
 
 void ToolChainInformationConfigWidget::updateComboBox()
@@ -214,7 +225,7 @@ void ToolChainInformationConfigWidget::updateComboBox()
         m_comboBox->addItem(tr("<No compiler available>"), QString());
         m_comboBox->setEnabled(false);
     } else {
-        m_comboBox->setEnabled(!m_isReadOnly);
+        m_comboBox->setEnabled(true);
     }
 }
 
@@ -232,18 +243,25 @@ int ToolChainInformationConfigWidget::indexOf(const ToolChain *tc)
 // DeviceTypeInformationConfigWidget:
 // --------------------------------------------------------------------------
 
-DeviceTypeInformationConfigWidget::DeviceTypeInformationConfigWidget(Kit *workingCopy, bool sticky) :
-    KitConfigWidget(workingCopy, sticky), m_isReadOnly(false), m_comboBox(new QComboBox)
+DeviceTypeInformationConfigWidget::DeviceTypeInformationConfigWidget(Kit *workingCopy, const KitInformation *ki) :
+    KitConfigWidget(workingCopy, ki), m_comboBox(new QComboBox)
 {
     QList<IDeviceFactory *> factories
-            = ExtensionSystem::PluginManager::instance()->getObjects<IDeviceFactory>();
+            = ExtensionSystem::PluginManager::getObjects<IDeviceFactory>();
     foreach (IDeviceFactory *factory, factories) {
         foreach (Core::Id id, factory->availableCreationIds())
             m_comboBox->addItem(factory->displayNameForId(id), id.uniqueIdentifier());
     }
 
+    m_comboBox->setToolTip(toolTip());
+
     refresh();
     connect(m_comboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(currentTypeChanged(int)));
+}
+
+DeviceTypeInformationConfigWidget::~DeviceTypeInformationConfigWidget()
+{
+    delete m_comboBox;
 }
 
 QWidget *DeviceTypeInformationConfigWidget::mainWidget() const
@@ -289,8 +307,8 @@ void DeviceTypeInformationConfigWidget::currentTypeChanged(int idx)
 // DeviceInformationConfigWidget:
 // --------------------------------------------------------------------------
 
-DeviceInformationConfigWidget::DeviceInformationConfigWidget(Kit *workingCopy, bool sticky) :
-    KitConfigWidget(workingCopy, sticky),
+DeviceInformationConfigWidget::DeviceInformationConfigWidget(Kit *workingCopy, const KitInformation *ki) :
+    KitConfigWidget(workingCopy, ki),
     m_isReadOnly(false),
     m_ignoreChange(false),
     m_comboBox(new QComboBox),
@@ -298,13 +316,22 @@ DeviceInformationConfigWidget::DeviceInformationConfigWidget(Kit *workingCopy, b
 {
     m_comboBox->setModel(m_model);
 
-    m_manageButton = new QPushButton(tr("Manage"));
+    m_manageButton = new QPushButton(KitConfigWidget::msgManage());
 
     refresh();
+    m_comboBox->setToolTip(toolTip());
+
     connect(m_model, SIGNAL(modelAboutToBeReset()), SLOT(modelAboutToReset()));
     connect(m_model, SIGNAL(modelReset()), SLOT(modelReset()));
     connect(m_comboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(currentDeviceChanged()));
     connect(m_manageButton, SIGNAL(clicked()), this, SLOT(manageDevices()));
+}
+
+DeviceInformationConfigWidget::~DeviceInformationConfigWidget()
+{
+    delete m_comboBox;
+    delete m_model;
+    delete m_manageButton;
 }
 
 QWidget *DeviceInformationConfigWidget::mainWidget() const

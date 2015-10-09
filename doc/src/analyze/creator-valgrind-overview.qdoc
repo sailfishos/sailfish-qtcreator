@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (c) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (c) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator
@@ -23,7 +23,7 @@
 // **********************************************************************
 
 /*!
-    \contentspage index.html
+    \contentspage {Qt Creator Manual}
     \previouspage creator-qml-performance-monitor.html
     \page creator-valgrind-overview.html
     \nextpage creator-analyzer.html
@@ -36,8 +36,8 @@
     to use them from \QC.
 
     To run the Valgrind tools on a remote host over SSH, select \gui {Analyze
-    > Valgrind Memory Analyzer (External)} or \gui {Valgrind Function Profiler
-    (External)}.
+    > Valgrind Memory Analyzer (Remote)} or \gui {Valgrind Function Profiler
+    (Remote)}.
 
     To stop the currently running analyzer, select \gui {Analyze
     > Stop}.

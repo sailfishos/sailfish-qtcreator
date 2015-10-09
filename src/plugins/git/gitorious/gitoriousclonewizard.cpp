@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -36,13 +36,11 @@
 #include "../gitplugin.h"
 
 #include <coreplugin/iversioncontrol.h>
-#include <vcsbase/checkoutjobs.h>
 #include <vcsbase/vcsbaseconstants.h>
 #include <vcsbase/vcsconfigurationpage.h>
 #include <utils/qtcassert.h>
 
 #include <QUrl>
-#include <QIcon>
 
 namespace Gitorious {
 namespace Internal {
@@ -71,25 +69,12 @@ void GitoriousCloneWizardPage::initializePage()
 }
 
 // -------- GitoriousCloneWizard
-GitoriousCloneWizard::GitoriousCloneWizard(QObject *parent) :
-        VcsBase::BaseCheckoutWizard(parent)
+GitoriousCloneWizard::GitoriousCloneWizard()
 {
     setId(QLatin1String(VcsBase::Constants::VCS_ID_GIT));
-}
-
-QIcon GitoriousCloneWizard::icon() const
-{
-    return QIcon(QLatin1String(":/git/images/gitorious.png"));
-}
-
-QString GitoriousCloneWizard::description() const
-{
-    return tr("Clones a Gitorious repository and tries to load the contained project.");
-}
-
-QString GitoriousCloneWizard::displayName() const
-{
-    return tr("Gitorious Repository Clone");
+    setIcon(QIcon(QLatin1String(":/git/images/gitorious.png")));
+    setDescription(tr("Clones a Gitorious repository and tries to load the contained project."));
+    setDisplayName(tr("Gitorious Repository Clone"));
 }
 
 QList<QWizardPage*> GitoriousCloneWizard::createParameterPages(const QString &path)
@@ -109,11 +94,11 @@ QList<QWizardPage*> GitoriousCloneWizard::createParameterPages(const QString &pa
     return rc;
 }
 
-QSharedPointer<VcsBase::AbstractCheckoutJob> GitoriousCloneWizard::createJob(const QList<QWizardPage*> &parameterPages,
-                                                                    QString *checkoutPath)
+VcsBase::Command *GitoriousCloneWizard::createCommand(const QList<QWizardPage*> &parameterPages,
+                                                      QString *checkoutPath)
 {
     const Git::CloneWizardPage *cwp = qobject_cast<const Git::CloneWizardPage *>(parameterPages.back());
-    QTC_ASSERT(cwp, return QSharedPointer<VcsBase::AbstractCheckoutJob>());
+    QTC_ASSERT(cwp, return 0);
     return cwp->createCheckoutJob(checkoutPath);
 }
 

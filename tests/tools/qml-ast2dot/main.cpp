@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,6 +30,7 @@
 #include <qmljs/parser/qmljsast_p.h>
 #include <qmljs/parser/qmljsastvisitor_p.h>
 #include <qmljs/qmljsdocument.h>
+#include <qmljs/qmljsmodelmanagerinterface.h>
 
 #include <QFile>
 #include <QList>
@@ -147,7 +148,7 @@ protected:
         _stack.removeLast();
     }
 
-protected: // visiting methods:
+protected: // visiting functions:
     virtual bool visit(UiImport *ast) {
         terminal(ast->importToken);
 
@@ -253,7 +254,7 @@ protected: // visiting methods:
     virtual bool visit(ObjectLiteral *ast) { terminal(ast->lbraceToken); nonterminal(ast->properties); terminal(ast->rbraceToken); return false; }
     virtual bool visit(ElementList *ast) { nonterminal(ast->next); terminal(ast->commaToken); nonterminal(ast->elision); nonterminal(ast->expression); return false; }
     virtual bool visit(Elision *ast) { nonterminal(ast->next); terminal(ast->commaToken); return false; }
-    virtual bool visit(PropertyNameAndValueList *ast) { nonterminal(ast->name); terminal(ast->colonToken); nonterminal(ast->value); terminal(ast->commaToken); nonterminal(ast->next); return false; }
+    virtual bool visit(PropertyAssignmentList *ast) { nonterminal(ast->assignment); nonterminal(ast->next); terminal(ast->commaToken); return false; }
     virtual bool visit(IdentifierPropertyName *ast) { terminal(ast->propertyNameToken); return false; }
     virtual bool visit(StringLiteralPropertyName *ast) { terminal(ast->propertyNameToken); return false; }
     virtual bool visit(NumericLiteralPropertyName *ast) { terminal(ast->propertyNameToken); return false; }
@@ -331,7 +332,7 @@ int main(int argc, char *argv[])
         const QByteArray source = file.readAll();
         file.close();
 
-        Document::MutablePtr doc = Document::create(fileName, Document::guessLanguageFromSuffix(fileName));
+        Document::MutablePtr doc = Document::create(fileName, ModelManagerInterface::guessLanguageOfFile(fileName));
         doc->setSource(QString::fromUtf8(source));
         doc->parse();
 

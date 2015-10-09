@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2012 - 2014 Jolla Ltd.
+** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
 **
@@ -31,6 +31,7 @@
 #define MERRPMPACKAGINGWIDGET_H
 
 #include "projectexplorer/buildstep.h"
+
 #include <utils/fileutils.h>
 
 namespace Mer {

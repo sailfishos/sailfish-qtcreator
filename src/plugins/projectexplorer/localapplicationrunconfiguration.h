@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -54,8 +54,6 @@ public:
     virtual RunMode runMode() const = 0;
     virtual QString workingDirectory() const = 0;
     virtual QString commandLineArguments() const = 0;
-    virtual QString dumperLibrary() const = 0;
-    virtual QStringList dumperLibraryLocations() const = 0;
 
     virtual void addToBaseEnvironment(Utils::Environment &env) const;
 
@@ -66,7 +64,6 @@ protected:
     Utils::AbstractMacroExpander *macroExpander() const;
 
 private:
-    void ctor();
     mutable Utils::AbstractMacroExpander *m_macroExpander;
 };
 

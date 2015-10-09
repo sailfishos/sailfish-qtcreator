@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -54,7 +54,7 @@ void StopMonitoringHandler::handle(const ProjectExplorer::Task &task)
 {
     QTC_ASSERT(canHandle(task), return);
     Q_UNUSED(task);
-    TaskList::TaskListPlugin::instance()->stopMonitoring();
+    TaskList::TaskListPlugin::stopMonitoring();
 }
 
 QAction *StopMonitoringHandler::createAction(QObject *parent) const

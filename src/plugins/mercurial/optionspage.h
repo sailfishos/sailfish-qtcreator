@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Brian McGillion
+** Copyright (c) 2014 Brian McGillion
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -51,7 +51,6 @@ public:
 
     MercurialSettings settings() const;
     void setSettings(const MercurialSettings &s);
-    QString searchKeywords() const;
 
 private:
     Ui::OptionsPage m_ui;
@@ -65,16 +64,14 @@ class OptionsPage : public VcsBase::VcsBaseOptionsPage
 public:
     OptionsPage();
 
-    QWidget *createPage(QWidget *parent);
+    QWidget *widget();
     void apply();
-    void finish() { }
-    bool matches(const QString &s) const;
+    void finish();
 
 signals:
     void settingsChanged();
 
 private:
-    QString m_searchKeywords;
     QPointer<OptionsPageWidget> optionsPageWidget;
 };
 

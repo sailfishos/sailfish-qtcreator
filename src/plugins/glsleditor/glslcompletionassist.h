@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -37,16 +37,14 @@
 #include <texteditor/codeassist/defaultassistinterface.h>
 #include <texteditor/codeassist/ifunctionhintproposalmodel.h>
 
+#include <utils/qtcoverride.h>
+
 #include <QScopedPointer>
 #include <QIcon>
 
-namespace GLSL {
-class Function;
-}
+namespace GLSL { class Function; }
 
-namespace TextEditor {
-class BasicProposalItem;
-}
+namespace TextEditor { class BasicProposalItem; }
 
 namespace GLSLEditor {
 namespace Internal {
@@ -55,21 +53,23 @@ class GLSLCompletionAssistInterface;
 
 class GLSLCompletionAssistProvider : public TextEditor::CompletionAssistProvider
 {
-public:
-    virtual bool supportsEditor(const Core::Id &editorId) const;
-    virtual TextEditor::IAssistProcessor *createProcessor() const;
+    Q_OBJECT
 
-    virtual int activationCharSequenceLength() const;
-    virtual bool isActivationCharSequence(const QString &sequence) const;
+public:
+    bool supportsEditor(const Core::Id &editorId) const QTC_OVERRIDE;
+    TextEditor::IAssistProcessor *createProcessor() const QTC_OVERRIDE;
+
+    int activationCharSequenceLength() const QTC_OVERRIDE;
+    bool isActivationCharSequence(const QString &sequence) const QTC_OVERRIDE;
 };
 
 class GLSLCompletionAssistProcessor : public TextEditor::IAssistProcessor
 {
 public:
     GLSLCompletionAssistProcessor();
-    virtual ~GLSLCompletionAssistProcessor();
+    ~GLSLCompletionAssistProcessor();
 
-    virtual TextEditor::IAssistProposal *perform(const TextEditor::IAssistInterface *interface);
+    TextEditor::IAssistProposal *perform(const TextEditor::IAssistInterface *interface) QTC_OVERRIDE;
 
 private:
     TextEditor::IAssistProposal *createContentProposal() const;

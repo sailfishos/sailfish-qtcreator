@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -37,29 +37,22 @@
 namespace Designer {
 namespace Internal {
 
-class FormClassWizardParameters;
-
 class FormClassWizard : public Core::BaseFileWizard
 {
     Q_OBJECT
 
 public:
-    typedef Core::BaseFileWizardParameters BaseFileWizardParameters;
-
-    FormClassWizard(const BaseFileWizardParameters &parameters, QObject *parent);
+    FormClassWizard();
 
     QString headerSuffix() const;
     QString sourceSuffix() const;
     QString formSuffix() const;
 
-    virtual Core::FeatureSet requiredFeatures() const;
+private:
+    QWizard *createWizardDialog(QWidget *parent,
+                                const Core::WizardDialogParameters &wizardDialogParameters) const;
 
-protected:
-    virtual QWizard *createWizardDialog(QWidget *parent,
-                                        const Core::WizardDialogParameters &wizardDialogParameters) const;
-
-    virtual Core::GeneratedFiles generateFiles(const QWizard *w,
-                                               QString *errorMessage) const;
+    Core::GeneratedFiles generateFiles(const QWizard *w, QString *errorMessage) const;
 };
 
 } // namespace Internal

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -139,8 +139,8 @@ static void openImageViewer(const QImage &image)
         fileName = temporaryFile.fileName();
         temporaryFile.close();
     }
-    if (Core::IEditor *e = Core::EditorManager::instance()->openEditor(fileName))
-        e->setProperty(Debugger::Constants::OPENED_BY_DEBUGGER, QVariant(true));
+    if (Core::IEditor *e = Core::EditorManager::openEditor(fileName))
+        e->document()->setProperty(Debugger::Constants::OPENED_BY_DEBUGGER, QVariant(true));
 }
 
 void ImageViewer::contextMenuEvent(QContextMenuEvent *ev)
@@ -155,11 +155,10 @@ void ImageViewer::contextMenuEvent(QContextMenuEvent *ev)
     copyAction->setEnabled(hasImage);
     imageViewerAction->setEnabled(hasImage);
     QAction *action = menu.exec(ev->globalPos());
-    if (action == copyAction) {
+    if (action == copyAction)
         QApplication::clipboard()->setImage(image);
-    } else if (action == imageViewerAction) {
+    else if (action == imageViewerAction)
         openImageViewer(image);
-    }
 }
 
 #include "imageviewer.moc"

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -37,7 +37,7 @@
 #include <QStyle>
 #include <QPainter>
 #include <QFileInfo>
-#include <QPair>
+#include <QHash>
 #include <QDebug>
 
 #include <QFileIconProvider>
@@ -49,74 +49,90 @@ using namespace Utils;
   \class Core::FileIconProvider
 
   Provides icons based on file suffixes with the ability to overwrite system
-  icons for specific subtypes. Implements the QFileIconProvider interface
-  and can therefore be used for QFileSystemModel.
+  icons for specific subtypes. The underlying QFileIconProvider
+  can be used for QFileSystemModel.
 
   Note: Registering overlay icons currently completely replaces the system
         icon and is therefore not recommended on platforms that have their
         own overlay icon handling (Mac/Windows).
 
-  The class is a singleton: It's instance can be accessed via the static instance() method.
   Plugins can register custom overlay icons via registerIconOverlayForSuffix(), and
-  retrieve icons via the icon() method.
-  The instance is explicitly deleted by the core plugin for destruction order reasons.
+  retrieve icons via the icon() function.
   */
 
 // Cache icons in a list of pairs suffix/icon which should be faster than
 // hashes for small lists.
 
+namespace Core {
+namespace FileIconProvider {
+
 enum { debug = 0 };
 
-typedef QPair<QString, QIcon> StringIconPair;
-typedef QList<StringIconPair> StringIconPairList;
-
-// Helper to find an icon by suffix in a list of pairs for const/non-const-iterators.
-
-template <class StringIconPairListIterator>
-inline StringIconPairListIterator
-findBySuffix(const QString &suffix,
-             StringIconPairListIterator iter,
-             const StringIconPairListIterator &end)
+class FileIconProviderImplementation : public QFileIconProvider
 {
-    for (; iter != end; ++iter)
-        if ((*iter).first == suffix)
-            return iter;
-    return end;
-}
+public:
+    FileIconProviderImplementation()
+        : m_unknownFileIcon(qApp->style()->standardIcon(QStyle::SP_FileIcon))
+    {}
 
-namespace Core {
+    QIcon icon(const QFileInfo &info);
+    using QFileIconProvider::icon;
 
-struct FileIconProviderPrivate {
-    FileIconProviderPrivate();
+    void registerIconOverlayForSuffix(const QIcon &icon, const QString &suffix)
+    {
+        if (debug)
+            qDebug() << "FileIconProvider::registerIconOverlayForSuffix" << suffix;
+
+        QTC_ASSERT(!icon.isNull() && !suffix.isEmpty(), return);
+
+        const QPixmap fileIconPixmap = FileIconProvider::overlayIcon(QStyle::SP_FileIcon, icon, QSize(16, 16));
+        // replace old icon, if it exists
+        m_cache.insert(suffix, fileIconPixmap);
+    }
+
+    void registerIconOverlayForMimeType(const QIcon &icon, const MimeType &mimeType)
+    {
+        foreach (const QString &suffix, mimeType.suffixes())
+            registerIconOverlayForSuffix(icon, suffix);
+    }
 
     // Mapping of file suffix to icon.
-    StringIconPairList m_cache;
+    QHash<QString, QIcon> m_cache;
 
     QIcon m_unknownFileIcon;
-
-    // singleton pattern
-    static FileIconProvider *m_instance;
 };
 
-FileIconProviderPrivate::FileIconProviderPrivate() :
-    m_unknownFileIcon(qApp->style()->standardIcon(QStyle::SP_FileIcon))
+FileIconProviderImplementation *instance()
 {
+    static FileIconProviderImplementation theInstance;
+    return &theInstance;
 }
 
-FileIconProvider *FileIconProviderPrivate::m_instance = 0;
-
-// FileIconProvider
-
-FileIconProvider::FileIconProvider() :
-    d(new FileIconProviderPrivate)
+QFileIconProvider *iconProvider()
 {
-    FileIconProviderPrivate::m_instance = this;
+    return instance();
 }
 
-FileIconProvider::~FileIconProvider()
+QIcon FileIconProviderImplementation::icon(const QFileInfo &fileInfo)
 {
-    FileIconProviderPrivate::m_instance = 0;
-    delete d;
+    if (debug)
+        qDebug() << "FileIconProvider::icon" << fileInfo.absoluteFilePath();
+    // Check for cached overlay icons by file suffix.
+    bool isDir = fileInfo.isDir();
+    QString suffix = !isDir ? fileInfo.suffix() : QString();
+    if (!m_cache.isEmpty() && !isDir && !suffix.isEmpty()) {
+        if (m_cache.contains(suffix))
+            return m_cache.value(suffix);
+    }
+    // Get icon from OS.
+    QIcon icon;
+    if (HostOsInfo::isWindowsHost() || HostOsInfo::isMacHost())
+        icon = QFileIconProvider::icon(fileInfo);
+    else // File icons are unknown on linux systems.
+        icon = isDir ? QFileIconProvider::icon(fileInfo) : m_unknownFileIcon;
+    if (!isDir && !suffix.isEmpty())
+        m_cache.insert(suffix, icon);
+    return icon;
 }
 
 /*!
@@ -124,36 +140,24 @@ FileIconProvider::~FileIconProvider()
   the default icon of the operating system is returned.
   */
 
-QIcon FileIconProvider::icon(const QFileInfo &fileInfo) const
+QIcon icon(const QFileInfo &info)
 {
-    typedef StringIconPairList::const_iterator CacheConstIterator;
+    return instance()->icon(info);
+}
 
-    if (debug)
-        qDebug() << "FileIconProvider::icon" << fileInfo.absoluteFilePath();
-    // Check for cached overlay icons by file suffix.
-    if (!d->m_cache.isEmpty() && !fileInfo.isDir()) {
-        const QString suffix = fileInfo.suffix();
-        if (!suffix.isEmpty()) {
-            const CacheConstIterator it = findBySuffix(suffix, d->m_cache.constBegin(), d->m_cache.constEnd());
-            if (it != d->m_cache.constEnd())
-                return (*it).second;
-        }
-    }
-    // Get icon from OS.
-    if (HostOsInfo::isWindowsHost() || HostOsInfo::isMacHost())
-        return QFileIconProvider::icon(fileInfo);
-
-    // File icons are unknown on linux systems.
-    return (fileInfo.isDir()) ?
-           QFileIconProvider::icon(fileInfo) :
-           d->m_unknownFileIcon;
+/*!
+ * \overload
+ */
+QIcon icon(QFileIconProvider::IconType type)
+{
+    return instance()->icon(type);
 }
 
 /*!
   Creates a pixmap with baseicon at size and overlays overlayIcon over it.
   See platform note in class documentation about recommended usage.
   */
-QPixmap FileIconProvider::overlayIcon(QStyle::StandardPixmap baseIcon, const QIcon &overlayIcon, const QSize &size)
+QPixmap overlayIcon(QStyle::StandardPixmap baseIcon, const QIcon &overlayIcon, const QSize &size)
 {
     QPixmap iconPixmap = qApp->style()->standardIcon(baseIcon).pixmap(size);
     QPainter painter(&iconPixmap);
@@ -166,43 +170,26 @@ QPixmap FileIconProvider::overlayIcon(QStyle::StandardPixmap baseIcon, const QIc
   Registers an icon for a given suffix, overlaying the system file icon.
   See platform note in class documentation about recommended usage.
   */
-void FileIconProvider::registerIconOverlayForSuffix(const QIcon &icon,
-                                                    const QString &suffix)
+void registerIconOverlayForSuffix(const char *path, const char *suffix)
 {
-    typedef StringIconPairList::iterator CacheIterator;
-
-    if (debug)
-        qDebug() << "FileIconProvider::registerIconOverlayForSuffix" << suffix;
-
-    QTC_ASSERT(!icon.isNull() && !suffix.isEmpty(), return);
-
-    const QPixmap fileIconPixmap = overlayIcon(QStyle::SP_FileIcon, icon, QSize(16, 16));
-    // replace old icon, if it exists
-    const CacheIterator it = findBySuffix(suffix, d->m_cache.begin(), d->m_cache.end());
-    if (it == d->m_cache.end())
-        d->m_cache.append(StringIconPair(suffix, fileIconPixmap));
-    else
-       (*it).second = fileIconPixmap;
+    instance()->registerIconOverlayForSuffix(QIcon(QLatin1String(path)), QLatin1String(suffix));
 }
 
 /*!
   Registers an icon for all the suffixes of a given mime type, overlaying the system file icon.
   */
-void FileIconProvider::registerIconOverlayForMimeType(const QIcon &icon, const MimeType &mimeType)
+void registerIconOverlayForMimeType(const QIcon &icon, const char *mimeType)
 {
-    foreach (const QString &suffix, mimeType.suffixes())
-        registerIconOverlayForSuffix(icon, suffix);
+    instance()->registerIconOverlayForMimeType(icon, MimeDatabase::findByType(QString::fromLatin1(mimeType)));
 }
 
 /*!
-  Returns the sole instance of FileIconProvider.
-  */
-
-FileIconProvider *FileIconProvider::instance()
+ * \overload
+ */
+void registerIconOverlayForMimeType(const char *path, const char *mimeType)
 {
-    if (!FileIconProviderPrivate::m_instance)
-        FileIconProviderPrivate::m_instance = new FileIconProvider;
-    return FileIconProviderPrivate::m_instance;
+    instance()->registerIconOverlayForMimeType(QIcon(QLatin1String(path)), MimeDatabase::findByType(QString::fromLatin1(mimeType)));
 }
 
-} // namespace core
+} // namespace FileIconProvider
+} // namespace Core

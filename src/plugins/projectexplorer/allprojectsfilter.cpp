@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -33,12 +33,10 @@
 #include "project.h"
 
 using namespace Core;
-using namespace Locator;
 using namespace ProjectExplorer;
 using namespace ProjectExplorer::Internal;
 
-AllProjectsFilter::AllProjectsFilter(ProjectExplorerPlugin *pe)
-    : m_projectExplorer(pe), m_filesUpToDate(false)
+AllProjectsFilter::AllProjectsFilter() : m_filesUpToDate(false)
 {
     setId("Files in any project");
     setDisplayName(tr("Files in Any Project"));
@@ -46,7 +44,7 @@ AllProjectsFilter::AllProjectsFilter(ProjectExplorerPlugin *pe)
     setPriority(Low);
     setIncludedByDefault(true);
 
-    connect(m_projectExplorer, SIGNAL(fileListChanged()),
+    connect(ProjectExplorerPlugin::instance(), SIGNAL(fileListChanged()),
             this, SLOT(markFilesAsOutOfDate()));
 }
 
@@ -61,7 +59,7 @@ void AllProjectsFilter::updateFiles()
         return;
     m_filesUpToDate = true;
     files().clear();
-    foreach (Project *project, m_projectExplorer->session()->projects())
+    foreach (Project *project, SessionManager::projects())
         files().append(project->files(Project::AllFiles));
     qSort(files());
     generateFileNames();

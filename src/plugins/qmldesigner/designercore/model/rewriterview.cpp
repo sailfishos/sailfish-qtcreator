@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -149,6 +149,9 @@ Internal::TextToModelMerger *RewriterView::textToModelMerger() const
 
 void RewriterView::modelAttached(Model *model)
 {
+    if (model && model->textModifier())
+        setTextModifier(model->textModifier());
+
     AbstractView::modelAttached(model);
 
     ModelAmender differenceHandler(m_textToModelMerger.data());
@@ -200,7 +203,7 @@ void RewriterView::propertiesAboutToBeRemoved(const QList<AbstractProperty> &pro
 
     foreach (const AbstractProperty &property, propertyList) {
         if (property.isDefaultProperty() && property.isNodeListProperty()) {
-            m_removeDefaultPropertyTransaction = beginRewriterTransaction();
+            m_removeDefaultPropertyTransaction = beginRewriterTransaction(QByteArrayLiteral("RewriterView::propertiesAboutToBeRemoved"));
 
             foreach (const ModelNode &node, property.toNodeListProperty().toModelNodeList()) {
                 modelToTextMerger()->nodeRemoved(node, property.toNodeAbstractProperty(), AbstractView::NoAdditionalChanges);
@@ -439,7 +442,7 @@ void RewriterView::rewriterEndTransaction()
     }
 }
 
-void RewriterView::actualStateChanged(const ModelNode & /*node*/)
+void RewriterView::currentStateChanged(const ModelNode & /*node*/)
 {
 }
 
@@ -483,12 +486,14 @@ QString RewriterView::textModifierContent() const
 
 void RewriterView::reactivateTextMofifierChangeSignals()
 {
-    textModifier()->reactivateChangeSignals();
+    if (textModifier())
+        textModifier()->reactivateChangeSignals();
 }
 
 void RewriterView::deactivateTextMofifierChangeSignals()
 {
-    textModifier()->deactivateChangeSignals();
+    if (textModifier())
+        textModifier()->deactivateChangeSignals();
 }
 
 void RewriterView::applyModificationGroupChanges()

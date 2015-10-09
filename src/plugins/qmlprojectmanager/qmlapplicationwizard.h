@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -33,52 +33,46 @@
 #include <coreplugin/basefilewizard.h>
 #include <projectexplorer/baseprojectwizarddialog.h>
 
-namespace ExtensionSystem {
-class IPlugin;
-} // namespace ExtensionSystem
+namespace ExtensionSystem { class IPlugin; }
 
 namespace QmlProjectManager {
 namespace Internal {
 
 class QmlApp;
 class TemplateInfo;
+class QmlComponentSetPage;
 
 class QmlApplicationWizardDialog : public ProjectExplorer::BaseProjectWizardDialog
 {
     Q_OBJECT
 public:
-    QmlApplicationWizardDialog(QmlApp *qmlApp, QWidget *parent,
+    QmlApplicationWizardDialog(QWidget *parent,
                                const Core::WizardDialogParameters &parameters);
 
-    QmlApp *qmlApp() const;
+    TemplateInfo templateInfo() const;
 
 private:
-    QmlApp *m_qmlApp;
+    QmlComponentSetPage *m_componentSetPage;
 };
 
 
 class QmlApplicationWizard : public Core::BaseFileWizard
 {
     Q_OBJECT
-    Q_DISABLE_COPY(QmlApplicationWizard)
+
 public:
-    QmlApplicationWizard(const Core::BaseFileWizardParameters &parameters,
-                             const TemplateInfo &templateInfo, QObject *parent = 0);
+    QmlApplicationWizard();
 
     static void createInstances(ExtensionSystem::IPlugin *plugin);
 
-
-private: // functions
+private:
     QWizard *createWizardDialog(QWidget *parent,
                                 const Core::WizardDialogParameters &wizardDialogParameters) const;
     Core::GeneratedFiles generateFiles(const QWizard *w, QString *errorMessage) const;
     void writeUserFile(const QString &fileName) const;
     bool postGenerateFiles(const QWizard *w, const Core::GeneratedFiles &l, QString *errorMessage);
 
-    static Core::BaseFileWizardParameters parameters();
-
-private: //variables
-    mutable QString m_id;
+private:
     QmlApp *m_qmlApp;
 };
 

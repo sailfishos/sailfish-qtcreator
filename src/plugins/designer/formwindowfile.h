@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,7 +30,7 @@
 #ifndef FORMWINDOWFILE_H
 #define FORMWINDOWFILE_H
 
-#include <coreplugin/textdocument.h>
+#include <texteditor/plaintexteditor.h>
 
 #include <QPointer>
 
@@ -42,24 +42,24 @@ QT_END_NAMESPACE
 namespace Designer {
 namespace Internal {
 
-class FormWindowFile : public Core::TextDocument
+class FormWindowFile : public TextEditor::PlainTextDocument
 {
     Q_OBJECT
 
 public:
     explicit FormWindowFile(QDesignerFormWindowInterface *form, QObject *parent = 0);
+    ~FormWindowFile() { }
 
     // IDocument
-    virtual bool save(QString *errorString, const QString &fileName, bool autoSave);
-    virtual QString fileName() const;
-    virtual bool shouldAutoSave() const;
-    virtual bool isModified() const;
-    virtual bool isSaveAsAllowed() const;
+    bool save(QString *errorString, const QString &fileName, bool autoSave);
+    bool setContents(const QByteArray &contents);
+    bool shouldAutoSave() const;
+    bool isModified() const;
+    bool isSaveAsAllowed() const;
     bool reload(QString *errorString, ReloadFlag flag, ChangeType type);
-    virtual QString defaultPath() const;
-    virtual QString suggestedFileName() const;
-    virtual QString mimeType() const;
-    virtual void rename(const QString &newName);
+    QString defaultPath() const;
+    QString suggestedFileName() const;
+    QString mimeType() const;
 
     // Internal
     void setSuggestedFileName(const QString &fileName);
@@ -67,16 +67,17 @@ public:
     bool writeFile(const QString &fileName, QString *errorString) const;
 
     QDesignerFormWindowInterface *formWindow() const;
+    void syncXmlFromFormWindow();
+    QString formWindowContents() const;
 
 signals:
     // Internal
-    void saved();
-    void reload(QString *errorString, const QString &);
-    void setDisplayName(const QString &);
+    void reloadRequested(QString *errorString, const QString &);
 
 public slots:
-    void setFileName(const QString &);
+    void setFilePath(const QString &);
     void setShouldAutoSave(bool sad = true) { m_shouldAutoSave = sad; }
+    void updateIsModified();
 
 private slots:
     void slotFormWindowRemoved(QDesignerFormWindowInterface *w);
@@ -84,12 +85,12 @@ private slots:
 private:
     const QString m_mimeType;
 
-    QString m_fileName;
     QString m_suggestedName;
     bool m_shouldAutoSave;
     // Might actually go out of scope before the IEditor due
     // to deleting the WidgetHost which owns it.
     QPointer<QDesignerFormWindowInterface> m_formWindow;
+    bool m_isModified;
 };
 
 } // namespace Internal

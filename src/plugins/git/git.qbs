@@ -1,17 +1,17 @@
-import qbs.base 1.0
+import qbs 1.0
 
-import "../QtcPlugin.qbs" as QtcPlugin
+import QtcPlugin
 
 QtcPlugin {
     name: "Git"
 
     Depends { name: "Qt"; submodules: ["widgets", "network"] }
+    Depends { name: "Utils" }
+
     Depends { name: "Core" }
     Depends { name: "TextEditor" }
-    Depends { name: "Find" }
     Depends { name: "VcsBase" }
     Depends { name: "DiffEditor" }
-    Depends { name: "Locator" }
 
     files: [
         "annotationhighlighter.cpp",
@@ -29,6 +29,7 @@ QtcPlugin {
         "branchmodel.h",
         "changeselectiondialog.cpp",
         "changeselectiondialog.h",
+        "changeselectiondialog.ui",
         "clonewizard.cpp",
         "clonewizard.h",
         "clonewizardpage.cpp",
@@ -102,6 +103,8 @@ QtcPlugin {
         name: "Gerrit"
         prefix: "gerrit/"
         files: [
+            "branchcombobox.cpp",
+            "branchcombobox.h",
             "gerritdialog.cpp",
             "gerritdialog.h",
             "gerritmodel.cpp",

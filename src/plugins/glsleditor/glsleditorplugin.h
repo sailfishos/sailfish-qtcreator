@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -31,32 +31,12 @@
 #define GLSLEDITORPLUGIN_H
 
 #include <extensionsystem/iplugin.h>
-#include <coreplugin/icontext.h>
-#include <coreplugin/id.h>
 #include <glsl/glsl.h>
 
-#include <QPointer>
-
-QT_FORWARD_DECLARE_CLASS(QAction)
-
-namespace TextEditor {
-class TextEditorActionHandler;
-class ITextEditor;
-} // namespace TextEditor
-
-namespace Core {
-class Command;
-class ActionContainer;
-class ActionManager;
-}
-
 namespace GLSLEditor {
-
-class GLSLTextEditorWidget;
-
 namespace Internal {
 
-class GLSLEditorFactory;
+class GLSLTextEditorWidget;
 
 class GLSLEditorPlugin : public ExtensionSystem::IPlugin
 {
@@ -72,10 +52,6 @@ public:
     void extensionsInitialized();
     ShutdownFlag aboutToShutdown();
 
-    static GLSLEditorPlugin *instance() { return m_instance; }
-
-    void initializeEditor(GLSLEditor::GLSLTextEditorWidget *editor);
-
     struct InitFile
     {
         InitFile(GLSL::Engine *engine = 0, GLSL::TranslationUnitAST *ast = 0)
@@ -88,28 +64,9 @@ public:
         GLSL::TranslationUnitAST *ast;
     };
 
-    const InitFile *fragmentShaderInit(int variant) const;
-    const InitFile *vertexShaderInit(int variant) const;
-    const InitFile *shaderInit(int variant) const;
-
-private:
-    QByteArray glslFile(const QString &fileName) const;
-    InitFile *getInitFile(const QString &fileName, InitFile **initFile) const;
-    void parseGlslFile(const QString &fileName, InitFile *initFile) const;
-
-    static GLSLEditorPlugin *m_instance;
-
-    GLSLEditorFactory *m_editor;
-    TextEditor::TextEditorActionHandler *m_actionHandler;
-
-    QPointer<TextEditor::ITextEditor> m_currentTextEditable;
-
-    mutable InitFile *m_glsl_120_frag;
-    mutable InitFile *m_glsl_120_vert;
-    mutable InitFile *m_glsl_120_common;
-    mutable InitFile *m_glsl_es_100_frag;
-    mutable InitFile *m_glsl_es_100_vert;
-    mutable InitFile *m_glsl_es_100_common;
+    static const InitFile *fragmentShaderInit(int variant);
+    static const InitFile *vertexShaderInit(int variant);
+    static const InitFile *shaderInit(int variant);
 };
 
 } // namespace Internal

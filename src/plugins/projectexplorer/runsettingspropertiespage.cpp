@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -237,14 +237,15 @@ RunSettingsWidget::RunSettingsWidget(Target *target)
 
     m_addRunMenu = new QMenu(m_addRunToolButton);
     m_addRunToolButton->setMenu(m_addRunMenu);
+    RunConfiguration *rc = m_target->activeRunConfiguration();
     m_runConfigurationCombo->setModel(m_runConfigurationsModel);
     m_runConfigurationCombo->setCurrentIndex(
-            m_runConfigurationsModel->indexFor(m_target->activeRunConfiguration()).row());
+            m_runConfigurationsModel->indexFor(rc).row());
 
     m_removeRunToolButton->setEnabled(m_target->runConfigurations().size() > 1);
-    m_renameRunButton->setEnabled(m_target->activeRunConfiguration());
+    m_renameRunButton->setEnabled(rc);
 
-    setConfigurationWidget(m_target->activeRunConfiguration());
+    setConfigurationWidget(rc);
 
     connect(m_addRunMenu, SIGNAL(aboutToShow()),
             this, SLOT(aboutToShowAddMenu()));
@@ -273,16 +274,26 @@ RunSettingsWidget::~RunSettingsWidget()
 {
 }
 
+static bool actionLessThan(const QAction *action1, const QAction *action2)
+{
+    return action1->text() < action2->text();
+}
 
 void RunSettingsWidget::aboutToShowAddMenu()
 {
     m_addRunMenu->clear();
+    if (m_target->activeRunConfiguration()) {
+        m_addRunMenu->addAction(tr("&Clone Selected"),
+                                this, SLOT(cloneRunConfiguration()));
+    }
     QList<IRunConfigurationFactory *> factories =
         ExtensionSystem::PluginManager::getObjects<IRunConfigurationFactory>();
+
+    QList<QAction *> menuActions;
     foreach (IRunConfigurationFactory *factory, factories) {
         QList<Core::Id> ids = factory->availableCreationIds(m_target);
         foreach (Core::Id id, ids) {
-            QAction *action = m_addRunMenu->addAction(factory->displayNameForId(id));;
+            QAction *action = new QAction(factory->displayNameForId(id), m_addRunMenu);
             FactoryAndId fai;
             fai.factory = factory;
             fai.id = id;
@@ -291,8 +302,13 @@ void RunSettingsWidget::aboutToShowAddMenu()
             action->setData(v);
             connect(action, SIGNAL(triggered()),
                     this, SLOT(addRunConfiguration()));
+            menuActions.append(action);
         }
     }
+
+    qSort(menuActions.begin(), menuActions.end(), actionLessThan);
+    foreach (QAction *action, menuActions)
+        m_addRunMenu->addAction(action);
 }
 
 void RunSettingsWidget::addRunConfiguration()
@@ -308,6 +324,23 @@ void RunSettingsWidget::addRunConfiguration()
     m_target->addRunConfiguration(newRC);
     m_target->setActiveRunConfiguration(newRC);
     m_removeRunToolButton->setEnabled(m_target->runConfigurations().size() > 1);
+}
+
+void RunSettingsWidget::cloneRunConfiguration()
+{
+    RunConfiguration* activeRunConfiguration = m_target->activeRunConfiguration();
+    IRunConfigurationFactory *factory = IRunConfigurationFactory::find(m_target,
+                                                                       activeRunConfiguration);
+    if (!factory)
+        return;
+
+    RunConfiguration *newRc = factory->clone(m_target, activeRunConfiguration);
+    if (!newRc)
+        return;
+
+    newRc->setDisplayName(activeRunConfiguration->displayName());
+    m_target->addRunConfiguration(newRc);
+    m_target->setActiveRunConfiguration(newRc);
 }
 
 void RunSettingsWidget::removeRunConfiguration()
@@ -425,8 +458,7 @@ void RunSettingsWidget::addDeployConfiguration()
 void RunSettingsWidget::removeDeployConfiguration()
 {
     DeployConfiguration *dc = m_target->activeDeployConfiguration();
-    ProjectExplorer::BuildManager *bm = ProjectExplorerPlugin::instance()->buildManager();
-    if (bm->isBuilding(dc)) {
+    if (BuildManager::isBuilding(dc)) {
         QMessageBox box;
         QPushButton *closeAnyway = box.addButton(tr("Cancel Build && Remove Deploy Configuration"), QMessageBox::AcceptRole);
         QPushButton *cancelClose = box.addButton(tr("Do Not Remove"), QMessageBox::RejectRole);
@@ -437,7 +469,7 @@ void RunSettingsWidget::removeDeployConfiguration()
         box.exec();
         if (box.clickedButton() != closeAnyway)
             return;
-        bm->cancel();
+        BuildManager::cancel();
     } else {
         QMessageBox msgBox(QMessageBox::Question, tr("Remove Deploy Configuration?"),
                            tr("Do you really want to delete deploy configuration <b>%1</b>?").arg(dc->displayName()),
@@ -513,12 +545,16 @@ void RunSettingsWidget::updateDeployConfiguration(DeployConfiguration *dc)
 
 void RunSettingsWidget::setConfigurationWidget(RunConfiguration *rc)
 {
+    if (rc == m_runConfiguration)
+        return;
+
     delete m_runConfigurationWidget;
     m_runConfigurationWidget = 0;
     removeSubWidgets();
     if (!rc)
         return;
     m_runConfigurationWidget = rc->createConfigurationWidget();
+    m_runConfiguration = rc;
     if (m_runConfigurationWidget)
         m_runLayout->addWidget(m_runConfigurationWidget);
 
@@ -557,7 +593,7 @@ QString RunSettingsWidget::uniqueRCName(const QString &name)
 
 void RunSettingsWidget::addRunControlWidgets()
 {
-    foreach (IRunConfigurationAspect *aspect, m_target->activeRunConfiguration()->extraAspects()) {
+    foreach (IRunConfigurationAspect *aspect, m_runConfiguration->extraAspects()) {
         ProjectExplorer::RunConfigWidget *rcw = aspect->createConfigurationWidget();
         if (rcw)
             addSubWidget(rcw);

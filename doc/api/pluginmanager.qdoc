@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (c) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator
@@ -38,54 +38,54 @@
     and retrieved depending on different criteria.
 
     Most interaction of plugins with the plugin manager should be done through the
-    ExtensionSystem::IPlugin interface, but the following tables summarize some methods
+    ExtensionSystem::IPlugin interface, but the following tables summarize some functions
     and signals that can be useful for plugins.
     See the ExtensionSystem::PluginManager reference documentation for the complete list.
 
     \table
         \header
-            \o Method
-            \o Description
+            \li Function
+            \li Description
         \row
-            \o instance()
-            \o Returns the singleton plugin manager instance, for example for connecting to signals.
+            \li instance()
+            \li Returns the singleton plugin manager instance, for example for connecting to signals.
         \row
-            \o addObject()
-            \o Registers an object in the object pool.
-               Also available through ExtensionSystem::IPlugin::addObject().
+            \li addObject()
+            \li Registers an object in the object pool.
+                Also available through ExtensionSystem::IPlugin::addObject().
         \row
-            \o removeObject()
-            \o Unregisters an object from the object pool.
-               Also available through ExtensionSystem::IPlugin::removeObject().
+            \li removeObject()
+            \li Unregisters an object from the object pool.
+                Also available through ExtensionSystem::IPlugin::removeObject().
         \row
-            \o getObjects<T>()
-            \o Returns all objects of type T that are registered in the object pool.
-               This respects \l{Aggregations}.
+            \li getObjects<T>()
+            \li Returns all objects of type T that are registered in the object pool.
+                This respects \l{Aggregations}.
         \row
-            \o getObject<T>()
-            \o Returns one object of type T that is registered in the object pool.
-               This respects \l{Aggregations}.
+            \li getObject<T>()
+            \li Returns one object of type T that is registered in the object pool.
+                This respects \l{Aggregations}.
         \row
-            \o getObjectByName(const QString &name)
-            \o Returns one object with the given object name that is registered in the object pool.
+            \li getObjectByName(const QString &name)
+            \li Returns one object with the given object name that is registered in the object pool.
         \row
-            \o getObjectByClassName(const QString &className)
-            \o Returns one object with the given class name that is registered in the object pool.
+            \li getObjectByClassName(const QString &className)
+            \li Returns one object with the given class name that is registered in the object pool.
     \endtable
 
     \table
         \header
-            \o Signal
-            \o Description
+            \li Signal
+            \li Description
         \row
-            \o objectAdded(QObject *object)
-            \o Sent after an object is registered in the object pool.
+            \li objectAdded(QObject *object)
+            \li Sent after an object is registered in the object pool.
         \row
-            \o aboutToRemoveObject(QObject *object)
-            \o Sent just before an object is unregistered from the object pool.
+            \li aboutToRemoveObject(QObject *object)
+            \li Sent just before an object is unregistered from the object pool.
         \row
-            \o initializationDone()
-            \o Sent when plugins are running and all delayed initialization is done.
+            \li initializationDone()
+            \li Sent when plugins are running and all delayed initialization is done.
     \endtable
 
     \target object pool
@@ -97,9 +97,9 @@
 
     All objects of a specified type can be retrieved from the object pool
     via the \l{ExtensionSystem::PluginManager::getObjects()}{getObjects()} and
-    \l{ExtensionSystem::PluginManager::getObject()}{getObject()} methods.
-    They are aware of Aggregation::Aggregate, so these methods use the Aggregation::query() methods
-    instead of qobject_cast to determine the matching objects.
+    \l{ExtensionSystem::PluginManager::getObject()}{getObject()} functions.
+    They are aware of Aggregation::Aggregate, so these functions use the Aggregation::query()
+    functions instead of qobject_cast to determine the matching objects.
 
     It is also possible to retrieve an object with a specific object name with
     \l{ExtensionSystem::PluginManager::getObjectByName()}{getObjectByName()}

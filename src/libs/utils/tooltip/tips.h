@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -36,9 +36,7 @@
 
 QT_FORWARD_DECLARE_CLASS(QVBoxLayout)
 
-namespace Utils {
-class TipContent;
-}
+namespace Utils { class TipContent; }
 
 #ifndef Q_MOC_RUN
 namespace Utils {

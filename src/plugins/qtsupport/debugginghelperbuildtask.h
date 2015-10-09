@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -50,11 +50,8 @@ class QTSUPPORT_EXPORT DebuggingHelperBuildTask : public QObject
 
 public:
     enum DebuggingHelper {
-        GdbDebugging = 0x01,
-        QmlDebugging = 0x02,
-        QmlObserver = 0x04,
-        QmlDump = 0x08,
-        AllTools = GdbDebugging | QmlDebugging | QmlObserver | QmlDump
+        QmlDump = 0x02,
+        AllTools = QmlDump
     };
     Q_DECLARE_FLAGS(Tools, DebuggingHelper)
 

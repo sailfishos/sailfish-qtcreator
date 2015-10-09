@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -52,6 +52,7 @@ public:
     bool isValid() const { return m_id != -1; }
     qint64 raw() const { return m_id; }
     bool operator==(const ThreadId other) const { return m_id == other.m_id; }
+    bool operator!=(const ThreadId other) const { return m_id != other.m_id; }
 
 private:
     qint64 m_id;

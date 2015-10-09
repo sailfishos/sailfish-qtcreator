@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -33,9 +33,8 @@ using namespace Cvs;
 using namespace Cvs::Internal;
 
 CvsAnnotationHighlighter::CvsAnnotationHighlighter(const ChangeNumbers &changeNumbers,
-                                                   const QColor &bg,
                                                    QTextDocument *document) :
-    VcsBase::BaseAnnotationHighlighter(changeNumbers, bg, document),
+    VcsBase::BaseAnnotationHighlighter(changeNumbers, document),
     m_blank(QLatin1Char(' '))
 {
 }

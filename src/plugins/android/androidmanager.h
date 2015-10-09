@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 BogDan Vatra <bog_dan_ro@yahoo.com>
+** Copyright (c) 2014 BogDan Vatra <bog_dan_ro@yahoo.com>
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -33,6 +33,7 @@
 #include <utils/fileutils.h>
 
 #include <QDomDocument>
+#include <QPair>
 #include <QObject>
 #include <QStringList>
 
@@ -71,9 +72,12 @@ public:
 
     static bool updateDeploymentSettings(ProjectExplorer::Target *target);
     static bool bundleQt(ProjectExplorer::Target *target);
+    static bool useLocalLibs(ProjectExplorer::Target *target);
+    static QString deviceSerialNumber(ProjectExplorer::Target *target);
 
-    static QString targetSDK(ProjectExplorer::Target *target);
-    static bool setTargetSDK(ProjectExplorer::Target *target, const QString &sdk);
+    static QString buildTargetSDK(ProjectExplorer::Target *target);
+    static bool setBuildTargetSDK(ProjectExplorer::Target *target, const QString &sdk);
+    static int minimumSDK(ProjectExplorer::Target *target);
 
     static QString targetArch(ProjectExplorer::Target *target);
 
@@ -86,7 +90,7 @@ public:
     static Utils::FileName apkPath(ProjectExplorer::Target *target, BuildType buildType);
 
     static bool createAndroidTemplatesIfNecessary(ProjectExplorer::Target *target);
-    static void updateTarget(ProjectExplorer::Target *target, const QString &targetSDK,
+    static void updateTarget(ProjectExplorer::Target *target, const QString &buildTargetSDK,
                              const QString &name = QString());
 
     static Utils::FileName localLibsRulesFilePath(ProjectExplorer::Target *target);
@@ -94,6 +98,9 @@ public:
     static QString loadLocalJars(ProjectExplorer::Target *target, int apiLevel = -1);
     static QString loadLocalBundledFiles(ProjectExplorer::Target *target, int apiLevel = -1);
     static QString loadLocalJarsInitClasses(ProjectExplorer::Target *target, int apiLevel = -1);
+
+    static QPair<int, int> apiLevelRange(ProjectExplorer::Target *target);
+    static QString androidNameForApiLevel(int x);
 
     class Library
     {
@@ -123,6 +130,12 @@ public:
     static QString libGnuStl(const QString &arch, const QString &ndkToolChainVersion);
     static QString libraryPrefix();
 
+    static void cleanLibsOnDevice(ProjectExplorer::Target *target);
+    static void installQASIPackage(ProjectExplorer::Target *target, const QString &packagePath);
+
+    static bool checkKeystorePassword(const QString &keystorePath, const QString &keystorePasswd);
+    static bool checkCertificatePassword(const QString &keystorePath, const QString &keystorePasswd, const QString &alias, const QString &certificatePasswd);
+    static bool checkForQt51Files(const QString &projectDirectory);
 private:
     static void raiseError(const QString &reason);
     static bool openXmlFile(QDomDocument &doc, const Utils::FileName &fileName);

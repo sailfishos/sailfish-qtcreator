@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -28,7 +28,7 @@
 ****************************************************************************/
 
 #include "systemeditor.h"
-#include "id.h"
+#include <coreplugin/id.h>
 
 #include <QStringList>
 #include <QUrl>
@@ -49,12 +49,12 @@ QStringList SystemEditor::mimeTypes() const
 
 Id SystemEditor::id() const
 {
-    return Id("CorePlugin.OpenWithSystemEditor");
+    return "CorePlugin.OpenWithSystemEditor";
 }
 
 QString SystemEditor::displayName() const
 {
-    return QLatin1String("System Editor");
+    return tr("System Editor");
 }
 
 bool SystemEditor::startEditor(const QString &fileName, QString *errorMessage)

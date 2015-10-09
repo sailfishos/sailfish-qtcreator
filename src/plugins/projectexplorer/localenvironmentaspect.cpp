@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -88,22 +88,18 @@ void LocalEnvironmentAspect::buildEnvironmentHasChanged()
         emit environmentChanged();
 }
 
-LocalEnvironmentAspect::LocalEnvironmentAspect(RunConfiguration *rc) :
-    EnvironmentAspect(rc)
+LocalEnvironmentAspect::LocalEnvironmentAspect(RunConfiguration *parent) :
+    EnvironmentAspect(parent)
 {
-    connect(rc->target(), SIGNAL(environmentChanged()),
+    connect(parent->target(), SIGNAL(environmentChanged()),
             this, SLOT(buildEnvironmentHasChanged()));
 }
 
-LocalEnvironmentAspect::LocalEnvironmentAspect(const LocalEnvironmentAspect *other,
-                                               ProjectExplorer::RunConfiguration *parent) :
-    EnvironmentAspect(other, parent)
-{ }
-
-LocalEnvironmentAspect *LocalEnvironmentAspect::clone(RunConfiguration *parent) const
+LocalEnvironmentAspect *LocalEnvironmentAspect::create(RunConfiguration *parent) const
 {
-    Q_UNUSED(parent);
-    return new LocalEnvironmentAspect(this, parent);
+    LocalEnvironmentAspect *result = new LocalEnvironmentAspect(parent);
+    result->setUserEnvironmentChanges(userEnvironmentChanges());
+    return result;
 }
 
 } // namespace ProjectExplorer

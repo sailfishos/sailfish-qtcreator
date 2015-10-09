@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -40,6 +40,17 @@ const char C_RESOURCEEDITOR_DISPLAY_NAME[] = QT_TRANSLATE_NOOP("OpenWith::Editor
 const char REFRESH[] = "ResourceEditor.Refresh";
 
 const char C_RESOURCE_MIMETYPE[] = "application/vnd.qt.xml.resource";
+
+const char C_ADD_PREFIX[] = "ResourceEditor.AddPrefix";
+const char C_REMOVE_PREFIX[] = "ResourceEditor.RemovePrefix";
+const char C_RENAME_PREFIX[] = "ResourceEditor.RenamePrefix";
+
+const char C_REMOVE_FILE[] = "ResourceEditor.RemoveFile";
+const char C_RENAME_FILE[] = "ResourceEditor.RenameFile";
+
+const char C_OPEN_EDITOR[] = "ResourceEditor.OpenEditor";
+const char C_OPEN_TEXT_EDITOR[] = "ResourceEditor.OpenTextEditor";
+
 
 } // namespace Constants
 } // namespace ResourceEditor

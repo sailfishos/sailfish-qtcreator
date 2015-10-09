@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -50,35 +50,23 @@ namespace Internal {
 //
 ////////////////////////////////////////////////////////////////////////////////////////
 
-ProjectFilesFactory::ProjectFilesFactory(Manager *manager, TextEditorActionHandler *handler)
-    : Core::IEditorFactory(manager),
-      m_actionHandler(handler)
+ProjectFilesFactory::ProjectFilesFactory(Manager *manager)
+    : Core::IEditorFactory(manager)
 {
-    m_mimeTypes.append(QLatin1String(Constants::FILES_MIMETYPE));
-    m_mimeTypes.append(QLatin1String(Constants::INCLUDES_MIMETYPE));
-    m_mimeTypes.append(QLatin1String(Constants::CONFIG_MIMETYPE));
+    setId(Constants::FILES_EDITOR_ID);
+    setDisplayName(QCoreApplication::translate("OpenWith::Editors", ".files Editor"));
+    addMimeType(Constants::FILES_MIMETYPE);
+    addMimeType(Constants::INCLUDES_MIMETYPE);
+    addMimeType(Constants::CONFIG_MIMETYPE);
+    new TextEditor::TextEditorActionHandler(this, Constants::C_FILESEDITOR);
+
 }
 
-Core::IEditor *ProjectFilesFactory::createEditor(QWidget *parent)
+Core::IEditor *ProjectFilesFactory::createEditor()
 {
-    ProjectFilesEditorWidget *ed = new ProjectFilesEditorWidget(parent, this, m_actionHandler);
-    TextEditorSettings::instance()->initializeEditor(ed);
+    ProjectFilesEditorWidget *ed = new ProjectFilesEditorWidget();
+    TextEditorSettings::initializeEditor(ed);
     return ed->editor();
-}
-
-QStringList ProjectFilesFactory::mimeTypes() const
-{
-    return m_mimeTypes;
-}
-
-Core::Id ProjectFilesFactory::id() const
-{
-    return Core::Id(Constants::FILES_EDITOR_ID);
-}
-
-QString ProjectFilesFactory::displayName() const
-{
-    return  QCoreApplication::translate("OpenWith::Editors", ".files Editor");
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
@@ -90,12 +78,8 @@ QString ProjectFilesFactory::displayName() const
 ProjectFilesEditor::ProjectFilesEditor(ProjectFilesEditorWidget *editor)
   : BaseTextEditor(editor)
 {
+    setId(Constants::FILES_EDITOR_ID);
     setContext(Core::Context(Constants::C_FILESEDITOR));
-}
-
-Core::Id ProjectFilesEditor::id() const
-{
-    return Core::Id(Constants::FILES_EDITOR_ID);
 }
 
 bool ProjectFilesEditor::duplicateSupported() const
@@ -103,13 +87,11 @@ bool ProjectFilesEditor::duplicateSupported() const
     return true;
 }
 
-Core::IEditor *ProjectFilesEditor::duplicate(QWidget *parent)
+Core::IEditor *ProjectFilesEditor::duplicate()
 {
-    ProjectFilesEditorWidget *parentEditor = qobject_cast<ProjectFilesEditorWidget *>(editorWidget());
-    ProjectFilesEditorWidget *editor = new ProjectFilesEditorWidget(parent,
-                                                        parentEditor->factory(),
-                                                        parentEditor->actionHandler());
-    TextEditorSettings::instance()->initializeEditor(editor);
+    ProjectFilesEditorWidget *editor = new ProjectFilesEditorWidget(
+                qobject_cast<ProjectFilesEditorWidget *>(editorWidget()));
+    TextEditorSettings::initializeEditor(editor);
     return editor->editor();
 }
 
@@ -119,26 +101,14 @@ Core::IEditor *ProjectFilesEditor::duplicate(QWidget *parent)
 //
 ////////////////////////////////////////////////////////////////////////////////////////
 
-ProjectFilesEditorWidget::ProjectFilesEditorWidget(QWidget *parent, ProjectFilesFactory *factory,
-                                       TextEditorActionHandler *handler)
-    : BaseTextEditorWidget(parent),
-      m_factory(factory),
-      m_actionHandler(handler)
+ProjectFilesEditorWidget::ProjectFilesEditorWidget(QWidget *parent)
+    : BaseTextEditorWidget(parent)
 {
-    QSharedPointer<BaseTextDocument> doc(new BaseTextDocument());
-    setBaseTextDocument(doc);
-
-    handler->setupActions(this);
 }
 
-ProjectFilesFactory *ProjectFilesEditorWidget::factory() const
+ProjectFilesEditorWidget::ProjectFilesEditorWidget(ProjectFilesEditorWidget *other)
+    : BaseTextEditorWidget(other)
 {
-    return m_factory;
-}
-
-TextEditorActionHandler *ProjectFilesEditorWidget::actionHandler() const
-{
-    return m_actionHandler;
 }
 
 BaseTextEditor *ProjectFilesEditorWidget::createEditor()

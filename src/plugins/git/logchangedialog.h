@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -31,6 +31,8 @@
 #define LOGCHANGEDDIALOG_H
 
 #include <QDialog>
+#include <QIcon>
+#include <QStyledItemDelegate>
 #include <QTreeView>
 
 QT_BEGIN_NAMESPACE
@@ -51,12 +53,21 @@ class LogChangeWidget : public QTreeView
     Q_OBJECT
 
 public:
+    enum LogFlag
+    {
+        None = 0x00,
+        IncludeRemotes = 0x01,
+        Silent = 0x02
+    };
+
+    Q_DECLARE_FLAGS(LogFlags, LogFlag)
+
     explicit LogChangeWidget(QWidget *parent = 0);
-    bool init(const QString &repository, const QString &commit = QString(),
-              bool includeRemote = true);
+    bool init(const QString &repository, const QString &commit = QString(), LogFlags flags = None);
     QString commit() const;
     int commitIndex() const;
     QString earliestCommit() const;
+    void setItemDelegate(QAbstractItemDelegate *delegate);
 
 signals:
     void doubleClicked(const QString &commit);
@@ -65,29 +76,58 @@ private slots:
     void emitDoubleClicked(const QModelIndex &index);
 
 private:
-    bool populateLog(const QString &repository, const QString &commit, bool includeRemote);
+    void selectionChanged(const QItemSelection &selected, const QItemSelection &deselected);
+    bool populateLog(const QString &repository, const QString &commit, LogFlags flags);
     const QStandardItem *currentItem(int column = 0) const;
 
     QStandardItemModel *m_model;
+    bool m_hasCustomDelegate;
 };
 
 class LogChangeDialog : public QDialog
 {
     Q_OBJECT
+
 public:
-    LogChangeDialog(bool isReset, QWidget *parent = 0);
+    LogChangeDialog(bool isReset, QWidget *parent);
 
     bool runDialog(const QString &repository, const QString &commit = QString(),
-                   bool includeRemote = true);
+                   LogChangeWidget::LogFlags flags = LogChangeWidget::None);
 
     QString commit() const;
     int commitIndex() const;
     QString resetFlag() const;
+    LogChangeWidget *widget() const;
 
 private:
-    LogChangeWidget *widget;
+    LogChangeWidget *m_widget;
     QDialogButtonBox *m_dialogButtonBox;
     QComboBox *m_resetTypeComboBox;
+};
+
+class LogItemDelegate : public QStyledItemDelegate
+{
+protected:
+    LogItemDelegate(LogChangeWidget *widget);
+
+    int currentRow() const;
+
+private:
+    LogChangeWidget *m_widget;
+};
+
+class IconItemDelegate : public LogItemDelegate
+{
+public:
+    IconItemDelegate(LogChangeWidget *widget, const QString &icon);
+
+    virtual bool hasIcon(int row) const = 0;
+
+    void paint(QPainter *painter, const QStyleOptionViewItem &option,
+               const QModelIndex &index) const;
+
+private:
+    QIcon m_icon;
 };
 
 } // namespace Internal

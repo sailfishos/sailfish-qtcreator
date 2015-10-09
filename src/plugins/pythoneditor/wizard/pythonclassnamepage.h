@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -36,6 +36,7 @@
 namespace Utils { class NewClassWidget; }
 
 namespace PythonEditor {
+namespace Internal {
 
 class ClassNamePage : public QWizardPage
 {
@@ -58,6 +59,7 @@ private:
     bool m_isValid;
 };
 
+} // namespace Internal
 } // namespace PythonEditor
 
 #endif // PYTHONEDITOR_CLASSNAMEPAGE_H

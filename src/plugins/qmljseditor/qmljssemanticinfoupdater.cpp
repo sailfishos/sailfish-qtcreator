@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -122,13 +122,13 @@ QmlJSTools::SemanticInfo SemanticInfoUpdater::makeNewSemanticInfo(const QmlJS::D
 
     ModelManagerInterface *modelManager = ModelManagerInterface::instance();
 
-    Link link(semanticInfo.snapshot, modelManager->importPaths(), modelManager->builtins(doc));
+    Link link(semanticInfo.snapshot, modelManager->defaultVContext(), modelManager->builtins(doc));
     semanticInfo.context = link(doc, &semanticInfo.semanticMessages);
 
     ScopeChain *scopeChain = new ScopeChain(doc, semanticInfo.context);
     semanticInfo.setRootScopeChain(QSharedPointer<const ScopeChain>(scopeChain));
 
-    if (doc->language() == Document::JsonLanguage) {
+    if (doc->language() == Language::Json) {
         Utils::JsonSchema *schema =
                 QmlJSEditorPlugin::instance()->jsonManager()->schemaForFile(doc->fileName());
         if (schema) {

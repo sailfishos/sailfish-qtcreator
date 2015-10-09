@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 ** Author: Andreas Hartmetz, KDAB (andreas.hartmetz@kdab.com)
 **
@@ -44,6 +44,7 @@
 #include <coreplugin/editormanager/editormanager.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/projectexplorer.h>
+#include <projectexplorer/session.h>
 #include <utils/qtcassert.h>
 
 #include <QDir>
@@ -92,7 +93,7 @@ private slots:
     void openLinkInEditor(const QString &link);
 
 private:
-    // the constness of this method is a necessary lie because it is called from paint() const.
+    // the constness of this function is a necessary lie because it is called from paint() const.
     QWidget *createDetailsWidget(const QModelIndex &errorIndex, QWidget *parent) const;
 
     static const int s_itemMargin = 2;
@@ -185,8 +186,7 @@ static QString makeFrameName(const Frame &frame, const QString &relativeTo,
 static QString relativeToPath()
 {
     // The project for which we insert the snippet.
-    const ProjectExplorer::Project *project =
-            ProjectExplorer::ProjectExplorerPlugin::instance()->startupProject();
+    const ProjectExplorer::Project *project = ProjectExplorer::SessionManager::startupProject();
 
     QString relativeTo(project ? project->projectDirectory() : QDir::homePath());
     if (!relativeTo.endsWith(QDir::separator()))
@@ -198,6 +198,8 @@ static QString relativeToPath()
 static QString errorLocation(const QModelIndex &index, const Error &error,
                       bool link = false, const QString &linkAttr = QString())
 {
+    if (!index.isValid())
+        return QString();
     const ErrorListModel *model = 0;
     const QAbstractProxyModel *proxy = qobject_cast<const QAbstractProxyModel *>(index.model());
     while (!model && proxy) {
@@ -430,7 +432,7 @@ void MemcheckErrorDelegate::copy()
 
 void MemcheckErrorDelegate::openLinkInEditor(const QString &link)
 {
-    const int pathStart = strlen("file://");
+    const int pathStart = int(sizeof("file://")) - 1;
     const int pathEnd = link.lastIndexOf(QLatin1Char(':'));
     const QString path = link.mid(pathStart, pathEnd - pathStart);
     const int line = link.mid(pathEnd + 1).toInt(0);
@@ -492,9 +494,22 @@ QString MemcheckErrorView::defaultSuppressionFile() const
     return m_defaultSuppFile;
 }
 
+void MemcheckErrorView::updateGeometries()
+{
+    if (model()) {
+        QModelIndex index = model()->index(0, modelColumn(), rootIndex());
+        QStyleOptionViewItem option = viewOptions();
+        // delegate for row / column
+        QSize step = itemDelegate()->sizeHint(option, index);
+        horizontalScrollBar()->setSingleStep(step.width() + spacing());
+        verticalScrollBar()->setSingleStep(step.height() + spacing());
+    }
+    QListView::updateGeometries();
+}
+
 // slot, can (for now) be invoked either when the settings were modified *or* when the active
 // settings object has changed.
-void MemcheckErrorView::settingsChanged(Analyzer::AnalyzerSettings *settings)
+void MemcheckErrorView::settingsChanged(ValgrindBaseSettings *settings)
 {
     QTC_ASSERT(settings, return);
     m_settings = settings;

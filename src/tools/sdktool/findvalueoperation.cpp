@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,6 +30,10 @@
 #include "findvalueoperation.h"
 
 #include <iostream>
+
+// <debug>
+#include <QDebug>
+// </debug>
 
 QString FindValueOperation::name() const
 {
@@ -78,7 +82,7 @@ int FindValueOperation::execute() const
     QVariantMap map = load(m_file);
 
     foreach (const QVariant &v, m_values) {
-        const QStringList result = findValues(map, v);
+        const QStringList result = findValue(map, v);
         foreach (const QString &r, result)
             std::cout << qPrintable(r) << std::endl;
     }
@@ -95,47 +99,72 @@ bool FindValueOperation::test() const
     cur.insert(QLatin1String("testint2"), 53);
     subKeys.insert(QLatin1String("subsubkeys"), cur);
     subKeys.insert(QLatin1String("testbool"), true);
+    subKeys.insert(QLatin1String("testbool2"), false);
     subKeys.insert(QLatin1String("otherint"), 53);
     testMap.insert(QLatin1String("subkeys"), subKeys);
     subKeys.clear();
     testMap.insert(QLatin1String("subkeys2"), subKeys);
     testMap.insert(QLatin1String("testint"), 23);
 
+    subKeys.clear();
+    QVariantList list1;
+    list1.append(QLatin1String("ignore this"));
+    list1.append(QLatin1String("ignore this2"));
+    QVariantList list2;
+    list2.append(QLatin1String("somevalue"));
+    subKeys.insert(QLatin1String("findMe"), QLatin1String("FindInList"));
+    list2.append(subKeys);
+    list2.append(QLatin1String("someothervalue"));
+    list1.append(QVariant(list2));
+
+    testMap.insert(QLatin1String("aList"), list1);
+
     QStringList result;
-    result = findValues(testMap, QVariant(23));
+    result = findValue(testMap, QVariant(23));
     if (result.count() != 1
             || !result.contains(QLatin1String("testint")))
         return false;
 
-    result = findValues(testMap, QVariant(53));
+    result = findValue(testMap, QVariant(53));
     if (result.count() != 2
             || !result.contains(QLatin1String("subkeys/subsubkeys/testint2"))
             || !result.contains(QLatin1String("subkeys/otherint")))
         return false;
 
-    result = findValues(testMap, QVariant(23456));
+    result = findValue(testMap, QVariant(23456));
     if (!result.isEmpty())
+        return false;
+
+    result = findValue(testMap, QVariant(QString::fromLatin1("FindInList")));
+    if (result.count() != 1
+            || !result.contains(QLatin1String("aList[2][1]/findMe")))
         return false;
 
     return true;
 }
 #endif
 
-QStringList FindValueOperation::findValues(const QVariantMap &map, const QVariant &value)
+QStringList FindValueOperation::findValue(const QVariant &in, const QVariant &value,
+                                           const QString &prefix)
 {
     QStringList result;
-    if (!value.isValid())
-        return result;
-
-    for (QVariantMap::const_iterator i = map.begin(); i != map.end(); ++i) {
-        if (i.value() == value)
-            result << i.key();
-        if (i.value().type() == QVariant::Map) {
-            const QStringList subKeys = findValues(i.value().toMap(), value);
-            foreach (const QString &subKey, subKeys)
-                result << i.key() + QLatin1Char('/') + subKey;
+    if (in.type() == value.type() && in == value) {
+        result << prefix;
+    } else if (in.type() == QVariant::Map) {
+        QVariantMap map = in.toMap();
+        for (QVariantMap::const_iterator i = map.begin(); i != map.end(); ++i) {
+            QString pfx = prefix;
+            if (!pfx.isEmpty())
+                pfx.append(QLatin1Char('/'));
+            pfx.append(i.key());
+            result.append(findValue(i.value(), value, pfx));
+        }
+    } else if (in.type() == QVariant::List) {
+        QVariantList list = in.toList();
+        for (int pos = 0; pos < list.count(); ++pos) {
+            QString pfx = prefix + QLatin1Char('[') + QString::number(pos) + QLatin1String("]");
+            result.append(findValue(list.at(pos), value, pfx));
         }
     }
-
     return result;
 }

@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Nicolas Arnaud-Cormos
+** Copyright (c) 2014 Nicolas Arnaud-Cormos
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -32,11 +32,9 @@
 
 #include "imacrohandler.h"
 
-#include <find/textfindconstants.h>
+#include <coreplugin/find/textfindconstants.h>
 
-namespace Core {
-class IEditor;
-}
+namespace Core { class IEditor; }
 
 namespace Macros {
 namespace Internal {
@@ -48,17 +46,17 @@ class FindMacroHandler : public IMacroHandler
 public:
     FindMacroHandler();
 
-    void startRecording(Macros::Macro* macro);
+    void startRecording(Macro* macro);
 
-    bool canExecuteEvent(const Macros::MacroEvent &macroEvent);
-    bool executeEvent(const Macros::MacroEvent &macroEvent);
+    bool canExecuteEvent(const MacroEvent &macroEvent);
+    bool executeEvent(const MacroEvent &macroEvent);
 
 public slots:
-    void findIncremental(const QString &txt, Find::FindFlags findFlags);
-    void findStep(const QString &txt, Find::FindFlags findFlags);
-    void replace(const QString &before, const QString &after, Find::FindFlags findFlags);
-    void replaceStep(const QString &before, const QString &after, Find::FindFlags findFlags);
-    void replaceAll(const QString &before, const QString &after, Find::FindFlags findFlags);
+    void findIncremental(const QString &txt, Core::FindFlags findFlags);
+    void findStep(const QString &txt, Core::FindFlags findFlags);
+    void replace(const QString &before, const QString &after, Core::FindFlags findFlags);
+    void replaceStep(const QString &before, const QString &after, Core::FindFlags findFlags);
+    void replaceAll(const QString &before, const QString &after, Core::FindFlags findFlags);
     void resetIncrementalSearch();
 
 private slots:

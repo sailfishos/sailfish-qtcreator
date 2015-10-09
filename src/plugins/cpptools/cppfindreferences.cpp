@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -48,12 +48,13 @@
 
 #include <functional>
 
+using namespace Core;
 using namespace CppTools::Internal;
 using namespace CppTools;
 using namespace CPlusPlus;
 
-static QString getSource(const QString &fileName,
-                         const CppModelManagerInterface::WorkingCopy &workingCopy)
+static QByteArray getSource(const QString &fileName,
+                            const CppModelManagerInterface::WorkingCopy &workingCopy)
 {
     if (workingCopy.contains(fileName)) {
         return workingCopy.source(fileName);
@@ -61,251 +62,14 @@ static QString getSource(const QString &fileName,
         QString fileContents;
         Utils::TextFileFormat format;
         QString error;
-        QTextCodec *defaultCodec = Core::EditorManager::instance()->defaultTextCodec();
+        QTextCodec *defaultCodec = EditorManager::defaultTextCodec();
         Utils::TextFileFormat::ReadResult result = Utils::TextFileFormat::readFile(
                     fileName, defaultCodec, &fileContents, &format, &error);
         if (result != Utils::TextFileFormat::ReadSuccess)
             qWarning() << "Could not read " << fileName << ". Error: " << error;
 
-        return fileContents;
+        return fileContents.toUtf8();
     }
-}
-
-namespace {
-
-class ProcessFile: public std::unary_function<QString, QList<Usage> >
-{
-    const CppModelManagerInterface::WorkingCopy workingCopy;
-    const Snapshot snapshot;
-    Document::Ptr symbolDocument;
-    Symbol *symbol;
-    QFutureInterface<Usage> *future;
-
-public:
-    ProcessFile(const CppModelManagerInterface::WorkingCopy &workingCopy,
-                const Snapshot snapshot,
-                Document::Ptr symbolDocument,
-                Symbol *symbol,
-                QFutureInterface<Usage> *future)
-        : workingCopy(workingCopy),
-          snapshot(snapshot),
-          symbolDocument(symbolDocument),
-          symbol(symbol),
-          future(future)
-    { }
-
-    QList<Usage> operator()(const QString &fileName)
-    {
-        QList<Usage> usages;
-        if (future->isPaused())
-            future->waitForResume();
-        if (future->isCanceled())
-            return usages;
-        const Identifier *symbolId = symbol->identifier();
-
-        if (Document::Ptr previousDoc = snapshot.document(fileName)) {
-            Control *control = previousDoc->control();
-            if (! control->findIdentifier(symbolId->chars(), symbolId->size()))
-                return usages; // skip this document, it's not using symbolId.
-        }
-        Document::Ptr doc;
-        const QString unpreprocessedSource = getSource(fileName, workingCopy);
-
-        if (symbolDocument && fileName == symbolDocument->fileName()) {
-            doc = symbolDocument;
-        } else {
-            doc = snapshot.preprocessedDocument(unpreprocessedSource, fileName);
-            doc->tokenize();
-        }
-
-        Control *control = doc->control();
-        if (control->findIdentifier(symbolId->chars(), symbolId->size()) != 0) {
-            if (doc != symbolDocument)
-                doc->check();
-
-            FindUsages process(unpreprocessedSource.toUtf8(), doc, snapshot);
-            process(symbol);
-
-            usages = process.usages();
-        }
-
-        if (future->isPaused())
-            future->waitForResume();
-        return usages;
-    }
-};
-
-class UpdateUI: public std::binary_function<QList<Usage> &, QList<Usage>, void>
-{
-    QFutureInterface<Usage> *future;
-
-public:
-    UpdateUI(QFutureInterface<Usage> *future): future(future) {}
-
-    void operator()(QList<Usage> &, const QList<Usage> &usages)
-    {
-        foreach (const Usage &u, usages)
-            future->reportResult(u);
-
-        future->setProgressValue(future->progressValue() + 1);
-    }
-};
-
-} // end of anonymous namespace
-
-CppFindReferences::CppFindReferences(CppModelManagerInterface *modelManager)
-    : QObject(modelManager),
-      _modelManager(modelManager)
-{
-}
-
-CppFindReferences::~CppFindReferences()
-{
-}
-
-QList<int> CppFindReferences::references(Symbol *symbol, const LookupContext &context) const
-{
-    QList<int> references;
-
-    FindUsages findUsages(context);
-    findUsages(symbol);
-    references = findUsages.references();
-
-    return references;
-}
-
-static void find_helper(QFutureInterface<Usage> &future,
-                        const CppModelManagerInterface::WorkingCopy workingCopy,
-                        const LookupContext context,
-                        CppFindReferences *findRefs,
-                        Symbol *symbol)
-{
-    const Identifier *symbolId = symbol->identifier();
-    QTC_ASSERT(symbolId != 0, return);
-
-    const Snapshot snapshot = context.snapshot();
-
-    const QString sourceFile = QString::fromUtf8(symbol->fileName(), symbol->fileNameLength());
-    QStringList files(sourceFile);
-
-    if (symbol->isClass() || symbol->isForwardClassDeclaration() || (symbol->enclosingScope() && ! symbol->isStatic() &&
-                                                                     symbol->enclosingScope()->isNamespace())) {
-        foreach (const Document::Ptr &doc, context.snapshot()) {
-            if (doc->fileName() == sourceFile)
-                continue;
-
-            Control *control = doc->control();
-
-            if (control->findIdentifier(symbolId->chars(), symbolId->size()))
-                files.append(doc->fileName());
-        }
-    } else {
-        DependencyTable dependencyTable = findRefs->updateDependencyTable(snapshot);
-        files += dependencyTable.filesDependingOn(sourceFile);
-    }
-    files.removeDuplicates();
-
-    future.setProgressRange(0, files.size());
-
-    ProcessFile process(workingCopy, snapshot, context.thisDocument(), symbol, &future);
-    UpdateUI reduce(&future);
-    // This thread waits for blockingMappedReduced to finish, so reduce the pool's used thread count
-    // so the blockingMappedReduced can use one more thread, and increase it again afterwards.
-    QThreadPool::globalInstance()->releaseThread();
-    QtConcurrent::blockingMappedReduced<QList<Usage> > (files, process, reduce);
-    QThreadPool::globalInstance()->reserveThread();
-    future.setProgressValue(files.size());
-}
-
-void CppFindReferences::findUsages(CPlusPlus::Symbol *symbol,
-                                   const CPlusPlus::LookupContext &context)
-{
-    findUsages(symbol, context, QString(), false);
-}
-
-void CppFindReferences::findUsages(CPlusPlus::Symbol *symbol,
-                                   const CPlusPlus::LookupContext &context,
-                                   const QString &replacement,
-                                   bool replace)
-{
-    Overview overview;
-    Find::SearchResult *search = Find::SearchResultWindow::instance()->startNewSearch(tr("C++ Usages:"),
-                                                QString(),
-                                                overview.prettyName(context.fullyQualifiedName(symbol)),
-                                                replace ? Find::SearchResultWindow::SearchAndReplace
-                                                        : Find::SearchResultWindow::SearchOnly,
-                                                QLatin1String("CppEditor"));
-    search->setTextToReplace(replacement);
-    connect(search, SIGNAL(replaceButtonClicked(QString,QList<Find::SearchResultItem>,bool)),
-            SLOT(onReplaceButtonClicked(QString,QList<Find::SearchResultItem>,bool)));
-    connect(search, SIGNAL(paused(bool)), this, SLOT(setPaused(bool)));
-    search->setSearchAgainSupported(true);
-    connect(search, SIGNAL(searchAgainRequested()), this, SLOT(searchAgain()));
-    CppFindReferencesParameters parameters;
-    parameters.context = context;
-    parameters.symbol = symbol;
-    search->setUserData(qVariantFromValue(parameters));
-    findAll_helper(search);
-}
-
-void CppFindReferences::renameUsages(CPlusPlus::Symbol *symbol, const CPlusPlus::LookupContext &context,
-                                     const QString &replacement)
-{
-    if (const Identifier *id = symbol->identifier()) {
-        const QString textToReplace = replacement.isEmpty()
-                ? QString::fromUtf8(id->chars(), id->size()) : replacement;
-        findUsages(symbol, context, textToReplace, true);
-    }
-}
-
-void CppFindReferences::findAll_helper(Find::SearchResult *search)
-{
-    CppFindReferencesParameters parameters = search->userData().value<CppFindReferencesParameters>();
-    if (!(parameters.symbol && parameters.symbol->identifier())) {
-        search->finishSearch(false);
-        return;
-    }
-    connect(search, SIGNAL(cancelled()), this, SLOT(cancel()));
-    connect(search, SIGNAL(activated(Find::SearchResultItem)),
-            this, SLOT(openEditor(Find::SearchResultItem)));
-
-    Find::SearchResultWindow::instance()->popup(Core::IOutputPane::ModeSwitch | Core::IOutputPane::WithFocus);
-    const CppModelManagerInterface::WorkingCopy workingCopy = _modelManager->workingCopy();
-    QFuture<Usage> result;
-    result = QtConcurrent::run(&find_helper, workingCopy,
-                               parameters.context, this, parameters.symbol);
-    createWatcher(result, search);
-
-    Core::ProgressManager *progressManager = Core::ICore::progressManager();
-    Core::FutureProgress *progress = progressManager->addTask(result, tr("Searching"),
-                                                              QLatin1String(CppTools::Constants::TASK_SEARCH));
-
-    connect(progress, SIGNAL(clicked()), search, SLOT(popup()));
-}
-
-void CppFindReferences::onReplaceButtonClicked(const QString &text,
-                                               const QList<Find::SearchResultItem> &items,
-                                               bool preserveCase)
-{
-    const QStringList fileNames = TextEditor::BaseFileFind::replaceAll(text, items, preserveCase);
-    if (!fileNames.isEmpty()) {
-        _modelManager->updateSourceFiles(fileNames);
-        Find::SearchResultWindow::instance()->hide();
-    }
-}
-
-void CppFindReferences::searchAgain()
-{
-    Find::SearchResult *search = qobject_cast<Find::SearchResult *>(sender());
-    CppFindReferencesParameters parameters = search->userData().value<CppFindReferencesParameters>();
-    Snapshot snapshot = CppModelManagerInterface::instance()->snapshot();
-    search->restart();
-    if (!findSymbol(&parameters, snapshot)) {
-        search->finishSearch(false);
-        return;
-    }
-    search->setUserData(qVariantFromValue(parameters));
-    findAll_helper(search);
 }
 
 static QByteArray typeId(Symbol *symbol)
@@ -388,6 +152,258 @@ static QByteArray idForSymbol(Symbol *symbol)
     return uid;
 }
 
+static QList<QByteArray> fullIdForSymbol(Symbol *symbol)
+{
+    QList<QByteArray> uid;
+    Symbol *current = symbol;
+    do {
+        uid.prepend(idForSymbol(current));
+        current = current->enclosingScope();
+    } while (current);
+    return uid;
+}
+
+namespace {
+
+class ProcessFile: public std::unary_function<QString, QList<Usage> >
+{
+    const CppModelManagerInterface::WorkingCopy workingCopy;
+    const Snapshot snapshot;
+    Document::Ptr symbolDocument;
+    Symbol *symbol;
+    QFutureInterface<Usage> *future;
+
+public:
+    ProcessFile(const CppModelManagerInterface::WorkingCopy &workingCopy,
+                const Snapshot snapshot,
+                Document::Ptr symbolDocument,
+                Symbol *symbol,
+                QFutureInterface<Usage> *future)
+        : workingCopy(workingCopy),
+          snapshot(snapshot),
+          symbolDocument(symbolDocument),
+          symbol(symbol),
+          future(future)
+    { }
+
+    QList<Usage> operator()(const QString &fileName)
+    {
+        QList<Usage> usages;
+        if (future->isPaused())
+            future->waitForResume();
+        if (future->isCanceled())
+            return usages;
+        const Identifier *symbolId = symbol->identifier();
+
+        if (Document::Ptr previousDoc = snapshot.document(fileName)) {
+            Control *control = previousDoc->control();
+            if (!control->findIdentifier(symbolId->chars(), symbolId->size()))
+                return usages; // skip this document, it's not using symbolId.
+        }
+        Document::Ptr doc;
+        const QByteArray unpreprocessedSource = getSource(fileName, workingCopy);
+
+        if (symbolDocument && fileName == symbolDocument->fileName()) {
+            doc = symbolDocument;
+        } else {
+            doc = snapshot.preprocessedDocument(unpreprocessedSource, fileName);
+            doc->tokenize();
+        }
+
+        Control *control = doc->control();
+        if (control->findIdentifier(symbolId->chars(), symbolId->size()) != 0) {
+            if (doc != symbolDocument)
+                doc->check();
+
+            FindUsages process(unpreprocessedSource, doc, snapshot);
+            process(symbol);
+
+            usages = process.usages();
+        }
+
+        if (future->isPaused())
+            future->waitForResume();
+        return usages;
+    }
+};
+
+class UpdateUI: public std::binary_function<QList<Usage> &, QList<Usage>, void>
+{
+    QFutureInterface<Usage> *future;
+
+public:
+    UpdateUI(QFutureInterface<Usage> *future): future(future) {}
+
+    void operator()(QList<Usage> &, const QList<Usage> &usages)
+    {
+        foreach (const Usage &u, usages)
+            future->reportResult(u);
+
+        future->setProgressValue(future->progressValue() + 1);
+    }
+};
+
+} // end of anonymous namespace
+
+CppFindReferences::CppFindReferences(CppModelManagerInterface *modelManager)
+    : QObject(modelManager),
+      m_modelManager(modelManager)
+{
+    connect(modelManager, SIGNAL(globalSnapshotChanged()), this, SLOT(flushDependencyTable()));
+}
+
+CppFindReferences::~CppFindReferences()
+{
+}
+
+QList<int> CppFindReferences::references(Symbol *symbol, const LookupContext &context) const
+{
+    QList<int> references;
+
+    FindUsages findUsages(context);
+    findUsages(symbol);
+    references = findUsages.references();
+
+    return references;
+}
+
+static void find_helper(QFutureInterface<Usage> &future,
+                        const CppModelManagerInterface::WorkingCopy workingCopy,
+                        const LookupContext context,
+                        CppFindReferences *findRefs,
+                        Symbol *symbol)
+{
+    const Identifier *symbolId = symbol->identifier();
+    QTC_ASSERT(symbolId != 0, return);
+
+    const Snapshot snapshot = context.snapshot();
+
+    const QString sourceFile = QString::fromUtf8(symbol->fileName(), symbol->fileNameLength());
+    QStringList files(sourceFile);
+
+    if (symbol->isClass()
+        || symbol->isForwardClassDeclaration()
+        || (symbol->enclosingScope()
+            && !symbol->isStatic()
+            && symbol->enclosingScope()->isNamespace())) {
+        foreach (const Document::Ptr &doc, context.snapshot()) {
+            if (doc->fileName() == sourceFile)
+                continue;
+
+            Control *control = doc->control();
+
+            if (control->findIdentifier(symbolId->chars(), symbolId->size()))
+                files.append(doc->fileName());
+        }
+    } else {
+        DependencyTable dependencyTable = findRefs->updateDependencyTable(snapshot);
+        files += dependencyTable.filesDependingOn(sourceFile);
+    }
+    files.removeDuplicates();
+
+    future.setProgressRange(0, files.size());
+
+    ProcessFile process(workingCopy, snapshot, context.thisDocument(), symbol, &future);
+    UpdateUI reduce(&future);
+    // This thread waits for blockingMappedReduced to finish, so reduce the pool's used thread count
+    // so the blockingMappedReduced can use one more thread, and increase it again afterwards.
+    QThreadPool::globalInstance()->releaseThread();
+    QtConcurrent::blockingMappedReduced<QList<Usage> > (files, process, reduce);
+    QThreadPool::globalInstance()->reserveThread();
+    future.setProgressValue(files.size());
+}
+
+void CppFindReferences::findUsages(CPlusPlus::Symbol *symbol,
+                                   const CPlusPlus::LookupContext &context)
+{
+    findUsages(symbol, context, QString(), false);
+}
+
+void CppFindReferences::findUsages(CPlusPlus::Symbol *symbol,
+                                   const CPlusPlus::LookupContext &context,
+                                   const QString &replacement,
+                                   bool replace)
+{
+    Overview overview;
+    Core::SearchResult *search = Core::SearchResultWindow::instance()->startNewSearch(tr("C++ Usages:"),
+                                                QString(),
+                                                overview.prettyName(context.fullyQualifiedName(symbol)),
+                                                replace ? Core::SearchResultWindow::SearchAndReplace
+                                                        : Core::SearchResultWindow::SearchOnly,
+                                                Core::SearchResultWindow::PreserveCaseDisabled,
+                                                QLatin1String("CppEditor"));
+    search->setTextToReplace(replacement);
+    connect(search, SIGNAL(replaceButtonClicked(QString,QList<Core::SearchResultItem>,bool)),
+            SLOT(onReplaceButtonClicked(QString,QList<Core::SearchResultItem>,bool)));
+    connect(search, SIGNAL(paused(bool)), this, SLOT(setPaused(bool)));
+    search->setSearchAgainSupported(true);
+    connect(search, SIGNAL(searchAgainRequested()), this, SLOT(searchAgain()));
+    CppFindReferencesParameters parameters;
+    parameters.symbolId = fullIdForSymbol(symbol);
+    parameters.symbolFileName = QByteArray(symbol->fileName());
+    search->setUserData(qVariantFromValue(parameters));
+    findAll_helper(search, symbol, context);
+}
+
+void CppFindReferences::renameUsages(CPlusPlus::Symbol *symbol, const CPlusPlus::LookupContext &context,
+                                     const QString &replacement)
+{
+    if (const Identifier *id = symbol->identifier()) {
+        const QString textToReplace = replacement.isEmpty()
+                ? QString::fromUtf8(id->chars(), id->size()) : replacement;
+        findUsages(symbol, context, textToReplace, true);
+    }
+}
+
+void CppFindReferences::findAll_helper(Core::SearchResult *search, CPlusPlus::Symbol *symbol,
+                                       const CPlusPlus::LookupContext &context)
+{
+    if (!(symbol && symbol->identifier())) {
+        search->finishSearch(false);
+        return;
+    }
+    connect(search, SIGNAL(cancelled()), this, SLOT(cancel()));
+    connect(search, SIGNAL(activated(Core::SearchResultItem)),
+            this, SLOT(openEditor(Core::SearchResultItem)));
+
+    Core::SearchResultWindow::instance()->popup(IOutputPane::ModeSwitch | IOutputPane::WithFocus);
+    const CppModelManagerInterface::WorkingCopy workingCopy = m_modelManager->workingCopy();
+    QFuture<Usage> result;
+    result = QtConcurrent::run(&find_helper, workingCopy, context, this, symbol);
+    createWatcher(result, search);
+
+    FutureProgress *progress = ProgressManager::addTask(result, tr("Searching"),
+                                                              CppTools::Constants::TASK_SEARCH);
+
+    connect(progress, SIGNAL(clicked()), search, SLOT(popup()));
+}
+
+void CppFindReferences::onReplaceButtonClicked(const QString &text,
+                                               const QList<Core::SearchResultItem> &items,
+                                               bool preserveCase)
+{
+    const QStringList fileNames = TextEditor::BaseFileFind::replaceAll(text, items, preserveCase);
+    if (!fileNames.isEmpty()) {
+        m_modelManager->updateSourceFiles(fileNames);
+        Core::SearchResultWindow::instance()->hide();
+    }
+}
+
+void CppFindReferences::searchAgain()
+{
+    Core::SearchResult *search = qobject_cast<Core::SearchResult *>(sender());
+    CppFindReferencesParameters parameters = search->userData().value<CppFindReferencesParameters>();
+    Snapshot snapshot = CppModelManagerInterface::instance()->snapshot();
+    search->restart();
+    LookupContext context;
+    Symbol *symbol = findSymbol(parameters, snapshot, &context);
+    if (!symbol) {
+        search->finishSearch(false);
+        return;
+    }
+    findAll_helper(search, symbol, context);
+}
+
 namespace {
 class SymbolFinder : public SymbolVisitor
 {
@@ -427,42 +443,35 @@ private:
 };
 }
 
-bool CppFindReferences::findSymbol(CppFindReferencesParameters *parameters,
-                                      const Snapshot &snapshot)
+CPlusPlus::Symbol *CppFindReferences::findSymbol(const CppFindReferencesParameters &parameters,
+                                      const Snapshot &snapshot, LookupContext *context)
 {
-    QString symbolFile = QLatin1String(parameters->symbol->fileName());
+    QTC_ASSERT(context, return 0);
+    QString symbolFile = QLatin1String(parameters.symbolFileName);
     if (!snapshot.contains(symbolFile))
-        return false;
+        return 0;
 
     Document::Ptr newSymbolDocument = snapshot.document(symbolFile);
     // document is not parsed and has no bindings yet, do it
-    QString source = getSource(newSymbolDocument->fileName(), _modelManager->workingCopy());
+    QByteArray source = getSource(newSymbolDocument->fileName(), m_modelManager->workingCopy());
     Document::Ptr doc =
             snapshot.preprocessedDocument(source, newSymbolDocument->fileName());
     doc->check();
 
-    // construct id of old symbol
-    QList<QByteArray> uid;
-    Symbol *current = parameters->symbol;
-    do {
-        uid.prepend(idForSymbol(current));
-        current = current->enclosingScope();
-    } while (current);
     // find matching symbol in new document and return the new parameters
-    SymbolFinder finder(uid);
+    SymbolFinder finder(parameters.symbolId);
     finder.accept(doc->globalNamespace());
     if (finder.result()) {
-        parameters->symbol = finder.result();
-        parameters->context = LookupContext(doc, snapshot);
-        return true;
+        *context = LookupContext(doc, snapshot);
+        return finder.result();
     }
-    return false;
+    return 0;
 }
 
 void CppFindReferences::displayResults(int first, int last)
 {
     QFutureWatcher<Usage> *watcher = static_cast<QFutureWatcher<Usage> *>(sender());
-    Find::SearchResult *search = m_watchers.value(watcher);
+    Core::SearchResult *search = m_watchers.value(watcher);
     if (!search) {
         // search was deleted while it was running
         watcher->cancel();
@@ -481,15 +490,16 @@ void CppFindReferences::displayResults(int first, int last)
 void CppFindReferences::searchFinished()
 {
     QFutureWatcher<Usage> *watcher = static_cast<QFutureWatcher<Usage> *>(sender());
-    Find::SearchResult *search = m_watchers.value(watcher);
+    Core::SearchResult *search = m_watchers.value(watcher);
     if (search)
         search->finishSearch(watcher->isCanceled());
     m_watchers.remove(watcher);
+    watcher->deleteLater();
 }
 
 void CppFindReferences::cancel()
 {
-    Find::SearchResult *search = qobject_cast<Find::SearchResult *>(sender());
+    Core::SearchResult *search = qobject_cast<Core::SearchResult *>(sender());
     QTC_ASSERT(search, return);
     QFutureWatcher<Usage> *watcher = m_watchers.key(search);
     QTC_ASSERT(watcher, return);
@@ -498,7 +508,7 @@ void CppFindReferences::cancel()
 
 void CppFindReferences::setPaused(bool paused)
 {
-    Find::SearchResult *search = qobject_cast<Find::SearchResult *>(sender());
+    Core::SearchResult *search = qobject_cast<Core::SearchResult *>(sender());
     QTC_ASSERT(search, return);
     QFutureWatcher<Usage> *watcher = m_watchers.key(search);
     QTC_ASSERT(watcher, return);
@@ -506,13 +516,13 @@ void CppFindReferences::setPaused(bool paused)
         watcher->setPaused(paused);
 }
 
-void CppFindReferences::openEditor(const Find::SearchResultItem &item)
+void CppFindReferences::openEditor(const Core::SearchResultItem &item)
 {
     if (item.path.size() > 0) {
-        Core::EditorManager::openEditorAt(QDir::fromNativeSeparators(item.path.first()),
+        EditorManager::openEditorAt(QDir::fromNativeSeparators(item.path.first()),
                                               item.lineNumber, item.textMarkPos);
     } else {
-        Core::EditorManager::openEditor(QDir::fromNativeSeparators(item.text));
+        EditorManager::openEditor(QDir::fromNativeSeparators(item.text));
     }
 }
 
@@ -538,7 +548,7 @@ public:
     {
         QList<Usage> usages;
         Document::Ptr doc = snapshot.document(fileName);
-        QString source;
+        QByteArray source;
 
 restart_search:
         if (future->isPaused())
@@ -563,8 +573,8 @@ restart_search:
 
                 if (macro.name() == useMacro.name()) {
                     unsigned lineStart;
-                    const QString &lineSource = matchingLine(use.begin(), source, &lineStart);
-                    usages.append(Usage(fileName, lineSource, use.beginLine(),
+                    const QByteArray &lineSource = matchingLine(use.begin(), source, &lineStart);
+                    usages.append(Usage(fileName, QString::fromUtf8(lineSource), use.beginLine(),
                                         use.begin() - lineStart, useMacro.name().length()));
                 }
             }
@@ -575,18 +585,18 @@ restart_search:
         return usages;
     }
 
-    static QString matchingLine(unsigned position, const QString &source,
-                                unsigned *lineStart = 0)
+    static QByteArray matchingLine(unsigned position, const QByteArray &source,
+                                   unsigned *lineStart = 0)
     {
-        int lineBegin = source.lastIndexOf(QLatin1Char('\n'), position) + 1;
-        int lineEnd = source.indexOf(QLatin1Char('\n'), position);
+        int lineBegin = source.lastIndexOf('\n', position) + 1;
+        int lineEnd = source.indexOf('\n', position);
         if (lineEnd == -1)
             lineEnd = source.length();
 
         if (lineStart)
             *lineStart = lineBegin;
 
-        const QString matchingLine = source.mid(lineBegin, lineEnd - lineBegin);
+        const QByteArray matchingLine = source.mid(lineBegin, lineEnd - lineBegin);
         return matchingLine;
     }
 };
@@ -625,34 +635,36 @@ void CppFindReferences::findMacroUses(const Macro &macro)
 
 void CppFindReferences::findMacroUses(const Macro &macro, const QString &replacement, bool replace)
 {
-    Find::SearchResult *search = Find::SearchResultWindow::instance()->startNewSearch(
+    Core::SearchResult *search = Core::SearchResultWindow::instance()->startNewSearch(
                 tr("C++ Macro Usages:"),
                 QString(),
                 QString::fromUtf8(macro.name()),
-                replace ? Find::SearchResultWindow::SearchAndReplace
-                        : Find::SearchResultWindow::SearchOnly,
+                replace ? Core::SearchResultWindow::SearchAndReplace
+                        : Core::SearchResultWindow::SearchOnly,
+                Core::SearchResultWindow::PreserveCaseDisabled,
                 QLatin1String("CppEditor"));
 
     search->setTextToReplace(replacement);
-    connect(search, SIGNAL(replaceButtonClicked(QString,QList<Find::SearchResultItem>,bool)),
-            SLOT(onReplaceButtonClicked(QString,QList<Find::SearchResultItem>,bool)));
+    connect(search, SIGNAL(replaceButtonClicked(QString,QList<Core::SearchResultItem>,bool)),
+            SLOT(onReplaceButtonClicked(QString,QList<Core::SearchResultItem>,bool)));
 
-    Find::SearchResultWindow::instance()->popup(Core::IOutputPane::ModeSwitch | Core::IOutputPane::WithFocus);
+    Core::SearchResultWindow::instance()->popup(IOutputPane::ModeSwitch | IOutputPane::WithFocus);
 
-    connect(search, SIGNAL(activated(Find::SearchResultItem)),
-            this, SLOT(openEditor(Find::SearchResultItem)));
+    connect(search, SIGNAL(activated(Core::SearchResultItem)),
+            this, SLOT(openEditor(Core::SearchResultItem)));
     connect(search, SIGNAL(cancelled()), this, SLOT(cancel()));
     connect(search, SIGNAL(paused(bool)), this, SLOT(setPaused(bool)));
 
-    const Snapshot snapshot = _modelManager->snapshot();
-    const CppModelManagerInterface::WorkingCopy workingCopy = _modelManager->workingCopy();
+    const Snapshot snapshot = m_modelManager->snapshot();
+    const CppModelManagerInterface::WorkingCopy workingCopy = m_modelManager->workingCopy();
 
     // add the macro definition itself
     {
-        const QString &source = getSource(macro.fileName(), workingCopy);
+        const QByteArray &source = getSource(macro.fileName(), workingCopy);
         unsigned lineStart;
-        const QString line = FindMacroUsesInFile::matchingLine(macro.offset(), source, &lineStart);
-        search->addResult(macro.fileName(), macro.line(), line,
+        const QByteArray line = FindMacroUsesInFile::matchingLine(macro.offset(), source,
+                                                                  &lineStart);
+        search->addResult(macro.fileName(), macro.line(), QString::fromUtf8(line),
                           macro.offset() - lineStart, macro.name().length());
     }
 
@@ -660,9 +672,8 @@ void CppFindReferences::findMacroUses(const Macro &macro, const QString &replace
     result = QtConcurrent::run(&findMacroUses_helper, workingCopy, snapshot, this, macro);
     createWatcher(result, search);
 
-    Core::ProgressManager *progressManager = Core::ICore::progressManager();
-    Core::FutureProgress *progress = progressManager->addTask(result, tr("Searching"),
-                                                              QLatin1String(CppTools::Constants::TASK_SEARCH));
+    FutureProgress *progress = ProgressManager::addTask(result, tr("Searching"),
+                                                              CppTools::Constants::TASK_SEARCH);
     connect(progress, SIGNAL(clicked()), search, SLOT(popup()));
 }
 
@@ -684,6 +695,13 @@ DependencyTable CppFindReferences::updateDependencyTable(CPlusPlus::Snapshot sna
     return newDeps;
 }
 
+void CppFindReferences::flushDependencyTable()
+{
+    QMutexLocker locker(&m_depsLock);
+    Q_UNUSED(locker);
+    m_deps = DependencyTable();
+}
+
 DependencyTable CppFindReferences::dependencyTable() const
 {
     QMutexLocker locker(&m_depsLock);
@@ -698,7 +716,7 @@ void CppFindReferences::setDependencyTable(const CPlusPlus::DependencyTable &new
     m_deps = newTable;
 }
 
-void CppFindReferences::createWatcher(const QFuture<Usage> &future, Find::SearchResult *search)
+void CppFindReferences::createWatcher(const QFuture<Usage> &future, Core::SearchResult *search)
 {
     QFutureWatcher<Usage> *watcher = new QFutureWatcher<Usage>();
     watcher->setPendingResultsLimit(1);

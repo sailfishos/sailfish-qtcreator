@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2012 - 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -32,18 +32,15 @@
 #ifndef QNX_INTERNAL_BLACKBERRYDEVICECONFIGURATIONWIZARD_H
 #define QNX_INTERNAL_BLACKBERRYDEVICECONFIGURATIONWIZARD_H
 
-#include <QWizard>
+#include "blackberrydeviceconfigurationwizardpages.h"
 
 #include <projectexplorer/devicesupport/idevice.h>
+#include <utils/wizard.h>
 
 namespace Qnx {
 namespace Internal {
 
-class BlackBerryDeviceConfigurationWizardSetupPage;
-class BlackBerryDeviceConfigurationWizardSshKeyPage;
-class BlackBerryDeviceConfigurationWizardFinalPage;
-
-class BlackBerryDeviceConfigurationWizard : public QWizard
+class BlackBerryDeviceConfigurationWizard : public Utils::Wizard
 {
     Q_OBJECT
 public:
@@ -54,13 +51,17 @@ public:
 private:
     enum PageId {
         SetupPageId,
-        SshKeyPageId,
+        QueryPageId,
+        ConfigPageId,
         FinalPageId
     };
 
     BlackBerryDeviceConfigurationWizardSetupPage *m_setupPage;
-    BlackBerryDeviceConfigurationWizardSshKeyPage *m_sshKeyPage;
+    BlackBerryDeviceConfigurationWizardQueryPage *m_queryPage;
+    BlackBerryDeviceConfigurationWizardConfigPage *m_configPage;
     BlackBerryDeviceConfigurationWizardFinalPage *m_finalPage;
+
+    BlackBerryDeviceConfigurationWizardHolder m_holder;
 };
 
 } // namespace Internal

@@ -1,6 +1,6 @@
 #############################################################################
 ##
-## Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+## Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ## Contact: http://www.qt-project.org/legal
 ##
 ## This file is part of Qt Creator.
@@ -42,6 +42,6 @@ def main():
     for kit, config in availableConfigs:
         selectBuildConfig(len(checkedTargets), kit, config)
         test.log("Testing build configuration: " + config)
-        if not runAndCloseApp():
-            return
+        if runAndCloseApp() == None:
+            checkCompile()
     invokeMenuItem("File", "Exit")

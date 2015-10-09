@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -45,9 +45,7 @@ template <class> class QVector;
 template <class> class QList;
 QT_END_NAMESPACE
 
-namespace Core {
-class IEditor;
-}
+namespace Core { class IEditor; }
 
 namespace Utils {
 class NavigationTreeView;
@@ -65,7 +63,7 @@ class CppTypeHierarchyWidget : public QWidget
 {
     Q_OBJECT
 public:
-    CppTypeHierarchyWidget(Core::IEditor *editor);
+    CppTypeHierarchyWidget();
     virtual ~CppTypeHierarchyWidget();
 
 public slots:
@@ -76,13 +74,18 @@ private slots:
 
 private:
     typedef QList<CppClass> CppClass::*HierarchyMember;
-    void buildHierarchy(const CppClass &cppClass, QStandardItem *parent, bool isRoot, HierarchyMember member);
+    void buildHierarchy(const CppClass &cppClass, QStandardItem *parent,
+                        bool isRoot, HierarchyMember member);
+    void showNoTypeHierarchyLabel();
+    void showTypeHierarchy();
+    void clearTypeHierarchy();
 
     CPPEditorWidget *m_cppEditor;
     Utils::NavigationTreeView *m_treeView;
     QStandardItemModel *m_model;
     Utils::AnnotatedItemDelegate *m_delegate;
     CppClassLabel *m_inspectedClass;
+    QLabel *m_noTypeHierarchyAvailableLabel;
 };
 
 // @todo: Pretty much the same design as the OutlineWidgetStack. Maybe we can generalize the

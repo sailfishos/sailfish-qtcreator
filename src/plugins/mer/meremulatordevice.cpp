@@ -1,8 +1,6 @@
-#include "meremulatordevice.h"
-
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2013 Jolla Ltd.
+** Copyright (C) 2012 - 2014 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -22,20 +20,37 @@
 **
 ****************************************************************************/
 
+#include "meremulatordevice.h"
+
+#include "merconnection.h"
+#include "merconstants.h"
+#include "meremulatordevicetester.h"
+#include "meremulatordevicewidget.h"
 #include "mersdkmanager.h"
 #include "mervirtualboxmanager.h"
-#include "merconstants.h"
-#include "meremulatordevicewidget.h"
-#include <utils/qtcassert.h>
-#include <remotelinux/linuxdevicetestdialog.h>
 
-#include <QProgressDialog>
-#include <QMessageBox>
-#include <QTimer>
+#include <coreplugin/icore.h>
+#include <utils/fileutils.h>
+#include <utils/qtcassert.h>
+
+#include <QDir>
 #include <QFileInfo>
+#include <QMessageBox>
+#include <QProgressDialog>
+#include <QTextStream>
+#include <QTimer>
+
+#include <functional>
+
+using Core::ICore;
 
 namespace Mer {
 namespace Internal {
+
+namespace {
+    const int VIDEO_MODE_DEPTH = 32;
+    const int SCALE_DOWN_FACTOR = 2;
+}
 
 class PublicKeyDeploymentDialog : public QProgressDialog
 {
@@ -130,7 +145,7 @@ private slots:
             break;
         }
         case Error:
-            QMessageBox::critical(this, tr("Cannot Authorize Keys"), m_error);
+            QMessageBox::critical(ICore::dialogParent(), tr("Cannot Authorize Keys"), m_error);
             setValue(0);
             setLabelText(tr("Error occured"));
             setCancelButtonText(tr("Close"));
@@ -165,14 +180,23 @@ ProjectExplorer::IDevice::Ptr MerEmulatorDevice::clone() const
 }
 
 MerEmulatorDevice::MerEmulatorDevice():
-    RemoteLinux::LinuxDevice(QString(), Core::Id(Constants::MER_DEVICE_TYPE_I486), Emulator, ManuallyAdded, Core::Id())
+    MerDevice(QString(), Emulator, ManuallyAdded, Core::Id())
+    , m_connection(new MerConnection(0 /* not bug */))
+    , m_orientation(Qt::Vertical)
+    , m_viewScaled(false)
 {
-    setDeviceState(IDevice::DeviceStateUnknown);
+#if __cplusplus >= 201103L
+    m_virtualMachineChangedConnection =
+        QObject::connect(m_connection.data(), &MerConnection::virtualMachineChanged,
+                         std::bind(&MerEmulatorDevice::updateAvailableDeviceModels, this));
+#endif
 }
 
-QString MerEmulatorDevice::displayType() const
+MerEmulatorDevice::~MerEmulatorDevice()
 {
-    return tr("Mer Emulator");
+#if __cplusplus >= 201103L
+    QObject::disconnect(m_virtualMachineChangedConnection);
+#endif
 }
 
 ProjectExplorer::IDeviceWidget *MerEmulatorDevice::createWidget()
@@ -185,7 +209,6 @@ QList<Core::Id> MerEmulatorDevice::actionIds() const
     QList<Core::Id> ids;
     ids << Core::Id(Constants::MER_EMULATOR_START_ACTION_ID);
     ids << Core::Id(Constants::MER_EMULATOR_DEPLOYKEY_ACTION_ID);
-    ids << Core::Id(Constants::MER_EMULATOR_TEST_ID);
     return ids;
 }
 
@@ -197,13 +220,12 @@ QString MerEmulatorDevice::displayNameForActionId(Core::Id actionId) const
         return tr("Regenerate SSH Keys");
     else if (actionId == Constants::MER_EMULATOR_START_ACTION_ID)
         return tr("Start Emulator");
-    else if (actionId == Constants::MER_EMULATOR_TEST_ID)
-        return tr("Test Emulator");
     return QString();
 }
 
-void MerEmulatorDevice::executeAction(Core::Id actionId, QWidget *parent) const
+void MerEmulatorDevice::executeAction(Core::Id actionId, QWidget *parent)
 {
+    Q_UNUSED(parent);
     QTC_ASSERT(actionIds().contains(actionId), return);
 
     if (actionId ==  Constants::MER_EMULATOR_DEPLOYKEY_ACTION_ID) {
@@ -211,34 +233,48 @@ void MerEmulatorDevice::executeAction(Core::Id actionId, QWidget *parent) const
         generateSshKey(QLatin1String(Constants::MER_DEVICE_ROOTUSER));
         return;
     } else if (actionId == Constants::MER_EMULATOR_START_ACTION_ID) {
-        MerVirtualBoxManager::startVirtualMachine(m_virtualMachine,false);
-        return;
-    } else if (actionId == Constants::MER_EMULATOR_TEST_ID) {
-        RemoteLinux::LinuxDeviceTestDialog dialog(sharedFromThis(), new RemoteLinux::GenericLinuxDeviceTester, parent);
-        dialog.exec();
+        m_connection->connectTo();
         return;
     }
 }
 
+ProjectExplorer::DeviceTester *MerEmulatorDevice::createDeviceTester() const
+{
+    return new MerEmulatorDeviceTester;
+}
+
 void MerEmulatorDevice::fromMap(const QVariantMap &map)
 {
-    IDevice::fromMap(map);
-    m_virtualMachine = map.value(QLatin1String(Constants::MER_DEVICE_VIRTUAL_MACHINE)).toString();
+    MerDevice::fromMap(map);
+    updateConnection();
+    m_connection->setVirtualMachine(
+            map.value(QLatin1String(Constants::MER_DEVICE_VIRTUAL_MACHINE)).toString());
     m_mac = map.value(QLatin1String(Constants::MER_DEVICE_MAC)).toString();
     m_subnet = map.value(QLatin1String(Constants::MER_DEVICE_SUBNET)).toString();
-    m_sharedSshPath = map.value(QLatin1String(Constants::MER_DEVICE_SHARED_SSH)).toString();
     m_sharedConfigPath = map.value(QLatin1String(Constants::MER_DEVICE_SHARED_CONFIG)).toString();
+    m_deviceModel = map.value(QLatin1String(Constants::MER_DEVICE_DEVICE_MODEL)).toString();
+    m_orientation = static_cast<Qt::Orientation>(
+            map.value(QLatin1String(Constants::MER_DEVICE_ORIENTATION), Qt::Vertical).toInt());
+    m_viewScaled = map.value(QLatin1String(Constants::MER_DEVICE_VIEW_SCALED)).toBool();
 }
 
 QVariantMap MerEmulatorDevice::toMap() const
 {
-    QVariantMap map = IDevice::toMap();
-    map.insert(QLatin1String(Constants::MER_DEVICE_VIRTUAL_MACHINE), m_virtualMachine);
+    QVariantMap map = MerDevice::toMap();
+    map.insert(QLatin1String(Constants::MER_DEVICE_VIRTUAL_MACHINE),
+            m_connection->virtualMachine());
     map.insert(QLatin1String(Constants::MER_DEVICE_MAC), m_mac);
     map.insert(QLatin1String(Constants::MER_DEVICE_SUBNET), m_subnet);
-    map.insert(QLatin1String(Constants::MER_DEVICE_SHARED_SSH), m_sharedSshPath);
     map.insert(QLatin1String(Constants::MER_DEVICE_SHARED_CONFIG), m_sharedConfigPath);
+    map.insert(QLatin1String(Constants::MER_DEVICE_DEVICE_MODEL), m_deviceModel);
+    map.insert(QLatin1String(Constants::MER_DEVICE_ORIENTATION), m_orientation);
+    map.insert(QLatin1String(Constants::MER_DEVICE_VIEW_SCALED), m_viewScaled);
     return map;
+}
+
+ProjectExplorer::Abi::Architecture MerEmulatorDevice::architecture() const
+{
+    return ProjectExplorer::Abi::X86Architecture;
 }
 
 void MerEmulatorDevice::setMac(const QString& mac)
@@ -263,12 +299,12 @@ QString MerEmulatorDevice::subnet() const
 
 void MerEmulatorDevice::setVirtualMachine(const QString& machineName)
 {
-    m_virtualMachine = machineName;
+    m_connection->setVirtualMachine(machineName);
 }
 
 QString MerEmulatorDevice::virtualMachine() const
 {
-    return m_virtualMachine;
+    return m_connection->virtualMachine();
 }
 
 void MerEmulatorDevice::setSharedConfigPath(const QString &configPath)
@@ -281,16 +317,6 @@ QString MerEmulatorDevice::sharedConfigPath() const
     return m_sharedConfigPath;
 }
 
-void MerEmulatorDevice::setSharedSshPath(const QString &sshPath)
-{
-    m_sharedSshPath = sshPath;
-}
-
-QString MerEmulatorDevice::sharedSshPath() const
-{
-    return m_sharedSshPath;
-}
-
 void MerEmulatorDevice::generateSshKey(const QString& user) const
 {
     if(!m_sharedConfigPath.isEmpty()) {
@@ -299,8 +325,11 @@ void MerEmulatorDevice::generateSshKey(const QString& user) const
         QString privateKeyFile = m_sharedConfigPath +
                 index.arg(virtualMachine()).replace(QLatin1String(" "),QLatin1String("_")) + user;
         PublicKeyDeploymentDialog dialog(privateKeyFile, virtualMachine(),
-                                         user, sharedSshPath());
+                                         user, sharedSshPath(), ICore::dialogParent());
+
+        connection()->setAutoConnectEnabled(false);
         dialog.exec();
+        connection()->setAutoConnectEnabled(true);
     }
 }
 
@@ -315,6 +344,171 @@ QSsh::SshConnectionParameters MerEmulatorDevice::sshParametersForUser(const QSsh
     m_sshParams.privateKeyFile = privateKeyFile;
 
     return m_sshParams;
+}
+
+QMap<QString, QSize> MerEmulatorDevice::availableDeviceModels() const
+{
+#if __cplusplus < 201103L
+    const_cast<MerEmulatorDevice *>(this)->updateAvailableDeviceModels();
+#endif
+    return m_availableDeviceModels;
+}
+
+QString MerEmulatorDevice::deviceModel() const
+{
+    return m_deviceModel;
+}
+
+void MerEmulatorDevice::setDeviceModel(const QString &deviceModel)
+{
+    QTC_CHECK(availableDeviceModels().contains(deviceModel));
+    QTC_CHECK(!virtualMachine().isEmpty());
+
+    // Intentionally do not check for equal value - better for synchronization
+    // with VB settings
+
+    m_deviceModel = deviceModel;
+
+    setVideoMode();
+}
+
+Qt::Orientation MerEmulatorDevice::orientation() const
+{
+    return m_orientation;
+}
+
+void MerEmulatorDevice::setOrientation(Qt::Orientation orientation)
+{
+    // Intentionally do not check for equal value - better for synchronization
+    // with VB settings
+
+    m_orientation = orientation;
+
+    setVideoMode();
+}
+
+bool MerEmulatorDevice::isViewScaled() const
+{
+    return m_viewScaled;
+}
+
+void MerEmulatorDevice::setViewScaled(bool viewScaled)
+{
+    // Intentionally do not check for equal value - better for synchronization
+    // with VB settings
+
+    m_viewScaled = viewScaled;
+
+    setVideoMode();
+}
+
+MerConnection *MerEmulatorDevice::connection() const
+{
+    return m_connection.data();
+}
+
+void MerEmulatorDevice::updateConnection()
+{
+    m_connection->setSshParameters(sshParameters());
+}
+
+/*
+ * The list of available device models is associated with each emulator VM via `vboxmanage
+ * setextradata`.
+ *
+ * Storage format:
+ *
+ * IT MUST START WITH AN EMPTY LINE! This is to deal with vboxmanage prepending output with
+ * (possibly localized) string "Value: ".
+ *
+ * CSV data, with headline in form '#V<version>'.
+ *
+ * Columns:
+ * - Device model (string)
+ * - Horizontal screen size (number)
+ * - Vertical screen size (number)
+ *
+ * ----example-begin----
+ * \n
+ * #V1\n
+ * Jolla Phone,540,960\n
+ * Jolla Tablet,1536,2048\n
+ * ----end----
+ */
+void MerEmulatorDevice::updateAvailableDeviceModels()
+{
+    const QString data = MerVirtualBoxManager::getExtraData(virtualMachine(),
+            QLatin1String(Constants::MER_DEVICE_MODELS_KEY));
+    QStringList lines = data.split(QLatin1Char('\n'));
+    if (lines.count() < 3) {
+        qWarning() << "Invalid device models configuration - at least three lines expected";
+        return;
+    }
+
+    // vboxmanage output starts with (possibly localized) string "Value: " :/
+    lines.removeFirst();
+
+    const QString header = lines.takeFirst();
+    if (header != QLatin1String("#V1")) {
+        qWarning() << "Invalid device models configuratin - invalid header";
+        return;
+    }
+
+    foreach (const QString &line, lines) {
+        if (line.trimmed().isEmpty()) {
+            continue;
+        }
+
+        const QStringList fields = line.split(QLatin1Char(','));
+        if (fields.count() != 3) {
+            qWarning() << "Invalid device models configuration - incorrect fields count";
+            return;
+        }
+
+        const QString name = fields.at(0);
+        const QSize screenSize = QSize(fields.at(1).toInt(), fields.at(2).toInt());
+
+        m_availableDeviceModels.insert(name, screenSize);
+    }
+
+    if (!m_availableDeviceModels.isEmpty()) {
+        if (!m_availableDeviceModels.contains(m_deviceModel)) {
+            m_deviceModel = m_availableDeviceModels.keys().first();
+        }
+    } else {
+        m_deviceModel = QString();
+    }
+}
+
+void MerEmulatorDevice::setVideoMode()
+{
+    QSize realSize = availableDeviceModels().value(m_deviceModel);
+    if (m_orientation == Qt::Horizontal) {
+        realSize.transpose();
+    }
+    QSize virtualSize = realSize;
+    if (m_viewScaled) {
+        realSize /= SCALE_DOWN_FACTOR;
+    }
+
+    MerVirtualBoxManager::setVideoMode(virtualMachine(), realSize, VIDEO_MODE_DEPTH);
+
+    //! \todo Does not support multiple emulators (not supported at other places anyway).
+    QTC_ASSERT(!sharedConfigPath().isEmpty(), return);
+    const QString file = QDir(sharedConfigPath())
+        .absoluteFilePath(QLatin1String(Constants::MER_COMPOSITOR_CONFIG_FILENAME));
+    Utils::FileSaver saver(file, QIODevice::WriteOnly);
+
+    // Keep environment clean if scaling is disabled - may help in case of errors
+    const QString maybeCommentOut = m_viewScaled ? QString() : QString(QStringLiteral("#"));
+
+    QTextStream(saver.file())
+        << maybeCommentOut << "QT_QPA_EGLFS_SCALE=" << SCALE_DOWN_FACTOR << endl
+        << maybeCommentOut << "QT_QPA_EGLFS_WIDTH=" << virtualSize.width() << endl
+        << maybeCommentOut << "QT_QPA_EGLFS_HEIGHT=" << virtualSize.height() << endl;
+
+    bool ok = saver.finalize();
+    QTC_CHECK(ok);
 }
 
 #include "meremulatordevice.moc"

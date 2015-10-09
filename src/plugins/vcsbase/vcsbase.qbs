@@ -1,17 +1,19 @@
-import qbs.base 1.0
+import qbs 1.0
 
-import "../QtcPlugin.qbs" as QtcPlugin
+import QtcPlugin
 
 QtcPlugin {
     name: "VcsBase"
 
+    Depends { name: "Qt.widgets" }
+    Depends { name: "Aggregation" }
+    Depends { name: "CPlusPlus" }
+    Depends { name: "Utils" }
+
     Depends { name: "Core" }
     Depends { name: "TextEditor" }
     Depends { name: "ProjectExplorer" }
-    Depends { name: "Find" }
-    Depends { name: "Qt.widgets" }
     Depends { name: "CppTools" }
-    Depends { name: "CPlusPlus" }
 
     files: [
         "baseannotationhighlighter.cpp",
@@ -25,11 +27,8 @@ QtcPlugin {
         "basevcseditorfactory.h",
         "basevcssubmiteditorfactory.cpp",
         "basevcssubmiteditorfactory.h",
-        "checkoutjobs.cpp",
-        "checkoutjobs.h",
         "checkoutprogresswizardpage.cpp",
         "checkoutprogresswizardpage.h",
-        "checkoutprogresswizardpage.ui",
         "checkoutwizarddialog.cpp",
         "checkoutwizarddialog.h",
         "cleandialog.cpp",

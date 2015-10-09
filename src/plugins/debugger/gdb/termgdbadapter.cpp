@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -29,17 +29,19 @@
 
 #include "termgdbadapter.h"
 
-#include "debuggercore.h"
-#include "debuggerprotocol.h"
-#include "debuggerstartparameters.h"
-#include "debuggerstringutils.h"
-#include "shared/hostutils.h"
+#include <debugger/debuggercore.h>
+#include <debugger/debuggerprotocol.h>
+#include <debugger/debuggerstartparameters.h>
+#include <debugger/debuggerstringutils.h>
+#include <debugger/shared/hostutils.h>
 
 #include <utils/hostosinfo.h>
 #include <utils/qtcassert.h>
 #include <coreplugin/icore.h>
 
 #include <QMessageBox>
+
+using namespace Utils;
 
 namespace Debugger {
 namespace Internal {
@@ -72,14 +74,6 @@ GdbTermEngine::GdbTermEngine(const DebuggerStartParameters &startParameters)
 GdbTermEngine::~GdbTermEngine()
 {
     m_stubProc.disconnect(); // Avoid spurious state transitions from late exiting stub
-}
-
-GdbEngine::DumperHandling GdbTermEngine::dumperHandling() const
-{
-    // LD_PRELOAD fails for System-Qt on Mac.
-    return Utils::HostOsInfo::isWindowsHost() || Utils::HostOsInfo::isMacHost()
-            ? DumperLoadedByGdb
-            : DumperLoadedByAdapter; // Handles loading itself via LD_PRELOAD
 }
 
 void GdbTermEngine::setupEngine()
@@ -128,12 +122,11 @@ void GdbTermEngine::setupInferior()
 {
     QTC_ASSERT(state() == InferiorSetupRequested, qDebug() << state());
     const qint64 attachedPID = m_stubProc.applicationPID();
-#ifdef Q_OS_WIN
     const qint64 attachedMainThreadID = m_stubProc.applicationMainThreadID();
-    showMessage(QString::fromLatin1("Attaching to %1 (%2)").arg(attachedPID).arg(attachedMainThreadID), LogMisc);
-#else
-    showMessage(QString::fromLatin1("Attaching to %1").arg(attachedPID), LogMisc);
-#endif
+    const QString msg = (attachedMainThreadID != -1)
+            ? QString::fromLatin1("Attaching to %1 (%2)").arg(attachedPID).arg(attachedMainThreadID)
+            : QString::fromLatin1("Attaching to %1").arg(attachedPID);
+    showMessage(msg, LogMisc);
     notifyInferiorPid(attachedPID);
     postCommand("attach " + QByteArray::number(attachedPID),
         CB(handleStubAttached));
@@ -151,11 +144,7 @@ void GdbTermEngine::handleStubAttached(const GdbResponse &response)
         } else {
             QString errorMessage;
             // Resume thread that was suspended by console stub process (see stub code).
-#ifdef Q_OS_WIN
             const qint64 mainThreadId = m_stubProc.applicationMainThreadID();
-#else
-            const qint64 mainThreadId = -1;
-#endif
             if (winResumeThread(mainThreadId, &errorMessage)) {
                 showMessage(QString::fromLatin1("Inferior attached, thread %1 resumed").
                             arg(mainThreadId), LogMisc);
@@ -169,7 +158,7 @@ void GdbTermEngine::handleStubAttached(const GdbResponse &response)
         break;
     case GdbResultError:
         if (response.data["msg"].data() == "ptrace: Operation not permitted.") {
-            notifyInferiorSetupFailed(DumperHelper::msgPtraceError(startParameters().startMode));
+            notifyInferiorSetupFailed(msgPtraceError(startParameters().startMode));
             break;
         }
         notifyInferiorSetupFailed(QString::fromLocal8Bit(response.data["msg"].data()));

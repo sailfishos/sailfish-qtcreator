@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,6 +30,7 @@
 #include "reparentinstancescommand.h"
 
 #include <QDataStream>
+#include <QDebug>
 
 namespace QmlDesigner {
 
@@ -60,6 +61,11 @@ QDataStream &operator>>(QDataStream &in, ReparentInstancesCommand &command)
     in >> command.m_reparentInstanceVector;
 
     return in;
+}
+
+QDebug operator <<(QDebug debug, const ReparentInstancesCommand &command)
+{
+    return debug.nospace() << "ReparentInstancesCommand(reparentInstances: " << command.m_reparentInstanceVector << ")";
 }
 
 } // namespace QmlDesigner

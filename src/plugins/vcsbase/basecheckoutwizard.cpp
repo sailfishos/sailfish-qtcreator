@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -29,7 +29,6 @@
 
 #include "basecheckoutwizard.h"
 #include "checkoutwizarddialog.h"
-#include "checkoutjobs.h"
 
 #include <coreplugin/featureprovider.h>
 
@@ -72,7 +71,8 @@ public:
     Internal::CheckoutWizardDialog *dialog;
     QList<QWizardPage *> parameterPages;
     QString checkoutPath;
-    QString id;
+    QString progressTitle;
+    QString startedStatus;
 };
 
 void BaseCheckoutWizardPrivate::clear()
@@ -84,10 +84,14 @@ void BaseCheckoutWizardPrivate::clear()
 
 } // namespace Internal
 
-BaseCheckoutWizard::BaseCheckoutWizard(QObject *parent) :
-    Core::IWizard(parent),
+BaseCheckoutWizard::BaseCheckoutWizard() :
     d(new Internal::BaseCheckoutWizardPrivate)
 {
+    setWizardKind(IWizard::ProjectWizard);
+    setCategory(QLatin1String(ProjectExplorer::Constants::IMPORT_WIZARD_CATEGORY));
+    setDisplayCategory(QCoreApplication::translate("ProjectExplorer",
+        ProjectExplorer::Constants::IMPORT_WIZARD_CATEGORY_DISPLAY));
+    setFlags(Core::IWizard::PlatformIndependent);
 }
 
 BaseCheckoutWizard::~BaseCheckoutWizard()
@@ -95,42 +99,18 @@ BaseCheckoutWizard::~BaseCheckoutWizard()
     delete d;
 }
 
-Core::IWizard::WizardKind BaseCheckoutWizard::kind() const
+void BaseCheckoutWizard::runWizard(const QString &path, QWidget *parent, const QString &platform,
+                                   const QVariantMap &extraValues)
 {
-    return Core::IWizard::ProjectWizard;
-}
-
-QString BaseCheckoutWizard::category() const
-{
-    return QLatin1String(ProjectExplorer::Constants::IMPORT_WIZARD_CATEGORY);
-}
-
-QString BaseCheckoutWizard::displayCategory() const
-{
-    return QCoreApplication::translate("ProjectExplorer", ProjectExplorer::Constants::IMPORT_WIZARD_CATEGORY_DISPLAY);
-}
-
-QString BaseCheckoutWizard::id() const
-{
-    return d->id;
-}
-
-QString BaseCheckoutWizard::descriptionImage() const
-{
-    return QString();
-}
-
-void BaseCheckoutWizard::setId(const QString &id)
-{
-    d->id = id;
-}
-
-void BaseCheckoutWizard::runWizard(const QString &path, QWidget *parent, const QString & /*platform*/, const QVariantMap &extraValues)
-{
-    Q_UNUSED(extraValues)
+    Q_UNUSED(platform);
+    Q_UNUSED(extraValues);
     // Create dialog and launch
     d->parameterPages = createParameterPages(path);
     Internal::CheckoutWizardDialog dialog(d->parameterPages, parent);
+    if (!d->progressTitle.isEmpty())
+        dialog.setTitle(d->progressTitle);
+    if (!d->startedStatus.isEmpty())
+        dialog.setStartedStatus(d->startedStatus);
     d->dialog = &dialog;
     connect(&dialog, SIGNAL(progressPageShown()), this, SLOT(slotProgressPageShown()));
     dialog.setWindowTitle(displayName());
@@ -145,18 +125,9 @@ void BaseCheckoutWizard::runWizard(const QString &path, QWidget *parent, const Q
         QMessageBox msgBox(QMessageBox::Warning, tr("Cannot Open Project"),
                            tr("Failed to open project in '%1'.").arg(QDir::toNativeSeparators(checkoutPath)));
         msgBox.setDetailedText(errorMessage);
+        msgBox.addButton(QMessageBox::Ok);
         msgBox.exec();
     }
-}
-
-Core::FeatureSet BaseCheckoutWizard::requiredFeatures() const
-{
-    return Core::FeatureSet();
-}
-
-Core::IWizard::WizardFlags BaseCheckoutWizard::flags() const
-{
-    return Core::IWizard::PlatformIndependent;
 }
 
 static inline QString msgNoProjectFiles(const QDir &dir, const QStringList &patterns)
@@ -184,7 +155,7 @@ static QFileInfoList findProjectFiles(const QDir &projectDir, QString *errorMess
         *errorMessage = msgNoProjectFiles(srcDir, projectFilePatterns);
         return QFileInfoList();
     }
-    return projectFiles;;
+    return projectFiles;
 }
 
 QString BaseCheckoutWizard::openProject(const QString &path, QString *errorMessage)
@@ -213,10 +184,16 @@ QString BaseCheckoutWizard::openProject(const QString &path, QString *errorMessa
     return projectFile;
 }
 
+void BaseCheckoutWizard::setCustomLabels(const QString &progressTitle, const QString &startedStatus)
+{
+    d->progressTitle = progressTitle;
+    d->startedStatus = startedStatus;
+}
+
 void BaseCheckoutWizard::slotProgressPageShown()
 {
-    const QSharedPointer<AbstractCheckoutJob> job = createJob(d->parameterPages, &(d->checkoutPath));
-    d->dialog->start(job);
+    Command *command = createCommand(d->parameterPages, &(d->checkoutPath));
+    d->dialog->start(command);
 }
 
 } // namespace VcsBase

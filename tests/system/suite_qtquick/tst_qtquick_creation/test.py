@@ -1,6 +1,6 @@
 #############################################################################
 ##
-## Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+## Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ## Contact: http://www.qt-project.org/legal
 ##
 ## This file is part of Qt Creator.
@@ -33,16 +33,18 @@ def main():
     startApplication("qtcreator" + SettingsPath)
     if not startedWithoutPluginError():
         return
-    for targ, qVer in {Targets.DESKTOP_480_GCC:1, Targets.DESKTOP_501_DEFAULT:2}.items():
+    for targ, qVer in [[Targets.DESKTOP_480_GCC, "1.1"], [Targets.DESKTOP_521_DEFAULT, "2.1"],
+                       [Targets.DESKTOP_521_DEFAULT, "2.2"], [Targets.DESKTOP_521_DEFAULT, "Controls 1.0"],
+                       [Targets.DESKTOP_521_DEFAULT, "Controls 1.1"]]:
         # using a temporary directory won't mess up a potentially existing
         workingDir = tempDir()
         checkedTargets, projectName = createNewQtQuickApplication(workingDir, targets=targ,
                                                                   qtQuickVersion=qVer)
-        test.log("Building project Qt Quick %d Application (%s)"
+        test.log("Building project Qt Quick %s Application (%s)"
                  % (qVer, Targets.getStringForTarget(targ)))
         result = modifyRunSettingsForHookInto(projectName, len(checkedTargets), 11223)
         invokeMenuItem("Build", "Build All")
-        waitForSignal("{type='ProjectExplorer::BuildManager' unnamed='1'}", "buildQueueFinished(bool)")
+        waitForCompile()
         if not checkCompile():
             test.fatal("Compile failed")
         else:
@@ -52,21 +54,34 @@ def main():
                 result = addExecutableAsAttachableAUT(projectName, 11223)
                 allowAppThroughWinFW(workingDir, projectName)
                 if result:
-                    result = runAndCloseApp(True, projectName, 11223, "subprocessFunction", SubprocessType.QT_QUICK_APPLICATION)
+                    function = "subprocessFunctionQuick2"
+                    if qVer[0] == "1":
+                        function = "subprocessFunctionQuick1"
+                    result = runAndCloseApp(True, projectName, 11223, function,
+                                            SubprocessType.QT_QUICK_APPLICATION, quickVersion=qVer)
                 else:
                     result = runAndCloseApp(sType=SubprocessType.QT_QUICK_APPLICATION)
                 removeExecutableAsAttachableAUT(projectName, 11223)
                 deleteAppFromWinFW(workingDir, projectName)
             else:
                 result = runAndCloseApp()
-            if result:
+            if result == None:
+                checkCompile()
+            else:
                 logApplicationOutput()
         invokeMenuItem("File", "Close All Projects and Editors")
 
     invokeMenuItem("File", "Exit")
 
-def subprocessFunction():
-    helloWorldText = waitForObject("{container={type='QmlApplicationViewer' visible='1' unnamed='1'} "
-                                   "enabled='true' text='Hello World' type='Text' unnamed='1' visible='true'}")
-    test.log("Clicking 'Hello World' Text to close QmlApplicationViewer")
+def subprocessFunctionGenericQuick(quickVersion):
+    helloWorldText = waitForObject("{container={type='QtQuick%dApplicationViewer' visible='1' "
+                                   "unnamed='1'} enabled='true' text='Hello World' type='Text' "
+                                   "unnamed='1' visible='true'}" % quickVersion)
+    test.log("Clicking 'Hello World' Text to close QtQuick%dApplicationViewer" % quickVersion)
     mouseClick(helloWorldText, 5, 5, 0, Qt.LeftButton)
+
+def subprocessFunctionQuick1():
+    subprocessFunctionGenericQuick(1)
+
+def subprocessFunctionQuick2():
+    subprocessFunctionGenericQuick(2)

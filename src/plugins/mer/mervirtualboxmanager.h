@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2013 Jolla Ltd.
+** Copyright (C) 2012 - 2014 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -23,8 +23,8 @@
 #ifndef VIRTUALBOXMANAGER_H
 #define VIRTUALBOXMANAGER_H
 
-#include <QObject>
 #include <QHash>
+#include <QObject>
 #include <QString>
 #include <QStringList>
 
@@ -34,7 +34,7 @@ namespace Internal {
 class VirtualMachineInfo
 {
 public:
-    VirtualMachineInfo() : sshPort(0), wwwPort(0) {}
+    VirtualMachineInfo() : sshPort(0), wwwPort(0), headless(false) {}
     QString sharedHome;
     QString sharedTargets;
     QString sharedConfig;
@@ -44,26 +44,30 @@ public:
     quint16 wwwPort;
     QList<quint16> freePorts;
     QStringList macs;
+    bool headless;
 };
 
 class MerVirtualBoxManager : public QObject
 {
     Q_OBJECT
 public:
-    MerVirtualBoxManager* instance();
+    static MerVirtualBoxManager* instance();
     ~MerVirtualBoxManager();
     static bool isVirtualMachineRunning(const QString &vmName);
     static bool isVirtualMachineRegistered(const QString &vmName);
     static QStringList fetchRegisteredVirtualMachines();
     static VirtualMachineInfo fetchVirtualMachineInfo(const QString &vmName);
-    static bool startVirtualMachine(const QString &vmName, bool headless);
-    static bool shutVirtualMachine(const QString &vmName);
+    static void startVirtualMachine(const QString &vmName, bool headless);
+    static void shutVirtualMachine(const QString &vmName);
     static bool updateSharedFolder(const QString &vmName, const QString &mountName, const QString &newFolder);
+    static bool setVideoMode(const QString &vmName, const QSize &size, int depth);
+    static QString getExtraData(const QString &vmName, const QString &key);
+
 private:
     MerVirtualBoxManager(QObject *parent = 0);
 
 private:
-    MerVirtualBoxManager *m_instance;
+    static MerVirtualBoxManager *m_instance;
     friend class MerPlugin;
 };
 

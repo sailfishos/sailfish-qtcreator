@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -33,12 +33,17 @@
 #include <QSharedPointer>
 #include <QWizardPage>
 
+QT_BEGIN_NAMESPACE
+class QPlainTextEdit;
+class QLabel;
+QT_END_NAMESPACE
+
+namespace Utils { class OutputFormatter; }
+
 namespace VcsBase {
-class AbstractCheckoutJob;
+class Command;
 
 namespace Internal {
-
-namespace Ui { class CheckoutProgressWizardPage; }
 
 class CheckoutProgressWizardPage : public QWizardPage
 {
@@ -50,7 +55,8 @@ public:
     explicit CheckoutProgressWizardPage(QWidget *parent = 0);
     ~CheckoutProgressWizardPage();
 
-    void start(const QSharedPointer<AbstractCheckoutJob> &job);
+    void setStartedStatus(const QString &startedStatus);
+    void start(Command *command);
 
     virtual bool isComplete() const;
     bool isRunning() const{ return m_state == Running; }
@@ -61,12 +67,19 @@ signals:
     void terminated(bool success);
 
 private slots:
-    void slotFailed(const QString &);
-    void slotSucceeded();
+    void slotFinished(bool ok, int exitCode, const QVariant &cookie);
+    void slotOutput(const QString &text);
+    void slotError(const QString &text);
 
 private:
-    Ui::CheckoutProgressWizardPage *ui;
-    QSharedPointer<AbstractCheckoutJob> m_job;
+    QPlainTextEdit *m_logPlainTextEdit;
+    Utils::OutputFormatter *m_formatter;
+    QLabel *m_statusLabel;
+
+    Command *m_command;
+    QString m_startedStatus;
+    QString m_error;
+    bool m_overwriteOutput;
 
     State m_state;
 };

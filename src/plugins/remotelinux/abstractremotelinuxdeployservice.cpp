@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -162,6 +162,11 @@ void AbstractRemoteLinuxDeployService::setTarget(Target *target)
     d->deviceConfiguration = DeviceKitInformation::device(d->kit);
 }
 
+void AbstractRemoteLinuxDeployService::setDevice(const IDevice::ConstPtr &device)
+{
+    d->deviceConfiguration = device;
+}
+
 void AbstractRemoteLinuxDeployService::start()
 {
     QTC_ASSERT(d->state == Inactive, return);
@@ -267,7 +272,7 @@ void AbstractRemoteLinuxDeployService::handleDeviceSetupDone(bool success)
     }
 
     d->state = Connecting;
-    d->connection = SshConnectionManager::instance().acquireConnection(deviceConfiguration()->sshParameters());
+    d->connection = QSsh::acquireConnection(deviceConfiguration()->sshParameters());
     connect(d->connection, SIGNAL(error(QSsh::SshError)),
         SLOT(handleConnectionFailure()));
     if (d->connection->state() == SshConnection::Connected) {
@@ -309,10 +314,11 @@ void AbstractRemoteLinuxDeployService::handleConnectionFailure()
         break;
     case Connecting: {
         QString errorMsg = tr("Could not connect to host: %1").arg(d->connection->errorString());
+        errorMsg += QLatin1Char('\n');
         if (deviceConfiguration()->machineType() == IDevice::Emulator)
-            errorMsg += tr("\nDid the emulator fail to start?");
+            errorMsg += tr("Did the emulator fail to start?");
         else
-            errorMsg += tr("\nIs the device connected and set up for network access?");
+            errorMsg += tr("Is the device connected and set up for network access?");
         emit errorMessage(errorMsg);
         setFinished();
         break;
@@ -328,7 +334,7 @@ void AbstractRemoteLinuxDeployService::setFinished()
     d->state = Inactive;
     if (d->connection) {
         disconnect(d->connection, 0, this, 0);
-        SshConnectionManager::instance().releaseConnection(d->connection);
+        QSsh::releaseConnection(d->connection);
         d->connection = 0;
     }
     d->stopRequested = false;

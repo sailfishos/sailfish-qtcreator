@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -41,6 +41,7 @@ class ValuesChangedCommand
 {
     friend QDataStream &operator<<(QDataStream &out, const ValuesChangedCommand &command);
     friend QDataStream &operator>>(QDataStream &in, ValuesChangedCommand &command);
+    friend bool operator ==(const ValuesChangedCommand &first, const ValuesChangedCommand &second);
 
 public:
     ValuesChangedCommand();
@@ -51,6 +52,8 @@ public:
 
     static void removeSharedMemorys(const QVector<qint32> &keyNumberVector);
 
+    void sort();
+
 private:
     QVector<PropertyValueContainer> m_valueChangeVector;
     mutable quint32 m_keyNumber;
@@ -59,6 +62,8 @@ private:
 QDataStream &operator<<(QDataStream &out, const ValuesChangedCommand &command);
 QDataStream &operator>>(QDataStream &in, ValuesChangedCommand &command);
 
+bool operator ==(const ValuesChangedCommand &first, const ValuesChangedCommand &second);
+QDebug operator <<(QDebug debug, const ValuesChangedCommand &instance);
 } // namespace QmlDesigner
 
 Q_DECLARE_METATYPE(QmlDesigner::ValuesChangedCommand)

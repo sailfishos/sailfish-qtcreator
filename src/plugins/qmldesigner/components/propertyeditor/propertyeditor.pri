@@ -1,43 +1,29 @@
 VPATH += $$PWD
 
-SOURCES += propertyeditor.cpp \
+SOURCES += propertyeditorview.cpp \
     qmlanchorbindingproxy.cpp \
-    resetwidget.cpp \
-    qlayoutobject.cpp \
-    basiclayouts.cpp \
-    basicwidgets.cpp \
-    behaviordialog.cpp \
-    layoutwidget.cpp \
-    filewidget.cpp \
     propertyeditorvalue.cpp \
-    fontwidget.cpp \
-    originwidget.cpp \
-    siblingcombobox.cpp \
     propertyeditortransaction.cpp \
+    designerpropertymap.cpp \
     propertyeditorcontextobject.cpp \
-    declarativewidgetview.cpp \
-    gradientlineqmladaptor.cpp
+    quick2propertyeditorview.cpp \
+    propertyeditorqmlbackend.cpp \
+    propertyeditorwidget.cpp \
+    fileresourcesmodel.cpp \
+    components/propertyeditor/gradientmodel.cpp
 
-HEADERS += propertyeditor.h \
+HEADERS += propertyeditorview.h \
     qmlanchorbindingproxy.h \
-    resetwidget.h \
-    qlayoutobject.h \
-    basiclayouts.h \
-    basicwidgets.h \
-    behaviordialog.h \
-    layoutwidget.h \
-    filewidget.h \
     propertyeditorvalue.h \
-    fontwidget.h \
-    originwidget.h \
-    siblingcombobox.h \
     propertyeditortransaction.h \
     designerpropertymap.h \
     propertyeditorcontextobject.h \
-    declarativewidgetview.h \
-    gradientlineqmladaptor.h
+    quick2propertyeditorview.h \
+    propertyeditorqmlbackend.h \
+    propertyeditorwidget.h \
+    fileresourcesmodel.h \
+    components/propertyeditor/gradientmodel.h
     
-QT += declarative
+QT += qml quick
 
 RESOURCES += propertyeditor.qrc
-FORMS += behaviordialog.ui

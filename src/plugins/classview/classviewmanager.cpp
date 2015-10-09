@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Denis Mingulov
+** Copyright (c) 2014 Denis Mingulov
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -38,7 +38,6 @@
 #include <projectexplorer/session.h>
 #include <cpptools/cppmodelmanagerinterface.h>
 #include <cpptools/cpptoolsconstants.h>
-#include <coreplugin/icore.h>
 #include <coreplugin/progressmanager/progressmanager.h>
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/editormanager/ieditor.h>
@@ -47,6 +46,8 @@
 #include <QThread>
 #include <QMutex>
 #include <QMutexLocker>
+
+using namespace Core;
 
 namespace ClassView {
 namespace Internal {
@@ -57,11 +58,89 @@ namespace Internal {
 static Manager *managerInstance = 0;
 
 /*!
-   \struct ManagerPrivate
+    \class ClassView::Internal::Manager
+
+    \brief The Manager class implements a class view manager that interacts with
+    other \QC plugins and acts as a proxy between them and the parser.
+
+    The parser is moved to a separate thread and is connected to the manager by
+    using signals and slots. Manager's signals starting with 'request' are for
+    the parser.
+*/
+
+/*!
+    \fn explicit ClassView::Internal::Manager(QObject *parent = 0)
+
+    Creates a shared instance of a \a parent object.
+*/
+
+/*!
+    \fn void ClassView::Internal::Manager::stateChanged(bool state)
+
+    Changes the internal manager state. \a state returns true if manager is
+    enabled, otherwise false.
+
+    \sa setState, state
+*/
+
+/*!
+    \fn void ClassView::Internal::Manager::treeDataUpdate(QSharedPointer<QStandardItem> result)
+
+    Emits a signal about a tree data update (to tree view). \a result holds the
+    item with the current tree.
+*/
+
+/*!
+    \fn void ClassView::Internal::Manager::requestTreeDataUpdate()
+
+    Emits a signal that a request for sending the tree view has to be handled by
+    listeners (the parser).
+
+    \sa onRequestTreeDataUpdate
+*/
+
+/*!
+    \fn void ClassView::Internal::Manager::requestDocumentUpdated(CPlusPlus::Document::Ptr doc)
+
+    Emits a signal that \a doc was updated and has to be reparsed.
+
+    \sa onDocumentUpdated
+*/
+
+/*!
+    \fn void ClassView::Internal::Manager::requestResetCurrentState()
+
+    Emits a signal that the parser has to reset its internal state to the
+    current state from the code manager.
+*/
+
+/*!
+    \fn void ClassView::Internal::Manager::requestClearCache()
+
+    Requests the parser to clear a cache.
+*/
+
+/*!
+    \fn void ClassView::Internal::Manager::requestClearCacheAll()
+
+    Requests the parser to clear a full cache.
+*/
+
+/*!
+    \fn void ClassView::Internal::Manager::requestSetFlatMode(bool flat)
+
+    Requests the manager to set the flat mode without subprojects. Set \a flat
+    to \c true to enable flat mode and to false to disable it.
+*/
+
+/*!
+   \class ManagerPrivate
    \internal
-   \brief Private class data for \a Manager
+   \brief The ManagerPrivate class contains private class data for the Manager
+    class.
    \sa Manager
- */
+*/
+
 class ManagerPrivate
 {
 public:
@@ -117,10 +196,19 @@ Manager *Manager::instance()
     return managerInstance;
 }
 
+/*!
+    Checks \a item for lazy data population of a QStandardItemModel.
+*/
+
 bool Manager::canFetchMore(QStandardItem *item) const
 {
     return d->parser.canFetchMore(item);
 }
+
+/*!
+    Checks \a item for lazy data population of a QStandardItemModel.
+    \a skipRoot item is needed for the manual update, call not from model.
+*/
 
 void Manager::fetchMore(QStandardItem *item, bool skipRoot)
 {
@@ -139,18 +227,17 @@ void Manager::initialize()
     connect(this, SIGNAL(stateChanged(bool)), SLOT(onStateChanged(bool)), Qt::QueuedConnection);
 
     // connections to enable/disable navi widget factory
-    ProjectExplorer::SessionManager *sessionManager =
-        ProjectExplorer::ProjectExplorerPlugin::instance()->session();
+    QObject *sessionManager = ProjectExplorer::SessionManager::instance();
     connect(sessionManager, SIGNAL(projectAdded(ProjectExplorer::Project*)),
             SLOT(onProjectListChanged()), Qt::QueuedConnection);
     connect(sessionManager, SIGNAL(projectRemoved(ProjectExplorer::Project*)),
             SLOT(onProjectListChanged()), Qt::QueuedConnection);
 
     // connect to the progress manager for signals about Parsing tasks
-    connect(Core::ICore::progressManager(), SIGNAL(taskStarted(QString)),
-            SLOT(onTaskStarted(QString)), Qt::QueuedConnection);
-    connect(Core::ICore::progressManager(), SIGNAL(allTasksFinished(QString)),
-            SLOT(onAllTasksFinished(QString)), Qt::QueuedConnection);
+    connect(ProgressManager::instance(), SIGNAL(taskStarted(Core::Id)),
+            SLOT(onTaskStarted(Core::Id)), Qt::QueuedConnection);
+    connect(ProgressManager::instance(), SIGNAL(allTasksFinished(Core::Id)),
+            SLOT(onAllTasksFinished(Core::Id)), Qt::QueuedConnection);
 
     // when we signals that really document is updated - sent it to the parser
     connect(this, SIGNAL(requestDocumentUpdated(CPlusPlus::Document::Ptr)),
@@ -192,10 +279,26 @@ void Manager::initialize()
             &d->parser, SLOT(removeFiles(QStringList)), Qt::QueuedConnection);
 }
 
+/*!
+    Gets the internal manager state. If it is disabled, does not emit signals
+    about parsing requests. If enabled, does parsing in the background even if
+    the navigation pane is not visible. Returns true if the manager is enabled,
+    false otherwise.
+
+   \sa setState, stateChanged
+*/
+
 bool Manager::state() const
 {
     return d->state;
 }
+
+/*!
+    Sets the internal manager \a state to \c true if the manager has to be
+    enabled, otherwise sets it to \c false.
+
+   \sa state, stateChanged
+*/
 
 void Manager::setState(bool state)
 {
@@ -210,10 +313,23 @@ void Manager::setState(bool state)
     emit stateChanged(d->state);
 }
 
+/*!
+    Reacts to the widget factory creating a widget.
+
+    \sa setState, state
+*/
+
 void Manager::onWidgetIsCreated()
 {
     // do nothing - continue to sleep
 }
+
+/*!
+    Reacts to the \a visibility of one navigation pane widget being changed
+    (there might be a lot of them).
+
+   \sa setState, state
+*/
 
 void Manager::onWidgetVisibilityIsChanged(bool visibility)
 {
@@ -221,6 +337,13 @@ void Manager::onWidgetVisibilityIsChanged(bool visibility)
     if (visibility)
         setState(true);
 }
+
+/*!
+    Reacts to the state changed signal for the current manager \a state.
+    For example, requests the currect code snapshot if needed.
+
+    \sa setState, state, stateChanged
+*/
 
 void Manager::onStateChanged(bool state)
 {
@@ -233,6 +356,11 @@ void Manager::onStateChanged(bool state)
     }
 }
 
+/*!
+    Reacts to the project list being changed by updating the navigation pane
+    visibility if necessary.
+*/
+
 void Manager::onProjectListChanged()
 {
     // do nothing if Manager is disabled
@@ -243,18 +371,32 @@ void Manager::onProjectListChanged()
     requestTreeDataUpdate();
 }
 
-void Manager::onTaskStarted(const QString &type)
+/*!
+    Handles parse tasks started by the progress manager. \a type holds the
+    task index, which should be \c CppTools::Constants::TASK_INDEX.
+
+   \sa CppTools::Constants::TASK_INDEX
+*/
+
+void Manager::onTaskStarted(Core::Id type)
 {
-    if (type != QLatin1String(CppTools::Constants::TASK_INDEX))
+    if (type != CppTools::Constants::TASK_INDEX)
         return;
 
     // disable tree updates to speed up
     d->disableCodeParser = true;
 }
 
-void Manager::onAllTasksFinished(const QString &type)
+/*!
+    Handles parse tasks finished by the progress manager.\a type holds the
+    task index, which should be \c CppTools::Constants::TASK_INDEX.
+
+   \sa CppTools::Constants::TASK_INDEX
+*/
+
+void Manager::onAllTasksFinished(Core::Id type)
 {
-    if (type != QLatin1String(CppTools::Constants::TASK_INDEX))
+    if (type != CppTools::Constants::TASK_INDEX)
         return;
 
     // parsing is finished, enable tree updates
@@ -271,6 +413,13 @@ void Manager::onAllTasksFinished(const QString &type)
     emit requestResetCurrentState();
 }
 
+/*!
+    Emits the signal \c documentUpdated when the code model manager state is
+    changed for \a doc.
+
+    \sa documentUpdated
+*/
+
 void Manager::onDocumentUpdated(CPlusPlus::Document::Ptr doc)
 {
     // do nothing if Manager is disabled
@@ -284,10 +433,21 @@ void Manager::onDocumentUpdated(CPlusPlus::Document::Ptr doc)
     emit requestDocumentUpdated(doc);
 }
 
+/*!
+    Opens the text editor for the file \a fileName on \a line (1-based) and
+    \a column (1-based).
+*/
+
 void Manager::gotoLocation(const QString &fileName, int line, int column)
 {
-    Core::EditorManager::openEditorAt(fileName, line, column);
+    EditorManager::openEditorAt(fileName, line, column);
 }
+
+/*!
+    Opens the text editor for any of the symbol locations in the \a list.
+
+   \sa Manager::gotoLocations
+*/
 
 void Manager::gotoLocations(const QList<QVariant> &list)
 {
@@ -302,10 +462,10 @@ void Manager::gotoLocations(const QList<QVariant> &list)
     bool currentPositionAvailable = false;
 
     // what is open now?
-    if (Core::IEditor *editor = Core::EditorManager::currentEditor()) {
+    if (IEditor *editor = EditorManager::currentEditor()) {
         // get current file name
-        if (Core::IDocument *document = editor->document())
-            fileName = document->fileName();
+        if (IDocument *document = editor->document())
+            fileName = document->filePath();
 
         // if text file - what is current position?
         TextEditor::ITextEditor *textEditor = qobject_cast<TextEditor::ITextEditor *>(editor);
@@ -340,6 +500,13 @@ void Manager::gotoLocations(const QList<QVariant> &list)
     gotoLocation(loc.fileName(), loc.line(), loc.column());
 }
 
+/*!
+    Emits the signal \c requestTreeDataUpdate if the latest tree info is
+    requested and if parsing is enabled.
+
+   \sa requestTreeDataUpdate, NavigationWidget::requestDataUpdate
+*/
+
 void Manager::onRequestTreeDataUpdate()
 {
     // do nothing if Manager is disabled
@@ -349,10 +516,19 @@ void Manager::onRequestTreeDataUpdate()
     emit requestTreeDataUpdate();
 }
 
+/*!
+    Switches to flat mode (without subprojects) if \a flat is set to \c true.
+*/
+
 void Manager::setFlatMode(bool flat)
 {
     emit requestSetFlatMode(flat);
 }
+
+/*!
+    Sends a new tree data update to a tree view. \a result holds the item with
+    the current tree.
+*/
 
 void Manager::onTreeDataUpdate(QSharedPointer<QStandardItem> result)
 {

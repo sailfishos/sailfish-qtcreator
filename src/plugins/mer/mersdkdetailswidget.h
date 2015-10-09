@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2013 Jolla Ltd.
+** Copyright (C) 2012 - 2014 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -25,8 +25,8 @@
 
 #include "mersdk.h"
 
-#include <QWidget>
 #include <QIcon>
+#include <QWidget>
 
 QT_BEGIN_NAMESPACE
 class QListWidgetItem;
@@ -56,6 +56,7 @@ public:
     void setStatus(const QString &status);
     void setPrivateKeyFile(const QString &path);
     void setTestButtonEnabled(bool enabled);
+    void setSshTimeout(int timeout);
     void setHeadless(bool enabled);
     void setSrcFolderChooserPath(const QString &path);
 
@@ -64,6 +65,7 @@ signals:
     void sshKeyChanged(const QString &key);
     void authorizeSshKey(const QString &key);
     void testConnectionButtonClicked();
+    void sshTimeoutChanged(int timeout);
     void headlessCheckBoxToggled(bool checked);
     void srcFolderApplyButtonClicked(const QString &path);
 

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -64,8 +64,6 @@ protected:
     bool isInvalidSize(const QSizeF & size);
     void deleteSnapLines();
     ResizeHandleItem *resizeHandle();
-    void setSize(QmlItemNode itemNode, const QSizeF &size);
-    void setPosition(QmlItemNode itemNode, const QPointF &position);
 
 private:
     Snapper m_snapper;

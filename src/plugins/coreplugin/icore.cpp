@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -33,6 +33,7 @@
 #include <extensionsystem/pluginmanager.h>
 
 #include <QSysInfo>
+#include <QApplication>
 
 /*!
     \namespace Core
@@ -86,9 +87,9 @@
 /*!
     \fn bool ICore::showWarningWithOptions(const QString &title, const QString &text,
                                    const QString &details = QString(),
-                                   const QString &settingsCategory = QString(),
-                                   const QString &settingsId = QString(),
-                                   QWidget *parent = 0);
+                                   Id settingsCategory = Id(),
+                                   Id settingsId = Id(),
+                                   QWidget *parent = 0)
 
     Shows a warning message with a button that opens a settings page.
 
@@ -96,85 +97,6 @@
     Returns \c true if the settings dialog was accepted.
 */
 
-
-/*!
-    \fn ActionManager *ICore::actionManager() const
-    Returns the application's action manager.
-
-    The action manager is responsible for registration of menus and
-    menu items and keyboard shortcuts.
-*/
-
-/*!
-    \fn DocumentManager *ICore::fileManager() const
-    \brief Returns the application's file manager.
-
-    The file manager keeps track of files for changes outside the application.
-*/
-
-/*!
-    \fn MessageManager *ICore::messageManager()
-
-    Returns the application's message manager.
-
-    The message manager is the interface to the "General" output pane for
-    general application debug messages.
-*/
-
-/*!
-    \fn EditorManager *ICore::editorManager()
-
-    Returns the application's editor manager.
-
-    The editor manager handles all editor related tasks like opening
-    documents, the stack of currently open documents and the currently
-    active document.
-*/
-
-/*!
-    \fn ProgressManager *ICore::progressManager()
-
-    Returns the application's progress manager.
-
-    Use the progress manager to register a concurrent task to
-    show a progress bar the way \QC does it.
-*/
-
-/*!
-    \fn ScriptManager *ICore::scriptManager() const
-    \internal
-*/
-
-/*!
-    \fn VariableManager *ICore::variableManager() const
-    Returns the application's variable manager.
-
-    The variable manager is used to register application wide string variables
-    like \c MY_PROJECT_DIR such that strings like \c{somecommand ${MY_PROJECT_DIR}/sub}
-    can be resolved/expanded from anywhere in the application.
-*/
-
-/*!
-    \fn VcsManager *ICore::vcsManager()
-
-    Returns the application's version control system (VCS) manager.
-
-    The VCS manager can be used to retrieve information about
-    the version control system used for a directory on hard disk.
-    The actual functionality for a specific version control system
-    must be implemented in an \c IVersionControl object and registered in
-    the plugin manager's object pool.
-*/
-
-/*!
-    \fn ModeManager *ICore::modeManager() const
-    Returns the application's mode manager.
-
-    The mode manager handles everything related to the instances of IMode
-    that were added to the plugin manager's object pool as well as their
-    buttons and the tool bar with the round buttons in the lower left
-    corner of Qt Creator.
-*/
 
 /*!
     \fn MimeDatabase *ICore::mimeDatabase()
@@ -240,7 +162,7 @@
     Returns the absolute path in the users directory that is used for
     resources like project templates.
 
-    Use this method for finding the place for resources that the user may
+    Use this function for finding the place for resources that the user may
     write to, for example, to allow for custom palettes or templates.
 */
 
@@ -249,8 +171,14 @@
 
     Returns the main application window.
 
-    For use as dialog parent, and so on.
+    For dialog parents use \c dialogParent().
 */
+
+/*!
+    \fn QWidget *ICore::dialogParent()
+
+    Returns a widget pointer suitable to use as parent for QDialogs.
+ */
 
 /*!
     \fn IContext *ICore::currentContextObject()
@@ -309,7 +237,7 @@
 */
 
 /*!
-    \fn ICore::ICore()
+    \fn ICore::ICore(Internal::MainWindow *mw)
     \internal
 */
 
@@ -342,7 +270,7 @@
     Enables plugins to perform some pre-end-of-life actions.
 
     The application is guaranteed to shut down after this signal is emitted.
-    It is there as an addition to the usual plugin lifecycle methods, namely
+    It is there as an addition to the usual plugin lifecycle functions, namely
     \c IPlugin::aboutToShutdown(), just for convenience.
 */
 
@@ -364,23 +292,19 @@
 
 #include <utils/hostosinfo.h>
 
-#include <QDir>
 #include <QCoreApplication>
 #include <QDebug>
-
+#include <QDir>
 #include <QStatusBar>
+
+using namespace Core::Internal;
+using namespace ExtensionSystem;
 
 namespace Core {
 
 // The Core Singleton
 static ICore *m_instance = 0;
-
-namespace Internal {
 static MainWindow *m_mainwindow;
-} // namespace Internal
-
-using namespace Core::Internal;
-
 
 ICore *ICore::instance()
 {
@@ -393,7 +317,7 @@ ICore::ICore(MainWindow *mainwindow)
     m_mainwindow = mainwindow;
     // Save settings once after all plugins are initialized:
     connect(ExtensionSystem::PluginManager::instance(), SIGNAL(initializationDone()),
-            this, SIGNAL(saveSettingsRequested()));
+            this, SLOT(saveSettings()));
 }
 
 ICore::~ICore()
@@ -415,6 +339,11 @@ bool ICore::showOptionsDialog(const Id group, const Id page, QWidget *parent)
     return m_mainwindow->showOptionsDialog(group, page, parent);
 }
 
+QString ICore::msgShowOptionsDialog()
+{
+    return QCoreApplication::translate("Core", "Configure...", "msgShowOptionsDialog");
+}
+
 bool ICore::showWarningWithOptions(const QString &title, const QString &text,
                                    const QString &details,
                                    Id settingsCategory,
@@ -426,64 +355,12 @@ bool ICore::showWarningWithOptions(const QString &title, const QString &text,
                                                 settingsId, parent);
 }
 
-ActionManager *ICore::actionManager()
-{
-    return m_mainwindow->actionManager();
-}
-
-DocumentManager *ICore::documentManager()
-{
-    return DocumentManager::instance();
-}
-
-MessageManager *ICore::messageManager()
-{
-    return m_mainwindow->messageManager();
-}
-
-EditorManager *ICore::editorManager()
-{
-    return m_mainwindow->editorManager();
-}
-
-ProgressManager *ICore::progressManager()
-{
-    return m_mainwindow->progressManager();
-}
-
-ScriptManager *ICore::scriptManager()
-{
-    return m_mainwindow->scriptManager();
-}
-
-VariableManager *ICore::variableManager()
-{
-    return m_mainwindow->variableManager();
-}
-
-VcsManager *ICore::vcsManager()
-{
-    return m_mainwindow->vcsManager();
-}
-
-ModeManager *ICore::modeManager()
-{
-    return m_mainwindow->modeManager();
-}
-
-MimeDatabase *ICore::mimeDatabase()
-{
-    return m_mainwindow->mimeDatabase();
-}
-
-HelpManager *ICore::helpManager()
-{
-    return m_mainwindow->helpManager();
-}
-
 QSettings *ICore::settings(QSettings::Scope scope)
 {
-    return m_mainwindow->settings(scope);
+    if (scope == QSettings::UserScope)
+        return PluginManager::settings();
+    else
+        return PluginManager::globalSettings();
 }
 
 SettingsDatabase *ICore::settingsDatabase()
@@ -531,6 +408,17 @@ QString ICore::documentationPath()
     return QDir::cleanPath(QCoreApplication::applicationDirPath() + docPath);
 }
 
+/*!
+    Returns the path to the command line tools that are shipped with \QC (corresponding
+    to the IDE_LIBEXEC_PATH qmake variable).
+ */
+QString ICore::libexecPath()
+{
+    const QString libexecPath = QLatin1String(Utils::HostOsInfo::isMacHost()
+                                            ? "/../Resources" : "");
+    return QDir::cleanPath(QCoreApplication::applicationDirPath() + libexecPath);
+}
+
 static QString compilerString()
 {
 #if defined(Q_CC_CLANG) // must be before GNU, because clang claims to be GNU too
@@ -543,7 +431,9 @@ static QString compilerString()
 #elif defined(Q_CC_GNU)
     return QLatin1String("GCC " ) + QLatin1String(__VERSION__);
 #elif defined(Q_CC_MSVC)
-    if (_MSC_VER >= 1500) // 1500: MSVC 2008, 1600: MSVC 2010, ...
+    if (_MSC_VER >= 1800) // 1800: MSVC 2013 (yearly release cycle)
+        return QLatin1String("MSVC ") + QString::number(2008 + ((_MSC_VER / 100) - 13));
+    if (_MSC_VER >= 1500) // 1500: MSVC 2008, 1600: MSVC 2010, ... (2-year release cycle)
         return QLatin1String("MSVC ") + QString::number(2008 + 2 * ((_MSC_VER / 100) - 15));
 #endif
     return QLatin1String("<unknown compiler>");
@@ -577,9 +467,10 @@ QWidget *ICore::mainWindow()
     return m_mainwindow;
 }
 
-Utils::AppMainWindow *ICore::appMainWindow()
+QWidget *ICore::dialogParent()
 {
-    return m_mainwindow;
+    QWidget *active = QApplication::activeModalWidget();
+    return active ? active : m_mainwindow;
 }
 
 QStatusBar *ICore::statusBar()

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -28,14 +28,15 @@
 ****************************************************************************/
 
 #include "indexwindow.h"
-#include "centralwidget.h"
 
-#include "helpviewer.h"
-#include "localhelpmanager.h"
-#include "openpagesmanager.h"
 #include "topicchooser.h"
 
-#include <utils/filterlineedit.h>
+#include <centralwidget.h>
+#include <helpviewer.h>
+#include <localhelpmanager.h>
+#include <openpagesmanager.h>
+
+#include <utils/fancylineedit.h>
 #include <utils/hostosinfo.h>
 #include <utils/styledbar.h>
 
@@ -58,8 +59,9 @@ IndexWindow::IndexWindow()
 {
     QVBoxLayout *layout = new QVBoxLayout(this);
 
-    m_searchLineEdit = new Utils::FilterLineEdit();
+    m_searchLineEdit = new Utils::FancyLineEdit();
     m_searchLineEdit->setPlaceholderText(QString());
+    m_searchLineEdit->setFiltering(true);
     setFocusProxy(m_searchLineEdit);
     connect(m_searchLineEdit, SIGNAL(textChanged(QString)), this,
         SLOT(filterIndices(QString)));
@@ -149,9 +151,8 @@ bool IndexWindow::eventFilter(QObject *obj, QEvent *e)
             QAction *action = menu.exec();
             if (curTab == action)
                 m_indexWidget->activateCurrentItem();
-            else if (newTab == action) {
+            else if (newTab == action)
                 open(m_indexWidget, idx);
-            }
         }
     } else if (m_indexWidget && obj == m_indexWidget->viewport()
         && e->type() == QEvent::MouseButtonRelease) {
@@ -189,6 +190,11 @@ void IndexWindow::disableSearchLineEdit()
 void IndexWindow::setSearchLineEditText(const QString &text)
 {
     m_searchLineEdit->setText(text);
+}
+
+QString IndexWindow::searchLineEditText() const
+{
+    return m_searchLineEdit->text();
 }
 
 void IndexWindow::open(QHelpIndexWidget* indexWidget, const QModelIndex &index)

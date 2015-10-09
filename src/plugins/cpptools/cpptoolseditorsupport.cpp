@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -27,7 +27,10 @@
 **
 ****************************************************************************/
 
+#include "cppcodemodelsettings.h"
+#include "cppcompletionassistprovider.h"
 #include "cpptoolseditorsupport.h"
+#include "cpptoolsplugin.h"
 #include "cppmodelmanager.h"
 #include "cpplocalsymbols.h"
 
@@ -74,11 +77,10 @@ protected:
         if (_functionDefinition)
             return false;
 
-        else if (FunctionDefinitionAST *def = ast->asFunctionDefinition()) {
+        if (FunctionDefinitionAST *def = ast->asFunctionDefinition())
             return checkDeclaration(def);
-        }
 
-        else if (ObjCMethodDeclarationAST *method = ast->asObjCMethodDeclaration()) {
+        if (ObjCMethodDeclarationAST *method = ast->asObjCMethodDeclaration()) {
             if (method->function_body)
                 return checkDeclaration(method);
         }
@@ -113,11 +115,14 @@ CppEditorSupport::CppEditorSupport(CppModelManager *modelManager, BaseTextEditor
     , m_textEditor(textEditor)
     , m_updateDocumentInterval(UpdateDocumentDefaultInterval)
     , m_revision(0)
+    , m_editorVisible(textEditor->widget()->isVisible())
     , m_cachedContentsEditorRevision(-1)
     , m_fileIsBeingReloaded(false)
     , m_initialized(false)
     , m_lastHighlightRevision(0)
+    , m_lastHighlightOnCompleteSemanticInfo(true)
     , m_highlightingSupport(modelManager->highlightingSupport(textEditor))
+    , m_completionAssistProvider(m_modelManager->completionAssistProvider(textEditor))
 {
     connect(m_modelManager, SIGNAL(documentUpdated(CPlusPlus::Document::Ptr)),
             this, SLOT(onDocumentUpdated(CPlusPlus::Document::Ptr)));
@@ -138,7 +143,7 @@ CppEditorSupport::CppEditorSupport(CppModelManager *modelManager, BaseTextEditor
     connect(m_updateEditorTimer, SIGNAL(timeout()),
             this, SLOT(updateEditorNow()));
 
-    connect(m_textEditor, SIGNAL(contentsChanged()), this, SLOT(updateDocument()));
+    connect(m_textEditor->document(), SIGNAL(contentsChanged()), this, SLOT(updateDocument()));
     connect(this, SIGNAL(diagnosticsChanged()), this, SLOT(onDiagnosticsChanged()));
 
     connect(m_textEditor->document(), SIGNAL(mimeTypeChanged()),
@@ -149,29 +154,40 @@ CppEditorSupport::CppEditorSupport(CppModelManager *modelManager, BaseTextEditor
     connect(m_textEditor->document(), SIGNAL(reloadFinished(bool)),
             this, SLOT(onReloadFinished()));
 
+    connect(Core::EditorManager::instance(), SIGNAL(currentEditorChanged(Core::IEditor*)),
+            this, SLOT(onCurrentEditorChanged()));
+    m_editorGCTimer = new QTimer(this);
+    m_editorGCTimer->setSingleShot(true);
+    m_editorGCTimer->setInterval(EditorHiddenGCTimeout);
+    connect(m_editorGCTimer, SIGNAL(timeout()), this, SLOT(releaseResources()));
+
     updateDocument();
 }
 
 CppEditorSupport::~CppEditorSupport()
 {
+    m_documentParser.cancel();
     m_highlighter.cancel();
     m_futureSemanticInfo.cancel();
 
+    m_documentParser.waitForFinished();
     m_highlighter.waitForFinished();
     m_futureSemanticInfo.waitForFinished();
 }
 
 QString CppEditorSupport::fileName() const
 {
-    return m_textEditor->document()->fileName();
+    return m_textEditor->document()->filePath();
 }
 
-QString CppEditorSupport::contents() const
+QByteArray CppEditorSupport::contents() const
 {
+    QMutexLocker locker(&m_cachedContentsLock);
+
     const int editorRev = editorRevision();
     if (m_cachedContentsEditorRevision != editorRev && !m_fileIsBeingReloaded) {
         m_cachedContentsEditorRevision = editorRev;
-        m_cachedContents = m_textEditor->textDocument()->contents();
+        m_cachedContents = m_textEditor->textDocument()->plainText().toUtf8();
     }
 
     return m_cachedContents;
@@ -193,21 +209,30 @@ void CppEditorSupport::setExtraDiagnostics(const QString &key,
     emit diagnosticsChanged();
 }
 
+void CppEditorSupport::setIfdefedOutBlocks(const QList<BlockRange> &ifdefedOutBlocks)
+{
+    m_editorUpdates.ifdefedOutBlocks = ifdefedOutBlocks;
+
+    emit diagnosticsChanged();
+}
+
 bool CppEditorSupport::initialized()
 {
     return m_initialized;
 }
 
-SemanticInfo CppEditorSupport::recalculateSemanticInfo(bool emitSignalWhenFinished)
+SemanticInfo CppEditorSupport::recalculateSemanticInfo()
 {
     m_futureSemanticInfo.cancel();
-
-    SemanticInfo::Source source = currentSource(false);
-    recalculateSemanticInfoNow(source, emitSignalWhenFinished);
-    return m_lastSemanticInfo;
+    return recalculateSemanticInfoNow(currentSource(false), /*emitSignalWhenFinished=*/ false);
 }
 
-void CppEditorSupport::recalculateSemanticInfoDetached(bool force)
+Document::Ptr CppEditorSupport::lastSemanticInfoDocument() const
+{
+    return semanticInfo().doc;
+}
+
+void CppEditorSupport::recalculateSemanticInfoDetached(ForceReason forceReason)
 {
     // Block premature calculation caused by CppEditorPlugin::currentEditorChanged
     // when the editor is created.
@@ -215,12 +240,31 @@ void CppEditorSupport::recalculateSemanticInfoDetached(bool force)
         return;
 
     m_futureSemanticInfo.cancel();
+    const bool force = forceReason != NoForce;
     SemanticInfo::Source source = currentSource(force);
     m_futureSemanticInfo = QtConcurrent::run<CppEditorSupport, void>(
                 &CppEditorSupport::recalculateSemanticInfoDetached_helper, this, source);
 
     if (force && m_highlightingSupport && !m_highlightingSupport->requiresSemanticInfo())
-        startHighlighting();
+        startHighlighting(forceReason);
+}
+
+CppCompletionAssistProvider *CppEditorSupport::completionAssistProvider() const
+{
+    return m_completionAssistProvider;
+}
+
+QSharedPointer<SnapshotUpdater> CppEditorSupport::snapshotUpdater()
+{
+    QSharedPointer<SnapshotUpdater> updater = snapshotUpdater_internal();
+    if (!updater || updater->fileInEditor() != fileName()) {
+        updater = QSharedPointer<SnapshotUpdater>(new SnapshotUpdater(fileName()));
+        setSnapshotUpdater_internal(updater);
+
+        QSharedPointer<CppCodeModelSettings> cms = CppToolsPlugin::instance()->codeModelSettings();
+        updater->setUsePrecompiledHeaders(cms->pchUsage() != CppCodeModelSettings::PchUse_None);
+    }
+    return updater;
 }
 
 void CppEditorSupport::updateDocument()
@@ -233,6 +277,22 @@ void CppEditorSupport::updateDocument()
     m_updateDocumentTimer->start(m_updateDocumentInterval);
 }
 
+static void parse(QFutureInterface<void> &future, QSharedPointer<SnapshotUpdater> updater,
+                  CppModelManagerInterface::WorkingCopy workingCopy)
+{
+    future.setProgressRange(0, 1);
+    if (future.isCanceled()) {
+        future.setProgressValue(1);
+        return;
+    }
+
+    CppModelManager *cmm = qobject_cast<CppModelManager *>(CppModelManager::instance());
+    updater->update(workingCopy);
+    cmm->finishedRefreshingSourceFiles(QStringList(updater->fileInEditor()));
+
+    future.setProgressValue(1);
+}
+
 void CppEditorSupport::updateDocumentNow()
 {
     if (m_documentParser.isRunning() || m_revision != editorRevision()) {
@@ -240,15 +300,20 @@ void CppEditorSupport::updateDocumentNow()
     } else {
         m_updateDocumentTimer->stop();
 
-        if (m_fileIsBeingReloaded)
+        if (m_fileIsBeingReloaded || fileName().isEmpty())
             return;
 
         if (m_highlightingSupport && !m_highlightingSupport->requiresSemanticInfo())
             startHighlighting();
 
-        const QStringList sourceFiles(m_textEditor->document()->fileName());
-        m_documentParser = m_modelManager->updateSourceFiles(sourceFiles);
+        m_documentParser = QtConcurrent::run(&parse, snapshotUpdater(),
+                                             CppModelManager::instance()->workingCopy());
     }
+}
+
+bool CppEditorSupport::isUpdatingDocument()
+{
+    return m_updateDocumentTimer->isActive() || m_documentParser.isRunning();
 }
 
 void CppEditorSupport::onDocumentUpdated(Document::Ptr doc)
@@ -263,11 +328,13 @@ void CppEditorSupport::onDocumentUpdated(Document::Ptr doc)
         return; // outdated content, wait for a new document to be parsed
 
     // Update the ifdeffed-out blocks:
-    QList<Document::Block> skippedBlocks = doc->skippedBlocks();
-    m_editorUpdates.ifdefedOutBlocks.clear();
-    m_editorUpdates.ifdefedOutBlocks.reserve(skippedBlocks.size());
-    foreach (const Document::Block &block, skippedBlocks) {
-        m_editorUpdates.ifdefedOutBlocks.append(BlockRange(block.begin(), block.end()));
+    if (m_highlightingSupport && !m_highlightingSupport->hightlighterHandlesIfdefedOutBlocks()) {
+        QList<Document::Block> skippedBlocks = doc->skippedBlocks();
+        QList<BlockRange> ifdefedOutBlocks;
+        ifdefedOutBlocks.reserve(skippedBlocks.size());
+        foreach (const Document::Block &block, skippedBlocks)
+            ifdefedOutBlocks.append(BlockRange(block.begin(), block.end()));
+        setIfdefedOutBlocks(ifdefedOutBlocks);
     }
 
     if (m_highlightingSupport && !m_highlightingSupport->hightlighterHandlesDiagnostics()) {
@@ -276,70 +343,57 @@ void CppEditorSupport::onDocumentUpdated(Document::Ptr doc)
         setExtraDiagnostics(key, doc->diagnosticMessages());
     }
 
-    // update semantic info in a future
-    if (! m_initialized ||
-            (m_textEditor->widget()->isVisible()
-             && (m_lastSemanticInfo.doc.isNull()
-                 || m_lastSemanticInfo.doc->translationUnit()->ast() == 0
-                 || m_lastSemanticInfo.doc->fileName() != fileName()))) {
+    // Update semantic info if necessary
+    if (!m_initialized || (m_textEditor->widget()->isVisible() && !isSemanticInfoValid())) {
         m_initialized = true;
-        recalculateSemanticInfoDetached(/* force = */ true);
+        recalculateSemanticInfoDetached(ForceDueToInvalidSemanticInfo);
     }
 
-    // notify the editor that the document is updated
+    // Notify the editor that the document is updated
     emit documentUpdated();
 }
 
-void CppEditorSupport::startHighlighting()
+void CppEditorSupport::startHighlighting(ForceReason forceReason)
 {
     if (!m_highlightingSupport)
         return;
 
-    // Start highlighting only if the editor is or would be visible
-    // (in case another mode is active) in the edit mode.
-    if (!Core::EditorManager::instance()->visibleEditors().contains(m_textEditor))
-        return;
-
     if (m_highlightingSupport->requiresSemanticInfo()) {
-        Snapshot snapshot;
-        Document::Ptr doc;
-        unsigned revision;
-        bool forced;
-
-        {
-            QMutexLocker locker(&m_lastSemanticInfoLock);
-            snapshot = m_lastSemanticInfo.snapshot;
-            doc = m_lastSemanticInfo.doc;
-            revision = m_lastSemanticInfo.revision;
-            forced = m_lastSemanticInfo.forced;
-        }
-
-        if (doc.isNull())
+        const SemanticInfo info = semanticInfo();
+        if (info.doc.isNull())
             return;
-        if (!forced && m_lastHighlightRevision == revision)
+
+        const bool forced = info.forced || !m_lastHighlightOnCompleteSemanticInfo;
+        if (!forced && m_lastHighlightRevision == info.revision)
             return;
+
         m_highlighter.cancel();
-
-        m_highlighter = m_highlightingSupport->highlightingFuture(doc, snapshot);
-        m_lastHighlightRevision = revision;
+        m_highlighter = m_highlightingSupport->highlightingFuture(info.doc, info.snapshot);
+        m_lastHighlightRevision = info.revision;
+        m_lastHighlightOnCompleteSemanticInfo = info.complete;
         emit highlighterStarted(&m_highlighter, m_lastHighlightRevision);
     } else {
+        const unsigned revision = editorRevision();
+        if (forceReason != ForceDueEditorRequest && m_lastHighlightRevision == revision)
+            return;
+
+        m_highlighter.cancel();
         static const Document::Ptr dummyDoc;
         static const Snapshot dummySnapshot;
         m_highlighter = m_highlightingSupport->highlightingFuture(dummyDoc, dummySnapshot);
-        m_lastHighlightRevision = editorRevision();
+        m_lastHighlightRevision = revision;
         emit highlighterStarted(&m_highlighter, m_lastHighlightRevision);
     }
 }
 
-/// \brief This slot puts the new diagnostics into the editorUpdates. This method has to be called
+/// \brief This slot puts the new diagnostics into the editorUpdates. This function has to be called
 ///        on the UI thread.
 void CppEditorSupport::onDiagnosticsChanged()
 {
     QList<Document::DiagnosticMessage> allDiagnostics;
     {
         QMutexLocker locker(&m_diagnosticsMutex);
-        foreach (const QList<Document::DiagnosticMessage> &msgs, m_allDiagnostics.values())
+        foreach (const QList<Document::DiagnosticMessage> &msgs, m_allDiagnostics)
             allDiagnostics.append(msgs);
     }
 
@@ -374,7 +428,7 @@ void CppEditorSupport::onDiagnosticsChanged()
             c.movePosition(QTextCursor::NextCharacter, QTextCursor::KeepAnchor, m.length());
         } else {
             for (int i = 0; i < text.size(); ++i) {
-                if (! text.at(i).isSpace()) {
+                if (!text.at(i).isSpace()) {
                     c.setPosition(c.position() + i);
                     break;
                 }
@@ -409,94 +463,130 @@ void CppEditorSupport::updateEditorNow()
     editorWidget->setIfdefedOutBlocks(m_editorUpdates.ifdefedOutBlocks);
 }
 
+void CppEditorSupport::onCurrentEditorChanged()
+{
+    bool editorVisible = m_textEditor->widget()->isVisible();
+
+    if (m_editorVisible != editorVisible) {
+        m_editorVisible = editorVisible;
+        if (editorVisible) {
+            m_editorGCTimer->stop();
+            if (!lastSemanticInfoDocument())
+                updateDocumentNow();
+        } else {
+            m_editorGCTimer->start(EditorHiddenGCTimeout);
+        }
+    }
+}
+
+void CppEditorSupport::releaseResources()
+{
+    m_highlighter.cancel();
+    m_highlighter = QFuture<TextEditor::HighlightingResult>();
+    snapshotUpdater()->releaseSnapshot();
+    setSemanticInfo(SemanticInfo(), /*emitSignal=*/ false);
+    m_lastHighlightOnCompleteSemanticInfo = true;
+}
+
 SemanticInfo::Source CppEditorSupport::currentSource(bool force)
 {
     int line = 0, column = 0;
     m_textEditor->convertPosition(m_textEditor->editorWidget()->position(), &line, &column);
 
-    const Snapshot snapshot = m_modelManager->snapshot();
-
-    QString code;
-    if (force || m_lastSemanticInfo.revision != editorRevision())
-        code = contents(); // get the source code only when needed.
-
-    const unsigned revision = editorRevision();
-    SemanticInfo::Source source(snapshot, fileName(), code, line, column, revision, force);
-    return source;
+    return SemanticInfo::Source(Snapshot(), fileName(), contents(), line, column, editorRevision(),
+                                force);
 }
 
-void CppEditorSupport::recalculateSemanticInfoNow(const SemanticInfo::Source &source,
-                                                  bool emitSignalWhenFinished,
-                                                  TopLevelDeclarationProcessor *processor)
+SemanticInfo CppEditorSupport::recalculateSemanticInfoNow(const SemanticInfo::Source &source,
+    bool emitSignalWhenFinished,
+    FuturizedTopLevelDeclarationProcessor *processor)
 {
-    SemanticInfo semanticInfo;
+    const SemanticInfo lastSemanticInfo = semanticInfo();
+    SemanticInfo newSemanticInfo;
 
-    {
-        QMutexLocker locker(&m_lastSemanticInfoLock);
-        semanticInfo.revision = m_lastSemanticInfo.revision;
-        semanticInfo.forced = source.force;
+    newSemanticInfo.forced = source.force;
+    newSemanticInfo.revision = source.revision;
 
-        if (!source.force
-                && m_lastSemanticInfo.revision == source.revision
-                && m_lastSemanticInfo.doc
-                && m_lastSemanticInfo.doc->translationUnit()->ast()
-                && m_lastSemanticInfo.doc->fileName() == source.fileName) {
-            semanticInfo.snapshot = m_lastSemanticInfo.snapshot; // ### TODO: use the new snapshot.
-            semanticInfo.doc = m_lastSemanticInfo.doc;
-        }
+    // Try to reuse as much as possible from the last semantic info
+    if (!source.force
+            && lastSemanticInfo.complete
+            && lastSemanticInfo.revision == source.revision
+            && lastSemanticInfo.doc
+            && lastSemanticInfo.doc->translationUnit()->ast()
+            && lastSemanticInfo.doc->fileName() == source.fileName) {
+        newSemanticInfo.snapshot = lastSemanticInfo.snapshot; // ### TODO: use the new snapshot.
+        newSemanticInfo.doc = lastSemanticInfo.doc;
+
+    // Otherwise reprocess document
+    } else {
+        const QSharedPointer<SnapshotUpdater> snapshotUpdater = snapshotUpdater_internal();
+        QTC_ASSERT(snapshotUpdater, return newSemanticInfo);
+        newSemanticInfo.snapshot = snapshotUpdater->snapshot();
+        QTC_ASSERT(newSemanticInfo.snapshot.contains(source.fileName), return newSemanticInfo);
+        Document::Ptr doc = newSemanticInfo.snapshot.preprocessedDocument(source.code,
+                                                                          source.fileName);
+        if (processor)
+            doc->control()->setTopLevelDeclarationProcessor(processor);
+        doc->check();
+        if (processor && processor->isCanceled())
+            newSemanticInfo.complete = false;
+        newSemanticInfo.doc = doc;
     }
 
-    if (semanticInfo.doc.isNull()) {
-        semanticInfo.snapshot = source.snapshot;
-        if (source.snapshot.contains(source.fileName)) {
-            Document::Ptr doc = source.snapshot.preprocessedDocument(source.code, source.fileName);
-            if (processor)
-                doc->control()->setTopLevelDeclarationProcessor(processor);
-            doc->check();
-            semanticInfo.doc = doc;
-        } else {
-            return;
-        }
-    }
+    // Update local uses for the document
+    TranslationUnit *translationUnit = newSemanticInfo.doc->translationUnit();
+    AST *ast = translationUnit->ast();
+    FunctionDefinitionUnderCursor functionDefinitionUnderCursor(newSemanticInfo.doc->translationUnit());
+    const LocalSymbols useTable(newSemanticInfo.doc,
+                                functionDefinitionUnderCursor(ast, source.line, source.column));
+    newSemanticInfo.localUses = useTable.uses;
 
-    if (semanticInfo.doc) {
-        TranslationUnit *translationUnit = semanticInfo.doc->translationUnit();
-        AST * ast = translationUnit->ast();
+    // Update semantic info
+    setSemanticInfo(newSemanticInfo, emitSignalWhenFinished);
 
-        FunctionDefinitionUnderCursor functionDefinitionUnderCursor(semanticInfo.doc->translationUnit());
-        DeclarationAST *currentFunctionDefinition = functionDefinitionUnderCursor(ast, source.line, source.column);
-
-        const LocalSymbols useTable(semanticInfo.doc, currentFunctionDefinition);
-        semanticInfo.revision = source.revision;
-        semanticInfo.localUses = useTable.uses;
-    }
-
-    {
-        QMutexLocker locker(&m_lastSemanticInfoLock);
-        m_lastSemanticInfo = semanticInfo;
-    }
-
-    if (emitSignalWhenFinished)
-        emit semanticInfoUpdated(semanticInfo);
+    return newSemanticInfo;
 }
 
 void CppEditorSupport::recalculateSemanticInfoDetached_helper(QFutureInterface<void> &future, SemanticInfo::Source source)
 {
-    class TLDProc: public TopLevelDeclarationProcessor
+    FuturizedTopLevelDeclarationProcessor processor(future);
+    recalculateSemanticInfoNow(source, true, &processor);
+}
+
+bool CppEditorSupport::isSemanticInfoValid() const
+{
+    const Document::Ptr document = lastSemanticInfoDocument();
+    return document
+            && document->translationUnit()->ast()
+            && document->fileName() == fileName();
+}
+
+SemanticInfo CppEditorSupport::semanticInfo() const
+{
+    QMutexLocker locker(&m_lastSemanticInfoLock);
+    return m_lastSemanticInfo;
+}
+
+void CppEditorSupport::setSemanticInfo(const SemanticInfo &semanticInfo, bool emitSignal)
+{
     {
-        QFutureInterface<void> m_theFuture;
+        QMutexLocker locker(&m_lastSemanticInfoLock);
+        m_lastSemanticInfo = semanticInfo;
+    }
+    if (emitSignal)
+        emit semanticInfoUpdated(semanticInfo);
+}
 
-    public:
-        TLDProc(QFutureInterface<void> &aFuture): m_theFuture(aFuture) {}
-        virtual ~TLDProc() {}
-        virtual bool processDeclaration(DeclarationAST *ast) {
-            Q_UNUSED(ast);
-            return m_theFuture.isCanceled();
-        }
-    };
+QSharedPointer<SnapshotUpdater> CppEditorSupport::snapshotUpdater_internal() const
+{
+    QMutexLocker locker(&m_snapshotUpdaterLock);
+    return m_snapshotUpdater;
+}
 
-    TLDProc tldProc(future);
-    recalculateSemanticInfoNow(source, true, &tldProc);
+void CppEditorSupport::setSnapshotUpdater_internal(const QSharedPointer<SnapshotUpdater> &updater)
+{
+    QMutexLocker locker(&m_snapshotUpdaterLock);
+    m_snapshotUpdater = updater;
 }
 
 void CppEditorSupport::onMimeTypeChanged()
@@ -511,6 +601,8 @@ void CppEditorSupport::onMimeTypeChanged()
     if (m_highlightingSupport && m_highlightingSupport->requiresSemanticInfo())
         connect(this, SIGNAL(semanticInfoUpdated(CppTools::SemanticInfo)),
                 this, SLOT(startHighlighting()));
+
+    m_completionAssistProvider = m_modelManager->completionAssistProvider(m_textEditor);
 
     updateDocumentNow();
 }

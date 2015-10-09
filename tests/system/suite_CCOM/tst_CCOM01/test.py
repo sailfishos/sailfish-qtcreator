@@ -1,6 +1,6 @@
 #############################################################################
 ##
-## Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+## Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ## Contact: http://www.qt-project.org/legal
 ##
 ## This file is part of Qt Creator.
@@ -27,7 +27,6 @@
 ##
 #############################################################################
 
-source("../../shared/suites_qtta.py")
 source("../../shared/qtcreator.py")
 
 # entry of test
@@ -44,7 +43,9 @@ def main():
     if not startedWithoutPluginError():
         return
     # open example project
-    checkedTargets = openQmakeProject(examplePath)
+    # qmlapplicationviewer of this example supports only Qt version < 5
+    targets = Targets.desktopTargetClasses() ^ Targets.DESKTOP_501_DEFAULT ^ Targets.DESKTOP_521_DEFAULT
+    checkedTargets = openQmakeProject(examplePath, targets)
     if not replaceLine("propertyanimation.Sources.main\\.cpp",
                        "#include <QtGui/QApplication>",
                        "#include <QApplication>"):
@@ -59,7 +60,7 @@ def main():
         # try to build project
         test.log("Testing build configuration: " + config)
         invokeMenuItem("Build", "Build All")
-        waitForSignal("{type='ProjectExplorer::BuildManager' unnamed='1'}", "buildQueueFinished(bool)")
+        waitForCompile()
         # verify build successful
         ensureChecked(waitForObject(":Qt Creator_CompileOutput_Core::Internal::OutputPaneToggleButton"))
         compileOutput = waitForObject(":Qt Creator.Compile Output_Core::OutputWindow")

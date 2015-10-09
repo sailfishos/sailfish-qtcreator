@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -32,14 +32,9 @@
 
 #include <extensionsystem/iplugin.h>
 
-namespace ProjectExplorer {
-class Project;
-} // namespace ProjectExplorer
+namespace ProjectExplorer { class Project; }
 
 namespace TaskList {
-namespace Internal {
-class TaskListPluginPrivate;
-} // namespace
 
 class TaskListPlugin : public ExtensionSystem::IPlugin
 {
@@ -47,24 +42,16 @@ class TaskListPlugin : public ExtensionSystem::IPlugin
     Q_PLUGIN_METADATA(IID "org.qt-project.Qt.QtCreatorPlugin" FILE "TaskList.json")
 
 public:
-    TaskListPlugin();
-    ~TaskListPlugin();
-
-    static TaskListPlugin *instance();
-
     bool initialize(const QStringList &arguments, QString *errorMessage);
+    void extensionsInitialized() {}
 
-    void extensionsInitialized();
+    static bool loadFile(QString *errorString, const QString &context, const QString &fileName);
 
-    bool loadFile(QString *errorString, ProjectExplorer::Project *context, const QString &fileName);
-    bool monitorFile(ProjectExplorer::Project *context, const QString &fileName);
+    static void stopMonitoring();
+    static void clearTasks();
 
-    void stopMonitoring();
-    void clearTasks();
-
-private:
-    static TaskListPlugin *m_instance;
-    Internal::TaskListPluginPrivate * const d;
+public slots:
+    void loadDataFromSession();
 };
 
 } // namespace TaskList

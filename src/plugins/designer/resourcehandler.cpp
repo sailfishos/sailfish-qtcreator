@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -35,6 +35,7 @@
 #include <projectexplorer/nodesvisitor.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/session.h>
+#include <resourceeditor/resourcenode.h>
 
 #if QT_VERSION >= 0x050000
 #    include <QDesignerFormWindowInterface>
@@ -45,10 +46,7 @@
 
 #include <utils/qtcassert.h>
 
-using ProjectExplorer::NodesVisitor;
-using ProjectExplorer::ProjectNode;
-using ProjectExplorer::FolderNode;
-using ProjectExplorer::FileNode;
+using namespace ProjectExplorer;
 
 namespace Designer {
 namespace Internal {
@@ -81,6 +79,8 @@ void QrcFilesVisitor::visitFolderNode(FolderNode *folderNode)
         if (fileNode->fileType() == ProjectExplorer::ResourceType)
             m_qrcFiles.append(fileNode->path());
     }
+    if (qobject_cast<ResourceEditor::ResourceTopLevelNode *>(folderNode))
+        m_qrcFiles.append(folderNode->path());
 }
 
 // ------------ ResourceHandler
@@ -92,7 +92,8 @@ ResourceHandler::ResourceHandler(qdesigner_internal::FormWindowBase *fw) :
     QObject(fw),
     m_form(fw),
     m_sessionNode(0),
-    m_sessionWatcher(0)
+    m_sessionWatcher(0),
+    m_handlingResources(false)
 {
 }
 
@@ -100,8 +101,8 @@ void ResourceHandler::ensureInitialized()
 {
     if (m_sessionNode)
         return;
-    ProjectExplorer::ProjectExplorerPlugin *pe = ProjectExplorer::ProjectExplorerPlugin::instance();
-    m_sessionNode = pe->session()->sessionNode();
+
+    m_sessionNode = ProjectExplorer::SessionManager::sessionNode();
     m_sessionWatcher = new ProjectExplorer::NodesWatcher();
 
     connect(m_sessionWatcher, SIGNAL(filesAdded()), this, SLOT(updateResources()));
@@ -127,8 +128,11 @@ ResourceHandler::~ResourceHandler()
     }
 }
 
-void ResourceHandler::updateResources()
+void ResourceHandler::updateResources(bool updateProjectResources)
 {
+    if (m_handlingResources)
+        return;
+
     ensureInitialized();
 
     const QString fileName = m_form->fileName();
@@ -137,9 +141,11 @@ void ResourceHandler::updateResources()
     if (Designer::Constants::Internal::debug)
         qDebug() << "ResourceHandler::updateResources()" << fileName;
 
-    ProjectExplorer::ProjectExplorerPlugin *pe = ProjectExplorer::ProjectExplorerPlugin::instance();
-    // filename could change in the meantime.
-    ProjectExplorer::Project *project = pe->session()->projectForFile(fileName);
+    // Filename could change in the meantime.
+    Project *project = SessionManager::projectForFile(fileName);
+    const bool dirty = m_form->property("_q_resourcepathchanged").toBool();
+    if (dirty)
+        m_form->setDirty(true);
 
     // Does the file belong to a project?
     if (project) {
@@ -147,7 +153,22 @@ void ResourceHandler::updateResources()
         ProjectNode *root = project->rootProjectNode();
         QrcFilesVisitor qrcVisitor;
         root->accept(&qrcVisitor);
-        const QStringList projectQrcFiles = qrcVisitor.qrcFiles();
+        QStringList projectQrcFiles = qrcVisitor.qrcFiles();
+        // Check if the user has chosen to update the lacking resource inside designer
+        if (dirty && updateProjectResources) {
+            QStringList qrcPathsToBeAdded;
+            foreach (const QString &originalQrcPath, m_originalUiQrcPaths) {
+                if (!projectQrcFiles.contains(originalQrcPath) && !qrcPathsToBeAdded.contains(originalQrcPath))
+                    qrcPathsToBeAdded.append(originalQrcPath);
+            }
+            if (!qrcPathsToBeAdded.isEmpty()) {
+                m_handlingResources = true;
+                root->addFiles(qrcPathsToBeAdded);
+                m_handlingResources = false;
+                projectQrcFiles += qrcPathsToBeAdded;
+            }
+        }
+
 #if QT_VERSION >= 0x050000
         m_form->activateResourceFilePaths(projectQrcFiles);
         m_form->setResourceFileSaveMode(QDesignerFormWindowInterface::SaveOnlyUsedResourceFiles);

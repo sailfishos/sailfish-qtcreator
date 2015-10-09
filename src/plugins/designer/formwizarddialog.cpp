@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -54,7 +54,6 @@ FormWizardDialog::FormWizardDialog(const WizardPageList &extensionPages,
 
 void FormWizardDialog::init(const WizardPageList &extensionPages)
 {
-    Core::BaseFileWizard::setupWizard(this);
     setWindowTitle(tr("Qt Designer Form"));
     setPage(FormPageId, m_formPage);
     wizardProgress()->item(FormPageId)->setTitle(tr("Form Template"));

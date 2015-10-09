@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -53,8 +53,14 @@ public:
 
     bool init();
     void run(QFutureInterface<bool> &fi);
+
+    void setIgnoreMissingFiles(bool ignoreMissingFiles);
+    bool ignoreMissingFiles() const;
+
 private:
     ProjectExplorer::BuildStepConfigWidget *createConfigWidget();
+    bool fromMap(const QVariantMap &map);
+    QVariantMap toMap() const;
 
     QString packageFileName() const;
 
@@ -65,6 +71,7 @@ private:
     bool writeHeader(QFile &tarFile, const QFileInfo &fileInfo,
         const QString &remoteFilePath);
 
+    bool m_ignoreMissingFiles;
     bool m_packagingNeeded;
     QList<ProjectExplorer::DeployableFile> m_files;
 };

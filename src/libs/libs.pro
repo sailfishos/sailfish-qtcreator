@@ -21,13 +21,16 @@ for(l, SUBDIRS) {
 }
 
 SUBDIRS += \
-    utils/process_stub.pro \
-    qtcomponents/styleitem
+    utils/process_stub.pro
 
 QBS_DIRS = \
-    ../shared/qbs/src/lib \
+    corelib \
+    qtprofilesetup \
     ../shared/qbs/src/plugins \
     ../shared/qbs/static.pro
+corelib.subdir = ../shared/qbs/src/lib/corelib
+qtprofilesetup.subdir = ../shared/qbs/src/lib/qtprofilesetup
+qtprofilesetup.depends = corelib
 
 exists(../shared/qbs/qbs.pro): SUBDIRS += $$QBS_DIRS
 TR_EXCLUDE = $$QBS_DIRS

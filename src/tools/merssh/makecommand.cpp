@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2013 Jolla Ltd.
+** Copyright (C) 2012 - 2014 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -21,10 +21,13 @@
 ****************************************************************************/
 
 #include "makecommand.h"
+
 #include "merremoteprocess.h"
+
 #include <mer/merconstants.h>
-#include <QStringList>
+
 #include <QEventLoop>
+#include <QStringList>
 
 MakeCommand::MakeCommand()
 {

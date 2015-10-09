@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -40,6 +40,7 @@ const char CMAKE_EDITOR_DISPLAY_NAME[] = "CMake Editor";
 const char C_CMAKEEDITOR[] = "CMakeProject.Context.CMakeEditor";
 const char RUNCMAKE[] = "CMakeProject.RunCMake";
 const char RUNCMAKECONTEXTMENU[] = "CMakeProject.RunCMakeContextMenu";
+const char CMAKE_SUPPORT_FEATURE[] = "CMake.CMakeSupport";
 
 // Project
 const char CMAKEPROJECT_ID[] = "CMakeProjectManager.CMakeProject";

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -47,6 +47,7 @@ public:
     Core::Id id() const;
 
     bool managesDirectory(const QString &directory, QString *topLevel = 0) const;
+    bool managesFile(const QString &workingDirectory, const QString &fileName) const;
 
     bool isConfigured() const;
     bool supportsOperation(Operation operation) const;
@@ -57,11 +58,6 @@ public:
     bool vcsCreateRepository(const QString &directory);
     bool vcsCheckout(const QString &directory, const QByteArray &url);
     QString vcsGetRepositoryURL(const QString &directory);
-
-    QString vcsCreateSnapshot(const QString &topLevel);
-    QStringList vcsSnapshots(const QString &topLevel);
-    bool vcsRestoreSnapshot(const QString &topLevel, const QString &name);
-    bool vcsRemoveSnapshot(const QString &topLevel, const QString &name);
 
     bool vcsAnnotate(const QString &file, int line);
 

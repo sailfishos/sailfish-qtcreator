@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -65,7 +65,7 @@ void NodeAbstractProperty::reparentHere(const ModelNode &modelNode)
 
 void NodeAbstractProperty::reparentHere(const ModelNode &modelNode,  bool isNodeList)
 {
-    if (modelNode.parentProperty() == *this)
+    if (modelNode.hasParentProperty() && modelNode.parentProperty() == *this)
         return;
     Internal::WriteLocker locker(model());
     if (!isValid())

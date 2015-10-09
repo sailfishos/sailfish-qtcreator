@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -148,7 +148,7 @@ void RemoteLinuxRunConfigurationWidget::addGenericWidgets(QVBoxLayout *mainLayou
     altRemoteExeLayout->addWidget(&d->useAlternateCommandBox);
     d->genericWidgetsLayout.addRow(tr("Alternate executable on device:"), altRemoteExeWidget);
 
-    d->argsLineEdit.setText(d->runConfiguration->arguments());
+    d->argsLineEdit.setText(d->runConfiguration->arguments().join(QLatin1String(" ")));
     d->genericWidgetsLayout.addRow(tr("Arguments:"), &d->argsLineEdit);
 
     d->workingDirLineEdit.setPlaceholderText(tr("<default>"));

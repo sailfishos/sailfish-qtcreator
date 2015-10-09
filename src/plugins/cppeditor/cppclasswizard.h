@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -36,11 +36,7 @@
 
 #include <QWizardPage>
 
-namespace Utils {
-
-class NewClassWidget;
-
-} // namespace Utils
+namespace Utils { class NewClassWidget; }
 
 namespace CppEditor {
 namespace Internal {
@@ -96,25 +92,20 @@ class CppClassWizard : public Core::BaseFileWizard
     Q_OBJECT
 
 public:
-    explicit CppClassWizard(const Core::BaseFileWizardParameters &parameters,
-                            QObject *parent = 0);
+    CppClassWizard();
 
-    virtual Core::FeatureSet requiredFeatures() const;
-
-protected:
-    virtual QWizard *createWizardDialog(QWidget *parent,
+private:
+    QWizard *createWizardDialog(QWidget *parent,
                                         const Core::WizardDialogParameters &wizardDialogParameters) const;
 
 
-    virtual Core::GeneratedFiles generateFiles(const QWizard *w,
+    Core::GeneratedFiles generateFiles(const QWizard *w,
                                                QString *errorMessage) const;
     QString sourceSuffix() const;
     QString headerSuffix() const;
 
-private:
     static bool generateHeaderAndSource(const CppClassWizardParameters &params,
                                         QString *header, QString *source);
-
 };
 
 } // namespace Internal

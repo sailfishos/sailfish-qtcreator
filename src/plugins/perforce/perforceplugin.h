@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -53,9 +53,7 @@ namespace Utils {
     class TempFileSaver;
 }
 
-namespace Locator {
-    class CommandLocator;
-}
+namespace Core { class CommandLocator; }
 
 namespace Perforce {
 namespace Internal {
@@ -86,7 +84,8 @@ public:
     void extensionsInitialized();
 
     bool managesDirectory(const QString &directory, QString *topLevel = 0);
-    bool vcsOpen(const QString &workingDir, const QString &fileName);
+    bool managesFile(const QString &workingDirectory, const QString &fileName) const;
+    bool vcsOpen(const QString &workingDir, const QString &fileName, bool silently = false);
     bool vcsAdd(const QString &workingDir, const QString &fileName);
     bool vcsDelete(const QString &workingDir, const QString &filename);
     bool vcsMove(const QString &workingDir, const QString &from, const QString &to);
@@ -95,19 +94,18 @@ public:
 
     Core::IEditor *openPerforceSubmitEditor(const QString &fileName, const QStringList &depotFileNames);
 
-    static PerforcePlugin *perforcePluginInstance();
-
-    const PerforceSettings& settings() const;
-    void setSettings(const Settings &s);
+    static const PerforceSettings& settings();
+    static void setSettings(const Settings &s);
 
     // Map a perforce name "//xx" to its real name in the file system
-    QString fileNameFromPerforceName(const QString& perforceName,
-                                     bool quiet,
-                                     QString *errorMessage) const;
+    static QString fileNameFromPerforceName(const QString& perforceName,
+                                            bool quiet,
+                                            QString *errorMessage);
 
 public slots:
     void describe(const QString &source, const QString &n);
-    void vcsAnnotate(const QString &file, const QString &revision /* = QString() */, int lineNumber);
+    void vcsAnnotate(const QString &workingDirectory, const QString &file,
+                     const QString &revision, int lineNumber);
     void p4Diff(const Perforce::Internal::PerforceDiffParameters &p);
 
 private slots:
@@ -160,40 +158,41 @@ private:
                     RunFullySynchronous = 0x20,
                     IgnoreExitCode = 0x40,
                     ShowBusyCursor = 0x80,
-                    LongTimeOut = 0x100
+                    LongTimeOut = 0x100,
+                    SilentStdOut = 0x200,
                    };
 
     // args are passed as command line arguments
     // extra args via a tempfile and the option -x "temp-filename"
-    PerforceResponse runP4Cmd(const QString &workingDir,
-                              const QStringList &args,
-                              unsigned flags = CommandToWindow|StdErrToWindow|ErrorToWindow,
-                              const QStringList &extraArgs = QStringList(),
-                              const QByteArray &stdInput = QByteArray(),
-                              QTextCodec *outputCodec = 0) const;
+    static PerforceResponse runP4Cmd(const QString &workingDir,
+                                     const QStringList &args,
+                                     unsigned flags = CommandToWindow|StdErrToWindow|ErrorToWindow,
+                                     const QStringList &extraArgs = QStringList(),
+                                     const QByteArray &stdInput = QByteArray(),
+                                     QTextCodec *outputCodec = 0);
 
-    inline PerforceResponse synchronousProcess(const QString &workingDir,
+    static PerforceResponse synchronousProcess(const QString &workingDir,
                                                const QStringList &args,
                                                unsigned flags,
                                                const QByteArray &stdInput,
-                                               QTextCodec *outputCodec) const;
+                                               QTextCodec *outputCodec);
 
-    inline PerforceResponse fullySynchronousProcess(const QString &workingDir,
+    static PerforceResponse fullySynchronousProcess(const QString &workingDir,
                                                     const QStringList &args,
                                                     unsigned flags,
                                                     const QByteArray &stdInput,
-                                                    QTextCodec *outputCodec) const;
+                                                    QTextCodec *outputCodec);
 
     QString clientFilePath(const QString &serverFilePath);
     void annotate(const QString &workingDir, const QString &fileName,
                   const QString &changeList = QString(), int lineNumber = -1);
-    void filelog(const QString &workingDir, const QStringList &fileNames = QStringList(),
+    void filelog(const QString &workingDir, const QString &fileName = QString(),
                  bool enableAnnotationContextMenu = false);
     void cleanCommitMessageFile();
     bool isCommitEditorOpen() const;
-    QSharedPointer<Utils::TempFileSaver> createTemporaryArgumentFile(const QStringList &extraArgs,
-                                                                     QString *errorString) const;
-    void getTopLevel();
+    static QSharedPointer<Utils::TempFileSaver> createTemporaryArgumentFile(const QStringList &extraArgs,
+                                                                            QString *errorString);
+    static void getTopLevel();
     QString pendingChangesData();
 
     void updateCheckout(const QString &workingDir = QString(),
@@ -201,9 +200,9 @@ private:
     bool revertProject(const QString &workingDir, const QStringList &args, bool unchangedOnly);
     bool managesDirectoryFstat(const QString &directory);
 
-    inline PerforceVersionControl *perforceVersionControl() const;
+    static PerforceVersionControl *perforceVersionControl();
 
-    Locator::CommandLocator *m_commandLocator;
+    Core::CommandLocator *m_commandLocator;
     Utils::ParameterAction *m_editAction;
     Utils::ParameterAction *m_addAction;
     Utils::ParameterAction *m_deleteAction;
@@ -235,7 +234,7 @@ private:
     QAction *m_redoAction;
     QAction *m_menuAction;
 
-    static PerforcePlugin *m_perforcePluginInstance;
+    static PerforcePlugin *m_instance;
 
     PerforceSettings m_settings;
     ManagedDirectoryCache m_managedDirectoryCache;

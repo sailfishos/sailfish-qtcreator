@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -79,7 +79,7 @@ void CallgrindRunner::processFinished(int ret, QProcess::ExitStatus status)
     triggerParse();
     m_controller->setValgrindProcess(0);
 
-    ValgrindRunner::processFinished(ret, status); // call base class method
+    ValgrindRunner::processFinished(ret, status); // call base class function
 }
 
 bool CallgrindRunner::isPaused() const

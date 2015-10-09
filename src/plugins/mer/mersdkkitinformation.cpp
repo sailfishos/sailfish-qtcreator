@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2013 Jolla Ltd.
+** Copyright (C) 2012 - 2014 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -21,16 +21,19 @@
 ****************************************************************************/
 
 #include "mersdkkitinformation.h"
+
 #include "merconstants.h"
-#include "mersdkmanager.h"
-#include "meroptionspage.h"
 #include "merdevicefactory.h"
+#include "meroptionspage.h"
+#include "mersdkmanager.h"
+
 #include <coreplugin/icore.h>
-#include <projectexplorer/projectexplorerconstants.h>
 #include <extensionsystem/pluginmanager.h>
-#include <QPushButton>
+#include <projectexplorer/projectexplorerconstants.h>
+
 #include <QComboBox>
 #include <QDir>
+#include <QPushButton>
 
 namespace Mer {
 namespace Internal {
@@ -93,7 +96,7 @@ ProjectExplorer::KitInformation::ItemList MerSdkKitInformation::toUserOutput(con
 
 ProjectExplorer::KitConfigWidget *MerSdkKitInformation::createConfigWidget(ProjectExplorer::Kit *kit) const
 {
-    return new MerSdkKitInformationWidget(kit);
+    return new MerSdkKitInformationWidget(kit, this);
 }
 
 void MerSdkKitInformation::setSdk(ProjectExplorer::Kit *kit, const MerSdk* sdk)
@@ -124,8 +127,9 @@ void MerSdkKitInformation::addToEnvironment(const ProjectExplorer::Kit *kit, Uti
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 
-MerSdkKitInformationWidget::MerSdkKitInformationWidget(ProjectExplorer::Kit *kit, bool sticky)
-    : ProjectExplorer::KitConfigWidget(kit, sticky),
+MerSdkKitInformationWidget::MerSdkKitInformationWidget(ProjectExplorer::Kit *kit,
+        const MerSdkKitInformation *kitInformation)
+    : ProjectExplorer::KitConfigWidget(kit, kitInformation),
       m_combo(new QComboBox),
       m_manageButton(new QPushButton(tr("Manage...")))
 {

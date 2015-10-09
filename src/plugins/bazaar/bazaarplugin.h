@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Hugues Delorme
+** Copyright (c) 2014 Hugues Delorme
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -42,23 +42,16 @@ QT_END_NAMESPACE
 namespace Core {
 class ActionManager;
 class ActionContainer;
+class CommandLocator;
 class Id;
 class IVersionControl;
 class IEditorFactory;
 class IEditor;
 } // namespace Core
 
-namespace Utils {
-class ParameterAction;
-} //namespace Utils
+namespace Utils { class ParameterAction; }
 
-namespace VcsBase {
-class VcsBaseSubmitEditor;
-}
-
-namespace Locator {
-class CommandLocator;
-}
+namespace VcsBase { class VcsBaseSubmitEditor; }
 
 namespace Bazaar {
 namespace Internal {
@@ -106,6 +99,7 @@ private slots:
     void commit();
     void showCommitWidget(const QList<VcsBase::VcsBaseClient::StatusItem> &status);
     void commitFromEditor();
+    void uncommit();
     void diffFromEditorSelected(const QStringList &files);
 #ifdef WITH_TESTS
     void testDiffFileResolving_data();
@@ -118,7 +112,7 @@ protected:
     bool submitEditorAboutToClose();
 
 private:
-    // Methods
+    // Functions
     void createMenu();
     void createSubmitEditorActions();
     void createFileActions(const Core::Context &context);
@@ -131,7 +125,7 @@ private:
     OptionsPage *m_optionsPage;
     BazaarClient *m_client;
 
-    Locator::CommandLocator *m_commandLocator;
+    Core::CommandLocator *m_commandLocator;
     Core::ActionContainer *m_bazaarContainer;
 
     QList<QAction *> m_repositoryActionList;

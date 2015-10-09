@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2012 - 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -32,72 +32,124 @@
 #ifndef QNX_INTERNAL_BLACKBERRYDEVICECONFIGURATIONWIZARDPAGES_H
 #define QNX_INTERNAL_BLACKBERRYDEVICECONFIGURATIONWIZARDPAGES_H
 
+#include "blackberrydevicelistdetector.h"
+
 #include <projectexplorer/devicesupport/idevice.h>
 
 #include <QWizardPage>
+#include <QListWidgetItem>
 
-namespace QSsh {
-class SshKeyGenerator;
-}
+namespace QSsh { class SshKeyGenerator; }
 
 namespace Qnx {
 namespace Internal {
 namespace Ui {
 class BlackBerryDeviceConfigurationWizardSetupPage;
-class BlackBerryDeviceConfigurationWizardSshKeyPage;
+class BlackBerryDeviceConfigurationWizardQueryPage;
+class BlackBerryDeviceConfigurationWizardConfigPage;
 }
 class BlackBerrySshKeysGenerator;
+class BlackBerryDeviceInformation;
+class BlackBerrySigningUtils;
+
+struct BlackBerryDeviceConfigurationWizardHolder {
+    QString devicePin;
+    QString deviceName;
+    QString scmBundle;
+    QString debugTokenAuthor;
+    bool isSimulator;
+    bool debugTokenValid;
+    bool deviceInfoRetrieved;
+    bool isProductionDevice;
+
+    BlackBerryDeviceConfigurationWizardHolder()
+        : isSimulator(false)
+        , debugTokenValid(false)
+        , deviceInfoRetrieved(false)
+        , isProductionDevice(true) {}
+};
 
 class BlackBerryDeviceConfigurationWizardSetupPage : public QWizardPage
 {
     Q_OBJECT
 public:
+    enum ItemKind {
+        SpecifyManually, Autodetected, PleaseWait, Note
+    };
+
     explicit BlackBerryDeviceConfigurationWizardSetupPage(QWidget *parent = 0);
     ~BlackBerryDeviceConfigurationWizardSetupPage();
 
     void initializePage();
     bool isComplete() const;
 
-    QString deviceName() const;
     QString hostName() const;
     QString password() const;
-    QString debugToken() const;
-    ProjectExplorer::IDevice::MachineType machineType() const;
-
 private slots:
-    void handleMachineTypeChanged();
-    void requestDebugToken();
+    void onDeviceSelectionChanged();
+    void onDeviceDetected(const QString &deviceName, const QString &hostName, bool isSimulator);
+    void onDeviceListDetectorFinished();
 
 private:
+    void refreshDeviceList();
+    QListWidgetItem *createDeviceListItem(const QString &displayName, ItemKind itemKind) const;
+    QListWidgetItem *findDeviceListItem(ItemKind itemKind) const;
+
     Ui::BlackBerryDeviceConfigurationWizardSetupPage *m_ui;
+    BlackBerryDeviceListDetector *m_deviceListDetector;
 };
 
-class BlackBerryDeviceConfigurationWizardSshKeyPage : public QWizardPage
+class BlackBerryDeviceConfigurationWizardQueryPage : public QWizardPage
 {
     Q_OBJECT
+    enum QueryState
+    {
+        Querying = 0, GeneratingSshKey, Done
+    };
+
 public:
-    explicit BlackBerryDeviceConfigurationWizardSshKeyPage(QWidget *parent = 0);
-    ~BlackBerryDeviceConfigurationWizardSshKeyPage();
+    explicit BlackBerryDeviceConfigurationWizardQueryPage(BlackBerryDeviceConfigurationWizardHolder &holder, QWidget *parent = 0);
+    ~BlackBerryDeviceConfigurationWizardQueryPage();
 
     void initializePage();
     bool isComplete() const;
 
-    QString privateKey() const;
-    QString publicKey() const;
-
 private slots:
-    void findMatchingPublicKey(const QString &privateKeyPath);
-    void processSshKeys(bool success);
-    void generateSshKeys();
+    void processQueryFinished(int status);
+    void sshKeysGenerationFailed(const QString &error);
+    void processSshKeys(const QByteArray &privateKey, const QByteArray &publicKey);
 
 private:
-    bool saveKeys(const QString &privateKeyFile, const QString &publicKeyFile);
-    void setBusy(bool busy);
+    void checkAndGenerateSSHKeys();
+    void queryDone();
+    void setState(QueryState state, const QString &message);
 
-    Ui::BlackBerryDeviceConfigurationWizardSshKeyPage *m_ui;
+    Ui::BlackBerryDeviceConfigurationWizardQueryPage *m_ui;
+    BlackBerryDeviceConfigurationWizardHolder &m_holder;
+    BlackBerryDeviceInformation *m_deviceInformation;
+    QueryState m_state;
+};
 
-    BlackBerrySshKeysGenerator *m_sshKeysGenerator;
-    QString m_generatedPrivateKeyPath;
+class BlackBerryDeviceConfigurationWizardConfigPage : public QWizardPage
+{
+    Q_OBJECT
+public:
+    explicit BlackBerryDeviceConfigurationWizardConfigPage(BlackBerryDeviceConfigurationWizardHolder &holder, QWidget *parent = 0);
+    ~BlackBerryDeviceConfigurationWizardConfigPage();
+
+    void initializePage();
+    bool isComplete() const;
+
+    QString configurationName() const;
+    QString debugToken() const;
+private slots:
+    void generateDebugToken();
+    void importDebugToken();
+
+private:
+    Ui::BlackBerryDeviceConfigurationWizardConfigPage *m_ui;
+    BlackBerryDeviceConfigurationWizardHolder &m_holder;
+    BlackBerrySigningUtils &m_utils;
 };
 
 class BlackBerryDeviceConfigurationWizardFinalPage : public QWizardPage
@@ -109,5 +161,7 @@ public:
 
 } // namespace Internal
 } // namespace Qnx
+
+Q_DECLARE_METATYPE(Qnx::Internal::BlackBerryDeviceConfigurationWizardSetupPage::ItemKind)
 
 #endif // QNX_INTERNAL_BLACKBERRYDEVICECONFIGURATIONWIZARDPAGES_H

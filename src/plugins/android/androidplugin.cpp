@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 BogDan Vatra <bog_dan_ro@yahoo.com>
+** Copyright (c) 2014 BogDan Vatra <bog_dan_ro@yahoo.com>
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -32,6 +32,7 @@
 #include "androidconstants.h"
 #include "androidconfigurations.h"
 #include "androiddeploystepfactory.h"
+#include "androiddeployqtstep.h"
 #include "androiddevice.h"
 #include "androiddevicefactory.h"
 #include "androidmanager.h"
@@ -44,6 +45,13 @@
 #include "androiddeployconfiguration.h"
 #include "androidgdbserverkitinformation.h"
 #include "androidmanifesteditorfactory.h"
+#include "androidpotentialkit.h"
+#include "javaeditorfactory.h"
+#include "javacompletionassistprovider.h"
+#include "javafilewizard.h"
+#ifdef HAVE_QBS
+#  include "androidqbspropertyprovider.h"
+#endif
 
 #include <coreplugin/mimedatabase.h>
 #include <coreplugin/icore.h>
@@ -64,19 +72,24 @@ bool AndroidPlugin::initialize(const QStringList &arguments, QString *errorMessa
     Q_UNUSED(arguments);
     Q_UNUSED(errorMessage);
 
-    Internal::AndroidConfigurations::instance(this);
+    new Internal::AndroidConfigurations(this);
 
     addAutoReleasedObject(new Internal::AndroidRunControlFactory);
     addAutoReleasedObject(new Internal::AndroidRunConfigurationFactory);
     addAutoReleasedObject(new Internal::AndroidPackageInstallationFactory);
     addAutoReleasedObject(new Internal::AndroidPackageCreationFactory);
     addAutoReleasedObject(new Internal::AndroidDeployStepFactory);
+    addAutoReleasedObject(new Internal::AndroidDeployQtStepFactory);
     addAutoReleasedObject(new Internal::AndroidSettingsPage);
     addAutoReleasedObject(new Internal::AndroidQtVersionFactory);
     addAutoReleasedObject(new Internal::AndroidToolChainFactory);
     addAutoReleasedObject(new Internal::AndroidDeployConfigurationFactory);
     addAutoReleasedObject(new Internal::AndroidDeviceFactory);
-    ProjectExplorer::KitManager::instance()->registerKitInformation(new Internal::AndroidGdbServerKitInformation);
+    addAutoReleasedObject(new Internal::AndroidPotentialKit);
+    addAutoReleasedObject(new Internal::JavaEditorFactory);
+    addAutoReleasedObject(new Internal::JavaCompletionAssistProvider);
+    addAutoReleasedObject(new Internal::JavaFileWizard);
+    ProjectExplorer::KitManager::registerKitInformation(new Internal::AndroidGdbServerKitInformation);
 
     // AndroidManifest.xml editor
     Core::MimeGlobPattern androidManifestGlobPattern(QLatin1String("AndroidManifest.xml"), Core::MimeGlobPattern::MaxWeight);
@@ -86,33 +99,35 @@ bool AndroidPlugin::initialize(const QStringList &arguments, QString *errorMessa
     androidManifestMimeType.setGlobPatterns(QList<Core::MimeGlobPattern>() << androidManifestGlobPattern);
     androidManifestMimeType.setSubClassesOf(QStringList() << QLatin1String("application/xml"));
 
-    if (!Core::ICore::mimeDatabase()->addMimeType(androidManifestMimeType)) {
+    if (!Core::MimeDatabase::addMimeType(androidManifestMimeType)) {
         *errorMessage = tr("Could not add mime-type for AndroidManifest.xml editor.");
         return false;
     }
     addAutoReleasedObject(new Internal::AndroidManifestEditorFactory);
+
+    if (!Core::MimeDatabase::addMimeTypes(QLatin1String(":android/Java.mimetypes.xml"), errorMessage))
+        return false;
 
     connect(ProjectExplorer::KitManager::instance(), SIGNAL(kitsLoaded()),
             this, SLOT(kitsRestored()));
 
     connect(ProjectExplorer::DeviceManager::instance(), SIGNAL(devicesLoaded()),
             this, SLOT(updateDevice()));
-
     return true;
 }
 
 void AndroidPlugin::kitsRestored()
 {
-    Internal::AndroidConfigurations::instance().updateAutomaticKitList();
+    Internal::AndroidConfigurations::updateAutomaticKitList();
     connect(QtSupport::QtVersionManager::instance(), SIGNAL(qtVersionsChanged(QList<int>,QList<int>,QList<int>)),
-            &Internal::AndroidConfigurations::instance(), SLOT(updateAutomaticKitList()));
+            Internal::AndroidConfigurations::instance(), SLOT(updateAutomaticKitList()));
     disconnect(ProjectExplorer::KitManager::instance(), SIGNAL(kitsChanged()),
                this, SLOT(kitsRestored()));
 }
 
 void AndroidPlugin::updateDevice()
 {
-    Internal::AndroidConfigurations::instance().updateAndroidDevice();
+    Internal::AndroidConfigurations::updateAndroidDevice();
 }
 
 } // namespace Android

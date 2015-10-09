@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -27,29 +27,31 @@
 **
 ****************************************************************************/
 
-import QtQuick 1.0
+import QtQuick 2.1
 import Monitor 1.0
 
-Canvas2D {
-    id: timeDisplay
+Canvas {
+    id: timeMarks
+    objectName: "TimeMarks"
+    contextType: "2d"
 
-    property variant startTime
-    property variant endTime
-    property variant timePerPixel
+    property real startTime
+    property real endTime
+    property real timePerPixel
 
-    Component.onCompleted: {
-        requestRedraw();
+    Connections {
+        target: labels
+        onHeightChanged: requestPaint()
     }
 
-    onWidthChanged: {
-        requestRedraw();
-    }
-    onHeightChanged: {
-        requestRedraw();
-    }
+    onYChanged: requestPaint()
 
-    onDrawRegion: {
-        drawBackgroundBars( ctxt, region );
+    onPaint: {
+        if (context === null)
+            return; // canvas isn't ready
+
+        context.reset();
+        drawBackgroundBars( context, region );
 
         var totalTime = endTime - startTime;
         var spacing = width / totalTime;
@@ -65,39 +67,27 @@ Canvas2D {
 
         timePerPixel = timePerBlock/pixelsPerBlock;
 
+        var lineStart = y < 0 ? -y : 0;
+        var lineEnd = Math.min(height, labels.height - y);
 
-        ctxt.fillStyle = "#000000";
-        ctxt.font = "8px sans-serif";
+        context.fillStyle = "#000000";
+        context.font = "8px sans-serif";
         for (var ii = 0; ii < blockCount+1; ii++) {
             var x = Math.floor(ii*pixelsPerBlock - realStartPos);
-            ctxt.strokeStyle = "#B0B0B0";
-            ctxt.beginPath();
-            ctxt.moveTo(x, 0);
-            ctxt.lineTo(x, height);
-            ctxt.stroke();
+            context.strokeStyle = "#B0B0B0";
+            context.beginPath();
+            context.moveTo(x, lineStart);
+            context.lineTo(x, lineEnd);
+            context.stroke();
 
-            ctxt.strokeStyle = "#CCCCCC";
+            context.strokeStyle = "#CCCCCC";
             for (var jj=1; jj < 5; jj++) {
                 var xx = Math.floor(ii*pixelsPerBlock + jj*pixelsPerSection - realStartPos);
-                ctxt.beginPath();
-                ctxt.moveTo(xx, 0);
-                ctxt.lineTo(xx, height);
-                ctxt.stroke();
+                context.beginPath();
+                context.moveTo(xx, lineStart);
+                context.lineTo(xx, lineEnd);
+                context.stroke();
             }
-        }
-
-        // gray off out-of-bounds areas
-        var rectWidth;
-        if (startTime < qmlProfilerDataModel.traceStartTime()) {
-            ctxt.fillStyle = "rgba(127,127,127,0.2)";
-            rectWidth = (qmlProfilerDataModel.traceStartTime() - startTime) * spacing;
-            ctxt.fillRect(0, 0, rectWidth, height);
-        }
-        if (endTime > qmlProfilerDataModel.traceEndTime()) {
-            ctxt.fillStyle = "rgba(127,127,127,0.2)";
-            var rectX = (qmlProfilerDataModel.traceEndTime() - startTime) * spacing;
-            rectWidth = (endTime - qmlProfilerDataModel.traceEndTime()) * spacing;
-            ctxt.fillRect(rectX, 0, rectWidth, height);
         }
     }
 
@@ -105,36 +95,42 @@ Canvas2D {
         if (startTime !== start || endTime !== end) {
             startTime = start;
             endTime = end;
-            requestRedraw();
+            requestPaint();
         }
     }
 
-    function drawBackgroundBars( ctxt, region ) {
+    function drawBackgroundBars( context, region ) {
         var colorIndex = true;
+
         // row background
-        for (var y=0; y < labels.height; y+= root.singleRowHeight) {
-            ctxt.fillStyle = colorIndex ? "#f0f0f0" : "white";
-            ctxt.strokeStyle = colorIndex ? "#f0f0f0" : "white";
-            ctxt.fillRect(0, y, width, root.singleRowHeight);
+        var backgroundOffset = y < 0 ? -y : -(y % (2 * root.singleRowHeight));
+        for (var currentY= backgroundOffset; currentY < Math.min(height, labels.height - y); currentY += root.singleRowHeight) {
+            context.fillStyle = colorIndex ? "#f0f0f0" : "white";
+            context.strokeStyle = colorIndex ? "#f0f0f0" : "white";
+            context.fillRect(0, currentY, width, root.singleRowHeight);
             colorIndex = !colorIndex;
         }
 
         // separators
         var cumulatedHeight = 0;
-        for (var i=0; i<labels.rowCount; i++) {
-            cumulatedHeight += root.singleRowHeight + (labels.rowExpanded[i] ?
-                    qmlProfilerDataModel.uniqueEventsOfType(i) * root.singleRowHeight :
-                    qmlProfilerDataModel.maxNestingForType(i) * root.singleRowHeight);
+        for (var modelIndex = 0; modelIndex < qmlProfilerModelProxy.modelCount() && cumulatedHeight < y + height; modelIndex++) {
+            for (var i=0; i<qmlProfilerModelProxy.categoryCount(modelIndex); i++) {
+                cumulatedHeight += root.singleRowHeight * qmlProfilerModelProxy.categoryDepth(modelIndex, i);
+                if (cumulatedHeight < y)
+                    continue;
 
-            ctxt.strokeStyle = "#B0B0B0";
-            ctxt.beginPath();
-            ctxt.moveTo(0, cumulatedHeight);
-            ctxt.lineTo(width, cumulatedHeight);
-            ctxt.stroke();
+                context.strokeStyle = "#B0B0B0";
+                context.beginPath();
+                context.moveTo(0, cumulatedHeight - y);
+                context.lineTo(width, cumulatedHeight - y);
+                context.stroke();
+            }
         }
 
         // bottom
-        ctxt.fillStyle = "#f5f5f5";
-        ctxt.fillRect(0, labels.height, width, height - labels.height);
+        if (height > labels.height - y) {
+            context.fillStyle = "#f5f5f5";
+            context.fillRect(0, labels.height - y, width, height - labels.height + y);
+        }
     }
 }

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -34,39 +34,34 @@
 
 #include <coreplugin/icore.h>
 #include <coreplugin/editormanager/editormanager.h>
+#include <texteditor/texteditoractionhandler.h>
 #include <texteditor/texteditorsettings.h>
 
 #include <QDebug>
 
 namespace PythonEditor {
+namespace Internal {
 
 EditorFactory::EditorFactory(QObject *parent)
     : Core::IEditorFactory(parent)
 {
-    m_mimeTypes << QLatin1String(Constants::C_PY_MIMETYPE);
+    setId(Constants::C_PYTHONEDITOR_ID);
+    setDisplayName(tr(Constants::C_EDITOR_DISPLAY_NAME));
+    addMimeType(QLatin1String(Constants::C_PY_MIMETYPE));
+    new TextEditor::TextEditorActionHandler(this,
+                              Constants::C_PYTHONEDITOR_ID,
+                              TextEditor::TextEditorActionHandler::Format
+                              | TextEditor::TextEditorActionHandler::UnCommentSelection
+                              | TextEditor::TextEditorActionHandler::UnCollapseAll);
 }
 
-Core::Id EditorFactory::id() const
+Core::IEditor *EditorFactory::createEditor()
 {
-    return Constants::C_PYTHONEDITOR_ID;
-}
-
-QString EditorFactory::displayName() const
-{
-    return tr(Constants::C_EDITOR_DISPLAY_NAME);
-}
-
-Core::IEditor *EditorFactory::createEditor(QWidget *parent)
-{
-    EditorWidget *widget = new EditorWidget(parent);
-    PythonEditorPlugin::initializeEditor(widget);
+    EditorWidget *widget = new EditorWidget();
+    TextEditor::TextEditorSettings::initializeEditor(widget);
 
     return widget->editor();
 }
 
-QStringList EditorFactory::mimeTypes() const
-{
-    return m_mimeTypes;
-}
-
+} // namespace Internal
 } // namespace PythonEditor

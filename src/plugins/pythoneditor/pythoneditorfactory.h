@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,13 +30,12 @@
 #ifndef PYTHONEDITORFACTORY_H
 #define PYTHONEDITORFACTORY_H
 
-#include "pythoneditor_global.h"
 #include <coreplugin/editormanager/ieditorfactory.h>
-#include <QStringList>
 
 namespace PythonEditor {
+namespace Internal {
 
-class PYEDITOR_EXPORT EditorFactory : public Core::IEditorFactory
+class EditorFactory : public Core::IEditorFactory
 {
     Q_OBJECT
 
@@ -44,25 +43,12 @@ public:
     EditorFactory(QObject *parent);
 
     /**
-      Returns MIME types handled by editor
-      */
-    QStringList mimeTypes() const;
-
-    /**
-      Unique editor class identifier, see Constants::C_PYEDITOR_ID
-      */
-    Core::Id id() const;
-    QString displayName() const;
-
-    /**
       Creates and initializes new editor widget
       */
-    Core::IEditor *createEditor(QWidget *parent);
-
-private:
-    QStringList m_mimeTypes;
+    Core::IEditor *createEditor();
 };
 
+} // namespace Internal
 } // namespace PythonEditor
 
 #endif // PYTHONEDITORFACTORY_H

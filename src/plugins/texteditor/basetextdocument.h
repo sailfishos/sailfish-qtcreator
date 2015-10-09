@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -41,13 +41,15 @@ QT_END_NAMESPACE
 
 namespace TextEditor {
 
-class ITextMarkable;
-class TypingSettings;
-class StorageSettings;
-class TabSettings;
-class ExtraEncodingSettings;
-class SyntaxHighlighter;
 class BaseTextDocumentPrivate;
+class ExtraEncodingSettings;
+class FontSettings;
+class ITextMarkable;
+class Indenter;
+class StorageSettings;
+class SyntaxHighlighter;
+class TabSettings;
+class TypingSettings;
 
 class TEXTEDITOR_EXPORT BaseTextDocument : public ITextEditorDocument
 {
@@ -58,37 +60,44 @@ public:
     virtual ~BaseTextDocument();
 
     // ITextEditorDocument
-    QString contents() const;
+    QString plainText() const;
     QString textAt(int pos, int length) const;
     QChar characterAt(int pos) const;
 
     void setTypingSettings(const TypingSettings &typingSettings);
     void setStorageSettings(const StorageSettings &storageSettings);
-    void setTabSettings(const TabSettings &tabSettings);
     void setExtraEncodingSettings(const ExtraEncodingSettings &extraEncodingSettings);
 
     const TypingSettings &typingSettings() const;
     const StorageSettings &storageSettings() const;
     const TabSettings &tabSettings() const;
     const ExtraEncodingSettings &extraEncodingSettings() const;
+    const FontSettings &fontSettings() const;
 
-    ITextMarkable *documentMarker() const;
+    void setIndenter(Indenter *indenter);
+    Indenter *indenter() const;
+    void autoIndent(const QTextCursor &cursor, QChar typedChar = QChar::Null);
+    void autoReindent(const QTextCursor &cursor);
+    QTextCursor indent(const QTextCursor &cursor);
+    QTextCursor unindent(const QTextCursor &cursor);
+
+    ITextMarkable *markableInterface() const;
 
     // IDocument implementation.
-    virtual bool save(QString *errorString, const QString &fileName, bool autoSave);
-    virtual QString fileName() const;
-    virtual bool shouldAutoSave() const;
-    virtual bool isFileReadOnly() const;
-    virtual bool isModified() const;
-    virtual bool isSaveAsAllowed() const;
-    virtual void checkPermissions();
+    bool save(QString *errorString, const QString &fileName, bool autoSave);
+    bool setContents(const QByteArray &contents);
+    bool shouldAutoSave() const;
+    bool isFileReadOnly() const;
+    bool isModified() const;
+    bool isSaveAsAllowed() const;
+    void checkPermissions();
     bool reload(QString *errorString, ReloadFlag flag, ChangeType type);
-    virtual QString mimeType() const;
+    QString mimeType() const;
     void setMimeType(const QString &mt);
-    virtual void rename(const QString &newName);
+    void setFilePath(const QString &newName);
 
-    virtual QString defaultPath() const;
-    virtual QString suggestedFileName() const;
+    QString defaultPath() const;
+    QString suggestedFileName() const;
 
     void setDefaultPath(const QString &defaultPath);
     void setSuggestedFileName(const QString &suggestedFileName);
@@ -96,6 +105,7 @@ public:
     virtual bool open(QString *errorString, const QString &fileName, const QString &realFileName);
     virtual bool reload(QString *errorString);
 
+    bool setPlainText(const QString &text);
     QTextDocument *document() const;
     void setSyntaxHighlighter(SyntaxHighlighter *highlighter);
     SyntaxHighlighter *syntaxHighlighter() const;
@@ -103,9 +113,19 @@ public:
     bool reload(QString *errorString, QTextCodec *codec);
     void cleanWhitespace(const QTextCursor &cursor);
 
+    virtual void triggerPendingUpdates();
+
+public slots:
+    void setTabSettings(const TextEditor::TabSettings &tabSettings);
+    void setFontSettings(const TextEditor::FontSettings &fontSettings);
+
 signals:
-    void titleChanged(QString title);
     void mimeTypeChanged();
+    void tabSettingsChanged();
+    void fontSettingsChanged();
+
+protected slots:
+    virtual void applyFontSettings();
 
 private:
     void cleanWhitespace(QTextCursor &cursor, bool cleanIndentation, bool inEntireDocument);

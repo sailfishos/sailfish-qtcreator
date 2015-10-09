@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -28,6 +28,9 @@
 ****************************************************************************/
 
 #include "propertyvaluecontainer.h"
+#include <enumeration.h>
+
+#include <QtDebug>
 
 namespace QmlDesigner {
 
@@ -42,6 +45,8 @@ PropertyValueContainer::PropertyValueContainer(qint32 instanceId, const Property
     m_value(value),
     m_dynamicTypeName(dynamicTypeName)
 {
+    if (m_value.canConvert<Enumeration>())
+        m_value = QVariant::fromValue(value.value<Enumeration>().nameToString());
 }
 
 qint32 PropertyValueContainer::instanceId() const
@@ -87,6 +92,35 @@ QDataStream &operator>>(QDataStream &in, PropertyValueContainer &container)
     in >> container.m_dynamicTypeName;
 
     return in;
+}
+
+bool operator ==(const PropertyValueContainer &first, const PropertyValueContainer &second)
+{
+    return first.m_instanceId == second.m_instanceId
+            && first.m_name == second.m_name
+            && first.m_value == second.m_value
+            && first.m_dynamicTypeName == second.m_dynamicTypeName;
+}
+
+bool operator <(const PropertyValueContainer &first, const PropertyValueContainer &second)
+{
+    return  (first.m_instanceId < second.m_instanceId)
+        || (first.m_instanceId == second.m_instanceId && first.m_name < second.m_name);
+}
+
+QDebug operator <<(QDebug debug, const PropertyValueContainer &container)
+{
+    debug.nospace() << "PropertyValueContainer("
+                    << "instanceId: " << container.instanceId() << ", "
+                    << "name: " << container.name() << ", "
+                    << "value: " << container.value();
+
+    if (!container.dynamicTypeName().isEmpty())
+        debug.nospace() << ", " << "dynamicTypeName: " << container.dynamicTypeName();
+
+    debug.nospace() << ")";
+
+    return debug;
 }
 
 } // namespace QmlDesigner

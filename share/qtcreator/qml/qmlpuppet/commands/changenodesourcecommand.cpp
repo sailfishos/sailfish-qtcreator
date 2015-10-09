@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,6 +30,7 @@
 #include "changenodesourcecommand.h"
 
 #include <QDataStream>
+#include <QDebug>
 
 namespace QmlDesigner {
 
@@ -66,6 +67,13 @@ QDataStream &operator>>(QDataStream &in, ChangeNodeSourceCommand &command)
     in >> command.m_nodeSource;
 
     return in;
+}
+
+QDebug operator <<(QDebug debug, const ChangeNodeSourceCommand &command)
+{
+    return debug.nospace() << "ReparentInstancesCommand("
+                           << "instanceId: " << command.m_instanceId
+                           << "nodeSource: " << command.m_nodeSource << ")";
 }
 
 } // namespace QmlDesigner

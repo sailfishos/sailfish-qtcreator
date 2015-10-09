@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -66,6 +66,7 @@ void ComponentNameDialog::go(QString *proposedName,
     d.ui->componentNameEdit->setForceFirstCapitalLetter(true);
     d.ui->componentNameEdit->setText(*proposedName);
     d.ui->pathEdit->setExpectedKind(Utils::PathChooser::ExistingDirectory);
+    d.ui->pathEdit->setHistoryCompleter(QLatin1String("QmlJs.Component.History"));
     d.ui->pathEdit->setPath(*proposedPath);
 
     if (QDialog::Accepted == d.exec()) {

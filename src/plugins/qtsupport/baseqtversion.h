@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -36,15 +36,12 @@
 
 #include <projectexplorer/abi.h>
 
+#include <QStringList>
 #include <QVariantMap>
 
-namespace Utils {
-class Environment;
-} // namespace Utils
+namespace Utils { class Environment; }
 
-namespace Core {
-class FeatureSet;
-} // namespace Core
+namespace Core { class FeatureSet; }
 
 namespace ProjectExplorer {
 class IOutputParser;
@@ -122,14 +119,12 @@ public:
     // Returns the PREFIX, BINPREFIX, DOCPREFIX and similar information
     QHash<QString,QString> versionInfo() const;
     enum PropertyVariant { PropertyVariantGet, PropertyVariantSrc };
-    static QString qmakeProperty(const QHash<QString,QString> &versionInfo, const QByteArray &name,
-                                 PropertyVariant variant = PropertyVariantGet);
     QString qmakeProperty(const QByteArray &name) const;
     virtual void addToEnvironment(const ProjectExplorer::Kit *k, Utils::Environment &env) const;
     virtual Utils::Environment qmakeRunEnvironment() const;
 
     virtual Utils::FileName sourcePath() const;
-    // used by QtUiCodeModelSupport
+    // used by UiCodeModelSupport
     virtual QString uicCommand() const;
     virtual QString designerCommand() const;
     virtual QString linguistCommand() const;
@@ -185,26 +180,18 @@ public:
                                     QHash<QString, QString> *versionInfo, QString *error = 0);
     static Utils::FileName mkspecDirectoryFromVersionInfo(const QHash<QString, QString> &versionInfo);
     static Utils::FileName mkspecFromVersionInfo(const QHash<QString, QString> &versionInfo);
+    static Utils::FileName sourcePath(const QHash<QString, QString> &versionInfo);
 
     static bool isQmlDebuggingSupported(ProjectExplorer::Kit *k, QString *reason = 0);
     bool isQmlDebuggingSupported(QString *reason = 0) const;
     static void buildDebuggingHelper(ProjectExplorer::Kit *k, int tools);
     void buildDebuggingHelper(ProjectExplorer::ToolChain *tc, int tools);
 
-    virtual bool supportsBinaryDebuggingHelper() const;
-    virtual QString gdbDebuggingHelperLibrary() const;
-    virtual QString qmlDebuggingHelperLibrary(bool debugVersion) const;
     virtual QString qmlDumpTool(bool debugVersion) const;
-    virtual QString qmlObserverTool() const;
-    virtual QStringList debuggingHelperLibraryLocations() const;
 
-    virtual bool hasGdbDebuggingHelper() const;
     virtual bool hasQmlDump() const;
     virtual bool hasQmlDumpWithRelocatableFlag() const;
     virtual bool needsQmlDump() const;
-    virtual bool hasQmlDebuggingLibrary() const;
-    virtual bool needsQmlDebuggingLibrary() const;
-    virtual bool hasQmlObserver() const;
     Utils::Environment qmlToolsEnvironment() const;
 
     virtual QtConfigWidget *createConfigurationWidget() const;
@@ -223,6 +210,7 @@ public:
     Utils::FileName headerPath() const;
     Utils::FileName docsPath() const;
     Utils::FileName libraryPath() const;
+    Utils::FileName pluginPath() const;
     Utils::FileName binPath() const;
     Utils::FileName mkspecsPath() const;
 
@@ -233,15 +221,22 @@ public:
     bool hasDebugBuild() const;
     bool hasReleaseBuild() const;
 
+    QStringList configValues() const;
+    QStringList qtConfigValues() const;
+
 protected:
     BaseQtVersion();
     BaseQtVersion(const Utils::FileName &path, bool isAutodetected = false, const QString &autodetectionSource = QString());
 
+    static QString qmakeProperty(const QHash<QString,QString> &versionInfo, const QByteArray &name,
+                                 PropertyVariant variant = PropertyVariantGet);
+
     virtual QList<ProjectExplorer::Task> reportIssuesImpl(const QString &proFile, const QString &buildDir) const;
 
     // helper function for desktop and simulator to figure out the supported abis based on the libraries
-    static Utils::FileName qtCorePath(const QHash<QString,QString> &versionInfo, const QString &versionString);
-    static QList<ProjectExplorer::Abi> qtAbisFromLibrary(const Utils::FileName &coreLibrary);
+    static QList<Utils::FileName> qtCorePaths(const QHash<QString,QString> &versionInfo,
+                                              const QString &versionString);
+    static QList<ProjectExplorer::Abi> qtAbisFromLibrary(const QList<Utils::FileName> &coreLibraries);
 
     void ensureMkSpecParsed() const;
     virtual void parseMkSpec(ProFileEvaluator *) const;
@@ -260,10 +255,7 @@ private:
     int m_id;
 
     bool m_isAutodetected;
-    mutable bool m_hasDebuggingHelper; // controlled by m_versionInfoUpToDate
     mutable bool m_hasQmlDump;         // controlled by m_versionInfoUpToDate
-    mutable bool m_hasQmlDebuggingLibrary; // controlled by m_versionInfoUpdate
-    mutable bool m_hasQmlObserver;     // controlled by m_versionInfoUpToDate
     mutable bool m_mkspecUpToDate;
     mutable bool m_mkspecReadUpToDate;
     mutable bool m_defaultConfigIsDebug;
@@ -276,6 +268,9 @@ private:
     mutable bool m_hasDocumentation;
     mutable bool m_qmakeIsExecutable;
     mutable bool m_hasQtAbis;
+
+    mutable QStringList m_configValues;
+    mutable QStringList m_qtConfigValues;
 
     QString m_displayName;
     QString m_autodetectionSource;

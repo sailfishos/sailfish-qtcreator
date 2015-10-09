@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 AudioCodes Ltd.
+** Copyright (c) 2014 AudioCodes Ltd.
 ** Author: Orgad Shaneh <orgad.shaneh@audiocodes.com>
 ** Contact: http://www.qt-project.org/legal
 **
@@ -42,7 +42,6 @@ static const char historyCountKeyC[] = "HistoryCount";
 static const char timeOutKeyC[] = "TimeOut";
 static const char autoCheckOutKeyC[] = "AutoCheckOut";
 static const char diffTypeKeyC[] = "DiffType";
-static const char extDiffCommandKeyC[] = "ExternalDiffCommand";
 static const char diffArgsKeyC[] = "DiffArgs";
 static const char autoAssignActivityKeyC[] = "AutoAssignActivityName";
 static const char promptToCheckInKeyC[] = "PromptToCheckIn";

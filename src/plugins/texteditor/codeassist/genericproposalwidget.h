@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -32,30 +32,35 @@
 
 #include "iassistproposalwidget.h"
 
+#include <texteditor/texteditor_global.h>
+
+#include <utils/qtcoverride.h>
+
 namespace TextEditor {
 
 class GenericProposalWidgetPrivate;
+class IGenericProposalModel;
 
-class GenericProposalWidget : public IAssistProposalWidget
+class TEXTEDITOR_EXPORT GenericProposalWidget : public IAssistProposalWidget
 {
     Q_OBJECT
     friend class GenericProposalWidgetPrivate;
 
 public:
     GenericProposalWidget();
-    virtual ~GenericProposalWidget();
+    ~GenericProposalWidget();
 
-    virtual void setAssistant(CodeAssistant *assistant);
-    virtual void setReason(AssistReason reason);
-    virtual void setKind(AssistKind kind);
-    virtual void setUnderlyingWidget(const QWidget *underlyingWidget);
-    virtual void setModel(IAssistProposalModel *model);
-    virtual void setDisplayRect(const QRect &rect);
-    virtual void setIsSynchronized(bool isSync);
+    void setAssistant(CodeAssistant *assistant) QTC_OVERRIDE;
+    void setReason(AssistReason reason) QTC_OVERRIDE;
+    void setKind(AssistKind kind) QTC_OVERRIDE;
+    void setUnderlyingWidget(const QWidget *underlyingWidget) QTC_OVERRIDE;
+    void setModel(IAssistProposalModel *model) QTC_OVERRIDE;
+    void setDisplayRect(const QRect &rect) QTC_OVERRIDE;
+    void setIsSynchronized(bool isSync) QTC_OVERRIDE;
 
-    virtual void showProposal(const QString &prefix);
-    virtual void updateProposal(const QString &prefix);
-    virtual void closeProposal();
+    void showProposal(const QString &prefix) QTC_OVERRIDE;
+    void updateProposal(const QString &prefix) QTC_OVERRIDE;
+    void closeProposal() QTC_OVERRIDE;
 
 private:
     bool updateAndCheck(const QString &prefix);
@@ -68,7 +73,9 @@ private slots:
     void turnOnAutoWidth();
 
 protected:
-    virtual bool eventFilter(QObject *o, QEvent *e);
+    bool eventFilter(QObject *o, QEvent *e);
+    bool activateCurrentProposalItem();
+    IGenericProposalModel *model();
 
 private:
     GenericProposalWidgetPrivate *d;

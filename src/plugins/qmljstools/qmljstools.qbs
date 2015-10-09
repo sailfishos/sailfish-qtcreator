@@ -1,23 +1,22 @@
-import qbs.base 1.0
+import qbs 1.0
 
-import "../QtcPlugin.qbs" as QtcPlugin
-import "../../../qbs/defaults.js" as Defaults
+import QtcPlugin
 
 QtcPlugin {
     name: "QmlJSTools"
 
     Depends { name: "Qt"; submodules: ["script", "widgets"] }
-    Depends { name: "Core" }
+    Depends { name: "Aggregation" }
+    Depends { name: "CPlusPlus" }
     Depends { name: "LanguageUtils" }
-    Depends { name: "CppTools" }
     Depends { name: "QmlJS" }
+    Depends { name: "Utils" }
+
+    Depends { name: "Core" }
+    Depends { name: "CppTools" }
     Depends { name: "ProjectExplorer" }
     Depends { name: "TextEditor" }
-    Depends { name: "Locator" }
-    Depends { name: "QmlDebug" }
     Depends { name: "QtSupport" }
-
-    cpp.includePaths: base.concat("../../libs/3rdparty")
 
     files: [
         "QmlJSTools.mimetypes.xml",
@@ -28,8 +27,6 @@ QtcPlugin {
         "qmljscodestylesettingspage.cpp",
         "qmljscodestylesettingspage.h",
         "qmljscodestylesettingspage.ui",
-        "qmljsfindexportedcpptypes.cpp",
-        "qmljsfindexportedcpptypes.h",
         "qmljsfunctionfilter.cpp",
         "qmljsfunctionfilter.h",
         "qmljsindenter.cpp",
@@ -40,8 +37,6 @@ QtcPlugin {
         "qmljsmodelmanager.cpp",
         "qmljsmodelmanager.h",
         "qmljsmodelmanager.h",
-        "qmljsplugindumper.cpp",
-        "qmljsplugindumper.h",
         "qmljsqtstylecodeformatter.cpp",
         "qmljsqtstylecodeformatter.h",
         "qmljsrefactoringchanges.cpp",
@@ -75,7 +70,7 @@ QtcPlugin {
 
     Group {
         name: "Tests"
-        condition: Defaults.testsEnabled(qbs)
+        condition: project.testsEnabled
         files: ["qmljstools_test.cpp"]
     }
 

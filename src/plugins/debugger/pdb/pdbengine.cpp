@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -29,22 +29,22 @@
 
 #include "pdbengine.h"
 
-#include "debuggeractions.h"
-#include "debuggercore.h"
-#include "debuggerdialogs.h"
-#include "debuggerplugin.h"
-#include "debuggerprotocol.h"
-#include "debuggerstartparameters.h"
-#include "debuggerstringutils.h"
-#include "debuggertooltipmanager.h"
+#include <debugger/debuggeractions.h>
+#include <debugger/debuggercore.h>
+#include <debugger/debuggerdialogs.h>
+#include <debugger/debuggerplugin.h>
+#include <debugger/debuggerprotocol.h>
+#include <debugger/debuggerstartparameters.h>
+#include <debugger/debuggerstringutils.h>
+#include <debugger/debuggertooltipmanager.h>
 
-#include "breakhandler.h"
-#include "moduleshandler.h"
-#include "registerhandler.h"
-#include "stackhandler.h"
-#include "sourceutils.h"
-#include "watchhandler.h"
-#include "watchutils.h"
+#include <debugger/breakhandler.h>
+#include <debugger/moduleshandler.h>
+#include <debugger/registerhandler.h>
+#include <debugger/stackhandler.h>
+#include <debugger/sourceutils.h>
+#include <debugger/watchhandler.h>
+#include <debugger/watchutils.h>
 
 #include <utils/qtcassert.h>
 
@@ -211,7 +211,7 @@ void PdbEngine::runEngine()
     QTC_ASSERT(state() == EngineRunRequested, qDebug() << state());
     showStatusMessage(tr("Running requested..."), 5000);
     const QByteArray dumperSourcePath =
-        Core::ICore::resourcePath().toLocal8Bit() + "/dumper/";
+        Core::ICore::resourcePath().toLocal8Bit() + "/debugger/";
     QString fileName = QFileInfo(startParameters().executable).absoluteFilePath();
     postDirectCommand("import sys");
     postDirectCommand("sys.argv.append('" + fileName.toLocal8Bit() + "')");
@@ -596,7 +596,7 @@ QString PdbEngine::errorMessage(QProcess::ProcessError error) const
             return tr("An error occurred when attempting to read from "
                 "the Pdb process. For example, the process may not be running.");
         default:
-            return tr("An unknown error in the Pdb process occurred. ");
+            return tr("An unknown error in the Pdb process occurred.") + QLatin1Char(' ');
     }
 }
 

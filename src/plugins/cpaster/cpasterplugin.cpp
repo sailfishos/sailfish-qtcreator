@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,7 +30,6 @@
 #include "cpasterplugin.h"
 
 #include "pasteview.h"
-#include "codepasterprotocol.h"
 #include "kdepasteprotocol.h"
 #include "pastebindotcomprotocol.h"
 #include "pastebindotcaprotocol.h"
@@ -133,7 +132,6 @@ bool CodepasterPlugin::initialize(const QStringList &arguments, QString *errorMe
     Protocol *protos[] =  { new PasteBinDotComProtocol,
                             new PasteBinDotCaProtocol,
                             new KdePasteProtocol,
-                            new CodePasterProtocol,
                             new FileShareProtocol
                            };
     const int count = sizeof(protos) / sizeof(Protocol *);
@@ -157,7 +155,7 @@ bool CodepasterPlugin::initialize(const QStringList &arguments, QString *errorMe
         Core::ActionManager::actionContainer(Core::Constants::M_TOOLS);
 
     Core::ActionContainer *cpContainer =
-        Core::ActionManager::createMenu(Core::Id("CodePaster"));
+        Core::ActionManager::createMenu("CodePaster");
     cpContainer->menu()->setTitle(tr("&Code Pasting"));
     toolsContainer->addMenu(cpContainer);
 
@@ -213,7 +211,7 @@ void CodepasterPlugin::postEditor()
         if (ITextEditor *textEditor = qobject_cast<ITextEditor *>(editor)) {
             data = textEditor->selectedText();
             if (data.isEmpty())
-                data = textEditor->textDocument()->contents();
+                data = textEditor->textDocument()->plainText();
             mimeType = textEditor->document()->mimeType();
         }
     }
@@ -256,7 +254,7 @@ void CodepasterPlugin::post(QString data, const QString &mimeType)
 
     const QString username = m_settings->username;
 
-    PasteView view(m_protocols, mimeType, ICore::mainWindow());
+    PasteView view(m_protocols, mimeType, ICore::dialogParent());
     view.setProtocol(m_settings->protocol);
 
     const FileDataList diffChunks = splitDiffToFiles(data);
@@ -276,7 +274,7 @@ void CodepasterPlugin::fetchUrl()
     QUrl url;
     do {
         bool ok = true;
-        url = QUrl(QInputDialog::getText(0, tr("Fetch from URL"), tr("Enter URL:"), QLineEdit::Normal, QString(), &ok));
+        url = QUrl(QInputDialog::getText(ICore::dialogParent(), tr("Fetch from URL"), tr("Enter URL:"), QLineEdit::Normal, QString(), &ok));
         if (!ok)
             return;
     } while (!url.isValid());
@@ -285,7 +283,7 @@ void CodepasterPlugin::fetchUrl()
 
 void CodepasterPlugin::fetch()
 {
-    PasteSelectDialog dialog(m_protocols, ICore::mainWindow());
+    PasteSelectDialog dialog(m_protocols, ICore::dialogParent());
     dialog.setProtocol(m_settings->protocol);
 
     if (dialog.exec() != QDialog::Accepted)
@@ -308,7 +306,7 @@ void CodepasterPlugin::finishPost(const QString &link)
 {
     if (m_settings->copyToClipboard)
         QApplication::clipboard()->setText(link);
-    ICore::messageManager()->printToOutputPane(link, m_settings->displayOutput ? Core::MessageManager::ModeSwitch : Core::MessageManager::Silent);
+    MessageManager::write(link, m_settings->displayOutput ? Core::MessageManager::ModeSwitch : Core::MessageManager::Silent);
 }
 
 // Extract the characters that can be used for a file name from a title
@@ -348,14 +346,13 @@ void CodepasterPlugin::finishFetch(const QString &titleDescription,
                                    const QString &content,
                                    bool error)
 {
-    Core::MessageManager *messageManager = ICore::messageManager();
     // Failure?
     if (error) {
-        messageManager->printToOutputPane(content, Core::MessageManager::NoModeSwitch);
+        MessageManager::write(content);
         return;
     }
     if (content.isEmpty()) {
-        messageManager->printToOutputPane(tr("Empty snippet received for \"%1\".").arg(titleDescription), Core::MessageManager::NoModeSwitch);
+        MessageManager::write(tr("Empty snippet received for \"%1\".").arg(titleDescription));
         return;
     }
     // If the mime type has a preferred suffix (cpp/h/patch...), use that for
@@ -365,7 +362,7 @@ void CodepasterPlugin::finishFetch(const QString &titleDescription,
     // Default to "txt".
     QByteArray byteContent = content.toUtf8();
     QString suffix;
-    if (const Core::MimeType mimeType = Core::ICore::mimeDatabase()->findByData(byteContent))
+    if (const MimeType mimeType = MimeDatabase::findByData(byteContent))
         suffix = mimeType.preferredSuffix();
     if (suffix.isEmpty())
          suffix = QLatin1String("txt");
@@ -374,7 +371,7 @@ void CodepasterPlugin::finishFetch(const QString &titleDescription,
     saver.setAutoRemove(false);
     saver.write(byteContent);
     if (!saver.finalize()) {
-        messageManager->printToOutputPane(saver.errorString(), Core::MessageManager::NoModeSwitch);
+        MessageManager::write(saver.errorString());
         return;
     }
     const QString fileName = saver.fileName();
@@ -382,7 +379,7 @@ void CodepasterPlugin::finishFetch(const QString &titleDescription,
     // Open editor with title.
     Core::IEditor *editor = EditorManager::openEditor(fileName);
     QTC_ASSERT(editor, return);
-    editor->setDisplayName(titleDescription);
+    editor->document()->setDisplayName(titleDescription);
 }
 
 CodepasterPlugin *CodepasterPlugin::instance()

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 ** Author: Milian Wolff, KDAB (milian.wolff@kdab.com)
 **
@@ -28,63 +28,44 @@
 **
 ****************************************************************************/
 
-#ifndef ANALYZER_INTERNAL_ANALYZERRUNCONFIGWIDGET_H
-#define ANALYZER_INTERNAL_ANALYZERRUNCONFIGWIDGET_H
+#ifndef ANALYZERRUNCONFIGWIDGET_H
+#define ANALYZERRUNCONFIGWIDGET_H
 
-#include "analyzersettings.h"
+#include "analyzerbase_global.h"
 
-#include <utils/detailswidget.h>
+#include <projectexplorer/runconfiguration.h>
 
 QT_BEGIN_NAMESPACE
 class QComboBox;
 class QPushButton;
 QT_END_NAMESPACE
 
-namespace Utils {
-class DetailsWidget;
-}
+namespace Utils { class DetailsWidget; }
 
 namespace Analyzer {
 
-class AnalyzerSettings;
-class AbstractAnalyzerSubConfig;
-
-namespace Internal {
-
-class AnalyzerToolDetailWidget : public Utils::DetailsWidget
+class ANALYZER_EXPORT AnalyzerRunConfigWidget : public ProjectExplorer::RunConfigWidget
 {
     Q_OBJECT
 
 public:
-    explicit AnalyzerToolDetailWidget(AbstractAnalyzerSubConfig *config, QWidget *parent=0);
-};
+    AnalyzerRunConfigWidget(ProjectExplorer::IRunConfigurationAspect *aspect);
 
-class AnalyzerRunConfigWidget : public ProjectExplorer::RunConfigWidget
-{
-    Q_OBJECT
-
-public:
-    AnalyzerRunConfigWidget();
-
-    virtual QString displayName() const;
-
-    void setRunConfigurationAspect(AnalyzerRunConfigurationAspect *aspect);
-
-private:
-    void setDetailEnabled(bool value);
+    QString displayName() const;
 
 private slots:
     void chooseSettings(int setting);
     void restoreGlobal();
 
 private:
-    QWidget *m_subConfigWidget;
-    AnalyzerRunConfigurationAspect *m_aspect;
+    QWidget *m_configWidget;
+    ProjectExplorer::IRunConfigurationAspect *m_aspect;
+    ProjectExplorer::ISettingsAspect *m_config;
     QComboBox *m_settingsCombo;
     QPushButton *m_restoreButton;
+    Utils::DetailsWidget *m_details;
 };
 
-} // namespace Internal
 } // namespace Analyzer
 
-#endif // ANALYZER_INTERNAL_ANALYZERRUNCONFIGWIDGET_H
+#endif // ANALYZERRUNCONFIGWIDGET_H

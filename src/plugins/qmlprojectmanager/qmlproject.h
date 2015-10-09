@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -34,7 +34,6 @@
 
 #include <projectexplorer/project.h>
 
-#include <QDeclarativeEngine>
 #include <QPointer>
 
 namespace ProjectExplorer { class RunConfiguration; }
@@ -62,7 +61,6 @@ public:
     QString filesFileName() const;
 
     QString displayName() const;
-    Core::Id id() const;
     Core::IDocument *document() const;
     ProjectExplorer::IProjectManager *projectManager() const;
 
@@ -99,6 +97,7 @@ private slots:
     void refreshFiles(const QSet<QString> &added, const QSet<QString> &removed);
     void addedTarget(ProjectExplorer::Target *target);
     void onActiveTargetChanged(ProjectExplorer::Target *target);
+    void onKitChanged();
     void addedRunConfiguration(ProjectExplorer::RunConfiguration *);
 
 protected:
@@ -115,12 +114,11 @@ private:
     QString m_projectName;
     QmlImport m_defaultImport;
     QmlJS::ModelManagerInterface *m_modelManager;
+    ProjectExplorer::Target *m_activeTarget;
 
     // plain format
     QStringList m_files;
 
-    // qml based, new format
-    QDeclarativeEngine m_engine;
     QPointer<QmlProjectItem> m_projectItem;
 
     Internal::QmlProjectNode *m_rootNode;

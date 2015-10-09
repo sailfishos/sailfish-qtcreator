@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -27,69 +27,84 @@
 **
 ****************************************************************************/
 
-import QtQuick 1.0
+import QtQuick 2.1
 import Monitor 1.0
 import "Overview.js" as Plotter
 
-Canvas2D {
+Canvas {
     id: canvas
+    objectName: "Overview"
+    contextType: "2d"
 
     // ***** properties
     height: 50
-    property bool dataAvailable: false
-    property variant startTime : 0
-    property variant endTime : 0
+    property bool dataReady: false
+    property double startTime : 0
+    property double endTime : 0
+    property bool recursionGuard: false
 
     // ***** functions
-    function clearDisplay()
+    function clear()
     {
-        dataAvailable = false;
-        requestRedraw();
+        dataReady = false;
+        requestPaint();
     }
 
     function updateRange() {
-        var newStartTime = Math.round(rangeMover.x * qmlProfilerDataModel.traceDuration() / width) + qmlProfilerDataModel.traceStartTime();
-        var newEndTime = Math.round((rangeMover.x + rangeMover.width) * qmlProfilerDataModel.traceDuration() / width) + qmlProfilerDataModel.traceStartTime();
-        if (startTime !== newStartTime || endTime !== newEndTime) {
-            zoomControl.setRange(newStartTime, newEndTime);
-        }
+        if (recursionGuard)
+            return;
+        var newStartTime = Math.round(rangeMover.getLeft() * qmlProfilerModelProxy.traceDuration() / width) + qmlProfilerModelProxy.traceStartTime();
+        var newEndTime = Math.round(rangeMover.getRight() * qmlProfilerModelProxy.traceDuration() / width) + qmlProfilerModelProxy.traceStartTime();
+        if (startTime !== newStartTime || endTime !== newEndTime)
+            zoomControl.setRange(newStartTime, Math.max(newEndTime, newStartTime + 500));
+    }
+
+    function clamp(val, min, max) {
+        return Math.min(Math.max(val, min), max);
     }
 
     // ***** connections to external objects
     Connections {
         target: zoomControl
         onRangeChanged: {
-            if (qmlProfilerDataModel) {
-                startTime = zoomControl.startTime();
-                endTime = zoomControl.endTime();
-                var newRangeX = (startTime - qmlProfilerDataModel.traceStartTime()) * width / qmlProfilerDataModel.traceDuration();
-                if (rangeMover.x !== newRangeX)
-                    rangeMover.x = newRangeX;
-                var newWidth = (endTime-startTime) * width / qmlProfilerDataModel.traceDuration();
-                if (rangeMover.width !== newWidth)
-                    rangeMover.width = newWidth;
+            if (qmlProfilerModelProxy) {
+                recursionGuard = true;
+                startTime = clamp(zoomControl.startTime(), qmlProfilerModelProxy.traceStartTime(), qmlProfilerModelProxy.traceEndTime());
+                endTime = clamp(zoomControl.endTime(), startTime, qmlProfilerModelProxy.traceEndTime());
+                var newRangeX = (startTime - qmlProfilerModelProxy.traceStartTime()) * width / qmlProfilerModelProxy.traceDuration();
+                var newWidth = (endTime - startTime) * width / qmlProfilerModelProxy.traceDuration();
+                var widthChanged = Math.abs(newWidth - rangeMover.getWidth()) > 1;
+                var leftChanged = Math.abs(newRangeX - rangeMover.getLeft()) > 1;
+                if (leftChanged)
+                    rangeMover.setLeft(newRangeX);
+
+                if (leftChanged || widthChanged)
+                    rangeMover.setRight(newRangeX + newWidth);
+                recursionGuard = false;
             }
         }
     }
 
     Connections {
-        target: qmlProfilerDataModel
-        onStateChanged: {
-            // State is "done"
-            if (qmlProfilerDataModel.getCurrentStateFromQml() == 3) {
-                dataAvailable = true;
-                requestRedraw();
-            }
+        target: qmlProfilerModelProxy
+        onDataAvailable: {
+                dataReady = true;
+                requestPaint();
         }
     }
 
+
     // ***** slots
-    onDrawRegion: {
-        Plotter.qmlProfilerDataModel = qmlProfilerDataModel;
-        if (dataAvailable) {
-            Plotter.plot(canvas, ctxt, region);
+    onPaint: {
+        if (context === null)
+            return; // canvas isn't ready
+
+        context.reset();
+        Plotter.qmlProfilerModelProxy = qmlProfilerModelProxy;
+        if (dataReady) {
+            Plotter.plot(canvas, context, region);
         } else {
-            Plotter.drawGraph(canvas, ctxt, region)    //just draw the background
+            Plotter.drawGraph(canvas, context, region)    //just draw the background
         }
     }
 
@@ -97,26 +112,34 @@ Canvas2D {
     MouseArea {
         anchors.fill: canvas
         function jumpTo(posX) {
-            var newX = posX - rangeMover.width/2;
+            var rangeWidth = rangeMover.getWidth();
+            var newX = posX - rangeWidth / 2;
             if (newX < 0)
                 newX = 0;
-            if (newX + rangeMover.width > canvas.width)
-                newX = canvas.width - rangeMover.width;
-            rangeMover.x = newX;
-            updateRange();
+            if (newX + rangeWidth > canvas.width)
+                newX = canvas.width - rangeWidth;
+
+            if (newX < rangeMover.getLeft()) {
+                rangeMover.setLeft(newX);
+                rangeMover.setRight(newX + rangeWidth);
+            } else if (newX > rangeMover.getLeft()) {
+                rangeMover.setRight(newX + rangeWidth);
+                rangeMover.setLeft(newX);
+            }
         }
 
         onPressed: {
             jumpTo(mouse.x);
         }
-        onMousePositionChanged: {
+        onPositionChanged: {
             jumpTo(mouse.x);
         }
     }
 
     RangeMover {
         id: rangeMover
-        visible: dataAvailable
+        visible: dataReady
+        onRangeChanged: canvas.updateRange()
     }
 
     Rectangle {

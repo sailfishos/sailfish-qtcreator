@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -31,6 +31,7 @@
 #include "modelnodecontextmenu_helper.h"
 #include <nodeproperty.h>
 #include <nodemetainfo.h>
+#include "designeractionmanagerview.h"
 
 namespace QmlDesigner {
 
@@ -42,183 +43,14 @@ static inline QString captionForModelNode(const ModelNode &modelNode)
     return modelNode.id();
 }
 
-static inline bool contains(const QmlItemNode &node, const QPoint &position)
+static inline bool contains(const QmlItemNode &node, const QPointF &position)
 {
     return node.isValid() && node.instanceSceneTransform().mapRect(node.instanceBoundingRect()).contains(position);
 }
 
-namespace Internal {
-
-class DesignerActionManagerView : public QmlModelView
+AbstractView *DesignerActionManager::view()
 {
-public:
-    DesignerActionManagerView() : QmlModelView(0), m_isInRewriterTransaction(false), m_setupContextDirty(false)
-    {}
-
-    void modelAttached(Model *model) QTC_OVERRIDE
-    {
-        QmlModelView::modelAttached(model);
-        setupContext();
-    }
-
-    void modelAboutToBeDetached(Model *model) QTC_OVERRIDE
-    {
-        QmlModelView::modelAboutToBeDetached(model);
-        setupContext();
-    }
-
-    virtual void nodeCreated(const ModelNode &) QTC_OVERRIDE
-    {
-        setupContext();
-    }
-
-    virtual void nodeAboutToBeRemoved(const ModelNode &) QTC_OVERRIDE
-    {}
-
-    virtual void nodeRemoved(const ModelNode &, const NodeAbstractProperty &, PropertyChangeFlags) QTC_OVERRIDE
-    {
-        setupContext();
-    }
-
-    virtual void nodeAboutToBeReparented(const ModelNode &,
-                                         const NodeAbstractProperty &,
-                                         const NodeAbstractProperty &,
-                                         AbstractView::PropertyChangeFlags ) QTC_OVERRIDE
-    {
-        setupContext();
-    }
-
-    virtual void nodeReparented(const ModelNode &, const NodeAbstractProperty &,
-                                const NodeAbstractProperty &,
-                                AbstractView::PropertyChangeFlags) QTC_OVERRIDE
-    {
-        setupContext();
-    }
-
-    virtual void nodeIdChanged(const ModelNode&, const QString&, const QString&) QTC_OVERRIDE
-    {}
-
-    virtual void propertiesAboutToBeRemoved(const QList<AbstractProperty>&) QTC_OVERRIDE
-    {}
-
-    virtual void propertiesRemoved(const QList<AbstractProperty>&) QTC_OVERRIDE
-    {
-        setupContext();
-    }
-
-    virtual void variantPropertiesChanged(const QList<VariantProperty>&, PropertyChangeFlags) QTC_OVERRIDE
-    {}
-
-    virtual void bindingPropertiesChanged(const QList<BindingProperty>&, PropertyChangeFlags) QTC_OVERRIDE
-    {}
-
-    virtual void rootNodeTypeChanged(const QString &, int , int ) QTC_OVERRIDE
-    {
-        setupContext();
-    }
-
-    virtual void instancePropertyChange(const QList<QPair<ModelNode, PropertyName> > &) QTC_OVERRIDE
-    {}
-
-    virtual void instancesCompleted(const QVector<ModelNode> &) QTC_OVERRIDE
-    {}
-
-    virtual void instanceInformationsChange(const QMultiHash<ModelNode, InformationName> &) QTC_OVERRIDE
-    {}
-
-    virtual void instancesRenderImageChanged(const QVector<ModelNode> &) QTC_OVERRIDE
-    {}
-
-    virtual void instancesPreviewImageChanged(const QVector<ModelNode> &) QTC_OVERRIDE
-    {}
-
-    virtual void instancesChildrenChanged(const QVector<ModelNode> &) QTC_OVERRIDE
-    {}
-
-    virtual void instancesToken(const QString &, int , const QVector<ModelNode> &) QTC_OVERRIDE
-    {}
-
-    virtual void nodeSourceChanged(const ModelNode &, const QString &) QTC_OVERRIDE
-    {}
-
-    virtual void rewriterBeginTransaction() QTC_OVERRIDE
-    {
-        m_isInRewriterTransaction = true;
-    }
-
-    virtual void rewriterEndTransaction() QTC_OVERRIDE
-    {
-        m_isInRewriterTransaction = false;
-
-        if (m_setupContextDirty)
-            setupContext();
-    }
-
-    virtual void actualStateChanged(const ModelNode &) QTC_OVERRIDE
-    {
-        setupContext();
-    }
-
-    virtual void selectedNodesChanged(const QList<ModelNode> &,
-                                      const QList<ModelNode> &) QTC_OVERRIDE
-    {
-        setupContext();
-    }
-
-    virtual void nodeOrderChanged(const NodeListProperty &, const ModelNode &, int ) QTC_OVERRIDE
-    {
-        setupContext();
-    }
-
-    virtual void importsChanged(const QList<Import> &, const QList<Import> &) QTC_OVERRIDE
-    {
-        setupContext();
-    }
-
-    virtual void scriptFunctionsChanged(const ModelNode &, const QStringList &) QTC_OVERRIDE
-    {}
-
-    void setDesignerActionList(const QList<AbstractDesignerAction* > &designerActionList)
-    {
-        m_designerActionList = designerActionList;
-    }
-
-protected:
-    void setupContext()
-    {
-        if (m_isInRewriterTransaction) {
-            m_setupContextDirty = true;
-            return;
-        }
-        SelectionContext selectionContext(this);
-        foreach (AbstractDesignerAction* action, m_designerActionList) {
-            action->currentContextChanged(selectionContext);
-        }
-        m_setupContextDirty = false;
-    }
-
-    QList<AbstractDesignerAction* > m_designerActionList;
-    bool m_isInRewriterTransaction;
-    bool m_setupContextDirty;
-};
-
-} //Internal
-
-DesignerActionManager *DesignerActionManager::m_instance = 0;
-
-void DesignerActionManager::addDesignerAction(AbstractDesignerAction *newAction)
-{
-    instance()->addDesignerActionInternal(newAction);
-}
-
-QList<AbstractDesignerAction* > DesignerActionManager::designerActions()
-{
-    return instance()->factoriesInternal();
-}
-
-QmlModelView *DesignerActionManager::view()
-{
-    return instance()->m_view;
+    return m_designerActionManagerView;
 }
 
 class VisiblityModelNodeAction : public ModelNodeAction
@@ -326,7 +158,10 @@ public:
         }
         if (m_action->isEnabled()) {
             ModelNode parentNode;
-            if (m_selectionContext.singleNodeIsSelected() && !m_selectionContext.currentSingleSelectedNode().isRootNode()) {
+            if (m_selectionContext.singleNodeIsSelected()
+                    && !m_selectionContext.currentSingleSelectedNode().isRootNode()
+                    && m_selectionContext.currentSingleSelectedNode().hasParentProperty()) {
+
                 ActionTemplate *selectionAction = new ActionTemplate(QString(), &ModelNodeOperations::select);
                 selectionAction->setParent(m_menu.data());
 
@@ -338,10 +173,10 @@ public:
 
                 m_menu->addAction(selectionAction);
             }
-            foreach (const ModelNode &node, m_selectionContext.qmlModelView()->allModelNodes()) {
+            foreach (const ModelNode &node, m_selectionContext.view()->allModelNodes()) {
                 if (node != m_selectionContext.currentSingleSelectedNode()
                         && node != parentNode
-                        && contains(node, m_selectionContext.scenePos())
+                        && contains(node, m_selectionContext.scenePosition())
                         && !node.isRootNode()) {
                     m_selectionContext.setTargetNode(node);
                     QString what = QString(QT_TRANSLATE_NOOP("QmlDesignerContextMenu", "Select: %1")).arg(captionForModelNode(node));
@@ -413,9 +248,9 @@ bool selectionCanBeLayouted(const SelectionContext &context)
 
 bool hasQtQuickLayoutImport(const SelectionContext &context)
 {
-    if (context.qmlModelView() && context.qmlModelView()->model()) {
+    if (context.view() && context.view()->model()) {
         Import import = Import::createLibraryImport(QLatin1String("QtQuick.Layouts"), QLatin1String("1.0"));
-        return context.qmlModelView()->model()->hasImport(import, true, true);
+        return context.view()->model()->hasImport(import, true, true);
     }
 
     return false;
@@ -435,6 +270,12 @@ bool selectionNotEmptyAndHasWidthOrHeightProperty(const SelectionContext &contex
 {
     return selectionNotEmpty(context)
         && selectionHasProperty1or2(context, widthProperty, heightProperty);
+}
+
+bool singleSelectionItemIsNotAnchoredAndSingleSelectionNotRoot(const SelectionContext &context)
+{
+    return singleSelectionItemIsNotAnchored(context)
+            && singleSelectionNotRoot(context);
 }
 
 bool selectionNotEmptyAndHasXorYProperty(const SelectionContext &context)
@@ -503,7 +344,7 @@ void DesignerActionManager::createDefaultDesignerActions()
     addDesignerAction(new MenuDesignerAction(anchorsCategoryDisplayName, anchorsCategory,
                     priorityAnchorsCategory, &singleSelectionAndInBaseState));
         addDesignerAction(new ModelNodeAction
-                   (anchorsFillDisplayName, anchorsCategory, 200, &anchorsFill, &singleSelectionItemIsNotAnchored));
+                   (anchorsFillDisplayName, anchorsCategory, 200, &anchorsFill, &singleSelectionItemIsNotAnchoredAndSingleSelectionNotRoot));
         addDesignerAction(new ModelNodeAction
                    (anchorsResetDisplayName, anchorsCategory, 180, &anchorsReset, &singleSelectionItemIsAnchored));
 
@@ -586,25 +427,16 @@ void DesignerActionManager::createDefaultDesignerActions()
     addDesignerAction(new SeperatorDesignerAction(rootCategory, priorityTopLevelSeperator));
     addDesignerAction(new ModelNodeAction
                (goIntoComponentDisplayName, rootCategory, priorityGoIntoComponent, &goIntoComponent, &selectionIsComponent));
+
 }
 
-DesignerActionManager *DesignerActionManager::instance()
-{
-    if (!m_instance) {
-        m_instance = new DesignerActionManager;
-        createDefaultDesignerActions();
-    }
-
-    return m_instance;
-}
-
-void DesignerActionManager::addDesignerActionInternal(AbstractDesignerAction *newAction)
+void DesignerActionManager::addDesignerAction(AbstractDesignerAction *newAction)
 {
     m_designerActions.append(QSharedPointer<AbstractDesignerAction>(newAction));
-    m_view->setDesignerActionList(designerActions());
+    m_designerActionManagerView->setDesignerActionList(designerActions());
 }
 
-QList<AbstractDesignerAction* > DesignerActionManager::factoriesInternal() const
+QList<AbstractDesignerAction* > DesignerActionManager::designerActions() const
 {
     QList<AbstractDesignerAction* > list;
     foreach (const QSharedPointer<AbstractDesignerAction> &pointer, m_designerActions) {
@@ -614,13 +446,13 @@ QList<AbstractDesignerAction* > DesignerActionManager::factoriesInternal() const
     return list;
 }
 
-DesignerActionManager::DesignerActionManager() : m_view(new Internal::DesignerActionManagerView)
+DesignerActionManager::DesignerActionManager(DesignerActionManagerView *designerActionManagerView)
+    : m_designerActionManagerView(designerActionManagerView)
 {
 }
 
 DesignerActionManager::~DesignerActionManager()
 {
-    delete m_view;
 }
 
 } //QmlDesigner

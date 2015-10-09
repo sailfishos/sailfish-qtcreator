@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -47,13 +47,7 @@ class DiffEditorFactory : public Core::IEditorFactory
 public:
     explicit DiffEditorFactory(QObject *parent);
 
-    QStringList mimeTypes() const;
-    Core::IEditor *createEditor(QWidget *parent);
-    Core::Id id() const;
-    QString displayName() const;
-
-private:
-    const QStringList m_mimeTypes;
+    Core::IEditor *createEditor();
 };
 
 } // namespace Internal

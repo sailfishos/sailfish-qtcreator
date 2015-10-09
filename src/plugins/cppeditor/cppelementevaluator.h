@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -76,7 +76,8 @@ private:
     bool matchMacroInUse(const CPlusPlus::Document::Ptr &document, unsigned pos);
     void handleLookupItemMatch(const CPlusPlus::Snapshot &snapshot,
                                const CPlusPlus::LookupItem &lookupItem,
-                               const CPlusPlus::LookupContext &lookupContext);
+                               const CPlusPlus::LookupContext &lookupContext,
+                               const CPlusPlus::Scope *scope);
 
     CPPEditorWidget *m_editor;
     CppTools::CppModelManagerInterface *m_modelManager;
@@ -134,6 +135,7 @@ public:
     explicit CppDeclarableElement(CPlusPlus::Symbol *declaration);
 
 public:
+    CPlusPlus::Symbol *declaration;
     QString name;
     QString qualifiedName;
     QString type;
@@ -151,6 +153,8 @@ class CppClass : public CppDeclarableElement
 public:
     CppClass();
     explicit CppClass(CPlusPlus::Symbol *declaration);
+
+    bool operator==(const CppClass &other);
 
     void lookupBases(CPlusPlus::Symbol *declaration, const CPlusPlus::LookupContext &context);
     void lookupDerived(CPlusPlus::Symbol *declaration, const CPlusPlus::Snapshot &snapshot);

@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 BogDan Vatra <bog_dan_ro@yahoo.com>
+** Copyright (c) 2014 BogDan Vatra <bog_dan_ro@yahoo.com>
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -71,7 +71,6 @@ signals:
     void remoteErrorOutput(const QByteArray &output);
 
 private slots:
-    void killPID();
     void checkPID();
     void logcatReadStandardError();
     void logcatReadStandardOutput();
@@ -83,13 +82,16 @@ private:
     void forceStop();
     QByteArray runPs();
     void findPs();
+    void logcatProcess(const QByteArray &text, QByteArray &buffer, bool onlyError);
 
 private:
     QProcess m_adbLogcatProcess;
     QTimer m_checkPIDTimer;
     bool m_wasStarted;
+    int m_tries;
 
-    QByteArray m_logcat;
+    QByteArray m_stdoutBuffer;
+    QByteArray m_stderrBuffer;
     QString m_intentName;
     QString m_packageName;
     QString m_deviceSerialNumber;

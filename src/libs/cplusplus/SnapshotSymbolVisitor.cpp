@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -49,7 +49,7 @@ void SnapshotSymbolVisitor::accept(Document::Ptr doc, QSet<QString> *processed)
     if (doc && doc->globalNamespace() && ! processed->contains(doc->fileName())) {
         processed->insert(doc->fileName());
 
-        foreach (const Document::Include &i, doc->includes()) {
+        foreach (const Document::Include &i, doc->resolvedIncludes()) {
             if (Document::Ptr incl = _snapshot.document(i.resolvedFileName()))
                 accept(incl, processed);
         }

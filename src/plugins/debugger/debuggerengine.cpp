@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -40,14 +40,13 @@
 #include "disassembleragent.h"
 #include "memoryagent.h"
 #include "moduleshandler.h"
-#include "peutils.h"
 #include "registerhandler.h"
 #include "sourcefileshandler.h"
 #include "stackhandler.h"
 #include "threadshandler.h"
 #include "watchhandler.h"
+#include <debugger/shared/peutils.h>
 
-#include <coreplugin/icore.h>
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/editormanager/ieditor.h>
 #include <coreplugin/progressmanager/progressmanager.h>
@@ -67,6 +66,7 @@
 #include <QDebug>
 #include <QTimer>
 #include <QFileInfo>
+#include <QDir>
 
 #include <QMessageBox>
 
@@ -122,7 +122,6 @@ QDebug operator<<(QDebug str, const DebuggerStartParameters &sp)
             << " attachPID=" << sp.attachPID
             << " useTerminal=" << sp.useTerminal
             << " remoteChannel=" << sp.remoteChannel
-            << " symbolFileName=" << sp.symbolFileName
             << " serverStartScript=" << sp.serverStartScript
             << " abi=" << sp.toolChainAbi.toString() << '\n';
     return str;
@@ -167,8 +166,7 @@ public:
         m_watchHandler(engine),
         m_disassemblerAgent(engine),
         m_memoryAgent(engine),
-        m_isStateDebugging(false),
-        m_taskHub(0)
+        m_isStateDebugging(false)
     {
         connect(&m_locationTimer, SIGNAL(timeout()), SLOT(resetLocation()));
     }
@@ -255,8 +253,6 @@ public slots:
         m_disassemblerAgent.resetLocation();
     }
 
-    TaskHub *taskHub();
-
 public:
     DebuggerState state() const { return m_state; }
     RemoteSetupState remoteSetupState() const { return m_remoteSetupState; }
@@ -301,7 +297,6 @@ public:
     bool m_isStateDebugging;
 
     Utils::FileInProjectFinder m_fileFinder;
-    TaskHub *m_taskHub;
 };
 
 
@@ -420,59 +415,22 @@ SourceFilesHandler *DebuggerEngine::sourceFilesHandler() const
 
 QAbstractItemModel *DebuggerEngine::modulesModel() const
 {
-    QAbstractItemModel *model = modulesHandler()->model();
-    if (model->objectName().isEmpty()) // Make debugging easier.
-        model->setObjectName(objectName() + QLatin1String("ModulesModel"));
-    return model;
+   return modulesHandler()->model();
 }
 
 QAbstractItemModel *DebuggerEngine::registerModel() const
 {
-    QAbstractItemModel *model = registerHandler()->model();
-    if (model->objectName().isEmpty()) // Make debugging easier.
-        model->setObjectName(objectName() + QLatin1String("RegisterModel"));
-    return model;
+    return registerHandler()->model();
 }
 
 QAbstractItemModel *DebuggerEngine::stackModel() const
 {
-    QAbstractItemModel *model = stackHandler()->model();
-    if (model->objectName().isEmpty()) // Make debugging easier.
-        model->setObjectName(objectName() + QLatin1String("StackModel"));
-    return model;
+    return stackHandler()->model();
 }
 
 QAbstractItemModel *DebuggerEngine::threadsModel() const
 {
-    QAbstractItemModel *model = threadsHandler()->model();
-    if (model->objectName().isEmpty()) // Make debugging easier.
-        model->setObjectName(objectName() + QLatin1String("ThreadsModel"));
-    return model;
-}
-
-QAbstractItemModel *DebuggerEngine::localsModel() const
-{
-    return watchHandler()->model();
-}
-
-QAbstractItemModel *DebuggerEngine::watchersModel() const
-{
-    return watchHandler()->model();
-}
-
-QAbstractItemModel *DebuggerEngine::returnModel() const
-{
-    return watchHandler()->model();
-}
-
-QAbstractItemModel *DebuggerEngine::inspectorModel() const
-{
-    return watchHandler()->model();
-}
-
-QAbstractItemModel *DebuggerEngine::toolTipsModel() const
-{
-    return watchHandler()->model();
+    return threadsHandler()->model();
 }
 
 QAbstractItemModel *DebuggerEngine::watchModel() const
@@ -482,10 +440,7 @@ QAbstractItemModel *DebuggerEngine::watchModel() const
 
 QAbstractItemModel *DebuggerEngine::sourceFilesModel() const
 {
-    QAbstractItemModel *model = sourceFilesHandler()->model();
-    if (model->objectName().isEmpty()) // Make debugging easier.
-        model->setObjectName(objectName() + QLatin1String("SourceFilesModel"));
-    return model;
+    return sourceFilesHandler()->model();
 }
 
 void DebuggerEngine::fetchMemory(MemoryAgent *, QObject *,
@@ -533,10 +488,9 @@ void DebuggerEngine::startDebugger(DebuggerRunControl *runControl)
     QTC_ASSERT(!d->m_runControl, notifyEngineSetupFailed(); return);
 
     d->m_progress.setProgressRange(0, 1000);
-    Core::FutureProgress *fp = Core::ICore::progressManager()
-        ->addTask(d->m_progress.future(),
-        tr("Launching"), _("Debugger.Launcher"));
-    fp->setKeepOnFinish(Core::FutureProgress::HideOnFinish);
+    FutureProgress *fp = ProgressManager::addTask(d->m_progress.future(),
+        tr("Launching"), "Debugger.Launcher");
+    fp->setKeepOnFinish(FutureProgress::HideOnFinish);
     d->m_progress.reportStarted();
 
     d->m_runControl = runControl;
@@ -580,22 +534,15 @@ void DebuggerEngine::gotoLocation(const Location &loc)
     //    return;
 
 
-    const QString file = loc.fileName();
+    const QString file = QDir::cleanPath(loc.fileName());
     const int line = loc.lineNumber();
-    QList<IEditor *> editors = EditorManager::instance()->editorsForFileName(file);
-    IEditor *editor = 0;
-    if (editors.isEmpty()) {
-        editor = EditorManager::openEditor(file, Core::Id(),
-            EditorManager::IgnoreNavigationHistory);
-        QTC_ASSERT(editor, return); // Unreadable file?
-        editor->setProperty(Constants::OPENED_BY_DEBUGGER, true);
-    } else {
-        editor = editors.back();
-    }
-
-    ITextEditor *texteditor = qobject_cast<ITextEditor *>(editor);
-    if (texteditor)
-        texteditor->gotoLine(line, 0);
+    bool newEditor = false;
+    IEditor *editor = EditorManager::openEditor(file, Id(),
+                                                EditorManager::IgnoreNavigationHistory, &newEditor);
+    QTC_ASSERT(editor, return); // Unreadable file?
+    editor->gotoLine(line, 0);
+    if (newEditor)
+        editor->document()->setProperty(Constants::OPENED_BY_DEBUGGER, true);
 
     if (loc.needsMarker()) {
         d->m_locationMark.reset(new TextEditor::BaseTextMark(file, line));
@@ -604,9 +551,6 @@ void DebuggerEngine::gotoLocation(const Location &loc)
         d->m_locationMark->init();
     }
 
-    // FIXME: Breaks with split views.
-    if (!d->m_memoryAgent.hasVisibleEditor() || loc.needsRaise())
-        EditorManager::activateEditor(editor);
     //qDebug() << "MEMORY: " << d->m_memoryAgent.hasVisibleEditor();
 }
 
@@ -1101,7 +1045,7 @@ void DebuggerEnginePrivate::doFinishDebugger()
 
 void DebuggerEnginePrivate::setRemoteSetupState(RemoteSetupState state)
 {
-    bool allowedTransition = true;
+    bool allowedTransition = false;
     if (m_remoteSetupState == RemoteSetupNone) {
         if (state == RemoteSetupRequested)
             allowedTransition = true;
@@ -1458,11 +1402,15 @@ void DebuggerEngine::reloadFullStack()
 {
 }
 
+void DebuggerEngine::loadAdditionalQmlStack()
+{
+}
+
 void DebuggerEngine::reloadDebuggingHelpers()
 {
 }
 
-void DebuggerEngine::addOptionPages(QList<Core::IOptionsPage*> *) const
+void DebuggerEngine::addOptionPages(QList<IOptionsPage*> *) const
 {
 }
 
@@ -1731,9 +1679,9 @@ QString DebuggerEngine::msgInterrupted()
 void DebuggerEngine::showStoppedBySignalMessageBox(QString meaning, QString name)
 {
     if (name.isEmpty())
-        name = tr(" <Unknown> ", "name");
+        name = QLatin1Char(' ') + tr("<Unknown>", "name") + QLatin1Char(' ');
     if (meaning.isEmpty())
-        meaning = tr(" <Unknown> ", "meaning");
+        meaning = QLatin1Char(' ') + tr("<Unknown>", "meaning") + QLatin1Char(' ');
     const QString msg = tr("<p>The inferior stopped because it received a "
                            "signal from the Operating System.<p>"
                            "<table><tr><td>Signal name : </td><td>%1</td></tr>"
@@ -1856,7 +1804,7 @@ void DebuggerEngine::checkForReleaseBuild(const DebuggerStartParameters &sp)
 
         foreach (const QByteArray &name, interesting) {
             const QString found = seen.contains(name) ? tr("Found.") : tr("Not found.");
-            detailedWarning.append(tr("\nSection %1: %2").arg(_(name)).arg(found));
+            detailedWarning.append(QLatin1Char('\n') + tr("Section %1: %2").arg(_(name)).arg(found));
         }
         break;
     }
@@ -1865,26 +1813,8 @@ void DebuggerEngine::checkForReleaseBuild(const DebuggerStartParameters &sp)
     }
     showMessageBox(QMessageBox::Information, tr("Warning"),
                    tr("This does not seem to be a \"Debug\" build.\n"
-                      "Setting breakpoints by file name and line number may fail.\n").append(detailedWarning));
-}
-
-TaskHub *DebuggerEnginePrivate::taskHub()
-{
-    if (!m_taskHub) {
-        m_taskHub = ProjectExplorerPlugin::instance()->taskHub();
-        m_taskHub->addCategory(Core::Id(Debugger::Constants::TASK_CATEGORY_DEBUGGER_DEBUGINFO),
-                               tr("Debug Information"));
-        m_taskHub->addCategory(Core::Id(Debugger::Constants::TASK_CATEGORY_DEBUGGER_TEST),
-                               tr("Debugger Test"));
-        m_taskHub->addCategory(Core::Id(Debugger::Constants::TASK_CATEGORY_DEBUGGER_RUNTIME),
-                               tr("Debugger Runtime"));
-    }
-    return m_taskHub;
-}
-
-TaskHub *DebuggerEngine::taskHub()
-{
-    return d->taskHub();
+                      "Setting breakpoints by file name and line number may fail.")
+                   + QLatin1Char('\n') + detailedWarning);
 }
 
 } // namespace Debugger

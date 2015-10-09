@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -336,6 +336,7 @@ QWidget *CustomWizardFieldPage::registerPathChooser(const QString &fieldName,
         pathChooser->setExpectedKind(Utils::PathChooser::Command);
     else if (expectedKind == QLatin1String("any"))
         pathChooser->setExpectedKind(Utils::PathChooser::Any);
+    pathChooser->setHistoryCompleter(QString::fromLatin1("PE.Custom.") + m_parameters->id + QLatin1Char('.') + field.name);
 
     registerField(fieldName, pathChooser, "path", SIGNAL(changed(QString)));
     // Connect to completeChanged() for derived classes that reimplement isComplete()
@@ -497,12 +498,6 @@ QMap<QString, QString> CustomWizardFieldPage::replacementMap(const QWizard *w,
     fieldReplacementMap.insert(QLatin1String("Path"), QDir::toNativeSeparators(ctx->path));
     fieldReplacementMap.insert(QLatin1String("TargetPath"), QDir::toNativeSeparators(ctx->targetPath));
 
-    // Insert additional pre-defined variables
-    fieldReplacementMap.insert(QLatin1String("CurrentDate"),
-                               QDate::currentDate().toString(QLatin1String("yyyy-MM-dd")));
-    fieldReplacementMap.insert(QLatin1String("CurrentTime"),
-                               QTime::currentTime().toString(QLocale::system().
-                                                             timeFormat(QLocale::ShortFormat)));
     return fieldReplacementMap;
 }
 
@@ -523,6 +518,7 @@ CustomWizardPage::CustomWizardPage(const QSharedPointer<CustomWizardContext> &ct
     CustomWizardFieldPage(ctx, parameters, parent),
     m_pathChooser(new Utils::PathChooser)
 {
+    m_pathChooser->setHistoryCompleter(QLatin1String("PE.ProjectDir.History"));
     addRow(tr("Path:"), m_pathChooser);
     connect(m_pathChooser, SIGNAL(validChanged()), this, SIGNAL(completeChanged()));
 }

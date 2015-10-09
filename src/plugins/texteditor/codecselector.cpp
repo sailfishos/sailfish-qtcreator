@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -73,8 +73,8 @@ CodecSelector::CodecSelector(QWidget *parent, BaseTextDocument *doc)
     m_label = new QLabel(this);
     QString decodingErrorHint;
     if (m_hasDecodingError)
-        decodingErrorHint = tr("\nThe following encodings are likely to fit:");
-    m_label->setText(tr("Select encoding for \"%1\".%2").arg(QFileInfo(doc->fileName()).fileName()).arg(decodingErrorHint));
+        decodingErrorHint = QLatin1Char('\n') + tr("The following encodings are likely to fit:");
+    m_label->setText(tr("Select encoding for \"%1\".%2").arg(QFileInfo(doc->filePath()).fileName()).arg(decodingErrorHint));
 
     m_listWidget = new CodecListWidget(this);
 

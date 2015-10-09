@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -81,19 +81,26 @@ public:
     QList<LookupItem> find(const Name *name);
 
     ClassOrNamespace *lookupType(const Name *name);
+    ClassOrNamespace *lookupType(const Name *name, Block *block);
     ClassOrNamespace *findType(const Name *name);
+    ClassOrNamespace *findBlock(Block *block);
 
     Symbol *lookupInScope(const QList<const Name *> &fullName);
+
+    /// The class this ClassOrNamespace is based on.
+    Class *rootClass() const { return _rootClass; }
 
 private:
     typedef std::map<const Name *, ClassOrNamespace *, Name::Compare> Table;
     typedef std::map<const TemplateNameId *, ClassOrNamespace *, TemplateNameId::Compare> TemplateNameIdTable;
+    typedef QHash<const AnonymousNameId *, ClassOrNamespace *> Anonymouses;
 
     /// \internal
     void flush();
 
     /// \internal
-    ClassOrNamespace *findOrCreateType(const Name *name, ClassOrNamespace *origin = 0);
+    ClassOrNamespace *findOrCreateType(const Name *name, ClassOrNamespace *origin = 0,
+                                       Class *clazz = 0);
 
     void addTodo(Symbol *symbol);
     void addSymbol(Symbol *symbol);
@@ -126,12 +133,14 @@ private:
     QList<Symbol *> _symbols;
     QList<ClassOrNamespace *> _usings;
     Table _classOrNamespaces;
+    QHash<Block *, ClassOrNamespace *> _blocks;
     QList<Enum *> _enums;
     QList<Symbol *> _todo;
     QSharedPointer<Control> _control;
     TemplateNameIdTable _specializations;
     QMap<const TemplateNameId *, ClassOrNamespace *> _instantiations;
-    QHash<const AnonymousNameId *, ClassOrNamespace *> _anonymouses;
+    Anonymouses _anonymouses;
+    QSet<const AnonymousNameId *> _declaredOrTypedefedAnonymouses;
 
     QHash<Internal::FullyQualifiedName, Symbol *> *_scopeLookupCache;
 
@@ -141,6 +150,8 @@ private:
 
     AlreadyConsideredClassContainer<Class> _alreadyConsideredClasses;
     AlreadyConsideredClassContainer<TemplateNameId> _alreadyConsideredTemplates;
+
+    Class *_rootClass;
 
     class NestedClassInstantiator
     {
@@ -238,7 +249,9 @@ protected:
     virtual bool visit(ForwardClassDeclaration *klass);
     virtual bool visit(Enum *e);
     virtual bool visit(Declaration *decl);
-    virtual bool visit(Function *);
+    virtual bool visit(Function *function);
+    virtual bool visit(Block *block);
+
     virtual bool visit(BaseClass *b);
     virtual bool visit(UsingNamespaceDirective *u);
     virtual bool visit(UsingDeclaration *u);

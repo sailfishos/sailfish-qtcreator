@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -50,7 +50,7 @@ class MoveManipulator
 {
 public:
     enum State {
-        UseActualState,
+        UseCurrentState,
         UseBaseState
     };
 
@@ -62,7 +62,7 @@ public:
     void synchronizeParent(const QList<FormEditorItem*> &itemList, const ModelNode &parentNode);
 
     void begin(const QPointF& beginPoint);
-    void update(const QPointF& updatePoint, Snapper::Snapping useSnapping, State stateToBeManipulated = UseActualState);
+    void update(const QPointF& updatePoint, Snapper::Snapping useSnapping, State stateToBeManipulated = UseCurrentState);
     void reparentTo(FormEditorItem *newParent);
     void end();
     void end(Snapper::Snapping useSnapping);
@@ -94,8 +94,6 @@ protected:
     void generateSnappingLines(const QHash<FormEditorItem*, QRectF> &boundingRectHash);
 
     bool itemsCanReparented() const;
-
-    void setPosition(QmlItemNode itemNode, const QPointF &position);
 
     void adjustAnchoringOfItem(FormEditorItem *item);
 

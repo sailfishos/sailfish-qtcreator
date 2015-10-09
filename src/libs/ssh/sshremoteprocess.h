@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -80,6 +80,7 @@ public:
      * usually configured to ignore such requests for security reasons.
      */
     void addToEnvironment(const QByteArray &var, const QByteArray &value);
+    void clearEnvironment();
 
     void requestTerminal(const SshPseudoTerminal &terminal);
     void start();

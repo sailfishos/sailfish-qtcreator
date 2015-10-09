@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -69,6 +69,7 @@ GenericProject::GenericProject(Manager *manager, const QString &fileName)
     : m_manager(manager),
       m_fileName(fileName)
 {
+    setId(Constants::GENERICPROJECT_ID);
     setProjectContext(Context(GenericProjectManager::Constants::PROJECTCONTEXT));
     setProjectLanguages(Context(ProjectExplorer::Constants::LANG_CXX));
 
@@ -217,12 +218,6 @@ void GenericProject::parseProject(RefreshOptions options)
 
         // TODO: Possibly load some configuration from the project file
         //QSettings projectInfo(m_fileName, QSettings::IniFormat);
-
-        m_defines.clear();
-
-        QFile configFile(configFileName());
-        if (configFile.open(QFile::ReadOnly))
-            m_defines = configFile.readAll();
     }
 
     if (options & Files)
@@ -247,16 +242,21 @@ void GenericProject::refresh(RefreshOptions options)
         CppTools::CppModelManagerInterface::ProjectInfo pinfo = modelManager->projectInfo(this);
         pinfo.clearProjectParts();
         CppTools::ProjectPart::Ptr part(new CppTools::ProjectPart);
+        part->project = this;
+        part->displayName = displayName();
+        part->projectFile = projectFilePath();
 
-        Kit *k = activeTarget() ? activeTarget()->kit() : KitManager::instance()->defaultKit();
+        part->includePaths += projectIncludePaths();
+
+        Kit *k = activeTarget() ? activeTarget()->kit() : KitManager::defaultKit();
         if (ToolChain *tc = ToolChainKitInformation::toolChain(k)) {
             QStringList cxxflags; // FIXME: Can we do better?
             part->evaluateToolchain(tc, cxxflags, cxxflags,
                                     SysRootKitInformation::sysRoot(k));
         }
 
-        part->includePaths += allIncludePaths();
-        part->defines += m_defines;
+        part->cxxVersion = CppTools::ProjectPart::CXX11; // assume C++11
+        part->projectConfigFile = configFileName();
 
         // ### add _defines.
 
@@ -265,22 +265,7 @@ void GenericProject::refresh(RefreshOptions options)
         foreach (const QString &file, files())
             adder.maybeAdd(file);
 
-        QStringList filesToUpdate;
-
-        if (options & Configuration) {
-            foreach (const CppTools::ProjectFile &file, part->files)
-                filesToUpdate << file.path;
-            filesToUpdate.append(CppTools::CppModelManagerInterface::configurationFileName());
-            // Full update, if there's a code model update, cancel it
-            m_codeModelFuture.cancel();
-        } else if (options & Files) {
-            // Only update files that got added to the list
-            QSet<QString> newFileList;
-            foreach (const CppTools::ProjectFile &file, part->files)
-                newFileList.insert(file.path);
-            newFileList.subtract(oldFileList);
-            filesToUpdate.append(newFileList.toList());
-        }
+        m_codeModelFuture.cancel();
 
         pinfo.appendProjectPart(part);
         setProjectLanguage(ProjectExplorer::Constants::LANG_CXX, !part->files.isEmpty());
@@ -344,15 +329,6 @@ QStringList GenericProject::processEntries(const QStringList &paths,
     return absolutePaths;
 }
 
-QStringList GenericProject::allIncludePaths() const
-{
-    QStringList paths;
-    paths += m_includePaths;
-    paths += m_projectIncludePaths;
-    paths.removeDuplicates();
-    return paths;
-}
-
 QStringList GenericProject::projectIncludePaths() const
 {
     return m_projectIncludePaths;
@@ -363,29 +339,9 @@ QStringList GenericProject::files() const
     return m_files;
 }
 
-QStringList GenericProject::includePaths() const
-{
-    return m_includePaths;
-}
-
-void GenericProject::setIncludePaths(const QStringList &includePaths)
-{
-    m_includePaths = includePaths;
-}
-
-QByteArray GenericProject::defines() const
-{
-    return m_defines;
-}
-
 QString GenericProject::displayName() const
 {
     return m_projectName;
-}
-
-Id GenericProject::id() const
-{
-    return Id(Constants::GENERICPROJECT_ID);
 }
 
 IDocument *GenericProject::document() const
@@ -422,7 +378,7 @@ bool GenericProject::fromMap(const QVariantMap &map)
     if (!Project::fromMap(map))
         return false;
 
-    Kit *defaultKit = KitManager::instance()->defaultKit();
+    Kit *defaultKit = KitManager::defaultKit();
     if (!activeTarget() && defaultKit)
         addTarget(createTarget(defaultKit));
 
@@ -437,8 +393,6 @@ bool GenericProject::fromMap(const QVariantMap &map)
             t->addRunConfiguration(new QtSupport::CustomExecutableRunConfiguration(t));
     }
 
-    setIncludePaths(allIncludePaths());
-
     refresh(Everything);
     return true;
 }
@@ -452,18 +406,14 @@ bool GenericProject::fromMap(const QVariantMap &map)
 GenericProjectFile::GenericProjectFile(GenericProject *parent, QString fileName, GenericProject::RefreshOptions options)
     : IDocument(parent),
       m_project(parent),
-      m_fileName(fileName),
       m_options(options)
-{ }
+{
+    setFilePath(fileName);
+}
 
 bool GenericProjectFile::save(QString *, const QString &, bool)
 {
     return false;
-}
-
-QString GenericProjectFile::fileName() const
-{
-    return m_fileName;
 }
 
 QString GenericProjectFile::defaultPath() const
@@ -489,13 +439,6 @@ bool GenericProjectFile::isModified() const
 bool GenericProjectFile::isSaveAsAllowed() const
 {
     return false;
-}
-
-void GenericProjectFile::rename(const QString &newName)
-{
-    // Can't happen
-    Q_UNUSED(newName);
-    QTC_CHECK(false);
 }
 
 IDocument::ReloadBehavior GenericProjectFile::reloadBehavior(ChangeTrigger state, ChangeType type) const

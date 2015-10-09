@@ -1,6 +1,6 @@
     /****************************************************************************
 **
-** Copyright (C) 2012 - 2013 Jolla Ltd.
+** Copyright (C) 2012 - 2014 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -21,10 +21,11 @@
 ****************************************************************************/
 
 #include "merdeploystepfactory.h"
-#include "merdeploysteps.h"
+
 #include "merdeployconfiguration.h"
-#include "merrpmpackagingstep.h"
+#include "merdeploysteps.h"
 #include "merrpminstaller.h"
+#include "merrpmpackagingstep.h"
 #include "meruploadandinstallrpmsteps.h"
 
 #include <projectexplorer/buildsteplist.h>
@@ -46,11 +47,14 @@ QList<Core::Id> MerDeployStepFactory::availableCreationIds(BuildStepList *parent
     if (!qobject_cast<MerDeployConfiguration *>(parent->parent()))
         return ids;
 
-    ids << MerEmulatorStartStep::stepId();
+    // Intentionally omit MerEmulatorStartStep and MerConnectionTestStep - these
+    // are available wrapped by MerPrepareTargetStep
+    ids << MerPrepareTargetStep::stepId();
     ids << MerMb2RsyncDeployStep::stepId();
     ids << MerMb2RpmDeployStep::stepId();
     ids << MerMb2RpmBuildStep::stepId();
     ids << MerRpmPackagingStep::stepId();
+    ids << MerRpmValidationStep::stepId();
     ids << MerUploadAndInstallRpmStep::stepId();
     ids << MerLocalRsyncDeployStep::stepId();
 
@@ -59,8 +63,8 @@ QList<Core::Id> MerDeployStepFactory::availableCreationIds(BuildStepList *parent
 
 QString MerDeployStepFactory::displayNameForId(const Core::Id id) const
 {
-    if (id == MerEmulatorStartStep::stepId())
-        return MerEmulatorStartStep::displayName();
+    if (id == MerPrepareTargetStep::stepId())
+        return MerPrepareTargetStep::displayName();
     if (id == MerMb2RsyncDeployStep::stepId())
         return MerMb2RsyncDeployStep::displayName();
     if (id == MerMb2RpmDeployStep::stepId())
@@ -69,6 +73,8 @@ QString MerDeployStepFactory::displayNameForId(const Core::Id id) const
         return MerMb2RpmBuildStep::displayName();
     if (id == MerRpmPackagingStep::stepId())
         return MerRpmPackagingStep::displayName();
+    if (id == MerRpmValidationStep::stepId())
+        return MerRpmValidationStep::displayName();
     if (id == MerUploadAndInstallRpmStep::stepId())
         return MerUploadAndInstallRpmStep::displayName();
     if (id == MerLocalRsyncDeployStep::stepId())
@@ -84,8 +90,8 @@ bool MerDeployStepFactory::canCreate(BuildStepList *parent, const Core::Id id) c
 
 BuildStep *MerDeployStepFactory::create(BuildStepList *parent, const Core::Id id)
 {
-    if (id == MerEmulatorStartStep::stepId())
-        return new MerEmulatorStartStep(parent);
+    if (id == MerPrepareTargetStep::stepId())
+        return new MerPrepareTargetStep(parent);
     if (id == MerMb2RsyncDeployStep::stepId())
         return new MerMb2RsyncDeployStep(parent);
     if (id == MerMb2RpmDeployStep::stepId())
@@ -94,6 +100,8 @@ BuildStep *MerDeployStepFactory::create(BuildStepList *parent, const Core::Id id
         return new MerMb2RpmBuildStep(parent);
     if (id == MerRpmPackagingStep::stepId())
         return new MerRpmPackagingStep(parent);
+    if (id == MerRpmValidationStep::stepId())
+        return new MerRpmValidationStep(parent);
     if (id == MerUploadAndInstallRpmStep::stepId())
         return new MerUploadAndInstallRpmStep(parent);
     if (id == MerLocalRsyncDeployStep::stepId())
@@ -128,6 +136,10 @@ BuildStep *MerDeployStepFactory::clone(BuildStepList *parent, BuildStep *product
     QTC_ASSERT(canClone(parent, product), return 0);
     if (MerEmulatorStartStep * const other = qobject_cast<MerEmulatorStartStep *>(product))
         return new MerEmulatorStartStep(parent, other);
+    if (MerConnectionTestStep * const other = qobject_cast<MerConnectionTestStep *>(product))
+        return new MerConnectionTestStep(parent, other);
+    if (MerPrepareTargetStep * const other = qobject_cast<MerPrepareTargetStep *>(product))
+        return new MerPrepareTargetStep(parent, other);
     if (MerMb2RsyncDeployStep * const other = qobject_cast<MerMb2RsyncDeployStep *>(product))
         return new MerMb2RsyncDeployStep(parent, other);
     if (MerMb2RpmDeployStep * const other = qobject_cast<MerMb2RpmDeployStep *>(product))
@@ -136,6 +148,8 @@ BuildStep *MerDeployStepFactory::clone(BuildStepList *parent, BuildStep *product
         return new MerMb2RpmBuildStep(parent, other);
     if (MerRpmPackagingStep * const other = qobject_cast<MerRpmPackagingStep *>(product))
         return new MerRpmPackagingStep(parent, other);
+    if (MerRpmValidationStep * const other = qobject_cast<MerRpmValidationStep *>(product))
+        return new MerRpmValidationStep(parent, other);
     if (MerUploadAndInstallRpmStep * const other = qobject_cast<MerUploadAndInstallRpmStep *>(product))
         return new MerUploadAndInstallRpmStep(parent, other);
     if (MerLocalRsyncDeployStep * const other = qobject_cast<MerLocalRsyncDeployStep *>(product))

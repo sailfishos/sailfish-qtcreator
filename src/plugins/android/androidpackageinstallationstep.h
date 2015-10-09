@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 BogDan Vatra <bog_dan_ro@yahoo.com>
+** Copyright (c) 2014 BogDan Vatra <bog_dan_ro@yahoo.com>
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,24 +30,48 @@
 #ifndef ANDROIDPACKAGEINSTALLATIONSTEP_H
 #define ANDROIDPACKAGEINSTALLATIONSTEP_H
 
-#include <qt4projectmanager/makestep.h>
+#include <projectexplorer/buildstep.h>
+#include <projectexplorer/abstractprocessstep.h>
 
 namespace Android {
 namespace Internal {
 
-class AndroidPackageInstallationStep : public Qt4ProjectManager::MakeStep
+class AndroidPackageInstallationStep : public ProjectExplorer::AbstractProcessStep
 {
     Q_OBJECT
     friend class AndroidPackageInstallationFactory;
 
 public:
-    explicit AndroidPackageInstallationStep(ProjectExplorer::BuildStepList *bsl);
+    enum AndroidDirectory { ProjectDirectory, BuildDirectory };
+    explicit AndroidPackageInstallationStep(AndroidDirectory mode, ProjectExplorer::BuildStepList *bsl);
     bool init();
 
+    bool fromMap(const QVariantMap &map);
+    QVariantMap toMap() const;
+
+    ProjectExplorer::BuildStepConfigWidget *createConfigWidget();
+    bool immutable() const;
+
+    void run(QFutureInterface<bool> &fi);
 private:
     AndroidPackageInstallationStep(ProjectExplorer::BuildStepList *bc,
         AndroidPackageInstallationStep *other);
+    AndroidDirectory m_androidDirectory;
+    QString m_androidDirToClean;
     static const Core::Id Id;
+};
+
+class AndroidPackageInstallationStepWidget : public ProjectExplorer::BuildStepConfigWidget
+{
+    Q_OBJECT
+public:
+    AndroidPackageInstallationStepWidget(AndroidPackageInstallationStep *step);
+
+    QString summaryText() const;
+    QString displayName() const;
+    bool showWidget() const;
+private:
+    AndroidPackageInstallationStep *m_step;
 };
 
 } // namespace Internal

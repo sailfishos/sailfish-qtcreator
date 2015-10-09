@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2013 Jolla Ltd.
+** Copyright (C) 2012 - 2014 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -21,28 +21,29 @@
 ****************************************************************************/
 
 #include "merruncontrolfactory.h"
+
 #include "merconstants.h"
 #include "meremulatordevice.h"
 #include "merrunconfiguration.h"
+#include "mersdkkitinformation.h"
 #include "mersdkmanager.h"
 #include "mertoolchain.h"
 #include "mervirtualboxmanager.h"
-#include "mersdkkitinformation.h"
 
+#include <analyzerbase/analyzermanager.h>
+#include <analyzerbase/analyzerruncontrol.h>
+#include <debugger/debuggerkitinformation.h>
 #include <debugger/debuggerplugin.h>
 #include <debugger/debuggerrunner.h>
 #include <debugger/debuggerstartparameters.h>
-#include <debugger/debuggerkitinformation.h>
 #include <projectexplorer/target.h>
-#include <analyzerbase/ianalyzerengine.h>
-#include <analyzerbase/analyzermanager.h>
-#include <analyzerbase/analyzerruncontrol.h>
 #include <qtsupport/qtkitinformation.h>
-#include <utils/portlist.h>
-#include <utils/qtcassert.h>
+#include <remotelinux/remotelinuxanalyzesupport.h>
 #include <remotelinux/remotelinuxdebugsupport.h>
 #include <remotelinux/remotelinuxruncontrol.h>
-#include <remotelinux/remotelinuxanalyzesupport.h>
+#include <utils/portlist.h>
+#include <utils/qtcassert.h>
+
 using namespace Debugger;
 using namespace ProjectExplorer;
 using namespace Mer;
@@ -125,16 +126,10 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, RunMode mo
         return runControl;
     }
     case QmlProfilerRunMode: {
-        Analyzer::IAnalyzerTool *tool = Analyzer::AnalyzerManager::toolFromRunMode(mode);
-        if (!tool) {
-            if (errorMessage)
-                *errorMessage = tr("No analyzer tool selected.");
-            return 0;
-        }
         Analyzer::AnalyzerStartParameters params = RemoteLinuxAnalyzeSupport::startParameters(rc, mode);
-        Analyzer::AnalyzerRunControl * const runControl = new Analyzer::AnalyzerRunControl(tool, params, runConfig);
+        Analyzer::AnalyzerRunControl * const runControl = Analyzer::AnalyzerManager::createRunControl(params, runConfig);
         RemoteLinuxAnalyzeSupport * const analyzeSupport =
-                new RemoteLinuxAnalyzeSupport(rc, runControl->engine(), mode);
+                new RemoteLinuxAnalyzeSupport(rc, runControl, mode);
         connect(runControl, SIGNAL(finished()), analyzeSupport, SLOT(handleProfilingFinished()));
         return runControl;
     }

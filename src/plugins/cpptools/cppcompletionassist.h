@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -31,6 +31,7 @@
 #define CPPCOMPLETIONASSIST_H
 
 #include "cppcompletionassistprovider.h"
+#include "cppmodelmanagerinterface.h"
 
 #include <cplusplus/Icons.h>
 #include <cplusplus/TypeOfExpression.h>
@@ -39,10 +40,13 @@
 #  include <cplusplus/Symbol.h>
 #endif
 
+#include <texteditor/basetexteditor.h>
 #include <texteditor/codeassist/basicproposalitemlistmodel.h>
 #include <texteditor/codeassist/defaultassistinterface.h>
 #include <texteditor/codeassist/iassistprocessor.h>
 #include <texteditor/snippets/snippetassistcollector.h>
+
+#include <utils/qtcoverride.h>
 
 #include <QStringList>
 #include <QVariant>
@@ -75,8 +79,8 @@ public:
         m_typeOfExpression->setExpandTemplates(true);
     }
 
-    virtual bool isSortable(const QString &prefix) const;
-    virtual TextEditor::IAssistProposalItem *proposalItem(int index) const;
+    bool isSortable(const QString &prefix) const QTC_OVERRIDE;
+    TextEditor::IAssistProposalItem *proposalItem(int index) const QTC_OVERRIDE;
 
     unsigned m_completionOperator;
     bool m_replaceDotForArrow;
@@ -88,17 +92,24 @@ class InternalCompletionAssistProvider : public CppCompletionAssistProvider
     Q_OBJECT
 
 public:
-    virtual TextEditor::IAssistProcessor *createProcessor() const;
-    virtual CppCompletionSupport *completionSupport(TextEditor::ITextEditor *editor);
+    TextEditor::IAssistProcessor *createProcessor() const QTC_OVERRIDE;
+
+    TextEditor::IAssistInterface *createAssistInterface(
+            ProjectExplorer::Project *project,
+            TextEditor::BaseTextEditor *editor,
+            QTextDocument *document,
+            int position,
+            TextEditor::AssistReason reason) const QTC_OVERRIDE;
+
 };
 
 class CppCompletionAssistProcessor : public TextEditor::IAssistProcessor
 {
 public:
     CppCompletionAssistProcessor();
-    virtual ~CppCompletionAssistProcessor();
+    ~CppCompletionAssistProcessor();
 
-    virtual TextEditor::IAssistProposal *perform(const TextEditor::IAssistInterface *interface);
+    TextEditor::IAssistProposal *perform(const TextEditor::IAssistInterface *interface) QTC_OVERRIDE;
 
 private:
     TextEditor::IAssistProposal *createContentProposal();
@@ -126,6 +137,7 @@ private:
     bool completeScope(const QList<CPlusPlus::LookupItem> &results);
     void completeNamespace(CPlusPlus::ClassOrNamespace *binding);
     void completeClass(CPlusPlus::ClassOrNamespace *b, bool staticLookup = true);
+    void addClassMembersToCompletion(CPlusPlus::Scope *scope, bool staticLookup);
     bool completeQtMethod(const QList<CPlusPlus::LookupItem> &results, bool wantSignals);
     bool completeSignal(const QList<CPlusPlus::LookupItem> &results)
     { return completeQtMethod(results, true); }
@@ -148,7 +160,7 @@ private:
                           QSet<QString> *definedMacros);
 
     int m_startPosition;
-    bool m_objcEnabled;
+    CPlusPlus::LanguageFeatures m_languageFeatures;
     QScopedPointer<const CppCompletionAssistInterface> m_interface;
     QList<TextEditor::BasicProposalItem *> m_completions;
     TextEditor::SnippetAssistCollector m_snippetCollector;
@@ -161,6 +173,18 @@ private:
 class CppCompletionAssistInterface : public TextEditor::DefaultAssistInterface
 {
 public:
+    CppCompletionAssistInterface(TextEditor::BaseTextEditor *editor,
+                                 QTextDocument *textDocument,
+                                 int position,
+                                 TextEditor::AssistReason reason,
+                                 const CppModelManagerInterface::WorkingCopy &workingCopy)
+        : TextEditor::DefaultAssistInterface(textDocument, position, editor->document()->filePath(),
+                                             reason)
+        , m_editor(editor)
+        , m_gotCppSpecifics(false)
+        , m_workingCopy(workingCopy)
+    {}
+
     CppCompletionAssistInterface(QTextDocument *textDocument,
                                  int position,
                                  const QString &fileName,
@@ -169,19 +193,26 @@ public:
                                  const QStringList &includePaths,
                                  const QStringList &frameworkPaths)
         : TextEditor::DefaultAssistInterface(textDocument, position, fileName, reason)
+        , m_editor(0)
+        , m_gotCppSpecifics(true)
         , m_snapshot(snapshot)
         , m_includePaths(includePaths)
         , m_frameworkPaths(frameworkPaths)
     {}
 
-    const CPlusPlus::Snapshot &snapshot() const { return m_snapshot; }
-    const QStringList &includePaths() const { return m_includePaths; }
-    const QStringList &frameworkPaths() const { return m_frameworkPaths; }
+    const CPlusPlus::Snapshot &snapshot() const { getCppSpecifics(); return m_snapshot; }
+    const QStringList &includePaths() const { getCppSpecifics(); return m_includePaths; }
+    const QStringList &frameworkPaths() const { getCppSpecifics(); return m_frameworkPaths; }
 
 private:
-    CPlusPlus::Snapshot m_snapshot;
-    QStringList m_includePaths;
-    QStringList m_frameworkPaths;
+    void getCppSpecifics() const;
+
+    TextEditor::BaseTextEditor *m_editor;
+    mutable bool m_gotCppSpecifics;
+    CppModelManagerInterface::WorkingCopy m_workingCopy;
+    mutable CPlusPlus::Snapshot m_snapshot;
+    mutable QStringList m_includePaths;
+    mutable QStringList m_frameworkPaths;
 };
 
 } // Internal

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (c) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (c) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator
@@ -24,10 +24,10 @@
 
 /*!
 
-    \contentspage index.html
+    \contentspage {Qt Creator Manual}
     \previouspage quick-scalable-image.html
     \page quick-screens.html
-    \nextpage quick-animations.html
+    \nextpage quick-export-to-qml.html
 
     \title Creating Screens
 
@@ -41,9 +41,8 @@
     You can also use ready-made Qt Quick 1 Components (for Qt 4) to create
     screens with a native look and feel for a particular target platform.
     Since Qt 5.1, a set of Qt Quick Controls is available for creating classic
-    desktop-style user interfaces using Qt Quick 2.1. You
-    can install Qt Quick 1 Components as part of the Qt 4 SDK and the Qt Quick
-    Controls as part of Qt 5.1, or later.
+    desktop-style user interfaces using Qt Quick 2.1. Qt Quick 1 Components are
+    a part of Qt 4, whereas Qt Quick Controls were added to Qt 5.1.
 
     \section1 Adding Components to Screens
 
@@ -62,23 +61,19 @@
     \section1 Using Data Models
 
     You can create the following types of views to organize items provided by
-    \l{http://qt-project.org/doc/qt-5.0/qtquick/qtquick-modelviewsdata-modelview.html}{data models}:
+    \l{Models and Views in Qt Quick}{data models}:
 
     \list
 
-        \li \l{http://qt-project.org/doc/qt-5.0/qtquick/qml-qtquick2-gridview.html}{Grid View}
-            provides a grid vizualization of a model.
+        \li GridView provides a grid vizualization of a model.
 
-        \li \l{http://qt-project.org/doc/qt-5.0/qtquick/qml-qtquick2-listview.html}{List View}
-            provides a list vizualization of a model.
+        \li ListView provides a list vizualization of a model.
 
-        \li \l{http://qt-project.org/doc/qt-5.0/qtquick/qml-qtquick2-pathview.html}{Path View}
-            visualizes the contents of a model along a path.
+        \li PathView visualizes the contents of a model along a path.
 
     \endlist
 
-    When you add a Grid View, List View, or Path View, the
-    \l{http://qt-project.org/doc/qt-5.0/qtquick/qml-qtquick2-listmodel.html}{ListModel} and the
+    When you add a GridView, ListView, or PathView, the ListModel and the
     delegate component that creates an instance for each item in the model are
     added automatically. You can edit item properties
     in the \gui Properties pane or
@@ -87,21 +82,127 @@
 
     \section1 Positioning Items on Screens
 
-    You can use the following QML types to arrange items on screens:
+    The position of an item on the canvas can be either absolute or relative
+    to other items. If you are designing a static user interface,
+    \l{Important Concepts In Qt Quick - Positioning#manual-positioning}
+    {manual positioning} provides the most efficient form of positioning items
+    on the screen. For a dynamic user interface, you can employ the following
+    positioning methods provided by Qt Quick:
 
     \list
 
-        \li \l{http://qt-project.org/doc/qt-5.0/qtquick/qml-qtquick2-column.html}{Column}
-            arranges its child items vertically.
+        \li \l{Setting Bindings}
 
-        \li \l{http://qt-project.org/doc/qt-5.0/qtquick/qml-qtquick2-row.html}{Row}
-            arranges its child items horizontally.
+        \li \l{Setting Anchors and Margins}
 
-        \li \l{http://qt-project.org/doc/qt-5.0/qtquick/qml-qtquick2-grid.html}{Grid}
+        \li \l{Using Positioners}
+
+        \li \l{Using Layouts}
+
+        \li \l{Using Split Views}
+
+    \endlist
+
+    \section2 Setting Bindings
+
+    \l{Positioning with Bindings}
+    {Property binding} is a declarative way of specifying the value of a property.
+    Binding allows a property value to be expressed as an JavaScript expression
+    that defines the value relative to other property values or data accessible
+    in the application. The property value is automatically kept up to date if
+    the other properties or data values change.
+
+    Property bindings are created implicitly in QML whenever a property is
+    assigned a JavaScript expression. To set JavaScript expressions as values of
+    properties in \QMLD, click the circle icon next to a property to open a
+    context menu, and select \gui {Set Binding}.
+
+    \image qmldesigner-set-expression.png "Type properties context menu"
+
+    To remove bindings, select \gui Reset in the context menu.
+
+    For more information on the JavaScript environment provided by QML, see
+    \l{Integrating QML and JavaScript}.
+
+    \QMLD cannot show bindings and using them might have a negative impact on
+    performance, so consider setting anchors and margins for items, instead.
+
+    For example, instead of setting \c {parent.width} for an item, you could
+    anchor the item to its sibling items on the left and the right.
+
+    \section2 Setting Anchors and Margins
+
+    In an \l{Important Concepts In Qt Quick - Positioning#anchors}
+    {anchor-based} layout, each QML type can be thought of as having a set of
+    invisible \e anchor lines: top, bottom, left, right, fill, horizontal
+    center, vertical center, and baseline.
+
+    In the \gui Layout pane you can set anchors and margins for items. To set
+    the anchors of an item, click the anchor buttons. You can combine the
+    top/bottom, left/right, and horizontal/vertical anchors to anchor items in
+    the corners of the parent item or center them horizontally or vertically
+    within the parent item.
+
+    \image qmldesigner-anchor-buttons.png "Anchor buttons"
+
+    Specifying the baseline anchor in \QMLD is not supported. You can specify it
+    using the code editor.
+
+    For performance reasons, you can only anchor an item to its siblings and
+    direct parent. By default, an item is anchored to its parent when you
+    use the anchor buttons. Select a sibling of the item in the \gui Target
+    field to anchor to it, instead.
+
+    Arbitrary anchoring is not supported. For example, you cannot specify:
+    \c {anchor.left: parent.right}. You have to specify: \c {anchor.left: parent.left}.
+    When you use the anchor buttons, anchors to the parent item are always
+    specified to the same side. However, anchors to sibling items are specified
+    to the opposite side: \c {anchor.left: sibling.right}. This allows you to keep
+    sibling items together.
+
+    In the following image, \gui{Rectangle 2} is anchored to \gui{Rectangle 1}
+    on its left and to the bottom of its parent.
+
+    \image qmldesigner-anchors.png "Anchoring sibling items"
+
+    The anchors for \gui{Rectangle 2} are specified as follows in code:
+
+    \qml
+    Rectangle {
+        id: rectangle2
+        anchors.left: rectangle1.right
+        anchors.leftMargin: 15
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: 15
+        //
+    }
+    \endqml
+
+    Margins specify the amount of empty space to leave to the outside of an item.
+    Margins only have meaning for anchors. They do not take any effect when using
+    other layouts or absolute positioning.
+
+    \section2 Using Positioners
+
+    \l{Important Concepts In Qt Quick - Positioning#positioners}
+    {Positioner items} are container items that manage the positions of items in
+    a declarative user interface. Positioners behave in a similar way to the
+    layout managers used with standard Qt widgets, except that they are also
+    containers in their own right.
+
+    You can use the following positioners to arrange items on screens:
+
+    \list
+
+        \li \l{Column} arranges its child items vertically.
+
+        \li \l{Row} arranges its child items horizontally.
+
+        \li \l{Grid}
             arranges its child items so that they are aligned in a grid and
             are not overlapping.
 
-        \li \l{http://qt-project.org/doc/qt-5.0/qtquick/qml-qtquick2-flow.html}{Flow}
+        \li \l{Flow}
             arranges its child items side by side, wrapping as necessary.
 
     \endlist
@@ -109,6 +210,45 @@
     To lay out several items in a Column, Row, Grid, or Flow, select
     the items on the canvas, and then select \gui Layout in the context
     menu.
+
+    \section2 Using Layouts
+
+    From Qt 5.1, you can use QML types in the \l{qtquicklayouts-index.html}
+    {Qt Quick Layouts} module to arrange Qt Quick items on screens. Unlike
+    positioners, they manage both the positions and sizes of items in a
+    declarative interface. They are well suited for resizable user interfaces.
+
+    You can use the following layout types to arrange items on screens:
+
+    \list
+
+        \li \l{Layout} provides attached properties for items pushed onto a
+            \gui {Column Layout}, \gui {Row Layout}, or \gui {Grid Layout}.
+
+        \li ColumnLayout provides a grid layout with only one column.
+
+        \li RowLayout provides a grid layout with only one row.
+
+        \li GridLayout provides a way of dynamically arranging items in a
+            grid.
+
+    \endlist
+
+    To lay out several items in a \gui {Column Layout}, \gui {Row Layout}, or
+    \gui {Grid Layout}, select the items on the canvas, and then select
+    \gui Layout in the context menu.
+
+    To make an item within a layout as wide as possible while respecting the
+    given constraints, select the item on the canvas and then select
+    \gui Layout > \gui {Fill Width} in the context menu. To make the item as
+    high as possible, select \gui {Fill Height}.
+
+    \section2 Using Split Views
+
+    From Qt 5.1, you can use the SplitView Qt Quick Control to arrange items
+    horizontally or vertically
+    with a draggable splitter between each item.
+
 
     \section1 Using States
 
@@ -183,63 +323,104 @@
 
         \endlist
 
-*/
-
-
-/*!
-
-    \contentspage index.html
-    \previouspage quick-screens.html
-    \page quick-animations.html
-    \nextpage quick-user-interaction.html
-
-    \title Animating Screens
+    \section1 Animating Screens
 
     To make movement between states smooth, you can specify transitions. You can
     use different types of animated transitions. For example, you can animate
     changes to property values and colors. You can use rotation animation to
     control the direction of rotation. For more information, see
-    \l{http://qt-project.org/doc/qt-5.0/qtquick/qtquick-statesanimations-animations.html}
-    {Animation and Transitions in Qt Quick}.
+    \l{Animation and Transitions in Qt Quick}.
 
     You can use the \c ParallelAnimation type to start several animations at
     the same time. Or use the \c SequentialAnimation type to run them one
     after another.
 
     You can use the code editor to specify transitions. For more information,
-    see \l{http://qt-project.org/doc/qt-5.0/qtquick/qml-qtquick2-transition.html}
-    {Transition}.
+    see \l{Transition}.
 
-*/
+    \section1 Adding User Interaction Methods
 
-
-/*!
-
-    \contentspage index.html
-    \previouspage quick-animations.html
-    \page quick-user-interaction.html
-    \nextpage quick-export-to-qml.html
-
-    \title Adding User Interaction Methods
-
-    You can add the following basic interaction methods to scenes:
+    You can use the following QML types to add basic interaction methods to
+    screens:
 
     \list
 
-        \li \l{http://qt-project.org/doc/qt-5.0/qtquick/qml-qtquick2-flickable.html}{Flickable}
+        \li \l{Flickable}
             items can be flicked horizontally or vertically.
 
-        \li \l{http://qt-project.org/doc/qt-5.0/qtquick/qml-qtquick2-flipable.html}{Flipable}
+        \li \l{Flipable}
             items can be flipped between their front and back sides by using
             rotation, state, and transition.
 
-        \li \l{http://qt-project.org/doc/qt-5.0/qtquick/qml-qtquick2-focusscope.html}{Focus Scope}
+        \li FocusScope
             assists in keyboard focus handling when building reusable QML
             components.
 
-        \li \l{http://qt-project.org/doc/qt-5.0/qtquick/qml-qtquick2-mousearea.html}{Mouse Area}
-            enables simple mouse handling.
+        \li MouseArea enables simple mouse handling.
 
     \endlist
+
+    From Qt 5.1, you can also use the following
+    \l{Qt Quick Controls} to present or receive input from the user:
+
+    \list
+
+        \li \l{Button} provides a push button that you can associate with an
+            action.
+
+        \li CheckBox provides an option button that can be toggled on
+            (checked) or off (unchecked).
+
+        \li ComboBox provides a drop-down list. Add items to the combo box by
+            assigning it a ListModel, or a list of strings to the model
+            property.
+
+        \li GroupBox provides a frame, a title on top, and place for various
+            other controls inside the frame.
+
+        \li \l{Label} provides a text label that follows the font and color scheme
+            of the system.
+
+        \li ProgressBar indicates the progress of an operation.
+
+        \li RadioButton provides an option button that can be switched on
+            (checked) or off (unchecked).
+
+        \li \l{Slider}
+            {Slider (Horizontal) and Slider (Vertical)} enable the user to move
+            a slider handle along a horizontal or vertical groove and translate
+            the handle's position into a value within the specified range.
+
+        \li SpinBox enables the user to specify a value by clicking the up or
+            down buttons, by pressing up or down on the keyboard, or by entering
+            a value in the box.
+
+        \li StatusBar contains status information in your application. It
+            does not provide a layout of its own, but requires you to position
+            its contents, for instance by creating a \gui {Row Layout}.
+
+        \li TextArea displays multiple lines of editable formatted text.
+
+        \li TextField displays a single line of editable plain text.
+
+        \li ToolBar provides styling for ToolButton as well as other controls
+            that it can contain. However, it does not provide a layout of its
+            own, but requires you to position its contents, for instance by
+            creating a \gui {Row Layout}.
+
+        \li ToolButton provides a button that is functionally similar to
+            \gui Button, but that looks more suitable on a \gui {Tool Bar}.
+
+    \endlist
+
+
+    \section1 Implementing Application Logic
+
+    A user interface is only a part of an application, and not really useful by itself.
+    You can use Qt or JavaScript to implement the application logic. For more information on
+    using JavaScript, see \l{Integrating QML and JavaScript}.
+
+    For an example of how to use JavaScript to develop a game, see the
+    \l{QML Advanced Tutorial}.
 
 */

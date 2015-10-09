@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -33,11 +33,10 @@
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/kitconfigwidget.h>
 
-QT_FORWARD_DECLARE_CLASS(QLabel);
-QT_FORWARD_DECLARE_CLASS(QPushButton);
-
-namespace ProjectExplorer {
-}
+QT_BEGIN_NAMESPACE
+class QLabel;
+class QPushButton;
+QT_END_NAMESPACE
 
 namespace Android {
 namespace Internal {
@@ -46,7 +45,9 @@ class AndroidGdbServerKitInformationWidget : public ProjectExplorer::KitConfigWi
 {
     Q_OBJECT
 public:
-    AndroidGdbServerKitInformationWidget(ProjectExplorer::Kit *kit, bool sticky);
+    AndroidGdbServerKitInformationWidget(ProjectExplorer::Kit *kit,
+                                         const ProjectExplorer::KitInformation *ki);
+    ~AndroidGdbServerKitInformationWidget();
 
     QString displayName() const;
     QString toolTip() const;
@@ -69,10 +70,7 @@ class AndroidGdbServerKitInformation : public ProjectExplorer::KitInformation
 {
     Q_OBJECT
 public:
-    explicit AndroidGdbServerKitInformation();
-    Core::Id dataId() const;
-
-    unsigned int priority() const; // the higher the closer to the top.
+    AndroidGdbServerKitInformation();
 
     QVariant defaultValue(ProjectExplorer::Kit *) const;
 
@@ -82,6 +80,8 @@ public:
 
     ProjectExplorer::KitConfigWidget *createConfigWidget(ProjectExplorer::Kit *) const;
 
+    static Core::Id id();
+    static bool isAndroidKit(const ProjectExplorer::Kit *kit);
     static Utils::FileName gdbServer(const ProjectExplorer::Kit *kit);
     static void setGdbSever(ProjectExplorer::Kit *kit, const Utils::FileName &gdbServerCommand);
     static Utils::FileName autoDetect(ProjectExplorer::Kit *kit);

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -47,9 +47,6 @@
       (usually filename w/o path).
   \li \c kind() must be the same value as the \c kind() of the corresponding
       EditorFactory.
-  \li The \c changed() signal should be emitted when the modified state of the
-      document changes (so \e not every time the document changes, but
-      \e {only once}).
   \li If duplication is supported, you need to ensure that all duplicates
         return the same \c file().
   \li QString \c preferredMode() const is the mode the editor manager should
@@ -59,3 +56,14 @@
   \sa Core::EditorFactoryInterface Core::IContext
 
 */
+
+
+void Core::IEditor::setId(Core::Id id)
+{
+    m_id = id;
+}
+
+Core::Id Core::IEditor::id() const
+{
+    return m_id;
+}

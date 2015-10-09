@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -36,18 +36,19 @@
 #include <utils/outputformat.h>
 #include <qmldebug/qmloutputparser.h>
 
-namespace Analyzer { class IAnalyzerEngine; }
+namespace Analyzer { class AnalyzerRunControl; }
 
 namespace Qnx {
 namespace Internal {
 
 class QnxRunConfiguration;
+class Slog2InfoRunner;
 
 class QnxAnalyzeSupport : public QnxAbstractRunSupport
 {
     Q_OBJECT
 public:
-    QnxAnalyzeSupport(QnxRunConfiguration *runConfig, Analyzer::IAnalyzerEngine *engine);
+    QnxAnalyzeSupport(QnxRunConfiguration *runConfig, Analyzer::AnalyzerRunControl *engine);
 
 public slots:
     void handleProfilingFinished();
@@ -60,15 +61,19 @@ private slots:
     void handleRemoteOutput(const QByteArray &output);
     void handleError(const QString &error);
 
+    void showMessage(const QString &, Utils::OutputFormat);
+    void printMissingWarning();
+
     void remoteIsRunning();
 
 private:
     void startExecution();
-    void showMessage(const QString &, Utils::OutputFormat);
 
-    Analyzer::IAnalyzerEngine *m_engine;
+    Analyzer::AnalyzerRunControl *m_runControl;
     QmlDebug::QmlOutputParser m_outputParser;
     int m_qmlPort;
+
+    Slog2InfoRunner *m_slog2Info;
 };
 
 } // namespace Internal

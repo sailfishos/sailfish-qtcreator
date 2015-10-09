@@ -1,7 +1,7 @@
 /**************************************************************************
 **
-** Copyright (C) 2013 Denis Mingulov.
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Denis Mingulov.
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -31,6 +31,8 @@
 #ifndef IMAGEVIEWERFACTORY_H
 #define IMAGEVIEWERFACTORY_H
 
+#include "imagevieweractionhandler.h"
+
 #include <coreplugin/editormanager/ieditorfactory.h>
 #include <coreplugin/editormanager/ieditor.h>
 #include <coreplugin/idocument.h>
@@ -38,23 +40,20 @@
 namespace ImageViewer {
 namespace Internal {
 
+class ImageViewerActionHandler;
+
 class ImageViewerFactory : public Core::IEditorFactory
 {
     Q_OBJECT
 public:
     explicit ImageViewerFactory(QObject *parent = 0);
-    ~ImageViewerFactory();
 
-    Core::IEditor *createEditor(QWidget *parent);
-
-    QStringList mimeTypes() const;
-    Core::Id id() const;
-    QString displayName() const;
+    Core::IEditor *createEditor();
 
     void extensionsInitialized();
 
 private:
-    struct ImageViewerFactoryPrivate *d;
+    ImageViewerActionHandler m_actionHandler;
 };
 
 } // namespace Internal

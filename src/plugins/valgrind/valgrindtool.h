@@ -1,7 +1,8 @@
-/**************************************************************************
+/****************************************************************************
 **
-** Copyright (C) 2013 Kläralvdalens Datakonsult AB, a KDAB Group company.
-** Contact: Kläralvdalens Datakonsult AB (info@kdab.com)
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
+** Contact: http://www.qt-project.org/legal
+** Author: Nicolas Arnaud-Cormos, KDAB (nicolas.arnaud-cormos@kdab.com)
 **
 ** This file is part of Qt Creator.
 **
@@ -38,18 +39,14 @@ namespace Internal {
 class ValgrindTool : public Analyzer::IAnalyzerTool
 {
     Q_OBJECT
+
 public:
-    explicit ValgrindTool(QObject *parent);
+    explicit ValgrindTool(QObject *parent = 0);
 
-    bool canRun(ProjectExplorer::RunConfiguration *runConfiguration,
-                ProjectExplorer::RunMode mode) const;
-
-    Analyzer::AnalyzerStartParameters createStartParameters(
-            ProjectExplorer::RunConfiguration *runConfiguration,
-            ProjectExplorer::RunMode mode) const;
+    void startTool(Analyzer::StartMode mode);
 };
 
 } // namespace Internal
 } // namespace Valgrind
 
-#endif // VALGRINDTOOL_H
+#endif // VALGRIND_TOOL

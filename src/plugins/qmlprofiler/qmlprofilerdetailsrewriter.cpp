@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -41,7 +41,7 @@ namespace Internal {
 struct PendingEvent {
     QmlDebug::QmlEventLocation location;
     QString localFile;
-    int eventType;
+    int requestId;
 };
 
 class PropertyVisitor: protected QmlJS::AST::Visitor
@@ -108,6 +108,7 @@ public:
     QList <PendingEvent> m_pendingEvents;
     QStringList m_pendingDocs;
     Utils::FileInProjectFinder *m_projectFinder;
+    QMap<QString, QString> m_filesCache;
 
     QmlProfilerDetailsRewriter *q;
 };
@@ -122,17 +123,23 @@ QmlProfilerDetailsRewriter::~QmlProfilerDetailsRewriter()
     delete d;
 }
 
-void QmlProfilerDetailsRewriter::requestDetailsForLocation(int type,
+void QmlProfilerDetailsRewriter::requestDetailsForLocation(int requestId,
         const QmlDebug::QmlEventLocation &location)
 {
-    const QString localFile = d->m_projectFinder->findFile(location.filename);
+    QString localFile;
+    if (!d->m_filesCache.contains(location.filename)) {
+        localFile = d->m_projectFinder->findFile(location.filename);
+        d->m_filesCache[location.filename] = localFile;
+    } else {
+        localFile = d->m_filesCache[location.filename];
+    }
     QFileInfo fileInfo(localFile);
     if (!fileInfo.exists() || !fileInfo.isReadable())
         return;
-    if (!QmlJS::Document::isQmlLikeLanguage(QmlJSTools::languageOfFile(localFile)))
+    if (!QmlJS::Document::isQmlLikeLanguage(QmlJS::ModelManagerInterface::guessLanguageOfFile(localFile)))
         return;
 
-    PendingEvent ev = {location, localFile, type};
+    PendingEvent ev = {location, localFile, requestId};
     d->m_pendingEvents << ev;
     if (!d->m_pendingDocs.contains(localFile)) {
         if (d->m_pendingDocs.isEmpty())
@@ -154,7 +161,7 @@ void QmlProfilerDetailsRewriter::reloadDocuments()
 }
 
 void QmlProfilerDetailsRewriter::rewriteDetailsForLocation(QTextStream &textDoc,
-        QmlJS::Document::Ptr doc, int type, const QmlDebug::QmlEventLocation &location)
+        QmlJS::Document::Ptr doc, int requestId, const QmlDebug::QmlEventLocation &location)
 {
     PropertyVisitor propertyVisitor;
     QmlJS::AST::Node *node = propertyVisitor(doc->ast(), location.line, location.column);
@@ -168,7 +175,13 @@ void QmlProfilerDetailsRewriter::rewriteDetailsForLocation(QTextStream &textDoc,
     textDoc.seek(startPos);
     QString details = textDoc.read(len).replace(QLatin1Char('\n'), QLatin1Char(' ')).simplified();
 
-    emit rewriteDetailsString(type, location, details);
+    emit rewriteDetailsString(requestId, details);
+}
+
+void QmlProfilerDetailsRewriter::clearRequests()
+{
+    d->m_filesCache.clear();
+    d->m_pendingDocs.clear();
 }
 
 void QmlProfilerDetailsRewriter::documentReady(QmlJS::Document::Ptr doc)
@@ -186,7 +199,7 @@ void QmlProfilerDetailsRewriter::documentReady(QmlJS::Document::Ptr doc)
             PendingEvent ev = d->m_pendingEvents[i];
             if (ev.localFile == doc->fileName()) {
                 d->m_pendingEvents.removeAt(i);
-                rewriteDetailsForLocation(st, doc, ev.eventType, ev.location);
+                rewriteDetailsForLocation(st, doc, ev.requestId, ev.location);
             }
         }
     }
@@ -199,6 +212,7 @@ void QmlProfilerDetailsRewriter::documentReady(QmlJS::Document::Ptr doc)
                    this,
                    SLOT(documentReady(QmlJS::Document::Ptr)));
         emit eventDetailsChanged();
+        d->m_filesCache.clear();
     }
 }
 

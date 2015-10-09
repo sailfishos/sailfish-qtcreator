@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -31,7 +31,6 @@
 #define DEBUGGER_COREGDBADAPTER_H
 
 #include "gdbengine.h"
-#include "localgdbprocess.h"
 
 #include <QFile>
 
@@ -44,6 +43,8 @@ namespace Internal {
 //
 ///////////////////////////////////////////////////////////////////////
 
+QString readExecutableNameFromCore(const QString &cmd, const QString &coreFile, bool *isCore);
+
 class GdbCoreEngine : public GdbEngine
 {
     Q_OBJECT
@@ -53,22 +54,17 @@ public:
     ~GdbCoreEngine();
 
 private:
-    DumperHandling dumperHandling() const { return DumperNotAvailable; }
-
     void setupEngine();
     void setupInferior();
     void runEngine();
     void interruptInferior();
     void shutdownEngine();
 
-    AbstractGdbProcess *gdbProc() { return &m_gdbProc; }
-
     void handleFileExecAndSymbols(const GdbResponse &response);
     void handleTargetCore(const GdbResponse &response);
     void handleRoundTrip(const GdbResponse &response);
     void unpackCoreIfNeeded();
     QString coreFileName() const;
-    QString readExecutableNameFromCore(bool *isCore);
     QString coreName() const;
 
 private slots:
@@ -78,7 +74,6 @@ private slots:
 private:
     QString m_executable;
     QString m_coreName;
-    LocalGdbProcess m_gdbProc;
     QString m_tempCoreName;
     QProcess *m_coreUnpackProcess;
     QFile m_tempCoreFile;

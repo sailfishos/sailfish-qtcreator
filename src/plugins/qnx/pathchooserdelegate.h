@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2012 - 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -60,12 +60,15 @@ public:
     void updateEditorGeometry(QWidget *editor,
         const QStyleOptionViewItem &option, const QModelIndex &index) const;
 
+    void setHistoryCompleter(const QString &key);
+
 private slots:
     void emitCommitData();
 
 private:
     Utils::PathChooser::Kind m_kind;
     QString m_filter;
+    QString m_historyKey;
 };
 
 } // namespace Internal

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -39,14 +39,31 @@ QT_END_NAMESPACE
 
 namespace Utils {
 
-enum ReloadPromptAnswer { ReloadCurrent, ReloadAll, ReloadSkipCurrent, ReloadNone, CloseCurrent };
+enum ReloadPromptAnswer {
+    ReloadCurrent,
+    ReloadAll,
+    ReloadSkipCurrent,
+    ReloadNone,
+    CloseCurrent
+};
 
-QTCREATOR_UTILS_EXPORT ReloadPromptAnswer reloadPrompt(const QString &fileName, bool modified, QWidget *parent);
-QTCREATOR_UTILS_EXPORT ReloadPromptAnswer reloadPrompt(const QString &title, const QString &prompt, const QString &details, QWidget *parent);
+QTCREATOR_UTILS_EXPORT ReloadPromptAnswer reloadPrompt(const QString &fileName,
+                                                       bool modified,
+                                                       QWidget *parent);
+QTCREATOR_UTILS_EXPORT ReloadPromptAnswer reloadPrompt(const QString &title,
+                                                       const QString &prompt,
+                                                       const QString &details, QWidget *parent);
 
-enum FileDeletedPromptAnswer { FileDeletedClose, FileDeletedSaveAs, FileDeletedSave };
+enum FileDeletedPromptAnswer {
+    FileDeletedClose,
+    FileDeletedCloseAll,
+    FileDeletedSaveAs,
+    FileDeletedSave
+};
 
-QTCREATOR_UTILS_EXPORT FileDeletedPromptAnswer fileDeletedPrompt(const QString &fileName, bool triggerExternally, QWidget *parent);
+QTCREATOR_UTILS_EXPORT FileDeletedPromptAnswer fileDeletedPrompt(const QString &fileName,
+                                                                 bool triggerExternally,
+                                                                 QWidget *parent);
 
 } // namespace Utils
 

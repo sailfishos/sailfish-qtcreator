@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -62,6 +62,8 @@
 #include "removesharedmemorycommand.h"
 #include "endpuppetcommand.h"
 #include "debugoutputcommand.h"
+
+#include <enumeration.h>
 
 namespace QmlDesigner {
 
@@ -181,6 +183,9 @@ void NodeInstanceServerInterface::registerCommands()
 
     qRegisterMetaType<DebugOutputCommand>("DebugOutputCommand");
     qRegisterMetaTypeStreamOperators<DebugOutputCommand>("DebugOutputCommand");
+
+    qRegisterMetaType<Enumeration>("Enumeration");
+    qRegisterMetaTypeStreamOperators<Enumeration>("Enumeration");
 }
 
 }

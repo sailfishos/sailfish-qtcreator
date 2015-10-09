@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -31,6 +31,7 @@
 #define CPPCLASSESFILTER_H
 
 #include "cpptools_global.h"
+#include "cpplocatordata.h"
 #include "cpplocatorfilter.h"
 
 namespace CppTools {
@@ -40,8 +41,12 @@ class CPPTOOLS_EXPORT CppClassesFilter : public Internal::CppLocatorFilter
     Q_OBJECT
 
 public:
-    CppClassesFilter(Internal::CppModelManager *manager);
+    CppClassesFilter(Internal::CppLocatorData *locatorData);
     ~CppClassesFilter();
+
+private:
+    QList<QList<CppTools::ModelItemInfo> > itemsToMatchUserInputAgainst() const;
+    Core::LocatorFilterEntry filterEntryFromModelItemInfo(const ModelItemInfo &info);
 };
 
 } // namespace CppTools

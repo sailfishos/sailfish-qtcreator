@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -27,35 +27,29 @@
 **
 ****************************************************************************/
 
+#include "settingspage.h"
 #include "updateinfoplugin.h"
 #include "updateinfobutton.h"
 
-#include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/actioncontainer.h>
+#include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/icore.h>
-#include <coreplugin/modemanager.h>
 #include <coreplugin/progressmanager/progressmanager.h>
 #include <coreplugin/progressmanager/futureprogress.h>
+#include <coreplugin/settingsdatabase.h>
+#include <utils/qtcassert.h>
 
-#include <qtconcurrentrun.h>
-
-#include <QtPlugin>
-#include <QProcess>
-#include <QTimer>
-#include <QTimerEvent>
-#include <QDebug>
-#include <QFile>
-#include <QThread>
-#include <QCoreApplication>
+#include <QBasicTimer>
 #include <QDomDocument>
-#include <QMessageBox>
+#include <QFile>
 #include <QMenu>
-#include <QFutureWatcher>
 
 namespace {
     static const quint32 OneMinute = 60000;
 }
+
+using namespace Core;
 
 namespace UpdateInfo {
 namespace Internal {
@@ -64,24 +58,21 @@ class UpdateInfoPluginPrivate
 {
 public:
     UpdateInfoPluginPrivate()
-        : startUpdaterAction(0),
-          currentTimerId(0),
-          progressUpdateInfoButton(0),
-          checkUpdateInfoWatcher(0)
-    {}
-    ~UpdateInfoPluginPrivate()
+        : m_settingsPage(0)
     {
     }
 
-    QAction *startUpdaterAction;
     QString updaterProgram;
-    QString updaterCheckOnlyArgument;
     QString updaterRunUiArgument;
-    int currentTimerId;
-    QFuture<QDomDocument> lastCheckUpdateInfoTask;
-    QPointer<Core::FutureProgress> updateInfoProgress;
-    UpdateInfoButton *progressUpdateInfoButton;
-    QFutureWatcher<QDomDocument> *checkUpdateInfoWatcher;
+    QString updaterCheckOnlyArgument;
+
+    QPointer<QProcess> checkUpdatesProcess;
+    QPointer<FutureProgress> updateInfoProgress;
+
+    QBasicTimer m_timer;
+    QDate m_lastDayChecked;
+    QTime m_scheduledUpdateTime;
+    SettingsPage *m_settingsPage;
 };
 
 
@@ -92,131 +83,197 @@ UpdateInfoPlugin::UpdateInfoPlugin()
 
 UpdateInfoPlugin::~UpdateInfoPlugin()
 {
+    if (d->checkUpdatesProcess) {
+        d->checkUpdatesProcess->terminate(); // TODO kill?
+        d->checkUpdatesProcess->waitForFinished(-1);
+    }
+
     delete d;
 }
 
-void UpdateInfoPlugin::startCheckTimer(uint milliseconds)
+bool UpdateInfoPlugin::delayedInitialize()
 {
-    if (d->currentTimerId != 0)
-        stopCurrentCheckTimer();
-    d->currentTimerId = startTimer(milliseconds);
+    d->m_timer.start(OneMinute, this);
+    return true;
 }
 
-void UpdateInfoPlugin::stopCurrentCheckTimer()
+void UpdateInfoPlugin::extensionsInitialized()
 {
-    killTimer(d->currentTimerId);
-    d->currentTimerId = 0;
 }
 
-
-/*! Initializes the plugin. Returns true on success.
-    Plugins want to register objects with the plugin manager here.
-
-    \a errorMessage can be used to pass an error message to the plugin system,
-       if there was any.
-*/
 bool UpdateInfoPlugin::initialize(const QStringList & /* arguments */, QString *errorMessage)
 {
-    d->checkUpdateInfoWatcher = new QFutureWatcher<QDomDocument>(this);
-    connect(d->checkUpdateInfoWatcher, SIGNAL(finished()), this, SLOT(reactOnUpdaterOutput()));
-
-    QSettings *settings = Core::ICore::settings();
-    d->updaterProgram = settings->value(QLatin1String("Updater/Application")).toString();
-    d->updaterCheckOnlyArgument = settings->value(QLatin1String("Updater/CheckOnlyArgument")).toString();
-    d->updaterRunUiArgument = settings->value(QLatin1String("Updater/RunUiArgument")).toString();
-
+    loadSettings();
     if (d->updaterProgram.isEmpty()) {
         *errorMessage = tr("Could not determine location of maintenance tool. Please check "
-                           "your installation if you did not enable this plugin manually.");
+            "your installation if you did not enable this plugin manually.");
         return false;
     }
 
     if (!QFile::exists(d->updaterProgram)) {
         *errorMessage = tr("Could not find maintenance tool at '%1'. Check your installation.")
-                .arg(d->updaterProgram);
+            .arg(d->updaterProgram);
         return false;
     }
 
-    Core::ActionContainer* const helpActionContainer = Core::ActionManager::actionContainer(Core::Constants::M_HELP);
-    helpActionContainer->menu()->addAction(tr("Start Updater"), this, SLOT(startUpdaterUiApplication()));
+    d->m_settingsPage = new SettingsPage(this);
+    addAutoReleasedObject(d->m_settingsPage);
 
-    //wait some time before we want to have the first check
-    startCheckTimer(OneMinute / 10);
+    ActionContainer *const container = ActionManager::actionContainer(Core::Constants::M_HELP);
+    container->menu()->addAction(tr("Start Updater"), this, SLOT(startUpdaterUiApplication()));
 
     return true;
 }
 
-QDomDocument UpdateInfoPlugin::checkForUpdates()
+void UpdateInfoPlugin::loadSettings()
 {
-    if (QThread::currentThread() == QCoreApplication::instance()->thread())
-        qWarning() << Q_FUNC_INFO << " Was not designed to run in main/gui thread -> it is using updaterProcess.waitForFinished()";
-
-    //starting
-    QProcess updaterProcess;
-
-    updaterProcess.start(d->updaterProgram,
-                         QStringList() << d->updaterCheckOnlyArgument);
-    updaterProcess.waitForFinished();
-
-    //process return value
-    if (updaterProcess.exitStatus() == QProcess::CrashExit) {
-        qWarning() << "Get update info application crashed.";
-        //return; //maybe there is some output
+    QSettings *qs = ICore::settings();
+    if (qs->contains(QLatin1String("Updater/Application"))) {
+        settingsHelper(qs);
+        qs->remove(QLatin1String("Updater"));
+        saveSettings(); // update to the new settings location
+    } else {
+        settingsHelper(ICore::settingsDatabase());
     }
-    QByteArray updaterOutput = updaterProcess.readAllStandardOutput();
-    QDomDocument updatesDomDocument;
-    updatesDomDocument.setContent(updaterOutput);
-
-    return updatesDomDocument;
 }
 
-
-void UpdateInfoPlugin::reactOnUpdaterOutput()
+void UpdateInfoPlugin::saveSettings()
 {
-    QDomDocument updatesDomDocument = d->checkUpdateInfoWatcher->result();
-
-    if (updatesDomDocument.isNull() ||
-        !updatesDomDocument.firstChildElement().hasChildNodes())
-    { // no updates are available
-        startCheckTimer(60 * OneMinute);
-    } else {
-        //added the current almost finished task to the progressmanager
-        d->updateInfoProgress = Core::ICore::progressManager()->addTask(
-                d->lastCheckUpdateInfoTask, tr("Update"), QLatin1String("Update.GetInfo"), Core::ProgressManager::KeepOnFinish);
-
-        d->updateInfoProgress->setKeepOnFinish(Core::FutureProgress::KeepOnFinish);
-
-        d->progressUpdateInfoButton = new UpdateInfoButton();
-        //the old widget is deleted inside this function
-        //and the current widget becomes a child of updateInfoProgress
-        d->updateInfoProgress->setWidget(d->progressUpdateInfoButton);
-
-        //d->progressUpdateInfoButton->setText(tr("Update")); //we have this information over the progressbar
-        connect(d->progressUpdateInfoButton, SIGNAL(released()),
-                this, SLOT(startUpdaterUiApplication()));
+    SettingsDatabase *settings = ICore::settingsDatabase();
+    if (settings) {
+        settings->beginTransaction();
+        settings->beginGroup(QLatin1String("Updater"));
+        settings->setValue(QLatin1String("Application"), d->updaterProgram);
+        settings->setValue(QLatin1String("LastDayChecked"), d->m_lastDayChecked);
+        settings->setValue(QLatin1String("RunUiArgument"), d->updaterRunUiArgument);
+        settings->setValue(QLatin1String("CheckOnlyArgument"), d->updaterCheckOnlyArgument);
+        settings->setValue(QLatin1String("ScheduledUpdateTime"), d->m_scheduledUpdateTime);
+        settings->endGroup();
+        settings->endTransaction();
     }
+}
+
+QTime UpdateInfoPlugin::scheduledUpdateTime() const
+{
+    return d->m_scheduledUpdateTime;
+}
+
+void UpdateInfoPlugin::setScheduledUpdateTime(const QTime &time)
+{
+    d->m_scheduledUpdateTime = time;
+}
+
+// -- protected
+
+void UpdateInfoPlugin::timerEvent(QTimerEvent *event)
+{
+    if (event->timerId() == d->m_timer.timerId()) {
+        const QDate today = QDate::currentDate();
+        if ((d->m_lastDayChecked == today) || d->checkUpdatesProcess)
+            return; // we checked already or the update task is still running
+
+        bool check = false;
+        if (d->m_lastDayChecked <= today.addDays(-2))
+            check = true;   // we haven't checked since some days, force check
+
+        if (QTime::currentTime() > d->m_scheduledUpdateTime)
+            check = true; // we are behind schedule, force check
+
+        if (check) {
+            startUpdaterCheckOnly();
+        }
+    } else {
+        // not triggered from our timer
+        ExtensionSystem::IPlugin::timerEvent(event);
+    }
+}
+
+// -- private slots
+
+void UpdateInfoPlugin::onCheckUpdatesError(QProcess::ProcessError error)
+{
+    d->m_lastDayChecked = QDate::currentDate();
+    saveSettings();
+
+    qWarning() << "Could not execute updater application. Error:" << error;
+    delete d->checkUpdatesProcess;
+}
+
+void UpdateInfoPlugin::onCheckUpdatesFinished(int exitCode, QProcess::ExitStatus exitStatus)
+{
+    d->m_lastDayChecked = QDate::currentDate();
+    saveSettings();
+
+    if (exitStatus != QProcess::NormalExit) {
+        qWarning() << "Updater application crashed";
+        delete d->checkUpdatesProcess;
+        return;
+    } else if (exitCode != 0) {
+        delete d->checkUpdatesProcess;
+        return;
+    }
+
+    QByteArray output = d->checkUpdatesProcess->readAllStandardOutput();
+    delete d->checkUpdatesProcess;
+
+    QDomDocument updatesDomDocument;
+    QString error;
+    if (!updatesDomDocument.setContent(output, &error)) {
+        qWarning() << "Error parsing updater application output:" << error;
+        return;
+    }
+
+    if (updatesDomDocument.isNull() || !updatesDomDocument.firstChildElement().hasChildNodes())
+        return;
+
+    // add a task to the progress manager
+    QFutureInterface<void> fakeTask;
+    fakeTask.reportFinished();
+    d->updateInfoProgress = ProgressManager::addTask(fakeTask.future(), tr("Updates available"),
+            "Update.GetInfo", ProgressManager::KeepOnFinish);
+    d->updateInfoProgress->setKeepOnFinish(FutureProgress::KeepOnFinish);
+
+    UpdateInfoButton *button = new UpdateInfoButton();
+    d->updateInfoProgress->setWidget(button);
+    connect(button, SIGNAL(released()), this, SLOT(startUpdaterUiApplication()));
 }
 
 void UpdateInfoPlugin::startUpdaterUiApplication()
 {
     QProcess::startDetached(d->updaterProgram, QStringList() << d->updaterRunUiArgument);
-    if (!d->updateInfoProgress.isNull())
-        d->updateInfoProgress->setKeepOnFinish(Core::FutureProgress::HideOnFinish); //this is fading out the last updateinfo
-    startCheckTimer(OneMinute);
+    if (!d->updateInfoProgress.isNull())  //this is fading out the last update info
+        d->updateInfoProgress->setKeepOnFinish(FutureProgress::HideOnFinish);
 }
 
-void UpdateInfoPlugin::timerEvent(QTimerEvent *event)
+// -- private
+
+void UpdateInfoPlugin::startUpdaterCheckOnly()
 {
-    if (event->timerId() == d->currentTimerId && !d->lastCheckUpdateInfoTask.isRunning())
-    {
-        stopCurrentCheckTimer();
-        d->lastCheckUpdateInfoTask = QtConcurrent::run(this, &UpdateInfoPlugin::checkForUpdates);
-        d->checkUpdateInfoWatcher->setFuture(d->lastCheckUpdateInfoTask);
-    }
+    QTC_ASSERT(!d->checkUpdatesProcess, return);
+
+    d->checkUpdatesProcess = new QProcess(this);
+    connect(d->checkUpdatesProcess, SIGNAL(error(QProcess::ProcessError)),
+            this, SLOT(onCheckUpdatesError(QProcess::ProcessError)));
+    connect(d->checkUpdatesProcess, SIGNAL(finished(int,QProcess::ExitStatus)),
+            this, SLOT(onCheckUpdatesFinished(int,QProcess::ExitStatus)));
+    d->checkUpdatesProcess->start(d->updaterProgram, QStringList() << d->updaterCheckOnlyArgument);
 }
 
-void UpdateInfoPlugin::extensionsInitialized()
+template <typename T>
+void UpdateInfoPlugin::settingsHelper(T *settings)
 {
+    settings->beginGroup(QLatin1String("Updater"));
+
+    d->updaterProgram = settings->value(QLatin1String("Application")).toString();
+    d->m_lastDayChecked = settings->value(QLatin1String("LastDayChecked"), QDate()).toDate();
+    d->updaterRunUiArgument = settings->value(QLatin1String("RunUiArgument"),
+        QLatin1String("--updater")).toString();
+    d->updaterCheckOnlyArgument = settings->value(QLatin1String("CheckOnlyArgument"),
+        QLatin1String("--checkupdates")).toString();
+    d->m_scheduledUpdateTime = settings->value(QLatin1String("ScheduledUpdateTime"), QTime(12, 0))
+        .toTime();
+
+    settings->endGroup();
 }
 
 } //namespace Internal

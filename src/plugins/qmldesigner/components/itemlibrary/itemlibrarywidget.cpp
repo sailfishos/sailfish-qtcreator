@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -48,37 +48,37 @@
 #include <QWheelEvent>
 #include <QMenu>
 #include <QApplication>
+#include <QTimer>
 
-#include <QDeclarativeItem>
-#include <private/qdeclarativeengine_p.h>
+#include <QQuickItem>
 
+enum {
+    debug = false
+};
 
 namespace QmlDesigner {
-
-
-
 
 ItemLibraryWidget::ItemLibraryWidget(QWidget *parent) :
     QFrame(parent),
     m_iconProvider(m_resIconSize),
     m_itemIconSize(24, 24),
     m_resIconSize(24, 24),
-    m_itemsView(new QDeclarativeView(this)),
+    m_itemsView(new QQuickView()),
     m_resourcesView(new Internal::ItemLibraryTreeView(this)),
-    m_filterFlag(QtBasic)
+    m_filterFlag(QtBasic),
+    m_itemLibraryId(-1)
 {
+    Internal::registerQmlTypes();
+
     setWindowTitle(tr("Library", "Title of library view"));
 
     /* create Items view and its model */
-    m_itemsView->setAttribute(Qt::WA_OpaquePaintEvent);
-    m_itemsView->setAttribute(Qt::WA_NoSystemBackground);
-    m_itemsView->setAcceptDrops(false);
-    m_itemsView->setFocusPolicy(Qt::ClickFocus);
-    m_itemsView->setResizeMode(QDeclarativeView::SizeRootObjectToView);
-    m_itemLibraryModel = new Internal::ItemLibraryModel(QDeclarativeEnginePrivate::getScriptEngine(m_itemsView->engine()), this);
+    m_itemsView->setResizeMode(QQuickView::SizeRootObjectToView);
+    m_itemsView->engine()->setOutputWarningsToStandardError(debug);
+    m_itemLibraryModel = new Internal::ItemLibraryModel(this);
     m_itemLibraryModel->setItemIconSize(m_itemIconSize);
 
-    QDeclarativeContext *rootContext = m_itemsView->rootContext();
+    QQmlContext *rootContext = m_itemsView->rootContext();
     rootContext->setContextProperty(QLatin1String("itemLibraryModel"), m_itemLibraryModel.data());
     rootContext->setContextProperty(QLatin1String("itemLibraryIconWidth"), m_itemIconSize.width());
     rootContext->setContextProperty(QLatin1String("itemLibraryIconHeight"), m_itemIconSize.height());
@@ -91,9 +91,9 @@ ItemLibraryWidget::ItemLibraryWidget(QWidget *parent) :
     // loading the qml has to come after all needed context properties are set
     m_itemsView->setSource(QUrl("qrc:/ItemLibrary/qml/ItemsView.qml"));
 
-    QDeclarativeItem *rootItem = qobject_cast<QDeclarativeItem*>(m_itemsView->rootObject());
+    QQuickItem *rootItem = qobject_cast<QQuickItem*>(m_itemsView->rootObject());
     connect(rootItem, SIGNAL(itemSelected(int)), this, SLOT(showItemInfo(int)));
-    connect(rootItem, SIGNAL(itemDragged(int)), this, SLOT(startDragAndDrop(int)));
+    connect(rootItem, SIGNAL(itemDragged(int)), this, SLOT(startDragAndDropDelayed(int)));
     connect(this, SIGNAL(scrollItemsView(QVariant)), rootItem, SLOT(scrollView(QVariant)));
     connect(this, SIGNAL(resetItemsView()), rootItem, SLOT(resetView()));
 
@@ -110,14 +110,18 @@ ItemLibraryWidget::ItemLibraryWidget(QWidget *parent) :
     QTabBar *tabBar = new QTabBar(this);
     tabBar->addTab(tr("QML Types", "Title of library QML types view"));
     tabBar->addTab(tr("Resources", "Title of library resources view"));
+    tabBar->addTab(tr("Imports", "Title of library imports view"));
     tabBar->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+    connect(tabBar, SIGNAL(currentChanged(int)), this, SLOT(setCurrentIndexOfStackedWidget(int)));
+    connect(tabBar, SIGNAL(currentChanged(int)), this, SLOT(updateSearch()));
 
-    m_lineEdit = new Utils::FilterLineEdit(this);
-    m_lineEdit->setObjectName(QLatin1String("itemLibrarySearchInput"));
-    m_lineEdit->setPlaceholderText(tr("<Filter>", "Library search input hint text"));
-    m_lineEdit->setDragEnabled(false);
-    m_lineEdit->setMinimumWidth(75);
-    m_lineEdit->setTextMargins(0, 0, 20, 0);
+    m_filterLineEdit = new Utils::FancyLineEdit(this);
+    m_filterLineEdit->setObjectName(QLatin1String("itemLibrarySearchInput"));
+    m_filterLineEdit->setPlaceholderText(tr("<Filter>", "Library search input hint text"));
+    m_filterLineEdit->setDragEnabled(false);
+    m_filterLineEdit->setMinimumWidth(75);
+    m_filterLineEdit->setTextMargins(0, 0, 20, 0);
+    m_filterLineEdit->setFiltering(true);
     QWidget *lineEditFrame = new QWidget(this);
     lineEditFrame->setObjectName(QLatin1String("itemLibrarySearchInputFrame"));
     QGridLayout *lineEditLayout = new QGridLayout(lineEditFrame);
@@ -125,17 +129,14 @@ ItemLibraryWidget::ItemLibraryWidget(QWidget *parent) :
     lineEditLayout->setSpacing(0);
     lineEditLayout->addItem(new QSpacerItem(5, 3, QSizePolicy::Fixed, QSizePolicy::Fixed), 0, 0, 1, 3);
     lineEditLayout->addItem(new QSpacerItem(5, 5, QSizePolicy::Fixed, QSizePolicy::Fixed), 1, 0);
-    lineEditLayout->addWidget(m_lineEdit.data(), 1, 1, 1, 1);
+    lineEditLayout->addWidget(m_filterLineEdit.data(), 1, 1, 1, 1);
     lineEditLayout->addItem(new QSpacerItem(5, 5, QSizePolicy::Fixed, QSizePolicy::Fixed), 1, 2);
-    connect(m_lineEdit.data(), SIGNAL(filterChanged(QString)), this, SLOT(setSearchFilter(QString)));
+    connect(m_filterLineEdit.data(), SIGNAL(filterChanged(QString)), this, SLOT(setSearchFilter(QString)));
 
+    QWidget *container = createWindowContainer(m_itemsView.data());
     m_stackedWidget = new QStackedWidget(this);
-    m_stackedWidget->addWidget(m_itemsView.data());
+    m_stackedWidget->addWidget(container);
     m_stackedWidget->addWidget(m_resourcesView.data());
-    connect(tabBar, SIGNAL(currentChanged(int)),
-            m_stackedWidget.data(), SLOT(setCurrentIndex(int)));
-    connect(tabBar, SIGNAL(currentChanged(int)),
-            this, SLOT(updateSearch()));
 
     QWidget *spacer = new QWidget(this);
     spacer->setObjectName(QLatin1String("itemLibrarySearchInputSpacer"));
@@ -154,8 +155,7 @@ ItemLibraryWidget::ItemLibraryWidget(QWidget *parent) :
 
     /* style sheets */
     setStyleSheet(QLatin1String(Utils::FileReader::fetchQrc(":/qmldesigner/stylesheet.css")));
-    m_resourcesView->setStyleSheet(
-            QLatin1String(Utils::FileReader::fetchQrc(":/qmldesigner/scrollbar.css")));
+    m_resourcesView->setStyleSheet(QLatin1String(Utils::FileReader::fetchQrc(":/qmldesigner/scrollbar.css")));
 }
 
 void ItemLibraryWidget::setItemLibraryInfo(ItemLibraryInfo *itemLibraryInfo)
@@ -191,6 +191,11 @@ void ItemLibraryWidget::updateImports()
     setImportFilter(filter);
 }
 
+void ItemLibraryWidget::setImportsWidget(QWidget *importsWidget)
+{
+    m_stackedWidget->addWidget(importsWidget);
+}
+
 QList<QToolButton *> ItemLibraryWidget::createToolBarWidgets()
 {
     QList<QToolButton *> buttons;
@@ -200,7 +205,7 @@ QList<QToolButton *> ItemLibraryWidget::createToolBarWidgets()
     buttons << new QToolButton();
     buttons.first()->setText(tr("I "));
     buttons.first()->setIcon(QIcon(QLatin1String(Core::Constants::ICON_FILTER)));
-    buttons.first()->setToolTip(tr("Manage imports for components"));
+    buttons.first()->setToolTip(tr("Manage imports for components."));
     buttons.first()->setPopupMode(QToolButton::InstantPopup);
     QMenu * menu = new QMenu;
     QAction * basicQtAction = new QAction(menu);
@@ -281,6 +286,16 @@ void ItemLibraryWidget::emitImportChecked()
     emit meegoChecked(meegoImport);
 }
 
+void ItemLibraryWidget::setCurrentIndexOfStackedWidget(int index)
+{
+    if (index == 2)
+        m_filterLineEdit->setVisible(false);
+    else
+        m_filterLineEdit->setVisible(true);
+
+    m_stackedWidget->setCurrentIndex(index);
+}
+
 void ItemLibraryWidget::setImportFilter(FilterChangeFlag flag)
 {
     return;
@@ -339,7 +354,7 @@ void ItemLibraryWidget::updateModel()
 
 void ItemLibraryWidget::updateSearch()
 {
-    setSearchFilter(m_lineEdit->text());
+    setSearchFilter(m_filterLineEdit->text());
 }
 
 void ItemLibraryWidget::setResourcePath(const QString &resourcePath)
@@ -351,18 +366,19 @@ void ItemLibraryWidget::setResourcePath(const QString &resourcePath)
     updateSearch();
 }
 
-void ItemLibraryWidget::startDragAndDrop(int itemLibId)
+void ItemLibraryWidget::startDragAndDropDelayed(int itemLibraryId)
 {
-    QMimeData *mimeData = m_itemLibraryModel->getMimeData(itemLibId);
-    CustomItemLibraryDrag *drag = new CustomItemLibraryDrag(this);
-    const QImage image = qvariant_cast<QImage>(mimeData->imageData());
+    m_itemLibraryId = itemLibraryId;
+    QTimer::singleShot(0, this, SLOT(startDragAndDrop()));
+}
 
-    drag->setPixmap(m_itemLibraryModel->getIcon(itemLibId).pixmap(32, 32));
-    drag->setPreview(QPixmap::fromImage(image));
+void ItemLibraryWidget::startDragAndDrop()
+{
+    QMimeData *mimeData = m_itemLibraryModel->getMimeData(m_itemLibraryId);
+    QDrag *drag = new QDrag(this);
+
+    drag->setPixmap(m_itemLibraryModel->getIcon(m_itemLibraryId).pixmap(32, 32));
     drag->setMimeData(mimeData);
-
-    QDeclarativeItem *rootItem = qobject_cast<QDeclarativeItem*>(m_itemsView->rootObject());
-    connect(rootItem, SIGNAL(stopDragAndDrop()), drag, SLOT(stopDrag()));
 
     drag->exec();
 }
@@ -370,16 +386,6 @@ void ItemLibraryWidget::startDragAndDrop(int itemLibId)
 void ItemLibraryWidget::showItemInfo(int /*itemLibId*/)
 {
 //    qDebug() << "showing item info about id" << itemLibId;
-}
-
-void ItemLibraryWidget::wheelEvent(QWheelEvent *event)
-{
-    if (m_stackedWidget->currentIndex() == 0 &&
-        m_itemsView->rect().contains(event->pos())) {
-        emit scrollItemsView(event->delta());
-        event->accept();
-    } else
-        QFrame::wheelEvent(event);
 }
 
 void ItemLibraryWidget::removeImport(const QString &name)
@@ -409,6 +415,9 @@ QIcon ItemLibraryFileIconProvider::icon(const QFileInfo &info) const
         QIcon defaultIcon(QFileIconProvider::icon(info));
         pixmap = defaultIcon.pixmap(defaultIcon.actualSize(m_iconSize));
     }
+
+    if (pixmap.isNull())
+        return pixmap;
 
     if (pixmap.width() == m_iconSize.width()
             && pixmap.height() == m_iconSize.height())

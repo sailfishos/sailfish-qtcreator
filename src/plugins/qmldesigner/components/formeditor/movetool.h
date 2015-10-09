@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -34,7 +34,9 @@
 #include "movemanipulator.h"
 #include "selectionindicator.h"
 #include "resizeindicator.h"
-
+#include "anchorindicator.h"
+#include "bindingindicator.h"
+#include "contentnoteditableindicator.h"
 
 namespace QmlDesigner {
 
@@ -93,6 +95,9 @@ private:
     MoveManipulator m_moveManipulator;
     SelectionIndicator m_selectionIndicator;
     ResizeIndicator m_resizeIndicator;
+    AnchorIndicator m_anchorIndicator;
+    BindingIndicator m_bindingIndicator;
+    ContentNotEditableIndicator m_contentNotEditableIndicator;
     QList<FormEditorItem*> m_movingItems;
 };
 

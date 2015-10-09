@@ -1,6 +1,6 @@
 #############################################################################
 ##
-## Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+## Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ## Contact: http://www.qt-project.org/legal
 ##
 ## This file is part of Qt Creator.
@@ -29,50 +29,11 @@
 
 import re;
 
-# dictionary to hold a list of all installed handler functions for all object-signalSignature pairs
-installedSignalHandlers = {}
-# flag to indicate whether overrideInstallLazySignalHandler() has been called already
-overridenInstallLazySignalHandlers = False
-# flag to indicate whether a tasks file should be created when building ends with errors
-createTasksFileOnError = True
-# currently used directory for tasks files
-tasksFileDir = None
-# counter for written tasks files
-tasksFileCount = 0
-
-# call this function to override installLazySignalHandler()
-def overrideInstallLazySignalHandler():
-    global overridenInstallLazySignalHandlers
-    if overridenInstallLazySignalHandlers:
-        return
-    overridenInstallLazySignalHandlers = True
-    global installLazySignalHandler
-    installLazySignalHandler = __addSignalHandlerDict__(installLazySignalHandler)
-
-# avoids adding a handler to a signal twice or more often
-# do not call this function directly - use overrideInstallLazySignalHandler() instead
-def __addSignalHandlerDict__(lazySignalHandlerFunction):
-    global installedSignalHandlers
-    def wrappedFunction(name, signalSignature, handlerFunctionName):
-        handlers = installedSignalHandlers.get("%s____%s" % (name,signalSignature))
-        if handlers == None:
-            lazySignalHandlerFunction(name, signalSignature, handlerFunctionName)
-            installedSignalHandlers.setdefault("%s____%s" % (name,signalSignature), [handlerFunctionName])
-        else:
-            if not handlerFunctionName in handlers:
-                lazySignalHandlerFunction(name, signalSignature, handlerFunctionName)
-                handlers.append(handlerFunctionName)
-                installedSignalHandlers.setdefault("%s____%s" % (name,signalSignature), handlers)
-    return wrappedFunction
-
-# returns the currently assigned handler functions for a given object and signal
-def getInstalledSignalHandlers(name, signalSignature):
-    return installedSignalHandlers.get("%s____%s" % (name,signalSignature))
-
 # this method checks the last build (if there's one) and logs the number of errors, warnings and
 # lines within the Issues output
-# optional parameter can be used to tell this function if the build was expected to fail or not
-def checkLastBuild(expectedToFail=False):
+# param expectedToFail can be used to tell this function if the build was expected to fail or not
+# param createTasksFileOnError whether a tasks file should be created when building ends with errors
+def checkLastBuild(expectedToFail=False, createTasksFileOnError=True):
     try:
         # can't use waitForObject() 'cause visible is always 0
         buildProg = findObject("{type='ProjectExplorer::Internal::BuildProgress' unnamed='1' }")
@@ -82,8 +43,9 @@ def checkLastBuild(expectedToFail=False):
     ensureChecked(":Qt Creator_Issues_Core::Internal::OutputPaneToggleButton")
     model = waitForObject(":Qt Creator.Issues_QListView").model()
     buildIssues = dumpBuildIssues(model)
-    errors = len(filter(lambda i: i[5] == "1", buildIssues))
-    warnings = len(filter(lambda i: i[5] == "2", buildIssues))
+    types = map(lambda i: i[5], buildIssues)
+    errors = types.count("1")
+    warnings = types.count("2")
     gotErrors = errors != 0
     if not (gotErrors ^ expectedToFail):
         test.passes("Errors: %s | Warnings: %s" % (errors, warnings))
@@ -113,17 +75,28 @@ def compileSucceeded(compileOutput):
     return None != re.match(".*exited normally\.\n\d\d:\d\d:\d\d: Elapsed time: "
                             "(\d:)?\d{2}:\d\d\.$", str(compileOutput), re.S)
 
+def waitForCompile(timeout=60000):
+    progressBarWait(10000) # avoids switching to Issues pane after checking Compile Output
+    ensureChecked(":Qt Creator_CompileOutput_Core::Internal::OutputPaneToggleButton")
+    output = waitForObject(":Qt Creator.Compile Output_Core::OutputWindow")
+    if not waitFor("re.match('.*Elapsed time: (\d:)?\d{2}:\d\d\.$', str(output.plainText), re.S)", timeout):
+        test.warning("Waiting for compile timed out after %d s." % (timeout / 1000))
+
 def dumpBuildIssues(listModel):
     issueDump = []
-    for row in range(listModel.rowCount()):
-        index = listModel.index(row, 0)
+    for index in dumpIndices(listModel):
         issueDump.extend([map(lambda role: index.data(role).toString(),
                               range(Qt.UserRole, Qt.UserRole + 6))])
     return issueDump
 
+# counter for written tasks files
+tasksFileCount = 0
+
 # helper method that writes a tasks file
 def createTasksFile(buildIssues):
-    global tasksFileDir, tasksFileCount
+    # currently used directory for tasks files
+    tasksFileDir = None
+    global tasksFileCount
     if tasksFileDir == None:
             tasksFileDir = os.getcwd() + "/tasks"
             tasksFileDir = os.path.abspath(tasksFileDir)
@@ -157,6 +130,8 @@ def createTasksFile(buildIssues):
             tData = "warning"
         else:
             tData = "unknown"
+        if str(fData).strip() == "" and lData == "-1" and str(dData).strip() == "":
+            test.fatal("Found empty task.")
         file.write("%s\t%s\t%s\t%s\n" % (fData, lData, tData, dData))
     file.close()
     test.log("Written tasks file %s" % outfile)
@@ -184,18 +159,18 @@ def iterateBuildConfigs(kitCount, filter = ""):
 # param targetCount specifies the number of targets currently defined (must be correct!)
 # param currentTarget specifies the target for which to switch into the specified settings (zero based index)
 # param configName is the name of the configuration that should be selected
+# param afterSwitchTo the ViewConstant of the mode to switch to after selecting or None
 # returns information about the selected kit, see getQtInformationForBuildSettings
-def selectBuildConfig(targetCount, currentTarget, configName):
+def selectBuildConfig(targetCount, currentTarget, configName, afterSwitchTo=ViewConstants.EDIT):
     switchViewTo(ViewConstants.PROJECTS)
     switchToBuildOrRunSettingsFor(targetCount, currentTarget, ProjectSettings.BUILD)
-    if selectFromCombo(":scrollArea.Edit build configuration:_QComboBox", configName):
+    if selectFromCombo(":scrollArea.Edit build configuration:_QComboBox", configName) or targetCount > 1:
         progressBarWait(30000)
-    return getQtInformationForBuildSettings(targetCount, True, ViewConstants.EDIT)
+    return getQtInformationForBuildSettings(targetCount, True, afterSwitchTo)
 
 # This will not trigger a rebuild. If needed, caller has to do this.
-def verifyBuildConfig(targetCount, currentTarget, shouldBeDebug=False, enableShadowBuild=False, enableQmlDebug=False):
-    switchViewTo(ViewConstants.PROJECTS)
-    switchToBuildOrRunSettingsFor(targetCount, currentTarget, ProjectSettings.BUILD)
+def verifyBuildConfig(targetCount, currentTarget, configName, shouldBeDebug=False, enableShadowBuild=False, enableQmlDebug=False):
+    qtInfo = selectBuildConfig(targetCount, currentTarget, configName, None)
     ensureChecked(waitForObject(":scrollArea.Details_Utils::DetailsButton"))
     ensureChecked("{name='shadowBuildCheckBox' type='QCheckBox' visible='1'}", enableShadowBuild)
     buildCfCombo = waitForObject("{type='QComboBox' name='buildConfigurationComboBox' visible='1' "
@@ -233,6 +208,7 @@ def verifyBuildConfig(targetCount, currentTarget, shouldBeDebug=False, enableSha
             clickButton(waitForObject(":QML Debugging.No_QPushButton", 5000))
     clickButton(waitForObject(":scrollArea.Details_Utils::DetailsButton"))
     switchViewTo(ViewConstants.EDIT)
+    return qtInfo
 
 # verify if building and running of project was successful
 def verifyBuildAndRun():
@@ -241,7 +217,8 @@ def verifyBuildAndRun():
     # check application output log
     appOutput = logApplicationOutput()
     if appOutput:
-        test.verify(re.search(".* exited with code \d+", str(appOutput)) and
+        test.verify((re.search(".* exited with code \d+", str(appOutput)) or
+                     re.search("The program has unexpectedly finished\.", str(appOutput))) and
                     re.search('[Ss]tarting.*', str(appOutput)),
                     "Verifying if built app started and closed successfully.")
 
@@ -256,7 +233,8 @@ def runVerify(checkedTargets):
     for kit, config in availableConfigs:
         selectBuildConfig(len(checkedTargets), kit, config)
         test.log("Using build config '%s'" % config)
-        if not runAndCloseApp():
-            return
+        if runAndCloseApp() == None:
+            checkCompile()
+            continue
         verifyBuildAndRun()
         mouseClick(waitForObject(":*Qt Creator.Clear_QToolButton"))

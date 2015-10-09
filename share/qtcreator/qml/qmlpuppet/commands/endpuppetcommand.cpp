@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -29,6 +29,8 @@
 
 #include "endpuppetcommand.h"
 
+#include <QDebug>
+
 namespace QmlDesigner {
 
 EndPuppetCommand::EndPuppetCommand()
@@ -43,6 +45,11 @@ QDataStream &operator<<(QDataStream &out, const EndPuppetCommand &/*command*/)
 QDataStream &operator>>(QDataStream &in, EndPuppetCommand &/*command*/)
 {
     return in;
+}
+
+QDebug operator <<(QDebug debug, const EndPuppetCommand &/*command*/)
+{
+    return debug.nospace() << "EndPuppetCommand()";
 }
 
 } // namespace QmlDesigner

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -199,7 +199,8 @@ NodeInstanceMetaObject::~NodeInstanceMetaObject()
 
 void NodeInstanceMetaObject::createNewProperty(const QString &name)
 {
-    int id = createProperty(name.toUtf8(), 0);
+    int id = m_type->createProperty(name.toUtf8());
+    copyTypeMetaObject();
     setValue(id, QVariant());
     Q_ASSERT(id >= 0);
     Q_UNUSED(id);
@@ -214,13 +215,6 @@ void NodeInstanceMetaObject::createNewProperty(const QString &name)
     Q_ASSERT(property.isValid());
 }
 
-int NodeInstanceMetaObject::createProperty(const char *name, const char *)
-{
-    int id =  m_type->createProperty(name);
-    copyTypeMetaObject();
-    return id;
-}
-
 void NodeInstanceMetaObject::setValue(int id, const QVariant &value)
 {
     QPair<QVariant, bool> &prop = m_data->getDataRef(id);
@@ -232,6 +226,27 @@ void NodeInstanceMetaObject::setValue(int id, const QVariant &value)
 QVariant NodeInstanceMetaObject::propertyWriteValue(int, const QVariant &value)
 {
     return value;
+}
+
+const QAbstractDynamicMetaObject *NodeInstanceMetaObject::dynamicMetaObjectParent() const
+{
+    if (QQmlVMEMetaObject::parent.isT1())
+        return QQmlVMEMetaObject::parent.asT1()->toDynamicMetaObject(QQmlVMEMetaObject::object);
+    else
+        return 0;
+}
+
+const QMetaObject *NodeInstanceMetaObject::metaObjectParent() const
+{
+    if (QQmlVMEMetaObject::parent.isT1())
+        return QQmlVMEMetaObject::parent.asT1()->toDynamicMetaObject(QQmlVMEMetaObject::object);
+
+    return QQmlVMEMetaObject::parent.asT2();
+}
+
+int NodeInstanceMetaObject::propertyOffset() const
+{
+    return cache->propertyOffset();
 }
 
 int NodeInstanceMetaObject::openMetaCall(QMetaObject::Call call, int id, void **a)

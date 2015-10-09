@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -36,13 +36,11 @@
 
 #include <designdocument.h>
 
-namespace Core {
-class IEditor;
-}
+namespace Core { class IEditor; }
 
 namespace QmlDesigner {
 
-class DocumentManager : public QObject
+class QMLDESIGNERCORE_EXPORT DocumentManager : public QObject
 {
     Q_OBJECT
 public:
@@ -54,6 +52,8 @@ public:
     bool hasCurrentDesignDocument() const;
 
     void removeEditors(QList<Core::IEditor*> editors);
+
+    static void goIntoComponent(const ModelNode &modelNode);
 
 private:
     QHash<Core::IEditor *,QWeakPointer<DesignDocument> > m_designDocumentHash;

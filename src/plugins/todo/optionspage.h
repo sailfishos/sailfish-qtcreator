@@ -1,7 +1,7 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Dmitry Savchenko
-** Copyright (c) 2013 Vasiliy Sorokin
+** Copyright (c) 2014 Dmitry Savchenko
+** Copyright (c) 2014 Vasiliy Sorokin
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -35,6 +35,8 @@
 
 #include <coreplugin/dialogs/ioptionspage.h>
 
+#include <QPointer>
+
 namespace Todo {
 namespace Internal {
 
@@ -49,16 +51,15 @@ public:
 
     void setSettings(const Settings &settings);
 
-    QWidget *createPage(QWidget *parent);
+    QWidget *widget();
     void apply();
     void finish();
-    bool matches(const QString &searchKeyWord) const;
 
 signals:
     void settingsChanged(const Settings &settings);
 
 private:
-    OptionsDialog *m_dialog;
+    QPointer<OptionsDialog> m_widget;
     Settings m_settings;
 };
 

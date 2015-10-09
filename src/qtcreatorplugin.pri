@@ -1,4 +1,12 @@
-include($$replace(_PRO_FILE_PWD_, ([^/]+$), \\1/\\1_dependencies.pri))
+depfile = $$replace(_PRO_FILE_PWD_, ([^/]+$), \\1/\\1_dependencies.pri)
+exists($$depfile) {
+    include($$depfile)
+    isEmpty(QTC_PLUGIN_NAME): \
+        error("$$basename(depfile) does not define QTC_PLUGIN_NAME.")
+} else {
+    isEmpty(QTC_PLUGIN_NAME): \
+        error("QTC_PLUGIN_NAME is empty. Maybe you meant to create $$basename(depfile)?")
+}
 TARGET = $$QTC_PLUGIN_NAME
 
 plugin_deps = $$QTC_PLUGIN_DEPENDS
@@ -9,11 +17,29 @@ include(../qtcreator.pri)
 # for substitution in the .pluginspec
 dependencyList = "<dependencyList>"
 for(dep, plugin_deps) {
-    include($$PWD/plugins/$$dep/$${dep}_dependencies.pri)
+    dependencies_file =
+    for(dir, QTC_PLUGIN_DIRS) {
+        exists($$dir/$$dep/$${dep}_dependencies.pri) {
+            dependencies_file = $$dir/$$dep/$${dep}_dependencies.pri
+            break()
+        }
+    }
+    isEmpty(dependencies_file): \
+        error("Plugin dependency $$dep not found")
+    include($$dependencies_file)
     dependencyList += "        <dependency name=\"$$QTC_PLUGIN_NAME\" version=\"$$QTCREATOR_VERSION\"/>"
 }
 for(dep, plugin_recmds) {
-    include($$PWD/plugins/$$dep/$${dep}_dependencies.pri)
+    dependencies_file =
+    for(dir, QTC_PLUGIN_DIRS) {
+        exists($$dir/$$dep/$${dep}_dependencies.pri) {
+            dependencies_file = $$dir/$$dep/$${dep}_dependencies.pri
+            break()
+        }
+    }
+    isEmpty(dependencies_file): \
+        error("Plugin dependency $$dep not found")
+    include($$dependencies_file)
     dependencyList += "        <dependency name=\"$$QTC_PLUGIN_NAME\" version=\"$$QTCREATOR_VERSION\" type=\"optional\"/>"
 }
 dependencyList += "    </dependencyList>"
@@ -84,7 +110,7 @@ copy2build.input = PLUGINSPEC
 isEmpty(vcproj):copy2build.variable_out = PRE_TARGETDEPS
 copy2build.commands = $$QMAKE_COPY ${QMAKE_FILE_IN} ${QMAKE_FILE_OUT}
 copy2build.name = COPY ${QMAKE_FILE_IN}
-copy2build.CONFIG += no_link
+copy2build.CONFIG += no_link no_clean
 QMAKE_EXTRA_COMPILERS += copy2build
 
 greaterThan(QT_MAJOR_VERSION, 4) {
@@ -97,19 +123,15 @@ greaterThan(QT_MAJOR_VERSION, 4) {
     pluginspec2json.input = PLUGINSPEC
     pluginspec2json.variable_out = GENERATED_FILES
     pluginspec2json.output = $${TARGET}.json
-    pluginspec2json.commands = $$XMLPATTERNS -no-format -output $$pluginspec2json.output $$PWD/pluginjsonmetadata.xsl $$PLUGINSPEC
+    pluginspec2json.commands = $$XMLPATTERNS -no-format -output $$pluginspec2json.output $$PWD/qtcreatorplugin2json.xsl $$PLUGINSPEC
     pluginspec2json.CONFIG += no_link
     moc_header.depends += $$pluginspec2json.output
     QMAKE_EXTRA_COMPILERS += pluginspec2json
 }
 
 macx {
-    !isEmpty(TIGER_COMPAT_MODE) {
-        QMAKE_LFLAGS_SONAME = -Wl,-install_name,@executable_path/../PlugIns/$${PROVIDER}/
-    } else {
-        QMAKE_LFLAGS_SONAME = -Wl,-install_name,@rpath/PlugIns/$${PROVIDER}/
-        QMAKE_LFLAGS += -Wl,-rpath,@loader_path/../../,-rpath,@executable_path/../
-    }
+    QMAKE_LFLAGS_SONAME = -Wl,-install_name,@rpath/PlugIns/$${PROVIDER}/
+    QMAKE_LFLAGS += -Wl,-rpath,@loader_path/../../,-rpath,@executable_path/../
 } else:linux-* {
     #do the rpath by hand since it's not possible to use ORIGIN in QMAKE_RPATHDIR
     QMAKE_RPATHDIR += \$\$ORIGIN
@@ -119,9 +141,6 @@ macx {
     QMAKE_LFLAGS += -Wl,-z,origin \'-Wl,-rpath,$${IDE_PLUGIN_RPATH}\'
     QMAKE_RPATHDIR =
 }
-
-# put .pro file directory in INCLUDEPATH
-CONFIG += include_source_dir
 
 contains(QT_CONFIG, reduce_exports):CONFIG += hide_symbols
 

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -50,12 +50,12 @@ bool CppAutoCompleter::contextAllowsAutoParentheses(const QTextCursor &cursor,
 {
     QChar ch;
 
-    if (! textToInsert.isEmpty())
+    if (!textToInsert.isEmpty())
         ch = textToInsert.at(0);
 
-    if (! (MatchingText::shouldInsertMatchingText(cursor)
-           || ch == QLatin1Char('\'')
-           || ch == QLatin1Char('"')))
+    if (!(MatchingText::shouldInsertMatchingText(cursor)
+          || ch == QLatin1Char('\'')
+          || ch == QLatin1Char('"')))
         return false;
     else if (isInCommentHelper(cursor))
         return false;
@@ -101,10 +101,14 @@ QString CppAutoCompleter::insertParagraphSeparator(const QTextCursor &cursor) co
 
 bool CppAutoCompleter::isInCommentHelper(const QTextCursor &cursor, Token *retToken) const
 {
+    LanguageFeatures features;
+    features.qtEnabled = false;
+    features.qtKeywordsEnabled = false;
+    features.qtMocRunEnabled = false;
+    features.cxx11Enabled = true;
+
     SimpleLexer tokenize;
-    tokenize.setQtMocRunEnabled(false);
-    tokenize.setObjCEnabled(false);
-    tokenize.setCxx0xEnabled(true);
+    tokenize.setLanguageFeatures(features);
 
     const int prevState = BackwardsScanner::previousBlockState(cursor.block()) & 0xFF;
     const QList<Token> tokens = tokenize(cursor.block().text(), prevState);

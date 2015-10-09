@@ -6,12 +6,21 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>802</width>
-    <height>416</height>
+    <width>801</width>
+    <height>459</height>
    </rect>
   </property>
   <layout class="QHBoxLayout" name="horizontalLayout">
-   <property name="margin">
+   <property name="leftMargin">
+    <number>0</number>
+   </property>
+   <property name="topMargin">
+    <number>0</number>
+   </property>
+   <property name="rightMargin">
+    <number>0</number>
+   </property>
+   <property name="bottomMargin">
     <number>0</number>
    </property>
    <item>
@@ -198,7 +207,7 @@ Specifies how backspace interacts with indentation.
            </sizepolicy>
           </property>
           <property name="toolTip">
-           <string>Clean whitespace in entire document instead of only for changed parts.</string>
+           <string>Cleans whitespace in entire document instead of only for changed parts.</string>
           </property>
           <property name="text">
            <string>In entire &amp;document</string>
@@ -211,7 +220,7 @@ Specifies how backspace interacts with indentation.
            <bool>false</bool>
           </property>
           <property name="toolTip">
-           <string>Correct leading whitespace according to tab settings.</string>
+           <string>Corrects leading whitespace according to tab settings.</string>
           </property>
           <property name="text">
            <string>Clean indentation</string>
@@ -221,7 +230,7 @@ Specifies how backspace interacts with indentation.
         <item row="3" column="0" colspan="2">
          <widget class="QCheckBox" name="addFinalNewLine">
           <property name="toolTip">
-           <string>Always write a newline character at the end of the file.</string>
+           <string>Always writes a newline character at the end of the file.</string>
           </property>
           <property name="text">
            <string>&amp;Ensure newline at end of file</string>
@@ -321,6 +330,13 @@ Specifies how backspace interacts with indentation.
        </property>
        <layout class="QVBoxLayout" name="verticalLayout">
         <item>
+         <widget class="QCheckBox" name="mouseHiding">
+          <property name="text">
+           <string>Hide mouse cursor while typing</string>
+          </property>
+         </widget>
+        </item>
+        <item>
          <widget class="QCheckBox" name="mouseNavigation">
           <property name="text">
            <string>Enable &amp;mouse navigation</string>
@@ -342,15 +358,41 @@ Specifies how backspace interacts with indentation.
          </widget>
         </item>
         <item>
-         <layout class="QGridLayout" name="gridLayout_4">
-          <item row="0" column="0">
-           <widget class="QLabel" name="helpTooltipsLabel">
-            <property name="text">
-             <string>Show help tooltips:</string>
+         <widget class="QCheckBox" name="keyboardTooltips">
+          <property name="toolTip">
+           <string>Pressing Alt displays context-sensitive help or type information as tooltips.</string>
+          </property>
+          <property name="text">
+           <string>Show help tooltips using keyboard shortcut (Alt)</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="helpTooltipsLabel">
+          <property name="text">
+           <string>Show help tooltips using the mouse:</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_2">
+          <item>
+           <spacer name="horizontalSpacer">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
             </property>
-           </widget>
+            <property name="sizeType">
+             <enum>QSizePolicy::Fixed</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>30</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
           </item>
-          <item row="0" column="1">
+          <item>
            <widget class="QComboBox" name="constrainTooltipsBox">
             <item>
              <property name="text">
@@ -364,8 +406,8 @@ Specifies how backspace interacts with indentation.
             </item>
            </widget>
           </item>
-          <item row="0" column="2">
-           <spacer name="horizontalSpacer">
+          <item>
+           <spacer name="horizontalSpacer_3">
             <property name="orientation">
              <enum>Qt::Horizontal</enum>
             </property>
@@ -376,16 +418,6 @@ Specifies how backspace interacts with indentation.
              </size>
             </property>
            </spacer>
-          </item>
-          <item row="1" column="1">
-           <widget class="QCheckBox" name="keyboardTooltips">
-            <property name="toolTip">
-             <string>Press Alt to display context-sensitive help or type information as tooltips.</string>
-            </property>
-            <property name="text">
-             <string>Using keyboard shortcut (Alt)</string>
-            </property>
-           </widget>
           </item>
          </layout>
         </item>

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -34,6 +34,18 @@
 #include <cxxabi.h>
 #endif
 
+#include <coreplugin/icore.h>
+
+#include <QCoreApplication>
+#include <QMessageBox>
+
+static void showAsyncWarning(const QString &title, const QString &desciption)
+{
+    QMessageBox *messageBox = new QMessageBox(QMessageBox::Warning, title, desciption, QMessageBox::Ok, Core::ICore::dialogParent());
+    messageBox->setAttribute(Qt::WA_DeleteOnClose);
+    messageBox->setModal(true);
+    messageBox->show();
+}
 
 /*!
 \defgroup CoreExceptions
@@ -84,6 +96,12 @@ bool Exception::shouldAssert()
     return s_shouldAssert;
 }
 
+bool Exception::warnAboutException()
+{
+    static bool warnException = !qgetenv("QTCREATOR_QTQUICKDESIGNER_WARN_EXCEPTION").isEmpty();
+    return warnException;
+}
+
 /*!
     Constructs an exception. \a line uses the __LINE__ macro, \a function uses
     the __FUNCTION__ or the Q_FUNC_INFO macro, and \a file uses
@@ -125,12 +143,27 @@ QString Exception::backTrace() const
     return m_backTrace;
 }
 
+void Exception::createWarning() const
+{
+    if (warnAboutException())
+        qDebug() << *this;
+}
+
 /*!
     Returns the optional description of this exception as a string.
 */
 QString Exception::description() const
 {
     return QString("file: %1, function: %2, line: %3").arg(m_file, m_function, QString::number(m_line));
+}
+
+/*!
+    Shows message in a message box.
+*/
+void Exception::showException(const QString &title) const
+{
+    QString t = title.isEmpty() ? QCoreApplication::translate("QmlDesigner", "Error") : title;
+    showAsyncWarning(t, description());
 }
 
 /*!

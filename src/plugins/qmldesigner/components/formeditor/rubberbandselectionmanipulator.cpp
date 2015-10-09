@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -72,7 +72,7 @@ void RubberBandSelectionManipulator::begin(const QPointF& beginPoint)
     m_selectionRectangleElement.show();
     m_isActive = true;
     m_beginFormEditorItem = topFormEditorItem(m_editorView->scene()->items(beginPoint));
-    m_oldSelectionList = m_editorView->selectedQmlItemNodes();
+    m_oldSelectionList = toQmlItemNodeList(m_editorView->selectedModelNodes());
 }
 
 void RubberBandSelectionManipulator::update(const QPointF& updatePoint)
@@ -103,6 +103,7 @@ void RubberBandSelectionManipulator::select(SelectionType selectionType)
                 && formEditorItem->qmlItemNode().isValid()
                 && m_beginFormEditorItem->childItems().contains(formEditorItem)
                 && formEditorItem->qmlItemNode().instanceIsMovable()
+                && formEditorItem->qmlItemNode().modelIsMovable()
                 && !formEditorItem->qmlItemNode().instanceIsInLayoutable())
         {
             newNodeList.append(formEditorItem->qmlItemNode());
@@ -112,6 +113,7 @@ void RubberBandSelectionManipulator::select(SelectionType selectionType)
     if (newNodeList.isEmpty()
             && m_beginFormEditorItem->qmlItemNode().isValid()
             && m_beginFormEditorItem->qmlItemNode().instanceIsMovable()
+            && m_beginFormEditorItem->qmlItemNode().modelIsMovable()
             && !m_beginFormEditorItem->qmlItemNode().instanceIsInLayoutable())
         newNodeList.append(m_beginFormEditorItem->qmlItemNode());
 
@@ -134,7 +136,7 @@ void RubberBandSelectionManipulator::select(SelectionType selectionType)
         }
     }
 
-    m_editorView->setSelectedQmlItemNodes(nodeList);
+    m_editorView->setSelectedModelNodes(toModelNodeList(nodeList));
 }
 
 

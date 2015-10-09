@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -43,14 +43,16 @@ using namespace CMakeProjectManager;
 using namespace CMakeProjectManager::Internal;
 
 CMakeEditorFactory::CMakeEditorFactory(CMakeManager *manager)
-    : m_mimeTypes(QStringList() << QLatin1String(CMakeProjectManager::Constants::CMAKEMIMETYPE)),
-      m_manager(manager)
+    : m_manager(manager)
 {
     using namespace Core;
     using namespace TextEditor;
 
-    m_actionHandler =
-            new TextEditorActionHandler(Constants::C_CMAKEEDITOR,
+    setId(CMakeProjectManager::Constants::CMAKE_EDITOR_ID);
+    setDisplayName(tr(CMakeProjectManager::Constants::CMAKE_EDITOR_DISPLAY_NAME));
+    addMimeType(CMakeProjectManager::Constants::CMAKEMIMETYPE);
+
+    new TextEditorActionHandler(this, Constants::C_CMAKEEDITOR,
             TextEditorActionHandler::UnCommentSelection
             | TextEditorActionHandler::JumpToFileUnderCursor);
 
@@ -67,24 +69,9 @@ CMakeEditorFactory::CMakeEditorFactory(CMakeManager *manager)
     contextMenu->addAction(cmd);
 }
 
-Core::Id CMakeEditorFactory::id() const
+Core::IEditor *CMakeEditorFactory::createEditor()
 {
-    return Core::Id(CMakeProjectManager::Constants::CMAKE_EDITOR_ID);
-}
-
-QString CMakeEditorFactory::displayName() const
-{
-    return tr(CMakeProjectManager::Constants::CMAKE_EDITOR_DISPLAY_NAME);
-}
-
-Core::IEditor *CMakeEditorFactory::createEditor(QWidget *parent)
-{
-    CMakeEditorWidget *rc = new CMakeEditorWidget(parent, this, m_actionHandler);
-    TextEditor::TextEditorSettings::instance()->initializeEditor(rc);
+    CMakeEditorWidget *rc = new CMakeEditorWidget();
+    TextEditor::TextEditorSettings::initializeEditor(rc);
     return rc->editor();
-}
-
-QStringList CMakeEditorFactory::mimeTypes() const
-{
-    return m_mimeTypes;
 }

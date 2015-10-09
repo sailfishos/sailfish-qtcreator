@@ -1,6 +1,6 @@
 #############################################################################
 ##
-## Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+## Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ## Contact: http://www.qt-project.org/legal
 ##
 ## This file is part of Qt Creator.
@@ -51,10 +51,9 @@ def main():
             test.fatal("Could not get the editor for '%s'" % currentFile,
                        "Skipping this file for now.")
             continue
-        if platform.system() == 'Darwin':
-            JIRA.performWorkaroundForBug(8735, JIRA.Bug.CREATOR, editor)
         for key in ["<Up>", "<Down>", "<Left>", "<Right>"]:
             test.log("Selecting everything")
+            type(editor, "<Home>")
             invokeMenuItem("Edit", "Select All")
             test.verify(waitFor("editor.textCursor().hasSelection()", 500),
                         "verify selecting")
@@ -70,8 +69,8 @@ def main():
             else:
                 pos = size
                 if key == "<Left>":
-                    if platform.system() == "Darwin":
-                        # native cursor behavior on Mac is different
+                    if not isQt4Build or platform.system() == "Darwin":
+                        # native cursor behavior on Mac is different in Qt4
                         pos = 0
                     else:
                         pos -= 1

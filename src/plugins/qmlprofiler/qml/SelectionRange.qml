@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -27,37 +27,22 @@
 **
 ****************************************************************************/
 
-import QtQuick 1.0
+import QtQuick 2.1
 
-Rectangle {
+RangeMover {
     id: selectionRange
 
-    width: 1
-    color: "transparent"
-
     property bool ready: visible && creationState === 3
-
-    property color rangeColor:"#444a64b8"
-    property color pressedColor:"#664a64b8"
-    property color borderColor:"#aa4a64b8"
-    property color dragMarkerColor: "#4a64b8"
-    property color singleLineColor: "#4a64b8"
 
     property string startTimeString: detailedPrintTime(startTime)
     property string endTimeString: detailedPrintTime(startTime+duration)
     property string durationString: detailedPrintTime(duration)
 
-    property variant startTime: x * selectionRange.viewTimePerPixel + qmlProfilerDataModel.traceStartTime()
-    property variant duration: width * selectionRange.viewTimePerPixel
-    property variant viewTimePerPixel: 1
-    property variant creationState : 0
-
-    property variant x1
-    property variant x2
-    property variant x3: Math.min(x1, x2)
-    property variant x4: Math.max(x1, x2)
-
-    property bool isDragging: false
+    property double startTime: getLeft() * viewTimePerPixel + zoomControl.windowStart()
+    property double duration: Math.max(getWidth() * viewTimePerPixel, 500)
+    property double viewTimePerPixel: 1
+    property double creationReference : 0
+    property int creationState : 0
 
     Connections {
         target: zoomControl
@@ -65,49 +50,46 @@ Rectangle {
             var oldTimePerPixel = selectionRange.viewTimePerPixel;
             selectionRange.viewTimePerPixel = Math.abs(zoomControl.endTime() - zoomControl.startTime()) / flick.width;
             if (creationState === 3 && oldTimePerPixel != selectionRange.viewTimePerPixel) {
-                selectionRange.x = x * oldTimePerPixel / selectionRange.viewTimePerPixel;
-                selectionRange.width = width * oldTimePerPixel / selectionRange.viewTimePerPixel;
+                var newWidth = getWidth() * oldTimePerPixel / viewTimePerPixel;
+                setLeft(getLeft() * oldTimePerPixel / viewTimePerPixel);
+                setRight(getLeft() + newWidth);
             }
         }
     }
 
-    onCreationStateChanged: {
-        switch (creationState) {
-        case 0: color = "transparent"; break;
-        case 1: color = singleLineColor; break;
-        default: color = rangeColor; break;
-        }
+    onRangeDoubleClicked: {
+        zoomControl.setRange(startTime, startTime + duration);
+        root.selectionRangeMode = false;
+        root.updateRangeButton();
     }
 
-    onIsDraggingChanged: {
-        if (isDragging)
-            color = pressedColor;
-        else
-            color = rangeColor;
-    }
-
-    function reset(setVisible) {
-        width = 1;
+    function reset() {
+        setRight(getLeft() + 1);
         creationState = 0;
-        visible = setVisible;
+        creationReference = 0;
     }
 
     function setPos(pos) {
+        if (pos < 0)
+            pos = 0;
+        else if (pos > width)
+            pos = width;
+
         switch (creationState) {
-        case 1: {
-            width = 1;
-            x1 = pos;
-            x2 = pos;
-            x = pos;
+        case 1:
+            creationReference = pos;
+            setLeft(pos);
+            setRight(pos + 1);
             break;
-        }
-        case 2: {
-            x2 = pos;
-            x = x3;
-            width = x4-x3;
+        case 2:
+            if (pos > creationReference) {
+                setLeft(creationReference);
+                setRight(pos);
+            } else if (pos < creationReference) {
+                setLeft(pos);
+                setRight(creationReference);
+            }
             break;
-        }
-        default: return;
         }
     }
 
@@ -125,7 +107,7 @@ Rectangle {
     // creation control
     function releasedOnCreation() {
         if (selectionRange.creationState === 2) {
-            flick.interactive = true;
+            flick.stayInteractive = true;
             selectionRange.creationState = 3;
             selectionRangeControl.enabled = false;
         }
@@ -133,7 +115,7 @@ Rectangle {
 
     function pressedOnCreation() {
         if (selectionRange.creationState === 1) {
-            flick.interactive = false;
+            flick.stayInteractive = false;
             selectionRange.setPos(selectionRangeControl.mouseX + flick.contentX);
             selectionRange.creationState = 2;
         }
@@ -144,154 +126,9 @@ Rectangle {
             selectionRange.creationState = 1;
         }
 
-        if (!root.eventCount)
-            return;
-
         if (!selectionRangeControl.pressed && selectionRange.creationState==3)
             return;
 
-        if (selectionRangeControl.pressed) {
-            selectionRange.setPos(selectionRangeControl.mouseX + flick.contentX);
-        } else {
-            selectionRange.setPos(selectionRangeControl.mouseX + flick.contentX);
-        }
-    }
-
-    Rectangle {
-        id: leftBorder
-
-        visible: selectionRange.creationState === 3
-
-        // used for dragging the borders
-        property real initialX: 0
-        property real initialWidth: 0
-
-        x: 0
-        height: parent.height
-        width: 1
-        color: borderColor
-
-        Rectangle {
-            id: leftBorderHandle
-            height: parent.height
-            x: -width
-            width: 9
-            color: "#869cd1"
-            visible: false
-            Image {
-                source: "range_handle.png"
-                x: 4
-                width: 4
-                height: 63
-                fillMode: Image.Tile
-                y: root.scrollY + root.candidateHeight / 2 - 32
-            }
-        }
-
-        states: State {
-            name: "highlighted"
-            PropertyChanges {
-                target: leftBorderHandle
-                visible: true
-            }
-        }
-
-        onXChanged: if (x != 0) {
-            selectionRange.width = initialWidth - x;
-            selectionRange.x = initialX + x;
-            x = 0;
-        }
-
-        MouseArea {
-            x: -12
-            width: 15
-            y: 0
-            height: parent.height
-
-            drag.target: leftBorder
-            drag.axis: "XAxis"
-            drag.minimumX: -parent.initialX
-            drag.maximumX: parent.initialWidth - 2
-
-            hoverEnabled: true
-
-            onEntered: parent.state = "highlighted"
-            onExited: {
-                if (!pressed) parent.state = "";
-            }
-            onReleased: {
-                if (!containsMouse) parent.state = "" ;
-            }
-            onPressed: {
-                parent.initialX = selectionRange.x;
-                parent.initialWidth = selectionRange.width;
-            }
-        }
-    }
-
-    Rectangle {
-        id: rightBorder
-
-        visible: selectionRange.creationState === 3
-
-        x: selectionRange.width
-        height: parent.height
-        width: 1
-        color: borderColor
-
-        Rectangle {
-            id: rightBorderHandle
-            height: parent.height
-            x: 1
-            width: 9
-            color: "#869cd1"
-            visible: false
-            Image {
-                source: "range_handle.png"
-                x: 2
-                width: 4
-                height: 63
-                fillMode: Image.Tile
-                y: root.scrollY + root.candidateHeight / 2 - 32
-            }
-        }
-
-        states: State {
-            name: "highlighted"
-            PropertyChanges {
-                target: rightBorderHandle
-                visible: true
-            }
-        }
-
-        onXChanged: {
-            if (x != selectionRange.width) {
-                selectionRange.width = x;
-            }
-        }
-
-        MouseArea {
-            x: -3
-            width: 15
-            y: 0
-            height: parent.height
-
-            drag.target: rightBorder
-            drag.axis: "XAxis"
-            drag.minimumX: 1
-            drag.maximumX: flick.contentWidth - selectionRange.x
-
-            hoverEnabled: true
-
-            onEntered: {
-                parent.state = "highlighted";
-            }
-            onExited: {
-                if (!pressed) parent.state = "";
-            }
-            onReleased: {
-                if (!containsMouse) parent.state = "";
-            }
-        }
+        selectionRange.setPos(selectionRangeControl.mouseX + flick.contentX);
     }
 }

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -73,11 +73,14 @@ QFuture<TextEditor::HighlightingResult> CppHighlightingSupportInternal::highligh
         if (isQtKeyword(QStringRef(&name)))
             continue;
 
-        //Filter out C++ keywords
+        // Filter out C++ keywords
+        // FIXME: Check default values or get from document.
+        LanguageFeatures features;
+        features.cxx11Enabled = true;
+
         SimpleLexer tokenize;
-        tokenize.setQtMocRunEnabled(false);
-        tokenize.setObjCEnabled(false);
-        tokenize.setCxx0xEnabled(true);
+        tokenize.setLanguageFeatures(features);
+
         const QList<Token> tokens = tokenize(name);
         if (tokens.length() && (tokens.at(0).isKeyword() || tokens.at(0).isObjCAtKeyword()))
             continue;
@@ -91,13 +94,4 @@ QFuture<TextEditor::HighlightingResult> CppHighlightingSupportInternal::highligh
 
     LookupContext context(doc, snapshot);
     return CheckSymbols::go(doc, context, macroUses);
-}
-
-CppHighlightingSupportInternalFactory::~CppHighlightingSupportInternalFactory()
-{
-}
-
-CppHighlightingSupport *CppHighlightingSupportInternalFactory::highlightingSupport(TextEditor::ITextEditor *editor)
-{
-    return new CppHighlightingSupportInternal(editor);
 }

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -50,7 +50,7 @@ static const char idKey[] = "CppGlobal";
 
 using namespace CppTools;
 using namespace CppTools::Internal;
-using TextEditor::TabSettings;
+using namespace TextEditor;
 
 namespace CppTools {
 namespace Internal {
@@ -89,23 +89,21 @@ CppToolsSettings::CppToolsSettings(QObject *parent)
             this,
             SIGNAL(commentsSettingsChanged(CppTools::CommentsSettings)));
 
-    TextEditor::TextEditorSettings *textEditorSettings = TextEditor::TextEditorSettings::instance();
-
     // code style factory
-    TextEditor::ICodeStylePreferencesFactory *factory = new CppTools::CppCodeStylePreferencesFactory();
-    textEditorSettings->registerCodeStyleFactory(factory);
+    ICodeStylePreferencesFactory *factory = new CppTools::CppCodeStylePreferencesFactory();
+    TextEditorSettings::registerCodeStyleFactory(factory);
 
     // code style pool
-    TextEditor::CodeStylePool *pool = new TextEditor::CodeStylePool(factory, this);
-    textEditorSettings->registerCodeStylePool(Constants::CPP_SETTINGS_ID, pool);
+    CodeStylePool *pool = new CodeStylePool(factory, this);
+    TextEditorSettings::registerCodeStylePool(Constants::CPP_SETTINGS_ID, pool);
 
     // global code style settings
     d->m_globalCodeStyle = new CppCodeStylePreferences(this);
     d->m_globalCodeStyle->setDelegatingPool(pool);
     d->m_globalCodeStyle->setDisplayName(tr("Global", "Settings"));
-    d->m_globalCodeStyle->setId(QLatin1String(idKey));
+    d->m_globalCodeStyle->setId(idKey);
     pool->addCodeStyle(d->m_globalCodeStyle);
-    textEditorSettings->registerCodeStyle(CppTools::Constants::CPP_SETTINGS_ID, d->m_globalCodeStyle);
+    TextEditorSettings::registerCodeStyle(CppTools::Constants::CPP_SETTINGS_ID, d->m_globalCodeStyle);
 
     /*
     For every language we have exactly 1 pool. The pool contains:
@@ -135,7 +133,7 @@ CppToolsSettings::CppToolsSettings(QObject *parent)
     // built-in settings
     // Qt style
     CppCodeStylePreferences *qtCodeStyle = new CppCodeStylePreferences();
-    qtCodeStyle->setId(QLatin1String("qt"));
+    qtCodeStyle->setId("qt");
     qtCodeStyle->setDisplayName(tr("Qt"));
     qtCodeStyle->setReadOnly(true);
     TabSettings qtTabSettings;
@@ -148,7 +146,7 @@ CppToolsSettings::CppToolsSettings(QObject *parent)
 
     // GNU style
     CppCodeStylePreferences *gnuCodeStyle = new CppCodeStylePreferences();
-    gnuCodeStyle->setId(QLatin1String("gnu"));
+    gnuCodeStyle->setId("gnu");
     gnuCodeStyle->setDisplayName(tr("GNU"));
     gnuCodeStyle->setReadOnly(true);
     TabSettings gnuTabSettings;
@@ -203,15 +201,14 @@ CppToolsSettings::CppToolsSettings(QObject *parent)
                                     QString(), s, &legacyTabSettings);
             } else {
                 // delegating to global
-                legacyTabSettings = textEditorSettings->codeStyle()->currentTabSettings();
+                legacyTabSettings = TextEditorSettings::codeStyle()->currentTabSettings();
             }
 
             // create custom code style out of old settings
             QVariant v;
             v.setValue(legacyCodeStyleSettings);
             TextEditor::ICodeStylePreferences *oldCreator = pool->createCodeStyle(
-                     QLatin1String("legacy"), legacyTabSettings,
-                     v, tr("Old Creator"));
+                     "legacy", legacyTabSettings, v, tr("Old Creator"));
 
             // change the current delegate and save
             d->m_globalCodeStyle->setCurrentDelegate(oldCreator);
@@ -224,28 +221,19 @@ CppToolsSettings::CppToolsSettings(QObject *parent)
 
 
     // mimetypes to be handled
-    textEditorSettings->registerMimeTypeForLanguageId(
-                QLatin1String(Constants::C_SOURCE_MIMETYPE),
-                Constants::CPP_SETTINGS_ID);
-    textEditorSettings->registerMimeTypeForLanguageId(
-                QLatin1String(Constants::C_HEADER_MIMETYPE),
-                Constants::CPP_SETTINGS_ID);
-    textEditorSettings->registerMimeTypeForLanguageId(
-                QLatin1String(Constants::CPP_SOURCE_MIMETYPE),
-                Constants::CPP_SETTINGS_ID);
-    textEditorSettings->registerMimeTypeForLanguageId(
-                QLatin1String(Constants::CPP_HEADER_MIMETYPE),
-                Constants::CPP_SETTINGS_ID);
+    TextEditorSettings::registerMimeTypeForLanguageId(Constants::C_SOURCE_MIMETYPE, Constants::CPP_SETTINGS_ID);
+    TextEditorSettings::registerMimeTypeForLanguageId(Constants::C_HEADER_MIMETYPE, Constants::CPP_SETTINGS_ID);
+    TextEditorSettings::registerMimeTypeForLanguageId(Constants::CPP_SOURCE_MIMETYPE, Constants::CPP_SETTINGS_ID);
+    TextEditorSettings::registerMimeTypeForLanguageId(Constants::CPP_HEADER_MIMETYPE, Constants::CPP_SETTINGS_ID);
 }
 
 CppToolsSettings::~CppToolsSettings()
 {
     ExtensionSystem::PluginManager::removeObject(d->m_completionSettingsPage);
 
-    TextEditor::TextEditorSettings *textEditorSettings = TextEditor::TextEditorSettings::instance();
-    textEditorSettings->unregisterCodeStyle(Constants::CPP_SETTINGS_ID);
-    textEditorSettings->unregisterCodeStylePool(Constants::CPP_SETTINGS_ID);
-    textEditorSettings->unregisterCodeStyleFactory(Constants::CPP_SETTINGS_ID);
+    TextEditorSettings::unregisterCodeStyle(Constants::CPP_SETTINGS_ID);
+    TextEditorSettings::unregisterCodeStylePool(Constants::CPP_SETTINGS_ID);
+    TextEditorSettings::unregisterCodeStyleFactory(Constants::CPP_SETTINGS_ID);
 
     delete d;
 

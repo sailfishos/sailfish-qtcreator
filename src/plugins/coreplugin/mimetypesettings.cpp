@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -28,19 +28,20 @@
 ****************************************************************************/
 
 #include "coreconstants.h"
-#include "editormanager.h"
 #include "icore.h"
-#include "ieditorfactory.h"
-#include "iexternaleditor.h"
 #include "mimedatabase.h"
 #include "mimetypemagicdialog.h"
 #include "mimetypesettings.h"
 #include "ui_mimetypesettingspage.h"
+#include <coreplugin/editormanager/editormanager.h>
+#include <coreplugin/editormanager/ieditorfactory.h>
+#include <coreplugin/editormanager/iexternaleditor.h>
 
 #include <QAbstractTableModel>
 #include <QCoreApplication>
 #include <QHash>
 #include <QMessageBox>
+#include <QPointer>
 #include <QScopedPointer>
 #include <QSet>
 #include <QStringList>
@@ -126,10 +127,10 @@ QVariant MimeTypeSettingsModel::data(const QModelIndex &modelIndex, int role) co
 
 void MimeTypeSettingsModel::load()
 {
-    m_mimeTypes = ICore::mimeDatabase()->mimeTypes();
+    m_mimeTypes = MimeDatabase::mimeTypes();
     qSort(m_mimeTypes.begin(), m_mimeTypes.end(), MimeTypeComp());
     m_knownPatterns = QSet<QString>::fromList(
-        MimeDatabase::fromGlobPatterns(ICore::mimeDatabase()->globPatterns()));
+        MimeDatabase::fromGlobPatterns(MimeDatabase::globPatterns()));
 
     foreach (const MimeType &mimeType, m_mimeTypes) {
         QString value;
@@ -239,8 +240,6 @@ private slots:
 public:
     static const QChar kSemiColon;
 
-    QString m_keywords;
-    MimeDatabase *m_mimeDatabase;
     MimeTypeSettingsModel *m_model;
     QSortFilterProxyModel *m_filterModel;
     int m_mimeForPatternSync;
@@ -250,13 +249,13 @@ public:
     QList<int> m_modifiedMimeTypes;
     QString m_filterPattern;
     Ui::MimeTypeSettingsPage m_ui;
+    QPointer<QWidget> m_widget;
 };
 
 const QChar MimeTypeSettingsPrivate::kSemiColon(QLatin1Char(';'));
 
 MimeTypeSettingsPrivate::MimeTypeSettingsPrivate()
-    : m_mimeDatabase(ICore::mimeDatabase())
-    , m_model(new MimeTypeSettingsModel(this))
+    : m_model(new MimeTypeSettingsModel(this))
     , m_filterModel(new QSortFilterProxyModel(this))
     , m_mimeForPatternSync(-1)
     , m_mimeForMagicSync(-1)
@@ -399,9 +398,9 @@ void MimeTypeSettingsPrivate::syncData(const QModelIndex &current,
                                        const QModelIndex &previous)
 {
     if (previous.isValid()) {
-        if (m_mimeForPatternSync == previous.row())
+        if (m_mimeForPatternSync == m_filterModel->mapToSource(previous).row())
             syncMimePattern();
-        if (m_mimeForMagicSync == previous.row())
+        if (m_mimeForMagicSync == m_filterModel->mapToSource(previous).row())
             syncMimeMagic();
         clearSyncData();
 
@@ -440,7 +439,7 @@ void MimeTypeSettingsPrivate::handlePatternEdited()
     if (m_mimeForPatternSync == -1) {
         const QModelIndex &modelIndex = m_ui.mimeTypesTableView->selectionModel()->currentIndex();
         if (modelIndex.isValid())
-            markMimeForPatternSync(modelIndex.row());
+            markMimeForPatternSync(m_filterModel->mapToSource(modelIndex).row());
     }
 }
 
@@ -492,7 +491,8 @@ void MimeTypeSettingsPrivate::addMagicHeader()
     MimeTypeMagicDialog dlg;
     if (dlg.exec()) {
         addMagicHeaderRow(dlg.magicData());
-        markMimeForMagicSync(m_ui.mimeTypesTableView->selectionModel()->currentIndex().row());
+        markMimeForMagicSync(m_filterModel->mapToSource(
+            m_ui.mimeTypesTableView->selectionModel()->currentIndex()).row());
     }
 }
 
@@ -502,7 +502,8 @@ void MimeTypeSettingsPrivate::removeMagicHeader()
         return;
 
     m_ui.magicHeadersTableWidget->removeRow(m_ui.magicHeadersTableWidget->currentRow());
-    markMimeForMagicSync(m_ui.mimeTypesTableView->selectionModel()->currentIndex().row());
+    markMimeForMagicSync(m_filterModel->mapToSource(
+        m_ui.mimeTypesTableView->selectionModel()->currentIndex()).row());
 }
 
 void MimeTypeSettingsPrivate::editMagicHeader()
@@ -514,7 +515,8 @@ void MimeTypeSettingsPrivate::editMagicHeader()
     dlg.setMagicData(getMagicHeaderRowData(m_ui.magicHeadersTableWidget->currentRow()));
     if (dlg.exec()) {
         editMagicHeaderRowData(m_ui.magicHeadersTableWidget->currentRow(), dlg.magicData());
-        markMimeForMagicSync(m_ui.mimeTypesTableView->selectionModel()->currentIndex().row());
+        markMimeForMagicSync(m_filterModel->mapToSource(
+            m_ui.mimeTypesTableView->selectionModel()->currentIndex()).row());
     }
 }
 
@@ -529,15 +531,14 @@ void MimeTypeSettingsPrivate::updateMimeDatabase()
     m_modifiedMimeTypes.erase(std::unique(m_modifiedMimeTypes.begin(), m_modifiedMimeTypes.end()),
                               m_modifiedMimeTypes.end());
 
-    MimeDatabase *db = ICore::mimeDatabase();
     QList<MimeType> allModified;
     foreach (int index, m_modifiedMimeTypes) {
         const MimeType &mimeType = m_model->m_mimeTypes.at(index);
-        db->setGlobPatterns(mimeType.type(), mimeType.globPatterns());
-        db->setMagicMatchers(mimeType.type(), mimeType.magicMatchers());
+        MimeDatabase::setGlobPatterns(mimeType.type(), mimeType.globPatterns());
+        MimeDatabase::setMagicMatchers(mimeType.type(), mimeType.magicMatchers());
         allModified.append(mimeType);
     }
-    db->writeUserModifiedMimeTypes(allModified);
+    MimeDatabase::writeUserModifiedMimeTypes(allModified);
 }
 
 void MimeTypeSettingsPrivate::resetState()
@@ -589,16 +590,13 @@ MimeTypeSettings::~MimeTypeSettings()
     delete d;
 }
 
-bool MimeTypeSettings::matches(const QString &s) const
+QWidget *MimeTypeSettings::widget()
 {
-    return d->m_keywords.contains(s, Qt::CaseInsensitive);
-}
-
-QWidget *MimeTypeSettings::createPage(QWidget *parent)
-{
-    QWidget *w = new QWidget(parent);
-    d->configureUi(w);
-    return w;
+    if (!d->m_widget) {
+        d->m_widget = new QWidget;
+        d->configureUi(d->m_widget);
+    }
+    return d->m_widget;
 }
 
 void MimeTypeSettings::apply()
@@ -607,9 +605,9 @@ void MimeTypeSettings::apply()
         const QModelIndex &modelIndex =
             d->m_ui.mimeTypesTableView->selectionModel()->currentIndex();
         if (modelIndex.isValid()) {
-            if (d->m_mimeForPatternSync == modelIndex.row())
+            if (d->m_mimeForPatternSync == d->m_filterModel->mapToSource(modelIndex).row())
                 d->syncMimePattern();
-            if (d->m_mimeForMagicSync == modelIndex.row())
+            if (d->m_mimeForMagicSync == d->m_filterModel->mapToSource(modelIndex).row())
                 d->syncMimeMagic();
         }
         d->clearSyncData();
@@ -623,11 +621,12 @@ void MimeTypeSettings::finish()
 {
     if (d->m_persist) {
         if (d->m_reset)
-            ICore::mimeDatabase()->clearUserModifiedMimeTypes();
+            MimeDatabase::clearUserModifiedMimeTypes();
         else
             d->updateMimeDatabase();
     }
     d->resetState();
+    delete d->m_widget;
 }
 
 } // Internal

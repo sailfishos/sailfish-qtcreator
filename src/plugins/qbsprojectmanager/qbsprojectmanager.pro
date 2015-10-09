@@ -1,21 +1,28 @@
 include(../../qtcreatorplugin.pri)
 
-# Look for qbs in the environment (again)
-QBS_SOURCE_DIR = $$PWD/../../shared/qbs
-QBS_BUILD_DIR = $$IDE_BUILD_TREE/src/shared/qbs
+# Look for qbs in the environment
+isEmpty(QBS_INSTALL_DIR): QBS_INSTALL_DIR = $$(QBS_INSTALL_DIR)
+isEmpty(QBS_INSTALL_DIR) {
+    QBS_SOURCE_DIR = $$PWD/../../shared/qbs
+    include($$QBS_SOURCE_DIR/src/lib/corelib/use_corelib.pri)
+    include($$QBS_SOURCE_DIR/src/lib/qtprofilesetup/use_qtprofilesetup.pri)
+    macx:QMAKE_LFLAGS += -Wl,-rpath,@loader_path/../ # Mac: fix rpath for qbscore soname
+} else {
+    include($${QBS_INSTALL_DIR}/include/qbs/use_installed_corelib.pri)
+    include($${QBS_INSTALL_DIR}/include/qbs/use_installed_qtprofilesetup.pri)
+}
+QBS_INSTALL_DIR_FWD_SLASHES = $$replace(QBS_INSTALL_DIR, \\\\, /)
+DEFINES += QBS_INSTALL_DIR=\\\"$$QBS_INSTALL_DIR_FWD_SLASHES\\\"
 
-include($$QBS_SOURCE_DIR/src/lib/use.pri)
-# Mac: fix rpath for qbscore soname
-macx:QMAKE_LFLAGS += -Wl,-rpath,@loader_path/../
-
-QBS_BUILD_DIR_FWD_SLASHES = $$replace(QBS_BUILD_DIR, \\\\, /)
-DEFINES += QBS_BUILD_DIR=\\\"$$QBS_BUILD_DIR_FWD_SLASHES\\\"
 DEFINES += \
     QBSPROJECTMANAGER_LIBRARY
 
 HEADERS = \
+    defaultpropertyprovider.h \
+    propertyprovider.h \
     qbsbuildconfiguration.h \
     qbsbuildconfigurationwidget.h \
+    qbsbuildinfo.h \
     qbsbuildstep.h \
     qbscleanstep.h \
     qbsdeployconfigurationfactory.h \
@@ -31,9 +38,10 @@ HEADERS = \
     qbsprojectmanagerplugin.h \
     qbspropertylineedit.h \
     qbsrunconfiguration.h \
-    qbsstep.h
+    qbsconstants.h
 
 SOURCES = \
+    defaultpropertyprovider.cpp \
     qbsbuildconfiguration.cpp \
     qbsbuildconfigurationwidget.cpp \
     qbsbuildstep.cpp \
@@ -48,10 +56,12 @@ SOURCES = \
     qbsprojectmanager.cpp \
     qbsprojectmanagerplugin.cpp \
     qbspropertylineedit.cpp \
-    qbsrunconfiguration.cpp \
-    qbsstep.cpp
+    qbsrunconfiguration.cpp
 
 FORMS = \
     qbsbuildstepconfigwidget.ui \
     qbscleanstepconfigwidget.ui \
     qbsinstallstepconfigwidget.ui
+
+RESOURCES += \
+   qbsprojectmanager.qrc

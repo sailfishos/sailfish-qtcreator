@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -36,14 +36,12 @@
 
 #include <QStringList>
 
-namespace QSsh {
-class SshRemoteProcessRunner;
-}
+namespace QSsh { class SshRemoteProcessRunner; }
 
 namespace Qnx {
 namespace Internal {
 
-class QnxDeviceTester : public RemoteLinux::AbstractLinuxDeviceTester
+class QnxDeviceTester : public ProjectExplorer::DeviceTester
 {
     Q_OBJECT
 public:
@@ -53,7 +51,7 @@ public:
     void stopTest();
 
 private slots:
-    void handleGenericTestFinished(RemoteLinux::AbstractLinuxDeviceTester::TestResult result);
+    void handleGenericTestFinished(ProjectExplorer::DeviceTester::TestResult result);
 
     void handleProcessFinished(int exitStatus);
     void handleConnectionError();
@@ -68,9 +66,11 @@ private:
     void testNextCommand();
     void setFinished();
 
+    QStringList versionSpecificCommandsToTest(int versionNumber) const;
+
     RemoteLinux::GenericLinuxDeviceTester *m_genericTester;
     ProjectExplorer::IDevice::ConstPtr m_deviceConfiguration;
-    TestResult m_result;
+    ProjectExplorer::DeviceTester::TestResult m_result;
     State m_state;
 
     int m_currentCommandIndex;

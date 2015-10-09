@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (c) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (c) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator
@@ -23,7 +23,7 @@
 // **********************************************************************
 
 /*!
-    \contentspage index.html
+    \contentspage {Qt Creator Manual}
     \previouspage creator-targets.html
     \page creator-project-qmake.html
     \nextpage creator-tool-chains.html
@@ -32,11 +32,11 @@
 
     \QC allows you to have multiple versions of Qt installed on your development
     PC and use different versions to build your projects.
-    For example, Qt 4 SDK contains special Qt versions for developing applications
-    for mobile devices.
+    For example, device manufacturers provide special Qt versions for developing
+    applications for their devices.
 
     \QC automatically detects the Qt versions that are registered by
-    your system or by \QSDK. To view detailed information for each Qt
+    your system or by installers. To view detailed information for each Qt
     version, select it in the list and select \gui Details in the
     \gui {Qt version for} section. To add Qt versions, select
     \gui {Tools > Options > Build & Run > Qt Versions}.
@@ -53,26 +53,41 @@
 
             \li Select \gui {Tools > Options > Build & Run > Qt Versions > Add}.
 
+            \li Select the qmake executable for the Qt version that you want to
+                add.
+
+            \li Select the Qt version to view and edit it.
+
                 \image qtcreator-qt4-qtversions-add.png
-
-            \li Select the directory where the qmake executable is located.
-
-                \QC automatically determines the path to the binaries in
-                the Qt installation and displays it in the \gui{qmake location}
-                field.
 
             \li In the \gui{Version name} field, edit the name that \QC
                 suggests for the Qt version.
 
-            \li In the \gui Helpers section, you can build the debugging
-                helpers that are available for the Qt version. This is
-                necessary, because the internal data structures of Qt can
-                change between versions. For more information, see
-                \l{Using Debugging Helpers}.
+            \li In the \gui{qmake location} field, you can change the qmake
+                location.
+
+            \li In the \gui Helpers section, select \gui Details to view the
+                QML Dumper that has been built for the Qt version. For more
+                information, see \l{Using Debugging Helpers}.
+
+                \image qt-creator-debugging-helpers.png
+
+            \li If the Qt version is for Blackberry or QNX, enter the path
+                to your installed Blackberry NDK or QNX SDK in the
+                \gui {Blackberry Native SDK} or \gui{QNX SDK} field respectively.
 
         \endlist
 
-    \include qnx/creator-projects-qt-version-qnx.qdocinc
+    \section2 Minimum Requirements
+    If your build of Qt is incomplete but you still want to use QMake as build
+    system, you need to ensure the following minimum requirements to be able to use that setup with \QC.
+    \list 1
+        \li qmake is an executable that understands the -query command line argument.
+        \li The bin and include directories have to exist. \QC fetches these directories by running \c{qmake -query}.
+        \li The mkspecs directory should be complete enough to parse .pro files.
+    \endlist
+
+    If your Qt version has no libQtCore.so, \QC is unable to detect the ABI.
 
 */
 

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 ** Author: Nicolas Arnaud-Cormos, KDAB (nicolas.arnaud-cormos@kdab.com)
 **
@@ -30,13 +30,14 @@
 
 #include "valgrindengine.h"
 #include "valgrindsettings.h"
+#include "valgrindplugin.h"
 
 #include <coreplugin/icore.h>
 #include <coreplugin/ioutputpane.h>
 #include <coreplugin/progressmanager/progressmanager.h>
 #include <coreplugin/progressmanager/futureprogress.h>
 #include <extensionsystem/pluginmanager.h>
-#include <projectexplorer/localapplicationrunconfiguration.h>
+#include <projectexplorer/runconfiguration.h>
 #include <analyzerbase/analyzermanager.h>
 
 #include <QApplication>
@@ -47,25 +48,27 @@
 using namespace Analyzer;
 using namespace Core;
 using namespace Utils;
+using namespace ProjectExplorer;
 
 namespace Valgrind {
 namespace Internal {
 
 const int progressMaximum  = 1000000;
 
-ValgrindEngine::ValgrindEngine(IAnalyzerTool *tool, const AnalyzerStartParameters &sp,
+ValgrindRunControl::ValgrindRunControl(const AnalyzerStartParameters &sp,
         ProjectExplorer::RunConfiguration *runConfiguration)
-    : IAnalyzerEngine(tool, sp, runConfiguration),
+    : AnalyzerRunControl(sp, runConfiguration),
       m_settings(0),
       m_progress(new QFutureInterface<void>()),
       m_progressWatcher(new QFutureWatcher<void>()),
       m_isStopping(false)
 {
     if (runConfiguration)
-        m_settings = runConfiguration->extraAspect<AnalyzerRunConfigurationAspect>();
+        if (IRunConfigurationAspect *aspect = runConfiguration->extraAspect(ANALYZER_VALGRIND_SETTINGS))
+            m_settings = qobject_cast<ValgrindBaseSettings *>(aspect->currentSettings());
 
-    if  (!m_settings)
-        m_settings = AnalyzerGlobalSettings::instance();
+    if (!m_settings)
+        m_settings = ValgrindPlugin::globalSettings();
 
     connect(m_progressWatcher, SIGNAL(canceled()),
             this, SLOT(handleProgressCanceled()));
@@ -73,17 +76,17 @@ ValgrindEngine::ValgrindEngine(IAnalyzerTool *tool, const AnalyzerStartParameter
             this, SLOT(handleProgressFinished()));
 }
 
-ValgrindEngine::~ValgrindEngine()
+ValgrindRunControl::~ValgrindRunControl()
 {
     delete m_progress;
 }
 
-bool ValgrindEngine::start()
+bool ValgrindRunControl::startEngine()
 {
     emit starting(this);
 
-    FutureProgress *fp = ICore::progressManager()->addTask(m_progress->future(),
-                                                        progressTitle(), QLatin1String("valgrind"));
+    FutureProgress *fp = ProgressManager::addTask(m_progress->future(),
+                                                        progressTitle(), "valgrind");
     fp->setKeepOnFinish(FutureProgress::HideOnFinish);
     m_progress->setProgressRange(0, progressMaximum);
     m_progress->reportStarted();
@@ -94,61 +97,83 @@ bool ValgrindEngine::start()
 #if VALGRIND_DEBUG_OUTPUT
     emit outputReceived(tr("Valgrind options: %1").arg(toolArguments().join(QLatin1Char(' '))), DebugFormat);
     emit outputReceived(tr("Working directory: %1").arg(sp.workingDirectory), DebugFormat);
-    emit outputReceived(tr("Commandline arguments: %1").arg(sp.debuggeeArgs), DebugFormat);
+    emit outputReceived(tr("Command line arguments: %1").arg(sp.debuggeeArgs), DebugFormat);
 #endif
 
-    runner()->setWorkingDirectory(sp.workingDirectory);
-    QString valgrindExe = m_settings->subConfig<ValgrindBaseSettings>()->valgrindExecutable();
+    ValgrindRunner *run = runner();
+    run->setWorkingDirectory(sp.workingDirectory);
+    QString valgrindExe = m_settings->valgrindExecutable();
     if (!sp.analyzerCmdPrefix.isEmpty())
         valgrindExe = sp.analyzerCmdPrefix + QLatin1Char(' ') + valgrindExe;
-    runner()->setValgrindExecutable(valgrindExe);
-    runner()->setValgrindArguments(toolArguments());
-    runner()->setDebuggeeExecutable(sp.debuggee);
-    runner()->setDebuggeeArguments(sp.debuggeeArgs);
-    runner()->setEnvironment(sp.environment);
-    runner()->setConnectionParameters(sp.connParams);
-    runner()->setStartMode(sp.startMode);
+    run->setValgrindExecutable(valgrindExe);
+    run->setValgrindArguments(genericToolArguments() + toolArguments());
+    run->setDebuggeeExecutable(sp.debuggee);
+    run->setDebuggeeArguments(sp.debuggeeArgs);
+    run->setEnvironment(sp.environment);
+    run->setConnectionParameters(sp.connParams);
+    run->setStartMode(sp.startMode);
 
-    connect(runner(), SIGNAL(processOutputReceived(QByteArray,Utils::OutputFormat)),
+    connect(run, SIGNAL(processOutputReceived(QByteArray,Utils::OutputFormat)),
             SLOT(receiveProcessOutput(QByteArray,Utils::OutputFormat)));
-    connect(runner(), SIGNAL(processErrorReceived(QString,QProcess::ProcessError)),
+    connect(run, SIGNAL(processErrorReceived(QString,QProcess::ProcessError)),
             SLOT(receiveProcessError(QString,QProcess::ProcessError)));
-    connect(runner(), SIGNAL(finished()),
-            SLOT(runnerFinished()));
+    connect(run, SIGNAL(finished()), SLOT(runnerFinished()));
 
-    if (!runner()->start()) {
+    if (!run->start()) {
         m_progress->cancel();
         return false;
     }
     return true;
 }
 
-void ValgrindEngine::stop()
+void ValgrindRunControl::stopEngine()
 {
     m_isStopping = true;
     runner()->stop();
 }
 
-QString ValgrindEngine::executable() const
+QString ValgrindRunControl::executable() const
 {
     return startParameters().debuggee;
 }
 
-void ValgrindEngine::handleProgressCanceled()
+QStringList ValgrindRunControl::genericToolArguments() const
+{
+    QTC_ASSERT(m_settings, return QStringList());
+    QString smcCheckValue;
+    switch (m_settings->selfModifyingCodeDetection()) {
+    case ValgrindBaseSettings::DetectSmcNo:
+        smcCheckValue = QLatin1String("none");
+        break;
+    case ValgrindBaseSettings::DetectSmcEverywhere:
+        smcCheckValue = QLatin1String("all");
+        break;
+    case ValgrindBaseSettings::DetectSmcEverywhereButFile:
+        smcCheckValue = QLatin1String("all-non-file");
+        break;
+    case ValgrindBaseSettings::DetectSmcStackOnly:
+    default:
+        smcCheckValue = QLatin1String("stack");
+        break;
+    }
+    return QStringList() << QLatin1String("--smc-check=") + smcCheckValue;
+}
+
+void ValgrindRunControl::handleProgressCanceled()
 {
     AnalyzerManager::stopTool();
     m_progress->reportCanceled();
     m_progress->reportFinished();
 }
 
-void ValgrindEngine::handleProgressFinished()
+void ValgrindRunControl::handleProgressFinished()
 {
     QApplication::alert(ICore::mainWindow(), 3000);
 }
 
-void ValgrindEngine::runnerFinished()
+void ValgrindRunControl::runnerFinished()
 {
-    emit outputReceived(tr("** Analyzing finished **\n"), NormalMessageFormat);
+    appendMessage(tr("Analyzing finished.") + QLatin1Char('\n'), NormalMessageFormat);
     emit finished();
 
     m_progress->reportFinished();
@@ -159,7 +184,7 @@ void ValgrindEngine::runnerFinished()
                this, SLOT(runnerFinished()));
 }
 
-void ValgrindEngine::receiveProcessOutput(const QByteArray &output, OutputFormat format)
+void ValgrindRunControl::receiveProcessOutput(const QByteArray &output, OutputFormat format)
 {
     int progress = m_progress->progressValue();
     if (progress < 5 * progressMaximum / 10)
@@ -167,21 +192,21 @@ void ValgrindEngine::receiveProcessOutput(const QByteArray &output, OutputFormat
     else if (progress < 9 * progressMaximum / 10)
         progress += progress / 1000;
     m_progress->setProgressValue(progress);
-    emit outputReceived(QString::fromLocal8Bit(output), format);
+    appendMessage(QString::fromLocal8Bit(output), format);
 }
 
-void ValgrindEngine::receiveProcessError(const QString &message, QProcess::ProcessError error)
+void ValgrindRunControl::receiveProcessError(const QString &message, QProcess::ProcessError error)
 {
     if (error == QProcess::FailedToStart) {
-        const QString &valgrind = m_settings->subConfig<ValgrindBaseSettings>()->valgrindExecutable();
+        const QString valgrind = m_settings->valgrindExecutable();
         if (!valgrind.isEmpty())
-            emit outputReceived(tr("** Error: \"%1\" could not be started: %2 **\n").arg(valgrind).arg(message), ErrorMessageFormat);
+            appendMessage(tr("Error: \"%1\" could not be started: %2").arg(valgrind, message) + QLatin1Char('\n'), ErrorMessageFormat);
         else
-            emit outputReceived(tr("** Error: no valgrind executable set **\n"), ErrorMessageFormat);
+            appendMessage(tr("Error: no Valgrind executable set.") + QLatin1Char('\n'), ErrorMessageFormat);
     } else if (m_isStopping && error == QProcess::Crashed) { // process gets killed on stop
-        emit outputReceived(tr("** Process Terminated **\n"), ErrorMessageFormat);
+        appendMessage(tr("Process terminated.") + QLatin1Char('\n'), ErrorMessageFormat);
     } else {
-        emit outputReceived(QString::fromLatin1("** %1 **\n").arg(message), ErrorMessageFormat);
+        appendMessage(QString::fromLatin1("** %1 **\n").arg(message), ErrorMessageFormat);
     }
 
     if (m_isStopping)

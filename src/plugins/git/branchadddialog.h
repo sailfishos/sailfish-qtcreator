@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -36,16 +36,14 @@ namespace Git {
 namespace Internal {
 
 
-namespace Ui {
-    class BranchAddDialog;
-}
+namespace Ui { class BranchAddDialog; }
 
 class BranchAddDialog : public QDialog
 {
     Q_OBJECT
 
 public:
-    BranchAddDialog(bool addBranch, QWidget *parent);
+    BranchAddDialog(const QStringList &localBranches, bool addBranch, QWidget *parent);
     ~BranchAddDialog();
 
     void setBranchName(const QString &);

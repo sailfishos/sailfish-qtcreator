@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,6 +30,7 @@
 #include "qmljseditoreditable.h"
 #include "qmljseditor.h"
 #include "qmljseditorconstants.h"
+#include "qmljscompletionassist.h"
 
 #include <qmljstools/qmljstoolsconstants.h>
 #include <texteditor/texteditorconstants.h>
@@ -41,11 +42,15 @@
 #include <coreplugin/modemanager.h>
 #include <coreplugin/coreconstants.h>
 
+#include <extensionsystem/pluginmanager.h>
+
 namespace QmlJSEditor {
+namespace Internal {
 
 QmlJSEditor::QmlJSEditor(QmlJSTextEditorWidget *editor)
     : BaseTextEditor(editor)
 {
+    setId(Constants::C_QMLJSEDITOR_ID);
     m_context.add(Constants::C_QMLJSEDITOR_ID);
     m_context.add(TextEditor::Constants::C_TEXTEDITOR);
     m_context.add(ProjectExplorer::Constants::LANG_QMLJS);
@@ -60,16 +65,15 @@ bool QmlJSEditor::isDesignModePreferred() const
     return false;
 }
 
-void QmlJSEditor::setTextCodec(QTextCodec *codec, TextCodecReason reason)
-{
-    if (reason != TextCodecOtherReason) // qml is defined to be utf8
-        return;
-    editorWidget()->setTextCodec(codec);
-}
-
 const Utils::CommentDefinition *QmlJSEditor::commentDefinition() const
 {
     return &m_commentDefinition;
 }
 
+TextEditor::CompletionAssistProvider *QmlJSEditor::completionAssistProvider()
+{
+    return ExtensionSystem::PluginManager::getObject<Internal::QmlJSCompletionAssistProvider>();
+}
+
+} // namespace Internal
 } // namespace QmlJSEditor

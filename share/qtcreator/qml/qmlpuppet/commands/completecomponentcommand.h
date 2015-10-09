@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -39,6 +39,7 @@ namespace QmlDesigner {
 class CompleteComponentCommand
 {
     friend QDataStream &operator>>(QDataStream &in, CompleteComponentCommand &command);
+    friend QDebug operator <<(QDebug debug, const CompleteComponentCommand &command);
 
 public:
     CompleteComponentCommand();
@@ -52,6 +53,8 @@ private:
 
 QDataStream &operator<<(QDataStream &out, const CompleteComponentCommand &command);
 QDataStream &operator>>(QDataStream &in, CompleteComponentCommand &command);
+
+QDebug operator <<(QDebug debug, const CompleteComponentCommand &command);
 
 } // namespace QmlDesigner
 

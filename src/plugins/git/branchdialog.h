@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -39,9 +39,7 @@ QT_END_NAMESPACE
 namespace Git {
 namespace Internal {
 
-namespace Ui {
-class BranchDialog;
-}
+namespace Ui { class BranchDialog; }
 
 class BranchAddDialog;
 class BranchModel;
@@ -72,8 +70,11 @@ private slots:
     void rename();
     void diff();
     void log();
+    void reset();
     void merge();
     void rebase();
+    void cherryPick();
+    void setRemoteTracking();
 
 private:
     QModelIndex selectedIndex();

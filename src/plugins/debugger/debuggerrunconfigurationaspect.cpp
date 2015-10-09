@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -39,6 +39,9 @@
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/runconfiguration.h>
 #include <projectexplorer/target.h>
+#include <projectexplorer/buildconfiguration.h>
+#include <projectexplorer/buildstep.h>
+#include <projectexplorer/buildsteplist.h>
 
 #include <QCheckBox>
 #include <QSpinBox>
@@ -53,6 +56,8 @@ static const char USE_QML_DEBUGGER_AUTO_KEY[] = "RunConfiguration.UseQmlDebugger
 static const char QML_DEBUG_SERVER_PORT_KEY[] = "RunConfiguration.QmlDebugServerPort";
 static const char USE_MULTIPROCESS_KEY[] = "RunConfiguration.UseMultiProcess";
 
+using namespace ProjectExplorer;
+
 namespace Debugger {
 namespace Internal {
 
@@ -62,7 +67,7 @@ namespace Internal {
 //
 ////////////////////////////////////////////////////////////////////////
 
-class DebuggerRunConfigWidget : public ProjectExplorer::RunConfigWidget
+class DebuggerRunConfigWidget : public RunConfigWidget
 {
     Q_OBJECT
 
@@ -70,12 +75,15 @@ public:
     explicit DebuggerRunConfigWidget(DebuggerRunConfigurationAspect *aspect);
     QString displayName() const { return tr("Debugger Settings"); }
 
+    void showEvent(QShowEvent *event);
+    void update();
+
 private slots:
-    void useCppDebuggerToggled(bool on);
+    void useCppDebuggerClicked(bool on);
     void useQmlDebuggerToggled(bool on);
+    void useQmlDebuggerClicked(bool on);
     void qmlDebugServerPortChanged(int port);
     void useMultiProcessToggled(bool on);
-    void update();
 
 public:
     DebuggerRunConfigurationAspect *m_aspect; // not owned
@@ -115,8 +123,10 @@ DebuggerRunConfigWidget::DebuggerRunConfigWidget(DebuggerRunConfigurationAspect 
             Core::HelpManager::instance(), SLOT(handleHelpRequest(QString)));
     connect(m_useQmlDebugger, SIGNAL(toggled(bool)),
             SLOT(useQmlDebuggerToggled(bool)));
-    connect(m_useCppDebugger, SIGNAL(toggled(bool)),
-            SLOT(useCppDebuggerToggled(bool)));
+    connect(m_useQmlDebugger, SIGNAL(clicked(bool)),
+            SLOT(useQmlDebuggerClicked(bool)));
+    connect(m_useCppDebugger, SIGNAL(clicked(bool)),
+            SLOT(useCppDebuggerClicked(bool)));
     connect(m_debugServerPort, SIGNAL(valueChanged(int)),
             SLOT(qmlDebugServerPortChanged(int)));
     connect(m_useMultiProcess, SIGNAL(toggled(bool)),
@@ -136,10 +146,19 @@ DebuggerRunConfigWidget::DebuggerRunConfigWidget(DebuggerRunConfigurationAspect 
     layout->addLayout(qmlLayout);
     layout->addWidget(m_useMultiProcess);
     setLayout(layout);
+}
 
-    connect(aspect->runConfiguration()->target()->project(), SIGNAL(projectLanguagesUpdated()),
-            this, SLOT(update()));
-    update();
+void DebuggerRunConfigWidget::showEvent(QShowEvent *event)
+{
+    // Update the UI on every show() because the state of
+    // QML debugger language is hard to track.
+    //
+    // !event->spontaneous makes sure we ignore e.g. global windows events,
+    // when Qt Creator itself is minimized/maximized.
+    if (!event->spontaneous())
+        update();
+
+    RunConfigWidget::showEvent(event);
 }
 
 void DebuggerRunConfigWidget::update()
@@ -160,7 +179,7 @@ void DebuggerRunConfigWidget::qmlDebugServerPortChanged(int port)
     m_aspect->m_qmlDebugServerPort = port;
 }
 
-void DebuggerRunConfigWidget::useCppDebuggerToggled(bool on)
+void DebuggerRunConfigWidget::useCppDebuggerClicked(bool on)
 {
     m_aspect->m_useCppDebugger = on
             ? DebuggerRunConfigurationAspect::EnabledLanguage
@@ -173,7 +192,10 @@ void DebuggerRunConfigWidget::useQmlDebuggerToggled(bool on)
 {
     m_debugServerPort->setEnabled(on);
     m_debugServerPortLabel->setEnabled(on);
+}
 
+void DebuggerRunConfigWidget::useQmlDebuggerClicked(bool on)
+{
     m_aspect->m_useQmlDebugger = on
             ? DebuggerRunConfigurationAspect::EnabledLanguage
             : DebuggerRunConfigurationAspect::DisabledLanguage;
@@ -193,58 +215,58 @@ void DebuggerRunConfigWidget::useMultiProcessToggled(bool on)
 */
 
 DebuggerRunConfigurationAspect::DebuggerRunConfigurationAspect(
-        ProjectExplorer::RunConfiguration *rc) :
-    m_runConfiguration(rc),
+        RunConfiguration *rc) :
+    IRunConfigurationAspect(rc),
     m_useCppDebugger(AutoEnabledLanguage),
     m_useQmlDebugger(AutoEnabledLanguage),
     m_qmlDebugServerPort(Constants::QML_DEFAULT_DEBUG_SERVER_PORT),
     m_useMultiProcess(false)
 {
-    ctor();
-}
-
-DebuggerRunConfigurationAspect::DebuggerRunConfigurationAspect(
-        ProjectExplorer::RunConfiguration *runConfiguration,
-        const DebuggerRunConfigurationAspect *other)
-    : m_runConfiguration(runConfiguration),
-      m_useCppDebugger(other->m_useCppDebugger),
-      m_useQmlDebugger(other->m_useQmlDebugger),
-      m_qmlDebugServerPort(other->m_qmlDebugServerPort),
-      m_useMultiProcess(other->m_useMultiProcess)
-{
-    ctor();
-}
-
-ProjectExplorer::RunConfiguration *DebuggerRunConfigurationAspect::runConfiguration()
-{
-    return m_runConfiguration;
+    setId("DebuggerAspect");
+    setDisplayName(tr("Debugger settings"));
 }
 
 void DebuggerRunConfigurationAspect::setUseQmlDebugger(bool value)
 {
     m_useQmlDebugger = value ? EnabledLanguage : DisabledLanguage;
-    emit debuggersChanged();
+    emit requestRunActionsUpdate();
 }
 
 void DebuggerRunConfigurationAspect::setUseCppDebugger(bool value)
 {
     m_useCppDebugger = value ? EnabledLanguage : DisabledLanguage;
-    emit debuggersChanged();
+    emit requestRunActionsUpdate();
 }
 
 bool DebuggerRunConfigurationAspect::useCppDebugger() const
 {
     if (m_useCppDebugger == DebuggerRunConfigurationAspect::AutoEnabledLanguage)
-        return m_runConfiguration->target()->project()->projectLanguages().contains(
+        return runConfiguration()->target()->project()->projectLanguages().contains(
                     ProjectExplorer::Constants::LANG_CXX);
     return m_useCppDebugger == DebuggerRunConfigurationAspect::EnabledLanguage;
 }
 
 bool DebuggerRunConfigurationAspect::useQmlDebugger() const
 {
-    if (m_useQmlDebugger == DebuggerRunConfigurationAspect::AutoEnabledLanguage)
-        return m_runConfiguration->target()->project()->projectLanguages().contains(
-                    ProjectExplorer::Constants::LANG_QMLJS);
+    if (m_useQmlDebugger == DebuggerRunConfigurationAspect::AutoEnabledLanguage) {
+        //
+        // Try to find a build step (qmake) to check whether qml debugging is enabled there
+        // (Using the Qt metatype system to avoid a hard qt4projectmanager dependency)
+        //
+        if (BuildConfiguration *bc = runConfiguration()->target()->activeBuildConfiguration()) {
+            if (BuildStepList *bsl = bc->stepList(ProjectExplorer::Constants::BUILDSTEPS_BUILD)) {
+                foreach (BuildStep *step, bsl->steps()) {
+                    QVariant linkProperty = step->property("linkQmlDebuggingLibrary");
+                    if (linkProperty.isValid() && linkProperty.canConvert(QVariant::Bool))
+                        return linkProperty.toBool();
+                }
+            }
+        }
+
+        const Core::Context languages = runConfiguration()->target()->project()->projectLanguages();
+        return languages.contains(ProjectExplorer::Constants::LANG_QMLJS)
+            && !languages.contains(ProjectExplorer::Constants::LANG_CXX);
+    }
     return m_useQmlDebugger == DebuggerRunConfigurationAspect::EnabledLanguage;
 }
 
@@ -270,28 +292,21 @@ void DebuggerRunConfigurationAspect::setUseMultiProcess(bool value)
 
 bool DebuggerRunConfigurationAspect::isQmlDebuggingSpinboxSuppressed() const
 {
-    ProjectExplorer::Kit *k = m_runConfiguration->target()->kit();
-    ProjectExplorer::IDevice::ConstPtr dev = ProjectExplorer::DeviceKitInformation::device(k);
+    Kit *k = runConfiguration()->target()->kit();
+    IDevice::ConstPtr dev = DeviceKitInformation::device(k);
     if (dev.isNull())
         return false;
     return dev->canAutoDetectPorts();
 }
 
-QString DebuggerRunConfigurationAspect::displayName() const
+void DebuggerRunConfigurationAspect::toMap(QVariantMap &map) const
 {
-    return tr("Debugger settings");
-}
-
-QVariantMap DebuggerRunConfigurationAspect::toMap() const
-{
-    QVariantMap map;
     map.insert(QLatin1String(USE_CPP_DEBUGGER_KEY), m_useCppDebugger == EnabledLanguage);
     map.insert(QLatin1String(USE_CPP_DEBUGGER_AUTO_KEY), m_useCppDebugger == AutoEnabledLanguage);
     map.insert(QLatin1String(USE_QML_DEBUGGER_KEY), m_useQmlDebugger == EnabledLanguage);
     map.insert(QLatin1String(USE_QML_DEBUGGER_AUTO_KEY), m_useQmlDebugger == AutoEnabledLanguage);
     map.insert(QLatin1String(QML_DEBUG_SERVER_PORT_KEY), m_qmlDebugServerPort);
     map.insert(QLatin1String(USE_MULTIPROCESS_KEY), m_useMultiProcess);
-    return map;
 }
 
 void DebuggerRunConfigurationAspect::fromMap(const QVariantMap &map)
@@ -311,21 +326,15 @@ void DebuggerRunConfigurationAspect::fromMap(const QVariantMap &map)
     m_useMultiProcess = map.value(QLatin1String(USE_MULTIPROCESS_KEY), false).toBool();
 }
 
-DebuggerRunConfigurationAspect *DebuggerRunConfigurationAspect::clone(
-        ProjectExplorer::RunConfiguration *parent) const
+DebuggerRunConfigurationAspect *DebuggerRunConfigurationAspect::create
+    (RunConfiguration *runConfiguration) const
 {
-    return new DebuggerRunConfigurationAspect(parent, this);
+    return new DebuggerRunConfigurationAspect(runConfiguration);
 }
 
-ProjectExplorer::RunConfigWidget *DebuggerRunConfigurationAspect::createConfigurationWidget()
+RunConfigWidget *DebuggerRunConfigurationAspect::createConfigurationWidget()
 {
     return new Internal::DebuggerRunConfigWidget(this);
-}
-
-void DebuggerRunConfigurationAspect::ctor()
-{
-    connect(this, SIGNAL(debuggersChanged()),
-            m_runConfiguration, SIGNAL(requestRunActionsUpdate()));
 }
 
 } // namespace Debugger

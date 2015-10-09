@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,11 +30,12 @@
 #ifndef BASETEXTEDITOR_H
 #define BASETEXTEDITOR_H
 
+#include "basetextdocument.h"
 #include "itexteditor.h"
 #include "codeassist/assistenums.h"
 
 #include <coreplugin/editormanager/editormanager.h>
-#include <find/ifindsupport.h>
+#include <coreplugin/find/ifindsupport.h>
 
 #include <QPlainTextEdit>
 #include <QSharedPointer>
@@ -58,6 +59,7 @@ class IAssistMonitorInterface;
 class IAssistInterface;
 class IAssistProvider;
 class ICodeStylePreferences;
+class CompletionAssistProvider;
 typedef QList<RefactorMarker> RefactorMarkers;
 
 namespace Internal {
@@ -68,12 +70,12 @@ namespace Internal {
 
 class ITextMarkable;
 
-class BaseTextDocument;
 class BaseTextEditor;
 class FontSettings;
 class BehaviorSettings;
 class CompletionSettings;
 class DisplaySettings;
+class MarginSettings;
 class TypingSettings;
 class StorageSettings;
 class Indenter;
@@ -128,36 +130,26 @@ class TEXTEDITOR_EXPORT BaseTextEditorWidget : public QPlainTextEdit
     Q_PROPERTY(int verticalBlockSelectionLastColumn READ verticalBlockSelectionLastColumn)
 
 public:
-    BaseTextEditorWidget(QWidget *parent);
+    BaseTextEditorWidget(QWidget *parent = 0);
+    BaseTextEditorWidget(BaseTextDocument *doc, QWidget *parent = 0);
+    BaseTextEditorWidget(BaseTextEditorWidget *other);
     ~BaseTextEditorWidget();
 
-    const Utils::ChangeSet &changeSet() const;
-    void setChangeSet(const Utils::ChangeSet &changeSet);
+    BaseTextDocument *baseTextDocument() const;
 
-    // EditorInterface
-    Core::IDocument *editorDocument() const;
-    bool createNew(const QString &contents);
+    // IEditor
     virtual bool open(QString *errorString, const QString &fileName, const QString &realFileName);
     QByteArray saveState() const;
     bool restoreState(const QByteArray &state);
-    QString displayName() const;
-
     void gotoLine(int line, int column = 0);
-
     int position(ITextEditor::PositionOperation posOp = ITextEditor::Current,
          int at = -1) const;
     void convertPosition(int pos, int *line, int *column) const;
 
     BaseTextEditor *editor() const;
-    ITextMarkable *markableInterface() const;
 
     void print(QPrinter *);
 
-    void setSuggestedFileName(const QString &suggestedFileName);
-    QString mimeType() const;
-    virtual void setMimeType(const QString &mt);
-
-    void appendMenuActionsFromContext(QMenu *menu, Core::Id menuContextId);
     void appendStandardContextMenuActions(QMenu *menu);
 
     // Works only in conjunction with a syntax highlighter that puts
@@ -192,6 +184,9 @@ public:
     void setMouseNavigationEnabled(bool b);
     bool mouseNavigationEnabled() const;
 
+    void setMouseHidingEnabled(bool b);
+    bool mouseHidingEnabled() const;
+
     void setScrollWheelZoomingEnabled(bool b);
     bool scrollWheelZoomingEnabled() const;
 
@@ -210,12 +205,6 @@ public:
     int columnCount() const;
     int rowCount() const;
 
-    void setActionHack(QObject *hack);
-    QObject *actionHack() const;
-
-    void setTextCodec(QTextCodec *codec);
-    QTextCodec *textCodec() const;
-
     void setReadOnly(bool b);
 
     void setTextCursor(const QTextCursor &cursor);
@@ -230,9 +219,6 @@ public:
 
     QRegion translatedLineRegion(int lineStart, int lineEnd) const;
 
-    void setIndenter(Indenter *indenter);
-    Indenter *indenter() const;
-
     void setAutoCompleter(AutoCompleter *autoCompleter);
     AutoCompleter *autoCompleter() const;
 
@@ -242,11 +228,11 @@ public:
 
     virtual IAssistInterface *createAssistInterface(AssistKind assistKind,
                                                     AssistReason assistReason) const;
-    QMimeData *duplicateMimeData(const QMimeData *source) const;
+    static QMimeData *duplicateMimeData(const QMimeData *source);
+
+    static QString msgTextTooLarge(quint64 size);
 
 public slots:
-    void setDisplayName(const QString &title);
-
     virtual void copy();
     virtual void paste();
     virtual void cut();
@@ -327,11 +313,8 @@ public slots:
     void abortAssist();
 
 signals:
-    void changed();
     void assistFinished();
-
-    // ITextEditor
-    void contentsChanged();
+    void readOnlyChanged();
 
 protected:
     bool event(QEvent *e);
@@ -355,28 +338,22 @@ protected:
     virtual bool selectionVisible(int blockNumber) const;
     virtual bool replacementVisible(int blockNumber) const;
     virtual QColor replacementPenColor(int blockNumber) const;
-    static QString msgTextTooLarge(quint64 size);
 
 private:
     void maybeSelectLine();
     void updateCannotDecodeInfo();
-
-public:
-    void duplicateFrom(BaseTextEditorWidget *editor);
+    void collectToCircularClipboard();
 
 protected:
-    QSharedPointer<BaseTextDocument> baseTextDocument() const;
-    void setBaseTextDocument(const QSharedPointer<BaseTextDocument> &doc);
-
-    void setDefaultPath(const QString &defaultPath);
-
     virtual BaseTextEditor *createEditor() = 0;
+    virtual void triggerPendingUpdates();
+    virtual void applyFontSettings();
 
 private slots:
     void editorContentsChange(int position, int charsRemoved, int charsAdded);
     void documentAboutToBeReloaded();
     void documentReloadFinished(bool success);
-    void highlightSearchResults(const QString &txt, Find::FindFlags findFlags);
+    void highlightSearchResults(const QString &txt, Core::FindFlags findFlags);
     void setFindScope(const QTextCursor &start, const QTextCursor &end, int, int);
     bool inFindScope(const QTextCursor &cursor);
     bool inFindScope(int selectionStart, int selectionEnd);
@@ -397,15 +374,13 @@ public:
     virtual void extraAreaMouseEvent(QMouseEvent *);
     void updateFoldingHighlight(const QPoint &pos);
 
-    const TabSettings &tabSettings() const;
     void setLanguageSettingsId(Core::Id settingsId);
     Core::Id languageSettingsId() const;
 
     void setCodeStyle(ICodeStylePreferences *settings);
 
     const DisplaySettings &displaySettings() const;
-
-    void markBlocksAsChanged(QList<int> blockNumbers);
+    const MarginSettings &marginSettings() const;
 
     void ensureCursorVisible();
 
@@ -433,18 +408,6 @@ signals:
     void refactorMarkerClicked(const TextEditor::RefactorMarker &marker);
 
 public:
-
-    struct BlockRange
-    {
-        BlockRange() : first(0), last(-1) {}
-        BlockRange(int first_position, int last_position)
-          : first(first_position), last(last_position)
-        {}
-        int first;
-        int last;
-        inline bool isNull() const { return last < first; }
-    };
-
     // the blocks list must be sorted
     void setIfdefedOutBlocks(const QList<BlockRange> &blocks);
 
@@ -452,10 +415,8 @@ public slots:
     virtual void format();
     virtual void rewrapParagraph();
     virtual void unCommentSelection();
-    virtual void setFontSettings(const TextEditor::FontSettings &);
-    void setFontSettingsIfVisible(const TextEditor::FontSettings &);
-    virtual void setTabSettings(const TextEditor::TabSettings &);
     virtual void setDisplaySettings(const TextEditor::DisplaySettings &);
+    virtual void setMarginSettings(const TextEditor::MarginSettings &);
     virtual void setBehaviorSettings(const TextEditor::BehaviorSettings &);
     virtual void setTypingSettings(const TextEditor::TypingSettings &);
     virtual void setStorageSettings(const TextEditor::StorageSettings &);
@@ -480,10 +441,6 @@ protected:
     void showDefaultContextMenu(QContextMenuEvent *e, const Core::Id menuContextId);
 
 public:
-    void indentInsertedText(const QTextCursor &tc);
-    void indent(QTextDocument *doc, const QTextCursor &cursor, QChar typedChar);
-    void reindent(QTextDocument *doc, const QTextCursor &cursor);
-
     struct Link
     {
         Link(const QString &fileName = QString(), int line = 0, int column = 0)
@@ -518,15 +475,14 @@ protected:
        \a resolveTarget is set to true when the target of the link is relevant
        (it isn't until the link is used).
      */
-    virtual Link findLinkAt(const QTextCursor &, bool resolveTarget = true);
+    virtual Link findLinkAt(const QTextCursor &, bool resolveTarget = true,
+                            bool inNextSplit = false);
 
     /*!
        Reimplement this function if you want to customize the way a link is
        opened. Returns whether the link was opened successfully.
      */
     virtual bool openLink(const Link &link, bool inNextSplit = false);
-
-    void maybeClearSomeExtraSelections(const QTextCursor &cursor);
 
     /*!
       Reimplement this function to change the default replacement text.
@@ -542,7 +498,6 @@ protected:
 protected slots:
     virtual void slotUpdateExtraArea();
     virtual void slotUpdateExtraAreaWidth();
-    virtual void slotModificationChanged(bool);
     virtual void slotUpdateRequest(const QRect &r, int dy);
     virtual void slotCursorPositionChanged();
     virtual void slotUpdateBlockNotify(const QTextBlock &);
@@ -554,7 +509,7 @@ signals:
     void requestBlockUpdate(const QTextBlock &);
 
 private:
-    void indentOrUnindent(bool doIndent);
+    void ctor(const QSharedPointer<BaseTextDocument> &doc);
     void handleHomeKey(bool anchor);
     void handleBackspaceKey();
     void moveLineUpDown(bool up);
@@ -591,6 +546,8 @@ private:
 
 private slots:
     void handleBlockSelection(int diff_row, int diff_col);
+    void updateTabStops();
+    void applyFontSettingsDelayed();
 
     // parentheses matcher
     void _q_matchParentheses();
@@ -611,13 +568,11 @@ public:
 
     friend class BaseTextEditorWidget;
     BaseTextEditorWidget *editorWidget() const { return m_editorWidget; }
+    BaseTextDocument *baseTextDocument() { return m_editorWidget->baseTextDocument(); }
 
     // IEditor
-    Core::IDocument *document() { return m_editorWidget->editorDocument(); }
-    bool createNew(const QString &contents) { return m_editorWidget->createNew(contents); }
+    Core::IDocument *document() { return m_editorWidget->baseTextDocument(); }
     bool open(QString *errorString, const QString &fileName, const QString &realFileName);
-    QString displayName() const { return m_editorWidget->displayName(); }
-    void setDisplayName(const QString &title) { m_editorWidget->setDisplayName(title); emit changed(); }
 
     QByteArray saveState() const { return m_editorWidget->saveState(); }
     bool restoreState(const QByteArray &state) { return m_editorWidget->restoreState(state); }
@@ -641,12 +596,7 @@ public:
 
     QString selectedText() const;
 
-    ITextMarkable *markableInterface() { return m_editorWidget->markableInterface(); }
-
     QString contextHelpId() const; // from IContext
-
-    void setTextCodec(QTextCodec *codec, TextCodecReason = TextCodecOtherReason) { m_editorWidget->setTextCodec(codec); }
-    QTextCodec *textCodec() const { return m_editorWidget->textCodec(); }
 
     // ITextEditor
     void remove(int length);
@@ -655,6 +605,8 @@ public:
     void setCursorPosition(int pos);
     void select(int toPos);
     const Utils::CommentDefinition *commentDefinition() const;
+
+    virtual CompletionAssistProvider *completionAssistProvider();
 
 private slots:
     void updateCursorPosition();

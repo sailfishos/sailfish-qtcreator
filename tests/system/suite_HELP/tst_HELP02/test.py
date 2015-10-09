@@ -1,6 +1,6 @@
 #############################################################################
 ##
-## Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+## Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ## Contact: http://www.qt-project.org/legal
 ##
 ## This file is part of Qt Creator.
@@ -28,7 +28,6 @@
 #############################################################################
 
 source("../../shared/qtcreator.py")
-source("../../shared/suites_qtta.py")
 
 # test Qt Creator version information from file and dialog
 def getQtCreatorVersionFromDialog():
@@ -57,12 +56,34 @@ def getQtCreatorVersionFromFile():
 def checkQtCreatorHelpVersion(expectedVersion):
     switchViewTo(ViewConstants.HELP)
     try:
-        creatorManual = waitForObject("{column='0' container=':Qt Creator_QHelpContentWidget' "
-                                      "text?='Qt Creator Manual*' type='QModelIndex'}", 5000)
-        test.compare(str(creatorManual.text)[18:], expectedVersion,
-                     "Verifying whether manual uses expected version, text is: %s" % creatorManual.text)
-    except LookupError:
+        helpContentWidget = waitForObject(':Qt Creator_QHelpContentWidget', 5000)
+        items = dumpItems(helpContentWidget.model())
+        test.compare(filter(lambda x: x.startswith('Qt Creator Manual'), items)[0],
+                     'Qt Creator Manual %s' % expectedVersion,
+                     'Verifying whether manual uses expected version.')
+    except:
         test.fail("Missing Qt Creator Manual.")
+
+def setKeyboardShortcutForAboutQtC():
+    invokeMenuItem("Tools", "Options...")
+    waitForObjectItem(":Options_QListView", "Environment")
+    clickItem(":Options_QListView", "Environment", 14, 15, 0, Qt.LeftButton)
+    clickOnTab(":Options.qt_tabwidget_tabbar_QTabBar", "Keyboard")
+    filter = waitForObject("{container={title='Keyboard Shortcuts' type='QGroupBox' unnamed='1' "
+                           "visible='1'} type='Utils::FancyLineEdit' unnamed='1' visible='1' "
+                           "placeHolderText='Filter'}")
+    replaceEditorContent(filter, "about")
+    treewidget = waitForObject("{type='QTreeWidget' unnamed='1' visible='1'}")
+    modelIndex = waitForObject("{column='0' text='AboutQtCreator' type='QModelIndex' "
+                               "container={column='0' text='QtCreator' type='QModelIndex' "
+                               "container=%s}}" % objectMap.realName(treewidget))
+    mouseClick(modelIndex, 5, 5, 0, Qt.LeftButton)
+    shortcut = waitForObject("{container={title='Shortcut' type='QGroupBox' unnamed='1' "
+                             "visible='1'} type='Utils::FancyLineEdit' unnamed='1' visible='1' "
+                             "placeHolderText='Type to set shortcut'}")
+    mouseClick(shortcut, 5, 5, 0, Qt.LeftButton)
+    nativeType("<Ctrl+Alt+a>")
+    clickButton(waitForObject(":Options.OK_QPushButton"))
 
 def main():
     expectedVersion = getQtCreatorVersionFromFile()
@@ -72,12 +93,24 @@ def main():
     startApplication("qtcreator" + SettingsPath)
     if not startedWithoutPluginError():
         return
-    if platform.system() == "Darwin":
-       invokeMenuItem("Help", "About Qt Creator")
-    else:
-       invokeMenuItem("Help", "About Qt Creator...")
+    setKeyboardShortcutForAboutQtC()
+    if platform.system() == 'Darwin':
+        try:
+            waitForObject(":Qt Creator.QtCreator.MenuBar_QMenuBar", 2000)
+        except:
+            nativeMouseClick(waitForObject(":Qt Creator_Core::Internal::MainWindow", 1000), 20, 20, 0, Qt.LeftButton)
+    nativeType("<Ctrl+Alt+a>")
     # verify qt creator version
-    waitForObject(":About Qt Creator_Core::Internal::VersionDialog")
+    try:
+        waitForObject(":About Qt Creator_Core::Internal::VersionDialog", 5000)
+    except:
+        test.warning("Using workaround of invoking menu entry "
+                     "(known issue when running on Win inside Jenkins)")
+        if platform.system() == "Darwin":
+            invokeMenuItem("Help", "About Qt Creator")
+        else:
+            invokeMenuItem("Help", "About Qt Creator...")
+        waitForObject(":About Qt Creator_Core::Internal::VersionDialog", 5000)
     actualVersion = getQtCreatorVersionFromDialog()
     test.verify(actualVersion == expectedVersion,
                 "Verifying version. Current version is '%s', expected version is '%s'"

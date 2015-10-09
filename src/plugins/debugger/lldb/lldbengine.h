@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,9 +30,12 @@
 #ifndef DEBUGGER_LLDBENGINE
 #define DEBUGGER_LLDBENGINE
 
-#include "debuggerengine.h"
-#include "disassembleragent.h"
-#include "memoryagent.h"
+#include <debugger/debuggerengine.h>
+#include <debugger/disassembleragent.h>
+#include <debugger/memoryagent.h>
+#include <debugger/watchhandler.h>
+
+#include <utils/consoleprocess.h>
 
 #include <QPointer>
 #include <QProcess>
@@ -67,6 +70,7 @@ private:
         Command() {}
         Command(const char *f) : function(f) {}
 
+        const Command &arg(const char *name) const;
         const Command &arg(const char *name, int value) const;
         const Command &arg(const char *name, qlonglong value) const;
         const Command &arg(const char *name, qulonglong value) const;
@@ -95,10 +99,13 @@ private:
     void executeNextI();
 
     void setupEngine();
+    void startLldb();
     void setupInferior();
     void runEngine();
     void shutdownInferior();
     void shutdownEngine();
+    void abortDebugger();
+    void resetLocation();
 
     bool setToolTipExpression(const QPoint &mousePos,
         TextEditor::ITextEditor *editor, const DebuggerToolTipContext &);
@@ -127,14 +134,13 @@ private:
     void reloadModules();
     void reloadRegisters();
     void reloadSourceFiles() {}
-    void reloadFullStack() {}
+    void reloadFullStack();
     void fetchDisassembler(Internal::DisassemblerAgent *);
     void refreshDisassembly(const GdbMi &data);
 
     bool supportsThreads() const { return true; }
     bool isSynchronous() const { return true; }
     void updateWatchData(const WatchData &data, const WatchUpdateFlags &flags);
-    void requestUpdateWatchers();
     void setRegisterValue(int regnr, const QString &value);
 
     void fetchMemory(Internal::MemoryAgent *, QObject *, quint64 addr, quint64 length);
@@ -155,10 +161,16 @@ private:
     Q_SLOT void handleResponse(const QByteArray &data);
     Q_SLOT void runEngine2();
     Q_SLOT void updateAll();
+    Q_SLOT void updateStack();
     Q_SLOT void updateLocals();
+    Q_SLOT void createFullBacktrace();
+    void doUpdateLocals(UpdateParameters params);
     void refreshAll(const GdbMi &all);
     void refreshThreads(const GdbMi &threads);
     void refreshStack(const GdbMi &stack);
+    void refreshStackPosition(const GdbMi &position);
+    void refreshStackTop(const GdbMi &position);
+    void setStackPosition(int index);
     void refreshRegisters(const GdbMi &registers);
     void refreshLocals(const GdbMi &vars);
     void refreshTypeInfo(const GdbMi &typeInfo);
@@ -167,12 +179,14 @@ private:
     void refreshModules(const GdbMi &modules);
     void refreshSymbols(const GdbMi &symbols);
     void refreshOutput(const GdbMi &output);
-    void refreshBreakpoints(const GdbMi &bkpts);
+    void refreshAddedBreakpoint(const GdbMi &bkpts);
+    void refreshChangedBreakpoint(const GdbMi &bkpts);
+    void refreshRemovedBreakpoint(const GdbMi &bkpts);
     void runContinuation(const GdbMi &data);
+    void showFullBacktrace(const GdbMi &data);
 
     typedef void (LldbEngine::*LldbCommandContinuation)();
 
-    void handleStop(const QByteArray &response);
     void handleListLocals(const QByteArray &response);
     void handleListModules(const QByteArray &response);
     void handleListSymbols(const QByteArray &response);
@@ -181,10 +195,15 @@ private:
     void handleUpdateStack(const QByteArray &response);
     void handleUpdateThreads(const QByteArray &response);
 
+    void notifyEngineRemoteSetupDone(int portOrPid, int qmlPort);
+    void notifyEngineRemoteSetupFailed(const QString &reason);
+
     void handleChildren(const WatchData &data0, const GdbMi &item,
         QList<WatchData> *list);
 
     void runCommand(const Command &cmd);
+    void debugLastCommand();
+    Command m_lastDebuggableCommand;
 
     QByteArray m_inbuffer;
     QString m_scriptFileName;
@@ -194,9 +213,20 @@ private:
     // FIXME: Make generic.
     int m_lastAgentId;
     int m_lastToken;
+    int m_continueAtNextSpontaneousStop;
     QMap<QPointer<DisassemblerAgent>, int> m_disassemblerAgents;
     QMap<QPointer<MemoryAgent>, int> m_memoryAgents;
     QHash<int, QPointer<QObject> > m_memoryAgentTokens;
+    QScopedPointer<DebuggerToolTipContext> m_toolTipContext;
+
+    void showToolTip();
+
+    // Console handling.
+    Q_SLOT void stubError(const QString &msg);
+    Q_SLOT void stubExited();
+    Q_SLOT void stubStarted();
+    bool prepareCommand();
+    Utils::ConsoleProcess m_stubProc;
 };
 
 } // namespace Internal

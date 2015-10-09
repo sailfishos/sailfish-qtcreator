@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -37,6 +37,19 @@
 #include <QDebug>
 #include <QDateTime>
 #include <QMessageBox>
+
+#ifdef Q_OS_WIN
+#include <qt_windows.h>
+#include <shlobj.h>
+#endif
+
+QT_BEGIN_NAMESPACE
+QDebug operator<<(QDebug dbg, const Utils::FileName &c)
+{
+    return dbg << c.toString();
+}
+
+QT_END_NAMESPACE
 
 namespace Utils {
 
@@ -160,7 +173,7 @@ bool FileUtils::copyRecursively(const FileName &srcFilePath, const FileName &tgt
 /*!
   If \a filePath is a directory, the function will recursively check all files and return
   true if one of them is newer than \a timeStamp. If \a filePath is a single file, true will
-  be returned if the file is newer than \timeStamp.
+  be returned if the file is newer than \a timeStamp.
 
   Returns whether at least one file in \a filePath has a newer date than
   \a timeStamp.
@@ -219,10 +232,61 @@ QString FileUtils::shortNativePath(const FileName &path)
     return path.toUserOutput();
 }
 
+QString FileUtils::fileSystemFriendlyName(const QString &name)
+{
+    QString result = name;
+    result.replace(QRegExp(QLatin1String("\\W")), QLatin1String("_"));
+    result.replace(QRegExp(QLatin1String("_+")), QLatin1String("_")); // compact _
+    result.remove(QRegExp(QLatin1String("^_*"))); // remove leading _
+    result.remove(QRegExp(QLatin1String("_+$"))); // remove trailing _
+    if (result.isEmpty())
+        result = QLatin1String("unknown");
+    return result;
+}
+
+int FileUtils::indexOfQmakeUnfriendly(const QString &name, int startpos)
+{
+    static QRegExp checkRegExp(QLatin1String("[^a-zA-Z0-9_.-]"));
+    return checkRegExp.indexIn(name, startpos);
+}
+
+QString FileUtils::qmakeFriendlyName(const QString &name)
+{
+    QString result = name;
+
+    // Remove characters that might trip up a build system (especially qmake):
+    int pos = indexOfQmakeUnfriendly(result);
+    while (pos >= 0) {
+        result[pos] = QLatin1Char('_');
+        pos = indexOfQmakeUnfriendly(result, pos);
+    }
+    return fileSystemFriendlyName(result);
+}
+
 bool FileUtils::makeWritable(const FileName &path)
 {
     const QString fileName = path.toString();
     return QFile::setPermissions(fileName, QFile::permissions(fileName) | QFile::WriteUser);
+}
+
+// makes sure that capitalization of directories is canonical on Windows.
+// This mimics the logic in QDeclarative_isFileCaseCorrect
+QString FileUtils::normalizePathName(const QString &name)
+{
+#ifdef Q_OS_WIN
+    const QString nativeSeparatorName(QDir::toNativeSeparators(name));
+    const LPCTSTR nameC = reinterpret_cast<LPCTSTR>(nativeSeparatorName.utf16()); // MinGW
+    PIDLIST_ABSOLUTE file;
+    HRESULT hr = SHParseDisplayName(nameC, NULL, &file, 0, NULL);
+    if (FAILED(hr))
+        return name;
+    TCHAR buffer[MAX_PATH];
+    if (!SHGetPathFromIDList(file, buffer))
+        return name;
+    return QDir::fromNativeSeparators(QString::fromUtf16(reinterpret_cast<const ushort *>(buffer)));
+#else // Filesystem is case-insensitive only on Windows
+    return name;
+#endif
 }
 
 QByteArray FileReader::fetchQrc(const QString &fileName)
@@ -450,7 +514,7 @@ QString FileName::toUserOutput() const
 
 /// Find the parent directory of a given directory.
 
-/// Returns an empty FileName if the current dirctory is already
+/// Returns an empty FileName if the current directory is already
 /// a root level directory.
 
 /// \returns \a FileName with the last segment removed.
@@ -475,6 +539,13 @@ FileName FileName::parentDir() const
 FileName FileName::fromString(const QString &filename)
 {
     return FileName(filename);
+}
+
+/// Constructs a FileName from \a fileName
+/// \a fileName is not checked for validity.
+FileName FileName::fromLatin1(const QByteArray &filename)
+{
+    return FileName(QString::fromLatin1(filename));
 }
 
 /// Constructs a FileName from \a fileName
@@ -565,18 +636,18 @@ FileName FileName::relativeChildPath(const FileName &parent) const
 FileName &FileName::appendPath(const QString &s)
 {
     if (!isEmpty() && !QString::endsWith(QLatin1Char('/')))
-        append(QLatin1Char('/'));
-    append(s);
+        appendString(QLatin1Char('/'));
+    appendString(s);
     return *this;
 }
 
-FileName &FileName::append(const QString &str)
+FileName &FileName::appendString(const QString &str)
 {
     QString::append(str);
     return *this;
 }
 
-FileName &FileName::append(QChar str)
+FileName &FileName::appendString(QChar str)
 {
     QString::append(str);
     return *this;

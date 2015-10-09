@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -97,13 +97,12 @@
 */
 
 /*!
-    \fn  void addOutput(const QString &string, ProjectExplorer::BuildStep::OutputFormat format,
-              ProjectExplorer::BuildStep::OutputNewlineSetting newlineSetting)
+    \fn  void ProjectExplorer::BuildStep::addOutput(const QString &string, ProjectExplorer::BuildStep::OutputFormat format,
+              ProjectExplorer::BuildStep::OutputNewlineSetting newlineSetting = DoAppendNewline) const
 
     The \a string is added to the generated output, usually in the output pane.
     It should be in plain text, with the format in the parameter.
 */
-
 
 /*!
     \fn  void ProjectExplorer::BuildStep::finished()

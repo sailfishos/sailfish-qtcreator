@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -124,9 +124,9 @@ void FancyMainWindow::updateDockWidget(QDockWidget *dockWidget)
                        : QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetClosable | QDockWidget::DockWidgetFloatable;
     if (dockWidget->property("managed_dockwidget").isNull()) { // for the debugger tool bar
         QWidget *titleBarWidget = dockWidget->titleBarWidget();
-        if (d->m_locked && !titleBarWidget && !dockWidget->isFloating())
+        if (d->m_locked && !titleBarWidget && !dockWidget->isFloating()) {
             titleBarWidget = new QWidget(dockWidget);
-        else if ((!d->m_locked || dockWidget->isFloating()) && titleBarWidget) {
+        } else if ((!d->m_locked || dockWidget->isFloating()) && titleBarWidget) {
             delete titleBarWidget;
             titleBarWidget = 0;
         }

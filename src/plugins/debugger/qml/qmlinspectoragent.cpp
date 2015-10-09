@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -29,11 +29,11 @@
 
 #include "qmlinspectoragent.h"
 
-#include "debuggeractions.h"
-#include "debuggercore.h"
-#include "debuggerengine.h"
-#include "debuggerstringutils.h"
-#include "watchhandler.h"
+#include <debugger/debuggeractions.h>
+#include <debugger/debuggercore.h>
+#include <debugger/debuggerengine.h>
+#include <debugger/debuggerstringutils.h>
+#include <debugger/watchhandler.h>
 
 #include <qmldebug/qmldebugconstants.h>
 #include <utils/qtcassert.h>
@@ -73,6 +73,9 @@ QmlInspectorAgent::QmlInspectorAgent(DebuggerEngine *engine, QObject *parent)
 quint32 QmlInspectorAgent::queryExpressionResult(int debugId,
                                                  const QString &expression)
 {
+    if (!m_engineClient)
+        return 0;
+
     if (debug)
         qDebug() << __FUNCTION__ << '(' << debugId << expression
                  << m_engine.debugId() << ')';
@@ -454,7 +457,8 @@ void QmlInspectorAgent::onResult(quint32 queryId, const QVariant &value,
     } else if (type == "SET_BINDING_R"
                || type == "RESET_BINDING_R"
                || type == "SET_METHOD_BODY_R") {
-        QString msg = QLatin1String(type) + tr("Success: ");
+        QString msg = QLatin1String(type) + tr("Success:");
+        msg += QLatin1Char(' ');
         msg += value.toBool() ? QLatin1Char('1') : QLatin1Char('0');
         if (!value.toBool())
             emit automaticUpdateFailed();

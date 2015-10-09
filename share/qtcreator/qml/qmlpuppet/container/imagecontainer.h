@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -38,6 +38,9 @@ namespace QmlDesigner {
 class ImageContainer
 {
     friend QDataStream &operator>>(QDataStream &in, ImageContainer &container);
+    friend bool operator ==(const ImageContainer &first, const ImageContainer &second);
+    friend bool operator <(const ImageContainer &first, const ImageContainer &second);
+
 public:
     ImageContainer();
     ImageContainer(qint32 instanceId, const QImage &image, qint32 keyNumber);
@@ -58,6 +61,10 @@ private:
 
 QDataStream &operator<<(QDataStream &out, const ImageContainer &container);
 QDataStream &operator>>(QDataStream &in, ImageContainer &container);
+
+bool operator ==(const ImageContainer &first, const ImageContainer &second);
+bool operator <(const ImageContainer &first, const ImageContainer &second);
+QDebug operator <<(QDebug debug, const ImageContainer &container);
 
 } // namespace QmlDesigner
 

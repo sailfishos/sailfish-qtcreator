@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -102,14 +102,14 @@
 /*!
    \fn void ProjectExplorer::IOutputParser::outputAdded(const QString &string, ProjectExplorer::BuildStep::OutputFormat format)
 
-   This method can be overwritten to change the string.
+   This function can be overwritten to change the string.
 */
 
 /*!
    \fn void ProjectExplorer::IOutputParser::taskAdded(const ProjectExplorer::Task &task)
 
    Subparsers have their addTask signal connected to this slot.
-   This method can be overwritten to change the task.
+   This function can be overwritten to change the task.
 */
 
 /*!
@@ -118,7 +118,7 @@
    Instructs a parser to flush its state.
    Parsers may have state (for example, because they need to aggregate several
    lines into one task). This
-   method is called when this state needs to be flushed out to be visible.
+   function is called when this state needs to be flushed out to be visible.
 
    doFlush() is called by flush(). flush() is called on child parsers
    whenever a new task is added.
@@ -202,7 +202,7 @@ void IOutputParser::doFlush()
 
 bool IOutputParser::hasFatalErrors() const
 {
-    return false || (m_parser && m_parser->hasFatalErrors());
+    return m_parser && m_parser->hasFatalErrors();
 }
 
 void IOutputParser::setWorkingDirectory(const QString &workingDirectory)

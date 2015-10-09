@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2013 Jolla Ltd.
+** Copyright (C) 2012 - 2014 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -21,32 +21,33 @@
 ****************************************************************************/
 
 #include "mersdkmanager.h"
-#include "merconstants.h"
-#include "merqtversion.h"
-#include "mertoolchain.h"
-#include "mervirtualboxmanager.h"
+
 #include "merconnectionmanager.h"
-#include "mersdkkitinformation.h"
-#include "merplugin.h"
+#include "merconstants.h"
 #include "merdevicefactory.h"
-#include "mertarget.h"
+#include "merdevicexmlparser.h"
 #include "meremulatordevice.h"
 #include "merhardwaredevice.h"
-#include "merdevicexmlparser.h"
+#include "merplugin.h"
+#include "merqtversion.h"
+#include "mersdkkitinformation.h"
+#include "mertarget.h"
 #include "mertargetkitinformation.h"
+#include "mertoolchain.h"
+#include "mervirtualboxmanager.h"
 
-#include <coreplugin/icore.h>
 #include <coreplugin/coreconstants.h>
+#include <coreplugin/icore.h>
 #include <extensionsystem/pluginmanager.h>
-#include <utils/qtcassert.h>
-#include <utils/persistentsettings.h>
+#include <projectexplorer/devicesupport/devicemanager.h>
+#include <projectexplorer/kit.h>
 #include <projectexplorer/kitmanager.h>
 #include <projectexplorer/toolchainmanager.h>
-#include <projectexplorer/kit.h>
-#include <projectexplorer/devicesupport/devicemanager.h>
-#include <qtsupport/qtversionmanager.h>
 #include <qtsupport/qtkitinformation.h>
+#include <qtsupport/qtversionmanager.h>
 #include <ssh/sshkeygenerator.h>
+#include <utils/persistentsettings.h>
+#include <utils/qtcassert.h>
 
 #include <QDesktopServices>
 #include <QDir>
@@ -89,11 +90,11 @@ MerSdkManager::MerSdkManager()
     connect(Core::ICore::instance(), SIGNAL(saveSettingsRequested()), SLOT(storeSdks()));
     connect(KitManager::instance(), SIGNAL(kitsLoaded()), SLOT(initialize()));
     connect(DeviceManager::instance(), SIGNAL(devicesLoaded()), SLOT(updateDevices()));
-    connect(DeviceManager::instance(), SIGNAL(deviceListChanged()), SLOT(updateDevices()));
+    connect(DeviceManager::instance(), SIGNAL(updated()), SLOT(updateDevices()));
     m_writer = new Utils::PersistentSettingsWriter(settingsFileName(), QLatin1String("MerSDKs"));
     m_instance = this;
-    ProjectExplorer::KitManager::instance()->registerKitInformation(new MerSdkKitInformation);
-    ProjectExplorer::KitManager::instance()->registerKitInformation(new MerTargetKitInformation);
+    ProjectExplorer::KitManager::registerKitInformation(new MerSdkKitInformation);
+    ProjectExplorer::KitManager::registerKitInformation(new MerTargetKitInformation);
 }
 
 MerSdkManager::~MerSdkManager()
@@ -116,7 +117,7 @@ void MerSdkManager::initialize()
             if (sdk && sdk->targetNames().contains(toolchain->targetName()))
                 continue;
             qWarning() << "MerToolChain wihout target found. Removing toolchain.";
-            ToolChainManager::instance()->deregisterToolChain(toolchain);
+            ToolChainManager::deregisterToolChain(toolchain);
         }
 
         foreach (MerQtVersion *version, qtversions) {
@@ -124,14 +125,14 @@ void MerSdkManager::initialize()
             if (sdk && sdk->targetNames().contains(version->targetName()))
                 continue;
             qWarning() << "MerQtVersion without target found. Removing qtversion.";
-            QtVersionManager::instance()->removeVersion(version);
+            QtVersionManager::removeVersion(version);
         }
 
         //remove broken kits
         foreach (Kit *kit, kits) {
             if (!validateKit(kit)) {
                 qWarning() << "Broken Mer kit found! Removing kit.";
-                KitManager::instance()->deregisterKit(kit);
+                KitManager::deregisterKit(kit);
             }else{
                 kit->validate();
             }
@@ -146,7 +147,7 @@ void MerSdkManager::initialize()
 QList<Kit *> MerSdkManager::merKits() const
 {
     QList<Kit*> kits;
-    foreach (Kit *kit, KitManager::instance()->kits()) {
+    foreach (Kit *kit, KitManager::kits()) {
         if (isMerKit(kit))
             kits << kit;
     }
@@ -156,7 +157,7 @@ QList<Kit *> MerSdkManager::merKits() const
 QList<MerToolChain *> MerSdkManager::merToolChains() const
 {
     QList<MerToolChain*> toolchains;
-    foreach (ToolChain *toolchain, ToolChainManager::instance()->toolChains()) {
+    foreach (ToolChain *toolchain, ToolChainManager::toolChains()) {
         if (!toolchain->isAutoDetected())
             continue;
         if (toolchain->type() != QLatin1String(Constants::MER_TOOLCHAIN_TYPE))
@@ -169,7 +170,7 @@ QList<MerToolChain *> MerSdkManager::merToolChains() const
 QList<MerQtVersion *> MerSdkManager::merQtVersions() const
 {
     QList<MerQtVersion*> qtversions;
-    foreach (BaseQtVersion *qtVersion, QtSupport::QtVersionManager::instance()->versions()) {
+    foreach (BaseQtVersion *qtVersion, QtSupport::QtVersionManager::versions()) {
         if (!qtVersion->isAutodetected())
             continue;
         if (qtVersion->type() != QLatin1String(Constants::MER_QT))
@@ -235,7 +236,7 @@ void MerSdkManager::restore()
             // This is executed if the user has reinstalled MerSDK to
             // a different directory. Clean up all the existing Mer
             // kits, which contain paths to the old install directory.
-            foreach (ProjectExplorer::Kit *kit, ProjectExplorer::KitManager::instance()->kits()) {
+            foreach (ProjectExplorer::Kit *kit, ProjectExplorer::KitManager::kits()) {
                 if (!kit->isAutoDetected())
                     continue;
                 ProjectExplorer::ToolChain *tc = ProjectExplorer::ToolChainKitInformation::toolChain(kit);
@@ -246,9 +247,9 @@ void MerSdkManager::restore()
                     if (MerSdkManager::verbose)
                         qDebug() << "Removing Mer kit due to reinstall";
                     QtSupport::BaseQtVersion *v = QtSupport::QtKitInformation::qtVersion(kit);
-                    ProjectExplorer::KitManager::instance()->deregisterKit(kit);
-                    ProjectExplorer::ToolChainManager::instance()->deregisterToolChain(tc);
-                    QtSupport::QtVersionManager::instance()->removeVersion(v);
+                    ProjectExplorer::KitManager::deregisterKit(kit);
+                    ProjectExplorer::ToolChainManager::deregisterToolChain(tc);
+                    QtSupport::QtVersionManager::removeVersion(v);
                 }
             }
         }
@@ -344,7 +345,7 @@ QList<Kit *> MerSdkManager::kitsForTarget(const QString &targetName)
     QList<Kit*> kitsForTarget;
     if (targetName.isEmpty())
         return kitsForTarget;
-    const QList<Kit*> kits = KitManager::instance()->kits();
+    const QList<Kit*> kits = KitManager::kits();
     foreach (Kit *kit, kits) {
         if (targetNameForKit(kit) == targetName)
             kitsForTarget << kit;
@@ -590,7 +591,8 @@ void MerSdkManager::updateDevices()
         IDevice::ConstPtr d = DeviceManager::instance()->deviceAt(i);
         if (MerDeviceFactory::canCreate(d->type())) {
             MerDeviceData xmlData;
-            if(d->type() == Constants::MER_DEVICE_TYPE_ARM) {
+            if (d->machineType() == IDevice::Hardware) {
+                Q_ASSERT(dynamic_cast<const MerHardwareDevice*>(d.data()) != 0);
                 const MerHardwareDevice* device = static_cast<const MerHardwareDevice*>(d.data());
                 xmlData.m_ip = device->sshParameters().host;
                 xmlData.m_name = device->displayName();
@@ -601,9 +603,8 @@ void MerSdkManager::updateDevices()
                     xmlData.m_sshKeyPath = QDir::fromNativeSeparators(
                                 path.remove(QDir::toNativeSeparators(device->sharedSshPath() +
                                                                      QDir::separator())));
-            }
-
-            if(d->type() == Constants::MER_DEVICE_TYPE_I486) {
+            } else {
+                Q_ASSERT(dynamic_cast<const MerEmulatorDevice*>(d.data()) != 0);
                 const MerEmulatorDevice* device = static_cast<const MerEmulatorDevice*>(d.data());
                 //TODO: fix me
                 QString mac = device->mac();

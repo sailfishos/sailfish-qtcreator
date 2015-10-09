@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -37,16 +37,16 @@ CMakeProjectNode::CMakeProjectNode(const QString &fileName)
 {
 }
 
-bool CMakeProjectNode::hasBuildTargets() const
+bool CMakeProjectNode::showInSimpleTree() const
 {
     // TODO
     return true;
 }
 
-QList<ProjectExplorer::ProjectNode::ProjectAction> CMakeProjectNode::supportedActions(Node *node) const
+QList<ProjectExplorer::ProjectAction> CMakeProjectNode::supportedActions(Node *node) const
 {
     Q_UNUSED(node);
-    return QList<ProjectAction>();
+    return QList<ProjectExplorer::ProjectAction>();
 }
 
 bool CMakeProjectNode::canAddSubProject(const QString &proFilePath) const
@@ -67,32 +67,28 @@ bool CMakeProjectNode::removeSubProjects(const QStringList &proFilePaths)
     return false;
 }
 
-bool CMakeProjectNode::addFiles(const ProjectExplorer::FileType fileType, const QStringList &filePaths, QStringList *notAdded)
+bool CMakeProjectNode::addFiles(const QStringList &filePaths, QStringList *notAdded)
 {
-    Q_UNUSED(fileType)
     Q_UNUSED(filePaths)
     Q_UNUSED(notAdded)
     return false;
 }
 
-bool CMakeProjectNode::removeFiles(const ProjectExplorer::FileType fileType, const QStringList &filePaths,  QStringList *notRemoved)
+bool CMakeProjectNode::removeFiles(const QStringList &filePaths,  QStringList *notRemoved)
 {
-    Q_UNUSED(fileType)
     Q_UNUSED(filePaths)
     Q_UNUSED(notRemoved)
     return false;
 }
 
-bool CMakeProjectNode::deleteFiles(const ProjectExplorer::FileType fileType, const QStringList &filePaths)
+bool CMakeProjectNode::deleteFiles(const QStringList &filePaths)
 {
-    Q_UNUSED(fileType)
     Q_UNUSED(filePaths)
     return false;
 }
 
-bool CMakeProjectNode::renameFile(const ProjectExplorer::FileType fileType, const QString &filePath, const QString &newFilePath)
+bool CMakeProjectNode::renameFile(const QString &filePath, const QString &newFilePath)
 {
-    Q_UNUSED(fileType)
     Q_UNUSED(filePath)
     Q_UNUSED(newFilePath)
     return false;

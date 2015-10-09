@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,7 +30,7 @@
 #include "qmljsfindreferences.h"
 
 #include <texteditor/basefilefind.h>
-#include <find/searchresultwindow.h>
+#include <coreplugin/find/searchresultwindow.h>
 #include <extensionsystem/pluginmanager.h>
 #include <utils/filesearch.h>
 #include <coreplugin/progressmanager/progressmanager.h>
@@ -62,6 +62,7 @@
 
 #include <functional>
 
+using namespace Core;
 using namespace QmlJS;
 using namespace QmlJS::AST;
 using namespace QmlJSEditor;
@@ -811,11 +812,11 @@ static void find_helper(QFutureInterface<FindReferences::Usage> &future,
         if (oldDoc && oldDoc->editorRevision() == it.value().second)
             continue;
 
-        Document::Language language;
+        Language::Enum language;
         if (oldDoc)
             language = oldDoc->language();
         else
-            language = QmlJSTools::languageOfFile(fileName);
+            language = ModelManagerInterface::guessLanguageOfFile(fileName);
 
         Document::MutablePtr newDoc = snapshot.documentFromSource(
                     it.value().first, fileName, language);
@@ -830,7 +831,7 @@ static void find_helper(QFutureInterface<FindReferences::Usage> &future,
 
     QmlJS::ModelManagerInterface *modelManager = QmlJS::ModelManagerInterface::instance();
 
-    Link link(snapshot, modelManager->importPaths(), modelManager->builtins(doc));
+    Link link(snapshot, modelManager->defaultVContext(), modelManager->builtins(doc));
     ContextPtr context = link();
 
     ScopeChain scopeChain(doc, context);
@@ -924,25 +925,25 @@ void FindReferences::displayResults(int first, int last)
         const QString label = tr("QML/JS Usages:");
 
         if (replacement.isEmpty()) {
-            m_currentSearch = Find::SearchResultWindow::instance()->startNewSearch(
-                        label, QString(), symbolName, Find::SearchResultWindow::SearchOnly);
+            m_currentSearch = Core::SearchResultWindow::instance()->startNewSearch(
+                        label, QString(), symbolName, Core::SearchResultWindow::SearchOnly);
         } else {
-            m_currentSearch = Find::SearchResultWindow::instance()->startNewSearch(
-                        label, QString(), symbolName, Find::SearchResultWindow::SearchAndReplace);
+            m_currentSearch = Core::SearchResultWindow::instance()->startNewSearch(
+                        label, QString(), symbolName, Core::SearchResultWindow::SearchAndReplace,
+                        Core::SearchResultWindow::PreserveCaseDisabled);
             m_currentSearch->setTextToReplace(replacement);
-            connect(m_currentSearch, SIGNAL(replaceButtonClicked(QString,QList<Find::SearchResultItem>,bool)),
-                    SLOT(onReplaceButtonClicked(QString,QList<Find::SearchResultItem>,bool)));
+            connect(m_currentSearch, SIGNAL(replaceButtonClicked(QString,QList<Core::SearchResultItem>,bool)),
+                    SLOT(onReplaceButtonClicked(QString,QList<Core::SearchResultItem>,bool)));
         }
-        connect(m_currentSearch, SIGNAL(activated(Find::SearchResultItem)),
-                this, SLOT(openEditor(Find::SearchResultItem)));
+        connect(m_currentSearch, SIGNAL(activated(Core::SearchResultItem)),
+                this, SLOT(openEditor(Core::SearchResultItem)));
         connect(m_currentSearch, SIGNAL(cancelled()), this, SLOT(cancel()));
         connect(m_currentSearch, SIGNAL(paused(bool)), this, SLOT(setPaused(bool)));
-        Find::SearchResultWindow::instance()->popup(Core::IOutputPane::Flags(Core::IOutputPane::ModeSwitch | Core::IOutputPane::WithFocus));
+        Core::SearchResultWindow::instance()->popup(IOutputPane::Flags(IOutputPane::ModeSwitch | IOutputPane::WithFocus));
 
-        Core::ProgressManager *progressManager = Core::ICore::progressManager();
-        Core::FutureProgress *progress = progressManager->addTask(
+        FutureProgress *progress = ProgressManager::addTask(
                     m_watcher.future(), tr("Searching"),
-                    QLatin1String(QmlJSEditor::Constants::TASK_SEARCH));
+                    QmlJSEditor::Constants::TASK_SEARCH);
         connect(progress, SIGNAL(clicked()), m_currentSearch, SLOT(popup()));
 
         ++first;
@@ -981,26 +982,26 @@ void FindReferences::setPaused(bool paused)
         m_watcher.setPaused(paused);
 }
 
-void FindReferences::openEditor(const Find::SearchResultItem &item)
+void FindReferences::openEditor(const Core::SearchResultItem &item)
 {
     if (item.path.size() > 0) {
-        Core::EditorManager::openEditorAt(QDir::fromNativeSeparators(item.path.first()),
+        EditorManager::openEditorAt(QDir::fromNativeSeparators(item.path.first()),
                                               item.lineNumber, item.textMarkPos);
     } else {
-        Core::EditorManager::openEditor(QDir::fromNativeSeparators(item.text));
+        EditorManager::openEditor(QDir::fromNativeSeparators(item.text));
     }
 }
 
-void FindReferences::onReplaceButtonClicked(const QString &text, const QList<Find::SearchResultItem> &items, bool preserveCase)
+void FindReferences::onReplaceButtonClicked(const QString &text, const QList<Core::SearchResultItem> &items, bool preserveCase)
 {
     const QStringList fileNames = TextEditor::BaseFileFind::replaceAll(text, items, preserveCase);
 
     // files that are opened in an editor are changed, but not saved
     QStringList changedOnDisk;
     QStringList changedUnsavedEditors;
-    Core::EditorManager *editorManager = Core::EditorManager::instance();
+    DocumentModel *documentModel = EditorManager::documentModel();
     foreach (const QString &fileName, fileNames) {
-        if (editorManager->editorsForFileName(fileName).isEmpty())
+        if (documentModel->documentForFilePath(fileName))
             changedOnDisk += fileName;
         else
             changedUnsavedEditors += fileName;
@@ -1011,5 +1012,5 @@ void FindReferences::onReplaceButtonClicked(const QString &text, const QList<Fin
     if (!changedUnsavedEditors.isEmpty())
         QmlJS::ModelManagerInterface::instance()->updateSourceFiles(changedUnsavedEditors, false);
 
-    Find::SearchResultWindow::instance()->hide();
+    Core::SearchResultWindow::instance()->hide();
 }

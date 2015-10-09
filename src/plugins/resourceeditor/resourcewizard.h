@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -39,14 +39,9 @@ class ResourceWizard : public Core::StandardFileWizard
 {
     Q_OBJECT
 
-public:
-    typedef Core::BaseFileWizardParameters BaseFileWizardParameters;
-    explicit ResourceWizard(const BaseFileWizardParameters &parameters, QObject *parent);
-
 protected:
-    virtual Core::GeneratedFiles
-        generateFilesFromPath(const QString &path, const QString &name,
-                              QString *errorMessage) const;
+    Core::GeneratedFiles generateFilesFromPath(const QString &path, const QString &name,
+                                               QString *errorMessage) const;
 };
 
 } // namespace Internal

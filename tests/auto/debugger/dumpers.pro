@@ -1,34 +1,36 @@
-QTC_LIB_DEPENDS += cplusplus
+QT = core network
+
+win32-msvc* {
+    QTC_LIB_DEPENDS += utils
+}
 
 include(../qttest.pri)
 
-DEBUGGERDIR = $$IDE_SOURCE_TREE/src/plugins/debugger
-DUMPERDIR   = $$IDE_SOURCE_TREE/share/qtcreator/dumper
+win32-msvc* {
+    LIBS += -L$$IDE_PLUGIN_PATH/QtProject
+    DEFINES += Q_PLUGIN_PATH=\"\\\"$$IDE_PLUGIN_PATH/QtProject\\\"\"
 
-# To access the std::type rewriter
-DEFINES += CPLUSPLUS_BUILD_STATIC_LIB
-include($$IDE_SOURCE_TREE/src/rpath.pri)
-
-LIBS += -L$$IDE_PLUGIN_PATH/QtProject
-DEFINES += Q_PLUGIN_PATH=\"\\\"$$IDE_PLUGIN_PATH/QtProject\\\"\"
-
-win32 {
     CDBEXT_PATH = $$IDE_BUILD_TREE\\$$IDE_LIBRARY_BASENAME
     # replace '\' with '\\'
     DEFINES += CDBEXT_PATH=\"\\\"$$replace(CDBEXT_PATH, \\\\, \\\\)\\\"\"
-} else {
-    # empty string
-    DEFINES += CDBEXT_PATH=\"\\\"\\\"\"
 }
+
+DEBUGGERDIR = $$IDE_SOURCE_TREE/src/plugins/debugger
+DUMPERDIR   = $$IDE_SOURCE_TREE/share/qtcreator/debugger
+
+include($$IDE_SOURCE_TREE/src/rpath.pri)
+
 
 SOURCES += \
     $$DEBUGGERDIR/debuggerprotocol.cpp \
+    $$DEBUGGERDIR/simplifytype.cpp \
     $$DEBUGGERDIR/watchdata.cpp \
     $$DEBUGGERDIR/watchutils.cpp \
     tst_dumpers.cpp
 
 HEADERS += \
     $$DEBUGGERDIR/debuggerprotocol.h \
+    $$DEBUGGERDIR/simplifytype.h \
     $$DEBUGGERDIR/watchdata.h \
     $$DEBUGGERDIR/watchutils.h \
     temporarydir.h

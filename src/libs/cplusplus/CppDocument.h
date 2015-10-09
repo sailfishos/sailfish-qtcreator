@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -103,6 +103,10 @@ public:
 
     QByteArray utf8Source() const;
     void setUtf8Source(const QByteArray &utf8Source);
+
+    QByteArray fingerprint() const { return m_fingerprint; }
+    void setFingerprint(const QByteArray &fingerprint)
+    { m_fingerprint = fingerprint; }
 
     void startSkippingBlocks(unsigned offset);
     void stopSkippingBlocks(unsigned offset);
@@ -312,8 +316,11 @@ public:
     QStringList includedFiles() const;
     void addIncludeFile(const Include &include);
 
-    QList<Include> includes() const
-    { return _includes; }
+    QList<Include> resolvedIncludes() const
+    { return _resolvedIncludes; }
+
+    QList<Include> unresolvedIncludes() const
+    { return _unresolvedIncludes; }
 
     QList<Block> skippedBlocks() const
     { return _skippedBlocks; }
@@ -348,7 +355,8 @@ private:
     /// All messages generated during lexical/syntactic/semantic analysis.
     QList<DiagnosticMessage> _diagnosticMessages;
 
-    QList<Include> _includes;
+    QList<Include> _resolvedIncludes;
+    QList<Include> _unresolvedIncludes;
     QList<Macro> _definedMacros;
     QList<Block> _skippedBlocks;
     QList<MacroUse> _macroUses;
@@ -356,6 +364,8 @@ private:
 
      /// the macro name of the include guard, if there is one.
     QByteArray _includeGuardMacroName;
+
+    QByteArray m_fingerprint;
 
     QByteArray _source;
     QDateTime _lastModified;
@@ -394,7 +404,7 @@ public:
 
     Snapshot simplified(Document::Ptr doc) const;
 
-    Document::Ptr preprocessedDocument(const QString &source,
+    Document::Ptr preprocessedDocument(const QByteArray &source,
                                        const QString &fileName) const;
 
     Document::Ptr documentFromSource(const QByteArray &preprocessedDocument,

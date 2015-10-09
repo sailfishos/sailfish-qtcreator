@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -37,6 +37,8 @@ namespace Utils { class NewClassWidget; }
 namespace ProjectExplorer { class Kit; }
 
 namespace PythonEditor {
+namespace Internal {
+
 class ClassWizardDialog;
 
 class ClassWizard : public Core::BaseFileWizard
@@ -44,9 +46,9 @@ class ClassWizard : public Core::BaseFileWizard
     Q_OBJECT
 
 public:
-    explicit ClassWizard(QObject *parent = 0);
+    ClassWizard();
 
-protected:
+private:
     QWizard *createWizardDialog(QWidget *parent,
                                 const Core::WizardDialogParameters &params) const;
 
@@ -56,6 +58,7 @@ protected:
     ProjectExplorer::Kit *kitForWizard(const ClassWizardDialog *wizard) const;
 };
 
+} // namespace Internal
 } // namespace PythonEditor
 
 #endif // PYTHONEDITOR_CLASSWIZARD_H

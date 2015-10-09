@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -31,6 +31,7 @@
 
 #include <QSharedMemory>
 #include <QCache>
+#include <QDebug>
 
 #include <cstring>
 
@@ -67,6 +68,11 @@ void ValuesChangedCommand::removeSharedMemorys(const QVector<qint32> &keyNumberV
     }
 }
 
+void ValuesChangedCommand::sort()
+{
+    qSort(m_valueChangeVector);
+}
+
 static const QLatin1String valueKeyTemplateString("Values-%1");
 
 static QSharedMemory *createSharedMemory(qint32 key, int byteCount)
@@ -101,7 +107,7 @@ QDataStream &operator<<(QDataStream &out, const ValuesChangedCommand &command)
         QDataStream temporaryOutDataStream(&outDataStreamByteArray, QIODevice::WriteOnly);
         temporaryOutDataStream.setVersion(QDataStream::Qt_4_8);
 
-        temporaryOutDataStream << command.valueChanges();;
+        temporaryOutDataStream << command.valueChanges();
 
         QSharedMemory *sharedMemory = createSharedMemory(keyCounter, outDataStreamByteArray.size());
 
@@ -140,6 +146,18 @@ QDataStream &operator>>(QDataStream &in, ValuesChangedCommand &command)
         in >> command.m_valueChangeVector;
     }
     return in;
+}
+
+bool operator ==(const ValuesChangedCommand &first, const ValuesChangedCommand &second)
+{
+    return first.m_valueChangeVector == second.m_valueChangeVector;
+}
+
+QDebug operator <<(QDebug debug, const ValuesChangedCommand &command)
+{
+    return debug.nospace() << "ValuesChangedCommand("
+                    << "keyNumber: " << command.keyNumber() << ", "
+                    << command.valueChanges() << ")";
 }
 
 } // namespace QmlDesigner

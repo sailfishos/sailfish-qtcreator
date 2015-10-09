@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -27,10 +27,11 @@
 **
 ****************************************************************************/
 
-#include "highlightermock.h"
-#include "context.h"
-#include "highlightdefinition.h"
 #include "formats.h"
+#include "highlightermock.h"
+
+#include <texteditor/generichighlighter/context.h>
+#include <texteditor/generichighlighter/highlightdefinition.h>
 
 #include <QDebug>
 #include <QtTest>

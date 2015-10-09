@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2013 Jolla Ltd.
+** Copyright (C) 2012 - 2014 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -23,9 +23,10 @@
 #ifndef MERSSHKEYDEPLOYMENTDIALOG_H
 #define MERSSHKEYDEPLOYMENTDIALOG_H
 
-#include <QProgressDialog>
 #include <remotelinux/sshkeydeployer.h>
 #include <ssh/sshconnection.h>
+
+#include <QProgressDialog>
 
 namespace Mer {
 namespace Internal {

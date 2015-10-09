@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -29,8 +29,8 @@
 
 #include "cmakeeditor.h"
 
+#include "cmakefilecompletionassist.h"
 #include "cmakehighlighter.h"
-#include "cmakeeditorfactory.h"
 #include "cmakeprojectconstants.h"
 #include "cmakeproject.h"
 
@@ -38,15 +38,16 @@
 #include <coreplugin/infobar.h>
 #include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/actionmanager/actionmanager.h>
+#include <extensionsystem/pluginmanager.h>
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/session.h>
-#include <texteditor/fontsettings.h>
 #include <texteditor/texteditoractionhandler.h>
 #include <texteditor/texteditorconstants.h>
 #include <texteditor/texteditorsettings.h>
 
 #include <QFileInfo>
 #include <QSharedPointer>
+#include <QTextBlock>
 
 using namespace CMakeProjectManager;
 using namespace CMakeProjectManager::Internal;
@@ -58,23 +59,23 @@ using namespace CMakeProjectManager::Internal;
 CMakeEditor::CMakeEditor(CMakeEditorWidget *editor)
   : BaseTextEditor(editor)
 {
+    setId(CMakeProjectManager::Constants::CMAKE_EDITOR_ID);
     setContext(Core::Context(CMakeProjectManager::Constants::C_CMAKEEDITOR,
               TextEditor::Constants::C_TEXTEDITOR));
-    connect(this, SIGNAL(changed()), this, SLOT(markAsChanged()));
+    connect(document(), SIGNAL(changed()), this, SLOT(markAsChanged()));
 }
 
-Core::IEditor *CMakeEditor::duplicate(QWidget *parent)
+Core::IEditor *CMakeEditor::duplicate()
 {
-    CMakeEditorWidget *w = qobject_cast<CMakeEditorWidget*>(widget());
-    CMakeEditorWidget *ret = new CMakeEditorWidget(parent, w->factory(), w->actionHandler());
-    ret->duplicateFrom(w);
-    TextEditor::TextEditorSettings::instance()->initializeEditor(ret);
+    CMakeEditorWidget *ret = new CMakeEditorWidget(
+                qobject_cast<CMakeEditorWidget *>(editorWidget()));
+    TextEditor::TextEditorSettings::initializeEditor(ret);
     return ret->editor();
 }
 
-Core::Id CMakeEditor::id() const
+TextEditor::CompletionAssistProvider *CMakeEditor::completionAssistProvider()
 {
-    return Core::Id(CMakeProjectManager::Constants::CMAKE_EDITOR_ID);
+    return ExtensionSystem::PluginManager::getObject<CMakeFileCompletionAssistProvider>();
 }
 
 void CMakeEditor::markAsChanged()
@@ -94,12 +95,10 @@ void CMakeEditor::markAsChanged()
 
 void CMakeEditor::build()
 {
-    QList<ProjectExplorer::Project *> projects =
-            ProjectExplorer::ProjectExplorerPlugin::instance()->session()->projects();
-    foreach (ProjectExplorer::Project *p, projects) {
+    foreach (ProjectExplorer::Project *p, ProjectExplorer::SessionManager::projects()) {
         CMakeProject *cmakeProject = qobject_cast<CMakeProject *>(p);
         if (cmakeProject) {
-            if (cmakeProject->isProjectFile(document()->fileName())) {
+            if (cmakeProject->isProjectFile(document()->filePath())) {
                 ProjectExplorer::ProjectExplorerPlugin::instance()->buildProject(cmakeProject);
                 break;
             }
@@ -111,19 +110,22 @@ void CMakeEditor::build()
 // CMakeEditor
 //
 
-CMakeEditorWidget::CMakeEditorWidget(QWidget *parent, CMakeEditorFactory *factory, TextEditor::TextEditorActionHandler *ah)
-    : BaseTextEditorWidget(parent), m_factory(factory), m_ah(ah)
+CMakeEditorWidget::CMakeEditorWidget(QWidget *parent)
+    : BaseTextEditorWidget(new CMakeDocument(), parent)
 {
-    QSharedPointer<CMakeDocument> doc(new CMakeDocument);
-    doc->setMimeType(QLatin1String(CMakeProjectManager::Constants::CMAKEMIMETYPE));
-    setBaseTextDocument(doc);
+    ctor();
+}
 
-    baseTextDocument()->setSyntaxHighlighter(new CMakeHighlighter);
+CMakeEditorWidget::CMakeEditorWidget(CMakeEditorWidget *other)
+    : BaseTextEditorWidget(other)
+{
+    ctor();
+}
 
+void CMakeEditorWidget::ctor()
+{
     m_commentDefinition.clearCommentStyles();
     m_commentDefinition.singleLine = QLatin1Char('#');
-
-    ah->setupActions(this);
 }
 
 TextEditor::BaseTextEditor *CMakeEditorWidget::createEditor()
@@ -141,27 +143,6 @@ void CMakeEditorWidget::contextMenuEvent(QContextMenuEvent *e)
     showDefaultContextMenu(e, Constants::M_CONTEXT);
 }
 
-void CMakeEditorWidget::setFontSettings(const TextEditor::FontSettings &fs)
-{
-    TextEditor::BaseTextEditorWidget::setFontSettings(fs);
-    CMakeHighlighter *highlighter = qobject_cast<CMakeHighlighter*>(baseTextDocument()->syntaxHighlighter());
-    if (!highlighter)
-        return;
-
-    static QVector<TextEditor::TextStyle> categories;
-    if (categories.isEmpty()) {
-        categories << TextEditor::C_LABEL  // variables
-                << TextEditor::C_KEYWORD   // functions
-                << TextEditor::C_COMMENT
-                << TextEditor::C_STRING
-                << TextEditor::C_VISUAL_WHITESPACE;
-    }
-
-    const QVector<QTextCharFormat> formats = fs.toTextCharFormats(categories);
-    highlighter->setFormats(formats.constBegin(), formats.constEnd());
-    highlighter->rehighlight();
-}
-
 static bool isValidFileNameChar(const QChar &c)
 {
     if (c.isLetterOrNumber()
@@ -175,7 +156,7 @@ static bool isValidFileNameChar(const QChar &c)
 }
 
 CMakeEditorWidget::Link CMakeEditorWidget::findLinkAt(const QTextCursor &cursor,
-                                                      bool/* resolveTarget*/)
+                                                      bool/* resolveTarget*/, bool /*inNextSplit*/)
 {
     Link link;
 
@@ -219,7 +200,7 @@ CMakeEditorWidget::Link CMakeEditorWidget::findLinkAt(const QTextCursor &cursor,
 
     // TODO: Resolve variables
 
-    QDir dir(QFileInfo(editorDocument()->fileName()).absolutePath());
+    QDir dir(QFileInfo(baseTextDocument()->filePath()).absolutePath());
     QString fileName = dir.filePath(buffer);
     QFileInfo fi(fileName);
     if (fi.exists()) {
@@ -246,16 +227,18 @@ CMakeEditorWidget::Link CMakeEditorWidget::findLinkAt(const QTextCursor &cursor,
 CMakeDocument::CMakeDocument()
     : TextEditor::BaseTextDocument()
 {
+    setMimeType(QLatin1String(CMakeProjectManager::Constants::CMAKEMIMETYPE));
+    setSyntaxHighlighter(new CMakeHighlighter);
 }
 
 QString CMakeDocument::defaultPath() const
 {
-    QFileInfo fi(fileName());
+    QFileInfo fi(filePath());
     return fi.absolutePath();
 }
 
 QString CMakeDocument::suggestedFileName() const
 {
-    QFileInfo fi(fileName());
+    QFileInfo fi(filePath());
     return fi.fileName();
 }

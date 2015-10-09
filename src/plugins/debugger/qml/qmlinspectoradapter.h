@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,15 +30,13 @@
 #ifndef QMLINSPECTORADAPTER_H
 #define QMLINSPECTORADAPTER_H
 
-#include "debuggerconstants.h"
+#include <debugger/debuggerconstants.h>
 
 #include <coreplugin/icontext.h>
 #include <qmldebug/qmldebugclient.h>
 #include <qmljs/qmljsdocument.h>
 
-namespace Core {
-class IEditor;
-}
+namespace Core { class IEditor; }
 
 namespace QmlDebug {
 class BaseEngineDebugClient;

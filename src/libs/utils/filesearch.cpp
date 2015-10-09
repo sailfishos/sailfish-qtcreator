@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -52,14 +52,6 @@ static inline QString msgFound(const QString &searchTerm, int numMatches, int nu
                                        "%1: %n occurrences found in %2 files.",
                                        0, QCoreApplication::CodecForTr, numMatches).
                                        arg(searchTerm).arg(numFilesSearched);
-}
-
-static inline QString msgFound(const QString &searchTerm, int numMatches, int numFilesSearched, int filesSize)
-{
-    return QCoreApplication::translate("Utils::FileSearch",
-                                       "%1: %n occurrences found in %2 of %3 files.",
-                                       0, QCoreApplication::CodecForTr, numMatches).
-                                       arg(searchTerm).arg(numFilesSearched).arg(filesSize);
 }
 
 namespace {
@@ -350,7 +342,7 @@ namespace Utils {
 namespace Internal {
 QString matchCaseReplacement(const QString &originalText, const QString &replaceText)
 {
-    if (originalText.isEmpty())
+    if (originalText.isEmpty() || replaceText.isEmpty())
        return replaceText;
 
     //Now proceed with actual case matching

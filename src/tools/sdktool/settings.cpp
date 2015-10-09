@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -73,10 +73,12 @@ Utils::FileName Settings::getPath(const QString &file)
         result.appendPath(QLatin1String("devices"));
     else if (file == QLatin1String("android"))
         result.appendPath(QLatin1String("android"));
+    else if (file == QLatin1String("debuggers"))
+        result.appendPath(QLatin1String("debuggers"));
     else if (file == QLatin1String("mersdk"))
         result.appendPath(QLatin1String("mersdk"));
     else
         return Utils::FileName();
-    result.append(QLatin1String(".xml"));
+    result.appendString(QLatin1String(".xml"));
     return result;
 }

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -39,13 +39,9 @@ QT_BEGIN_NAMESPACE
 template <class> class QList;
 QT_END_NAMESPACE
 
-namespace Core {
-class IEditor;
-}
+namespace Core { class IEditor; }
 
-namespace TextEditor {
-class ITextEditor;
-}
+namespace TextEditor { class ITextEditor; }
 
 namespace QmlJS {
 class ScopeChain;
@@ -56,9 +52,10 @@ class ObjectValue;
 }
 
 namespace QmlJSEditor {
-class QmlJSTextEditorWidget;
 
 namespace Internal {
+
+class QmlJSTextEditorWidget;
 
 class HoverHandler : public TextEditor::BaseHoverHandler
 {

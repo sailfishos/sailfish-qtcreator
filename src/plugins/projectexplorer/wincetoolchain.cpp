@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -67,7 +67,7 @@ static QString findMsvcVer(int version)
     if (version == 10)
         return QLatin1String("msvc2010");
     if (version == 9)
-        return QLatin1String("msvc2008");;
+        return QLatin1String("msvc2008");
     return QLatin1String("msvc2005");
 }
 
@@ -93,10 +93,9 @@ static QString winExpandDelayedEnvReferences(QString in, const Utils::Environmen
         if (replacement.isEmpty()) {
             qWarning() << "No replacement for var: " << var;
             pos = nextPos;
-        }
-        else {
+        } else {
             // Not sure about this, but we need to account for the case where
-            // the end of the replacement doesn't have the directory seperator and
+            // the end of the replacement doesn't have the directory separator and
             // neither does the start of the insert. This solution assumes:
             //  1) Having \\ in a path is valid (it is on WinXP)
             //  2) We're only replacing in paths. This will cause problems if there's
@@ -241,8 +240,8 @@ WinCEToolChain::WinCEToolChain(const QString &name,
                                const QString &binPath,
                                const QString &includePath,
                                const QString &libPath,
-                               bool autodetect) :
-    AbstractMsvcToolChain(QLatin1String(Constants::WINCE_TOOLCHAIN_ID), autodetect, abi, vcvarsBat),
+                               Detection d) :
+    AbstractMsvcToolChain(QLatin1String(Constants::WINCE_TOOLCHAIN_ID), d, abi, vcvarsBat),
     m_msvcVer(msvcVer),
     m_ceVer(ceVer),
     m_binPath(binPath),
@@ -258,7 +257,7 @@ WinCEToolChain::WinCEToolChain(const QString &name,
 }
 
 WinCEToolChain::WinCEToolChain() :
-    AbstractMsvcToolChain(QLatin1String(Constants::WINCE_TOOLCHAIN_ID), false)
+    AbstractMsvcToolChain(QLatin1String(Constants::WINCE_TOOLCHAIN_ID), ManualDetection)
 {
 }
 
@@ -352,14 +351,10 @@ ToolChain *WinCEToolChain::clone() const
 // WinCEToolChainFactory
 // --------------------------------------------------------------------------
 
-QString WinCEToolChainFactory::displayName() const
+WinCEToolChainFactory::WinCEToolChainFactory()
 {
-    return tr("WinCE");
-}
-
-QString WinCEToolChainFactory::id() const
-{
-    return QLatin1String(Constants::WINCE_TOOLCHAIN_ID);
+    setId(Constants::WINCE_TOOLCHAIN_ID);
+    setDisplayName(tr("WinCE"));
 }
 
 
@@ -415,7 +410,7 @@ QList<ToolChain *> WinCEToolChainFactory::autoDetect()
                                                                         binPath,
                                                                         includePath,
                                                                         libPath,
-                                                                        true);
+                                                                        ToolChain::AutoDetection);
                             results.append(pChain);
                         }
                     }

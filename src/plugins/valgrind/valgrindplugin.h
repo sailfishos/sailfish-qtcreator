@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 ** Author: Milian Wolff, KDAB (milian.wolff@kdab.com)
 **
@@ -37,6 +37,10 @@
 namespace Valgrind {
 namespace Internal {
 
+class ValgrindGlobalSettings;
+class MemcheckTool;
+class CallgrindTool;
+
 class ValgrindPlugin : public ExtensionSystem::IPlugin
 {
     Q_OBJECT
@@ -44,11 +48,16 @@ class ValgrindPlugin : public ExtensionSystem::IPlugin
 
 public:
     ValgrindPlugin() {}
+    ~ValgrindPlugin();
 
-    virtual bool initialize(const QStringList &arguments, QString *errorString);
-    virtual void extensionsInitialized() {}
+    bool initialize(const QStringList &arguments, QString *errorString);
+    void extensionsInitialized();
 
-    static void startValgrindTool(Analyzer::IAnalyzerTool *tool, Analyzer::StartMode mode);
+    static ValgrindGlobalSettings *globalSettings();
+
+private:
+    MemcheckTool *m_memcheckTool;
+    CallgrindTool *m_callgrindTool;
 };
 
 } // namespace Internal

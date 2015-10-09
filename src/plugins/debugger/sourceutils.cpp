@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -318,7 +318,7 @@ bool isCppEditor(Core::IEditor *editor)
     if (!document)
         return false;
 
-    return CppTools::ProjectFile::classify(document->fileName()) != CppTools::ProjectFile::Unclassified;
+    return CppTools::ProjectFile::classify(document->filePath()) != CppTools::ProjectFile::Unclassified;
 }
 
 // Return the Cpp expression, and, if desired, the function
@@ -359,7 +359,7 @@ QString cppExpressionAt(TextEditor::ITextEditor *editor, int pos,
         if (const Core::IDocument *document= editor->document())
             if (modelManager)
                 *function = AbstractEditorSupport::functionAt(modelManager,
-                    document->fileName(), *line, *column);
+                    document->filePath(), *line, *column);
 
     return expr;
 }
@@ -368,7 +368,7 @@ QString cppExpressionAt(TextEditor::ITextEditor *editor, int pos,
 // free debugger expression.
 QString fixCppExpression(const QString &expIn)
 {
-    QString exp = expIn.trimmed();;
+    QString exp = expIn.trimmed();
     // Extract the first identifier, everything else is considered
     // too dangerous.
     int pos1 = 0, pos2 = exp.size();

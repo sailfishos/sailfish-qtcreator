@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2012 - 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -54,6 +54,9 @@ public:
 
     QString description() const;
 
+    QVariantMap toMap() const;
+    void fromMap(const QVariantMap &map);
+
     Core::FeatureSet availableFeatures() const;
     QString platformName() const;
     QString platformDisplayName() const;
@@ -61,8 +64,10 @@ public:
     QString sdkDescription() const;
 
 private:
-    QMultiMap<QString, QString> environment() const;
+    QList<Utils::EnvironmentItem> environment() const;
     void setDefaultSdkPath();
+
+    QString m_ndkEnvFile;
 };
 
 } // namespace Internal

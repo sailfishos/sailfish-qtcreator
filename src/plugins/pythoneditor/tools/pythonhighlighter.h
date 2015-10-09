@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,23 +30,19 @@
 #ifndef PYTHONHIGHLIGHTER_H
 #define PYTHONHIGHLIGHTER_H
 
-#include "../pythoneditor_global.h"
 #include <texteditor/syntaxhighlighter.h>
-#include <texteditor/fontsettings.h>
-#include <QMap>
 
 namespace PythonEditor {
 
 namespace Internal { class Scanner; }
 
-class PYEDITOR_EXPORT PythonHighlighter : public TextEditor::SyntaxHighlighter
+class PythonHighlighter : public TextEditor::SyntaxHighlighter
 {
     Q_OBJECT
 public:
+    explicit PythonHighlighter(QTextDocument *parent = 0);
     explicit PythonHighlighter(TextEditor::BaseTextDocument *parent);
     virtual ~PythonHighlighter();
-
-    void setFontSettings(const TextEditor::FontSettings &fs);
 
 protected:
     virtual void highlightBlock(const QString &text);
@@ -54,7 +50,7 @@ protected:
 private:
     int highlightLine(const QString &text, int initialState);
     void highlightImport(Internal::Scanner &scanner);
-    QVector<QTextCharFormat> m_formats;
+    void init();
 };
 
 } // namespace PythonEditor

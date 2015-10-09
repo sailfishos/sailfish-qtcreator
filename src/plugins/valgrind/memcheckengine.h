@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 ** Author: Nicolas Arnaud-Cormos, KDAB (nicolas.arnaud-cormos@kdab.com)
 **
@@ -39,16 +39,16 @@
 namespace Valgrind {
 namespace Internal {
 
-class MemcheckEngine : public ValgrindEngine
+class MemcheckRunControl : public ValgrindRunControl
 {
     Q_OBJECT
 
 public:
-    MemcheckEngine(Analyzer::IAnalyzerTool *tool, const Analyzer::AnalyzerStartParameters &sp,
+    MemcheckRunControl(const Analyzer::AnalyzerStartParameters &sp,
         ProjectExplorer::RunConfiguration *runConfiguration);
 
-    bool start();
-    void stop();
+    bool startEngine();
+    void stopEngine();
 
     QStringList suppressionFiles() const;
 

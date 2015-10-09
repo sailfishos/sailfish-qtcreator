@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -33,13 +33,17 @@
 #include <projectexplorer/buildconfiguration.h>
 #include <projectexplorer/namedwidget.h>
 
-namespace Utils { class PathChooser; }
+namespace Utils {
+class FileName;
+class PathChooser;
+} // namespace Utils
 
 namespace GenericProjectManager {
 namespace Internal {
 
 class GenericTarget;
 class GenericBuildConfigurationFactory;
+class GenericBuildSettingsWidget;
 
 class GenericBuildConfiguration : public ProjectExplorer::BuildConfiguration
 {
@@ -50,21 +54,14 @@ public:
     explicit GenericBuildConfiguration(ProjectExplorer::Target *parent);
 
     ProjectExplorer::NamedWidget *createConfigWidget();
-    QString buildDirectory() const;
 
-    QString rawBuildDirectory() const;
-    void setBuildDirectory(const QString &buildDirectory);
-
-    QVariantMap toMap() const;
     BuildType buildType() const;
 
 protected:
     GenericBuildConfiguration(ProjectExplorer::Target *parent, GenericBuildConfiguration *source);
     GenericBuildConfiguration(ProjectExplorer::Target *parent, const Core::Id id);
-    virtual bool fromMap(const QVariantMap &map);
 
-private:
-    QString m_buildDirectory;
+    friend class GenericBuildSettingsWidget;
 };
 
 class GenericBuildConfigurationFactory : public ProjectExplorer::IBuildConfigurationFactory
@@ -75,11 +72,14 @@ public:
     explicit GenericBuildConfigurationFactory(QObject *parent = 0);
     ~GenericBuildConfigurationFactory();
 
-    QList<Core::Id> availableCreationIds(const ProjectExplorer::Target *parent) const;
-    QString displayNameForId(const Core::Id id) const;
+    int priority(const ProjectExplorer::Target *parent) const;
+    QList<ProjectExplorer::BuildInfo *> availableBuilds(const ProjectExplorer::Target *parent) const;
+    int priority(const ProjectExplorer::Kit *k, const QString &projectPath) const;
+    QList<ProjectExplorer::BuildInfo *> availableSetups(const ProjectExplorer::Kit *k,
+                                                        const QString &projectPath) const;
+    ProjectExplorer::BuildConfiguration *create(ProjectExplorer::Target *parent,
+                                                const ProjectExplorer::BuildInfo *info) const;
 
-    bool canCreate(const ProjectExplorer::Target *parent, const Core::Id id) const;
-    ProjectExplorer::BuildConfiguration *create(ProjectExplorer::Target *parent, const Core::Id id, const QString &name = QString());
     bool canClone(const ProjectExplorer::Target *parent, ProjectExplorer::BuildConfiguration *source) const;
     ProjectExplorer::BuildConfiguration *clone(ProjectExplorer::Target *parent, ProjectExplorer::BuildConfiguration *source);
     bool canRestore(const ProjectExplorer::Target *parent, const QVariantMap &map) const;
@@ -87,6 +87,7 @@ public:
 
 private:
     bool canHandle(const ProjectExplorer::Target *t) const;
+    ProjectExplorer::BuildInfo *createBuildInfo(const ProjectExplorer::Kit *k, const Utils::FileName &buildDir) const;
 };
 
 class GenericBuildSettingsWidget : public ProjectExplorer::NamedWidget
@@ -98,6 +99,7 @@ public:
 
 private slots:
     void buildDirectoryChanged();
+    void environmentHasChanged();
 
 private:
     Utils::PathChooser *m_pathChooser;

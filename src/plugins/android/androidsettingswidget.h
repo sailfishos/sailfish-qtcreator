@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 BogDan Vatra <bog_dan_ro@yahoo.com>
+** Copyright (c) 2014 BogDan Vatra <bog_dan_ro@yahoo.com>
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -66,22 +66,25 @@ class AndroidSettingsWidget : public QWidget
     Q_OBJECT
 public:
     // Todo: This would be so much simpler if it just used Utils::PathChooser!!!
-    AndroidSettingsWidget(QWidget *parent);
+    AndroidSettingsWidget(QWidget *parent = 0);
     ~AndroidSettingsWidget();
 
-    void saveSettings(bool saveNow = false);
-    QString searchKeywords() const;
+    void saveSettings();
 
 private slots:
     void sdkLocationEditingFinished();
     void ndkLocationEditingFinished();
-    void searchForAnt(const QString &location);
+    void searchForAnt(const Utils::FileName &location);
     void antLocationEditingFinished();
     void openJDKLocationEditingFinished();
     void browseSDKLocation();
     void browseNDKLocation();
     void browseAntLocation();
     void browseOpenJDKLocation();
+    void openSDKDownloadUrl();
+    void openNDKDownloadUrl();
+    void openAntDownloadUrl();
+    void openOpenJDKDownloadUrl();
     void addAVD();
     void removeAVD();
     void startAVD();
@@ -91,14 +94,23 @@ private slots:
     void createKitToggled();
 
 private:
-    void initGui();
-    bool checkSDK(const Utils::FileName &location);
-    bool checkNDK(const Utils::FileName &location);
+    enum Mode { Sdk = 1, Ndk = 2, Java = 4, All = Sdk | Ndk | Java };
+    enum State { NotSet = 0, Okay = 1, Error = 2 };
+    void check(Mode mode);
+    void applyToUi(Mode mode);
+    bool sdkLocationIsValid() const;
+    bool sdkPlatformToolsInstalled() const;
+
+    State m_sdkState;
+    State m_ndkState;
+    QString m_ndkErrorMessage;
+    int m_ndkCompilerCount;
+    QString m_ndkMissingQtArchs;
+    State m_javaState;
 
     Ui_AndroidSettingsWidget *m_ui;
     AndroidConfig m_androidConfig;
     AvdModel m_AVDModel;
-    bool m_saveSettingsRequested;
 };
 
 } // namespace Internal

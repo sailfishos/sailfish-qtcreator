@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -28,6 +28,8 @@
 ****************************************************************************/
 
 #include "synchronizecommand.h"
+
+#include <QDebug>
 
 namespace QmlDesigner {
 
@@ -61,5 +63,14 @@ QDataStream &operator>>(QDataStream &in, SynchronizeCommand &command)
     return in;
 }
 
+bool operator ==(const SynchronizeCommand &first, const SynchronizeCommand &second)
+{
+    return first.m_synchronizeId == second.m_synchronizeId;
+}
+
+QDebug operator <<(QDebug debug, const SynchronizeCommand &command)
+{
+    return debug.nospace() << "SynchronizeCommand(synchronizeId: " << command.synchronizeId() << ")";
+}
 
 } // namespace QmlDesigner

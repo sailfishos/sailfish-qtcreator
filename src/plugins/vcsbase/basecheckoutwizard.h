@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -41,43 +41,27 @@ class QWizardPage;
 QT_END_NAMESPACE
 
 namespace VcsBase {
-namespace Internal {
-class BaseCheckoutWizardPrivate;
-}
+namespace Internal { class BaseCheckoutWizardPrivate; }
 
-class AbstractCheckoutJob;
+class Command;
 
 class VCSBASE_EXPORT BaseCheckoutWizard : public Core::IWizard
 {
     Q_OBJECT
 
 public:
-    explicit BaseCheckoutWizard(QObject *parent = 0);
-    virtual ~BaseCheckoutWizard();
+    BaseCheckoutWizard();
+    ~BaseCheckoutWizard();
 
-    virtual WizardKind kind() const;
-
-    virtual QString category() const;
-    virtual QString displayCategory() const;
-    virtual QString id() const;
-
-    virtual QString descriptionImage() const;
-
-    virtual void runWizard(const QString &path, QWidget *parent, const QString &platform, const QVariantMap &extraValues);
-
-    virtual Core::FeatureSet requiredFeatures() const;
-
-    virtual WizardFlags flags() const;
+    void runWizard(const QString &path, QWidget *parent, const QString &platform, const QVariantMap &extraValues);
 
     static QString openProject(const QString &path, QString *errorMessage);
 
 protected:
+    void setCustomLabels(const QString &progressTitle, const QString &startedStatus);
     virtual QList<QWizardPage *> createParameterPages(const QString &path) = 0;
-    virtual QSharedPointer<AbstractCheckoutJob> createJob(const QList<QWizardPage *> &parameterPages,
-                                                          QString *checkoutPath) = 0;
-
-public slots:
-    void setId(const QString &id);
+    virtual Command *createCommand(const QList<QWizardPage *> &parameterPages,
+                                   QString *checkoutPath) = 0;
 
 private slots:
     void slotProgressPageShown();

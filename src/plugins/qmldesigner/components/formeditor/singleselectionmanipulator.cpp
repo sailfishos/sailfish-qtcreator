@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -46,7 +46,7 @@ void SingleSelectionManipulator::begin(const QPointF &beginPoint)
 {
     m_beginPoint = beginPoint;
     m_isActive = true;
-    m_oldSelectionList = m_editorView->selectedQmlItemNodes();
+    m_oldSelectionList = toQmlItemNodeList(m_editorView->selectedModelNodes());
 }
 
 void SingleSelectionManipulator::update(const QPointF &/*updatePoint*/)
@@ -79,7 +79,7 @@ void SingleSelectionManipulator::select(SelectionType selectionType, bool select
 
         if (formEditorItem
            && formEditorItem->qmlItemNode().isValid()
-           && (formEditorItem->qmlItemNode().hasShowContent() || !selectOnlyContentItems))
+           && (formEditorItem->qmlItemNode().instanceHasShowContent() || !selectOnlyContentItems))
         {
             selectedNode = formEditorItem->qmlItemNode();
             break;
@@ -113,7 +113,7 @@ void SingleSelectionManipulator::select(SelectionType selectionType, bool select
         }
     }
 
-    m_editorView->setSelectedQmlItemNodes(nodeList);
+    m_editorView->setSelectedModelNodes(toModelNodeList(nodeList));
 }
 
 

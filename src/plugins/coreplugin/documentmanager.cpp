@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -29,17 +29,17 @@
 
 #include "documentmanager.h"
 
-#include "editormanager.h"
 #include "icore.h"
-#include "ieditor.h"
-#include "ieditorfactory.h"
-#include "iexternaleditor.h"
 #include "idocument.h"
 #include "mimedatabase.h"
-#include "saveitemsdialog.h"
 #include "coreconstants.h"
 
-#include "dialogs/readonlyfilesdialog.h"
+#include <coreplugin/dialogs/readonlyfilesdialog.h>
+#include <coreplugin/dialogs/saveitemsdialog.h>
+#include <coreplugin/editormanager/editormanager.h>
+#include <coreplugin/editormanager/ieditor.h>
+#include <coreplugin/editormanager/ieditorfactory.h>
+#include <coreplugin/editormanager/iexternaleditor.h>
 
 #include <utils/hostosinfo.h>
 #include <utils/qtcassert.h>
@@ -81,7 +81,7 @@
   as expected. On expected file changes all IDocument objects are notified to reload
   themselves.
 
-  The DocumentManager service also provides two convenience methods for saving
+  The DocumentManager service also provides two convenience functions for saving
   files: \c saveModifiedFiles() and \c saveModifiedFilesSilently(). Both take a list
   of FileInterfaces as an argument, and return the list of files which were
   _not_ saved.
@@ -104,11 +104,11 @@ namespace Core {
 
 static void readSettings();
 
-static QList<IDocument *> saveModifiedFilesHelper(const QList<IDocument *> &documents,
-                               bool *cancelled, bool silently,
-                               const QString &message,
-                               const QString &alwaysSaveMessage = QString(),
-                               bool *alwaysSave = 0);
+static bool saveModifiedFilesHelper(const QList<IDocument *> &documents,
+                                    const QString &message,
+                                    bool *cancelled, bool silently,
+                                    const QString &alwaysSaveMessage,
+                                    bool *alwaysSave, QList<IDocument *> *failedToSave);
 
 namespace Internal {
 
@@ -135,7 +135,7 @@ struct FileState
 
 struct DocumentManagerPrivate
 {
-    explicit DocumentManagerPrivate(QMainWindow *mw);
+    DocumentManagerPrivate();
     QFileSystemWatcher *fileWatcher();
     QFileSystemWatcher *linkWatcher();
 
@@ -150,7 +150,6 @@ struct DocumentManagerPrivate
 
     QString m_currentFile;
 
-    QMainWindow *m_mainWindow;
     QFileSystemWatcher *m_fileWatcher; // Delayed creation.
     QFileSystemWatcher *m_linkWatcher; // Delayed creation (only UNIX/if a link is seen).
     bool m_blockActivated;
@@ -193,8 +192,7 @@ QFileSystemWatcher *DocumentManagerPrivate::linkWatcher()
     return fileWatcher();
 }
 
-DocumentManagerPrivate::DocumentManagerPrivate(QMainWindow *mw) :
-    m_mainWindow(mw),
+DocumentManagerPrivate::DocumentManagerPrivate() :
     m_fileWatcher(0),
     m_linkWatcher(0),
     m_blockActivated(false),
@@ -213,13 +211,11 @@ namespace Core {
 
 using namespace Internal;
 
-DocumentManager::DocumentManager(QMainWindow *mw)
-  : QObject(mw)
+DocumentManager::DocumentManager(QObject *parent)
+  : QObject(parent)
 {
-    d = new DocumentManagerPrivate(mw);
+    d = new DocumentManagerPrivate;
     m_instance = this;
-    connect(ICore::instance(), SIGNAL(contextChanged(QList<Core::IContext*>,Core::Context)),
-        this, SLOT(syncWithEditor(QList<Core::IContext*>)));
     qApp->installEventFilter(this);
 
     readSettings();
@@ -230,7 +226,7 @@ DocumentManager::~DocumentManager()
     delete d;
 }
 
-DocumentManager *DocumentManager::instance()
+QObject *DocumentManager::instance()
 {
     return m_instance;
 }
@@ -266,8 +262,8 @@ static void addFileInfo(const QString &fileName, IDocument *document, bool isLin
    (The added file names are guaranteed to be absolute and cleaned.) */
 static void addFileInfo(IDocument *document)
 {
-    const QString fixedName = DocumentManager::fixFileName(document->fileName(), DocumentManager::KeepLinks);
-    const QString fixedResolvedName = DocumentManager::fixFileName(document->fileName(), DocumentManager::ResolveLinks);
+    const QString fixedName = DocumentManager::fixFileName(document->filePath(), DocumentManager::KeepLinks);
+    const QString fixedResolvedName = DocumentManager::fixFileName(document->filePath(), DocumentManager::ResolveLinks);
     addFileInfo(fixedResolvedName, document, false);
     if (fixedName != fixedResolvedName)
         addFileInfo(fixedName, document, true);
@@ -286,7 +282,7 @@ void DocumentManager::addDocuments(const QList<IDocument *> &documents, bool add
         foreach (IDocument *document, documents) {
             if (document && !d->m_documentsWithoutWatch.contains(document)) {
                 connect(document, SIGNAL(destroyed(QObject*)), m_instance, SLOT(documentDestroyed(QObject*)));
-                connect(document, SIGNAL(fileNameChanged(QString,QString)), m_instance, SLOT(fileNameChanged(QString,QString)));
+                connect(document, SIGNAL(filePathChanged(QString,QString)), m_instance, SLOT(filePathChanged(QString,QString)));
                 d->m_documentsWithoutWatch.append(document);
             }
         }
@@ -297,7 +293,7 @@ void DocumentManager::addDocuments(const QList<IDocument *> &documents, bool add
         if (document && !d->m_documentsWithWatch.contains(document)) {
             connect(document, SIGNAL(changed()), m_instance, SLOT(checkForNewFileName()));
             connect(document, SIGNAL(destroyed(QObject*)), m_instance, SLOT(documentDestroyed(QObject*)));
-            connect(document, SIGNAL(fileNameChanged(QString,QString)), m_instance, SLOT(fileNameChanged(QString,QString)));
+            connect(document, SIGNAL(filePathChanged(QString,QString)), m_instance, SLOT(filePathChanged(QString,QString)));
             addFileInfo(document);
         }
     }
@@ -388,14 +384,14 @@ void DocumentManager::renamedFile(const QString &from, const QString &to)
     foreach (IDocument *document, documentsToRename) {
         d->m_blockedIDocument = document;
         removeFileInfo(document);
-        document->rename(to);
+        document->setFilePath(to);
         addFileInfo(document);
         d->m_blockedIDocument = 0;
     }
     emit m_instance->allDocumentsRenamed(from, to);
 }
 
-void DocumentManager::fileNameChanged(const QString &oldName, const QString &newName)
+void DocumentManager::filePathChanged(const QString &oldName, const QString &newName)
 {
     IDocument *doc = qobject_cast<IDocument *>(sender());
     QTC_ASSERT(doc, return);
@@ -517,7 +513,7 @@ void DocumentManager::expectFileChange(const QString &fileName)
     d->m_expectedFileNames.insert(fileName);
 }
 
-/* only called from unblock and unexpect file change methods */
+/* only called from unblock and unexpect file change functions */
 static void updateExpectedState(const QString &fileName)
 {
     if (fileName.isEmpty())
@@ -551,47 +547,10 @@ void DocumentManager::unexpectFileChange(const QString &fileName)
         updateExpectedState(fixedResolvedName);
 }
 
-
-/*!
-    Tries to save the files listed in \a documents. The \a cancelled argument is set to true
-    if the user cancelled the dialog. Returns the files that could not be saved. If the files
-    listed in documents have no write permissions, an additional dialog will be
-    displayed to
-    query the user for these permissions.
-*/
-QList<IDocument *> DocumentManager::saveModifiedDocumentsSilently(const QList<IDocument *> &documents, bool *cancelled)
-{
-    return saveModifiedFilesHelper(documents, cancelled, true, QString());
-}
-
-/*!
-    Asks the user whether to save the files listed in \a documents. Opens a
-    dialog that displays the \a message, and additional text to ask the users
-    if they want to enable automatic saving
-    of modified files (in this context).
-
-    The \a cancelled argument is set to true if the user cancels the dialog.
-    \a alwaysSave is set to match the selection of the user if files should
-    always automatically be saved. If the files listed in documents have no write
-    permissions, an additional dialog will be displayed to query the user for
-    these permissions.
-
-    Returns the files that have not been saved.
-*/
-QList<IDocument *> DocumentManager::saveModifiedDocuments(const QList<IDocument *> &documents,
-                                              bool *cancelled, const QString &message,
-                                              const QString &alwaysSaveMessage,
-                                              bool *alwaysSave)
-{
-    return saveModifiedFilesHelper(documents, cancelled, false, message, alwaysSaveMessage, alwaysSave);
-}
-
-static QList<IDocument *> saveModifiedFilesHelper(const QList<IDocument *> &documents,
-                                              bool *cancelled,
-                                              bool silently,
-                                              const QString &message,
-                                              const QString &alwaysSaveMessage,
-                                              bool *alwaysSave)
+static bool saveModifiedFilesHelper(const QList<IDocument *> &documents,
+                                    const QString &message, bool *cancelled, bool silently,
+                                    const QString &alwaysSaveMessage, bool *alwaysSave,
+                                    QList<IDocument *> *failedToSave)
 {
     if (cancelled)
         (*cancelled) = false;
@@ -601,8 +560,8 @@ static QList<IDocument *> saveModifiedFilesHelper(const QList<IDocument *> &docu
     QList<IDocument *> modifiedDocuments;
 
     foreach (IDocument *document, documents) {
-        if (document->isModified()) {
-            QString name = document->fileName();
+        if (document && document->isModified()) {
+            QString name = document->filePath();
             if (name.isEmpty())
                 name = document->suggestedFileName();
 
@@ -619,7 +578,7 @@ static QList<IDocument *> saveModifiedFilesHelper(const QList<IDocument *> &docu
         if (silently) {
             documentsToSave = modifiedDocuments;
         } else {
-            SaveItemsDialog dia(d->m_mainWindow, modifiedDocuments);
+            SaveItemsDialog dia(ICore::dialogParent(), modifiedDocuments);
             if (!message.isEmpty())
                 dia.setMessage(message);
             if (!alwaysSaveMessage.isNull())
@@ -628,9 +587,10 @@ static QList<IDocument *> saveModifiedFilesHelper(const QList<IDocument *> &docu
                 if (cancelled)
                     (*cancelled) = true;
                 if (alwaysSave)
-                    *alwaysSave = dia.alwaysSaveChecked();
-                notSaved = modifiedDocuments;
-                return notSaved;
+                    (*alwaysSave) = dia.alwaysSaveChecked();
+                if (failedToSave)
+                    (*failedToSave) = modifiedDocuments;
+                return false;
             }
             if (alwaysSave)
                 *alwaysSave = dia.alwaysSaveChecked();
@@ -643,32 +603,35 @@ static QList<IDocument *> saveModifiedFilesHelper(const QList<IDocument *> &docu
                 roDocuments << document;
         }
         if (!roDocuments.isEmpty()) {
-            Core::Internal::ReadOnlyFilesDialog roDialog(roDocuments, d->m_mainWindow);
+            ReadOnlyFilesDialog roDialog(roDocuments, ICore::dialogParent());
             roDialog.setShowFailWarning(true, DocumentManager::tr(
                                             "Could not save the files.",
                                             "error message"));
             if (roDialog.exec() == Core::Internal::ReadOnlyFilesDialog::RO_Cancel) {
                 if (cancelled)
                     (*cancelled) = true;
-                notSaved = modifiedDocuments;
-                return notSaved;
+                if (failedToSave)
+                    (*failedToSave) = modifiedDocuments;
+                return false;
             }
         }
         foreach (IDocument *document, documentsToSave) {
-            if (!EditorManager::instance()->saveDocument(document)) {
+            if (!EditorManager::saveDocument(document)) {
                 if (cancelled)
                     *cancelled = true;
                 notSaved.append(document);
             }
         }
     }
-    return notSaved;
+    if (failedToSave)
+        (*failedToSave) = notSaved;
+    return notSaved.isEmpty();
 }
 
 bool DocumentManager::saveDocument(IDocument *document, const QString &fileName, bool *isReadOnly)
 {
     bool ret = true;
-    QString effName = fileName.isEmpty() ? document->fileName() : fileName;
+    QString effName = fileName.isEmpty() ? document->filePath() : fileName;
     expectFileChange(effName); // This only matters to other IDocuments which refer to this file
     bool addWatcher = removeDocument(document); // So that our own IDocument gets no notification at all
 
@@ -683,7 +646,7 @@ bool DocumentManager::saveDocument(IDocument *document, const QString &fileName,
             }
             *isReadOnly = false;
         }
-        QMessageBox::critical(d->m_mainWindow, tr("File Error"),
+        QMessageBox::critical(ICore::dialogParent(), tr("File Error"),
                               tr("Error while saving file: %1").arg(errorString));
       out:
         ret = false;
@@ -703,7 +666,7 @@ QString DocumentManager::getSaveFileName(const QString &title, const QString &pa
     do {
         repeat = false;
         fileName = QFileDialog::getSaveFileName(
-            d->m_mainWindow, title, path, filter, selectedFilter, QFileDialog::DontConfirmOverwrite);
+            ICore::dialogParent(), title, path, filter, selectedFilter, QFileDialog::DontConfirmOverwrite);
         if (!fileName.isEmpty()) {
             // If the selected filter is All Files (*) we leave the name exactly as the user
             // specified. Otherwise the suffix must be one available in the selected filter. If
@@ -727,7 +690,7 @@ QString DocumentManager::getSaveFileName(const QString &title, const QString &pa
                 }
             }
             if (QFile::exists(fileName)) {
-                if (QMessageBox::warning(d->m_mainWindow, tr("Overwrite?"),
+                if (QMessageBox::warning(ICore::dialogParent(), tr("Overwrite?"),
                     tr("An item named '%1' already exists at this location. "
                        "Do you want to overwrite it?").arg(fileName),
                     QMessageBox::Yes | QMessageBox::No) == QMessageBox::No) {
@@ -755,7 +718,7 @@ QString DocumentManager::getSaveAsFileName(const IDocument *document, const QStr
 {
     if (!document)
         return QLatin1String("");
-    QString absoluteFilePath = document->fileName();
+    QString absoluteFilePath = document->filePath();
     const QFileInfo fi(absoluteFilePath);
     QString fileName = fi.fileName();
     QString path = fi.absolutePath();
@@ -768,7 +731,7 @@ QString DocumentManager::getSaveAsFileName(const IDocument *document, const QStr
 
     QString filterString;
     if (filter.isEmpty()) {
-        if (const MimeType &mt = Core::ICore::mimeDatabase()->findByFile(fi))
+        if (const MimeType &mt = MimeDatabase::findByFile(fi))
             filterString = mt.filterString();
         selectedFilter = &filterString;
     } else {
@@ -780,6 +743,118 @@ QString DocumentManager::getSaveAsFileName(const IDocument *document, const QStr
         filterString,
         selectedFilter);
     return absoluteFilePath;
+}
+
+/*!
+    Silently saves all documents and will return true if all modified documents were saved
+    successfully.
+
+    This method will try to avoid showing dialogs to the user, but can do so anyway (e.g. if
+    a file is not writeable).
+
+    \a Canceled will be set if the user canceled any of the dialogs that he interacted with.
+    \a FailedToClose will contain a list of documents that could not be saved if passed into the
+    method.
+*/
+bool DocumentManager::saveAllModifiedDocumentsSilently(bool *canceled,
+                                                       QList<IDocument *> *failedToClose)
+{
+    return saveModifiedDocumentsSilently(modifiedDocuments(), canceled, failedToClose);
+}
+
+/*!
+    Silently saves \a documents and will return true if all of them were saved successfully.
+
+    This method will try to avoid showing dialogs to the user, but can do so anyway (e.g. if
+    a file is not writeable).
+
+    \a Canceled will be set if the user canceled any of the dialogs that he interacted with.
+    \a FailedToClose will contain a list of documents that could not be saved if passed into the
+    method.
+*/
+bool DocumentManager::saveModifiedDocumentsSilently(const QList<IDocument *> &documents, bool *canceled,
+                                                    QList<IDocument *> *failedToClose)
+{
+    return saveModifiedFilesHelper(documents, QString(), canceled, true, QString(), 0, failedToClose);
+}
+
+/*!
+    Silently saves a \a document and will return true if it was saved successfully.
+
+    This method will try to avoid showing dialogs to the user, but can do so anyway (e.g. if
+    a file is not writeable).
+
+    \a Canceled will be set if the user canceled any of the dialogs that he interacted with.
+    \a FailedToClose will contain a list of documents that could not be saved if passed into the
+    method.
+*/
+bool DocumentManager::saveModifiedDocumentSilently(IDocument *document, bool *canceled,
+                                                   QList<IDocument *> *failedToClose)
+{
+    return saveModifiedDocumentsSilently(QList<IDocument *>() << document, canceled, failedToClose);
+}
+
+/*!
+    Presents a dialog with all modified documents to the user and will ask him which of these
+    should be saved.
+
+    This method may show additional dialogs to the user, e.g. if a file is not writeable).
+
+    The dialog text can be set using \a message. \a Canceled will be set if the user canceled any
+    of the dialogs that he interacted with (the method will also return false in this case).
+    The \a alwaysSaveMessage will show an additional checkbox asking in the dialog. The state of
+    this checkbox will be written into \a alwaysSave if set.
+    \a FailedToClose will contain a list of documents that could not be saved if passed into the
+    method.
+*/
+bool DocumentManager::saveAllModifiedDocuments(const QString &message, bool *canceled,
+                                               const QString &alwaysSaveMessage, bool *alwaysSave,
+                                               QList<IDocument *> *failedToClose)
+{
+    return saveModifiedDocuments(modifiedDocuments(), message, canceled,
+                                 alwaysSaveMessage, alwaysSave, failedToClose);
+}
+
+/*!
+    Presents a dialog with \a documents to the user and will ask him which of these should be saved.
+
+    This method may show additional dialogs to the user, e.g. if a file is not writeable).
+
+    The dialog text can be set using \a message. \a Canceled will be set if the user canceled any
+    of the dialogs that he interacted with (the method will also return false in this case).
+    The \a alwaysSaveMessage will show an additional checkbox asking in the dialog. The state of
+    this checkbox will be written into \a alwaysSave if set.
+    \a FailedToClose will contain a list of documents that could not be saved if passed into the
+    method.
+*/
+bool DocumentManager::saveModifiedDocuments(const QList<IDocument *> &documents,
+                                            const QString &message, bool *canceled,
+                                            const QString &alwaysSaveMessage, bool *alwaysSave,
+                                            QList<IDocument *> *failedToClose)
+{
+    return saveModifiedFilesHelper(documents, message, canceled, false,
+                                   alwaysSaveMessage, alwaysSave, failedToClose);
+}
+
+/*!
+    Presents a dialog with the one \a document to the user and will ask him whether he wants it
+    saved.
+
+    This method may show additional dialogs to the user, e.g. if the file is not writeable).
+
+    The dialog text can be set using \a message. \a Canceled will be set if the user canceled any
+    of the dialogs that he interacted with (the method will also return false in this case).
+    The \a alwaysSaveMessage will show an additional checkbox asking in the dialog. The state of
+    this checkbox will be written into \a alwaysSave if set.
+    \a FailedToClose will contain a list of documents that could not be saved if passed into the
+    method.
+*/
+bool DocumentManager::saveModifiedDocument(IDocument *document, const QString &message, bool *canceled,
+                                           const QString &alwaysSaveMessage, bool *alwaysSave,
+                                           QList<IDocument *> *failedToClose)
+{
+    return saveModifiedDocuments(QList<IDocument *>() << document, message, canceled,
+                                 alwaysSaveMessage, alwaysSave, failedToClose);
 }
 
 /*!
@@ -800,7 +875,7 @@ QStringList DocumentManager::getOpenFileNames(const QString &filters,
         if (path.isEmpty() && useProjectsDirectory())
             path = projectsDirectory();
     }
-    const QStringList files = QFileDialog::getOpenFileNames(d->m_mainWindow,
+    const QStringList files = QFileDialog::getOpenFileNames(ICore::dialogParent(),
                                                       tr("Open File"),
                                                       path, filters,
                                                       selectedFilter);
@@ -824,18 +899,24 @@ void DocumentManager::checkForReload()
 {
     if (d->m_changedFiles.isEmpty())
         return;
-    if (!QApplication::activeWindow() || QApplication::activeModalWidget())
+    if (!QApplication::activeWindow())
         return;
+
+    if (QApplication::activeModalWidget()) { // a modal dialog, recheck later
+        QTimer::singleShot(200, this, SLOT(checkForReload()));
+        return;
+    }
 
     if (d->m_blockActivated)
         return;
 
     d->m_blockActivated = true;
 
-    IDocument::ReloadSetting defaultBehavior = EditorManager::instance()->reloadSetting();
-    Utils::ReloadPromptAnswer previousAnswer = Utils::ReloadCurrent;
+    IDocument::ReloadSetting defaultBehavior = EditorManager::reloadSetting();
+    Utils::ReloadPromptAnswer previousReloadAnswer = Utils::ReloadCurrent;
+    Utils::FileDeletedPromptAnswer previousDeletedAnswer = Utils::FileDeletedSave;
 
-    QList<IEditor*> editorsToClose;
+    QList<IDocument *> documentsToClose;
     QMap<IDocument*, QString> documentsToSave;
 
     // collect file information
@@ -940,7 +1021,7 @@ void DocumentManager::checkForReload()
                    && type == IDocument::TypeRemoved && !document->isModified()) {
             // file removed, but unmodified files should be reloaded
             // so we close the file
-            editorsToClose << EditorManager::instance()->editorsForDocument(document);
+            documentsToClose << document;
         } else if (defaultBehavior == IDocument::IgnoreAll) {
             // content change or removed, but settings say ignore
             success = document->reload(&errorString, IDocument::FlagIgnore, type);
@@ -952,22 +1033,23 @@ void DocumentManager::checkForReload()
             if (document->reloadBehavior(trigger, type) == IDocument::BehaviorSilent) {
                 // content change or removed, IDocument wants silent handling
                 if (type == IDocument::TypeRemoved)
-                    editorsToClose << EditorManager::instance()->editorsForDocument(document);
+                    documentsToClose << document;
                 else
                     success = document->reload(&errorString, IDocument::FlagReload, type);
             // IDocument wants us to ask
             } else if (type == IDocument::TypeContents) {
                 // content change, IDocument wants to ask user
-                if (previousAnswer == Utils::ReloadNone) {
+                if (previousReloadAnswer == Utils::ReloadNone) {
                     // answer already given, ignore
                     success = document->reload(&errorString, IDocument::FlagIgnore, IDocument::TypeContents);
-                } else if (previousAnswer == Utils::ReloadAll) {
+                } else if (previousReloadAnswer == Utils::ReloadAll) {
                     // answer already given, reload
                     success = document->reload(&errorString, IDocument::FlagReload, IDocument::TypeContents);
                 } else {
                     // Ask about content change
-                    previousAnswer = Utils::reloadPrompt(document->fileName(), document->isModified(), QApplication::activeWindow());
-                    switch (previousAnswer) {
+                    previousReloadAnswer = Utils::reloadPrompt(document->filePath(), document->isModified(),
+                                                               ICore::dialogParent());
+                    switch (previousReloadAnswer) {
                     case Utils::ReloadAll:
                     case Utils::ReloadCurrent:
                         success = document->reload(&errorString, IDocument::FlagReload, IDocument::TypeContents);
@@ -977,7 +1059,7 @@ void DocumentManager::checkForReload()
                         success = document->reload(&errorString, IDocument::FlagIgnore, IDocument::TypeContents);
                         break;
                     case Utils::CloseCurrent:
-                        editorsToClose << EditorManager::instance()->editorsForDocument(document);
+                        documentsToClose << document;
                         break;
                     }
                 }
@@ -986,9 +1068,15 @@ void DocumentManager::checkForReload()
                 // Ask about removed file
                 bool unhandled = true;
                 while (unhandled) {
-                    switch (Utils::fileDeletedPrompt(document->fileName(), trigger == IDocument::TriggerExternal, QApplication::activeWindow())) {
+                    if (previousDeletedAnswer != Utils::FileDeletedCloseAll) {
+                        previousDeletedAnswer =
+                                Utils::fileDeletedPrompt(document->filePath(),
+                                                         trigger == IDocument::TriggerExternal,
+                                                         QApplication::activeWindow());
+                    }
+                    switch (previousDeletedAnswer) {
                     case Utils::FileDeletedSave:
-                        documentsToSave.insert(document, document->fileName());
+                        documentsToSave.insert(document, document->filePath());
                         unhandled = false;
                         break;
                     case Utils::FileDeletedSaveAs:
@@ -1001,7 +1089,8 @@ void DocumentManager::checkForReload()
                         break;
                     }
                     case Utils::FileDeletedClose:
-                        editorsToClose << EditorManager::instance()->editorsForDocument(document);
+                    case Utils::FileDeletedCloseAll:
+                        documentsToClose << document;
                         unhandled = false;
                         break;
                     }
@@ -1010,7 +1099,7 @@ void DocumentManager::checkForReload()
         }
         if (!success) {
             if (errorString.isEmpty())
-                errorStrings << tr("Cannot reload %1").arg(QDir::toNativeSeparators(document->fileName()));
+                errorStrings << tr("Cannot reload %1").arg(QDir::toNativeSeparators(document->filePath()));
             else
                 errorStrings << errorString;
         }
@@ -1021,11 +1110,11 @@ void DocumentManager::checkForReload()
         d->m_blockedIDocument = 0;
     }
     if (!errorStrings.isEmpty())
-        QMessageBox::critical(d->m_mainWindow, tr("File Error"),
+        QMessageBox::critical(ICore::dialogParent(), tr("File Error"),
                               errorStrings.join(QLatin1String("\n")));
 
     // handle deleted files
-    EditorManager::instance()->closeEditors(editorsToClose, false);
+    EditorManager::closeDocuments(documentsToClose, false);
     QMapIterator<IDocument *, QString> it(documentsToSave);
     while (it.hasNext()) {
         it.next();
@@ -1036,22 +1125,6 @@ void DocumentManager::checkForReload()
     d->m_blockActivated = false;
 
 //    dump();
-}
-
-void DocumentManager::syncWithEditor(const QList<Core::IContext *> &context)
-{
-    if (context.isEmpty())
-        return;
-
-    Core::IEditor *editor = Core::EditorManager::currentEditor();
-    if (!editor || editor->isTemporary())
-        return;
-    foreach (IContext *c, context) {
-        if (editor->widget() == c->widget()) {
-            setCurrentFile(editor->document()->fileName());
-            break;
-        }
-    }
 }
 
 /*!
@@ -1307,7 +1380,7 @@ void DocumentManager::populateOpenWithMenu(QMenu *menu, const QString &fileName)
 
     bool anyMatches = false;
 
-    if (const MimeType mt = ICore::mimeDatabase()->findByFile(QFileInfo(fileName))) {
+    if (const MimeType mt = MimeDatabase::findByFile(QFileInfo(fileName))) {
         const EditorFactoryList factories = EditorManager::editorFactories(mt, false);
         const ExternalEditorList externalEditors = EditorManager::externalEditors(mt, false);
         anyMatches = !factories.empty() || !externalEditors.empty();
@@ -1342,14 +1415,14 @@ void DocumentManager::executeOpenWithMenuAction(QAction *action)
     OpenWithEntry entry = qvariant_cast<OpenWithEntry>(data);
     if (entry.editorFactory) {
         // close any open editors that have this file open, but have a different type.
-        EditorManager *em = EditorManager::instance();
-        QList<IEditor *> editorsOpenForFile = em->editorsForFileName(entry.fileName);
+        QList<IEditor *> editorsOpenForFile
+                = EditorManager::documentModel()->editorsForFilePath(entry.fileName);
         if (!editorsOpenForFile.isEmpty()) {
             foreach (IEditor *openEditor, editorsOpenForFile) {
                 if (entry.editorFactory->id() == openEditor->id())
                     editorsOpenForFile.removeAll(openEditor);
             }
-            if (!em->closeEditors(editorsOpenForFile)) // don't open if cancel was pressed
+            if (!EditorManager::closeEditors(editorsOpenForFile)) // don't open if cancel was pressed
                 return;
         }
 
@@ -1358,11 +1431,6 @@ void DocumentManager::executeOpenWithMenuAction(QAction *action)
     }
     if (entry.externalEditor)
         EditorManager::openExternalEditor(entry.fileName, entry.externalEditor->id());
-}
-
-void DocumentManager::slotExecuteOpenWithMenuAction(QAction *action)
-{
-    executeOpenWithMenuAction(action);
 }
 
 bool DocumentManager::eventFilter(QObject *obj, QEvent *e)

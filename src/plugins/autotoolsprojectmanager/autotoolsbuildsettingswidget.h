@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (C) 2013 Openismus GmbH.
+** Copyright (C) 2014 Openismus GmbH.
 ** Authors: Peter Penz (ppenz@openismus.com)
 **          Patricia Santana Cruz (patriciasantanacruz@gmail.com)
 ** Contact: http://www.qt-project.org/legal
@@ -38,9 +38,7 @@ QT_BEGIN_NAMESPACE
 class QComboBox;
 QT_END_NAMESPACE
 
-namespace Utils {
-class PathChooser;
-}
+namespace Utils { class PathChooser; }
 
 namespace AutotoolsProjectManager {
 namespace Internal {
@@ -61,6 +59,7 @@ public:
 
 private slots:
     void buildDirectoryChanged();
+    void environmentHasChanged();
 
 private:
     Utils::PathChooser *m_pathChooser;

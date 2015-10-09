@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -32,9 +32,7 @@
 
 #include <extensionsystem/iplugin.h>
 
-namespace Find {
-class SearchResultWindow;
-}
+namespace Core { class SearchResultWindow; }
 
 namespace TextEditor {
 
@@ -64,8 +62,6 @@ public:
     bool initialize(const QStringList &arguments, QString *errorMessage);
     void extensionsInitialized();
 
-    void initializeEditor(PlainTextEditorWidget *editor);
-
     PlainTextEditorFactory *editorFactory() { return m_editorFactory; }
     LineNumberFilter *lineNumberFilter() { return m_lineNumberFilter; }
     BaseTextMarkRegistry *baseTextMarkRegistry() { return m_baseTextMarkRegistry; }
@@ -77,12 +73,20 @@ private slots:
     void updateVariable(const QByteArray &variable);
     void updateCurrentSelection(const QString &text);
 
+#ifdef WITH_TESTS
+    void testSnippetParsing_data();
+    void testSnippetParsing();
+
+    void testBlockSelectionTransformation_data();
+    void testBlockSelectionTransformation();
+#endif
+
 private:
     static TextEditorPlugin *m_instance;
     TextEditorSettings *m_settings;
     PlainTextEditorFactory *m_editorFactory;
     LineNumberFilter *m_lineNumberFilter;
-    Find::SearchResultWindow *m_searchResultWindow;
+    Core::SearchResultWindow *m_searchResultWindow;
     OutlineFactory *m_outlineFactory;
     BaseTextMarkRegistry *m_baseTextMarkRegistry;
 };

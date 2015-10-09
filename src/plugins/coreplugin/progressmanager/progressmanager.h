@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -31,12 +31,15 @@
 #define PROGRESSMANAGER_H
 
 #include <coreplugin/core_global.h>
+#include <coreplugin/id.h>
 
 #include <QObject>
 #include <QFuture>
 
 namespace Core {
 class FutureProgress;
+
+namespace Internal { class ProgressManagerPrivate; }
 
 class CORE_EXPORT ProgressManager : public QObject
 {
@@ -48,19 +51,30 @@ public:
     };
     Q_DECLARE_FLAGS(ProgressFlags, ProgressFlag)
 
-    ProgressManager(QObject *parent = 0) : QObject(parent) {}
-    virtual ~ProgressManager() {}
+    static QObject *instance();
 
-    virtual FutureProgress *addTask(const QFuture<void> &future, const QString &title,
-                                    const QString &type, ProgressFlags flags = 0) = 0;
-    virtual void setApplicationLabel(const QString &text) = 0;
+    static FutureProgress *addTask(const QFuture<void> &future, const QString &title,
+                                   Core::Id type, ProgressFlags flags = 0);
+    static void setApplicationLabel(const QString &text);
 
 public slots:
-    virtual void cancelTasks(const QString &type) = 0;
+    static void cancelTasks(const Core::Id type);
 
 signals:
-    void taskStarted(const QString &type);
-    void allTasksFinished(const QString &type);
+    void taskStarted(Core::Id type);
+    void allTasksFinished(Core::Id type);
+
+protected:
+    virtual void doCancelTasks(Core::Id type) = 0;
+    virtual FutureProgress *doAddTask(const QFuture<void> &future, const QString &title,
+                                      Core::Id type, ProgressFlags flags = 0) = 0;
+    virtual void doSetApplicationLabel(const QString &text) = 0;
+
+private:
+    ProgressManager();
+    ~ProgressManager();
+
+    friend class Core::Internal::ProgressManagerPrivate;
 };
 
 } // namespace Core

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -37,7 +37,7 @@
 
 namespace Analyzer {
 class AnalyzerStartParameters;
-class IAnalyzerEngine;
+class AnalyzerRunControl;
 }
 
 namespace RemoteLinux {
@@ -53,7 +53,7 @@ public:
                                                              ProjectExplorer::RunMode runMode);
 
     RemoteLinuxAnalyzeSupport(RemoteLinuxRunConfiguration *runConfig,
-            Analyzer::IAnalyzerEngine *engine, ProjectExplorer::RunMode runMode);
+            Analyzer::AnalyzerRunControl *engine, ProjectExplorer::RunMode runMode);
     ~RemoteLinuxAnalyzeSupport();
 
 protected:

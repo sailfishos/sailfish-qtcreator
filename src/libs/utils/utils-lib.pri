@@ -4,7 +4,6 @@ dll {
     DEFINES += QTCREATOR_UTILS_STATIC_LIB
 }
 
-INCLUDEPATH += $$PWD
 QT += script network
 
 CONFIG += exceptions # used by portlist.cpp, textfileformat.cpp, and ssh/*
@@ -28,7 +27,6 @@ SOURCES += $$PWD/environment.cpp \
     $$PWD/filewizarddialog.cpp \
     $$PWD/filesystemwatcher.cpp \
     $$PWD/projectintropage.cpp \
-    $$PWD/basevalidatinglineedit.cpp \
     $$PWD/filenamevalidatinglineedit.cpp \
     $$PWD/projectnamevalidatinglineedit.cpp \
     $$PWD/codegeneration.cpp \
@@ -54,7 +52,6 @@ SOURCES += $$PWD/environment.cpp \
     $$PWD/detailsbutton.cpp \
     $$PWD/detailswidget.cpp \
     $$PWD/changeset.cpp \
-    $$PWD/filterlineedit.cpp \
     $$PWD/faketooltip.cpp \
     $$PWD/htmldocextractor.cpp \
     $$PWD/navigationtreeview.cpp \
@@ -74,6 +71,7 @@ SOURCES += $$PWD/environment.cpp \
     $$PWD/portlist.cpp \
     $$PWD/tcpportsgatherer.cpp \
     $$PWD/appmainwindow.cpp \
+    $$PWD/sleep.cpp \
     $$PWD/basetreeview.cpp \
     $$PWD/qtcassert.cpp \
     $$PWD/elfreader.cpp \
@@ -84,14 +82,14 @@ SOURCES += $$PWD/environment.cpp \
     $$PWD/tooltip/tooltip.cpp \
     $$PWD/tooltip/tips.cpp \
     $$PWD/tooltip/tipcontents.cpp \
-    $$PWD/unixutils.cpp
+    $$PWD/unixutils.cpp \
+    $$PWD/function.cpp \
+    $$PWD/ansiescapecodehandler.cpp \
+    $$PWD/execmenu.cpp \
+    $$PWD/completinglineedit.cpp \
+    $$PWD/winutils.cpp
 
-win32 {
-    SOURCES += \
-        $$PWD/consoleprocess_win.cpp \
-        $$PWD/winutils.cpp
-    HEADERS += $$PWD/winutils.h
-}
+win32:SOURCES += $$PWD/consoleprocess_win.cpp
 else:SOURCES += $$PWD/consoleprocess_unix.cpp
 
 HEADERS += \
@@ -111,7 +109,6 @@ HEADERS += \
     $$PWD/filewizarddialog.h \
     $$PWD/filesystemwatcher.h \
     $$PWD/projectintropage.h \
-    $$PWD/basevalidatinglineedit.h \
     $$PWD/filenamevalidatinglineedit.h \
     $$PWD/projectnamevalidatinglineedit.h \
     $$PWD/codegeneration.h \
@@ -139,7 +136,6 @@ HEADERS += \
     $$PWD/detailsbutton.h \
     $$PWD/detailswidget.h \
     $$PWD/changeset.h \
-    $$PWD/filterlineedit.h \
     $$PWD/faketooltip.h \
     $$PWD/htmldocextractor.h \
     $$PWD/navigationtreeview.h \
@@ -162,11 +158,13 @@ HEADERS += \
     $$PWD/portlist.h \
     $$PWD/tcpportsgatherer.h \
     $$PWD/appmainwindow.h \
+    $$PWD/sleep.h \
     $$PWD/basetreeview.h \
     $$PWD/elfreader.h \
     $$PWD/bracematcher.h \
     $$PWD/proxyaction.h \
     $$PWD/hostosinfo.h \
+    $$PWD/osspecificaspects.h \
     $$PWD/elidinglabel.h \
     $$PWD/tooltip/tooltip.h \
     $$PWD/tooltip/tips.h \
@@ -174,7 +172,13 @@ HEADERS += \
     $$PWD/tooltip/reuse.h \
     $$PWD/tooltip/effects.h \
     $$PWD/unixutils.h \
-    $$PWD/qtcoverride.h
+    $$PWD/qtcoverride.h \
+    $$PWD/function.h \
+    $$PWD/ansiescapecodehandler.h \
+    $$PWD/execmenu.h \
+    $$PWD/completinglineedit.h \
+    $$PWD/logging.h \
+    $$PWD/winutils.h
 
 FORMS += $$PWD/filewizardpage.ui \
     $$PWD/projectintropage.ui \

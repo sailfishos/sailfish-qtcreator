@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -269,6 +269,35 @@ TextFileFormat::ReadResult
         qDebug().nospace() << Q_FUNC_INFO << fileName << ' ' << *format
                            << " returns " << result << '/' << plainText->size() << " characters";
     return result;
+}
+
+TextFileFormat::ReadResult TextFileFormat::readFileUTF8(const QString &fileName,
+                                                        const QTextCodec *defaultCodec,
+                                                        QByteArray *plainText, QString *errorString)
+{
+    QByteArray data;
+    try {
+        Utils::FileReader reader;
+        if (!reader.fetch(fileName, errorString))
+            return Utils::TextFileFormat::ReadIOError;
+        data = reader.data();
+    } catch (const std::bad_alloc &) {
+        *errorString = QCoreApplication::translate("Utils::TextFileFormat", "Out of memory.");
+        return Utils::TextFileFormat::ReadMemoryAllocationError;
+    }
+
+    Utils::TextFileFormat format = Utils::TextFileFormat::detect(data);
+    if (!format.codec)
+        format.codec = defaultCodec ? defaultCodec : QTextCodec::codecForLocale();
+    QString target;
+    if (format.codec->name() == "UTF-8" || !format.decode(data, &target)) {
+        if (format.hasUtf8Bom)
+            data.remove(0, 3);
+        *plainText = data;
+        return Utils::TextFileFormat::ReadSuccess;
+    }
+    *plainText = target.toUtf8();
+    return Utils::TextFileFormat::ReadSuccess;
 }
 
 /*!

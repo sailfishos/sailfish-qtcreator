@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -52,11 +52,7 @@ class CORE_EXPORT ModeManager : public QObject
     Q_OBJECT
 
 public:
-    explicit ModeManager(Internal::MainWindow *mainWindow, Internal::FancyTabWidget *modeStack);
-    virtual ~ModeManager();
-
-    static void init();
-    static ModeManager *instance();
+    static QObject *instance();
 
     static IMode *currentMode();
     static IMode *mode(Id id);
@@ -70,7 +66,7 @@ public:
     static bool isModeSelectorVisible();
 
 public slots:
-    void setModeSelectorVisible(bool visible);
+    static void setModeSelectorVisible(bool visible);
 
 signals:
     void currentModeAboutToChange(Core::IMode *mode);
@@ -86,8 +82,14 @@ private slots:
     void currentTabChanged(int index);
     void updateModeToolTip();
     void enabledStateChanged();
-    void handleStartup();
-    void handleShutdown();
+
+private:
+    explicit ModeManager(Internal::MainWindow *mainWindow, Internal::FancyTabWidget *modeStack);
+    ~ModeManager();
+
+    static void init();
+
+    friend class Core::Internal::MainWindow;
 };
 
 } // namespace Core

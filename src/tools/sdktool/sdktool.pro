@@ -15,6 +15,8 @@ isEmpty(PRECOMPILED_HEADER):PRECOMPILED_HEADER = $$PWD/../../shared/qtcreator_pc
 
 SOURCES += \
     main.cpp \
+    adddebuggeroperation.cpp \
+    adddeviceoperation.cpp \
     addkeysoperation.cpp \
     addkitoperation.cpp \
     addqtoperation.cpp \
@@ -23,6 +25,8 @@ SOURCES += \
     findvalueoperation.cpp \
     getoperation.cpp \
     operation.cpp \
+    rmdebuggeroperation.cpp \
+    rmdeviceoperation.cpp \
     rmkeysoperation.cpp \
     rmkitoperation.cpp \
     rmqtoperation.cpp \
@@ -31,12 +35,12 @@ SOURCES += \
     addmertargetoperation.cpp \
     rmmertargetoperation.cpp \
     addmersdkoperation.cpp \
-    adddeviceoperation.cpp \
     ../../plugins/mer/mertargetsxmlparser.cpp \
     rmmersdkoperation.cpp \
-    rmdeviceoperation.cpp
 
 HEADERS += \
+    adddebuggeroperation.h \
+    adddeviceoperation.h \
     addkeysoperation.h \
     addkitoperation.h \
     addqtoperation.h \
@@ -45,6 +49,8 @@ HEADERS += \
     findvalueoperation.h \
     getoperation.h \
     operation.h \
+    rmdebuggeroperation.h \
+    rmdeviceoperation.h \
     rmkeysoperation.h \
     rmkitoperation.h \
     rmqtoperation.h \
@@ -53,10 +59,8 @@ HEADERS += \
     addmertargetoperation.h \
     rmmertargetoperation.h \
     addmersdkoperation.h \
-    adddeviceoperation.h \
     ../../plugins/mer/mertargetsxmlparser.h \
     rmmersdkoperation.h \
-    rmdeviceoperation.h
 
 DESTDIR=$$IDE_LIBEXEC_PATH
 macx:DEFINES += "DATA_PATH=\"\\\".\\\"\""

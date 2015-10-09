@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 ** Author: Nicolas Arnaud-Cormos, KDAB (nicolas.arnaud-cormos@kdab.com)
 **
@@ -31,30 +31,28 @@
 #ifndef VALGRINDENGINE_H
 #define VALGRINDENGINE_H
 
-#include <analyzerbase/ianalyzerengine.h>
+#include <analyzerbase/analyzerruncontrol.h>
 #include <utils/environment.h>
 #include <valgrind/valgrindrunner.h>
+#include <valgrind/valgrindsettings.h>
 
 #include <QFutureInterface>
 #include <QFutureWatcher>
 
-namespace Analyzer { class AnalyzerSettings; }
-
 namespace Valgrind {
 namespace Internal {
 
-class ValgrindEngine : public Analyzer::IAnalyzerEngine
+class ValgrindRunControl : public Analyzer::AnalyzerRunControl
 {
     Q_OBJECT
 
 public:
-    ValgrindEngine(Analyzer::IAnalyzerTool *tool,
-        const Analyzer::AnalyzerStartParameters &sp,
+    ValgrindRunControl(const Analyzer::AnalyzerStartParameters &sp,
         ProjectExplorer::RunConfiguration *runConfiguration);
-    ~ValgrindEngine();
+    ~ValgrindRunControl();
 
-    bool start();
-    void stop();
+    bool startEngine();
+    void stopEngine();
 
     QString executable() const;
 
@@ -63,7 +61,7 @@ protected:
     virtual QStringList toolArguments() const = 0;
     virtual Valgrind::ValgrindRunner *runner() = 0;
 
-    Analyzer::AnalyzerSettings *m_settings;
+    ValgrindBaseSettings *m_settings;
     QFutureInterface<void> *m_progress;
     QFutureWatcher<void> *m_progressWatcher;
 
@@ -74,6 +72,9 @@ private slots:
 
     void receiveProcessOutput(const QByteArray &output, Utils::OutputFormat format);
     void receiveProcessError(const QString &message, QProcess::ProcessError error);
+
+private:
+    QStringList genericToolArguments() const;
 
 private:
     bool m_isStopping;

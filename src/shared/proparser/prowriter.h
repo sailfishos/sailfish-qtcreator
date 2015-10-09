@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -38,7 +38,7 @@ class QDir;
 class ProFile;
 QT_END_NAMESPACE
 
-namespace Qt4ProjectManager {
+namespace QmakeProjectManager {
 namespace Internal {
 
 class QMAKE_EXPORT ProWriter
@@ -66,13 +66,14 @@ public:
         const QDir &proFileDir, const QStringList &filePaths, const QStringList &vars);
 
 private:
-    static bool locateVarValues(const ushort *tokPtr,
-        const QString &scope, const QString &var, int *scopeStart, int *bestLine);
+    static bool locateVarValues(const ushort *tokPtr, const ushort *tokPtrEnd,
+                                const QString &scope, const QString &var, int *scopeStart, int *bestLine);
+    static QString compileScope(const QString &scope);
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(ProWriter::PutFlags)
 
 } // namespace Internal
-} // namespace Qt4ProjectManager
+} // namespace QmakeProjectManager
 
 #endif // PROWRITER_H

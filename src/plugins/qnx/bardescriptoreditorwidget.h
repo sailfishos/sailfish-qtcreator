@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -36,16 +36,13 @@
 
 #include <QStackedWidget>
 
-namespace Core {
-class IEditor;
-}
+namespace Core { class IEditor; }
 
-namespace ProjectExplorer {
-class PanelsWidget;
-}
+namespace ProjectExplorer { class PanelsWidget; }
 
 namespace TextEditor {
 class PlainTextEditorWidget;
+class BaseTextEditorWidget;
 }
 
 namespace Qnx {
@@ -65,34 +62,21 @@ class BarDescriptorEditorWidget : public QStackedWidget
     Q_OBJECT
 
 public:
-    explicit BarDescriptorEditorWidget(QWidget *parent = 0);
+    explicit BarDescriptorEditorWidget(BarDescriptorEditor *editor, QWidget *parent = 0);
 
-    Core::IEditor *editor() const;
+    TextEditor::BaseTextEditorWidget *sourceWidget() const;
 
-    BarDescriptorEditorEntryPointWidget *entryPointWidget() const;
-    BarDescriptorEditorPackageInformationWidget *packageInformationWidget() const;
-    BarDescriptorEditorAuthorInformationWidget *authorInformationWidget() const;
-
-    BarDescriptorEditorGeneralWidget *generalWidget() const;
-    BarDescriptorEditorPermissionsWidget *permissionsWidget() const;
-    BarDescriptorEditorEnvironmentWidget *environmentWidget() const;
-
-    BarDescriptorEditorAssetsWidget *assetsWidget() const;
-
-    QString xmlSource() const;
-    void setXmlSource(const QString &xmlSource);
-
-    bool isDirty() const;
-    void clear();
-
-public slots:
-    void setDirty(bool dirty = true);
+    void setFilePath(const QString &filePath);
 
 signals:
-    void changed();
+    void changed(BarDescriptorDocument::Tag tag, const QVariant &value);
+
+private slots:
+    void updateDocumentContent();
+    void updateSourceView();
 
 private:
-    BarDescriptorEditor *createEditor();
+    BarDescriptorDocument *barDescriptorDocument() const;
 
     void initGeneralPage();
     void initApplicationPage();
@@ -100,9 +84,7 @@ private:
     void initSourcePage();
     void initPanelSize(ProjectExplorer::PanelsWidget *panelsWidget);
 
-    mutable Core::IEditor *m_editor;
-
-    bool m_dirty;
+    Core::IEditor *m_editor;
 
     // New UI
     BarDescriptorEditorEntryPointWidget *m_entryPointWidget;

@@ -7,7 +7,7 @@ QtcPlugin {
 
     Depends { name: "Core" }
     Depends { name: "ProjectExplorer" }
-    Depends { name: "Qt4ProjectManager" }
+    Depends { name: "QmakeProjectManager" }
     Depends { name: "RemoteLinux" }
     Depends { name: "QtcSsh" }
     Depends { name: "Qt"; submodules: ["widgets", "webkit"] }
@@ -84,9 +84,7 @@ QtcPlugin {
         "merconnection.h",
         "merconnectionmanager.cpp",
         "merconnectionmanager.h",
-        "jollawelcomepage.cpp",
         "mermode.cpp",
-        "jollawelcomepage.h",
         "mermode.h",
         "mermanagementwebview.cpp",
         "mermanagementwebview.h",

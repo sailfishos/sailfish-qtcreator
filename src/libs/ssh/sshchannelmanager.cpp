@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -218,7 +218,7 @@ void SshChannelManager::removeChannel(ChannelIterator it)
     const int removeCount = m_sessions.remove(it.value());
     if (removeCount != 1) {
         throw SshClientException(SshInternalError,
-                QString::fromLocal8Bit("Internal error: Unexpected session count %1 for channel.")
+                QString::fromLatin1("Internal error: Unexpected session count %1 for channel.")
                                  .arg(removeCount));
     }
     m_channels.erase(it);

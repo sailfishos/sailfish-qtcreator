@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,57 +30,57 @@
 #ifndef QMLPROFILERTRACEVIEW_H
 #define QMLPROFILERTRACEVIEW_H
 
-#include <QDeclarativeView>
+#include "qmlprofilermodelmanager.h"
+#include <QQuickView>
+#include <QWidget>
+#include <QTimer>
 
-namespace Analyzer {
-class IAnalyzerTool;
-}
+namespace Analyzer { class IAnalyzerTool; }
 
 namespace QmlProfiler {
+
+class QmlProfilerModelManager;
 namespace Internal {
 
 class QmlProfilerStateManager;
 class QmlProfilerViewManager;
-class QmlProfilerDataModel;
-
-// capture mouse wheel events
-class MouseWheelResizer : public QObject {
-    Q_OBJECT
-public:
-    MouseWheelResizer(QObject *parent=0):QObject(parent){}
-protected:
-    bool eventFilter(QObject *obj, QEvent *event);
-signals:
-    void mouseWheelMoved(int x, int y, int delta);
-};
 
 // centralized zoom control
 class ZoomControl : public QObject {
     Q_OBJECT
 public:
-    ZoomControl(QObject *parent=0):QObject(parent),m_startTime(0),m_endTime(0) {}
+    static const qint64 MAX_ZOOM_FACTOR = 1 << 12;
+
+    ZoomControl(const QmlProfilerTraceTime *traceTime, QObject *parent = 0);
     ~ZoomControl(){}
 
     Q_INVOKABLE void setRange(qint64 startTime, qint64 endTime);
-    Q_INVOKABLE qint64 startTime() { return m_startTime; }
-    Q_INVOKABLE qint64 endTime() { return m_endTime; }
+    Q_INVOKABLE qint64 startTime() const { return m_startTime; }
+    Q_INVOKABLE qint64 endTime() const { return m_endTime; }
+    Q_INVOKABLE qint64 duration() const { return m_endTime - m_startTime; }
+
+    Q_INVOKABLE qint64 windowStart() const { return m_windowStart; }
+    Q_INVOKABLE qint64 windowEnd() const { return m_windowEnd; }
+    Q_INVOKABLE qint64 windowLength() const { return m_windowEnd - m_windowStart; }
+    void setWindowLocked(bool lock) { m_windowLocked = lock; }
 
 signals:
     void rangeChanged();
+    void windowChanged();
+
+private slots:
+    void rebuildWindow();
+    void moveWindow();
 
 private:
     qint64 m_startTime;
     qint64 m_endTime;
-};
+    qint64 m_windowStart;
+    qint64 m_windowEnd;
 
-class ScrollableDeclarativeView : public QDeclarativeView
-{
-    Q_OBJECT
-public:
-    explicit ScrollableDeclarativeView(QWidget *parent = 0);
-    ~ScrollableDeclarativeView();
-protected:
-    void scrollContentsBy(int dx, int dy);
+    const QmlProfilerTraceTime *m_traceTime;
+    QTimer m_timer;
+    bool m_windowLocked;
 };
 
 class QmlProfilerTraceView : public QWidget
@@ -88,7 +88,7 @@ class QmlProfilerTraceView : public QWidget
     Q_OBJECT
 
 public:
-    explicit QmlProfilerTraceView(QWidget *parent, Analyzer::IAnalyzerTool *profilerTool, QmlProfilerViewManager *container, QmlProfilerDataModel *model, QmlProfilerStateManager *profilerState);
+    explicit QmlProfilerTraceView(QWidget *parent, Analyzer::IAnalyzerTool *profilerTool, QmlProfilerViewManager *container, QmlProfilerModelManager *modelManager, QmlProfilerStateManager *profilerState);
     ~QmlProfilerTraceView();
 
     void reset();
@@ -96,10 +96,12 @@ public:
     bool hasValidSelection() const;
     qint64 selectionStart() const;
     qint64 selectionEnd() const;
+    void showContextMenu(QPoint position);
 
 public slots:
-    void clearDisplay();
-    void selectNextEventWithId(int eventId);
+    void clear();
+    void selectNextEventByHash(const QString &eventHash);
+    void selectNextEventByLocation(const QString &filename, const int line, const int column);
 
 private slots:
     void updateCursorPosition();
@@ -108,46 +110,47 @@ private slots:
     void toggleLockMode(bool);
     void updateLockButton();
 
-    void setZoomLevel(int zoomLevel);
     void updateRange();
-    void mouseWheelMoved(int mouseX, int mouseY, int wheelDelta);
 
     void updateToolTip(const QString &text);
-    void updateVerticalScroll(int newPosition);
     void profilerDataModelStateChanged();
 
 protected:
     virtual void resizeEvent(QResizeEvent *event);
+    virtual void contextMenuEvent(QContextMenuEvent *event);
+    virtual void mousePressEvent(QMouseEvent *event);
+    virtual void mouseReleaseEvent(QMouseEvent *event);
 
 private slots:
-    void profilerStateChanged();
-    void clientRecordingChanged();
-    void serverRecordingChanged();
+    void setZoomSliderEnabled(bool enabled);
+    void setZoomSliderVisible(bool visible);
 
 signals:
     void gotoSourceLocation(const QString &fileUrl, int lineNumber, int columNumber);
-    void selectedEventChanged(int eventId);
 
     void jumpToPrev();
     void jumpToNext();
     void rangeModeChanged(bool);
     void lockModeChanged(bool);
     void enableToolbar(bool);
-    void zoomLevelChanged(int);
+    void showZoomSlider(bool);
 
     void resized();
 
 private:
-    void contextMenuEvent(QContextMenuEvent *);
     QWidget *createToolbar();
-    QWidget *createZoomToolbar();
-
-    void setRecording(bool recording);
-    void setAppKilled();
 
 private:
     class QmlProfilerTraceViewPrivate;
     QmlProfilerTraceViewPrivate *d;
+};
+
+class QmlProfilerQuickView : public QQuickView {
+public:
+    QmlProfilerQuickView(QmlProfilerTraceView *parent) : parent(parent) {}
+protected:
+    QmlProfilerTraceView *parent;
+    bool event(QEvent *ev);
 };
 
 } // namespace Internal

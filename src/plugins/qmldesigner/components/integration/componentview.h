@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -95,7 +95,7 @@ public:
     void rewriterBeginTransaction() QTC_OVERRIDE;
     void rewriterEndTransaction() QTC_OVERRIDE;
 
-    void actualStateChanged(const ModelNode &node) QTC_OVERRIDE;
+    void currentStateChanged(const ModelNode &node) QTC_OVERRIDE;
 
     void selectedNodesChanged(const QList<ModelNode> &selectedNodeList,
                                       const QList<ModelNode> &lastSelectedNodeList) QTC_OVERRIDE;
@@ -116,6 +116,7 @@ public:
     ModelNode modelNode(int index) const;
 
     void setComponentNode(const ModelNode &node);
+    void setComponentToMaster();
 
 signals:
     void componentListChanged(const QStringList &componentList);
@@ -125,7 +126,14 @@ private: //functions
     void searchForComponentAndAddToList(const ModelNode &node);
     void searchForComponentAndRemoveFromList(const ModelNode &node);
     void removeSingleNodeFromList(const ModelNode &node);
-    int indexForNode(const ModelNode &node);
+    int indexForNode(const ModelNode &node) const;
+    int indexOfMaster() const;
+    bool hasMasterEntry() const;
+    bool hasEntryForNode(const ModelNode &node) const;
+    void addMasterDocument();
+    void removeMasterDocument();
+    QString descriptionForNode(const ModelNode &node) const;
+    void updateDescription(const ModelNode &node);
 
 private:
     QStandardItemModel *m_standardItemModel;

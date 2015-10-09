@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -114,6 +114,7 @@ const char CLOSE[]                 = "QtCreator.Close";
 const char CLOSE_ALTERNATIVE[]     = "QtCreator.Close_Alternative"; // temporary, see QTCREATORBUG-72
 const char CLOSEALL[]              = "QtCreator.CloseAll";
 const char CLOSEOTHERS[]           = "QtCreator.CloseOthers";
+const char CLOSEALLEXCEPTVISIBLE[] = "QtCreator.CloseAllExceptVisible";
 const char GOTONEXT[]              = "QtCreator.GotoNext";
 const char GOTOPREV[]              = "QtCreator.GotoPrevious";
 const char GOTONEXTINHISTORY[]     = "QtCreator.GotoNextInHistory";
@@ -174,6 +175,7 @@ const char G_WINDOW_OTHER[]        = "QtCreator.Group.Window.Other";
 
 // Help groups (global)
 const char G_HELP_HELP[]           = "QtCreator.Group.Help.Help";
+const char G_HELP_SUPPORT[]        = "QtCreator.Group.Help.Supprt";
 const char G_HELP_ABOUT[]          = "QtCreator.Group.Help.About";
 
 const char ICON_MINUS[]              = ":/core/images/minus.png";
@@ -204,8 +206,11 @@ const char ICON_CLOSE_SPLIT_TOP[]    = ":/core/images/splitbutton_closetop.png";
 const char ICON_CLOSE_SPLIT_BOTTOM[] = ":/core/images/splitbutton_closebottom.png";
 const char ICON_CLOSE_SPLIT_LEFT[]   = ":/core/images/splitbutton_closeleft.png";
 const char ICON_CLOSE_SPLIT_RIGHT[]  = ":/core/images/splitbutton_closeright.png";
+const char ICON_SIDE_BY_SIDE_DIFF[]  = ":/core/images/sidebysidediff.png";
+const char ICON_TEXT_DIFF[]          = ":/core/images/textdiff.png";
 const char ICON_FILTER[]             = ":/core/images/filtericon.png";
 const char ICON_LINK[]               = ":/core/images/linkicon.png";
+const char ICON_PAUSE[]              = ":/core/images/pause.png";
 const char ICON_QTLOGO_32[]          = ":/core/images/logo/32/QtProject-qtcreator.png";
 const char ICON_QTLOGO_64[]          = ":/core/images/logo/64/QtProject-qtcreator.png";
 const char ICON_QTLOGO_128[]         = ":/core/images/logo/128/QtProject-qtcreator.png";

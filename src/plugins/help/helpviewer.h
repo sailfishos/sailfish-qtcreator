@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,7 +30,7 @@
 #ifndef HELPVIEWER_H
 #define HELPVIEWER_H
 
-#include <find/ifindsupport.h>
+#include <coreplugin/find/ifindsupport.h>
 
 #include <qglobal.h>
 #include <QString>
@@ -82,7 +82,7 @@ public:
     bool isForwardAvailable() const;
     bool isBackwardAvailable() const;
 
-    bool findText(const QString &text, Find::FindFlags flags,
+    bool findText(const QString &text, Core::FindFlags flags,
         bool incremental, bool fromSearch, bool *wrapped = 0);
 
     static bool isLocalUrl(const QUrl &url);

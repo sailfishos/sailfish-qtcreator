@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2012 - 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -37,9 +37,7 @@
 namespace Qnx {
 namespace Internal {
 
-namespace Ui {
-class BlackBerryCreatePackageStepConfigWidget;
-}
+namespace Ui { class BlackBerryCreatePackageStepConfigWidget; }
 
 class BlackBerryCreatePackageStep;
 
@@ -58,10 +56,15 @@ public:
 private slots:
     void setPackageMode(bool signPackagesChecked);
     void showPasswords(bool show);
+    void setBundleMode(int qtLibraryIndex);
+    void updateDeployWidgetsState();
+    void deployLibraries();
 
 private:
     BlackBerryCreatePackageStep *m_step;
     Ui::BlackBerryCreatePackageStepConfigWidget *m_ui;
+
+    QMap<int, QString> m_qtLibraryExplanations;
 };
 
 } // namespace Internal

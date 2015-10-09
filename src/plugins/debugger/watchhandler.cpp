@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -36,17 +36,18 @@
 #include "debuggerengine.h"
 #include "debuggerinternalconstants.h"
 #include "debuggerprotocol.h"
+#include "simplifytype.h"
 #include "imageviewer.h"
 #include "watchutils.h"
 
 #include <utils/qtcassert.h>
 #include <utils/savedaction.h>
 
-#include <cplusplus/CppRewriter.h>
-
 #include <QDebug>
+#include <QFile>
 #include <QProcess>
 #include <QtAlgorithms>
+#include <QTabWidget>
 #include <QTextEdit>
 
 #include <ctype.h>
@@ -55,7 +56,7 @@
 //#define USE_EXPENSIVE_CHECKS 0
 
 #if USE_WATCH_MODEL_TEST
-#include "modeltest.h"
+#include <modeltest.h>
 #endif
 
 namespace Debugger {
@@ -274,6 +275,7 @@ private:
 WatchModel::WatchModel(WatchHandler *handler)
     : m_handler(handler)
 {
+    setObjectName(QLatin1String("WatchModel"));
     m_root = createItem(QByteArray(), tr("Root"), 0);
     // Note: Needs to stay
     m_localsRoot = createItem("local", tr("Locals"), m_root);
@@ -476,7 +478,7 @@ static QString niceTypeHelper(const QByteArray &typeIn)
     const Cache::const_iterator it = cache.constFind(typeIn);
     if (it != cache.constEnd())
         return it.value();
-    const QString simplified = CPlusPlus::simplifySTLType(QLatin1String(typeIn));
+    const QString simplified = simplifyType(QLatin1String(typeIn));
     cache.insert(typeIn, simplified); // For simplicity, also cache unmodified types
     return simplified;
 }
@@ -506,6 +508,25 @@ static int formatToIntegerBase(int format)
     return 10;
 }
 
+static bool isIntegralValue(const QString &value)
+{
+    if (value.startsWith(QLatin1Char('-')))
+        return isIntegralValue(value.mid(1));
+
+    bool ok;
+    value.toULongLong(&ok, 10);
+    if (ok)
+        return true;
+    value.toULongLong(&ok, 16);
+    if (ok)
+        return true;
+    value.toULongLong(&ok, 8);
+    if (ok)
+        return true;
+
+    return false;
+}
+
 template <class IntType> QString reformatInteger(IntType value, int format)
 {
     switch (format) {
@@ -516,16 +537,45 @@ template <class IntType> QString reformatInteger(IntType value, int format)
         case OctalFormat:
             return QLatin1String("(oct) ") + QString::number(value, 8);
     }
-    return QString::number(value); // not reached
+    return QString::number(value, 10); // not reached
+}
+
+static QString reformatInteger(quint64 value, int format, int size, bool isSigned)
+{
+    // Follow convention and don't show negative non-decimal numbers.
+    if (format != DecimalFormat)
+        isSigned = false;
+
+    switch (size) {
+        case 1:
+            value = value & 0xff;
+            return isSigned
+                ? reformatInteger<qint8>(value, format)
+                : reformatInteger<quint8>(value, format);
+        case 2:
+            value = value & 0xffff;
+            return isSigned
+                ? reformatInteger<qint16>(value, format)
+                : reformatInteger<quint16>(value, format);
+        case 4:
+            value = value & 0xffffffff;
+            return isSigned
+                ? reformatInteger<qint32>(value, format)
+                : reformatInteger<quint32>(value, format);
+        default:
+        case 8: return isSigned
+                ? reformatInteger<qint64>(value, format)
+                : reformatInteger<quint64>(value, format);
+    }
 }
 
 // Format printable (char-type) characters
 static QString reformatCharacter(int code, int format)
 {
-    const QString codeS = reformatInteger(code, format);
+    const QString codeS = reformatInteger(code, format, 1, true);
     if (code < 0) // Append unsigned value.
-        return codeS + QLatin1String(" / ") + reformatInteger(256 + code, format);
-    const QChar c = QLatin1Char(code);
+        return codeS + QLatin1String(" / ") + reformatInteger(256 + code, format, 1, false);
+    const QChar c = QChar(uint(code));
     if (c.isPrint())
         return codeS + QLatin1String(" '") + c + QLatin1Char('\'');
     switch (code) {
@@ -621,17 +671,10 @@ QString WatchModel::formattedValue(const WatchData &data) const
         return value;
     }
 
-    if (isIntType(data.type)) {
-        if (value.isEmpty())
-            return value;
-        // Do not reformat booleans (reported as 'true, false').
-        const QChar firstChar = value.at(0);
-        if (!firstChar.isDigit() && firstChar != QLatin1Char('-'))
-            return value;
-
+    if (isIntegralValue(value)) {
         // Append quoted, printable character also for decimal.
         const int format = itemFormat(data);
-        if (data.type.endsWith("char")) {
+        if (data.type.endsWith("char") || data.type.endsWith("QChar")) {
             bool ok;
             const int code = value.toInt(&ok);
             return ok ? reformatCharacter(code, format) : value;
@@ -639,10 +682,10 @@ QString WatchModel::formattedValue(const WatchData &data) const
         // Rest: Leave decimal as is
         if (format <= 0)
             return value;
-        // Evil hack, covers 'unsigned' as well as quint64.
-        if (data.type.contains('u'))
-            return reformatInteger(value.toULongLong(0, 0), format);
-        return reformatInteger(value.toLongLong(), format);
+
+        bool isSigned = value.startsWith(QLatin1Char('-'));
+        quint64 raw = isSigned ? quint64(value.toLongLong()): value.toULongLong();
+        return reformatInteger(raw, format, data.size, isSigned);
     }
 
     if (data.type == "va_list")
@@ -653,7 +696,7 @@ QString WatchModel::formattedValue(const WatchData &data) const
         qulonglong integer = value.toULongLong(&ok, 0);
         if (ok) {
             const int format = itemFormat(data);
-            return reformatInteger(integer, format);
+            return reformatInteger(integer, format, data.size, false);
         }
     }
 
@@ -968,14 +1011,6 @@ QString WatchModel::displayType(const WatchData &data) const
     return result;
 }
 
-QString WatchModel::displayForAutoTest(const QByteArray &iname) const
-{
-    WatchItem *item = findItem(iname);
-    if (item)
-        return displayValue(*item) + QLatin1Char(' ') + displayType(*item);
-    return QString();
-}
-
 QVariant WatchModel::data(const QModelIndex &idx, int role) const
 {
     if (!idx.isValid())
@@ -1206,6 +1241,11 @@ QVariant WatchModel::headerData(int section, Qt::Orientation orientation, int ro
     return QVariant();
 }
 
+static inline QString msgArrayFormat(int n)
+{
+    return WatchModel::tr("Array of %n items", 0, n);
+}
+
 QStringList WatchModel::typeFormatList(const WatchData &data) const
 {
     if (data.origaddr || isPointerType(data.type))
@@ -1216,16 +1256,16 @@ QStringList WatchModel::typeFormatList(const WatchData &data) const
             << tr("Local 8bit string")
             << tr("UTF16 string")
             << tr("UCS4 string")
-            << tr("Array of 10 items")
-            << tr("Array of 1000 items");
+            << msgArrayFormat(10)
+            << msgArrayFormat(100)
+            << msgArrayFormat(1000)
+            << msgArrayFormat(10000);
     if (data.type.contains("char[") || data.type.contains("char ["))
         return QStringList()
             << tr("Latin1 string")
             << tr("UTF8 string")
             << tr("Local 8bit string");
-    bool ok = false;
-    (void)data.value.toULongLong(&ok, 0);
-    if ((isIntType(data.type) && data.type != "bool") || ok)
+    if (isIntegralValue(data.value))
         return QStringList()
             << tr("Decimal")
             << tr("Hexadecimal")
@@ -1441,8 +1481,7 @@ WatchHandler::WatchHandler(DebuggerEngine *engine)
 {
     m_separateWindow = 0;
     m_engine = engine;
-    m_watcherCounter = debuggerCore()->sessionValue(QLatin1String("Watchers"))
-            .toStringList().count();
+    m_watcherCounter = DebuggerCore::sessionValue("Watchers").toStringList().count();
     m_model = new WatchModel(this);
     m_contentsValid = false;
     m_contentsValid = true; // FIXME
@@ -1452,7 +1491,7 @@ WatchHandler::WatchHandler(DebuggerEngine *engine)
 WatchHandler::~WatchHandler()
 {
     if (m_separateWindow) {
-        debuggerCore()->setSessionValue(QLatin1String("DebuggerSeparateWidgetGeometry"),
+        DebuggerCore::setSessionValue("DebuggerSeparateWidgetGeometry",
                 m_separateWindow->geometry());
         delete m_separateWindow;
         m_separateWindow = 0;
@@ -1643,8 +1682,7 @@ void WatchHandler::showSeparateWidget(QWidget *w)
 {
     if (m_separateWindow.isNull()) {
         m_separateWindow = new SeparateViewWidget(debuggerCore()->mainWindow());
-        QVariant geometry = debuggerCore()->
-                sessionValue(QLatin1String("DebuggerSeparateWidgetGeometry"));
+        QVariant geometry = DebuggerCore::sessionValue("DebuggerSeparateWidgetGeometry");
         if (geometry.isValid())
             m_separateWindow->setGeometry(geometry.toRect());
     }
@@ -1802,24 +1840,31 @@ QStringList WatchHandler::watchedExpressions()
 
 void WatchHandler::saveWatchers()
 {
-    debuggerCore()->setSessionValue(QLatin1String("Watchers"), QVariant(watchedExpressions()));
+    DebuggerCore::setSessionValue("Watchers", watchedExpressions());
 }
 
-void WatchHandler::loadTypeFormats()
+void WatchHandler::loadFormats()
 {
-    QVariant value = debuggerCore()->sessionValue(QLatin1String("DefaultFormats"));
-    QMap<QString, QVariant> typeFormats = value.toMap();
-    QMapIterator<QString, QVariant> it(typeFormats);
+    QVariant value = DebuggerCore::sessionValue("DefaultFormats");
+    QMapIterator<QString, QVariant> it(value.toMap());
     while (it.hasNext()) {
         it.next();
         if (!it.key().isEmpty())
             theTypeFormats.insert(it.key().toUtf8(), it.value().toInt());
     }
+
+    value = DebuggerCore::sessionValue("IndividualFormats");
+    it = QMapIterator<QString, QVariant>(value.toMap());
+    while (it.hasNext()) {
+        it.next();
+        if (!it.key().isEmpty())
+            theIndividualFormats.insert(it.key().toUtf8(), it.value().toInt());
+    }
 }
 
-void WatchHandler::saveTypeFormats()
+void WatchHandler::saveFormats()
 {
-    QMap<QString, QVariant> typeFormats;
+    QMap<QString, QVariant> formats;
     QHashIterator<QByteArray, int> it(theTypeFormats);
     while (it.hasNext()) {
         it.next();
@@ -1827,42 +1872,38 @@ void WatchHandler::saveTypeFormats()
         if (format != DecimalFormat) {
             const QByteArray key = it.key().trimmed();
             if (!key.isEmpty())
-                typeFormats.insert(QLatin1String(key), format);
+                formats.insert(QString::fromLatin1(key), format);
         }
     }
-    debuggerCore()->setSessionValue(QLatin1String("DefaultFormats"),
-                                    QVariant(typeFormats));
+    DebuggerCore::setSessionValue("DefaultFormats", formats);
+
+    formats.clear();
+    it = QHashIterator<QByteArray, int>(theIndividualFormats);
+    while (it.hasNext()) {
+        it.next();
+        const int format = it.value();
+        const QByteArray key = it.key().trimmed();
+        if (!key.isEmpty())
+            formats.insert(QString::fromLatin1(key), format);
+    }
+    DebuggerCore::setSessionValue("IndividualFormats", formats);
 }
 
 void WatchHandler::saveSessionData()
 {
     saveWatchers();
-    saveTypeFormats();
+    saveFormats();
 }
 
 void WatchHandler::loadSessionData()
 {
-    loadTypeFormats();
+    loadFormats();
     theWatcherNames.clear();
     m_watcherCounter = 0;
-    QVariant value = debuggerCore()->sessionValue(QLatin1String("Watchers"));
+    QVariant value = DebuggerCore::sessionValue("Watchers");
     m_model->destroyChildren(m_model->m_watchRoot);
     foreach (const QString &exp, value.toStringList())
         watchExpression(exp);
-}
-
-void WatchHandler::updateWatchers()
-{
-    m_model->destroyChildren(m_model->m_watchRoot);
-    // Copy over all watchers and mark all watchers as incomplete.
-    foreach (const QByteArray &exp, theWatcherNames.keys()) {
-        WatchData data;
-        data.iname = watcherName(exp);
-        data.setAllNeeded();
-        data.name = QLatin1String(exp);
-        data.exp = exp;
-        insertIncompleteData(data);
-    }
 }
 
 QAbstractItemModel *WatchHandler::model() const
@@ -1899,11 +1940,6 @@ const WatchData *WatchHandler::findCppLocalVariable(const QString &name) const
     return 0;
 }
 
-QString WatchHandler::displayForAutoTest(const QByteArray &iname) const
-{
-    return m_model->displayForAutoTest(iname);
-}
-
 bool WatchHandler::hasItem(const QByteArray &iname) const
 {
     return m_model->findItem(iname);
@@ -1916,7 +1952,7 @@ void WatchHandler::setFormat(const QByteArray &type0, int format)
         theTypeFormats.remove(type);
     else
         theTypeFormats[type] = format;
-    saveTypeFormats();
+    saveFormats();
     m_model->emitDataChanged(1);
 }
 
@@ -1991,25 +2027,6 @@ QString WatchHandler::editorContents()
     QString contents;
     m_model->showInEditorHelper(&contents, m_model->m_root, 0);
     return contents;
-}
-
-void WatchHandler::removeTooltip()
-{
-    m_model->destroyChildren(m_model->m_tooltipRoot);
-}
-
-void WatchHandler::rebuildModel()
-{
-//    m_model->destroyChildren(m_model->m_watchRoot);
-
-//    foreach (const QString &exp, watchedExpressions()) {
-//        WatchData data;
-//        data.exp = exp.toLatin1();
-//        data.name = exp;
-//        data.iname = watcherName(data.exp);
-//        data.setAllUnneeded();
-//        insertIncompleteData(data);
-//    }
 }
 
 void WatchHandler::setTypeFormats(const TypeFormats &typeFormats)

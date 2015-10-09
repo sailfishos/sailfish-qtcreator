@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -31,6 +31,8 @@
 
 #include "blackberrydebugtokenreader.h"
 
+#include <QStringList>
+
 #ifdef QNX_ZIP_FILE_SUPPORT
 #include <private/qzipreader_p.h>
 #endif
@@ -39,10 +41,14 @@ using namespace Qnx;
 using namespace Qnx::Internal;
 
 namespace {
+#ifdef QNX_ZIP_FILE_SUPPORT
 const char MANIFEST_FILENAME[] = "META-INF/MANIFEST.MF";
+#endif
 
 const char MANIFEST_AUTHOR_KEY[]    = "Package-Author: ";
 const char MANIFEST_AUTHOR_ID_KEY[] = "Package-Author-Id: ";
+const char MANIFEST_EXPIRY[]        = "Debug-Token-Expiry-Date: ";
+const char MANIFEST_PINS[]          = "Debug-Token-Device-Id: ";
 }
 
 BlackBerryDebugTokenReader::BlackBerryDebugTokenReader(const QString &filePath)
@@ -81,6 +87,24 @@ QString BlackBerryDebugTokenReader::author() const
 QString BlackBerryDebugTokenReader::authorId() const
 {
     return manifestValue(MANIFEST_AUTHOR_ID_KEY);
+}
+
+QString BlackBerryDebugTokenReader::expiry() const
+{
+    return manifestValue(MANIFEST_EXPIRY);
+}
+
+QString BlackBerryDebugTokenReader::pins() const
+{
+    const QString value = manifestValue(MANIFEST_PINS);
+    QStringList pins = value.split(QLatin1Char(','));
+    QStringList pinsHexa;
+    foreach (const QString &pin, pins) {
+        QString hexa;
+        pinsHexa << hexa.setNum(pin.toUInt(), 16);
+    }
+
+    return pinsHexa.join(QLatin1String(","));
 }
 
 bool BlackBerryDebugTokenReader::isSupported()

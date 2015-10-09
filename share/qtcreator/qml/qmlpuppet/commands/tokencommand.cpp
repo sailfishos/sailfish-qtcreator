@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,6 +30,7 @@
 #include "tokencommand.h"
 
 #include <QDataStream>
+#include <QDebug>
 
 namespace QmlDesigner {
 
@@ -60,6 +61,11 @@ QVector<qint32> TokenCommand::instances() const
     return m_instanceIdVector;
 }
 
+void TokenCommand::sort()
+{
+    qSort(m_instanceIdVector);
+}
+
 QDataStream &operator<<(QDataStream &out, const TokenCommand &command)
 {
     out << command.tokenName();
@@ -77,5 +83,19 @@ QDataStream &operator>>(QDataStream &in, TokenCommand &command)
     return in;
 }
 
+bool operator ==(const TokenCommand &first, const TokenCommand &second)
+{
+    return first.m_tokenName == second.m_tokenName
+            && first.m_tokenNumber == second.m_tokenNumber
+            && first.m_instanceIdVector == second.m_instanceIdVector;
+}
+
+QDebug operator <<(QDebug debug, const TokenCommand &command)
+{
+    return debug.nospace() << "TokenCommand("
+                           << "tokenName: " << command.tokenName() << ", "
+                           << "tokenNumber: " << command.tokenNumber() << ", "
+                           << "instances: " << command.instances() << ")";
+}
 
 } // namespace QmlDesigner

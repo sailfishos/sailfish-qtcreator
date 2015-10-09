@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2012 - 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -34,6 +34,8 @@
 
 #include <remotelinux/remotelinuxrunconfiguration.h>
 
+namespace Utils { class Environment; }
+
 namespace Qnx {
 namespace Internal {
 
@@ -44,7 +46,7 @@ public:
     QnxRunConfiguration(ProjectExplorer::Target *parent, const Core::Id id,
             const QString &projectFilePath);
 
-    QString environmentPreparationCommand() const;
+    Utils::Environment environment() const;
 
     QWidget *createConfigurationWidget();
 

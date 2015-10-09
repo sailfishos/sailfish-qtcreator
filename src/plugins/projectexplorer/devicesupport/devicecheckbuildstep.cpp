@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2011 - 2014 Research In Motion
 **
 ** Contact: Research In Motion (blackberry-qt@qnx.com)
 ** Contact: KDAB (info@kdab.com)
@@ -100,7 +100,7 @@ BuildStepConfigWidget *DeviceCheckBuildStep::createConfigWidget()
 
 Core::Id DeviceCheckBuildStep::stepId()
 {
-    return Core::Id("ProjectExplorer.DeviceCheckBuildStep");
+    return "ProjectExplorer.DeviceCheckBuildStep";
 }
 
 QString DeviceCheckBuildStep::stepDisplayName()

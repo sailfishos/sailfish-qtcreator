@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2013 Jolla Ltd.
+** Copyright (C) 2012 - 2014 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -20,17 +20,18 @@
 **
 ****************************************************************************/
 
-#include "merconstants.h"
 #include "merrunconfiguration.h"
+
+#include "merconstants.h"
 #include "merdeployconfiguration.h"
-#include <remotelinux/remotelinuxenvironmentaspect.h>
 #include "projectexplorer/kitinformation.h"
 
-#include <projectexplorer/target.h>
-#include <projectexplorer/project.h>
-#include <projectexplorer/deploymentdata.h>
 #include <projectexplorer/deployconfiguration.h>
+#include <projectexplorer/deploymentdata.h>
 #include <projectexplorer/kitinformation.h>
+#include <projectexplorer/project.h>
+#include <projectexplorer/target.h>
+#include <remotelinux/remotelinuxenvironmentaspect.h>
 
 namespace Mer {
 namespace Internal {
@@ -69,8 +70,7 @@ bool MerRunConfiguration::isEnabled() const
     ProjectExplorer::DeployConfiguration* conf = target()->activeDeployConfiguration();
     if(target()->kit())
     {
-        if(ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(target()->kit()) == Constants::MER_DEVICE_TYPE_ARM
-            && conf->id() == MerMb2RpmBuildConfiguration::configurationId()) {
+        if (conf->id() == MerMb2RpmBuildConfiguration::configurationId()) {
             m_disabledReason = tr("This deployment method does not support run configuration");
             return false;
         }
@@ -98,17 +98,12 @@ QString MerRunConfiguration::defaultRemoteExecutableFilePath() const
     return executable;
 }
 
-QString MerRunConfiguration::commandPrefix() const
+Utils::Environment MerRunConfiguration::environment() const
 {
-  RemoteLinux::RemoteLinuxEnvironmentAspect *aspect =
-    extraAspect<RemoteLinux::RemoteLinuxEnvironmentAspect>();
-  QTC_ASSERT(aspect, return QString());
-
-  // required by qtbase not to direct logs to journald
-  QString qtbaselogs = QString::fromLatin1("QT_NO_JOURNALD_LOG=1");
-
-  return QString::fromLatin1("%1 %2")
-      .arg(qtbaselogs, aspect->userEnvironmentChangesAsString());
+    Utils::Environment env(RemoteLinuxRunConfiguration::environment());
+    // required by qtbase not to direct logs to journald
+    env.appendOrSet(QLatin1String("QT_NO_JOURNALD_LOG"), QLatin1String("1"));
+    return env;
 }
 
 } // Internal

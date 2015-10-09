@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Hugues Delorme
+** Copyright (c) 2014 Hugues Delorme
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -59,6 +59,11 @@ bool BazaarControl::managesDirectory(const QString &directory, QString *topLevel
     if (topLevel)
         *topLevel = topLevelFound;
     return !topLevelFound.isEmpty();
+}
+
+bool BazaarControl::managesFile(const QString &workingDirectory, const QString &fileName) const
+{
+    return m_bazaarClient->managesFile(workingDirectory, fileName);
 }
 
 bool BazaarControl::isConfigured() const
@@ -120,26 +125,6 @@ bool BazaarControl::vcsMove(const QString &from, const QString &to)
 bool BazaarControl::vcsCreateRepository(const QString &directory)
 {
     return m_bazaarClient->synchronousCreateRepository(directory);
-}
-
-QString BazaarControl::vcsCreateSnapshot(const QString &)
-{
-    return QString();
-}
-
-QStringList BazaarControl::vcsSnapshots(const QString &)
-{
-    return QStringList();
-}
-
-bool BazaarControl::vcsRestoreSnapshot(const QString &, const QString &)
-{
-    return false;
-}
-
-bool BazaarControl::vcsRemoveSnapshot(const QString &, const QString &)
-{
-    return false;
 }
 
 bool BazaarControl::vcsAnnotate(const QString &file, int line)

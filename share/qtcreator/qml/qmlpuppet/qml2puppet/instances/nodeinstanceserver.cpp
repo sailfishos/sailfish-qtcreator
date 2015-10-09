@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -374,12 +374,10 @@ void NodeInstanceServer::setupImports(const QVector<AddImportContainer> &contain
 
     componentString += QString("Item {}\n");
 
-    if (quickView()) {
-        QQuickViewPrivate::get(quickView())->component = new QQmlComponent(engine(), quickView());
-        m_importComponent = QQuickViewPrivate::get(quickView())->component;
-    } else {
-        m_importComponent = new QQmlComponent(engine(), 0);
-    }
+    m_importComponent = new QQmlComponent(engine(), quickView());
+
+    if (quickView())
+        quickView()->setContent(fileUrl(), m_importComponent, quickView()->rootObject());
 
     m_importComponent->setData(componentString.toUtf8(), fileUrl());
     m_importComponentObject = m_importComponent->create();
@@ -413,8 +411,7 @@ void NodeInstanceServer::setupDummyData(const QUrl &fileUrl)
 void NodeInstanceServer::setupDefaultDummyData()
 {
     QQmlComponent component(engine());
-    QByteArray defaultContextObjectArray("import QtQuick 1.0\n"
-                                         "import QmlDesigner 1.0\n"
+    QByteArray defaultContextObjectArray("import QmlDesigner 1.0\n"
                                          "DummyContextObject {\n"
                                          "    parent: QtObject {\n"
                                          "        property real width: 360\n"

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -27,11 +27,11 @@
 **
 ****************************************************************************/
 
-import QtQuick 1.0
+import QtQuick 2.1
 
 Item {
     id: projectItem
-    width: 480
+    width: projectList.width
     height: 32
 
     Rectangle {
@@ -44,32 +44,30 @@ Item {
     property alias projectPath: pathText.text
 
     Image {
-        source: "images/bullet.png"
+        source: "images/project.png"
         anchors.verticalCenter: projectNameText.verticalCenter
-    }
-
-    CustomFonts {
-        id: fonts
+        width: 12
+        height: 12
     }
 
     LinkedText {
         id: projectNameText
         y: 2
         anchors.left: parent.left
-        anchors.leftMargin: 8
+        anchors.leftMargin: 7 + 12
         anchors.right: parent.right
         anchors.rightMargin: 4
         onClicked: projectWelcomePage.requestProject(filePath)
     }
 
-    Text {
+    NativeText {
         id: pathText
         y: 18
         color: "#6b6b6b"
         anchors.right: parent.right
         anchors.rightMargin: 12
         anchors.left: parent.left
-        anchors.leftMargin: 8
+        anchors.leftMargin: 7 + 12
         font: fonts.smallPath
         elide: Text.ElideRight
         MouseArea {

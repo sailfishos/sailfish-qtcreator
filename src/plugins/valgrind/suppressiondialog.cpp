@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 ** Author: Milian Wolff, KDAB (milian.wolff@kdab.com)
 **
@@ -55,7 +55,6 @@
 #include <QLabel>
 #include <QPlainTextEdit>
 
-using namespace Analyzer;
 using namespace Valgrind::XmlProtocol;
 
 namespace Valgrind {
@@ -159,6 +158,7 @@ SuppressionDialog::SuppressionDialog(MemcheckErrorView *view, const QList<Error>
     }
 
     m_fileChooser->setExpectedKind(Utils::PathChooser::File);
+    m_fileChooser->setHistoryCompleter(QLatin1String("Valgrind.Suppression.History"));
     m_fileChooser->setPath(defaultSuppFile.fileName());
     m_fileChooser->setPromptDialogFilter(QLatin1String("*.supp"));
     m_fileChooser->setPromptDialogTitle(tr("Select Suppression File"));
@@ -212,17 +212,16 @@ void SuppressionDialog::accept()
         return;
 
     // Add file to project if there is a project containing this file on the file system.
-    ProjectExplorer::SessionManager *session = ProjectExplorer::ProjectExplorerPlugin::instance()->session();
-    if (!session->projectForFile(path)) {
-        foreach (ProjectExplorer::Project *p, session->projects()) {
+    if (!ProjectExplorer::SessionManager::projectForFile(path)) {
+        foreach (ProjectExplorer::Project *p, ProjectExplorer::SessionManager::projects()) {
             if (path.startsWith(p->projectDirectory())) {
-                p->rootProjectNode()->addFiles(ProjectExplorer::UnknownFileType, QStringList() << path);
+                p->rootProjectNode()->addFiles(QStringList() << path);
                 break;
             }
         }
     }
 
-    m_settings->subConfig<ValgrindBaseSettings>()->addSuppressionFiles(QStringList(path));
+    m_settings->addSuppressionFiles(QStringList(path));
 
     QModelIndexList indices = m_view->selectionModel()->selectedRows();
     qSort(indices.begin(), indices.end(), sortIndizesReverse);

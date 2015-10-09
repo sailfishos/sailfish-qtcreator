@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Denis Mingulov
+** Copyright (c) 2014 Denis Mingulov
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -37,11 +37,6 @@ namespace Internal {
 
 class TreeItemModelPrivate;
 
-/*!
-   \class TreeItemModel
-   \brief Model for Class View Tree
- */
-
 class TreeItemModel : public QStandardItemModel
 {
     Q_OBJECT
@@ -50,10 +45,6 @@ public:
     explicit TreeItemModel(QObject *parent=0);
     virtual ~TreeItemModel();
 
-    /*!
-       \brief move root item to the target
-       \param target Target item
-     */
     void moveRootToTarget(const QStandardItem *target);
 
     //! \implements QStandardItemModel::data

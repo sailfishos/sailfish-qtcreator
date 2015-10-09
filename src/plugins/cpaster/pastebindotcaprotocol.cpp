@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -37,6 +37,28 @@
 #include <QStringList>
 
 static const char urlC[] = "http://pastebin.ca/";
+static const char protocolNameC[] = "Pastebin.Ca";
+
+static inline QByteArray expiryValue(int expiryDays)
+{
+    // pastebin.ca supports 1-3 days, 1-3 weeks, 1-6 months, 1 year
+    const int months = expiryDays / 30;
+    const int weeks = expiryDays / 7;
+
+    if (expiryDays == 1)
+        return "1 day";
+    if (expiryDays < 4)
+        return QByteArray::number(expiryDays) + " days";
+    if (weeks <= 1)
+        return "1 week";
+    if (weeks <= 3)
+        return QByteArray::number(weeks) + " weeks";
+    if (months <= 1)
+        return "1 month";
+    if (months <= 6)
+        return QByteArray::number(months) + " months";
+    return "1 year"; // using Never makes the post expire after 1 month
+}
 
 namespace CodePaster {
 PasteBinDotCaProtocol::PasteBinDotCaProtocol() :
@@ -47,9 +69,14 @@ PasteBinDotCaProtocol::PasteBinDotCaProtocol() :
 {
 }
 
+QString PasteBinDotCaProtocol::protocolName()
+{
+    return QLatin1String(protocolNameC);
+}
+
 unsigned PasteBinDotCaProtocol::capabilities() const
 {
-    return ListCapability | PostDescriptionCapability;
+    return ListCapability | PostDescriptionCapability | PostCommentCapability;
 }
 
 void PasteBinDotCaProtocol::fetch(const QString &id)
@@ -90,8 +117,8 @@ static QByteArray toTypeId(Protocol::ContentType ct)
 
 void PasteBinDotCaProtocol::paste(const QString &text,
                                   ContentType ct, int expiryDays,
-                                  const QString &username,
-                                  const QString & /* comment */,
+                                  const QString &/* username */,
+                                  const QString & comment,
                                   const QString &description)
 {
     QTC_ASSERT(!m_pasteReply, return);
@@ -101,11 +128,11 @@ void PasteBinDotCaProtocol::paste(const QString &text,
     data += "&type=";
     data += toTypeId(ct);
     data += "&description=";
-    data += QUrl::toPercentEncoding(description);
+    data += QUrl::toPercentEncoding(comment);
     data += "&expiry=";
-    data += QByteArray::number(expiryDays);
-    data += "%20day&name=";
-    data += QUrl::toPercentEncoding(username);
+    data += QUrl::toPercentEncoding(QLatin1String(expiryValue(expiryDays)));
+    data += "&name="; // Title or name.
+    data += QUrl::toPercentEncoding(description);
     // fire request
     const QString link = QLatin1String(urlC) + QLatin1String("quiet-paste.php");
     m_pasteReply = httpPost(link, data);
@@ -115,7 +142,7 @@ void PasteBinDotCaProtocol::paste(const QString &text,
 void PasteBinDotCaProtocol::pasteFinished()
 {
     if (m_pasteReply->error()) {
-        qWarning("Pastebin.ca protocol error: %s", qPrintable(m_pasteReply->errorString()));
+        qWarning("%s protocol error: %s", protocolNameC, qPrintable(m_pasteReply->errorString()));
     } else {
         /// returns ""SUCCESS:[id]""
         const QByteArray data = m_pasteReply->readAll();
@@ -134,7 +161,7 @@ void PasteBinDotCaProtocol::fetchFinished()
     if (error) {
         content = m_fetchReply->errorString();
     } else {
-        title = QString::fromLatin1("Pastebin.ca: %1").arg(m_fetchId);
+        title = name() + QLatin1String(": ") + m_fetchId;
         const QByteArray data = m_fetchReply->readAll();
         content = QString::fromUtf8(data);
         content.remove(QLatin1Char('\r'));
@@ -220,7 +247,7 @@ void PasteBinDotCaProtocol::listFinished()
 {
     const bool error = m_listReply->error();
     if (error)
-        qWarning("pastebin.ca list failed: %s", qPrintable(m_listReply->errorString()));
+        qWarning("%s list failed: %s", protocolNameC, qPrintable(m_listReply->errorString()));
     else
         emit listDone(name(), parseLists(m_listReply));
     m_listReply->deleteLater();

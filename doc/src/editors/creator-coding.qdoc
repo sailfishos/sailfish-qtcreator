@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (c) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (c) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator
@@ -23,7 +23,7 @@
 // **********************************************************************
 
 /*!
-    \contentspage index.html
+    \contentspage {Qt Creator Manual}
     \previouspage creator-usability.html
     \page creator-coding.html
     \nextpage creator-editor-functions.html
@@ -45,7 +45,7 @@
 
             Use the incremental and advanced search to search from currently
             open projects or files on the file system or use the locator to
-            browse through projects, files, classes, methods, documentation and
+            browse through projects, files, classes, functions, documentation and
             file systems.
 
         \li \l{Refactoring}
@@ -55,10 +55,16 @@
             can easily find and rename symbols and apply predefined actions to
             refactor code.
 
+        \li \l{Beautifying Source Code}
+
+            Beautifying code means applying indentation and style to source
+            code files. You can use the Artistic Style, ClangFormat, or
+            Uncrustify tool to format source files.
+
         \li \l{Configuring the Editor}
 
             You can change the fonts, colors, highlighting, and indentation.
-            If you are used to the the Vim editor, you can even run the main
+            If you are used to the Vim editor, you can even run the main
             editor in a manner similar to it in the \gui{FakeVim} mode.
 
     \endlist
@@ -77,6 +83,14 @@
 
             You can use a diff editor to compare two versions of a file and
             view the differences side-by-side in the \gui Edit mode.
+
+        \li \l{Parsing C++ Files}
+
+            An experimental Clang code model plugin enables you to replace the
+            built-in \QC code model with the Clang code model. Clang is a C
+            language family front end for LLVM. Clang provides you with more
+            accurate information than the built-in code model but can be slower
+            to use for large projects.
 
     \endlist
 

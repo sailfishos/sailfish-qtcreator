@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -31,7 +31,11 @@
 
 #include "genericmakestep.h"
 #include "genericproject.h"
+#include "genericprojectconstants.h"
 
+#include <coreplugin/icore.h>
+#include <coreplugin/mimedatabase.h>
+#include <projectexplorer/buildinfo.h>
 #include <projectexplorer/buildsteplist.h>
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/projectexplorerconstants.h>
@@ -48,7 +52,6 @@ namespace GenericProjectManager {
 namespace Internal {
 
 const char GENERIC_BC_ID[] = "GenericProjectManager.GenericBuildConfiguration";
-const char BUILD_DIRECTORY_KEY[] = "GenericProjectManager.GenericBuildConfiguration.BuildDirectory";
 
 GenericBuildConfiguration::GenericBuildConfiguration(Target *parent)
     : BuildConfiguration(parent, Core::Id(GENERIC_BC_ID))
@@ -61,48 +64,9 @@ GenericBuildConfiguration::GenericBuildConfiguration(Target *parent, const Core:
 }
 
 GenericBuildConfiguration::GenericBuildConfiguration(Target *parent, GenericBuildConfiguration *source) :
-    BuildConfiguration(parent, source),
-    m_buildDirectory(source->m_buildDirectory)
+    BuildConfiguration(parent, source)
 {
     cloneSteps(source);
-}
-
-QVariantMap GenericBuildConfiguration::toMap() const
-{
-    QVariantMap map(BuildConfiguration::toMap());
-    map.insert(QLatin1String(BUILD_DIRECTORY_KEY), m_buildDirectory);
-    return map;
-}
-
-bool GenericBuildConfiguration::fromMap(const QVariantMap &map)
-{
-    m_buildDirectory = map.value(QLatin1String(BUILD_DIRECTORY_KEY), target()->project()->projectDirectory()).toString();
-
-    return BuildConfiguration::fromMap(map);
-}
-
-QString GenericBuildConfiguration::buildDirectory() const
-{
-    // Convert to absolute path when necessary
-    const QDir projectDir(target()->project()->projectDirectory());
-    return projectDir.absoluteFilePath(m_buildDirectory);
-}
-
-/**
- * Returns the build directory unmodified, instead of making it absolute like
- * buildDirectory() does.
- */
-QString GenericBuildConfiguration::rawBuildDirectory() const
-{
-    return m_buildDirectory;
-}
-
-void GenericBuildConfiguration::setBuildDirectory(const QString &buildDirectory)
-{
-    if (m_buildDirectory == buildDirectory)
-        return;
-    m_buildDirectory = buildDirectory;
-    emit buildDirectoryChanged();
 }
 
 NamedWidget *GenericBuildConfiguration::createConfigWidget()
@@ -123,53 +87,48 @@ GenericBuildConfigurationFactory::~GenericBuildConfigurationFactory()
 {
 }
 
-QList<Core::Id> GenericBuildConfigurationFactory::availableCreationIds(const Target *parent) const
+int GenericBuildConfigurationFactory::priority(const Target *parent) const
 {
-    if (!canHandle(parent))
-        return QList<Core::Id>();
-    return QList<Core::Id>() << Core::Id(GENERIC_BC_ID);
+    return canHandle(parent) ? 0 : -1;
 }
 
-QString GenericBuildConfigurationFactory::displayNameForId(const Core::Id id) const
+QList<BuildInfo *> GenericBuildConfigurationFactory::availableBuilds(const Target *parent) const
 {
-    if (id == GENERIC_BC_ID)
-        return tr("Build");
-    return QString();
+    QList<ProjectExplorer::BuildInfo *> result;
+    BuildInfo *info = createBuildInfo(parent->kit(), Utils::FileName::fromString(parent->project()->projectDirectory()));
+    result << info;
+    return result;
 }
 
-bool GenericBuildConfigurationFactory::canCreate(const Target *parent, const Core::Id id) const
+int GenericBuildConfigurationFactory::priority(const Kit *k, const QString &projectPath) const
 {
-    if (!canHandle(parent))
-        return false;
-    if (id == GENERIC_BC_ID)
-        return true;
-    return false;
+    return (k && Core::MimeDatabase::findByFile(QFileInfo(projectPath))
+            .matchesType(QLatin1String(Constants::GENERICMIMETYPE))) ? 0 : -1;
 }
 
-BuildConfiguration *GenericBuildConfigurationFactory::create(Target *parent, const Core::Id id, const QString &name)
+QList<BuildInfo *> GenericBuildConfigurationFactory::availableSetups(const Kit *k, const QString &projectPath) const
 {
-    if (!canCreate(parent, id))
-        return 0;
+    QList<BuildInfo *> result;
+    BuildInfo *info = createBuildInfo(k, Utils::FileName::fromString(ProjectExplorer::Project::projectDirectory(projectPath)));
+    //: The name of the build configuration created by default for a generic project.
+    info->displayName = tr("Default");
+    result << info;
+    return result;
+}
 
-    //TODO asking for name is duplicated everywhere, but maybe more
-    // wizards will show up, that incorporate choosing the nam
-    bool ok = true;
-    QString buildConfigurationName = name;
-    if (buildConfigurationName.isNull())
-        buildConfigurationName = QInputDialog::getText(0,
-                                                       tr("New Configuration"),
-                                                       tr("New configuration name:"),
-                                                       QLineEdit::Normal,
-                                                       QString(), &ok);
-    buildConfigurationName = buildConfigurationName.trimmed();
-    if (!ok || buildConfigurationName.isEmpty())
-        return 0;
+BuildConfiguration *GenericBuildConfigurationFactory::create(Target *parent, const BuildInfo *info) const
+{
+    QTC_ASSERT(info->factory() == this, return 0);
+    QTC_ASSERT(info->kitId == parent->kit()->id(), return 0);
+    QTC_ASSERT(!info->displayName.isEmpty(), return 0);
 
     GenericBuildConfiguration *bc = new GenericBuildConfiguration(parent);
-    bc->setDisplayName(buildConfigurationName);
+    bc->setDisplayName(info->displayName);
+    bc->setDefaultDisplayName(info->displayName);
+    bc->setBuildDirectory(info->buildDirectory);
 
-    BuildStepList *buildSteps = bc->stepList(Constants::BUILDSTEPS_BUILD);
-    BuildStepList *cleanSteps = bc->stepList(Constants::BUILDSTEPS_CLEAN);
+    BuildStepList *buildSteps = bc->stepList(ProjectExplorer::Constants::BUILDSTEPS_BUILD);
+    BuildStepList *cleanSteps = bc->stepList(ProjectExplorer::Constants::BUILDSTEPS_CLEAN);
 
     Q_ASSERT(buildSteps);
     GenericMakeStep *makeStep = new GenericMakeStep(buildSteps);
@@ -187,7 +146,9 @@ BuildConfiguration *GenericBuildConfigurationFactory::create(Target *parent, con
 
 bool GenericBuildConfigurationFactory::canClone(const Target *parent, BuildConfiguration *source) const
 {
-    return canCreate(parent, source->id());
+    if (!canHandle(parent))
+        return false;
+    return source->id() == GENERIC_BC_ID;
 }
 
 BuildConfiguration *GenericBuildConfigurationFactory::clone(Target *parent, BuildConfiguration *source)
@@ -199,7 +160,9 @@ BuildConfiguration *GenericBuildConfigurationFactory::clone(Target *parent, Buil
 
 bool GenericBuildConfigurationFactory::canRestore(const Target *parent, const QVariantMap &map) const
 {
-    return canCreate(parent, ProjectExplorer::idFromMap(map));
+    if (!canHandle(parent))
+        return false;
+    return ProjectExplorer::idFromMap(map) == GENERIC_BC_ID;
 }
 
 BuildConfiguration *GenericBuildConfigurationFactory::restore(Target *parent, const QVariantMap &map)
@@ -220,6 +183,16 @@ bool GenericBuildConfigurationFactory::canHandle(const Target *t) const
     return qobject_cast<GenericProject *>(t->project());
 }
 
+BuildInfo *GenericBuildConfigurationFactory::createBuildInfo(const ProjectExplorer::Kit *k,
+                                                             const Utils::FileName &buildDir) const
+{
+    BuildInfo *info = new BuildInfo(this);
+    info->typeName = tr("Build");
+    info->buildDirectory = buildDir;
+    info->kitId = k->id();
+    return info;
+}
+
 BuildConfiguration::BuildType GenericBuildConfiguration::buildType() const
 {
     return Unknown;
@@ -238,19 +211,28 @@ GenericBuildSettingsWidget::GenericBuildSettingsWidget(GenericBuildConfiguration
 
     // build directory
     m_pathChooser = new Utils::PathChooser(this);
+    m_pathChooser->setHistoryCompleter(QLatin1String("Generic.BuildDir.History"));
     m_pathChooser->setEnabled(true);
     fl->addRow(tr("Build directory:"), m_pathChooser);
     connect(m_pathChooser, SIGNAL(changed(QString)), this, SLOT(buildDirectoryChanged()));
 
     m_buildConfiguration = bc;
     m_pathChooser->setBaseDirectory(bc->target()->project()->projectDirectory());
-    m_pathChooser->setPath(m_buildConfiguration->rawBuildDirectory());
+    m_pathChooser->setEnvironment(bc->environment());
+    m_pathChooser->setPath(m_buildConfiguration->rawBuildDirectory().toString());
     setDisplayName(tr("Generic Manager"));
+
+    connect(bc, SIGNAL(environmentChanged()), this, SLOT(environmentHasChanged()));
 }
 
 void GenericBuildSettingsWidget::buildDirectoryChanged()
 {
-    m_buildConfiguration->setBuildDirectory(m_pathChooser->rawPath());
+    m_buildConfiguration->setBuildDirectory(Utils::FileName::fromString(m_pathChooser->rawPath()));
+}
+
+void GenericBuildSettingsWidget::environmentHasChanged()
+{
+    m_pathChooser->setEnvironment(m_buildConfiguration->environment());
 }
 
 } // namespace Internal

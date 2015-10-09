@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2012 - 2014 Jolla Ltd.
+** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
 **
@@ -27,18 +27,20 @@
 **
 ****************************************************************************/
 
-#include "merrpmpackagingwidget.h"
 #include "merrpmpackagingstep.h"
-#include "mersdkmanager.h"
-#include "merconstants.h"
-#include "mersdkkitinformation.h"
 
-#include <qt4projectmanager/qt4buildconfiguration.h>
-#include <projectexplorer/target.h>
-#include <projectexplorer/project.h>
-#include <projectexplorer/buildconfiguration.h>
+#include "merconstants.h"
+#include "merrpmpackagingwidget.h"
+#include "mersdkkitinformation.h"
+#include "mersdkmanager.h"
+
 #include <coreplugin/idocument.h>
+#include <projectexplorer/buildconfiguration.h>
+#include <projectexplorer/project.h>
+#include <projectexplorer/target.h>
+#include <qmakeprojectmanager/qmakebuildconfiguration.h>
 #include <qtsupport/qtkitinformation.h>
+
 #include <QProcess>
 
 namespace {
@@ -101,7 +103,7 @@ bool MerRpmPackagingStep::init()
         raiseError(tr("Packaging failed: No mer target."));
         return false;
     }
-    m_fileName = QFileInfo(project()->document()->fileName()).baseName();
+    m_fileName = QFileInfo(project()->document()->filePath()).baseName();
     const QString wrapperScriptsDir = version->qmakeCommand().parentDir().toString();
     m_rpmCommand = wrapperScriptsDir + QLatin1Char('/') + QLatin1String(Constants::MER_WRAPPER_RPMBUILD);
     QString sharedHome =  MerSdkKitInformation::sdk(target()->kit())->sharedHomePath();
@@ -295,12 +297,12 @@ bool MerRpmPackagingStep::createPackage(QProcess *buildProc,const QFutureInterfa
 
 const Core::Id MerRpmPackagingStep::stepId()
 {
-    return Core::Id("Qt4ProjectManager.MerRpmPackagingStep");
+    return Core::Id("QmakeProjectManager.MerRpmPackagingStep");
 }
 
 QString MerRpmPackagingStep::displayName()
 {
-    return tr("Build Rpm Package Locally");
+    return tr("Build RPM Package Locally");
 }
 
 

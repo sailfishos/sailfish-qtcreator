@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,12 +30,10 @@
 #ifndef RESIZEINDICATOR_H
 #define RESIZEINDICATOR_H
 
-#include <QHash>
-#include <QPair>
-
 #include "resizecontroller.h"
 
-class QGraphicsRectItem;
+#include <QHash>
+#include <QPair>
 
 namespace QmlDesigner {
 
@@ -52,7 +50,7 @@ public:
         Left = 8
     };
 
-    ResizeIndicator(LayerItem *layerItem);
+    explicit ResizeIndicator(LayerItem *layerItem);
     ~ResizeIndicator();
 
     void show();
@@ -63,19 +61,12 @@ public:
     void setItems(const QList<FormEditorItem*> &itemList);
     void updateItems(const QList<FormEditorItem*> &itemList);
 
-//
-//    QPair<FormEditorItem*,Orientation> pick(QGraphicsRectItem* pickedItem) const;
-//
-//    void show();
-//    void hide();
-
-
-
 private:
     QHash<FormEditorItem*, ResizeController> m_itemControllerHash;
 
     LayerItem *m_layerItem;
 };
 
-}
+} // namespace QmlDesigner
+
 #endif // SCALEINDICATOR_H

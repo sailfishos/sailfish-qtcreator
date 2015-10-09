@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -32,33 +32,26 @@
 
 #include <qmldesignercorelib_global.h>
 #include "abstractdesigneraction.h"
-#include "qmlmodelview.h"
+#include "abstractview.h"
 
 namespace QmlDesigner {
 
-namespace Internal {
 class DesignerActionManagerView;
-}
 
 class QMLDESIGNERCORE_EXPORT DesignerActionManager {
 public:
-    static void addDesignerAction(AbstractDesignerAction *newAction);
-    static QList<AbstractDesignerAction* > designerActions();
-
-    static void createDefaultDesignerActions();
-    static QmlModelView *view();
-
-protected:
-    static DesignerActionManager *instance();
-    void addDesignerActionInternal(AbstractDesignerAction *newAction);
-    QList<AbstractDesignerAction* > factoriesInternal() const;
-    DesignerActionManager();
+    DesignerActionManager(DesignerActionManagerView *designerActionManagerView);
     ~DesignerActionManager();
 
+    void addDesignerAction(AbstractDesignerAction *newAction);
+    QList<AbstractDesignerAction* > designerActions() const;
+
+    void createDefaultDesignerActions();
+    AbstractView *view();
+
 private:
-    static DesignerActionManager *m_instance;
     QList<QSharedPointer<AbstractDesignerAction> > m_designerActions;
-    Internal::DesignerActionManagerView *m_view;
+    DesignerActionManagerView *m_designerActionManagerView;
 };
 
 } //QmlDesigner

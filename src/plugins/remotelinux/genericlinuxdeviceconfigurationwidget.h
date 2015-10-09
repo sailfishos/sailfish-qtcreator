@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -36,9 +36,7 @@
 
 namespace RemoteLinux {
 
-namespace Ui {
-class GenericLinuxDeviceConfigurationWidget;
-}
+namespace Ui { class GenericLinuxDeviceConfigurationWidget; }
 
 class REMOTELINUX_EXPORT GenericLinuxDeviceConfigurationWidget
         : public ProjectExplorer::IDeviceWidget
@@ -58,6 +56,7 @@ private slots:
     void userNameEditingFinished();
     void passwordEditingFinished();
     void keyFileEditingFinished();
+    void gdbServerEditingFinished();
     void showPassword(bool showClearText);
     void handleFreePortsChanged();
     void setPrivateKey(const QString &path);

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -33,33 +33,50 @@
 
 using namespace TextEditor;
 
+/*!
+    \class TextEditor::ITextEditorDocument
+    \brief The ITextEditorDocument class is an abstract base for documents of text editors.
+
+    It is the base class for documents used by implementations of the ITextEditor class,
+    and contains basic functions for retrieving text content and markers (like bookmarks).
+*/
+
+/*!
+    \class TextEditor::ITextEditor
+    \brief The ITextEditor class is an abstract base class for text editors.
+
+    It contains the basic functions for retrieving and setting cursor position and selections,
+    and operations on them, like removing or inserting. It uses implementations of
+    ITextEditorDocument as the underlying document.
+*/
+
 ITextEditorDocument::ITextEditorDocument(QObject *parent)
     : Core::TextDocument(parent)
 {
 }
 
-QMap<QString, QString> ITextEditor::openedTextEditorsContents()
+QMap<QString, QString> ITextEditorDocument::openedTextDocumentContents()
 {
     QMap<QString, QString> workingCopy;
-    foreach (Core::IEditor *editor, Core::EditorManager::instance()->openedEditors()) {
-        ITextEditor *textEditor = qobject_cast<ITextEditor *>(editor);
-        if (!textEditor)
+    foreach (Core::IDocument *document, Core::EditorManager::documentModel()->openedDocuments()) {
+        ITextEditorDocument *textEditorDocument = qobject_cast<ITextEditorDocument *>(document);
+        if (!textEditorDocument)
             continue;
-        QString fileName = textEditor->document()->fileName();
-        workingCopy[fileName] = textEditor->textDocument()->contents();
+        QString fileName = textEditorDocument->filePath();
+        workingCopy[fileName] = textEditorDocument->plainText();
     }
     return workingCopy;
 }
 
-QMap<QString, QTextCodec *> TextEditor::ITextEditor::openedTextEditorsEncodings()
+QMap<QString, QTextCodec *> ITextEditorDocument::openedTextDocumentEncodings()
 {
     QMap<QString, QTextCodec *> workingCopy;
-    foreach (Core::IEditor *editor, Core::EditorManager::instance()->openedEditors()) {
-        ITextEditor *textEditor = qobject_cast<ITextEditor *>(editor);
-        if (!textEditor)
+    foreach (Core::IDocument *document, Core::EditorManager::documentModel()->openedDocuments()) {
+        ITextEditorDocument *textEditorDocument = qobject_cast<ITextEditorDocument *>(document);
+        if (!textEditorDocument)
             continue;
-        QString fileName = textEditor->document()->fileName();
-        workingCopy[fileName] = textEditor->textCodec();
+        QString fileName = textEditorDocument->filePath();
+        workingCopy[fileName] = const_cast<QTextCodec *>(textEditorDocument->codec());
     }
     return workingCopy;
 }

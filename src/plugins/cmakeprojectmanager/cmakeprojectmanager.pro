@@ -1,6 +1,7 @@
 include(../../qtcreatorplugin.pri)
 
-HEADERS = cmakeproject.h \
+HEADERS = cmakebuildinfo.h \
+    cmakeproject.h \
     cmakeprojectplugin.h \
     cmakeprojectmanager.h \
     cmakeprojectconstants.h \
@@ -12,10 +13,11 @@ HEADERS = cmakeproject.h \
     cmakeeditorfactory.h \
     cmakeeditor.h \
     cmakehighlighter.h \
-    cmakeuicodemodelsupport.h \
+    cmakehighlighterfactory.h \
     cmakelocatorfilter.h \
     cmakefilecompletionassist.h \
-    cmakevalidator.h
+    cmakevalidator.h \
+    cmakeparser.h
 
 SOURCES = cmakeproject.cpp \
     cmakeprojectplugin.cpp \
@@ -28,9 +30,11 @@ SOURCES = cmakeproject.cpp \
     cmakeeditorfactory.cpp \
     cmakeeditor.cpp \
     cmakehighlighter.cpp \
-    cmakeuicodemodelsupport.cpp \
+    cmakehighlighterfactory.cpp \
     cmakelocatorfilter.cpp \
     cmakefilecompletionassist.cpp \
-    cmakevalidator.cpp
+    cmakevalidator.cpp \
+    cmakeparser.cpp
+
 
 RESOURCES += cmakeproject.qrc

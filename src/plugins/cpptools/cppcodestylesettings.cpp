@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -210,7 +210,7 @@ static void configureOverviewWithCodeStyleSettings(CPlusPlus::Overview &overview
 CPlusPlus::Overview CppCodeStyleSettings::currentProjectCodeStyleOverview()
 {
     ProjectExplorer::Project *project = ProjectExplorer::ProjectExplorerPlugin::currentProject();
-    if (! project)
+    if (!project)
         return currentGlobalCodeStyleOverview();
 
     ProjectExplorer::EditorConfiguration *editorConfiguration = project->editorConfiguration();

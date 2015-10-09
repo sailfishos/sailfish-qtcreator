@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -37,22 +37,16 @@
 
 namespace QmlJS {
 class ScopeChain;
-namespace AST {
-class SourceLocation;
-}
+namespace AST { class SourceLocation; }
 }
 
-namespace TextEditor {
-class FontSettings;
-}
+namespace TextEditor { class FontSettings; }
 
-namespace QmlJSTools {
-class SemanticInfo;
-}
+namespace QmlJSTools { class SemanticInfo; }
 
 namespace QmlJSEditor {
 
-class QmlJSTextEditorWidget;
+class QmlJSEditorDocument;
 
 namespace Internal {
 
@@ -80,7 +74,7 @@ public:
 
     typedef TextEditor::HighlightingResult Use;
 
-    SemanticHighlighter(QmlJSTextEditorWidget *editor);
+    SemanticHighlighter(QmlJSEditorDocument *document);
 
     void rerun(const QmlJSTools::SemanticInfo &scopeChain);
     void cancel();
@@ -97,7 +91,7 @@ private slots:
 
 private:
     QFutureWatcher<Use>  m_watcher;
-    QmlJSTextEditorWidget *m_editor;
+    QmlJSEditorDocument *m_document;
     int m_startRevision;
     QHash<int, QTextCharFormat> m_formats;
     QHash<int, QTextCharFormat> m_extraFormats;

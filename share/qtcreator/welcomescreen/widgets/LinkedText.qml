@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -27,10 +27,9 @@
 **
 ****************************************************************************/
 
-import QtQuick 1.1
-import qtcomponents 1.0
+import QtQuick 2.1
 
-Text {
+NativeText {
     id: root
     height: 16
     color: active ? "#f0f0f0" : colors.linkColor
@@ -51,14 +50,6 @@ Text {
     }
 
     property bool enlargeMouseArea: true
-
-    CustomFonts {
-        id: fonts
-    }
-
-    CustomColors {
-        id: colors
-    }
 
     Rectangle {
         color: "#909090"
@@ -89,8 +80,7 @@ Text {
         anchors.margins: enlargeMouseArea ? -8 : 0
         hoverEnabled: true
 
-        QStyleItem { cursor: "pointinghandcursor"; anchors.fill: parent }
-
+        cursorShape: Qt.PointingHandCursor
         onEntered: {
             if (!root.active)
                 mouseArea.state = "hovered"
@@ -115,4 +105,5 @@ Text {
             }
         ]
     }
+    Accessible.role: Accessible.Link
 }

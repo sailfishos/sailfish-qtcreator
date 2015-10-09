@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 AudioCodes Ltd.
+** Copyright (c) 2014 AudioCodes Ltd.
 ** Author: Orgad Shaneh <orgad.shaneh@audiocodes.com>
 ** Contact: http://www.qt-project.org/legal
 **
@@ -41,7 +41,7 @@ class ClearCaseAnnotationHighlighter : public VcsBase::BaseAnnotationHighlighter
 {
     Q_OBJECT
 public:
-    explicit ClearCaseAnnotationHighlighter(const ChangeNumbers &changeNumbers, const QColor &bg,
+    explicit ClearCaseAnnotationHighlighter(const ChangeNumbers &changeNumbers,
                                             QTextDocument *document = 0);
 
 private:

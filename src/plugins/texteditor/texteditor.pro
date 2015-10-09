@@ -1,11 +1,9 @@
 DEFINES += TEXTEDITOR_LIBRARY
 QT += xml network
 CONFIG += exceptions
+CONFIG += include_source_dir # For the highlighter autotest.
 greaterThan(QT_MAJOR_VERSION, 4): QT += printsupport
 include(../../qtcreatorplugin.pri)
-INCLUDEPATH += generichighlighter \
-    snippets \
-    codeassist
 SOURCES += texteditorplugin.cpp \
     textfilewizard.cpp \
     plaintexteditor.cpp \
@@ -41,6 +39,7 @@ SOURCES += texteditorplugin.cpp \
     indenter.cpp \
     quickfix.cpp \
     syntaxhighlighter.cpp \
+    highlighterutils.cpp \
     generichighlighter/itemdata.cpp \
     generichighlighter/specificrules.cpp \
     generichighlighter/rule.cpp \
@@ -108,7 +107,8 @@ SOURCES += texteditorplugin.cpp \
     circularclipboard.cpp \
     circularclipboardassist.cpp \
     itextmark.cpp \
-    codeassist/keywordscompletionassist.cpp
+    codeassist/keywordscompletionassist.cpp \
+    marginsettings.cpp
 
 HEADERS += texteditorplugin.h \
     textfilewizard.h \
@@ -146,7 +146,9 @@ HEADERS += texteditorplugin.h \
     normalindenter.h \
     indenter.h \
     quickfix.h \
+    ihighlighterfactory.h \
     syntaxhighlighter.h \
+    highlighterutils.h \
     generichighlighter/reuse.h \
     generichighlighter/itemdata.h \
     generichighlighter/specificrules.h \
@@ -223,7 +225,8 @@ HEADERS += texteditorplugin.h \
     circularclipboardassist.h \
     itextmark.h \
     codeassist/keywordscompletionassist.h \
-    basetextmarkregistry.h
+    basetextmarkregistry.h \
+    marginsettings.h
 
 FORMS += \
     displaysettingspage.ui \
@@ -237,3 +240,8 @@ FORMS += \
     tabsettingswidget.ui \
     codestyleselectorwidget.ui
 RESOURCES += texteditor.qrc
+
+equals(TEST, 1) {
+SOURCES += basetexteditor_test.cpp
+}
+

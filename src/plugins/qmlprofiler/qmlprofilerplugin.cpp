@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -31,36 +31,67 @@
 #include "qmlprofilerruncontrolfactory.h"
 
 #include "qmlprofilertool.h"
+#include "abstracttimelinemodel.h"
 
 #include <analyzerbase/analyzermanager.h>
+#include <extensionsystem/pluginmanager.h>
 
 #include <QtPlugin>
 
 using namespace Analyzer;
-using namespace QmlProfiler::Internal;
+
+namespace QmlProfiler {
+namespace Internal {
+
+class QmlProfilerAction : public AnalyzerAction
+{
+public:
+    explicit QmlProfilerAction(QObject *parent = 0) : AnalyzerAction(parent) { }
+};
 
 bool QmlProfilerPlugin::debugOutput = false;
+QmlProfilerPlugin *QmlProfilerPlugin::instance = 0;
 
 bool QmlProfilerPlugin::initialize(const QStringList &arguments, QString *errorString)
 {
     Q_UNUSED(arguments)
     Q_UNUSED(errorString)
 
-    StartModes modes;
-    modes.append(StartMode(StartLocal));
-    modes.append(StartMode(StartRemote));
-    AnalyzerManager::addTool(new QmlProfilerTool(this), modes);
+    IAnalyzerTool *tool = new QmlProfilerTool(this);
+
+    QmlProfilerAction *action = 0;
+
+    QString description = QmlProfilerTool::tr(
+        "The QML Profiler can be used to find performance bottlenecks in "
+        "applications using QML.");
+
+    action = new QmlProfilerAction(this);
+    action->setId("QmlProfiler.Local");
+    action->setTool(tool);
+    action->setText(tr("QML Profiler"));
+    action->setToolTip(description);
+    action->setStartMode(StartLocal);
+    action->setMenuGroup(Constants::G_ANALYZER_TOOLS);
+    AnalyzerManager::addAction(action);
+
+    action = new QmlProfilerAction(this);
+    action->setId("QmlProfiler.Remote");
+    action->setTool(tool);
+    action->setText(tr("QML Profiler (External)"));
+    action->setToolTip(description);
+    action->setStartMode(StartRemote);
+    action->setMenuGroup(Constants::G_ANALYZER_REMOTE_TOOLS);
+    AnalyzerManager::addAction(action);
 
     addAutoReleasedObject(new QmlProfilerRunControlFactory());
+    QmlProfilerPlugin::instance = this;
 
     return true;
 }
 
 void QmlProfilerPlugin::extensionsInitialized()
 {
-    // Retrieve objects from the plugin manager's object pool.
-    // "In the extensionsInitialized method, a plugin can be sure that all
-    //  plugins that depend on it are completely initialized."
+    timelineModels = ExtensionSystem::PluginManager::getObjects<AbstractTimelineModel>();
 }
 
 ExtensionSystem::IPlugin::ShutdownFlag QmlProfilerPlugin::aboutToShutdown()
@@ -71,5 +102,12 @@ ExtensionSystem::IPlugin::ShutdownFlag QmlProfilerPlugin::aboutToShutdown()
     return SynchronousShutdown;
 }
 
-Q_EXPORT_PLUGIN(QmlProfilerPlugin)
+QList<AbstractTimelineModel *> QmlProfilerPlugin::getModels() const
+{
+    return timelineModels;
+}
 
+} // namespace Internal
+} // namespace QmlProfiler
+
+Q_EXPORT_PLUGIN(QmlProfiler::Internal::QmlProfilerPlugin)

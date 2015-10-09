@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (c) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (c) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator
@@ -23,7 +23,7 @@
 // **********************************************************************
 
 /*!
-    \contentspage index.html
+    \contentspage {Qt Creator Manual}
     \previouspage creator-mime-types.html
     \page creator-building-running.html
     \nextpage creator-building-targets.html
@@ -43,15 +43,14 @@
 
             \e {Build configurations} contain everything you need to compile
             the sources into binaries. Build configurations use the tools and settings
-            defined in their corresponding \l{glossary-buildandrun-kit}{kit}.
+            defined in their corresponding kit.
 
         \li \l{Running on Multiple Platforms}
 
             \e {Run configurations} start the application in the location
             where it was copied by the \e{deploy configuration}. By default,
             when you select the \gui Run function, \QC builds the project,
-            deploys it to the device defined in the \l{glossary-buildandrun-kit}{kit},
-            and runs it there. However,
+            deploys it to the device defined in the kit, and runs it there. However,
             if you have not made any changes to the project since you last
             built and deployed it, \QC simply runs it again.
 
@@ -64,7 +63,7 @@
 
         \li \l{Connecting Mobile Devices}
 
-            When you install tool chains for device types as part of an SDK,
+            When you install tool chains for device types as part of a Qt distribution,
             the build and run settings for mobile device types might be set up
             automatically. However, you might need to install and configure some
             additional software on the devices to be able to connect to them
@@ -81,32 +80,6 @@
             By default, running an application also builds it and deploys it to
             a location from where it can be run on the device. You can change
             the relationship between the build, run, and deploy configurations.
-
-        \li \l{http://doc.qt.digia.com/qtsimulator/index.html}
-            {Using Qt Simulator}
-
-            You can use the \QS to test Qt applications that are
-            intended for mobile devices in an environment similar to that of
-            the device. You can change the information that the device has
-            about its configuration and environment.
-            \QS does not support any device specific APIs by design.
-            Therefore, applications that run well on \QS also run on
-            any device that hosts the Qt and Qt Mobility libraries.
-            The \QS is installed as part of the Qt 4 SDK. After it is
-            installed, you can create a \l{glossary-buildandrun-kit}{kit}
-            with \gui Desktop device type and the Qt Simulator Qt version for
-            building and running your projects.
-
-        \li \l{Using Maemo or MeeGo Harmattan Emulator}
-
-            You cannot use \QS to test applications that use device
-            specific libraries, such as native device APIs. To test such
-            applications, use the device emulators or real devices. With the
-            emulators, you can test how your application reacts to hardware
-            controls, such as the power button, and to the touch screen.
-            Usually, it is faster to test on a real device connected to the
-            development PC than to use the emulators. The emulator is installed
-            as part of the Qt 4 SDK.
 
     \endlist
 

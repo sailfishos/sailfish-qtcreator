@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 BogDan Vatra <bog_dan_ro@yahoo.com>
+** Copyright (c) 2014 BogDan Vatra <bog_dan_ro@yahoo.com>
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -31,7 +31,7 @@
 #define ANDROIDRUNFACTORIES_H
 
 #include <projectexplorer/runconfiguration.h>
-#include <qt4projectmanager/qmakerunconfigurationfactory.h>
+#include <qmakeprojectmanager/qmakerunconfigurationfactory.h>
 
 namespace ProjectExplorer {
 class RunControl;
@@ -43,7 +43,7 @@ class Node;
 namespace Android {
 namespace Internal {
 
-class AndroidRunConfigurationFactory : public Qt4ProjectManager::QmakeRunConfigurationFactory
+class AndroidRunConfigurationFactory : public QmakeProjectManager::QmakeRunConfigurationFactory
 {
     Q_OBJECT
 

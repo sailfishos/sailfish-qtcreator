@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2012 - 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -43,9 +43,7 @@ QT_BEGIN_NAMESPACE
 class QEventLoop;
 QT_END_NAMESPACE
 
-namespace Utils {
-class QtcProcess;
-}
+namespace Utils { class QtcProcess; }
 
 namespace Qnx {
 namespace Internal {

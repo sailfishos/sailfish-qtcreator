@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -46,9 +46,7 @@ QT_END_NAMESPACE
 
 namespace TextEditor {
 
-namespace Internal {
-class FontSettingsPagePrivate;
-} // namespace Internal
+namespace Internal { class FontSettingsPagePrivate; }
 
 // GUI description of a format consisting of id (settings key)
 // and displayName to be displayed
@@ -92,10 +90,9 @@ public:
 
     ~FontSettingsPage();
 
-    QWidget *createPage(QWidget *parent);
+    QWidget *widget();
     void apply();
     void finish();
-    bool matches(const QString &) const;
 
     void saveSettings();
 
@@ -109,6 +106,7 @@ private slots:
     void fontFamilySelected(const QString &family);
     void fontSizeSelected(const QString &sizeString);
     void fontZoomChanged();
+    void antialiasChanged();
     void colorSchemeSelected(int index);
     void copyColorScheme();
     void copyColorScheme(const QString &name);

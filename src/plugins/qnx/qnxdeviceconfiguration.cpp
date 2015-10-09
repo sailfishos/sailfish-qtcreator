@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2012 - 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -31,27 +31,24 @@
 
 #include "qnxdeviceconfiguration.h"
 #include "qnxdevicetester.h"
+#include "qnxdeviceprocesslist.h"
+#include "qnxdeviceprocesssignaloperation.h"
 
-#include <projectexplorer/devicesupport/sshdeviceprocesslist.h>
+#include <projectexplorer/devicesupport/sshdeviceprocess.h>
+#include <ssh/sshconnection.h>
+#include <utils/qtcassert.h>
 
+#include <QApplication>
 #include <QRegExp>
 #include <QStringList>
+#include <QThread>
 
 using namespace Qnx;
 using namespace Qnx::Internal;
 
-class QnxDeviceProcessSupport : public RemoteLinux::LinuxDeviceProcessSupport
-{
-    QString killProcessByNameCommandLine(const QString &filePath) const
-    {
-        QString executable = filePath;
-        return QString::fromLatin1("for PID in $(ps -f -o pid,comm | grep %1 | awk '/%1/ {print $1}'); "
-            "do "
-                "kill $PID; sleep 1; kill -9 $PID; "
-            "done").arg(executable.replace(QLatin1String("/"), QLatin1String("\\/")));
-    }
-};
-
+namespace {
+const char QnxVersionKey[] = "QnxVersion";
+}
 
 class QnxPortsGatheringMethod : public ProjectExplorer::PortsGatheringMethod
 {
@@ -91,66 +88,23 @@ class QnxPortsGatheringMethod : public ProjectExplorer::PortsGatheringMethod
     }
 };
 
-class QnxDeviceProcessList : public ProjectExplorer::SshDeviceProcessList
-{
-public:
-    QnxDeviceProcessList(const ProjectExplorer::IDevice::ConstPtr &device, QObject *parent)
-        : SshDeviceProcessList(device, parent)
-    {
-    }
-
-private:
-    QString listProcessesCommandLine() const
-    {
-        return QLatin1String("pidin -F \"%a %A '/%n'\"");
-    }
-
-    QList<ProjectExplorer::DeviceProcess> buildProcessList(const QString &listProcessesReply) const
-    {
-        QList<ProjectExplorer::DeviceProcess> processes;
-        QStringList lines = listProcessesReply.split(QLatin1Char('\n'));
-        if (lines.isEmpty())
-            return processes;
-
-        lines.pop_front(); // drop headers
-        QRegExp re(QLatin1String("\\s*(\\d+)\\s+(.*)'(.*)'"));
-
-        foreach (const QString& line, lines) {
-            if (re.exactMatch(line)) {
-                const QStringList captures = re.capturedTexts();
-                if (captures.size() == 4) {
-                    const int pid = captures[1].toInt();
-                    const QString args = captures[2];
-                    const QString exe = captures[3];
-                    ProjectExplorer::DeviceProcess deviceProcess;
-                    deviceProcess.pid = pid;
-                    deviceProcess.exe = exe.trimmed();
-                    deviceProcess.cmdLine = args.trimmed();
-                    processes.append(deviceProcess);
-                }
-            }
-        }
-
-        qSort(processes);
-        return processes;
-    }
-};
-
 QnxDeviceConfiguration::QnxDeviceConfiguration()
     : RemoteLinux::LinuxDevice()
+    , m_versionNumber(0)
 {
 }
 
 QnxDeviceConfiguration::QnxDeviceConfiguration(const QString &name, Core::Id type, MachineType machineType, Origin origin, Core::Id id)
     : RemoteLinux::LinuxDevice(name, type, machineType, origin, id)
+    , m_versionNumber(0)
 {
 }
 
 QnxDeviceConfiguration::QnxDeviceConfiguration(const QnxDeviceConfiguration &other)
     : RemoteLinux::LinuxDevice(other)
+    , m_versionNumber(other.m_versionNumber)
 {
 }
-
 
 QnxDeviceConfiguration::Ptr QnxDeviceConfiguration::create()
 {
@@ -167,14 +121,61 @@ QString QnxDeviceConfiguration::displayType() const
     return tr("QNX");
 }
 
+int QnxDeviceConfiguration::qnxVersion() const
+{
+    if (m_versionNumber == 0)
+        updateVersionNumber();
+
+    return m_versionNumber;
+}
+
+void QnxDeviceConfiguration::updateVersionNumber() const
+{
+    QEventLoop eventLoop;
+    ProjectExplorer::SshDeviceProcess versionNumberProcess(sharedFromThis());
+    QObject::connect(&versionNumberProcess, SIGNAL(finished()), &eventLoop, SLOT(quit()));
+    QObject::connect(&versionNumberProcess, SIGNAL(error(QProcess::ProcessError)), &eventLoop, SLOT(quit()));
+
+    QStringList arguments;
+    arguments << QLatin1String("-r");
+    versionNumberProcess.start(QLatin1String("uname"), arguments);
+
+    bool isGuiThread = QThread::currentThread() == QCoreApplication::instance()->thread();
+    if (isGuiThread)
+        QApplication::setOverrideCursor(Qt::WaitCursor);
+
+    eventLoop.exec(QEventLoop::ExcludeUserInputEvents);
+
+    QByteArray output = versionNumberProcess.readAllStandardOutput();
+    QString versionMessage = QString::fromLatin1(output);
+    QRegExp versionNumberRegExp = QRegExp(QLatin1String("(\\d+)\\.(\\d+)\\.(\\d+)"));
+    if (versionNumberRegExp.indexIn(versionMessage) > -1 && versionNumberRegExp.captureCount() == 3) {
+        int major = versionNumberRegExp.cap(1).toInt();
+        int minor = versionNumberRegExp.cap(2).toInt();
+        int patch = versionNumberRegExp.cap(3).toInt();
+        m_versionNumber = (major << 16)|(minor<<8)|(patch);
+    }
+
+    if (isGuiThread)
+        QApplication::restoreOverrideCursor();
+}
+
+void QnxDeviceConfiguration::fromMap(const QVariantMap &map)
+{
+    m_versionNumber = map.value(QLatin1String(QnxVersionKey), 0).toInt();
+    RemoteLinux::LinuxDevice::fromMap(map);
+}
+
+QVariantMap QnxDeviceConfiguration::toMap() const
+{
+    QVariantMap map(RemoteLinux::LinuxDevice::toMap());
+    map.insert(QLatin1String(QnxVersionKey), m_versionNumber);
+    return map;
+}
+
 ProjectExplorer::IDevice::Ptr QnxDeviceConfiguration::clone() const
 {
     return Ptr(new QnxDeviceConfiguration(*this));
-}
-
-ProjectExplorer::DeviceProcessSupport::Ptr QnxDeviceConfiguration::processSupport() const
-{
-    return ProjectExplorer::DeviceProcessSupport::Ptr(new QnxDeviceProcessSupport);
 }
 
 ProjectExplorer::PortsGatheringMethod::Ptr QnxDeviceConfiguration::portsGatheringMethod() const
@@ -187,7 +188,13 @@ ProjectExplorer::DeviceProcessList *QnxDeviceConfiguration::createProcessListMod
     return new QnxDeviceProcessList(sharedFromThis(), parent);
 }
 
-RemoteLinux::AbstractLinuxDeviceTester *QnxDeviceConfiguration::createDeviceTester() const
+ProjectExplorer::DeviceTester *QnxDeviceConfiguration::createDeviceTester() const
 {
     return new QnxDeviceTester;
+}
+
+ProjectExplorer::DeviceProcessSignalOperation::Ptr QnxDeviceConfiguration::signalOperation() const
+{
+    return ProjectExplorer::DeviceProcessSignalOperation::Ptr(
+                new QnxDeviceProcessSignalOperation(sshParameters()));
 }

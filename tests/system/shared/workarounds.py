@@ -1,6 +1,6 @@
 #############################################################################
 ##
-## Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+## Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ## Contact: http://www.qt-project.org/legal
 ##
 ## This file is part of Qt Creator.
@@ -30,10 +30,46 @@
 import urllib2
 import re
 
+############ functions not related to issues tracked inside jira ############
+
+def __checkWithoutWidget__(*args):
+    return className(args[0]) == 'QMenu' and args[0].visible
+
+def __checkWithWidget__(*args):
+    return (__checkWithoutWidget__(args[0])
+            and widgetContainsPoint(waitForObject(args[1]), args[0].mapToGlobal(QPoint(0 ,0))))
+
+# hack for activating context menus on Mac because of Squish5/Qt5.2 problems
+# param item a string holding the menu item to invoke (just the label)
+# param widget an object; if provided there will be an additional check if the menu's top left
+#              corner is placed on this widget
+def macHackActivateContextMenuItem(item, widget=None):
+    if widget:
+        func = __checkWithWidget__
+    else:
+        func = __checkWithoutWidget__
+    for obj in object.topLevelObjects():
+        try:
+            if func(obj, widget):
+                activateItem(waitForObjectItem(obj, item))
+                return True
+        except:
+            pass
+    return False
+
+################ workarounds for issues tracked inside jira #################
+
 JIRA_URL='https://bugreports.qt-project.org/browse'
 
 class JIRA:
     __instance__ = None
+
+    # internal exception to be used inside workaround functions (lack of having return values)
+    class JiraException(Exception):
+        def __init__(self, value):
+            self.value = value
+        def __str__(self):
+            return repr(self.value)
 
     # Helper class
     class Bug:
@@ -53,12 +89,12 @@ class JIRA:
             JIRA.__instance__._number = number
             JIRA.__instance__.__fetchResolutionFromJira__()
 
-    # overriden to make it possible to use JIRA just like the
+    # overridden to make it possible to use JIRA just like the
     # underlying implementation (__impl)
     def __getattr__(self, attr):
         return getattr(self.__instance__, attr)
 
-    # overriden to make it possible to use JIRA just like the
+    # overridden to make it possible to use JIRA just like the
     # underlying implementation (__impl)
     def __setattr__(self, attr, value):
         return setattr(self.__instance__, attr, value)
@@ -88,7 +124,15 @@ class JIRA:
         functionToCall = JIRA.getInstance().__bugs__.get("%s-%d" % (bugType, number), None)
         if functionToCall:
             test.warning("Using workaround for %s-%d" % (bugType, number))
-            functionToCall(*args)
+            try:
+                functionToCall(*args)
+            except:
+                t, v = sys.exc_info()[0:2]
+                if t == JIRA.JiraException:
+                    raise JIRA.JiraException(v)
+                else:
+                    test.warning("Exception caught while executing workaround function.",
+                                 "%s (%s)" % (str(t), str(v)))
             return True
         else:
             JIRA.getInstance()._exitFatal_(bugType, number)
@@ -216,7 +260,6 @@ class JIRA:
         def __initBugDict__(self):
             self.__bugs__= {
                             'QTCREATORBUG-6853':self._workaroundCreator6853_,
-                            'QTCREATORBUG-8735':self._workaroundCreator_MacEditorFocus_
                             }
         # helper function - will be called if no workaround for the requested bug is deposited
         def _exitFatal_(self, bugType, number):
@@ -227,7 +270,3 @@ class JIRA:
         def _workaroundCreator6853_(self, *args):
             if "Release" in args[0] and platform.system() == "Linux":
                 snooze(2)
-
-        def _workaroundCreator_MacEditorFocus_(self, *args):
-            editor = args[0]
-            nativeMouseClick(editor.mapToGlobal(QPoint(50, 50)).x, editor.mapToGlobal(QPoint(50, 50)).y, Qt.LeftButton)

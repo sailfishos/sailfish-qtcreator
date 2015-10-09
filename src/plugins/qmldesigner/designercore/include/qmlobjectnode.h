@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -45,8 +45,11 @@ class QmlPropertyChanges;
 class QMLDESIGNERCORE_EXPORT QmlObjectNode : public QmlModelNodeFacade
 {
 public:
-    QmlObjectNode() : QmlModelNodeFacade() {}
-    QmlObjectNode(const ModelNode &modelNode)  : QmlModelNodeFacade(modelNode) {}
+    QmlObjectNode();
+    QmlObjectNode(const ModelNode &modelNode);
+
+    static bool isValidQmlObjectNode(const ModelNode &modelNode);
+    bool isValid() const;
 
     bool hasNodeParent() const;
     bool hasInstanceParent() const;
@@ -63,6 +66,7 @@ public:
     void setVariantProperty(const PropertyName &name, const QVariant &value);
     void setBindingProperty(const PropertyName &name, const QString &expression);
     NodeAbstractProperty nodeAbstractProperty(const PropertyName &name) const;
+    NodeAbstractProperty defaultNodeAbstractProperty() const;
     NodeProperty nodeProperty(const PropertyName &name) const;
     NodeListProperty nodeListProperty(const PropertyName &name) const;
 
@@ -80,7 +84,7 @@ public:
     bool isInBaseState() const;
     QmlPropertyChanges propertyChangeForCurrentState() const;
 
-    virtual bool canReparent() const;
+    virtual bool instanceCanReparent() const;
 
     bool isRootModelNode() const;
 
@@ -89,7 +93,7 @@ public:
     QList<QmlModelState> allAffectingStates() const;
     QList<QmlModelStateOperation> allAffectingStatesOperations() const;
 
-    void removeVariantProperty(const PropertyName &name);
+    void removeProperty(const PropertyName &name);
 
     void setParent(QmlObjectNode newParent);
 
@@ -97,8 +101,8 @@ public:
 
     bool isAncestorOf(const QmlObjectNode &objectNode) const;
 
-    bool hasDefaultProperty() const;
-    PropertyName defaultProperty() const;
+    bool hasDefaultPropertyName() const;
+    PropertyName defaultPropertyName() const;
 
     static  QVariant instanceValue(const ModelNode &modelNode, const PropertyName &name);
 

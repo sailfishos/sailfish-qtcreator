@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -43,6 +43,7 @@ namespace QmlDesigner {
 
 class QmlModelStateGroup;
 class QmlAnchors;
+class ItemLibraryEntry;
 
 class QMLDESIGNERCORE_EXPORT QmlItemNode : public QmlObjectNode
 {
@@ -51,29 +52,41 @@ public:
     QmlItemNode() : QmlObjectNode() {}
     QmlItemNode(const ModelNode &modelNode)  : QmlObjectNode(modelNode) {}
     bool isValid() const;
+    static bool isValidQmlItemNode(const ModelNode &modelNode);
     bool isRootNode() const;
 
     static bool isItemOrWindow(const ModelNode &modelNode);
 
+    static QmlItemNode createQmlItemNode(AbstractView *view,
+                                         const ItemLibraryEntry &itemLibraryEntry,
+                                         const QPointF &position,
+                                         QmlItemNode parentQmlItemNode);
+    static QmlItemNode createQmlItemNodeFromImage(AbstractView *view,
+                                                  const QString &imageName,
+                                                  const QPointF &position,
+                                                  QmlItemNode parentQmlItemNode);
+
     QmlModelStateGroup states() const;
     QList<QmlItemNode> children() const;
     QList<QmlObjectNode> resources() const;
-    QList<QmlObjectNode> defaultPropertyChildren() const;
     QList<QmlObjectNode> allDirectSubNodes() const;
     QmlAnchors anchors() const;
 
     bool hasChildren() const;
     bool hasResources() const;
     bool instanceHasAnchors() const;
-    bool hasShowContent() const;
+    bool instanceHasShowContent() const;
 
-    bool canReparent() const;
+    bool instanceCanReparent() const;
     bool instanceIsAnchoredBySibling() const;
     bool instanceIsAnchoredByChildren() const;
     bool instanceIsMovable() const;
     bool instanceIsResizable() const;
     bool instanceIsInLayoutable() const;
     bool instanceHasRotationTransform() const;
+
+    bool modelIsMovable() const;
+    bool modelIsResizable() const;
 
     QRectF instanceBoundingRect() const;
     QRectF instancePaintedBoundingRect() const;
@@ -89,18 +102,19 @@ public:
     int instancePenWidth() const;
     bool instanceIsRenderPixmapNull() const;
 
-
-    void paintInstance(QPainter *painter);
-
-    void selectNode();
-    void deselectNode();
-    bool isSelected() const;
+    QPixmap instanceRenderPixmap() const;
+    QPixmap instanceBlurredRenderPixmap() const;
 
     TypeName simplifiedTypeName() const;
 
     const QList<QmlItemNode> allDirectSubModelNodes() const;
     const QList<QmlItemNode> allSubModelNodes() const;
     bool hasAnySubModelNodes() const;
+
+    void setPosition(const QPointF &position);
+    void setPostionInBaseState(const QPointF &position);
+
+    void setSize(const QSizeF &size);
 };
 
 QMLDESIGNERCORE_EXPORT uint qHash(const QmlItemNode &node);
@@ -108,7 +122,7 @@ QMLDESIGNERCORE_EXPORT uint qHash(const QmlItemNode &node);
 class QMLDESIGNERCORE_EXPORT QmlModelStateGroup
 {
     friend class QmlItemNode;
-    friend class QmlModelView;
+    friend class StatesEditorView;
 
 public:
 

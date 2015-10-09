@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -43,9 +43,7 @@ class QRadioButton;
 class QComboBox;
 QT_END_NAMESPACE
 
-namespace qbs {
-class InstallOptions;
-}
+namespace qbs { class InstallOptions; }
 
 namespace Utils {
 class PathChooser;
@@ -80,11 +78,8 @@ public:
 
     QString executable() const;
     RunMode runMode() const;
-    bool forcedGuiMode() const;
     QString workingDirectory() const;
     QString commandLineArguments() const;
-    QString dumperLibrary() const;
-    QStringList dumperLibraryLocations() const;
 
     QVariantMap toMap() const;
 
@@ -95,6 +90,7 @@ public:
     void addToBaseEnvironment(Utils::Environment &env) const;
 
     QString qbsProduct() const;
+    bool isConsoleApplication() const;
 
 signals:
     void commandLineArgumentsChanged(const QString&);
@@ -128,12 +124,10 @@ private:
 
     // Cached startup sub project information
     ProjectExplorer::LocalApplicationRunConfiguration::RunMode m_runMode;
-    bool m_forcedGuiMode;
-    bool m_userSetName;
     QString m_userWorkingDirectory;
 
-    QbsInstallStep *m_currentInstallStep;
-    ProjectExplorer::BuildStepList *m_currentBuildStepList;
+    QbsInstallStep *m_currentInstallStep; // We do not take ownership!
+    ProjectExplorer::BuildStepList *m_currentBuildStepList; // We do not take ownership!
 };
 
 class QbsRunConfigurationWidget : public QWidget

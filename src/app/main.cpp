@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -27,7 +27,6 @@
 **
 ****************************************************************************/
 
-#include "qtsingleapplication.h"
 #include "../tools/qtcreatorcrashhandler/crashhandlersetup.h"
 
 #include <app/app_version.h>
@@ -35,6 +34,8 @@
 #include <extensionsystem/pluginerroroverview.h>
 #include <extensionsystem/pluginmanager.h>
 #include <extensionsystem/pluginspec.h>
+#include <qtsingleapplication.h>
+#include <utils/hostosinfo.h>
 
 #include <QDebug>
 #include <QDir>
@@ -62,9 +63,9 @@ using namespace ExtensionSystem;
 
 enum { OptionIndent = 4, DescriptionIndent = 34 };
 
-static const char appNameC[] = "Qt Creator";
-static const char corePluginNameC[] = "Core";
-static const char fixedOptionsC[] =
+const char appNameC[] = "Qt Creator";
+const char corePluginNameC[] = "Core";
+const char fixedOptionsC[] =
 " [OPTION]... [FILE]...\n"
 "Options:\n"
 "    -help                         Display this help\n"
@@ -72,18 +73,20 @@ static const char fixedOptionsC[] =
 "    -client                       Attempt to connect to already running first instance\n"
 "    -settingspath <path>          Override the default path where user settings are stored\n"
 "    -pid <pid>                    Attempt to connect to instance given by pid\n"
-"    -block                        Block until editor is closed\n";
+"    -block                        Block until editor is closed\n"
+"    -pluginpath <path>            Add a custom search path for plugins\n";
 
-
-static const char HELP_OPTION1[] = "-h";
-static const char HELP_OPTION2[] = "-help";
-static const char HELP_OPTION3[] = "/h";
-static const char HELP_OPTION4[] = "--help";
-static const char VERSION_OPTION[] = "-version";
-static const char CLIENT_OPTION[] = "-client";
-static const char SETTINGS_OPTION[] = "-settingspath";
-static const char PID_OPTION[] = "-pid";
-static const char BLOCK_OPTION[] = "-block";
+const char HELP_OPTION1[] = "-h";
+const char HELP_OPTION2[] = "-help";
+const char HELP_OPTION3[] = "/h";
+const char HELP_OPTION4[] = "--help";
+const char VERSION_OPTION[] = "-version";
+const char CLIENT_OPTION[] = "-client";
+const char SETTINGS_OPTION[] = "-settingspath";
+const char TEST_OPTION[] = "-test";
+const char PID_OPTION[] = "-pid";
+const char BLOCK_OPTION[] = "-block";
+const char PLUGINPATH_OPTION[] = "-pluginpath";
 
 typedef QList<PluginSpec *> PluginSpecSet;
 
@@ -263,6 +266,7 @@ static inline QSettings *userSettings()
                 || lowerFile.startsWith(QLatin1String("toolchains.xml"))
                 || lowerFile.startsWith(QLatin1String("qtversion.xml"))
                 || lowerFile.startsWith(QLatin1String("devices.xml"))
+                || lowerFile.startsWith(QLatin1String("debuggers.xml"))
                 || lowerFile.startsWith(QLatin1String("qtcreator.")))
             QFile::copy(srcDir.absoluteFilePath(file), destDir.absoluteFilePath(file));
         if (file == QLatin1String("qtcreator"))
@@ -315,8 +319,10 @@ int main(int argc, char **argv)
     // We can't use the regular way of the plugin manager, because that needs to parse pluginspecs
     // but the settings path can influence which plugins are enabled
     QString settingsPath;
+    QStringList customPluginPaths;
     QStringList arguments = app.arguments(); // adapted arguments list is passed to plugin manager later
     QMutableStringListIterator it(arguments);
+    bool testOptionProvided = false;
     while (it.hasNext()) {
         const QString &arg = it.next();
         if (arg == QLatin1String(SETTINGS_OPTION)) {
@@ -325,7 +331,20 @@ int main(int argc, char **argv)
                 settingsPath = QDir::fromNativeSeparators(it.next());
                 it.remove();
             }
+        } else if (arg == QLatin1String(PLUGINPATH_OPTION)) {
+            it.remove();
+            if (it.hasNext()) {
+                customPluginPaths << QDir::fromNativeSeparators(it.next());
+                it.remove();
+            }
+        } else if (arg == QLatin1String(TEST_OPTION)) {
+            testOptionProvided = true;
         }
+    }
+    if (settingsPath.isEmpty() && testOptionProvided) {
+        settingsPath = QDir::tempPath() + QString::fromLatin1("/qtc-%1-test-settings")
+                .arg(QLatin1String(Core::Constants::IDE_VERSION_LONG));
+        settingsPath = QDir::cleanPath(settingsPath);
     }
     if (!settingsPath.isEmpty()) {
         QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, settingsPath);
@@ -403,19 +422,17 @@ int main(int argc, char **argv)
         QNetworkProxy proxy(QNetworkProxy::HttpProxy, proxyUrl.host(),
                             proxyUrl.port(), proxyUrl.userName(), proxyUrl.password());
         QNetworkProxy::setApplicationProxy(proxy);
-    }
 # if defined(Q_OS_MAC) // unix and mac
-    else {
+    } else {
         QNetworkProxyFactory::setUseSystemConfiguration(true);
-    }
 # endif
+    }
 #else // windows
     QNetworkProxyFactory::setUseSystemConfiguration(true);
 #endif
     // Load
-    const QStringList pluginPaths = getPluginPaths();
+    const QStringList pluginPaths = getPluginPaths() + customPluginPaths;
     PluginManager::setPluginPaths(pluginPaths);
-
     QMap<QString, QString> foundAppOptions;
     if (arguments.size() > 1) {
         QMap<QString, bool> appOptions;
@@ -504,8 +521,10 @@ int main(int argc, char **argv)
         return 1;
     }
     if (PluginManager::hasError()) {
-        PluginErrorOverview errorOverview;
-        errorOverview.exec();
+        PluginErrorOverview *errorOverview = new PluginErrorOverview(QApplication::activeWindow());
+        errorOverview->setAttribute(Qt::WA_DeleteOnClose);
+        errorOverview->setModal(true);
+        errorOverview->show();
     }
 
     // Set up remote arguments.

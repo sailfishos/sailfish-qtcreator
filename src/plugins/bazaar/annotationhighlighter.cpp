@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Hugues Delorme
+** Copyright (c) 2014 Hugues Delorme
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -33,9 +33,8 @@ using namespace Bazaar::Internal;
 using namespace Bazaar;
 
 BazaarAnnotationHighlighter::BazaarAnnotationHighlighter(const ChangeNumbers &changeNumbers,
-                                                         const QColor &bg,
                                                          QTextDocument *document)
-    : VcsBase::BaseAnnotationHighlighter(changeNumbers, bg, document),
+    : VcsBase::BaseAnnotationHighlighter(changeNumbers, document),
       m_changeset(QLatin1String(Constants::ANNOTATE_CHANGESET_ID))
 {
 }

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2013 Jolla Ltd.
+** Copyright (C) 2012 - 2014 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -24,7 +24,10 @@
 #define MERHARDWAREDEVICEWIZARD_H
 
 #include "merhardwaredevicewizardpages.h"
+
+#include <projectexplorer/abi.h>
 #include <remotelinux/genericlinuxdeviceconfigurationwizardpages.h>
+
 #include <QWizard>
 
 namespace QSsh {
@@ -43,6 +46,8 @@ public:
     QString hostName() const;
     QString userName() const;
     QString password() const;
+    ProjectExplorer::Abi::Architecture architecture() const;
+    QString deviceName() const;
     QString privateKeyFilePath() const;
     QString publicKeyFilePath() const;
     QString configurationName() const;
@@ -54,8 +59,8 @@ public:
 
 
 private:
-    MerHardwareDeviceWizardGeneralPage m_setupPage;
-    MerHardwareDeviceWizardKeyPage m_keyPage;
+    MerHardwareDeviceWizardSelectionPage m_selectionPage;
+    MerHardwareDeviceWizardSetupPage m_setupPage;
     RemoteLinux::GenericLinuxDeviceConfigurationWizardFinalPage m_finalPage;
 };
 

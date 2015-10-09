@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2013 Jolla Ltd.
+** Copyright (C) 2012 - 2014 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -21,34 +21,48 @@
 ****************************************************************************/
 
 #include "merplugin.h"
-#include "merdevicefactory.h"
-#include "merqtversionfactory.h"
-#include "mertoolchainfactory.h"
+
+#include "meraddvmstartbuildstepprojectlistener.h"
+#include "merbuildstepfactory.h"
+#include "merconnection.h"
+#include "merconnectionmanager.h"
+#include "merconstants.h"
 #include "merdeployconfigurationfactory.h"
+#include "merdeploystepfactory.h"
+#include "merdevicefactory.h"
+#include "meremulatormodedialog.h"
+#include "mergeneraloptionspage.h"
+#include "mermode.h"
+#include "meroptionspage.h"
+#include "merqtversionfactory.h"
 #include "merrunconfigurationfactory.h"
 #include "merruncontrolfactory.h"
-#include "meroptionspage.h"
-#include "merdeploystepfactory.h"
 #include "mersdkmanager.h"
-#include "merconnectionmanager.h"
+#include "mersettings.h"
+#include "mertoolchainfactory.h"
 #include "mervirtualboxmanager.h"
-#include "jollawelcomepage.h"
-#include "mermode.h"
-#include "merconnectionprompt.h"
-#include "meractionmanager.h"
 
+#include <coreplugin/actionmanager/actioncontainer.h>
+#include <coreplugin/actionmanager/actionmanager.h>
+#include <coreplugin/actionmanager/command.h>
+#include <coreplugin/coreconstants.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/mimedatabase.h>
+#include <coreplugin/modemanager.h>
 
-#include <QtPlugin>
+#include <QMenu>
 #include <QMessageBox>
 #include <QTimer>
+#include <QtPlugin>
 
 namespace Mer {
 namespace Internal {
 
-MerPlugin::MerPlugin():
-    m_wait(false)
+namespace {
+const char *VM_NAME_PROPERTY = "merVmName";
+}
+
+MerPlugin::MerPlugin()
 {
 }
 
@@ -62,21 +76,46 @@ bool MerPlugin::initialize(const QStringList &arguments, QString *errorString)
 
     MerSdkManager::verbose = arguments.count(QLatin1String("-mer-verbose"));
 
+    new MerSettings(this);
+
     addAutoReleasedObject(new MerSdkManager);
     addAutoReleasedObject(new MerVirtualBoxManager);
     addAutoReleasedObject(new MerConnectionManager);
     addAutoReleasedObject(new MerOptionsPage);
+    addAutoReleasedObject(new MerGeneralOptionsPage);
     addAutoReleasedObject(new MerDeviceFactory);
     addAutoReleasedObject(new MerQtVersionFactory);
     addAutoReleasedObject(new MerToolChainFactory);
+    addAutoReleasedObject(new MerAddVmStartBuildStepProjectListener);
     addAutoReleasedObject(new MerDeployConfigurationFactory);
     addAutoReleasedObject(new MerRunConfigurationFactory);
     addAutoReleasedObject(new MerRunControlFactory);
+    addAutoReleasedObject(new MerBuildStepFactory);
     addAutoReleasedObject(new MerDeployStepFactory);
-    addAutoReleasedObject(new MerActionManager);
 
-    addAutoReleasedObject(new JollaWelcomePage);
     addAutoReleasedObject(new MerMode);
+
+    Core::Command *emulatorConnectionCommand =
+        Core::ActionManager::command(Constants::MER_EMULATOR_CONNECTON_ACTION_ID);
+    Core::ModeManager::addAction(emulatorConnectionCommand->action(), 1);
+
+    Core::Command *sdkConnectionCommand =
+        Core::ActionManager::command(Constants::MER_SDK_CONNECTON_ACTION_ID);
+    Core::ModeManager::addAction(sdkConnectionCommand->action(), 1);
+
+    Core::ActionContainer *toolsMenu =
+        Core::ActionManager::actionContainer(Core::Constants::M_TOOLS);
+
+    Core::ActionContainer *menu = Core::ActionManager::createMenu(Constants::MER_TOOLS_MENU);
+    menu->menu()->setTitle(tr("Me&r"));
+    toolsMenu->addMenu(menu);
+
+    MerEmulatorModeDialog *emulatorModeDialog = new MerEmulatorModeDialog(this);
+    Core::Command *emulatorModeCommand =
+        Core::ActionManager::registerAction(emulatorModeDialog->action(),
+                                            Constants::MER_EMULATOR_MODE_ACTION_ID,
+                                            Core::Context(Core::Constants::C_GLOBAL));
+    menu->addAction(emulatorModeCommand);
 
     return true;
 }
@@ -88,16 +127,22 @@ void MerPlugin::extensionsInitialized()
 ExtensionSystem::IPlugin::ShutdownFlag MerPlugin::aboutToShutdown()
 {
     m_stopList.clear();
-    m_wait=false;
     QList<MerSdk*> sdks = MerSdkManager::instance()->sdks();
     foreach(const MerSdk* sdk, sdks) {
-        if(sdk->isHeadless()) {
-            const QString& vm = sdk->virtualMachineName();
-            if(MerConnectionManager::instance()->isConnected(vm)) {
-                Prompt * prompt = MerActionManager::createClosePrompt(vm);
-                connect(prompt,SIGNAL(closed(QString,bool)),this,SLOT(handlePromptClosed(QString,bool)));
-                m_stopList << vm;
-            }
+        MerConnection *connection = sdk->connection();
+        bool headless = false;
+        if (!connection->isVirtualMachineOff(&headless) && headless) {
+            QMessageBox *prompt = new QMessageBox(
+                    QMessageBox::Question,
+                    tr("Close Virtual Machine"),
+                    tr("The headless virtual machine \"%1\" is still running.\n\n"
+                        "Close the virtual machine now?").arg(connection->virtualMachine()),
+                    QMessageBox::Yes | QMessageBox::No,
+                    Core::ICore::mainWindow());
+            prompt->setProperty(VM_NAME_PROPERTY, connection->virtualMachine());
+            connect(prompt, SIGNAL(finished(int)), this, SLOT(handlePromptClosed(int)));
+            m_stopList.insert(connection->virtualMachine(), connection);
+            prompt->open();
         }
     }
     if(m_stopList.isEmpty())
@@ -106,23 +151,49 @@ ExtensionSystem::IPlugin::ShutdownFlag MerPlugin::aboutToShutdown()
         return AsynchronousShutdown;
 }
 
-void MerPlugin::handlePromptClosed(const QString& vm, bool accepted)
+void MerPlugin::handlePromptClosed(int result)
 {
-     m_stopList.removeAll(vm);
-    if (accepted) {
-        MerConnectionManager::instance()->disconnectFrom(vm);
-        m_wait=true;
+    QMessageBox *prompt = qobject_cast<QMessageBox *>(sender());
+    prompt->deleteLater();
+
+    QString vm = prompt->property(VM_NAME_PROPERTY).toString();
+
+    if (result == QMessageBox::Yes) {
+        MerConnection *connection = m_stopList.value(vm);
+        connect(connection, SIGNAL(stateChanged()), this, SLOT(handleConnectionStateChanged()));
+        connect(connection, SIGNAL(lockDownFailed()), this, SLOT(handleLockDownFailed()));
+        connection->lockDown(true);
+    } else {
+        m_stopList.remove(vm);
     }
 
     if(m_stopList.isEmpty()) {
-        if(m_wait){
-             QTimer::singleShot(3000, this, SIGNAL(asynchronousShutdownFinished()));
-        }else{
-             emit asynchronousShutdownFinished();
-        }
-
+        emit asynchronousShutdownFinished();
     }
+}
 
+void MerPlugin::handleConnectionStateChanged()
+{
+    MerConnection *connection = qobject_cast<MerConnection *>(sender());
+
+    if (connection->state() == MerConnection::Disconnected) {
+        m_stopList.remove(connection->virtualMachine());
+
+        if (m_stopList.isEmpty()) {
+            emit asynchronousShutdownFinished();
+        }
+    }
+}
+
+void MerPlugin::handleLockDownFailed()
+{
+    MerConnection *connection = qobject_cast<MerConnection *>(sender());
+
+    m_stopList.remove(connection->virtualMachine());
+
+    if (m_stopList.isEmpty()) {
+        emit asynchronousShutdownFinished();
+    }
 }
 
 } // Internal

@@ -1,4 +1,4 @@
-import qbs.base 1.0
+import qbs 1.0
 
 Product {
     name: "SharedContent"
@@ -9,8 +9,8 @@ Product {
         qbs.installDir: project.ide_data_path
         prefix: "qtcreator/"
         files: [
+            "debugger",
             "designer",
-            "dumper",
             "generic-highlighter",
             "glsl",
             "qml",
@@ -29,7 +29,7 @@ Product {
         name: "Conditional"
         qbs.install: true
         qbs.installDir: project.ide_data_path + "/externaltools"
-        prefix: "../src/share/qtcreator/externaltools/"
+        prefix: project.ide_source_tree + "/src/share/qtcreator/externaltools/"
         files: {
             var list = [
                 "lrelease.xml",

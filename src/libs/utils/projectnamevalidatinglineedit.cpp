@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,10 +30,12 @@
 #include "projectnamevalidatinglineedit.h"
 #include "filenamevalidatinglineedit.h"
 
+#include "fileutils.h"
+
 namespace Utils {
 
 ProjectNameValidatingLineEdit::ProjectNameValidatingLineEdit(QWidget *parent)
-  : BaseValidatingLineEdit(parent)
+  : FancyLineEdit(parent)
 {
 }
 
@@ -43,12 +45,16 @@ bool ProjectNameValidatingLineEdit::validateProjectName(const QString &name, QSt
     if (!FileNameValidatingLineEdit::validateFileName(name, false, errorMessage))
         return false;
 
-    // We don't want dots in the directory name for some legacy Windows
-    // reason. Since we are cross-platform, we generally disallow it.
+    int pos = FileUtils::indexOfQmakeUnfriendly(name);
+    if (pos >= 0) {
+        if (errorMessage)
+            *errorMessage = tr("Invalid character '%1' found!").arg(name.at(pos));
+        return false;
+    }
     if (name.contains(QLatin1Char('.'))) {
         if (errorMessage)
             *errorMessage = tr("Invalid character '.'.");
-          return false;
+        return false;
     }
     return true;
 }

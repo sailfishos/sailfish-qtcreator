@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Denis Mingulov
+** Copyright (c) 2014 Denis Mingulov
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -34,11 +34,6 @@
 
 namespace ClassView {
 namespace Internal {
-
-/*!
-   \class Plugin
-   \brief Base class for Class View plugin (class/namespaces in the navigation pane)
- */
 
 class Plugin : public ExtensionSystem::IPlugin
 {

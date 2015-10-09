@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -31,7 +31,7 @@
 #define CPPSETTINGSPAGE_H
 
 #include "ui_cppsettingspagewidget.h"
-#include "qtdesignerformclasscodegenerator.h"
+#include <designer/qtdesignerformclasscodegenerator.h>
 
 #include <coreplugin/dialogs/ioptionspage.h>
 
@@ -49,8 +49,6 @@ public:
     FormClassWizardGenerationParameters parameters() const;
     void setParameters(const FormClassWizardGenerationParameters &p);
 
-    QString searchKeywords() const;
-
 private:
     int uiEmbedding() const;
     void setUiEmbedding(int);
@@ -63,15 +61,13 @@ class CppSettingsPage : public Core::IOptionsPage
 public:
     explicit CppSettingsPage(QObject *parent = 0);
 
-    QWidget *createPage(QWidget *parent);
+    QWidget *widget();
     void apply();
     void finish();
-    bool matches(const QString &s) const;
 
 private:
     QPointer<CppSettingsPageWidget> m_widget;
     FormClassWizardGenerationParameters m_parameters;
-    QString m_searchKeywords;
 };
 
 } // namespace Internal

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -52,11 +52,11 @@ void QmlJSTools::Internal::QmlJSToolsPlugin::test_basic()
     Document::Ptr doc = snapshot.document(welcomescreenRootPath);
     QVERIFY(doc && doc->isQmlDocument());
 
-    ContextPtr context = Link(snapshot, QStringList(), LibraryInfo())();
+    ContextPtr context = Link(snapshot, ViewerContext(), LibraryInfo())();
     QVERIFY(context);
 
     const CppComponentValue *rectangleValue = context->valueOwner()->cppQmlTypes().objectByQualifiedName(
-                QLatin1String("QtQuick"), QLatin1String("QDeclarative1Rectangle"), LanguageUtils::ComponentVersion(1, 0));
+                QLatin1String("QtQuick"), QLatin1String("QDeclarativeRectangle"), LanguageUtils::ComponentVersion(2, 1));
     QVERIFY(rectangleValue);
     QVERIFY(!rectangleValue->isWritable(QLatin1String("border")));
     QVERIFY(rectangleValue->hasProperty(QLatin1String("border")));

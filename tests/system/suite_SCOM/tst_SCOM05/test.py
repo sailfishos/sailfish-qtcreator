@@ -1,6 +1,6 @@
 #############################################################################
 ##
-## Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+## Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ## Contact: http://www.qt-project.org/legal
 ##
 ## This file is part of Qt Creator.
@@ -28,7 +28,6 @@
 #############################################################################
 
 source("../../shared/qtcreator.py")
-source("../../shared/suites_qtta.py")
 
 def verifyChangeProject(projectName):
     projItem = invokeContextMenuOnProject(projectName, 'Set "%s" as Active Project' % projectName)
@@ -54,7 +53,7 @@ def main():
     # build project 2
     clickButton(waitForObject(":*Qt Creator.Build Project_Core::Internal::FancyToolButton"))
     # wait for build to complete
-    waitForSignal("{type='ProjectExplorer::BuildManager' unnamed='1'}", "buildQueueFinished(bool)")
+    waitForCompile()
     # check output if build successful
     ensureChecked(waitForObject(":Qt Creator_CompileOutput_Core::Internal::OutputPaneToggleButton"))
     outputLog = str(waitForObject(":Qt Creator.Compile Output_Core::OutputWindow").plainText)

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,7 +30,6 @@
 #include "pathchooser.h"
 
 #include "fancylineedit.h"
-#include "basevalidatinglineedit.h"
 #include "environment.h"
 #include "qtcassert.h"
 
@@ -53,18 +52,11 @@
     This class has some validation logic for embedding into QWizardPage.
 */
 
-const char * const Utils::PathChooser::browseButtonLabel =
-#ifdef Q_OS_MAC
-                   QT_TRANSLATE_NOOP("Utils::PathChooser", "Choose...");
-#else
-                   QT_TRANSLATE_NOOP("Utils::PathChooser", "Browse...");
-#endif
-
 namespace Utils {
 
 // ------------------ PathValidatingLineEdit
 
-class PathValidatingLineEdit : public BaseValidatingLineEdit
+class PathValidatingLineEdit : public FancyLineEdit
 {
 public:
     explicit PathValidatingLineEdit(PathChooser *chooser, QWidget *parent = 0);
@@ -77,7 +69,7 @@ private:
 };
 
 PathValidatingLineEdit::PathValidatingLineEdit(PathChooser *chooser, QWidget *parent) :
-    BaseValidatingLineEdit(parent),
+    FancyLineEdit(parent),
     m_chooser(chooser)
 {
     QTC_ASSERT(chooser, return);
@@ -246,12 +238,13 @@ PathChooser::PathChooser(QWidget *parent) :
     connect(d->m_lineEdit, SIGNAL(validChanged()), this, SIGNAL(validChanged()));
     connect(d->m_lineEdit, SIGNAL(validChanged(bool)), this, SIGNAL(validChanged(bool)));
     connect(d->m_lineEdit, SIGNAL(editingFinished()), this, SIGNAL(editingFinished()));
+    connect(d->m_lineEdit, SIGNAL(textChanged(QString)), this, SLOT(slotTextChanged()));
 
     d->m_lineEdit->setMinimumWidth(120);
     d->m_hLayout->addWidget(d->m_lineEdit);
     d->m_hLayout->setSizeConstraint(QLayout::SetMinimumSize);
 
-    addButton(tr(browseButtonLabel), this, SLOT(slotBrowse()));
+    addButton(browseButtonLabel(), this, SLOT(slotBrowse()));
 
     setLayout(d->m_hLayout);
     setFocusProxy(d->m_lineEdit);
@@ -278,6 +271,11 @@ void PathChooser::insertButton(int index, const QString &text, QObject *receiver
     d->m_buttons.insert(index, button);
 }
 
+QString Utils::PathChooser::browseButtonLabel()
+{
+    return HostOsInfo::isMacHost() ? tr("Choose...") : tr("Browse...");
+}
+
 QAbstractButton *PathChooser::buttonAtIndex(int index) const
 {
     return d->m_buttons.at(index);
@@ -293,7 +291,7 @@ void PathChooser::setBaseDirectory(const QString &directory)
     if (d->m_baseDirectory == directory)
         return;
     d->m_baseDirectory = directory;
-    d->m_lineEdit->triggerChanged();
+    triggerChanged();
 }
 
 FileName PathChooser::baseFileName() const
@@ -304,14 +302,17 @@ FileName PathChooser::baseFileName() const
 void PathChooser::setBaseFileName(const FileName &base)
 {
     d->m_baseDirectory = base.toString();
+    triggerChanged();
 }
 
 void PathChooser::setEnvironment(const Utils::Environment &env)
 {
     QString oldExpand = path();
     d->m_environment = env;
-    if (path() != oldExpand)
+    if (path() != oldExpand) {
+        triggerChanged();
         emit changed(rawPath());
+    }
 }
 
 QString PathChooser::path() const
@@ -356,11 +357,21 @@ void PathChooser::slotBrowse()
     emit beforeBrowsing();
 
     QString predefined = path();
-    if ((predefined.isEmpty() || !QFileInfo(predefined).isDir())
+    QFileInfo fi(predefined);
+
+    if (!predefined.isEmpty() && !fi.isDir()) {
+        predefined = fi.path();
+        fi.setFile(predefined);
+    }
+
+    if ((predefined.isEmpty() || !fi.isDir())
             && !d->m_initialBrowsePathOverride.isNull()) {
         predefined = d->m_initialBrowsePathOverride;
-        if (!QFileInfo(predefined).isDir())
+        fi.setFile(predefined);
+        if (!fi.isDir()) {
             predefined.clear();
+            fi.setFile(QString());
+        }
     }
 
     // Prompt for a file/dir
@@ -376,6 +387,15 @@ void PathChooser::slotBrowse()
         newPath = QFileDialog::getOpenFileName(this,
                 makeDialogTitle(tr("Choose Executable")), predefined,
                 d->m_dialogFilter);
+        if (HostOsInfo::hostOs() == OsTypeMac && newPath.endsWith(QLatin1String(".app"))) {
+            // possibly expand to Foo.app/Contents/MacOS/Foo
+            QFileInfo info(newPath);
+            if (info.isDir()) {
+                QString exePath = newPath + QLatin1String("/Contents/MacOS/") + info.completeBaseName();
+                if (QFileInfo(exePath).isExecutable())
+                    newPath = exePath;
+            }
+        }
         break;
     case PathChooser::File: // fall through
         newPath = QFileDialog::getOpenFileName(this,
@@ -391,7 +411,6 @@ void PathChooser::slotBrowse()
         QFileDialog dialog(this);
         dialog.setFileMode(QFileDialog::AnyFile);
         dialog.setWindowTitle(makeDialogTitle(tr("Choose File")));
-        QFileInfo fi(predefined);
         if (fi.exists())
             dialog.setDirectory(fi.absolutePath());
         // FIXME: fix QFileDialog so that it filters properly: lib*.a
@@ -418,7 +437,12 @@ void PathChooser::slotBrowse()
     }
 
     emit browsingFinished();
-    d->m_lineEdit->triggerChanged();
+    triggerChanged();
+}
+
+void PathChooser::slotTextChanged()
+{
+    emit pathChanged(path());
 }
 
 bool PathChooser::isValid() const
@@ -637,6 +661,11 @@ void PathChooser::installLineEditVersionToolTip(QLineEdit *le, const QStringList
 {
     BinaryVersionToolTipEventFilter *ef = new BinaryVersionToolTipEventFilter(le);
     ef->setArguments(arguments);
+}
+
+void PathChooser::setHistoryCompleter(const QString &historyKey)
+{
+    d->m_lineEdit->setHistoryCompleter(historyKey);
 }
 
 QStringList PathChooser::commandVersionArguments() const

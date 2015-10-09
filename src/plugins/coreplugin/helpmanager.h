@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -45,6 +45,7 @@ struct HelpManagerPrivate;
 
 namespace Internal {
 class CorePlugin;
+class MainWindow;
 }
 
 class CORE_EXPORT HelpManager : public QObject
@@ -53,38 +54,38 @@ class CORE_EXPORT HelpManager : public QObject
 
 public:
     typedef QHash<QString, QStringList> Filters;
-    explicit HelpManager(QObject *parent = 0);
-    virtual ~HelpManager();
 
-    static HelpManager* instance();
+    static QObject *instance();
     static QString collectionFilePath();
 
-    void registerDocumentation(const QStringList &fileNames);
-    void unregisterDocumentation(const QStringList &nameSpaces);
+    static void registerDocumentation(const QStringList &fileNames);
+    static void unregisterDocumentation(const QStringList &nameSpaces);
 
-    QMap<QString, QUrl> linksForKeyword(const QString &key) const;
-    QMap<QString, QUrl> linksForIdentifier(const QString &id) const;
-    QStringList findKeywords(const QString &key, int maxHits = INT_MAX) const;
+    static QMap<QString, QUrl> linksForKeyword(const QString &key);
+    static QMap<QString, QUrl> linksForIdentifier(const QString &id);
+    static QStringList findKeywords(const QString &key,
+                             Qt::CaseSensitivity caseSensitivity = Qt::CaseInsensitive,
+                             int maxHits = INT_MAX);
 
-    QUrl findFile(const QUrl &url) const;
-    QByteArray fileData(const QUrl &url) const;
+    static QUrl findFile(const QUrl &url);
+    static QByteArray fileData(const QUrl &url);
 
-    QStringList registeredNamespaces() const;
-    QString namespaceFromFile(const QString &file) const;
-    QString fileFromNamespace(const QString &nameSpace) const;
+    static QStringList registeredNamespaces();
+    static QString namespaceFromFile(const QString &file);
+    static QString fileFromNamespace(const QString &nameSpace);
 
-    void setCustomValue(const QString &key, const QVariant &value);
-    QVariant customValue(const QString &key, const QVariant &value = QVariant()) const;
+    static void setCustomValue(const QString &key, const QVariant &value);
+    static QVariant customValue(const QString &key, const QVariant &value = QVariant());
 
-    Filters filters() const;
-    Filters fixedFilters() const;
+    static Filters filters();
+    static Filters fixedFilters();
 
-    Filters userDefinedFilters() const;
-    void removeUserDefinedFilter(const QString &filter);
-    void addUserDefinedFilter(const QString &filter, const QStringList &attr);
+    static Filters userDefinedFilters();
+    static void removeUserDefinedFilter(const QString &filter);
+    static void addUserDefinedFilter(const QString &filter, const QStringList &attr);
 
 public slots:
-    void handleHelpRequest(const QString &url);
+    static void handleHelpRequest(const QString &url);
 
 signals:
     void setupFinished();
@@ -93,10 +94,13 @@ signals:
     void helpRequested(const QUrl &url);
 
 private:
-    void setupHelpManager();
-    void verifyDocumenation();
-    HelpManagerPrivate *d;
-    friend class Internal::CorePlugin; // setupHelpManager
+    explicit HelpManager(QObject *parent = 0);
+    ~HelpManager();
+
+    static void setupHelpManager();
+    static void verifyDocumenation();
+    friend class Core::Internal::CorePlugin; // setupHelpManager
+    friend class Core::Internal::MainWindow; // constructor/destructor
 };
 
 }   // Core

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -91,7 +91,7 @@ protected:
     void matchingOperations(const QuickFixInterface &interface, QuickFixOperations &result);
 
     /*!
-        Implement this method to match and create the appropriate
+        Implement this function to match and create the appropriate
         QmlJSQuickFixOperation objects.
      */
     virtual void match(const QmlJSQuickFixInterface &interface, TextEditor::QuickFixOperations &result) = 0;

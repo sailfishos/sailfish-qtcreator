@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -33,6 +33,10 @@
 
 namespace QmlDesigner {
 
+Import::Import()
+{
+}
+
 Import Import::createLibraryImport(const QString &url, const QString &version, const QString &alias, const QStringList &importPaths)
 {
     return Import(url, QString(), version, alias, importPaths);
@@ -48,6 +52,15 @@ Import Import::empty()
     return Import(QString(), QString(), QString(), QString(), QStringList());
 }
 
+QString Import::toImportString() const
+{
+    QString result = QLatin1String("import ");
+
+    result += toString(false);
+
+    return result;
+}
+
 Import::Import(const QString &url, const QString &file, const QString &version, const QString &alias, const QStringList &importPaths):
         m_url(url),
         m_file(file),
@@ -57,9 +70,9 @@ Import::Import(const QString &url, const QString &file, const QString &version, 
 {
 }
 
-QString Import::toString(bool addSemicolon, bool skipAlias) const
+QString Import::toString(bool skipAlias) const
 {
-    QString result = QLatin1String("import ");
+    QString result;
 
     if (isFileImport())
         result += '"' + file() + '"';
@@ -74,15 +87,20 @@ QString Import::toString(bool addSemicolon, bool skipAlias) const
     if (hasAlias() && !skipAlias)
         result += " as " + alias();
 
-    if (addSemicolon)
-        result += ';';
-
     return result;
 }
 
 bool Import::operator==(const Import &other) const
 {
-    return url() == other.url() && file() == other.file() && version() == other.version() && alias() == other.alias();
+    return url() == other.url() && file() == other.file() && (version() == other.version() || version().isEmpty() || other.version().isEmpty());
+}
+
+bool Import::isSameModule(const Import &other) const
+{
+    if (isLibraryImport())
+        return url() == other.url();
+    else
+        return file() == other.file();
 }
 
 uint qHash(const Import &import)

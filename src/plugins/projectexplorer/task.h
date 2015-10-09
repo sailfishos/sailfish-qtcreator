@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -53,8 +53,9 @@ public:
     };
 
     Task();
-    Task(TaskType type_, const QString &description_,
-         const Utils::FileName &file_, int line_, const Core::Id &category_);
+    Task(TaskType type, const QString &description,
+         const Utils::FileName &file, int line, Core::Id category,
+         const Utils::FileName &iconName = Utils::FileName());
 
     bool isNull() const;
     void clear();
@@ -66,6 +67,7 @@ public:
     int line;
     int movedLine; // contains a line number if the line was moved in the editor
     Core::Id category;
+    QIcon icon;
     void addMark(TextEditor::BaseTextMark *mark);
 
     // Having a QList<QTextLayout::FormatRange> in Task isn't that great

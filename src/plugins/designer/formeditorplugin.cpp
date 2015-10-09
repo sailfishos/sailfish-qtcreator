@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -33,27 +33,33 @@
 #include "formwizard.h"
 
 #ifdef CPP_ENABLED
-#  include "formclasswizard.h"
-#  include "cppsettingspage.h"
+#  include "cpp/formclasswizard.h"
+#  include "cpp/cppsettingspage.h"
 #endif
 
 #include "settingspage.h"
 #include "qtdesignerformclasscodegenerator.h"
 
+#include <coreplugin/actionmanager/actioncontainer.h>
+#include <coreplugin/actionmanager/actionmanager.h>
+#include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/mimedatabase.h>
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/designmode.h>
+#include <cpptools/cpptoolsconstants.h>
 
 #include <QDebug>
 #include <QLibraryInfo>
 #include <QTranslator>
 #include <QtPlugin>
 
+using namespace Core;
 using namespace Designer::Internal;
 using namespace Designer::Constants;
 
 FormEditorPlugin::FormEditorPlugin()
+    : m_actionSwitchSource(new QAction(tr("Switch Source/Form"), this))
 {
 }
 
@@ -70,9 +76,8 @@ FormEditorPlugin::~FormEditorPlugin()
 bool FormEditorPlugin::initialize(const QStringList &arguments, QString *error)
 {
     Q_UNUSED(arguments)
-    Q_UNUSED(error)
 
-    if (!Core::ICore::mimeDatabase()->addMimeTypes(QLatin1String(":/formeditor/Designer.mimetypes.xml"), error))
+    if (!MimeDatabase::addMimeTypes(QLatin1String(":/formeditor/Designer.mimetypes.xml"), error))
         return false;
 
     initializeTemplates();
@@ -81,11 +86,11 @@ bool FormEditorPlugin::initialize(const QStringList &arguments, QString *error)
     addAutoReleasedObject(new SettingsPageProvider);
     addAutoReleasedObject(new QtDesignerFormClassCodeGenerator);
     // Ensure that loading designer translations is done before FormEditorW is instantiated
-    const QString locale = Core::ICore::userInterfaceLanguage();
+    const QString locale = ICore::userInterfaceLanguage();
     if (!locale.isEmpty()) {
         QTranslator *qtr = new QTranslator(this);
         const QString &creatorTrPath =
-                Core::ICore::resourcePath() + QLatin1String("/translations");
+                ICore::resourcePath() + QLatin1String("/translations");
         const QString &qtTrPath = QLibraryInfo::location(QLibraryInfo::TranslationsPath);
         const QString &trFile = QLatin1String("designer_") + locale;
         if (qtr->load(trFile, qtTrPath) || qtr->load(trFile, creatorTrPath))
@@ -97,37 +102,105 @@ bool FormEditorPlugin::initialize(const QStringList &arguments, QString *error)
 
 void FormEditorPlugin::extensionsInitialized()
 {
-    Core::DesignMode::instance()->setDesignModeIsRequired();
+    DesignMode::instance()->setDesignModeIsRequired();
     // 4) test and make sure everything works (undo, saving, editors, opening/closing multiple files, dirtiness etc)
+
+    ActionContainer *mtools = ActionManager::actionContainer(Core::Constants::M_TOOLS);
+    ActionContainer *mformtools = ActionManager::createMenu(M_FORMEDITOR);
+    mformtools->menu()->setTitle(tr("For&m Editor"));
+    mtools->addMenu(mformtools);
+
+    connect(m_actionSwitchSource, SIGNAL(triggered()), this, SLOT(switchSourceForm()));
+    Core::Context context(Designer::Constants::C_FORMEDITOR, Core::Constants::C_EDITORMANAGER);
+    Core::Command *cmd = Core::ActionManager::registerAction(m_actionSwitchSource,
+                                                             "FormEditor.FormSwitchSource", context);
+    cmd->setDefaultKeySequence(tr("Shift+F4"));
+    mformtools->addAction(cmd, Core::Constants::G_DEFAULT_THREE);
 }
 
 ////////////////////////////////////////////////////
 //
-// PRIVATE methods
+// PRIVATE functions
 //
 ////////////////////////////////////////////////////
 
 void FormEditorPlugin::initializeTemplates()
 {
-    FormWizard::BaseFileWizardParameters wizardParameters(Core::IWizard::FileWizard);
-    wizardParameters.setCategory(QLatin1String(Core::Constants::WIZARD_CATEGORY_QT));
-    wizardParameters.setDisplayCategory(QCoreApplication::translate("Core", Core::Constants::WIZARD_TR_CATEGORY_QT));
-    const QString formFileType = QLatin1String(Constants::FORM_FILE_TYPE);
-    wizardParameters.setDisplayName(tr("Qt Designer Form"));
-    wizardParameters.setId(QLatin1String("D.Form"));
-    wizardParameters.setDescription(tr("Creates a Qt Designer form that you can add to a Qt Widget Project. "
+    IWizard *wizard = new FormWizard;
+    wizard->setWizardKind(IWizard::FileWizard);
+    wizard->setCategory(QLatin1String(Core::Constants::WIZARD_CATEGORY_QT));
+    wizard->setDisplayCategory(QCoreApplication::translate("Core", Core::Constants::WIZARD_TR_CATEGORY_QT));
+    wizard->setDisplayName(tr("Qt Designer Form"));
+    wizard->setId(QLatin1String("D.Form"));
+    wizard->setDescription(tr("Creates a Qt Designer form that you can add to a Qt Widget Project. "
                                        "This is useful if you already have an existing class for the UI business logic."));
-    addAutoReleasedObject(new FormWizard(wizardParameters, this));
+    addAutoReleasedObject(wizard);
 
 #ifdef CPP_ENABLED
-    wizardParameters.setKind(Core::IWizard::ClassWizard);
-    wizardParameters.setDisplayName(tr("Qt Designer Form Class"));
-    wizardParameters.setId(QLatin1String("C.FormClass"));
-    wizardParameters.setDescription(tr("Creates a Qt Designer form along with a matching class (C++ header and source file) "
+    wizard = new FormClassWizard;
+    wizard->setWizardKind(IWizard::ClassWizard);
+    wizard->setCategory(QLatin1String(Core::Constants::WIZARD_CATEGORY_QT));
+    wizard->setDisplayCategory(QCoreApplication::translate("Core", Core::Constants::WIZARD_TR_CATEGORY_QT));
+    wizard->setDisplayName(tr("Qt Designer Form Class"));
+    wizard->setId(QLatin1String("C.FormClass"));
+    wizard->setDescription(tr("Creates a Qt Designer form along with a matching class (C++ header and source file) "
                                        "for implementation purposes. You can add the form and class to an existing Qt Widget Project."));
-    addAutoReleasedObject(new FormClassWizard(wizardParameters, this));
+    addAutoReleasedObject(wizard);
+
     addAutoReleasedObject(new CppSettingsPage);
 #endif
+}
+
+// Find out current existing editor file
+static QString currentFile()
+{
+    if (const IDocument *document = EditorManager::currentDocument()) {
+        const QString fileName = document->filePath();
+        if (!fileName.isEmpty() && QFileInfo(fileName).isFile())
+            return fileName;
+    }
+    return QString();
+}
+
+// Switch between form ('ui') and source file ('cpp'):
+// Find corresponding 'other' file, simply assuming it is in the same directory.
+static QString otherFile()
+{
+    // Determine mime type of current file.
+    const QString current = currentFile();
+    if (current.isEmpty())
+        return QString();
+    const MimeType currentMimeType = MimeDatabase::findByFile(current);
+    if (!currentMimeType)
+        return QString();
+    // Determine potential suffixes of candidate files
+    // 'ui' -> 'cpp', 'cpp/h' -> 'ui'.
+    QStringList candidateSuffixes;
+    if (currentMimeType.type() == QLatin1String(FORM_MIMETYPE)) {
+        candidateSuffixes += MimeDatabase::findByType(QLatin1String(CppTools::Constants::CPP_SOURCE_MIMETYPE)).suffixes();
+    } else if (currentMimeType.type() == QLatin1String(CppTools::Constants::CPP_SOURCE_MIMETYPE)
+               || currentMimeType.type() == QLatin1String(CppTools::Constants::CPP_HEADER_MIMETYPE)) {
+        candidateSuffixes += MimeDatabase::findByType(QLatin1String(FORM_MIMETYPE)).suffixes();
+    } else {
+        return QString();
+    }
+    // Try to find existing file with desired suffix
+    const QFileInfo currentFI(current);
+    const QString currentBaseName = currentFI.path() + QLatin1Char('/')
+            + currentFI.baseName() + QLatin1Char('.');
+    foreach (const QString &candidateSuffix, candidateSuffixes) {
+        const QFileInfo fi(currentBaseName + candidateSuffix);
+        if (fi.isFile())
+            return fi.absoluteFilePath();
+    }
+    return QString();
+}
+
+void FormEditorPlugin::switchSourceForm()
+{
+    const QString fileToOpen = otherFile();
+    if (!fileToOpen.isEmpty())
+        Core::EditorManager::openEditor(fileToOpen);
 }
 
 Q_EXPORT_PLUGIN(FormEditorPlugin)

@@ -1,19 +1,23 @@
-import qbs.base 1.0
+import qbs 1.0
 
-import "../QtcPlugin.qbs" as QtcPlugin
+import QtcFunctions
+import QtcPlugin
 
 QtcPlugin {
     name: "QtSupport"
 
-    Depends { name: "Qt"; submodules: ["widgets", "declarative"] }
+    Depends { name: "Qt"; submodules: ["widgets"]; }
+    Depends { name: "Qt.quick"; condition: QtcFunctions.versionIsAtLeast(Qt.core.version, "5.1"); }
+    Depends { name: "Aggregation" }
+    Depends { name: "QmlJS" }
+    Depends { name: "Utils" }
+
     Depends { name: "Core" }
     Depends { name: "ProjectExplorer" }
-    Depends { name: "TextEditor" }
-    Depends { name: "QmlJS" }
+    Depends { name: "CppTools" }
 
     cpp.includePaths: base.concat([
         "../../shared",
-        "../../shared/proparser"
     ])
 
     cpp.defines: base.concat([
@@ -63,23 +67,15 @@ QtcPlugin {
         "customexecutableconfigurationwidget.h",
         "customexecutablerunconfiguration.cpp",
         "customexecutablerunconfiguration.h",
-        "debugginghelper.cpp",
-        "debugginghelper.h",
         "debugginghelper.ui",
         "debugginghelperbuildtask.cpp",
         "debugginghelperbuildtask.h",
         "exampleslistmodel.cpp",
         "exampleslistmodel.h",
-        "gettingstartedwelcomepage.cpp",
-        "gettingstartedwelcomepage.h",
         "profilereader.cpp",
         "profilereader.h",
-        "qmldebugginglibrary.cpp",
-        "qmldebugginglibrary.h",
         "qmldumptool.cpp",
         "qmldumptool.h",
-        "qmlobservertool.cpp",
-        "qmlobservertool.h",
         "qtkitconfigwidget.cpp",
         "qtkitconfigwidget.h",
         "qtkitinformation.cpp",
@@ -104,14 +100,37 @@ QtcPlugin {
         "screenshotcropper.cpp",
         "screenshotcropper.h",
         "showbuildlog.ui",
+        "uicodemodelsupport.cpp",
+        "uicodemodelsupport.h",
         "images/forms.png",
         "images/qml.png",
         "images/qt_project.png",
         "images/qt_qrc.png",
     ]
 
+    Group {
+        name: "QtVersion"
+        files: [
+            "desktopqtversion.cpp", "desktopqtversion.h",
+            "desktopqtversionfactory.cpp", "desktopqtversionfactory.h",
+            "simulatorqtversion.cpp", "simulatorqtversion.h",
+            "simulatorqtversionfactory.cpp", "simulatorqtversionfactory.h",
+            "winceqtversion.cpp", "winceqtversion.h",
+            "winceqtversionfactory.cpp", "winceqtversionfactory.h",
+        ]
+    }
+
+    Group {
+        name: "Getting Started Welcome Page"
+        condition: QtcFunctions.versionIsAtLeast(Qt.core.version, "5.1")
+        files: [
+            "gettingstartedwelcomepage.cpp",
+            "gettingstartedwelcomepage.h"
+        ]
+    }
+
+
     Export {
-        Depends { name: "cpp" }
         cpp.includePaths: "../../shared"
         cpp.defines: [
             "QMAKE_AS_LIBRARY",

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -34,13 +34,13 @@
 #include <coreplugin/basefilewizard.h>
 
 namespace PythonEditor {
+namespace Internal {
 
 ClassWizardDialog::ClassWizardDialog(QWidget *parent)
     : Utils::Wizard(parent)
     , m_classNamePage(new ClassNamePage(this))
 {
     setWindowTitle(tr("Python Class Wizard"));
-    Core::BaseFileWizard::setupWizard(this);
     const int classNameId = addPage(m_classNamePage.data());
     wizardProgress()->item(classNameId)->setTitle(tr("Details"));
 }
@@ -77,4 +77,5 @@ void ClassWizardDialog::setPath(const QString &path)
     m_classNamePage->newClassWidget()->setPath(path);
 }
 
+} // namespace Internal
 } // namespace PythonEditor

@@ -4,8 +4,6 @@ include(../../qtcreatorplugin.pri)
 include(../../shared/designerintegrationv2/designerintegration.pri)
 include(cpp/cpp.pri)
 
-INCLUDEPATH += ../../tools/utils
-
 greaterThan(QT_MAJOR_VERSION, 4) {
     QT += printsupport designer designercomponents-private
 } else {
@@ -36,12 +34,12 @@ HEADERS += formeditorplugin.h \
         formwizarddialog.h \
         codemodelhelpers.h \
         designer_export.h \
-    designerxmleditor.h \
     designercontext.h \
     formeditorstack.h \
     editordata.h \
     resourcehandler.h \
-    qtdesignerformclasscodegenerator.h
+    qtdesignerformclasscodegenerator.h \
+    designerxmleditorwidget.h
 
 SOURCES += formeditorplugin.cpp \
         formeditorfactory.cpp \
@@ -56,11 +54,16 @@ SOURCES += formeditorplugin.cpp \
         formtemplatewizardpage.cpp \
         formwizarddialog.cpp \
         codemodelhelpers.cpp \
-    designerxmleditor.cpp \
     designercontext.cpp \
     formeditorstack.cpp \
     resourcehandler.cpp \
-    qtdesignerformclasscodegenerator.cpp
+    qtdesignerformclasscodegenerator.cpp \
+    designerxmleditorwidget.cpp
+
+equals(TEST, 1) {
+    SOURCES += gotoslot_test.cpp
+    DEFINES += SRCDIR=\\\"$$PWD\\\"
+}
 
 RESOURCES += designer.qrc
 

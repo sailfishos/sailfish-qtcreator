@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -65,7 +65,6 @@ const char QML_SELECTTOOL[]         = "Debugger.QmlSelectTool";
 const char QML_ZOOMTOOL[]           = "Debugger.QmlZoomTool";
 
 
-const char TASK_CATEGORY_DEBUGGER_TEST[]      = "DebuggerTest";
 const char TASK_CATEGORY_DEBUGGER_DEBUGINFO[] = "Debuginfo";
 const char TASK_CATEGORY_DEBUGGER_RUNTIME[]   = "DebugRuntime";
 
@@ -162,7 +161,8 @@ enum DebuggerCapabilities
     RunToLineCapability = 0x800000,
     MemoryAddressCapability = 0x1000000,
     ShowModuleSectionsCapability = 0x200000,
-    WatchComplexExpressionsCapability = 0x400000 // Used to filter out challenges for cdb.
+    WatchComplexExpressionsCapability = 0x400000, // Used to filter out challenges for cdb.
+    AdditionalQmlStackCapability = 0x800000 // C++ debugger engine is able to retrieve QML stack as well.
 };
 
 enum LogChannel
@@ -187,20 +187,16 @@ enum DebuggerEngineType
 {
     NoEngineType      = 0,
     GdbEngineType     = 0x001,
-    ScriptEngineType  = 0x002,
     CdbEngineType     = 0x004,
     PdbEngineType     = 0x008,
     QmlEngineType     = 0x020,
     QmlCppEngineType  = 0x040,
-    LldbLibEngineType = 0x080,
     LldbEngineType    = 0x100,
     AllEngineTypes = GdbEngineType
-        | ScriptEngineType
         | CdbEngineType
         | PdbEngineType
         | QmlEngineType
         | QmlCppEngineType
-        | LldbLibEngineType
         | LldbEngineType
 };
 

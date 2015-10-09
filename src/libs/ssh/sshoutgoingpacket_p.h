@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -34,6 +34,8 @@
 
 #include "sshpseudoterminal.h"
 
+#include <QStringList>
+
 namespace QSsh {
 namespace Internal {
 
@@ -52,10 +54,13 @@ public:
         const QByteArray &reasonString);
     void generateMsgUnimplementedPacket(quint32 serverSeqNr);
     void generateUserAuthServiceRequestPacket();
-    void generateUserAuthByPwdRequestPacket(const QByteArray &user,
+    void generateUserAuthByPasswordRequestPacket(const QByteArray &user,
         const QByteArray &service, const QByteArray &pwd);
-    void generateUserAuthByKeyRequestPacket(const QByteArray &user,
+    void generateUserAuthByPublicKeyRequestPacket(const QByteArray &user,
         const QByteArray &service);
+    void generateUserAuthByKeyboardInteractiveRequestPacket(const QByteArray &user,
+        const QByteArray &service);
+    void generateUserAuthInfoResponsePacket(const QStringList &responses);
     void generateRequestFailurePacket();
     void generateIgnorePacket();
     void generateInvalidMessagePacket();

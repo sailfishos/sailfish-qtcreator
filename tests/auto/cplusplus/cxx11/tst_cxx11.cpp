@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -103,10 +103,12 @@ class tst_cxx11: public QObject
         Document::Ptr doc = Document::create(fileName);
         QFile file(testdata(fileName));
         if (file.open(QFile::ReadOnly)) {
+            LanguageFeatures features;
+            features.cxx11Enabled = true;
             Client client(errors);
             doc->control()->setDiagnosticClient(&client);
             doc->setUtf8Source(QTextStream(&file).readAll().toUtf8());
-            doc->translationUnit()->setCxxOxEnabled(true);
+            doc->translationUnit()->setLanguageFeatures(features);
             doc->check();
             doc->control()->setDiagnosticClient(0);
         } else {
@@ -149,6 +151,7 @@ void tst_cxx11::parse_data()
     QTest::newRow("templateGreaterGreater.1") << "templateGreaterGreater.1.cpp" << "";
     QTest::newRow("packExpansion.1") << "packExpansion.1.cpp" << "";
     QTest::newRow("declType.1") << "declType.1.cpp" << "";
+    QTest::newRow("threadLocal.1") << "threadLocal.1.cpp" << "";
 }
 
 void tst_cxx11::parse()

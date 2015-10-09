@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -31,7 +31,6 @@
 #include "qmlprojectmanager.h"
 #include "qmlproject.h"
 #include "qmlprojectrunconfigurationfactory.h"
-#include "qmlprojectruncontrol.h"
 #include "qmlapplicationwizard.h"
 #include "fileformat/qmlprojectfileformat.h"
 
@@ -60,52 +59,20 @@ bool QmlProjectPlugin::initialize(const QStringList &, QString *errorMessage)
 {
     using namespace Core;
 
-    Core::MimeDatabase *mimeDB = Core::ICore::mimeDatabase();
-
     const QLatin1String mimetypesXml(":/qmlproject/QmlProjectManager.mimetypes.xml");
 
-    if (! mimeDB->addMimeTypes(mimetypesXml, errorMessage))
+    if (!MimeDatabase::addMimeTypes(mimetypesXml, errorMessage))
         return false;
 
-    Internal::Manager *manager = new Internal::Manager;
-
-    addAutoReleasedObject(manager);
+    addAutoReleasedObject(new Internal::Manager);
     addAutoReleasedObject(new Internal::QmlProjectRunConfigurationFactory);
-    addAutoReleasedObject(new Internal::QmlProjectRunControlFactory);
 
-    QmlProjectFileFormat::registerDeclarativeTypes();
-
-    Core::FileIconProvider *iconProvider = Core::FileIconProvider::instance();
-    iconProvider->registerIconOverlayForSuffix(QIcon(QLatin1String(":/qmlproject/images/qmlproject.png")),
-                                               QLatin1String("qmlproject"));
+    FileIconProvider::registerIconOverlayForSuffix(":/qmlproject/images/qmlproject.png", "qmlproject");
     return true;
 }
 
 void QmlProjectPlugin::extensionsInitialized()
 {
-}
-
-void QmlProjectPlugin::showQmlObserverToolWarning()
-{
-    QMessageBox dialog(QApplication::activeWindow());
-    QPushButton *qtPref = dialog.addButton(tr("Open Qt Versions"),
-                                           QMessageBox::ActionRole);
-    dialog.addButton(QMessageBox::Cancel);
-    dialog.setDefaultButton(qtPref);
-    dialog.setWindowTitle(tr("QML Observer Missing"));
-    dialog.setText(tr("QML Observer could not be found for this Qt version."));
-    dialog.setInformativeText(tr(
-                                  "QML Observer is used to offer debugging features for "
-                                  "Qt Quick UI projects in the Qt 4.7 series.\n\n"
-                                  "To compile QML Observer, go to the Qt Versions page, "
-                                  "select the current Qt version, "
-                                  "and click Build in the Helpers section."));
-    dialog.exec();
-    if (dialog.clickedButton() == qtPref) {
-        Core::ICore::showOptionsDialog(
-                    ProjectExplorer::Constants::PROJECTEXPLORER_SETTINGS_CATEGORY,
-                    QtSupport::Constants::QTVERSION_SETTINGS_PAGE_ID);
-    }
 }
 
 } // namespace QmlProjectManager

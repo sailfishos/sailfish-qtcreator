@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -37,9 +37,7 @@
 namespace Qnx {
 namespace Internal {
 
-namespace Ui {
-class BarDescriptorEditorPackageInformationWidget;
-}
+namespace Ui { class BarDescriptorEditorPackageInformationWidget; }
 
 class BarDescriptorEditorPackageInformationWidget : public BarDescriptorEditorAbstractPanelWidget
 {
@@ -48,17 +46,6 @@ class BarDescriptorEditorPackageInformationWidget : public BarDescriptorEditorAb
 public:
     explicit BarDescriptorEditorPackageInformationWidget(QWidget *parent = 0);
     ~BarDescriptorEditorPackageInformationWidget();
-
-    void clear();
-
-    QString packageId() const;
-    void setPackageId(const QString &packageId);
-
-    QString packageVersion() const;
-    void setPackageVersion(const QString &packageVersion);
-
-    QString packageBuildId() const;
-    void setPackageBuildId(const QString &packageBuildId);
 
 private:
     Ui::BarDescriptorEditorPackageInformationWidget *m_ui;

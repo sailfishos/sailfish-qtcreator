@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -63,7 +63,7 @@ signals:
 private slots:
     void handleConnectionFailure();
     void handleSftpChannelInitialized();
-    void handleSftpChannelInitializationFailed(const QString &error);
+    void handleSftpChannelError(const QString &error);
     void handleSftpJobFinished(QSsh::SftpJobId job, const QString &error);
 
 private:

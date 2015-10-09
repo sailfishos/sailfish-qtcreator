@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -81,6 +81,7 @@ private:
 QDataStream &operator<<(QDataStream &out, const CreateSceneCommand &command);
 QDataStream &operator>>(QDataStream &in, CreateSceneCommand &command);
 
+QDebug operator <<(QDebug debug, const CreateSceneCommand &command);
 }
 
 Q_DECLARE_METATYPE(QmlDesigner::CreateSceneCommand)

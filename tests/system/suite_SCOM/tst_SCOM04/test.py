@@ -1,6 +1,6 @@
 #############################################################################
 ##
-## Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+## Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ## Contact: http://www.qt-project.org/legal
 ##
 ## This file is part of Qt Creator.
@@ -34,7 +34,8 @@ source("../../shared/suites_qtta.py")
 def main():
     # expected error texts - for different compilers
     expectedErrorAlternatives = ["'SyntaxError' was not declared in this scope",
-                                 "'SyntaxError' : undeclared identifier"]
+                                 "'SyntaxError' : undeclared identifier",
+                                 "use of undeclared identifier 'SyntaxError'"]
     startApplication("qtcreator" + SettingsPath)
     if not startedWithoutPluginError():
         return
@@ -57,7 +58,7 @@ def main():
         test.log("Testing build configuration: " + config)
         clickButton(waitForObject(":*Qt Creator.Build Project_Core::Internal::FancyToolButton"))
         # wait until build finished
-        waitForSignal("{type='ProjectExplorer::BuildManager' unnamed='1'}", "buildQueueFinished(bool)")
+        waitForCompile()
         # open issues list view
         ensureChecked(waitForObject(":Qt Creator_Issues_Core::Internal::OutputPaneToggleButton"))
         issuesView = waitForObject(":Qt Creator.Issues_QListView")

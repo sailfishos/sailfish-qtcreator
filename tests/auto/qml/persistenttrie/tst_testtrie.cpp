@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -45,7 +45,7 @@ void tst_TestTrie::initTestCase() {
 
 const bool VERBOSE=false;
 
-tst_TestTrie::tst_TestTrie() { QObject::QObject(); }
+tst_TestTrie::tst_TestTrie() { }
 
 void tst_TestTrie::testListAll_data()
 {
@@ -350,7 +350,7 @@ void interactiveCompletionTester(){
         res = matchStrengthSort(line,res);
         qDebug() << "possible completions:[";
         foreach (const QString &s, res) {
-            qDebug() << s;
+            qDebug() << matchStrength(line,s) << " " << s;
         }
         qDebug() << "]";
     }

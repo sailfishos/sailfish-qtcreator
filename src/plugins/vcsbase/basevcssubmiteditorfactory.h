@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -39,10 +39,6 @@ namespace VcsBase {
 class VcsBaseSubmitEditor;
 class VcsBaseSubmitEditorParameters;
 
-namespace Internal {
-class BaseVcsSubmitEditorFactoryPrivate;
-} // namespace Internal
-
 // Parametrizable base class for editor factories creating instances of
 // VcsBaseSubmitEditor subclasses.
 class VCSBASE_EXPORT BaseVcsSubmitEditorFactory : public Core::IEditorFactory
@@ -51,21 +47,17 @@ class VCSBASE_EXPORT BaseVcsSubmitEditorFactory : public Core::IEditorFactory
 
 protected:
     explicit BaseVcsSubmitEditorFactory(const VcsBaseSubmitEditorParameters *parameters);
-
-public:
     ~BaseVcsSubmitEditorFactory();
 
-    Core::IEditor *createEditor(QWidget *parent);
-    Core::Id id() const;
-    QString displayName() const;
-    QStringList mimeTypes() const;
+public:
+    Core::IEditor *createEditor();
 
 private:
     virtual VcsBaseSubmitEditor
         *createBaseSubmitEditor(const VcsBaseSubmitEditorParameters *parameters,
-                                QWidget *parent) = 0;
+                                QWidget *parent = 0) = 0;
 
-    Internal::BaseVcsSubmitEditorFactoryPrivate *const d;
+    const VcsBaseSubmitEditorParameters *const m_parameters; // Not owned.
 };
 
 // Utility template to create an editor that has a constructor taking the
@@ -82,7 +74,7 @@ public:
 
 private:
     VcsBaseSubmitEditor *createBaseSubmitEditor
-        (const VcsBaseSubmitEditorParameters *parameters, QWidget *parent)
+        (const VcsBaseSubmitEditorParameters *parameters, QWidget *parent = 0)
     {
         return new Editor(parameters, parent);
     }

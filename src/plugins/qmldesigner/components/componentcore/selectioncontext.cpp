@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -29,23 +29,21 @@
 
 #include "selectioncontext.h"
 
+#include <qmlstate.h>
+
 namespace QmlDesigner {
 
 
 SelectionContext::SelectionContext() :
-    m_isInBaseState(false),
     m_toggled(false)
 {
 
 }
 
-SelectionContext::SelectionContext(QmlModelView *qmlModelView) :
-    m_qmlModelView(qmlModelView),
-    m_isInBaseState(qmlModelView->currentState().isBaseState()),
+SelectionContext::SelectionContext(AbstractView *view) :
+    m_view(view),
     m_toggled(false)
 {
-    if (qmlModelView && qmlModelView->model())
-        m_selectedModelNodes = qmlModelView->selectedModelNodes();
 }
 
 void SelectionContext::setTargetNode(const ModelNode &modelNode)
@@ -60,30 +58,37 @@ ModelNode SelectionContext::targetNode() const
 
 bool SelectionContext::singleNodeIsSelected() const
 {
-    return m_selectedModelNodes.count() == 1;
+    return view()->hasSingleSelectedModelNode();
 }
 
 bool SelectionContext::isInBaseState() const
 {
-    return m_isInBaseState;
+    return view()->currentState().isBaseState();
 }
 
 ModelNode SelectionContext::currentSingleSelectedNode() const
 {
-    if (m_selectedModelNodes.count() != 1)
-        return ModelNode();
+    return view()->singleSelectedModelNode();
+}
 
-    return m_selectedModelNodes.first();
+ModelNode SelectionContext::firstSelectedModelNode() const
+{
+    return view()->firstSelectedModelNode();
 }
 
 QList<ModelNode> SelectionContext::selectedModelNodes() const
 {
-    return m_selectedModelNodes;
+    return view()->selectedModelNodes();
 }
 
-QmlModelView *SelectionContext::qmlModelView() const
+bool SelectionContext::hasSingleSelectedModelNode() const
 {
-    return m_qmlModelView.data();
+    return view()->hasSelectedModelNodes();
+}
+
+AbstractView *SelectionContext::view() const
+{
+    return m_view.data();
 }
 
 void SelectionContext::setShowSelectionTools(bool show)
@@ -96,12 +101,12 @@ bool SelectionContext::showSelectionTools() const
     return m_showSelectionTools;
 }
 
-void SelectionContext::setScenePos(const QPoint &postition)
+void SelectionContext::setScenePosition(const QPointF &postition)
 {
     m_scenePosition = postition;
 }
 
-QPoint SelectionContext::scenePos() const
+QPointF SelectionContext::scenePosition() const
 {
     return m_scenePosition;
 }
@@ -118,7 +123,7 @@ bool SelectionContext::toggled() const
 
 bool SelectionContext::isValid() const
 {
-    return qmlModelView() && qmlModelView()->model() && qmlModelView()->nodeInstanceView();
+    return view() && view()->model();
 }
 
 } //QmlDesigner

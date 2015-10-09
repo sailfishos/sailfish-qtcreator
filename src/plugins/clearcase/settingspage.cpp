@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 AudioCodes Ltd.
+** Copyright (c) 2014 AudioCodes Ltd.
 ** Author: Orgad Shaneh <orgad.shaneh@audiocodes.com>
 ** Contact: http://www.qt-project.org/legal
 **
@@ -52,6 +52,7 @@ SettingsPageWidget::SettingsPageWidget(QWidget *parent) :
     m_ui.setupUi(this);
     m_ui.commandPathChooser->setPromptDialogTitle(tr("ClearCase Command"));
     m_ui.commandPathChooser->setExpectedKind(PathChooser::ExistingCommand);
+    m_ui.commandPathChooser->setHistoryCompleter(QLatin1String("ClearCase.Command.History"));
 }
 
 ClearCaseSettings SettingsPageWidget::settings() const
@@ -86,7 +87,8 @@ void SettingsPageWidget::setSettings(const ClearCaseSettings &s)
     } else {
         QString diffWarning = tr("In order to use External diff, 'diff' command needs to be accessible.");
         if (HostOsInfo::isWindowsHost()) {
-            diffWarning.append(tr(" DiffUtils is available for free download "
+            diffWarning += QLatin1Char(' ');
+            diffWarning.append(tr("DiffUtils is available for free download "
                                   "<a href=\"http://gnuwin32.sourceforge.net/packages/diffutils.htm\">here</a>. "
                                   "Please extract it to a directory in your PATH."));
         }
@@ -105,25 +107,6 @@ void SettingsPageWidget::setSettings(const ClearCaseSettings &s)
     m_ui.indexOnlyVOBsEdit->setText(s.indexOnlyVOBs);
 }
 
-QString SettingsPageWidget::searchKeywords() const
-{
-    QString rc;
-    QLatin1Char sep(' ');
-    QTextStream(&rc) << m_ui.commandLabel->text()
-            << sep << m_ui.autoCheckOutCheckBox->text()
-            << sep << m_ui.externalDiffRadioButton->text()
-            << sep << m_ui.graphicalDiffRadioButton->text()
-            << sep << m_ui.diffArgsLabel->text()
-            << sep << m_ui.historyCountLabel->text()
-            << sep << m_ui.promptCheckBox->text()
-            << sep << m_ui.disableIndexerCheckBox->text()
-            << sep << m_ui.timeOutLabel->text()
-            << sep << m_ui.indexOnlyVOBsLabel->text()
-               ;
-    rc.remove(QLatin1Char('&'));
-    return rc;
-}
-
 SettingsPage::SettingsPage() :
     m_widget(0)
 {
@@ -131,21 +114,15 @@ SettingsPage::SettingsPage() :
     setDisplayName(tr("ClearCase"));
 }
 
-QWidget *SettingsPage::createPage(QWidget *parent)
+QWidget *SettingsPage::widget()
 {
-    m_widget = new SettingsPageWidget(parent);
+    if (!m_widget)
+        m_widget = new SettingsPageWidget;
     m_widget->setSettings(ClearCasePlugin::instance()->settings());
-    if (m_searchKeywords.isEmpty())
-        m_searchKeywords = m_widget->searchKeywords();
     return m_widget;
 }
 
 void SettingsPage::apply()
 {
     ClearCasePlugin::instance()->setSettings(m_widget->settings());
-}
-
-bool SettingsPage::matches(const QString &s) const
-{
-    return m_searchKeywords.contains(s, Qt::CaseInsensitive);
 }

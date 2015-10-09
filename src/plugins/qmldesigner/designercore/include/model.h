@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -42,9 +42,7 @@ QT_END_NAMESPACE
 
 namespace QmlDesigner {
 
-namespace Internal {
-    class ModelPrivate;
-}
+namespace Internal { class ModelPrivate; }
 
 class AnchorLine;
 class ModelNode;
@@ -58,6 +56,7 @@ class NodeAnchors;
 class AbstractProperty;
 class RewriterView;
 class NodeInstanceView;
+class TextModifier;
 
 typedef QList<QPair<PropertyName, QVariant> > PropertyListType;
 
@@ -95,7 +94,11 @@ public:
 
     // Imports:
     QList<Import> imports() const;
+    QList<Import> possibleImports() const;
+    QList<Import> usedImports() const;
     void changeImports(const QList<Import> &importsToBeAdded, const QList<Import> &importsToBeRemoved);
+    void setPossibleImports(const QList<Import> &possibleImports);
+    void setUsedImports(const QList<Import> &usedImports);
     bool hasImport(const Import &import, bool ignoreAlias = true, bool allowHigherVersion = false);
     QString pathForImport(const Import &import);
 
@@ -106,6 +109,9 @@ public:
     void setNodeInstanceView(NodeInstanceView *nodeInstanceView);
 
     Model *metaInfoProxyModel();
+
+    TextModifier *textModifier() const;
+    void setTextModifier(TextModifier *textModifier);
 
 protected:
     Model();

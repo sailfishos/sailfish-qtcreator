@@ -1,15 +1,17 @@
-import qbs.base 1.0
+import qbs 1.0
 
-import "../QtcPlugin.qbs" as QtcPlugin
+import QtcPlugin
 
 QtcPlugin {
     name: "Macros"
 
     Depends { name: "Qt.widgets" }
+    Depends { name: "Aggregation" }
+    Depends { name: "Utils" }
+
     Depends { name: "Core" }
-    Depends { name: "Locator" }
-    Depends { name: "Find" }
     Depends { name: "TextEditor" }
+
     Depends { name: "app_version_header" }
 
     files: [
@@ -33,7 +35,6 @@ QtcPlugin {
         "macrooptionswidget.h",
         "macrooptionswidget.ui",
         "macros.qrc",
-        "macros_global.h",
         "macrosconstants.h",
         "macrosplugin.cpp",
         "macrosplugin.h",

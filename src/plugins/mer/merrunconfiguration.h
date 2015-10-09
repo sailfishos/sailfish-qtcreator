@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2013 Jolla Ltd.
+** Copyright (C) 2012 - 2014 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -36,7 +36,7 @@ public:
                         const QString &proFilePath);
     bool isEnabled() const;
 
-    QString commandPrefix() const;
+    Utils::Environment environment() const;
     QString defaultRemoteExecutableFilePath() const;
     QString disabledReason() const;
 protected:

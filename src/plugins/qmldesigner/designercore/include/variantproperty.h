@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -32,6 +32,7 @@
 
 #include "qmldesignercorelib_global.h"
 #include "abstractproperty.h"
+#include "enumeration.h"
 
 QT_BEGIN_NAMESPACE
 class QTextStream;
@@ -41,9 +42,7 @@ namespace QmlDesigner {
 
 class AbstractView;
 
-namespace Internal {
-    class ModelPrivate;
-}
+namespace Internal { class ModelPrivate; }
 
 class QMLDESIGNERCORE_EXPORT VariantProperty : public AbstractProperty
 {
@@ -54,9 +53,13 @@ class QMLDESIGNERCORE_EXPORT VariantProperty : public AbstractProperty
 public:
     void setValue(const QVariant &value);
     QVariant value() const;
-    VariantProperty& operator= (const QVariant &value);
+
+    void setEnumeration(const EnumerationName &enumerationName);
+    Enumeration enumeration() const;
+    bool holdsEnumeration() const;
 
     void setDynamicTypeNameAndValue(const TypeName &type, const QVariant &value);
+    void setDynamicTypeNameAndEnumeration(const TypeName &type, const EnumerationName &enumerationName);
 
     VariantProperty();
     VariantProperty(const VariantProperty &property, AbstractView *view);

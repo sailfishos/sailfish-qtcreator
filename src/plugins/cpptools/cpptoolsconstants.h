@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -43,18 +43,23 @@ const char TASK_SEARCH[]              = "CppTools.Task.Search";
 const char C_SOURCE_MIMETYPE[] = "text/x-csrc";
 const char C_HEADER_MIMETYPE[] = "text/x-chdr";
 const char CPP_SOURCE_MIMETYPE[] = "text/x-c++src";
-const char OBJECTIVE_CPP_SOURCE_MIMETYPE[] = "text/x-objcsrc";
+const char OBJECTIVE_C_SOURCE_MIMETYPE[] = "text/x-objcsrc";
+const char OBJECTIVE_CPP_SOURCE_MIMETYPE[] = "text/x-objc++src";
 const char CPP_HEADER_MIMETYPE[] = "text/x-c++hdr";
 
 // QSettings keys for use by the "New Class" wizards.
 const char CPPTOOLS_SETTINGSGROUP[] = "CppTools";
 const char LOWERCASE_CPPFILES_KEY[] = "LowerCaseFiles";
 enum { lowerCaseFilesDefault = 1 };
+const char CPPTOOLS_MODEL_MANAGER_SUPPORTERS_KEY[] = "ModelManagerSupporters";
+const char CPPTOOLS_MODEL_MANAGER_PCH_USAGE[] = "PCHUsage";
 
 const char CPP_CODE_STYLE_SETTINGS_ID[] = "A.Code Style";
 const char CPP_CODE_STYLE_SETTINGS_NAME[] = QT_TRANSLATE_NOOP("CppTools", "Code Style");
 const char CPP_FILE_SETTINGS_ID[] = "B.File Naming";
 const char CPP_FILE_SETTINGS_NAME[] = QT_TRANSLATE_NOOP("CppTools", "File Naming");
+const char CPP_CODE_MODEL_SETTINGS_ID[] = "C.Code Model";
+const char CPP_CODE_MODEL_SETTINGS_NAME[] = QT_TRANSLATE_NOOP("CppTools", "Code Model");
 const char CPP_SETTINGS_CATEGORY[] = "I.C++";
 const char CPP_SETTINGS_TR_CATEGORY[] = QT_TRANSLATE_NOOP("CppTools", "C++");
 const char SETTINGS_CATEGORY_CPP_ICON[] = ":/core/images/category_cpp.png";

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -48,110 +48,68 @@ class QComboBox;
 class QTimer;
 QT_END_NAMESPACE
 
-namespace Core {
-class ICore;
-}
+namespace Core { class ICore; }
 
 namespace QmlJS {
     class ModelManagerInterface;
     class IContextPane;
     class LookupContext;
-namespace AST {
-    class UiObjectMember;
-}
+namespace AST { class UiObjectMember; }
 }
 
 /*!
     The top-level namespace of the QmlJSEditor plug-in.
  */
 namespace QmlJSEditor {
-class QmlJSEditor;
+class QmlJSEditorDocument;
 class FindReferences;
 
 namespace Internal {
+
+class QmlJSEditor;
 class QmlOutlineModel;
-class SemanticInfoUpdater;
-struct SemanticInfoUpdaterSource;
-class SemanticHighlighter;
-} // namespace Internal
 
-struct QMLJSEDITOR_EXPORT Declaration
-{
-    QString text;
-    int startLine;
-    int startColumn;
-    int endLine;
-    int endColumn;
-
-    Declaration()
-        : startLine(0),
-        startColumn(0),
-        endLine(0),
-        endColumn(0)
-    { }
-};
-
-class QMLJSEDITOR_EXPORT QmlJSTextEditorWidget : public TextEditor::BaseTextEditorWidget
+class QmlJSTextEditorWidget : public TextEditor::BaseTextEditorWidget
 {
     Q_OBJECT
 
-    // used e.g. in qmljsprofiler
-    Q_PROPERTY(QmlJSTools::SemanticInfo semanticInfo READ semanticInfo)
-
 public:
     QmlJSTextEditorWidget(QWidget *parent = 0);
+    QmlJSTextEditorWidget(QmlJSTextEditorWidget *other);
     ~QmlJSTextEditorWidget();
 
     virtual void unCommentSelection();
 
-    QmlJSTools::SemanticInfo semanticInfo() const;
-    bool isSemanticInfoOutdated() const;
-    int editorRevision() const;
-    QVector<QTextLayout::FormatRange> diagnosticRanges() const;
+    QmlJSEditorDocument *qmlJsEditorDocument() const;
 
-    Internal::QmlOutlineModel *outlineModel() const;
     QModelIndex outlineModelIndex();
-
-    static QVector<TextEditor::TextStyle> highlighterFormatCategories();
 
     TextEditor::IAssistInterface *createAssistInterface(TextEditor::AssistKind assistKind,
                                                         TextEditor::AssistReason reason) const;
 public slots:
-    virtual void setTabSettings(const TextEditor::TabSettings &ts);
-    void reparseDocument();
-    void reparseDocumentNow();
-    void updateSemanticInfo();
-    void updateSemanticInfoNow();
     void findUsages();
     void renameUsages();
     void showContextPane();
-    virtual void setFontSettings(const TextEditor::FontSettings &);
 
 signals:
     void outlineModelIndexChanged(const QModelIndex &index);
     void selectedElementsChanged(QList<QmlJS::AST::UiObjectMember*> offsets,
                                  const QString &wordAtCursor);
-    void semanticInfoUpdated();
-
 private slots:
-    void onDocumentUpdated(QmlJS::Document::Ptr doc);
     void modificationChanged(bool);
 
     void jumpToOutlineElement(int index);
-    void updateOutlineNow();
     void updateOutlineIndexNow();
-    void updateCursorPositionNow();
+    void updateContextPane();
     void showTextMarker();
-    void updateFileName();
 
     void updateUses();
-    void updateUsesNow();
 
-    void acceptNewSemanticInfo(const QmlJSTools::SemanticInfo &semanticInfo);
-    void onCursorPositionChanged();
+    void semanticInfoUpdated(const QmlJSTools::SemanticInfo &semanticInfo);
     void onRefactorMarkerClicked(const TextEditor::RefactorMarker &marker);
 
     void performQuickFix(int index);
+    void updateCodeWarnings(QmlJS::Document::Ptr doc);
 
 protected:
     void contextMenuEvent(QContextMenuEvent *e);
@@ -159,12 +117,17 @@ protected:
     void wheelEvent(QWheelEvent *event);
     void resizeEvent(QResizeEvent *event);
     void scrollContentsBy(int dx, int dy);
+    void applyFontSettings();
     TextEditor::BaseTextEditor *createEditor();
     void createToolBar(QmlJSEditor *editable);
-    TextEditor::BaseTextEditorWidget::Link findLinkAt(const QTextCursor &cursor, bool resolveTarget = true);
+    TextEditor::BaseTextEditorWidget::Link findLinkAt(const QTextCursor &cursor,
+                                                      bool resolveTarget = true,
+                                                      bool inNextSplit = false);
     QString foldReplacementText(const QTextBlock &block) const;
 
 private:
+    QmlJSTextEditorWidget(TextEditor::BaseTextEditorWidget *); // avoid stupidity
+    void ctor();
     bool isClosingBrace(const QList<QmlJS::Token> &tokens) const;
 
     void setSelectedElements();
@@ -173,38 +136,23 @@ private:
     QModelIndex indexForPosition(unsigned cursorPosition, const QModelIndex &rootIndex = QModelIndex()) const;
     bool hideContextPane();
 
-    const Core::Context m_context;
-
-    QTimer *m_updateDocumentTimer;
-    QTimer *m_updateUsesTimer;
-    QTimer *m_updateSemanticInfoTimer;
-    QTimer *m_updateOutlineTimer;
+    QmlJSEditorDocument *m_qmlJsEditorDocument;
+    QTimer *m_updateUsesTimer; // to wait for multiple text cursor position changes
     QTimer *m_updateOutlineIndexTimer;
-    QTimer *m_cursorPositionTimer;
+    QTimer *m_contextPaneTimer;
     QComboBox *m_outlineCombo;
-    Internal::QmlOutlineModel *m_outlineModel;
     QModelIndex m_outlineModelIndex;
     QmlJS::ModelManagerInterface *m_modelManager;
-    QTextCharFormat m_occurrencesFormat;
-    QTextCharFormat m_occurrencesUnusedFormat;
-    QTextCharFormat m_occurrenceRenameFormat;
-
-    Internal::SemanticInfoUpdater *m_semanticInfoUpdater;
-    QmlJSTools::SemanticInfo m_semanticInfo;
-    int m_futureSemanticInfoRevision;
 
     QList<TextEditor::QuickFixOperation::Ptr> m_quickFixes;
-    QVector<QTextLayout::FormatRange> m_diagnosticRanges;
 
     QmlJS::IContextPane *m_contextPane;
     int m_oldCursorPosition;
 
     FindReferences *m_findReferences;
-    Internal::SemanticHighlighter *m_semanticHighlighter;
-
-    friend class Internal::SemanticHighlighter;
 };
 
+} // namespace Internal
 } // namespace QmlJSEditor
 
 #endif // QMLJSEDITOR_H

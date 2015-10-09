@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,17 +30,13 @@
 #ifndef TOOLBOX_H
 #define TOOLBOX_H
 
-#include "utils/styledbar.h"
-
-#include "formeditorcrumblebar.h"
+#include <utils/styledbar.h>
 
 QT_BEGIN_NAMESPACE
 class QToolBar;
 QT_END_NAMESPACE
 
-namespace Utils {
-class CrumblePath;
-}
+namespace Utils { class CrumblePath; }
 
 namespace QmlDesigner {
 
@@ -53,12 +49,10 @@ public:
     void addLeftSideAction(QAction *action);
     void addRightSideAction(QAction *action);
     QList<QAction*> actions() const;
-    FormEditorCrumbleBar *formEditorCrumbleBar() const;
 
 private:
     QToolBar *m_leftToolBar;
     QToolBar *m_rightToolBar;
-    FormEditorCrumbleBar *m_formEditorCrumbleBar;
 };
 
 } // namespace QmlDesigner

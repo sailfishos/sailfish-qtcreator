@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -33,12 +33,12 @@
 #include "itemlibraryinfo.h"
 #include "itemlibrarycomponents.h"
 
-#include <utils/filterlineedit.h>
+#include <utils/fancylineedit.h>
 
 #include <QFrame>
 #include <QToolButton>
 #include <QFileIconProvider>
-#include <QDeclarativeView>
+#include <QQuickView>
 
 QT_BEGIN_NAMESPACE
 class QFileSystemModel;
@@ -85,14 +85,17 @@ public:
 
     void updateImports();
 
-public Q_SLOTS:
+    void setImportsWidget(QWidget *importsWidget);
+
+public slots:
     void setSearchFilter(const QString &searchFilter);
     void updateModel();
     void updateSearch();
 
     void setResourcePath(const QString &resourcePath);
 
-    void startDragAndDrop(int itemLibId);
+    void startDragAndDropDelayed(int itemLibId);
+    void startDragAndDrop();
     void showItemInfo(int itemLibId);
 
     void setModel(Model *model);
@@ -103,7 +106,6 @@ public Q_SLOTS:
     void onMeegoChecked(bool b);
 
 protected:
-    void wheelEvent(QWheelEvent *event);
     void removeImport(const QString &name);
     void addImport(const QString &name, const QString &version);
     void emitImportChecked();
@@ -114,6 +116,9 @@ signals:
     void resetItemsView();
     void qtBasicOnlyChecked(bool b);
     void meegoChecked(bool b);
+
+private slots:
+    void setCurrentIndexOfStackedWidget(int index);
 
 private:
     ItemLibraryFileIconProvider m_iconProvider;
@@ -126,12 +131,14 @@ private:
     QWeakPointer<QFileSystemModel> m_resourcesFileSystemModel;
 
     QWeakPointer<QStackedWidget> m_stackedWidget;
-    QWeakPointer<Utils::FilterLineEdit> m_lineEdit;
-    QScopedPointer<QDeclarativeView> m_itemsView;
+
+    QWeakPointer<Utils::FancyLineEdit> m_filterLineEdit;
+    QScopedPointer<QQuickView> m_itemsView;
     QScopedPointer<Internal::ItemLibraryTreeView> m_resourcesView;
 
     QWeakPointer<Model> m_model;
     FilterChangeFlag m_filterFlag;
+    int m_itemLibraryId;
 };
 
 }

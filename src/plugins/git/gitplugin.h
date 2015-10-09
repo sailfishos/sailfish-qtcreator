@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -32,7 +32,7 @@
 
 #include "gitsettings.h"
 
-#include "vcsbase/vcsbaseplugin.h"
+#include <vcsbase/vcsbaseplugin.h>
 
 #include <QStringList>
 #include <QPointer>
@@ -49,20 +49,14 @@ namespace Core {
 class IEditor;
 class IEditorFactory;
 class Command;
+class CommandLocator;
 class Context;
 class ActionManager;
 class ActionContainer;
 }
-namespace Utils {
-class ParameterAction;
-}
-namespace Locator {
-    class CommandLocator;
-}
+namespace Utils { class ParameterAction; }
 namespace Gerrit {
-namespace Internal {
-class GerritPlugin;
-}
+namespace Internal { class GerritPlugin; }
 }
 namespace Git {
 namespace Internal {
@@ -99,6 +93,7 @@ public:
     void setSettings(const GitSettings &s);
 
     GitClient *gitClient() const;
+    Gerrit::Internal::GerritPlugin *gerritPlugin() const;
 
 public slots:
     void startCommit();
@@ -115,6 +110,7 @@ private slots:
     void blameFile();
     void logProject();
     void logRepository();
+    void reflogRepository();
     void undoFileChanges(bool revertStaging = true);
     void undoUnstagedFileChanges();
     void resetRepository();
@@ -124,6 +120,7 @@ private slots:
     void unstageFile();
     void gitkForCurrentFile();
     void gitkForCurrentFolder();
+    void gitGui();
     void cleanProject();
     void cleanRepository();
     void updateSubmodules();
@@ -144,6 +141,7 @@ private slots:
     void startMergeTool();
     void continueOrAbortCommand();
     void updateContinueAndAbortCommands();
+    void delayedPushToGerrit();
 
 #ifdef WITH_TESTS
     void testStatusParsing_data();
@@ -202,7 +200,7 @@ private:
     void updateVersionWarning();
 
     static GitPlugin *m_instance;
-    Locator::CommandLocator *m_commandLocator;
+    Core::CommandLocator *m_commandLocator;
 
     QAction *m_submitCurrentAction;
     QAction *m_diffSelectedFilesAction;

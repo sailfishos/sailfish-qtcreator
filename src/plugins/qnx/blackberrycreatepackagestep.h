@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2012 - 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -52,6 +52,12 @@ public:
         DevelopmentMode
     };
 
+    enum BundleMode {
+        PreInstalledQt,
+        BundleQt,
+        DeployedQt
+    };
+
     explicit BlackBerryCreatePackageStep(ProjectExplorer::BuildStepList *bsl);
 
     bool init();
@@ -67,11 +73,17 @@ public:
     QString keystorePassword() const;
     bool savePasswords() const;
 
+    BundleMode bundleMode() const;
+    QString qtLibraryPath() const;
+
 public slots:
     void setPackageMode(PackageMode packageMode);
     void setCskPassword(const QString &cskPassword);
     void setKeystorePassword(const QString &keystorePassword);
     void setSavePasswords(bool savePasswords);
+
+    void setBundleMode(BundleMode bundleMode);
+    void setQtLibraryPath(const QString &qtLibraryPath);
 
 signals:
     void cskPasswordChanged(QString);
@@ -86,11 +98,14 @@ private:
     void ctor();
 
     bool prepareAppDescriptorFile(const QString &appDescriptorPath, const QString &preparedFilePath);
+    QString fullQtLibraryPath() const;
 
     PackageMode m_packageMode;
     QString m_cskPassword;
     QString m_keystorePassword;
     bool m_savePasswords;
+    BundleMode m_bundleMode;
+    QString m_qtLibraryPath;
 };
 
 } // namespace Internal

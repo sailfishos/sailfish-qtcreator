@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -177,10 +177,11 @@ protected:
 
     virtual bool visit(Template *symbol)
     {
-        if (symbol->declaration() && symbol->declaration()->isFunction())
-            return process(symbol);
-        else
-            return true;
+        if (Symbol *decl = symbol->declaration()) {
+            if (decl->isFunction() || decl->isClass())
+                return process(symbol);
+        }
+        return true;
     }
 
     // Objective-C
@@ -283,10 +284,14 @@ Document::Document(const QString &fileName)
     const QByteArray localFileName = fileName.toUtf8();
     const StringLiteral *fileId = _control->stringLiteral(localFileName.constData(),
                                                                       localFileName.size());
+    LanguageFeatures features;
+    features.qtEnabled = true;
+    features.qtMocRunEnabled = true;
+    features.qtKeywordsEnabled = true;
+    features.cxx11Enabled = true;
+    features.objCEnabled = true;
     _translationUnit = new TranslationUnit(_control, fileId);
-    _translationUnit->setQtMocRunEnabled(true);
-    _translationUnit->setCxxOxEnabled(true);
-    _translationUnit->setObjCEnabled(true);
+    _translationUnit->setLanguageFeatures(features);
     (void) _control->switchTranslationUnit(_translationUnit);
 }
 
@@ -340,7 +345,7 @@ QString Document::fileName() const
 QStringList Document::includedFiles() const
 {
     QStringList files;
-    foreach (const Include &i, _includes)
+    foreach (const Include &i, _resolvedIncludes)
         files.append(i.resolvedFileName());
     files.removeDuplicates();
     return files;
@@ -349,7 +354,10 @@ QStringList Document::includedFiles() const
 // This assumes to be called with a QDir::cleanPath cleaned fileName.
 void Document::addIncludeFile(const Document::Include &include)
 {
-    _includes.append(include);
+    if (include.resolvedFileName().isEmpty())
+        _unresolvedIncludes.append(include);
+    else
+        _resolvedIncludes.append(include);
 }
 
 void Document::appendMacro(const Macro &macro)
@@ -470,7 +478,7 @@ void Document::setGlobalNamespace(Namespace *globalNamespace)
  * Extract the function name including scope at the given position.
  *
  * Note that a function (scope) starts at the name of that function, not at the return type. The
- * implication is that this method will return an empty string when the line/column is on the
+ * implication is that this function will return an empty string when the line/column is on the
  * return type.
  *
  * \param line the line number, starting with line 1
@@ -732,14 +740,16 @@ void Snapshot::insert(Document::Ptr doc)
         _documents.insert(doc->fileName(), doc);
 }
 
-Document::Ptr Snapshot::preprocessedDocument(const QString &source, const QString &fileName) const
+Document::Ptr Snapshot::preprocessedDocument(const QByteArray &source,
+                                             const QString &fileName) const
 {
     Document::Ptr newDoc = Document::create(fileName);
     if (Document::Ptr thisDocument = document(fileName)) {
         newDoc->_revision = thisDocument->_revision;
         newDoc->_editorRevision = thisDocument->_editorRevision;
         newDoc->_lastModified = thisDocument->_lastModified;
-        newDoc->_includes = thisDocument->_includes;
+        newDoc->_resolvedIncludes = thisDocument->_resolvedIncludes;
+        newDoc->_unresolvedIncludes = thisDocument->_unresolvedIncludes;
     }
 
     FastPreprocessor pp(*this);
@@ -757,7 +767,8 @@ Document::Ptr Snapshot::documentFromSource(const QByteArray &preprocessedCode,
         newDoc->_revision = thisDocument->_revision;
         newDoc->_editorRevision = thisDocument->_editorRevision;
         newDoc->_lastModified = thisDocument->_lastModified;
-        newDoc->_includes = thisDocument->_includes;
+        newDoc->_resolvedIncludes = thisDocument->_resolvedIncludes;
+        newDoc->_unresolvedIncludes = thisDocument->_unresolvedIncludes;
         newDoc->_definedMacros = thisDocument->_definedMacros;
         newDoc->_macroUses = thisDocument->_macroUses;
     }

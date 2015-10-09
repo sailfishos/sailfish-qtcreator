@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 ** Author: Milian Wolff, KDAB (milian.wolff@kdab.com)
 **
@@ -30,6 +30,7 @@
 
 #include "analyzerrunconfigwidget.h"
 
+#include <utils/detailswidget.h>
 #include <utils/qtcassert.h>
 
 #include <QDebug>
@@ -40,32 +41,16 @@
 #include <QPushButton>
 
 namespace Analyzer {
-namespace Internal {
 
-AnalyzerToolDetailWidget::AnalyzerToolDetailWidget(AbstractAnalyzerSubConfig *config, QWidget *parent)
-    : Utils::DetailsWidget(parent)
+AnalyzerRunConfigWidget::AnalyzerRunConfigWidget(ProjectExplorer::IRunConfigurationAspect *aspect)
 {
-    QTC_ASSERT(config!=0, return);
+    m_aspect = aspect;
+    m_config = aspect->projectSettings();
 
-    // update summary text
-    setSummaryText(tr("<strong>%1</strong> settings").arg(config->displayName()));
-
-    // create config widget
-    QWidget *configWidget = config->createConfigWidget(this);
-    setWidget(configWidget);
-}
-
-AnalyzerRunConfigWidget::AnalyzerRunConfigWidget()
-{
-    QVBoxLayout *layout = new QVBoxLayout(this);
-    layout->setContentsMargins(0, 0, 0, 0);
-
-    QWidget *globalSetting = new QWidget(this);
+    QWidget *globalSetting = new QWidget;
     QHBoxLayout *globalSettingLayout = new QHBoxLayout(globalSetting);
     globalSettingLayout->setContentsMargins(0, 0, 0, 0);
-    layout->addWidget(globalSetting);
-    QLabel *label = new QLabel(tr("Analyzer settings:"), globalSetting);
-    globalSettingLayout->addWidget(label);
+
     m_settingsCombo = new QComboBox(globalSetting);
     m_settingsCombo->addItems(QStringList()
                             << QApplication::translate("ProjectExplorer::Internal::EditorSettingsPropertiesPage", "Global")
@@ -80,52 +65,47 @@ AnalyzerRunConfigWidget::AnalyzerRunConfigWidget()
     connect(m_restoreButton, SIGNAL(clicked()), this, SLOT(restoreGlobal()));
     globalSettingLayout->addStretch(2);
 
-    m_subConfigWidget = new QWidget(this);
-    QVBoxLayout *subConfigLayout = new QVBoxLayout(m_subConfigWidget);
-    subConfigLayout->setContentsMargins(0, 0, 0, 0);
-    layout->addWidget(m_subConfigWidget);
+    QWidget *innerPane = new QWidget;
+    m_configWidget = m_config->createConfigWidget(innerPane);
+
+    QVBoxLayout *layout = new QVBoxLayout(innerPane);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->addWidget(globalSetting);
+    layout->addWidget(m_configWidget);
+
+    m_details = new Utils::DetailsWidget;
+    m_details->setWidget(innerPane);
+
+    QVBoxLayout *outerLayout = new QVBoxLayout(this);
+    outerLayout->addWidget(m_details);
+    outerLayout->setContentsMargins(0, 0, 0, 0);
+
+    chooseSettings(m_aspect->isUsingGlobalSettings() ? 0 : 1);
 }
 
 QString AnalyzerRunConfigWidget::displayName() const
 {
-    return tr("Analyzer Settings");
-}
-
-void AnalyzerRunConfigWidget::setRunConfigurationAspect(AnalyzerRunConfigurationAspect *aspect)
-{
-    QTC_ASSERT(aspect, return);
-    m_aspect = aspect;
-
-    // add config widget for each sub config
-    foreach (AbstractAnalyzerSubConfig *config, m_aspect->customSubConfigs()) {
-        QWidget *widget = new AnalyzerToolDetailWidget(config);
-        m_subConfigWidget->layout()->addWidget(widget);
-    }
-    setDetailEnabled(!m_aspect->isUsingGlobalSettings());
-    m_settingsCombo->setCurrentIndex(m_aspect->isUsingGlobalSettings() ? 0 : 1);
-    m_restoreButton->setEnabled(!m_aspect->isUsingGlobalSettings());
-}
-
-void AnalyzerRunConfigWidget::setDetailEnabled(bool value)
-{
-    QList<AnalyzerToolDetailWidget*> details = findChildren<AnalyzerToolDetailWidget*>();
-    foreach (AnalyzerToolDetailWidget *detail, details)
-        detail->widget()->setEnabled(value);
+    return m_aspect->displayName();
 }
 
 void AnalyzerRunConfigWidget::chooseSettings(int setting)
 {
     QTC_ASSERT(m_aspect, return);
-    setDetailEnabled(setting != 0);
-    m_aspect->setUsingGlobalSettings(setting == 0);
-    m_restoreButton->setEnabled(!m_aspect->isUsingGlobalSettings());
+    bool isCustom = (setting == 1);
+
+    m_settingsCombo->setCurrentIndex(setting);
+    m_aspect->setUsingGlobalSettings(!isCustom);
+    m_configWidget->setEnabled(isCustom);
+    m_restoreButton->setEnabled(isCustom);
+    m_details->setSummaryText(isCustom
+        ? tr("Use Customized Settings")
+        : tr("Use Global Settings"));
 }
 
 void AnalyzerRunConfigWidget::restoreGlobal()
 {
     QTC_ASSERT(m_aspect, return);
-    m_aspect->resetCustomToGlobalSettings();
+    m_aspect->resetProjectToGlobalSettings();
 }
 
-} // namespace Internal
 } // namespace Analyzer

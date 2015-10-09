@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 ** Author: Milian Wolff, KDAB (milian.wolff@kdab.com)
 **
@@ -33,76 +33,167 @@
 #include "callgrindtool.h"
 #include "memchecktool.h"
 #include "valgrindruncontrolfactory.h"
+#include "valgrindsettings.h"
+#include "valgrindconfigwidget.h"
 
-#include <analyzerbase/analyzerconstants.h>
 #include <analyzerbase/analyzermanager.h>
-#include <analyzerbase/analyzerrunconfigwidget.h>
-#include <analyzerbase/analyzerruncontrol.h>
-#include <analyzerbase/analyzerstartparameters.h>
-#include <analyzerbase/startremotedialog.h>
 
-#include <projectexplorer/localapplicationrunconfiguration.h>
-#include <projectexplorer/projectexplorer.h>
+#include <coreplugin/dialogs/ioptionspage.h>
+#include <coreplugin/actionmanager/actioncontainer.h>
+#include <coreplugin/actionmanager/actionmanager.h>
+#include <coreplugin/actionmanager/command.h>
+#include <coreplugin/coreconstants.h>
+#include <coreplugin/icontext.h>
+#include <coreplugin/icore.h>
+
+#include <cppeditor/cppeditorconstants.h>
 
 #include <utils/hostosinfo.h>
-#include <utils/qtcassert.h>
 
-#include <QDebug>
-#include <QStringList>
 #include <QtPlugin>
-#include <QAction>
+#include <QCoreApplication>
+#include <QPointer>
 
 using namespace Analyzer;
-using namespace ProjectExplorer;
-
 
 namespace Valgrind {
 namespace Internal {
 
-static void startRemoteTool(IAnalyzerTool *tool)
+static ValgrindGlobalSettings *theGlobalSettings = 0;
+
+class ValgrindOptionsPage : public Core::IOptionsPage
 {
-    Q_UNUSED(tool);
-    StartRemoteDialog dlg;
-    if (dlg.exec() != QDialog::Accepted)
-        return;
+public:
+    explicit ValgrindOptionsPage()
+    {
+        setId(ANALYZER_VALGRIND_SETTINGS);
+        setDisplayName(QCoreApplication::translate("Valgrind::Internal::ValgrindOptionsPage", "Valgrind"));
+        setCategory("T.Analyzer");
+        setDisplayCategory(QCoreApplication::translate("Analyzer", "Analyzer"));
+        setCategoryIcon(QLatin1String(":/images/analyzer_category.png"));
+    }
 
-    AnalyzerStartParameters sp;
-    sp.toolId = tool->id();
-    sp.startMode = StartRemote;
-    sp.connParams = dlg.sshParams();
-    sp.debuggee = dlg.executable();
-    sp.debuggeeArgs = dlg.arguments();
-    sp.displayName = dlg.executable();
-    sp.workingDirectory = dlg.workingDirectory();
+    QWidget *widget()
+    {
+        if (!m_widget)
+            m_widget = new ValgrindConfigWidget(theGlobalSettings, 0, true);
+        return m_widget;
+    }
 
-    AnalyzerRunControl *rc = new AnalyzerRunControl(tool, sp, 0);
-    //m_currentRunControl = rc;
-    QObject::connect(AnalyzerManager::stopAction(), SIGNAL(triggered()), rc, SLOT(stopIt()));
+    void apply()
+    {
+        theGlobalSettings->writeSettings();
+    }
 
-    ProjectExplorerPlugin::instance()->startRunControl(rc, tool->runMode());
-}
+    void finish()
+    {
+        delete m_widget;
+    }
 
-void ValgrindPlugin::startValgrindTool(IAnalyzerTool *tool, StartMode mode)
+private:
+    QPointer<QWidget> m_widget;
+};
+
+class ValgrindAction : public AnalyzerAction
 {
-    if (mode == StartLocal)
-        AnalyzerManager::startLocalTool(tool);
-    if (mode == StartRemote)
-        startRemoteTool(tool);
+public:
+    explicit ValgrindAction(QObject *parent = 0) : AnalyzerAction(parent) { }
+};
+
+
+ValgrindPlugin::~ValgrindPlugin()
+{
+    delete theGlobalSettings;
+    theGlobalSettings = 0;
 }
 
 bool ValgrindPlugin::initialize(const QStringList &, QString *)
 {
-    StartModes modes;
-    if (!Utils::HostOsInfo::isWindowsHost())
-        modes.append(StartMode(StartLocal));
-    modes.append(StartMode(StartRemote));
+    theGlobalSettings = new ValgrindGlobalSettings();
+    theGlobalSettings->readSettings();
 
-    AnalyzerManager::addTool(new MemcheckTool(this), modes);
-    AnalyzerManager::addTool(new CallgrindTool(this), modes);
+    addAutoReleasedObject(new ValgrindOptionsPage());
+
+    m_memcheckTool = new MemcheckTool(this);
+    m_callgrindTool = new CallgrindTool(this);
+
+    ValgrindAction *action = 0;
+
+    QString callgrindToolTip = tr("Valgrind Function Profile uses the "
+        "\"callgrind\" tool to record function calls when a program runs.");
+
+    QString memcheckToolTip = tr("Valgrind Analyze Memory uses the "
+         "\"memcheck\" tool to find memory leaks.");
+
+    if (!Utils::HostOsInfo::isWindowsHost()) {
+        action = new ValgrindAction(this);
+        action->setId("Memcheck.Local");
+        action->setTool(m_memcheckTool);
+        action->setText(tr("Valgrind Memory Analyzer"));
+        action->setToolTip(memcheckToolTip);
+        action->setMenuGroup(Constants::G_ANALYZER_TOOLS);
+        action->setStartMode(StartLocal);
+        action->setEnabled(false);
+        AnalyzerManager::addAction(action);
+
+        action = new ValgrindAction(this);
+        action->setId("Callgrind.Local");
+        action->setTool(m_callgrindTool);
+        action->setText(tr("Valgrind Function Profiler"));
+        action->setToolTip(callgrindToolTip);
+        action->setMenuGroup(Constants::G_ANALYZER_TOOLS);
+        action->setStartMode(StartLocal);
+        action->setEnabled(false);
+        AnalyzerManager::addAction(action);
+    }
+
+    action = new ValgrindAction(this);
+    action->setId("Memcheck.Remote");
+    action->setTool(m_memcheckTool);
+    action->setText(tr("Valgrind Memory Analyzer (Remote)"));
+    action->setToolTip(memcheckToolTip);
+    action->setMenuGroup(Constants::G_ANALYZER_REMOTE_TOOLS);
+    action->setStartMode(StartRemote);
+    AnalyzerManager::addAction(action);
+
+    action = new ValgrindAction(this);
+    action->setId("Callgrind.Remote");
+    action->setTool(m_callgrindTool);
+    action->setText(tr("Valgrind Function Profiler (Remote)"));
+    action->setToolTip(callgrindToolTip);
+    action->setMenuGroup(Constants::G_ANALYZER_REMOTE_TOOLS);
+    action->setStartMode(StartRemote);
+    AnalyzerManager::addAction(action);
 
     addAutoReleasedObject(new ValgrindRunControlFactory());
 
     return true;
+}
+
+ValgrindGlobalSettings *ValgrindPlugin::globalSettings()
+{
+   return theGlobalSettings;
+}
+
+void ValgrindPlugin::extensionsInitialized()
+{
+    using namespace Core;
+
+    // If there is a CppEditor context menu add our own context menu actions.
+    if (ActionContainer *editorContextMenu =
+            ActionManager::actionContainer(CppEditor::Constants::M_CONTEXT)) {
+        Context analyzerContext = Context(Analyzer::Constants::C_ANALYZEMODE);
+        editorContextMenu->addSeparator(analyzerContext);
+
+        QAction *action = new QAction(tr("Profile Costs of This Function and Its Callees"), this);
+        action->setIcon(QIcon(QLatin1String(Analyzer::Constants::ANALYZER_CONTROL_START_ICON)));
+        connect(action, SIGNAL(triggered()), m_callgrindTool, SLOT(handleShowCostsOfFunction()));
+        Command *cmd = ActionManager::registerAction(action, "Analyzer.Callgrind.ShowCostsOfFunction",
+            analyzerContext);
+        editorContextMenu->addAction(cmd);
+        cmd->setAttribute(Command::CA_Hide);
+        cmd->setAttribute(Command::CA_NonConfigurable);
+    }
 }
 
 } // namespace Internal

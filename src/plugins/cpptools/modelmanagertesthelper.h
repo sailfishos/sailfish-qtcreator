@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -48,9 +48,6 @@ public:
     virtual QString displayName() const
     { return m_name; }
 
-    virtual Core::Id id() const
-    { return Core::Id::fromString(m_name); }
-
     virtual Core::IDocument *document() const
     { return 0; }
 
@@ -83,7 +80,9 @@ public:
 
     Project *createProject(const QString &name);
 
+    void resetRefreshedSourceFiles();
     QStringList waitForRefreshedSourceFiles();
+    void waitForFinishedGc();
 
 signals:
     void aboutToRemoveProject(ProjectExplorer::Project *project);
@@ -91,8 +90,10 @@ signals:
 
 public slots:
     void sourceFilesRefreshed(const QStringList &files);
+    void gcFinished();
 
 private:
+    bool m_gcFinished;
     bool m_refreshHappened;
     QStringList m_lastRefreshedSourceFiles;
 };

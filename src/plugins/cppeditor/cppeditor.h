@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,6 +30,7 @@
 #ifndef CPPEDITOR_H
 #define CPPEDITOR_H
 
+#include "cppfollowsymbolundercursor.h"
 #include "cppfunctiondecldeflink.h"
 
 #include <cpptools/commentssettings.h>
@@ -49,6 +50,7 @@
 QT_BEGIN_NAMESPACE
 class QComboBox;
 class QSortFilterProxyModel;
+class QToolButton;
 QT_END_NAMESPACE
 
 namespace CPlusPlus {
@@ -69,6 +71,25 @@ namespace Internal {
 
 class CPPEditorWidget;
 
+class CPPEditorDocument : public TextEditor::BaseTextDocument
+{
+    Q_OBJECT
+public:
+    CPPEditorDocument();
+
+    bool isObjCEnabled() const;
+
+protected:
+    void applyFontSettings();
+
+private slots:
+    void invalidateFormatterCache();
+    void onMimeTypeChanged();
+
+private:
+    bool m_isObjCEnabled;
+};
+
 class CPPEditor : public TextEditor::BaseTextEditor
 {
     Q_OBJECT
@@ -76,13 +97,13 @@ public:
     CPPEditor(CPPEditorWidget *);
 
     bool duplicateSupported() const { return true; }
-    Core::IEditor *duplicate(QWidget *parent);
-    Core::Id id() const;
+    Core::IEditor *duplicate();
 
-    bool isTemporary() const { return false; }
     bool open(QString *errorString, const QString &fileName, const QString &realFileName);
 
     const Utils::CommentDefinition *commentDefinition() const;
+    TextEditor::CompletionAssistProvider *completionAssistProvider();
+
 private:
     Utils::CommentDefinition m_commentDefinition;
 };
@@ -94,8 +115,12 @@ class CPPEditorWidget : public TextEditor::BaseTextEditorWidget
 public:
     typedef TextEditor::TabSettings TabSettings;
 
-    CPPEditorWidget(QWidget *parent);
+    CPPEditorWidget(QWidget *parent = 0);
+    CPPEditorWidget(CPPEditorWidget *other);
     ~CPPEditorWidget();
+
+    CPPEditorDocument *cppEditorDocument() const;
+
     void unCommentSelection();
 
     unsigned editorRevision() const;
@@ -109,18 +134,10 @@ public:
     virtual void cut(); // reimplemented from BaseTextEditorWidget
     virtual void selectAll(); // reimplemented from BaseTextEditorWidget
 
-    CppTools::CppModelManagerInterface *modelManager() const;
-
-    virtual void setMimeType(const QString &mt);
-
-    void setObjCEnabled(bool onoff);
-    bool isObjCEnabled() const;
-
     bool openLink(const Link &link, bool inNextSplit) { return openCppEditorAt(link, inNextSplit); }
 
     static Link linkToSymbol(CPlusPlus::Symbol *symbol);
-
-    static QVector<TextEditor::TextStyle> highlighterFormatCategories();
+    static QString identifierUnderCursor(QTextCursor *macroCursor);
 
     virtual TextEditor::IAssistInterface *createAssistInterface(TextEditor::AssistKind kind,
                                                                 TextEditor::AssistReason reason) const;
@@ -128,19 +145,18 @@ public:
     QSharedPointer<FunctionDeclDefLink> declDefLink() const;
     void applyDeclDefLinkChanges(bool jumpToMatch);
 
-    void updateContentsChangedSignal();
+    FollowSymbolUnderCursor *followSymbolUnderCursorDelegate(); // exposed for tests
 
-Q_SIGNALS:
+signals:
     void outlineModelIndexChanged(const QModelIndex &index);
 
-public Q_SLOTS:
-    virtual void setFontSettings(const TextEditor::FontSettings &);
-    virtual void setTabSettings(const TextEditor::TabSettings &);
+public slots:
     void setSortedOutline(bool sort);
     void switchDeclarationDefinition(bool inNextSplit);
     void renameSymbolUnderCursor();
     void renameUsages();
     void findUsages();
+    void showPreProcessorWidget();
     void renameUsagesNow(const QString &replacement = QString());
     void semanticRehighlight(bool force = false);
     void highlighterStarted(QFuture<TextEditor::HighlightingResult> *highlighter,
@@ -151,15 +167,15 @@ protected:
     void contextMenuEvent(QContextMenuEvent *);
     void keyPressEvent(QKeyEvent *e);
 
+    void applyFontSettings();
     TextEditor::BaseTextEditor *createEditor();
 
     const CPlusPlus::Macro *findCanonicalMacro(const QTextCursor &cursor,
                                                CPlusPlus::Document::Ptr doc) const;
-protected Q_SLOTS:
+protected slots:
     void slotCodeStyleSettingsChanged(const QVariant &);
 
-private Q_SLOTS:
-    void updateFileName();
+private slots:
     void jumpToOutlineElement(int index);
     void updateOutlineNow();
     void updateOutlineIndex();
@@ -170,8 +186,10 @@ private Q_SLOTS:
     void updateFunctionDeclDefLink();
     void updateFunctionDeclDefLinkNow();
     void onFunctionDeclDefLinkFound(QSharedPointer<FunctionDeclDefLink> link);
+    void onFilePathChanged();
     void onDocumentUpdated();
     void onContentsChanged(int position, int charsRemoved, int charsAdded);
+    void updatePreprocessorButtonTooltip();
 
     void updateSemanticInfo(const CppTools::SemanticInfo &semanticInfo);
     void highlightSymbolUsages(int from, int to);
@@ -186,10 +204,10 @@ private Q_SLOTS:
     void onCommentsSettingsChanged(const CppTools::CommentsSettings &settings);
 
 private:
+    CPPEditorWidget(TextEditor::BaseTextEditorWidget *); // avoid stupidity
+    void ctor();
     void markSymbols(const QTextCursor &tc, const CppTools::SemanticInfo &info);
     bool sortedOutline() const;
-    CPlusPlus::Symbol *findDefinition(CPlusPlus::Symbol *symbol,
-                                      const CPlusPlus::Snapshot &snapshot) const;
 
     TextEditor::ITextEditor *openCppEditorAt(const QString &fileName, int line,
                                              int column = 0);
@@ -205,14 +223,7 @@ private:
 
     Q_SLOT void abortDeclDefLink();
 
-    Link attemptFuncDeclDef(const QTextCursor &cursor,
-                            const CPlusPlus::Document::Ptr &doc,
-                            CPlusPlus::Snapshot snapshot) const;
-    Link findLinkAt(const QTextCursor &, bool resolveTarget = true);
-    Link findMacroLink(const QByteArray &name) const;
-    Link findMacroLink(const QByteArray &name, CPlusPlus::Document::Ptr doc,
-                       const CPlusPlus::Snapshot &snapshot, QSet<QString> *processed) const;
-    QString identifierUnderCursor(QTextCursor *macroCursor) const;
+    Link findLinkAt(const QTextCursor &, bool resolveTarget = true, bool inNextSplit = false);
     bool openCppEditorAt(const Link &, bool inNextSplit = false);
 
     QModelIndex indexForPosition(int line, int column,
@@ -221,8 +232,9 @@ private:
     bool handleDocumentationComment(QKeyEvent *e);
     bool isStartOfDoxygenComment(const QTextCursor &cursor) const;
 
-    CppTools::CppModelManagerInterface *m_modelManager;
+    QPointer<CppTools::CppModelManagerInterface> m_modelManager;
 
+    CPPEditorDocument *m_cppEditorDocument;
     QComboBox *m_outlineCombo;
     CPlusPlus::OverviewModel *m_outlineModel;
     QModelIndex m_outlineModelIndex;
@@ -232,11 +244,7 @@ private:
     QTimer *m_updateOutlineIndexTimer;
     QTimer *m_updateUsesTimer;
     QTimer *m_updateFunctionDeclDefLinkTimer;
-    QTextCharFormat m_occurrencesFormat;
-    QTextCharFormat m_occurrencesUnusedFormat;
-    QTextCharFormat m_occurrenceRenameFormat;
     QHash<int, QTextCharFormat> m_semanticHighlightFormatMap;
-    QTextCharFormat m_keywordFormat;
 
     QList<QTextEdit::ExtraSelection> m_renameSelections;
     int m_currentRenameSelection;
@@ -247,14 +255,11 @@ private:
 
     CppTools::SemanticInfo m_lastSemanticInfo;
     QList<TextEditor::QuickFixOperation::Ptr> m_quickFixes;
-    bool m_objcEnabled;
 
-    QFuture<TextEditor::HighlightingResult> m_highlighter;
-    QFutureWatcher<TextEditor::HighlightingResult> m_highlightWatcher;
+    QScopedPointer<QFutureWatcher<TextEditor::HighlightingResult> > m_highlightWatcher;
     unsigned m_highlightRevision; // the editor revision that requested the highlight
 
-    QFuture<QList<int> > m_references;
-    QFutureWatcher<QList<int> > m_referencesWatcher;
+    QScopedPointer<QFutureWatcher<QList<int> > > m_referencesWatcher;
     unsigned m_referencesRevision;
     int m_referencesCursorPosition;
 
@@ -263,7 +268,8 @@ private:
 
     CppTools::CommentsSettings m_commentsSettings;
 
-    CppTools::CppCompletionSupport *m_completionSupport;
+    QScopedPointer<FollowSymbolUnderCursor> m_followSymbolUnderCursor;
+    QToolButton *m_preprocessorButton;
 };
 
 } // namespace Internal

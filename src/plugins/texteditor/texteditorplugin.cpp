@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -38,10 +38,10 @@
 #include "textfilewizard.h"
 #include "plaintexteditorfactory.h"
 #include "plaintexteditor.h"
-#include "manager.h"
 #include "outlinefactory.h"
 #include "snippets/plaintextsnippetprovider.h"
 #include "basetextmarkregistry.h"
+#include <texteditor/generichighlighter/manager.h>
 
 #include <coreplugin/icore.h>
 #include <coreplugin/variablemanager.h>
@@ -102,26 +102,19 @@ class ScratchFileWizard : public Core::IWizard
     Q_OBJECT
 
 public:
-    virtual WizardKind kind() const { return FileWizard; }
-    virtual QIcon icon() const { return QIcon(); }
-    virtual QString description() const
-        { return TextEditorPlugin::tr("Creates a scratch buffer using a temporary file."); }
-    virtual QString displayName() const
-        { return TextEditorPlugin::tr("Scratch Buffer"); }
-    virtual QString id() const
-        { return QLatin1String("Z.ScratchFile"); }
-    virtual QString category() const
-        { return QLatin1String(wizardCategoryC); }
-    virtual QString displayCategory() const
-        {  return wizardDisplayCategory(); }
-    virtual QString descriptionImage() const
-        { return QString(); }
-    virtual Core::FeatureSet requiredFeatures() const
-        { return Core::FeatureSet(); }
-    virtual WizardFlags flags() const
-        { return Core::IWizard::PlatformIndependent; }
-    virtual void runWizard(const QString &, QWidget *, const QString &, const QVariantMap &)
-        { createFile(); }
+    ScratchFileWizard()
+    {
+        setWizardKind(FileWizard);
+        setDescription(TextEditorPlugin::tr("Creates a scratch buffer using a temporary file."));
+        setDisplayName(TextEditorPlugin::tr("Scratch Buffer"));
+        setId(QLatin1String("Z.ScratchFile"));
+        setCategory(QLatin1String(wizardCategoryC));
+        setDisplayCategory(wizardDisplayCategory());
+        setFlags(Core::IWizard::PlatformIndependent);
+    }
+
+    void runWizard(const QString &, QWidget *, const QString &, const QVariantMap &)
+    { createFile(); }
 
 public Q_SLOTS:
     virtual void createFile();
@@ -145,19 +138,19 @@ bool TextEditorPlugin::initialize(const QStringList &arguments, QString *errorMe
 {
     Q_UNUSED(arguments)
 
-    if (!Core::ICore::mimeDatabase()->addMimeTypes(QLatin1String(":/texteditor/TextEditor.mimetypes.xml"), errorMessage))
+    if (!Core::MimeDatabase::addMimeTypes(QLatin1String(":/texteditor/TextEditor.mimetypes.xml"), errorMessage))
         return false;
 
-    Core::BaseFileWizardParameters wizardParameters(Core::IWizard::FileWizard);
-    wizardParameters.setDescription(tr("Creates a text file. The default file extension is <tt>.txt</tt>. "
-                                       "You can specify a different extension as part of the filename."));
-    wizardParameters.setDisplayName(tr("Text File"));
-    wizardParameters.setCategory(QLatin1String(wizardCategoryC));
-    wizardParameters.setDisplayCategory(wizardDisplayCategory());
-    wizardParameters.setFlags(Core::IWizard::PlatformIndependent);
     TextFileWizard *wizard = new TextFileWizard(QLatin1String(Constants::C_TEXTEDITOR_MIMETYPE_TEXT),
-                                                QLatin1String("text$"),
-                                                wizardParameters);
+                                                QLatin1String("text$"));
+    wizard->setWizardKind(Core::IWizard::FileWizard);
+    wizard->setDescription(tr("Creates a text file. The default file extension is <tt>.txt</tt>. "
+                                       "You can specify a different extension as part of the filename."));
+    wizard->setDisplayName(tr("Text File"));
+    wizard->setCategory(QLatin1String(wizardCategoryC));
+    wizard->setDisplayCategory(wizardDisplayCategory());
+    wizard->setFlags(Core::IWizard::PlatformIndependent);
+
     // Add text file wizard
     addAutoReleasedObject(wizard);
     ScratchFileWizard *scratchFile = new ScratchFileWizard;
@@ -210,11 +203,6 @@ bool TextEditorPlugin::initialize(const QStringList &arguments, QString *errorMe
     m_outlineFactory = new OutlineFactory;
     addAutoReleasedObject(m_outlineFactory);
 
-    // We have to initialize the actions because other plugins that
-    // depend upon the texteditorplugin expect that actions will be
-    // registered in the action manager at plugin initialization time.
-    m_editorFactory->actionHandler()->initializeActions();
-
     m_baseTextMarkRegistry = new BaseTextMarkRegistry(this);
 
     return true;
@@ -222,7 +210,7 @@ bool TextEditorPlugin::initialize(const QStringList &arguments, QString *errorMe
 
 void TextEditorPlugin::extensionsInitialized()
 {
-    m_searchResultWindow = Find::SearchResultWindow::instance();
+    m_searchResultWindow = Core::SearchResultWindow::instance();
 
     m_outlineFactory->setWidgetFactories(ExtensionSystem::PluginManager::getObjects<TextEditor::IOutlineWidgetFactory>());
 
@@ -251,14 +239,6 @@ void TextEditorPlugin::extensionsInitialized()
             this, SLOT(updateVariable(QByteArray)));
     connect(Core::ExternalToolManager::instance(), SIGNAL(replaceSelectionRequested(QString)),
             this, SLOT(updateCurrentSelection(QString)));
-}
-
-void TextEditorPlugin::initializeEditor(PlainTextEditorWidget *editor)
-{
-    // common actions
-    m_editorFactory->actionHandler()->setupActions(editor);
-
-    TextEditorSettings::instance()->initializeEditor(editor);
 }
 
 void TextEditorPlugin::invokeCompletion()

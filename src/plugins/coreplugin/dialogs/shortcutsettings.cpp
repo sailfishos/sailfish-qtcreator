@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -28,14 +28,16 @@
 ****************************************************************************/
 
 #include "shortcutsettings.h"
-#include "actionmanager/actionmanager.h"
-#include "actionmanager/command.h"
-#include "command_p.h"
-#include "commandsfile.h"
-#include "coreconstants.h"
-#include "documentmanager.h"
-#include "icore.h"
-#include "id.h"
+#include <coreplugin/coreconstants.h>
+#include <coreplugin/documentmanager.h>
+#include <coreplugin/icore.h>
+#include <coreplugin/id.h>
+#include <coreplugin/actionmanager/actionmanager.h>
+#include <coreplugin/actionmanager/command.h>
+#include <coreplugin/actionmanager/command_p.h>
+#include <coreplugin/actionmanager/commandsfile.h>
+
+#include <utils/fancylineedit.h>
 
 #include <QKeyEvent>
 #include <QFileDialog>
@@ -61,12 +63,12 @@ ShortcutSettings::ShortcutSettings(QObject *parent)
     setCategoryIcon(QLatin1String(Core::Constants::SETTINGS_CATEGORY_CORE_ICON));
 }
 
-QWidget *ShortcutSettings::createPage(QWidget *parent)
+QWidget *ShortcutSettings::widget()
 {
     m_initialized = true;
     m_keyNum = m_key[0] = m_key[1] = m_key[2] = m_key[3] = 0;
 
-    QWidget *w = CommandMappings::createPage(parent);
+    QWidget *w = CommandMappings::widget();
 
     const QString pageTitle = tr("Keyboard Shortcuts");
     const QString targetLabelText = tr("Key sequence:");
@@ -77,12 +79,6 @@ QWidget *ShortcutSettings::createPage(QWidget *parent)
     setTargetEditTitle(editTitle);
     setTargetHeader(editTitle);
     targetEdit()->setPlaceholderText(tr("Type to set shortcut"));
-
-    if (m_searchKeywords.isEmpty()) {
-        QTextStream(&m_searchKeywords) << ' ' << pageTitle
-                << ' ' << targetLabelText
-                << ' ' << editTitle;
-    }
 
     return w;
 }
@@ -100,11 +96,6 @@ void ShortcutSettings::finish()
 
     CommandMappings::finish();
     m_initialized = false;
-}
-
-bool ShortcutSettings::matches(const QString &s) const
-{
-    return m_searchKeywords.contains(s, Qt::CaseInsensitive);
 }
 
 bool ShortcutSettings::eventFilter(QObject *o, QEvent *e)
@@ -138,6 +129,7 @@ void ShortcutSettings::commandChanged(QTreeWidgetItem *current)
         return;
     ShortcutItem *scitem = qvariant_cast<ShortcutItem *>(current->data(0, Qt::UserRole));
     setKeySequence(scitem->m_key);
+    markCollisions(scitem);
 }
 
 void ShortcutSettings::targetIdentifierChanged()
@@ -151,14 +143,50 @@ void ShortcutSettings::targetIdentifierChanged()
         else
             setModified(current, false);
         current->setText(2, scitem->m_key.toString(QKeySequence::NativeText));
-        resetCollisionMarker(scitem);
-        markPossibleCollisions(scitem);
+        markCollisions(scitem);
     }
+}
+
+bool ShortcutSettings::hasConflicts() const
+{
+    QTreeWidgetItem *current = commandList()->currentItem();
+    if (!current || !current->data(0, Qt::UserRole).isValid())
+        return false;
+
+    ShortcutItem *item = qvariant_cast<ShortcutItem *>(current->data(0, Qt::UserRole));
+    if (!item)
+        return false;
+
+    const QKeySequence currentKey = QKeySequence::fromString(targetEdit()->text(), QKeySequence::NativeText);
+    if (currentKey.isEmpty())
+        return false;
+
+    const Id globalId(Constants::C_GLOBAL);
+    const Context itemContext = item->m_cmd->context();
+
+    foreach (ShortcutItem *listItem, m_scitems) {
+        if (item == listItem)
+            continue;
+        if (listItem->m_key.isEmpty())
+            continue;
+        if (listItem->m_key.matches(currentKey) == QKeySequence::NoMatch)
+            continue;
+
+        const Context listContext = listItem->m_cmd->context();
+        if (itemContext.contains(globalId) && !listContext.isEmpty())
+            return true;
+        if (listContext.contains(globalId) && !itemContext.isEmpty())
+            return true;
+        foreach (Id id, listContext)
+            if (itemContext.contains(id))
+                return true;
+    }
+    return false;
 }
 
 void ShortcutSettings::setKeySequence(const QKeySequence &key)
 {
-    m_keyNum = m_key[0] = m_key[1] = m_key[2] = m_key[3] = 0;
+    m_key[0] = m_key[1] = m_key[2] = m_key[3] = 0;
     m_keyNum = key.count();
     for (int i = 0; i < m_keyNum; ++i) {
         m_key[i] = key[i];
@@ -172,6 +200,8 @@ void ShortcutSettings::resetTargetIdentifier()
     if (current && current->data(0, Qt::UserRole).isValid()) {
         ShortcutItem *scitem = qvariant_cast<ShortcutItem *>(current->data(0, Qt::UserRole));
         setKeySequence(scitem->m_cmd->defaultKeySequence());
+        foreach (ShortcutItem *item, m_scitems)
+            markCollisions(item);
     }
 }
 
@@ -179,11 +209,14 @@ void ShortcutSettings::removeTargetIdentifier()
 {
     m_keyNum = m_key[0] = m_key[1] = m_key[2] = m_key[3] = 0;
     targetEdit()->clear();
+
+    foreach (ShortcutItem *item, m_scitems)
+        markCollisions(item);
 }
 
 void ShortcutSettings::importAction()
 {
-    QString fileName = QFileDialog::getOpenFileName(0, tr("Import Keyboard Mapping Scheme"),
+    QString fileName = QFileDialog::getOpenFileName(widget(), tr("Import Keyboard Mapping Scheme"),
         ICore::resourcePath() + QLatin1String("/schemes/"),
         tr("Keyboard Mapping Scheme (*.kms)"));
     if (!fileName.isEmpty()) {
@@ -206,10 +239,8 @@ void ShortcutSettings::importAction()
             }
         }
 
-        foreach (ShortcutItem *item, m_scitems) {
-            resetCollisionMarker(item);
-            markPossibleCollisions(item);
-        }
+        foreach (ShortcutItem *item, m_scitems)
+            markCollisions(item);
     }
 }
 
@@ -223,10 +254,8 @@ void ShortcutSettings::defaultAction()
             commandChanged(item->m_item);
     }
 
-    foreach (ShortcutItem *item, m_scitems) {
-        resetCollisionMarker(item);
-        markPossibleCollisions(item);
-    }
+    foreach (ShortcutItem *item, m_scitems)
+        markCollisions(item);
 }
 
 void ShortcutSettings::exportAction()
@@ -258,7 +287,7 @@ void ShortcutSettings::initialize()
     clear();
     QMap<QString, QTreeWidgetItem *> sections;
 
-    foreach (Command *c, ActionManager::instance()->commands()) {
+    foreach (Command *c, ActionManager::commands()) {
         if (c->hasAttribute(Command::CA_NonConfigurable))
             continue;
         if (c->action() && c->action()->isSeparator())
@@ -294,7 +323,7 @@ void ShortcutSettings::initialize()
 
         item->setData(0, Qt::UserRole, qVariantFromValue(s));
 
-        markPossibleCollisions(s);
+        markCollisions(s);
     }
     filterChanged(filterText());
 }
@@ -352,44 +381,32 @@ int ShortcutSettings::translateModifiers(Qt::KeyboardModifiers state,
     return result;
 }
 
-void ShortcutSettings::markPossibleCollisions(ShortcutItem *item)
+void ShortcutSettings::markCollisions(ShortcutItem *item)
 {
-    if (item->m_key.isEmpty())
-        return;
+    bool hasCollision = false;
+    if (!item->m_key.isEmpty()) {
+        Id globalId = Context(Constants::C_GLOBAL).at(0);
+        const Context itemContext = item->m_cmd->context();
 
-    Id globalId = Context(Constants::C_GLOBAL).at(0);
+        foreach (ShortcutItem *currentItem, m_scitems) {
 
-    foreach (ShortcutItem *currentItem, m_scitems) {
+            if (currentItem->m_key.isEmpty() || item == currentItem
+                    || item->m_key != currentItem->m_key)
+                continue;
 
-        if (currentItem->m_key.isEmpty() || item == currentItem ||
-            item->m_key != currentItem->m_key) {
-            continue;
-        }
-
-        foreach (Id id, currentItem->m_cmd->context()) {
-            // conflict if context is identical, OR if one
-            // of the contexts is the global context
-            if (item->m_cmd->context().contains(id) ||
-               (item->m_cmd->context().contains(globalId) &&
-                !currentItem->m_cmd->context().isEmpty()) ||
-                (currentItem->m_cmd->context().contains(globalId) &&
-                !item->m_cmd->context().isEmpty())) {
-                currentItem->m_item->setForeground(2, Qt::red);
-                item->m_item->setForeground(2, Qt::red);
-
+            foreach (Id id, currentItem->m_cmd->context()) {
+                // conflict if context is identical, OR if one
+                // of the contexts is the global context
+                const Context thisContext = currentItem->m_cmd->context();
+                if (itemContext.contains(id)
+                        || (itemContext.contains(globalId) && !thisContext.isEmpty())
+                        || (thisContext.contains(globalId) && !itemContext.isEmpty())) {
+                    currentItem->m_item->setForeground(2, Qt::red);
+                    hasCollision = true;
+                }
             }
         }
     }
+    item->m_item->setForeground(2, hasCollision ? Qt::red : commandList()->palette().foreground());
 }
 
-void ShortcutSettings::resetCollisionMarker(ShortcutItem *item)
-{
-    item->m_item->setForeground(2, commandList()->palette().foreground());
-}
-
-
-void ShortcutSettings::resetCollisionMarkers()
-{
-    foreach (ShortcutItem *item, m_scitems)
-        resetCollisionMarker(item);
-}

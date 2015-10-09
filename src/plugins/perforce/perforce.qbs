@@ -1,16 +1,16 @@
-import qbs.base 1.0
+import qbs 1.0
 
-import "../QtcPlugin.qbs" as QtcPlugin
+import QtcPlugin
 
 QtcPlugin {
     name: "Perforce"
 
     Depends { name: "Qt.widgets" }
+    Depends { name: "Utils" }
+
     Depends { name: "Core" }
     Depends { name: "TextEditor" }
-    Depends { name: "Find" }
     Depends { name: "VcsBase" }
-    Depends { name: "Locator" }
 
     files: [
         "annotationhighlighter.cpp",

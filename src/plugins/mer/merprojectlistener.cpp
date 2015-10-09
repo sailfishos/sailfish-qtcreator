@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2013 Jolla Ltd.
+** Copyright (C) 2012 - 2014 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -21,26 +21,23 @@
 ****************************************************************************/
 
 #include "merprojectlistener.h"
+
 #include "mersdkmanager.h"
 
+#include <coreplugin/icore.h>
+#include <coreplugin/progressmanager/futureprogress.h>
+#include <coreplugin/progressmanager/progressmanager.h>
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/session.h>
 #include <projectexplorer/target.h>
-
-#include <qt4projectmanager/qt4project.h>
-#include <qt4projectmanager/qt4nodes.h>
-
-#include <coreplugin/icore.h>
-#include <coreplugin/progressmanager/progressmanager.h>
-#include <coreplugin/progressmanager/futureprogress.h>
-
+#include <qmakeprojectmanager/qmakenodes.h>
+#include <qmakeprojectmanager/qmakeproject.h>
 #include <qtsupport/qtkitinformation.h>
-
 #include <utils/fileutils.h>
 
 using namespace ProjectExplorer;
 using namespace QtSupport;
-using namespace Qt4ProjectManager;
+using namespace QmakeProjectManager;
 
 namespace Mer {
 namespace Internal {
@@ -54,15 +51,14 @@ MerProjectListener::MerProjectListener(QObject *parent)
 void MerProjectListener::init()
 {
     // This is called just once after the MerSdkManager is initialized.
-    const SessionManager *sessionManager = ProjectExplorerPlugin::instance()->session();
-    const QList<Project*> projects = sessionManager->projects();
+    const QList<Project*> projects = SessionManager::projects();
     // O(n2)
     foreach (Project *project, projects)
         onProjectAdded(project);
 
-    connect(sessionManager, SIGNAL(projectAdded(ProjectExplorer::Project*)),
+    connect(SessionManager::instance(), SIGNAL(projectAdded(ProjectExplorer::Project*)),
             SLOT(onProjectAdded(ProjectExplorer::Project*)));
-    connect(sessionManager, SIGNAL(projectRemoved(ProjectExplorer::Project*)),
+    connect(SessionManager::instance(), SIGNAL(projectRemoved(ProjectExplorer::Project*)),
             SLOT(onProjectRemoved(ProjectExplorer::Project*)));
 }
 
@@ -109,10 +105,10 @@ void MerProjectListener::onProjectRemoved(Project *project)
 
 bool MerProjectListener::handleProject_private(Project *project)
 {
-    Qt4Project *qt4Project = qobject_cast<Qt4Project*>(project);
-    if (!qt4Project)
+    QmakeProject *qmakeProject = qobject_cast<QmakeProject*>(project);
+    if (!qmakeProject)
         return false;
-    return handleProject(qt4Project);
+    return handleProject(qmakeProject);
 }
 
 } // Internal

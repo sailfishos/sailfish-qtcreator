@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (c) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (c) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator
@@ -23,7 +23,7 @@
 // **********************************************************************
 
 /*!
-    \contentspage index.html
+    \contentspage {Qt Creator Manual}
     \previouspage creator-coding-navigating.html
     \page creator-highlighting.html
     \nextpage creator-checking-code-syntax.html
@@ -43,7 +43,7 @@
 
         \li Class fields
 
-        \li Virtual methods
+        \li Virtual functions
 
     \endlist
 
@@ -139,7 +139,7 @@
 
 
 /*!
-    \contentspage index.html
+    \contentspage {Qt Creator Manual}
     \previouspage creator-highlighting.html
     \page creator-checking-code-syntax.html
     \nextpage creator-completing-code.html
@@ -677,7 +677,7 @@
 
 
 /*!
-    \contentspage index.html
+    \contentspage {Qt Creator Manual}
     \previouspage creator-checking-code-syntax.html
     \page creator-completing-code.html
     \nextpage creator-indenting-code.html
@@ -833,6 +833,29 @@
     Use unique variable names within a snippet, because all instances of a
     variable are renamed when you specify a value for it.
 
+    To determine the case of values you enter in snippets, use the following
+    modifiers:
+
+    \list
+
+        \li \c {:c} converts the initial letter of the string to upper case
+
+        \li \c {:l} converts the string to lower case
+
+        \li \c {:u} converts the string to upper case
+
+    \endlist
+
+    For example, add the following line to the \c class snippet to specify that
+    the function name is converted to all lower case characters regardless of
+    how you specify the value of the \c{$name$} variable:
+
+    \code
+        void $name:l$() {}
+    \endcode
+
+    \image qtcreator-snippet-modifiers.png
+
     The snippet editor does not check the syntax of the snippets that you edit
     or add. However, when you use the snippets, the code editor marks any
     errors by underlining them in red.
@@ -863,7 +886,7 @@
 
 
 /*!
-    \contentspage index.html
+    \contentspage {Qt Creator Manual}
     \previouspage qt-quick-toolbars.html
     \page creator-editor-codepasting.html
     \nextpage creator-macros.html
@@ -876,8 +899,6 @@
 
     \list
 
-        \li \gui{CodePaster}
-
         \li \gui{Pastebin.Com}
 
         \li \gui{Pastebin.Ca}
@@ -888,29 +909,54 @@
 
     \endlist
 
-    To configure the server, select \gui{Tools} > \gui{Options} >
-    \gui{Code Pasting} > \gui CodePaster. In the \gui Server field, specify the
-    host name of the CodePaster service.
+    \section1 Specifying Settings for Code Pasting
+
+    To specify settings for the code pasting service:
+
+    \list 1
+
+        \li Select \gui Tools > \gui Options  > \gui{Code Pasting}.
+
+            \image qtcreator-code-pasting-options.png "Code Pasting options"
+
+        \li In the \gui {Default protocol} field, select a code pasting service
+            to use by default.
+
+        \li In the \gui Username field, enter your username.
+
+        \li In the \gui {Expires after} field, specify the time to keep the
+            pasted snippet on the server.
+
+        \li Select the \gui {Copy-paste URL to clipboard} check box to copy the
+            URL of the post on the code pasting service to the clipboard when
+            you paste a post.
+
+        \li Select the \gui {Display Output pane after sending a post} to
+            display the URL in the \gui {General Messages} output pane when you
+            paste a post.
+
+    \endlist
 
     Select \gui Fileshare to specify the path to a shared
     network drive. The code snippets are copied to the drive as simple files.
     You have to delete obsolete files from the drive manually.
 
+    \section1 Using Code Pasting Services
+
     To paste a snippet of code onto the server, select \gui{Tools} >
     \gui{Code Pasting} > \gui{Paste Snippet} or press \key{Alt+C,Alt+P}.
     By default, \QC copies the URL of the snippet to the clipboard and displays
-    the URL in the \gui Output pane.
+    the URL in the \gui {General Messages} output pane.
+
+    To paste any content that you copied to the clipboard, select \gui Tools >
+    \gui {Code Pasting} > \gui {Paste Clipboard}.
 
     To fetch a snippet of code from the server, select \gui{Tools} >
-    \gui{Code Pasting} > \gui{Fetch Snippet} or press \key{Alt+C,Alt+F}.
+    \gui{Code Pasting} > \gui{Fetch Snippet} or press \key{Alt+C,Alt+F}. Select
+    the snippet to fetch from the list.
 
-    To fetch content from a URL on a CodePaster service, select \gui{Tools} >
-    \gui{Code Pasting} > \gui{Fetch from URL}. The content is opened in the code
-    editor.
-
-    \note To use \gui{Pastebin.Com}, configure the domain
-    prefix in \gui{Tools} > \gui{Options} > \gui{Code Pasting} >
-    \gui{Pastebin.com}.
+    To fetch the content stored at an URL, select \gui Tools >
+    \gui {Code Pasting} > \gui {Fetch from URL}.
 
     For example, you might ask colleagues to review a change that you plan to
     submit to a version control system. If you use the Git version control
@@ -925,7 +971,7 @@
 
 
 /*!
-    \contentspage index.html
+    \contentspage {Qt Creator Manual}
     \previouspage creator-editor-codepasting.html
     \page creator-macros.html
     \nextpage creator-diff-editor.html
@@ -957,7 +1003,7 @@
 
 
 /*!
-    \contentspage index.html
+    \contentspage {Qt Creator Manual}
     \previouspage creator-editor-options-text.html
     \page creator-editor-fakevim.html
     \nextpage creator-mime-types.html
@@ -1006,7 +1052,7 @@
     */
 
 /*!
-    \contentspage index.html
+    \contentspage {Qt Creator Manual}
     \previouspage creator-completing-code.html
     \page creator-indenting-code.html
     \nextpage qt-quick-toolbars.html
@@ -1062,13 +1108,17 @@
 
         \li Interpret the \key Tab and \key Backspace key presses.
 
-        \li Indent the contents of classes, methods, blocks, and namespaces.
+        \li Indent the contents of classes, functions, blocks, and namespaces.
 
-        \li Indent braces in classes, namespaces, enums, methods, and blocks.
+        \li Indent braces in classes, namespaces, enums, functions, and blocks.
 
         \li Control switch statements and their contents.
 
         \li Align continuation lines.
+
+        \li Bind pointers (*) and references (&) in types and declarations to
+            identifiers, type names, or left or right \c const or \c volatile
+            keywords.
 
     \endlist
 
@@ -1178,14 +1228,14 @@
     You can indent public, protected, and private statements and declarations
     related to them within classes.
 
-    You can also indent statements within methods and blocks and declarations
+    You can also indent statements within functions and blocks and declarations
     within namespaces.
 
     \image qtcreator-code-style-content.png "Content options"
 
     \section1 Specifying Settings for Braces
 
-    You can indent class, namespace, enum and method declarations and code
+    You can indent class, namespace, enum and function declarations and code
     blocks.
 
     \image qtcreator-code-style-braces.png "Braces options"
@@ -1210,11 +1260,22 @@
 
     \image qtcreator-code-style-alignment.png "Alignment options"
 
+    \section1 Binding Pointers and References
+
+    To bind pointers (*) and references (&) in types and declarations to
+    identifiers, type names, or left or right \c const or \c volatile keywords,
+    select the check boxes in the \gui {Pointers and References} tab.
+
+    The * and & characters are automatically bound to identifiers of pointers to
+    functions and pointers to arrays.
+
+    \image qtcreator-pointers-references.png "Pointers and References options"
+
 */
 
 
 /*!
-    \contentspage index.html
+    \contentspage {Qt Creator Manual}
     \previouspage creator-finding-overview.html
     \page creator-editor-finding.html
     \nextpage creator-editor-locator.html
@@ -1255,8 +1316,7 @@
             \gui {Regular Expressions}.
             Regular expressions used in \QC are modeled on Perl regular
             expressions. For more information on using regular expressions, see
-            \l{http://qt-project.org/doc/qt-5.0/qtcore/qregexp.html#details}
-            {Detailed Description} in the QRegExp Class Reference.
+            the documentation for the QRegExp Class.
 
     \endlist
 
@@ -1367,10 +1427,10 @@
 
 
 /*!
-    \contentspage index.html
+    \contentspage {Qt Creator Manual}
     \previouspage creator-editor-locator.html
     \page creator-editor-refactoring.html
-    \nextpage creator-editor-options.html
+    \nextpage creator-beautifier.html
 
     \title Refactoring
 
@@ -1422,7 +1482,7 @@
         \endlist
 
         \note You can also select \gui{Edit > Find/Replace > Advanced Find >
-        C++ Symbols} to search for classes, methods, enums, and declarations
+        C++ Symbols} to search for classes, functions, enums, and declarations
         either from files listed as part of the project or from all files that
         are used by the code, such as include files.
 
@@ -1523,7 +1583,7 @@
 
         \li Create variable declarations
 
-        \li Create method declarations and definitions
+        \li Create function declarations and definitions
 
    \endlist
 
@@ -1817,22 +1877,28 @@
     }
     \endcode
 
-            \li  Method name
+            \li  Function name
         \row
             \li  Add 'Function' Declaration
             \li  Inserts the member function declaration that matches the member function
             definition into the class declaration. The function can be public,
             protected, private, public slot, protected slot, or private slot.
-            \li  Method name
+            \li  Function name
         \row
             \li  Switch with Next/Previous Parameter
             \li  Moves a parameter down or up one position in a parameter list.
-            \li  Parameter in the declaration or definition of a function or method
+            \li  Parameter in the declaration or definition of a function
         \row
-            \li  Extract Method
-            \li  Moves the selected code to a new method and replaces the block of
-            code with a call to the new method. Enter a name for the method in
+            \li  Extract Function
+            \li  Moves the selected code to a new function and replaces the block of
+            code with a call to the new function. Enter a name for the function in
             the \gui {Extract Function Refactoring} dialog.
+            \li  Block of code selected
+        \row
+            \li  Extract Constant as Function Parameter
+            \li  Replaces the selected literal and all its occurrences with the function parameter
+            \c{newParameter}. The parameter \c{newParameter} will have the original literal as the
+            default value.
             \li  Block of code selected
         \row
             \li  Add Local Declaration
@@ -1869,8 +1935,8 @@
             \li  Generate Missing Q_PROPERTY Members
             \li  Adds missing members to a Q_PROPERTY:
             \list
-                \li  \c read method
-                \li  \c write method, if there is a WRITE
+                \li  \c read function
+                \li  \c write function, if there is a WRITE
                 \li  \c {onChanged} signal, if there is a NOTIFY
                 \li  data member with the name \c {m_<propertyName>}
             \endlist
@@ -1978,6 +2044,21 @@
             \image qtcreator-refactoring-virtual-function-dialog.png
 
             \li Class or base class name
+        \row
+            \li Optimize for-Loop
+            \li Rewrites post increment operators as pre increment operators and post decrement
+            operators as pre decrement operators. It also moves other than string or numeric
+            literals and id expressions from the condition of a for loop to its initializer.
+            For example, rewrites:
+
+    \code
+    for (int i = 0; i < 3 * 2; i++)
+    \endcode
+    as
+    \code
+    for (int i = 0, total = 3 * 2; i < total; ++i)
+    \endcode
+            \li for
 
     \endtable
 
@@ -2044,7 +2125,7 @@
 
 
 /*!
-    \contentspage index.html
+    \contentspage {Qt Creator Manual}
     \previouspage creator-editor-finding.html
     \page creator-editor-locator.html
     \nextpage creator-editor-refactoring.html
@@ -2124,10 +2205,10 @@
         \li Locating files belonging to your project, such as source, header
             resource, and .ui files
 
-        \li Locating class and method definitions in your project or anywhere
+        \li Locating class, enum, and function definitions in your project or anywhere
             referenced from your project
 
-        \li Locating class and method definitions in the current document
+        \li Locating symbols in the current document
 
         \li Locating a specific line and column in the document displayed in
             your editor
@@ -2165,6 +2246,10 @@
 
     \endlist
 
+    Filters locating files also accept paths, such as \c {tools/*main.cpp}.
+    Filters locating class and function definitions also accept namespaces,
+    such as \c {Utils::*View}.
+
     By default, the following filters are enabled and you do not need to use
     their prefixes explicitly:
 
@@ -2177,6 +2262,9 @@
         \li Going to a file in any open project (a).
 
     \endlist
+
+    If locator does not find some files, you can add them to the \c OTHER_FILES
+    variable in the .pro file to make them known to \QC.
 
     \section1 Configuring Locator Filters
 

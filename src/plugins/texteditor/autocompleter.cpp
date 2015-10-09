@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -122,8 +122,7 @@ QString AutoCompleter::autoComplete(QTextCursor &cursor, const QString &textToIn
                     str += QLatin1String("}") + QString(QChar::ParagraphSeparator);
                 else
                     str += QString(QChar::ParagraphSeparator) + QLatin1String("}");
-            }
-            else {
+            } else {
                 str += QLatin1String("}");
             }
             return str;

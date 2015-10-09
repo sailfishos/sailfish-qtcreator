@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -207,7 +207,7 @@ void InfoBarDisplay::update()
     foreach (const InfoBarEntry &info, m_infoBar->m_infoBarEntries) {
         QFrame *infoWidget = new QFrame;
 
-        QPalette pal = infoWidget->palette();
+        QPalette pal;
         pal.setColor(QPalette::Window, QColor(255, 255, 225));
         pal.setColor(QPalette::WindowText, Qt::black);
 
@@ -235,7 +235,7 @@ void InfoBarDisplay::update()
         if (info.globalSuppression == InfoBarEntry::GlobalSuppressionEnabled) {
             infoWidgetSuppressButton = new QToolButton;
             infoWidgetSuppressButton->setProperty("infoId", info.id.uniqueIdentifier());
-            infoWidgetSuppressButton->setText(tr("Do not show again"));
+            infoWidgetSuppressButton->setText(tr("Do Not Show Again"));
             connect(infoWidgetSuppressButton, SIGNAL(clicked()), SLOT(suppressButtonClicked()));
         }
 

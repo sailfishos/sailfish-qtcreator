@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -127,6 +127,7 @@ private Q_SLOTS:
     void functionDefaultArgument();
     void attributeInAccessSpecifier();
     void braceReturn();
+    void staticVarDeclWithTypeDecl();
 };
 
 struct Line {
@@ -1176,6 +1177,8 @@ void tst_CodeFormatter::templates()
          << Line("~           class F, class D>,")
          << Line("~       typename F>")
          << Line("class Foo { };")
+         << Line("template <class A = std::vector<int>>")
+         << Line("")
          ;
     checkIndent(data);
 }
@@ -1281,6 +1284,9 @@ void tst_CodeFormatter::functionReturnType()
          << Line("template <class T>")
          << Line("const QList<QMap<T, T> > &")
          << Line("A::B::foo() {}")
+         << Line("std::map<int,std::vector<int>> indent() {}")
+         << Line("std::map<int,std::vector<int> > indent() {}")
+         << Line("")
          ;
     checkIndent(data);
 }
@@ -2108,6 +2114,43 @@ void tst_CodeFormatter::braceReturn()
          << Line("    int x;")
          << Line("};")
          ;
+    checkIndent(data);
+}
+
+void tst_CodeFormatter::staticVarDeclWithTypeDecl()
+{
+    QList<Line> data;
+    data << Line("static class: public Foo {")
+         << Line("public:")
+         << Line("    int bar();")
+         << Line("} mooze;")
+         << Line("")
+         << Line("static enum Col {")
+         << Line("    red,")
+         << Line("    yellow,")
+         << Line("    green")
+         << Line("} Loc;")
+         << Line("")
+         << Line("static enum {")
+         << Line("    red,")
+         << Line("    yellow,")
+         << Line("    green")
+         << Line("} Loc;")
+         << Line("")
+         << Line("enum class Col {")
+         << Line("    red,")
+         << Line("    yellow,")
+         << Line("    green")
+         << Line("};")
+         << Line("")
+         << Line("static enum class Col")
+         << Line("{")
+         << Line("    red,")
+         << Line("    yellow,")
+         << Line("    green")
+         << Line("} Loc;")
+         << Line("")
+            ;
     checkIndent(data);
 }
 

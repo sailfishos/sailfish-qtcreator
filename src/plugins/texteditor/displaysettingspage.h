@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -37,6 +37,7 @@
 namespace TextEditor {
 
 class DisplaySettings;
+class MarginSettings;
 
 class DisplaySettingsPageParameters
 {
@@ -55,20 +56,21 @@ public:
     ~DisplaySettingsPage();
 
     // IOptionsPage
-    QWidget *createPage(QWidget *parent);
+    QWidget *widget();
     void apply();
     void finish();
-    bool matches(const QString &s) const;
 
     const DisplaySettings &displaySettings() const;
+    const MarginSettings &marginSettings() const;
 
 signals:
     void displaySettingsChanged(const TextEditor::DisplaySettings &);
+    void marginSettingsChanged(const TextEditor::MarginSettings &);
 
 private:
-    void settingsFromUI(DisplaySettings &displaySettings) const;
+    void settingsFromUI(DisplaySettings &displaySettings, MarginSettings &marginSettings) const;
     void settingsToUI();
-    void setDisplaySettings(const DisplaySettings &);
+    void setDisplaySettings(const DisplaySettings &, const MarginSettings &newMarginSettings);
 
     struct DisplaySettingsPagePrivate;
     DisplaySettingsPagePrivate *d;

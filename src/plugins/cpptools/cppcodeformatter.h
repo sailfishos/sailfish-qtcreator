@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -48,9 +48,7 @@ class QTextBlock;
 QT_END_NAMESPACE
 
 namespace CppTools {
-namespace Internal {
-class CppCodeFormatterData;
-}
+namespace Internal { class CppCodeFormatterData; }
 
 class CPPTOOLS_EXPORT CodeFormatter
 {

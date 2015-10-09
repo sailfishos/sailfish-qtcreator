@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,9 +30,7 @@
 #ifndef EDITORDATA_H
 #define EDITORDATA_H
 
-namespace SharedTools {
-    class WidgetHost;
-}
+namespace SharedTools { class WidgetHost; }
 
 namespace Designer {
     class FormWindowEditor;

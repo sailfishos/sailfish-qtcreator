@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -39,6 +39,7 @@ TestProject::TestProject(const QString &name, QObject *parent)
     : m_name (name)
 {
     setParent(parent);
+    setId(Core::Id::fromString(name));
 }
 
 TestProject::~TestProject()
@@ -55,6 +56,7 @@ ModelManagerTestHelper::ModelManagerTestHelper(QObject *parent) :
     connect(this, SIGNAL(aboutToRemoveProject(ProjectExplorer::Project*)), mm, SLOT(onAboutToRemoveProject(ProjectExplorer::Project*)));
     connect(this, SIGNAL(projectAdded(ProjectExplorer::Project*)), mm, SLOT(onProjectAdded(ProjectExplorer::Project*)));
     connect(mm, SIGNAL(sourceFilesRefreshed(QStringList)), this, SLOT(sourceFilesRefreshed(QStringList)));
+    connect(mm, SIGNAL(gcFinished()), this, SLOT(gcFinished()));
 
     cleanup();
     verifyClean();
@@ -74,6 +76,9 @@ void ModelManagerTestHelper::cleanup()
     QList<ProjectInfo> pies = mm->projectInfos();
     foreach (const ProjectInfo &pie, pies)
         emit aboutToRemoveProject(pie.project().data());
+
+    if (!pies.isEmpty())
+        waitForFinishedGc();
 }
 
 void ModelManagerTestHelper::verifyClean()
@@ -98,19 +103,35 @@ ModelManagerTestHelper::Project *ModelManagerTestHelper::createProject(const QSt
     return tp;
 }
 
+void ModelManagerTestHelper::resetRefreshedSourceFiles()
+{
+    m_lastRefreshedSourceFiles.clear();
+    m_refreshHappened = false;
+}
+
 QStringList ModelManagerTestHelper::waitForRefreshedSourceFiles()
 {
-    m_refreshHappened = false;
-
     while (!m_refreshHappened)
         QCoreApplication::processEvents();
 
     return m_lastRefreshedSourceFiles;
 }
 
+void ModelManagerTestHelper::waitForFinishedGc()
+{
+    m_gcFinished = false;
+
+    while (!m_gcFinished)
+        QCoreApplication::processEvents();
+}
 
 void ModelManagerTestHelper::sourceFilesRefreshed(const QStringList &files)
 {
     m_lastRefreshedSourceFiles = files;
     m_refreshHappened = true;
+}
+
+void ModelManagerTestHelper::gcFinished()
+{
+    m_gcFinished = true;
 }

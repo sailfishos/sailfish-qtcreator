@@ -292,12 +292,12 @@ int GraphicalNodeInstance::penWidth() const
 }
 
 
-QList<ServerNodeInstance> GraphicalNodeInstance::childItemsForChild(QQuickItem *childItem) const
+QList<ServerNodeInstance> GraphicalNodeInstance::childItemsForChild(QQuickItem *item) const
 {
     QList<ServerNodeInstance> instanceList;
 
-    if (childItem) {
-        foreach (QQuickItem *childItem, childItem->childItems())
+    if (item) {
+        foreach (QQuickItem *childItem, item->childItems())
         {
             if (childItem && nodeInstanceServer()->hasInstanceForObject(childItem)) {
                 instanceList.append(nodeInstanceServer()->instanceForObject(childItem));
@@ -371,6 +371,9 @@ void GraphicalNodeInstance::setPropertyBinding(const PropertyName &name, const Q
 {
     if (name == "state")
         return; // states are only set by us
+
+    if (name.startsWith("anchors.") && isRootNodeInstance())
+        return;
 
     ObjectNodeInstance::setPropertyBinding(name, expression);
 

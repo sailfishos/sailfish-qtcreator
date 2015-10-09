@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (c) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (c) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator
@@ -23,7 +23,7 @@
 // **********************************************************************
 
 /*!
-    \contentspage index.html
+    \contentspage {Qt Creator Manual}
     \previouspage creator-project-generic.html
     \page creator-cli.html
     \nextpage creator-keyboard-shortcuts.html
@@ -91,6 +91,11 @@
             \li  -profile
             \li  Output plugin start up and shut down profiling data.
 
+       \row
+            \li -pluginpath <path>
+            \li Add a path where \QC looks for plugins. To specify several
+                paths, add the \c{-pluginpath} option for each path.
+
         \row
             \li  -settingspath <path>
             \li  Override the default path where user settings are stored.
@@ -156,11 +161,11 @@
 
     \section1 Using Custom Styles
 
-    \QC is a \l{http://qt-project.org/doc/qt-5.0/qtwidgets/qapplication.html#QApplication}
+    \QC is a \l{QApplication}
     {Qt application}, and therefore, it accepts the command line options
     that all Qt applications accept. For example, you can use the \c {-style} and
     \c {-stylesheet} options to apply custom styles and
-    \l{http://qt-project.org/doc/qt-5.0/qtwidgets/stylesheet.html}{stylesheets}.
+    \l{QApplication#stylesheet}{stylesheets}.
     The styling is only applied during the current session.
 
     Exercise caution when applying styles, as overriding the existing styling

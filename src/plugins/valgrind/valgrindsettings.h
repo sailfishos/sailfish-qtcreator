@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 ** Author: Milian Wolff, KDAB (milian.wolff@kdab.com)
 **
@@ -31,8 +31,8 @@
 #ifndef ANALYZER_INTERNAL_VALGRINDSETTINGS_H
 #define ANALYZER_INTERNAL_VALGRINDSETTINGS_H
 
-#include <analyzerbase/analyzersettings.h>
 #include "callgrindcostdelegate.h"
+#include <projectexplorer/runconfiguration.h>
 
 #include <QObject>
 #include <QString>
@@ -41,22 +41,33 @@
 namespace Valgrind {
 namespace Internal {
 
+const char ANALYZER_VALGRIND_SETTINGS[] = "Analyzer.Valgrind.Settings";
+
 /**
  * Valgrind settings shared for global and per-project.
  */
-class ValgrindBaseSettings : public Analyzer::AbstractAnalyzerSubConfig
+class ValgrindBaseSettings : public ProjectExplorer::ISettingsAspect
 {
     Q_OBJECT
 
 public:
+    enum SelfModifyingCodeDetection {
+        DetectSmcNo,
+        DetectSmcStackOnly,
+        DetectSmcEverywhere,
+        DetectSmcEverywhereButFile
+    };
+
+    enum LeakCheckOnFinish {
+        LeakCheckOnFinishNo,
+        LeakCheckOnFinishSummaryOnly,
+        LeakCheckOnFinishYes
+    };
+
     ValgrindBaseSettings() {}
 
-    virtual QVariantMap toMap() const;
-    virtual QVariantMap defaults() const;
-    virtual void fromMap(const QVariantMap &map);
-
-    virtual Core::Id id() const;
-    virtual QString displayName() const;
+    void toMap(QVariantMap &map) const;
+    void fromMap(const QVariantMap &map);
 
 signals:
     void changed(); // sent when multiple values have changed simulatenously (e.g. fromMap)
@@ -66,15 +77,19 @@ signals:
  */
 public:
     QString valgrindExecutable() const;
+    SelfModifyingCodeDetection selfModifyingCodeDetection() const;
 
 public slots:
     void setValgrindExecutable(const QString &);
+    void setSelfModifyingCodeDetection(int);
 
 signals:
     void valgrindExecutableChanged(const QString &);
+    void selfModifyingCodeDetectionChanged(int);
 
 private:
     QString m_valgrindExecutable;
+    SelfModifyingCodeDetection m_selfModifyingCodeDetection;
 
 
 /**
@@ -82,6 +97,8 @@ private:
  */
 public:
     int numCallers() const { return m_numCallers; }
+    LeakCheckOnFinish leakCheckOnFinish() const { return m_leakCheckOnFinish; }
+    bool showReachable() const { return m_showReachable; }
     bool trackOrigins() const { return m_trackOrigins; }
     bool filterExternalIssues() const { return m_filterExternalIssues; }
     QList<int> visibleErrorKinds() const { return m_visibleErrorKinds; }
@@ -92,12 +109,16 @@ public:
 
 public slots:
     void setNumCallers(int);
+    void setLeakCheckOnFinish(int);
+    void setShowReachable(bool);
     void setTrackOrigins(bool);
     void setFilterExternalIssues(bool);
     void setVisibleErrorKinds(const QList<int> &);
 
 signals:
     void numCallersChanged(int);
+    void leakCheckOnFinishChanged(int);
+    void showReachableChanged(bool);
     void trackOriginsChanged(bool);
     void filterExternalIssuesChanged(bool);
     void visibleErrorKindsChanged(const QList<int> &);
@@ -106,6 +127,8 @@ signals:
 
 protected:
     int m_numCallers;
+    LeakCheckOnFinish m_leakCheckOnFinish;
+    bool m_showReachable;
     bool m_trackOrigins;
     bool m_filterExternalIssues;
     QList<int> m_visibleErrorKinds;
@@ -167,13 +190,13 @@ class ValgrindGlobalSettings : public ValgrindBaseSettings
     Q_OBJECT
 
 public:
-    ValgrindGlobalSettings() {}
+    ValgrindGlobalSettings();
 
     QWidget *createConfigWidget(QWidget *parent);
-    QVariantMap toMap() const;
-    QVariantMap defaults() const;
+    void toMap(QVariantMap &map) const;
     void fromMap(const QVariantMap &map);
-    virtual AbstractAnalyzerSubConfig *clone();
+    ISettingsAspect *create() const { return new ValgrindGlobalSettings; }
+
 
     /*
      * Global memcheck settings
@@ -190,6 +213,9 @@ public:
 
     void setLastSuppressionDialogHistory(const QStringList &history);
     QStringList lastSuppressionDialogHistory() const;
+
+    void writeSettings() const;
+    void readSettings();
 
 private:
     QStringList m_suppressionFiles;
@@ -228,10 +254,9 @@ public:
     ValgrindProjectSettings() {}
 
     QWidget *createConfigWidget(QWidget *parent);
-    QVariantMap toMap() const;
-    QVariantMap defaults() const;
+    void toMap(QVariantMap &map) const;
     void fromMap(const QVariantMap &map);
-    virtual AbstractAnalyzerSubConfig *clone();
+    ISettingsAspect *create() const { return new ValgrindProjectSettings; }
 
     /**
      * Per-project memcheck settings, saves a diff to the global suppression files list

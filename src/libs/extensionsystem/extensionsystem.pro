@@ -1,7 +1,7 @@
 DEFINES += EXTENSIONSYSTEM_LIBRARY
 include(../../qtcreatorlibrary.pri)
 
-unix:!macx:!freebsd*:LIBS += -ldl
+unix:LIBS += $$QMAKE_LIBS_DYNLOAD
 
 !isEmpty(vcproj) {
     DEFINES += IDE_TEST_DIR=\"$$IDE_SOURCE_TREE\"
@@ -33,7 +33,7 @@ SOURCES += pluginerrorview.cpp \
     optionsparser.cpp \
     plugincollection.cpp \
     pluginerroroverview.cpp
-FORMS += pluginview.ui \
+FORMS += \
     pluginerrorview.ui \
     plugindetailsview.ui \
     pluginerroroverview.ui

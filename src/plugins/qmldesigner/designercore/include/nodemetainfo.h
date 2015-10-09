@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -86,6 +86,10 @@ public:
     QList<NodeMetaInfo> superClasses() const;
     NodeMetaInfo directSuperClass() const;
 
+    QList<TypeName> superClassNames() const;
+
+    bool defaultPropertyIsComponent() const;
+
     TypeName typeName() const;
     int majorVersion() const;
     int minorVersion() const;
@@ -98,16 +102,13 @@ public:
     bool availableInVersion(int majorVersion, int minorVersion) const;
     bool isSubclassOf(const TypeName &type, int majorVersion, int minorVersio) const;
 
+    bool isGraphicalItem() const;
     bool isLayoutable() const;
+    bool isView() const;
 
     QString importDirectoryPath() const;
 
     static void clearCache();
-
-    //### TODO: These are hardcoded and ideally the code model should be able to provide them
-    static QStringList qtQuickEnums();
-    static QStringList qtQuickEnumsWithoutScope();
-    static QString qtQuickEnumScopeForEnumString(const QString &inputEnumString);
 
 private:
     QSharedPointer<Internal::NodeMetaInfoPrivate> m_privateData;

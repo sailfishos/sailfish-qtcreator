@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -36,7 +36,7 @@
 
 namespace QmlDesigner {
 
-// QmlDesigner "base" plugin with initialization method in which
+// QmlDesigner "base" plugin with initialization function in which
 // it can retriece the core via its static accessor and do magic.
 
 class IPlugin

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 ** Author: Milian Wolff, KDAB (milian.wolff@kdab.com)
 **
@@ -37,7 +37,21 @@
 #include <QStringList>
 #include <QDebug>
 
+
+// Yes, this is ugly. But please don't introduce a libUtils dependency
+// just to get rid of a single function.
+#ifdef Q_OS_WIN
+#include <windows.h>
+void doSleep(int msec) { ::Sleep(msec); }
+#else
+#include <time.h>
 #include <unistd.h>
+void doSleep(int msec)
+{
+    struct timespec ts = { msec / 1000, (msec % 1000) * 1000000 };
+    ::nanosleep(&ts, NULL);
+}
+#endif
 
 using namespace Valgrind::Fake;
 
@@ -98,14 +112,13 @@ void OutputGenerator::produceRuntimeError()
         int i = 1 / zero;
         Q_UNUSED(i);
         Q_ASSERT(false);
-    }
-    else if (m_garbage) {
+    } else if (m_garbage) {
         std::cerr << "Writing garbage" << std::endl;
         blockingWrite(m_output, "<</GARBAGE = '\"''asdfaqre");
         m_output->flush();
     } else if (m_wait) {
         qDebug() << "waiting in fake valgrind for " << m_wait << " seconds..." << endl;
-        sleep(m_wait);
+        doSleep(1000 * m_wait);
     }
 }
 

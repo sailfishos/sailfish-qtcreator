@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -35,6 +35,10 @@
 #include <QDialogButtonBox>
 #include <QMessageBox>
 
+QT_BEGIN_NAMESPACE
+class QSettings;
+QT_END_NAMESPACE
+
 namespace Utils {
 
 class CheckableMessageBoxPrivate;
@@ -61,6 +65,25 @@ public:
                  bool *checkBoxSetting,
                  QDialogButtonBox::StandardButtons buttons = QDialogButtonBox::Yes|QDialogButtonBox::No,
                  QDialogButtonBox::StandardButton defaultButton = QDialogButtonBox::No);
+
+    static QDialogButtonBox::StandardButton
+        information(QWidget *parent,
+                 const QString &title,
+                 const QString &text,
+                 const QString &checkBoxText,
+                 bool *checkBoxSetting,
+                 QDialogButtonBox::StandardButtons buttons = QDialogButtonBox::Ok,
+                 QDialogButtonBox::StandardButton defaultButton = QDialogButtonBox::NoButton);
+
+    static QDialogButtonBox::StandardButton
+        doNotAskAgainQuestion(QWidget *parent,
+                              const QString &title,
+                              const QString &text,
+                              QSettings *settings,
+                              const QString &settingsSubKey,
+                              QDialogButtonBox::StandardButtons buttons = QDialogButtonBox::Yes|QDialogButtonBox::No,
+                              QDialogButtonBox::StandardButton defaultButton = QDialogButtonBox::No,
+                              QDialogButtonBox::StandardButton acceptButton = QDialogButtonBox::Yes);
 
     QString text() const;
     void setText(const QString &);
@@ -92,6 +115,9 @@ public:
 
     // Conversion convenience
     static QMessageBox::StandardButton dialogButtonBoxToMessageBoxButton(QDialogButtonBox::StandardButton);
+    static void resetAllDoNotAskAgainQuestions(QSettings *settings);
+    static bool hasSuppressedQuestions(QSettings *settings);
+    static QString msgDoNotAskAgain();
 
 private slots:
     void slotClicked(QAbstractButton *b);

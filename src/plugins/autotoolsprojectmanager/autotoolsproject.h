@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (C) 2013 Openismus GmbH.
+** Copyright (C) 2014 Openismus GmbH.
 ** Authors: Peter Penz (ppenz@openismus.com)
 **          Patricia Santana Cruz (patriciasantanacruz@gmail.com)
 ** Contact: http://www.qt-project.org/legal
@@ -34,11 +34,11 @@
 
 #include <projectexplorer/project.h>
 
+#include <utils/fileutils.h>
+
 QT_FORWARD_DECLARE_CLASS(QDir)
 
-namespace Utils {
-class FileSystemWatcher;
-}
+namespace Utils { class FileSystemWatcher; }
 
 namespace ProjectExplorer {
 class Node;
@@ -71,12 +71,12 @@ public:
     ~AutotoolsProject();
 
     QString displayName() const;
-    Core::Id id() const;
     Core::IDocument *document() const;
     ProjectExplorer::IProjectManager *projectManager() const;
     ProjectExplorer::ProjectNode *rootProjectNode() const;
     QStringList files(FilesMode fileMode) const;
     QString defaultBuildDirectory() const;
+    static QString defaultBuildDirectory(const QString &projectPath);
     QStringList buildTargets() const;
 
 protected:
@@ -117,7 +117,7 @@ private:
                            const QStringList &files);
 
     /**
-     * Helper method for buildFileNodeTree(): Inserts a new folder-node for
+     * Helper function for buildFileNodeTree(): Inserts a new folder-node for
      * the directory \p nodeDir and inserts it into \p nodes. If no parent
      * folder exists, it will be created recursively.
      */

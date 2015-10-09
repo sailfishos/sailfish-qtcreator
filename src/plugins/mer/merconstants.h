@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2013 Jolla Ltd.
+** Copyright (C) 2012 - 2014 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -28,8 +28,8 @@
 namespace Mer {
 namespace Constants {
 
-const char MER_QT[] = "Qt4ProjectManager.QtVersion.Mer";
-const char MER_TOOLCHAIN_ID[] = "Qt4ProjectManager.ToolChain.Mer";
+const char MER_QT[] = "QmakeProjectManager.QtVersion.Mer";
+const char MER_TOOLCHAIN_ID[] = "QmakeProjectManager.ToolChain.Mer";
 
 const char MER_PLATFORM[] = "Mer";
 const char MER_PLATFORM_TR[] = QT_TRANSLATE_NOOP("QtSupport", "Mer");
@@ -41,11 +41,10 @@ const char MER_OPTIONS_CATEGORY_TR[] = QT_TRANSLATE_NOOP("Mer", "Mer");
 const char MER_OPTIONS_CATEGORY_ICON[] = ":/mer/images/icon-s-sailfish-qtcreator.png";
 const char MER_OPTIONS_ID[] = "A.Mer";
 const char MER_OPTIONS_NAME[] = QT_TRANSLATE_NOOP("Mer", "SDK");
+const char MER_GENERAL_OPTIONS_ID[] = "A.MerGeneral";
+const char MER_GENERAL_OPTIONS_NAME[] = QT_TRANSLATE_NOOP("Mer", "General");
 
-const char MER_TASKHUB_EMULATOR_CATEGORY[] = "Qt4ProjectManager.TaskHub.Emulator.Mer";
-const char MER_TASKHUB_SDK_CATEGORY[] = "Qt4ProjectManager.TaskHub.Sdk.Mer";
-const char MER_DEVICE_TYPE_I486[] = "Mer.Device.Type.i486";
-const char MER_DEVICE_TYPE_ARM[] = "Mer.Device.Type.Arm";
+const char MER_DEVICE_TYPE[] = "Mer.Device.Type";
 const char MER_i486_IDENTIFIER[] = "i486";
 const char MER_ARM_IDENTIFIER[] = "arm";
 const char MER_SAILFISH_MENU[] = "Mer.Sailfish.Menu";
@@ -56,18 +55,22 @@ const char MER_SAILFISH_OTHER_GROUP_MENU[] = "Mer.Sailfish.Other.Group.Menu";
 const char MER_SAILFISH_START_ICON[] = ":/mer/images/sdk-run.png";
 const char MER_SAILFISH_STOP_ICON[] = ":/mer/images/sdk-stop.png";
 
+const char MER_TOOLS_MENU[] = "Mer.Tools.Menu";
+const char MER_EMULATOR_MODE_ACTION_ID[] = "Mer.Emulator.Mode.Action";
+
 #ifdef Q_OS_WIN
 #define SCRIPT_EXTENSION ".cmd"
 #else // Q_OS_WIN
 #define SCRIPT_EXTENSION ""
 #endif // Q_OS_WIN
 
-const char MER_WRAPPER_RPMBUILD[] = "rpmbuild"SCRIPT_EXTENSION;
-const char MER_WRAPPER_QMAKE[] = "qmake"SCRIPT_EXTENSION;
-const char MER_WRAPPER_MAKE[] = "make"SCRIPT_EXTENSION;
-const char MER_WRAPPER_GCC[] = "gcc"SCRIPT_EXTENSION;
-const char MER_WRAPPER_DEPLOY[] = "deploy"SCRIPT_EXTENSION;
-const char MER_WRAPPER_RPM[] = "rpm"SCRIPT_EXTENSION;
+const char MER_WRAPPER_RPMBUILD[] = "rpmbuild" SCRIPT_EXTENSION;
+const char MER_WRAPPER_QMAKE[] = "qmake" SCRIPT_EXTENSION;
+const char MER_WRAPPER_MAKE[] = "make" SCRIPT_EXTENSION;
+const char MER_WRAPPER_GCC[] = "gcc" SCRIPT_EXTENSION;
+const char MER_WRAPPER_DEPLOY[] = "deploy" SCRIPT_EXTENSION;
+const char MER_WRAPPER_RPM[] = "rpm" SCRIPT_EXTENSION;
+const char MER_WRAPPER_RPMVALIDATION[] = "rpmvalidation" SCRIPT_EXTENSION;
 
 const char MER_SDK_DEFAULTUSER[] = "mersdk";
 const char MER_DEVICE_DEFAULTUSER[] = "nemo";
@@ -98,6 +101,7 @@ const char PASSWORD[] = "Password";
 const char KEY[] = "Key";
 const char PRIVATE_KEY_FILE[] = "PrivateKeyFile";
 const char SSH_PORT[] = "SshPort";
+const char SSH_TIMEOUT[] = "SshTimeout";
 const char WWW_PORT[] = "WwwPort";
 const char HEADLESS[] = "Headless";
 const char ID[] = "Id";
@@ -111,14 +115,14 @@ const char TARGET[] = "Target";
 const char VIRTUAL_MACHINE[] = "VirtualMachine";
 const char SB2_TARGET_NAME[] = "SB2.TargetName";
 
-const char MER_RUNCONFIGURATION_PREFIX[] = "Qt4ProjectManager.MerRunConfiguration:";
+
+
+const char MER_RUNCONFIGURATION_PREFIX[] = "QmakeProjectManager.MerRunConfiguration:";
 const char MER_SFTP_DEPLOY_STRING[] = QT_TRANSLATE_NOOP("Mer", "Copy Files to Device");
 
 const char MER_EMULATOR_START_ACTION_ID[] = "Mer.MerEmulatorStartAction";
 const char MER_EMULATOR_DEPLOYKEY_ACTION_ID[] = "Mer.MerEmulatorDeployAction";
 const char MER_HARDWARE_DEPLOYKEY_ACTION_ID[] = "Mer.MerHardwareDeployAction";
-const char MER_EMULATOR_TEST_ID[] = "Mer.MerEmulatorTestAction";
-const char MER_HARDWARE_TEST_ID[] = "Mer.MerHardwareTestAction";
 const char MER_EMULATOR_CONNECTON_ACTION_ID[] = "Mer.EmulatorConnecitonAction";
 const char MER_SDK_CONNECTON_ACTION_ID[] = "Mer.SdkConnectionAction";
 
@@ -128,6 +132,8 @@ const char MER_WIZARD_FEATURE_EMULATOR[] = "Mer.Wizard.Feature.Emulator";
 const char MER_SDK_FILENAME[] = "/qtcreator/mersdk.xml";
 const char MER_TARGETS_FILENAME[] = "/targets.xml";
 const char MER_DEVICES_FILENAME[] = "/devices.xml";
+const char MER_DEVICE_MODELS_KEY[] = "Mer/DeviceModels";
+const char MER_COMPOSITOR_CONFIG_FILENAME[] = "65-emul-wayland-ui-scale.conf";
 const char MER_DEBUGGER_i486_FILENAME[] = "gdb-i486-meego-linux-gnu";
 const char MER_DEBUGGER_ARM_FILENAME[] = "gdb-armv7hl-meego-linux-gnueabi";
 const char MER_DEBUGGER_DEFAULT_FILENAME[] = "gdb";
@@ -162,6 +168,11 @@ const char MER_DEVICE_MAC[] = "MER_DEVICE_MAC";
 const char MER_DEVICE_SUBNET[] = "MER_DEVICE_SUBNET";
 const char MER_DEVICE_SHARED_SSH[] = "MER_DEVICE_SHARED_SSH";
 const char MER_DEVICE_SHARED_CONFIG[]= "MER_DEVICE_SHARED_CONFIG";
+const char MER_DEVICE_ARCHITECTURE[]= "MER_DEVICE_ARCHITECTURE";
+const char MER_DEVICE_DEVICE_MODEL[]= "MER_DEVICE_DEVICE_MODEL";
+const char MER_DEVICE_ORIENTATION[]= "MER_DEVICE_ORIENTATION";
+const char MER_DEVICE_VIEW_SCALED[]= "MER_DEVICE_VIEW_SCALED";
+
 } // namespace Constants
 } // namespace Mer
 

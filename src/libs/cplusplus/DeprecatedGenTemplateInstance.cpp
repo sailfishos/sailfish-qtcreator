@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -112,7 +112,7 @@ private:
 
         virtual void visit(ReferenceType *refTy)
         {
-            _type.setType(control()->referenceType(q->apply(refTy->elementType())));
+            _type.setType(control()->referenceType(q->apply(refTy->elementType()), refTy->isRvalueReference()));
         }
 
         virtual void visit(ArrayType *arrayTy)
@@ -129,7 +129,7 @@ private:
         virtual void visit(Function *funTy)
         {
             Function *fun = control()->newFunction(/*sourceLocation=*/ 0, funTy->name());
-            fun->setScope(funTy->enclosingScope());
+            fun->setEnclosingScope(funTy->enclosingScope());
             fun->setConst(funTy->isConst());
             fun->setVolatile(funTy->isVolatile());
             fun->setVirtual(funTy->isVirtual());
@@ -264,7 +264,7 @@ private:
             if (! name)
                 return name;
 
-            else if (const Identifier *nameId = name->asNameId()) {
+            if (const Identifier *nameId = name->asNameId()) {
                 const Identifier *id = control()->identifier(nameId->chars(), nameId->size());
                 return id;
 

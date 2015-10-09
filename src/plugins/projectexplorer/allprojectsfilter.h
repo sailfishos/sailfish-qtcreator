@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,22 +30,19 @@
 #ifndef ALLPROJECTSFILTER_H
 #define ALLPROJECTSFILTER_H
 
-#include <locator/basefilefilter.h>
+#include <coreplugin/locator/basefilefilter.h>
 
 #include <QFutureInterface>
 
 namespace ProjectExplorer {
-
-class ProjectExplorerPlugin;
-
 namespace Internal {
 
-class AllProjectsFilter : public Locator::BaseFileFilter
+class AllProjectsFilter : public Core::BaseFileFilter
 {
     Q_OBJECT
 
 public:
-    explicit AllProjectsFilter(ProjectExplorerPlugin *pe);
+    AllProjectsFilter();
     void refresh(QFutureInterface<void> &future);
 
 protected:
@@ -53,8 +50,8 @@ protected:
 
 private slots:
     void markFilesAsOutOfDate();
+
 private:
-    ProjectExplorerPlugin *m_projectExplorer;
     bool m_filesUpToDate;
 };
 

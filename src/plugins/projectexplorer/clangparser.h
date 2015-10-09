@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -37,7 +37,7 @@
 
 namespace ProjectExplorer {
 
-class ClangParser : public ProjectExplorer::GccParser
+class PROJECTEXPLORER_EXPORT ClangParser : public ProjectExplorer::GccParser
 {
     Q_OBJECT
 
@@ -50,6 +50,7 @@ private:
     QRegExp m_inLineRegExp;
     QRegExp m_messageRegExp;
     QRegExp m_summaryRegExp;
+    QRegExp m_codesignRegExp;
     bool m_expectSnippet;
 };
 

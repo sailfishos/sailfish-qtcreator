@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -76,10 +76,7 @@ SourceAgentPrivate::SourceAgentPrivate()
 
 SourceAgentPrivate::~SourceAgentPrivate()
 {
-    if (editor) {
-        EditorManager *editorManager = EditorManager::instance();
-        editorManager->closeEditors(QList<IEditor *>() << editor);
-    }
+    EditorManager::closeEditor(editor);
     editor = 0;
     delete locationMark;
 }
@@ -115,17 +112,17 @@ void SourceAgent::setContent(const QString &filePath, const QString &content)
         d->editor = qobject_cast<ITextEditor *>(
             EditorManager::openEditorWithContents(
                 CppEditor::Constants::CPPEDITOR_ID,
-                &titlePattern, content));
+                &titlePattern, content.toUtf8()));
         QTC_ASSERT(d->editor, return);
-        d->editor->setProperty(Debugger::Constants::OPENED_BY_DEBUGGER, true);
+        d->editor->document()->setProperty(Debugger::Constants::OPENED_BY_DEBUGGER, true);
 
         BaseTextEditorWidget *baseTextEdit =
                 qobject_cast<BaseTextEditorWidget *>(d->editor->widget());
         if (baseTextEdit)
             baseTextEdit->setRequestMarkEnabled(true);
+    } else {
+        EditorManager::activateEditor(d->editor);
     }
-
-    EditorManager::activateEditor(d->editor);
 
     QPlainTextEdit *plainTextEdit =
         qobject_cast<QPlainTextEdit *>(d->editor->widget());
@@ -140,7 +137,7 @@ void SourceAgent::updateLocationMarker()
     QTC_ASSERT(d->editor, return);
 
     if (d->locationMark)
-        d->editor->markableInterface()->removeMark(d->locationMark);
+        d->editor->textDocument()->markableInterface()->removeMark(d->locationMark);
     delete d->locationMark;
     d->locationMark = 0;
     if (d->engine->stackHandler()->currentFrame().file == d->path) {
@@ -148,7 +145,7 @@ void SourceAgent::updateLocationMarker()
         d->locationMark = new TextEditor::ITextMark(lineNumber);
         d->locationMark->setIcon(debuggerCore()->locationMarkIcon());
         d->locationMark->setPriority(TextEditor::ITextMark::HighPriority);
-        d->editor->markableInterface()->addMark(d->locationMark);
+        d->editor->textDocument()->markableInterface()->addMark(d->locationMark);
         QPlainTextEdit *plainTextEdit = qobject_cast<QPlainTextEdit *>(d->editor->widget());
         QTC_ASSERT(plainTextEdit, return);
         QTextCursor tc = plainTextEdit->textCursor();

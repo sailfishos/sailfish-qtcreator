@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -35,11 +35,12 @@
 #include <QCompleter>
 
 QT_BEGIN_NAMESPACE
-class QLineEdit;
 class QSettings;
 QT_END_NAMESPACE
 
 namespace Utils {
+
+class FancyLineEdit;
 namespace Internal { class HistoryCompleterPrivate; }
 
 class QTCREATOR_UTILS_EXPORT HistoryCompleter : public QCompleter
@@ -48,7 +49,7 @@ class QTCREATOR_UTILS_EXPORT HistoryCompleter : public QCompleter
 
 public:
     static void setSettings(QSettings *settings);
-    HistoryCompleter(QLineEdit *lineEdit, const QString &historyKey, QObject *parent = 0);
+    HistoryCompleter(FancyLineEdit *lineEdit, const QString &historyKey, QObject *parent = 0);
     bool removeHistoryItem(int index);
 
 private:
@@ -56,7 +57,6 @@ private:
     int historySize() const;
     int maximalHistorySize() const;
     void setMaximalHistorySize(int numberOfEntries);
-    bool eventFilter(QObject *obj, QEvent *event);
 
 public Q_SLOTS:
     void clearHistory();

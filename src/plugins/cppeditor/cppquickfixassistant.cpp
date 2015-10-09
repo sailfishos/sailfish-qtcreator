@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -46,6 +46,11 @@ using namespace CPlusPlus;
 // -------------------------
 // CppQuickFixAssistProvider
 // -------------------------
+bool CppQuickFixAssistProvider::isAsynchronous() const
+{
+    return false;
+}
+
 bool CppQuickFixAssistProvider::supportsEditor(const Core::Id &editorId) const
 {
     return editorId == CppEditor::Constants::CPPEDITOR_ID;
@@ -82,7 +87,7 @@ const IAssistProvider *CppQuickFixAssistProcessor::provider() const
 CppQuickFixAssistInterface::CppQuickFixAssistInterface(CPPEditorWidget *editor,
                                                        TextEditor::AssistReason reason)
     : DefaultAssistInterface(editor->document(), editor->position(),
-                             editor->editorDocument()->fileName(), reason)
+                             editor->baseTextDocument()->filePath(), reason)
     , m_editor(editor)
     , m_semanticInfo(editor->semanticInfo())
     , m_snapshot(CppTools::CppModelManagerInterface::instance()->snapshot())

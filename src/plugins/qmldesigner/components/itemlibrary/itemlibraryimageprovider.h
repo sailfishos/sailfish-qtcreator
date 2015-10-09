@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,13 +30,13 @@
 #ifndef ITEMLIBRARYIMAGEPROVIDER_H
 #define ITEMLIBRARYIMAGEPROVIDER_H
 
-#include <QDeclarativeImageProvider>
+#include <QQuickImageProvider>
 
 namespace QmlDesigner {
 
 namespace Internal {
 
-class ItemLibraryImageProvider : public QDeclarativeImageProvider
+class ItemLibraryImageProvider : public QQuickImageProvider
 {
 public:
     ItemLibraryImageProvider();

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -47,7 +47,7 @@ int containerSize(KnownType kt, SymbolGroupNode *n, const SymbolGroupValueContex
 /* Create a list of children of containers. */
 std::vector<AbstractSymbolGroupNode *> containerChildren(SymbolGroupNode *node,
                                                          int type,
-                                                         int size,
+                                                         unsigned size,
                                                          const SymbolGroupValueContext &ctx);
 
 #endif // CONTAINERS_H

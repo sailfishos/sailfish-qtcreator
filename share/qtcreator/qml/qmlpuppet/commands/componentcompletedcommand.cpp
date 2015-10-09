@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,6 +30,7 @@
 #include "componentcompletedcommand.h"
 
 #include <QDataStream>
+#include <QDebug>
 
 namespace QmlDesigner {
 
@@ -47,6 +48,11 @@ QVector<qint32> ComponentCompletedCommand::instances() const
     return m_instanceVector;
 }
 
+void ComponentCompletedCommand::sort()
+{
+    qSort(m_instanceVector);
+}
+
 QDataStream &operator<<(QDataStream &out, const ComponentCompletedCommand &command)
 {
     out << command.instances();
@@ -59,6 +65,17 @@ QDataStream &operator>>(QDataStream &in, ComponentCompletedCommand &command)
     in >> command.m_instanceVector;
 
     return in;
+}
+
+bool operator ==(const ComponentCompletedCommand &first, const ComponentCompletedCommand &second)
+{
+    return first.m_instanceVector == second.m_instanceVector;
+}
+
+QDebug operator <<(QDebug debug, const ComponentCompletedCommand &command)
+{
+    return debug.nospace() << "ComponentCompletedCommand(" << command.instances() << ")";
+
 }
 
 } // namespace QmlDesigner

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -50,8 +50,9 @@ class QTCREATOR_UTILS_EXPORT PathChooser : public QWidget
 {
     Q_OBJECT
     Q_ENUMS(Kind)
-    Q_PROPERTY(QString path READ path WRITE setPath DESIGNABLE true)
+    Q_PROPERTY(QString path READ path WRITE setPath NOTIFY pathChanged DESIGNABLE true)
     Q_PROPERTY(QString promptDialogTitle READ promptDialogTitle WRITE setPromptDialogTitle DESIGNABLE true)
+    Q_PROPERTY(QString promptDialogFilter READ promptDialogFilter WRITE setPromptDialogFilter DESIGNABLE true)
     Q_PROPERTY(Kind expectedKind READ expectedKind WRITE setExpectedKind DESIGNABLE true)
     Q_PROPERTY(QString baseDirectory READ baseDirectory WRITE setBaseDirectory DESIGNABLE true)
     Q_PROPERTY(QStringList commandVersionArguments READ commandVersionArguments WRITE setCommandVersionArguments)
@@ -61,7 +62,7 @@ class QTCREATOR_UTILS_EXPORT PathChooser : public QWidget
     Q_PROPERTY(Utils::FileName baseFileName READ baseFileName WRITE setBaseFileName DESIGNABLE false)
 
 public:
-    static const char * const browseButtonLabel;
+    static QString browseButtonLabel();
 
     explicit PathChooser(QWidget *parent = 0);
     virtual ~PathChooser();
@@ -127,6 +128,9 @@ public:
     // Install a tooltip on lineedits used for binaries showing the version.
     static void installLineEditVersionToolTip(QLineEdit *le, const QStringList &arguments);
 
+    // Enable a history completer with a history of entries.
+    void setHistoryCompleter(const QString &historyKey);
+
     bool isReadOnly() const;
     void setReadOnly(bool b);
 
@@ -139,6 +143,7 @@ signals:
     void validChanged();
     void validChanged(bool validState);
     void changed(const QString &text);
+    void pathChanged(const QString &path);
     void editingFinished();
     void beforeBrowsing();
     void browsingFinished();
@@ -150,6 +155,7 @@ public slots:
 
 private slots:
     void slotBrowse();
+    void slotTextChanged();
 
 private:
     PathChooserPrivate *d;

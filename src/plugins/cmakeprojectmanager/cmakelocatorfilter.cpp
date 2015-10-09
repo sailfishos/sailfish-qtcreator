@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (C) 2013 Kläralvdalens Datakonsult AB, a KDAB Group company.
+** Copyright (C) 2014 Kläralvdalens Datakonsult AB, a KDAB Group company.
 ** Contact: Kläralvdalens Datakonsult AB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -41,6 +41,7 @@
 
 using namespace CMakeProjectManager;
 using namespace CMakeProjectManager::Internal;
+using namespace ProjectExplorer;
 using namespace Utils;
 
 CMakeLocatorFilter::CMakeLocatorFilter()
@@ -49,10 +50,9 @@ CMakeLocatorFilter::CMakeLocatorFilter()
     setDisplayName(tr("Build CMake target"));
     setShortcutString(QLatin1String("cm"));
 
-    ProjectExplorer::SessionManager *sm = ProjectExplorer::ProjectExplorerPlugin::instance()->session();
-    connect(sm, SIGNAL(projectAdded(ProjectExplorer::Project*)),
+    connect(SessionManager::instance(), SIGNAL(projectAdded(ProjectExplorer::Project*)),
             this, SLOT(slotProjectListUpdated()));
-    connect(sm, SIGNAL(projectRemoved(ProjectExplorer::Project*)),
+    connect(SessionManager::instance(), SIGNAL(projectRemoved(ProjectExplorer::Project*)),
             this, SLOT(slotProjectListUpdated()));
 
     // Initialize the filter
@@ -64,21 +64,19 @@ CMakeLocatorFilter::~CMakeLocatorFilter()
 
 }
 
-QList<Locator::FilterEntry> CMakeLocatorFilter::matchesFor(QFutureInterface<Locator::FilterEntry> &future, const QString &entry)
+QList<Core::LocatorFilterEntry> CMakeLocatorFilter::matchesFor(QFutureInterface<Core::LocatorFilterEntry> &future, const QString &entry)
 {
     Q_UNUSED(future)
-    QList<Locator::FilterEntry> result;
+    QList<Core::LocatorFilterEntry> result;
 
-    QList<ProjectExplorer::Project *> projects =
-            ProjectExplorer::ProjectExplorerPlugin::instance()->session()->projects();
-    foreach (ProjectExplorer::Project *p, projects) {
+    foreach (Project *p, SessionManager::projects()) {
         CMakeProject *cmakeProject = qobject_cast<CMakeProject *>(p);
         if (cmakeProject) {
             foreach (const CMakeBuildTarget &ct, cmakeProject->buildTargets()) {
                 if (ct.title.contains(entry)) {
-                    Locator::FilterEntry entry(this, ct.title, cmakeProject->document()->fileName());
+                    Core::LocatorFilterEntry entry(this, ct.title, cmakeProject->projectFilePath());
                     entry.extraInfo = FileUtils::shortNativePath(
-                        FileName::fromString(cmakeProject->document()->fileName()));
+                        FileName::fromString(cmakeProject->projectFilePath()));
                     result.append(entry);
                 }
             }
@@ -88,16 +86,14 @@ QList<Locator::FilterEntry> CMakeLocatorFilter::matchesFor(QFutureInterface<Loca
     return result;
 }
 
-void CMakeLocatorFilter::accept(Locator::FilterEntry selection) const
+void CMakeLocatorFilter::accept(Core::LocatorFilterEntry selection) const
 {
     // Get the project containing the target selected
     CMakeProject *cmakeProject = 0;
 
-    QList<ProjectExplorer::Project *> projects =
-            ProjectExplorer::ProjectExplorerPlugin::instance()->session()->projects();
-    foreach (ProjectExplorer::Project *p, projects) {
+    foreach (Project *p, SessionManager::projects()) {
         cmakeProject = qobject_cast<CMakeProject *>(p);
-        if (cmakeProject && cmakeProject->document()->fileName() == selection.internalData.toString())
+        if (cmakeProject && cmakeProject->projectFilePath() == selection.internalData.toString())
             break;
         cmakeProject = 0;
     }
@@ -136,9 +132,7 @@ void CMakeLocatorFilter::slotProjectListUpdated()
 {
     CMakeProject *cmakeProject = 0;
 
-    QList<ProjectExplorer::Project *> projects =
-            ProjectExplorer::ProjectExplorerPlugin::instance()->session()->projects();
-    foreach (ProjectExplorer::Project *p, projects) {
+    foreach (Project *p, SessionManager::projects()) {
         cmakeProject = qobject_cast<CMakeProject *>(p);
         if (cmakeProject)
             break;

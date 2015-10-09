@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -51,7 +51,7 @@ namespace qdesigner_internal {
 class PreviewManager;
 
 //
-// Convenience methods to manage form previews (ultimately forwarded to PreviewManager).
+// Convenience functions to manage form previews (ultimately forwarded to PreviewManager).
 //
 class QDESIGNER_SHARED_EXPORT QDesignerFormWindowManager
     : public QDesignerFormWindowManagerInterface

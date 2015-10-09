@@ -1,6 +1,6 @@
 #############################################################################
 ##
-## Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+## Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ## Contact: http://www.qt-project.org/legal
 ##
 ## This file is part of Qt Creator.
@@ -42,7 +42,11 @@ def main():
         if buttonName:
             openContextMenu(waitForObject("{container=':*Qt Creator.FormEditorStack_Designer::Internal::FormEditorStack'"
                                           "text='PushButton' type='QPushButton' visible='1'}"), 5, 5, 1)
-            activateItem(waitForObjectItem("{type='QMenu' unnamed='1' visible='1'}", "Change objectName..."))
+            # hack for Squish5/Qt5.2 problems of handling menus on Mac - remove asap
+            if platform.system() == 'Darwin':
+                waitFor("macHackActivateContextMenuItem('Change objectName...')", 6000)
+            else:
+                activateItem(waitForObjectItem("{type='QMenu' unnamed='1' visible='1'}", "Change objectName..."))
             typeLines(waitForObject(":FormEditorStack_qdesigner_internal::PropertyLineEdit"), buttonName)
         else:
             # Verify that everything works without ever changing the name
@@ -63,6 +67,7 @@ def main():
                 type(editor, "-")
                 snooze(1)
                 type(editor, ">")
+            snooze(1)
             nativeType("%s" % buttonName[0])
             test.verify(waitFor("object.exists(':popupFrame_TextEditor::GenericProposalWidget')", 1500),
                         "Verify that GenericProposalWidget is being shown.")

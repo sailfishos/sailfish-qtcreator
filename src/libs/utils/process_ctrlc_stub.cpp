@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -108,7 +108,7 @@ int main(int argc, char **)
     while (GetMessage(&msg, NULL, 0, 0))
     {
         if (msg.message == WM_DESTROY)
-            dwExitCode = msg.wParam;
+            dwExitCode = static_cast<DWORD>(msg.wParam);
         TranslateMessage(&msg);
         DispatchMessage(&msg);
     }
@@ -165,6 +165,7 @@ DWORD WINAPI processWatcherThread(LPVOID lpParameter)
     DWORD dwExitCode;
     if (!GetExitCodeProcess(hProcess, &dwExitCode))
         dwExitCode = -1;
+    CloseHandle(hProcess);
     PostMessage(hwndMain, WM_DESTROY, dwExitCode, 0);
     return 0;
 }
@@ -185,6 +186,7 @@ bool startProcess(wchar_t *pCommandLine)
         fwprintf(stderr, L"qtcreator_ctrlc_stub: Command line failed: %s\n", pCommandLine);
         return false;
     }
+    CloseHandle(pi.hThread);
 
     HANDLE hThread = CreateThread(NULL, 0, processWatcherThread, reinterpret_cast<void*>(pi.hProcess), 0, NULL);
     if (!hThread) {

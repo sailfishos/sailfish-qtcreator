@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -82,15 +82,16 @@ bool PerforceVersionControl::supportsOperation(Operation operation) const
     return false;
 }
 
-Core::IVersionControl::OpenSupportMode PerforceVersionControl::openSupportMode() const
+Core::IVersionControl::OpenSupportMode PerforceVersionControl::openSupportMode(const QString &fileName) const
 {
+    Q_UNUSED(fileName);
     return OpenOptional;
 }
 
 bool PerforceVersionControl::vcsOpen(const QString &fileName)
 {
     const QFileInfo fi(fileName);
-    return m_plugin->vcsOpen(fi.absolutePath(), fi.fileName());
+    return m_plugin->vcsOpen(fi.absolutePath(), fi.fileName(), true);
 }
 
 Core::IVersionControl::SettingsFlags PerforceVersionControl::settingsFlags() const
@@ -125,29 +126,10 @@ bool PerforceVersionControl::vcsCreateRepository(const QString &)
     return false;
 }
 
-QString PerforceVersionControl::vcsCreateSnapshot(const QString &)
-{
-    return QString();
-}
-
-QStringList PerforceVersionControl::vcsSnapshots(const QString &)
-{
-    return QStringList();
-}
-
-bool PerforceVersionControl::vcsRestoreSnapshot(const QString &, const QString &)
-{
-    return false;
-}
-
-bool PerforceVersionControl::vcsRemoveSnapshot(const QString &, const QString &)
-{
-    return false;
-}
-
 bool PerforceVersionControl::vcsAnnotate(const QString &file, int line)
 {
-    m_plugin->vcsAnnotate(file, QString(), line);
+    const QFileInfo fi(file);
+    m_plugin->vcsAnnotate(fi.absolutePath(), fi.fileName(), QString(), line);
     return true;
 }
 
@@ -181,6 +163,11 @@ bool PerforceVersionControl::managesDirectory(const QString &directory, QString 
             nsp << topLevel;
     }
     return rc;
+}
+
+bool PerforceVersionControl::managesFile(const QString &workingDirectory, const QString &fileName) const
+{
+    return m_plugin->managesFile(workingDirectory, fileName);
 }
 
 void PerforceVersionControl::emitRepositoryChanged(const QString &s)

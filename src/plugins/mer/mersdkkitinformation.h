@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2013 Jolla Ltd.
+** Copyright (C) 2012 - 2014 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -23,8 +23,8 @@
 #ifndef MERSDKKITINFORMATION_H
 #define MERSDKKITINFORMATION_H
 
-#include <projectexplorer/kitinformation.h>
 #include <projectexplorer/kitconfigwidget.h>
+#include <projectexplorer/kitinformation.h>
 
 QT_FORWARD_DECLARE_CLASS(QComboBox);
 QT_FORWARD_DECLARE_CLASS(QPushButton);
@@ -33,12 +33,13 @@ namespace Mer {
 namespace Internal {
 
 class MerSdk;
+class MerSdkKitInformation;
 
 class  MerSdkKitInformationWidget : public ProjectExplorer::KitConfigWidget
 {
     Q_OBJECT
 public:
-    MerSdkKitInformationWidget(ProjectExplorer::Kit *kit, bool sticky = false);
+    MerSdkKitInformationWidget(ProjectExplorer::Kit *kit, const MerSdkKitInformation *kitInformation);
 
     QString displayName() const;
     QString toolTip() const;

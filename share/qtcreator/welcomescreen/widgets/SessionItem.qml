@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -27,7 +27,7 @@
 **
 ****************************************************************************/
 
-import QtQuick 1.1
+import QtQuick 2.1
 
 Item {
     x: 5
@@ -35,10 +35,6 @@ Item {
     property bool expanded: false
     height: column.height
     property alias name: text.text
-
-    CustomFonts {
-        id: fonts
-    }
 
     Column {
         id: column
@@ -48,11 +44,13 @@ Item {
             id: row1
             height: text.height + 8
 
-            spacing: 4
+            spacing: 7
 
             Image {
-                anchors.verticalCenter: text.verticalCenter
-                source: "images/bullet.png"
+                source: "images/sessions.png"
+                anchors.verticalCenter: projectNameText.verticalCenter
+                width: 16
+                height: 16
             }
 
             LinkedText {
@@ -100,14 +98,14 @@ Item {
         Item {
             z: -1
             property int margin: 6
-            height: innerColumn.height + margin * 2
+            height: expanded ? innerColumn.height + margin * 2 : 0
             width: delegate.ListView.view.width - 8 - margin * 2
             opacity: delegate.expanded ? 1 : 0
+            visible: delegate.expanded
 
-            Behavior on opacity {
+            Behavior on height {
                 ParallelAnimation {
-                    PauseAnimation { duration: delegate.expanded ? 100 : 0; }
-                    PropertyAnimation { duration:  100; }
+                    PropertyAnimation { duration:  160 ; easing.type: Easing.OutCubic }
                 }
             }
 
@@ -122,11 +120,11 @@ Item {
                 Repeater {
                     model: projectsPath
                     delegate: Column {
-                        Text {
+                        NativeText {
                             text: projectsName[index]
                             font: fonts.boldDescription
                         }
-                        Text {
+                        NativeText {
                             x: 4
                             function multiLinePath(path) {
                                 if (path.length < 42)

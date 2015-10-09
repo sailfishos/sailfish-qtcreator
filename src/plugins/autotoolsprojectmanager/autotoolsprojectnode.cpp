@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (C) 2013 Openismus GmbH.
+** Copyright (C) 2014 Openismus GmbH.
 ** Authors: Peter Penz (ppenz@openismus.com)
 **          Patricia Santana Cruz (patriciasantanacruz@gmail.com)
 ** Contact: http://www.qt-project.org/legal
@@ -39,21 +39,21 @@ using namespace AutotoolsProjectManager::Internal;
 using namespace ProjectExplorer;
 
 AutotoolsProjectNode::AutotoolsProjectNode(AutotoolsProject *project, Core::IDocument *projectFile) :
-    ProjectNode(projectFile->fileName()),
+    ProjectNode(projectFile->filePath()),
     m_project(project),
     m_projectFile(projectFile)
 {
 }
 
-bool AutotoolsProjectNode::hasBuildTargets() const
+bool AutotoolsProjectNode::showInSimpleTree() const
 {
     return true;
 }
 
-QList<ProjectNode::ProjectAction> AutotoolsProjectNode::supportedActions(Node *node) const
+QList<ProjectExplorer::ProjectAction> AutotoolsProjectNode::supportedActions(Node *node) const
 {
     Q_UNUSED(node);
-    return QList<ProjectNode::ProjectAction>();
+    return QList<ProjectExplorer::ProjectAction>();
 }
 
 bool AutotoolsProjectNode::canAddSubProject(const QString &proFilePath) const
@@ -74,39 +74,31 @@ bool AutotoolsProjectNode::removeSubProjects(const QStringList &proFilePaths)
     return false;
 }
 
-bool AutotoolsProjectNode::addFiles(const FileType fileType,
-                                    const QStringList &filePaths,
+bool AutotoolsProjectNode::addFiles( const QStringList &filePaths,
                                     QStringList *notAdded)
 {
-    Q_UNUSED(fileType);
     Q_UNUSED(filePaths);
     Q_UNUSED(notAdded);
     return false;
 }
 
-bool AutotoolsProjectNode::removeFiles(const FileType fileType,
-                                       const QStringList &filePaths,
+bool AutotoolsProjectNode::removeFiles(const QStringList &filePaths,
                                        QStringList *notRemoved)
 {
-    Q_UNUSED(fileType);
     Q_UNUSED(filePaths);
     Q_UNUSED(notRemoved);
     return false;
 }
 
-bool AutotoolsProjectNode::deleteFiles(const FileType fileType,
-                                       const QStringList &filePaths)
+bool AutotoolsProjectNode::deleteFiles(const QStringList &filePaths)
 {
-    Q_UNUSED(fileType);
     Q_UNUSED(filePaths);
     return false;
 }
 
-bool AutotoolsProjectNode::renameFile(const FileType fileType,
-                                      const QString &filePath,
+bool AutotoolsProjectNode::renameFile(const QString &filePath,
                                       const QString &newFilePath)
 {
-    Q_UNUSED(fileType);
     Q_UNUSED(filePath);
     Q_UNUSED(newFilePath);
     return false;

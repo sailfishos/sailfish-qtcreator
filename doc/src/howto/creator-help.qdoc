@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (c) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (c) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator
@@ -23,7 +23,7 @@
 // **********************************************************************
 
 /*!
-    \contentspage index.html
+    \contentspage {Qt Creator Manual}
     \previouspage creator-help-overview.html
     \page creator-help.html
     \nextpage creator-faq.html
@@ -60,11 +60,13 @@
     \section1 Viewing Function Tooltips
 
     To hide function tooltips by default, select \gui {Tools > Options >
-    Text Editor > Show help tooltips > On Shift+Mouseover}. You can still view
-    the tooltips by pressing and holding down the \key Shift key.
+    Text Editor > Behavior > Show help tooltips using the mouse >
+    On Shift+Mouseover}. You
+    can still view the tooltips by pressing and holding down the \key Shift
+    key.
 
     To use a keyboard shortcut for viewing help tooltips, select
-    \gui {Using keyboard shortcut (Alt)}.
+    \gui {Show help tooltips using keyboard shortcut (Alt)}.
 
     \section1 Finding Information in Qt Documentation
 
@@ -109,7 +111,7 @@
             (\gui {Add Bookmark}) button on the toolbar.
 
         \li In the \gui {Add Bookmark} dialog, click \gui OK to save the
-            page title as a bookmark in the \gui Bookmarks folder.
+            page title as a bookmark in the selected folder.
 
     \endlist
 
@@ -175,9 +177,7 @@
         \li Create a .qch file from your documentation.
 
             For information on how to prepare your documentation and create a
-            .qch file, see
-            \l{http://qt-project.org/doc/qt-5.0/qthelp/qthelp-framework.html}
-            {The Qt Help Framework}.
+            .qch file, see \l{The Qt Help Framework}.
 
         \li To add the .qch file to \QC, select \gui Tools > \gui Options >
             \gui Help > \gui Documentation > \gui Add.

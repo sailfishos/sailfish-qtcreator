@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Nicolas Arnaud-Cormos
+** Copyright (c) 2014 Nicolas Arnaud-Cormos
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -31,7 +31,7 @@
 
 #include "macro.h"
 
-using namespace Macros;
+using namespace Macros::Internal;
 
 /*!
     \class Macro::IEventHandler
@@ -60,8 +60,8 @@ using namespace Macros;
 
     When replaying a macro, the manager iterates through all macro events
     specified in \a macroEvent
-    in the macro and calls this method to determine which handler to use.
-    If the method returns \c true, \c executeEvent is called.
+    in the macro and calls this function to determine which handler to use.
+    If the function returns \c true, \c executeEvent is called.
 */
 
 /*!

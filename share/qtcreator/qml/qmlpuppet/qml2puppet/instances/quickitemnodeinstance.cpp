@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -79,8 +79,10 @@ static QTransform transformForItem(QQuickItem *item, NodeInstanceServer *nodeIns
 }
 
 QTransform QuickItemNodeInstance::transform() const
-{
-    return transformForItem(quickItem(), nodeInstanceServer());
+{   if (quickItem()->parentItem())
+        return DesignerSupport::parentTransform(quickItem());
+
+    return QTransform();
 }
 
 
@@ -146,9 +148,23 @@ QRectF QuickItemNodeInstance::contentItemBoundingBox() const
     return QRectF();
 }
 
+static QTransform contentItemTransformForItem(QQuickItem *item, NodeInstanceServer *nodeInstanceServer)
+{
+    QTransform toParentTransform = DesignerSupport::parentTransform(item);
+    if (item->parentItem() && !nodeInstanceServer->hasInstanceForObject(item->parentItem())) {
+
+        return transformForItem(item->parentItem(), nodeInstanceServer) * toParentTransform;
+    }
+
+    return toParentTransform;
+}
+
 QTransform QuickItemNodeInstance::contentItemTransform() const
 {
-    return DesignerSupport::parentTransform(contentItem());
+    if (contentItem())
+        return contentItemTransformForItem(contentItem(), nodeInstanceServer());
+
+    return QTransform();
 }
 
 
@@ -172,19 +188,19 @@ void QuickItemNodeInstance::setResizable(bool resizable)
 
 void QuickItemNodeInstance::reparent(const ObjectNodeInstance::Pointer &oldParentInstance, const PropertyName &oldParentProperty, const ObjectNodeInstance::Pointer &newParentInstance, const PropertyName &newParentProperty)
 {
-    if (oldParentInstance && oldParentInstance->isPositioner()) {
+    if (oldParentInstance && oldParentInstance->isLayoutable()) {
         setInLayoutable(false);
         setMovable(true);
     }
 
     ObjectNodeInstance::reparent(oldParentInstance, oldParentProperty, newParentInstance, newParentProperty);
 
-    if (newParentInstance && newParentInstance->isPositioner()) {
+    if (newParentInstance && newParentInstance->isLayoutable()) {
         setInLayoutable(true);
         setMovable(false);
     }
 
-    if (oldParentInstance && oldParentInstance->isPositioner() && !(newParentInstance && newParentInstance->isPositioner())) {
+    if (oldParentInstance && oldParentInstance->isLayoutable() && !(newParentInstance && newParentInstance->isLayoutable())) {
         if (!hasBindingForProperty("x"))
             setPropertyVariant("x", x());
 

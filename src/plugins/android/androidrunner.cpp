@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 BogDan Vatra <bog_dan_ro@yahoo.com>
+** Copyright (c) 2014 BogDan Vatra <bog_dan_ro@yahoo.com>
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,6 +30,7 @@
 #include "androidrunner.h"
 
 #include "androiddeploystep.h"
+#include "androiddeployqtstep.h"
 #include "androidconfigurations.h"
 #include "androidglobal.h"
 #include "androidrunconfiguration.h"
@@ -54,7 +55,7 @@ AndroidRunner::AndroidRunner(QObject *parent,
                              ProjectExplorer::RunMode runMode)
     : QThread(parent)
 {
-    m_wasStarted = false;
+    m_tries = 0;
     Debugger::DebuggerRunConfigurationAspect *aspect
             = runConfig->extraAspect<Debugger::DebuggerRunConfigurationAspect>();
     const bool debuggingMode = runMode == ProjectExplorer::DebugRunMode;
@@ -73,19 +74,19 @@ AndroidRunner::AndroidRunner(QObject *parent,
         m_qmlPort = server.serverPort();
     }
     ProjectExplorer::Target *target = runConfig->target();
-    AndroidDeployStep *ds = runConfig->deployStep();
-    m_useLocalQtLibs = ds->deployAction() == AndroidDeployStep::DeployLocal
-            || ds->deployAction() == AndroidDeployStep::BundleLibraries;
+    m_useLocalQtLibs = AndroidManager::useLocalLibs(target);
     if (m_useLocalQtLibs) {
-        m_localLibs = AndroidManager::loadLocalLibs(target, ds->deviceAPILevel());
-        m_localJars = AndroidManager::loadLocalJars(target, ds->deviceAPILevel());
-        m_localJarsInitClasses = AndroidManager::loadLocalJarsInitClasses(target, ds->deviceAPILevel());
+        int deviceApiLevel = AndroidManager::minimumSDK(target);
+        m_localLibs = AndroidManager::loadLocalLibs(target, deviceApiLevel);
+        m_localJars = AndroidManager::loadLocalJars(target, deviceApiLevel);
+        m_localJarsInitClasses = AndroidManager::loadLocalJarsInitClasses(target, deviceApiLevel);
     }
     m_intentName = AndroidManager::intentName(target);
     m_packageName = m_intentName.left(m_intentName.indexOf(QLatin1Char('/')));
-    m_deviceSerialNumber = ds->deviceSerialNumber();
+
+    m_deviceSerialNumber = AndroidManager::deviceSerialNumber(target);
     m_processPID = -1;
-    m_adb = AndroidConfigurations::instance().adbToolPath().toString();
+    m_adb = AndroidConfigurations::currentConfig().adbToolPath().toString();
     m_selector = AndroidDeviceInfo::adbSelector(m_deviceSerialNumber);
 
     QString packageDir = _("/data/data/") + m_packageName;
@@ -152,25 +153,48 @@ QByteArray AndroidRunner::runPs()
 
 void AndroidRunner::checkPID()
 {
-    if (!m_wasStarted)
-        return;
     QByteArray psOut = runPs();
     m_processPID = extractPid(m_packageName, psOut);
+
     if (m_processPID == -1) {
-        m_checkPIDTimer.stop();
-        emit remoteProcessFinished(tr("\n\n'%1' died.").arg(m_packageName));
+        if (m_wasStarted) {
+            m_wasStarted = false;
+            m_checkPIDTimer.stop();
+            emit remoteProcessFinished(QLatin1String("\n\n") + tr("\"%1\" died.").arg(m_packageName));
+        } else {
+            if (++m_tries > 3)
+                emit remoteProcessFinished(QLatin1String("\n\n") + tr("Unable to start \"%1\".").arg(m_packageName));
+        }
+    } else if (!m_wasStarted){
+        if (m_useCppDebugger) {
+            // This will be funneled to the engine to actually start and attach
+            // gdb. Afterwards this ends up in handleRemoteDebuggerRunning() below.
+            QByteArray serverChannel = ':' + QByteArray::number(m_localGdbServerPort);
+            emit remoteServerRunning(serverChannel, m_processPID);
+        } else if (m_useQmlDebugger) {
+            // This will be funneled to the engine to actually start and attach
+            // gdb. Afterwards this ends up in handleRemoteDebuggerRunning() below.
+            QByteArray serverChannel = QByteArray::number(m_qmlPort);
+            emit remoteServerRunning(serverChannel, m_processPID);
+        } else if (m_useQmlProfiler) {
+            emit remoteProcessStarted(m_qmlPort);
+        } else {
+            // Start without debugging.
+            emit remoteProcessStarted(-1, -1);
+        }
+        m_wasStarted = true;
+        logcatReadStandardOutput();
     }
 }
 
 void AndroidRunner::forceStop()
 {
     QProcess proc;
-    proc.start(m_adb, selector() << _("shell") << _("am") << _("force-stop"));
+    proc.start(m_adb, selector() << _("shell") << _("am") << _("force-stop")
+               << m_packageName);
     proc.waitForFinished();
-}
 
-void AndroidRunner::killPID()
-{
+    // try killing it via kill -9
     const QByteArray out = runPs();
     int from = 0;
     while (1) {
@@ -189,7 +213,6 @@ void AndroidRunner::killPID()
 void AndroidRunner::start()
 {
     m_adbLogcatProcess.start(m_adb, selector() << _("logcat"));
-    m_wasStarted = false;
     QtConcurrent::run(this, &AndroidRunner::asyncStart);
 }
 
@@ -197,7 +220,6 @@ void AndroidRunner::asyncStart()
 {
     QMutexLocker locker(&m_mutex);
     forceStop();
-    killPID();
 
     if (m_useCppDebugger) {
         // Remove pong file.
@@ -218,7 +240,7 @@ void AndroidRunner::asyncStart()
             emit remoteProcessFinished(tr("Failed to forward C++ debugging ports. Reason: %1.").arg(adb.errorString()));
             return;
         }
-        if (!adb.waitForFinished(-1)) {
+        if (!adb.waitForFinished(5000)) {
             emit remoteProcessFinished(tr("Failed to forward C++ debugging ports."));
             return;
         }
@@ -261,7 +283,7 @@ void AndroidRunner::asyncStart()
         emit remoteProcessFinished(tr("Failed to start the activity. Reason: %1.").arg(adb.errorString()));
         return;
     }
-    if (!adb.waitForFinished(-1)) {
+    if (!adb.waitForFinished(5000)) {
         adb.terminate();
         emit remoteProcessFinished(tr("Unable to start '%1'.").arg(m_packageName));
         return;
@@ -295,33 +317,9 @@ void AndroidRunner::asyncStart()
 
     }
 
-    QByteArray psOut = runPs();
-    m_processPID = extractPid(m_packageName, psOut);
-
-    if (m_processPID == -1) {
-        emit remoteProcessFinished(tr("Unable to start '%1'.").arg(m_packageName));
-        return;
-    }
-
+    m_tries = 0;
+    m_wasStarted = false;
     QMetaObject::invokeMethod(&m_checkPIDTimer, "start");
-
-    m_wasStarted = true;
-    if (m_useCppDebugger) {
-        // This will be funneled to the engine to actually start and attach
-        // gdb. Afterwards this ends up in handleRemoteDebuggerRunning() below.
-        QByteArray serverChannel = ':' + QByteArray::number(m_localGdbServerPort);
-        emit remoteServerRunning(serverChannel, m_processPID);
-    } else if (m_useQmlDebugger) {
-        // This will be funneled to the engine to actually start and attach
-        // gdb. Afterwards this ends up in handleRemoteDebuggerRunning() below.
-        QByteArray serverChannel = QByteArray::number(m_qmlPort);
-        emit remoteServerRunning(serverChannel, m_processPID);
-    } else if (m_useQmlProfiler) {
-        emit remoteProcessStarted(m_qmlPort);
-    } else {
-        // Start without debugging.
-        emit remoteProcessStarted(-1, -1);
-    }
 }
 
 void AndroidRunner::handleRemoteDebuggerRunning()
@@ -343,40 +341,57 @@ void AndroidRunner::stop()
 {
     QMutexLocker locker(&m_mutex);
     m_checkPIDTimer.stop();
+    m_tries = 0;
     if (m_processPID != -1) {
-        killPID();
-        emit remoteProcessFinished(tr("\n\n'%1' terminated.").arg(m_packageName));
+        forceStop();
+        emit remoteProcessFinished(QLatin1String("\n\n") + tr("\"%1\" terminated.").arg(m_packageName));
     }
     //QObject::disconnect(&m_adbLogcatProcess, 0, this, 0);
     m_adbLogcatProcess.kill();
     m_adbLogcatProcess.waitForFinished();
 }
 
-void AndroidRunner::logcatReadStandardError()
+void AndroidRunner::logcatProcess(const QByteArray &text, QByteArray &buffer, bool onlyError)
 {
-    emit remoteErrorOutput(m_adbLogcatProcess.readAllStandardError());
-}
+    QList<QByteArray> lines = text.split('\n');
+    // lines always contains at least one item
+    lines[0].prepend(buffer);
+    if (!lines.last().endsWith('\n')) {
+        // incomplete line
+        buffer = lines.last();
+        lines.removeLast();
+    } else {
+        buffer.clear();
+    }
 
-void AndroidRunner::logcatReadStandardOutput()
-{
-    m_logcat += m_adbLogcatProcess.readAllStandardOutput();
-    bool keepLastLine = m_logcat.endsWith('\n');
-    QByteArray line;
     QByteArray pid(QString::fromLatin1("%1):").arg(m_processPID).toLatin1());
-    foreach (line, m_logcat.split('\n')) {
+    foreach (QByteArray line, lines) {
         if (!line.contains(pid))
             continue;
         if (line.endsWith('\r'))
             line.chop(1);
         line.append('\n');
-        if (line.startsWith("E/"))
+        if (onlyError || line.startsWith("F/")
+                || line.startsWith("E/")
+                || line.startsWith("D/Qt")
+                || line.startsWith("W/"))
             emit remoteErrorOutput(line);
         else
             emit remoteOutput(line);
 
     }
-    if (keepLastLine)
-        m_logcat = line;
+}
+
+void AndroidRunner::logcatReadStandardError()
+{
+    if (m_processPID != -1)
+        logcatProcess(m_adbLogcatProcess.readAllStandardError(), m_stderrBuffer, true);
+}
+
+void AndroidRunner::logcatReadStandardOutput()
+{
+    if (m_processPID != -1)
+        logcatProcess(m_adbLogcatProcess.readAllStandardOutput(), m_stdoutBuffer, false);
 }
 
 void AndroidRunner::adbKill(qint64 pid)
@@ -402,4 +417,4 @@ QString AndroidRunner::displayName() const
 }
 
 } // namespace Internal
-} // namespace Qt4ProjectManager
+} // namespace Android

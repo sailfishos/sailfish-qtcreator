@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -53,6 +53,7 @@ protected:
     void sendChildrenChangedCommand(const QList<ServerNodeInstance> childList);
     void sendTokenBack();
     bool isDirtyRecursiveForNonInstanceItems(QQuickItem *item) const;
+    bool isDirtyRecursiveForParentInstances(QQuickItem *item) const;
 
 private:
     QSet<ServerNodeInstance> m_parentChangedSet;

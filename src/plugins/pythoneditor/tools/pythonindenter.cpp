@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -70,8 +70,8 @@ bool PythonIndenter::isElectricCharacter(const QChar &ch) const
  * @param typedChar Unused
  * @param tabSettings An IDE tabulation settings
  *
- * Usually this method called once when you begin new line of code by pressing
- * Enter. If Indenter reimplements indent() method, than indentBlock() may be
+ * Usually this function called once when you begin new line of code by pressing
+ * Enter. If Indenter reimplements indent() function, than indentBlock() may be
  * called in other cases.
  */
 void PythonIndenter::indentBlock(QTextDocument *document,

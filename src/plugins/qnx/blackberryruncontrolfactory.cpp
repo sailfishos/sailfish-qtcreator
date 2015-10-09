@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2012 - 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -36,6 +36,7 @@
 #include "blackberrydebugsupport.h"
 #include "blackberryqtversion.h"
 #include "blackberrydeviceconnectionmanager.h"
+#include "blackberryapplicationrunner.h"
 #include "qnxutils.h"
 
 #include <debugger/debuggerplugin.h>
@@ -46,8 +47,12 @@
 #include <projectexplorer/project.h>
 #include <projectexplorer/target.h>
 #include <projectexplorer/toolchain.h>
-#include <qt4projectmanager/qt4buildconfiguration.h>
+#include <qmakeprojectmanager/qmakebuildconfiguration.h>
 #include <qtsupport/qtkitinformation.h>
+#include <analyzerbase/analyzerstartparameters.h>
+#include <analyzerbase/analyzermanager.h>
+#include <analyzerbase/analyzerruncontrol.h>
+#include <coreplugin/messagemanager.h>
 
 using namespace Qnx;
 using namespace Qnx::Internal;
@@ -86,6 +91,28 @@ bool BlackBerryRunControlFactory::canRun(ProjectExplorer::RunConfiguration *runC
     return activeDeployConf != 0;
 }
 
+static void createAnalyzerStartParameters(Analyzer::AnalyzerStartParameters *pStartParameters, BlackBerryRunConfiguration* runConfiguration, ProjectExplorer::RunMode mode)
+{
+    QTC_ASSERT(pStartParameters, return);
+    pStartParameters->runMode = mode;
+    if (mode == ProjectExplorer::QmlProfilerRunMode)
+        pStartParameters->startMode = Analyzer::StartLocal;
+
+    ProjectExplorer::Target *target = runConfiguration->target();
+    ProjectExplorer::Kit *kit = target->kit();
+
+    ProjectExplorer::IDevice::ConstPtr device = ProjectExplorer::DeviceKitInformation::device(kit);
+    if (device) {
+        pStartParameters->connParams = device->sshParameters();
+        pStartParameters->analyzerHost = device->qmlProfilerHost();
+    }
+    pStartParameters->sysroot = ProjectExplorer::SysRootKitInformation::sysRoot(kit).toString();
+
+    Debugger::DebuggerRunConfigurationAspect *aspect = runConfiguration->extraAspect<Debugger::DebuggerRunConfigurationAspect>();
+    if (aspect)
+        pStartParameters->analyzerPort = aspect->qmlDebugServerPort();
+}
+
 ProjectExplorer::RunControl *BlackBerryRunControlFactory::create(ProjectExplorer::RunConfiguration *runConfiguration,
         ProjectExplorer::RunMode mode, QString *errorMessage)
 {
@@ -101,20 +128,37 @@ ProjectExplorer::RunControl *BlackBerryRunControlFactory::create(ProjectExplorer
         return 0;
     }
 
-    BlackBerryDeviceConfiguration::ConstPtr device =
-            BlackBerryDeviceConfiguration::device(rc->target()->kit());
-    if (!BlackBerryDeviceConnectionManager::instance()->isConnected(device->id())) {
-        if (errorMessage)
-            *errorMessage = tr("Device not connected");
-        return 0;
-    }
-
     if (mode == ProjectExplorer::NormalRunMode) {
         BlackBerryRunControl *runControl = new BlackBerryRunControl(rc);
         m_activeRunControls[rc->key()] = runControl;
         return runControl;
     }
+    if (mode == ProjectExplorer::QmlProfilerRunMode) {
+        QtSupport::BaseQtVersion *qtVer = QtSupport::QtKitInformation::qtVersion(rc->target()->kit());
+        if (qtVer && qtVer->qtVersion() <= QtSupport::QtVersionNumber(4, 8, 6))
+            Core::MessageManager::write(tr("Target Qt version (%1) might not support QML profiling. "
+                "Cascades applications are not affected and should work as expected. "
+                "For more info see http://qt-project.org/wiki/Qt-Creator-with-BlackBerry-10")
+                .arg(qtVer->qtVersionString()), Core::MessageManager::Flash
+            );
 
+        Analyzer::AnalyzerStartParameters params;
+        createAnalyzerStartParameters(&params, rc, mode);
+
+        Analyzer::AnalyzerRunControl *runControl = Analyzer::AnalyzerManager::createRunControl(params, runConfiguration);
+        BlackBerryApplicationRunner::LaunchFlags launchFlags(BlackBerryApplicationRunner::QmlDebugLaunch
+            | BlackBerryApplicationRunner::QmlDebugLaunchBlocking
+            | BlackBerryApplicationRunner::QmlProfilerLaunch);
+        BlackBerryApplicationRunner *runner = new BlackBerryApplicationRunner(launchFlags, rc, runControl);
+
+        connect(runner, SIGNAL(finished()), runControl, SLOT(notifyRemoteFinished()));
+        connect(runner, SIGNAL(output(QString, Utils::OutputFormat)),
+                runControl, SLOT(logApplicationMessage(QString, Utils::OutputFormat)));
+        connect(runControl, SIGNAL(starting(const Analyzer::AnalyzerRunControl*)),
+                runner, SLOT(start()));
+        connect(runControl, SIGNAL(finished()), runner, SLOT(stop()));
+        return runControl;
+    }
     Debugger::DebuggerRunControl * const runControl =
             Debugger::DebuggerPlugin::createDebugger(startParameters(rc), runConfiguration, errorMessage);
     if (!runControl)
@@ -135,6 +179,7 @@ Debugger::DebuggerStartParameters BlackBerryRunControlFactory::startParameters(
     params.startMode = Debugger::AttachToRemoteServer;
     params.debuggerCommand = Debugger::DebuggerKitInformation::debuggerCommand(k).toString();
     params.sysRoot = ProjectExplorer::SysRootKitInformation::sysRoot(k).toString();
+    params.useCtrlCStub = true;
 
     if (ProjectExplorer::ToolChain *tc = ProjectExplorer::ToolChainKitInformation::toolChain(k))
         params.toolChainAbi = tc->targetAbi();
@@ -159,7 +204,7 @@ Debugger::DebuggerStartParameters BlackBerryRunControlFactory::startParameters(
     if (const ProjectExplorer::Project *project = runConfig->target()->project()) {
         params.projectSourceDirectory = project->projectDirectory();
         if (const ProjectExplorer::BuildConfiguration *buildConfig = runConfig->target()->activeBuildConfiguration())
-            params.projectBuildDirectory = buildConfig->buildDirectory();
+            params.projectBuildDirectory = buildConfig->buildDirectory().toString();
         params.projectSourceFiles = project->files(ProjectExplorer::Project::ExcludeGeneratedFiles);
     }
 

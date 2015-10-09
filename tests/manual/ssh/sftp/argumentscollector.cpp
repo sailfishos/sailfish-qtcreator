@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -66,7 +66,7 @@ Parameters ArgumentsCollector::collect(bool &success) const
                 if (!parameters.sshParams.privateKeyFile.isEmpty())
                     throw ArgumentErrorException(QLatin1String("-pwd and -k are mutually exclusive."));
                 parameters.sshParams.authenticationType
-                    = SshConnectionParameters::AuthenticationByPassword;
+                    = SshConnectionParameters::AuthenticationTypeTryAllPasswordBasedMethods;
                 authTypeGiven = true;
                 continue;
             }
@@ -74,7 +74,7 @@ Parameters ArgumentsCollector::collect(bool &success) const
                 if (!parameters.sshParams.password.isEmpty())
                     throw ArgumentErrorException(QLatin1String("-pwd and -k are mutually exclusive."));
                 parameters.sshParams.authenticationType
-                    = SshConnectionParameters::AuthenticationByKey;
+                    = SshConnectionParameters::AuthenticationTypePublicKey;
                 authTypeGiven = true;
                 continue;
             }

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -35,6 +35,7 @@
 
 #include "ui_qbsinstallstepconfigwidget.h"
 
+#include <coreplugin/icore.h>
 #include <projectexplorer/buildsteplist.h>
 #include <projectexplorer/deployconfiguration.h>
 #include <projectexplorer/kit.h>
@@ -276,6 +277,7 @@ QbsInstallStepConfigWidget::QbsInstallStepConfigWidget(QbsInstallStep *step) :
 
     m_ui->installRootChooser->setPromptDialogTitle(tr("Qbs Install Prefix"));
     m_ui->installRootChooser->setExpectedKind(Utils::PathChooser::Directory);
+    m_ui->installRootChooser->setHistoryCompleter(QLatin1String("Qbs.InstallRoot.History"));
 
     connect(m_ui->installRootChooser, SIGNAL(changed(QString)), this, SLOT(changeInstallRoot()));
     connect(m_ui->removeFirstCheckBox, SIGNAL(toggled(bool)), this, SLOT(changeRemoveFirst(bool)));
@@ -311,6 +313,8 @@ void QbsInstallStepConfigWidget::updateState()
         m_ui->installRootChooser->setBaseDirectory(data.buildDirectory());
 
     QString command = QLatin1String("qbs install ");
+    command += QString::fromLatin1("--settings-dir ")
+            + QDir::toNativeSeparators(Core::ICore::userResourcePath()) + QLatin1String(" ");
     if (m_step->dryRun())
         command += QLatin1String("--dry-run ");
     if (m_step->keepGoing())
@@ -318,6 +322,7 @@ void QbsInstallStepConfigWidget::updateState()
     if (m_step->removeFirst())
         command += QLatin1String("--remove-first ");
     command += QString::fromLatin1("--install-root \"%1\"").arg(m_step->absoluteInstallRoot());
+    m_ui->commandLineTextEdit->setPlainText(command);
 
     QString summary = tr("<b>Qbs:</b> %1").arg(command);
     if (m_summary != summary) {

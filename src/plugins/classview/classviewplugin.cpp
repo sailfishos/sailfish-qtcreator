@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Denis Mingulov
+** Copyright (c) 2014 Denis Mingulov
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -37,6 +37,14 @@ namespace ClassView {
 namespace Internal {
 
 ///////////////////////////////// Plugin //////////////////////////////////
+
+/*!
+    \class Plugin
+    \brief The Plugin class is the base class for the Class View plugin.
+
+    The Class View shows the namespace and class hierarchy of the currently open
+    projects in the sidebar.
+*/
 
 bool Plugin::initialize(const QStringList &arguments, QString *errorMessage)
 {

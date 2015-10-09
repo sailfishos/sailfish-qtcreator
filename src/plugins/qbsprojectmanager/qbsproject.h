@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -32,9 +32,6 @@
 
 #include "qbsprojectmanager.h"
 
-#include <language/language.h>
-#include <tools/buildoptions.h>
-
 #include <projectexplorer/project.h>
 #include <projectexplorer/projectnodes.h>
 #include <projectexplorer/task.h>
@@ -51,6 +48,12 @@ class CleanJob;
 class Error;
 class ProjectData;
 class SetupProjectJob;
+class CleanOptions;
+class InstallJob;
+class InstallOptions;
+class Project;
+class ErrorInfo;
+class BuildOptions;
 } // namespace qbs
 
 namespace Core { class IDocument; }
@@ -71,7 +74,6 @@ public:
     ~QbsProject();
 
     QString displayName() const;
-    Core::Id id() const;
     Core::IDocument *document() const;
     QbsManager *projectManager() const;
 
@@ -88,17 +90,18 @@ public:
     QString profileForTarget(const ProjectExplorer::Target *t) const;
     bool isParsing() const;
     bool hasParseResult() const;
+    void parseCurrentBuildConfiguration(bool force);
 
     Utils::FileName defaultBuildDirectory() const;
+    static Utils::FileName defaultBuildDirectory(const QString &path);
 
-    const qbs::Project *qbsProject() const;
+    qbs::Project qbsProject() const;
     const qbs::ProjectData qbsProjectData() const;
 
     bool needsSpecialDeployment() const;
 
 public slots:
     void invalidate();
-    void parseCurrentBuildConfiguration();
     void delayParsing();
     void delayForcedParsing();
 
@@ -114,6 +117,7 @@ private slots:
     void targetWasAdded(ProjectExplorer::Target *t);
     void changeActiveTarget(ProjectExplorer::Target *t);
     void buildConfigurationChanged(ProjectExplorer::BuildConfiguration *bc);
+    void startParsing();
 
 private:
     bool fromMap(const QVariantMap &map);
@@ -125,7 +129,10 @@ private:
     void updateDocuments(const QSet<QString> &files);
     void updateCppCodeModel(const qbs::ProjectData &prj);
     void updateQmlJsCodeModel(const qbs::ProjectData &prj);
-    QString qbsBuildDir() const;
+    void updateApplicationTargets(const qbs::ProjectData &projectData);
+    void updateDeploymentInfo(const qbs::Project &project);
+    QString resourcesBaseDirectory() const;
+    QString pluginsBaseDirectory() const;
 
     QbsManager *const m_manager;
     const QString m_projectName;

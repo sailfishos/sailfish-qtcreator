@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2013 Jolla Ltd.
+** Copyright (C) 2012 - 2014 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -24,15 +24,18 @@
 #define MERPLUGIN_H
 
 #include <extensionsystem/iplugin.h>
-#include <QStringList>
+
+#include <QMap>
 
 namespace Mer {
 namespace Internal {
 
+class MerConnection;
+
 class MerPlugin : public ExtensionSystem::IPlugin
 {
     Q_OBJECT
-    Q_PLUGIN_METADATA(IID "org.qt-project.Qt.QtCreatorPlugin" FILE "Mer.json")
+    Q_PLUGIN_METADATA(IID "org.qt-project.Qt.QtCreatorPlugin" FILE "plugins/mer/Mer.json")
 
 public:
     MerPlugin();
@@ -43,11 +46,12 @@ public:
     ShutdownFlag aboutToShutdown();
 
 private slots:
-    void handlePromptClosed(const QString& vm, bool accepted);
+    void handlePromptClosed(int result);
+    void handleConnectionStateChanged();
+    void handleLockDownFailed();
 
 private:
-    QStringList m_stopList;
-    bool m_wait;
+    QMap<QString, MerConnection *> m_stopList;
 
 #ifdef WITH_TESTS
     void verifyTargets(const QString &vm, QStringList expectedKits, QStringList expectedToolChains, QStringList expectedQtVersion);

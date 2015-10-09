@@ -1,5 +1,5 @@
-import qbs.base 1.0
-import "../QtcTool.qbs" as QtcTool
+import qbs 1.0
+import QtcTool
 
 QtcTool {
     name: "qtpromaker"

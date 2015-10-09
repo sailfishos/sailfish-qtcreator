@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -37,9 +37,7 @@
 namespace ProjectExplorer {
 class Abi;
 
-namespace Internal {
-class AbiWidgetPrivate;
-} // namespace
+namespace Internal { class AbiWidgetPrivate; }
 
 // --------------------------------------------------------------------------
 // AbiWidget:
@@ -54,6 +52,8 @@ public:
     ~AbiWidget();
 
     void setAbis(const QList<Abi> &, const Abi &current);
+    QList<Abi> supportedAbis() const;
+    bool isCustomAbi() const;
     Abi currentAbi() const;
 
 signals:
@@ -62,6 +62,7 @@ signals:
 private slots:
     void osChanged();
     void modeChanged();
+    void customAbiChanged();
 
 private:
     void setCustomAbi(const Abi &a);

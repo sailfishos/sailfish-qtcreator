@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -53,6 +53,7 @@ private slots:
 
     // Changes triggered from creator
     void buildDirectoryChanged();
+    void environmentHasChanged();
 
 private:
     Internal::QbsBuildConfiguration *m_buildConfiguration;

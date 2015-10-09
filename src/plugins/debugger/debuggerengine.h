@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -46,7 +46,6 @@ QT_END_NAMESPACE
 
 namespace TextEditor { class ITextEditor; }
 namespace Core { class IOptionsPage; }
-namespace ProjectExplorer { class TaskHub; }
 
 namespace Debugger {
 
@@ -185,18 +184,19 @@ public:
     virtual void reloadRegisters();
     virtual void reloadSourceFiles();
     virtual void reloadFullStack();
+    virtual void loadAdditionalQmlStack();
     virtual void reloadDebuggingHelpers();
 
     virtual void setRegisterValue(int regnr, const QString &value);
     virtual void addOptionPages(QList<Core::IOptionsPage*> *) const;
     virtual bool hasCapability(unsigned cap) const = 0;
+    virtual void debugLastCommand() {}
 
     virtual bool isSynchronous() const;
     virtual QByteArray qtNamespace() const;
 
     virtual void createSnapshot();
     virtual void updateAll();
-    ProjectExplorer::TaskHub *taskHub();
 
     typedef Internal::BreakpointModelId BreakpointModelId;
     virtual bool stateAcceptsBreakpointChanges() const { return true; }
@@ -207,6 +207,8 @@ public:
     virtual void changeBreakpoint(BreakpointModelId id);  // FIXME: make pure
 
     virtual bool acceptsDebuggerCommands() const { return true; }
+    virtual void executeDebuggerCommand(const QString &command, DebuggerLanguages languages);
+
     virtual void assignValueInDebugger(const Internal::WatchData *data,
         const QString &expr, const QVariant &value);
     virtual void selectThread(Internal::ThreadId threadId) = 0;
@@ -223,11 +225,6 @@ public:
     virtual QAbstractItemModel *registerModel() const;
     virtual QAbstractItemModel *stackModel() const;
     virtual QAbstractItemModel *threadsModel() const;
-    virtual QAbstractItemModel *localsModel() const; // Deprecated, FIXME: use watchModel
-    virtual QAbstractItemModel *watchersModel() const; // Deprecated, FIXME: use watchModel
-    virtual QAbstractItemModel *returnModel() const; // Deprecated, FIXME: use watchModel
-    virtual QAbstractItemModel *inspectorModel() const; // Deprecated, FIXME: use watchModel
-    virtual QAbstractItemModel *toolTipsModel() const; // Deprecated, FIXME: use watchModel
     virtual QAbstractItemModel *watchModel() const;
     virtual QAbstractItemModel *sourceFilesModel() const;
 
@@ -279,7 +276,7 @@ signals:
     void stackFrameCompleted();
     /*
      * For "external" clients of a debugger run control that needs to do
-     * further setup before the debugger is started (e.g. Maemo).
+     * further setup before the debugger is started (e.g. RemoteLinux).
      * Afterwards, notifyEngineRemoteSetupDone() or notifyEngineRemoteSetupFailed()
      * must be called to continue or abort debugging, respectively.
      * This signal is only emitted if the start parameters indicate that
@@ -354,7 +351,6 @@ protected:
     virtual void executeRunToLine(const Internal::ContextData &data);
     virtual void executeRunToFunction(const QString &functionName);
     virtual void executeJumpToLine(const Internal::ContextData &data);
-    virtual void executeDebuggerCommand(const QString &command, DebuggerLanguages languages);
 
     virtual void frameUp();
     virtual void frameDown();

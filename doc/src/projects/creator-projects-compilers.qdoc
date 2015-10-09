@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (c) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (c) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator
@@ -23,10 +23,10 @@
 // **********************************************************************
 
 /*!
-    \contentspage index.html
+    \contentspage {Qt Creator Manual}
     \previouspage creator-project-qmake.html
     \page creator-tool-chains.html
-    \nextpage creator-build-settings.html
+    \nextpage creator-debuggers.html
 
     \title Adding Compilers
 
@@ -37,7 +37,7 @@
     application on a particular platform.
 
     \QC automatically detects the compilers that are registered by your system
-    or by an SDK. You can add compilers to build applications by using other
+    or by an installer. You can add compilers to build applications by using other
     compilers or by using additional versions of the automatically detected
     compilers:
 
@@ -49,7 +49,7 @@
         \li MinGW (Minimalist GNU for Windows) is a native software port of GCC
             and GNU Binutils for use in the development of native Microsoft
             Windows applications on Windows. MinGW is
-            distributed together with \QC and Qt SDK for Windows.
+            distributed together with \QC and Qt installers for Windows.
 
         \li Linux ICC (Intel C++ Compiler) is a group of C and C++ compilers
             for Linux.
@@ -57,12 +57,16 @@
         \li Clang is a C, C++, Objective C, and Objective C++ front-end for the
             LLVM compiler for Windows, Linux, and Mac OS X.
 
+        \li QCC is the interface for compiling C++ applications for QNX.
+
     \endlist
 
-    To build an application using GCC, MinGW, or Clang, specify the path
+    To build an application using GCC, MinGW, Clang, or QCC, specify the path
     to the directory where the compiler is located and select
     the application binary interface (ABI) version from the list of available
     versions. You can also create a custom ABI definition.
+    For QCC, also specify the path to the BlackBerry NDK or the QNX Software
+    Development Platform (SDP).
 
     You specify the compiler to use for each kit in \gui Tools >
     \gui Options > \gui {Build & Run} > \gui Kits.
@@ -82,6 +86,14 @@
 
         \li In the \gui{Compiler path} field, enter the path to the directory
             where the compiler is located.
+
+        \li In the \gui {Platform codegen flags} field, check the flags passed
+            to the compiler that specify the architecture on the target
+            platform.
+
+        \li In the \gui {Platform linker flags} field, check the flags passed to
+            the linker that specify the architecture on the target platform.
+            The linker flags are used only when building with Qbs.
 
             The other settings to specify depend on the compiler.
 
@@ -126,6 +138,31 @@
         \li In the \gui {Qt mkspecs} field, specify the path to the directory
             where mkspecs are located. Usually, the path is specified relative
             to the Qt mkspecs directory.
+
+        \li In the \gui {Error parser} field, select the error parser to use.
+            Select \gui Custom, and then select \gui {Customer Parser Settings}
+            to specify settings for a custom parser:
+
+            \image qtcreator-custom-parser.png
+
+            \list 1
+
+                \li In the \gui {Error message capture pattern} field, specify
+                    a regular expression to define what is an error. The custom
+                    parser matches the compile output line by line against the
+                    regular expression and displays errors in the \gui Issues
+                    output pane. Create regular expression groups that contain
+                    the file name, line number and error message.
+
+                \li In the \gui {Capture Positions} field, map the regular
+                    expression groups to \gui {File name}, \gui {Line number},
+                    and \gui Message.
+
+                \li In the \gui {Test} group, you can test how the message that
+                    you enter in the \gui {Error message} field is matched when
+                    using the current settings.
+
+            \endlist
 
     \endlist
 

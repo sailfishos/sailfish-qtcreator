@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -128,10 +128,9 @@ bool BookmarksPlugin::initialize(const QStringList & /*arguments*/, QString *)
         this, SLOT(bookmarkMarginActionTriggered()));
 
     // EditorManager
-    QObject *editorManager = Core::ICore::editorManager();
-    connect(editorManager, SIGNAL(editorAboutToClose(Core::IEditor*)),
+    connect(Core::EditorManager::instance(), SIGNAL(editorAboutToClose(Core::IEditor*)),
         this, SLOT(editorAboutToClose(Core::IEditor*)));
-    connect(editorManager, SIGNAL(editorOpened(Core::IEditor*)),
+    connect(Core::EditorManager::instance(), SIGNAL(editorOpened(Core::IEditor*)),
         this, SLOT(editorOpened(Core::IEditor*)));
 
     return true;
@@ -184,8 +183,12 @@ void BookmarksPlugin::editorAboutToClose(Core::IEditor *editor)
 void BookmarksPlugin::requestContextMenu(TextEditor::ITextEditor *editor,
     int lineNumber, QMenu *menu)
 {
+    // Don't set bookmarks in disassembler views.
+    if (editor->document()->property("DisassemblerView").toBool())
+        return;
+
     m_bookmarkMarginActionLineNumber = lineNumber;
-    m_bookmarkMarginActionFileName = editor->document()->fileName();
+    m_bookmarkMarginActionFileName = editor->document()->filePath();
 
     menu->addAction(m_bookmarkMarginAction);
     if (m_bookmarkManager->hasBookmarkInPosition(m_bookmarkMarginActionFileName, m_bookmarkMarginActionLineNumber))

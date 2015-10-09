@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -37,7 +37,7 @@
 #include <qmljs/qmljsdocument.h>
 #include <qmljs/qmljspropertyreader.h>
 #include <qmljs/qmljsrewriter.h>
-#include <qmljs/qmljsindenter.h>
+#include <qmljstools/qmljsindenter.h>
 #include <qmljs/qmljscontext.h>
 #include <qmljs/qmljsbind.h>
 #include <qmljs/qmljsscopebuilder.h>
@@ -54,13 +54,6 @@ using namespace AST;
 using namespace QmlEditorWidgets;
 
 namespace QmlJSEditor {
-
-static inline QString textAt(const Document* doc,
-                                      const SourceLocation &from,
-                                      const SourceLocation &to)
-{
-    return doc->source().mid(from.offset, to.end() - from.begin());
-}
 
 static inline const ObjectValue * getPropertyChangesTarget(Node *node, const ScopeChain &scopeChain)
 {
@@ -334,22 +327,7 @@ void QuickToolBar::setProperty(const QString &propertyName, const QVariant &valu
         m_editor->convertPosition(changeSetPos, &line, &column); //get line
         m_editor->convertPosition(changeSetPos + changeSetLength, &endLine, &column); //get line
 
-        if (line > 0) {
-            TextEditor::TabSettings ts = m_editor->editorWidget()->tabSettings();
-            QmlJSIndenter indenter;
-            indenter.setTabSize(ts.m_tabSize);
-            indenter.setIndentSize(ts.m_indentSize);
-
-            for (int i=line;i<=endLine;i++) {
-                QTextBlock start = m_editor->editorWidget()->document()->findBlockByNumber(i);
-                QTextBlock end = m_editor->editorWidget()->document()->findBlockByNumber(i);
-
-                if (end.isValid()) {
-                    const int indent = indenter.indentForBottomLine(m_editor->editorWidget()->document()->begin(), end.next(), QChar::Null);
-                    ts.indentLine(start, indent);
-                }
-            }
-        }
+        indentLines(line, endLine);
         tc.endEditBlock();
     }
 }
@@ -442,6 +420,21 @@ void QuickToolBar::onEnabledChanged(bool b)
     settings.pinContextPane = b;
     settings.enableContextPane = b;
     settings.set();
+}
+
+void QuickToolBar::indentLines(int startLine, int endLine)
+{
+    if (startLine > 0) {
+        TextEditor::TabSettings tabSettings = m_editor->baseTextDocument()->tabSettings();
+        for (int i = startLine; i <= endLine; i++) {
+            QTextBlock start = m_editor->editorWidget()->document()->findBlockByNumber(i);
+
+            if (start.isValid()) {
+                QmlJSEditor::Internal::Indenter indenterMy;
+                indenterMy.indentBlock(m_editor->editorWidget()->document(), start, QChar::Null, tabSettings);
+            }
+        }
+    }
 }
 
 ContextPaneWidget* QuickToolBar::contextWidget()

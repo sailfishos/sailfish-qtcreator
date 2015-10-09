@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -80,6 +80,7 @@ private slots:
     void setDisplayName();
     void workingCopyWasUpdated(ProjectExplorer::Kit *k);
     void kitWasUpdated(ProjectExplorer::Kit *k);
+    void updateMutableState();
 
 private:
     enum LayoutColumns {
@@ -101,6 +102,7 @@ private:
     bool m_isDefaultKit;
     bool m_fixingKit;
     QPixmap m_background;
+    QList<QAction *> m_actions;
 };
 
 } // namespace Internal

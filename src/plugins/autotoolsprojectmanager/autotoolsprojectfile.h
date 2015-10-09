@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (C) 2013 Openismus GmbH.
+** Copyright (C) 2014 Openismus GmbH.
 ** Authors: Peter Penz (ppenz@openismus.com)
 **          Patricia Santana Cruz (patriciasantanacruz@gmail.com)
 ** Contact: http://www.qt-project.org/legal
@@ -57,18 +57,15 @@ public:
     AutotoolsProjectFile(AutotoolsProject *project, const QString &fileName);
 
     bool save(QString *errorString, const QString &fileName, bool autoSave);
-    QString fileName() const;
     QString defaultPath() const;
     QString suggestedFileName() const;
     QString mimeType() const;
     bool isModified() const;
     bool isSaveAsAllowed() const;
     bool reload(QString *errorString, ReloadFlag flag, ChangeType type);
-    void rename(const QString &newName);
 
 private:
     AutotoolsProject *m_project;
-    QString m_fileName;
 };
 
 } // namespace Internal

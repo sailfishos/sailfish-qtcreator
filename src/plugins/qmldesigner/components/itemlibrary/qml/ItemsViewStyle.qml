@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -27,7 +27,7 @@
 **
 ****************************************************************************/
 
-import QtQuick 1.0
+import QtQuick 2.1
 
 // the style used the items view
 
@@ -61,7 +61,7 @@ Item {
     property int textWidth: 95
     property int textHeight: 15
 
-    property int cellHorizontalMargin: 5
+    property int cellHorizontalMargin: 4
     property int cellVerticalSpacing: 7
     property int cellVerticalMargin: 10
 

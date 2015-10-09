@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -124,10 +124,7 @@ DisassemblerAgentPrivate::DisassemblerAgentPrivate()
 
 DisassemblerAgentPrivate::~DisassemblerAgentPrivate()
 {
-    if (editor) {
-        EditorManager *editorManager = EditorManager::instance();
-        editorManager->closeEditors(QList<IEditor *>() << editor);
-    }
+    EditorManager::closeEditor(editor);
     editor = 0;
     delete locationMark;
     qDeleteAll(breakpointMarks);
@@ -195,7 +192,7 @@ void DisassemblerAgent::resetLocation()
     if (d->resetLocationScheduled) {
         d->resetLocationScheduled = false;
         if (d->locationMark)
-            d->editor->markableInterface()->removeMark(d->locationMark);
+            d->editor->textDocument()->markableInterface()->removeMark(d->locationMark);
     }
 }
 
@@ -258,7 +255,7 @@ void DisassemblerAgentPrivate::configureMimeType()
         qobject_cast<TextEditor::PlainTextEditorWidget *>(editor->widget());
     QTC_ASSERT(pe, return);
 
-    MimeType mtype = ICore::mimeDatabase()->findByType(mimeType);
+    MimeType mtype = MimeDatabase::findByType(mimeType);
     if (mtype)
         pe->configure(mtype);
     else
@@ -310,17 +307,18 @@ void DisassemblerAgent::setContentsToEditor(const DisassemblerLines &contents)
                 Core::Constants::K_DEFAULT_TEXT_EDITOR_ID,
                 &titlePattern));
         QTC_ASSERT(d->editor, return);
-        d->editor->setProperty(Debugger::Constants::OPENED_BY_DEBUGGER, true);
-        d->editor->setProperty(Debugger::Constants::OPENED_WITH_DISASSEMBLY, true);
+        IDocument *document = d->editor->document();
+        document->setProperty(Debugger::Constants::OPENED_BY_DEBUGGER, true);
+        document->setProperty(Debugger::Constants::OPENED_WITH_DISASSEMBLY, true);
         d->configureMimeType();
 
         BaseTextEditorWidget *baseTextEdit =
                 qobject_cast<BaseTextEditorWidget *>(d->editor->widget());
         if (baseTextEdit)
             baseTextEdit->setRequestMarkEnabled(true);
+    } else {
+        EditorManager::activateEditor(d->editor);
     }
-
-    EditorManager::activateEditor(d->editor);
 
     QPlainTextEdit *plainTextEdit =
         qobject_cast<QPlainTextEdit *>(d->editor->widget());
@@ -334,7 +332,7 @@ void DisassemblerAgent::setContentsToEditor(const DisassemblerLines &contents)
     plainTextEdit->setPlainText(str);
     plainTextEdit->setReadOnly(true);
 
-    d->editor->setDisplayName(_("Disassembler (%1)")
+    d->editor->document()->setDisplayName(_("Disassembler (%1)")
         .arg(d->location.functionName()));
 
     updateBreakpointMarkers();
@@ -348,14 +346,14 @@ void DisassemblerAgent::updateLocationMarker()
     int lineNumber = contents.lineForAddress(d->location.address());
     if (d->location.needsMarker()) {
         if (d->locationMark)
-            d->editor->markableInterface()->removeMark(d->locationMark);
+            d->editor->textDocument()->markableInterface()->removeMark(d->locationMark);
         delete d->locationMark;
         d->locationMark = 0;
         if (lineNumber) {
             d->locationMark = new ITextMark(lineNumber);
             d->locationMark->setIcon(debuggerCore()->locationMarkIcon());
             d->locationMark->setPriority(TextEditor::ITextMark::HighPriority);
-            d->editor->markableInterface()->addMark(d->locationMark);
+            d->editor->textDocument()->markableInterface()->addMark(d->locationMark);
         }
     }
 
@@ -381,7 +379,7 @@ void DisassemblerAgent::updateBreakpointMarkers()
 
     const DisassemblerLines contents = d->contentsAtCurrentLocation();
     foreach (TextEditor::ITextMark *marker, d->breakpointMarks)
-        d->editor->markableInterface()->removeMark(marker);
+        d->editor->textDocument()->markableInterface()->removeMark(marker);
     qDeleteAll(d->breakpointMarks);
     d->breakpointMarks.clear();
     foreach (BreakpointModelId id, ids) {
@@ -395,7 +393,7 @@ void DisassemblerAgent::updateBreakpointMarkers()
         marker->setIcon(handler->icon(id));
         marker->setPriority(ITextMark::NormalPriority);
         d->breakpointMarks.append(marker);
-        d->editor->markableInterface()->addMark(marker);
+        d->editor->textDocument()->markableInterface()->addMark(marker);
     }
 }
 

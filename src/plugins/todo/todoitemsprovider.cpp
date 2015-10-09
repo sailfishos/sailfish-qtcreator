@@ -1,7 +1,7 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Dmitry Savchenko
-** Copyright (c) 2013 Vasiliy Sorokin
+** Copyright (c) 2014 Dmitry Savchenko
+** Copyright (c) 2014 Vasiliy Sorokin
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -41,6 +41,8 @@
 
 #include <QTimer>
 
+using namespace ProjectExplorer;
+
 namespace Todo {
 namespace Internal {
 
@@ -78,11 +80,9 @@ void TodoItemsProvider::updateList()
     // Show only items of the current file if any
     if (m_settings.scanningScope == ScanningScopeCurrentFile) {
         if (m_currentEditor)
-            m_itemsList = m_itemsHash.value(m_currentEditor->document()->fileName());
-    }
-
+            m_itemsList = m_itemsHash.value(m_currentEditor->document()->filePath());
     // Show only items of the startup project if any
-    else {
+    } else {
         if (m_startupProject)
             setItemsListWithinStartupProject();
     }
@@ -152,20 +152,16 @@ void TodoItemsProvider::updateListTimeoutElapsed()
 
 void TodoItemsProvider::setupStartupProjectBinding()
 {
-    ProjectExplorer::ProjectExplorerPlugin *projectExplorerPlugin = ProjectExplorer::ProjectExplorerPlugin::instance();
-
-    m_startupProject = projectExplorerPlugin->startupProject();
-    connect(projectExplorerPlugin->session(), SIGNAL(startupProjectChanged(ProjectExplorer::Project*)),
+    m_startupProject = SessionManager::startupProject();
+    connect(SessionManager::instance(), SIGNAL(startupProjectChanged(ProjectExplorer::Project*)),
         SLOT(startupProjectChanged(ProjectExplorer::Project*)));
-    connect(projectExplorerPlugin, SIGNAL(fileListChanged()), SLOT(projectsFilesChanged()));
+    connect(ProjectExplorerPlugin::instance(), SIGNAL(fileListChanged()), SLOT(projectsFilesChanged()));
 }
 
 void TodoItemsProvider::setupCurrentEditorBinding()
 {
-    Core::EditorManager *editorManager = Core::EditorManager::instance();
-
     m_currentEditor = Core::EditorManager::currentEditor();
-    connect(editorManager, SIGNAL(currentEditorChanged(Core::IEditor*)),
+    connect(Core::EditorManager::instance(), SIGNAL(currentEditorChanged(Core::IEditor*)),
         SLOT(currentEditorChanged(Core::IEditor*)));
 }
 

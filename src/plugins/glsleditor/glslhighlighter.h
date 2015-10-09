@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -32,9 +32,9 @@
 #include <texteditor/syntaxhighlighter.h>
 
 namespace GLSLEditor {
-class GLSLTextEditorWidget;
-
 namespace Internal {
+
+class GLSLTextEditorWidget;
 
 class Highlighter : public TextEditor::SyntaxHighlighter
 {
@@ -57,10 +57,9 @@ public:
         NumGLSLFormats
     };
 
+    explicit Highlighter(QTextDocument *parent = 0);
     explicit Highlighter(TextEditor::BaseTextDocument *parent);
     virtual ~Highlighter();
-
-    void setFormats(const QVector<QTextCharFormat> &formats);
 
 protected:
     void highlightBlock(const QString &text);
@@ -68,7 +67,7 @@ protected:
     bool isPPKeyword(const QStringRef &text) const;
 
 private:
-    QTextCharFormat m_formats[NumGLSLFormats];
+    void init();
 };
 
 } // namespace Internal

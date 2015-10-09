@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -39,15 +39,12 @@ class QActionGroup;
 class QToolBar;
 QT_END_NAMESPACE
 
-namespace ProjectExplorer {
-    class TaskHub;
-}
+namespace Utils { class LineColumnLabel; }
 
 namespace Qnx {
 namespace Internal {
 
 class BarDescriptorDocument;
-
 class BarDescriptorEditorWidget;
 
 class BarDescriptorEditor : public Core::IEditor
@@ -61,33 +58,27 @@ public:
         Source
     };
 
-    explicit BarDescriptorEditor(BarDescriptorEditorWidget *editorWidget);
+    BarDescriptorEditor();
 
-    bool createNew(const QString &contents = QString());
     bool open(QString *errorString, const QString &fileName, const QString &realFileName);
     Core::IDocument *document();
-    Core::Id id() const;
-    QString displayName() const;
-    void setDisplayName(const QString &title);
-    bool isTemporary() const;
     QWidget *toolBar();
 
     EditorPage activePage() const;
 
 private slots:
     void changeEditorPage(QAction *action);
+    void updateCursorPosition();
 
 private:
-    ProjectExplorer::TaskHub *taskHub();
-
     void setActivePage(EditorPage page);
 
     BarDescriptorDocument *m_file;
 
-    QString m_displayName;
-
     QToolBar *m_toolBar;
     QActionGroup *m_actionGroup;
+    Utils::LineColumnLabel *m_cursorPositionLabel;
+    QAction *m_cursorPositionAction;
 };
 
 } // namespace Internal

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -687,7 +687,7 @@ QString Preprocessor::State::guardStateToString(int guardState)
  * occurs inside the #ifndef block, but not nested inside other
  * #if/#ifdef/#ifndef blocks.
  *
- * This method tracks the state, and is called from \c updateIncludeGuardState
+ * This function tracks the state, and is called from \c updateIncludeGuardState
  * which handles the most common no-op cases.
  *
  * @param hint indicates what kind of token is encountered in the input
@@ -829,8 +829,11 @@ void Preprocessor::handleDefined(PPToken *tk)
     pushToken(tk);
 
     QByteArray result(1, '0');
-    if (m_env->resolve(idToken.asByteArrayRef()))
+    const ByteArrayRef macroName = idToken.asByteArrayRef();
+    if (macroDefinition(macroName, idToken.offset + m_state.m_offsetRef,
+                        idToken.lineno, m_env, m_client)) {
         result[0] = '1';
+    }
     *tk = generateToken(T_NUMERIC_LITERAL, result.constData(), result.size(), lineno, false);
 }
 
@@ -857,7 +860,7 @@ _Lagain:
         // to the macro that generated this token. In either case, the macro
         // that generated the token still needs to be blocked (!), which is
         // recorded in the token buffer. Removing the blocked macro and the
-        // empty token buffer happens the next time that this method is called.
+        // empty token buffer happens the next time that this function is called.
     } else {
         // No token buffer, so have the lexer scan the next token.
         tk->setSource(m_state.m_source);
@@ -898,6 +901,11 @@ void Preprocessor::skipPreprocesorDirective(PPToken *tk)
     ScopedBoolSwap s(m_state.m_inPreprocessorDirective, true);
 
     while (isContinuationToken(*tk)) {
+        if (tk->isComment()) {
+            synchronizeOutputLines(*tk);
+            enforceSpacing(*tk, true);
+            currentOutputBuffer().append(tk->tokenStart(), tk->length());
+        }
         lex(tk);
     }
 }
@@ -964,11 +972,11 @@ bool Preprocessor::handleIdentifier(PPToken *tk)
     // their corresponding argument in macro substitution. For expanded tokens which are
     // generated, this information must be taken from somewhere else. What we do is to keep
     // a "reference" line initialize set to the line where expansion happens.
-    unsigned baseLine = idTk.lineno;
+    unsigned baseLine = idTk.lineno - m_state.m_lineRef + 1;
 
     QVector<PPToken> body = macro->definitionTokens();
 
-    // Withing nested expansion we might reach a previously added marker token. In this case,
+    // Within nested expansion we might reach a previously added marker token. In this case,
     // we need to move it from its current possition to outside the nesting.
     PPToken oldMarkerTk;
 
@@ -1064,7 +1072,7 @@ bool Preprocessor::handleIdentifier(PPToken *tk)
             // This is not the most beautiful approach but it's quite reasonable. What we do here
             // is to create a fake identifier token which is only composed by whitespaces. It's
             // also not marked as expanded so it it can be treated as a regular token.
-            QByteArray content(idTk.f.length + computeDistance(idTk), ' ');
+            const QByteArray content(int(idTk.f.length + computeDistance(idTk)), ' ');
             PPToken fakeIdentifier = generateToken(T_IDENTIFIER,
                                                    content.constData(), content.length(),
                                                    idTk.lineno, false, false);
@@ -1131,7 +1139,7 @@ bool Preprocessor::handleFunctionLikeMacro(const Macro *macro,
     for (size_t i = 0; i < bodySize && expanded.size() < MAX_TOKEN_EXPANSION_COUNT;
             ++i) {
         int expandedSize = expanded.size();
-        PPToken bodyTk = body.at(i);
+        PPToken bodyTk = body.at(int(i));
 
         if (bodyTk.is(T_IDENTIFIER)) {
             const ByteArrayRef id = bodyTk.asByteArrayRef();
@@ -1152,7 +1160,7 @@ bool Preprocessor::handleFunctionLikeMacro(const Macro *macro,
 
                     const int actualsSize = actualsForThisParam.size();
 
-                    if (i > 0 && body[i - 1].is(T_POUND)) {
+                    if (i > 0 && body[int(i) - 1].is(T_POUND)) {
                         QByteArray enclosedString;
                         enclosedString.reserve(256);
 
@@ -1205,7 +1213,7 @@ bool Preprocessor::handleFunctionLikeMacro(const Macro *macro,
             expanded.push_back(bodyTk);
         }
 
-        if (i > 1 && body[i - 1].is(T_POUND_POUND)) {
+        if (i > 1 && body[int(i) - 1].is(T_POUND_POUND)) {
             if (expandedSize < 1 || expanded.size() == expandedSize) //### TODO: [cpp.concat] placemarkers
                 continue;
             const PPToken &leftTk = expanded[expandedSize - 1];
@@ -1300,7 +1308,7 @@ void Preprocessor::trackExpansionCycles(PPToken *tk)
 
 static void adjustForCommentOrStringNewlines(unsigned *currentLine, const PPToken &tk)
 {
-    if (tk.is(T_COMMENT) || tk.is(T_DOXY_COMMENT) || tk.isStringLiteral())
+    if (tk.isComment() || tk.isStringLiteral())
         (*currentLine) += tk.asByteArrayRef().count('\n');
 }
 
@@ -1414,7 +1422,7 @@ void Preprocessor::preprocess(const QString &fileName, const QByteArray &source,
             unsigned trackedColumn = 0;
             if (tk.expanded() && !tk.generated()) {
                 trackedLine = tk.lineno;
-                trackedColumn = computeDistance(tk, true);
+                trackedColumn = unsigned(computeDistance(tk, true));
             }
             m_state.m_expandedTokensInfo.append(qMakePair(trackedLine, trackedColumn));
         } else if (m_state.m_expansionStatus == JustFinishedExpansion) {
@@ -1703,8 +1711,13 @@ void Preprocessor::handleDefineDirective(PPToken *tk)
         previousLine = tk->lineno;
 
         // Discard comments in macro definitions (keep comments flag doesn't apply here).
-        if (!tk->isComment())
+        if (tk->isComment()) {
+            synchronizeOutputLines(*tk);
+            enforceSpacing(*tk, true);
+            currentOutputBuffer().append(tk->tokenStart(), tk->length());
+        } else {
             bodyTokens.push_back(*tk);
+        }
 
         lex(tk);
     }
@@ -1824,13 +1837,13 @@ void Preprocessor::handleElifDirective(PPToken *tk, const PPToken &poundToken)
             m_state.m_skipping[m_state.m_ifLevel] = true;
         } else if (m_state.m_trueTest[m_state.m_ifLevel]) {
             if (!m_state.m_skipping[m_state.m_ifLevel]) {
-                // start skipping because the preceeding then-part was not skipped
+                // start skipping because the preceding then-part was not skipped
                 m_state.m_skipping[m_state.m_ifLevel] = true;
                 if (m_client)
                     startSkippingBlocks(poundToken);
             }
         } else {
-            // preceeding then-part was skipped, so calculate if we should start
+            // preceding then-part was skipped, so calculate if we should start
             // skipping, depending on the condition
             Value result;
             evalExpression(tk, result);
@@ -1862,12 +1875,11 @@ void Preprocessor::handleElseDirective(PPToken *tk, const PPToken &poundToken)
             else if (m_client && !wasSkipping && startSkipping)
                 startSkippingBlocks(poundToken);
         }
-    }
 #ifndef NO_DEBUG
-    else {
+    } else {
         std::cerr << "*** WARNING #else without #if" << std::endl;
-    }
 #endif // NO_DEBUG
+    }
 }
 
 void Preprocessor::handleEndIfDirective(PPToken *tk, const PPToken &poundToken)
@@ -1930,12 +1942,11 @@ void Preprocessor::handleIfDefDirective(bool checkUndefined, PPToken *tk)
             startSkippingBlocks(*tk);
 
         lex(tk); // consume the identifier
-    }
 #ifndef NO_DEBUG
-    else {
+    } else {
         std::cerr << "*** WARNING #ifdef without identifier" << std::endl;
-    }
 #endif // NO_DEBUG
+    }
 }
 
 void Preprocessor::handleUndefDirective(PPToken *tk)
@@ -1943,17 +1954,25 @@ void Preprocessor::handleUndefDirective(PPToken *tk)
     lex(tk); // consume "undef" token
     if (tk->is(T_IDENTIFIER)) {
         const ByteArrayRef macroName = tk->asByteArrayRef();
-        const Macro *macro = m_env->remove(macroName);
+        const unsigned offset = tk->offset + m_state.m_offsetRef;
+        // Track macro use if previously defined
+        if (m_client) {
+            if (const Macro *existingMacro = m_env->resolve(macroName))
+                m_client->notifyMacroReference(offset, tk->lineno, *existingMacro);
+        }
+        synchronizeOutputLines(*tk);
+        Macro *macro = m_env->remove(macroName);
 
-        if (m_client && macro)
+        if (m_client && macro) {
+            macro->setOffset(offset);
             m_client->macroAdded(*macro);
+        }
         lex(tk); // consume macro name
-    }
 #ifndef NO_DEBUG
-    else {
+    } else {
         std::cerr << "*** WARNING #undef without identifier" << std::endl;
-    }
 #endif // NO_DEBUG
+    }
 }
 
 PPToken Preprocessor::generateToken(enum Kind kind,
@@ -1988,7 +2007,7 @@ PPToken Preprocessor::generateToken(enum Kind kind,
         else if (kind == T_NUMERIC_LITERAL)
             tk.number = m_state.m_lexer->control()->numericLiteral(m_scratchBuffer.constData() + pos, length);
     }
-    tk.offset = pos;
+    tk.offset = unsigned(pos);
     tk.f.length = length;
     tk.f.generated = true;
     tk.f.expanded = true;
@@ -2032,6 +2051,15 @@ bool Preprocessor::atStartOfOutputLine() const
 void Preprocessor::maybeStartOutputLine()
 {
     QByteArray &buffer = currentOutputBuffer();
-    if (!buffer.isEmpty() && !buffer.endsWith('\n'))
+    if (buffer.isEmpty())
+        return;
+    if (!buffer.endsWith('\n'))
+        buffer.append('\n');
+    // If previous line ends with \ (possibly followed by whitespace), add another \n
+    const char *start = buffer.constData();
+    const char *ch = start + buffer.length() - 2;
+    while (ch > start && (*ch != '\n') && std::isspace(*ch))
+        --ch;
+    if (*ch == '\\')
         buffer.append('\n');
 }

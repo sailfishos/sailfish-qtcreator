@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -39,7 +39,7 @@ class PasteBinDotCaProtocol : public NetworkProtocol
 public:
     explicit PasteBinDotCaProtocol();
 
-    static QString protocolName() { return QLatin1String("Pastebin.Ca"); }
+    static QString protocolName();
     QString name() const { return protocolName(); }
 
     virtual bool hasSettings() const { return false; }

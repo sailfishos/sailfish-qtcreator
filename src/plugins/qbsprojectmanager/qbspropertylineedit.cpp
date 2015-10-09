@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -37,7 +37,7 @@ namespace QbsProjectManager {
 namespace Internal {
 
 QbsPropertyLineEdit::QbsPropertyLineEdit(QWidget *parent) :
-    Utils::BaseValidatingLineEdit(parent)
+    Utils::FancyLineEdit(parent)
 { }
 
 QList<QPair<QString, QString> > QbsPropertyLineEdit::properties() const
@@ -48,7 +48,7 @@ QList<QPair<QString, QString> > QbsPropertyLineEdit::properties() const
 bool QbsPropertyLineEdit::validate(const QString &value, QString *errorMessage) const
 {
     Utils::QtcProcess::SplitError err;
-    QStringList argList = Utils::QtcProcess::splitArgs(value, false, &err);
+    QStringList argList = Utils::QtcProcess::splitArgs(value, Utils::HostOsInfo::hostOs(), false, &err);
     if (err != Utils::QtcProcess::SplitOk) {
         if (errorMessage)
             *errorMessage = tr("Could not split properties.");

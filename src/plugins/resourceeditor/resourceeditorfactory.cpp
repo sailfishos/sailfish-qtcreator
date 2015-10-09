@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -44,31 +44,17 @@ using namespace ResourceEditor::Constants;
 
 ResourceEditorFactory::ResourceEditorFactory(ResourceEditorPlugin *plugin) :
     Core::IEditorFactory(plugin),
-    m_mimeTypes(QStringList(QLatin1String(C_RESOURCE_MIMETYPE))),
     m_plugin(plugin)
 {
-    Core::FileIconProvider *iconProvider = Core::FileIconProvider::instance();
-    iconProvider->registerIconOverlayForSuffix(QIcon(QLatin1String(":/resourceeditor/images/qt_qrc.png")),
-                                               QLatin1String("qrc"));
+    setId(RESOURCEEDITOR_ID);
+    setMimeTypes(QStringList(QLatin1String(C_RESOURCE_MIMETYPE)));
+    setDisplayName(qApp->translate("OpenWith::Editors", C_RESOURCEEDITOR_DISPLAY_NAME));
+
+    Core::FileIconProvider::registerIconOverlayForSuffix(":/resourceeditor/images/qt_qrc.png", "qrc");
 }
 
-Core::Id ResourceEditorFactory::id() const
-{
-    return Core::Id(RESOURCEEDITOR_ID);
-}
-
-QString ResourceEditorFactory::displayName() const
-{
-    return qApp->translate("OpenWith::Editors", C_RESOURCEEDITOR_DISPLAY_NAME);
-}
-
-Core::IEditor *ResourceEditorFactory::createEditor(QWidget *parent)
+Core::IEditor *ResourceEditorFactory::createEditor()
 {
     Core::Context context(ResourceEditor::Constants::C_RESOURCEEDITOR);
-    return new ResourceEditorW(context, m_plugin, parent);
-}
-
-QStringList ResourceEditorFactory::mimeTypes() const
-{
-    return m_mimeTypes;
+    return new ResourceEditorW(context, m_plugin);
 }

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -52,16 +52,6 @@
 
 using namespace ProjectExplorer;
 
-namespace {
-
-const char USE_CPP_DEBUGGER_KEY[] = "RunConfiguration.UseCppDebugger";
-const char USE_QML_DEBUGGER_KEY[] = "RunConfiguration.UseQmlDebugger";
-const char USE_QML_DEBUGGER_AUTO_KEY[] = "RunConfiguration.UseQmlDebuggerAuto";
-const char QML_DEBUG_SERVER_PORT_KEY[] = "RunConfiguration.QmlDebugServerPort";
-const char USE_MULTIPROCESS_KEY[] = "RunConfiguration.UseMultiProcess";
-
-} // namespace
-
 /*!
     \class ProjectExplorer::ProcessHandle
     \brief The ProcessHandle class is a helper class to describe a process.
@@ -103,14 +93,99 @@ bool ProcessHandle::equals(const ProcessHandle &rhs) const
     return m_pid == rhs.m_pid;
 }
 
+///////////////////////////////////////////////////////////////////////
+//
+// ISettingsAspect
+//
+///////////////////////////////////////////////////////////////////////
+
+ISettingsAspect *ISettingsAspect::clone() const
+{
+    ISettingsAspect *other = create();
+    QVariantMap data;
+    toMap(data);
+    other->fromMap(data);
+    return other;
+}
+
+///////////////////////////////////////////////////////////////////////
+//
+// IRunConfigurationAspect
+//
+///////////////////////////////////////////////////////////////////////
+
+IRunConfigurationAspect::IRunConfigurationAspect(RunConfiguration *parent)
+{
+    m_runConfiguration = parent;
+    m_projectSettings = 0;
+    m_globalSettings = 0;
+    m_useGlobalSettings = false;
+    connect(this, SIGNAL(requestRunActionsUpdate()), parent, SIGNAL(requestRunActionsUpdate()));
+}
+
+IRunConfigurationAspect::~IRunConfigurationAspect()
+{
+    delete m_projectSettings;
+}
 
 /*!
     Returns the widget used to configure this run configuration. Ownership is
     transferred to the caller.
 */
+
 RunConfigWidget *IRunConfigurationAspect::createConfigurationWidget()
 {
     return 0;
+}
+
+void IRunConfigurationAspect::setProjectSettings(ISettingsAspect *settings)
+{
+    m_projectSettings = settings;
+}
+
+void IRunConfigurationAspect::setGlobalSettings(ISettingsAspect *settings)
+{
+    m_globalSettings = settings;
+}
+
+void IRunConfigurationAspect::setUsingGlobalSettings(bool value)
+{
+    m_useGlobalSettings = value;
+}
+
+ISettingsAspect *IRunConfigurationAspect::currentSettings() const
+{
+   return m_useGlobalSettings ? m_globalSettings : m_projectSettings;
+}
+
+void IRunConfigurationAspect::fromMap(const QVariantMap &map)
+{
+    m_projectSettings->fromMap(map);
+    m_useGlobalSettings = map.value(m_id.toString() + QLatin1String(".UseGlobalSettings"), true).toBool();
+}
+
+void IRunConfigurationAspect::toMap(QVariantMap &map) const
+{
+    m_projectSettings->toMap(map);
+    map.insert(m_id.toString() + QLatin1String(".UseGlobalSettings"), m_useGlobalSettings);
+}
+
+IRunConfigurationAspect *IRunConfigurationAspect::clone(RunConfiguration *parent) const
+{
+    IRunConfigurationAspect *other = create(parent);
+    if (m_projectSettings)
+        other->m_projectSettings = m_projectSettings->clone();
+    other->m_globalSettings = m_globalSettings;
+    other->m_useGlobalSettings = m_useGlobalSettings;
+    return other;
+}
+
+void IRunConfigurationAspect::resetProjectToGlobalSettings()
+{
+    QTC_ASSERT(m_globalSettings, return);
+    QVariantMap map;
+    m_globalSettings->toMap(map);
+    m_projectSettings->fromMap(map);
 }
 
 
@@ -225,7 +300,7 @@ QVariantMap RunConfiguration::toMap() const
     QVariantMap map = ProjectConfiguration::toMap();
 
     foreach (IRunConfigurationAspect *aspect, m_aspects)
-        map.unite(aspect->toMap());
+        aspect->toMap(map);
 
     return map;
 }
@@ -273,6 +348,14 @@ QList<IRunConfigurationAspect *> RunConfiguration::extraAspects() const
 {
     QTC_ASSERT(m_aspectsInitialized, return QList<IRunConfigurationAspect *>());
     return m_aspects;
+}
+IRunConfigurationAspect *RunConfiguration::extraAspect(Core::Id id) const
+{
+    QTC_ASSERT(m_aspectsInitialized, return 0);
+    foreach (IRunConfigurationAspect *aspect, m_aspects)
+        if (aspect->id() == id)
+            return aspect;
+    return 0;
 }
 
 Utils::OutputFormatter *RunConfiguration::createOutputFormatter() const
@@ -347,7 +430,7 @@ RunConfiguration *IRunConfigurationFactory::restore(Target *parent, const QVaria
 IRunConfigurationFactory *IRunConfigurationFactory::find(Target *parent, const QVariantMap &map)
 {
     QList<IRunConfigurationFactory *> factories
-            = ExtensionSystem::PluginManager::instance()->getObjects<IRunConfigurationFactory>();
+            = ExtensionSystem::PluginManager::getObjects<IRunConfigurationFactory>();
     foreach (IRunConfigurationFactory *factory, factories) {
         if (factory->canRestore(parent, map))
             return factory;
@@ -358,7 +441,7 @@ IRunConfigurationFactory *IRunConfigurationFactory::find(Target *parent, const Q
 IRunConfigurationFactory *IRunConfigurationFactory::find(Target *parent, RunConfiguration *rc)
 {
     QList<IRunConfigurationFactory *> factories
-            = ExtensionSystem::PluginManager::instance()->getObjects<IRunConfigurationFactory>();
+            = ExtensionSystem::PluginManager::getObjects<IRunConfigurationFactory>();
     foreach (IRunConfigurationFactory *factory, factories) {
         if (factory->canClone(parent, rc))
             return factory;
@@ -369,7 +452,7 @@ IRunConfigurationFactory *IRunConfigurationFactory::find(Target *parent, RunConf
 QList<IRunConfigurationFactory *> IRunConfigurationFactory::find(Target *parent)
 {
     QList<IRunConfigurationFactory *> factories
-            = ExtensionSystem::PluginManager::instance()->getObjects<IRunConfigurationFactory>();
+            = ExtensionSystem::PluginManager::getObjects<IRunConfigurationFactory>();
     QList<IRunConfigurationFactory *> result;
     foreach (IRunConfigurationFactory *factory, factories) {
         if (!factory->availableCreationIds(parent).isEmpty())
@@ -385,9 +468,8 @@ QList<IRunConfigurationFactory *> IRunConfigurationFactory::find(Target *parent)
     run configuration.
 */
 
-
 /*!
-    \fn RunConfigWidget *ProjectExplorer::IRunControlFactory::createConfigurationWidget(RunConfiguration *runConfiguration)
+    \fn RunConfigWidget *ProjectExplorer::IRunConfigurationAspect::createConfigurationWidget()
 
     Returns a widget used to configure this runner. Ownership is transferred to
     the caller.
@@ -535,7 +617,7 @@ bool RunControl::showPromptToStopDialog(const QString &title,
         messageBox.button(QDialogButtonBox::Cancel)->setText(cancelButtonText);
     messageBox.setDefaultButton(QDialogButtonBox::Yes);
     if (prompt) {
-        messageBox.setCheckBoxText(tr("Do not ask again"));
+        messageBox.setCheckBoxText(Utils::CheckableMessageBox::msgDoNotAskAgain());
         messageBox.setChecked(false);
     } else {
         messageBox.setCheckBoxVisible(false);

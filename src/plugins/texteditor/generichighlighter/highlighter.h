@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,8 +30,11 @@
 #ifndef HIGHLIGHTER_H
 #define HIGHLIGHTER_H
 
-#include "basetextdocumentlayout.h"
-#include "syntaxhighlighter.h"
+#include "context.h"
+
+// Yes, this is correct. These are found somewhere else when building the autotest.
+#include <basetextdocumentlayout.h>
+#include <syntaxhighlighter.h>
 
 #include <QString>
 #include <QVector>
@@ -44,14 +47,19 @@
 namespace TextEditor {
 
 class TabSettings;
-
 namespace Internal {
 
 class Rule;
-class Context;
 class HighlightDefinition;
 class ProgressData;
 
+} // namespace Internal
+
+/*
+  Warning: Due to a very ugly hack with generichighlighter test
+  you can't export this class, so that it would be used from
+  other plugins. That's why highlighterutils.h was introduced.
+*/
 class Highlighter : public TextEditor::SyntaxHighlighter
 {
     Q_OBJECT
@@ -65,22 +73,22 @@ public:
         VisualWhitespace,
         Keyword,
         DataType,
+        Comment,
         Decimal,
         BaseN,
         Float,
         Char,
         String,
-        Comment,
         Alert,
         Error,
         Function,
         RegionMarker,
-        Others
+        Others,
+        Identifier
     };
 
-    void configureFormat(TextFormatId id, const QTextCharFormat &format);
     void setTabSettings(const TabSettings &ts);
-    void setDefaultContext(const QSharedPointer<Context> &defaultContext);
+    void setDefaultContext(const QSharedPointer<Internal::Context> &defaultContext);
 
 protected:
     virtual void highlightBlock(const QString &text);
@@ -95,17 +103,17 @@ private:
 
     void iterateThroughRules(const QString &text,
                              const int length,
-                             ProgressData *progress,
+                             Internal::ProgressData *progress,
                              const bool childRule,
-                             const QList<QSharedPointer<Rule> > &rules);
+                             const QList<QSharedPointer<Internal::Rule> > &rules);
 
     void assignCurrentContext();
     bool contextChangeRequired(const QString &contextName) const;
     void handleContextChange(const QString &contextName,
-                             const QSharedPointer<HighlightDefinition> &definition,
+                             const QSharedPointer<Internal::HighlightDefinition> &definition,
                              const bool setCurrent = true);
     void changeContext(const QString &contextName,
-                       const QSharedPointer<HighlightDefinition> &definition,
+                       const QSharedPointer<Internal::HighlightDefinition> &definition,
                        const bool assignCurrent = true);
 
     QString currentContextSequence() const;
@@ -113,7 +121,7 @@ private:
     void mapLeadingSequence(const QString &contextSequence);
     void pushContextSequence(int state);
 
-    void pushDynamicContext(const QSharedPointer<Context> &baseContext);
+    void pushDynamicContext(const QSharedPointer<Internal::Context> &baseContext);
 
     void createWillContinueBlock();
     void analyseConsistencyOfWillContinueBlock(const QString &text);
@@ -121,33 +129,13 @@ private:
     void applyFormat(int offset,
                      int count,
                      const QString &itemDataName,
-                     const QSharedPointer<HighlightDefinition> &definition);
+                     const QSharedPointer<Internal::HighlightDefinition> &definition);
 
     void applyRegionBasedFolding() const;
     void applyIndentationBasedFolding(const QString &text) const;
     int neighbouringNonEmptyBlockIndent(QTextBlock block, const bool previous) const;
 
-    // Mapping from Kate format strings to format ids.
-    struct KateFormatMap
-    {
-        KateFormatMap();
-        QHash<QString, TextFormatId> m_ids;
-    };
-    static const KateFormatMap m_kateFormats;
-    QHash<TextFormatId, QTextCharFormat> m_creatorFormats;
-
-    struct BlockData : TextBlockUserData
-    {
-        BlockData();
-        virtual ~BlockData();
-
-        int m_foldingIndentDelta;
-        int m_originalObservableState;
-        QStack<QString> m_foldingRegions;
-        QSharedPointer<Context> m_contextToContinue;
-    };
-    BlockData *initializeBlockData();
-    static BlockData *blockData(QTextBlockUserData *userData);
+    static TextBlockUserData *blockData(QTextBlockUserData *userData);
 
     // Block states are composed by the region depth (used for code folding) and what I call
     // observable states. Observable states occupy the 12 least significant bits. They might have
@@ -181,22 +169,21 @@ private:
 
     bool m_isBroken;
 
-    QSharedPointer<Context> m_defaultContext;
-    QSharedPointer<Context> m_currentContext;
-    QVector<QSharedPointer<Context> > m_contexts;
+    QSharedPointer<Internal::Context> m_defaultContext;
+    QSharedPointer<Internal::Context> m_currentContext;
+    QVector<QSharedPointer<Internal::Context> > m_contexts;
 
     // Mapping from context sequences to the observable persistent state they represent.
     QHash<QString, int> m_persistentObservableStates;
     // Mapping from context sequences to the non-persistent observable state that led to them.
     QHash<QString, int> m_leadingObservableStates;
     // Mapping from observable persistent states to context sequences (the actual "stack").
-    QHash<int, QVector<QSharedPointer<Context> > > m_persistentContexts;
+    QHash<int, QVector<QSharedPointer<Internal::Context> > > m_persistentContexts;
 
     // Captures used in dynamic rules.
     QStringList m_currentCaptures;
 };
 
-} // namespace Internal
 } // namespace TextEditor
 
 #endif // HIGHLIGHTER_H

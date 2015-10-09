@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -43,36 +43,15 @@
 #include <QGraphicsEffect>
 #include <QAction>
 #include "contextpanetextwidget.h"
-#include "easingcontextpane.h"
 #include "contextpanewidgetimage.h"
 #include "contextpanewidgetrectangle.h"
 #include "customcolordialog.h"
 #include "colorbutton.h"
+#include <qmleditorwidgets/easingpane/easingcontextpane.h>
 
 using namespace Utils;
 
 namespace QmlEditorWidgets {
-
-/* XPM */
-static const char * const line_xpm[] = {
-        "14 14 3 1",
-        " 	c None",
-        ".	c #0c0c0c",
-        "x	c #1c1c1c",
-        "............. ",
-        ".           . ",
-        ". x       x . ",
-        ".  x     x  . ",
-        ".   x   x   . ",
-        ".    x x    . ",
-        ".     x     . ",
-        ".    x x    . ",
-        ".   x   x   . ",
-        ".  x     x  . ",
-        ". x       x . ",
-        ".           . ",
-        "............. ",
-        "              "};
 
 /* XPM */
 static const char * pin_xpm[] = {

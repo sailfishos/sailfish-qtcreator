@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -436,7 +436,7 @@ void TypePrettyPrinter::visit(Function *type)
 
                 if (_overview->showDefaultArguments) {
                     if (const StringLiteral *initializer = arg->initializer()) {
-                        _text += QLatin1String(" =");
+                        _text += QLatin1String(" = ");
                         _text += QString::fromUtf8(initializer->chars(), initializer->size());
                     }
                 }

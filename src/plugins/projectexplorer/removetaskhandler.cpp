@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -29,7 +29,6 @@
 
 #include "removetaskhandler.h"
 
-#include "projectexplorer.h"
 #include "task.h"
 #include "taskhub.h"
 
@@ -39,13 +38,13 @@ using namespace ProjectExplorer::Internal;
 
 void RemoveTaskHandler::handle(const ProjectExplorer::Task &task)
 {
-    ProjectExplorerPlugin::instance()->taskHub()->removeTask(task);
+    TaskHub::removeTask(task);
 }
 
 QAction *RemoveTaskHandler::createAction(QObject *parent) const
 {
     QAction *removeAction = new QAction(tr("Remove", "Name of the action triggering the removetaskhandler"), parent);
-    removeAction->setToolTip(tr("Remove task from the task list"));
+    removeAction->setToolTip(tr("Remove task from the task list."));
     removeAction->setShortcut(QKeySequence(QKeySequence::Delete));
     removeAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
     return removeAction;

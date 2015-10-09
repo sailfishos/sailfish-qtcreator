@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Nicolas Arnaud-Cormos
+** Copyright (c) 2014 Nicolas Arnaud-Cormos
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,8 +30,6 @@
 #ifndef MACROSPLUGIN_MACROMANAGER_H
 #define MACROSPLUGIN_MACROMANAGER_H
 
-#include "macros_global.h"
-
 #include <QObject>
 #include <QMap>
 
@@ -40,28 +38,24 @@ class QAction;
 QT_END_NAMESPACE
 
 namespace Macros {
-
-class Macro;
-class IMacroHandler;
-
 namespace Internal {
-    class MacroOptionsWidget;
-}
 
-class MACROS_EXPORT MacroManager : public QObject
+class IMacroHandler;
+class Macro;
+class MacroOptionsWidget;
+class MacrosPlugin;
+
+class MacroManager : public QObject
 {
     Q_OBJECT
 public:
-    explicit MacroManager(QObject *parent = 0);
-    ~MacroManager();
-
     static MacroManager *instance();
 
-    const QMap<QString, Macro *> &macros() const;
+    static const QMap<QString, Macro *> &macros();
 
-    void registerMacroHandler(IMacroHandler *handler);
+    static void registerMacroHandler(IMacroHandler *handler);
 
-    QString macrosDirectory() const;
+    static QString macrosDirectory();
 
 public slots:
     void startMacro();
@@ -77,12 +71,18 @@ protected:
     void changeMacro(const QString &name, const QString &description);
 
 private:
+    explicit MacroManager(QObject *parent = 0);
+    ~MacroManager();
+
     static MacroManager *m_instance;
 
     class MacroManagerPrivate;
     MacroManagerPrivate* d;
+
+    friend class Internal::MacrosPlugin;
 };
 
+} // namespace Internal
 } // namespace Macros
 
 #endif // MACROSPLUGIN_MACROMANAGER_H

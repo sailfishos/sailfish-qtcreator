@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -72,7 +72,6 @@ struct ModeManagerPrivate
     QSignalMapper *m_signalMapper;
     Context m_addedContexts;
     int m_oldCurrent;
-    bool m_saveSettingsOnModeChange;
     bool m_modeSelectorVisible;
 };
 
@@ -100,15 +99,12 @@ ModeManager::ModeManager(Internal::MainWindow *mainWindow,
     d->m_oldCurrent = -1;
     d->m_actionBar = new Internal::FancyActionBar(modeStack);
     d->m_modeStack->addCornerWidget(d->m_actionBar);
-    d->m_saveSettingsOnModeChange = false;
     d->m_modeSelectorVisible = true;
     d->m_modeStack->setSelectionWidgetVisible(d->m_modeSelectorVisible);
 
     connect(d->m_modeStack, SIGNAL(currentAboutToShow(int)), SLOT(currentTabAboutToChange(int)));
     connect(d->m_modeStack, SIGNAL(currentChanged(int)), SLOT(currentTabChanged(int)));
     connect(d->m_signalMapper, SIGNAL(mapped(int)), this, SLOT(slotActivateMode(int)));
-    connect(ExtensionSystem::PluginManager::instance(), SIGNAL(initializationDone()), this, SLOT(handleStartup()));
-    connect(ICore::instance(), SIGNAL(coreAboutToClose()), this, SLOT(handleShutdown()));
 }
 
 void ModeManager::init()
@@ -188,7 +184,7 @@ void ModeManager::objectAdded(QObject *obj)
     Command *cmd = ActionManager::registerShortcut(shortcut, shortcutId, Context(Constants::C_GLOBAL));
 
     d->m_modeShortcuts.insert(index, cmd);
-    connect(cmd, SIGNAL(keySequenceChanged()), this, SLOT(updateModeToolTip()));
+    connect(cmd, SIGNAL(keySequenceChanged()), m_instance, SLOT(updateModeToolTip()));
     for (int i = 0; i < d->m_modeShortcuts.size(); ++i) {
         Command *currentCmd = d->m_modeShortcuts.at(i);
         // we need this hack with currentlyHasDefaultSequence
@@ -205,7 +201,7 @@ void ModeManager::objectAdded(QObject *obj)
     d->m_signalMapper->setMapping(shortcut, mode->id().uniqueIdentifier());
     connect(shortcut, SIGNAL(activated()), d->m_signalMapper, SLOT(map()));
     connect(mode, SIGNAL(enabledStateChanged(bool)),
-            this, SLOT(enabledStateChanged()));
+            m_instance, SLOT(enabledStateChanged()));
 }
 
 void ModeManager::updateModeToolTip()
@@ -238,12 +234,6 @@ void ModeManager::enabledStateChanged()
         }
     }
 }
-
-void ModeManager::handleStartup()
-{ d->m_saveSettingsOnModeChange = true; }
-
-void ModeManager::handleShutdown()
-{ d->m_saveSettingsOnModeChange = false; }
 
 void ModeManager::aboutToRemoveObject(QObject *obj)
 {
@@ -283,11 +273,8 @@ void ModeManager::currentTabAboutToChange(int index)
 {
     if (index >= 0) {
         IMode *mode = d->m_modes.at(index);
-        if (mode) {
-            if (d->m_saveSettingsOnModeChange)
-                ICore::saveSettings();
+        if (mode)
             emit currentModeAboutToChange(mode);
-        }
     }
 }
 
@@ -321,7 +308,6 @@ void ModeManager::setFocusToCurrentMode()
         if (!focusWidget)
             focusWidget = widget;
         focusWidget->setFocus();
-        ICore::raiseWindow(focusWidget);
     }
 }
 
@@ -336,7 +322,7 @@ bool ModeManager::isModeSelectorVisible()
     return d->m_modeSelectorVisible;
 }
 
-ModeManager *ModeManager::instance()
+QObject *ModeManager::instance()
 {
     return m_instance;
 }

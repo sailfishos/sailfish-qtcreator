@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2013 Jolla Ltd.
+** Copyright (C) 2012 - 2014 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -21,14 +21,15 @@
 ****************************************************************************/
 
 #include "merremoteprocess.h"
+
 #include <mer/merconstants.h>
 #include <ssh/sshremoteprocessrunner.h>
 
-#include <QFile>
-#include <QSettings>
 #include <QCoreApplication>
 #include <QDir>
+#include <QFile>
 #include <QProcessEnvironment>
+#include <QSettings>
 #include <QSocketNotifier>
 
 MerRemoteProcess::MerRemoteProcess(QObject *parent)

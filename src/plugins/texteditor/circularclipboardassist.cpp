@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -39,6 +39,8 @@
 
 #include <coreplugin/coreconstants.h>
 
+#include <utils/qtcoverride.h>
+
 #include <QApplication>
 #include <QClipboard>
 
@@ -62,7 +64,7 @@ public:
         setText(text);
     }
 
-    virtual void apply(BaseTextEditor *editor, int /*basePosition*/) const
+    void apply(BaseTextEditor *editor, int /*basePosition*/) const QTC_OVERRIDE
     {
         BaseTextEditorWidget *editwidget = editor->editorWidget();
 
@@ -73,7 +75,8 @@ public:
         }
 
         //Copy the selected item
-        QApplication::clipboard()->setMimeData(editwidget->duplicateMimeData(m_mimeData.data()));
+        QApplication::clipboard()->setMimeData(
+                    BaseTextEditorWidget::duplicateMimeData(m_mimeData.data()));
 
         //Paste
         editwidget->paste();
@@ -86,7 +89,7 @@ private:
 class ClipboardAssistProcessor: public IAssistProcessor
 {
 public:
-    IAssistProposal *perform(const IAssistInterface *interface)
+    IAssistProposal *perform(const IAssistInterface *interface) QTC_OVERRIDE
     {
         if (!interface)
             return 0;
@@ -111,6 +114,11 @@ public:
 
 } // namespace Internal
 } // namespace TextEditor
+
+bool ClipboardAssistProvider::isAsynchronous() const
+{
+    return false;
+}
 
 bool ClipboardAssistProvider::supportsEditor(const Core::Id &/*editorId*/) const
 {

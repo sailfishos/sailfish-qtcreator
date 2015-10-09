@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -44,6 +44,7 @@ QT_END_NAMESPACE
 namespace ProjectExplorer {
 
 class BuildConfiguration;
+class BuildInfo;
 class IBuildStepFactory;
 class NamedWidget;
 
@@ -71,7 +72,7 @@ public:
     BuildSettingsWidget(Target *target);
     ~BuildSettingsWidget();
 
-    void clear();
+    void clearWidgets();
     void addSubWidget(ProjectExplorer::NamedWidget *widget);
     QList<ProjectExplorer::NamedWidget *> subWidgets() const;
 
@@ -104,6 +105,7 @@ private:
 
     QList<NamedWidget *> m_subWidgets;
     QList<QLabel *> m_labels;
+    QList<BuildInfo *> m_buildInfoList;
 };
 
 } // namespace Internal

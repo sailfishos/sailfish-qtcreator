@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -29,6 +29,8 @@
 
 
 #include "debugoutputcommand.h"
+
+#include <QtDebug>
 
 namespace QmlDesigner {
 
@@ -66,6 +68,19 @@ QDataStream &operator>>(QDataStream &in, DebugOutputCommand &command)
     in >> command.m_text;
 
     return in;
+}
+
+bool operator ==(const DebugOutputCommand &first, const DebugOutputCommand &second)
+{
+    return first.m_type == second.m_type
+            && first.m_text == second.m_text;
+}
+
+QDebug operator <<(QDebug debug, const DebugOutputCommand &command)
+{
+        return debug.nospace() << "DebugOutputCommand("
+                               << "type: " << command.type() << ", "
+                               << "text: " << command.text() << ")";
 }
 
 } // namespace QmlDesigner

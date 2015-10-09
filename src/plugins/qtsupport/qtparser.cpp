@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -39,10 +39,12 @@ using ProjectExplorer::Task;
 #define FILE_PATTERN "^(([A-Za-z]:)?[^:]+\\.[^:]+)"
 
 QtParser::QtParser() :
-    m_mocRegExp(QLatin1String(FILE_PATTERN"[:\\(](\\d+)\\)?:\\s([Ww]arning|[Ee]rror):\\s(.+)$"))
+    m_mocRegExp(QLatin1String(FILE_PATTERN"[:\\(](\\d+)\\)?:\\s([Ww]arning|[Ee]rror):\\s(.+)$")),
+    m_translationRegExp(QLatin1String("^([Ww]arning|[Ee]rror):\\s+(.*) in '(.*)'$"))
 {
     setObjectName(QLatin1String("QtParser"));
     m_mocRegExp.setMinimal(true);
+    m_translationRegExp.setMinimal(true);
 }
 
 void QtParser::stdError(const QString &line)
@@ -53,13 +55,24 @@ void QtParser::stdError(const QString &line)
         int lineno = m_mocRegExp.cap(3).toInt(&ok);
         if (!ok)
             lineno = -1;
-        Task task(Task::Error,
-                  m_mocRegExp.cap(5).trimmed(),
+        Task::TaskType type = Task::Error;
+        if (m_mocRegExp.cap(4).compare(QLatin1String("Warning"), Qt::CaseInsensitive) == 0)
+            type = Task::Warning;
+        Task task(type, m_mocRegExp.cap(5).trimmed() /* description */,
                   Utils::FileName::fromUserInput(m_mocRegExp.cap(1)) /* filename */,
                   lineno,
-                  Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_COMPILE));
-        if (m_mocRegExp.cap(4).compare(QLatin1String("Warning"), Qt::CaseInsensitive) == 0)
-            task.type = Task::Warning;
+                  ProjectExplorer::Constants::TASK_CATEGORY_COMPILE);
+        emit addTask(task);
+        return;
+    }
+    if (m_translationRegExp.indexIn(lne) > -1) {
+        Task::TaskType type = Task::Warning;
+        if (m_translationRegExp.cap(1) == QLatin1String("Error"))
+            type = Task::Error;
+        Task task(type, m_translationRegExp.cap(2),
+                  Utils::FileName::fromUserInput(m_translationRegExp.cap(3)) /* filename */,
+                  -1,
+                  ProjectExplorer::Constants::TASK_CATEGORY_COMPILE);
         emit addTask(task);
         return;
     }
@@ -121,7 +134,7 @@ void QtSupportPlugin::testQtOutputParser_data()
             << (QList<ProjectExplorer::Task>() << Task(Task::Warning,
                                                        QLatin1String("Can't create link to 'Object Trees & Ownership'"),
                                                        Utils::FileName::fromUserInput(QLatin1String("/home/user/dev/qt5/qtscript/src/script/api/qscriptengine.cpp")), 295,
-                                                       Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_COMPILE)))
+                                                       ProjectExplorer::Constants::TASK_CATEGORY_COMPILE))
             << QString();
     QTest::newRow("moc warning")
             << QString::fromLatin1("..\\untitled\\errorfile.h:0: Warning: No relevant classes found. No output generated.")
@@ -130,7 +143,7 @@ void QtSupportPlugin::testQtOutputParser_data()
             << (QList<ProjectExplorer::Task>() << Task(Task::Warning,
                                                        QLatin1String("No relevant classes found. No output generated."),
                                                        Utils::FileName::fromUserInput(QLatin1String("..\\untitled\\errorfile.h")), 0,
-                                                       Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_COMPILE)))
+                                                       ProjectExplorer::Constants::TASK_CATEGORY_COMPILE))
             << QString();
     QTest::newRow("moc warning 2")
             << QString::fromLatin1("c:\\code\\test.h(96): Warning: Property declaration ) has no READ accessor function. The property will be invalid.")
@@ -139,7 +152,7 @@ void QtSupportPlugin::testQtOutputParser_data()
             << (QList<ProjectExplorer::Task>() << Task(Task::Warning,
                                                        QLatin1String("Property declaration ) has no READ accessor function. The property will be invalid."),
                                                        Utils::FileName::fromUserInput(QLatin1String("c:\\code\\test.h")), 96,
-                                                       Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_COMPILE)))
+                                                       ProjectExplorer::Constants::TASK_CATEGORY_COMPILE))
             << QString();
     QTest::newRow("ninja with moc")
             << QString::fromLatin1("E:/sandbox/creator/loaden/src/libs/utils/iwelcomepage.h(54): Error: Undefined interface")
@@ -148,7 +161,16 @@ void QtSupportPlugin::testQtOutputParser_data()
             << (QList<ProjectExplorer::Task>() << Task(Task::Error,
                                                        QLatin1String("Undefined interface"),
                                                        Utils::FileName::fromUserInput(QLatin1String("E:/sandbox/creator/loaden/src/libs/utils/iwelcomepage.h")), 54,
-                                                       Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_COMPILE)))
+                                                       ProjectExplorer::Constants::TASK_CATEGORY_COMPILE))
+            << QString();
+    QTest::newRow("translation")
+            << QString::fromLatin1("Warning: dropping duplicate messages in '/some/place/qtcreator_fr.qm'")
+            << OutputParserTester::STDERR
+            << QString() << QString()
+            << (QList<ProjectExplorer::Task>() << Task(Task::Warning,
+                                                       QLatin1String("dropping duplicate messages"),
+                                                       Utils::FileName::fromUserInput(QLatin1String("/some/place/qtcreator_fr.qm")), -1,
+                                                       ProjectExplorer::Constants::TASK_CATEGORY_COMPILE))
             << QString();
 }
 

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -31,7 +31,8 @@
 
 #include "helpviewer.h"
 #include "localhelpmanager.h"
-#include "topicchooser.h"
+
+#include <topicchooser.h>
 
 #include <QEvent>
 #include <QTimer>
@@ -151,7 +152,7 @@ void CentralWidget::setCurrentPage(HelpViewer *page)
     m_stackedWidget->setCurrentWidget(page);
 }
 
-bool CentralWidget::find(const QString &txt, Find::FindFlags flags,
+bool CentralWidget::find(const QString &txt, Core::FindFlags flags,
     bool incremental, bool *wrapped)
 {
     return currentHelpViewer()->findText(txt, flags, incremental, false, wrapped);

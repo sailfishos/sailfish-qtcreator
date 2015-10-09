@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -41,26 +41,21 @@
 #include <valgrind/callgrind/callgrindfunction.h>
 #include <valgrind/callgrind/callgrindfunctioncall.h>
 #include <valgrind/callgrind/callgrindparsedata.h>
+#include <valgrind/callgrind/callgrindparser.h>
 #include <valgrind/callgrind/callgrindproxymodel.h>
 #include <valgrind/callgrind/callgrindstackbrowser.h>
 #include <valgrind/valgrindplugin.h>
 #include <valgrind/valgrindsettings.h>
 
 #include <analyzerbase/analyzermanager.h>
-#include <analyzerbase/analyzersettings.h>
 #include <analyzerbase/analyzerutils.h>
 #include <analyzerbase/analyzerconstants.h>
 
-#include <coreplugin/actionmanager/actioncontainer.h>
-#include <coreplugin/actionmanager/actionmanager.h>
-#include <coreplugin/actionmanager/command.h>
 #include <coreplugin/coreconstants.h>
-#include <coreplugin/icontext.h>
 #include <coreplugin/icore.h>
 
 #include <cplusplus/LookupContext.h>
 #include <cplusplus/Overview.h>
-#include <cppeditor/cppeditorconstants.h>
 #include <extensionsystem/iplugin.h>
 #include <texteditor/itexteditor.h>
 
@@ -80,10 +75,12 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDockWidget>
+#include <QFileDialog>
 #include <QGraphicsItem>
 #include <QHBoxLayout>
 #include <QLineEdit>
 #include <QMenu>
+#include <QMessageBox>
 #include <QSortFilterProxyModel>
 #include <QToolBar>
 #include <QToolButton>
@@ -95,6 +92,7 @@
 using namespace Analyzer;
 using namespace Core;
 using namespace Valgrind::Callgrind;
+using namespace ProjectExplorer;
 
 namespace Valgrind {
 namespace Internal {
@@ -117,7 +115,7 @@ public:
     void doClear(bool clearParseData);
     void updateEventCombo();
 
-    IAnalyzerEngine *createEngine(const AnalyzerStartParameters &sp,
+    AnalyzerRunControl *createRunControl(const AnalyzerStartParameters &sp,
         ProjectExplorer::RunConfiguration *runConfiguration = 0);
 
 signals:
@@ -129,6 +127,7 @@ signals:
 public slots:
     void slotClear();
     void slotRequestDump();
+    void loadExternalXmlLogFile();
 
     void selectFunction(const Valgrind::Callgrind::Function *);
     void setCostFormat(Valgrind::Internal::CostDelegate::CostFormat format);
@@ -162,8 +161,9 @@ public slots:
     void visualisationFunctionSelected(const Valgrind::Callgrind::Function *function);
     void showParserResults(const Valgrind::Callgrind::ParseData *data);
 
-    void takeParserData(CallgrindEngine *engine);
-    void engineStarting(const Analyzer::IAnalyzerEngine *);
+    void takeParserData(CallgrindRunControl *rc);
+    void takeParserData(ParseData *data);
+    void engineStarting(const Analyzer::AnalyzerRunControl *);
     void engineFinished();
 
     void editorOpened(Core::IEditor *);
@@ -203,13 +203,12 @@ public:
 
     QVector<CallgrindTextMark *> m_textMarks;
 
+    QAction *m_loadExternalLogFile;
     QAction *m_dumpAction;
     QAction *m_resetAction;
     QAction *m_pauseAction;
-    QAction *m_showCostsOfFunctionAction;
 
     QString m_toggleCollectFunction;
-    ValgrindGlobalSettings *m_settings; // Not owned
 };
 
 
@@ -236,8 +235,6 @@ CallgrindToolPrivate::CallgrindToolPrivate(CallgrindTool *parent)
     , m_dumpAction(0)
     , m_resetAction(0)
     , m_pauseAction(0)
-    , m_showCostsOfFunctionAction(0)
-    , m_settings(0)
 {
     m_updateTimer->setInterval(200);
     m_updateTimer->setSingleShot(true);
@@ -247,8 +244,6 @@ CallgrindToolPrivate::CallgrindToolPrivate(CallgrindTool *parent)
     m_proxyModel->setSortCaseSensitivity(Qt::CaseInsensitive);
     m_proxyModel->setFilterKeyColumn(DataModel::NameColumn);
     m_proxyModel->setFilterCaseSensitivity(Qt::CaseInsensitive);
-
-    m_settings = AnalyzerGlobalSettings::instance()->subConfig<ValgrindGlobalSettings>();
 
     connect(m_stackBrowser, SIGNAL(currentChanged()), SLOT(stackBrowserChanged()));
     connect(m_updateTimer, SIGNAL(timeout()), SLOT(updateFilterString()));
@@ -322,7 +317,7 @@ void CallgrindToolPrivate::selectFunction(const Function *func)
     if (QFile::exists(func->file())) {
         ///TODO: custom position support?
         int line = func->lineNumber();
-        Core::EditorManager::openEditorAt(func->file(), qMax(line, 0));
+        EditorManager::openEditorAt(func->file(), qMax(line, 0));
     }
 }
 
@@ -396,8 +391,8 @@ void CallgrindToolPrivate::updateCostFormat()
         m_calleesView->setCostFormat(format);
         m_callersView->setCostFormat(format);
     }
-    if (m_settings)
-        m_settings->setCostFormat(format);
+    if (ValgrindGlobalSettings *settings = ValgrindPlugin::globalSettings())
+        settings->setCostFormat(format);
 }
 
 void CallgrindToolPrivate::handleFilterProjectCosts()
@@ -408,8 +403,7 @@ void CallgrindToolPrivate::handleFilterProjectCosts()
     if (m_filterProjectCosts->isChecked()) {
         const QString projectDir = pro->projectDirectory();
         m_proxyModel->setFilterBaseDir(projectDir);
-    }
-    else {
+    } else {
         m_proxyModel->setFilterBaseDir(QString());
     }
 }
@@ -505,7 +499,7 @@ CallgrindTool::CallgrindTool(QObject *parent)
     d = new CallgrindToolPrivate(this);
     setObjectName(QLatin1String("CallgrindTool"));
 
-    connect(Core::ICore::editorManager(), SIGNAL(editorOpened(Core::IEditor*)),
+    connect(EditorManager::instance(), SIGNAL(editorOpened(Core::IEditor*)),
         d, SLOT(editorOpened(Core::IEditor*)));
 }
 
@@ -514,25 +508,9 @@ CallgrindTool::~CallgrindTool()
     delete d;
 }
 
-Core::Id CallgrindTool::id() const
+RunMode CallgrindTool::runMode() const
 {
-    return Core::Id("Callgrind");
-}
-
-ProjectExplorer::RunMode CallgrindTool::runMode() const
-{
-    return ProjectExplorer::CallgrindRunMode;
-}
-
-QString CallgrindTool::displayName() const
-{
-    return tr("Valgrind Function Profiler");
-}
-
-QString CallgrindTool::description() const
-{
-    return tr("Valgrind Profile uses the \"callgrind\" tool to "
-              "record function calls when a program runs.");
+    return CallgrindRunMode;
 }
 
 IAnalyzerTool::ToolMode CallgrindTool::toolMode() const
@@ -540,80 +518,64 @@ IAnalyzerTool::ToolMode CallgrindTool::toolMode() const
     return ReleaseMode;
 }
 
-void CallgrindTool::extensionsInitialized()
+AnalyzerRunControl *CallgrindTool::createRunControl(const AnalyzerStartParameters &sp,
+    RunConfiguration *runConfiguration)
 {
-    Core::Context analyzerContext = Core::Context(Analyzer::Constants::C_ANALYZEMODE);
-
-    // check if there is a CppEditor context menu, if true, add our own context menu actions
-    if (Core::ActionContainer *editorContextMenu =
-            Core::ActionManager::actionContainer(CppEditor::Constants::M_CONTEXT)) {
-        QAction *action = 0;
-        Core::Command *cmd = 0;
-
-        editorContextMenu->addSeparator(analyzerContext);
-
-        action = new QAction(tr("Profile Costs of this Function and its Callees"), this);
-        action->setIcon(QIcon(QLatin1String(Analyzer::Constants::ANALYZER_CONTROL_START_ICON)));
-        connect(action, SIGNAL(triggered()), d, SLOT(handleShowCostsOfFunction()));
-        cmd = Core::ActionManager::registerAction(action, "Analyzer.Callgrind.ShowCostsOfFunction",
-            analyzerContext);
-        editorContextMenu->addAction(cmd);
-        cmd->setAttribute(Core::Command::CA_Hide);
-        cmd->setAttribute(Core::Command::CA_NonConfigurable);
-        d->m_showCostsOfFunctionAction = action;
-    }
+    return d->createRunControl(sp, runConfiguration);
 }
 
-IAnalyzerEngine *CallgrindTool::createEngine(const AnalyzerStartParameters &sp,
-    ProjectExplorer::RunConfiguration *runConfiguration)
+AnalyzerRunControl *CallgrindToolPrivate::createRunControl(const AnalyzerStartParameters &sp,
+    RunConfiguration *runConfiguration)
 {
-    return d->createEngine(sp, runConfiguration);
-}
+    CallgrindRunControl *rc = new CallgrindRunControl(sp, runConfiguration);
 
-IAnalyzerEngine *CallgrindToolPrivate::createEngine(const AnalyzerStartParameters &sp,
-    ProjectExplorer::RunConfiguration *runConfiguration)
-{
-    CallgrindEngine *engine = new CallgrindEngine(q, sp, runConfiguration);
-
-    connect(engine, SIGNAL(parserDataReady(CallgrindEngine*)),
-            SLOT(takeParserData(CallgrindEngine*)));
-    connect(engine, SIGNAL(starting(const Analyzer::IAnalyzerEngine*)),
-            SLOT(engineStarting(const Analyzer::IAnalyzerEngine*)));
-    connect(engine, SIGNAL(finished()),
+    connect(rc, SIGNAL(parserDataReady(CallgrindRunControl*)),
+            SLOT(takeParserData(CallgrindRunControl*)));
+    connect(rc, SIGNAL(starting(const Analyzer::AnalyzerRunControl*)),
+            SLOT(engineStarting(const Analyzer::AnalyzerRunControl*)));
+    connect(rc, SIGNAL(finished()),
             SLOT(engineFinished()));
 
-    connect(this, SIGNAL(dumpRequested()), engine, SLOT(dump()));
-    connect(this, SIGNAL(resetRequested()), engine, SLOT(reset()));
-    connect(this, SIGNAL(pauseToggled(bool)), engine, SLOT(setPaused(bool)));
+    connect(this, SIGNAL(dumpRequested()), rc, SLOT(dump()));
+    connect(this, SIGNAL(resetRequested()), rc, SLOT(reset()));
+    connect(this, SIGNAL(pauseToggled(bool)), rc, SLOT(setPaused(bool)));
 
-    // initialize engine
-    engine->setPaused(m_pauseAction->isChecked());
+    // initialize run control
+    rc->setPaused(m_pauseAction->isChecked());
 
     // we may want to toggle collect for one function only in this run
-    engine->setToggleCollectFunction(m_toggleCollectFunction);
+    rc->setToggleCollectFunction(m_toggleCollectFunction);
     m_toggleCollectFunction.clear();
 
-    AnalyzerManager::showStatusMessage(AnalyzerManager::msgToolStarted(q->displayName()));
-
-    QTC_ASSERT(m_visualisation, return engine);
+    QTC_ASSERT(m_visualisation, return rc);
 
     // apply project settings
     if (runConfiguration) {
-        if (const AnalyzerRunConfigurationAspect *analyzerSettings = runConfiguration->extraAspect<AnalyzerRunConfigurationAspect>()) {
-            if (const ValgrindProjectSettings *settings = analyzerSettings->subConfig<ValgrindProjectSettings>()) {
+        if (IRunConfigurationAspect *analyzerAspect = runConfiguration->extraAspect(ANALYZER_VALGRIND_SETTINGS)) {
+            if (const ValgrindBaseSettings *settings = qobject_cast<ValgrindBaseSettings *>(analyzerAspect->currentSettings())) {
                 m_visualisation->setMinimumInclusiveCostRatio(settings->visualisationMinimumInclusiveCostRatio() / 100.0);
                 m_proxyModel->setMinimumInclusiveCostRatio(settings->minimumInclusiveCostRatio() / 100.0);
                 m_dataModel->setVerboseToolTipsEnabled(settings->enableEventToolTips());
             }
         }
     }
-    return engine;
+    return rc;
 }
 
 void CallgrindTool::startTool(StartMode mode)
 {
-    ValgrindPlugin::startValgrindTool(this, mode);
+    ValgrindTool::startTool(mode);
     d->setBusyCursor(true);
+}
+
+void CallgrindTool::loadExternalXmlLogFile()
+{
+    d->loadExternalXmlLogFile();
+}
+
+void CallgrindTool::handleShowCostsOfFunction()
+{
+   d->handleShowCostsOfFunction();
 }
 
 QWidget *CallgrindTool::createWidgets()
@@ -703,12 +665,20 @@ QWidget *CallgrindToolPrivate::createWidgets()
     layout->setSpacing(0);
     widget->setLayout(layout);
 
+    // load external XML log file
+    action = new QAction(this);
+    action->setIcon(QIcon(QLatin1String(Core::Constants::ICON_OPENFILE)));
+    action->setToolTip(tr("Load External XML Log File"));
+    connect(action, SIGNAL(triggered(bool)), this, SLOT(loadExternalXmlLogFile()));
+    layout->addWidget(createToolButton(action));
+    m_loadExternalLogFile = action;
+
     // dump action
     action = new QAction(this);
     action->setDisabled(true);
     action->setIcon(QIcon(QLatin1String(Core::Constants::ICON_REDO)));
     //action->setText(tr("Dump"));
-    action->setToolTip(tr("Request the dumping of profile information. This will update the callgrind visualization."));
+    action->setToolTip(tr("Request the dumping of profile information. This will update the Callgrind visualization."));
     connect(action, SIGNAL(triggered()), this, SLOT(slotRequestDump()));
     layout->addWidget(createToolButton(action));
     m_dumpAction = action;
@@ -726,7 +696,7 @@ QWidget *CallgrindToolPrivate::createWidgets()
     // pause action
     action = new QAction(this);
     action->setCheckable(true);
-    action->setIcon(QIcon(QLatin1String(":/qml/images/pause-small.png")));
+    action->setIcon(QIcon(QLatin1String(Core::Constants::ICON_PAUSE)));
     //action->setText(tr("Ignore"));
     action->setToolTip(tr("Pause event logging. No events are counted which will speed up program execution during profiling."));
     connect(action, SIGNAL(toggled(bool)), this, SIGNAL(pauseToggled(bool)));
@@ -800,13 +770,16 @@ QWidget *CallgrindToolPrivate::createWidgets()
     layout->addWidget(button);
     }
 
+
+    ValgrindGlobalSettings *settings = ValgrindPlugin::globalSettings();
+
     // cycle detection
     //action = new QAction(QLatin1String("Cycle Detection"), this); ///FIXME: icon
     action = new QAction(QLatin1String("O"), this); ///FIXME: icon
     action->setToolTip(tr("Enable cycle detection to properly handle recursive or circular function calls."));
     action->setCheckable(true);
     connect(action, SIGNAL(toggled(bool)), m_dataModel, SLOT(enableCycleDetection(bool)));
-    connect(action, SIGNAL(toggled(bool)), m_settings, SLOT(setDetectCycles(bool)));
+    connect(action, SIGNAL(toggled(bool)), settings, SLOT(setDetectCycles(bool)));
     layout->addWidget(createToolButton(action));
     m_cycleDetection = action;
 
@@ -815,7 +788,7 @@ QWidget *CallgrindToolPrivate::createWidgets()
     action->setToolTip(tr("This removes template parameter lists when displaying function names."));
     action->setCheckable(true);
     connect(action, SIGNAL(toggled(bool)), m_dataModel, SLOT(setShortenTemplates(bool)));
-    connect(action, SIGNAL(toggled(bool)), m_settings, SLOT(setShortenTemplates(bool)));
+    connect(action, SIGNAL(toggled(bool)), settings, SLOT(setShortenTemplates(bool)));
     layout->addWidget(createToolButton(action));
     m_shortenTemplates = action;
 
@@ -836,8 +809,8 @@ QWidget *CallgrindToolPrivate::createWidgets()
     layout->addWidget(filter);
     m_searchFilter = filter;
 
-    setCostFormat(m_settings->costFormat());
-    enableCycleDetection(m_settings->detectCycles());
+    setCostFormat(settings->costFormat());
+    enableCycleDetection(settings->detectCycles());
 
     layout->addWidget(new Utils::StyledSeparator);
     layout->addStretch();
@@ -851,11 +824,12 @@ void CallgrindToolPrivate::clearTextMarks()
     m_textMarks.clear();
 }
 
-void CallgrindToolPrivate::engineStarting(const Analyzer::IAnalyzerEngine *)
+void CallgrindToolPrivate::engineStarting(const Analyzer::AnalyzerRunControl *)
 {
     // enable/disable actions
     m_resetAction->setEnabled(true);
     m_dumpAction->setEnabled(true);
+    m_loadExternalLogFile->setEnabled(false);
     clearTextMarks();
     slotClear();
 }
@@ -865,6 +839,7 @@ void CallgrindToolPrivate::engineFinished()
     // enable/disable actions
     m_resetAction->setEnabled(false);
     m_dumpAction->setEnabled(false);
+    m_loadExternalLogFile->setEnabled(true);
 
     const ParseData *data = m_dataModel->parseData();
     if (data)
@@ -892,7 +867,7 @@ void CallgrindToolPrivate::showParserResults(const ParseData *data)
     AnalyzerManager::showStatusMessage(msg);
 }
 
-void CallgrindToolPrivate::editorOpened(Core::IEditor *editor)
+void CallgrindToolPrivate::editorOpened(IEditor *editor)
 {
     TextEditor::ITextEditor *textEditor = qobject_cast<TextEditor::ITextEditor *>(editor);
     if (!textEditor)
@@ -908,7 +883,7 @@ void CallgrindToolPrivate::requestContextMenu(TextEditor::ITextEditor *editor, i
     // find callgrind text mark that corresponds to this editor's file and line number
     const Function *func = 0;
     foreach (CallgrindTextMark *textMark, m_textMarks) {
-        if (textMark->fileName() == editor->document()->fileName() && textMark->lineNumber() == line) {
+        if (textMark->fileName() == editor->document()->filePath() && textMark->lineNumber() == line) {
             func = textMark->function();
             break;
         }
@@ -948,8 +923,8 @@ void CallgrindToolPrivate::handleShowCostsOfFunction()
 
     m_toggleCollectFunction = qualifiedFunctionName + QLatin1String("()");
 
-    AnalyzerManager::selectTool(q, StartMode(StartLocal));
-    AnalyzerManager::startTool(q, StartMode(StartLocal));
+    AnalyzerManager::selectTool(q, StartLocal);
+    AnalyzerManager::startTool();
 }
 
 void CallgrindToolPrivate::slotRequestDump()
@@ -959,9 +934,38 @@ void CallgrindToolPrivate::slotRequestDump()
     dumpRequested();
 }
 
-void CallgrindToolPrivate::takeParserData(CallgrindEngine *engine)
+void CallgrindToolPrivate::loadExternalXmlLogFile()
 {
-    ParseData *data = engine->takeParserData();
+    const QString filePath = QFileDialog::getOpenFileName(
+                Core::ICore::mainWindow(),
+                tr("Open Callgrind Log File"),
+                QString(),
+                tr("Callgrind Output (callgrind.out*);;All Files (*)"));
+    if (filePath.isEmpty())
+        return;
+
+    QFile logFile(filePath);
+    if (!logFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QMessageBox::critical(AnalyzerManager::mainWindow(), tr("Internal Error"),
+            tr("Failed to open file for reading: %1").arg(filePath));
+        return;
+    }
+
+    AnalyzerManager::showStatusMessage(tr("Parsing Profile Data..."));
+    QCoreApplication::processEvents();
+
+    Parser parser;
+    parser.parse(&logFile);
+    takeParserData(parser.takeData());
+}
+
+void CallgrindToolPrivate::takeParserData(CallgrindRunControl *rc)
+{
+    takeParserData(rc->takeParserData());
+}
+
+void CallgrindToolPrivate::takeParserData(ParseData *data)
+{
     showParserResults(data);
 
     if (!data)

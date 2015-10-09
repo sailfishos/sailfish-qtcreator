@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -81,7 +81,7 @@ void ResizeManipulator::begin(const QPointF &/*beginPoint*/)
         m_beginFromSceneToContentItemTransform = m_beginFromContentItemToSceneTransform.inverted();
         m_beginFromItemToSceneTransform = m_resizeController.formEditorItem()->qmlItemNode().instanceSceneTransform();
         m_beginToParentTransform = m_resizeController.formEditorItem()->qmlItemNode().instanceTransform();
-        m_rewriterTransaction = m_view->beginRewriterTransaction();
+        m_rewriterTransaction = m_view->beginRewriterTransaction(QByteArrayLiteral("ResizeManipulator::begin"));
         m_snapper.updateSnappingLines(m_resizeController.formEditorItem());
         m_beginBottomRightPoint = m_beginToParentTransform.map(m_resizeController.formEditorItem()->qmlItemNode().instanceBoundingRect().bottomRight());
 
@@ -146,8 +146,7 @@ void ResizeManipulator::update(const QPointF& updatePoint, Snapper::Snapping use
             if (boundingRect.height() < minimumHeight)
                 boundingRect.setHeight(minimumHeight);
 
-            setSize(formEditorItem->qmlItemNode(), boundingRect.size());
-
+            formEditorItem->qmlItemNode().setSize(boundingRect.size());
 
             if (anchors.instanceHasAnchor(AnchorLine::Bottom)) {
                anchors.setMargin(AnchorLine::Bottom,
@@ -184,8 +183,8 @@ void ResizeManipulator::update(const QPointF& updatePoint, Snapper::Snapping use
             if (boundingRect.height() < minimumHeight)
                 boundingRect.setTop(boundingRect.top() - minimumHeight + boundingRect.height());
 
-            setSize(formEditorItem->qmlItemNode(), boundingRect.size());
-            setPosition(formEditorItem->qmlItemNode(), m_beginToParentTransform.map(boundingRect.topLeft()));
+            formEditorItem->qmlItemNode().setSize(boundingRect.size());
+            formEditorItem->qmlItemNode().setPosition(m_beginToParentTransform.map(boundingRect.topLeft()));
 
 
             if (anchors.instanceHasAnchor(AnchorLine::Top)) {
@@ -223,8 +222,8 @@ void ResizeManipulator::update(const QPointF& updatePoint, Snapper::Snapping use
             if (boundingRect.width() < minimumWidth)
                 boundingRect.setWidth(minimumWidth);
 
-            setSize(formEditorItem->qmlItemNode(), boundingRect.size());
-            setPosition(formEditorItem->qmlItemNode(), m_beginToParentTransform.map(boundingRect.topLeft()));
+            formEditorItem->qmlItemNode().setSize(boundingRect.size());
+            formEditorItem->qmlItemNode().setPosition( m_beginToParentTransform.map(boundingRect.topLeft()));
 
             if (anchors.instanceHasAnchor(AnchorLine::Top)) {
                anchors.setMargin(AnchorLine::Top,
@@ -261,8 +260,8 @@ void ResizeManipulator::update(const QPointF& updatePoint, Snapper::Snapping use
             if (boundingRect.width() < minimumWidth)
                 boundingRect.setLeft(boundingRect.left() - minimumWidth + boundingRect.width());
 
-            setSize(formEditorItem->qmlItemNode(), boundingRect.size());
-            setPosition(formEditorItem->qmlItemNode(), m_beginToParentTransform.map(boundingRect.topLeft()));
+            formEditorItem->qmlItemNode().setSize(boundingRect.size());
+            formEditorItem->qmlItemNode().setPosition(m_beginToParentTransform.map(boundingRect.topLeft()));
 
             if (anchors.instanceHasAnchor(AnchorLine::Left)) {
                anchors.setMargin(AnchorLine::Left,
@@ -290,7 +289,7 @@ void ResizeManipulator::update(const QPointF& updatePoint, Snapper::Snapping use
             if (boundingRect.height() < minimumHeight)
                 boundingRect.setHeight(minimumHeight);
 
-            setSize(formEditorItem->qmlItemNode(), boundingRect.size());
+            formEditorItem->qmlItemNode().setSize(boundingRect.size());
 
             if (anchors.instanceHasAnchor(AnchorLine::Bottom)) {
                anchors.setMargin(AnchorLine::Bottom,
@@ -313,8 +312,8 @@ void ResizeManipulator::update(const QPointF& updatePoint, Snapper::Snapping use
             if (boundingRect.height() < minimumHeight)
                 boundingRect.setTop(boundingRect.top() - minimumHeight + boundingRect.height());
 
-            setSize(formEditorItem->qmlItemNode(), boundingRect.size());
-            setPosition(formEditorItem->qmlItemNode(), m_beginToParentTransform.map(boundingRect.topLeft()));
+            formEditorItem->qmlItemNode().setSize(boundingRect.size());
+            formEditorItem->qmlItemNode().setPosition(m_beginToParentTransform.map(boundingRect.topLeft()));
 
             if (anchors.instanceHasAnchor(AnchorLine::Top)) {
                anchors.setMargin(AnchorLine::Top,
@@ -337,7 +336,7 @@ void ResizeManipulator::update(const QPointF& updatePoint, Snapper::Snapping use
             if (boundingRect.width() < minimumWidth)
                 boundingRect.setWidth(minimumWidth);
 
-            setSize(formEditorItem->qmlItemNode(), boundingRect.size());
+            formEditorItem->qmlItemNode().setSize(boundingRect.size());
 
 
             if (anchors.instanceHasAnchor(AnchorLine::Right)) {
@@ -361,8 +360,8 @@ void ResizeManipulator::update(const QPointF& updatePoint, Snapper::Snapping use
             if (boundingRect.width() < minimumWidth)
                 boundingRect.setLeft(boundingRect.left() - minimumWidth + boundingRect.width());
 
-            setSize(formEditorItem->qmlItemNode(), boundingRect.size());
-            setPosition(formEditorItem->qmlItemNode(), m_beginToParentTransform.map(boundingRect.topLeft()));
+            formEditorItem->qmlItemNode().setSize(boundingRect.size());
+            formEditorItem->qmlItemNode().setPosition(m_beginToParentTransform.map(boundingRect.topLeft()));
 
             if (anchors.instanceHasAnchor(AnchorLine::Left)) {
                anchors.setMargin(AnchorLine::Left,
@@ -501,21 +500,4 @@ bool ResizeManipulator::isActive() const
     return m_isActive;
 }
 
-void ResizeManipulator::setSize(QmlItemNode itemNode, const QSizeF &size)
-{
-    if (!itemNode.hasBindingProperty("width"))
-        itemNode.setVariantProperty("width", qRound(size.width()));
-
-    if (!itemNode.hasBindingProperty("height"))
-        itemNode.setVariantProperty("height", qRound(size.height()));
-}
-
-void ResizeManipulator::setPosition(QmlItemNode itemNode, const QPointF &position)
-{
-    if (!itemNode.hasBindingProperty("x"))
-        itemNode.setVariantProperty("x", qRound(position.x()));
-
-    if (!itemNode.hasBindingProperty("y"))
-        itemNode.setVariantProperty("y", qRound(position.y()));
-}
 }

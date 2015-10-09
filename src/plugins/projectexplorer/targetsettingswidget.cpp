@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -69,7 +69,7 @@ TargetSettingsWidget::TargetSettingsWidget(QWidget *parent) :
     connect(m_targetSelector, SIGNAL(menuShown(int)),
             this, SIGNAL(menuShown(int)));
 
-    QPalette shadowPal = palette();
+    QPalette shadowPal;
     QLinearGradient grad(0, 0, 0, 2);
     grad.setColorAt(0, QColor(0, 0, 0, 60));
     grad.setColorAt(1, Qt::transparent);
@@ -83,9 +83,9 @@ TargetSettingsWidget::~TargetSettingsWidget()
     delete ui;
 }
 
-void TargetSettingsWidget::insertTarget(int index, const QString &name)
+void TargetSettingsWidget::insertTarget(int index, int subIndex, const QString &name)
 {
-    m_targetSelector->insertTarget(index, name);
+    m_targetSelector->insertTarget(index, subIndex, name);
 }
 
 void TargetSettingsWidget::renameTarget(int index, const QString &name)

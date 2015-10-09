@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -49,7 +49,7 @@ QrcEditor::QrcEditor(QWidget *parent)
     layout->setSpacing(0);
     layout->setMargin(0);
     m_ui.centralWidget->setLayout(layout);
-    m_treeview->setFrameStyle(QFrame::NoFrame);;
+    m_treeview->setFrameStyle(QFrame::NoFrame);
     layout->addWidget(m_treeview);
 
     connect(m_ui.removeButton, SIGNAL(clicked()), this, SLOT(onRemove()));
@@ -337,12 +337,6 @@ void QrcEditor::setResourceDragEnabled(bool e)
 bool QrcEditor::resourceDragEnabled() const
 {
     return m_treeview->resourceDragEnabled();
-}
-
-void QrcEditor::addFile(const QString &prefix, const QString &file)
-{
-    // TODO: make this function UNDO / REDO aware
-    m_treeview->addFile(prefix, file);
 }
 
 void QrcEditor::editCurrentItem()

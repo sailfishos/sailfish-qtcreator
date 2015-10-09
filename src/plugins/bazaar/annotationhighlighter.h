@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Hugues Delorme
+** Copyright (c) 2014 Hugues Delorme
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -38,7 +38,7 @@ namespace Internal {
 class BazaarAnnotationHighlighter : public VcsBase::BaseAnnotationHighlighter
 {
 public:
-    explicit BazaarAnnotationHighlighter(const ChangeNumbers &changeNumbers, const QColor &bg,
+    explicit BazaarAnnotationHighlighter(const ChangeNumbers &changeNumbers,
                                          QTextDocument *document = 0);
 
 private:

@@ -28,7 +28,7 @@
 #include "QtContextKeywords.h"
 #include <string>
 #include <cstdio> // for putchar
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && (_MSC_VER < 1800)
 #    define va_copy(dst, src) ((dst) = (src))
 #elif defined(__INTEL_COMPILER) && !defined(va_copy)
 #    define va_copy __va_copy
@@ -169,13 +169,11 @@ inline bool isRightAssociative(int tokenKind)
 
 Parser::Parser(TranslationUnit *unit)
     : _translationUnit(unit),
-      _control(_translationUnit->control()),
-      _pool(_translationUnit->memoryPool()),
+      _control(unit->control()),
+      _pool(unit->memoryPool()),
+      _languageFeatures(unit->languageFeatures()),
       _tokenIndex(1),
       _templateArguments(0),
-      _qtMocRunEnabled(false),
-      _cxx0xEnabled(false),
-      _objCEnabled(false),
       _inFunctionBody(false),
       _inObjCImplementationContext(false),
       _inExpressionStatement(false),
@@ -185,24 +183,6 @@ Parser::Parser(TranslationUnit *unit)
 
 Parser::~Parser()
 { }
-
-bool Parser::qtMocRunEnabled() const
-{ return _qtMocRunEnabled; }
-
-void Parser::setQtMocRunEnabled(bool onoff)
-{ _qtMocRunEnabled = onoff; }
-
-bool Parser::cxx0xEnabled() const
-{ return _cxx0xEnabled; }
-
-void Parser::setCxxOxEnabled(bool onoff)
-{ _cxx0xEnabled = onoff; }
-
-bool Parser::objCEnabled() const
-{ return _objCEnabled; }
-
-void Parser::setObjCEnabled(bool onoff)
-{ _objCEnabled = onoff; }
 
 bool Parser::switchTemplateArguments(bool templateArguments)
 {
@@ -333,8 +313,10 @@ bool Parser::skipUntilStatement()
             case T_USING:
                 return true;
 
+            case T_AT_TRY:
             case T_AT_SYNCHRONIZED:
-                if (objCEnabled())
+            case T_AT_THROW:
+                if (_languageFeatures.objCEnabled)
                     return true;
 
             default:
@@ -559,7 +541,7 @@ bool Parser::parseTranslationUnit(TranslationUnitAST *&node)
 
 
         if (TopLevelDeclarationProcessor *processor = _control->topLevelDeclarationProcessor()) {
-            if (processor->processDeclaration(declaration))
+            if (!processor->processDeclaration(declaration))
                 break;
         }
 
@@ -638,17 +620,17 @@ bool Parser::parseDeclaration(DeclarationAST *&node)
         break;
 
     case T_INLINE:
-        if (_cxx0xEnabled && LA(2) == T_NAMESPACE)
+        if (_languageFeatures.cxx11Enabled && LA(2) == T_NAMESPACE)
             return parseNamespace(node);
         return parseSimpleDeclaration(node);
 
     case T_STATIC_ASSERT:
-        if (_cxx0xEnabled)
+        if (_languageFeatures.cxx11Enabled)
             return parseStaticAssertDeclaration(node);
         return parseSimpleDeclaration(node);
 
     default: {
-        if (_objCEnabled && LA() == T___ATTRIBUTE__) {
+        if (_languageFeatures.objCEnabled && LA() == T___ATTRIBUTE__) {
             const unsigned start = cursor();
             SpecifierListAST *attributes = 0, **attr = &attributes;
             while (parseAttributeSpecifier(*attr))
@@ -751,11 +733,11 @@ bool Parser::parseStaticAssertDeclaration(DeclarationAST *&node)
 bool Parser::parseNamespace(DeclarationAST *&node)
 {
     DEBUG_THIS_RULE();
-    if (LA() != T_NAMESPACE && !(_cxx0xEnabled && LA() == T_INLINE && LA(2) == T_NAMESPACE))
+    if (LA() != T_NAMESPACE && !(_languageFeatures.cxx11Enabled && LA() == T_INLINE && LA(2) == T_NAMESPACE))
         return false;
 
     unsigned inline_token = 0;
-    if (cxx0xEnabled() && LA() == T_INLINE)
+    if (_languageFeatures.cxx11Enabled && LA() == T_INLINE)
         inline_token = consumeToken();
 
     unsigned namespace_token = consumeToken();
@@ -824,7 +806,7 @@ bool Parser::parseUsing(DeclarationAST *&node)
     if (LA(2) == T_NAMESPACE)
         return parseUsingDirective(node);
 
-    if (_cxx0xEnabled && LA(2) == T_IDENTIFIER && parseAliasDeclaration(node))
+    if (_languageFeatures.cxx11Enabled && LA(2) == T_IDENTIFIER && parseAliasDeclaration(node))
         return true;
 
     UsingAST *ast = new (_pool) UsingAST;
@@ -951,12 +933,13 @@ bool Parser::parseTemplateArgumentList(ExpressionListAST *&node)
 
     ExpressionListAST **template_argument_ptr = &node;
     ExpressionAST *template_argument = 0;
+    const bool cxx11Enabled = _languageFeatures.cxx11Enabled;
     if (parseTemplateArgument(template_argument)) {
         *template_argument_ptr = new (_pool) ExpressionListAST;
         (*template_argument_ptr)->value = template_argument;
         template_argument_ptr = &(*template_argument_ptr)->next;
 
-        if (_cxx0xEnabled && LA() == T_DOT_DOT_DOT)
+        if (cxx11Enabled && LA() == T_DOT_DOT_DOT)
             consumeToken(); // ### store this token in the AST
 
         while (LA() == T_COMMA) {
@@ -967,7 +950,7 @@ bool Parser::parseTemplateArgumentList(ExpressionListAST *&node)
                 (*template_argument_ptr)->value = template_argument;
                 template_argument_ptr = &(*template_argument_ptr)->next;
 
-                if (_cxx0xEnabled && LA() == T_DOT_DOT_DOT)
+                if (cxx11Enabled && LA() == T_DOT_DOT_DOT)
                     consumeToken(); // ### store this token in the AST
             }
         }
@@ -1098,7 +1081,7 @@ bool Parser::parseTemplateDeclaration(DeclarationAST *&node)
 
     TemplateDeclarationAST *ast = new (_pool) TemplateDeclarationAST;
 
-    if (LA() == T_EXPORT || LA() == T_EXPORT)
+    if (LA() == T_EXPORT || LA() == T_EXTERN)
         ast->export_token = consumeToken();
 
     ast->template_token = consumeToken();
@@ -1228,7 +1211,7 @@ bool Parser::parseRefQualifier(unsigned &ref_qualifier)
 {
     DEBUG_THIS_RULE();
 
-    if (!_cxx0xEnabled)
+    if (!_languageFeatures.cxx11Enabled)
         return false;
 
     if (LA() == T_AMPER || LA() == T_AMPER_AMPER) {
@@ -1246,7 +1229,7 @@ bool Parser::parseOverrideFinalQualifiers(SpecifierListAST *&node)
 {
     DEBUG_THIS_RULE();
 
-    if (!_cxx0xEnabled)
+    if (!_languageFeatures.cxx11Enabled)
         return false;
 
     unsigned start = cursor();
@@ -1276,7 +1259,7 @@ bool Parser::parseOverrideFinalQualifiers(SpecifierListAST *&node)
 bool Parser::parsePtrOperator(PtrOperatorListAST *&node)
 {
     DEBUG_THIS_RULE();
-    if (LA() == T_AMPER || (_cxx0xEnabled && LA() == T_AMPER_AMPER)) {
+    if (LA() == T_AMPER || (_languageFeatures.cxx11Enabled && LA() == T_AMPER_AMPER)) {
         ReferenceAST *ast = new (_pool) ReferenceAST;
         ast->reference_token = consumeToken();
         node = new (_pool) PtrOperatorListAST(ast);
@@ -1317,7 +1300,7 @@ bool Parser::parseTemplateArgument(ExpressionAST *&node)
     if (parseTypeId(node)) {
         int index = 1;
 
-        if (_cxx0xEnabled && LA() == T_DOT_DOT_DOT)
+        if (_languageFeatures.cxx11Enabled && LA() == T_DOT_DOT_DOT)
             index = 2;
 
         if (LA(index) == T_COMMA || maybeSplitGreaterGreaterToken(index) || LA(index) == T_GREATER)
@@ -1411,7 +1394,7 @@ bool Parser::parseCoreDeclarator(DeclaratorAST *&node, SpecifierListAST *decl_sp
         ptr_operators_tail = &(*ptr_operators_tail)->next;
 
     if (LA() == T_COLON_COLON || LA() == T_IDENTIFIER || LA() == T_TILDE || LA() == T_OPERATOR
-        || (_cxx0xEnabled && LA() == T_DOT_DOT_DOT && (LA(2) == T_COLON_COLON || LA(2) == T_IDENTIFIER))) {
+        || (_languageFeatures.cxx11Enabled && LA() == T_DOT_DOT_DOT && (LA(2) == T_COLON_COLON || LA(2) == T_IDENTIFIER))) {
 
         unsigned dot_dot_dot_token = 0;
 
@@ -1541,7 +1524,7 @@ bool Parser::parseDeclarator(DeclaratorAST *&node, SpecifierListAST *decl_specif
             parseRefQualifier(ast->ref_qualifier_token);
             parseExceptionSpecification(ast->exception_specification);
 
-            if (_cxx0xEnabled && ! node->ptr_operator_list && LA() == T_ARROW) {
+            if (_languageFeatures.cxx11Enabled && ! node->ptr_operator_list && LA() == T_ARROW) {
                 // only allow if there is 1 type spec, which has to be 'auto'
                 bool hasAuto = false;
                 for (SpecifierListAST *iter = decl_specifier_list; !hasAuto && iter; iter = iter->next) {
@@ -1688,12 +1671,12 @@ bool Parser::parseEnumSpecifier(SpecifierListAST *&node)
         EnumSpecifierAST *ast = new (_pool) EnumSpecifierAST;
 
         ast->enum_token = consumeToken();
-        if (_cxx0xEnabled && (LA() == T_CLASS || LA() == T_STRUCT))
+        if (_languageFeatures.cxx11Enabled && (LA() == T_CLASS || LA() == T_STRUCT))
             ast->key_token = consumeToken();
 
         parseName(ast->name);
 
-        if (_cxx0xEnabled && LA() == T_COLON) {
+        if (_languageFeatures.cxx11Enabled && LA() == T_COLON) {
             ast->colon_token = consumeToken();
             parseTypeSpecifier(ast->type_specifier_list);
         }
@@ -1720,7 +1703,7 @@ bool Parser::parseEnumSpecifier(SpecifierListAST *&node)
                     match(T_COMMA, &comma_token);
             }
             match(T_RBRACE, &ast->rbrace_token);
-        } else if (!_cxx0xEnabled) {
+        } else if (!_languageFeatures.cxx11Enabled) {
             return false;
         }
 
@@ -1774,7 +1757,7 @@ bool Parser::parseTypenameTypeParameter(DeclarationAST *&node)
     if (LA() == T_CLASS || LA() == T_TYPENAME) {
         TypenameTypeParameterAST *ast = new (_pool) TypenameTypeParameterAST;
         ast->classkey_token = consumeToken();
-        if (_cxx0xEnabled && LA() == T_DOT_DOT_DOT)
+        if (_languageFeatures.cxx11Enabled && LA() == T_DOT_DOT_DOT)
             ast->dot_dot_dot_token = consumeToken();
         parseName(ast->name);
         if (LA() == T_EQUAL) {
@@ -1800,7 +1783,7 @@ bool Parser::parseTemplateTypeParameter(DeclarationAST *&node)
             ast->greater_token = consumeToken();
         if (LA() == T_CLASS)
             ast->class_token = consumeToken();
-        if (_cxx0xEnabled && LA() == T_DOT_DOT_DOT)
+        if (_languageFeatures.cxx11Enabled && LA() == T_DOT_DOT_DOT)
             ast->dot_dot_dot_token = consumeToken();
 
         // parse optional name
@@ -1941,7 +1924,7 @@ bool Parser::parseParameterDeclaration(ParameterDeclarationAST *&node)
         parseDeclaratorOrAbstractDeclarator(ast->declarator, decl_specifier_seq);
         if (LA() == T_EQUAL) {
             ast->equal_token = consumeToken();
-            if (!_cxx0xEnabled)
+            if (!_languageFeatures.cxx11Enabled)
                 parseLogicalOrExpression(ast->expression);
             else
                 parseInitializerClause0x(ast->expression);
@@ -2005,12 +1988,6 @@ bool Parser::parseClassSpecifier(SpecifierListAST *&node)
     NameAST *name = 0;
     parseName(name);
 
-    if (! name && LA() == T_LBRACE && (LA(0) == T_CLASS || LA(0) == T_STRUCT || LA(0) == T_UNION || LA(0) == T_ENUM)) {
-        AnonymousNameAST *ast = new (_pool) AnonymousNameAST;
-        ast->class_token = classkey_token;
-        name = ast;
-    }
-
     bool parsed = false;
 
     const bool previousInFunctionBody = _inFunctionBody;
@@ -2027,6 +2004,12 @@ bool Parser::parseClassSpecifier(SpecifierListAST *&node)
     }
 
     if (LA() == T_COLON || LA() == T_LBRACE) {
+        if (!name) {
+            AnonymousNameAST *ast = new (_pool) AnonymousNameAST;
+            ast->class_token = classkey_token;
+            name = ast;
+        }
+
         BaseSpecifierListAST *base_clause_list = 0;
 
         if (LA() == T_COLON) {
@@ -2034,7 +2017,7 @@ bool Parser::parseClassSpecifier(SpecifierListAST *&node)
 
             parseBaseClause(base_clause_list);
 
-            if (_cxx0xEnabled && LA() == T_DOT_DOT_DOT)
+            if (_languageFeatures.cxx11Enabled && LA() == T_DOT_DOT_DOT)
                 dot_dot_dot_token = consumeToken();
 
             if (LA() != T_LBRACE) {
@@ -2099,24 +2082,6 @@ bool Parser::parseClassSpecifier(SpecifierListAST *&node)
     return parsed;
 }
 
-bool Parser::parseAccessSpecifier(SpecifierAST *&node)
-{
-    DEBUG_THIS_RULE();
-    switch (LA()) {
-    case T_PUBLIC:
-    case T_PROTECTED:
-    case T_PRIVATE: {
-        SimpleSpecifierAST *ast = new (_pool) SimpleSpecifierAST;
-        ast->specifier_token = consumeToken();
-        node = ast;
-        return true;
-    }
-
-    default:
-        return false;
-    } // switch
-}
-
 bool Parser::parseAccessDeclaration(DeclarationAST *&node)
 {
     DEBUG_THIS_RULE();
@@ -2136,16 +2101,17 @@ bool Parser::parseAccessDeclaration(DeclarationAST *&node)
 
 /*
  Q_PROPERTY(type name
-        READ getFunction
-        [WRITE setFunction]
-        [RESET resetFunction]
-        [NOTIFY notifySignal]
-        [DESIGNABLE bool]
-        [SCRIPTABLE bool]
-        [STORED bool]
-        [USER bool]
-        [CONSTANT]
-        [FINAL])
+    (READ getFunction [WRITE setFunction]
+        | MEMBER memberName [(READ getFunction | WRITE setFunction)])
+    [RESET resetFunction]
+    [NOTIFY notifySignal]
+    [REVISION int]
+    [DESIGNABLE bool]
+    [SCRIPTABLE bool]
+    [STORED bool]
+    [USER bool]
+    [CONSTANT]
+    [FINAL])
 
     Note that "type" appears to be any valid type. So these are valid:
       Q_PROPERTY(const char *zoo READ zoo)
@@ -2153,7 +2119,8 @@ bool Parser::parseAccessDeclaration(DeclarationAST *&node)
 
     Furthermore, the only restriction on the order of the items in between the
     parenthesis is that the type is the first parameter and the name comes after
-    the type.
+    the type. Especially, there seems to be no restriction on the READ/WRITE/MEMBER
+    order.
 */
 bool Parser::parseQtPropertyDeclaration(DeclarationAST *&node)
 {
@@ -2199,6 +2166,7 @@ bool Parser::parseQtPropertyDeclaration(DeclarationAST *&node)
                 switch (peekAtQtContextKeyword()) {
                 case Token_READ:
                 case Token_WRITE:
+                case Token_MEMBER:
                 case Token_RESET:
                 case Token_NOTIFY:
                 case Token_REVISION:
@@ -2450,7 +2418,7 @@ bool Parser::parseMemberSpecification(DeclarationAST *&node, ClassSpecifierAST *
         return parseQtInterfaces(node);
 
     case T_STATIC_ASSERT:
-        if (_cxx0xEnabled)
+        if (_languageFeatures.cxx11Enabled)
             return parseStaticAssertDeclaration(node);
         // fall-through
 
@@ -2470,7 +2438,7 @@ bool Parser::parseCtorInitializer(CtorInitializerAST *&node)
 
         parseMemInitializerList(ast->member_initializer_list);
 
-        if (_cxx0xEnabled && LA() == T_DOT_DOT_DOT)
+        if (_languageFeatures.cxx11Enabled && LA() == T_DOT_DOT_DOT)
             ast->dot_dot_dot_token = consumeToken();
 
         node = ast;
@@ -2520,7 +2488,7 @@ bool Parser::parseExceptionSpecification(ExceptionSpecificationAST *&node)
             ast->rparen_token = consumeToken();
         node = ast;
         return true;
-    } else if (_cxx0xEnabled && LA() == T_NOEXCEPT) {
+    } else if (_languageFeatures.cxx11Enabled && LA() == T_NOEXCEPT) {
         NoExceptSpecificationAST *ast = new (_pool) NoExceptSpecificationAST;
         ast->noexcept_token = consumeToken();
         if (LA() == T_LPAREN) {
@@ -2590,7 +2558,7 @@ bool Parser::parseInitDeclarator(DeclaratorAST *&node, SpecifierListAST *decl_sp
         }
         rewind(colon_token);
     } else if (isFunctionDeclarator && declaringClass && node->core_declarator && LA() == T_EQUAL && LA(3) == T_SEMICOLON) { // = 0, = delete, = default
-        if (!_cxx0xEnabled || LA(2) == T_NUMERIC_LITERAL) {
+        if (!_languageFeatures.cxx11Enabled || LA(2) == T_NUMERIC_LITERAL) {
             parseInitializer(node->initializer, &node->equal_token);
         } else {
             node->equal_token = consumeToken();
@@ -2602,7 +2570,7 @@ bool Parser::parseInitDeclarator(DeclaratorAST *&node, SpecifierListAST *decl_sp
             id_expr->name = simple_name;
             simple_name->identifier_token = consumeToken();
         }
-    } else if (node->core_declarator && (LA() == T_EQUAL || (_cxx0xEnabled && !isFunctionDeclarator && LA() == T_LBRACE) || (! declaringClass && LA() == T_LPAREN))) {
+    } else if (node->core_declarator && (LA() == T_EQUAL || (_languageFeatures.cxx11Enabled && !isFunctionDeclarator && LA() == T_LBRACE) || (! declaringClass && LA() == T_LPAREN))) {
         parseInitializer(node->initializer, &node->equal_token);
     }
     return true;
@@ -2643,7 +2611,7 @@ bool Parser::parseInitializer0x(ExpressionAST *&node, unsigned *equals_token)
 {
     DEBUG_THIS_RULE();
 
-    if ((_cxx0xEnabled && LA() == T_LBRACE) || LA() == T_EQUAL) {
+    if ((_languageFeatures.cxx11Enabled && LA() == T_LBRACE) || LA() == T_EQUAL) {
         if (LA() == T_EQUAL)
             *equals_token = cursor();
 
@@ -2690,7 +2658,7 @@ bool Parser::parseInitializerList0x(ExpressionListAST *&node)
         (*expression_list_ptr)->value = expression;
         expression_list_ptr = &(*expression_list_ptr)->next;
 
-        if (_cxx0xEnabled && LA() == T_DOT_DOT_DOT && (LA(2) == T_COMMA || LA(2) == T_RBRACE || LA(2) == T_RPAREN))
+        if (_languageFeatures.cxx11Enabled && LA() == T_DOT_DOT_DOT && (LA(2) == T_COMMA || LA(2) == T_RBRACE || LA(2) == T_RPAREN))
             consumeToken(); // ### create an argument pack
 
         while (LA() == T_COMMA && LA(2) != T_RBRACE) {
@@ -2700,7 +2668,7 @@ bool Parser::parseInitializerList0x(ExpressionListAST *&node)
                 *expression_list_ptr = new (_pool) ExpressionListAST;
                 (*expression_list_ptr)->value = expression;
 
-                if (_cxx0xEnabled && LA() == T_DOT_DOT_DOT && (LA(2) == T_COMMA || LA(2) == T_RBRACE || LA(2) == T_RPAREN))
+                if (_languageFeatures.cxx11Enabled && LA() == T_DOT_DOT_DOT && (LA(2) == T_COMMA || LA(2) == T_RBRACE || LA(2) == T_RPAREN))
                     consumeToken(); // ### create an argument pack
 
                 expression_list_ptr = &(*expression_list_ptr)->next;
@@ -2742,12 +2710,12 @@ bool Parser::parseMemInitializerList(MemInitializerListAST *&node)
             if (LA() == T_LBRACE)
                 break;
 
-            else if (_cxx0xEnabled && LA() == T_DOT_DOT_DOT && LA(2) == T_LBRACE)
+            else if (_languageFeatures.cxx11Enabled && LA() == T_DOT_DOT_DOT && LA(2) == T_LBRACE)
                 break;
 
             else if (LA() == T_COMMA
                      || (LA() == T_IDENTIFIER
-                         && (LA(2) == T_LPAREN || LA(2) == T_COLON_COLON || (_cxx0xEnabled && LA(2) == T_LBRACE)))) {
+                         && (LA(2) == T_LPAREN || LA(2) == T_COLON_COLON || (_languageFeatures.cxx11Enabled && LA(2) == T_LBRACE)))) {
                 if (LA() != T_COMMA)
                     error(cursor(), "expected `,'");
                 else
@@ -2761,7 +2729,7 @@ bool Parser::parseMemInitializerList(MemInitializerListAST *&node)
             } else break;
         }
 
-        if (_cxx0xEnabled && LA() == T_DOT_DOT_DOT) {
+        if (_languageFeatures.cxx11Enabled && LA() == T_DOT_DOT_DOT) {
             if (LA(2) != T_LBRACE)
                 error(cursor(), "expected `{'");
 
@@ -2787,10 +2755,10 @@ bool Parser::parseMemInitializer(MemInitializerListAST *&node)
 
     if (LA() == T_LPAREN) {
         parseExpressionListParen(ast->expression);
-    } else if (_cxx0xEnabled && LA() == T_LBRACE) {
+    } else if (_languageFeatures.cxx11Enabled && LA() == T_LBRACE) {
         parseBracedInitList0x(ast->expression);
     } else {
-        if (!_cxx0xEnabled)
+        if (!_languageFeatures.cxx11Enabled)
             error(cursor(), "expected '('");
         else
             error(cursor(), "expected '(' or '{'");
@@ -2812,7 +2780,7 @@ bool Parser::parseTypeIdList(ExpressionListAST *&node)
         (*expression_list_ptr)->value = typeId;
         expression_list_ptr = &(*expression_list_ptr)->next;
 
-        if (_cxx0xEnabled && LA() == T_DOT_DOT_DOT)
+        if (_languageFeatures.cxx11Enabled && LA() == T_DOT_DOT_DOT)
             consumeToken(); // ### store this token
 
         while (LA() == T_COMMA) {
@@ -2823,7 +2791,7 @@ bool Parser::parseTypeIdList(ExpressionListAST *&node)
                 (*expression_list_ptr)->value = typeId;
                 expression_list_ptr = &(*expression_list_ptr)->next;
 
-                if (_cxx0xEnabled && LA() == T_DOT_DOT_DOT)
+                if (_languageFeatures.cxx11Enabled && LA() == T_DOT_DOT_DOT)
                     consumeToken(); // ### store this token
             }
         }
@@ -2837,7 +2805,7 @@ bool Parser::parseExpressionList(ExpressionListAST *&node)
 {
     DEBUG_THIS_RULE();
 
-    if (_cxx0xEnabled)
+    if (_languageFeatures.cxx11Enabled)
         return parseInitializerList0x(node);
 
     ExpressionListAST **expression_list_ptr = &node;
@@ -2909,7 +2877,7 @@ bool Parser::parseInitializerList(ExpressionListAST *&node)
         }
     }
 
-    if (_cxx0xEnabled && LA() == T_DOT_DOT_DOT)
+    if (_languageFeatures.cxx11Enabled && LA() == T_DOT_DOT_DOT)
         consumeToken(); // ### store this token
 
     return true;
@@ -3106,8 +3074,14 @@ bool Parser::parseStatement(StatementAST *&node)
         return true;
     }
 
+    case T_AT_TRY:
+        return _languageFeatures.objCEnabled && parseObjCTryStatement(node);
+
     case T_AT_SYNCHRONIZED:
-        return objCEnabled() && parseObjCSynchronizedStatement(node);
+        return _languageFeatures.objCEnabled && parseObjCSynchronizedStatement(node);
+
+    case T_AT_THROW:
+        return _languageFeatures.objCEnabled && parseObjCThrowStatement(node);
 
     case T_Q_D:
     case T_Q_Q: {
@@ -3191,7 +3165,7 @@ bool Parser::parseReturnStatement(StatementAST *&node)
     if (LA() == T_RETURN) {
         ReturnStatementAST *ast = new (_pool) ReturnStatementAST;
         ast->return_token = consumeToken();
-        if (_cxx0xEnabled && LA() == T_LBRACE)
+        if (_languageFeatures.cxx11Enabled && LA() == T_LBRACE)
             parseBracedInitList0x(ast->expression);
         else
             parseExpression(ast->expression);
@@ -3238,7 +3212,7 @@ bool Parser::parseExpressionOrDeclarationStatement(StatementAST *&node)
             || LA() == T_TYPENAME
             || LA() == T_ENUM
             || lookAtClassKey()
-            || (LA() == T_STATIC_ASSERT && _cxx0xEnabled)) {
+            || (LA() == T_STATIC_ASSERT && _languageFeatures.cxx11Enabled)) {
         return parseDeclarationStatement(node);
     }
 
@@ -3431,7 +3405,7 @@ bool Parser::parseForStatement(StatementAST *&node)
     unsigned startOfTypeSpecifier = cursor();
     bool blocked = blockErrors(true);
 
-    if (objCEnabled()) {
+    if (_languageFeatures.objCEnabled) {
         ObjCFastEnumerationAST *ast = new (_pool) ObjCFastEnumerationAST;
         ast->for_token = for_token;
         ast->lparen_token = lparen_token;
@@ -3471,7 +3445,7 @@ bool Parser::parseForStatement(StatementAST *&node)
         rewind(startOfTypeSpecifier);
     }
 
-    if (cxx0xEnabled()) {
+    if (_languageFeatures.cxx11Enabled) {
         RangeBasedForStatementAST *ast = new (_pool) RangeBasedForStatementAST;
         ast->for_token = for_token;
         ast->lparen_token = lparen_token;
@@ -3654,7 +3628,7 @@ bool Parser::parseBlockDeclaration(DeclarationAST *&node)
         return parseNamespaceAliasDefinition(node);
 
     case T_STATIC_ASSERT:
-        if (_cxx0xEnabled)
+        if (_languageFeatures.cxx11Enabled)
             return parseStaticAssertDeclaration(node);
         // fall-through
 
@@ -3733,9 +3707,12 @@ bool Parser::lookAtStorageClassSpecifier() const
     case T_EXTERN:
     case T_MUTABLE:
     case T_TYPEDEF:
+    case T___THREAD:
         return true;
+    case T_THREAD_LOCAL:
+        return _languageFeatures.cxx11Enabled;
     case T_CONSTEXPR:
-        if (_cxx0xEnabled)
+        if (_languageFeatures.cxx11Enabled)
             return true;
         // fall-through
     default:
@@ -3933,7 +3910,7 @@ bool Parser::parseSimpleDeclaration(DeclarationAST *&node, ClassSpecifierAST *de
             unsigned startOfTypeSpecifier = cursor();
             if (! parseElaboratedTypeSpecifier(*decl_specifier_seq_ptr)
                     || LA() == T_LBRACE
-                    || (_cxx0xEnabled && LA() == T_COLON)) {
+                    || (_languageFeatures.cxx11Enabled && LA() == T_COLON)) {
                 rewind(startOfTypeSpecifier);
                 if (! parseEnumSpecifier(*decl_specifier_seq_ptr)) {
                     error(startOfTypeSpecifier,
@@ -4290,7 +4267,7 @@ bool Parser::parsePrimaryExpression(ExpressionAST *&node)
         return parseStringLiteral(node);
 
     case T_NULLPTR:
-        if (_cxx0xEnabled)
+        if (_languageFeatures.cxx11Enabled)
             return parsePointerLiteral(node);
         // fall-through
 
@@ -4330,12 +4307,12 @@ bool Parser::parsePrimaryExpression(ExpressionAST *&node)
     case T_LBRACKET: {
         const unsigned lbracket_token = cursor();
 
-        if (_cxx0xEnabled) {
+        if (_languageFeatures.cxx11Enabled) {
             if (parseLambdaExpression(node))
                 return true;
         }
 
-        if (_objCEnabled) {
+        if (_languageFeatures.objCEnabled) {
             rewind(lbracket_token);
             return parseObjCExpression(node);
         }
@@ -4404,6 +4381,52 @@ bool Parser::parseObjCStringLiteral(ExpressionAST *&node)
     return true;
 }
 
+///  objc-try-catch-statement:
+///    @try compound-statement objc-catch-list[opt]
+///    @try compound-statement objc-catch-list[opt] @finally compound-statement
+///
+///  objc-catch-list:
+///    @catch ( parameter-declaration ) compound-statement
+///    objc-catch-list @catch ( catch-parameter-declaration ) compound-statement
+///  catch-parameter-declaration:
+///     parameter-declaration
+///     '...' [OBJC2]
+///
+bool Parser::parseObjCTryStatement(StatementAST *& /*node*/)
+{
+    DEBUG_THIS_RULE();
+    if (LA() != T_AT_TRY)
+        return false;
+
+    /*try_token =*/ consumeToken();
+    StatementAST *body_statment;
+    parseCompoundStatement(body_statment);
+    while (LA() == T_AT_CATCH) {
+        /*catch_token =*/ consumeToken();
+        unsigned lparen_token;
+        match(T_LPAREN, &lparen_token);
+        if (LA() == T_DOT_DOT_DOT) {
+            /*unsigned ellipsis_token =*/ consumeToken();
+        } else {
+            ParameterDeclarationAST *exception_decl;
+            parseParameterDeclaration(exception_decl);
+        }
+        unsigned rparen_token;
+        match(T_RPAREN, &rparen_token);
+        StatementAST *catch_statement;
+        parseCompoundStatement(catch_statement);
+    }
+
+    if (LA() == T_AT_FINALLY) {
+        StatementAST *finally_statement;
+        parseCompoundStatement(finally_statement);
+    }
+
+    return true;
+}
+
+/// objc-synchronized-statement:
+///   @synchronized expression ;
 bool Parser::parseObjCSynchronizedStatement(StatementAST *&node)
 {
     DEBUG_THIS_RULE();
@@ -4419,6 +4442,23 @@ bool Parser::parseObjCSynchronizedStatement(StatementAST *&node)
     parseStatement(ast->statement);
 
     node = ast;
+    return true;
+}
+
+/// objc-throw-statement:
+///   @ throw expression ;
+bool Parser::parseObjCThrowStatement(StatementAST *&/*node*/)
+{
+    DEBUG_THIS_RULE();
+    if (LA() != T_AT_THROW)
+        return false;
+
+    /*throw_token =*/ consumeToken();
+    ExpressionAST *thrown_expression;
+    parseExpression(thrown_expression);
+    unsigned semicolon_token;
+    match(T_SEMICOLON, &semicolon_token);
+
     return true;
 }
 
@@ -4754,7 +4794,7 @@ bool Parser::parseTypenameCallExpression(ExpressionAST *&node)
         unsigned typename_token = consumeToken();
         NameAST *name = 0;
         if (parseName(name)
-                && (LA() == T_LPAREN || (_cxx0xEnabled && LA() == T_LBRACE))) {
+                && (LA() == T_LPAREN || (_languageFeatures.cxx11Enabled && LA() == T_LBRACE))) {
             TypenameCallExpressionAST *ast = new (_pool) TypenameCallExpressionAST;
             ast->typename_token = typename_token;
             ast->name = name;
@@ -4815,7 +4855,7 @@ bool Parser::parseCorePostfixExpression(ExpressionAST *&node)
         bool blocked = blockErrors(true);
         if (lookAtBuiltinTypeSpecifier() &&
                 parseSimpleTypeSpecifier(type_specifier) &&
-                (LA() == T_LPAREN || (_cxx0xEnabled && LA() == T_LBRACE))) {
+                (LA() == T_LPAREN || (_languageFeatures.cxx11Enabled && LA() == T_LBRACE))) {
             ExpressionAST *expr = 0;
             if (LA() == T_LPAREN) {
                 parseExpressionListParen(expr);
@@ -4877,7 +4917,7 @@ bool Parser::parsePostfixExpression(ExpressionAST *&node)
                 match(T_RBRACKET, &ast->rbracket_token);
                 ast->base_expression = node;
                 node = ast;
-            } else if (_cxx0xEnabled && LA() == T_LBRACE && node->asIdExpression()) {
+            } else if (_languageFeatures.cxx11Enabled && LA() == T_LBRACE && node->asIdExpression()) {
                 // this is slightly inconsistent: simple-type-specifier '(' expression-list ')'
                 // gets parsed as a CallAST while simple-type-specifier brace-init-list
                 // is a TypenameCallExpressionAST
@@ -4946,7 +4986,7 @@ bool Parser::parseUnaryExpression(ExpressionAST *&node)
         ast->sizeof_token = consumeToken();
 
         // sizeof...(Args)
-        if (_cxx0xEnabled && LA() == T_DOT_DOT_DOT && (LA(2) == T_IDENTIFIER || (LA(2) == T_LPAREN && LA(3) == T_IDENTIFIER
+        if (_languageFeatures.cxx11Enabled && LA() == T_DOT_DOT_DOT && (LA(2) == T_IDENTIFIER || (LA(2) == T_LPAREN && LA(3) == T_IDENTIFIER
                                                                                  && LA(4) == T_RPAREN)))
             ast->dot_dot_dot_token = consumeToken();
 
@@ -4972,7 +5012,7 @@ bool Parser::parseUnaryExpression(ExpressionAST *&node)
     }
 
     case T_ALIGNOF: {
-        if (!_cxx0xEnabled)
+        if (!_languageFeatures.cxx11Enabled)
             break;
 
         AlignofExpressionAST *ast = new (_pool) AlignofExpressionAST;
@@ -5137,7 +5177,7 @@ bool Parser::parseNewInitializer(ExpressionAST *&node)
     DEBUG_THIS_RULE();
     if (LA() == T_LPAREN)
         return parseExpressionListParen(node);
-    else if (_cxx0xEnabled && LA() == T_LBRACE)
+    else if (_languageFeatures.cxx11Enabled && LA() == T_LBRACE)
         return parseBracedInitList0x(node);
     return false;
 }
@@ -5362,7 +5402,7 @@ void Parser::parseExpressionWithOperatorPrecedence(ExpressionAST *&lhs, int minP
         if (operPrecedence <= Prec::Conditional && isCPlusPlus) {
             // in C++ you can put a throw in the right-most expression of a conditional expression,
             // or an assignment, so some special handling:
-            if (_cxx0xEnabled) {
+            if (_languageFeatures.cxx11Enabled) {
                 if (!parseInitializerClause0x(rhs))
                     return;
             } else {

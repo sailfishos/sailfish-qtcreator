@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2012 - 2014 Jolla Ltd.
+** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
 **
@@ -28,12 +28,14 @@
 ****************************************************************************/
 
 #include "merdeployconfiguration.h"
-#include <projectexplorer/projectnodes.h>
-#include <projectexplorer/project.h>
-#include <projectexplorer/target.h>
+
 #include <coreplugin/idocument.h>
-#include <QVBoxLayout>
+#include <projectexplorer/project.h>
+#include <projectexplorer/projectnodes.h>
+#include <projectexplorer/target.h>
+
 #include <QLabel>
+#include <QVBoxLayout>
 
 using namespace ProjectExplorer;
 
@@ -78,7 +80,7 @@ QString MerRpmDeployConfiguration::displayName()
 
 Core::Id MerRpmDeployConfiguration::configurationId()
 {
-    return Core::Id("Qt4ProjectManager.MerRpmDeployConfiguration");
+    return Core::Id("QmakeProjectManager.MerRpmDeployConfiguration");
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////
@@ -100,7 +102,7 @@ QString MerRsyncDeployConfiguration::displayName()
 
 Core::Id MerRsyncDeployConfiguration::configurationId()
 {
-    return Core::Id("Qt4ProjectManager.MerRSyncDeployConfiguration");
+    return Core::Id("QmakeProjectManager.MerRSyncDeployConfiguration");
 }
 
 /////////////////////////////////////////////////////////////////////////////////////
@@ -122,7 +124,7 @@ QString MerMb2RpmBuildConfiguration::displayName()
 
 Core::Id MerMb2RpmBuildConfiguration::configurationId()
 {
-    return Core::Id("Qt4ProjectManager.MerArmDeployConfiguration");
+    return Core::Id("QmakeProjectManager.MerMb2RpmBuildConfiguration");
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -146,7 +148,7 @@ QString MerRpmBuildDeployConfiguration::displayName()
 
 Core::Id MerRpmBuildDeployConfiguration::configurationId()
 {
-    return Core::Id("Qt4ProjectManager.MerRpmLocalDeployConfiguration");
+    return Core::Id("QmakeProjectManager.MerRpmLocalDeployConfiguration");
 }
 
 } // namespace Internal

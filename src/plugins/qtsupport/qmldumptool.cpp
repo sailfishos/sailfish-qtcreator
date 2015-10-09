@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -49,8 +49,7 @@
 namespace {
 
 using namespace QtSupport;
-using QtSupport::DebuggingHelperBuildTask;
-using ProjectExplorer::ToolChain;
+using namespace ProjectExplorer;
 
 class QmlDumpBuildTask;
 
@@ -81,7 +80,7 @@ public:
         m_buildTask->run(future);
     }
 
-    void updateProjectWhenDone(QPointer<ProjectExplorer::Project> project, bool preferDebug)
+    void updateProjectWhenDone(QPointer<Project> project, bool preferDebug)
     {
         foreach (const ProjectToUpdate &update, m_projectsToUpdate) {
             if (update.project == project)
@@ -102,7 +101,7 @@ public:
 private slots:
     void finish(int qtId, const QString &output, DebuggingHelperBuildTask::Tools tools)
     {
-        BaseQtVersion *version = QtVersionManager::instance()->version(qtId);
+        BaseQtVersion *version = QtVersionManager::version(qtId);
 
         QTC_ASSERT(tools == DebuggingHelperBuildTask::QmlDump, return);
         QString errorMessage;
@@ -135,7 +134,7 @@ private slots:
                 projectInfo.qmlDumpPath = version->qmlDumpTool(!update.preferDebug);
             projectInfo.qmlDumpEnvironment = version->qmlToolsEnvironment();
             projectInfo.qmlDumpHasRelocatableFlag = version->hasQmlDumpWithRelocatableFlag();
-            modelManager->updateProjectInfo(projectInfo);
+            modelManager->updateProjectInfo(projectInfo, update.project);
         }
 
         // clean up
@@ -146,7 +145,7 @@ private slots:
 private:
     class ProjectToUpdate {
     public:
-        QPointer<ProjectExplorer::Project> project;
+        QPointer<Project> project;
         bool preferDebug;
     };
 
@@ -196,24 +195,24 @@ bool QmlDumpTool::canBuild(const BaseQtVersion *qtVersion, QString *reason)
     if (qtVersion->type() != QLatin1String(Constants::DESKTOPQT)
             && qtVersion->type() != QLatin1String(Constants::SIMULATORQT)) {
         if (reason)
-            *reason = QCoreApplication::translate("Qt4ProjectManager::QmlDumpTool", "Only available for Qt for Desktop and Qt for Qt Simulator.");
+            *reason = QCoreApplication::translate("QmakeProjectManager::QmlDumpTool", "Only available for Qt for Desktop and Qt for Qt Simulator.");
         return false;
     }
     if (qtVersion->qtVersion() < QtVersionNumber(4, 7, 1)) {
         if (reason)
-            *reason = QCoreApplication::translate("Qt4ProjectManager::QmlDumpTool", "Only available for Qt 4.7.1 or newer.");
+            *reason = QCoreApplication::translate("QmakeProjectManager::QmlDumpTool", "Only available for Qt 4.7.1 or newer.");
         return false;
     }
     if (qtVersion->qtVersion() >= QtVersionNumber(4, 8, 0)) {
         if (reason)
-            *reason = QCoreApplication::translate("Qt4ProjectManager::QmlDumpTool", "Not needed.");
+            *reason = QCoreApplication::translate("QmakeProjectManager::QmlDumpTool", "Not needed.");
         return false;
     }
 
 
     if (!hasPrivateHeaders(installHeaders)) {
         if (reason)
-            *reason = QCoreApplication::translate("Qt4ProjectManager::QmlDumpTool", "Private headers are missing for this Qt version.");
+            *reason = QCoreApplication::translate("QmakeProjectManager::QmlDumpTool", "Private headers are missing for this Qt version.");
         return false;
     }
     return true;
@@ -281,7 +280,7 @@ QStringList QmlDumpTool::locationsByInstallData(const QString &qtInstallData, bo
 
 bool QmlDumpTool::build(BuildHelperArguments arguments, QString *log, QString *errorMessage)
 {
-    arguments.helperName = QCoreApplication::translate("Qt4ProjectManager::QmlDumpTool", "qmldump");
+    arguments.helperName = QCoreApplication::translate("QmakeProjectManager::QmlDumpTool", "qmldump");
     arguments.proFilename = QLatin1String("qmldump.pro");
     return buildHelper(arguments, log, errorMessage);
 }
@@ -313,8 +312,8 @@ QStringList QmlDumpTool::installDirectories(const QString &qtInstallData)
     return directories;
 }
 
-void QmlDumpTool::pathAndEnvironment(ProjectExplorer::Project *project, BaseQtVersion *version,
-                                     ProjectExplorer::ToolChain *toolChain,
+void QmlDumpTool::pathAndEnvironment(Project *project, BaseQtVersion *version,
+                                     ToolChain *toolChain,
                                      bool preferDebug, QString *dumperPath, Utils::Environment *env)
 {
     QString path;
@@ -328,8 +327,7 @@ void QmlDumpTool::pathAndEnvironment(ProjectExplorer::Project *project, BaseQtVe
             buildTask->updateProjectWhenDone(project, preferDebug);
             QFuture<void> task = QtConcurrent::run(&QmlDumpBuildTask::run, buildTask);
             const QString taskName = QmlDumpBuildTask::tr("Building helper");
-            Core::ICore::progressManager()->addTask(task, taskName,
-                                                                QLatin1String("Qt4ProjectManager::BuildHelpers"));
+            Core::ProgressManager::addTask(task, taskName, "QmakeProjectManager::BuildHelpers");
         }
         return;
     }

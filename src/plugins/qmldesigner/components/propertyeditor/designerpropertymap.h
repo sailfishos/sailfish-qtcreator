@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -30,13 +30,13 @@
 #ifndef DESIGNERPROPERTYMAP_H
 #define DESIGNERPROPERTYMAP_H
 
-#include <QDeclarativePropertyMap>
-#include <qdeclarative.h>
+#include <QQmlPropertyMap>
+#include <QtQml>
+#include "propertyeditorvalue.h"
 
 namespace QmlDesigner {
 
-template <class DefaultType>
-class DesignerPropertyMap : public QDeclarativePropertyMap
+class DesignerPropertyMap : public QQmlPropertyMap
 {
 
 public:
@@ -45,30 +45,7 @@ public:
     QVariant value(const QString &key) const;
 
     static void registerDeclarativeType(const QString &name);
-private:
-    DefaultType m_defaultValue;
 };
-
-template <class DefaultType>
-DesignerPropertyMap<DefaultType>::DesignerPropertyMap(QObject *parent) : QDeclarativePropertyMap(parent), m_defaultValue(this)
-{
-}
-
-template <class DefaultType>
-QVariant DesignerPropertyMap<DefaultType>::value(const QString &key) const
-{
-    if (contains(key))
-        return QDeclarativePropertyMap::value(key);
-    return QVariant(&m_defaultValue);
-}
-
-
-template <class DefaultType>
-void DesignerPropertyMap<DefaultType>::registerDeclarativeType(const QString &name)
-{
-    typedef DesignerPropertyMap<DefaultType> myType;
-    qmlRegisterType<myType>("Bauhaus",1,0,name);
-}
 
 } //QmlDesigner
 

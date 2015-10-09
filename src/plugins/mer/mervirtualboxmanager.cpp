@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2013 Jolla Ltd.
+** Copyright (C) 2012 - 2014 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -21,15 +21,17 @@
 ****************************************************************************/
 
 #include "mervirtualboxmanager.h"
+
 #include "merconstants.h"
 
-#include <utils/qtcassert.h>
 #include <utils/hostosinfo.h>
+#include <utils/qtcassert.h>
 
 #include <QDebug>
 #include <QDir>
 #include <QProcess>
 #include <QSettings>
+#include <QSize>
 
 const char VBOXMANAGE[] = "VBoxManage";
 const char LIST[] = "list";
@@ -47,6 +49,9 @@ const char SHARE_NAME[] = "--name";
 const char REMOVE_SHARED[] = "remove";
 const char HOSTPATH[] = "--hostpath";
 const char ADD_SHARED[] = "add";
+const char GETEXTRADATA[] = "getextradata";
+const char SETEXTRADATA[] = "setextradata";
+const char CUSTOM_VIDEO_MODE1[] = "CustomVideoMode1";
 
 namespace Mer {
 namespace Internal {
@@ -57,32 +62,48 @@ static QStringList listedVirtualMachines(const QString &output);
 
 static QString vBoxManagePath()
 {
-    if (Utils::HostOsInfo::isWindowsHost()) {
-        static QString path;
-        if (path.isEmpty()) {
-            path = QString::fromLocal8Bit(qgetenv("VBOX_INSTALL_PATH"));
-            if (path.isEmpty()) {
-                // env var name for VirtualBox 4.3.12 changed to this
-                path = QString::fromLocal8Bit(qgetenv("VBOX_MSI_INSTALL_PATH"));
-                if (path.isEmpty()) {
-                    // Not found in environment? Look up registry.
-                    QSettings s(QLatin1String("HKEY_LOCAL_MACHINE\\SOFTWARE\\Oracle\\VirtualBox"),
-                                QSettings::NativeFormat);
-                    path = s.value(QLatin1String("InstallDir")).toString();
-                    if (path.startsWith(QLatin1Char('"')) && path.endsWith(QLatin1Char('"')))
-                        path = path.mid(1, path.length() - 2); // remove quotes
-                }
-            }
-
-            if (!path.isEmpty())
-                path.append(QDir::separator() + QLatin1String(VBOXMANAGE));
-        }
-        QTC_ASSERT(!path.isEmpty(), return path);
+    static QString path;
+    if (!path.isNull()) {
         return path;
-    } else {
-        return QLatin1String(VBOXMANAGE);
     }
+
+    if (Utils::HostOsInfo::isWindowsHost()) {
+        path = QString::fromLocal8Bit(qgetenv("VBOX_INSTALL_PATH"));
+        if (path.isEmpty()) {
+            // env var name for VirtualBox 4.3.12 changed to this
+            path = QString::fromLocal8Bit(qgetenv("VBOX_MSI_INSTALL_PATH"));
+            if (path.isEmpty()) {
+                // Not found in environment? Look up registry.
+                QSettings s(QLatin1String("HKEY_LOCAL_MACHINE\\SOFTWARE\\Oracle\\VirtualBox"),
+                            QSettings::NativeFormat);
+                path = s.value(QLatin1String("InstallDir")).toString();
+                if (path.startsWith(QLatin1Char('"')) && path.endsWith(QLatin1Char('"')))
+                    path = path.mid(1, path.length() - 2); // remove quotes
+            }
+        }
+
+        if (!path.isEmpty())
+            path.append(QDir::separator() + QLatin1String(VBOXMANAGE));
+    } else {
+        QStringList searchPaths = QProcessEnvironment::systemEnvironment()
+            .value(QLatin1String("PATH")).split(QLatin1Char(':'));
+        // VBox 5 installs here for compatibility with Mac OS X 10.11
+        searchPaths.append(QLatin1String("/usr/local/bin"));
+
+        foreach (const QString &searchPath, searchPaths) {
+            QDir dir(searchPath);
+            if (dir.exists(QLatin1String(VBOXMANAGE))) {
+                path = dir.absoluteFilePath(QLatin1String(VBOXMANAGE));
+                break;
+            }
+        }
+    }
+
+    QTC_ASSERT(!path.isEmpty(), return path);
+    return path;
 }
+
+MerVirtualBoxManager *MerVirtualBoxManager::m_instance = 0;
 
 MerVirtualBoxManager::MerVirtualBoxManager(QObject *parent):
     QObject(parent)
@@ -181,41 +202,45 @@ VirtualMachineInfo MerVirtualBoxManager::fetchVirtualMachineInfo(const QString &
     return virtualMachineInfoFromOutput(QString::fromLocal8Bit(process.readAllStandardOutput()));
 }
 
-bool MerVirtualBoxManager::startVirtualMachine(const QString &vmName,bool headless)
+void MerVirtualBoxManager::startVirtualMachine(const QString &vmName,bool headless)
 {
     // Start VM if it is not running
     if (isVirtualMachineRunning(vmName))
-        return true;
+        return;
 
-    if(isVirtualMachineRegistered(vmName)) {
-        QStringList arguments;
-        arguments.append(QLatin1String(STARTVM));
-        arguments.append(vmName);
-        if (headless) {
-            arguments.append(QLatin1String(TYPE));
-            arguments.append(QLatin1String(HEADLESS));
-        }
-
-        return QProcess::execute(vBoxManagePath(), arguments);
+    if (!isVirtualMachineRegistered(vmName)) {
+        qWarning() << "MerVirtualBoxManager: VM not registered:" << vmName;
+        return;
     }
 
-    return false;
+    QStringList arguments;
+    arguments.append(QLatin1String(STARTVM));
+    arguments.append(vmName);
+    if (headless) {
+        arguments.append(QLatin1String(TYPE));
+        arguments.append(QLatin1String(HEADLESS));
+    }
+
+    QProcess *process = new QProcess(instance());
+    connect(process, SIGNAL(error(QProcess::ProcessError)), process, SLOT(deleteLater()));
+    connect(process, SIGNAL(finished(int,QProcess::ExitStatus)), process, SLOT(deleteLater()));
+    process->start(vBoxManagePath(), arguments);
 }
 
-bool MerVirtualBoxManager::shutVirtualMachine(const QString &vmName)
+void MerVirtualBoxManager::shutVirtualMachine(const QString &vmName)
 {
     if (!isVirtualMachineRunning(vmName))
-        return true;
+        return;
+
     QStringList arguments;
     arguments.append(QLatin1String(CONTROLVM));
     arguments.append(vmName);
     arguments.append(QLatin1String(ACPI_POWER_BUTTON));
-    QProcess process;
-    process.start(vBoxManagePath(), arguments);
-    if (!process.waitForFinished())
-        return false;
 
-    return isVirtualMachineRunning(vmName);
+    QProcess *process = new QProcess(instance());
+    connect(process, SIGNAL(error(QProcess::ProcessError)), process, SLOT(deleteLater()));
+    connect(process, SIGNAL(finished(int,QProcess::ExitStatus)), process, SLOT(deleteLater()));
+    process->start(vBoxManagePath(), arguments);
 }
 
 QStringList MerVirtualBoxManager::fetchRegisteredVirtualMachines()
@@ -230,6 +255,45 @@ QStringList MerVirtualBoxManager::fetchRegisteredVirtualMachines()
         return vms;
 
     return listedVirtualMachines(QString::fromLocal8Bit(process.readAllStandardOutput()));
+}
+
+bool MerVirtualBoxManager::setVideoMode(const QString &vmName, const QSize &size, int depth)
+{
+    QString videoMode = QStringLiteral("%1x%2x%3")
+        .arg(size.width())
+        .arg(size.height())
+        .arg(depth);
+
+    QStringList args;
+    args.append(QLatin1String(SETEXTRADATA));
+    args.append(vmName);
+    args.append(QLatin1String(CUSTOM_VIDEO_MODE1));
+    args.append(videoMode);
+
+    QProcess process;
+    process.start(vBoxManagePath(), args);
+    if (!process.waitForFinished()) {
+        qWarning() << "VBoxManage failed to set video mode " << videoMode;
+        return false;
+    }
+
+    return true;
+}
+
+QString MerVirtualBoxManager::getExtraData(const QString &vmName, const QString &key)
+{
+    QStringList arguments;
+    arguments.append(QLatin1String(GETEXTRADATA));
+    arguments.append(vmName);
+    arguments.append(key);
+    QProcess process;
+    process.start(vBoxManagePath(), arguments, QIODevice::ReadWrite | QIODevice::Text);
+    if (!process.waitForFinished()) {
+        qWarning() << "VBoxManage failed to getextradata";
+        return QString();
+    }
+
+    return QString::fromLocal8Bit(process.readAllStandardOutput());
 }
 
 bool isVirtualMachineListed(const QString &vmName, const QString &output)
@@ -261,7 +325,8 @@ VirtualMachineInfo virtualMachineInfoFromOutput(const QString &output)
     QRegExp rexp(QLatin1String("(?:Forwarding\\(\\d+\\)=\"(\\w+),(\\w+),(.*),(\\d+),(.*),(\\d+)\")"
                                "|(?:SharedFolderNameMachineMapping\\d+=\"(\\w+)\"\\W*"
                                "SharedFolderPathMachineMapping\\d+=\"(.*)\")"
-                               "|(?:macaddress\\d+=\"(.*)\")"));
+                               "|(?:macaddress\\d+=\"(.*)\")"
+                               "|(?:SessionType=\"(.*)\")"));
 
     rexp.setMinimal(true);
     int pos = 0;
@@ -297,6 +362,8 @@ VirtualMachineInfo virtualMachineInfoFromOutput(const QString &output)
                 macFields.removeFirst();
                 info.macs << macFields.join(QLatin1String(":"));
             }
+        } else if (rexp.cap(0).startsWith(QLatin1String("SessionType"))) {
+            info.headless = rexp.cap(10) == QLatin1String("headless");
         }
     }
 

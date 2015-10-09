@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -158,12 +158,12 @@ QVariant ModulesModel::data(const QModelIndex &index, int role) const
                         return ModulesHandler::tr(
                         "This module contains debug information.\nStepping "
                         "into the module or setting breakpoints by file and "
-                        "is expected to work.");
+                        "line is expected to work.");
                     case FastSymbols:
                         return ModulesHandler::tr(
                         "This module contains debug information.\nStepping "
                         "into the module or setting breakpoints by file and "
-                        "is expected to work.");
+                        "line is expected to work.");
                     case LinkedSymbols:
                     case BuildIdSymbols:
                         return ModulesHandler::tr(
@@ -262,7 +262,9 @@ ModulesHandler::ModulesHandler(DebuggerEngine *engine)
 {
     m_engine = engine;
     m_model = new ModulesModel(this);
+    m_model->setObjectName(QLatin1String("ModulesModel"));
     m_proxyModel = new QSortFilterProxyModel(this);
+    m_proxyModel->setObjectName(QLatin1String("ModulesProxyModel"));
     m_proxyModel->setSourceModel(m_model);
 }
 

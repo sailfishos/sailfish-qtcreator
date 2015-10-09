@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2013 Jolla Ltd.
+** Copyright (C) 2012 - 2014 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -25,8 +25,8 @@
 
 #include "mersdk.h"
 
-#include <QWidget>
 #include <QTimer>
+#include <QWidget>
 
 QT_BEGIN_NAMESPACE
 class QStandardItemModel;
@@ -65,6 +65,7 @@ private slots:
     void onGenerateSshKey(const QString &path);
     void onAuthorizeSshKey(const QString &file);
     void onSshKeyChanged(const QString &file);
+    void onSshTimeoutChanged(int timeout);
     void onHeadlessCheckBoxToggled(bool checked);
     void onSrcFolderApplyButtonClicked(const QString &path);
     void update();
@@ -75,6 +76,7 @@ private:
     QString m_status;
     QMap<QString, MerSdk*> m_sdks;
     QMap<MerSdk*, QString> m_sshPrivKeys;
+    QMap<MerSdk*, int> m_sshTimeout;
     QMap<MerSdk*, bool> m_headless;
 };
 

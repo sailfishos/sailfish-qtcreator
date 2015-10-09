@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -32,6 +32,7 @@
 
 #include "ui_gitsubmitpanel.h"
 #include "gitsettings.h"
+#include "commitdata.h"
 
 #include <texteditor/syntaxhighlighter.h>
 #include <vcsbase/submiteditorwidget.h>
@@ -66,26 +67,35 @@ public:
     explicit GitSubmitEditorWidget(QWidget *parent = 0);
 
     GitSubmitEditorPanelData panelData() const;
-    void setPanelData(const GitSubmitEditorPanelData &data);
-    void setPanelInfo(const GitSubmitEditorPanelInfo &info);
     QString amendSHA1() const;
     void setHasUnmerged(bool e);
-    void initialize(CommitType commitType, const QString &repository);
+    void initialize(CommitType commitType,
+                    const QString &repository,
+                    const GitSubmitEditorPanelData &data,
+                    const GitSubmitEditorPanelInfo &info,
+                    bool enablePush);
     void refreshLog(const QString &repository);
 
 protected:
     bool canSubmit() const;
     QString cleanupDescription(const QString &) const;
+    QString commitName() const;
 
 signals:
     void show(const QString &commit);
 
 private slots:
     void authorInformationChanged();
+    void commitOnlySlot();
+    void commitAndPushSlot();
+    void commitAndPushToGerritSlot();
 
 private:
     bool emailIsValid() const;
+    void setPanelData(const GitSubmitEditorPanelData &data);
+    void setPanelInfo(const GitSubmitEditorPanelInfo &info);
 
+    PushAction m_pushAction;
     QWidget *m_gitSubmitPanel;
     LogChangeWidget *m_logChangeWidget;
     Ui::GitSubmitPanel m_gitSubmitPanelUi;

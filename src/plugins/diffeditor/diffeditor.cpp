@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -28,14 +28,19 @@
 ****************************************************************************/
 
 #include "diffeditor.h"
-#include "diffeditorfile.h"
-#include "diffeditorwidget.h"
 #include "diffeditorconstants.h"
+#include "diffeditordocument.h"
+#include "diffeditorguicontroller.h"
+#include "sidebysidediffeditorwidget.h"
 
 #include <coreplugin/icore.h>
 #include <coreplugin/coreconstants.h>
+#include <coreplugin/minisplitter.h>
 
-#include <QCoreApplication>
+#include <texteditor/basetexteditor.h>
+#include <texteditor/texteditorsettings.h>
+#include <texteditor/displaysettings.h>
+
 #include <QToolButton>
 #include <QSpinBox>
 #include <QStyle>
@@ -45,33 +50,148 @@
 #include <QComboBox>
 #include <QFileInfo>
 
+using namespace TextEditor;
+
 namespace DiffEditor {
+
+namespace Internal {
+
+class DescriptionEditorWidget : public BaseTextEditorWidget
+{
+    Q_OBJECT
+public:
+    DescriptionEditorWidget(QWidget *parent = 0);
+    virtual QSize sizeHint() const;
+
+public slots:
+    void setDisplaySettings(const DisplaySettings &ds);
+
+protected:
+    BaseTextEditor *createEditor()
+    {
+        BaseTextEditor *editor = new BaseTextEditor(this);
+        editor->setId("DescriptionEditor");
+        return editor;
+    }
+};
+
+DescriptionEditorWidget::DescriptionEditorWidget(QWidget *parent)
+    : BaseTextEditorWidget(parent)
+{
+    DisplaySettings settings = displaySettings();
+    settings.m_textWrapping = false;
+    settings.m_displayLineNumbers = false;
+    settings.m_highlightCurrentLine = false;
+    settings.m_displayFoldingMarkers = false;
+    settings.m_markTextChanges = false;
+    settings.m_highlightBlocks = false;
+    BaseTextEditorWidget::setDisplaySettings(settings);
+
+    setCodeFoldingSupported(true);
+    setFrameStyle(QFrame::NoFrame);
+
+    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+}
+
+QSize DescriptionEditorWidget::sizeHint() const
+{
+    QSize size = BaseTextEditorWidget::sizeHint();
+    size.setHeight(size.height() / 5);
+    return size;
+}
+
+void DescriptionEditorWidget::setDisplaySettings(const DisplaySettings &ds)
+{
+    DisplaySettings settings = displaySettings();
+    settings.m_visualizeWhitespace = ds.m_visualizeWhitespace;
+    BaseTextEditorWidget::setDisplaySettings(settings);
+}
+
+} // namespace Internal
 
 ///////////////////////////////// DiffEditor //////////////////////////////////
 
-DiffEditor::DiffEditor(DiffEditorWidget *editorWidget)
-    : IEditor(0),
-      m_toolWidget(0),
-      m_file(new Internal::DiffEditorFile(QLatin1String(Constants::DIFF_EDITOR_MIMETYPE), this)),
-      m_editorWidget(editorWidget),
-      m_entriesComboBox(0)
+DiffEditor::DiffEditor()
+    : IEditor(0)
+    , m_document(new DiffEditorDocument())
+    , m_descriptionWidget(0)
+    , m_diffWidget(0)
+    , m_controller(0)
+    , m_guiController(0)
+    , m_toolBar(0)
+    , m_entriesComboBox(0)
+    , m_toggleDescriptionAction(0)
 {
-    setWidget(editorWidget);
-    connect(m_editorWidget, SIGNAL(navigatedToDiffFile(int)),
+    ctor();
+}
+
+DiffEditor::DiffEditor(DiffEditor *other)
+    : IEditor(0)
+    , m_document(other->m_document)
+    , m_descriptionWidget(0)
+    , m_diffWidget(0)
+    , m_controller(0)
+    , m_guiController(0)
+    , m_toolBar(0)
+    , m_entriesComboBox(0)
+    , m_toggleDescriptionAction(0)
+{
+    ctor();
+}
+
+void DiffEditor::ctor()
+{
+    setId(Constants::DIFF_EDITOR_ID);
+    QSplitter *splitter = new Core::MiniSplitter(Qt::Vertical);
+
+    m_descriptionWidget = new Internal::DescriptionEditorWidget(splitter);
+    m_descriptionWidget->setReadOnly(true);
+    splitter->addWidget(m_descriptionWidget);
+
+    m_diffWidget = new SideBySideDiffEditorWidget(splitter);
+    splitter->addWidget(m_diffWidget);
+
+    setWidget(splitter);
+
+    connect(TextEditorSettings::instance(), SIGNAL(displaySettingsChanged(TextEditor::DisplaySettings)),
+            m_descriptionWidget, SLOT(setDisplaySettings(TextEditor::DisplaySettings)));
+    connect(TextEditorSettings::instance(), SIGNAL(fontSettingsChanged(TextEditor::FontSettings)),
+            m_descriptionWidget->baseTextDocument(), SLOT(setFontSettings(TextEditor::FontSettings)));
+    m_descriptionWidget->setDisplaySettings(TextEditorSettings::displaySettings());
+    m_descriptionWidget->setCodeStyle(TextEditorSettings::codeStyle());
+    m_descriptionWidget->baseTextDocument()->setFontSettings(TextEditorSettings::fontSettings());
+
+    m_controller = m_document->controller();
+    m_guiController = new DiffEditorGuiController(m_controller, this);
+    m_diffWidget->setDiffEditorGuiController(m_guiController);
+
+    connect(m_controller, SIGNAL(cleared(QString)),
+            this, SLOT(slotCleared(QString)));
+    connect(m_controller, SIGNAL(diffContentsChanged(QList<DiffEditorController::DiffFilesContents>,QString)),
+            this, SLOT(slotDiffContentsChanged(QList<DiffEditorController::DiffFilesContents>,QString)));
+    connect(m_controller, SIGNAL(descriptionChanged(QString)),
+            this, SLOT(slotDescriptionChanged(QString)));
+    connect(m_controller, SIGNAL(descriptionEnablementChanged(bool)),
+            this, SLOT(slotDescriptionVisibilityChanged()));
+    connect(m_guiController, SIGNAL(descriptionVisibilityChanged(bool)),
+            this, SLOT(slotDescriptionVisibilityChanged()));
+    connect(m_guiController, SIGNAL(currentDiffFileIndexChanged(int)),
             this, SLOT(activateEntry(int)));
+
+    slotDescriptionChanged(m_controller->description());
+    slotDescriptionVisibilityChanged();
 }
 
 DiffEditor::~DiffEditor()
 {
-    delete m_toolWidget;
+    delete m_toolBar;
     if (m_widget)
         delete m_widget;
 }
 
-bool DiffEditor::createNew(const QString &contents)
+Core::IEditor *DiffEditor::duplicate()
 {
-    Q_UNUSED(contents)
-    return true;
+    return new DiffEditor(this);
 }
 
 bool DiffEditor::open(QString *errorString, const QString &fileName, const QString &realFileName)
@@ -84,32 +204,14 @@ bool DiffEditor::open(QString *errorString, const QString &fileName, const QStri
 
 Core::IDocument *DiffEditor::document()
 {
-    return m_file;
-}
-
-QString DiffEditor::displayName() const
-{
-    if (m_displayName.isEmpty())
-        m_displayName = QCoreApplication::translate("DiffEditor", Constants::DIFF_EDITOR_DISPLAY_NAME);
-    return m_displayName;
-}
-
-void DiffEditor::setDisplayName(const QString &title)
-{
-    m_displayName = title;
-    emit changed();
-}
-
-Core::Id DiffEditor::id() const
-{
-    return Constants::DIFF_EDITOR_ID;
+    return m_document.data();
 }
 
 static QToolBar *createToolBar(const QWidget *someWidget)
 {
     // Create
     QToolBar *toolBar = new QToolBar;
-    toolBar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+    toolBar->setToolButtonStyle(Qt::ToolButtonIconOnly);
     const int size = someWidget->style()->pixelMetric(QStyle::PM_SmallIconSize);
     toolBar->setIconSize(QSize(size, size));
 
@@ -118,11 +220,11 @@ static QToolBar *createToolBar(const QWidget *someWidget)
 
 QWidget *DiffEditor::toolBar()
 {
-    if (m_toolWidget)
-        return m_toolWidget;
+    if (m_toolBar)
+        return m_toolBar;
 
     // Create
-    m_toolWidget = createToolBar(m_editorWidget);
+    m_toolBar = createToolBar(m_diffWidget);
 
     m_entriesComboBox = new QComboBox;
     m_entriesComboBox->setMinimumContentsLength(20);
@@ -132,50 +234,89 @@ QWidget *DiffEditor::toolBar()
     m_entriesComboBox->setSizePolicy(policy);
     connect(m_entriesComboBox, SIGNAL(activated(int)),
             this, SLOT(entryActivated(int)));
-    m_toolWidget->addWidget(m_entriesComboBox);
+    m_toolBar->addWidget(m_entriesComboBox);
 
-    QToolButton *whitespaceButton = new QToolButton(m_toolWidget);
+    QToolButton *whitespaceButton = new QToolButton(m_toolBar);
     whitespaceButton->setText(tr("Ignore Whitespace"));
     whitespaceButton->setCheckable(true);
     whitespaceButton->setChecked(true);
-    connect(whitespaceButton, SIGNAL(clicked(bool)),
-            m_editorWidget, SLOT(setIgnoreWhitespaces(bool)));
-    m_toolWidget->addWidget(whitespaceButton);
+    m_toolBar->addWidget(whitespaceButton);
 
-    QLabel *contextLabel = new QLabel(m_toolWidget);
+    QLabel *contextLabel = new QLabel(m_toolBar);
     contextLabel->setText(tr("Context Lines:"));
     contextLabel->setContentsMargins(6, 0, 6, 0);
-    m_toolWidget->addWidget(contextLabel);
+    m_toolBar->addWidget(contextLabel);
 
-    QSpinBox *contextSpinBox = new QSpinBox(m_toolWidget);
+    QSpinBox *contextSpinBox = new QSpinBox(m_toolBar);
     contextSpinBox->setRange(-1, 100);
     contextSpinBox->setValue(3);
     contextSpinBox->setFrame(false);
     contextSpinBox->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Expanding); // Mac Qt5
-    connect(contextSpinBox, SIGNAL(valueChanged(int)),
-            m_editorWidget, SLOT(setContextLinesNumber(int)));
-    m_toolWidget->addWidget(contextSpinBox);
+    m_toolBar->addWidget(contextSpinBox);
 
-    QToolButton *toggleSync = new QToolButton(m_toolWidget);
+    QToolButton *toggleSync = new QToolButton(m_toolBar);
     toggleSync->setIcon(QIcon(QLatin1String(Core::Constants::ICON_LINK)));
     toggleSync->setCheckable(true);
     toggleSync->setChecked(true);
     toggleSync->setToolTip(tr("Synchronize Horizontal Scroll Bars"));
-    connect(toggleSync, SIGNAL(clicked(bool)),
-            m_editorWidget, SLOT(setHorizontalScrollBarSynchronization(bool)));
-    m_toolWidget->addWidget(toggleSync);
+    m_toolBar->addWidget(toggleSync);
 
-    return m_toolWidget;
+    QToolButton *toggleDescription = new QToolButton(m_toolBar);
+    toggleDescription->setIcon(QIcon(QLatin1String(Core::Constants::ICON_TOGGLE_TOPBAR)));
+    toggleDescription->setCheckable(true);
+    toggleDescription->setChecked(true);
+    m_toggleDescriptionAction = m_toolBar->addWidget(toggleDescription);
+    slotDescriptionVisibilityChanged();
+
+    connect(whitespaceButton, SIGNAL(clicked(bool)),
+            m_guiController, SLOT(setIgnoreWhitespaces(bool)));
+    connect(contextSpinBox, SIGNAL(valueChanged(int)),
+            m_guiController, SLOT(setContextLinesNumber(int)));
+    connect(toggleSync, SIGNAL(clicked(bool)),
+            m_guiController, SLOT(setHorizontalScrollBarSynchronization(bool)));
+    connect(toggleDescription, SIGNAL(clicked(bool)),
+            m_guiController, SLOT(setDescriptionVisible(bool)));
+    // TODO: synchronize in opposite direction too
+
+    return m_toolBar;
 }
 
-void DiffEditor::setDiff(const QList<DiffEditorWidget::DiffFilesContents> &diffFileList,
-                                 const QString &workingDirectory)
+DiffEditorController * DiffEditor::controller() const
 {
+    return m_controller;
+}
+
+void DiffEditor::updateEntryToolTip()
+{
+    const QString &toolTip = m_entriesComboBox->itemData(
+                m_entriesComboBox->currentIndex(), Qt::ToolTipRole).toString();
+    m_entriesComboBox->setToolTip(toolTip);
+}
+
+void DiffEditor::entryActivated(int index)
+{
+    updateEntryToolTip();
+    m_guiController->setCurrentDiffFileIndex(index);
+}
+
+void DiffEditor::slotCleared(const QString &message)
+{
+    Q_UNUSED(message)
+
+    m_entriesComboBox->clear();
+    updateEntryToolTip();
+}
+
+void DiffEditor::slotDiffContentsChanged(const QList<DiffEditorController::DiffFilesContents> &diffFileList,
+                                         const QString &workingDirectory)
+{
+    Q_UNUSED(workingDirectory)
+
     m_entriesComboBox->clear();
     const int count = diffFileList.count();
     for (int i = 0; i < count; i++) {
-        const DiffEditorWidget::DiffFileInfo leftEntry = diffFileList.at(i).leftFileInfo;
-        const DiffEditorWidget::DiffFileInfo rightEntry = diffFileList.at(i).rightFileInfo;
+        const DiffEditorController::DiffFileInfo leftEntry = diffFileList.at(i).leftFileInfo;
+        const DiffEditorController::DiffFileInfo rightEntry = diffFileList.at(i).rightFileInfo;
         const QString leftShortFileName = QFileInfo(leftEntry.fileName).fileName();
         const QString rightShortFileName = QFileInfo(rightEntry.fileName).fileName();
         QString itemText;
@@ -209,27 +350,6 @@ void DiffEditor::setDiff(const QList<DiffEditorWidget::DiffFilesContents> &diffF
         m_entriesComboBox->setItemData(m_entriesComboBox->count() - 1, itemToolTip, Qt::ToolTipRole);
     }
     updateEntryToolTip();
-    m_editorWidget->setDiff(diffFileList, workingDirectory);
-}
-
-void DiffEditor::clear(const QString &message)
-{
-    m_entriesComboBox->clear();
-    updateEntryToolTip();
-    m_editorWidget->clear(message);
-}
-
-void DiffEditor::updateEntryToolTip()
-{
-    const QString &toolTip = m_entriesComboBox->itemData(
-                m_entriesComboBox->currentIndex(), Qt::ToolTipRole).toString();
-    m_entriesComboBox->setToolTip(toolTip);
-}
-
-void DiffEditor::entryActivated(int index)
-{
-    updateEntryToolTip();
-    m_editorWidget->navigateToDiffFile(index);
 }
 
 void DiffEditor::activateEntry(int index)
@@ -240,4 +360,31 @@ void DiffEditor::activateEntry(int index)
     updateEntryToolTip();
 }
 
+void DiffEditor::slotDescriptionChanged(const QString &description)
+{
+    m_descriptionWidget->setPlainText(description);
+}
+
+void DiffEditor::slotDescriptionVisibilityChanged()
+{
+    const bool enabled = m_controller->isDescriptionEnabled();
+    const bool visible = m_guiController->isDescriptionVisible();
+
+    m_descriptionWidget->setVisible(visible && enabled);
+
+    if (!m_toggleDescriptionAction)
+        return;
+
+    QWidget *toggle = m_toolBar->widgetForAction(m_toggleDescriptionAction);
+    if (visible)
+        toggle->setToolTip(tr("Hide Change Description"));
+    else
+        toggle->setToolTip(tr("Show Change Description"));
+
+    m_toggleDescriptionAction->setVisible(enabled);
+
+}
+
 } // namespace DiffEditor
+
+#include "diffeditor.moc"

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -32,6 +32,8 @@
 #include "projectexplorerconstants.h"
 #include "task.h"
 
+#include <utils/qtcassert.h>
+
 #include <QDir>
 #include <QFile>
 
@@ -39,7 +41,8 @@ using namespace ProjectExplorer;
 
 namespace {
     // optional full path, make executable name, optional exe extension, optional number in square brackets, colon space
-    const char * const MAKE_PATTERN("^(([A-Za-z]:)?[/\\\\][^:]*[/\\\\])?(mingw(32|64)-|g)?make(.exe)?(\\[\\d+\\])?:\\s");
+    const char * const MAKEEXEC_PATTERN("^(.*[/\\\\])?(mingw(32|64)-|g)?make(.exe)?(\\[\\d+\\])?:\\s");
+    const char * const MAKEFILE_PATTERN("^((.*[/\\\\])?[Mm]akefile(\\.[a-zA-Z]+)?):(\\d+):\\s");
 }
 
 GnuMakeParser::GnuMakeParser() :
@@ -47,13 +50,16 @@ GnuMakeParser::GnuMakeParser() :
     m_fatalErrorCount(0)
 {
     setObjectName(QLatin1String("GnuMakeParser"));
-    m_makeDir.setPattern(QLatin1String(MAKE_PATTERN) +
+    m_makeDir.setPattern(QLatin1String(MAKEEXEC_PATTERN) +
                          QLatin1String("(\\w+) directory .(.+).$"));
     m_makeDir.setMinimal(true);
-    m_makeLine.setPattern(QLatin1String(MAKE_PATTERN) + QLatin1String("(\\*\\*\\*\\s)?(.*)$"));
+    QTC_CHECK(m_makeDir.isValid());
+    m_makeLine.setPattern(QLatin1String(MAKEEXEC_PATTERN) + QLatin1String("(.*)$"));
     m_makeLine.setMinimal(true);
-    m_makefileError.setPattern(QLatin1String("^(.*):(\\d+):\\s\\*\\*\\*\\s(.*)$"));
-    m_makefileError.setMinimal(true);
+    QTC_CHECK(m_makeLine.isValid());
+    m_errorInMakefile.setPattern(QLatin1String(MAKEFILE_PATTERN) + QLatin1String("(.*)$"));
+    m_errorInMakefile.setMinimal(true);
+    QTC_CHECK(m_errorInMakefile.isValid());
 }
 
 void GnuMakeParser::setWorkingDirectory(const QString &workingDirectory)
@@ -72,48 +78,68 @@ void GnuMakeParser::stdOutput(const QString &line)
     const QString lne = rightTrimmed(line);
 
     if (m_makeDir.indexIn(lne) > -1) {
-        if (m_makeDir.cap(7) == QLatin1String("Leaving"))
-            removeDirectory(m_makeDir.cap(8));
+        if (m_makeDir.cap(6) == QLatin1String("Leaving"))
+            removeDirectory(m_makeDir.cap(7));
         else
-            addDirectory(m_makeDir.cap(8));
+            addDirectory(m_makeDir.cap(7));
         return;
     }
 
     IOutputParser::stdOutput(line);
 }
 
+class Result {
+public:
+    Result() : isFatal(false), type(Task::Error) { }
+
+    QString description;
+    bool isFatal;
+    Task::TaskType type;
+};
+
+static Result parseDescription(const QString &description)
+{
+    Result result;
+    if (description.startsWith(QLatin1String("warning: "), Qt::CaseInsensitive)) {
+        result.description = description.mid(9);
+        result.type = Task::Warning;
+        result.isFatal = false;
+    } else if (description.startsWith(QLatin1String("*** "))) {
+        result.description = description.mid(4);
+        result.type = Task::Error;
+        result.isFatal = true;
+    } else {
+        result.description = description;
+        result.type = Task::Error;
+        result.isFatal = false;
+    }
+    return result;
+}
+
 void GnuMakeParser::stdError(const QString &line)
 {
     const QString lne = rightTrimmed(line);
 
-    if (m_makefileError.indexIn(lne) > -1) {
-        ++m_fatalErrorCount;
+    if (m_errorInMakefile.indexIn(lne) > -1) {
+        Result res = parseDescription(m_errorInMakefile.cap(5));
+        if (res.isFatal)
+            ++m_fatalErrorCount;
         if (!m_suppressIssues) {
-            m_suppressIssues = true;
-            emit addTask(Task(Task::Error,
-                              m_makefileError.cap(3),
-                              Utils::FileName::fromUserInput(m_makefileError.cap(1)),
-                              m_makefileError.cap(2).toInt(),
-                              Core::Id(Constants::TASK_CATEGORY_BUILDSYSTEM)));
+            taskAdded(Task(res.type, res.description,
+                           Utils::FileName::fromUserInput(m_errorInMakefile.cap(1)) /* filename */,
+                           m_errorInMakefile.cap(4).toInt(), /* line */
+                           Core::Id(Constants::TASK_CATEGORY_BUILDSYSTEM)));
         }
         return;
     }
     if (m_makeLine.indexIn(lne) > -1) {
-        if (!m_makeLine.cap(7).isEmpty())
+        Result res = parseDescription(m_makeLine.cap(6));
+        if (res.isFatal)
             ++m_fatalErrorCount;
         if (!m_suppressIssues) {
-            m_suppressIssues = true;
-            QString description = m_makeLine.cap(8);
-            Task::TaskType type = Task::Error;
-            if (description.startsWith(QLatin1String("warning: "), Qt::CaseInsensitive)) {
-                description = description.mid(9);
-                type = Task::Warning;
-            }
-
-            emit addTask(Task(type, description,
-                              Utils::FileName() /* filename */,
-                              -1, /* line */
-                              Core::Id(Constants::TASK_CATEGORY_BUILDSYSTEM)));
+            taskAdded(Task(res.type, res.description,
+                           Utils::FileName() /* filename */, -1, /* line */
+                           Core::Id(Constants::TASK_CATEGORY_BUILDSYSTEM)));
         }
         return;
     }
@@ -333,9 +359,9 @@ void ProjectExplorerPlugin::testGnuMakeParserParsing_data()
             << QStringList();
     QTest::newRow("pass-trough note")
             << QStringList()
-            << QString::fromLatin1("/home/dev/creator/share/qtcreator/dumper/dumper.cpp:1079: note: initialized from here")
+            << QString::fromLatin1("/home/dev/creator/share/qtcreator/debugger/dumper.cpp:1079: note: initialized from here")
             << OutputParserTester::STDERR
-            << QString() << QString::fromLatin1("/home/dev/creator/share/qtcreator/dumper/dumper.cpp:1079: note: initialized from here\n")
+            << QString() << QString::fromLatin1("/home/dev/creator/share/qtcreator/debugger/dumper.cpp:1079: note: initialized from here\n")
             << QList<ProjectExplorer::Task>()
             << QString()
             << QStringList();
@@ -360,6 +386,18 @@ void ProjectExplorerPlugin::testGnuMakeParserParsing_data()
                 << Task(Task::Error,
                         QString::fromLatin1("g++: Command not found"),
                         Utils::FileName(), -1,
+                        Core::Id(Constants::TASK_CATEGORY_BUILDSYSTEM)))
+            << QString()
+            << QStringList();
+    QTest::newRow("warning in Makefile")
+            << QStringList()
+            << QString::fromLatin1("Makefile:794: warning: overriding commands for target `xxxx.app/Contents/Info.plist'")
+            << OutputParserTester::STDERR
+            << QString() << QString()
+            << (QList<Task>()
+                << Task(Task::Warning,
+                        QString::fromLatin1("overriding commands for target `xxxx.app/Contents/Info.plist'"),
+                        Utils::FileName::fromString(QLatin1String("Makefile")), 794,
                         Core::Id(Constants::TASK_CATEGORY_BUILDSYSTEM)))
             << QString()
             << QStringList();
@@ -424,12 +462,12 @@ void ProjectExplorerPlugin::testGnuMakeParserTaskMangling_data()
                     QLatin1String("no filename, no mangling"),
                     Utils::FileName(),
                     -1,
-                    Core::Id(Constants::TASK_CATEGORY_COMPILE))
+                    Constants::TASK_CATEGORY_COMPILE)
             << Task(Task::Error,
                     QLatin1String("no filename, no mangling"),
                     Utils::FileName(),
                     -1,
-                    Core::Id(Constants::TASK_CATEGORY_COMPILE));
+                    Constants::TASK_CATEGORY_COMPILE);
    QTest::newRow("no mangling")
             << QStringList()
             << QStringList()
@@ -437,12 +475,12 @@ void ProjectExplorerPlugin::testGnuMakeParserTaskMangling_data()
                     QLatin1String("unknown filename, no mangling"),
                     Utils::FileName::fromUserInput(QLatin1String("some/path/unknown.cpp")),
                     -1,
-                    Core::Id(Constants::TASK_CATEGORY_COMPILE))
+                    Constants::TASK_CATEGORY_COMPILE)
             << Task(Task::Error,
                     QLatin1String("unknown filename, no mangling"),
                     Utils::FileName::fromUserInput(QLatin1String("some/path/unknown.cpp")),
                     -1,
-                    Core::Id(Constants::TASK_CATEGORY_COMPILE));
+                    Constants::TASK_CATEGORY_COMPILE);
     QTest::newRow("find file")
             << (QStringList(QLatin1String("test/file.cpp")))
             << (QStringList(QLatin1String("test")))
@@ -450,12 +488,12 @@ void ProjectExplorerPlugin::testGnuMakeParserTaskMangling_data()
                     QLatin1String("mangling"),
                     Utils::FileName::fromUserInput(QLatin1String("file.cpp")),
                     10,
-                    Core::Id(Constants::TASK_CATEGORY_COMPILE))
+                    Constants::TASK_CATEGORY_COMPILE)
             << Task(Task::Error,
                     QLatin1String("mangling"),
                     Utils::FileName::fromUserInput(QLatin1String("$TMPDIR/test/file.cpp")),
                     10,
-                    Core::Id(Constants::TASK_CATEGORY_COMPILE));
+                    Constants::TASK_CATEGORY_COMPILE);
 }
 
 void ProjectExplorerPlugin::testGnuMakeParserTaskMangling()

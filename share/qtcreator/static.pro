@@ -32,15 +32,15 @@ DATA_DIRS = \
     schemes \
     styles \
     rss \
-    dumper \
+    debugger \
     qmldesigner \
     qmlicons \
     qml \
     qml-type-descriptions \
     generic-highlighter \
     glsl \
-    mer
-
+    mer \
+    cplusplus
 macx: DATA_DIRS += scripts
 
 for(data_dir, DATA_DIRS) {
@@ -74,9 +74,6 @@ OTHER_FILES += $$FILES
    dumpinfo.input = qml/qmldump/Info.plist.in
    dumpinfo.output = $$IDE_DATA_PATH/qml/qmldump/Info.plist
    QMAKE_SUBSTITUTES += dumpinfo
-   observerinfo.input = qml/qmlobserver/Info.plist.in
-   observerinfo.output = $$IDE_DATA_PATH/qml/qmlobserver/Info.plist
-   QMAKE_SUBSTITUTES += observerinfo
    puppetinfo.input = qml/qmlpuppet/qmlpuppet/Info.plist.in
    puppetinfo.output = $$IDE_DATA_PATH/qml/qmlpuppet/qmlpuppet/Info.plist
    QMAKE_SUBSTITUES += puppetinfo

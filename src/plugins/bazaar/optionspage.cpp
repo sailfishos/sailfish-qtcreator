@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Hugues Delorme
+** Copyright (c) 2014 Hugues Delorme
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -44,6 +44,7 @@ OptionsPageWidget::OptionsPageWidget(QWidget *parent)
     m_ui.setupUi(this);
     m_ui.commandChooser->setExpectedKind(Utils::PathChooser::ExistingCommand);
     m_ui.commandChooser->setPromptDialogTitle(tr("Bazaar Command"));
+    m_ui.commandChooser->setHistoryCompleter(QLatin1String("Bazaar.Command.History"));
 }
 
 BazaarSettings OptionsPageWidget::settings() const
@@ -54,7 +55,6 @@ BazaarSettings OptionsPageWidget::settings() const
     s.setValue(BazaarSettings::userEmailKey, m_ui.defaultEmailLineEdit->text().trimmed());
     s.setValue(BazaarSettings::logCountKey, m_ui.logEntriesCount->value());
     s.setValue(BazaarSettings::timeoutKey, m_ui.timeout->value());
-    s.setValue(BazaarSettings::promptOnSubmitKey, m_ui.promptOnSubmitCheckBox->isChecked());
     return s;
 }
 
@@ -65,26 +65,6 @@ void OptionsPageWidget::setSettings(const BazaarSettings &s)
     m_ui.defaultEmailLineEdit->setText(s.stringValue(BazaarSettings::userEmailKey));
     m_ui.logEntriesCount->setValue(s.intValue(BazaarSettings::logCountKey));
     m_ui.timeout->setValue(s.intValue(BazaarSettings::timeoutKey));
-    m_ui.promptOnSubmitCheckBox->setChecked(s.boolValue(BazaarSettings::promptOnSubmitKey));
-}
-
-QString OptionsPageWidget::searchKeywords() const
-{
-    QString rc;
-    QLatin1Char sep(' ');
-    QTextStream(&rc)
-            << sep << m_ui.configGroupBox->title()
-            << sep << m_ui.commandLabel->text()
-            << sep << m_ui.userGroupBox->title()
-            << sep << m_ui.defaultUsernameLabel->text()
-            << sep << m_ui.defaultEmailLabel->text()
-            << sep << m_ui.miscGroupBox->title()
-            << sep << m_ui.showLogEntriesLabel->text()
-            << sep << m_ui.timeoutSecondsLabel->text()
-            << sep << m_ui.promptOnSubmitCheckBox->text()
-               ;
-    rc.remove(QLatin1Char('&'));
-    return rc;
 }
 
 OptionsPage::OptionsPage()
@@ -93,13 +73,11 @@ OptionsPage::OptionsPage()
     setDisplayName(tr("Bazaar"));
 }
 
-QWidget *OptionsPage::createPage(QWidget *parent)
+QWidget *OptionsPage::widget()
 {
     if (!m_optionsPageWidget)
-        m_optionsPageWidget = new OptionsPageWidget(parent);
+        m_optionsPageWidget = new OptionsPageWidget;
     m_optionsPageWidget->setSettings(BazaarPlugin::instance()->settings());
-    if (m_searchKeywords.isEmpty())
-        m_searchKeywords = m_optionsPageWidget->searchKeywords();
     return m_optionsPageWidget;
 }
 
@@ -115,9 +93,4 @@ void OptionsPage::apply()
         newSettings.writeSettings(Core::ICore::settings());
         emit settingsChanged();
     }
-}
-
-bool OptionsPage::matches(const QString &s) const
-{
-    return m_searchKeywords.contains(s, Qt::CaseInsensitive);
 }

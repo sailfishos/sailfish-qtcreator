@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -29,10 +29,12 @@
 
 #include "displaysettingspage.h"
 #include "displaysettings.h"
+#include "marginsettings.h"
 #include "ui_displaysettingspage.h"
 
 #include <coreplugin/icore.h>
 
+#include <QPointer>
 #include <QTextStream>
 
 using namespace TextEditor;
@@ -42,9 +44,10 @@ struct DisplaySettingsPage::DisplaySettingsPagePrivate
     explicit DisplaySettingsPagePrivate(const DisplaySettingsPageParameters &p);
 
     const DisplaySettingsPageParameters m_parameters;
+    QPointer<QWidget> m_widget;
     Internal::Ui::DisplaySettingsPage *m_page;
     DisplaySettings m_displaySettings;
-    QString m_searchKeywords;
+    MarginSettings m_marginSettings;
 };
 
 DisplaySettingsPage::DisplaySettingsPagePrivate::DisplaySettingsPagePrivate
@@ -52,6 +55,7 @@ DisplaySettingsPage::DisplaySettingsPagePrivate::DisplaySettingsPagePrivate
     : m_parameters(p), m_page(0)
 {
     m_displaySettings.fromSettings(m_parameters.settingsPrefix, Core::ICore::settings());
+    m_marginSettings.fromSettings(m_parameters.settingsPrefix, Core::ICore::settings());
 }
 
 DisplaySettingsPage::DisplaySettingsPage(const DisplaySettingsPageParameters &p,
@@ -68,28 +72,15 @@ DisplaySettingsPage::~DisplaySettingsPage()
     delete d;
 }
 
-QWidget *DisplaySettingsPage::createPage(QWidget *parent)
+QWidget *DisplaySettingsPage::widget()
 {
-    QWidget *w = new QWidget(parent);
-    d->m_page = new Internal::Ui::DisplaySettingsPage;
-    d->m_page->setupUi(w);
-    settingsToUI();
-    if (d->m_searchKeywords.isEmpty()) {
-        QTextStream(&d->m_searchKeywords) << d->m_page->displayLineNumbers->text()
-          << ' ' << d->m_page->highlightCurrentLine->text()
-          << ' ' << d->m_page->displayFoldingMarkers->text()
-          << ' ' << d->m_page->highlightBlocks->text()
-          << ' ' << d->m_page->visualizeWhitespace->text()
-          << ' ' << d->m_page->animateMatchingParentheses->text()
-          << ' ' << d->m_page->highlightMatchingParentheses->text()
-          << ' ' << d->m_page->enableTextWrapping->text()
-          << ' ' << d->m_page->autoFoldFirstComment->text()
-          << ' ' << d->m_page->centerOnScroll->text()
-          << ' ' << d->m_page->openLinksInNextSplit->text()
-          << ' ' << d->m_page->displayFileEncoding->text();
-        d->m_searchKeywords.remove(QLatin1Char('&'));
+    if (!d->m_widget) {
+        d->m_widget = new QWidget;
+        d->m_page = new Internal::Ui::DisplaySettingsPage;
+        d->m_page->setupUi(d->m_widget);
+        settingsToUI();
     }
-    return w;
+    return d->m_widget;
 }
 
 void DisplaySettingsPage::apply()
@@ -97,25 +88,28 @@ void DisplaySettingsPage::apply()
     if (!d->m_page) // page was never shown
         return;
     DisplaySettings newDisplaySettings;
+    MarginSettings newMarginSettings;
 
-    settingsFromUI(newDisplaySettings);
-    setDisplaySettings(newDisplaySettings);
+    settingsFromUI(newDisplaySettings, newMarginSettings);
+    setDisplaySettings(newDisplaySettings, newMarginSettings);
 }
 
 void DisplaySettingsPage::finish()
 {
+    delete d->m_widget;
     if (!d->m_page) // page was never shown
         return;
     delete d->m_page;
     d->m_page = 0;
 }
 
-void DisplaySettingsPage::settingsFromUI(DisplaySettings &displaySettings) const
+void DisplaySettingsPage::settingsFromUI(DisplaySettings &displaySettings,
+                                         MarginSettings &marginSettings) const
 {
     displaySettings.m_displayLineNumbers = d->m_page->displayLineNumbers->isChecked();
     displaySettings.m_textWrapping = d->m_page->enableTextWrapping->isChecked();
-    displaySettings.m_showWrapColumn = d->m_page->showWrapColumn->isChecked();
-    displaySettings.m_wrapColumn = d->m_page->wrapColumn->value();
+    marginSettings.m_showMargin = d->m_page->showWrapColumn->isChecked();
+    marginSettings.m_marginColumn = d->m_page->wrapColumn->value();
     displaySettings.m_visualizeWhitespace = d->m_page->visualizeWhitespace->isChecked();
     displaySettings.m_displayFoldingMarkers = d->m_page->displayFoldingMarkers->isChecked();
     displaySettings.m_highlightCurrentLine = d->m_page->highlightCurrentLine->isChecked();
@@ -132,10 +126,11 @@ void DisplaySettingsPage::settingsFromUI(DisplaySettings &displaySettings) const
 void DisplaySettingsPage::settingsToUI()
 {
     const DisplaySettings &displaySettings = d->m_displaySettings;
+    const MarginSettings &marginSettings = d->m_marginSettings;
     d->m_page->displayLineNumbers->setChecked(displaySettings.m_displayLineNumbers);
     d->m_page->enableTextWrapping->setChecked(displaySettings.m_textWrapping);
-    d->m_page->showWrapColumn->setChecked(displaySettings.m_showWrapColumn);
-    d->m_page->wrapColumn->setValue(displaySettings.m_wrapColumn);
+    d->m_page->showWrapColumn->setChecked(marginSettings.m_showMargin);
+    d->m_page->wrapColumn->setValue(marginSettings.m_marginColumn);
     d->m_page->visualizeWhitespace->setChecked(displaySettings.m_visualizeWhitespace);
     d->m_page->displayFoldingMarkers->setChecked(displaySettings.m_displayFoldingMarkers);
     d->m_page->highlightCurrentLine->setChecked(displaySettings.m_highlightCurrentLine);
@@ -154,7 +149,13 @@ const DisplaySettings &DisplaySettingsPage::displaySettings() const
     return d->m_displaySettings;
 }
 
-void DisplaySettingsPage::setDisplaySettings(const DisplaySettings &newDisplaySettings)
+const MarginSettings &DisplaySettingsPage::marginSettings() const
+{
+    return d->m_marginSettings;
+}
+
+void DisplaySettingsPage::setDisplaySettings(const DisplaySettings &newDisplaySettings,
+                                             const MarginSettings &newMarginSettings)
 {
     if (newDisplaySettings != d->m_displaySettings) {
         d->m_displaySettings = newDisplaySettings;
@@ -162,9 +163,11 @@ void DisplaySettingsPage::setDisplaySettings(const DisplaySettings &newDisplaySe
 
         emit displaySettingsChanged(newDisplaySettings);
     }
-}
 
-bool DisplaySettingsPage::matches(const QString &s) const
-{
-    return d->m_searchKeywords.contains(s, Qt::CaseInsensitive);
+    if (newMarginSettings != d->m_marginSettings) {
+        d->m_marginSettings = newMarginSettings;
+        d->m_marginSettings.toSettings(d->m_parameters.settingsPrefix, Core::ICore::settings());
+
+        emit marginSettingsChanged(newMarginSettings);
+    }
 }

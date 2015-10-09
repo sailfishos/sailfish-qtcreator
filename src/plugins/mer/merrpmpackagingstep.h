@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2012 - 2014 Jolla Ltd.
+** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
 **
@@ -31,6 +31,7 @@
 #define MERRPMPACKAGINGSTEP_H
 
 #include "mersdk.h"
+
 #include <remotelinux/abstractpackagingstep.h>
 #include <utils/environment.h>
 #include <utils/fileutils.h>
@@ -41,8 +42,8 @@ class QFile;
 class QProcess;
 QT_END_NAMESPACE
 
-namespace Qt4ProjectManager {
-    class Qt4BuildConfiguration;
+namespace QmakeProjectManager {
+    class QmakeBuildConfiguration;
 }
 
 namespace RemoteLinux {

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (c) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (c) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator
@@ -23,7 +23,7 @@
 // **********************************************************************
 
 /*!
-    \contentspage index.html
+    \contentspage {Qt Creator Manual}
     \previouspage creator-testing.html
     \page creator-debugging.html
     \nextpage creator-debugger-engines.html
@@ -32,15 +32,17 @@
 
     \QC provides a debugger plugin that acts as an interface between the \QC
     core and external native debuggers such as the GNU Symbolic Debugger (GDB),
-    the Microsoft Console Debugger (CDB), and a QML/JavaScript debugger.
+    the Microsoft Console Debugger (CDB), a QML/JavaScript debugger, and the
+    debugger of the low level virtual machine (LLVM) project, LLDB.
 
     \list
 
         \li \l{Setting Up Debugger}
 
             The debugger plugin automatically selects a suitable
-            native debugger for your projects from the ones found
-            on your system. Manual overriding of this choice is possible.
+            native debugger for each \l{glossary-buildandrun-kit}{kit} from the
+            ones found on your system. You can edit the kits to override this
+            choice.
 
         \li \l{Launching the Debugger}
 
@@ -60,9 +62,7 @@
             \QC is able to show complex data types in a customized,
             user-extensible manner. For this purpose, it takes advantage of
             two technologies, collectively referred to as \e {debugging
-            helpers}. Using the debugging helpers is not essential for
-            debugging with \QC, but they provide you with a powerful
-            tool to quickly examine complex data.
+            helpers}.
 
         \li \l{Debugging Qt Quick Projects}
 
@@ -91,7 +91,7 @@
 
 
 /*!
-    \contentspage index.html
+    \contentspage {Qt Creator Manual}
     \previouspage creator-debugger-engines.html
     \page creator-debugger-operating-modes.html
     \nextpage creator-debug-mode.html
@@ -127,7 +127,7 @@
     So if the current project is set up as a C++ application using
     the MinGW toolchain targeting desktop Windows, the GDB engine will
     be started in Start Internal mode. If the current project is a
-    QML application using C++ plugins targeting Meego
+    QML application using C++ plugins,
     a "mixed" QML/C++ engine will be started, with the C++ parts
     being handled by GDB and GDB server remote debugging.
 
@@ -207,7 +207,7 @@
     \endcode
 
     To launch the debugger in the core mode, select \gui{Debug > Start
-    Debugging > Attach to Core}.
+    Debugging > Load Core File}.
 
     Also in this mode, using a properly configured project containing
     the sources of the crashed program is not strictly necessary, but
@@ -220,8 +220,8 @@
 
     The \QC installation program asks you whether you want to
     register \QC as a post-mortem debugger. To change the setting, select
-    \gui{Tools > Options  > Debugger > Common > Use Qt Creator for post-mortem
-    debugging}.
+    \gui Tools > \gui Options > \gui Debugger > \gui General > \gui {Use Qt
+    Creator for post-mortem debugging}.
 
     You can launch the debugger in the post-mortem mode if an application
     crashes on Windows. Click the \gui {Debug in \QC} button in the error
@@ -244,7 +244,8 @@
     the user of \QC. To start debugging on a remote target with the
     necessary helper processes running, select the corresponding
     \l{glossary-buildandrun-kit}{kit} in
-    \gui{Projects > Build & Run} or in the \gui{Debug > Start Debugging} menu.
+    \gui{Projects > Build & Run}, and then select a function to start remote
+    debugging in the \gui{Debug > Start Debugging} menu.
 
     Special use cases, such as attaching to a running process on the
     target, might still require manual setup.
@@ -351,7 +352,7 @@
 
 
 /*!
-    \contentspage index.html
+    \contentspage {Qt Creator Manual}
     \previouspage creator-debugger-operating-modes.html
     \page creator-debug-mode.html
     \nextpage creator-debugging-helpers.html
@@ -613,6 +614,12 @@
     view, making it seem like the program was interrupted before entering the
     function.
 
+    To find out which QML file is causing a Qt Quick 2 application to crash,
+    select \gui {Load QML Stack} in the context menu in the \gui{Stack} view.
+    The debugger tries to retrieve the JavaScript stack from the stopped
+    executable and prepends the frames to the C++ frames, should it find any.
+    You can click a frame in the QML stack to open the QML file in the editor.
+
     \section1 Locals and Expressions
 
     Whenever a program stops under the control of the debugger, it retrieves
@@ -653,20 +660,6 @@
     The \gui{Locals and Expressions} view also provides access to the most
     powerful feature of the debugger: comprehensive display of data belonging
     to Qt's basic objects.
-
-    To enable Qt's basic objects data display feature:
-
-    \list
-
-        \li Select \gui Tools > \gui {Options} > \gui Debugger >
-            \gui{Debugging Helper} and check the \gui{Use Debugging Helper}
-            checkbox.
-
-        \li The \gui{Locals and Expressions} view is reorganized to provide a
-            high-level view of the objects.
-
-    \endlist
-
     For example, in case of QObject, instead of displaying a pointer to some
     private data structure, you see a list of children, signals and slots.
 
@@ -675,7 +668,7 @@
     Also, the debugger displays access data for QFileInfo and provides
     access to the "real" contents of QVariant.
 
-    Right-click in the the \gui{Locals and Expressions} view to open a context
+    Right-click in the \gui{Locals and Expressions} view to open a context
     menu that provides additional options for viewing data. The available
     options depend on the type of the current items, and are provided by the
     \l{Using Debugging Helpers}{Debugging Helpers}. Typically, string-like data,
@@ -687,9 +680,14 @@
     values of QMap, select \gui {Change Local Display Format} > \gui Compact.
 
     You can use the \gui{Locals and Expressions} view to change the contents of
-    variables of simple data types, for example, \c int or \c float when the
+    variables of simple data types, for example, \c int, \c float, QString
+    and \c std::string when the
     program is interrupted. To do so, click the \gui Value column, modify
     the value with the inplace editor, and press \key Enter (or \key Return).
+
+    To change the complete contents of QVector or \c std::vector values,
+    type all values separated by commas into the \gui Value column of
+    the main entry.
 
     You can enable tooltips in the main editor displaying this information.
     For more information, see \l{Showing Tooltips in Debug Mode}.
@@ -748,8 +746,8 @@
 
     \section2 Viewing Threads
 
-    If a multi-threaded program is interrupted, the \gui Thread view or the
-    combobox named \gui Thread in the debugger's status bar can be used to
+    If a multi-threaded program is interrupted, the \gui Threads view or the
+    combobox named \gui Threads in the debugger status bar can be used to
     switch from one thread to another. The \gui Stack view adjusts itself
     accordingly.
 
@@ -811,20 +809,18 @@
     A snapshot contains the complete state of the debugged program
     at a time, including the full memory contents.
 
-    To create snapshots of a debugged program, select \gui Create in the
-    context menu in the \gui Snapshot view.
+    To create snapshots of a debugged program, select \gui {Create Snapshot} in
+    the context menu in the \gui Snapshots view.
 
-    Double-click on entries in the snapshot view to switch between
+    Double-click on entries in the \gui Snapshots view to switch between
     snapshots. The debugger views are updated to reflect the
     state of the program at time of taking the snapshot.
-
-    By default, the \gui{Snapshots} view is hidden.
 
 */
 
 
 /*!
-    \contentspage index.html
+    \contentspage {Qt Creator Manual}
     \previouspage creator-debug-mode.html
     \page creator-debugging-helpers.html
     \nextpage creator-debugging-qml.html
@@ -854,75 +850,33 @@
     accessible through either sub-structures or pointers.
 
     To give the user simple access also to these items, \QC employs
-    so-called Debugging Helpers. Debugging Helpers come in two varieties,
-    compiled, and Python based, depending on the selected
-    \l{glossary-buildandrun-kit}{kit}.
+    so-called \e{debugging helpers}. Debugging helpers come in two varieties,
+    a compiled one, for use with the CDB backend, and a set of Python
+    scripts for use with the GDB and LLDB backends.
 
-    By default, Debugging Helpers are automatically and transparently used.
-    To disable them, select \gui Tools > \gui Options > \gui Debugger >
-    \gui {Locals & Expressions}, and deselect the \gui{Use Debugging Helper}
-    check box.
+    Debugging helpers are always automatically used. To force a plain
+    C-like display of structures, select \gui Tools > \gui Options >
+    \gui Debugger > \gui {Locals & Expressions}, and then select the
+    \gui{Force Raw Structure Display} check box. For GDB
+    and LLDB this will still use the Python scripts, but generate
+    more basic output. To force plain display for a single object
+    or for all objects of a given type, select the corresponding
+    option from the context menu.
 
-    \QC ships with Debugging Helpers for about 80 of the most
+    \QC ships with debugging helpers for more than 130 of the most
     popular Qt classes, Standard C++ containers and smart pointers,
     covering the usual needs of a C++ application developer out-of-the-box.
 
-    The following sections describe how to extend the debugging helpers
-    to your own data types.
+    \section1 Extending GDB and LLDB Debugging Helpers
 
+    When using either GDB or LLDB as the debugging backend, \QC uses Python
+    scripts to display information in the \gui {Locals and Expressions} view.
 
-    There are two approaches to displaying complex data types. The first and
-    original one is to use debugging helpers based on C++. While it has been
-    superseded on most  platforms by the more robust and more flexible second
-    approch that uses Python scripting, it is the only feasible one on
-    Windows/MSVC, Mac OS, and old Linux distributions. Moreover, this approach
-    is automatically chosen as fallback if the Python based approach fails.
-
-    \section1 Debugging Helpers Based on C++
-
-    During debugging with the C++ based debugging helpers,
-    \QC dynamically loads a helper library in form of a DLL or a
-    shared object into the debugged process.
-    The \QSDK package already contains a prebuilt debugging helper
-    library. To create your own debugging helper library, select \gui{Tools >
-    Options > Build & Run > Qt Versions}. As the internal data
-    structures of Qt can change between versions, the debugging helper
-    library is built for each Qt version.
-
-
-    \section1 Debugging Helpers Based on Python
-
-    \QC uses GDB builds that enable Python scripting to display
-    information in the \gui {Locals and Expressions} view. When Python scripting
-    is used, code (Debugging helpers) does not need to be injected into the
-    debugged process to nicely display QStringList or \c std::map contents, for
-    example.
-
-    The code injection caused problems and put an extra stress on the debugged
-    process. You can now easily extend the debugging helpers to other types. No
-    compilation is required, just adding a few lines of Python.
-
-    Python scripting vastly reduces the communication overhead compared
-    with the previous solution. However, there are some obstacles:
-
-    \list
-
-        \li There is no Python-enabled GDB for Mac OS. Mac OS continues
-            injection with C++ based debugging helpers.
-
-        \li There is no GDB to communicate with MSVC compiled applications on
-            Windows. So information can be displayed nicely only in a limited
-            fashion by using a cdb extension DLL.
-
-    \endlist
-
-    \section2 Extending the Python Based Debugging Helpers
-
-    On platforms featuring a Python-enabled version of the GDB debugger,
-    the data extraction is done by a Python script. This is more robust
-    as the script execution is separated from the debugged process. It
-    is also easier to extend as the script is less dependent on the
-    actual Qt version and does not need compilation.
+    You can easily extend these scripts to cover your own types,
+    using the same code for both the GDB and the LLDB backend.
+    No compilation is required, just adding a few lines of Python.
+    The scripts can address multiple versions of Qt, or of your own
+    library, at the same time.
 
     To extend the shipped Python based debugging helpers for custom
     types, add debugging helper implementations to the GDB startup file
@@ -942,45 +896,44 @@
 
     \list
 
-       \li \c d of type \c Dumper
+       \li \c d of type \c Dumper, an object containing current
+           settings and providing facilities to build up an object
+           representing part of the Locals and Expressions view,
 
-       \li \c value of type \c gdb.Value
+       \li \c value of type \c Value, wrapping either a
+           \l{https://sourceware.org/gdb/onlinedocs/gdb/Values-From-Inferior.html}{gdb.Value}
+           or an
+           \l{http://lldb.llvm.org/cpp_reference/html/classlldb_1_1SBValue.html}{lldb.SBValue}.
 
     \endlist
 
-    The function has to feed the Dumper object with certain information
-    which is used to build up the object and its children's display in the
-    \gui{Locals and Expressions} view.
+    The \c{qdump__*} function has to feed the Dumper object with certain
+    information which is used to build up the object and its children's
+    display in the \gui{Locals and Expressions} view.
 
     Example:
 
     \code
-    def qdump__QVector(d, value):
-        d_ptr = value["d"]
-        p_ptr = value["p"]
-        alloc = d_ptr["alloc"]
-        size = d_ptr["size"]
-
-        innerType = templateArgument(value.type, 0)
+    def qdump__QFiniteStack(d, value):
+        alloc = int(value["_alloc"])
+        size = int(value["_size"])
         d.putItemCount(size)
         d.putNumChild(size)
         if d.isExpanded():
-            p = gdb.Value(p_ptr["array"]).cast(innerType.pointer())
-            charPtr = lookupType("char").pointer()
-            d.putField("size", size)
-            with Children(d, size, maxNumChild=2000, childType=innerType, addrBase=p,
-                    addrStep=(p+1).cast(charPtr) - p.cast(charPtr)):
-                for i in d.childRange():
-                    d.putSubItem(i, p.dereference())
-                    p += 1
+            innerType = d.templateArgument(value.type, 0)
+            d.putArrayData(innerType, value["_array"], size)
     \endcode
+
+    \note To create dumper functions usable with both LLDB and GDB
+    backends, avoid direct access to the \c gdb.* and \c lldb.* namespaces
+    and use functions of the \c Dumper class instead.
 
     \section2 Dumper Class
 
     For each line in the \gui{Locals and Expressions} view, a string like the
     following needs to be created and channeled to the debugger plugin.
     \code
-    "{iname='some internal name',           # optional
+     {iname='some internal name',           # optional
       addr='object address in memory',      # optional
       name='contents of the name column',   # optional
       value='contents of the value column',
@@ -994,64 +947,59 @@
          {iname='internal name of second child',
            },
 
-      ]}"
+      ]}
     \endcode
 
-    The value of the \gui{iname} field is the internal name of the object,
+    The value of the \c iname field is the internal name of the object,
     constituting a dot-separated list of identifiers, corresponding to the
     position of the object's representation in the view. If it is not
     present, is it generated by concatenating the parent object's iname,
     a dot, and a sequential number.
 
-    The value of the\gui{name} field is displayed in the \gui{name} column
+    The value of the \c name field is displayed in the \gui{Name} column
     of the view. If it is not specified, a simple number in brackets
     is used instead.
 
-    While in theory, you can build up the entire string above manually, it is
+    While in theory you can build up the entire string above manually, it is
     easier to employ the Dumper Python class for that purpose. The Dumper
     Python class contains a complete framework to take care of the \c iname and
     \c addr fields, to handle children of simple types, references, pointers,
-    enums, known and unknown structs as well as some convenience methods to
+    enums, known and unknown structs as well as some convenience functions to
     handle common situations.
 
-    The member functions of the \gui{Dumper} class are the following:
+    The member functions of the \c Dumper class are the following:
 
     \list
 
-        \li \gui{__init__(self)} - Initializes the output to an empty string and
+        \li \c{__init__(self)} - Initializes the output to an empty string and
             empties the child stack. This should not be used in user code.
 
-        \li \gui{put(self, value)} - Low level method to directly append to the
+        \li \c{put(self, value)} - Low level function to directly append to the
             output string. That is also the fastest way to append output.
 
-        \li \gui{putField(self, name, value)} - Appends a name='value' field.
+        \li \c{putField(self, name, value)} - Appends a \c{name='value'} field.
 
-        \li \gui{childRange(self)} - Returns the range of children specified in
+        \li \c{childRange(self)} - Returns the range of children specified in
             the current \c Children scope.
 
-        \li \gui{putItemCount(self, count)} - Appends a field
+        \li \c{putItemCount(self, count)} - Appends a field
             \c {value='<%d items'} to the output.
 
-        \li \gui{putEllipsis(self)} - Appends fields
-            \c {'{name="<incomplete>",value="",type="",numchild="0"}'}. This is
-            automatically done by \c endChildren if the number of children to
-            print is smaller than the number of actual children.
+        \li \c{putName(self, name)} - Appends a \c {name=''} field.
 
-        \li \gui{putName(self, name)} - Appends a \c {name=''} field.
-
-        \li \gui{putType(self, type, priority=0)} - Appends a field \c {type=''}
+        \li \c{putType(self, type, priority=0)} - Appends a field \c {type=''}
             unless the \a type coincides with the parent's default child type or
             \c putType was already called for the current item with a higher
             value of \c priority.
 
-        \li \gui{putBetterType(self, type)} - Overrides the last recorded
+        \li \c{putBetterType(self, type)} - Overrides the last recorded
             \c type.
 
-        \li \gui{putNumChild(self, numchild)} - Appends a field \c {numchild=''}
+        \li \c{putNumChild(self, numchild)} - Appends a field \c {numchild=''}
             unless the \c numchild coincides with the parent's default child
             numchild value.
 
-        \li \gui{putValue(self, value, encoding = None)} - Append a file \c {value=''},
+        \li \c{putValue(self, value, encoding = None)} - Append a file \c {value=''},
             optionally followed by a field \c {valueencoding=''}. The \c value
             needs to be convertible to a string entirely consisting of
             alphanumerical values. The \c encoding parameter can be used to
@@ -1083,16 +1031,16 @@
                 double quotes are added.
         \endlist
 
-        \li \gui{putStringValue(self, value)} - Encodes a QString and calls
+        \li \c{putStringValue(self, value)} - Encodes a QString and calls
             \c putValue with the correct \c encoding setting.
 
-        \li \gui{putByteArrayValue(self, value)} - Encodes a QByteArray and calls
+        \li \c{putByteArrayValue(self, value)} - Encodes a QByteArray and calls
             \c putValue with the correct \c encoding setting.
 
-        \li \gui{isExpanded()} - Checks whether the current item
+        \li \c{isExpanded()} - Checks whether the current item
             is expanded in the view.
 
-        \li \gui{putIntItem(self, name, value)} - Equivalent to:
+        \li \c{putIntItem(self, name, value)} - Equivalent to:
             \code
             with SubItem(self, name):
                 self.putValue(value)
@@ -1101,7 +1049,7 @@
                 self.putNumChild(0)
             \endcode
 
-        \li \gui{putBoolItem(self, name, value)} - Equivalent to:
+        \li \c{putBoolItem(self, name, value)} - Equivalent to:
             \code
             with SubItem(self, name):
                 self.putValue(value)
@@ -1109,7 +1057,7 @@
                 self.putNumChild(0)
             \endcode
 
-        \li \gui{putCallItem(self, name, value, func, *args)} -
+        \li \c{putCallItem(self, name, value, func, *args)} -
             Uses GDB to call the function \c func on the value specified by
             \a {value} and output the resulting item. Use \c{putCallItem}
             only if there is no other way to access the data.
@@ -1118,12 +1066,16 @@
             and have the potential to change the state of the debugged
             program.
 
-        \li \gui{putItem(self, value)} - The "master function", handling
+        \li \c{putArrayData(self, type, address, size)} - Creates \c size
+            children of type \c type of an array-like object located at
+            \c address.
+
+        \li \c{putItem(self, value)} - The "master function", handling
             basic types, references, pointers and enums directly, iterates
             over base classes and class members of compound types and calls
             \c qdump__* functions whenever appropriate.
 
-        \li \gui{putSubItem(self, component, value)} - Equivalent to:
+        \li \c{putSubItem(self, component, value)} - Equivalent to:
             \code
             with SubItem(self, component):
                 self.putItem(value)
@@ -1146,7 +1098,7 @@
     use \c Children and \c SubItem \e{Context Managers} to create the nested
     items.
 
-    The \c Children constructor \gui{__init__(self, dumper, numChild = 1,
+    The \c Children constructor \c{__init__(self, dumper, numChild = 1,
     childType = None, childNumChild = None, maxNumChild = None, addrBase = None,
     addrStep = None)} uses one mandatory argument and several
     optional arguments.  The mandatory argument refers to the current \c Dumper
@@ -1180,35 +1132,11 @@
             d.putSubItem("key", key)
             d.putSubItem("value", value)
     \endcode
-
-
-    \section1 Debugging Helpers for QML
-
-    The debugging helpers for QML provide you with code completion for custom modules
-    (\c qmldump) and debugging Qt Quick UI projects (\c qmlobserver).
-
-    You have to build the QML Inspector once for each Qt version that you want
-    to debug
-    with. Select \gui{Tools > Options > Build & Run > Qt Versions}.
-
-    \note QML Inspector requires Qt 4.7.1 or later.
-
-    \section1 Enabling Debugging Helpers for Qt's Bootstrapped Applications
-
-    Qt's bootstrapped applications (such as moc and qmake) are built in a way
-    that is incompatible with the default build of the debugging helpers. To
-    work around this, add \c{dumper.cpp} to the compiled sources in the
-    application Makefile.
-
-    Choose \gui {Tools > Options > Debugger > Debugging Helper > Use debugging
-    helper from custom location}, and specify an invalid location, such as
-    \c{/dev/null}.
-
 */
 
 
 /*!
-    \contentspage index.html
+    \contentspage {Qt Creator Manual}
     \previouspage creator-qml-debugging-example.html
     \page creator-troubleshooting-debugging.html
     \nextpage creator-analyze-mode.html
@@ -1247,7 +1175,7 @@
 
     \list 1
 
-        \li Make sure you use at least \QC 2.1.
+        \li Make sure you use at least \QC 3.0.1
 
         \li Make sure the debugger is set up properly. For more information,
             see \l{Setting Up Debugger}.
@@ -1287,16 +1215,6 @@
     all breakpoints need to be inserted and removed again for each step)
     and the evaluation of expressions after each step. We recommend that
     you minimize the number of breakpoints and watched expressions.
-
-    \section1 Debugger Displays <not in scope> Message
-
-    The message is created by the debugging helpers. \QC posts an
-    expression to the GDB command line to invoke the debugging helpers.
-    The expression includes the address of the object to examine. This
-    address might be modified by GDB before the helper function is called. It
-    is unclear why and when this happens, but if it happens, the debugging
-    helpers operate on wrong data and come to wrong conclusions. Most likely,
-    they find garbage and declare the variable to be <not in scope>.
 
     \section1 Application Crashes when Debugging on Mac OS X Snow Leopard
 

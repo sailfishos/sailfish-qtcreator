@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -43,7 +43,8 @@ namespace Internal {
 
 GraphicsObjectNodeInstance::GraphicsObjectNodeInstance(QGraphicsObject *graphicsObject)
    : ObjectNodeInstance(graphicsObject),
-   m_isMovable(true)
+     m_hasContent(true),
+     m_isMovable(true)
 {
     QGraphicsItemPrivate::get(graphicsObject)->sendParentChangeNotification = 1;
 }

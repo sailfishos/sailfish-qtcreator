@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -48,7 +48,6 @@
 #include <coreplugin/rightpane.h>
 
 #include <projectexplorer/project.h>
-#include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/runconfiguration.h>
 #include <projectexplorer/session.h>
 #include <projectexplorer/target.h>
@@ -204,14 +203,14 @@ void DebuggerMainWindowPrivate::updateUiForRunConfiguration(RunConfiguration *rc
 {
     if (m_previousRunConfiguration)
         disconnect(m_previousRunConfiguration->extraAspect<Debugger::DebuggerRunConfigurationAspect>(),
-                   SIGNAL(debuggersChanged()),
+                   SIGNAL(requestRunActionsUpdate()),
                    this, SLOT(updateUiForCurrentRunConfiguration()));
     m_previousRunConfiguration = rc;
     updateUiForCurrentRunConfiguration();
     if (!rc)
         return;
     connect(m_previousRunConfiguration->extraAspect<Debugger::DebuggerRunConfigurationAspect>(),
-            SIGNAL(debuggersChanged()),
+            SIGNAL(requestRunActionsUpdate()),
             SLOT(updateUiForCurrentRunConfiguration()));
 }
 
@@ -224,15 +223,13 @@ void DebuggerMainWindowPrivate::updateActiveLanguages()
 {
     DebuggerLanguages newLanguages = AnyLanguage;
 
-    if (m_engineDebugLanguages != AnyLanguage)
+    if (m_engineDebugLanguages != AnyLanguage) {
         newLanguages = m_engineDebugLanguages;
-    else {
-        if (m_previousRunConfiguration) {
-            if (m_previousRunConfiguration->extraAspect<Debugger::DebuggerRunConfigurationAspect>()->useCppDebugger())
-                newLanguages |= CppLanguage;
-            if (m_previousRunConfiguration->extraAspect<Debugger::DebuggerRunConfigurationAspect>()->useQmlDebugger())
-                newLanguages |= QmlLanguage;
-        }
+    } else if (m_previousRunConfiguration) {
+        if (m_previousRunConfiguration->extraAspect<Debugger::DebuggerRunConfigurationAspect>()->useCppDebugger())
+            newLanguages |= CppLanguage;
+        if (m_previousRunConfiguration->extraAspect<Debugger::DebuggerRunConfigurationAspect>()->useQmlDebugger())
+            newLanguages |= QmlLanguage;
     }
 
     if (newLanguages != m_activeDebugLanguages) {
@@ -272,10 +269,10 @@ DebuggerMainWindow::~DebuggerMainWindow()
 void DebuggerMainWindow::setCurrentEngine(DebuggerEngine *engine)
 {
     if (d->m_engine)
-        disconnect(d->m_engine, SIGNAL(raiseWindow()), ICore::appMainWindow(), SLOT(raiseWindow()));
+        disconnect(d->m_engine, SIGNAL(raiseWindow()), ICore::mainWindow(), SLOT(raiseWindow()));
     d->m_engine = engine;
     if (d->m_engine)
-        connect(d->m_engine, SIGNAL(raiseWindow()), ICore::appMainWindow(), SLOT(raiseWindow()));
+        connect(d->m_engine, SIGNAL(raiseWindow()), ICore::mainWindow(), SLOT(raiseWindow()));
 }
 
 DebuggerLanguages DebuggerMainWindow::activeDebugLanguages() const
@@ -324,25 +321,24 @@ void DebuggerMainWindowPrivate::createViewsMenuItems()
     // Add menu items
     Command *cmd = 0;
     cmd = Core::ActionManager::registerAction(openMemoryEditorAction,
-        Core::Id("Debugger.Views.OpenMemoryEditor"),
-        debugcontext);
+        "Debugger.Views.OpenMemoryEditor", debugcontext);
     cmd->setAttribute(Command::CA_Hide);
     m_viewsMenu->addAction(cmd, Core::Constants::G_DEFAULT_THREE);
 
     cmd = Core::ActionManager::registerAction(q->menuSeparator1(),
-        Core::Id("Debugger.Views.Separator1"), debugcontext);
+        "Debugger.Views.Separator1", debugcontext);
     cmd->setAttribute(Command::CA_Hide);
     m_viewsMenu->addAction(cmd, Core::Constants::G_DEFAULT_THREE);
     cmd = Core::ActionManager::registerAction(q->toggleLockedAction(),
-        Core::Id("Debugger.Views.ToggleLocked"), debugcontext);
+        "Debugger.Views.ToggleLocked", debugcontext);
     cmd->setAttribute(Command::CA_Hide);
     m_viewsMenu->addAction(cmd, Core::Constants::G_DEFAULT_THREE);
     cmd = Core::ActionManager::registerAction(q->menuSeparator2(),
-        Core::Id("Debugger.Views.Separator2"), debugcontext);
+        "Debugger.Views.Separator2", debugcontext);
     cmd->setAttribute(Command::CA_Hide);
     m_viewsMenu->addAction(cmd, Core::Constants::G_DEFAULT_THREE);
     cmd = Core::ActionManager::registerAction(q->resetLayoutAction(),
-        Core::Id("Debugger.Views.ResetSimple"), debugcontext);
+        "Debugger.Views.ResetSimple", debugcontext);
     cmd->setAttribute(Command::CA_Hide);
     m_viewsMenu->addAction(cmd, Core::Constants::G_DEFAULT_THREE);
 }
@@ -472,8 +468,7 @@ void DebuggerMainWindow::addStagedMenuEntries()
 
 QWidget *DebuggerMainWindow::createContents(IMode *mode)
 {
-    ProjectExplorerPlugin *pe = ProjectExplorerPlugin::instance();
-    connect(pe->session(), SIGNAL(startupProjectChanged(ProjectExplorer::Project*)),
+    connect(SessionManager::instance(), SIGNAL(startupProjectChanged(ProjectExplorer::Project*)),
         d, SLOT(updateUiForProject(ProjectExplorer::Project*)));
 
     d->m_viewsMenu = Core::ActionManager::actionContainer(Core::Id(Core::Constants::M_WINDOW_VIEWS));

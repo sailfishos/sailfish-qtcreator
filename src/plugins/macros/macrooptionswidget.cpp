@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Nicolas Arnaud-Cormos
+** Copyright (c) 2014 Nicolas Arnaud-Cormos
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -97,9 +97,9 @@ void MacroOptionsWidget::initialize()
 
 void MacroOptionsWidget::createTable()
 {
-    QDir dir(MacroManager::instance()->macrosDirectory());
+    QDir dir(MacroManager::macrosDirectory());
     const Core::Id base = Core::Id(Constants::PREFIX_MACRO);
-    QMapIterator<QString, Macro *> it(MacroManager::instance()->macros());
+    QMapIterator<QString, Macro *> it(MacroManager::macros());
     while (it.hasNext()) {
         it.next();
         QFileInfo fileInfo(it.value()->fileName());

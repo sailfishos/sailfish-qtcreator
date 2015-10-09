@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 BogDan Vatra <bog_dan_ro@yahoo.com>
+** Copyright (c) 2014 BogDan Vatra <bog_dan_ro@yahoo.com>
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -35,7 +35,9 @@
 #include "androidconstants.h"
 #include "androidtoolchain.h"
 
+#include <utils/environment.h>
 #include <utils/hostosinfo.h>
+#include <utils/pathchooser.h>
 #include <projectexplorer/toolchainmanager.h>
 #include <projectexplorer/kitmanager.h>
 #include <projectexplorer/kitinformation.h>
@@ -46,9 +48,11 @@
 #include <QTextStream>
 #include <QProcess>
 
+#include <QDesktopServices>
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QModelIndex>
+#include <QtCore/QUrl>
 
 namespace Android {
 namespace Internal {
@@ -74,8 +78,10 @@ QVariant AvdModel::data(const QModelIndex &index, int role) const
             return m_list[index.row()].serialNumber;
         case 1:
             return QString::fromLatin1("API %1").arg(m_list[index.row()].sdk);
-        case 2:
-            return m_list[index.row()].cpuABI;
+        case 2: {
+            QStringList cpuAbis = m_list[index.row()].cpuAbi;
+            return cpuAbis.isEmpty() ? QVariant() : QVariant(cpuAbis.first());
+        }
     }
     return QVariant();
 }
@@ -106,95 +112,217 @@ int AvdModel::columnCount(const QModelIndex &/*parent*/) const
     return 3;
 }
 
-
 AndroidSettingsWidget::AndroidSettingsWidget(QWidget *parent)
     : QWidget(parent),
+      m_sdkState(NotSet),
+      m_ndkState(NotSet),
+      m_javaState(NotSet),
       m_ui(new Ui_AndroidSettingsWidget),
-      m_androidConfig(AndroidConfigurations::instance().config()),
-      m_saveSettingsRequested(false)
+      m_androidConfig(AndroidConfigurations::currentConfig())
 {
-    initGui();
+    m_ui->setupUi(this);
+
+    m_ui->SDKLocationLineEdit->setText(m_androidConfig.sdkLocation().toUserOutput());
+    m_ui->NDKLocationLineEdit->setText(m_androidConfig.ndkLocation().toUserOutput());
+
+    m_ui->AntLocationLineEdit->setText(m_androidConfig.antLocation().toUserOutput());
+    m_ui->OpenJDKLocationLineEdit->setText(m_androidConfig.openJDKLocation().toUserOutput());
+    m_ui->DataPartitionSizeSpinBox->setValue(m_androidConfig.partitionSize());
+    m_ui->CreateKitCheckBox->setChecked(m_androidConfig.automaticKitCreation());
+    m_ui->AVDTableView->setModel(&m_AVDModel);
+    m_AVDModel.setAvdList(m_androidConfig.androidVirtualDevices());
+    m_ui->AVDTableView->horizontalHeader()->setResizeMode(QHeaderView::Stretch);
+    m_ui->AVDTableView->horizontalHeader()->setResizeMode(1, QHeaderView::ResizeToContents);
+
+    m_ui->downloadAntToolButton->setVisible(!Utils::HostOsInfo::isLinuxHost());
+    m_ui->downloadOpenJDKToolButton->setVisible(!Utils::HostOsInfo::isLinuxHost());
+
+    m_ui->SDKLocationPushButton->setText(Utils::PathChooser::browseButtonLabel());
+    m_ui->NDKLocationPushButton->setText(Utils::PathChooser::browseButtonLabel());
+    m_ui->AntLocationPushButton->setText(Utils::PathChooser::browseButtonLabel());
+    m_ui->OpenJDKLocationPushButton->setText(Utils::PathChooser::browseButtonLabel());
+
+    check(All);
+    applyToUi(All);
 }
 
 AndroidSettingsWidget::~AndroidSettingsWidget()
 {
-    if (m_saveSettingsRequested)
-        AndroidConfigurations::instance().setConfig(m_androidConfig);
     delete m_ui;
 }
 
-QString AndroidSettingsWidget::searchKeywords() const
+void AndroidSettingsWidget::check(AndroidSettingsWidget::Mode mode)
 {
-    QString rc;
-    QTextStream(&rc) << m_ui->SDKLocationLabel->text()
-        << ' ' << m_ui->SDKLocationLineEdit->text()
-        << ' ' << m_ui->NDKLocationLabel->text()
-        << ' ' << m_ui->NDKLocationLineEdit->text()
-        << ' ' << m_ui->AntLocationLabel->text()
-        << ' ' << m_ui->AntLocationLineEdit->text()
-        << ' ' << m_ui->OpenJDKLocationLabel->text()
-        << ' ' << m_ui->OpenJDKLocationLineEdit->text()
-        << ' ' << m_ui->AVDManagerLabel->text()
-        << ' ' << m_ui->DataPartitionSizeLable->text()
-        << ' ' << m_ui->DataPartitionSizeSpinBox->text();
-    rc.remove(QLatin1Char('&'));
-    return rc;
-}
+    if (mode & Sdk) {
+        m_sdkState = Okay;
+        if (m_androidConfig.sdkLocation().isEmpty())
+            m_sdkState = NotSet;
+        else if (!(sdkLocationIsValid() && sdkPlatformToolsInstalled()))
+            m_sdkState = Error;
+    }
 
-void AndroidSettingsWidget::initGui()
-{
-    m_ui->setupUi(this);
-    if (checkSDK(m_androidConfig.sdkLocation))
-        m_ui->SDKLocationLineEdit->setText(m_androidConfig.sdkLocation.toUserOutput());
-    else
-        m_androidConfig.sdkLocation.clear();
-    if (checkNDK(m_androidConfig.ndkLocation))
-        m_ui->NDKLocationLineEdit->setText(m_androidConfig.ndkLocation.toUserOutput());
-    else
-        m_androidConfig.ndkLocation.clear();
-    m_ui->AntLocationLineEdit->setText(m_androidConfig.antLocation.toUserOutput());
-    m_ui->OpenJDKLocationLineEdit->setText(m_androidConfig.openJDKLocation.toUserOutput());
-    m_ui->DataPartitionSizeSpinBox->setValue(m_androidConfig.partitionSize);
-    m_ui->CreateKitCheckBox->setChecked(m_androidConfig.automaticKitCreation);
-    m_ui->AVDTableView->setModel(&m_AVDModel);
-    m_AVDModel.setAvdList(AndroidConfigurations::instance().androidVirtualDevices());
-    m_ui->AVDTableView->horizontalHeader()->setResizeMode(QHeaderView::Stretch);
-    m_ui->AVDTableView->horizontalHeader()->setResizeMode(1, QHeaderView::ResizeToContents);
-}
+    if (mode & Ndk) {
+        m_ndkState = Okay;
+        Utils::FileName platformPath = m_androidConfig.ndkLocation();
+        Utils::FileName toolChainPath = m_androidConfig.ndkLocation();
+        Utils::FileName sourcesPath = m_androidConfig.ndkLocation();
+        if (m_androidConfig.ndkLocation().isEmpty()) {
+            m_ndkState = NotSet;
+        } else if (!platformPath.appendPath(QLatin1String("platforms")).toFileInfo().exists()
+                || !toolChainPath.appendPath(QLatin1String("toolchains")).toFileInfo().exists()
+                || !sourcesPath.appendPath(QLatin1String("sources/cxx-stl")).toFileInfo().exists()) {
+            m_ndkState = Error;
+            m_ndkErrorMessage = tr("\"%1\" does not seem to be an Android NDK top folder.")
+                    .arg(m_androidConfig.ndkLocation().toUserOutput());
+        } else if (platformPath.toString().contains(QLatin1String(" "))) {
+            m_ndkState = Error;
+            m_ndkErrorMessage = tr("The Android NDK cannot be installed into a path with spaces.");
+        } else {
+            QList<AndroidToolChainFactory::AndroidToolChainInformation> compilerPaths
+                    = AndroidToolChainFactory::toolchainPathsForNdk(m_androidConfig.ndkLocation());
+            m_ndkCompilerCount = compilerPaths.count();
 
-void AndroidSettingsWidget::saveSettings(bool saveNow)
-{
-    // We must defer this step because of a stupid bug on MacOS. See QTCREATORBUG-1675.
-    if (saveNow) {
-        AndroidConfigurations::instance().setConfig(m_androidConfig);
-        m_saveSettingsRequested = false;
-    } else {
-        m_saveSettingsRequested = true;
+
+            // See if we have qt versions for those toolchains
+            QSet<ProjectExplorer::Abi::Architecture> toolchainsForArch;
+            foreach (const AndroidToolChainFactory::AndroidToolChainInformation &ati, compilerPaths)
+                toolchainsForArch.insert(ati.architecture);
+
+            QSet<ProjectExplorer::Abi::Architecture> qtVersionsForArch;
+            foreach (QtSupport::BaseQtVersion *qtVersion, QtSupport::QtVersionManager::versions()) {
+                if (qtVersion->type() != QLatin1String(Constants::ANDROIDQT) || qtVersion->qtAbis().isEmpty())
+                    continue;
+                qtVersionsForArch.insert(qtVersion->qtAbis().first().architecture());
+            }
+
+            QSet<ProjectExplorer::Abi::Architecture> missingQtArchs = toolchainsForArch.subtract(qtVersionsForArch);
+            if (missingQtArchs.isEmpty()) {
+                m_ndkMissingQtArchs.clear();
+            } else {
+                if (missingQtArchs.count() == 1) {
+                    m_ndkMissingQtArchs = tr("Qt version for architecture %1 is missing.\n"
+                                             "To add the Qt version, select Options > Build & Run > Qt Versions.")
+                            .arg(ProjectExplorer::Abi::toString((*missingQtArchs.constBegin())));
+                } else {
+                    QStringList missingArchs;
+                    foreach (ProjectExplorer::Abi::Architecture arch, missingQtArchs)
+                        missingArchs.append(ProjectExplorer::Abi::toString(arch));
+                    m_ndkMissingQtArchs = tr("Qt versions for architectures %1 are missing.\n"
+                                             "To add the Qt versions, select Options > Build & Run > Qt Versions.")
+                            .arg(missingArchs.join(QLatin1String(", ")));
+                }
+            }
+        }
+    }
+
+    if (mode & Java) {
+        m_javaState = Okay;
+        if (m_androidConfig.openJDKLocation().isEmpty()) {
+            m_javaState = NotSet;
+        } else {
+            Utils::FileName bin = m_androidConfig.openJDKLocation();
+            bin.appendPath(QLatin1String("bin/javac" QTC_HOST_EXE_SUFFIX));
+            if (!m_androidConfig.openJDKLocation().toFileInfo().exists()
+                    || !bin.toFileInfo().exists())
+                m_javaState = Error;
+        }
     }
 }
 
-
-bool AndroidSettingsWidget::checkSDK(const Utils::FileName &location)
+void AndroidSettingsWidget::applyToUi(AndroidSettingsWidget::Mode mode)
 {
-    if (location.isEmpty())
-        return false;
-    Utils::FileName adb = location;
-    Utils::FileName androidExe = location;
-    Utils::FileName androidBat = location;
-    Utils::FileName emulator = location;
-    if (!adb.appendPath(QLatin1String("platform-tools/adb" QTC_HOST_EXE_SUFFIX)).toFileInfo().exists()
-            || (!androidExe.appendPath(QLatin1String("/tools/android" QTC_HOST_EXE_SUFFIX)).toFileInfo().exists()
-                && !androidBat.appendPath(QLatin1String("/tools/android" ANDROID_BAT_SUFFIX)).toFileInfo().exists())
-            || !emulator.appendPath(QLatin1String("/tools/emulator" QTC_HOST_EXE_SUFFIX)).toFileInfo().exists()) {
-        m_ui->sdkWarningIconLabel->setVisible(true);
-        m_ui->sdkWarningLabel->setVisible(true);
-        m_ui->sdkWarningLabel->setText(tr("\"%1\" does not seem to be an Android SDK top folder.").arg(location.toUserOutput()));
-        return false;
-    } else {
-        m_ui->sdkWarningIconLabel->setVisible(false);
-        m_ui->sdkWarningLabel->setVisible(false);
+    if (mode & Sdk) {
+        if (m_sdkState == Error) {
+            m_ui->sdkWarningIconLabel->setVisible(true);
+            m_ui->sdkWarningLabel->setVisible(true);
+            Utils::FileName location = Utils::FileName::fromUserInput(m_ui->SDKLocationLineEdit->text());
+            if (sdkLocationIsValid())
+                m_ui->sdkWarningLabel->setText(tr("The Platform tools are missing. Please use the Android SDK Manager to install them."));
+            else
+                m_ui->sdkWarningLabel->setText(tr("\"%1\" does not seem to be an Android SDK top folder.").arg(location.toUserOutput()));
+        } else {
+            m_ui->sdkWarningIconLabel->setVisible(false);
+            m_ui->sdkWarningLabel->setVisible(false);
+        }
     }
-    return true;
+
+    if (mode & Ndk) {
+        if (m_ndkState == NotSet) {
+            m_ui->ndkWarningIconLabel->setVisible(false);
+            m_ui->toolchainFoundLabel->setVisible(false);
+            m_ui->kitWarningIconLabel->setVisible(false);
+            m_ui->kitWarningLabel->setVisible(false);
+        } else if (m_ndkState == Error) {
+            m_ui->toolchainFoundLabel->setText(m_ndkErrorMessage);
+            m_ui->toolchainFoundLabel->setVisible(true);
+            m_ui->ndkWarningIconLabel->setVisible(true);
+            m_ui->kitWarningIconLabel->setVisible(false);
+            m_ui->kitWarningLabel->setVisible(false);
+        } else {
+            if (m_ndkCompilerCount > 0) {
+                m_ui->ndkWarningIconLabel->setVisible(false);
+                m_ui->toolchainFoundLabel->setText(tr("Found %n toolchains for this NDK.", 0, m_ndkCompilerCount));
+                m_ui->toolchainFoundLabel->setVisible(true);
+            } else {
+                m_ui->ndkWarningIconLabel->setVisible(false);
+                m_ui->toolchainFoundLabel->setVisible(false);
+            }
+
+            if (m_ndkMissingQtArchs.isEmpty()) {
+                m_ui->kitWarningIconLabel->setVisible(false);
+                m_ui->kitWarningLabel->setVisible(false);
+            } else {
+                m_ui->kitWarningIconLabel->setVisible(true);
+                m_ui->kitWarningLabel->setVisible(true);
+                m_ui->kitWarningLabel->setText(m_ndkMissingQtArchs);
+            }
+        }
+    }
+
+    if (mode & Java) {
+        Utils::FileName location = m_androidConfig.openJDKLocation();
+        bool error = m_javaState == Error;
+        m_ui->jdkWarningIconLabel->setVisible(error);
+        m_ui->jdkWarningLabel->setVisible(error);
+        if (error)
+            m_ui->jdkWarningLabel->setText(tr("\"%1\" does not seem to be a JDK folder.").arg(location.toUserOutput()));
+    }
+
+    if (mode & Sdk || mode & Java) {
+        if (m_sdkState == Okay && m_javaState == Okay) {
+            m_ui->AVDManagerFrame->setEnabled(true);
+        } else {
+            m_ui->AVDManagerFrame->setEnabled(false);
+        }
+
+        m_AVDModel.setAvdList(m_androidConfig.androidVirtualDevices());
+    }
+}
+
+bool AndroidSettingsWidget::sdkLocationIsValid() const
+{
+    Utils::FileName androidExe = m_androidConfig.sdkLocation();
+    Utils::FileName androidBat = m_androidConfig.sdkLocation();
+    Utils::FileName emulator = m_androidConfig.sdkLocation();
+    return (androidExe.appendPath(QLatin1String("/tools/android" QTC_HOST_EXE_SUFFIX)).toFileInfo().exists()
+            || androidBat.appendPath(QLatin1String("/tools/android" ANDROID_BAT_SUFFIX)).toFileInfo().exists())
+            && emulator.appendPath(QLatin1String("/tools/emulator" QTC_HOST_EXE_SUFFIX)).toFileInfo().exists();
+}
+
+bool AndroidSettingsWidget::sdkPlatformToolsInstalled() const
+{
+    Utils::FileName adb = m_androidConfig.sdkLocation();
+    return adb.appendPath(QLatin1String("platform-tools/adb" QTC_HOST_EXE_SUFFIX)).toFileInfo().exists();
+}
+
+void AndroidSettingsWidget::saveSettings()
+{
+    sdkLocationEditingFinished();
+    ndkLocationEditingFinished();
+    antLocationEditingFinished();
+    openJDKLocationEditingFinished();
+    dataPartitionSizeEditingFinished();
+    AndroidConfigurations::setConfig(m_androidConfig);
 }
 
 int indexOf(const QList<AndroidToolChainFactory::AndroidToolChainInformation> &list, const Utils::FileName &f)
@@ -207,111 +335,48 @@ int indexOf(const QList<AndroidToolChainFactory::AndroidToolChainInformation> &l
     return -1;
 }
 
-bool AndroidSettingsWidget::checkNDK(const Utils::FileName &location)
-{
-    if (location.isEmpty()) {
-        m_ui->ndkWarningIconLabel->setVisible(false);
-        m_ui->toolchainFoundLabel->setVisible(false);
-        m_ui->kitWarningIconLabel->setVisible(false);
-        m_ui->kitWarningLabel->setVisible(false);
-        return false;
-    }
-    Utils::FileName platformPath = location;
-    Utils::FileName toolChainPath = location;
-    Utils::FileName sourcesPath = location;
-    if (!platformPath.appendPath(QLatin1String("platforms")).toFileInfo().exists()
-            || !toolChainPath.appendPath(QLatin1String("toolchains")).toFileInfo().exists()
-            || !sourcesPath.appendPath(QLatin1String("sources/cxx-stl")).toFileInfo().exists()) {
-        m_ui->toolchainFoundLabel->setText(tr("\"%1\" does not seem to be an Android NDK top folder.").arg(location.toUserOutput()));
-        m_ui->toolchainFoundLabel->setVisible(true);
-        m_ui->ndkWarningIconLabel->setVisible(true);
-        return false;
-    }
-
-    // Check how many toolchains we could add...
-    QList<AndroidToolChainFactory::AndroidToolChainInformation> compilerPaths = AndroidToolChainFactory::toolchainPathsForNdk(location);
-    if (compilerPaths.isEmpty()) {
-        m_ui->ndkWarningIconLabel->setVisible(false);
-        m_ui->toolchainFoundLabel->setVisible(false);
-    } else {
-        m_ui->ndkWarningIconLabel->setVisible(false);
-        m_ui->toolchainFoundLabel->setText(tr("Found %n toolchains for this NDK.", 0, compilerPaths.count()));
-        m_ui->toolchainFoundLabel->setVisible(true);
-    }
-
-    // See if we have qt versions for those toolchains
-    QSet<ProjectExplorer::Abi::Architecture> toolchainsForArch;
-    foreach (const AndroidToolChainFactory::AndroidToolChainInformation &ati, compilerPaths)
-        toolchainsForArch.insert(ati.architecture);
-
-    QSet<ProjectExplorer::Abi::Architecture> qtVersionsForArch;
-    foreach (QtSupport::BaseQtVersion *qtVersion, QtSupport::QtVersionManager::instance()->versions()) {
-        if (qtVersion->type() != QLatin1String(Constants::ANDROIDQT) || qtVersion->qtAbis().isEmpty())
-            continue;
-        qtVersionsForArch.insert(qtVersion->qtAbis().first().architecture());
-    }
-
-    QSet<ProjectExplorer::Abi::Architecture> missingQtArchs = toolchainsForArch.subtract(qtVersionsForArch);
-    if (missingQtArchs.isEmpty()) {
-        m_ui->kitWarningIconLabel->setVisible(false);
-        m_ui->kitWarningLabel->setVisible(false);
-    } else {
-        m_ui->kitWarningIconLabel->setVisible(true);
-        m_ui->kitWarningLabel->setVisible(true);
-        if (missingQtArchs.count() == 1) {
-            m_ui->kitWarningLabel->setText(tr("Qt version for architecture %1 is missing.\n To add the Qt version, select Options > Build & Run > Qt Versions.")
-                                           .arg(ProjectExplorer::Abi::toString((*missingQtArchs.constBegin()))));
-        } else {
-            QStringList missingArchs;
-            foreach (ProjectExplorer::Abi::Architecture arch, missingQtArchs)
-                missingArchs.append(ProjectExplorer::Abi::toString(arch));
-            m_ui->kitWarningLabel->setText(tr("Qt versions for architectures %1 are missing.\n To add the Qt versions, select Options > Build & Run > Qt Versions.")
-                                           .arg(missingArchs.join(QLatin1String(", "))));
-        }
-    }
-
-    m_androidConfig.ndkLocation = location;
-    return true;
-
-}
-
 void AndroidSettingsWidget::sdkLocationEditingFinished()
 {
-    Utils::FileName location = Utils::FileName::fromUserInput(m_ui->SDKLocationLineEdit->text());
-    if (!checkSDK(location)) {
-        m_ui->AVDManagerFrame->setEnabled(false);
-        return;
-    }
-    m_androidConfig.sdkLocation = location;
-    searchForAnt(location.toString());
-    saveSettings(true);
-    m_AVDModel.setAvdList(AndroidConfigurations::instance().androidVirtualDevices());
-    m_ui->AVDManagerFrame->setEnabled(true);
+    m_androidConfig.setSdkLocation(Utils::FileName::fromUserInput(m_ui->SDKLocationLineEdit->text()));
+
+    check(Sdk);
+
+    if (m_sdkState == Okay)
+        searchForAnt(m_androidConfig.sdkLocation());
+
+    applyToUi(Sdk);
 }
 
 void AndroidSettingsWidget::ndkLocationEditingFinished()
 {
-    Utils::FileName location = Utils::FileName::fromUserInput(m_ui->NDKLocationLineEdit->text());
-    m_androidConfig.toolchainHost.clear(); // force toolchain host detection
-    if (!checkNDK(location))
-        return;
-    searchForAnt(location.toString());
-    saveSettings(true);
+    m_androidConfig.setNdkLocation(Utils::FileName::fromUserInput(m_ui->NDKLocationLineEdit->text()));
+
+    check(Ndk);
+
+    if (m_ndkState == Okay)
+        searchForAnt(m_androidConfig.ndkLocation());
+
+    applyToUi(Ndk);
 }
 
-void AndroidSettingsWidget::searchForAnt(const QString &location)
+void AndroidSettingsWidget::searchForAnt(const Utils::FileName &location)
 {
-    if (!m_androidConfig.antLocation.isEmpty())
+    if (!m_androidConfig.antLocation().isEmpty())
             return;
     if (location.isEmpty())
         return;
-    QDir parentFolder = QFileInfo(location).absoluteDir();
+    QDir parentFolder = location.toFileInfo().absoluteDir();
     foreach (const QString &file, parentFolder.entryList()) {
         if (file.startsWith(QLatin1String("apache-ant"))) {
-            QString ant = parentFolder.absolutePath() + QLatin1Char('/') + file + QLatin1String("/bin/ant.bat");
-            if (QFileInfo(ant).exists()) {
-                m_androidConfig.antLocation = Utils::FileName::fromString(ant);
-                m_ui->AntLocationLineEdit->setText(ant);
+            Utils::FileName ant = Utils::FileName::fromString(parentFolder.absolutePath());
+            ant.appendPath(file).appendPath(QLatin1String("bin"));
+            if (Utils::HostOsInfo::isWindowsHost())
+                ant.appendPath(QLatin1String("ant.bat"));
+            else
+                ant.appendPath(QLatin1String("ant"));
+            if (ant.toFileInfo().exists()) {
+                m_androidConfig.setAntLocation(ant);
+                m_ui->AntLocationLineEdit->setText(ant.toUserOutput());
             }
         }
     }
@@ -319,18 +384,15 @@ void AndroidSettingsWidget::searchForAnt(const QString &location)
 
 void AndroidSettingsWidget::antLocationEditingFinished()
 {
-    Utils::FileName location = Utils::FileName::fromUserInput(m_ui->AntLocationLineEdit->text());
-    if (location.isEmpty() || !location.toFileInfo().exists())
-        return;
-    m_androidConfig.antLocation = location;
+    m_androidConfig.setAntLocation(Utils::FileName::fromUserInput(m_ui->AntLocationLineEdit->text()));
 }
 
 void AndroidSettingsWidget::openJDKLocationEditingFinished()
 {
-    Utils::FileName location = Utils::FileName::fromUserInput(m_ui->OpenJDKLocationLineEdit->text());
-    if (location.isEmpty() || !location.toFileInfo().exists())
-        return;
-    m_androidConfig.openJDKLocation = location;
+    m_androidConfig.setOpenJDKLocation(Utils::FileName::fromUserInput(m_ui->OpenJDKLocationLineEdit->text()));
+
+    check(Java);
+    applyToUi(Java);
 }
 
 void AndroidSettingsWidget::browseSDKLocation()
@@ -338,7 +400,7 @@ void AndroidSettingsWidget::browseSDKLocation()
     Utils::FileName dir = Utils::FileName::fromString(
                 QFileDialog::getExistingDirectory(this, tr("Select Android SDK folder"),
                                                   m_ui->SDKLocationLineEdit->text()));
-    if (!checkSDK(dir))
+    if (dir.isEmpty())
         return;
     m_ui->SDKLocationLineEdit->setText(dir.toUserOutput());
     sdkLocationEditingFinished();
@@ -349,7 +411,7 @@ void AndroidSettingsWidget::browseNDKLocation()
     Utils::FileName dir = Utils::FileName::fromString(
                 QFileDialog::getExistingDirectory(this, tr("Select Android NDK folder"),
                                                   m_ui->NDKLocationLineEdit->text()));
-    if (!checkNDK(dir))
+    if (dir.isEmpty())
         return;
     m_ui->NDKLocationLineEdit->setText(dir.toUserOutput());
     ndkLocationEditingFinished();
@@ -358,25 +420,29 @@ void AndroidSettingsWidget::browseNDKLocation()
 void AndroidSettingsWidget::browseAntLocation()
 {
     QString dir;
-    QString antApp;
+    QString filter;
     if (Utils::HostOsInfo::isWindowsHost()) {
-        dir = QDir::homePath();
-        antApp = QLatin1String("ant.bat");
+        dir = QDir::homePath() + QLatin1String("/ant.bat");
+        filter = QLatin1String("ant (ant.bat)");
+    } else if (Utils::HostOsInfo::isMacHost()) {
+        // work around QTBUG-7739 that prohibits filters that don't start with *
+        dir = QLatin1String("/usr/bin/ant");
+        filter = QLatin1String("ant (*ant)");
     } else {
         dir = QLatin1String("/usr/bin/ant");
-        antApp = QLatin1String("ant");
+        filter = QLatin1String("ant (ant)");
     }
     const QString file =
-        QFileDialog::getOpenFileName(this, tr("Select ant Script"), dir, antApp);
+        QFileDialog::getOpenFileName(this, tr("Select ant Script"), dir, filter);
     if (!file.length())
         return;
-    m_ui->AntLocationLineEdit->setText(file);
+    m_ui->AntLocationLineEdit->setText(QDir::toNativeSeparators(file));
     antLocationEditingFinished();
 }
 
 void AndroidSettingsWidget::browseOpenJDKLocation()
 {
-    Utils::FileName openJDKPath = AndroidConfigurations::instance().openJDKPath();
+    Utils::FileName openJDKPath = m_androidConfig.openJDKLocation();
     Utils::FileName file = Utils::FileName::fromString(QFileDialog::getExistingDirectory(this, tr("Select OpenJDK Path"), openJDKPath.toString()));
     if (file.isEmpty())
         return;
@@ -384,22 +450,43 @@ void AndroidSettingsWidget::browseOpenJDKLocation()
     openJDKLocationEditingFinished();
 }
 
+void AndroidSettingsWidget::openSDKDownloadUrl()
+{
+    QDesktopServices::openUrl(QUrl::fromUserInput(QLatin1String("http://developer.android.com/sdk")));
+}
+
+void AndroidSettingsWidget::openNDKDownloadUrl()
+{
+    QDesktopServices::openUrl(QUrl::fromUserInput(QLatin1String("http://developer.android.com/tools/sdk/ndk/index.html#Downloads")));
+}
+
+void AndroidSettingsWidget::openAntDownloadUrl()
+{
+    QDesktopServices::openUrl(QUrl::fromUserInput(QLatin1String("http://ant.apache.org/bindownload.cgi")));
+}
+
+void AndroidSettingsWidget::openOpenJDKDownloadUrl()
+{
+    QDesktopServices::openUrl(QUrl::fromUserInput(QLatin1String("http://www.oracle.com/technetwork/java/javase/downloads")));
+}
+
 void AndroidSettingsWidget::addAVD()
 {
-    AndroidConfigurations::instance().createAVD();
-    m_AVDModel.setAvdList(AndroidConfigurations::instance().androidVirtualDevices());
+    m_androidConfig.createAVD(this);
+    m_AVDModel.setAvdList(m_androidConfig.androidVirtualDevices());
+    avdActivated(m_ui->AVDTableView->currentIndex());
 }
 
 void AndroidSettingsWidget::removeAVD()
 {
-    AndroidConfigurations::instance().removeAVD(m_AVDModel.avdName(m_ui->AVDTableView->currentIndex()));
-    m_AVDModel.setAvdList(AndroidConfigurations::instance().androidVirtualDevices());
+    m_androidConfig.removeAVD(m_AVDModel.avdName(m_ui->AVDTableView->currentIndex()));
+    m_AVDModel.setAvdList(m_androidConfig.androidVirtualDevices());
+    avdActivated(m_ui->AVDTableView->currentIndex());
 }
 
 void AndroidSettingsWidget::startAVD()
 {
-    int tempApiLevel = -1;
-    AndroidConfigurations::instance().startAVD(&tempApiLevel, m_AVDModel.avdName(m_ui->AVDTableView->currentIndex()));
+    m_androidConfig.startAVDAsync(m_AVDModel.avdName(m_ui->AVDTableView->currentIndex()));
 }
 
 void AndroidSettingsWidget::avdActivated(QModelIndex index)
@@ -410,12 +497,12 @@ void AndroidSettingsWidget::avdActivated(QModelIndex index)
 
 void AndroidSettingsWidget::dataPartitionSizeEditingFinished()
 {
-    m_androidConfig.partitionSize = m_ui->DataPartitionSizeSpinBox->value();
+    m_androidConfig.setPartitionSize(m_ui->DataPartitionSizeSpinBox->value());
 }
 
 void AndroidSettingsWidget::createKitToggled()
 {
-    m_androidConfig.automaticKitCreation = m_ui->CreateKitCheckBox->isChecked();
+    m_androidConfig.setAutomaticKitCreation(m_ui->CreateKitCheckBox->isChecked());
 }
 
 void AndroidSettingsWidget::manageAVD()
@@ -423,8 +510,12 @@ void AndroidSettingsWidget::manageAVD()
     QProcess *avdProcess = new QProcess();
     connect(this, SIGNAL(destroyed()), avdProcess, SLOT(deleteLater()));
     connect(avdProcess, SIGNAL(finished(int)), avdProcess, SLOT(deleteLater()));
-    avdProcess->start(AndroidConfigurations::instance().androidToolPath().toString(),
-                      QStringList() << QLatin1String("avd"));
+
+    avdProcess->setProcessEnvironment(m_androidConfig.androidToolEnvironment().toProcessEnvironment());
+    QString executable = m_androidConfig.androidToolPath().toString();
+    QStringList arguments = QStringList() << QLatin1String("avd");
+
+    avdProcess->start(executable, arguments);
 }
 
 

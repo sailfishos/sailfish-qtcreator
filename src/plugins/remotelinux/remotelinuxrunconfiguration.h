@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -34,7 +34,12 @@
 
 #include <projectexplorer/runconfiguration.h>
 
-namespace Utils { class PortList; }
+#include <QStringList>
+
+namespace Utils {
+class Environment;
+class PortList;
+}
 
 namespace RemoteLinux {
 class RemoteLinuxRunConfigurationWidget;
@@ -58,17 +63,15 @@ public:
     ~RemoteLinuxRunConfiguration();
 
     bool isEnabled() const;
-    QString disabledReason() const;
     QWidget *createConfigurationWidget();
     Utils::OutputFormatter *createOutputFormatter() const;
 
-    virtual QString environmentPreparationCommand() const;
-    virtual QString commandPrefix() const;
+    virtual Utils::Environment environment() const;
 
     QString localExecutableFilePath() const;
     virtual QString defaultRemoteExecutableFilePath() const;
     QString remoteExecutableFilePath() const;
-    QString arguments() const;
+    QStringList arguments() const;
     void setArguments(const QString &args);
     QString workingDirectory() const;
     void setWorkingDirectory(const QString &wd);
@@ -94,7 +97,6 @@ protected:
         RemoteLinuxRunConfiguration *source);
     bool fromMap(const QVariantMap &map);
     QString defaultDisplayName();
-    void setDisabledReason(const QString &reason) const;
 
 protected slots:
     void updateEnabledState() { emit enabledChanged(); }

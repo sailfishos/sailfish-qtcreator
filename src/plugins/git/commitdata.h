@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -52,6 +52,12 @@ struct GitSubmitEditorPanelInfo
 
 QDebug operator<<(QDebug d, const GitSubmitEditorPanelInfo &);
 
+enum PushAction {
+    NoPush,
+    NormalPush,
+    PushToGerrit
+};
+
 struct GitSubmitEditorPanelData
 {
     void clear();
@@ -61,6 +67,7 @@ struct GitSubmitEditorPanelData
     QString author;
     QString email;
     bool bypassHooks;
+    PushAction pushAction;
 };
 
 QDebug operator<<(QDebug d, const GitSubmitEditorPanelData &);
@@ -104,9 +111,10 @@ public:
 
     CommitType commitType;
     QString amendSHA1;
-    QString commitEncoding;
+    QTextCodec *commitEncoding;
     GitSubmitEditorPanelInfo panelInfo;
     GitSubmitEditorPanelData panelData;
+    bool enablePush;
 
     QList<StateFilePair> files;
 

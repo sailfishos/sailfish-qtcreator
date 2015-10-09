@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -113,7 +113,7 @@ void Core::Internal::ProgressManagerPrivate::cleanup()
 }
 
 
-void Core::Internal::ProgressManagerPrivate::setApplicationLabel(const QString &text)
+void Core::Internal::ProgressManagerPrivate::doSetApplicationLabel(const QString &text)
 {
     if (!pITask)
         return;
@@ -122,7 +122,7 @@ void Core::Internal::ProgressManagerPrivate::setApplicationLabel(const QString &
     if (text.isEmpty()) {
         pITask->SetOverlayIcon(winId, NULL, NULL);
     } else {
-        QPixmap pix = QPixmap(QLatin1String(":/projectexplorer/images/compile_error.png"));
+        QPixmap pix = QPixmap(QLatin1String(":/core/images/compile_error_taskbar.png"));
         QPainter p(&pix);
         p.setPen(Qt::white);
         QFont font = p.font();
@@ -174,7 +174,7 @@ void Core::Internal::ProgressManagerPrivate::cleanup()
 {
 }
 
-void Core::Internal::ProgressManagerPrivate::setApplicationLabel(const QString &text)
+void Core::Internal::ProgressManagerPrivate::doSetApplicationLabel(const QString &text)
 {
     Q_UNUSED(text)
 }

@@ -14,17 +14,18 @@ namespace Internal {
 class ExamplePlugin : public ExtensionSystem::IPlugin
 {
     Q_OBJECT
+    Q_PLUGIN_METADATA(IID "org.qt-project.Qt.QtCreatorPlugin" FILE "Example.json")
 //! [base class]
 
 public:
     ExamplePlugin();
     ~ExamplePlugin();
 
-//! [plugin methods]
+//! [plugin functions]
     bool initialize(const QStringList &arguments, QString *errorString);
     void extensionsInitialized();
     ShutdownFlag aboutToShutdown();
-//! [plugin methods]
+//! [plugin functions]
 
 //! [slot]
 private slots:

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -81,6 +81,8 @@ private:
     qint32 m_nodeSourceType;
     qint32 m_metaType;
 };
+
+QDebug operator <<(QDebug debug, const InstanceContainer &command);
 
 } // namespace QmlDesigner
 

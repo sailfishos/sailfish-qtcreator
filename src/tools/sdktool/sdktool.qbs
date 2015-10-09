@@ -1,5 +1,5 @@
-import qbs.base 1.0
-import "../QtcTool.qbs" as QtcTool
+import qbs 1.0
+import QtcTool
 
 QtcTool {
     name: "sdktool"
@@ -8,11 +8,12 @@ QtcTool {
     Depends { name: "Utils" }
     Depends { name: "app_version_header" }
 
-    cpp.includePaths: "../../libs"
     cpp.defines: base.concat([qbs.targetOS.contains("osx")
             ? 'DATA_PATH="."' : 'DATA_PATH="../share/qtcreator"'])
 
     files: [
+        "adddebuggeroperation.cpp", "adddebuggeroperation.h",
+        "adddeviceoperation.cpp", "adddeviceoperation.h",
         "addkeysoperation.cpp",
         "addkeysoperation.h",
         "addkitoperation.cpp",
@@ -30,6 +31,8 @@ QtcTool {
         "main.cpp",
         "operation.cpp",
         "operation.h",
+        "rmdebuggeroperation.cpp", "rmdebuggeroperation.h",
+        "rmdeviceoperation.cpp", "rmdeviceoperation.h",
         "rmkeysoperation.cpp",
         "rmkeysoperation.h",
         "rmkitoperation.cpp",

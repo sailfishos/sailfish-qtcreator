@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** Copyright (c) 2013 Brian McGillion
+** Copyright (c) 2014 Brian McGillion
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -89,10 +89,9 @@ QString MercurialEditor::changeUnderCursor(const QTextCursor &cursorIn) const
     return QString();
 }
 
-VcsBase::BaseAnnotationHighlighter *MercurialEditor::createAnnotationHighlighter(const QSet<QString> &changes,
-                                                                                 const QColor &bg) const
+VcsBase::BaseAnnotationHighlighter *MercurialEditor::createAnnotationHighlighter(const QSet<QString> &changes) const
 {
-    return new MercurialAnnotationHighlighter(changes, bg);
+    return new MercurialAnnotationHighlighter(changes);
 }
 
 QString MercurialEditor::decorateVersion(const QString &revision) const
@@ -100,7 +99,7 @@ QString MercurialEditor::decorateVersion(const QString &revision) const
     const QFileInfo fi(source());
     const QString workingDirectory = fi.absolutePath();
     // Format with short summary
-    return MercurialPlugin::instance()->client()->shortDescriptionSync(workingDirectory, revision);
+    return MercurialPlugin::client()->shortDescriptionSync(workingDirectory, revision);
 }
 
 QStringList MercurialEditor::annotationPreviousVersions(const QString &revision) const
@@ -108,5 +107,5 @@ QStringList MercurialEditor::annotationPreviousVersions(const QString &revision)
     const QFileInfo fi(source());
     const QString workingDirectory = fi.absolutePath();
     // Retrieve parent revisions
-    return MercurialPlugin::instance()->client()->parentRevisionsSync(workingDirectory, fi.fileName(), revision);
+    return MercurialPlugin::client()->parentRevisionsSync(workingDirectory, fi.fileName(), revision);
 }

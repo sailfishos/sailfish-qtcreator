@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2012 - 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -35,22 +35,22 @@
 #include "blackberrycreatepackagestepconfigwidget.h"
 #include "blackberrydeployconfiguration.h"
 #include "qnxutils.h"
+#include "bardescriptordocument.h"
 #include "blackberryqtversion.h"
 #include "blackberrydeviceconfiguration.h"
 #include "blackberrydeployinformation.h"
 #include "blackberrysigningpasswordsdialog.h"
+#include "bardescriptordocument.h"
 
 #include <debugger/debuggerrunconfigurationaspect.h>
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/target.h>
 #include <projectexplorer/runconfiguration.h>
-#include <qt4projectmanager/qt4buildconfiguration.h>
-#include <qt4projectmanager/qt4nodes.h>
-#include <qt4projectmanager/qt4project.h>
+#include <qmakeprojectmanager/qmakebuildconfiguration.h>
+#include <qmakeprojectmanager/qmakenodes.h>
+#include <qmakeprojectmanager/qmakeproject.h>
 #include <qtsupport/qtkitinformation.h>
 #include <utils/qtcassert.h>
-
-#include <QFile>
 
 using namespace Qnx;
 using namespace Qnx::Internal;
@@ -58,20 +58,24 @@ using namespace Qnx::Internal;
 namespace {
 const char PACKAGER_CMD[] = "blackberry-nativepackager";
 
-const char QT_INSTALL_LIBS[]        = "QT_INSTALL_LIBS";
-const char QT_INSTALL_LIBS_VAR[]    = "%QT_INSTALL_LIBS%";
-const char QT_INSTALL_PLUGINS[]     = "QT_INSTALL_PLUGINS";
-const char QT_INSTALL_PLUGINS_VAR[] = "%QT_INSTALL_PLUGINS%";
-const char QT_INSTALL_IMPORTS[]     = "QT_INSTALL_IMPORTS";
-const char QT_INSTALL_IMPORTS_VAR[] = "%QT_INSTALL_IMPORTS%";
-const char QT_INSTALL_QML[]         = "QT_INSTALL_QML";
-const char QT_INSTALL_QML_VAR[]     = "%QT_INSTALL_QML%";
-const char SRC_DIR_VAR[]            = "%SRC_DIR%";
-
 const char PACKAGE_MODE_KEY[]      = "Qt4ProjectManager.BlackBerryCreatePackageStep.PackageMode";
 const char CSK_PASSWORD_KEY[]      = "Qt4ProjectManager.BlackBerryCreatePackageStep.CskPassword";
 const char KEYSTORE_PASSWORD_KEY[] = "Qt4ProjectManager.BlackBerryCreatePackageStep.KeystorePassword";
 const char SAVE_PASSWORDS_KEY[]    = "Qt4ProjectManager.BlackBerryCreatePackageStep.SavePasswords";
+const char BUNDLE_MODE_KEY[]       = "Qt4ProjectManager.BlackBerryCreatePackageStep.BundleMode";
+const char QT_LIBRARY_PATH_KEY[]   = "Qt4ProjectManager.BlackBerryCreatePackageStep.QtLibraryPath";
+}
+
+static void appendOrSetQtEnvironment(Utils::Environment &env,
+                                     const QString &key,
+                                     const QString &value)
+{
+    QStringList currentValues = env.value(key).split(QLatin1String(":"));
+    if (!currentValues.contains(value))
+        env.appendOrSet(key, value, QLatin1String(":"));
+
+    if (!currentValues.contains(QLatin1String("$") + key))
+        env.appendOrSet(key, QLatin1String("$") + key, QLatin1String(":"));
 }
 
 BlackBerryCreatePackageStep::BlackBerryCreatePackageStep(ProjectExplorer::BuildStepList *bsl)
@@ -92,6 +96,8 @@ void BlackBerryCreatePackageStep::ctor()
     setDisplayName(tr("Create packages"));
 
     m_packageMode = DevelopmentMode;
+    m_bundleMode = PreInstalledQt;
+    m_qtLibraryPath = QLatin1String("qt");
 }
 
 bool BlackBerryCreatePackageStep::init()
@@ -101,7 +107,7 @@ bool BlackBerryCreatePackageStep::init()
 
     const QString packageCmd = target()->activeBuildConfiguration()->environment().searchInPath(QLatin1String(PACKAGER_CMD));
     if (packageCmd.isEmpty()) {
-        raiseError(tr("Could not find packager command '%1' in the build environment")
+        raiseError(tr("Could not find packager command '%1' in the build environment.")
                    .arg(QLatin1String(PACKAGER_CMD)));
         return false;
     }
@@ -111,18 +117,18 @@ bool BlackBerryCreatePackageStep::init()
 
     QList<BarPackageDeployInformation> packagesToDeploy = deployConfig->deploymentInfo()->enabledPackages();
     if (packagesToDeploy.isEmpty()) {
-        raiseError(tr("No packages enabled for deployment"));
+        raiseError(tr("No packages enabled for deployment."));
         return false;
     }
 
     foreach (const BarPackageDeployInformation &info, packagesToDeploy) {
         if (info.appDescriptorPath().isEmpty()) {
-            raiseError(tr("Application descriptor file not specified, please check deployment settings"));
+            raiseError(tr("BAR application descriptor file not specified. Check deployment settings."));
             return false;
         }
 
         if (info.packagePath().isEmpty()) {
-            raiseError(tr("No package specified, please check deployment settings"));
+            raiseError(tr("No package specified. Check deployment settings."));
             return false;
         }
 
@@ -130,7 +136,7 @@ bool BlackBerryCreatePackageStep::init()
         QDir dir(buildDir);
         if (!dir.exists()) {
             if (!dir.mkpath(buildDir)) {
-                raiseError(tr("Could not create build directory '%1'").arg(buildDir));
+                raiseError(tr("Could not create build directory '%1'.").arg(buildDir));
                 return false;
             }
         }
@@ -139,7 +145,6 @@ bool BlackBerryCreatePackageStep::init()
         if (!prepareAppDescriptorFile(info.appDescriptorPath(), preparedFilePath))
             // If there is an error, prepareAppDescriptorFile() will raise it
             return false;
-
 
         QStringList args;
         if (m_packageMode == DevelopmentMode) {
@@ -152,7 +157,7 @@ bool BlackBerryCreatePackageStep::init()
                 dlg.setCskPassword(m_cskPassword);
                 dlg.setStorePassword(m_keystorePassword);
                 if (dlg.exec() == QDialog::Rejected) {
-                    raiseError(tr("Missing passwords for signing packages"));
+                    raiseError(tr("Missing passwords for signing packages."));
                     return false;
                 }
 
@@ -170,6 +175,7 @@ bool BlackBerryCreatePackageStep::init()
         }
         args << QLatin1String("-package") << QnxUtils::addQuotes(QDir::toNativeSeparators(info.packagePath()));
         args << QnxUtils::addQuotes(QDir::toNativeSeparators(preparedFilePath));
+
         addCommand(packageCmd, args);
     }
 
@@ -192,12 +198,17 @@ QString BlackBerryCreatePackageStep::debugToken() const
 
 bool BlackBerryCreatePackageStep::fromMap(const QVariantMap &map)
 {
-    m_packageMode = static_cast<PackageMode>(map.value(QLatin1String(PACKAGE_MODE_KEY), DevelopmentMode).toInt());
+    m_packageMode = static_cast<PackageMode>(map.value(QLatin1String(PACKAGE_MODE_KEY),
+                                                       DevelopmentMode).toInt());
     m_savePasswords = map.value(QLatin1String(SAVE_PASSWORDS_KEY), false).toBool();
     if (m_savePasswords) {
         m_cskPassword = map.value(QLatin1String(CSK_PASSWORD_KEY)).toString();
         m_keystorePassword = map.value(QLatin1String(KEYSTORE_PASSWORD_KEY)).toString();
     }
+    m_bundleMode = static_cast<BundleMode>(map.value(QLatin1String(BUNDLE_MODE_KEY),
+                                                     PreInstalledQt).toInt());
+    m_qtLibraryPath = map.value(QLatin1String(QT_LIBRARY_PATH_KEY),
+                                QLatin1String("qt")).toString();
     return BlackBerryAbstractDeployStep::fromMap(map);
 }
 
@@ -210,6 +221,8 @@ QVariantMap BlackBerryCreatePackageStep::toMap() const
         map.insert(QLatin1String(CSK_PASSWORD_KEY), m_cskPassword);
         map.insert(QLatin1String(KEYSTORE_PASSWORD_KEY), m_keystorePassword);
     }
+    map.insert(QLatin1String(BUNDLE_MODE_KEY), m_bundleMode);
+    map.insert(QLatin1String(QT_LIBRARY_PATH_KEY), m_qtLibraryPath);
     return map;
 }
 
@@ -233,6 +246,21 @@ bool BlackBerryCreatePackageStep::savePasswords() const
     return m_savePasswords;
 }
 
+BlackBerryCreatePackageStep::BundleMode BlackBerryCreatePackageStep::bundleMode() const
+{
+    return m_bundleMode;
+}
+
+QString BlackBerryCreatePackageStep::qtLibraryPath() const
+{
+    return m_qtLibraryPath;
+}
+
+QString BlackBerryCreatePackageStep::fullQtLibraryPath() const
+{
+    return QLatin1String(Constants::QNX_BLACKBERRY_DEFAULT_DEPLOY_QT_BASEPATH) + m_qtLibraryPath;
+}
+
 void BlackBerryCreatePackageStep::setPackageMode(BlackBerryCreatePackageStep::PackageMode packageMode)
 {
     m_packageMode = packageMode;
@@ -253,62 +281,133 @@ void BlackBerryCreatePackageStep::setSavePasswords(bool savePasswords)
     m_savePasswords = savePasswords;
 }
 
+void BlackBerryCreatePackageStep::setBundleMode(BlackBerryCreatePackageStep::BundleMode bundleMode)
+{
+    m_bundleMode = bundleMode;
+}
+
+void BlackBerryCreatePackageStep::setQtLibraryPath(const QString &qtLibraryPath)
+{
+    m_qtLibraryPath = qtLibraryPath;
+}
+
 bool BlackBerryCreatePackageStep::prepareAppDescriptorFile(const QString &appDescriptorPath, const QString &preparedFilePath)
 {
     BlackBerryQtVersion *qtVersion = dynamic_cast<BlackBerryQtVersion *>(QtSupport::QtKitInformation::qtVersion(target()->kit()));
     if (!qtVersion) {
-        raiseError(tr("Error preparing application descriptor file"));
+        raiseError(tr("Error preparing BAR application descriptor file."));
         return false;
     }
 
-    QFile file(appDescriptorPath);
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        raiseError(tr("Could not open '%1' for reading").arg(appDescriptorPath));
+    BarDescriptorDocument doc;
+    QString errorString;
+    if (!doc.open(&errorString, appDescriptorPath)) {
+        raiseError(tr("Error opening BAR application descriptor file '%1' - %2")
+            .arg(QDir::toNativeSeparators(appDescriptorPath))
+            .arg(errorString));
         return false;
     }
-
-    QFile preparedFile(preparedFilePath);
-
-    QByteArray fileContent = file.readAll();
-
     // Add Warning text
-    const QString warningText = QString::fromLatin1("<!-- This file is autogenerated;"
-                                                       " any changes will get overwritten if deploying with Qt Creator -->\n<qnx");
-    fileContent.replace("<qnx", warningText.toLatin1());
-
-    // Replace Qt path placeholders
-    if (fileContent.contains(QT_INSTALL_LIBS_VAR))
-        fileContent.replace(QT_INSTALL_LIBS_VAR, qtVersion->versionInfo().value(QLatin1String(QT_INSTALL_LIBS)).toLatin1());
-    if (fileContent.contains(QT_INSTALL_PLUGINS_VAR))
-        fileContent.replace(QT_INSTALL_PLUGINS_VAR, qtVersion->versionInfo().value(QLatin1String(QT_INSTALL_PLUGINS)).toLatin1());
-    if (fileContent.contains(QT_INSTALL_IMPORTS_VAR))
-        fileContent.replace(QT_INSTALL_IMPORTS_VAR, qtVersion->versionInfo().value(QLatin1String(QT_INSTALL_IMPORTS)).toLatin1());
-    if (fileContent.contains(QT_INSTALL_QML_VAR))
-        fileContent.replace(QT_INSTALL_QML_VAR, qtVersion->versionInfo().value(QLatin1String(QT_INSTALL_QML)).toLatin1());
+    const QString warningText = QString::fromLatin1("This file is autogenerated,"
+                " any changes will get overwritten if deploying with Qt Creator");
+    doc.setBannerComment(warningText);
 
     //Replace Source path placeholder
-    if (fileContent.contains(SRC_DIR_VAR))
-        fileContent.replace(SRC_DIR_VAR, QDir::toNativeSeparators(target()->project()->projectDirectory()).toLatin1());
+    QHash<QString, QString> placeHoldersHash;
+    placeHoldersHash[QLatin1String("%SRC_DIR%")] =
+        QDir::toNativeSeparators(target()->project()->projectDirectory());
+    doc.expandPlaceHolders(placeHoldersHash);
 
-    // Add parameter for QML debugging (if enabled)
-    Debugger::DebuggerRunConfigurationAspect *aspect
-            = target()->activeRunConfiguration()->extraAspect<Debugger::DebuggerRunConfigurationAspect>();
-    if (aspect->useQmlDebugger()) {
-        if (!fileContent.contains("-qmljsdebugger")) {
-            const QString argString = QString::fromLatin1("<arg>-qmljsdebugger=port:%1</arg>\n</qnx>")
-                    .arg(aspect->qmlDebugServerPort());
-            fileContent.replace("</qnx>", argString.toLatin1());
+    // Set up correct environment depending on using bundled/pre-installed Qt
+    QList<Utils::EnvironmentItem> envItems =
+            doc.value(BarDescriptorDocument::env).value<QList<Utils::EnvironmentItem> >();
+    Utils::Environment env(Utils::EnvironmentItem::toStringList(envItems), Utils::OsTypeOtherUnix);
+    BarDescriptorAssetList assetList = doc.value(BarDescriptorDocument::asset)
+            .value<BarDescriptorAssetList>();
+
+    const bool isQt5 = qtVersion->qtVersion().majorVersion == 5;
+    if (m_packageMode == SigningPackageMode
+            || (m_packageMode == DevelopmentMode && m_bundleMode == PreInstalledQt)) {
+        QtSupport::QtVersionNumber versionNumber = qtVersion->qtVersion();
+        appendOrSetQtEnvironment(env, QLatin1String("QML_IMPORT_PATH"),
+                                 QString::fromLatin1("/usr/lib/qt%1/imports")
+                                 .arg(versionNumber.majorVersion));
+
+        if (isQt5) {
+            appendOrSetQtEnvironment(env, QLatin1String("QML2_IMPORT_PATH"),
+                                     QString::fromLatin1("/usr/lib/qt5/qml"));
         }
+
+        appendOrSetQtEnvironment(env, QLatin1String("QT_PLUGIN_PATH"),
+                                 QString::fromLatin1("/usr/lib/qt%1/plugins")
+                                 .arg(versionNumber.majorVersion));
+        appendOrSetQtEnvironment(env, QLatin1String("LD_LIBRARY_PATH"),
+                                 QString::fromLatin1("/usr/lib/qt%1/lib")
+                                 .arg(versionNumber.majorVersion));
+    } else if (m_packageMode == DevelopmentMode && m_bundleMode == BundleQt) {
+        QList<QPair<QString, QString> > qtFolders;
+        qtFolders.append(qMakePair(QString::fromLatin1("runtime/qt/lib"),
+                                   qtVersion->versionInfo().value(QLatin1String("QT_INSTALL_LIBS"))));
+        qtFolders.append(qMakePair(QString::fromLatin1("runtime/qt/plugins"),
+                                   qtVersion->versionInfo().value(QLatin1String("QT_INSTALL_PLUGINS"))));
+        qtFolders.append(qMakePair(QString::fromLatin1("runtime/qt/imports"),
+                                   qtVersion->versionInfo().value(QLatin1String("QT_INSTALL_IMPORTS"))));
+        qtFolders.append(qMakePair(QString::fromLatin1("runtime/qt/qml"),
+                                   qtVersion->versionInfo().value(QLatin1String("QT_INSTALL_QML"))));
+
+        for (QList<QPair<QString, QString> >::const_iterator it = qtFolders.constBegin();
+             it != qtFolders.constEnd(); ++it) {
+            const QString target = it->first;
+            const QString qtFolder = it->second;
+            if (QFileInfo(qtFolder).exists()) {
+                BarDescriptorAsset asset;
+                asset.source = qtFolder;
+                asset.destination = target;
+                asset.entry = false;
+                assetList << asset;
+            }
+        }
+
+        if (isQt5) {
+            appendOrSetQtEnvironment(env, QLatin1String("QML2_IMPORT_PATH"),
+                                     QString::fromLatin1("app/native/runtime/qt/qml"));
+        }
+
+        appendOrSetQtEnvironment(env, QLatin1String("QML_IMPORT_PATH"),
+                                 QString::fromLatin1("app/native/runtime/qt/imports"));
+        appendOrSetQtEnvironment(env, QLatin1String("QT_PLUGIN_PATH"),
+                                 QString::fromLatin1("app/native/runtime/qt/plugins"));
+        appendOrSetQtEnvironment(env, QLatin1String("LD_LIBRARY_PATH"),
+                                 QString::fromLatin1("app/native/runtime/qt/lib"));
+    } else if (m_packageMode == DevelopmentMode && m_bundleMode == DeployedQt) {
+        if (isQt5) {
+            appendOrSetQtEnvironment(env, QLatin1String("QML2_IMPORT_PATH"),
+                                     QString::fromLatin1("%1/qml").arg(fullQtLibraryPath()));
+        }
+
+        appendOrSetQtEnvironment(env, QLatin1String("QML_IMPORT_PATH"),
+                                 QString::fromLatin1("%1/imports").arg(fullQtLibraryPath()));
+
+        appendOrSetQtEnvironment(env, QLatin1String("QT_PLUGIN_PATH"),
+                                 QString::fromLatin1("%1/plugins").arg(fullQtLibraryPath()));
+
+        appendOrSetQtEnvironment(env, QLatin1String("LD_LIBRARY_PATH"),
+                                 QString::fromLatin1("%1/lib").arg(fullQtLibraryPath()));
     }
 
-    const QString buildDir = target()->activeBuildConfiguration()->buildDirectory();
-    if (!preparedFile.open(QIODevice::WriteOnly)) {
-        raiseError(tr("Could not create prepared application descriptor file in '%1'").arg(buildDir));
+    doc.setValue(BarDescriptorDocument::asset, QVariant::fromValue(assetList));
+
+    QVariant envVar;
+    envVar.setValue(Utils::EnvironmentItem::fromStringList(env.toStringList()));
+    doc.setValue(BarDescriptorDocument::env, envVar);
+
+    doc.setFilePath(preparedFilePath);
+    if (!doc.save(&errorString)) {
+        raiseError(tr("Error saving prepared BAR application descriptor file '%1' - %2")
+            .arg(QDir::toNativeSeparators(preparedFilePath))
+            .arg(errorString));
         return false;
     }
-
-    preparedFile.write(fileContent);
-    preparedFile.close();
 
     return true;
 }

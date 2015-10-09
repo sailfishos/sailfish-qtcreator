@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -42,14 +42,6 @@
 #include <QTimer>
 
 namespace QmlJSEditor {
-class QmlJSTextEditorWidget;
-}
-
-namespace ProjectExplorer {
-class TaskHub;
-} // namespace ProjectExplorer
-
-namespace QmlJSEditor {
 namespace Internal {
 
 class QmlTaskManager : public QObject
@@ -85,11 +77,10 @@ private:
     static void collectMessages(QFutureInterface<FileErrorMessages> &future,
                                 QmlJS::Snapshot snapshot,
                                 QList<QmlJS::ModelManagerInterface::ProjectInfo> projectInfos,
-                                QStringList importPaths,
+                                QmlJS::ViewerContext vContext,
                                 bool updateSemantic);
 
 private:
-    ProjectExplorer::TaskHub *m_taskHub;
     QHash<QString, QList<ProjectExplorer::Task> > m_docsWithTasks;
     QFutureWatcher<FileErrorMessages> m_messageCollector;
     QTimer m_updateDelay;

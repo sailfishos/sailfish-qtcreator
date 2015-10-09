@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -29,13 +29,13 @@
 
 #include "qmlinspectoradapter.h"
 
-#include "debuggeractions.h"
-#include "debuggercore.h"
-#include "debuggerstringutils.h"
 #include "qmladapter.h"
-#include "debuggerengine.h"
 #include "qmlinspectoragent.h"
 #include "qmllivetextpreview.h"
+#include <debugger/debuggeractions.h>
+#include <debugger/debuggercore.h>
+#include <debugger/debuggerstringutils.h>
+#include <debugger/debuggerengine.h>
 
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/icore.h>
@@ -298,7 +298,7 @@ void QmlInspectorAdapter::createPreviewForEditor(Core::IEditor *newEditor)
             != QmlJSEditor::Constants::C_QMLJSEDITOR_ID)
         return;
 
-    QString filename = newEditor->document()->fileName();
+    QString filename = newEditor->document()->filePath();
     QmlJS::ModelManagerInterface *modelManager =
             QmlJS::ModelManagerInterface::instance();
     if (modelManager) {
@@ -330,7 +330,7 @@ void QmlInspectorAdapter::createPreviewForEditor(Core::IEditor *newEditor)
             connect(preview, SIGNAL(reloadRequest()),
                     this, SLOT(onReload()));
 
-            m_textPreviews.insert(newEditor->document()->fileName(), preview);
+            m_textPreviews.insert(newEditor->document()->filePath(), preview);
             preview->associateEditor(newEditor);
             preview->updateDebugIds();
         }
@@ -340,7 +340,7 @@ void QmlInspectorAdapter::createPreviewForEditor(Core::IEditor *newEditor)
 void QmlInspectorAdapter::removePreviewForEditor(Core::IEditor *editor)
 {
     if (QmlLiveTextPreview *preview
-            = m_textPreviews.value(editor->document()->fileName())) {
+            = m_textPreviews.value(editor->document()->filePath())) {
         preview->unassociateEditor(editor);
     }
 }
@@ -353,9 +353,8 @@ void QmlInspectorAdapter::updatePendingPreviewDocuments(QmlJS::Document::Ptr doc
     if (idx == -1)
         return;
 
-    Core::EditorManager *em = Core::EditorManager::instance();
     QList<Core::IEditor *> editors
-            = em->editorsForFileName(doc->fileName());
+            = Core::EditorManager::documentModel()->editorsForFilePath(doc->fileName());
 
     if (editors.isEmpty())
         return;
@@ -365,7 +364,7 @@ void QmlInspectorAdapter::updatePendingPreviewDocuments(QmlJS::Document::Ptr doc
     Core::IEditor *editor = editors.takeFirst();
     createPreviewForEditor(editor);
     QmlLiveTextPreview *preview
-            = m_textPreviews.value(editor->document()->fileName());
+            = m_textPreviews.value(editor->document()->filePath());
     foreach (Core::IEditor *editor, editors)
         preview->associateEditor(editor);
 }
@@ -439,7 +438,6 @@ void QmlInspectorAdapter::setActiveEngineClient(BaseEngineDebugClient *client)
 
 void QmlInspectorAdapter::initializePreviews()
 {
-    Core::EditorManager *em = Core::EditorManager::instance();
     QmlJS::ModelManagerInterface *modelManager
             = QmlJS::ModelManagerInterface::instance();
     if (modelManager) {
@@ -447,6 +445,7 @@ void QmlInspectorAdapter::initializePreviews()
 
         if (!m_listeningToEditorManager) {
             m_listeningToEditorManager = true;
+            QObject *em = Core::EditorManager::instance();
             connect(em, SIGNAL(editorAboutToClose(Core::IEditor*)),
                     this, SLOT(removePreviewForEditor(Core::IEditor*)));
             connect(em, SIGNAL(editorOpened(Core::IEditor*)),
@@ -457,8 +456,15 @@ void QmlInspectorAdapter::initializePreviews()
         }
 
         // initial update
-        foreach (Core::IEditor *editor, em->openedEditors())
-            createPreviewForEditor(editor);
+        Core::DocumentModel *documentModel = Core::EditorManager::documentModel();
+        foreach (Core::IDocument *document, documentModel->openedDocuments()) {
+            QList<Core::IEditor *> editors = documentModel->editorsForDocument(document);
+            createPreviewForEditor(editors.takeFirst());
+            QmlLiveTextPreview *preview
+                    = m_textPreviews.value(document->filePath());
+            foreach (Core::IEditor *editor, editors)
+                preview->associateEditor(editor);
+        }
     }
 }
 

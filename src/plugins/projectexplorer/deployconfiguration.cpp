@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -39,12 +39,8 @@
 
 using namespace ProjectExplorer;
 
-namespace {
-
-const char * const BUILD_STEP_LIST_COUNT("ProjectExplorer.BuildConfiguration.BuildStepListCount");
-const char * const BUILD_STEP_LIST_PREFIX("ProjectExplorer.BuildConfiguration.BuildStepList.");
-
-} // namespace
+const char BUILD_STEP_LIST_COUNT[] = "ProjectExplorer.BuildConfiguration.BuildStepListCount";
+const char BUILD_STEP_LIST_PREFIX[] = "ProjectExplorer.BuildConfiguration.BuildStepList.";
 
 DeployConfiguration::DeployConfiguration(Target *target, const Core::Id id) :
     ProjectConfiguration(target, id),
@@ -232,7 +228,7 @@ DeployConfiguration *DeployConfigurationFactory::clone(Target *parent, DeployCon
 DeployConfigurationFactory *DeployConfigurationFactory::find(Target *parent, const QVariantMap &map)
 {
     QList<DeployConfigurationFactory *> factories
-            = ExtensionSystem::PluginManager::instance()->getObjects<DeployConfigurationFactory>();
+            = ExtensionSystem::PluginManager::getObjects<DeployConfigurationFactory>();
     foreach (DeployConfigurationFactory *factory, factories) {
         if (factory->canRestore(parent, map))
             return factory;
@@ -244,7 +240,7 @@ QList<DeployConfigurationFactory *> DeployConfigurationFactory::find(Target *par
 {
     QList<DeployConfigurationFactory *> result;
     QList<DeployConfigurationFactory *> factories
-            = ExtensionSystem::PluginManager::instance()->getObjects<DeployConfigurationFactory>();
+            = ExtensionSystem::PluginManager::getObjects<DeployConfigurationFactory>();
     foreach (DeployConfigurationFactory *factory, factories) {
         if (!factory->availableCreationIds(parent).isEmpty())
             result << factory;
@@ -255,7 +251,7 @@ QList<DeployConfigurationFactory *> DeployConfigurationFactory::find(Target *par
 DeployConfigurationFactory *DeployConfigurationFactory::find(Target *parent, DeployConfiguration *dc)
 {
     QList<DeployConfigurationFactory *> factories
-            = ExtensionSystem::PluginManager::instance()->getObjects<DeployConfigurationFactory>();
+            = ExtensionSystem::PluginManager::getObjects<DeployConfigurationFactory>();
     foreach (DeployConfigurationFactory *factory, factories) {
         if (factory->canClone(parent, dc))
             return factory;

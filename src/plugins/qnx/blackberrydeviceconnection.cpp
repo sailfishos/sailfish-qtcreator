@@ -1,8 +1,8 @@
 /**************************************************************************
 **
-** Copyright (C) 2011 - 2013 Research In Motion
+** Copyright (C) 2014 BlackBerry Limited. All rights reserved.
 **
-** Contact: Research In Motion (blackberry-qt@qnx.com)
+** Contact: BlackBerry (qt@blackberry.com)
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -31,7 +31,7 @@
 
 #include "blackberrydeviceconnection.h"
 
-#include "blackberryconfiguration.h"
+#include "blackberryconfigurationmanager.h"
 #include "qnxutils.h"
 
 #include <projectexplorer/devicesupport/devicemanager.h>
@@ -61,7 +61,8 @@ BlackBerryDeviceConnection::BlackBerryDeviceConnection() :
 void BlackBerryDeviceConnection::connectDevice(const ProjectExplorer::IDevice::ConstPtr &device)
 {
     Utils::Environment env = Utils::Environment::systemEnvironment();
-    QnxUtils::prependQnxMapToEnvironment(BlackBerryConfiguration::instance().qnxEnv(), env);
+    env.modify(BlackBerryConfigurationManager::instance()->defaultConfigurationEnv());
+
     m_process->setEnvironment(env.toStringList());
 
     m_host = device->sshParameters().host;

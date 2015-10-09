@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -32,6 +32,6 @@
 using namespace CppTools;
 
 SemanticInfo::SemanticInfo()
-    : revision(0), forced(false)
+    : revision(0), forced(false), complete(true)
 {
 }

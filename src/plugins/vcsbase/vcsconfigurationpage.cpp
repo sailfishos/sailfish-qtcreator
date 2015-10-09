@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -61,7 +61,7 @@ VcsConfigurationPage::VcsConfigurationPage(const Core::IVersionControl *vc, QWid
     setSubTitle(tr("Please configure <b>%1</b> now.").arg(vc->displayName()));
 
     d->m_versionControl = vc;
-    d->m_configureButton = new QPushButton(tr("Configure..."), this);
+    d->m_configureButton = new QPushButton(Core::ICore::msgShowOptionsDialog(), this);
 
     QVBoxLayout *verticalLayout = new QVBoxLayout(this);
     verticalLayout->addWidget(d->m_configureButton);

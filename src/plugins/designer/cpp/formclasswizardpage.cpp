@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -79,9 +79,8 @@ bool FormClassWizardPage::lowercaseHeaderFiles()
 // Set up new class widget from settings
 void FormClassWizardPage::initFileGenerationSettings()
 {
-    const Core::MimeDatabase *mdb = Core::ICore::mimeDatabase();
-    m_ui->newClassWidget->setHeaderExtension(mdb->preferredSuffixByType(QLatin1String(CppTools::Constants::CPP_HEADER_MIMETYPE)));
-    m_ui->newClassWidget->setSourceExtension(mdb->preferredSuffixByType(QLatin1String(CppTools::Constants::CPP_SOURCE_MIMETYPE)));
+    m_ui->newClassWidget->setHeaderExtension(Core::MimeDatabase::preferredSuffixByType(QLatin1String(CppTools::Constants::CPP_HEADER_MIMETYPE)));
+    m_ui->newClassWidget->setSourceExtension(Core::MimeDatabase::preferredSuffixByType(QLatin1String(CppTools::Constants::CPP_SOURCE_MIMETYPE)));
     m_ui->newClassWidget->setLowerCaseFiles(lowercaseHeaderFiles());
 }
 

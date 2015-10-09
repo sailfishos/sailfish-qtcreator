@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -32,18 +32,31 @@
 using namespace CppTools;
 using namespace CppTools::Internal;
 
-CppClassesFilter::CppClassesFilter(CppModelManager *manager)
-    : CppLocatorFilter(manager)
+CppClassesFilter::CppClassesFilter(CppLocatorData *locatorData)
+    : CppLocatorFilter(locatorData)
 {
     setId("Classes");
     setShortcutString(QLatin1String("c"));
     setIncludedByDefault(false);
     setDisplayName(tr("C++ Classes"));
-
-    search.setSymbolsToSearchFor(SymbolSearcher::Classes);
-    search.setSeparateScope(true);
 }
 
 CppClassesFilter::~CppClassesFilter()
 {
+}
+
+QList<QList<CppTools::ModelItemInfo> > CppClassesFilter::itemsToMatchUserInputAgainst() const
+{
+    return QList<QList<CppTools::ModelItemInfo> >() << m_data->classes();
+}
+
+Core::LocatorFilterEntry CppClassesFilter::filterEntryFromModelItemInfo(const ModelItemInfo &info)
+{
+    const QVariant id = qVariantFromValue(info);
+    Core::LocatorFilterEntry filterEntry(this, info.symbolName, id, info.icon);
+    filterEntry.extraInfo = info.symbolScope.isEmpty()
+        ? info.shortNativeFilePath()
+        : info.symbolScope;
+
+    return filterEntry;
 }

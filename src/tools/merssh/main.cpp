@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2013 Jolla Ltd.
+** Copyright (C) 2012 - 2014 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -21,18 +21,21 @@
 ****************************************************************************/
 
 #include "commandfactory.h"
-#include "qmakecommand.h"
-#include "generatekeyscommand.h"
-#include "gcccommand.h"
-#include "makecommand.h"
 #include "deploycommand.h"
+#include "gcccommand.h"
+#include "generatekeyscommand.h"
+#include "makecommand.h"
+#include "qmakecommand.h"
 #include "rpmcommand.h"
+#include "rpmvalidationcommand.h"
+
 #include <mer/merconstants.h>
+
 #include <QCoreApplication>
-#include <QProcessEnvironment>
-#include <QFile>
-#include <QStringList>
 #include <QDir>
+#include <QFile>
+#include <QProcessEnvironment>
+#include <QStringList>
 #include <QTimer>
 
 void printUsage()
@@ -93,6 +96,7 @@ int main(int argc, char *argv[])
     CommandFactory::registerCommand<MakeCommand>(QLatin1String("make"));
     CommandFactory::registerCommand<DeployCommand>(QLatin1String("deploy"));
     CommandFactory::registerCommand<RpmCommand>(QLatin1String("rpm"));
+    CommandFactory::registerCommand<RpmValidationCommand>(QLatin1String("rpmvalidation"));
     CommandFactory::registerCommand<GenerateKeysCommand>(QLatin1String("generatesshkeys"));
 
     QStringList arguments  = QCoreApplication::arguments();
@@ -128,7 +132,7 @@ int main(int argc, char *argv[])
     parameters.userName = environment.value(QLatin1String(Mer::Constants::MER_SSH_USERNAME));
     parameters.port = environment.value(QLatin1String(Mer::Constants::MER_SSH_PORT)).toInt();
     parameters.privateKeyFile = environment.value(QLatin1String(Mer::Constants::MER_SSH_PRIVATE_KEY));
-    parameters.authenticationType = QSsh::SshConnectionParameters::AuthenticationByKey;
+    parameters.authenticationType = QSsh::SshConnectionParameters::AuthenticationTypePublicKey;
     parameters.timeout = 10;
     command->setSshParameters(parameters);
     command->setArguments(unquoteArguments(arguments));

@@ -36,19 +36,9 @@ public:
     Parser(TranslationUnit *translationUnit);
     ~Parser();
 
-    bool qtMocRunEnabled() const;
-    void setQtMocRunEnabled(bool onoff);
-
-    bool cxx0xEnabled() const;
-    void setCxxOxEnabled(bool onoff);
-
-    bool objCEnabled() const;
-    void setObjCEnabled(bool onoff);
-
     bool parseTranslationUnit(TranslationUnitAST *&node);
 
 public:
-    bool parseAccessSpecifier(SpecifierAST *&node);
     bool parseExpressionList(ExpressionListAST *&node);
     bool parseAbstractCoreDeclarator(DeclaratorAST *&node, SpecifierListAST *decl_specifier_list);
     bool parseAbstractDeclarator(DeclaratorAST *&node, SpecifierListAST *decl_specifier_list);
@@ -222,7 +212,9 @@ public:
     bool parseObjCProtocol(DeclarationAST *&node,
                            SpecifierListAST *attributes = 0);
 
+    bool parseObjCTryStatement(StatementAST *&node);
     bool parseObjCSynchronizedStatement(StatementAST *&node);
+    bool parseObjCThrowStatement(StatementAST *&node);
     bool parseObjCEncodeExpression(ExpressionAST *&node);
     bool parseObjCProtocolExpression(ExpressionAST *&node);
     bool parseObjCSelectorExpression(ExpressionAST *&node);
@@ -313,11 +305,9 @@ private:
     TranslationUnit *_translationUnit;
     Control *_control;
     MemoryPool *_pool;
+    LanguageFeatures _languageFeatures;
     unsigned _tokenIndex;
     bool _templateArguments: 1;
-    bool _qtMocRunEnabled: 1;
-    bool _cxx0xEnabled: 1;
-    bool _objCEnabled: 1;
     bool _inFunctionBody: 1;
     bool _inObjCImplementationContext: 1;
     bool _inExpressionStatement: 1;

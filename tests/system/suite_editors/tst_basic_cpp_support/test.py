@@ -1,6 +1,6 @@
 #############################################################################
 ##
-## Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+## Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ## Contact: http://www.qt-project.org/legal
 ##
 ## This file is part of Qt Creator.
@@ -45,10 +45,6 @@ def main():
     startApplication("qtcreator" + SettingsPath)
     if not startedWithoutPluginError():
         return
-    overrideInstallLazySignalHandler()
-    # used simplified object to omit the visible property - causes Squish problem here otherwise
-    installLazySignalHandler("{type='CppEditor::Internal::CPPEditorWidget'}", "textChanged()",
-                             "__handleTextChanged__")
     openQmakeProject(proFile)
     progressBarWait(20000)
     selectFromLocator("dummy.cpp")
@@ -66,9 +62,6 @@ def main():
 #    - Move the cursor to the usage of a variable.
 #    - Press F2 or select from the menu: Tools / C++ / Follow Symbol under Cursor
 #    Creator will show you the declaration of the variable.
-
-    if platform.system() == "Darwin":
-        JIRA.performWorkaroundForBug(8735, JIRA.Bug.CREATOR, cppwindow)
 
     type(cppwindow, "<Ctrl+F>")
     type(waitForObject(":*Qt Creator.findEdit_Utils::FilterLineEdit"), "    xi")
@@ -93,11 +86,13 @@ def main():
 #    Creator should show the declaration of the function again.
     selectFromLocator("dummy.cpp")
     mainWin = findObject(":Qt Creator_Core::Internal::MainWindow")
-    waitFor("mainWin.windowTitle == 'dummy.cpp - cplusplus-tools - Qt Creator'")
+    if not waitFor("'dummy.cpp ' in str(mainWin.windowTitle) and ' - cplusplus-tools - ' in str(mainWin.windowTitle)", 5000):
+        test.warning("Opening dummy.cpp seems to have failed")
     # Reset cursor to the start of the document
-    cursor = findObject(":Qt Creator_CppEditor::Internal::CPPEditorWidget").textCursor()
-    cursor.movePosition(QTextCursor.Start)
-    cppwindow.setTextCursor(cursor)
+    if platform.system() == 'Darwin':
+        type(cppwindow, "<Home>")
+    else:
+        type(cppwindow, "<Ctrl+Home>")
 
     type(cppwindow, "<Ctrl+F>")
     clickButton(waitForObject(":*Qt Creator_Utils::IconButton"))
@@ -108,21 +103,16 @@ def main():
     __typeAndWaitForAction__(cppwindow, "<Shift+F2>")
     test.compare(lineUnderCursor(findObject(":Qt Creator_CppEditor::Internal::CPPEditorWidget")), "    Dummy(int a);")
     cppwindow = waitForObject(":Qt Creator_CppEditor::Internal::CPPEditorWidget")
+    snooze(2)
     __typeAndWaitForAction__(cppwindow, "<Shift+F2>")
     test.compare(lineUnderCursor(findObject(":Qt Creator_CppEditor::Internal::CPPEditorWidget")), "Dummy::Dummy(int)")
     invokeMenuItem("File", "Exit")
 
-def __handleTextChanged__(*args):
-    global textChanged
-    textChanged = True
-
 def __typeAndWaitForAction__(editor, keyCombination):
-    global textChanged
-    textChanged = False
+    origTxt = str(editor.plainText)
     cursorPos = editor.textCursor().position()
     type(editor, keyCombination)
-    waitFor("textChanged or cppEditorPositionChanged(cursorPos)", 2000)
-    if not (textChanged or cppEditorPositionChanged(cursorPos)):
+    if not waitFor("cppEditorPositionChanged(cursorPos) or origTxt != str(editor.plainText)", 2000):
         test.warning("Waiting timed out...")
 
 def cppEditorPositionChanged(origPos):

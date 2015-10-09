@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2012 - 2014 Jolla Ltd.
+** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
 **
@@ -28,8 +28,10 @@
 ****************************************************************************/
 
 #include "merrpminstaller.h"
-#include "meremulatordevice.h"
+
 #include "merconstants.h"
+#include "meremulatordevice.h"
+
 #include <ssh/sshconnection.h>
 
 namespace Mer {

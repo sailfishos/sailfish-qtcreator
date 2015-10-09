@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -28,33 +28,21 @@
 ****************************************************************************/
 
 #include "mainwindow.h"
-#include "actioncontainer.h"
-#include "command.h"
-#include "actionmanager.h"
-#include "actionmanager_p.h"
 #include "icore.h"
 #include "coreconstants.h"
-#include "editormanager.h"
 #include "toolsettings.h"
 #include "mimetypesettings.h"
 #include "fancytabwidget.h"
 #include "documentmanager.h"
 #include "generalsettings.h"
 #include "helpmanager.h"
-#include "ieditor.h"
 #include "idocumentfactory.h"
 #include "messagemanager.h"
 #include "modemanager.h"
 #include "mimedatabase.h"
-#include "newdialog.h"
 #include "outputpanemanager.h"
 #include "plugindialog.h"
-#include "progressmanager_p.h"
-#include "progressview.h"
-#include "shortcutsettings.h"
 #include "vcsmanager.h"
-#include "scriptmanager_p.h"
-#include "settingsdialog.h"
 #include "variablemanager.h"
 #include "versiondialog.h"
 #include "statusbarmanager.h"
@@ -72,8 +60,19 @@
 #endif
 
 #include <app/app_version.h>
+#include <coreplugin/actionmanager/actioncontainer.h>
+#include <coreplugin/actionmanager/actionmanager.h>
+#include <coreplugin/actionmanager/actionmanager_p.h>
+#include <coreplugin/actionmanager/command.h>
+#include <coreplugin/dialogs/newdialog.h>
+#include <coreplugin/dialogs/settingsdialog.h>
+#include <coreplugin/dialogs/shortcutsettings.h>
+#include <coreplugin/editormanager/editormanager.h>
+#include <coreplugin/editormanager/ieditor.h>
 #include <coreplugin/icorelistener.h>
 #include <coreplugin/inavigationwidgetfactory.h>
+#include <coreplugin/progressmanager/progressmanager_p.h>
+#include <coreplugin/progressmanager/progressview.h>
 #include <coreplugin/settingsdatabase.h>
 #include <utils/historycompleter.h>
 #include <utils/hostosinfo.h>
@@ -101,18 +100,10 @@
 #include <QPushButton>
 #include <QStyleFactory>
 
-/*
-#include <signal.h>
-extern "C" void handleSigInt(int sig)
-{
-    Q_UNUSED(sig)
-    Core::ICore::exit();
-    qDebug() << "SIGINT caught. Shutting down.";
-}
-*/
+using namespace ExtensionSystem;
 
-using namespace Core;
-using namespace Core::Internal;
+namespace Core {
+namespace Internal {
 
 enum { debugMainWindow = 0 };
 
@@ -120,17 +111,14 @@ MainWindow::MainWindow() :
     Utils::AppMainWindow(),
     m_coreImpl(new ICore(this)),
     m_additionalContexts(Constants::C_GLOBAL),
-    m_settings(ExtensionSystem::PluginManager::settings()),
-    m_globalSettings(ExtensionSystem::PluginManager::globalSettings()),
-    m_settingsDatabase(new SettingsDatabase(QFileInfo(m_settings->fileName()).path(),
+    m_settingsDatabase(new SettingsDatabase(QFileInfo(PluginManager::settings()->fileName()).path(),
                                             QLatin1String("QtCreator"),
                                             this)),
     m_printer(0),
     m_actionManager(new ActionManager(this)),
     m_editorManager(0),
     m_externalToolManager(0),
-    m_progressManager(new ProgressManagerPrivate()),
-    m_scriptManager(new ScriptManagerPrivate(this)),
+    m_progressManager(new ProgressManagerPrivate),
     m_variableManager(new VariableManager),
     m_vcsManager(new VcsManager),
     m_statusBarManager(0),
@@ -159,10 +147,12 @@ MainWindow::MainWindow() :
     m_zoomAction(0),
     m_toggleSideBarButton(new QToolButton)
 {
+    ActionManager::initialize(); // must be done before registering any actions
+
     (void) new DocumentManager(this);
     OutputPaneManager::create();
 
-    Utils::HistoryCompleter::setSettings(m_settings);
+    Utils::HistoryCompleter::setSettings(PluginManager::settings());
 
     setWindowTitle(tr("Qt Creator"));
     if (!Utils::HostOsInfo::isMacHost())
@@ -174,9 +164,9 @@ MainWindow::MainWindow() :
     if (Utils::HostOsInfo::isAnyUnixHost() && !Utils::HostOsInfo::isMacHost()) {
         if (baseName == QLatin1String("windows")) {
             // Sometimes we get the standard windows 95 style as a fallback
-            if (QStyleFactory::keys().contains(QLatin1String("Fusion")))
+            if (QStyleFactory::keys().contains(QLatin1String("Fusion"))) {
                 baseName = QLatin1String("fusion"); // Qt5
-            else { // Qt4
+            } else { // Qt4
                 // e.g. if we are running on a KDE4 desktop
                 QByteArray desktopEnvironment = qgetenv("DESKTOP_SESSION");
                 if (desktopEnvironment == "kde")
@@ -280,8 +270,6 @@ MainWindow::~MainWindow()
     m_mimeTypeSettings = 0;
     delete m_systemEditor;
     m_systemEditor = 0;
-    delete m_settings;
-    m_settings = 0;
     delete m_printer;
     m_printer = 0;
     delete m_vcsManager;
@@ -316,13 +304,15 @@ MainWindow::~MainWindow()
 
     delete m_helpManager;
     m_helpManager = 0;
+    delete m_variableManager;
+    m_variableManager = 0;
 }
 
 bool MainWindow::init(QString *errorMessage)
 {
     Q_UNUSED(errorMessage)
 
-    if (!mimeDatabase()->addMimeTypes(QLatin1String(":/core/editormanager/BinFiles.mimetypes.xml"), errorMessage))
+    if (!MimeDatabase::addMimeTypes(QLatin1String(":/core/editormanager/BinFiles.mimetypes.xml"), errorMessage))
         return false;
 
     ExtensionSystem::PluginManager::addObject(m_coreImpl);
@@ -342,7 +332,7 @@ bool MainWindow::init(QString *errorMessage)
     m_outputView->setWidget(OutputPaneManager::instance()->buttonsWidget());
     m_outputView->setPosition(Core::StatusBarWidget::Second);
     ExtensionSystem::PluginManager::addObject(m_outputView);
-    m_messageManager->init();
+    MessageManager::init();
     return true;
 }
 
@@ -354,15 +344,13 @@ void MainWindow::extensionsInitialized()
     m_vcsManager->extensionsInitialized();
     m_navigationWidget->setFactories(ExtensionSystem::PluginManager::getObjects<INavigationWidgetFactory>());
 
-    // reading the shortcut settings must be done after all shortcuts have been registered
-    m_actionManager->d->initialize();
-
     readSettings();
     updateContext();
 
     emit m_coreImpl->coreAboutToOpen();
-    show();
-    emit m_coreImpl->coreOpened();
+    // Delay restoreWindowState, since it is overridden by LayoutRequest event
+    QTimer::singleShot(0, this, SLOT(restoreWindowState()));
+    QTimer::singleShot(0, m_coreImpl, SIGNAL(coreOpened()));
 }
 
 void MainWindow::closeEvent(QCloseEvent *event)
@@ -370,9 +358,7 @@ void MainWindow::closeEvent(QCloseEvent *event)
     ICore::saveSettings();
 
     // Save opened files
-    bool cancelled;
-    QList<IDocument*> notSaved = DocumentManager::saveModifiedDocuments(DocumentManager::modifiedDocuments(), &cancelled);
-    if (cancelled || !notSaved.isEmpty()) {
+    if (!DocumentManager::saveAllModifiedDocuments()) {
         event->ignore();
         return;
     }
@@ -521,6 +507,7 @@ void MainWindow::registerDefaultContainers()
     menubar->addMenu(ac, Constants::G_HELP);
     ac->menu()->setTitle(tr("&Help"));
     ac->appendGroup(Constants::G_HELP_HELP);
+    ac->appendGroup(Constants::G_HELP_SUPPORT);
     ac->appendGroup(Constants::G_HELP_ABOUT);
 }
 
@@ -756,6 +743,11 @@ void MainWindow::registerDefaultActions()
     mwindow->addMenu(mviews, Constants::G_WINDOW_VIEWS);
     mviews->menu()->setTitle(tr("&Views"));
 
+    // "Help" separators
+    mhelp->addSeparator(globalContext, Constants::G_HELP_SUPPORT);
+    if (!Utils::HostOsInfo::isMacHost())
+        mhelp->addSeparator(globalContext, Constants::G_HELP_ABOUT);
+
     // About IDE Action
     icon = QIcon::fromTheme(QLatin1String("help-about"));
     if (Utils::HostOsInfo::isMacHost())
@@ -799,7 +791,7 @@ void MainWindow::newFile()
 
 void MainWindow::openFile()
 {
-    openFiles(editorManager()->getOpenFileNames(), ICore::SwitchMode);
+    openFiles(EditorManager::getOpenFileNames(), ICore::SwitchMode);
 }
 
 static QList<IDocumentFactory*> getNonEditorDocumentFactories()
@@ -815,10 +807,9 @@ static QList<IDocumentFactory*> getNonEditorDocumentFactories()
 }
 
 static IDocumentFactory *findDocumentFactory(const QList<IDocumentFactory*> &fileFactories,
-                                     const MimeDatabase *db,
                                      const QFileInfo &fi)
 {
-    if (const MimeType mt = db->findByFile(fi)) {
+    if (const MimeType mt = MimeDatabase::findByFile(fi)) {
         const QString type = mt.type();
         foreach (IDocumentFactory *factory, fileFactories) {
             if (factory->mimeTypes().contains(type))
@@ -846,7 +837,7 @@ IDocument *MainWindow::openFiles(const QStringList &fileNames, ICore::OpenFilesF
     foreach (const QString &fileName, fileNames) {
         const QFileInfo fi(fileName);
         const QString absoluteFilePath = fi.absoluteFilePath();
-        if (IDocumentFactory *documentFactory = findDocumentFactory(nonEditorFileFactories, mimeDatabase(), fi)) {
+        if (IDocumentFactory *documentFactory = findDocumentFactory(nonEditorFileFactories, fi)) {
             IDocument *document = documentFactory->open(absoluteFilePath);
             if (!document) {
                 if (flags & ICore::StopOnLoadFail)
@@ -936,7 +927,7 @@ bool MainWindow::showOptionsDialog(Id category, Id page, QWidget *parent)
 
 void MainWindow::saveAll()
 {
-    DocumentManager::saveModifiedDocumentsSilently(DocumentManager::modifiedDocuments());
+    DocumentManager::saveAllModifiedDocumentsSilently();
 }
 
 void MainWindow::exit()
@@ -951,10 +942,9 @@ void MainWindow::exit()
 
 void MainWindow::openFileWith()
 {
-    QStringList fileNames = editorManager()->getOpenFileNames();
-    foreach (const QString &fileName, fileNames) {
+    foreach (const QString &fileName, EditorManager::getOpenFileNames()) {
         bool isExternal;
-        const Id editorId = editorManager()->getOpenWithEditorId(fileName, &isExternal);
+        const Id editorId = EditorManager::getOpenWithEditorId(fileName, &isExternal);
         if (!editorId.isValid())
             continue;
         if (isExternal)
@@ -962,64 +952,6 @@ void MainWindow::openFileWith()
         else
             EditorManager::openEditor(fileName, editorId);
     }
-}
-
-ActionManager *MainWindow::actionManager() const
-{
-    return m_actionManager;
-}
-
-MessageManager *MainWindow::messageManager() const
-{
-    return m_messageManager;
-}
-
-VcsManager *MainWindow::vcsManager() const
-{
-    return m_vcsManager;
-}
-
-QSettings *MainWindow::settings(QSettings::Scope scope) const
-{
-    if (scope == QSettings::UserScope)
-        return m_settings;
-    else
-        return m_globalSettings;
-}
-
-EditorManager *MainWindow::editorManager() const
-{
-    return m_editorManager;
-}
-
-ProgressManager *MainWindow::progressManager() const
-{
-    return m_progressManager;
-}
-
-ScriptManager *MainWindow::scriptManager() const
-{
-     return m_scriptManager;
-}
-
-VariableManager *MainWindow::variableManager() const
-{
-     return m_variableManager.data();
-}
-
-ModeManager *MainWindow::modeManager() const
-{
-    return m_modeManager;
-}
-
-MimeDatabase *MainWindow::mimeDatabase() const
-{
-    return m_mimeDatabase;
-}
-
-HelpManager *MainWindow::helpManager() const
-{
-    return m_helpManager;
 }
 
 IContext *MainWindow::contextObject(QWidget *widget)
@@ -1127,7 +1059,8 @@ static const char modeSelectorVisibleKey[] = "ModeSelectorVisible";
 
 void MainWindow::readSettings()
 {
-    m_settings->beginGroup(QLatin1String(settingsGroup));
+    QSettings *settings = PluginManager::settings();
+    settings->beginGroup(QLatin1String(settingsGroup));
 
     if (m_overrideColor.isValid()) {
         Utils::StyleHelper::setBaseColor(m_overrideColor);
@@ -1135,42 +1068,39 @@ void MainWindow::readSettings()
         m_overrideColor = Utils::StyleHelper::baseColor();
     } else {
         Utils::StyleHelper::setBaseColor(
-                m_settings->value(QLatin1String(colorKey),
+                settings->value(QLatin1String(colorKey),
                                   QColor(Utils::StyleHelper::DEFAULT_BASE_COLOR)).value<QColor>());
     }
 
-    if (!restoreGeometry(m_settings->value(QLatin1String(windowGeometryKey)).toByteArray()))
-        resize(1008, 700); // size without window decoration
-    restoreState(m_settings->value(QLatin1String(windowStateKey)).toByteArray());
-
-    bool modeSelectorVisible = m_settings->value(QLatin1String(modeSelectorVisibleKey), true).toBool();
-    ModeManager::instance()->setModeSelectorVisible(modeSelectorVisible);
+    bool modeSelectorVisible = settings->value(QLatin1String(modeSelectorVisibleKey), true).toBool();
+    ModeManager::setModeSelectorVisible(modeSelectorVisible);
     m_toggleModeSelectorAction->setChecked(modeSelectorVisible);
 
-    m_settings->endGroup();
+    settings->endGroup();
 
     m_editorManager->readSettings();
-    m_navigationWidget->restoreSettings(m_settings);
-    m_rightPaneWidget->readSettings(m_settings);
+    m_navigationWidget->restoreSettings(settings);
+    m_rightPaneWidget->readSettings(settings);
 }
 
 void MainWindow::writeSettings()
 {
-    m_settings->beginGroup(QLatin1String(settingsGroup));
+    QSettings *settings = PluginManager::settings();
+    settings->beginGroup(QLatin1String(settingsGroup));
 
     if (!(m_overrideColor.isValid() && Utils::StyleHelper::baseColor() == m_overrideColor))
-        m_settings->setValue(QLatin1String(colorKey), Utils::StyleHelper::requestedBaseColor());
+        settings->setValue(QLatin1String(colorKey), Utils::StyleHelper::requestedBaseColor());
 
-    m_settings->setValue(QLatin1String(windowGeometryKey), saveGeometry());
-    m_settings->setValue(QLatin1String(windowStateKey), saveState());
-    m_settings->setValue(QLatin1String(modeSelectorVisibleKey), ModeManager::isModeSelectorVisible());
+    settings->setValue(QLatin1String(windowGeometryKey), saveGeometry());
+    settings->setValue(QLatin1String(windowStateKey), saveState());
+    settings->setValue(QLatin1String(modeSelectorVisibleKey), ModeManager::isModeSelectorVisible());
 
-    m_settings->endGroup();
+    settings->endGroup();
 
     DocumentManager::saveSettings();
-    m_actionManager->d->saveSettings(m_settings);
+    m_actionManager->saveSettings(settings);
     m_editorManager->saveSettings();
-    m_navigationWidget->saveSettings(m_settings);
+    m_navigationWidget->saveSettings(settings);
 }
 
 void MainWindow::updateAdditionalContexts(const Context &remove, const Context &add)
@@ -1211,7 +1141,7 @@ void MainWindow::updateContext()
             uniquecontexts.add(id);
     }
 
-    m_actionManager->d->setContext(uniquecontexts);
+    m_actionManager->setContext(uniquecontexts);
     emit m_coreImpl->contextChanged(m_activeContext, m_additionalContexts);
 }
 
@@ -1324,3 +1254,17 @@ bool MainWindow::showWarningWithOptions(const QString &title,
         return showOptionsDialog(settingsCategory, settingsId);
     return false;
 }
+
+void MainWindow::restoreWindowState()
+{
+    QSettings *settings = PluginManager::settings();
+    settings->beginGroup(QLatin1String(settingsGroup));
+    if (!restoreGeometry(settings->value(QLatin1String(windowGeometryKey)).toByteArray()))
+        resize(1008, 700); // size without window decoration
+    restoreState(settings->value(QLatin1String(windowStateKey)).toByteArray());
+    settings->endGroup();
+    show();
+}
+
+} // namespace Internal
+} // namespace Core

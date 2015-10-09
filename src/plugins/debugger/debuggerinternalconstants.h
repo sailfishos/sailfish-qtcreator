@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -46,7 +46,6 @@ namespace Internal {
 
 const char OPENED_BY_DEBUGGER[]         = "OpenedByDebugger";
 const char OPENED_WITH_DISASSEMBLY[]    = "DisassemblerView";
-const char OPENED_WITH_MEMORY[]         = "MemoryView";
 
 // Debug action
 const char DEBUG[]                      = "Debugger.Debug";

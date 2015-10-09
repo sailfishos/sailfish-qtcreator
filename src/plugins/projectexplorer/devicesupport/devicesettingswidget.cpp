@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of Qt Creator.
@@ -29,14 +29,15 @@
 #include "devicesettingswidget.h"
 #include "ui_devicesettingswidget.h"
 
-#include "projectexplorerconstants.h"
 #include "devicefactoryselectiondialog.h"
 #include "devicemanager.h"
 #include "devicemanagermodel.h"
 #include "deviceprocessesdialog.h"
+#include "devicetestdialog.h"
 #include "idevice.h"
 #include "idevicefactory.h"
 #include "idevicewidget.h"
+#include <projectexplorer/projectexplorerconstants.h>
 
 #include <coreplugin/icore.h>
 #include <extensionsystem/pluginmanager.h>
@@ -167,6 +168,8 @@ void DeviceSettingsWidget::addDevice()
     m_deviceManager->addDevice(device);
     m_ui->removeConfigButton->setEnabled(true);
     m_ui->configurationComboBox->setCurrentIndex(m_deviceManagerModel->indexOf(device));
+    if (device->hasDeviceTester())
+        testDevice();
 }
 
 void DeviceSettingsWidget::removeDevice()
@@ -262,6 +265,14 @@ void DeviceSettingsWidget::setDefaultDevice()
     m_ui->defaultDeviceButton->setEnabled(false);
 }
 
+void DeviceSettingsWidget::testDevice()
+{
+    const IDevice::ConstPtr &device = currentDevice();
+    QTC_ASSERT(device && device->hasDeviceTester(), return);
+    DeviceTestDialog dlg(device, this);
+    dlg.exec();
+}
+
 void DeviceSettingsWidget::handleDeviceUpdated(Id id)
 {
     const int index = m_deviceManagerModel->indexForId(id);
@@ -286,8 +297,15 @@ void DeviceSettingsWidget::currentDeviceChanged(int index)
     setDeviceInfoWidgetsEnabled(true);
     m_ui->removeConfigButton->setEnabled(true);
 
+    if (device->hasDeviceTester()) {
+        QPushButton * const button = new QPushButton(tr("Test"));
+        m_additionalActionButtons << button;
+        connect(button, SIGNAL(clicked()), SLOT(testDevice()));
+        m_ui->buttonsLayout->insertWidget(m_ui->buttonsLayout->count() - 1, button);
+    }
+
     if (device->canCreateProcessModel()) {
-        QPushButton * const button = new QPushButton(tr("Show Running Processes"));
+        QPushButton * const button = new QPushButton(tr("Show Running Processes..."));
         m_additionalActionButtons << button;
         connect(button, SIGNAL(clicked()), SLOT(handleProcessListRequested()));
         m_ui->buttonsLayout->insertWidget(m_ui->buttonsLayout->count() - 1, button);
@@ -318,10 +336,13 @@ void DeviceSettingsWidget::clearDetails()
 
 void DeviceSettingsWidget::handleAdditionalActionRequest(int actionId)
 {
-    const IDevice::ConstPtr device = m_deviceManager->find(currentDevice()->id());
+    const IDevice::Ptr device = m_deviceManager->mutableDevice(currentDevice()->id());
     QTC_ASSERT(device, return);
     updateDeviceFromUi();
     device->executeAction(Core::Id::fromUniqueIdentifier(actionId), this);
+
+    // Widget must be set up from scratch, because the action could have changed random attributes.
+    currentDeviceChanged(currentIndex());
 }
 
 void DeviceSettingsWidget::handleProcessListRequested()
