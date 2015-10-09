@@ -186,7 +186,7 @@ void MerManagementWebViewSdksModel::onSdksUpdated()
 {
     QList<MerSdk *> oldSdks = m_sdks;
 
-    m_sdks = MerSdkManager::instance()->sdks();
+    m_sdks = MerSdkManager::sdks();
 
     if (m_sdks != oldSdks) {
         beginReset();

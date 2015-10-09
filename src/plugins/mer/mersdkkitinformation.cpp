@@ -61,7 +61,7 @@ QList<Task> MerSdkKitInformation::validate(const Kit *kit) const
 {
     if (MerDeviceFactory::canCreate(DeviceTypeKitInformation::deviceTypeId(kit))) {
         const QString &vmName = kit->value(Id(Constants::VM_NAME)).toString();
-        if (!MerSdkManager::instance()->sdk(vmName)) {
+        if (!MerSdkManager::sdk(vmName)) {
             const QString message = QCoreApplication::translate("MerSdk",
                                                                 "No valid MerSdk virtual machine %1 found").arg(vmName);
             return QList<Task>() << Task(Task::Error, message, FileName(), -1,
@@ -75,7 +75,7 @@ MerSdk* MerSdkKitInformation::sdk(const Kit *kit)
 {
     if (!kit)
         return 0;
-    return MerSdkManager::instance()->sdk(kit->value(Core::Id(Constants::VM_NAME)).toString());
+    return MerSdkManager::sdk(kit->value(Core::Id(Constants::VM_NAME)).toString());
 }
 
 KitInformation::ItemList MerSdkKitInformation::toUserOutput(const Kit *kit) const
@@ -191,7 +191,7 @@ QWidget *MerSdkKitInformationWidget::buttonWidget() const
 
 void MerSdkKitInformationWidget::handleSdksUpdated()
 {
-    const QList<MerSdk*>& sdks = MerSdkManager::instance()->sdks();
+    const QList<MerSdk*>& sdks = MerSdkManager::sdks();
     m_combo->blockSignals(true);
     m_combo->clear();
     if(sdks.isEmpty()) {
@@ -215,7 +215,7 @@ void MerSdkKitInformationWidget::handleManageClicked()
 
 void MerSdkKitInformationWidget::handleCurrentIndexChanged()
 {
-    const MerSdk* sdk = MerSdkManager::instance()->sdk(m_combo->currentText());
+    const MerSdk* sdk = MerSdkManager::sdk(m_combo->currentText());
     if (sdk)
         MerSdkKitInformation::setSdk(m_kit, sdk);
 

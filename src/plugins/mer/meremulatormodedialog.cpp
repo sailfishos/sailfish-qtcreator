@@ -57,9 +57,6 @@ MerEmulatorModeDialog::MerEmulatorModeDialog(QObject *parent)
       m_kit(0),
       m_emulator(0)
 {
-    auto sessionManager = static_cast<SessionManager *>(SessionManager::instance());
-    auto kitManager = static_cast<KitManager *>(KitManager::instance());
-
     m_action->setEnabled(false);
     m_action->setText(tr("&Emulator mode..."));
 
@@ -67,10 +64,10 @@ MerEmulatorModeDialog::MerEmulatorModeDialog(QObject *parent)
             this, &MerEmulatorModeDialog::execDialog);
 
     onStartupProjectChanged(SessionManager::startupProject());
-    connect(sessionManager, &SessionManager::startupProjectChanged,
+    connect(SessionManager::instance(), &SessionManager::startupProjectChanged,
             this, &MerEmulatorModeDialog::onStartupProjectChanged);
 
-    connect(kitManager, &KitManager::kitUpdated,
+    connect(KitManager::instance(), &KitManager::kitUpdated,
             this, &MerEmulatorModeDialog::onKitUpdated);
 }
 

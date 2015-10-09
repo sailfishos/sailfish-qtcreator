@@ -103,7 +103,7 @@ bool MerRpmPackagingStep::init()
     if (!bc)
         bc = target()->activeBuildConfiguration();
 
-    QString merTarget =  MerSdkManager::instance()->targetNameForKit(target()->kit());
+    QString merTarget =  MerSdkManager::targetNameForKit(target()->kit());
 
     if (merTarget.isEmpty()) {
         raiseError(tr("Packaging failed: No mer target."));

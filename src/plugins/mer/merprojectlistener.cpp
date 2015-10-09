@@ -66,14 +66,14 @@ void MerProjectListener::init()
 void MerProjectListener::onTargetAddedToProject(Target *target)
 {
     Project *project = target->project();
-    if (MerSdkManager::instance()->merKits().contains(target->kit()))
+    if (MerSdkManager::merKits().contains(target->kit()))
         handleProject_private(project);
 }
 
 void MerProjectListener::onTargetRemovedFromProject(Target *target)
 {
     Project *project = target->project();
-    const QList<Kit *> merKits = MerSdkManager::instance()->merKits();
+    const QList<Kit *> merKits = MerSdkManager::merKits();
     int merTargetsCount = 0;
     // Counting how many Mer Targets are left after this removal
     foreach (Target *projectTarget, project->targets())
@@ -90,7 +90,7 @@ void MerProjectListener::onProjectAdded(Project *project)
     connect(project, &Project::removedTarget,
             this, &MerProjectListener::onTargetRemovedFromProject);
 
-    const QList<Kit *> merKits = MerSdkManager::instance()->merKits();
+    const QList<Kit *> merKits = MerSdkManager::merKits();
     foreach (Kit *kit, merKits) {
         if (project->supportsKit(kit)) {
             if (handleProject_private(project))

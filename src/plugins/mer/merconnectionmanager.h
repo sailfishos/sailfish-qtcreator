@@ -49,7 +49,7 @@ class MerConnectionManager : public QObject
 public:
     static MerConnectionManager* instance();
     ~MerConnectionManager() override;
-    QString testConnection(const QSsh::SshConnectionParameters &params, bool *ok = 0) const;
+    static QString testConnection(const QSsh::SshConnectionParameters &params, bool *ok = 0);
 private slots:
     void update();
     void handleStartupProjectChanged(ProjectExplorer::Project *project);

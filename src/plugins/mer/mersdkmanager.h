@@ -63,18 +63,18 @@ public:
     static bool generateSshKey(const QString &privKeyPath, QString &error);
 
     ~MerSdkManager() override;
-    QList<MerSdk*> sdks() const;
-    MerSdk* sdk(const QString &virtualMachineName) const;
-    MerSdk* createSdk(const QString &vmName);
-    void addSdk(MerSdk *sdk);
-    void removeSdk(MerSdk *sdk);
-    void restoreSdks();
-    bool hasSdk(const MerSdk *sdk) const;
+    static QList<MerSdk*> sdks();
+    static MerSdk* sdk(const QString &virtualMachineName);
+    static MerSdk* createSdk(const QString &vmName);
+    static void addSdk(MerSdk *sdk);
+    static void removeSdk(MerSdk *sdk);
+    static void restoreSdks();
+    static bool hasSdk(const MerSdk *sdk);
 
-    QList<ProjectExplorer::Kit*> merKits() const;
+    static QList<ProjectExplorer::Kit*> merKits();
 
 public slots:
-    void storeSdks() const;
+    void storeSdks();
 
 signals:
     void sdksUpdated();

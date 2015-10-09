@@ -129,7 +129,7 @@ void MerPlugin::extensionsInitialized()
 IPlugin::ShutdownFlag MerPlugin::aboutToShutdown()
 {
     m_stopList.clear();
-    QList<MerSdk*> sdks = MerSdkManager::instance()->sdks();
+    QList<MerSdk*> sdks = MerSdkManager::sdks();
     foreach(const MerSdk* sdk, sdks) {
         MerConnection *connection = sdk->connection();
         bool headless = false;

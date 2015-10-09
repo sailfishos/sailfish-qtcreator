@@ -137,7 +137,7 @@ void MerHardwareDeviceWizardSelectionPage::handleTestConnectionClicked()
     sshParams.password = password();
 
     m_ui->connectionLabelEdit->setText(tr("Connecting to machine %1 ...").arg(hostName()));
-    m_ui->connectionLabelEdit->setText(MerConnectionManager::instance()->testConnection(sshParams,
+    m_ui->connectionLabelEdit->setText(MerConnectionManager::testConnection(sshParams,
                 &m_connectionTestOk));
     if (!m_connectionTestOk)
         goto end;
@@ -262,7 +262,7 @@ MerHardwareDeviceWizardSetupPage::MerHardwareDeviceWizardSetupPage(QWidget *pare
     m_ui->sshCheckBox->setChecked(true);
 
     static QRegExp regExp(tr("MerSDK"));
-    QList<MerSdk*> sdks = MerSdkManager::instance()->sdks();
+    QList<MerSdk*> sdks = MerSdkManager::sdks();
     foreach (const MerSdk *s, sdks) {
         m_ui->merSdkComboBox->addItem(s->virtualMachineName());
         if (regExp.indexIn(s->virtualMachineName()) != -1) {
@@ -311,7 +311,7 @@ QString MerHardwareDeviceWizardSetupPage::freePorts() const
 
 void MerHardwareDeviceWizardSetupPage::handleSdkVmChanged(const QString &vmName)
 {
-    MerSdk* sdk = MerSdkManager::instance()->sdk(vmName);
+    MerSdk* sdk = MerSdkManager::sdk(vmName);
     QTC_ASSERT(sdk,return);
     const MerHardwareDeviceWizard* wizard = qobject_cast<MerHardwareDeviceWizard*>(this->wizard());
     QTC_ASSERT(wizard,return);
@@ -341,7 +341,7 @@ bool MerHardwareDeviceWizardSetupPage::isNewSshKeysRquired() const
 
 QString MerHardwareDeviceWizardSetupPage::sharedSshPath() const
 {
-    MerSdk* sdk = MerSdkManager::instance()->sdk(m_ui->merSdkComboBox->currentText());
+    MerSdk* sdk = MerSdkManager::sdk(m_ui->merSdkComboBox->currentText());
     QTC_ASSERT(sdk,return QString());
     return sdk->sharedConfigPath();
 }

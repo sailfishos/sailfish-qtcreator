@@ -161,7 +161,7 @@ QList<Task> MerQtVersion::reportIssuesImpl(const QString &proFile,
 {
     QList<Task> results;
 
-    MerSdk* sdk = MerSdkManager::instance()->sdk(m_vmName);
+    MerSdk* sdk = MerSdkManager::sdk(m_vmName);
 
     if(!sdk) {
         Task task(Task::Error,

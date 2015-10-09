@@ -97,7 +97,7 @@ void MerSdkDetailsWidget::setSdk(const MerSdk *sdk)
     m_ui->configFolderPathLabel->setText(QDir::toNativeSeparators(sdk->sharedConfigPath()));
     m_ui->srcFolderPathChooser->setPath(QDir::toNativeSeparators(sdk->sharedSrcPath()));
 
-    if (MerSdkManager::instance()->hasSdk(sdk)) {
+    if (MerSdkManager::hasSdk(sdk)) {
         const QStringList &targets = sdk->targetNames();
         if (targets.isEmpty())
             m_ui->targetsListLabel->setText(tr("No targets installed"));

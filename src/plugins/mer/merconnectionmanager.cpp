@@ -372,8 +372,7 @@ void MerConnectionManager::update()
     m_sdkAction->update();
 }
 
-QString MerConnectionManager::testConnection(const SshConnectionParameters &params,
-        bool *ok) const
+QString MerConnectionManager::testConnection(const SshConnectionParameters &params, bool *ok)
 {
     SshConnectionParameters p = params;
     SshConnection connection(p);
