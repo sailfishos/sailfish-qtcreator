@@ -50,7 +50,7 @@ QWidget *MerOptionsPage::widget()
       return m_widget;
 
     m_widget = new MerOptionsWidget();
-    connect(m_widget, &MerOptionsWidget::updateSearchKeys,
+    connect(m_widget.data(), &MerOptionsWidget::updateSearchKeys,
             this, &MerOptionsPage::onUpdateSearchKeys);
     m_searchKeyWords = m_widget->searchKeyWordMatchString();
     return m_widget;

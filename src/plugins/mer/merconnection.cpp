@@ -790,7 +790,7 @@ bool MerConnection::vmStmStep()
 
             if (m_connection && m_sshState != SshConnectingError) {
                 m_remoteShutdownProcess = new MerConnectionRemoteShutdownProcess(this);
-                connect(m_remoteShutdownProcess, &MerConnectionRemoteShutdownProcess::finished,
+                connect(m_remoteShutdownProcess.data(), &MerConnectionRemoteShutdownProcess::finished,
                         this, &MerConnection::onRemoteShutdownProcessFinished);
                 m_remoteShutdownProcess->run(m_connection->connectionParameters());
             } else {
@@ -1088,11 +1088,11 @@ void MerConnection::createConnection()
     QTC_CHECK(m_connection == 0);
 
     m_connection = new SshConnection(m_params, this);
-    connect(m_connection, &SshConnection::connected,
+    connect(m_connection.data(), &SshConnection::connected,
             this, &MerConnection::onSshConnected);
-    connect(m_connection, &SshConnection::disconnected,
+    connect(m_connection.data(), &SshConnection::disconnected,
             this, &MerConnection::onSshDisconnected);
-    connect(m_connection, &SshConnection::error,
+    connect(m_connection.data(), &SshConnection::error,
             this, &MerConnection::onSshError);
 }
 
@@ -1192,7 +1192,7 @@ void MerConnection::openStartVmQuestionBox()
             QMessageBox::Yes | QMessageBox::No,
             ICore::mainWindow());
     m_startVmQuestionBox->setEscapeButton(QMessageBox::No);
-    connect(m_startVmQuestionBox, &QMessageBox::finished,
+    connect(m_startVmQuestionBox.data(), &QMessageBox::finished,
             this, &MerConnection::vmStmScheduleExec);
     m_startVmQuestionBox->show();
     m_startVmQuestionBox->raise();
@@ -1214,7 +1214,7 @@ void MerConnection::openResetVmQuestionBox()
                     "been started outside of Qt Creator."));
     }
     m_resetVmQuestionBox->setEscapeButton(QMessageBox::No);
-    connect(m_resetVmQuestionBox, &QMessageBox::finished,
+    connect(m_resetVmQuestionBox.data(), &QMessageBox::finished,
             this, &MerConnection::vmStmScheduleExec);
     m_resetVmQuestionBox->show();
     m_resetVmQuestionBox->raise();
@@ -1234,7 +1234,7 @@ void MerConnection::openCloseVmQuestionBox()
                 "been started outside of Qt Creator. Answer \"No\" to "
                 "disconnect and leave the virtual machine running."));
     m_closeVmQuestionBox->setEscapeButton(QMessageBox::No);
-    connect(m_closeVmQuestionBox, &QMessageBox::finished,
+    connect(m_closeVmQuestionBox.data(), &QMessageBox::finished,
             this, &MerConnection::vmStmScheduleExec);
     m_closeVmQuestionBox->show();
     m_closeVmQuestionBox->raise();
@@ -1273,7 +1273,7 @@ void MerConnection::openRetrySshConnectionQuestionBox()
             .arg(tr("Consider increasing SSH connection timeout in options."));
     }
     m_retrySshConnectionQuestionBox->setInformativeText(informativeText);
-    connect(m_retrySshConnectionQuestionBox, &QMessageBox::finished,
+    connect(m_retrySshConnectionQuestionBox.data(), &QMessageBox::finished,
             this, &MerConnection::sshStmScheduleExec);
     m_retrySshConnectionQuestionBox->show();
     m_retrySshConnectionQuestionBox->raise();
@@ -1290,7 +1290,7 @@ void MerConnection::openRetryLockDownQuestionBox()
             .arg(m_vmName),
             QMessageBox::Yes | QMessageBox::No,
             ICore::mainWindow());
-    connect(m_retryLockDownQuestionBox, &QMessageBox::finished,
+    connect(m_retryLockDownQuestionBox.data(), &QMessageBox::finished,
             this, &MerConnection::vmStmScheduleExec);
     m_retryLockDownQuestionBox->show();
     m_retryLockDownQuestionBox->raise();
@@ -1305,7 +1305,7 @@ void MerConnection::deleteMessageBox(QPointer<QMessageBox> &messageBox)
         delete messageBox;
     } else {
         messageBox->setEnabled(false);
-        QTimer::singleShot(DISMISS_MESSAGE_BOX_DELAY, messageBox, &QObject::deleteLater);
+        QTimer::singleShot(DISMISS_MESSAGE_BOX_DELAY, messageBox.data(), &QObject::deleteLater);
         messageBox->disconnect(this);
         messageBox = 0;
     }

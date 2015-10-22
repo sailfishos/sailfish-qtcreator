@@ -150,7 +150,7 @@ void MerConnectionAction::setConnection(MerConnection *connection)
     m_connection = connection;
 
     if (m_connection) {
-        connect(m_connection, &MerConnection::stateChanged,
+        connect(m_connection.data(), &MerConnection::stateChanged,
                 this, &MerConnectionAction::update);
     }
 
