@@ -91,9 +91,8 @@ def fix_rpaths_helper(chrpath_bin, install_dir, dirpath, filenames):
     for filename in filenames:
         fpath = os.path.join(dirpath, filename)
         relpath = os.path.relpath(install_dir+'/lib/qtcreator', dirpath)
-        relpath2 = os.path.relpath(install_dir+'/lib', dirpath)
         relpluginpath = os.path.relpath(install_dir+'/lib/qtcreator/plugins', dirpath)
-        command = [chrpath_bin, '-r', '$ORIGIN/'+relpath+':$ORIGIN/'+relpath2+':$ORIGIN/'+relpluginpath, fpath]
+        command = [chrpath_bin, '-r', '$ORIGIN/'+relpath+':$ORIGIN/'+relpluginpath, fpath]
         print fpath, ':', command
         try:
             subprocess.check_call(command)
