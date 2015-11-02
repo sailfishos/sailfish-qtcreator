@@ -328,11 +328,12 @@ VirtualMachineInfo virtualMachineInfoFromOutput(const QString &output)
     // Get ssh port, shared home and shared targets
     // 1 Name, 2 Protocol, 3 Host IP, 4 Host Port, 5 Guest IP, 6 Guest Port, 7 Shared Folder Name,
     // 8 Shared Folder Path 9 mac
+    // 11 headed/headless (SessionType is for VBox 4.x, SessionName for VBox 5.x)
     QRegExp rexp(QLatin1String("(?:Forwarding\\(\\d+\\)=\"(\\w+),(\\w+),(.*),(\\d+),(.*),(\\d+)\")"
                                "|(?:SharedFolderNameMachineMapping\\d+=\"(\\w+)\"\\W*"
                                "SharedFolderPathMachineMapping\\d+=\"(.*)\")"
                                "|(?:macaddress\\d+=\"(.*)\")"
-                               "|(?:SessionType=\"(.*)\")"));
+                               "|(?:Session(Type|Name)=\"(.*)\")"));
 
     rexp.setMinimal(true);
     int pos = 0;
@@ -368,8 +369,8 @@ VirtualMachineInfo virtualMachineInfoFromOutput(const QString &output)
                 macFields.removeFirst();
                 info.macs << macFields.join(QLatin1Char(':'));
             }
-        } else if (rexp.cap(0).startsWith(QLatin1String("SessionType"))) {
-            info.headless = rexp.cap(10) == QLatin1String("headless");
+        } else if (rexp.cap(0).startsWith(QLatin1String("Session"))) {
+            info.headless = rexp.cap(11) == QLatin1String("headless");
         }
     }
 
