@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -43,6 +44,8 @@
 #include "bindingproperty.h"
 #include "nodeabstractproperty.h"
 #include "nodelistproperty.h"
+#include "nodeproperty.h"
+#include "qmlchangeset.h"
 
 #include "createscenecommand.h"
 #include "createinstancescommand.h"
@@ -102,7 +105,8 @@ namespace QmlDesigner {
 NodeInstanceView::NodeInstanceView(QObject *parent, NodeInstanceServerInterface::RunModus runModus)
         : AbstractView(parent),
           m_baseStatePreviewImage(QSize(100, 100), QImage::Format_ARGB32),
-          m_runModus(runModus)
+          m_runModus(runModus),
+          m_currentKit(0)
 {
     m_baseStatePreviewImage.fill(0xFFFFFF);
 }
@@ -115,6 +119,7 @@ NodeInstanceView::~NodeInstanceView()
 {
     removeAllInstanceNodeRelationships();
     delete nodeInstanceServer();
+    m_currentKit = 0;
 }
 
 //\{
@@ -148,7 +153,7 @@ bool isSkippedNode(const ModelNode &node)
 void NodeInstanceView::modelAttached(Model *model)
 {
     AbstractView::modelAttached(model);
-    m_nodeInstanceServer = new NodeInstanceServerProxy(this, m_runModus, m_pathToQt);
+    m_nodeInstanceServer = new NodeInstanceServerProxy(this, m_runModus, m_currentKit);
     m_lastCrashTime.start();
     connect(m_nodeInstanceServer.data(), SIGNAL(processCrashed()), this, SLOT(handleChrash()));
 
@@ -184,6 +189,8 @@ void NodeInstanceView::handleChrash()
         restartProcess();
     else
         emit  qmlPuppetCrashed();
+
+    emitCustomNotification(QStringLiteral("puppet crashed"));
 }
 
 
@@ -193,7 +200,7 @@ void NodeInstanceView::restartProcess()
     if (model()) {
         delete nodeInstanceServer();
 
-        m_nodeInstanceServer = new NodeInstanceServerProxy(this, m_runModus, m_pathToQt);
+        m_nodeInstanceServer = new NodeInstanceServerProxy(this, m_runModus, m_currentKit);
         connect(m_nodeInstanceServer.data(), SIGNAL(processCrashed()), this, SLOT(handleChrash()));
 
         if (!isSkippedRootNode(rootModelNode()))
@@ -213,6 +220,11 @@ void NodeInstanceView::nodeCreated(const ModelNode &createdNode)
 
     if (isSkippedNode(createdNode))
         return;
+
+    QList<VariantProperty> propertyList;
+    propertyList.append(createdNode.variantProperty("x"));
+    propertyList.append(createdNode.variantProperty("y"));
+    updatePosition(propertyList);
 
     nodeInstanceServer()->createInstances(createCreateInstancesCommand(QList<NodeInstance>() << instance));
     nodeInstanceServer()->changePropertyValues(createChangeValueCommand(createdNode.variantProperties()));
@@ -368,6 +380,7 @@ void NodeInstanceView::signalHandlerPropertiesChanged(const QVector<SignalHandle
 
 void NodeInstanceView::variantPropertiesChanged(const QList<VariantProperty>& propertyList, PropertyChangeFlags /*propertyChange*/)
 {
+    updatePosition(propertyList);
     nodeInstanceServer()->changePropertyValues(createChangeValueCommand(propertyList));
 }
 /*!
@@ -382,8 +395,10 @@ void NodeInstanceView::variantPropertiesChanged(const QList<VariantProperty>& pr
 
 void NodeInstanceView::nodeReparented(const ModelNode &node, const NodeAbstractProperty &newPropertyParent, const NodeAbstractProperty &oldPropertyParent, AbstractView::PropertyChangeFlags /*propertyChange*/)
 {
-    if (!isSkippedNode(node))
+    if (!isSkippedNode(node)) {
+        updateChildren(newPropertyParent);
         nodeInstanceServer()->reparentInstances(createReparentInstancesCommand(node, newPropertyParent, oldPropertyParent));
+    }
 }
 
 void NodeInstanceView::nodeAboutToBeReparented(const ModelNode &/*node*/, const NodeAbstractProperty &/*newPropertyParent*/, const NodeAbstractProperty &/*oldPropertyParent*/, AbstractView::PropertyChangeFlags /*propertyChange*/)
@@ -510,7 +525,7 @@ void NodeInstanceView::auxiliaryDataChanged(const ModelNode &node, const Propert
 
 void NodeInstanceView::customNotification(const AbstractView *view, const QString &identifier, const QList<ModelNode> &, const QList<QVariant> &)
 {
-    if (view && identifier == QLatin1String("reset QmlPuppet"))
+    if (view && identifier == QStringLiteral("reset QmlPuppet"))
         restartProcess();
 }
 
@@ -671,6 +686,74 @@ NodeInstance NodeInstanceView::activeStateInstance() const
     return m_activeStateInstance;
 }
 
+void NodeInstanceView::updateChildren(const NodeAbstractProperty &newPropertyParent)
+{
+    QVector<ModelNode> childNodeVector = newPropertyParent.directSubNodes().toVector();
+
+    qint32 parentInstanceId = newPropertyParent.parentModelNode().internalId();
+
+    foreach (const ModelNode &childNode, childNodeVector) {
+        qint32 instanceId = childNode.internalId();
+        if (hasInstanceForId(instanceId)) {
+            NodeInstance instance = instanceForId(instanceId);
+            if (instance.directUpdates())
+                instance.setParentId(parentInstanceId);
+        }
+    }
+
+    if (!childNodeVector.isEmpty())
+        emitInstancesChildrenChanged(childNodeVector);
+}
+
+void setXValue(NodeInstance &instance, const VariantProperty &variantProperty, QMultiHash<ModelNode, InformationName> &informationChangeHash)
+{
+    instance.setX(variantProperty.value().toDouble());
+    informationChangeHash.insert(variantProperty.parentModelNode(), Transform);
+}
+
+void setYValue(NodeInstance &instance, const VariantProperty &variantProperty, QMultiHash<ModelNode, InformationName> &informationChangeHash)
+{
+    instance.setY(variantProperty.value().toDouble());
+    informationChangeHash.insert(variantProperty.parentModelNode(), Transform);
+}
+
+
+void NodeInstanceView::updatePosition(const QList<VariantProperty> &propertyList)
+{
+    QMultiHash<ModelNode, InformationName> informationChangeHash;
+
+    foreach (const VariantProperty &variantProperty, propertyList) {
+        if (variantProperty.name() == "x") {
+            const ModelNode modelNode = variantProperty.parentModelNode();
+            if (QmlPropertyChanges::isValidQmlPropertyChanges(modelNode)) {
+                ModelNode targetModelNode = QmlPropertyChanges(modelNode).target();
+                if (targetModelNode.isValid()) {
+                    NodeInstance instance = instanceForModelNode(targetModelNode);
+                    setXValue(instance, variantProperty, informationChangeHash);
+                }
+            } else {
+                NodeInstance instance = instanceForModelNode(modelNode);
+                setXValue(instance, variantProperty, informationChangeHash);
+            }
+        } else if (variantProperty.name() == "y") {
+            const ModelNode modelNode = variantProperty.parentModelNode();
+            if (QmlPropertyChanges::isValidQmlPropertyChanges(modelNode)) {
+                ModelNode targetModelNode = QmlPropertyChanges(modelNode).target();
+                if (targetModelNode.isValid()) {
+                    NodeInstance instance = instanceForModelNode(targetModelNode);
+                    setYValue(instance, variantProperty, informationChangeHash);
+                }
+            } else {
+                NodeInstance instance = instanceForModelNode(modelNode);
+                setYValue(instance, variantProperty, informationChangeHash);
+            }
+        }
+    }
+
+    if (!informationChangeHash.isEmpty())
+        emitInstanceInformationsChange(informationChangeHash);
+}
+
 NodeInstanceServerInterface *NodeInstanceView::nodeInstanceServer() const
 {
     return m_nodeInstanceServer.data();
@@ -705,7 +788,7 @@ void NodeInstanceView::removeRecursiveChildRelationship(const ModelNode &removed
 //        instanceForNode(removedNode).setId(QString());
 //    }
 
-    foreach (const ModelNode &childNode, removedNode.allDirectSubModelNodes())
+    foreach (const ModelNode &childNode, removedNode.directSubModelNodes())
         removeRecursiveChildRelationship(childNode);
 
     removeInstanceNodeRelationship(removedNode);
@@ -1047,7 +1130,7 @@ void NodeInstanceView::valuesChanged(const ValuesChangedCommand &command)
         }
     }
 
-    nodeInstanceServer()->removeSharedMemory(createRemoveSharedMemoryCommand(QLatin1String("Values"), command.keyNumber()));
+    nodeInstanceServer()->removeSharedMemory(createRemoveSharedMemoryCommand(QStringLiteral("Values"), command.keyNumber()));
 
     if (!valuePropertyChangeList.isEmpty())
         emitInstancePropertyChange(valuePropertyChangeList);
@@ -1111,10 +1194,10 @@ QImage NodeInstanceView::statePreviewImage(const ModelNode &stateNode) const
     return m_statePreviewImage.value(stateNode);
 }
 
-void NodeInstanceView::setPathToQt(const QString &pathToQt)
+void NodeInstanceView::setKit(ProjectExplorer::Kit *newKit)
 {
-    if (m_pathToQt != pathToQt) {
-        m_pathToQt = pathToQt;
+    if (m_currentKit != newKit) {
+        m_currentKit = newKit;
         restartProcess();
     }
 }
@@ -1170,8 +1253,10 @@ void NodeInstanceView::childrenChanged(const ChildrenChangedCommand &command)
     foreach (qint32 instanceId, command.childrenInstances()) {
         if (hasInstanceForId(instanceId)) {
             NodeInstance instance = instanceForId(instanceId);
-            instance.setParentId(command.parentInstanceId());
-            childNodeVector.append(instance.modelNode());
+            if (!instance.directUpdates()) {
+                instance.setParentId(command.parentInstanceId());
+                childNodeVector.append(instance.modelNode());
+            }
         }
     }
 

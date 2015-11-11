@@ -44,7 +44,7 @@ class MerDeployConfiguration : public RemoteLinux::RemoteLinuxDeployConfiguratio
 {
     Q_OBJECT
 public:
-    MerDeployConfiguration(ProjectExplorer::Target *parent, const Core::Id id,const QString& displayName);
+    MerDeployConfiguration(ProjectExplorer::Target *parent, Core::Id id,const QString& displayName);
     MerDeployConfiguration(ProjectExplorer::Target *target, MerDeployConfiguration *source);
     friend class MerDeployConfigurationFactory;
 };
@@ -58,7 +58,7 @@ public:
     static Core::Id configurationId();
 
 private:
-    MerRpmDeployConfiguration(ProjectExplorer::Target *parent, const Core::Id id);
+    MerRpmDeployConfiguration(ProjectExplorer::Target *parent, Core::Id id);
     MerRpmDeployConfiguration(ProjectExplorer::Target *target, MerRpmDeployConfiguration *source);
     void init();
     friend class MerDeployConfigurationFactory;
@@ -73,7 +73,7 @@ public:
     static Core::Id configurationId();
 
 private:
-    MerRsyncDeployConfiguration(ProjectExplorer::Target *parent, const Core::Id id);
+    MerRsyncDeployConfiguration(ProjectExplorer::Target *parent, Core::Id id);
     MerRsyncDeployConfiguration(ProjectExplorer::Target *target, MerRsyncDeployConfiguration *source);
     friend class MerDeployConfigurationFactory;
 };
@@ -87,7 +87,7 @@ public:
     static Core::Id configurationId();
 
 private:
-    MerMb2RpmBuildConfiguration(ProjectExplorer::Target *parent, const Core::Id id);
+    MerMb2RpmBuildConfiguration(ProjectExplorer::Target *parent, Core::Id id);
     MerMb2RpmBuildConfiguration(ProjectExplorer::Target *target, MerMb2RpmBuildConfiguration *source);
     friend class MerDeployConfigurationFactory;
 };
@@ -101,7 +101,7 @@ class MerRpmBuildDeployConfiguration : public MerDeployConfiguration
         static Core::Id configurationId();
 
     private:
-        MerRpmBuildDeployConfiguration(ProjectExplorer::Target *parent, const Core::Id id);
+        MerRpmBuildDeployConfiguration(ProjectExplorer::Target *parent, Core::Id id);
         MerRpmBuildDeployConfiguration(ProjectExplorer::Target *target, MerRpmBuildDeployConfiguration *source);
         friend class MerDeployConfigurationFactory;
 };

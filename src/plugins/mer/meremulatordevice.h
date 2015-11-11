@@ -43,19 +43,19 @@ public:
 
     static Ptr create();
     ProjectExplorer::IDevice::Ptr clone() const;
-    ~MerEmulatorDevice();
+    ~MerEmulatorDevice() override;
 
-    ProjectExplorer::IDeviceWidget *createWidget();
-    QList<Core::Id> actionIds() const;
-    QString displayNameForActionId(Core::Id actionId) const;
-    void executeAction(Core::Id actionId, QWidget *parent);
+    ProjectExplorer::IDeviceWidget *createWidget() override;
+    QList<Core::Id> actionIds() const override;
+    QString displayNameForActionId(Core::Id actionId) const override;
+    void executeAction(Core::Id actionId, QWidget *parent) override;
 
-    ProjectExplorer::DeviceTester *createDeviceTester() const;
+    ProjectExplorer::DeviceTester *createDeviceTester() const override;
 
-    void fromMap(const QVariantMap &map);
-    QVariantMap toMap() const;
+    void fromMap(const QVariantMap &map) override;
+    QVariantMap toMap() const override;
 
-    ProjectExplorer::Abi::Architecture architecture() const;
+    ProjectExplorer::Abi::Architecture architecture() const override;
 
     void setSharedConfigPath(const QString &configPath);
     QString sharedConfigPath() const;

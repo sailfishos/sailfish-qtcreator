@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -33,6 +34,7 @@
 #include "ui_fontsettingspage.h"
 
 #include <coreplugin/icore.h>
+#include <utils/fileutils.h>
 #include <utils/stringutils.h>
 #include <utils/qtcassert.h>
 
@@ -109,7 +111,7 @@ private:
 class FontSettingsPagePrivate
 {
 public:
-    FontSettingsPagePrivate(const TextEditor::FormatDescriptions &fd,
+    FontSettingsPagePrivate(const FormatDescriptions &fd,
                             Core::Id id,
                             const QString &displayName,
                             const QString &category);
@@ -120,7 +122,7 @@ public:
     const QString m_displayName;
     const QString m_settingsGroup;
 
-    TextEditor::FormatDescriptions m_descriptions;
+    FormatDescriptions m_descriptions;
     FontSettings m_value;
     FontSettings m_lastValue;
     QPointer<QWidget> m_widget;
@@ -166,7 +168,7 @@ static QString createColorSchemeFileName(const QString &pattern)
 }
 
 // ------- FontSettingsPagePrivate
-FontSettingsPagePrivate::FontSettingsPagePrivate(const TextEditor::FormatDescriptions &fd,
+FontSettingsPagePrivate::FontSettingsPagePrivate(const FormatDescriptions &fd,
                                                  Core::Id id,
                                                  const QString &displayName,
                                                  const QString &category) :
@@ -269,6 +271,8 @@ QColor FormatDescription::background() const
         return QColor(0xffef0b);
     } else if (m_id == C_PARENTHESES) {
         return QColor(0xb4, 0xee, 0xb4);
+    } else if (m_id == C_PARENTHESES_MISMATCH) {
+        return QColor(Qt::magenta);
     } else if (m_id == C_CURRENT_LINE || m_id == C_SEARCH_SCOPE) {
         const QPalette palette = QApplication::palette();
         const QColor &fg = palette.color(QPalette::Highlight);
@@ -335,11 +339,7 @@ QWidget *FontSettingsPage::widget()
         d_ptr->m_ui->setupUi(d_ptr->m_widget);
         d_ptr->m_ui->schemeComboBox->setModel(d_ptr->m_schemeListModel);
 
-        QFontDatabase db;
-        const QStringList families = db.families();
-        d_ptr->m_ui->familyComboBox->addItems(families);
-        const int idx = families.indexOf(d_ptr->m_value.family());
-        d_ptr->m_ui->familyComboBox->setCurrentIndex(idx);
+        d_ptr->m_ui->fontComboBox->setCurrentFont(d_ptr->m_value.family());
 
         d_ptr->m_ui->antialias->setChecked(d_ptr->m_value.antialias());
         d_ptr->m_ui->zoomSpinBox->setValue(d_ptr->m_value.fontZoom());
@@ -348,13 +348,23 @@ QWidget *FontSettingsPage::widget()
         d_ptr->m_ui->schemeEdit->setBaseFont(d_ptr->m_value.font());
         d_ptr->m_ui->schemeEdit->setColorScheme(d_ptr->m_value.colorScheme());
 
-        connect(d_ptr->m_ui->familyComboBox, SIGNAL(currentIndexChanged(QString)), this, SLOT(fontFamilySelected(QString)));
-        connect(d_ptr->m_ui->sizeComboBox, SIGNAL(currentIndexChanged(QString)), this, SLOT(fontSizeSelected(QString)));
-        connect(d_ptr->m_ui->zoomSpinBox, SIGNAL(valueChanged(int)), this, SLOT(fontZoomChanged()));
-        connect(d_ptr->m_ui->antialias, SIGNAL(toggled(bool)), this, SLOT(antialiasChanged()));
-        connect(d_ptr->m_ui->schemeComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(colorSchemeSelected(int)));
-        connect(d_ptr->m_ui->copyButton, SIGNAL(clicked()), this, SLOT(copyColorScheme()));
-        connect(d_ptr->m_ui->deleteButton, SIGNAL(clicked()), this, SLOT(confirmDeleteColorScheme()));
+        connect(d_ptr->m_ui->fontComboBox, &QFontComboBox::currentFontChanged,
+                this, &FontSettingsPage::fontSelected);
+        connect(d_ptr->m_ui->sizeComboBox,
+                static_cast<void (QComboBox::*)(const QString &)>(&QComboBox::currentIndexChanged),
+                this, &FontSettingsPage::fontSizeSelected);
+        connect(d_ptr->m_ui->zoomSpinBox,
+                static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+                this, &FontSettingsPage::fontZoomChanged);
+        connect(d_ptr->m_ui->antialias, &QCheckBox::toggled,
+                this, &FontSettingsPage::antialiasChanged);
+        connect(d_ptr->m_ui->schemeComboBox,
+                static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+                this, &FontSettingsPage::colorSchemeSelected);
+        connect(d_ptr->m_ui->copyButton, &QPushButton::clicked,
+                this, &FontSettingsPage::openCopyColorSchemeDialog);
+        connect(d_ptr->m_ui->deleteButton, &QPushButton::clicked,
+                this, &FontSettingsPage::confirmDeleteColorScheme);
 
 
         updatePointSizes();
@@ -364,10 +374,10 @@ QWidget *FontSettingsPage::widget()
     return d_ptr->m_widget;
 }
 
-void FontSettingsPage::fontFamilySelected(const QString &family)
+void FontSettingsPage::fontSelected(const QFont &font)
 {
-    d_ptr->m_value.setFamily(family);
-    d_ptr->m_ui->schemeEdit->setBaseFont(d_ptr->m_value.font());
+    d_ptr->m_value.setFamily(font.family());
+    d_ptr->m_ui->schemeEdit->setBaseFont(font);
     updatePointSizes();
 }
 
@@ -391,7 +401,7 @@ void FontSettingsPage::updatePointSizes()
 QList<int> FontSettingsPage::pointSizesForSelectedFont() const
 {
     QFontDatabase db;
-    const QString familyName = d_ptr->m_ui->familyComboBox->currentText();
+    const QString familyName = d_ptr->m_ui->fontComboBox->currentFont().family();
     QList<int> sizeLst = db.pointSizes(familyName);
     if (!sizeLst.isEmpty())
         return sizeLst;
@@ -444,7 +454,7 @@ void FontSettingsPage::colorSchemeSelected(int index)
     d_ptr->m_ui->schemeEdit->setReadOnly(readOnly);
 }
 
-void FontSettingsPage::copyColorScheme()
+void FontSettingsPage::openCopyColorSchemeDialog()
 {
     QInputDialog *dialog = new QInputDialog(d_ptr->m_ui->copyButton->window());
     dialog->setAttribute(Qt::WA_DeleteOnClose);
@@ -561,7 +571,7 @@ void FontSettingsPage::refreshColorSchemeList()
     int selected = 0;
 
     QStringList schemeList = styleDir.entryList();
-    QString defaultScheme = QFileInfo(FontSettings::defaultSchemeFileName()).fileName();
+    QString defaultScheme = Utils::FileName::fromString(FontSettings::defaultSchemeFileName()).fileName();
     if (schemeList.removeAll(defaultScheme))
         schemeList.prepend(defaultScheme);
     foreach (const QString &file, schemeList) {

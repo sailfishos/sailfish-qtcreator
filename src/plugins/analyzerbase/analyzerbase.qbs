@@ -1,7 +1,5 @@
 import qbs 1.0
 
-import QtcPlugin
-
 QtcPlugin {
     name: "AnalyzerBase"
 
@@ -29,6 +27,8 @@ QtcPlugin {
         "analyzerstartparameters.h",
         "analyzerutils.cpp",
         "analyzerutils.h",
+        "detailederrorview.cpp",
+        "detailederrorview.h",
         "ianalyzertool.cpp",
         "ianalyzertool.h",
         "startremotedialog.cpp",

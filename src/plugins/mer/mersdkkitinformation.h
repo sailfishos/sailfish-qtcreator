@@ -41,14 +41,14 @@ class  MerSdkKitInformationWidget : public ProjectExplorer::KitConfigWidget
 public:
     MerSdkKitInformationWidget(ProjectExplorer::Kit *kit, const MerSdkKitInformation *kitInformation);
 
-    QString displayName() const;
-    QString toolTip() const;
-    void makeReadOnly();
-    void refresh();
-    bool visibleInKit();
+    QString displayName() const override;
+    QString toolTip() const override;
+    void makeReadOnly() override;
+    void refresh() override;
+    bool visibleInKit() override;
 
-    QWidget *mainWidget() const;
-    QWidget *buttonWidget() const;
+    QWidget *mainWidget() const override;
+    QWidget *buttonWidget() const override;
 
 private slots:
     void handleSdksUpdated();
@@ -66,14 +66,13 @@ class MerSdkKitInformation : public ProjectExplorer::KitInformation
     Q_OBJECT
 public:
     explicit MerSdkKitInformation();
-    Core::Id dataId() const;
-    unsigned int priority() const;
-    QVariant defaultValue(ProjectExplorer::Kit *kit) const;
-    QList<ProjectExplorer::Task> validate(const ProjectExplorer::Kit *kit) const;
-    ItemList toUserOutput(const ProjectExplorer::Kit *kit) const;
-    ProjectExplorer::KitConfigWidget *createConfigWidget(ProjectExplorer::Kit *kit) const;
-    void addToEnvironment(const ProjectExplorer::Kit *kit, Utils::Environment &env) const;
+    QVariant defaultValue(ProjectExplorer::Kit *kit) const override;
+    QList<ProjectExplorer::Task> validate(const ProjectExplorer::Kit *kit) const override;
+    ItemList toUserOutput(const ProjectExplorer::Kit *kit) const override;
+    ProjectExplorer::KitConfigWidget *createConfigWidget(ProjectExplorer::Kit *kit) const override;
+    void addToEnvironment(const ProjectExplorer::Kit *kit, Utils::Environment &env) const override;
 
+    static Core::Id id();
     static void setSdk(ProjectExplorer::Kit *kit, const MerSdk* sdk);
     static MerSdk* sdk(const ProjectExplorer::Kit *kit);
 };

@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (c) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator
 **
@@ -25,7 +25,7 @@
 /*!
     \contentspage {Qt Creator Manual}
     \previouspage creator-tutorials.html
-    \page creator-qml-application.html
+    \example transitions
     \nextpage creator-writing-program.html
 
     \title Creating a Qt Quick Application
@@ -43,33 +43,43 @@
     For more information about using \QMLD, see
     \l{Developing Qt Quick Applications}.
 
+    For tutorials that describe using Qt Quick Controls, see
+    \l{Qt Quick Text Editor Guide} and \l{Qt Quick Controls - UI Forms}.
+
     \section1 Creating the Project
 
     \list 1
 
-        \li Select \gui{File > New File or Project > Applications >
+        \li Select \uicontrol{File > New File or Project > Application >
             Qt Quick Application > Choose}.
 
-        \li In the \gui{Name} field, type \b {Transitions}.
+        \li In the \uicontrol{Name} field, type \e {Transitions}.
 
-        \li In the \gui {Create in} field, enter the path for the project files.
-            For example, \c {C:\Qt\examples}, and then click \gui{Next} (on
-            Windows and Linux) or \gui Continue (on Mac OS).
+        \li In the \uicontrol {Create in} field, enter the path for the project files.
+            For example, \c {C:\Qt\examples}, and then click \uicontrol{Next} (on
+            Windows and Linux) or \uicontrol Continue (on OS X).
 
-        \li In the \gui {Qt Quick component set} field, select
-            \gui {Qt Quick 2.1}.
+        \li In the \uicontrol {Minimal required Qt version} field, select the Qt
+            version to develop with.
+
+            \note This page determines the set of files that the wizard
+            generates and their contents. The instructions in this tutorial
+            might not apply if you select the \uicontrol {With .ui.qml file}
+            check box.
 
         \li Select \l{glossary-buildandrun-kit}{kits} for running and building your project,
-            and then click \gui{Next}.
+            and then click \uicontrol{Next}.
 
-            \note Kits are listed if they have been specified in \gui Tools >
-            \gui Options > \gui {Build & Run} > \gui Kits.
+            \note Kits are listed if they have been specified in \uicontrol Tools >
+            \uicontrol Options > \uicontrol {Build & Run} > \uicontrol Kits (on Windows and Linux)
+            or in \uicontrol {Qt Creator} > \uicontrol Preferences \uicontrol {Build & Run} >
+            \uicontrol Kits (on OS X).
 
-        \li Select \gui Next in the following dialogs to use the default
+        \li Select \uicontrol Next in the following dialogs to use the default
             settings.
 
-        \li Review the project settings, and click \gui{Finish} (on Windows and
-            Linux) or \gui Done (on Mac OS) to create the project.
+        \li Review the project settings, and click \uicontrol{Finish} (on Windows and
+            Linux) or \uicontrol Done (on OS X) to create the project.
 
         \li Press \key {Ctrl+R} (or \key {Cmd+R}) to run the application.
 
@@ -85,116 +95,112 @@
     The main view of the application displays a Qt logo in the top left corner
     of the screen and two empty rectangles.
 
-    To use the states.png image in your application, you must copy it to the
+    To use the states.svg image in your application, you must copy it to the
     project directory (same subdirectory as the QML file) from the examples
     directory in the Qt installation directory. For example:
-    \c {C:\Qt\Qt5.3.0\5.3.0\msvc2010\examples\declarative\animation\states}. The
-    image appears
-    in the \gui Resources pane. You can also use any other image or a QML
+    \c {C:\Qt\Examples\Qt-5.4\declarative\animation\states}. The image appears
+    in \uicontrol Resources. You can also use any other image or a QML
     type, instead.
 
     \list 1
 
-        \li In the \gui Projects view, double-click the main.qml file
+        \li In the \uicontrol Projects view, double-click the main.qml file
             to open it in the code editor.
 
-        \li Click \gui Design to open the file in \QMLD.
+        \li Click \uicontrol Design to open the file in \QMLD.
 
-            \image qmldesigner-tutorial-desing-mode.png "Transitions project in Design Mode"
+            \image qmldesigner-tutorial-design-mode.png "Transitions project in Design Mode"
 
-        \li In the \gui Navigator pane, select \gui Text and press \key Delete to
-            delete it.
+        \li In the \uicontrol Navigator, select \uicontrol Label and press
+            \key Delete to delete it.
 
-        \li Select \gui Window to edit its properties.
+        \li Select \uicontrol ApplicationWindow to edit its properties.
 
             \image qmldesigner-tutorial-page.png "Page properties"
 
         \list a
 
-            \li In the \gui Id field, enter \e page, to be able to reference the
+            \li In the \uicontrol Id field, enter \e page, to be able to reference the
                 window from other places.
 
-            \li In the code editor, set the window background color to #343434:
+            \li In the \uicontrol Title field, type \e Transitions.
 
-            \quotefromfile transitions/main.qml
-            \skipto Window {
-            \printuntil color
+            \li In the \uicontrol Size field, set \uicontrol W and \uicontrol H
+                to \e 330.
 
-            \li Delete the \c {Qt.quit();} command.
+            \li In the \uicontrol Color field, set the window background color
+                to \e #343434.
 
         \endlist
 
-        \li In the \gui Library view, \gui Resources tab, select states.png and
+        \li In \uicontrol Library > \uicontrol Resources, select states.svg and
             drag and drop it to the canvas.
 
             \image qmldesigner-tutorial-user-icon.png "Image properties"
 
         \list a
 
-            \li In the \gui Id field, enter \e icon.
+            \li In the \uicontrol Id field, enter \e icon.
 
-            \li In the \gui Position field, set \gui X to 10 and \gui Y to 20.
+            \li In the \uicontrol Position field, set \uicontrol X to \e 10 and
+                \uicontrol Y to \e 20.
 
         \endlist
 
-        \li Double-click the resource file, qml.qrc, in the \gui Projects view
-            to add states.png to the resource file for deployment.
+        \li Right-click the resource file, qml.qrc, in the \uicontrol Projects
+            view, and select \uicontrol {Open in Editor} to add states.svg to
+            the resource file for deployment.
 
-        \li Click \gui Add and select states.png.
+        \li Click \uicontrol Add > \uicontrol {Add File} and select
+            \e states.svg.
 
-        \li In the \gui Design mode, \gui Library view, \gui {QML Types} tab,
-            select \gui Rectangle,
+        \li In the \uicontrol Design mode, \uicontrol Library view, \uicontrol {QML Types} tab,
+            select \uicontrol Rectangle,
             drag and drop it to the canvas, and edit its properties.
 
             \image qmldesigner-tutorial-topleftrect.png "Rectangle properties"
 
         \list a
 
-            \li In the \gui Id field, enter \e topLeftRect.
+            \li In the \uicontrol Id field, enter \e topLeftRect.
 
-            \li In the \gui Size field, set \gui W and \gui H to 64, for the
-                rectangle size to match the image size.
+            \li In the \uicontrol Size field, set \uicontrol W and \uicontrol H
+                to \e 44, for the rectangle size to match the image size.
 
-            \li In the \gui Color field, click the
+            \li In the \uicontrol Color field, click the
                 \inlineimage qmldesigner-transparent-button.png
-                (\gui Transparent) button to make the rectangle transparent.
+                (\uicontrol Transparent) button to make the rectangle transparent.
 
-            \li In the \gui Border field, set the border color to #808080.
+            \li In the \uicontrol Border field, set the border color to
+                \e #808080.
 
-            \li In the \gui Rectangle group, \gui Border field, set the border
-                width to 1.
+            \li In the \uicontrol Rectangle group, \uicontrol Border field, set the border
+                width to \e 1.
 
-                \note If the \gui Border field does not appear after you set the
-                border color, try setting the border color to solid by clicking
-                the
-                \inlineimage qmldesigner-solid-color-button.png
-                (\gui {Solid Color}) button.
+            \li In the \uicontrol Radius field, select \e 6 to create rounded
+                corners for the rectangle.
 
-            \li In the \gui Radius field, select 6 to create rounded corners for
-                the rectangle.
-
-            \li Click \gui {Layout}, and then click the top and left anchor
+            \li Click \uicontrol {Layout}, and then click the top and left anchor
                 buttons to anchor the rectangle to the top left corner of the
                 page.
 
                 \image qmldesigner-tutorial-topleftrect-layout.png "Layout tab"
 
-            \li In the \gui Margin field, select 20 for the top anchor and 10
-                for the left anchor.
+            \li In the \uicontrol Margin field, select \e 20 for the top anchor
+                and \e 10 for the left anchor.
 
         \endlist
 
-        \li In the \gui Navigator pane, drag and drop the \gui {Mouse Area}
-            from \e page to \e topLeftRect to make it apply only to the
-            rectangle and not to the whole page.
+        \li Drag and drop a \uicontrol {Mouse Area} type from the
+            \uicontrol Library to \e topLeftRect in the \uicontrol Navigator.
 
-        \li  Edit the \gui {Mouse Area} properties:
+        \li  Edit the \uicontrol {Mouse Area} properties:
 
         \list a
 
-            \li Click \gui {Layout}, and then click the
+            \li Click \uicontrol {Layout}, and then click the
                 \inlineimage qmldesigner-anchor-fill-screen.png
-                (\gui {Fill to Parent}) button to anchor the mouse area to the
+                (\uicontrol {Fill to Parent}) button to anchor the mouse area to the
                 rectangle.
 
             \li In the code editor, edit the pointer to the clicked expression
@@ -215,12 +221,10 @@
 
             \quotefromfile transitions/main.qml
             \skipto Window {
-            \printuntil onClicked
-            \printuntil }
-            \printuntil }
+            \printuntil mouseArea1
             \printuntil }
 
-        \li In the \gui Navigator pane, copy topLeftRect (by pressing
+        \li In the \uicontrol Navigator, copy topLeftRect (by pressing
             \key {Ctrl+C}) and paste it to the canvas twice (by pressing
             \key {Ctrl+V}). \QC renames the new instances of the type
             topLeftRect1 and topLeftRect2.
@@ -229,14 +233,14 @@
 
         \list a
 
-            \li In the \gui Id field, enter \e middleRightRect.
+            \li In the \uicontrol Id field, enter \e middleRightRect.
 
-            \li In \gui {Layout}, select the vertical center anchor button and
+            \li In \uicontrol {Layout}, select the vertical center anchor button and
                 then the right anchor button to
                 anchor the rectangle to the middle right margin of the screen.
 
-            \li In the \gui Margin field, select 10 for the right anchor and 0
-                for the vertical center anchor.
+            \li In the \uicontrol Margin field, select \e 10 for the right
+                anchor and \e 0 for the vertical center anchor.
 
             \li In the code editor, add a pointer to a clicked expression to the
                 mouse area. The following expression sets the state to
@@ -252,13 +256,13 @@
 
         \list a
 
-            \li In the \gui Id field, enter \e bottomLeftRect.
+            \li In the \uicontrol Id field, enter \e bottomLeftRect.
 
-            \li In \gui {Layout}, select the bottom and left anchor buttons to
+            \li In \uicontrol {Layout}, select the bottom and left anchor buttons to
                 anchor the rectangle to the bottom left margin of the screen.
 
-            \li In the \gui Margin field, select 20 for the bottom anchor and 10
-                for the left anchor.
+            \li In the \uicontrol Margin field, select \e 20 for the bottom
+                anchor and \e 10 for the left anchor.
 
             \li In the code editor, add a pointer to a clicked expression to the
                 mouse area. The following expression sets the state to
@@ -272,8 +276,7 @@
 
             \quotefromfile transitions/main.qml
             \skipto Window {
-            \printuntil State2
-            \printuntil }
+            \printuntil mouseArea3
             \printuntil }
             \printuntil }
 
@@ -340,15 +343,15 @@
 
         \list a
 
-            \li Click \gui NumberAnimation in the code editor to display the
+            \li Click \uicontrol NumberAnimation in the code editor to display the
                 \inlineimage qml-toolbar-indicator.png
                 icon, and then click the icon to open the toolbar:
 
                 \image qmldesigner-tutorial-quick-toolbar.png "Qt Quick toolbar for animation"
 
-            \li In the \gui Easing field, select \gui Bounce.
+            \li In the \uicontrol Easing field, select \uicontrol Bounce.
 
-            \li In the \gui Subtype field, select \gui Out.
+            \li In the \uicontrol Subtype field, select \uicontrol Out.
 
         \endlist
 
@@ -371,13 +374,4 @@
     \endlist
 
     Click the rectangles to view the animated transitions.
-
-    \section1 Example Code
-
-    When you have completed the steps, the main.qml file should look as follows:
-
-            \quotefromfile transitions/main.qml
-            \skipto Window {
-            \printuntil /^\}/
-
 */

@@ -1,5 +1,4 @@
 import qbs 1.0
-import QtcLibrary
 
 QtcLibrary {
     name: "CPlusPlus"
@@ -12,6 +11,7 @@ QtcLibrary {
     cpp.optimization: "fast"
 
     Depends { name: "Qt.widgets" }
+    Depends { name: "Utils" }
 
     Group {
         name: "ThirdPartyCPlusPlus"
@@ -43,7 +43,6 @@ QtcLibrary {
             "Keywords.cpp",
             "Lexer.cpp",
             "Lexer.h",
-            "LiteralTable.cpp",
             "LiteralTable.h",
             "Literals.cpp",
             "Literals.h",
@@ -70,7 +69,6 @@ QtcLibrary {
             "Scope.h",
             "Symbol.cpp",
             "Symbol.h",
-            "SymbolVisitor.cpp",
             "SymbolVisitor.h",
             "Symbols.cpp",
             "Symbols.h",
@@ -98,7 +96,6 @@ QtcLibrary {
             "CppRewriter.cpp", "CppRewriter.h",
             "cppmodelmanagerbase.cpp", "cppmodelmanagerbase.h",
             "DependencyTable.cpp", "DependencyTable.h",
-            "DeprecatedGenTemplateInstance.cpp", "DeprecatedGenTemplateInstance.h",
             "ExpressionUnderCursor.cpp", "ExpressionUnderCursor.h",
             "FastPreprocessor.cpp", "FastPreprocessor.h",
             "FindUsages.cpp", "FindUsages.h",
@@ -119,6 +116,7 @@ QtcLibrary {
             "SymbolNameVisitor.cpp", "SymbolNameVisitor.h",
             "TypeOfExpression.cpp", "TypeOfExpression.h",
             "TypePrettyPrinter.cpp", "TypePrettyPrinter.h",
+            "TypeResolver.cpp", "TypeResolver.h",
             "cplusplus.qrc",
             "findcdbbreakpoint.cpp", "findcdbbreakpoint.h",
             "pp-cctype.h",
@@ -133,6 +131,7 @@ QtcLibrary {
         prefix: "images/"
         files: [
             "class.png",
+            "struct.png",
             "enum.png",
             "enumerator.png",
             "func.png",

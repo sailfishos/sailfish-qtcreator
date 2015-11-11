@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,37 +9,55 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
 
 #include "qmlprofilermodelmanager.h"
+#include "qmlprofilerconstants.h"
 #include "qmlprofilerdatamodel.h"
-#include "qv8profilerdatamodel.h"
 #include "qmlprofilertracefile.h"
+#include "qmlprofilernotesmodel.h"
 
+#include <coreplugin/progressmanager/progressmanager.h>
+#include <utils/runextensions.h>
 #include <utils/qtcassert.h>
 
 #include <QDebug>
 #include <QFile>
+#include <QMessageBox>
 
 namespace QmlProfiler {
 namespace Internal {
 
+static const char *ProfileFeatureNames[QmlDebug::MaximumProfileFeature] = {
+    QT_TRANSLATE_NOOP("MainView", "JavaScript"),
+    QT_TRANSLATE_NOOP("MainView", "Memory Usage"),
+    QT_TRANSLATE_NOOP("MainView", "Pixmap Cache"),
+    QT_TRANSLATE_NOOP("MainView", "Scene Graph"),
+    QT_TRANSLATE_NOOP("MainView", "Animations"),
+    QT_TRANSLATE_NOOP("MainView", "Painting"),
+    QT_TRANSLATE_NOOP("MainView", "Compiling"),
+    QT_TRANSLATE_NOOP("MainView", "Creating"),
+    QT_TRANSLATE_NOOP("MainView", "Binding"),
+    QT_TRANSLATE_NOOP("MainView", "Handling Signal"),
+    QT_TRANSLATE_NOOP("MainView", "Input Events")
+};
 
 /////////////////////////////////////////////////////////////////////
 QmlProfilerDataState::QmlProfilerDataState(QmlProfilerModelManager *modelManager, QObject *parent)
@@ -86,9 +104,9 @@ void QmlProfilerDataState::setState(QmlProfilerDataState::State state)
 
 
 /////////////////////////////////////////////////////////////////////
-QmlProfilerTraceTime::QmlProfilerTraceTime(QObject *parent) : QObject(parent)
+QmlProfilerTraceTime::QmlProfilerTraceTime(QObject *parent) :
+    QObject(parent), m_startTime(-1), m_endTime(-1)
 {
-    clear();
 }
 
 QmlProfilerTraceTime::~QmlProfilerTraceTime()
@@ -112,23 +130,32 @@ qint64 QmlProfilerTraceTime::duration() const
 
 void QmlProfilerTraceTime::clear()
 {
-    setStartTime(-1);
-    setEndTime(-1);
+    setTime(-1, -1);
 }
 
-void QmlProfilerTraceTime::setStartTime(qint64 time)
+void QmlProfilerTraceTime::setTime(qint64 startTime, qint64 endTime)
 {
-    if (time != m_startTime) {
-        m_startTime = time;
-        emit startTimeChanged(time);
+    Q_ASSERT(startTime <= endTime);
+    if (startTime != m_startTime || endTime != m_endTime) {
+        m_startTime = startTime;
+        m_endTime = endTime;
+        emit timeChanged(startTime, endTime);
     }
 }
 
-void QmlProfilerTraceTime::setEndTime(qint64 time)
+void QmlProfilerTraceTime::decreaseStartTime(qint64 time)
 {
-    if (time != m_endTime) {
+    if (m_startTime > time) {
+        m_startTime = time;
+        emit timeChanged(time, m_endTime);
+    }
+}
+
+void QmlProfilerTraceTime::increaseEndTime(qint64 time)
+{
+    if (m_endTime < time) {
         m_endTime = time;
-        emit endTimeChanged(time);
+        emit timeChanged(m_startTime, time);
     }
 }
 
@@ -145,16 +172,18 @@ public:
     QmlProfilerModelManager *q;
 
     QmlProfilerDataModel *model;
-    QV8ProfilerDataModel *v8Model;
+    QmlProfilerNotesModel *notesModel;
+
     QmlProfilerDataState *dataState;
     QmlProfilerTraceTime *traceTime;
 
     QVector <double> partialCounts;
     QVector <int> partialCountWeights;
+    quint64 features;
+
     int totalWeight;
     double progress;
     double previousProgress;
-    qint64 estimatedTime;
 
     // file to load
     QString fileName;
@@ -165,10 +194,12 @@ QmlProfilerModelManager::QmlProfilerModelManager(Utils::FileInProjectFinder *fin
     QObject(parent), d(new QmlProfilerModelManagerPrivate(this))
 {
     d->totalWeight = 0;
+    d->features = 0;
     d->model = new QmlProfilerDataModel(finder, this);
-    d->v8Model = new QV8ProfilerDataModel(finder, this);
     d->dataState = new QmlProfilerDataState(this, this);
     d->traceTime = new QmlProfilerTraceTime(this);
+    d->notesModel = new QmlProfilerNotesModel(this);
+    d->notesModel->setModelManager(this);
 }
 
 QmlProfilerModelManager::~QmlProfilerModelManager()
@@ -186,14 +217,14 @@ QmlProfilerDataModel *QmlProfilerModelManager::qmlModel() const
     return d->model;
 }
 
-QV8ProfilerDataModel *QmlProfilerModelManager::v8Model() const
+QmlProfilerNotesModel *QmlProfilerModelManager::notesModel() const
 {
-    return d->v8Model;
+    return d->notesModel;
 }
 
 bool QmlProfilerModelManager::isEmpty() const
 {
-    return d->model->isEmpty() && d->v8Model->isEmpty();
+    return d->model->isEmpty();
 }
 
 int QmlProfilerModelManager::count() const
@@ -239,21 +270,36 @@ void QmlProfilerModelManager::modelProxyCountUpdated(int proxyId, qint64 count, 
     }
 }
 
-qint64 QmlProfilerModelManager::estimatedProfilingTime() const
+void QmlProfilerModelManager::announceFeatures(int proxyId, quint64 features)
 {
-    return d->estimatedTime;
+    Q_UNUSED(proxyId); // Will use that later to optimize the event dispatching on loading.
+    if ((features & d->features) != features) {
+        d->features |= features;
+        emit availableFeaturesChanged(d->features);
+    }
+}
+
+quint64 QmlProfilerModelManager::availableFeatures()
+{
+    return d->features;
+}
+
+const char *QmlProfilerModelManager::featureName(QmlDebug::ProfileFeature feature)
+{
+    return ProfileFeatureNames[feature];
 }
 
 void QmlProfilerModelManager::newTimeEstimation(qint64 estimation)
 {
-    d->estimatedTime = estimation;
+    d->traceTime->increaseEndTime(d->traceTime->startTime() + estimation);
 }
 
-void QmlProfilerModelManager::addQmlEvent(int type,
-                                          int bindingType,
+void QmlProfilerModelManager::addQmlEvent(QmlDebug::Message message,
+                                          QmlDebug::RangeType rangeType,
+                                          int detailType,
                                           qint64 startTime,
                                           qint64 length,
-                                          const QStringList &data,
+                                          const QString &data,
                                           const QmlDebug::QmlEventLocation &location,
                                           qint64 ndata1,
                                           qint64 ndata2,
@@ -263,32 +309,26 @@ void QmlProfilerModelManager::addQmlEvent(int type,
 {
     // If trace start time was not explicitly set, use the first event
     if (d->traceTime->startTime() == -1)
-        d->traceTime->setStartTime(startTime);
+        d->traceTime->setTime(startTime, startTime + d->traceTime->duration());
 
     QTC_ASSERT(state() == QmlProfilerDataState::AcquiringData, /**/);
-    d->model->addQmlEvent(type, bindingType, startTime, length, data, location, ndata1, ndata2, ndata3, ndata4, ndata5);
-}
-
-void QmlProfilerModelManager::addV8Event(int depth, const QString &function, const QString &filename,
-                                         int lineNumber, double totalTime, double selfTime)
-{
-    d->v8Model->addV8Event(depth, function, filename, lineNumber,totalTime, selfTime);
+    d->model->addQmlEvent(message, rangeType, detailType, startTime, length, data, location,
+                          ndata1, ndata2, ndata3, ndata4, ndata5);
 }
 
 void QmlProfilerModelManager::complete()
 {
     switch (state()) {
     case QmlProfilerDataState::ProcessingData:
+        // Load notes after the timeline models have been initialized.
+        d->notesModel->loadData();
         setState(QmlProfilerDataState::Done);
-        emit dataAvailable();
         break;
     case QmlProfilerDataState::AcquiringData:
-        // If trace end time was not explicitly set, use the last event
-        if (d->traceTime->endTime() == 0)
-            d->traceTime->setEndTime(d->model->lastTimeMark());
+        // Make sure the trace fits into the time span.
+        d->traceTime->increaseEndTime(d->model->lastTimeMark());
         setState(QmlProfilerDataState::ProcessingData);
         d->model->complete();
-        d->v8Model->complete();
         break;
     case QmlProfilerDataState::Empty:
         setState(QmlProfilerDataState::Done);
@@ -301,27 +341,32 @@ void QmlProfilerModelManager::complete()
     }
 }
 
-void QmlProfilerModelManager::modelProcessingDone()
-{
-    Q_ASSERT(state() == QmlProfilerDataState::ProcessingData);
-    if (d->model->processingDone() && d->v8Model->processingDone())
-        complete();
-}
-
 void QmlProfilerModelManager::save(const QString &filename)
 {
-    QFile file(filename);
-    if (!file.open(QIODevice::WriteOnly)) {
+    QFile *file = new QFile(filename);
+    if (!file->open(QIODevice::WriteOnly)) {
         emit error(tr("Could not open %1 for writing.").arg(filename));
+        delete file;
+        emit saveFinished();
         return;
     }
 
-    QmlProfilerFileWriter writer;
+    d->notesModel->saveData();
 
-    writer.setTraceTime(traceTime()->startTime(), traceTime()->endTime(), traceTime()->duration());
-    writer.setV8DataModel(d->v8Model);
-    writer.setQmlEvents(d->model->getEvents());
-    writer.save(&file);
+    QFuture<void> result = QtConcurrent::run<void>([this, file] (QFutureInterface<void> &future) {
+        QmlProfilerFileWriter writer;
+        writer.setTraceTime(traceTime()->startTime(), traceTime()->endTime(),
+                            traceTime()->duration());
+        writer.setQmlEvents(d->model->getEventTypes(), d->model->getEvents());
+        writer.setNotes(d->model->getEventNotes());
+        writer.setFuture(&future);
+        writer.save(file);
+        file->deleteLater();
+        QMetaObject::invokeMethod(this, "saveFinished", Qt::QueuedConnection);
+    });
+
+    Core::ProgressManager::addTask(result, tr("Saving Trace Data"), Constants::TASK_SAVE,
+                                   Core::ProgressManager::ShowInApplicationIcon);
 }
 
 void QmlProfilerModelManager::load(const QString &filename)
@@ -337,32 +382,32 @@ void QmlProfilerModelManager::setFilename(const QString &filename)
 
 void QmlProfilerModelManager::load()
 {
-    QString filename = d->fileName;
-
-    QFile file(filename);
-
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        emit error(tr("Could not open %1 for reading.").arg(filename));
+    QFile *file = new QFile(d->fileName, this);
+    if (!file->open(QIODevice::ReadOnly | QIODevice::Text)) {
+        emit error(tr("Could not open %1 for reading.").arg(d->fileName));
+        delete file;
+        emit loadFinished();
         return;
     }
 
-    // erase current
     clear();
-
     setState(QmlProfilerDataState::AcquiringData);
 
-    QmlProfilerFileReader reader;
-    connect(&reader, SIGNAL(error(QString)), this, SIGNAL(error(QString)));
-    connect(&reader, SIGNAL(rangedEvent(int,int,qint64,qint64,QStringList,QmlDebug::QmlEventLocation,
-                                        qint64, qint64, qint64, qint64, qint64)),
-            this, SLOT(addQmlEvent(int,int,qint64,qint64,QStringList,QmlDebug::QmlEventLocation,
-                             qint64, qint64, qint64, qint64, qint64)));
-    connect(&reader, SIGNAL(traceStartTime(qint64)), traceTime(), SLOT(setStartTime(qint64)));
-    connect(&reader, SIGNAL(traceEndTime(qint64)), traceTime(), SLOT(setEndTime(qint64)));
-    reader.setV8DataModel(d->v8Model);
-    reader.load(&file);
+    QFuture<void> result = QtConcurrent::run<void>([this, file] (QFutureInterface<void> &future) {
+        QmlProfilerFileReader reader;
+        reader.setFuture(&future);
+        connect(&reader, &QmlProfilerFileReader::error, this, &QmlProfilerModelManager::error);
+        reader.setQmlDataModel(d->model);
+        reader.load(file);
+        file->close();
+        file->deleteLater();
 
-    complete();
+        // The completion step uses the old progress display widget for now.
+        complete();
+        QMetaObject::invokeMethod(this, "loadFinished", Qt::QueuedConnection);
+    });
+
+    Core::ProgressManager::addTask(result, tr("Loading Trace Data"), Constants::TASK_LOAD);
 }
 
 
@@ -384,8 +429,8 @@ void QmlProfilerModelManager::clear()
     d->progress = 0;
     d->previousProgress = 0;
     d->model->clear();
-    d->v8Model->clear();
     d->traceTime->clear();
+    d->notesModel->clear();
 
     setState(QmlProfilerDataState::Empty);
 }

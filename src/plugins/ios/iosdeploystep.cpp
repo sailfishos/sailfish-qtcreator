@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -40,6 +41,9 @@
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/target.h>
 #include <projectexplorer/taskhub.h>
+#include <projectexplorer/kitmanager.h>
+#include <projectexplorer/kitinformation.h>
+#include <projectexplorer/devicesupport/devicemanager.h>
 #include <qmakeprojectmanager/qmakebuildconfiguration.h>
 #include <qmakeprojectmanager/qmakeproject.h>
 #include <qmakeprojectmanager/qmakenodes.h>
@@ -61,14 +65,14 @@ namespace Internal {
 
 const Core::Id IosDeployStep::Id("Qt4ProjectManager.IosDeployStep");
 
-IosDeployStep::IosDeployStep(ProjectExplorer::BuildStepList *parent)
+IosDeployStep::IosDeployStep(BuildStepList *parent)
     : BuildStep(parent, Id)
     , m_expectFail(false)
 {
     ctor();
 }
 
-IosDeployStep::IosDeployStep(ProjectExplorer::BuildStepList *parent,
+IosDeployStep::IosDeployStep(BuildStepList *parent,
     IosDeployStep *other)
     : BuildStep(parent, other)
     , m_expectFail(false)
@@ -82,19 +86,31 @@ void IosDeployStep::ctor()
 {
     m_toolHandler = 0;
     m_transferStatus = NoTransfer;
-    m_device = ProjectExplorer::DeviceKitInformation::device(target()->kit());
-    const QString devName = m_device.isNull() ? IosDevice::name() : m_device->displayName();
+    cleanup();
+    updateDisplayNames();
+    connect(DeviceManager::instance(), SIGNAL(updated()),
+            SLOT(updateDisplayNames()));
+    connect(target(), SIGNAL(kitChanged()),
+            SLOT(updateDisplayNames()));
+}
+
+void IosDeployStep::updateDisplayNames()
+{
+    IDevice::ConstPtr dev =
+            DeviceKitInformation::device(target()->kit());
+    const QString devName = dev.isNull() ? IosDevice::name() : dev->displayName();
     setDefaultDisplayName(tr("Deploy to %1").arg(devName));
+    setDisplayName(tr("Deploy to %1").arg(devName));
 }
 
 bool IosDeployStep::init()
 {
-    QTC_CHECK(m_transferStatus == NoTransfer);
-    m_device = ProjectExplorer::DeviceKitInformation::device(target()->kit());
+    QTC_ASSERT(m_transferStatus == NoTransfer, return false);
+    m_device = DeviceKitInformation::device(target()->kit());
     IosRunConfiguration * runConfig = qobject_cast<IosRunConfiguration *>(
                 this->target()->activeRunConfiguration());
     QTC_ASSERT(runConfig, return false);
-    m_bundlePath = runConfig->bundleDir().toString();
+    m_bundlePath = runConfig->bundleDirectory().toString();
     if (m_device.isNull()) {
         emit addOutput(tr("Error: no device available, deploy failed."),
                        BuildStep::ErrorMessageOutput);
@@ -118,7 +134,7 @@ void IosDeployStep::run(QFutureInterface<bool> &fi)
     }
     m_transferStatus = TransferInProgress;
     QTC_CHECK(m_toolHandler == 0);
-    m_toolHandler = new IosToolHandler(IosDeviceType::IosDevice, this);
+    m_toolHandler = new IosToolHandler(IosDeviceType(IosDeviceType::IosDevice), this);
     m_futureInterface.setProgressRange(0, 200);
     m_futureInterface.setProgressValueAndText(0, QLatin1String("Transferring application"));
     m_futureInterface.reportStarted();
@@ -213,12 +229,12 @@ BuildStepConfigWidget *IosDeployStep::createConfigWidget()
 
 bool IosDeployStep::fromMap(const QVariantMap &map)
 {
-    return ProjectExplorer::BuildStep::fromMap(map);
+    return BuildStep::fromMap(map);
 }
 
 QVariantMap IosDeployStep::toMap() const
 {
-    QVariantMap map = ProjectExplorer::BuildStep::toMap();
+    QVariantMap map = BuildStep::toMap();
     return map;
 }
 
@@ -256,7 +272,7 @@ void IosDeployStep::checkProvisioningProfile()
 
     // the file is a signed plist stored in DER format
     // we simply search for start and end of the plist instead of decoding the DER payload
-    if (!provisioningFilePath.toFileInfo().exists())
+    if (!provisioningFilePath.exists())
         return;
     QFile provisionFile(provisioningFilePath.toString());
     if (!provisionFile.open(QIODevice::ReadOnly))

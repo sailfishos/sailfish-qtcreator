@@ -54,7 +54,7 @@ public:
     ProjectExplorer::Abi::Architecture architecture() const;
     QString deviceName() const;
 
-    bool isComplete() const;
+    bool isComplete() const override;
 
 private slots:
     void handleTestConnectionClicked();
@@ -78,7 +78,7 @@ class MerHardwareDeviceWizardSetupPage : public QWizardPage
 public:
     explicit MerHardwareDeviceWizardSetupPage(QWidget *parent = 0);
 
-    void initializePage();
+    void initializePage() override;
 
     QString configName() const;
     QString freePorts() const;
@@ -87,7 +87,7 @@ public:
     bool isNewSshKeysRquired() const;
     QString sharedSshPath() const;
 
-    bool isComplete() const;
+    bool isComplete() const override;
 
 private slots:
     void handleSdkVmChanged(const QString &vmName);

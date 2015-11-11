@@ -47,7 +47,9 @@
 #include <QAction>
 #include <QIcon>
 
+using namespace Core;
 using namespace ProjectExplorer;
+using namespace QSsh;
 
 namespace Mer {
 namespace Internal {
@@ -57,9 +59,9 @@ class MerConnectionAction : public QObject
     Q_OBJECT
 public:
     explicit MerConnectionAction(QObject *parent = 0);
-    ~MerConnectionAction();
+    ~MerConnectionAction() override;
 
-    void setId(const Core::Id &id) { m_id = id; }
+    void setId(Core::Id id) { m_id = id; }
     void setName(const QString &name) { m_name = name; }
     void setIconOff(const QIcon &icon) { m_iconOff = icon; }
     void setIconOn(const QIcon &icon) { m_iconOn = icon; }
@@ -123,13 +125,13 @@ void MerConnectionAction::initialize()
     m_action->setText(m_name);
     m_action->setIcon(m_iconOff);
     m_action->setToolTip(m_startTip);
-    connect(m_action, SIGNAL(triggered()), this, SLOT(handleTriggered()));
+    connect(m_action, &QAction::triggered,
+            this, &MerConnectionAction::handleTriggered);
 
-    Core::Command *command =
-            Core::ActionManager::registerAction(m_action, m_id,
-                                                Core::Context(Core::Constants::C_GLOBAL));
-    command->setAttribute(Core::Command::CA_UpdateText);
-    command->setAttribute(Core::Command::CA_UpdateIcon);
+    Command *command = ActionManager::registerAction(m_action, m_id,
+                                                     Context(Core::Constants::C_GLOBAL));
+    command->setAttribute(Command::CA_UpdateText);
+    command->setAttribute(Command::CA_UpdateIcon);
 
     m_action->setEnabled(m_enabled);
     m_action->setVisible(m_visible);
@@ -147,8 +149,10 @@ void MerConnectionAction::setConnection(MerConnection *connection)
 
     m_connection = connection;
 
-    if (m_connection)
-        connect(m_connection, SIGNAL(stateChanged()), this, SLOT(update()));
+    if (m_connection) {
+        connect(m_connection.data(), &MerConnection::stateChanged,
+                this, &MerConnectionAction::update);
+    }
 
     update();
 }
@@ -191,10 +195,10 @@ void MerConnectionAction::update()
         toolTip = m_closingTip;
         break;
     case MerConnection::Error:
-        Core::MessageManager::write(tr("Error connecting to \"%1\" virtual machine: %2")
+        MessageManager::write(tr("Error connecting to \"%1\" virtual machine: %2")
             .arg(m_connection->virtualMachine())
             .arg(m_connection->errorString()),
-            Core::MessageManager::Flash);
+            MessageManager::Flash);
         toolTip = m_startTip;
         break;
     default:
@@ -222,7 +226,7 @@ void MerConnectionAction::handleTriggered()
 }
 
 MerConnectionManager *MerConnectionManager::m_instance = 0;
-ProjectExplorer::Project *MerConnectionManager::m_project = 0;
+Project *MerConnectionManager::m_project = 0;
 
 MerConnectionManager::MerConnectionManager():
     m_emulatorAction(new MerConnectionAction(this)),
@@ -257,13 +261,14 @@ MerConnectionManager::MerConnectionManager():
     m_sdkAction->setStartingTip(tr("Starting SDK"));
     m_sdkAction->initialize();
 
-    connect(KitManager::instance(), SIGNAL(kitUpdated(ProjectExplorer::Kit*)),
-            SLOT(handleKitUpdated(ProjectExplorer::Kit*)));
-
-    connect(SessionManager::instance(), SIGNAL(startupProjectChanged(ProjectExplorer::Project*)),
-            SLOT(handleStartupProjectChanged(ProjectExplorer::Project*)));
-    connect(MerSdkManager::instance(), SIGNAL(sdksUpdated()), this, SLOT(update()));
-    connect(DeviceManager::instance(), SIGNAL(updated()), SLOT(update()));
+    connect(KitManager::instance(), &KitManager::kitUpdated,
+            this, &MerConnectionManager::handleKitUpdated);
+    connect(SessionManager::instance(), &SessionManager::startupProjectChanged,
+            this, &MerConnectionManager::handleStartupProjectChanged);
+    connect(MerSdkManager::instance(), &MerSdkManager::sdksUpdated,
+            this, &MerConnectionManager::update);
+    connect(DeviceManager::instance(), &DeviceManager::updated,
+            this, &MerConnectionManager::update);
 
     m_instance = this;
 }
@@ -285,26 +290,26 @@ void MerConnectionManager::handleKitUpdated(Kit *kit)
         update();
 }
 
-void MerConnectionManager::handleStartupProjectChanged(ProjectExplorer::Project *project)
+void MerConnectionManager::handleStartupProjectChanged(Project *project)
 {
     if (m_project) {
-        disconnect(m_project, SIGNAL(addedTarget(ProjectExplorer::Target*)),
-                   this, SLOT(handleTargetAdded(ProjectExplorer::Target*)));
-        disconnect(m_project, SIGNAL(removedTarget(ProjectExplorer::Target*)),
-                   this, SLOT(handleTargetRemoved(ProjectExplorer::Target*)));
-        disconnect(m_project, SIGNAL(activeTargetChanged(ProjectExplorer::Target*)),
-                   this, SLOT(update()));
+        disconnect(m_project, &Project::addedTarget,
+                   this, &MerConnectionManager::handleTargetAdded);
+        disconnect(m_project, &Project::removedTarget,
+                   this, &MerConnectionManager::handleTargetRemoved);
+        disconnect(m_project, &Project::activeTargetChanged,
+                   this, &MerConnectionManager::update);
     }
 
     m_project = project;
 
     if (m_project) {
-        connect(m_project, SIGNAL(addedTarget(ProjectExplorer::Target*)),
-                SLOT(handleTargetAdded(ProjectExplorer::Target*)));
-        connect(m_project, SIGNAL(removedTarget(ProjectExplorer::Target*)),
-                SLOT(handleTargetRemoved(ProjectExplorer::Target*)));
-        connect(m_project, SIGNAL(activeTargetChanged(ProjectExplorer::Target*)),
-                SLOT(update()));
+        connect(m_project, &Project::addedTarget,
+                this, &MerConnectionManager::handleTargetAdded);
+        connect(m_project, &Project::removedTarget,
+                this, &MerConnectionManager::handleTargetRemoved);
+        connect(m_project, &Project::activeTargetChanged,
+                this, &MerConnectionManager::update);
     }
 
     update();
@@ -367,21 +372,20 @@ void MerConnectionManager::update()
     m_sdkAction->update();
 }
 
-QString MerConnectionManager::testConnection(const QSsh::SshConnectionParameters &params,
-        bool *ok) const
+QString MerConnectionManager::testConnection(const SshConnectionParameters &params, bool *ok)
 {
-    QSsh::SshConnectionParameters p = params;
-    QSsh::SshConnection connection(p);
+    SshConnectionParameters p = params;
+    SshConnection connection(p);
     QEventLoop loop;
-    connect(&connection, SIGNAL(connected()), &loop, SLOT(quit()));
-    connect(&connection, SIGNAL(error(QSsh::SshError)), &loop, SLOT(quit()));
-    connect(&connection, SIGNAL(disconnected()), &loop, SLOT(quit()));
+    connect(&connection, &SshConnection::connected, &loop, &QEventLoop::quit);
+    connect(&connection, &SshConnection::error, &loop, &QEventLoop::quit);
+    connect(&connection, &SshConnection::disconnected, &loop, &QEventLoop::quit);
     connection.connectToHost();
     loop.exec();
     if (ok != 0)
-        *ok = connection.errorState() == QSsh::SshNoError;
+        *ok = connection.errorState() == SshNoError;
     QString result;
-    if (connection.errorState() != QSsh::SshNoError)
+    if (connection.errorState() != SshNoError)
         result = connection.errorString();
     else
         result = tr("Connected");

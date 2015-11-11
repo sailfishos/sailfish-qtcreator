@@ -32,16 +32,16 @@ class MerQtVersionFactory : public QtSupport::QtVersionFactory
 {
 public:
     explicit MerQtVersionFactory(QObject *parent = 0);
-    ~MerQtVersionFactory();
+    ~MerQtVersionFactory() override;
 
-    virtual bool canRestore(const QString &type);
-    virtual QtSupport::BaseQtVersion *restore(const QString &type, const QVariantMap &data);
+    bool canRestore(const QString &type) override;
+    QtSupport::BaseQtVersion *restore(const QString &type, const QVariantMap &data) override;
 
-    virtual int priority() const;
-    virtual QtSupport::BaseQtVersion *create(const Utils::FileName &qmakePath,
-                                             ProFileEvaluator *evaluator,
-                                             bool isAutoDetected,
-                                             const QString &autoDetectionSource);
+    int priority() const override;
+    QtSupport::BaseQtVersion *create(const Utils::FileName &qmakePath,
+                                     ProFileEvaluator *evaluator,
+                                     bool isAutoDetected,
+                                     const QString &autoDetectionSource) override;
 };
 
 } // Internal

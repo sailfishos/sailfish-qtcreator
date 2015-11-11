@@ -1,13 +1,10 @@
 import qbs 1.0
 import qbs.FileInfo
 
-import QtcPlugin
-
 QtcPlugin {
     name: "CppTools"
 
     Depends { name: "Qt.widgets" }
-    Depends { name: "Aggregation" }
     Depends { name: "CPlusPlus" }
     Depends { name: "Utils" }
 
@@ -15,6 +12,11 @@ QtcPlugin {
     Depends { name: "TextEditor" }
     Depends { name: "ProjectExplorer" }
     Depends { name: "app_version_header" }
+
+    pluginTestDepends: [
+        "CppEditor",
+        "QmakeProjectManager",
+    ]
 
     cpp.defines: base
     Properties {
@@ -24,6 +26,10 @@ QtcPlugin {
 
     files: [
         "abstracteditorsupport.cpp", "abstracteditorsupport.h",
+        "baseeditordocumentparser.cpp", "baseeditordocumentparser.h",
+        "baseeditordocumentprocessor.cpp", "baseeditordocumentprocessor.h",
+        "builtineditordocumentparser.cpp", "builtineditordocumentparser.h",
+        "builtineditordocumentprocessor.cpp", "builtineditordocumentprocessor.h",
         "builtinindexingsupport.cpp", "builtinindexingsupport.h",
         "commentssettings.cpp", "commentssettings.h",
         "completionsettingspage.cpp", "completionsettingspage.h", "completionsettingspage.ui",
@@ -38,40 +44,47 @@ QtcPlugin {
         "cppcodestylesettings.cpp", "cppcodestylesettings.h",
         "cppcodestylesettingspage.cpp", "cppcodestylesettingspage.h", "cppcodestylesettingspage.ui",
         "cppcompletionassist.cpp", "cppcompletionassist.h",
+        "cppcompletionassistprocessor.cpp", "cppcompletionassistprocessor.h",
         "cppcompletionassistprovider.cpp", "cppcompletionassistprovider.h",
         "cppcurrentdocumentfilter.cpp", "cppcurrentdocumentfilter.h",
         "cppdoxygen.cpp", "cppdoxygen.h",
+        "cppeditoroutline.cpp", "cppeditoroutline.h",
         "cppfilesettingspage.cpp", "cppfilesettingspage.h", "cppfilesettingspage.ui",
         "cppfindreferences.cpp", "cppfindreferences.h",
         "cppfunctionsfilter.cpp", "cppfunctionsfilter.h",
-        "cpphighlightingsupport.cpp", "cpphighlightingsupport.h",
-        "cpphighlightingsupportinternal.cpp", "cpphighlightingsupportinternal.h",
+        "cppincludesfilter.cpp", "cppincludesfilter.h",
         "cppindexingsupport.cpp", "cppindexingsupport.h",
         "cpplocalsymbols.cpp", "cpplocalsymbols.h",
         "cpplocatordata.cpp", "cpplocatordata.h",
         "cpplocatorfilter.cpp", "cpplocatorfilter.h",
         "cppmodelmanager.cpp", "cppmodelmanager.h",
-        "cppmodelmanagerinterface.cpp", "cppmodelmanagerinterface.h",
         "cppmodelmanagersupport.cpp", "cppmodelmanagersupport.h",
         "cppmodelmanagersupportinternal.cpp", "cppmodelmanagersupportinternal.h",
         "cpppointerdeclarationformatter.cpp", "cpppointerdeclarationformatter.h",
-        "cpppreprocessor.cpp", "cpppreprocessor.h",
         "cppprojectfile.cpp", "cppprojectfile.h",
+        "cppprojects.cpp", "cppprojects.h",
         "cppqtstyleindenter.cpp", "cppqtstyleindenter.h",
         "cpprefactoringchanges.cpp", "cpprefactoringchanges.h",
         "cppsemanticinfo.cpp", "cppsemanticinfo.h",
-        "cppsnapshotupdater.cpp", "cppsnapshotupdater.h",
+        "cppsemanticinfoupdater.cpp", "cppsemanticinfoupdater.h",
+        "cppsourceprocessor.cpp", "cppsourceprocessor.h",
+        "cpptools.qrc",
         "cpptools_global.h",
         "cpptoolsconstants.h",
-        "cpptoolseditorsupport.cpp", "cpptoolseditorsupport.h",
+        "cpptoolsjsextension.cpp", "cpptoolsjsextension.h",
         "cpptoolsplugin.cpp", "cpptoolsplugin.h",
         "cpptoolsreuse.cpp", "cpptoolsreuse.h",
         "cpptoolssettings.cpp", "cpptoolssettings.h",
+        "cppworkingcopy.cpp", "cppworkingcopy.h",
         "doxygengenerator.cpp", "doxygengenerator.h",
+        "editordocumenthandle.cpp", "editordocumenthandle.h",
         "functionutils.cpp", "functionutils.h",
         "includeutils.cpp", "includeutils.h",
+        "indexitem.cpp", "indexitem.h",
         "insertionpointlocator.cpp", "insertionpointlocator.h",
         "searchsymbols.cpp", "searchsymbols.h",
+        "semantichighlighter.cpp", "semantichighlighter.h",
+        "stringtable.cpp", "stringtable.h",
         "symbolfinder.cpp", "symbolfinder.h",
         "symbolsfindfilter.cpp", "symbolsfindfilter.h",
         "typehierarchybuilder.cpp", "typehierarchybuilder.h",
@@ -84,11 +97,12 @@ QtcPlugin {
             "cppcodegen_test.cpp",
             "cppcompletion_test.cpp",
             "cppheadersource_test.cpp",
+            "cpplocalsymbols_test.cpp",
             "cpplocatorfilter_test.cpp",
             "cppmodelmanager_test.cpp",
             "cpppointerdeclarationformatter_test.cpp",
-            "cpppreprocessertesthelper.cpp", "cpppreprocessertesthelper.h",
-            "cpppreprocessor_test.cpp",
+            "cppsourceprocessertesthelper.cpp", "cppsourceprocessertesthelper.h",
+            "cppsourceprocessor_test.cpp",
             "cpptoolstestcase.cpp", "cpptoolstestcase.h",
             "modelmanagertesthelper.cpp", "modelmanagertesthelper.h",
             "symbolsearcher_test.cpp",

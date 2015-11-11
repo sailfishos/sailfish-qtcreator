@@ -59,7 +59,7 @@ bool MerSdkStartStep::init()
     return MerAbstractVmStartStep::init();
 }
 
-const Core::Id MerSdkStartStep::stepId()
+Core::Id MerSdkStartStep::stepId()
 {
     return Core::Id("Mer.MerSdkStartStep");
 }

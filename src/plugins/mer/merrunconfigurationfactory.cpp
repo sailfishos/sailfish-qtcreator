@@ -26,94 +26,85 @@
 #include "merdevicefactory.h"
 #include "merrunconfiguration.h"
 
+#include <projectexplorer/buildtargetinfo.h>
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/target.h>
 #include <qmakeprojectmanager/qmakeproject.h>
 #include <utils/qtcassert.h>
 
 using namespace Mer::Constants;
+using namespace ProjectExplorer;
+using namespace QmakeProjectManager;
+using namespace Utils;
 
 namespace Mer {
 namespace Internal {
 
 namespace {
-QString pathFromId(const Core::Id id)
+QString stringFromId(Core::Id id)
 {
-    const QString idStr = id.toString();
-    if (idStr.startsWith(QLatin1String(MER_RUNCONFIGURATION_PREFIX)))
-        return idStr.mid(QString::fromLatin1(MER_RUNCONFIGURATION_PREFIX).size());
-
-    return QString();
+    return id.suffixAfter(MER_RUNCONFIGURATION_PREFIX);
 }
 } // Anonymous
 
 MerRunConfigurationFactory::MerRunConfigurationFactory(QObject *parent)
-    : ProjectExplorer::IRunConfigurationFactory(parent)
+    : IRunConfigurationFactory(parent)
 {
 }
 
 QList<Core::Id> MerRunConfigurationFactory::availableCreationIds(
-        ProjectExplorer::Target *parent) const
+        Target *parent, CreationMode mode) const
 {
+    Q_UNUSED(mode);
+
     QList<Core::Id>result;
     if (!canHandle(parent))
         return result;
 
-    QmakeProjectManager::QmakeProject *qmakeProject =
-            qobject_cast<QmakeProjectManager::QmakeProject *>(parent->project());
+    QmakeProject *qmakeProject =
+            qobject_cast<QmakeProject *>(parent->project());
     if (!qmakeProject)
         return result;
 
-    QStringList proFiles =
-            qmakeProject->applicationProFilePathes(QLatin1String(MER_RUNCONFIGURATION_PREFIX));
-    foreach (const QString &pf, proFiles)
-           result << Core::Id::fromString(pf);
+    const Core::Id base = Core::Id(MER_RUNCONFIGURATION_PREFIX);
+    foreach (const BuildTargetInfo &bti, parent->applicationTargets().list)
+        result << base.withSuffix(bti.targetName);
+
     return result;
 }
 
-QString MerRunConfigurationFactory::displayNameForId(const Core::Id id) const
+QString MerRunConfigurationFactory::displayNameForId(Core::Id id) const
 {
-    const QString path = pathFromId(id);
-    if (path.isEmpty())
-        return QString();
-
     if (id.toString().startsWith(QLatin1String(MER_RUNCONFIGURATION_PREFIX)))
-        return tr("%1 (on Mer Device)").arg(QFileInfo(path).completeBaseName());
+        return tr("%1 (on Mer Device)").arg(stringFromId(id));
 
     return QString();
 }
 
-bool MerRunConfigurationFactory::canCreate(ProjectExplorer::Target *parent, const Core::Id id) const
+bool MerRunConfigurationFactory::canCreate(Target *parent, Core::Id id) const
 {
     if (!canHandle(parent))
         return false;
 
-    QmakeProjectManager::QmakeProject *qmakeProject =
-            qobject_cast<QmakeProjectManager::QmakeProject *>(parent->project());
-    if (!qmakeProject)
-        return false;
-
-    return qmakeProject->hasApplicationProFile(pathFromId(id));
+    return parent->applicationTargets().hasTarget(stringFromId(id));
 }
 
-ProjectExplorer::RunConfiguration *MerRunConfigurationFactory::doCreate(
-        ProjectExplorer::Target *parent, const Core::Id id)
+RunConfiguration *MerRunConfigurationFactory::doCreate(
+        Target *parent, Core::Id id)
 {
     if (!canCreate(parent, id))
         return 0;
 
     if (id.toString().startsWith(QLatin1String(MER_RUNCONFIGURATION_PREFIX))) {
-        MerRunConfiguration *config = new MerRunConfiguration(parent, id, pathFromId(id));
+        MerRunConfiguration *config = new MerRunConfiguration(parent, id, stringFromId(id));
         config->setDefaultDisplayName(displayNameForId(id));
-
-
         return config;
     }
 
     return 0;
 }
 
-bool MerRunConfigurationFactory::canRestore(ProjectExplorer::Target *parent,
+bool MerRunConfigurationFactory::canRestore(Target *parent,
                                             const QVariantMap &map) const
 {
     if (!canHandle(parent))
@@ -123,14 +114,14 @@ bool MerRunConfigurationFactory::canRestore(ProjectExplorer::Target *parent,
                 QLatin1String(MER_RUNCONFIGURATION_PREFIX));
 }
 
-ProjectExplorer::RunConfiguration *MerRunConfigurationFactory::doRestore(
-        ProjectExplorer::Target *parent, const QVariantMap &map)
+RunConfiguration *MerRunConfigurationFactory::doRestore(
+        Target *parent, const QVariantMap &map)
 {
     if (!canRestore(parent, map))
         return 0;
 
     Core::Id id = ProjectExplorer::idFromMap(map);
-    ProjectExplorer::RunConfiguration *rc = new MerRunConfiguration(parent, id, pathFromId(id));
+    RunConfiguration *rc = new MerRunConfiguration(parent, id, stringFromId(id));
     QTC_ASSERT(rc, return 0);
     if (rc->fromMap(map))
         return rc;
@@ -139,14 +130,14 @@ ProjectExplorer::RunConfiguration *MerRunConfigurationFactory::doRestore(
     return 0;
 }
 
-bool MerRunConfigurationFactory::canClone(ProjectExplorer::Target *parent,
-                                          ProjectExplorer::RunConfiguration *source) const
+bool MerRunConfigurationFactory::canClone(Target *parent,
+                                          RunConfiguration *source) const
 {
     return canCreate(parent, source->id());
 }
 
-ProjectExplorer::RunConfiguration *MerRunConfigurationFactory::clone(
-        ProjectExplorer::Target *parent, ProjectExplorer::RunConfiguration *source)
+RunConfiguration *MerRunConfigurationFactory::clone(
+        Target *parent, RunConfiguration *source)
 {
     if (!canClone(parent, source))
         return 0;
@@ -159,9 +150,9 @@ ProjectExplorer::RunConfiguration *MerRunConfigurationFactory::clone(
     return new MerRunConfiguration(parent, old);
 }
 
-bool MerRunConfigurationFactory::canHandle(ProjectExplorer::Target *t) const
+bool MerRunConfigurationFactory::canHandle(Target *t) const
 {
-    return MerDeviceFactory::canCreate(ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(t->kit()));
+    return MerDeviceFactory::canCreate(DeviceTypeKitInformation::deviceTypeId(t->kit()));
 }
 
 } // Internal

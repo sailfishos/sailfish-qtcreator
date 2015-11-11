@@ -24,6 +24,7 @@
 
 #include <ssh/sshconnection.h>
 
+using namespace ProjectExplorer;
 using namespace QSsh;
 
 namespace Mer {
@@ -62,7 +63,7 @@ QString MerHardwareDeviceWizard::password() const
     return m_selectionPage.password();
 }
 
-ProjectExplorer::Abi::Architecture MerHardwareDeviceWizard::architecture() const
+Abi::Architecture MerHardwareDeviceWizard::architecture() const
 {
     return m_selectionPage.architecture();
 }

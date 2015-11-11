@@ -26,6 +26,8 @@
 
 #include <utils/qtcassert.h>
 
+using namespace ProjectExplorer;
+
 namespace Mer {
 namespace Internal {
 
@@ -39,14 +41,14 @@ MerEmulatorDeviceTester::~MerEmulatorDeviceTester()
 {
 }
 
-void MerEmulatorDeviceTester::testDevice(const ProjectExplorer::IDevice::ConstPtr &deviceConfiguration)
+void MerEmulatorDeviceTester::testDevice(const IDevice::ConstPtr &deviceConfiguration)
 {
     m_device = deviceConfiguration.dynamicCast<const MerEmulatorDevice>();
     QTC_ASSERT(m_device, { emit finished(TestFailure); return; });
 
     if (m_device->connection()->state() == MerConnection::Connected) {
         m_pastVmStart = true;
-        GenericLinuxDeviceTester::testDevice(m_device.staticCast<const ProjectExplorer::IDevice>());
+        GenericLinuxDeviceTester::testDevice(m_device.staticCast<const IDevice>());
     } else {
         connect(m_device->connection(), &MerConnection::stateChanged,
                 this, &MerEmulatorDeviceTester::onConnectionStateChanged);
@@ -97,7 +99,7 @@ void MerEmulatorDeviceTester::onConnectionStateChanged()
         emit finished(TestFailure);
     } else {
         m_pastVmStart = true;
-        GenericLinuxDeviceTester::testDevice(m_device.staticCast<const ProjectExplorer::IDevice>());
+        GenericLinuxDeviceTester::testDevice(m_device.staticCast<const IDevice>());
     }
 }
 

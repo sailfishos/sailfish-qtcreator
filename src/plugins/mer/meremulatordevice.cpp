@@ -42,7 +42,10 @@
 
 #include <functional>
 
-using Core::ICore;
+using namespace Core;
+using namespace ProjectExplorer;
+using namespace QSsh;
+using namespace Utils;
 
 namespace Mer {
 namespace Internal {
@@ -83,7 +86,7 @@ public:
         setLabelText(title);
         m_sshDirectoryPath = m_sharedPath + QLatin1Char('/') + m_user+ QLatin1Char('/')
                  + QLatin1String(Constants::MER_AUTHORIZEDKEYS_FOLDER);
-        QTimer::singleShot(0, this, SLOT(updateState()));
+        QTimer::singleShot(0, this, &PublicKeyDeploymentDialog::updateState);
     }
 
 private slots:
@@ -96,7 +99,7 @@ private slots:
             setCancelButtonText(tr("Close"));
             setValue(0);
             show();
-            QTimer::singleShot(1, this, SLOT(updateState()));
+            QTimer::singleShot(1, this, &PublicKeyDeploymentDialog::updateState);
             break;
         case RemoveOldKeys:
             m_state = GenerateSsh;
@@ -109,7 +112,7 @@ private slots:
                 QFile(m_sshDirectoryPath).remove();
             }
             setValue(1);
-            QTimer::singleShot(0, this, SLOT(updateState()));
+            QTimer::singleShot(0, this, &PublicKeyDeploymentDialog::updateState);
             break;
         case GenerateSsh:
             m_state = Deploy;
@@ -122,7 +125,7 @@ private slots:
                 m_state = Error;
                 }
             }
-            QTimer::singleShot(0, this, SLOT(updateState()));
+            QTimer::singleShot(0, this, &PublicKeyDeploymentDialog::updateState);
             break;
         case Deploy: {
             m_state = Idle;
@@ -130,7 +133,7 @@ private slots:
             if(m_sharedPath.isEmpty()) {
                 m_state = Error;
                 m_error.append(tr("SharedPath for emulator not found for this device"));
-                QTimer::singleShot(0, this, SLOT(updateState()));
+                QTimer::singleShot(0, this, &PublicKeyDeploymentDialog::updateState);
                 return;
             }
 
@@ -141,7 +144,7 @@ private slots:
                 setLabelText(tr("Deployed"));
                 setCancelButtonText(tr("Close"));
             }
-            QTimer::singleShot(0, this, SLOT(updateState()));
+            QTimer::singleShot(0, this, &PublicKeyDeploymentDialog::updateState);
             break;
         }
         case Error:
@@ -174,7 +177,7 @@ MerEmulatorDevice::Ptr MerEmulatorDevice::create()
 }
 
 
-ProjectExplorer::IDevice::Ptr MerEmulatorDevice::clone() const
+IDevice::Ptr MerEmulatorDevice::clone() const
 {
     return Ptr(new MerEmulatorDevice(*this));
 }
@@ -199,7 +202,7 @@ MerEmulatorDevice::~MerEmulatorDevice()
 #endif
 }
 
-ProjectExplorer::IDeviceWidget *MerEmulatorDevice::createWidget()
+IDeviceWidget *MerEmulatorDevice::createWidget()
 {
     return new MerEmulatorDeviceWidget(sharedFromThis());
 }
@@ -238,7 +241,7 @@ void MerEmulatorDevice::executeAction(Core::Id actionId, QWidget *parent)
     }
 }
 
-ProjectExplorer::DeviceTester *MerEmulatorDevice::createDeviceTester() const
+DeviceTester *MerEmulatorDevice::createDeviceTester() const
 {
     return new MerEmulatorDeviceTester;
 }
@@ -272,9 +275,9 @@ QVariantMap MerEmulatorDevice::toMap() const
     return map;
 }
 
-ProjectExplorer::Abi::Architecture MerEmulatorDevice::architecture() const
+Abi::Architecture MerEmulatorDevice::architecture() const
 {
-    return ProjectExplorer::Abi::X86Architecture;
+    return Abi::X86Architecture;
 }
 
 void MerEmulatorDevice::setMac(const QString& mac)
@@ -323,7 +326,7 @@ void MerEmulatorDevice::generateSshKey(const QString& user) const
         QString index(QLatin1String("/ssh/private_keys/%1/"));
         //TODO fix me:
         QString privateKeyFile = m_sharedConfigPath +
-                index.arg(virtualMachine()).replace(QLatin1String(" "),QLatin1String("_")) + user;
+                index.arg(virtualMachine()).replace(QLatin1Char(' '), QLatin1Char('_')) + user;
         PublicKeyDeploymentDialog dialog(privateKeyFile, virtualMachine(),
                                          user, sharedSshPath(), ICore::dialogParent());
 
@@ -333,13 +336,13 @@ void MerEmulatorDevice::generateSshKey(const QString& user) const
     }
 }
 
-QSsh::SshConnectionParameters MerEmulatorDevice::sshParametersForUser(const QSsh::SshConnectionParameters &sshParams, const QLatin1String &user) const
+SshConnectionParameters MerEmulatorDevice::sshParametersForUser(const SshConnectionParameters &sshParams, const QLatin1String &user) const
 {
     QString index(QLatin1String("/ssh/private_keys/%1/"));
     //TODO fix me:
     QString privateKeyFile = sharedConfigPath()  +
-            index.arg(virtualMachine()).replace(QLatin1String(" "),QLatin1String("_")) + user;
-    QSsh::SshConnectionParameters m_sshParams = sshParams;
+            index.arg(virtualMachine()).replace(QLatin1Char(' '), QLatin1Char('_')) + user;
+    SshConnectionParameters m_sshParams = sshParams;
     m_sshParams.userName = user;
     m_sshParams.privateKeyFile = privateKeyFile;
 
@@ -497,7 +500,7 @@ void MerEmulatorDevice::setVideoMode()
     QTC_ASSERT(!sharedConfigPath().isEmpty(), return);
     const QString file = QDir(sharedConfigPath())
         .absoluteFilePath(QLatin1String(Constants::MER_COMPOSITOR_CONFIG_FILENAME));
-    Utils::FileSaver saver(file, QIODevice::WriteOnly);
+    FileSaver saver(file, QIODevice::WriteOnly);
 
     // Keep environment clean if scaling is disabled - may help in case of errors
     const QString maybeCommentOut = m_viewScaled ? QString() : QString(QStringLiteral("#"));

@@ -1,5 +1,3 @@
-include(../../qtcreator.pri)
-
 TEMPLATE = app
 TARGET = phony_target
 CONFIG -= qt sdk separate_debug_info gdb_dwarf_index
@@ -23,11 +21,15 @@ isEmpty(vcproj) {
     QMAKE_EXTRA_COMPILERS += phony_src
 }
 
+STATIC_BASE = $$PWD
+
+# files/folders that are conditionally "deployed" to the build directory
 DATA_DIRS = \
     welcomescreen \
     examplebrowser \
     snippets \
     templates \
+    themes \
     designer \
     schemes \
     styles \
@@ -45,41 +47,19 @@ macx: DATA_DIRS += scripts
 
 for(data_dir, DATA_DIRS) {
     files = $$files($$PWD/$$data_dir/*, true)
-    win32:files ~= s|\\\\|/|g
     # Info.plist.in are handled below
-    for(file, files):!contains(file, ".*/Info\\.plist\\.in$"):!exists($$file/*):FILES += $$file
-}
-OTHER_FILES += $$FILES
-
-# conditionally deployed data
-!isEmpty(copydata) {
-    copy2build.input = FILES
-    copy2build.output = $$IDE_DATA_PATH/${QMAKE_FUNC_FILE_IN_stripSrcDir}
-    isEmpty(vcproj):copy2build.variable_out = PRE_TARGETDEPS
-    win32:copy2build.commands = $$QMAKE_COPY \"${QMAKE_FILE_IN}\" \"${QMAKE_FILE_OUT}\"
-    unix:copy2build.commands = $$QMAKE_COPY ${QMAKE_FILE_IN} ${QMAKE_FILE_OUT}
-    copy2build.name = COPY ${QMAKE_FILE_IN}
-    copy2build.CONFIG += no_link
-    QMAKE_EXTRA_COMPILERS += copy2build
+    for(file, files):!contains(file, ".*/Info\\.plist\\.in$"):!exists($$file/*): \
+        STATIC_FILES += $$file
 }
 
-!macx {
-    for(data_dir, DATA_DIRS) {
-        eval($${data_dir}.files = $$quote($$PWD/$$data_dir))
-        eval($${data_dir}.path = $$QTC_PREFIX/share/qtcreator)
-        INSTALLS += $$data_dir
-    }
-} else {
+include(static.pri)
+
+# stuff that cannot be handled by static.pri
+osx {
    # do version magic for app bundles
    dumpinfo.input = qml/qmldump/Info.plist.in
    dumpinfo.output = $$IDE_DATA_PATH/qml/qmldump/Info.plist
    QMAKE_SUBSTITUTES += dumpinfo
-   puppetinfo.input = qml/qmlpuppet/qmlpuppet/Info.plist.in
-   puppetinfo.output = $$IDE_DATA_PATH/qml/qmlpuppet/qmlpuppet/Info.plist
-   QMAKE_SUBSTITUES += puppetinfo
-   puppet2info.input = qml/qmlpuppet/qml2puppet/Info.plist.in
-   puppet2info.output = $$IDE_DATA_PATH/qml/qmlpuppet/qml2puppet/Info.plist
-   QMAKE_SUBSTITUES += puppetinfo
 }
 
 SRCRESOURCEDIR = $$IDE_SOURCE_TREE/src/share/qtcreator/
@@ -89,7 +69,7 @@ defineReplace(stripSrcResourceDir) {
     } else {
         !contains(1, ^/.*):1 = $$OUT_PWD/$$1
     }
-    out = $$cleanPath($$1)
+    out = $$clean_path($$1)
     out ~= s|^$$re_escape($$SRCRESOURCEDIR)||$$i_flag
     return($$out)
 }
@@ -110,7 +90,6 @@ unix {
     DATA_FILES_SRC += externaltools/notepad_win.xml
 }
 for(file, DATA_FILES_SRC):DATA_FILES += $${SRCRESOURCEDIR}$$file
-OTHER_FILES += $$DATA_FILES
 unconditionalCopy2build.input = DATA_FILES
 unconditionalCopy2build.output = $$IDE_DATA_PATH/${QMAKE_FUNC_FILE_IN_stripSrcResourceDir}
 isEmpty(vcproj):unconditionalCopy2build.variable_out = PRE_TARGETDEPS

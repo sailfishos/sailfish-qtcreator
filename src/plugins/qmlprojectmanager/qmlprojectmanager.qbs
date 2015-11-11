@@ -1,7 +1,5 @@
 import qbs 1.0
 
-import QtcPlugin
-
 QtcPlugin {
     name: "QmlProjectManager"
 
@@ -11,15 +9,11 @@ QtcPlugin {
 
     Depends { name: "Core" }
     Depends { name: "ProjectExplorer" }
-    Depends { name: "QmlJSTools" }
     Depends { name: "QtSupport" }
 
     Group {
         name: "General"
         files: [
-            "qmlapp.cpp", "qmlapp.h",
-            "qmlapplicationwizard.cpp", "qmlapplicationwizard.h",
-            "qmlapplicationwizardpages.cpp", "qmlapplicationwizardpages.h",
             "qmlproject.cpp", "qmlproject.h",
             "qmlproject.qrc",
             "qmlprojectconstants.h",

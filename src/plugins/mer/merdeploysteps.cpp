@@ -41,7 +41,6 @@
 
 #include <coreplugin/icore.h>
 #include <coreplugin/idocument.h>
-#include <coreplugin/variablemanager.h>
 #include <extensionsystem/pluginmanager.h>
 #include <projectexplorer/buildconfiguration.h>
 #include <projectexplorer/buildstep.h>
@@ -54,13 +53,17 @@
 #include <qmakeprojectmanager/qmakebuildconfiguration.h>
 #include <qtsupport/baseqtversion.h>
 #include <qtsupport/qtkitinformation.h>
+#include <utils/macroexpander.h>
 #include <utils/qtcassert.h>
 
 #include <QMessageBox>
 #include <QTimer>
 
+using namespace Core;
 using namespace ProjectExplorer;
-using Core::ICore;
+using namespace QmakeProjectManager;
+using namespace QSsh;
+using namespace Utils;
 
 namespace Mer {
 namespace Internal {
@@ -69,7 +72,7 @@ namespace {
 const int CONNECTION_TEST_CHECK_FOR_CANCEL_INTERVAL = 2000;
 }
 
-class MerConnectionTestStepConfigWidget : public ProjectExplorer::SimpleBuildStepConfigWidget
+class MerConnectionTestStepConfigWidget : public SimpleBuildStepConfigWidget
 {
     Q_OBJECT
 
@@ -79,7 +82,7 @@ public:
     {
     }
 
-    QString summaryText() const
+    QString summaryText() const override
     {
         return QString::fromLatin1("<b>%1:</b> %2")
             .arg(displayName())
@@ -87,7 +90,7 @@ public:
     }
 };
 
-class MerPrepareTargetStepConfigWidget : public ProjectExplorer::SimpleBuildStepConfigWidget
+class MerPrepareTargetStepConfigWidget : public SimpleBuildStepConfigWidget
 {
     Q_OBJECT
 
@@ -97,7 +100,7 @@ public:
     {
     }
 
-    QString summaryText() const
+    QString summaryText() const override
     {
         return QString::fromLatin1("<b>%1:</b> %2")
             .arg(displayName())
@@ -105,13 +108,13 @@ public:
     }
 };
 
-MerProcessStep::MerProcessStep(ProjectExplorer::BuildStepList *bsl,const Core::Id id)
+MerProcessStep::MerProcessStep(BuildStepList *bsl, Id id)
     :AbstractProcessStep(bsl,id)
 {
 
 }
 
-MerProcessStep::MerProcessStep(ProjectExplorer::BuildStepList *bsl, MerProcessStep *bs)
+MerProcessStep::MerProcessStep(BuildStepList *bsl, MerProcessStep *bs)
     :AbstractProcessStep(bsl,bs)
 {
 
@@ -119,9 +122,9 @@ MerProcessStep::MerProcessStep(ProjectExplorer::BuildStepList *bsl, MerProcessSt
 
 bool MerProcessStep::init(InitOptions options)
 {
-    QmakeProjectManager::QmakeBuildConfiguration *bc = qobject_cast<QmakeProjectManager::QmakeBuildConfiguration*>(buildConfiguration());
+    QmakeBuildConfiguration *bc = qobject_cast<QmakeBuildConfiguration*>(buildConfiguration());
     if (!bc)
-        bc =  qobject_cast<QmakeProjectManager::QmakeBuildConfiguration*>(target()->activeBuildConfiguration());
+        bc =  qobject_cast<QmakeBuildConfiguration*>(target()->activeBuildConfiguration());
 
     if (!bc) {
         addOutput(tr("Cannot deploy: No active build configuration."),
@@ -152,14 +155,14 @@ bool MerProcessStep::init(InitOptions options)
     }
 
 
-    const QString projectDirectory = bc->isShadowBuild() ? bc->rawBuildDirectory().toString() : project()->projectDirectory();
+    const QString projectDirectory = bc->isShadowBuild() ? bc->rawBuildDirectory().toString() : project()->projectDirectory().toString();
     const QString wrapperScriptsDir =  MerSdkManager::sdkToolsDirectory() + merSdk->virtualMachineName()
             + QLatin1Char('/') + target;
     const QString deployCommand = wrapperScriptsDir + QLatin1Char('/') + QLatin1String(Constants::MER_WRAPPER_DEPLOY);
 
     ProcessParameters *pp = processParameters();
 
-    Utils::Environment env = bc ? bc->environment() : Utils::Environment::systemEnvironment();
+    Environment env = bc ? bc->environment() : Environment::systemEnvironment();
 
     // By default, MER_SSH_PROJECT_PATH is set to the project explorer variable
     // "%{CurrentProject:Path}". If multiple projects are open, "CurrentProject" may
@@ -167,12 +170,12 @@ bool MerProcessStep::init(InitOptions options)
     // to RPM build looking for files in the wrong project. Instead, MER_SSH_PROJECT_PATH
     // needs to be set to the source directory of the active project. Note that this path
     // is the same, whether or not shadow builds are enabled.
-    env.set(QLatin1String(Constants::MER_SSH_PROJECT_PATH), project()->projectDirectory());
+    env.set(QLatin1String(Constants::MER_SSH_PROJECT_PATH), project()->projectDirectory().toString());
 
     //TODO HACK
     if(!device.isNull())
         env.appendOrSet(QLatin1String(Constants::MER_SSH_DEVICE_NAME),device->displayName());
-    pp->setMacroExpander(bc ? bc->macroExpander() : Core::VariableManager::macroExpander());
+    pp->setMacroExpander(bc ? bc->macroExpander() : Utils::globalMacroExpander());
     pp->setEnvironment(env);
     pp->setWorkingDirectory(projectDirectory);
     pp->setCommand(deployCommand);
@@ -197,7 +200,7 @@ MerDeployConfiguration *MerProcessStep::deployConfiguration() const
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
-const Core::Id MerEmulatorStartStep::stepId()
+Core::Id MerEmulatorStartStep::stepId()
 {
     return Core::Id("QmakeProjectManager.MerEmulatorStartStep");
 }
@@ -213,7 +216,7 @@ MerEmulatorStartStep::MerEmulatorStartStep(BuildStepList *bsl)
     setDefaultDisplayName(displayName());
 }
 
-MerEmulatorStartStep::MerEmulatorStartStep(ProjectExplorer::BuildStepList *bsl, MerEmulatorStartStep *bs)
+MerEmulatorStartStep::MerEmulatorStartStep(BuildStepList *bsl, MerEmulatorStartStep *bs)
     : MerAbstractVmStartStep(bsl, bs)
 {
     setDefaultDisplayName(displayName());
@@ -235,7 +238,7 @@ bool MerEmulatorStartStep::init()
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
-const Core::Id MerConnectionTestStep::stepId()
+Core::Id MerConnectionTestStep::stepId()
 {
     return Core::Id("QmakeProjectManager.MerConnectionTestStep");
 }
@@ -245,13 +248,13 @@ QString MerConnectionTestStep::displayName()
     return tr("Test Device Connection");
 }
 
-MerConnectionTestStep::MerConnectionTestStep(ProjectExplorer::BuildStepList *bsl)
+MerConnectionTestStep::MerConnectionTestStep(BuildStepList *bsl)
     : BuildStep(bsl, stepId())
 {
     setDefaultDisplayName(displayName());
 }
 
-MerConnectionTestStep::MerConnectionTestStep(ProjectExplorer::BuildStepList *bsl,
+MerConnectionTestStep::MerConnectionTestStep(BuildStepList *bsl,
         MerConnectionTestStep *bs)
     : BuildStep(bsl, bs)
 {
@@ -280,24 +283,24 @@ void MerConnectionTestStep::run(QFutureInterface<bool> &fi)
 
     m_futureInterface = &fi;
 
-    m_connection = new QSsh::SshConnection(d->sshParameters(), this);
-    connect(m_connection, SIGNAL(connected()),
-            this, SLOT(onConnected()));
-    connect(m_connection, SIGNAL(error(QSsh::SshError)),
-            this, SLOT(onConnectionFailure()));
+    m_connection = new SshConnection(d->sshParameters(), this);
+    connect(m_connection, &SshConnection::connected,
+            this, &MerConnectionTestStep::onConnected);
+    connect(m_connection, &SshConnection::error,
+            this, &MerConnectionTestStep::onConnectionFailure);
 
     emit addOutput(tr("%1: Testing connection to \"%2\"...")
             .arg(displayName()).arg(d->displayName()), MessageOutput);
 
     m_checkForCancelTimer = new QTimer(this);
-    connect(m_checkForCancelTimer, SIGNAL(timeout()),
-            this, SLOT(checkForCancel()));
+    connect(m_checkForCancelTimer, &QTimer::timeout,
+            this, &MerConnectionTestStep::checkForCancel);
     m_checkForCancelTimer->start(CONNECTION_TEST_CHECK_FOR_CANCEL_INTERVAL);
 
     m_connection->connectToHost();
 }
 
-ProjectExplorer::BuildStepConfigWidget *MerConnectionTestStep::createConfigWidget()
+BuildStepConfigWidget *MerConnectionTestStep::createConfigWidget()
 {
     return new MerConnectionTestStepConfigWidget(this);
 }
@@ -349,7 +352,7 @@ void MerConnectionTestStep::finish(bool result)
  * Wraps either MerEmulatorStartStep or MerConnectionTestStep based on IDevice::machineType
  */
 
-const Core::Id MerPrepareTargetStep::stepId()
+Core::Id MerPrepareTargetStep::stepId()
 {
     return Core::Id("QmakeProjectManager.MerPrepareTargetStep");
 }
@@ -359,13 +362,13 @@ QString MerPrepareTargetStep::displayName()
     return tr("Prepare Target");
 }
 
-MerPrepareTargetStep::MerPrepareTargetStep(ProjectExplorer::BuildStepList *bsl)
+MerPrepareTargetStep::MerPrepareTargetStep(BuildStepList *bsl)
     : BuildStep(bsl, stepId())
 {
     setDefaultDisplayName(displayName());
 }
 
-MerPrepareTargetStep::MerPrepareTargetStep(ProjectExplorer::BuildStepList *bsl,
+MerPrepareTargetStep::MerPrepareTargetStep(BuildStepList *bsl,
         MerPrepareTargetStep *bs)
     : BuildStep(bsl, bs)
 {
@@ -392,14 +395,12 @@ bool MerPrepareTargetStep::init()
         return false;
     }
 
-    connect(m_impl, SIGNAL(addTask(ProjectExplorer::Task)),
-            this, SIGNAL(addTask(ProjectExplorer::Task)));
-    connect(m_impl,
-            SIGNAL(addOutput(QString,ProjectExplorer::BuildStep::OutputFormat,ProjectExplorer::BuildStep::OutputNewlineSetting)),
-            this,
-            SIGNAL(addOutput(QString,ProjectExplorer::BuildStep::OutputFormat,ProjectExplorer::BuildStep::OutputNewlineSetting)));
-    connect(m_impl, SIGNAL(finished()),
-            this, SLOT(onImplFinished()));
+    connect(m_impl, &BuildStep::addTask,
+            this, &MerPrepareTargetStep::addTask);
+    connect(m_impl, &BuildStep::addOutput,
+            this, &MerPrepareTargetStep::addOutput);
+    connect(m_impl, &BuildStep::finished,
+            this, &MerPrepareTargetStep::onImplFinished);
 
     return true;
 }
@@ -409,7 +410,7 @@ void MerPrepareTargetStep::run(QFutureInterface<bool> &fi)
     m_impl->run(fi);
 }
 
-ProjectExplorer::BuildStepConfigWidget *MerPrepareTargetStep::createConfigWidget()
+BuildStepConfigWidget *MerPrepareTargetStep::createConfigWidget()
 {
     return new MerPrepareTargetStepConfigWidget(this);
 }
@@ -433,7 +434,7 @@ void MerPrepareTargetStep::onImplFinished()
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
-const Core::Id MerMb2RsyncDeployStep::stepId()
+Core::Id MerMb2RsyncDeployStep::stepId()
 {
     return Core::Id("QmakeProjectManager.MerRsyncDeployStep");
 }
@@ -450,7 +451,7 @@ MerMb2RsyncDeployStep::MerMb2RsyncDeployStep(BuildStepList *bsl)
     setArguments(QLatin1String("--rsync"));
 }
 
-MerMb2RsyncDeployStep::MerMb2RsyncDeployStep(ProjectExplorer::BuildStepList *bsl, MerMb2RsyncDeployStep *bs)
+MerMb2RsyncDeployStep::MerMb2RsyncDeployStep(BuildStepList *bsl, MerMb2RsyncDeployStep *bs)
     :MerProcessStep(bsl,bs)
 {
     setDefaultDisplayName(displayName());
@@ -483,7 +484,7 @@ BuildStepConfigWidget *MerMb2RsyncDeployStep::createConfigWidget()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const Core::Id MerLocalRsyncDeployStep::stepId()
+Core::Id MerLocalRsyncDeployStep::stepId()
 {
     return Core::Id("QmakeProjectManager.MerLocalRsyncDeployStep");
 }
@@ -499,7 +500,7 @@ MerLocalRsyncDeployStep::MerLocalRsyncDeployStep(BuildStepList *bsl)
     setDefaultDisplayName(displayName());
 }
 
-MerLocalRsyncDeployStep::MerLocalRsyncDeployStep(ProjectExplorer::BuildStepList *bsl, MerLocalRsyncDeployStep *bs)
+MerLocalRsyncDeployStep::MerLocalRsyncDeployStep(BuildStepList *bsl, MerLocalRsyncDeployStep *bs)
     :MerProcessStep(bsl,bs)
 {
     setDefaultDisplayName(displayName());
@@ -507,9 +508,9 @@ MerLocalRsyncDeployStep::MerLocalRsyncDeployStep(ProjectExplorer::BuildStepList 
 
 bool MerLocalRsyncDeployStep::init()
 {
-    QmakeProjectManager::QmakeBuildConfiguration *bc = qobject_cast<QmakeProjectManager::QmakeBuildConfiguration*>(buildConfiguration());
+    QmakeBuildConfiguration *bc = qobject_cast<QmakeBuildConfiguration*>(buildConfiguration());
     if (!bc)
-        bc =  qobject_cast<QmakeProjectManager::QmakeBuildConfiguration*>(target()->activeBuildConfiguration());
+        bc =  qobject_cast<QmakeBuildConfiguration*>(target()->activeBuildConfiguration());
 
     if (!bc) {
         addOutput(tr("Cannot deploy: No active build configuration."),
@@ -531,13 +532,13 @@ bool MerLocalRsyncDeployStep::init()
         return false;
     }
 
-    const QString projectDirectory = bc->isShadowBuild() ? bc->rawBuildDirectory().toString() : project()->projectDirectory();
+    const QString projectDirectory = bc->isShadowBuild() ? bc->rawBuildDirectory().toString() : project()->projectDirectory().toString();
     const QString deployCommand = QLatin1String("rsync");
 
     ProcessParameters *pp = processParameters();
 
-    Utils::Environment env = bc ? bc->environment() : Utils::Environment::systemEnvironment();
-    pp->setMacroExpander(bc ? bc->macroExpander() : Core::VariableManager::macroExpander());
+    Environment env = bc ? bc->environment() : Environment::systemEnvironment();
+    pp->setMacroExpander(bc ? bc->macroExpander() : Utils::globalMacroExpander());
     pp->setEnvironment(env);
     pp->setWorkingDirectory(projectDirectory);
     pp->setCommand(deployCommand);
@@ -569,7 +570,7 @@ BuildStepConfigWidget *MerLocalRsyncDeployStep::createConfigWidget()
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-const Core::Id MerMb2RpmDeployStep::stepId()
+Core::Id MerMb2RpmDeployStep::stepId()
 {
     return Core::Id("QmakeProjectManager.MerRpmDeployStep");
 }
@@ -587,7 +588,7 @@ MerMb2RpmDeployStep::MerMb2RpmDeployStep(BuildStepList *bsl)
 }
 
 
-MerMb2RpmDeployStep::MerMb2RpmDeployStep(ProjectExplorer::BuildStepList *bsl, MerMb2RpmDeployStep *bs)
+MerMb2RpmDeployStep::MerMb2RpmDeployStep(BuildStepList *bsl, MerMb2RpmDeployStep *bs)
     :MerProcessStep(bsl,bs)
 {
     setDefaultDisplayName(displayName());
@@ -622,7 +623,7 @@ BuildStepConfigWidget *MerMb2RpmDeployStep::createConfigWidget()
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-const Core::Id MerMb2RpmBuildStep::stepId()
+Core::Id MerMb2RpmBuildStep::stepId()
 {
     return Core::Id("QmakeProjectManager.MerRpmBuildStep");
 }
@@ -639,7 +640,7 @@ MerMb2RpmBuildStep::MerMb2RpmBuildStep(BuildStepList *bsl)
 }
 
 
-MerMb2RpmBuildStep::MerMb2RpmBuildStep(ProjectExplorer::BuildStepList *bsl, MerMb2RpmBuildStep *bs)
+MerMb2RpmBuildStep::MerMb2RpmBuildStep(BuildStepList *bsl, MerMb2RpmBuildStep *bs)
     :MerProcessStep(bsl,bs)
 {
     setDefaultDisplayName(displayName());
@@ -711,7 +712,7 @@ void MerMb2RpmBuildStep::stdOutput(const QString &line)
 RpmInfo::RpmInfo(const QStringList& list):
     m_list(list)
 {
-    QTimer::singleShot(0,this,SLOT(info()));
+    QTimer::singleShot(0, this, &RpmInfo::info);
 }
 
 void RpmInfo::info()
@@ -730,7 +731,7 @@ void RpmInfo::info()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const Core::Id MerRpmValidationStep::stepId()
+Core::Id MerRpmValidationStep::stepId()
 {
     return Core::Id("QmakeProjectManager.MerRpmValidationStep");
 }
@@ -748,7 +749,7 @@ MerRpmValidationStep::MerRpmValidationStep(BuildStepList *bsl)
 }
 
 
-MerRpmValidationStep::MerRpmValidationStep(ProjectExplorer::BuildStepList *bsl, MerRpmValidationStep *bs)
+MerRpmValidationStep::MerRpmValidationStep(BuildStepList *bsl, MerRpmValidationStep *bs)
     :MerProcessStep(bsl,bs)
 {
     setEnabled(MerSettings::rpmValidationByDefault());
@@ -819,8 +820,8 @@ MerDeployStepWidget::MerDeployStepWidget(MerProcessStep *step)
 {
     m_ui.setupUi(this);
     m_ui.commandArgumentsLineEdit->setText(m_step->arguments());
-    connect(m_ui.commandArgumentsLineEdit, SIGNAL(textEdited(QString)),
-            this, SLOT(commandArgumentsLineEditTextEdited()));
+    connect(m_ui.commandArgumentsLineEdit, &QLineEdit::textEdited,
+            this, &MerDeployStepWidget::commandArgumentsLineEditTextEdited);
 }
 
 QString MerDeployStepWidget::summaryText() const

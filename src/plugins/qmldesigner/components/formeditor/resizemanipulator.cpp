@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -86,10 +87,10 @@ void ResizeManipulator::begin(const QPointF &/*beginPoint*/)
         m_beginBottomRightPoint = m_beginToParentTransform.map(m_resizeController.formEditorItem()->qmlItemNode().instanceBoundingRect().bottomRight());
 
         QmlAnchors anchors(m_resizeController.formEditorItem()->qmlItemNode().anchors());
-        m_beginTopMargin = anchors.instanceMargin(AnchorLine::Top);
-        m_beginLeftMargin = anchors.instanceMargin(AnchorLine::Left);
-        m_beginRightMargin = anchors.instanceMargin(AnchorLine::Right);
-        m_beginBottomMargin = anchors.instanceMargin(AnchorLine::Bottom);
+        m_beginTopMargin = anchors.instanceMargin(AnchorLineTop);
+        m_beginLeftMargin = anchors.instanceMargin(AnchorLineLeft);
+        m_beginRightMargin = anchors.instanceMargin(AnchorLineRight);
+        m_beginBottomMargin = anchors.instanceMargin(AnchorLineBottom);
     }
 }
 
@@ -135,10 +136,10 @@ void ResizeManipulator::update(const QPointF& updatePoint, Snapper::Snapping use
             }
             boundingRect.setBottomRight(updatePointInLocalSpace);
 
-            if (anchors.instanceHasAnchor(AnchorLine::HorizontalCenter))
+            if (anchors.instanceHasAnchor(AnchorLineHorizontalCenter))
                 boundingRect.setLeft(boundingRect.left() - (updatePointInLocalSpace.x() - m_beginBoundingRect.right()));
 
-            if (anchors.instanceHasAnchor(AnchorLine::VerticalCenter))
+            if (anchors.instanceHasAnchor(AnchorLineVerticalCenter))
                 boundingRect.setTop(boundingRect.top() - (updatePointInLocalSpace.y() - m_beginBoundingRect.bottom()));
 
             if (boundingRect.width() < minimumWidth)
@@ -148,13 +149,13 @@ void ResizeManipulator::update(const QPointF& updatePoint, Snapper::Snapping use
 
             formEditorItem->qmlItemNode().setSize(boundingRect.size());
 
-            if (anchors.instanceHasAnchor(AnchorLine::Bottom)) {
-               anchors.setMargin(AnchorLine::Bottom,
+            if (anchors.instanceHasAnchor(AnchorLineBottom)) {
+               anchors.setMargin(AnchorLineBottom,
                        m_beginBottomMargin - (m_beginToParentTransform.map(boundingRect.bottomRight())  - m_beginBottomRightPoint).y());
             }
 
-            if (anchors.instanceHasAnchor(AnchorLine::Right)) {
-               anchors.setMargin(AnchorLine::Right,
+            if (anchors.instanceHasAnchor(AnchorLineRight)) {
+               anchors.setMargin(AnchorLineRight,
                        m_beginRightMargin - (m_beginToParentTransform.map(boundingRect.bottomRight()) - m_beginBottomRightPoint).x());
             }
         } else if (m_resizeHandle->isTopLeftHandle()) {
@@ -171,10 +172,10 @@ void ResizeManipulator::update(const QPointF& updatePoint, Snapper::Snapping use
             }
             boundingRect.setTopLeft(updatePointInLocalSpace);
 
-            if (anchors.instanceHasAnchor(AnchorLine::HorizontalCenter))
+            if (anchors.instanceHasAnchor(AnchorLineHorizontalCenter))
                 boundingRect.setRight(boundingRect.right() - (updatePointInLocalSpace.x() - m_beginBoundingRect.left()));
 
-            if (anchors.instanceHasAnchor(AnchorLine::VerticalCenter))
+            if (anchors.instanceHasAnchor(AnchorLineVerticalCenter))
                 boundingRect.setBottom(boundingRect.bottom() - (updatePointInLocalSpace.y() - m_beginBoundingRect.top()));
 
 
@@ -187,13 +188,13 @@ void ResizeManipulator::update(const QPointF& updatePoint, Snapper::Snapping use
             formEditorItem->qmlItemNode().setPosition(m_beginToParentTransform.map(boundingRect.topLeft()));
 
 
-            if (anchors.instanceHasAnchor(AnchorLine::Top)) {
-               anchors.setMargin(AnchorLine::Top,
+            if (anchors.instanceHasAnchor(AnchorLineTop)) {
+               anchors.setMargin(AnchorLineTop,
                        m_beginTopMargin + (-m_beginToParentTransform.map(m_beginBoundingRect.topLeft()).y() + m_beginToParentTransform.map(boundingRect.topLeft()).y()));
             }
 
-            if (anchors.instanceHasAnchor(AnchorLine::Left)) {
-               anchors.setMargin(AnchorLine::Left,
+            if (anchors.instanceHasAnchor(AnchorLineLeft)) {
+               anchors.setMargin(AnchorLineLeft,
                        m_beginLeftMargin + (-m_beginToParentTransform.map(m_beginBoundingRect.topLeft()).x() + m_beginToParentTransform.map(boundingRect.topLeft()).x()));
             }
 
@@ -211,10 +212,10 @@ void ResizeManipulator::update(const QPointF& updatePoint, Snapper::Snapping use
             }
             boundingRect.setTopRight(updatePointInLocalSpace);
 
-            if (anchors.instanceHasAnchor(AnchorLine::HorizontalCenter))
+            if (anchors.instanceHasAnchor(AnchorLineHorizontalCenter))
                 boundingRect.setLeft(boundingRect.left() - (updatePointInLocalSpace.x() - m_beginBoundingRect.right()));
 
-            if (anchors.instanceHasAnchor(AnchorLine::VerticalCenter))
+            if (anchors.instanceHasAnchor(AnchorLineVerticalCenter))
                 boundingRect.setBottom(boundingRect.bottom() - (updatePointInLocalSpace.y() - m_beginBoundingRect.top()));
 
             if (boundingRect.height() < minimumHeight)
@@ -225,13 +226,13 @@ void ResizeManipulator::update(const QPointF& updatePoint, Snapper::Snapping use
             formEditorItem->qmlItemNode().setSize(boundingRect.size());
             formEditorItem->qmlItemNode().setPosition( m_beginToParentTransform.map(boundingRect.topLeft()));
 
-            if (anchors.instanceHasAnchor(AnchorLine::Top)) {
-               anchors.setMargin(AnchorLine::Top,
+            if (anchors.instanceHasAnchor(AnchorLineTop)) {
+               anchors.setMargin(AnchorLineTop,
                        m_beginTopMargin + (-m_beginToParentTransform.map(m_beginBoundingRect.topLeft()).y() + m_beginToParentTransform.map(boundingRect.topLeft()).y()));
             }
 
-            if (anchors.instanceHasAnchor(AnchorLine::Right)) {
-               anchors.setMargin(AnchorLine::Right,
+            if (anchors.instanceHasAnchor(AnchorLineRight)) {
+               anchors.setMargin(AnchorLineRight,
                        m_beginRightMargin - (m_beginToParentTransform.map(boundingRect.bottomRight()) - m_beginBottomRightPoint).x());
             }
         } else if (m_resizeHandle->isBottomLeftHandle()) {
@@ -249,10 +250,10 @@ void ResizeManipulator::update(const QPointF& updatePoint, Snapper::Snapping use
 
             boundingRect.setBottomLeft(updatePointInLocalSpace);
 
-            if (anchors.instanceHasAnchor(AnchorLine::HorizontalCenter))
+            if (anchors.instanceHasAnchor(AnchorLineHorizontalCenter))
                 boundingRect.setRight(boundingRect.right() - (updatePointInLocalSpace.x() - m_beginBoundingRect.left()));
 
-            if (anchors.instanceHasAnchor(AnchorLine::VerticalCenter))
+            if (anchors.instanceHasAnchor(AnchorLineVerticalCenter))
                 boundingRect.setTop(boundingRect.top() - (updatePointInLocalSpace.y() - m_beginBoundingRect.bottom()));
 
             if (boundingRect.height() < minimumHeight)
@@ -263,13 +264,13 @@ void ResizeManipulator::update(const QPointF& updatePoint, Snapper::Snapping use
             formEditorItem->qmlItemNode().setSize(boundingRect.size());
             formEditorItem->qmlItemNode().setPosition(m_beginToParentTransform.map(boundingRect.topLeft()));
 
-            if (anchors.instanceHasAnchor(AnchorLine::Left)) {
-               anchors.setMargin(AnchorLine::Left,
+            if (anchors.instanceHasAnchor(AnchorLineLeft)) {
+               anchors.setMargin(AnchorLineLeft,
                        m_beginLeftMargin + (-m_beginToParentTransform.map(m_beginBoundingRect.topLeft()).x() + m_beginToParentTransform.map(boundingRect.topLeft()).x()));
             }
 
-            if (anchors.instanceHasAnchor(AnchorLine::Bottom)) {
-               anchors.setMargin(AnchorLine::Bottom,
+            if (anchors.instanceHasAnchor(AnchorLineBottom)) {
+               anchors.setMargin(AnchorLineBottom,
                        m_beginBottomMargin - (m_beginToParentTransform.map(boundingRect.bottomRight())  - m_beginBottomRightPoint).y());
             }
         } else if (m_resizeHandle->isBottomHandle()) {
@@ -283,7 +284,7 @@ void ResizeManipulator::update(const QPointF& updatePoint, Snapper::Snapping use
 
             boundingRect.setBottom(updatePointInLocalSpace.y());
 
-            if (anchors.instanceHasAnchor(AnchorLine::VerticalCenter))
+            if (anchors.instanceHasAnchor(AnchorLineVerticalCenter))
                 boundingRect.setTop(boundingRect.top() - (updatePointInLocalSpace.y() - m_beginBoundingRect.bottom()));
 
             if (boundingRect.height() < minimumHeight)
@@ -291,8 +292,8 @@ void ResizeManipulator::update(const QPointF& updatePoint, Snapper::Snapping use
 
             formEditorItem->qmlItemNode().setSize(boundingRect.size());
 
-            if (anchors.instanceHasAnchor(AnchorLine::Bottom)) {
-               anchors.setMargin(AnchorLine::Bottom,
+            if (anchors.instanceHasAnchor(AnchorLineBottom)) {
+               anchors.setMargin(AnchorLineBottom,
                        m_beginBottomMargin - (m_beginToParentTransform.map(boundingRect.bottomRight())  - m_beginBottomRightPoint).y());
             }
         } else if (m_resizeHandle->isTopHandle()) {
@@ -306,7 +307,7 @@ void ResizeManipulator::update(const QPointF& updatePoint, Snapper::Snapping use
 
             boundingRect.setTop(updatePointInLocalSpace.y());
 
-            if (anchors.instanceHasAnchor(AnchorLine::VerticalCenter))
+            if (anchors.instanceHasAnchor(AnchorLineVerticalCenter))
                 boundingRect.setBottom(boundingRect.bottom() - (updatePointInLocalSpace.y() - m_beginBoundingRect.top()));
 
             if (boundingRect.height() < minimumHeight)
@@ -315,8 +316,8 @@ void ResizeManipulator::update(const QPointF& updatePoint, Snapper::Snapping use
             formEditorItem->qmlItemNode().setSize(boundingRect.size());
             formEditorItem->qmlItemNode().setPosition(m_beginToParentTransform.map(boundingRect.topLeft()));
 
-            if (anchors.instanceHasAnchor(AnchorLine::Top)) {
-               anchors.setMargin(AnchorLine::Top,
+            if (anchors.instanceHasAnchor(AnchorLineTop)) {
+               anchors.setMargin(AnchorLineTop,
                        m_beginTopMargin + (-m_beginToParentTransform.map(m_beginBoundingRect.topLeft()).y() + m_beginToParentTransform.map(boundingRect.topLeft()).y()));
             }
         } else if (m_resizeHandle->isRightHandle()) {
@@ -330,7 +331,7 @@ void ResizeManipulator::update(const QPointF& updatePoint, Snapper::Snapping use
 
             boundingRect.setRight(updatePointInLocalSpace.x());
 
-            if (anchors.instanceHasAnchor(AnchorLine::HorizontalCenter))
+            if (anchors.instanceHasAnchor(AnchorLineHorizontalCenter))
                 boundingRect.setLeft(boundingRect.left() - (updatePointInLocalSpace.x() - m_beginBoundingRect.right()));
 
             if (boundingRect.width() < minimumWidth)
@@ -339,8 +340,8 @@ void ResizeManipulator::update(const QPointF& updatePoint, Snapper::Snapping use
             formEditorItem->qmlItemNode().setSize(boundingRect.size());
 
 
-            if (anchors.instanceHasAnchor(AnchorLine::Right)) {
-               anchors.setMargin(AnchorLine::Right,
+            if (anchors.instanceHasAnchor(AnchorLineRight)) {
+               anchors.setMargin(AnchorLineRight,
                        m_beginRightMargin - (m_beginToParentTransform.map(boundingRect.bottomRight()) - m_beginBottomRightPoint).x());
             }
         } else if (m_resizeHandle->isLeftHandle()) {
@@ -354,7 +355,7 @@ void ResizeManipulator::update(const QPointF& updatePoint, Snapper::Snapping use
 
             boundingRect.setLeft(updatePointInLocalSpace.x());
 
-            if (anchors.instanceHasAnchor(AnchorLine::HorizontalCenter))
+            if (anchors.instanceHasAnchor(AnchorLineHorizontalCenter))
                 boundingRect.setRight(boundingRect.right() - (updatePointInLocalSpace.x() - m_beginBoundingRect.left()));
 
             if (boundingRect.width() < minimumWidth)
@@ -363,8 +364,8 @@ void ResizeManipulator::update(const QPointF& updatePoint, Snapper::Snapping use
             formEditorItem->qmlItemNode().setSize(boundingRect.size());
             formEditorItem->qmlItemNode().setPosition(m_beginToParentTransform.map(boundingRect.topLeft()));
 
-            if (anchors.instanceHasAnchor(AnchorLine::Left)) {
-               anchors.setMargin(AnchorLine::Left,
+            if (anchors.instanceHasAnchor(AnchorLineLeft)) {
+               anchors.setMargin(AnchorLineLeft,
                        m_beginLeftMargin + (-m_beginToParentTransform.map(m_beginBoundingRect.topLeft()).x() + m_beginToParentTransform.map(boundingRect.topLeft()).x()));
             }
         }
@@ -404,10 +405,10 @@ void ResizeManipulator::moveBy(double deltaX, double deltaY)
             qmlItemNode.setVariantProperty("width", round(qmlItemNode.instanceValue("width").toDouble() - deltaX, 4));
 
 
-            if (anchors.instanceHasAnchor(AnchorLine::Left))
-               anchors.setMargin(AnchorLine::Left, anchors.instanceMargin(AnchorLine::Left) + deltaX);
+            if (anchors.instanceHasAnchor(AnchorLineLeft))
+               anchors.setMargin(AnchorLineLeft, anchors.instanceMargin(AnchorLineLeft) + deltaX);
 
-            if (anchors.instanceHasAnchor(AnchorLine::HorizontalCenter))
+            if (anchors.instanceHasAnchor(AnchorLineHorizontalCenter))
                 qmlItemNode.setVariantProperty("width", round(qmlItemNode.instanceValue("width").toDouble() - (deltaX * 2), 4));
         }
 
@@ -416,10 +417,10 @@ void ResizeManipulator::moveBy(double deltaX, double deltaY)
             || m_resizeController.isBottomRightHandle(resizeHandle())) {
             qmlItemNode.setVariantProperty("width", round(qmlItemNode.instanceValue("width").toDouble() + deltaX, 4));
 
-            if (anchors.instanceHasAnchor(AnchorLine::Right))
-               anchors.setMargin(AnchorLine::Right, round(anchors.instanceMargin(AnchorLine::Right) - deltaX, 4));
+            if (anchors.instanceHasAnchor(AnchorLineRight))
+               anchors.setMargin(AnchorLineRight, round(anchors.instanceMargin(AnchorLineRight) - deltaX, 4));
 
-            if (anchors.instanceHasAnchor(AnchorLine::HorizontalCenter))
+            if (anchors.instanceHasAnchor(AnchorLineHorizontalCenter))
                 qmlItemNode.setVariantProperty("width", round(qmlItemNode.instanceValue("width").toDouble() + (deltaX * 2), 4));
         }
 
@@ -430,10 +431,10 @@ void ResizeManipulator::moveBy(double deltaX, double deltaY)
             qmlItemNode.setVariantProperty("y", round(qmlItemNode.instanceValue("y").toDouble() + deltaY, 4));
             qmlItemNode.setVariantProperty("height", round(qmlItemNode.instanceValue("height").toDouble() - deltaY, 4));
 
-            if (anchors.instanceHasAnchor(AnchorLine::Top))
-               anchors.setMargin(AnchorLine::Top, anchors.instanceMargin(AnchorLine::Top) + deltaY);
+            if (anchors.instanceHasAnchor(AnchorLineTop))
+               anchors.setMargin(AnchorLineTop, anchors.instanceMargin(AnchorLineTop) + deltaY);
 
-            if (anchors.instanceHasAnchor(AnchorLine::VerticalCenter))
+            if (anchors.instanceHasAnchor(AnchorLineVerticalCenter))
                 qmlItemNode.setVariantProperty("height", round(qmlItemNode.instanceValue("height").toDouble() - (deltaY * 2), 4));
         }
 
@@ -442,10 +443,10 @@ void ResizeManipulator::moveBy(double deltaX, double deltaY)
             || m_resizeController.isBottomRightHandle(resizeHandle())) {
             qmlItemNode.setVariantProperty("height",  round(qmlItemNode.instanceValue("height").toDouble() + deltaY, 4));
 
-            if (anchors.instanceHasAnchor(AnchorLine::Bottom))
-               anchors.setMargin(AnchorLine::Bottom, anchors.instanceMargin(AnchorLine::Bottom) - deltaY);
+            if (anchors.instanceHasAnchor(AnchorLineBottom))
+               anchors.setMargin(AnchorLineBottom, anchors.instanceMargin(AnchorLineBottom) - deltaY);
 
-            if (anchors.instanceHasAnchor(AnchorLine::VerticalCenter))
+            if (anchors.instanceHasAnchor(AnchorLineVerticalCenter))
                 qmlItemNode.setVariantProperty("height",  round(qmlItemNode.instanceValue("height").toDouble() + (deltaY * 2), 4));
         }
 

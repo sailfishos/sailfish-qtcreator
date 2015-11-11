@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -37,6 +38,7 @@
 #include <projectexplorer/target.h>
 #include <qtsupport/qtkitinformation.h>
 
+#include <utils/algorithm.h>
 #include <utils/detailswidget.h>
 
 using namespace QmakeProjectManager;
@@ -45,13 +47,12 @@ using namespace ProjectExplorer;
 
 QmakeProjectConfigWidget::QmakeProjectConfigWidget(QmakeBuildConfiguration *bc)
     : NamedWidget(),
-      m_buildConfiguration(bc),
-      m_ignoreChange(false)
+      m_buildConfiguration(bc)
 {
     m_defaultShadowBuildDir
-            = QmakeProject::shadowBuildDirectory(bc->target()->project()->projectFilePath(),
-                                               bc->target()->kit(),
-                                               Utils::FileUtils::qmakeFriendlyName(bc->displayName()));
+            = QmakeBuildConfiguration::shadowBuildDirectory(bc->target()->project()->projectFilePath().toString(),
+                                                            bc->target()->kit(),
+                                                            Utils::FileUtils::qmakeFriendlyName(bc->displayName()));
 
     QVBoxLayout *vbox = new QVBoxLayout(this);
     vbox->setMargin(0);
@@ -69,7 +70,7 @@ QmakeProjectConfigWidget::QmakeProjectConfigWidget(QmakeBuildConfiguration *bc)
     m_ui->shadowBuildDirEdit->setExpectedKind(Utils::PathChooser::ExistingDirectory);
     m_ui->shadowBuildDirEdit->setHistoryCompleter(QLatin1String("Qmake.BuildDir.History"));
     m_ui->shadowBuildDirEdit->setEnvironment(bc->environment());
-    m_ui->shadowBuildDirEdit->setBaseDirectory(bc->target()->project()->projectDirectory());
+    m_ui->shadowBuildDirEdit->setBaseFileName(bc->target()->project()->projectDirectory());
     bool isShadowBuild = bc->isShadowBuild();
     if (isShadowBuild) {
         m_ui->shadowBuildDirEdit->setPath(bc->rawBuildDirectory().toString());
@@ -78,7 +79,7 @@ QmakeProjectConfigWidget::QmakeProjectConfigWidget(QmakeBuildConfiguration *bc)
         m_ui->shadowBuildDirEdit->setPath(m_defaultShadowBuildDir);
         m_ui->shadowBuildDirEdit->setVisible(false);
     }
-    m_ui->inSourceBuildDirEdit->setPath(bc->target()->project()->projectDirectory());
+    m_ui->inSourceBuildDirEdit->setFileName(bc->target()->project()->projectDirectory());
     m_ui->inSourceBuildDirEdit->setReadOnly(true);
     m_ui->inSourceBuildDirEdit->setEnabled(false);
 
@@ -155,9 +156,9 @@ void QmakeProjectConfigWidget::buildDirectoryChanged()
 
 void QmakeProjectConfigWidget::onBeforeBeforeShadowBuildDirBrowsed()
 {
-    QString initialDirectory = m_buildConfiguration->target()->project()->projectDirectory();
+    Utils::FileName initialDirectory = m_buildConfiguration->target()->project()->projectDirectory();
     if (!initialDirectory.isEmpty())
-        m_ui->shadowBuildDirEdit->setInitialBrowsePathBackup(initialDirectory);
+        m_ui->shadowBuildDirEdit->setInitialBrowsePathBackup(initialDirectory.toString());
 }
 
 void QmakeProjectConfigWidget::shadowBuildClicked(bool checked)
@@ -193,7 +194,7 @@ void QmakeProjectConfigWidget::updateProblemLabel()
 {
     m_ui->shadowBuildDirEdit->triggerChanged();
     ProjectExplorer::Kit *k = m_buildConfiguration->target()->kit();
-    const QString proFileName = m_buildConfiguration->target()->project()->projectFilePath();
+    const QString proFileName = m_buildConfiguration->target()->project()->projectFilePath().toString();
 
     // Check for Qt version:
     QtSupport::BaseQtVersion *version = QtSupport::QtKitInformation::qtVersion(k);
@@ -235,23 +236,16 @@ void QmakeProjectConfigWidget::updateProblemLabel()
         }
     }
 
-    QString shadowBuildWarning;
-    if (!version->supportsShadowBuilds() && m_buildConfiguration->isShadowBuild()) {
-        shadowBuildWarning = tr("The Qt version %1 does not support shadow builds, building might fail.")
-                .arg(version->displayName())
-                + QLatin1String("<br>");
-    }
-
     if (allGood) {
-        QString buildDirectory = m_buildConfiguration->target()->project()->projectDirectory();
+        QString buildDirectory = m_buildConfiguration->target()->project()->projectDirectory().toString();
         if (m_buildConfiguration->isShadowBuild())
             buildDirectory = m_buildConfiguration->buildDirectory().toString();
         QList<ProjectExplorer::Task> issues;
         issues = version->reportIssues(proFileName, buildDirectory);
-        qSort(issues);
+        Utils::sort(issues);
 
-        if (!issues.isEmpty() || !shadowBuildWarning.isEmpty()) {
-            QString text = QLatin1String("<nobr>") + shadowBuildWarning;
+        if (!issues.isEmpty()) {
+            QString text = QLatin1String("<nobr>");
             foreach (const ProjectExplorer::Task &task, issues) {
                 QString type;
                 switch (task.type) {
@@ -275,17 +269,14 @@ void QmakeProjectConfigWidget::updateProblemLabel()
             return;
         }
     } else if (targetMismatch) {
-        setProblemLabel(shadowBuildWarning + tr("A build for a different project exists in %1, which will be overwritten.",
-                                                "%1 build directory")
+        setProblemLabel(tr("A build for a different project exists in %1, which will be overwritten.",
+                           "%1 build directory")
                         .arg(m_buildConfiguration->buildDirectory().toUserOutput()));
         return;
     } else if (incompatibleBuild) {
-        setProblemLabel(shadowBuildWarning +tr("An incompatible build exists in %1, which will be overwritten.",
-                                               "%1 build directory")
+        setProblemLabel(tr("An incompatible build exists in %1, which will be overwritten.",
+                           "%1 build directory")
                         .arg(m_buildConfiguration->buildDirectory().toUserOutput()));
-        return;
-    } else if (!shadowBuildWarning.isEmpty()) {
-        setProblemLabel(shadowBuildWarning);
         return;
     }
 

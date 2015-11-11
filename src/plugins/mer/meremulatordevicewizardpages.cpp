@@ -34,6 +34,8 @@
 
 #include <QDir>
 
+using namespace ProjectExplorer;
+
 namespace Mer {
 namespace Internal {
 
@@ -53,7 +55,7 @@ MerEmualtorVMPage::MerEmualtorVMPage(QWidget *parent): QWizardPage(parent),
 
     int i = 1;
     QString tryName = preferredName;
-    while (ProjectExplorer::DeviceManager::instance()->hasDevice(tryName))
+    while (DeviceManager::instance()->hasDevice(tryName))
         tryName = preferredName + QString::number(++i);
 
     m_ui->configNameLineEdit->setText(tryName);
@@ -75,8 +77,12 @@ MerEmualtorVMPage::MerEmualtorVMPage(QWidget *parent): QWizardPage(parent),
             }
         }
     }
-    connect(m_ui->emulatorComboBox,SIGNAL(currentIndexChanged(QString)),this,SLOT(handleEmulatorVmChanged(QString)));
-    connect(m_ui->configNameLineEdit, SIGNAL(textChanged(QString)), SIGNAL(completeChanged()));
+    connect(m_ui->emulatorComboBox,
+            static_cast<void (QComboBox::*)(const QString &)>(&QComboBox::currentIndexChanged),
+            this,
+            &MerEmualtorVMPage::handleEmulatorVmChanged);
+    connect(m_ui->configNameLineEdit, &QLineEdit::textChanged,
+            this, &MerEmualtorVMPage::completeChanged);
     handleEmulatorVmChanged(m_ui->emulatorComboBox->currentText());
 }
 
@@ -135,7 +141,7 @@ void MerEmualtorVMPage::handleEmulatorVmChanged(const QString &vmName)
     QStringList freePorts;
     foreach (quint16 port, info.freePorts)
         freePorts << QString::number(port);
-    m_ui->portsLineEdit->setText(freePorts.join(QLatin1String(",")));
+    m_ui->portsLineEdit->setText(freePorts.join(QLatin1Char(',')));
 
     QString configFolder(QDir::toNativeSeparators(info.sharedConfig));
     QString sshFolder(QDir::toNativeSeparators(info.sharedSsh));
@@ -161,7 +167,7 @@ void MerEmualtorVMPage::handleEmulatorVmChanged(const QString &vmName)
 bool MerEmualtorVMPage::isComplete() const
 {
     return !configName().isEmpty()
-            && !ProjectExplorer::DeviceManager::instance()->hasDevice(configName())
+            && !DeviceManager::instance()->hasDevice(configName())
             && !emulatorVm().isEmpty();
 }
 
@@ -191,7 +197,7 @@ void MerEmualtorSshPage::initializePage()
    QTC_ASSERT(wizard,return);
    //TODO: fix me
    QString sshKeyPath(QDir::toNativeSeparators(wizard->sharedConfigPath() +
-                      index.arg(wizard->emulatorVm()).replace(QLatin1String(" "),QLatin1String("_")) +
+                      index.arg(wizard->emulatorVm()).replace(QLatin1Char(' '),QLatin1Char('_')) +
                       QLatin1String("%1")));
    if(!wizard->sharedConfigPath().isEmpty()) {
        m_ui->userSshKeyLabelEdit->setText(sshKeyPath.arg(userName()));

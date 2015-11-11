@@ -50,13 +50,13 @@ namespace Mer {
 namespace Internal {
 
 MerRpmPackagingWidget::MerRpmPackagingWidget(MerRpmPackagingStep *step)
-    : ProjectExplorer::BuildStepConfigWidget(),
+    : BuildStepConfigWidget(),
       m_step(step),
       m_ui(new Ui::MerRpmPackagingWidget)
 {
     m_ui->setupUi(this);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    QTimer::singleShot(0, this, SLOT(initGui()));
+    QTimer::singleShot(0, this, &MerRpmPackagingWidget::initGui);
 }
 
 MerRpmPackagingWidget::~MerRpmPackagingWidget()

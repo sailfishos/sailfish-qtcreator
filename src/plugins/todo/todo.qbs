@@ -1,7 +1,5 @@
 import qbs 1.0
 
-import QtcPlugin
-
 QtcPlugin {
     name: "Todo"
 
@@ -28,6 +26,9 @@ QtcPlugin {
         "optionsdialog.cpp",
         "optionsdialog.h",
         "optionsdialog.ui",
+        "todoprojectsettingswidget.cpp",
+        "todoprojectsettingswidget.h",
+        "todoprojectsettingswidget.ui",
         "optionspage.cpp",
         "optionspage.h",
         "qmljstodoitemsscanner.cpp",
@@ -45,6 +46,8 @@ QtcPlugin {
         "todooutputpane.h",
         "todooutputtreeview.cpp",
         "todooutputtreeview.h",
+        "todooutputtreeviewdelegate.cpp",
+        "todooutputtreeviewdelegate.h",
         "todoplugin.cpp",
         "todoplugin.h",
         "todoplugin.qrc",

@@ -29,6 +29,7 @@
 #include <utils/qtcassert.h>
 
 using namespace ProjectExplorer;
+using namespace QmakeProjectManager;
 
 namespace Mer {
 namespace Internal {
@@ -41,7 +42,7 @@ MerBuildStepFactory::MerBuildStepFactory(QObject *parent)
 QList<Core::Id> MerBuildStepFactory::availableCreationIds(BuildStepList *parent) const
 {
     QList<Core::Id> ids;
-    if (!qobject_cast<QmakeProjectManager::QmakeBuildConfiguration *>(parent->parent()))
+    if (!qobject_cast<QmakeBuildConfiguration *>(parent->parent()))
         return ids;
 
     ids << MerSdkStartStep::stepId();
@@ -49,7 +50,7 @@ QList<Core::Id> MerBuildStepFactory::availableCreationIds(BuildStepList *parent)
     return ids;
 }
 
-QString MerBuildStepFactory::displayNameForId(const Core::Id id) const
+QString MerBuildStepFactory::displayNameForId(Core::Id id) const
 {
     if (id == MerSdkStartStep::stepId())
         return MerSdkStartStep::displayName();
@@ -57,12 +58,12 @@ QString MerBuildStepFactory::displayNameForId(const Core::Id id) const
     return QString();
 }
 
-bool MerBuildStepFactory::canCreate(BuildStepList *parent, const Core::Id id) const
+bool MerBuildStepFactory::canCreate(BuildStepList *parent, Core::Id id) const
 {
     return availableCreationIds(parent).contains(id) && !parent->contains(id);
 }
 
-BuildStep *MerBuildStepFactory::create(BuildStepList *parent, const Core::Id id)
+BuildStep *MerBuildStepFactory::create(BuildStepList *parent, Core::Id id)
 {
     if (id == MerSdkStartStep::stepId())
         return new MerSdkStartStep(parent);

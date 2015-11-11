@@ -1,18 +1,19 @@
 import qbs 1.0
 
-import QtcPlugin
-
 QtcPlugin {
     name: "WinRt"
-    minimumQtVersion: "5.0"
 
     Depends { name: "Core" }
+    Depends { name: "Debugger" }
     Depends { name: "ProjectExplorer" }
     Depends { name: "QtSupport" }
+    Depends { name: "QmakeProjectManager" }
     Depends { name: "Qt.gui" }
 
     files: [
         "winrtconstants.h",
+        "winrtdebugsupport.cpp",
+        "winrtdebugsupport.h",
         "winrtdeployconfiguration.cpp",
         "winrtdeployconfiguration.h",
         "winrtdevice.cpp",
@@ -40,6 +41,8 @@ QtcPlugin {
         "winrtruncontrol.cpp",
         "winrtruncontrol.h",
         "winrtrunfactories.cpp",
-        "winrtrunfactories.h"
+        "winrtrunfactories.h",
+        "winrtrunnerhelper.cpp",
+        "winrtrunnerhelper.h"
     ]
 }

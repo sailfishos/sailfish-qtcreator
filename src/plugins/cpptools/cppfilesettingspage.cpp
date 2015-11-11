@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -35,15 +36,15 @@
 
 #include <coreplugin/icore.h>
 #include <coreplugin/editormanager/editormanager.h>
-#include <coreplugin/mimedatabase.h>
 #include <cppeditor/cppeditorconstants.h>
 
 #include <utils/environment.h>
+#include <utils/fileutils.h>
+#include <utils/mimetypes/mimedatabase.h>
 
 #include <QSettings>
 #include <QDebug>
 #include <QFile>
-#include <QFileInfo>
 #include <QCoreApplication>
 #include <QDate>
 #include <QLocale>
@@ -117,8 +118,17 @@ void CppFileSettings::fromSettings(QSettings *s)
 
 bool CppFileSettings::applySuffixesToMimeDB()
 {
-    return Core::MimeDatabase::setPreferredSuffix(QLatin1String(CppTools::Constants::CPP_SOURCE_MIMETYPE), sourceSuffix)
-            && Core::MimeDatabase::setPreferredSuffix(QLatin1String(CppTools::Constants::CPP_HEADER_MIMETYPE), headerSuffix);
+    Utils::MimeDatabase mdb;
+    Utils::MimeType mt;
+    mt = mdb.mimeTypeForName(QLatin1String(CppTools::Constants::CPP_SOURCE_MIMETYPE));
+    if (!mt.isValid())
+        return false;
+    mt.setPreferredSuffix(sourceSuffix);
+    mt = mdb.mimeTypeForName(QLatin1String(CppTools::Constants::CPP_HEADER_MIMETYPE));
+    if (!mt.isValid())
+        return false;
+    mt.setPreferredSuffix(headerSuffix);
+    return true;
 }
 
 bool CppFileSettings::equals(const CppFileSettings &rhs) const
@@ -156,7 +166,7 @@ static bool keyWordReplacement(const QString &keyWord,
         return true;
     }
     if (keyWord == QLatin1String("%FILENAME%")) {
-        *value = QFileInfo(file).fileName();
+        *value = Utils::FileName::fromString(file).fileName();
         return true;
     }
     if (keyWord == QLatin1String("%DATE%")) {
@@ -254,16 +264,21 @@ CppFileSettingsWidget::CppFileSettingsWidget(QWidget *parent) :
 {
     m_ui->setupUi(this);
     // populate suffix combos
-    if (const Core::MimeType sourceMt = Core::MimeDatabase::findByType(QLatin1String(CppTools::Constants::CPP_SOURCE_MIMETYPE)))
+    Utils::MimeDatabase mdb;
+    const Utils::MimeType sourceMt = mdb.mimeTypeForName(QLatin1String(CppTools::Constants::CPP_SOURCE_MIMETYPE));
+    if (sourceMt.isValid()) {
         foreach (const QString &suffix, sourceMt.suffixes())
             m_ui->sourceSuffixComboBox->addItem(suffix);
+    }
 
-    if (const Core::MimeType headerMt = Core::MimeDatabase::findByType(QLatin1String(CppTools::Constants::CPP_HEADER_MIMETYPE)))
+    const Utils::MimeType headerMt = mdb.mimeTypeForName(QLatin1String(CppTools::Constants::CPP_HEADER_MIMETYPE));
+    if (headerMt.isValid()) {
         foreach (const QString &suffix, headerMt.suffixes())
             m_ui->headerSuffixComboBox->addItem(suffix);
+    }
     m_ui->licenseTemplatePathChooser->setExpectedKind(Utils::PathChooser::File);
     m_ui->licenseTemplatePathChooser->setHistoryCompleter(QLatin1String("Cpp.LicenseTemplate.History"));
-    m_ui->licenseTemplatePathChooser->addButton(tr("Edit..."), this, SLOT(slotEdit()));
+    m_ui->licenseTemplatePathChooser->addButton(tr("Edit..."), this, [this] { slotEdit(); });
 }
 
 CppFileSettingsWidget::~CppFileSettingsWidget()
@@ -311,13 +326,14 @@ static inline void setComboText(QComboBox *cb, const QString &text, int defaultI
 
 void CppFileSettingsWidget::setSettings(const CppFileSettings &s)
 {
+    const QChar comma = QLatin1Char(',');
     m_ui->lowerCaseFileNamesCheckBox->setChecked(s.lowerCaseFiles);
-    m_ui->headerPrefixesEdit->setText(s.headerPrefixes.join(QLatin1String(",")));
-    m_ui->sourcePrefixesEdit->setText(s.sourcePrefixes.join(QLatin1String(",")));
+    m_ui->headerPrefixesEdit->setText(s.headerPrefixes.join(comma));
+    m_ui->sourcePrefixesEdit->setText(s.sourcePrefixes.join(comma));
     setComboText(m_ui->headerSuffixComboBox, s.headerSuffix);
     setComboText(m_ui->sourceSuffixComboBox, s.sourceSuffix);
-    m_ui->headerSearchPathsEdit->setText(s.headerSearchPaths.join(QLatin1String(",")));
-    m_ui->sourceSearchPathsEdit->setText(s.sourceSearchPaths.join(QLatin1String(",")));
+    m_ui->headerSearchPathsEdit->setText(s.headerSearchPaths.join(comma));
+    m_ui->sourceSearchPathsEdit->setText(s.sourceSearchPaths.join(comma));
     setLicenseTemplatePath(s.licenseTemplatePath);
 }
 

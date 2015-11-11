@@ -1,12 +1,9 @@
 import qbs 1.0
 
-import QtcPlugin
-
 QtcPlugin {
     name: "CMakeProjectManager"
 
     Depends { name: "Qt.widgets" }
-    Depends { name: "Aggregation" }
     Depends { name: "Utils" }
 
     Depends { name: "Core" }
@@ -20,20 +17,24 @@ QtcPlugin {
     ]
 
     files: [
-        "CMakeProjectManager.mimetypes.xml",
+        "cmake_global.h",
         "cmakebuildconfiguration.cpp",
         "cmakebuildconfiguration.h",
         "cmakebuildinfo.h",
+        "cmakebuildsettingswidget.cpp",
+        "cmakebuildsettingswidget.h",
+        "cmakecbpparser.cpp",
+        "cmakecbpparser.h",
         "cmakeeditor.cpp",
         "cmakeeditor.h",
-        "cmakeeditorfactory.cpp",
-        "cmakeeditorfactory.h",
+        "cmakefile.cpp",
+        "cmakefile.h",
         "cmakefilecompletionassist.cpp",
         "cmakefilecompletionassist.h",
-        "cmakehighlighter.cpp",
-        "cmakehighlighter.h",
-        "cmakehighlighterfactory.cpp",
-        "cmakehighlighterfactory.h",
+        "cmakekitconfigwidget.h",
+        "cmakekitconfigwidget.cpp",
+        "cmakekitinformation.h",
+        "cmakekitinformation.cpp",
         "cmakelocatorfilter.cpp",
         "cmakelocatorfilter.h",
         "cmakeopenprojectwizard.cpp",
@@ -52,9 +53,15 @@ QtcPlugin {
         "cmakeprojectplugin.h",
         "cmakerunconfiguration.cpp",
         "cmakerunconfiguration.h",
-        "cmakevalidator.cpp",
-        "cmakevalidator.h",
+        "cmaketool.cpp",
+        "cmaketool.h",
+        "cmaketoolmanager.cpp",
+        "cmaketoolmanager.h",
         "makestep.cpp",
         "makestep.h",
+        "cmakesettingspage.h",
+        "cmakesettingspage.cpp",
+        "generatorinfo.h",
+        "generatorinfo.cpp"
     ]
 }

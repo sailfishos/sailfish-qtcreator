@@ -42,7 +42,7 @@ class MerHardwareDeviceWizard : public QWizard
     Q_OBJECT
 public:
     explicit MerHardwareDeviceWizard(QWidget *parent = 0);
-    ~MerHardwareDeviceWizard();
+    ~MerHardwareDeviceWizard() override;
     QString hostName() const;
     QString userName() const;
     QString password() const;

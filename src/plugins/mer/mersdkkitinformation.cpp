@@ -35,24 +35,21 @@
 #include <QDir>
 #include <QPushButton>
 
+using namespace Core;
+using namespace ExtensionSystem;
+using namespace ProjectExplorer;
+using namespace Utils;
+
 namespace Mer {
 namespace Internal {
 
 MerSdkKitInformation::MerSdkKitInformation()
 {
+    setId(MerSdkKitInformation::id());
+    setPriority(24);
 }
 
-Core::Id MerSdkKitInformation::dataId() const
-{
-    return Core::Id(Constants::MER_SDK_KIT_INFORMATION);
-}
-
-unsigned int MerSdkKitInformation::priority() const
-{
-    return 24;
-}
-
-QVariant MerSdkKitInformation::defaultValue(ProjectExplorer::Kit *kit) const
+QVariant MerSdkKitInformation::defaultValue(Kit *kit) const
 {
     const MerSdk *sdk = MerSdkKitInformation::sdk(kit);
     if (sdk)
@@ -60,52 +57,57 @@ QVariant MerSdkKitInformation::defaultValue(ProjectExplorer::Kit *kit) const
     return QVariant();
 }
 
-QList<ProjectExplorer::Task> MerSdkKitInformation::validate(const ProjectExplorer::Kit *kit) const
+QList<Task> MerSdkKitInformation::validate(const Kit *kit) const
 {
-    if (MerDeviceFactory::canCreate(ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(kit))) {
-        const QString &vmName = kit->value(Core::Id(Constants::VM_NAME)).toString();
-        if (!MerSdkManager::instance()->sdk(vmName)) {
+    if (MerDeviceFactory::canCreate(DeviceTypeKitInformation::deviceTypeId(kit))) {
+        const QString &vmName = kit->value(Id(Constants::VM_NAME)).toString();
+        if (!MerSdkManager::sdk(vmName)) {
             const QString message = QCoreApplication::translate("MerSdk",
                                                                 "No valid MerSdk virtual machine %1 found").arg(vmName);
-            return QList<ProjectExplorer::Task>() << ProjectExplorer::Task(ProjectExplorer::Task::Error, message, Utils::FileName(), -1,
-                                                                           Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
+            return QList<Task>() << Task(Task::Error, message, FileName(), -1,
+                                         Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
         }
     }
-    return QList<ProjectExplorer::Task>();
+    return QList<Task>();
 }
 
-MerSdk* MerSdkKitInformation::sdk(const ProjectExplorer::Kit *kit)
+MerSdk* MerSdkKitInformation::sdk(const Kit *kit)
 {
     if (!kit)
         return 0;
-    return MerSdkManager::instance()->sdk(kit->value(Core::Id(Constants::VM_NAME)).toString());
+    return MerSdkManager::sdk(kit->value(Core::Id(Constants::VM_NAME)).toString());
 }
 
-ProjectExplorer::KitInformation::ItemList MerSdkKitInformation::toUserOutput(const ProjectExplorer::Kit *kit) const
+KitInformation::ItemList MerSdkKitInformation::toUserOutput(const Kit *kit) const
 {
-    if (MerDeviceFactory::canCreate(ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(kit))) {
+    if (MerDeviceFactory::canCreate(DeviceTypeKitInformation::deviceTypeId(kit))) {
         QString vmName;
         MerSdk* sdk = MerSdkKitInformation::sdk(kit);
         if (sdk)
             vmName = sdk->virtualMachineName();
-        return ProjectExplorer::KitInformation::ItemList()
+        return KitInformation::ItemList()
                 << qMakePair(tr("MerSdk"),vmName);
     }
-    return ProjectExplorer::KitInformation::ItemList();
+    return KitInformation::ItemList();
 }
 
-ProjectExplorer::KitConfigWidget *MerSdkKitInformation::createConfigWidget(ProjectExplorer::Kit *kit) const
+KitConfigWidget *MerSdkKitInformation::createConfigWidget(Kit *kit) const
 {
     return new MerSdkKitInformationWidget(kit, this);
 }
 
-void MerSdkKitInformation::setSdk(ProjectExplorer::Kit *kit, const MerSdk* sdk)
+Core::Id MerSdkKitInformation::id()
+{
+    return "Mer.Sdk.Kit.Information";
+}
+
+void MerSdkKitInformation::setSdk(Kit *kit, const MerSdk* sdk)
 {
     if(kit->value(Core::Id(Constants::VM_NAME)) != sdk->virtualMachineName())
         kit->setValue(Core::Id(Constants::VM_NAME),sdk->virtualMachineName());
 }
 
-void MerSdkKitInformation::addToEnvironment(const ProjectExplorer::Kit *kit, Utils::Environment &env) const
+void MerSdkKitInformation::addToEnvironment(const Kit *kit, Environment &env) const
 {
     const MerSdk *sdk = MerSdkKitInformation::sdk(kit);
     if (sdk) {
@@ -127,16 +129,19 @@ void MerSdkKitInformation::addToEnvironment(const ProjectExplorer::Kit *kit, Uti
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 
-MerSdkKitInformationWidget::MerSdkKitInformationWidget(ProjectExplorer::Kit *kit,
+MerSdkKitInformationWidget::MerSdkKitInformationWidget(Kit *kit,
         const MerSdkKitInformation *kitInformation)
-    : ProjectExplorer::KitConfigWidget(kit, kitInformation),
+    : KitConfigWidget(kit, kitInformation),
       m_combo(new QComboBox),
       m_manageButton(new QPushButton(tr("Manage...")))
 {
     handleSdksUpdated();
-    connect(m_combo, SIGNAL(currentIndexChanged(int)), this, SLOT(handleCurrentIndexChanged()));
-    connect(MerSdkManager::instance(), SIGNAL(sdksUpdated()), this, SLOT(handleSdksUpdated()));
-    connect(m_manageButton, SIGNAL(clicked()), this, SLOT(handleManageClicked()));
+    connect(m_combo, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+            this, &MerSdkKitInformationWidget::handleCurrentIndexChanged);
+    connect(MerSdkManager::instance(), &MerSdkManager::sdksUpdated,
+            this, &MerSdkKitInformationWidget::handleSdksUpdated);
+    connect(m_manageButton, &QPushButton::clicked,
+            this, &MerSdkKitInformationWidget::handleManageClicked);
 }
 
 QString MerSdkKitInformationWidget::displayName() const
@@ -171,7 +176,7 @@ void MerSdkKitInformationWidget::refresh()
 
 bool MerSdkKitInformationWidget::visibleInKit()
 {
-    return MerDeviceFactory::canCreate(ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(m_kit));
+    return MerDeviceFactory::canCreate(DeviceTypeKitInformation::deviceTypeId(m_kit));
 }
 
 QWidget *MerSdkKitInformationWidget::mainWidget() const
@@ -186,7 +191,7 @@ QWidget *MerSdkKitInformationWidget::buttonWidget() const
 
 void MerSdkKitInformationWidget::handleSdksUpdated()
 {
-    const QList<MerSdk*>& sdks = MerSdkManager::instance()->sdks();
+    const QList<MerSdk*>& sdks = MerSdkManager::sdks();
     m_combo->blockSignals(true);
     m_combo->clear();
     if(sdks.isEmpty()) {
@@ -202,15 +207,15 @@ void MerSdkKitInformationWidget::handleSdksUpdated()
 
 void MerSdkKitInformationWidget::handleManageClicked()
 {
-    MerOptionsPage *page = ExtensionSystem::PluginManager::getObject<MerOptionsPage>();
+    MerOptionsPage *page = PluginManager::getObject<MerOptionsPage>();
     if (page)
         page->setSdk(m_combo->currentText());
-    Core::ICore::showOptionsDialog(Constants::MER_OPTIONS_CATEGORY,Constants::MER_OPTIONS_ID);
+    ICore::showOptionsDialog(Constants::MER_OPTIONS_ID);
 }
 
 void MerSdkKitInformationWidget::handleCurrentIndexChanged()
 {
-    const MerSdk* sdk = MerSdkManager::instance()->sdk(m_combo->currentText());
+    const MerSdk* sdk = MerSdkManager::sdk(m_combo->currentText());
     if (sdk)
         MerSdkKitInformation::setSdk(m_kit, sdk);
 

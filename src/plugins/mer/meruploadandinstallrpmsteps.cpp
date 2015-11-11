@@ -43,6 +43,7 @@
 
 using namespace ProjectExplorer;
 using namespace RemoteLinux;
+using namespace Utils;
 
 namespace Mer {
 namespace Internal {
@@ -57,7 +58,7 @@ public:
     {
     }
 
-    AbstractRemoteLinuxPackageInstaller *packageInstaller() const { return m_installer; }
+    AbstractRemoteLinuxPackageInstaller *packageInstaller() const override { return m_installer; }
 
 private:
     QString uploadDir() const
@@ -74,13 +75,13 @@ private:
 } // anonymous namespace
 
 
-MerUploadAndInstallRpmStep::MerUploadAndInstallRpmStep(ProjectExplorer::BuildStepList *bsl)
+MerUploadAndInstallRpmStep::MerUploadAndInstallRpmStep(BuildStepList *bsl)
     : AbstractRemoteLinuxDeployStep(bsl, stepId())
 {
     ctor();
 }
 
-MerUploadAndInstallRpmStep::MerUploadAndInstallRpmStep(ProjectExplorer::BuildStepList *bsl,
+MerUploadAndInstallRpmStep::MerUploadAndInstallRpmStep(BuildStepList *bsl,
      MerUploadAndInstallRpmStep *other) : AbstractRemoteLinuxDeployStep(bsl, other)
 {
     ctor();
@@ -128,7 +129,7 @@ void  MerUploadAndInstallRpmStep::run(QFutureInterface<bool> &fi)
     if(!packageFile.endsWith(QLatin1String(".rpm"))){
         const QString message((tr("No package to deploy found in %1")).arg(packageFile));
         emit addOutput(message, ErrorMessageOutput);
-        emit addTask(Task(Task::Error, message, Utils::FileName(), -1,
+        emit addTask(Task(Task::Error, message, FileName(), -1,
                           Core::Id(Constants::TASK_CATEGORY_BUILDSYSTEM)));
         fi.reportResult(false);
         emit finished();

@@ -39,20 +39,23 @@
 #include <QDir>
 #include <QFileInfo>
 
+using namespace Core;
 using namespace ProjectExplorer;
+using namespace QtSupport;
+using namespace Utils;
 
 namespace Mer {
 namespace Internal {
 
 MerQtVersion::MerQtVersion()
-    : QtSupport::BaseQtVersion()
+    : BaseQtVersion()
 {
 }
 
-MerQtVersion::MerQtVersion(const Utils::FileName &path,
+MerQtVersion::MerQtVersion(const FileName &path,
                            bool isAutodetected,
                            const QString &autodetectionSource)
-    : QtSupport::BaseQtVersion(path, isAutodetected, autodetectionSource)
+    : BaseQtVersion(path, isAutodetected, autodetectionSource)
 {
 }
 
@@ -100,11 +103,6 @@ QString MerQtVersion::description() const
     return QCoreApplication::translate("QtVersion", "Mer ", "Qt Version is meant for Mer");
 }
 
-bool MerQtVersion::supportsShadowBuilds() const
-{
-    return true;
-}
-
 QString MerQtVersion::platformName() const
 {
     return QLatin1String(Constants::MER_PLATFORM);
@@ -136,7 +134,7 @@ QList<Task> MerQtVersion::validateKit(const Kit *kit)
     if (!result.isEmpty())
         return result;
 
-    BaseQtVersion *version = QtSupport::QtKitInformation::qtVersion(kit);
+    BaseQtVersion *version = QtKitInformation::qtVersion(kit);
     QTC_ASSERT(version == this, return result);
 
     ToolChain *tc = ToolChainKitInformation::toolChain(kit);
@@ -144,32 +142,32 @@ QList<Task> MerQtVersion::validateKit(const Kit *kit)
     if (!tc) {
         const QString message =
                 QCoreApplication::translate("QtVersion", "No available toolchains found to build "
-                                            "for Qt version '%1'.").arg(version->displayName());
-        result << Task(Task::Error, message, Utils::FileName(), -1,
+                                            "for Qt version \"%1\".").arg(version->displayName());
+        result << Task(Task::Error, message, FileName(), -1,
                        Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
 
     } else if (!MerSdkManager::validateKit(kit)) {
         const QString message =
-                QCoreApplication::translate("QtVersion", "This Qt version '%1' does not match Mer SDK or toolchain.").
+                QCoreApplication::translate("QtVersion", "This Qt version \"%1\" does not match Mer SDK or toolchain.").
                 arg(version->displayName());
-        result << Task(Task::Error, message, Utils::FileName(), -1,
+        result << Task(Task::Error, message, FileName(), -1,
                        Core::Id(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
     }
     return result;
 }
 
-QList<ProjectExplorer::Task> MerQtVersion::reportIssuesImpl(const QString &proFile,
-                                                            const QString &buildDir) const
+QList<Task> MerQtVersion::reportIssuesImpl(const QString &proFile,
+                                           const QString &buildDir) const
 {
-    QList<ProjectExplorer::Task> results;
+    QList<Task> results;
 
-    MerSdk* sdk = MerSdkManager::instance()->sdk(m_vmName);
+    MerSdk* sdk = MerSdkManager::sdk(m_vmName);
 
     if(!sdk) {
-        ProjectExplorer::Task task(ProjectExplorer::Task::Error,
-                                   QCoreApplication::translate("QtVersion",
-                                                               "MerQtVersion is missing MerSDK"),
-                                   Utils::FileName(), -1, Core::Id());
+        Task task(Task::Error,
+                  QCoreApplication::translate("QtVersion",
+                                              "MerQtVersion is missing MerSDK"),
+                  FileName(), -1, Core::Id());
         results.append(task);
     } 
     else {
@@ -196,7 +194,7 @@ QList<ProjectExplorer::Task> MerQtVersion::reportIssuesImpl(const QString &proFi
             sharedSrcClean = QDir::cleanPath(srcDir.canonicalPath());
         }
 
-        if (Utils::HostOsInfo::isWindowsHost()) {
+        if (HostOsInfo::isWindowsHost()) {
             proFileClean = proFileClean.toLower();
             sharedHomeClean = sharedHomeClean.toLower();
             sharedSrcClean = sharedSrcClean.toLower();
@@ -205,13 +203,13 @@ QList<ProjectExplorer::Task> MerQtVersion::reportIssuesImpl(const QString &proFi
         if (!proFileClean.startsWith(sharedHomeClean) && !proFileClean.startsWith(sharedSrcClean)) {
             QString message =  QCoreApplication::translate("QtVersion", "Project is outside of mer workspace");
             if(!sdk->sharedHomePath().isEmpty() && !sdk->sharedSrcPath().isEmpty())
-              message = QCoreApplication::translate("QtVersion", "Project is outside of Mer shared home '%1' and mer shared src '%2'")
+              message = QCoreApplication::translate("QtVersion", "Project is outside of Mer shared home \"%1\" and mer shared src \"%2\"")
                       .arg(QDir::toNativeSeparators(QDir::toNativeSeparators(sdk->sharedHomePath())))
                       .arg(QDir::toNativeSeparators(QDir::toNativeSeparators(sdk->sharedSrcPath())));
             else if(!sdk->sharedHomePath().isEmpty())
-              message = QCoreApplication::translate("QtVersion", "Project is outside of shared home '%1'")
+              message = QCoreApplication::translate("QtVersion", "Project is outside of shared home \"%1\"")
                       .arg(QDir::toNativeSeparators(QDir::toNativeSeparators(sdk->sharedHomePath())));
-            ProjectExplorer::Task task(ProjectExplorer::Task::Error,message,Utils::FileName(), -1, Core::Id());
+            Task task(Task::Error,message,FileName(), -1, Core::Id());
             results.append(task);
         }
 
@@ -220,7 +218,7 @@ QList<ProjectExplorer::Task> MerQtVersion::reportIssuesImpl(const QString &proFi
     return results;
 }
 
-void MerQtVersion::addToEnvironment(const ProjectExplorer::Kit *k, Utils::Environment &env) const
+void MerQtVersion::addToEnvironment(const Kit *k, Environment &env) const
 {
     Q_UNUSED(k);
     env.appendOrSet(QLatin1String(Constants::MER_SSH_PROJECT_PATH), QLatin1String("%{CurrentProject:Path}"));
@@ -228,18 +226,18 @@ void MerQtVersion::addToEnvironment(const ProjectExplorer::Kit *k, Utils::Enviro
 }
 
 
-Core::FeatureSet MerQtVersion::availableFeatures() const
+FeatureSet MerQtVersion::availableFeatures() const
 {
-    Core::FeatureSet features = BaseQtVersion::availableFeatures();
-    features |= Core::FeatureSet(Constants::MER_WIZARD_FEATURE_SAILFISHOS);
-    if(!qtAbis().contains(ProjectExplorer::Abi(QLatin1String("arm-linux-generic-elf-32bit"))))
-        features |= Core::FeatureSet(Constants::MER_WIZARD_FEATURE_EMULATOR);
+    FeatureSet features = BaseQtVersion::availableFeatures();
+    features |= FeatureSet(Constants::MER_WIZARD_FEATURE_SAILFISHOS);
+    if(!qtAbis().contains(Abi(QLatin1String("arm-linux-generic-elf-32bit"))))
+        features |= FeatureSet(Constants::MER_WIZARD_FEATURE_EMULATOR);
     return features;
 }
 
-Utils::Environment MerQtVersion::qmakeRunEnvironment() const
+Environment MerQtVersion::qmakeRunEnvironment() const
 {
-    Utils::Environment env = BaseQtVersion::qmakeRunEnvironment();
+    Environment env = BaseQtVersion::qmakeRunEnvironment();
     env.appendOrSet(QLatin1String(Constants::MER_SSH_TARGET_NAME),m_targetName);
     env.appendOrSet(QLatin1String(Constants::MER_SSH_SDK_TOOLS),qmakeCommand().parentDir().toString());
     return env;

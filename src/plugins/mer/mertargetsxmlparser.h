@@ -36,7 +36,7 @@ class MerTargetsXmlReader : public QObject
 {
 public:
     MerTargetsXmlReader(const QString &fileName, QObject *parent = 0);
-    ~MerTargetsXmlReader();
+    ~MerTargetsXmlReader() override;
 
     bool hasError() const;
     QString errorString() const;
@@ -54,7 +54,7 @@ class MerTargetsXmlWriter : public QObject
 public:
     MerTargetsXmlWriter(const QString &fileName, int version,
                         const QList<MerTargetData> &targetData, QObject *parent = 0);
-    ~MerTargetsXmlWriter();
+    ~MerTargetsXmlWriter() override;
 
     bool hasError() const;
     QString errorString() const;

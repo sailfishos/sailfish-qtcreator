@@ -34,36 +34,35 @@ public:
     MerQtVersion();
     MerQtVersion(const Utils::FileName &path, bool isAutodetected = false,
                  const QString &autodetectionSource = QString());
-    ~MerQtVersion();
+    ~MerQtVersion() override;
 
     void setVirtualMachineName(const QString &name);
     QString virtualMachineName() const;
     void setTargetName(const QString &name);
     QString targetName() const;
 
-    MerQtVersion *clone() const;
+    MerQtVersion *clone() const override;
 
-    QString type() const;
+    QString type() const override;
 
-    QList<ProjectExplorer::Abi> detectQtAbis() const;
+    QList<ProjectExplorer::Abi> detectQtAbis() const override;
 
-    QString description() const;
+    QString description() const override;
 
-    bool supportsShadowBuilds() const;
-    QString platformName() const;
-    QString platformDisplayName() const;
+    QString platformName() const override;
+    QString platformDisplayName() const override;
 
-    QList<ProjectExplorer::Task> validateKit(const ProjectExplorer::Kit *k);
-    QVariantMap toMap() const;
-    void fromMap(const QVariantMap &data);
-    void addToEnvironment(const ProjectExplorer::Kit *k, Utils::Environment &env) const;
-    Utils::Environment qmakeRunEnvironment() const;
+    QList<ProjectExplorer::Task> validateKit(const ProjectExplorer::Kit *k) override;
+    QVariantMap toMap() const override;
+    void fromMap(const QVariantMap &data) override;
+    void addToEnvironment(const ProjectExplorer::Kit *k, Utils::Environment &env) const override;
+    Utils::Environment qmakeRunEnvironment() const override;
 
 protected:
     QList<ProjectExplorer::Task> reportIssuesImpl(const QString &proFile,
-                                                  const QString &buildDir) const;
+                                                  const QString &buildDir) const override;
 
-    Core::FeatureSet availableFeatures() const;
+    Core::FeatureSet availableFeatures() const override;
 
 private:
     QString m_vmName;

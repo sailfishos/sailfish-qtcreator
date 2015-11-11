@@ -37,14 +37,14 @@ class MerAbstractVmStartStep : public ProjectExplorer::BuildStep
     Q_OBJECT
 
 public:
-    explicit MerAbstractVmStartStep(ProjectExplorer::BuildStepList *bsl, const Core::Id id);
+    explicit MerAbstractVmStartStep(ProjectExplorer::BuildStepList *bsl, Core::Id id);
     MerAbstractVmStartStep(ProjectExplorer::BuildStepList *bsl, MerAbstractVmStartStep *bs);
 
-    bool init();
-    void run(QFutureInterface<bool> &fi);
-    ProjectExplorer::BuildStepConfigWidget *createConfigWidget();
-    bool immutable() const;
-    bool runInGuiThread() const;
+    bool init() override;
+    void run(QFutureInterface<bool> &fi) override;
+    ProjectExplorer::BuildStepConfigWidget *createConfigWidget() override;
+    bool immutable() const override;
+    bool runInGuiThread() const override;
 
     MerConnection *connection() const;
 

@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,36 +9,37 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
 
 #include "command_p.h"
 
+#include <coreplugin/coreconstants.h>
 #include <coreplugin/icontext.h>
 #include <coreplugin/id.h>
 
 #include <utils/hostosinfo.h>
 
-#include <QDebug>
+#include <QAction>
+#include <QToolButton>
 #include <QTextStream>
 
-#include <QAction>
-#include <QShortcut>
 
 /*!
     \class Core::Command
@@ -153,12 +154,6 @@
 */
 
 /*!
-    \fn QShortcut *Command::shortcut() const
-    Returns the shortcut for this Command.
-    If the Command represents an action, it returns null.
-*/
-
-/*!
     \fn void Command::setAttribute(CommandAttribute attribute)
     Adds \a attribute to the attributes of this Command.
     \sa CommandAttribute
@@ -200,183 +195,40 @@
     interact with it.
 */
 
-using namespace Core;
-using namespace Core::Internal;
-
-/*!
-    \class CommandPrivate
-    \internal
-*/
-
-CommandPrivate::CommandPrivate(Id id)
-    : m_attributes(0), m_id(id), m_isKeyInitialized(false)
-{
-}
-
-void CommandPrivate::setDefaultKeySequence(const QKeySequence &key)
-{
-    if (!m_isKeyInitialized)
-        setKeySequence(key);
-    m_defaultKey = key;
-}
-
-QKeySequence CommandPrivate::defaultKeySequence() const
-{
-    return m_defaultKey;
-}
-
-void CommandPrivate::setKeySequence(const QKeySequence &key)
-{
-    Q_UNUSED(key)
-    m_isKeyInitialized = true;
-}
-
-void CommandPrivate::setDescription(const QString &text)
-{
-    m_defaultText = text;
-}
-
-QString CommandPrivate::description() const
-{
-    if (!m_defaultText.isEmpty())
-        return m_defaultText;
-    if (action()) {
-        QString text = action()->text();
-        text.remove(QRegExp(QLatin1String("&(?!&)")));
-        if (!text.isEmpty())
-            return text;
-    } else if (shortcut()) {
-        if (!shortcut()->whatsThis().isEmpty())
-            return shortcut()->whatsThis();
-    }
-    return id().toString();
-}
-
-Id CommandPrivate::id() const
-{
-    return m_id;
-}
-
-Core::Context CommandPrivate::context() const
-{
-    return m_context;
-}
-
-void CommandPrivate::setAttribute(CommandAttribute attr)
-{
-    m_attributes |= attr;
-}
-
-void CommandPrivate::removeAttribute(CommandAttribute attr)
-{
-    m_attributes &= ~attr;
-}
-
-bool CommandPrivate::hasAttribute(CommandAttribute attr) const
-{
-    return (m_attributes & attr);
-}
-
-QString CommandPrivate::stringWithAppendedShortcut(const QString &str) const
-{
-    return Utils::ProxyAction::stringWithAppendedShortcut(str, keySequence());
-}
-
-// ---------- Shortcut ------------
-
-/*!
-    \class Shortcut
-    \internal
-*/
-
-Shortcut::Shortcut(Id id)
-    : CommandPrivate(id), m_shortcut(0), m_scriptable(false)
-{}
-
-void Shortcut::setShortcut(QShortcut *shortcut)
-{
-    m_shortcut = shortcut;
-}
-
-QShortcut *Shortcut::shortcut() const
-{
-    return m_shortcut;
-}
-
-void Shortcut::setContext(const Core::Context &context)
-{
-    m_context = context;
-}
-
-Core::Context Shortcut::context() const
-{
-    return m_context;
-}
-
-void Shortcut::setKeySequence(const QKeySequence &key)
-{
-    CommandPrivate::setKeySequence(key);
-    m_shortcut->setKey(key);
-    emit keySequenceChanged();
-}
-
-QKeySequence Shortcut::keySequence() const
-{
-    return m_shortcut->key();
-}
-
-void Shortcut::setCurrentContext(const Core::Context &context)
-{
-    foreach (Id id, m_context) {
-        if (context.contains(id)) {
-            if (!m_shortcut->isEnabled()) {
-                m_shortcut->setEnabled(true);
-                emit activeStateChanged();
-            }
-            return;
-        }
-    }
-    if (m_shortcut->isEnabled()) {
-        m_shortcut->setEnabled(false);
-        emit activeStateChanged();
-    }
-    return;
-}
-
-bool Shortcut::isActive() const
-{
-    return m_shortcut->isEnabled();
-}
-
-bool Shortcut::isScriptable() const
-{
-    return m_scriptable;
-}
-
-bool Shortcut::isScriptable(const Core::Context &) const
-{
-    return m_scriptable;
-}
-
-void Shortcut::setScriptable(bool value)
-{
-    m_scriptable = value;
-}
-
-// ---------- Action ------------
+namespace Core {
+namespace Internal {
 
 /*!
   \class Action
   \internal
 */
 Action::Action(Id id)
-    : CommandPrivate(id),
-    m_action(new Utils::ProxyAction(this)),
-    m_active(false),
-    m_contextInitialized(false)
+    : m_attributes(0),
+      m_id(id),
+      m_isKeyInitialized(false),
+      m_action(new Utils::ProxyAction(this)),
+      m_active(false),
+      m_contextInitialized(false)
 {
     m_action->setShortcutVisibleInToolTip(true);
     connect(m_action, SIGNAL(changed()), this, SLOT(updateActiveState()));
+}
+
+Id Action::id() const
+{
+    return m_id;
+}
+
+void Action::setDefaultKeySequence(const QKeySequence &key)
+{
+    if (!m_isKeyInitialized)
+        setKeySequence(key);
+    m_defaultKey = key;
+}
+
+QKeySequence Action::defaultKeySequence() const
+{
+    return m_defaultKey;
 }
 
 QAction *Action::action() const
@@ -384,9 +236,19 @@ QAction *Action::action() const
     return m_action;
 }
 
+QString Action::stringWithAppendedShortcut(const QString &str) const
+{
+    return Utils::ProxyAction::stringWithAppendedShortcut(str, keySequence());
+}
+
+Context Action::context() const
+{
+    return m_context;
+}
+
 void Action::setKeySequence(const QKeySequence &key)
 {
-    CommandPrivate::setKeySequence(key);
+    m_isKeyInitialized = true;
     m_action->setShortcut(key);
     emit keySequenceChanged();
 }
@@ -396,7 +258,25 @@ QKeySequence Action::keySequence() const
     return m_action->shortcut();
 }
 
-void Action::setCurrentContext(const Core::Context &context)
+void Action::setDescription(const QString &text)
+{
+    m_defaultText = text;
+}
+
+QString Action::description() const
+{
+    if (!m_defaultText.isEmpty())
+        return m_defaultText;
+    if (action()) {
+        QString text = action()->text();
+        text.remove(QRegExp(QLatin1String("&(?!&)")));
+        if (!text.isEmpty())
+            return text;
+    }
+    return id().toString();
+}
+
+void Action::setCurrentContext(const Context &context)
 {
     m_context = context;
 
@@ -425,19 +305,22 @@ static QString msgActionWarning(QAction *newAction, Id id, QAction *oldAction)
          << ": Action ";
     if (oldAction)
         str << oldAction->objectName() << '/' << oldAction->text();
-    str << " is already registered for context " << id.uniqueIdentifier() << ' '
-        << id.toString() << '.';
+    str << " is already registered for context " << id.toString() << '.';
     return msg;
 }
 
-void Action::addOverrideAction(QAction *action, const Core::Context &context, bool scriptable)
+void Action::addOverrideAction(QAction *action, const Context &context, bool scriptable)
 {
     if (Utils::HostOsInfo::isMacHost())
         action->setIconVisibleInMenu(false);
+    // disallow TextHeuristic menu role, because it doesn't work with translations,
+    // e.g. QTCREATORBUG-13101
+    if (action->menuRole() == QAction::TextHeuristicRole)
+        action->setMenuRole(QAction::NoRole);
     if (isEmpty())
         m_action->initialize(action);
     if (context.isEmpty()) {
-        m_contextActionMap.insert(0, action);
+        m_contextActionMap.insert(Constants::C_GLOBAL, action);
     } else {
         for (int i = 0; i < context.size(); ++i) {
             Id id = context.at(i);
@@ -486,7 +369,7 @@ bool Action::isScriptable() const
     return m_scriptableMap.values().contains(true);
 }
 
-bool Action::isScriptable(const Core::Context &context) const
+bool Action::isScriptable(const Context &context) const
 {
     if (context == m_context && m_scriptableMap.contains(m_action->action()))
         return m_scriptableMap.value(m_action->action());
@@ -502,36 +385,65 @@ bool Action::isScriptable(const Core::Context &context) const
 
 void Action::setAttribute(CommandAttribute attr)
 {
-    CommandPrivate::setAttribute(attr);
+    m_attributes |= attr;
     switch (attr) {
-    case Core::Command::CA_Hide:
+    case Command::CA_Hide:
         m_action->setAttribute(Utils::ProxyAction::Hide);
         break;
-    case Core::Command::CA_UpdateText:
+    case Command::CA_UpdateText:
         m_action->setAttribute(Utils::ProxyAction::UpdateText);
         break;
-    case Core::Command::CA_UpdateIcon:
+    case Command::CA_UpdateIcon:
         m_action->setAttribute(Utils::ProxyAction::UpdateIcon);
         break;
-    case Core::Command::CA_NonConfigurable:
+    case Command::CA_NonConfigurable:
         break;
     }
 }
 
 void Action::removeAttribute(CommandAttribute attr)
 {
-    CommandPrivate::removeAttribute(attr);
+    m_attributes &= ~attr;
     switch (attr) {
-    case Core::Command::CA_Hide:
+    case Command::CA_Hide:
         m_action->removeAttribute(Utils::ProxyAction::Hide);
         break;
-    case Core::Command::CA_UpdateText:
+    case Command::CA_UpdateText:
         m_action->removeAttribute(Utils::ProxyAction::UpdateText);
         break;
-    case Core::Command::CA_UpdateIcon:
+    case Command::CA_UpdateIcon:
         m_action->removeAttribute(Utils::ProxyAction::UpdateIcon);
         break;
-    case Core::Command::CA_NonConfigurable:
+    case Command::CA_NonConfigurable:
         break;
     }
 }
+
+bool Action::hasAttribute(Command::CommandAttribute attr) const
+{
+    return (m_attributes & attr);
+}
+
+} // namespace Internal
+
+void Command::augmentActionWithShortcutToolTip(QAction *a) const
+{
+    a->setToolTip(stringWithAppendedShortcut(a->text()));
+    QObject::connect(this, &Command::keySequenceChanged, a, [this, a]() {
+        a->setToolTip(stringWithAppendedShortcut(a->text()));
+    });
+    QObject::connect(a, &QAction::changed, this, [this, a]() {
+        a->setToolTip(stringWithAppendedShortcut(a->text()));
+    });
+}
+
+QToolButton *Command::toolButtonWithAppendedShortcut(QAction *action, Command *cmd)
+{
+    QToolButton *button = new QToolButton;
+    button->setDefaultAction(action);
+    if (cmd)
+        cmd->augmentActionWithShortcutToolTip(action);
+    return button;
+}
+
+} // namespace Core

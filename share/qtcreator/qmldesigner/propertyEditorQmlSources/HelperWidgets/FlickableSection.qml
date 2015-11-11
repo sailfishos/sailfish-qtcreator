@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of the Qt Quick Controls module of the Qt Toolkit.
 **
@@ -17,7 +17,7 @@
 **     notice, this list of conditions and the following disclaimer in
 **     the documentation and/or other materials provided with the
 **     distribution.
-**   * Neither the name of Digia Plc and its Subsidiary(-ies) nor the names
+**   * Neither the name of The Qt Company Ltd and its Subsidiary(-ies) nor the names
 **     of its contributors may be used to endorse or promote products derived
 **     from this software without specific prior written permission.
 **
@@ -98,7 +98,7 @@ Section {
 
         Label {
             text: qsTr("Behavior")
-            toolTip: qsTr("Bounds behavior")
+            tooltip: qsTr("Bounds behavior")
         }
 
         SecondColumnLayout {
@@ -126,7 +126,7 @@ Section {
 
         Label {
             text: qsTr("Max. velocity")
-            toolTip: qsTr("Maximum flick velocity")
+            tooltip: qsTr("Maximum flick velocity")
         }
 
         SecondColumnLayout {
@@ -143,7 +143,7 @@ Section {
 
         Label {
             text: qsTr("Deceleration")
-            toolTip: qsTr("Flick deceleration")
+            tooltip: qsTr("Flick deceleration")
         }
 
         SecondColumnLayout {

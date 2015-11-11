@@ -1,7 +1,7 @@
 #############################################################################
 ##
-## Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-## Contact: http://www.qt-project.org/legal
+## Copyright (C) 2015 The Qt Company Ltd.
+## Contact: http://www.qt.io/licensing
 ##
 ## This file is part of Qt Creator.
 ##
@@ -9,20 +9,21 @@
 ## Licensees holding valid commercial Qt licenses may use this file in
 ## accordance with the commercial license agreement provided with the
 ## Software or, alternatively, in accordance with the terms contained in
-## a written agreement between you and Digia.  For licensing terms and
-## conditions see http://qt.digia.com/licensing.  For further information
-## use the contact form at http://qt.digia.com/contact-us.
+## a written agreement between you and The Qt Company.  For licensing terms and
+## conditions see http://www.qt.io/terms-conditions.  For further information
+## use the contact form at http://www.qt.io/contact-us.
 ##
 ## GNU Lesser General Public License Usage
 ## Alternatively, this file may be used under the terms of the GNU Lesser
-## General Public License version 2.1 as published by the Free Software
-## Foundation and appearing in the file LICENSE.LGPL included in the
-## packaging of this file.  Please review the following information to
-## ensure the GNU Lesser General Public License version 2.1 requirements
-## will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+## General Public License version 2.1 or version 3 as published by the Free
+## Software Foundation and appearing in the file LICENSE.LGPLv21 and
+## LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+## following information to ensure the GNU Lesser General Public License
+## requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+## http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 ##
-## In addition, as a special exception, Digia gives you certain additional
-## rights.  These rights are described in the Digia Qt LGPL Exception
+## In addition, as a special exception, The Qt Company gives you certain additional
+## rights.  These rights are described in The Qt Company LGPL Exception
 ## version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 ##
 #############################################################################
@@ -34,7 +35,7 @@ def main():
     if not startedWithoutPluginError():
         return
     # Requires Qt 4.8
-    targets = Targets.desktopTargetClasses() ^ Targets.DESKTOP_474_GCC
+    targets = Targets.desktopTargetClasses() & ~Targets.DESKTOP_474_GCC
     # using a temporary directory won't mess up a potentially existing
     workingDir = tempDir()
     checkedTargets, projectName = createNewQtQuickApplication(workingDir, targets=targets)
@@ -49,12 +50,12 @@ def main():
         invokeMenuItem("File", "Save All")
         filesAndLines = [
                         { "%s.Resources.qml\.qrc./.main\\.qml" % projectName : 'onTriggered.*' },
-                        { "%s.Sources.main\\.cpp" % projectName : "viewer.setOrientation\\(.+\\);" }
+                        { "%s.Sources.main\\.cpp" % projectName : "QQmlApplicationEngine engine;" }
                         ]
         test.log("Setting breakpoints")
         result = setBreakpointsForCurrentProject(filesAndLines)
         if result:
-            expectedBreakpointsOrder = [{os.path.join(workingDir, projectName, "main.cpp"):10},
+            expectedBreakpointsOrder = [{os.path.join(workingDir, projectName, "main.cpp"):8},
                                         {os.path.join(workingDir, projectName, "main.qml"):10}]
             # Only use 4.7.4 to work around QTBUG-25187
             availableConfigs = iterateBuildConfigs(len(checkedTargets), "Debug")
@@ -84,12 +85,10 @@ def main():
                 ensureChecked(":Qt Creator_AppOutput_Core::Internal::OutputPaneToggleButton")
                 clickButton(waitForObject("{type='CloseButton' unnamed='1' visible='1' "
                                           "window=':Qt Creator_Core::Internal::MainWindow'}"))
-                if platform.system() == 'Darwin' and JIRA.isBugStillOpen(11595):
-                    try:
-                        expectedBreakpointsOrder.remove({os.path.join(workingDir, projectName, "main.cpp"):10})
-                        test.warning("Removed cpp file after first run. (QTCREATORBUG-11595)")
-                    except:
-                        pass
+                try:
+                    clickButton(waitForObject(":Close Debugging Session.Yes_QPushButton", 2000))
+                except:
+                    pass
         else:
             test.fatal("Setting breakpoints failed - leaving without testing.")
     invokeMenuItem("File", "Exit")

@@ -7,21 +7,24 @@ Product {
         name: "Unconditional"
         qbs.install: true
         qbs.installDir: project.ide_data_path
+        qbs.installSourceBase: "qtcreator"
         prefix: "qtcreator/"
         files: [
-            "debugger",
-            "designer",
-            "generic-highlighter",
-            "glsl",
-            "qml",
-            "qmldesigner",
-            "qmlicons",
-            "qml-type-descriptions",
-            "schemes",
-            "snippets",
-            "styles",
-            "templates",
-            "welcomescreen"
+            "cplusplus/**/*",
+            "debugger/**/*",
+            "designer/**/*",
+            "generic-highlighter/**/*",
+            "glsl/**/*",
+            "qml/**/*",
+            "qmldesigner/**/*",
+            "qmlicons/**/*",
+            "qml-type-descriptions/**/*",
+            "schemes/**/*",
+            "snippets/**/*",
+            "styles/**/*",
+            "templates/**/*",
+            "themes/**/*",
+            "welcomescreen/**/*"
         ]
     }
 

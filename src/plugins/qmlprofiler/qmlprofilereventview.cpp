@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -57,14 +58,26 @@ namespace QmlProfiler {
 namespace Internal {
 
 struct Colors {
-    Colors () {
-        this->bindingLoopBackground = QColor("orange").lighter();
-    }
+    Colors () : noteBackground(QColor("orange")), defaultBackground(QColor("white")) {}
+    QColor noteBackground;
+    QColor defaultBackground;
+};
 
-    QColor bindingLoopBackground;
+struct RootEventType : public QmlProfilerDataModel::QmlEventTypeData {
+    RootEventType()
+    {
+        QString rootEventName = QmlProfilerEventsMainView::tr("<program>");
+        displayName = rootEventName;
+        location = QmlEventLocation(rootEventName, 1, 1);
+        message = MaximumMessage;
+        rangeType = MaximumRangeType;
+        detailType = -1;
+        data = QmlProfilerEventsMainView::tr("Main Program");
+    }
 };
 
 Q_GLOBAL_STATIC(Colors, colors)
+Q_GLOBAL_STATIC(RootEventType, rootEventType)
 
 ////////////////////////////////////////////////////////////////////////////////////
 
@@ -78,18 +91,25 @@ public:
 
     virtual bool operator<(const QStandardItem &other) const
     {
-        if (data().type() == QVariant::String) {
-            // first column
-            if (column() == 0) {
-                return data(FilenameRole).toString() == other.data(FilenameRole).toString() ?
-                            data(LineRole).toInt() < other.data(LineRole).toInt() :
-                            data(FilenameRole).toString() < other.data(FilenameRole).toString();
-            } else {
-                return data().toString().toLower() < other.data().toString().toLower();
-            }
-        }
+        if (column() == 0) {
+            // first column is special
+            int filenameDiff = QUrl(data(FilenameRole).toString()).fileName().compare(
+                        QUrl(other.data(FilenameRole).toString()).fileName(), Qt::CaseInsensitive);
+            if (filenameDiff != 0)
+                return filenameDiff < 0;
 
-        return data().toDouble() < other.data().toDouble();
+            return data(LineRole).toInt() == other.data(LineRole).toInt() ?
+                data(ColumnRole).toInt() < other.data(ColumnRole).toInt() :
+                data(LineRole).toInt() < other.data(LineRole).toInt();
+
+        } else if (data(SortRole).type() == QVariant::String) {
+            // Strings should be case-insensitive compared
+            return data(SortRole).toString().compare(other.data(SortRole).toString(),
+                                                      Qt::CaseInsensitive) < 0;
+        } else {
+            // For everything else the standard comparison should be OK
+            return QStandardItem::operator<(other);
+        }
     }
 };
 
@@ -130,7 +150,7 @@ QmlProfilerEventsWidget::QmlProfilerEventsWidget(QWidget *parent,
 
     d->m_eventTree = new QmlProfilerEventsMainView(this, d->modelProxy);
     connect(d->m_eventTree, SIGNAL(gotoSourceLocation(QString,int,int)), this, SIGNAL(gotoSourceLocation(QString,int,int)));
-    connect(d->m_eventTree, SIGNAL(eventSelected(QString)), this, SIGNAL(eventSelectedByHash(QString)));
+    connect(d->m_eventTree, SIGNAL(typeSelected(int)), this, SIGNAL(typeSelected(int)));
 
     d->m_eventChildren = new QmlProfilerEventRelativesView(
                 profilerModelManager,
@@ -140,10 +160,10 @@ QmlProfilerEventsWidget::QmlProfilerEventsWidget(QWidget *parent,
                 profilerModelManager,
                 new QmlProfilerEventParentsModelProxy(profilerModelManager, d->modelProxy, this),
                 this);
-    connect(d->m_eventTree, SIGNAL(eventSelected(QString)), d->m_eventChildren, SLOT(displayEvent(QString)));
-    connect(d->m_eventTree, SIGNAL(eventSelected(QString)), d->m_eventParents, SLOT(displayEvent(QString)));
-    connect(d->m_eventChildren, SIGNAL(eventClicked(QString)), d->m_eventTree, SLOT(selectEvent(QString)));
-    connect(d->m_eventParents, SIGNAL(eventClicked(QString)), d->m_eventTree, SLOT(selectEvent(QString)));
+    connect(d->m_eventTree, SIGNAL(typeSelected(int)), d->m_eventChildren, SLOT(displayType(int)));
+    connect(d->m_eventTree, SIGNAL(typeSelected(int)), d->m_eventParents, SLOT(displayType(int)));
+    connect(d->m_eventChildren, SIGNAL(typeClicked(int)), d->m_eventTree, SLOT(selectType(int)));
+    connect(d->m_eventParents, SIGNAL(typeClicked(int)), d->m_eventTree, SLOT(selectType(int)));
 
     // widget arrangement
     QVBoxLayout *groupLayout = new QVBoxLayout;
@@ -192,9 +212,9 @@ void QmlProfilerEventsWidget::getStatisticsInRange(qint64 rangeStart, qint64 ran
     d->modelProxy->limitToRange(rangeStart, rangeEnd);
 }
 
-QModelIndex QmlProfilerEventsWidget::selectedItem() const
+QModelIndex QmlProfilerEventsWidget::selectedModelIndex() const
 {
-    return d->m_eventTree->selectedItem();
+    return d->m_eventTree->selectedModelIndex();
 }
 
 void QmlProfilerEventsWidget::contextMenuEvent(QContextMenuEvent *ev)
@@ -221,7 +241,7 @@ void QmlProfilerEventsWidget::contextMenuEvent(QContextMenuEvent *ev)
 
     if (mouseOnTable(position)) {
         menu.addSeparator();
-        if (selectedItem().isValid())
+        if (selectedModelIndex().isValid())
             copyRowAction = menu.addAction(tr("Copy Row"));
         copyTableAction = menu.addAction(tr("Copy Table"));
 
@@ -291,15 +311,15 @@ void QmlProfilerEventsWidget::copyRowToClipboard() const
     d->m_eventTree->copyRowToClipboard();
 }
 
-void QmlProfilerEventsWidget::updateSelectedEvent(const QString &eventHash) const
+void QmlProfilerEventsWidget::selectByTypeId(int typeIndex) const
 {
-    if (d->m_eventTree->selectedEventHash() != eventHash)
-        d->m_eventTree->selectEvent(eventHash);
+    if (d->m_eventTree->selectedTypeId() != typeIndex)
+        d->m_eventTree->selectType(typeIndex);
 }
 
 void QmlProfilerEventsWidget::selectBySourceLocation(const QString &filename, int line, int column)
 {
-    d->m_eventTree->selectEventByLocation(filename, line, column);
+    d->m_eventTree->selectByLocation(filename, line, column);
 }
 
 bool QmlProfilerEventsWidget::hasGlobalStats() const
@@ -319,30 +339,30 @@ bool QmlProfilerEventsWidget::showExtendedStatistics() const
 
 void QmlProfilerEventsWidget::setShowJavaScript(bool show)
 {
-    d->modelProxy->setEventTypeAccepted(QmlDebug::Javascript, show);
+    d->modelProxy->setEventTypeAccepted(Javascript, show);
     d->modelProxy->limitToRange(d->rangeStart, d->rangeEnd);
 }
 
 void QmlProfilerEventsWidget::setShowQml(bool show)
 {
-    d->modelProxy->setEventTypeAccepted(QmlDebug::Binding, show);
-    d->modelProxy->setEventTypeAccepted(QmlDebug::HandlingSignal, show);
-    d->modelProxy->setEventTypeAccepted(QmlDebug::Compiling, show);
-    d->modelProxy->setEventTypeAccepted(QmlDebug::Creating, show);
+    d->modelProxy->setEventTypeAccepted(Binding, show);
+    d->modelProxy->setEventTypeAccepted(HandlingSignal, show);
+    d->modelProxy->setEventTypeAccepted(Compiling, show);
+    d->modelProxy->setEventTypeAccepted(Creating, show);
     d->modelProxy->limitToRange(d->rangeStart, d->rangeEnd);
 }
 
 bool QmlProfilerEventsWidget::showJavaScript() const
 {
-    return d->modelProxy->eventTypeAccepted(QmlDebug::Javascript);
+    return d->modelProxy->eventTypeAccepted(Javascript);
 }
 
 bool QmlProfilerEventsWidget::showQml() const
 {
-    return d->modelProxy->eventTypeAccepted(QmlDebug::Binding) &&
-            d->modelProxy->eventTypeAccepted(QmlDebug::HandlingSignal) &&
-            d->modelProxy->eventTypeAccepted(QmlDebug::Compiling) &&
-            d->modelProxy->eventTypeAccepted(QmlDebug::Creating);
+    return d->modelProxy->eventTypeAccepted(Binding) &&
+            d->modelProxy->eventTypeAccepted(HandlingSignal) &&
+            d->modelProxy->eventTypeAccepted(Compiling) &&
+            d->modelProxy->eventTypeAccepted(Creating);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -380,11 +400,13 @@ QmlProfilerEventsMainView::QmlProfilerEventsMainView(QWidget *parent,
     setSortingEnabled(false);
 
     d->m_model = new QStandardItemModel(this);
+    d->m_model->setSortRole(SortRole);
     setModel(d->m_model);
-    connect(this,SIGNAL(clicked(QModelIndex)), this,SLOT(jumpToItem(QModelIndex)));
+    connect(this, SIGNAL(activated(QModelIndex)), this, SLOT(jumpToItem(QModelIndex)));
 
     d->modelProxy = modelProxy;
     connect(d->modelProxy,SIGNAL(dataAvailable()), this, SLOT(buildModel()));
+    connect(d->modelProxy,SIGNAL(notesAvailable(int)), this, SLOT(updateNotes(int)));
     d->m_firstNumericColumn = 0;
     d->m_preventSelectBounce = false;
     d->m_showExtendedStatistics = false;
@@ -550,24 +572,63 @@ void QmlProfilerEventsMainView::buildModel()
     collapseAll();
 }
 
+void QmlProfilerEventsMainView::updateNotes(int typeIndex)
+{
+    const QHash<int, QmlProfilerEventsModelProxy::QmlEventStats> &eventList =
+            d->modelProxy->getData();
+    const QHash<int, QString> &noteList = d->modelProxy->getNotes();
+    QStandardItem *parentItem = d->m_model->invisibleRootItem();
+
+    for (int rowIndex = 0; rowIndex < parentItem->rowCount(); ++rowIndex) {
+        int rowType = parentItem->child(rowIndex, 0)->data(TypeIdRole).toInt();
+        if (rowType != typeIndex && typeIndex != -1)
+            continue;
+        const QmlProfilerEventsModelProxy::QmlEventStats &stats = eventList[rowType];
+
+        for (int columnIndex = 0; columnIndex < parentItem->columnCount(); ++columnIndex) {
+            QStandardItem *item = parentItem->child(rowIndex, columnIndex);
+            QHash<int, QString>::ConstIterator it = noteList.find(rowType);
+            if (it != noteList.end()) {
+                item->setBackground(colors()->noteBackground);
+                item->setToolTip(it.value());
+            } else if (stats.isBindingLoop) {
+                item->setBackground(colors()->noteBackground);
+                item->setToolTip(tr("Binding loop detected."));
+            } else if (!item->toolTip().isEmpty()){
+                item->setBackground(colors()->defaultBackground);
+                item->setToolTip(QString());
+            }
+        }
+    }
+}
+
 void QmlProfilerEventsMainView::parseModelProxy()
 {
-    const QList <QmlProfilerEventsModelProxy::QmlEventStats> eventList = d->modelProxy->getData();
-    foreach (const QmlProfilerEventsModelProxy::QmlEventStats &event, eventList) {
+    const QHash<int, QmlProfilerEventsModelProxy::QmlEventStats> &eventList = d->modelProxy->getData();
+    const QVector<QmlProfilerDataModel::QmlEventTypeData> &typeList = d->modelProxy->getTypes();
+
+
+    QHash<int, QmlProfilerEventsModelProxy::QmlEventStats>::ConstIterator it;
+    for (it = eventList.constBegin(); it != eventList.constEnd(); ++it) {
+        int typeIndex = it.key();
+        const QmlProfilerEventsModelProxy::QmlEventStats &stats = it.value();
+        const QmlProfilerDataModel::QmlEventTypeData &event =
+                (typeIndex != -1 ? typeList[typeIndex] : *rootEventType());
         QStandardItem *parentItem = d->m_model->invisibleRootItem();
         QList<QStandardItem *> newRow;
 
         if (d->m_fieldShown[Name])
-            newRow << new EventsViewItem(event.displayName);
+            newRow << new EventsViewItem(event.displayName.isEmpty() ? tr("<bytecode>") :
+                                                                       event.displayName);
 
         if (d->m_fieldShown[Type]) {
-            QString typeString = QmlProfilerEventsMainView::nameForType(event.eventType);
+            QString typeString = QmlProfilerEventsMainView::nameForType(event.rangeType);
             QString toolTipText;
-            if (event.eventType == Binding) {
-                if (event.bindingType == (int)OptimizedBinding) {
+            if (event.rangeType == Binding) {
+                if (event.detailType == (int)OptimizedBinding) {
                     typeString = typeString + QLatin1Char(' ') +  tr("(Opt)");
                     toolTipText = tr("Binding is evaluated by the optimized engine.");
-                } else if (event.bindingType == (int)V8Binding) {
+                } else if (event.detailType == (int)V8Binding) {
                     toolTipText = tr("Binding not optimized (might have side effects or assignments,\n"
                                      "references to elements in other files, loops, and so on.)");
 
@@ -580,43 +641,44 @@ void QmlProfilerEventsMainView::parseModelProxy()
         }
 
         if (d->m_fieldShown[TimeInPercent]) {
-            newRow << new EventsViewItem(QString::number(event.percentOfTime,'f',2)+QLatin1String(" %"));
-            newRow.last()->setData(QVariant(event.percentOfTime));
+            newRow << new EventsViewItem(QString::number(stats.percentOfTime,'f',2)+QLatin1String(" %"));
+            newRow.last()->setData(QVariant(stats.percentOfTime));
         }
 
         if (d->m_fieldShown[TotalTime]) {
-            newRow << new EventsViewItem(QmlProfilerBaseModel::formatTime(event.duration));
-            newRow.last()->setData(QVariant(event.duration));
+            newRow << new EventsViewItem(QmlProfilerBaseModel::formatTime(stats.duration));
+            newRow.last()->setData(QVariant(stats.duration));
         }
 
         if (d->m_fieldShown[CallCount]) {
-            newRow << new EventsViewItem(QString::number(event.calls));
-            newRow.last()->setData(QVariant(event.calls));
+            newRow << new EventsViewItem(QString::number(stats.calls));
+            newRow.last()->setData(QVariant(stats.calls));
         }
 
         if (d->m_fieldShown[TimePerCall]) {
-            newRow << new EventsViewItem(QmlProfilerBaseModel::formatTime(event.timePerCall));
-            newRow.last()->setData(QVariant(event.timePerCall));
+            newRow << new EventsViewItem(QmlProfilerBaseModel::formatTime(stats.timePerCall));
+            newRow.last()->setData(QVariant(stats.timePerCall));
         }
 
         if (d->m_fieldShown[MedianTime]) {
-            newRow << new EventsViewItem(QmlProfilerBaseModel::formatTime(event.medianTime));
-            newRow.last()->setData(QVariant(event.medianTime));
+            newRow << new EventsViewItem(QmlProfilerBaseModel::formatTime(stats.medianTime));
+            newRow.last()->setData(QVariant(stats.medianTime));
         }
 
         if (d->m_fieldShown[MaxTime]) {
-            newRow << new EventsViewItem(QmlProfilerBaseModel::formatTime(event.maxTime));
-            newRow.last()->setData(QVariant(event.maxTime));
+            newRow << new EventsViewItem(QmlProfilerBaseModel::formatTime(stats.maxTime));
+            newRow.last()->setData(QVariant(stats.maxTime));
         }
 
         if (d->m_fieldShown[MinTime]) {
-            newRow << new EventsViewItem(QmlProfilerBaseModel::formatTime(event.minTime));
-            newRow.last()->setData(QVariant(event.minTime));
+            newRow << new EventsViewItem(QmlProfilerBaseModel::formatTime(stats.minTime));
+            newRow.last()->setData(QVariant(stats.minTime));
         }
 
         if (d->m_fieldShown[Details]) {
-            newRow << new EventsViewItem(event.details);
-            newRow.last()->setData(QVariant(event.details));
+            newRow << new EventsViewItem(event.data.isEmpty() ? tr("Source code not available") :
+                                                                event.data);
+            newRow.last()->setData(QVariant(event.data));
         }
 
 
@@ -627,17 +689,10 @@ void QmlProfilerEventsMainView::parseModelProxy()
                 item->setEditable(false);
 
             // metadata
-            newRow.at(0)->setData(QVariant(event.eventHashStr),EventHashStrRole);
+            newRow.at(0)->setData(QVariant(typeIndex),TypeIdRole);
             newRow.at(0)->setData(QVariant(event.location.filename),FilenameRole);
             newRow.at(0)->setData(QVariant(event.location.line),LineRole);
             newRow.at(0)->setData(QVariant(event.location.column),ColumnRole);
-
-            if (event.isBindingLoop) {
-                foreach (QStandardItem *item, newRow) {
-                    item->setBackground(colors()->bindingLoopBackground);
-                    item->setToolTip(tr("Binding loop detected."));
-                }
-            }
 
             // append
             parentItem->appendRow(newRow);
@@ -645,17 +700,17 @@ void QmlProfilerEventsMainView::parseModelProxy()
     }
 }
 
-QString QmlProfilerEventsMainView::nameForType(int typeNumber)
+QString QmlProfilerEventsMainView::nameForType(RangeType typeNumber)
 {
     switch (typeNumber) {
-    case 0: return QmlProfilerEventsMainView::tr("Paint");
-    case 1: return QmlProfilerEventsMainView::tr("Compile");
-    case 2: return QmlProfilerEventsMainView::tr("Create");
-    case 3: return QmlProfilerEventsMainView::tr("Binding");
-    case 4: return QmlProfilerEventsMainView::tr("Signal");
-    case 5: return QmlProfilerEventsMainView::tr("JavaScript");
+    case Painting: return QmlProfilerEventsMainView::tr("Paint");
+    case Compiling: return QmlProfilerEventsMainView::tr("Compile");
+    case Creating: return QmlProfilerEventsMainView::tr("Create");
+    case Binding: return QmlProfilerEventsMainView::tr("Binding");
+    case HandlingSignal: return QmlProfilerEventsMainView::tr("Signal");
+    case Javascript: return QmlProfilerEventsMainView::tr("JavaScript");
+    default: return QString();
     }
-    return QString();
 }
 
 void QmlProfilerEventsMainView::getStatisticsInRange(qint64 rangeStart, qint64 rangeEnd)
@@ -663,13 +718,13 @@ void QmlProfilerEventsMainView::getStatisticsInRange(qint64 rangeStart, qint64 r
     d->modelProxy->limitToRange(rangeStart, rangeEnd);
 }
 
-QString QmlProfilerEventsMainView::selectedEventHash() const
+int QmlProfilerEventsMainView::selectedTypeId() const
 {
-    QModelIndex index = selectedItem();
+    QModelIndex index = selectedModelIndex();
     if (!index.isValid())
-        return QString();
+        return -1;
     QStandardItem *item = d->m_model->item(index.row(), 0);
-    return item->data(EventHashStrRole).toString();
+    return item->data(TypeIdRole).toInt();
 }
 
 
@@ -694,43 +749,50 @@ void QmlProfilerEventsMainView::jumpToItem(const QModelIndex &index)
         emit gotoSourceLocation(fileName, line, column);
 
     // show in callers/callees subwindow
-    emit eventSelected(infoItem->data(EventHashStrRole).toString());
+    emit typeSelected(infoItem->data(TypeIdRole).toInt());
 
     d->m_preventSelectBounce = false;
 }
 
-void QmlProfilerEventsMainView::selectEvent(const QString &eventHash)
+void QmlProfilerEventsMainView::selectItem(const QStandardItem *item)
+{
+    // If the same item is already selected, don't reselect it.
+    QModelIndex index = d->m_model->indexFromItem(item);
+    if (index != currentIndex()) {
+        setCurrentIndex(index);
+        jumpToItem(index);
+    }
+}
+
+void QmlProfilerEventsMainView::selectType(int typeIndex)
 {
     for (int i=0; i<d->m_model->rowCount(); i++) {
         QStandardItem *infoItem = d->m_model->item(i, 0);
-        if (infoItem->data(EventHashStrRole).toString() == eventHash) {
-            setCurrentIndex(d->m_model->indexFromItem(infoItem));
-            jumpToItem(currentIndex());
+        if (infoItem->data(TypeIdRole).toInt() == typeIndex) {
+            selectItem(infoItem);
             return;
         }
     }
 }
 
-void QmlProfilerEventsMainView::selectEventByLocation(const QString &filename, int line, int column)
+void QmlProfilerEventsMainView::selectByLocation(const QString &filename, int line, int column)
 {
     if (d->m_preventSelectBounce)
         return;
 
     for (int i=0; i<d->m_model->rowCount(); i++) {
         QStandardItem *infoItem = d->m_model->item(i, 0);
-        if (currentIndex() != d->m_model->indexFromItem(infoItem) &&
-                infoItem->data(FilenameRole).toString() == filename &&
+        if (infoItem->data(FilenameRole).toString() == filename &&
                 infoItem->data(LineRole).toInt() == line &&
                 (column == -1 ||
                 infoItem->data(ColumnRole).toInt() == column)) {
-            setCurrentIndex(d->m_model->indexFromItem(infoItem));
-            jumpToItem(currentIndex());
+            selectItem(infoItem);
             return;
         }
     }
 }
 
-QModelIndex QmlProfilerEventsMainView::selectedItem() const
+QModelIndex QmlProfilerEventsMainView::selectedModelIndex() const
 {
     QModelIndexList sel = selectedIndexes();
     if (sel.isEmpty())
@@ -794,7 +856,7 @@ void QmlProfilerEventsMainView::copyTableToClipboard() const
 void QmlProfilerEventsMainView::copyRowToClipboard() const
 {
     QString str;
-    str = d->textForItem(d->m_model->itemFromIndex(selectedItem()), false);
+    str = d->textForItem(d->m_model->itemFromIndex(selectedModelIndex()), false);
 
     QClipboard *clipboard = QApplication::clipboard();
     clipboard->setText(str, QClipboard::Selection);
@@ -820,11 +882,13 @@ QmlProfilerEventRelativesView::QmlProfilerEventRelativesView(QmlProfilerModelMan
     Q_UNUSED(modelManager);
     setSortingEnabled(false);
     d->modelProxy = modelProxy;
-    setModel(new QStandardItemModel(this));
+    QStandardItemModel *model = new QStandardItemModel(this);
+    model->setSortRole(SortRole);
+    setModel(model);
     setRootIsDecorated(false);
     updateHeader();
 
-    connect(this,SIGNAL(clicked(QModelIndex)), this,SLOT(jumpToItem(QModelIndex)));
+    connect(this,SIGNAL(activated(QModelIndex)), this,SLOT(jumpToItem(QModelIndex)));
 
     // Clear when new data available as the selection may be invalid now.
     connect(d->modelProxy, SIGNAL(dataAvailable()), this, SLOT(clear()));
@@ -835,9 +899,9 @@ QmlProfilerEventRelativesView::~QmlProfilerEventRelativesView()
     delete d;
 }
 
-void QmlProfilerEventRelativesView::displayEvent(const QString &eventHash)
+void QmlProfilerEventRelativesView::displayType(int typeIndex)
 {
-    rebuildTree(d->modelProxy->getData(eventHash));
+    rebuildTree(d->modelProxy->getData(typeIndex));
 
     updateHeader();
     resizeColumnToContents(0);
@@ -845,33 +909,46 @@ void QmlProfilerEventRelativesView::displayEvent(const QString &eventHash)
     sortByColumn(2);
 }
 
-void QmlProfilerEventRelativesView::rebuildTree(QmlProfilerEventRelativesModelProxy::QmlEventRelativesMap eventMap)
+void QmlProfilerEventRelativesView::rebuildTree(
+        const QmlProfilerEventRelativesModelProxy::QmlEventRelativesMap &eventMap)
 {
     Q_ASSERT(treeModel());
     treeModel()->clear();
 
     QStandardItem *topLevelItem = treeModel()->invisibleRootItem();
+    const QVector<QmlProfilerDataModel::QmlEventTypeData> &typeList = d->modelProxy->getTypes();
 
-    foreach (const QString &key, eventMap.keys()) {
-        const QmlProfilerEventRelativesModelProxy::QmlEventRelativesData &event = eventMap[key];
+    QmlProfilerEventRelativesModelProxy::QmlEventRelativesMap::const_iterator it;
+    for (it = eventMap.constBegin(); it != eventMap.constEnd(); ++it) {
+        const QmlProfilerEventRelativesModelProxy::QmlEventRelativesData &event = it.value();
+        int typeIndex = it.key();
+        const QmlProfilerDataModel::QmlEventTypeData &type =
+                (typeIndex != -1 ? typeList[typeIndex] : *rootEventType());
         QList<QStandardItem *> newRow;
 
         // ToDo: here we were going to search for the data in the other modelproxy
         // maybe we should store the data in this proxy and get it here
         // no indirections at this level of abstraction!
-        newRow << new EventsViewItem(event.displayName);
-        newRow << new EventsViewItem(QmlProfilerEventsMainView::nameForType(event.eventType));
+        newRow << new EventsViewItem(type.displayName.isEmpty() ? tr("<bytecode>") :
+                                                                  type.displayName);
+        newRow << new EventsViewItem(QmlProfilerEventsMainView::nameForType(type.rangeType));
         newRow << new EventsViewItem(QmlProfilerBaseModel::formatTime(event.duration));
         newRow << new EventsViewItem(QString::number(event.calls));
-        newRow << new EventsViewItem(event.details);
+        newRow << new EventsViewItem(type.data.isEmpty() ? tr("Source code not available") :
+                                                           type.data);
 
-        newRow.at(0)->setData(QVariant(key), EventHashStrRole);
+        newRow.at(0)->setData(QVariant(typeIndex), TypeIdRole);
+        newRow.at(0)->setData(QVariant(type.location.filename),FilenameRole);
+        newRow.at(0)->setData(QVariant(type.location.line),LineRole);
+        newRow.at(0)->setData(QVariant(type.location.column),ColumnRole);
+        newRow.at(1)->setData(QVariant(QmlProfilerEventsMainView::nameForType(type.rangeType)));
         newRow.at(2)->setData(QVariant(event.duration));
         newRow.at(3)->setData(QVariant(event.calls));
+        newRow.at(4)->setData(QVariant(type.data));
 
         if (event.isBindingLoop) {
             foreach (QStandardItem *item, newRow) {
-                item->setBackground(colors()->bindingLoopBackground);
+                item->setBackground(colors()->noteBackground);
                 item->setToolTip(tr("Part of binding loop."));
             }
         }
@@ -927,7 +1004,7 @@ void QmlProfilerEventRelativesView::jumpToItem(const QModelIndex &index)
 {
     if (treeModel()) {
         QStandardItem *infoItem = treeModel()->item(index.row(), 0);
-        emit eventClicked(infoItem->data(EventHashStrRole).toString());
+        emit typeClicked(infoItem->data(TypeIdRole).toInt());
     }
 }
 

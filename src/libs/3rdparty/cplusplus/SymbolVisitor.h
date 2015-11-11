@@ -21,7 +21,7 @@
 #ifndef SYMBOLVISITOR_H
 #define SYMBOLVISITOR_H
 
-#include "CPlusPlusForwardDeclarations.h"
+#include "Symbol.h"
 
 
 namespace CPlusPlus {
@@ -32,10 +32,10 @@ class CPLUSPLUS_EXPORT SymbolVisitor
     void operator =(const SymbolVisitor &other);
 
 public:
-    SymbolVisitor();
-    virtual ~SymbolVisitor();
+    SymbolVisitor() { }
+    virtual ~SymbolVisitor() { }
 
-    void accept(Symbol *symbol);
+    void accept(Symbol *symbol) { Symbol::visitSymbol(symbol, this); }
 
     virtual bool preVisit(Symbol *) { return true; }
     virtual void postVisit(Symbol *) {}
@@ -51,6 +51,7 @@ public:
     virtual bool visit(Function *) { return true; }
     virtual bool visit(Namespace *) { return true; }
     virtual bool visit(Template *) { return true; }
+    virtual bool visit(ExplicitInstantiation *) { return true; }
     virtual bool visit(Class *) { return true; }
     virtual bool visit(Block *) { return true; }
     virtual bool visit(ForwardClassDeclaration *) { return true; }

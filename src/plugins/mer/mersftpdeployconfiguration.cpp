@@ -24,19 +24,20 @@
 
 #include "merconstants.h"
 
+using namespace ProjectExplorer;
+using namespace RemoteLinux;
+
 namespace Mer {
 namespace Internal {
 
-MerSftpDeployConfiguration::MerSftpDeployConfiguration(ProjectExplorer::Target *target,
-                                                       const Core::Id id)
-    : RemoteLinux::RemoteLinuxDeployConfiguration(target, id,
-                                                  tr("Mer", Constants::MER_SFTP_DEPLOY_STRING))
+MerSftpDeployConfiguration::MerSftpDeployConfiguration(Target *target, Core::Id id)
+    : RemoteLinuxDeployConfiguration(target, id, tr("Mer", Constants::MER_SFTP_DEPLOY_STRING))
 {
 }
 
-MerSftpDeployConfiguration::MerSftpDeployConfiguration(ProjectExplorer::Target *target,
+MerSftpDeployConfiguration::MerSftpDeployConfiguration(Target *target,
                                                        MerSftpDeployConfiguration *source)
-    : RemoteLinux::RemoteLinuxDeployConfiguration(target, source)
+    : RemoteLinuxDeployConfiguration(target, source)
 {
      cloneSteps(source);
 }

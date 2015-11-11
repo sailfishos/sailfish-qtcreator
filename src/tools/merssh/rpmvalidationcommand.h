@@ -29,9 +29,9 @@ class RpmValidationCommand: public Command
 {
 public:
     RpmValidationCommand();
-    QString name() const;
-    int execute();
-    bool isValid() const;
+    QString name() const override;
+    int execute() override;
+    bool isValid() const override;
 };
 
 #endif // RPMVALIDATIONCOMMAND_H

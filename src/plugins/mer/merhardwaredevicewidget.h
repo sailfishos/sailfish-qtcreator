@@ -38,7 +38,7 @@ class MerHardwareDeviceWidget : public ProjectExplorer::IDeviceWidget
 public:
     explicit MerHardwareDeviceWidget(const ProjectExplorer::IDevice::Ptr &deviceConfig,
                                           QWidget *parent = 0);
-    ~MerHardwareDeviceWidget();
+    ~MerHardwareDeviceWidget() override;
 
 private slots:
     void hostNameEditingFinished();

@@ -38,18 +38,18 @@ public:
     static Ptr create();
     static Ptr create(const QString &name, Origin origin = ManuallyAdded, Core::Id id = Core::Id());
 
-    ProjectExplorer::IDevice::Ptr clone() const;
+    ProjectExplorer::IDevice::Ptr clone() const override;
 
-    void fromMap(const QVariantMap &map);
-    QVariantMap toMap() const;
+    void fromMap(const QVariantMap &map) override;
+    QVariantMap toMap() const override;
 
-    ProjectExplorer::Abi::Architecture architecture() const;
+    ProjectExplorer::Abi::Architecture architecture() const override;
     void setArchitecture(const ProjectExplorer::Abi::Architecture &architecture);
 
-    QList<Core::Id> actionIds() const;
-    QString displayNameForActionId(Core::Id actionId) const;
-    void executeAction(Core::Id actionId, QWidget *parent);
-    ProjectExplorer::IDeviceWidget* createWidget();
+    QList<Core::Id> actionIds() const override;
+    QString displayNameForActionId(Core::Id actionId) const override;
+    void executeAction(Core::Id actionId, QWidget *parent) override;
+    ProjectExplorer::IDeviceWidget* createWidget() override;
 
 protected:
     MerHardwareDevice();

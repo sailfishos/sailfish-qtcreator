@@ -54,7 +54,7 @@ int QMakeCommand::execute()
         if (QFile::exists(m_cacheFile)) {
             QFile cacheFile(m_cacheFile);
             if (!cacheFile.open(QIODevice::ReadOnly)) {
-                fprintf(stderr, "%s",qPrintable(QString::fromLatin1("Cannot read cached file '%1'").arg(m_cacheFile)));
+                fprintf(stderr, "%s",qPrintable(QString::fromLatin1("Cannot read cached file \"%1\"").arg(m_cacheFile)));
                 fflush(stderr);
                 return 1;
             }
@@ -66,14 +66,15 @@ int QMakeCommand::execute()
         return 1;
     }
 
-    const QString projectPathParameter = projectPath().isEmpty() ? QString() : QLatin1String(" -p ") +
-    QLatin1String("'") + projectPath() +   QLatin1String("'");
+    const QString projectPathParameter = projectPath().isEmpty()
+        ? QString()
+        : QLatin1String(" -p ") + QLatin1Char('\'') + projectPath() +   QLatin1Char('\'');
 
     QString command = QLatin1String("mb2") +
                       projectPathParameter +
                       QLatin1String(" -t ") +
                       targetName() +
-                      QLatin1Char(' ') + arguments().join(QLatin1String(" ")) + QLatin1Char(' ');
+                      QLatin1Char(' ') + arguments().join(QLatin1Char(' ')) + QLatin1Char(' ');
 
     MerRemoteProcess process;
     process.setSshParameters(sshParameters());
@@ -84,7 +85,7 @@ int QMakeCommand::execute()
 //    if (ok && !m_currentCacheFile.isEmpty()) {
 //        QFile file(m_currentCacheFile);
 //        if (!file.open(QIODevice::WriteOnly)) {
-//            printError(QString::fromLatin1("Cannot write file '%1'").arg(m_currentCacheFile));
+//            printError(QString::fromLatin1("Cannot write file \"%1\"").arg(m_currentCacheFile));
 //            QCoreApplication::exit(1);
 //        }
 //        if (m_currentCacheFile.endsWith(QLatin1String(Mer::Constants::QMAKE_QUERY)))

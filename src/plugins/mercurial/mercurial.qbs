@@ -1,7 +1,5 @@
 import qbs 1.0
 
-import QtcPlugin
-
 QtcPlugin {
     name: "Mercurial"
 
@@ -18,14 +16,9 @@ QtcPlugin {
         "authenticationdialog.cpp",
         "authenticationdialog.h",
         "authenticationdialog.ui",
-        "clonewizard.cpp",
-        "clonewizard.h",
-        "clonewizardpage.cpp",
-        "clonewizardpage.h",
         "commiteditor.cpp",
         "commiteditor.h",
         "constants.h",
-        "mercurial.qrc",
         "mercurialclient.cpp",
         "mercurialclient.h",
         "mercurialcommitpanel.ui",

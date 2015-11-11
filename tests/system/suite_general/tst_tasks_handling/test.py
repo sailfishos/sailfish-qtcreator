@@ -1,7 +1,7 @@
 #############################################################################
 ##
-## Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-## Contact: http://www.qt-project.org/legal
+## Copyright (C) 2015 The Qt Company Ltd.
+## Contact: http://www.qt.io/licensing
 ##
 ## This file is part of Qt Creator.
 ##
@@ -9,20 +9,21 @@
 ## Licensees holding valid commercial Qt licenses may use this file in
 ## accordance with the commercial license agreement provided with the
 ## Software or, alternatively, in accordance with the terms contained in
-## a written agreement between you and Digia.  For licensing terms and
-## conditions see http://qt.digia.com/licensing.  For further information
-## use the contact form at http://qt.digia.com/contact-us.
+## a written agreement between you and The Qt Company.  For licensing terms and
+## conditions see http://www.qt.io/terms-conditions.  For further information
+## use the contact form at http://www.qt.io/contact-us.
 ##
 ## GNU Lesser General Public License Usage
 ## Alternatively, this file may be used under the terms of the GNU Lesser
-## General Public License version 2.1 as published by the Free Software
-## Foundation and appearing in the file LICENSE.LGPL included in the
-## packaging of this file.  Please review the following information to
-## ensure the GNU Lesser General Public License version 2.1 requirements
-## will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+## General Public License version 2.1 or version 3 as published by the Free
+## Software Foundation and appearing in the file LICENSE.LGPLv21 and
+## LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+## following information to ensure the GNU Lesser General Public License
+## requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+## http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 ##
-## In addition, as a special exception, Digia gives you certain additional
-## rights.  These rights are described in the Digia Qt LGPL Exception
+## In addition, as a special exception, The Qt Company gives you certain additional
+## rights.  These rights are described in The Qt Company LGPL Exception
 ## version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 ##
 #############################################################################
@@ -95,21 +96,21 @@ def getBuildIssuesTypeCounts(model):
 
 def main():
     tasksFile, issueTypes = generateMockTasksFile()
-    issuesLabel = ("{text='%d' type='QLabel' unnamed='1' visible='1' "
-                   "window=':Qt Creator_Core::Internal::MainWindow'}" % (sum(issueTypes)))
+    expectedNo = sum(issueTypes)
     startApplication("qtcreator" + SettingsPath)
     if not startedWithoutPluginError():
         return
+    ensureChecked(":Qt Creator_Issues_Core::Internal::OutputPaneToggleButton")
+    model = waitForObject(":Qt Creator.Issues_QListView").model()
+    test.verify(model.rowCount() == 0, 'Got an empty issue list to start from.')
     invokeMenuItem("File", "Open File or Project...")
     selectFromFileDialog(tasksFile)
     starttime = datetime.utcnow()
-    waitFor("object.exists(issuesLabel)", 10000)
+    waitFor("model.rowCount() == expectedNo", 10000)
     endtime = datetime.utcnow()
     differenceMS = (endtime - starttime).microseconds + (endtime - starttime).seconds * 1000000
     test.verify(differenceMS < 2000000, "Verifying whether loading the tasks "
                 "file took less than 2s. (%dµs)" % differenceMS)
-    ensureChecked(":Qt Creator_Issues_Core::Internal::OutputPaneToggleButton")
-    model = waitForObject(":Qt Creator.Issues_QListView").model()
     others, errors, warnings = getBuildIssuesTypeCounts(model)
     test.compare(issueTypes, [warnings, errors, others],
                  "Verifying whether all expected errors, warnings and other tasks are listed.")
@@ -120,8 +121,8 @@ def main():
     waitFor("model.rowCount() == issueTypes[1]", 2000)
     test.compare(model.rowCount(), issueTypes[1], "Verifying only errors are listed.")
     ensureChecked(warnButton, True)
-    waitFor("model.rowCount() == sum(issueTypes)", 2000)
-    test.compare(model.rowCount(), sum(issueTypes), "Verifying all tasks are listed.")
+    waitFor("model.rowCount() == expectedNo", 2000)
+    test.compare(model.rowCount(), expectedNo, "Verifying all tasks are listed.")
 
     # check filtering by 'My Tasks'
     checkOrUncheckMyTasks()
@@ -129,8 +130,8 @@ def main():
     test.compare(model.rowCount(), 0,
                  "Verifying whether unchecking 'My Tasks' hides all tasks from tasks file.")
     checkOrUncheckMyTasks()
-    waitFor("model.rowCount() == sum(issueTypes)", 2000)
-    test.compare(model.rowCount(), sum(issueTypes),
+    waitFor("model.rowCount() == expectedNo", 2000)
+    test.compare(model.rowCount(), expectedNo,
                  "Verifying whether checking 'My Tasks' displays all tasks from tasks file.")
 
     # check filtering by 'My Tasks' and 'Show Warnings'
@@ -145,8 +146,8 @@ def main():
     test.compare(model.rowCount(), 0,
                  "Verifying whether enabling 'Show Warnings' still displays nothing.")
     checkOrUncheckMyTasks()
-    waitFor("model.rowCount() == sum(issueTypes)", 2000)
-    test.compare(model.rowCount(), sum(issueTypes),
+    waitFor("model.rowCount() == expectedNo", 2000)
+    test.compare(model.rowCount(), expectedNo,
                  "Verifying whether checking 'My Tasks' displays all again.")
     ensureChecked(warnButton, False)
     waitFor("model.rowCount() == issueTypes[1]", 2000)

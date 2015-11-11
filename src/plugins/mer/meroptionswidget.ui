@@ -103,7 +103,7 @@
   <customwidget>
    <class>Mer::Internal::MerSdkDetailsWidget</class>
    <extends>QWidget</extends>
-   <header>mersdkdetailswidget.h</header>
+   <header location="global">mer/mersdkdetailswidget.h</header>
    <container>1</container>
   </customwidget>
  </customwidgets>

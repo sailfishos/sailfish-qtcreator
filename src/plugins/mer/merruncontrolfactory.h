@@ -35,15 +35,10 @@ class MerRunControlFactory : public ProjectExplorer::IRunControlFactory
 public:
     explicit MerRunControlFactory(QObject *parent = 0);
 
-    QString displayName() const;
-    ProjectExplorer::RunConfigWidget *createConfigurationWidget(
-            ProjectExplorer::RunConfiguration *runConfiguration);
-
     bool canRun(ProjectExplorer::RunConfiguration *runConfiguration,
-                ProjectExplorer::RunMode mode) const;
+                Core::Id mode) const override;
     ProjectExplorer::RunControl *create(ProjectExplorer::RunConfiguration *runConfiguration,
-                                        ProjectExplorer::RunMode mode,
-                                        QString *errorMessage);
+                                        Core::Id mode, QString *errorMessage) override;
 };
 
 } // namespace Internal

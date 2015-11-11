@@ -48,7 +48,7 @@ public:
     QString sharedConfigPath() const;
     QString sharedSshPath() const;
     QString mac() const;
-    bool isComplete() const;
+    bool isComplete() const override;
 private slots:
     void handleEmulatorVmChanged(const QString &vmName);
 private:
@@ -62,7 +62,7 @@ public:
     MerEmualtorSshPage(QWidget *parent = 0);
     ~MerEmualtorSshPage();
 
-    void initializePage();
+    void initializePage() override;
 
     QString userName() const;
     QString userPrivateKey() const;

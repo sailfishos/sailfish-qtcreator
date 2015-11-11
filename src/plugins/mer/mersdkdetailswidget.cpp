@@ -32,6 +32,8 @@
 #include <QFileDialog>
 #include <QMessageBox>
 
+using namespace Utils;
+
 namespace Mer {
 namespace Internal {
 
@@ -44,16 +46,24 @@ MerSdkDetailsWidget::MerSdkDetailsWidget(QWidget *parent)
 {
     m_ui->setupUi(this);
 
-    connect(m_ui->authorizeSshKeyPushButton, SIGNAL(clicked()), SLOT(onAuthorizeSshKeyButtonClicked()));
-    connect(m_ui->generateSshKeyPushButton, SIGNAL(clicked()), SLOT(onGenerateSshKeyButtonClicked()));
-    connect(m_ui->privateKeyPathChooser, SIGNAL(editingFinished()), SLOT(onPathChooserEditingFinished()));
-    connect(m_ui->privateKeyPathChooser, SIGNAL(browsingFinished()), SLOT(onPathChooserEditingFinished()));
-    connect(m_ui->testConnectionPushButton, SIGNAL(clicked()), SIGNAL(testConnectionButtonClicked()));
-    connect(m_ui->sshTimeoutSpinBox, SIGNAL(valueChanged(int)), SIGNAL(sshTimeoutChanged(int)));
-    connect(m_ui->headlessCheckBox, SIGNAL(toggled(bool)), SIGNAL(headlessCheckBoxToggled(bool)));
-    connect(m_ui->srcFolderApplyButton, SIGNAL(clicked()), SLOT(onSrcFolderApplyButtonClicked()));
+    connect(m_ui->authorizeSshKeyPushButton, &QPushButton::clicked,
+            this, &MerSdkDetailsWidget::onAuthorizeSshKeyButtonClicked);
+    connect(m_ui->generateSshKeyPushButton, &QPushButton::clicked,
+            this, &MerSdkDetailsWidget::onGenerateSshKeyButtonClicked);
+    connect(m_ui->privateKeyPathChooser, &PathChooser::editingFinished,
+            this, &MerSdkDetailsWidget::onPathChooserEditingFinished);
+    connect(m_ui->privateKeyPathChooser, &PathChooser::browsingFinished,
+            this, &MerSdkDetailsWidget::onPathChooserEditingFinished);
+    connect(m_ui->testConnectionPushButton, &QPushButton::clicked,
+            this, &MerSdkDetailsWidget::testConnectionButtonClicked);
+    connect(m_ui->sshTimeoutSpinBox, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+            this, &MerSdkDetailsWidget::sshTimeoutChanged);
+    connect(m_ui->headlessCheckBox, &QCheckBox::toggled,
+            this, &MerSdkDetailsWidget::headlessCheckBoxToggled);
+    connect(m_ui->srcFolderApplyButton, &QPushButton::clicked,
+            this, &MerSdkDetailsWidget::onSrcFolderApplyButtonClicked);
 
-    m_ui->privateKeyPathChooser->setExpectedKind(Utils::PathChooser::File);
+    m_ui->privateKeyPathChooser->setExpectedKind(PathChooser::File);
     m_ui->privateKeyPathChooser->setPromptDialogTitle(tr("Select SSH Key"));
 }
 
@@ -87,7 +97,7 @@ void MerSdkDetailsWidget::setSdk(const MerSdk *sdk)
     m_ui->configFolderPathLabel->setText(QDir::toNativeSeparators(sdk->sharedConfigPath()));
     m_ui->srcFolderPathChooser->setPath(QDir::toNativeSeparators(sdk->sharedSrcPath()));
 
-    if (MerSdkManager::instance()->hasSdk(sdk)) {
+    if (MerSdkManager::hasSdk(sdk)) {
         const QStringList &targets = sdk->targetNames();
         if (targets.isEmpty())
             m_ui->targetsListLabel->setText(tr("No targets installed"));
@@ -137,8 +147,8 @@ void MerSdkDetailsWidget::onSrcFolderApplyButtonClicked()
 {
     if (m_ui->srcFolderPathChooser->isValid()) {
         QString path = m_ui->srcFolderPathChooser->path();
-        if (Utils::HostOsInfo::isWindowsHost()) {
-            if (!path.endsWith(QLatin1String("\\")) && !path.endsWith(QLatin1String("/"))) {
+        if (HostOsInfo::isWindowsHost()) {
+            if (!path.endsWith(QLatin1Char('\\')) && !path.endsWith(QLatin1Char('/'))) {
                 path = path + QLatin1Char('\\');
             }
         }

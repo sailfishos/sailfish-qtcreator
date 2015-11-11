@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -33,9 +34,11 @@
 #include "buildsettingspropertiespage.h"
 #include "ipotentialkit.h"
 #include "kitoptionspage.h"
+#include "panelswidget.h"
 #include "project.h"
 #include "projectimporter.h"
 #include "projectwindow.h"
+#include "propertiespanel.h"
 #include "runsettingspropertiespage.h"
 #include "target.h"
 #include "targetsettingswidget.h"
@@ -49,6 +52,7 @@
 #include <projectexplorer/buildconfiguration.h>
 #include <projectexplorer/deployconfiguration.h>
 #include <projectexplorer/runconfiguration.h>
+#include <utils/algorithm.h>
 #include <utils/qtcassert.h>
 
 #include <QFileDialog>
@@ -65,6 +69,8 @@ using namespace Core;
 
 namespace ProjectExplorer {
 namespace Internal {
+
+int TargetSettingsPanelWidget::s_targetSubIndex = -1;
 
 ///
 // TargetSettingsWidget
@@ -193,6 +199,7 @@ void TargetSettingsPanelWidget::setupUi()
     // Now set the correct target
     int index = m_targets.indexOf(m_project->activeTarget());
     m_selector->setCurrentIndex(index);
+    m_selector->setCurrentSubIndex(s_targetSubIndex);
     currentTargetChanged(index, m_selector->currentSubIndex());
 
     connect(m_selector, SIGNAL(currentChanged(int,int)),
@@ -230,6 +237,8 @@ void TargetSettingsPanelWidget::currentTargetChanged(int targetIndex, int subInd
         return;
     }
 
+    s_targetSubIndex = subIndex;
+
     Target *target = m_targets.at(targetIndex);
 
     // Target was not actually changed:
@@ -244,21 +253,33 @@ void TargetSettingsPanelWidget::currentTargetChanged(int targetIndex, int subInd
     // Target has changed:
     m_currentTarget = target;
 
+    auto wrapWidgetInPropertiesPanel
+            = [](QWidget *widget, const QString &displayName, const QIcon &icon) -> PropertiesPanel *{
+                    PropertiesPanel *panel = new PropertiesPanel;
+                    QWidget *w = new QWidget();
+                    QVBoxLayout *l = new QVBoxLayout(w);
+                    l->addWidget(widget);
+                    l->addSpacerItem(new QSpacerItem(0, 0, QSizePolicy::Minimum, QSizePolicy::Expanding));
+                    l->setContentsMargins(QMargins());
+                    panel->setWidget(w);
+                    panel->setIcon(icon);
+                    panel->setDisplayName(displayName);
+                    return panel;
+                };
+
+    PropertiesPanel *build = wrapWidgetInPropertiesPanel(new BuildSettingsWidget(target),
+                                                         QCoreApplication::translate("BuildSettingsPanel", "Build Settings"),
+                                                         QIcon(QLatin1String(":/projectexplorer/images/BuildSettings.png")));
+    PropertiesPanel *run= wrapWidgetInPropertiesPanel(new RunSettingsWidget(target),
+                                                      RunSettingsWidget::tr("Run Settings"),
+                                                      QIcon(QLatin1String(":/projectexplorer/images/RunSettings.png")));
+
     PanelsWidget *buildPanel = new PanelsWidget(m_centralWidget);
     PanelsWidget *runPanel = new PanelsWidget(m_centralWidget);
 
-    foreach (ITargetPanelFactory *panelFactory, ExtensionSystem::PluginManager::getObjects<ITargetPanelFactory>()) {
-        if (panelFactory->id() == QLatin1String(BUILDSETTINGS_PANEL_ID)) {
-            PropertiesPanel *panel = panelFactory->createPanel(target);
-            buildPanel->addPropertiesPanel(panel);
-            continue;
-        }
-        if (panelFactory->id() == QLatin1String(RUNSETTINGS_PANEL_ID)) {
-            PropertiesPanel *panel = panelFactory->createPanel(target);
-            runPanel->addPropertiesPanel(panel);
-            continue;
-        }
-    }
+    buildPanel->addPropertiesPanel(build);
+    runPanel->addPropertiesPanel(run);
+
     m_centralWidget->addWidget(buildPanel);
     m_centralWidget->addWidget(runPanel);
 
@@ -280,7 +301,7 @@ void TargetSettingsPanelWidget::menuShown(int targetIndex)
 
 void TargetSettingsPanelWidget::changeActionTriggered(QAction *action)
 {
-    Kit *k = KitManager::find(action->data().value<Core::Id>());
+    Kit *k = KitManager::find(action->data().value<Id>());
     Target *sourceTarget = m_targets.at(m_menuTargetIndex);
     Target *newTarget = cloneTarget(sourceTarget, k);
 
@@ -293,7 +314,7 @@ void TargetSettingsPanelWidget::changeActionTriggered(QAction *action)
 
 void TargetSettingsPanelWidget::duplicateActionTriggered(QAction *action)
 {
-    Kit *k = KitManager::find(action->data().value<Core::Id>());
+    Kit *k = KitManager::find(action->data().value<Id>());
     Target *newTarget = cloneTarget(m_targets.at(m_menuTargetIndex), k);
 
     if (newTarget) {
@@ -305,8 +326,8 @@ void TargetSettingsPanelWidget::duplicateActionTriggered(QAction *action)
 void TargetSettingsPanelWidget::addActionTriggered(QAction *action)
 {
     const QVariant data = action->data();
-    if (data.canConvert<Core::Id>()) { // id of kit
-        Kit *k = KitManager::find(action->data().value<Core::Id>());
+    if (data.canConvert<Id>()) { // id of kit
+        Kit *k = KitManager::find(action->data().value<Id>());
         QTC_ASSERT(!m_project->target(k), return);
 
         Target *target = m_project->createTarget(k);
@@ -406,7 +427,7 @@ Target *TargetSettingsPanelWidget::cloneTarget(Target *sourceTarget, Kit *k)
 
     if (fatalError) {
         // That could be a more granular error message
-        QMessageBox::critical(Core::ICore::mainWindow(),
+        QMessageBox::critical(ICore::mainWindow(),
                               tr("Incompatible Kit"),
                               tr("Kit %1 is incompatible with kit %2.")
                               .arg(sourceTarget->kit()->displayName())
@@ -422,24 +443,24 @@ Target *TargetSettingsPanelWidget::cloneTarget(Target *sourceTarget, Kit *k)
         if (!buildconfigurationError.isEmpty())
             error += tr("Build configurations:")
                     + QLatin1Char('\n')
-                    + buildconfigurationError.join(QLatin1String("\n"));
+                    + buildconfigurationError.join(QLatin1Char('\n'));
 
         if (!deployconfigurationError.isEmpty()) {
             if (!error.isEmpty())
                 error.append(QLatin1Char('\n'));
             error += tr("Deploy configurations:")
                     + QLatin1Char('\n')
-                    + deployconfigurationError.join(QLatin1String("\n"));
+                    + deployconfigurationError.join(QLatin1Char('\n'));
         }
 
         if (!runconfigurationError.isEmpty()) {
             if (!error.isEmpty())
                 error.append(QLatin1Char('\n'));
             error += tr("Run configurations") + QLatin1Char(' ')
-                    + runconfigurationError.join(QLatin1String("\n"));
+                    + runconfigurationError.join(QLatin1Char('\n'));
         }
 
-        QMessageBox msgBox(Core::ICore::mainWindow());
+        QMessageBox msgBox(ICore::mainWindow());
         msgBox.setIcon(QMessageBox::Warning);
         msgBox.setWindowTitle(tr("Partially Incompatible Kit"));
         msgBox.setText(tr("Some configurations could not be copied."));
@@ -496,7 +517,7 @@ void TargetSettingsPanelWidget::showTargetToolTip(const QPoint &globalPos, int t
     QToolTip::showText(globalPos, target->kit()->toHtml());
 }
 
-void TargetSettingsPanelWidget::targetAdded(ProjectExplorer::Target *target)
+void TargetSettingsPanelWidget::targetAdded(Target *target)
 {
     Q_ASSERT(m_project == target->project());
     Q_ASSERT(m_selector);
@@ -516,7 +537,7 @@ void TargetSettingsPanelWidget::targetAdded(ProjectExplorer::Target *target)
     updateTargetButtons();
 }
 
-void TargetSettingsPanelWidget::removedTarget(ProjectExplorer::Target *target)
+void TargetSettingsPanelWidget::removedTarget(Target *target)
 {
     Q_ASSERT(m_project == target->project());
     Q_ASSERT(m_selector);
@@ -531,19 +552,12 @@ void TargetSettingsPanelWidget::removedTarget(ProjectExplorer::Target *target)
     updateTargetButtons();
 }
 
-void TargetSettingsPanelWidget::activeTargetChanged(ProjectExplorer::Target *target)
+void TargetSettingsPanelWidget::activeTargetChanged(Target *target)
 {
     Q_ASSERT(m_selector);
 
     int index = m_targets.indexOf(target);
     m_selector->setCurrentIndex(index);
-}
-
-namespace {
-bool diplayNameSorter(Kit *a, Kit *b)
-{
-    return a->displayName() < b->displayName();
-}
 }
 
 void TargetSettingsPanelWidget::createAction(Kit *k, QMenu *menu)
@@ -597,9 +611,7 @@ void TargetSettingsPanelWidget::updateTargetButtons()
             this, SLOT(duplicateActionTriggered(QAction*)));
     connect(removeAction, SIGNAL(triggered()), this, SLOT(removeTarget()));
 
-    QList<Kit *> kits = KitManager::kits();
-    qSort(kits.begin(), kits.end(), diplayNameSorter);
-    foreach (Kit *k, kits) {
+    foreach (Kit *k, KitManager::sortKits(KitManager::kits())) {
         if (m_project->target(k))
             continue;
         createAction(k, m_addMenu);
@@ -629,17 +641,15 @@ void TargetSettingsPanelWidget::openTargetPreferences()
 {
     int targetIndex = m_selector->currentIndex();
     if (targetIndex >= 0 && targetIndex < m_targets.size()) {
-        KitOptionsPage *page = ExtensionSystem::PluginManager::getObject<ProjectExplorer::KitOptionsPage>();
-        if (page)
+        if (KitOptionsPage *page = ExtensionSystem::PluginManager::getObject<KitOptionsPage>())
             page->showKit(m_targets.at(targetIndex)->kit());
     }
-    ICore::showOptionsDialog(Constants::PROJECTEXPLORER_SETTINGS_CATEGORY,
-                             Constants::KITS_SETTINGS_PAGE_ID);
+    ICore::showOptionsDialog(Constants::KITS_SETTINGS_PAGE_ID, this);
 }
 
 void TargetSettingsPanelWidget::importTarget()
 {
-    QString toImport = QFileDialog::getExistingDirectory(this, tr("Import directory"), m_project->projectDirectory());
+    QString toImport = QFileDialog::getExistingDirectory(this, tr("Import directory"), m_project->projectDirectory().toString());
     importTarget(Utils::FileName::fromString(toImport));
 }
 

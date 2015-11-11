@@ -43,6 +43,9 @@
 #include <QDesktopWidget>
 #include <QPushButton>
 
+using namespace Core;
+using namespace ProjectExplorer;
+
 using namespace Mer;
 using namespace Mer::Internal;
 
@@ -54,22 +57,17 @@ MerEmulatorModeDialog::MerEmulatorModeDialog(QObject *parent)
       m_kit(0),
       m_emulator(0)
 {
-    auto sessionManager = static_cast<ProjectExplorer::SessionManager *>(
-            ProjectExplorer::SessionManager::instance());
-    auto kitManager = static_cast<ProjectExplorer::KitManager *>(
-            ProjectExplorer::KitManager::instance());
-
     m_action->setEnabled(false);
     m_action->setText(tr("&Emulator mode..."));
 
     connect(m_action, &QAction::triggered,
             this, &MerEmulatorModeDialog::execDialog);
 
-    onStartupProjectChanged(ProjectExplorer::SessionManager::startupProject());
-    connect(sessionManager, &ProjectExplorer::SessionManager::startupProjectChanged,
+    onStartupProjectChanged(SessionManager::startupProject());
+    connect(SessionManager::instance(), &SessionManager::startupProjectChanged,
             this, &MerEmulatorModeDialog::onStartupProjectChanged);
 
-    connect(kitManager, &ProjectExplorer::KitManager::kitUpdated,
+    connect(KitManager::instance(), &KitManager::kitUpdated,
             this, &MerEmulatorModeDialog::onKitUpdated);
 }
 
@@ -88,7 +86,7 @@ void MerEmulatorModeDialog::setEmulator(MerEmulatorDevice *emulator)
     m_action->setEnabled(m_emulator != 0);
 }
 
-void MerEmulatorModeDialog::onStartupProjectChanged(ProjectExplorer::Project *project)
+void MerEmulatorModeDialog::onStartupProjectChanged(Project *project)
 {
     if (m_project != 0) {
         m_project->disconnect(this);
@@ -99,12 +97,12 @@ void MerEmulatorModeDialog::onStartupProjectChanged(ProjectExplorer::Project *pr
 
     if (m_project != 0) {
         onActiveTargetChanged(m_project->activeTarget());
-        connect(m_project.data(), &ProjectExplorer::Project::activeTargetChanged,
+        connect(m_project.data(), &Project::activeTargetChanged,
                 this, &MerEmulatorModeDialog::onActiveTargetChanged);
     }
 }
 
-void MerEmulatorModeDialog::onActiveTargetChanged(ProjectExplorer::Target *target)
+void MerEmulatorModeDialog::onActiveTargetChanged(Target *target)
 {
     if (m_target != 0) {
         m_target->disconnect(this);
@@ -115,7 +113,7 @@ void MerEmulatorModeDialog::onActiveTargetChanged(ProjectExplorer::Target *targe
 
     if (m_target != 0) {
         onTargetKitChanged();
-        connect(m_target.data(), &ProjectExplorer::Target::kitChanged,
+        connect(m_target.data(), &Target::kitChanged,
                 this, &MerEmulatorModeDialog::onTargetKitChanged);
     }
 }
@@ -135,7 +133,7 @@ void MerEmulatorModeDialog::onTargetKitChanged()
     }
 }
 
-void MerEmulatorModeDialog::onKitUpdated(ProjectExplorer::Kit *kit)
+void MerEmulatorModeDialog::onKitUpdated(Kit *kit)
 {
     Q_ASSERT(kit != 0);
 
@@ -143,7 +141,7 @@ void MerEmulatorModeDialog::onKitUpdated(ProjectExplorer::Kit *kit)
         return;
     }
 
-    auto device = ProjectExplorer::DeviceKitInformation::device(m_kit);
+    auto device = DeviceKitInformation::device(m_kit);
     setEmulator(const_cast<MerEmulatorDevice *>(
                     dynamic_cast<const MerEmulatorDevice *>(device.data())));
 }
@@ -153,7 +151,7 @@ void MerEmulatorModeDialog::execDialog()
     Q_ASSERT(m_emulator != 0);
     QTC_ASSERT(m_ui == 0, return); // possible, but little issue..
 
-    m_dialog = new QDialog(Core::ICore::dialogParent());
+    m_dialog = new QDialog(ICore::dialogParent());
     m_ui = new Ui::MerEmulatorModeDialog;
     m_ui->setupUi(m_dialog);
 

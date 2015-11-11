@@ -42,7 +42,7 @@ class MerProjectListener : public QObject
     Q_OBJECT
 public:
     explicit MerProjectListener(QObject *parent = 0);
-    virtual ~MerProjectListener() {}
+    ~MerProjectListener() override {}
 
 protected slots:
     virtual void init();

@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,31 +9,28 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
 #include "iosdevicemanager.h"
 
 #include <qglobal.h>
-#if QT_VERSION < QT_VERSION_CHECK(5, 0, 0)
-#include <QApplication>
-#else
 #include <QGuiApplication>
-#endif
 #include <QTextStream>
 #include <QDebug>
 #include <QXmlStreamWriter>
@@ -58,6 +55,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #endif
+#include <thread>
 
 // avoid utils dependency
 #define QTC_CHECK(cond) if (cond) {} else { qWarning() << "assert failed " << #cond << " " \
@@ -129,7 +127,7 @@ class SingleRelayServer: public RelayServer
 public:
     SingleRelayServer(IosTool *parent, int serverFileDescriptor);
 protected:
-    void newRelayConnection() QTC_OVERRIDE;
+    void newRelayConnection() override;
 private:
     int m_serverFileDescriptor;
 };
@@ -140,7 +138,7 @@ public:
     GenericRelayServer(IosTool *parent, int remotePort,
                        Ios::DeviceSession *deviceSession);
 protected:
-    void newRelayConnection() QTC_OVERRIDE;
+    void newRelayConnection() override;
 private:
     int m_remotePort;
     Ios::DeviceSession *m_deviceSession;
@@ -152,6 +150,7 @@ class GdbRunner: public QObject
     Q_OBJECT
 public:
     GdbRunner(IosTool *iosTool, int gdbFd);
+    void stop(int phase);
 public slots:
     void run();
 signals:
@@ -177,7 +176,9 @@ public:
     void writeMaybeBin(const QString &extraMsg, const char *msg, quintptr len);
 public slots:
     void errorMsg(const QString &msg);
+    void stopGdbRunner();
 private slots:
+    void stopGdbRunner2();
     void isTransferringApp(const QString &bundlePath, const QString &deviceId, int progress,
                            const QString &info);
     void didTransferApp(const QString &bundlePath, const QString &deviceId,
@@ -188,6 +189,8 @@ private slots:
     void deviceInfo(const QString &deviceId, const Ios::IosDeviceManager::Dict &info);
     void appOutput(const QString &output);
 private:
+    void readStdin();
+
     QMutex m_xmlMutex;
     int maxProgress;
     int opLeft;
@@ -201,6 +204,7 @@ private:
     QXmlStreamWriter out;
     SingleRelayServer *gdbServer;
     GenericRelayServer *qmlServer;
+    GdbRunner *gdbRunner;
     friend class GdbRunner;
 };
 
@@ -504,11 +508,7 @@ IosTool::IosTool(QObject *parent):
     gdbServer(0),
     qmlServer(0)
 {
-#if QT_VERSION < QT_VERSION_CHECK(5, 0, 0)
-    outFile.open(stdout, QIODevice::WriteOnly, QFile::DontCloseHandle);
-#else
     outFile.open(stdout, QIODevice::WriteOnly, QFileDevice::DontCloseHandle);
-#endif
     out.setAutoFormatting(true);
     out.setCodec("UTF-8");
 }
@@ -570,12 +570,12 @@ void IosTool::run(const QStringList &args)
                 printHelp = true;
             }
         } else if (arg == QLatin1String("-extra-args")) {
-            extraArgs = args.mid(iarg, args.size() - iarg);
+            extraArgs = args.mid(iarg + 1, args.size() - iarg - 1);
             iarg = args.size();
         } else if (arg == QLatin1String("-help") || arg == QLatin1String("--help")) {
             printHelp = true;
         } else {
-            writeMsg(QString::fromLatin1("unexpected argument '%1'").arg(arg));
+            writeMsg(QString::fromLatin1("unexpected argument \"%1\"").arg(arg));
         }
     }
     if (printHelp) {
@@ -592,8 +592,8 @@ void IosTool::run(const QStringList &args)
             SLOT(isTransferringApp(QString,QString,int,QString)));
     connect(manager,SIGNAL(didTransferApp(QString,QString,Ios::IosDeviceManager::OpStatus)),
             SLOT(didTransferApp(QString,QString,Ios::IosDeviceManager::OpStatus)));
-    connect(manager,SIGNAL(didStartApp(QString,QString,Ios::IosDeviceManager::OpStatus,int,Ios::DeviceSession *)),
-            SLOT(didStartApp(QString,QString,Ios::IosDeviceManager::OpStatus,int,Ios::DeviceSession *)));
+    connect(manager,SIGNAL(didStartApp(QString,QString,Ios::IosDeviceManager::OpStatus,int,Ios::DeviceSession*)),
+            SLOT(didStartApp(QString,QString,Ios::IosDeviceManager::OpStatus,int,Ios::DeviceSession*)));
     connect(manager,SIGNAL(deviceInfo(QString,Ios::IosDeviceManager::Dict)),
             SLOT(deviceInfo(QString,Ios::IosDeviceManager::Dict)));
     connect(manager,SIGNAL(appOutput(QString)), SLOT(appOutput(QString)));
@@ -745,20 +745,17 @@ void IosTool::didStartApp(const QString &bundlePath, const QString &deviceId,
         outFile.flush();
     }
     if (!debug) {
-        GdbRunner *gdbRunner = new GdbRunner(this, gdbFd);
-        if (qmlServer) {
-            // we should not stop the event handling of the main thread
-            // all output moves to the new thread (other option would be to signal it back)
-            QThread *gdbProcessThread = new QThread();
-            gdbRunner->moveToThread(gdbProcessThread);
-            QObject::connect(gdbProcessThread, SIGNAL(started()), gdbRunner, SLOT(run()));
-            QObject::connect(gdbRunner, SIGNAL(finished()), gdbProcessThread, SLOT(quit()));
-            QObject::connect(gdbProcessThread, SIGNAL(finished()), gdbProcessThread, SLOT(deleteLater()));
-            gdbProcessThread->start();
-        } else {
-            gdbRunner->setParent(this);
-            gdbRunner->run();
-        }
+        gdbRunner = new GdbRunner(this, gdbFd);
+        // we should not stop the event handling of the main thread
+        // all output moves to the new thread (other option would be to signal it back)
+        QThread *gdbProcessThread = new QThread();
+        gdbRunner->moveToThread(gdbProcessThread);
+        QObject::connect(gdbProcessThread, SIGNAL(started()), gdbRunner, SLOT(run()));
+        QObject::connect(gdbRunner, SIGNAL(finished()), gdbProcessThread, SLOT(quit()));
+        QObject::connect(gdbProcessThread, SIGNAL(finished()), gdbProcessThread, SLOT(deleteLater()));
+        gdbProcessThread->start();
+
+        new std::thread([this]() -> void { readStdin();});
     }
 }
 
@@ -856,9 +853,34 @@ void IosTool::appOutput(const QString &output)
     outFile.flush();
 }
 
+void IosTool::readStdin()
+{
+    int c = getchar();
+    if (c == 'k') {
+        QMetaObject::invokeMethod(this, "stopGdbRunner");
+        errorMsg(QLatin1String("iostool: Killing inferior.\n"));
+    } else if (c != EOF) {
+        errorMsg(QLatin1String("iostool: Unexpected character in stdin, stop listening.\n"));
+    }
+}
+
 void IosTool::errorMsg(const QString &msg)
 {
     writeMsg(msg);
+}
+
+void IosTool::stopGdbRunner()
+{
+    if (gdbRunner) {
+        gdbRunner->stop(0);
+        QTimer::singleShot(100, this, SLOT(stopGdbRunner2()));
+    }
+}
+
+void IosTool::stopGdbRunner2()
+{
+    if (gdbRunner)
+        gdbRunner->stop(1);
 }
 
 void IosTool::stopRelayServers(int errorCode)
@@ -874,6 +896,8 @@ void IosTool::stopRelayServers(int errorCode)
 
 int main(int argc, char *argv[])
 {
+    //This keeps iostool from stealing focus
+    qputenv("QT_MAC_DISABLE_FOREGROUND_APPLICATION_TRANSFORM", "true");
     // We do not pass the real arguments to QCoreApplication because this wrapper needs to be able
     // to forward arguments like -qmljsdebugger=... that are filtered by QCoreApplication
     QStringList args;
@@ -886,19 +910,12 @@ int main(int argc, char *argv[])
         qtArgc = 1;
     }
 
-#if QT_VERSION < QT_VERSION_CHECK(5, 0, 0)
-    QApplication a(qtArgc, &qtArg);
-#else
     QGuiApplication a(qtArgc, &qtArg);
-#endif
     IosTool tool;
     tool.run(args);
     int res = a.exec();
     exit(res);
 }
-
-#include "main.moc"
-
 
 GdbRunner::GdbRunner(IosTool *iosTool, int gdbFd) :
     QObject(0), m_iosTool(iosTool), m_gdbFd(gdbFd)
@@ -928,3 +945,10 @@ void GdbRunner::run()
     m_iosTool->doExit();
     emit finished();
 }
+
+void GdbRunner::stop(int phase)
+{
+    Ios::IosDeviceManager::instance()->stopGdbServer(m_gdbFd, phase);
+}
+
+#include "main.moc"

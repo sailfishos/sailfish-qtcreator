@@ -35,22 +35,23 @@ class MerDeployConfigurationFactory : public ProjectExplorer::DeployConfiguratio
 public:
     explicit MerDeployConfigurationFactory(QObject *parent = 0);
 
-    QList<Core::Id> availableCreationIds(ProjectExplorer::Target *parent) const;
-    QString displayNameForId(const Core::Id id) const;
+    QList<Core::Id> availableCreationIds(ProjectExplorer::Target *parent) const override;
+    QString displayNameForId(Core::Id id) const override;
 
-    bool canCreate(ProjectExplorer::Target *parent, const Core::Id id) const;
+    bool canCreate(ProjectExplorer::Target *parent, Core::Id id) const override;
     ProjectExplorer::DeployConfiguration *create(ProjectExplorer::Target *parent,
-                                                 const Core::Id id);
+                                                 Core::Id id) override;
 
-    bool canRestore(ProjectExplorer::Target *parent, const QVariantMap &map) const;
+    bool canRestore(ProjectExplorer::Target *parent, const QVariantMap &map) const override;
     ProjectExplorer::DeployConfiguration *restore(ProjectExplorer::Target *parent,
-                                                  const QVariantMap &map);
+                                                  const QVariantMap &map) override;
 
     bool canClone(ProjectExplorer::Target *parent,
-                  ProjectExplorer::DeployConfiguration *source) const;
+                  ProjectExplorer::DeployConfiguration *source) const override;
     ProjectExplorer::DeployConfiguration *clone(ProjectExplorer::Target *parent,
-                                                ProjectExplorer::DeployConfiguration *source);
+                                                ProjectExplorer::DeployConfiguration *source) override;
 
+private:
     bool canHandle(ProjectExplorer::Target *t) const;
 };
 

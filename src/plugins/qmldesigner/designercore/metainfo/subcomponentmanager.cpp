@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -34,7 +35,9 @@
 #include "model.h"
 #include "metainforeader.h"
 
+#include <utils/algorithm.h>
 #include <utils/hostosinfo.h>
+#include <coreplugin/messagebox.h>
 
 #include <QDir>
 #include <QMessageBox>
@@ -42,13 +45,14 @@
 
 #include <qmljs/qmljslink.h>
 #include <qmljs/parser/qmljsast_p.h>
+#include <qmljs/parser/qmljsengine_p.h>
 #include <qmljs/qmljsmodelmanagerinterface.h>
 
 enum { debug = false };
 
 QT_BEGIN_NAMESPACE
 
-// Allow usage of QFileInfo in qSort
+// Allow usage of QFileInfo in Utils::sort
 
 static bool operator<(const QFileInfo &file1, const QFileInfo &file2)
 {
@@ -58,20 +62,6 @@ static bool operator<(const QFileInfo &file1, const QFileInfo &file2)
 
 QT_END_NAMESPACE
 
-static inline QStringList importPaths() {
-    QStringList paths;
-
-    // env import paths
-    QByteArray envImportPath = qgetenv("QML_IMPORT_PATH");
-    if (!envImportPath.isEmpty()) {
-        paths = QString::fromUtf8(envImportPath)
-                .split(Utils::HostOsInfo::pathListSeparator(), QString::SkipEmptyParts);
-    }
-
-    paths.append(QmlJS::ModelManagerInterface::instance()->importPaths());
-
-    return paths;
-}
 
 static inline bool checkIfDerivedFromItem(const QString &fileName)
 {
@@ -93,7 +83,7 @@ static inline bool checkIfDerivedFromItem(const QString &fileName)
 
     QmlJS::Document::MutablePtr document =
             QmlJS::Document::create(fileName.isEmpty() ?
-                                        QLatin1String("<internal>") : fileName, QmlJS::Language::Qml);
+                                        QStringLiteral("<internal>") : fileName, QmlJS::Dialect::Qml);
     document->setSource(source);
     document->parseQml();
 
@@ -103,7 +93,7 @@ static inline bool checkIfDerivedFromItem(const QString &fileName)
 
     snapshot.insert(document);
 
-    QmlJS::Link link(snapshot, modelManager->defaultVContext(), QmlJS::ModelManagerInterface::instance()->builtins(document));
+    QmlJS::Link link(snapshot, modelManager->defaultVContext(document->language(), document), QmlJS::ModelManagerInterface::instance()->builtins(document));
 
     QList<QmlJS::DiagnosticMessage> diagnosticLinkMessages;
     QmlJS::ContextPtr context = link(document, &diagnosticLinkMessages);
@@ -131,7 +121,7 @@ static inline bool checkIfDerivedFromItem(const QString &fileName)
 }
 
 namespace QmlDesigner {
-static const QString s_qmlFilePattern = QString(QLatin1String("*.qml"));
+static const QString s_qmlFilePattern = QStringLiteral("*.qml");
 
 SubComponentManager::SubComponentManager(Model *model, QObject *parent)
     : QObject(parent),
@@ -219,6 +209,15 @@ void SubComponentManager::parseDirectories()
             foreach (const QString &path, importPaths()) {
                 QString fullUrl  = path + QLatin1Char('/') + url;
                 dirInfo = QFileInfo(fullUrl);
+
+                if (dirInfo.exists() && dirInfo.isDir()) {
+                    //### todo full qualified names QString nameSpace = import.uri();
+                    parseDirectory(dirInfo.canonicalFilePath(), false);
+                }
+
+                QString fullUrlVersion = path + QLatin1Char('/') + url + QLatin1Char('.') + import.version().split(".").first();
+                dirInfo = QFileInfo(fullUrlVersion);
+
                 if (dirInfo.exists() && dirInfo.isDir()) {
                     //### todo full qualified names QString nameSpace = import.uri();
                     parseDirectory(dirInfo.canonicalFilePath(), false);
@@ -230,7 +229,7 @@ void SubComponentManager::parseDirectories()
 
 void SubComponentManager::parseDirectory(const QString &canonicalDirPath, bool addToLibrary, const TypeName& qualification)
 {
-    if (!model()->rewriterView())
+    if (!model() || !model()->rewriterView())
         return;
 
     QDir designerDir(canonicalDirPath + Constants::QML_DESIGNER_SUBFOLDER);
@@ -246,12 +245,11 @@ void SubComponentManager::parseDirectory(const QString &canonicalDirPath, bool a
                 reader.setQualifcation(qualification);
                 try {
                     reader.readMetaInfoFile(metaInfoFile.absoluteFilePath(), true);
-                } catch (InvalidMetaInfoException &e) {
+                } catch (const InvalidMetaInfoException &e) {
                     qWarning() << e.description();
-                    const QString errorMessage = metaInfoFile.absoluteFilePath() + QLatin1Char('\n') + QLatin1Char('\n') + reader.errors().join(QLatin1String("\n"));
-                    QMessageBox::critical(0,
-                                          QCoreApplication::translate("SubComponentManager::parseDirectory", "Invalid meta info"),
-                                          errorMessage);
+                    const QString errorMessage = metaInfoFile.absoluteFilePath() + QLatin1Char('\n') + QLatin1Char('\n') + reader.errors().join(QLatin1Char('\n'));
+                    Core::AsynchronousMessageBox::warning(QCoreApplication::translate("SubComponentManager::parseDirectory", "Invalid meta info"),
+                                                           errorMessage);
                 }
             }
         }
@@ -281,13 +279,13 @@ void SubComponentManager::parseDirectory(const QString &canonicalDirPath, bool a
         newList << qmlFile;
     }
 
-    qSort(monitoredList);
-    qSort(newList);
+    Utils::sort(monitoredList);
+    Utils::sort(newList);
 
     if (debug)
         qDebug() << "monitored list " << monitoredList.size() << "new list " << newList.size();
-    QList<QFileInfo>::const_iterator oldIter = monitoredList.constBegin();
-    QList<QFileInfo>::const_iterator newIter = newList.constBegin();
+    auto oldIter = monitoredList.constBegin();
+    auto newIter = newList.constBegin();
 
     while (oldIter != monitoredList.constEnd() && newIter != newList.constEnd()) {
         const QFileInfo oldFileInfo = *oldIter;
@@ -380,7 +378,7 @@ void SubComponentManager::registerQmlFile(const QFileInfo &fileInfo, const QStri
     QString fixedQualifier = qualifier;
     if (!qualifier.isEmpty()) {
         fixedQualifier = qualifier;
-        if (qualifier.right(1) == QLatin1String("."))
+        if (qualifier.right(1) == QStringLiteral("."))
             fixedQualifier.chop(1); //remove last char if it is a dot
         componentName = fixedQualifier + '.' + componentName;
     }
@@ -409,6 +407,14 @@ void SubComponentManager::registerQmlFile(const QFileInfo &fileInfo, const QStri
 Model *SubComponentManager::model() const
 {
     return m_model.data();
+}
+
+QStringList SubComponentManager::importPaths() const
+{
+    if (model())
+        return model()->importPaths();
+
+    return QStringList();
 }
 
 

@@ -1,7 +1,5 @@
 import qbs 1.0
 
-import QtcPlugin
-
 QtcPlugin {
     name: "Git"
 
@@ -30,10 +28,6 @@ QtcPlugin {
         "changeselectiondialog.cpp",
         "changeselectiondialog.h",
         "changeselectiondialog.ui",
-        "clonewizard.cpp",
-        "clonewizard.h",
-        "clonewizardpage.cpp",
-        "clonewizardpage.h",
         "commitdata.cpp",
         "commitdata.h",
         "git.qrc",
@@ -74,30 +68,6 @@ QtcPlugin {
         "stashdialog.h",
         "stashdialog.ui",
     ]
-
-    Group {
-        name: "Gitorious"
-        prefix: "gitorious/"
-        files: [
-            "gitorious.cpp",
-            "gitorious.h",
-            "gitoriousclonewizard.cpp",
-            "gitoriousclonewizard.h",
-            "gitorioushostwidget.cpp",
-            "gitorioushostwidget.h",
-            "gitorioushostwidget.ui",
-            "gitorioushostwizardpage.cpp",
-            "gitorioushostwizardpage.h",
-            "gitoriousprojectwidget.cpp",
-            "gitoriousprojectwidget.h",
-            "gitoriousprojectwidget.ui",
-            "gitoriousprojectwizardpage.cpp",
-            "gitoriousprojectwizardpage.h",
-            "gitoriousrepositorywizardpage.cpp",
-            "gitoriousrepositorywizardpage.h",
-            "gitoriousrepositorywizardpage.ui",
-        ]
-    }
 
     Group {
         name: "Gerrit"

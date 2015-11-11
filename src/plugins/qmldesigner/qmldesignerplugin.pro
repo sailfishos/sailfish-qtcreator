@@ -1,6 +1,10 @@
+QT += quickwidgets
+QT += widgets-private quick-private quickwidgets-private core-private gui-private #mouse ungrabbing workaround on quickitems
 CONFIG += exceptions
 
 INCLUDEPATH += $$PWD
+
+unix:!osx:LIBS += -lrt # posix shared memory
 
 include(../../qtcreatorplugin.pri)
 

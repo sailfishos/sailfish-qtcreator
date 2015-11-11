@@ -38,7 +38,7 @@ class MerRemoteProcess : public QSsh::SshRemoteProcessRunner
     Q_OBJECT
 public:
     explicit MerRemoteProcess(QObject *parent = 0);
-    ~MerRemoteProcess();
+    ~MerRemoteProcess() override;
     int executeAndWait();
     void setIntercative(bool enabled);
     void setCacheOutput(bool enabled);

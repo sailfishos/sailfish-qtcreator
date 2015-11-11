@@ -33,26 +33,31 @@
 #include <projectexplorer/target.h>
 #include <remotelinux/remotelinuxenvironmentaspect.h>
 
+using namespace ProjectExplorer;
+using namespace RemoteLinux;
+using namespace Utils;
+
 namespace Mer {
 namespace Internal {
 
-MerRunConfiguration::MerRunConfiguration(ProjectExplorer::Target *parent, const Core::Id id,
-                                         const QString &proFilePath)
-    : RemoteLinux::RemoteLinuxRunConfiguration(parent, id, proFilePath)
+MerRunConfiguration::MerRunConfiguration(Target *parent, Core::Id id,
+                                         const QString &targetName)
+    : RemoteLinuxRunConfiguration(parent, id, targetName)
 {
     ctor();
 }
 
-MerRunConfiguration::MerRunConfiguration(ProjectExplorer::Target *parent,
+MerRunConfiguration::MerRunConfiguration(Target *parent,
                                          MerRunConfiguration *source)
-    : RemoteLinux::RemoteLinuxRunConfiguration(parent, source)
+    : RemoteLinuxRunConfiguration(parent, source)
 {
     ctor();
 }
 
 void MerRunConfiguration::ctor()
 {
-    connect(target(),SIGNAL(activeDeployConfigurationChanged(ProjectExplorer::DeployConfiguration*)),this,SIGNAL(enabledChanged()));
+    connect(target(), &Target::activeDeployConfigurationChanged,
+            this, &MerRunConfiguration::enabledChanged);
 }
 
 QString MerRunConfiguration::disabledReason() const
@@ -67,7 +72,7 @@ bool MerRunConfiguration::isEnabled() const
 {   
     //TODO Hack
 
-    ProjectExplorer::DeployConfiguration* conf = target()->activeDeployConfiguration();
+    DeployConfiguration* conf = target()->activeDeployConfiguration();
     if(target()->kit())
     {
         if (conf->id() == MerMb2RpmBuildConfiguration::configurationId()) {
@@ -81,7 +86,7 @@ bool MerRunConfiguration::isEnabled() const
 
 QString MerRunConfiguration::defaultRemoteExecutableFilePath() const
 {
-    ProjectExplorer::DeployConfiguration* conf = target()->activeDeployConfiguration();
+    DeployConfiguration* conf = target()->activeDeployConfiguration();
     if (!conf) return QString();
 
     QString executable = RemoteLinuxRunConfiguration::defaultRemoteExecutableFilePath();
@@ -98,9 +103,9 @@ QString MerRunConfiguration::defaultRemoteExecutableFilePath() const
     return executable;
 }
 
-Utils::Environment MerRunConfiguration::environment() const
+Environment MerRunConfiguration::environment() const
 {
-    Utils::Environment env(RemoteLinuxRunConfiguration::environment());
+    Environment env(RemoteLinuxRunConfiguration::environment());
     // required by qtbase not to direct logs to journald
     env.appendOrSet(QLatin1String("QT_NO_JOURNALD_LOG"), QLatin1String("1"));
     return env;

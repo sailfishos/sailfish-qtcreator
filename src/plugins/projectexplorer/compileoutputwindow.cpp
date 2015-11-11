@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -41,6 +42,7 @@
 #include <texteditor/texteditorsettings.h>
 #include <texteditor/fontsettings.h>
 #include <utils/ansiescapecodehandler.h>
+#include <utils/theme/theme.h>
 
 #include <QIcon>
 #include <QTextCharFormat>
@@ -86,6 +88,13 @@ private slots:
     }
 
 protected:
+    void wheelEvent(QWheelEvent *ev)
+    {
+        // from QPlainTextEdit, but without scroll wheel zooming
+        QAbstractScrollArea::wheelEvent(ev);
+        updateMicroFocus();
+    }
+
     void mouseDoubleClickEvent(QMouseEvent *ev)
     {
         int line = cursorForPosition(ev->pos()).block().blockNumber();
@@ -153,7 +162,7 @@ void CompileOutputWindow::updateWordWrapMode()
 
 bool CompileOutputWindow::hasFocus() const
 {
-    return m_outputWindow->hasFocus();
+    return m_outputWindow->window()->focusWidget() == m_outputWindow;
 }
 
 bool CompileOutputWindow::canFocus() const
@@ -176,30 +185,26 @@ QList<QWidget *> CompileOutputWindow::toolBarWidgets() const
      return QList<QWidget *>() << m_cancelBuildButton;
 }
 
-static QColor mix_colors(QColor a, QColor b)
+void CompileOutputWindow::appendText(const QString &text, BuildStep::OutputFormat format)
 {
-    return QColor((a.red() + 2 * b.red()) / 3, (a.green() + 2 * b.green()) / 3,
-                  (a.blue() + 2* b.blue()) / 3, (a.alpha() + 2 * b.alpha()) / 3);
-}
-
-void CompileOutputWindow::appendText(const QString &text, ProjectExplorer::BuildStep::OutputFormat format)
-{
+    using Utils::Theme;
     QPalette p = m_outputWindow->palette();
+    Theme *theme = Utils::creatorTheme();
     QTextCharFormat textFormat;
     switch (format) {
     case BuildStep::NormalOutput:
-        textFormat.setForeground(p.color(QPalette::Text));
+        textFormat.setForeground(theme->color(Theme::TextColorNormal));
         textFormat.setFontWeight(QFont::Normal);
         break;
     case BuildStep::ErrorOutput:
-        textFormat.setForeground(mix_colors(p.color(QPalette::Text), QColor(Qt::red)));
+        textFormat.setForeground(theme->color(Theme::OutputPanes_ErrorMessageTextColor));
         textFormat.setFontWeight(QFont::Normal);
         break;
     case BuildStep::MessageOutput:
-        textFormat.setForeground(mix_colors(p.color(QPalette::Text), QColor(Qt::blue)));
+        textFormat.setForeground(theme->color(Theme::OutputPanes_MessageOutput));
         break;
     case BuildStep::ErrorMessageOutput:
-        textFormat.setForeground(mix_colors(p.color(QPalette::Text), QColor(Qt::red)));
+        textFormat.setForeground(theme->color(Theme::OutputPanes_ErrorMessageTextColor));
         textFormat.setFontWeight(QFont::Bold);
         break;
 
@@ -252,14 +257,21 @@ bool CompileOutputWindow::canNavigate() const
     return false;
 }
 
-void CompileOutputWindow::registerPositionOf(const Task &task)
+void CompileOutputWindow::registerPositionOf(const Task &task, int linkedOutputLines, int skipLines)
 {
-    int blocknumber = m_outputWindow->blockCount();
+    if (linkedOutputLines <= 0)
+        return;
+    int blocknumber = m_outputWindow->document()->blockCount();
     if (blocknumber > MAX_LINECOUNT)
         return;
 
-    m_taskPositions.insert(task.taskId, blocknumber);
-    m_outputWindow->addTask(task, blocknumber);
+    const int startLine = blocknumber - linkedOutputLines + 1 - skipLines;
+    const int endLine = blocknumber - skipLines;
+
+    m_taskPositions.insert(task.taskId, qMakePair(startLine, endLine));
+
+    for (int i = startLine; i <= endLine; ++i)
+        m_outputWindow->addTask(task, i);
 }
 
 bool CompileOutputWindow::knowsPositionOf(const Task &task)
@@ -269,10 +281,20 @@ bool CompileOutputWindow::knowsPositionOf(const Task &task)
 
 void CompileOutputWindow::showPositionOf(const Task &task)
 {
-    int position = m_taskPositions.value(task.taskId);
-    QTextCursor newCursor(m_outputWindow->document()->findBlockByNumber(position));
-    newCursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+    QPair<int, int> position = m_taskPositions.value(task.taskId);
+    QTextCursor newCursor(m_outputWindow->document()->findBlockByNumber(position.second));
+
+    // Move cursor to end of last line of interest:
+    newCursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::MoveAnchor);
     m_outputWindow->setTextCursor(newCursor);
+
+    // Move cursor and select lines:
+    newCursor.setPosition(m_outputWindow->document()->findBlockByNumber(position.first).position(),
+                          QTextCursor::KeepAnchor);
+    m_outputWindow->setTextCursor(newCursor);
+
+    // Center cursor now:
+    m_outputWindow->centerCursor();
 }
 
 void CompileOutputWindow::flush()

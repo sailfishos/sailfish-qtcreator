@@ -31,6 +31,8 @@
 
 #include <QDebug>
 
+using namespace Core;
+
 namespace Mer {
 namespace Internal {
 
@@ -41,17 +43,17 @@ MerMode::MerMode()
 #else
     setWidget(new QWidget);
 #endif
-    setContext(Core::Context("Mer.MerMode"));
+    setContext(Context("Mer.MerMode"));
     setDisplayName(tr("SailfishOS"));
     setIcon(QIcon(QLatin1String(Constants::MER_OPTIONS_CATEGORY_ICON)));
     setPriority(80); // between "Projects" and "Analyze" modes
     setId("Mer.MerMode");
     setContextHelpId(QString());
-    connect(Core::ModeManager::instance(), SIGNAL(currentModeChanged(Core::IMode*,Core::IMode*)),
-            this, SLOT(handleUpdateContext(Core::IMode*,Core::IMode*)));
+    connect(ModeManager::instance(), &ModeManager::currentModeChanged,
+            this, &MerMode::handleUpdateContext);
 }
 
-void MerMode::handleUpdateContext(Core::IMode *newMode, Core::IMode *oldMode)
+void MerMode::handleUpdateContext(IMode *newMode, IMode *oldMode)
 {
 #if !defined(QT_NO_WEBKIT)
     MerManagementWebView* view = qobject_cast<MerManagementWebView*>(widget());

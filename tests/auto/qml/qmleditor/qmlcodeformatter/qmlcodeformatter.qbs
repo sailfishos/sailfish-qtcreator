@@ -1,7 +1,6 @@
 import qbs
-import "../../../autotest.qbs" as Autotest
 
-Autotest {
+QtcAutotest {
     name: "QML code formatter autotest"
     Depends { name: "QmlJS" }
     Depends { name: "QmlJSTools" }

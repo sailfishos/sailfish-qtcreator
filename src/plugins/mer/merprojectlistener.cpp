@@ -45,7 +45,8 @@ namespace Internal {
 MerProjectListener::MerProjectListener(QObject *parent)
     : QObject(parent)
 {
-    connect(MerSdkManager::instance(), SIGNAL(initialized()), SLOT(init()));
+    connect(MerSdkManager::instance(), &MerSdkManager::initialized,
+            this, &MerProjectListener::init);
 }
 
 void MerProjectListener::init()
@@ -56,23 +57,23 @@ void MerProjectListener::init()
     foreach (Project *project, projects)
         onProjectAdded(project);
 
-    connect(SessionManager::instance(), SIGNAL(projectAdded(ProjectExplorer::Project*)),
-            SLOT(onProjectAdded(ProjectExplorer::Project*)));
-    connect(SessionManager::instance(), SIGNAL(projectRemoved(ProjectExplorer::Project*)),
-            SLOT(onProjectRemoved(ProjectExplorer::Project*)));
+    connect(SessionManager::instance(), &SessionManager::projectAdded,
+            this, &MerProjectListener::onProjectAdded);
+    connect(SessionManager::instance(), &SessionManager::projectRemoved,
+            this, &MerProjectListener::onProjectRemoved);
 }
 
 void MerProjectListener::onTargetAddedToProject(Target *target)
 {
     Project *project = target->project();
-    if (MerSdkManager::instance()->merKits().contains(target->kit()))
+    if (MerSdkManager::merKits().contains(target->kit()))
         handleProject_private(project);
 }
 
 void MerProjectListener::onTargetRemovedFromProject(Target *target)
 {
     Project *project = target->project();
-    const QList<Kit *> merKits = MerSdkManager::instance()->merKits();
+    const QList<Kit *> merKits = MerSdkManager::merKits();
     int merTargetsCount = 0;
     // Counting how many Mer Targets are left after this removal
     foreach (Target *projectTarget, project->targets())
@@ -84,12 +85,12 @@ void MerProjectListener::onTargetRemovedFromProject(Target *target)
 
 void MerProjectListener::onProjectAdded(Project *project)
 {
-    connect(project, SIGNAL(addedTarget(ProjectExplorer::Target*)),
-            SLOT(onTargetAddedToProject(ProjectExplorer::Target*)));
-    connect(project, SIGNAL(removedTarget(ProjectExplorer::Target*)),
-            SLOT(onTargetRemovedFromProject(ProjectExplorer::Target*)));
+    connect(project, &Project::addedTarget,
+            this, &MerProjectListener::onTargetAddedToProject);
+    connect(project, &Project::removedTarget,
+            this, &MerProjectListener::onTargetRemovedFromProject);
 
-    const QList<Kit *> merKits = MerSdkManager::instance()->merKits();
+    const QList<Kit *> merKits = MerSdkManager::merKits();
     foreach (Kit *kit, merKits) {
         if (project->supportsKit(kit)) {
             if (handleProject_private(project))

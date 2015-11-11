@@ -40,8 +40,9 @@ CloneType::CloneType(Clone *clone)
 FullySpecifiedType CloneType::cloneType(const FullySpecifiedType &type, Subst *subst)
 {
     TypeSubstPair typeSubstPair = std::make_pair(type, subst);
-    if (_cache.find(typeSubstPair) != _cache.end())
-        return _cache[typeSubstPair];
+    auto it = _cache.find(typeSubstPair);
+    if (it != _cache.end())
+        return it->second;
 
     std::swap(_subst, subst);
     FullySpecifiedType ty(type);
@@ -100,7 +101,7 @@ void CloneType::visit(NamedType *type)
     const Name *name = _clone->name(type->name(), _subst);
     FullySpecifiedType ty;
     if (_subst)
-        ty = _subst->apply(name);
+        ty = _clone->type(_subst->apply(name), 0);
     if (! ty.isValid())
         ty = _control->namedType(name);
     _type.setType(ty.type());
@@ -122,6 +123,12 @@ void CloneType::visit(Template *type)
 {
     Template *templ = _clone->symbol(type, _subst)->asTemplate();
     _type = templ;
+}
+
+void CloneType::visit(ExplicitInstantiation *type)
+{
+    ExplicitInstantiation *inst = _clone->symbol(type, _subst)->asExplicitInstantiation();
+    _type = inst;
 }
 
 void CloneType::visit(Class *type)
@@ -186,11 +193,9 @@ Symbol *CloneSymbol::cloneSymbol(Symbol *symbol, Subst *subst)
         return 0;
 
     SymbolSubstPair symbolSubstPair = std::make_pair(symbol, subst);
-    if (_cache.find(symbolSubstPair) != _cache.end()) {
-        Symbol *cachedSymbol = _cache[symbolSubstPair];
-        if (cachedSymbol->enclosingScope() == symbol->enclosingScope())
-            return cachedSymbol;
-    }
+    auto it = _cache.find(symbolSubstPair);
+    if (it != _cache.end())
+        return it->second;
 
     Symbol *r = 0;
     std::swap(_subst, subst);
@@ -289,6 +294,14 @@ bool CloneSymbol::visit(Template *symbol)
     Template *templ = new Template(_clone, _subst, symbol);
     _symbol = templ;
     _control->addSymbol(templ);
+    return false;
+}
+
+bool CloneSymbol::visit(ExplicitInstantiation *symbol)
+{
+    ExplicitInstantiation *inst = new ExplicitInstantiation(_clone, _subst, symbol);
+    _symbol = inst;
+    _control->addSymbol(inst);
     return false;
 }
 
@@ -410,8 +423,9 @@ const Name *CloneName::cloneName(const Name *name, Subst *subst)
         return 0;
 
     NameSubstPair nameSubstPair = std::make_pair(name, subst);
-    if (_cache.find(nameSubstPair) != _cache.end())
-        return _cache[nameSubstPair];
+    auto it = _cache.find(nameSubstPair);
+    if (it != _cache.end())
+        return it->second;
 
     const Name *r = 0;
     std::swap(_subst, subst);
@@ -545,7 +559,7 @@ Symbol *Clone::instantiate(Template *templ, const FullySpecifiedType *const args
 FullySpecifiedType Subst::apply(const Name *name) const
 {
     if (name) {
-        std::map<const Name *, FullySpecifiedType, Name::Compare>::const_iterator it = _map.find(name);
+        auto it = _map.find(name);
         if (it != _map.end())
             return it->second;
         else if (_previous)

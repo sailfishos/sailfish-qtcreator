@@ -30,6 +30,7 @@
 #include "mertargetkitinformation.h"
 #include "mertoolchain.h"
 
+#include <debugger/debuggeritem.h>
 #include <debugger/debuggeritemmanager.h>
 #include <debugger/debuggerkitinformation.h>
 #include <projectexplorer/toolchainmanager.h>
@@ -41,6 +42,11 @@
 
 #include <QDir>
 #include <QStringList>
+
+using namespace Debugger;
+using namespace ProjectExplorer;
+using namespace QtSupport;
+using namespace Utils;
 
 namespace Mer {
 namespace Internal {
@@ -155,50 +161,50 @@ bool MerTarget::createScripts() const
 
 void MerTarget::deleteScripts() const
 {
-    Utils::FileUtils::removeRecursively(Utils::FileName::fromString(targetPath()));
+    FileUtils::removeRecursively(FileName::fromString(targetPath()));
 }
 
-ProjectExplorer::Kit* MerTarget::createKit() const
+Kit* MerTarget::createKit() const
 {
     if (!isValid())
         return 0;
-    const QString sysroot(m_sdk->sharedTargetsPath() + QLatin1String("/") + m_name);
+    const QString sysroot(m_sdk->sharedTargetsPath() + QLatin1Char('/') + m_name);
 
-    Utils::FileName path = Utils::FileName::fromString(sysroot);
+    FileName path = FileName::fromString(sysroot);
     if (!path.toFileInfo().exists()) {
         qWarning() << "Sysroot does not exist" << sysroot;
         return 0;
     }
 
-    ProjectExplorer::Kit *k = new ProjectExplorer::Kit();
+    Kit *k = new Kit();
     k->setAutoDetected(true);
-    k->setDisplayName(QString::fromLatin1("%1-%2").arg(m_sdk->virtualMachineName(), m_name));
-    k->setIconPath(Utils::FileName::fromString(QLatin1String(Constants::MER_OPTIONS_CATEGORY_ICON)));
-    ProjectExplorer::SysRootKitInformation::setSysRoot(k, Utils::FileName::fromUserInput(sysroot));
+    k->setUnexpandedDisplayName(QString::fromLatin1("%1-%2").arg(m_sdk->virtualMachineName(), m_name));
+    k->setIconPath(FileName::fromString(QLatin1String(Constants::MER_OPTIONS_CATEGORY_ICON)));
+    SysRootKitInformation::setSysRoot(k, FileName::fromUserInput(sysroot));
 
-    ProjectExplorer::DeviceTypeKitInformation::setDeviceTypeId(k, Constants::MER_DEVICE_TYPE);
-    k->setMutable(ProjectExplorer::DeviceKitInformation::id(), true);
+    DeviceTypeKitInformation::setDeviceTypeId(k, Constants::MER_DEVICE_TYPE);
+    k->setMutable(DeviceKitInformation::id(), true);
 
-    const QString gdb = Utils::HostOsInfo::withExecutableSuffix(m_defaultGdb);
+    const QString gdb = HostOsInfo::withExecutableSuffix(m_defaultGdb);
     QString gdbDir = QCoreApplication::applicationDirPath();
-    if (Utils::HostOsInfo::isMacHost()) {
+    if (HostOsInfo::isMacHost()) {
         QDir dir = QDir(gdbDir);
         dir.cdUp();
         dir.cdUp();
         dir.cdUp();
         gdbDir = dir.path();
     }
-    Utils::FileName gdbFileName = Utils::FileName::fromString(gdbDir + QLatin1String("/") + gdb);
+    FileName gdbFileName = FileName::fromString(gdbDir + QLatin1Char('/') + gdb);
 
-    Debugger::DebuggerItem debugger;
+    DebuggerItem debugger;
     debugger.setCommand(gdbFileName);
-    debugger.setEngineType(Debugger::GdbEngineType);
+    debugger.setEngineType(GdbEngineType);
     const QString vmName = m_sdk->virtualMachineName();
-    debugger.setDisplayName(QObject::tr("GDB for %1 %2").arg(vmName, m_name));
+    debugger.setUnexpandedDisplayName(QObject::tr("GDB for %1 %2").arg(vmName, m_name));
     debugger.setAutoDetected(true);
-    debugger.setAbi(ProjectExplorer::Abi::abiFromTargetTriplet(m_gccMachineDump)); // TODO is this OK?
-    QVariant id = Debugger::DebuggerItemManager::registerDebugger(debugger);
-    Debugger::DebuggerKitInformation::setDebugger(k, id);
+    debugger.setAbi(Abi::abiFromTargetTriplet(m_gccMachineDump)); // TODO is this OK?
+    QVariant id = DebuggerItemManager::registerDebugger(debugger);
+    DebuggerKitInformation::setDebugger(k, id);
 
     MerSdkKitInformation::setSdk(k,m_sdk);
     MerTargetKitInformation::setTargetName(k,name());
@@ -207,19 +213,18 @@ ProjectExplorer::Kit* MerTarget::createKit() const
 
 MerQtVersion* MerTarget::createQtVersion() const
 {
-    const Utils::FileName qmake =
-            Utils::FileName::fromString(targetPath() + QLatin1Char('/') +
-                                        QLatin1String(Constants::MER_WRAPPER_QMAKE));
+    const FileName qmake = FileName::fromString(targetPath() + QLatin1Char('/') +
+            QLatin1String(Constants::MER_WRAPPER_QMAKE));
     // Is there a qtversion present for this qmake?
-    QtSupport::BaseQtVersion *qtv = QtSupport::QtVersionManager::qtVersionForQMakeBinary(qmake);
+    BaseQtVersion *qtv = QtVersionManager::qtVersionForQMakeBinary(qmake);
     if (qtv && !qtv->isValid()) {
-        QtSupport::QtVersionManager::removeVersion(qtv);
+        QtVersionManager::removeVersion(qtv);
         qtv = 0;
     }
     if (!qtv)
         qtv = new MerQtVersion(qmake, true, targetPath());
 
-    //QtSupport::QtVersionFactory::createQtVersionFromQMakePath(qmake, true, targetPath());
+    //QtVersionFactory::createQtVersionFromQMakePath(qmake, true, targetPath());
 
     QTC_ASSERT(qtv && qtv->type() == QLatin1String(Constants::MER_QT), return 0);
 
@@ -227,7 +232,7 @@ MerQtVersion* MerTarget::createQtVersion() const
     const QString vmName = m_sdk->virtualMachineName();
     merqtv->setVirtualMachineName(vmName);
     merqtv->setTargetName(m_name);
-    merqtv->setDisplayName(
+    merqtv->setUnexpandedDisplayName(
                 QString::fromLatin1("Qt %1 in %2 %3").arg(qtv->qtVersionString(),
                                                           vmName, m_name));
     return merqtv;
@@ -235,23 +240,22 @@ MerQtVersion* MerTarget::createQtVersion() const
 
 MerToolChain* MerTarget::createToolChain() const
 {
-    const Utils::FileName gcc =
-            Utils::FileName::fromString(targetPath() + QLatin1Char('/') +
-                                        QLatin1String(Constants::MER_WRAPPER_GCC));
-    QList<ProjectExplorer::ToolChain *> toolChains = ProjectExplorer::ToolChainManager::toolChains();
+    const FileName gcc = FileName::fromString(targetPath() + QLatin1Char('/') +
+            QLatin1String(Constants::MER_WRAPPER_GCC));
+    QList<ToolChain *> toolChains = ToolChainManager::toolChains();
 
-    foreach (ProjectExplorer::ToolChain *tc, toolChains) {
+    foreach (ToolChain *tc, toolChains) {
         if (tc->compilerCommand() == gcc && tc->isAutoDetected()) {
             QTC_ASSERT(tc->type() == QLatin1String(Constants::MER_TOOLCHAIN_TYPE), return 0);
         }
     }
 
-    MerToolChain* mertoolchain = new MerToolChain(ProjectExplorer::ToolChain::AutoDetection);
+    MerToolChain* mertoolchain = new MerToolChain(ToolChain::AutoDetection);
     const QString vmName = m_sdk->virtualMachineName();
     mertoolchain->setDisplayName(QString::fromLatin1("GCC (%1 %2)").arg(vmName, m_name));
     mertoolchain->setVirtualMachine(vmName);
     mertoolchain->setTargetName(m_name);
-    mertoolchain->setCompilerCommand(gcc);
+    mertoolchain->resetToolChain(gcc);
     return mertoolchain;
 }
 
@@ -264,13 +268,13 @@ bool MerTarget::createScript(const QString &targetPath, int scriptIndex) const
     const QFile::Permissions rwxrwx = rwrw|QFile::ExeOwner|QFile::ExeUser|QFile::ExeGroup;
 
     QString wrapperScriptCommand = QLatin1String(wrapperScriptCopy);
-    if (Utils::HostOsInfo::isWindowsHost())
+    if (HostOsInfo::isWindowsHost())
         wrapperScriptCommand.chop(4); // remove the ".cmd"
 
     QString wrapperBinaryPath = QCoreApplication::applicationDirPath();
-    if (Utils::HostOsInfo::isWindowsHost())
+    if (HostOsInfo::isWindowsHost())
         wrapperBinaryPath += QLatin1String("/merssh.exe");
-    else if (Utils::HostOsInfo::isMacHost())
+    else if (HostOsInfo::isMacHost())
         wrapperBinaryPath += QLatin1String("/../Resources/merssh");
     else
         wrapperBinaryPath += QLatin1String("/merssh");
@@ -294,10 +298,10 @@ bool MerTarget::createScript(const QString &targetPath, int scriptIndex) const
         scriptContent += QLatin1String("@echo off\nSetLocal EnableDelayedExpansion\n");
         scriptContent += QLatin1String("set ARGUMENTS=\nFOR %%a IN (%*) DO set ARGUMENTS=!ARGUMENTS! ^ '%%a'\n");
         scriptContent += QLatin1String("set ") +
-                QLatin1String(Mer::Constants::MER_SSH_TARGET_NAME) +
+                QLatin1String(MER_SSH_TARGET_NAME) +
                 QLatin1Char('=') + targetName + QLatin1Char('\n');
         scriptContent += QLatin1String("set ") +
-                QLatin1String(Mer::Constants::MER_SSH_SDK_TOOLS) +
+                QLatin1String(MER_SSH_SDK_TOOLS) +
                 QLatin1Char('=') + merDevToolsDir + QDir::separator() + targetName + QLatin1Char('\n');
         scriptContent += QLatin1String("SetLocal DisableDelayedExpansion\n");
         scriptContent += QLatin1Char('"') +
@@ -309,10 +313,10 @@ bool MerTarget::createScript(const QString &targetPath, int scriptIndex) const
         scriptContent += QLatin1String("#!/bin/sh\n");
         scriptContent += QLatin1String("ARGUMENTS=\"\";for ARGUMENT in \"$@\"; do ARGUMENTS=\"${ARGUMENTS} '${ARGUMENT}'\" ; done;\n");
         scriptContent += QLatin1String("export  ") +
-                QLatin1String(Mer::Constants::MER_SSH_TARGET_NAME) +
+                QLatin1String(MER_SSH_TARGET_NAME) +
                 QLatin1Char('=') + targetName + QLatin1Char('\n');
         scriptContent += QLatin1String("export  ") +
-                QLatin1String(Mer::Constants::MER_SSH_SDK_TOOLS) +
+                QLatin1String(MER_SSH_SDK_TOOLS) +
                 QLatin1Char('=') + merDevToolsDir + QDir::separator() + targetName + QLatin1Char('\n');
         scriptContent += QLatin1String("exec ");
         scriptContent += QLatin1Char('"') +

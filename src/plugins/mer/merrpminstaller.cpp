@@ -34,21 +34,25 @@
 
 #include <ssh/sshconnection.h>
 
+using namespace ProjectExplorer;
+using namespace QSsh;
+
 namespace Mer {
 namespace Internal {
 
 MerRpmInstaller::MerRpmInstaller(QObject *parent)
     : AbstractRemoteLinuxPackageInstaller(parent)
 {
-    connect(this, SIGNAL(stderrData(QString)), SLOT(handleInstallerErrorOutput(QString)));
+    connect(this, &MerRpmInstaller::stderrData,
+            this, &MerRpmInstaller::handleInstallerErrorOutput);
 }
 
-void MerRpmInstaller::installPackage(const ProjectExplorer::IDevice::ConstPtr &deviceConfig, const QString &packageFilePath, bool removePackageFile)
+void MerRpmInstaller::installPackage(const IDevice::ConstPtr &deviceConfig, const QString &packageFilePath, bool removePackageFile)
 {
     //TODO: cleanup
-    //ProjectExplorer::IDevice::Ptr device = deviceConfig->clone();
+    //IDevice::Ptr device = deviceConfig->clone();
     //const MerEmulatorDevice* emu = static_cast<const MerEmulatorDevice*>(device.data());
-    //QSsh::SshConnectionParameters sshParams = emu->sshParametersForUser(device->sshParameters(), QLatin1String("root"));
+    //SshConnectionParameters sshParams = emu->sshParametersForUser(device->sshParameters(), QLatin1String("root"));
     //device->setSshParameters(sshParams);
     AbstractRemoteLinuxPackageInstaller::installPackage(deviceConfig,packageFilePath,removePackageFile);
 }

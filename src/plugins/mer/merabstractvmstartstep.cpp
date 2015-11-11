@@ -33,6 +33,7 @@
 #include <projectexplorer/target.h>
 #include <utils/qtcassert.h>
 
+using namespace Core;
 using namespace ProjectExplorer;
 
 namespace Mer {
@@ -43,7 +44,7 @@ const int CHECK_FOR_CANCEL_INTERVAL = 2000;
 const int DISMISS_MESSAGE_BOX_DELAY = 2000;
 }
 
-class MerAbstractVmStartStepConfigWidget : public ProjectExplorer::SimpleBuildStepConfigWidget
+class MerAbstractVmStartStepConfigWidget : public SimpleBuildStepConfigWidget
 {
     Q_OBJECT
 
@@ -53,7 +54,7 @@ public:
     {
     }
 
-    QString summaryText() const
+    QString summaryText() const override
     {
         return QString::fromLatin1("<b>%1:</b> %2")
             .arg(displayName())
@@ -61,7 +62,7 @@ public:
     }
 };
 
-MerAbstractVmStartStep::MerAbstractVmStartStep(BuildStepList *bsl, const Core::Id id)
+MerAbstractVmStartStep::MerAbstractVmStartStep(BuildStepList *bsl, Core::Id id)
     : BuildStep(bsl, id)
     , m_connection(0)
     , m_futureInterface(0)
@@ -104,15 +105,17 @@ void MerAbstractVmStartStep::run(QFutureInterface<bool> &fi)
         m_futureInterface = &fi;
 
         m_checkForCancelTimer = new QTimer(this);
-        connect(m_checkForCancelTimer, SIGNAL(timeout()), this, SLOT(checkForCancel()));
+        connect(m_checkForCancelTimer, &QTimer::timeout,
+                this, &MerAbstractVmStartStep::checkForCancel);
         m_checkForCancelTimer->start(CHECK_FOR_CANCEL_INTERVAL);
 
-        connect(m_connection, SIGNAL(stateChanged()), this, SLOT(onStateChanged()));
+        connect(m_connection.data(), &MerConnection::stateChanged,
+                this, &MerAbstractVmStartStep::onStateChanged);
         m_connection->connectTo(MerConnection::AskStartVm);
     }
 }
 
-ProjectExplorer::BuildStepConfigWidget *MerAbstractVmStartStep::createConfigWidget()
+BuildStepConfigWidget *MerAbstractVmStartStep::createConfigWidget()
 {
     return new MerAbstractVmStartStepConfigWidget(this);
 }

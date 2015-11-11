@@ -59,7 +59,7 @@ class MerEmulatorModeDialog : public QObject
 
 public:
     MerEmulatorModeDialog(QObject *parent = 0);
-    ~MerEmulatorModeDialog();
+    ~MerEmulatorModeDialog() override;
 
 public:
     QAction *action() const;

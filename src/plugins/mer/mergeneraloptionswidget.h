@@ -39,7 +39,7 @@ class MerGeneralOptionsWidget : public QWidget
     Q_OBJECT
 public:
     explicit MerGeneralOptionsWidget(QWidget *parent = 0);
-    ~MerGeneralOptionsWidget();
+    ~MerGeneralOptionsWidget() override;
 
     void store();
     QString searchKeywords() const;

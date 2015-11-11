@@ -33,6 +33,8 @@
 #include <QSettings>
 #include <QSize>
 
+using namespace Utils;
+
 const char VBOXMANAGE[] = "VBoxManage";
 const char LIST[] = "list";
 const char RUNNINGVMS[] = "runningvms";
@@ -67,7 +69,7 @@ static QString vBoxManagePath()
         return path;
     }
 
-    if (Utils::HostOsInfo::isWindowsHost()) {
+    if (HostOsInfo::isWindowsHost()) {
         path = QString::fromLocal8Bit(qgetenv("VBOX_INSTALL_PATH"));
         if (path.isEmpty()) {
             // env var name for VirtualBox 4.3.12 changed to this
@@ -222,8 +224,10 @@ void MerVirtualBoxManager::startVirtualMachine(const QString &vmName,bool headle
     }
 
     QProcess *process = new QProcess(instance());
-    connect(process, SIGNAL(error(QProcess::ProcessError)), process, SLOT(deleteLater()));
-    connect(process, SIGNAL(finished(int,QProcess::ExitStatus)), process, SLOT(deleteLater()));
+    connect(process, static_cast<void (QProcess::*)(QProcess::ProcessError)>(&QProcess::error),
+            process, &QObject::deleteLater);
+    connect(process, static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(&QProcess::finished),
+            process, &QObject::deleteLater);
     process->start(vBoxManagePath(), arguments);
 }
 
@@ -238,8 +242,10 @@ void MerVirtualBoxManager::shutVirtualMachine(const QString &vmName)
     arguments.append(QLatin1String(ACPI_POWER_BUTTON));
 
     QProcess *process = new QProcess(instance());
-    connect(process, SIGNAL(error(QProcess::ProcessError)), process, SLOT(deleteLater()));
-    connect(process, SIGNAL(finished(int,QProcess::ExitStatus)), process, SLOT(deleteLater()));
+    connect(process, static_cast<void (QProcess::*)(QProcess::ProcessError)>(&QProcess::error),
+            process, &QProcess::deleteLater);
+    connect(process, static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(&QProcess::finished),
+            process, &QProcess::deleteLater);
     process->start(vBoxManagePath(), arguments);
 }
 
@@ -322,11 +328,12 @@ VirtualMachineInfo virtualMachineInfoFromOutput(const QString &output)
     // Get ssh port, shared home and shared targets
     // 1 Name, 2 Protocol, 3 Host IP, 4 Host Port, 5 Guest IP, 6 Guest Port, 7 Shared Folder Name,
     // 8 Shared Folder Path 9 mac
+    // 11 headed/headless (SessionType is for VBox 4.x, SessionName for VBox 5.x)
     QRegExp rexp(QLatin1String("(?:Forwarding\\(\\d+\\)=\"(\\w+),(\\w+),(.*),(\\d+),(.*),(\\d+)\")"
                                "|(?:SharedFolderNameMachineMapping\\d+=\"(\\w+)\"\\W*"
                                "SharedFolderPathMachineMapping\\d+=\"(.*)\")"
                                "|(?:macaddress\\d+=\"(.*)\")"
-                               "|(?:SessionType=\"(.*)\")"));
+                               "|(?:Session(Type|Name)=\"(.*)\")"));
 
     rexp.setMinimal(true);
     int pos = 0;
@@ -360,10 +367,10 @@ VirtualMachineInfo virtualMachineInfoFromOutput(const QString &output)
             }
             if(!macFields.isEmpty()) {
                 macFields.removeFirst();
-                info.macs << macFields.join(QLatin1String(":"));
+                info.macs << macFields.join(QLatin1Char(':'));
             }
-        } else if (rexp.cap(0).startsWith(QLatin1String("SessionType"))) {
-            info.headless = rexp.cap(10) == QLatin1String("headless");
+        } else if (rexp.cap(0).startsWith(QLatin1String("Session"))) {
+            info.headless = rexp.cap(11) == QLatin1String("headless");
         }
     }
 

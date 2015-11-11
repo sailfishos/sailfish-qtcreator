@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -33,8 +34,10 @@
 #include "kitmanager.h"
 #include "target.h"
 
+#include <utils/algorithm.h>
 #include <utils/styledbar.h>
 #include <utils/stylehelper.h>
+#include <utils/theme/theme.h>
 
 #include <coreplugin/icore.h>
 #include <coreplugin/coreconstants.h>
@@ -49,6 +52,7 @@
 #include <projectexplorer/projectmodels.h>
 #include <projectexplorer/runconfiguration.h>
 
+#include <QGuiApplication>
 #include <QTimer>
 #include <QLayout>
 #include <QLabel>
@@ -56,41 +60,28 @@
 #include <QStatusBar>
 #include <QKeyEvent>
 #include <QPainter>
+#include <QStyleFactory>
 #include <QAction>
 #include <QItemDelegate>
 
-#if QT_VERSION >= 0x050100
-#include <QGuiApplication>
-#endif
 
 static QIcon createCenteredIcon(const QIcon &icon, const QIcon &overlay)
 {
     QPixmap targetPixmap;
-    qreal appDevicePixelRatio = 1.0;
-#if QT_VERSION >= 0x050100
-    appDevicePixelRatio = qApp->devicePixelRatio();
-#endif
+    const qreal appDevicePixelRatio = qApp->devicePixelRatio();
     int deviceSpaceIconSize = Core::Constants::TARGET_ICON_SIZE * appDevicePixelRatio;
     targetPixmap = QPixmap(deviceSpaceIconSize, deviceSpaceIconSize);
-#if QT_VERSION >= 0x050100
     targetPixmap.setDevicePixelRatio(appDevicePixelRatio);
-#endif
     targetPixmap.fill(Qt::transparent);
     QPainter painter(&targetPixmap); // painter in user space
 
     QPixmap pixmap = icon.pixmap(Core::Constants::TARGET_ICON_SIZE); // already takes app devicePixelRatio into account
-    qreal pixmapDevicePixelRatio = 1.0;
-#if QT_VERSION >= 0x050100
-    pixmapDevicePixelRatio = pixmap.devicePixelRatio();
-#endif
+    qreal pixmapDevicePixelRatio = pixmap.devicePixelRatio();
     painter.drawPixmap((Core::Constants::TARGET_ICON_SIZE - pixmap.width() / pixmapDevicePixelRatio) / 2,
                        (Core::Constants::TARGET_ICON_SIZE - pixmap.height() / pixmapDevicePixelRatio) / 2, pixmap);
     if (!overlay.isNull()) {
         pixmap = overlay.pixmap(Core::Constants::TARGET_ICON_SIZE); // already takes app devicePixelRatio into account
-        pixmapDevicePixelRatio = 1.0;
-#if QT_VERSION >= 0x050100
         pixmapDevicePixelRatio = pixmap.devicePixelRatio();
-#endif
         painter.drawPixmap((Core::Constants::TARGET_ICON_SIZE - pixmap.width() / pixmapDevicePixelRatio) / 2,
                            (Core::Constants::TARGET_ICON_SIZE - pixmap.height() / pixmapDevicePixelRatio) / 2, pixmap);
     }
@@ -100,6 +91,7 @@ static QIcon createCenteredIcon(const QIcon &icon, const QIcon &overlay)
 
 using namespace ProjectExplorer;
 using namespace ProjectExplorer::Internal;
+using namespace Utils;
 
 static bool projectLesserThan(Project *p1, Project *p2)
 {
@@ -144,17 +136,21 @@ void TargetSelectorDelegate::paint(QPainter *painter,
         selectionGradient.load(QLatin1String(":/projectexplorer/images/targetpanel_gradient.png"));
 
     if (option.state & QStyle::State_Selected) {
-        QColor color =(option.state & QStyle::State_HasFocus) ?
-                      option.palette.highlight().color() :
-                      option.palette.dark().color();
-        painter->fillRect(option.rect, color.darker(140));
-        Utils::StyleHelper::drawCornerImage(selectionGradient, painter, option.rect.adjusted(0, 0, 0, -1), 5, 5, 5, 5);
-        painter->setPen(QColor(255, 255, 255, 60));
-        painter->drawLine(option.rect.topLeft(), option.rect.topRight());
-        painter->setPen(QColor(255, 255, 255, 30));
-        painter->drawLine(option.rect.bottomLeft() - QPoint(0,1), option.rect.bottomRight() -  QPoint(0,1));
-        painter->setPen(QColor(0, 0, 0, 80));
-        painter->drawLine(option.rect.bottomLeft(), option.rect.bottomRight());
+        const QColor color = (option.state & QStyle::State_HasFocus) ?
+                    option.palette.highlight().color() :
+                    option.palette.dark().color();
+        if (creatorTheme()->widgetStyle() == Theme::StyleFlat) {
+            painter->fillRect(option.rect, color);
+        } else {
+            painter->fillRect(option.rect, color.darker(140));
+            StyleHelper::drawCornerImage(selectionGradient, painter, option.rect.adjusted(0, 0, 0, -1), 5, 5, 5, 5);
+            painter->setPen(QColor(255, 255, 255, 60));
+            painter->drawLine(option.rect.topLeft(), option.rect.topRight());
+            painter->setPen(QColor(255, 255, 255, 30));
+            painter->drawLine(option.rect.bottomLeft() - QPoint(0,1), option.rect.bottomRight() -  QPoint(0,1));
+            painter->setPen(QColor(0, 0, 0, 80));
+            painter->drawLine(option.rect.bottomLeft(), option.rect.bottomRight());
+        }
     }
 
     QFontMetrics fm(option.font);
@@ -227,7 +223,9 @@ void ListWidget::setOptimalWidth(int width)
 int ListWidget::padding()
 {
     // there needs to be enough extra pixels to show a scrollbar
-    return 30;
+    return 2 * style()->pixelMetric(QStyle::PM_FocusFrameHMargin, 0, this)
+            + style()->pixelMetric(QStyle::PM_ScrollBarExtent, 0, this)
+            + 10;
 }
 
 ////////
@@ -259,9 +257,9 @@ QListWidgetItem *ProjectListWidget::itemForProject(Project *project)
     return 0;
 }
 
-QString ProjectListWidget::fullName(ProjectExplorer::Project *project)
+QString ProjectListWidget::fullName(Project *project)
 {
-    return tr("%1 (%2)").arg(project->displayName(), project->projectFilePath());
+    return tr("%1 (%2)").arg(project->displayName(), project->projectFilePath().toUserOutput());
 }
 
 void ProjectListWidget::addProject(Project *project)
@@ -435,7 +433,7 @@ void GenericListWidget::setActiveProjectConfiguration(ProjectConfiguration *acti
     setCurrentItem(item);
 }
 
-void GenericListWidget::addProjectConfiguration(ProjectExplorer::ProjectConfiguration *pc)
+void GenericListWidget::addProjectConfiguration(ProjectConfiguration *pc)
 {
     m_ignoreIndexChange = true;
     QListWidgetItem *lwi = new QListWidgetItem();
@@ -463,7 +461,7 @@ void GenericListWidget::addProjectConfiguration(ProjectExplorer::ProjectConfigur
     m_ignoreIndexChange = false;
 }
 
-void GenericListWidget::removeProjectConfiguration(ProjectExplorer::ProjectConfiguration *pc)
+void GenericListWidget::removeProjectConfiguration(ProjectConfiguration *pc)
 {
     m_ignoreIndexChange = true;
     disconnect(pc, SIGNAL(displayNameChanged()),
@@ -552,27 +550,33 @@ KitAreaWidget::KitAreaWidget(QWidget *parent) : QWidget(parent),
     m_layout(new QGridLayout(this)), m_kit(0)
 {
     m_layout->setMargin(3);
-    setKit(0);
-
-    QPalette p;
-    p.setColor(QPalette::Window, QColor(70, 70, 70, 255));
-    setPalette(p);
     setAutoFillBackground(true);
+    connect(KitManager::instance(), &KitManager::kitUpdated, this, &KitAreaWidget::updateKit);
+
+    QPalette p = palette();
+    p.setColor(QPalette::Window, creatorTheme()->color(Theme::MiniProjectTargetSelectorSummaryBackgroundColor).name());
+    p.setColor(QPalette::Button, creatorTheme()->color(Theme::MiniProjectTargetSelectorSummaryBackgroundColor).name());
+    p.setColor(QPalette::ButtonText, creatorTheme()->color(Theme::MiniProjectTargetSelectorTextColor).name());
+    setPalette(p);
+}
+
+KitAreaWidget::~KitAreaWidget()
+{
+    setKit(0);
 }
 
 void KitAreaWidget::setKit(Kit *k)
 {
     foreach (KitConfigWidget *w, m_widgets)
-        w->deleteLater();
+        delete(w);
     m_widgets.clear();
+
+    if (!k)
+        return;
+
     foreach (QLabel *l, m_labels)
         l->deleteLater();
     m_labels.clear();
-
-    if (m_kit) {
-        disconnect(KitManager::instance(), SIGNAL(kitUpdated(ProjectExplorer::Kit*)),
-                   this, SLOT(updateKit(ProjectExplorer::Kit*)));
-    }
 
     int row = 0;
     foreach (KitInformation *ki, KitManager::kitInformation()) {
@@ -583,16 +587,14 @@ void KitAreaWidget::setKit(Kit *k)
             m_labels << label;
 
             m_layout->addWidget(label, row, 0);
-            m_layout->addWidget(widget->mainWidget(), row, 1);
+            QWidget *mainWidget = widget->mainWidget();
+            // force fusion style as native style has rendering issues on windows:
+            mainWidget->setStyle(QStyleFactory::create(QLatin1String("fusion")));
+            m_layout->addWidget(mainWidget, row, 1);
             ++row;
         }
     }
     m_kit = k;
-
-    if (m_kit) {
-        connect(KitManager::instance(), SIGNAL(kitUpdated(ProjectExplorer::Kit*)),
-                this, SLOT(updateKit(ProjectExplorer::Kit*)));
-    }
 
     setHidden(m_widgets.isEmpty());
 }
@@ -626,7 +628,7 @@ void KitAreaWidget::updateKit(Kit *k)
 
 QWidget *MiniProjectTargetSelector::createTitleLabel(const QString &text)
 {
-    Utils::StyledBar *bar = new Utils::StyledBar(this);
+    StyledBar *bar = new StyledBar(this);
     bar->setSingleRow(true);
     QVBoxLayout *toolLayout = new QVBoxLayout(bar);
     toolLayout->setContentsMargins(6, 0, 6, 0);
@@ -654,7 +656,7 @@ MiniProjectTargetSelector::MiniProjectTargetSelector(QAction *targetSelectorActi
     m_hideOnRelease(false)
 {
     QPalette p;
-    p.setColor(QPalette::Text, QColor(255, 255, 255, 160));
+    p.setColor(QPalette::Text, creatorTheme()->color(Theme::MiniProjectTargetSelectorTextColor));
     setPalette(p);
     setProperty("panelwidget", true);
     setContentsMargins(QMargins(0, 1, 1, 8));
@@ -668,7 +670,8 @@ MiniProjectTargetSelector::MiniProjectTargetSelector(QAction *targetSelectorActi
     m_summaryLabel = new QLabel(this);
     m_summaryLabel->setMargin(3);
     m_summaryLabel->setAlignment(Qt::AlignLeft | Qt::AlignTop);
-    m_summaryLabel->setStyleSheet(QString::fromLatin1("background: #464646;"));
+    m_summaryLabel->setStyleSheet(QString::fromLatin1("background: %1;")
+        .arg(creatorTheme()->color(Theme::MiniProjectTargetSelectorSummaryBackgroundColor).name()));
     m_summaryLabel->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
     m_summaryLabel->setTextInteractionFlags(m_summaryLabel->textInteractionFlags() | Qt::LinksAccessibleByMouse);
 
@@ -736,23 +739,6 @@ bool MiniProjectTargetSelector::event(QEvent *event)
 
 }
 
-class IndexSorter
-{
-public:
-    enum SortOrder { Less = 0, Greater = 1};
-
-    IndexSorter(QVector<int> result, SortOrder order)
-        : m_result(result), m_order(order)
-    { }
-
-    bool operator()(int i, int j)
-    { return (m_result[i] < m_result[j]) ^ bool(m_order); }
-
-private:
-    QVector<int> m_result;
-    SortOrder m_order;
-};
-
 // does some fancy calculations to ensure proper widths for the list widgets
 QVector<int> MiniProjectTargetSelector::listWidgetWidths(int minSize, int maxSize)
 {
@@ -801,8 +787,15 @@ QVector<int> MiniProjectTargetSelector::listWidgetWidths(int minSize, int maxSiz
         if (result[i] != -1)
             indexes.append(i);
 
-    IndexSorter indexSorter(result, tooSmall ? IndexSorter::Less : IndexSorter::Greater);
-    qSort(indexes.begin(), indexes.end(), indexSorter);
+    if (tooSmall) {
+        Utils::sort(indexes, [&result](int i, int j) {
+            return result[i] < result[j];
+        });
+    } else {
+        Utils::sort(indexes, [&result](int i, int j) {
+            return result[i] > result[j];
+        });
+    }
 
     int i = 0;
     int first = result[indexes.first()]; // biggest or smallest
@@ -876,12 +869,8 @@ void MiniProjectTargetSelector::doLayout(bool keepSize)
         onlySummary = true;
     } else {
         if (visibleLineCount < 3) {
-            foreach (Project *p, SessionManager::projects()) {
-                if (p->needsConfiguration()) {
-                    visibleLineCount = 3;
-                    break;
-                }
-            }
+            if (Utils::anyOf(SessionManager::projects(), &Project::needsConfiguration))
+                visibleLineCount = 3;
         }
         if (visibleLineCount)
             summaryLabelHeight = visibleLineCount * QFontMetrics(m_summaryLabel->font()).height()
@@ -969,27 +958,27 @@ void MiniProjectTargetSelector::doLayout(bool keepSize)
     move(moveTo);
 }
 
-void MiniProjectTargetSelector::setActiveTarget(ProjectExplorer::ProjectConfiguration *pc)
+void MiniProjectTargetSelector::setActiveTarget(ProjectConfiguration *pc)
 {
     m_project->setActiveTarget(static_cast<Target *>(pc));
 }
 
-void MiniProjectTargetSelector::setActiveBuildConfiguration(ProjectExplorer::ProjectConfiguration *pc)
+void MiniProjectTargetSelector::setActiveBuildConfiguration(ProjectConfiguration *pc)
 {
     m_target->setActiveBuildConfiguration(static_cast<BuildConfiguration *>(pc));
 }
 
-void MiniProjectTargetSelector::setActiveDeployConfiguration(ProjectExplorer::ProjectConfiguration *pc)
+void MiniProjectTargetSelector::setActiveDeployConfiguration(ProjectConfiguration *pc)
 {
     m_target->setActiveDeployConfiguration(static_cast<DeployConfiguration *>(pc));
 }
 
-void MiniProjectTargetSelector::setActiveRunConfiguration(ProjectExplorer::ProjectConfiguration *pc)
+void MiniProjectTargetSelector::setActiveRunConfiguration(ProjectConfiguration *pc)
 {
     m_target->setActiveRunConfiguration(static_cast<RunConfiguration *>(pc));
 }
 
-void MiniProjectTargetSelector::projectAdded(ProjectExplorer::Project *project)
+void MiniProjectTargetSelector::projectAdded(Project *project)
 {
     connect(project, SIGNAL(addedTarget(ProjectExplorer::Target*)),
             this, SLOT(slotAddedTarget(ProjectExplorer::Target*)));
@@ -1007,7 +996,7 @@ void MiniProjectTargetSelector::projectAdded(ProjectExplorer::Project *project)
     updateRunListVisible();
 }
 
-void MiniProjectTargetSelector::projectRemoved(ProjectExplorer::Project *project)
+void MiniProjectTargetSelector::projectRemoved(Project *project)
 {
     disconnect(project, SIGNAL(addedTarget(ProjectExplorer::Target*)),
                this, SLOT(slotAddedTarget(ProjectExplorer::Target*)));
@@ -1025,7 +1014,7 @@ void MiniProjectTargetSelector::projectRemoved(ProjectExplorer::Project *project
     updateRunListVisible();
 }
 
-void MiniProjectTargetSelector::addedTarget(ProjectExplorer::Target *target)
+void MiniProjectTargetSelector::addedTarget(Target *target)
 {
     connect(target, SIGNAL(addedBuildConfiguration(ProjectExplorer::BuildConfiguration*)),
             this, SLOT(slotAddedBuildConfiguration(ProjectExplorer::BuildConfiguration*)));
@@ -1053,7 +1042,7 @@ void MiniProjectTargetSelector::addedTarget(ProjectExplorer::Target *target)
         addedRunConfiguration(rc);
 }
 
-void MiniProjectTargetSelector::slotAddedTarget(ProjectExplorer::Target *target)
+void MiniProjectTargetSelector::slotAddedTarget(Target *target)
 {
     addedTarget(target);
     updateTargetListVisible();
@@ -1062,7 +1051,7 @@ void MiniProjectTargetSelector::slotAddedTarget(ProjectExplorer::Target *target)
     updateRunListVisible();
 }
 
-void MiniProjectTargetSelector::removedTarget(ProjectExplorer::Target *target)
+void MiniProjectTargetSelector::removedTarget(Target *target)
 {
     disconnect(target, SIGNAL(addedBuildConfiguration(ProjectExplorer::BuildConfiguration*)),
                this, SLOT(slotAddedBuildConfiguration(ProjectExplorer::BuildConfiguration*)));
@@ -1090,7 +1079,7 @@ void MiniProjectTargetSelector::removedTarget(ProjectExplorer::Target *target)
         removedRunConfiguration(rc);
 }
 
-void MiniProjectTargetSelector::slotRemovedTarget(ProjectExplorer::Target *target)
+void MiniProjectTargetSelector::slotRemovedTarget(Target *target)
 {
     removedTarget(target);
 
@@ -1101,78 +1090,78 @@ void MiniProjectTargetSelector::slotRemovedTarget(ProjectExplorer::Target *targe
 }
 
 
-void MiniProjectTargetSelector::addedBuildConfiguration(ProjectExplorer::BuildConfiguration *bc)
+void MiniProjectTargetSelector::addedBuildConfiguration(BuildConfiguration *bc)
 {
     if (bc->target() == m_target)
         m_listWidgets[BUILD]->addProjectConfiguration(bc);
 }
 
-void MiniProjectTargetSelector::slotAddedBuildConfiguration(ProjectExplorer::BuildConfiguration *bc)
+void MiniProjectTargetSelector::slotAddedBuildConfiguration(BuildConfiguration *bc)
 {
     if (bc->target() == m_target)
         m_listWidgets[BUILD]->addProjectConfiguration(bc);
     updateBuildListVisible();
 }
 
-void MiniProjectTargetSelector::removedBuildConfiguration(ProjectExplorer::BuildConfiguration *bc)
+void MiniProjectTargetSelector::removedBuildConfiguration(BuildConfiguration *bc)
 {
     if (bc->target() == m_target)
         m_listWidgets[BUILD]->removeProjectConfiguration(bc);
 }
 
-void MiniProjectTargetSelector::slotRemovedBuildConfiguration(ProjectExplorer::BuildConfiguration *bc)
+void MiniProjectTargetSelector::slotRemovedBuildConfiguration(BuildConfiguration *bc)
 {
     if (bc->target() == m_target)
         m_listWidgets[BUILD]->removeProjectConfiguration(bc);
     updateBuildListVisible();
 }
 
-void MiniProjectTargetSelector::addedDeployConfiguration(ProjectExplorer::DeployConfiguration *dc)
+void MiniProjectTargetSelector::addedDeployConfiguration(DeployConfiguration *dc)
 {
     if (dc->target() == m_target)
         m_listWidgets[DEPLOY]->addProjectConfiguration(dc);
 }
 
-void MiniProjectTargetSelector::slotAddedDeployConfiguration(ProjectExplorer::DeployConfiguration *dc)
+void MiniProjectTargetSelector::slotAddedDeployConfiguration(DeployConfiguration *dc)
 {
     if (dc->target() == m_target)
         m_listWidgets[DEPLOY]->addProjectConfiguration(dc);
     updateDeployListVisible();
 }
 
-void MiniProjectTargetSelector::removedDeployConfiguration(ProjectExplorer::DeployConfiguration *dc)
+void MiniProjectTargetSelector::removedDeployConfiguration(DeployConfiguration *dc)
 {
     if (dc->target() == m_target)
         m_listWidgets[DEPLOY]->removeProjectConfiguration(dc);
 }
 
-void MiniProjectTargetSelector::slotRemovedDeployConfiguration(ProjectExplorer::DeployConfiguration *dc)
+void MiniProjectTargetSelector::slotRemovedDeployConfiguration(DeployConfiguration *dc)
 {
     if (dc->target() == m_target)
         m_listWidgets[DEPLOY]->removeProjectConfiguration(dc);
     updateDeployListVisible();
 }
 
-void MiniProjectTargetSelector::addedRunConfiguration(ProjectExplorer::RunConfiguration *rc)
+void MiniProjectTargetSelector::addedRunConfiguration(RunConfiguration *rc)
 {
     if (rc->target() == m_target)
         m_listWidgets[RUN]->addProjectConfiguration(rc);
 }
 
-void MiniProjectTargetSelector::slotAddedRunConfiguration(ProjectExplorer::RunConfiguration *rc)
+void MiniProjectTargetSelector::slotAddedRunConfiguration(RunConfiguration *rc)
 {
     if (rc->target() == m_target)
         m_listWidgets[RUN]->addProjectConfiguration(rc);
     updateRunListVisible();
 }
 
-void MiniProjectTargetSelector::removedRunConfiguration(ProjectExplorer::RunConfiguration *rc)
+void MiniProjectTargetSelector::removedRunConfiguration(RunConfiguration *rc)
 {
     if (rc->target() == m_target)
         m_listWidgets[RUN]->removeProjectConfiguration(rc);
 }
 
-void MiniProjectTargetSelector::slotRemovedRunConfiguration(ProjectExplorer::RunConfiguration *rc)
+void MiniProjectTargetSelector::slotRemovedRunConfiguration(RunConfiguration *rc)
 {
     if (rc->target() == m_target)
         m_listWidgets[RUN]->removeProjectConfiguration(rc);
@@ -1246,7 +1235,7 @@ void MiniProjectTargetSelector::updateRunListVisible()
     updateSummary();
 }
 
-void MiniProjectTargetSelector::changeStartupProject(ProjectExplorer::Project *project)
+void MiniProjectTargetSelector::changeStartupProject(Project *project)
 {
     if (m_project) {
         disconnect(m_project, SIGNAL(activeTargetChanged(ProjectExplorer::Target*)),
@@ -1273,7 +1262,7 @@ void MiniProjectTargetSelector::changeStartupProject(ProjectExplorer::Project *p
     updateActionAndSummary();
 }
 
-void MiniProjectTargetSelector::activeTargetChanged(ProjectExplorer::Target *target)
+void MiniProjectTargetSelector::activeTargetChanged(Target *target)
 {
     if (m_target) {
         disconnect(m_target, SIGNAL(displayNameChanged()),
@@ -1365,7 +1354,7 @@ void MiniProjectTargetSelector::kitChanged(Kit *k)
         updateActionAndSummary();
 }
 
-void MiniProjectTargetSelector::activeBuildConfigurationChanged(ProjectExplorer::BuildConfiguration *bc)
+void MiniProjectTargetSelector::activeBuildConfigurationChanged(BuildConfiguration *bc)
 {
     if (m_buildConfiguration)
         disconnect(m_buildConfiguration, SIGNAL(displayNameChanged()),
@@ -1378,7 +1367,7 @@ void MiniProjectTargetSelector::activeBuildConfigurationChanged(ProjectExplorer:
     updateActionAndSummary();
 }
 
-void MiniProjectTargetSelector::activeDeployConfigurationChanged(ProjectExplorer::DeployConfiguration *dc)
+void MiniProjectTargetSelector::activeDeployConfigurationChanged(DeployConfiguration *dc)
 {
     if (m_deployConfiguration)
         disconnect(m_deployConfiguration, SIGNAL(displayNameChanged()),
@@ -1391,7 +1380,7 @@ void MiniProjectTargetSelector::activeDeployConfigurationChanged(ProjectExplorer
     updateActionAndSummary();
 }
 
-void MiniProjectTargetSelector::activeRunConfigurationChanged(ProjectExplorer::RunConfiguration *rc)
+void MiniProjectTargetSelector::activeRunConfigurationChanged(RunConfiguration *rc)
 {
     if (m_runConfiguration)
         disconnect(m_runConfiguration, SIGNAL(displayNameChanged()),
@@ -1501,7 +1490,7 @@ void MiniProjectTargetSelector::mousePressEvent(QMouseEvent *e)
 
 void MiniProjectTargetSelector::updateActionAndSummary()
 {
-    QString projectName;
+    QString projectName = QLatin1String(" ");
     QString fileName; // contains the path if projectName is not unique
     QString targetName;
     QString targetToolTipText;
@@ -1515,7 +1504,7 @@ void MiniProjectTargetSelector::updateActionAndSummary()
         projectName = project->displayName();
         foreach (Project *p, SessionManager::projects()) {
             if (p != project && p->displayName() == projectName) {
-                fileName = project->projectFilePath();
+                fileName = project->projectFilePath().toUserOutput();
                 break;
             }
         }
@@ -1603,15 +1592,18 @@ void MiniProjectTargetSelector::updateSummary()
 void MiniProjectTargetSelector::paintEvent(QPaintEvent *)
 {
     QPainter painter(this);
-    painter.setBrush(QBrush(QColor(160, 160, 160, 255)));
+    painter.setBrush(creatorTheme()->color(Theme::MiniProjectTargetSelectorBackgroundColor));
     painter.drawRect(rect());
-    painter.setPen(Utils::StyleHelper::borderColor());
+    painter.setPen(creatorTheme()->color(Theme::MiniProjectTargetSelectorBackgroundColor));
+    // draw border on top and right
     painter.drawLine(rect().topLeft(), rect().topRight());
     painter.drawLine(rect().topRight(), rect().bottomRight());
-
-    QRect bottomRect(0, rect().height() - 8, rect().width(), 8);
-    static QImage image(QLatin1String(":/projectexplorer/images/targetpanel_bottom.png"));
-    Utils::StyleHelper::drawCornerImage(image, &painter, bottomRect, 1, 1, 1, 1);
+    if (creatorTheme()->flag(Theme::DrawTargetSelectorBottom)) {
+        // draw thicker border on the bottom
+        QRect bottomRect(0, rect().height() - 8, rect().width(), 8);
+        static QImage image(QLatin1String(":/projectexplorer/images/targetpanel_bottom.png"));
+        StyleHelper::drawCornerImage(image, &painter, bottomRect, 1, 1, 1, 1);
+    }
 }
 
 void MiniProjectTargetSelector::switchToProjectsMode()

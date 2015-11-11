@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of the Qt Quick Controls module of the Qt Toolkit.
 **
@@ -17,7 +17,7 @@
 **     notice, this list of conditions and the following disclaimer in
 **     the documentation and/or other materials provided with the
 **     distribution.
-**   * Neither the name of Digia Plc and its Subsidiary(-ies) nor the names
+**   * Neither the name of The Qt Company Ltd and its Subsidiary(-ies) nor the names
 **     of its contributors may be used to endorse or promote products derived
 **     from this software without specific prior written permission.
 **
@@ -60,7 +60,6 @@ Controls.Button {
         background: Rectangle {
             implicitWidth: 100
             implicitHeight: 23
-            border.color: CreatorStyle.borderColor
             radius: 3
             gradient: control.pressed ? pressedGradient : gradient
             Gradient{
@@ -74,7 +73,6 @@ Controls.Button {
                 GradientStop {color: "#303030" ; position: 1}
             }
             Rectangle {
-                border.color: CreatorStyle.highlightColor
                 anchors.fill: parent
                 anchors.margins: -1
                 color: "transparent"

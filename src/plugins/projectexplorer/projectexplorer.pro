@@ -1,13 +1,15 @@
-QT += xml script
+QT += quick qml
 
 include(../../qtcreatorplugin.pri)
 include(customwizard/customwizard.pri)
+include(jsonwizard/jsonwizard.pri)
 HEADERS += projectexplorer.h \
     abi.h \
     abiwidget.h \
     ansifilterparser.h \
     buildinfo.h \
     clangparser.h \
+    configtaskhandler.h \
     environmentaspect.h \
     environmentaspectwidget.h \
     gcctoolchain.h \
@@ -27,6 +29,7 @@ HEADERS += projectexplorer.h \
     kitconfigwidget.h \
     kitinformation.h \
     kitinformationconfigwidget.h \
+    kitfeatureprovider.h \
     kitmanager.h \
     kitmanagerconfigwidget.h \
     kitmodel.h \
@@ -58,13 +61,11 @@ HEADERS += projectexplorer.h \
     projectexplorersettings.h \
     corelistenercheckingforrunningbuild.h \
     project.h \
-    pluginfilefactory.h \
     iprojectmanager.h \
     currentprojectfilter.h \
     allprojectsfind.h \
     buildstep.h \
     buildconfiguration.h \
-    iprojectproperties.h \
     buildsettingspropertiespage.h \
     environmentwidget.h \
     processstep.h \
@@ -98,6 +99,7 @@ HEADERS += projectexplorer.h \
     buildenvironmentwidget.h \
     ldparser.h \
     linuxiccparser.h \
+    runconfigurationaspects.h \
     runconfigurationmodel.h \
     buildconfigurationmodel.h \
     processparameters.h \
@@ -128,7 +130,6 @@ HEADERS += projectexplorer.h \
     devicesupport/devicesettingswidget.h \
     devicesupport/devicesettingspage.h \
     devicesupport/devicetestdialog.h \
-    devicesupport/devicetypekitchooser.h \
     devicesupport/deviceusedportsgatherer.h \
     devicesupport/deviceapplicationrunner.h \
     devicesupport/localprocesslist.h \
@@ -137,6 +138,8 @@ HEADERS += projectexplorer.h \
     devicesupport/desktopdeviceconfigurationwidget.h \
     devicesupport/desktopprocesssignaloperation.h \
     deploymentdata.h \
+    deploymentdatamodel.h \
+    deploymentdataview.h \
     buildtargetinfo.h \
     customtoolchain.h \
     projectmacroexpander.h \
@@ -144,13 +147,21 @@ HEADERS += projectexplorer.h \
     customparserconfigdialog.h \
     ipotentialkit.h \
     selectablefilesmodel.h \
-    xcodebuildparser.h
+    xcodebuildparser.h \
+    propertiespanel.h \
+    panelswidget.h \
+    projectwelcomepage.h \
+    projectpanelfactory.h \
+    projecttree.h \
+    expanddata.h
 
 SOURCES += projectexplorer.cpp \
     abi.cpp \
     abiwidget.cpp \
     ansifilterparser.cpp \
+    buildinfo.cpp \
     clangparser.cpp \
+    configtaskhandler.cpp \
     environmentaspect.cpp \
     environmentaspectwidget.cpp \
     gcctoolchain.cpp \
@@ -198,7 +209,6 @@ SOURCES += projectexplorer.cpp \
     currentprojectfilter.cpp \
     allprojectsfind.cpp \
     project.cpp \
-    pluginfilefactory.cpp \
     buildstep.cpp \
     buildconfiguration.cpp \
     buildsettingspropertiespage.cpp \
@@ -236,6 +246,7 @@ SOURCES += projectexplorer.cpp \
     buildenvironmentwidget.cpp \
     ldparser.cpp \
     linuxiccparser.cpp \
+    runconfigurationaspects.cpp \
     runconfigurationmodel.cpp \
     buildconfigurationmodel.cpp \
     taskhub.cpp \
@@ -260,7 +271,6 @@ SOURCES += projectexplorer.cpp \
     devicesupport/devicesettingswidget.cpp \
     devicesupport/devicesettingspage.cpp \
     devicesupport/devicetestdialog.cpp \
-    devicesupport/devicetypekitchooser.cpp \
     devicesupport/deviceusedportsgatherer.cpp \
     devicesupport/deviceapplicationrunner.cpp \
     devicesupport/localprocesslist.cpp \
@@ -269,13 +279,21 @@ SOURCES += projectexplorer.cpp \
     devicesupport/desktopdeviceconfigurationwidget.cpp \
     devicesupport/desktopprocesssignaloperation.cpp \
     deployablefile.cpp \
+    deploymentdatamodel.cpp \
+    deploymentdataview.cpp \
     customtoolchain.cpp \
     projectmacroexpander.cpp \
     customparser.cpp \
     customparserconfigdialog.cpp \
     ipotentialkit.cpp \
     selectablefilesmodel.cpp \
-    xcodebuildparser.cpp
+    xcodebuildparser.cpp \
+    propertiespanel.cpp \
+    panelswidget.cpp \
+    projectwelcomepage.cpp \
+    projectpanelfactory.cpp \
+    projecttree.cpp \
+    expanddata.cpp
 
 FORMS += processstep.ui \
     editorsettingspropertiespage.ui \
@@ -284,6 +302,7 @@ FORMS += processstep.ui \
     projectexplorersettingspage.ui \
     targetsettingswidget.ui \
     doubletabwidget.ui \
+    deploymentdataview.ui \
     codestylesettingspropertiespage.ui \
     devicesupport/devicefactoryselectiondialog.ui \
     devicesupport/devicesettingswidget.ui \
@@ -317,11 +336,13 @@ equals(TEST, 1) {
         outputparser_test.h
 }
 
-greaterThan(QT_MAJOR_VERSION, 4) {
-    QT += quick
-    HEADERS += projectwelcomepage.h
-    SOURCES += projectwelcomepage.cpp
+journald {
+    SOURCES += journaldwatcher.cpp
+    HEADERS += journaldwatcher.h
+    DEFINES += WITH_JOURNALD
+    LIBS += -lsystemd
 }
+
 macx:LIBS += -framework Carbon
 
 RESOURCES += projectexplorer.qrc

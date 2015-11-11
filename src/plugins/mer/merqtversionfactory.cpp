@@ -33,11 +33,14 @@
 #include <QDir>
 #include <QFileInfo>
 
+using namespace QtSupport;
+using namespace Utils;
+
 namespace Mer {
 namespace Internal {
 
 MerQtVersionFactory::MerQtVersionFactory(QObject *parent)
-    : QtSupport::QtVersionFactory(parent)
+    : QtVersionFactory(parent)
 {
 }
 
@@ -50,8 +53,8 @@ bool MerQtVersionFactory::canRestore(const QString &type)
     return type == QLatin1String(Constants::MER_QT);
 }
 
-QtSupport::BaseQtVersion *MerQtVersionFactory::restore(const QString &type,
-                                                       const QVariantMap &data)
+BaseQtVersion *MerQtVersionFactory::restore(const QString &type,
+                                            const QVariantMap &data)
 {
     QTC_ASSERT(canRestore(type), return 0);
     MerQtVersion *v = new MerQtVersion();
@@ -72,10 +75,10 @@ int MerQtVersionFactory::priority() const
     return 50;
 }
 
-QtSupport::BaseQtVersion *MerQtVersionFactory::create(const Utils::FileName &qmakeCommand,
-                                                      ProFileEvaluator * /*evaluator*/,
-                                                      bool isAutoDetected,
-                                                      const QString &autoDetectionSource)
+BaseQtVersion *MerQtVersionFactory::create(const FileName &qmakeCommand,
+                                           ProFileEvaluator * /*evaluator*/,
+                                           bool isAutoDetected,
+                                           const QString &autoDetectionSource)
 {
     const QFileInfo fi = qmakeCommand.toFileInfo();
     if (!fi.exists() || !fi.isExecutable() || !fi.isFile())

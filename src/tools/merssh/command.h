@@ -81,9 +81,9 @@ class CommandInvoker: public QObject
 public:
     CommandInvoker(Command* command):m_command(command){
         Q_ASSERT(command);
-        QTimer::singleShot(0,this,SLOT(execute()));
+        QTimer::singleShot(0, this, &CommandInvoker::execute);
     }
-    ~CommandInvoker(){}
+    ~CommandInvoker() override {}
 private slots:
     void execute(){
         QCoreApplication::exit(m_command->execute());

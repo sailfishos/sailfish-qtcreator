@@ -43,15 +43,16 @@ QString DeployCommand::name() const
 
 int DeployCommand::execute()
 {
-    const QString projectPathParameter = projectPath().isEmpty() ? QString() : QLatin1String(" -p ") +
-    QLatin1String("'") + projectPath() +   QLatin1String("'");
+    const QString projectPathParameter = projectPath().isEmpty()
+        ? QString()
+        : QLatin1String(" -p ") + QLatin1Char('\'') + projectPath() +   QLatin1Char('\'');
     const QString targetParameter = QLatin1String(" -t ") +  targetName();
-    const QString deviceParameter = QLatin1String(" -d '") + deviceName() + QLatin1String("'");
+    const QString deviceParameter = QLatin1String(" -d '") + deviceName() + QLatin1Char('\'');
     QString command = QLatin1String("mb2") +
                       projectPathParameter +
                       deviceParameter +
                       targetParameter +
-                      QLatin1Char(' ') + arguments().join(QLatin1String(" ")) + QLatin1Char(' ');
+                      QLatin1Char(' ') + arguments().join(QLatin1Char(' ')) + QLatin1Char(' ');
     MerRemoteProcess process;
     process.setSshParameters(sshParameters());
     process.setCommand(remotePathMapping(command));

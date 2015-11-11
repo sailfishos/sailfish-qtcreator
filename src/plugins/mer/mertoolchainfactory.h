@@ -33,13 +33,12 @@ class MerToolChainFactory : public ProjectExplorer::ToolChainFactory
     Q_OBJECT
 
 public:
-    QString displayName() const;
-    QString id() const;
+    MerToolChainFactory();
 
     //QList<ProjectExplorer::ToolChain *> autoDetect();
 
-    bool canRestore(const QVariantMap &data);
-    ProjectExplorer::ToolChain *restore(const QVariantMap &data);
+    bool canRestore(const QVariantMap &data) override;
+    ProjectExplorer::ToolChain *restore(const QVariantMap &data) override;
 };
 
 } // Internal

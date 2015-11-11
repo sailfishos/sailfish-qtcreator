@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 ################################################################################
-# Copyright (C) 2014 Digia Plc
+# Copyright (C) The Qt Company Ltd.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -11,7 +11,7 @@
 #   * Redistributions in binary form must reproduce the above copyright notice,
 #     this list of conditions and the following disclaimer in the documentation
 #     and/or other materials provided with the distribution.
-#   * Neither the name of Digia Plc, nor the names of its contributors
+#   * Neither the name of The Qt Company Ltd, nor the names of its contributors
 #     may be used to endorse or promote products derived from this software
 #     without specific prior written permission.
 #
@@ -91,8 +91,8 @@ def fix_rpaths_helper(chrpath_bin, install_dir, dirpath, filenames):
     for filename in filenames:
         fpath = os.path.join(dirpath, filename)
         relpath = os.path.relpath(install_dir+'/lib/qtcreator', dirpath)
-        relpath2 = os.path.relpath(install_dir+'/lib', dirpath)
-        command = [chrpath_bin, '-r', '$ORIGIN/'+relpath+':$ORIGIN/'+relpath2, fpath]
+        relpluginpath = os.path.relpath(install_dir+'/lib/qtcreator/plugins', dirpath)
+        command = [chrpath_bin, '-r', '$ORIGIN/'+relpath+':$ORIGIN/'+relpluginpath, fpath]
         print fpath, ':', command
         try:
             subprocess.check_call(command)
@@ -188,7 +188,9 @@ def copy_qt_libs(install_dir, qt_libs_dir, qt_plugin_dir, qt_import_dir, qt_qml_
         target = os.path.join(install_dir, 'bin', 'imports', qtimport)
         if (os.path.exists(target)):
             shutil.rmtree(target)
-        shutil.copytree(os.path.join(qt_import_dir, qtimport), target, ignore=copy_ignore_func, symlinks=True)
+        import_path = os.path.join(qt_import_dir, qtimport)
+        if os.path.exists(import_path):
+            shutil.copytree(import_path, target, ignore=copy_ignore_func, symlinks=True)
 
     if (os.path.exists(qt_qml_dir)):
         print "Copying qt quick 2 imports"
@@ -216,20 +218,44 @@ def copy_translations(install_dir, qt_tr_dir):
         print translation, '->', tr_dir
         shutil.copy(translation, tr_dir)
 
-def copy_libclang(install_dir, llvm_install_dir):
-    libsource = ""
-    libtarget = ""
-    if sys.platform.startswith("win"):
-        libsource = os.path.join(llvm_install_dir, 'bin', 'libclang.dll')
-        libtarget = os.path.join(install_dir, 'bin')
+def copyPreservingLinks(source, destination):
+    if os.path.islink(source):
+        linkto = os.readlink(source)
+        destFilePath = destination
+        if os.path.isdir(destination):
+            destFilePath = os.path.join(destination, os.path.basename(source))
+        os.symlink(linkto, destFilePath)
     else:
-        libsource = os.path.join(llvm_install_dir, 'lib', 'libclang.so')
-        libtarget = os.path.join(install_dir, 'lib', 'qtcreator')
+        shutil.copy(source, destination)
+
+def copy_libclang(install_dir, llvm_install_dir):
+    # contains pairs of (source, target directory)
+    deployinfo = []
+    if sys.platform.startswith("win"):
+        deployinfo.append((os.path.join(llvm_install_dir, 'bin', 'libclang.dll'),
+                           os.path.join(install_dir, 'bin')))
+        deployinfo.append((os.path.join(llvm_install_dir, 'bin', 'clang-cl.exe'),
+                           os.path.join(install_dir, 'bin')))
+    else:
+        libsources = glob(os.path.join(llvm_install_dir, 'lib', 'libclang.so*'))
+        for libsource in libsources:
+            deployinfo.append((libsource, os.path.join(install_dir, 'lib', 'qtcreator')))
+        clangbinary = os.path.join(llvm_install_dir, 'bin', 'clang')
+        clangbinary_targetdir = os.path.join(install_dir, 'bin')
+        deployinfo.append((clangbinary, clangbinary_targetdir))
+        # copy link target if clang is actually a symlink
+        if os.path.islink(clangbinary):
+            linktarget = os.readlink(clangbinary)
+            deployinfo.append((os.path.join(os.path.dirname(clangbinary), linktarget),
+                               os.path.join(clangbinary_targetdir, linktarget)))
+
     resourcesource = os.path.join(llvm_install_dir, 'lib', 'clang')
     resourcetarget = os.path.join(install_dir, 'share', 'qtcreator', 'cplusplus', 'clang')
+
     print "copying libclang..."
-    print libsource, '->', libtarget
-    shutil.copy(libsource, libtarget)
+    for source, target in deployinfo:
+        print source, '->', target
+        copyPreservingLinks(source, target)
     print resourcesource, '->', resourcetarget
     if (os.path.exists(resourcetarget)):
         shutil.rmtree(resourcetarget)
@@ -282,7 +308,7 @@ def main():
     QT_INSTALL_QML = readQmakeVar(qmake_bin, 'QT_INSTALL_QML')
     QT_INSTALL_TRANSLATIONS = readQmakeVar(qmake_bin, 'QT_INSTALL_TRANSLATIONS')
 
-    plugins = ['accessible', 'codecs', 'designer', 'iconengines', 'imageformats', 'platformthemes', 'platforminputcontexts', 'platforms', 'printsupport', 'sqldrivers']
+    plugins = ['accessible', 'codecs', 'designer', 'iconengines', 'imageformats', 'platformthemes', 'platforminputcontexts', 'platforms', 'printsupport', 'sqldrivers', 'xcbglintegrations']
     imports = ['Qt', 'QtWebKit']
 
     if sys.platform.startswith('win'):

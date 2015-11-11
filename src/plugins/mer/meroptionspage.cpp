@@ -29,11 +29,13 @@
 
 #include <QCoreApplication>
 
+using namespace Core;
+
 namespace Mer {
 namespace Internal {
 
 MerOptionsPage::MerOptionsPage(QObject *parent)
-    : Core::IOptionsPage(parent)
+    : IOptionsPage(parent)
 {
     setCategory(Core::Id(Constants::MER_OPTIONS_CATEGORY));
     setDisplayCategory(QCoreApplication::translate("Mer", Constants::MER_OPTIONS_CATEGORY_TR));
@@ -48,7 +50,8 @@ QWidget *MerOptionsPage::widget()
       return m_widget;
 
     m_widget = new MerOptionsWidget();
-    connect(m_widget, SIGNAL(updateSearchKeys()), SLOT(onUpdateSearchKeys()));
+    connect(m_widget.data(), &MerOptionsWidget::updateSearchKeys,
+            this, &MerOptionsPage::onUpdateSearchKeys);
     m_searchKeyWords = m_widget->searchKeyWordMatchString();
     return m_widget;
 }

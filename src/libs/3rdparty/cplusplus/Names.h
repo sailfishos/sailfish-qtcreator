@@ -41,8 +41,6 @@ public:
     const Name *base() const;
     const Name *name() const;
 
-    virtual bool isEqualTo(const Name *other) const;
-
     virtual const QualifiedNameId *asQualifiedNameId() const
     { return this; }
 
@@ -65,8 +63,6 @@ public:
 
     virtual const Identifier *identifier() const;
 
-    virtual bool isEqualTo(const Name *other) const;
-
     virtual const DestructorNameId *asDestructorNameId() const
     { return this; }
 
@@ -81,9 +77,9 @@ private:
 class CPLUSPLUS_EXPORT TemplateNameId: public Name
 {
 public:
-    template <typename _Iterator>
-    TemplateNameId(const Identifier *identifier, bool isSpecialization, _Iterator first,
-                   _Iterator last)
+    template <typename Iterator>
+    TemplateNameId(const Identifier *identifier, bool isSpecialization, Iterator first,
+                   Iterator last)
         : _identifier(identifier)
         , _templateArguments(first, last)
         , _isSpecialization(isSpecialization) {}
@@ -96,8 +92,6 @@ public:
     unsigned templateArgumentCount() const;
     const FullySpecifiedType &templateArgumentAt(unsigned index) const;
 
-    virtual bool isEqualTo(const Name *other) const;
-
     virtual const TemplateNameId *asTemplateNameId() const
     { return this; }
 
@@ -106,7 +100,7 @@ public:
     TemplateArgumentIterator firstTemplateArgument() const { return _templateArguments.begin(); }
     TemplateArgumentIterator lastTemplateArgument() const { return _templateArguments.end(); }
     bool isSpecialization() const { return _isSpecialization; }
-    // this is temporary solution needed in ClassOrNamespace::nestedType
+    // this is temporary solution needed in LookupScope::nestedType
     // when we try to find correct specialization for instantiation
     void setIsSpecialization(bool isSpecialization) { _isSpecialization = isSpecialization; }
 
@@ -190,7 +184,6 @@ public:
     Kind kind() const;
 
     virtual const Identifier *identifier() const;
-    virtual bool isEqualTo(const Name *other) const;
 
     virtual const OperatorNameId *asOperatorNameId() const
     { return this; }
@@ -212,7 +205,6 @@ public:
     FullySpecifiedType type() const;
 
     virtual const Identifier *identifier() const;
-    virtual bool isEqualTo(const Name *other) const;
 
     virtual const ConversionNameId *asConversionNameId() const
     { return this; }
@@ -228,8 +220,8 @@ private:
 class CPLUSPLUS_EXPORT SelectorNameId: public Name
 {
 public:
-    template <typename _Iterator>
-    SelectorNameId(_Iterator first, _Iterator last, bool hasArguments)
+    template <typename Iterator>
+    SelectorNameId(Iterator first, Iterator last, bool hasArguments)
         : _names(first, last), _hasArguments(hasArguments) {}
 
     virtual ~SelectorNameId();
@@ -239,8 +231,6 @@ public:
     unsigned nameCount() const;
     const Name *nameAt(unsigned index) const;
     bool hasArguments() const;
-
-    virtual bool isEqualTo(const Name *other) const;
 
     virtual const SelectorNameId *asSelectorNameId() const
     { return this; }
@@ -268,7 +258,6 @@ public:
     unsigned classTokenIndex() const;
 
     virtual const Identifier *identifier() const;
-    virtual bool isEqualTo(const Name *other) const;
 
     virtual const AnonymousNameId *asAnonymousNameId() const
     { return this; }

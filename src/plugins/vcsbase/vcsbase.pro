@@ -2,12 +2,15 @@ DEFINES += VCSBASE_LIBRARY
 include(../../qtcreatorplugin.pri)
 HEADERS += vcsbase_global.h \
     vcsbaseconstants.h \
-    vcsconfigurationpage.h \
+    vcsprojectcache.h \
+    wizard/vcsconfigurationpage.h \
+    wizard/vcscommandpage.h \
+    wizard/vcsjsextension.h \
     vcsplugin.h \
     corelistener.h \
     vcsbaseplugin.h \
     baseannotationhighlighter.h \
-    diffhighlighter.h \
+    diffandloghighlighter.h \
     vcsbaseeditor.h \
     vcsbasesubmiteditor.h \
     basevcseditorfactory.h \
@@ -17,14 +20,10 @@ HEADERS += vcsbase_global.h \
     commonvcssettings.h \
     commonsettingspage.h \
     nicknamedialog.h \
-    basecheckoutwizard.h \
-    checkoutwizarddialog.h \
-    checkoutprogresswizardpage.h \
-    basecheckoutwizardpage.h \
-    vcsbaseoutputwindow.h \
+    vcsoutputwindow.h \
     cleandialog.h \
     vcsbaseoptionspage.h \
-    command.h \
+    vcscommand.h \
     vcsbaseclient.h \
     vcsbaseclientsettings.h \
     vcsbaseeditorparameterwidget.h \
@@ -33,10 +32,13 @@ HEADERS += vcsbase_global.h \
 
 SOURCES += vcsplugin.cpp \
     vcsbaseplugin.cpp \
-    vcsconfigurationpage.cpp \
+    vcsprojectcache.cpp \
+    wizard/vcsconfigurationpage.cpp \
+    wizard/vcscommandpage.cpp \
+    wizard/vcsjsextension.cpp \
     corelistener.cpp \
     baseannotationhighlighter.cpp \
-    diffhighlighter.cpp \
+    diffandloghighlighter.cpp \
     vcsbaseeditor.cpp \
     vcsbasesubmiteditor.cpp \
     basevcseditorfactory.cpp \
@@ -46,14 +48,10 @@ SOURCES += vcsplugin.cpp \
     commonvcssettings.cpp \
     commonsettingspage.cpp \
     nicknamedialog.cpp \
-    basecheckoutwizard.cpp \
-    checkoutwizarddialog.cpp \
-    checkoutprogresswizardpage.cpp \
-    basecheckoutwizardpage.cpp \
-    vcsbaseoutputwindow.cpp \
+    vcsoutputwindow.cpp \
     cleandialog.cpp \
     vcsbaseoptionspage.cpp \
-    command.cpp \
+    vcscommand.cpp \
     vcsbaseclient.cpp \
     vcsbaseclientsettings.cpp \
     vcsbaseeditorparameterwidget.cpp \
@@ -64,6 +62,5 @@ RESOURCES += vcsbase.qrc
 
 FORMS += commonsettingspage.ui \
     nicknamedialog.ui \
-    basecheckoutwizardpage.ui \
     cleandialog.ui \
     submiteditorwidget.ui

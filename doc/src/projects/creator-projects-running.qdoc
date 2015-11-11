@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (c) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator
 **
@@ -34,14 +34,28 @@
     location from where it can be run on the desktop, on a device emulator or
     simulator, or on a mobile device that is connected to the development PC.
 
-    To run executable files without deploying them first, deselect the
-    \gui {Tools > Options > Project > Always deploy project before running it}
-    option.
+    To run executable files without deploying them first, select \uicontrol Build >
+    \uicontrol {Run Without Deployment}. To make this the default option, deselect the
+    \uicontrol Tools > \uicontrol Options > \uicontrol Project >
+    \uicontrol {Always deploy project before running it} option.
+
+    To run applications:
+
+    \list 1
+
+        \li Click the \uicontrol {Build and Run Kit Selector} icon (1) or select
+            \uicontrol Build > \uicontrol {Open Build and Run Kit Selector} to select the
+            build and run \l{glossary-buildandrun-kit}{kit}.
+
+            \image qtcreator-kit-selector.png "Kit selector"
+
+        \li Click the \uicontrol Run button (2).
+
+    \endlist
 
     For more information on the options you have, see
     \l{Specifying Run Settings}.
 
-    \include projects/creator-projects-running-desktop.qdocinc
     \include linux-mobile/creator-projects-running-generic-linux.qdocinc
     \include mer/creator-projects-running-mer.qdocinc
     \include qnx/creator-projects-running-qnx.qdocinc

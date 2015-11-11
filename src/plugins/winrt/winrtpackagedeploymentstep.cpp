@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,27 +9,30 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
 
 #include "winrtpackagedeploymentstep.h"
-#include "winrtpackagedeploymentstepwidget.h"
+
 #include "winrtconstants.h"
+#include "winrtpackagedeploymentstepwidget.h"
+#include "winrtrunconfiguration.h"
 
 #include <projectexplorer/project.h>
 #include <projectexplorer/target.h>
@@ -39,6 +42,7 @@
 #include <projectexplorer/deploymentdata.h>
 #include <projectexplorer/projectexplorerconstants.h>
 #include <qtsupport/qtkitinformation.h>
+#include <utils/qtcassert.h>
 #include <utils/qtcprocess.h>
 
 #include <QRegularExpression>
@@ -59,49 +63,44 @@ WinRtPackageDeploymentStep::WinRtPackageDeploymentStep(BuildStepList *bsl)
 
 bool WinRtPackageDeploymentStep::init()
 {
-    Utils::FileName proFile = Utils::FileName::fromString(project()->projectFilePath());
-    const QString targetPath
-            = target()->applicationTargets().targetForProject(proFile).toString()
-                + QLatin1String(".exe");
-    QString targetDir = targetPath.left(targetPath.lastIndexOf(QLatin1Char('/')) + 1);
-    // ### Actually, targetForProject is supposed to return the file path including the file
-    // extension. Whenever this will eventually work, we have to remove the .exe suffix here.
+    WinRtRunConfiguration *rc = qobject_cast<WinRtRunConfiguration *>(
+                target()->activeRunConfiguration());
+    QTC_ASSERT(rc, return false);
+
+    const Utils::FileName activeProjectFilePath = Utils::FileName::fromString(rc->proFilePath());
+    Utils::FileName appTargetFilePath;
+    foreach (const BuildTargetInfo &buildTarget, target()->applicationTargets().list) {
+        if (buildTarget.projectFilePath == activeProjectFilePath) {
+            appTargetFilePath = buildTarget.targetFilePath;
+            break;
+        }
+    }
+
+    m_targetFilePath = appTargetFilePath.toString();
+    if (m_targetFilePath.isEmpty()) {
+        raiseError(tr("No executable to deploy found in %1.").arg(rc->proFilePath()));
+        return false;
+    }
+
+    // ### Ideally, the file paths in applicationTargets() should already have the .exe suffix.
+    // Whenever this will eventually work, we can drop appending the .exe suffix here.
+    if (!m_targetFilePath.endsWith(QLatin1String(".exe"), Qt::CaseInsensitive))
+        m_targetFilePath.append(QLatin1String(".exe"));
+
+    m_targetDirPath = appTargetFilePath.parentDir().toString();
+    if (!m_targetDirPath.endsWith(QLatin1Char('/')))
+        m_targetDirPath += QLatin1Char('/');
 
     const QtSupport::BaseQtVersion *qt = QtSupport::QtKitInformation::qtVersion(target()->kit());
     if (!qt)
         return false;
 
-    QString args = QtcProcess::quoteArg(QDir::toNativeSeparators(targetPath));
+    QString args = QtcProcess::quoteArg(QDir::toNativeSeparators(m_targetFilePath));
     args += QLatin1Char(' ') + m_args;
 
-    m_manifestFileName = QStringLiteral("AppxManifest");
-
-    if (qt->type() == QLatin1String(Constants::WINRT_WINPHONEQT)
-            && qt->mkspec().toString().contains(QLatin1String("msvc2012"))) {
+    if (qt->type() == QLatin1String(Constants::WINRT_WINPHONEQT)) {
         m_createMappingFile = true;
-        m_manifestFileName = QStringLiteral("WMAppManifest");
-    }
-
-    if (m_createMappingFile) {
         args += QLatin1String(" -list mapping");
-        m_mappingFileContent = QLatin1String("[Files]\n\"") + QDir::toNativeSeparators(targetDir)
-                + m_manifestFileName + QLatin1String(".xml\" \"") + m_manifestFileName + QLatin1String(".xml\"\n");
-
-        QDir assetDirectory(targetDir + QLatin1String("assets"));
-        if (assetDirectory.exists()) {
-            QStringList iconsToDeploy;
-            const QString fullManifestPath = targetDir + m_manifestFileName + QLatin1String(".xml");
-            if (!parseIconsAndExecutableFromManifest(fullManifestPath, &iconsToDeploy,
-                                                     &m_executablePathInManifest)) {
-                raiseError(tr("Cannot parse manifest file %1.").arg(fullManifestPath));
-                return false;
-            }
-            foreach (QString icon, iconsToDeploy) {
-                m_mappingFileContent += QLatin1Char('"')
-                        + QDir::toNativeSeparators(targetDir + icon) + QLatin1String("\" \"")
-                        + QDir::toNativeSeparators(icon) + QLatin1String("\"\n");
-            }
-        }
     }
 
     ProcessParameters *params = processParameters();
@@ -112,21 +111,51 @@ bool WinRtPackageDeploymentStep::init()
     return AbstractProcessStep::init();
 }
 
+void WinRtPackageDeploymentStep::run(QFutureInterface<bool> &fi)
+{
+    AbstractProcessStep::run(fi);
+
+    const QtSupport::BaseQtVersion *qt = QtSupport::QtKitInformation::qtVersion(target()->kit());
+    if (!qt)
+        return;
+
+    m_manifestFileName = QStringLiteral("AppxManifest");
+
+    if (m_createMappingFile) {
+        m_mappingFileContent = QLatin1String("[Files]\n");
+
+        QDir assetDirectory(m_targetDirPath + QLatin1String("assets"));
+        if (assetDirectory.exists()) {
+            QStringList iconsToDeploy;
+            const QString fullManifestPath = m_targetDirPath + m_manifestFileName
+                    + QLatin1String(".xml");
+            if (!parseIconsAndExecutableFromManifest(fullManifestPath, &iconsToDeploy,
+                                                     &m_executablePathInManifest)) {
+                raiseError(tr("Cannot parse manifest file %1.").arg(fullManifestPath));
+                return;
+            }
+            foreach (const QString &icon, iconsToDeploy) {
+                m_mappingFileContent += QLatin1Char('"')
+                        + QDir::toNativeSeparators(m_targetDirPath + icon) + QLatin1String("\" \"")
+                        + QDir::toNativeSeparators(icon) + QLatin1String("\"\n");
+            }
+        }
+    }
+}
+
 bool WinRtPackageDeploymentStep::processSucceeded(int exitCode, QProcess::ExitStatus status)
 {
     if (m_createMappingFile) {
-        Utils::FileName proFile = Utils::FileName::fromString(project()->projectFilePath());
-        QString targetPath
-                = target()->applicationTargets().targetForProject(proFile).toString();
-        QString targetDir = targetPath.left(targetPath.lastIndexOf(QLatin1Char('/')) + 1);
         QString targetInstallationPath;
         // The list holds the local file paths and the "remote" file paths
         QList<QPair<QString, QString> > installableFilesList;
         foreach (DeployableFile file, target()->deploymentData().allFiles()) {
             QString remoteFilePath = file.remoteFilePath();
+            while (remoteFilePath.startsWith(QLatin1Char('/')))
+                remoteFilePath.remove(0, 1);
             QString localFilePath = file.localFilePath().toString();
-            if (localFilePath == targetPath) {
-                if (!targetPath.endsWith(QLatin1String(".exe"))) {
+            if (localFilePath == m_targetFilePath) {
+                if (!m_targetFilePath.endsWith(QLatin1String(".exe"))) {
                     remoteFilePath += QLatin1String(".exe");
                     localFilePath += QLatin1String(".exe");
                 }
@@ -135,26 +164,42 @@ bool WinRtPackageDeploymentStep::processSucceeded(int exitCode, QProcess::ExitSt
             installableFilesList.append(QPair<QString, QString>(localFilePath, remoteFilePath));
         }
 
-        // if there are no INSTALLS set we just deploy the files from windeployqt, the manifest
-        // and the icons referenced in there and the actual build target
+        // if there are no INSTALLS set we just deploy the files from windeployqt,
+        // the icons referenced in the manifest file and the actual build target
+        QString baseDir;
         if (targetInstallationPath.isEmpty()) {
-            targetPath += QLatin1String(".exe");
+            if (!m_targetFilePath.endsWith(QLatin1String(".exe")))
+                m_targetFilePath.append(QLatin1String(".exe"));
             m_mappingFileContent
-                    += QLatin1Char('"') + QDir::toNativeSeparators(targetPath) + QLatin1String("\" \"")
+                    += QLatin1Char('"') + QDir::toNativeSeparators(m_targetFilePath)
+                    + QLatin1String("\" \"")
                     + QDir::toNativeSeparators(m_executablePathInManifest) + QLatin1String("\"\n");
+            baseDir = m_targetDirPath;
         } else {
-            targetInstallationPath = targetInstallationPath.left(targetInstallationPath.lastIndexOf(QLatin1Char('/')) + 1);
-            for (int i = 0; i < installableFilesList.length(); ++i) {
-                QPair<QString, QString> pair = installableFilesList.at(i);
-                // For the mapping file we need the remote paths relative to the application's executable
-                const QString relativeRemotePath = QDir(targetInstallationPath).relativeFilePath(pair.second);
-                m_mappingFileContent += QLatin1Char('"') + QDir::toNativeSeparators(pair.first)
-                        + QLatin1String("\" \"") + QDir::toNativeSeparators(relativeRemotePath)
-                        + QLatin1String("\"\n");
-            }
+            baseDir = targetInstallationPath.left(targetInstallationPath.lastIndexOf(QLatin1Char('/')) + 1);
         }
 
-        const QString mappingFilePath = targetDir + m_manifestFileName + QLatin1String(".map");
+        typedef QPair<QString, QString> QStringPair;
+        foreach (const QStringPair &pair, installableFilesList) {
+            // For the mapping file we need the remote paths relative to the application's executable
+            QString relativeRemotePath;
+            if (QDir(pair.second).isRelative())
+                relativeRemotePath = pair.second;
+            else
+                relativeRemotePath = QDir(baseDir).relativeFilePath(pair.second);
+
+            if (QDir(relativeRemotePath).isAbsolute() || relativeRemotePath.startsWith(QLatin1String(".."))) {
+                raiseWarning(tr("File %1 is outside of the executable's directory. These files cannot be installed.").arg(relativeRemotePath));
+                continue;
+            }
+
+            m_mappingFileContent += QLatin1Char('"') + QDir::toNativeSeparators(pair.first)
+                    + QLatin1String("\" \"") + QDir::toNativeSeparators(relativeRemotePath)
+                    + QLatin1String("\"\n");
+        }
+
+        const QString mappingFilePath = m_targetDirPath + m_manifestFileName
+                + QLatin1String(".map");
         QFile mappingFile(mappingFilePath);
         if (!mappingFile.open(QFile::WriteOnly | QFile::Text)) {
             raiseError(tr("Cannot open mapping file %1 for writing.").arg(mappingFilePath));
@@ -192,15 +237,24 @@ QString WinRtPackageDeploymentStep::defaultWinDeployQtArguments() const
 {
     QString args;
     QtcProcess::addArg(&args, QStringLiteral("--qmldir"));
-    QtcProcess::addArg(&args, QDir::toNativeSeparators(project()->projectDirectory()));
+    QtcProcess::addArg(&args, project()->projectDirectory().toUserOutput());
     return args;
 }
 
 void WinRtPackageDeploymentStep::raiseError(const QString &errorMessage)
 {
+    ProjectExplorer::Task task = Task(Task::Error, errorMessage, Utils::FileName(), -1,
+                                      ProjectExplorer::Constants::TASK_CATEGORY_DEPLOYMENT);
+    emit addTask(task, 1);
     emit addOutput(errorMessage, BuildStep::ErrorMessageOutput);
-    emit addTask(ProjectExplorer::Task(ProjectExplorer::Task::Error, errorMessage, Utils::FileName(), -1,
-                                       ProjectExplorer::Constants::TASK_CATEGORY_DEPLOYMENT));
+}
+
+void WinRtPackageDeploymentStep::raiseWarning(const QString &warningMessage)
+{
+    ProjectExplorer::Task task = Task(Task::Warning, warningMessage, Utils::FileName(), -1,
+                                      ProjectExplorer::Constants::TASK_CATEGORY_DEPLOYMENT);
+    emit addTask(task, 1);
+    emit addOutput(warningMessage, BuildStep::MessageOutput);
 }
 
 bool WinRtPackageDeploymentStep::fromMap(const QVariantMap &map)
@@ -237,7 +291,8 @@ bool WinRtPackageDeploymentStep::parseIconsAndExecutableFromManifest(QString man
         icons->append(icon);
     }
 
-    QRegularExpression executablePattern(QStringLiteral("ImagePath=\"([a-zA-Z0-9_-]*\\.exe)\""));
+    const QLatin1String executablePrefix(manifestFileName.contains(QLatin1String("AppxManifest")) ? "Executable=" : "ImagePath=");
+    QRegularExpression executablePattern(executablePrefix + QStringLiteral("\"([a-zA-Z0-9_-]*\\.exe)\""));
     QRegularExpressionMatch match = executablePattern.match(contents);
     if (!match.hasMatch())
         return false;

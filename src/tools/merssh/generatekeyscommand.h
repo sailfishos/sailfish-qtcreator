@@ -7,9 +7,9 @@ class GenerateKeysCommand: public Command
 {
 public:
     GenerateKeysCommand();
-    QString name() const;
-    int execute();
-    bool isValid() const;
+    QString name() const override;
+    int execute() override;
+    bool isValid() const override;
 private:
     bool parseArguments();
     QString unquote(const QString &args);

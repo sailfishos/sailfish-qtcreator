@@ -34,7 +34,7 @@
 #include <analyzerbase/analyzerruncontrol.h>
 #include <debugger/debuggerkitinformation.h>
 #include <debugger/debuggerplugin.h>
-#include <debugger/debuggerrunner.h>
+#include <debugger/debuggerruncontrol.h>
 #include <debugger/debuggerstartparameters.h>
 #include <projectexplorer/target.h>
 #include <qtsupport/qtkitinformation.h>
@@ -55,11 +55,13 @@ MerRunControlFactory::MerRunControlFactory(QObject *parent)
 {
 }
 
-bool MerRunControlFactory::canRun(RunConfiguration *runConfiguration, RunMode mode) const
+bool MerRunControlFactory::canRun(RunConfiguration *runConfiguration, Core::Id mode) const
 {
 
-    if (mode != NormalRunMode && mode != DebugRunMode && mode != DebugRunModeWithBreakOnMain
-                && mode != QmlProfilerRunMode) {
+    if (mode != ProjectExplorer::Constants::NORMAL_RUN_MODE
+            && mode != ProjectExplorer::Constants::DEBUG_RUN_MODE
+            && mode != ProjectExplorer::Constants::DEBUG_RUN_MODE_WITH_BREAK_ON_MAIN
+            && mode != ProjectExplorer::Constants::QML_PROFILER_RUN_MODE) {
             return false;
     }
 
@@ -73,7 +75,7 @@ bool MerRunControlFactory::canRun(RunConfiguration *runConfiguration, RunMode mo
     if (dev.isNull())
         return false;
 
-    if (mode == DebugRunMode) {
+    if (mode == ProjectExplorer::Constants::DEBUG_RUN_MODE) {
         const RemoteLinuxRunConfiguration * const remoteRunConfig
                 = qobject_cast<RemoteLinuxRunConfiguration *>(runConfiguration);
         if (remoteRunConfig)
@@ -83,7 +85,7 @@ bool MerRunControlFactory::canRun(RunConfiguration *runConfiguration, RunMode mo
     return true;
 }
 
-RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, RunMode mode,
+RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, Core::Id mode,
                                          QString *errorMessage)
 {
     QTC_ASSERT(canRun(runConfig, mode), return 0);
@@ -91,11 +93,10 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, RunMode mo
     MerRunConfiguration *rc = qobject_cast<MerRunConfiguration *>(runConfig);
     QTC_ASSERT(rc, return 0);
 
-    switch (mode) {
-    case NormalRunMode:
+    if (mode == ProjectExplorer::Constants::NORMAL_RUN_MODE) {
         return new RemoteLinuxRunControl(rc);
-    case DebugRunMode:
-    case DebugRunModeWithBreakOnMain: {
+    } else if (mode == ProjectExplorer::Constants::DEBUG_RUN_MODE
+               || mode == ProjectExplorer::Constants::DEBUG_RUN_MODE_WITH_BREAK_ON_MAIN) {
         IDevice::ConstPtr dev = DeviceKitInformation::device(rc->target()->kit());
         if (!dev) {
             *errorMessage = tr("Cannot debug: Kit has no device.");
@@ -106,8 +107,6 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, RunMode mo
             return 0;
         }
         DebuggerStartParameters params = LinuxDeviceDebugSupport::startParameters(rc);
-        if (mode == ProjectExplorer::DebugRunModeWithBreakOnMain)
-            params.breakOnMain = true;
 
         MerSdk* mersdk = MerSdkKitInformation::sdk(rc->target()->kit());
 
@@ -117,26 +116,23 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, RunMode mo
             params.sourcePathMap.insert(QLatin1String("/home/src1"), mersdk->sharedSrcPath());
 
         DebuggerRunControl * const runControl
-                = DebuggerPlugin::createDebugger(params, rc, errorMessage);
+                = Debugger::createDebuggerRunControl(params, rc, errorMessage, mode);
         if (!runControl)
             return 0;
         LinuxDeviceDebugSupport * const debugSupport =
-                new LinuxDeviceDebugSupport(rc, runControl->engine());
+                new LinuxDeviceDebugSupport(rc, runControl);
+        // TODO: handleDebuggingFinished is private
         connect(runControl, SIGNAL(finished()), debugSupport, SLOT(handleDebuggingFinished()));
         return runControl;
-    }
-    case QmlProfilerRunMode: {
+    } else if (mode == ProjectExplorer::Constants::QML_PROFILER_RUN_MODE) {
         Analyzer::AnalyzerStartParameters params = RemoteLinuxAnalyzeSupport::startParameters(rc, mode);
         Analyzer::AnalyzerRunControl * const runControl = Analyzer::AnalyzerManager::createRunControl(params, runConfig);
         RemoteLinuxAnalyzeSupport * const analyzeSupport =
                 new RemoteLinuxAnalyzeSupport(rc, runControl, mode);
+        // TODO: handleProfilingFinished is private
         connect(runControl, SIGNAL(finished()), analyzeSupport, SLOT(handleProfilingFinished()));
         return runControl;
-    }
-
-    case NoRunMode:
-    case CallgrindRunMode:
-    case MemcheckRunMode:
+    } else {
         QTC_ASSERT(false, return 0);
     }
 
@@ -147,15 +143,5 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, RunMode mo
 //                .arg(merDevice->index());
 //        params.remoteChannel = deviceIpAsSeenByBuildEngine + QLatin1String(":-1");
 //    }
-    return 0;
-}
-
-QString MerRunControlFactory::displayName() const
-{
-    return tr("Run on remote Mer device");
-}
-
-RunConfigWidget *MerRunControlFactory::createConfigurationWidget(RunConfiguration * /*config*/)
-{
     return 0;
 }

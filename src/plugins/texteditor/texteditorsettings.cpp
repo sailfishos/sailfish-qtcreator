@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,27 +9,29 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
 
 #include "texteditorsettings.h"
 
-#include "basetexteditor.h"
+#include "fontsettings.h"
+#include "texteditor.h"
 #include "behaviorsettings.h"
 #include "behaviorsettingspage.h"
 #include "completionsettings.h"
@@ -115,6 +117,9 @@ TextEditorSettings::TextEditorSettings(QObject *parent)
     formatDescr.append(FormatDescription(C_PARENTHESES, tr("Parentheses"),
                                          tr("Displayed when matching parentheses, square brackets "
                                             "or curly brackets are found.")));
+    formatDescr.append(FormatDescription(C_PARENTHESES_MISMATCH, tr("Mismatched Parentheses"),
+                                         tr("Displayed when mismatched parentheses, "
+                                            "square brackets, or curly brackets are found.")));
     formatDescr.append(FormatDescription(C_CURRENT_LINE, tr("Current Line"),
                                          tr("Line where the cursor is placed in.")));
 
@@ -139,6 +144,8 @@ TextEditorSettings::TextEditorSettings(QObject *parent)
                                          Qt::darkBlue));
     formatDescr.append(FormatDescription(C_STRING, tr("String"),
                                          tr("Character and string literals."), Qt::darkGreen));
+    formatDescr.append(FormatDescription(C_PRIMITIVE_TYPE, tr("Primitive Type"),
+                                         tr("Name of a primitive data type."), Qt::darkYellow));
     formatDescr.append(FormatDescription(C_TYPE, tr("Type"), tr("Name of a type."),
                                          Qt::darkMagenta));
     formatDescr.append(FormatDescription(C_LOCAL, tr("Local"), tr("Local variables.")));
@@ -204,8 +211,8 @@ TextEditorSettings::TextEditorSettings(QObject *parent)
                                          jsGlobalFormat));
 
     formatDescr.append(FormatDescription(C_KEYWORD, tr("Keyword"),
-                                         tr("Reserved keywords of the programming language."),
-                                         Qt::darkYellow));
+                                         tr("Reserved keywords of the programming language except "
+                                            "keywords denoting primitive types."), Qt::darkYellow));
     formatDescr.append(FormatDescription(C_OPERATOR, tr("Operator"),
                                          tr("Operators (for example operator++ or operator-=).")));
     formatDescr.append(FormatDescription(C_PREPROCESSOR, tr("Preprocessor"),
@@ -264,20 +271,24 @@ TextEditorSettings::TextEditorSettings(QObject *parent)
                                             "in differences (in side-by-side diff editor)."),
                                          Format(QColor(), QColor(175, 255, 175))));
 
+    formatDescr.append(FormatDescription(C_LOG_CHANGE_LINE, tr("Log Change Line"),
+                                         tr("Applied to lines describing changes in VCS log."),
+                                         Format(QColor(192, 0, 0), QColor())));
+
     d->m_fontSettingsPage = new FontSettingsPage(formatDescr,
                                                    Constants::TEXT_EDITOR_FONT_SETTINGS,
                                                    this);
     ExtensionSystem::PluginManager::addObject(d->m_fontSettingsPage);
 
     // Add the GUI used to configure the tab, storage and interaction settings
-    TextEditor::BehaviorSettingsPageParameters behaviorSettingsPageParameters;
+    BehaviorSettingsPageParameters behaviorSettingsPageParameters;
     behaviorSettingsPageParameters.id = Constants::TEXT_EDITOR_BEHAVIOR_SETTINGS;
     behaviorSettingsPageParameters.displayName = tr("Behavior");
     behaviorSettingsPageParameters.settingsPrefix = QLatin1String("text");
     d->m_behaviorSettingsPage = new BehaviorSettingsPage(behaviorSettingsPageParameters, this);
     ExtensionSystem::PluginManager::addObject(d->m_behaviorSettingsPage);
 
-    TextEditor::DisplaySettingsPageParameters displaySettingsPageParameters;
+    DisplaySettingsPageParameters displaySettingsPageParameters;
     displaySettingsPageParameters.id = Constants::TEXT_EDITOR_DISPLAY_SETTINGS;
     displaySettingsPageParameters.displayName = tr("Display");
     displaySettingsPageParameters.settingsPrefix = QLatin1String("text");
@@ -300,6 +311,8 @@ TextEditorSettings::TextEditorSettings(QObject *parent)
             this, SIGNAL(storageSettingsChanged(TextEditor::StorageSettings)));
     connect(d->m_behaviorSettingsPage, SIGNAL(behaviorSettingsChanged(TextEditor::BehaviorSettings)),
             this, SIGNAL(behaviorSettingsChanged(TextEditor::BehaviorSettings)));
+    connect(d->m_behaviorSettingsPage, SIGNAL(extraEncodingSettingsChanged(TextEditor::ExtraEncodingSettings)),
+            this, SIGNAL(extraEncodingSettingsChanged(TextEditor::ExtraEncodingSettings)));
     connect(d->m_displaySettingsPage, SIGNAL(marginSettingsChanged(TextEditor::MarginSettings)),
             this, SIGNAL(marginSettingsChanged(TextEditor::MarginSettings)));
     connect(d->m_displaySettingsPage, SIGNAL(displaySettingsChanged(TextEditor::DisplaySettings)),
@@ -325,48 +338,6 @@ TextEditorSettings::~TextEditorSettings()
 TextEditorSettings *TextEditorSettings::instance()
 {
     return m_instance;
-}
-
-/**
- * Initializes editor settings. Also connects signals to keep them up to date
- * when they are changed.
- */
-void TextEditorSettings::initializeEditor(BaseTextEditorWidget *editor)
-{
-    // Connect to settings change signals
-    connect(m_instance, SIGNAL(fontSettingsChanged(TextEditor::FontSettings)),
-            editor->baseTextDocument(), SLOT(setFontSettings(TextEditor::FontSettings)));
-    connect(m_instance, SIGNAL(typingSettingsChanged(TextEditor::TypingSettings)),
-            editor, SLOT(setTypingSettings(TextEditor::TypingSettings)));
-    connect(m_instance, SIGNAL(storageSettingsChanged(TextEditor::StorageSettings)),
-            editor, SLOT(setStorageSettings(TextEditor::StorageSettings)));
-    connect(m_instance, SIGNAL(behaviorSettingsChanged(TextEditor::BehaviorSettings)),
-            editor, SLOT(setBehaviorSettings(TextEditor::BehaviorSettings)));
-    connect(m_instance, SIGNAL(marginSettingsChanged(TextEditor::MarginSettings)),
-            editor, SLOT(setMarginSettings(TextEditor::MarginSettings)));
-    connect(m_instance, SIGNAL(displaySettingsChanged(TextEditor::DisplaySettings)),
-            editor, SLOT(setDisplaySettings(TextEditor::DisplaySettings)));
-    connect(m_instance, SIGNAL(completionSettingsChanged(TextEditor::CompletionSettings)),
-            editor, SLOT(setCompletionSettings(TextEditor::CompletionSettings)));
-    connect(m_instance, SIGNAL(extraEncodingSettingsChanged(TextEditor::ExtraEncodingSettings)),
-            editor, SLOT(setExtraEncodingSettings(TextEditor::ExtraEncodingSettings)));
-
-    connect(editor, SIGNAL(requestFontZoom(int)),
-            m_instance, SLOT(fontZoomRequested(int)));
-    connect(editor, SIGNAL(requestZoomReset()),
-            m_instance, SLOT(zoomResetRequested()));
-
-    // Apply current settings
-    editor->baseTextDocument()->setFontSettings(fontSettings());
-    editor->baseTextDocument()->setTabSettings(codeStyle()->tabSettings()); // also set through code style ???
-    editor->setTypingSettings(typingSettings());
-    editor->setStorageSettings(storageSettings());
-    editor->setBehaviorSettings(behaviorSettings());
-    editor->setMarginSettings(marginSettings());
-    editor->setDisplaySettings(displaySettings());
-    editor->setCompletionSettings(completionSettings());
-    editor->setExtraEncodingSettings(extraEncodingSettings());
-    editor->setCodeStyle(codeStyle(editor->languageSettingsId()));
 }
 
 const FontSettings &TextEditorSettings::fontSettings()
@@ -414,7 +385,7 @@ const ExtraEncodingSettings &TextEditorSettings::extraEncodingSettings()
     return d->m_behaviorSettingsPage->extraEncodingSettings();
 }
 
-void TextEditorSettings::setCompletionSettings(const TextEditor::CompletionSettings &settings)
+void TextEditorSettings::setCompletionSettings(const CompletionSettings &settings)
 {
     if (d->m_completionSettings == settings)
         return;

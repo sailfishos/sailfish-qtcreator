@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (c) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator
 **
@@ -37,13 +37,13 @@
 
     \QC automatically detects the Qt versions that are registered by
     your system or by installers. To view detailed information for each Qt
-    version, select it in the list and select \gui Details in the
-    \gui {Qt version for} section. To add Qt versions, select
-    \gui {Tools > Options > Build & Run > Qt Versions}.
+    version, select it in the list and select \uicontrol Details in the
+    \uicontrol {Qt version for} section. To add Qt versions, select
+    \uicontrol {Tools > Options > Build & Run > Qt Versions}.
 
     You specify the Qt version to use for each \l{glossary-buildandrun-kit}
     {kit} for building and running your projects
-    in \gui Tools > \gui Options > \gui {Build & Run} > \gui Kits.
+    in \uicontrol Tools > \uicontrol Options > \uicontrol {Build & Run} > \uicontrol Kits.
 
     \section2 Setting Up New Qt Versions
 
@@ -51,7 +51,7 @@
 
         \list 1
 
-            \li Select \gui {Tools > Options > Build & Run > Qt Versions > Add}.
+            \li Select \uicontrol {Tools > Options > Build & Run > Qt Versions > Add}.
 
             \li Select the qmake executable for the Qt version that you want to
                 add.
@@ -60,21 +60,20 @@
 
                 \image qtcreator-qt4-qtversions-add.png
 
-            \li In the \gui{Version name} field, edit the name that \QC
+            \li In the \uicontrol{Version name} field, edit the name that \QC
                 suggests for the Qt version.
 
-            \li In the \gui{qmake location} field, you can change the qmake
+            \li In the \uicontrol{qmake location} field, you can change the qmake
                 location.
 
-            \li In the \gui Helpers section, select \gui Details to view the
+            \li In the \uicontrol Helpers section, select \uicontrol Details to view the
                 QML Dumper that has been built for the Qt version. For more
                 information, see \l{Using Debugging Helpers}.
 
                 \image qt-creator-debugging-helpers.png
 
-            \li If the Qt version is for Blackberry or QNX, enter the path
-                to your installed Blackberry NDK or QNX SDK in the
-                \gui {Blackberry Native SDK} or \gui{QNX SDK} field respectively.
+            \li If the Qt version is for QNX, enter the path to your installed QNX SDK in the
+                \uicontrol{QNX SDK} field.
 
         \endlist
 

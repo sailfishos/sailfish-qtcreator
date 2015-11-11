@@ -43,6 +43,12 @@
 
 #include <QProcess>
 
+using namespace Core;
+using namespace ProjectExplorer;
+using namespace QmakeProjectManager;
+using namespace QtSupport;
+using namespace Utils;
+
 namespace {
 const QLatin1String MagicFileName(".qtcreator");
 const QLatin1String SpecFileName("qtcreator.spec");
@@ -52,12 +58,12 @@ const QLatin1String SpecFileName("qtcreator.spec");
 namespace Mer {
 namespace Internal {
 
-MerRpmPackagingStep::MerRpmPackagingStep(ProjectExplorer::BuildStepList *bsl) : AbstractPackagingStep(bsl, stepId())
+MerRpmPackagingStep::MerRpmPackagingStep(BuildStepList *bsl) : AbstractPackagingStep(bsl, stepId())
 {
     ctor();
 }
 
-MerRpmPackagingStep::MerRpmPackagingStep(ProjectExplorer::BuildStepList *bsl, MerRpmPackagingStep *other) : AbstractPackagingStep(bsl, other)
+MerRpmPackagingStep::MerRpmPackagingStep(BuildStepList *bsl, MerRpmPackagingStep *other) : AbstractPackagingStep(bsl, other)
 {
     ctor();
 }
@@ -87,23 +93,23 @@ bool MerRpmPackagingStep::init()
         return false;
     }
 
-    QtSupport::BaseQtVersion *version = QtSupport::QtKitInformation::qtVersion(target()->kit());
+    BaseQtVersion *version = QtKitInformation::qtVersion(target()->kit());
     if (!version) {
         raiseError(tr("Packaging failed: No Qt version."));
         return false;
     }
 
-    ProjectExplorer::BuildConfiguration *bc = buildConfiguration();
+    BuildConfiguration *bc = buildConfiguration();
     if (!bc)
         bc = target()->activeBuildConfiguration();
 
-    QString merTarget =  MerSdkManager::instance()->targetNameForKit(target()->kit());
+    QString merTarget =  MerSdkManager::targetNameForKit(target()->kit());
 
     if (merTarget.isEmpty()) {
         raiseError(tr("Packaging failed: No mer target."));
         return false;
     }
-    m_fileName = QFileInfo(project()->document()->filePath()).baseName();
+    m_fileName = project()->document()->filePath().toFileInfo().baseName();
     const QString wrapperScriptsDir = version->qmakeCommand().parentDir().toString();
     m_rpmCommand = wrapperScriptsDir + QLatin1Char('/') + QLatin1String(Constants::MER_WRAPPER_RPMBUILD);
     QString sharedHome =  MerSdkKitInformation::sdk(target()->kit())->sharedHomePath();
@@ -127,10 +133,10 @@ void MerRpmPackagingStep::  run(QFutureInterface<bool> &fi)
     setPackagingStarted();
     // TODO: Make the build process asynchronous; i.e. no waitFor()-functions etc.
     QProcess * const buildProc = new QProcess;
-    connect(buildProc, SIGNAL(readyReadStandardOutput()), this,
-        SLOT(handleBuildOutput()));
-    connect(buildProc, SIGNAL(readyReadStandardError()), this,
-        SLOT(handleBuildOutput()));
+    connect(buildProc, &QProcess::readyReadStandardOutput,
+            this, &MerRpmPackagingStep::handleBuildOutput);
+    connect(buildProc, &QProcess::readyReadStandardError,
+            this, &MerRpmPackagingStep::handleBuildOutput);
 
     const bool success = prepareBuildDir() && createSpecFile() && createPackage(buildProc, fi);
 
@@ -143,7 +149,7 @@ void MerRpmPackagingStep::  run(QFutureInterface<bool> &fi)
 }
 
 
-ProjectExplorer::BuildStepConfigWidget *MerRpmPackagingStep::createConfigWidget()
+BuildStepConfigWidget *MerRpmPackagingStep::createConfigWidget()
 {
     return new MerRpmPackagingWidget(this);
 }
@@ -187,7 +193,7 @@ QString MerRpmPackagingStep::packageFileName() const
 
 bool MerRpmPackagingStep::prepareBuildDir()
 {
-    const bool inSourceBuild = QFileInfo(cachedPackageDirectory()) == QFileInfo(project()->projectDirectory());
+    const bool inSourceBuild = QFileInfo(cachedPackageDirectory()) == project()->projectDirectory().toFileInfo();
     const QString rpmDirPath = cachedPackageDirectory() + QLatin1String("/rpmbuild");
     const QString magicFilePath = rpmDirPath + QLatin1Char('/') + MagicFileName;
 
@@ -199,21 +205,21 @@ bool MerRpmPackagingStep::prepareBuildDir()
 
     QString error;
 
-    if (!Utils::FileUtils::removeRecursively(Utils::FileName::fromString(rpmDirPath), &error)) {
-        raiseError(tr("Packaging failed: Could not remove directory '%1': %2")
+    if (!FileUtils::removeRecursively(FileName::fromString(rpmDirPath), &error)) {
+        raiseError(tr("Packaging failed: Could not remove directory \"%1\": %2")
             .arg(rpmDirPath, error));
         return false;
     }
 
     QDir buildDir(cachedPackageDirectory());
     if (!buildDir.mkdir(QLatin1String("rpmbuild"))) {
-        raiseError(tr("Could not create rpmbuild directory '%1'.").arg(rpmDirPath));
+        raiseError(tr("Could not create rpmbuild directory \"%1\".").arg(rpmDirPath));
         return false;
     }
 
     QFile magicFile(magicFilePath);
     if (!magicFile.open(QIODevice::WriteOnly)) {
-        raiseError(tr("Error: Could not create file '%1'.")
+        raiseError(tr("Error: Could not create file \"%1\".")
             .arg(QDir::toNativeSeparators(magicFilePath)));
         return false;
     }
@@ -228,7 +234,7 @@ bool MerRpmPackagingStep::createSpecFile()
     const QString specFilePath = rpmDirPath + QLatin1Char('/') + SpecFileName;
     QFile specFile(specFilePath);
     if (!specFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        raiseError(tr("Error: Could not create file '%1'.").arg(QDir::toNativeSeparators(specFilePath)));
+        raiseError(tr("Error: Could not create file \"%1\".").arg(QDir::toNativeSeparators(specFilePath)));
         return false;
     }
 
@@ -269,17 +275,20 @@ bool MerRpmPackagingStep::createPackage(QProcess *buildProc,const QFutureInterfa
     buildProc->setEnvironment(m_environment.toStringList());
     buildProc->setWorkingDirectory(cachedPackageDirectory());
 
-    emit addOutput(tr("Package Creation: Running command '%1 %2' .").arg(m_rpmCommand).arg(m_rpmArgs.join(QLatin1String(" "))),BuildStep::MessageOutput);
+    emit addOutput(tr("Package Creation: Running command \"%1 %2\" .")
+                   .arg(m_rpmCommand)
+                   .arg(m_rpmArgs.join(QLatin1Char(' '))),
+                   BuildStep::MessageOutput);
 
     buildProc->start(m_rpmCommand, m_rpmArgs);
     if (!buildProc->waitForStarted()) {
-        raiseError(tr("Packaging failed: Could not start command '%1'. Reason: %2")
+        raiseError(tr("Packaging failed: Could not start command \"%1\". Reason: %2")
             .arg(m_rpmCommand, buildProc->errorString()));
         return false;
     }
     buildProc->waitForFinished(-1);
     if (buildProc->error() != QProcess::UnknownError || buildProc->exitCode() != 0) {
-        QString mainMessage = tr("Packaging Error: Command '%1'  failed.")
+        QString mainMessage = tr("Packaging Error: Command \"%1\"  failed.")
             .arg(m_rpmCommand);
         if (buildProc->error() != QProcess::UnknownError)
             mainMessage += tr(" Reason: %1").arg(buildProc->errorString());
@@ -295,7 +304,7 @@ bool MerRpmPackagingStep::createPackage(QProcess *buildProc,const QFutureInterfa
     return true;
 }
 
-const Core::Id MerRpmPackagingStep::stepId()
+Core::Id MerRpmPackagingStep::stepId()
 {
     return Core::Id("QmakeProjectManager.MerRpmPackagingStep");
 }

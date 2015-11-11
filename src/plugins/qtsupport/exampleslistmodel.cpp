@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -41,6 +42,7 @@
 #include <qtsupport/qtversionmanager.h>
 #include <utils/environment.h>
 #include <utils/qtcassert.h>
+#include <utils/algorithm.h>
 
 #include <algorithm>
 
@@ -75,11 +77,6 @@ ExampleSetModel::ExampleSetModel(ExamplesListModel *examplesModel, QObject *pare
     QStandardItemModel(parent),
     examplesModel(examplesModel)
 {
-    QHash<int, QByteArray> roleNames;
-    roleNames[Qt::UserRole + 1] = "text";
-    roleNames[Qt::UserRole + 2] = "QtId";
-    roleNames[Qt::UserRole + 3] = "extraSetIndex";
-    setRoleNames(roleNames);
 }
 
 void ExampleSetModel::update()
@@ -194,31 +191,20 @@ int ExampleSetModel::getExtraExampleSetIndex(int i) const
     return variant.toInt();
 }
 
+QHash<int, QByteArray> ExampleSetModel::roleNames() const
+{
+    QHash<int, QByteArray> roleNames;
+    roleNames[Qt::UserRole + 1] = "text";
+    roleNames[Qt::UserRole + 2] = "QtId";
+    roleNames[Qt::UserRole + 3] = "extraSetIndex";
+    return roleNames;
+}
+
 ExamplesListModel::ExamplesListModel(QObject *parent) :
     QAbstractListModel(parent),
     m_exampleSetModel(new ExampleSetModel(this, this)),
     m_selectedExampleSetIndex(-1)
 {
-    QHash<int, QByteArray> roleNames;
-    roleNames[Name] = "name";
-    roleNames[ProjectPath] = "projectPath";
-    roleNames[ImageUrl] = "imageUrl";
-    roleNames[Description] = "description";
-    roleNames[DocUrl] = "docUrl";
-    roleNames[FilesToOpen] = "filesToOpen";
-    roleNames[Tags] = "tags";
-    roleNames[Difficulty] = "difficulty";
-    roleNames[Type] = "type";
-    roleNames[HasSourceCode] = "hasSourceCode";
-    roleNames[Dependencies] = "dependencies";
-    roleNames[IsVideo] = "isVideo";
-    roleNames[VideoUrl] = "videoUrl";
-    roleNames[VideoLength] = "videoLength";
-    roleNames[Platforms] = "platforms";
-    roleNames[IsHighlighted] = "isHighlighted";
-    roleNames[PreferredFeatures] = "preferredFeatures";
-    setRoleNames(roleNames);
-
     // read extra example sets settings
     QSettings *settings = Core::ICore::settings();
     QStringList list = settings->value(QLatin1String("Help/InstalledExamples"),
@@ -263,11 +249,7 @@ static QString fixStringForTags(const QString &string)
 
 static QStringList trimStringList(const QStringList &stringlist)
 {
-    QStringList returnList;
-    foreach (const QString &string, stringlist)
-        returnList << string.trimmed();
-
-    return returnList;
+    return Utils::transform(stringlist, [](const QString &str) { return str.trimmed(); });
 }
 
 static QString relativeOrInstallPath(const QString &path, const QString &manifestPath,
@@ -290,24 +272,24 @@ static bool isValidExampleOrDemo(ExampleItem &item)
                                                                     doesn't have any namespace */
     QString reason;
     bool ok = true;
-    if (!item.hasSourceCode || !QFileInfo(item.projectPath).exists()) {
+    if (!item.hasSourceCode || !QFileInfo::exists(item.projectPath)) {
         ok = false;
-        reason = QString::fromLatin1("projectPath '%1' empty or does not exist").arg(item.projectPath);
+        reason = QString::fromLatin1("projectPath \"%1\" empty or does not exist").arg(item.projectPath);
     } else if (item.imageUrl.startsWith(invalidPrefix) || !QUrl(item.imageUrl).isValid()) {
         ok = false;
-        reason = QString::fromLatin1("imageUrl '%1' not valid").arg(item.imageUrl);
+        reason = QString::fromLatin1("imageUrl \"%1\" not valid").arg(item.imageUrl);
     } else if (!item.docUrl.isEmpty()
              && (item.docUrl.startsWith(invalidPrefix) || !QUrl(item.docUrl).isValid())) {
         ok = false;
-        reason = QString::fromLatin1("docUrl '%1' non-empty but not valid").arg(item.docUrl);
+        reason = QString::fromLatin1("docUrl \"%1\" non-empty but not valid").arg(item.docUrl);
     }
     if (!ok) {
         item.tags.append(QLatin1String("broken"));
         if (debugExamples())
-            qWarning() << QString::fromLatin1("ERROR: Item '%1' broken: %2").arg(item.name, reason);
+            qWarning() << QString::fromLatin1("ERROR: Item \"%1\" broken: %2").arg(item.name, reason);
     }
     if (debugExamples() && item.description.isEmpty())
-        qWarning() << QString::fromLatin1("WARNING: Item '%1' has no description").arg(item.name);
+        qWarning() << QString::fromLatin1("WARNING: Item \"%1\" has no description").arg(item.name);
     return ok || debugExamples();
 }
 
@@ -334,15 +316,20 @@ void ExamplesListModel::parseExamples(QXmlStreamReader *reader,
                     item.isHighlighted = attributes.value(QLatin1String("isHighlighted")).toString() == QLatin1String("true");
 
             } else if (reader->name() == QLatin1String("fileToOpen")) {
-                item.filesToOpen.append(relativeOrInstallPath(reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement),
-                                                              projectsOffset, examplesInstallPath));
+                const QString mainFileAttribute = reader->attributes().value(
+                            QLatin1String("mainFile")).toString();
+                const QString filePath = relativeOrInstallPath(
+                            reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement),
+                            projectsOffset, examplesInstallPath);
+                item.filesToOpen.append(filePath);
+                if (mainFileAttribute.compare(QLatin1String("true"), Qt::CaseInsensitive) == 0)
+                    item.mainFile = filePath;
             } else if (reader->name() == QLatin1String("description")) {
                 item.description = fixStringForTags(reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement));
             } else if (reader->name() == QLatin1String("dependency")) {
                 item.dependencies.append(projectsOffset + slash + reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement));
             } else if (reader->name() == QLatin1String("tags")) {
                 item.tags = trimStringList(reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement).split(QLatin1Char(','), QString::SkipEmptyParts));
-                m_tags.append(item.tags);
             } else if (reader->name() == QLatin1String("platforms")) {
                 item.platforms = trimStringList(reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement).split(QLatin1Char(','), QString::SkipEmptyParts));
             } else if (reader->name() == QLatin1String("preferredFeatures")) {
@@ -470,7 +457,6 @@ void ExamplesListModel::updateExamples()
     QStringList sources = exampleSources(&examplesInstallPath, &demosInstallPath);
 
     beginResetModel();
-    m_tags.clear();
     m_exampleItems.clear();
 
     foreach (const QString &exampleSource, sources) {
@@ -487,7 +473,7 @@ void ExamplesListModel::updateExamples()
         QDir demosDir(offsetPath);
 
         if (debugExamples())
-            qWarning() << QString::fromLatin1("Reading file '%1'...").arg(fi.absoluteFilePath());
+            qWarning() << QString::fromLatin1("Reading file \"%1\"...").arg(fi.absoluteFilePath());
         QXmlStreamReader reader(&exampleFile);
         while (!reader.atEnd())
             switch (reader.readNext()) {
@@ -504,13 +490,9 @@ void ExamplesListModel::updateExamples()
             }
 
         if (reader.hasError() && debugExamples())
-            qWarning() << QString::fromLatin1("ERROR: Could not parse file as XML document ('%1')").arg(exampleSource);
+            qWarning() << QString::fromLatin1("ERROR: Could not parse file as XML document (%1)").arg(exampleSource);
     }
     endResetModel();
-
-    m_tags.sort();
-    m_tags.erase(std::unique(m_tags.begin(), m_tags.end()), m_tags.end());
-    emit tagsUpdated();
 }
 
 void ExamplesListModel::updateQtVersions()
@@ -553,13 +535,9 @@ void ExamplesListModel::updateQtVersions()
         // try to select the previously selected Qt version, or
         // select examples corresponding to 'highest' Qt version
         int currentQtId = m_exampleSetModel->getQtId(currentIndex);
-        BaseQtVersion *newQtVersion = 0;
-        foreach (BaseQtVersion *version, m_qtVersions) {
-            if (version->uniqueId() == currentQtId) {
-                newQtVersion = version;
-                break;
-            }
-        }
+        BaseQtVersion *newQtVersion = Utils::findOrDefault(m_qtVersions,
+                                                    Utils::equal(&BaseQtVersion::uniqueId, currentQtId));
+
         if (!newQtVersion)
             newQtVersion = findHighestQtVersion();
         currentIndex = m_exampleSetModel->indexForQtVersion(newQtVersion);
@@ -688,7 +666,7 @@ QVariant ExamplesListModel::data(const QModelIndex &index, int role) const
     switch (role)
     {
     case Qt::DisplayRole: // for search only
-        return QString(prefixForItem(item) + item.name + QLatin1Char(' ') + item.tags.join(QLatin1String(" ")));
+        return QString(prefixForItem(item) + item.name + QLatin1Char(' ') + item.tags.join(QLatin1Char(' ')));
     case Name:
         return item.name;
     case ProjectPath:
@@ -701,6 +679,8 @@ QVariant ExamplesListModel::data(const QModelIndex &index, int role) const
         return item.docUrl;
     case FilesToOpen:
         return item.filesToOpen;
+    case MainFile:
+        return item.mainFile;
     case Tags:
         return item.tags;
     case Difficulty:
@@ -729,10 +709,28 @@ QVariant ExamplesListModel::data(const QModelIndex &index, int role) const
     }
 }
 
-// TODO global tag list is unused, remove
-QStringList ExamplesListModel::tags() const
+QHash<int, QByteArray> ExamplesListModel::roleNames() const
 {
-    return m_tags;
+    QHash<int, QByteArray> roleNames;
+    roleNames[Name] = "name";
+    roleNames[ProjectPath] = "projectPath";
+    roleNames[ImageUrl] = "imageUrl";
+    roleNames[Description] = "description";
+    roleNames[DocUrl] = "docUrl";
+    roleNames[FilesToOpen] = "filesToOpen";
+    roleNames[MainFile] = "mainFile";
+    roleNames[Tags] = "tags";
+    roleNames[Difficulty] = "difficulty";
+    roleNames[Type] = "type";
+    roleNames[HasSourceCode] = "hasSourceCode";
+    roleNames[Dependencies] = "dependencies";
+    roleNames[IsVideo] = "isVideo";
+    roleNames[VideoUrl] = "videoUrl";
+    roleNames[VideoLength] = "videoLength";
+    roleNames[Platforms] = "platforms";
+    roleNames[IsHighlighted] = "isHighlighted";
+    roleNames[PreferredFeatures] = "preferredFeatures";
+    return roleNames;
 }
 
 void ExamplesListModel::update()
@@ -792,11 +790,9 @@ void ExamplesListModelFilter::updateFilter()
 
 bool containsSubString(const QStringList &list, const QString &substr, Qt::CaseSensitivity cs)
 {
-    foreach (const QString &elem, list)
-        if (elem.contains(substr, cs))
-            return true;
-
-    return false;
+    return Utils::contains(list, [&substr, &cs](const QString &elem) {
+        return elem.contains(substr, cs);
+    });
 }
 
 bool ExamplesListModelFilter::filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const
@@ -816,10 +812,9 @@ bool ExamplesListModelFilter::filterAcceptsRow(int sourceRow, const QModelIndex 
     const QStringList tags = sourceModel()->index(sourceRow, 0, sourceParent).data(Tags).toStringList();
 
     if (!m_filterTags.isEmpty()) {
-        foreach (const QString &tag, m_filterTags)
-            if (!tags.contains(tag, Qt::CaseInsensitive))
-                return false;
-        return true;
+        return Utils::allOf(m_filterTags, [tags](const QString &filterTag) {
+            return tags.contains(filterTag);
+        });
     }
 
     if (!m_searchString.isEmpty()) {
@@ -980,7 +975,8 @@ struct SearchStringLexer
                 if (yychar == quote) {
                     yyinp();
                     break;
-                } if (yychar == QLatin1Char('\\')) {
+                }
+                if (yychar == QLatin1Char('\\')) {
                     yyinp();
                     switch (yychar.unicode()) {
                     case '"': yytext += QLatin1Char('"'); yyinp(); break;

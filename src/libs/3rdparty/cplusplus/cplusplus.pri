@@ -51,7 +51,6 @@ SOURCES += \
     $$PWD/ObjectiveCAtKeywords.cpp \
     $$PWD/ObjectiveCTypeQualifiers.cpp \
     $$PWD/Lexer.cpp \
-    $$PWD/LiteralTable.cpp \
     $$PWD/Literals.cpp \
     $$PWD/MemoryPool.cpp \
     $$PWD/Name.cpp \
@@ -62,7 +61,6 @@ SOURCES += \
     $$PWD/Bind.cpp \
     $$PWD/Symbol.cpp \
     $$PWD/Symbols.cpp \
-    $$PWD/SymbolVisitor.cpp \
     $$PWD/Token.cpp \
     $$PWD/TranslationUnit.cpp \
     $$PWD/Type.cpp \

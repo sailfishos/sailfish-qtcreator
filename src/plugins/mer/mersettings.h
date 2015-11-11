@@ -33,7 +33,7 @@ class MerSettings : public QObject
     Q_OBJECT
 public:
     explicit MerSettings(QObject *parent = 0);
-    ~MerSettings();
+    ~MerSettings() override;
 
     static QObject *instance();
 

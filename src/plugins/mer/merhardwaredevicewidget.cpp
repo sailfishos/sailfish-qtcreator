@@ -48,13 +48,20 @@ MerHardwareDeviceWidget::MerHardwareDeviceWidget(
     m_ui(new Ui::MerHardwareDeviceWidget)
 {
     m_ui->setupUi(this);
-    connect(m_ui->hostLineEdit, SIGNAL(editingFinished()), SLOT(hostNameEditingFinished()));
-    connect(m_ui->userLineEdit, SIGNAL(editingFinished()), SLOT(userNameEditingFinished()));
-    connect(m_ui->timeoutSpinBox, SIGNAL(editingFinished()), SLOT(timeoutEditingFinished()));
-    connect(m_ui->timeoutSpinBox, SIGNAL(valueChanged(int)), SLOT(timeoutEditingFinished()));
-    connect(m_ui->sshPortSpinBox, SIGNAL(editingFinished()), SLOT(sshPortEditingFinished()));
-    connect(m_ui->sshPortSpinBox, SIGNAL(valueChanged(int)), SLOT(sshPortEditingFinished()));
-    connect(m_ui->portsLineEdit, SIGNAL(editingFinished()), SLOT(handleFreePortsChanged()));
+    connect(m_ui->hostLineEdit, &QLineEdit::editingFinished,
+            this, &MerHardwareDeviceWidget::hostNameEditingFinished);
+    connect(m_ui->userLineEdit, &QLineEdit::editingFinished,
+            this, &MerHardwareDeviceWidget::userNameEditingFinished);
+    connect(m_ui->timeoutSpinBox, &QSpinBox::editingFinished,
+            this, &MerHardwareDeviceWidget::timeoutEditingFinished);
+    connect(m_ui->timeoutSpinBox, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+            this, &MerHardwareDeviceWidget::timeoutEditingFinished);
+    connect(m_ui->sshPortSpinBox, &QSpinBox::editingFinished,
+            this, &MerHardwareDeviceWidget::sshPortEditingFinished);
+    connect(m_ui->sshPortSpinBox, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+            this, &MerHardwareDeviceWidget::sshPortEditingFinished);
+    connect(m_ui->portsLineEdit, &QLineEdit::editingFinished,
+            this, &MerHardwareDeviceWidget::handleFreePortsChanged);
     initGui();
 }
 

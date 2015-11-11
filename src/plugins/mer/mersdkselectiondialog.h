@@ -37,7 +37,7 @@ class MerSdkSelectionDialog : public QDialog
     Q_OBJECT
 public:
     explicit MerSdkSelectionDialog(QWidget *parent = 0);
-    ~MerSdkSelectionDialog();
+    ~MerSdkSelectionDialog() override;
 
     QString selectedSdkName() const;
 

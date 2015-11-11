@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -37,14 +38,15 @@
 #include "actionmanager/actionmanager.h"
 #include "actionmanager/command.h"
 #include "id.h"
+#include "imode.h"
 
+#include <QCoreApplication>
 #include <QDebug>
 #include <QSettings>
 
 #include <QAction>
 #include <QHBoxLayout>
 #include <QResizeEvent>
-#include <QShortcut>
 #include <QStandardItemModel>
 
 Q_DECLARE_METATYPE(Core::INavigationWidgetFactory *)
@@ -58,13 +60,13 @@ NavigationWidgetPlaceHolder* NavigationWidgetPlaceHolder::current()
     return m_current;
 }
 
-NavigationWidgetPlaceHolder::NavigationWidgetPlaceHolder(Core::IMode *mode, QWidget *parent)
+NavigationWidgetPlaceHolder::NavigationWidgetPlaceHolder(IMode *mode, QWidget *parent)
     :QWidget(parent), m_mode(mode)
 {
     setLayout(new QVBoxLayout);
     layout()->setMargin(0);
-    connect(Core::ModeManager::instance(), SIGNAL(currentModeAboutToChange(Core::IMode*)),
-            this, SLOT(currentModeAboutToChange(Core::IMode*)));
+    connect(ModeManager::instance(), &ModeManager::currentModeAboutToChange,
+            this, &NavigationWidgetPlaceHolder::currentModeAboutToChange);
 }
 
 NavigationWidgetPlaceHolder::~NavigationWidgetPlaceHolder()
@@ -107,7 +109,7 @@ void NavigationWidgetPlaceHolder::applyStoredSize(int width)
 // m_current points to the current PlaceHolder, or zero if there
 // is no PlaceHolder in this mode
 // And that the parent of the NavigationWidget gets the correct parent
-void NavigationWidgetPlaceHolder::currentModeAboutToChange(Core::IMode *mode)
+void NavigationWidgetPlaceHolder::currentModeAboutToChange(IMode *mode)
 {
     NavigationWidget *navigationWidget = NavigationWidget::instance();
 
@@ -137,8 +139,8 @@ struct NavigationWidgetPrivate
     ~NavigationWidgetPrivate() { delete m_factoryModel; }
 
     QList<Internal::NavigationSubWidget *> m_subWidgets;
-    QHash<QShortcut *, Core::Id> m_shortcutMap;
-    QHash<Core::Id, Core::Command *> m_commandMap;
+    QHash<QAction *, Id> m_actionMap;
+    QHash<Id, Command *> m_commandMap;
     QStandardItemModel *m_factoryModel;
 
     bool m_shown;
@@ -180,17 +182,16 @@ NavigationWidget *NavigationWidget::instance()
 
 void NavigationWidget::setFactories(const QList<INavigationWidgetFactory *> &factories)
 {
-    Context navicontext(Core::Constants::C_NAVIGATION_PANE);
+    Context navicontext(Constants::C_NAVIGATION_PANE);
 
     foreach (INavigationWidgetFactory *factory, factories) {
         const Id id = factory->id();
 
-        QShortcut *shortcut = new QShortcut(this);
-        shortcut->setWhatsThis(tr("Activate %1 Pane").arg(factory->displayName()));
-        connect(shortcut, SIGNAL(activated()), this, SLOT(activateSubWidget()));
-        d->m_shortcutMap.insert(shortcut, id);
+        QAction *action = new QAction(tr("Activate %1 View").arg(factory->displayName()), this);
+        connect(action, SIGNAL(triggered()), this, SLOT(activateSubWidget()));
+        d->m_actionMap.insert(action, id);
 
-        Command *cmd = ActionManager::registerShortcut(shortcut,
+        Command *cmd = ActionManager::registerAction(action,
             id.withPrefix("QtCreator.Sidebar."), navicontext);
         cmd->setDefaultKeySequence(factory->activationSequence());
         d->m_commandMap.insert(id, cmd);
@@ -222,9 +223,9 @@ void NavigationWidget::updateToggleText()
     d->m_toggleSideBarAction->setEnabled(haveData && NavigationWidgetPlaceHolder::m_current);
 
     if (isShown())
-        d->m_toggleSideBarAction->setToolTip(tr("Hide Sidebar"));
+        d->m_toggleSideBarAction->setToolTip(QCoreApplication::translate("Core", Constants::TR_HIDE_SIDEBAR));
     else
-        d->m_toggleSideBarAction->setToolTip(tr("Show Sidebar"));
+        d->m_toggleSideBarAction->setToolTip(QCoreApplication::translate("Core", Constants::TR_SHOW_SIDEBAR));
 }
 
 void NavigationWidget::placeHolderChanged(NavigationWidgetPlaceHolder *holder)
@@ -246,23 +247,30 @@ Internal::NavigationSubWidget *NavigationWidget::insertSubItem(int position,int 
         d->m_subWidgets.at(pos)->setPosition(pos + 1);
     }
 
+    if (!d->m_subWidgets.isEmpty()) // Make all icons the bottom icon
+        d->m_subWidgets.at(0)->setCloseIcon(QIcon(QLatin1String(Constants::ICON_CLOSE_SPLIT_BOTTOM)));
+
     Internal::NavigationSubWidget *nsw = new Internal::NavigationSubWidget(this, position, index);
-    connect(nsw, SIGNAL(splitMe()), this, SLOT(splitSubWidget()));
+    connect(nsw, &Internal::NavigationSubWidget::splitMe,
+            this, &NavigationWidget::splitSubWidget);
     connect(nsw, SIGNAL(closeMe()), this, SLOT(closeSubWidget()));
     insertWidget(position, nsw);
     d->m_subWidgets.insert(position, nsw);
-
+    if (d->m_subWidgets.size() == 1)
+        d->m_subWidgets.at(0)->setCloseIcon(QIcon(QLatin1String(Constants::ICON_CLOSE_SPLIT_LEFT)));
+    else
+        d->m_subWidgets.at(0)->setCloseIcon(QIcon(QLatin1String(Constants::ICON_CLOSE_SPLIT_TOP)));
     return nsw;
 }
 
 void NavigationWidget::activateSubWidget()
 {
-    QShortcut *original = qobject_cast<QShortcut *>(sender());
-    Id id = d->m_shortcutMap[original];
+    QAction *original = qobject_cast<QAction *>(sender());
+    Id id = d->m_actionMap[original];
     activateSubWidget(id);
 }
 
-void NavigationWidget::activateSubWidget(const Id &factoryId)
+void NavigationWidget::activateSubWidget(Id factoryId)
 {
     setShown(true);
     foreach (Internal::NavigationSubWidget *subWidget, d->m_subWidgets) {
@@ -281,11 +289,11 @@ void NavigationWidget::activateSubWidget(const Id &factoryId)
     }
 }
 
-void NavigationWidget::splitSubWidget()
+void NavigationWidget::splitSubWidget(int factoryIndex)
 {
     Internal::NavigationSubWidget *original = qobject_cast<Internal::NavigationSubWidget *>(sender());
     int pos = indexOf(original) + 1;
-    insertSubItem(pos, original->factoryIndex());
+    insertSubItem(pos, factoryIndex);
 }
 
 void NavigationWidget::closeSubWidget()
@@ -296,6 +304,11 @@ void NavigationWidget::closeSubWidget()
         d->m_subWidgets.removeOne(subWidget);
         subWidget->hide();
         subWidget->deleteLater();
+        // update close button of top item
+        if (d->m_subWidgets.size() == 1)
+            d->m_subWidgets.at(0)->setCloseIcon(QIcon(QLatin1String(Constants::ICON_CLOSE_SPLIT_LEFT)));
+        else
+            d->m_subWidgets.at(0)->setCloseIcon(QIcon(QLatin1String(Constants::ICON_CLOSE_SPLIT_TOP)));
     } else {
         setShown(false);
     }
@@ -415,10 +428,10 @@ void NavigationWidget::setSuppressed(bool b)
         NavigationWidgetPlaceHolder::m_current->setVisible(d->m_shown && !d->m_suppressed);
 }
 
-int NavigationWidget::factoryIndex(const Id &id)
+int NavigationWidget::factoryIndex(Id id)
 {
     for (int row = 0; row < d->m_factoryModel->rowCount(); ++row) {
-        if (d->m_factoryModel->data(d->m_factoryModel->index(row, 0), FactoryIdRole).value<Core::Id>() == id)
+        if (d->m_factoryModel->data(d->m_factoryModel->index(row, 0), FactoryIdRole).value<Id>() == id)
             return row;
     }
     return -1;

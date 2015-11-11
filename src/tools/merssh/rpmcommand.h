@@ -29,9 +29,9 @@ class RpmCommand: public Command
 {
 public:
     RpmCommand();
-    QString name() const;
-    int execute();
-    bool isValid() const;
+    QString name() const override;
+    int execute() override;
+    bool isValid() const override;
 };
 
 #endif // RPMCOMMAND_H

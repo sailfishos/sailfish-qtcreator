@@ -44,7 +44,7 @@ class MerOptionsWidget : public QWidget
     Q_OBJECT
 public:
     explicit MerOptionsWidget(QWidget *parent = 0);
-    ~MerOptionsWidget();
+    ~MerOptionsWidget() override;
 
     QString searchKeyWordMatchString() const;
     void setSdk(const QString &vmName);

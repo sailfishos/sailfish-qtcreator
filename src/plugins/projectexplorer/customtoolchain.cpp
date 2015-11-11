@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing
 **
 ** This file is part of Qt Creator.
 **
@@ -9,20 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
+** a written agreement between you and The Qt Company.  For licensing terms and
+** conditions see http://www.qt.io/terms-conditions.  For further information
+** use the contact form at http://www.qt.io/contact-us.
 **
 ** GNU Lesser General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
+** In addition, as a special exception, The Qt Company gives you certain additional
+** rights.  These rights are described in The Qt Company LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ****************************************************************************/
@@ -38,6 +39,7 @@
 #include "projectexplorerconstants.h"
 #include "toolchainmanager.h"
 
+#include <utils/algorithm.h>
 #include <utils/detailswidget.h>
 #include <utils/environment.h>
 #include <utils/pathchooser.h>
@@ -175,7 +177,7 @@ void CustomToolChain::setPredefinedMacros(const QStringList &list)
     m_predefinedMacros = list;
 }
 
-QList<HeaderPath> CustomToolChain::systemHeaderPaths(const QStringList &cxxFlags, const Utils::FileName &) const
+QList<HeaderPath> CustomToolChain::systemHeaderPaths(const QStringList &cxxFlags, const FileName &) const
 {
     QList<HeaderPath> flagHeaderPaths;
     foreach (const QString &cxxFlag, cxxFlags) {
@@ -218,17 +220,14 @@ IOutputParser *CustomToolChain::outputParser() const
 
 QStringList CustomToolChain::headerPathsList() const
 {
-    QStringList list;
-    foreach (const HeaderPath &headerPath, m_systemHeaderPaths)
-        list << headerPath.path();
-    return list;
+    return Utils::transform(m_systemHeaderPaths, &HeaderPath::path);
 }
 
 void CustomToolChain::setHeaderPaths(const QStringList &list)
 {
-    m_systemHeaderPaths.clear();
-    foreach (const QString &headerPath, list)
-        m_systemHeaderPaths << HeaderPath(headerPath.trimmed(), HeaderPath::GlobalHeaderPath);
+    m_systemHeaderPaths = Utils::transform(list, [](const QString &headerPath) {
+        return HeaderPath(headerPath.trimmed(), HeaderPath::GlobalHeaderPath);
+    });
 }
 
 void CustomToolChain::setCompilerCommand(const FileName &path)
@@ -252,7 +251,7 @@ void CustomToolChain::setMakeCommand(const FileName &path)
     toolChainUpdated();
 }
 
-QString CustomToolChain::makeCommand(const Utils::Environment &) const
+QString CustomToolChain::makeCommand(const Environment &) const
 {
     return m_makeCommand.toString();
 }
@@ -272,9 +271,8 @@ const QStringList &CustomToolChain::cxx11Flags() const
 
 void CustomToolChain::setMkspecs(const QString &specs)
 {
-    m_mkspecs.clear();
-    foreach (const QString &spec, specs.split(QLatin1Char(',')))
-        m_mkspecs << FileName::fromString(spec);
+    m_mkspecs = Utils::transform(specs.split(QLatin1Char(',')),
+                                 [](QString fn) { return FileName::fromString(fn); });
 }
 
 QString CustomToolChain::mkspecs() const
@@ -587,11 +585,11 @@ void CustomToolChainConfigWidget::setFromToolchain()
     bool blocked = blockSignals(true);
     CustomToolChain *tc = static_cast<CustomToolChain *>(toolChain());
     m_compilerCommand->setFileName(tc->compilerCommand());
-    m_makeCommand->setFileName(FileName::fromString(tc->makeCommand(Utils::Environment())));
+    m_makeCommand->setFileName(FileName::fromString(tc->makeCommand(Environment())));
     m_abiWidget->setAbis(QList<Abi>(), tc->targetAbi());
-    m_predefinedMacros->setPlainText(tc->rawPredefinedMacros().join(QLatin1String("\n")));
-    m_headerPaths->setPlainText(tc->headerPathsList().join(QLatin1String("\n")));
-    m_cxx11Flags->setText(tc->cxx11Flags().join(QLatin1String(",")));
+    m_predefinedMacros->setPlainText(tc->rawPredefinedMacros().join(QLatin1Char('\n')));
+    m_headerPaths->setPlainText(tc->headerPathsList().join(QLatin1Char('\n')));
+    m_cxx11Flags->setText(tc->cxx11Flags().join(QLatin1Char(',')));
     m_mkspecs->setText(tc->mkspecs());
     m_errorParserComboBox->setCurrentIndex(tc->outputParserType());
     m_customParserSettings = tc->customParserSettings();
@@ -603,7 +601,7 @@ bool CustomToolChainConfigWidget::isDirtyImpl() const
     CustomToolChain *tc = static_cast<CustomToolChain *>(toolChain());
     Q_ASSERT(tc);
     return m_compilerCommand->fileName() != tc->compilerCommand()
-            || m_makeCommand->path() != tc->makeCommand(Utils::Environment())
+            || m_makeCommand->path() != tc->makeCommand(Environment())
             || m_abiWidget->currentAbi() != tc->targetAbi()
             || m_predefinedDetails->entries() != tc->rawPredefinedMacros()
             || m_headerDetails->entries() != tc->headerPathsList()

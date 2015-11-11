@@ -43,7 +43,7 @@ class MerManagementWebView : public QWidget
     
 public:
     explicit MerManagementWebView(QWidget *parent = 0);
-    ~MerManagementWebView();
+    ~MerManagementWebView() override;
 
 public slots:
     void setAutoFailReload(bool enabled);
