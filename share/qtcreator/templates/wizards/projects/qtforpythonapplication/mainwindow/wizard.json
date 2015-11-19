@@ -7,7 +7,7 @@
     "trDisplayName": "Qt for Python - Window",
     "trDisplayCategory": "Application",
     "icon": "icon.png",
-    "enabled": "%{JS: [ %{Plugins} ].indexOf('PythonEditor') >= 0}",
+    "enabled": "%{JS: false // [ %{Plugins} ].indexOf('PythonEditor') >= 0}",
     "featuresRequired": [ "QtSupport.Wizards.FeatureQt.5.6" ],
 
     "options":

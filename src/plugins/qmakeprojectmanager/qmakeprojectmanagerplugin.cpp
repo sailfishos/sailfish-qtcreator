@@ -145,10 +145,10 @@ bool QmakeProjectManagerPlugin::initialize(const QStringList &arguments, QString
     IWizardFactory::registerFactoryCreator([] {
         return QList<IWizardFactory *> {
             new SubdirsProjectWizard,
-            new GuiAppWizard,
-            new LibraryWizard,
-            new CustomWidgetWizard,
-            new SimpleProjectWizard
+            //new GuiAppWizard,
+            //new LibraryWizard,
+            //new CustomWidgetWizard,
+            //new SimpleProjectWizard
         };
     });
 

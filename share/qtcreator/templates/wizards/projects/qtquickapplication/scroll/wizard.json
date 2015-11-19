@@ -8,7 +8,7 @@
     "trDisplayCategory": "Application",
     "icon": "icon.png",
     "featuresRequired": [ "QtSupport.Wizards.FeatureQt.5.9" ],
-    "enabled": "%{JS: [ %{Plugins} ].indexOf('QmakeProjectManager') >= 0 || [ %{Plugins} ].indexOf('QbsProjectManager') >= 0 || [ %{Plugins} ].indexOf('CMakeProjectManager') >= 0}",
+    "enabled": "%{JS: false // [ %{Plugins} ].indexOf('QmakeProjectManager') >= 0 || [ %{Plugins} ].indexOf('QbsProjectManager') >= 0 || [ %{Plugins} ].indexOf('CMakeProjectManager') >= 0}",
 
     "options":
     [
