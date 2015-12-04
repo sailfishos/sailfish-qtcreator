@@ -97,8 +97,8 @@ bool QmakeProjectManagerPlugin::initialize(const QStringList &arguments, QString
 
     IWizardFactory::registerFactoryCreator([]() {
         QList<IWizardFactory *> result;
-        result << new SubdirsProjectWizard << new GuiAppWizard << new LibraryWizard
-               << new TestWizard << new CustomWidgetWizard;
+        result << new SubdirsProjectWizard /*<< new GuiAppWizard << new LibraryWizard
+               << new TestWizard << new CustomWidgetWizard*/;
         return result;
     });
 
