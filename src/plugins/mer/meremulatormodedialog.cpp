@@ -157,15 +157,15 @@ void MerEmulatorModeDialog::execDialog()
 
     m_ui->deviceNameLabel->setText(m_emulator->displayName());
 
-    const QMap<QString, QSize> models = m_emulator->availableDeviceModels();
+    const QMap<QString, QMap<QString, QString> > models = m_emulator->availableDeviceModels();
     const bool supportsMultipleModels = !models.isEmpty();
 
     int currentModelIndex = -1;
     for (auto it = models.begin(); it != models.end(); ++it) {
         const QString label = QStringLiteral("%1 (%2x%3)")
             .arg(it.key())
-            .arg(it.value().width())
-            .arg(it.value().height());
+            .arg(it.value().value(QStringLiteral("hres")))
+            .arg(it.value().value(QStringLiteral("vres")));
         m_ui->deviceModelComboBox->addItem(label, it.key());
         if (it.key() == m_emulator->deviceModel()) {
             currentModelIndex = m_ui->deviceModelComboBox->count() - 1;
@@ -225,8 +225,7 @@ void MerEmulatorModeDialog::guessOptimalViewMode()
 
     const QSize desktopSize = qApp->desktop()->availableGeometry().size();
 
-    QSize selectedSize = m_emulator->availableDeviceModels()
-        .value(m_ui->deviceModelComboBox->currentData().toString());
+    QSize selectedSize = m_emulator->getDeviceModelResolution(m_ui->deviceModelComboBox->currentData().toString());
     if (m_ui->landscapeRadioButton->isChecked()) {
         selectedSize.transpose();
     }
