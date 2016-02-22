@@ -349,12 +349,22 @@ SshConnectionParameters MerEmulatorDevice::sshParametersForUser(const SshConnect
     return m_sshParams;
 }
 
-QMap<QString, QSize> MerEmulatorDevice::availableDeviceModels() const
+QMap<QString, QMap<QString, QString> > MerEmulatorDevice::availableDeviceModels() const
 {
 #if __cplusplus < 201103L
     const_cast<MerEmulatorDevice *>(this)->updateAvailableDeviceModels();
 #endif
     return m_availableDeviceModels;
+}
+
+QSize MerEmulatorDevice::getDeviceModelResolution(const QString &deviceModel) const
+{
+    if (availableDeviceModels().contains(deviceModel)) {
+        const QMap<QString, QString> device = availableDeviceModels().value(deviceModel);
+        return QSize(device.value(QStringLiteral("hres")).toInt(), device.value(QStringLiteral("vres")).toInt());
+    }
+
+    return QSize();
 }
 
 QString MerEmulatorDevice::deviceModel() const
@@ -428,14 +438,17 @@ void MerEmulatorDevice::updateConnection()
  *
  * Columns:
  * - Device model (string)
- * - Horizontal screen size (number)
- * - Vertical screen size (number)
+ * - Horizontal screen resolution, px (number)
+ * - Vertical screen resolution, px (number)
+ * - Horizontal screen size, mm (number)
+ * - Vertical screen size, mm (number)
  *
  * ----example-begin----
  * \n
- * #V1\n
- * Jolla Phone,540,960\n
- * Jolla Tablet,1536,2048\n
+ * #V2\n
+ * #model,hres(px),vres(px),hsize(mm),vsize(mm)\n
+ * Jolla Phone,540,960,57,100\n
+ * Jolla Tablet,1536,2048,120,160\n
  * ----end----
  */
 void MerEmulatorDevice::updateAvailableDeviceModels()
@@ -452,26 +465,46 @@ void MerEmulatorDevice::updateAvailableDeviceModels()
     lines.removeFirst();
 
     const QString header = lines.takeFirst();
-    if (header != QLatin1String("#V1")) {
-        qWarning() << "Invalid device models configuratin - invalid header";
-        return;
+    if (header != QStringLiteral("#V2")) {
+        if (header.startsWith(QStringLiteral("#V"))) {
+            qWarning() << "Using an old version of the device models configuration -" << header;
+        } else {
+            qWarning() << "Invalid device models configuration - invalid header";
+            return;
+        }
     }
 
     foreach (const QString &line, lines) {
-        if (line.trimmed().isEmpty()) {
+        if (line.trimmed().isEmpty() or line.trimmed().startsWith(QStringLiteral("#"))) {
             continue;
         }
 
         const QStringList fields = line.split(QLatin1Char(','));
-        if (fields.count() != 3) {
+        if (fields.count() < 3) {
             qWarning() << "Invalid device models configuration - incorrect fields count";
             return;
         }
 
         const QString name = fields.at(0);
-        const QSize screenSize = QSize(fields.at(1).toInt(), fields.at(2).toInt());
 
-        m_availableDeviceModels.insert(name, screenSize);
+        QMap<QString, QString> device;
+        if (fields.at(1).toInt() and fields.at(2).toInt()) {
+            device.insert(QStringLiteral("hres"), fields.at(1));
+            device.insert(QStringLiteral("vres"), fields.at(2));
+        } else {
+            qWarning() << "Invalid device models configuration - invalid data (device screen resolution)";
+            return;
+        }
+        if (fields.count() == 5) {
+            if (fields.at(3).toInt() and fields.at(4).toInt()) {
+                device.insert(QStringLiteral("hsize"), fields.at(3));
+                device.insert(QStringLiteral("vsize"), fields.at(4));
+            } else {
+                qWarning() << "Invalid device models configuration - invalid data (device screen size)";
+            }
+        }
+
+        m_availableDeviceModels.insert(name, device);
     }
 
     if (!m_availableDeviceModels.isEmpty()) {
@@ -485,7 +518,8 @@ void MerEmulatorDevice::updateAvailableDeviceModels()
 
 void MerEmulatorDevice::setVideoMode()
 {
-    QSize realSize = availableDeviceModels().value(m_deviceModel);
+    QMap<QString, QString> device = availableDeviceModels().value(m_deviceModel);
+    QSize realSize = getDeviceModelResolution(m_deviceModel);
     if (m_orientation == Qt::Horizontal) {
         realSize.transpose();
     }
@@ -507,8 +541,14 @@ void MerEmulatorDevice::setVideoMode()
 
     QTextStream(saver.file())
         << maybeCommentOut << "QT_QPA_EGLFS_SCALE=" << SCALE_DOWN_FACTOR << endl
-        << maybeCommentOut << "QT_QPA_EGLFS_WIDTH=" << virtualSize.width() << endl
-        << maybeCommentOut << "QT_QPA_EGLFS_HEIGHT=" << virtualSize.height() << endl;
+        << "QT_QPA_EGLFS_WIDTH=" << virtualSize.width() << endl
+        << "QT_QPA_EGLFS_HEIGHT=" << virtualSize.height() << endl;
+
+    if (device.contains(QStringLiteral("hsize")) and device.contains(QStringLiteral("vsize"))) {
+        QTextStream(saver.file())
+            << "QT_QPA_EGLFS_PHYSICAL_WIDTH=" << device.value(QStringLiteral("hsize")).toInt() << endl
+            << "QT_QPA_EGLFS_PHYSICAL_HEIGHT=" << device.value(QStringLiteral("vsize")).toInt() << endl;
+    }
 
     bool ok = saver.finalize();
     QTC_CHECK(ok);

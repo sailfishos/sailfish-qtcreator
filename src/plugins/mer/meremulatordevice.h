@@ -73,7 +73,8 @@ public:
 
     QSsh::SshConnectionParameters sshParametersForUser(const QSsh::SshConnectionParameters &sshParams, const QLatin1String &user) const;
 
-    QMap<QString, QSize> availableDeviceModels() const;
+    QMap<QString, QMap<QString, QString> > availableDeviceModels() const;
+    QSize getDeviceModelResolution(const QString &deviceModel) const;
     QString deviceModel() const;
     void setDeviceModel(const QString &deviceModel);
     Qt::Orientation orientation() const;
@@ -101,7 +102,7 @@ private:
     QString m_subnet;
     QString m_sharedConfigPath;
     QString m_deviceModel;
-    QMap<QString, QSize> m_availableDeviceModels;
+    QMap<QString, QMap<QString, QString> > m_availableDeviceModels;
     Qt::Orientation m_orientation;
     bool m_viewScaled;
 };
