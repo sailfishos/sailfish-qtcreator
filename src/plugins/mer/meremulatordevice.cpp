@@ -475,7 +475,7 @@ void MerEmulatorDevice::updateAvailableDeviceModels()
     }
 
     foreach (const QString &line, lines) {
-        if (line.trimmed().isEmpty() or line.trimmed().startsWith(QStringLiteral("#"))) {
+        if (line.trimmed().isEmpty() || line.trimmed().startsWith(QStringLiteral("#"))) {
             continue;
         }
 
@@ -488,7 +488,7 @@ void MerEmulatorDevice::updateAvailableDeviceModels()
         const QString name = fields.at(0);
 
         QMap<QString, QString> device;
-        if (fields.at(1).toInt() and fields.at(2).toInt()) {
+        if (fields.at(1).toInt() && fields.at(2).toInt()) {
             device.insert(QStringLiteral("hres"), fields.at(1));
             device.insert(QStringLiteral("vres"), fields.at(2));
         } else {
@@ -496,7 +496,7 @@ void MerEmulatorDevice::updateAvailableDeviceModels()
             return;
         }
         if (fields.count() == 5) {
-            if (fields.at(3).toInt() and fields.at(4).toInt()) {
+            if (fields.at(3).toInt() && fields.at(4).toInt()) {
                 device.insert(QStringLiteral("hsize"), fields.at(3));
                 device.insert(QStringLiteral("vsize"), fields.at(4));
             } else {
@@ -544,7 +544,7 @@ void MerEmulatorDevice::setVideoMode()
         << "QT_QPA_EGLFS_WIDTH=" << virtualSize.width() << endl
         << "QT_QPA_EGLFS_HEIGHT=" << virtualSize.height() << endl;
 
-    if (device.contains(QStringLiteral("hsize")) and device.contains(QStringLiteral("vsize"))) {
+    if (device.contains(QStringLiteral("hsize")) && device.contains(QStringLiteral("vsize"))) {
         QTextStream(saver.file())
             << "QT_QPA_EGLFS_PHYSICAL_WIDTH=" << device.value(QStringLiteral("hsize")).toInt() << endl
             << "QT_QPA_EGLFS_PHYSICAL_HEIGHT=" << device.value(QStringLiteral("vsize")).toInt() << endl;
