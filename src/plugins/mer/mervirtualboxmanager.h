@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2014 Jolla Ltd.
+** Copyright (C) 2012 - 2016 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -22,6 +22,8 @@
 
 #ifndef VIRTUALBOXMANAGER_H
 #define VIRTUALBOXMANAGER_H
+
+#include <functional>
 
 #include <QHash>
 #include <QObject>
@@ -54,6 +56,8 @@ public:
     static MerVirtualBoxManager* instance();
     ~MerVirtualBoxManager() override;
     static bool isVirtualMachineRunning(const QString &vmName);
+    static void isVirtualMachineRunning(const QString &vmName, QObject *context,
+                                        std::function<void(bool)> slot);
     static bool isVirtualMachineRegistered(const QString &vmName);
     static QStringList fetchRegisteredVirtualMachines();
     static VirtualMachineInfo fetchVirtualMachineInfo(const QString &vmName);

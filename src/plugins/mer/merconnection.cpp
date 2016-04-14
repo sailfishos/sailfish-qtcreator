@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2014 Jolla Ltd.
+** Copyright (C) 2012 - 2016 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -201,6 +201,7 @@ MerConnection::MerConnection(QObject *parent)
     , m_cachedSshConnected(false)
     , m_cachedSshError(SshNoError)
     , m_vmWantFastPollState(0)
+    , m_pollingVmState(false)
 {
 
 }
@@ -447,7 +448,8 @@ void MerConnection::timerEvent(QTimerEvent *event)
         m_vmHardClosingTimeoutTimer.stop();
         vmStmScheduleExec();
     } else if (event->timerId() == m_vmStatePollTimer.timerId()) {
-        vmPollState();
+        constexpr bool async = true;
+        vmPollState(async);
     } else if (event->timerId() == m_sshTryConnectTimer.timerId()) {
         sshTryConnect();
     } else if (event->timerId() == m_vmStmExecTimer.timerId()) {
@@ -1114,14 +1116,31 @@ void MerConnection::vmWantFastPollState(bool want)
     }
 }
 
-void MerConnection::vmPollState()
+void MerConnection::vmPollState(bool async)
 {
-    bool vmRunning = MerVirtualBoxManager::isVirtualMachineRunning(m_vmName);
-    if (vmRunning != m_cachedVmRunning) {
-        DBG << "VM running:" << m_cachedVmRunning << "-->" << vmRunning;
-        m_cachedVmRunning = vmRunning;
-        vmStmScheduleExec();
-        emit virtualMachineOffChanged(!m_cachedVmRunning);
+    if (m_pollingVmState) {
+        DBG << "Already polling";
+        return;
+    }
+
+    m_pollingVmState = true;
+
+    auto handler = [this](bool vmRunning) {
+        if (vmRunning != m_cachedVmRunning) {
+            DBG << "VM running:" << m_cachedVmRunning << "-->" << vmRunning;
+            m_cachedVmRunning = vmRunning;
+            vmStmScheduleExec();
+            emit virtualMachineOffChanged(!m_cachedVmRunning);
+        }
+
+        m_pollingVmState = false;
+    };
+
+    if (async) {
+        MerVirtualBoxManager::isVirtualMachineRunning(m_vmName, this, handler);
+    } else {
+        bool vmRunning = MerVirtualBoxManager::isVirtualMachineRunning(m_vmName);
+        handler(vmRunning);
     }
 }
 

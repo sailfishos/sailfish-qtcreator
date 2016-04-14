@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2014 Jolla Ltd.
+** Copyright (C) 2012 - 2016 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -135,6 +135,26 @@ bool MerVirtualBoxManager::isVirtualMachineRunning(const QString &vmName)
         return false;
 
     return isVirtualMachineListed(vmName, QString::fromLocal8Bit(process.readAllStandardOutput()));
+}
+
+void MerVirtualBoxManager::isVirtualMachineRunning(const QString &vmName, QObject *context,
+                                                   std::function<void(bool)> slot)
+{
+    QStringList arguments;
+    arguments.append(QLatin1String(LIST));
+    arguments.append(QLatin1String(RUNNINGVMS));
+    QProcess *process = new QProcess;
+    process->start(vBoxManagePath(), arguments);
+
+    constexpr void (QProcess::*QProcess_finished)(int, QProcess::ExitStatus) = &QProcess::finished;
+    connect(process, QProcess_finished, context,
+            [process, vmName, slot](int exitCode, QProcess::ExitStatus exitStatus) {
+                Q_UNUSED(exitCode);
+                Q_UNUSED(exitStatus);
+                slot(isVirtualMachineListed(vmName,
+                                            QString::fromLocal8Bit(process->readAllStandardOutput())));
+                delete process;
+            });
 }
 
 bool MerVirtualBoxManager::isVirtualMachineRegistered(const QString &vmName)

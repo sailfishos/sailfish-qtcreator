@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2014 Jolla Ltd.
+** Copyright (C) 2012 - 2016 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -137,7 +137,7 @@ private:
 
     void createConnection();
     void vmWantFastPollState(bool want);
-    void vmPollState();
+    void vmPollState(bool async = false);
     void sshTryConnect();
 
     // dialogs
@@ -205,6 +205,7 @@ private:
     // background task timers
     int m_vmWantFastPollState;
     QBasicTimer m_vmStatePollTimer;
+    bool m_pollingVmState;
     QBasicTimer m_sshTryConnectTimer;
 
     // state machine idle execution
