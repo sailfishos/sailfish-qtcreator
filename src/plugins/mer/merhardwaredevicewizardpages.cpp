@@ -124,6 +124,9 @@ QString MerHardwareDeviceWizardSelectionPage::deviceName() const
 
 void MerHardwareDeviceWizardSelectionPage::handleTestConnectionClicked()
 {
+    // Without this focus would be moved to the "Cancel" button
+    wizard()->setFocus();
+
     m_ui->testButton->setEnabled(false);
     m_isIdle = false;
     completeChanged();
