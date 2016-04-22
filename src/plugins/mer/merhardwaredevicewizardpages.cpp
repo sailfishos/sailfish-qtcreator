@@ -74,7 +74,15 @@ MerHardwareDeviceWizardSelectionPage::MerHardwareDeviceWizardSelectionPage(QWidg
             this, &MerHardwareDeviceWizardSelectionPage::completeChanged);
     connect(m_ui->passwordLineEdit, &QLineEdit::textChanged,
             this, &MerHardwareDeviceWizardSelectionPage::completeChanged);
+
+    m_ui->testButton->setEnabled(false);
+    connect(m_ui->passwordLineEdit, &QLineEdit::textChanged,
+            this, [this](const QString &text) {
+              m_ui->testButton->setEnabled(!text.isEmpty());
+            });
     connect(m_ui->testButton, &QPushButton::clicked,
+            this, &MerHardwareDeviceWizardSelectionPage::handleTestConnectionClicked);
+    connect(m_ui->passwordLineEdit, &QLineEdit::returnPressed,
             this, &MerHardwareDeviceWizardSelectionPage::handleTestConnectionClicked);
 }
 
@@ -157,6 +165,9 @@ void MerHardwareDeviceWizardSelectionPage::handleTestConnectionClicked()
 
 end:
     m_ui->testButton->setEnabled(true);
+    if (!m_connectionTestOk) {
+      m_ui->passwordLineEdit->setFocus(Qt::TabFocusReason);
+    }
     m_isIdle = true;
     completeChanged();
 }
