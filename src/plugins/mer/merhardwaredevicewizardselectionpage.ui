@@ -121,7 +121,10 @@
      <item row="0" column="0">
       <widget class="QLabel" name="passwordLabel">
        <property name="text">
-        <string>Password: </string>
+        <string>&amp;Password: </string>
+       </property>
+       <property name="buddy">
+        <cstring>passwordLineEdit</cstring>
        </property>
       </widget>
      </item>
