@@ -146,7 +146,7 @@ void MerVirtualBoxManager::isVirtualMachineRunning(const QString &vmName, QObjec
     QProcess *process = new QProcess;
     process->start(vBoxManagePath(), arguments);
 
-    constexpr void (QProcess::*QProcess_finished)(int, QProcess::ExitStatus) = &QProcess::finished;
+    void (QProcess::*QProcess_finished)(int, QProcess::ExitStatus) = &QProcess::finished;
     connect(process, QProcess_finished, context,
             [process, vmName, slot](int exitCode, QProcess::ExitStatus exitStatus) {
                 Q_UNUSED(exitCode);

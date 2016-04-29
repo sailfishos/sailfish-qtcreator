@@ -448,7 +448,7 @@ void MerConnection::timerEvent(QTimerEvent *event)
         m_vmHardClosingTimeoutTimer.stop();
         vmStmScheduleExec();
     } else if (event->timerId() == m_vmStatePollTimer.timerId()) {
-        constexpr bool async = true;
+        const bool async = true;
         vmPollState(async);
     } else if (event->timerId() == m_sshTryConnectTimer.timerId()) {
         sshTryConnect();
