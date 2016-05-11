@@ -228,6 +228,13 @@ MerManagementWebView::MerManagementWebView(QWidget *parent)
             ui->statusBarLabel, &QLabel::setText);
     connect(ui->webView->page(), &QWebPage::loadFinished,
             this, &MerManagementWebView::handleLoadFinished);
+
+    // Workaround: the sdk-webapp does not like receiving another request while processing one
+    connect(ui->webView, &QWebView::loadStarted,
+            this, [this]() { setEnabled(false); });
+    connect(ui->webView, &QWebView::loadFinished,
+            this, [this]() { setEnabled(true); },
+            Qt::QueuedConnection);
 }
 
 MerManagementWebView::~MerManagementWebView()
