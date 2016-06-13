@@ -135,7 +135,6 @@ public:
     QString category;
     QString displayCategory;
     Core::FeatureSet requiredFeatures;
-    Core::FeatureSet preferredFeatures;
     Core::IWizardFactory::WizardFlags flags;
 };
 

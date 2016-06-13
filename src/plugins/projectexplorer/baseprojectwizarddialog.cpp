@@ -55,7 +55,6 @@ struct BaseProjectWizardDialogPrivate {
     int introPageId;
     QString selectedPlatform;
     Core::FeatureSet requiredFeatureSet;
-    Core::FeatureSet preferredFeatureSet;
 };
 
 BaseProjectWizardDialogPrivate::BaseProjectWizardDialogPrivate(Utils::ProjectIntroPage *page, int id) :
@@ -73,7 +72,6 @@ BaseProjectWizardDialog::BaseProjectWizardDialog(const Core::BaseFileWizardFacto
 {
     setPath(parameters.defaultPath());
     setSelectedPlatform(parameters.selectedPlatform());
-    setPreferredFeatures(parameters.preferredFeatures());
     setRequiredFeatures(parameters.requiredFeatures());
     init();
 }
@@ -87,7 +85,6 @@ BaseProjectWizardDialog::BaseProjectWizardDialog(const Core::BaseFileWizardFacto
 {
     setPath(parameters.defaultPath());
     setSelectedPlatform(parameters.selectedPlatform());
-    setPreferredFeatures(parameters.preferredFeatures());
     setRequiredFeatures(parameters.requiredFeatures());
     init();
 }
@@ -210,16 +207,6 @@ Core::FeatureSet BaseProjectWizardDialog::requiredFeatures() const
 void BaseProjectWizardDialog::setRequiredFeatures(const Core::FeatureSet &featureSet)
 {
     d->requiredFeatureSet = featureSet;
-}
-
-Core::FeatureSet BaseProjectWizardDialog::preferredFeatures() const
-{
-    return d->preferredFeatureSet;
-}
-
-void BaseProjectWizardDialog::setPreferredFeatures(const Core::FeatureSet &featureSet)
-{
-    d->preferredFeatureSet = featureSet;
 }
 
 } // namespace ProjectExplorer

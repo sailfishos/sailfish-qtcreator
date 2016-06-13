@@ -68,7 +68,6 @@ static const char langAttributeC[] = "xml:lang";
 static const char categoryAttributeC[] = "category";
 static const char displayCategoryElementC[] = "displaycategory";
 static const char featuresRequiredC[] = "featuresRequired";
-static const char featuresPreferredC[] = "featuresPreferred";
 static const char platformIndependentC[] = "platformIndependent";
 static const char fieldPageTitleElementC[] = "fieldpagetitle";
 static const char fieldsElementC[] = "fields";
@@ -467,16 +466,6 @@ static inline FeatureSet readRequiredFeatures(const QXmlStreamReader &reader)
     return features;
 }
 
-static inline FeatureSet readPreferredFeatures(const QXmlStreamReader &reader)
-{
-    QString value = reader.attributes().value(QLatin1String(featuresPreferredC)).toString();
-    QStringList stringList = value.split(QLatin1Char(','), QString::SkipEmptyParts);
-    FeatureSet features;
-    foreach (const QString &string, stringList)
-        features |= Feature::fromString(string);
-    return features;
-}
-
 static inline IWizardFactory::WizardFlags wizardFlags(const QXmlStreamReader &reader)
 {
     IWizardFactory::WizardFlags flags;
@@ -596,7 +585,6 @@ CustomWizardParameters::parse(QIODevice &device, const QString &configFileFullPa
                     category = attributeValue(reader, categoryAttributeC);
                     kind = kindAttribute(reader);
                     requiredFeatures = readRequiredFeatures(reader);
-                    preferredFeatures = readPreferredFeatures(reader);
                     flags = wizardFlags(reader);
                     klass = attributeValue(reader, klassAttributeC);
                     firstPageId = integerAttributeValue(reader, firstPageAttributeC, -1);

@@ -203,17 +203,12 @@ int BaseQmakeProjectWizardDialog::addModulesPage(int id)
 int BaseQmakeProjectWizardDialog::addTargetSetupPage(int id)
 {
     m_targetSetupPage = new ProjectExplorer::TargetSetupPage;
-
-    if (!preferredFeatures().isEmpty()) {
-        m_targetSetupPage->setPreferredKitMatcher(QtKitInformation::qtVersionMatcher(preferredFeatures()));
-    } else {
-        const QString platform = selectedPlatform();
-        Core::FeatureSet features = Core::FeatureSet(QtSupport::Constants::FEATURE_DESKTOP);
-        if (platform.isEmpty())
-            m_targetSetupPage->setPreferredKitMatcher(QtKitInformation::qtVersionMatcher(features));
-        else
-            m_targetSetupPage->setPreferredKitMatcher(QtKitInformation::platformMatcher(platform));
-    }
+    const QString platform = selectedPlatform();
+    Core::FeatureSet features = Core::FeatureSet(QtSupport::Constants::FEATURE_DESKTOP);
+    if (platform.isEmpty())
+        m_targetSetupPage->setPreferredKitMatcher(QtKitInformation::qtVersionMatcher(features));
+    else
+        m_targetSetupPage->setPreferredKitMatcher(QtKitInformation::platformMatcher(platform));
 
     m_targetSetupPage->setRequiredKitMatcher(QtKitInformation::qtVersionMatcher(requiredFeatures()));
 
