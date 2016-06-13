@@ -66,7 +66,7 @@ public slots:
     void openHelp(const QUrl &help);
     void openProject(const QString& projectFile, const QStringList& additionalFilesToOpen,
                      const QString &mainFile, const QUrl& help, const QStringList &dependencies,
-                     const QStringList &platforms, const QStringList &preferredFeatures);
+                     const QStringList &platforms);
 
 private:
     ExamplesListModel *examplesModel() const;

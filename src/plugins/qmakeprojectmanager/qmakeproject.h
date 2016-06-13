@@ -125,7 +125,7 @@ public:
 
     bool needsConfiguration() const;
 
-    void configureAsExampleProject(const QStringList &platforms, const QStringList &preferredFeatures = QStringList());
+    void configureAsExampleProject(const QStringList &platforms);
 
     bool requiresTargetPanel() const;
 
