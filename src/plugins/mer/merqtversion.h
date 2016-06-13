@@ -49,9 +49,6 @@ public:
 
     QString description() const override;
 
-    QString platformName() const override;
-    QString platformDisplayName() const override;
-
     QList<ProjectExplorer::Task> validateKit(const ProjectExplorer::Kit *k) override;
     QVariantMap toMap() const override;
     void fromMap(const QVariantMap &data) override;

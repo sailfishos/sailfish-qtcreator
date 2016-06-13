@@ -31,8 +31,6 @@ namespace Constants {
 const char MER_QT[] = "QmakeProjectManager.QtVersion.Mer";
 const char MER_TOOLCHAIN_ID[] = "QmakeProjectManager.ToolChain.Mer";
 
-const char MER_PLATFORM[] = "Mer";
-const char MER_PLATFORM_TR[] = QT_TRANSLATE_NOOP("QtSupport", "Mer");
 const char MER_TOOLCHAIN[] = "Mer GCC";
 const char MER_TOOLCHAIN_TYPE[] = "Mer.Gcc";
 

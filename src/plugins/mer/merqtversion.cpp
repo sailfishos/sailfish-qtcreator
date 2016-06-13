@@ -103,16 +103,6 @@ QString MerQtVersion::description() const
     return QCoreApplication::translate("QtVersion", "Mer ", "Qt Version is meant for Mer");
 }
 
-QString MerQtVersion::platformName() const
-{
-    return QLatin1String(Constants::MER_PLATFORM);
-}
-
-QString MerQtVersion::platformDisplayName() const
-{
-    return QLatin1String(Constants::MER_PLATFORM_TR);
-}
-
 QVariantMap MerQtVersion::toMap() const
 {
     QVariantMap data = BaseQtVersion::toMap();
