@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -47,7 +42,7 @@
 #include <QTimer>
 #include <QPushButton>
 
-#ifdef Q_OS_MAC
+#ifdef Q_OS_OSX
 #include <ApplicationServices/ApplicationServices.h>
 #endif
 
@@ -251,7 +246,8 @@ void RunConfiguration::addExtraAspect(IRunConfigurationAspect *aspect)
 
 void RunConfiguration::ctor()
 {
-    connect(this, SIGNAL(enabledChanged()), this, SIGNAL(requestRunActionsUpdate()));
+    connect(this, &RunConfiguration::enabledChanged,
+            this, &RunConfiguration::requestRunActionsUpdate);
 
     Utils::MacroExpander *expander = macroExpander();
     expander->setDisplayName(tr("Run Settings"));
@@ -260,6 +256,9 @@ void RunConfiguration::ctor()
         BuildConfiguration *bc = target()->activeBuildConfiguration();
         return bc ? bc->macroExpander() : target()->macroExpander();
     });
+    expander->registerVariable(Constants::VAR_CURRENTRUN_NAME,
+            QCoreApplication::translate("ProjectExplorer", "The currently active run configuration's name."),
+            [this] { return displayName(); }, false);
 }
 
 /*!
@@ -366,6 +365,34 @@ IRunConfigurationAspect *RunConfiguration::extraAspect(Core::Id id) const
     return 0;
 }
 
+/*!
+    \internal
+
+    \class ProjectExplorer::Runnable
+
+    \brief The ProjectExplorer::Runnable class wraps information needed
+    to execute a process on a target device.
+
+    A target specific \l RunConfiguration implementation can specify
+    what information it considers necessary to execute a process
+    on the target. Target specific) \n IRunControlFactory implementation
+    can use that information either unmodified or tweak it or ignore
+    it when setting up a RunControl.
+
+    From Qt Creator's core perspective a Runnable object is opaque.
+*/
+
+/*!
+    \internal
+
+    \brief Returns a \l Runnable described by this RunConfiguration.
+*/
+
+Runnable RunConfiguration::runnable() const
+{
+    return Runnable();
+}
+
 Utils::OutputFormatter *RunConfiguration::createOutputFormatter() const
 {
     return new Utils::OutputFormatter();
@@ -405,10 +432,6 @@ Utils::OutputFormatter *RunConfiguration::createOutputFormatter() const
 
 IRunConfigurationFactory::IRunConfigurationFactory(QObject *parent) :
     QObject(parent)
-{
-}
-
-IRunConfigurationFactory::~IRunConfigurationFactory()
 {
 }
 
@@ -482,10 +505,6 @@ IRunControlFactory::IRunControlFactory(QObject *parent)
 {
 }
 
-IRunControlFactory::~IRunControlFactory()
-{
-}
-
 /*!
     Returns an IRunConfigurationAspect to carry options for RunControls this
     factory can create.
@@ -515,59 +534,152 @@ IRunConfigurationAspect *IRunControlFactory::createRunConfigurationAspect(RunCon
     than it needs to be.
 */
 
-RunControl::RunControl(RunConfiguration *runConfiguration, Core::Id mode)
-    : m_runMode(mode), m_runConfiguration(runConfiguration), m_outputFormatter(0)
+namespace Internal {
+
+class RunControlPrivate
 {
-    if (runConfiguration) {
-        m_displayName  = runConfiguration->displayName();
-        m_outputFormatter = runConfiguration->createOutputFormatter();
+public:
+    RunControlPrivate(RunConfiguration *runConfiguration, Core::Id mode)
+        : runMode(mode), runConfiguration(runConfiguration)
+    {
+        if (runConfiguration) {
+            displayName  = runConfiguration->displayName();
+            outputFormatter = runConfiguration->createOutputFormatter();
+            device = DeviceKitInformation::device(runConfiguration->target()->kit());
+            project = runConfiguration->target()->project();
+        }
+
+        // We need to ensure that there's always a OutputFormatter
+        if (!outputFormatter)
+            outputFormatter = new Utils::OutputFormatter();
     }
-    // We need to ensure that there's always a OutputFormatter
-    if (!m_outputFormatter)
-        m_outputFormatter = new Utils::OutputFormatter();
+
+    ~RunControlPrivate()
+    {
+        delete outputFormatter;
+    }
+
+    QString displayName;
+    Runnable runnable;
+    IDevice::ConstPtr device;
+    Connection connection;
+    Core::Id runMode;
+    Utils::Icon icon;
+    const QPointer<RunConfiguration> runConfiguration;
+    QPointer<Project> project;
+    Utils::OutputFormatter *outputFormatter = 0;
+
+    // A handle to the actual application process.
+    ProcessHandle applicationProcessHandle;
+
+#ifdef Q_OS_OSX
+    //these two are used to bring apps in the foreground on Mac
+    qint64 internalPid;
+    int foregroundCount;
+#endif
+};
+
+} // Internal
+
+RunControl::RunControl(RunConfiguration *runConfiguration, Core::Id mode)
+    : d(new Internal::RunControlPrivate(runConfiguration, mode))
+{
 }
 
 RunControl::~RunControl()
 {
-    delete m_outputFormatter;
+    delete d;
 }
 
 Utils::OutputFormatter *RunControl::outputFormatter()
 {
-    return m_outputFormatter;
+    return d->outputFormatter;
 }
 
 Core::Id RunControl::runMode() const
 {
-    return m_runMode;
+    return d->runMode;
+}
+
+const Runnable &RunControl::runnable() const
+{
+    return d->runnable;
+}
+
+void RunControl::setRunnable(const Runnable &runnable)
+{
+    d->runnable = runnable;
+}
+
+const Connection &RunControl::connection() const
+{
+    return d->connection;
+}
+
+void RunControl::setConnection(const Connection &connection)
+{
+    d->connection = connection;
 }
 
 QString RunControl::displayName() const
 {
-    return m_displayName;
+    return d->displayName;
+}
+
+void RunControl::setDisplayName(const QString &displayName)
+{
+    d->displayName = displayName;
+}
+
+void RunControl::setIcon(const Utils::Icon &icon)
+{
+    d->icon = icon;
+}
+
+Utils::Icon RunControl::icon() const
+{
+    return d->icon;
 }
 
 Abi RunControl::abi() const
 {
-    if (const RunConfiguration *rc = m_runConfiguration.data())
+    if (const RunConfiguration *rc = d->runConfiguration.data())
         return rc->abi();
     return Abi();
 }
 
+IDevice::ConstPtr RunControl::device() const
+{
+   return d->device;
+}
+
 RunConfiguration *RunControl::runConfiguration() const
 {
-    return m_runConfiguration.data();
+    return d->runConfiguration.data();
+}
+
+Project *RunControl::project() const
+{
+    return d->project.data();
+}
+
+bool RunControl::canReUseOutputPane(const RunControl *other) const
+{
+    if (other->isRunning())
+        return false;
+
+    return d->runnable == other->d->runnable;
 }
 
 ProcessHandle RunControl::applicationProcessHandle() const
 {
-    return m_applicationProcessHandle;
+    return d->applicationProcessHandle;
 }
 
 void RunControl::setApplicationProcessHandle(const ProcessHandle &handle)
 {
-    if (m_applicationProcessHandle != handle) {
-        m_applicationProcessHandle = handle;
+    if (d->applicationProcessHandle != handle) {
+        d->applicationProcessHandle = handle;
         emit applicationProcessHandleChanged();
     }
 }
@@ -627,16 +739,11 @@ bool RunControl::showPromptToStopDialog(const QString &title,
     return close;
 }
 
-bool RunControl::sameRunConfiguration(const RunControl *other) const
-{
-    return other->m_runConfiguration.data() == m_runConfiguration.data();
-}
-
 void RunControl::bringApplicationToForeground(qint64 pid)
 {
-#ifdef Q_OS_MAC
-    m_internalPid = pid;
-    m_foregroundCount = 0;
+#ifdef Q_OS_OSX
+    d->internalPid = pid;
+    d->foregroundCount = 0;
     bringApplicationToForegroundInternal();
 #else
     Q_UNUSED(pid)
@@ -645,15 +752,15 @@ void RunControl::bringApplicationToForeground(qint64 pid)
 
 void RunControl::bringApplicationToForegroundInternal()
 {
-#ifdef Q_OS_MAC
+#ifdef Q_OS_OSX
     ProcessSerialNumber psn;
-    GetProcessForPID(m_internalPid, &psn);
-    if (SetFrontProcess(&psn) == procNotFound && m_foregroundCount < 15) {
+    GetProcessForPID(d->internalPid, &psn);
+    if (SetFrontProcess(&psn) == procNotFound && d->foregroundCount < 15) {
         // somehow the mac/carbon api says
         // "-600 no eligible process with specified process id"
         // if we call SetFrontProcess too early
-        ++m_foregroundCount;
-        QTimer::singleShot(200, this, SLOT(bringApplicationToForegroundInternal()));
+        ++d->foregroundCount;
+        QTimer::singleShot(200, this, &RunControl::bringApplicationToForegroundInternal);
         return;
     }
 #endif
@@ -662,6 +769,11 @@ void RunControl::bringApplicationToForegroundInternal()
 void RunControl::appendMessage(const QString &msg, Utils::OutputFormat format)
 {
     emit appendMessage(this, msg, format);
+}
+
+bool Runnable::operator==(const Runnable &other) const
+{
+    return d ? d->equals(other.d) : (other.d.get() == 0);
 }
 
 } // namespace ProjectExplorer

@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -51,7 +46,8 @@
 #include "terminal.h"
 #include "threadshandler.h"
 #include "watchhandler.h"
-#include <debugger/shared/peutils.h>
+#include "debugger/shared/peutils.h"
+#include "console/console.h"
 
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/editormanager/ieditor.h>
@@ -71,22 +67,20 @@
 #include <utils/qtcassert.h>
 #include <utils/savedaction.h>
 
-#include <qmljs/consolemanagerinterface.h>
-
 #include <QDebug>
 #include <QTimer>
 #include <QFileInfo>
 #include <QDir>
 
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonValue>
+
 using namespace Core;
 using namespace Debugger::Internal;
 using namespace ProjectExplorer;
 using namespace TextEditor;
-
-enum { debug = 0 };
-
-#define SDEBUG(s) if (!debug) {} else qDebug() << s;
-#define XSDEBUG(s) qDebug() << s
 
 //#define WITH_BENCHMARK
 #ifdef WITH_BENCHMARK
@@ -107,11 +101,12 @@ QDebug operator<<(QDebug d, DebuggerState state)
 QDebug operator<<(QDebug str, const DebuggerRunParameters &sp)
 {
     QDebug nospace = str.nospace();
-    nospace << "executable=" << sp.executable
+    nospace << "executable=" << sp.inferior.executable
             << " coreFile=" << sp.coreFile
-            << " processArgs=" << sp.processArgs
-            << " environment=<" << sp.environment.size() << " variables>"
-            << " workingDir=" << sp.workingDirectory
+            << " processArgs=" << sp.inferior.commandLineArguments
+            << " inferior environment=<" << sp.inferior.environment.size() << " variables>"
+            << " debugger environment=<" << sp.debuggerEnvironment.size() << " variables>"
+            << " workingDir=" << sp.inferior.workingDirectory
             << " attachPID=" << sp.attachPID
             << " useTerminal=" << sp.useTerminal
             << " remoteChannel=" << sp.remoteChannel
@@ -131,7 +126,7 @@ Location::Location(const StackFrame &frame, bool marker)
     m_functionName = frame.function;
     m_hasDebugInfo = frame.isUsable();
     m_address = frame.address;
-    m_from = frame.from;
+    m_from = frame.module;
 }
 
 
@@ -173,12 +168,6 @@ enum RemoteSetupState { RemoteSetupNone, RemoteSetupRequested,
                         RemoteSetupSucceeded, RemoteSetupFailed,
                         RemoteSetupCancelled };
 
-struct TypeInfo
-{
-    TypeInfo(uint s = 0) : size(s) {}
-    uint size;
-};
-
 class DebuggerEnginePrivate : public QObject
 {
     Q_OBJECT
@@ -195,9 +184,9 @@ public:
         m_remoteSetupState(RemoteSetupNone),
         m_inferiorPid(0),
         m_modulesHandler(engine),
-        m_registerHandler(),
+        m_registerHandler(engine),
         m_sourceFilesHandler(),
-        m_stackHandler(),
+        m_stackHandler(engine),
         m_threadsHandler(),
         m_watchHandler(engine),
         m_disassemblerAgent(engine),
@@ -208,12 +197,10 @@ public:
                 this, &DebuggerEnginePrivate::resetLocation);
         connect(action(IntelFlavor), &Utils::SavedAction::valueChanged,
                 this, &DebuggerEnginePrivate::reloadDisassembly);
-        connect(action(OperateNativeMixed), &QAction::triggered,
-                engine, &DebuggerEngine::reloadFullStack);
 
         Utils::globalMacroExpander()->registerFileVariables(PrefixDebugExecutable,
             tr("Debugged executable"),
-            [this]() { return m_runParameters.executable; });
+            [this]() { return m_runParameters.inferior.executable; });
     }
 
 public slots:
@@ -295,6 +282,7 @@ public slots:
 
     void resetLocation()
     {
+        m_lookupRequests.clear();
         m_locationTimer.stop();
         m_locationMark.reset();
         m_stackHandler.resetLocation();
@@ -349,8 +337,10 @@ public:
     bool m_isStateDebugging;
 
     Utils::FileInProjectFinder m_fileFinder;
-    QHash<QByteArray, TypeInfo> m_typeInfoCache;
     QByteArray m_qtNamespace;
+
+    // Safety net to avoid infinite lookups.
+    QSet<QByteArray> m_lookupRequests; // FIXME: Integrate properly.
 };
 
 
@@ -520,6 +510,16 @@ void DebuggerEngine::setRegisterValue(const QByteArray &name, const QString &val
     Q_UNUSED(value);
 }
 
+static Utils::OutputFormat outputFormatForChannelType(int channel)
+{
+    switch (channel) {
+    case AppOutput: return Utils::StdOutFormatSameLine;
+    case AppError: return Utils::StdErrFormatSameLine;
+    case AppStuff: return Utils::DebugFormat;
+    default: return Utils::NumberOfFormats;
+    }
+}
+
 void DebuggerEngine::showMessage(const QString &msg, int channel, int timeout) const
 {
     if (d->m_masterEngine) {
@@ -528,25 +528,21 @@ void DebuggerEngine::showMessage(const QString &msg, int channel, int timeout) c
     }
     //if (msg.size() && msg.at(0).isUpper() && msg.at(1).isUpper())
     //    qDebug() << qPrintable(msg) << "IN STATE" << state();
-    QmlJS::ConsoleManagerInterface *consoleManager = QmlJS::ConsoleManagerInterface::instance();
-    if (channel == ConsoleOutput && consoleManager)
-        consoleManager->printToConsolePane(QmlJS::ConsoleItem::UndefinedType, msg);
+    if (channel == ConsoleOutput)
+        debuggerConsole()->printItem(ConsoleItem::DefaultType, msg);
 
     Internal::showMessage(msg, channel, timeout);
-    if (d->m_runControl) {
-        switch (channel) {
-            case AppOutput:
-                d->m_runControl->appendMessage(msg, Utils::StdOutFormatSameLine);
-                break;
-            case AppError:
-                d->m_runControl->appendMessage(msg, Utils::StdErrFormatSameLine);
-                break;
-            case AppStuff:
-                d->m_runControl->appendMessage(msg, Utils::DebugFormat);
-                break;
-        }
-    } else {
-        qWarning("Warning: %s (no active run control)", qPrintable(msg));
+    switch (channel) {
+    case AppOutput:
+    case AppError:
+    case AppStuff:
+        if (d->m_runControl)
+            d->m_runControl->appendMessage(msg, outputFormatForChannelType(channel));
+        else
+            qWarning("Warning: %s (no active run control)", qPrintable(msg));
+        break;
+    default:
+        break;
     }
 }
 
@@ -569,11 +565,8 @@ void DebuggerEngine::startDebugger(DebuggerRunControl *runControl)
     if (d->m_inferiorPid)
         d->m_runControl->setApplicationProcessHandle(ProcessHandle(d->m_inferiorPid));
 
-    if (!d->m_runParameters.environment.size())
-        d->m_runParameters.environment = Utils::Environment();
-
     if (isNativeMixedActive())
-        d->m_runParameters.environment.set(QLatin1String("QV4_FORCE_INTERPRETER"), QLatin1String("1"));
+        d->m_runParameters.inferior.environment.set(QLatin1String("QV4_FORCE_INTERPRETER"), QLatin1String("1"));
 
     action(OperateByInstruction)->setEnabled(hasCapability(DisassemblerCapability));
 
@@ -926,7 +919,7 @@ void DebuggerEngine::notifyEngineRemoteSetupFinished(const RemoteSetupResult &re
 
         if (result.qmlServerPort != InvalidPort) {
             d->m_runParameters.qmlServerPort = result.qmlServerPort;
-            d->m_runParameters.processArgs.replace(_("%qml_port%"), QString::number(result.qmlServerPort));
+            d->m_runParameters.inferior.commandLineArguments.replace(_("%qml_port%"), QString::number(result.qmlServerPort));
         }
 
     } else {
@@ -1228,7 +1221,11 @@ void DebuggerEngine::notifyDebuggerProcessFinished(int exitCode,
         notifyEngineSpontaneousShutdown();
         break;
     default: {
-        notifyEngineIll(); // Initiate shutdown sequence
+        // Initiate shutdown sequence
+        if (isMasterEngine())
+            notifyEngineIll();
+        else
+            masterEngine()->notifyInferiorIll();
         const QString msg = exitStatus == QProcess::CrashExit ?
                 tr("The %1 process terminated.") :
                 tr("The %2 process terminated unexpectedly (exit code %1).").arg(exitCode);
@@ -1283,6 +1280,7 @@ void DebuggerEngine::setState(DebuggerState state, bool forced)
             bp.notifyBreakpointReleased();
         DebuggerToolTipManager::deregisterEngine(this);
         d->m_memoryAgent.handleDebuggerFinished();
+        prepareForRestart();
     }
 
     showMessage(msg, LogDebug);
@@ -1339,9 +1337,14 @@ QString DebuggerEngine::toFileInProject(const QUrl &fileUrl)
     return d->m_fileFinder.findFile(fileUrl);
 }
 
-void DebuggerEngine::updateBreakpointMarkers()
+void DebuggerEngine::removeBreakpointMarker(const Breakpoint &bp)
 {
-    d->m_disassemblerAgent.updateBreakpointMarkers();
+    d->m_disassemblerAgent.removeBreakpointMarker(bp);
+}
+
+void DebuggerEngine::updateBreakpointMarker(const Breakpoint &bp)
+{
+    d->m_disassemblerAgent.updateBreakpointMarker(bp);
 }
 
 bool DebuggerEngine::debuggerActionsEnabled() const
@@ -1477,6 +1480,12 @@ void DebuggerEngine::selectWatchData(const QByteArray &)
 
 void DebuggerEngine::watchPoint(const QPoint &)
 {
+}
+
+void DebuggerEngine::runCommand(const DebuggerCommand &)
+{
+    // Overridden in the engines that use the interface.
+    QTC_CHECK(false);
 }
 
 void DebuggerEngine::fetchDisassembler(DisassemblerAgent *)
@@ -1638,7 +1647,6 @@ void DebuggerEngine::attemptBreakpointSynchronization()
 
     if (done) {
         showMessage(_("BREAKPOINTS ARE SYNCHRONIZED"));
-        d->m_disassemblerAgent.updateBreakpointMarkers();
     } else {
         showMessage(_("BREAKPOINTS ARE NOT FULLY SYNCHRONIZED"));
     }
@@ -1825,35 +1833,56 @@ void DebuggerEngine::validateExecutable(DebuggerRunParameters *sp)
         return;
     if (sp->languages == QmlLanguage)
         return;
-    QString binary = sp->executable;
-    if (binary.isEmpty())
+
+    QString symbolFile = sp->symbolFile;
+    if (symbolFile.isEmpty())
+        symbolFile = sp->inferior.executable;
+    if (symbolFile.isEmpty())
         return;
 
     const bool warnOnRelease = boolSetting(WarnOnReleaseBuilds);
+    bool warnOnInappropriateDebugger = false;
     QString detailedWarning;
     switch (sp->toolChainAbi.binaryFormat()) {
     case Abi::PEFormat: {
-        if (!warnOnRelease || (sp->masterEngineType != CdbEngineType))
+        if (sp->masterEngineType != CdbEngineType) {
+            warnOnInappropriateDebugger = true;
+            detailedWarning = tr(
+                        "The inferior is in the Portable Executable format.\n"
+                        "Selecting CDB as debugger would improve the debugging "
+                        "experience for this binary format.");
             return;
-        if (!binary.endsWith(QLatin1String(".exe"), Qt::CaseInsensitive))
-            binary.append(QLatin1String(".exe"));
-        QString errorMessage;
-        QStringList rc;
-        if (getPDBFiles(binary, &rc, &errorMessage) && !rc.isEmpty())
+        } else if (warnOnRelease) {
+            if (!symbolFile.endsWith(QLatin1String(".exe"), Qt::CaseInsensitive))
+                symbolFile.append(QLatin1String(".exe"));
+            QString errorMessage;
+            QStringList rc;
+            if (getPDBFiles(symbolFile, &rc, &errorMessage) && !rc.isEmpty())
+                return;
+            if (!errorMessage.isEmpty()) {
+                detailedWarning.append(QLatin1Char('\n'));
+                detailedWarning.append(errorMessage);
+            }
+        } else {
             return;
-        if (!errorMessage.isEmpty()) {
-            detailedWarning.append(QLatin1Char('\n'));
-            detailedWarning.append(errorMessage);
         }
         break;
     }
     case Abi::ElfFormat: {
+        if (sp->masterEngineType == CdbEngineType) {
+            warnOnInappropriateDebugger = true;
+            detailedWarning = tr(
+                        "The inferior is in the ELF format.\n"
+                        "Selecting GDB or LLDB as debugger would improve the debugging "
+                        "experience for this binary format.");
+            return;
+        }
 
-        Utils::ElfReader reader(binary);
+        Utils::ElfReader reader(symbolFile);
         Utils::ElfData elfData = reader.readHeaders();
         QString error = reader.errorString();
 
-        Internal::showMessage(_("EXAMINING ") + binary, LogDebug);
+        Internal::showMessage(_("EXAMINING ") + symbolFile, LogDebug);
         QByteArray msg = "ELF SECTIONS: ";
 
         static QList<QByteArray> interesting;
@@ -1945,11 +1974,17 @@ void DebuggerEngine::validateExecutable(DebuggerRunParameters *sp)
     default:
         return;
     }
-    if (warnOnRelease) {
+    if (warnOnInappropriateDebugger) {
         AsynchronousMessageBox::information(tr("Warning"),
-                       tr("This does not seem to be a \"Debug\" build.\n"
-                          "Setting breakpoints by file name and line number may fail.")
-                       + QLatin1Char('\n') + detailedWarning);
+                tr("The selected debugger may be inappropiate for the inferior.\n"
+                   "Examining symbols and setting breakpoints by file name and line number "
+                   "may fail.\n")
+               + QLatin1Char('\n') + detailedWarning);
+    } else if (warnOnRelease) {
+        AsynchronousMessageBox::information(tr("Warning"),
+               tr("This does not seem to be a \"Debug\" build.\n"
+                  "Setting breakpoints by file name and line number may fail.")
+               + QLatin1Char('\n') + detailedWarning);
     }
 }
 
@@ -1957,30 +1992,13 @@ void DebuggerEngine::updateLocalsView(const GdbMi &all)
 {
     WatchHandler *handler = watchHandler();
 
-    const bool partial = all["partial"].toInt();
-
     const GdbMi typeInfo = all["typeinfo"];
-    if (typeInfo.type() == GdbMi::List) {
-        foreach (const GdbMi &s, typeInfo.children()) {
-            const GdbMi name = s["name"];
-            const GdbMi size = s["size"];
-            if (name.isValid() && size.isValid())
-                d->m_typeInfoCache.insert(QByteArray::fromHex(name.data()),
-                                       TypeInfo(size.data().toUInt()));
-        }
-    }
+    handler->recordTypeInfo(typeInfo);
 
-    GdbMi data = all["data"];
-    foreach (const GdbMi &child, data.children()) {
-        WatchItem *item = new WatchItem(child);
-        const TypeInfo ti = d->m_typeInfoCache.value(item->type);
-        if (ti.size)
-            item->size = ti.size;
+    const GdbMi data = all["data"];
+    handler->insertItems(data);
 
-        handler->insertItem(item);
-    }
-
-    GdbMi ns = all["qtnamespace"];
+    const GdbMi ns = all["qtnamespace"];
     if (ns.isValid()) {
         setQtNamespace(ns.data());
         showMessage(_("FOUND NAMESPACED QT: " + ns.data()));
@@ -1993,6 +2011,7 @@ void DebuggerEngine::updateLocalsView(const GdbMi &all)
 
     DebuggerToolTipManager::updateEngine(this);
 
+    const bool partial = all["partial"].toInt();
     if (!partial)
         emit stackFrameCompleted();
 }
@@ -2004,6 +2023,35 @@ bool DebuggerEngine::canHandleToolTip(const DebuggerToolTipContext &context) con
 
 void DebuggerEngine::updateItem(const QByteArray &iname)
 {
+    if (d->m_lookupRequests.contains(iname)) {
+        showMessage(QString::fromLatin1("IGNORING REPEATED REQUEST TO EXPAND " + iname));
+        WatchHandler *handler = watchHandler();
+        WatchItem *item = handler->findItem(iname);
+        QTC_CHECK(item);
+        WatchModelBase *model = handler->model();
+        QTC_CHECK(model);
+        if (item && !model->hasChildren(model->indexForItem(item))) {
+            handler->notifyUpdateStarted({iname});
+            item->setValue(decodeData({}, "notaccessible"));
+            item->setHasChildren(false);
+            item->outdated = false;
+            item->update();
+            handler->notifyUpdateFinished();
+            return;
+        }
+        // We could legitimately end up here after expanding + closing + re-expaning an item.
+    }
+    d->m_lookupRequests.insert(iname);
+
+    UpdateParameters params;
+    params.partialVariable = iname;
+    doUpdateLocals(params);
+}
+
+void DebuggerEngine::updateWatchData(const QByteArray &iname)
+{
+    // This is used in cases where re-evaluation is ok for the same iname
+    // e.g. when changing the expression in a watcher.
     UpdateParameters params;
     params.partialVariable = iname;
     doUpdateLocals(params);
@@ -2012,6 +2060,39 @@ void DebuggerEngine::updateItem(const QByteArray &iname)
 void DebuggerEngine::expandItem(const QByteArray &iname)
 {
     updateItem(iname);
+}
+
+void DebuggerEngine::checkState(DebuggerState state, const char *file, int line)
+{
+    const DebuggerState current = d->m_state;
+    if (current == state)
+        return;
+
+    QString msg = QString::fromLatin1("UNEXPECTED STATE: %1  WANTED: %2 IN %3:%4")
+                .arg(current).arg(state).arg(QLatin1String(file)).arg(line);
+
+    showMessage(msg, LogError);
+    qDebug("%s", qPrintable(msg));
+}
+
+bool DebuggerEngine::isNativeMixedEnabled() const
+{
+    return runParameters().nativeMixedEnabled && (runParameters().languages & QmlLanguage);
+}
+
+bool DebuggerEngine::isNativeMixedActive() const
+{
+    return isNativeMixedEnabled(); //&& boolSetting(OperateNativeMixed);
+}
+
+bool DebuggerEngine::isNativeMixedActiveFrame() const
+{
+    if (!isNativeMixedActive())
+        return false;
+    if (stackHandler()->frames().isEmpty())
+        return false;
+    StackFrame frame = stackHandler()->frameAt(0);
+    return frame.language == QmlLanguage;
 }
 
 } // namespace Internal

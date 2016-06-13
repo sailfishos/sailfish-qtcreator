@@ -1,6 +1,8 @@
+TEMPLATE = aux
+
 include(../../../qtcreator.pri)
 
-LANGUAGES = cs de fr ja pl ru sl zh_CN zh_TW
+LANGUAGES = cs de fr ja pl ru sl uk zh_CN zh_TW
 # *don't* re-enable these without a prior rework
 BAD_LANGUAGES = hu
 
@@ -70,16 +72,18 @@ shared_sources -= \
 sources = src/app src/libs $$plugin_sources $$shared_sources share/qtcreator/qmldesigner \
           share/qtcreator/welcomescreen share/qtcreator/welcomescreen/widgets
 
+for(path, INCLUDEPATH): include_options *= -I$$shell_quote($$path)
+
 files = $$files($$PWD/*_??.ts) $$PWD/qtcreator_untranslated.ts
 for(file, files) {
     lang = $$replace(file, .*_([^/]*)\\.ts, \\1)
     v = ts-$${lang}.commands
-    $$v = cd $$wd && $$LUPDATE $$sources $$MIME_TR_H $$CUSTOMWIZARD_TR_H $$JSONWIZARD_TR_H $$QMLWIZARD_TR_H $$QTQUICKWIZARD_TR_H $$EXTERNALTOOLS_TR_H -ts $$file
+    $$v = cd $$wd && $$LUPDATE $$include_options $$sources $$MIME_TR_H $$CUSTOMWIZARD_TR_H $$JSONWIZARD_TR_H $$QMLWIZARD_TR_H $$QTQUICKWIZARD_TR_H $$EXTERNALTOOLS_TR_H -ts $$file
     v = ts-$${lang}.depends
     $$v = extract
     QMAKE_EXTRA_TARGETS += ts-$$lang
 }
-ts-all.commands = cd $$wd && $$LUPDATE $$sources $$MIME_TR_H $$CUSTOMWIZARD_TR_H $$QMLWIZARD_TR_H $$QTQUICKWIZARD_TR_H $$EXTERNALTOOLS_TR_H -ts $$files
+ts-all.commands = cd $$wd && $$LUPDATE $$include_options $$sources $$MIME_TR_H $$CUSTOMWIZARD_TR_H $$JSONWIZARD_TR_H $$QMLWIZARD_TR_H $$QTQUICKWIZARD_TR_H $$EXTERNALTOOLS_TR_H -ts $$files
 ts-all.depends = extract
 QMAKE_EXTRA_TARGETS += ts-all
 
@@ -111,12 +115,6 @@ ts.commands = \
     echo \"rename the file and re-run \'qmake\'.\"
 QMAKE_EXTRA_TARGETS += ts
 
-TEMPLATE = app
-TARGET = phony_target2
-CONFIG -= qt sdk separate_debug_info gdb_dwarf_index
-QT =
-LIBS =
-
 updateqm.input = TRANSLATIONS
 updateqm.output = $$IDE_DATA_PATH/translations/${QMAKE_FILE_BASE}.qm
 isEmpty(vcproj):updateqm.variable_out = PRE_TARGETDEPS
@@ -125,23 +123,7 @@ updateqm.name = LRELEASE ${QMAKE_FILE_IN}
 updateqm.CONFIG += no_link
 QMAKE_EXTRA_COMPILERS += updateqm
 
-isEmpty(vcproj) {
-    QMAKE_LINK = @: IGNORE THIS LINE
-    OBJECTS_DIR =
-    win32:CONFIG -= embed_manifest_exe
-} else {
-    CONFIG += console
-    PHONY_DEPS = .
-    phony_src.input = PHONY_DEPS
-    phony_src.output = phony.c
-    phony_src.variable_out = GENERATED_SOURCES
-    phony_src.commands = echo int main() { return 0; } > phony.c
-    phony_src.name = CREATE phony.c
-    phony_src.CONFIG += combine
-    QMAKE_EXTRA_COMPILERS += phony_src
-}
-
 qmfiles.files = $$prependAll(LANGUAGES, $$OUT_PWD/qtcreator_,.qm)
-qmfiles.path = $$QTC_PREFIX/share/qtcreator/translations
+qmfiles.path = $$INSTALL_DATA_PATH/translations
 qmfiles.CONFIG += no_check_exist
 INSTALLS += qmfiles

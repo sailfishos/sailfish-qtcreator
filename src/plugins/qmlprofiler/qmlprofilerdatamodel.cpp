@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,29 +9,25 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
 #include "qmlprofilerdatamodel.h"
-#include "qmlprofilerbasemodel_p.h"
 #include "qmlprofilermodelmanager.h"
 #include "qmlprofilernotesmodel.h"
+#include "qmlprofilerdetailsrewriter.h"
+
 #include <qmldebug/qmlprofilereventtypes.h>
 #include <utils/qtcassert.h>
 #include <QUrl>
@@ -40,17 +36,17 @@
 
 namespace QmlProfiler {
 
-class QmlProfilerDataModel::QmlProfilerDataModelPrivate :
-        public QmlProfilerBaseModel::QmlProfilerBaseModelPrivate
+class QmlProfilerDataModel::QmlProfilerDataModelPrivate
 {
 public:
-    QmlProfilerDataModelPrivate(QmlProfilerDataModel *qq) : QmlProfilerBaseModelPrivate(qq) {}
     QVector<QmlEventTypeData> eventTypes;
     QVector<QmlEventData> eventList;
     QVector<QmlEventNoteData> eventNotes;
     QHash<QmlEventTypeData, int> eventTypeIds;
-private:
-    Q_DECLARE_PUBLIC(QmlProfilerDataModel)
+
+    QmlProfilerModelManager *modelManager;
+    int modelId;
+    Internal::QmlProfilerDetailsRewriter *detailsRewriter;
 };
 
 QString getDisplayName(const QmlProfilerDataModel::QmlEventTypeData &event)
@@ -91,16 +87,41 @@ QString getInitialDetails(const QmlProfilerDataModel::QmlEventTypeData &event)
     return details;
 }
 
+QString QmlProfilerDataModel::formatTime(qint64 timestamp)
+{
+    if (timestamp < 1e6)
+        return QString::number(timestamp/1e3f,'f',3) + trUtf8(" \xc2\xb5s");
+    if (timestamp < 1e9)
+        return QString::number(timestamp/1e6f,'f',3) + tr(" ms");
 
-//////////////////////////////////////////////////////////////////////////////
+    return QString::number(timestamp/1e9f,'f',3) + tr(" s");
+}
 
 QmlProfilerDataModel::QmlProfilerDataModel(Utils::FileInProjectFinder *fileFinder,
-                                                     QmlProfilerModelManager *parent)
-    : QmlProfilerBaseModel(fileFinder, parent, new QmlProfilerDataModelPrivate(this))
+                                           QmlProfilerModelManager *parent) :
+    QObject(parent), d_ptr(new QmlProfilerDataModelPrivate)
 {
     Q_D(QmlProfilerDataModel);
+    Q_ASSERT(parent);
+    d->modelManager = parent;
+    d->detailsRewriter = new QmlProfilerDetailsRewriter(this, fileFinder);
+    d->modelId = d->modelManager->registerModelProxy();
+    connect(d->detailsRewriter, &QmlProfilerDetailsRewriter::rewriteDetailsString,
+            this, &QmlProfilerDataModel::detailsChanged);
+    connect(d->detailsRewriter, &QmlProfilerDetailsRewriter::eventDetailsChanged,
+            this, &QmlProfilerDataModel::detailsDone);
+    connect(this, &QmlProfilerDataModel::requestReload,
+            d->detailsRewriter, &QmlProfilerDetailsRewriter::reloadDocuments);
+
     // The document loading is very expensive.
     d->modelManager->setProxyCountWeight(d->modelId, 4);
+}
+
+QmlProfilerDataModel::~QmlProfilerDataModel()
+{
+    Q_D(QmlProfilerDataModel);
+    delete d->detailsRewriter;
+    delete d;
 }
 
 const QVector<QmlProfilerDataModel::QmlEventData> &QmlProfilerDataModel::getEvents() const
@@ -131,7 +152,7 @@ void QmlProfilerDataModel::setData(qint64 traceStart, qint64 traceEnd,
     d->eventTypes = types;
     for (int id = 0; id < types.count(); ++id)
         d->eventTypeIds[types[id]] = id;
-    // Half the work is done. complete() will do the rest.
+    // Half the work is done. processData() will do the rest.
     d->modelManager->modelProxyCountUpdated(d->modelId, 1, 2);
 }
 
@@ -154,8 +175,9 @@ void QmlProfilerDataModel::clear()
     d->eventTypes.clear();
     d->eventTypeIds.clear();
     d->eventNotes.clear();
-    // This call emits changed(). Don't emit it again here.
-    QmlProfilerBaseModel::clear();
+    d->detailsRewriter->clearRequests();
+    d->modelManager->modelProxyCountUpdated(d->modelId, 0, 1);
+    emit changed();
 }
 
 bool QmlProfilerDataModel::isEmpty() const
@@ -167,7 +189,7 @@ bool QmlProfilerDataModel::isEmpty() const
 inline static bool operator<(const QmlProfilerDataModel::QmlEventData &t1,
                              const QmlProfilerDataModel::QmlEventData &t2)
 {
-    return t1.startTime < t2.startTime;
+    return t1.startTime() < t2.startTime();
 }
 
 inline static uint qHash(const QmlProfilerDataModel::QmlEventTypeData &type)
@@ -190,7 +212,7 @@ inline static bool operator==(const QmlProfilerDataModel::QmlEventTypeData &type
             type1.location.filename == type2.location.filename;
 }
 
-void QmlProfilerDataModel::complete()
+void QmlProfilerDataModel::processData()
 {
     Q_D(QmlProfilerDataModel);
     // post-processing
@@ -226,7 +248,7 @@ void QmlProfilerDataModel::complete()
 
     // Allow changed() event only after documents have been reloaded to avoid
     // unnecessary updates of child models.
-    QmlProfilerBaseModel::complete();
+    emit requestReload();
 }
 
 void QmlProfilerDataModel::addQmlEvent(QmlDebug::Message message, QmlDebug::RangeType rangeType,
@@ -239,23 +261,18 @@ void QmlProfilerDataModel::addQmlEvent(QmlDebug::Message message, QmlDebug::Rang
     Q_D(QmlProfilerDataModel);
     QString displayName;
 
-    QmlEventTypeData typeData = {displayName, location, message, rangeType, detailType, data};
-
-    // Special case for QtQuick 1 Compiling and Creating events: filename is in the "data" field.
-    if ((rangeType == QmlDebug::Compiling || rangeType == QmlDebug::Creating) &&
-            location.filename.isEmpty()) {
-        typeData.location.filename = data;
-        typeData.location.line = typeData.location.column = 1;
-    }
-
-    QmlEventData eventData = {-1, startTime, duration, ndata1, ndata2, ndata3, ndata4, ndata5};
+    QmlEventTypeData typeData(displayName, location, message, rangeType, detailType,
+                              message == QmlDebug::DebugMessage ? QString() : data);
+    QmlEventData eventData = (message == QmlDebug::DebugMessage) ?
+                QmlEventData(startTime, duration, -1, data) :
+                QmlEventData(startTime, duration, -1, ndata1, ndata2, ndata3, ndata4, ndata5);
 
     QHash<QmlEventTypeData, int>::Iterator it = d->eventTypeIds.find(typeData);
     if (it != d->eventTypeIds.end()) {
-        eventData.typeIndex = it.value();
+        eventData.setTypeIndex(it.value());
     } else {
-        eventData.typeIndex = d->eventTypes.size();
-        d->eventTypeIds[typeData] = eventData.typeIndex;
+        eventData.setTypeIndex(d->eventTypes.size());
+        d->eventTypeIds[typeData] = eventData.typeIndex();
         d->eventTypes.append(typeData);
     }
 
@@ -271,7 +288,7 @@ qint64 QmlProfilerDataModel::lastTimeMark() const
     if (d->eventList.isEmpty())
         return 0;
 
-    return d->eventList.last().startTime + d->eventList.last().duration;
+    return d->eventList.last().startTime() + d->eventList.last().duration();
 }
 
 void QmlProfilerDataModel::detailsChanged(int requestId, const QString &newString)
@@ -281,6 +298,14 @@ void QmlProfilerDataModel::detailsChanged(int requestId, const QString &newStrin
 
     QmlEventTypeData *event = &d->eventTypes[requestId];
     event->data = newString;
+}
+
+void QmlProfilerDataModel::detailsDone()
+{
+    Q_D(QmlProfilerDataModel);
+    emit changed();
+    d->modelManager->modelProxyCountUpdated(d->modelId, isEmpty() ? 0 : 1, 1);
+    d->modelManager->processingDone();
 }
 
 }

@@ -1,32 +1,27 @@
-#############################################################################
-##
-## Copyright (C) 2015 The Qt Company Ltd.
-## Contact: http://www.qt.io/licensing
-##
-## This file is part of Qt Creator.
-##
-## Commercial License Usage
-## Licensees holding valid commercial Qt licenses may use this file in
-## accordance with the commercial license agreement provided with the
-## Software or, alternatively, in accordance with the terms contained in
-## a written agreement between you and The Qt Company.  For licensing terms and
-## conditions see http://www.qt.io/terms-conditions.  For further information
-## use the contact form at http://www.qt.io/contact-us.
-##
-## GNU Lesser General Public License Usage
-## Alternatively, this file may be used under the terms of the GNU Lesser
-## General Public License version 2.1 or version 3 as published by the Free
-## Software Foundation and appearing in the file LICENSE.LGPLv21 and
-## LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-## following information to ensure the GNU Lesser General Public License
-## requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-## http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-##
-## In addition, as a special exception, The Qt Company gives you certain additional
-## rights.  These rights are described in The Qt Company LGPL Exception
-## version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
-##
-#############################################################################
+############################################################################
+#
+# Copyright (C) 2016 The Qt Company Ltd.
+# Contact: https://www.qt.io/licensing/
+#
+# This file is part of Qt Creator.
+#
+# Commercial License Usage
+# Licensees holding valid commercial Qt licenses may use this file in
+# accordance with the commercial license agreement provided with the
+# Software or, alternatively, in accordance with the terms contained in
+# a written agreement between you and The Qt Company. For licensing terms
+# and conditions see https://www.qt.io/terms-conditions. For further
+# information use the contact form at https://www.qt.io/contact-us.
+#
+# GNU General Public License Usage
+# Alternatively, this file may be used under the terms of the GNU
+# General Public License version 3 as published by the Free Software
+# Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+# included in the packaging of this file. Please review the following
+# information to ensure the GNU General Public License requirements will
+# be met: https://www.gnu.org/licenses/gpl-3.0.html.
+#
+############################################################################
 
 import re;
 
@@ -266,6 +261,7 @@ def getEditorForFileSuffix(curFile, treeViewSyntax=False):
     proEditorSuffixes = ["pro", "pri", "prf"]
     glslEditorSuffixes= ["frag", "vert", "fsh", "vsh", "glsl", "shader", "gsh"]
     pytEditorSuffixes = ["py", "pyw", "wsgi"]
+    binEditorSuffixes = ["bin"]
     suffix = __getFileSuffix__(curFile)
     expected = os.path.basename(curFile)
     if treeViewSyntax:
@@ -281,6 +277,8 @@ def getEditorForFileSuffix(curFile, treeViewSyntax=False):
             editor = waitForObject(":Qt Creator_QmlJSEditor::QmlJSTextEditorWidget")
         elif suffix in proEditorSuffixes or suffix in glslEditorSuffixes or suffix in pytEditorSuffixes:
             editor = waitForObject(":Qt Creator_TextEditor::TextEditorWidget")
+        elif suffix in binEditorSuffixes:
+            editor = waitForObject(":Qt Creator_BinEditor::BinEditorWidget")
         else:
             test.log("Trying TextEditorWidget (file suffix: %s)" % suffix)
             try:
@@ -345,18 +343,19 @@ def validateSearchResult(expectedCount):
 # this function invokes context menu and command from it
 def invokeContextMenuItem(editorArea, command1, command2 = None):
     ctxtMenu = openContextMenuOnTextCursorPosition(editorArea)
+    snooze(1)
     if platform.system() == 'Darwin':
-        activateItem(ctxtMenu, command1)
+        item1 = waitForObjectItem(ctxtMenu, command1)
+        subMenu = item1.menu()
+        activateItem(item1)
+        # subMenu could have been triggered by hovering, but closed again by clicking
+        if subMenu and not subMenu.visible:
+            activateItem(item1)
+        if command2:
+            activateItem(subMenu, command2)
     else:
         activateItem(waitForObjectItem(objectMap.realName(ctxtMenu), command1, 2000))
-    if command2:
-        # Hack for Squish 5.0.1 handling menus of Qt5.2 on Mac (avoids crash) - remove asap
-        if platform.system() == 'Darwin':
-            for obj in object.topLevelObjects():
-                if className(obj) == 'QMenu' and obj.visible and not obj == ctxtMenu:
-                    activateItem(obj, command2)
-                    break
-        else:
+        if command2:
             activateItem(waitForObjectItem("{title='%s' type='QMenu' visible='1' window=%s}"
                                            % (command1, objectMap.realName(ctxtMenu)), command2, 2000))
 

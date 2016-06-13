@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -33,10 +28,16 @@
 #include "navigatorwidget.h"
 #include "nameitemdelegate.h"
 #include "iconcheckboxitemdelegate.h"
+#include "qmldesignerconstants.h"
+#include "qmldesignericons.h"
 
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/icore.h>
+#include <coreplugin/coreicons.h>
 
+#include <utils/icon.h>
+
+#include <bindingproperty.h>
 #include <designmodecontext.h>
 #include <nodeproperty.h>
 #include <nodelistproperty.h>
@@ -84,10 +85,17 @@ NavigatorView::NavigatorView(QObject* parent) :
 
     NameItemDelegate *idDelegate = new NameItemDelegate(this,
                                                         m_treeModel.data());
-    IconCheckboxItemDelegate *showDelegate = new IconCheckboxItemDelegate(this,
-                                                                          ":/qmldesigner/images/eye_open.png",
-                                                                          ":/qmldesigner/images/placeholder.png",
-                                                                          m_treeModel.data());
+    IconCheckboxItemDelegate *showDelegate =
+            new IconCheckboxItemDelegate(this,
+                                         Core::Icons::EYE_OPEN_TOOLBAR.pixmap(),
+                                         Core::Icons::EYE_CLOSED_TOOLBAR.pixmap(),
+                                         m_treeModel.data());
+
+    IconCheckboxItemDelegate *exportDelegate =
+            new IconCheckboxItemDelegate(this,
+                                         Icons::EXPORT_CHECKED.pixmap(),
+                                         Icons::EXPORT_UNCHECKED.pixmap(),
+                                         m_treeModel.data());
 
 #ifdef _LOCK_ITEMS_
     IconCheckboxItemDelegate *lockDelegate = new IconCheckboxItemDelegate(this,":/qmldesigner/images/lock.png",
@@ -100,7 +108,8 @@ NavigatorView::NavigatorView(QObject* parent) :
     treeWidget()->setItemDelegateForColumn(1,lockDelegate);
     treeWidget()->setItemDelegateForColumn(2,showDelegate);
 #else
-    treeWidget()->setItemDelegateForColumn(1,showDelegate);
+    treeWidget()->setItemDelegateForColumn(1,exportDelegate);
+    treeWidget()->setItemDelegateForColumn(2,showDelegate);
 #endif
 
 }
@@ -155,29 +164,15 @@ void NavigatorView::importsChanged(const QList<Import> &/*addedImports*/, const 
     treeWidget()->update();
 }
 
-void NavigatorView::nodeCreated(const ModelNode & /*createdNode*/)
+void NavigatorView::bindingPropertiesChanged(const QList<BindingProperty> & propertyList, PropertyChangeFlags /*propertyChange*/)
 {
-}
-
-void NavigatorView::nodeRemoved(const ModelNode & /*removedNode*/, const NodeAbstractProperty & /*parentProperty*/, PropertyChangeFlags /*propertyChange*/)
-{
-}
-
-void NavigatorView::propertiesRemoved(const QList<AbstractProperty> & /*propertyList*/)
-{
-}
-
-void NavigatorView::variantPropertiesChanged(const QList<VariantProperty> & /*propertyList*/, PropertyChangeFlags /*propertyChange*/)
-{
-}
-
-void NavigatorView::bindingPropertiesChanged(const QList<BindingProperty> & /*propertyList*/, PropertyChangeFlags /*propertyChange*/)
-{
-}
-
-void NavigatorView::signalHandlerPropertiesChanged(const QVector<SignalHandlerProperty> & /*propertyList*/,
-                                                   AbstractView::PropertyChangeFlags /*propertyChange*/)
-{
+    foreach (const BindingProperty &bindingProperty, propertyList) {
+        /* If a binding property that exports an item using an alias property has
+         * changed, we have to update the affected item.
+         */
+        if (bindingProperty.isAliasExport())
+            m_treeModel->updateItemRow(modelNodeForId(bindingProperty.expression()));
+    }
 }
 
 void NavigatorView::nodeAboutToBeRemoved(const ModelNode &removedNode)
@@ -185,11 +180,7 @@ void NavigatorView::nodeAboutToBeRemoved(const ModelNode &removedNode)
     m_treeModel->removeSubTree(removedNode);
 }
 
-void NavigatorView::nodeAboutToBeReparented(const ModelNode &/*node*/, const NodeAbstractProperty &/*newPropertyParent*/, const NodeAbstractProperty &/*oldPropertyParent*/, AbstractView::PropertyChangeFlags /*propertyChange*/)
-{
-}
-
-void NavigatorView::nodeReparented(const ModelNode &node, const NodeAbstractProperty & /*newPropertyParent*/, const NodeAbstractProperty & /*oldPropertyParent*/, AbstractView::PropertyChangeFlags /*propertyChange*/)
+void NavigatorView::nodeReparented(const ModelNode &node, const NodeAbstractProperty & newPropertyParent, const NodeAbstractProperty & /*oldPropertyParent*/, AbstractView::PropertyChangeFlags /*propertyChange*/)
 {
     bool blocked = blockSelectionChangedSignal(true);
 
@@ -200,6 +191,11 @@ void NavigatorView::nodeReparented(const ModelNode &node, const NodeAbstractProp
 
     // make sure selection is in sync again
     updateItemSelection();
+
+    if (newPropertyParent.parentModelNode().isValid()) {
+        QModelIndex index = m_treeModel->indexForNode(newPropertyParent.parentModelNode());
+        treeWidget()->expand(index);
+    }
 
     blockSelectionChangedSignal(blocked);
 }
@@ -244,55 +240,10 @@ void NavigatorView::auxiliaryDataChanged(const ModelNode &modelNode, const Prope
     }
 }
 
-void NavigatorView::scriptFunctionsChanged(const ModelNode &/*node*/, const QStringList &/*scriptFunctionList*/)
+void NavigatorView::instanceErrorChange(const QVector<ModelNode> &errorNodeList)
 {
-}
-
-void NavigatorView::instancePropertyChange(const QList<QPair<ModelNode, PropertyName> > &/*propertyList*/)
-{
-}
-
-void NavigatorView::instancesCompleted(const QVector<ModelNode> &/*completedNodeList*/)
-{
-}
-
-void NavigatorView::instanceInformationsChange(const QMultiHash<ModelNode, InformationName> &/*informationChangeHash*/)
-{
-}
-
-void NavigatorView::instancesRenderImageChanged(const QVector<ModelNode> &/*nodeList*/)
-{
-}
-
-void NavigatorView::instancesPreviewImageChanged(const QVector<ModelNode> &/*nodeList*/)
-{
-}
-
-void NavigatorView::instancesChildrenChanged(const QVector<ModelNode> &/*nodeList*/)
-{
-
-}
-
-void NavigatorView::nodeSourceChanged(const ModelNode &, const QString & /*newNodeSource*/)
-{
-
-}
-
-void NavigatorView::rewriterBeginTransaction()
-{
-}
-
-void NavigatorView::rewriterEndTransaction()
-{
-}
-
-void NavigatorView::currentStateChanged(const ModelNode &/*node*/)
-{
-}
-
-void NavigatorView::instancesToken(const QString &/*tokenName*/, int /*tokenNumber*/, const QVector<ModelNode> &/*nodeVector*/)
-{
-
+    foreach (const ModelNode &currentModelNode, errorNodeList)
+        m_treeModel->updateItemRow(currentModelNode);
 }
 
 void NavigatorView::nodeOrderChanged(const NodeListProperty &listProperty, const ModelNode &node, int /*oldIndex*/)
@@ -303,6 +254,10 @@ void NavigatorView::nodeOrderChanged(const NodeListProperty &listProperty, const
         if (node.isInHierarchy())
             m_treeModel->addSubTree(listProperty.parentModelNode());
 
+        if (listProperty.parentModelNode().isValid()) {
+            QModelIndex index = m_treeModel->indexForNode(listProperty.parentModelNode());
+            treeWidget()->expand(index);
+        }
     }
 }
 

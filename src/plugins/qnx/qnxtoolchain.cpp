@@ -1,9 +1,7 @@
-/**************************************************************************
+/****************************************************************************
 **
-** Copyright (C) 2015 BlackBerry Limited. All rights reserved.
-**
-** Contact: BlackBerry (qt@blackberry.com)
-** Contact: KDAB (info@kdab.com)
+** Copyright (C) 2016 BlackBerry Limited. All rights reserved.
+** Contact: BlackBerry (qt@blackberry.com), KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
 **
@@ -11,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -64,14 +57,8 @@ static void setQnxEnvironment(Utils::Environment &env, const QList<Utils::Enviro
 }
 
 QnxToolChain::QnxToolChain(ToolChain::Detection d)
-    : GccToolChain(QLatin1String(Constants::QNX_TOOLCHAIN_ID), d)
-{
-}
-
-QString QnxToolChain::type() const
-{
-    return QLatin1String(Constants::QNX_TOOLCHAIN_ID);
-}
+    : GccToolChain(Constants::QNX_TOOLCHAIN_ID, d)
+{ }
 
 QString QnxToolChain::typeDisplayName() const
 {
@@ -92,9 +79,9 @@ void QnxToolChain::addToEnvironment(Utils::Environment &env) const
     GccToolChain::addToEnvironment(env);
 }
 
-QList<Utils::FileName> QnxToolChain::suggestedMkspecList() const
+Utils::FileNameList QnxToolChain::suggestedMkspecList() const
 {
-    QList<Utils::FileName> mkspecList;
+    Utils::FileNameList mkspecList;
     mkspecList << Utils::FileName::fromLatin1("qnx-armv7le-qcc");
     mkspecList << Utils::FileName::fromLatin1("qnx-armle-v7-qcc");
     mkspecList << Utils::FileName::fromLatin1("qnx-x86-qcc");
@@ -129,7 +116,7 @@ void QnxToolChain::setNdkPath(const QString &ndkPath)
 }
 
 // qcc doesn't support a "-dumpmachine" option to get supported abis
-QList<Abi> QnxToolChain::detectSupportedAbis() const
+GccToolChain::DetectedAbisResult QnxToolChain::detectSupportedAbis() const
 {
     return qccSupportedAbis();
 }
@@ -158,14 +145,12 @@ QStringList QnxToolChain::reinterpretOptions(const QStringList &args) const
 
 QnxToolChainFactory::QnxToolChainFactory()
 {
-    setId(Constants::QNX_TOOLCHAIN_ID);
     setDisplayName(tr("QCC"));
 }
 
 bool QnxToolChainFactory::canRestore(const QVariantMap &data)
 {
-    const QString id = idFromMap(data);
-    return id.startsWith(QLatin1String(Constants::QNX_TOOLCHAIN_ID) + QLatin1Char(':'));
+    return typeIdFromMap(data) == Constants::QNX_TOOLCHAIN_ID;
 }
 
 ToolChain *QnxToolChainFactory::restore(const QVariantMap &data)
@@ -216,8 +201,8 @@ QnxToolChainConfigWidget::QnxToolChainConfigWidget(QnxToolChain *tc)
     m_mainLayout->addRow(tr("NDK/SDP path:"), m_ndkPath);
     m_mainLayout->addRow(tr("&ABI:"), m_abiWidget);
 
-    connect(m_compilerCommand, SIGNAL(changed(QString)), this, SIGNAL(dirty()));
-    connect(m_ndkPath, SIGNAL(changed(QString)), this, SIGNAL(dirty()));
+    connect(m_compilerCommand, SIGNAL(rawPathChanged(QString)), this, SIGNAL(dirty()));
+    connect(m_ndkPath, SIGNAL(rawPathChanged(QString)), this, SIGNAL(dirty()));
     connect(m_abiWidget, SIGNAL(abiChanged()), this, SIGNAL(dirty()));
 }
 

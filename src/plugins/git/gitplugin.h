@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,27 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
-#ifndef GITPLUGIN_H
-#define GITPLUGIN_H
+#pragma once
 
 #include "gitsettings.h"
 
@@ -56,11 +50,12 @@ class Command;
 class CommandLocator;
 class Context;
 class ActionContainer;
-}
+} // namespace Core
 namespace Utils { class ParameterAction; }
 namespace Gerrit {
 namespace Internal { class GerritPlugin; }
-}
+} // namespace Gerrit
+
 namespace Git {
 namespace Internal {
 
@@ -84,32 +79,41 @@ public:
     ~GitPlugin();
 
     static GitPlugin *instance();
+    static GitClient *client();
 
     bool initialize(const QStringList &arguments, QString *errorMessage) override;
 
     GitVersionControl *gitVersionControl() const;
 
-    GitClient *client() const;
     Gerrit::Internal::GerritPlugin *gerritPlugin() const;
+    bool isCommitEditorOpen() const;
 
 public slots:
     void startCommit();
     void updateBranches(const QString &repository);
 
+protected:
+    void updateActions(VcsBase::VcsBasePlugin::ActionState) override;
+    bool submitEditorAboutToClose() override;
+
+#ifdef WITH_TESTS
 private slots:
+    void testStatusParsing_data();
+    void testStatusParsing();
+    void testDiffFileResolving_data();
+    void testDiffFileResolving();
+    void testLogResolving();
+#endif
+
+private:
     void diffCurrentFile();
     void diffCurrentProject();
-    void diffRepository();
-    void submitEditorDiff(const QStringList &unstaged, const QStringList &staged);
-    void submitEditorMerge(const QStringList &unmerged);
     void submitCurrentLog();
     void logFile();
     void blameFile();
     void logProject();
     void logRepository();
-    void reflogRepository();
-    void undoFileChanges(bool revertStaging = true);
-    void undoUnstagedFileChanges();
+    void undoFileChanges(bool revertStaging);
     void resetRepository();
     void startRebase();
     void startChangeRelatedAction(const Core::Id &id);
@@ -141,62 +145,45 @@ private slots:
     void updateContinueAndAbortCommands();
     void delayedPushToGerrit();
 
-#ifdef WITH_TESTS
-    void testStatusParsing_data();
-    void testStatusParsing();
-    void testDiffFileResolving_data();
-    void testDiffFileResolving();
-    void testLogResolving();
-#endif
-protected:
-    void updateActions(VcsBase::VcsBasePlugin::ActionState) override;
-    bool submitEditorAboutToClose() override;
+    Core::Command *createCommand(QAction *action, Core::ActionContainer *ac, Core::Id id,
+                                 const Core::Context &context, bool addToLocator,
+                                 const std::function<void()> &callback, const QKeySequence &keys);
 
-private:
     Utils::ParameterAction *createParameterAction(Core::ActionContainer *ac,
                                                   const QString &defaultText, const QString &parameterText,
                                                   Core::Id id, const Core::Context &context, bool addToLocator,
+                                                  const std::function<void()> &callback,
                                                   const QKeySequence &keys = QKeySequence());
 
     QAction *createFileAction(Core::ActionContainer *ac,
                               const QString &defaultText, const QString &parameterText,
                               Core::Id id, const Core::Context &context, bool addToLocator,
-                              const char *pluginSlot,
+                              const std::function<void()> &callback,
+                              const QKeySequence &keys = QKeySequence());
+    QAction *createFileAction(Core::ActionContainer *ac,
+                              const QString &defaultText, const QString &parameterText,
+                              Core::Id id, const Core::Context &context, bool addToLocator,
+                              void (GitPlugin::*func)(),
                               const QKeySequence &keys = QKeySequence());
 
     QAction *createProjectAction(Core::ActionContainer *ac,
                                  const QString &defaultText, const QString &parameterText,
                                  Core::Id id, const Core::Context &context, bool addToLocator,
+                                 void (GitPlugin::*func)(),
                                  const QKeySequence &keys = QKeySequence());
 
-    QAction *createProjectAction(Core::ActionContainer *ac,
-                                 const QString &defaultText, const QString &parameterText,
-                                 Core::Id id, const Core::Context &context, bool addToLocator,
-                                 const char *pluginSlot, const QKeySequence &keys = QKeySequence());
-
-
-    QAction *createRepositoryAction(Core::ActionContainer *ac,
-                                    const QString &text, Core::Id id,
+    QAction *createRepositoryAction(Core::ActionContainer *ac, const QString &text, Core::Id id,
                                     const Core::Context &context, bool addToLocator,
+                                    const std::function<void()> &callback,
                                     const QKeySequence &keys = QKeySequence());
-    QAction *createRepositoryAction(Core::ActionContainer *ac,
-                                    const QString &text, Core::Id id,
-                                    const Core::Context &context,
-                                    bool addToLocator, const std::function<void()> &callback,
-                                    const QKeySequence &keys = QKeySequence());
-    QAction *createChangeRelatedRepositoryAction(Core::ActionContainer *ac,
-                                                 const QString &text, Core::Id id,
-                                                 const Core::Context &context,
-                                                 bool addToLocator, const std::function<void(Core::Id)> &callback,
-                                                 const QKeySequence &keys = QKeySequence());
-    QAction *createRepositoryAction(Core::ActionContainer *ac,
-                                    const QString &text, Core::Id id,
-                                    const Core::Context &context,
-                                    bool addToLocator, GitClientMemberFunc,
-                                    const QKeySequence &keys = QKeySequence());
+    QAction *createRepositoryAction(Core::ActionContainer *ac, const QString &text, Core::Id id,
+                                    const Core::Context &context, bool addToLocator,
+                                    GitClientMemberFunc, const QKeySequence &keys = QKeySequence());
+
+    QAction *createChangeRelatedRepositoryAction(const QString &text, Core::Id id,
+                                                 const Core::Context &context);
 
     void updateRepositoryBrowserAction();
-    bool isCommitEditorOpen() const;
     Core::IEditor *openSubmitEditor(const QString &fileName, const CommitData &cd);
     void cleanCommitMessageFile();
     void cleanRepository(const QString &directory);
@@ -204,43 +191,40 @@ private:
     void startCommit(CommitType commitType);
     void updateVersionWarning();
 
-    Core::CommandLocator *m_commandLocator;
+    Core::CommandLocator *m_commandLocator = nullptr;
 
-    QAction *m_submitCurrentAction;
-    QAction *m_diffSelectedFilesAction;
-    QAction *m_undoAction;
-    QAction *m_redoAction;
-    QAction *m_menuAction;
-    QAction *m_repositoryBrowserAction;
-    QAction *m_mergeToolAction;
-    QAction *m_submoduleUpdateAction;
-    QAction *m_abortMergeAction;
-    QAction *m_abortRebaseAction;
-    QAction *m_abortCherryPickAction;
-    QAction *m_abortRevertAction;
-    QAction *m_continueRebaseAction;
-    QAction *m_continueCherryPickAction;
-    QAction *m_continueRevertAction;
-    QAction *m_fixupCommitAction;
-    QAction *m_interactiveRebaseAction;
-    QAction *m_createRepositryAction;
+    QAction *m_submitCurrentAction = nullptr;
+    QAction *m_diffSelectedFilesAction = nullptr;
+    QAction *m_undoAction = nullptr;
+    QAction *m_redoAction = nullptr;
+    QAction *m_menuAction = nullptr;
+    QAction *m_repositoryBrowserAction = nullptr;
+    QAction *m_mergeToolAction = nullptr;
+    QAction *m_submoduleUpdateAction = nullptr;
+    QAction *m_abortMergeAction = nullptr;
+    QAction *m_abortRebaseAction = nullptr;
+    QAction *m_abortCherryPickAction = nullptr;
+    QAction *m_abortRevertAction = nullptr;
+    QAction *m_continueRebaseAction = nullptr;
+    QAction *m_continueCherryPickAction = nullptr;
+    QAction *m_continueRevertAction = nullptr;
+    QAction *m_fixupCommitAction = nullptr;
+    QAction *m_interactiveRebaseAction = nullptr;
 
     QVector<Utils::ParameterAction *> m_fileActions;
     QVector<Utils::ParameterAction *> m_projectActions;
     QVector<QAction *> m_repositoryActions;
-    Utils::ParameterAction *m_applyCurrentFilePatchAction;
-    Gerrit::Internal::GerritPlugin *m_gerritPlugin;
+    Utils::ParameterAction *m_applyCurrentFilePatchAction = nullptr;
+    Gerrit::Internal::GerritPlugin *m_gerritPlugin = nullptr;
 
-    GitClient                   *m_gitClient;
-    QPointer<StashDialog>       m_stashDialog;
-    QPointer<BranchDialog>      m_branchDialog;
-    QPointer<RemoteDialog>      m_remoteDialog;
-    QString                     m_submitRepository;
-    QString                     m_commitMessageFileName;
-    bool                        m_submitActionTriggered;
+    GitClient *m_gitClient = nullptr;
+    QPointer<StashDialog> m_stashDialog;
+    QPointer<BranchDialog> m_branchDialog;
+    QPointer<RemoteDialog> m_remoteDialog;
+    QString m_submitRepository;
+    QString m_commitMessageFileName;
+    bool m_submitActionTriggered = false;
 };
 
 } // namespace Internal
 } // namespace Git
-
-#endif // GITPLUGIN_H

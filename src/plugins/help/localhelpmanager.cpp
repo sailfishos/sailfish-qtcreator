@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -37,6 +32,7 @@
 #include <app/app_version.h>
 #include <coreplugin/icore.h>
 #include <utils/algorithm.h>
+#include <utils/hostosinfo.h>
 #include <utils/qtcassert.h>
 
 #include <QMutexLocker>
@@ -61,13 +57,39 @@ QString LocalHelpManager::m_currentFilter = QString();
 int LocalHelpManager::m_currentFilterIndex = -1;
 
 static const char kHelpHomePageKey[] = "Help/HomePage";
-static const char kFontKey[] = "Help/Font";
+static const char kFontFamilyKey[] = "Help/FallbackFontFamily";
+static const char kFontStyleKey[] = "Help/FallbackFontStyle";
+static const char kFontWeightKey[] = "Help/FallbackFontWeight";
+static const char kFontSizeKey[] = "Help/FallbackFontSize";
 static const char kStartOptionKey[] = "Help/StartOption";
 static const char kContextHelpOptionKey[] = "Help/ContextHelpOption";
 static const char kReturnOnCloseKey[] = "Help/ReturnOnClose";
 static const char kLastShownPagesKey[] = "Help/LastShownPages";
 static const char kLastShownPagesZoomKey[] = "Help/LastShownPagesZoom";
 static const char kLastSelectedTabKey[] = "Help/LastSelectedTab";
+
+static const QFont::Style kDefaultFallbackFontStyle = QFont::StyleNormal;
+static const int kDefaultFallbackFontWeight = QFont::Normal;
+static const int kDefaultFallbackFontSize = 14;
+
+static QString defaultFallbackFontFamily()
+{
+    if (Utils::HostOsInfo::isMacHost())
+        return QLatin1String("Helvetica");
+    if (Utils::HostOsInfo::isAnyUnixHost())
+        return QLatin1String("sans-serif");
+    return QLatin1String("Arial");
+}
+
+template <typename T>
+static void setOrRemoveSetting(const char *key, const T &value, const T &defaultValue)
+{
+    QSettings *settings = Core::ICore::settings();
+    if (value == defaultValue)
+        settings->remove(QLatin1String(key));
+    else
+        settings->setValue(QLatin1String(key), value);
+}
 
 // TODO remove some time after Qt Creator 3.5
 static QVariant getSettingWithFallback(const QString &settingsKey,
@@ -128,14 +150,22 @@ void LocalHelpManager::setHomePage(const QString &page)
 
 QFont LocalHelpManager::fallbackFont()
 {
-    const QVariant value = getSettingWithFallback(QLatin1String(kFontKey),
-                                                  QLatin1String("font"), QVariant());
-    return value.value<QFont>();
+    QSettings *settings = Core::ICore::settings();
+    const QString family = settings->value(QLatin1String(kFontFamilyKey), defaultFallbackFontFamily()).toString();
+    const QFont::Style style = QFont::Style(settings->value(QLatin1String(kFontStyleKey), kDefaultFallbackFontStyle).toInt());
+    const int weight = settings->value(QLatin1String(kFontWeightKey), kDefaultFallbackFontWeight).toInt();
+    const int size = settings->value(QLatin1String(kFontSizeKey), kDefaultFallbackFontSize).toInt();
+    QFont font(family, size, weight);
+    font.setStyle(style);
+    return font;
 }
 
 void LocalHelpManager::setFallbackFont(const QFont &font)
 {
-    Core::ICore::settings()->setValue(QLatin1String(kFontKey), font);
+    setOrRemoveSetting(kFontFamilyKey, font.family(), defaultFallbackFontFamily());
+    setOrRemoveSetting(kFontStyleKey, font.style(), kDefaultFallbackFontStyle);
+    setOrRemoveSetting(kFontWeightKey, font.weight(), kDefaultFallbackFontWeight);
+    setOrRemoveSetting(kFontSizeKey, font.pointSize(), kDefaultFallbackFontSize);
     emit m_instance->fallbackFontChanged(font);
 }
 

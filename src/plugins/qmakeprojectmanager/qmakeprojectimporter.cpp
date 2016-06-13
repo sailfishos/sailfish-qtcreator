@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -92,6 +87,8 @@ QList<BuildInfo *> QmakeProjectImporter::import(const FileName &importPath, bool
         // find interesting makefiles
         QString makefile = importPath.toString() + QLatin1Char('/') + file;
         MakeFileParse parse(makefile);
+        if (parse.makeFileState() != MakeFileParse::Okay)
+            continue;
         QFileInfo qmakeFi = parse.qmakePath().toFileInfo();
         FileName canonicalQmakeBinary = FileName::fromString(qmakeFi.canonicalFilePath());
         if (canonicalQmakeBinary.isEmpty()) {
@@ -106,7 +103,7 @@ QList<BuildInfo *> QmakeProjectImporter::import(const FileName &importPath, bool
         qCDebug(logs) << "  QMake:" << canonicalQmakeBinary;
 
         BaseQtVersion *version
-                = Utils::findOrDefault(QtVersionManager::versions(),
+                = Utils::findOrDefault(QtVersionManager::unsortedVersions(),
                                       [&canonicalQmakeBinary](BaseQtVersion *v) -> bool {
                                           QFileInfo vfi = v->qmakeCommand().toFileInfo();
                                           FileName current = FileName::fromString(vfi.canonicalFilePath());
@@ -173,14 +170,6 @@ QList<BuildInfo *> QmakeProjectImporter::import(const FileName &importPath, bool
             qCDebug(logs) << "  No parsed spec or default spec => parsed spec now:" << parsedSpec;
         }
 
-        QString specArgument;
-        // Compare mkspecs and add to additional arguments
-        if (parsedSpec != versionSpec) {
-            specArgument = QLatin1String("-spec ") + QtcProcess::quoteArg(parsedSpec.toUserOutput());
-            QtcProcess::addArgs(&specArgument, additionalArguments);
-            qCDebug(logs) << "  custom spec added to additionalArguments:" << additionalArguments;
-        }
-
         qCDebug(logs) << "*******************";
         qCDebug(logs) << "* Looking for kits";
         // Find kits (can be more than one, e.g. (Linux-)Desktop and embedded linux):
@@ -226,10 +215,10 @@ QList<BuildInfo *> QmakeProjectImporter::import(const FileName &importPath, bool
             QmakeBuildInfo *info = new QmakeBuildInfo(factory);
             BaseQtVersion::QmakeBuildConfigs buildConfig = parse.effectiveBuildConfig(version->defaultBuildConfig());
             if (buildConfig & BaseQtVersion::DebugBuild) {
-                info->type = BuildConfiguration::Debug;
+                info->buildType = BuildConfiguration::Debug;
                 info->displayName = QCoreApplication::translate("QmakeProjectManager::Internal::QmakeProjectImporter", "Debug");
             } else {
-                info->type = BuildConfiguration::Release;
+                info->buildType = BuildConfiguration::Release;
                 info->displayName = QCoreApplication::translate("QmakeProjectManager::Internal::QmakeProjectImporter", "Release");
             }
             info->kitId = k->id();
@@ -270,7 +259,8 @@ QStringList QmakeProjectImporter::importCandidates(const FileName &projectPath)
     candidates << pfi.absolutePath();
 
     foreach (Kit *k, KitManager::kits()) {
-        QFileInfo fi(QmakeBuildConfiguration::shadowBuildDirectory(projectPath.toString(), k, QString()));
+        QFileInfo fi(QmakeBuildConfiguration::shadowBuildDirectory(projectPath.toString(), k,
+                                                                   QString(), BuildConfiguration::Unknown));
         const QString baseDir = fi.absolutePath();
 
         foreach (const QString &dir, QDir(baseDir).entryList()) {
@@ -372,7 +362,8 @@ Kit *QmakeProjectImporter::createTemporaryKit(BaseQtVersion *version,
 
         QtKitInformation::setQtVersion(k, version);
         ToolChainKitInformation::setToolChain(k, preferredToolChain(version, parsedSpec, archConfig));
-        QmakeKitInformation::setMkspec(k, parsedSpec);
+        if (parsedSpec != version->mkspec())
+            QmakeKitInformation::setMkspec(k, parsedSpec);
 
         markTemporary(k);
         if (temporaryVersion)

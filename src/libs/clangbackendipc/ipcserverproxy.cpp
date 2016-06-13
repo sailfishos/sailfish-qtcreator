@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,35 +9,37 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://www.qt.io/licensing.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
 #include "ipcserverproxy.h"
 
-#include <cmbalivecommand.h>
-#include <cmbcompletecodecommand.h>
-#include <cmbendcommand.h>
-#include <cmbregisterprojectsforcodecompletioncommand.h>
-#include <cmbregistertranslationunitsforcodecompletioncommand.h>
-#include <cmbunregisterprojectsforcodecompletioncommand.h>
-#include <cmbunregistertranslationunitsforcodecompletioncommand.h>
+#include <cmbalivemessage.h>
+#include <cmbcompletecodemessage.h>
+#include <cmbendmessage.h>
+#include <cmbregisterprojectsforeditormessage.h>
+#include <cmbregistertranslationunitsforeditormessage.h>
+#include <cmbunregisterprojectsforeditormessage.h>
+#include <cmbunregistertranslationunitsforeditormessage.h>
 #include <ipcclientinterface.h>
+#include <messageenvelop.h>
+#include <registerunsavedfilesforeditormessage.h>
+#include <requestdiagnosticsmessage.h>
+#include <requesthighlightingmessage.h>
+#include <unregisterunsavedfilesforeditormessage.h>
+#include <updatetranslationunitsforeditormessage.h>
+#include <updatevisibletranslationunitsmessage.h>
 
 #include <QLocalServer>
 #include <QLocalSocket>
@@ -46,53 +48,83 @@
 namespace ClangBackEnd {
 
 IpcServerProxy::IpcServerProxy(IpcClientInterface *client, QIODevice *ioDevice)
-    : writeCommandBlock(ioDevice),
-      readCommandBlock(ioDevice),
+    : writeMessageBlock(ioDevice),
+      readMessageBlock(ioDevice),
       client(client)
 {
-    QObject::connect(ioDevice, &QIODevice::readyRead, [this] () {IpcServerProxy::readCommands();});
+    QObject::connect(ioDevice, &QIODevice::readyRead, [this] () {IpcServerProxy::readMessages();});
 }
 
-void IpcServerProxy::readCommands()
+void IpcServerProxy::readMessages()
 {
-    for (const QVariant &command : readCommandBlock.readAll())
-        client->dispatch(command);
+    for (const auto &message : readMessageBlock.readAll())
+        client->dispatch(message);
 }
 
 void IpcServerProxy::resetCounter()
 {
-    writeCommandBlock.resetCounter();
-    readCommandBlock.resetCounter();
+    writeMessageBlock.resetCounter();
+    readMessageBlock.resetCounter();
 }
 
 void IpcServerProxy::end()
 {
-    writeCommandBlock.write(QVariant::fromValue(EndCommand()));
+    writeMessageBlock.write(EndMessage());
 }
 
-void IpcServerProxy::registerTranslationUnitsForCodeCompletion(const RegisterTranslationUnitForCodeCompletionCommand &command)
+void IpcServerProxy::registerTranslationUnitsForEditor(const RegisterTranslationUnitForEditorMessage &message)
 {
-    writeCommandBlock.write(QVariant::fromValue(command));
+    writeMessageBlock.write(message);
 }
 
-void IpcServerProxy::unregisterTranslationUnitsForCodeCompletion(const UnregisterTranslationUnitsForCodeCompletionCommand &command)
+void IpcServerProxy::updateTranslationUnitsForEditor(const ClangBackEnd::UpdateTranslationUnitsForEditorMessage &message)
 {
-    writeCommandBlock.write(QVariant::fromValue(command));
+    writeMessageBlock.write(message);
 }
 
-void IpcServerProxy::registerProjectPartsForCodeCompletion(const RegisterProjectPartsForCodeCompletionCommand &command)
+void IpcServerProxy::unregisterTranslationUnitsForEditor(const UnregisterTranslationUnitsForEditorMessage &message)
 {
-    writeCommandBlock.write(QVariant::fromValue(command));
+    writeMessageBlock.write(message);
 }
 
-void IpcServerProxy::unregisterProjectPartsForCodeCompletion(const UnregisterProjectPartsForCodeCompletionCommand &command)
+void IpcServerProxy::registerProjectPartsForEditor(const RegisterProjectPartsForEditorMessage &message)
 {
-    writeCommandBlock.write(QVariant::fromValue(command));
+    writeMessageBlock.write(message);
 }
 
-void IpcServerProxy::completeCode(const CompleteCodeCommand &command)
+void IpcServerProxy::unregisterProjectPartsForEditor(const UnregisterProjectPartsForEditorMessage &message)
 {
-    writeCommandBlock.write(QVariant::fromValue(command));
+    writeMessageBlock.write(message);
+}
+
+void ClangBackEnd::IpcServerProxy::registerUnsavedFilesForEditor(const ClangBackEnd::RegisterUnsavedFilesForEditorMessage &message)
+{
+    writeMessageBlock.write(message);
+}
+
+void ClangBackEnd::IpcServerProxy::unregisterUnsavedFilesForEditor(const ClangBackEnd::UnregisterUnsavedFilesForEditorMessage &message)
+{
+    writeMessageBlock.write(message);
+}
+
+void IpcServerProxy::completeCode(const CompleteCodeMessage &message)
+{
+    writeMessageBlock.write(message);
+}
+
+void IpcServerProxy::requestDiagnostics(const ClangBackEnd::RequestDiagnosticsMessage &message)
+{
+    writeMessageBlock.write(message);
+}
+
+void IpcServerProxy::requestHighlighting(const RequestHighlightingMessage &message)
+{
+    writeMessageBlock.write(message);
+}
+
+void IpcServerProxy::updateVisibleTranslationUnits(const UpdateVisibleTranslationUnitsMessage &message)
+{
+    writeMessageBlock.write(message);
 }
 
 } // namespace ClangBackEnd

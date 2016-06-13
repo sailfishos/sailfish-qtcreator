@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -104,7 +99,7 @@ using namespace Core::Internal;
                                                  "myplugin.myaction",
                                                  Context(C_GLOBAL));
         cmd->setDefaultKeySequence(QKeySequence(tr("Ctrl+Alt+u")));
-        connect(myAction, SIGNAL(triggered()), this, SLOT(performMyAction()));
+        connect(myAction, &QAction::triggered, this, &MyPlugin::performMyAction);
     \endcode
 
     So the \c connect is done to your own QAction instance. If you create e.g.
@@ -204,7 +199,7 @@ ActionContainer *ActionManager::createMenu(Id id)
     MenuActionContainer *mc = new MenuActionContainer(id);
 
     d->m_idContainerMap.insert(id, mc);
-    connect(mc, SIGNAL(destroyed()), d, SLOT(containerDestroyed()));
+    connect(mc, &QObject::destroyed, d, &ActionManagerPrivate::containerDestroyed);
 
     return mc;
 }
@@ -229,7 +224,7 @@ ActionContainer *ActionManager::createMenuBar(Id id)
     mbc->setMenuBar(mb);
 
     d->m_idContainerMap.insert(id, mbc);
-    connect(mbc, SIGNAL(destroyed()), d, SLOT(containerDestroyed()));
+    connect(mbc, &QObject::destroyed, d, &ActionManagerPrivate::containerDestroyed);
 
     return mbc;
 }
@@ -350,9 +345,9 @@ void ActionManager::setPresentationModeEnabled(bool enabled)
     foreach (Command *c, commands()) {
         if (c->action()) {
             if (enabled)
-                connect(c->action(), SIGNAL(triggered()), d, SLOT(actionTriggered()));
+                connect(c->action(), &QAction::triggered, d, &ActionManagerPrivate::actionTriggered);
             else
-                disconnect(c->action(), SIGNAL(triggered()), d, SLOT(actionTriggered()));
+                disconnect(c->action(), &QAction::triggered, d, &ActionManagerPrivate::actionTriggered);
         }
     }
 
@@ -380,16 +375,11 @@ void ActionManager::setContext(const Context &context)
     \internal
 */
 
-ActionManagerPrivate::ActionManagerPrivate() :
-    m_presentationModeEnabled(false)
-{
-}
-
 ActionManagerPrivate::~ActionManagerPrivate()
 {
     // first delete containers to avoid them reacting to command deletion
     foreach (ActionContainerPrivate *container, m_idContainerMap)
-        disconnect(container, SIGNAL(destroyed()), this, SLOT(containerDestroyed()));
+        disconnect(container, &QObject::destroyed, this, &ActionManagerPrivate::containerDestroyed);
     qDeleteAll(m_idContainerMap);
     qDeleteAll(m_idCmdMap);
 }
@@ -467,7 +457,7 @@ Action *ActionManagerPrivate::overridableAction(Id id)
         a->setCurrentContext(m_context);
 
         if (ActionManager::isPresentationModeEnabled())
-            connect(a->action(), SIGNAL(triggered()), this, SLOT(actionTriggered()));
+            connect(a->action(), &QAction::triggered, this, &ActionManagerPrivate::actionTriggered);
     }
 
     return a;

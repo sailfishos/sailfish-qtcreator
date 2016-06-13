@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,24 +9,20 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
+
 #include "iosdevicemanager.h"
 
 #include <qglobal.h>
@@ -114,6 +110,7 @@ public:
     IosTool *iosTool();
 public slots:
     void handleNewRelayConnection();
+    void removeRelayConnection(Relayer *relayer);
 protected:
     virtual void newRelayConnection() = 0;
 
@@ -231,9 +228,12 @@ void Relayer::setClientSocket(QTcpSocket *clientSocket)
 {
     QTC_CHECK(!m_clientSocket);
     m_clientSocket = clientSocket;
-    if (m_clientSocket)
+    if (m_clientSocket) {
         connect(m_clientSocket, SIGNAL(error(QAbstractSocket::SocketError)),
                 SLOT(handleClientHasError(QAbstractSocket::SocketError)));
+        connect(m_clientSocket, &QAbstractSocket::disconnected,
+                this, [this](){server()->removeRelayConnection(this);});
+    }
 }
 
 bool Relayer::startRelay(int serverFileDescriptor)
@@ -354,7 +354,7 @@ void Relayer::handleClientHasData()
 void Relayer::handleClientHasError(QAbstractSocket::SocketError error)
 {
     iosTool()->errorMsg(tr("iOS Debugging connection to creator failed with error %1").arg(error));
-    iosTool()->stopRelayServers();
+    server()->removeRelayConnection(this);
 }
 
 IosTool *Relayer::iosTool()
@@ -446,6 +446,12 @@ void RelayServer::handleNewRelayConnection()
     newRelayConnection();
 }
 
+void RelayServer::removeRelayConnection(Relayer *relayer)
+{
+    m_connections.removeAll(relayer);
+    relayer->deleteLater();
+}
+
 SingleRelayServer::SingleRelayServer(IosTool *parent,
                                      int serverFileDescriptor) :
     RelayServer(parent)
@@ -458,9 +464,7 @@ SingleRelayServer::SingleRelayServer(IosTool *parent,
 void SingleRelayServer::newRelayConnection()
 {
     if (m_connections.size() > 0) {
-        m_server.close();
-        QTcpSocket *s = m_server.nextPendingConnection();
-        delete s;
+        delete m_server.nextPendingConnection();
         return;
     }
     QTcpSocket *clientSocket = m_server.nextPendingConnection();
@@ -469,7 +473,6 @@ void SingleRelayServer::newRelayConnection()
         m_connections.append(newConnection);
         newConnection->startRelay(m_serverFileDescriptor);
     }
-    m_server.close();
 }
 
 GenericRelayServer::GenericRelayServer(IosTool *parent, int remotePort,
@@ -531,34 +534,36 @@ void IosTool::run(const QStringList &args)
     out.writeStartElement(QLatin1String("query_result"));
     for (int iarg = 1; iarg < args.size(); ++iarg) {
         const QString &arg = args[iarg];
-        if (arg == QLatin1String("-device-id")) {
+        if (arg == QLatin1String("-i") || arg == QLatin1String("--id")) {
             if (++iarg == args.size()) {
-                writeMsg("missing device id value after -device-id");
+                writeMsg(QStringLiteral("missing device id value after ") + arg);
                 printHelp = true;
             }
             deviceId = args.value(iarg);
-        } else if (arg == QLatin1String("-bundle")) {
+        } else if (arg == QLatin1String("-b") || arg == QLatin1String("--bundle")) {
             if (++iarg == args.size()) {
-                writeMsg("missing bundle path after -bundle");
+                writeMsg(QStringLiteral("missing bundle path after ") + arg);
                 printHelp = true;
             }
             bundlePath = args.value(iarg);
-        } else if (arg == QLatin1String("-deploy")) {
+        } else if (arg == QLatin1String("--install")) {
             appOp = Ios::IosDeviceManager::AppOp(appOp | Ios::IosDeviceManager::Install);
-        } else if (arg == QLatin1String("-run")) {
+        } else if (arg == QLatin1String("--run")) {
             appOp = Ios::IosDeviceManager::AppOp(appOp | Ios::IosDeviceManager::Run);
-        } else if (arg == QLatin1String("-ipv6")) {
+        } else if (arg == QLatin1String("--noninteractive")) {
+            // ignored for compatibility
+        } else if (arg == QLatin1String("--ipv6")) {
             ipv6 = true;
-        } else if (arg == QLatin1String("-verbose")) {
+        } else if (arg == QLatin1String("-v") || arg == QLatin1String("--verbose")) {
             echoRelays = true;
-        } else if (arg == QLatin1String("-debug")) {
+        } else if (arg == QLatin1String("-d") || arg == QLatin1String("--debug")) {
             appOp = Ios::IosDeviceManager::AppOp(appOp | Ios::IosDeviceManager::Run);
             debug = true;
-        } else if (arg == QLatin1String("-device-info")) {
+        } else if (arg == QLatin1String("--device-info")) {
             deviceInfo = true;
-        } else if (arg == QLatin1String("-timeout")) {
+        } else if (arg == QLatin1String("-t") || arg == QLatin1String("--timeout")) {
             if (++iarg == args.size()) {
-                writeMsg("missing timeout value after -timeout");
+                writeMsg(QStringLiteral("missing timeout value after ") + arg);
                 printHelp = true;
             }
             bool ok = false;
@@ -569,10 +574,10 @@ void IosTool::run(const QStringList &args)
                 writeMsg("timeout value should be an integer");
                 printHelp = true;
             }
-        } else if (arg == QLatin1String("-extra-args")) {
+        } else if (arg == QLatin1String("-a") || arg == QLatin1String("--args")) {
             extraArgs = args.mid(iarg + 1, args.size() - iarg - 1);
             iarg = args.size();
-        } else if (arg == QLatin1String("-help") || arg == QLatin1String("--help")) {
+        } else if (arg == QLatin1String("-h") || arg == QLatin1String("--help")) {
             printHelp = true;
         } else {
             writeMsg(QString::fromLatin1("unexpected argument \"%1\"").arg(arg));
@@ -580,9 +585,9 @@ void IosTool::run(const QStringList &args)
     }
     if (printHelp) {
         out.writeStartElement(QLatin1String("msg"));
-        out.writeCharacters(QLatin1String("iosTool [-device-id <deviceId>] [-bundle <pathToBundle>] [-deploy] [-run] [-debug]\n"));
-        out.writeCharacters(QLatin1String("    [-device-info] [-timeout <timeoutIn_ms>] [-verbose]\n")); // to do pass in env as stub does
-        out.writeCharacters(QLatin1String("    [-extra-args <arguments for the target app>]"));
+        out.writeCharacters(QLatin1String("iostool [--id <device_id>] [--bundle <bundle.app>] [--install] [--run] [--debug]\n"));
+        out.writeCharacters(QLatin1String("    [--device-info] [--timeout <timeout_in_ms>] [--verbose]\n")); // to do pass in env as stub does
+        out.writeCharacters(QLatin1String("    [--args <arguments for the target app>]"));
         out.writeEndElement();
         doExit(-1);
         return;
@@ -611,7 +616,7 @@ void IosTool::run(const QStringList &args)
     }
     if (deviceInfo) {
         if (!bundlePath.isEmpty())
-            writeMsg("-device-info overrides bundlePath");
+            writeMsg("--device-info overrides --bundle");
         ++opLeft;
         manager->requestDeviceInfo(deviceId, timeout);
     } else if (!bundlePath.isEmpty()) {

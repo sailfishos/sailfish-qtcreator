@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -38,17 +33,21 @@
 #include <nodeabstractproperty.h>
 #include <variantproperty.h>
 
+#include <qmlitemnode.h>
+
 namespace   {
 const QString lineBreak = QStringLiteral("<br>");
 
 bool isDebugViewEnabled()
 {
-    return (QmlDesigner::QmlDesignerPlugin::instance()->settings().enableDebugView);
+    return QmlDesigner::QmlDesignerPlugin::instance()->settings().value(
+        QmlDesigner::DesignerSettingsKey::ENABLE_DEBUGVIEW).toBool();
 }
 
 bool isDebugViewShown()
 {
-    return (QmlDesigner::QmlDesignerPlugin::instance()->settings().showDebugView);
+    return QmlDesigner::QmlDesignerPlugin::instance()->settings().value(
+        QmlDesigner::DesignerSettingsKey::SHOW_DEBUGVIEW).toBool();
 }
 
 }
@@ -64,20 +63,21 @@ DebugView::DebugView(QObject *parent) : AbstractView(parent),
 
 DebugView::~DebugView()
 {
+    delete m_debugViewWidget;
 }
 
 void DebugView::modelAttached(Model *model)
 {
-    log(tr("Model attached"), tr("FileName %1").arg(model->fileUrl().toLocalFile()));
+    log(tr("Model attached"), tr("Filename %1").arg(model->fileUrl().toLocalFile()));
     m_debugViewWidget->setDebugViewEnabled(isDebugViewEnabled());
     if (isDebugViewEnabled())
-        qDebug() << tr("DebugView is enabled");
+        qDebug() << tr("Debug view is enabled");
     AbstractView::modelAttached(model);
 }
 
 void DebugView::modelAboutToBeDetached(Model *model)
 {
-    log(tr("Model detached"), tr("FileName %1").arg(model->fileUrl().toLocalFile()));
+    log(tr("Model detached"), tr("Filename %1").arg(model->fileUrl().toLocalFile()));
     AbstractView::modelAboutToBeDetached(model);
 }
 
@@ -116,8 +116,12 @@ void DebugView::nodeAboutToBeRemoved(const ModelNode &removedNode)
         QTextStream message;
         QString string;
         message.setString(&string);
-        message << removedNode;
-        log(tr("Node removed:"), message.readAll());
+        message << removedNode << lineBreak;
+        foreach (const ModelNode &modelNode, removedNode.allSubModelNodes()) {
+            message << tr("Child node:") << modelNode << lineBreak;
+        }
+
+        log(tr("Node about to be removed:"), message.readAll());
     }
 }
 
@@ -135,10 +139,10 @@ void DebugView::nodeReparented(const ModelNode &node, const NodeAbstractProperty
         message << tr("Old parent property:");
         message << lineBreak;
         message << oldPropertyParent;
-        message << tr("PropertyChangeFlag");
+        message << tr("Property change flag");
         message << lineBreak;
         message << propertyChange;
-        log(tr("Node reparanted:"), message.readAll());
+        log(tr("Node reparented:"), message.readAll());
     }
 }
 
@@ -149,8 +153,8 @@ void DebugView::nodeIdChanged(const ModelNode &node, const QString &newId, const
         QString string;
         message.setString(&string);
         message << node;
-        message << tr("New Id:") << ' ' << newId << lineBreak;
-        message << tr("Old Id:") << ' ' << oldId << lineBreak;
+        message << tr("New id:") << ' ' << newId << lineBreak;
+        message << tr("Old id:") << ' ' << oldId << lineBreak;
         log(tr("Node id changed:"), string);
     }
 }
@@ -169,7 +173,7 @@ void DebugView::variantPropertiesChanged(const QList<VariantProperty> &propertyL
         foreach (const VariantProperty &property, propertyList) {
             message << property;
         }
-        log(tr("VariantProperties changed:"), string);
+        log(tr("Variant properties changed:"), string);
     }
 }
 
@@ -183,7 +187,7 @@ void DebugView::bindingPropertiesChanged(const QList<BindingProperty> &propertyL
         foreach (const BindingProperty &property, propertyList) {
             message << property;
         }
-        log(tr("BindingProperties changed:"), string);
+        log(tr("Binding properties changed:"), string);
     }
 }
 
@@ -196,7 +200,7 @@ void DebugView::signalHandlerPropertiesChanged(const QVector<SignalHandlerProper
         foreach (const SignalHandlerProperty &property, propertyList) {
             message << property;
         }
-        log(tr("SignalHandlerProperties changed:"), string);
+        log(tr("Signal handler properties changed:"), string);
     }
 }
 
@@ -256,7 +260,7 @@ void DebugView::auxiliaryDataChanged(const ModelNode &node, const PropertyName &
         message << name;
         message << data.toString();
 
-        log(tr("Auxiliary Data Changed:"), string);
+        log(tr("Auxiliary data changed:"), string);
     }
 }
 
@@ -304,6 +308,10 @@ void DebugView::instancePropertyChange(const QList<QPair<ModelNode, PropertyName
     }
 }
 
+void DebugView::instanceErrorChange(const QVector<ModelNode> &/*errorNodeList*/)
+{
+}
+
 void DebugView::instancesCompleted(const QVector<ModelNode> &completedNodeList)
 {
     if (isDebugViewEnabled()) {
@@ -312,10 +320,13 @@ void DebugView::instancesCompleted(const QVector<ModelNode> &completedNodeList)
         message.setString(&string);
 
         foreach (const ModelNode &modelNode, completedNodeList) {
-            message << modelNode;
+            message << modelNode << lineBreak;
+            if (QmlItemNode::isValidQmlItemNode(modelNode)) {
+                message << tr("parent: ") << QmlItemNode(modelNode).instanceParent() << lineBreak;
+            }
         }
 
-        logInstance(tr("Instance Completed"), string);
+        logInstance(tr("Instance completed"), string);
     }
 }
 
@@ -331,7 +342,7 @@ void DebugView::instanceInformationsChange(const QMultiHash<ModelNode, Informati
             message << informationChangeHash.value(modelNode);
         }
 
-        logInstance(tr("Instance Completed"), string);
+        logInstance(tr("Instance completed"), string);
     }
 
 }
@@ -344,8 +355,22 @@ void DebugView::instancesPreviewImageChanged(const QVector<ModelNode> & /*nodeLi
 {
 }
 
-void DebugView::instancesChildrenChanged(const QVector<ModelNode> & /*nodeList*/)
+void DebugView::instancesChildrenChanged(const QVector<ModelNode> & nodeList)
 {
+    if (isDebugViewEnabled()) {
+        QTextStream message;
+        QString string;
+        message.setString(&string);
+
+        foreach (const ModelNode &modelNode, nodeList) {
+            message << modelNode << lineBreak;
+            if (QmlItemNode::isValidQmlItemNode(modelNode)) {
+                message << tr("parent: ") << QmlItemNode(modelNode).instanceParent() << lineBreak;
+            }
+        }
+
+        logInstance(tr("Instance's children changed:"), string);
+    }
 }
 
 void DebugView::customNotification(const AbstractView *view, const QString &identifier, const QList<ModelNode> &nodeList, const QList<QVariant> &data)
@@ -365,7 +390,7 @@ void DebugView::customNotification(const AbstractView *view, const QString &iden
             message << variant.toString();
         }
 
-        log(tr("Custom Notification:"), string);
+        log(tr("Custom notification:"), string);
     }
 }
 
@@ -379,13 +404,21 @@ void DebugView::nodeSourceChanged(const ModelNode &modelNode, const QString &new
         message << modelNode;
         message << newNodeSource;
 
-        log(tr("Node Source Changed:"), string);
+        log(tr("Node source changed:"), string);
     }
 }
 
-void DebugView::nodeRemoved(const ModelNode &/*removedNode*/, const NodeAbstractProperty &/*parentProperty*/, AbstractView::PropertyChangeFlags /*propertyChange*/)
+void DebugView::nodeRemoved(const ModelNode &removedNode, const NodeAbstractProperty &/*parentProperty*/, AbstractView::PropertyChangeFlags /*propertyChange*/)
 {
+    if (isDebugViewEnabled()) {
+        QTextStream message;
+        QString string;
+        message.setString(&string);
 
+        message << removedNode;
+
+        log(tr("Node removed:"), string);
+    }
 }
 
 void DebugView::nodeAboutToBeReparented(const ModelNode &/*node*/, const NodeAbstractProperty &/*newPropertyParent*/, const NodeAbstractProperty &/*oldPropertyParent*/, AbstractView::PropertyChangeFlags /*propertyChange*/)

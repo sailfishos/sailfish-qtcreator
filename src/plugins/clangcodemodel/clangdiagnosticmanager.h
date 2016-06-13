@@ -1,0 +1,87 @@
+/****************************************************************************
+**
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
+**
+** This file is part of Qt Creator.
+**
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
+**
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
+**
+****************************************************************************/
+
+#ifndef CLANGCODEMODEL_INTERNAL_CLANGDIAGNOSTICMANAGER_H
+#define CLANGCODEMODEL_INTERNAL_CLANGDIAGNOSTICMANAGER_H
+
+#include "clangtextmark.h"
+
+#include <texteditor/refactoroverlay.h>
+
+#include <clangbackendipc/diagnosticcontainer.h>
+
+#include <QList>
+#include <QSet>
+#include <QTextEdit>
+#include <QVector>
+
+#include <vector>
+
+namespace TextEditor { class TextDocument; }
+
+namespace ClangCodeModel {
+namespace Internal {
+
+class ClangDiagnosticManager
+{
+public:
+    ClangDiagnosticManager(TextEditor::TextDocument *textDocument);
+
+    void processNewDiagnostics(const QVector<ClangBackEnd::DiagnosticContainer> &allDiagnostics);
+
+    const QVector<ClangBackEnd::DiagnosticContainer> &diagnosticsWithFixIts() const;
+    QList<QTextEdit::ExtraSelection> takeExtraSelections();
+    TextEditor::RefactorMarkers takeFixItAvailableMarkers();
+
+    bool hasDiagnosticsAt(uint line, uint column) const;
+    QVector<ClangBackEnd::DiagnosticContainer> diagnosticsAt(uint line, uint column) const;
+
+    void clearDiagnosticsWithFixIts();
+
+private:
+    QString filePath() const;
+    void filterDiagnostics(const QVector<ClangBackEnd::DiagnosticContainer> &diagnostics);
+    void generateEditorSelections();
+    void generateTextMarks();
+    void generateFixItAvailableMarkers();
+    void addClangTextMarks(const QVector<ClangBackEnd::DiagnosticContainer> &diagnostics);
+    void addFixItAvailableMarker(const QVector<ClangBackEnd::DiagnosticContainer> &diagnostics,
+                                 QSet<int> &lineNumbersWithFixItMarker);
+
+private:
+    TextEditor::TextDocument *m_textDocument;
+
+    QVector<ClangBackEnd::DiagnosticContainer> m_warningDiagnostics;
+    QVector<ClangBackEnd::DiagnosticContainer> m_errorDiagnostics;
+    QVector<ClangBackEnd::DiagnosticContainer> m_fixItdiagnostics;
+    QList<QTextEdit::ExtraSelection> m_extraSelections;
+    TextEditor::RefactorMarkers m_fixItAvailableMarkers;
+    std::vector<ClangTextMark> m_clangTextMarks;
+};
+
+} // namespace Internal
+} // namespace ClangCodeModel
+
+#endif // CLANGCODEMODEL_INTERNAL_CLANGDIAGNOSTICMANAGER_H

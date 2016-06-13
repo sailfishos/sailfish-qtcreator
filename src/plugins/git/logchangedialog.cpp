@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -73,7 +68,7 @@ LogChangeWidget::LogChangeWidget(QWidget *parent)
     setRootIsDecorated(false);
     setSelectionBehavior(QAbstractItemView::SelectRows);
     setActivationMode(Utils::DoubleClickActivation);
-    connect(this, SIGNAL(activated(QModelIndex)), this, SLOT(emitActivated(QModelIndex)));
+    connect(this, &LogChangeWidget::activated, this, &LogChangeWidget::emitCommitActivated);
 }
 
 bool LogChangeWidget::init(const QString &repository, const QString &commit, LogFlags flags)
@@ -84,7 +79,7 @@ bool LogChangeWidget::init(const QString &repository, const QString &commit, Log
         return true;
     if (!(flags & Silent)) {
         VcsOutputWindow::appendError(
-                    GitPlugin::instance()->client()->msgNoCommits(flags & IncludeRemotes));
+                    GitPlugin::client()->msgNoCommits(flags & IncludeRemotes));
     }
     return false;
 }
@@ -120,12 +115,12 @@ void LogChangeWidget::setItemDelegate(QAbstractItemDelegate *delegate)
     m_hasCustomDelegate = true;
 }
 
-void LogChangeWidget::emitActivated(const QModelIndex &index)
+void LogChangeWidget::emitCommitActivated(const QModelIndex &index)
 {
     if (index.isValid()) {
         QString commit = index.sibling(index.row(), Sha1Column).data().toString();
         if (!commit.isEmpty())
-            emit activated(commit);
+            emit commitActivated(commit);
     }
 }
 
@@ -157,14 +152,13 @@ bool LogChangeWidget::populateLog(const QString &repository, const QString &comm
         m_model->removeRows(0, rowCount);
 
     // Retrieve log using a custom format "Sha1:Subject [(refs)]"
-    GitClient *client = GitPlugin::instance()->client();
     QStringList arguments;
     arguments << QLatin1String("--max-count=1000") << QLatin1String("--format=%h:%s %d");
     arguments << (commit.isEmpty() ? QLatin1String("HEAD") : commit);
     if (!(flags & IncludeRemotes))
         arguments << QLatin1String("--not") << QLatin1String("--remotes");
     QString output;
-    if (!client->synchronousLog(repository, arguments, &output, 0, VcsCommand::NoOutput))
+    if (!GitPlugin::client()->synchronousLog(repository, arguments, &output, 0, VcsCommand::NoOutput))
         return false;
     foreach (const QString &line, output.split(QLatin1Char('\n'))) {
         const int colonPos = line.indexOf(QLatin1Char(':'));
@@ -216,8 +210,7 @@ LogChangeDialog::LogChangeDialog(bool isReset, QWidget *parent) :
         m_resetTypeComboBox->addItem(tr("Hard"), QLatin1String("--hard"));
         m_resetTypeComboBox->addItem(tr("Mixed"), QLatin1String("--mixed"));
         m_resetTypeComboBox->addItem(tr("Soft"), QLatin1String("--soft"));
-        GitClient *client = GitPlugin::instance()->client();
-        m_resetTypeComboBox->setCurrentIndex(client->settings().intValue(
+        m_resetTypeComboBox->setCurrentIndex(GitPlugin::client()->settings().intValue(
                                                  GitSettings::lastResetIndexKey));
         popUpLayout->addWidget(m_resetTypeComboBox);
         popUpLayout->addItem(new QSpacerItem(0, 0, QSizePolicy::Expanding, QSizePolicy::Ignored));
@@ -228,10 +221,10 @@ LogChangeDialog::LogChangeDialog(bool isReset, QWidget *parent) :
     QPushButton *okButton = m_dialogButtonBox->addButton(QDialogButtonBox::Ok);
     layout->addLayout(popUpLayout);
 
-    connect(m_dialogButtonBox, SIGNAL(accepted()), this, SLOT(accept()));
-    connect(m_dialogButtonBox, SIGNAL(rejected()), this, SLOT(reject()));
+    connect(m_dialogButtonBox, &QDialogButtonBox::accepted, this, &QDialog::accept);
+    connect(m_dialogButtonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
 
-    connect(m_widget, SIGNAL(activated(QModelIndex)), okButton, SLOT(animateClick()));
+    connect(m_widget, &LogChangeWidget::activated, okButton, [okButton] { okButton->animateClick(); });
 
     setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
     resize(600, 400);
@@ -246,9 +239,8 @@ bool LogChangeDialog::runDialog(const QString &repository,
 
     if (QDialog::exec() == QDialog::Accepted) {
         if (m_resetTypeComboBox) {
-            GitClient *client = GitPlugin::instance()->client();
-            client->settings().setValue(GitSettings::lastResetIndexKey,
-                                        m_resetTypeComboBox->currentIndex());
+            GitPlugin::client()->settings().setValue(GitSettings::lastResetIndexKey,
+                                                     m_resetTypeComboBox->currentIndex());
         }
         return true;
     }
@@ -299,10 +291,8 @@ void IconItemDelegate::paint(QPainter *painter, const QStyleOptionViewItem &opti
     QStyleOptionViewItem o = option;
     if (index.column() == 0 && hasIcon(index.row())) {
         const QSize size = option.decorationSize;
-        painter->save();
         painter->drawPixmap(o.rect.x(), o.rect.y(), m_icon.pixmap(size.width(), size.height()));
-        painter->restore();
-        o.rect.translate(size.width(), 0);
+        o.rect.setLeft(size.width());
     }
     QStyledItemDelegate::paint(painter, o, index);
 }

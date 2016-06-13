@@ -1,5 +1,5 @@
 var File = loadExtension("qbs.File")
-var MinimumLLVMVersion = "3.6.0"
+var MinimumLLVMVersion = "3.6.2"
 
 function isSuitableLLVMConfig(llvmConfigCandidate, qtcFunctions, processOutputReader)
 {
@@ -20,9 +20,10 @@ function llvmConfig(qbs, qtcFunctions, processOutputReader)
     ];
 
     // Prefer llvm-config* from LLVM_INSTALL_DIR
+    var suffix = qbs.hostOS.contains("windows") ? ".exe" : "";
     if (llvmInstallDirFromEnv) {
         for (var i = 0; i < llvmConfigVariants.length; ++i) {
-            var variant = llvmInstallDirFromEnv + "/bin/" + llvmConfigVariants[i];
+            var variant = llvmInstallDirFromEnv + "/bin/" + llvmConfigVariants[i] + suffix;
             if (isSuitableLLVMConfig(variant, qtcFunctions, processOutputReader))
                 return variant;
         }
@@ -34,7 +35,7 @@ function llvmConfig(qbs, qtcFunctions, processOutputReader)
     var pathList = pathListString.split(separator);
     for (var i = 0; i < llvmConfigVariants.length; ++i) {
         for (var j = 0; j < pathList.length; ++j) {
-            var variant = pathList[j] + "/" + llvmConfigVariants[i];
+            var variant = pathList[j] + "/" + llvmConfigVariants[i] + suffix;
             if (isSuitableLLVMConfig(variant, qtcFunctions, processOutputReader))
                 return variant;
         }
@@ -61,5 +62,5 @@ function version(llvmConfig, processOutputReader)
 
 function libraries(targetOS)
 {
-    return ["clang"] + (targetOS.contains("windows") ? ["advapi32", "shell32"] : [])
+    return targetOS.contains("windows") ? ["libclang.lib", "advapi32.lib", "shell32.lib"] : ["clang"]
 }

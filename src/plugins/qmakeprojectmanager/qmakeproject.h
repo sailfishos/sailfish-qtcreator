@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -32,6 +27,7 @@
 #define QMAKEPROJECT_H
 
 #include "qmakeprojectmanager_global.h"
+#include "qmakeprojectmanager.h"
 #include "qmakenodes.h"
 
 #include <projectexplorer/project.h>
@@ -52,15 +48,14 @@ namespace QtSupport { class ProFileReader; }
 
 namespace QmakeProjectManager {
 class QmakeBuildConfiguration;
-class QmakeManager;
 class QmakePriFileNode;
 class QmakeProFileNode;
 
 namespace Internal {
 class CentralizedFolderWatcher;
+class QmakeProjectFile;
 class QmakeProjectFiles;
 class QmakeProjectConfigWidget;
-class QmakeProjectFile;
 }
 
 class  QMAKEPROJECTMANAGER_EXPORT QmakeProject : public ProjectExplorer::Project
@@ -69,22 +64,19 @@ class  QMAKEPROJECTMANAGER_EXPORT QmakeProject : public ProjectExplorer::Project
 
 public:
     QmakeProject(QmakeManager *manager, const QString &proFile);
-    virtual ~QmakeProject();
+    ~QmakeProject() override;
 
-    QString displayName() const;
-    Core::IDocument *document() const;
-    ProjectExplorer::IProjectManager *projectManager() const;
-    QmakeManager *qmakeProjectManager() const;
+    QString displayName() const override;
+    QmakeManager *projectManager() const override;
 
-    bool supportsKit(ProjectExplorer::Kit *k, QString *errorMesage) const;
+    bool supportsKit(ProjectExplorer::Kit *k, QString *errorMesage) const override;
 
-    ProjectExplorer::ProjectNode *rootProjectNode() const;
-    QmakeProFileNode *rootQmakeProjectNode() const;
+    QmakeProFileNode *rootProjectNode() const override;
     bool validParse(const Utils::FileName &proFilePath) const;
     bool parseInProgress(const Utils::FileName &proFilePath) const;
 
-    virtual QStringList files(FilesMode fileMode) const;
-    virtual QString generatedUiHeader(const Utils::FileName &formFile) const;
+    virtual QStringList files(FilesMode fileMode) const override;
+    virtual QStringList filesGeneratedFrom(const QString &file) const override;
 
     enum Parsing {ExactParse, ExactAndCumulativeParse };
     QList<QmakeProFileNode *> allProFiles(const QList<QmakeProjectType> &projectTypes = QList<QmakeProjectType>(),
@@ -123,11 +115,11 @@ public:
     void watchFolders(const QStringList &l, QmakePriFileNode *node);
     void unwatchFolders(const QStringList &l, QmakePriFileNode *node);
 
-    bool needsConfiguration() const;
+    bool needsConfiguration() const override;
 
-    void configureAsExampleProject(const QStringList &platforms);
+    void configureAsExampleProject(const QSet<Core::Id> &platforms) override;
 
-    bool requiresTargetPanel() const;
+    bool requiresTargetPanel() const override;
 
     /// \internal
     QString disabledReasonForRunConfiguration(const Utils::FileName &proFilePath);
@@ -138,7 +130,7 @@ public:
     void emitBuildDirectoryInitialized();
     static void proFileParseError(const QString &errorMessage);
 
-    ProjectExplorer::ProjectImporter *createProjectImporter() const;
+    ProjectExplorer::ProjectImporter *createProjectImporter() const override;
 
     enum AsyncUpdateState { Base, AsyncFullUpdatePending, AsyncPartialUpdatePending, AsyncUpdateInProgress, ShuttingDown };
     AsyncUpdateState asyncUpdateState() const;
@@ -153,15 +145,13 @@ public slots:
     void scheduleAsyncUpdateLater() { scheduleAsyncUpdate(); }
 
 protected:
-    bool fromMap(const QVariantMap &map);
-
-private slots:
-    void asyncUpdate();
-    void buildFinished(bool success);
-
-    void activeTargetWasChanged();
+    RestoreResult fromMap(const QVariantMap &map, QString *errorMessage) override;
 
 private:
+    void asyncUpdate();
+    void buildFinished(bool success);
+    void activeTargetWasChanged();
+
     QString executableFor(const QmakeProFileNode *node);
     void updateRunConfigurations();
 
@@ -183,11 +173,6 @@ private:
             ProjectExplorer::DeploymentData &deploymentData);
     void startAsyncTimer(QmakeProFileNode::AsyncUpdateDelay delay);
     bool matchesKit(const ProjectExplorer::Kit *kit);
-
-    QmakeManager *m_manager;
-    QmakeProFileNode *m_rootProjectNode = 0;
-
-    Internal::QmakeProjectFile *m_fileInfo = nullptr;
 
     // Current configuration
     QString m_oldQtIncludePath;

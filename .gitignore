@@ -34,13 +34,18 @@ Thumbs.db
 *.embed.manifest
 /.qmake.cache
 /.qmake.stash
+*_wrapper.sh
+*_wrapper.bat
+wrapper.sh
+wrapper.bat
 
 # qtcreator generated files
 *.pro.user*
 *.creator.user*
 *.qbs.user*
 *.qmlproject.user*
-*.json
+*.pyqtc.user*
+/src/plugins/**/*.json
 /src/app/Info.plist
 app_version.h
 /src/plugins/coreplugin/ide_version.h
@@ -195,6 +200,7 @@ tmp/
 /tests/auto/treeviewfind/tst_treeviewfind
 /tests/auto/utils/ansiescapecodehandler/tst_ansiescapecodehandler
 /tests/auto/utils/fileutils/tst_fileutils
+/tests/auto/utils/templateengine/tst_templateengine
 /tests/auto/utils_stringutils/tst_utils_stringutils
 /tests/auto/valgrind/callgrind/tst_callgrindparsertests
 /tests/auto/valgrind/memcheck/modeldemo
@@ -223,7 +229,6 @@ tmp/
 /tests/manual/ssh/sftpfsmodel/sftpfsmodel
 /tests/manual/ssh/shell/shell
 /tests/manual/ssh/tunnel/tunnel
-/tests/manual/utils/tcpportsgatherer/tst_tcpportsgatherer
 /tests/tools/qml-ast2dot/qml-ast2dot
 /tests/valgrind/memcheck/modeldemo
 /tests/valgrind/memcheck/parsertests

@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -109,81 +104,37 @@ NameItemDelegate::NameItemDelegate(QObject *parent, NavigatorTreeModel *treeMode
 {
 }
 
-static QIcon getTypeIcon(const ModelNode &modelNode)
+static int drawIcon(QPainter *painter, const QStyleOptionViewItem &styleOption, const QModelIndex &modelIndex)
 {
-    QIcon icon;
-
-    if (modelNode.isValid()) {
-        // if node has no own icon, search for it in the itemlibrary
-        const ItemLibraryInfo *libraryInfo = modelNode.model()->metaInfo().itemLibraryInfo();
-        QList <ItemLibraryEntry> itemLibraryEntryList = libraryInfo->entriesForType(modelNode.type(),
-                                                                        modelNode.majorVersion(),
-                                                                        modelNode.minorVersion());
-        if (!itemLibraryEntryList.isEmpty())
-            return  itemLibraryEntryList.first().typeIcon();
-        else if (modelNode.metaInfo().isValid())
-            return QIcon(QStringLiteral(":/ItemLibrary/images/item-default-icon.png"));
-        else
-            return QIcon(QStringLiteral(":/ItemLibrary/images/item-invalid-icon.png"));
-    }
-
-    return QIcon(QStringLiteral(":/ItemLibrary/images/item-invalid-icon.png"));
-}
-
-static int drawTypeIcon(QPainter *painter,
-                    const QStyleOptionViewItem &styleOption,
-                    const QModelIndex &modelIndex,
-                    NavigatorTreeModel *navigatorTreeModel
-                    )
-{
+    QIcon icon = modelIndex.data(Qt::DecorationRole).value<QIcon>();
     int pixmapSize = 16;
 
-    if (navigatorTreeModel->hasNodeForIndex(modelIndex)) {
-        ModelNode modelNode = navigatorTreeModel->nodeForIndex(modelIndex);
-
-        // If no icon is present, leave an empty space of 24 pixels anyway
-        QPixmap pixmap = getTypeIcon(modelNode).pixmap(pixmapSize, pixmapSize);
-        painter->drawPixmap(styleOption.rect.x() +1 , styleOption.rect.y() + 2, pixmap);
-    }
+    QPixmap pixmap = icon.pixmap(pixmapSize, pixmapSize);
+    painter->drawPixmap(styleOption.rect.x() + 1 , styleOption.rect.y() + 2, pixmap);
 
     return pixmapSize;
-}
-
-static QString getDisplayString(const QModelIndex &modelIndex, NavigatorTreeModel *navigatorTreeModel)
-{
-    ModelNode modelNode = navigatorTreeModel->nodeForIndex(modelIndex);
-    if (modelNode.hasId())
-        return modelNode.id();
-
-    return modelNode.simplifiedTypeName();
 }
 
 static QRect drawText(QPainter *painter,
                      const QStyleOptionViewItem &styleOption,
                      const QModelIndex &modelIndex,
-                     int iconOffset,
-                     NavigatorTreeModel *navigatorTreeModel)
+                     int iconOffset)
 {
-    QString displayString;
+    QString displayString = modelIndex.data(Qt::DisplayRole).toString();
+    if (displayString.isEmpty())
+        displayString = modelIndex.data(NavigatorTreeModel::SimplifiedTypeNameRole).toString();
     QPoint displayStringOffset;
     int width = 0;
 
-    if (navigatorTreeModel->hasNodeForIndex(modelIndex)) {
-        if (navigatorTreeModel->isNodeInvisible( modelIndex ))
-            painter->setOpacity(0.5);
+    if (modelIndex.data(NavigatorTreeModel::InvisibleRole).toBool())
+        painter->setOpacity(0.5);
 
-        displayString = getDisplayString(modelIndex, navigatorTreeModel);
+    // Check text length does not exceed available space
+    int extraSpace = 12 + iconOffset;
 
-        // Check text length does not exceed available space
-        int extraSpace = 12 + iconOffset;
-
-        displayString = styleOption.fontMetrics.elidedText(displayString, Qt::ElideMiddle, styleOption.rect.width() - extraSpace);
-        displayStringOffset = QPoint(5 + iconOffset, -5);
-        width = styleOption.fontMetrics.width(displayString);
-    } else {
-        displayString = modelIndex.data(Qt::DisplayRole).toString();
-        displayStringOffset = QPoint(0, -2);
-    }
+    displayString = styleOption.fontMetrics.elidedText(displayString, Qt::ElideMiddle, styleOption.rect.width() - extraSpace);
+    displayStringOffset = QPoint(5 + iconOffset, -5);
+    width = styleOption.fontMetrics.width(displayString);
 
     QPoint textPosition = styleOption.rect.bottomLeft() + displayStringOffset;
     painter->drawText(textPosition, displayString);
@@ -197,25 +148,17 @@ static QRect drawText(QPainter *painter,
 
 static void drawRedWavyUnderLine(QPainter *painter,
                                  const QStyleOptionViewItem &styleOption,
-                                 const QModelIndex &modelIndex,
-                                 const QRect &textFrame ,
-                                 NavigatorTreeModel *navigatorTreeModel)
+                                 const QRect &textFrame)
 {
-    if (navigatorTreeModel->hasNodeForIndex(modelIndex)) {
-        ModelNode modelNode = navigatorTreeModel->nodeForIndex(modelIndex);
+    painter->translate(0, textFrame.y() + 1);
+    QPen pen;
+    pen.setColor(Qt::red);
+    const qreal underlineOffset = styleOption.fontMetrics.underlinePos();
+    const QPixmap wave = getWavyPixmap(qMax(underlineOffset, pen.widthF()), pen);
+    const int descent = styleOption.fontMetrics.descent();
 
-        if (!modelNode.metaInfo().isValid()) {
-            painter->translate(0, textFrame.y() + 1);
-            QPen pen;
-            pen.setColor(Qt::red);
-            const qreal underlineOffset = styleOption.fontMetrics.underlinePos();
-            const QPixmap wave = getWavyPixmap(qMax(underlineOffset, pen.widthF()), pen);
-            const int descent = styleOption.fontMetrics.descent();
-
-            painter->setBrushOrigin(painter->brushOrigin().x(), 0);
-            painter->fillRect(textFrame.x(), 0, qCeil(textFrame.width()), qMin(wave.height(), descent), wave);
-        }
-    }
+    painter->setBrushOrigin(painter->brushOrigin().x(), 0);
+    painter->fillRect(textFrame.x(), 0, qCeil(textFrame.width()), qMin(wave.height(), descent), wave);
 }
 
 void NameItemDelegate::paint(QPainter *painter,
@@ -223,15 +166,15 @@ void NameItemDelegate::paint(QPainter *painter,
                              const QModelIndex &modelIndex) const
 {
     painter->save();
-
     if (styleOption.state & QStyle::State_Selected)
         NavigatorTreeView::drawSelectionBackground(painter, styleOption);
 
-    int iconOffset = drawTypeIcon(painter, styleOption, modelIndex, m_navigatorTreeModel);
+    int iconOffset = drawIcon(painter, styleOption, modelIndex);
 
-    QRect textFrame = drawText(painter, styleOption, modelIndex, iconOffset, m_navigatorTreeModel);
+    QRect textFrame = drawText(painter, styleOption, modelIndex, iconOffset);
 
-    drawRedWavyUnderLine(painter, styleOption, modelIndex, textFrame, m_navigatorTreeModel);
+    if (modelIndex.data(NavigatorTreeModel::ErrorRole).toBool())
+        drawRedWavyUnderLine(painter, styleOption, textFrame);
 
     painter->restore();
 }

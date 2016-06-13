@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -50,38 +45,28 @@ namespace Internal {
 class MergeToolProcess : public QProcess
 {
 public:
-    MergeToolProcess(QObject *parent = 0) :
-        QProcess(parent)
-    {
-    }
+    MergeToolProcess(QObject *parent = 0) : QProcess(parent)
+    { }
 
 protected:
     qint64 readData(char *data, qint64 maxlen) override
     {
         qint64 res = QProcess::readData(data, maxlen);
         if (res > 0)
-            VcsOutputWindow::append(QString::fromLocal8Bit(data, res));
+            VcsOutputWindow::append(QString::fromLocal8Bit(data, int(res)));
         return res;
     }
 
     qint64 writeData(const char *data, qint64 len) override
     {
         if (len > 0)
-            VcsOutputWindow::append(QString::fromLocal8Bit(data, len));
+            VcsOutputWindow::append(QString::fromLocal8Bit(data, int(len)));
         return QProcess::writeData(data, len);
     }
 };
 
-MergeTool::MergeTool(QObject *parent) :
-    QObject(parent),
-    m_process(0),
-    m_mergeType(NormalMerge),
-    m_localState(UnknownState),
-    m_remoteState(UnknownState),
-    m_client(GitPlugin::instance()->client()),
-    m_merging(false)
-{
-}
+MergeTool::MergeTool(QObject *parent) : QObject(parent)
+{ }
 
 MergeTool::~MergeTool()
 {
@@ -91,23 +76,15 @@ MergeTool::~MergeTool()
 bool MergeTool::start(const QString &workingDirectory, const QStringList &files)
 {
     QStringList arguments;
-    arguments << QLatin1String("mergetool") << QLatin1String("-y");
-    if (!files.isEmpty()) {
-        if (m_client->gitVersion() < 0x010708) {
-            Core::AsynchronousMessageBox::warning(tr("Error"),
-                                                   tr("File input for the merge tool requires Git 1.7.8, or later."));
-            return false;
-        }
-        arguments << files;
-    }
+    arguments << QLatin1String("mergetool") << QLatin1String("-y") << files;
     m_process = new MergeToolProcess(this);
     m_process->setWorkingDirectory(workingDirectory);
-    const Utils::FileName binary = m_client->vcsBinary();
+    const Utils::FileName binary = GitPlugin::client()->vcsBinary();
     VcsOutputWindow::appendCommand(workingDirectory, binary, arguments);
     m_process->start(binary.toString(), arguments);
     if (m_process->waitForStarted()) {
-        connect(m_process, SIGNAL(finished(int)), this, SLOT(done()));
-        connect(m_process, SIGNAL(readyRead()), this, SLOT(readData()));
+        connect(m_process, static_cast<void (QProcess::*)(int)>(&QProcess::finished), this, &MergeTool::done);
+        connect(m_process, &QIODevice::readyRead, this, &MergeTool::readData);
     } else {
         delete m_process;
         m_process = 0;
@@ -119,31 +96,35 @@ bool MergeTool::start(const QString &workingDirectory, const QStringList &files)
 MergeTool::FileState MergeTool::waitAndReadStatus(QString &extraInfo)
 {
     QByteArray state;
-    if (m_process->canReadLine() || (m_process->waitForReadyRead(500) && m_process->canReadLine())) {
-        state = m_process->readLine().trimmed();
-        // "  {local}: modified file"
-        // "  {remote}: deleted"
-        if (!state.isEmpty()) {
-            state = state.mid(state.indexOf(':') + 2);
-            if (state == "deleted")
-                return DeletedState;
-            if (state.startsWith("modified"))
-                return ModifiedState;
-            if (state.startsWith("created"))
-                return CreatedState;
-            QByteArray submodulePrefix("submodule commit ");
-            // "  {local}: submodule commit <hash>"
-            if (state.startsWith(submodulePrefix)) {
-                extraInfo = QString::fromLocal8Bit(state.mid(submodulePrefix.size()));
-                return SubmoduleState;
-            }
-            // "  {local}: a symbolic link -> 'foo.cpp'"
-            QByteArray symlinkPrefix("a symbolic link -> '");
-            if (state.startsWith(symlinkPrefix)) {
-                extraInfo = QString::fromLocal8Bit(state.mid(symlinkPrefix.size()));
-                extraInfo.chop(1); // remove last quote
-                return SymbolicLinkState;
-            }
+    for (int i = 0; i < 5; ++i) {
+        if (m_process->canReadLine()) {
+            state = m_process->readLine().trimmed();
+            break;
+        }
+        m_process->waitForReadyRead(500);
+    }
+    // "  {local}: modified file"
+    // "  {remote}: deleted"
+    if (!state.isEmpty()) {
+        state = state.mid(state.indexOf(':') + 2);
+        if (state == "deleted")
+            return DeletedState;
+        if (state.startsWith("modified"))
+            return ModifiedState;
+        if (state.startsWith("created"))
+            return CreatedState;
+        QByteArray submodulePrefix("submodule commit ");
+        // "  {local}: submodule commit <hash>"
+        if (state.startsWith(submodulePrefix)) {
+            extraInfo = QString::fromLocal8Bit(state.mid(submodulePrefix.size()));
+            return SubmoduleState;
+        }
+        // "  {local}: a symbolic link -> 'foo.cpp'"
+        QByteArray symlinkPrefix("a symbolic link -> '");
+        if (state.startsWith(symlinkPrefix)) {
+            extraInfo = QString::fromLocal8Bit(state.mid(symlinkPrefix.size()));
+            extraInfo.chop(1); // remove last quote
+            return SymbolicLinkState;
         }
     }
     return UnknownState;
@@ -250,7 +231,7 @@ void MergeTool::readData()
             m_localState = waitAndReadStatus(m_localInfo);
             m_remoteState = waitAndReadStatus(m_remoteInfo);
             chooseAction();
-        } else if (m_merging && line.startsWith("Continue merging")) {
+        } else if (line.startsWith("Continue merging")) {
             if (QMessageBox::question(Core::ICore::dialogParent(), tr("Continue Merging"),
                                       tr("Continue merging other unresolved paths?"),
                                       QMessageBox::Yes | QMessageBox::No,
@@ -274,7 +255,7 @@ void MergeTool::done()
         VcsOutputWindow::appendError(tr("Merge tool process terminated with exit code %1")
                                   .arg(exitCode));
     }
-    m_client->continueCommandIfNeeded(workingDirectory, exitCode == 0);
+    GitPlugin::client()->continueCommandIfNeeded(workingDirectory, exitCode == 0);
     GitPlugin::instance()->gitVersionControl()->emitRepositoryChanged(workingDirectory);
     deleteLater();
 }

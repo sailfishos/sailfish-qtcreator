@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -38,11 +33,12 @@
 
 #include <projectexplorer/abi.h>
 
+#include <QSet>
 #include <QStringList>
 #include <QVariantMap>
 
 namespace Utils { class Environment; }
-namespace Core { class FeatureSet; }
+namespace Core { class Id; }
 
 namespace ProjectExplorer {
 class IOutputParser;
@@ -68,7 +64,7 @@ public:
     QtVersionNumber(const QString &versionString);
     QtVersionNumber();
 
-    Core::FeatureSet features() const;
+    QSet<Core::Id> features() const;
 
     int majorVersion;
     int minorVersion;
@@ -138,6 +134,7 @@ public:
     virtual QString linguistCommand() const;
     QString qmlsceneCommand() const;
     QString qmlviewerCommand() const;
+    QString qscxmlcCommand() const;
 
     virtual QString qtVersionString() const;
     virtual QtVersionNumber qtVersion() const;
@@ -192,8 +189,6 @@ public:
     bool isQmlDebuggingSupported(QString *reason = 0) const;
     static bool isQtQuickCompilerSupported(ProjectExplorer::Kit *k, QString *reason = 0);
     bool isQtQuickCompilerSupported(QString *reason = 0) const;
-    static void buildDebuggingHelper(ProjectExplorer::Kit *k, int tools);
-    void buildDebuggingHelper(ProjectExplorer::ToolChain *tc, int tools);
 
     virtual QString qmlDumpTool(bool debugVersion) const;
 
@@ -207,10 +202,8 @@ public:
     static QString defaultUnexpandedDisplayName(const Utils::FileName &qmakePath,
                                       bool fromPath = false);
 
-    virtual Core::FeatureSet availableFeatures() const;
-    virtual QString platformName() const;
-    virtual QString platformDisplayName() const;
-    virtual bool supportsPlatform(const QString &platformName) const;
+    virtual QSet<Core::Id> availableFeatures() const;
+    virtual QSet<Core::Id> targetDeviceTypes() const = 0;
 
     virtual QList<ProjectExplorer::Task> validateKit(const ProjectExplorer::Kit *k);
 
@@ -244,9 +237,9 @@ protected:
     virtual QList<ProjectExplorer::Task> reportIssuesImpl(const QString &proFile, const QString &buildDir) const;
 
     // helper function for desktop and simulator to figure out the supported abis based on the libraries
-    static QList<Utils::FileName> qtCorePaths(const QHash<QString,QString> &versionInfo,
-                                              const QString &versionString);
-    static QList<ProjectExplorer::Abi> qtAbisFromLibrary(const QList<Utils::FileName> &coreLibraries);
+    static Utils::FileNameList qtCorePaths(const QHash<QString,QString> &versionInfo,
+                                           const QString &versionString);
+    static QList<ProjectExplorer::Abi> qtAbisFromLibrary(const Utils::FileNameList &coreLibraries);
 
     void ensureMkSpecParsed() const;
     virtual void parseMkSpec(ProFileEvaluator *) const;
@@ -258,7 +251,7 @@ private:
     void setupExpander();
     void updateSourcePath() const;
     void updateVersionInfo() const;
-    enum Binaries { QmlViewer, QmlScene, Designer, Linguist, Uic };
+    enum Binaries { QmlViewer, QmlScene, Designer, Linguist, Uic, QScxmlc };
     QString findQtBinary(Binaries binary) const;
     void updateMkspec() const;
     void setId(int id); // used by the qtversionmanager for legacy restore
@@ -295,13 +288,14 @@ private:
 
     mutable QHash<QString,QString> m_versionInfo;
 
-    mutable Utils::FileName m_qmakeCommand;
+    Utils::FileName m_qmakeCommand;
     mutable QString m_qtVersionString;
     mutable QString m_uicCommand;
     mutable QString m_designerCommand;
     mutable QString m_linguistCommand;
     mutable QString m_qmlsceneCommand;
     mutable QString m_qmlviewerCommand;
+    mutable QString m_qscxmlcCommand;
 
     mutable QList<ProjectExplorer::Abi> m_qtAbis;
 

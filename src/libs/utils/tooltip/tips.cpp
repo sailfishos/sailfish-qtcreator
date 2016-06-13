@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -54,6 +49,17 @@ namespace Internal {
 QTipLabel::QTipLabel(QWidget *parent) :
     QLabel(parent, Qt::ToolTip | Qt::BypassGraphicsProxyWidget)
 {}
+
+void QTipLabel::setHelpId(const QString &id)
+{
+    m_helpId = id;
+    update();
+}
+
+QString QTipLabel::helpId() const
+{
+    return m_helpId;
+}
 
 
 ColorTip::ColorTip(QWidget *parent)
@@ -88,28 +94,25 @@ bool ColorTip::canHandleContentReplacement(int typeId) const
     return typeId == ToolTip::ColorContent;
 }
 
-bool ColorTip::equals(int typeId, const QVariant &other) const
+bool ColorTip::equals(int typeId, const QVariant &other, const QString &otherHelpId) const
 {
-    return typeId == ToolTip::ColorContent && other == m_color;
+    return typeId == ToolTip::ColorContent && otherHelpId == helpId() && other == m_color;
 }
 
 void ColorTip::paintEvent(QPaintEvent *event)
 {
     QTipLabel::paintEvent(event);
 
-    QPen pen;
-    pen.setWidth(1);
-    if (m_color.value() > 100)
-        pen.setColor(m_color.darker());
-    else
-        pen.setColor(m_color.lighter());
-
     QPainter painter(this);
-    painter.setPen(pen);
     painter.setBrush(m_color);
-    QRect r(0, 0, rect().width() - 1, rect().height() - 1);
-    painter.drawTiledPixmap(r, m_tilePixmap);
-    painter.drawRect(r);
+    painter.drawTiledPixmap(rect(), m_tilePixmap);
+
+    QPen pen;
+    pen.setColor(m_color.value() > 100 ? m_color.darker() : m_color.lighter());
+    pen.setJoinStyle(Qt::MiterJoin);
+    const QRectF borderRect = QRectF(rect()).adjusted(0.5, 0.5, -0.5, -0.5);
+    painter.setPen(pen);
+    painter.drawRect(borderRect);
 }
 
 TextTip::TextTip(QWidget *parent) : QTipLabel(parent)
@@ -131,7 +134,12 @@ void TextTip::setContent(const QVariant &content)
 
 void TextTip::configure(const QPoint &pos, QWidget *w)
 {
-    setText(m_text);
+    if (helpId().isEmpty())
+        setText(m_text);
+    else
+        setText(QString::fromLatin1("<table><tr><td valign=middle>%1</td><td>&nbsp;&nbsp;"
+                                    "<img src=\":/utils/tooltip/images/f1.png\"></td>"
+                                    "</tr></table>").arg(m_text));
 
     // Make it look good with the default ToolTip font on Mac, which has a small descent.
     QFontMetrics fm(font());
@@ -166,9 +174,9 @@ int TextTip::showTime() const
     return 10000 + 40 * qMax(0, m_text.size() - 100);
 }
 
-bool TextTip::equals(int typeId, const QVariant &other) const
+bool TextTip::equals(int typeId, const QVariant &other, const QString &otherHelpId) const
 {
-    return typeId == ToolTip::TextContent && other.toString() == m_text;
+    return typeId == ToolTip::TextContent && otherHelpId == helpId() && other.toString() == m_text;
 }
 
 void TextTip::paintEvent(QPaintEvent *event)
@@ -245,9 +253,10 @@ bool WidgetTip::canHandleContentReplacement(int typeId) const
     return false;
 }
 
-bool WidgetTip::equals(int typeId, const QVariant &other) const
+bool WidgetTip::equals(int typeId, const QVariant &other, const QString &otherHelpId) const
 {
-    return typeId == ToolTip::WidgetContent && other.value<QWidget *>() == m_widget;
+    return typeId == ToolTip::WidgetContent && otherHelpId == helpId()
+            && other.value<QWidget *>() == m_widget;
 }
 
 // need to include it here to force it to be inside the namespaces

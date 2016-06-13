@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -39,6 +34,7 @@
 #include "assistinterface.h"
 #include "assistproposalitem.h"
 #include "runner.h"
+#include "textdocumentmanipulator.h"
 
 #include <texteditor/texteditor.h>
 #include <texteditor/texteditorsettings.h>
@@ -89,9 +85,8 @@ public:
     virtual bool eventFilter(QObject *o, QEvent *e);
 
 private:
-    void finalizeRequest();
     void proposalComputed();
-    void processProposalItem(AssistProposalItem *proposalItem);
+    void processProposalItem(AssistProposalItemInterface *proposalItem);
     void handlePrefixExpansion(const QString &newPrefix);
     void finalizeProposal();
     void explicitlyAborted();
@@ -202,7 +197,8 @@ void CodeAssistantPrivate::process()
             }
         }
 
-        startAutomaticProposalTimer();
+        if (!isDisplayingProposal())
+            startAutomaticProposalTimer();
     } else {
         m_assistKind = TextEditor::Completion;
     }
@@ -251,7 +247,7 @@ void CodeAssistantPrivate::requestProposal(AssistReason reason,
         connect(m_requestRunner, &ProcessorRunner::finished,
                 this, &CodeAssistantPrivate::proposalComputed);
         connect(m_requestRunner, &ProcessorRunner::finished,
-                this, &CodeAssistantPrivate::finalizeRequest);
+                m_requestRunner, &QObject::deleteLater);
         connect(m_requestRunner, &ProcessorRunner::finished,
                 q, &CodeAssistant::finished);
         assistInterface->prepareForAsyncUse();
@@ -264,14 +260,8 @@ void CodeAssistantPrivate::requestProposal(AssistReason reason,
     case IAssistProvider::Asynchronous: {
         processor->setAsyncCompletionAvailableHandler(
             [this, processor, reason](IAssistProposal *newProposal){
-                if (m_asyncProcessor != processor) {
-                    delete newProposal->model();
-                    delete newProposal;
-                    return;
-                }
-
-                invalidateCurrentRequestData();
                 QTC_CHECK(newProposal);
+                invalidateCurrentRequestData();
                 displayProposal(newProposal, reason);
 
                 emit q->finished();
@@ -283,10 +273,10 @@ void CodeAssistantPrivate::requestProposal(AssistReason reason,
             delete processor;
         } else if (!processor->performWasApplicable()) {
             delete processor;
+        } else { // ...async request was triggered
+            m_asyncProcessor = processor;
         }
 
-        // ...otherwise the async request was triggered
-        m_asyncProcessor = processor;
         break;
     }
     } // switch
@@ -306,7 +296,7 @@ void CodeAssistantPrivate::proposalComputed()
 {
     // Since the request runner is a different thread, there's still a gap in which the queued
     // signal could be processed after an invalidation of the current request.
-    if (m_requestRunner != sender())
+    if (!m_requestRunner || m_requestRunner != sender())
         return;
 
     IAssistProposal *newProposal = m_requestRunner->proposal();
@@ -366,10 +356,11 @@ void CodeAssistantPrivate::displayProposal(IAssistProposal *newProposal, AssistR
                                        m_editorWidget->position() - basePosition));
 }
 
-void CodeAssistantPrivate::processProposalItem(AssistProposalItem *proposalItem)
+void CodeAssistantPrivate::processProposalItem(AssistProposalItemInterface *proposalItem)
 {
     QTC_ASSERT(m_proposal, return);
-    proposalItem->apply(m_editorWidget, m_proposal->basePosition());
+    TextDocumentManipulator manipulator(m_editorWidget);
+    proposalItem->apply(manipulator, m_proposal->basePosition());
     destroyContext();
     process();
 }
@@ -381,12 +372,6 @@ void CodeAssistantPrivate::handlePrefixExpansion(const QString &newPrefix)
     m_editorWidget->setCursorPosition(m_proposal->basePosition());
     m_editorWidget->replace(currentPosition - m_proposal->basePosition(), newPrefix);
     notifyChange();
-}
-
-void CodeAssistantPrivate::finalizeRequest()
-{
-    if (ProcessorRunner *runner = qobject_cast<ProcessorRunner *>(sender()))
-        delete runner;
 }
 
 void CodeAssistantPrivate::finalizeProposal()
@@ -447,8 +432,6 @@ void CodeAssistantPrivate::notifyChange()
             m_proposalWidget->updateProposal(
                 m_editorWidget->textAt(m_proposal->basePosition(),
                                      m_editorWidget->position() - m_proposal->basePosition()));
-            if (m_proposal->isFragile())
-                startAutomaticProposalTimer();
         }
     }
 }
@@ -480,7 +463,7 @@ void CodeAssistantPrivate::startAutomaticProposalTimer()
 
 void CodeAssistantPrivate::automaticProposalTimeout()
 {
-    if (isWaitingForProposal() || (isDisplayingProposal() && !m_proposal->isFragile()))
+    if (isWaitingForProposal() || isDisplayingProposal())
         return;
 
     requestProposal(IdleEditor, Completion);
@@ -550,6 +533,7 @@ CodeAssistant::CodeAssistant() : d(new CodeAssistantPrivate(this))
 
 CodeAssistant::~CodeAssistant()
 {
+    destroyContext();
     delete d;
 }
 

@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -32,6 +27,9 @@
 
 #include <coreplugin/editormanager/editormanager.h>
 
+#include <aggregation/aggregate.h>
+#include <coreplugin/find/basetextfind.h>
+#include <coreplugin/outputwindow.h>
 #include <utils/fileutils.h>
 #include <utils/outputformatter.h>
 #include <utils/theme/theme.h>
@@ -71,6 +69,8 @@
 namespace VcsBase {
 namespace Internal {
 
+const char C_VCS_OUTPUT_PANE[] = "Vcs.OutputPane";
+
 // Store repository along with text blocks
 class RepositoryUserData : public QTextBlockUserData
 {
@@ -84,7 +84,7 @@ private:
 
 // A plain text edit with a special context menu containing "Clear" and
 // and functions to append specially formatted entries.
-class OutputWindowPlainTextEdit : public QPlainTextEdit
+class OutputWindowPlainTextEdit : public Core::OutputWindow
 {
 public:
     explicit OutputWindowPlainTextEdit(QWidget *parent = 0);
@@ -109,7 +109,7 @@ private:
 };
 
 OutputWindowPlainTextEdit::OutputWindowPlainTextEdit(QWidget *parent) :
-    QPlainTextEdit(parent),
+    Core::OutputWindow(Core::Context(C_VCS_OUTPUT_PANE), parent),
     m_defaultFormat(currentCharFormat()),
     m_errorFormat(m_defaultFormat),
     m_warningFormat(m_defaultFormat),
@@ -126,6 +126,9 @@ OutputWindowPlainTextEdit::OutputWindowPlainTextEdit(QWidget *parent) :
     m_messageFormat.setForeground(Utils::creatorTheme()->color(Theme::OutputPanes_MessageOutput));
     m_formatter = new Utils::OutputFormatter;
     m_formatter->setPlainTextEdit(this);
+    Aggregation::Aggregate *agg = new Aggregation::Aggregate;
+    agg->add(this);
+    agg->add(new Core::BaseTextFind(this));
 }
 
 OutputWindowPlainTextEdit::~OutputWindowPlainTextEdit()
@@ -276,9 +279,9 @@ void OutputWindowPlainTextEdit::setFormat(enum VcsOutputWindow::MessageStyle sty
 class VcsOutputWindowPrivate
 {
 public:
-    Internal::OutputWindowPlainTextEdit *plainTextEdit();
+    Internal::OutputWindowPlainTextEdit *widget();
 
-    QPointer<Internal::OutputWindowPlainTextEdit> m_plainTextEdit;
+    QPointer<Internal::OutputWindowPlainTextEdit> m_widget;
     QString repository;
     QRegExp passwordRegExp;
 };
@@ -286,11 +289,11 @@ public:
 // Create log editor on demand. Some errors might be logged
 // before CorePlugin::extensionsInitialized() pulls up the windows.
 
-Internal::OutputWindowPlainTextEdit *VcsOutputWindowPrivate::plainTextEdit()
+Internal::OutputWindowPlainTextEdit *VcsOutputWindowPrivate::widget()
 {
-    if (!m_plainTextEdit)
-        m_plainTextEdit = new Internal::OutputWindowPlainTextEdit();
-    return m_plainTextEdit;
+    if (!m_widget)
+        m_widget = new Internal::OutputWindowPlainTextEdit();
+    return m_widget;
 }
 
 static VcsOutputWindow *m_instance = 0;
@@ -326,13 +329,13 @@ VcsOutputWindow::~VcsOutputWindow()
 
 QWidget *VcsOutputWindow::outputWidget(QWidget *parent)
 {
-    if (d->m_plainTextEdit) {
-        if (parent != d->m_plainTextEdit->parent())
-            d->m_plainTextEdit->setParent(parent);
+    if (d->m_widget) {
+        if (parent != d->m_widget->parent())
+            d->m_widget->setParent(parent);
     } else {
-        d->m_plainTextEdit = new Internal::OutputWindowPlainTextEdit(parent);
+        d->m_widget = new Internal::OutputWindowPlainTextEdit(parent);
     }
-    return d->m_plainTextEdit;
+    return d->m_widget;
 }
 
 QWidgetList VcsOutputWindow::toolBarWidgets() const
@@ -352,14 +355,14 @@ int VcsOutputWindow::priorityInStatusBar() const
 
 void VcsOutputWindow::clearContents()
 {
-    if (d->m_plainTextEdit)
-        d->m_plainTextEdit->clear();
+    if (d->m_widget)
+        d->m_widget->clear();
 }
 
 void VcsOutputWindow::visibilityChanged(bool visible)
 {
-    if (visible && d->m_plainTextEdit)
-        d->m_plainTextEdit->setFocus();
+    if (visible && d->m_widget)
+        d->m_widget->setFocus();
 }
 
 void VcsOutputWindow::setFocus()
@@ -401,7 +404,7 @@ void VcsOutputWindow::goToPrev()
 
 void VcsOutputWindow::setText(const QString &text)
 {
-    d->plainTextEdit()->setPlainText(text);
+    d->widget()->setPlainText(text);
 }
 
 void VcsOutputWindow::setData(const QByteArray &data)
@@ -416,9 +419,9 @@ void VcsOutputWindow::appendSilently(const QString &text)
 
 void VcsOutputWindow::append(const QString &text, enum MessageStyle style, bool silently)
 {
-    d->plainTextEdit()->appendLinesWithStyle(text, style, d->repository);
+    d->widget()->appendLinesWithStyle(text, style, d->repository);
 
-    if (!silently && !d->plainTextEdit()->isVisible())
+    if (!silently && !d->widget()->isVisible())
         m_instance->popup(Core::IOutputPane::NoModeSwitch);
 }
 

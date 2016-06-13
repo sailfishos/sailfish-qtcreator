@@ -1,8 +1,8 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
 ** Author: Nicolas Arnaud-Cormos, KDAB (nicolas.arnaud-cormos@kdab.com)
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -10,26 +10,22 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
 #include "memcheckengine.h"
+#include "memchecktool.h"
 #include "valgrindprocess.h"
 #include "valgrindsettings.h"
 #include "xmlprotocol/error.h"
@@ -48,16 +44,15 @@
 
 #include <utils/qtcassert.h>
 
-using namespace Analyzer;
+using namespace Debugger;
 using namespace ProjectExplorer;
 using namespace Valgrind::XmlProtocol;
 
 namespace Valgrind {
 namespace Internal {
 
-MemcheckRunControl::MemcheckRunControl(const AnalyzerStartParameters &sp,
-        RunConfiguration *runConfiguration)
-    : ValgrindRunControl(sp, runConfiguration)
+MemcheckRunControl::MemcheckRunControl(RunConfiguration *runConfiguration, Core::Id runMode)
+    : ValgrindRunControl(runConfiguration, runMode)
 {
     connect(&m_parser, &XmlProtocol::ThreadedParser::error,
             this, &MemcheckRunControl::parserError);
@@ -77,20 +72,20 @@ ValgrindRunner *MemcheckRunControl::runner()
     return &m_runner;
 }
 
-bool MemcheckRunControl::startEngine()
+void MemcheckRunControl::start()
 {
     m_runner.setParser(&m_parser);
 
     appendMessage(tr("Analyzing memory of %1").arg(executable()) + QLatin1Char('\n'),
                         Utils::NormalMessageFormat);
-    return ValgrindRunControl::startEngine();
+    ValgrindRunControl::start();
 }
 
-void MemcheckRunControl::stopEngine()
+RunControl::StopResult MemcheckRunControl::stop()
 {
     disconnect(&m_parser, &ThreadedParser::internalError,
                this, &MemcheckRunControl::internalParserError);
-    ValgrindRunControl::stopEngine();
+    return ValgrindRunControl::stop();
 }
 
 QStringList MemcheckRunControl::toolArguments() const
@@ -133,9 +128,8 @@ QStringList MemcheckRunControl::suppressionFiles() const
     return m_settings->suppressionFiles();
 }
 
-MemcheckWithGdbRunControl::MemcheckWithGdbRunControl(const AnalyzerStartParameters &sp,
-                                                     RunConfiguration *runConfiguration)
-    : MemcheckRunControl(sp, runConfiguration)
+MemcheckWithGdbRunControl::MemcheckWithGdbRunControl(RunConfiguration *runConfiguration)
+    : MemcheckRunControl(runConfiguration, MEMCHECK_WITH_GDB_RUN_MODE)
 {
     connect(&m_runner, &Memcheck::MemcheckRunner::started,
             this, &MemcheckWithGdbRunControl::startDebugger);
@@ -155,10 +149,9 @@ QStringList MemcheckWithGdbRunControl::toolArguments() const
 void MemcheckWithGdbRunControl::startDebugger()
 {
     const qint64 valgrindPid = runner()->valgrindProcess()->pid();
-    const AnalyzerStartParameters &mySp = startParameters();
 
     Debugger::DebuggerStartParameters sp;
-    sp.executable = mySp.debuggee;
+    sp.inferior = runnable().as<StandardRunnable>();
     sp.startMode = Debugger::AttachToRemoteServer;
     sp.displayName = QString::fromLatin1("VGdb %1").arg(valgrindPid);
     sp.remoteChannel = QString::fromLatin1("| vgdb --pid=%1").arg(valgrindPid);

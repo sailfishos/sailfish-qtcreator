@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -61,6 +56,7 @@
 
 static const char kSettingsGroup[] = "Progress";
 static const char kDetailsPinned[] = "DetailsPinned";
+static const int TimerInterval = 100; // 100 ms
 
 using namespace Core;
 using namespace Core::Internal;
@@ -154,11 +150,11 @@ using namespace Utils;
     The actual refresh, which calls all the filters' refresh functions
     in a different thread, looks like this:
     \code
-    QFuture<void> task = QtConcurrent::run(&ILocatorFilter::refresh, filters);
+    QFuture<void> task = Utils::map(filters, &ILocatorFilter::refresh);
     Core::FutureProgress *progress = Core::ProgressManager::addTask(task, tr("Indexing"),
                                                                     Locator::Constants::TASK_INDEX);
     \endcode
-    First, we tell QtConcurrent to start a thread which calls all the filters'
+    First, we to start an asynchronous operation which calls all the filters'
     refresh function. After that we register the returned QFuture object
     with the ProgressManager.
 
@@ -280,8 +276,8 @@ ProgressManagerPrivate::ProgressManagerPrivate()
     m_instance = this;
     m_progressView = new ProgressView;
     // withDelay, so the statusBarWidget has the chance to get the enter event
-    connect(m_progressView, SIGNAL(hoveredChanged(bool)), this, SLOT(updateVisibilityWithDelay()));
-    connect(ICore::instance(), SIGNAL(coreAboutToClose()), this, SLOT(cancelAllRunningTasks()));
+    connect(m_progressView.data(), &ProgressView::hoveredChanged, this, &ProgressManagerPrivate::updateVisibilityWithDelay);
+    connect(ICore::instance(), &ICore::coreAboutToClose, this, &ProgressManagerPrivate::cancelAllRunningTasks);
 }
 
 ProgressManagerPrivate::~ProgressManagerPrivate()
@@ -299,7 +295,7 @@ void ProgressManagerPrivate::readSettings()
 {
     QSettings *settings = ICore::settings();
     settings->beginGroup(QLatin1String(kSettingsGroup));
-    m_progressViewPinned = settings->value(QLatin1String(kDetailsPinned), true).toBool();
+    m_progressViewPinned = settings->value(QLatin1String(kDetailsPinned), false).toBool();
     settings->endGroup();
 }
 
@@ -317,7 +313,7 @@ void ProgressManagerPrivate::init()
     m_summaryProgressWidget->setVisible(!m_progressViewPinned);
     m_summaryProgressWidget->setGraphicsEffect(m_opacityEffect);
     m_summaryProgressLayout = new QHBoxLayout(m_summaryProgressWidget);
-    m_summaryProgressLayout->setContentsMargins(0, 0, 0, 0);
+    m_summaryProgressLayout->setContentsMargins(0, 0, 0, 2);
     m_summaryProgressLayout->setSpacing(0);
     m_summaryProgressWidget->setLayout(m_summaryProgressLayout);
     m_summaryProgressBar = new ProgressBar(m_summaryProgressWidget);
@@ -346,7 +342,8 @@ void ProgressManagerPrivate::init()
     cmd->setDefaultKeySequence(QKeySequence(HostOsInfo::isMacHost()
                                                ? tr("Ctrl+Shift+0")
                                                : tr("Alt+Shift+0")));
-    connect(toggleProgressView, SIGNAL(toggled(bool)), this, SLOT(progressDetailsToggled(bool)));
+    connect(toggleProgressView, &QAction::toggled,
+            this, &ProgressManagerPrivate::progressDetailsToggled);
     toggleButton->setDefaultAction(cmd->action());
 
     m_progressView->setVisible(m_progressViewPinned);
@@ -364,7 +361,7 @@ void ProgressManagerPrivate::doCancelTasks(Id type)
             continue;
         }
         found = true;
-        disconnect(task.key(), SIGNAL(finished()), this, SLOT(taskFinished()));
+        disconnect(task.key(), &QFutureWatcherBase::finished, this, &ProgressManagerPrivate::taskFinished);
         if (m_applicationTask == task.key())
             disconnectApplicationTask();
         task.key()->cancel();
@@ -395,7 +392,7 @@ bool ProgressManagerPrivate::eventFilter(QObject *obj, QEvent *event)
                 progress = m_taskList.last();
             // don't send signal directly from an event filter, event filters should
             // do as little a possible
-            QTimer::singleShot(0, progress, SIGNAL(clicked()));
+            QTimer::singleShot(0, progress, &FutureProgress::clicked);
             event->accept();
             return true;
         }
@@ -407,7 +404,7 @@ void ProgressManagerPrivate::cancelAllRunningTasks()
 {
     QMap<QFutureWatcher<void> *, Id>::const_iterator task = m_runningTasks.constBegin();
     while (task != m_runningTasks.constEnd()) {
-        disconnect(task.key(), SIGNAL(finished()), this, SLOT(taskFinished()));
+        disconnect(task.key(), &QFutureWatcherBase::finished, this, &ProgressManagerPrivate::taskFinished);
         if (m_applicationTask == task.key())
             disconnectApplicationTask();
         task.key()->cancel();
@@ -424,9 +421,11 @@ FutureProgress *ProgressManagerPrivate::doAddTask(const QFuture<void> &future, c
     // watch
     QFutureWatcher<void> *watcher = new QFutureWatcher<void>();
     m_runningTasks.insert(watcher, type);
-    connect(watcher, SIGNAL(progressRangeChanged(int,int)), this, SLOT(updateSummaryProgressBar()));
-    connect(watcher, SIGNAL(progressValueChanged(int)), this, SLOT(updateSummaryProgressBar()));
-    connect(watcher, SIGNAL(finished()), this, SLOT(taskFinished()));
+    connect(watcher, &QFutureWatcherBase::progressRangeChanged,
+            this, &ProgressManagerPrivate::updateSummaryProgressBar);
+    connect(watcher, &QFutureWatcherBase::progressValueChanged,
+            this, &ProgressManagerPrivate::updateSummaryProgressBar);
+    connect(watcher, &QFutureWatcherBase::finished, this, &ProgressManagerPrivate::taskFinished);
     watcher->setFuture(future);
 
     // handle application task
@@ -436,10 +435,10 @@ FutureProgress *ProgressManagerPrivate::doAddTask(const QFuture<void> &future, c
         m_applicationTask = watcher;
         setApplicationProgressRange(future.progressMinimum(), future.progressMaximum());
         setApplicationProgressValue(future.progressValue());
-        connect(m_applicationTask, SIGNAL(progressRangeChanged(int,int)),
-                this, SLOT(setApplicationProgressRange(int,int)));
-        connect(m_applicationTask, SIGNAL(progressValueChanged(int)),
-                this, SLOT(setApplicationProgressValue(int)));
+        connect(m_applicationTask, &QFutureWatcherBase::progressRangeChanged,
+                this, &ProgressManagerPrivate::setApplicationProgressRange);
+        connect(m_applicationTask, &QFutureWatcherBase::progressValueChanged,
+                this, &ProgressManagerPrivate::setApplicationProgressValue);
         setApplicationProgressVisible(true);
     }
 
@@ -458,10 +457,13 @@ FutureProgress *ProgressManagerPrivate::doAddTask(const QFuture<void> &future, c
         progress->setKeepOnFinish(FutureProgress::KeepOnFinishTillUserInteraction);
     else
         progress->setKeepOnFinish(FutureProgress::HideOnFinish);
-    connect(progress, SIGNAL(hasErrorChanged()), this, SLOT(updateSummaryProgressBar()));
-    connect(progress, SIGNAL(removeMe()), this, SLOT(slotRemoveTask()));
-    connect(progress, SIGNAL(fadeStarted()), this, SLOT(updateSummaryProgressBar()));
-    connect(progress, SIGNAL(statusBarWidgetChanged()), this, SLOT(updateStatusDetailsWidget()));
+    connect(progress, &FutureProgress::hasErrorChanged,
+            this, &ProgressManagerPrivate::updateSummaryProgressBar);
+    connect(progress, &FutureProgress::removeMe, this, &ProgressManagerPrivate::slotRemoveTask);
+    connect(progress, &FutureProgress::fadeStarted,
+            this, &ProgressManagerPrivate::updateSummaryProgressBar);
+    connect(progress, &FutureProgress::statusBarWidgetChanged,
+            this, &ProgressManagerPrivate::updateStatusDetailsWidget);
     updateStatusDetailsWidget();
 
     emit taskStarted(type);
@@ -491,10 +493,10 @@ void ProgressManagerPrivate::taskFinished()
 
 void ProgressManagerPrivate::disconnectApplicationTask()
 {
-    disconnect(m_applicationTask, SIGNAL(progressRangeChanged(int,int)),
-            this, SLOT(setApplicationProgressRange(int,int)));
-    disconnect(m_applicationTask, SIGNAL(progressValueChanged(int)),
-            this, SLOT(setApplicationProgressValue(int)));
+    disconnect(m_applicationTask, &QFutureWatcherBase::progressRangeChanged,
+               this, &ProgressManagerPrivate::setApplicationProgressRange);
+    disconnect(m_applicationTask, &QFutureWatcherBase::progressValueChanged,
+               this, &ProgressManagerPrivate::setApplicationProgressValue);
     setApplicationProgressVisible(false);
     m_applicationTask = 0;
 }
@@ -534,7 +536,7 @@ void ProgressManagerPrivate::fadeAwaySummaryProgress()
     m_opacityAnimation = new QPropertyAnimation(m_opacityEffect, "opacity");
     m_opacityAnimation->setDuration(StyleHelper::progressFadeAnimationDuration);
     m_opacityAnimation->setEndValue(0.);
-    connect(m_opacityAnimation, SIGNAL(finished()), this, SLOT(summaryProgressFinishedFading()));
+    connect(m_opacityAnimation.data(), &QAbstractAnimation::finished, this, &ProgressManagerPrivate::summaryProgressFinishedFading);
     m_opacityAnimation->start(QAbstractAnimation::DeleteWhenStopped);
 }
 
@@ -652,7 +654,7 @@ void ProgressManagerPrivate::updateVisibility()
 
 void ProgressManagerPrivate::updateVisibilityWithDelay()
 {
-    QTimer::singleShot(150, this, SLOT(updateVisibility()));
+    QTimer::singleShot(150, this, &ProgressManagerPrivate::updateVisibility);
 }
 
 void ProgressManagerPrivate::updateStatusDetailsWidget()
@@ -762,7 +764,7 @@ FutureProgress *ProgressManager::addTimedTask(const QFutureInterface<void> &futu
 {
     QFutureInterface<void> dummy(futureInterface); // Need mutable to access .future()
     FutureProgress *fp = m_instance->doAddTask(dummy.future(), title, type, flags);
-    (void) new ProgressTimer(fp, futureInterface, expectedSeconds);
+    (void) new ProgressTimer(futureInterface, expectedSeconds, fp);
     return fp;
 }
 
@@ -778,22 +780,21 @@ void ProgressManager::cancelTasks(Id type)
 }
 
 
-ProgressTimer::ProgressTimer(QObject *parent,
-                             const QFutureInterface<void> &futureInterface,
-                             int expectedSeconds)
-    : QTimer(parent),
+ProgressTimer::ProgressTimer(const QFutureInterfaceBase &futureInterface,
+                             int expectedSeconds,
+                             QObject *parent)
+    : QObject(parent),
       m_futureInterface(futureInterface),
       m_expectedTime(expectedSeconds),
       m_currentTime(0)
 {
-    m_futureWatcher.setFuture(m_futureInterface.future());
-
     m_futureInterface.setProgressRange(0, 100);
     m_futureInterface.setProgressValue(0);
 
-    setInterval(1000); // 1 second
-    connect(this, SIGNAL(timeout()), this, SLOT(handleTimeout()));
-    connect(&m_futureWatcher, SIGNAL(started()), this, SLOT(start()));
+    m_timer = new QTimer(this);
+    m_timer->setInterval(TimerInterval);
+    connect(m_timer, &QTimer::timeout, this, &ProgressTimer::handleTimeout);
+    m_timer->start();
 }
 
 void ProgressTimer::handleTimeout()
@@ -803,7 +804,8 @@ void ProgressTimer::handleTimeout()
     // This maps expectation to atan(1) to Pi/4 ~= 0.78, i.e. snaps
     // from 78% to 100% when expectations are met at the time the
     // future finishes. That's not bad for a random choice.
-    const double mapped = atan2(double(m_currentTime), double(m_expectedTime));
+    const double mapped = atan2(double(m_currentTime) * TimerInterval / 1000.0,
+                                double(m_expectedTime));
     const double progress = 100 * 2 * mapped / 3.14;
     m_futureInterface.setProgressValue(int(progress));
 }

@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -33,6 +28,8 @@
 #endif
 
 #include "symbolfinder.h"
+
+#include "cppmodelmanager.h"
 
 #include <cplusplus/LookupContext.h>
 
@@ -149,7 +146,7 @@ Function *SymbolFinder::findMatchingDefinition(Symbol *declaration,
 
             QList<Function *> viableFunctions;
 
-            LookupScope *enclosingType = context.lookupType(declaration);
+            ClassOrNamespace *enclosingType = context.lookupType(declaration);
             if (!enclosingType)
                 continue; // nothing to do
 
@@ -212,15 +209,13 @@ Function *SymbolFinder::findMatchingDefinition(Symbol *declaration,
     return 0;
 }
 
-Class *SymbolFinder::findMatchingClassDeclaration(Symbol *declaration, const Snapshot &snapshot,
-                                                  const LookupContext *context)
+Class *SymbolFinder::findMatchingClassDeclaration(Symbol *declaration, const Snapshot &snapshot)
 {
     if (!declaration->identifier())
         return 0;
 
     QString declFile = QString::fromUtf8(declaration->fileName(), declaration->fileNameLength());
 
-    const bool useLocalContext = !context;
     foreach (const QString &file, fileIterationOrder(declFile, snapshot)) {
         Document::Ptr doc = snapshot.document(file);
         if (!doc) {
@@ -232,13 +227,9 @@ Class *SymbolFinder::findMatchingClassDeclaration(Symbol *declaration, const Sna
                                             declaration->identifier()->size()))
             continue;
 
-        QScopedPointer<LookupContext> localContext;
-        if (useLocalContext) {
-            localContext.reset(new LookupContext(doc, snapshot));
-            context = localContext.data();
-        }
+        LookupContext context(doc, snapshot);
 
-        LookupScope *type = context->lookupType(declaration);
+        ClassOrNamespace *type = context.lookupType(declaration);
         if (!type)
             continue;
 
@@ -287,7 +278,7 @@ void SymbolFinder::findMatchingDeclaration(const LookupContext &context,
     if (!functionName)
         return;
 
-    LookupScope *binding = 0;
+    ClassOrNamespace *binding = 0;
     const QualifiedNameId *qName = functionName->asQualifiedNameId();
     if (qName) {
         if (qName->base())
@@ -357,11 +348,18 @@ QStringList SymbolFinder::fileIterationOrder(const QString &referenceFile, const
             insertCache(referenceFile, doc->fileName());
     }
 
-    QStringList files = m_filePriorityCache.value(referenceFile).values();
+    QStringList files = m_filePriorityCache.value(referenceFile).toStringList();
 
     trackCacheUse(referenceFile);
 
     return files;
+}
+
+void SymbolFinder::clearCache()
+{
+    m_filePriorityCache.clear();
+    m_fileMetaCache.clear();
+    m_recent.clear();
 }
 
 void SymbolFinder::checkCacheConsistency(const QString &referenceFile, const Snapshot &snapshot)
@@ -376,18 +374,29 @@ void SymbolFinder::checkCacheConsistency(const QString &referenceFile, const Sna
     }
 }
 
+const QString projectPartIdForFile(const QString &filePath)
+{
+    const QList<ProjectPart::Ptr> parts = CppModelManager::instance()->projectPart(filePath);
+    if (!parts.isEmpty())
+        return parts.first()->id();
+    return QString();
+}
+
 void SymbolFinder::clearCache(const QString &referenceFile, const QString &comparingFile)
 {
-    m_filePriorityCache[referenceFile].remove(computeKey(referenceFile, comparingFile),
-                                              comparingFile);
+    m_filePriorityCache[referenceFile].remove(comparingFile, projectPartIdForFile(comparingFile));
     m_fileMetaCache[referenceFile].remove(comparingFile);
 }
 
 void SymbolFinder::insertCache(const QString &referenceFile, const QString &comparingFile)
 {
-    // We want an ordering such that the documents with the most common path appear first.
-    m_filePriorityCache[referenceFile].insert(computeKey(referenceFile, comparingFile),
-                                              comparingFile);
+    FileIterationOrder &order = m_filePriorityCache[referenceFile];
+    if (!order.isValid()) {
+        const auto projectPartId = projectPartIdForFile(referenceFile);
+        order.setReference(referenceFile, projectPartId);
+    }
+    order.insert(comparingFile, projectPartIdForFile(comparingFile));
+
     m_fileMetaCache[referenceFile].insert(comparingFile);
 }
 
@@ -407,15 +416,4 @@ void SymbolFinder::trackCacheUse(const QString &referenceFile)
         m_filePriorityCache.remove(oldest);
         m_fileMetaCache.remove(oldest);
     }
-}
-
-int SymbolFinder::computeKey(const QString &referenceFile, const QString &comparingFile)
-{
-    // As similar the path from the comparing file is to the path from the reference file,
-    // the smaller the key is, which is then used for sorting the map.
-    std::pair<QString::const_iterator,
-              QString::const_iterator> r = std::mismatch(referenceFile.begin(),
-                                                         referenceFile.end(),
-                                                         comparingFile.begin());
-    return referenceFile.length() - (r.first - referenceFile.begin());
 }

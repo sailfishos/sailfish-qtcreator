@@ -191,10 +191,10 @@ const StringLiteral *Symbol::fileId() const
 }
 
 const char *Symbol::fileName() const
-{ return fileId()->chars(); }
+{ return _fileId ? _fileId->chars() : ""; }
 
 unsigned Symbol::fileNameLength() const
-{ return fileId()->size(); }
+{ return _fileId ? _fileId->size() : 0; }
 
 const Name *Symbol::unqualifiedName() const
 {
@@ -360,9 +360,6 @@ bool Symbol::isNamespace() const
 
 bool Symbol::isTemplate() const
 { return asTemplate() != 0; }
-
-bool Symbol::isExplicitInstantiation() const
-{ return asExplicitInstantiation() != 0; }
 
 bool Symbol::isClass() const
 { return asClass() != 0; }

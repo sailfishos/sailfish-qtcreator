@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -68,14 +63,15 @@ BehaviorSettingsWidget::BehaviorSettingsWidget(QWidget *parent)
     if (firstNonNegative != mibs.end())
         std::rotate(mibs.begin(), firstNonNegative, mibs.end());
     foreach (int mib, mibs) {
-        QTextCodec *codec = QTextCodec::codecForMib(mib);
-        QString compoundName = QLatin1String(codec->name());
-        foreach (const QByteArray &alias, codec->aliases()) {
-            compoundName += QLatin1String(" / ");
-            compoundName += QString::fromLatin1(alias);
+        if (QTextCodec *codec = QTextCodec::codecForMib(mib)) {
+            QString compoundName = QLatin1String(codec->name());
+            foreach (const QByteArray &alias, codec->aliases()) {
+                compoundName += QLatin1String(" / ");
+                compoundName += QString::fromLatin1(alias);
+            }
+            d->m_ui.encodingBox->addItem(compoundName);
+            d->m_codecs.append(codec);
         }
-        d->m_ui.encodingBox->addItem(compoundName);
-        d->m_codecs.append(codec);
     }
 
     // Qt5 doesn't list the system locale (QTBUG-34283), so add it manually
@@ -85,36 +81,39 @@ BehaviorSettingsWidget::BehaviorSettingsWidget(QWidget *parent)
         d->m_codecs.prepend(QTextCodec::codecForLocale());
     }
 
-    connect(d->m_ui.autoIndent, SIGNAL(toggled(bool)),
-            this, SLOT(slotTypingSettingsChanged()));
-    connect(d->m_ui.smartBackspaceBehavior, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(slotTypingSettingsChanged()));
-    connect(d->m_ui.tabKeyBehavior, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(slotTypingSettingsChanged()));
-    connect(d->m_ui.cleanWhitespace, SIGNAL(clicked(bool)),
-            this, SLOT(slotStorageSettingsChanged()));
-    connect(d->m_ui.inEntireDocument, SIGNAL(clicked(bool)),
-            this, SLOT(slotStorageSettingsChanged()));
-    connect(d->m_ui.addFinalNewLine, SIGNAL(clicked(bool)),
-            this, SLOT(slotStorageSettingsChanged()));
-    connect(d->m_ui.cleanIndentation, SIGNAL(clicked(bool)),
-            this, SLOT(slotStorageSettingsChanged()));
-    connect(d->m_ui.mouseHiding, SIGNAL(clicked()),
-            this, SLOT(slotBehaviorSettingsChanged()));
-    connect(d->m_ui.mouseNavigation, SIGNAL(clicked()),
-            this, SLOT(slotBehaviorSettingsChanged()));
-    connect(d->m_ui.scrollWheelZooming, SIGNAL(clicked(bool)),
-            this, SLOT(slotBehaviorSettingsChanged()));
-    connect(d->m_ui.camelCaseNavigation, SIGNAL(clicked()),
-            this, SLOT(slotBehaviorSettingsChanged()));
-    connect(d->m_ui.utf8BomBox, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(slotExtraEncodingChanged()));
-    connect(d->m_ui.encodingBox, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(slotEncodingBoxChanged(int)));
-    connect(d->m_ui.constrainTooltipsBox, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(slotBehaviorSettingsChanged()));
-    connect(d->m_ui.keyboardTooltips, SIGNAL(clicked()),
-            this, SLOT(slotBehaviorSettingsChanged()));
+    auto currentIndexChanged = static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged);
+    connect(d->m_ui.autoIndent, &QAbstractButton::toggled,
+            this, &BehaviorSettingsWidget::slotTypingSettingsChanged);
+    connect(d->m_ui.smartBackspaceBehavior, currentIndexChanged,
+            this, &BehaviorSettingsWidget::slotTypingSettingsChanged);
+    connect(d->m_ui.tabKeyBehavior, currentIndexChanged,
+            this, &BehaviorSettingsWidget::slotTypingSettingsChanged);
+    connect(d->m_ui.cleanWhitespace, &QAbstractButton::clicked,
+            this, &BehaviorSettingsWidget::slotStorageSettingsChanged);
+    connect(d->m_ui.inEntireDocument, &QAbstractButton::clicked,
+            this, &BehaviorSettingsWidget::slotStorageSettingsChanged);
+    connect(d->m_ui.addFinalNewLine, &QAbstractButton::clicked,
+            this, &BehaviorSettingsWidget::slotStorageSettingsChanged);
+    connect(d->m_ui.cleanIndentation, &QAbstractButton::clicked,
+            this, &BehaviorSettingsWidget::slotStorageSettingsChanged);
+    connect(d->m_ui.mouseHiding, &QAbstractButton::clicked,
+            this, &BehaviorSettingsWidget::slotBehaviorSettingsChanged);
+    connect(d->m_ui.mouseNavigation, &QAbstractButton::clicked,
+            this, &BehaviorSettingsWidget::slotBehaviorSettingsChanged);
+    connect(d->m_ui.scrollWheelZooming, &QAbstractButton::clicked,
+            this, &BehaviorSettingsWidget::slotBehaviorSettingsChanged);
+    connect(d->m_ui.camelCaseNavigation, &QAbstractButton::clicked,
+            this, &BehaviorSettingsWidget::slotBehaviorSettingsChanged);
+    connect(d->m_ui.utf8BomBox, currentIndexChanged,
+            this, &BehaviorSettingsWidget::slotExtraEncodingChanged);
+    connect(d->m_ui.encodingBox, currentIndexChanged,
+            this, &BehaviorSettingsWidget::slotEncodingBoxChanged);
+    connect(d->m_ui.constrainTooltipsBox, currentIndexChanged,
+            this, &BehaviorSettingsWidget::slotBehaviorSettingsChanged);
+    connect(d->m_ui.keyboardTooltips, &QAbstractButton::clicked,
+            this, &BehaviorSettingsWidget::slotBehaviorSettingsChanged);
+    connect(d->m_ui.smartSelectionChanging, &QAbstractButton::clicked,
+            this, &BehaviorSettingsWidget::slotBehaviorSettingsChanged);
 }
 
 BehaviorSettingsWidget::~BehaviorSettingsWidget()
@@ -202,6 +201,7 @@ void BehaviorSettingsWidget::setAssignedBehaviorSettings(const BehaviorSettings 
     d->m_ui.constrainTooltipsBox->setCurrentIndex(behaviorSettings.m_constrainHoverTooltips ? 1 : 0);
     d->m_ui.camelCaseNavigation->setChecked(behaviorSettings.m_camelCaseNavigation);
     d->m_ui.keyboardTooltips->setChecked(behaviorSettings.m_keyboardTooltips);
+    d->m_ui.smartSelectionChanging->setChecked(behaviorSettings.m_smartSelectionChanging);
     updateConstrainTooltipsBoxTooltip();
 }
 
@@ -213,6 +213,7 @@ void BehaviorSettingsWidget::assignedBehaviorSettings(BehaviorSettings *behavior
     behaviorSettings->m_constrainHoverTooltips = (d->m_ui.constrainTooltipsBox->currentIndex() == 1);
     behaviorSettings->m_camelCaseNavigation = d->m_ui.camelCaseNavigation->isChecked();
     behaviorSettings->m_keyboardTooltips = d->m_ui.keyboardTooltips->isChecked();
+    behaviorSettings->m_smartSelectionChanging = d->m_ui.smartSelectionChanging->isChecked();
 }
 
 void BehaviorSettingsWidget::setAssignedExtraEncodingSettings(

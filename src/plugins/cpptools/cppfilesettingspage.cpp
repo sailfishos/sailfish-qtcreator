@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -145,28 +140,26 @@ bool CppFileSettings::equals(const CppFileSettings &rhs) const
 
 // Replacements of special license template keywords.
 static bool keyWordReplacement(const QString &keyWord,
-                               const QString &file,
-                               const QString &className,
                                QString *value)
 {
     if (keyWord == QLatin1String("%YEAR%")) {
-        *value = QString::number(QDate::currentDate().year());
+        *value = QLatin1String("%{CurrentDate:yyyy}");
         return true;
     }
     if (keyWord == QLatin1String("%MONTH%")) {
-        *value = QString::number(QDate::currentDate().month());
+        *value = QLatin1String("%{CurrentDate:M}");
         return true;
     }
     if (keyWord == QLatin1String("%DAY%")) {
-        *value = QString::number(QDate::currentDate().day());
+        *value = QLatin1String("%{CurrentDate:d}");
         return true;
     }
     if (keyWord == QLatin1String("%CLASS%")) {
-        *value = className;
+        *value = QLatin1String("%{Cpp:License:ClassName}");
         return true;
     }
     if (keyWord == QLatin1String("%FILENAME%")) {
-        *value = Utils::FileName::fromString(file).fileName();
+        *value = QLatin1String("%{Cpp:License:FileName}");
         return true;
     }
     if (keyWord == QLatin1String("%DATE%")) {
@@ -179,17 +172,17 @@ static bool keyWordReplacement(const QString &keyWord,
             if (format.count(ypsilon) == 2)
                 format.insert(format.indexOf(ypsilon), QString(2, ypsilon));
         }
-        *value = QDate::currentDate().toString(format);
+        *value = QString::fromLatin1("%{CurrentDate:") + format + QLatin1Char('}');
         return true;
     }
     if (keyWord == QLatin1String("%USER%")) {
-        *value = Utils::Environment::systemEnvironment().userName();
+        *value = QLatin1String("%{Env:USER}");
         return true;
     }
     // Environment variables (for example '%$EMAIL%').
     if (keyWord.startsWith(QLatin1String("%$"))) {
         const QString varName = keyWord.mid(2, keyWord.size() - 3);
-        *value = QString::fromLocal8Bit(qgetenv(varName.toLocal8Bit()));
+        *value = QString::fromLatin1("%{Env:") + varName + QLatin1Char('}');
         return true;
     }
     return false;
@@ -197,10 +190,11 @@ static bool keyWordReplacement(const QString &keyWord,
 
 // Parse a license template, scan for %KEYWORD% and replace if known.
 // Replace '%%' by '%'.
-static void parseLicenseTemplatePlaceholders(QString *t, const QString &file, const QString &className)
+static void parseLicenseTemplatePlaceholders(QString *t)
 {
     int pos = 0;
     const QChar placeHolder = QLatin1Char('%');
+    bool isCompatibilityStyle = false;
     do {
         const int placeHolderPos = t->indexOf(placeHolder, pos);
         if (placeHolderPos == -1)
@@ -214,7 +208,8 @@ static void parseLicenseTemplatePlaceholders(QString *t, const QString &file, co
         } else {
             const QString keyWord = t->mid(placeHolderPos, endPlaceHolderPos + 1 - placeHolderPos);
             QString replacement;
-            if (keyWordReplacement(keyWord, file, className, &replacement)) {
+            if (keyWordReplacement(keyWord, &replacement)) {
+                isCompatibilityStyle = true;
                 t->replace(placeHolderPos, keyWord.size(), replacement);
                 pos = placeHolderPos + replacement.size();
             } else {
@@ -223,12 +218,14 @@ static void parseLicenseTemplatePlaceholders(QString *t, const QString &file, co
             }
         }
     } while (pos < t->size());
+
+    if (isCompatibilityStyle)
+        t->replace(QLatin1Char('\\'), QLatin1String("\\\\"));
 }
 
 // Convenience that returns the formatted license template.
-QString CppFileSettings::licenseTemplate(const QString &fileName, const QString &className)
+QString CppFileSettings::licenseTemplate()
 {
-
     const QSettings *s = Core::ICore::settings();
     QString key = QLatin1String(Constants::CPPTOOLS_SETTINGSGROUP);
     key += QLatin1Char('/');
@@ -247,12 +244,13 @@ QString CppFileSettings::licenseTemplate(const QString &fileName, const QString 
     licenseStream.setAutoDetectUnicode(true);
     QString license = licenseStream.readAll();
 
-    parseLicenseTemplatePlaceholders(&license, fileName, className);
-    // Ensure exactly one additional new line separating stuff
+    parseLicenseTemplatePlaceholders(&license);
+
+    // Ensure at least one newline at the end of the license template to separate it from the code
     const QChar newLine = QLatin1Char('\n');
     if (!license.endsWith(newLine))
         license += newLine;
-    license += newLine;
+
     return license;
 }
 

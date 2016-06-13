@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -159,7 +154,7 @@ static QString qualifiedTypeNameForContext(const ObjectValue *objectValue,
                 case ImportType::Library:
                 {
                     QString typeName = objectValue->className();
-                    if (!e.typeName.isEmpty() && e.typeName != Export::LibraryTypeName) {
+                    if (!e.typeName.isEmpty() && e.typeName != Export::libraryTypeName()) {
                         typeName = e.typeName;
                         if (typeName != objectValue->className())
                             qCWarning(qmljsLog) << "Outdated classname " << objectValue->className()
@@ -281,7 +276,7 @@ class PropertyMemberProcessor : public MemberProcessor
 public:
     PropertyMemberProcessor(const ContextPtr &context) : m_context(context)
     {}
-    bool processProperty(const QString &name, const Value *value, const QmlJS::PropertyInfo &)
+    bool processProperty(const QString &name, const Value *value, const QmlJS::PropertyInfo &) override
     {
         PropertyName propertyName = name.toUtf8();
         const ASTPropertyReference *ref = value_cast<ASTPropertyReference>(value);
@@ -319,7 +314,7 @@ public:
         return true;
     }
 
-    virtual bool processSignal(const QString &name, const Value * /*value*/)
+    bool processSignal(const QString &name, const Value * /*value*/) override
     {
         m_signals.append(name.toUtf8());
         return true;
@@ -459,13 +454,12 @@ PropertyNameList getSignals(const ObjectValue *objectValue, const ContextPtr &co
 
     signalList.append(processor.signalList());
 
+    PrototypeIterator prototypeIterator(objectValue, context);
+    QList<const ObjectValue *> objects = prototypeIterator.all();
+
     if (!local) {
-        const ObjectValue* prototype = objectValue->prototype(context);
-
-        if (prototype == objectValue)
-            return signalList;
-
-        signalList.append(getSignals(prototype, context));
+        foreach (const ObjectValue *prototype, objects)
+            signalList.append(getSignals(prototype, context, true));
     }
 
     return signalList;
@@ -755,6 +749,21 @@ const CppComponentValue *NodeMetaInfoPrivate::getCppComponentValue() const
 
     // maybe 'type' is a cpp name
     const CppComponentValue *cppValue = context()->valueOwner()->cppQmlTypes().objectByCppName(type);
+
+    if (cppValue) {
+        foreach (const LanguageUtils::FakeMetaObject::Export &exportValue, cppValue->metaObject()->exports()) {
+            if (exportValue.package.toUtf8() != "<cpp>") {
+                foreach (const QmlJS::Import &import, context()->imports(document())->all()) {
+                    if (import.info.path() != exportValue.package)
+                        continue;
+                    const Value *lookupResult = import.object->lookupMember(exportValue.type, context());
+                    const CppComponentValue *cppValue = value_cast<CppComponentValue>(lookupResult);
+                    if (cppValue)
+                        return cppValue;
+                }
+            }
+        }
+    }
 
     return cppValue;
 }
@@ -1230,7 +1239,7 @@ void NodeMetaInfoPrivate::setupPrototypes()
                     QString uri = importInfo.name();
                     uri.replace(QStringLiteral(","), QStringLiteral("."));
                     if (!uri.isEmpty())
-                        description.className = QString(uri + QString::fromLatin1(".") + QString::fromLatin1(description.className)).toLatin1();
+                        description.className = QString(uri + QString::fromLatin1(".") + QString::fromUtf8(description.className)).toUtf8();
                 }
 
                 m_prototypes.append(description);
@@ -1510,7 +1519,7 @@ bool NodeMetaInfo::isSubclassOf(const TypeName &type, int majorVersion, int mino
 
 bool NodeMetaInfo::isGraphicalItem() const
 {
-    return isSubclassOf("QtQuick.Item", -1, -1) || isSubclassOf("QtQuick.Window.Window", -1, -1);
+    return isSubclassOf("QtQuick.Item") || isSubclassOf("QtQuick.Window.Window");
 }
 
 void NodeMetaInfo::clearCache()
@@ -1520,25 +1529,25 @@ void NodeMetaInfo::clearCache()
 
 bool NodeMetaInfo::isLayoutable() const
 {
-    if (isSubclassOf("<cpp>.QDeclarativeBasePositioner", -1, -1))
+    if (isSubclassOf("<cpp>.QDeclarativeBasePositioner"))
         return true; //QtQuick 1
 
-    return isSubclassOf("QtQuick.Positioner", -1, -1)
-            || isSubclassOf("QtQuick.Layouts.Layout", -1, -1)
-            || isSubclassOf("QtQuick.Controls.SplitView", -1, -1);
+    return isSubclassOf("QtQuick.Positioner")
+            || isSubclassOf("QtQuick.Layouts.Layout")
+            || isSubclassOf("QtQuick.Controls.SplitView");
 }
 
 bool NodeMetaInfo::isView() const
 {
     return isValid() &&
-            (isSubclassOf("QtQuick.ListView", -1, -1) ||
-             isSubclassOf("QtQuick.GridView", -1, -1) ||
-             isSubclassOf("QtQuick.PathView", -1, -1));
+            (isSubclassOf("QtQuick.ListView") ||
+             isSubclassOf("QtQuick.GridView") ||
+             isSubclassOf("QtQuick.PathView"));
 }
 
 bool NodeMetaInfo::isTabView() const
 {
-    return isSubclassOf("QtQuick.Controls.TabView", -1, -1);
+    return isSubclassOf("QtQuick.Controls.TabView");
 }
 
 } // namespace QmlDesigner

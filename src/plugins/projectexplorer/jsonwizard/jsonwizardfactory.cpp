@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -55,6 +50,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonParseError>
+#include <QUuid>
 
 namespace ProjectExplorer {
 
@@ -68,6 +64,7 @@ static const char VERSION_KEY[] = "version";
 static const char ENABLED_EXPRESSION_KEY[] = "enabled";
 
 static const char KIND_KEY[] = "kind";
+static const char SUPPORTED_PROJECTS[] = "supportedProjectTypes";
 static const char ID_KEY[] = "id";
 static const char CATEGORY_KEY[] = "category";
 static const char CATEGORY_NAME_KEY[] = "trDisplayCategory";
@@ -316,9 +313,9 @@ JsonWizardFactory *JsonWizardFactory::createWizardFactory(const QVariantMap &dat
     return factory;
 }
 
-QList<Utils::FileName> &JsonWizardFactory::searchPaths()
+Utils::FileNameList &JsonWizardFactory::searchPaths()
 {
-    static QList<Utils::FileName> m_searchPaths = QList<Utils::FileName>()
+    static Utils::FileNameList m_searchPaths = Utils::FileNameList()
             << Utils::FileName::fromString(Core::ICore::userResourcePath() + QLatin1Char('/') +
                                            QLatin1String(WIZARD_PATH))
             << Utils::FileName::fromString(Core::ICore::resourcePath() + QLatin1Char('/') +
@@ -357,7 +354,7 @@ JsonWizardFactory::~JsonWizardFactory()
 { }
 
 Utils::Wizard *JsonWizardFactory::runWizardImpl(const QString &path, QWidget *parent,
-                                                const QString &platform,
+                                                Core::Id platform,
                                                 const QVariantMap &variables)
 {
     auto wizard = new JsonWizard(parent);
@@ -365,22 +362,22 @@ Utils::Wizard *JsonWizardFactory::runWizardImpl(const QString &path, QWidget *pa
     wizard->setWindowTitle(displayName());
 
     wizard->setValue(QStringLiteral("WizardDir"), m_wizardDir);
-    Core::FeatureSet tmp = requiredFeatures();
-    tmp.remove(pluginFeatures());
-    wizard->setValue(QStringLiteral("RequiredFeatures"), tmp.toStringList());
+    QSet<Core::Id> tmp = requiredFeatures();
+    tmp.subtract(pluginFeatures());
+    wizard->setValue(QStringLiteral("RequiredFeatures"), Core::Id::toStringList(tmp));
     tmp = m_preferredFeatures;
-    tmp.remove(pluginFeatures());
-    wizard->setValue(QStringLiteral("PreferredFeatures"), tmp.toStringList());
+    tmp.subtract(pluginFeatures());
+    wizard->setValue(QStringLiteral("PreferredFeatures"), Core::Id::toStringList(tmp));
 
-    wizard->setValue(QStringLiteral("Features"), availableFeatures(platform).toStringList());
-    wizard->setValue(QStringLiteral("Plugins"), pluginFeatures().toStringList());
+    wizard->setValue(QStringLiteral("Features"), Core::Id::toStringList(availableFeatures(platform)));
+    wizard->setValue(QStringLiteral("Plugins"), Core::Id::toStringList(pluginFeatures()));
 
     // Add data to wizard:
     for (auto i = variables.constBegin(); i != variables.constEnd(); ++i)
         wizard->setValue(i.key(), i.value());
 
     wizard->setValue(QStringLiteral("InitialPath"), path);
-    wizard->setValue(QStringLiteral("Platform"), platform);
+    wizard->setValue(QStringLiteral("Platform"), platform.toString());
 
     QString kindStr = QLatin1String(Core::Constants::WIZARD_KIND_UNKNOWN);
     if (kind() == IWizardFactory::FileWizard)
@@ -395,8 +392,11 @@ Utils::Wizard *JsonWizardFactory::runWizardImpl(const QString &path, QWidget *pa
     wizard->setValue(QStringLiteral("category"), category());
     wizard->setValue(QStringLiteral("id"), id().toString());
 
-    for (auto i = m_options.constBegin(); i != m_options.constEnd(); ++i)
-        wizard->setValue(i.key(), i.value());
+    Utils::MacroExpander *expander = wizard->expander();
+    foreach (const JsonWizard::OptionDefinition &od, m_options) {
+        if (od.condition(*expander))
+            wizard->setValue(od.key(), od.value(*expander));
+    }
 
     bool havePage = false;
     foreach (const Page &data, m_pages) {
@@ -480,22 +480,22 @@ QString JsonWizardFactory::localizedString(const QVariant &value)
         }
         return QString();
     }
-    return QCoreApplication::translate("ProjectExplorer::JsonWizardFactory", value.toByteArray());
+    return QCoreApplication::translate("ProjectExplorer::JsonWizard", value.toByteArray());
 }
 
-bool JsonWizardFactory::isAvailable(const QString &platformName) const
+bool JsonWizardFactory::isAvailable(Core::Id platformId) const
 {
-    if (!IWizardFactory::isAvailable(platformName)) // check for required features
+    if (!IWizardFactory::isAvailable(platformId)) // check for required features
         return false;
 
     Utils::MacroExpander expander;
     Utils::MacroExpander *e = &expander;
     expander.registerVariable("Platform", tr("The platform selected for the wizard."),
-                              [platformName]() { return platformName; });
+                              [platformId]() { return platformId.toString(); });
     expander.registerVariable("Features", tr("The features available to this wizard."),
-                              [this, e, platformName]() { return JsonWizard::stringListToArrayString(availableFeatures(platformName).toStringList(), e); });
+                              [this, e, platformId]() { return JsonWizard::stringListToArrayString(Core::Id::toStringList(availableFeatures(platformId)), e); });
     expander.registerVariable("Plugins", tr("The plugins loaded."),
-                              [this, e]() { return JsonWizard::stringListToArrayString(pluginFeatures().toStringList(), e); });
+                              [this, e]() { return JsonWizard::stringListToArrayString(Core::Id::toStringList(pluginFeatures()), e); });
 
     return JsonWizard::boolFromVariant(m_enabledExpression, &expander);
 }
@@ -518,17 +518,25 @@ bool JsonWizardFactory::initialize(const QVariantMap &data, const QDir &baseDir,
 
     m_enabledExpression = data.value(QLatin1String(ENABLED_EXPRESSION_KEY), true);
 
-    QString strVal = data.value(QLatin1String(KIND_KEY)).toString();
-    if (strVal != QLatin1String("class")
+    QSet<Core::Id> projectTypes = Core::Id::fromStringList(data.value(QLatin1String(SUPPORTED_PROJECTS)).toStringList());
+    // FIXME: "kind" was relevant up to and including Qt Creator 3.6:
+    const QString unsetKind = QUuid::createUuid().toString();
+    QString strVal = data.value(QLatin1String(KIND_KEY), unsetKind).toString();
+    if (strVal != unsetKind
+            && strVal != QLatin1String("class")
             && strVal != QLatin1String("file")
             && strVal != QLatin1String("project")) {
         *errorMessage = tr("\"kind\" value \"%1\" is not \"class\" (deprecated), \"file\" or \"project\".").arg(strVal);
         return false;
     }
-    IWizardFactory::WizardKind kind = IWizardFactory::ProjectWizard;
-    if (strVal == QLatin1String("file") || strVal == QLatin1String("class"))
-        kind = IWizardFactory::FileWizard;
-    setWizardKind(kind);
+    if ((strVal == QLatin1String("file") || strVal == QLatin1String("class")) && !projectTypes.isEmpty()) {
+        *errorMessage = tr("\"kind\" is \"file\" or \"class\" (deprecated) and \"%1\" is also set.").arg(QLatin1String(SUPPORTED_PROJECTS));
+        return false;
+    }
+    if (strVal == QLatin1String("project") && projectTypes.isEmpty())
+        projectTypes.insert("UNKNOWN_PROJECT");
+    // end of legacy code
+    setSupportedProjectTypes(projectTypes);
 
     strVal = data.value(QLatin1String(ID_KEY)).toString();
     if (strVal.isEmpty()) {
@@ -564,9 +572,9 @@ bool JsonWizardFactory::initialize(const QVariantMap &data, const QDir &baseDir,
         setDescriptionImage(strVal);
     }
 
-    setRequiredFeatures(Core::FeatureSet::fromStringList(data.value(QLatin1String(REQUIRED_FEATURES_KEY)).toStringList()));
-    m_preferredFeatures = Core::FeatureSet::fromStringList(data.value(QLatin1String(SUGGESTED_FEATURES_KEY)).toStringList());
-    m_preferredFeatures |= requiredFeatures();
+    setRequiredFeatures(Core::Id::fromStringList(data.value(QLatin1String(REQUIRED_FEATURES_KEY)).toStringList()));
+    m_preferredFeatures = Core::Id::fromStringList(data.value(QLatin1String(SUGGESTED_FEATURES_KEY)).toStringList());
+    m_preferredFeatures.unite(requiredFeatures());
 
     strVal = localizedString(data.value(QLatin1String(DISPLAY_NAME_KEY)));
     if (strVal.isEmpty()) {
@@ -625,32 +633,8 @@ bool JsonWizardFactory::initialize(const QVariantMap &data, const QDir &baseDir,
     setFlags(flags);
 
     // Options:
-    QVariant optionValue = data.value(QLatin1String(OPTIONS_KEY));
-    if (optionValue.type() == QVariant::List) {
-        foreach (const QVariant &v, optionValue.toList()) {
-            if (v.type() != QVariant::Map) {
-                *errorMessage = tr("List element of \"options\" is not an object.");
-                return false;
-            }
-            QVariantMap data = v.toMap();
-            const QString key = data.value(QStringLiteral("key"), QString()).toString();
-            const QString value = data.value(QStringLiteral("value"), QString()).toString();
-            if (key.isEmpty()) {
-                *errorMessage = tr("No \"key\" given for entry in \"options\".");
-                return false;
-            }
-            if (m_options.contains(key)) {
-                *errorMessage = tr("When parsing \"options\": Key \"%1\" set more than once.").arg(key);
-                return false;
-            }
-            m_options.insert(key, value);
-        }
-    } else if (optionValue.isValid()) {
-        *errorMessage = tr("Value for \"options\" is not a list.");
-        return false;
-    }
-
-    return true;
+    m_options = JsonWizard::parseOptions(data.value(QLatin1String(OPTIONS_KEY)), errorMessage);
+    return errorMessage->isEmpty();
 }
 
 } // namespace ProjectExplorer

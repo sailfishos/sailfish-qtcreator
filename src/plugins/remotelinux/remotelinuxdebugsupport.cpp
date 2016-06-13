@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -38,10 +33,13 @@
 #include <debugger/debuggerkitinformation.h>
 
 #include <projectexplorer/buildconfiguration.h>
+#include <projectexplorer/devicesupport/deviceapplicationrunner.h>
 #include <projectexplorer/project.h>
+#include <projectexplorer/runnables.h>
 #include <projectexplorer/target.h>
 #include <projectexplorer/toolchain.h>
-#include <projectexplorer/devicesupport/deviceapplicationrunner.h>
+
+#include <qmldebug/qmldebugcommandlinearguments.h>
 
 #include <utils/qtcassert.h>
 #include <utils/qtcprocess.h>
@@ -51,6 +49,7 @@
 using namespace QSsh;
 using namespace Debugger;
 using namespace ProjectExplorer;
+using namespace Utils;
 
 namespace RemoteLinux {
 namespace Internal {
@@ -58,8 +57,7 @@ namespace Internal {
 class LinuxDeviceDebugSupportPrivate
 {
 public:
-    LinuxDeviceDebugSupportPrivate(const AbstractRemoteLinuxRunConfiguration *runConfig,
-            DebuggerRunControl *runControl)
+    LinuxDeviceDebugSupportPrivate(const RunConfiguration *runConfig, DebuggerRunControl *runControl)
         : runControl(runControl),
           qmlDebugging(runConfig->extraAspect<DebuggerRunConfigurationAspect>()->useQmlDebugger()),
           cppDebugging(runConfig->extraAspect<DebuggerRunConfigurationAspect>()->useCppDebugger()),
@@ -79,45 +77,15 @@ public:
 
 using namespace Internal;
 
-DebuggerStartParameters LinuxDeviceDebugSupport::startParameters(const AbstractRemoteLinuxRunConfiguration *runConfig)
-{
-    DebuggerStartParameters params;
-    Target *target = runConfig->target();
-    Kit *k = target->kit();
-    const IDevice::ConstPtr device = DeviceKitInformation::device(k);
-    QTC_ASSERT(device, return params);
-
-    params.startMode = AttachToRemoteServer;
-    params.closeMode = KillAndExitMonitorAtClose;
-    params.remoteSetupNeeded = true;
-    params.displayName = runConfig->displayName();
-
-    auto aspect = runConfig->extraAspect<DebuggerRunConfigurationAspect>();
-    if (aspect->useQmlDebugger()) {
-        params.qmlServerAddress = device->sshParameters().host;
-        params.qmlServerPort = 0; // port is selected later on
-    }
-    if (aspect->useCppDebugger()) {
-        aspect->setUseMultiProcess(true);
-        QStringList args = runConfig->arguments();
-        if (aspect->useQmlDebugger())
-            args.prepend(QString::fromLatin1("-qmljsdebugger=port:%qml_port%,block"));
-        params.processArgs = Utils::QtcProcess::joinArgs(args, Utils::OsTypeLinux);
-        params.executable = runConfig->localExecutableFilePath();
-        params.remoteChannel = device->sshParameters().host + QLatin1String(":-1");
-        params.remoteExecutable = runConfig->remoteExecutableFilePath();
-    }
-
-    return params;
-}
-
-LinuxDeviceDebugSupport::LinuxDeviceDebugSupport(AbstractRemoteLinuxRunConfiguration *runConfig,
+LinuxDeviceDebugSupport::LinuxDeviceDebugSupport(RunConfiguration *runConfig,
         DebuggerRunControl *runControl)
     : AbstractRemoteLinuxRunSupport(runConfig, runControl),
-      d(new LinuxDeviceDebugSupportPrivate(static_cast<AbstractRemoteLinuxRunConfiguration *>(runConfig), runControl))
+      d(new LinuxDeviceDebugSupportPrivate(runConfig, runControl))
 {
     connect(runControl, &DebuggerRunControl::requestRemoteSetup,
             this, &LinuxDeviceDebugSupport::handleRemoteSetupRequested);
+    connect(runControl, &RunControl::finished,
+            this, &LinuxDeviceDebugSupport::handleDebuggingFinished);
 }
 
 LinuxDeviceDebugSupport::~LinuxDeviceDebugSupport()
@@ -156,18 +124,25 @@ void LinuxDeviceDebugSupport::startExecution()
             this, &LinuxDeviceDebugSupport::handleRemoteErrorOutput);
     connect(runner, &DeviceApplicationRunner::remoteStdout,
             this, &LinuxDeviceDebugSupport::handleRemoteOutput);
+    connect(runner, &DeviceApplicationRunner::finished,
+            this, &LinuxDeviceDebugSupport::handleAppRunnerFinished);
+    connect(runner, &DeviceApplicationRunner::reportProgress,
+            this, &LinuxDeviceDebugSupport::handleProgressReport);
+    connect(runner, &DeviceApplicationRunner::reportError,
+            this, &LinuxDeviceDebugSupport::handleAppRunnerError);
     if (d->qmlDebugging && !d->cppDebugging)
         connect(runner, &DeviceApplicationRunner::remoteProcessStarted,
                 this, &LinuxDeviceDebugSupport::handleRemoteProcessStarted);
 
-    QStringList args = arguments();
+    StandardRunnable r = runnable();
+    QStringList args = QtcProcess::splitArgs(r.commandLineArguments, OsTypeLinux);
     QString command;
 
     if (d->qmlDebugging)
-        args.prepend(QString::fromLatin1("-qmljsdebugger=port:%1,block").arg(d->qmlPort));
+        args.prepend(QmlDebug::qmlDebugTcpArguments(QmlDebug::QmlDebuggerServices, d->qmlPort));
 
     if (d->qmlDebugging && !d->cppDebugging) {
-        command = remoteFilePath();
+        command = r.executable;
     } else {
         command = device()->debugServerPath();
         if (command.isEmpty())
@@ -176,16 +151,9 @@ void LinuxDeviceDebugSupport::startExecution()
         args.append(QString::fromLatin1("--multi"));
         args.append(QString::fromLatin1(":%1").arg(d->gdbServerPort));
     }
-
-    connect(runner, &DeviceApplicationRunner::finished,
-            this, &LinuxDeviceDebugSupport::handleAppRunnerFinished);
-    connect(runner, &DeviceApplicationRunner::reportProgress,
-            this, &LinuxDeviceDebugSupport::handleProgressReport);
-    connect(runner, &DeviceApplicationRunner::reportError,
-            this, &LinuxDeviceDebugSupport::handleAppRunnerError);
-    runner->setEnvironment(environment());
-    runner->setWorkingDirectory(workingDirectory());
-    runner->start(device(), command, args);
+    r.executable = command;
+    r.commandLineArguments = QtcProcess::joinArgs(args, OsTypeLinux);
+    runner->start(device(), r);
 }
 
 void LinuxDeviceDebugSupport::handleAppRunnerError(const QString &error)

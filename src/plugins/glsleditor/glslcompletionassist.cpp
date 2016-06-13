@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -46,7 +41,9 @@
 #include <texteditor/codeassist/genericproposal.h>
 #include <texteditor/codeassist/functionhintproposal.h>
 #include <cplusplus/ExpressionUnderCursor.h>
+#include <cplusplus/Icons.h>
 
+#include <utils/icon.h>
 #include <utils/faketooltip.h>
 
 #include <QIcon>
@@ -143,6 +140,57 @@ static bool checkStartOfIdentifier(const QString &word)
     return false;
 }
 
+enum IconTypes {
+    IconTypeAttribute,
+    IconTypeUniform,
+    IconTypeKeyword,
+    IconTypeVarying,
+    IconTypeConst,
+    IconTypeVariable,
+    IconTypeType,
+    IconTypeFunction,
+    IconTypeOther
+};
+
+static QIcon glslIcon(IconTypes iconType)
+{
+    using namespace CPlusPlus;
+    using namespace Utils;
+
+    const QString member = QLatin1String(":/codemodel/images/member.png");
+
+    switch (iconType) {
+    case IconTypeType:
+        return Icons::iconForType(Icons::ClassIconType);
+    case IconTypeConst:
+        return Icons::iconForType(Icons::EnumeratorIconType);
+    case IconTypeKeyword:
+        return Icons::iconForType(Icons::KeywordIconType);
+    case IconTypeFunction:
+        return Icons::iconForType(Icons::FuncPublicIconType);
+    case IconTypeVariable:
+        return Icons::iconForType(Icons::VarPublicIconType);
+    case IconTypeAttribute: {
+        static const QIcon icon =
+                Icon({{member, Theme::IconsCodeModelAttributeColor}}, Icon::Tint).icon();
+        return icon;
+    }
+    case IconTypeUniform: {
+        static const QIcon icon =
+                Icon({{member, Theme::IconsCodeModelUniformColor}}, Icon::Tint).icon();
+        return icon;
+    }
+    case IconTypeVarying: {
+        static const QIcon icon =
+                Icon({{member, Theme::IconsCodeModelVaryingColor}}, Icon::Tint).icon();
+        return icon;
+    }
+    case IconTypeOther:
+    default:
+        return Icons::iconForType(Icons::NamespaceIconType);
+    }
+}
+
 // ----------------------------
 // GlslCompletionAssistProvider
 // ----------------------------
@@ -228,15 +276,6 @@ int GlslFunctionHintProposalModel::activeArgument(const QString &prefix) const
 // -----------------------------
 GlslCompletionAssistProcessor::GlslCompletionAssistProcessor()
     : m_startPosition(0)
-    , m_keywordIcon(QLatin1String(":/glsleditor/images/keyword.png"))
-    , m_varIcon(QLatin1String(":/glsleditor/images/var.png"))
-    , m_functionIcon(QLatin1String(":/glsleditor/images/func.png"))
-    , m_typeIcon(QLatin1String(":/glsleditor/images/type.png"))
-    , m_constIcon(QLatin1String(":/glsleditor/images/const.png"))
-    , m_attributeIcon(QLatin1String(":/glsleditor/images/attribute.png"))
-    , m_uniformIcon(QLatin1String(":/glsleditor/images/uniform.png"))
-    , m_varyingIcon(QLatin1String(":/glsleditor/images/varying.png"))
-    , m_otherIcon(QLatin1String(":/glsleditor/images/other.png"))
 {}
 
 GlslCompletionAssistProcessor::~GlslCompletionAssistProcessor()
@@ -269,7 +308,7 @@ IAssistProposal *GlslCompletionAssistProcessor::perform(const AssistInterface *i
 
     QList<GLSL::Symbol *> members;
     QStringList specialMembers;
-    QList<AssistProposalItem *> m_completions;
+    QList<AssistProposalItemInterface *> m_completions;
 
     bool functionCall = (ch == QLatin1Char('(') && pos == m_interface->position() - 1);
 
@@ -390,9 +429,9 @@ IAssistProposal *GlslCompletionAssistProcessor::perform(const AssistInterface *i
                     0
                 };
                 for (int index = 0; attributeNames[index]; ++index)
-                    m_completions << createCompletionItem(QString::fromLatin1(attributeNames[index]), m_attributeIcon);
+                    m_completions << createCompletionItem(QString::fromLatin1(attributeNames[index]), glslIcon(IconTypeAttribute));
                 for (int index = 0; uniformNames[index]; ++index)
-                    m_completions << createCompletionItem(QString::fromLatin1(uniformNames[index]), m_uniformIcon);
+                    m_completions << createCompletionItem(QString::fromLatin1(uniformNames[index]), glslIcon(IconTypeUniform));
             }
         }
 
@@ -400,7 +439,7 @@ IAssistProposal *GlslCompletionAssistProcessor::perform(const AssistInterface *i
             QStringList keywords = GLSL::Lexer::keywords(languageVariant(m_interface->mimeType()));
 //            m_keywordCompletions.clear();
             for (int index = 0; index < keywords.size(); ++index)
-                m_completions << createCompletionItem(keywords.at(index), m_keywordIcon);
+                m_completions << createCompletionItem(keywords.at(index), glslIcon(IconTypeKeyword));
 //            m_keywordVariant = languageVariant(m_interface->mimeType());
 //        }
 
@@ -413,23 +452,23 @@ IAssistProposal *GlslCompletionAssistProcessor::perform(const AssistInterface *i
         if (var) {
             int storageType = var->qualifiers() & GLSL::QualifiedTypeAST::StorageMask;
             if (storageType == GLSL::QualifiedTypeAST::Attribute)
-                icon = m_attributeIcon;
+                icon = glslIcon(IconTypeAttribute);
             else if (storageType == GLSL::QualifiedTypeAST::Uniform)
-                icon = m_uniformIcon;
+                icon = glslIcon(IconTypeUniform);
             else if (storageType == GLSL::QualifiedTypeAST::Varying)
-                icon = m_varyingIcon;
+                icon = glslIcon(IconTypeVarying);
             else if (storageType == GLSL::QualifiedTypeAST::Const)
-                icon = m_constIcon;
+                icon = glslIcon(IconTypeConst);
             else
-                icon = m_varIcon;
+                icon = glslIcon(IconTypeVariable);
         } else if (s->asArgument()) {
-            icon = m_varIcon;
+            icon = glslIcon(IconTypeVariable);
         } else if (s->asFunction() || s->asOverloadSet()) {
-            icon = m_functionIcon;
+            icon = glslIcon(IconTypeFunction);
         } else if (s->asStruct()) {
-            icon = m_typeIcon;
+            icon = glslIcon(IconTypeType);
         } else {
-            icon = m_otherIcon;
+            icon = glslIcon(IconTypeOther);
         }
         if (specialMembers.contains(s->name()))
             m_completions << createCompletionItem(s->name(), icon, SpecialMemberOrder);

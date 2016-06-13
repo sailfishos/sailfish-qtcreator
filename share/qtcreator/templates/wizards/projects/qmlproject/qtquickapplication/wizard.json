@@ -1,6 +1,6 @@
 {
     "version": 1,
-    "kind": "project",
+    "supportedProjectTypes": [ "QmlProjectManager.QmlProject" ],
     "id": "QA.QtQuickUi",
     "category": "H.Project",
     "trDescription": "Creates a Qt Quick 2 UI project with a QML entry point. To use it, you need to have a QML runtime environment such as qmlscene set up. Consider using a Qt Quick Application project instead.",
@@ -41,6 +41,14 @@
                     {
                         "items":
                         [
+                            {
+                                "trKey": "Qt 5.6",
+                                "value":
+                                "{
+                                    'qtQuickVersion': '2.6',
+                                    'qtQuickWindowVersion': '2.2'
+                                }"
+                            },
                             {
                                 "trKey": "Qt 5.5",
                                 "value":
@@ -98,12 +106,12 @@
                     "openAsProject": true
                 },
                 {
-                    "source": "../../qmake/qtquickapplication/main.qml",
+                    "source": "../../qmake/qtquickapplication/main.qml.tpl",
                     "target": "%{ProjectDirectory}/%{MainQmlFileName}",
                     "openInEditor": true
                 },
                 {
-                    "source": "../../qmake/qtquickapplication/MainForm.ui.qml",
+                    "source": "../../qmake/qtquickapplication/MainForm.ui.qml.tpl",
                     "target": "%{ProjectDirectory}/MainForm.ui.qml",
                     "condition": "%{IsUiFileInUse}"
                 },

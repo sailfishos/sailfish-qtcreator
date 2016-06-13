@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,28 +9,24 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
 #include "projectexplorersettingspage.h"
 #include "projectexplorersettings.h"
 #include "projectexplorer.h"
+#include "ui_projectexplorersettingspage.h"
 
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/documentmanager.h>
@@ -44,6 +40,36 @@ namespace Internal {
 
     enum { UseCurrentDirectory, UseProjectDirectory };
 
+class ProjectExplorerSettingsWidget : public QWidget
+{
+    Q_OBJECT
+
+public:
+    explicit ProjectExplorerSettingsWidget(QWidget *parent = 0);
+
+    ProjectExplorerSettings settings() const;
+    void setSettings(const ProjectExplorerSettings  &s);
+
+    QString projectsDirectory() const;
+    void setProjectsDirectory(const QString &pd);
+
+    bool useProjectsDirectory();
+    void setUseProjectsDirectory(bool v);
+
+    QString buildDirectory() const;
+    void setBuildDirectory(const QString &bd);
+
+private:
+    void slotDirectoryButtonGroupChanged();
+    void resetDefaultBuildDirectory();
+    void updateResetButton();
+
+    void setJomVisible(bool);
+
+    Ui::ProjectExplorerSettingsPageUi m_ui;
+    mutable ProjectExplorerSettings m_settings;
+};
+
 ProjectExplorerSettingsWidget::ProjectExplorerSettingsWidget(QWidget *parent) :
     QWidget(parent)
 {
@@ -52,10 +78,12 @@ ProjectExplorerSettingsWidget::ProjectExplorerSettingsWidget(QWidget *parent) :
     m_ui.directoryButtonGroup->setId(m_ui.currentDirectoryRadioButton, UseCurrentDirectory);
     m_ui.directoryButtonGroup->setId(m_ui.directoryRadioButton, UseProjectDirectory);
 
-    connect(m_ui.directoryButtonGroup, SIGNAL(buttonClicked(int)),
-            this, SLOT(slotDirectoryButtonGroupChanged()));
-    connect(m_ui.resetButton, SIGNAL(clicked()), this, SLOT(resetDefaultBuildDirectory()));
-    connect(m_ui.buildDirectoryEdit, SIGNAL(textChanged(QString)), this, SLOT(updateResetButton()));
+    connect(m_ui.directoryButtonGroup, static_cast<void (QButtonGroup::*)(int)>(&QButtonGroup::buttonClicked),
+            this, &ProjectExplorerSettingsWidget::slotDirectoryButtonGroupChanged);
+    connect(m_ui.resetButton, &QAbstractButton::clicked,
+            this, &ProjectExplorerSettingsWidget::resetDefaultBuildDirectory);
+    connect(m_ui.buildDirectoryEdit, &QLineEdit::textChanged,
+            this, &ProjectExplorerSettingsWidget::updateResetButton);
 
     auto chooser = new Core::VariableChooser(this);
     chooser->addSupportedWidget(m_ui.buildDirectoryEdit);
@@ -69,38 +97,38 @@ void ProjectExplorerSettingsWidget::setJomVisible(bool v)
 
 ProjectExplorerSettings ProjectExplorerSettingsWidget::settings() const
 {
-    ProjectExplorerSettings pes;
-    pes.buildBeforeDeploy = m_ui.buildProjectBeforeDeployCheckBox->isChecked();
-    pes.deployBeforeRun = m_ui.deployProjectBeforeRunCheckBox->isChecked();
-    pes.saveBeforeBuild = m_ui.saveAllFilesCheckBox->isChecked();
-    pes.showCompilerOutput = m_ui.showCompileOutputCheckBox->isChecked();
-    pes.showRunOutput = m_ui.showRunOutputCheckBox->isChecked();
-    pes.showDebugOutput = m_ui.showDebugOutputCheckBox->isChecked();
-    pes.cleanOldAppOutput = m_ui.cleanOldAppOutputCheckBox->isChecked();
-    pes.mergeStdErrAndStdOut = m_ui.mergeStdErrAndStdOutCheckBox->isChecked();
-    pes.wrapAppOutput = m_ui.wrapAppOutputCheckBox->isChecked();
-    pes.useJom = m_ui.jomCheckbox->isChecked();
-    pes.prompToStopRunControl = m_ui.promptToStopRunControlCheckBox->isChecked();
-    pes.maxAppOutputLines = m_ui.maxAppOutputBox->value();
-    pes.environmentId = m_environmentId;
-    return pes;
+    m_settings.buildBeforeDeploy = m_ui.buildProjectBeforeDeployCheckBox->isChecked();
+    m_settings.deployBeforeRun = m_ui.deployProjectBeforeRunCheckBox->isChecked();
+    m_settings.saveBeforeBuild = m_ui.saveAllFilesCheckBox->isChecked();
+    m_settings.showCompilerOutput = m_ui.showCompileOutputCheckBox->isChecked();
+    m_settings.showRunOutput = m_ui.showRunOutputCheckBox->isChecked();
+    m_settings.showDebugOutput = m_ui.showDebugOutputCheckBox->isChecked();
+    m_settings.cleanOldAppOutput = m_ui.cleanOldAppOutputCheckBox->isChecked();
+    m_settings.mergeStdErrAndStdOut = m_ui.mergeStdErrAndStdOutCheckBox->isChecked();
+    m_settings.wrapAppOutput = m_ui.wrapAppOutputCheckBox->isChecked();
+    m_settings.useJom = m_ui.jomCheckbox->isChecked();
+    m_settings.prompToStopRunControl = m_ui.promptToStopRunControlCheckBox->isChecked();
+    m_settings.maxAppOutputLines = m_ui.maxAppOutputBox->value();
+    m_settings.stopBeforeBuild = ProjectExplorerSettings::StopBeforeBuild(m_ui.stopBeforeBuildComboBox->currentIndex());
+    return m_settings;
 }
 
 void ProjectExplorerSettingsWidget::setSettings(const ProjectExplorerSettings  &pes)
 {
-    m_ui.buildProjectBeforeDeployCheckBox->setChecked(pes.buildBeforeDeploy);
-    m_ui.deployProjectBeforeRunCheckBox->setChecked(pes.deployBeforeRun);
-    m_ui.saveAllFilesCheckBox->setChecked(pes.saveBeforeBuild);
-    m_ui.showCompileOutputCheckBox->setChecked(pes.showCompilerOutput);
-    m_ui.showRunOutputCheckBox->setChecked(pes.showRunOutput);
-    m_ui.showDebugOutputCheckBox->setChecked(pes.showDebugOutput);
-    m_ui.cleanOldAppOutputCheckBox->setChecked(pes.cleanOldAppOutput);
-    m_ui.mergeStdErrAndStdOutCheckBox->setChecked(pes.mergeStdErrAndStdOut);
-    m_ui.wrapAppOutputCheckBox->setChecked(pes.wrapAppOutput);
-    m_ui.jomCheckbox->setChecked(pes.useJom);
-    m_ui.promptToStopRunControlCheckBox->setChecked(pes.prompToStopRunControl);
-    m_ui.maxAppOutputBox->setValue(pes.maxAppOutputLines);
-    m_environmentId = pes.environmentId;
+    m_settings = pes;
+    m_ui.buildProjectBeforeDeployCheckBox->setChecked(m_settings.buildBeforeDeploy);
+    m_ui.deployProjectBeforeRunCheckBox->setChecked(m_settings.deployBeforeRun);
+    m_ui.saveAllFilesCheckBox->setChecked(m_settings.saveBeforeBuild);
+    m_ui.showCompileOutputCheckBox->setChecked(m_settings.showCompilerOutput);
+    m_ui.showRunOutputCheckBox->setChecked(m_settings.showRunOutput);
+    m_ui.showDebugOutputCheckBox->setChecked(m_settings.showDebugOutput);
+    m_ui.cleanOldAppOutputCheckBox->setChecked(m_settings.cleanOldAppOutput);
+    m_ui.mergeStdErrAndStdOutCheckBox->setChecked(m_settings.mergeStdErrAndStdOut);
+    m_ui.wrapAppOutputCheckBox->setChecked(m_settings.wrapAppOutput);
+    m_ui.jomCheckbox->setChecked(m_settings.useJom);
+    m_ui.promptToStopRunControlCheckBox->setChecked(m_settings.prompToStopRunControl);
+    m_ui.maxAppOutputBox->setValue(m_settings.maxAppOutputLines);
+    m_ui.stopBeforeBuildComboBox->setCurrentIndex(pes.stopBeforeBuild);
 }
 
 QString ProjectExplorerSettingsWidget::projectsDirectory() const
@@ -163,10 +191,6 @@ ProjectExplorerSettingsPage::ProjectExplorerSettingsPage()
     setCategoryIcon(QLatin1String(Constants::PROJECTEXPLORER_SETTINGS_CATEGORY_ICON));
 }
 
-ProjectExplorerSettingsPage::~ProjectExplorerSettingsPage()
-{
-}
-
 QWidget *ProjectExplorerSettingsPage::widget()
 {
     if (!m_widget) {
@@ -197,3 +221,4 @@ void ProjectExplorerSettingsPage::finish()
 } // namespace Internal
 } // namespace ProjectExplorer
 
+#include "projectexplorersettingspage.moc"

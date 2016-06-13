@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -36,6 +31,7 @@
 #include "publickeydeploymentdialog.h"
 #include "remotelinux_constants.h"
 #include "remotelinuxsignaloperation.h"
+#include "remotelinuxenvironmentreader.h"
 
 #include <coreplugin/id.h>
 #include <projectexplorer/devicesupport/sshdeviceprocesslist.h>
@@ -92,7 +88,7 @@ private:
                 continue;
             }
             bool ok;
-            const int pid = elements.first().mid(6).toInt(&ok);
+            const int pid = elements.first().midRef(6).toInt(&ok);
             if (!ok) {
                 qDebug("%s: Expected number in %s. Line was '%s'.", Q_FUNC_INFO,
                        qPrintable(elements.first()), qPrintable(visualizeNull(line)));
@@ -127,27 +123,26 @@ class LinuxPortsGatheringMethod : public PortsGatheringMethod
 {
     QByteArray commandLine(QAbstractSocket::NetworkLayerProtocol protocol) const
     {
-        QString procFilePath;
-        int addressLength;
-        if (protocol == QAbstractSocket::IPv4Protocol) {
-            procFilePath = QLatin1String("/proc/net/tcp");
-            addressLength = 8;
-        } else {
-            procFilePath = QLatin1String("/proc/net/tcp6");
-            addressLength = 32;
-        }
-        return QString::fromLatin1("sed "
-                "'s/.*: [[:xdigit:]]\\{%1\\}:\\([[:xdigit:]]\\{4\\}\\).*/\\1/g' %2")
-                .arg(addressLength).arg(procFilePath).toUtf8();
+        // We might encounter the situation that protocol is given IPv6
+        // but the consumer of the free port information decides to open
+        // an IPv4(only) port. As a result the next IPv6 scan will
+        // report the port again as open (in IPv6 namespace), while the
+        // same port in IPv4 namespace might still be blocked, and
+        // re-use of this port fails.
+        // GDBserver behaves exactly like this.
+
+        Q_UNUSED(protocol)
+
+        // /proc/net/tcp* covers /proc/net/tcp and /proc/net/tcp6
+        return "sed -e 's/.*: [[:xdigit:]]*:\\([[:xdigit:]]\\{4\\}\\).*/\\1/g' /proc/net/tcp*";
     }
 
     QList<int> usedPorts(const QByteArray &output) const
     {
         QList<int> ports;
         QList<QByteArray> portStrings = output.split('\n');
-        portStrings.removeFirst();
         foreach (const QByteArray &portString, portStrings) {
-            if (portString.isEmpty())
+            if (portString.size() != 4)
                 continue;
             bool ok;
             const int port = portString.toInt(&ok, 16);
@@ -257,6 +252,31 @@ DeviceTester *LinuxDevice::createDeviceTester() const
 DeviceProcessSignalOperation::Ptr LinuxDevice::signalOperation() const
 {
     return DeviceProcessSignalOperation::Ptr(new RemoteLinuxSignalOperation(sshParameters()));
+}
+
+class LinuxDeviceEnvironmentFetcher : public DeviceEnvironmentFetcher
+{
+public:
+    LinuxDeviceEnvironmentFetcher(const IDevice::ConstPtr &device)
+        : m_reader(device)
+    {
+        connect(&m_reader, &Internal::RemoteLinuxEnvironmentReader::finished,
+                this, &LinuxDeviceEnvironmentFetcher::readerFinished);
+        connect(&m_reader, &Internal::RemoteLinuxEnvironmentReader::error,
+                this, &LinuxDeviceEnvironmentFetcher::readerError);
+    }
+
+private:
+    void start() override { m_reader.start(); }
+    void readerFinished() { emit finished(m_reader.remoteEnvironment(), true); }
+    void readerError() { emit finished(Utils::Environment(), false); }
+
+    Internal::RemoteLinuxEnvironmentReader m_reader;
+};
+
+DeviceEnvironmentFetcher::Ptr LinuxDevice::environmentFetcher() const
+{
+    return DeviceEnvironmentFetcher::Ptr(new LinuxDeviceEnvironmentFetcher(sharedFromThis()));
 }
 
 } // namespace RemoteLinux

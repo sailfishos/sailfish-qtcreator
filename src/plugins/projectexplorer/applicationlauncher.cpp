@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -43,6 +38,7 @@
 #include <utils/qtcprocess.h>
 
 #include <QTextCodec>
+#include <QTimer>
 
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -50,6 +46,7 @@
 
 #include "projectexplorer.h"
 #include "projectexplorersettings.h"
+#include "runnables.h"
 
 /*!
     \class ProjectExplorer::ApplicationLauncher
@@ -80,7 +77,9 @@ struct ApplicationLauncherPrivate {
     QTextCodec::ConverterState m_outputCodecState;
     QTextCodec::ConverterState m_errorCodecState;
     // Keep track whether we need to emit a finished signal
-    bool m_processRunning;
+    bool m_processRunning = false;
+
+    qint64 m_listeningPid = 0;
 };
 
 ApplicationLauncherPrivate::ApplicationLauncherPrivate() :
@@ -96,37 +95,38 @@ ApplicationLauncher::ApplicationLauncher(QObject *parent)
         d->m_guiProcess.setReadChannelMode(QProcess::MergedChannels);
     } else {
         d->m_guiProcess.setReadChannelMode(QProcess::SeparateChannels);
-        connect(&d->m_guiProcess, SIGNAL(readyReadStandardError()),
-            this, SLOT(readStandardError()));
+        connect(&d->m_guiProcess, &QProcess::readyReadStandardError,
+                this, &ApplicationLauncher::readStandardError);
     }
-    connect(&d->m_guiProcess, SIGNAL(readyReadStandardOutput()),
-        this, SLOT(readStandardOutput()));
-    connect(&d->m_guiProcess, SIGNAL(error(QProcess::ProcessError)),
-        this, SLOT(guiProcessError()));
-    connect(&d->m_guiProcess, SIGNAL(finished(int,QProcess::ExitStatus)),
-            this, SLOT(processDone(int,QProcess::ExitStatus)));
-    connect(&d->m_guiProcess, SIGNAL(started()),
-            this, SLOT(bringToForeground()));
-    connect(&d->m_guiProcess, SIGNAL(error(QProcess::ProcessError)),
-            this, SIGNAL(error(QProcess::ProcessError)));
+    connect(&d->m_guiProcess, &QProcess::readyReadStandardOutput,
+            this, &ApplicationLauncher::readStandardOutput);
+    connect(&d->m_guiProcess, static_cast<void (QProcess::*)(QProcess::ProcessError)>(&QProcess::error),
+            this, &ApplicationLauncher::guiProcessError);
+    connect(&d->m_guiProcess, static_cast<void (QProcess::*)(int,QProcess::ExitStatus)>(&QProcess::finished),
+            this, &ApplicationLauncher::processDone);
+    connect(&d->m_guiProcess, &QProcess::started,
+            this, &ApplicationLauncher::bringToForeground);
+    connect(&d->m_guiProcess, static_cast<void (QProcess::*)(QProcess::ProcessError)>(&QProcess::error),
+            this, &ApplicationLauncher::error);
 
 #ifdef Q_OS_UNIX
     d->m_consoleProcess.setSettings(Core::ICore::settings());
 #endif
-    connect(&d->m_consoleProcess, SIGNAL(processStarted()),
-            this, SIGNAL(processStarted()));
-    connect(&d->m_consoleProcess, SIGNAL(processError(QString)),
-            this, SLOT(consoleProcessError(QString)));
-    connect(&d->m_consoleProcess, SIGNAL(processStopped(int,QProcess::ExitStatus)),
-            this, SLOT(processDone(int,QProcess::ExitStatus)));
-    connect(&d->m_consoleProcess, SIGNAL(error(QProcess::ProcessError)),
-            this, SIGNAL(error(QProcess::ProcessError)));
+    connect(&d->m_consoleProcess, &Utils::ConsoleProcess::processStarted,
+            this, &ApplicationLauncher::handleProcessStarted);
+    connect(&d->m_consoleProcess, &Utils::ConsoleProcess::processError,
+            this, &ApplicationLauncher::consoleProcessError);
+    connect(&d->m_consoleProcess, &Utils::ConsoleProcess::processStopped,
+            this, &ApplicationLauncher::processDone);
+    connect(&d->m_consoleProcess,
+            static_cast<void (Utils::ConsoleProcess::*)(QProcess::ProcessError)>(&Utils::ConsoleProcess::error),
+            this, &ApplicationLauncher::error);
 
 #ifdef Q_OS_WIN
-    connect(WinDebugInterface::instance(), SIGNAL(cannotRetrieveDebugOutput()),
-            this, SLOT(cannotRetrieveDebugOutput()));
-    connect(WinDebugInterface::instance(), SIGNAL(debugOutput(qint64,QString)),
-            this, SLOT(checkDebugOutput(qint64,QString)), Qt::BlockingQueuedConnection);
+    connect(WinDebugInterface::instance(), &WinDebugInterface::cannotRetrieveDebugOutput,
+            this, &ApplicationLauncher::cannotRetrieveDebugOutput);
+    connect(WinDebugInterface::instance(), &WinDebugInterface::debugOutput,
+            this, &ApplicationLauncher::checkDebugOutput, Qt::BlockingQueuedConnection);
 #endif
 #ifdef WITH_JOURNALD
     connect(JournaldWatcher::instance(), &JournaldWatcher::journaldOutput,
@@ -139,44 +139,32 @@ ApplicationLauncher::~ApplicationLauncher()
     delete d;
 }
 
-void ApplicationLauncher::setWorkingDirectory(const QString &dir)
-{
-    // Work around QTBUG-17529 (QtDeclarative fails with 'File name case mismatch' ...)
-    const QString fixedPath = Utils::FileUtils::normalizePathName(dir);
-    d->m_guiProcess.setWorkingDirectory(fixedPath);
-    d->m_consoleProcess.setWorkingDirectory(fixedPath);
-}
-
-QString ApplicationLauncher::workingDirectory() const
-{
-    return d->m_guiProcess.workingDirectory();
-}
-
-void ApplicationLauncher::setEnvironment(const Utils::Environment &env)
-{
-    d->m_guiProcess.setEnvironment(env);
-    d->m_consoleProcess.setEnvironment(env);
-}
-
 void ApplicationLauncher::setProcessChannelMode(QProcess::ProcessChannelMode mode)
 {
     d->m_guiProcess.setProcessChannelMode(mode);
 }
 
-void ApplicationLauncher::start(Mode mode, const QString &program, const QString &args)
+void ApplicationLauncher::start(const StandardRunnable &runnable)
 {
+    // Work around QTBUG-17529 (QtDeclarative fails with 'File name case mismatch' ...)
+    const QString fixedPath = Utils::FileUtils::normalizePathName(runnable.workingDirectory);
+    d->m_guiProcess.setWorkingDirectory(fixedPath);
+    d->m_consoleProcess.setWorkingDirectory(fixedPath);
+    d->m_guiProcess.setEnvironment(runnable.environment);
+    d->m_consoleProcess.setEnvironment(runnable.environment);
+
     d->m_processRunning = true;
 #ifdef Q_OS_WIN
     if (!WinDebugInterface::instance()->isRunning())
         WinDebugInterface::instance()->start(); // Try to start listener again...
 #endif
 
-    d->m_currentMode = mode;
-    if (mode == Gui) {
-        d->m_guiProcess.setCommand(program, args);
+    d->m_currentMode = runnable.runMode;
+    if (d->m_currentMode == Gui) {
+        d->m_guiProcess.setCommand(runnable.executable, runnable.commandLineArguments);
         d->m_guiProcess.start();
     } else {
-        d->m_consoleProcess.start(program, args);
+        d->m_consoleProcess.start(runnable.executable, runnable.commandLineArguments);
     }
 }
 
@@ -212,7 +200,7 @@ qint64 ApplicationLauncher::applicationPID() const
     if (d->m_currentMode == Console)
         return d->m_consoleProcess.applicationPID();
     else
-        return Utils::qPidToPid(d->m_guiProcess.pid());
+        return d->m_guiProcess.processId();
 }
 
 QString ApplicationLauncher::errorString() const
@@ -288,24 +276,33 @@ void ApplicationLauncher::cannotRetrieveDebugOutput()
 
 void ApplicationLauncher::checkDebugOutput(qint64 pid, const QString &message)
 {
-    if (applicationPID() == pid)
+    if (d->m_listeningPid == pid)
         emit appendMessage(message, Utils::DebugFormat);
 }
 
 void ApplicationLauncher::processDone(int exitCode, QProcess::ExitStatus status)
 {
-    emit processExited(exitCode, status);
+    QTimer::singleShot(100, this, [this, exitCode, status]() {
+        d->m_listeningPid = 0;
+        emit processExited(exitCode, status);
+    });
 }
 
 void ApplicationLauncher::bringToForeground()
 {
     emit bringToForegroundRequested(applicationPID());
-    emit processStarted();
+    handleProcessStarted();
 }
 
 QString ApplicationLauncher::msgWinCannotRetrieveDebuggingOutput()
 {
     return tr("Cannot retrieve debugging output.") + QLatin1Char('\n');
+}
+
+void ApplicationLauncher::handleProcessStarted()
+{
+    d->m_listeningPid = applicationPID();
+    emit processStarted();
 }
 
 } // namespace ProjectExplorer

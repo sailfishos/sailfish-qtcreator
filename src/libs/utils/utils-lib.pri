@@ -4,9 +4,13 @@ dll {
     DEFINES += QTCREATOR_UTILS_STATIC_LIB
 }
 
-QT += network
+QT += gui network qml
 
 CONFIG += exceptions # used by portlist.cpp, textfileformat.cpp, and ssh/*
+
+win32: LIBS += -luser32 -lshell32
+# PortsGatherer
+win32: LIBS += -liphlpapi -lws2_32
 
 SOURCES += $$PWD/environment.cpp \
     $$PWD/environmentmodel.cpp \
@@ -16,6 +20,7 @@ SOURCES += $$PWD/environment.cpp \
     $$PWD/shellcommandpage.cpp \
     $$PWD/settingsselector.cpp \
     $$PWD/stringutils.cpp \
+    $$PWD/templateengine.cpp \
     $$PWD/textfieldcheckbox.cpp \
     $$PWD/textfieldcombobox.cpp \
     $$PWD/filesearch.cpp \
@@ -65,7 +70,6 @@ SOURCES += $$PWD/environment.cpp \
     $$PWD/completingtextedit.cpp \
     $$PWD/json.cpp \
     $$PWD/portlist.cpp \
-    $$PWD/tcpportsgatherer.cpp \
     $$PWD/appmainwindow.cpp \
     $$PWD/sleep.cpp \
     $$PWD/basetreeview.cpp \
@@ -92,7 +96,10 @@ SOURCES += $$PWD/environment.cpp \
     $$PWD/fadingindicator.cpp \
     $$PWD/overridecursor.cpp \
     $$PWD/categorysortfiltermodel.cpp \
-    $$PWD/dropsupport.cpp
+    $$PWD/dropsupport.cpp \
+    $$PWD/icon.cpp \
+    $$PWD/port.cpp \
+    $$PWD/runextensions.cpp
 
 win32:SOURCES += $$PWD/consoleprocess_win.cpp
 else:SOURCES += $$PWD/consoleprocess_unix.cpp
@@ -107,6 +114,7 @@ HEADERS += \
     $$PWD/shellcommand.h \
     $$PWD/shellcommandpage.h \
     $$PWD/stringutils.h \
+    $$PWD/templateengine.h \
     $$PWD/textfieldcheckbox.h \
     $$PWD/textfieldcombobox.h \
     $$PWD/filesearch.h \
@@ -159,10 +167,8 @@ HEADERS += \
     $$PWD/persistentsettings.h \
     $$PWD/completingtextedit.h \
     $$PWD/json.h \
-    $$PWD/multitask.h \
     $$PWD/runextensions.h \
     $$PWD/portlist.h \
-    $$PWD/tcpportsgatherer.h \
     $$PWD/appmainwindow.h \
     $$PWD/sleep.h \
     $$PWD/basetreeview.h \
@@ -196,7 +202,20 @@ HEADERS += \
     $$PWD/executeondestruction.h \
     $$PWD/overridecursor.h \
     $$PWD/categorysortfiltermodel.h \
-    $$PWD/dropsupport.h
+    $$PWD/dropsupport.h \
+    $$PWD/utilsicons.h \
+    $$PWD/icon.h \
+    $$PWD/port.h \
+    $$PWD/functiontraits.h \
+    $$PWD/mapreduce.h \
+    $$PWD/declarationmacros.h \
+    $$PWD/smallstring.h \
+    $$PWD/smallstringiterator.h \
+    $$PWD/smallstringliteral.h \
+    $$PWD/smallstringmemory.h \
+    $$PWD/smallstringvector.h \
+    $$PWD/smallstringlayout.h \
+    $$PWD/sizedarray.h
 
 FORMS += $$PWD/filewizardpage.ui \
     $$PWD/projectintropage.ui \
@@ -206,7 +225,8 @@ FORMS += $$PWD/filewizardpage.ui \
 RESOURCES += $$PWD/utils.qrc
 
 osx {
-    HEADERS += $$PWD/autoreleasepool.h
+    HEADERS += \
+        $$PWD/fileutils_mac.h
     OBJECTIVE_SOURCES += \
         $$PWD/fileutils_mac.mm
     LIBS += -framework Foundation

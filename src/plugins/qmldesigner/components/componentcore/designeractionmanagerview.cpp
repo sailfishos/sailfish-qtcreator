@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -61,9 +56,6 @@ void DesignerActionManagerView::nodeCreated(const ModelNode &)
     setupContext();
 }
 
-void DesignerActionManagerView::nodeAboutToBeRemoved(const ModelNode &)
-{}
-
 void DesignerActionManagerView::nodeRemoved(const ModelNode &, const NodeAbstractProperty &, AbstractView::PropertyChangeFlags)
 {
     setupContext();
@@ -79,51 +71,15 @@ void DesignerActionManagerView::nodeReparented(const ModelNode &, const NodeAbst
     setupContext();
 }
 
-void DesignerActionManagerView::nodeIdChanged(const ModelNode &, const QString &, const QString &)
-{}
-
-void DesignerActionManagerView::propertiesAboutToBeRemoved(const QList<AbstractProperty> &)
-{}
-
 void DesignerActionManagerView::propertiesRemoved(const QList<AbstractProperty> &)
 {
     setupContext();
 }
 
-void DesignerActionManagerView::variantPropertiesChanged(const QList<VariantProperty> &, AbstractView::PropertyChangeFlags)
-{}
-
-void DesignerActionManagerView::bindingPropertiesChanged(const QList<BindingProperty> &, AbstractView::PropertyChangeFlags)
-{}
-
 void DesignerActionManagerView::rootNodeTypeChanged(const QString &, int, int)
 {
     setupContext();
 }
-
-void DesignerActionManagerView::instancePropertyChange(const QList<QPair<ModelNode, PropertyName> > &)
-{}
-
-void DesignerActionManagerView::instancesCompleted(const QVector<ModelNode> &)
-{}
-
-void DesignerActionManagerView::instanceInformationsChange(const QMultiHash<ModelNode, InformationName> &)
-{}
-
-void DesignerActionManagerView::instancesRenderImageChanged(const QVector<ModelNode> &)
-{}
-
-void DesignerActionManagerView::instancesPreviewImageChanged(const QVector<ModelNode> &)
-{}
-
-void DesignerActionManagerView::instancesChildrenChanged(const QVector<ModelNode> &)
-{}
-
-void DesignerActionManagerView::instancesToken(const QString &, int, const QVector<ModelNode> &)
-{}
-
-void DesignerActionManagerView::nodeSourceChanged(const ModelNode &, const QString &)
-{}
 
 void DesignerActionManagerView::rewriterBeginTransaction()
 {
@@ -157,9 +113,6 @@ void DesignerActionManagerView::importsChanged(const QList<Import> &, const QLis
 {
     setupContext();
 }
-
-void DesignerActionManagerView::scriptFunctionsChanged(const ModelNode &, const QStringList &)
-{}
 
 void DesignerActionManagerView::setDesignerActionList(const QList<ActionInterface *> &designerActionList)
 {

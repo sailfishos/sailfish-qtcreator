@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -117,10 +112,8 @@
 #define USE_EIGEN 1
 #endif
 
-#ifdef QT_SCRIPT_LIB
+#ifdef HAS_SCRIPT
 #define USE_SCRIPTLIB 1
-#else
-#define USE_SCRIPTLIB 0
 #endif
 
 #ifdef QT_WEBKIT_LIB
@@ -192,6 +185,9 @@ void dummyStatement(...) {}
 #include <QXmlAttributes>
 
 #include <QHostAddress>
+#include <QJsonArray>
+#include <QJsonObject>
+#include <QJsonValue>
 #include <QNetworkRequest>
 
 #include <array>
@@ -4292,8 +4288,6 @@ namespace qthread {
 
 
 Q_DECLARE_METATYPE(QHostAddress)
-Q_DECLARE_METATYPE(QList<int>)
-Q_DECLARE_METATYPE(QStringList)
 
 typedef QMap<uint, QStringList> QMapUIntQStringList;
 Q_DECLARE_METATYPE(QMapUIntQStringList)
@@ -5247,6 +5241,8 @@ namespace basic {
     namespace ns {
         typedef unsigned long long vl;
         typedef vl verylong;
+        using uvl = unsigned long long;
+        using usingverylong = uvl;
     }
 
     void testTypedef()
@@ -5260,6 +5256,23 @@ namespace basic {
         BREAK_HERE;
         // Check j 1000 basic::ns::vl.
         // Check k 1000 basic::ns::verylong.
+        // Check t1 0 basic::myType1.
+        // Check t2 0 basic::myType2.
+        // Continue.
+        dummyStatement(&j, &k, &t1, &t2);
+    }
+
+    void testUsing()
+    {
+        using myType1 = quint32;
+        using myType2 = unsigned int;
+        myType1 t1 = 0;
+        myType2 t2 = 0;
+        ns::uvl j = 1000;
+        ns::usingverylong k = 1000;
+        BREAK_HERE;
+        // Check j 1000 basic::ns::uvl.
+        // Check k 1000 basic::ns::usingverylong.
         // Check t1 0 basic::myType1.
         // Check t2 0 basic::myType2.
         // Continue.
@@ -5811,6 +5824,7 @@ namespace basic {
         testFunction();
         testAlphabeticSorting();
         testTypedef();
+        testUsing();
         testPointer();
         testPointerTypedef();
         testStruct();
@@ -5996,6 +6010,41 @@ namespace qscript {
     }
 
 } // namespace script
+
+
+namespace qjson {
+
+    void testQJson()
+    {
+        QJsonObject obj {
+            {"-1", -1},
+            {"3", 3},
+            {"0x3fffff (4194303)", 4194303},
+            {"0x400000 (4194304)", 4194304},
+            {"0x800000 (8388608)", 8388608},
+            {"0x1000000 (16777216)", 16777216},
+            {"-0x3fffff (-4194303)", -4194303},
+            {"-0x400000 (-4194304)", -4194304},
+            {"-0x800000 (-8388608)", -8388608}
+        };
+         QJsonArray arr;
+         for (unsigned int i = 0; i < 32; ++i) {
+             arr.append(QJsonValue(qint64(1u << i) - 1));
+             arr.append(QJsonValue(qint64(1u << i)));
+             arr.append(QJsonValue(qint64(1u << i) + 1));
+         }
+         for (unsigned int i = 0; i < 32; ++i) {
+             arr.append(QJsonValue(-qint64(1u << i) + 1));
+             arr.append(QJsonValue(-qint64(1u << i)));
+             arr.append(QJsonValue(-qint64(1u << i) - 1));
+         }
+        BREAK_HERE;
+        // Check v -1 QJsonValue.
+        // Check obj "foo" -1 QJsonValue.
+        // Continue.
+    }
+
+} // namespace json
 
 
 namespace webkit {
@@ -7171,12 +7220,13 @@ int main(int argc, char *argv[])
     qregexp::testQRegExp();
     qregion::testQRegion();
     qscript::testQScript();
+    qjson::testQJson();
     qset::testQSet();
     qsharedpointer::testQSharedPointer();
     qstack::testQStack();
     qstringlist::testQStringList();
     qstring::testQString();
-    qthread::testQThread();
+    // qthread::testQThread();
     qprocess::testQProcess();
     qurl::testQUrl();
     qvariant::testQVariant();

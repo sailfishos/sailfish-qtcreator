@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,29 +9,23 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
 #include "gdbmihelpers.h"
 #include "stringutils.h"
 #include "iinterfacepointer.h"
-#include "base64.h"
 #include "symbolgroupvalue.h"
 #include "extensioncontext.h"
 
@@ -49,17 +43,17 @@ std::wstring StackFrame::fileName() const
 
 void StackFrame::formatGDBMI(std::ostream &str, unsigned level) const
 {
-    str << "frame={level=\"" << level << "\",addr=\"0x"
+    str << "frame={level=\"" << level << "\",address=\"0x"
         << std::hex << address << std::dec << '"';
     if (!function.empty()) {
         // Split into module/function
         const std::wstring::size_type exclPos = function.find('!');
         if (exclPos == std::wstring::npos) {
-            str << ",func=\"" << gdbmiWStringFormat(function) << '"';
+            str << ",function=\"" << gdbmiWStringFormat(function) << '"';
         } else {
             const std::wstring module = function.substr(0, exclPos);
             const std::wstring fn = function.substr(exclPos + 1, function.size() - exclPos - 1);
-            str << ",func=\"" << gdbmiWStringFormat(fn)
+            str << ",function=\"" << gdbmiWStringFormat(fn)
                 << "\",from=\"" << gdbmiWStringFormat(module) << '"';
         }
     }
@@ -347,7 +341,7 @@ const wchar_t *valueType(ULONG type)
     case DEBUG_VALUE_INT32:
         return L"I32";
     case DEBUG_VALUE_INT64:
-        return  L"I64";
+        return L"I64";
     case DEBUG_VALUE_FLOAT32:
         return L"F32";
     case DEBUG_VALUE_FLOAT64:
@@ -509,6 +503,8 @@ Registers getRegisters(CIDebugRegisters *regs,
             reg.description = registerDescription(description);
             reg.subRegister = isSubRegister;
             reg.value = value;
+            reg.size = valueSize(description.Type);
+            reg.type = valueType(description.Type);
             rc.push_back(reg);
         }
     }
@@ -527,6 +523,7 @@ Registers getRegisters(CIDebugRegisters *regs,
         reg.name = buf;
         reg.description = valueType(type);
         reg.size = valueSize(type);
+        reg.type = valueType(type);
         reg.value = value;
         rc.push_back(reg);
     }
@@ -557,7 +554,8 @@ std::string gdbmiRegisters(CIDebugRegisters *regs,
         const Register &reg = registers.at(r);
         if (r)
             str << ',';
-        str << "{number=\"" << r << "\",name=\"" << gdbmiWStringFormat(reg.name) << '"';
+        str << "{number=\"" << r << "\",name=\"" << gdbmiWStringFormat(reg.name)
+            << "\",size=\"" << reg.size << "\",type=\"" << gdbmiWStringFormat(reg.type) << '"';
         if (!reg.description.empty())
             str << ",description=\"" << gdbmiWStringFormat(reg.description) << '"';
         if (reg.subRegister)
@@ -576,27 +574,16 @@ std::string gdbmiRegisters(CIDebugRegisters *regs,
     return str.str();
 }
 
-std::string memoryToBase64(CIDebugDataSpaces *ds, ULONG64 address, ULONG length,
+std::string memoryToHex(CIDebugDataSpaces *ds, ULONG64 address, ULONG length,
                            std::string *errorMessage /* = 0 */)
 {
     if (const unsigned char *buffer = SymbolGroupValue::readMemory(ds, address, length, errorMessage)) {
         std::ostringstream str;
-        base64Encode(str, buffer, length);
+        hexEncode(str, buffer, length);
         delete [] buffer;
         return str.str();
     }
     return std::string();
-}
-
-std::wstring memoryToHexW(CIDebugDataSpaces *ds, ULONG64 address, ULONG length,
-                          std::string *errorMessage /* = 0 */)
-{
-    if (const unsigned char *buffer = SymbolGroupValue::readMemory(ds, address, length, errorMessage)) {
-        const std::wstring hex = dataToHexW(buffer, buffer + length);
-        delete [] buffer;
-        return hex;
-    }
-    return std::wstring();
 }
 
 // Format stack as GDBMI
@@ -785,9 +772,9 @@ static bool gdbmiFormatBreakpoint(std::ostream &str,
             // Report the memory of watchpoints for comparing bitfields
             if (dataSpaces && memoryRange.second > 0) {
                 str << ",size=\"" << memoryRange.second << '"';
-                const std::wstring memoryHex = memoryToHexW(dataSpaces, memoryRange.first, memoryRange.second);
+                const std::string memoryHex = memoryToHex(dataSpaces, memoryRange.first, memoryRange.second);
                 if (!memoryHex.empty())
-                    str << ",memory=\"" << gdbmiWStringFormat(memoryHex) << '"';
+                    str << ",memory=\"" << gdbmiStringFormat(memoryHex) << '"';
             }
         } // Got address
     } // !deferred

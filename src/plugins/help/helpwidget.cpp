@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -33,6 +28,7 @@
 #include "bookmarkmanager.h"
 #include "contentwindow.h"
 #include "helpconstants.h"
+#include "helpicons.h"
 #include "helpplugin.h"
 #include "helpviewer.h"
 #include "indexwindow.h"
@@ -45,6 +41,7 @@
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/command.h>
 #include <coreplugin/coreconstants.h>
+#include <coreplugin/coreicons.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/findplaceholder.h>
 #include <coreplugin/minisplitter.h>
@@ -131,7 +128,7 @@ HelpWidget::HelpWidget(const Core::Context &context, WidgetStyle style, QWidget 
         setAttribute(Qt::WA_QuitOnClose, false); // don't prevent Qt Creator from closing
     }
     if (style != SideBarWidget) {
-        m_toggleSideBarAction = new QAction(QIcon(QLatin1String(Core::Constants::ICON_TOGGLE_SIDEBAR)),
+        m_toggleSideBarAction = new QAction(Core::Icons::TOGGLE_SIDEBAR_TOOLBAR.icon(),
                                             QCoreApplication::translate("Core", Core::Constants::TR_SHOW_SIDEBAR),
                                             toolBar);
         m_toggleSideBarAction->setCheckable(true);
@@ -158,21 +155,19 @@ HelpWidget::HelpWidget(const Core::Context &context, WidgetStyle style, QWidget 
     if (style != ModeWidget) {
         m_switchToHelp = new QAction(tr("Go to Help Mode"), toolBar);
         cmd = Core::ActionManager::registerAction(m_switchToHelp, Constants::CONTEXT_HELP, context);
-        connect(m_switchToHelp, SIGNAL(triggered()), this, SLOT(helpModeButtonClicked()));
+        connect(m_switchToHelp, &QAction::triggered, this, &HelpWidget::helpModeButtonClicked);
         layout->addWidget(Core::Command::toolButtonWithAppendedShortcut(m_switchToHelp, cmd));
     }
 
-    m_homeAction = new QAction(QIcon(QLatin1String(":/help/images/home.png")),
-        tr("Home"), this);
+    m_homeAction = new QAction(Icons::HOME_TOOLBAR.icon(), tr("Home"), this);
     cmd = Core::ActionManager::registerAction(m_homeAction, Constants::HELP_HOME, context);
     connect(m_homeAction, &QAction::triggered, this, &HelpWidget::goHome);
     layout->addWidget(Core::Command::toolButtonWithAppendedShortcut(m_homeAction, cmd));
 
-    m_backAction = new QAction(QIcon(QLatin1String(":/help/images/previous.png")),
-        tr("Back"), toolBar);
+    m_backAction = new QAction(Core::Icons::PREV_TOOLBAR.icon(), tr("Back"), toolBar);
     connect(m_backAction, &QAction::triggered, this, &HelpWidget::backward);
     m_backMenu = new QMenu(toolBar);
-    connect(m_backMenu, SIGNAL(aboutToShow()), this, SLOT(updateBackMenu()));
+    connect(m_backMenu, &QMenu::aboutToShow, this, &HelpWidget::updateBackMenu);
     m_backAction->setMenu(m_backMenu);
     cmd = Core::ActionManager::registerAction(m_backAction, Constants::HELP_PREVIOUS, context);
     cmd->setDefaultKeySequence(QKeySequence::Back);
@@ -180,11 +175,10 @@ HelpWidget::HelpWidget(const Core::Context &context, WidgetStyle style, QWidget 
     button->setPopupMode(QToolButton::DelayedPopup);
     layout->addWidget(button);
 
-    m_forwardAction = new QAction(QIcon(QLatin1String(":/help/images/next.png")),
-        tr("Forward"), toolBar);
+    m_forwardAction = new QAction(Core::Icons::NEXT_TOOLBAR.icon(), tr("Forward"), toolBar);
     connect(m_forwardAction, &QAction::triggered, this, &HelpWidget::forward);
     m_forwardMenu = new QMenu(toolBar);
-    connect(m_forwardMenu, SIGNAL(aboutToShow()), this, SLOT(updateForwardMenu()));
+    connect(m_forwardMenu, &QMenu::aboutToShow, this, &HelpWidget::updateForwardMenu);
     m_forwardAction->setMenu(m_forwardMenu);
     cmd = Core::ActionManager::registerAction(m_forwardAction, Constants::HELP_NEXT, context);
     cmd->setDefaultKeySequence(QKeySequence::Forward);
@@ -192,8 +186,7 @@ HelpWidget::HelpWidget(const Core::Context &context, WidgetStyle style, QWidget 
     button->setPopupMode(QToolButton::DelayedPopup);
     layout->addWidget(button);
 
-    m_addBookmarkAction = new QAction(QIcon(QLatin1String(":/help/images/bookmark.png")),
-        tr("Add Bookmark"), this);
+    m_addBookmarkAction = new QAction(Icons::BOOKMARK_TOOLBAR.icon(), tr("Add Bookmark"), this);
     cmd = Core::ActionManager::registerAction(m_addBookmarkAction, Constants::HELP_ADDBOOKMARK, context);
     cmd->setDefaultKeySequence(QKeySequence(Core::UseMacShortcuts ? tr("Meta+M") : tr("Ctrl+M")));
     connect(m_addBookmarkAction, &QAction::triggered, this, &HelpWidget::addBookmark);
@@ -252,8 +245,7 @@ HelpWidget::HelpWidget(const Core::Context &context, WidgetStyle style, QWidget 
     }
 
     if (style != ExternalWindow) {
-        m_closeAction = new QAction(QIcon(QLatin1String(Core::Constants::ICON_BUTTON_CLOSE)),
-            QString(), toolBar);
+        m_closeAction = new QAction(Core::Icons::CLOSE_TOOLBAR.icon(), QString(), toolBar);
         connect(m_closeAction, SIGNAL(triggered()), this, SIGNAL(closeButtonClicked()));
         button = new QToolButton;
         button->setDefaultAction(m_closeAction);
@@ -458,7 +450,7 @@ void HelpWidget::addViewer(HelpViewer *viewer)
         print(viewer);
     });
     if (m_style == ExternalWindow)
-        connect(viewer, SIGNAL(titleChanged()), this, SLOT(updateWindowTitle()));
+        connect(viewer, &HelpViewer::titleChanged, this, &HelpWidget::updateWindowTitle);
 
     connect(viewer, &HelpViewer::loadFinished, this, &HelpWidget::highlightSearchTerms);
 

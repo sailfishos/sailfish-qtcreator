@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -33,15 +28,13 @@
 #include "ssh_global.h"
 #include "sshbotanconversions_p.h"
 #include "sshcapabilities_p.h"
+#include "sshlogging_p.h"
 #include "sshsendfacility_p.h"
 #include "sshexception_p.h"
 #include "sshincomingpacket_p.h"
 
 #include <botan/botan.h>
 
-#ifdef CREATOR_SSH_DEBUG
-#include <iostream>
-#endif
 #include <string>
 
 using namespace Botan;
@@ -54,26 +47,16 @@ namespace {
     // For debugging
     void printNameList(const char *listName, const SshNameList &list)
     {
-#ifdef CREATOR_SSH_DEBUG
-        qDebug("%s:", listName);
+        qCDebug(sshLog, "%s:", listName);
         foreach (const QByteArray &name, list.names)
-            qDebug("%s", name.constData());
-#else
-        Q_UNUSED(listName);
-        Q_UNUSED(list);
-#endif
+            qCDebug(sshLog, "%s", name.constData());
     }
 
-#ifdef CREATOR_SSH_DEBUG
     void printData(const char *name, const QByteArray &data)
     {
-        std::cerr << std::hex;
-        qDebug("The client thinks the %s has length %d and is:", name, data.count());
-        for (int i = 0; i < data.count(); ++i)
-            std::cerr << (static_cast<unsigned int>(data.at(i)) & 0xff) << ' ';
-        std::cerr << std::endl;
+        qCDebug(sshLog, "The client thinks the %s has length %d and is: %s", name, data.count(),
+                data.toHex().constData());
     }
-#endif
 
 } // anonymous namespace
 
@@ -93,9 +76,7 @@ void SshKeyExchange::sendKexInitPacket(const QByteArray &serverId)
 
 bool SshKeyExchange::sendDhInitPacket(const SshIncomingPacket &serverKexInit)
 {
-#ifdef CREATOR_SSH_DEBUG
-    qDebug("server requests key exchange");
-#endif
+    qCDebug(sshLog, "server requests key exchange");
     serverKexInit.printRawBytes();
     SshKeyExchangeInit kexInitParams
             = serverKexInit.extractKeyExchangeInitData();
@@ -110,9 +91,7 @@ bool SshKeyExchange::sendDhInitPacket(const SshIncomingPacket &serverKexInit)
     printNameList("Compression algorithms client to server", kexInitParams.compressionAlgorithmsClientToServer);
     printNameList("Languages client to server", kexInitParams.languagesClientToServer);
     printNameList("Languages server to client", kexInitParams.languagesServerToClient);
-#ifdef CREATOR_SSH_DEBUG
-    qDebug("First packet follows: %d", kexInitParams.firstKexPacketFollows);
-#endif
+    qCDebug(sshLog, "First packet follows: %d", kexInitParams.firstKexPacketFollows);
 
     m_kexAlgoName = SshCapabilities::findBestMatch(SshCapabilities::KeyExchangeMethods,
                                                    kexInitParams.keyAlgorithms.names);
@@ -161,6 +140,13 @@ void SshKeyExchange::sendNewKeysPacket(const SshIncomingPacket &dhReply,
     concatenatedData += AbstractSshPacket::encodeString(m_clientKexInitPayload);
     concatenatedData += AbstractSshPacket::encodeString(m_serverKexInitPayload);
     concatenatedData += reply.k_s;
+
+    printData("Client Id", AbstractSshPacket::encodeString(clientId));
+    printData("Server Id", AbstractSshPacket::encodeString(m_serverId));
+    printData("Client Payload", AbstractSshPacket::encodeString(m_clientKexInitPayload));
+    printData("Server payload", AbstractSshPacket::encodeString(m_serverKexInitPayload));
+    printData("K_S", reply.k_s);
+
     SecureVector<byte> encodedK;
     if (m_dhKey) {
         concatenatedData += AbstractSshPacket::encodeMpInt(m_dhKey->get_y());
@@ -168,6 +154,8 @@ void SshKeyExchange::sendNewKeysPacket(const SshIncomingPacket &dhReply,
         DH_KA_Operation dhOp(*m_dhKey);
         SecureVector<byte> encodedF = BigInt::encode(reply.f);
         encodedK = dhOp.agree(encodedF, encodedF.size());
+        printData("y", AbstractSshPacket::encodeMpInt(m_dhKey->get_y()));
+        printData("f", AbstractSshPacket::encodeMpInt(reply.f));
         m_dhKey.reset(nullptr);
     } else {
         Q_ASSERT(m_ecdhKey);
@@ -181,25 +169,15 @@ void SshKeyExchange::sendNewKeysPacket(const SshIncomingPacket &dhReply,
 
     const BigInt k = BigInt::decode(encodedK);
     m_k = AbstractSshPacket::encodeMpInt(k); // Roundtrip, as Botan encodes BigInts somewhat differently.
+    printData("K", m_k);
     concatenatedData += m_k;
+    printData("Concatenated data", concatenatedData);
 
     m_hash.reset(get_hash(botanHMacAlgoName(hashAlgoForKexAlgo())));
     const SecureVector<byte> &hashResult = m_hash->process(convertByteArray(concatenatedData),
                                                            concatenatedData.size());
     m_h = convertByteArray(hashResult);
-
-#ifdef CREATOR_SSH_DEBUG
-    printData("Client Id", AbstractSshPacket::encodeString(clientId));
-    printData("Server Id", AbstractSshPacket::encodeString(m_serverId));
-    printData("Client Payload", AbstractSshPacket::encodeString(m_clientKexInitPayload));
-    printData("Server payload", AbstractSshPacket::encodeString(m_serverKexInitPayload));
-    printData("K_S", reply.k_s);
-    printData("y", AbstractSshPacket::encodeMpInt(m_dhKey->get_y()));
-    printData("f", AbstractSshPacket::encodeMpInt(reply.f));
-    printData("K", m_k);
-    printData("Concatenated data", concatenatedData);
     printData("H", m_h);
-#endif // CREATOR_SSH_DEBUG
 
     QScopedPointer<Public_Key> sigKey;
     if (m_serverHostKeyAlgo == SshCapabilities::PubKeyDss) {
@@ -213,8 +191,8 @@ void SshKeyExchange::sendNewKeysPacket(const SshIncomingPacket &dhReply,
             = new RSA_PublicKey(reply.hostKeyParameters.at(1), reply.hostKeyParameters.at(0));
         sigKey.reset(rsaKey);
     } else {
-        QSSH_ASSERT_AND_RETURN(m_serverHostKeyAlgo == SshCapabilities::PubKeyEcdsa256);
-        const EC_Group domain("secp256r1");
+        QSSH_ASSERT_AND_RETURN(m_serverHostKeyAlgo.startsWith(SshCapabilities::PubKeyEcdsaPrefix));
+        const EC_Group domain(SshCapabilities::oid(m_serverHostKeyAlgo));
         const PointGFp point = OS2ECP(convertByteArray(reply.q), reply.q.count(),
                                       domain.get_curve());
         ECDSA_PublicKey * const ecdsaKey = new ECDSA_PublicKey(domain, point);
@@ -252,27 +230,7 @@ void SshKeyExchange::determineHashingAlgorithm(const SshKeyExchangeInit &kexInit
     const QList<QByteArray> &serverCapabilities = serverToClient
             ? kexInit.macAlgorithmsServerToClient.names
             : kexInit.macAlgorithmsClientToServer.names;
-    const QList<QByteArray> commonAlgos = SshCapabilities::commonCapabilities(
-                SshCapabilities::MacAlgorithms, serverCapabilities);
-    const QByteArray hashAlgo = hashAlgoForKexAlgo();
-    foreach (const QByteArray &potentialAlgo, commonAlgos) {
-        if (potentialAlgo == hashAlgo
-                || !m_kexAlgoName.startsWith(SshCapabilities::EcdhKexNamePrefix)) {
-            *algo = potentialAlgo;
-            break;
-        }
-    }
-
-    if (algo->isEmpty()) {
-        throw SshServerException(SSH_DISCONNECT_KEY_EXCHANGE_FAILED,
-            "Invalid combination of key exchange and hashing algorithms.",
-            QCoreApplication::translate("SshConnection",
-                "Server requested invalid combination of key exchange and hashing algorithms. "
-                "Key exchange algorithm list was: %1.\nHashing algorithm list was %2.")
-                .arg(QString::fromLocal8Bit(kexInit.keyAlgorithms.names.join(", ")))
-                .arg(QString::fromLocal8Bit(serverCapabilities.join(", "))));
-
-    }
+    *algo = SshCapabilities::findBestMatch(SshCapabilities::MacAlgorithms, serverCapabilities);
 }
 
 void SshKeyExchange::checkHostKey(const QByteArray &hostKey)

@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -131,11 +126,16 @@ struct FileState
 };
 
 
-struct DocumentManagerPrivate
+class DocumentManagerPrivate : public QObject
 {
+    Q_OBJECT
+public:
     DocumentManagerPrivate();
     QFileSystemWatcher *fileWatcher();
     QFileSystemWatcher *linkWatcher();
+
+    void checkOnNextFocusChange();
+    void onApplicationFocusChange();
 
     QMap<QString, FileState> m_states;
     QSet<QString> m_changedFiles;
@@ -149,6 +149,7 @@ struct DocumentManagerPrivate
     QFileSystemWatcher *m_fileWatcher; // Delayed creation.
     QFileSystemWatcher *m_linkWatcher; // Delayed creation (only UNIX/if a link is seen).
     bool m_blockActivated;
+    bool m_checkOnFocusChange = false;
     QString m_lastVisitedDirectory;
     QString m_defaultLocationForNewFiles;
     QString m_projectsDirectory;
@@ -168,8 +169,8 @@ QFileSystemWatcher *DocumentManagerPrivate::fileWatcher()
 {
     if (!m_fileWatcher) {
         m_fileWatcher= new QFileSystemWatcher(m_instance);
-        QObject::connect(m_fileWatcher, SIGNAL(fileChanged(QString)),
-                         m_instance, SLOT(changedFile(QString)));
+        QObject::connect(m_fileWatcher, &QFileSystemWatcher::fileChanged,
+                         m_instance, &DocumentManager::changedFile);
     }
     return m_fileWatcher;
 }
@@ -180,13 +181,26 @@ QFileSystemWatcher *DocumentManagerPrivate::linkWatcher()
         if (!m_linkWatcher) {
             m_linkWatcher = new QFileSystemWatcher(m_instance);
             m_linkWatcher->setObjectName(QLatin1String("_qt_autotest_force_engine_poller"));
-            QObject::connect(m_linkWatcher, SIGNAL(fileChanged(QString)),
-                             m_instance, SLOT(changedFile(QString)));
+            QObject::connect(m_linkWatcher, &QFileSystemWatcher::fileChanged,
+                             m_instance, &DocumentManager::changedFile);
         }
         return m_linkWatcher;
     }
 
     return fileWatcher();
+}
+
+void DocumentManagerPrivate::checkOnNextFocusChange()
+{
+    m_checkOnFocusChange = true;
+}
+
+void DocumentManagerPrivate::onApplicationFocusChange()
+{
+    if (!m_checkOnFocusChange)
+        return;
+    m_checkOnFocusChange = false;
+    m_instance->checkForReload();
 }
 
 DocumentManagerPrivate::DocumentManagerPrivate() :
@@ -197,6 +211,7 @@ DocumentManagerPrivate::DocumentManagerPrivate() :
     m_useProjectsDirectory(true),
     m_blockedIDocument(0)
 {
+    connect(qApp, &QApplication::focusChanged, this, &DocumentManagerPrivate::onApplicationFocusChange);
 }
 
 } // namespace Internal
@@ -276,7 +291,8 @@ void DocumentManager::addDocuments(const QList<IDocument *> &documents, bool add
 
         foreach (IDocument *document, documents) {
             if (document && !d->m_documentsWithoutWatch.contains(document)) {
-                connect(document, SIGNAL(destroyed(QObject*)), m_instance, SLOT(documentDestroyed(QObject*)));
+                connect(document, &QObject::destroyed,
+                        m_instance, &DocumentManager::documentDestroyed);
                 connect(document, &IDocument::filePathChanged,
                         m_instance, &DocumentManager::filePathChanged);
                 d->m_documentsWithoutWatch.append(document);
@@ -287,9 +303,10 @@ void DocumentManager::addDocuments(const QList<IDocument *> &documents, bool add
 
     foreach (IDocument *document, documents) {
         if (document && !d->m_documentsWithWatch.contains(document)) {
-            connect(document, SIGNAL(changed()), m_instance, SLOT(checkForNewFileName()));
-            connect(document, SIGNAL(destroyed(QObject*)), m_instance, SLOT(documentDestroyed(QObject*)));
-            connect(document, &IDocument::filePathChanged, m_instance, &DocumentManager::filePathChanged);
+            connect(document, &IDocument::changed, m_instance, &DocumentManager::checkForNewFileName);
+            connect(document, &QObject::destroyed, m_instance, &DocumentManager::documentDestroyed);
+            connect(document, &IDocument::filePathChanged,
+                    m_instance, &DocumentManager::filePathChanged);
             addFileInfo(document);
         }
     }
@@ -430,9 +447,9 @@ bool DocumentManager::removeDocument(IDocument *document)
     if (!d->m_documentsWithoutWatch.removeOne(document)) {
         addWatcher = true;
         removeFileInfo(document);
-        disconnect(document, SIGNAL(changed()), m_instance, SLOT(checkForNewFileName()));
+        disconnect(document, &IDocument::changed, m_instance, &DocumentManager::checkForNewFileName);
     }
-    disconnect(document, SIGNAL(destroyed(QObject*)), m_instance, SLOT(documentDestroyed(QObject*)));
+    disconnect(document, &QObject::destroyed, m_instance, &DocumentManager::documentDestroyed);
     return addWatcher;
 }
 
@@ -559,7 +576,7 @@ static bool saveModifiedFilesHelper(const QList<IDocument *> &documents,
         if (document && document->isModified()) {
             QString name = document->filePath().toString();
             if (name.isEmpty())
-                name = document->suggestedFileName();
+                name = document->fallbackSaveAsFileName();
 
             // There can be several IDocuments pointing to the same file
             // Prefer one that is not readonly
@@ -719,8 +736,8 @@ QString DocumentManager::getSaveAsFileName(const IDocument *document, const QStr
     QString path;
     QString fileName;
     if (absoluteFilePath.isEmpty()) {
-        fileName = document->suggestedFileName();
-        const QString defaultPath = document->defaultPath();
+        fileName = document->fallbackSaveAsFileName();
+        const QString defaultPath = document->fallbackSaveAsPath();
         if (!defaultPath.isEmpty())
             path = defaultPath;
     } else {
@@ -893,23 +910,26 @@ void DocumentManager::changedFile(const QString &fileName)
         d->m_changedFiles.insert(fileName);
 
     if (wasempty && !d->m_changedFiles.isEmpty())
-        QTimer::singleShot(200, this, SLOT(checkForReload()));
+        QTimer::singleShot(200, this, &DocumentManager::checkForReload);
 }
 
 void DocumentManager::checkForReload()
 {
     if (d->m_changedFiles.isEmpty())
         return;
-    if (!QApplication::activeWindow())
+    if (QApplication::applicationState() != Qt::ApplicationActive)
         return;
-
-    if (QApplication::activeModalWidget() || d->m_blockActivated) {
+    // If d->m_blockActivated is true, then it means that the event processing of either the
+    // file modified dialog, or of loading large files, has delivered a file change event from
+    // a watcher *and* the timer triggered. We may never end up here in a nested way, so
+    // recheck later at the end of the checkForReload function.
+    if (d->m_blockActivated)
+        return;
+    if (QApplication::activeModalWidget()) {
         // We do not want to prompt for modified file if we currently have some modal dialog open.
-        // If d->m_blockActivated is true, then it means that the event processing of either the
-        // file modified dialog, or of loading large files, has delivered a file change event from
-        // a watcher *and* the timer triggered. We may never end up here in a nested way, so
-        // recheck later.
-        QTimer::singleShot(200, this, SLOT(checkForReload()));
+        // There is no really sensible way to get notified globally if a window closed,
+        // so just check on every focus change.
+        d->checkOnNextFocusChange();
         return;
     }
 
@@ -1131,7 +1151,8 @@ void DocumentManager::checkForReload()
     }
 
     d->m_blockActivated = false;
-
+    // re-check in case files where modified while the dialog was open
+    QTimer::singleShot(0, this, &DocumentManager::checkForReload);
 //    dump();
 }
 
@@ -1377,9 +1398,8 @@ void DocumentManager::notifyFilesChangedInternally(const QStringList &files)
 
 bool DocumentManager::eventFilter(QObject *obj, QEvent *e)
 {
-    if (obj == qApp && e->type() == QEvent::ApplicationActivate) {
-        // activeWindow is not necessarily set yet, do checkForReload asynchronously
-        QTimer::singleShot(0, this, SLOT(checkForReload()));
+    if (obj == qApp && e->type() == QEvent::ApplicationStateChange) {
+        QTimer::singleShot(0, this, &DocumentManager::checkForReload);
     }
     return false;
 }
@@ -1398,3 +1418,5 @@ FileChangeBlocker::~FileChangeBlocker()
 }
 
 } // namespace Core
+
+#include "documentmanager.moc"

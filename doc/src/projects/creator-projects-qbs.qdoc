@@ -1,18 +1,25 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
-** This file is part of Qt Creator
+** This file is part of the Qt Creator documentation.
 **
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Free Documentation License
-**
+** GNU Free Documentation License Usage
 ** Alternatively, this file may be used under the terms of the GNU Free
 ** Documentation License version 1.3 as published by the Free Software
-** Foundation and appearing in the file included in the packaging of this
-** file.
-**
+** Foundation and appearing in the file included in the packaging of
+** this file. Please review the following information to ensure
+** the GNU Free Documentation License version 1.3 requirements
+** will be met: https://www.gnu.org/licenses/fdl-1.3.html.
 **
 ****************************************************************************/
 
@@ -32,6 +39,9 @@
     The application is built using the default Qbs profile that is associated
     with the build and run kit. \QC automatically creates a Qbs profile for each
     kit. You can edit the build profiles by adding new keys and values.
+
+    To check which Qbs version is being used, select \uicontrol Tools >
+    \uicontrol Options > \uicontrol Qbs > \uicontrol {Version Info}.
 
     \section1 Building Qbs
 
@@ -53,10 +63,22 @@
 
     \list 1
 
-        \li Select \uicontrol File > \uicontrol {New File or Project} > \uicontrol {Plain C
-            Project (Qbs Build)} or \uicontrol {Plain C++ Project (Qbs Build)} >
-            \uicontrol Choose, and follow the instructions of the wizard to create a
-            Qbs project.
+        \li Select \uicontrol File > \uicontrol {New File or Project} >
+            \uicontrol {Non-Qt Project} > \uicontrol {Plain C Project} or
+            \uicontrol {Plain C++ Project} > \uicontrol Choose.
+
+        \li In the \uicontrol {Project Location} dialog, specify the name and
+            location for the project and select \uicontrol Next.
+
+        \li In the \uicontrol {Define Build System} dialog, select
+            \uicontrol Qbs in the \uicontrol {Build system} field, and then
+            select \uicontrol Next.
+
+        \li In the \uicontrol {Kit Selection} dialog, select a build and run kit
+            for the project, and then select \uicontrol Next.
+
+        \li In the \uicontrol {Project Management} dialog, select
+            \uicontrol Finish to create a Qbs project.
 
             \image creator-qbs-project.png
 
@@ -100,10 +122,6 @@
 
                     \list
 
-                        \li Select \uicontrol {Dry run} to test building without
-                            executing commands or making permanent
-                            changes to the build graph.
-
                         \li Select \uicontrol {Keep going} to continue building when
                             errors occur, if possible.
 
@@ -130,9 +148,6 @@
 
             \list
 
-                \li Select \uicontrol {Clean all artifacts} to remove all build
-                    artifacts.
-
                 \li Select \uicontrol {Dry run} to test cleaning without executing
                     commands or making permanent changes to the build graph.
 
@@ -147,7 +162,7 @@
         \li Select \uicontrol Build > \uicontrol {Build Project} to build the application.
 
         \li Click the
-            \inlineimage qtcreator-run.png
+            \inlineimage run_small.png
             (\uicontrol Run) button to deploy and run the application.
         \endlist
 
@@ -161,6 +176,13 @@
     \list 1
 
         \li Select \uicontrol Tools > \uicontrol Options > \uicontrol Qbs.
+
+        \li By default, Qbs profiles are stored in the \c qbs directory in the
+            \QC settings directory to ensure that different \QC instances do not
+            overwrite each other's profiles. If you only run one \QC instance,
+            you can store the profiles in the Qbs settings directory instead,
+            by deselecting the \uicontrol {Store profiles in Qt Creator settings
+            directory} check box.
 
         \li In the \uicontrol Kit field, select a build and run kit.
 

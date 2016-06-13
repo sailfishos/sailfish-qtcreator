@@ -1,7 +1,7 @@
-/**************************************************************************
+/****************************************************************************
 **
-** Copyright (C) 2015 Lorenz Haas
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 Lorenz Haas
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -46,11 +41,11 @@ namespace Internal {
 
 AbstractSettings::AbstractSettings(const QString &name, const QString &ending)
     : m_version(0)
-    , m_name(name)
     , m_ending(ending)
     , m_styleDir(Core::ICore::userResourcePath() + QLatin1Char('/')
                  + QLatin1String(Beautifier::Constants::SETTINGS_DIRNAME) + QLatin1Char('/')
-                 + m_name)
+                 + name)
+    , m_name(name)
 {
 }
 
@@ -102,7 +97,7 @@ void AbstractSettings::setStyle(const QString &key, const QString &value)
 void AbstractSettings::removeStyle(const QString &key)
 {
     m_styles.remove(key);
-    m_stylesToRemove << key + m_ending;
+    m_stylesToRemove << key;
 }
 
 void AbstractSettings::replaceStyle(const QString &oldKey, const QString &newKey,
@@ -183,18 +178,13 @@ void AbstractSettings::save()
     if (m_stylesToRemove.isEmpty() && m_styles.isEmpty())
         return;
 
-    if (!m_styleDir.exists()) {
-        const QString path = m_styleDir.absolutePath();
-        if (!(m_styleDir.mkpath(path)
-              && m_styleDir.cd(path))) {
-            BeautifierPlugin::showError(tr("Cannot save styles. %1 does not exist.").arg(path));
-            return;
-        }
+    // remove old files and possible subfolder
+    foreach (const QString &key, m_stylesToRemove) {
+        const QFileInfo fi(styleFileName(key));
+        QFile::remove(fi.absoluteFilePath());
+        if (fi.absoluteDir() != m_styleDir)
+            m_styleDir.rmdir(fi.absolutePath());
     }
-
-    // remove old files
-    foreach (const QString &file, m_stylesToRemove)
-        m_styleDir.remove(file);
     m_stylesToRemove.clear();
 
     QMap<QString, QString>::const_iterator iStyles = m_styles.constBegin();
@@ -205,7 +195,14 @@ void AbstractSettings::save()
             continue;
         }
 
-        Utils::FileSaver saver(styleFileName(iStyles.key()));
+        const QFileInfo fi(styleFileName(iStyles.key()));
+        if (!(m_styleDir.mkpath(fi.absolutePath()))) {
+            BeautifierPlugin::showError(tr("Cannot save styles. %1 does not exist.")
+                                        .arg(fi.absolutePath()));
+            continue;
+        }
+
+        Utils::FileSaver saver(fi.absoluteFilePath());
         if (saver.hasError()) {
             BeautifierPlugin::showError(tr("Cannot open file \"%1\": %2.")
                                         .arg(saver.fileName())
@@ -247,29 +244,10 @@ void AbstractSettings::read()
     s->endGroup();
     s->endGroup();
 
-    // Read styles
-    if (!m_styleDir.exists())
-        return;
-
-    m_stylesToRemove.clear();
     m_styles.clear();
-    const QStringList files
-            = m_styleDir.entryList(QStringList() << QLatin1Char('*') + m_ending,
-                                   QDir::Files | QDir::Readable | QDir::NoDotAndDotDot);
-    foreach (const QString &filename, files) {
-        // do not allow empty file names
-        if (filename == m_ending)
-            continue;
-
-        QFile file(m_styleDir.absoluteFilePath(filename));
-        if (file.open(QIODevice::ReadOnly)) {
-            m_styles.insert(filename.left(filename.length() - m_ending.length()),
-                            QString::fromLocal8Bit(file.readAll()));
-        }
-    }
-
     m_changedStyles.clear();
     m_stylesToRemove.clear();
+    readStyles();
 }
 
 void AbstractSettings::readDocumentation()
@@ -326,6 +304,27 @@ void AbstractSettings::readDocumentation()
     if (xml.hasError()) {
         BeautifierPlugin::showError(tr("Cannot read documentation file \"%1\": %2.")
                                     .arg(filename).arg(xml.errorString()));
+    }
+}
+
+void AbstractSettings::readStyles()
+{
+    if (!m_styleDir.exists())
+        return;
+
+    const QStringList files
+            = m_styleDir.entryList(QStringList() << QLatin1Char('*') + m_ending,
+                                   QDir::Files | QDir::Readable | QDir::NoDotAndDotDot);
+    foreach (const QString &filename, files) {
+        // do not allow empty file names
+        if (filename == m_ending)
+            continue;
+
+        QFile file(m_styleDir.absoluteFilePath(filename));
+        if (file.open(QIODevice::ReadOnly)) {
+            m_styles.insert(filename.left(filename.length() - m_ending.length()),
+                            QString::fromLocal8Bit(file.readAll()));
+        }
     }
 }
 

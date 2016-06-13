@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -83,7 +78,7 @@ enum CompletionOrder {
     TypeOrder = -30
 };
 
-static void addCompletion(QList<AssistProposalItem *> *completions,
+static void addCompletion(QList<AssistProposalItemInterface *> *completions,
                           const QString &text,
                           const QIcon &icon,
                           int order,
@@ -100,7 +95,7 @@ static void addCompletion(QList<AssistProposalItem *> *completions,
     completions->append(item);
 }
 
-static void addCompletions(QList<AssistProposalItem *> *completions,
+static void addCompletions(QList<AssistProposalItemInterface *> *completions,
                            const QStringList &newCompletions,
                            const QIcon &icon,
                            int order)
@@ -125,10 +120,10 @@ public:
 class CompletionAdder : public PropertyProcessor
 {
 protected:
-    QList<AssistProposalItem *> *completions;
+    QList<AssistProposalItemInterface *> *completions;
 
 public:
-    CompletionAdder(QList<AssistProposalItem *> *completions,
+    CompletionAdder(QList<AssistProposalItemInterface *> *completions,
                     const QIcon &icon, int order)
         : completions(completions)
         , icon(icon)
@@ -155,7 +150,7 @@ public:
 class LhsCompletionAdder : public CompletionAdder
 {
 public:
-    LhsCompletionAdder(QList<AssistProposalItem *> *completions,
+    LhsCompletionAdder(QList<AssistProposalItemInterface *> *completions,
                        const QIcon &icon,
                        int order,
                        bool afterOn)
@@ -353,12 +348,11 @@ bool QmlJSAssistProposalItem::prematurelyApplies(const QChar &c) const
             || (text().endsWith(QLatin1Char('.')) && c == QLatin1Char('.'));
 }
 
-void QmlJSAssistProposalItem::applyContextualContent(TextEditorWidget *editorWidget,
-                                                      int basePosition) const
+void QmlJSAssistProposalItem::applyContextualContent(TextEditor::TextDocumentManipulatorInterface &manipulator,
+                                                     int basePosition) const
 {
-    const int currentPosition = editorWidget->position();
-    editorWidget->setCursorPosition(basePosition);
-    editorWidget->remove(currentPosition - basePosition);
+    const int currentPosition = manipulator.currentPosition();
+    manipulator.replace(basePosition, currentPosition - basePosition, QString());
 
     QString content = text();
     int cursorOffset = 0;
@@ -377,16 +371,16 @@ void QmlJSAssistProposalItem::applyContextualContent(TextEditorWidget *editorWid
     int replacedLength = 0;
     for (int i = 0; i < replaceable.length(); ++i) {
         const QChar a = replaceable.at(i);
-        const QChar b = editorWidget->characterAt(editorWidget->position() + i);
+        const QChar b = manipulator.characterAt(manipulator.currentPosition() + i);
         if (a == b)
             ++replacedLength;
         else
             break;
     }
-    const int length = editorWidget->position() - basePosition + replacedLength;
-    editorWidget->replace(length, content);
+    const int length = manipulator.currentPosition() - basePosition + replacedLength;
+    manipulator.replace(basePosition, length, content);
     if (cursorOffset)
-        editorWidget->setCursorPosition(editorWidget->position() + cursorOffset);
+        manipulator.setCursorPosition(manipulator.currentPosition() + cursorOffset);
 }
 
 // -------------------------
@@ -858,6 +852,8 @@ bool QmlJSCompletionAssistProcessor::acceptsIdleEditor() const
         maybeAccept = true;
     } else {
         const QChar &charUnderCursor = m_interface->textDocument()->characterAt(cursorPos);
+        if (isValidIdentifierChar(charUnderCursor))
+            return false;
         if (isIdentifierChar(charBeforeCursor)
                 && ((charUnderCursor.isSpace()
                     || charUnderCursor.isNull()
@@ -985,7 +981,7 @@ class QmlJSLessThan
 public:
     QmlJSLessThan(const QString &searchString) : m_searchString(searchString)
     { }
-    bool operator() (const AssistProposalItem *a, const AssistProposalItem *b)
+    bool operator() (const AssistProposalItemInterface *a, const AssistProposalItemInterface *b)
     {
         if (a->order() != b->order())
             return a->order() > b->order();
@@ -993,8 +989,8 @@ public:
             return true;
         else if (b->text().isEmpty())
             return false;
-        else if (a->data().isValid() != b->data().isValid())
-            return a->data().isValid();
+        else if (a->isValid() != b->isValid())
+            return a->isValid();
         else if (a->text().at(0).isUpper() && b->text().at(0).isLower())
             return false;
         else if (a->text().at(0).isLower() && b->text().at(0).isUpper())
@@ -1019,9 +1015,9 @@ void QmlJSAssistProposalModel::filter(const QString &prefix)
     GenericProposalModel::filter(prefix);
     if (prefix.startsWith(QLatin1String("__")))
         return;
-    QList<AssistProposalItem *> newCurrentItems;
+    QList<AssistProposalItemInterface *> newCurrentItems;
     newCurrentItems.reserve(m_currentItems.size());
-    foreach (AssistProposalItem *item, m_currentItems)
+    foreach (AssistProposalItemInterface *item, m_currentItems)
         if (!item->text().startsWith(QLatin1String("__")))
             newCurrentItems << item;
     m_currentItems = newCurrentItems;

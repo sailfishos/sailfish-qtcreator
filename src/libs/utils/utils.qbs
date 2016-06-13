@@ -1,29 +1,35 @@
 import qbs 1.0
+import qbs.FileInfo
 
 QtcLibrary {
     name: "Utils"
 
-    cpp.defines: base.concat("QTCREATOR_UTILS_LIB")
+    cpp.defines: base.concat([
+        "QTCREATOR_UTILS_LIB",
+        "QTC_REL_TOOLS_PATH=\"" + FileInfo.relativePath('/' + project.ide_bin_path,
+                                                        '/' + project.ide_libexec_path) + "\""
+    ])
+    cpp.dynamicLibraries: {
+        var libs = [];
+        if (qbs.targetOS.contains("windows")) {
+            libs.push("user32", "iphlpapi", "ws2_32", "shell32");
+        } else if (qbs.targetOS.contains("unix")) {
+            if (!qbs.targetOS.contains("osx"))
+                libs.push("X11");
+            if (!qbs.targetOS.contains("openbsd"))
+                libs.push("pthread");
+        }
+        return libs;
+    }
 
-    Properties {
-        condition: qbs.targetOS.contains("windows")
-        cpp.dynamicLibraries: [
-            "user32",
-            "iphlpapi",
-            "ws2_32",
-            "shell32",
-        ]
-    }
-    Properties {
-        condition: qbs.targetOS.contains("unix") && !qbs.targetOS.contains("osx")
-        cpp.dynamicLibraries: ["X11"]
-    }
+    cpp.enableExceptions: true
+
     Properties {
         condition: qbs.targetOS.contains("osx")
         cpp.frameworks: ["Foundation"]
     }
 
-    Depends { name: "Qt"; submodules: ["widgets", "network", "script", "concurrent"] }
+    Depends { name: "Qt"; submodules: ["concurrent", "network", "qml", "widgets"] }
     Depends { name: "app_version_header" }
 
     files: [
@@ -60,6 +66,7 @@ QtcLibrary {
         "consoleprocess_p.h",
         "crumblepath.cpp",
         "crumblepath.h",
+        "declarationmacros.h",
         "detailsbutton.cpp",
         "detailsbutton.h",
         "detailswidget.cpp",
@@ -100,12 +107,15 @@ QtcLibrary {
         "filewizardpage.ui",
         "flowlayout.cpp",
         "flowlayout.h",
+        "functiontraits.h",
         "historycompleter.cpp",
         "historycompleter.h",
         "hostosinfo.h",
         "hostosinfo.cpp",
         "htmldocextractor.cpp",
         "htmldocextractor.h",
+        "icon.cpp",
+        "icon.h",
         "itemviews.cpp",
         "itemviews.h",
         "json.cpp",
@@ -115,7 +125,7 @@ QtcLibrary {
         "listutils.h",
         "macroexpander.cpp",
         "macroexpander.h",
-        "multitask.h",
+        "mapreduce.h",
         "navigationtreeview.cpp",
         "navigationtreeview.h",
         "networkaccessmanager.cpp",
@@ -137,6 +147,8 @@ QtcLibrary {
         "pathlisteditor.h",
         "persistentsettings.cpp",
         "persistentsettings.h",
+        "port.cpp",
+        "port.h",
         "portlist.cpp",
         "portlist.h",
         "progressindicator.cpp",
@@ -157,6 +169,7 @@ QtcLibrary {
         "qtcprocess.h",
         "reloadpromptutils.cpp",
         "reloadpromptutils.h",
+        "runextensions.cpp",
         "runextensions.h",
         "savedaction.cpp",
         "savedaction.h",
@@ -170,8 +183,15 @@ QtcLibrary {
         "shellcommand.h",
         "shellcommandpage.cpp",
         "shellcommandpage.h",
+        "sizedarray.h",
         "sleep.cpp",
         "sleep.h",
+        "smallstring.h",
+        "smallstringiterator.h",
+        "smallstringliteral.h",
+        "smallstringlayout.h",
+        "smallstringmemory.h",
+        "smallstringvector.h",
         "statuslabel.cpp",
         "statuslabel.h",
         "stringutils.cpp",
@@ -182,8 +202,8 @@ QtcLibrary {
         "stylehelper.h",
         "synchronousprocess.cpp",
         "synchronousprocess.h",
-        "tcpportsgatherer.cpp",
-        "tcpportsgatherer.h",
+        "templateengine.cpp",
+        "templateengine.h",
         "textfieldcheckbox.cpp",
         "textfieldcheckbox.h",
         "textfieldcombobox.cpp",
@@ -265,7 +285,7 @@ QtcLibrary {
         name: "FileUtils_osx"
         condition: qbs.targetOS.contains("osx")
         files: [
-            "fileutils_mac.mm",
+            "fileutils_mac.h", "fileutils_mac.mm",
         ]
     }
 

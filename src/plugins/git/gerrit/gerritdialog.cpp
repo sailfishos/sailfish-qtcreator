@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -35,6 +30,8 @@
 #include <utils/qtcassert.h>
 #include <utils/fancylineedit.h>
 #include <utils/itemviews.h>
+#include <utils/progressindicator.h>
+#include <utils/theme/theme.h>
 #include <coreplugin/icore.h>
 
 #include <QVBoxLayout>
@@ -59,57 +56,6 @@ namespace Internal {
 static const int layoutSpacing  = 5;
 static const int maxTitleWidth = 350;
 
-class QueryValidatingLineEdit : public Utils::FancyLineEdit
-{
-    Q_OBJECT
-
-public:
-    explicit QueryValidatingLineEdit(QWidget *parent = 0);
-    void setTextColor(const QColor &c);
-
-public slots:
-    void setValid();
-    void setInvalid();
-
-private:
-    bool m_valid;
-    const QColor m_okTextColor;
-    const QColor m_errorTextColor;
-};
-
-QueryValidatingLineEdit::QueryValidatingLineEdit(QWidget *parent)
-    : Utils::FancyLineEdit(parent)
-    , m_valid(true)
-    , m_okTextColor(palette().color(QPalette::Active, QPalette::Text))
-    , m_errorTextColor(Qt::red)
-{
-    setFiltering(true);
-    connect(this, &QLineEdit::textChanged, this, &QueryValidatingLineEdit::setValid);
-}
-
-void QueryValidatingLineEdit::setTextColor(const QColor &c)
-{
-    QPalette pal;
-    pal.setColor(QPalette::Active, QPalette::Text, c);
-    setPalette(pal);
-}
-
-void QueryValidatingLineEdit::setValid()
-{
-    if (!m_valid) {
-        m_valid = true;
-        setTextColor(m_okTextColor);
-    }
-}
-
-void QueryValidatingLineEdit::setInvalid()
-{
-    if (m_valid) {
-        m_valid = false;
-        setTextColor(m_errorTextColor);
-    }
-}
-
 GerritDialog::GerritDialog(const QSharedPointer<GerritParameters> &p,
                            QWidget *parent)
     : QDialog(parent)
@@ -119,7 +65,7 @@ GerritDialog::GerritDialog(const QSharedPointer<GerritParameters> &p,
     , m_queryModel(new QStringListModel(this))
     , m_treeView(new Utils::TreeView)
     , m_detailsBrowser(new QTextBrowser)
-    , m_queryLineEdit(new QueryValidatingLineEdit)
+    , m_queryLineEdit(new Utils::FancyLineEdit)
     , m_filterLineEdit(new Utils::FancyLineEdit)
     , m_repositoryChooser(new Utils::PathChooser)
     , m_buttonBox(new QDialogButtonBox(QDialogButtonBox::Close))
@@ -141,6 +87,11 @@ GerritDialog::GerritDialog(const QSharedPointer<GerritParameters> &p,
     QCompleter *completer = new QCompleter(this);
     completer->setModel(m_queryModel);
     m_queryLineEdit->setSpecialCompleter(completer);
+    m_queryLineEdit->setOkColor(Utils::creatorTheme()->color(Utils::Theme::TextColorNormal));
+    m_queryLineEdit->setErrorColor(Utils::creatorTheme()->color(Utils::Theme::TextColorError));
+    m_queryLineEdit->setValidationFunction([this](Utils::FancyLineEdit *, QString *) {
+                                               return m_model->state() != GerritModel::Error;
+                                           });
     filterLayout->addWidget(queryLabel);
     filterLayout->addWidget(m_queryLineEdit);
     filterLayout->addItem(new QSpacerItem(0, 0, QSizePolicy::MinimumExpanding, QSizePolicy::Ignored));
@@ -150,7 +101,7 @@ GerritDialog::GerritDialog(const QSharedPointer<GerritParameters> &p,
     connect(m_filterLineEdit, &Utils::FancyLineEdit::filterChanged,
             m_filterModel, &QSortFilterProxyModel::setFilterFixedString);
     connect(m_queryLineEdit, &QLineEdit::returnPressed, this, &GerritDialog::slotRefresh);
-    connect(m_model, &GerritModel::queryError, m_queryLineEdit, &QueryValidatingLineEdit::setInvalid);
+    connect(m_model, &GerritModel::stateChanged, m_queryLineEdit, &Utils::FancyLineEdit::validate);
     m_filterModel->setFilterCaseSensitivity(Qt::CaseInsensitive);
     changesLayout->addLayout(filterLayout);
     changesLayout->addWidget(m_treeView);
@@ -166,6 +117,18 @@ GerritDialog::GerritDialog(const QSharedPointer<GerritParameters> &p,
     m_treeView->setSelectionBehavior(QAbstractItemView::SelectRows);
     m_treeView->setSortingEnabled(true);
     m_treeView->setActivationMode(Utils::DoubleClickActivation);
+
+    connect(&m_progressIndicatorTimer, &QTimer::timeout,
+            [this]() { setProgressIndicatorVisible(true); });
+    m_progressIndicatorTimer.setSingleShot(true);
+    m_progressIndicatorTimer.setInterval(50); // don't show progress for < 50ms tasks
+
+    m_progressIndicator = new Utils::ProgressIndicator(Utils::ProgressIndicator::Large,
+                                                       m_treeView);
+    m_progressIndicator->attachToWidget(m_treeView->viewport());
+    m_progressIndicator->hide();
+
+    connect(m_model, &GerritModel::stateChanged, this, &GerritDialog::manageProgressIndicator);
 
     QItemSelectionModel *selectionModel = m_treeView->selectionModel();
     connect(selectionModel, &QItemSelectionModel::currentChanged,
@@ -189,7 +152,7 @@ GerritDialog::GerritDialog(const QSharedPointer<GerritParameters> &p,
 
     m_displayButton = addActionButton(tr("&Show"), [this]() { slotFetchDisplay(); });
     m_cherryPickButton = addActionButton(tr("Cherry &Pick"), [this]() { slotFetchCherryPick(); });
-    m_checkoutButton = addActionButton(tr("&Checkout"), [this]() { slotFetchCheckout(); });
+    m_checkoutButton = addActionButton(tr("C&heckout"), [this]() { slotFetchCheckout(); });
     m_refreshButton = addActionButton(tr("&Refresh"), [this]() { slotRefresh(); });
 
     connect(m_model, &GerritModel::refreshStateChanged,
@@ -296,6 +259,16 @@ void GerritDialog::slotRefresh()
     m_treeView->sortByColumn(-1);
 }
 
+void GerritDialog::manageProgressIndicator()
+{
+    if (m_model->state() == GerritModel::Running) {
+        m_progressIndicatorTimer.start();
+    } else {
+        m_progressIndicatorTimer.stop();
+        setProgressIndicatorVisible(false);
+    }
+}
+
 QModelIndex GerritDialog::currentIndex() const
 {
     const QModelIndex index = m_treeView->selectionModel()->currentIndex();
@@ -337,7 +310,10 @@ void GerritDialog::fetchFinished()
     m_checkoutButton->setToolTip(QString());
 }
 
+void GerritDialog::setProgressIndicatorVisible(bool v)
+{
+    m_progressIndicator->setVisible(v);
+}
+
 } // namespace Internal
 } // namespace Gerrit
-
-#include "gerritdialog.moc"

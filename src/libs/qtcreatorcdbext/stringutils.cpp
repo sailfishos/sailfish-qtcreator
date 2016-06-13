@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -65,33 +60,6 @@ void trimBack(std::string &s)
     } else {
         if (++pos != s.size())
             s.erase(pos, s.size() - pos);
-    }
-}
-
-void simplify(std::string &s)
-{
-    trimFront(s);
-    trimBack(s);
-    if (s.empty())
-        return;
-
-    // 1) All blanks
-    const std::string::size_type size1 = s.size();
-    std::string::size_type pos = 0;
-    for ( ; pos < size1; pos++)
-        if (std::isspace(s.at(pos)))
-                s[pos] = ' ';
-    // 2) Simplify
-    for (pos = 0; pos < s.size(); ) {
-        std::string::size_type blankpos = s.find(' ', pos);
-        if (blankpos == std::string::npos)
-            break;
-        std::string::size_type tokenpos = blankpos + 1;
-        while (tokenpos < s.size() && s.at(tokenpos) == ' ')
-            tokenpos++;
-        if (tokenpos - blankpos > 1)
-            s.erase(blankpos, tokenpos - blankpos - 1);
-        pos = blankpos + 1;
     }
 }
 
@@ -168,13 +136,6 @@ void gdbmiWStringFormat::format(std::ostream &str) const
         formatGdbmiChar(str, m_w.at(i));
 }
 
-std::string wStringToGdbmiString(const std::wstring &w)
-{
-    std::ostringstream str;
-    str << gdbmiWStringFormat(w);
-    return str.str();
-}
-
 std::string wStringToString(const std::wstring &w)
 {
     if (w.empty())
@@ -184,18 +145,6 @@ std::string wStringToString(const std::wstring &w)
     rc.reserve(size);
     for (std::string::size_type i = 0; i < size; ++i)
         rc.push_back(char(w.at(i)));
-    return rc;
-}
-
-std::wstring stringToWString(const std::string &w)
-{
-    if (w.empty())
-        return std::wstring();
-    const std::wstring::size_type size = w.size();
-    std::wstring rc;
-    rc.reserve(size);
-    for (std::wstring::size_type i = 0; i < size; ++i)
-        rc.push_back(w.at(i));
     return rc;
 }
 
@@ -210,11 +159,9 @@ inline unsigned hexDigit(char c)
 }
 
 // Convert an ASCII hex digit to its value 'A'->10
-inline char toHexDigit(unsigned v)
+static char toHexDigit(unsigned char v)
 {
-    if (v < 10)
-        return char(v) + '0';
-    return char(v - 10) + 'a';
+    return v < 10 ? char(v) + '0' : char(v) - 10 + 'a';
 }
 
 // Strings from raw data.
@@ -326,7 +273,7 @@ inline String dataToHexHelper(const unsigned char *p, const unsigned char *end)
     String rc;
     rc.reserve(2 * (end - p));
     for ( ; p < end ; ++p) {
-        const unsigned c = *p;
+        const unsigned char c = *p;
         rc.push_back(toHexDigit(c / 16));
         rc.push_back(toHexDigit(c &0xF));
     }
@@ -374,4 +321,10 @@ void formatGdbmiHash(std::ostream &os, const std::map<std::string, std::string> 
     }
     if (closeHash)
         os << '}';
+}
+
+void hexEncode(std::ostream &str, const unsigned char *source, size_t sourcelen)
+{
+    for (size_t i = 0; i < sourcelen; ++i)
+        str << toHexDigit(source[i] >> 4) << toHexDigit(source[i] & 0xf);
 }

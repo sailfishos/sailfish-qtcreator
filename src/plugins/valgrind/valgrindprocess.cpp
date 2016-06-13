@@ -1,8 +1,8 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
 ** Author: Milian Wolff, KDAB (milian.wolff@kdab.com)
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -10,26 +10,23 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
 #include "valgrindprocess.h"
+
+#include <ssh/sshconnectionmanager.h>
 
 #include <utils/fileutils.h>
 #include <utils/qtcassert.h>
@@ -42,16 +39,19 @@ using namespace ProjectExplorer;
 
 namespace Valgrind {
 
-ValgrindProcess::ValgrindProcess(bool isLocal, const QSsh::SshConnectionParameters &sshParams,
-                                 QSsh::SshConnection *connection, QObject *parent)
-    : QObject(parent),
-      m_isLocal(isLocal),
-      m_localRunMode(ApplicationLauncher::Gui)
+ValgrindProcess::ValgrindProcess(const IDevice::ConstPtr &device,
+                                 QObject *parent)
+    : QObject(parent), m_device(device)
 {
-    m_remote.m_params = sshParams;
-    m_remote.m_connection = connection;
+    m_remote.m_connection = 0;
     m_remote.m_error = QProcess::UnknownError;
     m_pid = 0;
+}
+
+ValgrindProcess::~ValgrindProcess()
+{
+    if (m_remote.m_connection)
+        QSsh::releaseConnection(m_remote.m_connection);
 }
 
 void ValgrindProcess::setProcessChannelMode(QProcess::ProcessChannelMode mode)
@@ -61,20 +61,9 @@ void ValgrindProcess::setProcessChannelMode(QProcess::ProcessChannelMode mode)
     ///TODO: remote support this by handling the mode internally
 }
 
-void ValgrindProcess::setWorkingDirectory(const QString &path)
-{
-    if (isLocal())
-        m_localProcess.setWorkingDirectory(path);
-    else
-        m_remote.m_workingDir = path;
-}
-
 QString ValgrindProcess::workingDirectory() const
 {
-    if (isLocal())
-        return m_localProcess.workingDirectory();
-    else
-        return m_remote.m_workingDir;
+    return m_debuggee.workingDirectory;
 }
 
 bool ValgrindProcess::isRunning() const
@@ -90,31 +79,14 @@ void ValgrindProcess::setValgrindExecutable(const QString &valgrindExecutable)
     m_valgrindExecutable = valgrindExecutable;
 }
 
+void ValgrindProcess::setDebuggee(const StandardRunnable &debuggee)
+{
+    m_debuggee = debuggee;
+}
+
 void ValgrindProcess::setValgrindArguments(const QStringList &valgrindArguments)
 {
     m_valgrindArguments = valgrindArguments;
-}
-
-void ValgrindProcess::setDebuggeeExecutable(const QString &debuggeeExecutable)
-{
-    m_debuggeeExecutable = debuggeeExecutable;
-}
-
-void ValgrindProcess::setDebugeeArguments(const QString &debuggeeArguments)
-{
-    m_debuggeeArguments = debuggeeArguments;
-}
-
-void ValgrindProcess::setEnvironment(const Utils::Environment &environment)
-{
-    if (isLocal())
-        m_localProcess.setEnvironment(environment);
-    ///TODO: remote anything that should/could be done here?
-}
-
-void ValgrindProcess::setLocalRunMode(ApplicationLauncher::Mode localRunMode)
-{
-    m_localRunMode = localRunMode;
 }
 
 void ValgrindProcess::close()
@@ -139,7 +111,7 @@ void ValgrindProcess::close()
     }
 }
 
-void ValgrindProcess::run()
+void ValgrindProcess::run(ApplicationLauncher::Mode runMode)
 {
     if (isLocal()) {
         connect(&m_localProcess, &ApplicationLauncher::processExited,
@@ -151,16 +123,18 @@ void ValgrindProcess::run()
         connect(&m_localProcess, &ApplicationLauncher::appendMessage,
                 this, &ValgrindProcess::processOutput);
 
-        m_localProcess.start(m_localRunMode, m_valgrindExecutable,
-                             argumentString(Utils::HostOsInfo::hostOs()));
+        StandardRunnable valgrind;
+        valgrind.executable = m_valgrindExecutable;
+        valgrind.runMode = runMode;
+        valgrind.commandLineArguments = argumentString(Utils::HostOsInfo::hostOs());
+        valgrind.workingDirectory = m_debuggee.workingDirectory;
+        valgrind.environment = m_debuggee.environment;
+        m_localProcess.start(valgrind);
 
     } else {
-        m_remote.m_valgrindExe = m_valgrindExecutable;
-        m_remote.m_debuggee = m_debuggeeExecutable;
-
         // connect to host and wait for connection
         if (!m_remote.m_connection)
-            m_remote.m_connection = new QSsh::SshConnection(m_remote.m_params, this);
+            m_remote.m_connection = QSsh::acquireConnection(m_device->sshParameters());
 
         if (m_remote.m_connection->state() != QSsh::SshConnection::Connected) {
             connect(m_remote.m_connection, &QSsh::SshConnection::connected,
@@ -236,12 +210,15 @@ void ValgrindProcess::connected()
     // connected, run command
     QString cmd;
 
-    if (!m_remote.m_workingDir.isEmpty())
-        cmd += QString::fromLatin1("cd '%1' && ").arg(m_remote.m_workingDir);
+    if (!m_debuggee.workingDirectory.isEmpty())
+        cmd += QString::fromLatin1("cd '%1' && ").arg(m_debuggee.workingDirectory);
 
-    cmd += m_remote.m_valgrindExe + QLatin1Char(' ') + argumentString(Utils::OsTypeLinux);
+    cmd += m_valgrindExecutable + QLatin1Char(' ') + argumentString(Utils::OsTypeLinux);
 
     m_remote.m_process = m_remote.m_connection->createRemoteProcess(cmd.toUtf8());
+    for (auto it = m_debuggee.environment.constBegin(); it != m_debuggee.environment.constEnd(); ++it)
+        m_remote.m_process->addToEnvironment(it.key().toUtf8(), it.value().toUtf8());
+
     connect(m_remote.m_process.data(), &QSsh::SshRemoteProcess::readyReadStandardError,
             this, &ValgrindProcess::handleRemoteStderr);
     connect(m_remote.m_process.data(), &QSsh::SshRemoteProcess::readyReadStandardOutput,
@@ -256,6 +233,11 @@ void ValgrindProcess::connected()
 QSsh::SshConnection *ValgrindProcess::connection() const
 {
     return m_remote.m_connection;
+}
+
+bool ValgrindProcess::isLocal() const
+{
+    return m_device->type() == ProjectExplorer::Constants::DESKTOP_DEVICE_TYPE;
 }
 
 void ValgrindProcess::localProcessStarted()
@@ -277,7 +259,7 @@ void ValgrindProcess::remoteProcessStarted()
     // hence we need to do something more complex...
 
     // plain path to exe, m_valgrindExe contains e.g. env vars etc. pp.
-    const QString proc = m_remote.m_valgrindExe.split(QLatin1Char(' ')).last();
+    const QString proc = m_valgrindExecutable.split(QLatin1Char(' ')).last();
     // sleep required since otherwise we might only match "bash -c..."
     //  and not the actual valgrind run
     const QString cmd = QString::fromLatin1("sleep 1; ps ax" // list all processes with aliased name
@@ -285,7 +267,7 @@ void ValgrindProcess::remoteProcessStarted()
                                             " | tail -n 1" // limit to single process
                                             // we pick the last one, first would be "bash -c ..."
                                             " | awk '{print $1;}'" // get pid
-                                            ).arg(proc, Utils::FileName::fromString(m_remote.m_debuggee).fileName());
+                                            ).arg(proc, Utils::FileName::fromString(m_debuggee.executable).fileName());
 
     m_remote.m_findPID = m_remote.m_connection->createRemoteProcess(cmd.toUtf8());
     connect(m_remote.m_findPID.data(), &QSsh::SshRemoteProcess::readyReadStandardError,
@@ -313,14 +295,11 @@ void ValgrindProcess::findPIDOutputReceived()
 QString ValgrindProcess::argumentString(Utils::OsType osType) const
 {
     QString arguments = Utils::QtcProcess::joinArgs(m_valgrindArguments, osType);
-    if (!m_debuggeeExecutable.isEmpty())
-        Utils::QtcProcess::addArg(&arguments, m_debuggeeExecutable, osType);
-    Utils::QtcProcess::addArgs(&arguments, m_debuggeeArguments);
+    if (!m_debuggee.executable.isEmpty())
+        Utils::QtcProcess::addArg(&arguments, m_debuggee.executable, osType);
+    Utils::QtcProcess::addArgs(&arguments, m_debuggee.commandLineArguments);
     return arguments;
 }
-
-
-///////////
 
 void ValgrindProcess::closed(int status)
 {

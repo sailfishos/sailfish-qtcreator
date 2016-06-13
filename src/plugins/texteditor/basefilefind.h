@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -32,9 +27,12 @@
 #define BASEFILEFIND_H
 
 #include "texteditor_global.h"
+#include "utils/filesearch.h"
 
 #include <coreplugin/find/ifindfilter.h>
 #include <coreplugin/find/searchresultwindow.h>
+
+#include <QFuture>
 
 QT_BEGIN_NAMESPACE
 class QLabel;
@@ -43,13 +41,43 @@ QT_END_NAMESPACE
 
 namespace Utils { class FileIterator; }
 namespace Core {
+class IEditor;
+class IFindSupport;
 class SearchResult;
 class SearchResultItem;
-class IFindSupport;
 } // namespace Core
 
 namespace TextEditor {
+
 namespace Internal { class BaseFileFindPrivate; }
+
+class TEXTEDITOR_EXPORT FileFindParameters
+{
+public:
+    QString text;
+    Core::FindFlags flags;
+    QStringList nameFilters;
+    QVariant additionalParameters;
+    QVariant extensionParameters;
+};
+
+class TEXTEDITOR_EXPORT FileFindExtension : public QObject
+{
+public:
+    virtual ~FileFindExtension() {}
+    virtual QString title() const = 0;
+    virtual QString toolTip() const = 0; // add %1 placeholder where the find flags should be put
+    virtual QWidget *widget() const = 0;
+    virtual bool isEnabled() const = 0;
+    virtual bool isEnabled(const FileFindParameters &parameters) const = 0;
+    virtual QVariant parameters() const = 0;
+    virtual void readSettings(QSettings *settings) = 0;
+    virtual void writeSettings(QSettings *settings) const = 0;
+    virtual QFuture<Utils::FileSearchResultList> executeSearch(
+            const FileFindParameters &parameters) = 0;
+    virtual Core::IEditor *openEditor(const Core::SearchResultItem &item,
+                                      const FileFindParameters &parameters) = 0;
+};
 
 class TEXTEDITOR_EXPORT BaseFileFind : public Core::IFindFilter
 {
@@ -63,6 +91,7 @@ public:
     bool isReplaceSupported() const { return true; }
     void findAll(const QString &txt, Core::FindFlags findFlags);
     void replaceAll(const QString &txt, Core::FindFlags findFlags);
+    void setFindExtension(FileFindExtension *extension);
 
     /* returns the list of unique files that were passed in items */
     static QStringList replaceAll(const QString &txt,
@@ -77,6 +106,7 @@ protected:
     virtual QString label() const = 0; // see Core::SearchResultWindow::startNewSearch
     virtual QString toolTip() const = 0; // see Core::SearchResultWindow::startNewSearch,
                                          // add %1 placeholder where the find flags should be put
+    QFuture<Utils::FileSearchResultList> executeSearch(const FileFindParameters &parameters);
 
     void writeCommonSettings(QSettings *settings);
     void readCommonSettings(QSettings *settings, const QString &defaultFilter);
@@ -84,8 +114,9 @@ protected:
     void syncComboWithSettings(QComboBox *combo, const QString &setting);
     void updateComboEntries(QComboBox *combo, bool onTop);
     QStringList fileNameFilters() const;
+    FileFindExtension *extension() const;
 
-private slots:
+private:
     void displayResult(int index);
     void searchFinished();
     void cancel();
@@ -98,7 +129,6 @@ private slots:
     void searchAgain();
     void recheckEnabled();
 
-private:
     void runNewSearch(const QString &txt, Core::FindFlags findFlags,
                       Core::SearchResultWindow::SearchMode searchMode);
     void runSearch(Core::SearchResult *search);
@@ -107,5 +137,7 @@ private:
 };
 
 } // namespace TextEditor
+
+Q_DECLARE_METATYPE(TextEditor::FileFindParameters)
 
 #endif // BASEFILEFIND_H

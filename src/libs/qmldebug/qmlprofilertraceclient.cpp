@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,27 +9,24 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
 #include "qmlprofilertraceclient.h"
 #include "qmlenginecontrolclient.h"
+#include "qdebugmessageclient.h"
+#include "qpacketprotocol.h"
 
 namespace QmlDebug {
 
@@ -41,15 +38,19 @@ public:
         ,  inProgressRanges(0)
         , maximumTime(0)
         , recording(false)
-        , features(0)
+        , requestedFeatures(0)
+        , recordedFeatures(0)
+        , flushInterval(0)
     {
         ::memset(rangeCount, 0, MaximumRangeType * sizeof(int));
     }
 
     void sendRecordingStatus(int engineId);
+    bool updateFeatures(QmlDebug::ProfileFeature feature);
 
     QmlProfilerTraceClient *q;
     QmlEngineControlClient engineControl;
+    QScopedPointer<QDebugMessageClient> messageClient;
     qint64 inProgressRanges;
     QStack<qint64> rangeStartTimes[MaximumRangeType];
     QStack<QString> rangeDatas[MaximumRangeType];
@@ -58,32 +59,31 @@ public:
     int rangeCount[MaximumRangeType];
     qint64 maximumTime;
     bool recording;
-    quint64 features;
+    quint64 requestedFeatures;
+    quint64 recordedFeatures;
+    quint32 flushInterval;
 };
 
 } // namespace QmlDebug
 
 using namespace QmlDebug;
 
-static const int GAP_TIME = 150;
-
 void QmlProfilerTraceClientPrivate::sendRecordingStatus(int engineId)
 {
-    QByteArray ba;
-    QDataStream stream(&ba, QIODevice::WriteOnly);
+    QPacket stream(q->connection()->currentDataStreamVersion());
     stream << recording << engineId; // engineId -1 is OK. It means "all of them"
     if (recording)
-        stream << features;
-    q->sendMessage(ba);
+        stream << requestedFeatures << flushInterval;
+    q->sendMessage(stream.data());
 }
 
 QmlProfilerTraceClient::QmlProfilerTraceClient(QmlDebugConnection *client, quint64 features)
     : QmlDebugClient(QLatin1String("CanvasFrameRate"), client)
     , d(new QmlProfilerTraceClientPrivate(this, client))
 {
-    d->features = features;
-    connect(&d->engineControl, SIGNAL(engineAboutToBeAdded(int,QString)),
-            this, SLOT(sendRecordingStatus(int)));
+    setRequestedFeatures(features);
+    connect(&d->engineControl, &QmlEngineControlClient::engineAboutToBeAdded,
+            this, &QmlProfilerTraceClient::newEngine);
 }
 
 QmlProfilerTraceClient::~QmlProfilerTraceClient()
@@ -104,17 +104,16 @@ void QmlProfilerTraceClient::clearData()
         d->rangeStartTimes[eventType].clear();
     }
     d->bindingTypes.clear();
+    if (d->recordedFeatures != 0) {
+        d->recordedFeatures = 0;
+        emit recordedFeaturesChanged(0);
+    }
     emit cleared();
 }
 
 void QmlProfilerTraceClient::sendRecordingStatus(int engineId)
 {
     d->sendRecordingStatus(engineId);
-}
-
-bool QmlProfilerTraceClient::isEnabled() const
-{
-    return state() == Enabled;
 }
 
 bool QmlProfilerTraceClient::isRecording() const
@@ -135,9 +134,30 @@ void QmlProfilerTraceClient::setRecording(bool v)
     emit recordingChanged(v);
 }
 
-void QmlProfilerTraceClient::setFeatures(quint64 features)
+quint64 QmlProfilerTraceClient::recordedFeatures() const
 {
-    d->features = features;
+    return d->recordedFeatures;
+}
+
+void QmlProfilerTraceClient::setRequestedFeatures(quint64 features)
+{
+    d->requestedFeatures = features;
+    if (features & static_cast<quint64>(1) << ProfileDebugMessages) {
+        d->messageClient.reset(new QDebugMessageClient(connection()));
+        connect(d->messageClient.data(), &QDebugMessageClient::message, this, [this](QtMsgType type,
+                const QString &text, const QmlDebug::QDebugContextInfo &context)
+        {
+            emit debugMessage(type, context.timestamp, text,
+                              QmlDebug::QmlEventLocation(context.file, context.line, 1));
+        });
+    } else {
+        d->messageClient.reset();
+    }
+}
+
+void QmlProfilerTraceClient::setFlushInterval(quint32 flushInterval)
+{
+    d->flushInterval = flushInterval;
 }
 
 void QmlProfilerTraceClient::setRecordingFromServer(bool v)
@@ -148,15 +168,27 @@ void QmlProfilerTraceClient::setRecordingFromServer(bool v)
     emit recordingChanged(v);
 }
 
-void QmlProfilerTraceClient::stateChanged(State /*status*/)
+bool QmlProfilerTraceClientPrivate::updateFeatures(ProfileFeature feature)
 {
-    emit enabledChanged();
+    quint64 flag = 1ULL << feature;
+    if (!(requestedFeatures & flag))
+        return false;
+    if (!(recordedFeatures & flag)) {
+        recordedFeatures |= flag;
+        emit q->recordedFeaturesChanged(recordedFeatures);
+    }
+    return true;
+}
+
+void QmlProfilerTraceClient::stateChanged(State status)
+{
+    if (status == Enabled)
+        sendRecordingStatus(-1);
 }
 
 void QmlProfilerTraceClient::messageReceived(const QByteArray &data)
 {
-    QByteArray rwData = data;
-    QDataStream stream(&rwData, QIODevice::ReadOnly);
+    QPacket stream(connection()->currentDataStreamVersion(), data);
 
     qint64 time;
     int messageType;
@@ -167,9 +199,6 @@ void QmlProfilerTraceClient::messageReceived(const QByteArray &data)
         stream >> subtype;
     else
         subtype = -1;
-
-    if (time > (d->maximumTime + GAP_TIME) && 0 == d->inProgressRanges)
-        emit gap(time);
 
     switch (messageType) {
     case Event: {
@@ -183,7 +212,7 @@ void QmlProfilerTraceClient::messageReceived(const QByteArray &data)
                 stream >> id;
                 engineIds << id;
             }
-            emit this->traceStarted(time, engineIds);
+            emit traceStarted(time, engineIds);
             d->maximumTime = time;
             break;
         }
@@ -194,13 +223,13 @@ void QmlProfilerTraceClient::messageReceived(const QByteArray &data)
                 stream >> id;
                 engineIds << id;
             }
-            emit this->traceFinished(time, engineIds);
+            emit traceFinished(time, engineIds);
             d->maximumTime = time;
             d->maximumTime = qMax(time, d->maximumTime);
             break;
         }
         case AnimationFrame: {
-            if (!(d->features & (1 << ProfileAnimations)))
+            if (!d->updateFeatures(ProfileAnimations))
                 break;
             int frameRate, animationCount;
             int threadId;
@@ -218,11 +247,20 @@ void QmlProfilerTraceClient::messageReceived(const QByteArray &data)
         }
         case Key:
         case Mouse:
-            if (!(d->features & (1 << ProfileInputEvents)))
+            if (!d->updateFeatures(ProfileInputEvents))
                 break;
+            int inputType = (subtype == Key ? InputKeyUnknown : InputMouseUnknown);
+            if (!stream.atEnd())
+                stream >> inputType;
+            int a = -1;
+            if (!stream.atEnd())
+                stream >> a;
+            int b = -1;
+            if (!stream.atEnd())
+                stream >> b;
 
-            emit this->rangedEvent(Event, MaximumRangeType, subtype, time, 0, QString(),
-                                   QmlEventLocation(), 0, 0, 0, 0, 0);
+            emit rangedEvent(Event, MaximumRangeType, subtype, time, 0, QString(),
+                             QmlEventLocation(), inputType, a, b, 0, 0);
             d->maximumTime = qMax(time, d->maximumTime);
             break;
         }
@@ -231,9 +269,10 @@ void QmlProfilerTraceClient::messageReceived(const QByteArray &data)
     }
     case Complete:
         emit complete(d->maximumTime);
+        setRecordingFromServer(false);
         break;
     case SceneGraphFrame: {
-        if (!(d->features & (1 << ProfileSceneGraph)))
+        if (!d->updateFeatures(ProfileSceneGraph))
             break;
 
         int count = 0;
@@ -250,7 +289,7 @@ void QmlProfilerTraceClient::messageReceived(const QByteArray &data)
         break;
     }
     case PixmapCacheEvent: {
-        if (!(d->features & (1 << ProfilePixmapCache)))
+        if (!d->updateFeatures(ProfilePixmapCache))
             break;
         int width = 0, height = 0, refcount = 0;
         QString pixUrl;
@@ -268,7 +307,7 @@ void QmlProfilerTraceClient::messageReceived(const QByteArray &data)
         break;
     }
     case MemoryAllocation: {
-        if (!(d->features & (1 << ProfileMemory)))
+        if (!d->updateFeatures(ProfileMemory))
             break;
 
         qint64 delta;
@@ -279,7 +318,7 @@ void QmlProfilerTraceClient::messageReceived(const QByteArray &data)
         break;
     }
     case RangeStart: {
-        if (!(d->features & (1ULL << featureFromRangeType(static_cast<RangeType>(subtype)))))
+        if (!d->updateFeatures(featureFromRangeType(static_cast<RangeType>(subtype))))
             break;
         d->rangeStartTimes[subtype].push(time);
         d->inProgressRanges |= (static_cast<qint64>(1) << subtype);
@@ -295,7 +334,7 @@ void QmlProfilerTraceClient::messageReceived(const QByteArray &data)
         break;
     }
     case RangeData: {
-        if (!(d->features & (1ULL << featureFromRangeType(static_cast<RangeType>(subtype)))))
+        if (!d->updateFeatures(featureFromRangeType(static_cast<RangeType>(subtype))))
             break;
         QString data;
         stream >> data;
@@ -309,7 +348,7 @@ void QmlProfilerTraceClient::messageReceived(const QByteArray &data)
         break;
     }
     case RangeLocation: {
-        if (!(d->features & (1ULL << featureFromRangeType(static_cast<RangeType>(subtype)))))
+        if (!d->updateFeatures(featureFromRangeType(static_cast<RangeType>(subtype))))
             break;
         QString fileName;
         int line;
@@ -324,7 +363,7 @@ void QmlProfilerTraceClient::messageReceived(const QByteArray &data)
         break;
     }
     case RangeEnd: {
-        if (!(d->features & (1ULL << featureFromRangeType(static_cast<RangeType>(subtype)))))
+        if (!d->updateFeatures(featureFromRangeType(static_cast<RangeType>(subtype))))
             break;
         if (d->rangeCount[subtype] == 0)
             break;
@@ -356,8 +395,4 @@ void QmlProfilerTraceClient::messageReceived(const QByteArray &data)
     default:
         break;
     }
-
-    // stop with the first data
-    if (messageType != Event || subtype != StartTrace)
-        setRecordingFromServer(false);
 }

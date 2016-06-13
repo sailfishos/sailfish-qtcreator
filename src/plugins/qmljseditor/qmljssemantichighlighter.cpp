@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -45,12 +40,12 @@
 #include <texteditor/syntaxhighlighter.h>
 #include <texteditor/textdocument.h>
 #include <texteditor/texteditorconstants.h>
+#include <texteditor/texteditorsettings.h>
 #include <texteditor/fontsettings.h>
 #include <utils/algorithm.h>
 #include <utils/qtcassert.h>
+#include <utils/runextensions.h>
 
-#include <QFutureInterface>
-#include <QRunnable>
 #include <QTextDocument>
 #include <QThreadPool>
 
@@ -62,24 +57,6 @@ namespace QmlJSEditor {
 using namespace Internal;
 
 namespace {
-
-template <typename T>
-class PriorityTask :
-        public QFutureInterface<T>,
-        public QRunnable
-{
-public:
-    typedef QFuture<T> Future;
-
-    Future start(QThread::Priority priority)
-    {
-        this->setRunnable(this);
-        this->reportStarted();
-        Future future = this->future();
-        QThreadPool::globalInstance()->start(this, priority);
-        return future;
-    }
-};
 
 static bool isIdScope(const ObjectValue *scope, const QList<const QmlComponentChain *> &chain)
 {
@@ -190,21 +167,55 @@ protected:
     }
 };
 
-class CollectionTask :
-        public PriorityTask<SemanticHighlighter::Use>,
-        protected Visitor
+class CollectionTask : protected Visitor
 {
 public:
-    CollectionTask(const QmlJSTools::SemanticInfo &semanticInfo,
-                   SemanticHighlighter &semanticHighlighter)
-        : m_semanticInfo(semanticInfo)
-        , m_semanticHighlighter(semanticHighlighter)
+    CollectionTask(QFutureInterface<SemanticHighlighter::Use> futureInterface,
+                   const QmlJSTools::SemanticInfo &semanticInfo)
+        : m_futureInterface(futureInterface)
+        , m_semanticInfo(semanticInfo)
         , m_scopeChain(semanticInfo.scopeChain())
         , m_scopeBuilder(&m_scopeChain)
         , m_lineOfLastUse(0)
         , m_nextExtraFormat(SemanticHighlighter::Max)
         , m_currentDelayedUse(0)
-    {}
+    {
+        int nMessages = 0;
+        if (m_scopeChain.document()->language().isFullySupportedLanguage()) {
+            nMessages = m_scopeChain.document()->diagnosticMessages().size()
+                    + m_semanticInfo.semanticMessages.size()
+                    + m_semanticInfo.staticAnalysisMessages.size();
+            m_delayedUses.reserve(nMessages);
+            m_diagnosticRanges.reserve(nMessages);
+            m_extraFormats.reserve(nMessages);
+            addMessages(m_scopeChain.document()->diagnosticMessages(), m_scopeChain.document());
+            addMessages(m_semanticInfo.semanticMessages, m_semanticInfo.document);
+            addMessages(m_semanticInfo.staticAnalysisMessages, m_semanticInfo.document);
+
+            Utils::sort(m_delayedUses, sortByLinePredicate);
+        }
+        m_currentDelayedUse = 0;
+    }
+
+    QVector<QTextLayout::FormatRange> diagnosticRanges()
+    {
+        return m_diagnosticRanges;
+    }
+
+    QHash<int, QTextCharFormat> extraFormats()
+    {
+        return m_extraFormats;
+    }
+
+    void run()
+    {
+        Node *root = m_scopeChain.document()->ast();
+        m_stateNames = CollectStateNames(m_scopeChain)(root);
+        accept(root);
+        while (m_currentDelayedUse < m_delayedUses.size())
+            m_uses.append(m_delayedUses.value(m_currentDelayedUse++));
+        flush();
+    }
 
 protected:
     void accept(Node *ast)
@@ -385,13 +396,14 @@ protected:
                 length = end-begin;
             }
 
+            const TextEditor::FontSettings &fontSettings = TextEditor::TextEditorSettings::instance()->fontSettings();
+
             QTextCharFormat format;
             if (d.isWarning())
-                format.setUnderlineColor(Qt::darkYellow);
+                format = fontSettings.toTextCharFormat(TextEditor::C_WARNING);
             else
-                format.setUnderlineColor(Qt::red);
+                format = fontSettings.toTextCharFormat(TextEditor::C_ERROR);
 
-            format.setUnderlineStyle(QTextCharFormat::WaveUnderline);
             format.setToolTip(d.message);
 
             collectRanges(begin, length, format);
@@ -420,15 +432,19 @@ protected:
                 column += begin - d.location.begin();
                 length = end-begin;
             }
-            QTextCharFormat format;
-            if (d.severity == Severity::Warning || d.severity == Severity::MaybeWarning)
-                format.setUnderlineColor(Qt::darkYellow);
-            else if (d.severity == Severity::Error || d.severity == Severity::MaybeError)
-                format.setUnderlineColor(Qt::red);
-            else if (d.severity == Severity::Hint)
-                format.setUnderlineColor(Qt::darkGreen);
 
-            format.setUnderlineStyle(QTextCharFormat::WaveUnderline);
+            const TextEditor::FontSettings &fontSettings = TextEditor::TextEditorSettings::instance()->fontSettings();
+
+            QTextCharFormat format;
+            if (d.severity == Severity::Warning || d.severity == Severity::MaybeWarning) {
+                format = fontSettings.toTextCharFormat(TextEditor::C_WARNING);
+            } else if (d.severity == Severity::Error || d.severity == Severity::MaybeError) {
+                format = fontSettings.toTextCharFormat(TextEditor::C_ERROR);
+            } else if (d.severity == Severity::Hint) {
+                format = fontSettings.toTextCharFormat(TextEditor::C_WARNING);
+                format.setUnderlineColor(Qt::darkGreen);
+            }
+
             format.setToolTip(d.message);
 
             collectRanges(begin, length, format);
@@ -437,35 +453,6 @@ protected:
     }
 
 private:
-    void run()
-    {
-        int nMessages = 0;
-        if (m_scopeChain.document()->language().isFullySupportedLanguage()) {
-            nMessages = m_scopeChain.document()->diagnosticMessages().size()
-                    + m_semanticInfo.semanticMessages.size()
-                    + m_semanticInfo.staticAnalysisMessages.size();
-            m_delayedUses.reserve(nMessages);
-            m_diagnosticRanges.reserve(nMessages);
-            m_extraFormats.reserve(nMessages);
-            addMessages(m_scopeChain.document()->diagnosticMessages(), m_scopeChain.document());
-            addMessages(m_semanticInfo.semanticMessages, m_semanticInfo.document);
-            addMessages(m_semanticInfo.staticAnalysisMessages, m_semanticInfo.document);
-
-            Utils::sort(m_delayedUses, sortByLinePredicate);
-        }
-        m_currentDelayedUse = 0;
-
-        m_semanticHighlighter.reportMessagesInfo(m_diagnosticRanges, m_extraFormats);
-
-        Node *root = m_scopeChain.document()->ast();
-        m_stateNames = CollectStateNames(m_scopeChain)(root);
-        accept(root);
-        while (m_currentDelayedUse < m_delayedUses.size())
-            m_uses.append(m_delayedUses.value(m_currentDelayedUse++));
-        flush();
-        reportFinished();
-    }
-
     void addUse(const SourceLocation &location, SemanticHighlighter::UseType type)
     {
         addUse(SemanticHighlighter::Use(location.startLine, location.startColumn, location.length, type));
@@ -521,13 +508,13 @@ private:
             return;
 
         Utils::sort(m_uses, sortByLinePredicate);
-        reportResults(m_uses);
+        m_futureInterface.reportResults(m_uses);
         m_uses.clear();
         m_uses.reserve(chunkSize);
     }
 
+    QFutureInterface<SemanticHighlighter::Use> m_futureInterface;
     const QmlJSTools::SemanticInfo &m_semanticInfo;
-    SemanticHighlighter &m_semanticHighlighter;
     ScopeChain m_scopeChain;
     ScopeBuilder m_scopeBuilder;
     QStringList m_stateNames;
@@ -557,11 +544,9 @@ void SemanticHighlighter::rerun(const QmlJSTools::SemanticInfo &semanticInfo)
 {
     m_watcher.cancel();
 
-    // this does not simply use QtConcurrentRun because we want a low-priority future
-    // the thread pool deletes the task when it is done
-    CollectionTask::Future f = (new CollectionTask(semanticInfo, *this))->start(QThread::LowestPriority);
     m_startRevision = m_document->document()->revision();
-    m_watcher.setFuture(f);
+    m_watcher.setFuture(Utils::runAsync(QThread::LowestPriority,
+                                        &SemanticHighlighter::run, this, semanticInfo));
 }
 
 void SemanticHighlighter::cancel()
@@ -591,6 +576,13 @@ void SemanticHighlighter::finished()
 
     TextEditor::SemanticHighlighter::clearExtraAdditionalFormatsUntilEnd(
                 m_document->syntaxHighlighter(), m_watcher.future());
+}
+
+void SemanticHighlighter::run(QFutureInterface<SemanticHighlighter::Use> &futureInterface, const QmlJSTools::SemanticInfo &semanticInfo)
+{
+    CollectionTask task(futureInterface, semanticInfo);
+    reportMessagesInfo(task.diagnosticRanges(), task.extraFormats());
+    task.run();
 }
 
 void SemanticHighlighter::updateFontSettings(const TextEditor::FontSettings &fontSettings)

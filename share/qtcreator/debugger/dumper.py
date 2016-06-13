@@ -1,7 +1,7 @@
 ############################################################################
 #
-# Copyright (C) 2015 The Qt Company Ltd.
-# Contact: http://www.qt.io/licensing
+# Copyright (C) 2016 The Qt Company Ltd.
+# Contact: https://www.qt.io/licensing/
 #
 # This file is part of Qt Creator.
 #
@@ -9,22 +9,17 @@
 # Licensees holding valid commercial Qt licenses may use this file in
 # accordance with the commercial license agreement provided with the
 # Software or, alternatively, in accordance with the terms contained in
-# a written agreement between you and The Qt Company.  For licensing terms and
-# conditions see http://www.qt.io/terms-conditions.  For further information
-# use the contact form at http://www.qt.io/contact-us.
+# a written agreement between you and The Qt Company. For licensing terms
+# and conditions see https://www.qt.io/terms-conditions. For further
+# information use the contact form at https://www.qt.io/contact-us.
 #
-# GNU Lesser General Public License Usage
-# Alternatively, this file may be used under the terms of the GNU Lesser
-# General Public License version 2.1 or version 3 as published by the Free
-# Software Foundation and appearing in the file LICENSE.LGPLv21 and
-# LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-# following information to ensure the GNU Lesser General Public License
-# requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-# http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-#
-# In addition, as a special exception, The Qt Company gives you certain additional
-# rights.  These rights are described in The Qt Company LGPL Exception
-# version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+# GNU General Public License Usage
+# Alternatively, this file may be used under the terms of the GNU
+# General Public License version 3 as published by the Free Software
+# Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+# included in the packaging of this file. Please review the following
+# information to ensure the GNU General Public License requirements will
+# be met: https://www.gnu.org/licenses/gpl-3.0.html.
 #
 ############################################################################
 
@@ -34,7 +29,7 @@ import sys
 import base64
 import re
 import time
-import importlib
+import json
 
 if sys.version_info[0] >= 3:
     xrange = range
@@ -59,7 +54,7 @@ StartRemoteProcess, \
     = range(0, 9)
 
 
-# Known special formats. Keep in sync with DisplayFormat in watchhandler.h
+# Known special formats. Keep in sync with DisplayFormat in debuggerprotocol.h
 AutomaticFormat, \
 RawFormat, \
 SimpleFormat, \
@@ -99,50 +94,7 @@ BreakpointOnQmlSignalEmit, \
 BreakpointAtJavaScriptThrow, \
     = range(0, 14)
 
-# Encodings. Keep that synchronized with DebuggerEncoding in debuggerprotocol.h
-Unencoded8Bit, \
-Base64Encoded8BitWithQuotes, \
-Base64Encoded16BitWithQuotes, \
-Base64Encoded32BitWithQuotes, \
-Base64Encoded16Bit, \
-Base64Encoded8Bit, \
-Hex2EncodedLatin1, \
-Hex4EncodedLittleEndian, \
-Hex8EncodedLittleEndian, \
-Hex2EncodedUtf8, \
-Hex8EncodedBigEndian, \
-Hex4EncodedBigEndian, \
-Hex4EncodedLittleEndianWithoutQuotes, \
-Hex2EncodedLocal8Bit, \
-JulianDate, \
-MillisecondsSinceMidnight, \
-JulianDateAndMillisecondsSinceMidnight, \
-Hex2EncodedInt1, \
-Hex2EncodedInt2, \
-Hex2EncodedInt4, \
-Hex2EncodedInt8, \
-Hex2EncodedUInt1, \
-Hex2EncodedUInt2, \
-Hex2EncodedUInt4, \
-Hex2EncodedUInt8, \
-Hex2EncodedFloat4, \
-Hex2EncodedFloat8, \
-IPv6AddressAndHexScopeId, \
-Hex2EncodedUtf8WithoutQuotes, \
-DateTimeInternal, \
-SpecialEmptyValue, \
-SpecialUninitializedValue, \
-SpecialInvalidValue, \
-SpecialNotAccessibleValue, \
-SpecialItemCountValue, \
-SpecialMinimumItemCountValue, \
-SpecialNotCallableValue, \
-SpecialNullReferenceValue, \
-SpecialOptimizedOutValue, \
-SpecialEmptyStructureValue, \
-    = range(40)
-
-# Display modes. Keep that synchronized with DebuggerDisplay in watchutils.h
+# Display modes. Keep that synchronized with DebuggerDisplay in debuggerprotocol.h
 StopDisplay, \
 DisplayImageData, \
 DisplayUtf16String, \
@@ -242,7 +194,7 @@ class Blob(object):
         return struct.unpack_from("f", self.data, offset)[0]
 
 def warn(message):
-    print("XXX: %s\n" % message.encode("latin1"))
+    print('bridgemessage={msg="%s"},' % message.replace('"', '$').encode("latin1"))
 
 
 def showException(msg, exType, exValue, exTraceback):
@@ -302,7 +254,7 @@ class Children:
             if self.d.passExceptions:
                 showException("CHILDREN", exType, exValue, exTraceBack)
             self.d.putNumChild(0)
-            self.d.putSpecialValue(SpecialNotAccessibleValue)
+            self.d.putSpecialValue("notaccessible")
         if not self.d.currentMaxNumChild is None:
             if self.d.currentMaxNumChild < self.d.currentNumChild:
                 self.d.put('{name="<incomplete>",value="",type="",numchild="0"},')
@@ -475,6 +427,8 @@ class DumperBase:
 
     # Hex encoding operating on str or bytes, return str.
     def hexencode(self, s):
+        if s is None:
+            s = ''
         if sys.version_info[0] == 2:
             return s.encode("hex")
         if isinstance(s, str):
@@ -569,22 +523,27 @@ class DumperBase:
         elided, shown = self.computeLimit(size, limit)
         return elided, self.readMemory(data, shown)
 
-    def putCharArrayHelper(self, data, size, charSize, displayFormat = AutomaticFormat):
+    def putCharArrayHelper(self, data, size, charSize,
+                           displayFormat = AutomaticFormat,
+                           makeExpandable = True):
         bytelen = size * charSize
         elided, shown = self.computeLimit(bytelen, self.displayStringLimit)
         mem = self.readMemory(data, shown)
         if charSize == 1:
             if displayFormat == Latin1StringFormat \
                     or displayFormat == SeparateLatin1StringFormat:
-                encodingType = Hex2EncodedLatin1
+                encodingType = "latin1"
             else:
-                encodingType = Hex2EncodedUtf8
+                encodingType = "utf8"
+            childType = "char"
             displayType = DisplayLatin1String
         elif charSize == 2:
-            encodingType = Hex4EncodedLittleEndian
+            encodingType = "utf16"
+            childType = "short"
             displayType = DisplayUtf16String
         else:
-            encodingType = Hex8EncodedLittleEndian
+            encodingType = "ucs4"
+            childType = "int"
             displayType = DisplayUtf16String
 
         self.putValue(mem, encodingType, elided=elided)
@@ -594,6 +553,13 @@ class DumperBase:
             self.putField("editformat", displayType)
             elided, shown = self.computeLimit(bytelen, 100000)
             self.putField("editvalue", self.readMemory(data, shown))
+
+        if makeExpandable:
+            self.putNumChild(size)
+            if self.isExpanded():
+                with Children(self):
+                    for i in range(size):
+                        self.putSubItem(size, data[i])
 
     def readMemory(self, addr, size):
         data = self.extractBlob(addr, size).toBytes()
@@ -608,7 +574,7 @@ class DumperBase:
 
     def putByteArrayValue(self, value):
         elided, data = self.encodeByteArrayHelper(self.extractPointer(value), self.displayStringLimit)
-        self.putValue(data, Hex2EncodedLatin1, elided=elided)
+        self.putValue(data, "latin1", elided=elided)
 
     def encodeString(self, value, limit = 0):
         elided, data = self.encodeStringHelper(self.extractPointer(value), limit)
@@ -658,17 +624,22 @@ class DumperBase:
                 else:
                     inner += c
                     skipSpace = False
-        return inner.strip()
+        # Handle local struct definitions like QList<main(int, char**)::SomeStruct>
+        inner = inner.strip()
+        p = inner.find(')::')
+        if p > -1:
+            inner = inner[p+3:]
+        return inner
 
     def putStringValueByAddress(self, addr):
         elided, data = self.encodeStringHelper(addr, self.displayStringLimit)
-        self.putValue(data, Hex4EncodedLittleEndian, elided=elided)
+        self.putValue(data, "utf16", elided=elided)
 
     def putStringValue(self, value):
         elided, data = self.encodeStringHelper(
             self.extractPointer(value),
             self.displayStringLimit)
-        self.putValue(data, Hex4EncodedLittleEndian, elided=elided)
+        self.putValue(data, "utf16", elided=elided)
 
     def putAddressItem(self, name, value, type = ""):
         with SubItem(self, name):
@@ -701,7 +672,7 @@ class DumperBase:
                 self.putItem(result)
         except:
             with SubItem(self, name):
-                self.putSpecialValue(SpecialNotCallableValue);
+                self.putSpecialValue("notcallable");
                 self.putNumChild(0)
 
     def call(self, value, func, *args):
@@ -719,27 +690,22 @@ class DumperBase:
             pass
         return False
 
-        #warn("CHILDREN: %s %s %s" % (numChild, childType, childNumChild))
     def putMapName(self, value, index = None):
         ns = self.qtNamespace()
         typeName = self.stripClassTag(str(value.type))
         if typeName == ns + "QString":
-            self.put('key="%s",' % self.encodeString(value))
-            self.put('keyencoded="%s",' % Hex4EncodedLittleEndian)
+            self.put('keyencoded="utf16:2:0",key="%s",' % self.encodeString(value))
         elif typeName == ns + "QByteArray":
-            self.put('key="%s",' % self.encodeByteArray(value))
-            self.put('keyencoded="%s",' % Hex2EncodedLatin1)
+            self.put('keyencoded="latin1:1:0",key="%s",' % self.encodeByteArray(value))
         elif typeName == "std::string":
-            self.put('key="%s",' % self.encodeStdString(value))
-            self.put('keyencoded="%s",' % Hex2EncodedLatin1)
+            self.put('keyencoded="latin1:1:0",key="%s",' % self.encodeStdString(value))
         else:
             val = str(value.GetValue()) if self.isLldb else str(value)
             if index is None:
                 key = '%s' % val
             else:
                 key = '[%s] %s' % (index, val)
-            self.put('key="%s",' % self.hexencode(key))
-            self.put('keyencoded="%s",' % Hex2EncodedUtf8WithoutQuotes)
+            self.put('keyencoded="utf8:1:0",key="%s",' % self.hexencode(key))
 
     def putPair(self, pair, index = None):
         if self.pairData.useKeyAndValue:
@@ -750,14 +716,11 @@ class DumperBase:
             value = pair["second"]
         if self.pairData.isCompact:
             if self.pairData.keyIsQString:
-                self.put('key="%s",' % self.encodeString(key))
-                self.put('keyencoded="%s",' % Hex4EncodedLittleEndian)
+                self.put('keyencoded="utf16",key="%s",' % self.encodeString(key))
             elif self.pairData.keyIsQByteArray:
-                self.put('key="%s",' % self.encodeByteArray(key))
-                self.put('keyencoded="%s",' % Hex2EncodedLatin1)
+                self.put('keyencoded="latin1",key="%s",' % self.encodeByteArray(key))
             elif self.pairData.keyIsStdString:
-                self.put('key="%s",' % self.encodeStdString(key))
-                self.put('keyencoded="%s",' % Hex2EncodedLatin1)
+                self.put('keyencoded="latin1",key="%s",' % self.encodeStdString(key))
             else:
                 name = str(key.GetValue()) if self.isLldb else str(key)
                 if index == -1:
@@ -796,14 +759,9 @@ class DumperBase:
             raise RuntimeError("Check failed")
 
     def checkRef(self, ref):
-        try:
-            count = int(ref["atomic"]["_q_value"]) # Qt 5.
-            minimum = -1
-        except:
-            count = int(ref["_q_value"]) # Qt 4.
-            minimum = 0
+        count = self.extractInt(ref.address)
         # Assume there aren't a million references to any object.
-        self.check(count >= minimum)
+        self.check(count >= -1)
         self.check(count < 1000000)
 
     def readToFirstZero(self, p, tsize, maximum):
@@ -825,10 +783,103 @@ class DumperBase:
     def putItemCount(self, count, maximum = 1000000000):
         # This needs to override the default value, so don't use 'put' directly.
         if count > maximum:
-            self.putSpecialValue(SpecialMinimumItemCountValue, maximum)
+            self.putSpecialValue("minimumitemcount", maximum)
         else:
-            self.putSpecialValue(SpecialItemCountValue, count)
+            self.putSpecialValue("itemcount", count)
         self.putNumChild(count)
+
+    def resultToMi(self, value):
+        if type(value) is bool:
+            return '"%d"' % int(value)
+        if type(value) is dict:
+            return '{' + ','.join(['%s=%s' % (k, self.resultToMi(v))
+                                for (k, v) in list(value.items())]) + '}'
+        if type(value) is list:
+            return '[' + ','.join([self.resultToMi(k)
+                                for k in list(value.items())]) + ']'
+        return '"%s"' % value
+
+    def variablesToMi(self, value, prefix):
+        if type(value) is bool:
+            return '"%d"' % int(value)
+        if type(value) is dict:
+            pairs = []
+            for (k, v) in list(value.items()):
+                if k == 'iname':
+                    if v.startswith('.'):
+                        v = '"%s%s"' % (prefix, v)
+                    else:
+                        v = '"%s"' % v
+                else:
+                    v = self.variablesToMi(v, prefix)
+                pairs.append('%s=%s' % (k, v))
+            return '{' + ','.join(pairs) + '}'
+        if type(value) is list:
+            index = 0
+            pairs = []
+            for item in value:
+                if item.get('type', '') == 'function':
+                    continue
+                name = item.get('name', '')
+                if len(name) == 0:
+                    name = str(index)
+                    index += 1
+                pairs.append((name, self.variablesToMi(item, prefix)))
+            pairs.sort(key = lambda pair: pair[0])
+            return '[' + ','.join([pair[1] for pair in pairs]) + ']'
+        return '"%s"' % value
+
+    def filterPrefix(self, prefix, items):
+        return [i[len(prefix):] for i in items if i.startswith(prefix)]
+
+    def tryFetchInterpreterVariables(self, args):
+        if not int(args.get('nativemixed', 0)):
+            return (False, '')
+        context = args.get('context', '')
+        if not len(context):
+            return (False, '')
+
+        expanded = args.get('expanded')
+        args['expanded'] = self.filterPrefix('local', expanded)
+
+        res = self.sendInterpreterRequest('variables', args)
+        if not res:
+            return (False, '')
+
+        reslist = []
+        for item in res.get('variables', {}):
+            if not 'iname' in item:
+                item['iname'] = '.' + item.get('name')
+            reslist.append(self.variablesToMi(item, 'local'))
+
+        watchers = args.get('watchers', None)
+        if watchers:
+            toevaluate = []
+            name2expr = {}
+            seq = 0
+            for watcher in watchers:
+                expr = self.hexdecode(watcher.get('exp'))
+                name = str(seq)
+                toevaluate.append({'name': name, 'expression': expr})
+                name2expr[name] = expr
+                seq += 1
+            args['expressions'] = toevaluate
+
+            args['expanded'] = self.filterPrefix('watch', expanded)
+            del args['watchers']
+            res = self.sendInterpreterRequest('expressions', args)
+
+            if res:
+                for item in res.get('expressions', {}):
+                    name = item.get('name')
+                    iname = 'watch.' + name
+                    expr = name2expr.get(name)
+                    item['iname'] = iname
+                    item['wname'] = self.hexencode(expr)
+                    item['exp'] = expr
+                    reslist.append(self.variablesToMi(item, 'watch'))
+
+        return (True, 'data=[%s]' % ','.join(reslist))
 
     def putField(self, name, value):
         self.put('%s="%s",' % (name, value))
@@ -913,21 +964,23 @@ class DumperBase:
             # This should not happen. But it does, see QTCREATORBUG-14755.
             # GDB/GCC produce sizeof == 0 for QProcess arr[3]
             s = str(value.type)
-            arrayByteSize = int(s[s.find('[')+1:s.find(']')]) * ts;
+            itemCount = s[s.find('[')+1:s.find(']')]
+            if not itemCount:
+                itemCount = '100'
+            arrayByteSize = int(itemCount) * ts;
 
         n = int(arrayByteSize / ts)
         if displayFormat != RawFormat and p:
             if innerTypeName == "char" or innerTypeName == "wchar_t":
-                self.putCharArrayHelper(p, n, ts, self.currentItemFormat())
+                self.putCharArrayHelper(p, n, ts, self.currentItemFormat(),
+                                        makeExpandable = False)
             else:
                 self.tryPutSimpleFormattedPointer(p, arrayType, innerTypeName,
                     displayFormat, arrayByteSize)
         self.putNumChild(n)
 
         if self.isExpanded():
-            with Children(self):
-                for i in range(n):
-                    self.putSubItem(i, value[i])
+            self.putArrayData(p, n, innerType)
 
         self.putPlotDataHelper(p, n, innerType)
 
@@ -937,9 +990,8 @@ class DumperBase:
         # We cannot use str(addr) as it yields rubbish for char pointers
         # that might trigger Unicode encoding errors.
         #return addr.cast(lookupType("void").pointer())
-        # We do not use "hex(...)" as it (sometimes?) adds a "L" suffix.
         try:
-            return "0x%x" % toInteger(addr)
+            return "0x%x" % toInteger(hex(addr), 16)
         except:
             warn("CANNOT CONVERT TYPE: %s" % type(addr))
             try:
@@ -983,7 +1035,7 @@ class DumperBase:
         else:
             elided, shown = self.computeLimit(int(size), self.displayStringLimit)
             data = self.readMemory(base, shown)
-        self.putValue(data, Hex2EncodedLatin1, elided=elided)
+        self.putValue(data, "latin1", elided=elided)
 
     def putDisplay(self, editFormat, value):
         self.put('editformat="%s",' % editFormat)
@@ -991,55 +1043,66 @@ class DumperBase:
 
     # This is shared by pointer and array formatting.
     def tryPutSimpleFormattedPointer(self, value, typeName, innerTypeName, displayFormat, limit):
-        if displayFormat == AutomaticFormat and innerTypeName == "char":
-            # Use Latin1 as default for char *.
-            self.putType(typeName)
-            (elided, data) = self.encodeCArray(value, 1, limit)
-            self.putValue(data, Hex2EncodedLatin1, elided=elided)
-            return True
+        if displayFormat == AutomaticFormat:
+            if innerTypeName == "char":
+                # Use UTF-8 as default for char *.
+                self.putType(typeName)
+                (elided, data) = self.encodeCArray(value, 1, limit)
+                self.putValue(data, "utf8", elided=elided)
+                return True
+
+            if innerTypeName == "wchar_t":
+                self.putType(typeName)
+                charSize = self.lookupType('wchar_t').sizeof
+                (elided, data) = self.encodeCArray(value, charSize, limit)
+                if charSize == 2:
+                    self.putValue(data, "utf16", elided=elided)
+                else:
+                    self.putValue(data, "ucs4", elided=elided)
+                return True
 
         if displayFormat == Latin1StringFormat:
             self.putType(typeName)
             (elided, data) = self.encodeCArray(value, 1, limit)
-            self.putValue(data, Hex2EncodedLatin1, elided=elided)
+            self.putValue(data, "latin1", elided=elided)
             return True
 
         if displayFormat == SeparateLatin1StringFormat:
             self.putType(typeName)
             (elided, data) = self.encodeCArray(value, 1, limit)
-            self.putValue(data, Hex2EncodedLatin1, elided=elided)
+            self.putValue(data, "latin1", elided=elided)
             self.putDisplay(DisplayLatin1String, data)
             return True
 
         if displayFormat == Utf8StringFormat:
             self.putType(typeName)
             (elided, data) = self.encodeCArray(value, 1, limit)
-            self.putValue(data, Hex2EncodedUtf8, elided=elided)
+            self.putValue(data, "utf8", elided=elided)
             return True
 
         if displayFormat == SeparateUtf8StringFormat:
             self.putType(typeName)
             (elided, data) = self.encodeCArray(value, 1, limit)
-            self.putValue(data, Hex2EncodedUtf8, elided=elided)
+            self.putValue(data, "utf8", elided=elided)
             self.putDisplay(DisplayUtf8String, data)
             return True
 
         if displayFormat == Local8BitStringFormat:
             self.putType(typeName)
             (elided, data) = self.encodeCArray(value, 1, limit)
-            self.putValue(data, Hex2EncodedLocal8Bit, elided=elided)
+            self.putValue(data, "local8bit", elided=elided)
             return True
 
         if displayFormat == Utf16StringFormat:
             self.putType(typeName)
             (elided, data) = self.encodeCArray(value, 2, limit)
-            self.putValue(data, Hex4EncodedLittleEndian, elided=elided)
+            self.putValue(data, "utf16", elided=elided)
             return True
 
         if displayFormat == Ucs4StringFormat:
             self.putType(typeName)
             (elided, data) = self.encodeCArray(value, 4, limit)
-            self.putValue(data, Hex8EncodedLittleEndian, elided=elided)
+            self.putValue(data, "ucs4", elided=elided)
             return True
 
         return False
@@ -1055,10 +1118,13 @@ class DumperBase:
 
         typeName = str(value.type)
 
-        if self.isBadPointer(value):
+        (dereferencable, pointerValue) = self.pointerInfo(value)
+        self.putAddress(pointerValue)
+        self.putOriginalAddress(value)
+        if not dereferencable:
             # Failure to dereference a pointer should at least
             # show the value of a pointer.
-            self.putValue(self.cleanAddress(value))
+            self.putValue(self.cleanAddress(pointerValue))
             self.putType(typeName)
             self.putNumChild(0)
             return
@@ -1077,7 +1143,7 @@ class DumperBase:
         if displayFormat == RawFormat:
             # Explicitly requested bald pointer.
             self.putType(typeName)
-            self.putValue(self.hexencode(str(value)), Hex2EncodedUtf8WithoutQuotes)
+            self.putValue(self.hexencode(str(value)), "utf8:1:0")
             self.putNumChild(1)
             if self.currentIName in self.expandedINames:
                 with Children(self):
@@ -1194,7 +1260,7 @@ class DumperBase:
                 return False
 
             raw = self.readMemory(data, 2 * size)
-            self.putValue(raw, Hex4EncodedLittleEndian, 1)
+            self.putValue(raw, "utf16", 1)
             return True
 
         except:
@@ -1318,8 +1384,7 @@ class DumperBase:
             addr += 1
         return result
 
-    def listChildrenGenerator(self, addr, typeName):
-        innerType = self.lookupType(self.qtNamespace() + typeName)
+    def listChildrenGenerator(self, addr, innerType):
         base = self.extractPointer(addr)
         begin = self.extractInt(base + 8)
         end = self.extractInt(base + 12)
@@ -1337,6 +1402,14 @@ class DumperBase:
             else:
                 p = self.extractPointer(addr + i * stepSize)
                 yield self.createValue(p, innerType)
+
+    def vectorChildrenGenerator(self, addr, innerType):
+        base = self.extractPointer(addr)
+        size = self.extractInt(base + 4)
+        data = base + self.extractPointer(base + 8 + self.ptrSize())
+        innerSize = innerType.sizeof
+        for i in range(size):
+            yield self.createValue(data + i * innerSize, innerType)
 
 
     # This is called is when a QObject derived class is expanded
@@ -1362,6 +1435,7 @@ class DumperBase:
 
         with SubItem(self, "[properties]"):
             propertyCount = 0
+            usesVector = self.qtVersion() >= 0x50700
             if self.isExpanded():
                 propertyNames = self.staticQObjectPropertyNames(smo)
                 propertyCount = len(propertyNames) # Doesn't include dynamic properties.
@@ -1373,17 +1447,26 @@ class DumperBase:
 
                     # Dynamic properties.
                     if extraData:
-                        names = self.listChildrenGenerator(extraData + ptrSize, "QByteArray")
-                        values = self.listChildrenGenerator(extraData + 2 * ptrSize, "QVariant")
+                        byteArrayType = self.lookupQtType("QByteArray")
+                        variantType = self.lookupQtType("QVariant")
+                        names = self.listChildrenGenerator(extraData + ptrSize, byteArrayType)
+                        if usesVector:
+                            values = self.vectorChildrenGenerator(extraData + 2 * ptrSize, variantType)
+                        else:
+                            values = self.listChildrenGenerator(extraData + 2 * ptrSize, variantType)
                         for (k, v) in zip(names, values):
                             with SubItem(self, propertyCount):
                                 self.put('key="%s",' % self.encodeByteArray(k))
-                                self.put('keyencoded="%s",' % Hex2EncodedLatin1)
+                                self.put('keyencoded="latin1",')
                                 self.putItem(v)
                                 propertyCount += 1
-
-            self.putValue(str('<%s items>' % propertyCount if propertyCount else '<>0 items>'))
-            self.putNumChild(1)
+                self.putItemCount(propertyCount)
+            else:
+                # We need a handle to [x] for the user to expand the item
+                # before we know whether there are actual children. Counting
+                # them is too expensive.
+                self.putNumChild(1)
+                self.putSpecialValue("minimumitemcount", 0)
 
         with SubItem(self, "[methods]"):
             methodCount = self.staticQObjectMethodCount(smo)
@@ -1424,7 +1507,7 @@ class DumperBase:
             else:
                 connections = connections.dereference()
                 connections = connections.cast(self.directBaseClass(connections.type))
-                self.putSpecialValue(SpecialMinimumItemCountValue, 0)
+                self.putSpecialValue("minimumitemcount", 0)
                 self.putNumChild(1)
             if self.isExpanded():
                 pp = 0
@@ -1479,6 +1562,9 @@ class DumperBase:
             self.put('addrbase="0x%x",' % addrBase)
             self.put('addrstep="0x%x",' % innerSize)
             self.put('arrayencoding="%s",' % enc)
+            if n > maxNumChild:
+                self.put('childrenelided="%s",' % n) # FIXME: Act on that in frontend
+                n = maxNumChild
             self.put('arraydata="')
             self.put(self.readMemory(addrBase, n * innerSize))
             self.put('",')
@@ -1495,7 +1581,10 @@ class DumperBase:
             self.putArrayData(addr, n, self.lookupType(typeName))
             self.putAddress(addr)
 
-    def putPlotDataHelper(self, base, n, innerType):
+    def putPlotDataHelper(self, base, n, innerType, maxNumChild = 1000*1000):
+        if n > maxNumChild:
+            self.put('plotelided="%s",' % n) # FIXME: Act on that in frontend
+            n = maxNumChild
         if self.currentItemFormat() == ArrayPlotFormat and self.isSimpleType(innerType):
             enc = self.simpleEncoding(innerType)
             if enc:
@@ -1503,10 +1592,10 @@ class DumperBase:
                 self.putField("editvalue", self.readMemory(base, n * innerType.sizeof))
                 self.putField("editformat", DisplayPlotData)
 
-    def putPlotData(self, base, n, innerType):
-        self.putPlotDataHelper(base, n, innerType)
+    def putPlotData(self, base, n, innerType, maxNumChild = 1000*1000):
+        self.putPlotDataHelper(base, n, innerType, maxNumChild=maxNumChild)
         if self.isExpanded():
-            self.putArrayData(base, n, innerType)
+            self.putArrayData(base, n, innerType, maxNumChild=maxNumChild)
 
     def putSpecialArgv(self, value):
         """
@@ -1690,7 +1779,7 @@ class DumperBase:
         self.resetCaches()
 
         for mod in self.dumpermodules:
-            m = importlib.import_module(mod)
+            m = __import__(mod)
             dic = m.__dict__
             for name in dic.keys():
                 item = dic[name]
@@ -1701,16 +1790,16 @@ class DumperBase:
             editable = ',editable="true"' if key in self.qqEditable else ''
             formats = (',formats=\"%s\"' % str(value)[1:-1]) if len(value) else ''
             msg += '{type="%s"%s%s},' % (key, editable, formats)
-        msg += ']'
-        self.reportDumpers(msg)
-
-    def reportDumpers(self, msg):
-        raise NotImplementedError
+        msg += '],'
+        v = 10000 * sys.version_info[0] + 100 * sys.version_info[1] + sys.version_info[2]
+        msg += 'python="%d"' % v
+        return msg
 
     def reloadDumpers(self, args):
         for mod in self.dumpermodules:
             m = sys.modules[mod]
             if sys.version_info[0] >= 3:
+                import importlib
                 importlib.reload(m)
             else:
                 reload(m)
@@ -1722,69 +1811,160 @@ class DumperBase:
         sys.path.insert(1, head)
         self.dumpermodules.append(os.path.splitext(tail)[0])
 
-    def sendQmlCommand(self, command, data = ""):
-        data += '"version":"1","command":"%s"' % command
-        data = data.replace('"', '\\"')
-        expr = 'qt_v4DebuggerHook("{%s}")' % data
-        try:
-            res = self.parseAndEvaluate(expr)
-            print("QML command ok, RES: %s, CMD: %s" % (res, expr))
-        except RuntimeError as error:
-            #print("QML command failed: %s: %s" % (expr, error))
-            res = None
-        except AttributeError as error:
-            # Happens with LLDB and 'None' current thread.
-            #print("QML command failed: %s: %s" % (expr, error))
-            res = None
+    def extractQStringFromQDataStream(self, buf, offset):
+        """ Read a QString from the stream """
+        size = struct.unpack_from("!I", buf, offset)[0]
+        offset += 4
+        string = buf[offset:offset + size].decode('utf-16be')
+        return (string, offset + size)
+
+    def extractQByteArrayFromQDataStream(self, buf, offset):
+        """ Read a QByteArray from the stream """
+        size = struct.unpack_from("!I", buf, offset)[0]
+        offset += 4
+        string = buf[offset:offset + size].decode('latin1')
+        return (string, offset + size)
+
+    def extractIntFromQDataStream(self, buf, offset):
+        """ Read an int from the stream """
+        value = struct.unpack_from("!I", buf, offset)[0]
+        return (value, offset + 4)
+
+    def handleInterpreterMessage(self):
+        """ Return True if inferior stopped """
+        resdict = self.fetchInterpreterResult()
+        return resdict.get('event') == 'break'
+
+    def reportInterpreterResult(self, resdict, args):
+        print('interpreterresult=%s,token="%s"'
+            % (self.resultToMi(resdict), args.get('token', -1)))
+
+    def reportInterpreterAsync(self, resdict, asyncclass):
+        print('interpreterasync=%s,asyncclass="%s"'
+            % (self.resultToMi(resdict), asyncclass))
+
+    def removeInterpreterBreakpoint(self, args):
+        res = self.sendInterpreterRequest('removebreakpoint', { 'id' : args['id'] })
         return res
 
-    def prepareQmlStep(self, _):
-        self.sendQmlCommand('prepareStep')
-
-    def removeQmlBreakpoint(self, args):
-        fullName = args['fileName']
-        lineNumber = args['lineNumber']
-        #print("Remove QML breakpoint %s:%s" % (fullName, lineNumber))
-        bp = self.sendQmlCommand('removeBreakpoint',
-                '"fullName":"%s","lineNumber":"%s",'
-                % (fullName, lineNumber))
-        if bp is None:
-            #print("Direct QML breakpoint removal failed: %s.")
-            return 0
-        #print("Removing QML breakpoint: %s" % bp)
-        return int(bp)
-
-    def insertQmlBreakpoint(self, args):
-        print("Insert QML breakpoint %s" % self.describeBreakpointData(args))
-        bp = self.doInsertQmlBreakpoint(args)
-        res = self.sendQmlCommand('prepareStep')
-        #if res is None:
-        #    print("Resetting stepping failed.")
-        return str(bp)
-
-    def doInsertQmlBreakpoint(self, args):
-        fullName = args['fileName']
-        lineNumber = args['lineNumber']
-        pos = fullName.rfind('/')
-        engineName = "qrc:/" + fullName[pos+1:]
-        bp = self.sendQmlCommand('insertBreakpoint',
-                '"fullName":"%s","lineNumber":"%s","engineName":"%s",'
-                % (fullName, lineNumber, engineName))
-        if bp is None:
-            #print("Direct QML breakpoint insertion failed.")
-            #print("Make pending.")
+    def insertInterpreterBreakpoint(self, args):
+        args['condition'] = self.hexdecode(args.get('condition', ''))
+        # Will fail if the service is not yet up and running.
+        response = self.sendInterpreterRequest('setbreakpoint', args)
+        resdict = args.copy()
+        bp = None if response is None else response.get("breakpoint", None)
+        if bp:
+            resdict['number'] = bp
+            resdict['pending'] = 0
+        else:
             self.createResolvePendingBreakpointsHookBreakpoint(args)
-            return 0
+            resdict['number'] = -1
+            resdict['pending'] = 1
+            resdict['warning'] = 'Direct interpreter breakpoint insertion failed.'
+        self.reportInterpreterResult(resdict, args)
 
-        print("Resolving QML breakpoint: %s" % bp)
-        return int(bp)
+    def resolvePendingInterpreterBreakpoint(self, args):
+        self.parseAndEvaluate('qt_qmlDebugEnableService("NativeQmlDebugger")')
+        response = self.sendInterpreterRequest('setbreakpoint', args)
+        bp = None if response is None else response.get("breakpoint", None)
+        resdict = args.copy()
+        if bp:
+            resdict['number'] = bp
+            resdict['pending'] = 0
+        else:
+            resdict['number'] = -1
+            resdict['pending'] = 0
+            resdict['error'] = 'Pending interpreter breakpoint insertion failed.'
+        self.reportInterpreterAsync(resdict, 'breakpointmodified')
 
-    def describeBreakpointData(self, args):
-        fullName = args['fileName']
-        lineNumber = args['lineNumber']
-        return "%s:%s" % (fullName, lineNumber)
+    def fetchInterpreterResult(self):
+        buf = self.parseAndEvaluate("qt_qmlDebugMessageBuffer")
+        size = self.parseAndEvaluate("qt_qmlDebugMessageLength")
+        msg = self.hexdecode(self.readMemory(buf, size))
+        # msg is a sequence of 'servicename<space>msglen<space>msg' items.
+        resdict = {}  # Native payload.
+        while len(msg):
+            pos0 = msg.index(' ') # End of service name
+            pos1 = msg.index(' ', pos0 + 1) # End of message length
+            service = msg[0:pos0]
+            msglen = int(msg[pos0+1:pos1])
+            msgend = pos1+1+msglen
+            payload = msg[pos1+1:msgend]
+            msg = msg[msgend:]
+            if service == 'NativeQmlDebugger':
+                try:
+                    resdict = json.loads(payload)
+                    continue
+                except:
+                    warn("Cannot parse native payload: %s" % payload)
+            else:
+                print('interpreteralien=%s'
+                    % {'service': service, 'payload': self.hexencode(payload)})
+        try:
+            expr = 'qt_qmlDebugClearBuffer()'
+            res = self.parseAndEvaluate(expr)
+        except RuntimeError as error:
+            warn("Cleaning buffer failed: %s: %s" % (expr, error))
 
-    def isInternalQmlFrame(self, functionName):
+        return resdict
+
+    def sendInterpreterRequest(self, command, args = {}):
+        encoded = json.dumps({ 'command': command, 'arguments': args })
+        hexdata = self.hexencode(encoded)
+        expr = 'qt_qmlDebugSendDataToService("NativeQmlDebugger","%s")' % hexdata
+        try:
+            res = self.parseAndEvaluate(expr)
+        except RuntimeError as error:
+            warn("Interpreter command failed: %s: %s" % (encoded, error))
+            return {}
+        except AttributeError as error:
+            # Happens with LLDB and 'None' current thread.
+            warn("Interpreter command failed: %s: %s" % (encoded, error))
+            return {}
+        if not res:
+            warn("Interpreter command failed: %s " % encoded)
+            return {}
+        return self.fetchInterpreterResult()
+
+    def executeStep(self, args):
+        if self.nativeMixed:
+            response = self.sendInterpreterRequest('stepin', args)
+        self.doContinue()
+
+    def executeStepOut(self, args):
+        if self.nativeMixed:
+            response = self.sendInterpreterRequest('stepout', args)
+        self.doContinue()
+
+    def executeNext(self, args):
+        if self.nativeMixed:
+            response = self.sendInterpreterRequest('stepover', args)
+        self.doContinue()
+
+    def executeContinue(self, args):
+        if self.nativeMixed:
+            response = self.sendInterpreterRequest('continue', args)
+        self.doContinue()
+
+    def doInsertInterpreterBreakpoint(self, args, wasPending):
+        #warn("DO INSERT INTERPRETER BREAKPOINT, WAS PENDING: %s" % wasPending)
+        # Will fail if the service is not yet up and running.
+        response = self.sendInterpreterRequest('setbreakpoint', args)
+        bp = None if response is None else response.get("breakpoint", None)
+        if wasPending:
+            if not bp:
+                self.reportInterpreterResult({'bpnr': -1, 'pending': 1,
+                    'error': 'Pending interpreter breakpoint insertion failed.'}, args)
+                return
+        else:
+            if not bp:
+                self.reportInterpreterResult({'bpnr': -1, 'pending': 1,
+                    'warning': 'Direct interpreter breakpoint insertion failed.'}, args)
+                self.createResolvePendingBreakpointsHookBreakpoint(args)
+                return
+        self.reportInterpreterResult({'bpnr': bp, 'pending': 0}, args)
+
+    def isInternalInterpreterFrame(self, functionName):
         if functionName is None:
             return False
         if functionName.startswith("qt_v4"):
@@ -1796,7 +1976,7 @@ class DumperBase:
     def canCallLocale(self):
         return True
 
-    def isReportableQmlFrame(self, functionName):
+    def isReportableInterpreterFrame(self, functionName):
         return functionName and functionName.find("QV4::Moth::VME::exec") >= 0
 
     def extractQmlData(self, value):
@@ -1805,112 +1985,10 @@ class DumperBase:
         data = value["data"]
         return data.cast(self.lookupType(str(value.type).replace("QV4::", "QV4::Heap::")))
 
-    def extractQmlRuntimeString(self, compilationUnitPtr, index):
-        # This mimics compilationUnit->runtimeStrings[index]
-        # typeof runtimeStrings = QV4.StringValue **
-        runtimeStrings = compilationUnitPtr.dereference()["runtimeStrings"]
-        entry = runtimeStrings[index]
-        text = self.extractPointer(entry.dereference(), self.ptrSize())
-        (elided, fn) = self.encodeStringHelper(text, 100)
-        return self.encodedUtf16ToUtf8(fn)
-
-    def extractQmlLocation(self, engine):
-        if self.currentCallContext is None:
-            context = engine["current"]       # QV4.ExecutionContext * or derived
-            self.currentCallContext = context
-        else:
-            context = self.currentCallContext["parent"]
-        ctxCode = int(context["type"])
-        compilationUnit = context["compilationUnit"]
-        functionName = "Unknown JS";
-        ns = self.qtNamespace()
-
-        # QV4.ExecutionContext.Type_SimpleCallContext - 4
-        # QV4.ExecutionContext.Type_CallContext - 5
-        if ctxCode == 4 or ctxCode == 5:
-            callContextDataType = self.lookupQtType("QV4::Heap::CallContext")
-            callContext = context.cast(callContextDataType.pointer())
-            functionObject = callContext["function"]
-            function = functionObject["function"]
-            # QV4.CompiledData.Function
-            compiledFunction = function["compiledFunction"].dereference()
-            index = int(compiledFunction["nameIndex"])
-            functionName = "JS: " + self.extractQmlRuntimeString(compilationUnit, index)
-
-        string = self.parseAndEvaluate("((%s)0x%x)->fileName()"
-            % (compilationUnit.type, compilationUnit))
-        fileName = self.encodeStringUtf8(string)
-
-        return {'functionName': functionName,
-                'lineNumber': int(context["lineNumber"]),
-                'fileName': fileName,
-                'context': context }
-
     # Contains iname, name, and value.
     class LocalItem:
         pass
 
-    def extractQmlVariables(self, qmlcontext):
-        items = []
-
-        contextType = self.lookupQtType("QV4::Heap::CallContext")
-        context = self.createPointerValue(self.qmlcontext, contextType)
-
-        contextItem = self.LocalItem()
-        contextItem.iname = "local.@context"
-        contextItem.name = "[context]"
-        contextItem.value = context.dereference()
-        items.append(contextItem)
-
-        argsItem = self.LocalItem()
-        argsItem.iname = "local.@args"
-        argsItem.name = "[args]"
-        argsItem.value = context["callData"]
-        items.append(argsItem)
-
-        functionObject = context["function"].dereference()
-        functionPtr = functionObject["function"]
-        if not self.isNull(functionPtr):
-            compilationUnit = context["compilationUnit"]
-            compiledFunction = functionPtr["compiledFunction"]
-            base = int(compiledFunction)
-
-            formalsOffset = int(compiledFunction["formalsOffset"])
-            formalsCount = int(compiledFunction["nFormals"])
-            for index in range(formalsCount):
-                stringIndex = self.extractInt(base + formalsOffset + 4 * index)
-                name = self.extractQmlRuntimeString(compilationUnit, stringIndex)
-                item = self.LocalItem()
-                item.iname = "local." + name
-                item.name = name
-                item.value = argsItem.value["args"][index]
-                items.append(item)
-
-            localsOffset = int(compiledFunction["localsOffset"])
-            localsCount = int(compiledFunction["nLocals"])
-            for index in range(localsCount):
-                stringIndex = self.extractInt(base + localsOffset + 4 * index)
-                name = self.extractQmlRuntimeString(compilationUnit, stringIndex)
-                item = self.LocalItem()
-                item.iname = "local." + name
-                item.name = name
-                item.value = context["locals"][index]
-                items.append(item)
-
-        for engine in self.qmlEngines:
-            engineItem = self.LocalItem()
-            engineItem.iname = "local.@qmlengine"
-            engineItem.name = "[engine]"
-            engineItem.value = engine
-            items.append(engineItem)
-
-            rootContext = self.LocalItem()
-            rootContext.iname = "local.@rootContext"
-            rootContext.name = "[rootContext]"
-            rootContext.value = engine["d_ptr"]
-            items.append(rootContext)
-            break
-
-        return items
-
+    def extractInterpreterStack(self):
+        return self.sendInterpreterRequest('backtrace', {'limit': 10 })
 

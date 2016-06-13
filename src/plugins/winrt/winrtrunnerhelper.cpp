@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,25 +9,19 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
-
 
 #include "winrtrunnerhelper.h"
 
@@ -45,6 +39,7 @@
 #include <qtsupport/baseqtversion.h>
 #include <qtsupport/qtkitinformation.h>
 #include <utils/qtcprocess.h>
+#include <debugger/debuggerruncontrol.h>
 
 #include <QDir>
 
@@ -54,6 +49,7 @@ using namespace WinRt::Internal;
 WinRtRunnerHelper::WinRtRunnerHelper(WinRtRunConfiguration *runConfiguration, QString *errormessage)
     : QObject()
     , m_messenger(0)
+    , m_debugMessenger(0)
     , m_runConfiguration(runConfiguration)
     , m_process(0)
 {
@@ -63,6 +59,7 @@ WinRtRunnerHelper::WinRtRunnerHelper(WinRtRunConfiguration *runConfiguration, QS
 WinRtRunnerHelper::WinRtRunnerHelper(ProjectExplorer::RunControl *runControl)
     : QObject(runControl)
     , m_messenger(runControl)
+    , m_debugMessenger(0)
     , m_runConfiguration(0)
     , m_process(0)
 {
@@ -112,6 +109,17 @@ bool WinRtRunnerHelper::init(WinRtRunConfiguration *runConfiguration, QString *e
     return true;
 }
 
+void WinRtRunnerHelper::appendMessage(const QString &message, Utils::OutputFormat format)
+{
+    if (m_debugMessenger && (format == Utils::StdOutFormat || format == Utils::StdErrFormat)){
+        // We wan to filter out the waiting for connection message from the QML debug server
+        m_debugMessenger->showMessage(message, format == Utils::StdOutFormat ? Debugger::AppOutput
+                                                                             : Debugger::AppError);
+    } else if (m_messenger) {
+        m_messenger->appendMessage(message, format);
+    }
+}
+
 void WinRtRunnerHelper::debug(const QString &debuggerExecutable, const QString &debuggerArguments)
 {
     m_debuggerExecutable = debuggerExecutable;
@@ -138,27 +146,22 @@ bool WinRtRunnerHelper::waitForStarted(int msecs)
     return m_process->waitForStarted(msecs);
 }
 
-void WinRtRunnerHelper::setRunControl(ProjectExplorer::RunControl *runControl)
+void WinRtRunnerHelper::setDebugRunControl(Debugger::DebuggerRunControl *runControl)
 {
+    m_debugMessenger = runControl;
     m_messenger = runControl;
 }
 
 void WinRtRunnerHelper::onProcessReadyReadStdOut()
 {
     QTC_ASSERT(m_process, return);
-    if (m_messenger) {
-        m_messenger->appendMessage(QString::fromLocal8Bit(
-                                        m_process->readAllStandardOutput()), Utils::StdOutFormat);
-    }
+    appendMessage(QString::fromLocal8Bit(m_process->readAllStandardOutput()), Utils::StdOutFormat);
 }
 
 void WinRtRunnerHelper::onProcessReadyReadStdErr()
 {
     QTC_ASSERT(m_process, return);
-    if (m_messenger) {
-        m_messenger->appendMessage(QString::fromLocal8Bit(
-                                        m_process->readAllStandardError()), Utils::StdErrFormat);
-    }
+    appendMessage(QString::fromLocal8Bit(m_process->readAllStandardError()), Utils::StdErrFormat);
 }
 
 void WinRtRunnerHelper::onProcessFinished(int exitCode, QProcess::ExitStatus exitStatus)
@@ -173,11 +176,8 @@ void WinRtRunnerHelper::onProcessFinished(int exitCode, QProcess::ExitStatus exi
 void WinRtRunnerHelper::onProcessError(QProcess::ProcessError processError)
 {
     QTC_ASSERT(m_process, return);
-    if (m_messenger) {
-        m_messenger->appendMessage(tr("Error while executing the WinRT Runner Tool: %1\n").arg(
-                                        m_process->errorString()),
-                                    Utils::ErrorMessageFormat);
-    }
+    appendMessage(tr("Error while executing the WinRT Runner Tool: %1\n").arg(
+                      m_process->errorString()), Utils::ErrorMessageFormat);
     m_process->disconnect();
     m_process->deleteLater();
     m_process = 0;
@@ -193,16 +193,16 @@ void WinRtRunnerHelper::startWinRtRunner(const RunConf &conf)
         QtcProcess::addArg(&runnerArgs, QString::number(m_device->deviceId()));
     }
 
-    Utils::QtcProcess *process = 0;
+    QtcProcess *process = 0;
     bool connectProcess = false;
 
     switch (conf) {
     case Debug:
-        Utils::QtcProcess::addArg(&runnerArgs, QStringLiteral("--debug"));
-        Utils::QtcProcess::addArg(&runnerArgs, m_debuggerExecutable);
+        QtcProcess::addArg(&runnerArgs, QStringLiteral("--debug"));
+        QtcProcess::addArg(&runnerArgs, m_debuggerExecutable);
         if (!m_debuggerArguments.isEmpty()) {
-            Utils::QtcProcess::addArg(&runnerArgs, QStringLiteral("--debugger-arguments"));
-            Utils::QtcProcess::addArg(&runnerArgs, m_debuggerArguments);
+            QtcProcess::addArg(&runnerArgs, QStringLiteral("--debugger-arguments"));
+            QtcProcess::addArg(&runnerArgs, m_debuggerArguments);
         }
         // fall through
     case Start:
@@ -213,19 +213,19 @@ void WinRtRunnerHelper::startWinRtRunner(const RunConf &conf)
         process = m_process;
         break;
     case Stop:
-        Utils::QtcProcess::addArgs(&runnerArgs, QStringLiteral("--stop"));
+        QtcProcess::addArgs(&runnerArgs, QStringLiteral("--stop"));
         process = new QtcProcess(this);
         break;
     }
+
+    if (m_device->type() == Constants::WINRT_DEVICE_TYPE_LOCAL)
+        QtcProcess::addArgs(&runnerArgs, QStringLiteral("--profile appx"));
 
     QtcProcess::addArg(&runnerArgs, m_executableFilePath);
     if (!m_arguments.isEmpty())
         QtcProcess::addArgs(&runnerArgs, m_arguments);
 
-    if (m_messenger) {
-        m_messenger->appendMessage(QStringLiteral("winrtrunner ") + runnerArgs + QLatin1Char('\n'),
-                                    Utils::NormalMessageFormat);
-    }
+    appendMessage(QStringLiteral("winrtrunner ") + runnerArgs + QLatin1Char('\n'), NormalMessageFormat);
 
     if (connectProcess) {
         connect(process, SIGNAL(started()), SIGNAL(started()));

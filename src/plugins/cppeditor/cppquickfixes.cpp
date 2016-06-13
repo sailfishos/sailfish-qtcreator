@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -40,9 +35,11 @@
 #include <coreplugin/icore.h>
 #include <coreplugin/messagebox.h>
 
+#include <cpptools/baseeditordocumentprocessor.h>
 #include <cpptools/cppclassesfilter.h>
 #include <cpptools/cppcodestylesettings.h>
 #include <cpptools/cpppointerdeclarationformatter.h>
+#include <cpptools/cpptoolsbridge.h>
 #include <cpptools/cpptoolsconstants.h>
 #include <cpptools/cpptoolsreuse.h>
 #include <cpptools/includeutils.h>
@@ -132,6 +129,8 @@ void registerQuickFixes(ExtensionSystem::IPlugin *plugIn)
     plugIn->addAutoReleasedObject(new OptimizeForLoop);
 
     plugIn->addAutoReleasedObject(new EscapeStringLiteral);
+
+    plugIn->addAutoReleasedObject(new ExtraRefactoringOperations);
 }
 
 // In the following anonymous namespace all functions are collected, which could be of interest for
@@ -216,7 +215,7 @@ Class *isMemberFunction(const LookupContext &context, Function *function)
     if (!q->base())
         return 0;
 
-    if (LookupScope *binding = context.lookupType(q->base(), enclosingScope)) {
+    if (ClassOrNamespace *binding = context.lookupType(q->base(), enclosingScope)) {
         foreach (Symbol *s, binding->symbols()) {
             if (Class *matchingClass = s->asClass())
                 return matchingClass;
@@ -254,7 +253,7 @@ Namespace *isNamespaceFunction(const LookupContext &context, Function *function)
     if (!q->base())
         return 0;
 
-    if (LookupScope *binding = context.lookupType(q->base(), enclosingScope)) {
+    if (ClassOrNamespace *binding = context.lookupType(q->base(), enclosingScope)) {
         foreach (Symbol *s, binding->symbols()) {
             if (Namespace *matchingNamespace = s->asNamespace())
                 return matchingNamespace;
@@ -1328,7 +1327,7 @@ void TranslateStringLiteral::match(const CppQuickFixInterface &interface,
     for (int i = path.size() - 1; i >= 0; --i) {
         if (FunctionDefinitionAST *definition = path.at(i)->asFunctionDefinition()) {
             Function *function = definition->symbol;
-            LookupScope *b = interface.context().lookupType(function);
+            ClassOrNamespace *b = interface.context().lookupType(function);
             if (b) {
                 // Do we have a tr function?
                 foreach (const LookupItem &r, b->find(trName)) {
@@ -1589,7 +1588,7 @@ public:
             SubstitutionEnvironment env;
             env.setContext(context());
             env.switchScope(result.first().scope());
-            LookupScope *con = typeOfExpression.context().lookupType(scope);
+            ClassOrNamespace *con = typeOfExpression.context().lookupType(scope);
             if (!con)
                 con = typeOfExpression.context().globalNamespace();
             UseMinimalNames q(con);
@@ -1747,7 +1746,7 @@ namespace {
 
 QString findShortestInclude(const QString currentDocumentFilePath,
                             const QString candidateFilePath,
-                            const ProjectPart::HeaderPaths &headerPaths)
+                            const ProjectPartHeaderPaths &headerPaths)
 {
     QString result;
 
@@ -1756,7 +1755,7 @@ QString findShortestInclude(const QString currentDocumentFilePath,
     if (fileInfo.path() == QFileInfo(currentDocumentFilePath).path()) {
         result = QLatin1Char('"') + fileInfo.fileName() + QLatin1Char('"');
     } else {
-        foreach (const ProjectPart::HeaderPath &headerPath, headerPaths) {
+        foreach (const ProjectPartHeaderPath &headerPath, headerPaths) {
             if (!candidateFilePath.startsWith(headerPath.path))
                 continue;
             QString relativePath = candidateFilePath.mid(headerPath.path.size());
@@ -1771,12 +1770,12 @@ QString findShortestInclude(const QString currentDocumentFilePath,
 }
 
 QString findQtIncludeWithSameName(const QString &className,
-                                  const ProjectPart::HeaderPaths &headerPaths)
+                                  const ProjectPartHeaderPaths &headerPaths)
 {
     QString result;
 
     // Check for a header file with the same name in the Qt include paths
-    foreach (const ProjectPart::HeaderPath &headerPath, headerPaths) {
+    foreach (const ProjectPartHeaderPath &headerPath, headerPaths) {
         if (!headerPath.path.contains(QLatin1String("/Qt"))) // "QtCore", "QtGui" etc...
             continue;
 
@@ -1791,9 +1790,9 @@ QString findQtIncludeWithSameName(const QString &className,
     return result;
 }
 
-ProjectPart::HeaderPaths relevantHeaderPaths(const QString &filePath)
+ProjectPartHeaderPaths relevantHeaderPaths(const QString &filePath)
 {
-    ProjectPart::HeaderPaths headerPaths;
+    ProjectPartHeaderPaths headerPaths;
 
     CppModelManager *modelManager = CppModelManager::instance();
     const QList<ProjectPart::Ptr> projectParts = modelManager->projectPart(filePath);
@@ -1920,7 +1919,7 @@ void AddIncludeForUndefinedIdentifier::match(const CppQuickFixInterface &interfa
         return;
 
     const QString currentDocumentFilePath = interface.semanticInfo().doc->fileName();
-    const ProjectPart::HeaderPaths headerPaths = relevantHeaderPaths(currentDocumentFilePath);
+    const ProjectPartHeaderPaths headerPaths = relevantHeaderPaths(currentDocumentFilePath);
     bool qtHeaderFileIncludeOffered = false;
 
     // Find an include file through the locator
@@ -2281,7 +2280,7 @@ Enum *findEnum(const QList<LookupItem> &results, const LookupContext &ctxt)
         if (Enum *e = type->asEnumType())
             return e;
         if (const NamedType *namedType = type->asNamedType()) {
-            if (LookupScope *con = ctxt.lookupType(namedType->name(), result.scope())) {
+            if (ClassOrNamespace *con = ctxt.lookupType(namedType->name(), result.scope())) {
                 const QList<Enum *> enums = con->unscopedEnums();
                 const Name *referenceName = namedType->name();
                 if (const QualifiedNameId *qualifiedName = referenceName->asQualifiedNameId())
@@ -2578,7 +2577,7 @@ public:
             Document::Ptr targetDoc = targetFile->cppDocument();
             Scope *targetScope = targetDoc->scopeAt(m_loc.line(), m_loc.column());
             LookupContext targetContext(targetDoc, snapshot());
-            LookupScope *targetCoN = targetContext.lookupType(targetScope);
+            ClassOrNamespace *targetCoN = targetContext.lookupType(targetScope);
             if (!targetCoN)
                 targetCoN = targetContext.globalNamespace();
 
@@ -3212,7 +3211,7 @@ public:
         SubstitutionEnvironment env;
         env.setContext(context());
         env.switchScope(refFunc);
-        LookupScope *targetCoN = context().lookupType(refFunc->enclosingScope());
+        ClassOrNamespace *targetCoN = context().lookupType(refFunc->enclosingScope());
         if (!targetCoN)
             targetCoN = context().globalNamespace();
         UseMinimalNames subs(targetCoN);
@@ -3336,7 +3335,7 @@ public:
 
     ExtractFunctionOptions getOptions() const
     {
-        QDialog dlg;
+        QDialog dlg(Core::ICore::dialogParent());
         dlg.setWindowTitle(QCoreApplication::translate("QuickFix::ExtractFunction",
                                                        "Extract Function Refactoring"));
         auto layout = new QFormLayout(&dlg);
@@ -4641,7 +4640,7 @@ QString definitionSignature(const CppQuickFixInterface *assist,
     QTC_ASSERT(func, return QString());
 
     LookupContext cppContext(targetFile->cppDocument(), assist->snapshot());
-    LookupScope *cppCoN = cppContext.lookupType(scope);
+    ClassOrNamespace *cppCoN = cppContext.lookupType(scope);
     if (!cppCoN)
         cppCoN = cppContext.globalNamespace();
     SubstitutionEnvironment env;
@@ -5122,7 +5121,7 @@ public:
             SubstitutionEnvironment env;
             env.setContext(context());
             env.switchScope(result.first().scope());
-            LookupScope *con = typeOfExpression.context().lookupType(scope);
+            ClassOrNamespace *con = typeOfExpression.context().lookupType(scope);
             if (!con)
                 con = typeOfExpression.context().globalNamespace();
             UseMinimalNames q(con);
@@ -5721,7 +5720,7 @@ PointerType *determineConvertedType(NamedType *namedType, const LookupContext &c
 {
     if (!namedType)
         return 0;
-    if (LookupScope *binding = context.lookupType(namedType->name(), scope)) {
+    if (ClassOrNamespace *binding = context.lookupType(namedType->name(), scope)) {
         if (Symbol *objectClassSymbol = skipForwardDeclarations(binding->symbols())) {
             if (Class *klass = objectClassSymbol->asClass()) {
                 for (auto it = klass->memberBegin(), end = klass->memberEnd(); it != end; ++it) {
@@ -5779,8 +5778,11 @@ Class *senderOrReceiverClass(const CppQuickFixInterface &interface,
     NamedType *objectType = objectTypeBase->asNamedType();
     QTC_ASSERT(objectType, return 0);
 
-    LookupScope *objectClassCON = context.lookupType(objectType->name(), objectPointerScope);
-    QTC_ASSERT(objectClassCON, return 0);
+    ClassOrNamespace *objectClassCON = context.lookupType(objectType->name(), objectPointerScope);
+    if (!objectClassCON) {
+        objectClassCON = objectPointerExpressions.first().binding();
+        QTC_ASSERT(objectClassCON, return 0);
+    }
     QTC_ASSERT(!objectClassCON->symbols().isEmpty(), return 0);
 
     Symbol *objectClassSymbol = skipForwardDeclarations(objectClassCON->symbols());
@@ -5831,7 +5833,7 @@ bool findConnectReplacement(const CppQuickFixInterface &interface,
 
     // Minimize qualification
     Control *control = context.bindings()->control().data();
-    LookupScope *functionCON = context.lookupParent(scope);
+    ClassOrNamespace *functionCON = context.lookupParent(scope);
     const Name *shortName = LookupContext::minimalName(method, functionCON, control);
     if (!shortName->asQualifiedNameId())
         shortName = control->qualifiedNameId(classOfMethod->name(), shortName);
@@ -5953,6 +5955,16 @@ void ConvertQt4Connect::match(const CppQuickFixInterface &interface, QuickFixOpe
 
         result.append(new ConvertQt4ConnectOperation(interface, changes));
         return;
+    }
+}
+
+void ExtraRefactoringOperations::match(const CppQuickFixInterface &interface,
+                                       QuickFixOperations &result)
+{
+    const auto processor = CppTools::CppToolsBridge::baseEditorDocumentProcessor(interface.fileName());
+    if (processor) {
+        const auto clangFixItOperations = processor->extraRefactoringOperations(interface);
+        result.append(clangFixItOperations);
     }
 }
 

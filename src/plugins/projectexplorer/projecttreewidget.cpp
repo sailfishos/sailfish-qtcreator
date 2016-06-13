@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -38,7 +33,7 @@
 #include "projecttree.h"
 
 #include <coreplugin/actionmanager/command.h>
-#include <coreplugin/coreconstants.h>
+#include <coreplugin/coreicons.h>
 #include <coreplugin/documentmanager.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/idocument.h>
@@ -48,6 +43,7 @@
 
 #include <utils/navigationtreeview.h>
 #include <utils/algorithm.h>
+#include <utils/tooltip/tooltip.h>
 
 #include <QDebug>
 #include <QSettings>
@@ -96,15 +92,71 @@ public:
         m_context = new IContext(this);
         m_context->setContext(Context(ProjectExplorer::Constants::C_PROJECT_TREE));
         m_context->setWidget(this);
+
         ICore::addContextObject(m_context);
+
+        connect(this, &ProjectTreeView::expanded,
+                this, &ProjectTreeView::invalidateSize);
+        connect(this, &ProjectTreeView::collapsed,
+                this, &ProjectTreeView::invalidateSize);
     }
+
+    void invalidateSize()
+    {
+        m_cachedSize = -1;
+    }
+
+    void setModel(QAbstractItemModel *newModel) override
+    {
+        // Note: Don't connect to column signals, as we have only one column
+        if (model()) {
+            QAbstractItemModel *m = model();
+            disconnect(m, &QAbstractItemModel::dataChanged,
+                       this, &ProjectTreeView::invalidateSize);
+            disconnect(m, &QAbstractItemModel::layoutChanged,
+                       this, &ProjectTreeView::invalidateSize);
+            disconnect(m, &QAbstractItemModel::modelReset,
+                       this, &ProjectTreeView::invalidateSize);
+            disconnect(m, &QAbstractItemModel::rowsInserted,
+                       this, &ProjectTreeView::invalidateSize);
+            disconnect(m, &QAbstractItemModel::rowsMoved,
+                       this, &ProjectTreeView::invalidateSize);
+            disconnect(m, &QAbstractItemModel::rowsRemoved,
+                       this, &ProjectTreeView::invalidateSize);
+        }
+        if (newModel) {
+            connect(newModel, &QAbstractItemModel::dataChanged,
+                    this, &ProjectTreeView::invalidateSize);
+            connect(newModel, &QAbstractItemModel::layoutChanged,
+                    this, &ProjectTreeView::invalidateSize);
+            connect(newModel, &QAbstractItemModel::modelReset,
+                    this, &ProjectTreeView::invalidateSize);
+            connect(newModel, &QAbstractItemModel::rowsInserted,
+                    this, &ProjectTreeView::invalidateSize);
+            connect(newModel, &QAbstractItemModel::rowsMoved,
+                    this, &ProjectTreeView::invalidateSize);
+            connect(newModel, &QAbstractItemModel::rowsRemoved,
+                    this, &ProjectTreeView::invalidateSize);
+        }
+        Utils::NavigationTreeView::setModel(newModel);
+    }
+
     ~ProjectTreeView()
     {
         ICore::removeContextObject(m_context);
         delete m_context;
     }
 
+    int sizeHintForColumn(int column) const override
+    {
+        if (m_cachedSize < 0)
+            m_cachedSize = Utils::NavigationTreeView::sizeHintForColumn(column);
+
+        return m_cachedSize;
+    }
+
 private:
+    mutable int m_cachedSize = -1;
     IContext *m_context;
 };
 
@@ -143,44 +195,46 @@ ProjectTreeWidget::ProjectTreeWidget(QWidget *parent)
     m_filterProjectsAction = new QAction(tr("Simplify Tree"), this);
     m_filterProjectsAction->setCheckable(true);
     m_filterProjectsAction->setChecked(false); // default is the traditional complex tree
-    connect(m_filterProjectsAction, SIGNAL(toggled(bool)), this, SLOT(setProjectFilter(bool)));
+    connect(m_filterProjectsAction, &QAction::toggled, this, &ProjectTreeWidget::setProjectFilter);
 
     m_filterGeneratedFilesAction = new QAction(tr("Hide Generated Files"), this);
     m_filterGeneratedFilesAction->setCheckable(true);
     m_filterGeneratedFilesAction->setChecked(true);
-    connect(m_filterGeneratedFilesAction, SIGNAL(toggled(bool)), this, SLOT(setGeneratedFilesFilter(bool)));
+    connect(m_filterGeneratedFilesAction, &QAction::toggled,
+            this, &ProjectTreeWidget::setGeneratedFilesFilter);
 
     // connections
-    connect(m_model, SIGNAL(modelReset()),
-            this, SLOT(initView()));
+    connect(m_model, &QAbstractItemModel::modelReset,
+            this, &ProjectTreeWidget::initView);
     connect(m_model, &FlatModel::renamed,
             this, &ProjectTreeWidget::renamed);
-    connect(m_view, SIGNAL(activated(QModelIndex)),
-            this, SLOT(openItem(QModelIndex)));
-    connect(m_view->selectionModel(), SIGNAL(currentChanged(QModelIndex,QModelIndex)),
-            this, SLOT(handleCurrentItemChange(QModelIndex)));
-    connect(m_view, SIGNAL(customContextMenuRequested(QPoint)),
-            this, SLOT(showContextMenu(QPoint)));
+    connect(m_view, &QAbstractItemView::activated,
+            this, &ProjectTreeWidget::openItem);
+    connect(m_view->selectionModel(), &QItemSelectionModel::currentChanged,
+            this, &ProjectTreeWidget::handleCurrentItemChange);
+    connect(m_view, &QWidget::customContextMenuRequested,
+            this, &ProjectTreeWidget::showContextMenu);
 
-    QObject *sessionManager = SessionManager::instance();
-    connect(sessionManager, SIGNAL(singleProjectAdded(ProjectExplorer::Project*)),
-            this, SLOT(handleProjectAdded(ProjectExplorer::Project*)));
-    connect(sessionManager, SIGNAL(startupProjectChanged(ProjectExplorer::Project*)),
-            this, SLOT(startupProjectChanged(ProjectExplorer::Project*)));
+    SessionManager *sessionManager = SessionManager::instance();
+    connect(sessionManager, &SessionManager::singleProjectAdded,
+            this, &ProjectTreeWidget::handleProjectAdded);
+    connect(sessionManager, &SessionManager::startupProjectChanged,
+            this, &ProjectTreeWidget::startupProjectChanged);
 
-    connect(sessionManager, SIGNAL(aboutToLoadSession(QString)),
-            this, SLOT(disableAutoExpand()));
-    connect(sessionManager, SIGNAL(sessionLoaded(QString)),
-            this, SLOT(loadExpandData()));
-    connect(sessionManager, SIGNAL(aboutToSaveSession()),
-            this, SLOT(saveExpandData()));
+    connect(sessionManager, &SessionManager::aboutToLoadSession,
+            this, &ProjectTreeWidget::disableAutoExpand);
+    connect(sessionManager, &SessionManager::sessionLoaded,
+            this, &ProjectTreeWidget::loadExpandData);
+    connect(sessionManager, &SessionManager::aboutToSaveSession,
+            this, &ProjectTreeWidget::saveExpandData);
 
     m_toggleSync = new QToolButton;
-    m_toggleSync->setIcon(QIcon(QLatin1String(Core::Constants::ICON_LINK)));
+    m_toggleSync->setIcon(Core::Icons::LINK.icon());
     m_toggleSync->setCheckable(true);
     m_toggleSync->setChecked(autoSynchronization());
     m_toggleSync->setToolTip(tr("Synchronize with Editor"));
-    connect(m_toggleSync, SIGNAL(clicked(bool)), this, SLOT(toggleAutoSynchronization()));
+    connect(m_toggleSync, &QAbstractButton::clicked,
+            this, &ProjectTreeWidget::toggleAutoSynchronization);
 
     setAutoSynchronization(true);
 
@@ -219,7 +273,8 @@ int ProjectTreeWidget::expandedCount(Node *node)
 void ProjectTreeWidget::rowsInserted(const QModelIndex &parent, int start, int end)
 {
     Node *node = m_model->nodeForIndex(parent);
-    const QString path = node->path().toString();
+    QTC_ASSERT(node, return);
+    const QString path = node->filePath().toString();
     const QString displayName = node->displayName();
 
     auto it = m_toExpand.find(ExpandData(path, displayName));
@@ -231,7 +286,7 @@ void ProjectTreeWidget::rowsInserted(const QModelIndex &parent, int start, int e
     while (i <= end) {
         QModelIndex idx = m_model->index(i, 0, parent);
         Node *n = m_model->nodeForIndex(idx);
-        if (n && n->path() == m_delayedRename) {
+        if (n && n->filePath() == m_delayedRename) {
             m_view->setCurrentIndex(idx);
             m_delayedRename.clear();
             break;
@@ -295,7 +350,7 @@ void ProjectTreeWidget::loadExpandData()
 void ProjectTreeWidget::recursiveLoadExpandData(const QModelIndex &index, QSet<ExpandData> &data)
 {
     Node *node = m_model->nodeForIndex(index);
-    const QString path = node->path().toString();
+    const QString path = node->filePath().toString();
     const QString displayName = node->displayName();
     auto it = data.find(ExpandData(path, displayName));
     if (it != data.end()) {
@@ -322,7 +377,7 @@ void ProjectTreeWidget::recursiveSaveExpandData(const QModelIndex &index, QList<
         // Note: We store the path+displayname of the node, which isn't unique for e.g. .pri files
         // but works for most nodes
         Node *node = m_model->nodeForIndex(index);
-        const QStringList &list = ExpandData(node->path().toString(), node->displayName()).toStringList();
+        const QStringList &list = ExpandData(node->filePath().toString(), node->displayName()).toStringList();
         data->append(QVariant::fromValue(list));
         int count = m_model->rowCount(index);
         for (int i = 0; i < count; ++i)
@@ -361,7 +416,7 @@ void ProjectTreeWidget::setAutoSynchronization(bool sync)
         Utils::FileName fileName;
         if (IDocument *doc = EditorManager::currentDocument())
             fileName = doc->filePath();
-        if (!currentNode() || currentNode()->path() != fileName)
+        if (!currentNode() || currentNode()->filePath() != fileName)
             setCurrentItem(ProjectTreeWidget::nodeForFile(fileName));
     }
 }
@@ -382,7 +437,7 @@ void ProjectTreeWidget::editCurrentItem()
 void ProjectTreeWidget::renamed(const Utils::FileName &oldPath, const Utils::FileName &newPath)
 {
     Q_UNUSED(oldPath);
-    if (!currentNode() || currentNode()->path() != newPath) {
+    if (!currentNode() || currentNode()->filePath() != newPath) {
         // try to find the node
         Node *node = nodeForFile(newPath);
         if (node)
@@ -422,6 +477,17 @@ void ProjectTreeWidget::sync(Node *node)
 {
     if (m_autoSync)
         setCurrentItem(node);
+}
+
+void ProjectTreeWidget::showMessage(Node *node, const QString &message)
+{
+    QModelIndex idx = m_model->indexForNode(node);
+    m_view->setCurrentIndex(idx);
+    m_view->scrollTo(idx);
+
+    QPoint pos = m_view->mapToGlobal(m_view->visualRect(idx).bottomLeft());
+    pos -= Utils::ToolTip::offsetFromPosition();
+    Utils::ToolTip::show(pos, message);
 }
 
 void ProjectTreeWidget::showContextMenu(const QPoint &pos)
@@ -475,7 +541,7 @@ void ProjectTreeWidget::openItem(const QModelIndex &mainIndex)
     Node *node = m_model->nodeForIndex(mainIndex);
     if (node->nodeType() != FileNodeType)
         return;
-    IEditor *editor = EditorManager::openEditor(node->path().toString());
+    IEditor *editor = EditorManager::openEditor(node->filePath().toString());
     if (editor && node->line() >= 0)
         editor->gotoLine(node->line());
 }
@@ -507,7 +573,7 @@ ProjectTreeWidgetFactory::ProjectTreeWidgetFactory()
 {
     setDisplayName(tr("Projects"));
     setPriority(100);
-    setId("Projects");
+    setId(ProjectExplorer::Constants::PROJECTTREE_ID);
     setActivationSequence(QKeySequence(UseMacShortcuts ? tr("Meta+X") : tr("Alt+X")));
 }
 
@@ -518,7 +584,7 @@ NavigationView ProjectTreeWidgetFactory::createWidget()
     n.widget = ptw;
 
     QToolButton *filter = new QToolButton;
-    filter->setIcon(QIcon(QLatin1String(Core::Constants::ICON_FILTER)));
+    filter->setIcon(Core::Icons::FILTER.icon());
     filter->setToolTip(tr("Filter Tree"));
     filter->setPopupMode(QToolButton::InstantPopup);
     filter->setProperty("noArrow", true);

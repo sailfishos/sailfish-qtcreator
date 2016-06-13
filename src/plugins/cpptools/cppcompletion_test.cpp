@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,26 +9,22 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
 #include "cppcompletionassist.h"
+#include "cppdoxygen.h"
 #include "cppmodelmanager.h"
 #include "cpptoolsplugin.h"
 #include "cpptoolstestcase.h"
@@ -63,7 +59,8 @@ typedef QByteArray _;
 class CompletionTestCase : public Tests::TestCase
 {
 public:
-    CompletionTestCase(const QByteArray &sourceText, const QByteArray &textToInsert = QByteArray())
+    CompletionTestCase(const QByteArray &sourceText, const QByteArray &textToInsert = QByteArray(),
+                       bool isObjC = false)
         : m_position(-1), m_editorWidget(0), m_textDocument(0), m_editor(0)
     {
         QVERIFY(succeededSoFar());
@@ -77,7 +74,8 @@ public:
         // Write source to file
         m_temporaryDir.reset(new Tests::TemporaryDir());
         QVERIFY(m_temporaryDir->isValid());
-        const QString fileName = m_temporaryDir->createFile("file.h", m_source);
+        const QByteArray fileExt = isObjC ? "mm" : "h";
+        const QString fileName = m_temporaryDir->createFile("file." + fileExt, m_source);
         QVERIFY(!fileName.isEmpty());
 
         // Open in editor
@@ -109,10 +107,12 @@ public:
         languageFeatures.objCEnabled = false;
         CppCompletionAssistInterface *ai
             = new CppCompletionAssistInterface(m_editorWidget->textDocument()->filePath().toString(),
-                                               m_editorWidget->document(), m_position,
+                                               m_textDocument, m_position,
                                                ExplicitlyInvoked, m_snapshot,
-                                               ProjectPart::HeaderPaths(),
+                                               ProjectPartHeaderPaths(),
                                                languageFeatures);
+        ai->prepareForAsyncUse();
+        ai->recreateTextDocument();
         InternalCppCompletionAssistProcessor processor;
 
         const Tests::IAssistProposalScopedPointer proposal(processor.perform(ai));
@@ -127,7 +127,7 @@ public:
 
         const int pos = proposal.d->basePosition();
         const int length = m_position - pos;
-        const QString prefix = Convenience::textAt(QTextCursor(m_editorWidget->document()), pos,
+        const QString prefix = Convenience::textAt(QTextCursor(m_textDocument), pos,
                                                    length);
         if (!prefix.isEmpty())
             listmodel->filter(prefix);
@@ -172,6 +172,17 @@ bool isProbablyGlobalCompletion(const QStringList &list)
         && list.contains(QLatin1String("final"))
         && list.contains(QLatin1String("if"))
         && list.contains(QLatin1String("bool"));
+}
+
+bool isDoxygenTagCompletion(const QStringList &list)
+{
+    for (int i = 1; i < T_DOXY_LAST_TAG; ++i) {
+        const QString doxygenTag = QString::fromLatin1(doxygenTagSpell(i));
+        if (!list.contains(doxygenTag))
+            return false;
+    }
+
+    return true;
 }
 
 } // anonymous namespace
@@ -326,13 +337,16 @@ void CppToolsPlugin::test_completion()
     actualCompletions.sort();
     expectedCompletions.sort();
 
-    QEXPECT_FAIL("template_as_base: typedef not available in derived",
-                 "We can live with that...", Abort);
+    QEXPECT_FAIL("template_as_base: explicit typedef from base", "QTCREATORBUG-14218", Abort);
     QEXPECT_FAIL("enum_in_function_in_struct_in_function", "QTCREATORBUG-13757", Abort);
     QEXPECT_FAIL("enum_in_function_in_struct_in_function_cxx11", "QTCREATORBUG-13757", Abort);
     QEXPECT_FAIL("enum_in_function_in_struct_in_function_anon", "QTCREATORBUG-13757", Abort);
     QEXPECT_FAIL("enum_in_class_accessed_in_member_func_cxx11", "QTCREATORBUG-13757", Abort);
     QEXPECT_FAIL("enum_in_class_accessed_in_member_func_inline_cxx11", "QTCREATORBUG-13757", Abort);
+    QEXPECT_FAIL("pointer_indirect_specialization", "QTCREATORBUG-14141", Abort);
+    QEXPECT_FAIL("pointer_indirect_specialization_typedef", "QTCREATORBUG-14141", Abort);
+    QEXPECT_FAIL("pointer_indirect_specialization_double_indirection", "QTCREATORBUG-14141", Abort);
+    QEXPECT_FAIL("pointer_indirect_specialization_double_indirection_with_base", "QTCREATORBUG-14141", Abort);
     QCOMPARE(actualCompletions, expectedCompletions);
 }
 
@@ -382,6 +396,34 @@ void CppToolsPlugin::test_global_completion()
     const QStringList completions = test.getCompletions();
     QVERIFY(isProbablyGlobalCompletion(completions));
     QVERIFY(completions.toSet().contains(requiredCompletionItems.toSet()));
+}
+
+void CppToolsPlugin::test_doxygen_tag_completion_data()
+{
+    QTest::addColumn<QByteArray>("code");
+
+    QTest::newRow("C++ comment")
+         << _("/// @");
+
+    QTest::newRow("C comment single line")
+         << _("/*! @ */");
+
+    QTest::newRow("C comment multi line")
+         << _("/*! text\n"
+              " *  @\n"
+              " */\n");
+}
+
+void CppToolsPlugin::test_doxygen_tag_completion()
+{
+    QFETCH(QByteArray, code);
+
+    const QByteArray prefix = "\\";
+
+    CompletionTestCase test(code, prefix);
+    QVERIFY(test.succeededSoFar());
+    const QStringList completions = test.getCompletions();
+    QVERIFY(isDoxygenTagCompletion(completions));
 }
 
 static void enumTestCase(const QByteArray &tag, const QByteArray &source,
@@ -795,21 +837,6 @@ void CppToolsPlugin::test_completion_data()
         ) << _("d.f.") << (QStringList()
             << QLatin1String("Data")
             << QLatin1String("dataMember"));
-
-    QTest::newRow("explicit_instantiation") << _(
-            "template<class T>\n"
-            "struct Foo { T bar; };\n"
-            "\n"
-            "template class Foo<int>;\n"
-            "\n"
-            "void func()\n"
-            "{\n"
-            "    Foo<int> foo;\n"
-            "    @\n"
-            "}\n"
-        ) << _("foo.") << (QStringList()
-            << QLatin1String("Foo")
-            << QLatin1String("bar"));
 
     QTest::newRow("use_global_identifier_as_base_class: derived as global and base as global") << _(
             "struct Global\n"
@@ -1321,28 +1348,21 @@ void CppToolsPlugin::test_completion_data()
             << QLatin1String("Template1"));
 
     QTest::newRow("template_specialization_with_pointer") << _(
-            "template <typename T> struct Temp { T variable; };\n"
-            "template <typename T> struct Temp<T *> { T *pointer; };\n"
-            "void func()\n"
+            "template <typename T>\n"
+            "struct Template\n"
             "{\n"
-            "    Temp<int*> templ;\n"
-            "    @\n"
-            "}"
+            "    T variable;\n"
+            "};\n"
+            "template <typename T>\n"
+            "struct Template<T *>\n"
+            "{\n"
+            "    T *pointer;\n"
+            "};\n"
+            "Template<int*> templ;\n"
+            "@\n"
         ) << _("templ.") << (QStringList()
-            << QLatin1String("Temp")
+            << QLatin1String("Template")
             << QLatin1String("pointer"));
-
-    QTest::newRow("template_specialization_with_reference") << _(
-            "template <typename T> struct Temp { T variable; };\n"
-            "template <typename T> struct Temp<T &> { T reference; };\n"
-            "void func()\n"
-            "{\n"
-            "    Temp<int&> templ;\n"
-            "    @\n"
-            "}"
-        ) << _("templ.") << (QStringList()
-            << QLatin1String("Temp")
-            << QLatin1String("reference"));
 
     QTest::newRow("typedef_using_templates1") << _(
             "namespace NS1\n"
@@ -1565,29 +1585,6 @@ void CppToolsPlugin::test_completion_data()
         ) << _("c.") << (QStringList()
             << QLatin1String("C")
             << QLatin1String("m"));
-
-    QTest::newRow("type_and_using_declaration: type in nested namespace and using in global") << _(
-            "namespace Ns {\n"
-            "namespace Nested {\n"
-            "struct Foo\n"
-            "{\n"
-            "    void func();\n"
-            "    int m_bar;\n"
-            "};\n"
-            "}\n"
-            "}\n"
-            "\n"
-            "using namespace Ns::Nested;\n"
-            "\n"
-            "namespace Ns\n"
-            "{\n"
-            "void Foo::func()\n"
-            "{\n"
-            "    @\n"
-            "}\n"
-            "}\n"
-        ) << _("m_") << (QStringList()
-            << QLatin1String("m_bar"));
 
     QTest::newRow("instantiate_template_with_anonymous_class") << _(
             "template <typename T>\n"
@@ -2562,21 +2559,6 @@ void CppToolsPlugin::test_completion_data()
         ) << _("ar") << (QStringList()
             << QLatin1String("arg1"));
 
-    QTest::newRow("local_typedef_access_in_lambda") << _(
-            "struct Foo { int bar; };\n"
-            "\n"
-            "void func()\n"
-            "{\n"
-            "    typedef Foo F;\n"
-            "    []() {\n"
-            "        F f;\n"
-            "        @\n"
-            "    };\n"
-            "}\n"
-    ) << _("f.") << (QStringList()
-            << QLatin1String("Foo")
-            << QLatin1String("bar"));
-
     QTest::newRow("default_arguments_for_class_templates_and_base_class_QTCREATORBUG-12605") << _(
             "struct Foo { int foo; };\n"
             "template <typename T = Foo>\n"
@@ -2682,78 +2664,6 @@ void CppToolsPlugin::test_completion_data()
             "}\n"
     ) << _("s.") << (QStringList()
         << QLatin1String("S"));
-
-    QTest::newRow("partial_specialization") << _(
-            "struct b {};\n"
-            "template<class X, class Y> struct s { float f; };\n"
-            "template<class X> struct s<X, b> { int i; };\n"
-            "\n"
-            "void f()\n"
-            "{\n"
-            "    s<int, b> var;\n"
-            "    @\n"
-            "}\n"
-    ) << _("var.") << (QStringList()
-        << QLatin1String("i")
-        << QLatin1String("s"));
-
-    QTest::newRow("partial_specialization_with_pointer") << _(
-            "struct b {};\n"
-            "struct a : b {};\n"
-            "template<class X, class Y> struct s { float f; };\n"
-            "template<class X> struct s<X, b*> { int i; };\n"
-            "template<class X> struct s<X, a*> { char j; };\n"
-            "\n"
-            "void f()\n"
-            "{\n"
-            "    s<int, a*> var;\n"
-            "    @\n"
-            "}\n"
-    ) << _("var.") << (QStringList()
-        << QLatin1String("j")
-        << QLatin1String("s"));
-
-    QTest::newRow("partial_specialization_templated_argument") << _(
-            "template<class T> struct t {};\n"
-            "\n"
-            "template<class> struct s { float f; };\n"
-            "template<class X> struct s<t<X>> { int i; };\n"
-            "\n"
-            "void f()\n"
-            "{\n"
-            "    s<t<char>> var;\n"
-            "    @\n"
-            "}\n"
-    ) << _("var.") << (QStringList()
-        << QLatin1String("i")
-        << QLatin1String("s"));
-
-    QTest::newRow("specialization_multiple_arguments") << _(
-            "class false_type {};\n"
-            "class true_type {};\n"
-            "template<class T1, class T2> class and_type { false_type f; };\n"
-            "template<> class and_type<true_type, true_type> { true_type t; };\n"
-            "void func()\n"
-            "{\n"
-            "    and_type<true_type, false_type> a;\n"
-            "    @;\n"
-            "}\n"
-     ) << _("a.") << (QStringList()
-        << QLatin1String("f")
-        << QLatin1String("and_type"));
-
-    QTest::newRow("specialization_with_default_value") << _(
-            "class Foo {};\n"
-            "template<class T1 = Foo> class Temp;\n"
-            "template<> class Temp<Foo> { int var; };\n"
-            "void func()\n"
-            "{\n"
-            "    Temp<> t;\n"
-            "    @\n"
-            "}\n"
-     ) << _("t.") << (QStringList()
-        << QLatin1String("var")
-        << QLatin1String("Temp"));
 
     QTest::newRow("auto_declaration_in_if_condition") << _(
             "struct Foo { int bar; };\n"
@@ -2960,28 +2870,6 @@ void CppToolsPlugin::test_completion_data()
         << QLatin1String("Foo")
         << QLatin1String("bar"));
 
-    QTest::newRow("instantiation_of_indirect_typedef") << _(
-        "template<typename _Tp>\n"
-        "struct Indirect { _Tp t; };\n"
-        "\n"
-        "template<typename T>\n"
-        "struct Temp\n"
-        "{\n"
-        "   typedef T MyT;\n"
-        "   typedef Indirect<MyT> indirect;\n"
-        "};\n"
-        "\n"
-        "struct Foo { int bar; };\n"
-        "\n"
-        "void func()\n"
-        "{\n"
-        "   Temp<Foo>::indirect i;\n"
-        "   @\n"
-        "}\n"
-    ) << _("i.t.") << (QStringList()
-        << QLatin1String("Foo")
-        << QLatin1String("bar"));;
-
     QTest::newRow("pointer_indirect_specialization_double_indirection_with_base") << _(
             "template<typename _Tp>\n"
             "struct Traits { };\n"
@@ -3018,223 +2906,6 @@ void CppToolsPlugin::test_completion_data()
     ) << _("t.p->") << (QStringList()
         << QLatin1String("Foo")
         << QLatin1String("bar"));
-
-    QTest::newRow("recursive_instantiation_of_template_type") << _(
-            "template<typename _Tp>\n"
-            "struct Temp { typedef _Tp value_type; };\n"
-            "\n"
-            "struct Foo { int bar; };\n"
-            "\n"
-            "void func()\n"
-            "{\n"
-            "   Temp<Temp<Foo> >::value_type::value_type *p;\n"
-            "   @\n"
-            "}\n"
-    ) << _("p->") << (QStringList()
-        << QLatin1String("Foo")
-        << QLatin1String("bar"));
-
-    QTest::newRow("recursive_instantiation_of_template_type_2") << _(
-            "template<typename _Tp>\n"
-            "struct Temp { typedef _Tp value_type; };\n"
-            "\n"
-            "struct Foo { int bar; };\n"
-            "\n"
-            "void func()\n"
-            "{\n"
-            "   Temp<Temp<Foo>::value_type>::value_type *p;\n"
-            "   @\n"
-            "}\n"
-    ) << _("p->") << (QStringList()
-        << QLatin1String("Foo")
-        << QLatin1String("bar"));
-
-    QTest::newRow("template_using_instantiation") << _(
-            "template<typename _Tp>\n"
-            "using T = _Tp;\n"
-            "\n"
-            "struct Foo { int bar; };\n"
-            "\n"
-            "void func()\n"
-            "{\n"
-            "    T<Foo> p;\n"
-            "    @\n"
-            "}\n"
-    ) << _("p.") << (QStringList()
-        << QLatin1String("Foo")
-        << QLatin1String("bar"));
-
-    QTest::newRow("nested_template_using_instantiation") << _(
-            "struct Parent {\n"
-            "    template<typename _Tp>\n"
-            "    using T = _Tp;\n"
-            "};\n"
-            "\n"
-            "struct Foo { int bar; };\n"
-            "\n"
-            "void func()\n"
-            "{\n"
-            "    Parent::T<Foo> p;\n"
-            "    @;\n"
-            "}\n"
-     ) << _("p.") << (QStringList()
-        << QLatin1String("Foo")
-        << QLatin1String("bar"));
-
-    QTest::newRow("nested_template_using_instantiation_in_template_class") << _(
-            "template<typename ParentT>\n"
-            "struct Parent {\n"
-            "    template<typename _Tp>\n"
-            "    using T = _Tp;\n"
-            "};\n"
-            "\n"
-            "struct Foo { int bar; };\n"
-            "\n"
-            "void func()\n"
-            "{\n"
-            "    Parent<Foo>::T<Foo> p;\n"
-            "    @;\n"
-            "}\n"
-     ) << _("p.") << (QStringList()
-        << QLatin1String("Foo")
-        << QLatin1String("bar"));
-
-    QTest::newRow("recursive_nested_template_using_instantiation") << _(
-            "struct Foo { int bar; };\n"
-            "\n"
-            "struct A { typedef Foo value_type; };\n"
-            "\n"
-            "template<typename T>\n"
-            "struct Traits\n"
-            "{\n"
-            "    typedef Foo value_type;\n"
-            "\n"
-            "    template<typename _Tp>\n"
-            "    using U = T;\n"
-            "};\n"
-            "\n"
-            "template<typename T>\n"
-            "struct Temp\n"
-            "{\n"
-            "    typedef Traits<T> TraitsT;\n"
-            "    typedef typename T::value_type value_type;\n"
-            "    typedef typename TraitsT::template U<Foo> rebind;\n"
-            "};\n"
-            "\n"
-            "void func()\n"
-            "{\n"
-            "    typename Temp<typename Temp<A>::rebind>::value_type p;\n"
-            "    @\n"
-            "}\n"
-    ) << _("p.") << (QStringList()
-        << QLatin1String("Foo")
-        << QLatin1String("bar"));
-
-    QTest::newRow("qualified_name_in_nested_type") << _(
-            "template<typename _Tp>\n"
-            "struct Temp {\n"
-            "    struct Nested {\n"
-            "        typedef typename _Tp::Nested2 N;\n"
-            "    };\n"
-            "};\n"
-            "\n"
-            "struct Foo {\n"
-            "    struct Nested2 {\n"
-            "        int bar;\n"
-            "    };\n"
-            "};\n"
-            "\n"
-            "void func()\n"
-            "{\n"
-            "    Temp<Foo>::Nested::N p;\n"
-            "    @;\n"
-            "}\n"
-    ) << _("p.") << (QStringList()
-        << QLatin1String("Nested2")
-        << QLatin1String("bar"));
-
-    QTest::newRow("simple_decltype_declaration") << _(
-            "struct Foo { int bar; };\n"
-            "Foo foo;\n"
-            "void fun() {\n"
-            "   decltype(foo) s;\n"
-            "   @\n"
-            "}\n"
-    ) << _("s.") << (QStringList()
-            << QLatin1String("Foo")
-            << QLatin1String("bar"));
-
-    QTest::newRow("typedefed_decltype_declaration") << _(
-            "struct Foo { int bar; };\n"
-            "Foo foo;\n"
-            "typedef decltype(foo) TypedefedFooWithDecltype;\n"
-            "void fun() {\n"
-            "   TypedefedFooWithDecltype s;\n"
-            "   @\n"
-            "}\n"
-    ) << _("s.") << (QStringList()
-            << QLatin1String("Foo")
-            << QLatin1String("bar"));
-
-    QTest::newRow("nested_instantiation_typedefed_decltype_declaration") << _(
-            "template <typename T>\n"
-            "struct Temp\n"
-            "{\n"
-            "    struct Nested\n"
-            "    {\n"
-            "        static T f();\n"
-            "        typedef decltype(f()) type;\n"
-            "    };\n"
-            "};\n"
-            "\n"
-            "struct Foo { int bar; };\n"
-            "\n"
-            "void fun()\n"
-            "{\n"
-            "    Temp<Foo>::Nested::type s;\n"
-            "    @\n"
-            "}\n"
-    ) << _("s.") << (QStringList()
-            << QLatin1String("Foo")
-            << QLatin1String("bar"));
-
-    QTest::newRow("typedefed_decltype_of_template_function") << _(
-            "template<typename T>\n"
-            "static T f();\n"
-            "\n"
-            "struct Foo { int bar; };\n"
-            "\n"
-            "void fun()\n"
-            "{\n"
-            "    decltype(f<Foo>()) s;\n"
-            "    @\n"
-            "}\n"
-    ) << _("s.") << (QStringList()
-            << QLatin1String("Foo")
-            << QLatin1String("bar"));
-
-    QTest::newRow("nested_instantiation_typedefed_decltype_declaration_of_template_function") << _(
-            "template <typename T, typename D = T>\n"
-            "struct Temp\n"
-            "{\n"
-            "    struct Nested\n"
-            "    {\n"
-            "        template<typename U> static T* __test(...);\n"
-            "        typedef decltype(__test<D>(0)) type;\n"
-            "    };\n"
-            "};\n"
-            "\n"
-            "struct Foo { int bar; };\n"
-            "\n"
-            "void func()\n"
-            "{\n"
-            "    Temp<Foo>::Nested::type s;\n"
-            "    @\n"
-            "}\n"
-    ) << _("s.") << (QStringList()
-            << QLatin1String("Foo")
-            << QLatin1String("bar"));
-
 }
 
 void CppToolsPlugin::test_completion_member_access_operator()
@@ -3242,9 +2913,10 @@ void CppToolsPlugin::test_completion_member_access_operator()
     QFETCH(QByteArray, code);
     QFETCH(QByteArray, prefix);
     QFETCH(QStringList, expectedCompletions);
+    QFETCH(bool, isObjC);
     QFETCH(bool, expectedReplaceAccessOperator);
 
-    CompletionTestCase test(code, prefix);
+    CompletionTestCase test(code, prefix, isObjC);
     QVERIFY(test.succeededSoFar());
 
     bool replaceAccessOperator = false;
@@ -3262,6 +2934,7 @@ void CppToolsPlugin::test_completion_member_access_operator_data()
     QTest::addColumn<QByteArray>("code");
     QTest::addColumn<QByteArray>("prefix");
     QTest::addColumn<QStringList>("expectedCompletions");
+    QTest::addColumn<bool>("isObjC");
     QTest::addColumn<bool>("expectedReplaceAccessOperator");
 
     QTest::newRow("member_access_operator") << _(
@@ -3272,7 +2945,18 @@ void CppToolsPlugin::test_completion_member_access_operator_data()
         ) << _("s.") << (QStringList()
             << QLatin1String("S")
             << QLatin1String("t"))
+        << false
         << true;
+
+    QTest::newRow("objc_not_replacing") << _(
+            "typedef struct objc_object Bar;"
+            "class Foo {\n"
+            "  Bar *bar;\n"
+            "  void func() { @ }"
+            "};\n"
+        ) << _("bar.") << (QStringList())
+        << true
+        << false;
 
     QTest::newRow("typedef_of_type_and_decl_of_type_no_replace_access_operator") << _(
             "struct S { int m; };\n"
@@ -3282,6 +2966,7 @@ void CppToolsPlugin::test_completion_member_access_operator_data()
         ) << _("p.") << (QStringList()
             << QLatin1String("S")
             << QLatin1String("m"))
+        << false
         << false;
 
     QTest::newRow("typedef_of_pointer_and_decl_of_pointer_no_replace_access_operator") << _(
@@ -3290,6 +2975,7 @@ void CppToolsPlugin::test_completion_member_access_operator_data()
             "SType *p;\n"
             "@\n"
         ) << _("p.") << (QStringList())
+        << false
         << false;
 
     QTest::newRow("typedef_of_type_and_decl_of_pointer_replace_access_operator") << _(
@@ -3300,6 +2986,7 @@ void CppToolsPlugin::test_completion_member_access_operator_data()
         ) << _("p.") << (QStringList()
             << QLatin1String("S")
             << QLatin1String("m"))
+        << false
         << true;
 
     QTest::newRow("typedef_of_pointer_and_decl_of_type_replace_access_operator") << _(
@@ -3310,6 +2997,7 @@ void CppToolsPlugin::test_completion_member_access_operator_data()
         ) << _("p.") << (QStringList()
             << QLatin1String("S")
             << QLatin1String("m"))
+        << false
         << true;
 
     QTest::newRow("predecl_typedef_of_type_and_decl_of_pointer_replace_access_operator") << _(
@@ -3320,6 +3008,7 @@ void CppToolsPlugin::test_completion_member_access_operator_data()
         ) << _("p.") << (QStringList()
             << QLatin1String("S")
             << QLatin1String("m"))
+        << false
         << true;
 
     QTest::newRow("predecl_typedef_of_type_and_decl_type_no_replace_access_operator") << _(
@@ -3330,6 +3019,7 @@ void CppToolsPlugin::test_completion_member_access_operator_data()
         ) << _("p.") << (QStringList()
             << QLatin1String("S")
             << QLatin1String("m"))
+        << false
         << false;
 
     QTest::newRow("predecl_typedef_of_pointer_and_decl_of_pointer_no_replace_access_operator") << _(
@@ -3338,6 +3028,7 @@ void CppToolsPlugin::test_completion_member_access_operator_data()
             "SType *p;\n"
             "@\n"
         ) << _("p.") << (QStringList())
+        << false
         << false;
 
     QTest::newRow("predecl_typedef_of_pointer_and_decl_of_type_replace_access_operator") << _(
@@ -3348,6 +3039,7 @@ void CppToolsPlugin::test_completion_member_access_operator_data()
         ) << _("p.") << (QStringList()
             << QLatin1String("S")
             << QLatin1String("m"))
+        << false
         << true;
 
     QTest::newRow("typedef_of_pointer_of_type_replace_access_operator") << _(
@@ -3359,6 +3051,7 @@ void CppToolsPlugin::test_completion_member_access_operator_data()
         ) << _("p.") << (QStringList()
             << QLatin1String("S")
             << QLatin1String("m"))
+        << false
         << true;
 
     QTest::newRow("typedef_of_pointer_of_type_no_replace_access_operator") << _(
@@ -3370,5 +3063,6 @@ void CppToolsPlugin::test_completion_member_access_operator_data()
         ) << _("p->") << (QStringList()
             << QLatin1String("S")
             << QLatin1String("m"))
+        << false
         << false;
 }

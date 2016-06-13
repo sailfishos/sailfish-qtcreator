@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -36,6 +31,10 @@
 #include "iosruncontrol.h"
 #include "iosmanager.h"
 #include "iosanalyzesupport.h"
+
+#include <debugger/analyzer/analyzermanager.h>
+#include <debugger/analyzer/analyzerruncontrol.h>
+#include <debugger/analyzer/analyzerstartparameters.h>
 
 #include <projectexplorer/project.h>
 #include <projectexplorer/projectexplorerconstants.h>
@@ -49,6 +48,7 @@
 #include <qtsupport/qtsupportconstants.h>
 #include <coreplugin/id.h>
 
+using namespace Debugger;
 using namespace ProjectExplorer;
 using namespace QmakeProjectManager;
 
@@ -135,7 +135,7 @@ QList<RunConfiguration *> IosRunConfigurationFactory::runConfigurationsForNode(T
     QList<RunConfiguration *> result;
     foreach (RunConfiguration *rc, t->runConfigurations()) {
         if (IosRunConfiguration *qt4c = qobject_cast<IosRunConfiguration *>(rc)) {
-            if (qt4c->profilePath() == n->path())
+            if (qt4c->profilePath() == n->filePath())
                 result << rc;
         }
     }
@@ -177,6 +177,8 @@ RunControl *IosRunControlFactory::create(RunConfiguration *runConfig,
     Q_ASSERT(canRun(runConfig, mode));
     IosRunConfiguration *rc = qobject_cast<IosRunConfiguration *>(runConfig);
     Q_ASSERT(rc);
+    Target *target = runConfig->target();
+    QTC_ASSERT(target, return 0);
     RunControl *res = 0;
     Core::Id devId = DeviceKitInformation::deviceId(rc->target()->kit());
     // The device can only run an application at a time, if an app is running stop it.
@@ -187,8 +189,24 @@ RunControl *IosRunControlFactory::create(RunConfiguration *runConfig,
     }
     if (mode == ProjectExplorer::Constants::NORMAL_RUN_MODE)
         res = new Ios::Internal::IosRunControl(rc);
-    else if (mode == ProjectExplorer::Constants::QML_PROFILER_RUN_MODE)
-        res = IosAnalyzeSupport::createAnalyzeRunControl(rc, errorMessage);
+    else if (mode == ProjectExplorer::Constants::QML_PROFILER_RUN_MODE) {
+        AnalyzerRunControl *runControl = Debugger::createAnalyzerRunControl(runConfig, mode);
+        QTC_ASSERT(runControl, return 0);
+        IDevice::ConstPtr device = DeviceKitInformation::device(target->kit());
+        if (device.isNull())
+            return 0;
+        auto iosRunConfig = qobject_cast<IosRunConfiguration *>(runConfig);
+        StandardRunnable runnable;
+        runnable.executable = iosRunConfig->localExecutable().toUserOutput();
+        runnable.commandLineArguments = iosRunConfig->commandLineArguments();
+        AnalyzerConnection connection;
+        connection.analyzerHost = QLatin1String("localhost");
+        runControl->setRunnable(runnable);
+        runControl->setConnection(connection);
+        runControl->setDisplayName(iosRunConfig->applicationName());
+        (void) new IosAnalyzeSupport(iosRunConfig, runControl, false, true);
+        return runControl;
+    }
     else
         res = IosDebugSupport::createDebugRunControl(rc, errorMessage);
     if (devId.isValid())

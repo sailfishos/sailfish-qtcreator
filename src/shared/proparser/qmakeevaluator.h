@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -40,6 +35,7 @@
 
 #include <qlist.h>
 #include <qlinkedlist.h>
+#include <qmap.h>
 #include <qset.h>
 #include <qstack.h>
 #include <qstring.h>
@@ -47,6 +43,8 @@
 #include <qshareddata.h>
 #ifndef QT_BOOTSTRAPPED
 # include <qprocess.h>
+#else
+# include <qiodevice.h>
 #endif
 #ifdef PROEVALUATOR_THREAD_SAFE
 # include <qmutex.h>
@@ -62,6 +60,8 @@ public:
     enum {
         SourceEvaluator = 0x10,
 
+        CumulativeEvalMessage = 0x1000,
+
         EvalWarnLanguage = SourceEvaluator |  WarningMessage | WarnLanguage,
         EvalWarnDeprecated = SourceEvaluator | WarningMessage | WarnDeprecated,
 
@@ -69,7 +69,7 @@ public:
     };
 
     // error(), warning() and message() from .pro file
-    virtual void fileMessage(const QString &msg) = 0;
+    virtual void fileMessage(int type, const QString &msg) = 0;
 
     enum EvalFileType { EvalProjectFile, EvalIncludeFile, EvalConfigFile, EvalFeatureFile, EvalAuxFile };
     virtual void aboutToEval(ProFile *parent, ProFile *proFile, EvalFileType type) = 0;
@@ -145,8 +145,6 @@ public:
         { return b ? ReturnTrue : ReturnFalse; }
 
     static ALWAYS_INLINE uint getBlockLen(const ushort *&tokPtr);
-    ProString getStr(const ushort *&tokPtr);
-    ProKey getHashStr(const ushort *&tokPtr);
     void evaluateExpression(const ushort *&tokPtr, ProStringList *ret, bool joined);
     static ALWAYS_INLINE void skipStr(const ushort *&tokPtr);
     static ALWAYS_INLINE void skipHashStr(const ushort *&tokPtr);
@@ -227,8 +225,9 @@ public:
 
     void populateDeps(
             const ProStringList &deps, const ProString &prefix, const ProStringList &suffixes,
-            QHash<ProKey, QSet<ProKey> > &dependencies,
-            ProValueMap &dependees, ProStringList &rootSet) const;
+            const ProString &priosfx,
+            QHash<ProKey, QSet<ProKey> > &dependencies, ProValueMap &dependees,
+            QMultiMap<int, ProString> &rootSet) const;
 
     VisitReturn writeFile(const QString &ctx, const QString &fn, QIODevice::OpenMode mode,
                           const QString &contents);
@@ -236,8 +235,6 @@ public:
     void runProcess(QProcess *proc, const QString &command) const;
 #endif
     QByteArray getCommandOutput(const QString &args) const;
-
-    static void removeEach(ProStringList *varlist, const ProStringList &value);
 
     QMakeEvaluator *m_caller;
 #ifdef PROEVALUATOR_CUMULATIVE
@@ -247,6 +244,8 @@ public:
     enum { m_cumulative = 0 };
     enum { m_skipLevel = 0 };
 #endif
+
+    static QString quoteValue(const ProString &val);
 
 #ifdef PROEVALUATOR_DEBUG
     void debugMsgInternal(int level, const char *fmt, ...) const;
@@ -306,6 +305,7 @@ public:
     QMakeHandler *m_handler;
     QMakeVfs *m_vfs;
 };
+Q_DECLARE_TYPEINFO(QMakeEvaluator::Location, Q_PRIMITIVE_TYPE);
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(QMakeEvaluator::LoadFlags)
 

@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,27 +9,26 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
 #include "modelnodeoperations.h"
 #include "modelnodecontextmenu_helper.h"
+#include "layoutingridlayout.h"
+#include "findimplementation.h"
+
+#include "addsignalhandlerdialog.h"
 
 #include <cmath>
 #include <nodeabstractproperty.h>
@@ -41,11 +40,26 @@
 #include <rewritertransaction.h>
 #include <documentmanager.h>
 #include <qmlanchors.h>
-#include <limits>
+#include <nodelistproperty.h>
+#include <signalhandlerproperty.h>
 
+#include <limits>
+#include <qmldesignerplugin.h>
+
+#include <coreplugin/messagebox.h>
+#include <coreplugin/editormanager/editormanager.h>
 #include <utils/algorithm.h>
 
+#include <coreplugin/coreconstants.h>
+#include <coreplugin/modemanager.h>
+#include <coreplugin/icore.h>
+
+#include <qmljseditor/qmljsfindreferences.h>
+
+#include <QCoreApplication>
 #include <QByteArray>
+
+#include <functional>
 
 namespace QmlDesigner {
 
@@ -101,15 +115,6 @@ static inline void reparentTo(const ModelNode &node, const QmlItemNode &parent)
             parentProperty = parent.nodeAbstractProperty("data");
 
         parentProperty.reparentHere(node);
-    }
-}
-
-static void reparentToNodeAndRemovePositionForModelNodes(const ModelNode &parentModelNode, const QList<ModelNode> &modelNodeList)
-{
-    foreach (ModelNode modelNode, modelNodeList) {
-        reparentTo(modelNode, parentModelNode);
-        modelNode.removeProperty("x");
-        modelNode.removeProperty("y");
     }
 }
 
@@ -417,38 +422,38 @@ void anchorsReset(const SelectionContext &selectionState)
     }
 }
 
-typedef bool (*LessThan)(const ModelNode &node1, const ModelNode &node2);
+typedef std::function<bool(const ModelNode &node1, const ModelNode &node2)> LessThan;
 
 bool compareByX(const ModelNode &node1, const ModelNode &node2)
 {
-        QmlItemNode itemNode1 = QmlItemNode(node1);
-        QmlItemNode itemNode2 = QmlItemNode(node2);
-        if (itemNode1.isValid() && itemNode2.isValid())
-            return itemNode1.instancePosition().x() < itemNode2.instancePosition().x();
-        return false;
+    QmlItemNode itemNode1 = QmlItemNode(node1);
+    QmlItemNode itemNode2 = QmlItemNode(node2);
+    if (itemNode1.isValid() && itemNode2.isValid())
+        return itemNode1.instancePosition().x() < itemNode2.instancePosition().x();
+    return false;
 }
 
 bool compareByY(const ModelNode &node1, const ModelNode &node2)
 {
-        QmlItemNode itemNode1 = QmlItemNode(node1);
-        QmlItemNode itemNode2 = QmlItemNode(node2);
-        if (itemNode1.isValid() && itemNode2.isValid())
-            return itemNode1.instancePosition().y() < itemNode2.instancePosition().y();
-        return false;
+    QmlItemNode itemNode1 = QmlItemNode(node1);
+    QmlItemNode itemNode2 = QmlItemNode(node2);
+    if (itemNode1.isValid() && itemNode2.isValid())
+        return itemNode1.instancePosition().y() < itemNode2.instancePosition().y();
+    return false;
 }
 
 bool compareByGrid(const ModelNode &node1, const ModelNode &node2)
 {
-        QmlItemNode itemNode1 = QmlItemNode(node1);
-        QmlItemNode itemNode2 = QmlItemNode(node2);
-        if (itemNode1.isValid() && itemNode2.isValid()) {
-            if ((itemNode1.instancePosition().y() + itemNode1.instanceSize().height())  < itemNode2.instancePosition().y())
-                return true;
-            if ((itemNode2.instancePosition().y() + itemNode2.instanceSize().height())  < itemNode1.instancePosition().y())
-                return false; //first sort y (rows)
-            return itemNode1.instancePosition().x() < itemNode2.instancePosition().x();
-        }
-        return false;
+    QmlItemNode itemNode1 = QmlItemNode(node1);
+    QmlItemNode itemNode2 = QmlItemNode(node2);
+    if (itemNode1.isValid() && itemNode2.isValid()) {
+        if ((itemNode1.instancePosition().y() + itemNode1.instanceSize().height())  < itemNode2.instancePosition().y())
+            return true;
+        if ((itemNode2.instancePosition().y() + itemNode2.instanceSize().height())  < itemNode1.instancePosition().y() +  itemNode1.instanceSize().height())
+            return false; //first sort y (rows)
+        return itemNode1.instancePosition().x() < itemNode2.instancePosition().x();
+    }
+    return false;
 }
 
 
@@ -486,7 +491,9 @@ static void layoutHelperFunction(const SelectionContext &selectionContext,
                 Utils::sort(sortedSelectedNodes, lessThan);
 
                 setUpperLeftPostionToNode(layoutNode, sortedSelectedNodes);
-                reparentToNodeAndRemovePositionForModelNodes(layoutNode, sortedSelectedNodes);
+                LayoutInGridLayout::reparentToNodeAndRemovePositionForModelNodes(layoutNode, sortedSelectedNodes);
+                if (layoutType.contains("Layout"))
+                    LayoutInGridLayout::setSizeAsPreferredSize(sortedSelectedNodes);
             }
         }
     }
@@ -514,17 +521,256 @@ void layoutFlowPositioner(const SelectionContext &selectionContext)
 
 void layoutRowLayout(const SelectionContext &selectionContext)
 {
-    layoutHelperFunction(selectionContext, "QtQuick.Layouts.RowLayout", compareByX);
+    try {
+        LayoutInGridLayout::ensureLayoutImport(selectionContext);
+        layoutHelperFunction(selectionContext, "QtQuick.Layouts.RowLayout", compareByX);
+    } catch (RewritingException &e) { //better save then sorry
+        e.showException();
+    }
 }
 
 void layoutColumnLayout(const SelectionContext &selectionContext)
 {
-    layoutHelperFunction(selectionContext, "QtQuick.Layouts.ColumnLayout", compareByY);
+    try {
+        LayoutInGridLayout::ensureLayoutImport(selectionContext);
+        layoutHelperFunction(selectionContext, "QtQuick.Layouts.ColumnLayout", compareByY);
+    } catch (RewritingException &e) { //better save then sorry
+        e.showException();
+    }
 }
 
 void layoutGridLayout(const SelectionContext &selectionContext)
 {
-    layoutHelperFunction(selectionContext, "QtQuick.Layouts.GridLayout", compareByGrid);
+    try {
+        LayoutInGridLayout::ensureLayoutImport(selectionContext);
+        LayoutInGridLayout::layout(selectionContext);
+    } catch (RewritingException &e) { //better save then sorry
+        e.showException();
+    }
+}
+
+/*
+bool optionsPageLessThan(const IOptionsPage *p1, const IOptionsPage *p2)
+{
+    if (p1->category() != p2->category())
+        return p1->category().alphabeticallyBefore(p2->category());
+    return p1->id().alphabeticallyBefore(p2->id());
+}
+
+static inline QList<IOptionsPage*> sortedOptionsPages()
+{
+    QList<IOptionsPage*> rc = ExtensionSystem::PluginManager::getObjects<IOptionsPage>();
+    qStableSort(rc.begin(), rc.end(), optionsPageLessThan);
+    return rc;
+}
+
+*/
+static PropertyNameList sortedPropertyNameList(const PropertyNameList &nameList)
+{
+    PropertyNameList sortedPropertyNameList = nameList;
+    qStableSort(sortedPropertyNameList);
+    return sortedPropertyNameList;
+}
+
+static QString toUpper(const QString signal)
+{
+    QString ret = signal;
+    ret[0] = signal.at(0).toUpper();
+    return ret;
+}
+
+static void addSignal(const QString &typeName, const QString &itemId, const QString &signalName, bool isRootModelNode)
+{
+    QScopedPointer<Model> model(Model::create("Item", 2, 0));
+    RewriterView rewriterView(RewriterView::Amend, 0);
+
+    TextEditor::TextEditorWidget *textEdit = qobject_cast<TextEditor::TextEditorWidget*>
+            (Core::EditorManager::currentEditor()->widget());
+
+    BaseTextEditModifier modifier(textEdit);
+
+    rewriterView.setCheckSemanticErrors(false);
+    rewriterView.setTextModifier(&modifier);
+
+    model->setRewriterView(&rewriterView);
+
+    PropertyName signalHandlerName;
+
+    if (isRootModelNode)
+        signalHandlerName = "on" + toUpper(signalName).toUtf8();
+    else
+        signalHandlerName = itemId.toUtf8() + ".on" + toUpper(signalName).toUtf8();
+
+    foreach (const ModelNode &modelNode, rewriterView.allModelNodes()) {
+        if (modelNode.type() == typeName) {
+            modelNode.signalHandlerProperty(signalHandlerName).setSource(QLatin1String("{\n}"));
+        }
+    }
+}
+
+static QStringList cleanSignalNames(const QStringList &input)
+{
+    QStringList output;
+
+    foreach (const QString &signal, input)
+        if (!signal.startsWith(QLatin1String("__")) && !output.contains(signal))
+            output.append(signal);
+
+    return output;
+}
+
+static QStringList getSortedSignalNameList(const ModelNode &modelNode)
+{
+    NodeMetaInfo metaInfo = modelNode.metaInfo();
+    QStringList signalNames;
+
+    if (metaInfo.isValid()) {
+        foreach (const PropertyName &signalName, sortedPropertyNameList(metaInfo.signalNames()))
+            if (!signalName.contains("Changed"))
+            signalNames.append(signalName);
+
+        foreach (const PropertyName &propertyName, sortedPropertyNameList(metaInfo.propertyNames()))
+            if (!propertyName.contains("."))
+                signalNames.append(propertyName + "Changed");
+    }
+
+    return signalNames;
+}
+
+void gotoImplementation(const SelectionContext &selectionState)
+{
+    QString itemId;
+    ModelNode modelNode;
+    if (selectionState.singleNodeIsSelected()) {
+        itemId = selectionState.selectedModelNodes().first().id();
+        modelNode = selectionState.selectedModelNodes().first();
+    }
+
+    bool isModelNodeRoot = true;
+
+    QmlObjectNode qmlObjectNode(modelNode);
+
+    if (!qmlObjectNode.isValid()) {
+        QString title = QCoreApplication::translate("ModelNodeOperations", "Go to Implementation");
+        QString description = QCoreApplication::translate("ModelNodeOperations", "Invalid item.");
+        Core::AsynchronousMessageBox::warning(title, description);
+        return;
+    }
+
+    if (!qmlObjectNode.isRootModelNode()) {
+        isModelNodeRoot = false;
+        try {
+            RewriterTransaction transaction =
+                    qmlObjectNode.view()->beginRewriterTransaction(QByteArrayLiteral("NavigatorTreeModel:exportItem"));
+
+            QmlObjectNode qmlObjectNode(modelNode);
+            qmlObjectNode.ensureAliasExport();
+        }  catch (RewritingException &exception) { //better safe than sorry! There always might be cases where we fail
+            exception.showException();
+        }
+    }
+
+    const QString fileName = QmlDesignerPlugin::instance()->documentManager().currentDesignDocument()->fileName().toString();
+    const QString typeName = QmlDesignerPlugin::instance()->documentManager().currentDesignDocument()->fileName().toFileInfo().baseName();
+
+    QStringList signalNames = cleanSignalNames(getSortedSignalNameList(selectionState.selectedModelNodes().first()));
+
+    QList<QmlJSEditor::FindReferences::Usage> usages = QmlJSEditor::FindReferences::findUsageOfType(fileName, typeName);
+
+    if (usages.isEmpty()) {
+        QString title = QCoreApplication::translate("ModelNodeOperations", "Go to Implementation");
+        QString description = QCoreApplication::translate("ModelNodeOperations", "Cannot find an implementation.");
+        Core::AsynchronousMessageBox::warning(title, description);
+        return;
+    }
+
+    usages = FindImplementation::run(usages.first().path, typeName, itemId);
+
+    Core::ModeManager::activateMode(Core::Constants::MODE_EDIT);
+
+    if (usages.count() == 1) {
+        Core::EditorManager::openEditorAt(usages.first().path, usages.first().line, usages.first().col);
+
+        if (!signalNames.isEmpty()) {
+            AddSignalHandlerDialog *dialog = new AddSignalHandlerDialog(Core::ICore::dialogParent());
+            dialog->setSignals(signalNames);
+
+            AddSignalHandlerDialog::connect(dialog, &AddSignalHandlerDialog::signalSelected, [=] {
+                dialog->deleteLater();
+
+                if (dialog->signal().isEmpty())
+                    return;
+
+                try {
+                    RewriterTransaction transaction =
+                            qmlObjectNode.view()->beginRewriterTransaction(QByteArrayLiteral("NavigatorTreeModel:exportItem"));
+
+                    addSignal(typeName, itemId, dialog->signal(), isModelNodeRoot);
+                }  catch (RewritingException &exception) { //better safe than sorry! There always might be cases where we fail
+                    exception.showException();
+                }
+
+                addSignal(typeName, itemId, dialog->signal(), isModelNodeRoot);
+
+                //Move cursor to correct curser position
+                const QString filePath = Core::EditorManager::currentDocument()->filePath().toString();
+                QList<QmlJSEditor::FindReferences::Usage> usages = FindImplementation::run(filePath, typeName, itemId);
+                Core::EditorManager::openEditorAt(filePath, usages.first().line, usages.first().col + 1);
+            } );
+            dialog->show();
+
+        }
+        return;
+    }
+
+    Core::EditorManager::openEditorAt(usages.first().path, usages.first().line, usages.first().col + 1);
+}
+
+void removeLayout(const SelectionContext &selectionContext)
+{
+    if (!selectionContext.view()
+            || !selectionContext.hasSingleSelectedModelNode())
+        return;
+
+    ModelNode layout = selectionContext.currentSingleSelectedNode();
+
+    if (!QmlItemNode::isValidQmlItemNode(layout))
+        return;
+
+    QmlItemNode layoutItem(layout);
+
+    QmlItemNode parent = layoutItem.instanceParentItem();
+
+    if (!parent.isValid())
+        return;
+
+    {
+        RewriterTransaction transaction(selectionContext.view(), QByteArrayLiteral("DesignerActionManager|removeLayout"));
+
+        foreach (const ModelNode &modelNode, selectionContext.currentSingleSelectedNode().directSubModelNodes()) {
+            if (QmlItemNode::isValidQmlItemNode(modelNode)) {
+
+                QmlItemNode qmlItem(modelNode);
+                if (modelNode.simplifiedTypeName() == "Item"
+                        && modelNode.id().contains("spacer")) {
+                    qmlItem.destroy();
+                } else {
+                    QPointF pos = qmlItem.instancePosition();
+                    pos = layoutItem.instanceTransform().map(pos);
+                    modelNode.variantProperty("x").setValue(pos.x());
+                    modelNode.variantProperty("y").setValue(pos.y());
+                }
+            }
+            if (modelNode.isValid())
+                parent.modelNode().defaultNodeListProperty().reparentHere(modelNode);
+        }
+        layoutItem.destroy();
+    }
+}
+
+void removePositioner(const SelectionContext &selectionContext)
+{
+    removeLayout(selectionContext);
 }
 
 } // namespace Mode

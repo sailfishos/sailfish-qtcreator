@@ -1,32 +1,27 @@
-#############################################################################
-##
-## Copyright (C) 2015 The Qt Company Ltd.
-## Contact: http://www.qt.io/licensing
-##
-## This file is part of Qt Creator.
-##
-## Commercial License Usage
-## Licensees holding valid commercial Qt licenses may use this file in
-## accordance with the commercial license agreement provided with the
-## Software or, alternatively, in accordance with the terms contained in
-## a written agreement between you and The Qt Company.  For licensing terms and
-## conditions see http://www.qt.io/terms-conditions.  For further information
-## use the contact form at http://www.qt.io/contact-us.
-##
-## GNU Lesser General Public License Usage
-## Alternatively, this file may be used under the terms of the GNU Lesser
-## General Public License version 2.1 or version 3 as published by the Free
-## Software Foundation and appearing in the file LICENSE.LGPLv21 and
-## LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-## following information to ensure the GNU Lesser General Public License
-## requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-## http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-##
-## In addition, as a special exception, The Qt Company gives you certain additional
-## rights.  These rights are described in The Qt Company LGPL Exception
-## version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
-##
-#############################################################################
+############################################################################
+#
+# Copyright (C) 2016 The Qt Company Ltd.
+# Contact: https://www.qt.io/licensing/
+#
+# This file is part of Qt Creator.
+#
+# Commercial License Usage
+# Licensees holding valid commercial Qt licenses may use this file in
+# accordance with the commercial license agreement provided with the
+# Software or, alternatively, in accordance with the terms contained in
+# a written agreement between you and The Qt Company. For licensing terms
+# and conditions see https://www.qt.io/terms-conditions. For further
+# information use the contact form at https://www.qt.io/contact-us.
+#
+# GNU General Public License Usage
+# Alternatively, this file may be used under the terms of the GNU
+# General Public License version 3 as published by the Free Software
+# Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+# included in the packaging of this file. Please review the following
+# information to ensure the GNU General Public License requirements will
+# be met: https://www.gnu.org/licenses/gpl-3.0.html.
+#
+############################################################################
 
 import tempfile
 
@@ -63,14 +58,14 @@ def ensureChecked(objectName, shouldBeChecked = True, timeout=20000):
     try:
         # needed for transition Qt::PartiallyChecked -> Qt::Checked -> Qt::Unchecked
         clicked = 0
-        while not waitFor('widget.checkState() == targetState', 1000) and clicked < 2:
+        while not waitFor('widget.checkState() == targetState', 1500) and clicked < 2:
             clickButton(widget)
             clicked += 1
         test.verify(waitFor("widget.checkState() == targetState", 1000))
     except:
         # widgets not derived from QCheckbox don't have checkState()
-        if not waitFor('widget.checked == shouldBeChecked', 1000):
-            clickButton(widget)
+        if not waitFor('widget.checked == shouldBeChecked', 1500):
+            mouseClick(widget, 10, 6, 0, Qt.LeftButton)
         test.verify(waitFor("widget.checked == shouldBeChecked", 1000))
     test.log("New state for QCheckBox: %s" % state,
              str(objectName))
@@ -138,37 +133,16 @@ def textUnderCursor(window, fromPos, toPos):
     return returnValue
 
 def which(program):
-    def is_exe(fpath):
-        return os.path.exists(fpath) and os.access(fpath, os.X_OK)
-
-    def callableFile(path):
-        if is_exe(path):
-            return path
-        if platform.system() in ('Windows', 'Microsoft'):
-            for suffix in suffixes.split(os.pathsep):
-                if is_exe(path + suffix):
-                    return path + suffix
-        return None
-
+    # Don't use spawn.find_executable because it can't find .bat or
+    # .cmd files and doesn't check whether a file is executable (!)
     if platform.system() in ('Windows', 'Microsoft'):
-        suffixes = os.getenv("PATHEXT")
-        if not suffixes:
-            test.fatal("Can't read environment variable PATHEXT. Please check your installation.")
-            suffixes = ""
-
-    fpath, fname = os.path.split(program)
-    if fpath:
-        return callableFile(program)
+        command = "where"
     else:
-        if platform.system() in ('Windows', 'Microsoft'):
-            cf = callableFile(os.getcwd() + os.sep + program)
-            if cf:
-                return cf
-        for path in os.environ["PATH"].split(os.pathsep):
-            exe_file = os.path.join(path, program)
-            cf = callableFile(exe_file)
-            if cf:
-                return cf
+        command = "which"
+    foundPath = getOutputFromCmdline([command, program], acceptedError=1)
+    if foundPath:
+        return foundPath.splitlines()[0]
+    else:
         return None
 
 # this function removes the user files of given pro file(s)
@@ -202,15 +176,23 @@ def invokeMenuItem(menu, item, *subItems):
             waitForObject(":Qt Creator.QtCreator.MenuBar_QMenuBar", 2000)
         except:
             nativeMouseClick(waitForObject(":Qt Creator_Core::Internal::MainWindow", 1000), 20, 20, 0, Qt.LeftButton)
-    # HACK to avoid squish crash using Qt5.2 on Squish 5.0.1 - remove asap
+    # HACK as Squish fails to provide a proper way to access the system menu
     if platform.system() == "Darwin":
         if menu == "Tools" and item == "Options...":
-            nativeType("<Command+,>")
+            #nativeType("<Command+,>")
+            # the following is a pure HACK because using the default key sequence seems to be broken
+            # when running from inside Squish
+            menuBar = waitForObject(":Qt Creator.QtCreator.MenuBar_QMenuBar", 500)
+            nativeMouseClick(menuBar, 75, 5, 0, Qt.LeftButton)
+            for _ in range(3):
+                nativeType("<Down>")
+            nativeType("<Return>")
             return
         if menu == "File" and item == "Exit":
             nativeType("<Command+q>")
             return
     menuObject = waitForObjectItem(":Qt Creator.QtCreator.MenuBar_QMenuBar", menu)
+    snooze(1)
     waitFor("menuObject.visible", 1000)
     activateItem(menuObject)
     itemObject = waitForObjectItem(objectMap.realName(menuObject), item)
@@ -234,11 +216,13 @@ def logApplicationOutput():
         return None
 
 # get the output from a given cmdline call
-def getOutputFromCmdline(cmdline):
-    versCall = subprocess.Popen(cmdline, stdout=subprocess.PIPE, shell=True)
-    result = versCall.communicate()[0]
-    versCall.stdout.close()
-    return result
+def getOutputFromCmdline(cmdline, environment=None, acceptedError=0):
+    try:
+        return subprocess.check_output(cmdline, env=environment)
+    except subprocess.CalledProcessError as e:
+        if e.returncode != acceptedError:
+            test.warning("Command '%s' returned %d" % (e.cmd, e.returncode))
+        return e.output
 
 def selectFromFileDialog(fileName, waitForFile=False):
     if platform.system() == "Darwin":
@@ -246,7 +230,7 @@ def selectFromFileDialog(fileName, waitForFile=False):
         nativeType("<Command+Shift+g>")
         snooze(1)
         nativeType(fileName)
-        snooze(1)
+        snooze(2)
         nativeType("<Return>")
         snooze(3)
         nativeType("<Return>")
@@ -286,12 +270,11 @@ def addHelpDocumentation(which):
     waitForObject("{container=':Options.qt_tabwidget_tabbar_QTabBar' type='TabItem' text='Documentation'}")
     clickOnTab(":Options.qt_tabwidget_tabbar_QTabBar", "Documentation")
     # get rid of all docs already registered
-    listWidget = waitForObject("{type='QListWidget' name='docsListWidget' visible='1'}")
-    if listWidget.count > 0:
-        rect = listWidget.visualItemRect(listWidget.item(0))
-        mouseClick(listWidget, rect.x+5, rect.y+5, 0, Qt.LeftButton)
+    listWidget = waitForObject("{type='QListView' name='docsListView' visible='1'}")
+    if listWidget.model().rowCount() > 0:
+        mouseClick(listWidget)
         type(listWidget, "<Ctrl+a>")
-        mouseClick(waitForObject("{type='QPushButton' name='removeButton' visible='1'}"), 5, 5, 0, Qt.LeftButton)
+        clickButton(waitForObject("{type='QPushButton' name='removeButton' visible='1'}"))
     for qch in which:
         clickButton(waitForObject("{type='QPushButton' name='addButton' visible='1' text='Add...'}"))
         selectFromFileDialog(qch)
@@ -362,8 +345,8 @@ def __checkParentAccess__(filePath):
 # and a list of information of its configured Qt
 def getConfiguredKits():
     def __retrieveQtVersionName__(target, version):
-        treeWidget = waitForObject(":QtSupport__Internal__QtVersionManager.qtdirList_QTreeWidget")
-        return treeWidget.currentItem().text(0)
+        treeView = waitForObject(":qtdirList_QTreeView")
+        return str(treeView.currentIndex().data().toString())
     # end of internal function for iterateQtVersions
     def __setQtVersionForKit__(kit, kitName, kitsQtVersionName):
         treeView = waitForObject(":BuildAndRun_QTreeView")
@@ -442,13 +425,13 @@ def iterateQtVersions(keepOptionsOpen=False, alreadyOnOptionsDialog=False,
     clickItem(":Options_QListView", "Build & Run", 14, 15, 0, Qt.LeftButton)
     clickOnTab(":Options.qt_tabwidget_tabbar_QTabBar", "Qt Versions")
     pattern = re.compile("Qt version (?P<version>.*?) for (?P<target>.*)")
-    treeWidget = waitForObject(":QtSupport__Internal__QtVersionManager.qtdirList_QTreeWidget")
-    root = treeWidget.invisibleRootItem()
-    for rootChild in dumpChildren(root):
-        rootChildText = str(rootChild.text(0)).replace(".", "\\.").replace("_", "\\_")
-        for subChild in dumpChildren(rootChild):
-            subChildText = str(subChild.text(0)).replace(".", "\\.").replace("_", "\\_")
-            clickItem(treeWidget, ".".join([rootChildText,subChildText]), 5, 5, 0, Qt.LeftButton)
+    treeView = waitForObject(":qtdirList_QTreeView")
+    model = treeView.model()
+    for rootIndex in dumpIndices(model):
+        rootChildText = str(rootIndex.data()).replace(".", "\\.").replace("_", "\\_")
+        for subIndex in dumpIndices(model, rootIndex):
+            subChildText = str(subIndex.data()).replace(".", "\\.").replace("_", "\\_")
+            clickItem(treeView, ".".join([rootChildText,subChildText]), 5, 5, 0, Qt.LeftButton)
             currentText = str(waitForObject(":QtSupport__Internal__QtVersionManager.QLabel").text)
             matches = pattern.match(currentText)
             if matches:
@@ -619,6 +602,7 @@ def clickOnTab(tabBarStr, tabText, timeout=5000):
     if platform.system() == 'Darwin' and not tabBar.visible:
         test.log("Using workaround for Mac.")
         setWindowState(tabBar, WindowState.Normal)
+        tabBar = waitForObject(tabBarStr, 2000)
     clickTab(tabBar, tabText)
     waitFor("str(tabBar.tabText(tabBar.currentIndex)) == '%s'" % tabText, timeout)
 
@@ -641,9 +625,9 @@ def verifyItemOrder(items, text):
 
 def openVcsLog():
     try:
-        foundObj = waitForObject("{type='QPlainTextEdit' unnamed='1' visible='1' "
+        foundObj = waitForObject("{type='Core::OutputWindow' unnamed='1' visible='1' "
                                  "window=':Qt Creator_Core::Internal::MainWindow'}", 2000)
-        if className(foundObj) != 'QPlainTextEdit':
+        if className(foundObj) != 'Core::OutputWindow':
             raise Exception("Found derived class, but not a pure QPlainTextEdit.")
     except:
         invokeMenuItem("Window", "Output Panes", "Version Control")

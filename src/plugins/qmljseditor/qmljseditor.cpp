@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -58,7 +53,6 @@
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/id.h>
-#include <coreplugin/infobar.h>
 #include <coreplugin/modemanager.h>
 
 #include <extensionsystem/pluginmanager.h>
@@ -67,6 +61,7 @@
 #include <texteditor/fontsettings.h>
 #include <texteditor/tabsettings.h>
 #include <texteditor/texteditorconstants.h>
+#include <texteditor/texteditorsettings.h>
 #include <texteditor/syntaxhighlighter.h>
 #include <texteditor/refactoroverlay.h>
 #include <texteditor/codeassist/genericproposal.h>
@@ -112,7 +107,6 @@ QmlJSEditorWidget::QmlJSEditorWidget()
 {
     m_outlineCombo = 0;
     m_contextPane = 0;
-    m_firstSementicInfo = true;
     m_findReferences = new FindReferences(this);
 
     setLanguageSettingsId(QmlJSTools::Constants::QML_JS_SETTINGS_ID);
@@ -196,12 +190,13 @@ static void appendExtraSelectionsForMessages(
             sel.cursor.movePosition(QTextCursor::NextCharacter, QTextCursor::KeepAnchor, d.loc.length);
         }
 
-        if (d.isWarning())
-            sel.format.setUnderlineColor(Qt::darkYellow);
-        else
-            sel.format.setUnderlineColor(Qt::red);
+        const auto fontSettings = TextEditor::TextEditorSettings::instance()->fontSettings();
 
-        sel.format.setUnderlineStyle(QTextCharFormat::WaveUnderline);
+        if (d.isWarning())
+            sel.format = fontSettings.toTextCharFormat(TextEditor::C_WARNING);
+        else
+            sel.format = fontSettings.toTextCharFormat(TextEditor::C_ERROR);
+
         sel.format.setToolTip(d.message);
 
         selections->append(sel);
@@ -946,16 +941,6 @@ void QmlJSEditorWidget::semanticInfoUpdated(const SemanticInfo &semanticInfo)
         if (newNode) {
             m_contextPane->apply(this, semanticInfo.document, 0, newNode, true);
             m_contextPaneTimer.start(); //update text marker
-        }
-    }
-
-    if (m_firstSementicInfo) {
-        m_firstSementicInfo = false;
-        if (semanticInfo.document->language() == Dialect::QmlQtQuick2Ui) {
-            InfoBarEntry info(Id(Constants::QML_UI_FILE_WARNING),
-                                    tr("This file should only be edited in <b>Design</b> mode."));
-            info.setCustomButtonInfo(tr("Switch Mode"), []() { ModeManager::activateMode(Core::Constants::MODE_DESIGN); });
-            textDocument()->infoBar()->addInfo(info);
         }
     }
 

@@ -18,13 +18,11 @@ HEADERS += \
     qtoutputformatter.h \
     qtversionmanager.h \
     qtversionfactory.h \
-    uicodemodelsupport.h \
     baseqtversion.h \
     qmldumptool.h \
     qtoptionspage.h \
     customexecutablerunconfiguration.h \
     customexecutableconfigurationwidget.h \
-    debugginghelperbuildtask.h \
     qtsupportconstants.h \
     profilereader.h \
     qtparser.h \
@@ -35,7 +33,9 @@ HEADERS += \
     desktopqtversionfactory.h \
     desktopqtversion.h \
     winceqtversionfactory.h \
-    winceqtversion.h
+    winceqtversion.h \
+    uicgenerator.h \
+    qscxmlcgenerator.h
 
 SOURCES += \
     codegenerator.cpp \
@@ -48,13 +48,11 @@ SOURCES += \
     qtoutputformatter.cpp \
     qtversionmanager.cpp \
     qtversionfactory.cpp \
-    uicodemodelsupport.cpp \
     baseqtversion.cpp \
     qmldumptool.cpp \
     qtoptionspage.cpp \
     customexecutablerunconfiguration.cpp \
     customexecutableconfigurationwidget.cpp \
-    debugginghelperbuildtask.cpp \
     profilereader.cpp \
     qtparser.cpp \
     exampleslistmodel.cpp \
@@ -64,13 +62,14 @@ SOURCES += \
     desktopqtversionfactory.cpp \
     desktopqtversion.cpp \
     winceqtversionfactory.cpp \
-    winceqtversion.cpp
+    winceqtversion.cpp \
+    uicgenerator.cpp \
+    qscxmlcgenerator.cpp
 
 FORMS   +=  \
     codegensettingspagewidget.ui \
     showbuildlog.ui \
     qtversioninfo.ui \
-    debugginghelper.ui \
     qtversionmanager.ui \
     copytolocationdialog.ui
 

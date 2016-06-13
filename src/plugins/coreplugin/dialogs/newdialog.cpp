@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,31 +9,27 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
 #include "newdialog.h"
 #include "ui_newdialog.h"
 
-#include <coreplugin/coreconstants.h>
+#include <coreplugin/coreicons.h>
 #include <coreplugin/icontext.h>
 #include <coreplugin/icore.h>
+#include <utils/algorithm.h>
 #include <utils/qtcassert.h>
 
 #include <QAbstractProxyModel>
@@ -45,12 +41,15 @@
 #include <QPushButton>
 #include <QSortFilterProxyModel>
 #include <QStandardItem>
+#include <QTimer>
 
 Q_DECLARE_METATYPE(Core::IWizardFactory*)
 
 namespace {
 
 const int ICON_SIZE = 22;
+const char LAST_CATEGORY_KEY[] = "Core/NewDialog/LastCategory";
+const char LAST_PLATFORM_KEY[] = "Core/NewDialog/LastPlatform";
 
 class WizardFactoryContainer
 {
@@ -74,7 +73,7 @@ class PlatformFilterProxyModel : public QSortFilterProxyModel
 public:
     PlatformFilterProxyModel(QObject *parent = 0): QSortFilterProxyModel(parent) {}
 
-    void setPlatform(const QString& platform)
+    void setPlatform(Core::Id platform)
     {
         m_platform = platform;
         invalidateFilter();
@@ -93,7 +92,7 @@ public:
         return true;
     }
 private:
-    QString m_platform;
+    Core::Id m_platform;
 };
 
 class TwoLevelProxyModel : public QAbstractProxyModel
@@ -188,7 +187,6 @@ using namespace Core;
 using namespace Core::Internal;
 
 bool NewDialog::m_isRunning = false;
-QString NewDialog::m_lastCategory = QString();
 
 NewDialog::NewDialog(QWidget *parent) :
     QDialog(parent),
@@ -234,7 +232,9 @@ NewDialog::NewDialog(QWidget *parent) :
     connect(m_ui->buttonBox, &QDialogButtonBox::accepted, this, &NewDialog::accept);
     connect(m_ui->buttonBox, &QDialogButtonBox::rejected, this, &NewDialog::reject);
 
-    connect(m_ui->comboBox, SIGNAL(currentIndexChanged(QString)), this, SLOT(setSelectedPlatform(QString)));
+    connect(m_ui->comboBox,
+            static_cast<void (QComboBox::*)(const QString &)>(&QComboBox::currentIndexChanged),
+            this, &NewDialog::setSelectedPlatform);
 }
 
 // Sort by category. id
@@ -267,14 +267,14 @@ void NewDialog::setWizardFactories(QList<IWizardFactory *> factories,
     parentItem->appendRow(filesKindItem);
 
     if (m_dummyIcon.isNull())
-        m_dummyIcon = QIcon(QLatin1String(Core::Constants::ICON_NEWFILE));
+        m_dummyIcon = Core::Icons::NEWFILE.icon();
 
-    QStringList availablePlatforms = IWizardFactory::allAvailablePlatforms();
-    m_ui->comboBox->addItem(tr("All Templates"), QString());
+    QSet<Id> availablePlatforms = IWizardFactory::allAvailablePlatforms();
+    m_ui->comboBox->addItem(tr("All Templates"), Id().toSetting());
 
-    foreach (const QString &platform, availablePlatforms) {
+    foreach (Id platform, availablePlatforms) {
         const QString displayNameForPlatform = IWizardFactory::displayNameForPlatform(platform);
-        m_ui->comboBox->addItem(tr("%1 Templates").arg(displayNameForPlatform), platform);
+        m_ui->comboBox->addItem(tr("%1 Templates").arg(displayNameForPlatform), platform.toSetting());
     }
 
     m_ui->comboBox->setCurrentIndex(0); // "All templates"
@@ -301,9 +301,18 @@ void NewDialog::showDialog()
 {
     QModelIndex idx;
 
-    if (!m_lastCategory.isEmpty())
+    QString lastPlatform = ICore::settings()->value(QLatin1String(LAST_PLATFORM_KEY)).toString();
+    QString lastCategory = ICore::settings()->value(QLatin1String(LAST_CATEGORY_KEY)).toString();
+
+    if (!lastPlatform.isEmpty()) {
+        int index = m_ui->comboBox->findData(lastPlatform);
+        if (index != -1)
+            m_ui->comboBox->setCurrentIndex(index);
+    }
+
+    if (!lastCategory.isEmpty())
         foreach (QStandardItem* item, m_categoryItems) {
-            if (item->data(Qt::UserRole) == m_lastCategory)
+            if (item->data(Qt::UserRole) == lastCategory)
                 idx = m_twoLevelProxyModel->mapToSource(m_model->indexFromItem(item));
     }
     if (!idx.isValid())
@@ -324,11 +333,10 @@ void NewDialog::showDialog()
     show();
 }
 
-QString NewDialog::selectedPlatform() const
+Id NewDialog::selectedPlatform() const
 {
-    int index = m_ui->comboBox->currentIndex();
-
-    return m_ui->comboBox->itemData(index).toString();
+    const int index = m_ui->comboBox->currentIndex();
+    return Id::fromSetting(m_ui->comboBox->itemData(index));
 }
 
 bool NewDialog::isRunning()
@@ -412,8 +420,9 @@ void NewDialog::currentItemChanged(const QModelIndex &index)
     if (const IWizardFactory *wizard = factoryOfItem(cat)) {
         QString desciption = wizard->description();
         QStringList displayNamesForSupportedPlatforms;
-        foreach (const QString &platform, wizard->supportedPlatforms())
+        foreach (Id platform, wizard->supportedPlatforms())
             displayNamesForSupportedPlatforms << IWizardFactory::displayNameForPlatform(platform);
+        Utils::sort(displayNamesForSupportedPlatforms);
         if (!Qt::mightBeRichText(desciption))
             desciption.replace(QLatin1Char('\n'), QLatin1String("<br>"));
         desciption += QLatin1String("<br><br><b>");
@@ -445,20 +454,30 @@ void NewDialog::saveState()
     QModelIndex idx = m_ui->templateCategoryView->currentIndex();
     QStandardItem *currentItem = m_model->itemFromIndex(m_twoLevelProxyModel->mapToSource(idx));
     if (currentItem)
-        m_lastCategory = currentItem->data(Qt::UserRole).toString();
+        ICore::settings()->setValue(QLatin1String(LAST_CATEGORY_KEY),
+                                    currentItem->data(Qt::UserRole));
+    ICore::settings()->setValue(QLatin1String(LAST_PLATFORM_KEY), m_ui->comboBox->currentData());
+}
+
+static void runWizard(IWizardFactory *wizard, const QString &defaultLocation, Id platform,
+                      const QVariantMap &variables)
+{
+    QString path = wizard->runPath(defaultLocation);
+    wizard->runWizard(path, ICore::dialogParent(), platform, variables);
 }
 
 void NewDialog::accept()
 {
     saveState();
-    QDialog::accept();
-
     if (m_ui->templatesView->currentIndex().isValid()) {
         IWizardFactory *wizard = currentWizardFactory();
-        QTC_ASSERT(wizard, accept(); return);
-        QString path = wizard->runPath(m_defaultLocation);
-        wizard->runWizard(path, ICore::dialogParent(), selectedPlatform(), m_extraVariables);
+        QTC_CHECK(wizard);
+        if (wizard) {
+            QTimer::singleShot(0, std::bind(&runWizard, wizard, m_defaultLocation,
+                                            selectedPlatform(), m_extraVariables));
+        }
     }
+    QDialog::accept();
 }
 
 void NewDialog::reject()

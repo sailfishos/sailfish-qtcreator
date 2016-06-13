@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -35,6 +30,8 @@
 
 #include <algorithm>
 #include <functional>
+#include <tuple>
+
 #include <QStringList>
 
 namespace Utils
@@ -109,6 +106,13 @@ typename T::value_type findOr(const T &container, typename T::value_type other, 
     return *it;
 }
 
+template<typename T, typename R, typename S>
+typename T::value_type findOr(const T &container, typename T::value_type other, R (S::*function)() const)
+{
+    return findOr(container, other, std::mem_fn(function));
+}
+
+
 template<typename T, typename F>
 int indexOf(const T &container, F function)
 {
@@ -127,6 +131,12 @@ typename T::value_type findOrDefault(const T &container, F function)
     return findOr(container, typename T::value_type(), function);
 }
 
+template<typename T, typename R, typename S>
+typename T::value_type findOrDefault(const T &container, R (S::*function)() const)
+{
+    return findOr(container, typename T::value_type(), function);
+}
+
 //////////////////
 // find helpers
 //////////////////
@@ -134,6 +144,8 @@ template<typename R, typename S, typename T>
 auto equal(R (S::*function)() const, T value)
     -> decltype(std::bind<bool>(std::equal_to<T>(), value, std::bind(function, std::placeholders::_1)))
 {
+    // This should use std::equal_to<> instead of std::eqaul_to<T>,
+    // but that's not supported everywhere yet, since it is C++14
     return std::bind<bool>(std::equal_to<T>(), value, std::bind(function, std::placeholders::_1));
 }
 
@@ -150,11 +162,6 @@ auto equal(R S::*member, T value)
 /////////////////
 
 namespace {
-// needed for msvc 2010, that doesn't have a declval
-// can be removed once we stop supporting it
-template<typename T>
-T &&declval();
-
 /////////////////
 // helper code for transform to use back_inserter and thus push_back for everything
 // and insert for QSet<>
@@ -201,12 +208,9 @@ inserter(QSet<X> &container)
     return QSetInsertIterator<QSet<X>>(container);
 }
 
-// helper: removes const, volatile and references from a type
+// decay_t is C++14, so provide it here, remove once we require C++14
 template<typename T>
-struct RemoveCvAndReference
-{
-    typedef typename std::remove_cv<typename std::remove_reference<T>::type>::type type;
-};
+using decay_t = typename std::decay<T>::type;
 
 // abstraction to treat Container<T> and QStringList similarly
 template<typename T>
@@ -225,19 +229,24 @@ struct ContainerType<T_Container<T_Type>> {
     {
         typedef T_Container<NewElementType> type;
     };
+
+    template<class F, template<typename> class C = T_Container>
+    struct ResultOfTransform
+    {
+        typedef C<decay_t<typename std::result_of<F (ElementType)>::type>> type;
+    };
+
+    template<class R>
+    struct ResultOfTransformPMF
+    {
+        typedef typename WithElementType<decay_t<R>>::type type;
+    };
 };
 
 // specialization for QStringList
 template<>
-struct ContainerType<QStringList>
+struct ContainerType<QStringList> : ContainerType<QList<QString>>
 {
-    typedef QString ElementType;
-
-    template<class NewElementType>
-    struct WithElementType
-    {
-        typedef QList<NewElementType> type;
-    };
 };
 
 }
@@ -251,7 +260,6 @@ struct TransformImpl {
     static C call(const SC &container, F function)
     {
         C result;
-        result.reserve(container.size());
         std::transform(container.begin(), container.end(),
                        inserter(result),
                        function);
@@ -273,18 +281,10 @@ template<typename C, // container
          typename F>
 Q_REQUIRED_RESULT
 auto transform(const C &container, F function)
--> typename ContainerType<C>::template WithElementType< // the type C<stripped return type of F>
-        typename RemoveCvAndReference< // the return type of F stripped
-            decltype(declval<F>()(declval<typename ContainerType<C>::ElementType>())) // the return type of F
-        >::type
-    >::type
+-> typename ContainerType<C>::template ResultOfTransform<F>::type
 {
     return TransformImpl<
-                typename ContainerType<C>::template WithElementType< // the type C<stripped return type>
-                    typename RemoveCvAndReference< // the return type stripped
-                        decltype(declval<F>()(declval<typename ContainerType<C>::ElementType>())) // the return type of F
-                    >::type
-                >::type,
+                typename ContainerType<C>::template ResultOfTransform<F>::type,
                 C
             >::call(container, function);
 }
@@ -295,12 +295,10 @@ template<typename C,
         typename S>
 Q_REQUIRED_RESULT
 auto transform(const C &container, R (S::*p)() const)
-    ->typename ContainerType<C>::template WithElementType<typename RemoveCvAndReference<R>::type>::type
+    ->typename ContainerType<C>::template ResultOfTransformPMF<R>::type
 {
     return TransformImpl<
-                typename ContainerType<C>::template WithElementType< // the type C<stripped R>
-                    typename RemoveCvAndReference<R>::type // stripped R
-                >::type,
+                typename ContainerType<C>::template ResultOfTransformPMF<R>::type,
                 C
             >::call(container, p);
 }
@@ -311,16 +309,10 @@ template<template<typename> class C, // result container type
          typename F> // function type
 Q_REQUIRED_RESULT
 auto transform(const SC &container, F function)
-     -> C< // container C<stripped return type of F>
-            typename RemoveCvAndReference< // stripped return type of F
-                decltype(declval<F>()(declval<typename ContainerType<SC>::ElementType>())) // return type of F
-            >::type>
+     -> typename ContainerType<SC>::template ResultOfTransform<F, C>::type
 {
     return TransformImpl<
-                C< // result container type
-                    typename RemoveCvAndReference< // stripped
-                        decltype(declval<F>()(declval<typename ContainerType<SC>::ElementType>())) // return type of F
-                    >::type>,
+                typename ContainerType<SC>::template ResultOfTransform<F, C>::type,
                 SC
             >::call(container, function);
 }
@@ -333,12 +325,93 @@ template<template<typename> class C, // result container type
          typename S>
 Q_REQUIRED_RESULT
 auto transform(const SC &container, R (S::*p)() const)
-     -> C<typename RemoveCvAndReference<R>::type>
+     -> C<decay_t<R>>
 {
     return TransformImpl<
-                C<typename RemoveCvAndReference<R>::type>,
+                C<decay_t<R>>,
                 SC
             >::call(container, p);
+}
+
+//////////////////
+// filtered
+/////////////////
+template<typename C, typename F>
+Q_REQUIRED_RESULT
+C filtered(const C &container, F predicate)
+{
+    C out;
+    std::copy_if(container.begin(), container.end(),
+                 inserter(out), predicate);
+    return out;
+}
+
+template<typename C, typename R, typename S>
+Q_REQUIRED_RESULT
+C filtered(const C &container, R (S::*predicate)() const)
+{
+    C out;
+    std::copy_if(container.begin(), container.end(),
+                 inserter(out), std::mem_fn(predicate));
+    return out;
+}
+
+//////////////////
+// partition
+/////////////////
+
+// Recommended usage:
+// C hit;
+// C miss;
+// std::tie(hit, miss) = Utils::partition(container, predicate);
+
+template<typename C, typename F>
+Q_REQUIRED_RESULT
+std::tuple<C, C> partition(const C &container, F predicate)
+{
+    C hit;
+    C miss;
+    auto hitIns = inserter(hit);
+    auto missIns = inserter(miss);
+    foreach (auto i, container) {
+        if (predicate(i))
+            hitIns = i;
+        else
+            missIns = i;
+    }
+    return std::make_tuple(hit, miss);
+}
+
+template<typename C, typename R, typename S>
+Q_REQUIRED_RESULT
+std::tuple<C, C> partition(const C &container, R (S::*predicate)() const)
+{
+    return partition(container, std::mem_fn(predicate));
+}
+
+//////////////////
+// filteredUnique
+/////////////////
+
+template<typename C>
+Q_REQUIRED_RESULT
+C filteredUnique(const C &container)
+{
+    C result;
+    auto ins = inserter(result);
+
+    QSet<typename C::value_type> seen;
+    int setSize = 0;
+
+    auto endIt = container.end();
+    for (auto it = container.begin(); it != endIt; ++it) {
+        seen.insert(*it);
+        if (setSize == seen.size()) // unchanged size => was already seen
+            continue;
+        ++setSize;
+        ins = *it;
+    }
+    return result;
 }
 
 //////////////////

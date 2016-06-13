@@ -1,32 +1,27 @@
-#############################################################################
-##
-## Copyright (C) 2015 The Qt Company Ltd.
-## Contact: http://www.qt.io/licensing
-##
-## This file is part of Qt Creator.
-##
-## Commercial License Usage
-## Licensees holding valid commercial Qt licenses may use this file in
-## accordance with the commercial license agreement provided with the
-## Software or, alternatively, in accordance with the terms contained in
-## a written agreement between you and The Qt Company.  For licensing terms and
-## conditions see http://www.qt.io/terms-conditions.  For further information
-## use the contact form at http://www.qt.io/contact-us.
-##
-## GNU Lesser General Public License Usage
-## Alternatively, this file may be used under the terms of the GNU Lesser
-## General Public License version 2.1 or version 3 as published by the Free
-## Software Foundation and appearing in the file LICENSE.LGPLv21 and
-## LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-## following information to ensure the GNU Lesser General Public License
-## requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-## http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-##
-## In addition, as a special exception, The Qt Company gives you certain additional
-## rights.  These rights are described in The Qt Company LGPL Exception
-## version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
-##
-#############################################################################
+############################################################################
+#
+# Copyright (C) 2016 The Qt Company Ltd.
+# Contact: https://www.qt.io/licensing/
+#
+# This file is part of Qt Creator.
+#
+# Commercial License Usage
+# Licensees holding valid commercial Qt licenses may use this file in
+# accordance with the commercial license agreement provided with the
+# Software or, alternatively, in accordance with the terms contained in
+# a written agreement between you and The Qt Company. For licensing terms
+# and conditions see https://www.qt.io/terms-conditions. For further
+# information use the contact form at https://www.qt.io/contact-us.
+#
+# GNU General Public License Usage
+# Alternatively, this file may be used under the terms of the GNU
+# General Public License version 3 as published by the Free Software
+# Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+# included in the packaging of this file. Please review the following
+# information to ensure the GNU General Public License requirements will
+# be met: https://www.gnu.org/licenses/gpl-3.0.html.
+#
+############################################################################
 
 source("../../shared/qtcreator.py")
 
@@ -38,25 +33,45 @@ def performEditMenu():
     passiveLineEdit = waitForObject(":FormEditorStack.__qt__passive_editor_QLineEdit")
     replaceEditorContent(passiveLineEdit, "SquishTestFile")
     type(passiveLineEdit, "<Return>")
-    menu = waitForObject("{name='menuSquishTestFile' title='SquishTestFile' type='QDesignerMenu' "
-                         "visible='1' window=':Qt Creator_Core::Internal::MainWindow'}")
+    # this "special" QDesignerMenu will be hidden and unusable on OSX
+    menuStr = ("{name='menuSquishTestFile' title='SquishTestFile' type='QDesignerMenu' "
+               "window=':Qt Creator_Core::Internal::MainWindow'}")
+    try:
+        menu = waitForObject(menuStr, 5000)
+    except:
+        if platform.system() == 'Darwin':
+            # we need some information of the menu, so find at least the 'hidden' one
+            menu = findObject(menuStr)
+        else:
+            raise
     menuHeight = menu.height
     itemHeight = menuHeight / 2 # actually only 'Type Here' and 'Add Separator' are shown
     itemHalf = itemHeight / 2
     # add Open menu item
-    doubleClick(menu, 15, itemHalf, 0, Qt.LeftButton)
+    if platform.system() == 'Darwin':
+        # double clicking is not possible on hidden objects
+        nativeType("<Return>")
+    else:
+        doubleClick(menu, 15, itemHalf, 0, Qt.LeftButton)
     passiveLineEdit = waitForObject(":FormEditorStack.__qt__passive_editor_QLineEdit")
     replaceEditorContent(passiveLineEdit, "Open")
     type(passiveLineEdit, "<Return>")
     waitFor("menu.height > menuHeight", 2000)
     menuHeight = menu.height
     # add a separator
-    doubleClick(menu, 15, menu.height - itemHalf, 0, Qt.LeftButton)
+    if platform.system() == 'Darwin':
+        nativeType("<Down>")
+        nativeType("<Return>")
+    else:
+        doubleClick(menu, 15, menu.height - itemHalf, 0, Qt.LeftButton)
     waitFor("menu.height > menuHeight", 2000)
     separatorHeight = menu.height - menuHeight
     menuHeight = menu.height
     # add Shutdown menu item (Quit/Exit do not work because Squish/Qt5 problems with menus)
-    doubleClick(menu, 30, itemHeight + separatorHeight + itemHalf, 0, Qt.LeftButton)
+    if platform.system() == 'Darwin':
+        nativeType("<Return>")
+    else:
+        doubleClick(menu, 30, itemHeight + separatorHeight + itemHalf, 0, Qt.LeftButton)
     passiveLineEdit = waitForObject(":FormEditorStack.__qt__passive_editor_QLineEdit")
     replaceEditorContent(passiveLineEdit, "Shutdown")
     type(passiveLineEdit, "<Return>")

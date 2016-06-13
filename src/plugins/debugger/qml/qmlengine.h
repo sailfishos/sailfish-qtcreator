@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -34,26 +29,23 @@
 #include <debugger/debuggerengine.h>
 
 #include <qmldebug/qdebugmessageclient.h>
-#include <qmldebug/qmldebugclient.h>
 #include <qmldebug/qmloutputparser.h>
-#include <qmljs/iscriptevaluator.h>
 #include <qmljs/qmljsdocument.h>
 
 namespace Debugger {
 namespace Internal {
 
-class WatchData;
 class WatchItem;
 class QmlEnginePrivate;
-class QmlAdapter;
+class QmlInspectorAgent;
 
-class QmlEngine : public DebuggerEngine, QmlJS::IScriptEvaluator
+class QmlEngine : public DebuggerEngine
 {
     Q_OBJECT
 
 public:
     explicit QmlEngine(const DebuggerRunParameters &runParameters,
-                       DebuggerEngine *masterEngine = 0);
+                       DebuggerEngine *masterEngine = nullptr);
     ~QmlEngine();
 
     void filterApplicationMessage(const QString &msg, int channel) const;
@@ -62,11 +54,10 @@ public:
                                QmlDebug::QmlDebugClient::State newState);
     void logServiceActivity(const QString &service, const QString &logMessage);
 
-private slots:
-    void disconnected();
-    void documentUpdated(QmlJS::Document::Ptr doc);
     void expressionEvaluated(quint32 queryId, const QVariant &result);
 
+private slots:
+    void disconnected();
     void errorMessageBoxFinished(int result);
     void updateCurrentContext();
 
@@ -78,81 +69,84 @@ private slots:
     void appendMessage(const QString &msg, Utils::OutputFormat);
 
 private:
-    void notifyEngineRemoteServerRunning(const QByteArray &, int pid);
-    void notifyEngineRemoteSetupFinished(const RemoteSetupResult &result);
+    void notifyEngineRemoteServerRunning(const QByteArray &, int pid) override;
+    void notifyEngineRemoteSetupFinished(const RemoteSetupResult &result) override;
 
     void showMessage(const QString &msg, int channel = LogDebug,
-                     int timeout = -1) const;
-    void gotoLocation(const Internal::Location &location);
-    void insertBreakpoint(Breakpoint bp);
+                     int timeout = -1) const override;
+    void gotoLocation(const Internal::Location &location) override;
+    void insertBreakpoint(Breakpoint bp) override;
 
-    bool isSynchronous() const { return false; }
-    bool canDisplayTooltip() const { return false; }
+    bool isSynchronous() const override { return false; }
+    bool canDisplayTooltip() const override { return false; }
 
-    void executeStep();
-    void executeStepOut();
-    void executeNext();
-    void executeStepI();
-    void executeNextI();
+    void resetLocation() override;
 
-    void setupEngine();
-    void setupInferior();
-    void runEngine();
-    void shutdownInferior();
-    void shutdownEngine();
+    void executeStep() override;
+    void executeStepOut() override;
+    void executeNext() override;
+    void executeStepI() override;
+    void executeNextI() override;
 
-    bool canHandleToolTip(const DebuggerToolTipContext &) const;
+    void setupEngine() override;
+    void setupInferior() override;
+    void runEngine() override;
+    void shutdownInferior() override;
+    void shutdownEngine() override;
 
-    void continueInferior();
-    void interruptInferior();
+    bool canHandleToolTip(const DebuggerToolTipContext &) const override;
 
-    void executeRunToLine(const ContextData &data);
-    void executeRunToFunction(const QString &functionName);
-    void executeJumpToLine(const ContextData &data);
+    void continueInferior() override;
+    void interruptInferior() override;
 
-    void activateFrame(int index);
-    void selectThread(ThreadId threadId);
+    void executeRunToLine(const ContextData &data) override;
+    void executeRunToFunction(const QString &functionName) override;
+    void executeJumpToLine(const ContextData &data) override;
 
-    void attemptBreakpointSynchronization();
-    void removeBreakpoint(Breakpoint bp);
-    void changeBreakpoint(Breakpoint bp);
-    bool acceptsBreakpoint(Breakpoint bp) const;
+    void activateFrame(int index) override;
+    void selectThread(ThreadId threadId) override;
+
+    void attemptBreakpointSynchronization() override;
+    void removeBreakpoint(Breakpoint bp) override;
+    void changeBreakpoint(Breakpoint bp) override;
+    bool acceptsBreakpoint(Breakpoint bp) const override;
 
     void assignValueInDebugger(WatchItem *item,
-        const QString &expr, const QVariant &value);
+        const QString &expr, const QVariant &value) override;
 
-    void loadSymbols(const QString &moduleName);
-    void loadAllSymbols();
-    void requestModuleSymbols(const QString &moduleName);
-    void reloadModules();
-    void reloadRegisters() {}
-    void reloadSourceFiles();
-    void reloadFullStack() {}
+    void loadSymbols(const QString &moduleName) override;
+    void loadAllSymbols() override;
+    void requestModuleSymbols(const QString &moduleName) override;
+    void reloadModules() override;
+    void reloadRegisters() override {}
+    void reloadSourceFiles() override;
+    void reloadFullStack() override {}
 
-    void updateAll();
-    void updateItem(const QByteArray &iname);
-    void expandItem(const QByteArray &iname);
-    void selectWatchData(const QByteArray &iname);
-    void executeDebuggerCommand(const QString &command, DebuggerLanguages languages);
-    bool evaluateScript(const QString &expression);
+    void updateAll() override;
+    void updateItem(const QByteArray &iname) override;
+    void expandItem(const QByteArray &iname) override;
+    void selectWatchData(const QByteArray &iname) override;
+    void executeDebuggerCommand(const QString &command, DebuggerLanguages languages) override;
 
-    bool hasCapability(unsigned) const;
-    void quitDebugger();
+    bool hasCapability(unsigned) const override;
+    void quitDebugger() override;
 
     void closeConnection();
     void startApplicationLauncher();
     void stopApplicationLauncher();
 
-    void connectionErrorOccurred(QDebugSupport::Error socketError);
+    void connectionErrorOccurred(QAbstractSocket::SocketError socketError);
+    void connectionStateChanged(QAbstractSocket::SocketState socketState);
+
     void clientStateChanged(QmlDebug::QmlDebugClient::State state);
     void checkConnectionState();
     void showConnectionStateMessage(const QString &message);
-    void showConnectionErrorMessage(const QString &message);
     bool isConnected() const;
 
 private:
     friend class QmlCppEngine;
     friend class QmlEnginePrivate;
+    friend class QmlInspectorAgent;
     QmlEnginePrivate *d;
 };
 

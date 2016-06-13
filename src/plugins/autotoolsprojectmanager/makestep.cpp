@@ -1,9 +1,9 @@
-/**************************************************************************
+/****************************************************************************
 **
-** Copyright (C) 2015 Openismus GmbH.
-** Authors: Peter Penz (ppenz@openismus.com)
-**          Patricia Santana Cruz (patriciasantanacruz@gmail.com)
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 Openismus GmbH.
+** Author: Peter Penz (ppenz@openismus.com)
+** Author: Patricia Santana Cruz (patriciasantanacruz@gmail.com)
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -11,22 +11,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -64,8 +59,7 @@ const char MAKE_STEP_ADDITIONAL_ARGUMENTS_KEY[] = "AutotoolsProjectManager.MakeS
 //////////////////////////
 // MakeStepFactory class
 //////////////////////////
-MakeStepFactory::MakeStepFactory(QObject *parent) :
-    IBuildStepFactory(parent)
+MakeStepFactory::MakeStepFactory(QObject *parent) : IBuildStepFactory(parent)
 { setObjectName(QLatin1String("Autotools::MakeStepFactory")); }
 
 QList<Core::Id> MakeStepFactory::availableCreationIds(BuildStepList *parent) const
@@ -127,22 +121,17 @@ BuildStep *MakeStepFactory::restore(BuildStepList *parent, const QVariantMap &ma
 /////////////////////
 // MakeStep class
 /////////////////////
-MakeStep::MakeStep(BuildStepList* bsl) :
-    AbstractProcessStep(bsl, Core::Id(MAKE_STEP_ID)),
-    m_clean(false)
+MakeStep::MakeStep(BuildStepList* bsl) : AbstractProcessStep(bsl, Core::Id(MAKE_STEP_ID))
 {
     ctor();
 }
 
-MakeStep::MakeStep(BuildStepList *bsl, Core::Id id) :
-    AbstractProcessStep(bsl, id),
-    m_clean(false)
+MakeStep::MakeStep(BuildStepList *bsl, Core::Id id) : AbstractProcessStep(bsl, id)
 {
     ctor();
 }
 
-MakeStep::MakeStep(BuildStepList *bsl, MakeStep *bs) :
-    AbstractProcessStep(bsl, bs),
+MakeStep::MakeStep(BuildStepList *bsl, MakeStep *bs) : AbstractProcessStep(bsl, bs),
     m_buildTargets(bs->m_buildTargets),
     m_additionalArguments(bs->additionalArguments()),
     m_clean(bs->m_clean)
@@ -160,7 +149,7 @@ void MakeStep::setClean(bool clean)
     m_clean = clean;
 }
 
-bool MakeStep::init()
+bool MakeStep::init(QList<const BuildStep *> &earlierSteps)
 {
     BuildConfiguration *bc = buildConfiguration();
     if (!bc)
@@ -200,7 +189,7 @@ bool MakeStep::init()
         appendOutputParser(parser);
     outputParser()->setWorkingDirectory(pp->effectiveWorkingDirectory());
 
-    return AbstractProcessStep::init();
+    return AbstractProcessStep::init(earlierSteps);
 }
 
 void MakeStep::run(QFutureInterface<bool> &interface)
@@ -282,11 +271,12 @@ MakeStepConfigWidget::MakeStepConfigWidget(MakeStep *makeStep) :
 
     updateDetails();
 
-    connect(m_additionalArguments, SIGNAL(textChanged(QString)),
-            makeStep, SLOT(setAdditionalArguments(QString)));
-    connect(makeStep, SIGNAL(additionalArgumentsChanged(QString)),
-            this, SLOT(updateDetails()));
-    connect(m_makeStep->project(), SIGNAL(environmentChanged()), this, SLOT(updateDetails()));
+    connect(m_additionalArguments, &QLineEdit::textChanged,
+            makeStep, &MakeStep::setAdditionalArguments);
+    connect(makeStep, &MakeStep::additionalArgumentsChanged,
+            this, &MakeStepConfigWidget::updateDetails);
+    connect(m_makeStep->project(), &Project::environmentChanged,
+            this, &MakeStepConfigWidget::updateDetails);
 }
 
 QString MakeStepConfigWidget::displayName() const

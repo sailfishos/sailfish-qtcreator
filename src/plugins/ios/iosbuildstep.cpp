@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -44,11 +39,6 @@
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/toolchain.h>
 #include <projectexplorer/gcctoolchain.h>
-#include <qmakeprojectmanager/qmakebuildconfiguration.h>
-#include <qmakeprojectmanager/qmakeprojectmanagerconstants.h>
-#include <qmakeprojectmanager/qmakeprojectmanager.h>
-#include <qmakeprojectmanager/qmakeproject.h>
-#include <qmakeprojectmanager/qmakenodes.h>
 #include <qtsupport/qtkitinformation.h>
 #include <qtsupport/qtparser.h>
 #include <utils/stringutils.h>
@@ -57,7 +47,6 @@
 
 using namespace Core;
 using namespace ProjectExplorer;
-using namespace QmakeProjectManager;
 
 namespace Ios {
 namespace Internal {
@@ -101,11 +90,7 @@ void IosBuildStep::ctor()
                                                       IOS_BUILD_STEP_DISPLAY_NAME));
 }
 
-IosBuildStep::~IosBuildStep()
-{
-}
-
-bool IosBuildStep::init()
+bool IosBuildStep::init(QList<const BuildStep *> &earlierSteps)
 {
     BuildConfiguration *bc = buildConfiguration();
     if (!bc)
@@ -145,7 +130,7 @@ bool IosBuildStep::init()
         appendOutputParser(parser);
     outputParser()->setWorkingDirectory(pp->effectiveWorkingDirectory());
 
-    return AbstractProcessStep::init();
+    return AbstractProcessStep::init(earlierSteps);
 }
 
 void IosBuildStep::setClean(bool clean)
@@ -193,6 +178,7 @@ QStringList IosBuildStep::defaultArguments() const
         res << QLatin1String("-configuration") << QLatin1String("Debug");
         break;
     case BuildConfiguration::Release :
+    case BuildConfiguration::Profile :
         res << QLatin1String("-configuration") << QLatin1String("Release");
         break;
     case BuildConfiguration::Unknown :
@@ -201,7 +187,8 @@ QStringList IosBuildStep::defaultArguments() const
         qCWarning(iosLog) << "IosBuildStep had an unknown buildType "
                           << target()->activeBuildConfiguration()->buildType();
     }
-    if (tc->type() == QLatin1String("gcc") || tc->type() == QLatin1String("clang")) {
+    if (tc->typeId() == ProjectExplorer::Constants::GCC_TOOLCHAIN_TYPEID
+            || tc->typeId() == ProjectExplorer::Constants::CLANG_TOOLCHAIN_TYPEID) {
         GccToolChain *gtc = static_cast<GccToolChain *>(tc);
         res << gtc->platformCodeGenFlags();
     }

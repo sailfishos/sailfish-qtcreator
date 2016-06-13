@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -37,8 +32,6 @@
 
 #include <typeinfo>
 
-using namespace QmlJS;
-using namespace QmlJS::AST;
 using namespace QmlDesigner::Internal;
 
 QMLRewriter::QMLRewriter(QmlDesigner::TextModifier &textModifier):
@@ -47,11 +40,11 @@ QMLRewriter::QMLRewriter(QmlDesigner::TextModifier &textModifier):
 {
 }
 
-bool QMLRewriter::operator()(UiProgram *ast)
+bool QMLRewriter::operator()(QmlJS::AST::UiProgram *ast)
 {
     setDidRewriting(false);
 
-    Node::accept(ast, this);
+    QmlJS::AST::Node::accept(ast, this);
 
     return didRewriting();
 }
@@ -71,12 +64,12 @@ QString QMLRewriter::textBetween(int startPosition, int endPosition) const
     return m_textModifier->text().mid(startPosition, endPosition - startPosition);
 }
 
-QString QMLRewriter::textAt(const SourceLocation &location) const
+QString QMLRewriter::textAt(const QmlJS::AST::SourceLocation &location) const
 {
     return m_textModifier->text().mid(location.offset, location.length);
 }
 
-unsigned QMLRewriter::calculateIndentDepth(const SourceLocation &position) const
+unsigned QMLRewriter::calculateIndentDepth(const QmlJS::AST::SourceLocation &position) const
 {
     QTextDocument *doc = m_textModifier->textDocument();
     QTextCursor tc(doc);
@@ -154,41 +147,41 @@ QString QMLRewriter::removeIndentation(const QString &text, unsigned depth)
     return result;
 }
 
-SourceLocation QMLRewriter::calculateLocation(UiQualifiedId *id)
+QmlJS::AST::SourceLocation QMLRewriter::calculateLocation(QmlJS::AST::UiQualifiedId *id)
 {
     Q_ASSERT(id != 0);
 
-    const SourceLocation startLocation = id->identifierToken;
+    const QmlJS::AST::SourceLocation startLocation = id->identifierToken;
 
-    UiQualifiedId *nextId = id;
+    QmlJS::AST::UiQualifiedId *nextId = id;
     while (nextId->next) {
         nextId = nextId->next;
     }
 
-    const SourceLocation endLocation = nextId->identifierToken;
+    const QmlJS::AST::SourceLocation endLocation = nextId->identifierToken;
 
-    return SourceLocation(startLocation.offset, endLocation.end() - startLocation.offset);
+    return QmlJS::AST::SourceLocation(startLocation.offset, endLocation.end() - startLocation.offset);
 }
 
-bool QMLRewriter::isMissingSemicolon(UiObjectMember *member)
+bool QMLRewriter::isMissingSemicolon(QmlJS::AST::UiObjectMember *member)
 {
-    UiScriptBinding *binding = AST::cast<UiScriptBinding *>(member);
+    QmlJS::AST::UiScriptBinding *binding = QmlJS::AST::cast<QmlJS::AST::UiScriptBinding *>(member);
     if (binding)
         return isMissingSemicolon(binding->statement);
     else
         return false;
 }
 
-bool QMLRewriter::isMissingSemicolon(Statement *stmt)
+bool QMLRewriter::isMissingSemicolon(QmlJS::AST::Statement *stmt)
 {
-    if (ExpressionStatement *eStmt = AST::cast<ExpressionStatement *>(stmt)) {
+    if (QmlJS::AST::ExpressionStatement *eStmt = QmlJS::AST::cast<QmlJS::AST::ExpressionStatement *>(stmt)) {
         return !eStmt->semicolonToken.isValid();
-    } else if (IfStatement *iStmt = AST::cast<IfStatement *>(stmt)) {
+    } else if (QmlJS::AST::IfStatement *iStmt = QmlJS::AST::cast<QmlJS::AST::IfStatement *>(stmt)) {
         if (iStmt->elseToken.isValid())
             return isMissingSemicolon(iStmt->ko);
         else
             return isMissingSemicolon(iStmt->ok);
-    } else if (DebuggerStatement *dStmt = AST::cast<DebuggerStatement *>(stmt)) {
+    } else if (QmlJS::AST::DebuggerStatement *dStmt = QmlJS::AST::cast<QmlJS::AST::DebuggerStatement *>(stmt)) {
         return !dStmt->semicolonToken.isValid();
     } else {
         return false;
@@ -262,26 +255,26 @@ void QMLRewriter::includeLeadingEmptyLine(int &start) const
 }
 
 // FIXME: duplicate code in the QmlJS::Rewriter class, remove this
-UiObjectMemberList *QMLRewriter::searchMemberToInsertAfter(UiObjectMemberList *members, const QmlDesigner::PropertyNameList &propertyOrder)
+QmlJS::AST::UiObjectMemberList *QMLRewriter::searchMemberToInsertAfter(QmlJS::AST::UiObjectMemberList *members, const QmlDesigner::PropertyNameList &propertyOrder)
 {
     const int objectDefinitionInsertionPoint = propertyOrder.indexOf(PropertyName()); // XXX ????
 
-    UiObjectMemberList *lastObjectDef = 0;
-    UiObjectMemberList *lastNonObjectDef = 0;
+    QmlJS::AST::UiObjectMemberList *lastObjectDef = 0;
+    QmlJS::AST::UiObjectMemberList *lastNonObjectDef = 0;
 
-    for (UiObjectMemberList *iter = members; iter; iter = iter->next) {
-        UiObjectMember *member = iter->member;
+    for (QmlJS::AST::UiObjectMemberList *iter = members; iter; iter = iter->next) {
+        QmlJS::AST::UiObjectMember *member = iter->member;
         int idx = -1;
 
-        if (cast<UiObjectDefinition*>(member))
+        if (QmlJS::AST::cast<QmlJS::AST::UiObjectDefinition*>(member))
             lastObjectDef = iter;
-        else if (UiArrayBinding *arrayBinding = cast<UiArrayBinding*>(member))
+        else if (QmlJS::AST::UiArrayBinding *arrayBinding = QmlJS::AST::cast<QmlJS::AST::UiArrayBinding*>(member))
             idx = propertyOrder.indexOf(toString(arrayBinding->qualifiedId).toUtf8());
-        else if (UiObjectBinding *objectBinding = cast<UiObjectBinding*>(member))
+        else if (QmlJS::AST::UiObjectBinding *objectBinding = QmlJS::AST::cast<QmlJS::AST::UiObjectBinding*>(member))
             idx = propertyOrder.indexOf(toString(objectBinding->qualifiedId).toUtf8());
-        else if (UiScriptBinding *scriptBinding = cast<UiScriptBinding*>(member))
+        else if (QmlJS::AST::UiScriptBinding *scriptBinding = QmlJS::AST::cast<QmlJS::AST::UiScriptBinding*>(member))
             idx = propertyOrder.indexOf(toString(scriptBinding->qualifiedId).toUtf8());
-        else if (cast<UiPublicMember*>(member))
+        else if (QmlJS::AST::cast<QmlJS::AST::UiPublicMember*>(member))
             idx = propertyOrder.indexOf("property");
 
         if (idx < objectDefinitionInsertionPoint)
@@ -295,25 +288,27 @@ UiObjectMemberList *QMLRewriter::searchMemberToInsertAfter(UiObjectMemberList *m
 }
 
 // FIXME: duplicate code in the QmlJS::Rewriter class, remove this
-UiObjectMemberList *QMLRewriter::searchMemberToInsertAfter(UiObjectMemberList *members, const QmlDesigner::PropertyName &propertyName, const QmlDesigner::PropertyNameList &propertyOrder)
+QmlJS::AST::UiObjectMemberList *QMLRewriter::searchMemberToInsertAfter(QmlJS::AST::UiObjectMemberList *members,
+                                                           const QmlDesigner::PropertyName &propertyName,
+                                                           const QmlDesigner::PropertyNameList &propertyOrder)
 {
     if (!members)
         return 0; // empty members
 
-    QHash<QString, UiObjectMemberList *> orderedMembers;
+    QHash<QString, QmlJS::AST::UiObjectMemberList *> orderedMembers;
 
-    for (UiObjectMemberList *iter = members; iter; iter = iter->next) {
-        UiObjectMember *member = iter->member;
+    for (QmlJS::AST::UiObjectMemberList *iter = members; iter; iter = iter->next) {
+        QmlJS::AST::UiObjectMember *member = iter->member;
 
-        if (UiArrayBinding *arrayBinding = cast<UiArrayBinding*>(member))
+        if (QmlJS::AST::UiArrayBinding *arrayBinding = QmlJS::AST::cast<QmlJS::AST::UiArrayBinding*>(member))
             orderedMembers[toString(arrayBinding->qualifiedId)] = iter;
-        else if (UiObjectBinding *objectBinding = cast<UiObjectBinding*>(member))
+        else if (QmlJS::AST::UiObjectBinding *objectBinding = QmlJS::AST::cast<QmlJS::AST::UiObjectBinding*>(member))
             orderedMembers[toString(objectBinding->qualifiedId)] = iter;
-        else if (cast<UiObjectDefinition*>(member))
+        else if (QmlJS::AST::cast<QmlJS::AST::UiObjectDefinition*>(member))
             orderedMembers[QString::null] = iter;
-        else if (UiScriptBinding *scriptBinding = cast<UiScriptBinding*>(member))
+        else if (QmlJS::AST::UiScriptBinding *scriptBinding = QmlJS::AST::cast<QmlJS::AST::UiScriptBinding*>(member))
             orderedMembers[toString(scriptBinding->qualifiedId)] = iter;
-        else if (cast<UiPublicMember*>(member))
+        else if (QmlJS::AST::cast<QmlJS::AST::UiPublicMember*>(member))
             orderedMembers[QStringLiteral("property")] = iter;
     }
 
@@ -325,7 +320,7 @@ UiObjectMemberList *QMLRewriter::searchMemberToInsertAfter(UiObjectMemberList *m
 
     for (; idx > 0; --idx) {
         const QString prop = propertyOrder.at(idx - 1);
-        UiObjectMemberList *candidate = orderedMembers.value(prop, 0);
+        QmlJS::AST::UiObjectMemberList *candidate = orderedMembers.value(prop, 0);
         if (candidate != 0)
             return candidate;
     }
@@ -337,6 +332,7 @@ void QMLRewriter::dump(const ASTPath &path)
 {
     qDebug() << "AST path with" << path.size() << "node(s):";
     for (int i = 0; i < path.size(); ++i) {
-        qDebug() << qPrintable(QString(i + 1, QLatin1Char('-'))) << typeid(*path.at(i)).name();
+        auto node = path.at(i);
+        qDebug().noquote() << QString(i + 1, QLatin1Char('-')) << typeid(*node).name();
     }
 }

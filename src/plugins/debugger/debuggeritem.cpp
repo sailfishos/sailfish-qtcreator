@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -41,6 +36,7 @@
 #include <utils/macroexpander.h>
 #include <utils/qtcassert.h>
 
+#include <QFileInfo>
 #include <QProcess>
 #include <QUuid>
 
@@ -61,6 +57,7 @@ const char DEBUGGER_INFORMATION_AUTODETECTED[] = "AutoDetected";
 const char DEBUGGER_INFORMATION_AUTODETECTION_SOURCE[] = "AutoDetectionSource";
 const char DEBUGGER_INFORMATION_VERSION[] = "Version";
 const char DEBUGGER_INFORMATION_ABIS[] = "Abis";
+const char DEBUGGER_INFORMATION_LASTMODIFIED[] = "LastModified";
 
 namespace Debugger {
 
@@ -91,6 +88,7 @@ DebuggerItem::DebuggerItem(const QVariantMap &data)
     m_version = data.value(QLatin1String(DEBUGGER_INFORMATION_VERSION)).toString();
     m_engineType = DebuggerEngineType(data.value(QLatin1String(DEBUGGER_INFORMATION_ENGINETYPE),
                                                  static_cast<int>(NoEngineType)).toInt());
+    m_lastModified = data.value(QLatin1String(DEBUGGER_INFORMATION_LASTMODIFIED)).toDateTime();
 
     foreach (const QString &a, data.value(QLatin1String(DEBUGGER_INFORMATION_ABIS)).toStringList()) {
         Abi abi(a);
@@ -110,10 +108,17 @@ void DebuggerItem::createId()
 
 void DebuggerItem::reinitializeFromFile()
 {
-    QProcess proc;
     // CDB only understands the single-dash -version, whereas GDB and LLDB are
-    // happy with both -version and --version. So use the "working" -version.
-    proc.start(m_command.toString(), QStringList() << QLatin1String("-version"));
+    // happy with both -version and --version. So use the "working" -version
+    // except for the experimental LLDB-MI which insists on --version.
+    const char *version = "-version";
+    const QFileInfo fileInfo = m_command.toFileInfo();
+    m_lastModified = fileInfo.lastModified();
+    if (fileInfo.baseName().toLower().contains(QLatin1String("lldb-mi")))
+        version = "--version";
+
+    QProcess proc;
+    proc.start(m_command.toString(), QStringList({ QLatin1String(version) }));
     if (!proc.waitForStarted() || !proc.waitForFinished()) {
         m_engineType = NoEngineType;
         return;
@@ -202,6 +207,23 @@ QStringList DebuggerItem::abiNames() const
     return list;
 }
 
+QDateTime DebuggerItem::lastModified() const
+{
+    return m_lastModified;
+}
+
+bool DebuggerItem::isGood() const
+{
+    return m_engineType != NoEngineType;
+}
+
+QString DebuggerItem::validityMessage() const
+{
+    if (m_engineType == NoEngineType)
+        return DebuggerOptionsPage::tr("Could not determine debugger type");
+    return QString();
+}
+
 bool DebuggerItem::operator==(const DebuggerItem &other) const
 {
     return m_id == other.m_id
@@ -221,6 +243,7 @@ QVariantMap DebuggerItem::toMap() const
     data.insert(QLatin1String(DEBUGGER_INFORMATION_AUTODETECTION_SOURCE), m_autoDetectionSource);
     data.insert(QLatin1String(DEBUGGER_INFORMATION_VERSION), m_version);
     data.insert(QLatin1String(DEBUGGER_INFORMATION_ABIS), abiNames());
+    data.insert(QLatin1String(DEBUGGER_INFORMATION_LASTMODIFIED), m_lastModified);
     return data;
 }
 
@@ -339,115 +362,5 @@ bool DebuggerItem::isValid() const
 {
     return !m_id.isNull();
 }
-
-#ifdef WITH_TESTS
-
-namespace Internal {
-
-void DebuggerPlugin::testDebuggerMatching_data()
-{
-    QTest::addColumn<QStringList>("debugger");
-    QTest::addColumn<QString>("target");
-    QTest::addColumn<int>("result");
-
-    QTest::newRow("Invalid data")
-            << QStringList()
-            << QString()
-            << int(DebuggerItem::DoesNotMatch);
-    QTest::newRow("Invalid debugger")
-            << QStringList()
-            << QString::fromLatin1("x86-linux-generic-elf-32bit")
-            << int(DebuggerItem::DoesNotMatch);
-    QTest::newRow("Invalid target")
-            << (QStringList() << QLatin1String("x86-linux-generic-elf-32bit"))
-            << QString()
-            << int(DebuggerItem::DoesNotMatch);
-
-    QTest::newRow("Fuzzy match 1")
-            << (QStringList() << QLatin1String("unknown-unknown-unknown-unknown-0bit"))
-            << QString::fromLatin1("x86-linux-generic-elf-32bit")
-            << int(DebuggerItem::MatchesWell); // Is this the expected behavior?
-    QTest::newRow("Fuzzy match 2")
-            << (QStringList() << QLatin1String("unknown-unknown-unknown-unknown-0bit"))
-            << QString::fromLatin1("arm-windows-msys-pe-64bit")
-            << int(DebuggerItem::MatchesWell); // Is this the expected behavior?
-
-    QTest::newRow("Architecture mismatch")
-            << (QStringList() << QLatin1String("x86-linux-generic-elf-32bit"))
-            << QString::fromLatin1("arm-linux-generic-elf-32bit")
-            << int(DebuggerItem::DoesNotMatch);
-    QTest::newRow("OS mismatch")
-            << (QStringList() << QLatin1String("x86-linux-generic-elf-32bit"))
-            << QString::fromLatin1("x86-macosx-generic-elf-32bit")
-            << int(DebuggerItem::DoesNotMatch);
-    QTest::newRow("Format mismatch")
-            << (QStringList() << QLatin1String("x86-linux-generic-elf-32bit"))
-            << QString::fromLatin1("x86-linux-generic-pe-32bit")
-            << int(DebuggerItem::DoesNotMatch);
-
-    QTest::newRow("Linux perfect match")
-            << (QStringList() << QLatin1String("x86-linux-generic-elf-32bit"))
-            << QString::fromLatin1("x86-linux-generic-elf-32bit")
-            << int(DebuggerItem::MatchesWell);
-    QTest::newRow("Linux match")
-            << (QStringList() << QLatin1String("x86-linux-generic-elf-64bit"))
-            << QString::fromLatin1("x86-linux-generic-elf-32bit")
-            << int(DebuggerItem::MatchesSomewhat);
-
-    QTest::newRow("Windows perfect match 1")
-            << (QStringList() << QLatin1String("x86-windows-msvc2013-pe-64bit"))
-            << QString::fromLatin1("x86-windows-msvc2013-pe-64bit")
-            << int(DebuggerItem::MatchesWell);
-    QTest::newRow("Windows perfect match 2")
-            << (QStringList() << QLatin1String("x86-windows-msvc2013-pe-64bit"))
-            << QString::fromLatin1("x86-windows-msvc2012-pe-64bit")
-            << int(DebuggerItem::MatchesWell);
-    QTest::newRow("Windows match 1")
-            << (QStringList() << QLatin1String("x86-windows-msvc2013-pe-64bit"))
-            << QString::fromLatin1("x86-windows-msvc2013-pe-32bit")
-            << int(DebuggerItem::MatchesSomewhat);
-    QTest::newRow("Windows match 2")
-            << (QStringList() << QLatin1String("x86-windows-msvc2013-pe-64bit"))
-            << QString::fromLatin1("x86-windows-msvc2012-pe-32bit")
-            << int(DebuggerItem::MatchesSomewhat);
-    QTest::newRow("Windows mismatch on word size")
-            << (QStringList() << QLatin1String("x86-windows-msvc2013-pe-32bit"))
-            << QString::fromLatin1("x86-windows-msvc2013-pe-64bit")
-            << int(DebuggerItem::DoesNotMatch);
-    QTest::newRow("Windows mismatch on osflavor 1")
-            << (QStringList() << QLatin1String("x86-windows-msvc2013-pe-32bit"))
-            << QString::fromLatin1("x86-windows-msys-pe-64bit")
-            << int(DebuggerItem::DoesNotMatch);
-    QTest::newRow("Windows mismatch on osflavor 2")
-            << (QStringList() << QLatin1String("x86-windows-msys-pe-32bit"))
-            << QString::fromLatin1("x86-windows-msvc2010-pe-64bit")
-            << int(DebuggerItem::DoesNotMatch);
-}
-
-void DebuggerPlugin::testDebuggerMatching()
-{
-    QFETCH(QStringList, debugger);
-    QFETCH(QString, target);
-    QFETCH(int, result);
-
-    DebuggerItem::MatchLevel expectedLevel = static_cast<DebuggerItem::MatchLevel>(result);
-
-    QList<Abi> debuggerAbis;
-    foreach (const QString &abi, debugger)
-        debuggerAbis << Abi(abi);
-
-    DebuggerItem item;
-    item.setAbis(debuggerAbis);
-
-    DebuggerItem::MatchLevel level = item.matchTarget(Abi(target));
-    if (level == DebuggerItem::MatchesPerfectly)
-        level = DebuggerItem::MatchesWell;
-
-    QCOMPARE(expectedLevel, level);
-}
-
-} // namespace Internal
-
-#endif
 
 } // namespace Debugger;

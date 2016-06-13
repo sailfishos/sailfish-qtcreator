@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -94,9 +89,8 @@ class DeviceProcessesDialogPrivate : public QObject
     Q_OBJECT
 
 public:
-    DeviceProcessesDialogPrivate(KitChooser *chooser, QWidget *parent);
+    DeviceProcessesDialogPrivate(KitChooser *chooser, QDialog *parent);
 
-public slots:
     void setDevice(const IDevice::ConstPtr &device);
     void updateProcessList();
     void updateDevice();
@@ -107,8 +101,7 @@ public slots:
     void updateButtons();
     DeviceProcessItem selectedProcess() const;
 
-public:
-    QWidget *q;
+    QDialog *q;
     DeviceProcessList *processList;
     ProcessListFilterModel proxyModel;
     QLabel *kitLabel;
@@ -123,7 +116,7 @@ public:
     QDialogButtonBox *buttonBox;
 };
 
-DeviceProcessesDialogPrivate::DeviceProcessesDialogPrivate(KitChooser *chooser, QWidget *parent)
+DeviceProcessesDialogPrivate::DeviceProcessesDialogPrivate(KitChooser *chooser, QDialog *parent)
     : q(parent)
     , kitLabel(new QLabel(DeviceProcessesDialog::tr("Kit:"), parent))
     , kitChooser(chooser)
@@ -192,17 +185,24 @@ DeviceProcessesDialogPrivate::DeviceProcessesDialogPrivate(KitChooser *chooser, 
 
     proxyModel.setFilterRegExp(processFilterLineEdit->text());
 
-    connect(processFilterLineEdit, SIGNAL(textChanged(QString)),
-        &proxyModel, SLOT(setFilterRegExp(QString)));
+    connect(processFilterLineEdit,
+            static_cast<void (FancyLineEdit::*)(const QString &)>(&FancyLineEdit::textChanged),
+            &proxyModel,
+            static_cast<void (ProcessListFilterModel::*)(const QString &)>(
+                &ProcessListFilterModel::setFilterRegExp));
     connect(procView->selectionModel(),
-        SIGNAL(selectionChanged(QItemSelection,QItemSelection)),
-        SLOT(updateButtons()));
-    connect(updateListButton, SIGNAL(clicked()), SLOT(updateProcessList()));
-    connect(kitChooser, SIGNAL(currentIndexChanged(int)), SLOT(updateDevice()));
-    connect(killProcessButton, SIGNAL(clicked()), SLOT(killProcess()));
-    connect(&proxyModel, SIGNAL(layoutChanged()), SLOT(handleProcessListUpdated()));
-    connect(buttonBox, SIGNAL(accepted()), q, SLOT(accept()));
-    connect(buttonBox, SIGNAL(rejected()), q, SLOT(reject()));
+        &QItemSelectionModel::selectionChanged,
+        this, &DeviceProcessesDialogPrivate::updateButtons);
+    connect(updateListButton, &QAbstractButton::clicked,
+            this, &DeviceProcessesDialogPrivate::updateProcessList);
+    connect(kitChooser, &KitChooser::currentIndexChanged,
+            this, &DeviceProcessesDialogPrivate::updateDevice);
+    connect(killProcessButton, &QAbstractButton::clicked,
+            this, &DeviceProcessesDialogPrivate::killProcess);
+    connect(&proxyModel, &QAbstractItemModel::layoutChanged,
+            this, &DeviceProcessesDialogPrivate::handleProcessListUpdated);
+    connect(buttonBox, &QDialogButtonBox::accepted, q, &QDialog::accept);
+    connect(buttonBox, &QDialogButtonBox::rejected, q, &QDialog::reject);
 
     QWidget::setTabOrder(kitChooser, processFilterLineEdit);
     QWidget::setTabOrder(processFilterLineEdit, procView);
@@ -221,12 +221,12 @@ void DeviceProcessesDialogPrivate::setDevice(const IDevice::ConstPtr &device)
     QTC_ASSERT(processList, return);
     proxyModel.setSourceModel(processList);
 
-    connect(processList, SIGNAL(error(QString)),
-        SLOT(handleRemoteError(QString)));
-    connect(processList, SIGNAL(processListUpdated()),
-        SLOT(handleProcessListUpdated()));
-    connect(processList, SIGNAL(processKilled()),
-        SLOT(handleProcessKilled()), Qt::QueuedConnection);
+    connect(processList, &DeviceProcessList::error,
+            this, &DeviceProcessesDialogPrivate::handleRemoteError);
+    connect(processList, &DeviceProcessList::processListUpdated,
+            this, &DeviceProcessesDialogPrivate::handleProcessListUpdated);
+    connect(processList, &DeviceProcessList::processKilled,
+            this, &DeviceProcessesDialogPrivate::handleProcessKilled, Qt::QueuedConnection);
 
     updateButtons();
     updateProcessList();
@@ -334,8 +334,8 @@ void DeviceProcessesDialog::addAcceptButton(const QString &label)
 {
     d->acceptButton = new QPushButton(label);
     d->buttonBox->addButton(d->acceptButton, QDialogButtonBox::AcceptRole);
-    connect(d->procView, SIGNAL(activated(QModelIndex)),
-            d->acceptButton, SLOT(click()));
+    connect(d->procView, &QAbstractItemView::activated,
+            d->acceptButton, &QAbstractButton::click);
     d->buttonBox->addButton(QDialogButtonBox::Cancel);
 }
 

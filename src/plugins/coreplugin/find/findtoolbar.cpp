@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -32,7 +27,7 @@
 #include "ifindfilter.h"
 #include "findplugin.h"
 
-#include <coreplugin/coreconstants.h>
+#include <coreplugin/coreicons.h>
 #include <coreplugin/coreplugin.h>
 #include <coreplugin/icontext.h>
 #include <coreplugin/icore.h>
@@ -73,15 +68,8 @@ FindToolBar::FindToolBar(FindPlugin *plugin, CurrentDocumentFind *currentDocumen
       m_currentDocumentFind(currentDocumentFind),
       m_findCompleter(new QCompleter(this)),
       m_replaceCompleter(new QCompleter(this)),
-      m_enterFindStringAction(0),
-      m_findNextAction(0),
-      m_findPreviousAction(0),
-      m_replaceAction(0),
-      m_replaceNextAction(0),
-      m_replacePreviousAction(0),
-      m_findIncrementalTimer(this), m_findStepTimer(this),
-      m_useFakeVim(false),
-      m_eventFiltersInstalled(false)
+      m_findIncrementalTimer(this),
+      m_findStepTimer(this)
 {
     //setup ui
     m_ui.setupUi(this);
@@ -94,6 +82,7 @@ FindToolBar::FindToolBar(FindPlugin *plugin, CurrentDocumentFind *currentDocumen
     setSingleRow(false);
     m_ui.findEdit->setAttribute(Qt::WA_MacShowFocusRect, false);
     m_ui.replaceEdit->setAttribute(Qt::WA_MacShowFocusRect, false);
+    m_ui.replaceEdit->setFiltering(true);
 
     connect(m_ui.findEdit, &Utils::FancyLineEdit::editingFinished,
             this, &FindToolBar::invokeResetIncrementalSearch);
@@ -110,7 +99,12 @@ FindToolBar::FindToolBar(FindPlugin *plugin, CurrentDocumentFind *currentDocumen
     m_ui.findEdit->setButtonVisible(Utils::FancyLineEdit::Left, true);
     m_ui.findEdit->setFiltering(true);
     m_ui.findEdit->setPlaceholderText(QString());
+    m_ui.findEdit->setOkColor(Utils::creatorTheme()->color(Utils::Theme::TextColorNormal));
+    m_ui.findEdit->setErrorColor(Utils::creatorTheme()->color(Utils::Theme::TextColorError));
     m_ui.findEdit->button(Utils::FancyLineEdit::Left)->setFocusPolicy(Qt::TabFocus);
+    m_ui.findEdit->setValidationFunction([this](Utils::FancyLineEdit *, QString *) {
+                                             return m_lastResult != IFindSupport::NotFound;
+                                         });
     m_ui.replaceEdit->setPlaceholderText(QString());
 
     connect(m_ui.findEdit, &Utils::FancyLineEdit::textChanged,
@@ -172,7 +166,7 @@ FindToolBar::FindToolBar(FindPlugin *plugin, CurrentDocumentFind *currentDocumen
     cmd = ActionManager::registerAction(m_findInDocumentAction, Constants::FIND_IN_DOCUMENT);
     cmd->setDefaultKeySequence(QKeySequence::Find);
     mfind->addAction(cmd, Constants::G_FIND_CURRENTDOCUMENT);
-    connect(m_findInDocumentAction, SIGNAL(triggered()), this, SLOT(openFind()));
+    connect(m_findInDocumentAction, &QAction::triggered, this, [this]() { openFind(); });
 
     // Pressing the find shortcut while focus is in the tool bar should not change the search text,
     // so register a different find action for the tool bar
@@ -187,8 +181,9 @@ FindToolBar::FindToolBar(FindPlugin *plugin, CurrentDocumentFind *currentDocumen
         cmd = ActionManager::registerAction(m_enterFindStringAction, "Find.EnterFindString");
         cmd->setDefaultKeySequence(QKeySequence(tr("Ctrl+E")));
         mfind->addAction(cmd, Constants::G_FIND_ACTIONS);
-        connect(m_enterFindStringAction, &QAction::triggered, this, &FindToolBar::putSelectionToFindClipboard);
-        connect(QApplication::clipboard(), SIGNAL(findBufferChanged()), this, SLOT(updateFromFindClipboard()));
+        connect(m_enterFindStringAction, &QAction::triggered,
+                this, &FindToolBar::putSelectionToFindClipboard);
+        connect(QApplication::clipboard(), &QClipboard::findBufferChanged, this, &FindToolBar::updateFromFindClipboard);
     }
 
     m_findNextAction = new QAction(tr("Find Next"), this);
@@ -223,7 +218,8 @@ FindToolBar::FindToolBar(FindPlugin *plugin, CurrentDocumentFind *currentDocumen
     cmd = ActionManager::registerAction(m_findPreviousSelectedAction, Constants::FIND_PREV_SELECTED);
     cmd->setDefaultKeySequence(QKeySequence(tr("Ctrl+Shift+F3")));
     mfind->addAction(cmd, Constants::G_FIND_ACTIONS);
-    connect(m_findPreviousSelectedAction, &QAction::triggered, this, &FindToolBar::findPreviousSelected);
+    connect(m_findPreviousSelectedAction, &QAction::triggered,
+            this, &FindToolBar::findPreviousSelected);
 
     m_replaceAction = new QAction(tr("Replace"), this);
     cmd = ActionManager::registerAction(m_replaceAction, Constants::REPLACE);
@@ -251,11 +247,13 @@ FindToolBar::FindToolBar(FindPlugin *plugin, CurrentDocumentFind *currentDocumen
     m_replacePreviousAction = new QAction(tr("Replace && Find Previous"), this);
     cmd = ActionManager::registerAction(m_replacePreviousAction, Constants::REPLACE_PREVIOUS);
     mfind->addAction(cmd, Constants::G_FIND_ACTIONS);
-    connect(m_replacePreviousAction, &QAction::triggered, this, &FindToolBar::invokeGlobalReplacePrevious);
+    connect(m_replacePreviousAction, &QAction::triggered,
+            this, &FindToolBar::invokeGlobalReplacePrevious);
     m_localReplacePreviousAction = new QAction(m_replacePreviousAction->text(), this);
     cmd = ActionManager::registerAction(m_localReplacePreviousAction, Constants::REPLACE_PREVIOUS, findcontext);
     cmd->augmentActionWithShortcutToolTip(m_localReplacePreviousAction);
-    connect(m_localReplacePreviousAction, &QAction::triggered, this, &FindToolBar::invokeReplacePrevious);
+    connect(m_localReplacePreviousAction, &QAction::triggered,
+            this, &FindToolBar::invokeReplacePrevious);
 
     m_replaceAllAction = new QAction(tr("Replace All"), this);
     cmd = ActionManager::registerAction(m_replaceAllAction, Constants::REPLACE_ALL);
@@ -268,7 +266,7 @@ FindToolBar::FindToolBar(FindPlugin *plugin, CurrentDocumentFind *currentDocumen
     m_ui.replaceAllButton->setDefaultAction(m_localReplaceAllAction);
 
     m_caseSensitiveAction = new QAction(tr("Case Sensitive"), this);
-    m_caseSensitiveAction->setIcon(QIcon(QLatin1String(":/find/images/casesensitively.png")));
+    m_caseSensitiveAction->setIcon(Icons::FIND_CASE_INSENSITIVELY.icon());
     m_caseSensitiveAction->setCheckable(true);
     m_caseSensitiveAction->setChecked(false);
     cmd = ActionManager::registerAction(m_caseSensitiveAction, Constants::CASE_SENSITIVE);
@@ -276,7 +274,7 @@ FindToolBar::FindToolBar(FindPlugin *plugin, CurrentDocumentFind *currentDocumen
     connect(m_caseSensitiveAction, &QAction::toggled, this, &FindToolBar::setCaseSensitive);
 
     m_wholeWordAction = new QAction(tr("Whole Words Only"), this);
-    m_wholeWordAction->setIcon(QIcon(QLatin1String(":/find/images/wholewords.png")));
+    m_wholeWordAction->setIcon(Icons::FIND_WHOLE_WORD.icon());
     m_wholeWordAction->setCheckable(true);
     m_wholeWordAction->setChecked(false);
     cmd = ActionManager::registerAction(m_wholeWordAction, Constants::WHOLE_WORDS);
@@ -284,7 +282,7 @@ FindToolBar::FindToolBar(FindPlugin *plugin, CurrentDocumentFind *currentDocumen
     connect(m_wholeWordAction, &QAction::toggled, this, &FindToolBar::setWholeWord);
 
     m_regularExpressionAction = new QAction(tr("Use Regular Expressions"), this);
-    m_regularExpressionAction->setIcon(QIcon(QLatin1String(":/find/images/regexp.png")));
+    m_regularExpressionAction->setIcon(Icons::FIND_REGEXP.icon());
     m_regularExpressionAction->setCheckable(true);
     m_regularExpressionAction->setChecked(false);
     cmd = ActionManager::registerAction(m_regularExpressionAction, Constants::REGULAR_EXPRESSIONS);
@@ -292,15 +290,17 @@ FindToolBar::FindToolBar(FindPlugin *plugin, CurrentDocumentFind *currentDocumen
     connect(m_regularExpressionAction, &QAction::toggled, this, &FindToolBar::setRegularExpressions);
 
     m_preserveCaseAction = new QAction(tr("Preserve Case when Replacing"), this);
-    m_preserveCaseAction->setIcon(QPixmap(QLatin1String(":/find/images/preservecase.png")));
+    m_preserveCaseAction->setIcon(Icons::FIND_PRESERVE_CASE.icon());
     m_preserveCaseAction->setCheckable(true);
     m_preserveCaseAction->setChecked(false);
     cmd = ActionManager::registerAction(m_preserveCaseAction, Constants::PRESERVE_CASE);
     mfind->addAction(cmd, Constants::G_FIND_FLAGS);
     connect(m_preserveCaseAction, &QAction::toggled, this, &FindToolBar::setPreserveCase);
 
-    connect(m_currentDocumentFind, &CurrentDocumentFind::candidateChanged, this, &FindToolBar::adaptToCandidate);
-    connect(m_currentDocumentFind, &CurrentDocumentFind::changed, this, &FindToolBar::updateGlobalActions);
+    connect(m_currentDocumentFind, &CurrentDocumentFind::candidateChanged,
+            this, &FindToolBar::adaptToCandidate);
+    connect(m_currentDocumentFind, &CurrentDocumentFind::changed,
+            this, &FindToolBar::updateGlobalActions);
     connect(m_currentDocumentFind, &CurrentDocumentFind::changed, this, &FindToolBar::updateToolBar);
     updateGlobalActions();
     updateToolBar();
@@ -386,7 +386,7 @@ void FindToolBar::updateGlobalActions()
     m_findInDocumentAction->setEnabled(enabled || (toolBarHasFocus() && isEnabled()));
     m_findNextSelectedAction->setEnabled(enabled);
     m_findPreviousSelectedAction->setEnabled(enabled);
-    if (QApplication::clipboard()->supportsFindBuffer())
+    if (m_enterFindStringAction)
         m_enterFindStringAction->setEnabled(enabled);
     m_findNextAction->setEnabled(enabled);
     m_findPreviousAction->setEnabled(enabled);
@@ -666,8 +666,8 @@ void FindToolBar::updateIcons()
     bool regexp = effectiveFlags & FindRegularExpression;
     bool preserveCase = effectiveFlags & FindPreserveCase;
     if (!casesensitive && !wholewords && !regexp && !preserveCase) {
-        m_ui.findEdit->setButtonPixmap(Utils::FancyLineEdit::Left,
-                                       Utils::StyleHelper::dpiSpecificImageFile(QLatin1Literal(Constants::ICON_MAGNIFIER)));
+        const QPixmap pixmap = Icons::MAGNIFIER.pixmap();
+        m_ui.findEdit->setButtonPixmap(Utils::FancyLineEdit::Left, pixmap);
     } else {
         m_ui.findEdit->setButtonPixmap(Utils::FancyLineEdit::Left,
                                        IFindFilter::pixmapForFindFlags(effectiveFlags));
@@ -788,9 +788,8 @@ void FindToolBar::acceptCandidateAndMoveToolBar()
 
 void FindToolBar::indicateSearchState(IFindSupport::Result searchState)
 {
-    const Utils::Theme::Color colorRole = searchState == IFindSupport::NotFound
-            ? Utils::Theme::TextColorError : Utils::Theme::TextColorNormal;
-    m_ui.findEdit->setTextColor(m_ui.findEdit, Utils::creatorTheme()->color(colorRole));
+    m_lastResult = searchState;
+    m_ui.findEdit->validate();
 }
 
 void FindToolBar::openFind(bool focus)
@@ -868,7 +867,7 @@ bool FindToolBar::focusNextPrevChild(bool next)
 void FindToolBar::resizeEvent(QResizeEvent *event)
 {
     Q_UNUSED(event)
-    QTimer::singleShot(0, this, SLOT(updateToolBar()));
+    QTimer::singleShot(0, this, &FindToolBar::updateToolBar);
 }
 
 void FindToolBar::writeSettings()
@@ -957,8 +956,19 @@ void FindToolBar::setBackward(bool backward)
 
 void FindToolBar::setLightColoredIcon(bool lightColored)
 {
-    m_ui.close->setIcon(lightColored ? QIcon(QLatin1String(Constants::ICON_DARK_CLOSE))
-                                     : QIcon(QLatin1String(Constants::ICON_BUTTON_CLOSE)));
+    if (lightColored) {
+        m_ui.findNextButton->setIcon(QIcon());
+        m_ui.findNextButton->setArrowType(Qt::RightArrow);
+        m_ui.findPreviousButton->setIcon(QIcon());
+        m_ui.findPreviousButton->setArrowType(Qt::LeftArrow);
+        m_ui.close->setIcon(Icons::CLOSE_FOREGROUND.icon());
+    } else {
+        m_ui.findNextButton->setIcon(Icons::NEXT_TOOLBAR.icon());
+        m_ui.findNextButton->setArrowType(Qt::NoArrow);
+        m_ui.findPreviousButton->setIcon(Icons::PREV_TOOLBAR.icon());
+        m_ui.findPreviousButton->setArrowType(Qt::NoArrow);
+        m_ui.close->setIcon(Icons::CLOSE_TOOLBAR.icon());
+    }
 }
 
 OptionsPopup::OptionsPopup(QWidget *parent)

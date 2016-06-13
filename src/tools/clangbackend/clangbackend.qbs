@@ -1,4 +1,5 @@
 import qbs 1.0
+import qbs.File
 import QtcClangInstallation as Clang
 import QtcFunctions
 import QtcProcessOutputReader
@@ -21,11 +22,17 @@ QtcTool {
     property string llvmConfig: Clang.llvmConfig(qbs, QtcFunctions, QtcProcessOutputReader)
     property string llvmIncludeDir: Clang.includeDir(llvmConfig, QtcProcessOutputReader)
     property string llvmLibDir: Clang.libDir(llvmConfig, QtcProcessOutputReader)
-    property string llvmLibs: Clang.libraries(qbs.targetOS)
+    property stringList llvmLibs: Clang.libraries(qbs.targetOS)
 
-    condition: llvmConfig
+    condition: llvmConfig && File.exists(llvmIncludeDir.concat("/clang-c/Index.h"))
 
     cpp.includePaths: base.concat(["ipcsource", llvmIncludeDir])
     cpp.libraryPaths: base.concat(llvmLibDir)
     cpp.dynamicLibraries: base.concat(llvmLibs)
+    cpp.rpaths: base.concat(llvmLibDir)
+
+    Properties {
+        condition: qbs.targetOS.contains("unix") && !qbs.targetOS.contains("osx")
+        cpp.linkerFlags: base.concat(["-z", "origin"])
+    }
 }

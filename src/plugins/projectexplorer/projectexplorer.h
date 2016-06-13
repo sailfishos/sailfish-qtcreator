@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,27 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
-#ifndef PROJECTEXPLORER_H
-#define PROJECTEXPLORER_H
+#pragma once
 
 #include "projectexplorer_export.h"
 #include "projectexplorerconstants.h"
@@ -42,6 +36,7 @@
 QT_BEGIN_NAMESPACE
 class QPoint;
 class QAction;
+class QThreadPool;
 QT_END_NAMESPACE
 
 namespace Core {
@@ -60,21 +55,62 @@ class FileNode;
 
 namespace Internal { class ProjectExplorerSettings; }
 
-class PROJECTEXPLORER_EXPORT ProjectExplorerPlugin
-    : public ExtensionSystem::IPlugin
+class PROJECTEXPLORER_EXPORT ProjectExplorerPlugin : public ExtensionSystem::IPlugin
 {
     Q_OBJECT
     Q_PLUGIN_METADATA(IID "org.qt-project.Qt.QtCreatorPlugin" FILE "ProjectExplorer.json")
 
+    friend class ProjectExplorerPluginPrivate;
+
 public:
     ProjectExplorerPlugin();
-    ~ProjectExplorerPlugin();
+    ~ProjectExplorerPlugin() override;
 
     static ProjectExplorerPlugin *instance();
 
-    static Project *openProject(const QString &fileName, QString *error);
-    static QList<Project *> openProjects(const QStringList &fileNames, QString *error);
-    Q_SLOT void openProjectWelcomePage(const QString &fileName);
+    class OpenProjectResult
+    {
+    public:
+        OpenProjectResult(QList<Project *> projects, QList<Project *> alreadyOpen,
+                          const QString &errorMessage)
+            : m_projects(projects), m_alreadyOpen(alreadyOpen),
+              m_errorMessage(errorMessage)
+        {}
+
+        explicit operator bool() const
+        {
+            return m_errorMessage.isEmpty() && m_alreadyOpen.isEmpty();
+        }
+
+        Project *project() const
+        {
+            return m_projects.isEmpty() ? 0 : m_projects.first();
+        }
+
+        QList<Project *> projects() const
+        {
+            return m_projects;
+        }
+
+        QString errorMessage() const
+        {
+            return m_errorMessage;
+        }
+
+        QList<Project *> alreadyOpen() const
+        {
+            return m_alreadyOpen;
+        }
+    private:
+        QList<Project *> m_projects;
+        QList<Project *> m_alreadyOpen;
+        QString m_errorMessage;
+    };
+
+    static OpenProjectResult openProject(const QString &fileName);
+    static OpenProjectResult openProjects(const QStringList &fileNames);
+    static void showOpenProjectError(const OpenProjectResult &result);
+    static void openProjectWelcomePage(const QString &fileName);
     static void unloadProject(Project *project);
 
     static bool saveModifiedFiles();
@@ -82,9 +118,10 @@ public:
     static void showContextMenu(QWidget *view, const QPoint &globalPos, Node *node);
 
     //PluginInterface
-    bool initialize(const QStringList &arguments, QString *errorMessage);
-    void extensionsInitialized();
-    ShutdownFlag aboutToShutdown();
+    bool initialize(const QStringList &arguments, QString *errorMessage) override;
+    void extensionsInitialized() override;
+    bool delayedInitialize() override;
+    ShutdownFlag aboutToShutdown() override;
 
     static void setProjectExplorerSettings(const Internal::ProjectExplorerSettings &pes);
     static Internal::ProjectExplorerSettings projectExplorerSettings();
@@ -95,17 +132,15 @@ public:
     // internal public for FlatModel
     static void renameFile(Node *node, const QString &newFilePath);
     static QStringList projectFilePatterns();
-    static bool coreAboutToClose();
     static QList<QPair<QString, QString> > recentProjects();
 
-    static bool canRun(Project *pro, Core::Id runMode, QString *whyNot = 0);
+    static bool canRunStartupProject(Core::Id runMode, QString *whyNot = 0);
     static void runProject(Project *pro, Core::Id, const bool forceSkipDeploy = false);
     static void runStartupProject(Core::Id runMode, bool forceSkipDeploy = false);
     static void runRunConfiguration(RunConfiguration *rc, Core::Id runMode,
                              const bool forceSkipDeploy = false);
 
-    static void addExistingFiles(FolderNode *projectNode, const QStringList &filePaths);
-    static void addExistingFiles(const QStringList &filePaths, FolderNode *folderNode);
+    static void addExistingFiles(FolderNode *folderNode, const QStringList &filePaths);
 
     static void buildProject(Project *p);
     /// Normally there's no need to call this function.
@@ -121,7 +156,12 @@ public:
 
     static void updateContextMenuActions();
 
+    static QThreadPool *sharedThreadPool();
+
+    static void openOpenProjectDialog();
+
 signals:
+    void finishedInitialization();
     void runControlStarted(ProjectExplorer::RunControl *rc);
     void runControlFinished(ProjectExplorer::RunControl *rc);
 
@@ -136,14 +176,11 @@ signals:
 
     void updateRunActions();
 
-public slots:
-    static void openOpenProjectDialog();
-
-private slots:
-    void restoreSession2();
-    void showRenameFileError();
+private:
+    static bool coreAboutToClose();
 
 #ifdef WITH_TESTS
+private slots:
     void testAnsiFilterOutputParser_data();
     void testAnsiFilterOutputParser();
 
@@ -170,6 +207,9 @@ private slots:
     void testMsvcOutputParsers_data();
     void testMsvcOutputParsers();
 
+    void testClangClOutputParsers_data();
+    void testClangClOutputParsers();
+
     void testGccAbiGuessing_data();
     void testGccAbiGuessing();
 
@@ -181,11 +221,9 @@ private slots:
 
     void testDeviceManager();
 
-    void testCustomWizardPreprocessor_data();
-    void testCustomWizardPreprocessor();
-#endif
+    void testToolChainManager_data();
+    void testToolChainManager();
+#endif // WITH_TESTS
 };
 
 } // namespace ProjectExplorer
-
-#endif // PROJECTEXPLORER_H

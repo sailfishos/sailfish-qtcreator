@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -47,6 +42,10 @@
     Tests CheckSymbols, the "data provider" of the semantic highlighter.
  */
 
+// When adding tests, you may want to set this enum
+// in order to print out all found uses.
+enum { enableListing = 0 };
+
 using namespace CPlusPlus;
 using namespace CppTools;
 
@@ -57,34 +56,27 @@ typedef SemanticHighlighter Highlighting;
 typedef QList<Use> UseList;
 Q_DECLARE_METATYPE(UseList)
 
+#define CASE_STR(val) case Highlighting::val: return "Highlighting::" # val
 static QString useKindToString(UseKind useKind)
 {
     switch (useKind) {
-    case Highlighting::Unknown:
-        return QLatin1String("SemanticHighlighter::Unknown");
-    case Highlighting::TypeUse:
-        return QLatin1String("SemanticHighlighter::TypeUse");
-    case Highlighting::LocalUse:
-        return QLatin1String("SemanticHighlighter::LocalUse");
-    case Highlighting::FieldUse:
-        return QLatin1String("SemanticHighlighter::FieldUse");
-    case Highlighting::EnumerationUse:
-        return QLatin1String("SemanticHighlighter::EnumerationUse");
-    case Highlighting::VirtualMethodUse:
-        return QLatin1String("SemanticHighlighter::VirtualMethodUse");
-    case Highlighting::LabelUse:
-        return QLatin1String("SemanticHighlighter::LabelUse");
-    case Highlighting::MacroUse:
-        return QLatin1String("SemanticHighlighter::MacroUse");
-    case Highlighting::FunctionUse:
-        return QLatin1String("SemanticHighlighter::FunctionUse");
-    case Highlighting::PseudoKeywordUse:
-        return QLatin1String("SemanticHighlighter::PseudoKeywordUse");
+    CASE_STR(Unknown);
+    CASE_STR(TypeUse);
+    CASE_STR(LocalUse);
+    CASE_STR(FieldUse);
+    CASE_STR(EnumerationUse);
+    CASE_STR(VirtualMethodUse);
+    CASE_STR(LabelUse);
+    CASE_STR(MacroUse);
+    CASE_STR(FunctionUse);
+    CASE_STR(PseudoKeywordUse);
+    CASE_STR(StringUse);
     default:
         QTest::qFail("Unknown UseKind", __FILE__, __LINE__);
         return QLatin1String("Unknown UseKind");
     }
 }
+#undef CASE_STR
 
 // The following two functions are "enhancements" for QCOMPARE().
 QT_BEGIN_NAMESPACE
@@ -112,13 +104,12 @@ class BaseTestCase
 public:
     BaseTestCase(const QByteArray &source, const UseList &expectedUsesMacros = UseList())
     {
-        // Write source to temprorary file
+        // Write source to temporary file
         const QString filePath = QDir::tempPath() + QLatin1String("/file.h");
         Tests::TestCase::writeFile(filePath, source);
 
-        // Processs source
+        // Process source
         const Document::Ptr document = createDocument(filePath, source);
-        QVERIFY(document);
         Snapshot snapshot;
         snapshot.insert(document);
 
@@ -182,14 +173,21 @@ public:
     {
         const int resultCount = future.resultCount();
         UseList actualUses;
+        QByteArray expectedInput;
+        if (enableListing)
+            expectedInput = _("\n") + _(8, ' ') + "<< (UseList()\n";
         for (int i = 0; i < resultCount; ++i) {
             const Use use = future.resultAt(i);
-            // When adding tests, you may want to uncomment the
-            // following line in order to print out all found uses.
-            // qDebug() << QTest::toString(use);
+            if (enableListing)
+                expectedInput += _(12, ' ') + "<< " + _(QTest::toString(use)) + "\n";
             actualUses.append(use);
         }
 
+        if (enableListing) {
+            expectedInput.chop(1);
+            expectedInput += ')';
+            qDebug() << expectedInput;
+        }
         // Checks
         QVERIFY(resultCount > 0);
         QCOMPARE(resultCount, expectedUsesAll.count());
@@ -221,7 +219,10 @@ private slots:
     void test_checksymbols_infiniteLoop_data();
     void test_checksymbols_infiniteLoop();
 
+    void test_checkForValidSymbolFileId();
+
     void test_parentOfBlock();
+    void test_infiniteLoop();
 
     void findField();
     void findField_data();
@@ -322,16 +323,16 @@ void tst_CheckSymbols::test_checksymbols_data()
             << Use(2, 11, 1, Highlighting::FunctionUse));
 
     QTest::newRow("PseudoKeywordUse")
-        << _("class D : public B {"
+        << _("class D : public B {\n"
              "   virtual void f() override {}\n"
              "   virtual void f() final {}\n"
              "};\n")
         << (UseList()
             << Use(1, 7, 1, Highlighting::TypeUse)
-            << Use(1, 37, 1, Highlighting::VirtualMethodUse)
-            << Use(1, 41, 8, Highlighting::PseudoKeywordUse)
             << Use(2, 17, 1, Highlighting::VirtualMethodUse)
-            << Use(2, 21, 5, Highlighting::PseudoKeywordUse));
+            << Use(2, 21, 8, Highlighting::PseudoKeywordUse)
+            << Use(3, 17, 1, Highlighting::VirtualMethodUse)
+            << Use(3, 21, 5, Highlighting::PseudoKeywordUse));
 
     QTest::newRow("StaticUse")
         << _("struct Outer\n"
@@ -1016,6 +1017,55 @@ void tst_CheckSymbols::test_checksymbols_data()
             << Use(3, 3, 7, Highlighting::LocalUse)
             << Use(3, 11, 10, Highlighting::FieldUse));
 
+    QTest::newRow("instantation_as_function_call_QTCREATORBUG15212")
+        << _("struct Foo {};\n"
+             "template <typename Type> struct test {\n"
+             "  test() {}\n"
+             "  test(int, int) {}\n"
+             "};\n"
+             "void test(int int_argument) {\n"
+             "  const int very_long_constant_of_type_int = 11111111111111111;\n"
+             "  test<Foo> foo1;\n"
+             "  test<Foo> foo2(int_argument, int_argument);\n"
+             "  test<Foo> foo3(very_long_constant_of_type_int,\n"
+             "                 very_long_constant_of_type_int);\n"
+             "  test<int> size1(int_argument, int_argument);\n"
+             "  (void)foo1, foo2, foo3, size1;\n"
+             "  test(int_argument);\n"
+             "}\n")
+        << (UseList()
+            << Use(1, 8, 3, Highlighting::TypeUse)
+            << Use(2, 20, 4, Highlighting::TypeUse)
+            << Use(2, 33, 4, Highlighting::TypeUse)
+            << Use(3, 3, 4, Highlighting::TypeUse)
+            << Use(4, 3, 4, Highlighting::TypeUse)
+            << Use(6, 6, 4, Highlighting::FunctionUse)
+            << Use(6, 15, 12, Highlighting::LocalUse)
+            << Use(7, 13, 30, Highlighting::LocalUse)
+            << Use(8, 3, 4, Highlighting::TypeUse)
+            << Use(8, 8, 3, Highlighting::TypeUse)
+            << Use(8, 13, 4, Highlighting::LocalUse)
+            << Use(9, 3, 4, Highlighting::TypeUse)
+            << Use(9, 8, 3, Highlighting::TypeUse)
+            << Use(9, 13, 4, Highlighting::LocalUse)
+            << Use(9, 18, 12, Highlighting::LocalUse)
+            << Use(9, 32, 12, Highlighting::LocalUse)
+            << Use(10, 3, 4, Highlighting::TypeUse)
+            << Use(10, 8, 3, Highlighting::TypeUse)
+            << Use(10, 13, 4, Highlighting::LocalUse)
+            << Use(10, 18, 30, Highlighting::LocalUse)
+            << Use(11, 18, 30, Highlighting::LocalUse)
+            << Use(12, 3, 4, Highlighting::TypeUse)
+            << Use(12, 13, 5, Highlighting::LocalUse)
+            << Use(12, 19, 12, Highlighting::LocalUse)
+            << Use(12, 33, 12, Highlighting::LocalUse)
+            << Use(13, 9, 4, Highlighting::LocalUse)
+            << Use(13, 15, 4, Highlighting::LocalUse)
+            << Use(13, 21, 4, Highlighting::LocalUse)
+            << Use(13, 27, 5, Highlighting::LocalUse)
+            << Use(14, 3, 4, Highlighting::FunctionUse)
+            << Use(14, 8, 12, Highlighting::LocalUse));
+
     QTest::newRow("unicodeIdentifier1")
         << _("class My" TEST_UNICODE_IDENTIFIER "Type { int " TEST_UNICODE_IDENTIFIER "Member; };\n"
              "void f(My" TEST_UNICODE_IDENTIFIER "Type var" TEST_UNICODE_IDENTIFIER ")\n"
@@ -1118,12 +1168,74 @@ void tst_CheckSymbols::test_checksymbols_infiniteLoop()
     TestCase::runCheckSymbols(document1, snapshot);
 }
 
+void tst_CheckSymbols::test_checkForValidSymbolFileId()
+{
+    const QByteArray contents =
+        "constexpr int parent_of(const int f) { return 1; }\n"
+        "\n"
+        "template <typename T> struct wrapper { const T* ptr; };\n"
+        "template <int> struct Dummy;\n"
+        "\n"
+        "namespace impl {\n"
+        "    template <int f>\n"
+        "    struct dummy_impl {\n"
+        "        wrapper<Dummy<parent_of(f)>> parent;\n"
+        "    };\n"
+        "}\n"
+        "\n"
+        "template <int f>\n"
+        "struct Dummy : impl::dummy_impl<f> {};\n"
+        "\n"
+        "void client()\n"
+        "{\n"
+        "    wrapper<Dummy<1>> a;\n"
+        "    a.ptr->parent.ptr;\n"
+        "}\n";
+
+    BaseTestCase tc(contents);
+}
+
 void tst_CheckSymbols::test_parentOfBlock()
 {
     const QByteArray source = "void C::f()\n"
                               "{\n"
                               "    enum E { e1 };\n"
                               "}\n";
+    BaseTestCase tc(source);
+}
+
+void tst_CheckSymbols::test_infiniteLoop()
+{
+    const QByteArray source =
+        "template <class> struct TNode;\n"
+        "template <class> struct TMetaNode;\n"
+        "\n"
+        "template <class X>\n"
+        "struct TTraits {\n"
+        "   using TX        = X;\n"
+        "   using TNodeType = TNode<TX>;\n"
+        "};\n"
+        "\n"
+        "template <class X>\n"
+        "struct TMetaNode {\n"
+        "   using TTraitsType = TTraits<X>;\n"
+        "};\n"
+        "\n"
+        "template <class X>\n"
+        "void nonmember() {\n"
+        "   using TMetaNodeType = TMetaNode<X>;\n"
+        "}\n"
+        "\n"
+        "template <class X>\n"
+        "struct TNode {\n"
+        "   using TTraitsType = TTraits<X>;\n"
+        "   void member();\n"
+        "};\n"
+        "\n"
+        "template <class X>\n"
+        "void TNode<X>::member() {}\n"
+        ;
+
     BaseTestCase tc(source);
 }
 
@@ -1212,6 +1324,13 @@ void tst_CheckSymbols::findField()
     source[position] = ' ';
     BaseTestCase tc(source);
     Use use = tc.findUse(line, column);
+    QEXPECT_FAIL("pointer_indirect_specialization", "QTCREATORBUG-14141", Abort);
+    QEXPECT_FAIL("pointer_indirect_specialization_typedef", "QTCREATORBUG-14141", Abort);
+    QEXPECT_FAIL("pointer_indirect_specialization_double_indirection", "QTCREATORBUG-14141", Abort);
+    QEXPECT_FAIL("instantiation_of_pointer_typedef_in_block", "QTCREATORBUG-14141", Abort);
+    QEXPECT_FAIL("pointer_indirect_specialization_double_indirection_with_base", "QTCREATORBUG-14141", Abort);
+    QEXPECT_FAIL("recursive_instantiation_of_template_type", "QTCREATORBUG-14237", Abort);
+    QEXPECT_FAIL("recursive_instantiation_of_template_type_2", "QTCREATORBUG-14141", Abort);
     QVERIFY(use.isValid());
     QVERIFY(use.kind == Highlighting::FieldUse);
 }
@@ -1285,26 +1404,6 @@ void tst_CheckSymbols::findField_data()
         "   typedef Foo *pointer;\n"
         "   Temp<pointer> t;\n"
         "   t.p->@bar;\n"
-        "}\n"
-    );
-
-    QTest::newRow("instantiation_of_indirect_typedef") << _(
-        "template<typename _Tp>\n"
-        "struct Indirect { _Tp t; };\n"
-        "\n"
-        "template<typename T>\n"
-        "struct Temp\n"
-        "{\n"
-        "   typedef T MyT;\n"
-        "   typedef Indirect<MyT> indirect;\n"
-        "};\n"
-        "\n"
-        "struct Foo { int bar; };\n"
-        "\n"
-        "void func()\n"
-        "{\n"
-        "   Temp<Foo>::indirect i;\n"
-        "   i.t.@bar;\n"
         "}\n"
     );
 

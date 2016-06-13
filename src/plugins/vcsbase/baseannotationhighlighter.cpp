@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -56,43 +51,31 @@ namespace VcsBase {
 
 class BaseAnnotationHighlighterPrivate
 {
-    BaseAnnotationHighlighter *q_ptr;
-    Q_DECLARE_PUBLIC(BaseAnnotationHighlighter)
 public:
     enum Formats {
         BackgroundFormat // C_TEXT
     };
 
-    BaseAnnotationHighlighterPrivate();
+    BaseAnnotationHighlighterPrivate(BaseAnnotationHighlighter *q_) : q(q_) { }
 
     void updateOtherFormats();
 
     ChangeNumberFormatMap m_changeNumberMap;
     QColor m_background;
+    BaseAnnotationHighlighter *const q;
 };
-
-BaseAnnotationHighlighterPrivate::BaseAnnotationHighlighterPrivate()
-    : q_ptr(0)
-{
-}
 
 void BaseAnnotationHighlighterPrivate::updateOtherFormats()
 {
-    Q_Q(BaseAnnotationHighlighter);
     m_background = q->formatForCategory(BackgroundFormat).brushProperty(QTextFormat::BackgroundBrush).color();
     q->setChangeNumbers(m_changeNumberMap.keys().toSet());
 }
 
-
 BaseAnnotationHighlighter::BaseAnnotationHighlighter(const ChangeNumbers &changeNumbers,
                                                      QTextDocument *document) :
     TextEditor::SyntaxHighlighter(document),
-    d_ptr(new BaseAnnotationHighlighterPrivate())
+    d(new BaseAnnotationHighlighterPrivate(this))
 {
-    d_ptr->q_ptr = this;
-
-    Q_D(BaseAnnotationHighlighter);
-
     static QVector<TextEditor::TextStyle> categories;
     if (categories.isEmpty())
         categories << TextEditor::C_TEXT;
@@ -105,11 +88,11 @@ BaseAnnotationHighlighter::BaseAnnotationHighlighter(const ChangeNumbers &change
 
 BaseAnnotationHighlighter::~BaseAnnotationHighlighter()
 {
+    delete d;
 }
 
 void BaseAnnotationHighlighter::setChangeNumbers(const ChangeNumbers &changeNumbers)
 {
-    Q_D(BaseAnnotationHighlighter);
     d->m_changeNumberMap.clear();
     if (!changeNumbers.isEmpty()) {
         // Assign a color gradient to annotation change numbers. Give
@@ -130,7 +113,6 @@ void BaseAnnotationHighlighter::setChangeNumbers(const ChangeNumbers &changeNumb
 
 void BaseAnnotationHighlighter::highlightBlock(const QString &text)
 {
-    Q_D(BaseAnnotationHighlighter);
     if (text.isEmpty() || d->m_changeNumberMap.empty())
         return;
     const QString change = changeNumber(text);
@@ -141,7 +123,6 @@ void BaseAnnotationHighlighter::highlightBlock(const QString &text)
 
 void BaseAnnotationHighlighter::setFontSettings(const TextEditor::FontSettings &fontSettings)
 {
-    Q_D(BaseAnnotationHighlighter);
     SyntaxHighlighter::setFontSettings(fontSettings);
     d->updateOtherFormats();
 }

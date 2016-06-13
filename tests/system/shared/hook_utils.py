@@ -1,32 +1,27 @@
-#############################################################################
-##
-## Copyright (C) 2015 The Qt Company Ltd.
-## Contact: http://www.qt.io/licensing
-##
-## This file is part of Qt Creator.
-##
-## Commercial License Usage
-## Licensees holding valid commercial Qt licenses may use this file in
-## accordance with the commercial license agreement provided with the
-## Software or, alternatively, in accordance with the terms contained in
-## a written agreement between you and The Qt Company.  For licensing terms and
-## conditions see http://www.qt.io/terms-conditions.  For further information
-## use the contact form at http://www.qt.io/contact-us.
-##
-## GNU Lesser General Public License Usage
-## Alternatively, this file may be used under the terms of the GNU Lesser
-## General Public License version 2.1 or version 3 as published by the Free
-## Software Foundation and appearing in the file LICENSE.LGPLv21 and
-## LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-## following information to ensure the GNU Lesser General Public License
-## requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-## http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-##
-## In addition, as a special exception, The Qt Company gives you certain additional
-## rights.  These rights are described in The Qt Company LGPL Exception
-## version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
-##
-#############################################################################
+############################################################################
+#
+# Copyright (C) 2016 The Qt Company Ltd.
+# Contact: https://www.qt.io/licensing/
+#
+# This file is part of Qt Creator.
+#
+# Commercial License Usage
+# Licensees holding valid commercial Qt licenses may use this file in
+# accordance with the commercial license agreement provided with the
+# Software or, alternatively, in accordance with the terms contained in
+# a written agreement between you and The Qt Company. For licensing terms
+# and conditions see https://www.qt.io/terms-conditions. For further
+# information use the contact form at https://www.qt.io/contact-us.
+#
+# GNU General Public License Usage
+# Alternatively, this file may be used under the terms of the GNU
+# General Public License version 3 as published by the Free Software
+# Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+# included in the packaging of this file. Please review the following
+# information to ensure the GNU General Public License requirements will
+# be met: https://www.gnu.org/licenses/gpl-3.0.html.
+#
+############################################################################
 
 import re
 
@@ -184,10 +179,10 @@ def __getMkspecFromQMakeConf__(qmakeConf):
     return os.path.basename(mkspec)
 
 def __getMkspecFromQmake__(qmakeCall):
-    if getOutputFromCmdline("%s -query QT_VERSION" % qmakeCall).strip().startswith("5."):
-        return getOutputFromCmdline("%s -query QMAKE_XSPEC" % qmakeCall).strip()
+    if getOutputFromCmdline([qmakeCall, "-query", "QT_VERSION"]).strip().startswith("5."):
+        return getOutputFromCmdline([qmakeCall, "-query", "QMAKE_XSPEC"]).strip()
     else:
-        QmakeConfPath = getOutputFromCmdline("%s -query QMAKE_MKSPECS" % qmakeCall).strip()
+        QmakeConfPath = getOutputFromCmdline([qmakeCall, "-query", "QMAKE_MKSPECS"]).strip()
         for tmpPath in QmakeConfPath.split(os.pathsep):
             tmpPath = tmpPath + os.sep + "default" + os.sep +"qmake.conf"
             result = __getMkspecFromQMakeConf__(tmpPath)
@@ -321,7 +316,8 @@ def __configureFW__(workingDir, projectName, isReleaseBuild, addToFW=True):
     # Needs admin privileges on Windows 7
     # Using the deprecated "netsh firewall" because the newer
     # "netsh advfirewall" would need admin privileges on Windows Vista, too.
-    return subprocess.call('netsh firewall %s allowedprogram "%s.exe" %s %s' % (mode, path, projectName, enable))
+    return subprocess.call(["netsh", "firewall", mode, "allowedprogram",
+                            "%s.exe" % path, projectName, enable])
 
 # helper to check whether win firewall is running or not
 # this doesn't check for other firewalls!
@@ -331,17 +327,12 @@ def __isWinFirewallRunning__():
     if not platform.system() in ('Microsoft' 'Windows'):
         __isWinFirewallRunning__.fireWallState = False
         return False
-    result = getOutputFromCmdline("netsh firewall show state")
+    result = getOutputFromCmdline(["netsh", "firewall", "show", "state"])
     for line in result.splitlines():
         if "Operational mode" in line:
             __isWinFirewallRunning__.fireWallState = not "Disable" in line
             return __isWinFirewallRunning__.fireWallState
     return None
-
-def __fixQuotes__(string):
-    if platform.system() in ('Windows', 'Microsoft'):
-        string = '"' + string + '"'
-    return string
 
 # this function adds the given executable as an attachable AUT
 # Bad: executable/port could be empty strings - you should be aware of this
@@ -353,8 +344,8 @@ def addExecutableAsAttachableAUT(executable, port, host=None):
     squishSrv = __getSquishServer__()
     if (squishSrv == None):
         return False
-    result = subprocess.call(__fixQuotes__('"%s" --config addAttachableAUT "%s" %s:%s')
-                             % (squishSrv, executable, host, port), shell=True)
+    result = subprocess.call([squishSrv, "--config", "addAttachableAUT",
+                              executable, "%s:%s" % (host, port)])
     if result == 0:
         test.passes("Added %s as attachable AUT" % executable)
     else:
@@ -371,8 +362,8 @@ def removeExecutableAsAttachableAUT(executable, port, host=None):
     squishSrv = __getSquishServer__()
     if (squishSrv == None):
         return False
-    result = subprocess.call(__fixQuotes__('"%s" --config removeAttachableAUT "%s" %s:%s')
-                             % (squishSrv, executable, host, port), shell=True)
+    result = subprocess.call([squishSrv, "--config", "removeAttachableAUT",
+                              executable, "%s:%s" % (host, port)])
     if result == 0:
         test.passes("Removed %s as attachable AUT" % executable)
     else:

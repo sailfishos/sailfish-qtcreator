@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -48,13 +43,14 @@ QHash<QObject *, DesignerCustomObjectData*> m_objectToDataHash;
 DesignerCustomObjectData::DesignerCustomObjectData(QObject *object)
     : m_object(object)
 {
-    if (object)
+    if (object) {
         populateResetHashes();
         m_objectToDataHash.insert(object, this);
         QObject::connect(object, &QObject::destroyed, [=] {
             m_objectToDataHash.remove(object);
             delete this;
         });
+    }
 }
 
 void DesignerCustomObjectData::registerData(QObject *object)
@@ -126,7 +122,7 @@ void DesignerCustomObjectData::populateResetHashes()
     PropertyNameList propertyNameList = QmlPrivateGate::propertyNameListForWritableProperties(object());
 
     foreach (const PropertyName &propertyName, propertyNameList) {
-        QQmlProperty property(object(), propertyName, QQmlEngine::contextForObject(object()));
+        QQmlProperty property(object(), QString::fromUtf8(propertyName), QQmlEngine::contextForObject(object()));
 
 #if (QT_VERSION >= QT_VERSION_CHECK(5, 6, 0))
         QQmlAbstractBinding::Ptr binding = QQmlAbstractBinding::Ptr(QQmlPropertyPrivate::binding(property));
@@ -159,7 +155,7 @@ QVariant DesignerCustomObjectData::getResetValue(const PropertyName &propertyNam
 
 void DesignerCustomObjectData::doResetProperty(QQmlContext *context, const PropertyName &propertyName)
 {
-    QQmlProperty property(object(), propertyName, context);
+    QQmlProperty property(object(), QString::fromUtf8(propertyName), context);
 
     if (!property.isValid())
         return;
@@ -235,7 +231,7 @@ bool DesignerCustomObjectData::hasBindingForProperty(QQmlContext *context, const
     if (QmlPrivateGate::isPropertyBlackListed(propertyName))
         return false;
 
-    QQmlProperty property(object(), propertyName, context);
+    QQmlProperty property(object(), QString::fromUtf8(propertyName), context);
 
     bool hasBinding = QQmlPropertyPrivate::binding(property);
 
@@ -250,7 +246,7 @@ bool DesignerCustomObjectData::hasBindingForProperty(QQmlContext *context, const
 
 void DesignerCustomObjectData::setPropertyBinding(QQmlContext *context, const PropertyName &propertyName, const QString &expression)
 {
-    QQmlProperty property(object(), propertyName, context);
+    QQmlProperty property(object(), QString::fromUtf8(propertyName), context);
 
     if (!property.isValid())
         return;
@@ -286,7 +282,7 @@ void DesignerCustomObjectData::keepBindingFromGettingDeleted(QQmlContext *contex
     Q_UNUSED(context)
     Q_UNUSED(propertyName)
 #else
-    QQmlProperty property(object(), propertyName, context);
+    QQmlProperty property(object(), QString::fromUtf8(propertyName), context);
     QQmlPropertyPrivate::setBinding(property, 0, QQmlPropertyPrivate::BypassInterceptor
                                     | QQmlPropertyPrivate::DontRemoveBinding);
 #endif

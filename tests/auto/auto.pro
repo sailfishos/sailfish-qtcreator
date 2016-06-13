@@ -3,6 +3,7 @@ TEMPLATE = subdirs
 SUBDIRS += \
     aggregation \
     changeset \
+    clangstaticanalyzer \
     cplusplus \
     debugger \
     diff \
@@ -12,13 +13,14 @@ SUBDIRS += \
     generichighlighter \
     profilewriter \
     treeviewfind \
-    ioutils \
     qtcprocess \
+    json \
     utils \
     filesearch \
+    mapreduce \
+    runextensions \
     sdktool \
     valgrind
 
-qtHaveModule(declarative) {
-    SUBDIRS += qml timeline
-}
+qtHaveModule(qml): SUBDIRS += qml
+qtHaveModule(quick): SUBDIRS += timeline

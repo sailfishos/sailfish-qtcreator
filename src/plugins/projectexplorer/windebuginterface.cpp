@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -32,9 +27,13 @@
 
 #ifdef Q_OS_WIN
 
+#  if (QT_VERSION < QT_VERSION_CHECK(5, 4, 1))
+#    define NOMINMAX
+#  endif
+
 #include <windows.h>
 #include <QApplication>
-
+#include <QTime>
 
 /*!
     \class ProjectExplorer::Internal::WinDebugInterface
@@ -135,13 +134,42 @@ bool WinDebugInterface::runLoop()
 
     SetEvent(m_bufferReadyEvent);
 
+    QTime timer; // time since last signal sent
+    timer.start();
+
+    QMap<qint64, QString> delayedMessages;
+
+    auto flushMessages = [this, &delayedMessages, &timer](){
+        auto it = delayedMessages.constBegin();
+        auto end = delayedMessages.constEnd();
+        for (; it != end; ++it)
+            emit debugOutput(it.key(), it.value());
+        delayedMessages.clear();
+        timer.start();
+    };
+
     while (true) {
-        const DWORD ret = WaitForMultipleObjects(HandleCount, m_waitHandles, FALSE, INFINITE);
-        if (ret == WAIT_FAILED || ret - WAIT_OBJECT_0 == TerminateEventHandle)
+        DWORD timeout = INFINITE;
+        if (!delayedMessages.isEmpty()) // if we have delayed message, don't wait forever
+            timeout = qMax(60 - timer.elapsed(), 1);
+        const DWORD ret = WaitForMultipleObjects(HandleCount, m_waitHandles, FALSE, timeout);
+
+        if (ret == WAIT_FAILED || ret - WAIT_OBJECT_0 == TerminateEventHandle) {
+            flushMessages();
             break;
-        if (ret - WAIT_OBJECT_0 == DataReadyEventHandle) {
-            if (*processId != m_creatorPid)
-                emit debugOutput(*processId, QString::fromLocal8Bit(message));
+        }
+        if (ret == WAIT_TIMEOUT) {
+            flushMessages();
+            SetEvent(m_bufferReadyEvent);
+        } else if (ret - WAIT_OBJECT_0 == DataReadyEventHandle) {
+            if (*processId != m_creatorPid) {
+                if (timer.elapsed() < 60) {
+                    delayedMessages[*processId].append(QString::fromLocal8Bit(message));
+                } else {
+                    delayedMessages[*processId] += QString::fromLocal8Bit(message);
+                    flushMessages();
+                }
+            }
             SetEvent(m_bufferReadyEvent);
         }
     }

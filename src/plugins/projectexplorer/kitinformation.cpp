@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -61,7 +56,7 @@ SysRootKitInformation::SysRootKitInformation()
     setPriority(31000);
 }
 
-QVariant SysRootKitInformation::defaultValue(Kit *k) const
+QVariant SysRootKitInformation::defaultValue(const Kit *k) const
 {
     Q_UNUSED(k)
     return QString();
@@ -109,7 +104,8 @@ Utils::FileName SysRootKitInformation::sysRoot(const Kit *k)
 
 void SysRootKitInformation::setSysRoot(Kit *k, const Utils::FileName &v)
 {
-    k->setValue(SysRootKitInformation::id(), v.toString());
+    if (k)
+        k->setValue(SysRootKitInformation::id(), v.toString());
 }
 
 // --------------------------------------------------------------------------
@@ -122,11 +118,11 @@ ToolChainKitInformation::ToolChainKitInformation()
     setId(ToolChainKitInformation::id());
     setPriority(30000);
 
-    connect(KitManager::instance(), SIGNAL(kitsLoaded()),
-            this, SLOT(kitsWereLoaded()));
+    connect(KitManager::instance(), &KitManager::kitsLoaded,
+            this, &ToolChainKitInformation::kitsWereLoaded);
 }
 
-QVariant ToolChainKitInformation::defaultValue(Kit *k) const
+QVariant ToolChainKitInformation::defaultValue(const Kit *k) const
 {
     Q_UNUSED(k);
     QList<ToolChain *> tcList = ToolChainManager::toolChains();
@@ -169,7 +165,7 @@ void ToolChainKitInformation::fix(Kit *k)
 void ToolChainKitInformation::setup(Kit *k)
 {
     QTC_ASSERT(ToolChainManager::isLoaded(), return);
-    const QString id = k->value(ToolChainKitInformation::id()).toString();
+    const QByteArray id = k->value(ToolChainKitInformation::id()).toByteArray();
     if (id.isEmpty())
         return;
 
@@ -179,7 +175,7 @@ void ToolChainKitInformation::setup(Kit *k)
 
     // ID is not found: Might be an ABI string...
     foreach (ToolChain *current, ToolChainManager::toolChains()) {
-        if (current->targetAbi().toString() == id)
+        if (current->targetAbi().toString() == QString::fromUtf8(id))
             return setToolChain(k, current);
     }
 }
@@ -216,6 +212,12 @@ void ToolChainKitInformation::addToMacroExpander(Kit *kit, Utils::MacroExpander 
                                    const ToolChain *tc = toolChain(kit);
                                    return tc ? tc->displayName() : tr("None");
                                });
+
+    expander->registerVariable("Compiler:Executable", tr("Path to the compiler executable"),
+                               [this, kit]() -> QString {
+                                   const ToolChain *tc = toolChain(kit);
+                                   return tc ? tc->compilerCommand().toString() : QString();
+                               });
 }
 
 
@@ -237,12 +239,12 @@ ToolChain *ToolChainKitInformation::toolChain(const Kit *k)
     QTC_ASSERT(ToolChainManager::isLoaded(), return 0);
     if (!k)
         return 0;
-    return ToolChainManager::findToolChain(k->value(ToolChainKitInformation::id()).toString());
+    return ToolChainManager::findToolChain(k->value(ToolChainKitInformation::id()).toByteArray());
 }
 
 void ToolChainKitInformation::setToolChain(Kit *k, ToolChain *tc)
 {
-    k->setValue(ToolChainKitInformation::id(), tc ? tc->id() : QString());
+    k->setValue(ToolChainKitInformation::id(), tc ? QString::fromUtf8(tc->id()) : QString());
 }
 
 QString ToolChainKitInformation::msgNoToolChainInTarget()
@@ -255,10 +257,10 @@ void ToolChainKitInformation::kitsWereLoaded()
     foreach (Kit *k, KitManager::kits())
         fix(k);
 
-    connect(ToolChainManager::instance(), SIGNAL(toolChainRemoved(ProjectExplorer::ToolChain*)),
-            this, SLOT(toolChainRemoved(ProjectExplorer::ToolChain*)));
-    connect(ToolChainManager::instance(), SIGNAL(toolChainUpdated(ProjectExplorer::ToolChain*)),
-            this, SLOT(toolChainUpdated(ProjectExplorer::ToolChain*)));
+    connect(ToolChainManager::instance(), &ToolChainManager::toolChainRemoved,
+            this, &ToolChainKitInformation::toolChainRemoved);
+    connect(ToolChainManager::instance(), &ToolChainManager::toolChainUpdated,
+            this, &ToolChainKitInformation::toolChainUpdated);
 }
 
 void ToolChainKitInformation::toolChainUpdated(ToolChain *tc)
@@ -286,7 +288,7 @@ DeviceTypeKitInformation::DeviceTypeKitInformation()
     setPriority(33000);
 }
 
-QVariant DeviceTypeKitInformation::defaultValue(Kit *k) const
+QVariant DeviceTypeKitInformation::defaultValue(const Kit *k) const
 {
     Q_UNUSED(k);
     return QByteArray(Constants::DESKTOP_DEVICE_TYPE);
@@ -336,18 +338,22 @@ void DeviceTypeKitInformation::setDeviceTypeId(Kit *k, Core::Id type)
 
 KitMatcher DeviceTypeKitInformation::deviceTypeMatcher(Core::Id type)
 {
-    return std::function<bool(const Kit *)>([type](const Kit *kit) {
+    return KitMatcher(std::function<bool(const Kit *)>([type](const Kit *kit) {
         return type.isValid() && deviceTypeId(kit) == type;
-    });
+    }));
 }
 
-Core::FeatureSet DeviceTypeKitInformation::availableFeatures(const Kit *k) const
+QSet<Core::Id> DeviceTypeKitInformation::supportedPlatforms(const Kit *k) const
+{
+    return { deviceTypeId(k) };
+}
+
+QSet<Core::Id> DeviceTypeKitInformation::availableFeatures(const Kit *k) const
 {
     Core::Id id = DeviceTypeKitInformation::deviceTypeId(k);
-    Core::FeatureSet result;
     if (id.isValid())
-        result |= Core::Feature::fromString(QString::fromLatin1("DeviceType.") + id.toString());
-    return result;
+        return { Core::Id::fromString(QString::fromLatin1("DeviceType.") + id.toString()) };
+    return QSet<Core::Id>();
 }
 
 // --------------------------------------------------------------------------
@@ -360,11 +366,11 @@ DeviceKitInformation::DeviceKitInformation()
     setId(DeviceKitInformation::id());
     setPriority(32000);
 
-    connect(KitManager::instance(), SIGNAL(kitsLoaded()),
-            this, SLOT(kitsWereLoaded()));
+    connect(KitManager::instance(), &KitManager::kitsLoaded,
+            this, &DeviceKitInformation::kitsWereLoaded);
 }
 
-QVariant DeviceKitInformation::defaultValue(Kit *k) const
+QVariant DeviceKitInformation::defaultValue(const Kit *k) const
 {
     Core::Id type = DeviceTypeKitInformation::deviceTypeId(k);
     // Use default device if that is compatible:
@@ -488,15 +494,15 @@ void DeviceKitInformation::kitsWereLoaded()
         fix(k);
 
     DeviceManager *dm = DeviceManager::instance();
-    connect(dm, SIGNAL(deviceListReplaced()), this, SLOT(devicesChanged()));
-    connect(dm, SIGNAL(deviceAdded(Core::Id)), this, SLOT(devicesChanged()));
-    connect(dm, SIGNAL(deviceRemoved(Core::Id)), this, SLOT(devicesChanged()));
-    connect(dm, SIGNAL(deviceUpdated(Core::Id)), this, SLOT(deviceUpdated(Core::Id)));
+    connect(dm, &DeviceManager::deviceListReplaced, this, &DeviceKitInformation::devicesChanged);
+    connect(dm, &DeviceManager::deviceAdded, this, &DeviceKitInformation::devicesChanged);
+    connect(dm, &DeviceManager::deviceRemoved, this, &DeviceKitInformation::devicesChanged);
+    connect(dm, &DeviceManager::deviceUpdated, this, &DeviceKitInformation::deviceUpdated);
 
-    connect(KitManager::instance(), SIGNAL(kitUpdated(ProjectExplorer::Kit*)),
-            this, SLOT(kitUpdated(ProjectExplorer::Kit*)));
-    connect(KitManager::instance(), SIGNAL(unmanagedKitUpdated(ProjectExplorer::Kit*)),
-            this, SLOT(kitUpdated(ProjectExplorer::Kit*)));
+    connect(KitManager::instance(), &KitManager::kitUpdated,
+            this, &DeviceKitInformation::kitUpdated);
+    connect(KitManager::instance(), &KitManager::unmanagedKitUpdated,
+            this, &DeviceKitInformation::kitUpdated);
 }
 
 void DeviceKitInformation::deviceUpdated(Core::Id id)
@@ -529,7 +535,7 @@ EnvironmentKitInformation::EnvironmentKitInformation()
     setPriority(29000);
 }
 
-QVariant EnvironmentKitInformation::defaultValue(Kit *k) const
+QVariant EnvironmentKitInformation::defaultValue(const Kit *k) const
 {
     Q_UNUSED(k)
     return QStringList();
@@ -572,7 +578,7 @@ KitInformation::ItemList EnvironmentKitInformation::toUserOutput(const Kit *k) c
     ItemList retVal;
     QVariant envValue = k->value(EnvironmentKitInformation::id());
     if (envValue.isValid())
-        retVal << qMakePair(QLatin1Literal("Environment"), envValue.toStringList().join(QLatin1Literal("\n")));
+        retVal << qMakePair(QLatin1Literal("Environment"), envValue.toStringList().join(QLatin1Literal("<br>")));
 
     return retVal;
 }

@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -33,10 +28,10 @@
 
 #include "utils_global.h"
 
+#include <QDir>
 #include <QFuture>
 #include <QMap>
 #include <QStack>
-#include <QDir>
 #include <QTextDocument>
 
 QT_FORWARD_DECLARE_CLASS(QTextCodec)
@@ -49,12 +44,15 @@ public:
     class Item
     {
     public:
+        Item() : encoding(nullptr) { }
         Item(const QString &path, QTextCodec *codec)
             : filePath(path), encoding(codec)
         {}
         QString filePath;
         QTextCodec *encoding;
     };
+
+    typedef Item value_type;
 
     class const_iterator
     {
@@ -65,36 +63,39 @@ public:
         typedef const value_type *pointer;
         typedef const value_type &reference;
 
-        const_iterator(FileIterator *parent, Item item, int id)
-            : m_parent(parent), m_item(item), m_index(id)
+        const_iterator() : m_parent(nullptr), m_index(-1) { }
+        const_iterator(const FileIterator *parent, int id)
+            : m_parent(parent), m_index(id)
         {}
-        const Item operator*() const { return m_item; }
-        const Item *operator->() const { return &m_item; }
-        void operator++() { m_parent->next(this); }
+        const_iterator(const const_iterator &) = default;
+        const_iterator &operator=(const const_iterator &) = default;
+
+        reference operator*() const { return m_parent->itemAt(m_index); }
+        pointer operator->() const { return &m_parent->itemAt(m_index); }
+        void operator++() { m_parent->advance(this); }
         bool operator==(const const_iterator &other) const
         {
             return m_parent == other.m_parent && m_index == other.m_index;
         }
         bool operator!=(const const_iterator &other) const { return !operator==(other); }
 
-        FileIterator *m_parent;
-        Item m_item;
+        const FileIterator *m_parent;
         int m_index; // -1 == end
     };
 
     virtual ~FileIterator() {}
-    void next(const_iterator *it);
-    const_iterator begin();
-    const_iterator end();
+    const_iterator begin() const;
+    const_iterator end() const;
 
     virtual int maxProgress() const = 0;
     virtual int currentProgress() const = 0;
 
+    void advance(const_iterator *it) const;
+    virtual const Item &itemAt(int index) const = 0;
+
 protected:
     virtual void update(int requestedIndex) = 0;
     virtual int currentFileCount() const = 0;
-    virtual QString fileAt(int index) const = 0;
-    virtual QTextCodec *codecAt(int index) const = 0;
 };
 
 class QTCREATOR_UTILS_EXPORT FileListIterator : public FileIterator
@@ -109,13 +110,10 @@ public:
 protected:
     void update(int requestedIndex) override;
     int currentFileCount() const override;
-    QString fileAt(int index) const override;
-    QTextCodec *codecAt(int index) const override;
+    const Item &itemAt(int index) const override;
 
 private:
-    QTextCodec *encodingAt(int index) const;
-    QStringList m_files;
-    QList<QTextCodec *> m_encodings;
+    QVector<Item> m_items;
     int m_maxIndex;
 };
 
@@ -124,6 +122,7 @@ class QTCREATOR_UTILS_EXPORT SubDirFileIterator : public FileIterator
 public:
     SubDirFileIterator(const QStringList &directories, const QStringList &filters,
                        QTextCodec *encoding = 0);
+    ~SubDirFileIterator();
 
     int maxProgress() const override;
     int currentProgress() const override;
@@ -131,8 +130,7 @@ public:
 protected:
     void update(int requestedIndex) override;
     int currentFileCount() const override;
-    QString fileAt(int index) const override;
-    QTextCodec *codecAt(int index) const override;
+    const Item &itemAt(int index) const override;
 
 private:
     QStringList m_filters;
@@ -141,7 +139,8 @@ private:
     QStack<qreal> m_progressValues;
     QStack<bool> m_processedValues;
     qreal m_progress;
-    QStringList m_files;
+    // Use heap allocated objects directly because we want references to stay valid even after resize
+    QList<Item *> m_items;
 };
 
 class QTCREATOR_UTILS_EXPORT FileSearchResult

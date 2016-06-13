@@ -14,7 +14,7 @@ HEADERS += projectexplorer.h \
     environmentaspectwidget.h \
     gcctoolchain.h \
     importwidget.h \
-    localapplicationrunconfiguration.h \
+    runnables.h \
     localenvironmentaspect.h \
     osparser.h \
     projectexplorer_export.h \
@@ -59,7 +59,6 @@ HEADERS += projectexplorer.h \
     gnumakeparser.h \
     projectexplorerconstants.h \
     projectexplorersettings.h \
-    corelistenercheckingforrunningbuild.h \
     project.h \
     iprojectmanager.h \
     currentprojectfilter.h \
@@ -106,7 +105,6 @@ HEADERS += projectexplorer.h \
     abstractprocessstep.h \
     taskhub.h \
     localapplicationruncontrol.h \
-    metatypedeclarations.h \
     headerpath.h \
     gcctoolchainfactories.h \
     appoutputpane.h \
@@ -153,7 +151,11 @@ HEADERS += projectexplorer.h \
     projectwelcomepage.h \
     projectpanelfactory.h \
     projecttree.h \
-    expanddata.h
+    expanddata.h \
+    waitforstopdialog.h \
+    projectexplorericons.h \
+    projectexplorer_global.h \
+    extracompiler.h
 
 SOURCES += projectexplorer.cpp \
     abi.cpp \
@@ -166,7 +168,7 @@ SOURCES += projectexplorer.cpp \
     environmentaspectwidget.cpp \
     gcctoolchain.cpp \
     importwidget.cpp \
-    localapplicationrunconfiguration.cpp \
+    runnables.cpp \
     localenvironmentaspect.cpp \
     osparser.cpp \
     projectimporter.cpp \
@@ -237,7 +239,6 @@ SOURCES += projectexplorer.cpp \
     cesdkhandler.cpp \
     gccparser.cpp \
     projectexplorersettingspage.cpp \
-    corelistenercheckingforrunningbuild.cpp \
     baseprojectwizarddialog.cpp \
     miniprojecttargetselector.cpp \
     targetselector.cpp \
@@ -285,7 +286,6 @@ SOURCES += projectexplorer.cpp \
     projectmacroexpander.cpp \
     customparser.cpp \
     customparserconfigdialog.cpp \
-    ipotentialkit.cpp \
     selectablefilesmodel.cpp \
     xcodebuildparser.cpp \
     propertiespanel.cpp \
@@ -293,7 +293,9 @@ SOURCES += projectexplorer.cpp \
     projectwelcomepage.cpp \
     projectpanelfactory.cpp \
     projecttree.cpp \
-    expanddata.cpp
+    expanddata.cpp \
+    waitforstopdialog.cpp \
+    extracompiler.cpp
 
 FORMS += processstep.ui \
     editorsettingspropertiespage.ui \

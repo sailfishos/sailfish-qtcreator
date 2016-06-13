@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 Tim Sander <tim@krieglstein.org>
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2016 Tim Sander <tim@krieglstein.org>
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,28 +9,24 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://www.qt.io/licensing.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
 #include "baremetalcustomrunconfiguration.h"
 
 #include <projectexplorer/target.h>
+#include <projectexplorer/runconfigurationaspects.h>
 #include <qtsupport/qtoutputformatter.h>
 #include <utils/detailswidget.h>
 #include <utils/qtcprocess.h>
@@ -38,19 +34,22 @@
 
 #include <QDir>
 #include <QFileInfo>
+#include <QFormLayout>
 #include <QVBoxLayout>
 #include <QLabel>
 #include <QString>
 #include <QLineEdit>
 
 using namespace Utils;
+using namespace ProjectExplorer;
 
 namespace BareMetal {
 namespace Internal {
 
-class BareMetalCustomRunConfigWidget : public ProjectExplorer::RunConfigWidget
+class BareMetalCustomRunConfigWidget : public RunConfigWidget
 {
     Q_OBJECT
+
 public:
     BareMetalCustomRunConfigWidget(BareMetalCustomRunConfiguration *runConfig)
         : m_runConfig(runConfig)
@@ -67,28 +66,21 @@ public:
         auto executableChooser = new PathChooser;
         executableChooser->setExpectedKind(PathChooser::File);
         executableChooser->setPath(m_runConfig->localExecutableFilePath());
-        auto argumentsLabel = new QLabel(tr("Arguments:"));
-        auto arguments = new QLineEdit();
-        arguments->setText(m_runConfig->arguments());
+
         auto wdirLabel = new QLabel(tr("Work directory:"));
         auto workdirChooser = new PathChooser;
         workdirChooser->setExpectedKind(PathChooser::Directory);
         workdirChooser->setPath(m_runConfig->workingDirectory());
 
-        auto clayout = new QGridLayout(this);
+        auto clayout = new QFormLayout(this);
         detailsWidget->setLayout(clayout);
 
-        clayout->addWidget(exeLabel, 0, 0);
-        clayout->addWidget(executableChooser, 0, 1);
-        clayout->addWidget(argumentsLabel, 1, 0);
-        clayout->addWidget(arguments, 1, 1);
-        clayout->addWidget(wdirLabel, 2, 0);
-        clayout->addWidget(workdirChooser, 2, 1);
+        clayout->addRow(exeLabel, executableChooser);
+        runConfig->extraAspect<ArgumentsAspect>()->addToMainConfigurationWidget(this, clayout);
+        clayout->addRow(wdirLabel, workdirChooser);
 
         connect(executableChooser, &PathChooser::pathChanged,
                 this, &BareMetalCustomRunConfigWidget::handleLocalExecutableChanged);
-        connect(arguments, &QLineEdit::textChanged,
-                this, &BareMetalCustomRunConfigWidget::handleArgumentsChanged);
         connect(workdirChooser, &PathChooser::pathChanged,
                 this, &BareMetalCustomRunConfigWidget::handleWorkingDirChanged);
         connect(this, &BareMetalCustomRunConfigWidget::setWorkdir,
@@ -107,11 +99,6 @@ private:
             emit setWorkdir(fi.dir().canonicalPath());
             handleWorkingDirChanged(fi.dir().canonicalPath());
         }
-    }
-
-    void handleArgumentsChanged(const QString &arguments)
-    {
-        m_runConfig->setArguments(arguments.trimmed());
     }
 
     void handleWorkingDirChanged(const QString &wd)

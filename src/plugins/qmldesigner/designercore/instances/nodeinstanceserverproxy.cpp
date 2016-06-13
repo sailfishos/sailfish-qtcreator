@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,26 +9,63 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
 #include "nodeinstanceserverproxy.h"
+
+#include "puppetcreator.h"
+
+#include <createinstancescommand.h>
+#include <createscenecommand.h>
+#include <changevaluescommand.h>
+#include <changebindingscommand.h>
+#include <changeauxiliarycommand.h>
+#include <changefileurlcommand.h>
+#include <removeinstancescommand.h>
+#include <clearscenecommand.h>
+#include <removepropertiescommand.h>
+#include <reparentinstancescommand.h>
+#include <changeidscommand.h>
+#include <changestatecommand.h>
+#include <completecomponentcommand.h>
+#include <changenodesourcecommand.h>
+
+#include <informationchangedcommand.h>
+#include <pixmapchangedcommand.h>
+#include <valueschangedcommand.h>
+#include <childrenchangedcommand.h>
+#include <statepreviewimagechangedcommand.h>
+#include <componentcompletedcommand.h>
+#include <tokencommand.h>
+#include <removesharedmemorycommand.h>
+#include <endpuppetcommand.h>
+#include <synchronizecommand.h>
+#include <debugoutputcommand.h>
+
+#include <nodeinstanceview.h>
+#include <import.h>
+#include <qmldesignerplugin.h>
+
+#include <coreplugin/icore.h>
+#include <utils/hostosinfo.h>
+#include <coreplugin/messagebox.h>
+#include <coreplugin/editormanager/editormanager.h>
+#include <projectexplorer/kit.h>
+#include <qtsupport/qtkitinformation.h>
+#include <qtsupport/baseqtversion.h>
+#include <qtsupport/qtsupportconstants.h>
 
 #include <QLocalServer>
 #include <QLocalSocket>
@@ -41,64 +78,7 @@
 #include <QTextStream>
 #include <QMessageBox>
 
-#include "createinstancescommand.h"
-#include "createscenecommand.h"
-#include "changevaluescommand.h"
-#include "changebindingscommand.h"
-#include "changeauxiliarycommand.h"
-#include "changefileurlcommand.h"
-#include "removeinstancescommand.h"
-#include "clearscenecommand.h"
-#include "removepropertiescommand.h"
-#include "reparentinstancescommand.h"
-#include "changeidscommand.h"
-#include "changestatecommand.h"
-#include "completecomponentcommand.h"
-#include "changenodesourcecommand.h"
-
-#include "informationchangedcommand.h"
-#include "pixmapchangedcommand.h"
-#include "valueschangedcommand.h"
-#include "childrenchangedcommand.h"
-#include "statepreviewimagechangedcommand.h"
-#include "componentcompletedcommand.h"
-#include "tokencommand.h"
-#include "removesharedmemorycommand.h"
-#include "endpuppetcommand.h"
-#include "synchronizecommand.h"
-#include "debugoutputcommand.h"
-
-#include "nodeinstanceview.h"
-
-#include "import.h"
-
-#include "qmldesignerplugin.h"
-
-#include "puppetcreator.h"
-
-#include <coreplugin/icore.h>
-#include <utils/hostosinfo.h>
-#include <coreplugin/messagebox.h>
-#include <coreplugin/editormanager/editormanager.h>
-#include <projectexplorer/kit.h>
-#include <qtsupport/qtkitinformation.h>
-#include <qtsupport/baseqtversion.h>
-#include <qtsupport/qtsupportconstants.h>
-
-
 namespace QmlDesigner {
-
-static bool hasQtQuick1(NodeInstanceView *nodeInstanceView)
-{
-    if (nodeInstanceView && nodeInstanceView->model()) {
-        foreach (const Import &import ,nodeInstanceView->model()->imports()) {
-            if (import.url() ==  "QtQuick" && import.version().toDouble() < 2.0)
-                return true;
-        }
-    }
-
-    return false;
-}
 
 static void showCannotConnectToPuppetWarningAndSwitchToEditMode()
 {
@@ -128,9 +108,8 @@ NodeInstanceServerProxy::NodeInstanceServerProxy(NodeInstanceView *nodeInstanceV
    m_localServer->listen(socketToken);
    m_localServer->setMaxPendingConnections(3);
 
-   PuppetCreator::QmlPuppetVersion puppetVersion = hasQtQuick1(nodeInstanceView) ? PuppetCreator::Qml1Puppet : PuppetCreator::Qml2Puppet;
-   PuppetCreator puppetCreator(kit, QString(), nodeInstanceView->model(), puppetVersion);
-
+   PuppetCreator puppetCreator(kit, QString(), nodeInstanceView->model());
+   puppetCreator.setQrcMappingString(qrcMappingString());
 
    puppetCreator.createPuppetExecutableIfMissing();
 
@@ -154,14 +133,17 @@ NodeInstanceServerProxy::NodeInstanceServerProxy(NodeInstanceView *nodeInstanceV
    }
 
    if (m_qmlPuppetEditorProcess->waitForStarted(10000)) {
-       connect(m_qmlPuppetEditorProcess.data(), SIGNAL(finished(int)), m_qmlPuppetEditorProcess.data(),SLOT(deleteLater()));
+       connect(m_qmlPuppetEditorProcess.data(), static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(&QProcess::finished),
+            m_qmlPuppetEditorProcess.data(), &QProcess::deleteLater);
 
        if (runModus == NormalModus) {
            m_qmlPuppetPreviewProcess->waitForStarted();
-           connect(m_qmlPuppetPreviewProcess.data(), SIGNAL(finished(int)), m_qmlPuppetPreviewProcess.data(),SLOT(deleteLater()));
+           connect(m_qmlPuppetPreviewProcess.data(), static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(&QProcess::finished),
+                m_qmlPuppetPreviewProcess.data(), &QProcess::deleteLater);
 
            m_qmlPuppetRenderProcess->waitForStarted();
-           connect(m_qmlPuppetRenderProcess.data(), SIGNAL(finished(int)), m_qmlPuppetRenderProcess.data(),SLOT(deleteLater()));
+           connect(m_qmlPuppetRenderProcess.data(), static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(&QProcess::finished),
+                m_qmlPuppetRenderProcess.data(), &QProcess::deleteLater);
        }
 
        bool connectedToPuppet = true;
@@ -215,11 +197,14 @@ NodeInstanceServerProxy::NodeInstanceServerProxy(NodeInstanceView *nodeInstanceV
        qDebug() << "file is open: " << isOpen;
    }
 
-   m_firstTimer.setInterval(3000);
-   m_secondTimer.setInterval(3000);
-   m_thirdTimer.setInterval(3000);
+   DesignerSettings settings = QmlDesignerPlugin::instance()->settings();
+   int timeOutTime = settings.value(DesignerSettingsKey::PUPPET_KILL_TIMEOUT).toInt();
+   m_firstTimer.setInterval(timeOutTime);
+   m_secondTimer.setInterval(timeOutTime);
+   m_thirdTimer.setInterval(timeOutTime);
 
-   if (qgetenv("DEBUG_QML_PUPPET").isEmpty()) {
+    if (QmlDesignerPlugin::instance()->settings().value(DesignerSettingsKey::
+            DEBUG_PUPPET).toString().isEmpty()) {
        connect(&m_firstTimer, SIGNAL(timeout()), this, SLOT(processFinished()));
        connect(&m_secondTimer, SIGNAL(timeout()), this, SLOT(processFinished()));
        connect(&m_thirdTimer, SIGNAL(timeout()), this, SLOT(processFinished()));
@@ -324,6 +309,30 @@ void NodeInstanceServerProxy::puppetAlive(NodeInstanceServerProxy::PuppetStreamT
     default:
         break;
     }
+}
+
+QString NodeInstanceServerProxy::qrcMappingString() const
+{
+    if (m_nodeInstanceView && m_nodeInstanceView.data()->model()) {
+        RewriterView *rewriterView = m_nodeInstanceView.data()->model()->rewriterView();
+        if (rewriterView) {
+            QString mappingString;
+
+            typedef QPair<QString, QString> StringPair;
+
+            foreach (const StringPair &pair, rewriterView->qrcMapping()) {
+                if (!mappingString.isEmpty())
+                    mappingString.append(QLatin1String(","));
+                mappingString.append(pair.first);
+                mappingString.append(QLatin1String("="));
+                mappingString.append(pair.second);
+            }
+
+            return mappingString;
+        }
+    }
+
+    return QString();
 }
 
 void NodeInstanceServerProxy::processFinished()

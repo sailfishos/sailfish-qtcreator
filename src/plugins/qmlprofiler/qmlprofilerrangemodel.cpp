@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://www.qt.io/licensing.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -51,10 +46,10 @@ namespace Internal {
 
 QmlProfilerRangeModel::QmlProfilerRangeModel(QmlProfilerModelManager *manager,
                                              QmlDebug::RangeType range, QObject *parent) :
-    QmlProfilerTimelineModel(manager, categoryLabel(range), QmlDebug::MaximumMessage, range, parent)
+    QmlProfilerTimelineModel(manager, QmlDebug::MaximumMessage, range,
+                             QmlDebug::featureFromRangeType(range), parent)
 {
     m_expandedRowTypes << -1;
-    announceFeatures(1ULL << QmlDebug::featureFromRangeType(rangeType()));
 }
 
 void QmlProfilerRangeModel::clear()
@@ -72,7 +67,6 @@ bool QmlProfilerRangeModel::supportsBindingLoops() const
 
 void QmlProfilerRangeModel::loadData()
 {
-    clear();
     QmlProfilerDataModel *simpleModel = modelManager()->qmlModel();
     if (simpleModel->isEmpty())
         return;
@@ -81,35 +75,35 @@ void QmlProfilerRangeModel::loadData()
     const QVector<QmlProfilerDataModel::QmlEventData> &eventList = simpleModel->getEvents();
     const QVector<QmlProfilerDataModel::QmlEventTypeData> &typesList = simpleModel->getEventTypes();
     foreach (const QmlProfilerDataModel::QmlEventData &event, eventList) {
-        const QmlProfilerDataModel::QmlEventTypeData &type = typesList[event.typeIndex];
+        const QmlProfilerDataModel::QmlEventTypeData &type = typesList[event.typeIndex()];
         if (!accepted(type))
             continue;
 
         // store starttime-based instance
-        m_data.insert(insert(event.startTime, event.duration, event.typeIndex),
+        m_data.insert(insert(event.startTime(), event.duration(), event.typeIndex()),
                       QmlRangeEventStartInstance());
-        updateProgress(count(), eventList.count() * 6);
+        updateProgress(count(), eventList.count() * 5);
     }
 
-    updateProgress(2, 6);
+    updateProgress(1, 5);
 
     // compute range nesting
     computeNesting();
 
+    updateProgress(2, 5);
+
     // compute nestingLevel - nonexpanded
     computeNestingContracted();
 
-    updateProgress(3, 6);
+    updateProgress(3, 5);
 
     // compute nestingLevel - expanded
     computeExpandedLevels();
 
-    updateProgress(4, 6);
+    updateProgress(4, 5);
 
     if (supportsBindingLoops())
         findBindingLoops();
-
-    updateProgress(5, 6);
 
     updateProgress(1, 1);
 }
@@ -187,14 +181,6 @@ void QmlProfilerRangeModel::findBindingLoops()
 
 }
 
-/////////////////// QML interface
-
-QString QmlProfilerRangeModel::categoryLabel(QmlDebug::RangeType rangeType)
-{
-    return QCoreApplication::translate("MainView",
-            QmlProfilerModelManager::featureName(QmlDebug::featureFromRangeType(rangeType)));
-}
-
 int QmlProfilerRangeModel::expandedRow(int index) const
 {
     return m_data[index].displayRowExpanded;
@@ -240,8 +226,9 @@ QVariantMap QmlProfilerRangeModel::details(int index) const
     const QVector<QmlProfilerDataModel::QmlEventTypeData> &types =
             modelManager()->qmlModel()->getEventTypes();
 
-    result.insert(QStringLiteral("displayName"), categoryLabel(rangeType()));
-    result.insert(tr("Duration"), QmlProfilerBaseModel::formatTime(duration(index)));
+    result.insert(QStringLiteral("displayName"),
+                  tr(QmlProfilerModelManager::featureName(mainFeature())));
+    result.insert(tr("Duration"), QmlProfilerDataModel::formatTime(duration(index)));
 
     result.insert(tr("Details"), types[id].data);
     result.insert(tr("Location"), types[id].displayName);
@@ -250,17 +237,7 @@ QVariantMap QmlProfilerRangeModel::details(int index) const
 
 QVariantMap QmlProfilerRangeModel::location(int index) const
 {
-    QVariantMap result;
-    int id = selectionId(index);
-
-    const QmlDebug::QmlEventLocation &location
-            = modelManager()->qmlModel()->getEventTypes().at(id).location;
-
-    result.insert(QStringLiteral("file"), location.filename);
-    result.insert(QStringLiteral("line"), location.line);
-    result.insert(QStringLiteral("column"), location.column);
-
-    return result;
+    return locationFromTypeId(index);
 }
 
 int QmlProfilerRangeModel::typeId(int index) const

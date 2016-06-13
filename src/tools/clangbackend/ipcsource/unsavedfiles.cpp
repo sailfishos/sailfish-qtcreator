@@ -1,7 +1,7 @@
-﻿/****************************************************************************
+/****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,29 +9,25 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://www.qt.io/licensing.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
 #include "unsavedfiles.h"
 
+#include "unsavedfile.h"
+
 #include <algorithm>
-#include <cstring>
 
 namespace ClangBackEnd {
 
@@ -39,24 +35,15 @@ class UnsavedFilesData
 {
 public:
     UnsavedFilesData();
-    ~UnsavedFilesData();
 
 public:
     time_point lastChangeTimePoint;
-    std::vector<CXUnsavedFile> cxUnsavedFiles;
+    std::vector<UnsavedFile> unsavedFiles;
 };
 
 UnsavedFilesData::UnsavedFilesData()
     : lastChangeTimePoint(std::chrono::steady_clock::now())
 {
-}
-
-UnsavedFilesData::~UnsavedFilesData()
-{
-    for (const CXUnsavedFile &cxUnsavedFile : cxUnsavedFiles)
-        UnsavedFiles::deleteCXUnsavedFile(cxUnsavedFile);
-
-    cxUnsavedFiles.clear();
 }
 
 UnsavedFiles::UnsavedFiles()
@@ -84,7 +71,7 @@ UnsavedFiles &UnsavedFiles::operator=(UnsavedFiles &&other)
 void UnsavedFiles::createOrUpdate(const QVector<FileContainer> &fileContainers)
 {
     for (const FileContainer &fileContainer : fileContainers)
-        updateCXUnsavedFileWithFileContainer(fileContainer);
+        updateUnsavedFileWithFileContainer(fileContainer);
 
     updateLastChangeTimePoint();
 }
@@ -92,33 +79,35 @@ void UnsavedFiles::createOrUpdate(const QVector<FileContainer> &fileContainers)
 void UnsavedFiles::remove(const QVector<FileContainer> &fileContainers)
 {
     for (const FileContainer &fileContainer : fileContainers)
-        removeCXUnsavedFile(fileContainer);
+        removeUnsavedFile(fileContainer);
 
     updateLastChangeTimePoint();
 }
 
-void UnsavedFiles::clear()
+UnsavedFile &UnsavedFiles::unsavedFile(const Utf8String &filePath)
 {
-    for (const CXUnsavedFile &cxUnsavedFile : d->cxUnsavedFiles)
-        deleteCXUnsavedFile(cxUnsavedFile);
+    const auto isMatchingFile = [filePath] (const UnsavedFile &unsavedFile) {
+        return unsavedFile.filePath() == filePath;
+    };
+    const auto unsavedFileIterator = std::find_if(d->unsavedFiles.begin(),
+                                                  d->unsavedFiles.end(),
+                                                  isMatchingFile);
 
-    d->cxUnsavedFiles.clear();
-    updateLastChangeTimePoint();
+    if (unsavedFileIterator != d->unsavedFiles.end())
+        return *unsavedFileIterator;
+
+    static UnsavedFile defaultUnsavedFile = UnsavedFile(Utf8String(), Utf8String());
+    return defaultUnsavedFile;
 }
 
-int UnsavedFiles::count() const
+uint UnsavedFiles::count() const
 {
-    return d->cxUnsavedFiles.size();
+    return uint(d->unsavedFiles.size());
 }
 
 CXUnsavedFile *UnsavedFiles::cxUnsavedFiles() const
 {
-    return d->cxUnsavedFiles.data();
-}
-
-const std::vector<CXUnsavedFile> &UnsavedFiles::cxUnsavedFileVector() const
-{
-    return d->cxUnsavedFiles;
+    return d->unsavedFiles.data()->data();
 }
 
 const time_point &UnsavedFiles::lastChangeTimePoint() const
@@ -126,56 +115,35 @@ const time_point &UnsavedFiles::lastChangeTimePoint() const
     return d->lastChangeTimePoint;
 }
 
-CXUnsavedFile UnsavedFiles::createCxUnsavedFile(const Utf8String &filePath, const Utf8String &fileContent)
+void UnsavedFiles::updateUnsavedFileWithFileContainer(const FileContainer &fileContainer)
 {
-    char *cxUnsavedFilePath = new char[filePath.byteSize() + 1];
-    char *cxUnsavedFileContent = new char[fileContent.byteSize() + 1];
-
-    std::memcpy(cxUnsavedFilePath, filePath.constData(), filePath.byteSize() + 1);
-    std::memcpy(cxUnsavedFileContent, fileContent.constData(), fileContent.byteSize() + 1);
-
-    return CXUnsavedFile { cxUnsavedFilePath, cxUnsavedFileContent, ulong(fileContent.byteSize())};
+    if (fileContainer.hasUnsavedFileContent())
+        addOrUpdateUnsavedFile(fileContainer);
+    else
+        removeUnsavedFile(fileContainer);
 }
 
-void UnsavedFiles::deleteCXUnsavedFile(const CXUnsavedFile &cxUnsavedFile)
-{
-    delete [] cxUnsavedFile.Contents;
-    delete [] cxUnsavedFile.Filename;
-}
-
-void UnsavedFiles::updateCXUnsavedFileWithFileContainer(const FileContainer &fileContainer)
-{
-    if (fileContainer.hasUnsavedFileContent()) {
-        addOrUpdateCXUnsavedFile(fileContainer);
-    } else {
-        removeCXUnsavedFile(fileContainer);
-    }
-}
-
-void UnsavedFiles::removeCXUnsavedFile(const FileContainer &fileContainer)
+void UnsavedFiles::removeUnsavedFile(const FileContainer &fileContainer)
 {
     const Utf8String filePath = fileContainer.filePath();
-    auto removeBeginIterator = std::partition(d->cxUnsavedFiles.begin(),
-                                              d->cxUnsavedFiles.end(),
-                                              [filePath] (const CXUnsavedFile &cxUnsavedFile) { return filePath != cxUnsavedFile.Filename; });
+    auto removeBeginIterator = std::partition(d->unsavedFiles.begin(),
+                                              d->unsavedFiles.end(),
+                                              [filePath] (const UnsavedFile &unsavedFile) { return filePath != unsavedFile.filePath(); });
 
-    std::for_each(removeBeginIterator, d->cxUnsavedFiles.end(), UnsavedFiles::deleteCXUnsavedFile);
-    d->cxUnsavedFiles.erase(removeBeginIterator, d->cxUnsavedFiles.end());
+    d->unsavedFiles.erase(removeBeginIterator, d->unsavedFiles.end());
 }
 
-void UnsavedFiles::addOrUpdateCXUnsavedFile(const FileContainer &fileContainer)
+void UnsavedFiles::addOrUpdateUnsavedFile(const FileContainer &fileContainer)
 {
     const Utf8String filePath = fileContainer.filePath();
     const Utf8String fileContent = fileContainer.unsavedFileContent();
-    auto isSameFile = [filePath] (const CXUnsavedFile &cxUnsavedFile) { return filePath == cxUnsavedFile.Filename; };
+    auto isSameFile = [filePath] (const UnsavedFile &unsavedFile) { return filePath == unsavedFile.filePath(); };
 
-    auto cxUnsavedFileIterator = std::find_if(d->cxUnsavedFiles.begin(), d->cxUnsavedFiles.end(), isSameFile);
-    if (cxUnsavedFileIterator == d->cxUnsavedFiles.end())
-        d->cxUnsavedFiles.push_back(createCxUnsavedFile(filePath, fileContent));
-    else {
-        deleteCXUnsavedFile(*cxUnsavedFileIterator);
-        *cxUnsavedFileIterator = createCxUnsavedFile(filePath, fileContent);
-    }
+    auto unsavedFileIterator = std::find_if(d->unsavedFiles.begin(), d->unsavedFiles.end(), isSameFile);
+    if (unsavedFileIterator == d->unsavedFiles.end())
+        d->unsavedFiles.emplace_back(filePath, fileContent);
+    else
+        *unsavedFileIterator = UnsavedFile(filePath, fileContent);
 }
 
 void UnsavedFiles::updateLastChangeTimePoint()

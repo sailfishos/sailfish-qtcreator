@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,35 +9,29 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
 #include "mainwindow.h"
 #include "icore.h"
-#include "coreconstants.h"
+#include "coreicons.h"
 #include "jsexpander.h"
 #include "toolsettings.h"
 #include "mimetypesettings.h"
 #include "fancytabwidget.h"
 #include "documentmanager.h"
 #include "generalsettings.h"
-#include "themesettings.h"
 #include "helpmanager.h"
 #include "idocumentfactory.h"
 #include "messagemanager.h"
@@ -53,6 +47,7 @@
 #include "rightpane.h"
 #include "editormanager/ieditorfactory.h"
 #include "statusbarwidget.h"
+#include "systemsettings.h"
 #include "externaltoolmanager.h"
 #include "editormanager/systemeditor.h"
 #include "windowsupport.h"
@@ -68,7 +63,6 @@
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/editormanager/editormanager_p.h>
 #include <coreplugin/editormanager/ieditor.h>
-#include <coreplugin/icorelistener.h>
 #include <coreplugin/inavigationwidgetfactory.h>
 #include <coreplugin/progressmanager/progressmanager_p.h>
 #include <coreplugin/progressmanager/progressview.h>
@@ -85,6 +79,7 @@
 
 #include <QApplication>
 #include <QCloseEvent>
+#include <QColorDialog>
 #include <QDebug>
 #include <QDir>
 #include <QFileInfo>
@@ -111,7 +106,7 @@ enum { debugMainWindow = 0 };
 MainWindow::MainWindow() :
     AppMainWindow(),
     m_coreImpl(new ICore(this)),
-    m_additionalContexts(Constants::C_GLOBAL),
+    m_lowPrioAdditionalContexts(Constants::C_GLOBAL),
     m_settingsDatabase(new SettingsDatabase(QFileInfo(PluginManager::settings()->fileName()).path(),
                                             QLatin1String("QtCreator"),
                                             this)),
@@ -130,6 +125,7 @@ MainWindow::MainWindow() :
     m_rightPaneWidget(0),
     m_versionDialog(0),
     m_generalSettings(new GeneralSettings),
+    m_systemSettings(new SystemSettings),
     m_shortcutSettings(new ShortcutSettings),
     m_toolSettings(new ToolSettings),
     m_mimeTypeSettings(new MimeTypeSettings),
@@ -151,7 +147,7 @@ MainWindow::MainWindow() :
 
     setWindowTitle(tr("Qt Creator"));
     if (HostOsInfo::isLinuxHost())
-        QApplication::setWindowIcon(QIcon(QLatin1String(Constants::ICON_QTLOGO_128)));
+        QApplication::setWindowIcon(Icons::QTLOGO_128.icon());
     QCoreApplication::setApplicationName(QLatin1String("QtCreator"));
     QCoreApplication::setApplicationVersion(QLatin1String(Constants::IDE_VERSION_LONG));
     QCoreApplication::setOrganizationName(QLatin1String(Constants::IDE_SETTINGSVARIANT_STR));
@@ -180,6 +176,13 @@ MainWindow::MainWindow() :
     setCorner(Qt::BottomRightCorner, Qt::BottomDockWidgetArea);
 
     m_modeManager = new ModeManager(this, m_modeStack);
+    connect(m_modeStack, &FancyTabWidget::topAreaClicked, this, [](Qt::MouseButton, Qt::KeyboardModifiers modifiers) {
+        if (modifiers & Qt::ShiftModifier) {
+            QColor color = QColorDialog::getColor(StyleHelper::requestedBaseColor(), ICore::dialogParent());
+            if (color.isValid())
+                StyleHelper::setBaseColor(color);
+        }
+    });
 
     registerDefaultContainers();
     registerDefaultActions();
@@ -196,8 +199,7 @@ MainWindow::MainWindow() :
     m_progressManager->progressView()->setParent(this);
     m_progressManager->progressView()->setReferenceWidget(m_modeStack->statusBar());
 
-    connect(QApplication::instance(), SIGNAL(focusChanged(QWidget*,QWidget*)),
-            this, SLOT(updateFocusWidget(QWidget*,QWidget*)));
+    connect(qApp, &QApplication::focusChanged, this, &MainWindow::updateFocusWidget);
     // Add a small Toolbutton for toggling the navigation widget
     statusBar()->insertPermanentWidget(0, m_toggleSideBarButton);
 
@@ -237,6 +239,21 @@ void MainWindow::setOverrideColor(const QColor &color)
     m_overrideColor = color;
 }
 
+QStringList MainWindow::additionalAboutInformation() const
+{
+    return m_aboutInformation;
+}
+
+void MainWindow::appendAboutInformation(const QString &line)
+{
+    m_aboutInformation.append(line);
+}
+
+void MainWindow::addPreCloseListener(const std::function<bool ()> &listener)
+{
+    m_preCloseListeners.append(listener);
+}
+
 MainWindow::~MainWindow()
 {
     // explicitly delete window support, because that calls methods from ICore that call methods
@@ -246,6 +263,7 @@ MainWindow::~MainWindow()
 
     PluginManager::removeObject(m_shortcutSettings);
     PluginManager::removeObject(m_generalSettings);
+    PluginManager::removeObject(m_systemSettings);
     PluginManager::removeObject(m_toolSettings);
     PluginManager::removeObject(m_mimeTypeSettings);
     PluginManager::removeObject(m_systemEditor);
@@ -257,6 +275,8 @@ MainWindow::~MainWindow()
     m_shortcutSettings = 0;
     delete m_generalSettings;
     m_generalSettings = 0;
+    delete m_systemSettings;
+    m_systemSettings = 0;
     delete m_toolSettings;
     m_toolSettings = 0;
     delete m_mimeTypeSettings;
@@ -309,6 +329,7 @@ bool MainWindow::init(QString *errorMessage)
     m_progressManager->init(); // needs the status bar manager
 
     PluginManager::addObject(m_generalSettings);
+    PluginManager::addObject(m_systemSettings);
     PluginManager::addObject(m_shortcutSettings);
     PluginManager::addObject(m_toolSettings);
     PluginManager::addObject(m_mimeTypeSettings);
@@ -326,6 +347,7 @@ bool MainWindow::init(QString *errorMessage)
 
 void MainWindow::extensionsInitialized()
 {
+    EditorManagerPrivate::extensionsInitialized();
     MimeTypeSettings::restoreSettings();
     m_windowSupport = new WindowSupport(this, Context("Core.MainWindow"));
     m_windowSupport->setCloseActionEnabled(false);
@@ -339,8 +361,8 @@ void MainWindow::extensionsInitialized()
 
     emit m_coreImpl->coreAboutToOpen();
     // Delay restoreWindowState, since it is overridden by LayoutRequest event
-    QTimer::singleShot(0, this, SLOT(restoreWindowState()));
-    QTimer::singleShot(0, m_coreImpl, SIGNAL(coreOpened()));
+    QTimer::singleShot(0, this, &MainWindow::restoreWindowState);
+    QTimer::singleShot(0, m_coreImpl, &ICore::coreOpened);
 }
 
 void MainWindow::closeEvent(QCloseEvent *event)
@@ -353,10 +375,8 @@ void MainWindow::closeEvent(QCloseEvent *event)
         return;
     }
 
-    const QList<ICoreListener *> listeners =
-        PluginManager::getObjects<ICoreListener>();
-    foreach (ICoreListener *listener, listeners) {
-        if (!listener->coreAboutToClose()) {
+    foreach (const std::function<bool()> &listener, m_preCloseListeners) {
+        if (!listener()) {
             event->ignore();
             return;
         }
@@ -480,10 +500,10 @@ void MainWindow::registerDefaultActions()
     m_focusToEditor = new QAction(tr("Return to Editor"), this);
     Command *cmd = ActionManager::registerAction(m_focusToEditor, Constants::S_RETURNTOEDITOR);
     cmd->setDefaultKeySequence(QKeySequence(Qt::Key_Escape));
-    connect(m_focusToEditor, SIGNAL(triggered()), this, SLOT(setFocusToEditor()));
+    connect(m_focusToEditor, &QAction::triggered, this, &MainWindow::setFocusToEditor);
 
     // New File Action
-    QIcon icon = QIcon::fromTheme(QLatin1String("document-new"), QIcon(QLatin1String(Constants::ICON_NEWFILE)));
+    QIcon icon = QIcon::fromTheme(QLatin1String("document-new"), Icons::NEWFILE.icon());
     m_newAction = new QAction(icon, tr("&New File or Project..."), this);
     cmd = ActionManager::registerAction(m_newAction, Constants::NEW);
     cmd->setDefaultKeySequence(QKeySequence::New);
@@ -497,18 +517,18 @@ void MainWindow::registerDefaultActions()
     });
 
     // Open Action
-    icon = QIcon::fromTheme(QLatin1String("document-open"), QIcon(QLatin1String(Constants::ICON_OPENFILE)));
+    icon = QIcon::fromTheme(QLatin1String("document-open"), Icons::OPENFILE.icon());
     m_openAction = new QAction(icon, tr("&Open File or Project..."), this);
     cmd = ActionManager::registerAction(m_openAction, Constants::OPEN);
     cmd->setDefaultKeySequence(QKeySequence::Open);
     mfile->addAction(cmd, Constants::G_FILE_OPEN);
-    connect(m_openAction, SIGNAL(triggered()), this, SLOT(openFile()));
+    connect(m_openAction, &QAction::triggered, this, &MainWindow::openFile);
 
     // Open With Action
     m_openWithAction = new QAction(tr("Open File &With..."), this);
     cmd = ActionManager::registerAction(m_openWithAction, Constants::OPEN_WITH);
     mfile->addAction(cmd, Constants::G_FILE_OPEN);
-    connect(m_openWithAction, SIGNAL(triggered()), this, SLOT(openFileWith()));
+    connect(m_openWithAction, &QAction::triggered, this, &MainWindow::openFileWith);
 
     // File->Recent Files Menu
     ActionContainer *ac = ActionManager::createMenu(Constants::M_FILE_RECENTFILES);
@@ -517,8 +537,8 @@ void MainWindow::registerDefaultActions()
     ac->setOnAllDisabledBehavior(ActionContainer::Show);
 
     // Save Action
-    icon = QIcon::fromTheme(QLatin1String("document-save"), QIcon(QLatin1String(Constants::ICON_SAVEFILE)));
-    QAction *tmpaction = new QAction(icon, tr("&Save"), this);
+    icon = QIcon::fromTheme(QLatin1String("document-save"), Icons::SAVEFILE.icon());
+    QAction *tmpaction = new QAction(icon, EditorManager::tr("&Save"), this);
     tmpaction->setEnabled(false);
     cmd = ActionManager::registerAction(tmpaction, Constants::SAVE);
     cmd->setDefaultKeySequence(QKeySequence::Save);
@@ -528,7 +548,7 @@ void MainWindow::registerDefaultActions()
 
     // Save As Action
     icon = QIcon::fromTheme(QLatin1String("document-save-as"));
-    tmpaction = new QAction(icon, tr("Save &As..."), this);
+    tmpaction = new QAction(icon, EditorManager::tr("Save &As..."), this);
     tmpaction->setEnabled(false);
     cmd = ActionManager::registerAction(tmpaction, Constants::SAVEAS);
     cmd->setDefaultKeySequence(QKeySequence(UseMacShortcuts ? tr("Ctrl+Shift+S") : QString()));
@@ -541,7 +561,7 @@ void MainWindow::registerDefaultActions()
     cmd = ActionManager::registerAction(m_saveAllAction, Constants::SAVEALL);
     cmd->setDefaultKeySequence(QKeySequence(UseMacShortcuts ? QString() : tr("Ctrl+Shift+S")));
     mfile->addAction(cmd, Constants::G_FILE_SAVE);
-    connect(m_saveAllAction, SIGNAL(triggered()), this, SLOT(saveAll()));
+    connect(m_saveAllAction, &QAction::triggered, this, &MainWindow::saveAll);
 
     // Print Action
     icon = QIcon::fromTheme(QLatin1String("document-print"));
@@ -558,10 +578,10 @@ void MainWindow::registerDefaultActions()
     cmd = ActionManager::registerAction(m_exitAction, Constants::EXIT);
     cmd->setDefaultKeySequence(QKeySequence(tr("Ctrl+Q")));
     mfile->addAction(cmd, Constants::G_FILE_OTHER);
-    connect(m_exitAction, SIGNAL(triggered()), this, SLOT(exit()));
+    connect(m_exitAction, &QAction::triggered, this, &MainWindow::exit);
 
     // Undo Action
-    icon = QIcon::fromTheme(QLatin1String("edit-undo"), QIcon(QLatin1String(Constants::ICON_UNDO)));
+    icon = QIcon::fromTheme(QLatin1String("edit-undo"), Icons::UNDO.icon());
     tmpaction = new QAction(icon, tr("&Undo"), this);
     cmd = ActionManager::registerAction(tmpaction, Constants::UNDO);
     cmd->setDefaultKeySequence(QKeySequence::Undo);
@@ -571,7 +591,7 @@ void MainWindow::registerDefaultActions()
     tmpaction->setEnabled(false);
 
     // Redo Action
-    icon = QIcon::fromTheme(QLatin1String("edit-redo"), QIcon(QLatin1String(Constants::ICON_REDO)));
+    icon = QIcon::fromTheme(QLatin1String("edit-redo"), Icons::REDO.icon());
     tmpaction = new QAction(icon, tr("&Redo"), this);
     cmd = ActionManager::registerAction(tmpaction, Constants::REDO);
     cmd->setDefaultKeySequence(QKeySequence::Redo);
@@ -581,7 +601,7 @@ void MainWindow::registerDefaultActions()
     tmpaction->setEnabled(false);
 
     // Cut Action
-    icon = QIcon::fromTheme(QLatin1String("edit-cut"), QIcon(QLatin1String(Constants::ICON_CUT)));
+    icon = QIcon::fromTheme(QLatin1String("edit-cut"), Icons::CUT.icon());
     tmpaction = new QAction(icon, tr("Cu&t"), this);
     cmd = ActionManager::registerAction(tmpaction, Constants::CUT);
     cmd->setDefaultKeySequence(QKeySequence::Cut);
@@ -589,7 +609,7 @@ void MainWindow::registerDefaultActions()
     tmpaction->setEnabled(false);
 
     // Copy Action
-    icon = QIcon::fromTheme(QLatin1String("edit-copy"), QIcon(QLatin1String(Constants::ICON_COPY)));
+    icon = QIcon::fromTheme(QLatin1String("edit-copy"), Icons::COPY.icon());
     tmpaction = new QAction(icon, tr("&Copy"), this);
     cmd = ActionManager::registerAction(tmpaction, Constants::COPY);
     cmd->setDefaultKeySequence(QKeySequence::Copy);
@@ -597,7 +617,7 @@ void MainWindow::registerDefaultActions()
     tmpaction->setEnabled(false);
 
     // Paste Action
-    icon = QIcon::fromTheme(QLatin1String("edit-paste"), QIcon(QLatin1String(Constants::ICON_PASTE)));
+    icon = QIcon::fromTheme(QLatin1String("edit-paste"), Icons::PASTE.icon());
     tmpaction = new QAction(icon, tr("&Paste"), this);
     cmd = ActionManager::registerAction(tmpaction, Constants::PASTE);
     cmd->setDefaultKeySequence(QKeySequence::Paste);
@@ -629,7 +649,7 @@ void MainWindow::registerDefaultActions()
     cmd = ActionManager::registerAction(m_optionsAction, Constants::OPTIONS);
     cmd->setDefaultKeySequence(QKeySequence::Preferences);
     mtools->addAction(cmd, Constants::G_TOOLS_OPTIONS);
-    connect(m_optionsAction, SIGNAL(triggered()), this, SLOT(showOptionsDialog()));
+    connect(m_optionsAction, &QAction::triggered, this, [this]() { showOptionsDialog(); });
 
     mwindow->addSeparator(Constants::G_WINDOW_LIST);
 
@@ -671,7 +691,7 @@ void MainWindow::registerDefaultActions()
     }
 
     // Show Sidebar Action
-    m_toggleSideBarAction = new QAction(QIcon(QLatin1String(Constants::ICON_TOGGLE_SIDEBAR)),
+    m_toggleSideBarAction = new QAction(Icons::TOGGLE_SIDEBAR_TOOLBAR.icon(),
                                         QCoreApplication::translate("Core", Constants::TR_SHOW_SIDEBAR),
                                         this);
     m_toggleSideBarAction->setCheckable(true);
@@ -687,7 +707,8 @@ void MainWindow::registerDefaultActions()
     m_toggleModeSelectorAction = new QAction(tr("Show Mode Selector"), this);
     m_toggleModeSelectorAction->setCheckable(true);
     cmd = ActionManager::registerAction(m_toggleModeSelectorAction, Constants::TOGGLE_MODE_SELECTOR);
-    connect(m_toggleModeSelectorAction, &QAction::triggered, ModeManager::instance(), &ModeManager::setModeSelectorVisible);
+    connect(m_toggleModeSelectorAction, &QAction::triggered,
+            ModeManager::instance(), &ModeManager::setModeSelectorVisible);
     mwindow->addAction(cmd, Constants::G_WINDOW_VIEWS);
 
     // Window->Views
@@ -724,7 +745,7 @@ void MainWindow::registerDefaultActions()
 //    cmd = ActionManager::registerAction(tmpaction, Constants:: ABOUT_QT);
 //    mhelp->addAction(cmd, Constants::G_HELP_ABOUT);
 //    tmpaction->setEnabled(true);
-//    connect(tmpaction, SIGNAL(triggered()), qApp, SLOT(aboutQt()));
+//    connect(tmpaction, &QAction::triggered, qApp, &QApplication::aboutQt);
     // About sep
     if (!HostOsInfo::isMacHost()) { // doesn't have the "About" actions in the Help menu
         tmpaction = new QAction(this);
@@ -831,7 +852,7 @@ void MainWindow::exit()
     // since on close we are going to delete everything
     // so to prevent the deleting of that object we
     // just append it
-    QTimer::singleShot(0, this,  SLOT(close()));
+    QTimer::singleShot(0, this,  &QWidget::close);
 }
 
 void MainWindow::openFileWith()
@@ -916,8 +937,7 @@ void MainWindow::updateContextObject(const QList<IContext *> &context)
 
 void MainWindow::aboutToShutdown()
 {
-    disconnect(QApplication::instance(), SIGNAL(focusChanged(QWidget*,QWidget*)),
-               this, SLOT(updateFocusWidget(QWidget*,QWidget*)));
+    disconnect(qApp, &QApplication::focusChanged, this, &MainWindow::updateFocusWidget);
     m_activeContext.clear();
     hide();
 }
@@ -979,23 +999,27 @@ void MainWindow::writeSettings()
     m_navigationWidget->saveSettings(settings);
 }
 
-void MainWindow::updateAdditionalContexts(const Context &remove, const Context &add)
+void MainWindow::updateAdditionalContexts(const Context &remove, const Context &add,
+                                          ICore::ContextPriority priority)
 {
     foreach (const Id id, remove) {
         if (!id.isValid())
             continue;
-
-        int index = m_additionalContexts.indexOf(id);
+        int index = m_lowPrioAdditionalContexts.indexOf(id);
         if (index != -1)
-            m_additionalContexts.removeAt(index);
+            m_lowPrioAdditionalContexts.removeAt(index);
+        index = m_highPrioAdditionalContexts.indexOf(id);
+        if (index != -1)
+            m_highPrioAdditionalContexts.removeAt(index);
     }
 
     foreach (const Id id, add) {
         if (!id.isValid())
             continue;
-
-        if (!m_additionalContexts.contains(id))
-            m_additionalContexts.prepend(id);
+        Context &cref = (priority == ICore::ContextPriority::High ? m_highPrioAdditionalContexts
+                                                                  : m_lowPrioAdditionalContexts);
+        if (!cref.contains(id))
+            cref.prepend(id);
     }
 
     updateContext();
@@ -1003,12 +1027,12 @@ void MainWindow::updateAdditionalContexts(const Context &remove, const Context &
 
 void MainWindow::updateContext()
 {
-    Context contexts;
+    Context contexts = m_highPrioAdditionalContexts;
 
     foreach (IContext *context, m_activeContext)
         contexts.add(context->context());
 
-    contexts.add(m_additionalContexts);
+    contexts.add(m_lowPrioAdditionalContexts);
 
     Context uniquecontexts;
     for (int i = 0; i < contexts.size(); ++i) {
@@ -1018,7 +1042,7 @@ void MainWindow::updateContext()
     }
 
     ActionManager::setContext(uniquecontexts);
-    emit m_coreImpl->contextChanged(m_activeContext, m_additionalContexts);
+    emit m_coreImpl->contextChanged(uniquecontexts);
 }
 
 void MainWindow::aboutToShowRecentFiles()
@@ -1119,7 +1143,7 @@ void MainWindow::newItemDialogFinished()
 {
     m_newAction->setEnabled(true);
     // fire signal when the dialog is actually destroyed
-    QTimer::singleShot(0, this, SIGNAL(newItemDialogRunningChanged()));
+    QTimer::singleShot(0, this, &MainWindow::newItemDialogRunningChanged);
 }
 
 } // namespace Internal

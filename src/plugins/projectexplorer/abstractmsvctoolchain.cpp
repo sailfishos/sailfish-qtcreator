@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -47,11 +42,11 @@ namespace ProjectExplorer {
 namespace Internal {
 
 
-AbstractMsvcToolChain::AbstractMsvcToolChain(const QString &id,
+AbstractMsvcToolChain::AbstractMsvcToolChain(Core::Id typeId,
                                              Detection d,
                                              const Abi &abi,
                                              const QString& vcvarsBat) :
-    ToolChain(id, d),
+    ToolChain(typeId, d),
     m_lastEnvironment(Utils::Environment::systemEnvironment()),
     m_abi(abi),
     m_vcvarsBat(vcvarsBat)
@@ -62,12 +57,10 @@ AbstractMsvcToolChain::AbstractMsvcToolChain(const QString &id,
     Q_ASSERT(!m_vcvarsBat.isEmpty());
 }
 
-AbstractMsvcToolChain::AbstractMsvcToolChain(const QString &id, Detection d) :
-    ToolChain(id, d),
+AbstractMsvcToolChain::AbstractMsvcToolChain(Core::Id typeId, Detection d) :
+    ToolChain(typeId, d),
     m_lastEnvironment(Utils::Environment::systemEnvironment())
-{
-
-}
+{ }
 
 Abi AbstractMsvcToolChain::targetAbi() const
 {
@@ -76,7 +69,10 @@ Abi AbstractMsvcToolChain::targetAbi() const
 
 bool AbstractMsvcToolChain::isValid() const
 {
-    return !m_vcvarsBat.isEmpty();
+    if (m_vcvarsBat.isEmpty())
+        return false;
+    QFileInfo fi(m_vcvarsBat);
+    return fi.isFile() && fi.isExecutable();
 }
 
 QByteArray AbstractMsvcToolChain::predefinedMacros(const QStringList &cxxflags) const
@@ -112,15 +108,15 @@ ToolChain::CompilerFlags AbstractMsvcToolChain::compilerFlags(const QStringList 
  * Converts MSVC warning flags to clang flags.
  * @see http://msdn.microsoft.com/en-us/library/thxezb7y.aspx
  */
-AbstractMsvcToolChain::WarningFlags AbstractMsvcToolChain::warningFlags(const QStringList &cflags) const
+WarningFlags AbstractMsvcToolChain::warningFlags(const QStringList &cflags) const
 {
-    WarningFlags flags;
+    WarningFlags flags = WarningFlags::NoWarnings;
     foreach (QString flag, cflags) {
         if (!flag.isEmpty() && flag[0] == QLatin1Char('-'))
             flag[0] = QLatin1Char('/');
 
         if (flag == QLatin1String("/WX"))
-            flags |= WarningsAsErrors;
+            flags |= WarningFlags::AsErrors;
         else if (flag == QLatin1String("/W0") || flag == QLatin1String("/w"))
             inferWarningsForLevel(0, flags);
         else if (flag == QLatin1String("/W1"))
@@ -134,25 +130,25 @@ AbstractMsvcToolChain::WarningFlags AbstractMsvcToolChain::warningFlags(const QS
         if (add.triggered())
             continue;
         // http://msdn.microsoft.com/en-us/library/ay4h0tc9.aspx
-        add(4263, WarnOverloadedVirtual);
+        add(4263, WarningFlags::OverloadedVirtual);
         // http://msdn.microsoft.com/en-us/library/ytxde1x7.aspx
-        add(4230, WarnIgnoredQualfiers);
+        add(4230, WarningFlags::IgnoredQualfiers);
         // not exact match, http://msdn.microsoft.com/en-us/library/0hx5ckb0.aspx
-        add(4258, WarnHiddenLocals);
+        add(4258, WarningFlags::HiddenLocals);
         // http://msdn.microsoft.com/en-us/library/wzxffy8c.aspx
-        add(4265, WarnNonVirtualDestructor);
+        add(4265, WarningFlags::NonVirtualDestructor);
         // http://msdn.microsoft.com/en-us/library/y92ktdf2%28v=vs.90%29.aspx
-        add(4018, WarnSignedComparison);
+        add(4018, WarningFlags::SignedComparison);
         // http://msdn.microsoft.com/en-us/library/w099eeey%28v=vs.90%29.aspx
-        add(4068, WarnUnknownPragma);
+        add(4068, WarningFlags::UnknownPragma);
         // http://msdn.microsoft.com/en-us/library/26kb9fy0%28v=vs.80%29.aspx
-        add(4100, WarnUnusedParams);
+        add(4100, WarningFlags::UnusedParams);
         // http://msdn.microsoft.com/en-us/library/c733d5h9%28v=vs.90%29.aspx
-        add(4101, WarnUnusedLocals);
+        add(4101, WarningFlags::UnusedLocals);
         // http://msdn.microsoft.com/en-us/library/xb1db44s%28v=vs.90%29.aspx
-        add(4189, WarnUnusedLocals);
+        add(4189, WarningFlags::UnusedLocals);
         // http://msdn.microsoft.com/en-us/library/ttcz0bys%28v=vs.90%29.aspx
-        add(4996, WarnDeprecated);
+        add(4996, WarningFlags::Deprecated);
     }
     return flags;
 }
@@ -343,18 +339,18 @@ bool AbstractMsvcToolChain::generateEnvironmentSettings(Utils::Environment &env,
 void AbstractMsvcToolChain::inferWarningsForLevel(int warningLevel, WarningFlags &flags)
 {
     // reset all except unrelated flag
-    flags = flags & WarningsAsErrors;
+    flags = flags & WarningFlags::AsErrors;
 
     if (warningLevel >= 1)
-        flags |= WarningFlags(WarningsDefault | WarnIgnoredQualfiers | WarnHiddenLocals  | WarnUnknownPragma);
+        flags |= WarningFlags(WarningFlags::Default | WarningFlags::IgnoredQualfiers | WarningFlags::HiddenLocals  | WarningFlags::UnknownPragma);
     if (warningLevel >= 2)
-        flags |= WarningsAll;
+        flags |= WarningFlags::All;
     if (warningLevel >= 3) {
-        flags |= WarningFlags(WarningsExtra | WarnNonVirtualDestructor | WarnSignedComparison
-                | WarnUnusedLocals | WarnDeprecated);
+        flags |= WarningFlags(WarningFlags::Extra | WarningFlags::NonVirtualDestructor | WarningFlags::SignedComparison
+                | WarningFlags::UnusedLocals | WarningFlags::Deprecated);
     }
     if (warningLevel >= 4)
-        flags |= WarnUnusedParams;
+        flags |= WarningFlags::UnusedParams;
 }
 
 bool AbstractMsvcToolChain::operator ==(const ToolChain &other) const
@@ -368,7 +364,7 @@ bool AbstractMsvcToolChain::operator ==(const ToolChain &other) const
 }
 
 AbstractMsvcToolChain::WarningFlagAdder::WarningFlagAdder(const QString &flag,
-                                                    ToolChain::WarningFlags &flags) :
+                                                          WarningFlags &flags) :
     m_flags(flags),
     m_triggered(false)
 {
@@ -382,14 +378,14 @@ AbstractMsvcToolChain::WarningFlagAdder::WarningFlagAdder(const QString &flag,
     }
     bool ok = false;
     if (m_doesEnable)
-        m_warningCode = flag.mid(2).toInt(&ok);
+        m_warningCode = flag.midRef(2).toInt(&ok);
     else
-        m_warningCode = flag.mid(3).toInt(&ok);
+        m_warningCode = flag.midRef(3).toInt(&ok);
     if (!ok)
         m_triggered = true;
 }
 
-void AbstractMsvcToolChain::WarningFlagAdder::operator ()(int warningCode, ToolChain::WarningFlags flagsSet)
+void AbstractMsvcToolChain::WarningFlagAdder::operator ()(int warningCode, WarningFlags flagsSet)
 {
     if (m_triggered)
         return;
@@ -401,11 +397,6 @@ void AbstractMsvcToolChain::WarningFlagAdder::operator ()(int warningCode, ToolC
         else
             m_flags &= ~flagsSet;
     }
-}
-
-void AbstractMsvcToolChain::WarningFlagAdder::operator ()(int warningCode, ToolChain::WarningFlag flag)
-{
-    (*this)(warningCode, WarningFlags(flag));
 }
 
 bool AbstractMsvcToolChain::WarningFlagAdder::triggered() const

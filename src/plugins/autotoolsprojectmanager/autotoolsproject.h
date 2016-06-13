@@ -1,9 +1,9 @@
-/**************************************************************************
+/****************************************************************************
 **
-** Copyright (C) 2015 Openismus GmbH.
-** Authors: Peter Penz (ppenz@openismus.com)
-**          Patricia Santana Cruz (patriciasantanacruz@gmail.com)
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 Openismus GmbH.
+** Author: Peter Penz (ppenz@openismus.com)
+** Author: Patricia Santana Cruz (patriciasantanacruz@gmail.com)
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -11,27 +11,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
-#ifndef AUTOTOOLSPROJECT_H
-#define AUTOTOOLSPROJECT_H
+#pragma once
 
 #include <projectexplorer/project.h>
 
@@ -46,7 +40,7 @@ namespace Utils { class FileSystemWatcher; }
 namespace ProjectExplorer {
 class Node;
 class FolderNode;
-}
+} // namespace ProjectExplorer
 
 namespace AutotoolsProjectManager {
 namespace Internal {
@@ -71,20 +65,17 @@ class AutotoolsProject : public ProjectExplorer::Project
 
 public:
     AutotoolsProject(AutotoolsManager *manager, const QString &fileName);
-    ~AutotoolsProject();
+    ~AutotoolsProject() override;
 
-    QString displayName() const;
-    Core::IDocument *document() const;
-    ProjectExplorer::IProjectManager *projectManager() const;
-    ProjectExplorer::ProjectNode *rootProjectNode() const;
-    QStringList files(FilesMode fileMode) const;
+    QString displayName() const override;
+    QStringList files(FilesMode fileMode) const override;
     static QString defaultBuildDirectory(const QString &projectPath);
     QStringList buildTargets() const;
 
 protected:
-    bool fromMap(const QVariantMap &map);
+    RestoreResult fromMap(const QVariantMap &map, QString *errorMessage) override;
 
-private slots:
+private:
     /**
      *  Loads the project tree by parsing the makefiles.
      */
@@ -111,7 +102,6 @@ private slots:
      */
     void onFileChanged(const QString &file);
 
-private:
     /**
      * Creates folder-nodes and file-nodes for the project tree.
      */
@@ -136,34 +126,20 @@ private:
      */
     void updateCppCodeModel();
 
-private:
-    /// Project manager that has been passed in the constructor
-    AutotoolsManager *m_manager;
-
-    /// File name of the makefile that has been passed in the constructor
-    QString m_fileName;
     QString m_projectName;
 
     /// Return value for AutotoolsProject::files()
     QStringList m_files;
-
-    /// Return value for AutotoolsProject::file()
-    AutotoolsProjectFile *m_file;
-
-    /// Return value for AutotoolsProject::rootProjectNode()
-    AutotoolsProjectNode *m_rootNode;
 
     /// Watches project files for changes.
     Utils::FileSystemWatcher *m_fileWatcher;
     QStringList m_watchedFiles;
 
     /// Responsible for parsing the makefiles asynchronously in a thread
-    MakefileParserThread *m_makefileParserThread;
+    MakefileParserThread *m_makefileParserThread = nullptr;
 
     QFuture<void> m_codeModelFuture;
 };
 
 } // namespace Internal
 } // namespace AutotoolsProjectManager
-
-#endif // AUTOTOOLSPROJECT_H

@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -39,7 +34,7 @@
 #include <coreplugin/fileiconprovider.h>
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/editormanager/ieditor.h>
-#include <coreplugin/coreconstants.h>
+#include <coreplugin/coreicons.h>
 #include <coreplugin/fileutils.h>
 #include <coreplugin/find/findplugin.h>
 
@@ -167,18 +162,20 @@ FolderNavigationWidget::FolderNavigationWidget(QWidget *parent)
     layout->setContentsMargins(0, 0, 0, 0);
     setLayout(layout);
 
-    m_toggleSync->setIcon(QIcon(QLatin1String(Core::Constants::ICON_LINK)));
+    m_toggleSync->setIcon(Core::Icons::LINK.icon());
     m_toggleSync->setCheckable(true);
     m_toggleSync->setToolTip(tr("Synchronize with Editor"));
     setAutoSynchronization(true);
 
     // connections
-    connect(m_listView, SIGNAL(activated(QModelIndex)),
-            this, SLOT(slotOpenItem(QModelIndex)));
-    connect(m_filterHiddenFilesAction, SIGNAL(toggled(bool)), this, SLOT(setHiddenFilesFilter(bool)));
-    connect(m_toggleSync, SIGNAL(clicked(bool)), this, SLOT(toggleAutoSynchronization()));
-    connect(m_filterModel, SIGNAL(layoutChanged()),
-            this, SLOT(ensureCurrentIndex()));
+    connect(m_listView, &QAbstractItemView::activated,
+            this, &FolderNavigationWidget::slotOpenItem);
+    connect(m_filterHiddenFilesAction, &QAction::toggled,
+            this, &FolderNavigationWidget::setHiddenFilesFilter);
+    connect(m_toggleSync, &QAbstractButton::clicked,
+            this, &FolderNavigationWidget::toggleAutoSynchronization);
+    connect(m_filterModel, &QAbstractItemModel::layoutChanged,
+            this, &FolderNavigationWidget::ensureCurrentIndex);
 }
 
 void FolderNavigationWidget::toggleAutoSynchronization()
@@ -293,12 +290,9 @@ void FolderNavigationWidget::openItem(const QModelIndex &srcIndex, bool openDire
             return;
         // Try to find project files in directory and open those.
         if (openDirectoryAsProject) {
-            QDir dir(path);
-            QStringList proFiles;
-            foreach (const QFileInfo &i, dir.entryInfoList(ProjectExplorerPlugin::projectFileGlobs(), QDir::Files))
-                proFiles.append(i.absoluteFilePath());
-            if (!proFiles.isEmpty())
-                Core::ICore::instance()->openFiles(proFiles);
+            const QStringList projectFiles = FolderNavigationWidget::projectFilesInDirectory(path);
+            if (!projectFiles.isEmpty())
+                Core::ICore::instance()->openFiles(projectFiles);
             return;
         }
         // Change to directory
@@ -346,26 +340,21 @@ void FolderNavigationWidget::contextMenuEvent(QContextMenuEvent *ev)
     const bool hasCurrentItem = current.isValid();
     QAction *actionOpen = menu.addAction(actionOpenText(m_fileSystemModel, current));
     actionOpen->setEnabled(hasCurrentItem);
+
+    // we need dummy DocumentModel::Entry with absolute file path in it
+    // to get EditorManager::addNativeDirAndOpenWithActions() working
+    Core::DocumentModel::Entry fakeEntry;
+    Core::IDocument document;
+    document.setFilePath(Utils::FileName::fromString(m_fileSystemModel->filePath(current)));
+    fakeEntry.document = &document;
+    Core::EditorManager::addNativeDirAndOpenWithActions(&menu, &fakeEntry);
+
     const bool isDirectory = hasCurrentItem && m_fileSystemModel->isDir(current);
     QAction *actionOpenDirectoryAsProject = 0;
     if (isDirectory && m_fileSystemModel->fileName(current) != QLatin1String("..")) {
         actionOpenDirectoryAsProject =
             menu.addAction(tr("Open Project in \"%1\"")
                            .arg(m_fileSystemModel->fileName(current)));
-    }
-    // Explorer & teminal
-    QAction *actionExplorer = menu.addAction(Core::FileUtils::msgGraphicalShellAction());
-    actionExplorer->setEnabled(hasCurrentItem);
-    QAction *actionTerminal = menu.addAction(Core::FileUtils::msgTerminalAction());
-    actionTerminal->setEnabled(hasCurrentItem);
-
-    QAction *actionFind = menu.addAction(Core::FileUtils::msgFindInDirectory());
-    actionFind->setEnabled(hasCurrentItem);
-    // open with...
-    if (hasCurrentItem && !isDirectory) {
-        QMenu *openWith = menu.addMenu(tr("Open With"));
-        Core::EditorManager::populateOpenWithMenu(openWith,
-                                                  m_fileSystemModel->filePath(current));
     }
 
     // Open file dialog to choose a path starting from current
@@ -378,29 +367,12 @@ void FolderNavigationWidget::contextMenuEvent(QContextMenuEvent *ev)
     ev->accept();
     if (action == actionOpen) { // Handle open file.
         openItem(current);
-        return;
-    }
-    if (action == actionOpenDirectoryAsProject) {
+    } else if (action == actionOpenDirectoryAsProject) {
         openItem(current, true);
-        return;
-    }
-    if (action == actionChooseFolder) { // Open file dialog
+    } else if (action == actionChooseFolder) { // Open file dialog
         const QString newPath = QFileDialog::getExistingDirectory(this, tr("Choose Folder"), currentDirectory());
         if (!newPath.isEmpty())
             setCurrentDirectory(newPath);
-        return;
-    }
-    if (action == actionTerminal) {
-        Core::FileUtils::openTerminal(m_fileSystemModel->filePath(current));
-        return;
-    }
-    if (action == actionExplorer) {
-        Core::FileUtils::showInGraphicalShell(this, m_fileSystemModel->filePath(current));
-        return;
-    }
-    if (action == actionFind) {
-        TextEditor::FindInFiles::findOnFileSystem(m_fileSystemModel->filePath(current));
-        return;
     }
 }
 
@@ -431,6 +403,15 @@ void FolderNavigationWidget::ensureCurrentIndex()
     m_listView->scrollTo(index);
 }
 
+QStringList FolderNavigationWidget::projectFilesInDirectory(const QString &path)
+{
+    QDir dir(path);
+    QStringList projectFiles;
+    foreach (const QFileInfo &i, dir.entryInfoList(ProjectExplorerPlugin::projectFileGlobs(), QDir::Files))
+        projectFiles.append(i.absoluteFilePath());
+    return projectFiles;
+}
+
 // --------------------FolderNavigationWidgetFactory
 FolderNavigationWidgetFactory::FolderNavigationWidgetFactory()
 {
@@ -446,7 +427,7 @@ Core::NavigationView FolderNavigationWidgetFactory::createWidget()
     FolderNavigationWidget *fnw = new FolderNavigationWidget;
     n.widget = fnw;
     QToolButton *filter = new QToolButton;
-    filter->setIcon(QIcon(QLatin1String(Core::Constants::ICON_FILTER)));
+    filter->setIcon(Core::Icons::FILTER.icon());
     filter->setToolTip(tr("Filter Files"));
     filter->setPopupMode(QToolButton::InstantPopup);
     filter->setProperty("noArrow", true);

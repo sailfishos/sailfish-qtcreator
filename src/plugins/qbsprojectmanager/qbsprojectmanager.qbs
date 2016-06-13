@@ -41,6 +41,7 @@ QtcPlugin {
     Depends { name: "ProjectExplorer" }
     Depends { name: "Core" }
     Depends { name: "CppTools" }
+    Depends { name: "ResourceEditor" }
     Depends { name: "QtSupport" }
     Depends { name: "QmlJSTools" }
 
@@ -68,7 +69,6 @@ QtcPlugin {
         "qbsbuildconfiguration.h",
         "qbsbuildconfigurationwidget.cpp",
         "qbsbuildconfigurationwidget.h",
-        "qbsbuildinfo.h",
         "qbsbuildstep.cpp",
         "qbsbuildstep.h",
         "qbsbuildstepconfigwidget.ui",
@@ -78,6 +78,9 @@ QtcPlugin {
         "qbsconstants.h",
         "qbsdeployconfigurationfactory.cpp",
         "qbsdeployconfigurationfactory.h",
+        "qbsinfopage.cpp",
+        "qbsinfopage.h",
+        "qbsinfowidget.ui",
         "qbsinstallstep.cpp",
         "qbsinstallstep.h",
         "qbsinstallstepconfigwidget.ui",
@@ -87,6 +90,8 @@ QtcPlugin {
         "qbsnodes.h",
         "qbsparser.cpp",
         "qbsparser.h",
+        "qbspmlogging.cpp",
+        "qbspmlogging.h",
         "qbsprofilessettingspage.cpp",
         "qbsprofilessettingspage.h",
         "qbsprofilessettingswidget.ui",
@@ -101,10 +106,12 @@ QtcPlugin {
         "qbsprojectmanagerconstants.h",
         "qbsprojectmanagerplugin.cpp",
         "qbsprojectmanagerplugin.h",
+        "qbsprojectmanagersettings.cpp",
+        "qbsprojectmanagersettings.h",
         "qbsprojectparser.cpp",
         "qbsprojectparser.h",
         "qbsrunconfiguration.cpp",
-        "qbsrunconfiguration.h"
+        "qbsrunconfiguration.h",
     ]
 }
 

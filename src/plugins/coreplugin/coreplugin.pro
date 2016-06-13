@@ -1,5 +1,6 @@
 DEFINES += CORE_LIBRARY
-QT += help \
+QT += \
+    help \
     network \
     printsupport \
     qml \
@@ -10,18 +11,16 @@ isEmpty(QTC_SHOW_BUILD_DATE): QTC_SHOW_BUILD_DATE = $$(QTC_SHOW_BUILD_DATE)
 !isEmpty(QTC_SHOW_BUILD_DATE): DEFINES += QTC_SHOW_BUILD_DATE
 
 include(../../qtcreatorplugin.pri)
-win32-msvc*:QMAKE_CXXFLAGS += -wd4251 -wd4290 -wd4250
+msvc: QMAKE_CXXFLAGS += -wd4251 -wd4290 -wd4250
 SOURCES += corejsextensions.cpp \
     mainwindow.cpp \
     shellcommand.cpp \
     editmode.cpp \
     iwizardfactory.cpp \
-    tabpositionindicator.cpp \
     fancyactionbar.cpp \
     fancytabwidget.cpp \
     generalsettings.cpp \
-    themesettings.cpp \
-    themesettingswidget.cpp \
+    themechooser.cpp \
     id.cpp \
     icontext.cpp \
     jsexpander.cpp \
@@ -102,34 +101,25 @@ SOURCES += corejsextensions.cpp \
     removefiledialog.cpp \
     iversioncontrol.cpp \
     dialogs/addtovcsdialog.cpp \
-    icorelistener.cpp \
     ioutputpane.cpp \
     patchtool.cpp \
     windowsupport.cpp \
     opendocumentstreeview.cpp \
-    themeeditor/themecolors.cpp \
-    themeeditor/themecolorstableview.cpp \
-    themeeditor/colorvariable.cpp \
-    themeeditor/themeeditorwidget.cpp \
-    themeeditor/colorrole.cpp \
-    themeeditor/themesettingstablemodel.cpp \
-    themeeditor/sectionedtablemodel.cpp \
-    themeeditor/themesettingsitemdelegate.cpp \
     messagebox.cpp \
     iwelcomepage.cpp \
-    externaltoolmanager.cpp
+    externaltoolmanager.cpp \
+    systemsettings.cpp \
+    coreicons.cpp
 
 HEADERS += corejsextensions.h \
     mainwindow.h \
     shellcommand.h \
     editmode.h \
     iwizardfactory.h \
-    tabpositionindicator.h \
     fancyactionbar.h \
     fancytabwidget.h \
     generalsettings.h \
-    themesettings.h \
-    themesettingswidget.h \
+    themechooser.h \
     id.h \
     jsexpander.h \
     messagemanager.h \
@@ -178,7 +168,6 @@ HEADERS += corejsextensions.h \
     coreconstants.h \
     iversioncontrol.h \
     ifilewizardextension.h \
-    icorelistener.h \
     versiondialog.h \
     core_global.h \
     statusbarwidget.h \
@@ -225,29 +214,22 @@ HEADERS += corejsextensions.h \
     patchtool.h \
     windowsupport.h \
     opendocumentstreeview.h \
-    themeeditor/themecolors.h \
-    themeeditor/themecolorstableview.h \
-    themeeditor/colorvariable.h \
-    themeeditor/themeeditorwidget.h \
-    themeeditor/colorrole.h \
-    themeeditor/themesettingstablemodel.h \
-    themeeditor/sectionedtablemodel.h \
-    themeeditor/themesettingsitemdelegate.h \
     messagebox.h \
-    iwelcomepage.h
+    iwelcomepage.h \
+    systemsettings.h \
+    coreicons.h
 
 FORMS += dialogs/newdialog.ui \
     dialogs/saveitemsdialog.ui \
     dialogs/readonlyfilesdialog.ui \
     dialogs/openwithdialog.ui \
     generalsettings.ui \
-    themesettings.ui \
     dialogs/externaltoolconfig.ui \
     mimetypesettingspage.ui \
     mimetypemagicdialog.ui \
     removefiledialog.ui \
     dialogs/addtovcsdialog.ui \
-    themeeditor/themeeditorwidget.ui
+    systemsettings.ui
 
 RESOURCES += core.qrc \
     fancyactionbar.qrc

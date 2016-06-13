@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -32,6 +27,9 @@
 
 #include "debuggeractions.h"
 #include "debuggercore.h"
+#include "debuggericons.h"
+#include "debuggerengine.h"
+#include "debuggerprotocol.h"
 #include "simplifytype.h"
 
 #include <utils/fileutils.h>
@@ -55,9 +53,10 @@ namespace Internal {
     QTreeView.
  */
 
-StackHandler::StackHandler()
-  : m_positionIcon(QIcon(QLatin1String(":/debugger/images/location_16.png"))),
-    m_emptyIcon(QIcon(QLatin1String(":/debugger/images/debugger_empty_14.png")))
+StackHandler::StackHandler(DebuggerEngine *engine)
+  : m_engine(engine),
+    m_positionIcon(Icons::LOCATION.icon()),
+    m_emptyIcon(Icons::EMPTY.icon())
 {
     setObjectName(QLatin1String("StackModel"));
     m_resetLocationScheduled = false;
@@ -103,11 +102,11 @@ QVariant StackHandler::data(const QModelIndex &index, int role) const
     if (role == Qt::DisplayRole) {
         switch (index.column()) {
         case StackLevelColumn:
-            return QString::number(frame.level);
+            return QString::number(index.row() + 1);
         case StackFunctionNameColumn:
             return simplifyType(frame.function);
         case StackFileNameColumn:
-            return frame.file.isEmpty() ? frame.from : Utils::FileName::fromString(frame.file).fileName();
+            return frame.file.isEmpty() ? frame.module : Utils::FileName::fromString(frame.file).fileName();
         case StackLineNumberColumn:
             return frame.line > 0 ? QVariant(frame.line) : QVariant();
         case StackAddressColumn:
@@ -204,6 +203,45 @@ void StackHandler::setFrames(const StackFrames &frames, bool canExpand)
         m_currentIndex = -1;
     endResetModel();
     emit stackChanged();
+}
+
+void StackHandler::setFramesAndCurrentIndex(const GdbMi &frames, bool isFull)
+{
+    int targetFrame = -1;
+
+    StackFrames stackFrames;
+    const int n = frames.childCount();
+    for (int i = 0; i != n; ++i) {
+        stackFrames.append(StackFrame::parseFrame(frames.childAt(i), m_engine->runParameters()));
+        const StackFrame &frame = stackFrames.back();
+
+        // Initialize top frame to the first valid frame.
+        const bool isValid = frame.isUsable() && !frame.function.isEmpty();
+        if (isValid && targetFrame == -1)
+            targetFrame = i;
+    }
+
+    bool canExpand = !isFull && (n >= action(MaximalStackDepth)->value().toInt());
+    action(ExpandStack)->setEnabled(canExpand);
+    setFrames(stackFrames, canExpand);
+
+    // We can't jump to any file if we don't have any frames.
+    if (stackFrames.isEmpty())
+        return;
+
+    // targetFrame contains the top most frame for which we have source
+    // information. That's typically the frame we'd like to jump to, with
+    // a few exceptions:
+
+    // Always jump to frame #0 when stepping by instruction.
+    if (boolSetting(OperateByInstruction))
+        targetFrame = 0;
+
+    // If there is no frame with source, jump to frame #0.
+    if (targetFrame == -1)
+        targetFrame = 0;
+
+    setCurrentIndex(targetFrame);
 }
 
 void StackHandler::prependFrames(const StackFrames &frames)

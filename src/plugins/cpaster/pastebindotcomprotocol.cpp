@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -44,7 +39,7 @@ enum { debug = 0 };
 
 static const char PASTEBIN_BASE[]="http://pastebin.com/";
 static const char PASTEBIN_API[]="api/api_post.php";
-static const char PASTEBIN_RAW[]="raw.php";
+static const char PASTEBIN_RAW[]="raw/";
 static const char PASTEBIN_ARCHIVE[]="archive";
 
 static const char API_KEY[]="api_dev_key=516686fc461fb7f9341fd7cf2af6f829&"; // user: qtcreator_apikey
@@ -147,7 +142,6 @@ void PasteBinDotComProtocol::fetch(const QString &id)
 {
     // Did we get a complete URL or just an id. Insert a call to the php-script
     QString link = QLatin1String(PASTEBIN_BASE) + QLatin1String(PASTEBIN_RAW);
-    link.append(QLatin1String("?i="));
 
     if (id.startsWith(QLatin1String("http://")))
         link.append(id.mid(id.lastIndexOf(QLatin1Char('/')) + 1));
@@ -173,18 +167,7 @@ void PasteBinDotComProtocol::fetchFinished()
             qDebug() << "fetchFinished: error" << m_fetchId << content;
     } else {
         title = QLatin1String(PROTOCOL_NAME) + QLatin1String(": ") + m_fetchId;
-        content = QString::fromLatin1(m_fetchReply->readAll());
-        // Cut out from '<pre>' formatting
-        const int preEnd = content.lastIndexOf(QLatin1String("</pre>"));
-        if (preEnd != -1)
-            content.truncate(preEnd);
-        const int preStart = content.indexOf(QLatin1String("<pre>"));
-        if (preStart != -1)
-            content.remove(0, preStart + 5);
-        // Make applicable as patch.
-        content = Protocol::textFromHtml(content);
-        content += QLatin1Char('\n');
-        // -------------
+        content = QString::fromUtf8(m_fetchReply->readAll());
         if (debug) {
             QDebug nsp = qDebug().nospace();
             nsp << "fetchFinished: " << content.size() << " Bytes";
@@ -208,9 +191,9 @@ void PasteBinDotComProtocol::list()
         qDebug() << "list: sending " << url << m_listReply;
 }
 
-/* Quick & dirty: Parse out the 'archive' table as of 16.3.2011:
+/* Quick & dirty: Parse out the 'archive' table as of 16.3.2016:
  \code
-<table class="maintable" cellspacing="0">
+<table class="maintable">
     <tr class="top">
         <th scope="col" align="left">Name / Title</th>
         <th scope="col" align="left">Posted</th>
@@ -312,7 +295,7 @@ static inline QStringList parseLists(QIODevice *io, QString *errorMessage)
     // Read answer and delete part up to the main table since the input form has
     // parts that can no longer be parsed using XML parsers (<input type="text" x-webkit-speech />)
     QByteArray data = io->readAll();
-    const int tablePos = data.indexOf("<table class=\"maintable\" cellspacing=\"0\">");
+    const int tablePos = data.indexOf("<table class=\"maintable\">");
     if (tablePos < 0) {
         *errorMessage = QLatin1String("Could not locate beginning of table.");
         return rc;

@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -89,11 +84,6 @@ enum FetchMode
     FetchCheckout
 };
 
-static inline GitClient *gitClient()
-{
-    return GitPlugin::instance()->client();
-}
-
 /* FetchContext: Retrieves the patch and displays
  * or applies it as desired. Does deleteLater() once it is done. */
 
@@ -110,12 +100,6 @@ public:
 public slots:
     void start();
 
-private slots:
-    void processError(QProcess::ProcessError);
-    void processFinished(int exitCode, QProcess::ExitStatus);
-    void processReadyReadStandardError();
-    void processReadyReadStandardOutput();
-
 private:
     enum State
     {
@@ -123,6 +107,11 @@ private:
         DoneState,
         ErrorState
     };
+
+    void processError(QProcess::ProcessError);
+    void processFinished(int exitCode, QProcess::ExitStatus);
+    void processReadyReadStandardError();
+    void processReadyReadStandardOutput();
 
     void handleError(const QString &message);
     void show();
@@ -164,7 +153,7 @@ FetchContext::FetchContext(const QSharedPointer<GerritChange> &change,
     connect(&m_watcher, &QFutureWatcher<void>::canceled, this, &FetchContext::terminate);
     m_watcher.setFuture(m_progress.future());
     m_process.setWorkingDirectory(repository);
-    m_process.setProcessEnvironment(gitClient()->processEnvironment());
+    m_process.setProcessEnvironment(GitPlugin::client()->processEnvironment());
     m_process.closeWriteChannel();
 }
 
@@ -256,7 +245,7 @@ void FetchContext::show()
 {
     const QString title = QString::number(m_change->number) + QLatin1Char('/')
             + QString::number(m_change->currentPatchSet.patchSetNumber);
-    gitClient()->show(m_repository, QLatin1String("FETCH_HEAD"), title);
+    GitPlugin::client()->show(m_repository, QLatin1String("FETCH_HEAD"), title);
 }
 
 void FetchContext::cherryPick()
@@ -264,12 +253,12 @@ void FetchContext::cherryPick()
     // Point user to errors.
     VcsBase::VcsOutputWindow::instance()->popup(IOutputPane::ModeSwitch
                                                   | IOutputPane::WithFocus);
-    gitClient()->synchronousCherryPick(m_repository, QLatin1String("FETCH_HEAD"));
+    GitPlugin::client()->synchronousCherryPick(m_repository, QLatin1String("FETCH_HEAD"));
 }
 
 void FetchContext::checkout()
 {
-    gitClient()->stashAndCheckout(m_repository, QLatin1String("FETCH_HEAD"));
+    GitPlugin::client()->stashAndCheckout(m_repository, QLatin1String("FETCH_HEAD"));
 }
 
 void FetchContext::terminate()
@@ -361,7 +350,7 @@ void GerritPlugin::push(const QString &topLevel)
 
     args << target;
 
-    gitClient()->push(topLevel, args);
+    GitPlugin::client()->push(topLevel, args);
 }
 
 // Open or raise the Gerrit dialog window.
@@ -399,13 +388,13 @@ void GerritPlugin::push()
 
 Utils::FileName GerritPlugin::gitBinDirectory()
 {
-    return gitClient()->gitBinDirectory();
+    return GitPlugin::client()->gitBinDirectory();
 }
 
 // Find the branch of a repository.
 QString GerritPlugin::branch(const QString &repository)
 {
-    return gitClient()->synchronousCurrentLocalBranch(repository);
+    return GitPlugin::client()->synchronousCurrentLocalBranch(repository);
 }
 
 void GerritPlugin::fetchDisplay(const QSharedPointer<GerritChange> &change)
@@ -426,13 +415,11 @@ void GerritPlugin::fetchCheckout(const QSharedPointer<GerritChange> &change)
 void GerritPlugin::fetch(const QSharedPointer<GerritChange> &change, int mode)
 {
     // Locate git.
-    const Utils::FileName git = gitClient()->vcsBinary();
+    const Utils::FileName git = GitPlugin::client()->vcsBinary();
     if (git.isEmpty()) {
         VcsBase::VcsOutputWindow::appendError(tr("Git is not available."));
         return;
     }
-
-    GitClient *client = gitClient();
 
     QString repository;
     bool verifiedRepository = false;
@@ -441,7 +428,7 @@ void GerritPlugin::fetch(const QSharedPointer<GerritChange> &change, int mode)
 
     if (!repository.isEmpty()) {
         // Check if remote from a working dir is the same as remote from patch
-        QMap<QString, QString> remotesList = client->synchronousRemotesList(repository);
+        QMap<QString, QString> remotesList = GitPlugin::client()->synchronousRemotesList(repository);
         if (!remotesList.isEmpty()) {
             QStringList remotes = remotesList.values();
             foreach (QString remote, remotes) {
@@ -454,7 +441,7 @@ void GerritPlugin::fetch(const QSharedPointer<GerritChange> &change, int mode)
             }
 
             if (!verifiedRepository) {
-                SubmoduleDataMap submodules = client->submoduleList(repository);
+                SubmoduleDataMap submodules = GitPlugin::client()->submoduleList(repository);
                 foreach (const SubmoduleData &submoduleData, submodules) {
                     QString remote = submoduleData.url;
                     if (remote.endsWith(QLatin1String(".git")))

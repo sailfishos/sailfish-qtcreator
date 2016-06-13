@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,27 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
-#ifndef PROJECTNODES_H
-#define PROJECTNODES_H
+#pragma once
 
 #include "projectexplorer_export.h"
 
@@ -62,6 +56,7 @@ enum FileType {
     HeaderType,
     SourceType,
     FormType,
+    StateChartType,
     ResourceType,
     QMLType,
     ProjectFileType,
@@ -112,7 +107,7 @@ public:
     NodeType nodeType() const;
     ProjectNode *projectNode() const;     // managing project
     FolderNode *parentFolderNode() const; // parent folder or project
-    const Utils::FileName &path() const;  // file system path
+    const Utils::FileName &filePath() const;  // file system path
     int line() const;
     virtual QString displayName() const;
     virtual QString tooltip() const;
@@ -120,9 +115,8 @@ public:
 
     virtual QList<ProjectAction> supportedActions(Node *node) const;
 
-    void setPath(const Utils::FileName &path);
-    void setLine(int line);
-    void setPathAndLine(const Utils::FileName &path, int line);
+    void setAbsoluteFilePathAndLine(const Utils::FileName &filePath, int line);
+
     void emitNodeUpdated();
 
     virtual FileNode *asFileNode();
@@ -131,7 +125,7 @@ public:
     virtual SessionNode *asSessionNode();
 
 protected:
-    Node(NodeType nodeType, const Utils::FileName &path, int line = -1);
+    Node(NodeType nodeType, const Utils::FileName &filePath, int line = -1);
 
     void setProjectNode(ProjectNode *project);
     void setParentFolderNode(FolderNode *parentFolder);
@@ -144,7 +138,7 @@ private:
     int m_line;
     ProjectNode *m_projectNode;
     FolderNode *m_folderNode;
-    Utils::FileName m_path;
+    Utils::FileName m_filePath;
 };
 
 class PROJECTEXPLORER_EXPORT FileNode : public Node
@@ -155,7 +149,7 @@ public:
     FileType fileType() const;
     bool isGenerated() const;
 
-    FileNode *asFileNode();
+    FileNode *asFileNode() override;
 
 private:
     // managed by ProjectNode
@@ -172,9 +166,9 @@ class PROJECTEXPLORER_EXPORT FolderNode : public Node
 public:
     explicit FolderNode(const Utils::FileName &folderPath, NodeType nodeType = FolderNodeType,
                         const QString &displayName = QString());
-    virtual ~FolderNode();
+    ~FolderNode() override;
 
-    QString displayName() const;
+    QString displayName() const override;
     QIcon icon() const;
 
     QList<FileNode*> fileNodes() const;
@@ -185,9 +179,12 @@ public:
     void setDisplayName(const QString &name);
     void setIcon(const QIcon &icon);
 
+    virtual QString addFileFilter() const;
+
     virtual bool addFiles(const QStringList &filePaths, QStringList *notAdded = 0);
     virtual bool removeFiles(const QStringList &filePaths, QStringList *notRemoved = 0);
     virtual bool deleteFiles(const QStringList &filePaths);
+    virtual bool canRenameFile(const QString &filePath, const QString &newFilePath);
     virtual bool renameFile(const QString &filePath, const QString &newFilePath);
 
     class AddNewInformation
@@ -212,7 +209,7 @@ public:
     void addFolderNodes(const QList<FolderNode*> &subFolders);
     void removeFolderNodes(const QList<FolderNode*> &subFolders);
 
-    FolderNode *asFolderNode();
+    FolderNode *asFolderNode() override;
 
 protected:
     QList<FolderNode*> m_subFolderNodes;
@@ -229,7 +226,7 @@ class PROJECTEXPLORER_EXPORT VirtualFolderNode : public FolderNode
 {
 public:
     explicit VirtualFolderNode(const Utils::FileName &folderPath, int priority);
-    virtual ~VirtualFolderNode();
+    ~VirtualFolderNode() override;
 
     int priority() const;
 private:
@@ -245,27 +242,31 @@ public:
     // all subFolders that are projects
     QList<ProjectNode*> subProjectNodes() const;
 
-    virtual bool canAddSubProject(const QString &proFilePath) const = 0;
+    virtual bool canAddSubProject(const QString &proFilePath) const;
+    virtual bool addSubProjects(const QStringList &proFilePaths);
+    virtual bool removeSubProjects(const QStringList &proFilePaths);
 
-    virtual bool addSubProjects(const QStringList &proFilePaths) = 0;
-
-    virtual bool removeSubProjects(const QStringList &proFilePaths) = 0;
+    bool addFiles(const QStringList &filePaths, QStringList *notAdded = 0) override;
+    bool removeFiles(const QStringList &filePaths, QStringList *notRemoved = 0) override;
+    bool deleteFiles(const QStringList &filePaths) override;
+    bool canRenameFile(const QString &filePath, const QString &newFilePath) override;
+    bool renameFile(const QString &filePath, const QString &newFilePath) override;
 
     // by default returns false
     virtual bool deploysFolder(const QString &folder) const;
 
     virtual QList<RunConfiguration *> runConfigurations() const;
 
-    void accept(NodesVisitor *visitor);
+    void accept(NodesVisitor *visitor) override;
 
-    bool isEnabled() const { return true; }
+    bool isEnabled() const override { return true; }
 
     // to be called in implementation of
     // the corresponding public functions
     void addProjectNodes(const QList<ProjectNode*> &subProjects);
     void removeProjectNodes(const QList<ProjectNode*> &subProjects);
 
-    ProjectNode *asProjectNode();
+    ProjectNode *asProjectNode() override;
 
 protected:
     // this is just the in-memory representation, a subclass
@@ -286,18 +287,20 @@ class PROJECTEXPLORER_EXPORT SessionNode : public FolderNode
 public:
     SessionNode();
 
-    QList<ProjectAction> supportedActions(Node *node) const;
+    QList<ProjectAction> supportedActions(Node *node) const override;
 
     QList<ProjectNode*> projectNodes() const;
 
-    void accept(NodesVisitor *visitor);
+    QString addFileFilter() const override;
 
-    bool isEnabled() const { return true; }
+    void accept(NodesVisitor *visitor) override;
 
-    bool showInSimpleTree() const;
+    bool isEnabled() const override { return true; }
+
+    bool showInSimpleTree() const override;
     void projectDisplayNameChanged(Node *node);
 
-    SessionNode *asSessionNode();
+    SessionNode *asSessionNode() override;
 protected:
     void addProjectNodes(const QList<ProjectNode*> &projectNodes);
     void removeProjectNodes(const QList<ProjectNode*> &projectNodes);
@@ -406,5 +409,3 @@ T1 subtractSortedList(T1 list1, T1 list2, T3 sorter)
 
 Q_DECLARE_METATYPE(ProjectExplorer::Node *)
 Q_DECLARE_METATYPE(ProjectExplorer::FolderNode *)
-
-#endif // PROJECTNODES_H

@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -32,7 +27,6 @@
 #include "symbolgroup.h"
 #include "symbolgroupvalue.h"
 #include "stringutils.h"
-#include "base64.h"
 #include "containers.h"
 #include "extensioncontext.h"
 
@@ -506,7 +500,7 @@ bool DumpParameters::recode(const std::string &type,
                             const std::string &iname,
                             const SymbolGroupValueContext &ctx,
                             ULONG64 address,
-                            std::wstring *value, int *encoding) const
+                            std::wstring *value, std::string *encoding) const
 {
     const DumpParameterRecodeResult check
         = checkRecode(type, iname, *value, ctx, address, this);
@@ -516,19 +510,19 @@ bool DumpParameters::recode(const std::string &type,
     switch (check.recommendedFormat) {
     case FormatLatin1String:
         *value = dataToHexW(check.buffer, check.buffer + check.size); // Latin1 + 0
-        *encoding = DumpEncodingHex_Latin1_WithQuotes;
+        *encoding = "latin1";
         break;
     case FormatUtf8String:
         *value = dataToHexW(check.buffer, check.buffer + check.size); // UTF8 + 0
-        *encoding = DumpEncodingHex_Utf8_LittleEndian_WithQuotes;
+        *encoding = "utf8";
         break;
     case FormatUtf16String: // Paranoia: make sure buffer is terminated at 2 byte borders
-        *value = base64EncodeToWString(check.buffer, check.size);
-        *encoding = DumpEncodingBase64_Utf16_WithQuotes;
+        *value = dataToHexW(check.buffer, check.buffer + check.size);
+        *encoding = "utf16";
         break;
     case FormatUcs4String: // Paranoia: make sure buffer is terminated at 4 byte borders
         *value = dataToHexW(check.buffer, check.buffer + check.size); // UTF16 + 0
-        *encoding = DumpEncodingHex_Ucs4_LittleEndian_WithQuotes;
+        *encoding = "ucs4";
         break;
     }
     delete [] check.buffer;
@@ -613,7 +607,6 @@ SymbolGroupNode::SymbolGroupNode(SymbolGroup *symbolGroup,
     , m_symbolGroup(symbolGroup)
     , m_module(module)
     , m_index(index)
-    , m_dumperValueEncoding(0)
     , m_dumperType(-1)
     , m_dumperContainerSize(-1)
     , m_dumperSpecialInfo(0)
@@ -835,8 +828,17 @@ void SymbolGroupNode::parseParameters(VectorIndexType index,
             nameIndex++;
         }
     }
-    if (isTopLevel)
+
+    if (isTopLevel) {
         m_parameters.SubElements = ULONG(children().size());
+    } else {
+        int delta = int(m_parameters.SubElements - children().size());
+        if (delta != 0) {
+            m_symbolGroup->root()->notifyIndexesMoved(m_index + m_parameters.SubElements,
+                                                      delta < 0, abs(delta));
+            m_parameters.SubElements = ULONG(children().size());
+        }
+    }
 }
 
 SymbolGroupNode *SymbolGroupNode::create(SymbolGroup *sg, const std::string &module,
@@ -919,18 +921,6 @@ static void fixValue(const std::string &type, std::wstring *value)
             return;
         }
     }
-}
-
-// Check for ASCII-encode-able stuff. Plain characters + tabs at the most, no newline.
-static bool isSevenBitClean(const wchar_t *buf, size_t size)
-{
-    const wchar_t *bufEnd = buf + size;
-    for (const wchar_t *bufPtr = buf; bufPtr < bufEnd; bufPtr++) {
-        const wchar_t c = *bufPtr;
-        if (c > 127 || (c < 32 && c != 9))
-            return false;
-    }
-    return true;
 }
 
 std::string SymbolGroupNode::type() const
@@ -1060,7 +1050,7 @@ bool SymbolGroupNode::runSimpleDumpers(const SymbolGroupValueContext &ctx)
     return testFlags(SimpleDumperOk);
 }
 
-std::wstring SymbolGroupNode::simpleDumpValue(const SymbolGroupValueContext &ctx, int *encoding)
+std::wstring SymbolGroupNode::simpleDumpValue(const SymbolGroupValueContext &ctx, std::string *encoding)
 {
     if (testFlags(Uninitialized))
         return L"<not in scope>";
@@ -1115,11 +1105,11 @@ int SymbolGroupNode::dumpNode(std::ostream &str,
     const std::string watchExp = t.empty() ? aName : watchExpression(addr, t, m_dumperType, m_module);
     SymbolGroupNode::dumpBasicData(str, aName, aFullIName, t, watchExp);
 
-    int encoding = 0;
+    std::string encoding;
     std::wstring value = simpleDumpValue(ctx, &encoding);
 
     if (addr) {
-        str << std::hex << std::showbase << ",addr=\"" << addr << '"';
+        str << std::hex << std::showbase << ",address=\"" << addr << '"';
         if (SymbolGroupValue::isPointerType(t)) {
             std::string::size_type pointerPos = value.rfind(L"0x");
             if (pointerPos != std::string::npos) {
@@ -1139,20 +1129,15 @@ int SymbolGroupNode::dumpNode(std::ostream &str,
     bool valueEditable = !uninitialized;
     bool valueEnabled = !uninitialized;
 
-    if (encoding) {
+    if (encoding.size()) {
         str << ",valueencoded=\"" << encoding << "\",value=\"" << gdbmiWStringFormat(value) <<'"';
     } else if (dumpParameters.recode(t, aFullIName, ctx, addr, &value, &encoding)) {
         str << ",valueencoded=\"" << encoding
             << "\",value=\"" << gdbmiWStringFormat(value) <<'"';
-    } else { // As is: ASCII or base64?
-        if (isSevenBitClean(value.c_str(), value.size())) {
-            str << ",valueencoded=\"" << DumpEncodingAscii << "\",value=\""
-                << gdbmiWStringFormat(value) << '"';
-        } else {
-            str << ",valueencoded=\"" << DumpEncodingBase64_Utf16 << "\",value=\"";
-            base64Encode(str, reinterpret_cast<const unsigned char *>(value.c_str()), value.size() * sizeof(wchar_t));
-            str << '"';
-        }
+    } else {
+        str << ",valueencoded=\"utf16:2:0\",value=\"";
+        hexEncode(str, reinterpret_cast<const unsigned char *>(value.c_str()), value.size() * sizeof(wchar_t));
+        str << '"';
         const int format = dumpParameters.format(t, aFullIName);
         if (format > 0)
             dumpEditValue(this, ctx, format, str);
@@ -1602,7 +1587,7 @@ int MapNodeSymbolGroupNode::dump(std::ostream &str, const std::string &visitingF
 {
     SymbolGroupNode::dumpBasicData(str, name(), visitingFullIname);
     if (m_address)
-        str << ",addr=\"0x" << std::hex << m_address << '"';
+        str << ",address=\"0x" << std::hex << m_address << '"';
     str << ",type=\"" << m_type << "\",valueencoded=\"0\",value=\"\",valueenabled=\"false\""
            ",valueeditable=\"false\"";
     return 2;

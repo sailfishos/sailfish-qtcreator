@@ -1,18 +1,25 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
-** This file is part of Qt Creator
+** This file is part of the Qt Creator documentation.
 **
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Free Documentation License
-**
+** GNU Free Documentation License Usage
 ** Alternatively, this file may be used under the terms of the GNU Free
 ** Documentation License version 1.3 as published by the Free Software
-** Foundation and appearing in the file included in the packaging of this
-** file.
-**
+** Foundation and appearing in the file included in the packaging of
+** this file. Please review the following information to ensure
+** the GNU Free Documentation License version 1.3 requirements
+** will be met: https://www.gnu.org/licenses/fdl-1.3.html.
 **
 ****************************************************************************/
 
@@ -30,20 +37,18 @@
 
     \title Analyzing Code
 
-    You can use the code analysis tools in the \uicontrol Analyze mode. To
-    switch to \uicontrol Analyze mode, select \uicontrol Analyze in the mode
+    You can use the code analysis tools in the \uicontrol Debug mode. To
+    switch to \uicontrol Debug mode, select \uicontrol Debug in the mode
     selector, or select the \uicontrol {Analyze} menu and then select a tool.
-    When you are in the \uicontrol Analyze mode, you can switch between tools by
+    When you are in the \uicontrol Debug mode, you can switch between tools by
     selecting them in the menu on the toolbar.
 
-    \image qtcreator-analyze-menu.png "Analyze mode menu"
-
-    You can drag and drop the views in the \uicontrol Analyze mode to new
+    You can drag and drop the views in the \uicontrol Debug mode to new
     positions on the screen. The size and position of views are saved for future
     sessions. Select \uicontrol {Window > Views > Reset to Default Layout} to
     reset the views to their original sizes and positions.
 
-    You can use the following code analysis tools in the \uicontrol Analyze
+    You can use the following code analysis tools in the \uicontrol Debug
     mode:
 
     \list
@@ -64,8 +69,7 @@
 
             You can detect problems in C, C++, and
             Objective-C programs by using the experimental plugin that
-            integrates the Clang Static Analyzer source code analysis tool
-            (commercial only).
+            integrates the Clang Static Analyzer source code analysis tool.
 
         \li \l{Analyzing CPU Usage}{CPU Usage Analyzer}
 

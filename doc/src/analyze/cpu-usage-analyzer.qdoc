@@ -1,18 +1,25 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
-** This file is part of Qt Creator
+** This file is part of the Qt Creator documentation.
 **
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Free Documentation License
-**
+** GNU Free Documentation License Usage
 ** Alternatively, this file may be used under the terms of the GNU Free
 ** Documentation License version 1.3 as published by the Free Software
-** Foundation and appearing in the file included in the packaging of this
-** file.
-**
+** Foundation and appearing in the file included in the packaging of
+** this file. Please review the following information to ensure
+** the GNU Free Documentation License version 1.3 requirements
+** will be met: https://www.gnu.org/licenses/fdl-1.3.html.
 **
 ****************************************************************************/
 
@@ -65,7 +72,7 @@
             CPU Usage Analyzer.
 
             \note If data collection does not start automatically, select the
-            \inlineimage qtcreator-analyzer-button.png
+            \inlineimage recordfill.png
             (\uicontrol {Collect profile data}) button.
 
     \endlist
@@ -140,6 +147,36 @@
     However, those options are not supported by all versions of Perf and Perf may
     not start if an unsupported option is given.
 
+    \section2 Aggregating Data
+
+    In the \uicontrol Granularity field, you can specify whether the data
+    should be aggregated by function or by binary address.
+
+    If you choose \uicontrol Function, all stack frames will be reported with
+    the start address of the function they belong to. Thus, you get a concise
+    overview in the \uicontrol Statistics view, with one entry per function. In
+    the \uicontrol Timeline view, all stack frames from the same function will
+    then have the same color. However, this way you cannot track down which
+    exact lines of code took the most time to execute.
+
+    If you choose \uicontrol Address, the exact address of each stack frame in
+    each sample is reported. Those addresses are then mapped to lines of code,
+    which means that the same function or even line can show up multiple times
+    in the \uicontrol Statistics view. Further, stack frames from the same
+    function will have different colors in the \uicontrol Timeline view,
+    depending on the exact value of the program counter when the sample was
+    recorded.
+
+    \section2 Resolving Names for JIT-compiled JavaScript Functions
+
+    From version 5.6.0, Qt can generate perf.map files with information about
+    JavaScript functions. The CPU Usage Analyzer will read them and show the
+    function names in the \uicontrol Timeline and \uicontrol Statistics views.
+    This only works if the process being profiled is running on the host
+    computer, not on the target device. To switch on the generation of perf.map
+    files, add the environment variable \c QV4_PROFILE_WRITE_PERF_MAP to the
+    \uicontrol {Run Environment} and set its value to \c 1.
+
     \section1 Analyzing Collected Data
 
     The \uicontrol Timeline view displays a graphical representation of CPU
@@ -208,13 +245,21 @@
     functions that spend the most CPU time most prominently.
 
     If a function without debug information is encountered, further unwinding
-    of the stack may fail. Unwinding will also fail if a QML or JavaScript
-    function is encountered, and for some symbols implemented in assembler. If
-    unwinding fails, only part of the call chain is displayed, and the
-    surrounding functions may seem to be interrupted. This does not necessarily
-    mean they were actually interrupted during the execution of the
-    application, but only that they could not be found in the stacks where the
-    unwinding failed.
+    of the stack may fail. Unwinding will also fail for some symbols
+    implemented in assembly language. If unwinding fails, only a part of the
+    call chain is displayed, and the surrounding functions may seem to be
+    interrupted. This does not necessarily mean they were actually interrupted
+    during the execution of the application, but only that they could not be
+    found in the stacks where the unwinding failed.
+
+    JavaScript functions from the QML engine running in the JIT mode can be
+    unwound. However, their names will only be displayed when
+    \c QV4_PROFILE_WRITE_PERF_MAP is set. Compiled JavaScript generated by the
+    \l{http://doc.qt.io/QtQuickCompiler/}{Qt Quick Compiler} can also be
+    unwound. In this case the C++ names generated by the compiler are shown for
+    JavaScript functions, rather than their JavaScript names. When running in
+    interpreted mode, stack frames involving QML can also be unwound, showing
+    the interpreter itself, rather than the interpreted JavaScript.
 
     Kernel functions included in call chains are shown on the third row of each
     thread. All kernel functions are summarized and not differentiated any
@@ -229,6 +274,36 @@
     indicate that the thread with more samples taken is more likely to be the
     overall bottleneck, and the thread with less samples taken has likely spent
     time waiting for external events such as I/O or a mutex.
+
+    \section1 Viewing Statistics
+
+    The \uicontrol Statistics view displays the number of samples each function
+    in the timeline was contained in, in total and when on the top of the
+    stack (called \c self). This allows you to examine which functions you need
+    to optimize. A high number of occurrences might indicate that a function is
+    triggered unnecessarily or takes very long to execute.
+
+    Click on a row to move to the respective function in the source code in the
+    code editor.
+
+    The \uicontrol Callers and \uicontrol Callees panes show dependencies
+    between functions. They allow you to examine the internal functions of the
+    application. The \uicontrol Callers pane summarizes the functions that
+    called the function selected in the main view.  The \uicontrol Callees pane
+    summarizes the functions called from the function selected in the main
+    view.
+
+    Click on a row to move to the respective function in the source code in the
+    code editor and select it in the main view.
+
+    When you select a stack frame in the \uicontrol Timeline view, information
+    about it is displayed in the \uicontrol Statistics view. To view a time
+    range in the \uicontrol Statistics view, select
+    \uicontrol {Limit Statistics to Selected Range} in the context menu in the
+    \uicontrol Timeline view.
+
+    To copy the contents of one view or row to the clipboard, select
+    \uicontrol {Copy Table} or \uicontrol {Copy Row} in the context menu.
 
     \section1 Loading Perf Data Files
 

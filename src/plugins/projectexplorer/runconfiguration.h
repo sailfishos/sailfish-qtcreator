@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,37 +9,34 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
-#ifndef RUNCONFIGURATION_H
-#define RUNCONFIGURATION_H
+#pragma once
 
 #include "projectconfiguration.h"
-#include "projectexplorer_export.h"
 #include "projectexplorerconstants.h"
+#include "applicationlauncher.h"
+#include "devicesupport/idevice.h"
 
-#include <utils/outputformat.h>
 #include <utils/qtcassert.h>
+#include <utils/icon.h>
 
 #include <QPointer>
 #include <QWidget>
+
+#include <memory>
 
 QT_BEGIN_NAMESPACE
 class QFormLayout;
@@ -55,6 +52,8 @@ class RunConfiguration;
 class RunConfigWidget;
 class RunControl;
 class Target;
+
+namespace Internal { class RunControlPrivate; }
 
 // FIXME: This should also contain a handle to an remote device if used.
 class PROJECTEXPLORER_EXPORT ProcessHandle
@@ -87,7 +86,7 @@ class PROJECTEXPLORER_EXPORT ISettingsAspect : public QObject
     Q_OBJECT
 
 public:
-    ISettingsAspect() {}
+    ISettingsAspect() { }
 
     /// Create a configuration widget for this settings aspect.
     virtual QWidget *createConfigWidget(QWidget *parent) = 0;
@@ -118,7 +117,7 @@ class PROJECTEXPLORER_EXPORT IRunConfigurationAspect : public QObject
 
 public:
     explicit IRunConfigurationAspect(RunConfiguration *runConfig);
-    ~IRunConfigurationAspect();
+    ~IRunConfigurationAspect() override;
 
     virtual IRunConfigurationAspect *create(RunConfiguration *runConfig) const = 0;
     virtual IRunConfigurationAspect *clone(RunConfiguration *runConfig) const;
@@ -154,13 +153,84 @@ private:
     ISettingsAspect *m_globalSettings;  // Not owned.
 };
 
+class PROJECTEXPLORER_EXPORT ClonableConcept
+{
+public:
+    virtual ~ClonableConcept() = default;
+    virtual ClonableConcept *clone() const = 0;
+    virtual bool equals(const std::unique_ptr<ClonableConcept> &other) const = 0;
+};
+
+template <class T>
+class ClonableModel : public ClonableConcept
+{
+public:
+    ClonableModel(const T &data) : m_data(data) { }
+    ~ClonableModel() Q_DECL_NOEXCEPT { } // gcc 4.7.3
+    ClonableConcept *clone() const override { return new ClonableModel(*this); }
+
+    bool equals(const std::unique_ptr<ClonableConcept> &other) const override
+    {
+        auto that = dynamic_cast<const ClonableModel<T> *>(other.get());
+        return that && m_data == that->m_data;
+    }
+
+    T m_data;
+};
+
+class PROJECTEXPLORER_EXPORT Runnable
+{
+public:
+    Runnable() = default;
+    Runnable(const Runnable &other) : d(other.d->clone()) { }
+    Runnable(Runnable &&other) /* MSVC 2013 doesn't want = default */ : d(std::move(other.d)) {}
+    template <class T> Runnable(const T &data) : d(new ClonableModel<T>(data)) {}
+
+    void operator=(Runnable other) { d = std::move(other.d); }
+
+    template <class T> bool is() const {
+        return dynamic_cast<ClonableModel<T> *>(d.get()) != 0;
+    }
+
+    template <class T> const T &as() const {
+        return static_cast<ClonableModel<T> *>(d.get())->m_data;
+    }
+
+    bool operator==(const Runnable &other) const;
+
+private:
+    std::unique_ptr<ClonableConcept> d;
+};
+
+class PROJECTEXPLORER_EXPORT Connection
+{
+public:
+    Connection() = default;
+    Connection(const Connection &other) : d(other.d->clone()) { }
+    Connection(Connection &&other) /* MSVC 2013 doesn't want = default */ : d(std::move(other.d)) {}
+    template <class T> Connection(const T &data) : d(new ClonableModel<T>(data)) {}
+
+    void operator=(Connection other) { d = std::move(other.d); }
+
+    template <class T> bool is() const {
+        return dynamic_cast<ClonableModel<T> *>(d.get()) != 0;
+    }
+
+    template <class T> const T &as() const {
+        return static_cast<ClonableModel<T> *>(d.get())->m_data;
+    }
+
+private:
+    std::unique_ptr<ClonableConcept> d;
+};
+
 // Documentation inside.
 class PROJECTEXPLORER_EXPORT RunConfiguration : public ProjectConfiguration
 {
     Q_OBJECT
 
 public:
-    ~RunConfiguration();
+    ~RunConfiguration() override;
 
     virtual bool isEnabled() const;
     virtual QString disabledReason() const;
@@ -176,8 +246,8 @@ public:
 
     virtual Utils::OutputFormatter *createOutputFormatter() const;
 
-    bool fromMap(const QVariantMap &map);
-    QVariantMap toMap() const;
+    bool fromMap(const QVariantMap &map) override;
+    QVariantMap toMap() const override;
 
     QList<IRunConfigurationAspect *> extraAspects() const;
     IRunConfigurationAspect *extraAspect(Core::Id id) const;
@@ -191,6 +261,7 @@ public:
         return 0;
     }
 
+    virtual Runnable runnable() const;
     virtual Abi abi() const;
 
     void addExtraAspects();
@@ -221,7 +292,6 @@ class PROJECTEXPLORER_EXPORT IRunConfigurationFactory : public QObject
 
 public:
     explicit IRunConfigurationFactory(QObject *parent = 0);
-    virtual ~IRunConfigurationFactory();
 
     enum CreationMode {UserCreate, AutoCreate};
     virtual QList<Core::Id> availableCreationIds(Target *parent, CreationMode mode = UserCreate) const = 0;
@@ -251,7 +321,6 @@ class PROJECTEXPLORER_EXPORT IRunControlFactory : public QObject
     Q_OBJECT
 public:
     explicit IRunControlFactory(QObject *parent = 0);
-    virtual ~IRunControlFactory();
 
     virtual bool canRun(RunConfiguration *runConfiguration, Core::Id mode) const = 0;
     virtual RunControl *create(RunConfiguration *runConfiguration, Core::Id mode, QString *errorMessage) = 0;
@@ -259,15 +328,11 @@ public:
     virtual IRunConfigurationAspect *createRunConfigurationAspect(RunConfiguration *rc);
 };
 
-class PROJECTEXPLORER_EXPORT RunConfigWidget
-    : public QWidget
+class PROJECTEXPLORER_EXPORT RunConfigWidget : public QWidget
 {
     Q_OBJECT
-public:
-    RunConfigWidget()
-        : QWidget(0)
-    {}
 
+public:
     virtual QString displayName() const = 0;
 
 signals:
@@ -277,6 +342,7 @@ signals:
 class PROJECTEXPLORER_EXPORT RunControl : public QObject
 {
     Q_OBJECT
+
 public:
     enum StopResult {
         StoppedSynchronously, // Stopped.
@@ -284,27 +350,37 @@ public:
     };
 
     RunControl(RunConfiguration *runConfiguration, Core::Id mode);
-    virtual ~RunControl();
+    ~RunControl() override;
     virtual void start() = 0;
 
     virtual bool promptToStop(bool *optionalPrompt = 0) const;
     virtual StopResult stop() = 0;
     virtual bool isRunning() const = 0;
-    virtual QString displayName() const;
     virtual bool supportsReRunning() const { return true; }
 
-    void setIcon(const QString &icon) { m_icon = icon; }
-    QString icon() const { return m_icon; }
+    virtual QString displayName() const;
+    void setDisplayName(const QString &displayName);
+
+    void setIcon(const Utils::Icon &icon);
+    Utils::Icon icon() const;
 
     ProcessHandle applicationProcessHandle() const;
     void setApplicationProcessHandle(const ProcessHandle &handle);
     Abi abi() const;
+    IDevice::ConstPtr device() const;
 
     RunConfiguration *runConfiguration() const;
-    bool sameRunConfiguration(const RunControl *other) const;
+    Project *project() const;
+    bool canReUseOutputPane(const RunControl *other) const;
 
     Utils::OutputFormatter *outputFormatter();
     Core::Id runMode() const;
+
+    const Runnable &runnable() const;
+    void setRunnable(const Runnable &runnable);
+
+    const Connection &connection() const;
+    void setConnection(const Connection &connection);
 
 public slots:
     void bringApplicationToForeground(qint64 pid);
@@ -317,9 +393,6 @@ signals:
     void finished();
     void applicationProcessHandleChanged();
 
-private slots:
-    void bringApplicationToForegroundInternal();
-
 protected:
     bool showPromptToStopDialog(const QString &title, const QString &text,
                                 const QString &stopButtonText = QString(),
@@ -327,26 +400,9 @@ protected:
                                 bool *prompt = 0) const;
 
 private:
-    QString m_displayName;
-    Core::Id m_runMode;
-    QString m_icon;
-    const QPointer<RunConfiguration> m_runConfiguration;
-    Utils::OutputFormatter *m_outputFormatter;
-
-    // A handle to the actual application process.
-    ProcessHandle m_applicationProcessHandle;
-
-#ifdef Q_OS_MAC
-    //these two are used to bring apps in the foreground on Mac
-    qint64 m_internalPid;
-    int m_foregroundCount;
-#endif
+    void bringApplicationToForegroundInternal();
+    Internal::RunControlPrivate *d;
 };
 
 } // namespace ProjectExplorer
 
-// Allow a RunConfiguration to be stored in a QVariant
-Q_DECLARE_METATYPE(ProjectExplorer::RunConfiguration*)
-Q_DECLARE_METATYPE(ProjectExplorer::RunControl*)
-
-#endif // RUNCONFIGURATION_H

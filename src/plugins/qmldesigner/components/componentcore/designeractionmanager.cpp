@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -33,6 +28,9 @@
 #include <nodeproperty.h>
 #include <nodemetainfo.h>
 #include "designeractionmanagerview.h"
+
+#include <documentmanager.h>
+#include <qmldesignerplugin.h>
 
 namespace QmlDesigner {
 
@@ -249,24 +247,15 @@ bool isNotInLayout(const SelectionContext &context)
 
 bool selectionCanBeLayouted(const SelectionContext &context)
 {
-    return selectionHasSameParentAndInBaseState(context)
+    return  multiSelection(context)
+            && selectionHasSameParentAndInBaseState(context)
             && inBaseState(context)
             && isNotInLayout(context);
 }
 
-bool hasQtQuickLayoutImport(const SelectionContext &context)
+bool selectionCanBeLayoutedAndQtQuickLayoutPossible(const SelectionContext &context)
 {
-    if (context.view() && context.view()->model()) {
-        Import import = Import::createLibraryImport(QStringLiteral("QtQuick.Layouts"), QStringLiteral("1.0"));
-        return context.view()->model()->hasImport(import, true, true);
-    }
-
-    return false;
-}
-
-bool selectionCanBeLayoutedAndasQtQuickLayoutImport(const SelectionContext &context)
-{
-    return selectionCanBeLayouted(context) && hasQtQuickLayoutImport(context);
+    return selectionCanBeLayouted(context) && context.view()->majorQtQuickVersion() > 1;
 }
 
 bool selectionNotEmptyAndHasZProperty(const SelectionContext &context)
@@ -311,14 +300,79 @@ bool singleSelectionAndInQtQuickLayout(const SelectionContext &context)
     if (!metaInfo.isValid())
         return false;
 
-    return metaInfo.isSubclassOf("QtQuick.Layouts.Layout", -1, -1);
+    return metaInfo.isSubclassOf("QtQuick.Layouts.Layout");
+}
+
+bool isLayout(const SelectionContext &context)
+{
+    if (!inBaseState(context))
+        return false;
+
+    if (!singleSelection(context))
+        return false;
+
+    ModelNode currentSelectedNode = context.currentSingleSelectedNode();
+
+    if (!currentSelectedNode.isValid())
+        return false;
+
+    NodeMetaInfo metaInfo = currentSelectedNode.metaInfo();
+
+    if (!metaInfo.isValid())
+        return false;
+
+    return metaInfo.isSubclassOf("QtQuick.Layouts.Layout");
+}
+
+bool isPositioner(const SelectionContext &context)
+{
+     if (!inBaseState(context))
+         return false;
+
+    if (!singleSelection(context))
+        return false;
+
+    ModelNode currentSelectedNode = context.currentSingleSelectedNode();
+
+    if (!currentSelectedNode.isValid())
+        return false;
+
+    NodeMetaInfo metaInfo = currentSelectedNode.metaInfo();
+
+    if (!metaInfo.isValid())
+        return false;
+
+    return metaInfo.isSubclassOf("<cpp>.QDeclarativeBasePositioner")
+            || metaInfo.isSubclassOf("QtQuick.Positioner");
 }
 
 bool layoutOptionVisible(const SelectionContext &context)
 {
     return multiSelectionAndInBaseState(context)
-            || singleSelectionAndInQtQuickLayout(context);
+            || singleSelectionAndInQtQuickLayout(context)
+            || isLayout(context);
 }
+
+bool positionOptionVisible(const SelectionContext &context)
+{
+    return multiSelectionAndInBaseState(context)
+            || isPositioner(context);
+}
+
+bool singleSelectedAndUiFile(const SelectionContext &context)
+{
+    if (!singleSelection(context))
+            return false;
+
+    DesignDocument *designDocument = QmlDesignerPlugin::instance()->documentManager().currentDesignDocument();
+
+    if (!designDocument)
+        return false;
+
+    return designDocument->fileName().toFileInfo().completeSuffix()
+            == QLatin1String("ui.qml");
+}
+
 
 void DesignerActionManager::createDefaultDesignerActions()
 {
@@ -356,85 +410,106 @@ void DesignerActionManager::createDefaultDesignerActions()
         addDesignerAction(new ModelNodeAction
                    (anchorsResetDisplayName, anchorsCategory, 180, &anchorsReset, &singleSelectionItemIsAnchored));
 
-    addDesignerAction(new ActionGroup(layoutCategoryDisplayName, layoutCategory,
+        addDesignerAction(new ActionGroup(positionCategoryDisplayName, positionCategory,
+                                          priorityPositionCategory, &positionOptionVisible));
+        addDesignerAction(new ActionGroup(layoutCategoryDisplayName, layoutCategory,
                     priorityLayoutCategory, &layoutOptionVisible));
+
+        addDesignerAction(new ModelNodeAction
+                          (removePositionerDisplayName,
+                           positionCategory,
+                           210,
+                           &removePositioner,
+                           &isPositioner,
+                           &isPositioner));
+
         addDesignerAction(new ModelNodeAction
                    (layoutRowPositionerDisplayName,
-                    layoutCategory,
+                    positionCategory,
                     200,
                     &layoutRowPositioner,
                     &selectionCanBeLayouted,
-                    selectionCanBeLayouted));
+                    &selectionCanBeLayouted));
 
         addDesignerAction(new ModelNodeAction
                    (layoutColumnPositionerDisplayName,
-                    layoutCategory,
+                    positionCategory,
                     180,
                     &layoutColumnPositioner,
                     &selectionCanBeLayouted,
-                    selectionCanBeLayouted));
+                    &selectionCanBeLayouted));
 
         addDesignerAction(new ModelNodeAction
                    (layoutGridPositionerDisplayName,
-                    layoutCategory,
+                    positionCategory,
                     160,
                     &layoutGridPositioner,
                     &selectionCanBeLayouted,
-                    selectionCanBeLayouted));
+                    &selectionCanBeLayouted));
 
         addDesignerAction(new ModelNodeAction
                    (layoutFlowPositionerDisplayName,
-                    layoutCategory,
+                    positionCategory,
                     140,
                     &layoutFlowPositioner,
                     &selectionCanBeLayouted,
-                    selectionCanBeLayouted));
+                    &selectionCanBeLayouted));
 
         addDesignerAction(new SeperatorDesignerAction(layoutCategory, 120));
+
+        addDesignerAction(new ModelNodeAction
+                          (removeLayoutDisplayName,
+                           layoutCategory,
+                           110,
+                           &removeLayout,
+                           &isLayout,
+                           &isLayout));
 
         addDesignerAction(new ModelNodeAction
                    (layoutRowLayoutDisplayName,
                     layoutCategory,
                     100,
                     &layoutRowLayout,
-                    &selectionCanBeLayoutedAndasQtQuickLayoutImport,
-                    &selectionCanBeLayoutedAndasQtQuickLayoutImport));
+                    &selectionCanBeLayoutedAndQtQuickLayoutPossible,
+                    &selectionCanBeLayoutedAndQtQuickLayoutPossible));
 
         addDesignerAction(new ModelNodeAction
                    (layoutColumnLayoutDisplayName,
                     layoutCategory,
                     80,
                     &layoutColumnLayout,
-                    &selectionCanBeLayoutedAndasQtQuickLayoutImport,
-                    &selectionCanBeLayoutedAndasQtQuickLayoutImport));
+                    &selectionCanBeLayoutedAndQtQuickLayoutPossible,
+                    &selectionCanBeLayoutedAndQtQuickLayoutPossible));
 
         addDesignerAction(new ModelNodeAction
                    (layoutGridLayoutDisplayName,
                     layoutCategory,
                     60,
                     &layoutGridLayout,
-                    &selectionCanBeLayoutedAndasQtQuickLayoutImport,
-                    &selectionCanBeLayoutedAndasQtQuickLayoutImport));
+                    &selectionCanBeLayoutedAndQtQuickLayoutPossible,
+                    &selectionCanBeLayoutedAndQtQuickLayoutPossible));
 
         addDesignerAction(new FillWidthModelNodeAction
                           (layoutFillWidthDisplayName,
                            layoutCategory,
                            40,
                            &setFillWidth,
-                           singleSelectionAndInQtQuickLayout,
-                           singleSelectionAndInQtQuickLayout));
+                           &singleSelectionAndInQtQuickLayout,
+                           &singleSelectionAndInQtQuickLayout));
 
         addDesignerAction(new FillHeightModelNodeAction
                           (layoutFillHeightDisplayName,
                            layoutCategory,
                            20,
                            &setFillHeight,
-                           singleSelectionAndInQtQuickLayout,
-                           singleSelectionAndInQtQuickLayout));
+                           &singleSelectionAndInQtQuickLayout,
+                           &singleSelectionAndInQtQuickLayout));
 
     addDesignerAction(new SeperatorDesignerAction(rootCategory, priorityTopLevelSeperator));
     addDesignerAction(new ModelNodeAction
                (goIntoComponentDisplayName, rootCategory, priorityGoIntoComponent, &goIntoComponent, &selectionIsComponent));
+    addDesignerAction(new ModelNodeAction
+               (goToImplementation, rootCategory, 42, &gotoImplementation, &singleSelectedAndUiFile, &singleSelectedAndUiFile));
 
 }
 

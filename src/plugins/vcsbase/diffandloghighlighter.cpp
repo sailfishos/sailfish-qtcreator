@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -102,13 +97,24 @@ static inline QTextCharFormat invertedColorFormat(const QTextCharFormat &in)
 // --- DiffAndLogHighlighterPrivate
 class DiffAndLogHighlighterPrivate
 {
-    DiffAndLogHighlighter *q_ptr;
-    Q_DECLARE_PUBLIC(DiffAndLogHighlighter)
 public:
-    DiffAndLogHighlighterPrivate(const QRegExp &filePattern, const QRegExp &changePattern);
+    DiffAndLogHighlighterPrivate(DiffAndLogHighlighter *q_, const QRegExp &filePattern,
+                                 const QRegExp &changePattern) :
+        q(q_),
+        m_filePattern(filePattern),
+        m_changePattern(changePattern),
+        m_locationIndicator(QLatin1String("@@")),
+        m_diffInIndicator(QLatin1Char('+')),
+        m_diffOutIndicator(QLatin1Char('-')),
+        m_foldingState(Internal::StartOfFile)
+    {
+        QTC_CHECK(filePattern.isValid());
+    }
 
     Internal::DiffFormats analyzeLine(const QString &block) const;
     void updateOtherFormats();
+
+    DiffAndLogHighlighter *const q;
 
     mutable QRegExp m_filePattern;
     mutable QRegExp m_changePattern;
@@ -119,18 +125,6 @@ public:
 
     Internal::FoldingState m_foldingState;
 };
-
-DiffAndLogHighlighterPrivate::DiffAndLogHighlighterPrivate(const QRegExp &filePattern, const QRegExp &changePattern) :
-    q_ptr(0),
-    m_filePattern(filePattern),
-    m_changePattern(changePattern),
-    m_locationIndicator(QLatin1String("@@")),
-    m_diffInIndicator(QLatin1Char('+')),
-    m_diffOutIndicator(QLatin1Char('-')),
-    m_foldingState(Internal::StartOfFile)
-{
-    QTC_CHECK(filePattern.isValid());
-}
 
 Internal::DiffFormats DiffAndLogHighlighterPrivate::analyzeLine(const QString &text) const
 {
@@ -151,7 +145,6 @@ Internal::DiffFormats DiffAndLogHighlighterPrivate::analyzeLine(const QString &t
 
 void DiffAndLogHighlighterPrivate::updateOtherFormats()
 {
-    Q_Q(DiffAndLogHighlighter);
     m_addedTrailingWhiteSpaceFormat =
             invertedColorFormat(q->formatForCategory(Internal::DiffInFormat));
 
@@ -160,11 +153,8 @@ void DiffAndLogHighlighterPrivate::updateOtherFormats()
 // --- DiffAndLogHighlighter
 DiffAndLogHighlighter::DiffAndLogHighlighter(const QRegExp &filePattern, const QRegExp &changePattern) :
     TextEditor::SyntaxHighlighter(static_cast<QTextDocument *>(0)),
-    d_ptr(new DiffAndLogHighlighterPrivate(filePattern, changePattern))
+    d(new DiffAndLogHighlighterPrivate(this, filePattern, changePattern))
 {
-    d_ptr->q_ptr = this;
-    Q_D(DiffAndLogHighlighter);
-
     static QVector<TextEditor::TextStyle> categories;
     if (categories.isEmpty()) {
         categories << TextEditor::C_TEXT
@@ -180,6 +170,7 @@ DiffAndLogHighlighter::DiffAndLogHighlighter(const QRegExp &filePattern, const Q
 
 DiffAndLogHighlighter::~DiffAndLogHighlighter()
 {
+    delete d;
 }
 
 // Check trailing spaces
@@ -199,7 +190,6 @@ static inline int trimmedLength(const QString &in)
  */
 void DiffAndLogHighlighter::highlightBlock(const QString &text)
 {
-    Q_D(DiffAndLogHighlighter);
     if (text.isEmpty())
         return;
 
@@ -279,7 +269,6 @@ void DiffAndLogHighlighter::highlightBlock(const QString &text)
 
 void DiffAndLogHighlighter::setFontSettings(const TextEditor::FontSettings &fontSettings)
 {
-    Q_D(DiffAndLogHighlighter);
     SyntaxHighlighter::setFontSettings(fontSettings);
     d->updateOtherFormats();
 }

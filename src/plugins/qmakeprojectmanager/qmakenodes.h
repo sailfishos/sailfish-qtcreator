@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -36,7 +31,7 @@
 
 #include <coreplugin/idocument.h>
 #include <projectexplorer/projectnodes.h>
-#include <qtsupport/uicodemodelsupport.h>
+#include <cpptools/generatedcodemodelsupport.h>
 
 #include <QHash>
 #include <QStringList>
@@ -91,6 +86,8 @@ enum QmakeVariable {
     ResourceVar,
     ExactResourceVar,
     UiDirVar,
+    HeaderExtensionVar,
+    CppExtensionVar,
     MocDirVar,
     PkgConfigVar,
     PrecompiledHeaderVar,
@@ -110,7 +107,8 @@ enum QmakeVariable {
     AndroidDeploySettingsFile,
     AndroidPackageSourceDir,
     AndroidExtraLibs,
-    IsoIconsVar
+    IsoIconsVar,
+    QmakeProjectName
 };
 
 namespace Internal {
@@ -136,26 +134,27 @@ class QMAKEPROJECTMANAGER_EXPORT QmakePriFileNode : public ProjectExplorer::Proj
 {
 public:
     QmakePriFileNode(QmakeProject *project, QmakeProFileNode *qmakeProFileNode, const Utils::FileName &filePath);
-    ~QmakePriFileNode();
+    ~QmakePriFileNode() override;
 
     void update(const Internal::PriFileEvalResult &result);
 
 
-// ProjectNode interface
-    QList<ProjectExplorer::ProjectAction> supportedActions(Node *node) const;
+    // ProjectNode interface
+    QList<ProjectExplorer::ProjectAction> supportedActions(Node *node) const override;
 
-    bool showInSimpleTree() const { return false; }
+    bool showInSimpleTree() const override { return false; }
 
-    bool canAddSubProject(const QString &proFilePath) const;
+    bool canAddSubProject(const QString &proFilePath) const override;
 
-    bool addSubProjects(const QStringList &proFilePaths);
-    bool removeSubProjects(const QStringList &proFilePaths);
+    bool addSubProjects(const QStringList &proFilePaths) override;
+    bool removeSubProjects(const QStringList &proFilePaths) override;
 
-    bool addFiles(const QStringList &filePaths, QStringList *notAdded = 0);
-    bool removeFiles(const QStringList &filePaths, QStringList *notRemoved = 0);
-    bool deleteFiles(const QStringList &filePaths);
-    bool renameFile(const QString &filePath, const QString &newFilePath);
-    AddNewInformation addNewInformation(const QStringList &files, Node *context) const;
+    bool addFiles(const QStringList &filePaths, QStringList *notAdded = 0) override;
+    bool removeFiles(const QStringList &filePaths, QStringList *notRemoved = 0) override;
+    bool deleteFiles(const QStringList &filePaths) override;
+    bool canRenameFile(const QString &filePath, const QString &newFilePath) override;
+    bool renameFile(const QString &filePath, const QString &newFilePath) override;
+    AddNewInformation addNewInformation(const QStringList &files, Node *context) const override;
 
     bool setProVariable(const QString &var, const QStringList &values,
                         const QString &scope = QString(),
@@ -163,8 +162,8 @@ public:
 
     bool folderChanged(const QString &changedFolder, const QSet<Utils::FileName> &newFiles);
 
-    bool deploysFolder(const QString &folder) const;
-    QList<ProjectExplorer::RunConfiguration *> runConfigurations() const;
+    bool deploysFolder(const QString &folder) const override;
+    QList<ProjectExplorer::RunConfiguration *> runConfigurations() const override;
 
     QmakeProFileNode *proFileNode() const;
     QList<QmakePriFileNode*> subProjectNodesExact() const;
@@ -173,6 +172,7 @@ public:
     bool includedInExactParse() const;
 
     static QSet<Utils::FileName> recursiveEnumerate(const QString &folder);
+
 protected:
     void setIncludedInExactParse(bool b);
     static QStringList varNames(ProjectExplorer::FileType type, QtSupport::ProFileReader *readerExact);
@@ -187,24 +187,31 @@ protected:
         RemoveFromProFile
     };
 
+    enum class Change { Save, TestOnly };
+    bool renameFile(const QString &oldName,
+                    const QString &newName,
+                    const QString &mimeType,
+                    Change mode = Change::Save);
     void changeFiles(const QString &mimeType,
                      const QStringList &filePaths,
                      QStringList *notChanged,
-                     ChangeType change);
+                     ChangeType change,
+                     Change mode = Change::Save);
 
 private:
     void scheduleUpdate();
 
+    bool prepareForChange();
     static bool ensureWriteableProFile(const QString &file);
     static QPair<ProFile *, QStringList> readProFile(const QString &file);
     static QPair<ProFile *, QStringList> readProFileFromContents(const QString &contents);
     void save(const QStringList &lines);
-    bool priFileWritable(const QString &path);
+    bool priFileWritable(const QString &absoluteFilePath);
     bool saveModifiedEditors();
     QStringList formResources(const QString &formFile) const;
     static QStringList baseVPaths(QtSupport::ProFileReader *reader, const QString &projectDir, const QString &buildDir);
     static QStringList fullVPaths(const QStringList &baseVPaths, QtSupport::ProFileReader *reader, const QString &qmakeVariable, const QString &projectDir);
-    static Internal::PriFileEvalResult extractValues(const Internal::EvalInput &input, ProFile *includeFileExact, ProFile *includeFileCumlative,
+    static Internal::PriFileEvalResult extractValues(const Internal::EvalInput &input, QVector<ProFile *> includeFilesExact, QVector<ProFile *> includeFilesCumlative,
                                                      const QList<QList<Internal::VariableAndVPathInformation>> &variableAndVPathInformation);
     void watchFolders(const QSet<QString> &folders);
 
@@ -234,13 +241,6 @@ class QmakePriFile : public Core::IDocument
     Q_OBJECT
 public:
     QmakePriFile(QmakePriFileNode *qmakePriFile);
-    bool save(QString *errorString, const QString &fileName, bool autoSave) override;
-
-    QString defaultPath() const override;
-    QString suggestedFileName() const override;
-
-    bool isModified() const override;
-    bool isSaveAsAllowed() const override;
 
     ReloadBehavior reloadBehavior(ChangeTrigger state, ChangeType type) const override;
     bool reload(QString *errorString, ReloadFlag flag, ChangeType type) override;
@@ -254,22 +254,25 @@ class ProVirtualFolderNode : public ProjectExplorer::VirtualFolderNode
 public:
     explicit ProVirtualFolderNode(const Utils::FileName &folderPath, int priority, const QString &typeName)
         : VirtualFolderNode(folderPath, priority), m_typeName(typeName)
-    {
+    { }
 
+    QString displayName() const override;
+
+    QString addFileFilter() const override;
+
+    void setAddFileFilter(const QString &filter)
+    {
+        m_addFileFilter = filter;
     }
 
-    QString displayName() const
-    {
-        return m_typeName;
-    }
-
-    QString tooltip() const
+    QString tooltip() const override
     {
         return QString();
     }
 
 private:
     QString m_typeName;
+    QString m_addFileFilter;
 };
 
 } // namespace Internal
@@ -317,13 +320,13 @@ class QMAKEPROJECTMANAGER_EXPORT QmakeProFileNode : public QmakePriFileNode
 {
 public:
     QmakeProFileNode(QmakeProject *project, const Utils::FileName &filePath);
-    ~QmakeProFileNode();
+    ~QmakeProFileNode() override;
 
     bool isParent(QmakeProFileNode *node);
 
-    bool showInSimpleTree() const;
+    bool showInSimpleTree() const override;
 
-    AddNewInformation addNewInformation(const QStringList &files, Node *context) const;
+    AddNewInformation addNewInformation(const QStringList &files, Node *context) const override;
 
     QmakeProjectType projectType() const;
 
@@ -337,9 +340,9 @@ public:
     QString sourceDir() const;
     QString buildDir(QmakeBuildConfiguration *bc = 0) const;
 
-    Utils::FileName uiDirectory(const Utils::FileName &buildDir) const;
-    static QString uiHeaderFile(const Utils::FileName &uiDir, const Utils::FileName &formFile);
-    QHash<QString, QString> uiFiles() const;
+    QStringList generatedFiles(const QString &buildDirectory,
+                               const ProjectExplorer::FileNode *sourceFile) const;
+    QList<ProjectExplorer::ExtraCompiler *> extraCompilers() const;
 
     QmakeProFileNode *findProFileFor(const Utils::FileName &string) const;
     TargetInformation targetInformation() const;
@@ -384,7 +387,7 @@ private:
 
     typedef QHash<QmakeVariable, QStringList> QmakeVariablesHash;
 
-    void updateUiFiles(const QString &buildDir);
+    void updateGeneratedFiles(const QString &buildDir);
 
     static QStringList fileListForVar(QtSupport::ProFileReader *readerExact, QtSupport::ProFileReader *readerCumulative,
                                       const QString &varName, const QString &projectDir, const QString &buildDir);
@@ -404,13 +407,11 @@ private:
 
     QmakeProjectType m_projectType = InvalidProject;
     QmakeVariablesHash m_varValues;
+    QList<ProjectExplorer::ExtraCompiler *> m_extraCompilers;
 
-    QMap<QString, QDateTime> m_uitimestamps;
     TargetInformation m_qmakeTargetInformation;
     QStringList m_subProjectsNotToDeploy;
     InstallsList m_installsList;
-
-    QHash<QString, QString> m_uiFiles; // ui-file path, ui header path
 
     // Async stuff
     QFutureWatcher<Internal::EvalResult *> m_parseFutureWatcher;

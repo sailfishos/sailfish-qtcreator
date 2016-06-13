@@ -1,18 +1,25 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
-** This file is part of Qt Creator
+** This file is part of the Qt Creator documentation.
 **
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Free Documentation License
-**
+** GNU Free Documentation License Usage
 ** Alternatively, this file may be used under the terms of the GNU Free
 ** Documentation License version 1.3 as published by the Free Software
-** Foundation and appearing in the file included in the packaging of this
-** file.
-**
+** Foundation and appearing in the file included in the packaging of
+** this file. Please review the following information to ensure
+** the GNU Free Documentation License version 1.3 requirements
+** will be met: https://www.gnu.org/licenses/fdl-1.3.html.
 **
 ****************************************************************************/
 
@@ -106,8 +113,7 @@
 
     \list 1
 
-        \li Click the
-            \inlineimage qtcreator-help-add-bookmark.png
+        \li Click the \inlineimage bookmark.png
             (\uicontrol {Add Bookmark}) button on the toolbar.
 
         \li In the \uicontrol {Add Bookmark} dialog, click \uicontrol OK to save the
@@ -159,7 +165,7 @@
 
     If you cannot find words that you know are there, indexing might not have
     been completed for some reason. To regenerate the index, click
-    \inlineimage qtcreator-regenerate-index.png
+    \inlineimage reload_gray.png
     (\uicontrol {Regenerate Index}).
 
     Punctuation is not included in indexed terms. To find terms that contain
@@ -190,15 +196,17 @@
     space, the help opens in the full-screen help mode.
 
     You can specify that the help always opens in full-screen mode or
-    is detached to an external window. Select \uicontrol {Tools > Options > Help >
-    General Settings} and specify settings for displaying context-sensitive help
+    is detached to an external window. Select \uicontrol Tools >
+    \uicontrol Options > \uicontrol Help > \uicontrol General and specify
+    settings for displaying context-sensitive help
     in the \uicontrol {On context help} field. To detach the help window, select
-    \uicontrol {Always Show Help in External Window}.
+    \uicontrol {Always Show in External Window}.
 
     \section1 Selecting the Start Page
 
     You can select the page to display when you open the \uicontrol Help mode in the
-    \uicontrol {Tools > Options > Help > General Settings > On help start} field.
+    \uicontrol Tools > \uicontrol Options > \uicontrol Help > \uicontrol General
+    > \uicontrol {On help start} field.
     To display the page and help panes that were open when you exited the mode,
     select the \uicontrol {Show My Tabs from Last Session} option. However, Web pages
     are not opened, because loading them would slow down opening the \uicontrol Help
@@ -214,8 +222,8 @@
     \section1 Using Documentation Filters
 
     You can filter the documents displayed in the \uicontrol Help mode to find
-    relevant information faster. Select from a list of filters in the
-    \uicontrol {Filtered by} field (1). The contents of the \uicontrol Index and \uicontrol Contents
+    relevant information faster. Select a filter from a list of filters (1). The
+    contents of the \uicontrol Index and \uicontrol Contents
     pane in the sidebar change accordingly.
 
     \image qtcreator-help-filters.png "Help filters"
@@ -242,8 +250,8 @@
 
         \li Click \uicontrol OK.
 
-        \li In the \uicontrol Help mode, select the filter in the \uicontrol {Filtered by}
-            field to see the filtered documentation in the sidebar.
+        \li In the \uicontrol Help mode, select the filter in the list of
+            filters to see the filtered documentation in the sidebar.
 
     \endlist
 

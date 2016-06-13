@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -33,7 +28,7 @@
 
 #include "qtsupport_global.h"
 
-#include <projectexplorer/localapplicationrunconfiguration.h>
+#include <projectexplorer/runnables.h>
 
 #include <QVariantMap>
 
@@ -44,7 +39,7 @@ namespace Internal { class CustomExecutableConfigurationWidget; }
 
 class CustomExecutableRunConfigurationFactory;
 
-class QTSUPPORT_EXPORT CustomExecutableRunConfiguration : public ProjectExplorer::LocalApplicationRunConfiguration
+class QTSUPPORT_EXPORT CustomExecutableRunConfiguration : public ProjectExplorer::RunConfiguration
 {
     Q_OBJECT
     // the configuration widget needs to setExecutable setWorkingDirectory and setCommandLineArguments
@@ -53,29 +48,27 @@ class QTSUPPORT_EXPORT CustomExecutableRunConfiguration : public ProjectExplorer
 
 public:
     explicit CustomExecutableRunConfiguration(ProjectExplorer::Target *parent);
-    ~CustomExecutableRunConfiguration();
+    ~CustomExecutableRunConfiguration() override;
 
     /**
      * Returns the executable, looks in the environment for it and might even
      * ask the user if none is specified
      */
     QString executable() const;
+    QString workingDirectory() const;
+    ProjectExplorer::Runnable runnable() const override;
 
     /** Returns whether this runconfiguration ever was configured with an executable
      */
-    bool isConfigured() const;
+    bool isConfigured() const override;
 
-    ProjectExplorer::ApplicationLauncher::Mode runMode() const;
-    QString workingDirectory() const;
-    QString commandLineArguments() const;
+    QWidget *createConfigurationWidget() override;
 
-    QWidget *createConfigurationWidget();
+    ProjectExplorer::Abi abi() const override;
 
-    ProjectExplorer::Abi abi() const;
+    QVariantMap toMap() const override;
 
-    QVariantMap toMap() const;
-
-    ConfigurationState ensureConfigured(QString *errorMessage);
+    ConfigurationState ensureConfigured(QString *errorMessage) override;
 
 signals:
     void changed();
@@ -83,7 +76,7 @@ signals:
 protected:
     CustomExecutableRunConfiguration(ProjectExplorer::Target *parent,
                                      CustomExecutableRunConfiguration *source);
-    virtual bool fromMap(const QVariantMap &map);
+    virtual bool fromMap(const QVariantMap &map) override;
     QString defaultDisplayName() const;
 
 private slots:
@@ -102,7 +95,6 @@ private:
 
     QString m_executable;
     QString m_workingDirectory;
-    ProjectExplorer::ApplicationLauncher::Mode m_runMode;
     QWidget *m_dialog;
 };
 
@@ -112,23 +104,22 @@ class CustomExecutableRunConfigurationFactory : public ProjectExplorer::IRunConf
 
 public:
     explicit CustomExecutableRunConfigurationFactory(QObject *parent = 0);
-    ~CustomExecutableRunConfigurationFactory();
 
-    QList<Core::Id> availableCreationIds(ProjectExplorer::Target *parent, CreationMode mode) const;
-    QString displayNameForId(Core::Id id) const;
+    QList<Core::Id> availableCreationIds(ProjectExplorer::Target *parent, CreationMode mode) const override;
+    QString displayNameForId(Core::Id id) const override;
 
-    bool canCreate(ProjectExplorer::Target *parent, Core::Id id) const;
-    bool canRestore(ProjectExplorer::Target *parent, const QVariantMap &map) const;
-    bool canClone(ProjectExplorer::Target *parent, ProjectExplorer::RunConfiguration *product) const;
+    bool canCreate(ProjectExplorer::Target *parent, Core::Id id) const override;
+    bool canRestore(ProjectExplorer::Target *parent, const QVariantMap &map) const override;
+    bool canClone(ProjectExplorer::Target *parent, ProjectExplorer::RunConfiguration *product) const override;
     ProjectExplorer::RunConfiguration *clone(ProjectExplorer::Target *parent,
-                                             ProjectExplorer::RunConfiguration *source);
+                                             ProjectExplorer::RunConfiguration *source) override;
 
 private:
     bool canHandle(ProjectExplorer::Target *parent) const;
 
-    ProjectExplorer::RunConfiguration *doCreate(ProjectExplorer::Target *parent, Core::Id id);
+    ProjectExplorer::RunConfiguration *doCreate(ProjectExplorer::Target *parent, Core::Id id) override;
     ProjectExplorer::RunConfiguration *doRestore(ProjectExplorer::Target *parent,
-                                                 const QVariantMap &map);
+                                                 const QVariantMap &map) override;
 };
 
 } // namespace QtSupport

@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -40,6 +35,7 @@
 #include "deployconfiguration.h"
 #include "project.h"
 #include "runconfiguration.h"
+#include "session.h"
 
 #include <limits>
 #include <coreplugin/coreconstants.h>
@@ -79,21 +75,21 @@ namespace ProjectExplorer {
 class TargetPrivate
 {
 public:
-    TargetPrivate();
+    TargetPrivate(Kit *k);
 
     QList<DeployConfigurationFactory *> deployFactories() const;
 
-    bool m_isEnabled;
+    bool m_isEnabled = true;
     QIcon m_icon;
     QIcon m_overlayIcon;
     QString m_toolTip;
 
     QList<BuildConfiguration *> m_buildConfigurations;
-    BuildConfiguration *m_activeBuildConfiguration;
+    BuildConfiguration *m_activeBuildConfiguration = 0;
     QList<DeployConfiguration *> m_deployConfigurations;
-    DeployConfiguration *m_activeDeployConfiguration;
+    DeployConfiguration *m_activeDeployConfiguration = 0;
     QList<RunConfiguration *> m_runConfigurations;
-    RunConfiguration* m_activeRunConfiguration;
+    RunConfiguration* m_activeRunConfiguration = 0;
     DeploymentData m_deploymentData;
     BuildTargetInfoList m_appTargets;
     QVariantMap m_pluginSettings;
@@ -102,20 +98,15 @@ public:
     QPixmap m_readyToUsePixmap;
     QPixmap m_disconnectedPixmap;
 
-    Kit *m_kit;
+    Kit *const m_kit;
 };
 
-TargetPrivate::TargetPrivate() :
-    m_isEnabled(true),
-    m_activeBuildConfiguration(0),
-    m_activeDeployConfiguration(0),
-    m_activeRunConfiguration(0),
+TargetPrivate::TargetPrivate(Kit *k) :
     m_connectedPixmap(QLatin1String(":/projectexplorer/images/DeviceConnected.png")),
     m_readyToUsePixmap(QLatin1String(":/projectexplorer/images/DeviceReadyToUse.png")),
     m_disconnectedPixmap(QLatin1String(":/projectexplorer/images/DeviceDisconnected.png")),
-    m_kit(0)
-{
-}
+    m_kit(k)
+{ }
 
 QList<DeployConfigurationFactory *> TargetPrivate::deployFactories() const
 {
@@ -124,20 +115,17 @@ QList<DeployConfigurationFactory *> TargetPrivate::deployFactories() const
 
 Target::Target(Project *project, Kit *k) :
     ProjectConfiguration(project, k->id()),
-    d(new TargetPrivate)
+    d(new TargetPrivate(k))
 {
-    connect(DeviceManager::instance(), SIGNAL(updated()), this, SLOT(updateDeviceState()));
-
-    d->m_kit = k;
+    QTC_CHECK(d->m_kit);
+    connect(DeviceManager::instance(), &DeviceManager::updated, this, &Target::updateDeviceState);
 
     setDisplayName(d->m_kit->displayName());
     setIcon(d->m_kit->icon());
 
-    QObject *km = KitManager::instance();
-    connect(km, SIGNAL(kitUpdated(ProjectExplorer::Kit*)),
-            this, SLOT(handleKitUpdates(ProjectExplorer::Kit*)));
-    connect(km, SIGNAL(kitRemoved(ProjectExplorer::Kit*)),
-            this, SLOT(handleKitRemoval(ProjectExplorer::Kit*)));
+    KitManager *km = KitManager::instance();
+    connect(km, &KitManager::kitUpdated, this, &Target::handleKitUpdates);
+    connect(km, &KitManager::kitRemoved, this, &Target::handleKitRemoval);
 
     Utils::MacroExpander *expander = macroExpander();
     expander->setDisplayName(tr("Target Settings"));
@@ -215,7 +203,6 @@ void Target::handleKitRemoval(Kit *k)
 {
     if (k != d->m_kit)
         return;
-    d->m_kit = 0;
     project()->removeTarget(this);
 }
 
@@ -250,12 +237,12 @@ void Target::addBuildConfiguration(BuildConfiguration *configuration)
 
     emit addedBuildConfiguration(configuration);
 
-    connect(configuration, SIGNAL(environmentChanged()),
-            SLOT(changeEnvironment()));
-    connect(configuration, SIGNAL(enabledChanged()),
-            this, SLOT(changeBuildConfigurationEnabled()));
-    connect(configuration, SIGNAL(buildDirectoryChanged()),
-            SLOT(onBuildDirectoryChanged()));
+    connect(configuration, &BuildConfiguration::environmentChanged,
+            this, &Target::changeEnvironment);
+    connect(configuration, &BuildConfiguration::enabledChanged,
+            this, &Target::changeBuildConfigurationEnabled);
+    connect(configuration, &BuildConfiguration::buildDirectoryChanged,
+            this, &Target::onBuildDirectoryChanged);
 
     if (!activeBuildConfiguration())
         setActiveBuildConfiguration(configuration);
@@ -276,9 +263,9 @@ bool Target::removeBuildConfiguration(BuildConfiguration *configuration)
 
     if (activeBuildConfiguration() == configuration) {
         if (d->m_buildConfigurations.isEmpty())
-            setActiveBuildConfiguration(0);
+            SessionManager::setActiveBuildConfiguration(this, 0, SetActive::Cascade);
         else
-            setActiveBuildConfiguration(d->m_buildConfigurations.at(0));
+            SessionManager::setActiveBuildConfiguration(this, d->m_buildConfigurations.at(0), SetActive::Cascade);
     }
 
     delete configuration;
@@ -325,7 +312,8 @@ void Target::addDeployConfiguration(DeployConfiguration *dc)
     // add it
     d->m_deployConfigurations.push_back(dc);
 
-    connect(dc, SIGNAL(enabledChanged()), this, SLOT(changeDeployConfigurationEnabled()));
+    connect(dc, &DeployConfiguration::enabledChanged,
+            this, &Target::changeDeployConfigurationEnabled);
 
     emit addedDeployConfiguration(dc);
 
@@ -349,9 +337,10 @@ bool Target::removeDeployConfiguration(DeployConfiguration *dc)
 
     if (activeDeployConfiguration() == dc) {
         if (d->m_deployConfigurations.isEmpty())
-            setActiveDeployConfiguration(0);
+            SessionManager::setActiveDeployConfiguration(this, 0, SetActive::Cascade);
         else
-            setActiveDeployConfiguration(d->m_deployConfigurations.at(0));
+            SessionManager::setActiveDeployConfiguration(this, d->m_deployConfigurations.at(0),
+                                                         SetActive::Cascade);
     }
 
     delete dc;
@@ -425,7 +414,8 @@ void Target::addRunConfiguration(RunConfiguration* runConfiguration)
 
     d->m_runConfigurations.push_back(runConfiguration);
 
-    connect(runConfiguration, SIGNAL(enabledChanged()), this, SLOT(changeRunConfigurationEnabled()));
+    connect(runConfiguration, &RunConfiguration::enabledChanged,
+            this, &Target::changeRunConfigurationEnabled);
 
     emit addedRunConfiguration(runConfiguration);
 
@@ -600,14 +590,10 @@ void Target::updateDefaultRunConfigurations()
     QList<RunConfiguration *> newConfigured; // NEW configured Rcs
     QList<RunConfiguration *> newUnconfigured; // NEW unconfigured RCs
 
-
     // sort existing RCs into configured/unconfigured.
-    foreach (RunConfiguration *rc, runConfigurations()) {
-        if (!rc->isConfigured())
-            existingUnconfigured << rc;
-        else
-            existingConfigured << rc;
-    }
+    std::tie(existingConfigured, existingUnconfigured)
+            = Utils::partition(runConfigurations(),
+                               [](const RunConfiguration *rc) { return rc->isConfigured(); });
     int configuredCount = existingConfigured.count();
 
     // find all RC ids that can get created:
@@ -627,7 +613,7 @@ void Target::updateDefaultRunConfigurations()
     foreach (RunConfiguration *rc, existingConfigured) {
         if (availableFactoryIds.contains(rc->id()))
             toIgnore.append(rc->id()); // Already there
-        else
+        else if (project()->knowsAllBuildExecutables())
             toRemove << rc;
     }
     foreach (Core::Id i, toIgnore)
@@ -689,25 +675,27 @@ void Target::updateDefaultRunConfigurations()
 
     // Make sure a configured RC will be active after we delete the RCs:
     RunConfiguration *active = activeRunConfiguration();
-    if (removalList.contains(active)) {
-        if (!existingConfigured.isEmpty()) {
-            setActiveRunConfiguration(existingConfigured.at(0));
-        } else if (!newConfigured.isEmpty()) {
-            RunConfiguration *selected = newConfigured.at(0);
-            // Try to find a runconfiguration that matches the project name. That is a good
-            // candidate for something to run initially.
-            selected = Utils::findOr(newConfigured, selected,
-                                     Utils::equal(&RunConfiguration::displayName, project()->displayName()));
-            setActiveRunConfiguration(selected);
-        } else if (!newUnconfigured.isEmpty()){
-            setActiveRunConfiguration(newUnconfigured.at(0));
-        } else {
-            if (!removalList.isEmpty())
-                setActiveRunConfiguration(removalList.last());
-            // Nothing will be left after removal: We set this to the last of in the removal list
-            // since that gives us the minimum number of signals (one signal for the change here and
-            // one more when the last RC is removed and the active RC becomes 0).
+    if (removalList.contains(active) || !active->isEnabled()) {
+        RunConfiguration *newConfiguredDefault = newConfigured.isEmpty() ? nullptr : newConfigured.at(0);
+
+        RunConfiguration *rc
+                = Utils::findOrDefault(existingConfigured,
+                                       [](RunConfiguration *rc) { return rc->isEnabled(); });
+        if (!rc) {
+            rc = Utils::findOr(newConfigured, newConfiguredDefault,
+                               Utils::equal(&RunConfiguration::displayName, project()->displayName()));
         }
+        if (!rc)
+            rc = newUnconfigured.isEmpty() ? nullptr : newUnconfigured.at(0);
+        if (!rc) {
+            // No RCs will be deleted, so use the one that will emit the minimum number of signals.
+            // One signal will be emitted from the next setActiveRunConfiguration, another one
+            // when the RC gets removed (and the activeRunConfiguration turns into a nullptr).
+            rc = removalList.isEmpty() ? nullptr : removalList.last();
+        }
+
+        if (rc)
+            setActiveRunConfiguration(rc);
     }
 
     // Remove the RCs that are no longer needed:
@@ -792,9 +780,7 @@ bool Target::fromMap(const QVariantMap &map)
     if (!ProjectConfiguration::fromMap(map))
         return false;
 
-    d->m_kit = KitManager::find(id());
-    if (!d->m_kit)
-        return false;
+    QTC_ASSERT(d->m_kit == KitManager::find(id()), return false);
 
     setDisplayName(d->m_kit->displayName()); // Overwrite displayname read from file
     setDefaultDisplayName(d->m_kit->displayName());

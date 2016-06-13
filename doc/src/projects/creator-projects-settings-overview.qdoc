@@ -1,18 +1,25 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
-** This file is part of Qt Creator
+** This file is part of the Qt Creator documentation.
 **
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Free Documentation License
-**
+** GNU Free Documentation License Usage
 ** Alternatively, this file may be used under the terms of the GNU Free
 ** Documentation License version 1.3 as published by the Free Software
-** Foundation and appearing in the file included in the packaging of this
-** file.
-**
+** Foundation and appearing in the file included in the packaging of
+** this file. Please review the following information to ensure
+** the GNU Free Documentation License version 1.3 requirements
+** will be met: https://www.gnu.org/licenses/fdl-1.3.html.
 **
 ****************************************************************************/
 
@@ -72,9 +79,9 @@
 
             \list
 
-                \li \l{Specifying Build Settings}{Build Settings}
+                \li \l{Specifying Build Settings}{Build}
 
-                \li \l{Specifying Run Settings}{Run Settings}
+                \li \l{Specifying Run Settings}{Run}
 
             \endlist
 
@@ -82,16 +89,15 @@
                     \uicontrol {Build & Run} tab is replaced by the \l{Opening Projects}
                     {Configure Projects} tab.
 
-        \li \l{Specifying Editor Settings}{Editor Settings}
+        \li \l{Specifying Editor Settings}{Editor}
 
-        \li \l{Specifying Code Style Settings}{Code Style Settings}
+        \li \l{Specifying Code Style Settings}{Code Style}
 
         \li \l{Specifying Dependencies}{Dependencies}
 
-        \li \l{Using Clang Static Analyzer}{Clang Static Analyzer Settings}
-            (commercial only)
+        \li \l{Using Clang Static Analyzer}{Clang Static Analyzer}
 
-        \li \l{To-Do List}{To-Do Settings} (experimental)
+        \li \l{To-Do List}{To-Do} (experimental)
 
     \endlist
 

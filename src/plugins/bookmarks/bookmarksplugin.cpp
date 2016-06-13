@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -46,7 +41,6 @@
 #include <texteditor/texteditorconstants.h>
 
 #include <QtPlugin>
-#include <QDebug>
 
 #include <QMenu>
 
@@ -72,8 +66,6 @@ BookmarksPlugin::BookmarksPlugin() :
 
 bool BookmarksPlugin::initialize(const QStringList & /*arguments*/, QString *)
 {
-    Context textcontext(TextEditor::Constants::C_TEXTEDITOR);
-
     ActionContainer *mtools = ActionManager::actionContainer(Core::Constants::M_TOOLS);
     ActionContainer *mbm = ActionManager::createMenu(Id(BOOKMARKS_MENU));
     mbm->menu()->setTitle(tr("&Bookmarks"));
@@ -81,11 +73,11 @@ bool BookmarksPlugin::initialize(const QStringList & /*arguments*/, QString *)
 
     //Toggle
     m_toggleAction = new QAction(tr("Toggle Bookmark"), this);
-    Command *cmd = ActionManager::registerAction(m_toggleAction, BOOKMARKS_TOGGLE_ACTION, textcontext);
+    Command *cmd = ActionManager::registerAction(m_toggleAction, BOOKMARKS_TOGGLE_ACTION);
     cmd->setDefaultKeySequence(QKeySequence(UseMacShortcuts ? tr("Meta+M") : tr("Ctrl+M")));
     mbm->addAction(cmd);
 
-    mbm->addSeparator(textcontext);
+    mbm->addSeparator();
 
     //Previous
     m_prevAction = new QAction(tr("Previous Bookmark"), this);
@@ -116,7 +108,8 @@ bool BookmarksPlugin::initialize(const QStringList & /*arguments*/, QString *)
     m_bookmarkManager = new BookmarkManager;
 
     connect(m_toggleAction, &QAction::triggered, [this]() {
-        if (BaseTextEditor *editor = BaseTextEditor::currentTextEditor())
+        BaseTextEditor *editor = BaseTextEditor::currentTextEditor();
+        if (editor && !editor->document()->isTemporary())
             m_bookmarkManager->toggleBookmark(editor->document()->filePath().toString(), editor->currentLine());
     });
 
@@ -130,7 +123,7 @@ bool BookmarksPlugin::initialize(const QStringList & /*arguments*/, QString *)
     });
 
     connect(m_bookmarkManager, &BookmarkManager::updateActions, this, &BookmarksPlugin::updateActions);
-    updateActions(m_bookmarkManager->state());
+    updateActions(false, m_bookmarkManager->state());
     addAutoReleasedObject(new BookmarkViewFactory(m_bookmarkManager));
 
     m_bookmarkMarginAction = new QAction(this);
@@ -154,12 +147,12 @@ BookmarksPlugin::~BookmarksPlugin()
     delete m_bookmarkManager;
 }
 
-void BookmarksPlugin::updateActions(int state)
+void BookmarksPlugin::updateActions(bool enableToggle, int state)
 {
     const bool hasbm    = state >= BookmarkManager::HasBookMarks;
     const bool hasdocbm = state == BookmarkManager::HasBookmarksInDocument;
 
-    m_toggleAction->setEnabled(true);
+    m_toggleAction->setEnabled(enableToggle);
     m_prevAction->setEnabled(hasbm);
     m_nextAction->setEnabled(hasbm);
     m_docPrevAction->setEnabled(hasdocbm);
@@ -171,7 +164,7 @@ void BookmarksPlugin::editorOpened(IEditor *editor)
     if (auto widget = qobject_cast<TextEditorWidget *>(editor->widget())) {
         connect(widget, &TextEditorWidget::markRequested, m_bookmarkManager,
                 [this, editor](TextEditorWidget *, int line, TextMarkRequestKind kind) {
-                    if (kind == BookmarkRequest && editor->document())
+                    if (kind == BookmarkRequest && !editor->document()->isTemporary())
                         m_bookmarkManager->toggleBookmark(editor->document()->filePath().toString(), line);
                 });
 
@@ -190,16 +183,15 @@ void BookmarksPlugin::editorOpened(IEditor *editor)
 void BookmarksPlugin::editorAboutToClose(IEditor *editor)
 {
     if (auto widget = qobject_cast<TextEditorWidget *>(editor->widget())) {
-        connect(widget, &TextEditorWidget::markContextMenuRequested,
-                this, &BookmarksPlugin::requestContextMenu);
+        disconnect(widget, &TextEditorWidget::markContextMenuRequested,
+                   this, &BookmarksPlugin::requestContextMenu);
     }
 }
 
 void BookmarksPlugin::requestContextMenu(TextEditorWidget *widget,
     int lineNumber, QMenu *menu)
 {
-    // Don't set bookmarks in disassembler views.
-    if (widget->textDocument()->property("DisassemblerView").toBool())
+    if (widget->textDocument()->isTemporary())
         return;
 
     m_bookmarkMarginActionLineNumber = lineNumber;

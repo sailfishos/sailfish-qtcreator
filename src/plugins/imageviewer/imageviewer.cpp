@@ -1,8 +1,8 @@
-/**************************************************************************
+/****************************************************************************
 **
-** Copyright (C) 2015 Denis Mingulov.
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 Denis Mingulov.
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -10,32 +10,27 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
 #include "imageviewer.h"
 #include "imageviewerfile.h"
-#include "imagevieweractionhandler.h"
 #include "imageviewerconstants.h"
 #include "imageview.h"
 #include "ui_imageviewertoolbar.h"
 
+#include <coreplugin/coreicons.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/command.h>
@@ -105,7 +100,16 @@ void ImageViewer::ctor()
     // toolbar
     d->toolbar = new QWidget();
     d->ui_toolbar.setupUi(d->toolbar);
-
+    d->ui_toolbar.toolButtonExportImage->setIcon(QIcon::fromTheme(QLatin1String("document-save"),
+                                                                  Core::Icons::SAVEFILE_TOOLBAR.icon()));
+    const Utils::Icon backgroundIcon({
+            {QLatin1String(":/core/images/desktopdevicesmall.png"), Utils::Theme::IconsBaseColor}});
+    d->ui_toolbar.toolButtonBackground->setIcon(backgroundIcon.icon());
+    d->ui_toolbar.toolButtonOutline->setIcon(Core::Icons::BOUNDING_RECT.icon());
+    d->ui_toolbar.toolButtonZoomIn->setIcon(Core::Icons::PLUS.icon());
+    d->ui_toolbar.toolButtonZoomOut->setIcon(Core::Icons::MINUS.icon());
+    d->ui_toolbar.toolButtonFitToScreen->setIcon(Core::Icons::ZOOM_TOOLBAR.icon());
+    d->ui_toolbar.toolButtonOriginalSize->setIcon(Core::Icons::EYE_OPEN_TOOLBAR.icon());
     // icons update - try to use system theme
     updateButtonIconByTheme(d->ui_toolbar.toolButtonZoomIn, QLatin1String("zoom-in"));
     updateButtonIconByTheme(d->ui_toolbar.toolButtonZoomOut, QLatin1String("zoom-out"));
@@ -117,6 +121,7 @@ void ImageViewer::ctor()
     // (photograph has outline - piece of paper)
     updateButtonIconByTheme(d->ui_toolbar.toolButtonOutline, QLatin1String("emblem-photos"));
 
+    d->ui_toolbar.toolButtonExportImage->setCommandId(Constants::ACTION_EXPORT_IMAGE);
     d->ui_toolbar.toolButtonZoomIn->setCommandId(Constants::ACTION_ZOOM_IN);
     d->ui_toolbar.toolButtonZoomOut->setCommandId(Constants::ACTION_ZOOM_OUT);
     d->ui_toolbar.toolButtonOriginalSize->setCommandId(Constants::ACTION_ORIGINAL_SIZE);
@@ -126,32 +131,36 @@ void ImageViewer::ctor()
     d->ui_toolbar.toolButtonPlayPause->setCommandId(Constants::ACTION_TOGGLE_ANIMATION);
 
     // connections
-    connect(d->ui_toolbar.toolButtonZoomIn, SIGNAL(clicked()),
-            d->imageView, SLOT(zoomIn()));
-    connect(d->ui_toolbar.toolButtonZoomOut, SIGNAL(clicked()),
-            d->imageView, SLOT(zoomOut()));
-    connect(d->ui_toolbar.toolButtonFitToScreen, SIGNAL(clicked()),
-            d->imageView, SLOT(fitToScreen()));
-    connect(d->ui_toolbar.toolButtonOriginalSize, SIGNAL(clicked()),
-            d->imageView, SLOT(resetToOriginalSize()));
-    connect(d->ui_toolbar.toolButtonBackground, SIGNAL(toggled(bool)),
-            d->imageView, SLOT(setViewBackground(bool)));
-    connect(d->ui_toolbar.toolButtonOutline, SIGNAL(toggled(bool)),
-            d->imageView, SLOT(setViewOutline(bool)));
+    connect(d->ui_toolbar.toolButtonExportImage, &QAbstractButton::clicked,
+            d->imageView, &ImageView::exportImage);
+    connect(d->ui_toolbar.toolButtonZoomIn, &QAbstractButton::clicked,
+            d->imageView, &ImageView::zoomIn);
+    connect(d->ui_toolbar.toolButtonZoomOut, &QAbstractButton::clicked,
+            d->imageView, &ImageView::zoomOut);
+    connect(d->ui_toolbar.toolButtonFitToScreen, &QAbstractButton::clicked,
+            d->imageView, &ImageView::fitToScreen);
+    connect(d->ui_toolbar.toolButtonOriginalSize, &QAbstractButton::clicked,
+            d->imageView, &ImageView::resetToOriginalSize);
+    connect(d->ui_toolbar.toolButtonBackground, &QAbstractButton::toggled,
+            d->imageView, &ImageView::setViewBackground);
+    connect(d->ui_toolbar.toolButtonOutline, &QAbstractButton::toggled,
+            d->imageView, &ImageView::setViewOutline);
     connect(d->ui_toolbar.toolButtonPlayPause, &Core::CommandButton::clicked,
             this, &ImageViewer::playToggled);
     connect(d->file.data(), &ImageViewerFile::imageSizeChanged,
             this, &ImageViewer::imageSizeUpdated);
     connect(d->file.data(), &ImageViewerFile::openFinished,
             d->imageView, &ImageView::createScene);
+    connect(d->file.data(), &ImageViewerFile::openFinished,
+            this, &ImageViewer::updateToolButtons);
     connect(d->file.data(), &ImageViewerFile::aboutToReload,
             d->imageView, &ImageView::reset);
     connect(d->file.data(), &ImageViewerFile::reloadFinished,
             d->imageView, &ImageView::createScene);
     connect(d->file.data(), &ImageViewerFile::isPausedChanged,
             this, &ImageViewer::updatePauseAction);
-    connect(d->imageView, SIGNAL(scaleFactorChanged(qreal)),
-            this, SLOT(scaleFactorUpdate(qreal)));
+    connect(d->imageView, &ImageView::scaleFactorChanged,
+            this, &ImageViewer::scaleFactorUpdate);
 }
 
 ImageViewer::~ImageViewer()
@@ -175,7 +184,15 @@ Core::IEditor *ImageViewer::duplicate()
 {
     auto other = new ImageViewer(d->file);
     other->d->imageView->createScene();
+    other->updateToolButtons();
+    other->d->ui_toolbar.labelImageSize->setText(d->ui_toolbar.labelImageSize->text());
     return other;
+}
+
+void ImageViewer::exportImage()
+{
+    if (d->file->type() == ImageViewerFile::TypeSvg)
+        d->ui_toolbar.toolButtonExportImage->click();
 }
 
 void ImageViewer::imageSizeUpdated(const QSize &size)
@@ -222,6 +239,12 @@ void ImageViewer::fitToScreen()
     d->ui_toolbar.toolButtonFitToScreen->click();
 }
 
+void ImageViewer::updateToolButtons()
+{
+    d->ui_toolbar.toolButtonExportImage->setEnabled(d->file->type() == ImageViewerFile::TypeSvg);
+    updatePauseAction();
+}
+
 void ImageViewer::togglePlay()
 {
     d->ui_toolbar.toolButtonPlayPause->click();
@@ -235,15 +258,13 @@ void ImageViewer::playToggled()
 void ImageViewer::updatePauseAction()
 {
     bool isMovie = d->file->type() == ImageViewerFile::TypeMovie;
-    d->ui_toolbar.toolButtonPlayPause->setVisible(isMovie);
-    if (isMovie) {
-        if (d->file->isPaused()) {
-            d->ui_toolbar.toolButtonPlayPause->setToolTipBase(tr("Play Animation"));
-            d->ui_toolbar.toolButtonPlayPause->setIcon(QPixmap(QLatin1String(":/imageviewer/images/play-small.png")));
-        } else {
-            d->ui_toolbar.toolButtonPlayPause->setToolTipBase(tr("Pause Animation"));
-            d->ui_toolbar.toolButtonPlayPause->setIcon(QPixmap(QLatin1String(":/imageviewer/images/pause-small.png")));
-        }
+    if (isMovie && !d->file->isPaused()) {
+        d->ui_toolbar.toolButtonPlayPause->setToolTipBase(tr("Pause Animation"));
+        d->ui_toolbar.toolButtonPlayPause->setIcon(Core::Icons::INTERRUPT_SMALL_TOOLBAR.icon());
+    } else {
+        d->ui_toolbar.toolButtonPlayPause->setToolTipBase(tr("Play Animation"));
+        d->ui_toolbar.toolButtonPlayPause->setIcon(Core::Icons::RUN_SMALL_TOOLBAR.icon());
+        d->ui_toolbar.toolButtonPlayPause->setEnabled(isMovie);
     }
 }
 

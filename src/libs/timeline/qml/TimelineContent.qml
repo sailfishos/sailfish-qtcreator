@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://www.qt.io/licensing.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -47,7 +42,6 @@ ScrollView {
     property int typeId
 
     signal propagateSelection(int newModel, int newItem)
-    signal gotoSourceLocation(string file, int line, int column)
 
     function clearChildren()
     {
@@ -106,18 +100,21 @@ ScrollView {
 
         // Scroll when the zoom control is updated
         function scroll() {
-            if (recursionGuard || zoomer.rangeDuration <= 0)
+            if (recursionGuard)
                 return;
             recursionGuard = true;
-
-            var newWidth = zoomer.windowDuration * scroller.width / zoomer.rangeDuration;
-            if (isFinite(newWidth) && Math.abs(newWidth - contentWidth) >= 1)
-                contentWidth = newWidth;
-
-            var newStartX = (zoomer.rangeStart - zoomer.windowStart) * scroller.width /
-                    zoomer.rangeDuration;
-            if (isFinite(newStartX) && Math.abs(newStartX - contentX) >= 1)
-                contentX = newStartX;
+            if (zoomer.rangeDuration <= 0) {
+                contentWidth = 0;
+                contentX = 0;
+            } else {
+                var newWidth = zoomer.windowDuration * scroller.width / zoomer.rangeDuration;
+                if (isFinite(newWidth) && Math.abs(newWidth - contentWidth) >= 1)
+                    contentWidth = newWidth;
+                var newStartX = (zoomer.rangeStart - zoomer.windowStart) * scroller.width /
+                        zoomer.rangeDuration;
+                if (isFinite(newStartX) && Math.abs(newStartX - contentX) >= 1)
+                    contentX = newStartX;
+            }
 
             recursionGuard = false;
         }
@@ -186,22 +183,7 @@ ScrollView {
                             flick.contentY = (rowStart + rowEnd - scroller.height) / 2;
                     }
 
-                    onSelectedItemChanged: {
-                        scroller.propagateSelection(index, selectedItem);
-                    }
-
-                    onItemPressed: {
-                        if (pressedItem === -1) {
-                            // User clicked on empty space. Remove selection.
-                            scroller.propagateSelection(-1, -1);
-                        } else {
-                            var location = model.location(pressedItem);
-                            if (location.hasOwnProperty("file")) // not empty
-                                scroller.gotoSourceLocation(location.file, location.line,
-                                                            location.column);
-                            scroller.typeId = model.typeId(pressedItem);
-                        }
-                    }
+                    onSelectedItemChanged: scroller.propagateSelection(index, selectedItem);
                 }
             }
 

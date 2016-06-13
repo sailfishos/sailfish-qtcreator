@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -40,6 +35,7 @@ Item {
     property int line
     property int column
     property bool isBindingLoop
+    property bool hasContents
 
     property int selectedModel: -1
     property int selectedItem: -1
@@ -54,11 +50,11 @@ Item {
     signal clearSelection
 
     width: col.width + 25
-    height: contentArea.height + titleBar.height
+    height: hasContents ? contentArea.height + titleBar.height : 0
 
     function hide() {
         noteEdit.focus = false;
-        visible = false;
+        hasContents = false;
         selectedModel = selectedItem = -1;
         noteEdit.text = "";
         duration = "";
@@ -97,7 +93,7 @@ Item {
                 eventInfo.append({content : eventData[k]});
             }
         }
-        rangeDetails.visible = true;
+        hasContents = eventInfo.count > 0;
 
         var location = timelineModel.location(selectedItem)
         if (location.hasOwnProperty("file")) { // not empty
@@ -171,7 +167,7 @@ Item {
     }
 
     //title
-    Text {
+    TimelineText {
         id: typeTitle
         text: "  "+rangeDetails.dialogTitle
         font.bold: true
@@ -181,7 +177,6 @@ Item {
         anchors.left: parent.left
         anchors.right: editIcon.left
         color: "white"
-        renderType: Text.NativeRendering
         elide: Text.ElideRight
     }
 
@@ -237,7 +232,9 @@ Item {
             wrapMode: Text.Wrap
             color: "orange"
             font.italic: true
-            renderType: Text.NativeRendering
+            font.pixelSize: typeTitle.font.pixelSize
+            font.family: typeTitle.font.family
+            renderType: typeTitle.renderType
             selectByMouse: true
             onTextChanged: saveTimer.restart()
             onFocusChanged: {
@@ -299,13 +296,12 @@ Item {
     }
 
 
-    Text {
+    TimelineText {
         id: closeIcon
         x: col.width + 10
         y: 4
         text:"X"
         color: "white"
-        renderType: Text.NativeRendering
         MouseArea {
             anchors.fill: parent
             onClicked: rangeDetails.clearSelection()

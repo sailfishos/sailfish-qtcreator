@@ -1,18 +1,25 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
-** This file is part of Qt Creator
+** This file is part of the Qt Creator documentation.
 **
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Free Documentation License
-**
+** GNU Free Documentation License Usage
 ** Alternatively, this file may be used under the terms of the GNU Free
 ** Documentation License version 1.3 as published by the Free Software
-** Foundation and appearing in the file included in the packaging of this
-** file.
-**
+** Foundation and appearing in the file included in the packaging of
+** this file. Please review the following information to ensure
+** the GNU Free Documentation License version 1.3 requirements
+** will be met: https://www.gnu.org/licenses/fdl-1.3.html.
 **
 ****************************************************************************/
 
@@ -56,12 +63,11 @@
     removed text and then select \uicontrol {Apply Chunk}.
 
     To view the differences in a unified view where changed rows are placed
-    below each other, select
-    \inlineimage qtcreator-switchto-unified-diffeditor.png
+    below each other, select \inlineimage unifieddiff.png
     (\uicontrol {Switch to Unified Diff Editor}).
 
     To switch back to the side-by-side view, select
-    \inlineimage qtcreator-switchto-sidebyside-diffeditor.png
+    \inlineimage sidebysidediff.png
     (\uicontrol {Switch to Side by Side Diff Editor}).
 
     To change the default colors, select \uicontrol Tools > \uicontrol Options >
@@ -98,11 +104,10 @@
 
     By default, the horizontal scroll bars in the left and right pane are
     synchronized. To use them independently of each other, select the
-    \inlineimage qtcreator-synchronizefocus.png
+    \inlineimage linkicon.png
     (\uicontrol {Synchronize Horizontal Scroll Bars}) button.
 
-    If the files change outside \QC, select
-    \inlineimage qtcreator-regenerate-index.png
+    If the files change outside \QC, select \inlineimage reload_gray.png
     (\uicontrol {Reload Editor}) to compare them again and to show the results.
 
     To send a chunk of changes to a \l{Pasting and Fetching Code Snippets}

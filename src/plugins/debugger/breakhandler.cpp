@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -33,6 +28,7 @@
 #include "debuggeractions.h"
 #include "debuggercore.h"
 #include "debuggerengine.h"
+#include "debuggericons.h"
 #include "debuggerinternalconstants.h"
 #include "debuggerstringutils.h"
 #include "simplifytype.h"
@@ -103,8 +99,6 @@ public:
     void updateFileNameFromMarker(const QString &fileName);
     void changeLineNumberFromMarker(int lineNumber);
     bool isLocatedAt(const QString &fileName, int lineNumber, bool useMarkerPosition) const;
-
-    bool needsChildren() const;
 
     void setMarkerFileAndLine(const QString &fileName, int lineNumber);
 
@@ -267,39 +261,39 @@ BreakHandler::BreakHandler()
 
 QIcon BreakHandler::breakpointIcon()
 {
-    static QIcon icon(_(":/debugger/images/breakpoint_16.png"));
+    static QIcon icon = Icons::BREAKPOINT.icon();
     return icon;
 }
 
 QIcon BreakHandler::disabledBreakpointIcon()
 {
-    static QIcon icon(_(":/debugger/images/breakpoint_disabled_16.png"));
+    static QIcon icon = Icons::BREAKPOINT_DISABLED.icon();
     return icon;
 }
 
 QIcon BreakHandler::pendingBreakpointIcon()
 {
-    static QIcon icon(_(":/debugger/images/breakpoint_pending_16.png"));
+    static QIcon icon = Icons::BREAKPOINT_PENDING.icon();
     return icon;
 }
 
 QIcon BreakHandler::watchpointIcon()
 {
-    static QIcon icon(_(":/debugger/images/watchpoint.png"));
+    static QIcon icon = Icons::WATCHPOINT.icon();
     return icon;
 }
 
 QIcon BreakHandler::tracepointIcon()
 {
-    static QIcon icon(_(":/debugger/images/tracepoint.png"));
+    static QIcon icon = Icons::TRACEPOINT.icon();
     return icon;
 }
 
 QIcon BreakHandler::emptyIcon()
 {
-    static QIcon icon(_(":/debugger/images/breakpoint_pending_16.png"));
-    //static QIcon icon(_(":/debugger/images/watchpoint.png"));
-    //static QIcon icon(_(":/debugger/images/debugger_empty_14.png"));
+    static QIcon icon = Icons::BREAKPOINT_PENDING.icon();
+    //static QIcon icon = Icons::WATCHPOINT.icon();
+    //static QIcon icon = Icons::EMPTY.icon();
     return icon;
 }
 
@@ -739,6 +733,7 @@ PROPERTY(QString, functionName, setFunctionName)
 PROPERTY(BreakpointType, type, setType)
 PROPERTY(int, threadSpec, setThreadSpec)
 PROPERTY(QByteArray, condition, setCondition)
+PROPERTY(QString, command, setCommand)
 PROPERTY(quint64, address, setAddress)
 PROPERTY(QString, expression, setExpression)
 PROPERTY(QString, message, setMessage)
@@ -759,14 +754,16 @@ const BreakpointParameters &Breakpoint::parameters() const
 void Breakpoint::addToCommand(DebuggerCommand *cmd) const
 {
     cmd->arg("modelid", id().toByteArray());
+    cmd->arg("id", int(response().id.majorPart()));
     cmd->arg("type", type());
     cmd->arg("ignorecount", ignoreCount());
     cmd->arg("condition", condition().toHex());
+    cmd->arg("command", command().toUtf8().toHex());
     cmd->arg("function", functionName().toUtf8());
     cmd->arg("oneshot", isOneShot());
     cmd->arg("enabled", isEnabled());
-    cmd->arg("fileName", fileName().toUtf8());
-    cmd->arg("lineNumber", lineNumber());
+    cmd->arg("file", fileName().toUtf8());
+    cmd->arg("line", lineNumber());
     cmd->arg("address", address());
     cmd->arg("expression", expression());
 }
@@ -808,7 +805,8 @@ void Breakpoint::removeAlienBreakpoint()
 
 void Breakpoint::removeBreakpoint() const
 {
-    b->removeBreakpoint();
+    if (b)
+        b->removeBreakpoint();
 }
 
 Breakpoint::Breakpoint(BreakpointItem *b)
@@ -822,6 +820,7 @@ void Breakpoint::setEnabled(bool on) const
         return;
     b->m_params.enabled = on;
     b->updateMarkerIcon();
+    b->update();
     if (b->m_engine) {
         b->m_state = BreakpointChangeRequested;
         b->scheduleSynchronization();
@@ -832,11 +831,6 @@ void Breakpoint::setMarkerFileAndLine(const QString &fileName, int lineNumber)
 {
     if (b)
         b->setMarkerFileAndLine(fileName, lineNumber);
-}
-
-bool BreakpointItem::needsChildren() const
-{
-    return m_response.multiple && rowCount() == 0;
 }
 
 void Breakpoint::setTracepoint(bool on)
@@ -971,6 +965,8 @@ void Breakpoint::notifyBreakpointInsertProceeding()
 void Breakpoint::notifyBreakpointInsertOk()
 {
     gotoState(BreakpointInserted, BreakpointInsertProceeding);
+    if (b->m_engine)
+        b->m_engine->updateBreakpointMarker(*this);
 }
 
 void Breakpoint::notifyBreakpointInsertFailed()
@@ -987,6 +983,8 @@ void Breakpoint::notifyBreakpointRemoveOk()
 {
     QTC_ASSERT(b, return);
     QTC_ASSERT(b->m_state == BreakpointRemoveProceeding, qDebug() << b->m_state);
+    if (b->m_engine)
+        b->m_engine->removeBreakpointMarker(*this);
     b->deleteThis();
 }
 
@@ -994,6 +992,8 @@ void Breakpoint::notifyBreakpointRemoveFailed()
 {
     QTC_ASSERT(b, return);
     QTC_ASSERT(b->m_state == BreakpointRemoveProceeding, qDebug() << b->m_state);
+    if (b->m_engine)
+        b->m_engine->removeBreakpointMarker(*this);
     b->deleteThis();
 }
 
@@ -1301,6 +1301,8 @@ void Breakpoint::changeBreakpointData(const BreakpointParameters &params)
     if (params == b->m_params)
         return;
     b->m_params = params;
+    if (b->m_engine)
+        b->m_engine->updateBreakpointMarker(*this);
     b->destroyMarker();
     b->updateMarker();
     b->update();
@@ -1331,8 +1333,6 @@ BreakpointItem::~BreakpointItem()
 
 void BreakpointItem::destroyMarker()
 {
-    if (m_engine)
-        m_engine->updateBreakpointMarkers();
     if (m_marker) {
         BreakpointMarker *m = m_marker;
         m->m_bp = 0;
@@ -1439,7 +1439,7 @@ QIcon BreakpointItem::icon() const
         return BreakHandler::watchpointIcon();
     if (!m_params.enabled)
         return BreakHandler::disabledBreakpointIcon();
-    if (m_state == BreakpointInserted)
+    if (m_state == BreakpointInserted && !m_response.pending)
         return BreakHandler::breakpointIcon();
     return BreakHandler::pendingBreakpointIcon();
 }
@@ -1469,6 +1469,8 @@ QString BreakpointItem::toToolTip() const
         << "</td><td>" << QDir::toNativeSeparators(markerFileName()) << "</td></tr>"
         << "<tr><td>" << tr("Marker Line:")
         << "</td><td>" << markerLineNumber() << "</td></tr>"
+        << "<tr><td>" << tr("Hit Count:")
+        << "</td><td>" << m_response.hitCount << "</td></tr>"
         << "</table><br><hr><table>"
         << "<tr><th>" << tr("Property")
         << "</th><th>" << tr("Requested")

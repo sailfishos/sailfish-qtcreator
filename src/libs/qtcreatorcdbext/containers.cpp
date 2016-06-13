@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -197,6 +192,7 @@ int containerSize(KnownType kt, const SymbolGroupValue &v)
     case KT_StdSet:
     case KT_StdMap:
     case KT_StdMultiMap:
+    case KT_StdValArray:
     case KT_StdList:
         if (const SymbolGroupValue size = SymbolGroupValue::findMember(v, "_Mysize"))
             return size.intValue();
@@ -354,27 +350,40 @@ static inline AbstractSymbolGroupNodePtrVector
     return AbstractSymbolGroupNodePtrVector();
 }
 
+
+static inline AbstractSymbolGroupNodePtrVector
+    arrayChildListHelper(SymbolGroupNode *n, unsigned count, const SymbolGroupValueContext &ctx,
+                         std::string arrayMember)
+{
+    if (!count)
+        return AbstractSymbolGroupNodePtrVector();
+    const SymbolGroupValue val = SymbolGroupValue(n, ctx);
+    SymbolGroupValue arrayPtr = SymbolGroupValue::findMember(val, arrayMember.c_str());
+    if (!arrayPtr)
+        return AbstractSymbolGroupNodePtrVector();
+    // arrayMember is a pointer of T*. Get address element to obtain address.
+    const ULONG64 address = arrayPtr.pointerValue();
+    if (!address)
+        return AbstractSymbolGroupNodePtrVector();
+    const std::string firstType = arrayPtr.type();
+    const std::string innerType = fixInnerType(SymbolGroupValue::stripPointerType(firstType), val);
+    if (SymbolGroupValue::verbose)
+        DebugPrint() << n->name() << " inner type: '" << innerType << "' from '" << firstType << '\'';
+    return arrayChildList(n->symbolGroup(), address, n->module(), innerType, count);
+}
+
 // std::vector<T>
 static inline AbstractSymbolGroupNodePtrVector
     stdVectorChildList(SymbolGroupNode *n, unsigned count, const SymbolGroupValueContext &ctx)
 {
-    if (!count)
-        return AbstractSymbolGroupNodePtrVector();
-    // MSVC2012 has 2 base classes, MSVC2010 1, MSVC2008 none
-    const SymbolGroupValue vec = SymbolGroupValue(n, ctx);
-    SymbolGroupValue myFirst = SymbolGroupValue::findMember(vec, "_Myfirst");
-    if (!myFirst)
-        return AbstractSymbolGroupNodePtrVector();
-    // std::vector<T>: _Myfirst is a pointer of T*. Get address
-    // element to obtain address.
-    const ULONG64 address = myFirst.pointerValue();
-    if (!address)
-        return AbstractSymbolGroupNodePtrVector();
-    const std::string firstType = myFirst.type();
-    const std::string innerType = fixInnerType(SymbolGroupValue::stripPointerType(firstType), vec);
-    if (SymbolGroupValue::verbose)
-        DebugPrint() << n->name() << " inner type: '" << innerType << "' from '" << firstType << '\'';
-    return arrayChildList(n->symbolGroup(), address, n->module(), innerType, count);
+    return arrayChildListHelper(n, count, ctx, "_Myfirst");
+}
+
+// std::valarray<T>
+static inline AbstractSymbolGroupNodePtrVector stdValArrayChildList(
+        SymbolGroupNode *n, unsigned count, const SymbolGroupValueContext &ctx)
+{
+    return arrayChildListHelper(n, count, ctx, "_Myptr");
 }
 
 // Helper for std::deque<>: From the array of deque blocks, read out the values.
@@ -1147,6 +1156,8 @@ AbstractSymbolGroupNodePtrVector containerChildren(SymbolGroupNode *node, int ty
         return stdListChildList(node, size , ctx);
     case KT_StdArray:
         return stdArrayChildList(node, size , ctx);
+    case KT_StdValArray:
+        return stdValArrayChildList(node, size , ctx);
     case KT_StdDeque:
         return stdDequeChildList(SymbolGroupValue(node, ctx), size);
     case KT_StdStack:

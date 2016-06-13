@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -33,7 +28,6 @@
 #include "vcsplugin.h"
 #include "commonvcssettings.h"
 #include "vcsoutputwindow.h"
-#include "corelistener.h"
 #include "vcscommand.h"
 
 #include <coreplugin/documentmanager.h>
@@ -91,8 +85,9 @@ namespace Internal {
     Aggregated in the QSharedData of VcsBase::VcsBasePluginState.
 */
 
-struct State
+class State
 {
+public:
     void clearFile();
     void clearPatchFile();
     void clearProject();
@@ -262,59 +257,52 @@ void StateListener::slotStateChanged()
     // folder?
     State state;
     IDocument *currentDocument = EditorManager::currentDocument();
-    if (!currentDocument) {
-        state.currentFile.clear();
-    } else {
+    if (currentDocument) {
         state.currentFile = currentDocument->filePath().toString();
         if (state.currentFile.isEmpty() || currentDocument->isTemporary())
             state.currentFile = VcsBasePlugin::source(currentDocument);
     }
-    QScopedPointer<QFileInfo> currentFileInfo; // Instantiate QFileInfo only once if required.
-    if (!state.currentFile.isEmpty()) {
-        const bool isTempFile = state.currentFile.startsWith(QDir::tempPath());
-        // Quick check: Does it look like a patch?
-        const bool isPatch = state.currentFile.endsWith(QLatin1String(".patch"))
-                             || state.currentFile.endsWith(QLatin1String(".diff"));
-        if (isPatch) {
-            // Patch: Figure out a name to display. If it is a temp file, it could be
-            // Codepaster. Use the display name of the editor.
-            state.currentPatchFile = state.currentFile;
-            if (isTempFile)
-                state.currentPatchFileDisplayName = displayNameOfEditor(state.currentPatchFile);
-            if (state.currentPatchFileDisplayName.isEmpty()) {
-                currentFileInfo.reset(new QFileInfo(state.currentFile));
-                state.currentPatchFileDisplayName = currentFileInfo->fileName();
-            }
-        }
-        // For actual version control operations on it:
-        // Do not show temporary files and project folders ('#')
-        if (isTempFile || state.currentFile.contains(QLatin1Char('#')))
-            state.currentFile.clear();
-    }
 
     // Get the file and its control. Do not use the file unless we find one
     IVersionControl *fileControl = 0;
+
     if (!state.currentFile.isEmpty()) {
-        if (currentFileInfo.isNull())
-            currentFileInfo.reset(new QFileInfo(state.currentFile));
-        if (currentFileInfo->isDir()) {
-            state.currentFile.clear();
-            state.currentFileDirectory = currentFileInfo->absoluteFilePath();
-        } else {
-            state.currentFileDirectory = currentFileInfo->absolutePath();
-            state.currentFileName = currentFileInfo->fileName();
+        QFileInfo currentFi(state.currentFile);
+
+        if (currentFi.exists()) {
+            // Quick check: Does it look like a patch?
+            const bool isPatch = state.currentFile.endsWith(QLatin1String(".patch"))
+                    || state.currentFile.endsWith(QLatin1String(".diff"));
+            if (isPatch) {
+                // Patch: Figure out a name to display. If it is a temp file, it could be
+                // Codepaster. Use the display name of the editor.
+                state.currentPatchFile = state.currentFile;
+                state.currentPatchFileDisplayName = displayNameOfEditor(state.currentPatchFile);
+                if (state.currentPatchFileDisplayName.isEmpty())
+                    state.currentPatchFileDisplayName = currentFi.fileName();
+            }
+
+            if (currentFi.isDir()) {
+                state.currentFile.clear();
+                state.currentFileDirectory = currentFi.absoluteFilePath();
+            } else {
+                state.currentFileDirectory = currentFi.absolutePath();
+                state.currentFileName = currentFi.fileName();
+            }
+            fileControl = VcsManager::findVersionControlForDirectory(state.currentFileDirectory,
+                                                                     &state.currentFileTopLevel);
         }
-        fileControl = VcsManager::findVersionControlForDirectory(
-                    state.currentFileDirectory,
-                    &state.currentFileTopLevel);
+
         if (!fileControl)
             state.clearFile();
     }
+
     // Check for project, find the control
     IVersionControl *projectControl = 0;
     Project *currentProject = ProjectTree::currentProject();
     if (!currentProject)
         currentProject = SessionManager::startupProject();
+
     if (currentProject) {
         state.currentProjectPath = currentProject->projectDirectory().toString();
         state.currentProjectName = currentProject->displayName();
@@ -328,14 +316,14 @@ void StateListener::slotStateChanged()
             state.clearProject(); // No control found
         }
     }
+
     // Assemble state and emit signal.
     IVersionControl *vc = fileControl;
     if (!vc)
         vc = projectControl;
     if (!vc)
         state.clearPatchFile(); // Need a repository to patch
-    if (debug)
-        qDebug() << state << (vc ? vc->displayName() : QLatin1String("No version control"));
+
     EditorManager::updateWindowTitles();
     emit stateChanged(state, vc);
 }
@@ -365,22 +353,19 @@ public:
 */
 
 VcsBasePluginState::VcsBasePluginState() : data(new VcsBasePluginStateData)
-{
-}
+{ }
+
 
 VcsBasePluginState::VcsBasePluginState(const VcsBasePluginState &rhs) : data(rhs.data)
-{
-}
+{ }
+
+VcsBasePluginState::~VcsBasePluginState() = default;
 
 VcsBasePluginState &VcsBasePluginState::operator=(const VcsBasePluginState &rhs)
 {
     if (this != &rhs)
         data.operator=(rhs.data);
     return *this;
-}
-
-VcsBasePluginState::~VcsBasePluginState()
-{
 }
 
 QString VcsBasePluginState::currentFile() const
@@ -558,8 +543,7 @@ Internal::StateListener *VcsBasePluginPrivate::m_listener = 0;
 
 VcsBasePlugin::VcsBasePlugin() :
     d(new VcsBasePluginPrivate())
-{
-}
+{ }
 
 VcsBasePlugin::~VcsBasePlugin()
 {
@@ -573,7 +557,7 @@ void VcsBasePlugin::initializeVcs(IVersionControl *vc, const Context &context)
     addAutoReleasedObject(vc);
 
     Internal::VcsPlugin *plugin = Internal::VcsPlugin::instance();
-    connect(plugin->coreListener(), &Internal::CoreListener::submitEditorAboutToClose,
+    connect(plugin, &Internal::VcsPlugin::submitEditorAboutToClose,
             this, &VcsBasePlugin::slotSubmitEditorAboutToClose);
     // First time: create new listener
     if (!VcsBasePluginPrivate::m_listener)
@@ -683,7 +667,7 @@ void VcsBasePlugin::createRepository()
     // Find current starting directory
     QString directory;
     if (const Project *currentProject = ProjectTree::currentProject())
-        directory = currentProject->document()->filePath().toFileInfo().absolutePath();
+        directory = currentProject->projectFilePath().toString();
     // Prompt for a directory that is not under version control yet
     QWidget *mw = ICore::mainWindow();
     do {

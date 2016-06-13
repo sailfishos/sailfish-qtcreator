@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -99,16 +94,18 @@ ModeManager::ModeManager(Internal::MainWindow *mainWindow,
     d->m_modeSelectorVisible = true;
     d->m_modeStack->setSelectionWidgetVisible(d->m_modeSelectorVisible);
 
-    connect(d->m_modeStack, SIGNAL(currentAboutToShow(int)), SLOT(currentTabAboutToChange(int)));
-    connect(d->m_modeStack, SIGNAL(currentChanged(int)), SLOT(currentTabChanged(int)));
+    connect(d->m_modeStack, &Internal::FancyTabWidget::currentAboutToShow,
+            this, &ModeManager::currentTabAboutToChange);
+    connect(d->m_modeStack, &Internal::FancyTabWidget::currentChanged,
+            this, &ModeManager::currentTabChanged);
 }
 
 void ModeManager::init()
 {
-    QObject::connect(ExtensionSystem::PluginManager::instance(), SIGNAL(objectAdded(QObject*)),
-                     m_instance, SLOT(objectAdded(QObject*)));
-    QObject::connect(ExtensionSystem::PluginManager::instance(), SIGNAL(aboutToRemoveObject(QObject*)),
-                     m_instance, SLOT(aboutToRemoveObject(QObject*)));
+    QObject::connect(ExtensionSystem::PluginManager::instance(), &ExtensionSystem::PluginManager::objectAdded,
+                     m_instance, &ModeManager::objectAdded);
+    QObject::connect(ExtensionSystem::PluginManager::instance(), &ExtensionSystem::PluginManager::aboutToRemoveObject,
+                     m_instance, &ModeManager::aboutToRemoveObject);
 }
 
 ModeManager::~ModeManager()
@@ -165,7 +162,7 @@ void ModeManager::objectAdded(QObject *obj)
     Command *cmd = ActionManager::registerAction(action, actionId);
 
     d->m_modeCommands.insert(index, cmd);
-    connect(cmd, SIGNAL(keySequenceChanged()), m_instance, SLOT(updateModeToolTip()));
+    connect(cmd, &Command::keySequenceChanged, m_instance, &ModeManager::updateModeToolTip);
     for (int i = 0; i < d->m_modeCommands.size(); ++i) {
         Command *currentCmd = d->m_modeCommands.at(i);
         // we need this hack with currentlyHasDefaultSequence
@@ -185,8 +182,8 @@ void ModeManager::objectAdded(QObject *obj)
         ICore::raiseWindow(d->m_modeStack);
     });
 
-    connect(mode, SIGNAL(enabledStateChanged(bool)),
-            m_instance, SLOT(enabledStateChanged()));
+    connect(mode, &IMode::enabledStateChanged,
+            m_instance, &ModeManager::enabledStateChanged);
 }
 
 void ModeManager::updateModeToolTip()

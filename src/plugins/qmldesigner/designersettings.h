@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,30 +9,27 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
-
 
 #ifndef DESIGNERSETTINGS_H
 #define DESIGNERSETTINGS_H
 
 #include <QtGlobal>
+#include <QHash>
+#include <QVariant>
+#include <QByteArray>
 
 QT_BEGIN_NAMESPACE
 class QSettings;
@@ -40,30 +37,41 @@ QT_END_NAMESPACE
 
 namespace QmlDesigner {
 
-class DesignerSettings {
+namespace DesignerSettingsKey {
+const char ITEMSPACING[] = "ItemSpacing";
+const char CONTAINERPADDING[] = "ContainerPadding";
+const char CANVASWIDTH[] = "CanvasWidth";
+const char CANVASHEIGHT[] = "CanvasHeight";
+const char WARNING_FOR_FEATURES_IN_DESIGNER[] = "WarnAboutQtQuickFeaturesInDesigner";
+const char WARNING_FOR_DESIGNER_FEATURES_IN_EDITOR[] = "WarnAboutQtQuickDesignerFeaturesInCodeEditor";
+const char SHOW_DEBUGVIEW[] = "ShowQtQuickDesignerDebugView";
+const char ENABLE_DEBUGVIEW[] = "EnableQtQuickDesignerDebugView";
+const char ALWAYS_SAFE_IN_CRUMBLEBAR[] = "AlwaysSafeInCrumbleBar";
+const char USE_ONLY_FALLBACK_PUPPET[] = "UseOnlyFallbackPuppet";
+const char PUPPET_TOPLEVEL_BUILD_DIRECTORY[] = "PuppetToplevelBuildDirectory";
+const char PUPPET_FALLBACK_DIRECTORY[] = "PuppetFallbackDirectory";
+const char CONTROLS_STYLE[] = "ControlsStyle";
+const char USE_QSTR_FUNCTION[] = "UseQsTrFunction";
+const char SHOW_PROPERTYEDITOR_WARNINGS[] = "ShowPropertyEditorWarnings";
+const char ENABLE_MODEL_EXCEPTION_OUTPUT[] = "WarnException";
+const char PUPPET_KILL_TIMEOUT[] = "PuppetKillTimeout";
+const char DEBUG_PUPPET[] = "DebugPuppet";
+const char FORWARD_PUPPET_OUTPUT[] = "ForwardPuppetOutput";
+
+}
+
+class DesignerSettings : public QHash<QByteArray, QVariant>
+{
 public:
     DesignerSettings();
 
     void fromSettings(QSettings *);
     void toSettings(QSettings *) const;
-
-    bool equals(const DesignerSettings &other) const;
-    int itemSpacing;
-    int containerPadding;
-    int canvasWidth;
-    int canvasHeight;
-    bool warningsInDesigner;
-    bool designerWarningsInEditor;
-    bool showDebugView;
-    bool enableDebugView;
-    bool alwaysSaveInCrumbleBar;
-    bool useOnlyFallbackPuppet;
+private:
+    void restoreValue(QSettings *settings, const QByteArray &key,
+        const QVariant &defaultValue = QVariant());
+    void storeValue(QSettings *settings, const QByteArray &key, const QVariant &value) const;
 };
-
-inline bool operator==(const DesignerSettings &s1, const DesignerSettings &s2)
-{ return s1.equals(s2); }
-inline bool operator!=(const DesignerSettings &s1, const DesignerSettings &s2)
-{ return !s1.equals(s2); }
 
 } // namespace QmlDesigner
 

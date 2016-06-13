@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,28 +9,24 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
 #include "sshdeviceprocess.h"
 
 #include "idevice.h"
+#include "../runnables.h"
 
 #include <ssh/sshconnection.h>
 #include <ssh/sshconnectionmanager.h>
@@ -52,8 +48,7 @@ public:
     bool serverSupportsSignals;
     QSsh::SshConnection *connection;
     QSsh::SshRemoteProcess::Ptr process;
-    QString executable;
-    QStringList arguments;
+    StandardRunnable runnable;
     QString errorMessage;
     QSsh::SshRemoteProcess::ExitStatus exitStatus;
     DeviceProcessSignalOperation::Ptr killOperation;
@@ -62,7 +57,6 @@ public:
     QByteArray stdErr;
     int exitCode;
     enum State { Inactive, Connecting, Connected, ProcessRunning } state;
-    Utils::Environment environment;
 
     void setState(State newState);
     void doSignal(QSsh::SshRemoteProcess::Signal signal);
@@ -74,7 +68,7 @@ SshDeviceProcess::SshDeviceProcess(const IDevice::ConstPtr &device, QObject *par
     d->connection = 0;
     d->state = SshDeviceProcessPrivate::Inactive;
     setSshServerSupportsSignals(false);
-    connect(&d->killTimer, SIGNAL(timeout()), SLOT(handleKillOperationTimeout()));
+    connect(&d->killTimer, &QTimer::timeout, this, &SshDeviceProcess::handleKillOperationTimeout);
 }
 
 SshDeviceProcess::~SshDeviceProcess()
@@ -83,22 +77,29 @@ SshDeviceProcess::~SshDeviceProcess()
     delete d;
 }
 
-void SshDeviceProcess::start(const QString &executable, const QStringList &arguments)
+void SshDeviceProcess::start(const Runnable &runnable)
 {
     QTC_ASSERT(d->state == SshDeviceProcessPrivate::Inactive, return);
+    if (!runnable.is<StandardRunnable>()) {
+        d->errorMessage = tr("Internal error");
+        error(QProcess::FailedToStart);
+        return;
+    }
     d->setState(SshDeviceProcessPrivate::Connecting);
 
     d->errorMessage.clear();
     d->exitCode = -1;
-    d->executable = executable;
-    d->arguments = arguments;
+    d->runnable = runnable.as<StandardRunnable>();
     d->connection = QSsh::acquireConnection(device()->sshParameters());
-    connect(d->connection, SIGNAL(error(QSsh::SshError)), SLOT(handleConnectionError()));
-    connect(d->connection, SIGNAL(disconnected()), SLOT(handleDisconnected()));
+    connect(d->connection, &QSsh::SshConnection::error,
+            this, &SshDeviceProcess::handleConnectionError);
+    connect(d->connection, &QSsh::SshConnection::disconnected,
+            this, &SshDeviceProcess::handleDisconnected);
     if (d->connection->state() == QSsh::SshConnection::Connected) {
         handleConnected();
     } else {
-        connect(d->connection, SIGNAL(connected()), SLOT(handleConnected()));
+        connect(d->connection, &QSsh::SshConnection::connected,
+                this, &SshDeviceProcess::handleConnected);
         if (d->connection->state() == QSsh::SshConnection::Unconnected)
             d->connection->connectToHost();
     }
@@ -118,16 +119,6 @@ void SshDeviceProcess::terminate()
 void SshDeviceProcess::kill()
 {
     d->doSignal(QSsh::SshRemoteProcess::KillSignal);
-}
-
-QString SshDeviceProcess::executable() const
-{
-    return d->executable;
-}
-
-QStringList SshDeviceProcess::arguments() const
-{
-    return d->arguments;
 }
 
 QProcess::ProcessState SshDeviceProcess::state() const
@@ -162,16 +153,6 @@ QString SshDeviceProcess::errorString() const
     return d->errorMessage;
 }
 
-Utils::Environment SshDeviceProcess::environment() const
-{
-    return d->environment;
-}
-
-void SshDeviceProcess::setEnvironment(const Utils::Environment &env)
-{
-    d->environment = env;
-}
-
 QByteArray SshDeviceProcess::readAllStandardOutput()
 {
     const QByteArray data = d->stdOut;
@@ -196,14 +177,14 @@ void SshDeviceProcess::handleConnected()
     QTC_ASSERT(d->state == SshDeviceProcessPrivate::Connecting, return);
     d->setState(SshDeviceProcessPrivate::Connected);
 
-    d->process = d->connection->createRemoteProcess(fullCommandLine().toUtf8());
-    connect(d->process.data(), SIGNAL(started()), SLOT(handleProcessStarted()));
-    connect(d->process.data(), SIGNAL(closed(int)), SLOT(handleProcessFinished(int)));
-    connect(d->process.data(), SIGNAL(readyReadStandardOutput()), SLOT(handleStdout()));
-    connect(d->process.data(), SIGNAL(readyReadStandardError()), SLOT(handleStderr()));
+    d->process = d->connection->createRemoteProcess(fullCommandLine(d->runnable).toUtf8());
+    connect(d->process.data(), &QSsh::SshRemoteProcess::started, this, &SshDeviceProcess::handleProcessStarted);
+    connect(d->process.data(), &QSsh::SshRemoteProcess::closed, this, &SshDeviceProcess::handleProcessFinished);
+    connect(d->process.data(), &QSsh::SshRemoteProcess::readyReadStandardOutput, this, &SshDeviceProcess::handleStdout);
+    connect(d->process.data(), &QSsh::SshRemoteProcess::readyReadStandardError, this, &SshDeviceProcess::handleStderr);
 
     d->process->clearEnvironment();
-    const Utils::Environment env = environment();
+    const Utils::Environment env = d->runnable.environment;
     for (Utils::Environment::const_iterator it = env.constBegin(); it != env.constEnd(); ++it)
         d->process->addToEnvironment(env.key(it).toUtf8(), env.value(it).toUtf8());
     d->process->start();
@@ -297,11 +278,11 @@ void SshDeviceProcess::handleKillOperationTimeout()
     emit finished();
 }
 
-QString SshDeviceProcess::fullCommandLine() const
+QString SshDeviceProcess::fullCommandLine(const StandardRunnable &runnable) const
 {
-    QString cmdLine = executable();
-    if (!arguments().isEmpty())
-        cmdLine.append(QLatin1Char(' ')).append(arguments().join(QLatin1Char(' ')));
+    QString cmdLine = runnable.executable;
+    if (!runnable.commandLineArguments.isEmpty())
+        cmdLine.append(QLatin1Char(' ')).append(runnable.commandLineArguments);
     return cmdLine;
 }
 
@@ -323,15 +304,15 @@ void SshDeviceProcess::SshDeviceProcessPrivate::doSignal(QSsh::SshRemoteProcess:
         } else {
             DeviceProcessSignalOperation::Ptr signalOperation = q->device()->signalOperation();
             if (signal == QSsh::SshRemoteProcess::IntSignal) {
-                signalOperation->interruptProcess(executable);
+                signalOperation->interruptProcess(runnable.executable);
             } else {
                 if (killOperation) // We are already in the process of killing the app.
                     return;
                 killOperation = signalOperation;
-                connect(signalOperation.data(), SIGNAL(finished(QString)), q,
-                        SLOT(handleKillOperationFinished(QString)));
+                connect(signalOperation.data(), &DeviceProcessSignalOperation::finished, q,
+                        &SshDeviceProcess::handleKillOperationFinished);
                 killTimer.start(5000);
-                signalOperation->killProcess(executable);
+                signalOperation->killProcess(runnable.executable);
             }
         }
         break;

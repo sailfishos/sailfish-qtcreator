@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -85,14 +80,16 @@ AbiWidget::AbiWidget(QWidget *parent) :
     d->m_abi->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
     d->m_abi->setMinimumContentsLength(4);
     layout->addWidget(d->m_abi);
-    connect(d->m_abi, SIGNAL(currentIndexChanged(int)), this, SLOT(modeChanged()));
+    connect(d->m_abi, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+            this, &AbiWidget::modeChanged);
 
     d->m_architectureComboBox = new QComboBox(this);
     layout->addWidget(d->m_architectureComboBox);
     for (int i = 0; i <= static_cast<int>(Abi::UnknownArchitecture); ++i)
         d->m_architectureComboBox->addItem(Abi::toString(static_cast<Abi::Architecture>(i)), i);
     d->m_architectureComboBox->setCurrentIndex(static_cast<int>(Abi::UnknownArchitecture));
-    connect(d->m_architectureComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(customAbiChanged()));
+    connect(d->m_architectureComboBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+            this, &AbiWidget::customAbiChanged);
 
     QLabel *separator1 = new QLabel(this);
     separator1->setText(QLatin1String("-"));
@@ -104,7 +101,8 @@ AbiWidget::AbiWidget(QWidget *parent) :
     for (int i = 0; i <= static_cast<int>(Abi::UnknownOS); ++i)
         d->m_osComboBox->addItem(Abi::toString(static_cast<Abi::OS>(i)), i);
     d->m_osComboBox->setCurrentIndex(static_cast<int>(Abi::UnknownOS));
-    connect(d->m_osComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(osChanged()));
+    connect(d->m_osComboBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+            this, &AbiWidget::osChanged);
 
     QLabel *separator2 = new QLabel(this);
     separator2->setText(QLatin1String("-"));
@@ -113,7 +111,8 @@ AbiWidget::AbiWidget(QWidget *parent) :
 
     d->m_osFlavorComboBox = new QComboBox(this);
     layout->addWidget(d->m_osFlavorComboBox);
-    connect(d->m_osFlavorComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(customAbiChanged()));
+    connect(d->m_osFlavorComboBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+            this, &AbiWidget::customAbiChanged);
 
     QLabel *separator3 = new QLabel(this);
     separator3->setText(QLatin1String("-"));
@@ -125,7 +124,8 @@ AbiWidget::AbiWidget(QWidget *parent) :
     for (int i = 0; i <= static_cast<int>(Abi::UnknownFormat); ++i)
         d->m_binaryFormatComboBox->addItem(Abi::toString(static_cast<Abi::BinaryFormat>(i)), i);
     d->m_binaryFormatComboBox->setCurrentIndex(static_cast<int>(Abi::UnknownFormat));
-    connect(d->m_binaryFormatComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(customAbiChanged()));
+    connect(d->m_binaryFormatComboBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+            this, &AbiWidget::customAbiChanged);
 
     QLabel *separator4 = new QLabel(this);
     separator4->setText(QLatin1String("-"));
@@ -139,7 +139,8 @@ AbiWidget::AbiWidget(QWidget *parent) :
     d->m_wordWidthComboBox->addItem(Abi::toString(64), 64);
     d->m_wordWidthComboBox->addItem(Abi::toString(0), 0);
     d->m_wordWidthComboBox->setCurrentIndex(2);
-    connect(d->m_wordWidthComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(customAbiChanged()));
+    connect(d->m_wordWidthComboBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+            this, &AbiWidget::customAbiChanged);
 
     layout->setStretchFactor(d->m_abi, 1);
 

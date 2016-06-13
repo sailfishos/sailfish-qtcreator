@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,28 +9,25 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
 #include "formeditorwidget.h"
 #include "qmldesignerplugin.h"
 #include "designersettings.h"
+#include "qmldesignerconstants.h"
+#include "qmldesignericons.h"
 
 #include <QWheelEvent>
 #include <QVBoxLayout>
@@ -43,6 +40,7 @@
 #include <lineeditaction.h>
 #include <backgroundaction.h>
 
+#include <coreplugin/coreicons.h>
 #include <utils/fileutils.h>
 
 namespace QmlDesigner {
@@ -51,7 +49,7 @@ FormEditorWidget::FormEditorWidget(FormEditorView *view)
     : QWidget(),
     m_formEditorView(view)
 {
-    setStyleSheet(QString::fromUtf8(Utils::FileReader::fetchQrc(":/qmldesigner/formeditorstylesheet.css")));
+    setStyleSheet(QString::fromUtf8(Utils::FileReader::fetchQrc(QLatin1String(":/qmldesigner/formeditorstylesheet.css"))));
 
     QVBoxLayout *fillLayout = new QVBoxLayout(this);
     fillLayout->setMargin(0);
@@ -70,21 +68,21 @@ FormEditorWidget::FormEditorWidget(FormEditorView *view)
     m_noSnappingAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
     m_noSnappingAction->setCheckable(true);
     m_noSnappingAction->setChecked(true);
-    m_noSnappingAction->setIcon(QPixmap(":/icon/layout/no_snapping.png"));
+    m_noSnappingAction->setIcon(Icons::NO_SNAPPING.icon());
 
     m_snappingAndAnchoringAction = layoutActionGroup->addAction(tr("Snap to parent or sibling items and generate anchors (W)."));
     m_snappingAndAnchoringAction->setShortcut(Qt::Key_W);
     m_snappingAndAnchoringAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
     m_snappingAndAnchoringAction->setCheckable(true);
     m_snappingAndAnchoringAction->setChecked(true);
-    m_snappingAndAnchoringAction->setIcon(QPixmap(":/icon/layout/snapping_and_anchoring.png"));
+    m_snappingAndAnchoringAction->setIcon(Icons::NO_SNAPPING_AND_ANCHORING.icon());
 
     m_snappingAction = layoutActionGroup->addAction(tr("Snap to parent or sibling items but do not generate anchors (E)."));
     m_snappingAction->setShortcut(Qt::Key_E);
     m_snappingAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
     m_snappingAction->setCheckable(true);
     m_snappingAction->setChecked(true);
-    m_snappingAction->setIcon(QPixmap(":/icon/layout/snapping.png"));
+    m_snappingAction->setIcon(Icons::SNAPPING.icon());
 
 
     addActions(layoutActionGroup->actions());
@@ -100,20 +98,15 @@ FormEditorWidget::FormEditorWidget(FormEditorView *view)
     m_showBoundingRectAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
     m_showBoundingRectAction->setCheckable(true);
     m_showBoundingRectAction->setChecked(true);
-    m_showBoundingRectAction->setIcon(QPixmap(":/icon/layout/boundingrect.png"));
+    m_showBoundingRectAction->setIcon(Core::Icons::BOUNDING_RECT.icon());
 
     addAction(m_showBoundingRectAction.data());
     upperActions.append(m_showBoundingRectAction.data());
 
-    m_selectOnlyContentItemsAction = new QAction(tr("Only select items with content (S)."), this);
-    m_selectOnlyContentItemsAction->setShortcut(Qt::Key_S);
-    m_selectOnlyContentItemsAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
-    m_selectOnlyContentItemsAction->setCheckable(true);
-    m_selectOnlyContentItemsAction->setChecked(false);
-    m_selectOnlyContentItemsAction->setIcon(QPixmap(":/icon/selection/selectonlycontentitems.png"));
-
-    addAction(m_selectOnlyContentItemsAction.data());
-    upperActions.append(m_selectOnlyContentItemsAction.data());
+    separatorAction = new QAction(this);
+    separatorAction->setSeparator(true);
+    addAction(separatorAction);
+    upperActions.append(separatorAction);
 
     m_rootWidthAction = new LineEditAction(tr("Width"), this);
     connect(m_rootWidthAction.data(), SIGNAL(textChanged(QString)), this, SLOT(changeRootItemWidth(QString)));
@@ -144,7 +137,7 @@ FormEditorWidget::FormEditorWidget(FormEditorView *view)
     m_resetAction = new QAction(tr("Reset view (R)."), this);
     m_resetAction->setShortcut(Qt::Key_R);
     m_resetAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
-    m_resetAction->setIcon(QPixmap(":/icon/reset.png"));
+    m_resetAction->setIcon(Icons::RESET.icon());
     connect(m_resetAction.data(), SIGNAL(triggered(bool)), this, SLOT(resetNodeInstanceView()));
     addAction(m_resetAction.data());
     upperActions.append(m_resetAction.data());
@@ -153,7 +146,7 @@ FormEditorWidget::FormEditorWidget(FormEditorView *view)
     m_graphicsView = new FormEditorGraphicsView(this);
 
     fillLayout->addWidget(m_graphicsView.data());
-    m_graphicsView.data()->setStyleSheet(QString::fromUtf8(Utils::FileReader::fetchQrc(":/qmldesigner/scrollbar.css")));
+    m_graphicsView.data()->setStyleSheet(QString::fromUtf8(Utils::FileReader::fetchQrc(QLatin1String(":/qmldesigner/scrollbar.css"))));
 }
 
 void FormEditorWidget::changeTransformTool(bool checked)
@@ -194,7 +187,7 @@ void FormEditorWidget::changeBackgound(const QColor &color)
 void FormEditorWidget::resetNodeInstanceView()
 {
     m_formEditorView->setCurrentStateNode(m_formEditorView->rootModelNode());
-    m_formEditorView->emitCustomNotification(QStringLiteral("reset QmlPuppet"));
+    m_formEditorView->resetPuppet();
 }
 
 void FormEditorWidget::wheelEvent(QWheelEvent *event)
@@ -255,11 +248,6 @@ QAction *FormEditorWidget::showBoundingRectAction() const
     return m_showBoundingRectAction.data();
 }
 
-QAction *FormEditorWidget::selectOnlyContentItemsAction() const
-{
-    return m_selectOnlyContentItemsAction.data();
-}
-
 QAction *FormEditorWidget::snappingAction() const
 {
     return m_snappingAction.data();
@@ -295,13 +283,13 @@ ToolBox *FormEditorWidget::toolBox() const
 double FormEditorWidget::spacing() const
 {
     DesignerSettings settings = QmlDesignerPlugin::instance()->settings();
-    return settings.itemSpacing;
+    return settings.value(DesignerSettingsKey::ITEMSPACING).toDouble();
 }
 
 double FormEditorWidget::containerPadding() const
 {
     DesignerSettings settings = QmlDesignerPlugin::instance()->settings();
-    return settings.containerPadding;
+    return settings.value(DesignerSettingsKey::CONTAINERPADDING).toDouble();
 }
 
 

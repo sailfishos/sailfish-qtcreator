@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -39,7 +34,10 @@
 
 #include <aggregation/aggregate.h>
 #include <coreplugin/coreplugin.h>
+
+#include <utils/qtcassert.h>
 #include <utils/theme/theme.h>
+#include <utils/fancylineedit.h>
 
 #include <QDir>
 #include <QFrame>
@@ -58,29 +56,27 @@ using namespace Utils;
 namespace Core {
 namespace Internal {
 
-class WideEnoughLineEdit : public QLineEdit {
+class WideEnoughLineEdit : public Utils::FancyLineEdit
+{
     Q_OBJECT
+
 public:
-    WideEnoughLineEdit(QWidget *parent):QLineEdit(parent){
-        connect(this, SIGNAL(textChanged(QString)),
-                this, SLOT(updateGeometry()));
+    WideEnoughLineEdit(QWidget *parent) : Utils::FancyLineEdit(parent)
+    {
+        setFiltering(true);
+        setPlaceholderText(QString());
+        connect(this, &QLineEdit::textChanged, this, &QLineEdit::updateGeometry);
+
     }
-    ~WideEnoughLineEdit(){}
-    QSize sizeHint() const {
+
+    QSize sizeHint() const
+    {
         QSize sh = QLineEdit::minimumSizeHint();
         sh.rwidth() += qMax(25 * fontMetrics().width(QLatin1Char('x')),
                             fontMetrics().width(text()));
         return sh;
     }
-public slots:
-    void updateGeometry() { QLineEdit::updateGeometry(); }
 };
-
-} // namespace Internal
-} // namespace Core
-
-using namespace Core;
-using namespace Core::Internal;
 
 SearchResultWidget::SearchResultWidget(QWidget *parent) :
     QWidget(parent),
@@ -140,7 +136,7 @@ SearchResultWidget::SearchResultWidget(QWidget *parent) :
     layout->addWidget(m_messageWidget);
     m_messageWidget->setVisible(false);
 
-    m_searchResultTreeView = new Internal::SearchResultTreeView(this);
+    m_searchResultTreeView = new SearchResultTreeView(this);
     m_searchResultTreeView->setFrameStyle(QFrame::NoFrame);
     m_searchResultTreeView->setAttribute(Qt::WA_MacShowFocusRect, false);
     Aggregation::Aggregate * agg = new Aggregation::Aggregate;
@@ -167,13 +163,13 @@ SearchResultWidget::SearchResultWidget(QWidget *parent) :
     m_cancelButton = new QToolButton(topFindWidget);
     m_cancelButton->setText(tr("Cancel"));
     m_cancelButton->setToolButtonStyle(Qt::ToolButtonTextOnly);
-    connect(m_cancelButton, SIGNAL(clicked()), this, SLOT(cancel()));
+    connect(m_cancelButton, &QAbstractButton::clicked, this, &SearchResultWidget::cancel);
     m_searchAgainButton = new QToolButton(topFindWidget);
     m_searchAgainButton->setToolTip(tr("Repeat the search with same parameters."));
     m_searchAgainButton->setText(tr("Search again"));
     m_searchAgainButton->setToolButtonStyle(Qt::ToolButtonTextOnly);
     m_searchAgainButton->setVisible(false);
-    connect(m_searchAgainButton, SIGNAL(clicked()), this, SLOT(searchAgain()));
+    connect(m_searchAgainButton, &QAbstractButton::clicked, this, &SearchResultWidget::searchAgain);
 
     m_replaceLabel = new QLabel(tr("Replace with:"), m_topReplaceWidget);
     m_replaceTextEdit = new WideEnoughLineEdit(m_topReplaceWidget);
@@ -191,7 +187,7 @@ SearchResultWidget::SearchResultWidget(QWidget *parent) :
 
     if (FindPlugin * plugin = FindPlugin::instance()) {
         m_preserveCaseCheck->setChecked(plugin->hasFindFlag(FindPreserveCase));
-        connect(m_preserveCaseCheck, SIGNAL(clicked(bool)), plugin, SLOT(setPreserveCase(bool)));
+        connect(m_preserveCaseCheck, &QAbstractButton::clicked, plugin, &FindPlugin::setPreserveCase);
     }
 
     m_matchesFoundLabel = new QLabel(topFindWidget);
@@ -210,10 +206,12 @@ SearchResultWidget::SearchResultWidget(QWidget *parent) :
     setShowReplaceUI(m_replaceSupported);
     setSupportPreserveCase(true);
 
-    connect(m_searchResultTreeView, SIGNAL(jumpToSearchResult(SearchResultItem)),
-            this, SLOT(handleJumpToSearchResult(SearchResultItem)));
-    connect(m_replaceTextEdit, SIGNAL(returnPressed()), this, SLOT(handleReplaceButton()));
-    connect(m_replaceButton, SIGNAL(clicked()), this, SLOT(handleReplaceButton()));
+    connect(m_searchResultTreeView, &SearchResultTreeView::jumpToSearchResult,
+            this, &SearchResultWidget::handleJumpToSearchResult);
+    connect(m_replaceTextEdit, &QLineEdit::returnPressed,
+            this, &SearchResultWidget::handleReplaceButton);
+    connect(m_replaceButton, &QAbstractButton::clicked,
+            this, &SearchResultWidget::handleReplaceButton);
 }
 
 SearchResultWidget::~SearchResultWidget()
@@ -497,15 +495,16 @@ void SearchResultWidget::searchAgain()
 QList<SearchResultItem> SearchResultWidget::checkedItems() const
 {
     QList<SearchResultItem> result;
-    Internal::SearchResultTreeModel *model = m_searchResultTreeView->model();
-    const int fileCount = model->rowCount(QModelIndex());
+    SearchResultTreeModel *model = m_searchResultTreeView->model();
+    const int fileCount = model->rowCount();
     for (int i = 0; i < fileCount; ++i) {
-        QModelIndex fileIndex = model->index(i, 0, QModelIndex());
-        Internal::SearchResultTreeItem *fileItem = static_cast<Internal::SearchResultTreeItem *>(fileIndex.internalPointer());
-        Q_ASSERT(fileItem != 0);
+        QModelIndex fileIndex = model->index(i, 0);
+        SearchResultTreeItem *fileItem = static_cast<SearchResultTreeItem *>(fileIndex.internalPointer());
+        QTC_ASSERT(fileItem != 0, continue);
         for (int rowIndex = 0; rowIndex < fileItem->childrenCount(); ++rowIndex) {
             QModelIndex textIndex = model->index(rowIndex, 0, fileIndex);
-            Internal::SearchResultTreeItem *rowItem = static_cast<Internal::SearchResultTreeItem *>(textIndex.internalPointer());
+            SearchResultTreeItem *rowItem = static_cast<SearchResultTreeItem *>(textIndex.internalPointer());
+            QTC_ASSERT(rowItem != 0, continue);
             if (rowItem->checkState())
                 result << rowItem->item;
         }
@@ -520,5 +519,8 @@ void SearchResultWidget::updateMatchesFoundLabel()
     else
         m_matchesFoundLabel->setText(tr("%n matches found.", 0, m_count));
 }
+
+} // namespace Internal
+} // namespace Core
 
 #include "searchresultwidget.moc"

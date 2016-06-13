@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -281,7 +276,7 @@ public:
 
     QPointer<QWidget> m_widget;
 
-private slots:
+private:
     void loadSnippetGroup(int index);
     void markSnippetsCollection();
     void addSnippet();
@@ -295,7 +290,6 @@ private slots:
     void updateCurrentSnippetDependent(const QModelIndex &modelIndex = QModelIndex());
     void decorateEditors(const TextEditor::FontSettings &fontSettings);
 
-private:
     SnippetEditorWidget *currentEditor() const;
     SnippetEditorWidget *editorAt(int i) const;
 
@@ -341,7 +335,8 @@ void SnippetsSettingsPagePrivate::configureUi(QWidget *w)
         SnippetEditorWidget *snippetEditor = new SnippetEditorWidget(w);
         provider->decorateEditor(snippetEditor);
         m_ui.snippetsEditorStack->insertWidget(m_ui.groupCombo->count() - 1, snippetEditor);
-        connect(snippetEditor, SIGNAL(snippetContentChanged()), this, SLOT(setSnippetContent()));
+        connect(snippetEditor, &SnippetEditorWidget::snippetContentChanged,
+                this, &SnippetsSettingsPagePrivate::setSnippetContent);
     }
 
     m_ui.snippetsTable->setModel(m_model);
@@ -352,33 +347,40 @@ void SnippetsSettingsPagePrivate::configureUi(QWidget *w)
     loadSettings();
     loadSnippetGroup(m_ui.groupCombo->currentIndex());
 
-    connect(m_model, SIGNAL(rowsInserted(QModelIndex,int,int)),
-            this, SLOT(selectSnippet(QModelIndex,int)));
-    connect(m_model, SIGNAL(rowsInserted(QModelIndex,int,int)),
-            this, SLOT(markSnippetsCollection()));
-    connect(m_model, SIGNAL(rowsRemoved(QModelIndex,int,int)),
-            this, SLOT(markSnippetsCollection()));
-    connect(m_model, SIGNAL(rowsMoved(QModelIndex,int,int,QModelIndex,int)),
-            this, SLOT(selectMovedSnippet(QModelIndex,int,int,QModelIndex,int)));
-    connect(m_model, SIGNAL(rowsMoved(QModelIndex,int,int,QModelIndex,int)),
-            this, SLOT(markSnippetsCollection()));
-    connect(m_model, SIGNAL(dataChanged(QModelIndex,QModelIndex)),
-            this, SLOT(markSnippetsCollection()));
-    connect(m_model, SIGNAL(modelReset()), this, SLOT(updateCurrentSnippetDependent()));
-    connect(m_model, SIGNAL(modelReset()), this, SLOT(markSnippetsCollection()));
+    connect(m_model, &QAbstractItemModel::rowsInserted,
+            this, &SnippetsSettingsPagePrivate::selectSnippet);
+    connect(m_model, &QAbstractItemModel::rowsInserted,
+            this, &SnippetsSettingsPagePrivate::markSnippetsCollection);
+    connect(m_model, &QAbstractItemModel::rowsRemoved,
+            this, &SnippetsSettingsPagePrivate::markSnippetsCollection);
+    connect(m_model, &QAbstractItemModel::rowsMoved,
+            this, &SnippetsSettingsPagePrivate::selectMovedSnippet);
+    connect(m_model, &QAbstractItemModel::rowsMoved,
+            this, &SnippetsSettingsPagePrivate::markSnippetsCollection);
+    connect(m_model, &QAbstractItemModel::dataChanged,
+            this, &SnippetsSettingsPagePrivate::markSnippetsCollection);
+    connect(m_model, &QAbstractItemModel::modelReset,
+            this, [this] { this->updateCurrentSnippetDependent(); });
+    connect(m_model, &QAbstractItemModel::modelReset,
+            this, &SnippetsSettingsPagePrivate::markSnippetsCollection);
 
-    connect(m_ui.groupCombo, SIGNAL(currentIndexChanged(int)), this, SLOT(loadSnippetGroup(int)));
-    connect(m_ui.addButton, SIGNAL(clicked()), this, SLOT(addSnippet()));
-    connect(m_ui.removeButton, SIGNAL(clicked()), this, SLOT(removeSnippet()));
-    connect(m_ui.resetAllButton, SIGNAL(clicked()), this, SLOT(resetAllSnippets()));
-    connect(m_ui.restoreRemovedButton, SIGNAL(clicked()),
-            this, SLOT(restoreRemovedBuiltInSnippets()));
-    connect(m_ui.revertButton, SIGNAL(clicked()), this, SLOT(revertBuiltInSnippet()));
-    connect(m_ui.snippetsTable->selectionModel(), SIGNAL(currentChanged(QModelIndex,QModelIndex)),
-            this, SLOT(updateCurrentSnippetDependent(QModelIndex)));
+    connect(m_ui.groupCombo, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+            this, &SnippetsSettingsPagePrivate::loadSnippetGroup);
+    connect(m_ui.addButton, &QAbstractButton::clicked,
+            this, &SnippetsSettingsPagePrivate::addSnippet);
+    connect(m_ui.removeButton, &QAbstractButton::clicked,
+            this, &SnippetsSettingsPagePrivate::removeSnippet);
+    connect(m_ui.resetAllButton, &QAbstractButton::clicked,
+            this, &SnippetsSettingsPagePrivate::resetAllSnippets);
+    connect(m_ui.restoreRemovedButton, &QAbstractButton::clicked,
+            this, &SnippetsSettingsPagePrivate::restoreRemovedBuiltInSnippets);
+    connect(m_ui.revertButton, &QAbstractButton::clicked,
+            this, &SnippetsSettingsPagePrivate::revertBuiltInSnippet);
+    connect(m_ui.snippetsTable->selectionModel(), &QItemSelectionModel::currentChanged,
+            this, &SnippetsSettingsPagePrivate::updateCurrentSnippetDependent);
 
-    connect(TextEditorSettings::instance(), SIGNAL(fontSettingsChanged(TextEditor::FontSettings)),
-            this, SLOT(decorateEditors(TextEditor::FontSettings)));
+    connect(TextEditorSettings::instance(), &TextEditorSettings::fontSettingsChanged,
+            this, &SnippetsSettingsPagePrivate::decorateEditors);
 }
 
 void SnippetsSettingsPagePrivate::apply()

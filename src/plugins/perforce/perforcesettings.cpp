@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,34 +9,27 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
 #include "perforcesettings.h"
 #include "perforceplugin.h"
-#include "perforceconstants.h"
 
 #include <utils/qtcassert.h>
 #include <utils/environment.h>
 #include <utils/hostosinfo.h>
 
-#include <QDebug>
 #include <QSettings>
 #include <QStringList>
 #include <QCoreApplication>
@@ -64,14 +57,8 @@ static QString defaultCommand()
 namespace Perforce {
 namespace Internal {
 
-Settings::Settings() :
-    logCount(defaultLogCount),
-    defaultEnv(true),
-    timeOutS(defaultTimeOutS),
-    promptToSubmit(true),
-    autoOpen(true)
-{
-}
+Settings::Settings() : logCount(defaultLogCount), timeOutS(defaultTimeOutS)
+{ }
 
 bool Settings::equals(const Settings &rhs) const
 {
@@ -98,12 +85,9 @@ QStringList Settings::commonP4Arguments() const
 }
 
 // --------------------PerforceSettings
-PerforceSettings::PerforceSettings()
-{
-}
-
 PerforceSettings::~PerforceSettings()
 {
+    delete m_topLevelDir;
 }
 
 void PerforceSettings::fromSettings(QSettings *settings)
@@ -225,21 +209,20 @@ void PerforceSettings::setTopLevel(const QString &t)
         } else {
             m_topLevelSymLinkTarget = m_topLevel = t;
         }
-        m_topLevelDir.reset(new QDir(m_topLevelSymLinkTarget));
-        if (Perforce::Constants::debug)
-            qDebug() << "PerforceSettings::setTopLevel" << m_topLevel << m_topLevelSymLinkTarget;
+        m_topLevelDir =  new QDir(m_topLevelSymLinkTarget);
     }
 }
 
 void PerforceSettings::clearTopLevel()
 {
-    m_topLevelDir.reset();
+    delete m_topLevelDir;
+    m_topLevelDir = nullptr;
     m_topLevel.clear();
 }
 
 QString PerforceSettings::relativeToTopLevel(const QString &dir) const
 {
-    QTC_ASSERT(!m_topLevelDir.isNull(), return QLatin1String("../") + dir);
+    QTC_ASSERT(m_topLevelDir, return QLatin1String("../") + dir);
     return m_topLevelDir->relativeFilePath(dir);
 }
 

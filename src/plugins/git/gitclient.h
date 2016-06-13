@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,27 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
-#ifndef GITCLIENT_H
-#define GITCLIENT_H
+#pragma once
 
 #include "gitsettings.h"
 #include "commitdata.h"
@@ -46,9 +40,6 @@
 #include <QWidget>
 
 QT_BEGIN_NAMESPACE
-class QCheckBox;
-class QSignalMapper;
-class QDebug;
 class QProcessEnvironment;
 class QMenu;
 QT_END_NAMESPACE
@@ -76,7 +67,7 @@ namespace Git {
 namespace Internal {
 
 class CommitData;
-struct GitSubmitEditorPanelData;
+class GitSubmitEditorPanelData;
 class Stash;
 
 enum StatusMode
@@ -113,7 +104,7 @@ public:
     class StashInfo
     {
     public:
-        StashInfo();
+        StashInfo() = default;
         enum StashResult { StashUnchanged, StashCanceled, StashFailed,
                            Stashed, NotStashed /* User did not want it */ };
 
@@ -131,9 +122,8 @@ public:
         StashResult m_stashResult;
         QString m_message;
         QString m_workingDir;
-        GitClient *m_client;
         StashFlag m_flags;
-        PushAction m_pushAction;
+        PushAction m_pushAction = NoPush;
     };
 
     static const char *stashNamePrefix;
@@ -155,7 +145,7 @@ public:
                    const QStringList &stagedFileNames) const;
     void diffProject(const QString &workingDirectory,
                      const QString &projectDirectory) const;
-    void diffRepository(const QString &workingDirectory) const;
+    void diffRepository(const QString &workingDirectory);
     void diffBranch(const QString &workingDirectory,
                     const QString &branchName) const;
     void merge(const QString &workingDirectory, const QStringList &unmergedFileNames = QStringList());
@@ -184,7 +174,7 @@ public:
     bool synchronousReset(const QString &workingDirectory,
                           const QStringList &files = QStringList(),
                           QString *errorMessage = 0);
-    bool synchronousCleanList(const QString &workingDirectory, QStringList *files, QStringList *ignoredFiles, QString *errorMessage);
+    bool synchronousCleanList(const QString &workingDirectory, const QString &modulePath, QStringList *files, QStringList *ignoredFiles, QString *errorMessage);
     bool synchronousApplyPatch(const QString &workingDirectory, const QString &file, QString *errorMessage, const QStringList &arguments = QStringList());
     bool synchronousInit(const QString &workingDirectory);
     bool synchronousCheckoutFiles(const QString &workingDirectory,
@@ -231,13 +221,12 @@ public:
                                            QString *errorMessage = 0) const;
     SubmoduleDataMap submoduleList(const QString &workingDirectory) const;
     bool synchronousShow(const QString &workingDirectory, const QString &id,
-                              QString *output, QString *errorMessage) const;
+                         QByteArray *output, QString *errorMessage) const;
 
     bool synchronousRevListCmd(const QString &workingDirectory, const QStringList &arguments,
                                QString *output, QString *errorMessage = 0) const;
 
     bool synchronousParentRevisions(const QString &workingDirectory,
-                                    const QStringList &files /* = QStringList() */,
                                     const QString &revision,
                                     QStringList *parents,
                                     QString *errorMessage) const;
@@ -347,19 +336,15 @@ public:
     static QString msgNoCommits(bool includeRemote);
 
 public slots:
-    void show(const QString &source,
-              const QString &id,
-              const QString &name = QString());
+    void show(const QString &source, const QString &id, const QString &name = QString());
 
-private slots:
+private:
     void finishSubmoduleUpdate();
-    void fetchFinished(const QVariant &cookie);
     void slotChunkActionsRequested(QMenu *menu, bool isValid);
     void slotStageChunk();
     void slotUnstageChunk();
     void branchesForCommit(const QString &revision);
 
-private:
     void stage(const QString &patch, bool revert);
 
     enum CodecType { CodecSource, CodecLogOutput, CodecNone };
@@ -385,7 +370,7 @@ private:
                          const QString &workingDirectory,
                          const QString &fileName,
                          const QString &gitBinDirectory);
-    bool cleanList(const QString &workingDirectory, const QString &flag, QStringList *files, QString *errorMessage);
+    bool cleanList(const QString &workingDirectory, const QString &modulePath, const QString &flag, QStringList *files, QString *errorMessage);
 
     enum ContinueCommandMode {
         ContinueOnly,
@@ -410,5 +395,3 @@ private:
 
 } // namespace Internal
 } // namespace Git
-
-#endif // GITCLIENT_H

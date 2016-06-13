@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -514,7 +509,7 @@ public:
             return m_upgraders.at(pos);
         return 0;
     }
-    Settings bestSettings(const SettingsAccessor *accessor, const QList<FileName> &pathList);
+    Settings bestSettings(const SettingsAccessor *accessor, const FileNameList &pathList);
 
     QList<VersionUpgrader *> m_upgraders;
     PersistentSettingsWriter *m_writer;
@@ -979,9 +974,9 @@ bool SettingsAccessor::addVersionUpgrader(VersionUpgrader *upgrader)
 }
 
 /* Will always return the default name first (if applicable) */
-QList<FileName> SettingsAccessor::settingsFiles(const QString &suffix) const
+FileNameList SettingsAccessor::settingsFiles(const QString &suffix) const
 {
-    QList<FileName> result;
+    FileNameList result;
 
     QFileInfoList list;
     const QFileInfo pfi = project()->projectFilePath().toFileInfo();
@@ -1062,7 +1057,7 @@ void SettingsAccessor::backupUserFile() const
 QVariantMap SettingsAccessor::readUserSettings(QWidget *parent) const
 {
     SettingsAccessorPrivate::Settings result;
-    QList<FileName> fileList = settingsFiles(m_userSuffix);
+    FileNameList fileList = settingsFiles(m_userSuffix);
     if (fileList.isEmpty()) // No settings found at all.
         return result.map;
 
@@ -1112,7 +1107,7 @@ QVariantMap SettingsAccessor::readSharedSettings(QWidget *parent) const
 }
 
 SettingsAccessorPrivate::Settings SettingsAccessorPrivate::bestSettings(const SettingsAccessor *accessor,
-                                                                        const QList<FileName> &pathList)
+                                                                        const FileNameList &pathList)
 {
     Settings bestMatch;
     foreach (const FileName &path, pathList) {
@@ -2010,7 +2005,7 @@ UserFileVersion11Upgrader::~UserFileVersion11Upgrader()
 
 static inline int targetId(const QString &targetKey)
 {
-    return targetKey.mid(targetKey.lastIndexOf(QLatin1Char('.')) + 1).toInt();
+    return targetKey.midRef(targetKey.lastIndexOf(QLatin1Char('.')) + 1).toInt();
 }
 
 QVariantMap UserFileVersion11Upgrader::upgrade(const QVariantMap &map)
@@ -2101,7 +2096,7 @@ QVariantMap UserFileVersion11Upgrader::upgrade(const QVariantMap &map)
                 tmpKit->setValue("PE.Profile.DeviceType", QString::fromLatin1("Desktop"));
                 tmpKit->setValue("PE.Profile.Device", QString());
             } else if (oldTargetId == QLatin1String("RemoteLinux.EmbeddedLinuxTarget")) {
-                tmpKit->setIconPath(FileName::fromLatin1(":///DESKTOP///"));
+                tmpKit->setIconPath(FileName::fromLatin1(Constants::DESKTOP_DEVICE_ICON));
                 tmpKit->setValue("PE.Profile.DeviceType", QString::fromLatin1("GenericLinuxOsType"));
                 tmpKit->setValue("PE.Profile.Device", QString());
             } else if (oldTargetId == QLatin1String("Qt4ProjectManager.Target.HarmattanDeviceTarget")) {
@@ -2125,7 +2120,7 @@ QVariantMap UserFileVersion11Upgrader::upgrade(const QVariantMap &map)
                 tmpKit->setValue("PE.Profile.DeviceType", QString::fromLatin1("Desktop"));
                 tmpKit->setValue("PE.Profile.Device", QString::fromLatin1("Desktop Device"));
             } else {
-                tmpKit->setIconPath(FileName::fromLatin1(":///DESKTOP///"));
+                tmpKit->setIconPath(FileName::fromLatin1(Constants::DESKTOP_DEVICE_ICON));
                 tmpKit->setValue("PE.Profile.DeviceType", QString::fromLatin1("Desktop"));
                 tmpKit->setValue("PE.Profile.Device", QString::fromLatin1("Desktop Device"));
             }
@@ -2160,7 +2155,7 @@ QVariantMap UserFileVersion11Upgrader::upgrade(const QVariantMap &map)
                 foreach (ToolChain *tc, ToolChainManager::toolChains()) {
                     if ((tc->compilerCommand() == FileName::fromString(compilerPath))
                             && (tc->targetAbi() == compilerAbi)) {
-                        tcId = tc->id();
+                        tcId = QString::fromUtf8(tc->id());
                         break;
                     }
                 }

@@ -1,5 +1,5 @@
 DEFINES += TEXTEDITOR_LIBRARY
-QT += network printsupport xml
+QT += gui-private network printsupport xml
 CONFIG += exceptions
 CONFIG += include_source_dir # For the highlighter autotest.
 include(../../qtcreatorplugin.pri)
@@ -55,6 +55,7 @@ SOURCES += texteditorplugin.cpp \
     refactoroverlay.cpp \
     outlinefactory.cpp \
     basehoverhandler.cpp \
+    colorpreviewhoverhandler.cpp \
     helpitem.cpp \
     autocompleter.cpp \
     snippets/snippetssettingspage.cpp \
@@ -86,6 +87,7 @@ SOURCES += texteditorplugin.cpp \
     codeassist/genericproposal.cpp \
     codeassist/genericproposalwidget.cpp \
     codeassist/iassistproposalmodel.cpp \
+    codeassist/textdocumentmanipulator.cpp \
     tabsettingswidget.cpp \
     simplecodestylepreferences.cpp \
     simplecodestylepreferenceswidget.cpp \
@@ -161,6 +163,7 @@ HEADERS += texteditorplugin.h \
     outlinefactory.h \
     ioutlinewidget.h \
     basehoverhandler.h \
+    colorpreviewhoverhandler.h \
     helpitem.h \
     autocompleter.h \
     snippets/snippetssettingspage.h \
@@ -187,6 +190,7 @@ HEADERS += texteditorplugin.h \
     convenience.h \
     codeassist/assistenums.h \
     codeassist/runner.h \
+    codeassist/assistproposaliteminterface.h \
     codeassist/completionassistprovider.h \
     codeassist/genericproposalmodel.h \
     codeassist/quickfixassistprovider.h \
@@ -194,6 +198,8 @@ HEADERS += texteditorplugin.h \
     codeassist/genericproposal.h \
     codeassist/genericproposalwidget.h \
     codeassist/iassistproposalmodel.h \
+    codeassist/textdocumentmanipulator.h \
+    codeassist/textdocumentmanipulatorinterface.h \
     tabsettingswidget.h \
     simplecodestylepreferences.h \
     simplecodestylepreferenceswidget.h \
@@ -204,13 +210,13 @@ HEADERS += texteditorplugin.h \
     icodestylepreferences.h \
     codestylepool.h \
     codestyleeditor.h \
-    basefilefind_p.h \
     circularclipboard.h \
     circularclipboardassist.h \
     textmark.h \
     codeassist/keywordscompletionassist.h \
     textmarkregistry.h \
-    marginsettings.h
+    marginsettings.h \
+    blockrange.h
 
 FORMS += \
     displaysettingspage.ui \

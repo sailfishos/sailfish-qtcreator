@@ -96,6 +96,7 @@ QtcLibrary {
             "CppRewriter.cpp", "CppRewriter.h",
             "cppmodelmanagerbase.cpp", "cppmodelmanagerbase.h",
             "DependencyTable.cpp", "DependencyTable.h",
+            "DeprecatedGenTemplateInstance.cpp", "DeprecatedGenTemplateInstance.h",
             "ExpressionUnderCursor.cpp", "ExpressionUnderCursor.h",
             "FastPreprocessor.cpp", "FastPreprocessor.h",
             "FindUsages.cpp", "FindUsages.h",
@@ -116,37 +117,12 @@ QtcLibrary {
             "SymbolNameVisitor.cpp", "SymbolNameVisitor.h",
             "TypeOfExpression.cpp", "TypeOfExpression.h",
             "TypePrettyPrinter.cpp", "TypePrettyPrinter.h",
-            "TypeResolver.cpp", "TypeResolver.h",
             "cplusplus.qrc",
             "findcdbbreakpoint.cpp", "findcdbbreakpoint.h",
             "pp-cctype.h",
             "pp-engine.cpp", "pp-engine.h",
             "pp-scanner.cpp", "pp-scanner.h",
             "pp.h",
-        ]
-    }
-
-    Group {
-        name: "Images"
-        prefix: "images/"
-        files: [
-            "class.png",
-            "struct.png",
-            "enum.png",
-            "enumerator.png",
-            "func.png",
-            "func_priv.png",
-            "func_prot.png",
-            "keyword.png",
-            "macro.png",
-            "namespace.png",
-            "signal.png",
-            "slot.png",
-            "slot_priv.png",
-            "slot_prot.png",
-            "var.png",
-            "var_priv.png",
-            "var_prot.png",
         ]
     }
 

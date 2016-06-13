@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -105,7 +100,6 @@ ModelManagerInterface::ModelManagerInterface(QObject *parent)
       m_pluginDumper(new PluginDumper(this))
 {
     m_indexerEnabled = qgetenv("QTC_NO_CODE_INDEXER") != "1";
-    m_synchronizer.setCancelOnWait(true);
 
     m_updateCppQmlTypesTimer = new QTimer(this);
     m_updateCppQmlTypesTimer->setInterval(1000);
@@ -307,29 +301,30 @@ void ModelManagerInterface::updateSourceFiles(const QStringList &files,
     refreshSourceFiles(files, emitDocumentOnDiskChanged);
 }
 
+void ModelManagerInterface::cleanupFutures()
+{
+    if (m_futures.size() > 10) {
+        QList<QFuture<void> > futures = m_futures;
+        m_futures.clear();
+        foreach (const QFuture<void> &future, futures) {
+            if (!(future.isFinished() || future.isCanceled()))
+                m_futures.append(future);
+        }
+    }
+}
+
 QFuture<void> ModelManagerInterface::refreshSourceFiles(const QStringList &sourceFiles,
                                                bool emitDocumentOnDiskChanged)
 {
     if (sourceFiles.isEmpty())
         return QFuture<void>();
 
-    QFuture<void> result = QtConcurrent::run(&ModelManagerInterface::parse,
-                                              workingCopyInternal(), sourceFiles,
-                                              this, Dialect(Dialect::Qml),
-                                              emitDocumentOnDiskChanged);
-
-    if (m_synchronizer.futures().size() > 10) {
-        QList<QFuture<void> > futures = m_synchronizer.futures();
-
-        m_synchronizer.clearFutures();
-
-        foreach (const QFuture<void> &future, futures) {
-            if (! (future.isFinished() || future.isCanceled()))
-                m_synchronizer.addFuture(future);
-        }
-    }
-
-    m_synchronizer.addFuture(result);
+    QFuture<void> result = Utils::runAsync(&ModelManagerInterface::parse,
+                                           workingCopyInternal(), sourceFiles,
+                                           this, Dialect(Dialect::Qml),
+                                           emitDocumentOnDiskChanged);
+    cleanupFutures();
+    m_futures.append(result);
 
     if (sourceFiles.count() > 1)
          addTaskInternal(result, tr("Parsing QML Files"), Constants::TASK_INDEX);
@@ -353,9 +348,9 @@ QFuture<void> ModelManagerInterface::refreshSourceFiles(const QStringList &sourc
 
 void ModelManagerInterface::fileChangedOnDisk(const QString &path)
 {
-    QtConcurrent::run(&ModelManagerInterface::parse,
-                      workingCopyInternal(), QStringList() << path,
-                      this, Dialect(Dialect::AnyLanguage), true);
+    Utils::runAsync(&ModelManagerInterface::parse,
+                    workingCopyInternal(), QStringList() << path,
+                    this, Dialect(Dialect::AnyLanguage), true);
 }
 
 void ModelManagerInterface::removeFiles(const QStringList &files)
@@ -432,46 +427,10 @@ bool pInfoLessThanImports(const ModelManagerInterface::ProjectInfo &p1, const Mo
 
 }
 
-QStringList ModelManagerInterface::filesAtQrcPath(const QString &path, const QLocale *locale,
-                                         ProjectExplorer::Project *project,
-                                         QrcResourceSelector resources)
+void ModelManagerInterface::iterateQrcFiles(ProjectExplorer::Project *project,
+                                            QrcResourceSelector resources,
+                                            std::function<void(QrcParser::ConstPtr)> callback)
 {
-    QString normPath = QrcParser::normalizedQrcFilePath(path);
-    QList<ProjectInfo> pInfos;
-    if (project)
-        pInfos.append(projectInfo(project));
-    else
-        pInfos = projectInfos();
-
-    QStringList res;
-    QSet<QString> pathsChecked;
-    foreach (const ModelManagerInterface::ProjectInfo &pInfo, pInfos) {
-        QStringList qrcFilePaths;
-        if (resources == ActiveQrcResources)
-            qrcFilePaths = pInfo.activeResourceFiles;
-        else
-            qrcFilePaths = pInfo.allResourceFiles;
-        foreach (const QString &qrcFilePath, qrcFilePaths) {
-            if (pathsChecked.contains(qrcFilePath))
-                continue;
-            pathsChecked.insert(qrcFilePath);
-            QrcParser::ConstPtr qrcFile = m_qrcCache.parsedPath(qrcFilePath);
-            if (qrcFile.isNull())
-                continue;
-            qrcFile->collectFilesAtPath(normPath, &res, locale);
-        }
-    }
-    res.sort(); // make the result predictable
-    return res;
-}
-
-QMap<QString, QStringList> ModelManagerInterface::filesInQrcPath(const QString &path,
-                                                        const QLocale *locale,
-                                                        ProjectExplorer::Project *project,
-                                                        bool addDirs,
-                                                        QrcResourceSelector resources)
-{
-    QString normPath = QrcParser::normalizedQrcDirectoryPath(path);
     QList<ProjectInfo> pInfos;
     if (project) {
         pInfos.append(projectInfo(project));
@@ -482,7 +441,7 @@ QMap<QString, QStringList> ModelManagerInterface::filesInQrcPath(const QString &
         else
             qSort(pInfos.begin(), pInfos.end(), &pInfoLessThanAll);
     }
-    QMap<QString, QStringList> res;
+
     QSet<QString> pathsChecked;
     foreach (const ModelManagerInterface::ProjectInfo &pInfo, pInfos) {
         QStringList qrcFilePaths;
@@ -495,12 +454,47 @@ QMap<QString, QStringList> ModelManagerInterface::filesInQrcPath(const QString &
                 continue;
             pathsChecked.insert(qrcFilePath);
             QrcParser::ConstPtr qrcFile = m_qrcCache.parsedPath(qrcFilePath);
-
             if (qrcFile.isNull())
                 continue;
-            qrcFile->collectFilesInPath(normPath, &res, addDirs, locale);
+            callback(qrcFile);
         }
     }
+}
+
+QStringList ModelManagerInterface::qrcPathsForFile(const QString &file, const QLocale *locale,
+                                                   ProjectExplorer::Project *project,
+                                                   QrcResourceSelector resources)
+{
+    QStringList res;
+    iterateQrcFiles(project, resources, [&](QrcParser::ConstPtr qrcFile) {
+        qrcFile->collectResourceFilesForSourceFile(file, &res, locale);
+    });
+    return res;
+}
+
+QStringList ModelManagerInterface::filesAtQrcPath(const QString &path, const QLocale *locale,
+                                         ProjectExplorer::Project *project,
+                                         QrcResourceSelector resources)
+{
+    QString normPath = QrcParser::normalizedQrcFilePath(path);
+    QStringList res;
+    iterateQrcFiles(project, resources, [&](QrcParser::ConstPtr qrcFile) {
+        qrcFile->collectFilesAtPath(normPath, &res, locale);
+    });
+    return res;
+}
+
+QMap<QString, QStringList> ModelManagerInterface::filesInQrcPath(const QString &path,
+                                                        const QLocale *locale,
+                                                        ProjectExplorer::Project *project,
+                                                        bool addDirs,
+                                                        QrcResourceSelector resources)
+{
+    QString normPath = QrcParser::normalizedQrcDirectoryPath(path);
+    QMap<QString, QStringList> res;
+    iterateQrcFiles(project, resources, [&](QrcParser::ConstPtr qrcFile) {
+        qrcFile->collectFilesInPath(normPath, &res, addDirs, locale);
+    });
     return res;
 }
 
@@ -651,7 +645,7 @@ QList<ModelManagerInterface::ProjectInfo> ModelManagerInterface::allProjectInfos
 
 bool ModelManagerInterface::isIdle() const
 {
-    return m_synchronizer.futures().isEmpty();
+    return m_futures.isEmpty();
 }
 
 void ModelManagerInterface::emitDocumentChangedOnDisk(Document::Ptr doc)
@@ -1101,22 +1095,11 @@ void ModelManagerInterface::maybeScan(const PathsAndLanguages &importPaths)
     }
 
     if (pathToScan.length() > 1) {
-        QFuture<void> result = QtConcurrent::run(&ModelManagerInterface::importScan,
-                                                  workingCopyInternal(), pathToScan,
-                                                  this, true, true);
-
-        if (m_synchronizer.futures().size() > 10) {
-            QList<QFuture<void> > futures = m_synchronizer.futures();
-
-            m_synchronizer.clearFutures();
-
-            foreach (const QFuture<void> &future, futures) {
-                if (! (future.isFinished() || future.isCanceled()))
-                    m_synchronizer.addFuture(future);
-            }
-        }
-
-        m_synchronizer.addFuture(result);
+        QFuture<void> result = Utils::runAsync(&ModelManagerInterface::importScan,
+                                               workingCopyInternal(), pathToScan,
+                                               this, true, true);
+        cleanupFutures();
+        m_futures.append(result);
 
         addTaskInternal(result, tr("Scanning QML Imports"), Constants::TASK_IMPORT_SCAN);
     }
@@ -1259,8 +1242,7 @@ void ModelManagerInterface::startCppQmlTypeUpdate()
     if (!cppModelManager)
         return;
 
-    m_cppQmlTypesUpdater = QtConcurrent::run(
-                &ModelManagerInterface::updateCppQmlTypes,
+    m_cppQmlTypesUpdater = Utils::runAsync(&ModelManagerInterface::updateCppQmlTypes,
                 this, cppModelManager->snapshot(), m_queuedCppDocuments);
     m_queuedCppDocuments.clear();
 }
@@ -1280,6 +1262,8 @@ void ModelManagerInterface::updateCppQmlTypes(QFutureInterface<void> &interface,
                                      CPlusPlus::Snapshot snapshot,
                                      QHash<QString, QPair<CPlusPlus::Document::Ptr, bool> > documents)
 {
+    interface.setProgressRange(0, documents.size());
+    interface.setProgressValue(0);
     CppDataHash newData = qmlModelManager->cppData();
 
     FindExportedCppTypes finder(snapshot);
@@ -1289,6 +1273,7 @@ void ModelManagerInterface::updateCppQmlTypes(QFutureInterface<void> &interface,
     foreach (const DocScanPair &pair, documents) {
         if (interface.isCanceled())
             return;
+        interface.setProgressValue(interface.progressValue() + 1);
 
         CPlusPlus::Document::Ptr doc = pair.first;
         const bool scan = pair.second;
@@ -1490,8 +1475,9 @@ void ModelManagerInterface::setDefaultVContext(const ViewerContext &vContext)
 
 void ModelManagerInterface::joinAllThreads()
 {
-    foreach (QFuture<void> future, m_synchronizer.futures())
+    foreach (QFuture<void> future, m_futures)
         future.waitForFinished();
+    m_futures.clear();
 }
 
 Document::Ptr ModelManagerInterface::ensuredGetDocumentForPath(const QString &filePath)

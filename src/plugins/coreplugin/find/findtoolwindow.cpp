@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -34,6 +29,7 @@
 
 #include <coreplugin/icore.h>
 #include <utils/qtcassert.h>
+#include <utils/algorithm.h>
 
 #include <QSettings>
 #include <QStringListModel>
@@ -55,16 +51,18 @@ FindToolWindow::FindToolWindow(FindPlugin *plugin, QWidget *parent)
 {
     m_instance = this;
     m_ui.setupUi(this);
+    m_ui.searchTerm->setFiltering(true);
     m_ui.searchTerm->setPlaceholderText(QString());
     setFocusProxy(m_ui.searchTerm);
 
-    connect(m_ui.searchButton, SIGNAL(clicked()), this, SLOT(search()));
-    connect(m_ui.replaceButton, SIGNAL(clicked()), this, SLOT(replace()));
-    connect(m_ui.matchCase, SIGNAL(toggled(bool)), m_plugin, SLOT(setCaseSensitive(bool)));
-    connect(m_ui.wholeWords, SIGNAL(toggled(bool)), m_plugin, SLOT(setWholeWord(bool)));
-    connect(m_ui.regExp, SIGNAL(toggled(bool)), m_plugin, SLOT(setRegularExpression(bool)));
-    connect(m_ui.filterList, SIGNAL(activated(int)), this, SLOT(setCurrentFilter(int)));
-    connect(m_ui.searchTerm, SIGNAL(textChanged(QString)), this, SLOT(updateButtonStates()));
+    connect(m_ui.searchButton, &QAbstractButton::clicked, this, &FindToolWindow::search);
+    connect(m_ui.replaceButton, &QAbstractButton::clicked, this, &FindToolWindow::replace);
+    connect(m_ui.matchCase, &QAbstractButton::toggled, m_plugin, &FindPlugin::setCaseSensitive);
+    connect(m_ui.wholeWords, &QAbstractButton::toggled, m_plugin, &FindPlugin::setWholeWord);
+    connect(m_ui.regExp, &QAbstractButton::toggled, m_plugin, &FindPlugin::setRegularExpression);
+    connect(m_ui.filterList, static_cast<void (QComboBox::*)(int)>(&QComboBox::activated),
+            this, static_cast<void (FindToolWindow::*)(int)>(&FindToolWindow::setCurrentFilter));
+    connect(m_ui.searchTerm, &QLineEdit::textChanged, this, &FindToolWindow::updateButtonStates);
 
     m_findCompleter->setModel(m_plugin->findCompletionModel());
     m_ui.searchTerm->setSpecialCompleter(m_findCompleter);
@@ -75,7 +73,7 @@ FindToolWindow::FindToolWindow(FindPlugin *plugin, QWidget *parent)
     m_ui.configWidget->setLayout(layout);
     updateButtonStates();
 
-    connect(m_plugin, SIGNAL(findFlagsChanged()), this, SLOT(updateFindFlags()));
+    connect(m_plugin, &FindPlugin::findFlagsChanged, this, &FindToolWindow::updateFindFlags);
 }
 
 FindToolWindow::~FindToolWindow()
@@ -95,7 +93,8 @@ bool FindToolWindow::event(QEvent *event)
         if ((ke->key() == Qt::Key_Return || ke->key() == Qt::Key_Enter)
                 && (ke->modifiers() == Qt::NoModifier || ke->modifiers() == Qt::KeypadModifier)) {
             ke->accept();
-            search();
+            if (m_ui.searchButton->isEnabled())
+                search();
             return true;
         }
     }
@@ -118,7 +117,7 @@ bool FindToolWindow::eventFilter(QObject *obj, QEvent *event)
 void FindToolWindow::updateButtonStates()
 {
     bool filterEnabled = m_currentFilter && m_currentFilter->isEnabled();
-    bool enabled = !m_ui.searchTerm->text().isEmpty() && filterEnabled;
+    bool enabled = !m_ui.searchTerm->text().isEmpty() && filterEnabled && m_currentFilter->isValid();
     m_ui.searchButton->setEnabled(enabled);
     m_ui.replaceButton->setEnabled(m_currentFilter
                                    && m_currentFilter->isReplaceSupported() && enabled);
@@ -158,6 +157,15 @@ void FindToolWindow::setFindFilters(const QList<IFindFilter *> &filters)
         setCurrentFilter(0);
 }
 
+void FindToolWindow::updateFindFilterNames()
+{
+    int currentIndex = m_ui.filterList->currentIndex();
+    m_ui.filterList->clear();
+    QStringList names = Utils::transform(m_filters, &IFindFilter::displayName);
+    m_ui.filterList->addItems(names);
+    m_ui.filterList->setCurrentIndex(currentIndex);
+}
+
 void FindToolWindow::setFindText(const QString &text)
 {
     m_ui.searchTerm->setText(text);
@@ -183,9 +191,11 @@ void FindToolWindow::setCurrentFilter(int index)
         if (i == index) {
             m_configWidget = configWidget;
             if (m_currentFilter)
-                disconnect(m_currentFilter, SIGNAL(enabledChanged(bool)), this, SLOT(updateButtonStates()));
+                disconnect(m_currentFilter, &IFindFilter::enabledChanged,
+                           this, &FindToolWindow::updateButtonStates);
             m_currentFilter = m_filters.at(i);
-            connect(m_currentFilter, SIGNAL(enabledChanged(bool)), this, SLOT(updateButtonStates()));
+            connect(m_currentFilter, &IFindFilter::enabledChanged,
+                    this, &FindToolWindow::updateButtonStates);
             updateButtonStates();
             if (m_configWidget)
                 m_ui.configWidget->layout()->addWidget(m_configWidget);

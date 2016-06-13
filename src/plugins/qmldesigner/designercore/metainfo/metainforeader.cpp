@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -165,7 +160,7 @@ MetaInfoReader::ParserSate MetaInfoReader::readTypeElement(const QString &name)
 {
     if (name == ItemLibraryEntryElementName) {
         m_currentEntry = ItemLibraryEntry();
-        m_currentEntry.setType(m_currentClassName, -1, -1);
+        m_currentEntry.setType(m_currentClassName);
         m_currentEntry.setTypeIcon(QIcon(m_currentIcon));
         return ParsingItemLibrary;
     } else {
@@ -203,7 +198,7 @@ MetaInfoReader::ParserSate MetaInfoReader::readQmlSourceElement(const QString &n
 
 void MetaInfoReader::readTypeProperty(const QString &name, const QVariant &value)
 {
-    if (name == "name") {
+    if (name == QLatin1String("name")) {
         m_currentClassName = value.toString().toUtf8();
         if (!m_qualication.isEmpty()) //prepend qualification
             m_currentClassName = m_qualication + "." + m_currentClassName;
@@ -266,10 +261,10 @@ void MetaInfoReader::setVersion(const QString &versionNumber)
     if (!versionNumber.isEmpty()) {
         int val;
         bool ok;
-        if (versionNumber.contains('.')) {
-            val = versionNumber.split('.').first().toInt(&ok);
+        if (versionNumber.contains(QLatin1Char('.'))) {
+            val = versionNumber.split(QLatin1Char('.')).first().toInt(&ok);
             major = ok ? val : major;
-            val = versionNumber.split('.').last().toInt(&ok);
+            val = versionNumber.split(QLatin1Char('.')).last().toInt(&ok);
             minor = ok ? val : minor;
         } else {
             val = versionNumber.toInt(&ok);

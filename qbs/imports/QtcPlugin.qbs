@@ -10,7 +10,7 @@ QtcProduct {
     property var pluginRecommends: []
     property var pluginTestDepends: []
 
-    property string minimumQtVersion: "5.4.0"
+    property string minimumQtVersion: "5.5.0"
     condition: QtcFunctions.versionIsAtLeast(Qt.core.version, minimumQtVersion)
 
     targetName: QtcFunctions.qtLibraryName(qbs, name)
@@ -24,9 +24,9 @@ QtcProduct {
     }
 
     cpp.defines: base.concat([name.toUpperCase() + "_LIBRARY"])
-    cpp.installNamePrefix: "@rpath/PlugIns/"
+    cpp.installNamePrefix: "@rpath"
     cpp.rpaths: qbs.targetOS.contains("osx")
-        ? ["@loader_path/..", "@loader_path/", "@executable_path/.."]
+        ? ["@loader_path/../Frameworks", "@loader_path/../PlugIns"]
         : ["$ORIGIN", "$ORIGIN/.."]
     cpp.linkerFlags: {
         var flags = base;

@@ -10,13 +10,13 @@ QtcPlugin {
     Depends { name: "Core" }
 
     cpp.includePaths: base.concat([path]) // Needed for the highlighterengine autotest.
+    cpp.enableExceptions: true
 
     files: [
         "autocompleter.cpp",
         "autocompleter.h",
         "basefilefind.cpp",
         "basefilefind.h",
-        "basefilefind_p.h",
         "basehoverhandler.cpp",
         "basehoverhandler.h",
         "behaviorsettings.cpp",
@@ -27,6 +27,7 @@ QtcPlugin {
         "behaviorsettingswidget.cpp",
         "behaviorsettingswidget.h",
         "behaviorsettingswidget.ui",
+        "blockrange.h",
         "circularclipboard.cpp",
         "circularclipboard.h",
         "circularclipboardassist.cpp",
@@ -40,6 +41,8 @@ QtcPlugin {
         "codestyleselectorwidget.cpp",
         "codestyleselectorwidget.h",
         "codestyleselectorwidget.ui",
+        "colorpreviewhoverhandler.cpp",
+        "colorpreviewhoverhandler.h",
         "colorscheme.cpp",
         "colorscheme.h",
         "colorschemeedit.cpp",
@@ -146,6 +149,7 @@ QtcPlugin {
             "assistinterface.h",
             "assistproposalitem.cpp",
             "assistproposalitem.h",
+            "assistproposaliteminterface.h",
             "codeassistant.cpp",
             "codeassistant.h",
             "completionassistprovider.cpp",
@@ -180,6 +184,9 @@ QtcPlugin {
             "quickfixassistprovider.h",
             "runner.cpp",
             "runner.h",
+            "textdocumentmanipulator.cpp",
+            "textdocumentmanipulator.h",
+            "textdocumentmanipulatorinterface.h",
         ]
     }
 

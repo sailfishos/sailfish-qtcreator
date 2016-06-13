@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,27 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
-#ifndef BASEPROJECTWIZARDDIALOG_H
-#define BASEPROJECTWIZARDDIALOG_H
+#pragma once
 
 #include "projectexplorer_export.h"
 
@@ -56,7 +50,7 @@ public:
     explicit BaseProjectWizardDialog(const Core::BaseFileWizardFactory *factory, QWidget *parent,
                                      const Core::WizardDialogParameters &parameters);
 
-    virtual ~BaseProjectWizardDialog();
+    ~BaseProjectWizardDialog() override;
 
     QString projectName() const;
     QString path() const;
@@ -65,7 +59,6 @@ public:
     static QString uniqueProjectName(const QString &path);
     void addExtensionPages(const QList<QWizardPage *> &wizardPageList);
 
-public slots:
     void setIntroDescription(const QString &d);
     void setPath(const QString &path);
     void setProjectName(const QString &name);
@@ -78,22 +71,18 @@ signals:
 
 protected:
     Utils::ProjectIntroPage *introPage() const;
-    QString selectedPlatform() const;
-    void setSelectedPlatform(const QString &platform);
+    Core::Id selectedPlatform() const;
+    void setSelectedPlatform(Core::Id platform);
 
-    Core::FeatureSet requiredFeatures() const;
-    void setRequiredFeatures(const Core::FeatureSet &featureSet);
-
-private slots:
-    void slotAccepted();
-    void nextClicked();
+    QSet<Core::Id> requiredFeatures() const;
+    void setRequiredFeatures(const QSet<Core::Id> &featureSet);
 
 private:
     void init();
+    void slotAccepted();
+    bool validateCurrentPage() override;
 
     BaseProjectWizardDialogPrivate *d;
 };
 
 } // namespace ProjectExplorer
-
-#endif // BASEPROJECTWIZARDDIALOG_H

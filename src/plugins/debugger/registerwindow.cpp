@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -63,58 +58,42 @@ public:
     {}
 
     QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &,
-        const QModelIndex &index) const
+        const QModelIndex &index) const override
     {
-        IntegerWatchLineEdit *lineEdit = new IntegerWatchLineEdit(parent);
-        const RegisterFormat format = RegisterFormat(index.data(RegisterFormatRole).toInt());
-        const bool big = index.data(RegisterIsBigRole).toBool();
-        // Big integers are assumed to be hexadecimal.
-        int base = 16;
-        if (!big) {
-            if (format == DecimalFormat || format == SignedDecimalFormat)
-                base = 10;
-            else if (format == OctalFormat)
-                base = 8;
-            else if (format == BinaryFormat)
-                base = 2;
+        if (index.column() == RegisterValueColumn) {
+            auto lineEdit = new QLineEdit(parent);
+            lineEdit->setAlignment(Qt::AlignLeft);
+            lineEdit->setFrame(false);
+            return lineEdit;
         }
-        lineEdit->setBigInt(big);
-        lineEdit->setBase(base);
-        lineEdit->setSigned(false);
-        lineEdit->setAlignment(Qt::AlignRight);
-        lineEdit->setFrame(false);
-        return lineEdit;
+        return 0;
     }
 
-    void setEditorData(QWidget *editor, const QModelIndex &index) const
+    void setEditorData(QWidget *editor, const QModelIndex &index) const override
     {
-        IntegerWatchLineEdit *lineEdit = qobject_cast<IntegerWatchLineEdit *>(editor);
+        auto lineEdit = qobject_cast<QLineEdit *>(editor);
         QTC_ASSERT(lineEdit, return);
-        lineEdit->setModelData(index.data(Qt::EditRole));
+        lineEdit->setText(index.data(Qt::EditRole).toString());
     }
 
-    void setModelData(QWidget *editor, QAbstractItemModel *,
-        const QModelIndex &index) const
+    void setModelData(QWidget *editor, QAbstractItemModel *model,
+        const QModelIndex &index) const override
     {
-        if (index.column() != 1)
-            return;
-        IntegerWatchLineEdit *lineEdit = qobject_cast<IntegerWatchLineEdit*>(editor);
-        QTC_ASSERT(lineEdit, return);
-        const RegisterFormat format = RegisterFormat(index.data(RegisterFormatRole).toInt());
-        QString value = lineEdit->text();
-        if (format == HexadecimalFormat && !value.startsWith(QLatin1String("0x")))
-            value.insert(0, QLatin1String("0x"));
-        currentEngine()->setRegisterValue(index.data(RegisterNameRole).toByteArray(), value);
+        if (index.column() == RegisterValueColumn) {
+            auto lineEdit = qobject_cast<QLineEdit *>(editor);
+            QTC_ASSERT(lineEdit, return);
+            model->setData(index, lineEdit->text(), Qt::EditRole);
+        }
     }
 
     void updateEditorGeometry(QWidget *editor, const QStyleOptionViewItem &option,
-        const QModelIndex &) const
+        const QModelIndex &) const override
     {
         editor->setGeometry(option.rect);
     }
 
     void paint(QPainter *painter, const QStyleOptionViewItem &option,
-        const QModelIndex &index) const
+        const QModelIndex &index) const override
     {
         if (index.column() == RegisterValueColumn) {
             const bool paintRed = index.data(RegisterChangedRole).toBool();

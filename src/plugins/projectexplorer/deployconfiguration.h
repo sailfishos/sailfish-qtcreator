@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,27 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
-#ifndef PROJECTEXPLORER_DEPLOYCONFIGURATION_H
-#define PROJECTEXPLORER_DEPLOYCONFIGURATION_H
+#pragma once
 
 #include "projectexplorer_export.h"
 
@@ -52,12 +46,12 @@ class PROJECTEXPLORER_EXPORT DeployConfiguration : public ProjectConfiguration
 
 public:
     // ctors are protected
-    virtual ~DeployConfiguration();
+    ~DeployConfiguration() override;
 
     BuildStepList *stepList() const;
 
-    virtual bool fromMap(const QVariantMap &map);
-    virtual QVariantMap toMap() const;
+    bool fromMap(const QVariantMap &map) override;
+    QVariantMap toMap() const override;
 
     virtual NamedWidget *createConfigWidget();
 
@@ -85,19 +79,18 @@ class PROJECTEXPLORER_EXPORT DefaultDeployConfiguration : public DeployConfigura
 {
     Q_OBJECT
     friend class DefaultDeployConfigurationFactory; // for the ctors
+
 protected:
     DefaultDeployConfiguration(Target *target, Core::Id id);
     DefaultDeployConfiguration(Target *target, DeployConfiguration *source);
 };
 
-class PROJECTEXPLORER_EXPORT DeployConfigurationFactory :
-    public QObject
+class PROJECTEXPLORER_EXPORT DeployConfigurationFactory : public QObject
 {
     Q_OBJECT
 
 public:
     explicit DeployConfigurationFactory(QObject *parent = 0);
-    virtual ~DeployConfigurationFactory();
 
     // used to show the list of possible additons to a target, returns a list of types
     virtual QList<Core::Id> availableCreationIds(Target *parent) const = 0;
@@ -123,21 +116,18 @@ signals:
 class DefaultDeployConfigurationFactory : public DeployConfigurationFactory
 {
 public:
-    QList<Core::Id> availableCreationIds(Target *parent) const;
+    QList<Core::Id> availableCreationIds(Target *parent) const override;
     // used to translate the types to names to display to the user
-    QString displayNameForId(Core::Id id) const;
-    bool canCreate(Target *parent, Core::Id id) const;
-    DeployConfiguration *create(Target *parent, Core::Id id);
-    bool canRestore(Target *parent, const QVariantMap &map) const;
-    DeployConfiguration *restore(Target *parent, const QVariantMap &map);
-    bool canClone(Target *parent, DeployConfiguration *product) const;
-    DeployConfiguration *clone(Target *parent, DeployConfiguration *product);
+    QString displayNameForId(Core::Id id) const override;
+    bool canCreate(Target *parent, Core::Id id) const override;
+    DeployConfiguration *create(Target *parent, Core::Id id) override;
+    bool canRestore(Target *parent, const QVariantMap &map) const override;
+    DeployConfiguration *restore(Target *parent, const QVariantMap &map) override;
+    bool canClone(Target *parent, DeployConfiguration *product) const override;
+    DeployConfiguration *clone(Target *parent, DeployConfiguration *product) override;
 private:
     bool canHandle(Target *parent) const;
 };
 
 } // namespace ProjectExplorer
 
-Q_DECLARE_METATYPE(ProjectExplorer::DeployConfiguration *)
-
-#endif // PROJECTEXPLORER_DEPLOYCONFIGURATION_H

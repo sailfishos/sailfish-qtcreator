@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -34,6 +29,7 @@
 #include "cppmodelmanager.h"
 #include "cppsourceprocessertesthelper.h"
 #include "cppsourceprocessor.h"
+#include "cpptoolsbridge.h"
 #include "cpptoolstestcase.h"
 #include "editordocumenthandle.h"
 
@@ -67,9 +63,9 @@ public:
     {
         QScopedPointer<CppSourceProcessor> sourceProcessor(
                     CppModelManager::createSourceProcessor());
-        const ProjectPart::HeaderPath hp(TestIncludePaths::directoryOfTestFile(),
-                                         ProjectPart::HeaderPath::IncludePath);
-        sourceProcessor->setHeaderPaths(ProjectPart::HeaderPaths() << hp);
+        const ProjectPartHeaderPath hp(TestIncludePaths::directoryOfTestFile(),
+                                       ProjectPartHeaderPath::IncludePath);
+        sourceProcessor->setHeaderPaths(ProjectPartHeaderPaths() << hp);
         sourceProcessor->run(filePath);
 
         Document::Ptr document = m_cmm->document(filePath);
@@ -135,7 +131,7 @@ void CppToolsPlugin::test_cppsourceprocessor_includes_cyclic()
 
     // Check editor snapshot
     const QString filePath = editor->document()->filePath().toString();
-    auto *processor = BaseEditorDocumentProcessor::get(filePath);
+    auto *processor = CppToolsBridge::baseEditorDocumentProcessor(filePath);
     QVERIFY(processor);
     QVERIFY(TestCase::waitForProcessedEditorDocument(filePath));
     Snapshot snapshot = processor->snapshot();
@@ -211,9 +207,9 @@ void CppToolsPlugin::test_cppsourceprocessor_includeNext()
 
     CppSourceProcessor::DocumentCallback documentCallback = [](const Document::Ptr &){};
     CppSourceProcessor sourceProcessor(Snapshot(), documentCallback);
-    ProjectPart::HeaderPaths headerPaths = ProjectPart::HeaderPaths()
-        << ProjectPart::HeaderPath(customHeaderPath, ProjectPart::HeaderPath::IncludePath)
-        << ProjectPart::HeaderPath(systemHeaderPath, ProjectPart::HeaderPath::IncludePath);
+    ProjectPartHeaderPaths headerPaths = ProjectPartHeaderPaths()
+        << ProjectPartHeaderPath(customHeaderPath, ProjectPartHeaderPath::IncludePath)
+        << ProjectPartHeaderPath(systemHeaderPath, ProjectPartHeaderPath::IncludePath);
     sourceProcessor.setHeaderPaths(headerPaths);
 
     sourceProcessor.run(mainFilePath);

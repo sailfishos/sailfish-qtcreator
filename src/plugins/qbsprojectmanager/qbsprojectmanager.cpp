@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -35,6 +30,7 @@
 #include "qbsproject.h"
 #include "qbsprojectmanagerconstants.h"
 #include "qbsprojectmanagerplugin.h"
+#include "qbsprojectmanagersettings.h"
 
 #include <coreplugin/icore.h>
 #include <coreplugin/messagemanager.h>
@@ -67,7 +63,6 @@ QbsManager *QbsManager::m_instance = 0;
 QbsManager::QbsManager() :
     m_defaultPropertyProvider(new DefaultPropertyProvider)
 {
-    m_settings = new qbs::Settings(Core::ICore::userResourcePath());
     m_instance = this;
 
     setObjectName(QLatin1String("QbsProjectManager"));
@@ -79,9 +74,11 @@ QbsManager::QbsManager() :
             &QbsManager::handleKitUpdate);
     connect(ProjectExplorer::KitManager::instance(), &ProjectExplorer::KitManager::kitRemoved, this,
             &QbsManager::handleKitRemoval);
+    connect(&QbsProjectManagerSettings::instance(), &QbsProjectManagerSettings::settingsBaseChanged,
+            this, &QbsManager::updateAllProfiles);
 
     m_logSink = new QbsLogSink(this);
-    int level = qbs::LoggerWarning;
+    int level = qbs::LoggerInfo;
     const QString levelEnv = QString::fromLocal8Bit(qgetenv("QBS_LOG_LEVEL"));
     if (!levelEnv.isEmpty()) {
         bool ok = false;
@@ -126,12 +123,12 @@ QString QbsManager::profileForKit(const ProjectExplorer::Kit *k)
     if (!k)
         return QString();
     updateProfileIfNecessary(k);
-    return m_settings->value(qtcProfilePrefix() + k->id().toString()).toString();
+    return settings()->value(qtcProfilePrefix() + k->id().toString()).toString();
 }
 
 void QbsManager::setProfileForKit(const QString &name, const ProjectExplorer::Kit *k)
 {
-    m_settings->setValue(qtcProfilePrefix() + k->id().toString(), name);
+    settings()->setValue(qtcProfilePrefix() + k->id().toString(), name);
 }
 
 void QbsManager::updateProfileIfNecessary(const ProjectExplorer::Kit *kit)
@@ -140,6 +137,22 @@ void QbsManager::updateProfileIfNecessary(const ProjectExplorer::Kit *kit)
     // Note that the const_cast is safe, as we do not call any non-const methods on the object.
     if (m_kitsToBeSetupForQbs.removeOne(const_cast<ProjectExplorer::Kit *>(kit)))
         addProfileFromKit(kit);
+}
+
+void QbsManager::updateAllProfiles()
+{
+    foreach (const auto * const kit, ProjectExplorer::KitManager::kits())
+        addProfileFromKit(kit);
+}
+
+qbs::Settings *QbsManager::settings()
+{
+    if (!m_settings
+            || m_settings->baseDirectory() != QbsProjectManagerSettings::qbsSettingsBaseDir()) {
+        delete m_settings;
+        m_settings = new qbs::Settings(QbsProjectManagerSettings::qbsSettingsBaseDir());
+    }
+    return m_settings;
 }
 
 void QbsManager::addProfile(const QString &name, const QVariantMap &data)
@@ -222,9 +235,9 @@ void QbsManager::handleKitRemoval(ProjectExplorer::Kit *kit)
 {
     m_kitsToBeSetupForQbs.removeOne(kit);
     const QString key = qtcProfilePrefix() + kit->id().toString();
-    const QString profileName = m_settings->value(key).toString();
-    m_settings->remove(key);
-    qbs::Profile(profileName, m_settings).removeProfile();
+    const QString profileName = settings()->value(key).toString();
+    settings()->remove(key);
+    qbs::Profile(profileName, settings()).removeProfile();
 }
 
 } // namespace Internal

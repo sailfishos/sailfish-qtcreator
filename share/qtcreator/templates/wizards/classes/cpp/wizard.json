@@ -1,6 +1,6 @@
 {
     "version": 1,
-    "kind": "file",
+    "supportedProjectTypes": [ ],
     "id": "A.Class",
     "category": "O.C++",
     "trDescription": "Creates a C++ header and a source file for a new class that you can add to a C++ project.",
@@ -34,7 +34,7 @@
                     "trDisplayName": "Class name:",
                     "mandatory": true,
                     "type": "LineEdit",
-                    "data": { "validator": "(?:(?:[a-zA-Z_][a-zA-Z_0-9]*::)+[a-zA-Z_][a-zA-Z_0-9]*|)" }
+                    "data": { "validator": "(?:(?:[a-zA-Z_][a-zA-Z_0-9]*::)*[a-zA-Z_][a-zA-Z_0-9]*|)" }
                 },
                 {
                     "name": "BaseCB",
@@ -179,12 +179,20 @@
                 {
                     "source": "file.h",
                     "target": "%{HdrPath}",
-                    "openInEditor": true
+                    "openInEditor": true,
+                    "options": [
+                        { "key": "Cpp:License:FileName", "value": "%{HdrFileName}" },
+                        { "key": "Cpp:License:ClassName", "value": "%{CN}" }
+                    ]
                 },
                 {
                     "source": "file.cpp",
                     "target": "%{SrcPath}",
-                    "openInEditor": true
+                    "openInEditor": true,
+                    "options": [
+                        { "key": "Cpp:License:FileName", "value": "%{SrcFileName}" },
+                        { "key": "Cpp:License:ClassName", "value": "%{CN}" }
+                    ]
                 }
             ]
         }

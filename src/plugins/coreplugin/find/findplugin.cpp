@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -48,6 +43,7 @@
 
 #include <extensionsystem/pluginmanager.h>
 
+#include <utils/algorithm.h>
 #include <utils/qtcassert.h>
 
 #include <QMenu>
@@ -143,7 +139,7 @@ void FindPlugin::initialize(const QStringList &, QString *)
     d->m_findDialog = new Internal::FindToolWindow(this);
     d->m_searchResultWindow = new SearchResultWindow(d->m_findDialog);
     ExtensionSystem::PluginManager::addObject(d->m_searchResultWindow);
-    connect(ICore::instance(), SIGNAL(saveSettingsRequested()), this, SLOT(writeSettings()));
+    connect(ICore::instance(), &ICore::saveSettingsRequested, this, &FindPlugin::writeSettings);
 }
 
 void FindPlugin::extensionsInitialized()
@@ -174,6 +170,16 @@ void FindPlugin::filterChanged()
         }
     }
     d->m_openFindDialog->setEnabled(haveEnabledFilters);
+}
+
+void FindPlugin::displayNameChanged()
+{
+    IFindFilter *changedFilter = qobject_cast<IFindFilter *>(sender());
+    QAction *action = d->m_filterActions.value(changedFilter);
+    QTC_ASSERT(changedFilter, return);
+    QTC_ASSERT(action, return);
+    action->setText(QLatin1String("    ") + changedFilter->displayName());
+    d->m_findDialog->updateFindFilterNames();
 }
 
 void FindPlugin::openFindFilter()
@@ -224,15 +230,17 @@ void FindPlugin::setupMenu()
 
 void FindPlugin::setupFilterMenuItems()
 {
-    QList<IFindFilter*> findInterfaces =
-        ExtensionSystem::PluginManager::getObjects<IFindFilter>();
+    QList<IFindFilter*> findInterfaces = ExtensionSystem::PluginManager::getObjects<IFindFilter>();
     Command *cmd;
 
     ActionContainer *mfindadvanced = ActionManager::actionContainer(Constants::M_FIND_ADVANCED);
     d->m_filterActions.clear();
     bool haveEnabledFilters = false;
     const Id base("FindFilter.");
-    foreach (IFindFilter *filter, findInterfaces) {
+    QList<IFindFilter *> sortedFilters = findInterfaces;
+    Utils::sort(sortedFilters, [](IFindFilter *a, IFindFilter *b) -> bool
+        { return a->displayName() < b->displayName(); });
+    foreach (IFindFilter *filter, sortedFilters) {
         QAction *action = new QAction(QLatin1String("    ") + filter->displayName(), this);
         bool isEnabled = filter->isEnabled();
         if (isEnabled)
@@ -241,12 +249,14 @@ void FindPlugin::setupFilterMenuItems()
         action->setData(qVariantFromValue(filter));
         cmd = ActionManager::registerAction(action, base.withSuffix(filter->id()));
         cmd->setDefaultKeySequence(filter->defaultShortcut());
+        cmd->setAttribute(Command::CA_UpdateText);
         mfindadvanced->addAction(cmd);
         d->m_filterActions.insert(filter, action);
         connect(action, &QAction::triggered, this, &FindPlugin::openFindFilter);
         connect(filter, &IFindFilter::enabledChanged, this, &FindPlugin::filterChanged);
+        connect(filter, &IFindFilter::displayNameChanged, this, &FindPlugin::displayNameChanged);
     }
-    d->m_findDialog->setFindFilters(findInterfaces);
+    d->m_findDialog->setFindFilters(sortedFilters);
     d->m_openFindDialog->setEnabled(haveEnabledFilters);
 }
 

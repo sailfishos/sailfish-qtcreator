@@ -2,7 +2,7 @@
 # in case MS VS compilers are used.
 
 CDB_PATH=""
-win32-msvc*|winrt {
+msvc {
     CDB_PATH="$$(CDB_PATH)"
     isEmpty(CDB_PATH):CDB_PATH="$$(ProgramFiles)/Debugging Tools For Windows/sdk"
     !exists($$CDB_PATH):CDB_PATH="$$(ProgramFiles)/Debugging Tools For Windows (x86)/sdk"
@@ -16,8 +16,10 @@ win32-msvc*|winrt {
 #   32bit qmake:
     !exists($$CDB_PATH):CDB_PATH="$$(ProgramFiles)/Windows Kits/8.0/Debuggers"
     !exists($$CDB_PATH):CDB_PATH="$$(ProgramFiles)/Windows Kits/8.1/Debuggers"
+    !exists($$CDB_PATH):CDB_PATH="$$(ProgramFiles)/Windows Kits/10/Debuggers"
 #   64bit qmake:
     !exists($$CDB_PATH/inc):CDB_PATH="$$(ProgramFiles) (x86)/Windows Kits/8.0/Debuggers"
     !exists($$CDB_PATH/inc):CDB_PATH="$$(ProgramFiles) (x86)/Windows Kits/8.1/Debuggers"
+    !exists($$CDB_PATH/inc):CDB_PATH="$$(ProgramFiles) (x86)/Windows Kits/10/Debuggers"
     !exists($$CDB_PATH/inc):CDB_PATH=""
 }

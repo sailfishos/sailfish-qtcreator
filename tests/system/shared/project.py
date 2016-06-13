@@ -1,32 +1,27 @@
-#############################################################################
-##
-## Copyright (C) 2015 The Qt Company Ltd.
-## Contact: http://www.qt.io/licensing
-##
-## This file is part of Qt Creator.
-##
-## Commercial License Usage
-## Licensees holding valid commercial Qt licenses may use this file in
-## accordance with the commercial license agreement provided with the
-## Software or, alternatively, in accordance with the terms contained in
-## a written agreement between you and The Qt Company.  For licensing terms and
-## conditions see http://www.qt.io/terms-conditions.  For further information
-## use the contact form at http://www.qt.io/contact-us.
-##
-## GNU Lesser General Public License Usage
-## Alternatively, this file may be used under the terms of the GNU Lesser
-## General Public License version 2.1 or version 3 as published by the Free
-## Software Foundation and appearing in the file LICENSE.LGPLv21 and
-## LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-## following information to ensure the GNU Lesser General Public License
-## requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-## http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-##
-## In addition, as a special exception, The Qt Company gives you certain additional
-## rights.  These rights are described in The Qt Company LGPL Exception
-## version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
-##
-#############################################################################
+############################################################################
+#
+# Copyright (C) 2016 The Qt Company Ltd.
+# Contact: https://www.qt.io/licensing/
+#
+# This file is part of Qt Creator.
+#
+# Commercial License Usage
+# Licensees holding valid commercial Qt licenses may use this file in
+# accordance with the commercial license agreement provided with the
+# Software or, alternatively, in accordance with the terms contained in
+# a written agreement between you and The Qt Company. For licensing terms
+# and conditions see https://www.qt.io/terms-conditions. For further
+# information use the contact form at https://www.qt.io/contact-us.
+#
+# GNU General Public License Usage
+# Alternatively, this file may be used under the terms of the GNU
+# General Public License version 3 as published by the Free Software
+# Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+# included in the packaging of this file. Please review the following
+# information to ensure the GNU General Public License requirements will
+# be met: https://www.gnu.org/licenses/gpl-3.0.html.
+#
+############################################################################
 
 import __builtin__
 import re
@@ -39,10 +34,7 @@ def openQbsProject(projectPath):
 def openQmakeProject(projectPath, targets=Targets.desktopTargetClasses(), fromWelcome=False):
     cleanUpUserFiles(projectPath)
     if fromWelcome:
-        if isQt54Build:
-            welcomePage = ":WelcomePageStyledBar.WelcomePage_QQuickView"
-        else:
-            welcomePage = ":Qt Creator.WelcomePage_QQuickWidget"
+        welcomePage = ":Qt Creator.WelcomePage_QQuickWidget"
         mouseClick(waitForObject("{clip='false' container='%s' enabled='true' text='Open Project' "
                                  "type='Button' unnamed='1' visible='true'}" % welcomePage),
                    5, 5, 0, Qt.LeftButton)
@@ -64,34 +56,26 @@ def openQmakeProject(projectPath, targets=Targets.desktopTargetClasses(), fromWe
     return checkedTargets
 
 def openCmakeProject(projectPath, buildDir):
+    def additionalFunction():
+        pChooser = waitForObject("{leftWidget={text='Default' type='QCheckBox' unnamed='1' "
+                                 "visible='1'} type='Utils::PathChooser' unnamed='1' visible='1'}")
+        lineEdit = getChildByClass(pChooser, "Utils::FancyLineEdit")
+        replaceEditorContent(lineEdit, buildDir)
+        # disable all build configurations except "Default"
+        configs = ['Debug', 'Release', 'Release with Debug Information', 'Minimum Size Release']
+        for checkbox in configs:
+            ensureChecked(waitForObject("{text='%s' type='QCheckBox' unnamed='1' visible='1' "
+                                        "window=':Qt Creator_Core::Internal::MainWindow'}"
+                                        % checkbox), False)
+        ensureChecked(waitForObject("{text='Default' type='QCheckBox' unnamed='1' visible='1' "
+                      "window=':Qt Creator_Core::Internal::MainWindow'}"), True)
+
     invokeMenuItem("File", "Open File or Project...")
     selectFromFileDialog(projectPath)
-    replaceEditorContent("{type='Utils::FancyLineEdit' unnamed='1' visible='1'"
-                         "window=':CMake Wizard_CMakeProjectManager::Internal::CMakeOpenProjectWizard'}", buildDir)
-    clickButton(waitForObject(":CMake Wizard.Next_QPushButton"))
-    return __handleCmakeWizardPage__()
-
-def __handleCmakeWizardPage__():
-    generatorCombo = waitForObject(":Generator:_QComboBox")
-    generatorText = "Unix Generator (Desktop 480 GCC)"
-    if platform.system() in ('Windows', 'Microsoft'):
-        generatorText = "NMake Generator (Desktop 480 MSVC2010)"
-    index = generatorCombo.findText(generatorText)
-    if index == -1:
-        test.warning("No matching CMake generator for found.")
-    else:
-        generatorCombo.setCurrentIndex(index)
-
-    clickButton(waitForObject(":CMake Wizard.Run CMake_QPushButton"))
-    try:
-        clickButton(waitForObject(":CMake Wizard.Finish_QPushButton", 60000))
-    except LookupError:
-        cmakeOutput = waitForObject("{type='QPlainTextEdit' unnamed='1' visible='1' "
-                                    "window=':CMake Wizard_CMakeProjectManager::Internal::CMakeOpenProjectWizard'}")
-        test.warning("Error while executing cmake - see details for cmake output.",
-                     str(cmakeOutput.plainText))
-        clickButton(waitForObject(":CMake Wizard.Cancel_QPushButton"))
-        return False
+    __chooseTargets__(0) # uncheck all
+    __chooseTargets__(Targets.DESKTOP_480_DEFAULT, additionalFunc=additionalFunction)
+    clickButton(waitForObject("{text='Configure Project' type='QPushButton' unnamed='1' visible='1'"
+                              "window=':Qt Creator_Core::Internal::MainWindow'}"))
     return True
 
 # this function returns a list of available targets - this is not 100% error proof
@@ -100,10 +84,7 @@ def __handleCmakeWizardPage__():
 # this list can be used in __chooseTargets__()
 def __createProjectOrFileSelectType__(category, template, fromWelcome = False, isProject=True):
     if fromWelcome:
-        if isQt54Build:
-            welcomePage = ":WelcomePageStyledBar.WelcomePage_QQuickView"
-        else:
-            welcomePage = ":Qt Creator.WelcomePage_QQuickWidget"
+        welcomePage = ":Qt Creator.WelcomePage_QQuickWidget"
         mouseClick(waitForObject("{clip='false' container='%s' enabled='true' text='New Project' "
                                  "type='Button' unnamed='1' visible='true'}" % welcomePage),
                    5, 5, 0, Qt.LeftButton)
@@ -174,8 +155,8 @@ def __selectQtVersionDesktop__(checks, available=None):
     clickButton(waitForObject(":Next_QPushButton"))
     return checkedTargets
 
-def __createProjectHandleLastPage__(expectedFiles = None, addToVersionControl = "<None>", addToProject = None):
-    if expectedFiles != None:
+def __createProjectHandleLastPage__(expectedFiles=[], addToVersionControl="<None>", addToProject=None):
+    if len(expectedFiles):
         summary = waitForObject("{name='filesLabel' text?='<qt>Files to be added in<pre>*</pre>' "
                                 "type='QLabel' visible='1'}").text
         verifyItemOrder(expectedFiles, summary)
@@ -241,7 +222,7 @@ def createProject_Qt_GUI(path, projectName, checks = True, addToVersionControl =
 
     clickButton(waitForObject(":Next_QPushButton"))
 
-    expectedFiles = None
+    expectedFiles = []
     if checks:
         if platform.system() in ('Windows', 'Microsoft'):
             path = os.path.abspath(path)
@@ -264,7 +245,7 @@ def createProject_Qt_Console(path, projectName, checks = True):
     __createProjectSetNameAndPath__(path, projectName, checks)
     checkedTargets = __selectQtVersionDesktop__(checks, available)
 
-    expectedFiles = None
+    expectedFiles = []
     if checks:
         if platform.system() in ('Windows', 'Microsoft'):
             path = os.path.abspath(path)
@@ -409,7 +390,10 @@ def createNewQtPlugin(projectDir=None, projectName=None, className=None, fromWel
 # parameter target can be an OR'd value of Targets
 # parameter availableTargets should be the result of __createProjectOrFileSelectType__()
 #           or use None as a fallback
-def __chooseTargets__(targets=Targets.DESKTOP_474_GCC, availableTargets=None):
+# parameter additionalFunc function to be executed inside the detailed view of each chosen kit
+#           if present, 'Details' button will be clicked, function will be executed,
+#           'Details' button will be clicked again
+def __chooseTargets__(targets=Targets.DESKTOP_474_GCC, availableTargets=None, additionalFunc=None):
     if availableTargets != None:
         available = availableTargets
     else:
@@ -425,8 +409,19 @@ def __chooseTargets__(targets=Targets.DESKTOP_474_GCC, availableTargets=None):
         try:
             ensureChecked("{type='QCheckBox' text='%s' visible='1'}" % Targets.getStringForTarget(current),
                           mustCheck, 3000)
-            if (mustCheck):
+            if mustCheck:
                 checkedTargets.append(current)
+
+                # perform additional function on detailed kits view
+                if additionalFunc:
+                    detailsWidget = waitForObject("{type='Utils::DetailsWidget' unnamed='1' "
+                                                  "window=':Qt Creator_Core::Internal::MainWindow' "
+                                                  "toolTip?='<html><body><h3>%s</h3>*' visible='1'}"
+                                                  % Targets.getStringForTarget(current))
+                    detailsButton = getChildByClass(detailsWidget, "Utils::DetailsButton")
+                    clickButton(detailsButton)
+                    additionalFunc()
+                    clickButton(detailsButton)
         except LookupError:
             if mustCheck:
                 test.fail("Failed to check target '%s'." % Targets.getStringForTarget(current))
@@ -662,13 +657,16 @@ def __getSupportedPlatforms__(text, templateName, getAsStrings=False):
     return result, version
 
 # copy example project (sourceExample is path to project) to temporary directory inside repository
-def prepareTemplate(sourceExample):
+def prepareTemplate(sourceExample, deploymentDir=None):
     templateDir = os.path.abspath(tempDir() + "/template")
     try:
         shutil.copytree(sourceExample, templateDir)
     except:
         test.fatal("Error while copying '%s' to '%s'" % (sourceExample, templateDir))
         return None
+    if deploymentDir:
+        shutil.copytree(os.path.abspath(sourceExample + deploymentDir),
+                        os.path.abspath(templateDir + deploymentDir))
     return templateDir
 
 # check and copy files of given dataset to an existing templateDir
@@ -691,7 +689,7 @@ def copyFilesToDir(files, targetDir):
     return result
 
 def __sortFilenamesOSDependent__(filenames):
-    if platform.system() in ('Windows', 'Microsoft'):
+    if platform.system() in ('Windows', 'Microsoft', 'Darwin'):
         filenames.sort(key=str.lower)
     else:
         filenames.sort()
@@ -734,22 +732,54 @@ def compareProjectTree(rootObject, dataset):
             return
     test.passes("No errors found in project tree")
 
-def addCPlusPlusFileToCurrentProject(name, template, forceOverwrite=False, addToVCS = "<None>"):
+# creates C++ file(s) and adds them to the current project if one is open
+# name                  name of the created object: filename for files, classname for classes
+# template              "C++ Class", "C++ Header File" or "C++ Source File"
+# forceOverwrite        bool: force overwriting existing files?
+# addToVCS              name of VCS to add the file(s) to
+# newBasePath           path to create the file(s) at
+# expectedSourceName    expected name of created source file
+# expectedHeaderName    expected name of created header file
+def addCPlusPlusFileToCurrentProject(name, template, forceOverwrite=False, addToVCS="<None>",
+                                     newBasePath=None, expectedSourceName=None, expectedHeaderName=None):
     if name == None:
         test.fatal("File must have a name - got None.")
         return
     __createProjectOrFileSelectType__("  C++", template, isProject=False)
     window = "{type='ProjectExplorer::JsonWizard' unnamed='1' visible='1'}"
-    basePath = str(waitForObject("{type='Utils::FancyLineEdit' unnamed='1' visible='1' "
-                                 "window=%s}" % window).text)
-    lineEdit = waitForObject("{name='nameLineEdit' type='Utils::FileNameValidatingLineEdit' "
-                             "visible='1' window=%s}" % window)
+    basePathEdit = waitForObject("{type='Utils::FancyLineEdit' unnamed='1' visible='1' "
+                                 "window=%s}" % window)
+    if newBasePath:
+        replaceEditorContent(basePathEdit, newBasePath)
+    basePath = str(basePathEdit.text)
+    lineEdit = None
+    if template == "C++ Class":
+        lineEdit = waitForObject("{name='Class' type='QLineEdit' visible='1'}")
+    else:
+        lineEdit = waitForObject("{name='nameLineEdit' type='Utils::FileNameValidatingLineEdit' "
+                                 "visible='1' window=%s}" % window)
     replaceEditorContent(lineEdit, name)
+    expectedFiles = []
+    if expectedSourceName:
+        expectedFiles += [expectedSourceName]
+        if template == "C++ Class":
+            test.compare(str(waitForObject("{name='SrcFileName' type='QLineEdit' visible='1'}").text),
+                         expectedSourceName)
+    if expectedHeaderName:
+        expectedFiles += [expectedHeaderName]
+        if template == "C++ Class":
+            test.compare(str(waitForObject("{name='HdrFileName' type='QLineEdit' visible='1'}").text),
+                         expectedHeaderName)
     clickButton(waitForObject(":Next_QPushButton"))
-    fileExistedBefore = os.path.exists(os.path.join(basePath, name))
-    __createProjectHandleLastPage__(addToVersionControl = addToVCS)
+    fileExistedBefore = False
+    if template == "C++ Class":
+        fileExistedBefore = (os.path.exists(os.path.join(basePath, name.lower() + ".cpp"))
+                             or os.path.exists(os.path.join(basePath, name.lower() + ".h")))
+    else:
+        fileExistedBefore = os.path.exists(os.path.join(basePath, name))
+    __createProjectHandleLastPage__(expectedFiles, addToVersionControl=addToVCS)
     if (fileExistedBefore):
-        overwriteDialog = "{type='Core::Internal::PromptOverwriteDialog' unnamed='1' visible='1'}"
+        overwriteDialog = "{type='Core::PromptOverwriteDialog' unnamed='1' visible='1'}"
         waitForObject(overwriteDialog)
         if forceOverwrite:
             buttonToClick = 'OK'

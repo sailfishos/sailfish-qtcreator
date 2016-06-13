@@ -1,14 +1,16 @@
 <RCC>
-    <qresource prefix="/help" >
+    <qresource prefix="/help">
         <file>images/find.png</file>
         <file>images/book.png</file>
-        <file>images/previous.png</file>
-        <file>images/next.png</file>
         <file>images/home.png</file>
+        <file>images/home@2x.png</file>
         <file>images/bookmark.png</file>
+        <file>images/bookmark@2x.png</file>
         <file>images/category_help.png</file>
         <file>images/mode_help.png</file>
         <file>images/mode_help@2x.png</file>
+        <file>images/mode_help_mask.png</file>
+        <file>images/mode_help_mask@2x.png</file>
     </qresource>
     <qresource prefix="/trolltech/assistant" >
         <file>images/mac/addtab.png</file>

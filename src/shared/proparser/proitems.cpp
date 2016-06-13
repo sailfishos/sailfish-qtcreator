@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -156,6 +151,18 @@ QString &ProString::toQString(QString &tmp) const
     return tmp.setRawData(m_string.constData() + m_offset, m_length);
 }
 
+/*!
+ * \brief ProString::prepareExtend
+ * \param extraLen number of new characters to be added
+ * \param thisTarget offset to which current contents should be moved
+ * \param extraTarget offset at which new characters will be added
+ * \return pointer to storage location for new characters
+ *
+ * Prepares the string for adding new characters.
+ * If the string is detached and has enough space, it will be changed in place.
+ * Otherwise, it will be replaced with a new string object, thus detaching.
+ * In either case, the hash will be reset.
+ */
 QChar *ProString::prepareExtend(int extraLen, int thisTarget, int extraTarget)
 {
     if (m_string.isDetached() && m_length + extraLen <= m_string.capacity()) {
@@ -379,6 +386,20 @@ void ProStringList::removeAll(const char *str)
             remove(i);
 }
 
+void ProStringList::removeEach(const ProStringList &value)
+{
+    foreach (const ProString &str, value)
+        if (!str.isEmpty())
+            removeAll(str);
+}
+
+void ProStringList::removeEmpty()
+{
+    for (int i = size(); --i >= 0;)
+        if (at(i).isEmpty())
+            remove(i);
+}
+
 void ProStringList::removeDuplicates()
 {
     int n = size();
@@ -398,6 +419,13 @@ void ProStringList::removeDuplicates()
         erase(begin() + j, end());
 }
 
+void ProStringList::insertUnique(const ProStringList &value)
+{
+    foreach (const ProString &str, value)
+        if (!str.isEmpty() && !contains(str))
+            append(str);
+}
+
 ProStringList::ProStringList(const QStringList &list)
 {
     reserve(list.size());
@@ -409,8 +437,8 @@ QStringList ProStringList::toQStringList() const
 {
     QStringList ret;
     ret.reserve(size());
-    foreach (const ProString &str, *this)
-        ret << str.toQString();
+    for (int i = 0; i < size(); i++) // foreach causes MSVC2010 ICE
+        ret << at(i).toQString();
     return ret;
 }
 
@@ -443,6 +471,25 @@ ProFile::ProFile(const QString &fileName)
 
 ProFile::~ProFile()
 {
+}
+
+ProString ProFile::getStr(const ushort *&tPtr)
+{
+    uint len = *tPtr++;
+    ProString ret(items(), tPtr - tokPtr(), len);
+    ret.setSource(this);
+    tPtr += len;
+    return ret;
+}
+
+ProKey ProFile::getHashStr(const ushort *&tPtr)
+{
+    uint hash = *tPtr++;
+    hash |= (uint)*tPtr++ << 16;
+    uint len = *tPtr++;
+    ProKey ret(items(), tPtr - tokPtr(), len, hash);
+    tPtr += len;
+    return ret;
 }
 
 QT_END_NAMESPACE

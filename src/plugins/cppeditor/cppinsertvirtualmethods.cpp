@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,29 +9,24 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
 #include "cppinsertvirtualmethods.h"
 #include "cppquickfixassistant.h"
 
-#include <coreplugin/coreconstants.h>
+#include <coreplugin/coreicons.h>
 #include <coreplugin/icore.h>
 #include <cpptools/cppcodestylesettings.h>
 #include <cpptools/cpptoolsreuse.h>
@@ -52,6 +47,7 @@
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QGroupBox>
+#include <QLineEdit>
 #include <QPointer>
 #include <QQueue>
 #include <QSortFilterProxyModel>
@@ -120,6 +116,7 @@ private:
 
 private:
     QTreeView *m_view;
+    QLineEdit *m_filter;
     QCheckBox *m_hideReimplementedFunctions;
     QComboBox *m_insertMode;
     QCheckBox *m_virtualKeyword;
@@ -564,15 +561,15 @@ public:
 
         // Determine base classes
         QList<const Class *> baseClasses;
-        QQueue<LookupScope *> baseClassQueue;
-        QSet<LookupScope *> visitedBaseClasses;
-        if (LookupScope *clazz = interface.context().lookupType(m_classAST->symbol))
+        QQueue<ClassOrNamespace *> baseClassQueue;
+        QSet<ClassOrNamespace *> visitedBaseClasses;
+        if (ClassOrNamespace *clazz = interface.context().lookupType(m_classAST->symbol))
             baseClassQueue.enqueue(clazz);
         while (!baseClassQueue.isEmpty()) {
-            LookupScope *clazz = baseClassQueue.dequeue();
+            ClassOrNamespace *clazz = baseClassQueue.dequeue();
             visitedBaseClasses.insert(clazz);
-            const QList<LookupScope *> bases = clazz->usings();
-            foreach (LookupScope *baseClass, bases) {
+            const QList<ClassOrNamespace *> bases = clazz->usings();
+            foreach (ClassOrNamespace *baseClass, bases) {
                 foreach (Symbol *symbol, baseClass->symbols()) {
                     Class *base = symbol->asClass();
                     if (base
@@ -766,7 +763,7 @@ public:
         const LookupContext targetContext(headerFile->cppDocument(), snapshot());
 
         const Class *targetClass = m_classAST->symbol;
-        LookupScope *targetCoN = targetContext.lookupType(targetClass->enclosingScope());
+        ClassOrNamespace *targetCoN = targetContext.lookupType(targetClass->enclosingScope());
         if (!targetCoN)
             targetCoN = targetContext.globalNamespace();
         UseMinimalNames useMinimalNames(targetCoN);
@@ -863,7 +860,7 @@ public:
             implementationDoc->translationUnit()->getPosition(insertPos, &line, &column);
             Scope *targetScope = implementationDoc->scopeAt(line, column);
             const LookupContext targetContext(implementationDoc, snapshot());
-            LookupScope *targetCoN = targetContext.lookupType(targetScope);
+            ClassOrNamespace *targetCoN = targetContext.lookupType(targetScope);
             if (!targetCoN)
                 targetCoN = targetContext.globalNamespace();
 
@@ -935,6 +932,8 @@ public:
             return false;
         }
 
+        if (!QSortFilterProxyModel::filterAcceptsRow(sourceRow, sourceParent))
+            return false;
         if (m_hideReimplemented)
             return !index.data(InsertVirtualMethodsDialog::Reimplemented).toBool();
         return true;
@@ -958,6 +957,7 @@ private:
 InsertVirtualMethodsDialog::InsertVirtualMethodsDialog(QWidget *parent)
     : QDialog(parent)
     , m_view(0)
+    , m_filter(0)
     , m_hideReimplementedFunctions(0)
     , m_insertMode(0)
     , m_virtualKeyword(0)
@@ -972,6 +972,7 @@ InsertVirtualMethodsDialog::InsertVirtualMethodsDialog(QWidget *parent)
     , classFunctionFilterModel(new InsertVirtualMethodsFilterModel(this))
 {
     classFunctionFilterModel->setSourceModel(classFunctionModel);
+    classFunctionFilterModel->setFilterCaseSensitivity(Qt::CaseInsensitive);
 }
 
 InsertVirtualMethodsDialog::~InsertVirtualMethodsDialog()
@@ -990,6 +991,10 @@ void InsertVirtualMethodsDialog::initGui()
     // View
     QGroupBox *groupBoxView = new QGroupBox(tr("&Functions to insert:"), this);
     QVBoxLayout *groupBoxViewLayout = new QVBoxLayout(groupBoxView);
+    m_filter = new QLineEdit(this);
+    m_filter->setClearButtonEnabled(true);
+    m_filter->setPlaceholderText(tr("Filter"));
+    groupBoxViewLayout->addWidget(m_filter);
     m_view = new QTreeView(this);
     m_view->setEditTriggers(QAbstractItemView::NoEditTriggers);
     m_view->setHeaderHidden(true);
@@ -1018,7 +1023,7 @@ void InsertVirtualMethodsDialog::initGui()
             m_overrideReplacementComboBox, &QComboBox::setEnabled);
 
     QAction *clearUserAddedReplacements = new QAction(this);
-    clearUserAddedReplacements->setIcon(QIcon(QLatin1String(Core::Constants::ICON_CLEAN_PANE)));
+    clearUserAddedReplacements->setIcon(Core::Icons::CLEAN_PANE.icon());
     clearUserAddedReplacements->setText(tr("Clear Added \"override\" Equivalents"));
     connect(clearUserAddedReplacements, &QAction::triggered, [this]() {
        m_availableOverrideReplacements = defaultOverrideReplacements();
@@ -1055,11 +1060,14 @@ void InsertVirtualMethodsDialog::initGui()
 
     connect(m_hideReimplementedFunctions, SIGNAL(toggled(bool)),
             this, SLOT(setHideReimplementedFunctions(bool)));
+    connect(m_filter, &QLineEdit::textChanged,
+            classFunctionFilterModel, &QSortFilterProxyModel::setFilterWildcard);
 }
 
 void InsertVirtualMethodsDialog::initData()
 {
     m_settings->read();
+    m_filter->clear();
     m_hideReimplementedFunctions->setChecked(m_settings->hideReimplementedFunctions);
     const QStringList alwaysPresentReplacements = defaultOverrideReplacements();
     m_availableOverrideReplacements = alwaysPresentReplacements;
@@ -1121,6 +1129,7 @@ bool InsertVirtualMethodsDialog::gather()
 {
     initGui();
     initData();
+    m_filter->setFocus();
 
     // Expand the dialog a little bit
     adjustSize();

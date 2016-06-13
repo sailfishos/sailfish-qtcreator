@@ -15,7 +15,8 @@
 
 #include <QtPlugin>
 
-using namespace Example::Internal;
+namespace Example {
+namespace Internal {
 
 ExamplePlugin::ExamplePlugin()
 {
@@ -41,11 +42,11 @@ bool ExamplePlugin::initialize(const QStringList &arguments, QString *errorStrin
     Q_UNUSED(errorString)
 
 //! [add action]
-    QAction *action = new QAction(tr("Example action"), this);
+    QAction *action = new QAction(tr("Example Action"), this);
     Core::Command *cmd = Core::ActionManager::registerAction(action, Constants::ACTION_ID,
                                             Core::Context(Core::Constants::C_GLOBAL));
     cmd->setDefaultKeySequence(QKeySequence(tr("Ctrl+Alt+Meta+A")));
-    connect(action, SIGNAL(triggered()), this, SLOT(triggerAction()));
+    connect(action, &QAction::triggered, this, &ExamplePlugin::triggerAction);
 //! [add action]
 //! [add menu]
     Core::ActionContainer *menu = Core::ActionManager::createMenu(Constants::MENU_ID);
@@ -76,7 +77,10 @@ ExtensionSystem::IPlugin::ShutdownFlag ExamplePlugin::aboutToShutdown()
 void ExamplePlugin::triggerAction()
 {
     QMessageBox::information(Core::ICore::mainWindow(),
-                             tr("Action triggered"),
+                             tr("Action Triggered"),
                              tr("This is an action from Example."));
 }
 //! [slot implementation]
+
+} // namespace Internal
+} // namespace Example

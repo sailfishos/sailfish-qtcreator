@@ -49,6 +49,8 @@ Editing
 Project Management
 
 * Fixed issues with restoring project tree state (QTCREATORBUG-14304)
+* Fixed crash when application output contains incomplete control
+  sequence (QTCREATORBUG-14720)
 
 CMake Projects
 
@@ -66,6 +68,13 @@ QML-Only Projects (.qmlproject)
 
 * Re-enabled the plugin by default
 
+Autotools Projects
+
+* Improved parsing of `CPPFLAGS`
+* Added support for line continuations
+* Added support for `top_srcdir`, `abs_top_srcdir`, `top_builddir` and
+  `abs_top_builddir`
+
 Debugging
 
 * Added dumper for `QJsonValue`, `QJsonObject`, `QJsonArray`, `QUuid`
@@ -74,6 +83,8 @@ Debugging
 * Fixed display of `QHash` keys with value 0 (QTCREATORBUG-14451)
 * Fixed variable expansion state in QML debugger
 * Fixed display of members of returned values
+* Fixed that items in Locals and Expressions did not expand on first
+  click for QML (QTCREATORBUG-14210)
 
 QML Profiler
 
@@ -182,55 +193,55 @@ BareMetal
 
 * Fixed processing of additional OpenOCD arguments
 
-Credits for these changes go to:
-Alessandro Portale
-André Pönitz
-Alexander Drozdov
-Alexander Izmailov
-Arnold Dumas
-Benjamin Zeller
-BogDan Vatra
-Christian Kandeler
-Christian Stenger
-Cristian Adam
-Daniel Teske
-David Schulz
-Denis Kormalev
-Eike Ziller
-Erik Verbruggen
-Finn Brudal
-Friedemann Kleint
-Hugues Delorme
-Jack Andersen
-Jarek Kobus
-Jochen Becher
-Jörg Bornemann
-Johannes Lorenz
-Kai Köhne
-Knut Petter Svendsen
-Kudryavtsev Alexander
-Leena Miettinen
-Libor Tomsik
-Lorenz Haas
-Lukas Holecek
-Marcel Krems
-Marco Benelli
-Marco Bubke
-Montel Laurent
-Nikita Baryshnikov
-Nikita Kniazev
-Nikolai Kosjar
-Olivier Goffart
-Orgad Shaneh
-Ray Donnelly
-Robert Löhning
-Stanislav Ionascu
-Sune Vuorela
-Takumi ASAKI
-Tasuku Suzuki
-Thiago Macieira
-Thomas Hartmann
-Thorben Kroeger
-Tim Jenssen
-Tobias Hunger
-Ulf Hermann
+Credits for these changes go to:  
+Alessandro Portale  
+André Pönitz  
+Alexander Drozdov  
+Alexander Izmailov  
+Arnold Dumas  
+Benjamin Zeller  
+BogDan Vatra  
+Christian Kandeler  
+Christian Stenger  
+Cristian Adam  
+Daniel Teske  
+David Schulz  
+Denis Kormalev  
+Eike Ziller  
+Erik Verbruggen  
+Finn Brudal  
+Friedemann Kleint  
+Hugues Delorme  
+Jack Andersen  
+Jarek Kobus  
+Jochen Becher  
+Jörg Bornemann  
+Johannes Lorenz  
+Kai Köhne  
+Knut Petter Svendsen  
+Kudryavtsev Alexander  
+Leena Miettinen  
+Libor Tomsik  
+Lorenz Haas  
+Lukas Holecek  
+Marcel Krems  
+Marco Benelli  
+Marco Bubke  
+Montel Laurent  
+Nikita Baryshnikov  
+Nikita Kniazev  
+Nikolai Kosjar  
+Olivier Goffart  
+Orgad Shaneh  
+Ray Donnelly  
+Robert Löhning  
+Stanislav Ionascu  
+Sune Vuorela  
+Takumi ASAKI  
+Tasuku Suzuki  
+Thiago Macieira  
+Thomas Hartmann  
+Thorben Kroeger  
+Tim Jenssen  
+Tobias Hunger  
+Ulf Hermann  

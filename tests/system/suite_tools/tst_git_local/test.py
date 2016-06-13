@@ -1,32 +1,27 @@
-#############################################################################
-##
-## Copyright (C) 2015 The Qt Company Ltd.
-## Contact: http://www.qt.io/licensing
-##
-## This file is part of Qt Creator.
-##
-## Commercial License Usage
-## Licensees holding valid commercial Qt licenses may use this file in
-## accordance with the commercial license agreement provided with the
-## Software or, alternatively, in accordance with the terms contained in
-## a written agreement between you and The Qt Company.  For licensing terms and
-## conditions see http://www.qt.io/terms-conditions.  For further information
-## use the contact form at http://www.qt.io/contact-us.
-##
-## GNU Lesser General Public License Usage
-## Alternatively, this file may be used under the terms of the GNU Lesser
-## General Public License version 2.1 or version 3 as published by the Free
-## Software Foundation and appearing in the file LICENSE.LGPLv21 and
-## LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-## following information to ensure the GNU Lesser General Public License
-## requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-## http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-##
-## In addition, as a special exception, The Qt Company gives you certain additional
-## rights.  These rights are described in The Qt Company LGPL Exception
-## version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
-##
-#############################################################################
+############################################################################
+#
+# Copyright (C) 2016 The Qt Company Ltd.
+# Contact: https://www.qt.io/licensing/
+#
+# This file is part of Qt Creator.
+#
+# Commercial License Usage
+# Licensees holding valid commercial Qt licenses may use this file in
+# accordance with the commercial license agreement provided with the
+# Software or, alternatively, in accordance with the terms contained in
+# a written agreement between you and The Qt Company. For licensing terms
+# and conditions see https://www.qt.io/terms-conditions. For further
+# information use the contact form at https://www.qt.io/contact-us.
+#
+# GNU General Public License Usage
+# Alternatively, this file may be used under the terms of the GNU
+# General Public License version 3 as published by the Free Software
+# Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+# included in the packaging of this file. Please review the following
+# information to ensure the GNU General Public License requirements will
+# be met: https://www.gnu.org/licenses/gpl-3.0.html.
+#
+############################################################################
 
 source("../../shared/qtcreator.py")
 
@@ -159,13 +154,19 @@ def verifyClickCommit():
                     "Verifying that the actual diff editor widgets are readonly.")
         invokeMenuItem("Tools", "Git", "Local Repository", "Log")
 
+def addEmptyFileOutsideProject(filename):
+    __createProjectOrFileSelectType__("  General", "Empty File", isProject=False)
+    replaceEditorContent(waitForObject(":New Text File.nameLineEdit_Utils::FileNameValidatingLineEdit"), filename)
+    clickButton(waitForObject(":Next_QPushButton"))
+    __createProjectHandleLastPage__([filename], "Git", "<None>")
+
 def main():
     startApplication("qtcreator" + SettingsPath)
     if not startedWithoutPluginError():
         return
     createProject_Qt_GUI(srcPath, projectName, addToVersionControl = "Git")
     openVcsLog()
-    vcsLog = waitForObject("{type='QPlainTextEdit' unnamed='1' visible='1' "
+    vcsLog = waitForObject("{type='Core::OutputWindow' unnamed='1' visible='1' "
                            "window=':Qt Creator_Core::Internal::MainWindow'}").plainText
     test.verify("Initialized empty Git repository in %s"
                 % os.path.join(srcPath, projectName, ".git").replace("\\", "/") in str(vcsLog),
@@ -173,13 +174,12 @@ def main():
     createLocalGitConfig(os.path.join(srcPath, projectName, ".git"))
     commitMessages = [commit("Initial Commit", "Committed 5 file(s).")]
     clickButton(waitForObject(":*Qt Creator.Clear_QToolButton"))
-    addCPlusPlusFileToCurrentProject("pointless_header.h", "C++ Header File", addToVCS = "Git")
+    headerName = "pointless_header.h"
+    addCPlusPlusFileToCurrentProject(headerName, "C++ Header File", addToVCS="Git",
+                                     expectedHeaderName=headerName)
     commitMessages.insert(0, commit("Added pointless header file", "Committed 2 file(s)."))
-    __createProjectOrFileSelectType__("  General", "Empty File", isProject=False)
     readmeName = "README.txt"
-    replaceEditorContent(waitForObject(":New Text File.nameLineEdit_Utils::FileNameValidatingLineEdit"), readmeName)
-    clickButton(waitForObject(":Next_QPushButton"))
-    __createProjectHandleLastPage__([readmeName], "Git", "<None>")
+    addEmptyFileOutsideProject(readmeName)
     replaceEditorContent(waitForObject(":Qt Creator_TextEditor::TextEditorWidget"),
                          "Some important advice in the README")
     invokeMenuItem("File", "Save All")
@@ -205,8 +205,28 @@ def main():
     # verifyClickCommit() must be called after the local git has been created and the files
     # have been pushed to the repository
     verifyClickCommit()
-    invokeMenuItem("File", "Close All Projects and Editors")
+    # test for QTCREATORBUG-15051
+    addEmptyFileOutsideProject("anotherFile.txt")
+    fakeIdCommitMessage = "deadbeefdeadbeefdeadbeef is not a commit id"
+    commit(fakeIdCommitMessage, "Committed 1 file(s).")
+    invokeMenuItem("Tools", "Git", "Local Repository", "Log")
+    gitEditor = waitForObject(":Qt Creator_Git::Internal::GitEditor")
+    waitFor("len(str(gitEditor.plainText)) > 0 and str(gitEditor.plainText) != 'Working...'", 20000)
+    placeCursorToLine(gitEditor, fakeIdCommitMessage)
+    if platform.system() == 'Darwin':
+        type(gitEditor, "<Ctrl+Left>")
+    else:
+        type(gitEditor, "<Home>")
+    for _ in range(5):
+        type(gitEditor, "<Right>")
+    rect = gitEditor.cursorRect(gitEditor.textCursor())
+    mouseClick(gitEditor, rect.x+rect.width/2, rect.y+rect.height/2, 0, Qt.LeftButton)
+    changed = waitForObject(":Qt Creator_DiffEditor::SideDiffEditorWidget")
+    waitFor('str(changed.plainText) != "Waiting for data..."', 5000)
+    test.compare(str(changed.plainText), "Failed",
+                 "Showing an invalid commit can't succeed but Creator survived.")
 
+    invokeMenuItem("File", "Close All Projects and Editors")
     invokeMenuItem("File", "Exit")
 
 def deleteProject():

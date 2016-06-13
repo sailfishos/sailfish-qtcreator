@@ -4,7 +4,7 @@ CONFIG += exceptions
 
 INCLUDEPATH += $$PWD
 
-unix:!osx:LIBS += -lrt # posix shared memory
+unix:!openbsd:!osx: LIBS += -lrt # posix shared memory
 
 include(../../qtcreatorplugin.pri)
 
@@ -20,6 +20,7 @@ include(components/stateseditor/stateseditor.pri)
 include(components/resources/resources.pri)
 include(components/debugview/debugview.pri)
 include(components/importmanager/importmanager.pri)
+include(qmldesignerextension/qmldesignerextension.pri)
 include(qmldesignerplugin.pri)
 
 DEFINES -= QT_NO_CAST_FROM_ASCII

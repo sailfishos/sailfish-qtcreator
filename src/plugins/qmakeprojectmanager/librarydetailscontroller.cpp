@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -41,6 +36,7 @@
 #include <projectexplorer/target.h>
 #include <projectexplorer/toolchain.h>
 #include <utils/hostosinfo.h>
+#include <utils/qtcprocess.h>
 
 #include <QFileInfo>
 #include <QDir>
@@ -103,7 +99,7 @@ LibraryDetailsController::LibraryDetailsController(
     if (creatorPlatform() != CreatorWindows)
         setLinkageRadiosVisible(false);
 
-    connect(m_libraryDetailsWidget->includePathChooser, SIGNAL(changed(QString)),
+    connect(m_libraryDetailsWidget->includePathChooser, SIGNAL(rawPathChanged(QString)),
             this, SLOT(slotIncludePathChanged()));
     connect(m_libraryDetailsWidget->frameworkRadio, SIGNAL(clicked(bool)),
             this, SLOT(slotMacLibraryTypeChanged()));
@@ -393,11 +389,12 @@ void LibraryDetailsController::slotAddSuffixChanged(bool ena)
     }
 }
 
-static QString appendSpaceIfNotEmpty(const QString &aString)
+// quote only when the string contains spaces
+static QString smartQuote(const QString &aString)
 {
-    if (aString.isEmpty())
-        return aString;
-    return aString + QLatin1Char(' ');
+    // The OS type is not important in that case, but use always the same
+    // in order not to generate different quoting depending on host platform
+    return Utils::QtcProcess::quoteArg(aString, Utils::OsTypeLinux);
 }
 
 static QString appendSeparator(const QString &aString)
@@ -459,17 +456,8 @@ static QString generateLibsSnippet(AddLibraryWizard::Platforms platforms,
                      const QString &targetRelativePath, const QString &pwd,
                      bool useSubfolders, bool addSuffix, bool generateLibPath)
 {
-    // if needed it contains: $$[pwd]/_PATH_
-    const QString libraryPathSnippet = generateLibPath ?
-                QLatin1String("$$") + pwd + QLatin1Char('/') +
-                targetRelativePath : QString();
-
-    // if needed it contains: -L$$[pwd]/_PATH_
-    const QString simpleLibraryPathSnippet = generateLibPath ?
-                QLatin1String("-L") + libraryPathSnippet : QString();
-    // if needed it contains: -F$$[pwd]/_PATH_
-    const QString macLibraryPathSnippet = generateLibPath ?
-                QLatin1String("-F") + libraryPathSnippet : QString();
+    // it contains: $$[pwd]/
+    const QString libraryPathSnippet = QLatin1String("$$") + pwd + QLatin1Char('/');
 
     AddLibraryWizard::Platforms commonPlatforms = platforms;
     if (macLibraryType == AddLibraryWizard::FrameworkType) // we will generate a separate -F -framework line
@@ -489,31 +477,45 @@ static QString generateLibsSnippet(AddLibraryWizard::Platforms platforms,
     if (windowsPlatforms) {
         QString windowsString = windowsScopes(windowsPlatforms);
         str << windowsString << ":CONFIG(release, debug|release): LIBS += ";
-        if (useSubfolders)
-            str << simpleLibraryPathSnippet << "release/ " << "-l" << libName << "\n";
-        else if (addSuffix)
-            str << appendSpaceIfNotEmpty(simpleLibraryPathSnippet) << "-l" << libName << "\n";
+        if (useSubfolders) {
+            if (generateLibPath)
+                str << "-L" << libraryPathSnippet << smartQuote(targetRelativePath + QLatin1String("release/")) << ' ';
+            str << "-l" << libName << "\n";
+        } else if (addSuffix) {
+            if (generateLibPath)
+                str << "-L" << libraryPathSnippet << smartQuote(targetRelativePath) << ' ';
+            str << "-l" << libName << "\n";
+        }
 
         str << "else:" << windowsString << ":CONFIG(debug, debug|release): LIBS += ";
-        if (useSubfolders)
-            str << simpleLibraryPathSnippet << "debug/ " << "-l" << libName << "\n";
-        else if (addSuffix)
-            str << appendSpaceIfNotEmpty(simpleLibraryPathSnippet) << "-l" << libName << "d\n";
+        if (useSubfolders) {
+            if (generateLibPath)
+                str << "-L" << libraryPathSnippet << smartQuote(targetRelativePath + QLatin1String("debug/")) << ' ';
+            str << "-l" << libName << "\n";
+        } else if (addSuffix) {
+            if (generateLibPath)
+                str << "-L" << libraryPathSnippet << smartQuote(targetRelativePath) << ' ';
+            str << "-l" << libName << "d\n";
+        }
         generatedPlatforms |= windowsPlatforms;
     }
     if (diffPlatforms & AddLibraryWizard::MacPlatform) {
         if (generatedPlatforms)
             str << "else:";
-        str << "mac: LIBS += " << appendSpaceIfNotEmpty(macLibraryPathSnippet)
-                    << "-framework " << libName << "\n";
+        str << "mac: LIBS += ";
+        if (generateLibPath)
+            str << "-F" << libraryPathSnippet << smartQuote(targetRelativePath) << ' ';
+        str << "-framework " << libName << "\n";
         generatedPlatforms |= AddLibraryWizard::MacPlatform;
     }
 
     if (commonPlatforms) {
         if (generatedPlatforms)
             str << "else:";
-        str << commonScopes(commonPlatforms, generatedPlatforms) << ": LIBS += "
-                << appendSpaceIfNotEmpty(simpleLibraryPathSnippet) << "-l" << libName << "\n";
+        str << commonScopes(commonPlatforms, generatedPlatforms) << ": LIBS += ";
+        if (generateLibPath)
+            str << "-L" << libraryPathSnippet << smartQuote(targetRelativePath) << ' ';
+        str << "-l" << libName << "\n";
     }
     return snippetMessage;
 }
@@ -521,9 +523,9 @@ static QString generateLibsSnippet(AddLibraryWizard::Platforms platforms,
 static QString generateIncludePathSnippet(const QString &includeRelativePath)
 {
     return QLatin1String("\nINCLUDEPATH += $$PWD/")
-            + includeRelativePath + QLatin1Char('\n')
+            + smartQuote(includeRelativePath) + QLatin1Char('\n')
             + QLatin1String("DEPENDPATH += $$PWD/")
-            + includeRelativePath + QLatin1Char('\n');
+            + smartQuote(includeRelativePath) + QLatin1Char('\n');
 }
 
 static QString generatePreTargetDepsSnippet(AddLibraryWizard::Platforms platforms,
@@ -535,9 +537,9 @@ static QString generatePreTargetDepsSnippet(AddLibraryWizard::Platforms platform
     if (linkageType != AddLibraryWizard::StaticLinkage)
         return QString();
 
-    // if needed it contains: PRE_TARGETDEPS += $$[pwd]/_PATH_TO_LIB_WITHOUT_LIB_NAME_
+    // it contains: PRE_TARGETDEPS += $$[pwd]/
     const QString preTargetDepsSnippet = QLatin1String("PRE_TARGETDEPS += $$") +
-            pwd + QLatin1Char('/') + targetRelativePath;
+            pwd + QLatin1Char('/');
 
     QString snippetMessage;
     QTextStream str(&snippetMessage);
@@ -555,16 +557,16 @@ static QString generatePreTargetDepsSnippet(AddLibraryWizard::Platforms platform
                 str << "win32-g++:CONFIG(release, debug|release): "
                     << preTargetDepsSnippet;
                 if (useSubfolders)
-                    str << "release/" << "lib" << libName << ".a\n";
+                    str << smartQuote(targetRelativePath + QLatin1String("release/lib") + libName + QLatin1String(".a")) << '\n';
                 else if (addSuffix)
-                    str << "lib" << libName << ".a\n";
+                    str << smartQuote(targetRelativePath + QLatin1String("lib") + libName + QLatin1String(".a")) << '\n';
 
                 str << "else:win32-g++:CONFIG(debug, debug|release): "
                     << preTargetDepsSnippet;
                 if (useSubfolders)
-                    str << "debug/" << "lib" << libName << ".a\n";
+                    str << smartQuote(targetRelativePath + QLatin1String("debug/lib") + libName + QLatin1String(".a")) << '\n';
                 else if (addSuffix)
-                    str << "lib" << libName << "d.a\n";
+                    str << smartQuote(targetRelativePath + QLatin1String("lib") + libName + QLatin1String("d.a")) << '\n';
             }
             if (windowsPlatforms & AddLibraryWizard::WindowsMSVCPlatform) {
                 if (windowsPlatforms & AddLibraryWizard::WindowsMinGWPlatform)
@@ -572,21 +574,22 @@ static QString generatePreTargetDepsSnippet(AddLibraryWizard::Platforms platform
                 str << "win32:!win32-g++:CONFIG(release, debug|release): "
                     << preTargetDepsSnippet;
                 if (useSubfolders)
-                    str << "release/" << libName << ".lib\n";
+                    str << smartQuote(targetRelativePath + QLatin1String("release/") + libName + QLatin1String(".lib")) << '\n';
                 else if (addSuffix)
-                    str << libName << ".lib\n";
+                    str << smartQuote(targetRelativePath + libName + QLatin1String(".lib")) << '\n';
 
                 str << "else:win32:!win32-g++:CONFIG(debug, debug|release): "
                     << preTargetDepsSnippet;
                 if (useSubfolders)
-                    str << "debug/" << libName << ".lib\n";
+                    str << smartQuote(targetRelativePath + QLatin1String("debug/") + libName + QLatin1String(".lib")) << '\n';
                 else if (addSuffix)
-                    str << libName << "d.lib\n";
+                    str << smartQuote(targetRelativePath + libName + QLatin1String("d.lib")) << '\n';
             }
             generatedPlatforms |= windowsPlatforms;
         } else {
             if (windowsPlatforms & AddLibraryWizard::WindowsMSVCPlatform) {
-                str << "win32:!win32-g++: " << preTargetDepsSnippet << libName << ".lib\n";
+                str << "win32:!win32-g++: " << preTargetDepsSnippet
+                    << smartQuote(targetRelativePath + libName + QLatin1String(".lib")) << "\n";
                 generatedPlatforms |= AddLibraryWizard::WindowsMSVCPlatform; // mingw will be handled with common scopes
             }
             // mingw not generated yet, will be joined with unix like
@@ -596,7 +599,7 @@ static QString generatePreTargetDepsSnippet(AddLibraryWizard::Platforms platform
         if (generatedPlatforms)
             str << "else:";
         str << commonScopes(commonPlatforms, generatedPlatforms) << ": "
-            << preTargetDepsSnippet << "lib" << libName << ".a\n";
+            << preTargetDepsSnippet << smartQuote(targetRelativePath + QLatin1String("lib") + libName + QLatin1String(".a")) << "\n";
     }
     return snippetMessage;
 }
@@ -637,7 +640,7 @@ NonInternalLibraryDetailsController::NonInternalLibraryDetailsController(
 
     connect(libraryDetailsWidget()->libraryPathChooser, SIGNAL(validChanged(bool)),
             this, SIGNAL(completeChanged()));
-    connect(libraryDetailsWidget()->libraryPathChooser, SIGNAL(changed(QString)),
+    connect(libraryDetailsWidget()->libraryPathChooser, SIGNAL(rawPathChanged(QString)),
             this, SLOT(slotLibraryPathChanged()));
     connect(libraryDetailsWidget()->removeSuffixCheckBox, SIGNAL(toggled(bool)),
             this, SLOT(slotRemoveSuffixChanged(bool)));
@@ -788,8 +791,6 @@ QString NonInternalLibraryDetailsController::snippet() const
         libName = fi.completeBaseName().mid(3); // cut the "lib" prefix
     }
 
-    QString targetRelativePath;
-    QString includeRelativePath;
     bool useSubfolders = false;
     bool addSuffix = false;
     if (isWindowsGroupVisible()) {
@@ -803,6 +804,9 @@ QString NonInternalLibraryDetailsController::snippet() const
         if (platforms() & (AddLibraryWizard::WindowsMinGWPlatform | AddLibraryWizard::WindowsMSVCPlatform))
             addSuffix = libraryDetailsWidget()->addSuffixCheckBox->isChecked() || removeSuffix;
     }
+
+    QString targetRelativePath;
+    QString includeRelativePath;
     if (isIncludePathVisible()) { // generate also the path to lib
         QFileInfo pfi(proFile());
         QDir pdir = pfi.absoluteDir();
@@ -1004,7 +1008,7 @@ QString InternalLibraryDetailsController::suggestedIncludePath() const
     const int currentIndex = libraryDetailsWidget()->libraryComboBox->currentIndex();
     if (currentIndex >= 0) {
         QmakeProFileNode *proFileNode = m_proFileNodes.at(currentIndex);
-        return proFileNode->path().toFileInfo().absolutePath();
+        return proFileNode->filePath().toFileInfo().absolutePath();
     }
     return QString();
 }
@@ -1030,12 +1034,12 @@ void InternalLibraryDetailsController::updateProFile()
     setIgnoreGuiSignals(true);
 
     ProjectExplorer::ProjectNode *rootProject = project->rootProjectNode();
-    m_rootProjectPath = rootProject->path().toFileInfo().absolutePath();
+    m_rootProjectPath = rootProject->filePath().toFileInfo().absolutePath();
     QDir rootDir(m_rootProjectPath);
     FindQmakeProFiles findQt4ProFiles;
     QList<QmakeProFileNode *> proFiles = findQt4ProFiles(rootProject);
     foreach (QmakeProFileNode *proFileNode, proFiles) {
-        const QString proFilePath = proFileNode->path().toString();
+        const QString proFilePath = proFileNode->filePath().toString();
         QmakeProjectManager::QmakeProjectType type = proFileNode->projectType();
         if (type == SharedLibraryTemplate || type == StaticLibraryTemplate) {
             const QStringList configVar = proFileNode->variableValue(ConfigVar);

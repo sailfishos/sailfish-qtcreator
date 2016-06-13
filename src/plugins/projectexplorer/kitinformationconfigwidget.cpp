@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -67,14 +62,14 @@ namespace Internal {
 // --------------------------------------------------------------------------
 
 SysRootInformationConfigWidget::SysRootInformationConfigWidget(Kit *k, const KitInformation *ki) :
-    KitConfigWidget(k, ki),
-    m_ignoreChange(false)
+    KitConfigWidget(k, ki)
 {
     m_chooser = new Utils::PathChooser;
     m_chooser->setExpectedKind(Utils::PathChooser::ExistingDirectory);
     m_chooser->setHistoryCompleter(QLatin1String("PE.SysRoot.History"));
     m_chooser->setFileName(SysRootKitInformation::sysRoot(k));
-    connect(m_chooser, SIGNAL(changed(QString)), this, SLOT(pathWasChanged()));
+    connect(m_chooser, &Utils::PathChooser::pathChanged,
+            this, &SysRootInformationConfigWidget::pathWasChanged);
 }
 
 SysRootInformationConfigWidget::~SysRootInformationConfigWidget()
@@ -91,6 +86,12 @@ QString SysRootInformationConfigWidget::toolTip() const
 {
     return tr("The root directory of the system image to use.<br>"
               "Leave empty when building for the desktop.");
+}
+
+void SysRootInformationConfigWidget::setPalette(const QPalette &p)
+{
+    KitConfigWidget::setPalette(p);
+    m_chooser->setOkColor(p.color(QPalette::Active, QPalette::Text));
 }
 
 void SysRootInformationConfigWidget::refresh()
@@ -126,19 +127,19 @@ void SysRootInformationConfigWidget::pathWasChanged()
 // --------------------------------------------------------------------------
 
 ToolChainInformationConfigWidget::ToolChainInformationConfigWidget(Kit *k, const KitInformation *ki) :
-    KitConfigWidget(k, ki),
-    m_ignoreChanges(false),
-    m_isReadOnly(false)
+    KitConfigWidget(k, ki)
 {
     m_comboBox = new QComboBox;
     m_comboBox->setToolTip(toolTip());
 
     refresh();
-    connect(m_comboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(currentToolChainChanged(int)));
+    connect(m_comboBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+            this, &ToolChainInformationConfigWidget::currentToolChainChanged);
 
     m_manageButton = new QPushButton(KitConfigWidget::msgManage());
     m_manageButton->setContentsMargins(0, 0, 0, 0);
-    connect(m_manageButton, SIGNAL(clicked()), this, SLOT(manageToolChains()));
+    connect(m_manageButton, &QAbstractButton::clicked,
+            this, &ToolChainInformationConfigWidget::manageToolChains);
 }
 
 ToolChainInformationConfigWidget::~ToolChainInformationConfigWidget()
@@ -163,17 +164,14 @@ void ToolChainInformationConfigWidget::refresh()
 {
     m_ignoreChanges = true;
     m_comboBox->clear();
+    m_comboBox->addItem(tr("<No compiler>"), QByteArray());
     foreach (ToolChain *tc, ToolChainManager::toolChains())
         m_comboBox->addItem(tc->displayName(), tc->id());
 
-    if (m_comboBox->count() == 0) {
-        m_comboBox->addItem(tr("<No compiler available>"), QString());
-        m_comboBox->setEnabled(false);
-    } else {
-        m_comboBox->setEnabled(m_comboBox->count() > 1 && !m_isReadOnly);
-    }
+    m_comboBox->setEnabled(m_comboBox->count() > 1 && !m_isReadOnly);
 
-    m_comboBox->setCurrentIndex(indexOf(ToolChainKitInformation::toolChain(m_kit)));
+    const int index = indexOf(ToolChainKitInformation::toolChain(m_kit));
+    m_comboBox->setCurrentIndex(index);
     m_ignoreChanges = false;
 }
 
@@ -203,15 +201,15 @@ void ToolChainInformationConfigWidget::currentToolChainChanged(int idx)
     if (m_ignoreChanges)
         return;
 
-    const QString id = m_comboBox->itemData(idx).toString();
+    const QByteArray id = m_comboBox->itemData(idx).toByteArray();
     ToolChainKitInformation::setToolChain(m_kit, ToolChainManager::findToolChain(id));
 }
 
 int ToolChainInformationConfigWidget::indexOf(const ToolChain *tc)
 {
-    const QString id = tc ? tc->id() : QString();
+    const QByteArray id = tc ? tc->id() : QByteArray();
     for (int i = 0; i < m_comboBox->count(); ++i) {
-        if (id == m_comboBox->itemData(i).toString())
+        if (id == m_comboBox->itemData(i).toByteArray())
             return i;
     }
     return -1;
@@ -234,7 +232,8 @@ DeviceTypeInformationConfigWidget::DeviceTypeInformationConfigWidget(Kit *workin
     m_comboBox->setToolTip(toolTip());
 
     refresh();
-    connect(m_comboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(currentTypeChanged(int)));
+    connect(m_comboBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+            this, &DeviceTypeInformationConfigWidget::currentTypeChanged);
 }
 
 DeviceTypeInformationConfigWidget::~DeviceTypeInformationConfigWidget()
@@ -287,8 +286,6 @@ void DeviceTypeInformationConfigWidget::currentTypeChanged(int idx)
 
 DeviceInformationConfigWidget::DeviceInformationConfigWidget(Kit *workingCopy, const KitInformation *ki) :
     KitConfigWidget(workingCopy, ki),
-    m_isReadOnly(false),
-    m_ignoreChange(false),
     m_comboBox(new QComboBox),
     m_model(new DeviceManagerModel(DeviceManager::instance()))
 {
@@ -299,10 +296,14 @@ DeviceInformationConfigWidget::DeviceInformationConfigWidget(Kit *workingCopy, c
     refresh();
     m_comboBox->setToolTip(toolTip());
 
-    connect(m_model, SIGNAL(modelAboutToBeReset()), SLOT(modelAboutToReset()));
-    connect(m_model, SIGNAL(modelReset()), SLOT(modelReset()));
-    connect(m_comboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(currentDeviceChanged()));
-    connect(m_manageButton, SIGNAL(clicked()), this, SLOT(manageDevices()));
+    connect(m_model, &QAbstractItemModel::modelAboutToBeReset,
+            this, &DeviceInformationConfigWidget::modelAboutToReset);
+    connect(m_model, &QAbstractItemModel::modelReset,
+            this, &DeviceInformationConfigWidget::modelReset);
+    connect(m_comboBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+            this, &DeviceInformationConfigWidget::currentDeviceChanged);
+    connect(m_manageButton, &QAbstractButton::clicked,
+            this, &DeviceInformationConfigWidget::manageDevices);
 }
 
 DeviceInformationConfigWidget::~DeviceInformationConfigWidget()
@@ -374,13 +375,12 @@ void DeviceInformationConfigWidget::currentDeviceChanged()
 KitEnvironmentConfigWidget::KitEnvironmentConfigWidget(Kit *workingCopy, const KitInformation *ki) :
     KitConfigWidget(workingCopy, ki),
     m_summaryLabel(new QLabel),
-    m_manageButton(new QPushButton),
-    m_dialog(0),
-    m_editor(0)
+    m_manageButton(new QPushButton)
 {
     refresh();
     m_manageButton->setText(tr("Change..."));
-    connect(m_manageButton, SIGNAL(clicked()), this, SLOT(editEnvironmentChanges()));
+    connect(m_manageButton, &QAbstractButton::clicked,
+            this, &KitEnvironmentConfigWidget::editEnvironmentChanges);
 }
 
 QWidget *KitEnvironmentConfigWidget::mainWidget() const
@@ -432,16 +432,21 @@ void KitEnvironmentConfigWidget::editEnvironmentChanges()
     m_dialog->setWindowTitle(tr("Edit Environment Changes"));
     QVBoxLayout *layout = new QVBoxLayout(m_dialog);
     m_editor = new QPlainTextEdit;
+    m_editor->setToolTip(tr("Enter one variable per line with the variable name "
+                            "separated from the variable value by \"=\".<br>"
+                            "Environment variables can be referenced with ${OTHER}."));
+
     QDialogButtonBox *buttons = new QDialogButtonBox(QDialogButtonBox::Ok|QDialogButtonBox::Apply|QDialogButtonBox::Cancel);
 
     layout->addWidget(m_editor);
     layout->addWidget(buttons);
 
-    connect(buttons, SIGNAL(accepted()), m_dialog, SLOT(accept()));
-    connect(buttons, SIGNAL(rejected()), m_dialog, SLOT(reject()));
-    connect(m_dialog, SIGNAL(accepted()), this, SLOT(acceptChangesDialog()));
-    connect(m_dialog, SIGNAL(rejected()), this, SLOT(closeChangesDialog()));
-    connect(buttons->button(QDialogButtonBox::Apply), SIGNAL(clicked()), this, SLOT(applyChanges()));
+    connect(buttons, &QDialogButtonBox::accepted, m_dialog, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, m_dialog, &QDialog::reject);
+    connect(m_dialog, &QDialog::accepted, this, &KitEnvironmentConfigWidget::acceptChangesDialog);
+    connect(m_dialog, &QDialog::rejected, this, &KitEnvironmentConfigWidget::closeChangesDialog);
+    connect(buttons->button(QDialogButtonBox::Apply), &QAbstractButton::clicked,
+            this, &KitEnvironmentConfigWidget::applyChanges);
 
     refresh();
     m_dialog->show();

@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -47,21 +42,6 @@ class SymbolGroup;
 struct SymbolGroupValueContext;
 class SymbolGroupNode;
 class MemoryHandle;
-
-enum DumpEncoding // WatchData encoding of GDBMI values
-{
-    DumpEncodingAscii = 0,
-    DumpEncodingBase64_Utf16_WithQuotes = 2,
-    DumpEncodingHex_Ucs4_LittleEndian_WithQuotes = 3,
-    DumpEncodingBase64_Utf16 = 4,
-    DumpEncodingHex_Latin1_WithQuotes = 6,
-    DumpEncodingHex_Utf8_LittleEndian_WithQuotes = 9,
-    DumpEncodingJulianDate = 14,
-    DumpEncodingMillisecondsSinceMidnight = 15,
-    DumpEncodingJulianDateAndMillisecondsSinceMidnight = 16,
-    DumpEncodingIPv6AddressAndHexScopeId = 27,
-    DumpEncodingMillisecondsSinceEpoch = 29
-};
 
 // Helper struct used for check results when recoding CDB char pointer output.
 struct DumpParameterRecodeResult
@@ -100,7 +80,7 @@ struct DumpParameters
     bool recode(const std::string &type, const std::string &iname,
                 const SymbolGroupValueContext &ctx,
                 ULONG64 address,
-                std::wstring *value, int *encoding) const;
+                std::wstring *value, std::string *encoding) const;
     int format(const std::string &type, const std::string &iname) const;
 
     unsigned dumpFlags;
@@ -267,7 +247,7 @@ public:
     std::wstring symbolGroupFixedValue() const;
 
     bool assign(const std::string &value, std::string *errorMessage = 0);
-    std::wstring simpleDumpValue(const SymbolGroupValueContext &ctx, int *encoding);
+    std::wstring simpleDumpValue(const SymbolGroupValueContext &ctx, std::string *encoding);
 
     // A quick check if symbol is valid by checking for inaccessible value
     bool isMemoryAccessible() const;
@@ -317,7 +297,7 @@ private:
     ULONG m_index;
     DEBUG_SYMBOL_PARAMETERS m_parameters; // Careful when using ParentSymbol. It might not be correct.
     std::wstring m_dumperValue;
-    int m_dumperValueEncoding;
+    std::string m_dumperValueEncoding;
     int m_dumperType;
     int m_dumperContainerSize;
     void *m_dumperSpecialInfo; // Opaque information passed from simple to complex dumpers

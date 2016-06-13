@@ -49,11 +49,13 @@ enum Kind {
     T_UTF8_STRING_LITERAL,
     T_UTF16_STRING_LITERAL,
     T_UTF32_STRING_LITERAL,
-    T_RAW_STRING_LITERAL,
+    T_FIRST_RAW_STRING_LITERAL,
+    T_RAW_STRING_LITERAL = T_FIRST_RAW_STRING_LITERAL,
     T_RAW_WIDE_STRING_LITERAL,
     T_RAW_UTF8_STRING_LITERAL,
     T_RAW_UTF16_STRING_LITERAL,
     T_RAW_UTF32_STRING_LITERAL,
+    T_LAST_RAW_STRING_LITERAL = T_RAW_UTF32_STRING_LITERAL,
     T_AT_STRING_LITERAL,
     T_ANGLE_STRING_LITERAL,
     T_LAST_STRING_LITERAL = T_ANGLE_STRING_LITERAL,
@@ -284,6 +286,7 @@ enum Kind {
     T___VOLATILE__ = T_VOLATILE,
 
     T___ATTRIBUTE = T___ATTRIBUTE__,
+    T___ALIGNOF__ = T_ALIGNOF,
     T_LAST_TOKEN
 };
 
@@ -368,8 +371,10 @@ public:
         // The token is C++11 user-defined literal such as:
         // 12_km, 0.5_Pa, 'c'_X, "abd"_L, u16"xyz"_M
         unsigned userDefinedLiteral : 1;
+        // Indicates the token is a trigraph
+        unsigned trigraph      : 1;
         // Unused...
-        unsigned pad           : 2;
+        unsigned pad           : 1;
         // The token length in bytes and UTF16 chars.
         unsigned bytes         : 16;
         unsigned utf16chars    : 16;

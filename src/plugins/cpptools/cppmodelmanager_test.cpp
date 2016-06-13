@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -35,7 +30,9 @@
 #include "cpptoolstestcase.h"
 #include "editordocumenthandle.h"
 #include "modelmanagertesthelper.h"
+#include "projectinfo.h"
 
+#include <coreplugin/documentmanager.h>
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/fileutils.h>
 #include <coreplugin/testdatadir.h>
@@ -43,6 +40,7 @@
 #include <projectexplorer/session.h>
 
 #include <cplusplus/LookupContext.h>
+#include <utils/executeondestruction.h>
 #include <utils/hostosinfo.h>
 
 #include <QDebug>
@@ -59,7 +57,7 @@ using namespace ProjectExplorer;
 
 typedef CPlusPlus::Document Document;
 
-Q_DECLARE_METATYPE(QList<ProjectFile>)
+Q_DECLARE_METATYPE(ProjectFile)
 
 namespace {
 
@@ -187,21 +185,20 @@ void CppToolsPlugin::test_modelmanager_paths_are_clean()
     Project *project = helper.createProject(_("test_modelmanager_paths_are_clean"));
     ProjectInfo pi = ProjectInfo(project);
 
-    typedef ProjectPart::HeaderPath HeaderPath;
+    typedef ProjectPartHeaderPath HeaderPath;
 
     ProjectPart::Ptr part(new ProjectPart);
     part->languageVersion = ProjectPart::CXX14;
     part->qtVersion = ProjectPart::Qt5;
     part->projectDefines = QByteArray("#define OH_BEHAVE -1\n");
-    part->headerPaths = QList<HeaderPath>()
-            << HeaderPath(testDataDir.includeDir(false), HeaderPath::IncludePath)
-            << HeaderPath(testDataDir.frameworksDir(false), HeaderPath::FrameworkPath);
+    part->headerPaths = { HeaderPath(testDataDir.includeDir(false), HeaderPath::IncludePath),
+                          HeaderPath(testDataDir.frameworksDir(false), HeaderPath::FrameworkPath) };
     pi.appendProjectPart(part);
     pi.finish();
 
     mm->updateProjectInfo(pi);
 
-    QList<HeaderPath> headerPaths = mm->headerPaths();
+    ProjectPartHeaderPaths headerPaths = mm->headerPaths();
     QCOMPARE(headerPaths.size(), 2);
     QVERIFY(headerPaths.contains(HeaderPath(testDataDir.includeDir(), HeaderPath::IncludePath)));
     QVERIFY(headerPaths.contains(HeaderPath(testDataDir.frameworksDir(),
@@ -222,15 +219,14 @@ void CppToolsPlugin::test_modelmanager_framework_headers()
     Project *project = helper.createProject(_("test_modelmanager_framework_headers"));
     ProjectInfo pi = ProjectInfo(project);
 
-    typedef ProjectPart::HeaderPath HeaderPath;
+    typedef ProjectPartHeaderPath HeaderPath;
 
     ProjectPart::Ptr part(new ProjectPart);
     part->languageVersion = ProjectPart::CXX14;
     part->qtVersion = ProjectPart::Qt5;
     part->projectDefines = QByteArray("#define OH_BEHAVE -1\n");
-    part->headerPaths = QList<HeaderPath>()
-            << HeaderPath(testDataDir.includeDir(false), HeaderPath::IncludePath)
-            << HeaderPath(testDataDir.frameworksDir(false), HeaderPath::FrameworkPath);
+    part->headerPaths = { HeaderPath(testDataDir.includeDir(false), HeaderPath::IncludePath),
+                          HeaderPath(testDataDir.frameworksDir(false), HeaderPath::FrameworkPath) };
     const QString &source = testDataDir.fileFromSourcesDir(
         _("test_modelmanager_framework_headers.cpp"));
     part->files << ProjectFile(source, ProjectFile::CXXSource);
@@ -274,14 +270,13 @@ void CppToolsPlugin::test_modelmanager_refresh_also_includes_of_project_files()
                 _("test_modelmanager_refresh_also_includes_of_project_files"));
     ProjectInfo pi = ProjectInfo(project);
 
-    typedef ProjectPart::HeaderPath HeaderPath;
+    typedef ProjectPartHeaderPath HeaderPath;
 
     ProjectPart::Ptr part(new ProjectPart);
     part->languageVersion = ProjectPart::CXX14;
     part->qtVersion = ProjectPart::Qt5;
     part->projectDefines = QByteArray("#define OH_BEHAVE -1\n");
-    part->headerPaths = QList<HeaderPath>()
-            << HeaderPath(testDataDir.includeDir(false), HeaderPath::IncludePath);
+    part->headerPaths = { HeaderPath(testDataDir.includeDir(false), HeaderPath::IncludePath) };
     part->files.append(ProjectFile(testCpp, ProjectFile::CXXSource));
     pi.appendProjectPart(part);
     pi.finish();
@@ -786,7 +781,7 @@ void CppToolsPlugin::test_modelmanager_defines_per_project()
 
     Project *project = helper.createProject(_("test_modelmanager_defines_per_project"));
 
-    typedef ProjectPart::HeaderPath HeaderPath;
+    typedef ProjectPartHeaderPath HeaderPath;
 
     ProjectPart::Ptr part1(new ProjectPart);
     part1->projectFile = QLatin1String("project1.projectfile");
@@ -795,8 +790,7 @@ void CppToolsPlugin::test_modelmanager_defines_per_project()
     part1->languageVersion = ProjectPart::CXX11;
     part1->qtVersion = ProjectPart::NoQt;
     part1->projectDefines = QByteArray("#define SUB1\n");
-    part1->headerPaths = QList<HeaderPath>()
-            << HeaderPath(testDataDirectory.includeDir(false), HeaderPath::IncludePath);
+    part1->headerPaths = { HeaderPath(testDataDirectory.includeDir(false), HeaderPath::IncludePath) };
 
     ProjectPart::Ptr part2(new ProjectPart);
     part2->projectFile = QLatin1String("project1.projectfile");
@@ -805,8 +799,7 @@ void CppToolsPlugin::test_modelmanager_defines_per_project()
     part2->languageVersion = ProjectPart::CXX11;
     part2->qtVersion = ProjectPart::NoQt;
     part2->projectDefines = QByteArray("#define SUB2\n");
-    part2->headerPaths = QList<HeaderPath>()
-            << HeaderPath(testDataDirectory.includeDir(false), HeaderPath::IncludePath);
+    part2->headerPaths = { HeaderPath(testDataDirectory.includeDir(false), HeaderPath::IncludePath) };
 
     ProjectInfo pi = ProjectInfo(project);
     pi.appendProjectPart(part1);
@@ -857,7 +850,7 @@ void CppToolsPlugin::test_modelmanager_precompiled_headers()
 
     Project *project = helper.createProject(_("test_modelmanager_defines_per_project_pch"));
 
-    typedef ProjectPart::HeaderPath HeaderPath;
+    typedef ProjectPartHeaderPath HeaderPath;
 
     ProjectPart::Ptr part1(new ProjectPart);
     part1->projectFile = QLatin1String("project1.projectfile");
@@ -866,8 +859,7 @@ void CppToolsPlugin::test_modelmanager_precompiled_headers()
     part1->languageVersion = ProjectPart::CXX11;
     part1->qtVersion = ProjectPart::NoQt;
     part1->precompiledHeaders.append(pch1File);
-    part1->headerPaths = QList<HeaderPath>()
-            << HeaderPath(testDataDirectory.includeDir(false), HeaderPath::IncludePath);
+    part1->headerPaths = { HeaderPath(testDataDirectory.includeDir(false), HeaderPath::IncludePath) };
 
     ProjectPart::Ptr part2(new ProjectPart);
     part2->projectFile = QLatin1String("project2.projectfile");
@@ -876,8 +868,7 @@ void CppToolsPlugin::test_modelmanager_precompiled_headers()
     part2->languageVersion = ProjectPart::CXX11;
     part2->qtVersion = ProjectPart::NoQt;
     part2->precompiledHeaders.append(pch2File);
-    part2->headerPaths = QList<HeaderPath>()
-            << HeaderPath(testDataDirectory.includeDir(false), HeaderPath::IncludePath);
+    part2->headerPaths = { HeaderPath(testDataDirectory.includeDir(false), HeaderPath::IncludePath) };
 
     ProjectInfo pi = ProjectInfo(project);
     pi.appendProjectPart(part1);
@@ -910,12 +901,12 @@ void CppToolsPlugin::test_modelmanager_precompiled_headers()
         QCOMPARE(Core::DocumentModel::openedDocuments().size(), 1);
         QVERIFY(mm->isCppEditor(editor));
 
-        auto *parser = BuiltinEditorDocumentParser::get(fileName);
+        auto parser = BuiltinEditorDocumentParser::get(fileName);
         QVERIFY(parser);
         BaseEditorDocumentParser::Configuration config = parser->configuration();
         config.usePrecompiledHeaders = true;
         parser->setConfiguration(config);
-        parser->update(BuiltinEditorDocumentParser::InMemoryInfo(false));
+        parser->update(CppModelManager::instance()->workingCopy());
 
         // Check if defines from pch are considered
         Document::Ptr document = mm->document(fileName);
@@ -945,23 +936,21 @@ void CppToolsPlugin::test_modelmanager_defines_per_editor()
 
     Project *project = helper.createProject(_("test_modelmanager_defines_per_editor"));
 
-    typedef ProjectPart::HeaderPath HeaderPath;
+    typedef ProjectPartHeaderPath HeaderPath;
 
     ProjectPart::Ptr part1(new ProjectPart);
     part1->files.append(ProjectFile(main1File, ProjectFile::CXXSource));
     part1->files.append(ProjectFile(header, ProjectFile::CXXHeader));
     part1->languageVersion = ProjectPart::CXX11;
     part1->qtVersion = ProjectPart::NoQt;
-    part1->headerPaths = QList<HeaderPath>()
-            << HeaderPath(testDataDirectory.includeDir(false), HeaderPath::IncludePath);
+    part1->headerPaths = { HeaderPath(testDataDirectory.includeDir(false), HeaderPath::IncludePath) };
 
     ProjectPart::Ptr part2(new ProjectPart);
     part2->files.append(ProjectFile(main2File, ProjectFile::CXXSource));
     part2->files.append(ProjectFile(header, ProjectFile::CXXHeader));
     part2->languageVersion = ProjectPart::CXX11;
     part2->qtVersion = ProjectPart::NoQt;
-    part2->headerPaths = QList<HeaderPath>()
-            << HeaderPath(testDataDirectory.includeDir(false), HeaderPath::IncludePath);
+    part2->headerPaths = { HeaderPath(testDataDirectory.includeDir(false), HeaderPath::IncludePath) };
 
     ProjectInfo pi = ProjectInfo(project);
     pi.appendProjectPart(part1);
@@ -994,11 +983,11 @@ void CppToolsPlugin::test_modelmanager_defines_per_editor()
         QVERIFY(mm->isCppEditor(editor));
 
         const QString filePath = editor->document()->filePath().toString();
-        BaseEditorDocumentParser *parser = BaseEditorDocumentParser::get(filePath);
+        const auto parser = BaseEditorDocumentParser::get(filePath);
         BaseEditorDocumentParser::Configuration config = parser->configuration();
         config.editorDefines = editorDefines.toUtf8();
         parser->setConfiguration(config);
-        parser->update(BuiltinEditorDocumentParser::InMemoryInfo(false));
+        parser->update(CppModelManager::instance()->workingCopy());
 
         Document::Ptr doc = mm->document(main1File);
         QCOMPARE(nameOfFirstDeclaration(doc), firstDeclarationName);
@@ -1100,6 +1089,69 @@ void CppToolsPlugin::test_modelmanager_renameIncludes()
     QVERIFY(Core::FileUtils::renameFile(oldHeader, newHeader));
 
     // Update the c++ model manager again and check for the new includes
+    modelManager->updateSourceFiles(sourceFiles).waitForFinished();
+    QCoreApplication::processEvents();
+    snapshot = modelManager->snapshot();
+    foreach (const QString &sourceFile, sourceFiles)
+        QCOMPARE(snapshot.allIncludesForDocument(sourceFile), QSet<QString>() << newHeader);
+}
+
+void CppToolsPlugin::test_modelmanager_renameIncludesInEditor()
+{
+    struct ModelManagerGCHelper {
+        ~ModelManagerGCHelper() { CppModelManager::instance()->GC(); }
+    } GCHelper;
+    Q_UNUSED(GCHelper); // do not warn about being unused
+
+    TemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+
+    const QDir workingDir(tmpDir.path());
+    const QStringList fileNames = QStringList() << _("foo.h") << _("foo.cpp") << _("main.cpp");
+    const QString oldHeader(workingDir.filePath(_("foo.h")));
+    const QString newHeader(workingDir.filePath(_("bar.h")));
+    const QString mainFile(workingDir.filePath(_("main.cpp")));
+    CppModelManager *modelManager = CppModelManager::instance();
+    const MyTestDataDir testDir(_("testdata_project1"));
+
+    ModelManagerTestHelper helper;
+    helper.resetRefreshedSourceFiles();
+
+    // Copy test files to a temporary directory
+    QSet<QString> sourceFiles;
+    foreach (const QString &fileName, fileNames) {
+        const QString &file = workingDir.filePath(fileName);
+        QVERIFY(QFile::copy(testDir.file(fileName), file));
+        // Saving source file names for the model manager update,
+        // so we can update just the relevant files.
+        if (ProjectFile::classify(file) == ProjectFile::CXXSource)
+            sourceFiles.insert(file);
+    }
+
+    // Update the c++ model manager and check for the old includes
+    modelManager->updateSourceFiles(sourceFiles).waitForFinished();
+    QCoreApplication::processEvents();
+    CPlusPlus::Snapshot snapshot = modelManager->snapshot();
+    foreach (const QString &sourceFile, sourceFiles)
+        QCOMPARE(snapshot.allIncludesForDocument(sourceFile), QSet<QString>() << oldHeader);
+
+    // Open a file in the editor
+    QCOMPARE(Core::DocumentModel::openedDocuments().size(), 0);
+    Core::IEditor *editor = Core::EditorManager::openEditor(mainFile);
+    QVERIFY(editor);
+    EditorCloser editorCloser(editor);
+    Utils::ExecuteOnDestruction saveAllFiles([](){
+        Core::DocumentManager::saveAllModifiedDocumentsSilently();
+    });
+    QCOMPARE(Core::DocumentModel::openedDocuments().size(), 1);
+    QVERIFY(modelManager->isCppEditor(editor));
+    QVERIFY(modelManager->workingCopy().contains(mainFile));
+
+    // Renaming the header
+    QVERIFY(Core::FileUtils::renameFile(oldHeader, newHeader));
+
+    // Update the c++ model manager again and check for the new includes
+    TestCase::waitForProcessedEditorDocument(mainFile);
     modelManager->updateSourceFiles(sourceFiles).waitForFinished();
     QCoreApplication::processEvents();
     snapshot = modelManager->snapshot();

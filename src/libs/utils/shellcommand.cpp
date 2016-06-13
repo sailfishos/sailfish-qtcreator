@@ -1,7 +1,7 @@
-/**************************************************************************
+/****************************************************************************
 **
-** Copyright (C) 2015 Brian McGillion and Hugues Delorme
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 Brian McGillion and Hugues Delorme
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,45 +9,38 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
 #include "shellcommand.h"
 
 #include "fileutils.h"
+#include "qtcassert.h"
 #include "synchronousprocess.h"
 #include "runextensions.h"
-#include "qtcassert.h"
 
-#include <QProcess>
-#include <QProcessEnvironment>
+#include <QFileInfo>
 #include <QFuture>
 #include <QFutureWatcher>
-#include <QtConcurrentRun>
-#include <QFileInfo>
-#include <QCoreApplication>
-#include <QVariant>
+#include <QMutex>
+#include <QProcess>
+#include <QProcessEnvironment>
 #include <QScopedPointer>
 #include <QSharedPointer>
 #include <QStringList>
 #include <QTextCodec>
-#include <QMutex>
+#include <QVariant>
 
 /*!
     \fn void Utils::ProgressParser::parseProgress(const QString &text)
@@ -145,7 +138,9 @@ ShellCommandPrivate::Job::Job(const QString &wd, const Utils::FileName &b, const
 ShellCommand::ShellCommand(const QString &workingDirectory,
                            const QProcessEnvironment &environment) :
     d(new Internal::ShellCommandPrivate(workingDirectory, environment))
-{ }
+{
+    connect(&d->m_watcher, &QFutureWatcher<void>::canceled, this, &ShellCommand::cancel);
+}
 
 ShellCommand::~ShellCommand()
 {
@@ -228,11 +223,8 @@ void ShellCommand::execute()
     if (d->m_jobs.empty())
         return;
 
-    // For some reason QtConcurrent::run() only works on this
-    QFuture<void> task = QtConcurrent::run(&ShellCommand::run, this);
+    QFuture<void> task = Utils::runAsync(&ShellCommand::run, this);
     d->m_watcher.setFuture(task);
-    connect(&d->m_watcher, &QFutureWatcher<void>::canceled, this, &ShellCommand::cancel);
-
     addTask(task);
 }
 
@@ -310,9 +302,12 @@ void ShellCommand::run(QFutureInterface<void> &future)
         }
 
         emit finished(d->m_lastExecSuccess, d->m_lastExecExitCode, cookie());
-        if (d->m_lastExecSuccess)
+        if (d->m_lastExecSuccess) {
             emit success(cookie());
-        future.setProgressValue(future.progressMaximum());
+            future.setProgressValue(future.progressMaximum());
+        } else {
+            future.cancel(); // sets the progress indicator red
+        }
     }
 
     if (d->m_progressParser)
@@ -363,30 +358,29 @@ Utils::SynchronousProcessResponse ShellCommand::runCommand(const Utils::FileName
             process.setStdErrBufferedSignalsEnabled(true);
             connect(&process, &Utils::SynchronousProcess::stdErrBuffered,
                     this, [this, proxy](const QString &text)
-                          {
-                              if (!(d->m_flags & SuppressStdErr))
-                                  proxy->appendError(text);
-                              if (d->m_progressiveOutput)
-                                  emit stdErrText(text);
-                          });
+            {
+                if (!(d->m_flags & SuppressStdErr))
+                    proxy->appendError(text);
+                if (d->m_progressiveOutput)
+                    emit stdErrText(text);
+            });
         }
 
         // connect stdout to the output window if desired
-        if (d->m_progressParser || d->m_progressiveOutput
-                || (d->m_flags & ShowStdOut)) {
+        if (d->m_progressParser || d->m_progressiveOutput || (d->m_flags & ShowStdOut)) {
             process.setStdOutBufferedSignalsEnabled(true);
             connect(&process, &Utils::SynchronousProcess::stdOutBuffered,
                     this, [this, proxy](const QString &text)
-                          {
-                              if (d->m_progressParser)
-                                  d->m_progressParser->parseProgress(text);
-                              if (d->m_flags & ShowStdOut)
-                                  proxy->append(text);
-                              if (d->m_progressiveOutput) {
-                                  emit stdOutText(text);
-                                  d->m_hadOutput = true;
-                              }
-                          });
+            {
+                if (d->m_progressParser)
+                    d->m_progressParser->parseProgress(text);
+                if (d->m_flags & ShowStdOut)
+                    proxy->append(text);
+                if (d->m_progressiveOutput) {
+                    emit stdOutText(text);
+                    d->m_hadOutput = true;
+                }
+            });
         }
 
         process.setTimeOutMessageBoxEnabled(true);

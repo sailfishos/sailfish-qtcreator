@@ -8,6 +8,8 @@
 
         \li Android
 
+        \li Embedded
+
         \li Generic remote Linux
 
         \li iOS
@@ -22,12 +24,26 @@
 
     \endlist
 
+    \section2 Embedded Devices
+
+    The Boot to Qt stack can be made to run on a variety of hardware. For
+    Qt for Device Creation license holders, tooling is provided to customize the
+    contents of the stack as well as to take it into desired production
+    hardware.
+
+    For more information about the supported device groups and reference devices,
+    see \l{http://doc.qt.io/QtForDeviceCreation/qtee-supported-platforms.html}
+    {Supported Platforms} in the \l{http://doc.qt.io/QtForDeviceCreation/index.html}
+    {Qt for Device Creation} documentation.
+
+    \section2 Mobile Devices
+
     The following table summarizes operating system support for developing
     applications for mobile device platforms.
 
     \table
         \header
-            \li {1,3} Target Platform
+            \li {1,2} Target Platform
             \li {3,1} Development Platform
         \header
             \li Linux

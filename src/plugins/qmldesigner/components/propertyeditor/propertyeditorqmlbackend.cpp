@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -33,6 +28,7 @@
 #include "propertyeditorvalue.h"
 #include "propertyeditortransaction.h"
 #include <qmldesignerconstants.h>
+#include <qmldesignerplugin.h>
 
 #include <qmlobjectnode.h>
 #include <nodemetainfo.h>
@@ -93,10 +89,10 @@ PropertyEditorQmlBackend::PropertyEditorQmlBackend(PropertyEditorView *propertyE
         m_view(new Quick2PropertyEditorView), m_propertyEditorTransaction(new PropertyEditorTransaction(propertyEditor)), m_dummyPropertyEditorValue(new PropertyEditorValue()),
         m_contextObject(new PropertyEditorContextObject())
 {
-    Q_ASSERT(QFileInfo::exists(":/images/button_normal.png"));
+    Q_ASSERT(QFileInfo(QLatin1String(":/images/button_normal.png")).exists());
 
-    m_view->engine()->setOutputWarningsToStandardError(
-                !qgetenv("QTCREATOR_QTQUICKDESIGNER_PROPERTYEDITOR_SHOW_WARNINGS").isEmpty());
+    m_view->engine()->setOutputWarningsToStandardError(QmlDesignerPlugin::instance()
+        ->settings().value(DesignerSettingsKey::SHOW_PROPERTYEDITOR_WARNINGS).toBool());
 
     m_view->engine()->addImportPath(propertyEditorResourcesPath());
     m_dummyPropertyEditorValue->setValue("#000000");
@@ -104,7 +100,7 @@ PropertyEditorQmlBackend::PropertyEditorQmlBackend(PropertyEditorView *propertyE
     m_contextObject->setBackendValues(&m_backendValuesPropertyMap);
     m_contextObject->insertInQmlContext(context());
 
-    QObject::connect(&m_backendValuesPropertyMap, SIGNAL(valueChanged(QString,QVariant)), propertyEditor, SLOT(changeValue(QString)));
+    QObject::connect(&m_backendValuesPropertyMap, &DesignerPropertyMap::valueChanged, propertyEditor, &PropertyEditorView::changeValue);
 }
 
 PropertyEditorQmlBackend::~PropertyEditorQmlBackend()
@@ -118,8 +114,8 @@ void PropertyEditorQmlBackend::setupPropertyEditorValue(const PropertyName &name
     PropertyEditorValue *valueObject = qobject_cast<PropertyEditorValue*>(variantToQObject(backendValuesPropertyMap().value(propertyName)));
     if (!valueObject) {
         valueObject = new PropertyEditorValue(&backendValuesPropertyMap());
-        QObject::connect(valueObject, SIGNAL(valueChanged(QString,QVariant)), &backendValuesPropertyMap(), SIGNAL(valueChanged(QString,QVariant)));
-        QObject::connect(valueObject, SIGNAL(expressionChanged(QString)), propertyEditor, SLOT(changeExpression(QString)));
+        QObject::connect(valueObject, &PropertyEditorValue::valueChanged, &backendValuesPropertyMap(), &DesignerPropertyMap::valueChanged);
+        QObject::connect(valueObject, &PropertyEditorValue::expressionChanged, propertyEditor, &PropertyEditorView::changeExpression);
         backendValuesPropertyMap().insert(QString::fromUtf8(propertyName), QVariant::fromValue(valueObject));
     }
     valueObject->setName(propertyName);
@@ -128,6 +124,53 @@ void PropertyEditorQmlBackend::setupPropertyEditorValue(const PropertyName &name
     else
         valueObject->setValue(QVariant(1));
 
+}
+
+static PropertyNameList layoutAttachedPropertiesNames()
+{
+    PropertyNameList propertyNames;
+    propertyNames << "alignment" << "column" << "columnSpan" << "fillHeight" << "fillWidth"
+                  << "maximumHeight" << "maximumWidth" << "minimumHeight" << "minimumWidth"
+                  << "preferredHeight" << "preferredWidth" << "row"<< "rowSpan";
+
+    return propertyNames;
+}
+
+QVariant properDefaultLayoutAttachedProperties(const QmlObjectNode &qmlObjectNode, const PropertyName &propertyName)
+{
+    QVariant value = qmlObjectNode.modelValue(propertyName);
+
+    if (value.isValid())
+        return value;
+
+    if ("fillHeight" == propertyName || "fillWidth" == propertyName)
+        return false;
+
+      if ("minimumWidth" == propertyName || "minimumHeight" == propertyName)
+          return 0;
+
+      if ("preferredWidth" == propertyName || "preferredHeight" == propertyName)
+          return -1;
+
+      if ("maximumWidth" == propertyName || "maximumHeight" == propertyName)
+          return 0xffff;
+
+     if ("columnSpan" == propertyName || "rowSpan" == propertyName)
+         return 1;
+
+    return QVariant();
+}
+
+void PropertyEditorQmlBackend::setupLayoutAttachedProperties(const QmlObjectNode &qmlObjectNode, PropertyEditorView *propertyEditor)
+{
+    if (QmlItemNode(qmlObjectNode).isInLayout()) {
+
+        static const PropertyNameList propertyNames = layoutAttachedPropertiesNames();
+
+        foreach (const PropertyName &propertyName, propertyNames) {
+            createPropertyEditorValue(qmlObjectNode, "Layout." + propertyName, properDefaultLayoutAttachedProperties(qmlObjectNode, propertyName), propertyEditor);
+        }
+    }
 }
 
 void PropertyEditorQmlBackend::createPropertyEditorValue(const QmlObjectNode &qmlObjectNode,
@@ -140,8 +183,8 @@ void PropertyEditorQmlBackend::createPropertyEditorValue(const QmlObjectNode &qm
     PropertyEditorValue *valueObject = qobject_cast<PropertyEditorValue*>(variantToQObject(backendValuesPropertyMap().value(propertyName)));
     if (!valueObject) {
         valueObject = new PropertyEditorValue(&backendValuesPropertyMap());
-        QObject::connect(valueObject, SIGNAL(valueChanged(QString,QVariant)), &backendValuesPropertyMap(), SIGNAL(valueChanged(QString,QVariant)));
-        QObject::connect(valueObject, SIGNAL(expressionChanged(QString)), propertyEditor, SLOT(changeExpression(QString)));
+        QObject::connect(valueObject, &PropertyEditorValue::valueChanged, &backendValuesPropertyMap(), &DesignerPropertyMap::valueChanged);
+        QObject::connect(valueObject, &PropertyEditorValue::expressionChanged, propertyEditor, &PropertyEditorView::changeExpression);
         backendValuesPropertyMap().insert(QString::fromUtf8(propertyName), QVariant::fromValue(valueObject));
     }
     valueObject->setName(name);
@@ -158,7 +201,7 @@ void PropertyEditorQmlBackend::createPropertyEditorValue(const QmlObjectNode &qm
         qmlObjectNode.modelNode().property(propertyName).isBindingProperty()) {
         valueObject->setExpression(qmlObjectNode.modelNode().bindingProperty(propertyName).expression());
     } else {
-        if (qmlObjectNode.hasBindingProperty(propertyName))
+        if (qmlObjectNode.hasBindingProperty(name))
             valueObject->setExpression(qmlObjectNode.expression(name));
         else
             valueObject->setExpression(qmlObjectNode.instanceValue(name).toString());
@@ -223,6 +266,8 @@ void PropertyEditorQmlBackend::setup(const QmlObjectNode &qmlObjectNode, const Q
         foreach (const PropertyName &propertyName, qmlObjectNode.modelNode().metaInfo().propertyNames())
             createPropertyEditorValue(qmlObjectNode, propertyName, qmlObjectNode.instanceValue(propertyName), propertyEditor);
 
+        setupLayoutAttachedProperties(qmlObjectNode, propertyEditor);
+
         // className
         PropertyEditorValue *valueObject = qobject_cast<PropertyEditorValue*>(variantToQObject(m_backendValuesPropertyMap.value("className")));
         if (!valueObject)
@@ -230,7 +275,7 @@ void PropertyEditorQmlBackend::setup(const QmlObjectNode &qmlObjectNode, const Q
         valueObject->setName("className");
         valueObject->setModelNode(qmlObjectNode.modelNode());
         valueObject->setValue(qmlObjectNode.modelNode().simplifiedTypeName());
-        QObject::connect(valueObject, SIGNAL(valueChanged(QString,QVariant)), &m_backendValuesPropertyMap, SIGNAL(valueChanged(QString,QVariant)));
+        QObject::connect(valueObject, &PropertyEditorValue::valueChanged, &backendValuesPropertyMap(), &DesignerPropertyMap::valueChanged);
         m_backendValuesPropertyMap.insert("className", QVariant::fromValue(valueObject));
 
         // id
@@ -239,29 +284,27 @@ void PropertyEditorQmlBackend::setup(const QmlObjectNode &qmlObjectNode, const Q
             valueObject = new PropertyEditorValue(&m_backendValuesPropertyMap);
         valueObject->setName("id");
         valueObject->setValue(qmlObjectNode.id());
-        QObject::connect(valueObject, SIGNAL(valueChanged(QString,QVariant)), &m_backendValuesPropertyMap, SIGNAL(valueChanged(QString,QVariant)));
+        QObject::connect(valueObject, &PropertyEditorValue::valueChanged, &backendValuesPropertyMap(), &DesignerPropertyMap::valueChanged);
         m_backendValuesPropertyMap.insert("id", QVariant::fromValue(valueObject));
 
         QmlItemNode itemNode(qmlObjectNode.modelNode());
 
         // anchors
         m_backendAnchorBinding.setup(qmlObjectNode.modelNode());
-        context()->setContextProperty("anchorBackend", &m_backendAnchorBinding);
+        context()->setContextProperty(QLatin1String("anchorBackend"), &m_backendAnchorBinding);
 
-
-        context()->setContextProperty("transaction", m_propertyEditorTransaction.data());
-
+        context()->setContextProperty(QLatin1String("transaction"), m_propertyEditorTransaction.data());
 
         // model node
         m_backendModelNode.setup(qmlObjectNode.modelNode());
-        context()->setContextProperty("modelNodeBackend", &m_backendModelNode);
+        context()->setContextProperty(QLatin1String("modelNodeBackend"), &m_backendModelNode);
 
         contextObject()->setSpecificsUrl(qmlSpecificsFile);
 
         contextObject()->setStateName(stateName);
         if (!qmlObjectNode.isValid())
             return;
-        context()->setContextProperty("propertyCount", QVariant(qmlObjectNode.modelNode().properties().count()));
+        context()->setContextProperty(QLatin1String("propertyCount"), QVariant(qmlObjectNode.modelNode().properties().count()));
 
         contextObject()->setIsBaseState(qmlObjectNode.isInBaseState());
         contextObject()->setSelectionChanged(false);
@@ -287,7 +330,7 @@ void PropertyEditorQmlBackend::setup(const QmlObjectNode &qmlObjectNode, const Q
 
 void PropertyEditorQmlBackend::initialSetup(const TypeName &typeName, const QUrl &qmlSpecificsFile, PropertyEditorView *propertyEditor)
 {
-    NodeMetaInfo metaInfo = propertyEditor->model()->metaInfo(typeName, 4, 7);
+    NodeMetaInfo metaInfo = propertyEditor->model()->metaInfo(typeName);
 
     foreach (const PropertyName &propertyName, metaInfo.propertyNames())
         setupPropertyEditorValue(propertyName, propertyEditor, metaInfo.propertyTypeName(propertyName));
@@ -298,7 +341,7 @@ void PropertyEditorQmlBackend::initialSetup(const TypeName &typeName, const QUrl
     valueObject->setName("className");
 
     valueObject->setValue(typeName);
-    QObject::connect(valueObject, SIGNAL(valueChanged(QString,QVariant)), &m_backendValuesPropertyMap, SIGNAL(valueChanged(QString,QVariant)));
+    QObject::connect(valueObject, &PropertyEditorValue::valueChanged, &backendValuesPropertyMap(), &DesignerPropertyMap::valueChanged);
     m_backendValuesPropertyMap.insert("className", QVariant::fromValue(valueObject));
 
     // id
@@ -307,12 +350,12 @@ void PropertyEditorQmlBackend::initialSetup(const TypeName &typeName, const QUrl
         valueObject = new PropertyEditorValue(&m_backendValuesPropertyMap);
     valueObject->setName("id");
     valueObject->setValue("id");
-    QObject::connect(valueObject, SIGNAL(valueChanged(QString,QVariant)), &m_backendValuesPropertyMap, SIGNAL(valueChanged(QString,QVariant)));
+    QObject::connect(valueObject, &PropertyEditorValue::valueChanged, &backendValuesPropertyMap(), &DesignerPropertyMap::valueChanged);
     m_backendValuesPropertyMap.insert("id", QVariant::fromValue(valueObject));
 
-    context()->setContextProperty("anchorBackend", &m_backendAnchorBinding);
-    context()->setContextProperty("modelNodeBackend", &m_backendModelNode);
-    context()->setContextProperty("transaction", m_propertyEditorTransaction.data());
+    context()->setContextProperty(QLatin1String("anchorBackend"), &m_backendAnchorBinding);
+    context()->setContextProperty(QLatin1String("modelNodeBackend"), &m_backendModelNode);
+    context()->setContextProperty(QLatin1String("transaction"), m_propertyEditorTransaction.data());
 
     contextObject()->setSpecificsUrl(qmlSpecificsFile);
 
@@ -400,8 +443,6 @@ QString PropertyEditorQmlBackend::fixTypeNameForPanes(const QString &typeName)
 
 QString PropertyEditorQmlBackend::qmlFileName(const NodeMetaInfo &nodeInfo)
 {
-    if (nodeInfo.typeName().split('.').last() == "QDeclarativeItem")
-        return "QtQuick/ItemPane.qml";
     const QString fixedTypeName = fixTypeNameForPanes(nodeInfo.typeName());
     return fixedTypeName + QStringLiteral("Pane.qml");
 }
@@ -449,6 +490,13 @@ void PropertyEditorQmlBackend::emitSelectionChanged()
     m_backendModelNode.emitSelectionChanged();
 }
 
+void PropertyEditorQmlBackend::setValueforLayoutAttachedProperties(const QmlObjectNode &qmlObjectNode, const PropertyName &name)
+{
+    PropertyName propertyName = name;
+    propertyName.replace("Layout.", "");
+    setValue(qmlObjectNode,  name, properDefaultLayoutAttachedProperties(qmlObjectNode, propertyName));
+}
+
 QUrl PropertyEditorQmlBackend::getQmlUrlForModelNode(const ModelNode &modelNode, TypeName &className)
 {
     if (modelNode.isValid()) {
@@ -464,7 +512,7 @@ QUrl PropertyEditorQmlBackend::getQmlUrlForModelNode(const ModelNode &modelNode,
             }
         }
     }
-    return fileToUrl(QDir(propertyEditorResourcesPath()).filePath("QtQuick/emptyPane.qml"));
+    return fileToUrl(QDir(propertyEditorResourcesPath()).filePath(QLatin1String("QtQuick/emptyPane.qml")));
 }
 
 QString PropertyEditorQmlBackend::locateQmlFile(const NodeMetaInfo &info, const QString &relativePath)

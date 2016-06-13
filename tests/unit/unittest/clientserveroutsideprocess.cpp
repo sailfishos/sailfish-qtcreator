@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,42 +9,38 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://www.qt.io/licensing.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
 #include "mockipclient.h"
 
-#include <cmbalivecommand.h>
-#include <cmbcodecompletedcommand.h>
-#include <cmbcommands.h>
-#include <cmbcompletecodecommand.h>
-#include <cmbechocommand.h>
-#include <cmbendcommand.h>
-#include <cmbregisterprojectsforcodecompletioncommand.h>
-#include <cmbregistertranslationunitsforcodecompletioncommand.h>
-#include <cmbunregisterprojectsforcodecompletioncommand.h>
-#include <cmbunregistertranslationunitsforcodecompletioncommand.h>
+#include <cmbalivemessage.h>
+#include <cmbcodecompletedmessage.h>
+#include <cmbcompletecodemessage.h>
+#include <cmbechomessage.h>
+#include <cmbendmessage.h>
+#include <cmbregisterprojectsforeditormessage.h>
+#include <cmbregistertranslationunitsforeditormessage.h>
+#include <cmbunregisterprojectsforeditormessage.h>
+#include <cmbunregistertranslationunitsforeditormessage.h>
+#include <highlightingchangedmessage.h>
 #include <connectionclient.h>
-#include <projectpartsdonotexistcommand.h>
-#include <readcommandblock.h>
-#include <translationunitdoesnotexistcommand.h>
-#include <writecommandblock.h>
+#include <diagnosticschangedmessage.h>
+#include <projectpartsdonotexistmessage.h>
+#include <readmessageblock.h>
+#include <translationunitdoesnotexistmessage.h>
+#include <writemessageblock.h>
 
 #include <gmock/gmock.h>
 #include <gmock/gmock-matchers.h>
@@ -111,66 +107,69 @@ TEST_F(ClientServerOutsideProcess, RestartProcessAfterTermination)
     ASSERT_TRUE(clientSpy.wait(100000));
 }
 
-TEST_F(ClientServerOutsideProcess, SendRegisterTranslationUnitForCodeCompletionCommand)
+TEST_F(ClientServerOutsideProcess, SendRegisterTranslationUnitForEditorMessage)
 {
-    ClangBackEnd::FileContainer fileContainer(Utf8StringLiteral("foo"), Utf8StringLiteral("pathToProjectPart.pro"));
-    ClangBackEnd::RegisterTranslationUnitForCodeCompletionCommand registerTranslationUnitForCodeCompletionCommand({fileContainer});
-    EchoCommand echoCommand(QVariant::fromValue(registerTranslationUnitForCodeCompletionCommand));
+    auto filePath = Utf8StringLiteral("foo.cpp");
+    ClangBackEnd::FileContainer fileContainer(filePath, Utf8StringLiteral("projectId"));
+    ClangBackEnd::RegisterTranslationUnitForEditorMessage registerTranslationUnitForEditorMessage({fileContainer},
+                                                                                                  filePath,
+                                                                                                  {filePath});
+    EchoMessage echoMessage(registerTranslationUnitForEditorMessage);
 
-    EXPECT_CALL(mockIpcClient, echo(echoCommand))
+    EXPECT_CALL(mockIpcClient, echo(echoMessage))
             .Times(1);
 
-    client.serverProxy().registerTranslationUnitsForCodeCompletion(registerTranslationUnitForCodeCompletionCommand);
+    client.serverProxy().registerTranslationUnitsForEditor(registerTranslationUnitForEditorMessage);
     ASSERT_TRUE(client.waitForEcho());
 }
 
-TEST_F(ClientServerOutsideProcess, SendUnregisterTranslationUnitsForCodeCompletionCommand)
+TEST_F(ClientServerOutsideProcess, SendUnregisterTranslationUnitsForEditorMessage)
 {
-    FileContainer fileContainer(Utf8StringLiteral("foo.cpp"), Utf8StringLiteral("bar.pro"));
-    ClangBackEnd::UnregisterTranslationUnitsForCodeCompletionCommand unregisterTranslationUnitsForCodeCompletionCommand ({fileContainer});
-    EchoCommand echoCommand(QVariant::fromValue(unregisterTranslationUnitsForCodeCompletionCommand));
+    FileContainer fileContainer(Utf8StringLiteral("foo.cpp"), Utf8StringLiteral("projectId"));
+    ClangBackEnd::UnregisterTranslationUnitsForEditorMessage unregisterTranslationUnitsForEditorMessage ({fileContainer});
+    EchoMessage echoMessage(unregisterTranslationUnitsForEditorMessage);
 
-    EXPECT_CALL(mockIpcClient, echo(echoCommand))
+    EXPECT_CALL(mockIpcClient, echo(echoMessage))
             .Times(1);
 
-    client.serverProxy().unregisterTranslationUnitsForCodeCompletion(unregisterTranslationUnitsForCodeCompletionCommand);
+    client.serverProxy().unregisterTranslationUnitsForEditor(unregisterTranslationUnitsForEditorMessage);
     ASSERT_TRUE(client.waitForEcho());
 }
 
-TEST_F(ClientServerOutsideProcess, SendCompleteCodeCommand)
+TEST_F(ClientServerOutsideProcess, SendCompleteCodeMessage)
 {
-    CompleteCodeCommand codeCompleteCommand(Utf8StringLiteral("foo.cpp"), 24, 33, Utf8StringLiteral("do what I want"));
-    EchoCommand echoCommand(QVariant::fromValue(codeCompleteCommand));
+    CompleteCodeMessage codeCompleteMessage(Utf8StringLiteral("foo.cpp"), 24, 33, Utf8StringLiteral("do what I want"));
+    EchoMessage echoMessage(codeCompleteMessage);
 
-    EXPECT_CALL(mockIpcClient, echo(echoCommand))
+    EXPECT_CALL(mockIpcClient, echo(echoMessage))
             .Times(1);
 
-    client.serverProxy().completeCode(codeCompleteCommand);
+    client.serverProxy().completeCode(codeCompleteMessage);
     ASSERT_TRUE(client.waitForEcho());
 }
 
-TEST_F(ClientServerOutsideProcess, SendRegisterProjectPartsForCodeCompletionCommand)
+TEST_F(ClientServerOutsideProcess, SendRegisterProjectPartsForEditorMessage)
 {
     ClangBackEnd::ProjectPartContainer projectContainer(Utf8StringLiteral(TESTDATA_DIR"/complete.pro"));
-    ClangBackEnd::RegisterProjectPartsForCodeCompletionCommand registerProjectPartsForCodeCompletionCommand({projectContainer});
-    EchoCommand echoCommand(QVariant::fromValue(registerProjectPartsForCodeCompletionCommand));
+    ClangBackEnd::RegisterProjectPartsForEditorMessage registerProjectPartsForEditorMessage({projectContainer});
+    EchoMessage echoMessage(registerProjectPartsForEditorMessage);
 
-    EXPECT_CALL(mockIpcClient, echo(echoCommand))
+    EXPECT_CALL(mockIpcClient, echo(echoMessage))
             .Times(1);
 
-    client.serverProxy().registerProjectPartsForCodeCompletion(registerProjectPartsForCodeCompletionCommand);
+    client.serverProxy().registerProjectPartsForEditor(registerProjectPartsForEditorMessage);
     ASSERT_TRUE(client.waitForEcho());
 }
 
-TEST_F(ClientServerOutsideProcess, SendUnregisterProjectPartsForCodeCompletionCommand)
+TEST_F(ClientServerOutsideProcess, SendUnregisterProjectPartsForEditorMessage)
 {
-    ClangBackEnd::UnregisterProjectPartsForCodeCompletionCommand unregisterProjectPartsForCodeCompletionCommand({Utf8StringLiteral(TESTDATA_DIR"/complete.pro")});
-    EchoCommand echoCommand(QVariant::fromValue(unregisterProjectPartsForCodeCompletionCommand));
+    ClangBackEnd::UnregisterProjectPartsForEditorMessage unregisterProjectPartsForEditorMessage({Utf8StringLiteral(TESTDATA_DIR"/complete.pro")});
+    EchoMessage echoMessage(unregisterProjectPartsForEditorMessage);
 
-    EXPECT_CALL(mockIpcClient, echo(echoCommand))
+    EXPECT_CALL(mockIpcClient, echo(echoMessage))
             .Times(1);
 
-    client.serverProxy().unregisterProjectPartsForCodeCompletion(unregisterProjectPartsForCodeCompletionCommand);
+    client.serverProxy().unregisterProjectPartsForEditor(unregisterProjectPartsForEditorMessage);
     ASSERT_TRUE(client.waitForEcho());
 }
 

@@ -1,8 +1,8 @@
-/**************************************************************************
+/****************************************************************************
 **
-** Copyright (C) 2015 Dmitry Savchenko
-** Copyright (C) 2015 Vasiliy Sorokin
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 Dmitry Savchenko
+** Copyright (C) 2016 Vasiliy Sorokin
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -10,22 +10,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -36,7 +31,10 @@
 #include "todoitemsmodel.h"
 #include "todoitemsscanner.h"
 
+#include <projectexplorer/nodesvisitor.h>
 #include <projectexplorer/projectexplorer.h>
+#include <projectexplorer/projectnodes.h>
+#include <projectexplorer/projecttree.h>
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/idocument.h>
 #include <projectexplorer/session.h>
@@ -90,6 +88,10 @@ void TodoItemsProvider::updateList()
     if (m_settings.scanningScope == ScanningScopeCurrentFile) {
         if (m_currentEditor)
             m_itemsList = m_itemsHash.value(m_currentEditor->document()->filePath().toString());
+    // Show only items of the current sub-project
+    } else if (m_settings.scanningScope == ScanningScopeSubProject) {
+        if (m_startupProject)
+            setItemsListWithinSubproject();
     // Show only items of the startup project if any
     } else if (m_startupProject) {
         setItemsListWithinStartupProject();
@@ -117,7 +119,7 @@ void TodoItemsProvider::createScanners()
 void TodoItemsProvider::setItemsListWithinStartupProject()
 {
     QHashIterator<QString, QList<TodoItem> > it(m_itemsHash);
-    QSet<QString> fileNames = QSet<QString>::fromList(m_startupProject->files(Project::ExcludeGeneratedFiles));
+    QSet<QString> fileNames = QSet<QString>::fromList(m_startupProject->files(Project::SourceFiles));
 
     QVariantMap settings = m_startupProject->namedSettings(QLatin1String(Constants::SETTINGS_NAME_KEY)).toMap();
 
@@ -135,6 +137,34 @@ void TodoItemsProvider::setItemsListWithinStartupProject()
             }
             if (!skip)
                 m_itemsList << it.value();
+        }
+    }
+}
+
+void TodoItemsProvider::setItemsListWithinSubproject()
+{
+    // TODO prefer current editor as source of sub-project
+    Node *node = ProjectTree::currentNode();
+    if (node) {
+        ProjectNode *projectNode = node->projectNode();
+        if (projectNode) {
+
+            FindAllFilesVisitor filesVisitor;
+            projectNode->accept(&filesVisitor);
+
+            // files must be both in the current subproject and the startup-project.
+            QSet<Utils::FileName> subprojectFileNames =
+                    QSet<Utils::FileName>::fromList(filesVisitor.filePaths());
+            QSet<QString> fileNames = QSet<QString>::fromList(
+                        m_startupProject->files(ProjectExplorer::Project::SourceFiles));
+            QHashIterator<QString, QList<TodoItem> > it(m_itemsHash);
+            while (it.hasNext()) {
+                it.next();
+                if (subprojectFileNames.contains(Utils::FileName::fromString(it.key()))
+                        && fileNames.contains(it.key())) {
+                    m_itemsList << it.value();
+                }
+            }
         }
     }
 }
@@ -161,8 +191,10 @@ void TodoItemsProvider::projectsFilesChanged()
 void TodoItemsProvider::currentEditorChanged(Core::IEditor *editor)
 {
     m_currentEditor = editor;
-    if (m_settings.scanningScope == ScanningScopeCurrentFile)
+    if (m_settings.scanningScope == ScanningScopeCurrentFile
+            || m_settings.scanningScope == ScanningScopeSubProject) {
         updateList();
+    }
 }
 
 void TodoItemsProvider::updateListTimeoutElapsed()

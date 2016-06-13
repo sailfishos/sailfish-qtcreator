@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -1453,9 +1448,10 @@ void CppQmlTypes::load(const QString &originId, const T &fakeMetaObjects, const 
             object->setPrototype(proto);
     }
 }
+
 // explicitly instantiate load for list and hash
-template void CppQmlTypes::load< QList<FakeMetaObject::ConstPtr> >(const QString &, const QList<FakeMetaObject::ConstPtr> &, const QString &);
-template void CppQmlTypes::load< QHash<QString, FakeMetaObject::ConstPtr> >(const QString &, const QHash<QString, FakeMetaObject::ConstPtr> &, const QString &);
+template QMLJS_EXPORT void CppQmlTypes::load< QList<FakeMetaObject::ConstPtr> >(const QString &, const QList<FakeMetaObject::ConstPtr> &, const QString &);
+template QMLJS_EXPORT void CppQmlTypes::load< QHash<QString, FakeMetaObject::ConstPtr> >(const QString &, const QHash<QString, FakeMetaObject::ConstPtr> &, const QString &);
 
 QList<const CppComponentValue *> CppQmlTypes::createObjectsForImport(const QString &package, ComponentVersion version)
 {
@@ -1487,6 +1483,7 @@ QList<const CppComponentValue *> CppQmlTypes::createObjectsForImport(const QStri
         if (m_objectsByQualifiedName.contains(key))
             continue;
 
+        ComponentVersion cppVersion;
         foreach (const FakeMetaObject::Export &bestExport, bestExports) {
             QString name = bestExport.type;
             bool exported = true;
@@ -1501,7 +1498,10 @@ QList<const CppComponentValue *> CppQmlTypes::createObjectsForImport(const QStri
                         fmoo.originId);
 
             // use package.cppname importversion as key
-            m_objectsByQualifiedName.insert(key, newComponent);
+            if (cppVersion <= bestExport.version) {
+                cppVersion = bestExport.version;
+                m_objectsByQualifiedName.insert(key, newComponent);
+            }
             if (exported) {
                 if (!exportedObjects.contains(name) // we might have the same type in different versions
                         || (newComponent->componentVersion() > exportedObjects.value(name)->componentVersion()))
@@ -2273,6 +2273,14 @@ ImportInfo ImportInfo::implicitDirectoryImport(const QString &directory)
 {
     ImportInfo info;
     info.m_type = ImportType::ImplicitDirectory;
+    info.m_path = directory;
+    return info;
+}
+
+ImportInfo ImportInfo::qrcDirectoryImport(const QString &directory)
+{
+    ImportInfo info;
+    info.m_type = ImportType::QrcDirectory;
     info.m_path = directory;
     return info;
 }

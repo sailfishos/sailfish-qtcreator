@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -86,7 +81,8 @@ public:
         m_installedDefinitions(installedDefinitions),
         m_downloadPath(savePath)
     {
-        connect(&m_downloadWatcher, SIGNAL(finished()), this, SLOT(downloadDefinitionsFinished()));
+        connect(&m_downloadWatcher, &QFutureWatcherBase::finished,
+                this, &MultiDefinitionDownloader::downloadDefinitionsFinished);
     }
 
     ~MultiDefinitionDownloader()
@@ -100,11 +96,10 @@ public:
 signals:
     void finished();
 
-private slots:
+private:
     void downloadReferencedDefinition(const QString &name);
     void downloadDefinitionsFinished();
 
-private:
     QFutureWatcher<void> m_downloadWatcher;
     QList<DefinitionDownloader *> m_downloaders;
     QList<QString> m_installedDefinitions;
@@ -116,7 +111,8 @@ Manager::Manager() :
     m_multiDownloader(0),
     m_hasQueuedRegistration(false)
 {
-    connect(&m_registeringWatcher, SIGNAL(finished()), this, SLOT(registerHighlightingFilesFinished()));
+    connect(&m_registeringWatcher, &QFutureWatcherBase::finished,
+            this, &Manager::registerHighlightingFilesFinished);
 }
 
 Manager::~Manager()
@@ -252,34 +248,16 @@ bool Manager::isBuildingDefinition(const QString &id) const
     return m_isBuildingDefinition.contains(id);
 }
 
-class ManagerProcessor : public QObject
-{
-    Q_OBJECT
-public:
-    ManagerProcessor();
-    void process(QFutureInterface<Manager::RegisterData> &future);
+static const int kMaxProgress = 200;
 
-    QStringList m_definitionsPaths;
-    static const int kMaxProgress;
-};
-
-const int ManagerProcessor::kMaxProgress = 200;
-
-ManagerProcessor::ManagerProcessor()
-{
-    const HighlighterSettings &settings = TextEditorSettings::highlighterSettings();
-    m_definitionsPaths.append(settings.definitionFilesPath());
-    if (settings.useFallbackLocation())
-        m_definitionsPaths.append(settings.fallbackDefinitionFilesPath());
-}
-
-void ManagerProcessor::process(QFutureInterface<Manager::RegisterData> &future)
+static void processHighlightingFiles(QFutureInterface<Manager::RegisterData> &future,
+                                     QStringList definitionPaths)
 {
     future.setProgressRange(0, kMaxProgress);
 
     Manager::RegisterData data;
     // iterate through paths in order, high priority > low priority
-    foreach (const QString &path, m_definitionsPaths) {
+    foreach (const QString &path, definitionPaths) {
         if (path.isEmpty())
             continue;
 
@@ -325,10 +303,13 @@ void Manager::registerHighlightingFiles()
     if (!m_registeringWatcher.isRunning()) {
         clear();
 
-        ManagerProcessor *processor = new ManagerProcessor;
-        QFuture<RegisterData> future =
-            QtConcurrent::run(&ManagerProcessor::process, processor);
-        connect(&m_registeringWatcher, SIGNAL(finished()), processor, SLOT(deleteLater()));
+        QStringList definitionsPaths;
+        const HighlighterSettings &settings = TextEditorSettings::highlighterSettings();
+        definitionsPaths.append(settings.definitionFilesPath());
+        if (settings.useFallbackLocation())
+            definitionsPaths.append(settings.fallbackDefinitionFilesPath());
+
+        QFuture<RegisterData> future = Utils::runAsync(processHighlightingFiles, definitionsPaths);
         m_registeringWatcher.setFuture(future);
     } else {
         m_hasQueuedRegistration = true;
@@ -414,11 +395,12 @@ QList<DefinitionMetaDataPtr> Manager::parseAvailableDefinitionsList(QIODevice *d
 
 void Manager::downloadAvailableDefinitionsMetaData()
 {
-    QUrl url(QLatin1String("http://www.kate-editor.org/syntax/update-5.17.xml"));
+    QUrl url(QLatin1String("https://www.kate-editor.org/syntax/update-5.17.xml"));
     QNetworkRequest request(url);
     // Currently this takes a couple of seconds on Windows 7: QTBUG-10106.
     QNetworkReply *reply = Utils::NetworkAccessManager::instance()->get(request);
-    connect(reply, SIGNAL(finished()), this, SLOT(downloadAvailableDefinitionsListFinished()));
+    connect(reply, &QNetworkReply::finished,
+            this, &Manager::downloadAvailableDefinitionsListFinished);
 }
 
 void Manager::downloadAvailableDefinitionsListFinished()
@@ -435,7 +417,8 @@ void Manager::downloadAvailableDefinitionsListFinished()
 void Manager::downloadDefinitions(const QList<QUrl> &urls, const QString &savePath)
 {
     m_multiDownloader = new MultiDefinitionDownloader(savePath, m_register.m_idByName.keys());
-    connect(m_multiDownloader, SIGNAL(finished()), this, SLOT(downloadDefinitionsFinished()));
+    connect(m_multiDownloader, &MultiDefinitionDownloader::finished,
+            this, &Manager::downloadDefinitionsFinished);
     m_multiDownloader->downloadDefinitions(urls);
 }
 
@@ -444,8 +427,8 @@ void MultiDefinitionDownloader::downloadDefinitions(const QList<QUrl> &urls)
     m_downloaders.clear();
     foreach (const QUrl &url, urls) {
         DefinitionDownloader *downloader = new DefinitionDownloader(url, m_downloadPath);
-        connect(downloader, SIGNAL(foundReferencedDefinition(QString)),
-                this, SLOT(downloadReferencedDefinition(QString)));
+        connect(downloader, &DefinitionDownloader::foundReferencedDefinition,
+                this, &MultiDefinitionDownloader::downloadReferencedDefinition);
         m_downloaders.append(downloader);
     }
 

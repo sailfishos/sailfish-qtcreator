@@ -1,9 +1,9 @@
 !isEmpty(QTCREATOR_PRI_INCLUDED):error("qtcreator.pri already included")
 QTCREATOR_PRI_INCLUDED = 1
 
-QTCREATOR_VERSION = 3.5.0
-QTCREATOR_COMPAT_VERSION = 3.5.0
-BINARY_ARTIFACTS_BRANCH = 3.5
+QTCREATOR_VERSION = 4.0.1
+QTCREATOR_COMPAT_VERSION = 4.0.0
+BINARY_ARTIFACTS_BRANCH = 4.0
 
 # enable c++11
 CONFIG += c++11
@@ -73,26 +73,56 @@ isEmpty(IDE_BUILD_TREE) {
     IDE_BUILD_TREE = $$clean_path($$OUT_PWD)
     IDE_BUILD_TREE ~= s,$$re_escape($$sub_dir)$,,
 }
+
 IDE_APP_PATH = $$IDE_BUILD_TREE/bin
-macx {
+osx {
     IDE_APP_TARGET   = "Qt Creator"
-    IDE_LIBRARY_PATH = $$IDE_APP_PATH/$${IDE_APP_TARGET}.app/Contents/Frameworks
-    IDE_PLUGIN_PATH  = $$IDE_APP_PATH/$${IDE_APP_TARGET}.app/Contents/PlugIns
-    IDE_LIBEXEC_PATH = $$IDE_APP_PATH/$${IDE_APP_TARGET}.app/Contents/Resources
-    IDE_DATA_PATH    = $$IDE_APP_PATH/$${IDE_APP_TARGET}.app/Contents/Resources
+
+    IDE_APP_BUNDLE = $$IDE_APP_PATH/$${IDE_APP_TARGET}.app
+
+    # set output path if not set manually
+    isEmpty(IDE_OUTPUT_PATH): IDE_OUTPUT_PATH = $$IDE_APP_BUNDLE/Contents
+
+    IDE_LIBRARY_PATH = $$IDE_OUTPUT_PATH/Frameworks
+    IDE_PLUGIN_PATH  = $$IDE_OUTPUT_PATH/PlugIns
+    IDE_LIBEXEC_PATH = $$IDE_OUTPUT_PATH/Resources
+    IDE_DATA_PATH    = $$IDE_OUTPUT_PATH/Resources
     IDE_DOC_PATH     = $$IDE_DATA_PATH/doc
-    IDE_BIN_PATH     = $$IDE_APP_PATH/$${IDE_APP_TARGET}.app/Contents/MacOS
+    IDE_BIN_PATH     = $$IDE_OUTPUT_PATH/MacOS
     copydata = 1
+
+    LINK_LIBRARY_PATH = $$IDE_APP_BUNDLE/Contents/Frameworks
+    LINK_PLUGIN_PATH  = $$IDE_APP_BUNDLE/Contents/PlugIns
 } else {
     contains(TEMPLATE, vc.*):vcproj = 1
     IDE_APP_TARGET   = qtcreator
-    IDE_LIBRARY_PATH = $$IDE_BUILD_TREE/$$IDE_LIBRARY_BASENAME/qtcreator
+
+    # target output path if not set manually
+    isEmpty(IDE_OUTPUT_PATH): IDE_OUTPUT_PATH = $$IDE_BUILD_TREE
+
+    IDE_LIBRARY_PATH = $$IDE_OUTPUT_PATH/$$IDE_LIBRARY_BASENAME/qtcreator
     IDE_PLUGIN_PATH  = $$IDE_LIBRARY_PATH/plugins
-    IDE_LIBEXEC_PATH = $$IDE_APP_PATH # FIXME
-    IDE_DATA_PATH    = $$IDE_BUILD_TREE/share/qtcreator
-    IDE_DOC_PATH     = $$IDE_BUILD_TREE/share/doc/qtcreator
-    IDE_BIN_PATH     = $$IDE_APP_PATH
-    !isEqual(IDE_SOURCE_TREE, $$IDE_BUILD_TREE):copydata = 1
+    IDE_DATA_PATH    = $$IDE_OUTPUT_PATH/share/qtcreator
+    IDE_DOC_PATH     = $$IDE_OUTPUT_PATH/share/doc/qtcreator
+    IDE_BIN_PATH     = $$IDE_OUTPUT_PATH/bin
+    win32: \
+        IDE_LIBEXEC_PATH = $$IDE_OUTPUT_PATH/bin
+    else: \
+        IDE_LIBEXEC_PATH = $$IDE_OUTPUT_PATH/libexec/qtcreator
+    !isEqual(IDE_SOURCE_TREE, $$IDE_OUTPUT_PATH):copydata = 1
+
+    LINK_LIBRARY_PATH = $$IDE_BUILD_TREE/$$IDE_LIBRARY_BASENAME/qtcreator
+    LINK_PLUGIN_PATH  = $$LINK_LIBRARY_PATH/plugins
+
+    INSTALL_LIBRARY_PATH = $$QTC_PREFIX/$$IDE_LIBRARY_BASENAME/qtcreator
+    INSTALL_PLUGIN_PATH  = $$INSTALL_LIBRARY_PATH/plugins
+    win32: \
+        INSTALL_LIBEXEC_PATH = $$QTC_PREFIX/bin
+    else: \
+        INSTALL_LIBEXEC_PATH = $$QTC_PREFIX/libexec/qtcreator
+    INSTALL_DATA_PATH    = $$QTC_PREFIX/share/qtcreator
+    INSTALL_DOC_PATH     = $$QTC_PREFIX/share/doc/qtcreator
+    INSTALL_BIN_PATH     = $$QTC_PREFIX/bin
 }
 
 INCLUDEPATH += \
@@ -111,7 +141,8 @@ CONFIG += \
     depend_includepath \
     no_include_pwd
 
-LIBS += -L$$IDE_LIBRARY_PATH
+LIBS *= -L$$LINK_LIBRARY_PATH  # Qt Creator libraries
+exists($$IDE_LIBRARY_PATH): LIBS *= -L$$IDE_LIBRARY_PATH  # library path from output path
 
 !isEmpty(vcproj) {
     DEFINES += IDE_LIBRARY_BASENAME=\"$$IDE_LIBRARY_BASENAME\"
@@ -133,7 +164,7 @@ unix {
     UI_DIR = $${OUT_PWD}/.uic
 }
 
-win32-msvc* {
+msvc {
     #Don't warn about sprintf, fopen etc being 'unsafe'
     DEFINES += _CRT_SECURE_NO_WARNINGS
     QMAKE_CXXFLAGS_WARN_ON *= -w44996
@@ -149,7 +180,11 @@ qt {
 QBSFILE = $$replace(_PRO_FILE_, \\.pro$, .qbs)
 exists($$QBSFILE):DISTFILES += $$QBSFILE
 
-!isEmpty(QTC_PLUGIN_DEPENDS):LIBS *= -L$$IDE_PLUGIN_PATH
+!isEmpty(QTC_PLUGIN_DEPENDS) {
+    LIBS *= -L$$IDE_PLUGIN_PATH  # plugin path from output directory
+    LIBS *= -L$$LINK_PLUGIN_PATH  # when output path is different from Qt Creator build directory
+}
+
 # recursively resolve plugin deps
 done_plugins =
 for(ever) {

@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -44,9 +39,9 @@
 #include <projectexplorer/target.h>
 #include <projectexplorer/toolchain.h>
 
+#include <coreplugin/coreicons.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/icontext.h>
-#include <qtsupport/debugginghelperbuildtask.h>
 #include <qtsupport/qtkitinformation.h>
 #include <qtsupport/qtversionmanager.h>
 #include <qtsupport/qtsupportconstants.h>
@@ -103,10 +98,6 @@ void QMakeStep::ctor()
     setDefaultDisplayName(tr("qmake"));
 }
 
-QMakeStep::~QMakeStep()
-{
-}
-
 QmakeBuildConfiguration *QMakeStep::qmakeBuildConfiguration() const
 {
     return static_cast<QmakeBuildConfiguration *>(buildConfiguration());
@@ -124,7 +115,7 @@ QString QMakeStep::allArguments(bool shorted)
     QmakeBuildConfiguration *bc = qmakeBuildConfiguration();
     QStringList arguments;
     if (bc->subNodeBuild())
-        arguments << bc->subNodeBuild()->path().toUserOutput();
+        arguments << bc->subNodeBuild()->filePath().toUserOutput();
     else if (shorted)
         arguments << project()->projectFilePath().fileName();
     else
@@ -169,11 +160,8 @@ QMakeStepConfig QMakeStep::deducedArguments()
 
     config.archConfig = QMakeStepConfig::targetArchFor(targetAbi, version);
     config.osType = QMakeStepConfig::osTypeFor(targetAbi, version);
-    if (linkQmlDebuggingLibrary() && version) {
-        config.linkQmlDebuggingQQ1 = true;
-        if (version->qtVersion().majorVersion >= 5)
-            config.linkQmlDebuggingQQ2 = true;
-    }
+    if (linkQmlDebuggingLibrary() && version && version->qtVersion().majorVersion >= 5)
+        config.linkQmlDebuggingQQ2 = true;
 
     if (useQtQuickCompiler() && version)
         config.useQtQuickCompiler = true;
@@ -185,7 +173,7 @@ QMakeStepConfig QMakeStep::deducedArguments()
 }
 
 
-bool QMakeStep::init()
+bool QMakeStep::init(QList<const BuildStep *> &earlierSteps)
 {
     QmakeBuildConfiguration *qt4bc = qmakeBuildConfiguration();
     const QtSupport::BaseQtVersion *qtVersion = QtSupport::QtKitInformation::qtVersion(target()->kit());
@@ -233,10 +221,10 @@ bool QMakeStep::init()
 
     setOutputParser(new QMakeParser);
 
-    QmakeProFileNode *node = static_cast<QmakeProject *>(qt4bc->target()->project())->rootQmakeProjectNode();
+    QmakeProFileNode *node = static_cast<QmakeProject *>(qt4bc->target()->project())->rootProjectNode();
     if (qt4bc->subNodeBuild())
         node = qt4bc->subNodeBuild();
-    QString proFile = node->path().toString();
+    QString proFile = node->filePath().toString();
 
     QList<ProjectExplorer::Task> tasks = qtVersion->reportIssues(proFile, workingDirectory);
     Utils::sort(tasks);
@@ -256,7 +244,7 @@ bool QMakeStep::init()
 
     m_scriptTemplate = node->projectType() == ScriptTemplate;
 
-    return AbstractProcessStep::init();
+    return AbstractProcessStep::init(earlierSteps);
 }
 
 void QMakeStep::run(QFutureInterface<bool> &fi)
@@ -327,23 +315,15 @@ void QMakeStep::setUserArguments(const QString &arguments)
 
 bool QMakeStep::linkQmlDebuggingLibrary() const
 {
-    if (m_linkQmlDebuggingLibrary == DoLink)
-        return true;
-    if (m_linkQmlDebuggingLibrary == DoNotLink)
-        return false;
-
-    const Core::Context languages = project()->projectLanguages();
-    if (!languages.contains(ProjectExplorer::Constants::LANG_QMLJS))
-        return false;
-    return (qmakeBuildConfiguration()->buildType() & BuildConfiguration::Debug);
+    return m_linkQmlDebuggingLibrary;
 }
 
 void QMakeStep::setLinkQmlDebuggingLibrary(bool enable)
 {
-    if ((enable && (m_linkQmlDebuggingLibrary == DoLink))
-            || (!enable && (m_linkQmlDebuggingLibrary == DoNotLink)))
+    if (enable == m_linkQmlDebuggingLibrary)
         return;
-    m_linkQmlDebuggingLibrary = enable ? DoLink : DoNotLink;
+
+    m_linkQmlDebuggingLibrary = enable;
 
     emit linkQmlDebuggingLibraryChanged();
 
@@ -417,8 +397,7 @@ QVariantMap QMakeStep::toMap() const
 {
     QVariantMap map(AbstractProcessStep::toMap());
     map.insert(QLatin1String(QMAKE_ARGUMENTS_KEY), m_userArgs);
-    map.insert(QLatin1String(QMAKE_QMLDEBUGLIBAUTO_KEY), m_linkQmlDebuggingLibrary == DebugLink);
-    map.insert(QLatin1String(QMAKE_QMLDEBUGLIB_KEY), m_linkQmlDebuggingLibrary == DoLink);
+    map.insert(QLatin1String(QMAKE_QMLDEBUGLIB_KEY), m_linkQmlDebuggingLibrary);
     map.insert(QLatin1String(QMAKE_FORCED_KEY), m_forced);
     map.insert(QLatin1String(QMAKE_USE_QTQUICKCOMPILER), m_useQtQuickCompiler);
     map.insert(QLatin1String(QMAKE_SEPARATEDEBUGINFO_KEY), m_separateDebugInfo);
@@ -430,13 +409,15 @@ bool QMakeStep::fromMap(const QVariantMap &map)
     m_userArgs = map.value(QLatin1String(QMAKE_ARGUMENTS_KEY)).toString();
     m_forced = map.value(QLatin1String(QMAKE_FORCED_KEY), false).toBool();
     m_useQtQuickCompiler = map.value(QLatin1String(QMAKE_USE_QTQUICKCOMPILER), false).toBool();
+
+    // QMAKE_QMLDEBUGLIBAUTO_KEY was used in versions 2.3 to 3.5 (both included) to automatically
+    // change the qml_debug CONFIG flag based no the qmake build configuration.
     if (map.value(QLatin1String(QMAKE_QMLDEBUGLIBAUTO_KEY), false).toBool()) {
-        m_linkQmlDebuggingLibrary = DebugLink;
+        m_linkQmlDebuggingLibrary =
+                project()->projectLanguages().contains(ProjectExplorer::Constants::LANG_QMLJS) &&
+                (qmakeBuildConfiguration()->qmakeBuildConfiguration() & BaseQtVersion::DebugBuild);
     } else {
-        if (map.value(QLatin1String(QMAKE_QMLDEBUGLIB_KEY), false).toBool())
-            m_linkQmlDebuggingLibrary = DoLink;
-        else
-            m_linkQmlDebuggingLibrary = DoNotLink;
+        m_linkQmlDebuggingLibrary = map.value(QLatin1String(QMAKE_QMLDEBUGLIB_KEY), false).toBool();
     }
     m_separateDebugInfo = map.value(QLatin1String(QMAKE_SEPARATEDEBUGINFO_KEY), false).toBool();
 
@@ -456,6 +437,9 @@ QMakeStepConfigWidget::QMakeStepConfigWidget(QMakeStep *step)
     m_ui->qmlDebuggingLibraryCheckBox->setChecked(m_step->linkQmlDebuggingLibrary());
     m_ui->qtQuickCompilerCheckBox->setChecked(m_step->useQtQuickCompiler());
     m_ui->separateDebugInfoCheckBox->setChecked(m_step->separateDebugInfo());
+    const QPixmap warning = Core::Icons::WARNING.pixmap();
+    m_ui->qmlDebuggingWarningIcon->setPixmap(warning);
+    m_ui->qtQuickCompilerWarningIcon->setPixmap(warning);
 
     qmakeBuildConfigChanged();
 
@@ -747,10 +731,6 @@ QMakeStepFactory::QMakeStepFactory(QObject *parent) :
 {
 }
 
-QMakeStepFactory::~QMakeStepFactory()
-{
-}
-
 bool QMakeStepFactory::canCreate(BuildStepList *parent, Core::Id id) const
 {
     if (parent->id() != ProjectExplorer::Constants::BUILDSTEPS_BUILD)
@@ -863,13 +843,12 @@ QStringList QMakeStepConfig::toArguments() const
     else if (archConfig == PPC64)
         arguments << QLatin1String("CONFIG+=ppc64");
 
+    // TODO: make that depend on the actual Qt version that is used
     if (osType == IphoneSimulator)
-        arguments << QLatin1String("CONFIG+=iphonesimulator");
+        arguments << QLatin1String("CONFIG+=iphonesimulator") << QLatin1String("CONFIG+=simulator") /*since Qt 5.7*/;
     else if (osType == IphoneOS)
-        arguments << QLatin1String("CONFIG+=iphoneos");
+        arguments << QLatin1String("CONFIG+=iphoneos") << QLatin1String("CONFIG+=device") /*since Qt 5.7*/;
 
-    if (linkQmlDebuggingQQ1)
-        arguments << QLatin1String("CONFIG+=declarative_debug");
     if (linkQmlDebuggingQQ2)
         arguments << QLatin1String("CONFIG+=qml_debug");
 

@@ -1,8 +1,8 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
 ** Author: Milian Wolff, KDAB (milian.wolff@kdab.com)
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -10,27 +10,24 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
 #include "valgrindrunner.h"
 #include "valgrindprocess.h"
+
+#include <projectexplorer/runnables.h>
 
 #include <utils/environment.h>
 #include <utils/hostosinfo.h>
@@ -41,80 +38,24 @@
 
 #include <QEventLoop>
 
+using namespace ProjectExplorer;
+
 namespace Valgrind {
 
 class ValgrindRunner::Private
 {
 public:
-    explicit Private(ValgrindRunner *qq)
-        : q(qq),
-          process(0),
-          channelMode(QProcess::SeparateChannels),
-          finished(false),
-          useStartupProject(true),
-          localRunMode(ProjectExplorer::ApplicationLauncher::Gui)
-    {
-    }
-
-    void run(ValgrindProcess *process);
-
-    ValgrindRunner *q;
-    ValgrindProcess *process;
-    Utils::Environment environment;
-    QProcess::ProcessChannelMode channelMode;
-    bool finished;
+    ValgrindProcess *process = 0;
+    QProcess::ProcessChannelMode channelMode = QProcess::SeparateChannels;
+    bool finished = false;
     QString valgrindExecutable;
     QStringList valgrindArguments;
-    QString debuggeeExecutable;
-    QString debuggeeArguments;
-    QString workingdir;
-    bool useStartupProject;
-    ProjectExplorer::ApplicationLauncher::Mode localRunMode;
-    QSsh::SshConnectionParameters connParams;
+    StandardRunnable debuggee;
+    IDevice::ConstPtr device;
 };
 
-void ValgrindRunner::Private::run(ValgrindProcess *_process)
-{
-    if (process && process->isRunning()) {
-        process->close();
-        process->disconnect(q);
-        process->deleteLater();
-    }
-
-    QTC_ASSERT(_process, return);
-
-    process = _process;
-
-    if (environment.size() > 0)
-        process->setEnvironment(environment);
-
-    process->setWorkingDirectory(workingdir);
-    process->setProcessChannelMode(channelMode);
-    process->setLocalRunMode(localRunMode);
-    // consider appending our options last so they override any interfering user-supplied options
-    // -q as suggested by valgrind manual
-
-    QObject::connect(process, &ValgrindProcess::processOutput,
-                     q, &ValgrindRunner::processOutputReceived);
-    QObject::connect(process, &ValgrindProcess::started,
-                     q, &ValgrindRunner::started);
-    QObject::connect(process, &ValgrindProcess::finished,
-                     q, &ValgrindRunner::processFinished);
-    QObject::connect(process, &ValgrindProcess::error,
-                     q, &ValgrindRunner::processError);
-    QObject::connect(process, &ValgrindProcess::localHostAddressRetrieved, q,
-                     &ValgrindRunner::localHostAddressRetrieved);
-
-    process->setValgrindExecutable(valgrindExecutable);
-    process->setValgrindArguments(q->fullValgrindArguments());
-    process->setDebuggeeExecutable(debuggeeExecutable);
-    process->setDebugeeArguments(debuggeeArguments);
-    process->run();
-}
-
 ValgrindRunner::ValgrindRunner(QObject *parent)
-    : QObject(parent),
-      d(new Private(this))
+    : QObject(parent), d(new Private)
 {
 }
 
@@ -158,59 +99,9 @@ QStringList ValgrindRunner::fullValgrindArguments() const
     return fullArgs;
 }
 
-QString ValgrindRunner::debuggeeExecutable() const
+void ValgrindRunner::setDebuggee(const StandardRunnable &debuggee)
 {
-    return d->debuggeeExecutable;
-}
-
-void ValgrindRunner::setDebuggeeExecutable(const QString &executable)
-{
-    d->debuggeeExecutable = executable;
-}
-
-QString ValgrindRunner::debuggeeArguments() const
-{
-    return d->debuggeeArguments;
-}
-
-void ValgrindRunner::setDebuggeeArguments(const QString &arguments)
-{
-    d->debuggeeArguments = arguments;
-}
-
-void ValgrindRunner::setLocalRunMode(ProjectExplorer::ApplicationLauncher::Mode localRunMode)
-{
-    d->localRunMode = localRunMode;
-}
-
-ProjectExplorer::ApplicationLauncher::Mode ValgrindRunner::localRunMode() const
-{
-    return d->localRunMode;
-}
-
-const QSsh::SshConnectionParameters &ValgrindRunner::connectionParameters() const
-{
-    return d->connParams;
-}
-
-void ValgrindRunner::setConnectionParameters(const QSsh::SshConnectionParameters &connParams)
-{
-    d->connParams = connParams;
-}
-
-void ValgrindRunner::setWorkingDirectory(const QString &path)
-{
-    d->workingdir = path;
-}
-
-QString ValgrindRunner::workingDirectory() const
-{
-    return d->workingdir;
-}
-
-void ValgrindRunner::setEnvironment(const Utils::Environment &environment)
-{
-    d->environment = environment;
+    d->debuggee = debuggee;
 }
 
 void ValgrindRunner::setProcessChannelMode(QProcess::ProcessChannelMode mode)
@@ -218,14 +109,14 @@ void ValgrindRunner::setProcessChannelMode(QProcess::ProcessChannelMode mode)
     d->channelMode = mode;
 }
 
-void ValgrindRunner::setUseStartupProject(bool useStartupProject)
+void ValgrindRunner::setDevice(const IDevice::ConstPtr &device)
 {
-    d->useStartupProject = useStartupProject;
+    d->device = device;
 }
 
-bool ValgrindRunner::useStartupProject() const
+IDevice::ConstPtr ValgrindRunner::device() const
 {
-    return d->useStartupProject;
+    return d->device;
 }
 
 void ValgrindRunner::waitForFinished() const
@@ -240,8 +131,26 @@ void ValgrindRunner::waitForFinished() const
 
 bool ValgrindRunner::start()
 {
-    // FIXME: This wrongly uses "useStartupProject" for a Local/Remote decision.
-    d->run(new ValgrindProcess(d->useStartupProject, d->connParams, 0, this));
+    d->process = new ValgrindProcess(d->device, this);
+    d->process->setProcessChannelMode(d->channelMode);
+    // consider appending our options last so they override any interfering user-supplied options
+    // -q as suggested by valgrind manual
+    d->process->setValgrindExecutable(d->valgrindExecutable);
+    d->process->setValgrindArguments(fullValgrindArguments());
+    d->process->setDebuggee(d->debuggee);
+
+    QObject::connect(d->process, &ValgrindProcess::processOutput,
+                     this, &ValgrindRunner::processOutputReceived);
+    QObject::connect(d->process, &ValgrindProcess::started,
+                     this, &ValgrindRunner::started);
+    QObject::connect(d->process, &ValgrindProcess::finished,
+                     this, &ValgrindRunner::processFinished);
+    QObject::connect(d->process, &ValgrindProcess::error,
+                     this, &ValgrindRunner::processError);
+    QObject::connect(d->process, &ValgrindProcess::localHostAddressRetrieved,
+                     this, &ValgrindRunner::localHostAddressRetrieved);
+
+    d->process->run(d->debuggee.runMode);
     return true;
 }
 
@@ -286,8 +195,8 @@ QString ValgrindRunner::errorString() const
 
 void ValgrindRunner::stop()
 {
-    if (d->process)
-        d->process->close();
+    QTC_ASSERT(d->process, finished(); return);
+    d->process->close();
 }
 
 ValgrindProcess *ValgrindRunner::valgrindProcess() const

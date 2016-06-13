@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://www.qt.io/licensing.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -33,17 +28,20 @@
 #include "gmock/gmock.h"
 #include "gtest-qt-printing.h"
 
-#include <unsavedfiles.h>
 #include <filecontainer.h>
+#include <unsavedfiles.h>
+#include <unsavedfile.h>
 
 #include <QVector>
 
+using ClangBackEnd::UnsavedFile;
 using ClangBackEnd::UnsavedFiles;
 using ClangBackEnd::FileContainer;
 
+using ::testing::Gt;
 using ::testing::IsNull;
 using ::testing::NotNull;
-using ::testing::Gt;
+using ::testing::PrintToString;
 
 namespace {
 
@@ -65,36 +63,47 @@ bool fileContainersContainsItemMatchingToCxUnsavedFile(const QVector<FileContain
 MATCHER_P(HasUnsavedFiles, fileContainers, "")
 {
     ClangBackEnd::UnsavedFiles unsavedFiles = arg;
-    if (unsavedFiles.count() != fileContainers.size()) {
+    if (unsavedFiles.count() != uint(fileContainers.size())) {
         *result_listener << "unsaved count is " << unsavedFiles.count() << " and not " << fileContainers.size();
         return false;
     }
 
-    for (const CXUnsavedFile &cxUnsavedFile : unsavedFiles.cxUnsavedFileVector()) {
-        if (!fileContainersContainsItemMatchingToCxUnsavedFile(fileContainers, cxUnsavedFile))
+    for (uint i = 0, to = unsavedFiles.count(); i < to; ++i) {
+        CXUnsavedFile *cxUnsavedFile = unsavedFiles.cxUnsavedFiles() + i;
+        if (!fileContainersContainsItemMatchingToCxUnsavedFile(fileContainers, *cxUnsavedFile))
             return false;
     }
 
     return true;
 }
 
+MATCHER_P3(IsUnsavedFile, fileName, contents, contentsLength,
+          std::string(negation ? "isn't" : "is")
+          + " file name " + PrintToString(fileName)
+          + ", contents " + PrintToString(contents)
+          + ", contents length " + PrintToString(contentsLength))
+{
+    CXUnsavedFile unsavedFile = arg.cxUnsavedFile;
+
+    return fileName == unsavedFile.Filename
+        && contents == unsavedFile.Contents
+        && size_t(contentsLength) == unsavedFile.Length;
+}
+
 class UnsavedFiles : public ::testing::Test
 {
 protected:
-    void TearDown() override;
-
-protected:
     ::UnsavedFiles unsavedFiles;
-};
+    Utf8String filePath{Utf8StringLiteral("file.cpp")};
+    Utf8String projectPartId{Utf8StringLiteral("projectPartId")};
 
-void UnsavedFiles::TearDown()
-{
-    unsavedFiles.clear();
-}
+    Utf8String unsavedContent1{Utf8StringLiteral("foo")};
+    Utf8String unsavedContent2{Utf8StringLiteral("bar")};
+};
 
 TEST_F(UnsavedFiles, DoNothingForUpdateIfFileHasNoUnsavedContent)
 {
-    QVector<FileContainer> fileContainers({FileContainer(Utf8StringLiteral("file.cpp"), Utf8StringLiteral("pathToProject.pro"))});
+    QVector<FileContainer> fileContainers({FileContainer(filePath, projectPartId)});
 
     unsavedFiles.createOrUpdate(fileContainers);
 
@@ -103,17 +112,17 @@ TEST_F(UnsavedFiles, DoNothingForUpdateIfFileHasNoUnsavedContent)
 
 TEST_F(UnsavedFiles, AddUnsavedFileForUpdateWithUnsavedContent)
 {
-    QVector<FileContainer> fileContainers({FileContainer(Utf8StringLiteral("file.cpp"), Utf8StringLiteral("pathToProject.pro")),
-                                           FileContainer(Utf8StringLiteral("file.cpp"), Utf8StringLiteral("pathToProject.pro"), Utf8StringLiteral("foo"), true)});
+    QVector<FileContainer> fileContainers({FileContainer(filePath, projectPartId),
+                                           FileContainer(filePath, projectPartId, unsavedContent1, true)});
     unsavedFiles.createOrUpdate(fileContainers);
 
-    ASSERT_THAT(unsavedFiles, HasUnsavedFiles(QVector<FileContainer>({FileContainer(Utf8StringLiteral("file.cpp"), Utf8StringLiteral("pathToProject.pro"), Utf8StringLiteral("foo"), true)})));
+    ASSERT_THAT(unsavedFiles, HasUnsavedFiles(QVector<FileContainer>({FileContainer(filePath, projectPartId, unsavedContent1, true)})));
 }
 
 TEST_F(UnsavedFiles, RemoveUnsavedFileForUpdateWithUnsavedContent)
 {
-    QVector<FileContainer> fileContainers({FileContainer(Utf8StringLiteral("file.cpp"), Utf8StringLiteral("pathToProject.pro"), Utf8StringLiteral("foo"), true),
-                                           FileContainer(Utf8StringLiteral("file.cpp"), Utf8StringLiteral("pathToProject.pro"))});
+    QVector<FileContainer> fileContainers({FileContainer(filePath, projectPartId, unsavedContent1, true),
+                                           FileContainer(filePath, projectPartId)});
 
     unsavedFiles.createOrUpdate(fileContainers);
 
@@ -122,17 +131,17 @@ TEST_F(UnsavedFiles, RemoveUnsavedFileForUpdateWithUnsavedContent)
 
 TEST_F(UnsavedFiles, ExchangeUnsavedFileForUpdateWithUnsavedContent)
 {
-    QVector<FileContainer> fileContainers({FileContainer(Utf8StringLiteral("file.cpp"), Utf8StringLiteral("pathToProject.pro"), Utf8StringLiteral("foo"), true),
-                                           FileContainer(Utf8StringLiteral("file.cpp"), Utf8StringLiteral("pathToProject.pro"), Utf8StringLiteral("foo2"), true)});
+    QVector<FileContainer> fileContainers({FileContainer(filePath, projectPartId, unsavedContent1, true),
+                                           FileContainer(filePath, projectPartId, unsavedContent2, true)});
     unsavedFiles.createOrUpdate(fileContainers);
 
-    ASSERT_THAT(unsavedFiles, HasUnsavedFiles(QVector<FileContainer>({FileContainer(Utf8StringLiteral("file.cpp"), Utf8StringLiteral("pathToProject.pro"), Utf8StringLiteral("foo2"), true)})));
+    ASSERT_THAT(unsavedFiles, HasUnsavedFiles(QVector<FileContainer>({FileContainer(filePath, projectPartId, unsavedContent2, true)})));
 }
 
 TEST_F(UnsavedFiles, TimeStampIsUpdatedAsUnsavedFilesChanged)
 {
-    QVector<FileContainer> fileContainers({FileContainer(Utf8StringLiteral("file.cpp"), Utf8StringLiteral("pathToProject.pro"), Utf8StringLiteral("foo"), true),
-                                           FileContainer(Utf8StringLiteral("file.cpp"), Utf8StringLiteral("pathToProject.pro"), Utf8StringLiteral("foo2"), true)});
+    QVector<FileContainer> fileContainers({FileContainer(filePath, projectPartId, unsavedContent1, true),
+                                           FileContainer(filePath, projectPartId, unsavedContent2, true)});
     auto lastChangeTimePoint = unsavedFiles.lastChangeTimePoint();
 
     unsavedFiles.createOrUpdate(fileContainers);
@@ -142,13 +151,32 @@ TEST_F(UnsavedFiles, TimeStampIsUpdatedAsUnsavedFilesChanged)
 
 TEST_F(UnsavedFiles, RemoveUnsavedFiles)
 {
-    QVector<FileContainer> fileContainers({FileContainer(Utf8StringLiteral("file.cpp"), Utf8StringLiteral("pathToProject.pro"), Utf8StringLiteral("foo"), true)});
+    QVector<FileContainer> fileContainers({FileContainer(filePath, projectPartId, unsavedContent1, true)});
     unsavedFiles.createOrUpdate(fileContainers);
 
     unsavedFiles.remove(fileContainers);
 
     ASSERT_THAT(unsavedFiles, HasUnsavedFiles(QVector<FileContainer>()));
 }
+
+TEST_F(UnsavedFiles, FindUnsavedFile)
+{
+    QVector<FileContainer> fileContainers({FileContainer(filePath, projectPartId, unsavedContent1, true)});
+    unsavedFiles.createOrUpdate(fileContainers);
+
+    UnsavedFile &unsavedFile = unsavedFiles.unsavedFile(filePath);
+
+    ASSERT_THAT(unsavedFile, IsUnsavedFile(filePath, unsavedContent1, unsavedContent1.byteSize()));
 }
 
+TEST_F(UnsavedFiles, FindNoUnsavedFile)
+{
+    QVector<FileContainer> fileContainers({FileContainer(filePath, projectPartId, unsavedContent1, true)});
+    unsavedFiles.createOrUpdate(fileContainers);
 
+    UnsavedFile &unsavedFile = unsavedFiles.unsavedFile(Utf8StringLiteral("nonExistingFilePath.cpp"));
+
+    ASSERT_THAT(unsavedFile, IsUnsavedFile(Utf8String(), Utf8String(), 0UL));
+}
+
+}

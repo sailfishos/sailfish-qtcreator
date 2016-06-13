@@ -1,9 +1,9 @@
-/**************************************************************************
+/****************************************************************************
 **
-** Copyright (C) 2015 Openismus GmbH.
-** Authors: Peter Penz (ppenz@openismus.com)
-**          Patricia Santana Cruz (patriciasantanacruz@gmail.com)
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 Openismus GmbH.
+** Author: Peter Penz (ppenz@openismus.com)
+** Author: Patricia Santana Cruz (patriciasantanacruz@gmail.com)
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -11,27 +11,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
-#ifndef AUTOTOOLSBUILDCONFIGURATION_H
-#define AUTOTOOLSBUILDCONFIGURATION_H
+#pragma once
 
 #include <projectexplorer/buildconfiguration.h>
 
@@ -52,9 +46,9 @@ class AutotoolsBuildConfiguration : public ProjectExplorer::BuildConfiguration
 public:
     explicit AutotoolsBuildConfiguration(ProjectExplorer::Target *parent);
 
-    ProjectExplorer::NamedWidget *createConfigWidget();
+    ProjectExplorer::NamedWidget *createConfigWidget() override;
 
-    BuildType buildType() const;
+    BuildType buildType() const override;
 
 protected:
     AutotoolsBuildConfiguration(ProjectExplorer::Target *parent, Core::Id id);
@@ -63,7 +57,7 @@ protected:
     friend class AutotoolsBuildSettingsWidget;
 
 private:
-    void setBuildDirectory(const Utils::FileName &directory);
+    void setBuildDirectory(const Utils::FileName &directory) override;
 };
 
 class AutotoolsBuildConfigurationFactory : public ProjectExplorer::IBuildConfigurationFactory
@@ -73,18 +67,18 @@ class AutotoolsBuildConfigurationFactory : public ProjectExplorer::IBuildConfigu
 public:
     explicit AutotoolsBuildConfigurationFactory(QObject *parent = 0);
 
-    int priority(const ProjectExplorer::Target *parent) const;
-    QList<ProjectExplorer::BuildInfo *> availableBuilds(const ProjectExplorer::Target *parent) const;
-    int priority(const ProjectExplorer::Kit *k, const QString &projectPath) const;
+    int priority(const ProjectExplorer::Target *parent) const override;
+    QList<ProjectExplorer::BuildInfo *> availableBuilds(const ProjectExplorer::Target *parent) const override;
+    int priority(const ProjectExplorer::Kit *k, const QString &projectPath) const override;
     QList<ProjectExplorer::BuildInfo *> availableSetups(const ProjectExplorer::Kit *k,
-                                                        const QString &projectPath) const;
+                                                        const QString &projectPath) const override;
     ProjectExplorer::BuildConfiguration *create(ProjectExplorer::Target *parent,
-                                                const ProjectExplorer::BuildInfo *info) const;
+                                                const ProjectExplorer::BuildInfo *info) const override;
 
-    bool canClone(const ProjectExplorer::Target *parent, ProjectExplorer::BuildConfiguration *source) const;
-    AutotoolsBuildConfiguration *clone(ProjectExplorer::Target *parent, ProjectExplorer::BuildConfiguration *source);
-    bool canRestore(const ProjectExplorer::Target *parent, const QVariantMap &map) const;
-    AutotoolsBuildConfiguration *restore(ProjectExplorer::Target *parent, const QVariantMap &map);
+    bool canClone(const ProjectExplorer::Target *parent, ProjectExplorer::BuildConfiguration *source) const override;
+    AutotoolsBuildConfiguration *clone(ProjectExplorer::Target *parent, ProjectExplorer::BuildConfiguration *source) override;
+    bool canRestore(const ProjectExplorer::Target *parent, const QVariantMap &map) const override;
+    AutotoolsBuildConfiguration *restore(ProjectExplorer::Target *parent, const QVariantMap &map) override;
 
 private:
     bool canHandle(const ProjectExplorer::Target *t) const;
@@ -93,4 +87,3 @@ private:
 
 } // namespace Internal
 } // namespace AutotoolsProjectManager
-#endif // AUTOTOOLSBUILDCONFIGURATION_H

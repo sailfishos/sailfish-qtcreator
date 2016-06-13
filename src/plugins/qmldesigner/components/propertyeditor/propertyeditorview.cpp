@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -64,6 +59,11 @@ enum {
 };
 
 namespace QmlDesigner {
+
+static bool propertyIsAttachedLayoutProperty(const PropertyName &propertyName)
+{
+    return propertyName.contains("Layout.");
+}
 
 PropertyEditorView::PropertyEditorView(QWidget *parent) :
         AbstractView(parent),
@@ -177,6 +177,8 @@ void PropertyEditorView::changeValue(const QString &name)
 
     if (qmlObjectNode.modelNode().metaInfo().isValid() && qmlObjectNode.modelNode().metaInfo().hasProperty(propertyName)) {
         castedValue = qmlObjectNode.modelNode().metaInfo().propertyCastedValue(propertyName, value->value());
+    } else if (propertyIsAttachedLayoutProperty(propertyName)) {
+        castedValue = value->value();
     } else {
         qWarning() << "PropertyEditor:" <<propertyName << "cannot be casted (metainfo)";
         return ;
@@ -491,6 +493,16 @@ void PropertyEditorView::propertiesRemoved(const QList<AbstractProperty>& proper
         ModelNode node(property.parentModelNode());
         if (node == m_selectedNode || QmlObjectNode(m_selectedNode).propertyChangeForCurrentState() == node) {
             setValue(m_selectedNode, property.name(), QmlObjectNode(m_selectedNode).instanceValue(property.name()));
+
+            if (propertyIsAttachedLayoutProperty(property.name()))
+                m_qmlBackEndForCurrentType->setValueforLayoutAttachedProperties(m_selectedNode, property.name());
+
+            if ("width" == property.name() || "height" == property.name()) {
+                QmlItemNode qmlItemNode = m_selectedNode;
+                if (qmlItemNode.isValid() && qmlItemNode.isInLayout())
+                    resetPuppet();
+            }
+
             if (property.name().contains("anchor"))
                 m_qmlBackEndForCurrentType->backendAnchorBinding().invalidate(m_selectedNode);
         }
@@ -508,6 +520,9 @@ void PropertyEditorView::variantPropertiesChanged(const QList<VariantProperty>& 
 
     foreach (const VariantProperty &property, propertyList) {
         ModelNode node(property.parentModelNode());
+
+        if (propertyIsAttachedLayoutProperty(property.name()))
+            m_qmlBackEndForCurrentType->setValueforLayoutAttachedProperties(m_selectedNode, property.name());
 
         if (node == m_selectedNode || QmlObjectNode(m_selectedNode).propertyChangeForCurrentState() == node) {
             if ( QmlObjectNode(m_selectedNode).modelNode().property(property.name()).isBindingProperty())
@@ -540,11 +555,6 @@ void PropertyEditorView::bindingPropertiesChanged(const QList<BindingProperty>& 
     }
 }
 
-void PropertyEditorView::signalHandlerPropertiesChanged(const QVector<SignalHandlerProperty> & /*propertyList*/,
-                                                    AbstractView::PropertyChangeFlags /*propertyChange*/)
-{
-}
-
 void PropertyEditorView::instanceInformationsChange(const QMultiHash<ModelNode, InformationName> &informationChangeHash)
 {
     if (!m_selectedNode.isValid())
@@ -571,10 +581,6 @@ void PropertyEditorView::nodeIdChanged(const ModelNode& node, const QString& new
         if (m_qmlBackEndForCurrentType)
             setValue(node, "id", newId);
     }
-}
-
-void PropertyEditorView::scriptFunctionsChanged(const ModelNode &/*node*/, const QStringList &/*scriptFunctionList*/)
-{
 }
 
 void PropertyEditorView::select(const ModelNode &node)
@@ -637,84 +643,9 @@ void PropertyEditorView::instancePropertyChange(const QList<QPair<ModelNode, Pro
 
 }
 
-void PropertyEditorView::nodeCreated(const ModelNode &/*createdNode*/)
-{
-
-}
-
-void PropertyEditorView::nodeRemoved(const ModelNode &/*removedNode*/, const NodeAbstractProperty &/*parentProperty*/, AbstractView::PropertyChangeFlags /*propertyChange*/)
-{
-
-}
-
-void PropertyEditorView::nodeAboutToBeReparented(const ModelNode &/*node*/, const NodeAbstractProperty &/*newPropertyParent*/, const NodeAbstractProperty &/*oldPropertyParent*/, AbstractView::PropertyChangeFlags /*propertyChange*/)
-{
-
-}
-
-void PropertyEditorView::nodeReparented(const ModelNode &/*node*/, const NodeAbstractProperty &/*newPropertyParent*/, const NodeAbstractProperty &/*oldPropertyParent*/, AbstractView::PropertyChangeFlags /*propertyChange*/)
-{
-
-}
-
-void PropertyEditorView::propertiesAboutToBeRemoved(const QList<AbstractProperty> &/*propertyList*/)
-{
-
-}
-
 void PropertyEditorView::rootNodeTypeChanged(const QString &/*type*/, int /*majorVersion*/, int /*minorVersion*/)
 {
     // TODO: we should react to this case
-}
-
-void PropertyEditorView::instancesCompleted(const QVector<ModelNode> &/*completedNodeList*/)
-{
-
-}
-
-void PropertyEditorView::instancesRenderImageChanged(const QVector<ModelNode> &/*nodeList*/)
-{
-
-}
-
-void PropertyEditorView::instancesPreviewImageChanged(const QVector<ModelNode> &/*nodeList*/)
-{
-
-}
-
-void PropertyEditorView::instancesChildrenChanged(const QVector<ModelNode> &/*nodeList*/)
-{
-
-}
-
-void PropertyEditorView::instancesToken(const QString &/*tokenName*/, int /*tokenNumber*/, const QVector<ModelNode> &/*nodeVector*/)
-{
-
-}
-
-void PropertyEditorView::nodeSourceChanged(const ModelNode &/*modelNode*/, const QString &/*newNodeSource*/)
-{
-
-}
-
-void PropertyEditorView::rewriterBeginTransaction()
-{
-
-}
-
-void PropertyEditorView::rewriterEndTransaction()
-{
-
-}
-
-void PropertyEditorView::nodeOrderChanged(const NodeListProperty &/*listProperty*/, const ModelNode &/*movedNode*/, int /*oldIndex*/)
-{
-
-}
-
-void PropertyEditorView::importsChanged(const QList<Import> &/*addedImports*/, const QList<Import> &/*removedImports*/)
-{
-
 }
 
 void PropertyEditorView::setValue(const QmlObjectNode &qmlObjectNode, const PropertyName &name, const QVariant &value)

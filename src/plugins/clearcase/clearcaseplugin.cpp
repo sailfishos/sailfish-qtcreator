@@ -1,8 +1,8 @@
-/**************************************************************************
+/****************************************************************************
 **
-** Copyright (C) 2015 AudioCodes Ltd.
+** Copyright (C) 2016 AudioCodes Ltd.
 ** Author: Orgad Shaneh <orgad.shaneh@audiocodes.com>
-** Contact: http://www.qt.io/licensing
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -10,22 +10,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -91,7 +86,6 @@
 #include <QProcess>
 #include <QRegExp>
 #include <QSharedPointer>
-#include <QtConcurrentRun>
 #include <QTemporaryFile>
 #include <QTextCodec>
 #include <QtPlugin>
@@ -161,39 +155,9 @@ static QString debugCodec(const QTextCodec *c)
 // ------------- ClearCasePlugin
 ClearCasePlugin *ClearCasePlugin::m_clearcasePluginInstance = 0;
 
-ViewData::ViewData() :
-    isDynamic(false),
-    isUcm(false)
-{
-}
-
 ClearCasePlugin::ClearCasePlugin() :
-    m_commandLocator(0),
-    m_checkOutAction(0),
-    m_checkInCurrentAction(0),
-    m_undoCheckOutAction(0),
-    m_undoHijackAction(0),
-    m_diffCurrentAction(0),
-    m_historyCurrentAction(0),
-    m_annotateCurrentAction(0),
-    m_addFileAction(0),
-    m_diffActivityAction(0),
-    m_updateIndexAction(0),
-    m_updateViewAction(0),
-    m_checkInActivityAction(0),
-    m_checkInAllAction(0),
-    m_statusAction(0),
-    m_checkInSelectedAction(0),
-    m_checkInDiffAction(0),
-    m_submitUndoAction(0),
-    m_submitRedoAction(0),
-    m_menuAction(0),
-    m_submitActionTriggered(false),
     m_activityMutex(new QMutex),
     m_statusMap(new StatusMap)
-  #ifdef WITH_TESTS
-   ,m_fakeClearTool(false)
-  #endif
 {
     qRegisterMetaType<ClearCase::Internal::FileStatus::Status>("ClearCase::Internal::FileStatus::Status");
     connect(qApp, &QApplication::applicationStateChanged,
@@ -451,9 +415,9 @@ bool ClearCasePlugin::initialize(const QStringList & /*arguments */, QString *er
     initializeVcs(new ClearCaseControl(this), context);
 
     m_clearcasePluginInstance = this;
-    connect(ICore::instance(), SIGNAL(coreAboutToClose()), this, SLOT(closing()));
-    connect(ProgressManager::instance(), SIGNAL(allTasksFinished(Core::Id)),
-            this, SLOT(tasksFinished(Core::Id)));
+    connect(ICore::instance(), &ICore::coreAboutToClose, this, &ClearCasePlugin::closing);
+    connect(ProgressManager::instance(), &ProgressManager::allTasksFinished,
+            this, &ClearCasePlugin::tasksFinished);
 
     Utils::MimeDatabase::addMimeTypes(QLatin1String(":/clearcase/ClearCase.mimetypes.xml"));
 
@@ -495,7 +459,7 @@ bool ClearCasePlugin::initialize(const QStringList & /*arguments */, QString *er
         context);
     command->setAttribute(Command::CA_UpdateText);
     command->setDefaultKeySequence(QKeySequence(UseMacShortcuts ? tr("Meta+L,Meta+O") : tr("Alt+L,Alt+O")));
-    connect(m_checkOutAction, SIGNAL(triggered()), this, SLOT(checkOutCurrentFile()));
+    connect(m_checkOutAction, &QAction::triggered, this, &ClearCasePlugin::checkOutCurrentFile);
     clearcaseMenu->addAction(command);
     m_commandLocator->appendCommand(command);
 
@@ -503,7 +467,7 @@ bool ClearCasePlugin::initialize(const QStringList & /*arguments */, QString *er
     command = ActionManager::registerAction(m_checkInCurrentAction, CMD_ID_CHECKIN, context);
     command->setAttribute(Command::CA_UpdateText);
     command->setDefaultKeySequence(QKeySequence(UseMacShortcuts ? tr("Meta+L,Meta+I") : tr("Alt+L,Alt+I")));
-    connect(m_checkInCurrentAction, SIGNAL(triggered()), this, SLOT(startCheckInCurrentFile()));
+    connect(m_checkInCurrentAction, &QAction::triggered, this, &ClearCasePlugin::startCheckInCurrentFile);
     clearcaseMenu->addAction(command);
     m_commandLocator->appendCommand(command);
 
@@ -511,7 +475,7 @@ bool ClearCasePlugin::initialize(const QStringList & /*arguments */, QString *er
     command = ActionManager::registerAction(m_undoCheckOutAction, CMD_ID_UNDOCHECKOUT, context);
     command->setAttribute(Command::CA_UpdateText);
     command->setDefaultKeySequence(QKeySequence(UseMacShortcuts ? tr("Meta+L,Meta+U") : tr("Alt+L,Alt+U")));
-    connect(m_undoCheckOutAction, SIGNAL(triggered()), this, SLOT(undoCheckOutCurrent()));
+    connect(m_undoCheckOutAction, &QAction::triggered, this, &ClearCasePlugin::undoCheckOutCurrent);
     clearcaseMenu->addAction(command);
     m_commandLocator->appendCommand(command);
 
@@ -519,7 +483,7 @@ bool ClearCasePlugin::initialize(const QStringList & /*arguments */, QString *er
     command = ActionManager::registerAction(m_undoHijackAction, CMD_ID_UNDOHIJACK, context);
     command->setAttribute(Command::CA_UpdateText);
     command->setDefaultKeySequence(QKeySequence(UseMacShortcuts ? tr("Meta+L,Meta+R") : tr("Alt+L,Alt+R")));
-    connect(m_undoHijackAction, SIGNAL(triggered()), this, SLOT(undoHijackCurrent()));
+    connect(m_undoHijackAction, &QAction::triggered, this, &ClearCasePlugin::undoHijackCurrent);
     clearcaseMenu->addAction(command);
     m_commandLocator->appendCommand(command);
 
@@ -530,7 +494,7 @@ bool ClearCasePlugin::initialize(const QStringList & /*arguments */, QString *er
         CMD_ID_DIFF_CURRENT, context);
     command->setAttribute(Command::CA_UpdateText);
     command->setDefaultKeySequence(QKeySequence(UseMacShortcuts ? tr("Meta+L,Meta+D") : tr("Alt+L,Alt+D")));
-    connect(m_diffCurrentAction, SIGNAL(triggered()), this, SLOT(diffCurrentFile()));
+    connect(m_diffCurrentAction, &QAction::triggered, this, &ClearCasePlugin::diffCurrentFile);
     clearcaseMenu->addAction(command);
     m_commandLocator->appendCommand(command);
 
@@ -539,8 +503,8 @@ bool ClearCasePlugin::initialize(const QStringList & /*arguments */, QString *er
         CMD_ID_HISTORY_CURRENT, context);
     command->setAttribute(Command::CA_UpdateText);
     command->setDefaultKeySequence(QKeySequence(UseMacShortcuts ? tr("Meta+L,Meta+H") : tr("Alt+L,Alt+H")));
-    connect(m_historyCurrentAction, SIGNAL(triggered()), this,
-        SLOT(historyCurrentFile()));
+    connect(m_historyCurrentAction, &QAction::triggered, this,
+        &ClearCasePlugin::historyCurrentFile);
     clearcaseMenu->addAction(command);
     m_commandLocator->appendCommand(command);
 
@@ -549,15 +513,15 @@ bool ClearCasePlugin::initialize(const QStringList & /*arguments */, QString *er
         CMD_ID_ANNOTATE, context);
     command->setAttribute(Command::CA_UpdateText);
     command->setDefaultKeySequence(QKeySequence(UseMacShortcuts ? tr("Meta+L,Meta+A") : tr("Alt+L,Alt+A")));
-    connect(m_annotateCurrentAction, SIGNAL(triggered()), this,
-        SLOT(annotateCurrentFile()));
+    connect(m_annotateCurrentAction, &QAction::triggered, this,
+        &ClearCasePlugin::annotateCurrentFile);
     clearcaseMenu->addAction(command);
     m_commandLocator->appendCommand(command);
 
     m_addFileAction = new ParameterAction(tr("Add File..."), tr("Add File \"%1\""), ParameterAction::EnabledWithParameter, this);
     command = ActionManager::registerAction(m_addFileAction, CMD_ID_ADD_FILE, context);
     command->setAttribute(Command::CA_UpdateText);
-    connect(m_addFileAction, SIGNAL(triggered()), this, SLOT(addCurrentFile()));
+    connect(m_addFileAction, &QAction::triggered, this, &ClearCasePlugin::addCurrentFile);
     clearcaseMenu->addAction(command);
 
     clearcaseMenu->addSeparator(context);
@@ -565,14 +529,14 @@ bool ClearCasePlugin::initialize(const QStringList & /*arguments */, QString *er
     m_diffActivityAction = new QAction(tr("Diff A&ctivity..."), this);
     m_diffActivityAction->setEnabled(false);
     command = ActionManager::registerAction(m_diffActivityAction, CMD_ID_DIFF_ACTIVITY, context);
-    connect(m_diffActivityAction, SIGNAL(triggered()), this, SLOT(diffActivity()));
+    connect(m_diffActivityAction, &QAction::triggered, this, &ClearCasePlugin::diffActivity);
     clearcaseMenu->addAction(command);
     m_commandLocator->appendCommand(command);
 
     m_checkInActivityAction = new ParameterAction(tr("Ch&eck In Activity"), tr("Chec&k In Activity \"%1\"..."), ParameterAction::EnabledWithParameter, this);
     m_checkInActivityAction->setEnabled(false);
     command = ActionManager::registerAction(m_checkInActivityAction, CMD_ID_CHECKIN_ACTIVITY, context);
-    connect(m_checkInActivityAction, SIGNAL(triggered()), this, SLOT(startCheckInActivity()));
+    connect(m_checkInActivityAction, &QAction::triggered, this, &ClearCasePlugin::startCheckInActivity);
     command->setAttribute(Command::CA_UpdateText);
     clearcaseMenu->addAction(command);
     m_commandLocator->appendCommand(command);
@@ -581,12 +545,12 @@ bool ClearCasePlugin::initialize(const QStringList & /*arguments */, QString *er
 
     m_updateIndexAction = new QAction(tr("Update Index"), this);
     command = ActionManager::registerAction(m_updateIndexAction, CMD_ID_UPDATEINDEX, context);
-    connect(m_updateIndexAction, SIGNAL(triggered()), this, SLOT(updateIndex()));
+    connect(m_updateIndexAction, &QAction::triggered, this, &ClearCasePlugin::updateIndex);
     clearcaseMenu->addAction(command);
 
     m_updateViewAction = new ParameterAction(tr("Update View"), tr("U&pdate View \"%1\""), ParameterAction::EnabledWithParameter, this);
     command = ActionManager::registerAction(m_updateViewAction, CMD_ID_UPDATE_VIEW, context);
-    connect(m_updateViewAction, SIGNAL(triggered()), this, SLOT(updateView()));
+    connect(m_updateViewAction, &QAction::triggered, this, &ClearCasePlugin::updateView);
     command->setAttribute(Command::CA_UpdateText);
     clearcaseMenu->addAction(command);
 
@@ -595,14 +559,14 @@ bool ClearCasePlugin::initialize(const QStringList & /*arguments */, QString *er
     m_checkInAllAction = new QAction(tr("Check In All &Files..."), this);
     command = ActionManager::registerAction(m_checkInAllAction, CMD_ID_CHECKIN_ALL, context);
     command->setDefaultKeySequence(QKeySequence(UseMacShortcuts ? tr("Meta+L,Meta+F") : tr("Alt+L,Alt+F")));
-    connect(m_checkInAllAction, SIGNAL(triggered()), this, SLOT(startCheckInAll()));
+    connect(m_checkInAllAction, &QAction::triggered, this, &ClearCasePlugin::startCheckInAll);
     clearcaseMenu->addAction(command);
     m_commandLocator->appendCommand(command);
 
     m_statusAction = new QAction(tr("View &Status"), this);
     command = ActionManager::registerAction(m_statusAction, CMD_ID_STATUS, context);
     command->setDefaultKeySequence(QKeySequence(UseMacShortcuts ? tr("Meta+L,Meta+S") : tr("Alt+L,Alt+S")));
-    connect(m_statusAction, SIGNAL(triggered()), this, SLOT(viewStatus()));
+    connect(m_statusAction, &QAction::triggered, this, &ClearCasePlugin::viewStatus);
     clearcaseMenu->addAction(command);
     m_commandLocator->appendCommand(command);
 
@@ -612,7 +576,7 @@ bool ClearCasePlugin::initialize(const QStringList & /*arguments */, QString *er
     m_checkInSelectedAction = new QAction(VcsBaseSubmitEditor::submitIcon(), tr("Check In"), this);
     command = ActionManager::registerAction(m_checkInSelectedAction, Constants::CHECKIN_SELECTED, clearcasecheckincontext);
     command->setAttribute(Command::CA_UpdateText);
-    connect(m_checkInSelectedAction, SIGNAL(triggered()), this, SLOT(checkInSelected()));
+    connect(m_checkInSelectedAction, &QAction::triggered, this, &ClearCasePlugin::checkInSelected);
 
     m_checkInDiffAction = new QAction(VcsBaseSubmitEditor::diffIcon(), tr("Diff Selected Files"), this);
     ActionManager::registerAction(m_checkInDiffAction , Constants::DIFF_SELECTED, clearcasecheckincontext);
@@ -1139,7 +1103,7 @@ void ClearCasePlugin::diffActivity()
             // pre-first version. only for the first occurrence
             if (filever[file].first.isEmpty()) {
                 int verpos = shortver.lastIndexOf(QRegExp(QLatin1String("[^0-9]"))) + 1;
-                int vernum = shortver.mid(verpos).toInt();
+                int vernum = shortver.midRef(verpos).toInt();
                 if (vernum)
                     --vernum;
                 shortver.replace(verpos, shortver.length() - verpos, QString::number(vernum));
@@ -1541,7 +1505,7 @@ IEditor *ClearCasePlugin::showOutputInEditor(const QString& title, const QString
         return 0;
     e->setForceReadOnly(true);
     s.replace(QLatin1Char(' '), QLatin1Char('_'));
-    e->textDocument()->setSuggestedFileName(s);
+    e->textDocument()->setFallbackSaveAsFileName(s);
     if (!source.isEmpty())
         e->setSource(source);
     if (codec)
@@ -1582,7 +1546,7 @@ bool ClearCasePlugin::vcsOpen(const QString &workingDir, const QString &fileName
 
     if (!m_settings.disableIndexer &&
             (fi.isWritable() || vcsStatus(absPath).status == FileStatus::Unknown))
-        QtConcurrent::run(&sync, QStringList(absPath)).waitForFinished();
+        Utils::runAsync(sync, QStringList(absPath)).waitForFinished();
     if (vcsStatus(absPath).status == FileStatus::CheckedOut) {
         QMessageBox::information(0, tr("ClearCase Checkout"), tr("File is already checked out."));
         return true;
@@ -1775,8 +1739,8 @@ bool ClearCasePlugin::ccFileOp(const QString &workingDir, const QString &title, 
 
     commentLabel->setBuddy(commentEdit);
 
-    connect(buttonBox, SIGNAL(accepted()), &fileOpDlg, SLOT(accept()));
-    connect(buttonBox, SIGNAL(rejected()), &fileOpDlg, SLOT(reject()));
+    connect(buttonBox, &QDialogButtonBox::accepted, &fileOpDlg, &QDialog::accept);
+    connect(buttonBox, &QDialogButtonBox::rejected, &fileOpDlg, &QDialog::reject);
 
     if (!fileOpDlg.exec())
         return false;
@@ -2078,8 +2042,7 @@ void ClearCasePlugin::updateIndex()
         return;
     m_checkInAllAction->setEnabled(false);
     m_statusMap->clear();
-    QFuture<void> result = QtConcurrent::run(&sync,
-               project->files(Project::ExcludeGeneratedFiles));
+    QFuture<void> result = Utils::runAsync(sync, project->files(Project::SourceFiles));
     if (!m_settings.disableIndexer)
         ProgressManager::addTask(result, tr("Updating ClearCase Index"), ClearCase::Constants::TASK_INDEX);
 }
@@ -2214,7 +2177,7 @@ void ClearCasePlugin::syncSlot()
     QString topLevel = state.topLevel();
     if (topLevel != state.currentProjectTopLevel())
         return;
-    QtConcurrent::run(&sync, QStringList());
+    Utils::runAsync(sync, QStringList());
 }
 
 void ClearCasePlugin::closing()
@@ -2228,7 +2191,7 @@ void ClearCasePlugin::sync(QFutureInterface<void> &future, QStringList files)
 {
     ClearCasePlugin *plugin = ClearCasePlugin::instance();
     ClearCaseSync ccSync(plugin, plugin->m_statusMap);
-    connect(&ccSync, SIGNAL(updateStreamAndView()), plugin, SLOT(updateStreamAndView()));
+    connect(&ccSync, &ClearCaseSync::updateStreamAndView, plugin, &ClearCasePlugin::updateStreamAndView);
     ccSync.run(future, files);
 }
 

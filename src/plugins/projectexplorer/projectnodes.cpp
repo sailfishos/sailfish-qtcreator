@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -69,7 +64,7 @@ Node::Node(NodeType nodeType, const Utils::FileName &filePath, int line)
           m_line(line),
           m_projectNode(0),
           m_folderNode(0),
-          m_path(filePath)
+          m_filePath(filePath)
 {
 
 }
@@ -91,40 +86,13 @@ void Node::emitNodeSortKeyChanged()
         ProjectTree::instance()->emitNodeSortKeyChanged(this);
 }
 
-/*!
- * The path of the file representing this node.
- *
- * This function does not emit any signals. That has to be done by the calling
- * class.
- */
-void Node::setPath(const Utils::FileName &path)
+void Node::setAbsoluteFilePathAndLine(const Utils::FileName &path, int line)
 {
-    if (m_path == path)
+    if (m_filePath == path && m_line == line)
         return;
 
     emitNodeSortKeyAboutToChange();
-    m_path = path;
-    emitNodeSortKeyChanged();
-    emitNodeUpdated();
-}
-
-void Node::setLine(int line)
-{
-    if (m_line == line)
-        return;
-    emitNodeSortKeyAboutToChange();
-    m_line = line;
-    emitNodeSortKeyChanged();
-    emitNodeUpdated();
-}
-
-void Node::setPathAndLine(const Utils::FileName &path, int line)
-{
-    if (m_path == path
-            && m_line == line)
-        return;
-    emitNodeSortKeyAboutToChange();
-    m_path = path;
+    m_filePath = path;
     m_line = line;
     emitNodeSortKeyChanged();
     emitNodeUpdated();
@@ -155,9 +123,9 @@ FolderNode *Node::parentFolderNode() const
 /*!
   The path of the file or folder in the filesystem the node represents.
   */
-const Utils::FileName &Node::path() const
+const Utils::FileName &Node::filePath() const
 {
-    return m_path;
+    return m_filePath;
 }
 
 int Node::line() const
@@ -167,12 +135,12 @@ int Node::line() const
 
 QString Node::displayName() const
 {
-    return path().fileName();
+    return filePath().fileName();
 }
 
 QString Node::tooltip() const
 {
-    return path().toUserOutput();
+    return filePath().toUserOutput();
 }
 
 bool Node::isEnabled() const
@@ -336,6 +304,11 @@ void FolderNode::setIcon(const QIcon &icon)
     m_icon = icon;
 }
 
+QString FolderNode::addFileFilter() const
+{
+    return parentFolderNode()->addFileFilter();
+}
+
 bool FolderNode::addFiles(const QStringList &filePaths, QStringList *notAdded)
 {
     if (projectNode())
@@ -354,6 +327,13 @@ bool FolderNode::deleteFiles(const QStringList &filePaths)
 {
     if (projectNode())
         return projectNode()->deleteFiles(filePaths);
+    return false;
+}
+
+bool FolderNode::canRenameFile(const QString &filePath, const QString &newFilePath)
+{
+    if (projectNode())
+        return projectNode()->canRenameFile(filePath, newFilePath);
     return false;
 }
 
@@ -577,7 +557,7 @@ ProjectNode::ProjectNode(const Utils::FileName &projectFilePath)
 
 QString ProjectNode::vcsTopic() const
 {
-    const QString dir = path().toFileInfo().absolutePath();
+    const QString dir = filePath().toFileInfo().absolutePath();
 
     if (Core::IVersionControl *const vc =
             Core::VcsManager::findVersionControlForDirectory(dir))
@@ -591,25 +571,57 @@ QList<ProjectNode*> ProjectNode::subProjectNodes() const
     return m_subProjectNodes;
 }
 
-/*!
-  \function bool ProjectNode::addSubProjects(const QStringList &)
-  */
+bool ProjectNode::canAddSubProject(const QString &proFilePath) const
+{
+    Q_UNUSED(proFilePath)
+    return false;
+}
 
-/*!
-  \function bool ProjectNode::removeSubProjects(const QStringList &)
-  */
+bool ProjectNode::addSubProjects(const QStringList &proFilePaths)
+{
+    Q_UNUSED(proFilePaths)
+    return false;
+}
 
-/*!
-  \function bool ProjectNode::addFiles(const FileType, const QStringList &, QStringList *)
-  */
+bool ProjectNode::removeSubProjects(const QStringList &proFilePaths)
+{
+    Q_UNUSED(proFilePaths)
+    return false;
+}
 
-/*!
-  \function bool ProjectNode::removeFiles(const FileType, const QStringList &, QStringList *)
-  */
+bool ProjectNode::addFiles(const QStringList &filePaths, QStringList *notAdded)
+{
+    Q_UNUSED(filePaths)
+    Q_UNUSED(notAdded)
+    return false;
+}
 
-/*!
-  \function bool ProjectNode::renameFile(const FileType, const QString &, const QString &)
-  */
+bool ProjectNode::removeFiles(const QStringList &filePaths, QStringList *notRemoved)
+{
+    Q_UNUSED(filePaths)
+    Q_UNUSED(notRemoved)
+    return false;
+}
+
+bool ProjectNode::deleteFiles(const QStringList &filePaths)
+{
+    Q_UNUSED(filePaths)
+    return false;
+}
+
+bool ProjectNode::canRenameFile(const QString &filePath, const QString &newFilePath)
+{
+    Q_UNUSED(filePath);
+    Q_UNUSED(newFilePath);
+    return true;
+}
+
+bool ProjectNode::renameFile(const QString &filePath, const QString &newFilePath)
+{
+    Q_UNUSED(filePath)
+    Q_UNUSED(newFilePath)
+    return false;
+}
 
 bool ProjectNode::deploysFolder(const QString &folder) const
 {
@@ -750,6 +762,11 @@ SessionNode *SessionNode::asSessionNode()
 QList<ProjectNode*> SessionNode::projectNodes() const
 {
     return m_projectNodes;
+}
+
+QString SessionNode::addFileFilter() const
+{
+    return QLatin1String("*.c; *.cc; *.cpp; *.cp; *.cxx; *.c++; *.h; *.hh; *.hpp; *.hxx;");
 }
 
 void SessionNode::addProjectNodes(const QList<ProjectNode*> &projectNodes)

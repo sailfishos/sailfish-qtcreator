@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -49,6 +44,7 @@ namespace Debugger {
 namespace Internal {
 
 #define CB(callback) [this](const DebuggerResponse &r) { callback(r); }
+#define CHECK_STATE(s) do { checkState(s, __FILE__, __LINE__); } while (0)
 
 ///////////////////////////////////////////////////////////////////////
 //
@@ -83,7 +79,7 @@ void GdbCoreEngine::setupEngine()
     showMessage(_("TRYING TO START ADAPTER"));
 
     const DebuggerRunParameters &rp = runParameters();
-    m_executable = rp.executable;
+    m_executable = rp.inferior.executable;
     QFileInfo fi(rp.coreFile);
     m_coreName = fi.absoluteFilePath();
 
@@ -92,14 +88,14 @@ void GdbCoreEngine::setupEngine()
 
 static QString findExecutableFromName(const QString &fileNameFromCore, const QString &coreFile)
 {
-    if (QFileInfo(fileNameFromCore).isFile())
-        return fileNameFromCore;
     if (fileNameFromCore.isEmpty())
-        return QString();
+        return fileNameFromCore;
+    QFileInfo fi(fileNameFromCore);
+    if (fi.isFile())
+        return fileNameFromCore;
 
     // turn the filename into an absolute path, using the location of the core as a hint
     QString absPath;
-    QFileInfo fi(fileNameFromCore);
     if (fi.isAbsolute()) {
         absPath = fileNameFromCore;
     } else {
@@ -207,17 +203,18 @@ void GdbCoreEngine::writeCoreChunk()
 
 void GdbCoreEngine::setupInferior()
 {
-    QTC_ASSERT(state() == InferiorSetupRequested, qDebug() << state());
+    CHECK_STATE(InferiorSetupRequested);
+    setLinuxOsAbi();
     // Do that first, otherwise no symbols are loaded.
     QFileInfo fi(m_executable);
     QByteArray path = fi.absoluteFilePath().toLocal8Bit();
-    postCommand("-file-exec-and-symbols \"" + path + '"', NoFlags,
-         CB(handleFileExecAndSymbols));
+    runCommand({"-file-exec-and-symbols \"" + path + '"', NoFlags,
+                CB(handleFileExecAndSymbols)});
 }
 
 void GdbCoreEngine::handleFileExecAndSymbols(const DebuggerResponse &response)
 {
-    QTC_ASSERT(state() == InferiorSetupRequested, qDebug() << state());
+    CHECK_STATE(InferiorSetupRequested);
     QString core = coreFileName();
     if (response.resultClass == ResultDone) {
         showMessage(tr("Symbols found."), StatusBar);
@@ -234,30 +231,34 @@ void GdbCoreEngine::handleFileExecAndSymbols(const DebuggerResponse &response)
 
 void GdbCoreEngine::runEngine()
 {
-    QTC_ASSERT(state() == EngineRunRequested, qDebug() << state());
-    postCommand("target core " + coreFileName().toLocal8Bit(), NoFlags, CB(handleTargetCore));
+    CHECK_STATE(EngineRunRequested);
+    runCommand({"target core " + coreFileName().toLocal8Bit(), NoFlags,
+                CB(handleTargetCore)});
 }
 
 void GdbCoreEngine::handleTargetCore(const DebuggerResponse &response)
 {
-    QTC_ASSERT(state() == EngineRunRequested, qDebug() << state());
+    CHECK_STATE(EngineRunRequested);
     notifyEngineRunOkAndInferiorUnrunnable();
-    if (response.resultClass == ResultDone) {
-        showMessage(tr("Attached to core."), StatusBar);
-        // Due to the auto-solib-add off setting, we don't have any
-        // symbols yet. Load them in order of importance.
-        reloadStack();
-        reloadModulesInternal();
-        postCommand("p 5", NoFlags, CB(handleRoundTrip));
-        return;
+    showMessage(tr("Attached to core."), StatusBar);
+    if (response.resultClass == ResultError) {
+        // We'll accept any kind of error e.g. &"Cannot access memory at address 0x2abc2a24\n"
+        // Even without the stack, the user can find interesting stuff by exploring
+        // the memory, globals etc.
+        showStatusMessage(tr("Attach to core \"%1\" failed:").arg(runParameters().coreFile)
+                          + QLatin1Char('\n') + QString::fromLocal8Bit(response.data["msg"].data())
+                          + QLatin1Char('\n') + tr("Continuing nevertheless."));
     }
-    showStatusMessage(tr("Attach to core \"%1\" failed:").arg(runParameters().coreFile)
-        + QLatin1Char('\n') + QString::fromLocal8Bit(response.data["msg"].data()));
-    notifyEngineIll();
+    // Due to the auto-solib-add off setting, we don't have any
+    // symbols yet. Load them in order of importance.
+    reloadStack();
+    reloadModulesInternal();
+    runCommand({"p 5", NoFlags, CB(handleRoundTrip)});
 }
 
 void GdbCoreEngine::handleRoundTrip(const DebuggerResponse &response)
 {
+    CHECK_STATE(InferiorUnrunnable);
     Q_UNUSED(response);
     loadSymbolsForStack();
     handleStop2();

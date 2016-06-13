@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,27 +9,23 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
 #include "stylehelper.h"
 
+#include "theme/theme.h"
 #include "hostosinfo.h"
 
 #include <QPixmapCache>
@@ -152,10 +148,20 @@ void StyleHelper::setBaseColor(const QColor &newcolor)
 {
     m_requestedBaseColor = newcolor;
 
+    const QColor themeBaseColor = creatorTheme()->color(Theme::PanelStatusBarBackgroundColor);
+    const QColor defaultBaseColor = QColor(DEFAULT_BASE_COLOR);
     QColor color;
-    color.setHsv(newcolor.hue(),
-                 newcolor.saturation() * 0.7,
-                 64 + newcolor.value() / 3);
+
+    if (defaultBaseColor == newcolor) {
+        color = themeBaseColor;
+    } else {
+        const int valueDelta = (newcolor.value() - defaultBaseColor.value()) / 3;
+        const int value = qBound(0, themeBaseColor.value() + valueDelta, 255);
+
+        color.setHsv(newcolor.hue(),
+                     newcolor.saturation() * 0.7,
+                     value);
+    }
 
     if (color.isValid() && color != m_baseColor) {
         m_baseColor = color;
@@ -280,20 +286,14 @@ void StyleHelper::drawArrow(QStyle::PrimitiveElement element, QPainter *painter,
         return;
 
     const qreal devicePixelRatio = painter->device()->devicePixelRatio();
+    const bool enabled = option->state & QStyle::State_Enabled;
     QRect r = option->rect;
     int size = qMin(r.height(), r.width());
     QPixmap pixmap;
     QString pixmapName;
-    pixmapName.sprintf("arrow-%s-%d-%d-%d-%lld-%f",
-                       "$qt_ia",
-                       uint(option->state), element,
-                       size, option->palette.cacheKey(),
-                       devicePixelRatio);
+    pixmapName.sprintf("StyleHelper::drawArrow-%d-%d-%d-%f",
+                       element, size, enabled, devicePixelRatio);
     if (!QPixmapCache::find(pixmapName, pixmap)) {
-        const QCommonStyle* const style = qobject_cast<QCommonStyle*>(QApplication::style());
-        if (!style)
-            return;
-
         QImage image(size * devicePixelRatio, size * devicePixelRatio, QImage::Format_ARGB32_Premultiplied);
         image.fill(Qt::transparent);
         QPainter painter(&image);
@@ -301,20 +301,22 @@ void StyleHelper::drawArrow(QStyle::PrimitiveElement element, QPainter *painter,
         QStyleOption tweakedOption(*option);
         tweakedOption.state = QStyle::State_Enabled;
 
-        if (!(option->state & QStyle::State_Enabled)) {
-            tweakedOption.palette.setColor(QPalette::ButtonText, option->palette.mid().color());
-            tweakedOption.rect = image.rect();
+        auto drawCommonStyleArrow = [&tweakedOption, element, &painter](const QRect &rect, const QColor &color) -> void
+        {
+            static const QCommonStyle* const style = qobject_cast<QCommonStyle*>(QApplication::style());
+            if (!style)
+                return;
+            tweakedOption.palette.setColor(QPalette::ButtonText, color.rgb());
+            tweakedOption.rect = rect;
+            painter.setOpacity(color.alphaF());
             style->QCommonStyle::drawPrimitive(element, &tweakedOption, &painter);
-        } else {
-            tweakedOption.palette.setColor(QPalette::ButtonText, Qt::black);
-            painter.setOpacity(0.2);
-            tweakedOption.rect = image.rect().adjusted(0, devicePixelRatio, 0, devicePixelRatio);
-            style->QCommonStyle::drawPrimitive(element, &tweakedOption, &painter);
+        };
 
-            tweakedOption.palette.setColor(QPalette::ButtonText, QColor(220, 220, 220));
-            painter.setOpacity(1);
-            tweakedOption.rect = image.rect();
-            style->QCommonStyle::drawPrimitive(element, &tweakedOption, &painter);
+        if (!enabled) {
+            drawCommonStyleArrow(image.rect(), creatorTheme()->color(Theme::IconsDisabledColor));
+        } else {
+            drawCommonStyleArrow(image.rect().translated(0, devicePixelRatio), toolBarDropShadowColor());
+            drawCommonStyleArrow(image.rect(), creatorTheme()->color(Theme::IconsBaseColor));
         }
         painter.end();
         pixmap = QPixmap::fromImage(image);
@@ -350,6 +352,21 @@ void StyleHelper::menuGradient(QPainter *painter, const QRect &spanRect, const Q
     }
 }
 
+QPixmap StyleHelper::disabledSideBarIcon(const QPixmap &enabledicon)
+{
+    QImage im = enabledicon.toImage().convertToFormat(QImage::Format_ARGB32);
+    for (int y=0; y<im.height(); ++y) {
+        QRgb *scanLine = reinterpret_cast<QRgb*>(im.scanLine(y));
+        for (int x=0; x<im.width(); ++x) {
+            QRgb pixel = *scanLine;
+            char intensity = char(qGray(pixel));
+            *scanLine = qRgba(intensity, intensity, intensity, qAlpha(pixel));
+            ++scanLine;
+        }
+    }
+    return QPixmap::fromImage(im);
+}
+
 // Draws a cached pixmap with shadow
 void StyleHelper::drawIconWithShadow(const QIcon &icon, const QRect &rect,
                                      QPainter *p, QIcon::Mode iconMode, int dipRadius, const QColor &color, const QPoint &dipOffset)
@@ -363,7 +380,8 @@ void StyleHelper::drawIconWithShadow(const QIcon &icon, const QRect &rect,
         // return a high-dpi pixmap, which will in that case have a devicePixelRatio
         // different than 1. The shadow drawing caluculations are done in device
         // pixels.
-        QPixmap px = icon.pixmap(rect.size());
+        QWindow *window = QApplication::allWidgets().first()->windowHandle();
+        QPixmap px = icon.pixmap(window, rect.size(), iconMode);
         int devicePixelRatio = qCeil(px.devicePixelRatio());
         int radius = dipRadius * devicePixelRatio;
         QPoint offset = dipOffset * devicePixelRatio;
@@ -372,50 +390,42 @@ void StyleHelper::drawIconWithShadow(const QIcon &icon, const QRect &rect,
 
         QPainter cachePainter(&cache);
         if (iconMode == QIcon::Disabled) {
-            QImage im = px.toImage().convertToFormat(QImage::Format_ARGB32);
-            for (int y=0; y<im.height(); ++y) {
-                QRgb *scanLine = (QRgb*)im.scanLine(y);
-                for (int x=0; x<im.width(); ++x) {
-                    QRgb pixel = *scanLine;
-                    char intensity = qGray(pixel);
-                    *scanLine = qRgba(intensity, intensity, intensity, qAlpha(pixel));
-                    ++scanLine;
-                }
-            }
-            px = QPixmap::fromImage(im);
+            const bool hasDisabledState = icon.availableSizes(QIcon::Disabled).contains(px.size());
+            if (!hasDisabledState)
+                px = disabledSideBarIcon(icon.pixmap(window, rect.size()));
+        } else {
+            // Draw shadow
+            QImage tmp(px.size() + QSize(radius * 2, radius * 2 + 1), QImage::Format_ARGB32_Premultiplied);
+            tmp.fill(Qt::transparent);
+
+            QPainter tmpPainter(&tmp);
+            tmpPainter.setCompositionMode(QPainter::CompositionMode_Source);
+            tmpPainter.drawPixmap(QRect(radius, radius, px.width(), px.height()), px);
+            tmpPainter.end();
+
+            // blur the alpha channel
+            QImage blurred(tmp.size(), QImage::Format_ARGB32_Premultiplied);
+            blurred.fill(Qt::transparent);
+            QPainter blurPainter(&blurred);
+            qt_blurImage(&blurPainter, tmp, radius, false, true);
+            blurPainter.end();
+
+            tmp = blurred;
+
+            // blacken the image...
+            tmpPainter.begin(&tmp);
+            tmpPainter.setCompositionMode(QPainter::CompositionMode_SourceIn);
+            tmpPainter.fillRect(tmp.rect(), color);
+            tmpPainter.end();
+
+            tmpPainter.begin(&tmp);
+            tmpPainter.setCompositionMode(QPainter::CompositionMode_SourceIn);
+            tmpPainter.fillRect(tmp.rect(), color);
+            tmpPainter.end();
+
+            // draw the blurred drop shadow...
+            cachePainter.drawImage(QRect(0, 0, cache.rect().width(), cache.rect().height()), tmp);
         }
-
-        // Draw shadow
-        QImage tmp(px.size() + QSize(radius * 2, radius * 2 + 1), QImage::Format_ARGB32_Premultiplied);
-        tmp.fill(Qt::transparent);
-
-        QPainter tmpPainter(&tmp);
-        tmpPainter.setCompositionMode(QPainter::CompositionMode_Source);
-        tmpPainter.drawPixmap(QRect(radius, radius, px.width(), px.height()), px);
-        tmpPainter.end();
-
-        // blur the alpha channel
-        QImage blurred(tmp.size(), QImage::Format_ARGB32_Premultiplied);
-        blurred.fill(Qt::transparent);
-        QPainter blurPainter(&blurred);
-        qt_blurImage(&blurPainter, tmp, radius, false, true);
-        blurPainter.end();
-
-        tmp = blurred;
-
-        // blacken the image...
-        tmpPainter.begin(&tmp);
-        tmpPainter.setCompositionMode(QPainter::CompositionMode_SourceIn);
-        tmpPainter.fillRect(tmp.rect(), color);
-        tmpPainter.end();
-
-        tmpPainter.begin(&tmp);
-        tmpPainter.setCompositionMode(QPainter::CompositionMode_SourceIn);
-        tmpPainter.fillRect(tmp.rect(), color);
-        tmpPainter.end();
-
-        // draw the blurred drop shadow...
-        cachePainter.drawImage(QRect(0, 0, cache.rect().width(), cache.rect().height()), tmp);
 
         // Draw the actual pixmap...
         cachePainter.drawPixmap(QRect(QPoint(radius, radius) + offset, QSize(px.width(), px.height())), px);
@@ -515,13 +525,31 @@ QString StyleHelper::dpiSpecificImageFile(const QString &fileName)
 {
     // See QIcon::addFile()
     if (qApp->devicePixelRatio() > 1.0) {
-        const QFileInfo fi(fileName);
-        const QString at2xfileName = fi.path() + QLatin1Char('/')
-                + fi.completeBaseName() + QStringLiteral("@2x.") + fi.suffix();
-        if (QFile::exists(at2xfileName))
-            return at2xfileName;
+        const QString atDprfileName =
+                imageFileWithResolution(fileName, qRound(qApp->devicePixelRatio()));
+        if (QFile::exists(atDprfileName))
+            return atDprfileName;
     }
     return fileName;
+}
+
+QString StyleHelper::imageFileWithResolution(const QString &fileName, int dpr)
+{
+    const QFileInfo fi(fileName);
+    return dpr == 1 ? fileName :
+                      fi.path() + QLatin1Char('/') + fi.completeBaseName()
+                      + QLatin1Char('@') + QString::number(dpr)
+                      + QLatin1String("x.") + fi.suffix();
+}
+
+QList<int> StyleHelper::availableImageResolutions(const QString &fileName)
+{
+    QList<int> result;
+    const int maxResolutions = qApp->devicePixelRatio();
+    for (int i = 1; i <= maxResolutions; ++i)
+        if (QFile::exists(imageFileWithResolution(fileName, i)))
+            result.append(i);
+    return result;
 }
 
 } // namespace Utils
