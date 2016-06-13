@@ -49,7 +49,7 @@ MerSdkKitInformation::MerSdkKitInformation()
     setPriority(24);
 }
 
-QVariant MerSdkKitInformation::defaultValue(Kit *kit) const
+QVariant MerSdkKitInformation::defaultValue(const Kit *kit) const
 {
     const MerSdk *sdk = MerSdkKitInformation::sdk(kit);
     if (sdk)

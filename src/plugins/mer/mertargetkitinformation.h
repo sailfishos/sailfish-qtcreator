@@ -67,7 +67,7 @@ class MerTargetKitInformation : public ProjectExplorer::KitInformation
 {
 public:
     explicit MerTargetKitInformation();
-    QVariant defaultValue(ProjectExplorer::Kit *kit) const override;
+    QVariant defaultValue(const ProjectExplorer::Kit *kit) const override;
     QList<ProjectExplorer::Task> validate(const ProjectExplorer::Kit *kit) const override;
     ItemList toUserOutput(const ProjectExplorer::Kit *kit) const override;
     ProjectExplorer::KitConfigWidget *createConfigWidget(ProjectExplorer::Kit *kit) const override;

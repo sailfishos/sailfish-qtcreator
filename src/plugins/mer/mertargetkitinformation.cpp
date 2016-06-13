@@ -50,7 +50,7 @@ MerTargetKitInformation::MerTargetKitInformation()
     setPriority(23);
 }
 
-QVariant MerTargetKitInformation::defaultValue(Kit *kit) const
+QVariant MerTargetKitInformation::defaultValue(const Kit *kit) const
 {
     return MerTargetKitInformation::targetName(kit);
 }
