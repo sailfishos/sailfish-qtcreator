@@ -86,7 +86,6 @@ private:
     void saveState();
 
     static QString m_lastCategory;
-    static QString m_lastPlatform;
     static bool m_isRunning;
 
     Ui::NewDialog *m_ui;
