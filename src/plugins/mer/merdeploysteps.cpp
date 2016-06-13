@@ -120,7 +120,12 @@ MerProcessStep::MerProcessStep(BuildStepList *bsl, MerProcessStep *bs)
 
 }
 
-bool MerProcessStep::init(InitOptions options)
+bool MerProcessStep::init(QList<const BuildStep *> &earlierSteps)
+{
+    return init(earlierSteps, NoInitOption);
+}
+
+bool MerProcessStep::init(QList<const BuildStep *> &earlierSteps, InitOptions options)
 {
     QmakeBuildConfiguration *bc = qobject_cast<QmakeBuildConfiguration*>(buildConfiguration());
     if (!bc)
@@ -180,7 +185,7 @@ bool MerProcessStep::init(InitOptions options)
     pp->setWorkingDirectory(projectDirectory);
     pp->setCommand(deployCommand);
     pp->setArguments(arguments());
-    return AbstractProcessStep::init();
+    return AbstractProcessStep::init(earlierSteps);
 }
 
 QString MerProcessStep::arguments() const
@@ -222,7 +227,7 @@ MerEmulatorStartStep::MerEmulatorStartStep(BuildStepList *bsl, MerEmulatorStartS
     setDefaultDisplayName(displayName());
 }
 
-bool MerEmulatorStartStep::init()
+bool MerEmulatorStartStep::init(QList<const BuildStep *> &earlierSteps)
 {
     IDevice::ConstPtr d = DeviceKitInformation::device(this->target()->kit());
     const MerEmulatorDevice* device = dynamic_cast<const MerEmulatorDevice*>(d.data());
@@ -233,7 +238,7 @@ bool MerEmulatorStartStep::init()
 
     setConnection(device->connection());
 
-    return MerAbstractVmStartStep::init();
+    return MerAbstractVmStartStep::init(earlierSteps);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -261,8 +266,10 @@ MerConnectionTestStep::MerConnectionTestStep(BuildStepList *bsl,
     setDefaultDisplayName(displayName());
 }
 
-bool MerConnectionTestStep::init()
+bool MerConnectionTestStep::init(QList<const BuildStep *> &earlierSteps)
 {
+    Q_UNUSED(earlierSteps);
+
     IDevice::ConstPtr d = DeviceKitInformation::device(this->target()->kit());
     if (!d) {
         setEnabled(false);
@@ -375,7 +382,7 @@ MerPrepareTargetStep::MerPrepareTargetStep(BuildStepList *bsl,
     setDefaultDisplayName(displayName());
 }
 
-bool MerPrepareTargetStep::init()
+bool MerPrepareTargetStep::init(QList<const BuildStep *> &earlierSteps)
 {
     IDevice::ConstPtr d = DeviceKitInformation::device(this->target()->kit());
     if (!d) {
@@ -389,7 +396,7 @@ bool MerPrepareTargetStep::init()
         m_impl = new MerConnectionTestStep(qobject_cast<BuildStepList *>(parent()));
     }
 
-    if (!m_impl->init()) {
+    if (!m_impl->init(earlierSteps)) {
         delete m_impl, m_impl = 0;
         setEnabled(false);
         return false;
@@ -458,9 +465,9 @@ MerMb2RsyncDeployStep::MerMb2RsyncDeployStep(BuildStepList *bsl, MerMb2RsyncDepl
     setArguments(QLatin1String("--rsync"));
 }
 
-bool MerMb2RsyncDeployStep::init()
+bool MerMb2RsyncDeployStep::init(QList<const BuildStep *> &earlierSteps)
 {
-    return MerProcessStep::init();
+    return MerProcessStep::init(earlierSteps);
 }
 
 bool MerMb2RsyncDeployStep::immutable() const
@@ -506,7 +513,7 @@ MerLocalRsyncDeployStep::MerLocalRsyncDeployStep(BuildStepList *bsl, MerLocalRsy
     setDefaultDisplayName(displayName());
 }
 
-bool MerLocalRsyncDeployStep::init()
+bool MerLocalRsyncDeployStep::init(QList<const BuildStep *> &earlierSteps)
 {
     QmakeBuildConfiguration *bc = qobject_cast<QmakeBuildConfiguration*>(buildConfiguration());
     if (!bc)
@@ -544,7 +551,7 @@ bool MerLocalRsyncDeployStep::init()
     pp->setCommand(deployCommand);
     pp->setArguments(arguments());
 
-    return AbstractProcessStep::init();
+    return AbstractProcessStep::init(earlierSteps);
 }
 
 bool MerLocalRsyncDeployStep::immutable() const
@@ -595,9 +602,9 @@ MerMb2RpmDeployStep::MerMb2RpmDeployStep(BuildStepList *bsl, MerMb2RpmDeployStep
     setArguments(QLatin1String("--sdk"));
 }
 
-bool MerMb2RpmDeployStep::init()
+bool MerMb2RpmDeployStep::init(QList<const BuildStep *> &earlierSteps)
 {
-    return MerProcessStep::init();
+    return MerProcessStep::init(earlierSteps);
 }
 
 bool MerMb2RpmDeployStep::immutable() const
@@ -646,9 +653,9 @@ MerMb2RpmBuildStep::MerMb2RpmBuildStep(BuildStepList *bsl, MerMb2RpmBuildStep *b
     setDefaultDisplayName(displayName());
 }
 
-bool MerMb2RpmBuildStep::init()
+bool MerMb2RpmBuildStep::init(QList<const BuildStep *> &earlierSteps)
 {
-    bool success = MerProcessStep::init(DoNotNeedDevice);
+    bool success = MerProcessStep::init(earlierSteps, DoNotNeedDevice);
     m_packages.clear();
     const MerSdk *const sdk = MerSdkKitInformation::sdk(target()->kit());
     m_sharedHome = QDir::cleanPath(sdk->sharedHomePath());
@@ -756,9 +763,9 @@ MerRpmValidationStep::MerRpmValidationStep(BuildStepList *bsl, MerRpmValidationS
     setDefaultDisplayName(displayName());
 }
 
-bool MerRpmValidationStep::init()
+bool MerRpmValidationStep::init(QList<const BuildStep *> &earlierSteps)
 {
-    if (!MerProcessStep::init(DoNotNeedDevice)) {
+    if (!MerProcessStep::init(earlierSteps, DoNotNeedDevice)) {
         return false;
     }
 

@@ -45,7 +45,7 @@ MerSdkStartStep::MerSdkStartStep(BuildStepList *bsl, MerSdkStartStep *bs)
     setDefaultDisplayName(displayName());
 }
 
-bool MerSdkStartStep::init()
+bool MerSdkStartStep::init(QList<const BuildStep *> &earlierSteps)
 {
     const MerSdk *const merSdk = MerSdkKitInformation::sdk(target()->kit());
     if (!merSdk) {
@@ -56,7 +56,7 @@ bool MerSdkStartStep::init()
 
     setConnection(merSdk->connection());
 
-    return MerAbstractVmStartStep::init();
+    return MerAbstractVmStartStep::init(earlierSteps);
 }
 
 Core::Id MerSdkStartStep::stepId()

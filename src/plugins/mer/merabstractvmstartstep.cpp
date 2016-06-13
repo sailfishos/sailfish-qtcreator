@@ -78,8 +78,9 @@ MerAbstractVmStartStep::MerAbstractVmStartStep(BuildStepList *bsl, MerAbstractVm
 {
 }
 
-bool MerAbstractVmStartStep::init()
+bool MerAbstractVmStartStep::init(QList<const BuildStep *> &earlierSteps)
 {
+    Q_UNUSED(earlierSteps);
     QTC_ASSERT(m_connection, return false);
 
     return true;
