@@ -62,7 +62,7 @@ protected:
     QList<ProjectExplorer::Task> reportIssuesImpl(const QString &proFile,
                                                   const QString &buildDir) const override;
 
-    Core::FeatureSet availableFeatures() const override;
+    QSet<Core::Id> availableFeatures() const override;
 
 private:
     QString m_vmName;
