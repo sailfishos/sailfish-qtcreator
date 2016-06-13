@@ -49,6 +49,8 @@ public:
 
     QString description() const override;
 
+    QSet<Core::Id> targetDeviceTypes() const;
+
     QList<ProjectExplorer::Task> validateKit(const ProjectExplorer::Kit *k) override;
     QVariantMap toMap() const override;
     void fromMap(const QVariantMap &data) override;
