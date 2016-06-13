@@ -339,7 +339,6 @@ void FancyActionBar::addProjectSelector(QAction *action)
     FancyToolButton* toolButton = new FancyToolButton(this);
     toolButton->setDefaultAction(action);
     connect(action, SIGNAL(changed()), toolButton, SLOT(actionChanged()));
-    toolButton->actionChanged();
     m_actionsLayout->insertWidget(0, toolButton);
 
 }
@@ -348,7 +347,6 @@ void FancyActionBar::insertAction(int index, QAction *action)
     FancyToolButton *toolButton = new FancyToolButton(this);
     toolButton->setDefaultAction(action);
     connect(action, SIGNAL(changed()), toolButton, SLOT(actionChanged()));
-    toolButton->actionChanged();
     m_actionsLayout->insertWidget(index, toolButton);
 }
 

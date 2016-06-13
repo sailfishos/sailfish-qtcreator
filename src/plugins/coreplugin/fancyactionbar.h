@@ -59,7 +59,6 @@ public:
     void setFader(float value) { m_fader = value; update(); }
 
 private slots:
-    friend class FancyActionBar;
     void actionChanged();
 };
 
