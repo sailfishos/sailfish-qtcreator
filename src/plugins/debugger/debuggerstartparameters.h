@@ -94,7 +94,6 @@ public:
     QString remoteChannel;
     QSsh::SshConnectionParameters connParams;
     bool remoteSetupNeeded = false;
-    QMap<QString, QString> sourcePathMap;
 
     // Used by baremetal plugin
     QByteArray commandsForReset; // commands used for resetting the inferior
