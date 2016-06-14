@@ -30,8 +30,8 @@
 #include "mertoolchain.h"
 #include "mervirtualboxmanager.h"
 
-#include <analyzerbase/analyzermanager.h>
-#include <analyzerbase/analyzerruncontrol.h>
+#include <debugger/analyzer/analyzermanager.h>
+#include <debugger/analyzer/analyzerruncontrol.h>
 #include <debugger/debuggerkitinformation.h>
 #include <debugger/debuggerplugin.h>
 #include <debugger/debuggerruncontrol.h>
@@ -125,8 +125,8 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, Core::Id m
         connect(runControl, SIGNAL(finished()), debugSupport, SLOT(handleDebuggingFinished()));
         return runControl;
     } else if (mode == ProjectExplorer::Constants::QML_PROFILER_RUN_MODE) {
-        Analyzer::AnalyzerStartParameters params = RemoteLinuxAnalyzeSupport::startParameters(rc, mode);
-        Analyzer::AnalyzerRunControl * const runControl = Analyzer::AnalyzerManager::createRunControl(params, runConfig);
+        Debugger::AnalyzerStartParameters params = RemoteLinuxAnalyzeSupport::startParameters(rc, mode);
+        Debugger::AnalyzerRunControl * const runControl = Debugger::AnalyzerManager::createRunControl(params, runConfig);
         RemoteLinuxAnalyzeSupport * const analyzeSupport =
                 new RemoteLinuxAnalyzeSupport(rc, runControl, mode);
         // TODO: handleProfilingFinished is private
