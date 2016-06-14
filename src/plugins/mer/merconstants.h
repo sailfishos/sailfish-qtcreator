@@ -32,7 +32,6 @@ const char MER_QT[] = "QmakeProjectManager.QtVersion.Mer";
 const char MER_TOOLCHAIN_ID[] = "QmakeProjectManager.ToolChain.Mer";
 
 const char MER_TOOLCHAIN[] = "Mer GCC";
-const char MER_TOOLCHAIN_TYPE[] = "Mer.Gcc";
 
 const char MER_OPTIONS_CATEGORY[] = "W.Mer";
 const char MER_OPTIONS_CATEGORY_TR[] = QT_TRANSLATE_NOOP("Mer", "Mer");

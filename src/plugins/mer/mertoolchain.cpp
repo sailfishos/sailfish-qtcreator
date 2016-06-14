@@ -70,11 +70,6 @@ QString MerToolChain::targetName() const
     return m_targetName;
 }
 
-QString MerToolChain::type() const
-{
-    return QLatin1String(Constants::MER_TOOLCHAIN_TYPE);
-}
-
 QString MerToolChain::makeCommand(const Environment &environment) const
 {
     const QString make = QLatin1String(Constants::MER_WRAPPER_MAKE);

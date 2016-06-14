@@ -41,7 +41,6 @@ public:
     void setTargetName(const QString &name);
     QString targetName() const;
 
-    QString type() const override;
     QVariantMap toMap() const override;
     bool fromMap(const QVariantMap &data) override;
 
