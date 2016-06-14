@@ -34,6 +34,7 @@
 #include <debugger/analyzer/analyzerruncontrol.h>
 #include <debugger/debuggerkitinformation.h>
 #include <debugger/debuggerplugin.h>
+#include <debugger/debuggerrunconfigurationaspect.h>
 #include <debugger/debuggerruncontrol.h>
 #include <debugger/debuggerstartparameters.h>
 #include <projectexplorer/target.h>
@@ -78,8 +79,11 @@ bool MerRunControlFactory::canRun(RunConfiguration *runConfiguration, Core::Id m
     if (mode == ProjectExplorer::Constants::DEBUG_RUN_MODE) {
         const RemoteLinuxRunConfiguration * const remoteRunConfig
                 = qobject_cast<RemoteLinuxRunConfiguration *>(runConfiguration);
-        if (remoteRunConfig)
-            return remoteRunConfig->portsUsedByDebuggers() <= dev->freePorts().count();
+        if (remoteRunConfig) {
+            auto aspect = remoteRunConfig->extraAspect<DebuggerRunConfigurationAspect>();
+            int portsUsed = aspect ? aspect->portsUsedByDebugger() : 0;
+            return portsUsed <= dev->freePorts().count();
+        }
         return false;
     }
     return true;
@@ -102,7 +106,9 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, Core::Id m
             *errorMessage = tr("Cannot debug: Kit has no device.");
             return 0;
         }
-        if (rc->portsUsedByDebuggers() > dev->freePorts().count()) {
+        auto aspect = rc->extraAspect<DebuggerRunConfigurationAspect>();
+        int portsUsed = aspect ? aspect->portsUsedByDebugger() : 0;
+        if (portsUsed > dev->freePorts().count()) {
             *errorMessage = tr("Cannot debug: Not enough free ports available.");
             return 0;
         }
