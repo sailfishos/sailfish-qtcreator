@@ -44,8 +44,8 @@ namespace Internal {
 
 using namespace ProjectExplorer;
 
-MerToolChain::MerToolChain(Detection autodetected,const QString &id)
-    : GccToolChain(id, autodetected)
+MerToolChain::MerToolChain(Detection autodetected, Core::Id typeId)
+    : GccToolChain(typeId, autodetected)
 {
 
 }
