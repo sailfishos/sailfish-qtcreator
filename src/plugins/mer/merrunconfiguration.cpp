@@ -30,6 +30,7 @@
 #include <projectexplorer/deploymentdata.h>
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/project.h>
+#include <projectexplorer/runnables.h>
 #include <projectexplorer/target.h>
 #include <remotelinux/remotelinuxenvironmentaspect.h>
 
@@ -103,12 +104,12 @@ QString MerRunConfiguration::defaultRemoteExecutableFilePath() const
     return executable;
 }
 
-Environment MerRunConfiguration::environment() const
+Runnable MerRunConfiguration::runnable() const
 {
-    Environment env(RemoteLinuxRunConfiguration::environment());
+    auto r = RemoteLinuxRunConfiguration::runnable().as<StandardRunnable>();
     // required by qtbase not to direct logs to journald
-    env.appendOrSet(QLatin1String("QT_NO_JOURNALD_LOG"), QLatin1String("1"));
-    return env;
+    r.environment.appendOrSet(QLatin1String("QT_NO_JOURNALD_LOG"), QLatin1String("1"));
+    return r;
 }
 
 } // Internal
