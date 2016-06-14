@@ -211,8 +211,7 @@ QList<ToolChain *> MerToolChainFactory::autoDetect()
 */
 bool MerToolChainFactory::canRestore(const QVariantMap &data)
 {
-    return idFromMap(data).startsWith(QLatin1String(Constants::MER_TOOLCHAIN_ID)
-                                      + QLatin1Char(':'));
+    return typeIdFromMap(data) == Constants::MER_TOOLCHAIN_ID;
 }
 
 ToolChain *MerToolChainFactory::restore(const QVariantMap &data)
