@@ -178,7 +178,6 @@ void MerToolChain::addToEnvironment(Environment &env) const
 
 MerToolChainFactory::MerToolChainFactory()
 {
-    setTypeId(Constants::MER_TOOLCHAIN_ID);
     setDisplayName(tr("Mer"));
 }
 
