@@ -131,8 +131,7 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, Core::Id m
         connect(runControl, SIGNAL(finished()), debugSupport, SLOT(handleDebuggingFinished()));
         return runControl;
     } else if (mode == ProjectExplorer::Constants::QML_PROFILER_RUN_MODE) {
-        Debugger::AnalyzerStartParameters params = RemoteLinuxAnalyzeSupport::startParameters(rc);
-        Debugger::AnalyzerRunControl * const runControl = Debugger::AnalyzerManager::createRunControl(params, runConfig, mode);
+        Debugger::AnalyzerRunControl * const runControl = Debugger::AnalyzerManager::createRunControl(runConfig, mode);
         RemoteLinuxAnalyzeSupport * const analyzeSupport =
                 new RemoteLinuxAnalyzeSupport(rc, runControl, mode);
         // TODO: handleProfilingFinished is private
