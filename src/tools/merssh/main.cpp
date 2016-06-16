@@ -34,6 +34,7 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QFile>
+#include <QLoggingCategory>
 #include <QProcessEnvironment>
 #include <QStringList>
 #include <QTimer>
@@ -89,6 +90,8 @@ QStringList unquoteArguments(QStringList args) {
 
 int main(int argc, char *argv[])
 {
+    QLoggingCategory::setFilterRules(QLatin1String("qtc.*.debug=false"));
+
     QCoreApplication a(argc, argv);
 
     CommandFactory::registerCommand<QMakeCommand>(QLatin1String("qmake"));
