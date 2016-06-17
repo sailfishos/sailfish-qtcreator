@@ -26,6 +26,7 @@
 
 #include <QAbstractMessageHandler>
 #include <QAbstractXmlReceiver>
+#include <QDir>
 #include <QFileInfo>
 #include <QStack>
 #include <QXmlQuery>
@@ -171,21 +172,35 @@ private:
 };
 
 #ifdef Q_OS_MAC
-#  define SHARE_PATH "/../Resources"
+#  define SHARE_PATH "Resources"
 #else
-#  define SHARE_PATH "/../share/qtcreator"
+#  define SHARE_PATH "share/qtcreator"
 #endif
+
+#define LIBEXEC_PREFIX "/libexec/"
 
 static QString applicationDirPath()
 {
     return QCoreApplication::applicationDirPath();
 }
 
-static inline QString sharedDirPath()
+static inline QDir sharedDir()
 {
-    QString appPath = applicationDirPath();
+    QDir retv = QDir(applicationDirPath());
 
-    return QFileInfo(appPath + QLatin1String(SHARE_PATH)).absoluteFilePath();
+    // cd up to installation prefix
+#ifdef Q_OS_LINUX
+    // This has to be decided at runtime since the app can be either Qt Creator
+    // itself (installed under bin/) or a tool like sdktool (installed under
+    // libexec/qtcreator)
+    if (retv.absolutePath().contains(QLatin1String(LIBEXEC_PREFIX)))
+        retv.cdUp();
+#endif
+    retv.cdUp();
+
+    retv.cd(QLatin1String(SHARE_PATH));
+
+    return retv;
 }
 
 } // Anonymous
@@ -225,7 +240,7 @@ MerTargetsXmlReader::MerTargetsXmlReader(const QString &fileName, QObject *paren
     schema.setMessageHandler(&d->messageHandler);
 
     FileReader schemeReader;
-    d->error = !schemeReader.fetch(QString::fromLatin1("%1/mer/targets.xsd").arg(sharedDirPath()),
+    d->error = !schemeReader.fetch(sharedDir().filePath(QLatin1String("mer/targets.xsd")),
             QIODevice::ReadOnly);
     if (d->error) {
         d->errorString = schemeReader.errorString();
