@@ -30,6 +30,7 @@
 #include <projectexplorer/projectexplorerconstants.h>
 #include <qtsupport/qtkitinformation.h>
 #include <qtsupport/qtversionmanager.h>
+#include <utils/algorithm.h>
 #include <utils/environment.h>
 #include <utils/qtcassert.h>
 
@@ -209,6 +210,15 @@ QList<ToolChain *> MerToolChainFactory::autoDetect()
     return result;
 }
 */
+
+QList<ToolChain *> MerToolChainFactory::autoDetect(const QList<ToolChain *> &alreadyKnown)
+{
+    // Only "confirm" these are autodetected so that they do not get demoted as manually added
+    return Utils::filtered(alreadyKnown, [](const ToolChain *tc) {
+        return tc->typeId() == Constants::MER_TOOLCHAIN_ID;
+    });
+}
+
 bool MerToolChainFactory::canRestore(const QVariantMap &data)
 {
     return typeIdFromMap(data) == Constants::MER_TOOLCHAIN_ID;
