@@ -160,7 +160,7 @@ QList<Kit *> MerSdkManager::merKits()
     return kits;
 }
 
-QList<MerToolChain *> MerSdkManager::merToolChains() const
+QList<MerToolChain *> MerSdkManager::merToolChains()
 {
     QList<MerToolChain*> toolchains;
     foreach (ToolChain *toolchain, ToolChainManager::toolChains()) {
@@ -173,7 +173,7 @@ QList<MerToolChain *> MerSdkManager::merToolChains() const
     return toolchains;
 }
 
-QList<MerQtVersion *> MerSdkManager::merQtVersions() const
+QList<MerQtVersion *> MerSdkManager::merQtVersions()
 {
     QList<MerQtVersion*> qtversions;
     foreach (BaseQtVersion *qtVersion, QtVersionManager::versions()) {

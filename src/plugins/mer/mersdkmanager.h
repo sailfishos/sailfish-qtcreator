@@ -88,8 +88,8 @@ private:
     MerSdkManager();
     void restore();
     QList<MerSdk*> restoreSdks(const Utils::FileName &fileName);
-    QList<MerToolChain*> merToolChains() const;
-    QList<MerQtVersion*> merQtVersions() const;
+    static QList<MerToolChain*> merToolChains();
+    static QList<MerQtVersion*> merQtVersions();
     const Utils::FileName& checkInstallLocation(const Utils::FileName &l, const Utils::FileName &g);
 private:
     static MerSdkManager *m_instance;
