@@ -46,8 +46,9 @@ GenericLinuxDeviceConfigurationFactory::GenericLinuxDeviceConfigurationFactory(Q
 
 QString GenericLinuxDeviceConfigurationFactory::displayNameForId(Core::Id type) const
 {
-    QTC_ASSERT(type == Constants::GenericLinuxOsType, return QString());
-    return tr("Generic Linux Device");
+    if (type == Constants::GenericLinuxOsType)
+        return tr("Generic Linux Device");
+    return QString();
 }
 
 QList<Core::Id> GenericLinuxDeviceConfigurationFactory::availableCreationIds() const
