@@ -8,7 +8,7 @@
     "trDisplayCategory": "Application",
     "icon": "../qtquickapplication/qml_wizard.png",
     "featuresRequired": [ "QtSupport.Wizards.FeatureQtQuick.Controls.2" ],
-    "enabled": "%{JS: [ %{Plugins} ].indexOf('QmakeProjectManager') >= 0}",
+    "enabled": "%{JS: false // [ %{Plugins} ].indexOf('QmakeProjectManager') >= 0}",
 
     "options":
     [
