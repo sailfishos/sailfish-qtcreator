@@ -60,7 +60,7 @@ QVariant MerSdkKitInformation::defaultValue(const Kit *kit) const
 QList<Task> MerSdkKitInformation::validate(const Kit *kit) const
 {
     if (MerDeviceFactory::canCreate(DeviceTypeKitInformation::deviceTypeId(kit))) {
-        const QString &vmName = kit->value(Id(Constants::VM_NAME)).toString();
+        const QString &vmName = kit->value(MerSdkKitInformation::id()).toString();
         if (!MerSdkManager::sdk(vmName)) {
             const QString message = QCoreApplication::translate("MerSdk",
                                                                 "No valid MerSdk virtual machine %1 found").arg(vmName);
@@ -75,7 +75,7 @@ MerSdk* MerSdkKitInformation::sdk(const Kit *kit)
 {
     if (!kit)
         return 0;
-    return MerSdkManager::sdk(kit->value(Core::Id(Constants::VM_NAME)).toString());
+    return MerSdkManager::sdk(kit->value(MerSdkKitInformation::id()).toString());
 }
 
 KitInformation::ItemList MerSdkKitInformation::toUserOutput(const Kit *kit) const
@@ -103,8 +103,8 @@ Core::Id MerSdkKitInformation::id()
 
 void MerSdkKitInformation::setSdk(Kit *kit, const MerSdk* sdk)
 {
-    if(kit->value(Core::Id(Constants::VM_NAME)) != sdk->virtualMachineName())
-        kit->setValue(Core::Id(Constants::VM_NAME),sdk->virtualMachineName());
+    if(kit->value(MerSdkKitInformation::id()) != sdk->virtualMachineName())
+        kit->setValue(MerSdkKitInformation::id(), sdk->virtualMachineName());
 }
 
 void MerSdkKitInformation::addToEnvironment(const Kit *kit, Environment &env) const

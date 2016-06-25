@@ -108,11 +108,8 @@ const char SYSROOT[] = "Sysroot";
 const char TOOL_CHAINS[] = "ToolChains";
 const char QT_VERSIONS[] = "QtVersions";
 const char AUTO_DETECTED[] = "AutoDetected";
-const char TARGET[] = "Target";
 const char VIRTUAL_MACHINE[] = "VirtualMachine";
 const char SB2_TARGET_NAME[] = "SB2.TargetName";
-
-
 
 const char MER_RUNCONFIGURATION_PREFIX[] = "QmakeProjectManager.MerRunConfiguration:";
 const char MER_SFTP_DEPLOY_STRING[] = QT_TRANSLATE_NOOP("Mer", "Copy Files to Device");
