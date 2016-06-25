@@ -54,7 +54,7 @@ QVariant MerSdkKitInformation::defaultValue(const Kit *kit) const
     const MerSdk *sdk = MerSdkKitInformation::sdk(kit);
     if (sdk)
         return sdk->virtualMachineName();
-    return QVariant();
+    return QString();
 }
 
 QList<Task> MerSdkKitInformation::validate(const Kit *kit) const
