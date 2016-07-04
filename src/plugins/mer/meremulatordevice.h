@@ -27,11 +27,38 @@
 
 #include <QCoreApplication>
 #include <QSharedPointer>
+#include <QSize>
 
 namespace Mer {
 namespace Internal {
 
 class MerConnection;
+
+class MerEmulatorDeviceModel
+{
+public:
+    MerEmulatorDeviceModel()
+        : d(new Data)
+    {}
+
+    bool isNull() const { return d->name.isNull() || d->displayResolution.isNull() || d->displaySize.isNull(); }
+
+    QString name() const { return d->name; }
+    QSize displayResolution() const { return d->displayResolution; }
+    QSize displaySize() const { return d->displaySize; }
+
+    void fromMap(const QVariantMap &map);
+    QVariantMap toMap() const;
+
+private:
+    struct Data : QSharedData
+    {
+        QString name;
+        QSize displayResolution;
+        QSize displaySize;
+    };
+    QSharedDataPointer<Data> d;
+};
 
 class MerEmulatorDevice : public MerDevice
 {
@@ -73,8 +100,7 @@ public:
 
     QSsh::SshConnectionParameters sshParametersForUser(const QSsh::SshConnectionParameters &sshParams, const QLatin1String &user) const;
 
-    QMap<QString, QMap<QString, QString> > availableDeviceModels() const;
-    QSize getDeviceModelResolution(const QString &deviceModel) const;
+    QMap<QString, MerEmulatorDeviceModel> availableDeviceModels() const;
     QString deviceModel() const;
     void setDeviceModel(const QString &deviceModel);
     Qt::Orientation orientation() const;
@@ -103,7 +129,7 @@ private:
     QString m_subnet;
     QString m_sharedConfigPath;
     QString m_deviceModel;
-    QMap<QString, QMap<QString, QString> > m_availableDeviceModels;
+    QMap<QString, MerEmulatorDeviceModel> m_availableDeviceModels;
     Qt::Orientation m_orientation;
     bool m_viewScaled;
 };
