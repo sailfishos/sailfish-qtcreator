@@ -51,8 +51,8 @@ namespace Mer {
 namespace Internal {
 
 namespace {
-    const int VIDEO_MODE_DEPTH = 32;
-    const int SCALE_DOWN_FACTOR = 2;
+const int VIDEO_MODE_DEPTH = 32;
+const int SCALE_DOWN_FACTOR = 2;
 }
 
 class PublicKeyDeploymentDialog : public QProgressDialog
