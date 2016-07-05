@@ -322,8 +322,9 @@ void MerManagementWebView::handleLoadFinished(bool success)
                     "  </div>"
                     "  <div style='padding-left: 24px; padding-right: 24px;'>"
                     "    <p>An SDK virtual machine can be controlled with the "
-                    "    <img src=\"qrc:/mer/images/sdk-run.png\"/> button &ndash; available on "
-                    "    the lower left side <em>when a SailfishOS project is open</em>.</p>"
+                    "    <img src='qrc:/mer/images/sdk-run.png' style='vertical-align: middle;'/>"
+                    "    button &ndash; available on the lower left side <em>when "
+                    "    a&nbsp;Sailfish&nbsp;OS project is open</em>.</p>"
                     "  </div>"
                     "</body>"
                     "</html>")

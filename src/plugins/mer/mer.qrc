@@ -12,5 +12,7 @@
         <file>images/sdk-run@2x.png</file>
         <file>images/sdk-stop@2x.png</file>
         <file>images/icon-s-sailfish-qtcreator@2x.png</file>
+        <file>images/sdk.png</file>
+        <file>images/sdk@2x.png</file>
     </qresource>
 </RCC>
