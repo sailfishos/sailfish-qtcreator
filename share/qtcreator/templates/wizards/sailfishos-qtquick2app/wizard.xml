@@ -35,8 +35,8 @@
         id="Q.SailfishOSQtQuick2Application" category="F.Application"
         featuresRequired="Mer.Wizard.Feature.SailfishOS"
         featuresPreferred="Mer.Wizard.Feature.Emulator">
-    <description>Creates a SailfishOS Qt Quick Application using Sailfish Silica components.</description>
-    <displayname>SailfishOS Qt Quick Application</displayname>;
+    <description>Creates a Sailfish OS Qt Quick Application using Sailfish Silica components.</description>
+    <displayname>Sailfish OS Qt Quick Application</displayname>;
     <displaycategory>Application</displaycategory>
     <files>
         <file source="src/template.cpp" target="src/%ProjectName%.cpp"/>
@@ -54,7 +54,7 @@
     <fieldpagetitle>Application Details</fieldpagetitle>
     <fields>
         <field mandatory="true" name="Summary">
-            <fieldcontrol class="QLineEdit" defaulttext="My SailfishOS Application" />
+            <fieldcontrol class="QLineEdit" defaulttext="My Sailfish OS Application" />
             <fielddescription>Summary:</fielddescription>
         </field>
         <field mandatory="true" name="Version">
@@ -62,7 +62,7 @@
             <fielddescription>Version:</fielddescription>
         </field>
         <field name="Description">
-            <fieldcontrol class="QTextEdit" defaulttext="Short description of my SailfishOS Application"/>
+            <fieldcontrol class="QTextEdit" defaulttext="Short description of my Sailfish OS Application"/>
             <fielddescription>Description:</fielddescription>
         </field>
     </fields>
