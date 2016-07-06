@@ -42,6 +42,8 @@
 #include "rmkitoperation.h"
 #include "rmqtoperation.h"
 #include "rmtoolchainoperation.h"
+#include "addmerdevicemodeloperation.h"
+#include "rmmerdevicemodeloperation.h"
 #include "addmertargetoperation.h"
 #include "rmmertargetoperation.h"
 #include "addmersdkoperation.h"
@@ -196,6 +198,8 @@ int main(int argc, char *argv[])
                << new FindKeyOperation
                << new FindValueOperation
                
+               << new AddMerDeviceModelOperation
+               << new RmMerDeviceModelOperation
                << new AddMerTargetOperation
                << new RmMerTargetOperation
                << new AddMerSdkOperation

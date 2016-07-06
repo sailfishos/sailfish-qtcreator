@@ -64,6 +64,7 @@ Utils::FileName Settings::getPath(const QString &file)
             << QLatin1String("toolchains")
             << QLatin1String("devices")
             << QLatin1String("mersdk")
+            << QLatin1String("mersdk-device-models")
             << QLatin1String("android")
             << QLatin1String("debuggers");
     if (lowerFile == QLatin1String("kits"))

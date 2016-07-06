@@ -28,6 +28,8 @@ SOURCES += \
     rmqtoperation.cpp \
     rmtoolchainoperation.cpp \
     settings.cpp \
+    addmerdevicemodeloperation.cpp \
+    rmmerdevicemodeloperation.cpp \
     addmertargetoperation.cpp \
     rmmertargetoperation.cpp \
     addmersdkoperation.cpp \
@@ -52,6 +54,8 @@ HEADERS += \
     rmqtoperation.h \
     rmtoolchainoperation.h \
     settings.h \
+    addmerdevicemodeloperation.h \
+    rmmerdevicemodeloperation.h \
     addmertargetoperation.h \
     rmmertargetoperation.h \
     addmersdkoperation.h \
