@@ -63,6 +63,7 @@ Utils::FileName Settings::getPath(const QString &file)
             << QLatin1String("qtversion")
             << QLatin1String("toolchains")
             << QLatin1String("devices")
+            << QLatin1String("mersdk")
             << QLatin1String("android")
             << QLatin1String("debuggers");
     if (lowerFile == QLatin1String("kits"))
@@ -71,8 +72,6 @@ Utils::FileName Settings::getPath(const QString &file)
         result.appendPath(QLatin1String("qtversion"));
     else if (identical.contains(lowerFile))
         result.appendPath(lowerFile);
-    else if (file == QLatin1String("mersdk"))
-        result.appendPath(QLatin1String("mersdk"));
     else
         return Utils::FileName();
     result.appendString(QLatin1String(".xml"));
