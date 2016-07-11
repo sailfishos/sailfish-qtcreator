@@ -89,6 +89,7 @@ public:
 
 private:
     MerEmulatorDevice();
+    MerEmulatorDevice(const MerEmulatorDevice &other);
 
     void updateAvailableDeviceModels();
     void setVideoMode();

@@ -195,6 +195,24 @@ MerEmulatorDevice::MerEmulatorDevice():
 #endif
 }
 
+MerEmulatorDevice::MerEmulatorDevice(const MerEmulatorDevice &other):
+    MerDevice(other)
+    , m_connection(other.m_connection)
+    , m_mac(other.m_mac)
+    , m_subnet(other.m_subnet)
+    , m_sharedConfigPath(other.m_sharedConfigPath)
+    , m_deviceModel(other.m_deviceModel)
+    , m_availableDeviceModels(other.m_availableDeviceModels)
+    , m_orientation(other.m_orientation)
+    , m_viewScaled(other.m_viewScaled)
+{
+#if __cplusplus >= 201103L
+    m_virtualMachineChangedConnection =
+        QObject::connect(m_connection.data(), &MerConnection::virtualMachineChanged,
+                         std::bind(&MerEmulatorDevice::updateAvailableDeviceModels, this));
+#endif
+}
+
 MerEmulatorDevice::~MerEmulatorDevice()
 {
 #if __cplusplus >= 201103L
