@@ -33,6 +33,8 @@
 #include <QObject>
 #include <QPointer>
 
+#include "meremulatordevice.h"
+
 QT_BEGIN_NAMESPACE
 class QAction;
 class QDialog;
@@ -46,8 +48,6 @@ namespace ProjectExplorer {
 
 namespace Mer {
 namespace Internal {
-
-class MerEmulatorDevice;
 
 namespace Ui {
     class MerEmulatorModeDialog;
@@ -65,7 +65,7 @@ public:
     QAction *action() const;
 
 private:
-    void setEmulator(MerEmulatorDevice *emulator);
+    void setEmulator(const MerEmulatorDevice::Ptr &emulator);
 
 private slots:
     void onStartupProjectChanged(ProjectExplorer::Project *project);
@@ -82,7 +82,7 @@ private:
     QPointer<ProjectExplorer::Project> m_project;
     QPointer<ProjectExplorer::Target> m_target;
     ProjectExplorer::Kit *m_kit;
-    MerEmulatorDevice *m_emulator;
+    QWeakPointer<MerEmulatorDevice> m_emulator;
 };
 
 } // namespace Internal
