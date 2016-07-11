@@ -403,6 +403,8 @@ void MerEmulatorDevice::setDeviceModel(const QString &deviceModel)
 
     m_deviceModel = deviceModel;
 
+    QVariantMap fullDeviceModelData = readFullDeviceModelData();
+    updateDconfDb(fullDeviceModelData);
     setVideoMode();
 }
 
@@ -516,6 +518,56 @@ void MerEmulatorDevice::setVideoMode()
 
     bool ok = saver.finalize();
     QTC_CHECK(ok);
+}
+
+void MerEmulatorDevice::updateDconfDb(const QVariantMap &fullDeviceModelData)
+{
+    if (fullDeviceModelData.isEmpty()) // allow chaining
+        return;
+
+    //! \todo Does not support multiple emulators (not supported at other places anyway).
+    QTC_ASSERT(!sharedConfigPath().isEmpty(), return);
+    const QString file = QDir(sharedConfigPath())
+        .absoluteFilePath(QLatin1String(Constants::MER_EMULATOR_DCONF_DB_FILENAME));
+    FileSaver saver(file, QIODevice::WriteOnly);
+
+    QTextStream(saver.file())
+        << fullDeviceModelData.value(QLatin1String(Constants::MER_DEVICE_MODEL_DCONF_DB)).toString();
+
+    bool ok = saver.finalize();
+    QTC_CHECK(ok);
+}
+
+QVariantMap MerEmulatorDevice::readFullDeviceModelData() const
+{
+    PersistentSettingsReader reader;
+    if (!reader.load(globalSettingsFileName()))
+        return QVariantMap();
+
+    QVariantMap data = reader.restoreValues();
+
+    int version = data.value(QLatin1String(MER_DEVICE_MODELS_FILE_VERSION_KEY), 0).toInt();
+    if (version < 1) {
+        qWarning() << "Invalid configuration version: " << version;
+        return QVariantMap();
+    }
+
+    QString contents;
+
+    int count = data.value(QLatin1String(MER_DEVICE_MODELS_COUNT_KEY), 0).toInt();
+    for (int i = 0; i < count; ++i) {
+        const QString key = QString::fromLatin1(MER_DEVICE_MODELS_DATA_KEY) + QString::number(i);
+        if (!data.contains(key))
+            break;
+
+        const QVariantMap deviceModelData = data.value(key).toMap();
+
+        if (deviceModelData.value(QLatin1String(MER_DEVICE_MODEL_NAME)).toString() == m_deviceModel)
+            return deviceModelData;
+    }
+
+    qWarning() << "Device model data not found for" << m_deviceModel;
+    return QVariantMap();
 }
 
 void MerEmulatorDeviceModel::fromMap(const QVariantMap &map)

@@ -119,6 +119,8 @@ private:
 
     void updateAvailableDeviceModels();
     void setVideoMode();
+    void updateDconfDb(const QVariantMap &fullDeviceModelData);
+    QVariantMap readFullDeviceModelData() const;
 
 private:
     QSharedPointer<MerConnection> m_connection; // all clones share the connection
