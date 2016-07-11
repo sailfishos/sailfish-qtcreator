@@ -34,6 +34,7 @@ const char MER_PARAM_HRES_PX[] = "--hres-px";
 const char MER_PARAM_VRES_PX[] = "--vres-px";
 const char MER_PARAM_HSIZE_MM[] = "--hsize-mm";
 const char MER_PARAM_VSIZE_MM[] = "--vsize-mm";
+const char MER_PARAM_DCONF_DB[] = "--dconf-db";
 
 AddMerDeviceModelOperation::AddMerDeviceModelOperation()
 {
@@ -56,7 +57,8 @@ QString AddMerDeviceModelOperation::argumentsHelpText() const
          + indent + QLatin1String(MER_PARAM_HRES_PX) + QLatin1String(" <NUM>        display horizontal resolution in px (required).\n")
          + indent + QLatin1String(MER_PARAM_VRES_PX) + QLatin1String(" <NUM>        display vertical resolution in px (required).\n")
          + indent + QLatin1String(MER_PARAM_HSIZE_MM) + QLatin1String(" <NUM>       display horizontal size in milimeters (required).\n")
-         + indent + QLatin1String(MER_PARAM_VSIZE_MM) + QLatin1String(" <NUM>       display vertical size in milimeters (required).\n");
+         + indent + QLatin1String(MER_PARAM_VSIZE_MM) + QLatin1String(" <NUM>       display vertical size in milimeters (required).\n")
+         + indent + QLatin1String(MER_PARAM_DCONF_DB) + QLatin1String(" <STRING>    dconf bits specific to this device model (required).\n");
 }
 
 bool AddMerDeviceModelOperation::setArguments(const QStringList &args)
@@ -105,6 +107,14 @@ bool AddMerDeviceModelOperation::setArguments(const QStringList &args)
             m_vsize = next.toInt();
             continue;
         }
+
+        if (current == QLatin1String(MER_PARAM_DCONF_DB)) {
+            if (next.isNull())
+                return false;
+            ++i; // skip next;
+            m_dconfDb = next;
+            continue;
+        }
     }
 
     const char MISSING[] = " parameter missing.";
@@ -129,6 +139,10 @@ bool AddMerDeviceModelOperation::setArguments(const QStringList &args)
         std::cerr << MER_PARAM_VSIZE_MM << MISSING << std::endl << std::endl;
         error = true;
     }
+    if (m_dconfDb.isNull()) {
+        std::cerr << MER_PARAM_DCONF_DB << MISSING << std::endl << std::endl;
+        error = true;
+    }
 
     return !error;
 }
@@ -139,7 +153,7 @@ int AddMerDeviceModelOperation::execute() const
     if (map.isEmpty())
         map = initializeDeviceModels();
 
-    const QVariantMap result = addDeviceModel(map, m_name, m_hres, m_vres, m_hsize, m_vsize);
+    const QVariantMap result = addDeviceModel(map, m_name, m_hres, m_vres, m_hsize, m_vsize, m_dconfDb);
 
     if (result.isEmpty() || map == result)
         return 2;
@@ -160,7 +174,8 @@ QVariantMap AddMerDeviceModelOperation::addDeviceModel(const QVariantMap &map,
                                                        int hres,
                                                        int vres,
                                                        int hsize,
-                                                       int vsize)
+                                                       int vsize,
+                                                       const QString &dconfDb)
 {
     QStringList valueKeys = FindValueOperation::findValue(map, QVariant(name));
     bool hasModel = false;
@@ -193,6 +208,8 @@ QVariantMap AddMerDeviceModelOperation::addDeviceModel(const QVariantMap &map,
                          QVariant(QRect(0, 0, hres, vres)));
     data << KeyValuePair(QStringList() << model << QLatin1String(Mer::Constants::MER_DEVICE_MODEL_DISPLAY_SIZE),
                          QVariant(QRect(0, 0, hsize, vsize)));
+    data << KeyValuePair(QStringList() << model << QLatin1String(Mer::Constants::MER_DEVICE_MODEL_DCONF_DB),
+                         QVariant(dconfDb));
     data << KeyValuePair(QStringList() << QLatin1String(Mer::Constants::MER_DEVICE_MODELS_COUNT_KEY), QVariant(count + 1));
 
     return AddKeysOperation::addKeys(cleaned, data);
@@ -210,7 +227,7 @@ bool AddMerDeviceModelOperation::test() const
             || map.value(QLatin1String(Mer::Constants::MER_DEVICE_MODELS_COUNT_KEY)).toInt() != 0)
         return false;
 
-    map = addDeviceModel(map, QLatin1String("Test Device"), 500, 1000, 50, 100);
+    map = addDeviceModel(map, QLatin1String("Test Device"), 500, 1000, 50, 100, QLatin1String("Test dconf"));
 
     const QString model = QString::fromLatin1(Mer::Constants::MER_DEVICE_MODELS_DATA_KEY) + QString::number(0);
 
@@ -229,7 +246,9 @@ bool AddMerDeviceModelOperation::test() const
             || !modelMap.contains(QLatin1String(Mer::Constants::MER_DEVICE_MODEL_DISPLAY_RESOLUTION))
             || modelMap.value(QLatin1String(Mer::Constants::MER_DEVICE_MODEL_DISPLAY_RESOLUTION)).toSize() != QSize(500, 1000)
             || !modelMap.contains(QLatin1String(Mer::Constants::MER_DEVICE_MODEL_DISPLAY_SIZE))
-            || modelMap.value(QLatin1String(Mer::Constants::MER_DEVICE_MODEL_DISPLAY_SIZE)).toSize() != QSize(50, 100))
+            || modelMap.value(QLatin1String(Mer::Constants::MER_DEVICE_MODEL_DISPLAY_SIZE)).toSize() != QSize(50, 100)
+            || !modelMap.contains(QLatin1String(Mer::Constants::MER_DEVICE_MODEL_DCONF_DB))
+            || modelMap.value(QLatin1String(Mer::Constants::MER_DEVICE_MODEL_DCONF_DB)).toString() != QLatin1String("Test dconf"))
         return false;
 
     return true;

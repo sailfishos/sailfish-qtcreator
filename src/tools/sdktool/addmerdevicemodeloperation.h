@@ -44,7 +44,8 @@ public:
 #endif
 
     static QVariantMap addDeviceModel(const QVariantMap &map, const QString &name,
-                                      int hres, int vres, int hsize, int vsize);
+                                      int hres, int vres, int hsize, int vsize,
+                                      const QString &dconfDb);
     static QVariantMap initializeDeviceModels();
 
 private:
@@ -53,6 +54,7 @@ private:
     int m_vres{0};
     int m_hsize{0};
     int m_vsize{0};
+    QString m_dconfDb;
 };
 
 #endif

@@ -121,9 +121,11 @@ QVariantMap RmMerDeviceModelOperation::removeDeviceModel(const QVariantMap &map,
 bool RmMerDeviceModelOperation::test() const
 {
     QVariantMap map = AddMerDeviceModelOperation::addDeviceModel(AddMerDeviceModelOperation::initializeDeviceModels(),
-                                                                 QLatin1String("Test Device 1"), 500, 1000, 50, 100);
+                                                                 QLatin1String("Test Device 1"), 500, 1000, 50, 100,
+                                                                 QLatin1String("Test dconf content 1"));
 
-    map = AddMerDeviceModelOperation::addDeviceModel(map, QLatin1String("Test Device 2"), 250, 500, 25, 50);
+    map = AddMerDeviceModelOperation::addDeviceModel(map, QLatin1String("Test Device 2"), 250, 500, 25, 50,
+                                                     QLatin1String("Test dconf content 2"));
 
 
     const QString deviceModel1 = QString::fromLatin1(Mer::Constants::MER_DEVICE_MODELS_DATA_KEY) + QString::number(0);
