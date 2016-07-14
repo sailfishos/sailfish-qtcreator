@@ -32,7 +32,7 @@
 
     You can connect mobile devices to the development PC to build, run, debug,
     and analyze applications on them from \QC. When you install Qt for a
-    target platform, such as Android, QNX or SailfishOS, the build and run settings for the
+    target platform, such as Android, QNX or Sailfish OS, the build and run settings for the
     development targets might be set up automatically in \QC.
 
     You can connect the device to the development PC using a USB connection.
@@ -75,11 +75,11 @@
             supported for QNX Neutrino devices, and requires the QNX SDK to be
             installed on the development PC.
 
-        \li \l{Connecting SailfishOS Devices}
+        \li \l{Connecting Sailfish OS Devices}
 
-            You can deploy and run applications on the SailfishOS emulator
-            directly from \QC. You must install the SailfishOS SDK to develop
-            for SailfishOS devices.
+            You can deploy and run applications on the Sailfish OS emulator
+            directly from \QC. You must install the Sailfish OS SDK to develop
+            for Sailfish OS devices.
 
         \li \l{Connecting Windows Runtime Devices}
 

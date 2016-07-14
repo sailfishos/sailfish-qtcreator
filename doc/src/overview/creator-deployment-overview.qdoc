@@ -53,9 +53,9 @@
             When you deploy the application to a QNX Neutrino device, \QC copies
             the application files to the connected device. You can test and
             debug the application on the device.
-        \li \l{Deploying Applications to SailfishOS Devices}
+        \li \l{Deploying Applications to Sailfish OS Devices}
 
-            When you deploy an application to a SailfishOS device or emulator,
+            When you deploy an application to a Sailfish OS device or emulator,
             \QC copies the binary files to the device or to the emulator.
     \endlist
 */

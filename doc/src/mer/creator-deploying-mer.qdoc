@@ -28,12 +28,12 @@
     \page creator-deployment-mer.html
     \nextpage creator-connecting-mobile.html
 
-    \title Deploying Applications to SailfishOS Devices
+    \title Deploying Applications to Sailfish OS Devices
 
-    You can specify settings for deploying applications to SailfishOS devices in the
+    You can specify settings for deploying applications to Sailfish OS devices in the
     project .pro file. You can view the settings in the \gui {Run Settings}.
 
-    When you run the application on a SailfishOS device or on the emulator, \QC
+    When you run the application on a Sailfish OS device or on the emulator, \QC
     deploys the application as specified by the deploy steps.
 
     \section1 Copying Binary Files

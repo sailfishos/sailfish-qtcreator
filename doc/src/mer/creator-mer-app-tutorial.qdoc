@@ -28,18 +28,18 @@
     \page creator-mer-application.html
     \nextpage creator-project-managing.html
 
-    \title Creating a SailfishOS Application
+    \title Creating a Sailfish OS Application
 
-    This tutorial describes how to use \QC to create a SailfishOS application.
+    This tutorial describes how to use \QC to create a Sailfish OS application.
 
-    \image creator-sailfish-tutorial.png "SailfishOS sample application"
+    \image creator-sailfish-tutorial.png "Sailfish OS sample application"
 
     \section1 Creating the Project
 
     \list 1
 
-        \li Select \gui File > \gui {New File or Project} > \gui SailfishOS >
-            \gui {SailfishOS Qt Quick Application} > \gui Choose.
+        \li Select \gui File > \gui {New File or Project} > \gui {Sailfish OS} >
+            \gui {Sailfish OS Qt Quick Application} > \gui Choose.
 
             \image creator-sailfish-tutorial-1.png "New project wizard"
 
@@ -53,11 +53,11 @@
             and then click \gui{Next} (on
             Windows and Linux) or \gui Continue (on Mac OS).
 
-        \li Select the SailfishOS \l{glossary-buildandrun-kit}{kit} for running
+        \li Select the Sailfish OS \l{glossary-buildandrun-kit}{kit} for running
             and building your project, and then click \gui{Next}. You can create
-            applications in the SailfishOS SDK installation directory and in an
+            applications in the Sailfish OS SDK installation directory and in an
             additional source directory that you specify during the installation
-            of the SailfishOS SDK. These directories are shared with the
+            of the Sailfish OS SDK. These directories are shared with the
             MerSDK Virtual Machine. If you select some other directory, a
             warning is displayed.
 
@@ -65,7 +65,7 @@
 
             \note Kits are listed if they have been specified in \gui Tools >
             \gui Options > \gui {Build & Run} > \gui Kits. If a suitable kit is
-            missing, see \l{Connecting SailfishOS Devices}.
+            missing, see \l{Connecting Sailfish OS Devices}.
 
         \li In the \gui {Application Details} dialog, specify information about the
             application. The information can be displayed in the app store and
@@ -87,14 +87,14 @@
 
     To build, deploy, and run the application, select \gui Build > \gui Run.
     \QC builds the application, copies the necessary files to the connected
-    SailfishOS device or to the emulator, and runs the application on it.
+    Sailfish OS device or to the emulator, and runs the application on it.
 
     \section2 Running on the Emulator
 
     If no device is connected, \QC runs the application on the emulator
     running in the MerSDK Virtual Machine.
 
-    When you create your first SailfishOS application, the buttons for
+    When you create your first Sailfish OS application, the buttons for
     starting the Mer SDK Virtual Machine and the emulator become visible on the
     taskbar.
 
@@ -109,7 +109,7 @@
             (\gui {Start Emulator}) to start the emulator in the Virtual
             Machine.
 
-        \li In the target selector, select the SailfishOS kit.
+        \li In the target selector, select the Sailfish OS kit.
 
         \li Press \key {Ctrl+R} to build, deploy, and run the application.
 

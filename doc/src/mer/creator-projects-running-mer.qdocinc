@@ -1,4 +1,4 @@
-    \section1 Running on SailfishOS Devices
+    \section1 Running on Sailfish OS Devices
 
     \note This section is a placeholder, as the details have not been specified,
     yet.
@@ -8,13 +8,13 @@
         \li Connect the device to the development host or to the Wi-Fi network.
 
         \li Configure the device and specify a connection to it. For more
-            information, see \l{Connecting SailfishOS Devices}.
+            information, see \l{Connecting Sailfish OS Devices}.
 
         \li Click the \gui Run button.
 
     \endlist
 
-    \QC uses the compiler specified in the SailfishOS
+    \QC uses the compiler specified in the Sailfish OS
     \l{glossary-buildandrun-kit}{kit} to build the application.
 
     \section2 Troubleshooting Errors
