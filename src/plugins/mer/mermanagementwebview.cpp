@@ -32,6 +32,7 @@
 #include <projectexplorer/target.h>
 #include <utils/qtcassert.h>
 
+#include <QApplication>
 #include <QTimer>
 
 using namespace ProjectExplorer;
@@ -291,12 +292,12 @@ void MerManagementWebView::handleLoadFinished(bool success)
 {
     if (!success) {
         bool autoReloadHint = false;
-        QString vmStatus = QLatin1String("<h1>The SDK VM is not ready.</h1>");
+        QString vmStatus = QLatin1String("<h2>The SDK VM is not ready.</h2>");
         if (m_selectedSdk) { // one cannot be sure here
             QString vmName = m_selectedSdk->virtualMachineName();
             if (m_selectedSdk->connection()->isVirtualMachineOff()) {
                 vmStatus = QString::fromLatin1(
-                        "<h1>The \"%1\" VM is not running.</h1>"
+                        "<h2>The \"%1\" VM is not running.</h2>"
                         "<p><a href=\"%2\">Start the virtual machine!</a></p>"
                         )
                     .arg(vmName)
@@ -304,7 +305,7 @@ void MerManagementWebView::handleLoadFinished(bool success)
             } else {
                 autoReloadHint = true;
                 vmStatus = QString::fromLatin1(
-                        "<h1>The \"%1\" VM is not ready.</h1>"
+                        "<h2>The \"%1\" VM is not ready.</h2>"
                         "<p>The virtual machine is running but not responding.</p>"
                         )
                     .arg(vmName);
@@ -315,12 +316,13 @@ void MerManagementWebView::handleLoadFinished(bool success)
                 QString::fromLatin1(
                     "<html>"
                     "<head></head>"
-                    "<body style='margin: 0px; text-align: center;'>"
+                    "<body style='margin: 0px; text-align: center; "
+                    "             font-family: \"%1\", \"%2\", sans-serif;'>"
                     "  <div style='background-color: #EBEBEB; border-bottom: 1px solid #737373; "
                     "              padding-top: 1px; padding-left: 6px; padding-right: 6px;'>"
-                    "  %1"
+                    "  %3"
                     "  </div>"
-                    "  <div style='padding-left: 24px; padding-right: 24px;'>"
+                    "  <div style='padding-left: 24px; padding-right: 24px; font-size: small;'>"
                     "    <p>An SDK virtual machine can be controlled with the "
                     "    <img src='qrc:/mer/images/sdk-run.png' style='vertical-align: middle;'/>"
                     "    button &ndash; available on the lower left side <em>when "
@@ -328,6 +330,8 @@ void MerManagementWebView::handleLoadFinished(bool success)
                     "  </div>"
                     "</body>"
                     "</html>")
+                .arg(qApp->font().family())
+                .arg(qApp->font().lastResortFamily())
                 .arg(vmStatus)
                 );
         m_loaded = false;
