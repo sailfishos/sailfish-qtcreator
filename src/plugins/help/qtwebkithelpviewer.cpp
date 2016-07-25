@@ -421,7 +421,7 @@ void QtWebKitHelpViewer::setViewerFont(const QFont &font)
 {
     QWebSettings *webSettings = m_webView->settings();
     webSettings->setFontFamily(QWebSettings::StandardFont, font.family());
-    webSettings->setFontSize(QWebSettings::DefaultFontSize, font.pointSize());
+    webSettings->setFontSize(QWebSettings::DefaultFontSize, QFontInfo(font).pixelSize());
 }
 
 void QtWebKitHelpViewer::scaleUp()
