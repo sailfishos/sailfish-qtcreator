@@ -250,6 +250,8 @@ bool AddDeviceOperation::setArguments(const QStringList &args)
             k = QString::fromStdString(Mer::Constants::MER_DEVICE_SHARED_SSH);
         else if (current == QLatin1String("--merSharedConfig"))
             k = QString::fromStdString(Mer::Constants::MER_DEVICE_SHARED_CONFIG);
+        else if (current == QLatin1String("--merDeviceModel"))
+            k = QString::fromStdString(Mer::Constants::MER_DEVICE_DEVICE_MODEL);
         KeyValuePair pair(k, next);
         if (!pair.value.isValid())
             return false;
