@@ -230,31 +230,22 @@ QString MerHardwareDeviceWizardSelectionPage::detectDeviceName(
             &loop, &QEventLoop::quit);
     connect(&runner, &SshRemoteProcessRunner::processClosed,
             &loop, &QEventLoop::quit);
-    runner.run("cat /etc/hw-release", sshParams);
+    runner.run("dbus-send --print-reply=literal --system --type=method_call --dest=org.nemo.ssu "
+               "/org/nemo/ssu org.nemo.ssu.displayName int32:1", sshParams);
     loop.exec();
 
     if (runner.lastConnectionError() != SshNoError
             || runner.processExitStatus() != SshRemoteProcess::NormalExit
             || runner.processExitCode() != 0) {
         *ok = false;
-        qWarning() << "Failed to read /etc/hw-release on target";
+        qWarning() << "Failed to query device model name on target";
         return QString();
     }
 
-    const QString output = QString::fromLatin1(runner.readAllStandardOutput());
-
-    QString deviceName;
-    QRegExp regExp(QStringLiteral("^NAME=\"?([^\"]+)\"?\\s*$"));
-    foreach (const QString &line, output.split(QLatin1Char('\n'))) {
-        if (regExp.indexIn(line) != -1) {
-            deviceName = regExp.cap(1);
-            break;
-        }
-    }
-
+    const QString deviceName = QString::fromLatin1(runner.readAllStandardOutput()).trimmed();
     if (deviceName.isEmpty()) {
         *ok = false;
-        qWarning() << "Invalid output from reading /etc/hw-release on target [" << output << "]";
+        qWarning() << "Empty output from querying device model name on target";
         return QString();
     }
 
