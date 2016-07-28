@@ -58,9 +58,9 @@
             business logic, and \e .ui.qml files that only contain the purely
             declarative description of the UI. Note that some of the described
             features are only available in the commercial version of \QC.
-       \li \l{Creating a SailfishOS Application}
+       \li \l{Creating a Sailfish OS Application}
 
-            Learn how to create an application for SailfishOS devices.
+            Learn how to create an application for Sailfish OS devices.
 
     \endlist
 

@@ -32,7 +32,7 @@
 
     \QC provides a cross-platform, complete integrated development environment
     (IDE) for application developers to create applications for multiple desktop
-    and mobile device platforms, such as \l{Connecting SailfishOS Devices}{SailfishOS}, \l{Connecting Android Devices}{Android}
+    and mobile device platforms, such as \l{Connecting Sailfish OS Devices}{Sailfish OS}, \l{Connecting Android Devices}{Android}
     and \l{Connecting iOS Devices}{iOS}. It is available for Linux, OS X and
     Windows
     operating systems. For more information, see \l{Supported Platforms}.
@@ -101,7 +101,7 @@
             \li \list
             \li \b {Publishing}
                 \list
-                    \li \l{Publishing Qt Content for SailfishOS Devices}
+                    \li \l{Publishing Qt Content for Sailfish OS Devices}
                 \endlist
             \endlist
             \li \list
@@ -148,7 +148,7 @@
                 \li \l{Creating a Qt Widget Based Application}
                 \li \l{Creating a Mobile Application}
                 \li \l{Using Qt Quick UI Forms}
-                \li \l{Creating a SailfishOS Application}
+                \li \l{Creating a Sailfish OS Application}
             \endlist
         \endlist
         \li \l{Managing Projects}
@@ -242,7 +242,7 @@
                 \li \l{Deploying Applications to Android Devices}
                 \li \l{Deploying Applications to Embedded Linux Devices}
                 \li \l{Deploying Applications to QNX Neutrino Devices}
-                \li \l{Deploying Applications to SailfishOS Devices}
+                \li \l{Deploying Applications to Sailfish OS Devices}
             \endlist
             \li \l{Connecting Mobile Devices}
             \list
@@ -251,7 +251,7 @@
                 \li \l{Connecting Embedded Linux Devices}
                 \li \l{Connecting iOS Devices}
                 \li \l{Connecting QNX Devices}
-                \li \l{Connecting SailfishOS Devices}
+                \li \l{Connecting Sailfish OS Devices}
                 \li \l{Connecting Windows Runtime Devices}
             \endlist
             \li \l{Customizing the Build Process}
@@ -285,7 +285,7 @@
         \endlist
         \li Publishing
         \list
-            \li \l{Publishing Qt Content for SailfishOS Devices}
+            \li \l{Publishing Qt Content for Sailfish OS Devices}
         \endlist
         \li \l{Advanced Use}
         \list

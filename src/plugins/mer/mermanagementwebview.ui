@@ -51,7 +51,7 @@
         </property>
         <property name="icon">
          <iconset resource="mer.qrc">
-          <normaloff>:/mer/images/icon-s-sailfish-qtcreator.png</normaloff>:/mer/images/icon-s-sailfish-qtcreator.png</iconset>
+          <normaloff>:/mer/images/sdk.png</normaloff>:/mer/images/sdk.png</iconset>
         </property>
        </widget>
       </item>

@@ -97,7 +97,7 @@
 
         \li \uicontrol{\l{Getting Help}{Help}} mode for viewing Qt documentation.
 
-        \li \gui{\l{Connecting SailfishOS Devices}{SailfishOS}} mode for accessing the
+        \li \gui{\l{Connecting Sailfish OS Devices}{Sailfish OS}} mode for accessing the
             \gui {SDK Control Center} to install Mer tool chains and targets.
             This mode is available after you install the Mer SDK.
 

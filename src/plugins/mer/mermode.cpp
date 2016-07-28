@@ -44,7 +44,7 @@ MerMode::MerMode()
     setWidget(new QWidget);
 #endif
     setContext(Context("Mer.MerMode"));
-    setDisplayName(tr("SailfishOS"));
+    setDisplayName(tr("Sailfish OS"));
     setIcon(QIcon(QLatin1String(Constants::MER_OPTIONS_CATEGORY_ICON)));
     setPriority(80); // between "Projects" and "Analyze" modes
     setId("Mer.MerMode");

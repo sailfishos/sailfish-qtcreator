@@ -1,12 +1,12 @@
-    \section2 Specifying Run Settings for SailfishOS Devices
+    \section2 Specifying Run Settings for Sailfish OS Devices
 
-    To run and debug an application on a SailfishOS device, you must create connections
+    To run and debug an application on a Sailfish OS device, you must create connections
     from the development host to the device and add the device configurations to
-    \l{glossary-buildandrun-kit}{kits}. Click \gui {Manage Kits} to add SailfishOS
-    devices to kits. For more information, see \l{Connecting SailfishOS Devices}.
+    \l{glossary-buildandrun-kit}{kits}. Click \gui {Manage Kits} to add Sailfish OS
+    devices to kits. For more information, see \l{Connecting Sailfish OS Devices}.
 
-    \image creator-mer-run-settings.png "Run settings for SailfishOS devices"
+    \image creator-mer-run-settings.png "Run settings for Sailfish OS devices"
 
-    Specifying run settings for SailfishOS devices is very similar to
+    Specifying run settings for Sailfish OS devices is very similar to
     \l{Specifying Run Settings for Linux-Based Devices}.
 

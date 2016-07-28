@@ -26273,15 +26273,15 @@ Previous decimal signed value (big endian): %4</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Creates a SailfishOS Qt Quick Application using Sailfish Silica components.</source>
+        <source>Creates a Sailfish OS Qt Quick Application using Sailfish Silica components.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>SailfishOS Qt Quick Application</source>
+        <source>Sailfish OS Qt Quick Application</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>SailfishOS</source>
+        <source>Sailfish OS</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -26297,7 +26297,7 @@ Previous decimal signed value (big endian): %4</source>
         <translation type="unfinished">版本:</translation>
     </message>
     <message>
-        <source>Creates a SailfishOS Spec file.</source>
+        <source>Creates a Sailfish OS Spec file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -26309,7 +26309,7 @@ Previous decimal signed value (big endian): %4</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Creates a SailfishOS YAML file.</source>
+        <source>Creates a Sailfish OS YAML file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -38003,15 +38003,15 @@ Specifies how backspace interacts with indentation.
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>SailfishOS</source>
+        <source>Sailfish OS</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Launches the SailfishOS emulator VM</source>
+        <source>Launches the Sailfish OS emulator VM</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Launch the SailfishOS emulator</source>
+        <source>Launch the Sailfish OS emulator</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -52981,16 +52981,16 @@ should a repository require SSH-authentication (see documentation on SSH and the
         <translation>生成和运行应用程序</translation>
     </message>
     <message>
-        <source>Create your first SailfishOS application and test the installation</source>
-        <translation>创建您的首个 SailfishOS 应用程序并对安装进行测试</translation>
+        <source>Create your first Sailfish OS application and test the installation</source>
+        <translation>创建您的首个 Sailfish OS 应用程序并对安装进行测试</translation>
     </message>
     <message>
-        <source>SailfishOS UI</source>
-        <translation>SailfishOS UI</translation>
+        <source>Sailfish OS UI</source>
+        <translation>Sailfish OS UI</translation>
     </message>
     <message>
-        <source>Explore the design principles and workflow of the SailfishOS user interface</source>
-        <translation>了解 SailfishOS 用户界面的设计原则和工作流程。</translation>
+        <source>Explore the design principles and workflow of the Sailfish OS user interface</source>
+        <translation>了解 Sailfish OS 用户界面的设计原则和工作流程。</translation>
     </message>
     <message>
         <source>Develop</source>
@@ -61020,8 +61020,8 @@ Commit now?</source>
 <context>
     <name>Mer::Internal::MerMode</name>
     <message>
-        <source>SailfishOS</source>
-        <translation>SailfishOS</translation>
+        <source>Sailfish OS</source>
+        <translation>Sailfish OS</translation>
     </message>
 </context>
 <context>

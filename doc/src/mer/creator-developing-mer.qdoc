@@ -23,7 +23,7 @@
     \page creator-developing-mer.html
     \nextpage creator-developing-winrt.html
 
-    \title Connecting SailfishOS Devices
+    \title Connecting Sailfish OS Devices
 
     In Mer terminology, a \e target contains everything that you need to build
     applications for a particular type of Mer device, such as a phone or a
@@ -31,26 +31,26 @@
     target to be able to provide features such as syntax highlighting and code
     completion.
 
-    The SailfishOS SDK installation program installs Mer targets on the
+    The Sailfish OS SDK installation program installs Mer targets on the
     development host and configures the appropriate \l{glossary-buildandrun-kit}
     {kit} for you in \QC. After the installation, you are ready to start
     developing applications, as described in
-    \l{Creating a SailfishOS Application}.
+    \l{Creating a Sailfish OS Application}.
 
-    When you select the kit to build a SailfishOS application, \QC deploys the
-    application to SailfishOS device or emulator specified in the kit.
+    When you select the kit to build a Sailfish OS application, \QC deploys the
+    application to Sailfish OS device or emulator specified in the kit.
 
     The following sections describe how to configure connections between \QC and
     a device and how to specify build and run settings for a kit that contains
     the device. In addition, you can add Mer targets and configure them in \QC.
 
-    \section1 Adding SailfishOS Devices
+    \section1 Adding Sailfish OS Devices
 
-    To deploy applications and run them remotely on SailfishOS devices, specify
+    To deploy applications and run them remotely on Sailfish OS devices, specify
     parameters for accessing the devices. In addition, you can run the
-    SailfishOS device image in the Virtual Machine. The SailfishOS SDK
+    Sailfish OS device image in the Virtual Machine. The Sailfish OS SDK
     installation program creates the connection to the Virtual Machine for you.
-    When you use the SailfishOS application wizard to create a SailfishOS
+    When you use the Sailfish OS application wizard to create a Sailfish OS
     project, buttons for starting the Mer SDK Virtual Machine and the emulator
     become visible on the taskbar.
 
@@ -92,7 +92,7 @@
 
             \image qtcreator-keys-mer.png "Existing Keys Check dialog"
 
-        \li To add the SailfishOS device to the SailfishOS kit, select
+        \li To add the Sailfish OS device to the Sailfish OS kit, select
             \gui Tools > \gui Options > \gui {Build & Run} > \gui Kits.
 
         \li Select the kit, and then select \gui Clone to create an editable
@@ -106,7 +106,7 @@
 
     \endlist
 
-    \section1 Specifying Build Settings for SailfishOS Devices
+    \section1 Specifying Build Settings for Sailfish OS Devices
 
     To specify build settings:
 
@@ -120,7 +120,7 @@
 
     \endlist
 
-    \section1 Specifying Run Settings for SailfishOS Devices
+    \section1 Specifying Run Settings for Sailfish OS Devices
 
     To specify run settings, select \gui Projects > \gui {Build & Run} >
     \gui Run. Usually, you can use the default settings.
@@ -128,11 +128,11 @@
     When you run the project, \QC deploys the application as specified by the
     deploy steps. By default, \QC copies the binary files to the connected
     device or to the emulator. For more information, see
-    \l{Deploying Applications to SailfishOS Devices}.
+    \l{Deploying Applications to Sailfish OS Devices}.
 
     \section1 Adding Mer SDK Targets
 
-    To add Mer SDK targets, select \gui {SailfishOS Mode} to access the
+    To add Mer SDK targets, select \gui {Sailfish OS Mode} to access the
     \gui {SDK Control Center}:
 
     \image creator-mer-sdk-control-center.png
@@ -193,7 +193,7 @@
 
     To create a kit that uses the new Mer SDK, select \gui Tools
     > \gui Options > \gui {Build & Run} > \gui Kits. You can clone the kit
-    created by the SailfishOS SDK installation program and just change the
+    created by the Sailfish OS SDK installation program and just change the
     Mer SDK, and other fields, as necessary.
 
 */
