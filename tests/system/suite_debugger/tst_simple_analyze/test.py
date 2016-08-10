@@ -1,32 +1,27 @@
-#############################################################################
-##
-## Copyright (C) 2015 The Qt Company Ltd.
-## Contact: http://www.qt.io/licensing
-##
-## This file is part of Qt Creator.
-##
-## Commercial License Usage
-## Licensees holding valid commercial Qt licenses may use this file in
-## accordance with the commercial license agreement provided with the
-## Software or, alternatively, in accordance with the terms contained in
-## a written agreement between you and The Qt Company.  For licensing terms and
-## conditions see http://www.qt.io/terms-conditions.  For further information
-## use the contact form at http://www.qt.io/contact-us.
-##
-## GNU Lesser General Public License Usage
-## Alternatively, this file may be used under the terms of the GNU Lesser
-## General Public License version 2.1 or version 3 as published by the Free
-## Software Foundation and appearing in the file LICENSE.LGPLv21 and
-## LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-## following information to ensure the GNU Lesser General Public License
-## requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-## http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-##
-## In addition, as a special exception, The Qt Company gives you certain additional
-## rights.  These rights are described in The Qt Company LGPL Exception
-## version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
-##
-#############################################################################
+############################################################################
+#
+# Copyright (C) 2016 The Qt Company Ltd.
+# Contact: https://www.qt.io/licensing/
+#
+# This file is part of Qt Creator.
+#
+# Commercial License Usage
+# Licensees holding valid commercial Qt licenses may use this file in
+# accordance with the commercial license agreement provided with the
+# Software or, alternatively, in accordance with the terms contained in
+# a written agreement between you and The Qt Company. For licensing terms
+# and conditions see https://www.qt.io/terms-conditions. For further
+# information use the contact form at https://www.qt.io/contact-us.
+#
+# GNU General Public License Usage
+# Alternatively, this file may be used under the terms of the GNU
+# General Public License version 3 as published by the Free Software
+# Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+# included in the packaging of this file. Please review the following
+# information to ensure the GNU General Public License requirements will
+# be met: https://www.gnu.org/licenses/gpl-3.0.html.
+#
+############################################################################
 
 source("../../shared/qtcreator.py")
 
@@ -38,8 +33,6 @@ def main():
     workingDir = tempDir()
     # we need a Qt >= 5.3 - we use checkedTargets, so we should get only valid targets
     analyzerTargets = Targets.desktopTargetClasses()
-    if platform.system() in ('Windows', 'Microsoft') and JIRA.isBugStillOpen(14307):
-        analyzerTargets &= ~Targets.DESKTOP_541_GCC
     checkedTargets, projectName = createNewQtQuickApplication(workingDir, targets=analyzerTargets)
     editor = waitForObject(":Qt Creator_QmlJSEditor::QmlJSTextEditorWidget")
     if placeCursorToLine(editor, "MouseArea.*", True):
@@ -81,11 +74,11 @@ def performTest(workingDir, projectName, targetCount, availableConfigs):
             test.fatal("Compile had errors... Skipping current build config")
             continue
         allowAppThroughWinFW(workingDir, projectName, False)
-        switchViewTo(ViewConstants.ANALYZE)
+        switchViewTo(ViewConstants.DEBUG)
         selectFromCombo(":Analyzer Toolbar.AnalyzerManagerToolBox_QComboBox", "QML Profiler")
-        recordButton = waitForObject("{container=':Qt Creator.Analyzer Toolbar_QDockWidget' "
+        recordButton = waitForObject("{container=':DebugModeWidget.Toolbar_QDockWidget' "
                                      "type='QToolButton' unnamed='1' visible='1' "
-                                     "toolTip?='*able profiling'}")
+                                     "toolTip?='*able Profiling'}")
         if not test.verify(recordButton.checked, "Verifying recording is enabled."):
             test.log("Enabling recording for the test run")
             clickButton(recordButton)
@@ -102,8 +95,9 @@ def performTest(workingDir, projectName, targetCount, availableConfigs):
                         "Elapsed time should be positive in string '%s'" % str(elapsedLabel.text))
         except:
             test.fatal("Could not read elapsed time from '%s'" % str(elapsedLabel.text))
-        if safeClickTab("Events"):
-            colPercent, colTotal, colCalls, colMean, colMedian, colLongest, colShortest = range(2, 9)
+        if safeClickTab("Statistics"):
+            (colPercent, colTotal, colSelfPercent, colSelf, colCalls,
+             colMean, colMedian, colLongest, colShortest) = range(2, 11)
             model = waitForObject(":Events.QmlProfilerEventsTable_QmlProfiler::"
                                   "Internal::QmlProfilerEventsMainView").model()
             compareEventsTab(model, "events_qt5.tsv")
@@ -118,6 +112,11 @@ def performTest(workingDir, projectName, targetCount, availableConfigs):
                     test.verify(not item.startswith('0.000 '),
                                 "Check for implausible durations (QTCREATORBUG-8996): %s" % item)
             for row in range(model.rowCount()):
+                selfPercent = str(model.index(row, colSelfPercent).data())
+                totalPercent = str(model.index(row, colPercent).data())
+                test.verify(float(selfPercent[:-2]) <= float(totalPercent[:-2]),
+                            "Self percentage (%s) can't be more than total percentage (%s)"
+                            % (selfPercent, totalPercent))
                 if str(model.index(row, colCalls).data()) == "1":
                     for col in [colMedian, colLongest, colShortest]:
                         test.compare(model.index(row, colMean).data(), model.index(row, col).data(),
@@ -131,7 +130,7 @@ def performTest(workingDir, projectName, targetCount, availableConfigs):
         test.verify(waitFor("model.rowCount() == 0", 3000), "Analyzer results cleared.")
 
 def compareEventsTab(model, file):
-    significantColumns = [0, 1, 4, 9]
+    significantColumns = [0, 1, 6, 11]
 
     expectedTable = []
     for record in testData.dataset(file):

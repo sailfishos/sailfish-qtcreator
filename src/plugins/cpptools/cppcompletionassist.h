@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,28 +9,24 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
 #ifndef CPPCOMPLETIONASSIST_H
 #define CPPCOMPLETIONASSIST_H
 
+#include "builtineditordocumentparser.h"
 #include "cppcompletionassistprocessor.h"
 #include "cppcompletionassistprovider.h"
 #include "cppmodelmanager.h"
@@ -52,7 +48,7 @@
 
 namespace CPlusPlus {
 class LookupItem;
-class LookupScope;
+class ClassOrNamespace;
 class Function;
 class LookupContext;
 } // namespace CPlusPlus
@@ -75,7 +71,7 @@ public:
     }
 
     bool isSortable(const QString &prefix) const override;
-    TextEditor::AssistProposalItem *proposalItem(int index) const override;
+    TextEditor::AssistProposalItemInterface *proposalItem(int index) const override;
 
     unsigned m_completionOperator;
     bool m_replaceDotForArrow;
@@ -110,7 +106,7 @@ private:
     TextEditor::IAssistProposal *createHintProposal(QList<CPlusPlus::Function *> symbols) const;
     bool accepts() const;
 
-    int startOfOperator(int pos, unsigned *kind, bool wantFunctionCall) const;
+    int startOfOperator(int positionInDocument, unsigned *kind, bool wantFunctionCall) const;
     int findStartOfName(int pos = -1) const;
     int startCompletionHelper();
     bool tryObjCCompletion();
@@ -120,7 +116,7 @@ private:
                                 const QString &expression,
                                 int endOfExpression);
 
-    void completeObjCMsgSend(CPlusPlus::LookupScope *binding, bool staticClassAccess);
+    void completeObjCMsgSend(CPlusPlus::ClassOrNamespace *binding, bool staticClassAccess);
     bool completeInclude(const QTextCursor &cursor);
     void completeInclude(const QString &realPath, const QStringList &suffixes);
     void completePreprocessor();
@@ -129,8 +125,8 @@ private:
                                        bool toolTipOnly);
     bool completeMember(const QList<CPlusPlus::LookupItem> &results);
     bool completeScope(const QList<CPlusPlus::LookupItem> &results);
-    void completeNamespace(CPlusPlus::LookupScope *binding);
-    void completeClass(CPlusPlus::LookupScope *b, bool staticLookup = true);
+    void completeNamespace(CPlusPlus::ClassOrNamespace *binding);
+    void completeClass(CPlusPlus::ClassOrNamespace *b, bool staticLookup = true);
     void addClassMembersToCompletion(CPlusPlus::Scope *scope, bool staticLookup);
     enum CompleteQtMethodMode {
         CompleteQt4Signals,
@@ -171,11 +167,13 @@ class CppCompletionAssistInterface : public TextEditor::AssistInterface
 public:
     CppCompletionAssistInterface(const QString &filePath,
                                  const TextEditor::TextEditorWidget *textEditorWidget,
+                                 BuiltinEditorDocumentParser::Ptr parser,
                                  const CPlusPlus::LanguageFeatures &languageFeatures,
                                  int position,
                                  TextEditor::AssistReason reason,
                                  const WorkingCopy &workingCopy)
         : TextEditor::AssistInterface(textEditorWidget->document(), position, filePath, reason)
+        , m_parser(parser)
         , m_gotCppSpecifics(false)
         , m_workingCopy(workingCopy)
         , m_languageFeatures(languageFeatures)
@@ -186,7 +184,7 @@ public:
                                  int position,
                                  TextEditor::AssistReason reason,
                                  const CPlusPlus::Snapshot &snapshot,
-                                 const ProjectPart::HeaderPaths &headerPaths,
+                                 const ProjectPartHeaderPaths &headerPaths,
                                  const CPlusPlus::LanguageFeatures &features)
         : TextEditor::AssistInterface(textDocument, position, filePath, reason)
         , m_gotCppSpecifics(true)
@@ -196,7 +194,7 @@ public:
     {}
 
     const CPlusPlus::Snapshot &snapshot() const { getCppSpecifics(); return m_snapshot; }
-    const ProjectPart::HeaderPaths &headerPaths() const
+    const ProjectPartHeaderPaths &headerPaths() const
     { getCppSpecifics(); return m_headerPaths; }
     CPlusPlus::LanguageFeatures languageFeatures() const
     { getCppSpecifics(); return m_languageFeatures; }
@@ -204,10 +202,11 @@ public:
 private:
     void getCppSpecifics() const;
 
+    BuiltinEditorDocumentParser::Ptr m_parser;
     mutable bool m_gotCppSpecifics;
     WorkingCopy m_workingCopy;
     mutable CPlusPlus::Snapshot m_snapshot;
-    mutable ProjectPart::HeaderPaths m_headerPaths;
+    mutable ProjectPartHeaderPaths m_headerPaths;
     mutable CPlusPlus::LanguageFeatures m_languageFeatures;
 };
 

@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -40,6 +35,7 @@
 #include "bindingproperty.h"
 #include "nodelistproperty.h"
 #include "nodeinstanceview.h"
+#include <qmldesignerplugin.h>
 
 namespace QmlDesigner {
 
@@ -191,7 +187,7 @@ bool QmlObjectNode::isTranslatableText(const PropertyName &name) const
     if (modelNode().metaInfo().isValid() && modelNode().metaInfo().hasProperty(name))
         if (modelNode().metaInfo().propertyTypeName(name) == "QString" || modelNode().metaInfo().propertyTypeName(name) == "string") {
             if (modelNode().hasBindingProperty(name)) {
-                static QRegExp regularExpressionPatter("qsTr\\((\".*\")\\)");
+                static QRegExp regularExpressionPatter(QLatin1String("qsTr(|Id)\\((\".*\")\\)"));
                 return regularExpressionPatter.exactMatch(modelNode().bindingProperty(name).expression());
             }
 
@@ -204,7 +200,7 @@ bool QmlObjectNode::isTranslatableText(const PropertyName &name) const
 QString QmlObjectNode::stripedTranslatableText(const PropertyName &name) const
 {
     if (modelNode().hasBindingProperty(name)) {
-        static QRegExp regularExpressionPatter("qsTr\\(\"(.*)\"\\)");
+        static QRegExp regularExpressionPatter(QLatin1String("qsTr(|Id)\\(\"(.*)\"\\)"));
         if (regularExpressionPatter.exactMatch(modelNode().bindingProperty(name).expression()))
             return regularExpressionPatter.cap(1);
     } else {
@@ -273,6 +269,25 @@ static void removeStateOperationsForChildren(const QmlObjectNode &node)
     }
 }
 
+static void removeAliasExports(const QmlObjectNode &node)
+{
+
+    PropertyName propertyName = node.id().toUtf8();
+
+    ModelNode rootNode = node.view()->rootModelNode();
+    bool hasAliasExport = !propertyName.isEmpty()
+            && rootNode.isValid()
+            && rootNode.hasBindingProperty(propertyName)
+            && rootNode.bindingProperty(propertyName).isAliasExport();
+
+    if (hasAliasExport)
+        rootNode.removeProperty(propertyName);
+
+    foreach (const ModelNode &childNode, node.modelNode().directSubModelNodes()) {
+        removeAliasExports(childNode);
+    }
+
+}
 
 /*!
     Deletes this object's node and its dependencies from the model.
@@ -284,11 +299,42 @@ void QmlObjectNode::destroy()
     if (!isValid())
         throw new InvalidModelNodeException(__LINE__, __FUNCTION__, __FILE__);
 
+    removeAliasExports(modelNode());
+
     foreach (QmlModelStateOperation stateOperation, allAffectingStatesOperations()) {
         stateOperation.modelNode().destroy(); //remove of belonging StatesOperations
     }
     removeStateOperationsForChildren(modelNode());
     modelNode().destroy();
+}
+
+void QmlObjectNode::ensureAliasExport()
+{
+    if (!isValid())
+        throw new InvalidModelNodeException(__LINE__, __FUNCTION__, __FILE__);
+
+    if (!isAliasExported()) {
+        modelNode().validId();
+        PropertyName modelNodeId = modelNode().id().toUtf8();
+        ModelNode rootModelNode = view()->rootModelNode();
+        rootModelNode.bindingProperty(modelNodeId).setDynamicTypeNameAndExpression("alias", modelNodeId);
+    }
+}
+
+bool QmlObjectNode::isAliasExported() const
+{
+
+    if (modelNode().isValid() && !modelNode().id().isEmpty()) {
+         PropertyName modelNodeId = modelNode().id().toUtf8();
+         ModelNode rootModelNode = view()->rootModelNode();
+         Q_ASSERT(rootModelNode.isValid());
+         if (rootModelNode.hasBindingProperty(modelNodeId)
+                 && rootModelNode.bindingProperty(modelNodeId).isDynamic()
+                 && rootModelNode.bindingProperty(modelNodeId).expression().toUtf8() == modelNodeId)
+             return true;
+    }
+
+    return false;
 }
 
 /*!
@@ -417,7 +463,11 @@ QVariant QmlObjectNode::instanceValue(const ModelNode &modelNode, const Property
 
 QString QmlObjectNode::generateTranslatableText(const QString &text)
 {
-    return QString("qsTr(\"%1\")").arg(text);
+    if (QmlDesignerPlugin::instance()->settings().value(
+            DesignerSettingsKey::USE_QSTR_FUNCTION).toBool())
+        return QString(QStringLiteral("qsTr(\"%1\")")).arg(text);
+    else
+        return QString(QStringLiteral("qsTrId(\"%1\")")).arg(text);
 }
 
 TypeName QmlObjectNode::instanceType(const PropertyName &name) const
@@ -463,6 +513,22 @@ bool QmlObjectNode::isValidQmlObjectNode(const ModelNode &modelNode)
 bool QmlObjectNode::isValid() const
 {
     return isValidQmlObjectNode(modelNode());
+}
+
+bool QmlObjectNode::hasError() const
+{
+    if (isValid())
+        return nodeInstance().hasError();
+    else
+        qDebug() << "called hasError() on an invalid QmlObjectNode";
+    return false;
+}
+
+QString QmlObjectNode::error() const
+{
+    if (hasError())
+        return nodeInstance().error();
+    return QString();
 }
 
 bool QmlObjectNode::hasNodeParent() const

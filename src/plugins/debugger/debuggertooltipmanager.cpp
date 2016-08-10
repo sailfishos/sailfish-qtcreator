@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -41,6 +36,7 @@
 
 #include <coreplugin/icore.h>
 #include <coreplugin/coreconstants.h>
+#include <coreplugin/coreicons.h>
 #include <coreplugin/editormanager/documentmodel.h>
 #include <coreplugin/editormanager/editormanager.h>
 
@@ -192,11 +188,11 @@ void DraggableLabel::mouseMoveEvent(QMouseEvent * event)
 //
 /////////////////////////////////////////////////////////////////////////
 
-class ToolTipWatchItem : public Utils::TreeItem
+class ToolTipWatchItem : public TreeItem
 {
 public:
     ToolTipWatchItem() : expandable(false) {}
-    ToolTipWatchItem(WatchItem *item);
+    ToolTipWatchItem(TreeItem *item);
 
     bool hasChildren() const { return expandable; }
     bool canFetchMore() const { return childCount() == 0 && expandable && model(); }
@@ -213,17 +209,19 @@ public:
     QByteArray iname;
 };
 
-ToolTipWatchItem::ToolTipWatchItem(WatchItem *item)
+ToolTipWatchItem::ToolTipWatchItem(TreeItem *item)
 {
-    name = item->displayName();
-    value = item->displayValue();
-    type = item->displayType();
-    iname = item->iname;
-    valueColor = item->valueColor(1);
+    const TreeModel *model = item->model();
+    QModelIndex idx = model->indexForItem(item);
+    name = model->data(idx.sibling(idx.row(), 0), Qt::DisplayRole).toString();
+    value = model->data(idx.sibling(idx.row(), 1), Qt::DisplayRole).toString();
+    type = model->data(idx.sibling(idx.row(), 2), Qt::DisplayRole).toString();
+    iname = model->data(idx.sibling(idx.row(), 0), LocalsINameRole).toByteArray();
+    valueColor = model->data(idx.sibling(idx.row(), 1), Qt::ForegroundRole).value<QColor>();
     expandable = item->hasChildren();
-    expression = item->expression();
+    expression = model->data(idx.sibling(idx.row(), 0), Qt::EditRole).toString();
     foreach (TreeItem *child, item->children())
-        appendChild(new ToolTipWatchItem(static_cast<WatchItem *>(child)));
+        appendChild(new ToolTipWatchItem(child));
 }
 
 /////////////////////////////////////////////////////////////////////////
@@ -511,7 +509,7 @@ DebuggerToolTipWidget::DebuggerToolTipWidget()
 
     auto copyButton = new QToolButton;
     copyButton->setToolTip(DebuggerToolTipManager::tr("Copy Contents to Clipboard"));
-    copyButton->setIcon(QIcon(QLatin1String(Core::Constants::ICON_COPY)));
+    copyButton->setIcon(Core::Icons::COPY.icon());
 
     titleLabel = new DraggableLabel(this);
     titleLabel->setMinimumWidth(40); // Ensure a draggable area even if text is empty.
@@ -900,7 +898,7 @@ void DebuggerToolTipHolder::positionShow(const TextEditorWidget *editorWidget)
 static QDate dateFromString(const QString &date)
 {
     return date.size() == 8 ?
-        QDate(date.left(4).toInt(), date.mid(4, 2).toInt(), date.mid(6, 2).toInt()) :
+        QDate(date.leftRef(4).toInt(), date.midRef(4, 2).toInt(), date.midRef(6, 2).toInt()) :
         QDate();
 }
 
@@ -1174,7 +1172,7 @@ static void slotTooltipOverrideRequested
     purgeClosedToolTips();
 
     // Prefer a filter on an existing local variable if it can be found.
-    const WatchData *localVariable = engine->watchHandler()->findCppLocalVariable(context.expression);
+    const WatchItem *localVariable = engine->watchHandler()->findCppLocalVariable(context.expression);
     if (localVariable) {
         context.expression = QLatin1String(localVariable->exp);
         if (context.expression.isEmpty())

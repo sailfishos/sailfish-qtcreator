@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -62,6 +57,8 @@ class QTCREATOR_UTILS_EXPORT PathChooser : public QWidget
     // Designer does not know this type, so force designable to false:
     Q_PROPERTY(Utils::FileName fileName READ fileName WRITE setFileName DESIGNABLE false)
     Q_PROPERTY(Utils::FileName baseFileName READ baseFileName WRITE setBaseFileName DESIGNABLE false)
+    Q_PROPERTY(QColor errorColor READ errorColor WRITE setErrorColor DESIGNABLE true)
+    Q_PROPERTY(QColor okColor READ okColor WRITE setOkColor DESIGNABLE true)
 
 public:
     static QString browseButtonLabel();
@@ -96,7 +93,11 @@ public:
 
     QString path() const;
     QString rawPath() const; // The raw unexpanded input.
+    FileName rawFileName() const; // The raw unexpanded input.
     FileName fileName() const;
+
+    static QString expandedDirectory(const QString &input, const Utils::Environment &env,
+                                     const QString &baseDir);
 
     QString baseDirectory() const;
     void setBaseDirectory(const QString &directory);
@@ -133,22 +134,31 @@ public:
     static void installLineEditVersionToolTip(QLineEdit *le, const QStringList &arguments);
 
     // Enable a history completer with a history of entries.
-    void setHistoryCompleter(const QString &historyKey);
+    void setHistoryCompleter(const QString &historyKey, bool restoreLastItemFromHistory = false);
 
     bool isReadOnly() const;
     void setReadOnly(bool b);
 
     void triggerChanged();
 
+    // global handler for adding context menus to ALL pathchooser
+    // used by the coreplugin to add "Open in Terminal" and "Open in Explorer" context menu actions
+    using AboutToShowContextMenuHandler = std::function<void (Utils::PathChooser *, QMenu *)>;
+    static void setAboutToShowContextMenuHandler(AboutToShowContextMenuHandler handler);
+
+    QColor errorColor() const;
+    QColor okColor() const;
+
 private:
     bool validatePath(FancyLineEdit *edit, QString *errorMessage) const;
     // Returns overridden title or the one from <title>
     QString makeDialogTitle(const QString &title);
     void slotBrowse();
+    void contextMenuRequested(const QPoint &pos);
 
 signals:
     void validChanged(bool validState);
-    void changed(const QString &text);
+    void rawPathChanged(const QString &text);
     void pathChanged(const QString &path);
     void editingFinished();
     void beforeBrowsing();
@@ -159,8 +169,12 @@ public slots:
     void setPath(const QString &);
     void setFileName(const Utils::FileName &);
 
+    void setErrorColor(const QColor &errorColor);
+    void setOkColor(const QColor &okColor);
+
 private:
     PathChooserPrivate *d;
+    static AboutToShowContextMenuHandler s_aboutToShowContextMenuHandler;
 };
 
 } // namespace Utils

@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,27 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
-#ifndef PROJECT_H
-#define PROJECT_H
+#pragma once
 
 #include "projectexplorer_export.h"
 
@@ -39,6 +33,7 @@
 
 #include <QObject>
 #include <QFileSystemModel>
+#include <QSet>
 
 namespace Core {
 class IDocument;
@@ -61,9 +56,10 @@ class Target;
 class ProjectPrivate;
 
 // Documentation inside.
-class PROJECTEXPLORER_EXPORT Project
-    : public QObject
+class PROJECTEXPLORER_EXPORT Project : public QObject
 {
+    friend class SessionManager; // for setActiveTarget
+    friend class ProjectExplorerPlugin; // for projectLoaded
     Q_OBJECT
 
 public:
@@ -75,14 +71,19 @@ public:
     };
 
     Project();
-    virtual ~Project();
+    ~Project() override;
 
     virtual QString displayName() const = 0;
     Core::Id id() const;
-    virtual Core::IDocument *document() const = 0;
-    virtual IProjectManager *projectManager() const = 0;
 
+    Core::IDocument *document() const;
     Utils::FileName projectFilePath() const;
+    Utils::FileName projectDirectory() const;
+    static Utils::FileName projectDirectory(const Utils::FileName &top);
+
+    virtual IProjectManager *projectManager() const;
+
+    virtual ProjectNode *rootProjectNode() const;
 
     bool hasActiveBuildSettings() const;
 
@@ -96,31 +97,29 @@ public:
     QList<Target *> targets() const;
     // Note: activeTarget can be 0 (if no targets are defined).
     Target *activeTarget() const;
-    void setActiveTarget(Target *target);
     Target *target(Core::Id id) const;
     Target *target(Kit *k) const;
     virtual bool supportsKit(Kit *k, QString *errorMessage = 0) const;
 
     Target *createTarget(Kit *k);
+    Target *cloneTarget(Target *sourceTarget, Kit *k);
     Target *restoreTarget(const QVariantMap &data);
 
     void saveSettings();
-    bool restoreSettings();
+    enum class RestoreResult { Ok, Error, UserAbort };
+    RestoreResult restoreSettings(QString *errorMessage);
 
-    virtual ProjectNode *rootProjectNode() const = 0;
-
-    enum FilesMode { AllFiles, ExcludeGeneratedFiles };
+    enum FilesMode {
+        SourceFiles    = 0x1,
+        GeneratedFiles = 0x2,
+        AllFiles       = SourceFiles | GeneratedFiles
+    };
     virtual QStringList files(FilesMode fileMode) const = 0;
-    // TODO: generalize to find source(s) of generated files?
-    virtual QString generatedUiHeader(const Utils::FileName &formFile) const;
+    virtual QStringList filesGeneratedFrom(const QString &sourceFile) const;
 
     static QString makeUnique(const QString &preferredName, const QStringList &usedNames);
 
     virtual QVariantMap toMap() const;
-
-    // The directory that holds the project. This includes the absolute path.
-    Utils::FileName projectDirectory() const;
-    static Utils::FileName projectDirectory(const Utils::FileName &top);
 
     Core::Context projectContext() const;
     Core::Context projectLanguages() const;
@@ -129,7 +128,8 @@ public:
     void setNamedSettings(const QString &name, const QVariant &value);
 
     virtual bool needsConfiguration() const;
-    virtual void configureAsExampleProject(const QStringList &platforms, const QStringList &preferredFeauters = QStringList());
+    virtual void configureAsExampleProject(const QSet<Core::Id> &platforms,
+                                           const QSet<Core::Id> &preferredFeauters = QSet<Core::Id>());
 
     virtual bool requiresTargetPanel() const;
     virtual ProjectImporter *createProjectImporter() const;
@@ -141,6 +141,9 @@ public:
     void setPreferredKitMatcher(const KitMatcher &matcher);
 
     virtual bool needsSpecialDeployment() const;
+    // The build system is able to report all executables that can be built, independent
+    // of configuration.
+    virtual bool knowsAllBuildExecutables() const;
 
     void setup(QList<const BuildInfo *> infoList);
     Utils::MacroExpander *macroExpander() const;
@@ -168,27 +171,29 @@ signals:
     void projectLanguagesUpdated();
 
 protected:
-    virtual bool fromMap(const QVariantMap &map);
+    virtual RestoreResult fromMap(const QVariantMap &map, QString *errorMessage);
     virtual bool setupTarget(Target *t);
 
     void setId(Core::Id id);
+    void setDocument(Core::IDocument *doc); // takes ownership!
+    void setProjectManager(IProjectManager *manager);
+    void setRootProjectNode(ProjectNode *root); // takes ownership!
     void setProjectContext(Core::Context context);
     void setProjectLanguages(Core::Context language);
     void addProjectLanguage(Core::Id id);
     void removeProjectLanguage(Core::Id id);
     void setProjectLanguage(Core::Id id, bool enabled);
+    virtual void projectLoaded(); // Called when the project is fully loaded.
 
-private slots:
+private:
     void changeEnvironment();
     void changeBuildConfigurationEnabled();
     void onBuildDirectoryChanged();
 
-private:
+    void setActiveTarget(Target *target);
     ProjectPrivate *d;
 };
 
 } // namespace ProjectExplorer
 
 Q_DECLARE_METATYPE(ProjectExplorer::Project *)
-
-#endif // PROJECT_H

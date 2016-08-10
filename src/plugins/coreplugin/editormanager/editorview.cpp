@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -36,7 +31,7 @@
 
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/editortoolbar.h>
-#include <coreplugin/coreconstants.h>
+#include <coreplugin/coreicons.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/infobar.h>
 #include <coreplugin/locator/locatorconstants.h>
@@ -79,15 +74,20 @@ EditorView::EditorView(SplitterOrView *parentSplitterOrView, QWidget *parent) :
     tl->setSpacing(0);
     tl->setMargin(0);
     {
-        connect(m_toolBar, SIGNAL(goBackClicked()), this, SLOT(goBackInNavigationHistory()));
-        connect(m_toolBar, SIGNAL(goForwardClicked()), this, SLOT(goForwardInNavigationHistory()));
-        connect(m_toolBar, SIGNAL(closeClicked()), this, SLOT(closeCurrentEditor()));
-        connect(m_toolBar, SIGNAL(listSelectionActivated(int)), this, SLOT(listSelectionActivated(int)));
-        connect(m_toolBar, &EditorToolBar::currentDocumentMoved, this, &EditorView::closeCurrentEditor);
-        connect(m_toolBar, SIGNAL(horizontalSplitClicked()), this, SLOT(splitHorizontally()));
-        connect(m_toolBar, SIGNAL(verticalSplitClicked()), this, SLOT(splitVertically()));
-        connect(m_toolBar, SIGNAL(splitNewWindowClicked()), this, SLOT(splitNewWindow()));
-        connect(m_toolBar, SIGNAL(closeSplitClicked()), this, SLOT(closeSplit()));
+        connect(m_toolBar, &EditorToolBar::goBackClicked,
+                this, &EditorView::goBackInNavigationHistory);
+        connect(m_toolBar, &EditorToolBar::goForwardClicked,
+                this, &EditorView::goForwardInNavigationHistory);
+        connect(m_toolBar, &EditorToolBar::closeClicked, this, &EditorView::closeCurrentEditor);
+        connect(m_toolBar, &EditorToolBar::listSelectionActivated,
+                this, &EditorView::listSelectionActivated);
+        connect(m_toolBar, &EditorToolBar::currentDocumentMoved,
+                this, &EditorView::closeCurrentEditor);
+        connect(m_toolBar, &EditorToolBar::horizontalSplitClicked,
+                this, &EditorView::splitHorizontally);
+        connect(m_toolBar, &EditorToolBar::verticalSplitClicked, this, &EditorView::splitVertically);
+        connect(m_toolBar, &EditorToolBar::splitNewWindowClicked, this, &EditorView::splitNewWindow);
+        connect(m_toolBar, &EditorToolBar::closeSplitClicked, this, &EditorView::closeSplit);
         m_toolBar->setMenuProvider([this](QMenu *menu) { fillListContextMenu(menu); });
         tl->addWidget(m_toolBar);
     }
@@ -181,6 +181,29 @@ EditorView *EditorView::findNextView()
         parent = current->findParentSplitter();
     }
     // current has no parent, so we are at the top and there is no "next" view
+    return 0;
+}
+
+EditorView *EditorView::findPreviousView()
+{
+    SplitterOrView *current = parentSplitterOrView();
+    QTC_ASSERT(current, return 0);
+    SplitterOrView *parent = current->findParentSplitter();
+    while (parent) {
+        QSplitter *splitter = parent->splitter();
+        QTC_ASSERT(splitter, return 0);
+        QTC_ASSERT(splitter->count() == 2, return 0);
+        // is current the last child? then the previous view is the first child in current's sibling
+        if (splitter->widget(1) == current) {
+            SplitterOrView *first = qobject_cast<SplitterOrView *>(splitter->widget(0));
+            QTC_ASSERT(first, return 0);
+            return first->findFirstView();
+        }
+        // otherwise go up the hierarchy
+        current = parent;
+        parent = current->findParentSplitter();
+    }
+    // current has no parent, so we are at the top and there is no "previous" view
     return 0;
 }
 
@@ -637,6 +660,19 @@ EditorView *SplitterOrView::findFirstView()
     return m_view;
 }
 
+EditorView *SplitterOrView::findLastView()
+{
+    if (m_splitter) {
+        for (int i = m_splitter->count() - 1; 0 < i; --i) {
+            if (SplitterOrView *splitterOrView = qobject_cast<SplitterOrView*>(m_splitter->widget(i)))
+                if (EditorView *result = splitterOrView->findLastView())
+                    return result;
+        }
+        return 0;
+    }
+    return m_view;
+}
+
 SplitterOrView *SplitterOrView::findParentSplitter() const
 {
     QWidget *w = parentWidget();
@@ -703,11 +739,11 @@ void SplitterOrView::split(Qt::Orientation orientation)
     view->view()->setCurrentEditor(duplicate);
 
     if (orientation == Qt::Horizontal) {
-        view->view()->setCloseSplitIcon(QIcon(QLatin1String(Constants::ICON_CLOSE_SPLIT_LEFT)));
-        otherView->view()->setCloseSplitIcon(QIcon(QLatin1String(Constants::ICON_CLOSE_SPLIT_RIGHT)));
+        view->view()->setCloseSplitIcon(Icons::CLOSE_SPLIT_LEFT.icon());
+        otherView->view()->setCloseSplitIcon(Icons::CLOSE_SPLIT_RIGHT.icon());
     } else {
-        view->view()->setCloseSplitIcon(QIcon(QLatin1String(Constants::ICON_CLOSE_SPLIT_TOP)));
-        otherView->view()->setCloseSplitIcon(QIcon(QLatin1String(Constants::ICON_CLOSE_SPLIT_BOTTOM)));
+        view->view()->setCloseSplitIcon(Icons::CLOSE_SPLIT_TOP.icon());
+        otherView->view()->setCloseSplitIcon(Icons::CLOSE_SPLIT_BOTTOM.icon());
     }
 
     EditorManagerPrivate::activateView(otherView->view());
@@ -795,17 +831,14 @@ void SplitterOrView::unsplit()
             m_layout->addWidget(m_view);
             QSplitter *parentSplitter = qobject_cast<QSplitter *>(parentWidget());
             if (parentSplitter) { // not the toplevel splitterOrView
-                if (parentSplitter->orientation() == Qt::Horizontal) {
-                    if (parentSplitter->widget(0) == this)
-                        m_view->setCloseSplitIcon(QIcon(QLatin1String(Constants::ICON_CLOSE_SPLIT_LEFT)));
-                    else
-                        m_view->setCloseSplitIcon(QIcon(QLatin1String(Constants::ICON_CLOSE_SPLIT_RIGHT)));
-                } else {
-                    if (parentSplitter->widget(0) == this)
-                        m_view->setCloseSplitIcon(QIcon(QLatin1String(Constants::ICON_CLOSE_SPLIT_TOP)));
-                    else
-                        m_view->setCloseSplitIcon(QIcon(QLatin1String(Constants::ICON_CLOSE_SPLIT_BOTTOM)));
-                }
+                if (parentSplitter->orientation() == Qt::Horizontal)
+                    m_view->setCloseSplitIcon(parentSplitter->widget(0) == this ?
+                                                  Icons::CLOSE_SPLIT_LEFT.icon()
+                                                : Icons::CLOSE_SPLIT_RIGHT.icon());
+                else
+                    m_view->setCloseSplitIcon(parentSplitter->widget(0) == this ?
+                                                  Icons::CLOSE_SPLIT_TOP.icon()
+                                                : Icons::CLOSE_SPLIT_BOTTOM.icon());
             }
         }
         m_layout->setCurrentWidget(m_view);
@@ -887,7 +920,7 @@ void SplitterOrView::restoreState(const QByteArray &state)
                                                       | EditorManager::DoNotChangeCurrentEditor);
 
         if (!e) {
-            DocumentModel::Entry *entry = DocumentModel::firstRestoredEntry();
+            DocumentModel::Entry *entry = DocumentModel::firstSuspendedEntry();
             if (entry) {
                 EditorManagerPrivate::activateEditorForEntry(view(), entry,
                     EditorManager::IgnoreNavigationHistory | EditorManager::DoNotChangeCurrentEditor);

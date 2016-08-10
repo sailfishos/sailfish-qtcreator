@@ -6,15 +6,21 @@ isEmpty(LLVM_INSTALL_DIR): error("No LLVM_INSTALL_DIR provided")
 defineReplace(extractVersion)      { return($$replace(1, ^(\\d+\\.\\d+\\.\\d+)$, \\1)) }
 defineReplace(extractMajorVersion) { return($$replace(1, ^(\\d+)\\.\\d+\\.\\d+$, \\1)) }
 defineReplace(extractMinorVersion) { return($$replace(1, ^\\d+\\.(\\d+)\\.\\d+$, \\1)) }
+defineReplace(extractPatchVersion) { return($$replace(1, ^\\d+\\.\\d+\\.(\\d+)$, \\1)) }
 
 defineTest(versionIsAtLeast) {
     actual_major_version = $$extractMajorVersion($$1)
     actual_minor_version = $$extractMinorVersion($$1)
+    actual_patch_version = $$extractPatchVersion($$1)
     required_min_major_version = $$2
     required_min_minor_version = $$3
+    required_min_patch_version = $$4
 
     isEqual(actual_major_version, $$required_min_major_version) {
-        isEqual(actual_minor_version, $$required_min_minor_version): return(true)
+        isEqual(actual_minor_version, $$required_min_minor_version) {
+            isEqual(actual_patch_version, $$required_min_patch_version): return(true)
+            greaterThan(actual_patch_version, $$required_min_patch_version): return(true)
+        }
         greaterThan(actual_minor_version, $$required_min_minor_version): return(true)
     }
     greaterThan(actual_major_version, $$required_min_major_version): return(true)
@@ -47,7 +53,7 @@ defineReplace(findClangLibInLibDir) {
 
 defineReplace(findClangOnWindows) {
     FILE_EXTS = a dll
-    win32-msvc*: FILE_EXTS = lib dll
+    msvc: FILE_EXTS = lib dll
     for (suffix, $$list(lib bin)) {
         for (libname, $$list(clang libclang)) {
             for (ext, FILE_EXTS) {
@@ -87,15 +93,19 @@ unix {
         LLVM_VERSION = $$findLLVMVersionFromLibDir($$LLVM_LIBDIR)
     }
 
-    !exists($$LLVM_INCLUDEPATH): error("Cannot detect include dir for clang, candidate: $$LLVM_INCLUDEPATH")
+    LIBCLANG_MAIN_HEADER = $$LLVM_INCLUDEPATH/clang-c/Index.h
+    !exists($$LIBCLANG_MAIN_HEADER): error("Cannot find libclang's main header file, candidate: $$LIBCLANG_MAIN_HEADER")
     !exists($$LLVM_LIBDIR): error("Cannot detect lib dir for clang, candidate: $$LLVM_LIBDIR")
     clang_lib = $$findClangLibInLibDir($$LLVM_LIBDIR)
     isEmpty(clang_lib): error("Cannot find Clang shared library in $$LLVM_LIBDIR")
 
-    LLVM_LIBS = -L$${LLVM_LIBDIR} -l$${clang_lib}
+    !contains(QMAKE_DEFAULT_LIBDIRS, $$LLVM_LIBDIR): LLVM_LIBS = -L$${LLVM_LIBDIR}
+    LLVM_LIBS += -l$${clang_lib}
+
+    contains(QMAKE_DEFAULT_INCDIRS, $$LLVM_INCLUDEPATH): LLVM_INCLUDEPATH =
 }
 
 isEmpty(LLVM_VERSION): error("Cannot determine clang version at $$LLVM_INSTALL_DIR")
-!versionIsAtLeast($$LLVM_VERSION, 3, 6): {
-    error("LLVM/Clang version >= 3.6.0 required, version provided: $$LLVM_VERSION")
+!versionIsAtLeast($$LLVM_VERSION, 3, 6, 2): {
+    error("LLVM/Clang version >= 3.6.2 required, version provided: $$LLVM_VERSION")
 }

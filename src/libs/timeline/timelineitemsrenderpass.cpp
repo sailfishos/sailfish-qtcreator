@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://www.qt.io/licensing.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -35,26 +30,6 @@
 #include <QtAlgorithms>
 
 namespace Timeline {
-
-class TimelineItemsMaterial : public QSGMaterial {
-public:
-    TimelineItemsMaterial();
-    QVector2D scale() const;
-    void setScale(QVector2D scale);
-
-    float selectedItem() const;
-    void setSelectedItem(float selectedItem);
-
-    QColor selectionColor() const;
-    void setSelectionColor(QColor selectionColor);
-
-    QSGMaterialType *type() const;
-    QSGMaterialShader *createShader() const;
-private:
-    QVector2D m_scale;
-    float m_selectedItem;
-    QColor m_selectionColor;
-};
 
 class TimelineItemsRenderPassState : public TimelineRenderPass::State {
 public:
@@ -82,17 +57,9 @@ private:
     QVector<QSGNode *> m_collapsedRows;
 };
 
-struct OpaqueColoredPoint2DWithSize {
-    float x, y, w, h, id;
-    unsigned char r, g, b, a;
-    void set(float nx, float ny, float nw, float nh, float nid, uchar nr, uchar ng, uchar nb);
-};
-
 struct TimelineItemsGeometry {
     // Alternating nodes with with 7 and 4 vertices; and vertex indices are 16bit
     static const int maxEventsPerNode = 0xffff * 2 / (7 + 4);
-
-    static const QSGGeometry::AttributeSet &opaqueColoredPoint2DWithSize();
 
     TimelineItemsGeometry() : allocatedVertices(0), usedVertices(0), node(0) {
         prevNode.set(0, TimelineModel::defaultRowHeight(), 0, 0, 0, 0, 0, 0);
@@ -104,7 +71,7 @@ struct TimelineItemsGeometry {
     OpaqueColoredPoint2DWithSize prevNode;
 
     QSGGeometryNode *node;
-    OpaqueColoredPoint2DWithSize *vertexData();
+
 
     void allocate(QSGMaterial *material);
     void addVertices(float itemTop);
@@ -112,14 +79,31 @@ struct TimelineItemsGeometry {
                   uchar green, uchar blue);
 };
 
+void OpaqueColoredPoint2DWithSize::set(float nx, float ny, float nw, float nh, float nid,
+                                       uchar nr, uchar ng, uchar nb) {
+    x = nx; y = ny; w = nw; h = nh; id = nid;
+    r = nr; g = ng, b = nb; a = 255;
+}
+
+float OpaqueColoredPoint2DWithSize::top() const
+{
+    return y;
+}
+
+void OpaqueColoredPoint2DWithSize::setTop(float top)
+{
+    y = top;
+}
+
 void TimelineItemsGeometry::addEvent(float itemLeft, float itemTop, float itemWidth,
                                                     float selectionId, uchar red, uchar green,
                                                     uchar blue)
 {
     float rowHeight = TimelineModel::defaultRowHeight();
     float itemHeight = rowHeight - itemTop;
-    OpaqueColoredPoint2DWithSize *v = vertexData();
-    if (prevNode.y == rowHeight) {
+    OpaqueColoredPoint2DWithSize *v = OpaqueColoredPoint2DWithSize::fromVertexData(
+                node->geometry());
+    if (prevNode.top() == rowHeight) {
         // "Z" form, bottom to top
         v[usedVertices++].set(itemLeft, rowHeight, -itemWidth, -itemHeight, selectionId, red, green,
                               blue);
@@ -131,7 +115,7 @@ void TimelineItemsGeometry::addEvent(float itemLeft, float itemTop, float itemWi
                               red, green, blue);
         prevNode = v[usedVertices - 1];
     } else {
-        if (prevNode.y != itemTop) {
+        if (prevNode.top() != itemTop) {
             // 2 extra vertices to degenerate the surplus triangles
             v[usedVertices++] = prevNode;
             v[usedVertices++].set(itemLeft, itemTop, -itemWidth, itemHeight, selectionId, red,
@@ -152,9 +136,8 @@ void TimelineItemsGeometry::addEvent(float itemLeft, float itemTop, float itemWi
 
 }
 
-OpaqueColoredPoint2DWithSize *TimelineItemsGeometry::vertexData()
+OpaqueColoredPoint2DWithSize *OpaqueColoredPoint2DWithSize::fromVertexData(QSGGeometry *geometry)
 {
-    QSGGeometry *geometry = node->geometry();
     Q_ASSERT(geometry->attributeCount() == 4);
     Q_ASSERT(geometry->sizeOfVertex() == sizeof(OpaqueColoredPoint2DWithSize));
     const QSGGeometry::Attribute *attributes = geometry->attributes();
@@ -171,12 +154,13 @@ OpaqueColoredPoint2DWithSize *TimelineItemsGeometry::vertexData()
     Q_ASSERT(attributes[3].tupleSize == 4);
     Q_ASSERT(attributes[3].type == GL_UNSIGNED_BYTE);
     Q_UNUSED(attributes);
-    return static_cast<OpaqueColoredPoint2DWithSize *>(node->geometry()->vertexData());
+    return static_cast<OpaqueColoredPoint2DWithSize *>(geometry->vertexData());
 }
 
 void TimelineItemsGeometry::allocate(QSGMaterial *material)
 {
-    QSGGeometry *geometry = new QSGGeometry(opaqueColoredPoint2DWithSize(), usedVertices);
+    QSGGeometry *geometry = new QSGGeometry(OpaqueColoredPoint2DWithSize::attributes(),
+                                            usedVertices);
     geometry->setIndexDataPattern(QSGGeometry::StaticPattern);
     geometry->setVertexDataPattern(QSGGeometry::StaticPattern);
     node = new QSGGeometryNode;
@@ -190,12 +174,12 @@ void TimelineItemsGeometry::allocate(QSGMaterial *material)
 
 void TimelineItemsGeometry::addVertices(float itemTop)
 {
-    if (prevNode.y == TimelineModel::defaultRowHeight()) {
+    if (prevNode.top() == TimelineModel::defaultRowHeight()) {
         usedVertices += 4;
-        prevNode.y = itemTop;
+        prevNode.setTop(itemTop);
     } else {
-        usedVertices += (prevNode.y != itemTop ? 6 : 4);
-        prevNode.y = TimelineModel::defaultRowHeight();
+        usedVertices += (prevNode.top() != itemTop ? 6 : 4);
+        prevNode.setTop(TimelineModel::defaultRowHeight());
     }
 }
 
@@ -267,7 +251,7 @@ static void updateNodes(int from, int to, const TimelineModel *model,
     }
 }
 
-const QSGGeometry::AttributeSet &TimelineItemsGeometry::opaqueColoredPoint2DWithSize()
+const QSGGeometry::AttributeSet &OpaqueColoredPoint2DWithSize::attributes()
 {
     static QSGGeometry::Attribute data[] = {
         QSGGeometry::Attribute::create(0, 2, GL_FLOAT, true),
@@ -453,12 +437,6 @@ QSGMaterialType *TimelineItemsMaterial::type() const
 QSGMaterialShader *TimelineItemsMaterial::createShader() const
 {
     return new TimelineItemsMaterialShader;
-}
-
-void OpaqueColoredPoint2DWithSize::set(float nx, float ny, float nw, float nh, float nid,
-                                       uchar nr, uchar ng, uchar nb) {
-    x = nx; y = ny; w = nw; h = nh; id = nid;
-    r = nr; g = ng, b = nb; a = 255;
 }
 
 TimelineItemsRenderPassState::TimelineItemsRenderPassState(const TimelineModel *model) :

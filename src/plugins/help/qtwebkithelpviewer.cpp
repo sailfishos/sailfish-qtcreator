@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -141,9 +136,9 @@ QNetworkReply *HelpNetworkAccessManager::createRequest(Operation op,
     return new HelpNetworkReply(request, data.data, data.mimeType);
 }
 
-// - HelpPage
+// - QtWebKitHelpPage
 
-HelpPage::HelpPage(QObject *parent)
+QtWebKitHelpPage::QtWebKitHelpPage(QObject *parent)
     : QWebPage(parent)
     , closeNewTabIfNeeded(false)
     , m_pressedButtons(Qt::NoButton)
@@ -154,18 +149,18 @@ HelpPage::HelpPage(QObject *parent)
         SLOT(onHandleUnsupportedContent(QNetworkReply*)));
 }
 
-QWebPage *HelpPage::createWindow(QWebPage::WebWindowType)
+QWebPage *QtWebKitHelpPage::createWindow(QWebPage::WebWindowType)
 {
     // TODO: ensure that we'll get a QtWebKitHelpViewer here
     QtWebKitHelpViewer* viewer = static_cast<QtWebKitHelpViewer *>(OpenPagesManager::instance()
         .createPage());
-    HelpPage *newPage = viewer->page();
+    QtWebKitHelpPage *newPage = viewer->page();
     newPage->closeNewTabIfNeeded = closeNewTabIfNeeded;
     closeNewTabIfNeeded = false;
     return newPage;
 }
 
-void HelpPage::triggerAction(WebAction action, bool checked)
+void QtWebKitHelpPage::triggerAction(WebAction action, bool checked)
 {
     switch (action) {
         case OpenLinkInNewWindow:
@@ -176,7 +171,7 @@ void HelpPage::triggerAction(WebAction action, bool checked)
     }
 }
 
-bool HelpPage::acceptNavigationRequest(QWebFrame *frame, const QNetworkRequest &request,
+bool QtWebKitHelpPage::acceptNavigationRequest(QWebFrame *frame, const QNetworkRequest &request,
     QWebPage::NavigationType type)
 {
     const bool closeNewTab = closeNewTabIfNeeded;
@@ -203,7 +198,7 @@ bool HelpPage::acceptNavigationRequest(QWebFrame *frame, const QNetworkRequest &
     return true;
 }
 
-void HelpPage::onHandleUnsupportedContent(QNetworkReply *reply)
+void QtWebKitHelpPage::onHandleUnsupportedContent(QNetworkReply *reply)
 {
     // sub resource of this page
     if (m_loadingUrl != reply->url()) {
@@ -259,7 +254,7 @@ QtWebKitHelpWidget::QtWebKitHelpWidget(QtWebKitHelpViewer *parent)
 
     QWebSettings::globalSettings()->setAttribute(QWebSettings::DnsPrefetchEnabled, true);
 
-    setPage(new HelpPage(this));
+    setPage(new QtWebKitHelpPage(this));
     HelpNetworkAccessManager *manager = new HelpNetworkAccessManager(this);
     page()->setNetworkAccessManager(manager);
     connect(manager, SIGNAL(finished(QNetworkReply*)), this,
@@ -328,7 +323,7 @@ void QtWebKitHelpWidget::mousePressEvent(QMouseEvent *event)
     if (Utils::HostOsInfo::isLinuxHost() && m_parent->handleForwardBackwardMouseButtons(event))
         return;
 
-    if (HelpPage *currentPage = static_cast<HelpPage*>(page())) {
+    if (QtWebKitHelpPage *currentPage = static_cast<QtWebKitHelpPage*>(page())) {
         currentPage->m_pressedButtons = event->buttons();
         currentPage->m_keyboardModifiers = event->modifiers();
     }
@@ -407,7 +402,7 @@ QtWebKitHelpViewer::QtWebKitHelpViewer(QWidget *parent)
     connect(m_webView->page(), SIGNAL(printRequested(QWebFrame*)), this, SIGNAL(printRequested()));
     connect(m_webView, SIGNAL(backwardAvailable(bool)), this, SIGNAL(backwardAvailable(bool)));
     connect(m_webView, SIGNAL(forwardAvailable(bool)), this, SIGNAL(forwardAvailable(bool)));
-    connect(page(), &HelpPage::linkHovered, this, &QtWebKitHelpViewer::setToolTip);
+    connect(page(), &QtWebKitHelpPage::linkHovered, this, &QtWebKitHelpViewer::setToolTip);
 }
 
 QFont QtWebKitHelpViewer::viewerFont() const
@@ -472,14 +467,10 @@ void QtWebKitHelpViewer::setSource(const QUrl &url)
     QUrl newWithoutFragment = url;
     newWithoutFragment.setFragment(QString());
     if (oldWithoutFragment == newWithoutFragment) {
+        m_webView->page()->mainFrame()->scrollToAnchor(url.fragment());
         slotLoadStarted();
         slotLoadFinished();
     }
-}
-
-void QtWebKitHelpViewer::scrollToAnchor(const QString &anchor)
-{
-    m_webView->page()->mainFrame()->scrollToAnchor(anchor);
 }
 
 void QtWebKitHelpViewer::highlightId(const QString &id)
@@ -591,9 +582,9 @@ bool QtWebKitHelpViewer::findText(const QString &text, FindFlags flags,
     return found;
 }
 
-HelpPage *QtWebKitHelpViewer::page() const
+QtWebKitHelpPage *QtWebKitHelpViewer::page() const
 {
-    return static_cast<HelpPage *>(m_webView->page());
+    return static_cast<QtWebKitHelpPage *>(m_webView->page());
 }
 
 void QtWebKitHelpViewer::copy()

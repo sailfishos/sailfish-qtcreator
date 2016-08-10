@@ -1,32 +1,27 @@
-#############################################################################
-##
-## Copyright (C) 2015 The Qt Company Ltd.
-## Contact: http://www.qt.io/licensing
-##
-## This file is part of Qt Creator.
-##
-## Commercial License Usage
-## Licensees holding valid commercial Qt licenses may use this file in
-## accordance with the commercial license agreement provided with the
-## Software or, alternatively, in accordance with the terms contained in
-## a written agreement between you and The Qt Company.  For licensing terms and
-## conditions see http://www.qt.io/terms-conditions.  For further information
-## use the contact form at http://www.qt.io/contact-us.
-##
-## GNU Lesser General Public License Usage
-## Alternatively, this file may be used under the terms of the GNU Lesser
-## General Public License version 2.1 or version 3 as published by the Free
-## Software Foundation and appearing in the file LICENSE.LGPLv21 and
-## LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-## following information to ensure the GNU Lesser General Public License
-## requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-## http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-##
-## In addition, as a special exception, The Qt Company gives you certain additional
-## rights.  These rights are described in The Qt Company LGPL Exception
-## version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
-##
-#############################################################################
+############################################################################
+#
+# Copyright (C) 2016 The Qt Company Ltd.
+# Contact: https://www.qt.io/licensing/
+#
+# This file is part of Qt Creator.
+#
+# Commercial License Usage
+# Licensees holding valid commercial Qt licenses may use this file in
+# accordance with the commercial license agreement provided with the
+# Software or, alternatively, in accordance with the terms contained in
+# a written agreement between you and The Qt Company. For licensing terms
+# and conditions see https://www.qt.io/terms-conditions. For further
+# information use the contact form at https://www.qt.io/contact-us.
+#
+# GNU General Public License Usage
+# Alternatively, this file may be used under the terms of the GNU
+# General Public License version 3 as published by the Free Software
+# Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+# included in the packaging of this file. Please review the following
+# information to ensure the GNU General Public License requirements will
+# be met: https://www.gnu.org/licenses/gpl-3.0.html.
+#
+############################################################################
 
 source("../../shared/qtcreator.py")
 
@@ -48,22 +43,25 @@ def main():
             continue
 
         contentBefore = readFile(currentFile)
-        popupText = "The file %s was removed. Do you want to save it under a different name, or close the editor?"
         os.remove(currentFile)
-        test.compare(waitForObject(":File has been removed_QMessageBox").text,
-                     popupText % currentFile)
-        clickButton(waitForObject(":File has been removed.Save_QPushButton"))
-        waitFor("os.path.exists(currentFile)", 5000)
-        # avoids a lock-up on some Linux machines, purely empiric, might have different cause
-        waitFor("checkIfObjectExists(':File has been removed_QMessageBox', False, 0)", 5000)
+        if not currentFile.endswith(".bin"):
+            popupText = "The file %s was removed. Do you want to save it under a different name, or close the editor?"
+            test.compare(waitForObject(":File has been removed_QMessageBox").text,
+                         popupText % currentFile)
+            clickButton(waitForObject(":File has been removed.Save_QPushButton"))
+            waitFor("os.path.exists(currentFile)", 5000)
+            # avoids a lock-up on some Linux machines, purely empiric, might have different cause
+            waitFor("checkIfObjectExists(':File has been removed_QMessageBox', False, 0)", 5000)
 
-        test.compare(readFile(currentFile), contentBefore,
-                     "Verifying that file '%s' was restored correctly" % currentFile)
+            test.compare(readFile(currentFile), contentBefore,
+                         "Verifying that file '%s' was restored correctly" % currentFile)
 
-        # Different warning because of QTCREATORBUG-8130
-        popupText2 = "The file %s has been removed outside Qt Creator. Do you want to save it under a different name, or close the editor?"
-        os.remove(currentFile)
-        test.compare(waitForObject(":File has been removed_QMessageBox").text,
-                     popupText2 % currentFile)
-        clickButton(waitForObject(":File has been removed.Close_QPushButton"))
+            # Different warning because of QTCREATORBUG-8130
+            popupText2 = "The file %s has been removed outside Qt Creator. Do you want to save it under a different name, or close the editor?"
+            os.remove(currentFile)
+            test.compare(waitForObject(":File has been removed_QMessageBox").text,
+                         popupText2 % currentFile)
+            clickButton(waitForObject(":File has been removed.Close_QPushButton"))
+        test.verify(checkIfObjectExists(objectMap.realName(editor), False),
+                    "Was the editor closed after deleting the file?")
     invokeMenuItem("File", "Exit")

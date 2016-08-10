@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -99,7 +94,7 @@ AddNewTree::AddNewTree(const QString &displayName)
 // Note the different handling of 'node' and m_canAdd.
 AddNewTree::AddNewTree(FolderNode *node, QList<AddNewTree *> children, const QString &displayName)
     : m_displayName(displayName),
-      m_node(0),
+      m_node(node),
       m_canAdd(false),
       m_priority(-1)
 {
@@ -128,6 +123,8 @@ QVariant AddNewTree::data(int, int role) const
         return m_displayName;
     if (role == Qt::ToolTipRole)
         return m_toolTip;
+    if (role == Qt::UserRole)
+        return QVariant::fromValue(static_cast<void*>(node()));
     return QVariant();
 }
 
@@ -186,17 +183,22 @@ void BestNodeSelector::inspect(AddNewTree *tree, bool isContextNode)
     }
     if (m_deploys)
         return;
+
     const QString projectDirectory = ProjectExplorerPlugin::directoryFor(node);
     const int projectDirectorySize = projectDirectory.size();
-    if (!m_commonDirectory.startsWith(projectDirectory) && !isContextNode)
+    if (m_commonDirectory != projectDirectory
+            && !m_commonDirectory.startsWith(projectDirectory + QLatin1Char('/'))
+            && !isContextNode)
         return;
-    bool betterMatch = tree->priority() > 0
-            && (projectDirectorySize > m_bestMatchLength
-                || (projectDirectorySize == m_bestMatchLength && tree->priority() > m_bestMatchPriority));
+
+    bool betterMatch = isContextNode
+            || (tree->priority() > 0
+                && (projectDirectorySize > m_bestMatchLength
+                    || (projectDirectorySize == m_bestMatchLength && tree->priority() > m_bestMatchPriority)));
 
     if (betterMatch) {
         m_bestMatchPriority = tree->priority();
-        m_bestMatchLength = projectDirectorySize;
+        m_bestMatchLength = isContextNode ? std::numeric_limits<int>::max() : projectDirectorySize;
         m_bestChoice = tree;
     }
 }
@@ -268,7 +270,8 @@ static inline AddNewTree *buildAddProjectTree(SessionNode *root, const QString &
     return new AddNewTree(root, children, root->displayName());
 }
 
-static inline AddNewTree *buildAddFilesTree(FolderNode *root, const QStringList &files, Node *contextNode, BestNodeSelector *selector)
+static inline AddNewTree *buildAddFilesTree(FolderNode *root, const QStringList &files,
+                                            Node *contextNode, BestNodeSelector *selector)
 {
     QList<AddNewTree *> children;
     foreach (FolderNode *fn, root->subFolderNodes()) {
@@ -289,7 +292,8 @@ static inline AddNewTree *buildAddFilesTree(FolderNode *root, const QStringList 
     return new AddNewTree(root, children, root->displayName());
 }
 
-static inline AddNewTree *buildAddFilesTree(SessionNode *root, const QStringList &files, Node *contextNode, BestNodeSelector *selector)
+static inline AddNewTree *buildAddFilesTree(SessionNode *root, const QStringList &files,
+                                            Node *contextNode, BestNodeSelector *selector)
 {
     QList<AddNewTree *> children;
     foreach (ProjectNode *pn, root->projectNodes()) {
@@ -324,21 +328,21 @@ ProjectWizardPage::ProjectWizardPage(QWidget *parent) :
 {
     m_ui->setupUi(this);
     m_ui->vcsManageButton->setText(ICore::msgShowOptionsDialog());
-    connect(m_ui->projectComboBox, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(projectChanged(int)));
+    connect(m_ui->projectComboBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+            this, &ProjectWizardPage::projectChanged);
     connect(m_ui->addToVersionControlComboBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
             this, &ProjectWizardPage::versionControlChanged);
     connect(m_ui->vcsManageButton, &QAbstractButton::clicked, this, &ProjectWizardPage::manageVcs);
     setProperty(SHORT_TITLE_PROPERTY, tr("Summary"));
 
-    connect(VcsManager::instance(), SIGNAL(configurationChanged(const IVersionControl*)),
-            this, SLOT(initializeVersionControls()));
+    connect(VcsManager::instance(), &VcsManager::configurationChanged,
+            this, &ProjectExplorer::Internal::ProjectWizardPage::initializeVersionControls);
 }
 
 ProjectWizardPage::~ProjectWizardPage()
 {
-    disconnect(m_ui->projectComboBox, SIGNAL(currentIndexChanged(int)),
-               this, SLOT(projectChanged(int)));
+    disconnect(m_ui->projectComboBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+               this, &ProjectWizardPage::projectChanged);
     delete m_model;
     delete m_ui;
 }
@@ -396,9 +400,8 @@ void ProjectWizardPage::setBestNode(AddNewTree *tree)
 
 FolderNode *ProjectWizardPage::currentNode() const
 {
-    QModelIndex index = m_ui->projectComboBox->view()->currentIndex();
-    TreeItem *item = m_model->itemForIndex(index);
-    return item ? static_cast<AddNewTree *>(item)->node() : 0;
+    QVariant v = m_ui->projectComboBox->currentData(Qt::UserRole);
+    return v.isNull() ? 0 : static_cast<FolderNode *>(v.value<void *>());
 }
 
 void ProjectWizardPage::setAddingSubProject(bool addingSubProject)
@@ -411,9 +414,14 @@ void ProjectWizardPage::setAddingSubProject(bool addingSubProject)
 void ProjectWizardPage::initializeVersionControls()
 {
     // Figure out version control situation:
+    // 0) Check that any version control is available
     // 1) Directory is managed and VCS supports "Add" -> List it
     // 2) Directory is managed and VCS does not support "Add" -> None available
     // 3) Directory is not managed -> Offer all VCS that support "CreateRepository"
+
+    QList<IVersionControl *> versionControls = VcsManager::versionControls();
+    if (versionControls.isEmpty())
+        hideVersionControlUiElements();
 
     IVersionControl *currentSelection = 0;
     int currentIdx = versionControlIndex() - 1;
@@ -590,6 +598,19 @@ void ProjectWizardPage::projectChanged(int index)
 void ProjectWizardPage::manageVcs()
 {
     ICore::showOptionsDialog(VcsBase::Constants::VCS_COMMON_SETTINGS_ID, this);
+}
+
+void ProjectWizardPage::hideVersionControlUiElements()
+{
+    m_ui->addToVersionControlLabel->hide();
+    m_ui->vcsManageButton->hide();
+    m_ui->addToVersionControlComboBox->hide();
+}
+
+void ProjectWizardPage::setProjectUiVisible(bool visible)
+{
+    m_ui->projectLabel->setVisible(visible);
+    m_ui->projectComboBox->setVisible(visible);
 }
 
 } // namespace Internal

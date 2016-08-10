@@ -1,7 +1,7 @@
 ############################################################################
 #
-# Copyright (C) 2015 The Qt Company Ltd.
-# Contact: http://www.qt.io/licensing
+# Copyright (C) 2016 The Qt Company Ltd.
+# Contact: https://www.qt.io/licensing/
 #
 # This file is part of Qt Creator.
 #
@@ -9,24 +9,19 @@
 # Licensees holding valid commercial Qt licenses may use this file in
 # accordance with the commercial license agreement provided with the
 # Software or, alternatively, in accordance with the terms contained in
-# a written agreement between you and The Qt Company.  For licensing terms and
-# conditions see http://www.qt.io/terms-conditions.  For further information
-# use the contact form at http://www.qt.io/contact-us.
+# a written agreement between you and The Qt Company. For licensing terms
+# and conditions see https://www.qt.io/terms-conditions. For further
+# information use the contact form at https://www.qt.io/contact-us.
 #
-# GNU Lesser General Public License Usage
-# Alternatively, this file may be used under the terms of the GNU Lesser
-# General Public License version 2.1 or version 3 as published by the Free
-# Software Foundation and appearing in the file LICENSE.LGPLv21 and
-# LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-# following information to ensure the GNU Lesser General Public License
-# requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-# http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+# GNU General Public License Usage
+# Alternatively, this file may be used under the terms of the GNU
+# General Public License version 3 as published by the Free Software
+# Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+# included in the packaging of this file. Please review the following
+# information to ensure the GNU General Public License requirements will
+# be met: https://www.gnu.org/licenses/gpl-3.0.html.
 #
-# In addition, as a special exception, The Qt Company gives you certain additional
-# rights.  These rights are described in The Qt Company LGPL Exception
-# version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
-#
-#############################################################################
+############################################################################
 
 import inspect
 import os
@@ -48,16 +43,13 @@ from dumper import *
 
 qqWatchpointOffset = 10000
 
-def warn(message):
-    print('\n\nWARNING="%s",\n' % message.encode("latin1").replace('"', "'"))
-
 def showException(msg, exType, exValue, exTraceback):
     warn("**** CAUGHT EXCEPTION: %s ****" % msg)
     import traceback
     lines = [line for line in traceback.format_exception(exType, exValue, exTraceback)]
     warn('\n'.join(lines))
 
-def fileName(file):
+def fileNameAsString(file):
     return str(file) if file.IsValid() else ''
 
 
@@ -168,6 +160,7 @@ lldb.SBType.__str__ = lldb.SBType.GetName
 class Dumper(DumperBase):
     def __init__(self):
         DumperBase.__init__(self)
+        lldb.theDumper = self
 
         self.outputLock = threading.Lock()
         self.debugger = lldb.SBDebugger.Create()
@@ -200,6 +193,7 @@ class Dumper(DumperBase):
         self.eventState = lldb.eStateInvalid
         self.expandedINames = {}
         self.passExceptions = False
+        self.showQObjectNames = False
         self.useLldbDumpers = False
         self.autoDerefPointers = True
         self.useDynamicType = True
@@ -221,6 +215,9 @@ class Dumper(DumperBase):
         self.startMode_ = None
         self.processArgs_ = None
         self.attachPid_ = None
+        self.dyldImageSuffix = None
+        self.dyldLibraryPath = None
+        self.dyldFrameworkPath = None
 
         self.charType_ = None
         self.intType_ = None
@@ -230,8 +227,7 @@ class Dumper(DumperBase):
         self.voidPtrType_ = None
         self.isShuttingDown_ = False
         self.isInterrupting_ = False
-        self.qmlBreakpointResolvers = {}
-        self.qmlTriggeredBreakpoint = None
+        self.interpreterBreakpointResolvers = []
 
         self.report('lldbversion=\"%s\"' % lldb.SBDebugger.GetVersionString())
         self.reportState("enginesetupok")
@@ -266,15 +262,14 @@ class Dumper(DumperBase):
             if self.passExceptions:
                 showException("SUBITEM", exType, exValue, exTraceBack)
             self.putNumChild(0)
-            self.putSpecialValue(SpecialNotAccessibleValue)
+            self.putSpecialValue("notaccessible")
         try:
             if self.currentType.value:
                 typeName = self.currentType.value
                 if len(typeName) > 0 and typeName != self.currentChildType:
                     self.put('type="%s",' % typeName) # str(type.unqualified()) ?
             if  self.currentValue.value is None:
-                self.put('value="",encoding="%d",numchild="0",'
-                        % SpecialNotAccessibleValue)
+                self.put('value="",encoding="notaccessible",numchild="0",')
             else:
                 if not self.currentValue.encoding is None:
                     self.put('valueencoded="%s",' % self.currentValue.encoding)
@@ -365,9 +360,10 @@ class Dumper(DumperBase):
         #self.warn("  -> %s" % result)
         return result
 
-    def isBadPointer(self, value):
+    def pointerInfo(self, value):
+        # -> (dereferencable, address)
         target = value.dereference()
-        return target.GetError().Fail()
+        return (target.GetError().Success(), value.GetValueAsUnsigned())
 
     def makeValue(self, type, *args):
         thread = self.currentThread()
@@ -547,10 +543,9 @@ class Dumper(DumperBase):
             self.report('output="%s"' % result.GetOutput())
         else:
             self.report('error="%s"' % result.GetError())
-        self.reportData()
 
     def put(self, stuff):
-        sys.stdout.write(stuff)
+        self.output += stuff
 
     def isMovableType(self, type):
         if type.GetTypeClass() in (lldb.eTypeClassBuiltin, lldb.eTypeClassPointer):
@@ -572,28 +567,14 @@ class Dumper(DumperBase):
         size = typeobj.sizeof
         if code == lldb.eTypeClassBuiltin:
             name = str(typeobj)
-            if name == "float":
-                return Hex2EncodedFloat4
-            if name == "double":
-                return Hex2EncodedFloat8
-            if name.find("unsigned") >= 0:
-                if size == 1:
-                    return Hex2EncodedUInt1
-                if size == 2:
-                    return Hex2EncodedUInt2
-                if size == 4:
-                    return Hex2EncodedUInt4
-                if size == 8:
-                    return Hex2EncodedUInt8
+            if name == 'float':
+                return 'float:4'
+            if name == 'double':
+                return 'float:8'
+            if name.find('unsigned') >= 0:
+                return 'uint:%d' % size
             else:
-                if size == 1:
-                    return Hex2EncodedInt1
-                if size == 2:
-                    return Hex2EncodedInt2
-                if size == 4:
-                    return Hex2EncodedInt4
-                if size == 8:
-                    return Hex2EncodedInt8
+                return 'int:%d' % size
         return None
 
     def createPointerValue(self, address, pointeeType):
@@ -656,19 +637,22 @@ class Dumper(DumperBase):
         return None
 
     def setupInferior(self, args):
-        self.reportToken(args)
         error = lldb.SBError()
 
         self.executable_ = args['executable']
-        self.startMode_ = args.get('startMode', 1)
-        self.breakOnMain_ = args.get('breakOnMain', 0)
-        self.useTerminal_ = args.get('useTerminal', 0)
-        self.processArgs_ = args.get('processArgs', [])
+        self.startMode_ = args.get('startmode', 1)
+        self.breakOnMain_ = args.get('breakonmain', 0)
+        self.useTerminal_ = args.get('useterminal', 0)
+        self.processArgs_ = args.get('processargs', [])
+        self.dyldImageSuffix = args.get('dyldimagesuffix', '')
+        self.dyldLibraryPath = args.get('dyldlibrarypath', '')
+        self.dyldFrameworkPath = args.get('dyldframeworkpath', '')
         self.processArgs_ = map(lambda x: self.hexdecode(x), self.processArgs_)
-        self.attachPid_ = args.get('attachPid', 0)
-        self.sysRoot_ = args.get('sysRoot', '')
-        self.remoteChannel_ = args.get('remoteChannel', '')
+        self.attachPid_ = args.get('attachpid', 0)
+        self.sysRoot_ = args.get('sysroot', '')
+        self.remoteChannel_ = args.get('remotechannel', '')
         self.platform_ = args.get('platform', '')
+        self.nativeMixed = int(args.get('nativemixed', 0))
 
         self.ignoreStops = 0
         self.silentStops = 0
@@ -691,18 +675,17 @@ class Dumper(DumperBase):
         if self.sysRoot_:
             self.debugger.SetCurrentPlatformSDKRoot(self.sysRoot_)
 
-
         if os.path.isfile(self.executable_):
             self.target = self.debugger.CreateTarget(self.executable_, None, None, True, error)
         else:
             self.target = self.debugger.CreateTarget(None, None, None, True, error)
 
-        if self.target.IsValid():
-            for bp in args['bkpts']:
-                self.insertBreakpoint(bp)
+        if self.nativeMixed:
+            self.interpreterEventBreakpoint = \
+                self.target.BreakpointCreateByName("qt_qmlDebugMessageAvailable")
 
-        state = "inferiorsetupok" if self.target.IsValid() else "inferiorsetupfailed"
-        self.report('state="%s",msg="%s",exe="%s"' % (state, error, self.executable_))
+        state = 1 if self.target.IsValid() else 0
+        self.reportResult('success="%s",msg="%s",exe="%s"' % (state, error, self.executable_), args)
 
     def runEngine(self, args):
         self.prepare(args)
@@ -710,7 +693,6 @@ class Dumper(DumperBase):
         s.start()
 
     def prepare(self, args):
-        self.reportToken(args)
         error = lldb.SBError()
         listener = self.debugger.GetListener()
 
@@ -730,7 +712,7 @@ class Dumper(DumperBase):
                 self.debugger.GetListener(),
                 self.remoteChannel_, None, error)
             if not error.Success():
-                self.reportError(error)
+                self.report(self.describeError(error))
                 self.reportState("enginerunfailed")
                 return
             # Even if it stops it seems that LLDB assumes it is running
@@ -741,17 +723,22 @@ class Dumper(DumperBase):
             coreFile = args.get('coreFile', '');
             self.process = self.target.LoadCore(coreFile)
             self.reportState("enginerunokandinferiorunrunnable")
-            #self.reportContinuation(args)
         else:
             launchInfo = lldb.SBLaunchInfo(self.processArgs_)
             launchInfo.SetWorkingDirectory(os.getcwd())
             environmentList = [key + "=" + value for key,value in os.environ.items()]
+            if self.dyldImageSuffix:
+                environmentList.append('DYLD_IMAGE_SUFFIX=' + self.dyldImageSuffix)
+            if self.dyldLibraryPath:
+                environmentList.append('DYLD_LIBRARY_PATH=' + self.dyldLibraryPath)
+            if self.dyldFrameworkPath:
+                environmentList.append('DYLD_FRAMEWORK_PATH=' + self.dyldFrameworkPath)
             launchInfo.SetEnvironmentEntries(environmentList, False)
             if self.breakOnMain_:
                 self.createBreakpointAtMain()
             self.process = self.target.Launch(launchInfo, error)
             if not error.Success():
-                self.reportError(error)
+                self.report(self.describeError(error))
                 self.reportState("enginerunfailed")
                 return
             self.report('pid="%s"' % self.process.GetProcessID())
@@ -769,15 +756,25 @@ class Dumper(DumperBase):
     def describeError(self, error):
         desc = lldb.SBStream()
         error.GetDescription(desc)
-        result = 'error={type="%s"' % error.GetType()
+        result = 'success="%s",' % int(error.Success())
+        result += 'error={type="%s"' % error.GetType()
+        if error.GetType():
+            result += ',status="%s"' % error.GetCString()
         result += ',code="%s"' % error.GetError()
         result += ',desc="%s"}' % desc.GetData()
         return result
 
-    def reportError(self, error):
-        self.report(self.describeError(error))
-        if error.GetType():
-            self.reportStatus(error.GetCString())
+    def describeStatus(self, status):
+        return 'status="%s",' % status
+
+    def describeLocation(self, frame):
+        if int(frame.pc) == 0xffffffffffffffff:
+            return ''
+        fileName = fileNameAsString(frame.line_entry.file)
+        function = frame.GetFunctionName()
+        line = frame.line_entry.line
+        return 'location={file="%s",line="%s",address="%s",function="%s"}' \
+            % (fileName, line, frame.pc, function)
 
     def currentThread(self):
         return None if self.process is None else self.process.GetSelectedThread()
@@ -785,13 +782,6 @@ class Dumper(DumperBase):
     def currentFrame(self):
         thread = self.currentThread()
         return None if thread is None else thread.GetSelectedFrame()
-
-    def reportLocation(self, frame):
-        if int(frame.pc) != 0xffffffffffffffff:
-            file = fileName(frame.line_entry.file)
-            line = frame.line_entry.line
-            self.report('location={file="%s",line="%s",addr="%s"}'
-                % (file, line, frame.pc))
 
     def firstStoppedThread(self):
         for i in xrange(0, self.process.GetNumThreads()):
@@ -805,9 +795,8 @@ class Dumper(DumperBase):
                 return thread
         return None
 
-    def reportThreads(self, args):
-        self.reportToken(args)
-        result = 'threads={threads=['
+    def fetchThreads(self, args):
+        result = 'threads=['
         for i in xrange(0, self.process.GetNumThreads()):
             thread = self.process.GetThreadAtIndex(i)
             if thread.is_stopped:
@@ -830,16 +819,12 @@ class Dumper(DumperBase):
             result += ',fp="0x%x"' % frame.fp
             result += ',func="%s"' % frame.GetFunctionName()
             result += ',line="%s"' % frame.line_entry.line
-            result += ',fullname="%s"' % fileName(frame.line_entry.file)
-            result += ',file="%s"' % fileName(frame.line_entry.file)
+            result += ',fullname="%s"' % fileNameAsString(frame.line_entry.file)
+            result += ',file="%s"' % fileNameAsString(frame.line_entry.file)
             result += '}},'
 
-        result += ']},'
-        self.report(result)
-
-    def reportCurrentThread(self, args):
-        self.reportToken(args)
-        self.report('current-thread={id="%s"}' % self.currentThread().id)
+        result += '],current-thread-id="%s"' % self.currentThread().id
+        self.reportResult(result, args)
 
     def firstUsableFrame(self, thread):
         for i in xrange(10):
@@ -850,19 +835,16 @@ class Dumper(DumperBase):
                 return i
         return None
 
-    def reportStack(self, args):
-        self.reportToken(args)
+    def fetchStack(self, args):
         if not self.process:
-            self.report('msg="No process"')
+            self.reportResult('msg="No process"', args)
             return
         thread = self.currentThread()
         if not thread:
-            self.report('msg="No thread"')
+            self.reportResult('msg="No thread"', args)
             return
 
-        self.reportLocation(thread.GetFrameAtIndex(0)) # FIXME
-
-        isNativeMixed = int(args.get('nativeMixed', 0))
+        isNativeMixed = int(args.get('nativemixed', 0))
 
         limit = args.get('stacklimit', -1)
         (n, isLimited) = (limit, True) if limit > 0 else (thread.GetNumFrames(), False)
@@ -881,56 +863,42 @@ class Dumper(DumperBase):
             pc = frame.GetPC()
             level = frame.idx
             addr = frame.GetPCAddress().GetLoadAddress(self.target)
+
             functionName = frame.GetFunctionName()
-            fullname = fileName(lineEntry.file)
-            usable = None
-            language = None
 
-            if isNativeMixed:
-                if self.isReportableQmlFrame(functionName):
-                    engine = frame.FindVariable("engine")
-                    self.context = engine
-                    h = self.extractQmlLocation(engine)
-                    pc = 0
-                    functionName = h['functionName']
-                    fullname = h['fileName']
-                    lineNumber = h['lineNumber']
-                    addr = h['context']
-                    language = 'js'
+            if isNativeMixed and functionName == "::qt_qmlDebugMessageAvailable()":
+                interpreterStack = self.extractInterpreterStack()
+                for interpreterFrame in interpreterStack.get('frames', []):
+                    function = interpreterFrame.get('function', '')
+                    fileName = interpreterFrame.get('file', '')
+                    language = interpreterFrame.get('language', '')
+                    lineNumber = interpreterFrame.get('line', 0)
+                    context = interpreterFrame.get('context', 0)
+                    result += ('frame={function="%s",file="%s",'
+                             'line="%s",language="%s",context="%s"}'
+                        % (function, fileName, lineNumber, language, context))
 
-                elif not functionName is None:
-                    if functionName.startswith("qt_v4"):
-                        usable = 0
-                    elif functionName.find("QV4::") >= 0:
-                        usable = 0
-
+            fileName = fileNameAsString(lineEntry.file)
             result += '{pc="0x%x"' % pc
             result += ',level="%d"' % level
-            result += ',addr="0x%x"' % addr
-            if not usable is None:
-                result += ',usable="%s"' % usable
-            result += ',func="%s"' % functionName
+            result += ',address="0x%x"' % addr
+            result += ',function="%s"' % functionName
             result += ',line="%d"' % lineNumber
-            if not language is None:
-                result += ',language="%s"' % language
-            result += ',fullname="%s"' % fullname
-            result += ',file="%s"},' % fullname
+            result += ',file="%s"},' % fileName
         result += ']'
         result += ',hasmore="%d"' % isLimited
         result += ',limit="%d"' % limit
         result += '}'
-        self.report(result)
-        self.reportContinuation(args)
+        self.reportResult(result, args)
+
+    def reportResult(self, result, args):
+        self.report('result={token="%s",%s}' % (args.get("token", 0), result))
 
     def reportToken(self, args):
         if "token" in args:
             # Unusual syntax intended, to support the double-click in left
             # logview pane feature.
             self.report('token(\"%s\")' % args["token"])
-
-    def reportContinuation(self, args):
-        if not self.isShuttingDown_ and "continuation" in args:
-            self.report('continuation=\"%s\"' % args["continuation"])
 
     def extractBlob(self, base, size):
         if size == 0:
@@ -989,7 +957,7 @@ class Dumper(DumperBase):
         #if int(addr) == 0xffffffffffffffff:
         #    raise RuntimeError("Illegal address")
         if self.currentPrintsAddress and not addr is None:
-            self.put('addr="0x%x",' % int(addr))
+            self.put('address="0x%x",' % int(addr))
 
     def isFunctionType(self, typeobj):
         if self.isGoodLldb:
@@ -1022,7 +990,7 @@ class Dumper(DumperBase):
             self.put('iname="%s",' % self.currentIName)
             self.putType(typeName)
             self.put('numchild="%s",' % numchild)
-            self.put('addr="0x%x",' % value.GetLoadAddress())
+            self.put('address="0x%x",' % value.GetLoadAddress())
             self.putItemCount(numchild)
             if self.currentIName in self.expandedINames:
                 with Children(self):
@@ -1072,13 +1040,13 @@ class Dumper(DumperBase):
             # Works:
             #item = self.currentThread().GetSelectedFrame().EvaluateExpression(
             #    "(%s*)0x%x" % (type, addr)).Dereference()
-            # Works:
-            item = value.CreateValueFromExpression(None,
-                "(%s*)0x%x" % (type, addr), lldb.SBExpressionOptions()).Dereference()
+            # Does not work on lldb-350.0.21.3:
+            #item = value.CreateValueFromExpression(None,
+            #    "(%s*)0x%x" % (type, addr), lldb.SBExpressionOptions()).Dereference()
             # Does not work:
             #item = value.CreateValueFromAddress(None, addr, type)
-            # Does not work:
-            #item = value.Cast(type.GetPointerType()).Dereference()
+            # Works:
+            item = value.Cast(type.GetPointerType()).Dereference()
             #warn("TOOO: %s" % item)
             self.putItem(item)
             self.putBetterType(value.GetTypeName())
@@ -1111,22 +1079,25 @@ class Dumper(DumperBase):
         # Normal value
         #numchild = 1 if value.MightHaveChildren() else 0
         numchild = value.GetNumChildren()
-        self.putType(typeName)
-        self.putEmptyValue(-1)
-        staticMetaObject = self.extractStaticMetaObject(value.GetType())
-        if staticMetaObject:
-            self.context = value
-            self.putQObjectNameValue(value)
-        else:
-            v = value.GetValue()
-            if v:
-                self.putValue(v)
+        v = value.GetValue()
+        if v:
+            self.putValue(v)
 
-        self.put('numchild="%s",' % numchild)
+        self.putType(typeName)
+        self.putEmptyValue()
+        self.putNumChild(numchild)
+        if self.showQObjectNames:
+            staticMetaObject = self.extractStaticMetaObject(value.GetType())
+            if staticMetaObject:
+                self.context = value
+                self.putQObjectNameValue(value)
 
         if self.currentIName in self.expandedINames:
+            self.put('sortable="1"')
             with Children(self):
                 self.putFields(value)
+                if not self.showQObjectNames:
+                    staticMetaObject = self.extractStaticMetaObject(value.GetType())
                 if staticMetaObject:
                     self.putQObjectGuts(value, staticMetaObject)
 
@@ -1142,23 +1113,40 @@ class Dumper(DumperBase):
                     self.putItem(child)
             return
 
-        n = value.GetNumChildren()
-        m = value.GetType().GetNumberOfDirectBaseClasses()
-        if n > 10000:
-            n = 10000
-        # seems to happen in the 'inheritance' autotest
-        if m > n:
-            m = n
-        for i in xrange(m):
-            child = value.GetChildAtIndex(i)
-            with UnnamedSubItem(self, "@%d" % (i + 1)):
-                self.put('iname="%s",' % self.currentIName)
-                self.put('name="[%s]",' % child.name)
-                self.putItem(child)
+        memberBase = 0  # Start of members.
 
-        children = [value.GetChildAtIndex(i) for i in xrange(m, n)]
-        if self.sortStructMembers:
-            children.sort(key = lambda child: str(child.GetName()))
+        class ChildItem:
+            def __init__(self, name, value):
+                self.name = name
+                self.value = value
+
+        baseObjects = []
+        # GetNumberOfDirectBaseClasses() includes(!) GetNumberOfVirtualBaseClasses()
+        # so iterating over .GetNumberOfDirectBaseClasses() is correct.
+        for i in xrange(value.GetType().GetNumberOfDirectBaseClasses()):
+            baseClass = value.GetType().GetDirectBaseClassAtIndex(i).GetType()
+            baseChildCount = baseClass.GetNumberOfFields() \
+                + baseClass.GetNumberOfDirectBaseClasses()
+            if baseChildCount:
+                baseObjects.append(ChildItem(baseClass.GetName(), value.GetChildAtIndex(memberBase)))
+                memberBase += 1
+            else:
+                # This base object is empty, but exists and will *not* be reported
+                # by value.GetChildCount(). So manually report the empty base class.
+                baseObject = value.Cast(baseClass)
+                baseObjects.append(ChildItem(baseClass.GetName(), baseObject))
+
+        for i in xrange(len(baseObjects)):
+            baseObject = baseObjects[i]
+            with UnnamedSubItem(self, "@%d" % (i + 1)):
+               self.put('iname="%s",' % self.currentIName)
+               self.put('name="[%s]",' % baseObject.name)
+               self.putItem(baseObject.value)
+
+        memberCount = value.GetNumChildren()
+        if memberCount > 10000:
+            memberCount = 10000
+        children = [value.GetChildAtIndex(memberBase + i) for i in xrange(memberCount)]
         for child in children:
             # Only needed in the QVariant4 test.
             if int(child.GetLoadAddress()) == 0xffffffffffffffff:
@@ -1171,22 +1159,33 @@ class Dumper(DumperBase):
                 with SubItem(self, child):
                     self.putItem(child)
 
-    def reportVariables(self, args = {}):
-        with self.outputLock:
-            sys.stdout.write("@\n")
-            self.reportVariablesHelper(args)
-            sys.stdout.write("@\n")
-
-    def reportVariablesHelper(self, args = {}):
-        frame = self.currentFrame()
-        if frame is None:
+    def fetchVariables(self, args):
+        (ok, res) = self.tryFetchInterpreterVariables(args)
+        if ok:
+            self.reportResult(res, args)
             return
 
-        partialVariable = args.get("partialVariable", "")
+        self.expandedINames = set(args.get('expanded', []))
+        self.autoDerefPointers = int(args.get('autoderef', '0'))
+        self.useDynamicType = int(args.get('dyntype', '0'))
+        self.useFancy = int(args.get('fancy', '0'))
+        self.passExceptions = int(args.get('passexceptions', '0'))
+        self.showQObjectNames = int(args.get('qobjectnames', '0'))
+        self.currentWatchers = args.get('watchers', {})
+        self.typeformats = args.get('typeformats', {})
+        self.formats = args.get('formats', {})
+
+        frame = self.currentFrame()
+        if frame is None:
+            self.reportResult('error="No frame"', args)
+            return
+
+        self.output = ''
+        partialVariable = args.get('partialvar', "")
         isPartial = len(partialVariable) > 0
 
         self.currentIName = 'local'
-        self.put('all={data=[')
+        self.put('data=[')
         self.anonNumber = 0
         shadowed = {}
         ids = {} # Filter out duplicates entries at the same address.
@@ -1248,72 +1247,78 @@ class Dumper(DumperBase):
 
         self.handleWatches(args)
 
-        self.put('],partial="%d"}' % isPartial)
+        self.put('],partial="%d"' % isPartial)
+        self.reportResult(self.output, args)
 
-    def reportData(self, _ = None):
+    def fetchRegisters(self, args = None):
         if self.process is None:
-            self.report('process="none"')
-        else:
-            state = self.process.GetState()
-            if state == lldb.eStateStopped:
-                self.reportVariables()
-
-    def reportRegisters(self, _ = None):
-        if self.process is None:
-            self.report('process="none"')
+            result = 'process="none"'
         else:
             frame = self.currentFrame()
             if frame:
                 result = 'registers=['
                 for group in frame.GetRegisters():
                     for reg in group:
+                        value = ''.join(["%02x" % x for x in reg.GetData().uint8s])
                         result += '{name="%s"' % reg.GetName()
-                        value = reg.GetValue()
-                        if value is None:
-                            result += ',value=""'
-                        else:
-                            result += ',value="%s"' % value
+                        result += ',value="0x%s"' % value
                         result += ',size="%s"' % reg.GetByteSize()
                         result += ',type="%s"},' % reg.GetType()
                 result += ']'
-                self.report(result)
+        self.reportResult(result, args)
+
+    def setRegister(self, args):
+        name = args["name"]
+        value = args["value"]
+        result = lldb.SBCommandReturnObject()
+        interp = self.debugger.GetCommandInterpreter()
+        interp.HandleCommand("register write %s %s" % (name, value), result)
+        success = result.Succeeded()
+        if success:
+            self.reportResult('output="%s"' % result.GetOutput(), args)
+            return
+        # Try again with  register write xmm0 "{0x00 ... 0x02}" syntax:
+        vec = ' '.join(["0x" + value[i:i+2] for i in range(2, len(value), 2)])
+        success = interp.HandleCommand('register write %s "{%s}"' % (name, vec), result)
+        if success:
+            self.reportResult('output="%s"' % result.GetOutput(), args)
+        else:
+            self.reportResult('error="%s"' % result.GetError(), args)
 
     def report(self, stuff):
         with self.outputLock:
             sys.stdout.write("@\n" + stuff + "@\n")
 
-    def reportStatus(self, msg):
-        self.report('statusmessage="%s"' % msg)
+    def reportState(self, state):
+        self.report('state="%s"' % state)
 
-    def interruptInferior(self, _ = None):
+    def interruptInferior(self, args):
         if self.process is None:
-            self.reportStatus("No process to interrupt.")
-            return
-        self.isInterrupting_ = True
-        error = self.process.Stop()
-        self.reportError(error)
+            self.reportResult('status="No process to interrupt",success="0"', args)
+        else:
+            self.isInterrupting_ = True
+            error = self.process.Stop()
+            self.reportResult(self.describeError(error), args)
 
-    def detachInferior(self, _ = None):
+    def detachInferior(self, args):
         if self.process is None:
-            self.reportStatus("No process to detach from.")
+            self.reportResult('status="No process to detach from."', args)
         else:
             error = self.process.Detach()
-            self.reportError(error)
-            self.reportData()
+            self.reportResult(self.describeError(error), args)
 
-    def continueInferior(self, _ = None):
+    def continueInferior(self, args):
         if self.process is None:
-            self.reportStatus("No process to continue.")
+            self.reportResult('status="No process to continue."', args)
         else:
+            # Can fail when attaching to GDBserver.
             error = self.process.Continue()
-            self.reportError(error)
-            # Happens when attaching to GDBserver.
-            if not error.Success():
-                self.reportState("inferiorill")
+            self.reportResult(self.describeError(error), args)
 
-    def quitDebugger(self, _ = None):
+    def quitDebugger(self, args):
         self.reportState("inferiorshutdownrequested")
         self.process.Kill()
+        self.reportResult('', args)
 
     def handleEvent(self, event):
         out = lldb.SBStream()
@@ -1342,28 +1347,31 @@ class Dumper(DumperBase):
                     frame = stoppedThread.GetFrameAtIndex(0)
                     #self.report("FRAME: %s" % frame)
                     function = frame.GetFunction()
-                    #self.report("FUNCTION: %s" % function)
-                    if function.GetName() == "qt_v4ResolvePendingBreakpointsHook":
-                        #self.report("RESOLVER HIT")
-                        for bp in self.qmlBreakpointResolvers:
-                            self.qmlBreakpointResolvers[bp]()
-                            self.target.BreakpointDelete(bp.GetID())
-                        self.qmlBreakpointResolvers = {}
+                    functionName = function.GetName()
+                    if functionName == "::qt_qmlDebugConnectorOpen()":
+                        self.report("RESOLVER HIT")
+                        for resolver in self.interpreterBreakpointResolvers:
+                            resolver()
+                        self.report("AUTO-CONTINUE AFTER RESOLVING")
+                        self.reportState("inferiorstopok")
                         self.process.Continue();
                         return
-
+                    if functionName == "::qt_qmlDebugMessageAvailable()":
+                        self.report("ASYNC MESSAGE FROM SERVICE")
+                        res = self.handleInterpreterMessage()
+                        if not res:
+                            self.report("EVENT NEEDS NO STOP")
+                            self.reportState("stopped")
+                            self.process.Continue();
+                            return
                 if self.isInterrupting_:
                     self.isInterrupting_ = False
-                    self.reportState("inferiorstopok")
+                    self.reportState("stopped")
                 elif self.ignoreStops > 0:
                     self.ignoreStops -= 1
                     self.process.Continue()
                 elif self.silentStops > 0:
                     self.silentStops -= 1
-                #elif bp and bp in self.qmlBreakpointResolvers:
-                #    self.report("RESOLVER HIT")
-                #    self.qmlBreakpointResolvers[bp]()
-                #    self.process.Continue();
                 else:
                     self.reportState("stopped")
             else:
@@ -1379,17 +1387,14 @@ class Dumper(DumperBase):
         elif eventType == lldb.SBProcess.eBroadcastBitSTDOUT:
             # FIXME: Size?
             msg = self.process.GetSTDOUT(1024)
-            self.report('output={channel="stdout",data="%s"}'
-                % self.hexencode(msg))
+            if msg is not None:
+                self.report('output={channel="stdout",data="%s"}' % self.hexencode(msg))
         elif eventType == lldb.SBProcess.eBroadcastBitSTDERR:
             msg = self.process.GetSTDERR(1024)
-            self.report('output={channel="stderr",data="%s"}'
-                % self.hexencode(msg))
+            if msg is not None:
+                self.report('output={channel="stderr",data="%s"}' % self.hexencode(msg))
         elif eventType == lldb.SBProcess.eBroadcastBitProfileData:
             pass
-
-    def reportState(self, state):
-        self.report('state="%s"' % state)
 
     def describeBreakpoint(self, bp):
         isWatch = isinstance(bp, lldb.SBWatchpoint)
@@ -1397,28 +1402,26 @@ class Dumper(DumperBase):
             result  = 'lldbid="%s"' % (qqWatchpointOffset + bp.GetID())
         else:
             result  = 'lldbid="%s"' % bp.GetID()
-        if not bp.IsValid():
-            return
+        result += ',valid="%s"' % (1 if bp.IsValid() else 0)
         result += ',hitcount="%s"' % bp.GetHitCount()
-        if hasattr(bp, 'GetThreadID'):
-            result += ',threadid="%s"' % bp.GetThreadID()
-        if hasattr(bp, 'IsOneShot'):
-            result += ',oneshot="%s"' % (1 if bp.IsOneShot() else 0)
-        if hasattr(bp, 'GetCondition'):
-            cond = bp.GetCondition()
-            result += ',condition="%s"' % self.hexencode("" if cond is None else cond)
+        if bp.IsValid():
+            if isinstance(bp, lldb.SBBreakpoint):
+                result += ',threadid="%s"' % bp.GetThreadID()
+                result += ',oneshot="%s"' % (1 if bp.IsOneShot() else 0)
+        cond = bp.GetCondition()
+        result += ',condition="%s"' % self.hexencode("" if cond is None else cond)
         result += ',enabled="%s"' % (1 if bp.IsEnabled() else 0)
         result += ',valid="%s"' % (1 if bp.IsValid() else 0)
         result += ',ignorecount="%s"' % bp.GetIgnoreCount()
-        result += ',locations=['
-        lineEntry = None
-        if hasattr(bp, 'GetNumLocations'):
+        if bp.IsValid() and isinstance(bp, lldb.SBBreakpoint):
+            result += ',locations=['
+            lineEntry = None
             for i in xrange(bp.GetNumLocations()):
                 loc = bp.GetLocationAtIndex(i)
                 addr = loc.GetAddress()
                 lineEntry = addr.GetLineEntry()
                 result += '{locid="%s"' % loc.GetID()
-                result += ',func="%s"' % addr.GetFunction().GetName()
+                result += ',function="%s"' % addr.GetFunction().GetName()
                 result += ',enabled="%s"' % (1 if loc.IsEnabled() else 0)
                 result += ',resolved="%s"' % (1 if loc.IsResolved() else 0)
                 result += ',valid="%s"' % (1 if loc.IsValid() else 0)
@@ -1426,10 +1429,10 @@ class Dumper(DumperBase):
                 result += ',file="%s"' % lineEntry.GetFileSpec()
                 result += ',line="%s"' % lineEntry.GetLine()
                 result += ',addr="%s"},' % addr.GetFileAddress()
-        result += ']'
-        if lineEntry is not None:
-            result += ',file="%s"' % lineEntry.GetFileSpec()
-            result += ',line="%s"' % lineEntry.GetLine()
+            result += ']'
+            if lineEntry is not None:
+                result += ',file="%s"' % lineEntry.GetFileSpec()
+                result += ',line="%s"' % lineEntry.GetLine()
         return result
 
     def createBreakpointAtMain(self):
@@ -1439,16 +1442,16 @@ class Dumper(DumperBase):
     def insertBreakpoint(self, args):
         bpType = args["type"]
         if bpType == BreakpointByFileAndLine:
-            fileName = args["fileName"]
+            fileName = args["file"]
             if fileName.endswith(".js") or fileName.endswith(".qml"):
-                self.insertQmlBreakpoint(args)
+                self.insertInterpreterBreakpoint(args)
                 return
 
+        extra = ''
         more = True
-        modelId = args['modelid']
         if bpType == BreakpointByFileAndLine:
             bp = self.target.BreakpointCreateByLocation(
-                str(args["fileName"]), int(args["lineNumber"]))
+                str(args["file"]), int(args["line"]))
         elif bpType == BreakpointByFunction:
             bp = self.target.BreakpointCreateByName(args["function"])
         elif bpType == BreakpointByAddress:
@@ -1463,9 +1466,10 @@ class Dumper(DumperBase):
                 lldb.eLanguageTypeC_plus_plus, True, False)
         elif bpType == WatchpointAtAddress:
             error = lldb.SBError()
+            # This might yield bp.IsValid() == False and
+            # error.desc == "process is not alive".
             bp = self.target.WatchAddress(args["address"], 4, False, True, error)
-            #warn("BPNEW: %s" % bp)
-            self.reportError(error)
+            extra = self.describeError(error)
         elif bpType == WatchpointAtExpression:
             # FIXME: Top level-only for now.
             try:
@@ -1482,39 +1486,51 @@ class Dumper(DumperBase):
             bp = self.target.BreakpointCreateByName(None)
             more = False
 
-        if more:
+        if more and bp.IsValid():
             bp.SetIgnoreCount(int(args["ignorecount"]))
-            if hasattr(bp, 'SetCondition'):
-                bp.SetCondition(self.hexdecode(args["condition"]))
+            bp.SetCondition(self.hexdecode(args["condition"]))
             bp.SetEnabled(bool(args["enabled"]))
-            if hasattr(bp, 'SetOneShot'):
+            bp.SetScriptCallbackBody('\n'.join([
+                "def foo(frame = frame, bp_loc = bp_loc, dict = internal_dict):",
+                "  " + self.hexdecode(args["command"]).replace('\n', '\n  '),
+                "from cStringIO import StringIO",
+                "origout = sys.stdout",
+                "sys.stdout = StringIO()",
+                "result = foo()",
+                "d = lldb.theDumper",
+                "output = d.hexencode(sys.stdout.getvalue())",
+                "sys.stdout = origout",
+                "d.report('output={channel=\"stderr\",data=\"' + output + '\"}')",
+                "if result is False:",
+                "  d.reportState('continueafternextstop')",
+                "return True"
+            ]))
+            if isinstance(bp, lldb.SBBreakpoint):
                 bp.SetOneShot(bool(args["oneshot"]))
-        self.report('breakpoint-added={%s,modelid="%s"}' % (self.describeBreakpoint(bp), modelId))
+        self.reportResult(self.describeBreakpoint(bp) + extra, args)
 
     def changeBreakpoint(self, args):
         lldbId = int(args["lldbid"])
-        modelId = args['modelid']
         if lldbId > qqWatchpointOffset:
             bp = self.target.FindWatchpointByID(lldbId)
         else:
             bp = self.target.FindBreakpointByID(lldbId)
-        bp.SetIgnoreCount(int(args["ignorecount"]))
-        bp.SetCondition(self.hexdecode(args["condition"]))
-        bp.SetEnabled(bool(args["enabled"]))
-        if hasattr(bp, 'SetOneShot'):
-            bp.SetOneShot(bool(args["oneshot"]))
-        self.report('breakpoint-changed={%s,modelid="%s"}'
-              % (self.describeBreakpoint(bp), modelId))
+        if bp.IsValid():
+            bp.SetIgnoreCount(int(args["ignorecount"]))
+            bp.SetCondition(self.hexdecode(args["condition"]))
+            bp.SetEnabled(bool(args["enabled"]))
+            if isinstance(bp, lldb.SBBreakpoint):
+                bp.SetOneShot(bool(args["oneshot"]))
+        self.reportResult(self.describeBreakpoint(bp), args)
 
     def removeBreakpoint(self, args):
         lldbId = int(args['lldbid'])
-        modelId = args['modelid']
         if lldbId > qqWatchpointOffset:
             res = self.target.DeleteWatchpoint(lldbId - qqWatchpointOffset)
         res = self.target.BreakpointDelete(lldbId)
-        self.report('breakpoint-removed={modelid="%s"}' % modelId)
+        self.reportResult('success="%s"' % int(res), args)
 
-    def listModules(self, args):
+    def fetchModules(self, args):
         result = 'modules=['
         for i in xrange(self.target.GetNumModules()):
             module = self.target.GetModuleAtIndex(i)
@@ -1530,9 +1546,9 @@ class Dumper(DumperBase):
             #result += '}'
             result += '},'
         result += ']'
-        self.report(result)
+        self.reportResult(result, args)
 
-    def listSymbols(self, args):
+    def fetchSymbols(self, args):
         moduleName = args['module']
         #file = lldb.SBFileSpec(moduleName)
         #module = self.target.FindModule(file)
@@ -1540,8 +1556,7 @@ class Dumper(DumperBase):
             module = self.target.GetModuleAtIndex(i)
             if module.file.fullpath == moduleName:
                 break
-        result = 'symbols={module="%s"' % moduleName
-        result += ',valid="%s"' % module.IsValid()
+        result = 'symbols={valid="%s"' % module.IsValid()
         result += ',sections="%s"' % module.GetNumSections()
         result += ',symbols=['
         for symbol in module.symbols:
@@ -1554,18 +1569,21 @@ class Dumper(DumperBase):
             result += ',size="%s"' % (endAddress - startAddress)
             result += '},'
         result += ']}'
-        self.report(result)
+        self.reportResult(result, args)
 
-    def executeNext(self, _ = None):
+    def executeNext(self, args):
         self.currentThread().StepOver()
+        self.reportResult('', args)
 
-    def executeNextI(self, _ = None):
+    def executeNextI(self, args):
         self.currentThread().StepInstruction(lldb.eOnlyThisThread)
+        self.reportResult('', args)
 
-    def executeStep(self, _ = None):
+    def executeStep(self, args):
         self.currentThread().StepInto()
+        self.reportResult('', args)
 
-    def shutdownInferior(self, _ = None):
+    def shutdownInferior(self, args):
         self.isShuttingDown_ = True
         if self.process is None:
             self.reportState("inferiorshutdownok")
@@ -1574,19 +1592,20 @@ class Dumper(DumperBase):
             if state == lldb.eStateStopped:
                 self.process.Kill()
             self.reportState("inferiorshutdownok")
+        self.reportResult('', args)
 
-    def quit(self, args = {}):
-        self.reportToken(args)
+    def quit(self, args):
         self.reportState("engineshutdownok")
         self.process.Kill()
+        self.reportResult('', args)
 
-    def executeStepI(self, args = {}):
-        self.reportToken(args)
+    def executeStepI(self, args):
         self.currentThread().StepInstruction(lldb.eOnlyThisThread)
+        self.reportResult('', args)
 
     def executeStepOut(self, args = {}):
-        self.reportToken(args)
         self.currentThread().StepOut()
+        self.reportResult('', args)
 
     def executeRunToLocation(self, args):
         self.reportToken(args)
@@ -1597,28 +1616,26 @@ class Dumper(DumperBase):
             bp = self.target.BreakpointCreateByAddress(addr)
             if bp.GetNumLocations() == 0:
                 self.target.BreakpointDelete(bp.GetID())
-                self.reportStatus("No target location found.")
-                self.reportLocation(frame)
+                self.reportResult(self.describeStatus("No target location found.")
+                    + self.describeLocation(frame), args)
                 return
             bp.SetOneShot(True)
+            self.reportResult('', args)
             self.process.Continue()
         else:
             frame = self.currentFrame()
             file = args['file']
             line = int(args['line'])
             error = self.currentThread().StepOverUntil(frame, lldb.SBFileSpec(file), line)
-            if error.GetType():
-                self.reportState("running")
-                self.reportState("stopped")
-                self.reportError(error)
-            else:
-                self.reportData()
+            self.reportResult(self.describeError(error), args)
+            self.reportState("running")
+            self.reportState("stopped")
 
     def executeJumpToLocation(self, args):
         self.reportToken(args)
         frame = self.currentFrame()
         if not frame:
-            self.reportStatus("No frame available.")
+            self.reportResult(self.describeStatus("No frame available."), args)
             return
         addr = args.get('address', 0)
         if addr:
@@ -1628,16 +1645,13 @@ class Dumper(DumperBase):
                         str(args['file']), int(args['line']))
         if bp.GetNumLocations() == 0:
             self.target.BreakpointDelete(bp.GetID())
-            self.reportStatus("No target location found.")
-            self.reportLocation(frame)
-            return
-        loc = bp.GetLocationAtIndex(0)
-        self.target.BreakpointDelete(bp.GetID())
-        if frame.SetPC(loc.GetLoadAddress()):
-            self.report("Jumped.")
+            status = "No target location found."
         else:
-            self.report("Cannot jump.")
-        self.reportLocation(frame)
+            loc = bp.GetLocationAtIndex(0)
+            self.target.BreakpointDelete(bp.GetID())
+            res = frame.SetPC(loc.GetLoadAddress())
+            status = "Jumped." if res else "Cannot jump."
+        self.reportResult(self.describeStatus(status) + self.describeLocation(frame), args)
 
     def breakList(self):
         result = lldb.SBCommandReturnObject()
@@ -1646,23 +1660,24 @@ class Dumper(DumperBase):
             % (result.Succeeded(), result.GetOutput(), result.GetError()))
 
     def activateFrame(self, args):
+        self.reportToken(args)
         thread = args['thread']
         self.currentThread().SetSelectedFrame(args['index'])
-        self.reportContinuation(args)
+        self.reportResult('', args)
 
     def selectThread(self, args):
+        self.reportToken(args)
         self.process.SetSelectedThreadByID(args['id'])
+        self.reportResult('', args)
 
-    def requestModuleSymbols(self, frame):
-        self.handleCommand("target module list " + frame)
-
-    def createFullBacktrace(self, _ = None):
+    def fetchFullBacktrace(self, _ = None):
         command = "thread backtrace all"
         result = lldb.SBCommandReturnObject()
         self.debugger.GetCommandInterpreter().HandleCommand(command, result)
-        self.report('full-backtrace="%s"' % self.hexencode(result.GetOutput()))
+        self.reportResult(self.hexencode(result.GetOutput()), {})
 
     def executeDebuggerCommand(self, args):
+        self.reportToken(args)
         result = lldb.SBCommandReturnObject()
         command = args['command']
         self.debugger.GetCommandInterpreter().HandleCommand(command, result)
@@ -1671,20 +1686,7 @@ class Dumper(DumperBase):
         error = str(result.GetError())
         self.report('success="%d",output="%s",error="%s"' % (success, output, error))
 
-    def updateData(self, args):
-        self.reportToken(args)
-        self.expandedINames = set(args.get('expanded', []))
-        self.autoDerefPointers = int(args.get('autoderef', '0'))
-        self.sortStructMembers = bool(args.get("sortStructMembers", True));
-        self.useDynamicType = int(args.get('dyntype', '0'))
-        self.useFancy = int(args.get('fancy', '0'))
-        self.passExceptions = int(args.get('passexceptions', '0'))
-        self.currentWatchers = args.get('watchers', {})
-        self.typeformats = args.get("typeformats", {})
-        self.formats = args.get("formats", {})
-        self.reportVariables(args)
-
-    def disassemble(self, args):
+    def fetchDisassembler(self, args):
         functionName = args.get('function', '')
         flavor = args.get('flavor', '')
         function = None
@@ -1703,37 +1705,66 @@ class Dumper(DumperBase):
             addr = lldb.SBAddress(base, self.target)
             instructions = self.target.ReadInstructions(addr, 100)
 
-        result = 'disassembly={cookie="%s",' % args['cookie']
-        result += ',lines=['
+        currentFile = None
+        currentLine = None
+        hunks = dict()
+        sources = dict()
+        result = 'lines=['
         for insn in instructions:
             comment = insn.GetComment(self.target)
-            addr = insn.GetAddress().GetLoadAddress(self.target)
-            result += '{address="%s"' % addr
-            result += ',inst="%s %s"' % (insn.GetMnemonic(self.target),
+            addr = insn.GetAddress()
+            loadAddr = addr.GetLoadAddress(self.target)
+            lineEntry = addr.GetLineEntry()
+            if lineEntry:
+                lineNumber = lineEntry.GetLine()
+                fileName = str(lineEntry.GetFileSpec())
+                if lineNumber != currentLine or fileName != currentFile:
+                    currentLine = lineNumber
+                    currentFile = fileName
+                    key = "%s:%s" % (fileName, lineNumber)
+                    hunk = hunks.get(key, 0) + 1
+                    hunks[key] = hunk
+                    source = sources.get(fileName, None)
+                    if source is None:
+                        try:
+                            with open(fileName, 'r') as f:
+                                source = f.read().splitlines()
+                                sources[fileName] = source
+                        except IOError as error:
+                            # With lldb-3.8 files like /data/dev/creator-3.6/tests/
+                            # auto/debugger/qt_tst_dumpers_StdVector_bfNWZa/main.cpp
+                            # with non-existent directories appear.
+                            warn("FILE: %s  ERROR: %s" % (fileName, error))
+                            source = ""
+                    result += '{line="%s"' % lineNumber
+                    result += ',file="%s"' % fileName
+                    if 0 < lineNumber and lineNumber <= len(source):
+                        result += ',data="%s"' % source[lineNumber - 1]
+                    result += ',hunk="%s"}' % hunk
+            result += '{address="%s"' % loadAddr
+            result += ',data="%s %s"' % (insn.GetMnemonic(self.target),
                 insn.GetOperands(self.target))
-            result += ',func_name="%s"' % functionName
+            result += ',function="%s"' % functionName
+            rawData = insn.GetData(lldb.target).uint8s
+            result += ',rawdata="%s"' % ' '.join(["%02x" % x for x in rawData])
             if comment:
-                result += ',comment="%s"' % comment
-            result += ',offset="%s"},' % (addr - base)
-        self.report(result + ']')
+                result += ',comment="%s"' % self.hexencode(comment)
+            result += ',offset="%s"}' % (loadAddr - base)
+        self.reportResult(result + ']', args)
 
     def loadDumpers(self, args):
-        self.reportToken(args)
-        self.setupDumpers()
-
-    def reportDumpers(self, msg):
-        self.report(msg)
+        msg = self.setupDumpers()
+        self.reportResult(msg, args)
 
     def fetchMemory(self, args):
         address = args['address']
         length = args['length']
         error = lldb.SBError()
         contents = self.process.ReadMemory(address, length, error)
-        result = 'memory={cookie="%s",' % args['cookie']
-        result += ',address="%s",' % address
+        result = 'address="%s",' % address
         result += self.describeError(error)
-        result += ',contents="%s"}' % self.hexencode(contents)
-        self.report(result)
+        result += ',contents="%s"' % self.hexencode(contents)
+        self.reportResult(result, args)
 
     def findValueByExpression(self, exp):
         # FIXME: Top level-only for now.
@@ -1742,36 +1773,27 @@ class Dumper(DumperBase):
         return value
 
     def assignValue(self, args):
+        self.reportToken(args)
         error = lldb.SBError()
         exp = self.hexdecode(args['exp'])
         value = self.hexdecode(args['value'])
         lhs = self.findValueByExpression(exp)
         lhs.SetValueFromCString(value, error)
-        self.reportError(error)
-        self.reportVariables()
+        self.reportResult(self.describeError(error), args)
 
     def createResolvePendingBreakpointsHookBreakpoint(self, args):
-        if self.qmlTriggeredBreakpoint is None:
-            self.qmlTriggeredBreakpoint = \
-                self.target.BreakpointCreateByName("qt_v4TriggeredBreakpointHook")
-
-        bp = self.target.BreakpointCreateByName("qt_v4ResolvePendingBreakpointsHook")
+        bp = self.target.BreakpointCreateByName("qt_qmlDebugConnectorOpen")
         bp.SetOneShot(True)
-        self.qmlBreakpointResolvers[bp] = lambda: \
-            self.doInsertQmlBreakpoint(args)
+        self.interpreterBreakpointResolvers.append(
+            lambda: self.resolvePendingInterpreterBreakpoint(args))
 
 
 # Used in dumper auto test.
 class Tester(Dumper):
-    def __init__(self, binary, expandedINames):
+    def __init__(self, binary, args):
         Dumper.__init__(self)
         lldb.theDumper = self
-
-        self.expandedINames = set(expandedINames)
-        self.passExceptions = True
-        self.sortStructMembers = True
-
-        self.loadDumpers({})
+        self.loadDumpers({'token': 1})
         error = lldb.SBError()
         self.target = self.debugger.CreateTarget(binary, None, None, True, error)
 
@@ -1779,14 +1801,14 @@ class Tester(Dumper):
             warn("ERROR: %s" % error)
             return
 
-        s = threading.Thread(target=self.testLoop, args=[])
+        s = threading.Thread(target=self.testLoop, args=(args,))
         s.start()
         s.join(30)
 
     def reportDumpers(self, msg):
         pass
 
-    def testLoop(self):
+    def testLoop(self, args):
         # Disable intermediate reporting.
         savedReport = self.report
         self.report = lambda stuff: 0
@@ -1829,8 +1851,8 @@ class Tester(Dumper):
                         if line != 0:
                             self.report = savedReport
                             self.process.SetSelectedThread(stoppedThread)
-                            self.reportVariables()
-                            #self.reportLocation(frame)
+                            self.fetchVariables(args)
+                            #self.describeLocation(frame)
                             self.report("@NS@%s@" % self.qtNamespace())
                             #self.report("ENV=%s" % os.environ.items())
                             #self.report("DUMPER=%s" % self.qqDumpers)

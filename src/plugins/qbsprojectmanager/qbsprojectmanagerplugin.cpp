@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -34,6 +29,7 @@
 #include "qbsbuildstep.h"
 #include "qbscleanstep.h"
 #include "qbsdeployconfigurationfactory.h"
+#include "qbsinfopage.h"
 #include "qbsinstallstep.h"
 #include "qbsnodes.h"
 #include "qbsprofilessettingspage.h"
@@ -98,7 +94,7 @@ bool QbsProjectManagerPlugin::initialize(const QStringList &arguments, QString *
 
     const Core::Context projectContext(::QbsProjectManager::Constants::PROJECT_ID);
 
-    Core::FileIconProvider::registerIconOverlayForSuffix(QtSupport::Constants::ICON_QT_PROJECT, "qbs");
+    Core::FileIconProvider::registerIconOverlayForSuffix(ProjectExplorer::Constants::FILEOVERLAY_QT, "qbs");
 
     //create and register objects
     addAutoReleasedObject(new QbsManager);
@@ -109,6 +105,7 @@ bool QbsProjectManagerPlugin::initialize(const QStringList &arguments, QString *
     addAutoReleasedObject(new QbsDeployConfigurationFactory);
     addAutoReleasedObject(new QbsRunConfigurationFactory);
     addAutoReleasedObject(new QbsProfilesSettingsPage);
+    addAutoReleasedObject(new QbsInfoPage);
 
     //menus
     // Build Menu:
@@ -288,7 +285,7 @@ void QbsProjectManagerPlugin::updateBuildActions()
                 && !BuildManager::isBuilding(m_editorProject)
                 && !m_editorProject->isParsing();
 
-        fileName = m_editorNode->path().fileName();
+        fileName = m_editorNode->filePath().fileName();
         fileVisible = m_editorProject && m_editorNode && dynamic_cast<QbsBaseProjectNode *>(m_editorNode->projectNode());
 
         QbsProductNode *productNode
@@ -361,7 +358,7 @@ void QbsProjectManagerPlugin::buildFileContextMenu()
     QTC_ASSERT(m_selectedNode, return);
     QTC_ASSERT(m_selectedProject, return);
 
-    buildSingleFile(m_selectedProject, m_selectedNode->path().toString());
+    buildSingleFile(m_selectedProject, m_selectedNode->filePath().toString());
 }
 
 void QbsProjectManagerPlugin::buildFile()
@@ -369,7 +366,7 @@ void QbsProjectManagerPlugin::buildFile()
     if (!m_editorProject || !m_editorNode)
         return;
 
-    buildSingleFile(m_editorProject, m_editorNode->path().toString());
+    buildSingleFile(m_editorProject, m_editorNode->filePath().toString());
 }
 
 void QbsProjectManagerPlugin::buildProductContextMenu()

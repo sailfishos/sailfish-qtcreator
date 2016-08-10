@@ -1,32 +1,27 @@
-#############################################################################
-##
-## Copyright (C) 2015 The Qt Company Ltd.
-## Contact: http://www.qt.io/licensing
-##
-## This file is part of Qt Creator.
-##
-## Commercial License Usage
-## Licensees holding valid commercial Qt licenses may use this file in
-## accordance with the commercial license agreement provided with the
-## Software or, alternatively, in accordance with the terms contained in
-## a written agreement between you and The Qt Company.  For licensing terms and
-## conditions see http://www.qt.io/terms-conditions.  For further information
-## use the contact form at http://www.qt.io/contact-us.
-##
-## GNU Lesser General Public License Usage
-## Alternatively, this file may be used under the terms of the GNU Lesser
-## General Public License version 2.1 or version 3 as published by the Free
-## Software Foundation and appearing in the file LICENSE.LGPLv21 and
-## LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-## following information to ensure the GNU Lesser General Public License
-## requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-## http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-##
-## In addition, as a special exception, The Qt Company gives you certain additional
-## rights.  These rights are described in The Qt Company LGPL Exception
-## version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
-##
-#############################################################################
+############################################################################
+#
+# Copyright (C) 2016 The Qt Company Ltd.
+# Contact: https://www.qt.io/licensing/
+#
+# This file is part of Qt Creator.
+#
+# Commercial License Usage
+# Licensees holding valid commercial Qt licenses may use this file in
+# accordance with the commercial license agreement provided with the
+# Software or, alternatively, in accordance with the terms contained in
+# a written agreement between you and The Qt Company. For licensing terms
+# and conditions see https://www.qt.io/terms-conditions. For further
+# information use the contact form at https://www.qt.io/contact-us.
+#
+# GNU General Public License Usage
+# Alternatively, this file may be used under the terms of the GNU
+# General Public License version 3 as published by the Free Software
+# Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+# included in the packaging of this file. Please review the following
+# information to ensure the GNU General Public License requirements will
+# be met: https://www.gnu.org/licenses/gpl-3.0.html.
+#
+############################################################################
 
 source("../../shared/qtcreator.py")
 
@@ -63,7 +58,7 @@ def performAutoCompletionTest(editor, lineToStartRegEx, linePrefix, testFunc, *f
         type(editor, bol)
         currentLine = moveDownToNextNonEmptyLine(editor)
 
-def checkIncludeCompletion(editor):
+def checkIncludeCompletion(editor, isClangCodeModel):
     test.log("Check auto-completion of include statements.")
     # define special handlings
     noProposal = ["vec", "detail/hea", "dum"]
@@ -81,8 +76,12 @@ def checkIncludeCompletion(editor):
         missing, noProposal, specialHandling = args
         inclSnippet = currentLine.split("//#include")[-1].strip().strip('<"')
         propShown = waitFor("object.exists(':popupFrame_TextEditor::GenericProposalWidget')", 2500)
-        test.compare(not propShown, inclSnippet in missing or inclSnippet in noProposal,
-                     "Proposal widget is (not) shown as expected (%s)" % inclSnippet)
+        if isClangCodeModel and inclSnippet in noProposal and JIRA.isBugStillOpen(15710):
+            test.xcompare(propShown, False, ("Proposal widget should not be shown for (%s) "
+                          "but because of QTCREATORBUG-15710 it currently is") % inclSnippet)
+        else:
+            test.compare(not propShown, inclSnippet in missing or inclSnippet in noProposal,
+                         "Proposal widget is (not) shown as expected (%s)" % inclSnippet)
         if propShown:
             proposalListView = waitForObject(':popupFrame_Proposal_QListView')
             if inclSnippet in specialHandling:
@@ -128,9 +127,16 @@ def checkSymbolCompletion(editor, isClangCodeModel):
     def testSymb(currentLine, *args):
         missing, expectedSug, expectedRes = args
         symbol = currentLine.lstrip("/").strip()
-        propShown = waitFor("object.exists(':popupFrame_TextEditor::GenericProposalWidget')", 2500)
-        test.compare(not propShown, symbol in missing,
-                     "Proposal widget is (not) shown as expected (%s)" % symbol)
+        timeout = 2500
+        if isClangCodeModel and JIRA.isBugStillOpen(15639):
+            timeout = 5000
+        propShown = waitFor("object.exists(':popupFrame_TextEditor::GenericProposalWidget')", timeout)
+        if isClangCodeModel and symbol in missing and not "(" in symbol and JIRA.isBugStillOpen(15710):
+            test.xcompare(propShown, False, ("Proposal widget should not be shown for (%s) "
+                          "but because of QTCREATORBUG-15710 it currently is") % symbol)
+        else:
+            test.compare(not propShown, symbol in missing,
+                         "Proposal widget is (not) shown as expected (%s)" % symbol)
         found = []
         if propShown:
             proposalListView = waitForObject(':popupFrame_Proposal_QListView')
@@ -149,7 +155,12 @@ def checkSymbolCompletion(editor, isClangCodeModel):
         else:
             exp = (symbol[:max(symbol.rfind(":"), symbol.rfind(".")) + 1]
                    + expectedSug.get(symbol, found)[0])
-        test.compare(changedLine, exp, "Verify completion matches.")
+        if isClangCodeModel and changedLine != exp and JIRA.isBugStillOpen(15483):
+            test.xcompare(changedLine, exp, "Verify completion matches (QTCREATORBUG-15483).")
+            test.verify(changedLine.startswith(exp.replace("(", "").replace(")", "")),
+                        "Verify completion starts with expected string.")
+        else:
+            test.compare(changedLine, exp, "Verify completion matches.")
 
     performAutoCompletionTest(editor, ".*Complete symbols.*", "//",
                               testSymb, missing, expectedSuggestion, expectedResults)
@@ -158,34 +169,23 @@ def main():
     examplePath = os.path.join(srcPath, "creator", "tests", "manual", "cplusplus-tools")
     if not neededFilePresent(os.path.join(examplePath, "cplusplus-tools.pro")):
         return
-    clangLoaded = startCreatorTryingClang()
-    if not startedWithoutPluginError():
-        return
-
     templateDir = prepareTemplate(examplePath)
     examplePath = os.path.join(templateDir, "cplusplus-tools.pro")
-    openQmakeProject(examplePath, Targets.DESKTOP_531_DEFAULT)
-    models = iterateAvailableCodeModels()
-    test.compare(len(models), 1 + clangLoaded, "Verifying number of available code models")
-    test.compare("Qt Creator Built-in", models[0],
-                 "Verifying whether default is Qt Creator's builtin code model")
-    test.compare("Clang" in models, clangLoaded,
-                 "Verifying whether clang code model can be chosen.")
-    for current in models:
-        if current != models[0]:
-            selectCodeModel(current)
-        test.log("Testing code model: %s" % current)
+    for useClang in [False, True]:
+        if not startCreator(useClang):
+            continue
+        openQmakeProject(examplePath, Targets.DESKTOP_531_DEFAULT)
+        checkCodeModelSettings(useClang)
         if not openDocument("cplusplus-tools.Sources.main\\.cpp"):
             earlyExit("Failed to open main.cpp.")
             return
         editor = getEditorForFileSuffix("main.cpp")
         if editor:
-            checkIncludeCompletion(editor)
-            checkSymbolCompletion(editor, current == "Clang")
+            checkIncludeCompletion(editor, useClang)
+            checkSymbolCompletion(editor, useClang)
             invokeMenuItem('File', 'Revert "main.cpp" to Saved')
             clickButton(waitForObject(":Revert to Saved.Proceed_QPushButton"))
         snooze(1)   # 'Close "main.cpp"' might still be disabled
         # editor must be closed to get the second code model applied on re-opening the file
         invokeMenuItem('File', 'Close "main.cpp"')
-
-    invokeMenuItem("File", "Exit")
+        invokeMenuItem("File", "Exit")

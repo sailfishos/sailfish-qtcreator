@@ -1,7 +1,7 @@
 ############################################################################
 #
-# Copyright (C) 2015 The Qt Company Ltd.
-# Contact: http://www.qt.io/licensing
+# Copyright (C) 2016 The Qt Company Ltd.
+# Contact: https://www.qt.io/licensing/
 #
 # This file is part of Qt Creator.
 #
@@ -9,24 +9,19 @@
 # Licensees holding valid commercial Qt licenses may use this file in
 # accordance with the commercial license agreement provided with the
 # Software or, alternatively, in accordance with the terms contained in
-# a written agreement between you and The Qt Company.  For licensing terms and
-# conditions see http://www.qt.io/terms-conditions.  For further information
-# use the contact form at http://www.qt.io/contact-us.
+# a written agreement between you and The Qt Company. For licensing terms
+# and conditions see https://www.qt.io/terms-conditions. For further
+# information use the contact form at https://www.qt.io/contact-us.
 #
-# GNU Lesser General Public License Usage
-# Alternatively, this file may be used under the terms of the GNU Lesser
-# General Public License version 2.1 or version 3 as published by the Free
-# Software Foundation and appearing in the file LICENSE.LGPLv21 and
-# LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-# following information to ensure the GNU Lesser General Public License
-# requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-# http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+# GNU General Public License Usage
+# Alternatively, this file may be used under the terms of the GNU
+# General Public License version 3 as published by the Free Software
+# Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+# included in the packaging of this file. Please review the following
+# information to ensure the GNU General Public License requirements will
+# be met: https://www.gnu.org/licenses/gpl-3.0.html.
 #
-# In addition, as a special exception, The Qt Company gives you certain additional
-# rights.  These rights are described in The Qt Company LGPL Exception
-# version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
-#
-#############################################################################
+############################################################################
 
 from dumper import *
 
@@ -172,6 +167,9 @@ def qdump__std__list__QNX(d, value):
 def qdump__std____debug__list(d, value):
     qdump__std__list(d, value)
 
+def qdump__std____cxx11__list(d, value):
+    qdump__std__list(d, value)
+
 def qform__std__map():
     return mapForms()
 
@@ -289,7 +287,12 @@ def stdTreeIteratorHelper(d, value):
             nodeTypeName = str(value.type).replace("_Rb_tree_iterator", "_Rb_tree_node", 1)
             nodeTypeName = nodeTypeName.replace("_Rb_tree_const_iterator", "_Rb_tree_node", 1)
             nodeType = d.lookupType(nodeTypeName + '*')
-            data = node.cast(nodeType).dereference()["_M_value_field"]
+            nnode = node.cast(nodeType).dereference()
+            try:
+                data = nnode["_M_value_field"]
+            except: # GCC 5.x, C++11.
+                data = nnode["_M_storage"] # __gnu_cxx::__aligned_membuf<T>
+                data = data.cast(d.templateArgument(data.type, 0))
             first = d.childWithName(data, "first")
             if first:
                 d.putSubItem("first", first)
@@ -383,12 +386,90 @@ def qdump__std__set__QNX(d, value):
                     if node['_Right'] != parent:
                         node = parent
 
+def std1TreeMin(d, node):
+    #_NodePtr __tree_min(_NodePtr __x):
+    #    while (__x->__left_ != nullptr)
+    #        __x = __x->__left_;
+    #    return __x;
+    #
+    left = node['__left_']
+    if not d.isNull(left):
+        node = left
+    return node
+
+def std1TreeIsLeftChild(d, node):
+    # bool __tree_is_left_child(_NodePtr __x):
+    #     return __x == __x->__parent_->__left_;
+    #
+    other = node['__parent_']['__left_']
+    return toInteger(node) == toInteger(other)
+
+
+def std1TreeNext(d, node):
+    #_NodePtr __tree_next(_NodePtr __x):
+    #    if (__x->__right_ != nullptr)
+    #        return __tree_min(__x->__right_);
+    #    while (!__tree_is_left_child(__x))
+    #        __x = __x->__parent_;
+    #    return __x->__parent_;
+    #
+    right = node['__right_']
+    if not d.isNull(right):
+        return std1TreeMin(d, right)
+    while not std1TreeIsLeftChild(d, node):
+        node = node['__parent_']
+    return node['__parent_']
+
 def qdump__std____1__set(d, value):
-    base3 = d.addressOf(value["__tree_"]["__pair3_"])
+    tree = value["__tree_"]
+    base3 = d.addressOf(tree["__pair3_"])
     size = d.extractUInt(base3)
     d.check(size <= 100*1000*1000)
     d.putItemCount(size)
-    d.putNumChild(0)
+    if d.isExpanded():
+        # type of node is std::__1::__tree_node<Foo, void *>::value_type
+        valueType = d.templateArgument(value.type, 0)
+        d.putFields(tree)
+        node = tree["__begin_node_"]
+        nodeType = node.type
+        with Children(d, size):
+            for i in d.childRange():
+                with SubItem(d, i):
+                    d.putItem(node['__value_'])
+                    d.putBetterType(valueType)
+                node = std1TreeNext(d, node).cast(nodeType)
+
+def qform__std____1__map():
+    return mapForms()
+
+def qdump__std____1__map(d, value):
+    tree = value["__tree_"]
+    base3 = d.addressOf(tree["__pair3_"])
+    size = d.extractUInt(base3)
+    d.check(size <= 100*1000*1000)
+    d.putItemCount(size)
+    if d.isExpanded():
+        # type of node is std::__1::__tree_node<Foo, Bar>::value_type
+        valueType = d.templateArgument(value.type, 0)
+        node = tree["__begin_node_"]
+        nodeType = node.type
+        pairType = d.templateArgument(d.templateArgument(value.type, 3), 0)
+        with PairedChildren(d, size, pairType=pairType, maxNumChild=1000):
+            node = tree["__begin_node_"]
+            nodeType = node.type
+            for i in d.childRange():
+                with SubItem(d, i):
+                    # There's possibly also:
+                    #pair = node['__value_']['__nc']
+                    pair = node['__value_']['__cc']
+                    d.putPair(pair, i)
+                node = std1TreeNext(d, node).cast(nodeType)
+
+def qform__std____1__multimap():
+    return mapForms()
+
+def qdump__std____1__multimap(d, value):
+    qdump__std____1__map(d, value)
 
 def qdump__std__stack(d, value):
     d.putItem(value["c"])
@@ -463,7 +544,7 @@ def qdump__std____1__wstring(d, value):
         size = firstByte / 2
         data = base + 4
     d.putCharArrayHelper(data, size, 4)
-    d.putType("std::xxwstring")
+    d.putType("std::wstring")
 
 
 def qdump__std__shared_ptr(d, value):
@@ -669,6 +750,15 @@ def qdump__std____debug__unordered_set(d, value):
     qdump__std__unordered_set(d, value)
 
 
+def qform__std__valarray():
+    return arrayForms()
+
+def qdump__std__valarray(d, value):
+    size = value["_M_size"]
+    d.putItemCount(size)
+    d.putPlotData(value["_M_data"], size, d.templateArgument(value.type, 0))
+
+
 def qform__std__vector():
     return arrayForms()
 
@@ -721,7 +811,10 @@ def qdump__std__vector(d, value):
                 base = d.pointerValue(start)
                 for i in d.childRange():
                     q = base + int(i / 8)
-                    d.putBoolItem(str(i), (int(d.extractPointer(q)) >> (i % 8)) & 1)
+                    with SubItem(d, i):
+                        d.putValue((int(d.extractPointer(q)) >> (i % 8)) & 1)
+                        d.putType("bool")
+                        d.putNumChild(0)
     else:
         d.putPlotData(start, size, type)
 
@@ -754,7 +847,10 @@ def qdump__std__vector__QNX(d, value):
             with Children(d, size, maxNumChild=10000, childType=innerType):
                 for i in d.childRange():
                     q = start + int(i / storagesize)
-                    d.putBoolItem(str(i), (q.dereference() >> (i % storagesize)) & 1)
+                    with SubItem(d, i):
+                        d.putValue((q.dereference() >> (i % storagesize)) & 1)
+                        d.putType("bool")
+                        d.putNumChild(0)
         else:
             d.putArrayData(start, size, innerType)
 
@@ -796,12 +892,28 @@ def qform__std__wstring():
 
 def qdump__std__wstring(d, value):
     charSize = d.lookupType('wchar_t').sizeof
-    # HACK: Shift format by 4 to account for latin1 and utf8
     qdump__std__stringHelper1(d, value, charSize, d.currentItemFormat())
 
 def qdump__std__basic_string(d, value):
     innerType = d.templateArgument(value.type, 0)
     qdump__std__stringHelper1(d, value, innerType.sizeof, d.currentItemFormat())
+
+def qdump__std____cxx11__basic_string(d, value):
+    innerType = d.templateArgument(value.type, 0)
+    data = value["_M_dataplus"]["_M_p"]
+    size = int(value["_M_string_length"])
+    d.check(0 <= size) #and size <= alloc and alloc <= 100*1000*1000)
+    d.putCharArrayHelper(data, size, innerType.sizeof, d.currentItemFormat())
+
+def qform__std____cxx11__string(d, value):
+    qdump__std____cxx11__basic_string(d, value)
+
+# Needed only to trigger the form report above.
+def qform__std____cxx11__string():
+    return qform__std__string()
+
+def qform__std____cxx11__wstring():
+    return qform__std__wstring()
 
 def qdump__std____1__basic_string(d, value):
     innerType = str(d.templateArgument(value.type, 0))

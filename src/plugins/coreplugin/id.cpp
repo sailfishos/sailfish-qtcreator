@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,27 +9,23 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
 #include "id.h"
 
+#include <utils/algorithm.h>
 #include <utils/qtcassert.h>
 
 #include <QByteArray>
@@ -52,15 +48,8 @@ namespace Core {
     in a more typesafe and faster manner than a plain \c QString or
     \c QByteArray would provide.
 
-    An id is internally represented as a 32 bit integer (its \c UID)
-    and associated with a plain 7-bit-clean ASCII name used
+    An id is associated with a plain 7-bit-clean ASCII name used
     for display and persistency.
-
-    Each plugin that is distributed as part of \QC has a
-    private range of 10000 UIDs that are guaranteed to be unique.
-
-    Third party plugins are advised to construct ids from their
-    string representation.
 
 */
 
@@ -85,7 +74,7 @@ public:
     }
     int n;
     const char *str;
-    uint h;
+    quintptr h;
 };
 
 static bool operator==(const StringHolder &sh1, const StringHolder &sh2)
@@ -97,10 +86,10 @@ static bool operator==(const StringHolder &sh1, const StringHolder &sh2)
 
 static uint qHash(const StringHolder &sh)
 {
-    return sh.h;
+    return QT_PREPEND_NAMESPACE(qHash)(sh.h, 0);
 }
 
-struct IdCache : public QHash<StringHolder, int>
+struct IdCache : public QHash<StringHolder, quintptr>
 {
 #ifndef QTC_ALLOW_STATIC_LEAKS
     ~IdCache()
@@ -112,13 +101,12 @@ struct IdCache : public QHash<StringHolder, int>
 };
 
 
-static int firstUnusedId = Id::IdsPerPlugin * Id::ReservedPlugins;
-
-static QHash<int, StringHolder> stringFromId;
+static QHash<quintptr, StringHolder> stringFromId;
 static IdCache idFromString;
 
-static int theId(const char *str, int n = 0)
+static quintptr theId(const char *str, int n = 0)
 {
+    static quintptr firstUnusedId = 10 * 1000 * 1000;
     QTC_ASSERT(str && *str, return 0);
     StringHolder sh(str, n);
     int res = idFromString.value(sh, 0);
@@ -131,25 +119,19 @@ static int theId(const char *str, int n = 0)
     return res;
 }
 
-static int theId(const QByteArray &ba)
+static quintptr theId(const QByteArray &ba)
 {
     return theId(ba.constData(), ba.size());
 }
 
 /*!
-    \fn Core::Id::Id(int uid)
+    \fn Core::Id::Id(quintptr uid)
+    \internal
 
     Constructs an id given \a UID.
 
     The UID is an integer value that is unique within the running
     \QC process.
-
-    It is the callers responsibility to ensure the uniqueness of
-    the passed integer. The recommended approach is to use
-    \c{registerId()} with an value taken from the plugin's
-    private range.
-
-    \sa registerId()
 
 */
 
@@ -200,6 +182,8 @@ QString Id::toString() const
 
 Id Id::fromString(const QString &name)
 {
+    if (name.isEmpty())
+        return Id();
     return Id(theId(name.toUtf8()));
 }
 
@@ -243,6 +227,30 @@ Id Id::fromSetting(const QVariant &variant)
     if (ba.isEmpty())
         return Id();
     return Id(theId(ba));
+}
+
+Id Id::versionedId(const QByteArray &prefix, int major, int minor)
+{
+    QTC_ASSERT(major >= 0, return fromName(prefix));
+
+    QByteArray result = prefix + '.';
+    result += QString::number(major).toLatin1();
+
+    if (minor < 0)
+        return fromName(result);
+    return fromName(result + '.' + QString::number(minor).toLatin1());
+}
+
+QSet<Id> Id::fromStringList(const QStringList &list)
+{
+    return QSet<Id>::fromList(Utils::transform(list, [](const QString &s) { return Id::fromString(s); }));
+}
+
+QStringList Id::toStringList(const QSet<Id> &ids)
+{
+    QList<Id> idList = ids.toList();
+    Utils::sort(idList);
+    return Utils::transform(idList, [](Id i) { return i.toString(); });
 }
 
 /*!
@@ -306,7 +314,7 @@ bool Id::operator==(const char *name) const
 }
 
 // For debugging purposes
-CORE_EXPORT const char *nameForId(int id)
+CORE_EXPORT const char *nameForId(quintptr id)
 {
     return stringFromId.value(id).str;
 }

@@ -6,69 +6,91 @@ contains(CONFIG, dll) {
 
 QT += network
 
-DEFINES += CLANGBACKENDIPC_LIBRARY
-
 INCLUDEPATH += $$PWD
 
 SOURCES += $$PWD/ipcserverinterface.cpp \
     $$PWD/ipcserverproxy.cpp \
     $$PWD/ipcclientinterface.cpp \
-    $$PWD/cmbendcommand.cpp \
-    $$PWD/cmbalivecommand.cpp \
+    $$PWD/cmbendmessage.cpp \
+    $$PWD/cmbalivemessage.cpp \
     $$PWD/ipcclientproxy.cpp \
-    $$PWD/cmbcommands.cpp \
-    $$PWD/writecommandblock.cpp \
-    $$PWD/readcommandblock.cpp \
+    $$PWD/writemessageblock.cpp \
+    $$PWD/readmessageblock.cpp \
     $$PWD/ipcinterface.cpp \
     $$PWD/connectionserver.cpp \
     $$PWD/connectionclient.cpp \
-    $$PWD/cmbechocommand.cpp \
+    $$PWD/cmbechomessage.cpp \
     $$PWD/ipcclientdispatcher.cpp \
-    $$PWD/cmbregistertranslationunitsforcodecompletioncommand.cpp \
+    $$PWD/cmbregistertranslationunitsforeditormessage.cpp \
     $$PWD/filecontainer.cpp \
-    $$PWD/cmbunregistertranslationunitsforcodecompletioncommand.cpp \
-    $$PWD/cmbcompletecodecommand.cpp \
-    $$PWD/cmbcodecompletedcommand.cpp \
+    $$PWD/cmbunregistertranslationunitsforeditormessage.cpp \
+    $$PWD/cmbcompletecodemessage.cpp \
+    $$PWD/cmbcodecompletedmessage.cpp \
     $$PWD/codecompletion.cpp \
-    $$PWD/cmbregisterprojectsforcodecompletioncommand.cpp \
-    $$PWD/cmbunregisterprojectsforcodecompletioncommand.cpp \
-    $$PWD/translationunitdoesnotexistcommand.cpp \
+    $$PWD/cmbregisterprojectsforeditormessage.cpp \
+    $$PWD/cmbunregisterprojectsforeditormessage.cpp \
+    $$PWD/translationunitdoesnotexistmessage.cpp \
     $$PWD/codecompletionchunk.cpp \
     $$PWD/projectpartcontainer.cpp \
-    $$PWD/projectpartsdonotexistcommand.cpp \
+    $$PWD/projectpartsdonotexistmessage.cpp \
     $$PWD/lineprefixer.cpp \
-    $$PWD/clangbackendipcdebugutils.cpp
+    $$PWD/clangbackendipcdebugutils.cpp \
+    $$PWD/diagnosticschangedmessage.cpp \
+    $$PWD/diagnosticcontainer.cpp \
+    $$PWD/sourcerangecontainer.cpp \
+    $$PWD/sourcelocationcontainer.cpp \
+    $$PWD/fixitcontainer.cpp \
+    $$PWD/requestdiagnosticsmessage.cpp \
+    $$PWD/requesthighlightingmessage.cpp \
+    $$PWD/registerunsavedfilesforeditormessage.cpp \
+    $$PWD/unregisterunsavedfilesforeditormessage.cpp \
+    $$PWD/updatetranslationunitsforeditormessage.cpp \
+    $$PWD/updatevisibletranslationunitsmessage.cpp \
+    $$PWD/highlightingchangedmessage.cpp \
+    $$PWD/highlightingmarkcontainer.cpp
 
 HEADERS += \
     $$PWD/ipcserverinterface.h \
     $$PWD/ipcserverproxy.h \
     $$PWD/ipcclientinterface.h \
-    $$PWD/cmbendcommand.h \
-    $$PWD/cmbalivecommand.h \
+    $$PWD/cmbendmessage.h \
+    $$PWD/cmbalivemessage.h \
     $$PWD/ipcclientproxy.h \
-    $$PWD/cmbcommands.h \
-    $$PWD/writecommandblock.h \
-    $$PWD/readcommandblock.h \
+    $$PWD/writemessageblock.h \
+    $$PWD/readmessageblock.h \
     $$PWD/ipcinterface.h \
     $$PWD/connectionserver.h \
     $$PWD/connectionclient.h \
-    $$PWD/cmbechocommand.h \
+    $$PWD/cmbechomessage.h \
     $$PWD/ipcclientdispatcher.h \
-    $$PWD/cmbregistertranslationunitsforcodecompletioncommand.h \
+    $$PWD/cmbregistertranslationunitsforeditormessage.h \
     $$PWD/filecontainer.h \
-    $$PWD/cmbunregistertranslationunitsforcodecompletioncommand.h \
-    $$PWD/cmbcompletecodecommand.h \
-    $$PWD/cmbcodecompletedcommand.h \
+    $$PWD/cmbunregistertranslationunitsforeditormessage.h \
+    $$PWD/cmbcompletecodemessage.h \
+    $$PWD/cmbcodecompletedmessage.h \
     $$PWD/codecompletion.h \
-    $$PWD/cmbregisterprojectsforcodecompletioncommand.h \
-    $$PWD/cmbunregisterprojectsforcodecompletioncommand.h \
-    $$PWD/translationunitdoesnotexistcommand.h \
+    $$PWD/cmbregisterprojectsforeditormessage.h \
+    $$PWD/cmbunregisterprojectsforeditormessage.h \
+    $$PWD/translationunitdoesnotexistmessage.h \
     $$PWD/codecompletionchunk.h \
     $$PWD/projectpartcontainer.h \
-    $$PWD/projectpartsdonotexistcommand.h \
-    $$PWD/container_common.h \
+    $$PWD/projectpartsdonotexistmessage.h \
     $$PWD/clangbackendipc_global.h \
     $$PWD/lineprefixer.h \
-    $$PWD/clangbackendipcdebugutils.h
+    $$PWD/clangbackendipcdebugutils.h \
+    $$PWD/diagnosticschangedmessage.h \
+    $$PWD/diagnosticcontainer.h \
+    $$PWD/sourcerangecontainer.h \
+    $$PWD/sourcelocationcontainer.h \
+    $$PWD/fixitcontainer.h \
+    $$PWD/requestdiagnosticsmessage.h \
+    $$PWD/requesthighlightingmessage.h \
+    $$PWD/registerunsavedfilesforeditormessage.h \
+    $$PWD/unregisterunsavedfilesforeditormessage.h \
+    $$PWD/updatetranslationunitsforeditormessage.h \
+    $$PWD/updatevisibletranslationunitsmessage.h \
+    $$PWD/highlightingchangedmessage.h \
+    $$PWD/highlightingmarkcontainer.h \
+    $$PWD/messageenvelop.h
 
 contains(QT_CONFIG, reduce_exports):CONFIG += hide_symbols

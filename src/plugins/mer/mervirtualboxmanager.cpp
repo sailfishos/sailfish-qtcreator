@@ -54,6 +54,8 @@ const char ADD_SHARED[] = "add";
 const char GETEXTRADATA[] = "getextradata";
 const char SETEXTRADATA[] = "setextradata";
 const char CUSTOM_VIDEO_MODE1[] = "CustomVideoMode1";
+const char ENABLE_SYMLINKS[] = "VBoxInternal2/SharedFoldersEnableSymlinksCreate/%1";
+const char YES_ARG[] = "1";
 
 namespace Mer {
 namespace Internal {
@@ -203,6 +205,19 @@ bool MerVirtualBoxManager::updateSharedFolder(const QString &vmName, const QStri
     aproc.start(vBoxManagePath(), aargs);
     if (!aproc.waitForFinished()) {
         qWarning() << "VBoxManage failed to add " << mountName;
+        return false;
+    }
+
+    QStringList sargs;
+    sargs.append(QLatin1String(SETEXTRADATA));
+    sargs.append(vmName);
+    sargs.append(QString::fromLatin1(ENABLE_SYMLINKS).arg(mountName));
+    sargs.append(QLatin1String(YES_ARG));
+
+    QProcess sproc;
+    sproc.start(vBoxManagePath(), sargs);
+    if (!sproc.waitForFinished()) {
+        qWarning() << "VBoxManage failed to enable symlinks under " << mountName;
         return false;
     }
 

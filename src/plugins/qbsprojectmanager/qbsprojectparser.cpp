@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -54,6 +49,7 @@ namespace Internal {
 
 QbsProjectParser::QbsProjectParser(QbsProject *project, QFutureInterface<bool> *fi) :
     m_qbsSetupProjectJob(0),
+    m_ruleExecutionJob(0),
     m_fi(fi),
     m_currentProgressBase(0)
 {
@@ -63,12 +59,18 @@ QbsProjectParser::QbsProjectParser(QbsProject *project, QFutureInterface<bool> *
 
 QbsProjectParser::~QbsProjectParser()
 {
-    if (m_qbsSetupProjectJob) {
-        m_qbsSetupProjectJob->disconnect(this);
-        m_qbsSetupProjectJob->cancel();
-        m_qbsSetupProjectJob->deleteLater();
-        m_qbsSetupProjectJob = 0;
-    }
+    const auto deleteJob = [this](qbs::AbstractJob *job) {
+        if (!job)
+            return;
+        if (job->state() == qbs::AbstractJob::StateFinished) {
+            job->deleteLater();
+            return;
+        }
+        connect(job, &qbs::AbstractJob::finished, job, &qbs::AbstractJob::deleteLater);
+        job->cancel();
+    };
+    deleteJob(m_qbsSetupProjectJob);
+    deleteJob(m_ruleExecutionJob);
     m_fi = 0; // we do not own m_fi, do not delete
 }
 
@@ -86,12 +88,13 @@ void QbsProjectParser::parse(const QVariantMap &config, const Environment &env, 
     params.setTopLevelProfile(profileName);
     specialKey = QLatin1String(Constants::QBS_CONFIG_VARIANT_KEY);
     params.setBuildVariant(userConfig.take(specialKey).toString());
-    params.setSettingsDirectory(QbsManager::settings()->baseDirectoy());
+    params.setSettingsDirectory(QbsManager::settings()->baseDirectory());
     params.setOverriddenValues(userConfig);
 
     // Some people don't like it when files are created as a side effect of opening a project,
     // so do not store the build graph if the build directory does not exist yet.
-    params.setDryRun(!QFileInfo::exists(dir));
+    m_dryRun = !QFileInfo::exists(dir);
+    params.setDryRun(m_dryRun);
 
     params.setBuildRoot(dir);
     params.setProjectFilePath(m_projectFilePath);
@@ -101,6 +104,8 @@ void QbsProjectParser::parse(const QVariantMap &config, const Environment &env, 
     params.setSearchPaths(prefs.searchPaths(resourcesBaseDirectory()));
     params.setPluginPaths(prefs.pluginPaths(pluginsBaseDirectory()));
     params.setLibexecPath(libExecDirectory());
+    params.setProductErrorMode(qbs::ErrorHandlingMode::Relaxed);
+    params.setPropertyCheckingMode(qbs::ErrorHandlingMode::Relaxed);
 
     m_qbsSetupProjectJob = m_project.setupProject(params, QbsManager::logSink(), 0);
 
@@ -115,7 +120,10 @@ void QbsProjectParser::parse(const QVariantMap &config, const Environment &env, 
 void QbsProjectParser::cancel()
 {
     QTC_ASSERT(m_qbsSetupProjectJob, return);
-    m_qbsSetupProjectJob->cancel();
+    if (m_ruleExecutionJob)
+        m_ruleExecutionJob->cancel();
+    else
+        m_qbsSetupProjectJob->cancel();
 }
 
 qbs::Project QbsProjectParser::qbsProject() const
@@ -139,6 +147,31 @@ void QbsProjectParser::handleQbsParsingDone(bool success)
     // parses appear atomic to the user.
 
     emit done(success);
+}
+
+void QbsProjectParser::startRuleExecution()
+{
+    qbs::BuildOptions options;
+    options.setDryRun(m_dryRun);
+    options.setExecuteRulesOnly(true);
+    m_ruleExecutionJob = m_project.buildAllProducts(
+                options, qbs::Project::ProductSelectionWithNonDefault, this);
+    connect(m_ruleExecutionJob, &qbs::AbstractJob::finished,
+            this, &QbsProjectParser::handleRuleExecutionDone);
+    connect(m_ruleExecutionJob, &qbs::AbstractJob::taskStarted,
+            this, &QbsProjectParser::handleQbsParsingTaskSetup);
+    connect(m_ruleExecutionJob, &qbs::AbstractJob::taskProgress,
+            this, &QbsProjectParser::handleQbsParsingProgress);
+}
+
+void QbsProjectParser::handleRuleExecutionDone()
+{
+    QTC_ASSERT(m_ruleExecutionJob, return);
+
+    // Execution of some very dynamic rules might fail due
+    // to artifacts not being present. No genuine errors will get lost, as they will re-appear
+    // on the next build attempt.
+    emit ruleExecutionDone();
 }
 
 void QbsProjectParser::handleQbsParsingProgress(int progress)
@@ -175,8 +208,12 @@ QString QbsProjectParser::libExecDirectory() const
 QString QbsProjectParser::pluginsBaseDirectory() const
 {
     const QString qbsInstallDir = QLatin1String(QBS_INSTALL_DIR);
+
+    // Note: We assume here that Qt Creator and qbs use the same name for their library dir.
+    const QString qbsLibDirName = QLatin1String(IDE_LIBRARY_BASENAME);
+
     if (!qbsInstallDir.isEmpty())
-        return qbsInstallDir + QLatin1String("/lib/");
+        return qbsInstallDir + QLatin1Char('/') + qbsLibDirName;
     if (HostOsInfo::isMacHost())
         return QDir::cleanPath(QCoreApplication::applicationDirPath()
                                + QLatin1String("/../PlugIns"));

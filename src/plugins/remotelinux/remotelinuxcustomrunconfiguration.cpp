@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -33,15 +28,20 @@
 #include "remotelinuxenvironmentaspect.h"
 #include "ui_remotelinuxcustomrunconfigurationwidget.h"
 
+#include <projectexplorer/kitinformation.h>
+#include <projectexplorer/runnables.h>
 #include <projectexplorer/target.h>
+
 #include <qtsupport/qtoutputformatter.h>
 #include <utils/detailswidget.h>
 #include <utils/qtcprocess.h>
 
+using namespace ProjectExplorer;
+
 namespace RemoteLinux {
 namespace Internal {
 
-class RemoteLinuxCustomRunConfigWidget : public ProjectExplorer::RunConfigWidget
+class RemoteLinuxCustomRunConfigWidget : public RunConfigWidget
 {
     Q_OBJECT
 public:
@@ -55,24 +55,24 @@ public:
         detailsContainer->setState(Utils::DetailsWidget::NoSummary);
         QWidget * const detailsWidget = new QWidget(this);
         detailsContainer->setWidget(detailsWidget);
+        auto const runnable = runConfig->runnable().as<StandardRunnable>();
         m_ui.setupUi(detailsWidget);
         m_ui.localExecutablePathChooser->setExpectedKind(Utils::PathChooser::File);
-        m_ui.localExecutablePathChooser->setPath(m_runConfig->localExecutableFilePath());
-        m_ui.remoteExeLineEdit->setText(m_runConfig->remoteExecutableFilePath());
-        m_ui.argsLineEdit->setText(Utils::QtcProcess::joinArgs(m_runConfig->arguments(),
-                                                               Utils::OsTypeLinux));
-        m_ui.workingDirLineEdit->setText(m_runConfig->workingDirectory());
-        connect(m_ui.localExecutablePathChooser, SIGNAL(pathChanged(QString)),
-                SLOT(handleLocalExecutableChanged(QString)));
-        connect(m_ui.remoteExeLineEdit, SIGNAL(textEdited(QString)),
-                SLOT(handleRemoteExecutableChanged(QString)));
-        connect(m_ui.argsLineEdit, SIGNAL(textEdited(QString)),
-                SLOT(handleArgumentsChanged(QString)));
-        connect(m_ui.workingDirLineEdit, SIGNAL(textEdited(QString)),
-                SLOT(handleWorkingDirChanged(QString)));
+        m_ui.localExecutablePathChooser->setPath(runConfig->localExecutableFilePath());
+        m_ui.remoteExeLineEdit->setText(runnable.executable);
+        m_ui.argsLineEdit->setText(runnable.commandLineArguments);
+        m_ui.workingDirLineEdit->setText(runnable.workingDirectory);
+        connect(m_ui.localExecutablePathChooser, &Utils::PathChooser::pathChanged,
+                this, &RemoteLinuxCustomRunConfigWidget::handleLocalExecutableChanged);
+        connect(m_ui.remoteExeLineEdit, &QLineEdit::textEdited,
+                this, &RemoteLinuxCustomRunConfigWidget::handleRemoteExecutableChanged);
+        connect(m_ui.argsLineEdit, &QLineEdit::textEdited,
+                this, &RemoteLinuxCustomRunConfigWidget::handleArgumentsChanged);
+        connect(m_ui.workingDirLineEdit, &QLineEdit::textEdited,
+                this, &RemoteLinuxCustomRunConfigWidget::handleWorkingDirChanged);
     }
 
-private slots:
+private:
     void handleLocalExecutableChanged(const QString &path) {
         m_runConfig->setLocalExecutableFilePath(path.trimmed());
     }
@@ -83,15 +83,13 @@ private slots:
     }
 
     void handleArgumentsChanged(const QString &arguments) {
-        m_runConfig->setArguments(Utils::QtcProcess::splitArgs(arguments.trimmed(),
-                                                               Utils::OsTypeLinux));
+        m_runConfig->setArguments(arguments.trimmed());
     }
 
     void handleWorkingDirChanged(const QString &wd) {
         m_runConfig->setWorkingDirectory(wd.trimmed());
     }
 
-private:
     QString displayName() const { return m_runConfig->displayName(); }
 
     RemoteLinuxCustomRunConfiguration * const m_runConfig;
@@ -99,14 +97,14 @@ private:
 };
 
 RemoteLinuxCustomRunConfiguration::RemoteLinuxCustomRunConfiguration(ProjectExplorer::Target *parent)
-    : AbstractRemoteLinuxRunConfiguration(parent, runConfigId())
+    : RunConfiguration(parent, runConfigId())
 {
     init();
 }
 
 RemoteLinuxCustomRunConfiguration::RemoteLinuxCustomRunConfiguration(ProjectExplorer::Target *parent,
         RemoteLinuxCustomRunConfiguration *source)
-    : AbstractRemoteLinuxRunConfiguration(parent, source)
+    : RunConfiguration(parent, source)
     , m_localExecutable(source->m_localExecutable)
     , m_remoteExecutable(source->m_remoteExecutable)
     , m_arguments(source->m_arguments)
@@ -143,11 +141,14 @@ Utils::OutputFormatter *RemoteLinuxCustomRunConfiguration::createOutputFormatter
     return new QtSupport::QtOutputFormatter(target()->project());
 }
 
-Utils::Environment RemoteLinuxCustomRunConfiguration::environment() const
+Runnable RemoteLinuxCustomRunConfiguration::runnable() const
 {
-    RemoteLinuxEnvironmentAspect *aspect = extraAspect<RemoteLinuxEnvironmentAspect>();
-    QTC_ASSERT(aspect, return Utils::Environment());
-    return aspect->environment();
+    StandardRunnable r;
+    r.environment = extraAspect<RemoteLinuxEnvironmentAspect>()->environment();
+    r.executable = m_remoteExecutable;
+    r.commandLineArguments = m_arguments;
+    r.workingDirectory = m_workingDirectory;
+    return r;
 }
 
 void RemoteLinuxCustomRunConfiguration::setRemoteExecutableFilePath(const QString &executable)
@@ -194,18 +195,22 @@ static QString workingDirKey()
 
 bool RemoteLinuxCustomRunConfiguration::fromMap(const QVariantMap &map)
 {
-    if (!AbstractRemoteLinuxRunConfiguration::fromMap(map))
+    if (!RunConfiguration::fromMap(map))
         return false;
     setLocalExecutableFilePath(map.value(localExeKey()).toString());
     setRemoteExecutableFilePath(map.value(remoteExeKey()).toString());
-    setArguments(map.value(argsKey()).toStringList());
+    QVariant args = map.value(argsKey());
+    if (args.type() == QVariant::StringList) // Until 3.7 a QStringList was stored.
+        setArguments(Utils::QtcProcess::joinArgs(args.toStringList(), Utils::OsTypeLinux));
+    else
+        setArguments(args.toString());
     setWorkingDirectory(map.value(workingDirKey()).toString());
     return true;
 }
 
 QVariantMap RemoteLinuxCustomRunConfiguration::toMap() const
 {
-    QVariantMap map = AbstractRemoteLinuxRunConfiguration::toMap();
+    QVariantMap map = RunConfiguration::toMap();
     map.insert(localExeKey(), m_localExecutable);
     map.insert(remoteExeKey(), m_remoteExecutable);
     map.insert(argsKey(), m_arguments);

@@ -1,8 +1,8 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
 ** Author: Nicolas Arnaud-Cormos, KDAB (nicolas.arnaud-cormos@kdab.com)
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -10,22 +10,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -33,20 +28,22 @@
 #include "valgrindsettings.h"
 #include "valgrindplugin.h"
 
+#include <debugger/analyzer/analyzermanager.h>
+#include <debugger/analyzer/analyzerstartparameters.h>
+
 #include <coreplugin/icore.h>
 #include <coreplugin/ioutputpane.h>
 #include <coreplugin/progressmanager/progressmanager.h>
 #include <coreplugin/progressmanager/futureprogress.h>
 #include <extensionsystem/pluginmanager.h>
 #include <projectexplorer/runconfiguration.h>
-#include <analyzerbase/analyzermanager.h>
 
 #include <QApplication>
 #include <QMainWindow>
 
 #define VALGRIND_DEBUG_OUTPUT 0
 
-using namespace Analyzer;
+using namespace Debugger;
 using namespace Core;
 using namespace Utils;
 using namespace ProjectExplorer;
@@ -54,13 +51,11 @@ using namespace ProjectExplorer;
 namespace Valgrind {
 namespace Internal {
 
-ValgrindRunControl::ValgrindRunControl(const AnalyzerStartParameters &sp,
-        RunConfiguration *runConfiguration)
-    : AnalyzerRunControl(sp, runConfiguration),
-      m_settings(0),
-      m_isStopping(false)
+ValgrindRunControl::ValgrindRunControl(RunConfiguration *runConfiguration, Core::Id runMode)
+    : AnalyzerRunControl(runConfiguration, runMode)
 {
-    m_isCustomStart = false;
+    QTC_ASSERT(runConfiguration, return);
+    setRunnable(runConfiguration->runnable());
 
     if (runConfiguration)
         if (IRunConfigurationAspect *aspect = runConfiguration->extraAspect(ANALYZER_VALGRIND_SETTINGS))
@@ -70,14 +65,9 @@ ValgrindRunControl::ValgrindRunControl(const AnalyzerStartParameters &sp,
         m_settings = ValgrindPlugin::globalSettings();
 }
 
-ValgrindRunControl::~ValgrindRunControl()
+void ValgrindRunControl::start()
 {
-}
-
-bool ValgrindRunControl::startEngine()
-{
-    emit starting(this);
-
+    emit starting();
     FutureProgress *fp = ProgressManager::addTimedTask(m_progress, progressTitle(), "valgrind", 100);
     fp->setKeepOnFinish(FutureProgress::HideOnFinish);
     connect(fp, &FutureProgress::canceled,
@@ -86,23 +76,18 @@ bool ValgrindRunControl::startEngine()
             this, &ValgrindRunControl::handleProgressFinished);
     m_progress.reportStarted();
 
-    const AnalyzerStartParameters &sp = startParameters();
 #if VALGRIND_DEBUG_OUTPUT
     emit outputReceived(tr("Valgrind options: %1").arg(toolArguments().join(QLatin1Char(' '))), DebugFormat);
-    emit outputReceived(tr("Working directory: %1").arg(sp.workingDirectory), DebugFormat);
-    emit outputReceived(tr("Command line arguments: %1").arg(sp.debuggeeArgs), DebugFormat);
+    emit outputReceived(tr("Working directory: %1").arg(runnable().workingDirectory), DebugFormat);
+    emit outputReceived(tr("Command line arguments: %1").arg(runnable().debuggeeArgs), DebugFormat);
 #endif
 
     ValgrindRunner *run = runner();
-    run->setWorkingDirectory(sp.workingDirectory);
     run->setValgrindExecutable(m_settings->valgrindExecutable());
     run->setValgrindArguments(genericToolArguments() + toolArguments());
-    run->setDebuggeeExecutable(sp.debuggee);
-    run->setDebuggeeArguments(sp.debuggeeArgs);
-    run->setEnvironment(sp.environment);
-    run->setConnectionParameters(sp.connParams);
-    run->setUseStartupProject(!m_isCustomStart);
-    run->setLocalRunMode(sp.localRunMode);
+    const StandardRunnable r = runnable().as<StandardRunnable>();
+    run->setDevice(r.device ? r.device : device());
+    run->setDebuggee(r);
 
     connect(run, &ValgrindRunner::processOutputReceived,
             this, &ValgrindRunControl::receiveProcessOutput);
@@ -113,20 +98,29 @@ bool ValgrindRunControl::startEngine()
 
     if (!run->start()) {
         m_progress.cancel();
-        return false;
+        emit finished();
+        return;
     }
-    return true;
+
+    m_isRunning = true;
+    emit started();
 }
 
-void ValgrindRunControl::stopEngine()
+RunControl::StopResult ValgrindRunControl::stop()
 {
     m_isStopping = true;
     runner()->stop();
+    return AsynchronousStop;
+}
+
+bool ValgrindRunControl::isRunning() const
+{
+    return m_isRunning;
 }
 
 QString ValgrindRunControl::executable() const
 {
-    return startParameters().debuggee;
+    return runnable().as<StandardRunnable>().executable;
 }
 
 QStringList ValgrindRunControl::genericToolArguments() const
@@ -153,7 +147,6 @@ QStringList ValgrindRunControl::genericToolArguments() const
 
 void ValgrindRunControl::handleProgressCanceled()
 {
-    AnalyzerManager::stopTool();
     m_progress.reportCanceled();
     m_progress.reportFinished();
 }
@@ -165,6 +158,8 @@ void ValgrindRunControl::handleProgressFinished()
 
 void ValgrindRunControl::runnerFinished()
 {
+    m_isRunning = false;
+
     appendMessage(tr("Analyzing finished.") + QLatin1Char('\n'), NormalMessageFormat);
     emit finished();
 

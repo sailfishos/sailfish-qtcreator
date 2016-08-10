@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://www.qt.io/licensing.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -110,6 +105,16 @@ quint32 CodeCompletion::priority() const
     return priority_;
 }
 
+void CodeCompletion::setBriefComment(const Utf8String &briefComment)
+{
+    briefComment_ = briefComment;
+}
+
+const Utf8String &CodeCompletion::briefComment() const
+{
+    return briefComment_;
+}
+
 quint32 &CodeCompletion::completionKindAsInt()
 {
     return reinterpret_cast<quint32&>(completionKind_);
@@ -120,26 +125,28 @@ quint32 &CodeCompletion::availabilityAsInt()
     return reinterpret_cast<quint32&>(availability_);
 }
 
-QDataStream &operator<<(QDataStream &out, const CodeCompletion &command)
+QDataStream &operator<<(QDataStream &out, const CodeCompletion &message)
 {
-    out << command.text_;
-    out << command.chunks_;
-    out << command.priority_;
-    out << command.completionKind_;
-    out << command.availability_;
-    out << command.hasParameters_;
+    out << message.text_;
+    out << message.briefComment_;
+    out << message.chunks_;
+    out << message.priority_;
+    out << message.completionKind_;
+    out << message.availability_;
+    out << message.hasParameters_;
 
     return out;
 }
 
-QDataStream &operator>>(QDataStream &in, CodeCompletion &command)
+QDataStream &operator>>(QDataStream &in, CodeCompletion &message)
 {
-    in >> command.text_;
-    in >> command.chunks_;
-    in >> command.priority_;
-    in >> command.completionKindAsInt();
-    in >> command.availabilityAsInt();
-    in >> command.hasParameters_;
+    in >> message.text_;
+    in >> message.briefComment_;
+    in >> message.chunks_;
+    in >> message.priority_;
+    in >> message.completionKindAsInt();
+    in >> message.availabilityAsInt();
+    in >> message.hasParameters_;
 
     return in;
 }
@@ -148,11 +155,6 @@ bool operator==(const CodeCompletion &first, const CodeCompletion &second)
 {
     return first.text_ == second.text_
             && first.completionKind_ == second.completionKind_;
-}
-
-bool operator<(const CodeCompletion &first, const CodeCompletion &second)
-{
-    return first.text_ < second.text_;
 }
 
 static const char *completionKindToString(CodeCompletion::Kind kind)
@@ -165,6 +167,7 @@ static const char *completionKindToString(CodeCompletion::Kind kind)
         case CodeCompletion::DestructorCompletionKind: return "Destructor";
         case CodeCompletion::VariableCompletionKind: return "Variable";
         case CodeCompletion::ClassCompletionKind: return "Class";
+        case CodeCompletion::TypeAliasCompletionKind: return "TypeAlias";
         case CodeCompletion::TemplateClassCompletionKind: return "TemplateClass";
         case CodeCompletion::EnumerationCompletionKind: return "Enumeration";
         case CodeCompletion::EnumeratorCompletionKind: return "Enumerator";
@@ -191,30 +194,30 @@ static const char *availabilityToString(CodeCompletion::Availability availabilit
     return nullptr;
 }
 
-QDebug operator<<(QDebug debug, const CodeCompletion &command)
+QDebug operator<<(QDebug debug, const CodeCompletion &message)
 {
     debug.nospace() << "CodeCompletion(";
 
-    debug.nospace() << command.text_ << ", ";
-    debug.nospace() << command.priority_ << ", ";
-    debug.nospace() << completionKindToString(command.completionKind_) << ", ";
-    debug.nospace() << availabilityToString(command.availability_) << ", ";
-    debug.nospace() << command.hasParameters_;
+    debug.nospace() << message.text_ << ", ";
+    debug.nospace() << message.priority_ << ", ";
+    debug.nospace() << completionKindToString(message.completionKind_) << ", ";
+    debug.nospace() << availabilityToString(message.availability_) << ", ";
+    debug.nospace() << message.hasParameters_;
 
     debug.nospace() << ")";
 
     return debug;
 }
 
-void PrintTo(const CodeCompletion &command, ::std::ostream* os)
+void PrintTo(const CodeCompletion &message, ::std::ostream* os)
 {
     *os << "CodeCompletion(";
 
-    *os << command.text_.constData() << ", ";
-    *os << command.priority_ << ", ";
-    *os << completionKindToString(command.completionKind_) << ", ";
-    *os << availabilityToString(command.availability_) << ", ";
-    *os << command.hasParameters_;
+    *os << message.text_.constData() << ", ";
+    *os << message.priority_ << ", ";
+    *os << completionKindToString(message.completionKind_) << ", ";
+    *os << availabilityToString(message.availability_) << ", ";
+    *os << message.hasParameters_;
 
     *os << ")";
 }

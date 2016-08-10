@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -34,14 +29,24 @@
 
 #include <android/androidmanager.h>
 #include <android/androidconfigurations.h>
+
+#include <projectexplorer/buildmanager.h>
 #include <projectexplorer/buildsteplist.h>
+#include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/projectexplorerconstants.h>
+#include <projectexplorer/target.h>
 
 #include <qmakeprojectmanager/qmakebuildinfo.h>
+#include <qmakeprojectmanager/qmakeproject.h>
 
-using namespace QmakeAndroidSupport::Internal;
+using namespace Android;
+using namespace ProjectExplorer;
+using namespace QmakeProjectManager;
 
-int AndroidQmakeBuildConfigurationFactory::priority(const ProjectExplorer::Kit *k, const QString &projectPath) const
+namespace QmakeAndroidSupport {
+namespace Internal {
+
+int AndroidQmakeBuildConfigurationFactory::priority(const Kit *k, const QString &projectPath) const
 {
     if (QmakeBuildConfigurationFactory::priority(k, projectPath) >= 0
             && Android::AndroidManager::supportsAndroid(k))
@@ -49,7 +54,7 @@ int AndroidQmakeBuildConfigurationFactory::priority(const ProjectExplorer::Kit *
     return -1;
 }
 
-int AndroidQmakeBuildConfigurationFactory::priority(const ProjectExplorer::Target *parent) const
+int AndroidQmakeBuildConfigurationFactory::priority(const Target *parent) const
 {
     if (QmakeBuildConfigurationFactory::priority(parent) >= 0
             && Android::AndroidManager::supportsAndroid(parent))
@@ -57,32 +62,32 @@ int AndroidQmakeBuildConfigurationFactory::priority(const ProjectExplorer::Targe
     return -1;
 }
 
-ProjectExplorer::BuildConfiguration *AndroidQmakeBuildConfigurationFactory::create(ProjectExplorer::Target *parent,
-                                                                                   const ProjectExplorer::BuildInfo *info) const
+BuildConfiguration *AndroidQmakeBuildConfigurationFactory::create(Target *parent,
+                                                                  const BuildInfo *info) const
 {
-    auto qmakeInfo = static_cast<const QmakeProjectManager::QmakeBuildInfo *>(info);
-    AndroidQmakeBuildConfiguration *bc = new AndroidQmakeBuildConfiguration(parent);
+    auto qmakeInfo = static_cast<const QmakeBuildInfo *>(info);
+    auto bc = new AndroidQmakeBuildConfiguration(parent);
     configureBuildConfiguration(parent, bc, qmakeInfo);
 
-    ProjectExplorer::BuildStepList *buildSteps = bc->stepList(Core::Id(ProjectExplorer::Constants::BUILDSTEPS_BUILD));
+    BuildStepList *buildSteps = bc->stepList(ProjectExplorer::Constants::BUILDSTEPS_BUILD);
     buildSteps->insertStep(2, new AndroidPackageInstallationStep(buildSteps));
     buildSteps->insertStep(3, new QmakeAndroidBuildApkStep(buildSteps));
     return bc;
 }
 
-ProjectExplorer::BuildConfiguration *AndroidQmakeBuildConfigurationFactory::clone(ProjectExplorer::Target *parent, ProjectExplorer::BuildConfiguration *source)
+BuildConfiguration *AndroidQmakeBuildConfigurationFactory::clone(Target *parent, BuildConfiguration *source)
 {
     if (!canClone(parent, source))
         return 0;
-    AndroidQmakeBuildConfiguration *oldbc(static_cast<AndroidQmakeBuildConfiguration *>(source));
+    auto *oldbc = static_cast<AndroidQmakeBuildConfiguration *>(source);
     return new AndroidQmakeBuildConfiguration(parent, oldbc);
 }
 
-ProjectExplorer::BuildConfiguration *AndroidQmakeBuildConfigurationFactory::restore(ProjectExplorer::Target *parent, const QVariantMap &map)
+BuildConfiguration *AndroidQmakeBuildConfigurationFactory::restore(Target *parent, const QVariantMap &map)
 {
     if (!canRestore(parent, map))
         return 0;
-    AndroidQmakeBuildConfiguration *bc = new AndroidQmakeBuildConfiguration(parent);
+    auto bc = new AndroidQmakeBuildConfiguration(parent);
     if (bc->fromMap(map))
         return bc;
     delete bc;
@@ -90,26 +95,53 @@ ProjectExplorer::BuildConfiguration *AndroidQmakeBuildConfigurationFactory::rest
 }
 
 
-AndroidQmakeBuildConfiguration::AndroidQmakeBuildConfiguration(ProjectExplorer::Target *target)
-    : QmakeProjectManager::QmakeBuildConfiguration(target)
+AndroidQmakeBuildConfiguration::AndroidQmakeBuildConfiguration(Target *target)
+    : QmakeBuildConfiguration(target)
 {
+    auto updateGrade = [this] { AndroidManager::updateGradleProperties(BuildConfiguration::target()); };
 
+    auto project = qobject_cast<QmakeProject *>(target->project());
+    if (project)
+        connect(project, &QmakeProject::proFilesEvaluated, this, updateGrade);
+    else
+        connect(this, &AndroidQmakeBuildConfiguration::enabledChanged, this, updateGrade);
 }
 
-AndroidQmakeBuildConfiguration::AndroidQmakeBuildConfiguration(ProjectExplorer::Target *target, AndroidQmakeBuildConfiguration *source)
-    : QmakeProjectManager::QmakeBuildConfiguration(target, source)
+AndroidQmakeBuildConfiguration::AndroidQmakeBuildConfiguration(Target *target, AndroidQmakeBuildConfiguration *source)
+    : QmakeBuildConfiguration(target, source)
 {
-
 }
 
-AndroidQmakeBuildConfiguration::AndroidQmakeBuildConfiguration(ProjectExplorer::Target *target, Core::Id id)
-    : QmakeProjectManager::QmakeBuildConfiguration(target, id)
+AndroidQmakeBuildConfiguration::AndroidQmakeBuildConfiguration(Target *target, Core::Id id)
+    : QmakeBuildConfiguration(target, id)
 {
-
 }
 
 void AndroidQmakeBuildConfiguration::addToEnvironment(Utils::Environment &env) const
 {
-    env.set(QLatin1String("ANDROID_NDK_PLATFORM"),
-            Android::AndroidConfigurations::currentConfig().bestNdkPlatformMatch(Android::AndroidManager::minimumSDK(target())));
+    m_androidNdkPlatform = AndroidConfigurations::currentConfig().bestNdkPlatformMatch(AndroidManager::minimumSDK(target()));
+    env.set(QLatin1String("ANDROID_NDK_PLATFORM"), m_androidNdkPlatform);
 }
+
+void AndroidQmakeBuildConfiguration::manifestSaved()
+{
+    QString androidNdkPlatform = AndroidConfigurations::currentConfig().bestNdkPlatformMatch(AndroidManager::minimumSDK(target()));
+    if (m_androidNdkPlatform == androidNdkPlatform)
+        return;
+
+    emitEnvironmentChanged();
+
+    QMakeStep *qs = qmakeStep();
+    if (!qs)
+        return;
+
+    qs->setForced(true);
+
+    BuildManager::buildList(stepList(ProjectExplorer::Constants::BUILDSTEPS_CLEAN),
+                            ProjectExplorerPlugin::displayNameForStepId(ProjectExplorer::Constants::BUILDSTEPS_CLEAN));
+    BuildManager::appendStep(qs, ProjectExplorerPlugin::displayNameForStepId(ProjectExplorer::Constants::BUILDSTEPS_CLEAN));
+    setSubNodeBuild(0);
+}
+
+} // namespace Internal
+} // namespace QmakeAndroidSupport

@@ -49,8 +49,7 @@ public:
 
     QString description() const override;
 
-    QString platformName() const override;
-    QString platformDisplayName() const override;
+    QSet<Core::Id> targetDeviceTypes() const;
 
     QList<ProjectExplorer::Task> validateKit(const ProjectExplorer::Kit *k) override;
     QVariantMap toMap() const override;
@@ -62,7 +61,7 @@ protected:
     QList<ProjectExplorer::Task> reportIssuesImpl(const QString &proFile,
                                                   const QString &buildDir) const override;
 
-    Core::FeatureSet availableFeatures() const override;
+    QSet<Core::Id> availableFeatures() const override;
 
 private:
     QString m_vmName;

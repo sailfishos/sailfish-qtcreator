@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -38,6 +33,7 @@
 #include <projectexplorer/runconfigurationaspects.h>
 #include <projectexplorer/target.h>
 #include <projectexplorer/abi.h>
+#include <projectexplorer/devicesupport/devicemanager.h>
 
 #include <coreplugin/icore.h>
 
@@ -69,21 +65,22 @@ void CustomExecutableRunConfiguration::ctor()
 }
 
 CustomExecutableRunConfiguration::CustomExecutableRunConfiguration(Target *parent) :
-    LocalApplicationRunConfiguration(parent, Core::Id(CUSTOM_EXECUTABLE_ID)),
-    m_workingDirectory(QLatin1String(Constants::DEFAULT_WORKING_DIR)),
+    RunConfiguration(parent, CUSTOM_EXECUTABLE_ID),
     m_dialog(0)
 {
-    addExtraAspect(new LocalEnvironmentAspect(this));
+    addExtraAspect(new LocalEnvironmentAspect(this, LocalEnvironmentAspect::BaseEnvironmentModifier()));
     addExtraAspect(new ArgumentsAspect(this, QStringLiteral("ProjectExplorer.CustomExecutableRunConfiguration.Arguments")));
     addExtraAspect(new TerminalAspect(this, QStringLiteral("ProjectExplorer.CustomExecutableRunConfiguration.UseTerminal")));
-    if (!parent->activeBuildConfiguration())
+    if (parent->activeBuildConfiguration())
+        m_workingDirectory = QLatin1String(Constants::DEFAULT_WORKING_DIR);
+    else
         m_workingDirectory = QLatin1String(Constants::DEFAULT_WORKING_DIR_ALTERNATE);
     ctor();
 }
 
 CustomExecutableRunConfiguration::CustomExecutableRunConfiguration(Target *parent,
                                                                    CustomExecutableRunConfiguration *source) :
-    LocalApplicationRunConfiguration(parent, source),
+    RunConfiguration(parent, source),
     m_executable(source->m_executable),
     m_workingDirectory(source->m_workingDirectory),
     m_dialog(0)
@@ -241,11 +238,6 @@ bool CustomExecutableRunConfiguration::isConfigured() const
     return !m_executable.isEmpty();
 }
 
-ApplicationLauncher::Mode CustomExecutableRunConfiguration::runMode() const
-{
-    return extraAspect<TerminalAspect>()->runMode();
-}
-
 QString CustomExecutableRunConfiguration::workingDirectory() const
 {
     EnvironmentAspect *aspect = extraAspect<EnvironmentAspect>();
@@ -254,15 +246,21 @@ QString CustomExecutableRunConfiguration::workingDirectory() const
                 macroExpander()->expand(baseWorkingDirectory())));
 }
 
+Runnable CustomExecutableRunConfiguration::runnable() const
+{
+    StandardRunnable r;
+    r.executable = executable();
+    r.commandLineArguments = extraAspect<ArgumentsAspect>()->arguments();
+    r.workingDirectory = workingDirectory();
+    r.environment = extraAspect<LocalEnvironmentAspect>()->environment();
+    r.runMode = extraAspect<TerminalAspect>()->runMode();
+    r.device = DeviceManager::instance()->defaultDevice(Constants::DESKTOP_DEVICE_TYPE);
+    return r;
+}
+
 QString CustomExecutableRunConfiguration::baseWorkingDirectory() const
 {
     return m_workingDirectory;
-}
-
-
-QString CustomExecutableRunConfiguration::commandLineArguments() const
-{
-    return extraAspect<ArgumentsAspect>()->arguments();
 }
 
 QString CustomExecutableRunConfiguration::defaultDisplayName() const
@@ -275,7 +273,7 @@ QString CustomExecutableRunConfiguration::defaultDisplayName() const
 
 QVariantMap CustomExecutableRunConfiguration::toMap() const
 {
-    QVariantMap map(LocalApplicationRunConfiguration::toMap());
+    QVariantMap map(RunConfiguration::toMap());
     map.insert(QLatin1String(EXECUTABLE_KEY), m_executable);
     map.insert(QLatin1String(WORKING_DIRECTORY_KEY), m_workingDirectory);
     return map;
@@ -287,7 +285,7 @@ bool CustomExecutableRunConfiguration::fromMap(const QVariantMap &map)
     m_workingDirectory = map.value(QLatin1String(WORKING_DIRECTORY_KEY)).toString();
 
     setDefaultDisplayName(defaultDisplayName());
-    return LocalApplicationRunConfiguration::fromMap(map);
+    return RunConfiguration::fromMap(map);
 }
 
 void CustomExecutableRunConfiguration::setExecutable(const QString &executable)
@@ -332,9 +330,6 @@ Abi CustomExecutableRunConfiguration::abi() const
 CustomExecutableRunConfigurationFactory::CustomExecutableRunConfigurationFactory(QObject *parent) :
     IRunConfigurationFactory(parent)
 { setObjectName(QLatin1String("CustomExecutableRunConfigurationFactory")); }
-
-CustomExecutableRunConfigurationFactory::~CustomExecutableRunConfigurationFactory()
-{ }
 
 bool CustomExecutableRunConfigurationFactory::canCreate(Target *parent, Core::Id id) const
 {

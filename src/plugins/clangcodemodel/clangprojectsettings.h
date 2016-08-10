@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,75 +9,53 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
-#ifndef CLANGPROJECTSETTINGS_H
-#define CLANGPROJECTSETTINGS_H
+#pragma once
 
-#include "clang_global.h"
-
+#include <coreplugin/id.h>
 #include <projectexplorer/project.h>
 
 #include <QObject>
 #include <QString>
 
 namespace ClangCodeModel {
+namespace Internal {
 
-class CLANG_EXPORT ClangProjectSettings: public QObject
+class ClangProjectSettings: public QObject
 {
     Q_OBJECT
 
 public:
-    enum PchUsage {
-        PchUse_Unknown = 0,
-        PchUse_None = 1,
-        PchUse_BuildSystem_Exact = 2,
-        PchUse_BuildSystem_Fuzzy = 3,
-        PchUse_Custom = 4
-    };
-
-public:
     ClangProjectSettings(ProjectExplorer::Project *project);
-    virtual ~ClangProjectSettings();
 
-    ProjectExplorer::Project *project() const;
+    bool useGlobalWarningConfig() const;
+    void setUseGlobalWarningConfig(bool useGlobalWarningConfig);
 
-    PchUsage pchUsage() const;
-    void setPchUsage(PchUsage pchUsage);
-
-    QString customPchFile() const;
-    void setCustomPchFile(const QString &customPchFile);
-
-signals:
-    void pchSettingsChanged();
+    Core::Id warningConfigId() const;
+    void setWarningConfigId(const Core::Id &warningConfigId);
 
 public slots:
-    void pullSettings();
-    void pushSettings();
+    void load();
+    void store();
 
 private:
     ProjectExplorer::Project *m_project;
-    PchUsage m_pchUsage;
-    QString m_customPchFile;
+    bool m_useGlobalWarningConfig = true;
+    Core::Id m_warningConfigId;
 };
 
-} // ClangCodeModel namespace
-
-#endif // CLANGPROJECTSETTINGS_H
+} // namespace Internal
+} // namespace ClangCodeModel

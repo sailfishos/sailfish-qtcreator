@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,28 +9,24 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
 #include "stackframe.h"
 
 #include "debuggerengine.h"
+#include "debuggerprotocol.h"
 #include "watchutils.h"
 
 #include <QDebug>
@@ -49,16 +45,16 @@ namespace Internal {
 ////////////////////////////////////////////////////////////////////////
 
 StackFrame::StackFrame()
-  : language(CppLanguage), level(-1), line(-1), address(0), usable(false)
+  : language(CppLanguage), line(-1), address(0), usable(false)
 {}
 
 void StackFrame::clear()
 {
-    line = level = -1;
+    line = -1;
     function.clear();
     file.clear();
-    from.clear();
-    to.clear();
+    module.clear();
+    receiver.clear();
     address = 0;
 }
 
@@ -79,9 +75,42 @@ QString StackFrame::toString() const
         << tr("Function:") << ' ' << function << ' '
         << tr("File:") << ' ' << file << ' '
         << tr("Line:") << ' ' << line << ' '
-        << tr("From:") << ' ' << from << ' '
-        << tr("To:") << ' ' << to;
+        << tr("From:") << ' ' << module << ' '
+        << tr("To:") << ' ' << receiver;
     return res;
+}
+
+QList<StackFrame> StackFrame::parseFrames(const GdbMi &data, const DebuggerRunParameters &rp)
+{
+    StackFrames frames;
+    frames.reserve(data.children().size());
+    foreach (const GdbMi &item, data.children())
+        frames.append(parseFrame(item, rp));
+    return frames;
+}
+
+StackFrame StackFrame::parseFrame(const GdbMi &frameMi, const DebuggerRunParameters &rp)
+{
+    StackFrame frame;
+    frame.level = frameMi["level"].data();
+    frame.function = frameMi["function"].toUtf8();
+    frame.module = frameMi["module"].toUtf8();
+    frame.file = QFile::decodeName(frameMi["file"].data());
+    frame.line = frameMi["line"].toInt();
+    frame.address = frameMi["address"].toAddress();
+    frame.context = frameMi["context"].data();
+    if (frameMi["language"].data() == "js"
+            || frame.file.endsWith(QLatin1String(".js"))
+            || frame.file.endsWith(QLatin1String(".qml"))) {
+        frame.language = QmlLanguage;
+        frame.fixQrcFrame(rp);
+    }
+    GdbMi usable = frameMi["usable"];
+    if (usable.isValid())
+        frame.usable = usable.data().toInt();
+    else
+        frame.usable = QFileInfo(frame.file).isReadable();
+    return frame;
 }
 
 QString StackFrame::toToolTip() const
@@ -101,10 +130,10 @@ QString StackFrame::toToolTip() const
         str << "<tr><td>" << tr("File:") << "</td><td>" << filePath << "</td></tr>";
     if (line != -1)
         str << "<tr><td>" << tr("Line:") << "</td><td>" << line << "</td></tr>";
-    if (!from.isEmpty())
-        str << "<tr><td>" << tr("From:") << "</td><td>" << from << "</td></tr>";
-    if (!to.isEmpty())
-        str << "<tr><td>" << tr("To:") << "</td><td>" << to << "</td></tr>";
+    if (!module.isEmpty())
+        str << "<tr><td>" << tr("Module:") << "</td><td>" << module << "</td></tr>";
+    if (!receiver.isEmpty())
+        str << "<tr><td>" << tr("Receiver:") << "</td><td>" << receiver << "</td></tr>";
     str << "</table>";
 
     str <<"<br> <br><i>" << tr("Note:") << " </i> ";
@@ -133,8 +162,23 @@ QString StackFrame::toToolTip() const
     return res;
 }
 
-// Try to resolve files of a QML stack (resource files).
-void StackFrame::fixQmlFrame(const DebuggerRunParameters &rp)
+static QString findFile(const QString &baseDir, const QString &relativeFile)
+{
+    QDir dir(baseDir);
+    while (true) {
+        const QString path = dir.absoluteFilePath(relativeFile);
+        const QFileInfo fi(path);
+        if (fi.isFile())
+            return path;
+        if (dir.isRoot())
+            break;
+        dir.cdUp();
+    }
+    return QString();
+}
+
+// Try to resolve files coming from resource files.
+void StackFrame::fixQrcFrame(const DebuggerRunParameters &rp)
 {
     if (language != QmlLanguage)
         return;
@@ -145,21 +189,19 @@ void StackFrame::fixQmlFrame(const DebuggerRunParameters &rp)
     }
     if (!file.startsWith(QLatin1String("qrc:/")))
         return;
-    const QString relativeFile = file.right(file.size() - 5);
-    if (!rp.projectSourceDirectory.isEmpty()) {
-        const QFileInfo pFi(rp.projectSourceDirectory + QLatin1Char('/') + relativeFile);
-        if (pFi.isFile()) {
-            file = pFi.absoluteFilePath();
-            usable = true;
-            return;
-        }
-        const QFileInfo cFi(QDir::currentPath() + QLatin1Char('/') + relativeFile);
-        if (cFi.isFile()) {
-            file = cFi.absoluteFilePath();
-            usable = true;
-            return;
-        }
-    }
+
+    QString relativeFile = file.right(file.size() - 5);
+    while (relativeFile.startsWith(QLatin1Char('/')))
+        relativeFile = relativeFile.mid(1);
+
+    QString absFile = findFile(rp.projectSourceDirectory, relativeFile);
+    if (absFile.isEmpty())
+        absFile = findFile(QDir::currentPath(), relativeFile);
+
+    if (absFile.isEmpty())
+        return;
+    file = absFile;
+    usable = true;
 }
 
 QDebug operator<<(QDebug d, const  StackFrame &f)
@@ -171,10 +213,10 @@ QDebug operator<<(QDebug d, const  StackFrame &f)
         str << ' ' << f.function;
     if (!f.file.isEmpty())
         str << ' ' << f.file << ':' << f.line;
-    if (!f.from.isEmpty())
-        str << " from=" << f.from;
-    if (!f.to.isEmpty())
-        str << " to=" << f.to;
+    if (!f.module.isEmpty())
+        str << " from=" << f.module;
+    if (!f.receiver.isEmpty())
+        str << " to=" << f.receiver;
     d.nospace() << res;
     return d;
 }

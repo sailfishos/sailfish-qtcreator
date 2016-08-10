@@ -2,29 +2,33 @@
     <qresource prefix="/projectexplorer">
         <file>images/build_small.png</file>
         <file>images/category_buildrun.png</file>
-        <file>images/clean.png</file>
-        <file>images/clean_small.png</file>
         <file>images/closetab.png</file>
         <file>images/debugger_start.png</file>
         <file>images/debugger_start@2x.png</file>
-        <file>images/debugger_start_small.png</file>
+        <file>images/debugger_beetle_mask.png</file>
+        <file>images/debugger_beetle_mask@2x.png</file>
         <file>images/mode_project.png</file>
         <file>images/mode_project@2x.png</file>
+        <file>images/mode_project_mask.png</file>
+        <file>images/mode_project_mask@2x.png</file>
         <file>images/projectexplorer.png</file>
-        <file>images/rebuild.png</file>
-        <file>images/rebuild_small.png</file>
+        <file>images/rebuildhammerhandles.png</file>
+        <file>images/rebuildhammerhandles@2x.png</file>
+        <file>images/rebuildhammerheads.png</file>
+        <file>images/rebuildhammerheads@2x.png</file>
         <file>images/run.png</file>
         <file>images/run@2x.png</file>
-        <file>images/run_small.png</file>
+        <file>images/run_mask.png</file>
+        <file>images/run_mask@2x.png</file>
+        <file>images/debugger_overlay_small.png</file>
+        <file>images/debugger_overlay_small@2x.png</file>
         <file>images/session.png</file>
-        <file>images/stop.png</file>
-        <file>images/targetbuildselected.png</file>
         <file>images/targetrunselected.png</file>
+        <file>images/targetrunselected@2x.png</file>
         <file>images/targetseparatorbackground.png</file>
         <file>images/targetunselected.png</file>
-        <file>images/leftselection.png</file>
-        <file>images/rightselection.png</file>
-        <file>images/midselection.png</file>
+        <file>images/selection.png</file>
+        <file>images/selection@2x.png</file>
         <file>images/BuildSettings.png</file>
         <file>images/CodeStyleSettings.png</file>
         <file>images/RunSettings.png</file>
@@ -37,18 +41,49 @@
         <file>images/DeviceReadyToUse.png</file>
         <file>images/build.png</file>
         <file>images/build@2x.png</file>
+        <file>images/build_hammerhandle_mask.png</file>
+        <file>images/build_hammerhandle_mask@2x.png</file>
+        <file>images/build_hammerhead_mask.png</file>
+        <file>images/build_hammerhead_mask@2x.png</file>
         <file>images/targetpanel_bottom.png</file>
         <file>images/targetpanel_gradient.png</file>
         <file>images/window.png</file>
-        <file>images/stop_small.png</file>
-        <file>images/disabledbuildstep.png</file>
-        <file>images/disabledbuildstep@2x.png</file>
-        <file>images/lightdisabledbuildstep.png</file>
-        <file>images/lightdisabledbuildstep@2x.png</file>
+        <file>images/continue_1_small.png</file>
+        <file>images/continue_1_small@2x.png</file>
+        <file>images/continue_2_small.png</file>
+        <file>images/continue_2_small@2x.png</file>
+        <file>images/buildstepdisable.png</file>
+        <file>images/buildstepdisable@2x.png</file>
+        <file>images/buildstepmovedown.png</file>
+        <file>images/buildstepmovedown@2x.png</file>
+        <file>images/buildstepmoveup.png</file>
+        <file>images/buildstepmoveup@2x.png</file>
+        <file>images/buildstepremove.png</file>
+        <file>images/buildstepremove@2x.png</file>
         <file>images/unconfigured.png</file>
-        <file>images/targetleftbutton.png</file>
         <file>images/targetrightbutton.png</file>
+        <file>images/targetrightbutton@2x.png</file>
         <file>images/targetchangebutton.png</file>
+        <file>images/targetchangebutton@2x.png</file>
         <file>images/targetchangebutton2.png</file>
+        <file>images/targetchangebutton2@2x.png</file>
+        <file>images/desktopdevice.png</file>
+        <file>images/desktopdevice@2x.png</file>
+        <file>images/fileoverlay_qml.png</file>
+        <file>images/fileoverlay_qml@2x.png</file>
+        <file>images/fileoverlay_qrc.png</file>
+        <file>images/fileoverlay_qrc@2x.png</file>
+        <file>images/fileoverlay_qt.png</file>
+        <file>images/fileoverlay_qt@2x.png</file>
+        <file>images/fileoverlay_ui.png</file>
+        <file>images/fileoverlay_ui@2x.png</file>
+        <file>images/fileoverlay_scxml.png</file>
+        <file>images/fileoverlay_scxml@2x.png</file>
+        <file>images/fileoverlay_cpp.png</file>
+        <file>images/fileoverlay_cpp@2x.png</file>
+        <file>images/fileoverlay_h.png</file>
+        <file>images/fileoverlay_h@2x.png</file>
+        <file>images/fileoverlay_unknown.png</file>
+        <file>images/fileoverlay_unknown@2x.png</file>
     </qresource>
 </RCC>

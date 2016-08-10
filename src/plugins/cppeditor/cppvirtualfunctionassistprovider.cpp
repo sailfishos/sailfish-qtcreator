@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,25 +9,19 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
-
 
 #include "cppvirtualfunctionassistprovider.h"
 
@@ -75,7 +69,7 @@ public:
     }
 
 protected:
-    bool eventFilter(QObject *o, QEvent *e)
+    bool eventFilter(QObject *o, QEvent *e) override
     {
         if (e->type() == QEvent::ShortcutOverride && m_sequence.count() == 1) {
             QKeyEvent *ke = static_cast<QKeyEvent *>(e);
@@ -107,7 +101,9 @@ private:
 class VirtualFunctionProposal : public GenericProposal
 {
 public:
-    VirtualFunctionProposal(int cursorPos, const QList<AssistProposalItem *> &items, bool openInSplit)
+    VirtualFunctionProposal(int cursorPos,
+                            const QList<AssistProposalItemInterface *> &items,
+                            bool openInSplit)
         : GenericProposal(cursorPos, items)
         , m_openInSplit(openInSplit)
     {}
@@ -132,13 +128,12 @@ public:
     {
         QTC_ASSERT(m_params.function, return 0);
 
-        AssistProposalItem *hintItem
-                = new VirtualFunctionProposalItem(TextEditorWidget::Link());
+        auto *hintItem = new VirtualFunctionProposalItem(TextEditorWidget::Link());
         hintItem->setText(QCoreApplication::translate("VirtualFunctionsAssistProcessor",
                                                       "...searching overrides"));
         hintItem->setOrder(-1000);
 
-        QList<AssistProposalItem *> items;
+        QList<AssistProposalItemInterface *> items;
         items << itemFromFunction(m_params.function);
         items << hintItem;
         return new VirtualFunctionProposal(m_params.cursorPosition, items, m_params.openInNextSplit);
@@ -152,8 +147,8 @@ public:
         QTC_ASSERT(m_params.staticClass, return 0);
         QTC_ASSERT(!m_params.snapshot.isEmpty(), return 0);
 
-        Class *functionsClass = m_finder.findMatchingClassDeclaration(
-                    m_params.function, m_params.snapshot, &m_params.typeOfExpression->context());
+        Class *functionsClass = m_finder.findMatchingClassDeclaration(m_params.function,
+                                                                      m_params.snapshot);
         if (!functionsClass)
             return 0;
 
@@ -162,7 +157,7 @@ public:
         if (overrides.isEmpty())
             return 0;
 
-        QList<AssistProposalItem *> items;
+        QList<AssistProposalItemInterface *> items;
         foreach (Function *func, overrides)
             items << itemFromFunction(func);
         items.first()->setOrder(1000); // Ensure top position for function of static type
@@ -178,23 +173,22 @@ private:
         return func;
     }
 
-    AssistProposalItem *itemFromFunction(Function *func) const
+    VirtualFunctionProposalItem *itemFromFunction(Function *func) const
     {
         const TextEditorWidget::Link link = CppTools::linkToSymbol(maybeDefinitionFor(func));
         QString text = m_overview.prettyName(LookupContext::fullyQualifiedName(func));
         if (func->isPureVirtual())
             text += QLatin1String(" = 0");
 
-        AssistProposalItem *item = new VirtualFunctionProposalItem(link, m_params.openInNextSplit);
+        auto *item = new VirtualFunctionProposalItem(link, m_params.openInNextSplit);
         item->setText(text);
-        item->setIcon(m_icons.iconForSymbol(func));
+        item->setIcon(Icons::iconForSymbol(func));
 
         return item;
     }
 
     VirtualFunctionAssistProvider::Parameters m_params;
     Overview m_overview;
-    Icons m_icons;
     mutable SymbolFinder m_finder;
 };
 

@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,27 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
-#ifndef KITINFORMATIONCONFIGWIDGET_H
-#define KITINFORMATIONCONFIGWIDGET_H
+#pragma once
 
 #include "kitconfigwidget.h"
 
@@ -63,21 +57,22 @@ class SysRootInformationConfigWidget : public KitConfigWidget
 
 public:
     SysRootInformationConfigWidget(Kit *k, const KitInformation *ki);
-    ~SysRootInformationConfigWidget();
+    ~SysRootInformationConfigWidget() override;
 
-    QString displayName() const;
-    void refresh();
-    void makeReadOnly();
-    QWidget *buttonWidget() const;
-    QWidget *mainWidget() const;
-    QString toolTip() const;
+    QString displayName() const override;
+    void refresh() override;
+    void makeReadOnly() override;
+    QWidget *buttonWidget() const override;
+    QWidget *mainWidget() const override;
+    QString toolTip() const override;
 
-private slots:
-    void pathWasChanged();
+    void setPalette(const QPalette &p) override;
 
 private:
+    void pathWasChanged();
+
     Utils::PathChooser *m_chooser;
-    bool m_ignoreChange;
+    bool m_ignoreChange = false;
 };
 
 // --------------------------------------------------------------------------
@@ -90,26 +85,25 @@ class ToolChainInformationConfigWidget : public KitConfigWidget
 
 public:
     ToolChainInformationConfigWidget(Kit *k, const KitInformation *ki);
-    ~ToolChainInformationConfigWidget();
+    ~ToolChainInformationConfigWidget() override;
 
-    QString displayName() const;
-    void refresh();
-    void makeReadOnly();
-    QWidget *mainWidget() const;
-    QWidget *buttonWidget() const;
-    QString toolTip() const;
+    QString displayName() const override;
+    void refresh() override;
+    void makeReadOnly() override;
+    QWidget *mainWidget() const override;
+    QWidget *buttonWidget() const override;
+    QString toolTip() const override;
 
-private slots:
+private:
     void manageToolChains();
     void currentToolChainChanged(int idx);
 
-private:
     int indexOf(const ToolChain *tc);
 
     QComboBox *m_comboBox;
     QPushButton *m_manageButton;
-    bool m_ignoreChanges;
-    bool m_isReadOnly;
+    bool m_ignoreChanges = false;
+    bool m_isReadOnly = false;
 };
 
 // --------------------------------------------------------------------------
@@ -122,18 +116,17 @@ class DeviceTypeInformationConfigWidget : public KitConfigWidget
 
 public:
     DeviceTypeInformationConfigWidget(Kit *workingCopy, const KitInformation *ki);
-    ~DeviceTypeInformationConfigWidget();
+    ~DeviceTypeInformationConfigWidget() override;
 
-    QWidget *mainWidget() const;
-    QString displayName() const;
-    QString toolTip() const;
-    void refresh();
-    void makeReadOnly();
-
-private slots:
-    void currentTypeChanged(int idx);
+    QWidget *mainWidget() const override;
+    QString displayName() const override;
+    QString toolTip() const override;
+    void refresh() override;
+    void makeReadOnly() override;
 
 private:
+    void currentTypeChanged(int idx);
+
     QComboBox *m_comboBox;
 };
 
@@ -147,24 +140,23 @@ class DeviceInformationConfigWidget : public KitConfigWidget
 
 public:
     DeviceInformationConfigWidget(Kit *workingCopy, const KitInformation *ki);
-    ~DeviceInformationConfigWidget();
+    ~DeviceInformationConfigWidget() override;
 
-    QWidget *mainWidget() const;
-    QWidget *buttonWidget() const;
-    QString displayName() const;
-    QString toolTip() const;
-    void refresh();
-    void makeReadOnly();
+    QWidget *mainWidget() const override;
+    QWidget *buttonWidget() const override;
+    QString displayName() const override;
+    QString toolTip() const override;
+    void refresh() override;
+    void makeReadOnly() override;
 
-private slots:
+private:
     void manageDevices();
     void modelAboutToReset();
     void modelReset();
     void currentDeviceChanged();
 
-private:
-    bool m_isReadOnly;
-    bool m_ignoreChange;
+    bool m_isReadOnly = false;
+    bool m_ignoreChange = false;
     QComboBox *m_comboBox;
     QPushButton *m_manageButton;
     DeviceManagerModel *m_model;
@@ -178,28 +170,25 @@ class KitEnvironmentConfigWidget : public KitConfigWidget
 public:
     KitEnvironmentConfigWidget(Kit *workingCopy, const KitInformation *ki);
 
-    QWidget *mainWidget() const;
-    QWidget *buttonWidget() const;
-    QString displayName() const;
-    QString toolTip() const;
-    void refresh();
-    void makeReadOnly();
+    QWidget *mainWidget() const override;
+    QWidget *buttonWidget() const override;
+    QString displayName() const override;
+    QString toolTip() const override;
+    void refresh() override;
+    void makeReadOnly() override;
 
-private slots:
+private:
     void editEnvironmentChanges();
 
     void applyChanges();
     void closeChangesDialog();
     void acceptChangesDialog();
 
-private:
     QLabel *m_summaryLabel;
     QPushButton *m_manageButton;
-    QDialog *m_dialog;
-    QPlainTextEdit *m_editor;
+    QDialog *m_dialog = 0;
+    QPlainTextEdit *m_editor = 0;
 };
 
 } // namespace Internal
 } // namespace ProjectExplorer
-
-#endif // KITINFORMATIONCONFIGWIDGET_H

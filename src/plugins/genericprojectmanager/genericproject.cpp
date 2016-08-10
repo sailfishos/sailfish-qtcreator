@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -39,6 +34,8 @@
 #include <coreplugin/icore.h>
 #include <cpptools/cpptoolsconstants.h>
 #include <cpptools/cppmodelmanager.h>
+#include <cpptools/projectinfo.h>
+#include <cpptools/projectpartbuilder.h>
 #include <extensionsystem/pluginmanager.h>
 #include <projectexplorer/abi.h>
 #include <projectexplorer/buildsteplist.h>
@@ -68,14 +65,15 @@ namespace Internal {
 ////////////////////////////////////////////////////////////////////////////////////
 
 GenericProject::GenericProject(Manager *manager, const QString &fileName)
-    : m_manager(manager),
-      m_fileName(fileName)
 {
     setId(Constants::GENERICPROJECT_ID);
+    setProjectManager(manager);
+    setDocument(new GenericProjectFile(this, fileName, GenericProject::Everything));
+    setRootProjectNode(new GenericProjectNode(this));
     setProjectContext(Context(GenericProjectManager::Constants::PROJECTCONTEXT));
     setProjectLanguages(Context(ProjectExplorer::Constants::LANG_CXX));
 
-    QFileInfo fileInfo(m_fileName);
+    QFileInfo fileInfo = projectFilePath().toFileInfo();
     QDir dir = fileInfo.dir();
 
     m_projectName      = fileInfo.completeBaseName();
@@ -83,17 +81,14 @@ GenericProject::GenericProject(Manager *manager, const QString &fileName)
     m_includesFileName = QFileInfo(dir, m_projectName + QLatin1String(".includes")).absoluteFilePath();
     m_configFileName   = QFileInfo(dir, m_projectName + QLatin1String(".config")).absoluteFilePath();
 
-    m_creatorIDocument  = new GenericProjectFile(this, m_fileName, GenericProject::Everything);
     m_filesIDocument    = new GenericProjectFile(this, m_filesFileName, GenericProject::Files);
     m_includesIDocument = new GenericProjectFile(this, m_includesFileName, GenericProject::Configuration);
     m_configIDocument   = new GenericProjectFile(this, m_configFileName, GenericProject::Configuration);
 
-    DocumentManager::addDocument(m_creatorIDocument);
+    DocumentManager::addDocument(document());
     DocumentManager::addDocument(m_filesIDocument);
     DocumentManager::addDocument(m_includesIDocument);
     DocumentManager::addDocument(m_configIDocument);
-
-    m_rootNode = new GenericProjectNode(this, m_creatorIDocument);
 
     FileNode *projectFilesNode = new FileNode(Utils::FileName::fromString(m_filesFileName),
                                               ProjectFileType,
@@ -107,20 +102,16 @@ GenericProject::GenericProject(Manager *manager, const QString &fileName)
                                                ProjectFileType,
                                                /* generated = */ false);
 
-    m_rootNode->addFileNodes(QList<FileNode *>()
-                             << projectFilesNode
-                             << projectIncludesNode
-                             << projectConfigNode);
+    rootProjectNode()->addFileNodes(QList<FileNode *>() << projectFilesNode
+                                    << projectIncludesNode << projectConfigNode);
 
-    m_manager->registerProject(this);
+    projectManager()->registerProject(this);
 }
 
 GenericProject::~GenericProject()
 {
     m_codeModelFuture.cancel();
-    m_manager->unregisterProject(this);
-
-    delete m_rootNode;
+    projectManager()->unregisterProject(this);
 }
 
 QString GenericProject::filesFileName() const
@@ -147,7 +138,7 @@ static QStringList readLines(const QString &absoluteFileName)
         QTextStream stream(&file);
 
         forever {
-            QString line = stream.readLine();
+            const QString line = stream.readLine();
             if (line.isNull())
                 break;
 
@@ -185,7 +176,7 @@ bool GenericProject::addFiles(const QStringList &filePaths)
 {
     QStringList newList = m_rawFileList;
 
-    QDir baseDir(QFileInfo(m_fileName).dir());
+    QDir baseDir(projectDirectory().toString());
     foreach (const QString &filePath, filePaths)
         newList.append(baseDir.relativeFilePath(filePath));
 
@@ -194,9 +185,8 @@ bool GenericProject::addFiles(const QStringList &filePaths)
     QSet<QString> toAdd;
 
     foreach (const QString &filePath, filePaths) {
-        QString directory = QFileInfo(filePath).absolutePath();
-        if (!includes.contains(directory)
-                && !toAdd.contains(directory))
+        const QString directory = QFileInfo(filePath).absolutePath();
+        if (!includes.contains(directory) && !toAdd.contains(directory))
             toAdd << directory;
     }
 
@@ -231,7 +221,7 @@ bool GenericProject::removeFiles(const QStringList &filePaths)
 bool GenericProject::setFiles(const QStringList &filePaths)
 {
     QStringList newList;
-    QDir baseDir(QFileInfo(m_fileName).dir());
+    QDir baseDir(projectDirectory().toString());
     foreach (const QString &filePath, filePaths)
         newList.append(baseDir.relativeFilePath(filePath));
 
@@ -246,7 +236,7 @@ bool GenericProject::renameFile(const QString &filePath, const QString &newFileP
     if (i != m_rawListEntries.end()) {
         int index = newList.indexOf(i.value());
         if (index != -1) {
-            QDir baseDir(QFileInfo(m_fileName).dir());
+            QDir baseDir(projectDirectory().toString());
             newList.replace(index, baseDir.relativeFilePath(newFilePath));
         }
     }
@@ -283,7 +273,7 @@ void GenericProject::refresh(RefreshOptions options)
     parseProject(options);
 
     if (options & Files)
-        m_rootNode->refresh(oldFileList);
+        static_cast<GenericProjectNode *>(rootProjectNode())->refresh(oldFileList);
 
     refreshCppCodeModel();
 }
@@ -318,7 +308,7 @@ QStringList GenericProject::processEntries(const QStringList &paths,
                                            QHash<QString, QString> *map) const
 {
     const QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
-    const QDir projectDir(QFileInfo(m_fileName).dir());
+    const QDir projectDir(projectDirectory().toString());
 
     QFileInfo fileInfo;
     QStringList absolutePaths;
@@ -389,24 +379,14 @@ QString GenericProject::displayName() const
     return m_projectName;
 }
 
-IDocument *GenericProject::document() const
+Manager *GenericProject::projectManager() const
 {
-    return m_creatorIDocument;
-}
-
-IProjectManager *GenericProject::projectManager() const
-{
-    return m_manager;
-}
-
-GenericProjectNode *GenericProject::rootProjectNode() const
-{
-    return m_rootNode;
+    return static_cast<Manager *>(Project::projectManager());
 }
 
 QStringList GenericProject::files(FilesMode fileMode) const
 {
-    Q_UNUSED(fileMode)
+    Q_UNUSED(fileMode);
     return m_files;
 }
 
@@ -418,10 +398,11 @@ QStringList GenericProject::buildTargets() const
     return targets;
 }
 
-bool GenericProject::fromMap(const QVariantMap &map)
+Project::RestoreResult GenericProject::fromMap(const QVariantMap &map, QString *errorMessage)
 {
-    if (!Project::fromMap(map))
-        return false;
+    RestoreResult result = Project::fromMap(map, errorMessage);
+    if (result != RestoreResult::Ok)
+        return result;
 
     Kit *defaultKit = KitManager::defaultKit();
     if (!activeTarget() && defaultKit)
@@ -429,6 +410,9 @@ bool GenericProject::fromMap(const QVariantMap &map)
 
     // Sanity check: We need both a buildconfiguration and a runconfiguration!
     QList<Target *> targetList = targets();
+    if (targetList.isEmpty())
+        return RestoreResult::Error;
+
     foreach (Target *t, targetList) {
         if (!t->activeBuildConfiguration()) {
             removeTarget(t);
@@ -439,7 +423,7 @@ bool GenericProject::fromMap(const QVariantMap &map)
     }
 
     refresh(Everything);
-    return true;
+    return RestoreResult::Ok;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -448,8 +432,8 @@ bool GenericProject::fromMap(const QVariantMap &map)
 //
 ////////////////////////////////////////////////////////////////////////////////////
 
-GenericProjectFile::GenericProjectFile(GenericProject *parent, QString fileName, GenericProject::RefreshOptions options)
-    : IDocument(parent),
+GenericProjectFile::GenericProjectFile(GenericProject *parent, QString fileName,
+                                       GenericProject::RefreshOptions options) :
       m_project(parent),
       m_options(options)
 {
@@ -458,42 +442,17 @@ GenericProjectFile::GenericProjectFile(GenericProject *parent, QString fileName,
     setFilePath(Utils::FileName::fromString(fileName));
 }
 
-bool GenericProjectFile::save(QString *, const QString &, bool)
-{
-    return false;
-}
-
-QString GenericProjectFile::defaultPath() const
-{
-    return QString();
-}
-
-QString GenericProjectFile::suggestedFileName() const
-{
-    return QString();
-}
-
-bool GenericProjectFile::isModified() const
-{
-    return false;
-}
-
-bool GenericProjectFile::isSaveAsAllowed() const
-{
-    return false;
-}
-
 IDocument::ReloadBehavior GenericProjectFile::reloadBehavior(ChangeTrigger state, ChangeType type) const
 {
-    Q_UNUSED(state)
-    Q_UNUSED(type)
+    Q_UNUSED(state);
+    Q_UNUSED(type);
     return BehaviorSilent;
 }
 
 bool GenericProjectFile::reload(QString *errorString, ReloadFlag flag, ChangeType type)
 {
-    Q_UNUSED(errorString)
-    Q_UNUSED(flag)
+    Q_UNUSED(errorString);
+    Q_UNUSED(flag);
     if (type == TypePermissions)
         return true;
     m_project->refresh(m_options);

@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,27 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
-#ifndef TARGET_H
-#define TARGET_H
+#pragma once
 
 #include "projectconfiguration.h"
 #include "projectexplorer_export.h"
@@ -55,11 +49,11 @@ class TargetPrivate;
 
 class PROJECTEXPLORER_EXPORT Target : public ProjectConfiguration
 {
+    friend class SessionManager; // for setActiveBuild and setActiveDeployConfiguration
     Q_OBJECT
 
 public:
-    Target(Project *parent, Kit *k);
-    ~Target();
+    ~Target() override;
 
     Project *project() const;
 
@@ -72,7 +66,6 @@ public:
 
     QList<BuildConfiguration *> buildConfigurations() const;
     BuildConfiguration *activeBuildConfiguration() const;
-    void setActiveBuildConfiguration(BuildConfiguration *configuration);
 
     // DeployConfiguration
     void addDeployConfiguration(DeployConfiguration *dc);
@@ -80,7 +73,6 @@ public:
 
     QList<DeployConfiguration *> deployConfigurations() const;
     DeployConfiguration *activeDeployConfiguration() const;
-    void setActiveDeployConfiguration(DeployConfiguration *configuration);
 
     void setDeploymentData(const DeploymentData &deploymentData);
     DeploymentData deploymentData() const;
@@ -110,7 +102,7 @@ public:
     QString toolTip() const;
     void setToolTip(const QString &text);
 
-    QVariantMap toMap() const;
+    QVariantMap toMap() const override;
 
     void updateDefaultBuildConfigurations();
     void updateDefaultDeployConfigurations();
@@ -158,27 +150,24 @@ signals:
     /// build configuration was changed.
     void buildDirectoryChanged();
 
-public slots:
-    void onBuildDirectoryChanged();
-
-protected:
+private:
+    Target(Project *parent, Kit *k);
     void setEnabled(bool);
 
-    bool fromMap(const QVariantMap &map);
+    bool fromMap(const QVariantMap &map) override;
 
-protected slots:
     void updateDeviceState();
+    void onBuildDirectoryChanged();
 
-private slots:
     void changeEnvironment();
     void changeBuildConfigurationEnabled();
     void changeDeployConfigurationEnabled();
     void changeRunConfigurationEnabled();
-
     void handleKitUpdates(ProjectExplorer::Kit *k);
     void handleKitRemoval(ProjectExplorer::Kit *k);
 
-private:
+    void setActiveBuildConfiguration(BuildConfiguration *configuration);
+    void setActiveDeployConfiguration(DeployConfiguration *configuration);
     TargetPrivate *d;
 
     friend class Project;
@@ -186,6 +175,3 @@ private:
 
 } // namespace ProjectExplorer
 
-Q_DECLARE_METATYPE(ProjectExplorer::Target *)
-
-#endif // TARGET_H

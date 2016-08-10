@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of the Qt SDK.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -45,6 +40,15 @@ Component.prototype.loaded = function()
     } catch(e) {
         print(e);
     }
+}
+
+Component.prototype.createOperationsForArchive = function(archive)
+{
+    // if there are additional plugin 7zips, these must be extracted in .app/Contents on OS X
+    if (systemInfo.productType !== "osx" || archive.indexOf('qtcreator.7z') !== -1)
+        component.addOperation("Extract", archive, "@TargetDir@");
+    else
+        component.addOperation("Extract", archive, "@TargetDir@/Qt Creator.app/Contents");
 }
 
 Component.prototype.beginInstallation = function()
@@ -110,7 +114,7 @@ registerWindowsFileTypeExtensions = function()
                             "ProgId=QtProject.QtCreator.ui");
     component.addOperation( "RegisterFileType",
                             "pro",
-                            component.qtCreatorBinaryPath + " -client \"%1\"",
+                            component.qtCreatorBinaryPath + " \"%1\"",
                             "Qt Project file",
                             "text/plain",
                             component.qtCreatorBinaryPath + ",5",
@@ -124,7 +128,7 @@ registerWindowsFileTypeExtensions = function()
                             "ProgId=QtProject.QtCreator.pri");
     component.addOperation( "RegisterFileType",
                             "qbs",
-                            component.qtCreatorBinaryPath + " -client \"%1\"",
+                            component.qtCreatorBinaryPath + " \"%1\"",
                             "Qbs Project file",
                             "text/plain",
                             component.qtCreatorBinaryPath + ",5",
@@ -153,7 +157,7 @@ Component.prototype.createOperations = function()
     {
         component.addOperation( "CreateShortcut",
                                 component.qtCreatorBinaryPath,
-                                "@StartMenuDir@/Qt Creator.lnk",
+                                "@StartMenuDir@/Qt Creator " + installer.value("ProductVersion") + ".lnk",
                                 "workingDirectory=@homeDir@" );
 
         // only install c runtime if it is needed, no minor version check of the c runtime till we need it

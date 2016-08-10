@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,48 +9,48 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
 #ifndef CLANGEDITORDOCUMENTPROCESSOR_H
 #define CLANGEDITORDOCUMENTPROCESSOR_H
 
+#include "clangdiagnosticmanager.h"
 #include "clangeditordocumentparser.h"
 
-#include <cpptools/baseeditordocumentprocessor.h>
 #include <cpptools/builtineditordocumentprocessor.h>
 #include <cpptools/semantichighlighter.h>
 
 #include <QFutureWatcher>
-#include <QPointer>
+
+namespace ClangBackEnd {
+class DiagnosticContainer;
+class HighlightingMarkContainer;
+class FileContainer;
+}
 
 namespace ClangCodeModel {
 namespace Internal {
 
-class ModelManagerSupportClang;
+class IpcCommunicator;
 
 class ClangEditorDocumentProcessor : public CppTools::BaseEditorDocumentProcessor
 {
     Q_OBJECT
 
 public:
-    ClangEditorDocumentProcessor(ModelManagerSupportClang *modelManagerSupport,
+    ClangEditorDocumentProcessor(IpcCommunicator &ipcCommunicator,
                                  TextEditor::TextDocument *document);
     ~ClangEditorDocumentProcessor();
 
@@ -59,26 +59,51 @@ public:
     void semanticRehighlight() override;
     void recalculateSemanticInfoDetached(bool force) override;
     CppTools::SemanticInfo recalculateSemanticInfo() override;
-    CppTools::BaseEditorDocumentParser *parser() override;
+    CppTools::BaseEditorDocumentParser::Ptr parser() override;
     CPlusPlus::Snapshot snapshot() override;
     bool isParserRunning() const override;
 
+    bool hasProjectPart() const;
     CppTools::ProjectPart::Ptr projectPart() const;
+    void clearProjectPart();
+
+    void updateCodeWarnings(const QVector<ClangBackEnd::DiagnosticContainer> &diagnostics,
+                            uint documentRevision);
+    void updateHighlighting(const QVector<ClangBackEnd::HighlightingMarkContainer> &highlightingMarks,
+                            const QVector<ClangBackEnd::SourceRangeContainer> &skippedPreprocessorRanges,
+                            uint documentRevision);
+
+    TextEditor::QuickFixOperations
+    extraRefactoringOperations(const TextEditor::AssistInterface &assistInterface) override;
+
+    bool hasDiagnosticsAt(uint line, uint column) const override;
+    void showDiagnosticTooltip(const QPoint &point,
+                               QWidget *parent,
+                               uint line,
+                               uint column) const override;
+
+    ClangBackEnd::FileContainer fileContainerWithArguments() const;
+
+    void clearDiagnosticsWithFixIts();
 
 public:
     static ClangEditorDocumentProcessor *get(const QString &filePath);
 
 private slots:
     void onParserFinished();
-    void onProjectPartsRemoved(const QStringList &projectPartIds);
 
 private:
-    void updateProjectPartAndTranslationUnitForCompletion();
-    void updateTranslationUnitForCompletion(CppTools::ProjectPart &projectPart);
+    void updateProjectPartAndTranslationUnitForEditor();
+    void registerTranslationUnitForEditor(CppTools::ProjectPart *projectPart);
+    void updateTranslationUnitIfProjectPartExists();
+    void requestDocumentAnnotations(const QString &projectpartId);
+    ClangBackEnd::FileContainer fileContainerWithArguments(CppTools::ProjectPart *projectPart) const;
+    ClangBackEnd::FileContainer fileContainerWithDocumentContent(const QString &projectpartId) const;
 
-    QPointer<ModelManagerSupportClang> m_modelManagerSupport;
-
-    ClangEditorDocumentParser m_parser;
+private:
+    ClangDiagnosticManager m_diagnosticManager;
+    IpcCommunicator &m_ipcCommunicator;
+    QSharedPointer<ClangEditorDocumentParser> m_parser;
     CppTools::ProjectPart::Ptr m_projectPart;
     QFutureWatcher<void> m_parserWatcher;
     unsigned m_parserRevision;

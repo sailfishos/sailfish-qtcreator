@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -58,35 +53,28 @@ namespace Internal {
 
 } // namespace Internal
 
-QmlProject::QmlProject(Internal::Manager *manager, const Utils::FileName &fileName)
-    : m_manager(manager),
-      m_fileName(fileName),
-      m_defaultImport(UnknownImport),
-      m_activeTarget(0)
+QmlProject::QmlProject(Internal::Manager *manager, const Utils::FileName &fileName) :
+    m_defaultImport(UnknownImport)
 {
     setId("QmlProjectManager.QmlProject");
+    setProjectManager(manager);
+    setDocument(new Internal::QmlProjectFile(this, fileName));
+    DocumentManager::addDocument(document(), true);
+    setRootProjectNode(new Internal::QmlProjectNode(this));
+
     setProjectContext(Context(QmlProjectManager::Constants::PROJECTCONTEXT));
     setProjectLanguages(Context(ProjectExplorer::Constants::LANG_QMLJS));
 
-    QFileInfo fileInfo = m_fileName.toFileInfo();
-    m_projectName = fileInfo.completeBaseName();
+    m_projectName = projectFilePath().toFileInfo().completeBaseName();
 
-    m_file = new Internal::QmlProjectFile(this, fileName);
-    m_rootNode = new Internal::QmlProjectNode(this, m_file);
-
-    DocumentManager::addDocument(m_file, true);
-
-    m_manager->registerProject(this);
+    projectManager()->registerProject(this);
 }
 
 QmlProject::~QmlProject()
 {
-    m_manager->unregisterProject(this);
-
-    DocumentManager::removeDocument(m_file);
+    projectManager()->unregisterProject(this);
 
     delete m_projectItem.data();
-    delete m_rootNode;
 }
 
 void QmlProject::addedTarget(Target *target)
@@ -130,7 +118,7 @@ QDir QmlProject::projectDir() const
 }
 
 Utils::FileName QmlProject::filesFileName() const
-{ return m_fileName; }
+{ return projectFilePath(); }
 
 static QmlProject::QmlImport detectImport(const QString &qml) {
     static QRegExp qtQuick1RegExp(QLatin1String("import\\s+QtQuick\\s+1"));
@@ -151,14 +139,14 @@ void QmlProject::parseProject(RefreshOptions options)
             delete m_projectItem.data();
         if (!m_projectItem) {
               QString errorMessage;
-              m_projectItem = QmlProjectFileFormat::parseProjectFile(m_fileName, &errorMessage);
+              m_projectItem = QmlProjectFileFormat::parseProjectFile(projectFilePath(), &errorMessage);
               if (m_projectItem) {
                   connect(m_projectItem.data(), SIGNAL(qmlFilesChanged(QSet<QString>,QSet<QString>)),
                           this, SLOT(refreshFiles(QSet<QString>,QSet<QString>)));
 
               } else {
                   MessageManager::write(tr("Error while loading project file %1.")
-                                        .arg(m_fileName.toUserOutput()),
+                                        .arg(projectFilePath().toUserOutput()),
                                         MessageManager::NoModeSwitch);
                   MessageManager::write(errorMessage);
               }
@@ -175,14 +163,14 @@ void QmlProject::parseProject(RefreshOptions options)
                 QString errorMessage;
                 if (!reader.fetch(mainFilePath, &errorMessage)) {
                     MessageManager::write(tr("Warning while loading project file %1.")
-                                          .arg(m_fileName.toUserOutput()));
+                                          .arg(projectFilePath().toUserOutput()));
                     MessageManager::write(errorMessage);
                 } else {
                     m_defaultImport = detectImport(QString::fromUtf8(reader.data()));
                 }
             }
         }
-        m_rootNode->refresh();
+        rootProjectNode()->refresh();
     }
 
     if (options & Configuration) {
@@ -198,7 +186,7 @@ void QmlProject::refresh(RefreshOptions options)
     parseProject(options);
 
     if (options & Files)
-        m_rootNode->refresh();
+        rootProjectNode()->refresh();
 
     if (!modelManager())
         return;
@@ -214,7 +202,7 @@ void QmlProject::refresh(RefreshOptions options)
 
 QStringList QmlProject::convertToAbsoluteFiles(const QStringList &paths) const
 {
-    const QDir projectDir(m_fileName.toFileInfo().dir());
+    const QDir projectDir(projectDirectory().toString());
     QStringList absolutePaths;
     foreach (const QString &file, paths) {
         QFileInfo fileInfo(projectDir, file);
@@ -292,14 +280,9 @@ QString QmlProject::displayName() const
     return m_projectName;
 }
 
-IDocument *QmlProject::document() const
+Internal::Manager *QmlProject::projectManager() const
 {
-    return m_file;
-}
-
-IProjectManager *QmlProject::projectManager() const
-{
-    return m_manager;
+    return static_cast<Internal::Manager *>(Project::projectManager());
 }
 
 bool QmlProject::supportsKit(Kit *k, QString *errorMessage) const
@@ -333,9 +316,9 @@ bool QmlProject::supportsKit(Kit *k, QString *errorMessage) const
     return true;
 }
 
-ProjectNode *QmlProject::rootProjectNode() const
+Internal::QmlProjectNode *QmlProject::rootProjectNode() const
 {
-    return m_rootNode;
+    return static_cast<Internal::QmlProjectNode *>(Project::rootProjectNode());
 }
 
 QStringList QmlProject::files(FilesMode) const
@@ -343,10 +326,11 @@ QStringList QmlProject::files(FilesMode) const
     return files();
 }
 
-bool QmlProject::fromMap(const QVariantMap &map)
+Project::RestoreResult QmlProject::fromMap(const QVariantMap &map, QString *errorMessage)
 {
-    if (!Project::fromMap(map))
-        return false;
+    RestoreResult result = Project::fromMap(map, errorMessage);
+    if (result != RestoreResult::Ok)
+        return result;
 
     // refresh first - project information is used e.g. to decide the default RC's
     refresh(Everything);
@@ -354,7 +338,7 @@ bool QmlProject::fromMap(const QVariantMap &map)
     if (!activeTarget()) {
         // find a kit that matches prerequisites (prefer default one)
         QList<Kit*> kits = KitManager::matchingKits(
-            std::function<bool(const Kit *)>([this](const Kit *k) -> bool {
+            KitMatcher(std::function<bool(const Kit *)>([this](const Kit *k) -> bool {
                 if (!k->isValid())
                     return false;
 
@@ -383,7 +367,7 @@ bool QmlProject::fromMap(const QVariantMap &map)
                 }
 
                 return version->qtVersion() >= minVersion && hasViewer;
-            }));
+            })));
 
         if (!kits.isEmpty()) {
             Kit *kit = 0;
@@ -407,7 +391,7 @@ bool QmlProject::fromMap(const QVariantMap &map)
 
     onActiveTargetChanged(activeTarget());
 
-    return true;
+    return RestoreResult::Ok;
 }
 
 } // namespace QmlProjectManager

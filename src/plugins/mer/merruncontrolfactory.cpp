@@ -30,13 +30,15 @@
 #include "mertoolchain.h"
 #include "mervirtualboxmanager.h"
 
-#include <analyzerbase/analyzermanager.h>
-#include <analyzerbase/analyzerruncontrol.h>
+#include <debugger/analyzer/analyzermanager.h>
+#include <debugger/analyzer/analyzerruncontrol.h>
 #include <debugger/debuggerkitinformation.h>
 #include <debugger/debuggerplugin.h>
+#include <debugger/debuggerrunconfigurationaspect.h>
 #include <debugger/debuggerruncontrol.h>
 #include <debugger/debuggerstartparameters.h>
 #include <projectexplorer/target.h>
+#include <qmldebug/qmldebugcommandlinearguments.h>
 #include <qtsupport/qtkitinformation.h>
 #include <remotelinux/remotelinuxanalyzesupport.h>
 #include <remotelinux/remotelinuxdebugsupport.h>
@@ -78,8 +80,11 @@ bool MerRunControlFactory::canRun(RunConfiguration *runConfiguration, Core::Id m
     if (mode == ProjectExplorer::Constants::DEBUG_RUN_MODE) {
         const RemoteLinuxRunConfiguration * const remoteRunConfig
                 = qobject_cast<RemoteLinuxRunConfiguration *>(runConfiguration);
-        if (remoteRunConfig)
-            return remoteRunConfig->portsUsedByDebuggers() <= dev->freePorts().count();
+        if (remoteRunConfig) {
+            auto aspect = remoteRunConfig->extraAspect<DebuggerRunConfigurationAspect>();
+            int portsUsed = aspect ? aspect->portsUsedByDebugger() : 0;
+            return portsUsed <= dev->freePorts().count();
+        }
         return false;
     }
     return true;
@@ -89,6 +94,10 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, Core::Id m
                                          QString *errorMessage)
 {
     QTC_ASSERT(canRun(runConfig, mode), return 0);
+
+    const auto rcRunnable = runConfig->runnable();
+    QTC_ASSERT(rcRunnable.is<StandardRunnable>(), return 0);
+    const auto stdRunnable = rcRunnable.as<StandardRunnable>();
 
     MerRunConfiguration *rc = qobject_cast<MerRunConfiguration *>(runConfig);
     QTC_ASSERT(rc, return 0);
@@ -102,11 +111,33 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, Core::Id m
             *errorMessage = tr("Cannot debug: Kit has no device.");
             return 0;
         }
-        if (rc->portsUsedByDebuggers() > dev->freePorts().count()) {
+        auto aspect = rc->extraAspect<DebuggerRunConfigurationAspect>();
+        int portsUsed = aspect ? aspect->portsUsedByDebugger() : 0;
+        if (portsUsed > dev->freePorts().count()) {
             *errorMessage = tr("Cannot debug: Not enough free ports available.");
             return 0;
         }
-        DebuggerStartParameters params = LinuxDeviceDebugSupport::startParameters(rc);
+
+        DebuggerStartParameters params;
+        params.startMode = AttachToRemoteServer;
+        params.closeMode = KillAndExitMonitorAtClose;
+        params.remoteSetupNeeded = true;
+
+        if (aspect->useQmlDebugger()) {
+            params.qmlServerAddress = dev->sshParameters().host;
+            params.qmlServerPort = 0; // port is selected later on
+        }
+        if (aspect->useCppDebugger()) {
+            aspect->setUseMultiProcess(true);
+            params.inferior.commandLineArguments = stdRunnable.commandLineArguments;
+            if (aspect->useQmlDebugger()) {
+                params.inferior.commandLineArguments.prepend(QLatin1Char(' '));
+                params.inferior.commandLineArguments.prepend(QmlDebug::qmlDebugTcpArguments(QmlDebug::QmlDebuggerServices));
+            }
+            params.inferior.executable = stdRunnable.executable;
+            params.remoteChannel = dev->sshParameters().host + QLatin1String(":-1");
+            params.symbolFile = rc->localExecutableFilePath();
+        }
 
         MerSdk* mersdk = MerSdkKitInformation::sdk(rc->target()->kit());
 
@@ -125,8 +156,7 @@ RunControl *MerRunControlFactory::create(RunConfiguration *runConfig, Core::Id m
         connect(runControl, SIGNAL(finished()), debugSupport, SLOT(handleDebuggingFinished()));
         return runControl;
     } else if (mode == ProjectExplorer::Constants::QML_PROFILER_RUN_MODE) {
-        Analyzer::AnalyzerStartParameters params = RemoteLinuxAnalyzeSupport::startParameters(rc, mode);
-        Analyzer::AnalyzerRunControl * const runControl = Analyzer::AnalyzerManager::createRunControl(params, runConfig);
+        Debugger::AnalyzerRunControl * const runControl = Debugger::createAnalyzerRunControl(runConfig, mode);
         RemoteLinuxAnalyzeSupport * const analyzeSupport =
                 new RemoteLinuxAnalyzeSupport(rc, runControl, mode);
         // TODO: handleProfilingFinished is private

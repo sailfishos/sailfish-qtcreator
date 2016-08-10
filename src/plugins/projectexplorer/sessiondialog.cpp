@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -94,9 +89,9 @@ SessionNameInputDialog::SessionNameInputDialog(const QStringList &sessions, QWid
     hlayout->addWidget(m_newSessionLineEdit);
     QDialogButtonBox *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, Qt::Horizontal, this);
     m_switchToButton = buttons->addButton(tr("Switch To"), QDialogButtonBox::AcceptRole);
-    connect(buttons, SIGNAL(accepted()), this, SLOT(accept()));
-    connect(buttons, SIGNAL(rejected()), this, SLOT(reject()));
-    connect(buttons, SIGNAL(clicked(QAbstractButton*)), this, SLOT(clicked(QAbstractButton*)));
+    connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
+    connect(buttons, &QDialogButtonBox::clicked, this, &SessionNameInputDialog::clicked);
     hlayout->addWidget(buttons);
     setLayout(hlayout);
 }
@@ -128,21 +123,21 @@ SessionDialog::SessionDialog(QWidget *parent)
 {
     m_ui.setupUi(this);
 
-    connect(m_ui.btCreateNew, SIGNAL(clicked()),
-            this, SLOT(createNew()));
-    connect(m_ui.btClone, SIGNAL(clicked()),
-            this, SLOT(clone()));
-    connect(m_ui.btDelete, SIGNAL(clicked()),
-            this, SLOT(remove()));
+    connect(m_ui.btCreateNew, &QAbstractButton::clicked,
+            this, &SessionDialog::createNew);
+    connect(m_ui.btClone, &QAbstractButton::clicked,
+            this, &SessionDialog::clone);
+    connect(m_ui.btDelete, &QAbstractButton::clicked,
+            this, &SessionDialog::remove);
 
-    connect(m_ui.btSwitch, SIGNAL(clicked()), this, SLOT(switchToSession()));
-    connect(m_ui.btRename, SIGNAL(clicked()), this, SLOT(rename()));
+    connect(m_ui.btSwitch, &QAbstractButton::clicked, this, &SessionDialog::switchToSession);
+    connect(m_ui.btRename, &QAbstractButton::clicked, this, &SessionDialog::rename);
 
-    connect(m_ui.sessionList, SIGNAL(itemDoubleClicked(QListWidgetItem*)),
-            this, SLOT(switchToSession()));
+    connect(m_ui.sessionList, &QListWidget::itemDoubleClicked,
+            this, &SessionDialog::switchToSession);
 
-    connect(m_ui.sessionList, SIGNAL(currentItemChanged(QListWidgetItem*,QListWidgetItem*)),
-            this, SLOT(updateActions()));
+    connect(m_ui.sessionList, &QListWidget::currentItemChanged,
+            this, &SessionDialog::updateActions);
 
     m_ui.whatsASessionLabel->setOpenExternalLinks(true);
     addItems(true);

@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Denis Shienkov <denis.shienkov@gmail.com>
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2016 Denis Shienkov <denis.shienkov@gmail.com>
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,34 +9,32 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://www.qt.io/licensing.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
 #include "gdbserverproviderprocess.h"
 
 #include <projectexplorer/devicesupport/idevice.h>
+#include <projectexplorer/runnables.h>
 
 #include <utils/environment.h>
 #include <utils/qtcprocess.h>
 #include <utils/qtcassert.h>
 
 #include <QStringList>
+
+using namespace ProjectExplorer;
 
 namespace BareMetal {
 namespace Internal {
@@ -45,11 +43,17 @@ GdbServerProviderProcess::GdbServerProviderProcess(
         const QSharedPointer<const ProjectExplorer::IDevice> &device,
         QObject *parent)
     : ProjectExplorer::DeviceProcess(device, parent)
-    , m_process(new QProcess(this))
+    , m_process(new Utils::QtcProcess(this))
 {
-    connect(m_process, SIGNAL(error(QProcess::ProcessError)),
-            SIGNAL(error(QProcess::ProcessError)));
-    connect(m_process, SIGNAL(finished(int)), SIGNAL(finished()));
+    if (Utils::HostOsInfo::isWindowsHost())
+        m_process->setUseCtrlCStub(true);
+
+    connect(m_process,
+            static_cast<void (QProcess::*)(QProcess::ProcessError)>(&QProcess::error),
+            this, &GdbServerProviderProcess::error);
+    connect(m_process,
+            static_cast<void (QProcess::*)(int)>(&QProcess::finished),
+            this, &GdbServerProviderProcess::finished);
 
     connect(m_process, &QProcess::readyReadStandardOutput,
             this, &ProjectExplorer::DeviceProcess::readyReadStandardOutput);
@@ -59,15 +63,18 @@ GdbServerProviderProcess::GdbServerProviderProcess(
             this, &ProjectExplorer::DeviceProcess::started);
 }
 
-void GdbServerProviderProcess::start(const QString &executable, const QStringList &arguments)
+void GdbServerProviderProcess::start(const ProjectExplorer::Runnable &runnable)
 {
+    QTC_ASSERT(runnable.is<StandardRunnable>(), return);
     QTC_ASSERT(m_process->state() == QProcess::NotRunning, return);
-    m_process->start(executable, arguments);
+    auto r = runnable.as<StandardRunnable>();
+    m_process->setCommand(r.executable, r.commandLineArguments);
+    m_process->start();
 }
 
 void GdbServerProviderProcess::interrupt()
 {
-    device()->signalOperation()->interruptProcess(Utils::qPidToPid(m_process->pid()));
+    device()->signalOperation()->interruptProcess(m_process->processId());
 }
 
 void GdbServerProviderProcess::terminate()
@@ -98,21 +105,6 @@ int GdbServerProviderProcess::exitCode() const
 QString GdbServerProviderProcess::errorString() const
 {
     return m_process->errorString();
-}
-
-Utils::Environment GdbServerProviderProcess::environment() const
-{
-    return Utils::Environment(m_process->processEnvironment().toStringList());
-}
-
-void GdbServerProviderProcess::setEnvironment(const Utils::Environment &env)
-{
-    m_process->setProcessEnvironment(env.toProcessEnvironment());
-}
-
-void GdbServerProviderProcess::setWorkingDirectory(const QString &dir)
-{
-    m_process->setWorkingDirectory(dir);
 }
 
 QByteArray GdbServerProviderProcess::readAllStandardOutput()

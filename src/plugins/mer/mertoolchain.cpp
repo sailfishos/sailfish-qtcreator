@@ -30,6 +30,7 @@
 #include <projectexplorer/projectexplorerconstants.h>
 #include <qtsupport/qtkitinformation.h>
 #include <qtsupport/qtversionmanager.h>
+#include <utils/algorithm.h>
 #include <utils/environment.h>
 #include <utils/qtcassert.h>
 
@@ -44,8 +45,8 @@ namespace Internal {
 
 using namespace ProjectExplorer;
 
-MerToolChain::MerToolChain(Detection autodetected,const QString &id)
-    : GccToolChain(id, autodetected)
+MerToolChain::MerToolChain(Detection autodetected, Core::Id typeId)
+    : GccToolChain(typeId, autodetected)
 {
 
 }
@@ -68,11 +69,6 @@ void MerToolChain::setTargetName(const QString &name)
 QString MerToolChain::targetName() const
 {
     return m_targetName;
-}
-
-QString MerToolChain::type() const
-{
-    return QLatin1String(Constants::MER_TOOLCHAIN_TYPE);
 }
 
 QString MerToolChain::makeCommand(const Environment &environment) const
@@ -183,7 +179,6 @@ void MerToolChain::addToEnvironment(Environment &env) const
 
 MerToolChainFactory::MerToolChainFactory()
 {
-    setId(Constants::MER_TOOLCHAIN_ID);
     setDisplayName(tr("Mer"));
 }
 
@@ -215,10 +210,18 @@ QList<ToolChain *> MerToolChainFactory::autoDetect()
     return result;
 }
 */
+
+QList<ToolChain *> MerToolChainFactory::autoDetect(const QList<ToolChain *> &alreadyKnown)
+{
+    // Only "confirm" these are autodetected so that they do not get demoted as manually added
+    return Utils::filtered(alreadyKnown, [](const ToolChain *tc) {
+        return tc->typeId() == Constants::MER_TOOLCHAIN_ID;
+    });
+}
+
 bool MerToolChainFactory::canRestore(const QVariantMap &data)
 {
-    return idFromMap(data).startsWith(QLatin1String(Constants::MER_TOOLCHAIN_ID)
-                                      + QLatin1Char(':'));
+    return typeIdFromMap(data) == Constants::MER_TOOLCHAIN_ID;
 }
 
 ToolChain *MerToolChainFactory::restore(const QVariantMap &data)

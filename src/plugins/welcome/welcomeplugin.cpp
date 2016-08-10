@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -40,6 +35,7 @@
 #include <coreplugin/modemanager.h>
 
 #include <utils/algorithm.h>
+#include <utils/icon.h>
 #include <utils/fileutils.h>
 #include <utils/hostosinfo.h>
 #include <utils/qtcassert.h>
@@ -52,6 +48,7 @@
 
 #include <QDir>
 #include <QQmlPropertyMap>
+#include <QQuickImageProvider>
 
 #ifdef USE_QUICK_WIDGET
     #include <QtQuickWidgets/QQuickWidget>
@@ -86,6 +83,44 @@ static QString resourcePath()
     return FileUtils::normalizePathName(ICore::resourcePath());
 }
 
+class WelcomeImageIconProvider : public QQuickImageProvider
+{
+public:
+    WelcomeImageIconProvider()
+        : QQuickImageProvider(Pixmap)
+    {
+    }
+
+    QPixmap requestPixmap(const QString &id, QSize *size, const QSize &requestedSize) override
+    {
+        Q_UNUSED(requestedSize)
+
+        QString maskFile;
+        Theme::Color themeColor = Theme::Welcome_ForegroundPrimaryColor;
+
+        const QStringList elements = id.split(QLatin1Char('/'));
+
+        if (!elements.empty())
+            maskFile = elements.first();
+
+        if (elements.count() >= 2) {
+            const static QMetaObject &m = Theme::staticMetaObject;
+            const static QMetaEnum e = m.enumerator(m.indexOfEnumerator("Color"));
+            bool success = false;
+            int value = e.keyToValue(elements.at(1).toLatin1(), &success);
+            if (success)
+                themeColor = Theme::Color(value);
+        }
+
+        const QString fileName = QString::fromLatin1(":/welcome/images/%1.png").arg(maskFile);
+        const Icon icon({{fileName, themeColor}}, Icon::Tint);
+        const QPixmap result = icon.pixmap();
+        if (size)
+            *size = result.size();
+        return result;
+    }
+};
+
 class WelcomeMode : public IMode
 {
     Q_OBJECT
@@ -99,8 +134,6 @@ public:
     int activePlugin() const { return m_activePlugin; }
 
 public slots:
-    void onThemeChanged();
-
     void setActivePlugin(int pos)
     {
         if (m_activePlugin != pos) {
@@ -117,6 +150,7 @@ private:
     void sceneGraphError(QQuickWindow::SceneGraphError, const QString &message);
     void facilitateQml(QQmlEngine *engine);
     void addPages(const QList<IWelcomePage *> &pages);
+    void applyTheme();
 
     QWidget *m_modeWidget;
     QuickContainer *m_welcomePage;
@@ -130,7 +164,16 @@ WelcomeMode::WelcomeMode()
     : m_activePlugin(0)
 {
     setDisplayName(tr("Welcome"));
-    setIcon(QIcon(QLatin1String(":/welcome/images/mode_welcome.png")));
+
+    const Utils::Icon MODE_WELCOME_CLASSIC(
+            QLatin1String(":/welcome/images/mode_welcome.png"));
+    const Utils::Icon MODE_WELCOME_FLAT({
+            {QLatin1String(":/welcome/images/mode_welcome_mask.png"), Utils::Theme::IconsBaseColor}});
+    const Utils::Icon MODE_WELCOME_FLAT_ACTIVE({
+            {QLatin1String(":/welcome/images/mode_welcome_mask.png"), Utils::Theme::IconsModeWelcomeActiveColor}});
+
+    setIcon(Utils::Icon::modeIcon(MODE_WELCOME_CLASSIC,
+                                  MODE_WELCOME_FLAT, MODE_WELCOME_FLAT_ACTIVE));
     setPriority(Constants::P_MODE_WELCOME);
     setId(Constants::MODE_WELCOME);
     setContextHelpId(QLatin1String("Qt Creator Manual"));
@@ -143,7 +186,7 @@ WelcomeMode::WelcomeMode()
     layout->setSpacing(0);
 
     m_welcomePage = new QuickContainer();
-    onThemeChanged(); // initialize background color and theme properties
+    applyTheme(); // initialize background color and theme properties
     m_welcomePage->setResizeMode(QuickContainer::SizeRootObjectToView);
 
     m_welcomePage->setObjectName(QLatin1String("WelcomePage"));
@@ -165,12 +208,10 @@ WelcomeMode::WelcomeMode()
     layout->addWidget(container);
 #endif // USE_QUICK_WIDGET
 
-    connect(ICore::instance(), &ICore::themeChanged, this, &WelcomeMode::onThemeChanged);
-
     setWidget(m_modeWidget);
 }
 
-void WelcomeMode::onThemeChanged()
+void WelcomeMode::applyTheme()
 {
     const QVariantHash creatorTheme = Utils::creatorTheme()->values();
     for (auto it = creatorTheme.constBegin(); it != creatorTheme.constEnd(); ++it)
@@ -200,6 +241,7 @@ void WelcomeMode::facilitateQml(QQmlEngine *engine)
     QStringList importPathList = engine->importPathList();
     importPathList << resourcePath() + QLatin1String("/welcomescreen");
     engine->setImportPathList(importPathList);
+    engine->addImageProvider(QLatin1String("icons"), new WelcomeImageIconProvider);
     if (!debug)
         engine->setOutputWarningsToStandardError(false);
 
@@ -286,8 +328,11 @@ WelcomePlugin::WelcomePlugin()
 {
 }
 
-bool WelcomePlugin::initialize(const QStringList & /* arguments */, QString * /* errorMessage */)
+bool WelcomePlugin::initialize(const QStringList & /* arguments */, QString *errorMessage)
 {
+    if (!Utils::HostOsInfo::canCreateOpenGLContext(errorMessage))
+        return false;
+
     m_welcomeMode = new WelcomeMode;
     addAutoReleasedObject(m_welcomeMode);
 

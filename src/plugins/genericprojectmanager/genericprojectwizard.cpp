@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,32 +9,30 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
 #include "genericprojectwizard.h"
+#include "genericprojectconstants.h"
 #include "filesselectionwizardpage.h"
 
 #include <coreplugin/icore.h>
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/customwizard/customwizard.h>
 
+#include <utils/algorithm.h>
+#include <utils/fileutils.h>
 #include <utils/filewizardpage.h>
 #include <utils/mimetypes/mimedatabase.h>
 
@@ -84,12 +82,12 @@ QString GenericProjectWizardDialog::path() const
     return m_firstPage->path();
 }
 
-QStringList GenericProjectWizardDialog::selectedPaths() const
+Utils::FileNameList GenericProjectWizardDialog::selectedPaths() const
 {
     return m_secondPage->selectedPaths();
 }
 
-QStringList GenericProjectWizardDialog::selectedFiles() const
+Utils::FileNameList GenericProjectWizardDialog::selectedFiles() const
 {
     return m_secondPage->selectedFiles();
 }
@@ -112,7 +110,7 @@ QString GenericProjectWizardDialog::projectName() const
 
 GenericProjectWizard::GenericProjectWizard()
 {
-    setWizardKind(ProjectWizard);
+    setSupportedProjectTypes({ Constants::GENERICPROJECT_ID });
     // TODO do something about the ugliness of standard icons in sizes different than 16, 32, 64, 128
     {
         QPixmap icon(22, 22);
@@ -156,7 +154,7 @@ Core::GeneratedFiles GenericProjectWizard::generateFiles(const QWizard *w,
     const QString filesFileName = QFileInfo(dir, projectName + QLatin1String(".files")).absoluteFilePath();
     const QString includesFileName = QFileInfo(dir, projectName + QLatin1String(".includes")).absoluteFilePath();
     const QString configFileName = QFileInfo(dir, projectName + QLatin1String(".config")).absoluteFilePath();
-    const QStringList paths = wizard->selectedPaths();
+    const QStringList paths = Utils::transform(wizard->selectedPaths(), &Utils::FileName::toString);
 
     Utils::MimeDatabase mdb;
     Utils::MimeType headerTy = mdb.mimeTypeForName(QLatin1String("text/x-chdr"));
@@ -180,7 +178,7 @@ Core::GeneratedFiles GenericProjectWizard::generateFiles(const QWizard *w,
     generatedCreatorFile.setContents(QLatin1String("[General]\n"));
     generatedCreatorFile.setAttributes(Core::GeneratedFile::OpenProjectAttribute);
 
-    QStringList sources = wizard->selectedFiles();
+    QStringList sources = Utils::transform(wizard->selectedFiles(), &Utils::FileName::toString);
     for (int i = 0; i < sources.length(); ++i)
         sources[i] = dir.relativeFilePath(sources[i]);
 

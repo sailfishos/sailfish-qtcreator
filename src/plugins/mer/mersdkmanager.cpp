@@ -166,7 +166,7 @@ QList<MerToolChain *> MerSdkManager::merToolChains()
     foreach (ToolChain *toolchain, ToolChainManager::toolChains()) {
         if (!toolchain->isAutoDetected())
             continue;
-        if (toolchain->type() != QLatin1String(Constants::MER_TOOLCHAIN_TYPE))
+        if (toolchain->typeId() != Constants::MER_TOOLCHAIN_ID)
             continue;
         toolchains << static_cast<MerToolChain*>(toolchain);
     }
@@ -249,7 +249,7 @@ void MerSdkManager::restore()
                 if (!tc)
                     continue;
 
-                if (tc->type() == QLatin1String(Constants::MER_TOOLCHAIN_TYPE)) {
+                if (tc->typeId() == Constants::MER_TOOLCHAIN_ID) {
                     if (MerSdkManager::verbose)
                         qDebug() << "Removing Mer kit due to reinstall";
                     BaseQtVersion *v = QtKitInformation::qtVersion(kit);
@@ -326,7 +326,7 @@ bool MerSdkManager::isMerKit(const Kit *kit)
 
     ToolChain* tc = ToolChainKitInformation::toolChain(kit);
     const Core::Id deviceType = DeviceTypeKitInformation::deviceTypeId(kit);
-    if (tc && tc->type() == QLatin1String(Constants::MER_TOOLCHAIN_TYPE))
+    if (tc && tc->typeId() == Constants::MER_TOOLCHAIN_ID)
         return true;
     if (deviceType.isValid() && MerDeviceFactory::canCreate(deviceType))
         return true;
@@ -339,7 +339,7 @@ QString MerSdkManager::targetNameForKit(const Kit *kit)
     if (!kit || !isMerKit(kit))
         return QString();
     ToolChain *toolchain = ToolChainKitInformation::toolChain(kit);
-    if (toolchain && toolchain->type() == QLatin1String(Constants::MER_TOOLCHAIN_TYPE)) {
+    if (toolchain && toolchain->typeId() == Constants::MER_TOOLCHAIN_ID) {
         MerToolChain *mertoolchain = static_cast<MerToolChain *>(toolchain);
         return mertoolchain->targetName();
     }
@@ -526,7 +526,7 @@ bool MerSdkManager::validateKit(const Kit *kit)
         return false;
     if (version->type() != QLatin1String(Constants::MER_QT))
         return false;
-    if (toolchain->type() != QLatin1String(Constants::MER_TOOLCHAIN_TYPE))
+    if (toolchain->typeId() != Constants::MER_TOOLCHAIN_ID)
         return false;
     if (!MerDeviceFactory::canCreate(deviceType))
         return false;

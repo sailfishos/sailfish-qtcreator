@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -119,8 +114,8 @@ EditorConfiguration::EditorConfiguration() : d(new EditorConfigurationPrivate)
     // if setCurrentDelegate is 0 values are read from *this prefs
     d->m_defaultCodeStyle->setCurrentDelegate(TextEditorSettings::codeStyle());
 
-    connect(SessionManager::instance(), SIGNAL(aboutToRemoveProject(ProjectExplorer::Project*)),
-            this, SLOT(slotAboutToRemoveProject(ProjectExplorer::Project*)));
+    connect(SessionManager::instance(), &SessionManager::aboutToRemoveProject,
+            this, &EditorConfiguration::slotAboutToRemoveProject);
 }
 
 EditorConfiguration::~EditorConfiguration()
@@ -290,30 +285,31 @@ void EditorConfiguration::setUseGlobalSettings(bool use)
     }
 }
 
-static void switchSettings_helper(const QObject *newSender, const QObject *oldSender,
+template<typename New, typename Old>
+static void switchSettings_helper(const New *newSender, const Old *oldSender,
                                   TextEditorWidget *widget)
 {
-    QObject::disconnect(oldSender, SIGNAL(marginSettingsChanged(TextEditor::MarginSettings)),
-                        widget, SLOT(setMarginSettings(TextEditor::MarginSettings)));
-    QObject::disconnect(oldSender, SIGNAL(typingSettingsChanged(TextEditor::TypingSettings)),
-                        widget, SLOT(setTypingSettings(TextEditor::TypingSettings)));
-    QObject::disconnect(oldSender, SIGNAL(storageSettingsChanged(TextEditor::StorageSettings)),
-                        widget, SLOT(setStorageSettings(TextEditor::StorageSettings)));
-    QObject::disconnect(oldSender, SIGNAL(behaviorSettingsChanged(TextEditor::BehaviorSettings)),
-                        widget, SLOT(setBehaviorSettings(TextEditor::BehaviorSettings)));
-    QObject::disconnect(oldSender, SIGNAL(extraEncodingSettingsChanged(TextEditor::ExtraEncodingSettings)),
-                        widget, SLOT(setExtraEncodingSettings(TextEditor::ExtraEncodingSettings)));
+    QObject::disconnect(oldSender, &Old::marginSettingsChanged,
+                        widget, &TextEditorWidget::setMarginSettings);
+    QObject::disconnect(oldSender, &Old::typingSettingsChanged,
+                        widget, &TextEditorWidget::setTypingSettings);
+    QObject::disconnect(oldSender, &Old::storageSettingsChanged,
+                        widget, &TextEditorWidget::setStorageSettings);
+    QObject::disconnect(oldSender, &Old::behaviorSettingsChanged,
+                        widget, &TextEditorWidget::setBehaviorSettings);
+    QObject::disconnect(oldSender, &Old::extraEncodingSettingsChanged,
+                        widget, &TextEditorWidget::setExtraEncodingSettings);
 
-    QObject::connect(newSender, SIGNAL(marginSettingsChanged(TextEditor::MarginSettings)),
-                     widget, SLOT(setMarginSettings(TextEditor::MarginSettings)));
-    QObject::connect(newSender, SIGNAL(typingSettingsChanged(TextEditor::TypingSettings)),
-                     widget, SLOT(setTypingSettings(TextEditor::TypingSettings)));
-    QObject::connect(newSender, SIGNAL(storageSettingsChanged(TextEditor::StorageSettings)),
-                     widget, SLOT(setStorageSettings(TextEditor::StorageSettings)));
-    QObject::connect(newSender, SIGNAL(behaviorSettingsChanged(TextEditor::BehaviorSettings)),
-                     widget, SLOT(setBehaviorSettings(TextEditor::BehaviorSettings)));
-    QObject::connect(newSender, SIGNAL(extraEncodingSettingsChanged(TextEditor::ExtraEncodingSettings)),
-                     widget, SLOT(setExtraEncodingSettings(TextEditor::ExtraEncodingSettings)));
+    QObject::connect(newSender, &New::marginSettingsChanged,
+                     widget, &TextEditorWidget::setMarginSettings);
+    QObject::connect(newSender, &New::typingSettingsChanged,
+                     widget, &TextEditorWidget::setTypingSettings);
+    QObject::connect(newSender, &New::storageSettingsChanged,
+                     widget, &TextEditorWidget::setStorageSettings);
+    QObject::connect(newSender, &New::behaviorSettingsChanged,
+                     widget, &TextEditorWidget::setBehaviorSettings);
+    QObject::connect(newSender, &New::extraEncodingSettingsChanged,
+                     widget, &TextEditorWidget::setExtraEncodingSettings);
 }
 
 void EditorConfiguration::switchSettings(TextEditorWidget *widget) const

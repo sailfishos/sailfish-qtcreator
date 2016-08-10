@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -176,14 +171,12 @@ void DebuggerRunConfigWidget::update()
 
 void DebuggerRunConfigWidget::qmlDebugServerPortChanged(int port)
 {
-    m_aspect->m_qmlDebugServerPort = port;
+    m_aspect->d.qmlDebugServerPort = port;
 }
 
 void DebuggerRunConfigWidget::useCppDebuggerClicked(bool on)
 {
-    m_aspect->m_useCppDebugger = on
-            ? DebuggerRunConfigurationAspect::EnabledLanguage
-            : DebuggerRunConfigurationAspect::DisabledLanguage;
+    m_aspect->d.useCppDebugger = on ? EnabledLanguage : DisabledLanguage;
     if (!on && !m_useQmlDebugger->isChecked()) {
         m_useQmlDebugger->setChecked(true);
         useQmlDebuggerClicked(true);
@@ -198,9 +191,7 @@ void DebuggerRunConfigWidget::useQmlDebuggerToggled(bool on)
 
 void DebuggerRunConfigWidget::useQmlDebuggerClicked(bool on)
 {
-    m_aspect->m_useQmlDebugger = on
-            ? DebuggerRunConfigurationAspect::EnabledLanguage
-            : DebuggerRunConfigurationAspect::DisabledLanguage;
+    m_aspect->d.useQmlDebugger = on ? EnabledLanguage : DisabledLanguage;
     if (!on && !m_useCppDebugger->isChecked()) {
         m_useCppDebugger->setChecked(true);
         useCppDebuggerClicked(true);
@@ -209,7 +200,7 @@ void DebuggerRunConfigWidget::useQmlDebuggerClicked(bool on)
 
 void DebuggerRunConfigWidget::useMultiProcessToggled(bool on)
 {
-    m_aspect->m_useMultiProcess = on;
+    m_aspect->d.useMultiProcess = on;
 }
 
 } // namespace Internal
@@ -220,11 +211,7 @@ void DebuggerRunConfigWidget::useMultiProcessToggled(bool on)
 
 DebuggerRunConfigurationAspect::DebuggerRunConfigurationAspect(
         RunConfiguration *rc) :
-    IRunConfigurationAspect(rc),
-    m_useCppDebugger(AutoEnabledLanguage),
-    m_useQmlDebugger(AutoEnabledLanguage),
-    m_qmlDebugServerPort(Constants::QML_DEFAULT_DEBUG_SERVER_PORT),
-    m_useMultiProcess(false)
+    IRunConfigurationAspect(rc)
 {
     setId("DebuggerAspect");
     setDisplayName(tr("Debugger settings"));
@@ -232,27 +219,31 @@ DebuggerRunConfigurationAspect::DebuggerRunConfigurationAspect(
 
 void DebuggerRunConfigurationAspect::setUseQmlDebugger(bool value)
 {
-    m_useQmlDebugger = value ? EnabledLanguage : DisabledLanguage;
+    d.useQmlDebugger = value ? EnabledLanguage : DisabledLanguage;
     runConfiguration()->requestRunActionsUpdate();
 }
 
 void DebuggerRunConfigurationAspect::setUseCppDebugger(bool value)
 {
-    m_useCppDebugger = value ? EnabledLanguage : DisabledLanguage;
+    d.useCppDebugger = value ? EnabledLanguage : DisabledLanguage;
     runConfiguration()->requestRunActionsUpdate();
 }
 
 bool DebuggerRunConfigurationAspect::useCppDebugger() const
 {
-    if (m_useCppDebugger == DebuggerRunConfigurationAspect::AutoEnabledLanguage)
+    if (d.useCppDebugger == AutoEnabledLanguage)
         return runConfiguration()->target()->project()->projectLanguages().contains(
                     ProjectExplorer::Constants::LANG_CXX);
-    return m_useCppDebugger == DebuggerRunConfigurationAspect::EnabledLanguage;
+    return d.useCppDebugger == EnabledLanguage;
 }
 
 bool DebuggerRunConfigurationAspect::useQmlDebugger() const
 {
-    if (m_useQmlDebugger == DebuggerRunConfigurationAspect::AutoEnabledLanguage) {
+    if (d.useQmlDebugger == AutoEnabledLanguage) {
+        const Core::Context languages = runConfiguration()->target()->project()->projectLanguages();
+        if (!languages.contains(ProjectExplorer::Constants::LANG_QMLJS))
+            return false;
+
         //
         // Try to find a build step (qmake) to check whether qml debugging is enabled there
         // (Using the Qt metatype system to avoid a hard qt4projectmanager dependency)
@@ -267,31 +258,29 @@ bool DebuggerRunConfigurationAspect::useQmlDebugger() const
             }
         }
 
-        const Core::Context languages = runConfiguration()->target()->project()->projectLanguages();
-        return languages.contains(ProjectExplorer::Constants::LANG_QMLJS)
-            && !languages.contains(ProjectExplorer::Constants::LANG_CXX);
+        return !languages.contains(ProjectExplorer::Constants::LANG_CXX);
     }
-    return m_useQmlDebugger == DebuggerRunConfigurationAspect::EnabledLanguage;
+    return d.useQmlDebugger == EnabledLanguage;
 }
 
 uint DebuggerRunConfigurationAspect::qmlDebugServerPort() const
 {
-    return m_qmlDebugServerPort;
+    return d.qmlDebugServerPort;
 }
 
 void DebuggerRunConfigurationAspect::setQmllDebugServerPort(uint port)
 {
-    m_qmlDebugServerPort = port;
+    d.qmlDebugServerPort = port;
 }
 
 bool DebuggerRunConfigurationAspect::useMultiProcess() const
 {
-    return m_useMultiProcess;
+    return d.useMultiProcess;
 }
 
 void DebuggerRunConfigurationAspect::setUseMultiProcess(bool value)
 {
-    m_useMultiProcess = value;
+    d.useMultiProcess = value;
 }
 
 bool DebuggerRunConfigurationAspect::isQmlDebuggingSpinboxSuppressed() const
@@ -303,31 +292,41 @@ bool DebuggerRunConfigurationAspect::isQmlDebuggingSpinboxSuppressed() const
     return dev->canAutoDetectPorts();
 }
 
+int DebuggerRunConfigurationAspect::portsUsedByDebugger() const
+{
+    int ports = 0;
+    if (useQmlDebugger())
+        ++ports;
+    if (useCppDebugger())
+        ++ports;
+    return ports;
+}
+
 void DebuggerRunConfigurationAspect::toMap(QVariantMap &map) const
 {
-    map.insert(QLatin1String(USE_CPP_DEBUGGER_KEY), m_useCppDebugger == EnabledLanguage);
-    map.insert(QLatin1String(USE_CPP_DEBUGGER_AUTO_KEY), m_useCppDebugger == AutoEnabledLanguage);
-    map.insert(QLatin1String(USE_QML_DEBUGGER_KEY), m_useQmlDebugger == EnabledLanguage);
-    map.insert(QLatin1String(USE_QML_DEBUGGER_AUTO_KEY), m_useQmlDebugger == AutoEnabledLanguage);
-    map.insert(QLatin1String(QML_DEBUG_SERVER_PORT_KEY), m_qmlDebugServerPort);
-    map.insert(QLatin1String(USE_MULTIPROCESS_KEY), m_useMultiProcess);
+    map.insert(QLatin1String(USE_CPP_DEBUGGER_KEY), d.useCppDebugger == EnabledLanguage);
+    map.insert(QLatin1String(USE_CPP_DEBUGGER_AUTO_KEY), d.useCppDebugger == AutoEnabledLanguage);
+    map.insert(QLatin1String(USE_QML_DEBUGGER_KEY), d.useQmlDebugger == EnabledLanguage);
+    map.insert(QLatin1String(USE_QML_DEBUGGER_AUTO_KEY), d.useQmlDebugger == AutoEnabledLanguage);
+    map.insert(QLatin1String(QML_DEBUG_SERVER_PORT_KEY), d.qmlDebugServerPort);
+    map.insert(QLatin1String(USE_MULTIPROCESS_KEY), d.useMultiProcess);
 }
 
 void DebuggerRunConfigurationAspect::fromMap(const QVariantMap &map)
 {
     if (map.value(QLatin1String(USE_CPP_DEBUGGER_AUTO_KEY), false).toBool()) {
-        m_useCppDebugger = AutoEnabledLanguage;
+        d.useCppDebugger = AutoEnabledLanguage;
     } else {
         bool useCpp = map.value(QLatin1String(USE_CPP_DEBUGGER_KEY), false).toBool();
-        m_useCppDebugger = useCpp ? EnabledLanguage : DisabledLanguage;
+        d.useCppDebugger = useCpp ? EnabledLanguage : DisabledLanguage;
     }
     if (map.value(QLatin1String(USE_QML_DEBUGGER_AUTO_KEY), false).toBool()) {
-        m_useQmlDebugger = AutoEnabledLanguage;
+        d.useQmlDebugger = AutoEnabledLanguage;
     } else {
         bool useQml = map.value(QLatin1String(USE_QML_DEBUGGER_KEY), false).toBool();
-        m_useQmlDebugger = useQml ? EnabledLanguage : DisabledLanguage;
+        d.useQmlDebugger = useQml ? EnabledLanguage : DisabledLanguage;
     }
-    m_useMultiProcess = map.value(QLatin1String(USE_MULTIPROCESS_KEY), false).toBool();
+    d.useMultiProcess = map.value(QLatin1String(USE_MULTIPROCESS_KEY), false).toBool();
 }
 
 DebuggerRunConfigurationAspect *DebuggerRunConfigurationAspect::create

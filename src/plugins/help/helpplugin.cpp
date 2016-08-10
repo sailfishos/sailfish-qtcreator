@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -52,6 +47,9 @@
 #ifdef QTC_MAC_NATIVE_HELPVIEWER
 #include "macwebkithelpviewer.h"
 #endif
+#ifdef QTC_WEBENGINE_HELPVIEWER
+#include "webenginehelpviewer.h"
+#endif
 
 #include <bookmarkmanager.h>
 #include <contentwindow.h>
@@ -74,10 +72,12 @@
 #include <extensionsystem/pluginmanager.h>
 #include <coreplugin/find/findplugin.h>
 #include <texteditor/texteditorconstants.h>
+#include <utils/algorithm.h>
 #include <utils/hostosinfo.h>
 #include <utils/qtcassert.h>
 #include <utils/styledbar.h>
 #include <utils/theme/theme.h>
+#include <utils/tooltip/tooltip.h>
 
 #include <QDir>
 #include <QFileInfo>
@@ -101,6 +101,7 @@
 using namespace Help::Internal;
 
 static const char kExternalWindowStateKey[] = "Help/ExternalWindowState";
+static const char kToolTipHelpContext[] = "Help.ToolTip";
 
 using namespace Core;
 using namespace Utils;
@@ -169,6 +170,13 @@ bool HelpPlugin::initialize(const QStringList &arguments, QString *error)
     connect(HelpManager::instance(), SIGNAL(collectionFileChanged()), this,
         SLOT(setupHelpEngineIfNeeded()));
 
+    connect(ToolTip::instance(), &ToolTip::shown, ICore::instance(), []() {
+        ICore::addAdditionalContext(Context(kToolTipHelpContext), ICore::ContextPriority::High);
+    });
+    connect(ToolTip::instance(), &ToolTip::hidden,ICore::instance(), []() {
+        ICore::removeAdditionalContext(Context(kToolTipHelpContext));
+    });
+
     Command *cmd;
     QAction *action;
 
@@ -185,7 +193,8 @@ bool HelpPlugin::initialize(const QStringList &arguments, QString *error)
     connect(action, SIGNAL(triggered()), this, SLOT(activateIndex()));
 
     action = new QAction(tr("Context Help"), this);
-    cmd = ActionManager::registerAction(action, Help::Constants::CONTEXT_HELP);
+    cmd = ActionManager::registerAction(action, Help::Constants::CONTEXT_HELP,
+                                        Context(kToolTipHelpContext, Core::Constants::C_GLOBAL));
     ActionManager::actionContainer(Core::Constants::M_HELP)->addAction(cmd, Core::Constants::G_HELP_HELP);
     cmd->setDefaultKeySequence(QKeySequence(Qt::Key_F1));
     connect(action, SIGNAL(triggered()), this, SLOT(showContextHelp()));
@@ -357,48 +366,43 @@ HelpViewer *HelpPlugin::createHelpViewer(qreal zoom)
 {
     // check for backends
     typedef std::function<HelpViewer *()> ViewerFactory;
-    QHash<QString, ViewerFactory> factories; // id -> factory
-#ifdef QTC_MAC_NATIVE_HELPVIEWER
-    factories.insert(QLatin1String("native"), []() { return new MacWebKitHelpViewer(); });
-#endif
+    typedef QPair<QByteArray, ViewerFactory>  ViewerFactoryItem; // id -> factory
+    QVector<ViewerFactoryItem> factories;
 #ifndef QT_NO_WEBKIT
-    factories.insert(QLatin1String("qtwebkit"), []() { return new QtWebKitHelpViewer(); });
+    factories.append(qMakePair(QByteArray("qtwebkit"), []() { return new QtWebKitHelpViewer(); }));
 #endif
-    factories.insert(QLatin1String("textbrowser"), []() { return new TextBrowserHelpViewer(); });
+#ifdef QTC_WEBENGINE_HELPVIEWER
+    factories.append(qMakePair(QByteArray("qtwebengine"), []() { return new WebEngineHelpViewer(); }));
+#endif
+    factories.append(qMakePair(QByteArray("textbrowser"), []() { return new TextBrowserHelpViewer(); }));
 
-    ViewerFactory factory;
-    // TODO: Visual Studio < 2013 has a bug in std::function's operator bool, which in this case
-    // leads to succeeding boolean checks on factory which should not succeed.
-    // So we may not check against "if (!factory)"
-    bool factoryFound = false;
-
-    // check requested backend
-    const QString backend = QLatin1String(qgetenv("QTC_HELPVIEWER_BACKEND"));
-    if (!backend.isEmpty()) {
-        if (!factories.contains(backend)) {
-            qWarning("Help viewer backend \"%s\" not found, using default.", qPrintable(backend));
-        } else {
-            factory = factories.value(backend);
-            factoryFound = true;
-        }
-    }
+#ifdef QTC_MAC_NATIVE_HELPVIEWER
     // default setting
 #ifdef QTC_MAC_NATIVE_HELPVIEWER_DEFAULT
-    if (!factoryFound && factories.contains(QLatin1String("native"))) {
-        factory = factories.value(QLatin1String("native"));
-        factoryFound = true;
-    }
+     factories.prepend(qMakePair(QByteArray("native"), []() { return new MacWebKitHelpViewer(); }));
+#else
+     factories.append(qMakePair(QByteArray("native"), []() { return new MacWebKitHelpViewer(); }));
 #endif
-    if (!factoryFound && factories.contains(QLatin1String("qtwebkit"))) {
-        factory = factories.value(QLatin1String("qtwebkit"));
-        factoryFound = true;
+#endif
+
+    HelpViewer *viewer = nullptr;
+
+    // check requested backend
+    const QByteArray backend = qgetenv("QTC_HELPVIEWER_BACKEND");
+    if (!backend.isEmpty()) {
+        const int pos = Utils::indexOf(factories, [backend](const ViewerFactoryItem &item) {
+            return backend == item.first;
+        });
+        if (pos == -1) {
+            qWarning("Help viewer backend \"%s\" not found, using default.", backend.constData());
+        } else {
+            viewer  = factories.at(pos).second();
+        }
     }
-    if (!factoryFound && factories.contains(QLatin1String("textbrowser"))) {
-        factory = factories.value(QLatin1String("textbrowser"));
-        factoryFound = true;
-    }
-    QTC_ASSERT(factoryFound, return 0);
-    HelpViewer *viewer = factory();
+
+    if (!viewer)
+        viewer = factories.first().second();
+    QTC_ASSERT(viewer, return nullptr);
 
     // initialize font
     viewer->setViewerFont(LocalHelpManager::fallbackFont());
@@ -559,44 +563,39 @@ static QUrl findBestLink(const QMap<QString, QUrl> &links, QString *highlightId)
 
 void HelpPlugin::showContextHelp()
 {
-    if (ModeManager::currentMode() == m_mode)
-        return;
-
     // Find out what to show
-    QMap<QString, QUrl> links;
-    QString idFromContext;
-    if (IContext *context = ICore::currentContextObject()) {
-        idFromContext = context->contextHelpId();
-        links = HelpManager::linksForIdentifier(idFromContext);
-        // Maybe the id is already an URL
-        if (links.isEmpty() && LocalHelpManager::isValidUrl(idFromContext))
-            links.insert(idFromContext, idFromContext);
-    }
+    QString contextHelpId = Utils::ToolTip::contextHelpId();
+    IContext *context = ICore::currentContextObject();
+    if (contextHelpId.isEmpty() && context)
+        contextHelpId = context->contextHelpId();
 
-    if (HelpViewer *viewer = viewerForContextHelp()) {
-        QUrl source = findBestLink(links, &m_contextHelpHighlightId);
-        if (!source.isValid()) {
-            // No link found or no context object
-            viewer->setSource(QUrl(Help::Constants::AboutBlank));
-            viewer->setHtml(tr("<html><head><title>No Documentation</title>"
-                "</head><body><br/><center>"
-                "<font color=\"%1\"><b>%2</b></font><br/>"
-                "<font color=\"%3\">No documentation available.</font>"
-                "</center></body></html>")
-                .arg(creatorTheme()->color(Theme::TextColorNormal).name())
-                .arg(idFromContext)
-                .arg(creatorTheme()->color(Theme::TextColorNormal).name()));
-        } else {
-            const QUrl &oldSource = viewer->source();
-            if (source != oldSource) {
-                viewer->stop();
-                viewer->setSource(source); // triggers loadFinished which triggers id highlighting
-            } else {
-                viewer->scrollToAnchor(source.fragment());
-            }
-            viewer->setFocus();
-            ICore::raiseWindow(viewer);
-        }
+    // get the viewer after getting the help id,
+    // because a new window might be opened and therefore focus be moved
+    HelpViewer *viewer = viewerForContextHelp();
+    QTC_ASSERT(viewer, return);
+
+    QMap<QString, QUrl> links = HelpManager::linksForIdentifier(contextHelpId);
+    // Maybe the id is already an URL
+    if (links.isEmpty() && LocalHelpManager::isValidUrl(contextHelpId))
+        links.insert(contextHelpId, contextHelpId);
+
+    QUrl source = findBestLink(links, &m_contextHelpHighlightId);
+    if (!source.isValid()) {
+        // No link found or no context object
+        viewer->setSource(QUrl(Help::Constants::AboutBlank));
+        viewer->setHtml(tr("<html><head><title>No Documentation</title>"
+            "</head><body><br/><center>"
+            "<font color=\"%1\"><b>%2</b></font><br/>"
+            "<font color=\"%3\">No documentation available.</font>"
+            "</center></body></html>")
+            .arg(creatorTheme()->color(Theme::TextColorNormal).name())
+            .arg(contextHelpId)
+            .arg(creatorTheme()->color(Theme::TextColorNormal).name()));
+    } else {
+        viewer->setFocus();
+        viewer->stop();
+        viewer->setSource(source); // triggers loadFinished which triggers id highlighting
+        ICore::raiseWindow(viewer);
     }
 }
 

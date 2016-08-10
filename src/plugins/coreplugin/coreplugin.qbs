@@ -38,6 +38,7 @@ QtcPlugin {
             "core.qrc",
             "core_global.h",
             "coreconstants.h",
+            "coreicons.cpp", "coreicons.h",
             "corejsextensions.cpp", "corejsextensions.h",
             "coreplugin.cpp", "coreplugin.h",
             "designmode.cpp", "designmode.h",
@@ -57,7 +58,6 @@ QtcPlugin {
             "helpmanager.cpp", "helpmanager.h",
             "icontext.cpp", "icontext.h",
             "icore.cpp", "icore.h",
-            "icorelistener.cpp", "icorelistener.h",
             "id.cpp", "id.h",
             "idocument.cpp", "idocument.h",
             "idocumentfactory.cpp", "idocumentfactory.h",
@@ -97,10 +97,9 @@ QtcPlugin {
             "statusbarmanager.cpp", "statusbarmanager.h",
             "statusbarwidget.cpp", "statusbarwidget.h",
             "styleanimator.cpp", "styleanimator.h",
-            "tabpositionindicator.cpp", "tabpositionindicator.h",
+            "systemsettings.cpp", "systemsettings.h", "systemsettings.ui",
             "textdocument.cpp", "textdocument.h",
-            "themesettings.cpp", "themesettings.h", "themesettings.ui",
-            "themesettingswidget.cpp", "themesettingswidget.h",
+            "themechooser.cpp", "themechooser.h",
             "toolsettings.cpp", "toolsettings.h",
             "variablechooser.cpp", "variablechooser.h",
             "vcsmanager.cpp", "vcsmanager.h",
@@ -269,7 +268,6 @@ QtcPlugin {
             "filesystemfilter.ui",
             "ilocatorfilter.cpp",
             "ilocatorfilter.h",
-            "locator.qrc",
             "locatorconstants.h",
             "locatorfiltersfilter.cpp",
             "locatorfiltersfilter.h",
@@ -286,8 +284,6 @@ QtcPlugin {
             "locatorsettingspage.cpp",
             "locatorsettingspage.h",
             "locatorsettingspage.ui",
-            "images/locator.png",
-            "images/reload.png",
         ]
     }
 
@@ -297,30 +293,6 @@ QtcPlugin {
         files: [
             "locator/spotlightlocatorfilter.h",
             "locator/spotlightlocatorfilter.mm",
-        ]
-    }
-
-    Group {
-        name: "ThemeEditor"
-        prefix: "themeeditor/"
-        files: [
-            "colorrole.cpp",
-            "colorrole.h",
-            "colorvariable.cpp",
-            "colorvariable.h",
-            "sectionedtablemodel.cpp",
-            "sectionedtablemodel.h",
-            "themecolors.cpp",
-            "themecolors.h",
-            "themecolorstableview.cpp",
-            "themecolorstableview.h",
-            "themeeditorwidget.cpp",
-            "themeeditorwidget.h",
-            "themeeditorwidget.ui",
-            "themesettingsitemdelegate.cpp",
-            "themesettingsitemdelegate.h",
-            "themesettingstablemodel.cpp",
-            "themesettingstablemodel.h",
         ]
     }
 

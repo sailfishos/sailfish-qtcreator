@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 Canonical Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 Canonical Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,28 +9,25 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
-#ifndef CMAKEPROJECTMANAGER_CMAKEKITINFORMATION_H
-#define CMAKEPROJECTMANAGER_CMAKEKITINFORMATION_H
+
+#pragma once
 
 #include "cmake_global.h"
+
+#include "cmakeconfigitem.h"
 
 #include <projectexplorer/kitmanager.h>
 
@@ -44,21 +41,58 @@ class CMAKE_EXPORT CMakeKitInformation : public ProjectExplorer::KitInformation
 public:
     CMakeKitInformation();
 
-    static Core::Id id();
-
     static CMakeTool *cmakeTool(const ProjectExplorer::Kit *k);
     static void setCMakeTool(ProjectExplorer::Kit *k, const Core::Id id);
-    static Core::Id defaultValue();
 
     // KitInformation interface
-    QVariant defaultValue(ProjectExplorer::Kit *) const override;
+    QVariant defaultValue(const ProjectExplorer::Kit *k) const override;
     QList<ProjectExplorer::Task> validate(const ProjectExplorer::Kit *k) const override;
     void setup(ProjectExplorer::Kit *k) override;
     void fix(ProjectExplorer::Kit *k) override;
-    virtual ItemList toUserOutput(const ProjectExplorer::Kit *k) const override;
-    virtual ProjectExplorer::KitConfigWidget *createConfigWidget(ProjectExplorer::Kit *k) const override;
+    ItemList toUserOutput(const ProjectExplorer::Kit *k) const override;
+    ProjectExplorer::KitConfigWidget *createConfigWidget(ProjectExplorer::Kit *k) const override;
+};
+
+class CMAKE_EXPORT CMakeGeneratorKitInformation : public ProjectExplorer::KitInformation
+{
+    Q_OBJECT
+public:
+    CMakeGeneratorKitInformation();
+
+    static QString generator(const ProjectExplorer::Kit *k);
+    static void setGenerator(ProjectExplorer::Kit *k, const QString &generator);
+    static QString generatorArgument(const ProjectExplorer::Kit *k);
+
+    // KitInformation interface
+    QVariant defaultValue(const ProjectExplorer::Kit *k) const override;
+    QList<ProjectExplorer::Task> validate(const ProjectExplorer::Kit *k) const override;
+    void setup(ProjectExplorer::Kit *k) override;
+    void fix(ProjectExplorer::Kit *k) override;
+    ItemList toUserOutput(const ProjectExplorer::Kit *k) const override;
+    ProjectExplorer::KitConfigWidget *createConfigWidget(ProjectExplorer::Kit *k) const override;
+};
+
+class CMAKE_EXPORT CMakeConfigurationKitInformation : public ProjectExplorer::KitInformation
+{
+    Q_OBJECT
+public:
+    CMakeConfigurationKitInformation();
+
+    static CMakeConfig configuration(const ProjectExplorer::Kit *k);
+    static void setConfiguration(ProjectExplorer::Kit *k, const CMakeConfig &config);
+
+    static QStringList toStringList(const ProjectExplorer::Kit *k);
+    static void fromStringList(ProjectExplorer::Kit *k, const QStringList &in);
+
+    static CMakeConfig defaultConfiguration(const ProjectExplorer::Kit *k);
+
+    // KitInformation interface
+    QVariant defaultValue(const ProjectExplorer::Kit *k) const override;
+    QList<ProjectExplorer::Task> validate(const ProjectExplorer::Kit *k) const override;
+    void setup(ProjectExplorer::Kit *k) override;
+    void fix(ProjectExplorer::Kit *k) override;
+    ItemList toUserOutput(const ProjectExplorer::Kit *k) const override;
+    ProjectExplorer::KitConfigWidget *createConfigWidget(ProjectExplorer::Kit *k) const override;
 };
 
 } // namespace CMakeProjectManager
-
-#endif // CMAKEPROJECTMANAGER_CMAKEKITINFORMATION_H

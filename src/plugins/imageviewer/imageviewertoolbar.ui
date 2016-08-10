@@ -18,13 +18,16 @@
     <number>0</number>
    </property>
    <item>
+    <widget class="Core::CommandButton" name="toolButtonExportImage">
+     <property name="toolTipBase">
+      <string>Export as Image</string>
+     </property>
+    </widget>
+   </item>
+   <item>
     <widget class="Core::CommandButton" name="toolButtonBackground">
      <property name="toolTipBase">
       <string>Show Background</string>
-     </property>
-     <property name="icon">
-      <iconset resource="imageviewer.qrc">
-       <normaloff>:/imageviewer/images/background.png</normaloff>:/imageviewer/images/background.png</iconset>
      </property>
      <property name="checkable">
       <bool>true</bool>
@@ -39,10 +42,6 @@
      <property name="toolTipBase">
       <string>Show Outline</string>
      </property>
-     <property name="icon">
-      <iconset resource="imageviewer.qrc">
-       <normaloff>:/imageviewer/images/outline.png</normaloff>:/imageviewer/images/outline.png</iconset>
-     </property>
      <property name="checkable">
       <bool>true</bool>
      </property>
@@ -56,10 +55,6 @@
      <property name="toolTipBase">
       <string>Fit to Screen</string>
      </property>
-     <property name="icon">
-      <iconset resource="imageviewer.qrc">
-       <normaloff>:/imageviewer/images/fitinscreen.png</normaloff>:/imageviewer/images/fitinscreen.png</iconset>
-     </property>
      <property name="checkable">
       <bool>false</bool>
      </property>
@@ -70,20 +65,12 @@
      <property name="toolTipBase">
       <string>Original Size</string>
      </property>
-     <property name="icon">
-      <iconset resource="imageviewer.qrc">
-       <normaloff>:/imageviewer/images/originalsize.png</normaloff>:/imageviewer/images/originalsize.png</iconset>
-     </property>
     </widget>
    </item>
    <item>
     <widget class="Core::CommandButton" name="toolButtonZoomIn">
      <property name="toolTipBase">
       <string>Zoom In</string>
-     </property>
-     <property name="icon">
-      <iconset resource="imageviewer.qrc">
-       <normaloff>:/imageviewer/images/zoomin.png</normaloff>:/imageviewer/images/zoomin.png</iconset>
      </property>
      <property name="autoRepeat">
       <bool>true</bool>
@@ -94,10 +81,6 @@
     <widget class="Core::CommandButton" name="toolButtonZoomOut">
      <property name="toolTipBase">
       <string>Zoom Out</string>
-     </property>
-     <property name="icon">
-      <iconset resource="imageviewer.qrc">
-       <normaloff>:/imageviewer/images/zoomout.png</normaloff>:/imageviewer/images/zoomout.png</iconset>
      </property>
      <property name="autoRepeat">
       <bool>true</bool>
@@ -153,7 +136,6 @@
  </customwidgets>
  <resources>
   <include location="imageviewer.qrc"/>
-  <include location="../coreplugin/core.qrc"/>
  </resources>
  <connections/>
 </ui>

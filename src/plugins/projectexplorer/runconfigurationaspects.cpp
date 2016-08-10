@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -34,7 +29,7 @@
 #include "runconfiguration.h"
 #include "environmentaspect.h"
 
-#include <coreplugin/coreconstants.h>
+#include <coreplugin/coreicons.h>
 
 #include <utils/fancylineedit.h>
 #include <utils/pathchooser.h>
@@ -135,8 +130,8 @@ void TerminalAspect::setRunMode(ApplicationLauncher::Mode runMode)
     \class ProjectExplorer::WorkingDirectoryAspect
 */
 
-WorkingDirectoryAspect::WorkingDirectoryAspect(RunConfiguration *runConfig, const QString &key, const QString &dir)
-    : IRunConfigurationAspect(runConfig), m_workingDirectory(dir), m_chooser(0), m_key(key)
+WorkingDirectoryAspect::WorkingDirectoryAspect(RunConfiguration *runConfig, const QString &key)
+    : IRunConfigurationAspect(runConfig), m_chooser(0), m_key(key)
 {
     setDisplayName(tr("Working Directory"));
     setId("WorkingDirectoryAspect");
@@ -149,73 +144,112 @@ WorkingDirectoryAspect *WorkingDirectoryAspect::create(RunConfiguration *runConf
 
 WorkingDirectoryAspect *WorkingDirectoryAspect::clone(RunConfiguration *runConfig) const
 {
-    return new WorkingDirectoryAspect(runConfig, m_key, m_workingDirectory);
+    auto * const aspect = new WorkingDirectoryAspect(runConfig, m_key);
+    aspect->m_defaultWorkingDirectory = m_defaultWorkingDirectory;
+    aspect->m_workingDirectory = m_workingDirectory;
+    return aspect;
 }
 
 void WorkingDirectoryAspect::addToMainConfigurationWidget(QWidget *parent, QFormLayout *layout)
 {
     QTC_CHECK(!m_chooser);
+    m_resetButton = new QToolButton(parent);
+    m_resetButton->setToolTip(tr("Reset to Default"));
+    m_resetButton->setIcon(Core::Icons::RESET.icon());
+    connect(m_resetButton.data(), &QAbstractButton::clicked, this, &WorkingDirectoryAspect::resetPath);
+
     m_chooser = new PathChooser(parent);
     m_chooser->setHistoryCompleter(m_key);
     m_chooser->setExpectedKind(Utils::PathChooser::Directory);
     m_chooser->setPromptDialogTitle(tr("Select Working Directory"));
-    connect(m_chooser.data(), &PathChooser::pathChanged,
-            this, &WorkingDirectoryAspect::setWorkingDirectory);
+    m_chooser->setBaseFileName(m_defaultWorkingDirectory);
+    m_chooser->setFileName(m_workingDirectory.isEmpty() ? m_defaultWorkingDirectory : m_workingDirectory);
+    connect(m_chooser.data(), &PathChooser::pathChanged, this,
+            [this]() {
+                m_workingDirectory = m_chooser->rawFileName();
+                m_resetButton->setEnabled(m_workingDirectory != m_defaultWorkingDirectory);
+            });
 
-    auto resetButton = new QToolButton(parent);
-    resetButton->setToolTip(tr("Reset to Default"));
-    resetButton->setIcon(QIcon(QLatin1String(Core::Constants::ICON_RESET)));
-    connect(resetButton, &QAbstractButton::clicked, this, &WorkingDirectoryAspect::resetPath);
+    m_resetButton->setEnabled(m_workingDirectory != m_defaultWorkingDirectory);
 
     if (auto envAspect = runConfiguration()->extraAspect<EnvironmentAspect>()) {
-        connect(envAspect, &EnvironmentAspect::environmentChanged,
-                this, &WorkingDirectoryAspect::updateEnvironment);
-        updateEnvironment();
+        connect(envAspect, &EnvironmentAspect::environmentChanged, m_chooser.data(), [this, envAspect] {
+            m_chooser->setEnvironment(envAspect->environment());
+        });
+        m_chooser->setEnvironment(envAspect->environment());
     }
 
     auto hbox = new QHBoxLayout;
     hbox->addWidget(m_chooser);
-    hbox->addWidget(resetButton);
+    hbox->addWidget(m_resetButton);
     layout->addRow(tr("Working directory:"), hbox);
 }
 
-void WorkingDirectoryAspect::updateEnvironment()
+QString WorkingDirectoryAspect::keyForDefaultWd() const
 {
-    auto envAspect = runConfiguration()->extraAspect<EnvironmentAspect>();
-    QTC_ASSERT(envAspect, return);
-    QTC_ASSERT(m_chooser, return);
-    m_chooser->setEnvironment(envAspect->environment());
+    return m_key + QLatin1String(".default");
 }
 
 void WorkingDirectoryAspect::resetPath()
 {
-    QTC_ASSERT(m_chooser, return);
-    m_chooser->setPath(QString());
+    m_chooser->setFileName(m_defaultWorkingDirectory);
 }
 
 void WorkingDirectoryAspect::fromMap(const QVariantMap &map)
 {
-    m_workingDirectory = map.value(m_key).toString();
+    m_workingDirectory = FileName::fromString(map.value(m_key).toString());
+    m_defaultWorkingDirectory = FileName::fromString(map.value(keyForDefaultWd()).toString());
+
+    if (m_workingDirectory.isEmpty())
+        m_workingDirectory = m_defaultWorkingDirectory;
 }
 
 void WorkingDirectoryAspect::toMap(QVariantMap &data) const
 {
-    data.insert(m_key, m_workingDirectory);
+    const QString wd
+            = (m_workingDirectory == m_defaultWorkingDirectory) ? QString() : m_workingDirectory.toString();
+    data.insert(m_key, wd);
+    data.insert(keyForDefaultWd(), m_defaultWorkingDirectory.toString());
 }
 
-QString WorkingDirectoryAspect::workingDirectory() const
+FileName WorkingDirectoryAspect::workingDirectory() const
 {
-    return runConfiguration()->macroExpander()->expandProcessArgs(m_workingDirectory);
+    if (m_chooser) {
+        return m_chooser->fileName();
+    } else {
+        auto envAspect = runConfiguration()->extraAspect<EnvironmentAspect>();
+        const Utils::Environment env = envAspect ? envAspect->environment()
+                                                 : Utils::Environment::systemEnvironment();
+        return FileName::fromString(
+                runConfiguration()->macroExpander()->expandProcessArgs(
+                        PathChooser::expandedDirectory(m_workingDirectory.toString(), env, QString())));
+    }
 }
 
-QString WorkingDirectoryAspect::unexpandedWorkingDirectory() const
+FileName WorkingDirectoryAspect::defaultWorkingDirectory() const
+{
+    return m_defaultWorkingDirectory;
+}
+
+FileName WorkingDirectoryAspect::unexpandedWorkingDirectory() const
 {
     return m_workingDirectory;
 }
 
-void WorkingDirectoryAspect::setWorkingDirectory(const QString &workingDirectory)
+void WorkingDirectoryAspect::setDefaultWorkingDirectory(const FileName &defaultWorkingDir)
 {
-    m_workingDirectory = workingDirectory;
+    if (defaultWorkingDir == m_defaultWorkingDirectory)
+        return;
+
+    Utils::FileName oldDefaultDir = m_defaultWorkingDirectory;
+    m_defaultWorkingDirectory = defaultWorkingDir;
+    if (m_chooser) {
+        if (m_chooser->fileName() == oldDefaultDir)
+            m_chooser->setFileName(m_defaultWorkingDirectory);
+        m_chooser->setBaseFileName(m_defaultWorkingDirectory);
+    }
+    if (m_workingDirectory.isEmpty() || m_workingDirectory == oldDefaultDir)
+        m_workingDirectory = defaultWorkingDir;
 }
 
 PathChooser *WorkingDirectoryAspect::pathChooser() const

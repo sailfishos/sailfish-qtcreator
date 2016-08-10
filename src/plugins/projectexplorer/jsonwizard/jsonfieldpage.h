@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,27 +9,24 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
 #ifndef JSONFIELDPAGE_H
 #define JSONFIELDPAGE_H
+
+#include "../projectexplorer_export.h"
 
 #include <utils/pathchooser.h>
 #include <utils/wizardpage.h>
@@ -53,23 +50,25 @@ class TextFieldComboBox;
 namespace ProjectExplorer {
 
 // Documentation inside.
-class JsonFieldPage : public Utils::WizardPage
+class PROJECTEXPLORER_EXPORT JsonFieldPage : public Utils::WizardPage
 {
     Q_OBJECT
 
 public:
-    class Field
+    class PROJECTEXPLORER_EXPORT Field
     {
     public:
-        Field() : mandatory(false), span(false), m_visibleExpression(true), m_widget(0) { }
-        virtual ~Field() { delete m_widget; }
+        class FieldPrivate;
+
+        Field();
+        virtual ~Field();
 
         static Field *parse(const QVariant &input, QString *errorMessage);
         void createWidget(JsonFieldPage *page);
 
         void adjustState(Utils::MacroExpander *expander);
-        virtual void setEnabled(bool e) { m_widget->setEnabled(e); }
-        void setVisible(bool v) { m_widget->setVisible(v); }
+        virtual void setEnabled(bool e);
+        void setVisible(bool v);
 
         virtual bool validate(Utils::MacroExpander *expander, QString *message);
 
@@ -78,172 +77,41 @@ public:
 
         virtual bool suppressName() const { return false; }
 
-        QString name;
-        QString displayName;
-        QString toolTip;
-        bool mandatory;
-        bool span;
+        QWidget *widget(const QString &displayName, JsonFieldPage *page);
+
+        QString name();
+        QString displayName();
+        QString toolTip();
+        bool isMandatory();
+        bool hasSpan();
 
     protected:
-        QVariant m_visibleExpression;
-        QVariant m_enabledExpression;
-        QVariant m_isCompleteExpando;
-        QString m_isCompleteExpandoMessage;
-
+        QWidget *widget() const;
         virtual bool parseData(const QVariant &data, QString *errorMessage) = 0;
         virtual void initializeData(Utils::MacroExpander *expander) { Q_UNUSED(expander); }
-        virtual QWidget *widget(const QString &displayName, JsonFieldPage *page) = 0;
+        virtual QWidget *createWidget(const QString &displayName, JsonFieldPage *page) = 0;
         virtual void setup(JsonFieldPage *page, const QString &name)
         { Q_UNUSED(page); Q_UNUSED(name); }
 
-        QWidget *m_widget;
-    };
-
-    class LabelField : public Field
-    {
-    public:
-        LabelField();
-
     private:
-        QWidget *widget(const QString &displayName, JsonFieldPage *page);
-        bool parseData(const QVariant &data, QString *errorMessage);
+        void setTexts(const QString &n, const QString &dn, const QString &tt);
+        void setIsMandatory(bool b);
+        void setHasSpan(bool b);
 
-        bool m_wordWrap;
-        QString m_text;
-    };
+        void setVisibleExpression(const QVariant &v);
+        void setEnabledExpression(const QVariant &v);
+        void setIsCompleteExpando(const QVariant &v, const QString &m);
 
-    class SpacerField : public Field
-    {
-    public:
-        SpacerField();
+        friend class JsonFieldPage;
 
-        bool suppressName() const { return true; }
-
-    private:
-        bool parseData(const QVariant &data, QString *errorMessage);
-        QWidget *widget(const QString &displayName, JsonFieldPage *page);
-
-        int m_factor;
-    };
-
-    class LineEditField : public Field
-    {
-    public:
-        LineEditField();
-
-    private:
-        bool parseData(const QVariant &data, QString *errorMessage);
-        QWidget *widget(const QString &displayName, JsonFieldPage *page);
-
-        void setup(JsonFieldPage *page, const QString &name);
-
-        bool validate(Utils::MacroExpander *expander, QString *message);
-        void initializeData(Utils::MacroExpander *expander);
-
-        bool m_isModified;
-        bool m_isValidating;
-        QString m_placeholderText;
-        QString m_defaultText;
-        QString m_disabledText;
-        QRegularExpression m_validatorRegExp;
-        QString m_fixupExpando;
-        mutable QString m_currentText;
-    };
-
-    class TextEditField : public Field
-    {
-    public:
-        TextEditField();
-
-    private:
-        bool parseData(const QVariant &data, QString *errorMessage);
-        QWidget *widget(const QString &displayName, JsonFieldPage *page);
-
-        void setup(JsonFieldPage *page, const QString &name);
-
-        bool validate(Utils::MacroExpander *expander, QString *message);
-        void initializeData(Utils::MacroExpander *expander);
-
-        QString m_defaultText;
-        bool m_acceptRichText;
-        QString m_disabledText;
-
-        mutable QString m_currentText;
-    };
-
-    class PathChooserField : public Field
-    {
-    public:
-        PathChooserField();
-
-    private:
-        bool parseData(const QVariant &data, QString *errorMessage);
-
-        QWidget *widget(const QString &displayName, JsonFieldPage *page);
-        void setEnabled(bool e);
-
-        void setup(JsonFieldPage *page, const QString &name);
-
-        bool validate(Utils::MacroExpander *expander, QString *message);
-        void initializeData(Utils::MacroExpander *expander);
-
-        QString m_path;
-        QString m_basePath;
-        Utils::PathChooser::Kind m_kind;
-
-        QString m_currentPath;
-    };
-
-    class CheckBoxField : public Field
-    {
-    public:
-        CheckBoxField();
-
-        bool suppressName() const { return true; }
-
-    private:
-        bool parseData(const QVariant &data, QString *errorMessage);
-
-        QWidget *widget(const QString &displayName, JsonFieldPage *page);
-
-        void setup(JsonFieldPage *page, const QString &name);
-
-        bool validate(Utils::MacroExpander *expander, QString *message);
-        void initializeData(Utils::MacroExpander *expander);
-
-        QString m_checkedValue;
-        QString m_uncheckedValue;
-        QVariant m_checkedExpression;
-
-        bool m_isModified;
-    };
-
-    class ComboBoxField : public Field
-    {
-    public:
-        ComboBoxField();
-
-    private:
-        bool parseData(const QVariant &data, QString *errorMessage);
-
-        QWidget *widget(const QString &displayName, JsonFieldPage *page);
-
-        void setup(JsonFieldPage *page, const QString &name);
-
-        bool validate(Utils::MacroExpander *expander, QString *message);
-        void initializeData(Utils::MacroExpander *expander);
-
-        QStringList m_itemList;
-        QStringList m_itemDataList;
-        QVariantList m_itemConditionList;
-        int m_index;
-        int m_disabledIndex;
-
-        mutable int m_savedIndex;
+        FieldPrivate *const d;
     };
 
     JsonFieldPage(Utils::MacroExpander *expander, QWidget *parent = 0);
     ~JsonFieldPage();
+
+    typedef std::function<Field *()> FieldFactory;
+    static void registerFieldFactory(const QString &id, const FieldFactory &ff);
 
     bool setup(const QVariant &data);
 
@@ -259,6 +127,10 @@ public:
     Utils::MacroExpander *expander();
 
 private:
+    static QHash<QString, FieldFactory> m_factories;
+
+    static Field *createFieldData(const QString &type);
+
     QFormLayout *m_formLayout;
     QLabel *m_errorLabel;
 

@@ -1,4 +1,4 @@
-﻿import qbs 1.0
+import qbs 1.0
 
 QtcLibrary {
     name: "ClangBackEndIpc"
@@ -6,7 +6,7 @@ QtcLibrary {
     Depends { name: "Qt.network" }
     Depends { name: "Sqlite" }
 
-    cpp.defines: base.concat("CLANGBACKENDIPC_LIBRARY")
+    cpp.defines: base.concat("CLANGBACKENDIPC_BUILD_LIB")
     cpp.includePaths: base.concat(".")
 
     Group {
@@ -24,5 +24,3 @@ QtcLibrary {
         ]
     }
 }
-
-

@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,24 +9,20 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
+
 #include "xcodebuildparser.h"
 
 #include "projectexplorerconstants.h"
@@ -41,7 +37,7 @@ namespace ProjectExplorer {
 static const char failureRe[] = "\\*\\* BUILD FAILED \\*\\*$";
 static const char successRe[] = "\\*\\* BUILD SUCCEEDED \\*\\*$";
 static const char buildRe[] = "=== BUILD (AGGREGATE )?TARGET (.*) OF PROJECT (.*) WITH .* ===$";
-static const char signatureChangeRe[] = "(.+): replacing existing signature$";
+static const char signatureChangeEndsWithPattern[] = ": replacing existing signature";
 
 XcodebuildParser::XcodebuildParser() :
     m_fatalErrorCount(0),
@@ -54,8 +50,6 @@ XcodebuildParser::XcodebuildParser() :
     QTC_CHECK(m_successRe.isValid());
     m_buildRe.setPattern(QLatin1String(buildRe));
     QTC_CHECK(m_buildRe.isValid());
-    m_replacingSignatureRe.setPattern(QLatin1String(signatureChangeRe));
-    QTC_CHECK(m_replacingSignatureRe.isValid());
 }
 
 bool XcodebuildParser::hasFatalErrors() const
@@ -77,11 +71,12 @@ void XcodebuildParser::stdOutput(const QString &line)
             m_xcodeBuildParserState = OutsideXcodebuild;
             return;
         }
-        if (m_replacingSignatureRe.indexIn(lne) > -1) {
+        if (lne.endsWith(QLatin1String(signatureChangeEndsWithPattern))) {
             Task task(Task::Warning,
                       QCoreApplication::translate("ProjectExplorer::XcodebuildParser",
                                                   "Replacing signature"),
-                      Utils::FileName::fromString(m_replacingSignatureRe.cap(1)), /* filename */
+                      Utils::FileName::fromString(
+                          lne.left(lne.size() - QLatin1String(signatureChangeEndsWithPattern).size())), /* filename */
                       -1, /* line */
                       Constants::TASK_CATEGORY_COMPILE);
             taskAdded(task, 1);
@@ -124,8 +119,6 @@ void XcodebuildParser::stdError(const QString &line)
 
 #   include "outputparser_test.h"
 #   include "projectexplorer.h"
-
-#   include "metatypedeclarations.h"
 
 using namespace ProjectExplorer;
 
@@ -282,7 +275,8 @@ void ProjectExplorerPlugin::testXcodebuildParserParsing()
     XcodebuildParser *childParser = new XcodebuildParser;
     XcodebuildParserTester *tester = new XcodebuildParserTester(childParser);
 
-    connect(&testbench, SIGNAL(aboutToDeleteParser()), tester, SLOT(onAboutToDeleteParser()));
+    connect(&testbench, &OutputParserTester::aboutToDeleteParser,
+            tester, &XcodebuildParserTester::onAboutToDeleteParser);
 
     testbench.appendOutputParser(childParser);
     QFETCH(ProjectExplorer::XcodebuildParser::XcodebuildStatus, initialStatus);

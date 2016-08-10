@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 Thorben Kroeger <thorbenkroeger@gmail.com>.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 Thorben Kroeger <thorbenkroeger@gmail.com>.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -66,11 +61,11 @@ void setCreatorTheme(Theme *theme)
     m_creatorTheme = theme;
 }
 
-Theme::Theme(const QString &name, QObject *parent)
+Theme::Theme(const QString &id, QObject *parent)
   : QObject(parent)
   , d(new ThemePrivate)
 {
-    d->name = name;
+    d->id = id;
 }
 
 Theme::~Theme()
@@ -86,6 +81,16 @@ Theme::WidgetStyle Theme::widgetStyle() const
 QStringList Theme::preferredStyles() const
 {
     return d->preferredStyles;
+}
+
+QString Theme::defaultTextEditorColorScheme() const
+{
+    return d->defaultTextEditorColorScheme;
+}
+
+QString Theme::id() const
+{
+    return d->id;
 }
 
 bool Theme::flag(Theme::Flag f) const
@@ -130,14 +135,14 @@ QString Theme::filePath() const
     return d->fileName;
 }
 
-QString Theme::name() const
+QString Theme::displayName() const
 {
-    return d->name;
+    return d->displayName;
 }
 
-void Theme::setName(const QString &name)
+void Theme::setDisplayName(const QString &name)
 {
-    d->name = name;
+    d->displayName = name;
 }
 
 QVariantHash Theme::values() const
@@ -173,99 +178,17 @@ static QColor readColor(const QString &color)
     return QColor::fromRgba(rgba);
 }
 
-static QString writeColor(const QColor &color)
-{
-    return QString::number(color.rgba(), 16);
-}
-
-// reading, writing of .creatortheme ini file ////////////////////////////////
-void Theme::writeSettings(const QString &filename) const
-{
-    QSettings settings(filename, QSettings::IniFormat);
-
-    const QMetaObject &m = *metaObject();
-    {
-        settings.setValue(QLatin1String("ThemeName"), d->name);
-        settings.setValue(QLatin1String("PreferredStyles"), d->preferredStyles);
-    }
-    {
-        settings.beginGroup(QLatin1String("Palette"));
-        for (int i = 0, total = d->colors.size(); i < total; ++i) {
-            const QPair<QColor, QString> var = d->colors[i];
-            if (var.second.isEmpty())
-                continue;
-            settings.setValue(var.second, writeColor(var.first));
-        }
-        settings.endGroup();
-    }
-    {
-        settings.beginGroup(QLatin1String("Colors"));
-        const QMetaEnum e = m.enumerator(m.indexOfEnumerator("Color"));
-        for (int i = 0, total = e.keyCount(); i < total; ++i) {
-            const QString key = QLatin1String(e.key(i));
-            const QPair<QColor, QString> var = d->colors[i];
-            if (!var.second.isEmpty())
-                settings.setValue(key, var.second); // named color
-            else
-                settings.setValue(key, writeColor(var.first));
-        }
-        settings.endGroup();
-    }
-    {
-        settings.beginGroup(QLatin1String("ImageFiles"));
-        const QMetaEnum e = m.enumerator(m.indexOfEnumerator("ImageFile"));
-        for (int i = 0, total = e.keyCount(); i < total; ++i) {
-            const QString key = QLatin1String(e.key(i));
-            const QString &var = d->imageFiles.at(i);
-            if (!var.isEmpty())
-                settings.setValue(key, var);
-        }
-        settings.endGroup();
-    }
-    {
-        settings.beginGroup(QLatin1String("Gradients"));
-        const QMetaEnum e = m.enumerator(m.indexOfEnumerator("Gradient"));
-        for (int i = 0, total = e.keyCount(); i < total; ++i) {
-            const QString key = QLatin1String(e.key(i));
-            QGradientStops stops = gradient(static_cast<Theme::Gradient>(i));
-            settings.beginWriteArray(key);
-            int k = 0;
-            foreach (const QGradientStop stop, stops) {
-                settings.setArrayIndex(k);
-                settings.setValue(QLatin1String("pos"), stop.first);
-                settings.setValue(QLatin1String("color"), writeColor(stop.second));
-                ++k;
-            }
-            settings.endArray();
-        }
-        settings.endGroup();
-    }
-    {
-        settings.beginGroup(QLatin1String("Flags"));
-        const QMetaEnum e = m.enumerator(m.indexOfEnumerator("Flag"));
-        for (int i = 0, total = e.keyCount(); i < total; ++i) {
-            const QString key = QLatin1String(e.key(i));
-            settings.setValue(key, flag(static_cast<Theme::Flag>(i)));
-        }
-        settings.endGroup();
-    }
-
-    {
-        settings.beginGroup(QLatin1String("Style"));
-        const QMetaEnum e = m.enumerator(m.indexOfEnumerator("WidgetStyle"));
-        settings.setValue(QLatin1String("WidgetStyle"), QLatin1String(e.valueToKey(widgetStyle ())));
-        settings.endGroup();
-    }
-}
-
 void Theme::readSettings(QSettings &settings)
 {
     d->fileName = settings.fileName();
     const QMetaObject &m = *metaObject();
 
     {
-        d->name = settings.value(QLatin1String("ThemeName"), QLatin1String("unnamed")).toString();
+        d->displayName = settings.value(QLatin1String("ThemeName"), QLatin1String("unnamed")).toString();
         d->preferredStyles = settings.value(QLatin1String("PreferredStyles")).toStringList();
+        d->preferredStyles.removeAll(QLatin1String(""));
+        d->defaultTextEditorColorScheme =
+                settings.value(QLatin1String("DefaultTextEditorColorScheme")).toString();
     }
     {
         settings.beginGroup(QLatin1String("Palette"));

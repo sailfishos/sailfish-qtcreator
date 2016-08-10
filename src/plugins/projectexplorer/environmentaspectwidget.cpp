@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -78,8 +73,8 @@ EnvironmentAspectWidget::EnvironmentAspectWidget(EnvironmentAspect *aspect, QWid
     if (m_baseEnvironmentComboBox->count() == 1)
         m_baseEnvironmentComboBox->setEnabled(false);
 
-    connect(m_baseEnvironmentComboBox, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(baseEnvironmentSelected(int)));
+    connect(m_baseEnvironmentComboBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+            this, &EnvironmentAspectWidget::baseEnvironmentSelected);
 
     baseLayout->addWidget(m_baseEnvironmentComboBox);
     baseLayout->addStretch(10);
@@ -93,14 +88,15 @@ EnvironmentAspectWidget::EnvironmentAspectWidget(EnvironmentAspect *aspect, QWid
     m_environmentWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     topLayout->addWidget(m_environmentWidget);
 
-    connect(m_environmentWidget, SIGNAL(userChangesChanged()),
-            this, SLOT(userChangesEdited()));
+    connect(m_environmentWidget, &EnvironmentWidget::userChangesChanged,
+            this, &EnvironmentAspectWidget::userChangesEdited);
 
-    connect(m_aspect, SIGNAL(baseEnvironmentChanged()), this, SLOT(changeBaseEnvironment()));
-    connect(m_aspect, SIGNAL(userEnvironmentChangesChanged(QList<Utils::EnvironmentItem>)),
-            this, SLOT(changeUserChanges(QList<Utils::EnvironmentItem>)));
-    connect(m_aspect, SIGNAL(environmentChanged()),
-            this, SLOT(environmentChanged()));
+    connect(m_aspect, &EnvironmentAspect::baseEnvironmentChanged,
+            this, &EnvironmentAspectWidget::changeBaseEnvironment);
+    connect(m_aspect, &EnvironmentAspect::userEnvironmentChangesChanged,
+            this, &EnvironmentAspectWidget::changeUserChanges);
+    connect(m_aspect, &EnvironmentAspect::environmentChanged,
+            this, &EnvironmentAspectWidget::environmentChanged);
 }
 
 QString EnvironmentAspectWidget::displayName() const

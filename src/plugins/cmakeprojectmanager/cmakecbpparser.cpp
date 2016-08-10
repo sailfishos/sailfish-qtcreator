@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -65,9 +60,7 @@ int distance(const QString &targetDirectory, const FileName &fileName)
 void CMakeCbpParser::sortFiles()
 {
     QLoggingCategory log("qtc.cmakeprojectmanager.filetargetmapping");
-    QList<FileName> fileNames = Utils::transform(m_fileList, [] (FileNode *node) {
-        return node->path();
-    });
+    FileNameList fileNames = Utils::transform(m_fileList, &FileNode::filePath);
 
     Utils::sort(fileNames);
 
@@ -158,7 +151,7 @@ void CMakeCbpParser::sortFiles()
         qCDebug(log) << target.title << target.sourceDirectory << target.includeFiles << target.defines << target.files << "\n";
 }
 
-bool CMakeCbpParser::parseCbpFile(Kit *kit, const QString &fileName, const QString &sourceDirectory)
+bool CMakeCbpParser::parseCbpFile(const Kit *const kit, const QString &fileName, const QString &sourceDirectory)
 {
     m_kit = kit;
     m_buildDirectory = QFileInfo(fileName).absolutePath();
@@ -179,6 +172,16 @@ bool CMakeCbpParser::parseCbpFile(Kit *kit, const QString &fileName, const QStri
         sortFiles();
 
         fi.close();
+
+        // There is always a clean target:
+        CMakeBuildTarget cleanTarget;
+        cleanTarget.title = QLatin1String("clean");
+        cleanTarget.targetType = UtilityType;
+        cleanTarget.workingDirectory = m_buildDirectory;
+        cleanTarget.sourceDirectory = m_sourceDirectory;
+
+        m_buildTargets.append(cleanTarget);
+
         return true;
     }
     return false;
@@ -265,10 +268,28 @@ void CMakeCbpParser::parseBuildTargetOption()
             m_buildTarget.targetType = TargetType(value.toInt());
     } else if (attributes().hasAttribute(QLatin1String("working_dir"))) {
         m_buildTarget.workingDirectory = attributes().value(QLatin1String("working_dir")).toString();
-        QDir dir(m_buildDirectory);
-        const QString relative = dir.relativeFilePath(m_buildTarget.workingDirectory);
-        m_buildTarget.sourceDirectory
-                = FileName::fromString(m_sourceDirectory).appendPath(relative).toString();
+
+        QFile cmakeSourceInfoFile(m_buildTarget.workingDirectory
+                                  + QStringLiteral("/CMakeFiles/CMakeDirectoryInformation.cmake"));
+        if (cmakeSourceInfoFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            QTextStream stream(&cmakeSourceInfoFile);
+            const QLatin1String searchSource("SET(CMAKE_RELATIVE_PATH_TOP_SOURCE \"");
+            while (!stream.atEnd()) {
+                const QString lineTopSource = stream.readLine().trimmed();
+                if (lineTopSource.startsWith(searchSource, Qt::CaseInsensitive)) {
+                    m_buildTarget.sourceDirectory = lineTopSource.mid(searchSource.size());
+                    m_buildTarget.sourceDirectory.chop(2); // cut off ")
+                    break;
+                }
+            }
+        }
+
+        if (m_buildTarget.sourceDirectory.isEmpty()) {
+            QDir dir(m_buildDirectory);
+            const QString relative = dir.relativeFilePath(m_buildTarget.workingDirectory);
+            m_buildTarget.sourceDirectory
+                    = FileName::fromString(m_sourceDirectory).appendPath(relative).toString();
+        }
     }
     while (!atEnd()) {
         readNext();
@@ -416,14 +437,14 @@ void CMakeCbpParser::parseUnit()
         fileName = FileName::fromUserInput(mappedFile);
     }
 
-    m_parsingCmakeUnit = false;
+    m_parsingCMakeUnit = false;
     m_unitTarget.clear();
     while (!atEnd()) {
         readNext();
         if (isEndElement()) {
             if (!fileName.endsWith(QLatin1String(".rule")) && !m_processedUnits.contains(fileName)) {
                 // Now check whether we found a virtual element beneath
-                if (m_parsingCmakeUnit) {
+                if (m_parsingCMakeUnit) {
                     m_cmakeFileList.append( new ProjectExplorer::FileNode(fileName, ProjectExplorer::ProjectFileType, false));
                 } else {
                     bool generated = false;
@@ -454,7 +475,7 @@ void CMakeCbpParser::parseUnit()
 void CMakeCbpParser::parseUnitOption()
 {
     const QXmlStreamAttributes optionAttributes = attributes();
-    m_parsingCmakeUnit = optionAttributes.hasAttribute(QLatin1String("virtualFolder"));
+    m_parsingCMakeUnit = optionAttributes.hasAttribute(QLatin1String("virtualFolder"));
     m_unitTarget = optionAttributes.value(QLatin1String("target")).toString();
 
     while (!atEnd()) {

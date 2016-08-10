@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -244,8 +239,8 @@ void ActionContainerPrivate::addAction(Command *command, Id groupId)
     QAction *beforeAction = insertLocation(groupIt);
     m_groups[groupIt-m_groups.constBegin()].items.append(command);
 
-    connect(command, SIGNAL(activeStateChanged()), this, SLOT(scheduleUpdate()));
-    connect(command, SIGNAL(destroyed()), this, SLOT(itemDestroyed()));
+    connect(command, &Command::activeStateChanged, this, &ActionContainerPrivate::scheduleUpdate);
+    connect(command, &QObject::destroyed, this, &ActionContainerPrivate::itemDestroyed);
     insertAction(beforeAction, command->action());
     scheduleUpdate();
 }
@@ -263,7 +258,7 @@ void ActionContainerPrivate::addMenu(ActionContainer *menu, Id groupId)
     QAction *beforeAction = insertLocation(groupIt);
     m_groups[groupIt-m_groups.constBegin()].items.append(menu);
 
-    connect(menu, SIGNAL(destroyed()), this, SLOT(itemDestroyed()));
+    connect(menu, &QObject::destroyed, this, &ActionContainerPrivate::itemDestroyed);
     insertMenu(beforeAction, container->menu());
     scheduleUpdate();
 }
@@ -281,7 +276,7 @@ void ActionContainerPrivate::addMenu(ActionContainer *before, ActionContainer *m
     QAction *beforeAction = before->menu()->menuAction();
     m_groups[groupIt-m_groups.constBegin()].items.append(menu);
 
-    connect(menu, SIGNAL(destroyed()), this, SLOT(itemDestroyed()));
+    connect(menu, &QObject::destroyed, this, &ActionContainerPrivate::itemDestroyed);
     insertMenu(beforeAction, container->menu());
     scheduleUpdate();
 }
@@ -316,11 +311,13 @@ void ActionContainerPrivate::clear()
         foreach (QObject *item, group.items) {
             if (Command *command = qobject_cast<Command *>(item)) {
                 removeAction(command->action());
-                disconnect(command, SIGNAL(activeStateChanged()), this, SLOT(scheduleUpdate()));
-                disconnect(command, SIGNAL(destroyed()), this, SLOT(itemDestroyed()));
+                disconnect(command, &Command::activeStateChanged,
+                           this, &ActionContainerPrivate::scheduleUpdate);
+                disconnect(command, &QObject::destroyed, this, &ActionContainerPrivate::itemDestroyed);
             } else if (ActionContainer *container = qobject_cast<ActionContainer *>(item)) {
                 container->clear();
-                disconnect(container, SIGNAL(destroyed()), this, SLOT(itemDestroyed()));
+                disconnect(container, &QObject::destroyed,
+                           this, &ActionContainerPrivate::itemDestroyed);
                 removeMenu(container->menu());
             }
         }
@@ -365,7 +362,7 @@ void ActionContainerPrivate::scheduleUpdate()
     if (m_updateRequested)
         return;
     m_updateRequested = true;
-    QTimer::singleShot(0, this, SLOT(update()));
+    QTimer::singleShot(0, this, &ActionContainerPrivate::update);
 }
 
 void ActionContainerPrivate::update()

@@ -1,7 +1,7 @@
-/**************************************************************************
+/****************************************************************************
 **
-** Copyright (C) 2015 BogDan Vatra <bog_dan_ro@yahoo.com>
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 BogDan Vatra <bog_dan_ro@yahoo.com>
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -36,17 +31,9 @@
 
 #include <android/androidconstants.h>
 #include <android/androidglobal.h>
-#include <projectexplorer/buildmanager.h>
-#include <projectexplorer/buildsteplist.h>
-#include <projectexplorer/deployconfiguration.h>
-#include <projectexplorer/projectexplorer.h>
-#include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/target.h>
 #include <qtsupport/qtkitinformation.h>
-#include <qmakeprojectmanager/qmakebuildconfiguration.h>
-#include <qmakeprojectmanager/qmakenodes.h>
 #include <qmakeprojectmanager/qmakeproject.h>
-#include <qmakeprojectmanager/qmakestep.h>
 
 using namespace QmakeProjectManager;
 
@@ -78,6 +65,17 @@ QStringList QmakeAndroidSupport::soLibSearchPath(const ProjectExplorer::Target *
     }
 
     return res;
+}
+
+QStringList QmakeAndroidSupport::androidExtraLibs(const ProjectExplorer::Target *target) const
+{
+    ProjectExplorer::RunConfiguration *rc = target->activeRunConfiguration();
+    QmakeAndroidRunConfiguration *qarc = qobject_cast<QmakeAndroidRunConfiguration *>(rc);
+    if (!qarc)
+        return QStringList();
+    auto project = static_cast<QmakeProject *>(target->project());
+    QmakeProFileNode *node = project->rootProjectNode()->findProFileFor(qarc->proFilePath());
+    return node->variableValue(QmakeProjectManager::AndroidExtraLibs);
 }
 
 QStringList QmakeAndroidSupport::projectTargetApplications(const ProjectExplorer::Target *target) const
@@ -122,7 +120,7 @@ Utils::FileName QmakeAndroidSupport::androiddeployJsonPath(ProjectExplorer::Targ
         return Utils::FileName();
 
     const QmakeProFileNode *node =
-            pro->rootQmakeProjectNode()->findProFileFor(buildApkStep->proFilePathForInputFile());
+            pro->rootProjectNode()->findProFileFor(buildApkStep->proFilePathForInputFile());
     if (!node) // should never happen
         return Utils::FileName();
 
@@ -136,20 +134,8 @@ Utils::FileName QmakeAndroidSupport::androiddeployJsonPath(ProjectExplorer::Targ
 void QmakeAndroidSupport::manifestSaved(const ProjectExplorer::Target *target)
 {
     ProjectExplorer::BuildConfiguration *bc = target->activeBuildConfiguration();
-    if (auto qbc = qobject_cast<AndroidQmakeBuildConfiguration *>(bc)) {
-        qbc->emitEnvironmentChanged();
-
-        QMakeStep *qs = qbc->qmakeStep();
-        if (!qs)
-            return;
-
-        qs->setForced(true);
-
-        ProjectExplorer::BuildManager::buildList(bc->stepList(ProjectExplorer::Constants::BUILDSTEPS_CLEAN),
-                      ProjectExplorer::ProjectExplorerPlugin::displayNameForStepId(ProjectExplorer::Constants::BUILDSTEPS_CLEAN));
-        ProjectExplorer::BuildManager::appendStep(qs, ProjectExplorer::ProjectExplorerPlugin::displayNameForStepId(ProjectExplorer::Constants::BUILDSTEPS_CLEAN));
-        qbc->setSubNodeBuild(0);
-    }
+    if (auto qbc = qobject_cast<AndroidQmakeBuildConfiguration *>(bc))
+        qbc->manifestSaved();
 }
 
 Utils::FileName QmakeAndroidSupport::manifestSourcePath(const ProjectExplorer::Target *target)
@@ -158,7 +144,7 @@ Utils::FileName QmakeAndroidSupport::manifestSourcePath(const ProjectExplorer::T
     if (auto qrc = qobject_cast<QmakeAndroidRunConfiguration *>(rc)) {
         Utils::FileName proFilePath = qrc->proFilePath();
         const auto project = static_cast<QmakeProjectManager::QmakeProject *>(target->project());
-        const QmakeProFileNode *node = project->rootQmakeProjectNode()->findProFileFor(proFilePath);
+        const QmakeProFileNode *node = project->rootProjectNode()->findProFileFor(proFilePath);
         if (node) {
             QString packageSource = node->singleVariableValue(AndroidPackageSourceDir);
             if (!packageSource.isEmpty()) {

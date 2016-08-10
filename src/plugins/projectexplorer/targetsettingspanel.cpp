@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -40,6 +35,7 @@
 #include "projectwindow.h"
 #include "propertiespanel.h"
 #include "runsettingspropertiespage.h"
+#include "session.h"
 #include "target.h"
 #include "targetsettingswidget.h"
 
@@ -50,8 +46,6 @@
 #include <projectexplorer/kitmanager.h>
 #include <projectexplorer/buildmanager.h>
 #include <projectexplorer/buildconfiguration.h>
-#include <projectexplorer/deployconfiguration.h>
-#include <projectexplorer/runconfiguration.h>
 #include <utils/algorithm.h>
 #include <utils/qtcassert.h>
 
@@ -77,15 +71,8 @@ int TargetSettingsPanelWidget::s_targetSubIndex = -1;
 ///
 
 TargetSettingsPanelWidget::TargetSettingsPanelWidget(Project *project) :
-    m_currentTarget(0),
     m_project(project),
-    m_importer(project->createProjectImporter()),
-    m_selector(0),
-    m_centralWidget(0),
-    m_changeMenu(0),
-    m_duplicateMenu(0),
-    m_lastAction(0),
-    m_importAction(0)
+    m_importer(project->createProjectImporter())
 {
     Q_ASSERT(m_project);
 
@@ -97,23 +84,26 @@ TargetSettingsPanelWidget::TargetSettingsPanelWidget(Project *project) :
 
     if (m_importer) {
         m_importAction = new QAction(tr("Import existing build..."), this);
-        connect(m_importAction, SIGNAL(triggered()), this, SLOT(importTarget()));
+        connect(m_importAction, &QAction::triggered, this, [this]() {
+            const QString toImport
+                    = QFileDialog::getExistingDirectory(this, tr("Import directory"),
+                                                        m_project->projectDirectory().toString());
+            importTarget(Utils::FileName::fromString(toImport));
+        });
     }
 
     setFocusPolicy(Qt::NoFocus);
 
     setupUi();
 
-    connect(m_project, SIGNAL(addedTarget(ProjectExplorer::Target*)),
-            this, SLOT(targetAdded(ProjectExplorer::Target*)));
-    connect(m_project, SIGNAL(removedTarget(ProjectExplorer::Target*)),
-            this, SLOT(removedTarget(ProjectExplorer::Target*)));
+    connect(m_project, &Project::addedTarget, this, &TargetSettingsPanelWidget::targetAdded);
+    connect(m_project, &Project::removedTarget, this, &TargetSettingsPanelWidget::removedTarget);
 
-    connect(m_project, SIGNAL(activeTargetChanged(ProjectExplorer::Target*)),
-            this, SLOT(activeTargetChanged(ProjectExplorer::Target*)));
+    connect(m_project, &Project::activeTargetChanged,
+            this, &TargetSettingsPanelWidget::activeTargetChanged);
 
-    connect(KitManager::instance(), SIGNAL(kitsChanged()),
-            this, SLOT(updateTargetButtons()));
+    connect(KitManager::instance(), &KitManager::kitsChanged,
+            this, &TargetSettingsPanelWidget::updateTargetButtons);
 }
 
 TargetSettingsPanelWidget::~TargetSettingsPanelWidget()
@@ -202,17 +192,17 @@ void TargetSettingsPanelWidget::setupUi()
     m_selector->setCurrentSubIndex(s_targetSubIndex);
     currentTargetChanged(index, m_selector->currentSubIndex());
 
-    connect(m_selector, SIGNAL(currentChanged(int,int)),
-            this, SLOT(currentTargetChanged(int,int)));
-    connect(m_selector, SIGNAL(manageButtonClicked()),
-            this, SLOT(openTargetPreferences()));
-    connect(m_selector, SIGNAL(toolTipRequested(QPoint,int)),
-            this, SLOT(showTargetToolTip(QPoint,int)));
-    connect(m_selector, SIGNAL(menuShown(int)),
-            this, SLOT(menuShown(int)));
+    connect(m_selector, &TargetSettingsWidget::currentChanged,
+            this, &TargetSettingsPanelWidget::currentTargetChanged);
+    connect(m_selector, &TargetSettingsWidget::manageButtonClicked,
+            this, &TargetSettingsPanelWidget::openTargetPreferences);
+    connect(m_selector, &TargetSettingsWidget::toolTipRequested,
+            this, &TargetSettingsPanelWidget::showTargetToolTip);
+    connect(m_selector, &TargetSettingsWidget::menuShown,
+            this, &TargetSettingsPanelWidget::menuShown);
 
-    connect(m_addMenu, SIGNAL(triggered(QAction*)),
-            this, SLOT(addActionTriggered(QAction*)));
+    connect(m_addMenu, &QMenu::triggered,
+            this, &TargetSettingsPanelWidget::addActionTriggered);
 
     m_selector->setAddButtonMenu(m_addMenu);
     m_selector->setTargetMenu(m_targetMenu);
@@ -290,8 +280,7 @@ void TargetSettingsPanelWidget::currentTargetChanged(int targetIndex, int subInd
     delete m_panelWidgets[1];
     m_panelWidgets[1] = runPanel;
 
-
-    m_project->setActiveTarget(target);
+    SessionManager::setActiveTarget(m_project, target, SetActive::Cascade);
 }
 
 void TargetSettingsPanelWidget::menuShown(int targetIndex)
@@ -301,25 +290,27 @@ void TargetSettingsPanelWidget::menuShown(int targetIndex)
 
 void TargetSettingsPanelWidget::changeActionTriggered(QAction *action)
 {
+    QTC_ASSERT(m_menuTargetIndex >= 0, return);
     Kit *k = KitManager::find(action->data().value<Id>());
     Target *sourceTarget = m_targets.at(m_menuTargetIndex);
-    Target *newTarget = cloneTarget(sourceTarget, k);
+    Target *newTarget = m_project->cloneTarget(sourceTarget, k);
 
     if (newTarget) {
         m_project->addTarget(newTarget);
-        m_project->setActiveTarget(newTarget);
+        SessionManager::setActiveTarget(m_project, newTarget, SetActive::Cascade);
         m_project->removeTarget(sourceTarget);
     }
 }
 
 void TargetSettingsPanelWidget::duplicateActionTriggered(QAction *action)
 {
+    QTC_ASSERT(m_menuTargetIndex >= 0, return);
     Kit *k = KitManager::find(action->data().value<Id>());
-    Target *newTarget = cloneTarget(m_targets.at(m_menuTargetIndex), k);
+    Target *newTarget = m_project->cloneTarget(m_targets.at(m_menuTargetIndex), k);
 
     if (newTarget) {
         m_project->addTarget(newTarget);
-        m_project->setActiveTarget(newTarget);
+        SessionManager::setActiveTarget(m_project, newTarget, SetActive::Cascade);
     }
 }
 
@@ -330,10 +321,7 @@ void TargetSettingsPanelWidget::addActionTriggered(QAction *action)
         Kit *k = KitManager::find(action->data().value<Id>());
         QTC_ASSERT(!m_project->target(k), return);
 
-        Target *target = m_project->createTarget(k);
-        if (!target)
-            return;
-        m_project->addTarget(target);
+        m_project->addTarget(m_project->createTarget(k));
     } else {
         QTC_ASSERT(data.canConvert<IPotentialKit *>(), return);
         IPotentialKit *potentialKit = data.value<IPotentialKit *>();
@@ -341,148 +329,11 @@ void TargetSettingsPanelWidget::addActionTriggered(QAction *action)
     }
 }
 
-Target *TargetSettingsPanelWidget::cloneTarget(Target *sourceTarget, Kit *k)
+void TargetSettingsPanelWidget::removeCurrentTarget()
 {
-    Target *newTarget = new Target(m_project, k);
-
-    QStringList buildconfigurationError;
-    QStringList deployconfigurationError;
-    QStringList runconfigurationError;
-
-    foreach (BuildConfiguration *sourceBc, sourceTarget->buildConfigurations()) {
-        IBuildConfigurationFactory *factory = IBuildConfigurationFactory::find(newTarget, sourceBc);
-        if (!factory) {
-            buildconfigurationError << sourceBc->displayName();
-            continue;
-        }
-        BuildConfiguration *newBc = factory->clone(newTarget, sourceBc);
-        if (!newBc) {
-            buildconfigurationError << sourceBc->displayName();
-            continue;
-        }
-        newBc->setDisplayName(sourceBc->displayName());
-        newTarget->addBuildConfiguration(newBc);
-        if (sourceTarget->activeBuildConfiguration() == sourceBc)
-            newTarget->setActiveBuildConfiguration(newBc);
-    }
-    if (!newTarget->activeBuildConfiguration()) {
-        QList<BuildConfiguration *> bcs = newTarget->buildConfigurations();
-        if (!bcs.isEmpty())
-            newTarget->setActiveBuildConfiguration(bcs.first());
-    }
-
-    foreach (DeployConfiguration *sourceDc, sourceTarget->deployConfigurations()) {
-        DeployConfigurationFactory *factory = DeployConfigurationFactory::find(newTarget, sourceDc);
-        if (!factory) {
-            deployconfigurationError << sourceDc->displayName();
-            continue;
-        }
-        DeployConfiguration *newDc = factory->clone(newTarget, sourceDc);
-        if (!newDc) {
-            deployconfigurationError << sourceDc->displayName();
-            continue;
-        }
-        newDc->setDisplayName(sourceDc->displayName());
-        newTarget->addDeployConfiguration(newDc);
-        if (sourceTarget->activeDeployConfiguration() == sourceDc)
-            newTarget->setActiveDeployConfiguration(newDc);
-    }
-    if (!newTarget->activeBuildConfiguration()) {
-        QList<DeployConfiguration *> dcs = newTarget->deployConfigurations();
-        if (!dcs.isEmpty())
-            newTarget->setActiveDeployConfiguration(dcs.first());
-    }
-
-    foreach (RunConfiguration *sourceRc, sourceTarget->runConfigurations()) {
-        IRunConfigurationFactory *factory = IRunConfigurationFactory::find(newTarget, sourceRc);
-        if (!factory) {
-            runconfigurationError << sourceRc->displayName();
-            continue;
-        }
-        RunConfiguration *newRc = factory->clone(newTarget, sourceRc);
-        if (!newRc) {
-            runconfigurationError << sourceRc->displayName();
-            continue;
-        }
-        newRc->setDisplayName(sourceRc->displayName());
-        newTarget->addRunConfiguration(newRc);
-        if (sourceTarget->activeRunConfiguration() == sourceRc)
-            newTarget->setActiveRunConfiguration(newRc);
-    }
-    if (!newTarget->activeRunConfiguration()) {
-        QList<RunConfiguration *> rcs = newTarget->runConfigurations();
-        if (!rcs.isEmpty())
-            newTarget->setActiveRunConfiguration(rcs.first());
-    }
-
-    bool fatalError = false;
-    if (buildconfigurationError.count() == sourceTarget->buildConfigurations().count())
-        fatalError = true;
-
-    if (deployconfigurationError.count() == sourceTarget->deployConfigurations().count())
-        fatalError = true;
-
-    if (runconfigurationError.count() == sourceTarget->runConfigurations().count())
-        fatalError = true;
-
-    if (fatalError) {
-        // That could be a more granular error message
-        QMessageBox::critical(ICore::mainWindow(),
-                              tr("Incompatible Kit"),
-                              tr("Kit %1 is incompatible with kit %2.")
-                              .arg(sourceTarget->kit()->displayName())
-                              .arg(k->displayName()));
-
-        delete newTarget;
-        newTarget = 0;
-    } else if (!buildconfigurationError.isEmpty()
-               || !deployconfigurationError.isEmpty()
-               || ! runconfigurationError.isEmpty()) {
-
-        QString error;
-        if (!buildconfigurationError.isEmpty())
-            error += tr("Build configurations:")
-                    + QLatin1Char('\n')
-                    + buildconfigurationError.join(QLatin1Char('\n'));
-
-        if (!deployconfigurationError.isEmpty()) {
-            if (!error.isEmpty())
-                error.append(QLatin1Char('\n'));
-            error += tr("Deploy configurations:")
-                    + QLatin1Char('\n')
-                    + deployconfigurationError.join(QLatin1Char('\n'));
-        }
-
-        if (!runconfigurationError.isEmpty()) {
-            if (!error.isEmpty())
-                error.append(QLatin1Char('\n'));
-            error += tr("Run configurations") + QLatin1Char(' ')
-                    + runconfigurationError.join(QLatin1Char('\n'));
-        }
-
-        QMessageBox msgBox(ICore::mainWindow());
-        msgBox.setIcon(QMessageBox::Warning);
-        msgBox.setWindowTitle(tr("Partially Incompatible Kit"));
-        msgBox.setText(tr("Some configurations could not be copied."));
-        msgBox.setDetailedText(error);
-        msgBox.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
-        if (msgBox.exec() != QDialog::Accepted) {
-            delete newTarget;
-            newTarget = 0;
-        }
-    }
-
-    return newTarget;
-}
-
-void TargetSettingsPanelWidget::removeTarget()
-{
+    QTC_ASSERT(m_menuTargetIndex >= 0, return);
     Target *t = m_targets.at(m_menuTargetIndex);
-    removeTarget(t);
-}
 
-void TargetSettingsPanelWidget::removeTarget(Target *t)
-{
     if (BuildManager::isBuilding(t)) {
         QMessageBox box;
         QPushButton *closeAnyway = box.addButton(tr("Cancel Build && Remove Kit"), QMessageBox::AcceptRole);
@@ -507,7 +358,6 @@ void TargetSettingsPanelWidget::removeTarget(Target *t)
     }
 
     m_project->removeTarget(t);
-
 }
 
 void TargetSettingsPanelWidget::showTargetToolTip(const QPoint &globalPos, int targetIndex)
@@ -533,7 +383,8 @@ void TargetSettingsPanelWidget::targetAdded(Target *target)
         }
     }
 
-    connect(target, SIGNAL(displayNameChanged()), this, SLOT(renameTarget()));
+    connect(target, &ProjectConfiguration::displayNameChanged,
+            this, &TargetSettingsPanelWidget::renameTarget);
     updateTargetButtons();
 }
 
@@ -605,11 +456,12 @@ void TargetSettingsPanelWidget::updateTargetButtons()
     if (m_project->targets().size() < 2)
         removeAction->setEnabled(false);
 
-    connect(m_changeMenu, SIGNAL(triggered(QAction*)),
-            this, SLOT(changeActionTriggered(QAction*)));
-    connect(m_duplicateMenu, SIGNAL(triggered(QAction*)),
-            this, SLOT(duplicateActionTriggered(QAction*)));
-    connect(removeAction, SIGNAL(triggered()), this, SLOT(removeTarget()));
+    connect(m_changeMenu, &QMenu::triggered,
+            this, &TargetSettingsPanelWidget::changeActionTriggered);
+    connect(m_duplicateMenu, &QMenu::triggered,
+            this, &TargetSettingsPanelWidget::duplicateActionTriggered);
+    connect(removeAction, &QAction::triggered,
+            this, &TargetSettingsPanelWidget::removeCurrentTarget);
 
     foreach (Kit *k, KitManager::sortKits(KitManager::kits())) {
         if (m_project->target(k))
@@ -647,12 +499,6 @@ void TargetSettingsPanelWidget::openTargetPreferences()
     ICore::showOptionsDialog(Constants::KITS_SETTINGS_PAGE_ID, this);
 }
 
-void TargetSettingsPanelWidget::importTarget()
-{
-    QString toImport = QFileDialog::getExistingDirectory(this, tr("Import directory"), m_project->projectDirectory().toString());
-    importTarget(Utils::FileName::fromString(toImport));
-}
-
 void TargetSettingsPanelWidget::importTarget(const Utils::FileName &path)
 {
     if (!m_importer)
@@ -664,16 +510,18 @@ void TargetSettingsPanelWidget::importTarget(const Utils::FileName &path)
     foreach (BuildInfo *info, toImport) {
         target = m_project->target(info->kitId);
         if (!target) {
-            target = new Target(m_project, KitManager::find(info->kitId));
+            target = m_project->createTarget(KitManager::find(info->kitId));
             m_project->addTarget(target);
         }
         bc = info->factory()->create(target, info);
         QTC_ASSERT(bc, continue);
         target->addBuildConfiguration(bc);
     }
-    m_project->setActiveTarget(target);
+
+    SessionManager::setActiveTarget(m_project, target, SetActive::Cascade);
+
     if (target && bc)
-        target->setActiveBuildConfiguration(bc);
+        SessionManager::setActiveBuildConfiguration(target, bc, SetActive::Cascade);
 
     qDeleteAll(toImport);
 }

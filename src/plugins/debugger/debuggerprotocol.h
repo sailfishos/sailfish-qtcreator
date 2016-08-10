@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -34,9 +29,11 @@
 #include <QByteArray>
 #include <QList>
 #include <QString>
+#include <QJsonValue>
+#include <QJsonObject>
+#include <QVector>
 
 #include <functional>
-#include <vector>
 
 namespace Debugger {
 namespace Internal {
@@ -49,16 +46,14 @@ class DebuggerCommand
 public:
     typedef std::function<void(const DebuggerResponse &)> Callback;
 
-    DebuggerCommand() : flags(0) {}
-    DebuggerCommand(const char *f, int flags = 0, Callback cb = Callback())
-        : function(f), callback(cb), flags(flags)
-    {}
-    DebuggerCommand(const char *f, Callback cb)
-        : function(f), callback(cb), flags(0)
-    {}
+    DebuggerCommand() {}
     DebuggerCommand(const QByteArray &f) : function(f), flags(0) {}
+    DebuggerCommand(const QByteArray &f, const QJsonValue &a) : function(f), args(a), flags(0) {}
+    DebuggerCommand(const QByteArray &f, int fl) : function(f), flags(fl) {}
+    DebuggerCommand(const QByteArray &f, int fl, const Callback &cb) : function(f), callback(cb), flags(fl) {}
 
-    void arg(const char *name);
+    void arg(const char *value);
+    void arg(const char *name, bool value);
     void arg(const char *name, int value);
     void arg(const char *name, qlonglong value);
     void arg(const char *name, qulonglong value);
@@ -66,15 +61,13 @@ public:
     void arg(const char *name, const QByteArray &value);
     void arg(const char *name, const char *value);
     void arg(const char *name, const QList<int> &list);
+    void arg(const char *name, const QJsonValue &value);
 
-    void beginList(const char *name = 0);
-    void endList();
-    void beginGroup(const char *name = 0);
-    void endGroup();
-    QByteArray arguments() const;
+    QByteArray argsToPython() const;
+    QByteArray argsToString() const;
 
     QByteArray function;
-    QByteArray args;
+    QJsonValue args;
     Callback callback;
     uint postTime; // msecsSinceStartOfDay
     int flags;
@@ -82,55 +75,6 @@ public:
 private:
     void argHelper(const char *name, const QByteArray &value);
 };
-
-/*
-
-output ==>
-    ( out-of-band-record )* [ result-record ] "(gdb)" nl
-result-record ==>
-     [ token ] "^" result-class ( "," result )* nl
-out-of-band-record ==>
-    async-record | stream-record
-async-record ==>
-    exec-async-output | status-async-output | notify-async-output
-exec-async-output ==>
-    [ token ] "*" async-output
-status-async-output ==>
-    [ token ] "+" async-output
-notify-async-output ==>
-    [ token ] "=" async-output
-async-output ==>
-    async-class ( "," result )* nl
-result-class ==>
-    "done" | "running" | "connected" | "error" | "exit"
-async-class ==>
-    "stopped" | others (where others will be added depending on the needs--this is still in development).
-result ==>
-     variable "=" value
-variable ==>
-     string
-value ==>
-     const | tuple | list
-const ==>
-    c-string
-tuple ==>
-     "{}" | "{" result ( "," result )* "}"
-list ==>
-     "[]" | "[" value ( "," value )* "]" | "[" result ( "," result )* "]"
-stream-record ==>
-    console-stream-output | target-stream-output | log-stream-output
-console-stream-output ==>
-    "~" c-string
-target-stream-output ==>
-    "@" c-string
-log-stream-output ==>
-    "&" c-string
-nl ==>
-    CR | CR-LF
-token ==>
-    any sequence of digits.
-
- */
 
 // FIXME: rename into GdbMiValue
 class GdbMi
@@ -140,7 +84,7 @@ public:
 
     QByteArray m_name;
     QByteArray m_data;
-    std::vector<GdbMi> m_children;
+    QVector<GdbMi> m_children;
 
     enum Type { Invalid, Const, Tuple, List };
 
@@ -154,7 +98,7 @@ public:
     bool isList() const { return m_type == List; }
 
     const QByteArray &data() const { return m_data; }
-    const std::vector<GdbMi> &children() const { return m_children; }
+    const QVector<GdbMi> &children() const { return m_children; }
     int childCount() const { return int(m_children.size()); }
 
     const GdbMi &childAt(int index) const { return m_children[index]; }
@@ -208,53 +152,98 @@ public:
 void extractGdbVersion(const QString &msg,
     int *gdbVersion, int *gdbBuildVersion, bool *isMacGdb, bool *isQnxGdb);
 
-// Keep in sync with dumper.py
-enum DebuggerEncoding
+
+class DebuggerEncoding
 {
-    Unencoded8Bit                          =  0,
-    Base64Encoded8BitWithQuotes            =  1,
-    Base64Encoded16BitWithQuotes           =  2,
-    Base64Encoded32BitWithQuotes           =  3,
-    Base64Encoded16Bit                     =  4,
-    Base64Encoded8Bit                      =  5,
-    Hex2EncodedLatin1WithQuotes            =  6,
-    Hex4EncodedLittleEndianWithQuotes      =  7,
-    Hex8EncodedLittleEndianWithQuotes      =  8,
-    Hex2EncodedUtf8WithQuotes              =  9,
-    Hex8EncodedBigEndian                   = 10,
-    Hex4EncodedBigEndianWithQuotes         = 11,
-    Hex4EncodedLittleEndianWithoutQuotes   = 12,
-    Hex2EncodedLocal8BitWithQuotes         = 13,
-    JulianDate                             = 14,
-    MillisecondsSinceMidnight              = 15,
-    JulianDateAndMillisecondsSinceMidnight = 16,
-    Hex2EncodedInt1                        = 17,
-    Hex2EncodedInt2                        = 18,
-    Hex2EncodedInt4                        = 19,
-    Hex2EncodedInt8                        = 20,
-    Hex2EncodedUInt1                       = 21,
-    Hex2EncodedUInt2                       = 22,
-    Hex2EncodedUInt4                       = 23,
-    Hex2EncodedUInt8                       = 24,
-    Hex2EncodedFloat4                      = 25,
-    Hex2EncodedFloat8                      = 26,
-    IPv6AddressAndHexScopeId               = 27,
-    Hex2EncodedUtf8WithoutQuotes           = 28,
-    DateTimeInternal                       = 29,
-    SpecialEmptyValue                      = 30,
-    SpecialUninitializedValue              = 31,
-    SpecialInvalidValue                    = 32,
-    SpecialNotAccessibleValue              = 33,
-    SpecialItemCountValue                  = 34,
-    SpecialMinimumItemCountValue           = 35,
-    SpecialNotCallableValue                = 36,
-    SpecialNullReferenceValue              = 37,
-    SpecialOptimizedOutValue               = 38,
-    SpecialEmptyStructureValue             = 39
+public:
+    enum EncodingType {
+        Unencoded,
+        HexEncodedLocal8Bit,
+        HexEncodedLatin1,
+        HexEncodedUtf8,
+        HexEncodedUtf16,
+        HexEncodedUcs4,
+        HexEncodedSignedInteger,
+        HexEncodedUnsignedInteger,
+        HexEncodedFloat,
+        JulianDate,
+        MillisecondsSinceMidnight,
+        JulianDateAndMillisecondsSinceMidnight,
+        IPv6AddressAndHexScopeId,
+        DateTimeInternal,
+    };
+
+    DebuggerEncoding() {}
+    explicit DebuggerEncoding(const QByteArray &data);
+    QString toString() const;
+
+    EncodingType type = Unencoded;
+    int size = 0;
+    bool quotes = false;
 };
 
+// Decode string data as returned by the dumper helpers.
+QString decodeData(const QByteArray &baIn, const QByteArray &encoding);
+
+
+// These enum values correspond to possible value display format requests,
+// typically selected by the user using the L&E context menu, under
+// "Change Value Display Format". They are passed from the frontend to
+// the dumpers.
+//
+// Keep in sync with dumper.py.
+//
+// \note Add new enum values only at the end, as the numeric values are
+// persisted in user settings.
+
+enum DisplayFormat
+{
+    AutomaticFormat             =  0, // Based on type for individuals, dumper default for types.
+                                      // Could be anything reasonably cheap.
+    RawFormat                   =  1, // No formatting at all.
+
+    SimpleFormat                =  2, // Typical simple format (e.g. for QModelIndex row/column)
+    EnhancedFormat              =  3, // Enhanced format (e.g. for QModelIndex with resolved display)
+    SeparateFormat              =  4, // Display in separate Window
+
+    Latin1StringFormat          =  5,
+    SeparateLatin1StringFormat  =  6,
+    Utf8StringFormat            =  7,
+    SeparateUtf8StringFormat    =  8,
+    Local8BitStringFormat       =  9,
+    Utf16StringFormat           = 10,
+    Ucs4StringFormat            = 11,
+
+    Array10Format               = 12,
+    Array100Format              = 13,
+    Array1000Format             = 14,
+    Array10000Format            = 15,
+    ArrayPlotFormat             = 16,
+
+    CompactMapFormat            = 17,
+    DirectQListStorageFormat    = 18,
+    IndirectQListStorageFormat  = 19,
+
+    BoolTextFormat              = 20, // Bools as "true" or "false" - Frontend internal only.
+    BoolIntegerFormat           = 21, // Bools as "0" or "1" - Frontend internal only
+
+    DecimalIntegerFormat        = 22, // Frontend internal only
+    HexadecimalIntegerFormat    = 23, // Frontend internal only
+    BinaryIntegerFormat         = 24, // Frontend internal only
+    OctalIntegerFormat          = 25, // Frontend internal only
+
+    CompactFloatFormat          = 26, // Frontend internal only
+    ScientificFloatFormat       = 27  // Frontend internal only
+};
+
+
+// These enum values are passed from the dumper to the frontend,
+// typically as a result of passing a related DisplayFormat value.
+// They are never stored in settings.
+
 // Keep in sync with dumper.py, symbolgroupvalue.cpp of CDB
-enum DebuggerDisplay {
+enum DebuggerDisplay
+{
     StopDisplay                            = 0,
     DisplayImageData                       = 1,
     DisplayUtf16String                     = 2,
@@ -263,8 +252,6 @@ enum DebuggerDisplay {
     DisplayUtf8String                      = 5,
     DisplayPlotData                        = 6
 };
-// Decode string data as returned by the dumper helpers.
-QString decodeData(const QByteArray &baIn, int encoding);
 
 } // namespace Internal
 } // namespace Debugger

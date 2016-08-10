@@ -24,7 +24,7 @@
 
 /*!
     \contentspage index.html
-    \previouspage qtquick-uiforms-tutorial.html
+    \previouspage uiforms
     \page creator-mer-application.html
     \nextpage creator-project-managing.html
 
@@ -47,7 +47,7 @@
 
             \image creator-sailfish-tutorial-1a.png "Introduction and Product Location"
 
-        \li In the \gui{Name} field, type \bold {HelloWorld}.
+        \li In the \gui{Name} field, type \b {HelloWorld}.
 
         \li In the \gui {Create in} field, enter the path for the project files,
             and then click \gui{Next} (on

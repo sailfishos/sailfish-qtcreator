@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -53,6 +48,7 @@
 #include <cpptools/cppcompletionassistprovider.h>
 #include <cpptools/cppeditoroutline.h>
 #include <cpptools/cppmodelmanager.h>
+#include <cpptools/cppselectionchanger.h>
 #include <cpptools/cppsemanticinfo.h>
 #include <cpptools/cpptoolsconstants.h>
 #include <cpptools/cpptoolsplugin.h>
@@ -60,7 +56,9 @@
 #include <cpptools/cppworkingcopy.h>
 #include <cpptools/symbolfinder.h>
 
+#include <texteditor/behaviorsettings.h>
 #include <texteditor/completionsettings.h>
+#include <texteditor/convenience.h>
 #include <texteditor/textdocument.h>
 #include <texteditor/textdocumentlayout.h>
 #include <texteditor/texteditorsettings.h>
@@ -71,6 +69,7 @@
 #include <texteditor/refactoroverlay.h>
 
 #include <cplusplus/ASTPath.h>
+#include <cplusplus/FastPreprocessor.h>
 #include <utils/qtcassert.h>
 
 #include <QAction>
@@ -98,8 +97,6 @@ CppEditor::CppEditor()
     addContext(ProjectExplorer::Constants::LANG_CXX);
 }
 
-Q_GLOBAL_STATIC(CppTools::SymbolFinder, symbolFinder)
-
 class CppEditorWidgetPrivate
 {
 public:
@@ -125,6 +122,8 @@ public:
 
     QScopedPointer<FollowSymbolUnderCursor> m_followSymbolUnderCursor;
     QToolButton *m_preprocessorButton;
+
+    CppSelectionChanger m_cppSelectionChanger;
 };
 
 CppEditorWidgetPrivate::CppEditorWidgetPrivate(CppEditorWidget *q)
@@ -136,6 +135,7 @@ CppEditorWidgetPrivate::CppEditorWidgetPrivate(CppEditorWidget *q)
     , m_declDefLinkFinder(new FunctionDeclDefLinkFinder(q))
     , m_followSymbolUnderCursor(new FollowSymbolUnderCursor(q))
     , m_preprocessorButton(0)
+    , m_cppSelectionChanger()
 {
 }
 
@@ -207,6 +207,9 @@ void CppEditorWidget::finalizeInitialization()
     connect(this, &CppEditorWidget::cursorPositionChanged, [this]() {
         if (!d->m_localRenaming.isActive())
             d->m_useSelectionsUpdater.scheduleUpdate();
+
+        // Notify selection expander about the changed cursor.
+        d->m_cppSelectionChanger.onCursorPositionChanged(textCursor());
     });
 
     // Tool bar creation
@@ -278,11 +281,14 @@ void CppEditorWidget::onCppDocumentUpdated()
 }
 
 void CppEditorWidget::onCodeWarningsUpdated(unsigned revision,
-                                            const QList<QTextEdit::ExtraSelection> selections)
+                                            const QList<QTextEdit::ExtraSelection> selections,
+                                            const TextEditor::RefactorMarkers &refactorMarkers)
 {
     if (revision != documentRevision())
         return;
+
     setExtraSelections(TextEditorWidget::CodeWarningsSelection, selections);
+    setRefactorMarkers(refactorMarkersWithoutClangMarkers() + refactorMarkers);
 }
 
 void CppEditorWidget::onIfdefedOutBlocksUpdated(unsigned revision,
@@ -329,6 +335,44 @@ void CppEditorWidget::renameUsages(const QString &replacement)
             if (canonicalSymbol->identifier() != 0)
                 d->m_modelManager->renameUsages(canonicalSymbol, cs.context(), replacement);
     }
+}
+
+bool CppEditorWidget::selectBlockUp()
+{
+    if (!behaviorSettings().m_smartSelectionChanging)
+        return TextEditorWidget::selectBlockUp();
+
+    QTextCursor cursor = textCursor();
+    d->m_cppSelectionChanger.startChangeSelection();
+    const bool changed =
+            d->m_cppSelectionChanger.changeSelection(
+                CppSelectionChanger::ExpandSelection,
+                cursor,
+                d->m_lastSemanticInfo.doc);
+    if (changed)
+        setTextCursor(cursor);
+    d->m_cppSelectionChanger.stopChangeSelection();
+
+    return changed;
+}
+
+bool CppEditorWidget::selectBlockDown()
+{
+    if (!behaviorSettings().m_smartSelectionChanging)
+        return TextEditorWidget::selectBlockDown();
+
+    QTextCursor cursor = textCursor();
+    d->m_cppSelectionChanger.startChangeSelection();
+    const bool changed =
+            d->m_cppSelectionChanger.changeSelection(
+                CppSelectionChanger::ShrinkSelection,
+                cursor,
+                d->m_lastSemanticInfo.doc);
+    if (changed)
+        setTextCursor(cursor);
+    d->m_cppSelectionChanger.stopChangeSelection();
+
+    return changed;
 }
 
 void CppEditorWidget::renameSymbolUnderCursor()
@@ -384,12 +428,12 @@ void CppEditorWidget::switchDeclarationDefinition(bool inNextSplit)
     // Link to function definition/declaration
     CppEditorWidget::Link symbolLink;
     if (functionDeclarationSymbol) {
-        symbolLink = linkToSymbol(symbolFinder()
+        symbolLink = linkToSymbol(d->m_modelManager->symbolFinder()
             ->findMatchingDefinition(functionDeclarationSymbol, d->m_modelManager->snapshot()));
     } else if (functionDefinitionSymbol) {
         const Snapshot snapshot = d->m_modelManager->snapshot();
         LookupContext context(d->m_lastSemanticInfo.doc, snapshot);
-        LookupScope *binding = context.lookupType(functionDefinitionSymbol);
+        ClassOrNamespace *binding = context.lookupType(functionDefinitionSymbol);
         const QList<LookupItem> declarations = context.lookup(functionDefinitionSymbol->name(),
             functionDefinitionSymbol->enclosingScope());
 
@@ -426,13 +470,33 @@ CppEditorWidget::Link CppEditorWidget::findLinkAt(const QTextCursor &cursor, boo
     return d->m_followSymbolUnderCursor->findLink(cursor, resolveTarget,
                                                   d->m_modelManager->snapshot(),
                                                   d->m_lastSemanticInfo.doc,
-                                                  symbolFinder(),
+                                                  d->m_modelManager->symbolFinder(),
                                                   inNextSplit);
 }
 
 unsigned CppEditorWidget::documentRevision() const
 {
     return document()->revision();
+}
+
+static bool isClangFixItAvailableMarker(const RefactorMarker &marker)
+{
+    return marker.data.toString()
+        == QLatin1String(CppTools::Constants::CPP_CLANG_FIXIT_AVAILABLE_MARKER_ID);
+}
+
+RefactorMarkers CppEditorWidget::refactorMarkersWithoutClangMarkers() const
+{
+    RefactorMarkers clearedRefactorMarkers;
+
+    foreach (const RefactorMarker &marker, refactorMarkers()) {
+        if (isClangFixItAvailableMarker(marker))
+            continue;
+
+        clearedRefactorMarkers.append(marker);
+    }
+
+    return clearedRefactorMarkers;
 }
 
 bool CppEditorWidget::isSemanticInfoValidExceptLocalUses() const
@@ -540,7 +604,7 @@ void CppEditorWidget::keyPressEvent(QKeyEvent *e)
         return;
 
     if (e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter) {
-        if (trySplitComment(this)) {
+        if (trySplitComment(this, semanticInfo().snapshot)) {
             e->accept();
             return;
         }
@@ -638,8 +702,15 @@ QSharedPointer<FunctionDeclDefLink> CppEditorWidget::declDefLink() const
 
 void CppEditorWidget::onRefactorMarkerClicked(const RefactorMarker &marker)
 {
-    if (marker.data.canConvert<FunctionDeclDefLink::Marker>())
+    if (marker.data.canConvert<FunctionDeclDefLink::Marker>()) {
         applyDeclDefLinkChanges(true);
+    } else if (isClangFixItAvailableMarker(marker)) {
+        int line, column;
+        if (Convenience::convertPosition(document(), marker.cursor.position(), &line, &column)) {
+            setTextCursor(marker.cursor);
+            invokeAssist(TextEditor::QuickFix);
+        }
+    }
 }
 
 void CppEditorWidget::updateFunctionDeclDefLink()

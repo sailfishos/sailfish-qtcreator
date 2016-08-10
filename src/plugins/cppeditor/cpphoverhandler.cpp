@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -34,6 +29,10 @@
 #include "cppelementevaluator.h"
 
 #include <coreplugin/helpmanager.h>
+#include <cpptools/baseeditordocumentprocessor.h>
+#include <cpptools/cppmodelmanager.h>
+#include <cpptools/editordocumenthandle.h>
+#include <texteditor/convenience.h>
 #include <texteditor/texteditor.h>
 
 #include <utils/qtcassert.h>
@@ -44,15 +43,55 @@
 using namespace Core;
 using namespace TextEditor;
 
+namespace {
+
+CppTools::BaseEditorDocumentProcessor *editorDocumentProcessor(TextEditorWidget *editorWidget)
+{
+    const QString filePath = editorWidget->textDocument()->filePath().toString();
+    auto cppModelManager = CppTools::CppModelManager::instance();
+    CppTools::CppEditorDocumentHandle *editorHandle = cppModelManager->cppEditorDocument(filePath);
+
+    if (editorHandle)
+        return editorHandle->processor();
+
+    return 0;
+}
+
+bool editorDocumentProcessorHasDiagnosticAt(TextEditorWidget *editorWidget, int pos)
+{
+    if (CppTools::BaseEditorDocumentProcessor *processor = editorDocumentProcessor(editorWidget)) {
+        int line, column;
+        if (Convenience::convertPosition(editorWidget->document(), pos, &line, &column))
+            return processor->hasDiagnosticsAt(line, column);
+    }
+
+    return false;
+}
+
+void processWithEditorDocumentProcessor(TextEditorWidget *editorWidget,
+                                        const QPoint &point,
+                                        int position)
+{
+    if (CppTools::BaseEditorDocumentProcessor *processor = editorDocumentProcessor(editorWidget)) {
+        int line, column;
+        if (Convenience::convertPosition(editorWidget->document(), position, &line, &column))
+            processor->showDiagnosticTooltip(point, editorWidget, line, column);
+    }
+}
+
+} // anonymous namespace
+
 namespace CppEditor {
 namespace Internal {
 
-CppHoverHandler::CppHoverHandler()
-{}
-
 void CppHoverHandler::identifyMatch(TextEditorWidget *editorWidget, int pos)
 {
-    if (!editorWidget->extraSelectionTooltip(pos).isEmpty()) {
+    m_positionForEditorDocumentProcessor = -1;
+
+    if (editorDocumentProcessorHasDiagnosticAt(editorWidget, pos)) {
+        setIsDiagnosticTooltip(true);
+        m_positionForEditorDocumentProcessor = pos;
+    } else if (!editorWidget->extraSelectionTooltip(pos).isEmpty()) {
         setToolTip(editorWidget->extraSelectionTooltip(pos));
     } else {
         QTextCursor tc(editorWidget->document());
@@ -90,6 +129,9 @@ void CppHoverHandler::identifyMatch(TextEditorWidget *editorWidget, int pos)
 
 void CppHoverHandler::decorateToolTip()
 {
+    if (m_positionForEditorDocumentProcessor != -1)
+        return;
+
     if (Qt::mightBeRichText(toolTip()))
         setToolTip(toolTip().toHtmlEscaped());
 
@@ -119,8 +161,16 @@ void CppHoverHandler::decorateToolTip()
                 prefix = QLatin1String("enum ");
             setToolTip(prefix + help.helpId());
         }
-        addF1ToToolTip();
     }
+}
+
+void CppHoverHandler::operateTooltip(TextEditor::TextEditorWidget *editorWidget,
+                                     const QPoint &point)
+{
+    if (m_positionForEditorDocumentProcessor != -1)
+        processWithEditorDocumentProcessor(editorWidget, point, m_positionForEditorDocumentProcessor);
+    else
+        BaseHoverHandler::operateTooltip(editorWidget, point);
 }
 
 } // namespace Internal

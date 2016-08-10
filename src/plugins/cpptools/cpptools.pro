@@ -1,5 +1,5 @@
 DEFINES += CPPTOOLS_LIBRARY
-win32-msvc*:DEFINES += _SCL_SECURE_NO_WARNINGS
+msvc: DEFINES += _SCL_SECURE_NO_WARNINGS
 include(../../qtcreatorplugin.pri)
 
 HEADERS += \
@@ -9,6 +9,9 @@ HEADERS += \
     builtineditordocumentparser.h \
     builtineditordocumentprocessor.h \
     builtinindexingsupport.h \
+    clangdiagnosticconfig.h \
+    clangdiagnosticconfigsmodel.h \
+    clangdiagnosticconfigswidget.h \
     commentssettings.h \
     completionsettingspage.h \
     cppchecksymbols.h \
@@ -27,6 +30,7 @@ HEADERS += \
     cppcurrentdocumentfilter.h \
     cppeditoroutline.h \
     cppdoxygen.h \
+    cppfileiterationorder.h \
     cppfilesettingspage.h \
     cppfindreferences.h \
     cppfunctionsfilter.h \
@@ -40,9 +44,9 @@ HEADERS += \
     cppmodelmanagersupportinternal.h \
     cpppointerdeclarationformatter.h \
     cppprojectfile.h \
-    cppprojects.h \
     cppqtstyleindenter.h \
     cpprefactoringchanges.h \
+    cppselectionchanger.h \
     cppsemanticinfo.h \
     cppsemanticinfoupdater.h \
     cppsourceprocessor.h \
@@ -56,6 +60,7 @@ HEADERS += \
     doxygengenerator.h \
     editordocumenthandle.h \
     functionutils.h \
+    generatedcodemodelsupport.h \
     includeutils.h \
     indexitem.h \
     insertionpointlocator.h \
@@ -64,7 +69,16 @@ HEADERS += \
     stringtable.h \
     symbolfinder.h \
     symbolsfindfilter.h \
-    typehierarchybuilder.h
+    typehierarchybuilder.h \
+    senddocumenttracker.h \
+    cpptoolsbridge.h \
+    cpptoolsbridgeinterface.h \
+    cpptoolsbridgeqtcreatorimplementation.h \
+    projectpart.h \
+    projectpartheaderpath.h \
+    projectinfo.h \
+    projectpartbuilder.h \
+    compileroptionsbuilder.h
 
 SOURCES += \
     abstracteditorsupport.cpp \
@@ -73,6 +87,9 @@ SOURCES += \
     builtineditordocumentparser.cpp \
     builtineditordocumentprocessor.cpp \
     builtinindexingsupport.cpp \
+    clangdiagnosticconfig.cpp \
+    clangdiagnosticconfigsmodel.cpp \
+    clangdiagnosticconfigswidget.cpp \
     commentssettings.cpp \
     completionsettingspage.cpp \
     cppchecksymbols.cpp \
@@ -91,6 +108,7 @@ SOURCES += \
     cppcurrentdocumentfilter.cpp \
     cppeditoroutline.cpp \
     cppdoxygen.cpp \
+    cppfileiterationorder.cpp \
     cppfilesettingspage.cpp \
     cppfindreferences.cpp \
     cppfunctionsfilter.cpp \
@@ -104,9 +122,9 @@ SOURCES += \
     cppmodelmanagersupportinternal.cpp \
     cpppointerdeclarationformatter.cpp \
     cppprojectfile.cpp \
-    cppprojects.cpp \
     cppqtstyleindenter.cpp \
     cpprefactoringchanges.cpp \
+    cppselectionchanger.cpp \
     cppsemanticinfo.cpp \
     cppsemanticinfoupdater.cpp \
     cppsourceprocessor.cpp \
@@ -118,6 +136,7 @@ SOURCES += \
     doxygengenerator.cpp \
     editordocumenthandle.cpp \
     functionutils.cpp \
+    generatedcodemodelsupport.cpp \
     includeutils.cpp \
     indexitem.cpp \
     insertionpointlocator.cpp \
@@ -126,9 +145,17 @@ SOURCES += \
     stringtable.cpp \
     symbolfinder.cpp \
     symbolsfindfilter.cpp \
-    typehierarchybuilder.cpp
+    typehierarchybuilder.cpp \
+    senddocumenttracker.cpp \
+    cpptoolsbridge.cpp \
+    cpptoolsbridgeqtcreatorimplementation.cpp \
+    projectpart.cpp \
+    projectinfo.cpp \
+    projectpartbuilder.cpp \
+    compileroptionsbuilder.cpp
 
 FORMS += \
+    clangdiagnosticconfigswidget.ui \
     completionsettingspage.ui \
     cppcodemodelsettingspage.ui \
     cppcodestylesettingspage.ui \

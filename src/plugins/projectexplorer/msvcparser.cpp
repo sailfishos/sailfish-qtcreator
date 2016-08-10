@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -51,8 +46,12 @@ static QPair<Utils::FileName, int> parseFileName(const QString &input)
     if (fileName.endsWith(QLatin1Char(')'))) {
         int pos = fileName.lastIndexOf(QLatin1Char('('));
         if (pos >= 0) {
+            // clang-cl gives column, too: "foo.cpp(34,1)" as opposed to MSVC "foo.cpp(34)".
+            int endPos = fileName.indexOf(QLatin1Char(','), pos + 1);
+            if (endPos < 0)
+                endPos = fileName.size() - 1;
             bool ok = false;
-            int n = fileName.mid(pos + 1, fileName.count() - pos - 2).toInt(&ok);
+            const int n = fileName.midRef(pos + 1, endPos - pos - 1).toInt(&ok);
             if (ok) {
                 fileName = fileName.left(pos);
                 linenumber = n;
@@ -64,6 +63,36 @@ static QPair<Utils::FileName, int> parseFileName(const QString &input)
 }
 
 using namespace ProjectExplorer;
+
+// nmake/jom messages.
+static bool handleNmakeJomMessage(const QString &line, Task *task)
+{
+    int matchLength = 0;
+    if (line.startsWith(QLatin1String("Error:")))
+        matchLength = 6;
+    else if (line.startsWith(QLatin1String("Warning:")))
+        matchLength = 8;
+
+    if (!matchLength)
+        return false;
+
+    *task = Task(Task::Error,
+                 line.mid(matchLength).trimmed(), /* description */
+                 Utils::FileName(), /* fileName */
+                 -1, /* linenumber */
+                 Constants::TASK_CATEGORY_COMPILE);
+    return true;
+}
+
+static Task::TaskType taskType(const QString &category)
+{
+    Task::TaskType type = Task::Unknown;
+    if (category == QLatin1String("warning"))
+        type = Task::Warning;
+    else if (category == QLatin1String("error"))
+        type = Task::Error;
+    return type;
+}
 
 MsvcParser::MsvcParser()
 {
@@ -108,21 +137,7 @@ void MsvcParser::stdOutput(const QString &line)
 
     if (processCompileLine(line))
         return;
-    if (line.startsWith(QLatin1String("Error:"))) {
-        m_lastTask = Task(Task::Error,
-                          line.mid(6).trimmed(), /* description */
-                          Utils::FileName(), /* fileName */
-                          -1, /* linenumber */
-                          Constants::TASK_CATEGORY_COMPILE);
-        m_lines = 1;
-        return;
-    }
-    if (line.startsWith(QLatin1String("Warning:"))) {
-        m_lastTask = Task(Task::Warning,
-                          line.mid(8).trimmed(), /* description */
-                          Utils::FileName(), /* fileName */
-                          -1, /* linenumber */
-                          Constants::TASK_CATEGORY_COMPILE);
+    if (handleNmakeJomMessage(line, &m_lastTask)) {
         m_lines = 1;
         return;
     }
@@ -146,12 +161,7 @@ void MsvcParser::stdError(const QString &line)
     if (processCompileLine(line))
         return;
     // Jom outputs errors to stderr
-    if (line.startsWith(QLatin1String("Error:"))) {
-        m_lastTask = Task(Task::Error,
-                          line.mid(6).trimmed(), /* description */
-                          Utils::FileName(), /* fileName */
-                          -1, /* linenumber */
-                          Constants::TASK_CATEGORY_COMPILE);
+    if (handleNmakeJomMessage(line, &m_lastTask)) {
         m_lines = 1;
         return;
     }
@@ -165,13 +175,8 @@ bool MsvcParser::processCompileLine(const QString &line)
     QRegularExpressionMatch match = m_compileRegExp.match(line);
     if (match.hasMatch()) {
         QPair<Utils::FileName, int> position = parseFileName(match.captured(1));
-        Task::TaskType type = Task::Unknown;
-        const QString category = match.captured(3);
-        if (category == QLatin1String("warning"))
-            type = Task::Warning;
-        else if (category == QLatin1String("error"))
-            type = Task::Error;
-        m_lastTask = Task(type, match.captured(4).trimmed() /* description */,
+        m_lastTask = Task(taskType(match.captured(3)),
+                          match.captured(4).trimmed() /* description */,
                           position.first, position.second,
                           Constants::TASK_CATEGORY_COMPILE);
         m_lines = 1;
@@ -188,6 +193,101 @@ void MsvcParser::doFlush()
     Task t = m_lastTask;
     m_lastTask.clear();
     emit addTask(t, m_lines, 1);
+}
+
+// --------------------------------------------------------------------------
+// ClangClParser: The compiler errors look similar to MSVC, except that the
+// column number is also given and there are no 4digit CXXXX error numbers.
+// They are output to stderr.
+// --------------------------------------------------------------------------
+
+// ".\qwindowsgdinativeinterface.cpp(48,3) :  error: unknown type name 'errr'"
+static inline QString clangClCompilePattern()
+{
+    return QLatin1Char('^') + QLatin1String(FILE_POS_PATTERN)
+        + QLatin1String(" (warning|error): (")
+        + QLatin1String(".*)$");
+}
+
+ClangClParser::ClangClParser()
+   : m_compileRegExp(clangClCompilePattern())
+{
+    setObjectName(QLatin1String("ClangClParser"));
+    QTC_CHECK(m_compileRegExp.isValid());
+}
+
+void ClangClParser::stdOutput(const QString &line)
+{
+    if (handleNmakeJomMessage(line, &m_lastTask)) {
+        m_linkedLines = 1;
+        doFlush();
+        return;
+    }
+    IOutputParser::stdOutput(line);
+}
+
+// Check for a code marker '~~~~ ^ ~~~~~~~~~~~~' underlining above code.
+static inline bool isClangCodeMarker(const QString &trimmedLine)
+{
+    return trimmedLine.constEnd() ==
+        std::find_if(trimmedLine.constBegin(), trimmedLine.constEnd(),
+                     [] (QChar c) { return c != QLatin1Char(' ') && c != QLatin1Char('^') && c != QLatin1Char('~'); });
+}
+
+void ClangClParser::stdError(const QString &lineIn)
+{
+    const QString line = IOutputParser::rightTrimmed(lineIn); // Strip \r\n.
+
+    if (handleNmakeJomMessage(line, &m_lastTask)) {
+        m_linkedLines = 1;
+        doFlush();
+        return;
+    }
+
+    // Finish a sequence of warnings/errors: "2 warnings generated."
+    if (!line.isEmpty() && line.at(0).isDigit() && line.endsWith(QLatin1String("generated."))) {
+        doFlush();
+        return;
+    }
+
+    // Start a new error message by a sequence of "In file included from " which is to be skipped.
+    if (line.startsWith(QLatin1String("In file included from "))) {
+        doFlush();
+        return;
+    }
+
+    QRegularExpressionMatch match = m_compileRegExp.match(line);
+    if (match.hasMatch()) {
+        doFlush();
+        const QPair<Utils::FileName, int> position = parseFileName(match.captured(1));
+        m_lastTask = Task(taskType(match.captured(2)), match.captured(3).trimmed(),
+                          position.first, position.second,
+                          Constants::TASK_CATEGORY_COMPILE);
+        m_linkedLines = 1;
+        return;
+    }
+
+    if (!m_lastTask.isNull()) {
+        const QString trimmed = line.trimmed();
+        if (isClangCodeMarker(trimmed)) {
+            doFlush();
+            return;
+        }
+        m_lastTask.description.append(QLatin1Char('\n'));
+        m_lastTask.description.append(trimmed);
+        ++m_linkedLines;
+        return;
+    }
+
+    IOutputParser::stdError(lineIn);
+}
+
+void ClangClParser::doFlush()
+{
+    if (!m_lastTask.isNull()) {
+        emit addTask(m_lastTask, m_linkedLines, 1);
+        m_lastTask.clear();
+    }
 }
 
 // Unit tests:
@@ -404,12 +504,107 @@ void ProjectExplorerPlugin::testMsvcOutputParsers_data()
                     Utils::FileName::fromUserInput(QLatin1String("D:\\Project\\types.h")), 71,
                     Constants::TASK_CATEGORY_COMPILE))
             << QString();
+    QTest::newRow("ignore moc note")
+            << QString::fromLatin1("/home/qtwebkithelpviewer.h:0: Note: No relevant classes found. No output generated.")
+            << OutputParserTester::STDERR
+            << QString() << QString::fromLatin1("/home/qtwebkithelpviewer.h:0: Note: No relevant classes found. No output generated.\n")
+            << (QList<ProjectExplorer::Task>())
+            << QString();
 }
 
 void ProjectExplorerPlugin::testMsvcOutputParsers()
 {
     OutputParserTester testbench;
     testbench.appendOutputParser(new MsvcParser);
+    QFETCH(QString, input);
+    QFETCH(OutputParserTester::Channel, inputChannel);
+    QFETCH(QList<Task>, tasks);
+    QFETCH(QString, childStdOutLines);
+    QFETCH(QString, childStdErrLines);
+    QFETCH(QString, outputLines);
+
+    testbench.testParsing(input, inputChannel,
+                          tasks, childStdOutLines, childStdErrLines,
+                          outputLines);
+}
+
+void ProjectExplorerPlugin::testClangClOutputParsers_data()
+{
+    QTest::addColumn<QString>("input");
+    QTest::addColumn<OutputParserTester::Channel>("inputChannel");
+    QTest::addColumn<QString>("childStdOutLines");
+    QTest::addColumn<QString>("childStdErrLines");
+    QTest::addColumn<QList<Task> >("tasks");
+    QTest::addColumn<QString>("outputLines");
+
+    const QString warning1 = QLatin1String(
+"private field 'm_version' is not used [-Wunused-private-field]\n"
+"const int m_version; //! majorVersion<<8 + minorVersion");
+    const QString warning2 = QLatin1String(
+"unused variable 'formatTextPlainC' [-Wunused-const-variable]\n"
+"static const char formatTextPlainC[] = \"text/plain\";");
+    const QString warning3 = QLatin1String(
+"unused variable 'formatTextHtmlC' [-Wunused-const-variable]\n"
+"static const char formatTextHtmlC[] = \"text/html\";");
+    const QString error1 = QLatin1String(
+"unknown type name 'errr'\n"
+"  errr");
+    const QString expectedError1 = QLatin1String(
+"unknown type name 'errr'\n"
+"errr"); // Line 2 trimmed.
+    const QString error2 = QLatin1String(
+"expected unqualified-id\n"
+"void *QWindowsGdiNativeInterface::nativeResourceForBackingStore(const QByteArray &resource, QBackingStore *bs)");
+
+    const QString clangClCompilerLog = QLatin1String(
+"In file included from .\\qwindowseglcontext.cpp:40:\n"
+"./qwindowseglcontext.h(282,15) :  warning: ")  + warning1 + QLatin1String("\n"
+"5 warnings generated.\n"
+".\\qwindowsclipboard.cpp(60,19) :  warning: ") + warning2 + QLatin1String("\n"
+"                  ^\n"
+".\\qwindowsclipboard.cpp(61,19) :  warning: ") + warning3 + QLatin1String("\n"
+"                  ^\n"
+"2 warnings generated.\n"
+".\\qwindowsgdinativeinterface.cpp(48,3) :  error: ") + error1 + QLatin1String("\n"
+"  ^\n"
+".\\qwindowsgdinativeinterface.cpp(51,1) :  error: ") + error2 + QLatin1String("\n"
+"^\n"
+"2 errors generated.\n");
+
+    const QString ignoredStderr = QLatin1String(
+"NMAKE : fatal error U1077: 'D:\\opt\\LLVM64_390\\bin\\clang-cl.EXE' : return code '0x1'\n"
+"Stop.");
+
+    const QString input = clangClCompilerLog + ignoredStderr;
+    const QString expectedStderr = ignoredStderr + QLatin1Char('\n');
+
+    QTest::newRow("error")
+            << input
+            << OutputParserTester::STDERR
+            << QString() << expectedStderr
+            << (QList<Task>()
+                << Task(Task::Warning, warning1,
+                        Utils::FileName::fromUserInput(QLatin1String("./qwindowseglcontext.h")), 282,
+                        Constants::TASK_CATEGORY_COMPILE)
+                << Task(Task::Warning, warning2,
+                        Utils::FileName::fromUserInput(QLatin1String(".\\qwindowsclipboard.cpp")), 60,
+                        Constants::TASK_CATEGORY_COMPILE)
+                << Task(Task::Warning, warning3,
+                        Utils::FileName::fromUserInput(QLatin1String(".\\qwindowsclipboard.cpp")), 61,
+                        Constants::TASK_CATEGORY_COMPILE)
+                << Task(Task::Error, expectedError1,
+                        Utils::FileName::fromUserInput(QLatin1String(".\\qwindowsgdinativeinterface.cpp")), 48,
+                        Constants::TASK_CATEGORY_COMPILE)
+                << Task(Task::Error, error2,
+                        Utils::FileName::fromUserInput(QLatin1String(".\\qwindowsgdinativeinterface.cpp")), 51,
+                        Constants::TASK_CATEGORY_COMPILE))
+            << QString();
+}
+
+void ProjectExplorerPlugin::testClangClOutputParsers()
+{
+    OutputParserTester testbench;
+    testbench.appendOutputParser(new ClangClParser);
     QFETCH(QString, input);
     QFETCH(OutputParserTester::Channel, inputChannel);
     QFETCH(QList<Task>, tasks);

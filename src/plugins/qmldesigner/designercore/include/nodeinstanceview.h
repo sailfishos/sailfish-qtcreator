@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -89,16 +84,9 @@ public:
     void modelAboutToBeDetached(Model *model) override;
     void nodeCreated(const ModelNode &createdNode) override;
     void nodeAboutToBeRemoved(const ModelNode &removedNode) override;
-    void nodeRemoved(const ModelNode &removedNode, const NodeAbstractProperty &parentProperty, PropertyChangeFlags propertyChange) override;
     void propertiesAboutToBeRemoved(const QList<AbstractProperty>& propertyList) override;
-    void propertiesRemoved(const QList<AbstractProperty>& propertyList) override;
     void variantPropertiesChanged(const QList<VariantProperty>& propertyList, PropertyChangeFlags propertyChange) override;
     void bindingPropertiesChanged(const QList<BindingProperty>& propertyList, PropertyChangeFlags propertyChange) override;
-    void signalHandlerPropertiesChanged(const QVector<SignalHandlerProperty> &propertyList, PropertyChangeFlags propertyChange) override;
-    void nodeAboutToBeReparented(const ModelNode &node,
-                                 const NodeAbstractProperty &newPropertyParent,
-                                 const NodeAbstractProperty &oldPropertyParent,
-                                 AbstractView::PropertyChangeFlags propertyChange) override;
     void nodeReparented(const ModelNode &node, const NodeAbstractProperty &newPropertyParent,
                         const NodeAbstractProperty &oldPropertyParent,
                         AbstractView::PropertyChangeFlags propertyChange) override;
@@ -106,25 +94,13 @@ public:
     void fileUrlChanged(const QUrl &oldUrl, const QUrl &newUrl) override;
     void nodeIdChanged(const ModelNode& node, const QString& newId, const QString& oldId) override;
     void nodeOrderChanged(const NodeListProperty &listProperty, const ModelNode &movedNode, int oldIndex) override;
-    void selectedNodesChanged(const QList<ModelNode> &selectedNodeList, const QList<ModelNode> &lastSelectedNodeList) override;
-    void scriptFunctionsChanged(const ModelNode &node, const QStringList &scriptFunctionList) override;
-    void instancePropertyChange(const QList<QPair<ModelNode, PropertyName> > &propertyList) override;
-    void instancesCompleted(const QVector<ModelNode> &completedNodeList) override;
     void importsChanged(const QList<Import> &addedImports, const QList<Import> &removedImports) override;
-    void instanceInformationsChange(const QMultiHash<ModelNode, InformationName> &informationChangeHash) override;
-    void instancesRenderImageChanged(const QVector<ModelNode> &nodeList) override;
-    void instancesPreviewImageChanged(const QVector<ModelNode> &nodeList) override;
-    void instancesChildrenChanged(const QVector<ModelNode> &nodeList) override;
-    void instancesToken(const QString &tokenName, int tokenNumber, const QVector<ModelNode> &nodeVector) override;
     void auxiliaryDataChanged(const ModelNode &node, const PropertyName &name, const QVariant &data) override;
     void customNotification(const AbstractView *view, const QString &identifier, const QList<ModelNode> &nodeList, const QList<QVariant> &data) override;
     void nodeSourceChanged(const ModelNode &modelNode, const QString &newNodeSource) override;
 
 
-    void rewriterBeginTransaction() override;
-    void rewriterEndTransaction() override;
-
-    void currentStateChanged(const ModelNode &node);
+    void currentStateChanged(const ModelNode &node) override;
 
     QList<NodeInstance> instances() const;
     NodeInstance instanceForModelNode(const ModelNode &node) const ;
@@ -140,14 +116,14 @@ public:
     void updateChildren(const NodeAbstractProperty &newPropertyParent);
     void updatePosition(const QList<VariantProperty>& propertyList);
 
-    void valuesChanged(const ValuesChangedCommand &command);
-    void pixmapChanged(const PixmapChangedCommand &command);
-    void informationChanged(const InformationChangedCommand &command);
-    void childrenChanged(const ChildrenChangedCommand &command);
-    void statePreviewImagesChanged(const StatePreviewImageChangedCommand &command);
-    void componentCompleted(const ComponentCompletedCommand &command);
-    void token(const TokenCommand &command);
-    void debugOutput(const DebugOutputCommand &command);
+    void valuesChanged(const ValuesChangedCommand &command) override;
+    void pixmapChanged(const PixmapChangedCommand &command) override;
+    void informationChanged(const InformationChangedCommand &command) override;
+    void childrenChanged(const ChildrenChangedCommand &command) override;
+    void statePreviewImagesChanged(const StatePreviewImageChangedCommand &command) override;
+    void componentCompleted(const ComponentCompletedCommand &command) override;
+    void token(const TokenCommand &command) override;
+    void debugOutput(const DebugOutputCommand &command) override;
 
     QImage statePreviewImage(const ModelNode &stateNode) const;
 
@@ -157,6 +133,10 @@ public:
 
 signals:
     void qmlPuppetCrashed();
+    void qmlPuppetError(const QString &errorMessage);
+
+protected:
+    void timerEvent(QTimerEvent *event) override;
 
 private: // functions
     void activateState(const NodeInstance &instance);
@@ -203,6 +183,7 @@ private: // functions
     void resetVerticalAnchors(const ModelNode &node);
 
     void restartProcess();
+    void delayedRestartProcess();
 
 private slots:
     void handleChrash();
@@ -220,6 +201,7 @@ private: //variables
     QTime m_lastCrashTime;
     NodeInstanceServerInterface::RunModus m_runModus;
     ProjectExplorer::Kit *m_currentKit;
+    int m_restartProcessTimerId;
 };
 
 } // namespace ProxyNodeInstanceView

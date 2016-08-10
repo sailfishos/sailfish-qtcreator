@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -144,8 +139,8 @@ ItemLibraryWidget::ItemLibraryWidget(QWidget *parent) :
     setSearchFilter(QString());
 
     /* style sheets */
-    setStyleSheet(QString::fromUtf8(Utils::FileReader::fetchQrc(":/qmldesigner/stylesheet.css")));
-    m_resourcesView->setStyleSheet(QString::fromUtf8(Utils::FileReader::fetchQrc(":/qmldesigner/scrollbar.css")));
+    setStyleSheet(QString::fromUtf8(Utils::FileReader::fetchQrc(QLatin1String(":/qmldesigner/stylesheet.css"))));
+    m_resourcesView->setStyleSheet(QString::fromUtf8(Utils::FileReader::fetchQrc(QLatin1String(":/qmldesigner/scrollbar.css"))));
 
     m_qmlSourceUpdateShortcut = new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_F5), this);
     connect(m_qmlSourceUpdateShortcut, SIGNAL(activated()), this, SLOT(reloadQmlSource()));
@@ -180,7 +175,7 @@ void ItemLibraryWidget::updateImports()
         foreach (const Import &import, m_model->imports())
             if (import.isLibraryImport())
                 imports << import.url();
-        if (imports.contains("com.nokia.meego", Qt::CaseInsensitive))
+        if (imports.contains(QLatin1String("com.nokia.meego"), Qt::CaseInsensitive))
             filter = Meego;
     }
 
@@ -195,33 +190,6 @@ void ItemLibraryWidget::setImportsWidget(QWidget *importsWidget)
 QList<QToolButton *> ItemLibraryWidget::createToolBarWidgets()
 {
     QList<QToolButton *> buttons;
-
-    return buttons; //import management gets disabled for now (TODO ###)
-
-    buttons << new QToolButton();
-    buttons.first()->setText(tr("I "));
-    buttons.first()->setIcon(QIcon(QLatin1String(Core::Constants::ICON_FILTER)));
-    buttons.first()->setToolTip(tr("Manage imports for components."));
-    buttons.first()->setPopupMode(QToolButton::InstantPopup);
-    QMenu * menu = new QMenu;
-    QAction * basicQtAction = new QAction(menu);
-    basicQtAction->setCheckable(true);
-    basicQtAction->setText(tr("Basic Qt Quick only"));
-    QAction * meegoAction= new QAction(menu);
-    meegoAction->setCheckable(true);
-    meegoAction->setText(tr("Meego Components"));
-    menu->addAction(basicQtAction);
-    menu->addAction(meegoAction);
-    buttons.first()->setMenu(menu);
-
-    connect(basicQtAction, SIGNAL(toggled(bool)), this, SLOT(onQtBasicOnlyChecked(bool)));
-    connect(this, SIGNAL(qtBasicOnlyChecked(bool)), basicQtAction, SLOT(setChecked(bool)));
-
-    connect(meegoAction, SIGNAL(toggled(bool)), this, SLOT(onMeegoChecked(bool)));
-    connect(this, SIGNAL(meegoChecked(bool)), meegoAction, SLOT(setChecked(bool)));
-
-    updateImports();
-
     return buttons;
 }
 
@@ -232,11 +200,11 @@ void ItemLibraryWidget::setSearchFilter(const QString &searchFilter)
         m_itemViewQuickWidget->update();
     } else {
         QStringList nameFilterList;
-        if (searchFilter.contains('.')) {
-            nameFilterList.append(QString("*%1*").arg(searchFilter));
+        if (searchFilter.contains(QLatin1Char('.'))) {
+            nameFilterList.append(QString(QStringLiteral("*%1*")).arg(searchFilter));
         } else {
             foreach (const QByteArray &extension, QImageReader::supportedImageFormats()) {
-                nameFilterList.append(QString("*%1*.%2").arg(searchFilter, QString::fromUtf8(extension)));
+                nameFilterList.append(QString(QStringLiteral("*%1*.%2")).arg(searchFilter, QString::fromUtf8(extension)));
             }
         }
 
@@ -267,9 +235,9 @@ void ItemLibraryWidget::emitImportChecked()
 
     foreach (const Import &import, m_model->imports()) {
         if (import.isLibraryImport()) {
-            if (import.url().contains(QString("meego"), Qt::CaseInsensitive))
+            if (import.url().contains(QLatin1String("meego"), Qt::CaseInsensitive))
                 meegoImport = true;
-            if (import.url().contains(QString("Qt"), Qt::CaseInsensitive) || import.url().contains(QString("QtQuick"), Qt::CaseInsensitive))
+            if (import.url().contains(QLatin1String("Qt"), Qt::CaseInsensitive) || import.url().contains(QLatin1String("QtQuick"), Qt::CaseInsensitive))
                 qtOnlyImport = true;
         }
     }
@@ -388,7 +356,8 @@ void ItemLibraryWidget::startDragAndDrop(QVariant itemLibraryId)
     QMimeData *mimeData = m_itemLibraryModel->getMimeData(m_currentitemLibraryEntry);
     QDrag *drag = new QDrag(this);
 
-    drag->setPixmap(m_currentitemLibraryEntry.libraryEntryIconPath());
+    drag->setPixmap(Utils::StyleHelper::dpiSpecificImageFile(
+                        m_currentitemLibraryEntry.libraryEntryIconPath()));
     drag->setMimeData(mimeData);
 
     drag->exec();

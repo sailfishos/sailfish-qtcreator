@@ -1,18 +1,25 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
-** This file is part of Qt Creator
+** This file is part of the Qt Creator documentation.
 **
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Free Documentation License
-**
+** GNU Free Documentation License Usage
 ** Alternatively, this file may be used under the terms of the GNU Free
 ** Documentation License version 1.3 as published by the Free Software
-** Foundation and appearing in the file included in the packaging of this
-** file.
-**
+** Foundation and appearing in the file included in the packaging of
+** this file. Please review the following information to ensure
+** the GNU Free Documentation License version 1.3 requirements
+** will be met: https://www.gnu.org/licenses/fdl-1.3.html.
 **
 ****************************************************************************/
 
@@ -33,7 +40,7 @@
     \QC is an integrated development environment (IDE) that provides you with
     tools to design and develop applications with the Qt application framework.
     Qt is designed for developing applications and user interfaces once and
-    deploying them to several desktop and mobile operating systems. \QC
+    deploying them to several desktop, embedded, and mobile operating systems. \QC
     provides you with tools for accomplishing your tasks throughout the whole
     application development life-cycle, from creating a project to deploying the
     application to the target platforms.
@@ -86,8 +93,8 @@
                 and commands used to build the project.
 
                 \QC provides support for building, running, and deploying Qt
-                applications for desktop environment and mobile devices.
-                \l{glossary-buildandrun-kit}{Kits}, build,
+                applications for desktop environment as well as embedded and
+                 mobile devices. \l{glossary-buildandrun-kit}{Kits}, build,
                 run, and deployment settings allow you to quickly switch between
                 different setups and target platforms.
 
@@ -105,9 +112,9 @@
                 execution. In addition, the QML Profiler enables you to profile
                 Qt Quick applications.
 
-                \QC is integrated to the \l{Qt Test} framework for unit testing
-                Qt based applications and libraries. You can use \QC to build
-                and run autotests (commercial only).
+                \QC is integrated to the \l{Qt Test} and Google C++ Testing
+                frameworks for unit testing applications and libraries. You can
+                use \QC to build and run autotests.
 
                 For more information, see \l{Testing}.
             \li \b {Publishing}

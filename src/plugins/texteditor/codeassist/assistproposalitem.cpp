@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -65,19 +60,12 @@ namespace TextEditor {
     This is the place to implement the actual application of the item.
 */
 
-AssistProposalItem::AssistProposalItem()
-    : m_order(0)
-{}
-
-AssistProposalItem::~AssistProposalItem()
-{}
-
 void AssistProposalItem::setIcon(const QIcon &icon)
 {
     m_icon = icon;
 }
 
-const QIcon &AssistProposalItem::icon() const
+QIcon AssistProposalItem::icon() const
 {
     return m_icon;
 }
@@ -97,7 +85,7 @@ void AssistProposalItem::setDetail(const QString &detail)
     m_detail = detail;
 }
 
-const QString &AssistProposalItem::detail() const
+QString AssistProposalItem::detail() const
 {
     return m_detail;
 }
@@ -112,14 +100,19 @@ const QVariant &AssistProposalItem::data() const
     return m_data;
 }
 
-int AssistProposalItem::order() const
+bool AssistProposalItem::isSnippet() const
 {
-    return m_order;
+    return data().canConvert<QString>();
 }
 
-void AssistProposalItem::setOrder(int order)
+bool AssistProposalItem::isValid() const
 {
-    m_order = order;
+    return m_data.isValid();
+}
+
+quint64 AssistProposalItem::hash() const
+{
+    return 0;
 }
 
 bool AssistProposalItem::implicitlyApplies() const
@@ -133,35 +126,33 @@ bool AssistProposalItem::prematurelyApplies(const QChar &c) const
     return false;
 }
 
-void AssistProposalItem::apply(TextEditorWidget *editorWidget, int basePosition) const
+void AssistProposalItem::apply(TextDocumentManipulatorInterface &manipulator, int basePosition) const
 {
     if (data().canConvert<QString>()) {
-        applySnippet(editorWidget, basePosition);
+        applySnippet(manipulator, basePosition);
     } else if (data().canConvert<QuickFixOperation::Ptr>()) {
-        applyQuickFix(editorWidget, basePosition);
+        applyQuickFix(manipulator, basePosition);
     } else {
-        applyContextualContent(editorWidget, basePosition);
-        editorWidget->encourageApply();
+        applyContextualContent(manipulator, basePosition);
+        manipulator.encourageApply();
     }
 }
 
-void AssistProposalItem::applyContextualContent(TextEditorWidget *editorWidget, int basePosition) const
+void AssistProposalItem::applyContextualContent(TextDocumentManipulatorInterface &manipulator, int basePosition) const
 {
-    const int currentPosition = editorWidget->position();
-    editorWidget->setCursorPosition(basePosition);
-    editorWidget->replace(currentPosition - basePosition, text());
+    const int currentPosition = manipulator.currentPosition();
+    manipulator.replace(basePosition, currentPosition - basePosition, text());
+
 }
 
-void AssistProposalItem::applySnippet(TextEditorWidget *editorWidget, int basePosition) const
+void AssistProposalItem::applySnippet(TextDocumentManipulatorInterface &manipulator, int basePosition) const
 {
-    QTextCursor tc = editorWidget->textCursor();
-    tc.setPosition(basePosition, QTextCursor::KeepAnchor);
-    editorWidget->insertCodeSnippet(tc, data().toString());
+    manipulator.insertCodeSnippet(basePosition, data().toString());
 }
 
-void AssistProposalItem::applyQuickFix(TextEditorWidget *editorWidget, int basePosition) const
+void AssistProposalItem::applyQuickFix(TextDocumentManipulatorInterface &manipulator, int basePosition) const
 {
-    Q_UNUSED(editorWidget)
+    Q_UNUSED(manipulator)
     Q_UNUSED(basePosition)
 
     QuickFixOperation::Ptr op = data().value<QuickFixOperation::Ptr>();

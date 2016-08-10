@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -51,7 +46,7 @@
 #include <coreplugin/progressmanager/futureprogress.h>
 #include <extensionsystem/pluginmanager.h>
 #include <utils/algorithm.h>
-#include <utils/QtConcurrentTools>
+#include <utils/mapreduce.h>
 #include <utils/qtcassert.h>
 
 #include <QSettings>
@@ -71,7 +66,7 @@ Locator::Locator()
 {
     m_corePlugin = 0;
     m_refreshTimer.setSingleShot(false);
-    connect(&m_refreshTimer, SIGNAL(timeout()), this, SLOT(refresh()));
+    connect(&m_refreshTimer, &QTimer::timeout, this, [this]() { refresh(); });
 }
 
 Locator::~Locator()
@@ -108,7 +103,8 @@ void Locator::initialize(CorePlugin *corePlugin, const QStringList &, QString *)
     Command *cmd = ActionManager::registerAction(action, Constants::LOCATE);
     cmd->setDefaultKeySequence(QKeySequence(tr("Ctrl+K")));
     connect(action, &QAction::triggered, this, &Locator::openLocator);
-    connect(cmd, SIGNAL(keySequenceChanged()), this, SLOT(updatePlaceholderText()));
+    connect(cmd, &Command::keySequenceChanged,
+            this, [this, cmd]() { updatePlaceholderText(cmd); });
     updatePlaceholderText(cmd);
 
     ActionContainer *mtools = ActionManager::actionContainer(Constants::M_TOOLS);
@@ -133,13 +129,11 @@ void Locator::initialize(CorePlugin *corePlugin, const QStringList &, QString *)
     m_corePlugin->addAutoReleasedObject(new SpotlightLocatorFilter);
 #endif
 
-    connect(ICore::instance(), SIGNAL(saveSettingsRequested()), this, SLOT(saveSettings()));
+    connect(ICore::instance(), &ICore::saveSettingsRequested, this, &Locator::saveSettings);
 }
 
 void Locator::updatePlaceholderText(Command *command)
 {
-    if (!command)
-        command = qobject_cast<Command *>(sender());
     QTC_ASSERT(command, return);
     if (command->keySequence().isEmpty())
         m_locatorWidget->setPlaceholderText(tr("Type to locate"));
@@ -225,17 +219,18 @@ void Locator::updateEditorManagerPlaceholderText()
          .arg(m_fileSystemFilter->shortcutString());
 
     QString classes;
-    ILocatorFilter *classesFilter = Utils::findOrDefault(m_filters, [](const ILocatorFilter *filter) {
-        return filter->id() == Id("Classes"); // not nice, but anyhow
-    });
+    // not nice, but anyhow
+    ILocatorFilter *classesFilter = Utils::findOrDefault(m_filters,
+                                                         Utils::equal(&ILocatorFilter::id,
+                                                                      Id("Classes")));
     if (classesFilter)
         classes = tr("<div style=\"margin-left: 1em\">- type <code>%1&lt;space&gt;&lt;pattern&gt;</code>"
                      " to jump to a class definition</div>").arg(classesFilter->shortcutString());
 
     QString methods;
-    ILocatorFilter *methodsFilter = Utils::findOrDefault(m_filters, [](const ILocatorFilter *filter) {
-        return filter->id() == Id("Methods"); // not nice, but anyhow
-    });
+    // not nice, but anyhow
+    ILocatorFilter *methodsFilter = Utils::findOrDefault(m_filters, Utils::equal(&ILocatorFilter::id,
+                                                                                 Id("Methods")));
     if (methodsFilter)
         methods = tr("<div style=\"margin-left: 1em\">- type <code>%1&lt;space&gt;&lt;pattern&gt;</code>"
                      " to jump to a function definition</div>").arg(methodsFilter->shortcutString());
@@ -317,7 +312,7 @@ void Locator::refresh(QList<ILocatorFilter *> filters)
 {
     if (filters.isEmpty())
         filters = m_filters;
-    QFuture<void> task = QtConcurrent::run(&ILocatorFilter::refresh, filters);
+    QFuture<void> task = Utils::map(filters, &ILocatorFilter::refresh);
     FutureProgress *progress =
         ProgressManager::addTask(task, tr("Updating Locator Caches"), Constants::TASK_INDEX);
     connect(progress, &FutureProgress::finished, this, &Locator::saveSettings);

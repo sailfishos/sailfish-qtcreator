@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>723</width>
+    <width>730</width>
     <height>247</height>
    </rect>
   </property>
@@ -103,14 +103,7 @@
       </widget>
      </item>
      <item>
-      <widget class="QLabel" name="qmlDebuggingWarningIcon">
-       <property name="text">
-        <string/>
-       </property>
-       <property name="pixmap">
-        <pixmap resource="../coreplugin/core.qrc">:/core/images/warning.png</pixmap>
-       </property>
-      </widget>
+      <widget class="QLabel" name="qmlDebuggingWarningIcon"/>
      </item>
      <item>
       <widget class="QLabel" name="qmlDebuggingWarningText">
@@ -156,50 +149,47 @@
      <property name="text">
       <string>Flags:</string>
      </property>
+     <property name="alignment">
+      <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
+     </property>
     </widget>
    </item>
    <item row="4" column="1">
     <layout class="QHBoxLayout" name="horizontalLayout_2">
      <item>
-      <widget class="QCheckBox" name="dryRunCheckBox">
-       <property name="toolTip">
-        <string>No commands will be executed and no permanent changes to the build graph will be done.</string>
-       </property>
-       <property name="text">
-        <string>Dry run</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QCheckBox" name="keepGoingCheckBox">
-       <property name="toolTip">
-        <string>Keep going when errors occur (if at all possible).</string>
-       </property>
-       <property name="text">
-        <string>Keep going</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QCheckBox" name="showCommandLinesCheckBox">
-       <property name="text">
-        <string>Show command lines</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QCheckBox" name="installCheckBox">
-       <property name="text">
-        <string>Install</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QCheckBox" name="cleanInstallRootCheckBox">
-       <property name="text">
-        <string>Clean install root</string>
-       </property>
-      </widget>
+      <layout class="QGridLayout" name="gridLayout_2">
+       <item row="0" column="0">
+        <widget class="QCheckBox" name="keepGoingCheckBox">
+         <property name="toolTip">
+          <string>Keep going when errors occur (if at all possible).</string>
+         </property>
+         <property name="text">
+          <string>Keep going</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="1">
+        <widget class="QCheckBox" name="showCommandLinesCheckBox">
+         <property name="text">
+          <string>Show command lines</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="0">
+        <widget class="QCheckBox" name="installCheckBox">
+         <property name="text">
+          <string>Install</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="1">
+        <widget class="QCheckBox" name="cleanInstallRootCheckBox">
+         <property name="text">
+          <string>Clean install root</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
      </item>
      <item>
       <spacer name="checkBoxSpacer">
@@ -209,7 +199,7 @@
        <property name="sizeHint" stdset="0">
         <size>
          <width>40</width>
-         <height>5</height>
+         <height>13</height>
         </size>
        </property>
       </spacer>
@@ -259,8 +249,6 @@
    <header location="global">utils/fancylineedit.h</header>
   </customwidget>
  </customwidgets>
- <resources>
-  <include location="../coreplugin/core.qrc"/>
- </resources>
+ <resources/>
  <connections/>
 </ui>

@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -280,7 +275,7 @@ extern "C" HRESULT CALLBACK pid(CIDebugClient *client, PCSTR args)
 
     int token;
     commandTokens<StringList>(args, &token);
-    dprintf("Qt Creator CDB extension version 3.4 %d bit.\n",
+    dprintf("Qt Creator CDB extension version 4.0 %d bit.\n",
             sizeof(void *) * 8);
     if (const ULONG pid = currentProcessId(client))
         ExtensionContext::instance().report('R', token, 0, "pid", "%u", pid);
@@ -513,14 +508,16 @@ static std::string commandLocals(ExtensionCommandContext &commandExtCtx,PCSTR ar
     if (watchSynchronization) {
         watchesSymbolGroup = 0;
         extCtx.discardWatchesSymbolGroup();
-        if (!watcherInameExpressionMap.empty()) {
-            // Force group into existence
-            watchesSymbolGroup = extCtx.watchesSymbolGroup(commandExtCtx.symbols(), errorMessage);
-            if (!watchesSymbolGroup || !watchesSymbolGroup->synchronize(commandExtCtx.symbols(),
-                                                                        watcherInameExpressionMap,
-                                                                        errorMessage)) {
-                return std::string();
-            }
+    }
+
+    if (watchesSymbolGroup == 0
+            && (!watcherInameExpressionMap.empty() || WatchesSymbolGroup::isWatchIname(iname))) {
+        // Force group into existence
+        watchesSymbolGroup = extCtx.watchesSymbolGroup(commandExtCtx.symbols(), errorMessage);
+        if (!watchesSymbolGroup || !watchesSymbolGroup->synchronize(commandExtCtx.symbols(),
+                                                                    watcherInameExpressionMap,
+                                                                    errorMessage)) {
+            return std::string();
         }
     }
 
@@ -665,7 +662,7 @@ static std::string dumplocalHelper(ExtensionCommandContext &exc,PCSTR args, int 
         return std::string();
     }
     std::wstring value;
-    if (!dumpSimpleType(n->asSymbolGroupNode(), SymbolGroupValueContext(exc.dataSpaces(), exc.symbols()), &value)) {
+    if (!dumpSimpleType(n->asSymbolGroupNode(), SymbolGroupValueContext(exc.dataSpaces(), exc.symbols()), &value, &std::string())) {
         *errorMessage = "Cannot dump " + iname;
         return std::string();
     }
@@ -957,7 +954,7 @@ extern "C" HRESULT CALLBACK help(CIDebugClient *, PCSTR)
 }
 
 // Extension command 'memory':
-// Display memory as base64
+// Display memory as hex
 
 extern "C" HRESULT CALLBACK memory(CIDebugClient *Client, PCSTR argsIn)
 {
@@ -973,7 +970,7 @@ extern "C" HRESULT CALLBACK memory(CIDebugClient *Client, PCSTR argsIn)
     if (tokens.size()  == 2
             && integerFromString(tokens.front(), &address)
             && integerFromString(tokens.at(1), &length)) {
-        memory = memoryToBase64(exc.dataSpaces(), address, length, &errorMessage);
+        memory = memoryToHex(exc.dataSpaces(), address, length, &errorMessage);
     } else {
         errorMessage = singleLineUsage(commandDescriptions[CmdMemory]);
     }

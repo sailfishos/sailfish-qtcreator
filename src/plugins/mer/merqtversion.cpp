@@ -103,14 +103,9 @@ QString MerQtVersion::description() const
     return QCoreApplication::translate("QtVersion", "Mer ", "Qt Version is meant for Mer");
 }
 
-QString MerQtVersion::platformName() const
+QSet<Core::Id> MerQtVersion::targetDeviceTypes() const
 {
-    return QLatin1String(Constants::MER_PLATFORM);
-}
-
-QString MerQtVersion::platformDisplayName() const
-{
-    return QLatin1String(Constants::MER_PLATFORM_TR);
+    return { Constants::MER_DEVICE_TYPE };
 }
 
 QVariantMap MerQtVersion::toMap() const
@@ -226,12 +221,12 @@ void MerQtVersion::addToEnvironment(const Kit *k, Environment &env) const
 }
 
 
-FeatureSet MerQtVersion::availableFeatures() const
+QSet<Core::Id> MerQtVersion::availableFeatures() const
 {
-    FeatureSet features = BaseQtVersion::availableFeatures();
-    features |= FeatureSet(Constants::MER_WIZARD_FEATURE_SAILFISHOS);
+    QSet<Core::Id> features = BaseQtVersion::availableFeatures();
+    features |= Constants::MER_WIZARD_FEATURE_SAILFISHOS;
     if(!qtAbis().contains(Abi(QLatin1String("arm-linux-generic-elf-32bit"))))
-        features |= FeatureSet(Constants::MER_WIZARD_FEATURE_EMULATOR);
+        features |= Constants::MER_WIZARD_FEATURE_EMULATOR;
     return features;
 }
 

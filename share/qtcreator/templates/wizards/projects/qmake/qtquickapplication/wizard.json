@@ -1,6 +1,6 @@
 {
     "version": 1,
-    "kind": "project",
+    "supportedProjectTypes": [ "Qt4ProjectManager.Qt4Project" ],
     "id": "U.QtQuickApplication",
     "category": "F.Application",
     "trDescription": "Creates a deployable Qt Quick 2 application.",
@@ -43,6 +43,22 @@
                         "index": 2,
                         "items":
                         [
+                            {
+                                "trKey": "Qt 5.7",
+                                "value":
+                                "{
+                                    'qtQuickVersion': '2.7',
+                                    'qtQuickWindowVersion': '2.2'
+                                }"
+                            },
+                            {
+                                "trKey": "Qt 5.6",
+                                "value":
+                                "{
+                                    'qtQuickVersion': '2.6',
+                                    'qtQuickWindowVersion': '2.2'
+                                }"
+                            },
                             {
                                 "trKey": "Qt 5.5",
                                 "value":
@@ -113,11 +129,13 @@
                     "target": "%{MainCppFileName}"
                 },
                 {
-                    "source": "main.qml",
+                    "source": "main.qml.tpl",
+                    "target": "main.qml",
                     "openInEditor": true
                 },
                 {
-                    "source": "MainForm.ui.qml",
+                    "source": "MainForm.ui.qml.tpl",
+                    "target": "MainForm.ui.qml",
                     "condition": "%{IsUiFileInUse}"
                 },
                 {

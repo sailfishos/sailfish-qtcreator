@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -33,6 +28,7 @@
 
 #include "ssh_global.h"
 #include "sshincomingpacket_p.h"
+#include "sshlogging_p.h"
 #include "sshsendfacility_p.h"
 
 #include <botan/botan.h>
@@ -195,9 +191,7 @@ void SshRemoteProcess::requestTerminal(const SshPseudoTerminal &terminal)
 void SshRemoteProcess::start()
 {
     if (d->channelState() == Internal::SshRemoteProcessPrivate::Inactive) {
-#ifdef CREATOR_SSH_DEBUG
-        qDebug("process start requested, channel id = %u", d->localChannelId());
-#endif
+        qCDebug(Internal::sshLog, "process start requested, channel id = %u", d->localChannelId());
         QIODevice::open(QIODevice::ReadWrite);
         d->requestSessionStart();
     }
@@ -267,9 +261,7 @@ void SshRemoteProcessPrivate::init()
 
 void SshRemoteProcessPrivate::setProcState(ProcessState newState)
 {
-#ifdef CREATOR_SSH_DEBUG
-    qDebug("channel: old state = %d,new state = %d", m_procState, newState);
-#endif
+    qCDebug(sshLog, "channel: old state = %d,new state = %d", m_procState, newState);
     m_procState = newState;
     if (newState == StartFailed) {
         emit closed(SshRemoteProcess::FailedToStart);
@@ -351,7 +343,7 @@ void SshRemoteProcessPrivate::handleChannelExtendedDataInternal(quint32 type,
     const QByteArray &data)
 {
     if (type != SSH_EXTENDED_DATA_STDERR) {
-        qWarning("Unknown extended data type %u", type);
+        qCWarning(sshLog, "Unknown extended data type %u", type);
     } else {
         m_stderr += data;
         emit readyReadStandardError();
@@ -362,18 +354,14 @@ void SshRemoteProcessPrivate::handleChannelExtendedDataInternal(quint32 type,
 
 void SshRemoteProcessPrivate::handleExitStatus(const SshChannelExitStatus &exitStatus)
 {
-#ifdef CREATOR_SSH_DEBUG
-    qDebug("Process exiting with exit code %d", exitStatus.exitStatus);
-#endif
+    qCDebug(sshLog, "Process exiting with exit code %d", exitStatus.exitStatus);
     m_exitCode = exitStatus.exitStatus;
     m_procState = Exited;
 }
 
 void SshRemoteProcessPrivate::handleExitSignal(const SshChannelExitSignal &signal)
 {
-#ifdef CREATOR_SSH_DEBUG
-    qDebug("Exit due to signal %s", signal.signal.data());
-#endif
+    qCDebug(sshLog, "Exit due to signal %s", signal.signal.data());
 
     for (size_t i = 0; i < sizeof signalMap/sizeof *signalMap; ++i) {
         if (signalMap[i].signalString == signal.signal) {

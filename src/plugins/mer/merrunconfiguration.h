@@ -36,7 +36,7 @@ public:
                         const QString &targetName);
     bool isEnabled() const override;
 
-    Utils::Environment environment() const override;
+    ProjectExplorer::Runnable runnable() const override;
     QString defaultRemoteExecutableFilePath() const override;
     QString disabledReason() const override;
 protected:

@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,27 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
-#ifndef KITINFORMATION_H
-#define KITINFORMATION_H
+#pragma once
 
 #include "kitmanager.h"
 #include "kit.h"
@@ -55,13 +49,13 @@ class PROJECTEXPLORER_EXPORT SysRootKitInformation : public KitInformation
 public:
     SysRootKitInformation();
 
-    QVariant defaultValue(Kit *k) const;
+    QVariant defaultValue(const Kit *k) const override;
 
-    QList<Task> validate(const Kit *k) const;
+    QList<Task> validate(const Kit *k) const override;
 
-    KitConfigWidget *createConfigWidget(Kit *k) const;
+    KitConfigWidget *createConfigWidget(Kit *k) const override;
 
-    ItemList toUserOutput(const Kit *k) const;
+    ItemList toUserOutput(const Kit *k) const override;
 
     static Core::Id id();
     static bool hasSysRoot(const Kit *k);
@@ -80,21 +74,21 @@ class PROJECTEXPLORER_EXPORT ToolChainKitInformation : public KitInformation
 public:
     ToolChainKitInformation();
 
-    QVariant defaultValue(Kit *k) const;
+    QVariant defaultValue(const Kit *k) const override;
 
-    QList<Task> validate(const Kit *k) const;
-    void fix(Kit *k);
-    void setup(Kit *k);
+    QList<Task> validate(const Kit *k) const override;
+    void fix(Kit *k) override;
+    void setup(Kit *k) override;
 
-    KitConfigWidget *createConfigWidget(Kit *k) const;
+    KitConfigWidget *createConfigWidget(Kit *k) const override;
 
-    QString displayNamePostfix(const Kit *k) const;
+    QString displayNamePostfix(const Kit *k) const override;
 
-    ItemList toUserOutput(const Kit *k) const;
+    ItemList toUserOutput(const Kit *k) const override;
 
-    void addToEnvironment(const Kit *k, Utils::Environment &env) const;
-    void addToMacroExpander(Kit *kit, Utils::MacroExpander *expander) const;
-    IOutputParser *createOutputParser(const Kit *k) const;
+    void addToEnvironment(const Kit *k, Utils::Environment &env) const override;
+    void addToMacroExpander(Kit *kit, Utils::MacroExpander *expander) const override;
+    IOutputParser *createOutputParser(const Kit *k) const override;
 
     static Core::Id id();
     static ToolChain *toolChain(const Kit *k);
@@ -102,7 +96,7 @@ public:
 
     static QString msgNoToolChainInTarget();
 
-private slots:
+private:
     void kitsWereLoaded();
     void toolChainUpdated(ProjectExplorer::ToolChain *tc);
     void toolChainRemoved(ProjectExplorer::ToolChain *tc);
@@ -119,13 +113,13 @@ class PROJECTEXPLORER_EXPORT DeviceTypeKitInformation : public KitInformation
 public:
     DeviceTypeKitInformation();
 
-    QVariant defaultValue(Kit *k) const;
+    QVariant defaultValue(const Kit *k) const override;
 
-    QList<Task> validate(const Kit *k) const;
+    QList<Task> validate(const Kit *k) const override;
 
-    KitConfigWidget *createConfigWidget(Kit *k) const;
+    KitConfigWidget *createConfigWidget(Kit *k) const override;
 
-    ItemList toUserOutput(const Kit *k) const;
+    ItemList toUserOutput(const Kit *k) const override;
 
     static const Core::Id id();
     static const Core::Id deviceTypeId(const Kit *k);
@@ -133,7 +127,8 @@ public:
 
     static KitMatcher deviceTypeMatcher(Core::Id type);
 
-    Core::FeatureSet availableFeatures(const Kit *k) const;
+    QSet<Core::Id> supportedPlatforms(const Kit *k) const override;
+    QSet<Core::Id> availableFeatures(const Kit *k) const override;
 };
 
 // --------------------------------------------------------------------------
@@ -147,19 +142,19 @@ class PROJECTEXPLORER_EXPORT DeviceKitInformation : public KitInformation
 public:
     DeviceKitInformation();
 
-    QVariant defaultValue(Kit *k) const;
+    QVariant defaultValue(const Kit *k) const override;
 
-    QList<Task> validate(const Kit *k) const;
-    void fix(Kit *k);
-    void setup(Kit *k);
+    QList<Task> validate(const Kit *k) const override;
+    void fix(Kit *k) override;
+    void setup(Kit *k) override;
 
-    KitConfigWidget *createConfigWidget(Kit *k) const;
+    KitConfigWidget *createConfigWidget(Kit *k) const override;
 
-    QString displayNamePostfix(const Kit *k) const;
+    QString displayNamePostfix(const Kit *k) const override;
 
-    ItemList toUserOutput(const Kit *k) const;
+    ItemList toUserOutput(const Kit *k) const override;
 
-    virtual void addToMacroExpander(ProjectExplorer::Kit *kit, Utils::MacroExpander *expander) const;
+    virtual void addToMacroExpander(ProjectExplorer::Kit *kit, Utils::MacroExpander *expander) const override;
 
     static Core::Id id();
     static IDevice::ConstPtr device(const Kit *k);
@@ -167,7 +162,7 @@ public:
     static void setDevice(Kit *k, IDevice::ConstPtr dev);
     static void setDeviceId(Kit *k, Core::Id dataId);
 
-private slots:
+private:
     void kitsWereLoaded();
     void deviceUpdated(Core::Id dataId);
     void devicesChanged();
@@ -185,15 +180,15 @@ class PROJECTEXPLORER_EXPORT EnvironmentKitInformation : public KitInformation
 public:
     EnvironmentKitInformation();
 
-    QVariant defaultValue(Kit *k) const;
+    QVariant defaultValue(const Kit *k) const override;
 
-    QList<Task> validate(const Kit *k) const;
-    void fix(Kit *k);
+    QList<Task> validate(const Kit *k) const override;
+    void fix(Kit *k) override;
 
-    void addToEnvironment(const Kit *k, Utils::Environment &env) const;
-    KitConfigWidget *createConfigWidget(Kit *k) const;
+    void addToEnvironment(const Kit *k, Utils::Environment &env) const override;
+    KitConfigWidget *createConfigWidget(Kit *k) const override;
 
-    ItemList toUserOutput(const Kit *k) const;
+    ItemList toUserOutput(const Kit *k) const override;
 
     static Core::Id id();
     static QList<Utils::EnvironmentItem> environmentChanges(const Kit *k);
@@ -201,5 +196,3 @@ public:
 };
 
 } // namespace ProjectExplorer
-
-#endif // KITINFORMATION_H

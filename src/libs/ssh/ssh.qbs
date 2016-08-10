@@ -6,6 +6,7 @@ QtcLibrary {
     cpp.defines: base.concat(["QSSH_LIBRARY"]).concat(botanDefines)
     cpp.includePaths: botanIncludes
     cpp.dynamicLibraries: botanLibs
+    cpp.enableExceptions: true
 
     Depends { name: "Qt"; submodules: ["widgets", "network" ] }
 
@@ -36,6 +37,7 @@ QtcLibrary {
         "sshkeygenerator.cpp", "sshkeygenerator.h",
         "sshkeypasswordretriever.cpp",
         "sshkeypasswordretriever_p.h",
+        "sshlogging.cpp", "sshlogging_p.h",
         "sshoutgoingpacket.cpp", "sshoutgoingpacket_p.h",
         "sshpacket.cpp", "sshpacket_p.h",
         "sshpacketparser.cpp", "sshpacketparser_p.h",

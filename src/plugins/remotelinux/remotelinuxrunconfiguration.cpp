@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -35,7 +30,9 @@
 
 #include <projectexplorer/buildtargetinfo.h>
 #include <projectexplorer/deploymentdata.h>
+#include <projectexplorer/kitinformation.h>
 #include <projectexplorer/project.h>
+#include <projectexplorer/runnables.h>
 #include <projectexplorer/target.h>
 #include <qtsupport/qtoutputformatter.h>
 #include <utils/qtcprocess.h>
@@ -72,7 +69,7 @@ public:
     }
 
     QString targetName;
-    QStringList arguments;
+    QString arguments;
     bool useAlternateRemoteExecutable;
     QString alternateRemoteExecutable;
     QString workingDirectory;
@@ -84,7 +81,7 @@ using namespace Internal;
 
 RemoteLinuxRunConfiguration::RemoteLinuxRunConfiguration(Target *parent, Core::Id id,
         const QString &targetName)
-    : AbstractRemoteLinuxRunConfiguration(parent, id),
+    : RunConfiguration(parent, id),
       d(new RemoteLinuxRunConfigurationPrivate(targetName))
 {
     init();
@@ -92,7 +89,7 @@ RemoteLinuxRunConfiguration::RemoteLinuxRunConfiguration(Target *parent, Core::I
 
 RemoteLinuxRunConfiguration::RemoteLinuxRunConfiguration(Target *parent,
         RemoteLinuxRunConfiguration *source)
-    : AbstractRemoteLinuxRunConfiguration(parent, source),
+    : RunConfiguration(parent, source),
       d(new RemoteLinuxRunConfigurationPrivate(source->d))
 {
     init();
@@ -130,6 +127,15 @@ OutputFormatter *RemoteLinuxRunConfiguration::createOutputFormatter() const
     return new QtSupport::QtOutputFormatter(target()->project());
 }
 
+Runnable RemoteLinuxRunConfiguration::runnable() const
+{
+    StandardRunnable r;
+    r.environment = extraAspect<RemoteLinuxEnvironmentAspect>()->environment();
+    r.executable = remoteExecutableFilePath();
+    r.commandLineArguments = arguments();
+    r.workingDirectory = workingDirectory();
+    return r;
+}
 
 QVariantMap RemoteLinuxRunConfiguration::toMap() const
 {
@@ -147,7 +153,11 @@ bool RemoteLinuxRunConfiguration::fromMap(const QVariantMap &map)
     if (!RunConfiguration::fromMap(map))
         return false;
 
-    d->arguments = map.value(QLatin1String(ArgumentsKey)).toStringList();
+    QVariant args = map.value(QLatin1String(ArgumentsKey));
+    if (args.type() == QVariant::StringList) // Until 3.7 a QStringList was stored.
+        d->arguments = QtcProcess::joinArgs(args.toStringList(), OsTypeLinux);
+    else
+        d->arguments = args.toString();
     d->targetName = map.value(QLatin1String(TargetNameKey)).toString();
     d->useAlternateRemoteExecutable = map.value(QLatin1String(UseAlternateExeKey), false).toBool();
     d->alternateRemoteExecutable = map.value(QLatin1String(AlternateExeKey)).toString();
@@ -167,16 +177,9 @@ QString RemoteLinuxRunConfiguration::defaultDisplayName()
     return tr("Run on Remote Device");
 }
 
-QStringList RemoteLinuxRunConfiguration::arguments() const
+QString RemoteLinuxRunConfiguration::arguments() const
 {
     return d->arguments;
-}
-
-Environment RemoteLinuxRunConfiguration::environment() const
-{
-    RemoteLinuxEnvironmentAspect *aspect = extraAspect<RemoteLinuxEnvironmentAspect>();
-    QTC_ASSERT(aspect, return Environment());
-    return aspect->environment();
 }
 
 QString RemoteLinuxRunConfiguration::localExecutableFilePath() const
@@ -198,7 +201,7 @@ QString RemoteLinuxRunConfiguration::remoteExecutableFilePath() const
 
 void RemoteLinuxRunConfiguration::setArguments(const QString &args)
 {
-    d->arguments = QtcProcess::splitArgs(args, OsTypeLinux); // TODO: Widget should be list-based.
+    d->arguments = args;
 }
 
 QString RemoteLinuxRunConfiguration::workingDirectory() const

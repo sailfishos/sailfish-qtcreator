@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,26 +9,22 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
 #include "tabsettings.h"
+#include "texteditorplugin.h"
 
 #include <utils/settingsutils.h>
 
@@ -47,12 +43,16 @@ static const char paddingModeKey[] = "PaddingMode";
 
 namespace TextEditor {
 
-TabSettings::TabSettings() :
-    m_tabPolicy(SpacesOnlyTabPolicy),
-    m_tabSize(8),
-    m_indentSize(4),
-    m_continuationAlignBehavior(ContinuationAlignWithSpaces)
+TabSettings::TabSettings(TabSettings::TabPolicy tabPolicy,
+                         int tabSize,
+                         int indentSize,
+                         TabSettings::ContinuationAlignBehavior continuationAlignBehavior)
+    : m_tabPolicy(tabPolicy)
+    , m_tabSize(tabSize)
+    , m_indentSize(indentSize)
+    , m_continuationAlignBehavior(continuationAlignBehavior)
 {
+
 }
 
 void TabSettings::toSettings(const QString &category, QSettings *s) const
@@ -162,7 +162,7 @@ void TabSettings::removeTrailingWhitespace(QTextCursor cursor, QTextBlock &block
     }
 }
 
-bool TabSettings::isIndentationClean(const QTextBlock &block) const
+bool TabSettings::isIndentationClean(const QTextBlock &block, const int indent) const
 {
     int i = 0;
     int spaceCount = 0;
@@ -175,10 +175,16 @@ bool TabSettings::isIndentationClean(const QTextBlock &block) const
 
         if (c == QLatin1Char(' ')) {
             ++spaceCount;
-            if (!spacesForTabs && spaceCount == m_tabSize)
+            if (spaceCount == m_tabSize)
+                if (!spacesForTabs)
+                    if ((m_continuationAlignBehavior != ContinuationAlignWithSpaces) || (i < indent))
+                        return false;
+            if (spaceCount > indent && m_continuationAlignBehavior == NoContinuationAlign)
                 return false;
         } else if (c == QLatin1Char('\t')) {
-            if (spacesForTabs || spaceCount != 0)
+            if (spacesForTabs || (spaceCount != 0))
+                return false;
+            if ((m_continuationAlignBehavior != ContinuationAlignWithIndent) && ((i + 1) * m_tabSize > indent))
                 return false;
         }
         ++i;
@@ -198,12 +204,13 @@ int TabSettings::columnAt(const QString &text, int position) const
     return column;
 }
 
-int TabSettings::positionAtColumn(const QString &text, int column, int *offset) const
+int TabSettings::positionAtColumn(const QString &text, int column, int *offset, bool allowOverstep) const
 {
     int col = 0;
     int i = 0;
-    while (i < text.size() && col < column) {
-        if (text.at(i) == QLatin1Char('\t'))
+    int textSize = text.size();
+    while ((i < textSize || allowOverstep) && col < column) {
+        if (i < textSize && text.at(i) == QLatin1Char('\t'))
             col = col - (col % m_tabSize) + m_tabSize;
         else
             ++col;
@@ -228,6 +235,8 @@ int TabSettings::columnCountForText(const QString &text, int startColumn) const
 
 int TabSettings::spacesLeftFromPosition(const QString &text, int position)
 {
+    if (position > text.size())
+        return 0;
     int i = position;
     while (i > 0) {
         if (!text.at(i-1).isSpace())
@@ -277,23 +286,29 @@ bool TabSettings::guessSpacesForTabs(const QTextBlock &_block) const
     return m_tabPolicy != TabsOnlyTabPolicy;
 }
 
-QString TabSettings::indentationString(int startColumn, int targetColumn, const QTextBlock &block) const
+QString TabSettings::indentationString(int startColumn, int targetColumn, int padding,
+                                       const QTextBlock &block) const
 {
     targetColumn = qMax(startColumn, targetColumn);
     if (guessSpacesForTabs(block))
         return QString(targetColumn - startColumn, QLatin1Char(' '));
 
     QString s;
-    int alignedStart = startColumn - (startColumn % m_tabSize) + m_tabSize;
+    int alignedStart = startColumn == 0 ? 0 : startColumn - (startColumn % m_tabSize) + m_tabSize;
     if (alignedStart > startColumn && alignedStart <= targetColumn) {
         s += QLatin1Char('\t');
         startColumn = alignedStart;
     }
-    if (int columns = targetColumn - startColumn) {
-        int tabs = columns / m_tabSize;
-        s += QString(tabs, QLatin1Char('\t'));
-        s += QString(columns - tabs * m_tabSize, QLatin1Char(' '));
+    if (m_continuationAlignBehavior == NoContinuationAlign) {
+        targetColumn -= padding;
+        padding = 0;
+    } else if (m_continuationAlignBehavior == ContinuationAlignWithIndent) {
+        padding = 0;
     }
+    const int columns = targetColumn - padding - startColumn;
+    const int tabs = columns / m_tabSize;
+    s += QString(tabs, QLatin1Char('\t'));
+    s += QString(targetColumn - startColumn - tabs * m_tabSize, QLatin1Char(' '));
     return s;
 }
 
@@ -315,15 +330,7 @@ void TabSettings::indentLine(QTextBlock block, int newIndent, int padding) const
 //    if (indentationColumn(text) == newIndent)
 //        return;
 
-    QString indentString;
-
-    if (m_tabPolicy == TabsOnlyTabPolicy) {
-        // user likes tabs for spaces and uses tabs for indentation, preserve padding
-        indentString = indentationString(0, newIndent - padding, block);
-        indentString += QString(padding, QLatin1Char(' '));
-    } else {
-        indentString = indentationString(0, newIndent, block);
-    }
+    const QString indentString = indentationString(0, newIndent, padding, block);
 
     if (oldBlockLength == indentString.length() && text == indentString)
         return;
@@ -348,15 +355,11 @@ void TabSettings::reindentLine(QTextBlock block, int delta) const
     if (oldIndent == newIndent)
         return;
 
-    QString indentString;
-    if (m_tabPolicy == TabsOnlyTabPolicy && m_tabSize == m_indentSize) {
-        // user likes tabs for spaces and uses tabs for indentation, preserve padding
-        int padding = qMin(maximumPadding(text), newIndent);
-        indentString = indentationString(0, newIndent - padding, block);
-        indentString += QString(padding, QLatin1Char(' '));
-    } else {
-        indentString = indentationString(0, newIndent, block);
-    }
+    int padding = 0;
+    // user likes tabs for spaces and uses tabs for indentation, preserve padding
+    if (m_tabPolicy == TabsOnlyTabPolicy && m_tabSize == m_indentSize)
+        padding = qMin(maximumPadding(text), newIndent);
+    const QString indentString = indentationString(0, newIndent, padding, block);
 
     if (oldBlockLength == indentString.length() && text == indentString)
         return;

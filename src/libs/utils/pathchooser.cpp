@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -39,6 +34,7 @@
 #include <QDebug>
 #include <QFileDialog>
 #include <QHBoxLayout>
+#include <QMenu>
 #include <QPushButton>
 #include <QStandardPaths>
 
@@ -65,6 +61,8 @@ static QString appBundleExpandedPath(const QString &path)
     }
     return path;
 }
+
+Utils::PathChooser::AboutToShowContextMenuHandler Utils::PathChooser::s_aboutToShowContextMenuHandler;
 
 namespace Utils {
 
@@ -221,8 +219,12 @@ PathChooser::PathChooser(QWidget *parent) :
 {
     d->m_hLayout->setContentsMargins(0, 0, 0, 0);
 
+    d->m_lineEdit->setContextMenuPolicy(Qt::CustomContextMenu);
+
+    connect(d->m_lineEdit, &FancyLineEdit::customContextMenuRequested, this, &PathChooser::contextMenuRequested);
     connect(d->m_lineEdit, &FancyLineEdit::validReturnPressed, this, &PathChooser::returnPressed);
-    connect(d->m_lineEdit, &QLineEdit::textChanged, this, &PathChooser::changed);
+    connect(d->m_lineEdit, &QLineEdit::textChanged, this,
+            [this] { emit rawPathChanged(rawPath()); });
     connect(d->m_lineEdit, &FancyLineEdit::validChanged, this, &PathChooser::validChanged);
     connect(d->m_lineEdit, &QLineEdit::editingFinished, this, &PathChooser::editingFinished);
     connect(d->m_lineEdit, &QLineEdit::textChanged, this, [this] { emit pathChanged(path()); });
@@ -304,7 +306,7 @@ void PathChooser::setEnvironment(const Environment &env)
     d->m_environment = env;
     if (path() != oldExpand) {
         triggerChanged();
-        emit changed(rawPath());
+        emit rawPathChanged(rawPath());
     }
 }
 
@@ -315,12 +317,31 @@ QString PathChooser::path() const
 
 QString PathChooser::rawPath() const
 {
-    return FileName::fromUserInput(QDir::fromNativeSeparators(d->m_lineEdit->text())).toString();
+    return rawFileName().toString();
+}
+
+FileName PathChooser::rawFileName() const
+{
+    return FileName::fromUserInput(d->m_lineEdit->text());
 }
 
 FileName PathChooser::fileName() const
 {
     return FileName::fromString(path());
+}
+
+// FIXME: try to remove again
+QString PathChooser::expandedDirectory(const QString &input, const Environment &env,
+                                       const QString &baseDir)
+{
+    if (input.isEmpty())
+        return input;
+    const QString path = QDir::cleanPath(env.expandVariables(input));
+    if (path.isEmpty())
+        return path;
+    if (!baseDir.isEmpty() && QFileInfo(path).isRelative())
+        return QFileInfo(baseDir + QLatin1Char('/') + path).absoluteFilePath();
+    return path;
 }
 
 void PathChooser::setPath(const QString &path)
@@ -331,6 +352,16 @@ void PathChooser::setPath(const QString &path)
 void PathChooser::setFileName(const FileName &fn)
 {
     d->m_lineEdit->setText(fn.toUserOutput());
+}
+
+void PathChooser::setErrorColor(const QColor &errorColor)
+{
+    d->m_lineEdit->setErrorColor(errorColor);
+}
+
+void PathChooser::setOkColor(const QColor &okColor)
+{
+    d->m_lineEdit->setOkColor(okColor);
 }
 
 bool PathChooser::isReadOnly() const
@@ -426,6 +457,18 @@ void PathChooser::slotBrowse()
     triggerChanged();
 }
 
+void PathChooser::contextMenuRequested(const QPoint &pos)
+{
+    if (QMenu *menu = d->m_lineEdit->createStandardContextMenu()) {
+        menu->setAttribute(Qt::WA_DeleteOnClose);
+
+        if (s_aboutToShowContextMenuHandler)
+            s_aboutToShowContextMenuHandler(this, menu);
+
+        menu->popup(d->m_lineEdit->mapToGlobal(pos));
+    }
+}
+
 bool PathChooser::isValid() const
 {
     return d->m_lineEdit->isValid();
@@ -438,7 +481,22 @@ QString PathChooser::errorMessage() const
 
 void PathChooser::triggerChanged()
 {
-    d->m_lineEdit->triggerChanged();
+    d->m_lineEdit->validate();
+}
+
+void PathChooser::setAboutToShowContextMenuHandler(PathChooser::AboutToShowContextMenuHandler handler)
+{
+    s_aboutToShowContextMenuHandler = handler;
+}
+
+QColor PathChooser::errorColor() const
+{
+    return d->m_lineEdit->errorColor();
+}
+
+QColor PathChooser::okColor() const
+{
+    return d->m_lineEdit->okColor();
 }
 
 FancyLineEdit::ValidationFunction PathChooser::defaultValidationFunction() const
@@ -484,11 +542,21 @@ bool PathChooser::validatePath(FancyLineEdit *edit, QString *errorMessage) const
                 *errorMessage = tr("The path \"%1\" does not exist.").arg(QDir::toNativeSeparators(expandedPath));
             return false;
         }
+        if (!fi.isFile()) {
+            if (errorMessage)
+                *errorMessage = tr("The path <b>%1</b> is not a file.").arg(QDir::toNativeSeparators(expandedPath));
+            return false;
+        }
         break;
     case PathChooser::SaveFile:
         if (!fi.absoluteDir().exists()) {
             if (errorMessage)
                 *errorMessage = tr("The directory \"%1\" does not exist.").arg(QDir::toNativeSeparators(fi.absolutePath()));
+            return false;
+        }
+        if (fi.exists() && fi.isDir()) {
+            if (errorMessage)
+                *errorMessage = tr("The path <b>%1</b> is not a file.").arg(QDir::toNativeSeparators(fi.absolutePath()));
             return false;
         }
         break;
@@ -498,9 +566,9 @@ bool PathChooser::validatePath(FancyLineEdit *edit, QString *errorMessage) const
                 *errorMessage = tr("The path \"%1\" does not exist.").arg(QDir::toNativeSeparators(expandedPath));
             return false;
         }
-        if (!fi.isExecutable()) {
+        if (!fi.isFile() || !fi.isExecutable()) {
             if (errorMessage)
-                *errorMessage = tr("Cannot execute \"%1\".").arg(QDir::toNativeSeparators(expandedPath));
+                *errorMessage = tr("The path <b>%1</b> is not an executable file.").arg(QDir::toNativeSeparators(expandedPath));
             return false;
         }
         break;
@@ -517,49 +585,6 @@ bool PathChooser::validatePath(FancyLineEdit *edit, QString *errorMessage) const
                 *errorMessage = tr("Cannot execute \"%1\".").arg(QDir::toNativeSeparators(expandedPath));
             return false;
         }
-        break;
-
-    default:
-        ;
-    }
-
-    // Check expected kind
-    switch (d->m_acceptingKind) {
-    case PathChooser::ExistingDirectory:
-        if (!fi.isDir()) {
-            if (errorMessage)
-                *errorMessage = tr("The path <b>%1</b> is not a directory.").arg(QDir::toNativeSeparators(expandedPath));
-            return false;
-        }
-        break;
-
-    case PathChooser::File:
-        if (!fi.isFile()) {
-            if (errorMessage)
-                *errorMessage = tr("The path <b>%1</b> is not a file.").arg(QDir::toNativeSeparators(expandedPath));
-            return false;
-        }
-        break;
-
-    case PathChooser::SaveFile:
-        if (fi.exists() && fi.isDir()) {
-            if (errorMessage)
-                *errorMessage = tr("The path <b>%1</b> is not a file.").arg(QDir::toNativeSeparators(fi.absolutePath()));
-            return false;
-        }
-        break;
-
-    case PathChooser::ExistingCommand:
-        if (!fi.isFile() || !fi.isExecutable()) {
-            if (errorMessage)
-                *errorMessage = tr("The path <b>%1</b> is not an executable file.").arg(QDir::toNativeSeparators(expandedPath));
-            return false;
-        }
-
-    case PathChooser::Command:
-        break;
-
-    case PathChooser::Any:
         break;
 
     default:
@@ -596,7 +621,7 @@ void PathChooser::setExpectedKind(Kind expected)
     if (d->m_acceptingKind == expected)
         return;
     d->m_acceptingKind = expected;
-    d->m_lineEdit->triggerChanged();
+    d->m_lineEdit->validate();
 }
 
 PathChooser::Kind PathChooser::expectedKind() const
@@ -656,9 +681,9 @@ void PathChooser::installLineEditVersionToolTip(QLineEdit *le, const QStringList
     ef->setArguments(arguments);
 }
 
-void PathChooser::setHistoryCompleter(const QString &historyKey)
+void PathChooser::setHistoryCompleter(const QString &historyKey, bool restoreLastItemFromHistory)
 {
-    d->m_lineEdit->setHistoryCompleter(historyKey);
+    d->m_lineEdit->setHistoryCompleter(historyKey, restoreLastItemFromHistory);
 }
 
 QStringList PathChooser::commandVersionArguments() const

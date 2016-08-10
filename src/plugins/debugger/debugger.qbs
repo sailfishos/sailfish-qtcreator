@@ -15,9 +15,21 @@ QtcPlugin {
     Depends { name: "Core" }
     Depends { name: "CppTools" }
     Depends { name: "ProjectExplorer" }
+    Depends { name: "QtSupport" }
     Depends { name: "TextEditor" }
 
+
+    Depends {
+        name: "Qt.test"
+        condition: project.testsEnabled
+    }
+
+    pluginTestDepends: [
+        "QmakeProjectManager"
+    ]
+
     cpp.includePaths: base.concat([project.sharedSourcesDir + "/registryaccess"])
+    cpp.enableExceptions: true
 
     pluginRecommends: [
         "CppEditor"
@@ -34,6 +46,7 @@ QtcPlugin {
             "debugger_global.h",
             "debuggeractions.cpp", "debuggeractions.h",
             "debuggerconstants.h",
+            "debuggericons.h",
             "debuggercore.h",
             "debuggerdialogs.cpp", "debuggerdialogs.h",
             "debuggerengine.cpp", "debuggerengine.h",
@@ -149,9 +162,22 @@ QtcPlugin {
             "qmlcppengine.cpp", "qmlcppengine.h",
             "qmlengine.cpp", "qmlengine.h",
             "qmlengineutils.cpp", "qmlengineutils.h",
-            "qmlinspectoradapter.cpp", "qmlinspectoradapter.h",
             "qmlinspectoragent.cpp", "qmlinspectoragent.h",
             "qmlv8debuggerclientconstants.h"
+        ]
+    }
+
+     Group {
+        name: "Debugger Console"
+        prefix: "console/"
+        files: [
+            "consoleitem.cpp", "consoleitem.h",
+            "consoleedit.cpp", "consoleedit.h",
+            "consoleitemdelegate.cpp", "consoleitemdelegate.h",
+            "consoleitemmodel.cpp", "consoleitemmodel.h",
+            "console.cpp", "console.h",
+            "consoleproxymodel.cpp", "consoleproxymodel.h",
+            "consoleview.cpp", "consoleview.h"
         ]
     }
 
@@ -171,39 +197,19 @@ QtcPlugin {
     Group {
         name: "Images"
         prefix: "images/"
-        files: [
-            "breakpoint_16.png",
-            "breakpoint_24.png",
-            "breakpoint_disabled_16.png",
-            "breakpoint_disabled_24.png",
-            "breakpoint_disabled_32.png",
-            "breakpoint_pending_16.png",
-            "breakpoint_pending_24.png",
-            "debugger_breakpoints.png",
-            "debugger_continue.png",
-            "debugger_continue_32.png",
-            "debugger_continue_small.png",
-            "debugger_empty_14.png",
-            "debugger_interrupt.png",
-            "debugger_interrupt_32.png",
-            "debugger_reversemode_16.png",
-            "debugger_singleinstructionmode.png",
-            "debugger_snapshot_small.png",
-            "debugger_start.png",
-            "debugger_start_small.png",
-            "debugger_stepinto_small.png",
-            "debugger_steponeproc_small.png",
-            "debugger_stepout_small.png",
-            "debugger_stepover_small.png",
-            "debugger_stepoverproc_small.png",
-            "debugger_stop.png",
-            "debugger_stop_32.png",
-            "debugger_stop_small.png",
-            "location_16.png",
-            "location_24.png",
-            "tracepoint.png",
-            "watchpoint.png",
-        ]
+        files: ["*.png", "*.xpm"]
+    }
+
+    Group {
+        name: "Images/qml"
+        prefix: "images/qml/"
+        files: ["*.png"]
+    }
+
+    Group {
+        name: "Images/analyzer"
+        prefix: "analyzer/images/"
+        files: ["*.png"]
     }
 
     Group {
@@ -234,7 +240,47 @@ QtcPlugin {
         ]
     }
 
+    Group {
+        name: "Analyzer"
+        prefix: "analyzer/"
+        files: [
+            "analyzerbase.qrc",
+            "analyzerconstants.h",
+            "analyzericons.h",
+            "analyzermanager.h",
+            "analyzerrunconfigwidget.cpp",
+            "analyzerrunconfigwidget.h",
+            "analyzerruncontrol.cpp",
+            "analyzerruncontrol.h",
+            "analyzerstartparameters.h",
+            "analyzerutils.cpp",
+            "analyzerutils.h",
+            "detailederrorview.cpp",
+            "detailederrorview.h",
+            "diagnosticlocation.cpp",
+            "diagnosticlocation.h",
+            "startremotedialog.cpp",
+            "startremotedialog.h",
+        ]
+    }
+
+    Group {
+        name: "Unit tests"
+        condition: project.testsEnabled
+        files: [
+            "debuggerunittests.qrc",
+        ]
+    }
+
+    Group {
+        name: "Unit test resources"
+        prefix: "unit-tests/"
+        fileTags: []
+        files: ["**/*"]
+    }
+
     Export {
         Depends { name: "QtcSsh" }
+        Depends { name: "CPlusPlus" }
     }
 }

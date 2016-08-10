@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,28 +9,23 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
 #include "outputpanemanager.h"
 #include "outputpane.h"
-#include "coreconstants.h"
+#include "coreicons.h"
 #include "findplaceholder.h"
 
 #include "icore.h"
@@ -75,8 +70,12 @@ namespace Internal {
 static char outputPaneSettingsKeyC[] = "OutputPaneVisibility";
 static char outputPaneIdKeyC[] = "id";
 static char outputPaneVisibleKeyC[] = "visible";
-static const int numberAreaWidth = 19;
 static const int buttonBorderWidth = 3;
+
+static int numberAreaWidth()
+{
+    return creatorTheme()->widgetStyle() == Theme::StyleDefault ? 19 : 15;
+}
 
 ////
 // OutputPaneManager
@@ -108,8 +107,17 @@ void OutputPaneManager::updateStatusButtons(bool visible)
     QTC_ASSERT(m_panes.size() == m_buttons.size(), return);
     m_buttons.at(idx)->setChecked(visible);
     m_panes.at(idx)->visibilityChanged(visible);
-    OutputPanePlaceHolder *ph = OutputPanePlaceHolder::getCurrent();
-    m_minMaxAction->setVisible(ph && ph->canMaximizeOrMinimize());
+}
+
+void OutputPaneManager::updateMaximizeButton(bool maximized)
+{
+    if (maximized) {
+        m_instance->m_minMaxAction->setIcon(m_instance->m_minimizeIcon);
+        m_instance->m_minMaxAction->setText(tr("Minimize Output Pane"));
+    } else {
+        m_instance->m_minMaxAction->setIcon(m_instance->m_maximizeIcon);
+        m_instance->m_minMaxAction->setText(tr("Maximize Output Pane"));
+    }
 }
 
 OutputPaneManager::OutputPaneManager(QWidget *parent) :
@@ -123,38 +131,37 @@ OutputPaneManager::OutputPaneManager(QWidget *parent) :
     m_prevAction(0),
     m_outputWidgetPane(new QStackedWidget),
     m_opToolBarWidgets(new QStackedWidget),
-    m_minimizeIcon(QLatin1String(":/core/images/arrowdown.png")),
-    m_maximizeIcon(QLatin1String(":/core/images/arrowup.png")),
-    m_maximised(false),
-    m_outputPaneHeight(0)
+    m_minimizeIcon(Icons::ARROW_DOWN.icon()),
+    m_maximizeIcon(Icons::ARROW_UP.icon()),
+    m_outputPaneHeightSetting(0)
 {
     setWindowTitle(tr("Output"));
 
     m_titleLabel->setContentsMargins(5, 0, 5, 0);
 
     m_clearAction = new QAction(this);
-    m_clearAction->setIcon(QIcon(QLatin1String(Constants::ICON_CLEAN_PANE)));
+    m_clearAction->setIcon(Icons::CLEAN_PANE.icon());
     m_clearAction->setText(tr("Clear"));
-    connect(m_clearAction, SIGNAL(triggered()), this, SLOT(clearPage()));
+    connect(m_clearAction, &QAction::triggered, this, &OutputPaneManager::clearPage);
 
     m_nextAction = new QAction(this);
-    m_nextAction->setIcon(QIcon(QLatin1String(Constants::ICON_NEXT)));
+    m_nextAction->setIcon(Icons::NEXT_TOOLBAR.icon());
     m_nextAction->setText(tr("Next Item"));
-    connect(m_nextAction, SIGNAL(triggered()), this, SLOT(slotNext()));
+    connect(m_nextAction, &QAction::triggered, this, &OutputPaneManager::slotNext);
 
     m_prevAction = new QAction(this);
-    m_prevAction->setIcon(QIcon(QLatin1String(Constants::ICON_PREV)));
+    m_prevAction->setIcon(Icons::PREV_TOOLBAR.icon());
     m_prevAction->setText(tr("Previous Item"));
-    connect(m_prevAction, SIGNAL(triggered()), this, SLOT(slotPrev()));
+    connect(m_prevAction, &QAction::triggered, this, &OutputPaneManager::slotPrev);
 
     m_minMaxAction = new QAction(this);
     m_minMaxAction->setIcon(m_maximizeIcon);
     m_minMaxAction->setText(tr("Maximize Output Pane"));
 
-    m_closeButton->setIcon(QIcon(QLatin1String(Constants::ICON_CLOSE_SPLIT_BOTTOM)));
-    connect(m_closeButton, SIGNAL(clicked()), this, SLOT(slotHide()));
+    m_closeButton->setIcon(Icons::CLOSE_SPLIT_BOTTOM.icon());
+    connect(m_closeButton, &QAbstractButton::clicked, this, &OutputPaneManager::slotHide);
 
-    connect(ICore::instance(), SIGNAL(saveSettingsRequested()), this, SLOT(saveSettings()));
+    connect(ICore::instance(), &ICore::saveSettingsRequested, this, &OutputPaneManager::saveSettings);
 
     QVBoxLayout *mainlayout = new QVBoxLayout;
     mainlayout->setSpacing(0);
@@ -182,7 +189,8 @@ OutputPaneManager::OutputPaneManager(QWidget *parent) :
     m_buttonsWidget = new QWidget;
     m_buttonsWidget->setLayout(new QHBoxLayout);
     m_buttonsWidget->layout()->setContentsMargins(5,0,0,0);
-    m_buttonsWidget->layout()->setSpacing(4);
+    m_buttonsWidget->layout()->setSpacing(
+            creatorTheme()->widgetStyle() == Theme::StyleDefault ? 4 : 9);
 }
 
 OutputPaneManager::~OutputPaneManager()
@@ -194,11 +202,14 @@ QWidget *OutputPaneManager::buttonsWidget()
     return m_buttonsWidget;
 }
 
-// Return shortcut as Ctrl+<number>
-static inline int paneShortCut(int number)
+// Return shortcut as Alt+<number> or Cmd+<number> if number is a non-zero digit
+static inline QKeySequence paneShortCut(int number)
 {
+    if (number < 1 || number > 9)
+        return QKeySequence();
+
     const int modifier = HostOsInfo::isMacHost() ? Qt::CTRL : Qt::ALT;
-    return modifier | (Qt::Key_0 + number);
+    return QKeySequence(modifier | (Qt::Key_0 + number));
 }
 
 void OutputPaneManager::init()
@@ -229,11 +240,11 @@ void OutputPaneManager::init()
     mpanes->addAction(cmd, "Coreplugin.OutputPane.ActionsGroup");
 
     cmd = ActionManager::registerAction(m_minMaxAction, "Coreplugin.OutputPane.minmax");
-    cmd->setDefaultKeySequence(QKeySequence(UseMacShortcuts ? tr("Ctrl+9") : tr("Alt+9")));
+    cmd->setDefaultKeySequence(QKeySequence(UseMacShortcuts ? tr("Ctrl+Shift+9") : tr("Alt+Shift+9")));
     cmd->setAttribute(Command::CA_UpdateText);
     cmd->setAttribute(Command::CA_UpdateIcon);
     mpanes->addAction(cmd, "Coreplugin.OutputPane.ActionsGroup");
-    connect(m_minMaxAction, SIGNAL(triggered()), this, SLOT(slotMinMax()));
+    connect(m_minMaxAction, &QAction::triggered, this, &OutputPaneManager::toggleMaximized);
     m_minMaxButton->setDefaultAction(cmd->action());
 
     mpanes->addSeparator("Coreplugin.OutputPane.ActionsGroup");
@@ -254,12 +265,15 @@ void OutputPaneManager::init()
         const int idx = m_outputWidgetPane->addWidget(outPane->outputWidget(this));
         QTC_CHECK(idx == i);
 
-        connect(outPane, SIGNAL(showPage(int)), this, SLOT(showPage(int)));
-        connect(outPane, SIGNAL(hidePage()), this, SLOT(slotHide()));
-        connect(outPane, SIGNAL(togglePage(int)), this, SLOT(togglePage(int)));
-        connect(outPane, SIGNAL(navigateStateUpdate()), this, SLOT(updateNavigateState()));
-        connect(outPane, SIGNAL(flashButton()), this, SLOT(flashButton()));
-        connect(outPane, SIGNAL(setBadgeNumber(int)), this, SLOT(setBadgeNumber(int)));
+        connect(outPane, &IOutputPane::showPage, this, [this, outPane](int flags) {
+            showPage(findIndexForPage(outPane), flags);
+        });
+        connect(outPane, &IOutputPane::hidePage, this, &OutputPaneManager::slotHide);
+        connect(outPane, &IOutputPane::togglePage, this, &OutputPaneManager::togglePage);
+        connect(outPane, &IOutputPane::navigateStateUpdate,
+                this, &OutputPaneManager::updateNavigateState);
+        connect(outPane, &IOutputPane::flashButton, this, &OutputPaneManager::flashButton);
+        connect(outPane, &IOutputPane::setBadgeNumber, this, &OutputPaneManager::setBadgeNumber);
 
         QWidget *toolButtonsContainer = new QWidget(m_opToolBarWidgets);
         QHBoxLayout *toolButtonsLayout = new QHBoxLayout;
@@ -284,25 +298,27 @@ void OutputPaneManager::init()
         m_actions.append(action);
         m_ids.append(id);
 
-        cmd->setDefaultKeySequence(QKeySequence(paneShortCut(shortcutNumber)));
+        cmd->setDefaultKeySequence(paneShortCut(shortcutNumber));
         OutputPaneToggleButton *button = new OutputPaneToggleButton(shortcutNumber, outPane->displayName(),
                                                                     cmd->action());
         ++shortcutNumber;
         m_buttonsWidget->layout()->addWidget(button);
         m_buttons.append(button);
-        connect(button, SIGNAL(clicked()), this, SLOT(buttonTriggered()));
+        connect(button, &QAbstractButton::clicked, this, [this, button]() {
+            buttonTriggered(m_buttons.indexOf(button));
+         });
 
         bool visible = outPane->priorityInStatusBar() != -1;
         button->setVisible(visible);
         m_buttonVisibility.insert(id, visible);
 
-        connect(action, SIGNAL(triggered()), this, SLOT(shortcutTriggered()));
+        connect(action, &QAction::triggered, this, &OutputPaneManager::shortcutTriggered);
     }
 
     m_titleLabel->setMinimumWidth(minTitleWidth + m_titleLabel->contentsMargins().left()
                                   + m_titleLabel->contentsMargins().right());
     m_buttonsWidget->layout()->addWidget(m_manageButton);
-    connect(m_manageButton, SIGNAL(clicked()), this, SLOT(popupMenu()));
+    connect(m_manageButton, &QAbstractButton::clicked, this, &OutputPaneManager::popupMenu);
 
     readSettings();
 }
@@ -331,29 +347,24 @@ void OutputPaneManager::shortcutTriggered()
     }
 }
 
-bool OutputPaneManager::isMaximized()const
+int OutputPaneManager::outputPaneHeightSetting()
 {
-    return m_maximised;
+    return m_instance->m_outputPaneHeightSetting;
 }
 
-void OutputPaneManager::slotMinMax()
+void OutputPaneManager::setOutputPaneHeightSetting(int value)
+{
+    m_instance->m_outputPaneHeightSetting = value;
+}
+
+void OutputPaneManager::toggleMaximized()
 {
     OutputPanePlaceHolder *ph = OutputPanePlaceHolder::getCurrent();
     QTC_ASSERT(ph, return);
 
     if (!ph->isVisible()) // easier than disabling/enabling the action
         return;
-    m_maximised = !m_maximised;
-    ph->maximizeOrMinimize(m_maximised);
-    m_minMaxAction->setIcon(m_maximised ? m_minimizeIcon : m_maximizeIcon);
-    m_minMaxAction->setText(m_maximised ? tr("Minimize Output Pane")
-                                            : tr("Maximize Output Pane"));
-}
-
-void OutputPaneManager::buttonTriggered()
-{
-    OutputPaneToggleButton *button = qobject_cast<OutputPaneToggleButton *>(sender());
-    buttonTriggered(m_buttons.indexOf(button));
+    ph->setMaximized(!ph->isMaximized());
 }
 
 void OutputPaneManager::buttonTriggered(int idx)
@@ -383,7 +394,7 @@ void OutputPaneManager::readSettings()
             m_buttons.at(i)->setVisible(m_buttonVisibility.value(m_ids.at(i)));
     }
 
-    m_outputPaneHeight = settings->value(QLatin1String("OutputPanePlaceHolder/Height"), 0).toInt();
+    m_outputPaneHeightSetting = settings->value(QLatin1String("OutputPanePlaceHolder/Height"), 0).toInt();
 }
 
 void OutputPaneManager::slotNext()
@@ -461,13 +472,6 @@ void OutputPaneManager::setBadgeNumber(int number)
         m_buttons.value(idx)->setIconBadgeNumber(number);
 }
 
-// Slot connected to showPage signal of each page
-void OutputPaneManager::showPage(int flags)
-{
-    int idx = findIndexForPage(qobject_cast<IOutputPane*>(sender()));
-    showPage(idx, flags);
-}
-
 void OutputPaneManager::showPage(int idx, int flags)
 {
     QTC_ASSERT(idx >= 0, return);
@@ -500,7 +504,6 @@ void OutputPaneManager::showPage(int idx, int flags)
             ICore::raiseWindow(m_outputWidgetPane);
         }
 
-        ph->setDefaultHeight(m_outputPaneHeight);
         if (flags & IOutputPane::EnsureSizeHint)
             ph->ensureSizeHintAsMinimum();
     }
@@ -519,13 +522,6 @@ void OutputPaneManager::focusInEvent(QFocusEvent *e)
 {
     if (QWidget *w = m_outputWidgetPane->currentWidget())
         w->setFocus(e->reason());
-}
-
-void OutputPaneManager::resizeEvent(QResizeEvent *e)
-{
-    if (e->size().height() == 0)
-        return;
-    m_outputPaneHeight = e->size().height();
 }
 
 void OutputPaneManager::setCurrentIndex(int idx)
@@ -596,7 +592,11 @@ void OutputPaneManager::saveSettings() const
                            m_buttonVisibility.value(m_ids.at(i)));
     }
     settings->endArray();
-    settings->setValue(QLatin1String("OutputPanePlaceHolder/Height"), m_outputPaneHeight);
+    int heightSetting = m_outputPaneHeightSetting;
+    // update if possible
+    if (OutputPanePlaceHolder *curr = OutputPanePlaceHolder::getCurrent())
+        heightSetting = curr->nonMaximizedSize();
+    settings->setValue(QLatin1String("OutputPanePlaceHolder/Height"), heightSetting);
 }
 
 void OutputPaneManager::clearPage()
@@ -631,18 +631,20 @@ OutputPaneToggleButton::OutputPaneToggleButton(int number, const QString &text,
     QFont fnt = QApplication::font();
     setFont(fnt);
     if (m_action)
-        connect(m_action, SIGNAL(changed()), this, SLOT(updateToolTip()));
+        connect(m_action, &QAction::changed, this, &OutputPaneToggleButton::updateToolTip);
 
     m_flashTimer->setDirection(QTimeLine::Forward);
     m_flashTimer->setCurveShape(QTimeLine::SineCurve);
     m_flashTimer->setFrameRange(0, 92);
-    connect(m_flashTimer, SIGNAL(valueChanged(qreal)), this, SLOT(update()));
-    connect(m_flashTimer, SIGNAL(finished()), this, SLOT(update()));
+    auto updateSlot = static_cast<void (QWidget::*)()>(&QWidget::update);
+    connect(m_flashTimer, &QTimeLine::valueChanged, this, updateSlot);
+    connect(m_flashTimer, &QTimeLine::finished, this, updateSlot);
+    updateToolTip();
 }
 
 void OutputPaneToggleButton::updateToolTip()
 {
-    Q_ASSERT(m_action);
+    QTC_ASSERT(m_action, return);
     setToolTip(m_action->toolTip());
 }
 
@@ -653,7 +655,7 @@ QSize OutputPaneToggleButton::sizeHint() const
     QSize s = fontMetrics().size(Qt::TextSingleLine, m_text);
 
     // Expand to account for border image
-    s.rwidth() += numberAreaWidth + 1 + buttonBorderWidth + buttonBorderWidth;
+    s.rwidth() += numberAreaWidth() + 1 + buttonBorderWidth + buttonBorderWidth;
 
     if (!m_badgeNumberLabel.text().isNull())
         s.rwidth() += m_badgeNumberLabel.sizeHint().width() + 1;
@@ -688,19 +690,17 @@ void OutputPaneToggleButton::paintEvent(QPaintEvent*)
         else
             image = hovered ? &panelButtonHover : &panelButton;
         if (image)
-            StyleHelper::drawCornerImage(*image, &p, rect(), numberAreaWidth, buttonBorderWidth, buttonBorderWidth, buttonBorderWidth);
+            StyleHelper::drawCornerImage(*image, &p, rect(), numberAreaWidth(), buttonBorderWidth, buttonBorderWidth, buttonBorderWidth);
     } else {
-        QColor c;
-        if (isChecked()) {
-            c = creatorTheme()->color(hovered ? Theme::BackgroundColorHover
-                                              : Theme::BackgroundColorSelected);
-        } else if (isDown()) {
-            c = creatorTheme()->color(Theme::BackgroundColorSelected);
-        } else {
-            c = creatorTheme()->color(hovered ? Theme::BackgroundColorHover
-                                              : Theme::BackgroundColorDark);
-        }
-        p.fillRect(rect(), c);
+        Theme::Color c = Theme::BackgroundColorDark;
+
+        if (hovered)
+            c = Theme::BackgroundColorHover;
+        else if (isDown() || isChecked())
+            c = Theme::BackgroundColorSelected;
+
+        if (c != Theme::BackgroundColorDark)
+            p.fillRect(rect(), creatorTheme()->color(c));
     }
 
     if (m_flashTimer->state() == QTimeLine::Running)
@@ -708,16 +708,16 @@ void OutputPaneToggleButton::paintEvent(QPaintEvent*)
         QColor c = creatorTheme()->color(Theme::OutputPaneButtonFlashColor);
         c.setAlpha (m_flashTimer->currentFrame());
         QRect r = (creatorTheme()->widgetStyle() == Theme::StyleFlat)
-                  ? rect() : rect().adjusted(numberAreaWidth, 1, -1, -1);
+                  ? rect() : rect().adjusted(numberAreaWidth(), 1, -1, -1);
         p.fillRect(r, c);
     }
 
     p.setFont(font());
     p.setPen(creatorTheme()->color(Theme::OutputPaneToggleButtonTextColorChecked));
-    p.drawText((numberAreaWidth - numberWidth) / 2, baseLine, m_number);
+    p.drawText((numberAreaWidth() - numberWidth) / 2, baseLine, m_number);
     if (!isChecked())
         p.setPen(creatorTheme()->color(Theme::OutputPaneToggleButtonTextColorUnchecked));
-    int leftPart = numberAreaWidth + buttonBorderWidth;
+    int leftPart = numberAreaWidth() + buttonBorderWidth;
     int labelWidth = 0;
     if (!m_badgeNumberLabel.text().isEmpty()) {
         const QSize labelSize = m_badgeNumberLabel.sizeHint();
@@ -764,12 +764,13 @@ OutputPaneManageButton::OutputPaneManageButton()
 {
     setFocusPolicy(Qt::NoFocus);
     setCheckable(true);
+    setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
 }
 
 QSize OutputPaneManageButton::sizeHint() const
 {
     ensurePolished();
-    return QSize(numberAreaWidth, QApplication::globalStrut().height());
+    return QSize(numberAreaWidth(), QApplication::globalStrut().height());
 }
 
 void OutputPaneManageButton::paintEvent(QPaintEvent*)

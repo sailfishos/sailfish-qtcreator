@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -42,6 +37,7 @@ static const char constrainTooltips[] = "ConstrainTooltips";
 static const char camelCaseNavigationKey[] = "CamelCaseNavigation";
 static const char keyboardTooltips[] = "KeyboardTooltips";
 static const char groupPostfix[] = "BehaviorSettings";
+static const char smartSelectionChanging[] = "SmartSelectionChanging";
 
 namespace TextEditor {
 
@@ -51,7 +47,8 @@ BehaviorSettings::BehaviorSettings() :
     m_scrollWheelZooming(true),
     m_constrainHoverTooltips(false),
     m_camelCaseNavigation(true),
-    m_keyboardTooltips(false)
+    m_keyboardTooltips(false),
+    m_smartSelectionChanging(true)
 {
 }
 
@@ -74,6 +71,7 @@ void BehaviorSettings::toMap(const QString &prefix, QVariantMap *map) const
     map->insert(prefix + QLatin1String(constrainTooltips), m_constrainHoverTooltips);
     map->insert(prefix + QLatin1String(camelCaseNavigationKey), m_camelCaseNavigation);
     map->insert(prefix + QLatin1String(keyboardTooltips), m_keyboardTooltips);
+    map->insert(prefix + QLatin1String(smartSelectionChanging), m_smartSelectionChanging);
 }
 
 void BehaviorSettings::fromMap(const QString &prefix, const QVariantMap &map)
@@ -90,6 +88,9 @@ void BehaviorSettings::fromMap(const QString &prefix, const QVariantMap &map)
         map.value(prefix + QLatin1String(camelCaseNavigationKey), m_camelCaseNavigation).toBool();
     m_keyboardTooltips =
         map.value(prefix + QLatin1String(keyboardTooltips), m_keyboardTooltips).toBool();
+    m_smartSelectionChanging =
+        map.value(prefix + QLatin1String(smartSelectionChanging), m_smartSelectionChanging)
+           .toBool();
 }
 
 bool BehaviorSettings::equals(const BehaviorSettings &ds) const
@@ -100,6 +101,7 @@ bool BehaviorSettings::equals(const BehaviorSettings &ds) const
         && m_constrainHoverTooltips == ds.m_constrainHoverTooltips
         && m_camelCaseNavigation == ds.m_camelCaseNavigation
         && m_keyboardTooltips == ds.m_keyboardTooltips
+        && m_smartSelectionChanging == ds.m_smartSelectionChanging
         ;
 }
 

@@ -8,7 +8,6 @@ QtcPlugin {
     Depends { name: "QmlDebug" }
     Depends { name: "Utils" }
 
-    Depends { name: "AnalyzerBase" }
     Depends { name: "Core" }
     Depends { name: "Debugger" }
     Depends { name: "ProjectExplorer" }
@@ -23,8 +22,6 @@ QtcPlugin {
         "abstractremotelinuxdeploystep.h",
         "abstractremotelinuxrunsupport.cpp",
         "abstractremotelinuxrunsupport.h",
-        "abstractremotelinuxrunconfiguration.h",
-        "abstractremotelinuxrunconfiguration.cpp",
         "abstractuploadandinstallpackageservice.cpp",
         "abstractuploadandinstallpackageservice.h",
         "embeddedlinuxqtversion.cpp",
@@ -116,7 +113,7 @@ QtcPlugin {
     ]
 
     Export {
-        Depends { name: "AnalyzerBase" }
+        Depends { name: "Debugger" }
         Depends { name: "Core" }
         Depends { name: "QtcSsh" }
     }

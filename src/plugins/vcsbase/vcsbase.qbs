@@ -32,8 +32,6 @@ QtcPlugin {
         "commonsettingspage.ui",
         "commonvcssettings.cpp",
         "commonvcssettings.h",
-        "corelistener.cpp",
-        "corelistener.h",
         "diffandloghighlighter.cpp",
         "diffandloghighlighter.h",
         "nicknamedialog.cpp",
@@ -83,4 +81,6 @@ QtcPlugin {
         "wizard/vcsjsextension.cpp",
         "wizard/vcsjsextension.h",
     ]
+
+    cpp.defines: base.concat( testsEnabled ? ['SRC_DIR="' + project.ide_source_tree + '"'] : [] )
 }

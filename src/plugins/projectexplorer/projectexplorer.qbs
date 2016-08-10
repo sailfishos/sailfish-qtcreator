@@ -47,7 +47,6 @@ QtcPlugin {
             "compileoutputwindow.cpp", "compileoutputwindow.h",
             "configtaskhandler.cpp", "configtaskhandler.h",
             "copytaskhandler.cpp", "copytaskhandler.h",
-            "corelistenercheckingforrunningbuild.cpp", "corelistenercheckingforrunningbuild.h",
             "currentprojectfilter.cpp", "currentprojectfilter.h",
             "currentprojectfind.cpp", "currentprojectfind.h",
             "customparser.cpp", "customparser.h",
@@ -71,6 +70,7 @@ QtcPlugin {
             "environmentitemswidget.cpp", "environmentitemswidget.h",
             "environmentwidget.cpp", "environmentwidget.h",
             "expanddata.cpp", "expanddata.h",
+            "extracompiler.cpp", "extracompiler.h",
             "foldernavigationwidget.cpp", "foldernavigationwidget.h",
             "gccparser.cpp", "gccparser.h",
             "gcctoolchain.cpp", "gcctoolchain.h",
@@ -79,7 +79,6 @@ QtcPlugin {
             "headerpath.h",
             "importwidget.cpp", "importwidget.h",
             "ioutputparser.cpp", "ioutputparser.h",
-            "ipotentialkit.cpp",
             "ipotentialkit.h",
             "iprojectmanager.h",
             "itaskhandler.h",
@@ -95,10 +94,8 @@ QtcPlugin {
             "kitoptionspage.cpp", "kitoptionspage.h",
             "ldparser.cpp", "ldparser.h",
             "linuxiccparser.cpp", "linuxiccparser.h",
-            "localapplicationrunconfiguration.cpp", "localapplicationrunconfiguration.h",
             "localapplicationruncontrol.cpp", "localapplicationruncontrol.h",
             "localenvironmentaspect.cpp", "localenvironmentaspect.h",
-            "metatypedeclarations.h",
             "miniprojecttargetselector.cpp", "miniprojecttargetselector.h",
             "namedwidget.cpp", "namedwidget.h",
             "nodesvisitor.cpp", "nodesvisitor.h",
@@ -111,7 +108,9 @@ QtcPlugin {
             "projectexplorer.cpp", "projectexplorer.h",
             "projectexplorer.qrc",
             "projectexplorer_export.h",
+            "projectexplorer_global.h",
             "projectexplorerconstants.h",
+            "projectexplorericons.h",
             "projectexplorersettings.h",
             "projectexplorersettingspage.cpp", "projectexplorersettingspage.h", "projectexplorersettingspage.ui",
             "projectfilewizardextension.cpp", "projectfilewizardextension.h",
@@ -127,6 +126,7 @@ QtcPlugin {
             "projectwizardpage.cpp", "projectwizardpage.h", "projectwizardpage.ui",
             "propertiespanel.cpp", "propertiespanel.h",
             "removetaskhandler.cpp", "removetaskhandler.h",
+            "runnables.cpp", "runnables.h",
             "runconfiguration.cpp", "runconfiguration.h",
             "runconfigurationaspects.cpp", "runconfigurationaspects.h",
             "runconfigurationmodel.cpp", "runconfigurationmodel.h",
@@ -153,6 +153,7 @@ QtcPlugin {
             "toolchainoptionspage.cpp", "toolchainoptionspage.h",
             "unconfiguredprojectpanel.cpp", "unconfiguredprojectpanel.h",
             "vcsannotatetaskhandler.cpp", "vcsannotatetaskhandler.h",
+            "waitforstopdialog.cpp", "waitforstopdialog.h",
             "xcodebuildparser.cpp", "xcodebuildparser.h"
         ]
     }
@@ -169,7 +170,7 @@ QtcPlugin {
         name: "JsonWizard"
         prefix: "jsonwizard/"
         files: [
-            "jsonfieldpage.cpp", "jsonfieldpage.h",
+            "jsonfieldpage.cpp", "jsonfieldpage_p.h", "jsonfieldpage.h",
             "jsonfilepage.cpp", "jsonfilepage.h",
             "jsonkitspage.cpp", "jsonkitspage.h",
             "jsonprojectpage.cpp", "jsonprojectpage.h",
@@ -191,7 +192,6 @@ QtcPlugin {
             "customwizard.cpp", "customwizard.h",
             "customwizardpage.cpp", "customwizardpage.h",
             "customwizardparameters.cpp", "customwizardparameters.h",
-            "customwizardpreprocessor.cpp", "customwizardpreprocessor.h",
             "customwizardscriptgenerator.cpp", "customwizardscriptgenerator.h"
         ]
     }
@@ -229,48 +229,7 @@ QtcPlugin {
     Group {
         name: "Images"
         prefix: "images/"
-        files: [
-            "BuildSettings.png",
-            "CodeStyleSettings.png",
-            "DeviceConnected.png",
-            "DeviceDisconnected.png",
-            "DeviceReadyToUse.png",
-            "EditorSettings.png",
-            "MaemoDevice.png",
-            "ProjectDependencies.png",
-            "RunSettings.png",
-            "Simulator.png",
-            "build.png",
-            "build_32.png",
-            "build_small.png",
-            "clean.png",
-            "clean_small.png",
-            "closetab.png",
-            "debugger_start.png",
-            "debugger_start_small.png",
-            "findallprojects.png",
-            "findproject.png",
-            "leftselection.png",
-            "midselection.png",
-            "projectexplorer.png",
-            "rebuild.png",
-            "rebuild_small.png",
-            "rightselection.png",
-            "run.png",
-            "run_small.png",
-            "session.png",
-            "stop.png",
-            "stop_small.png",
-            "targetbuildselected.png",
-            "targetleftbutton.png",
-            "targetpanel_bottom.png",
-            "targetpanel_gradient.png",
-            "targetrightbutton.png",
-            "targetrunselected.png",
-            "targetseparatorbackground.png",
-            "targetunselected.png",
-            "window.png",
-        ]
+        files: ["*.png"]
     }
 
     Group {

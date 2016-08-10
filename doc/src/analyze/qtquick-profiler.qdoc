@@ -1,18 +1,25 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
-** This file is part of Qt Creator
+** This file is part of the Qt Creator documentation.
 **
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Free Documentation License
-**
+** GNU Free Documentation License Usage
 ** Alternatively, this file may be used under the terms of the GNU Free
 ** Documentation License version 1.3 as published by the Free Software
-** Foundation and appearing in the file included in the packaging of this
-** file.
-**
+** Foundation and appearing in the file included in the packaging of
+** this file. Please review the following information to ensure
+** the GNU Free Documentation License version 1.3 requirements
+** will be met: https://www.gnu.org/licenses/fdl-1.3.html.
 **
 ****************************************************************************/
 
@@ -85,7 +92,7 @@
             QML Profiler.
 
             \note If data collection does not start automatically, select the
-            \inlineimage qtcreator-analyzer-button.png
+            \inlineimage recordfill.png
             (\uicontrol {Enable Profiling}) button.
 
     \endlist
@@ -113,6 +120,35 @@
     the context menu, and then select \uicontrol {Save QML Trace}. To view the saved
     data, select \uicontrol {Load QML Trace}. You can also deliver the saved data to
     other developers for examination or load data saved by them.
+
+    \section1 Specifying Flushing Settings
+
+    You can specify flushing settings for the QML Profiler either globally for
+    all projects or separately for each project. To specify global settings,
+    select \uicontrol Tools > \uicontrol Options > \uicontrol Analyzer.
+
+    To specify custom QML Profiler settings for a particular project, select
+    \uicontrol Projects > \uicontrol Run and then select \uicontrol Custom in
+    \uicontrol {QML Profiler Settings}. To restore the global settings for the
+    project, select \uicontrol {Restore Global}.
+
+    \image qml-profiler-settings.png "QML Profiler Settings"
+
+    Select the \uicontrol {Flush data while profiling} check box to flush the
+    data periodically instead of flushing all data when profiling stops. This
+    saves memory on the target device and shortens the wait between the
+    profiling being stopped and the data being displayed.
+
+    In the \uicontrol {Flush interval} field, set the flush interval in
+    milliseconds. The shorter the interval, the more often the data is flushed.
+    The longer the interval, the more data has to be buffered in the target
+    application, potentially wasting memory. However, the flushing itself takes
+    time, which can distort the profiling results.
+
+    If you have multiple QML engines and you want to aggregate the data produced
+    by all of them into one trace, select the \uicontrol {Process data only when
+    process ends} check box. Otherwise, the profiling stops when one of the
+    engines stops.
 
     \section1 Attaching to Running Qt Quick Applications
 
@@ -177,8 +213,7 @@
 
     The following types of events are displayed in the timeline view on one or
     several rows. The availability of event types depends on the version of Qt
-    the application was compiled with, the version of Qt Quick it is using, and
-    whether \QC or \QCE is used to profile it.
+    the application was compiled with and the version of Qt Quick it is using.
 
     \table
 
@@ -187,7 +222,6 @@
         \li Description
         \li Minimum Qt Version
         \li Qt Quick Version
-        \li Commercial Only
 
     \row
         \li \uicontrol {Pixmap Cache}
@@ -196,7 +230,6 @@
             with specifics about its file name and size.
         \li Qt 5.1
         \li Qt Quick 2
-        \li \image ok
 
     \row
         \li \uicontrol {Scene Graph}
@@ -205,7 +238,7 @@
             so.
         \li Qt 5.1
         \li Qt Quick 2
-        \li \image ok
+
     \row
         \li \uicontrol {Memory Usage}
         \li Displays block allocations of the JavaScript memory manager.
@@ -220,21 +253,18 @@
             requested.
         \li Qt 5.4
         \li Qt Quick 2
-        \li \image ok
 
     \row
         \li \uicontrol {Input Events}
         \li Displays mouse and keyboard events.
         \li Qt 4.7.4
         \li Qt Quick 1 or Qt Quick 2
-        \li \image ok
 
     \row
         \li \uicontrol Painting
         \li Displays the time spent painting the scene for each frame.
         \li Qt 4.7.4
         \li Qt Quick 1
-        \li
 
     \row
         \li \uicontrol Animations
@@ -245,14 +275,12 @@
             animations are shown in a separate row then.
         \li Qt 5.0 (Qt 5.3)
         \li Qt Quick 2
-        \li
 
     \row
         \li \uicontrol Compiling
         \li Displays the time spent compiling the QML files.
         \li Qt 4.7.4
         \li Qt Quick 1 or Qt Quick 2
-        \li
 
     \row
         \li \uicontrol Creating
@@ -267,7 +295,6 @@
             events.
         \li Qt 4.7.4 (Qt 5.2.1)
         \li Qt Quick 1 or Qt Quick 2
-        \li
 
     \row
         \li \uicontrol Binding
@@ -275,7 +302,6 @@
             evaluation takes.
         \li Qt 4.7.4
         \li Qt Quick 1 or Qt Quick 2
-        \li
 
     \row
         \li \uicontrol {Handling Signal}
@@ -283,7 +309,6 @@
             handling takes.
         \li Qt 4.7.4
         \li Qt Quick 1 or Qt Quick 2
-        \li
 
     \row
         \li \uicontrol JavaScript
@@ -292,7 +317,6 @@
             you may be using to evaluate bindings or handle signals.
         \li Qt 5.3
         \li Qt Quick 2
-        \li
 
     \endtable
 
@@ -497,9 +521,9 @@
         \li None
     \endtable
 
-    \section1 Viewing Events
+    \section1 Viewing Statistics
 
-    The \uicontrol Events view displays the number of times each binding, create,
+    The \uicontrol Statistics view displays the number of times each binding, create,
     compile, JavaScript, or signal event is triggered and the average time it
     takes. This allows you to examine which events you need to optimize. A high
     number of occurrences might indicate that an event is triggered
@@ -509,12 +533,7 @@
     Click on an event to move to it in the source code
     in the code editor.
 
-    JavaScript events often duplicate bindings or signals, so you can show and
-    hide them by selecting \uicontrol {Show JavaScript Events} in the context
-    menu. To show and hide QML events (\uicontrol Create, \uicontrol Compile,
-    and \uicontrol Signal), select \uicontrol {Show QML Events}.
-
-    \image qtcreator-analyzer-bindings.png "Events view"
+    \image qml-profiler-statistics.png "Statistics view"
 
     The \uicontrol Callers and \uicontrol Callees panes show dependencies between events.
     They allow you to examine the internal functions of the application.
@@ -526,13 +545,27 @@
     Click on an event to move to it in the source code in the code editor.
 
     When you select an event in the \uicontrol Timeline view, information about it is
-    displayed in the \uicontrol Events view. To view an event range in the \uicontrol Events
-    view, select \uicontrol {Limit Events Pane to Current Range} in the context menu
-    in the \uicontrol Timeline view.
+    displayed in the \uicontrol Statistics view. To view an event range in the
+    \uicontrol Statistics view, select \uicontrol {Analyze Current Range}
+    in the context menu in the \uicontrol Timeline view.
 
     To copy the contents of one view or row to the clipboard, select
     \uicontrol {Copy Table} or \uicontrol {Copy Row} in the context menu.
 
-    JavaScript events are shown in the \uicontrol Events view only for applications
+    JavaScript events are shown in the \uicontrol Statistics view only for applications
     that use Qt Quick 2 and are compiled with Qt 5.3 or later.
+
+    \section2 Visualizing Statistics as Flame Graphs
+
+    The \uicontrol Flamegraph view shows a more concise statistical overview
+    of QML and JavaScript execution. The horizontal bars show the amount of
+    time all invocations of a certain function took together, relative to the
+    total runtime of all JavaScript and QML events. The nesting shows which
+    functions were called by which other ones. Mind that, unlike the
+    \uicontrol Timeline view, the \uicontrol Flamegraph view does not show the
+    time spans when no QML or JavaScript is running at all. Thus, it is not
+    suitable for analyzing per frame execution times. However, it is very easy
+    to see the total impact of the various QML and JavaScript events there.
+
+    \image qml-profiler-flamegraph.png "Flame Graph View"
 */

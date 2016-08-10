@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -34,6 +29,7 @@
 #include <utils/synchronousprocess.h>
 
 #include <QProcess>
+#include <QProcessEnvironment>
 #include <QDir>
 #include <QApplication>
 
@@ -82,10 +78,10 @@ void PatchTool::setPatchCommand(const QString &newCommand)
     s->endGroup();
 }
 
-bool PatchTool::runPatch(const QByteArray &input, const QString &workingDirectory,
-                         int strip, bool reverse)
+static bool runPatchHelper(const QByteArray &input, const QString &workingDirectory,
+                           int strip, bool reverse, bool withCrlf)
 {
-    const QString patch = patchCommand();
+    const QString patch = PatchTool::patchCommand();
     if (patch.isEmpty()) {
         MessageManager::write(QApplication::translate("Core::PatchTool", "There is no patch-command configured in the general \"Environment\" settings."));
         return false;
@@ -94,11 +90,22 @@ bool PatchTool::runPatch(const QByteArray &input, const QString &workingDirector
     QProcess patchProcess;
     if (!workingDirectory.isEmpty())
         patchProcess.setWorkingDirectory(workingDirectory);
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    env.insert(QLatin1String("LC_ALL"), QLatin1String("C"));
+    patchProcess.setProcessEnvironment(env);
     QStringList args;
+    // Add argument 'apply' when git is used as patch command since git 2.5/Windows
+    // no longer ships patch.exe.
+    if (patch.endsWith(QLatin1String("git"), Qt::CaseInsensitive)
+        || patch.endsWith(QLatin1String("git.exe"), Qt::CaseInsensitive)) {
+        args << QLatin1String("apply");
+    }
     if (strip >= 0)
         args << (QLatin1String("-p") + QString::number(strip));
     if (reverse)
         args << QLatin1String("-R");
+    if (withCrlf)
+        args << QLatin1String("--binary");
     MessageManager::write(QApplication::translate("Core::PatchTool", "Executing in %1: %2 %3").
                           arg(QDir::toNativeSeparators(workingDirectory),
                               QDir::toNativeSeparators(patch), args.join(QLatin1Char(' '))));
@@ -117,8 +124,15 @@ bool PatchTool::runPatch(const QByteArray &input, const QString &workingDirector
         return false;
 
     }
-    if (!stdOut.isEmpty())
-        MessageManager::write(QString::fromLocal8Bit(stdOut));
+    if (!stdOut.isEmpty()) {
+        if (stdOut.contains("(different line endings)") && !withCrlf) {
+            QByteArray crlfInput = input;
+            crlfInput.replace('\n', "\r\n");
+            return runPatchHelper(crlfInput, workingDirectory, strip, reverse, true);
+        } else {
+            MessageManager::write(QString::fromLocal8Bit(stdOut));
+        }
+    }
     if (!stdErr.isEmpty())
         MessageManager::write(QString::fromLocal8Bit(stdErr));
 
@@ -133,5 +147,10 @@ bool PatchTool::runPatch(const QByteArray &input, const QString &workingDirector
     return true;
 }
 
+bool PatchTool::runPatch(const QByteArray &input, const QString &workingDirectory,
+                         int strip, bool reverse)
+{
+    return runPatchHelper(input, workingDirectory, strip, reverse, false);
+}
 
 } // namespace Core

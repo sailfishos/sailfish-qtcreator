@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -34,9 +29,11 @@
 #include "ioutputparser.h"
 #include "osparser.h"
 #include "projectexplorerconstants.h"
+#include "projectexplorericons.h"
 
 #include <utils/algorithm.h>
 #include <utils/fileutils.h>
+#include <utils/icon.h>
 #include <utils/macroexpander.h>
 #include <utils/qtcassert.h>
 
@@ -88,7 +85,7 @@ public:
             m_id = Id::fromString(QUuid::createUuid().toString());
 
         m_unexpandedDisplayName = QCoreApplication::translate("ProjectExplorer::Kit", "Unnamed");
-        m_iconPath = FileName::fromLatin1(":///DESKTOP///");
+        m_iconPath = FileName::fromLatin1(Constants::DESKTOP_DEVICE_ICON);
 
         m_macroExpander.setDisplayName(tr("Kit"));
         m_macroExpander.setAccumulating(true);
@@ -312,17 +309,6 @@ QString Kit::displayName() const
     return d->m_macroExpander.expand(d->m_unexpandedDisplayName);
 }
 
-static QString candidateName(const QString &name, const QString &postfix)
-{
-    if (name.contains(postfix))
-        return QString();
-    QString candidate = name;
-    if (!candidate.isEmpty())
-        candidate.append(QLatin1Char('-'));
-    candidate.append(postfix);
-    return candidate;
-}
-
 void Kit::setUnexpandedDisplayName(const QString &name)
 {
     if (d->m_unexpandedDisplayName == name)
@@ -330,21 +316,6 @@ void Kit::setUnexpandedDisplayName(const QString &name)
 
     d->m_unexpandedDisplayName = name;
     kitUpdated();
-}
-
-QStringList Kit::candidateNameList(const QString &base) const
-{
-    QStringList result;
-    result << base;
-    foreach (KitInformation *ki, KitManager::kitInformation()) {
-        const QString postfix = ki->displayNamePostfix(this);
-        if (!postfix.isEmpty()) {
-            QString tmp = candidateName(base, postfix);
-            if (!tmp.isEmpty())
-                result << tmp;
-        }
-    }
-    return result;
 }
 
 void Kit::setCustomFileSystemFriendlyName(const QString &fileSystemFriendlyName)
@@ -404,10 +375,14 @@ QIcon Kit::icon(const FileName &path)
 {
     if (path.isEmpty())
         return QIcon();
-    if (path == FileName::fromLatin1(":///DESKTOP///"))
-        return qApp->style()->standardIcon(QStyle::SP_ComputerIcon);
 
-    QFileInfo fi(path.toString());
+    if (path == FileName::fromLatin1(Constants::DESKTOP_DEVICE_ICON))
+        return creatorTheme()->flag(Theme::FlatSideBarIcons)
+                ? Icon::combinedIcon({Icons::DESKTOP_DEVICE.icon(),
+                                      Icons::DESKTOP_DEVICE_SMALL.icon()})
+                : QApplication::style()->standardIcon(QStyle::SP_ComputerIcon);
+
+    QFileInfo fi = path.toFileInfo();
     if (fi.isFile() && fi.isReadable())
         return QIcon(path.toString());
     return QIcon();
@@ -639,41 +614,30 @@ bool Kit::isMutable(Id id) const
     return d->m_mutable.contains(id);
 }
 
-QSet<QString> Kit::availablePlatforms() const
+QSet<Id> Kit::supportedPlatforms() const
 {
-    QSet<QString> platforms;
-    foreach (const KitInformation *ki, KitManager::kitInformation())
-        platforms.unite(ki->availablePlatforms(this));
+    QSet<Id> platforms;
+    foreach (const KitInformation *ki, KitManager::kitInformation()) {
+        const QSet<Id> ip = ki->supportedPlatforms(this);
+        if (ip.isEmpty())
+            continue;
+        if (platforms.isEmpty())
+            platforms = ip;
+        else
+            platforms.intersect(ip);
+    }
     return platforms;
 }
 
-bool Kit::hasPlatform(const QString &platform) const
+QSet<Id> Kit::availableFeatures() const
 {
-    if (platform.isEmpty())
-        return true;
-    return availablePlatforms().contains(platform);
-}
-
-QString Kit::displayNameForPlatform(const QString &platform) const
-{
-    foreach (const KitInformation *ki, KitManager::kitInformation()) {
-        const QString displayName = ki->displayNameForPlatform(this, platform);
-        if (!displayName.isEmpty())
-            return displayName;
-    }
-    return QString();
-
-}
-
-FeatureSet Kit::availableFeatures() const
-{
-    FeatureSet features;
+    QSet<Id> features;
     foreach (const KitInformation *ki, KitManager::kitInformation())
         features |= ki->availableFeatures(this);
     return features;
 }
 
-bool Kit::hasFeatures(const FeatureSet &features) const
+bool Kit::hasFeatures(const QSet<Id> &features) const
 {
     return availableFeatures().contains(features);
 }

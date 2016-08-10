@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -84,7 +79,7 @@ static inline bool checkIfDerivedFromItem(const QString &fileName)
     QmlJS::Document::MutablePtr document =
             QmlJS::Document::create(fileName.isEmpty() ?
                                         QStringLiteral("<internal>") : fileName, QmlJS::Dialect::Qml);
-    document->setSource(source);
+    document->setSource(QString::fromUtf8(source));
     document->parseQml();
 
 
@@ -113,7 +108,7 @@ static inline bool checkIfDerivedFromItem(const QString &fileName)
     QList<const QmlJS::ObjectValue *> prototypes = QmlJS::PrototypeIterator(objectValue, context).all();
 
     foreach (const QmlJS::ObjectValue *prototype, prototypes) {
-        if (prototype->className() == "Item")
+        if (prototype->className() == QLatin1String("Item"))
             return true;
     }
 
@@ -193,7 +188,7 @@ void SubComponentManager::parseDirectories()
             parseDirectory(dirInfo.canonicalFilePath());
 
         foreach (const QString &subDir, QDir(QFileInfo(file).path()).entryList(QDir::Dirs | QDir::NoDot | QDir::NoDotDot)) {
-            parseDirectory(dirInfo.canonicalFilePath() + "/" + subDir, true, subDir.toUtf8());
+            parseDirectory(dirInfo.canonicalFilePath() + QLatin1String("/") + subDir, true, subDir.toUtf8());
         }
     }
 
@@ -232,10 +227,10 @@ void SubComponentManager::parseDirectory(const QString &canonicalDirPath, bool a
     if (!model() || !model()->rewriterView())
         return;
 
-    QDir designerDir(canonicalDirPath + Constants::QML_DESIGNER_SUBFOLDER);
+    QDir designerDir(canonicalDirPath + QLatin1String(Constants::QML_DESIGNER_SUBFOLDER));
     if (designerDir.exists()) {
         QStringList filter;
-        filter << "*.metainfo";
+        filter << QLatin1String("*.metainfo");
         designerDir.setNameFilters(filter);
 
         QStringList metaFiles = designerDir.entryList(QDir::Files);
@@ -303,7 +298,7 @@ void SubComponentManager::parseDirectory(const QString &canonicalDirPath, bool a
             continue;
         }
         // oldFileInfo > newFileInfo
-        parseFile(newFileInfo.filePath(), addToLibrary, qualification);
+        parseFile(newFileInfo.filePath(), addToLibrary, QString::fromUtf8(qualification));
         ++newIter;
     }
 
@@ -314,7 +309,7 @@ void SubComponentManager::parseDirectory(const QString &canonicalDirPath, bool a
     }
 
     while (newIter != newList.constEnd()) {
-        parseFile(newIter->filePath(), addToLibrary, qualification);
+        parseFile(newIter->filePath(), addToLibrary, QString::fromUtf8(qualification));
         if (debug)
             qDebug() << "m_watcher.addPath(" << newIter->filePath() << ')';
         ++newIter;
@@ -359,7 +354,7 @@ void SubComponentManager::unregisterQmlFile(const QFileInfo &fileInfo, const QSt
 {
     QString componentName = fileInfo.baseName();
     if (!qualifier.isEmpty())
-        componentName = qualifier + '.' + componentName;
+        componentName = qualifier + QLatin1Char('.') + componentName;
 }
 
 
@@ -380,7 +375,7 @@ void SubComponentManager::registerQmlFile(const QFileInfo &fileInfo, const QStri
         fixedQualifier = qualifier;
         if (qualifier.right(1) == QStringLiteral("."))
             fixedQualifier.chop(1); //remove last char if it is a dot
-        componentName = fixedQualifier + '.' + componentName;
+        componentName = fixedQualifier + QLatin1Char('.') + componentName;
     }
 
     if (debug)
@@ -389,9 +384,9 @@ void SubComponentManager::registerQmlFile(const QFileInfo &fileInfo, const QStri
     if (addToLibrary) {
         // Add file components to the library
         ItemLibraryEntry itemLibraryEntry;
-        itemLibraryEntry.setType(componentName.toUtf8(), -1, -1);
+        itemLibraryEntry.setType(componentName.toUtf8());
         itemLibraryEntry.setName(baseComponentName);
-        itemLibraryEntry.setCategory("QML Components");
+        itemLibraryEntry.setCategory(QLatin1String("QML Components"));
         if (!qualifier.isEmpty()) {
             itemLibraryEntry.setRequiredImport(fixedQualifier);
         }

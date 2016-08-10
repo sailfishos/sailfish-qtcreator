@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -93,10 +88,6 @@ void MakeStep::setMakeCommand(const QString &make)
     m_makeCmd = make;
 }
 
-MakeStep::~MakeStep()
-{
-}
-
 QmakeBuildConfiguration *MakeStep::qmakeBuildConfiguration() const
 {
     return static_cast<QmakeBuildConfiguration *>(buildConfiguration());
@@ -151,7 +142,7 @@ bool MakeStep::fromMap(const QVariantMap &map)
     return AbstractProcessStep::fromMap(map);
 }
 
-bool MakeStep::init()
+bool MakeStep::init(QList<const BuildStep *> &earlierSteps)
 {
     QmakeBuildConfiguration *bc = qmakeBuildConfiguration();
     if (!bc)
@@ -232,10 +223,12 @@ bool MakeStep::init()
             }
         }
         QString relObjectsDir = QDir(pp->workingDirectory()).relativeFilePath(objectsDir);
+        if (relObjectsDir == QLatin1String("."))
+            relObjectsDir.clear();
         if (!relObjectsDir.isEmpty())
             relObjectsDir += QLatin1Char('/');
         QString objectFile = relObjectsDir +
-                bc->fileNodeBuild()->path().toFileInfo().baseName() +
+                bc->fileNodeBuild()->filePath().toFileInfo().baseName() +
                 subNode->objectExtension();
         Utils::QtcProcess::addArg(&args, objectFile);
     }
@@ -263,9 +256,9 @@ bool MakeStep::init()
     appendOutputParser(new QMakeParser); // make may cause qmake to be run, add last to make sure
                                          // it has a low priority.
 
-    m_scriptTarget = (static_cast<QmakeProject *>(bc->target()->project())->rootQmakeProjectNode()->projectType() == ScriptTemplate);
+    m_scriptTarget = (static_cast<QmakeProject *>(bc->target()->project())->rootProjectNode()->projectType() == ScriptTemplate);
 
-    return AbstractProcessStep::init();
+    return AbstractProcessStep::init(earlierSteps);
 }
 
 void MakeStep::run(QFutureInterface<bool> & fi)
@@ -323,7 +316,7 @@ MakeStepConfigWidget::MakeStepConfigWidget(MakeStep *makeStep)
 
     updateDetails();
 
-    connect(m_ui->makePathChooser, SIGNAL(changed(QString)),
+    connect(m_ui->makePathChooser, SIGNAL(rawPathChanged(QString)),
             this, SLOT(makeEdited()));
     connect(m_ui->makeArgumentsLineEdit, SIGNAL(textEdited(QString)),
             this, SLOT(makeArgumentsLineEdited()));
@@ -344,6 +337,8 @@ MakeStepConfigWidget::MakeStepConfigWidget(MakeStep *makeStep)
     if (bc) {
         connect(bc, SIGNAL(buildDirectoryChanged()),
                 this, SLOT(updateDetails()));
+        connect(bc, &BuildConfiguration::environmentChanged,
+                this, &MakeStepConfigWidget::updateDetails);
     }
 
     connect(ProjectExplorerPlugin::instance(), SIGNAL(settingsChanged()),
@@ -356,6 +351,8 @@ void MakeStepConfigWidget::activeBuildConfigurationChanged()
     if (m_bc) {
         disconnect(m_bc, SIGNAL(buildDirectoryChanged()),
                 this, SLOT(updateDetails()));
+        disconnect(m_bc, &BuildConfiguration::environmentChanged,
+                   this, &MakeStepConfigWidget::updateDetails);
     }
 
     m_bc = m_makeStep->target()->activeBuildConfiguration();
@@ -364,6 +361,8 @@ void MakeStepConfigWidget::activeBuildConfigurationChanged()
     if (m_bc) {
         connect(m_bc, SIGNAL(buildDirectoryChanged()),
                 this, SLOT(updateDetails()));
+        connect(m_bc, &BuildConfiguration::environmentChanged,
+                this, &MakeStepConfigWidget::updateDetails);
     }
 }
 
@@ -469,10 +468,6 @@ void MakeStepConfigWidget::makeArgumentsLineEdited()
 
 MakeStepFactory::MakeStepFactory(QObject *parent) :
     IBuildStepFactory(parent)
-{
-}
-
-MakeStepFactory::~MakeStepFactory()
 {
 }
 

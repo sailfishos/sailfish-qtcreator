@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -477,7 +472,7 @@ QModelIndex QmlOutlineModel::enterObjectDefinition(AST::UiObjectDefinition *objD
     } else {
         // it's a grouped propery like 'anchors'
         data.insert(ItemTypeRole, NonElementBindingType);
-        icon = m_icons->scriptBindingIcon();
+        icon = Icons::scriptBindingIcon();
     }
 
     QmlOutlineItem *item = enterNode(data, objDef, idNode, icon);
@@ -497,7 +492,7 @@ QModelIndex QmlOutlineModel::enterObjectBinding(AST::UiObjectBinding *objBinding
     bindingData.insert(Qt::DisplayRole, asString(objBinding->qualifiedId));
     bindingData.insert(ItemTypeRole, ElementBindingType);
 
-    QmlOutlineItem *bindingItem = enterNode(bindingData, objBinding, objBinding->qualifiedId, m_icons->scriptBindingIcon());
+    QmlOutlineItem *bindingItem = enterNode(bindingData, objBinding, objBinding->qualifiedId, Icons::scriptBindingIcon());
 
     const QString typeName = asString(objBinding->qualifiedTypeNameId);
     if (!m_typeToIcon.contains(typeName))
@@ -526,7 +521,7 @@ QModelIndex QmlOutlineModel::enterArrayBinding(AST::UiArrayBinding *arrayBinding
     bindingData.insert(Qt::DisplayRole, asString(arrayBinding->qualifiedId));
     bindingData.insert(ItemTypeRole, ElementBindingType);
 
-    QmlOutlineItem *item = enterNode(bindingData, arrayBinding, arrayBinding->qualifiedId, m_icons->scriptBindingIcon());
+    QmlOutlineItem *item = enterNode(bindingData, arrayBinding, arrayBinding->qualifiedId, Icons::scriptBindingIcon());
 
     return item->index();
 }
@@ -544,7 +539,7 @@ QModelIndex QmlOutlineModel::enterScriptBinding(AST::UiScriptBinding *scriptBind
     objectData.insert(AnnotationRole, getAnnotation(scriptBinding->statement));
     objectData.insert(ItemTypeRole, NonElementBindingType);
 
-    QmlOutlineItem *item = enterNode(objectData, scriptBinding, scriptBinding->qualifiedId, m_icons->scriptBindingIcon());
+    QmlOutlineItem *item = enterNode(objectData, scriptBinding, scriptBinding->qualifiedId, Icons::scriptBindingIcon());
 
     return item->index();
 }
@@ -563,7 +558,7 @@ QModelIndex QmlOutlineModel::enterPublicMember(AST::UiPublicMember *publicMember
     objectData.insert(AnnotationRole, getAnnotation(publicMember->statement));
     objectData.insert(ItemTypeRole, NonElementBindingType);
 
-    QmlOutlineItem *item = enterNode(objectData, publicMember, 0, m_icons->publicMemberIcon());
+    QmlOutlineItem *item = enterNode(objectData, publicMember, 0, Icons::publicMemberIcon());
 
     return item->index();
 }
@@ -581,7 +576,7 @@ QModelIndex QmlOutlineModel::enterFunctionDeclaration(AST::FunctionDeclaration *
         objectData.insert(Qt::DisplayRole, functionDeclaration->name.toString());
     objectData.insert(ItemTypeRole, ElementBindingType);
 
-    QmlOutlineItem *item = enterNode(objectData, functionDeclaration, 0, m_icons->functionDeclarationIcon());
+    QmlOutlineItem *item = enterNode(objectData, functionDeclaration, 0, Icons::functionDeclarationIcon());
 
     return item->index();
 }
@@ -598,7 +593,7 @@ QModelIndex QmlOutlineModel::enterTestCase(AST::ObjectLiteral *objectLiteral)
     objectData.insert(Qt::DisplayRole, QLatin1String("testcase"));
     objectData.insert(ItemTypeRole, ElementBindingType);
 
-    QmlOutlineItem *item = enterNode(objectData, objectLiteral, 0, m_icons->objectDefinitionIcon());
+    QmlOutlineItem *item = enterNode(objectData, objectLiteral, 0, Icons::objectDefinitionIcon());
 
     return item->index();
 }
@@ -618,11 +613,11 @@ QModelIndex QmlOutlineModel::enterTestCaseProperties(AST::PropertyAssignmentList
             objectData.insert(ItemTypeRole, ElementBindingType);
             QmlOutlineItem *item;
             if (assignment->value->kind == AST::Node::Kind_FunctionExpression)
-                item = enterNode(objectData, assignment, 0, m_icons->functionDeclarationIcon());
+                item = enterNode(objectData, assignment, 0, Icons::functionDeclarationIcon());
             else if (assignment->value->kind == AST::Node::Kind_ObjectLiteral)
-                item = enterNode(objectData, assignment, 0, m_icons->objectDefinitionIcon());
+                item = enterNode(objectData, assignment, 0, Icons::objectDefinitionIcon());
             else
-                item = enterNode(objectData, assignment, 0, m_icons->scriptBindingIcon());
+                item = enterNode(objectData, assignment, 0, Icons::scriptBindingIcon());
 
             return item->index();
         }
@@ -633,7 +628,7 @@ QModelIndex QmlOutlineModel::enterTestCaseProperties(AST::PropertyAssignmentList
             objectData.insert(Qt::DisplayRole, propertyName->id.toString());
             objectData.insert(ItemTypeRole, ElementBindingType);
             QmlOutlineItem *item;
-            item = enterNode(objectData, getterSetter, 0, m_icons->functionDeclarationIcon());
+            item = enterNode(objectData, getterSetter, 0, Icons::functionDeclarationIcon());
 
             return item->index();
 

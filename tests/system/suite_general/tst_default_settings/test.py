@@ -1,32 +1,27 @@
-#############################################################################
-##
-## Copyright (C) 2015 The Qt Company Ltd.
-## Contact: http://www.qt.io/licensing
-##
-## This file is part of Qt Creator.
-##
-## Commercial License Usage
-## Licensees holding valid commercial Qt licenses may use this file in
-## accordance with the commercial license agreement provided with the
-## Software or, alternatively, in accordance with the terms contained in
-## a written agreement between you and The Qt Company.  For licensing terms and
-## conditions see http://www.qt.io/terms-conditions.  For further information
-## use the contact form at http://www.qt.io/contact-us.
-##
-## GNU Lesser General Public License Usage
-## Alternatively, this file may be used under the terms of the GNU Lesser
-## General Public License version 2.1 or version 3 as published by the Free
-## Software Foundation and appearing in the file LICENSE.LGPLv21 and
-## LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-## following information to ensure the GNU Lesser General Public License
-## requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-## http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-##
-## In addition, as a special exception, The Qt Company gives you certain additional
-## rights.  These rights are described in The Qt Company LGPL Exception
-## version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
-##
-#############################################################################
+############################################################################
+#
+# Copyright (C) 2016 The Qt Company Ltd.
+# Contact: https://www.qt.io/licensing/
+#
+# This file is part of Qt Creator.
+#
+# Commercial License Usage
+# Licensees holding valid commercial Qt licenses may use this file in
+# accordance with the commercial license agreement provided with the
+# Software or, alternatively, in accordance with the terms contained in
+# a written agreement between you and The Qt Company. For licensing terms
+# and conditions see https://www.qt.io/terms-conditions. For further
+# information use the contact form at https://www.qt.io/contact-us.
+#
+# GNU General Public License Usage
+# Alternatively, this file may be used under the terms of the GNU
+# General Public License version 3 as published by the Free Software
+# Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+# included in the packaging of this file. Please review the following
+# information to ensure the GNU General Public License requirements will
+# be met: https://www.gnu.org/licenses/gpl-3.0.html.
+#
+############################################################################
 
 source("../../shared/qtcreator.py")
 
@@ -80,8 +75,7 @@ def __checkBuildAndRun__():
     qmakePath = which("qmake")
     foundQt = []
     clickOnTab(":Options.qt_tabwidget_tabbar_QTabBar", "Qt Versions")
-    __iterateTree__(":QtSupport__Internal__QtVersionManager.qtdirList_QTreeWidget",
-                    __qtFunc__, foundQt, qmakePath)
+    __iterateTree__(":qtdirList_QTreeView", __qtFunc__, foundQt, qmakePath)
     test.verify(not qmakePath or len(foundQt) == 1,
                 "Was qmake from %s autodetected? Found %s" % (qmakePath, foundQt))
     if foundQt:
@@ -123,7 +117,7 @@ def __compFunc__(it, foundComp, foundCompNames):
     foundCompNames.append(it)
 
 def __dbgFunc__(it, foundDbg):
-    waitFor("object.exists(':Path.Utils_BaseValidatingLineEdit')", 1000)
+    waitFor("object.exists(':Path.Utils_BaseValidatingLineEdit')", 2000)
     pathLineEdit = findObject(":Path.Utils_BaseValidatingLineEdit")
     foundDbg.append(str(pathLineEdit.text))
 
@@ -171,7 +165,7 @@ def __getExpectedCompilers__():
     if platform.system() in ('Linux', 'Darwin'):
         compilers.extend(["g++-4.0", "g++-4.2", "clang++"])
     if platform.system() == 'Darwin':
-        xcodeClang = getOutputFromCmdline("xcrun --find clang++").strip("\n")
+        xcodeClang = getOutputFromCmdline(["xcrun", "--find", "clang++"]).strip("\n")
         if xcodeClang and os.path.exists(xcodeClang) and xcodeClang not in expected:
             expected.append(xcodeClang)
     for compiler in compilers:
@@ -186,14 +180,19 @@ def __getExpectedCompilers__():
 
 def __getWinCompilers__():
     result = []
-    winEnvVars = __getWinEnvVars__()
     for record in testData.dataset("win_compiler_paths.tsv"):
-        envvar = winEnvVars.get(testData.field(record, "envvar"), "")
+        envvar = os.getenv(testData.field(record, "envvar"))
+        if not envvar:
+            continue
         compiler = os.path.abspath(os.path.join(envvar, testData.field(record, "path"),
                                                 testData.field(record, "file")))
         if os.path.exists(compiler):
             parameters = testData.field(record, "displayedParameters").split(",")
             usedParameters = testData.field(record, "usedParameters").split(",")
+            idePath = testData.field(record, "IDEPath")
+            if len(idePath):
+                if not os.path.exists(os.path.abspath(os.path.join(envvar, idePath))):
+                    continue
             if testData.field(record, "isSDK") == "true":
                 for para, used in zip(parameters, usedParameters):
                     result.append(
@@ -206,32 +205,19 @@ def __getWinCompilers__():
                                    :"%s %s" % (compiler, used)})
     return result
 
-# using os.getenv() or getOutputFromCmdline() do not work - they would return C:\Program Files (x86)
-# for %ProgramFiles% as well as for %ProgramFiles(x86)% when using Python 32bit on 64bit machines
-def __getWinEnvVars__():
-    result = {}
-    tmpF, tmpFPath = tempfile.mkstemp()
-    envvars = subprocess.call('set', stdout=tmpF, shell=True)
-    os.close(tmpF)
-    tmpF = open(tmpFPath, "r")
-    for line in tmpF:
-        tmp = line.split("=")
-        result[tmp[0]] = tmp[1]
-    tmpF.close()
-    os.remove(tmpFPath)
-    return result
-
 def __getExpectedDebuggers__():
+    exeSuffix = ""
     result = []
     if platform.system() in ('Microsoft', 'Windows'):
         result.extend(__getCDB__())
+        exeSuffix = ".exe"
     for debugger in ["gdb", "lldb"]:
-        result.extend(findAllFilesInPATH(debugger))
+        result.extend(findAllFilesInPATH(debugger + exeSuffix))
     if platform.system() == 'Linux':
         result.extend(filter(lambda s: not ("lldb-platform" in s or "lldb-gdbserver" in s),
                              findAllFilesInPATH("lldb-*")))
     if platform.system() == 'Darwin':
-        xcodeLLDB = getOutputFromCmdline("xcrun --find lldb").strip("\n")
+        xcodeLLDB = getOutputFromCmdline(["xcrun", "--find", "lldb"]).strip("\n")
         if xcodeLLDB and os.path.exists(xcodeLLDB) and xcodeLLDB not in result:
             result.append(xcodeLLDB)
     return result
@@ -255,6 +241,7 @@ def __getCDB__():
     return result
 
 def __compareCompilers__(foundCompilers, expectedCompilers):
+    # TODO: Check if all expected compilers were found
     equal = True
     flags = 0
     isWin = platform.system() in ('Microsoft', 'Windows')
@@ -276,7 +263,7 @@ def __compareCompilers__(foundCompilers, expectedCompilers):
                         or currentFound.values() == currentExp.values()):
                         foundExp = True
                         break
-                equal = foundExp
+            equal = foundExp
         else:
             if isWin:
                 equal = currentFound.lower() in __lowerStrs__(expectedCompilers)

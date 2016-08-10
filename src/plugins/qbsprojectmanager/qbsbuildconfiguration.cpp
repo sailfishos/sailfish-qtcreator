@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,38 +9,34 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
 #include "qbsbuildconfiguration.h"
 
 #include "qbsbuildconfigurationwidget.h"
-#include "qbsbuildinfo.h"
 #include "qbsbuildstep.h"
 #include "qbscleanstep.h"
 #include "qbsinstallstep.h"
 #include "qbsproject.h"
 #include "qbsprojectmanagerconstants.h"
+#include "qbsprojectmanagersettings.h"
 
 #include <coreplugin/documentmanager.h>
 #include <coreplugin/icore.h>
 #include <utils/qtcassert.h>
+#include <projectexplorer/buildinfo.h>
 #include <projectexplorer/buildsteplist.h>
 #include <projectexplorer/kit.h>
 #include <projectexplorer/kitinformation.h>
@@ -228,7 +224,7 @@ public:
 
     bool dryRun() const {
         if (m_qbsBuildStep)
-            return m_qbsBuildStep->dryRun();
+            return false;
         if (m_qbsCleanStep)
             return m_qbsCleanStep->dryRun();
         return m_qbsInstallStep->dryRun();
@@ -262,10 +258,6 @@ public:
         return m_qbsBuildStep ? m_qbsBuildStep->maxJobs() : 0;
     }
 
-    bool allArtifacts() const {
-        return m_qbsCleanStep ? m_qbsCleanStep->cleanAll() : false;
-    }
-
     QString installRoot() const {
         return m_qbsInstallStep ? m_qbsInstallStep->absoluteInstallRoot() : QString();
     }
@@ -294,8 +286,10 @@ QString QbsBuildConfiguration::equivalentCommandLine(const BuildStep *buildStep)
     }
     Utils::QtcProcess::addArgs(&commandLine, QStringList() << QLatin1String("-f")
                                << buildStep->project()->projectFilePath().toUserOutput());
-    Utils::QtcProcess::addArgs(&commandLine, QStringList() << QLatin1String("--settings-dir")
-                               << QDir::toNativeSeparators(Core::ICore::userResourcePath()));
+    if (QbsProjectManagerSettings::useCreatorSettingsDirForQbs()) {
+        Utils::QtcProcess::addArgs(&commandLine, QStringList() << QLatin1String("--settings-dir")
+                << QDir::toNativeSeparators(QbsProjectManagerSettings::qbsSettingsBaseDir()));
+    }
     if (stepProxy.dryRun())
         Utils::QtcProcess::addArg(&commandLine, QLatin1String("--dry-run"));
     if (stepProxy.keepGoing())
@@ -313,8 +307,6 @@ QString QbsBuildConfiguration::equivalentCommandLine(const BuildStep *buildStep)
         Utils::QtcProcess::addArgs(&commandLine, QStringList() << QLatin1String("--jobs")
                                    << QString::number(jobCount));
     }
-    if (stepProxy.allArtifacts())
-        Utils::QtcProcess::addArg(&commandLine, QLatin1String("--all-artifacts"));
     const QString installRoot = stepProxy.installRoot();
     if (!installRoot.isEmpty()) {
         Utils::QtcProcess::addArgs(&commandLine, QStringList() << QLatin1String("--install-root")
@@ -363,9 +355,6 @@ QbsBuildConfigurationFactory::QbsBuildConfigurationFactory(QObject *parent) :
     IBuildConfigurationFactory(parent)
 { }
 
-QbsBuildConfigurationFactory::~QbsBuildConfigurationFactory()
-{ }
-
 bool QbsBuildConfigurationFactory::canHandle(const Target *t) const
 {
     return qobject_cast<Internal::QbsProject *>(t->project());
@@ -374,10 +363,10 @@ bool QbsBuildConfigurationFactory::canHandle(const Target *t) const
 BuildInfo *QbsBuildConfigurationFactory::createBuildInfo(const Kit *k,
                                                          BuildConfiguration::BuildType type) const
 {
-    QbsBuildInfo *info = new QbsBuildInfo(this);
+    auto info = new ProjectExplorer::BuildInfo(this);
     info->typeName = tr("Build");
     info->kitId = k->id();
-    info->type = type;
+    info->buildType = type;
     return info;
 }
 
@@ -405,10 +394,11 @@ int QbsBuildConfigurationFactory::priority(const Kit *k, const QString &projectP
 }
 
 static Utils::FileName defaultBuildDirectory(const QString &projectFilePath, const Kit *k,
-                                             const QString &bcName)
+                                             const QString &bcName,
+                                             BuildConfiguration::BuildType buildType)
 {
     const QString projectName = QFileInfo(projectFilePath).completeBaseName();
-    ProjectMacroExpander expander(projectName, k, bcName);
+    ProjectMacroExpander expander(projectName, k, bcName, buildType);
     QString projectDir = Project::projectDirectory(Utils::FileName::fromString(projectFilePath)).toString();
     QString buildPath = expander.expand(Core::DocumentManager::buildDirectory());
     return Utils::FileName::fromString(Utils::FileUtils::resolvePath(projectDir, buildPath));
@@ -422,14 +412,18 @@ QList<BuildInfo *> QbsBuildConfigurationFactory::availableSetups(const Kit *k, c
     //: The name of the debug build configuration created by default for a qbs project.
     info->displayName = tr("Debug");
     //: Non-ASCII characters in directory suffix may cause build issues.
-    info->buildDirectory = defaultBuildDirectory(projectPath, k, tr("Debug", "Shadow build directory suffix"));
+    info->buildDirectory
+            = defaultBuildDirectory(projectPath, k, tr("Debug", "Shadow build directory suffix"),
+                                    info->buildType);
     result << info;
 
     info = createBuildInfo(k, BuildConfiguration::Release);
     //: The name of the release build configuration created by default for a qbs project.
     info->displayName = tr("Release");
     //: Non-ASCII characters in directory suffix may cause build issues.
-    info->buildDirectory = defaultBuildDirectory(projectPath, k, tr("Release", "Shadow build directory suffix"));
+    info->buildDirectory
+            = defaultBuildDirectory(projectPath, k, tr("Release", "Shadow build directory suffix"),
+                                    info->buildType);
     result << info;
 
     return result;
@@ -441,18 +435,16 @@ BuildConfiguration *QbsBuildConfigurationFactory::create(Target *parent, const B
     QTC_ASSERT(info->kitId == parent->kit()->id(), return 0);
     QTC_ASSERT(!info->displayName.isEmpty(), return 0);
 
-    const QbsBuildInfo *qbsInfo = static_cast<const QbsBuildInfo *>(info);
-
     QVariantMap configData;
     configData.insert(QLatin1String(Constants::QBS_CONFIG_VARIANT_KEY),
-                      (qbsInfo->type == BuildConfiguration::Release)
-                      ? QLatin1String(Constants::QBS_VARIANT_RELEASE)
-                      : QLatin1String(Constants::QBS_VARIANT_DEBUG));
+                      (info->buildType == BuildConfiguration::Debug)
+                          ? QLatin1String(Constants::QBS_VARIANT_DEBUG)
+                          : QLatin1String(Constants::QBS_VARIANT_RELEASE));
 
     Utils::FileName buildDir = info->buildDirectory;
     if (buildDir.isEmpty())
         buildDir = defaultBuildDirectory(parent->project()->projectDirectory().toString(),
-                                         parent->kit(), info->displayName);
+                                         parent->kit(), info->displayName, info->buildType);
 
     BuildConfiguration *bc
             = QbsBuildConfiguration::setup(parent, info->displayName, info->displayName,

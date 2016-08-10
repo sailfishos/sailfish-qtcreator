@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -173,6 +168,7 @@ public:
     void emitCustomNotification(const QString &identifier, const QList<ModelNode> &nodeList, const QList<QVariant> &data);
 
     void emitInstancePropertyChange(const QList<QPair<ModelNode, PropertyName> > &propertyList);
+    void emitInstanceErrorChange(const QVector<qint32> &instanceIds);
     void emitInstancesCompleted(const QVector<ModelNode> &nodeList);
     void emitInstanceInformationsChange(const QMultiHash<ModelNode, InformationName> &informationChangeHash);
     void emitInstancesRenderImageChanged(const QVector<ModelNode> &nodeList);
@@ -187,49 +183,49 @@ public:
     virtual void modelAttached(Model *model);
     virtual void modelAboutToBeDetached(Model *model);
 
-    virtual void nodeCreated(const ModelNode &createdNode) = 0;
-    virtual void nodeAboutToBeRemoved(const ModelNode &removedNode) = 0;
-    virtual void nodeRemoved(const ModelNode &removedNode, const NodeAbstractProperty &parentProperty, PropertyChangeFlags propertyChange) = 0;
-    virtual void nodeAboutToBeReparented(const ModelNode &node, const NodeAbstractProperty &newPropertyParent, const NodeAbstractProperty &oldPropertyParent, AbstractView::PropertyChangeFlags propertyChange) = 0;
-    virtual void nodeReparented(const ModelNode &node, const NodeAbstractProperty &newPropertyParent, const NodeAbstractProperty &oldPropertyParent, AbstractView::PropertyChangeFlags propertyChange) = 0;
-    virtual void nodeIdChanged(const ModelNode& node, const QString& newId, const QString& oldId) = 0;
-    virtual void propertiesAboutToBeRemoved(const QList<AbstractProperty>& propertyList) = 0;
-    virtual void propertiesRemoved(const QList<AbstractProperty>& propertyList) = 0;
-    virtual void variantPropertiesChanged(const QList<VariantProperty>& propertyList, PropertyChangeFlags propertyChange) = 0;
-    virtual void bindingPropertiesChanged(const QList<BindingProperty>& propertyList, PropertyChangeFlags propertyChange) = 0;
-    virtual void signalHandlerPropertiesChanged(const QVector<SignalHandlerProperty>& propertyList, PropertyChangeFlags propertyChange) = 0;
-    virtual void rootNodeTypeChanged(const QString &type, int majorVersion, int minorVersion) = 0;
+    virtual void nodeCreated(const ModelNode &createdNode);
+    virtual void nodeAboutToBeRemoved(const ModelNode &removedNode);
+    virtual void nodeRemoved(const ModelNode &removedNode, const NodeAbstractProperty &parentProperty, PropertyChangeFlags propertyChange);
+    virtual void nodeAboutToBeReparented(const ModelNode &node, const NodeAbstractProperty &newPropertyParent, const NodeAbstractProperty &oldPropertyParent, AbstractView::PropertyChangeFlags propertyChange);
+    virtual void nodeReparented(const ModelNode &node, const NodeAbstractProperty &newPropertyParent, const NodeAbstractProperty &oldPropertyParent, AbstractView::PropertyChangeFlags propertyChange);
+    virtual void nodeIdChanged(const ModelNode& node, const QString& newId, const QString& oldId);
+    virtual void propertiesAboutToBeRemoved(const QList<AbstractProperty>& propertyList);
+    virtual void propertiesRemoved(const QList<AbstractProperty>& propertyList);
+    virtual void variantPropertiesChanged(const QList<VariantProperty>& propertyList, PropertyChangeFlags propertyChange);
+    virtual void bindingPropertiesChanged(const QList<BindingProperty>& propertyList, PropertyChangeFlags propertyChange);
+    virtual void signalHandlerPropertiesChanged(const QVector<SignalHandlerProperty>& propertyList, PropertyChangeFlags propertyChange);
+    virtual void rootNodeTypeChanged(const QString &type, int majorVersion, int minorVersion);
 
-    virtual void instancePropertyChange(const QList<QPair<ModelNode, PropertyName> > &propertyList) = 0;
-    virtual void instancesCompleted(const QVector<ModelNode> &completedNodeList) = 0;
-    virtual void instanceInformationsChange(const QMultiHash<ModelNode, InformationName> &informationChangeHash) = 0;
-    virtual void instancesRenderImageChanged(const QVector<ModelNode> &nodeList) = 0;
-    virtual void instancesPreviewImageChanged(const QVector<ModelNode> &nodeList) = 0;
-    virtual void instancesChildrenChanged(const QVector<ModelNode> &nodeList) = 0;
-    virtual void instancesToken(const QString &tokenName, int tokenNumber, const QVector<ModelNode> &nodeVector) = 0;
+    virtual void instancePropertyChange(const QList<QPair<ModelNode, PropertyName> > &propertyList);
+    virtual void instanceErrorChange(const QVector<ModelNode> &errorNodeList);
+    virtual void instancesCompleted(const QVector<ModelNode> &completedNodeList);
+    virtual void instanceInformationsChange(const QMultiHash<ModelNode, InformationName> &informationChangeHash);
+    virtual void instancesRenderImageChanged(const QVector<ModelNode> &nodeList);
+    virtual void instancesPreviewImageChanged(const QVector<ModelNode> &nodeList);
+    virtual void instancesChildrenChanged(const QVector<ModelNode> &nodeList);
+    virtual void instancesToken(const QString &tokenName, int tokenNumber, const QVector<ModelNode> &nodeVector);
 
-    virtual void nodeSourceChanged(const ModelNode &modelNode, const QString &newNodeSource) = 0;
+    virtual void nodeSourceChanged(const ModelNode &modelNode, const QString &newNodeSource);
 
-    virtual void rewriterBeginTransaction() = 0;
-    virtual void rewriterEndTransaction() = 0;
+    virtual void rewriterBeginTransaction();
+    virtual void rewriterEndTransaction();
 
-    virtual void currentStateChanged(const ModelNode &node) = 0; // base state is a invalid model node
+    virtual void currentStateChanged(const ModelNode &node); // base state is a invalid model node
 
     virtual void selectedNodesChanged(const QList<ModelNode> &selectedNodeList,
-                                      const QList<ModelNode> &lastSelectedNodeList) = 0;
+                                      const QList<ModelNode> &lastSelectedNodeList);
 
     virtual void fileUrlChanged(const QUrl &oldUrl, const QUrl &newUrl);
 
-    virtual void nodeOrderChanged(const NodeListProperty &listProperty, const ModelNode &movedNode, int oldIndex) = 0;
+    virtual void nodeOrderChanged(const NodeListProperty &listProperty, const ModelNode &movedNode, int oldIndex);
 
-    virtual void importsChanged(const QList<Import> &addedImports, const QList<Import> &removedImports) = 0;
+    virtual void importsChanged(const QList<Import> &addedImports, const QList<Import> &removedImports);
 
     virtual void auxiliaryDataChanged(const ModelNode &node, const PropertyName &name, const QVariant &data);
 
     virtual void customNotification(const AbstractView *view, const QString &identifier, const QList<ModelNode> &nodeList, const QList<QVariant> &data);
 
-    virtual void scriptFunctionsChanged(const ModelNode &node, const QStringList &scriptFunctionList) = 0;
-
+    virtual void scriptFunctionsChanged(const ModelNode &node, const QStringList &scriptFunctionList);
 
     void changeRootNodeType(const TypeName &type, int majorVersion, int minorVersion);
 
@@ -243,6 +239,8 @@ public:
     int majorQtQuickVersion() const;
 
     void resetView();
+
+    void resetPuppet();
 
     virtual bool hasWidget() const;
     virtual WidgetInfo widgetInfo();

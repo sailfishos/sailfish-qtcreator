@@ -50,7 +50,7 @@ MerTargetKitInformation::MerTargetKitInformation()
     setPriority(23);
 }
 
-QVariant MerTargetKitInformation::defaultValue(Kit *kit) const
+QVariant MerTargetKitInformation::defaultValue(const Kit *kit) const
 {
     return MerTargetKitInformation::targetName(kit);
 }
@@ -59,7 +59,7 @@ QList<Task> MerTargetKitInformation::validate(const Kit *kit) const
 {
     if (MerDeviceFactory::canCreate(DeviceTypeKitInformation::deviceTypeId(kit))) {
         const MerSdk *sdk = MerSdkKitInformation::sdk(kit);
-        const QString &target = kit->value(Core::Id(Constants::TARGET)).toString();
+        const QString &target = kit->value(MerTargetKitInformation::id()).toString();
         if (sdk && !sdk->targetNames().contains(target)) {
             const QString message = QCoreApplication::translate("MerTarget",
                                                                 "No valid MerTarget for %1 sdk found").arg(sdk->virtualMachineName());
@@ -74,7 +74,7 @@ QString MerTargetKitInformation::targetName(const Kit *kit)
 {
     if (!kit)
         return QString();
-    return kit->value(Core::Id(Constants::TARGET)).toString();
+    return kit->value(MerTargetKitInformation::id()).toString();
 }
 
 KitInformation::ItemList MerTargetKitInformation::toUserOutput(const Kit *kit) const
@@ -98,8 +98,8 @@ Core::Id MerTargetKitInformation::id()
 }
 void MerTargetKitInformation::setTargetName(Kit *kit, const QString& targetName)
 {
-    if (kit->value(Id(Constants::TARGET)) != targetName)
-        kit->setValue(Id(Constants::TARGET), targetName);
+    if (kit->value(MerTargetKitInformation::id()) != targetName)
+        kit->setValue(MerTargetKitInformation::id(), targetName);
 }
 
 void MerTargetKitInformation::addToEnvironment(const Kit *kit, Environment &env) const

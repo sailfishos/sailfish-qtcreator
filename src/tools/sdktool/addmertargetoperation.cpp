@@ -213,8 +213,11 @@ QVariantMap AddMerTargetOperation::load(const QString &root)
     const Utils::FileName path = Utils::FileName::fromString(root + QLatin1String(MER_TARGETS_XML));
     if (path.toFileInfo().exists()) {
         Mer::MerTargetsXmlReader reader(path.toString());
-        if (reader.hasError())
+        if (reader.hasError()) {
+            std::cerr << "Error: Could not read file " << qPrintable(path.toString())
+                      << ": " << qPrintable(reader.errorString()) << std::endl;
             return QVariantMap();
+        }
         const QList<Mer::MerTargetData> targetData = reader.targetData();
         QVariantList data;
         foreach (const Mer::MerTargetData &td, targetData)

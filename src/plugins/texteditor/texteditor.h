@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -32,6 +27,7 @@
 #define TEXTEDITOR_H
 
 #include "texteditor_global.h"
+#include "blockrange.h"
 #include "codeassist/assistenums.h"
 
 #include <coreplugin/editormanager/ieditor.h>
@@ -90,33 +86,6 @@ class Indenter;
 class MarginSettings;
 class StorageSettings;
 class TypingSettings;
-
-class TEXTEDITOR_EXPORT BlockRange
-{
-public:
-    BlockRange() : _first(0), _last(-1) {}
-    BlockRange(int firstPosition, int lastPosition)
-      : _first(firstPosition), _last(lastPosition)
-    {}
-
-    inline bool isNull() const { return _last < _first; }
-
-    int first() const { return _first; }
-    int last() const { return _last; }
-
-private:
-    int _first;
-    int _last;
-};
-
-enum TextPositionOperation
-{
-    CurrentPosition = 1,
-    EndOfLinePosition = 2,
-    StartOfLinePosition = 3,
-    AnchorPosition = 4,
-    EndOfDocPosition = 5
-};
 
 enum TextMarkRequestKind
 {
@@ -325,6 +294,7 @@ public:
 
     const DisplaySettings &displaySettings() const;
     const MarginSettings &marginSettings() const;
+    const BehaviorSettings &behaviorSettings() const;
 
     void ensureCursorVisible();
 
@@ -378,8 +348,7 @@ public:
     void circularPaste();
     void switchUtf8bom();
 
-    void zoomIn();
-    void zoomOut();
+    void zoomF(float delta);
     void zoomReset();
 
     void cutLine();
@@ -421,8 +390,8 @@ public:
     void gotoNextWordCamelCase();
     void gotoNextWordCamelCaseWithSelection();
 
-    bool selectBlockUp();
-    bool selectBlockDown();
+    virtual bool selectBlockUp();
+    virtual bool selectBlockDown();
 
     void moveLineUp();
     void moveLineDown();
@@ -480,8 +449,6 @@ signals:
     void assistFinished(); // Used in tests.
     void readOnlyChanged();
 
-    void requestFontZoom(int zoom);
-    void requestZoomReset();
     void requestBlockUpdate(const QTextBlock &);
 
 protected:
@@ -532,6 +499,7 @@ protected:
     void showDefaultContextMenu(QContextMenuEvent *e, Core::Id menuContextId);
     virtual void finalizeInitialization() {}
     virtual void finalizeInitializationAfterDuplication(TextEditorWidget *) {}
+    static QTextCursor flippedCursor(const QTextCursor &cursor);
 
 public:
     struct Link

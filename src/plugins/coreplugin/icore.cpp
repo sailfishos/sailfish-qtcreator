@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -279,10 +274,9 @@
 */
 
 /*!
-    \fn void ICore::contextChanged(Core::IContext *context, const Core::Context &additionalContexts)
-    Indicates that a new \a context just became the current context
-    (meaning that its widget got focus), or that the additional context ids
-    specified by \a additionalContexts changed.
+    \fn void ICore::contextChanged(const Core::Context &context)
+    Indicates that a new \a context just became the current context. This includes the context
+    from the focus object as well as the additional context.
 */
 
 #include "dialogs/newdialog.h"
@@ -321,14 +315,14 @@ ICore::ICore(MainWindow *mainwindow)
     m_instance = this;
     m_mainwindow = mainwindow;
     // Save settings once after all plugins are initialized:
-    connect(PluginManager::instance(), SIGNAL(initializationDone()),
-            this, SLOT(saveSettings()));
+    connect(PluginManager::instance(), &PluginManager::initializationDone,
+            this, &ICore::saveSettings);
     connect(PluginManager::instance(), &PluginManager::testsFinished, [this] (int failedTests) {
         emit coreAboutToClose();
         QCoreApplication::exit(failedTests);
     });
-    connect(m_mainwindow, SIGNAL(newItemDialogRunningChanged()),
-            this, SIGNAL(newItemDialogRunningChanged()));
+    connect(m_mainwindow, &MainWindow::newItemDialogRunningChanged,
+            this, &ICore::newItemDialogRunningChanged);
 }
 
 ICore::~ICore()
@@ -344,12 +338,12 @@ void ICore::showNewItemDialog(const QString &title,
 {
     QTC_ASSERT(!isNewItemDialogRunning(), return);
     auto newDialog = new NewDialog(dialogParent());
-    connect(newDialog, &QObject::destroyed, m_instance, &ICore::validateNewDialogIsRunning);
+    connect(newDialog, &QObject::destroyed, m_instance, &ICore::validateNewItemDialogIsRunning);
     newDialog->setWizardFactories(factories, defaultLocation, extraVariables);
     newDialog->setWindowTitle(title);
     newDialog->showDialog();
 
-    validateNewDialogIsRunning();
+    validateNewItemDialogIsRunning();
 }
 
 bool ICore::showOptionsDialog(const Id page, QWidget *parent)
@@ -436,9 +430,21 @@ QString ICore::documentationPath()
  */
 QString ICore::libexecPath()
 {
-    const QString libexecPath = QLatin1String(Utils::HostOsInfo::isMacHost()
-                                            ? "/../Resources" : "");
-    return QDir::cleanPath(QCoreApplication::applicationDirPath() + libexecPath);
+    QString path;
+    switch (Utils::HostOsInfo::hostOs()) {
+    case Utils::OsTypeWindows:
+        path = QCoreApplication::applicationDirPath();
+        break;
+    case Utils::OsTypeMac:
+        path = QCoreApplication::applicationDirPath() + QLatin1String("/../Resources");
+        break;
+    case Utils::OsTypeLinux:
+    case Utils::OsTypeOtherUnix:
+    case Utils::OsTypeOther:
+        path = QCoreApplication::applicationDirPath() + QLatin1String("/../libexec/qtcreator");
+        break;
+    }
+    return QDir::cleanPath(path);
 }
 
 static QString compilerString()
@@ -453,6 +459,10 @@ static QString compilerString()
 #elif defined(Q_CC_GNU)
     return QLatin1String("GCC " ) + QLatin1String(__VERSION__);
 #elif defined(Q_CC_MSVC)
+    if (_MSC_VER > 1999)
+        return QLatin1String("MSVC <unknown>");
+    if (_MSC_VER >= 1900) // 1900: MSVC 2015
+        return QLatin1String("MSVC 2015");
     if (_MSC_VER >= 1800) // 1800: MSVC 2013 (yearly release cycle)
         return QLatin1String("MSVC ") + QString::number(2008 + ((_MSC_VER / 100) - 13));
     if (_MSC_VER >= 1500) // 1500: MSVC 2008, 1600: MSVC 2010, ... (2-year release cycle)
@@ -517,19 +527,20 @@ void ICore::raiseWindow(QWidget *widget)
     }
 }
 
-void ICore::updateAdditionalContexts(const Context &remove, const Context &add)
+void ICore::updateAdditionalContexts(const Context &remove, const Context &add,
+                                     ContextPriority priority)
 {
-    m_mainwindow->updateAdditionalContexts(remove, add);
+    m_mainwindow->updateAdditionalContexts(remove, add, priority);
 }
 
-void ICore::addAdditionalContext(const Context &context)
+void ICore::addAdditionalContext(const Context &context, ContextPriority priority)
 {
-    m_mainwindow->updateAdditionalContexts(Context(), context);
+    m_mainwindow->updateAdditionalContexts(Context(), context, priority);
 }
 
 void ICore::removeAdditionalContext(const Context &context)
 {
-    m_mainwindow->updateAdditionalContexts(context, Context());
+    m_mainwindow->updateAdditionalContexts(context, Context(), ContextPriority::Low);
 }
 
 void ICore::addContextObject(IContext *context)
@@ -552,6 +563,23 @@ void ICore::openFiles(const QStringList &arguments, ICore::OpenFilesFlags flags)
     m_mainwindow->openFiles(arguments, flags);
 }
 
+
+/*!
+    \fn ICore::addCloseCoreListener
+
+    \brief The \c ICore::addCloseCoreListener function provides a hook for plugins
+    to veto on closing the application.
+
+    When the application window requests a close, all listeners are called.
+    If one if these calls returns \c false, the process is aborted and the
+    event is ignored. If all calls return \c true, \c ICore::coreAboutToClose()
+    is emitted and the event is accepted or performed..
+*/
+void ICore::addPreCloseListener(const std::function<bool ()> &listener)
+{
+    m_mainwindow->addPreCloseListener(listener);
+}
+
 void ICore::saveSettings()
 {
     emit m_instance->saveSettingsRequested();
@@ -560,7 +588,17 @@ void ICore::saveSettings()
     ICore::settings(QSettings::UserScope)->sync();
 }
 
-void ICore::validateNewDialogIsRunning()
+QStringList ICore::additionalAboutInformation()
+{
+    return m_mainwindow->additionalAboutInformation();
+}
+
+void ICore::appendAboutInformation(const QString &line)
+{
+    m_mainwindow->appendAboutInformation(line);
+}
+
+void ICore::validateNewItemDialogIsRunning()
 {
     static bool wasRunning = false;
     if (wasRunning == isNewItemDialogRunning())

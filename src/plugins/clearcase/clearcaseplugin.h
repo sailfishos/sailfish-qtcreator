@@ -1,8 +1,8 @@
-/**************************************************************************
+/****************************************************************************
 **
-** Copyright (C) 2015 AudioCodes Ltd.
+** Copyright (C) 2016 AudioCodes Ltd.
 ** Author: Orgad Shaneh <orgad.shaneh@audiocodes.com>
-** Contact: http://www.qt.io/licensing
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -10,27 +10,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
-#ifndef CLEARCASEPLUGIN_H
-#define CLEARCASEPLUGIN_H
+#pragma once
 
 #include "clearcasesettings.h"
 
@@ -99,7 +93,7 @@ public:
 
     FileStatus(Status _status = Unknown, QFile::Permissions perm = 0)
         : status(_status), permissions(perm)
-    {}
+    { }
 };
 
 typedef QHash<QString, FileStatus> StatusMap;
@@ -107,11 +101,9 @@ typedef QHash<QString, FileStatus> StatusMap;
 class ViewData
 {
 public:
-    ViewData();
-
     QString name;
-    bool isDynamic;
-    bool isUcm;
+    bool isDynamic = false;
+    bool isUcm = false;
     QString root;
 };
 
@@ -124,9 +116,9 @@ class ClearCasePlugin : public VcsBase::VcsBasePlugin
 
 public:
     ClearCasePlugin();
-    ~ClearCasePlugin();
+    ~ClearCasePlugin() override;
 
-    bool initialize(const QStringList &arguments, QString *error_message);
+    bool initialize(const QStringList &arguments, QString *error_message) override;
 
     ClearCaseSubmitEditor *openClearCaseSubmitEditor(const QString &fileName, bool isUcm);
 
@@ -172,37 +164,19 @@ public:
     inline bool isFakeCleartool() const { return m_fakeClearTool; }
 #endif
 
-public slots:
     void vcsAnnotate(const QString &workingDir, const QString &file,
                      const QString &revision = QString(), int lineNumber = -1) const;
     bool newActivity();
     void updateStreamAndView();
 
-private slots:
-    void checkOutCurrentFile();
-    void addCurrentFile();
-    void undoCheckOutCurrent();
-    void undoHijackCurrent();
-    void diffActivity();
-    void diffCurrentFile();
-    void startCheckInAll();
-    void startCheckInActivity();
-    void startCheckInCurrentFile();
-    void historyCurrentFile();
-    void annotateCurrentFile();
-    void annotateVersion(const QString &workingDirectory, const QString &file, const QString &revision, int lineNumber);
-    void describe(const QString &source, const QString &changeNr);
-    void viewStatus();
-    void checkInSelected();
-    void diffCheckInFiles(const QStringList &);
-    void updateIndex();
-    void updateView();
-    void projectChanged(ProjectExplorer::Project *project);
-    void tasksFinished(Core::Id type);
-    void syncSlot();
-    void closing();
-    void updateStatusActions();
+protected:
+    void updateActions(VcsBase::VcsBasePlugin::ActionState) override;
+    bool submitEditorAboutToClose() override;
+    QString ccGet(const QString &workingDir, const QString &file, const QString &prefix = QString());
+    QList<QStringPair> ccGetActivities() const;
+
 #ifdef WITH_TESTS
+private slots:
     void initTestCase();
     void cleanupTestCase();
     void testDiffFileResolving_data();
@@ -220,13 +194,34 @@ private slots:
     void testVcsStatusDynamicNotManaged();
 #endif
 
-protected:
-    void updateActions(VcsBase::VcsBasePlugin::ActionState);
-    bool submitEditorAboutToClose();
-    QString ccGet(const QString &workingDir, const QString &file, const QString &prefix = QString());
-    QList<QStringPair> ccGetActivities() const;
+public slots:
+    void describe(const QString &source, const QString &changeNr);
 
 private:
+    void annotateVersion(const QString &workingDirectory, const QString &file, const QString &revision, int lineNumber);
+    void syncSlot();
+    Q_INVOKABLE void updateStatusActions();
+
+    void checkOutCurrentFile();
+    void addCurrentFile();
+    void undoCheckOutCurrent();
+    void undoHijackCurrent();
+    void diffActivity();
+    void diffCurrentFile();
+    void startCheckInAll();
+    void startCheckInActivity();
+    void startCheckInCurrentFile();
+    void historyCurrentFile();
+    void annotateCurrentFile();
+    void viewStatus();
+    void checkInSelected();
+    void diffCheckInFiles(const QStringList &);
+    void updateIndex();
+    void updateView();
+    void projectChanged(ProjectExplorer::Project *project);
+    void tasksFinished(Core::Id type);
+    void closing();
+
     inline bool isCheckInEditorOpen() const;
     QStringList getVobList() const;
     QString ccManagesDirectory(const QString &directory) const;
@@ -274,40 +269,38 @@ private:
     QString m_activity;
     QString m_diffPrefix;
 
-    Core::CommandLocator *m_commandLocator;
-    Utils::ParameterAction *m_checkOutAction;
-    Utils::ParameterAction *m_checkInCurrentAction;
-    Utils::ParameterAction *m_undoCheckOutAction;
-    Utils::ParameterAction *m_undoHijackAction;
-    Utils::ParameterAction *m_diffCurrentAction;
-    Utils::ParameterAction *m_historyCurrentAction;
-    Utils::ParameterAction *m_annotateCurrentAction;
-    Utils::ParameterAction *m_addFileAction;
-    QAction *m_diffActivityAction;
-    QAction *m_updateIndexAction;
-    Utils::ParameterAction *m_updateViewAction;
-    Utils::ParameterAction *m_checkInActivityAction;
-    QAction *m_checkInAllAction;
-    QAction *m_statusAction;
+    Core::CommandLocator *m_commandLocator = nullptr;
+    Utils::ParameterAction *m_checkOutAction = nullptr;
+    Utils::ParameterAction *m_checkInCurrentAction = nullptr;
+    Utils::ParameterAction *m_undoCheckOutAction = nullptr;
+    Utils::ParameterAction *m_undoHijackAction = nullptr;
+    Utils::ParameterAction *m_diffCurrentAction = nullptr;
+    Utils::ParameterAction *m_historyCurrentAction = nullptr;
+    Utils::ParameterAction *m_annotateCurrentAction = nullptr;
+    Utils::ParameterAction *m_addFileAction = nullptr;
+    QAction *m_diffActivityAction = nullptr;
+    QAction *m_updateIndexAction = nullptr;
+    Utils::ParameterAction *m_updateViewAction = nullptr;
+    Utils::ParameterAction *m_checkInActivityAction = nullptr;
+    QAction *m_checkInAllAction = nullptr;
+    QAction *m_statusAction = nullptr;
 
-    QAction *m_checkInSelectedAction;
-    QAction *m_checkInDiffAction;
-    QAction *m_submitUndoAction;
-    QAction *m_submitRedoAction;
-    QAction *m_menuAction;
-    bool m_submitActionTriggered;
+    QAction *m_checkInSelectedAction = nullptr;
+    QAction *m_checkInDiffAction = nullptr;
+    QAction *m_submitUndoAction = nullptr;
+    QAction *m_submitRedoAction = nullptr;
+    QAction *m_menuAction = nullptr;
+    bool m_submitActionTriggered = false;
     QMutex *m_activityMutex;
     QList<QStringPair> m_activities;
     QSharedPointer<StatusMap> m_statusMap;
 
     static ClearCasePlugin *m_clearcasePluginInstance;
 #ifdef WITH_TESTS
-    bool m_fakeClearTool;
+    bool m_fakeClearTool = false;
     QString m_tempFile;
 #endif
 };
 
 } // namespace Internal
 } // namespace ClearCase
-
-#endif // CLEARCASEPLUGIN_H

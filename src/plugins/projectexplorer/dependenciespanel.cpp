@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -40,7 +35,8 @@
 #include <QSize>
 #include <QCoreApplication>
 
-#include <QHBoxLayout>
+#include <QCheckBox>
+#include <QGridLayout>
 #include <QTreeView>
 #include <QSpacerItem>
 #include <QMessageBox>
@@ -56,13 +52,13 @@ DependenciesModel::DependenciesModel(Project *project, QObject *parent)
     // We can't select ourselves as a dependency
     m_projects.removeAll(m_project);
 
-    QObject *sessionManager = SessionManager::instance();
-    connect(sessionManager, SIGNAL(projectRemoved(ProjectExplorer::Project*)),
-            this, SLOT(resetModel()));
-    connect(sessionManager, SIGNAL(projectAdded(ProjectExplorer::Project*)),
-            this, SLOT(resetModel()));
-    connect(sessionManager, SIGNAL(sessionLoaded(QString)),
-            this, SLOT(resetModel()));
+    SessionManager *sessionManager = SessionManager::instance();
+    connect(sessionManager, &SessionManager::projectRemoved,
+            this, &DependenciesModel::resetModel);
+    connect(sessionManager, &SessionManager::projectAdded,
+            this, &DependenciesModel::resetModel);
+    connect(sessionManager, &SessionManager::sessionLoaded,
+            this, &DependenciesModel::resetModel);
 //    qDebug()<<"Dependencies Model"<<this<<"for project"<<project<<"("<<project->file()->fileName()<<")";
 }
 
@@ -161,27 +157,27 @@ QSize DependenciesView::sizeHint() const
 void DependenciesView::setModel(QAbstractItemModel *newModel)
 {
     if (QAbstractItemModel *oldModel = model()) {
-        disconnect(oldModel, SIGNAL(rowsInserted(QModelIndex,int,int)),
-                this, SLOT(updateSizeHint()));
-        disconnect(oldModel, SIGNAL(rowsRemoved(QModelIndex,int,int)),
-                this, SLOT(updateSizeHint()));
-        disconnect(oldModel, SIGNAL(modelReset()),
-                this, SLOT(updateSizeHint()));
-        disconnect(oldModel, SIGNAL(layoutChanged()),
-                this, SLOT(updateSizeHint()));
+        disconnect(oldModel, &QAbstractItemModel::rowsInserted,
+                   this, &DependenciesView::updateSizeHint);
+        disconnect(oldModel, &QAbstractItemModel::rowsRemoved,
+                   this, &DependenciesView::updateSizeHint);
+        disconnect(oldModel, &QAbstractItemModel::modelReset,
+                   this, &DependenciesView::updateSizeHint);
+        disconnect(oldModel, &QAbstractItemModel::layoutChanged,
+                   this, &DependenciesView::updateSizeHint);
     }
 
     QTreeView::setModel(newModel);
 
     if (newModel) {
-        connect(newModel, SIGNAL(rowsInserted(QModelIndex,int,int)),
-                this, SLOT(updateSizeHint()));
-        connect(newModel, SIGNAL(rowsRemoved(QModelIndex,int,int)),
-                this, SLOT(updateSizeHint()));
-        connect(newModel, SIGNAL(modelReset()),
-                this, SLOT(updateSizeHint()));
-        connect(newModel, SIGNAL(layoutChanged()),
-                this, SLOT(updateSizeHint()));
+        connect(newModel, &QAbstractItemModel::rowsInserted,
+                this, &DependenciesView::updateSizeHint);
+        connect(newModel, &QAbstractItemModel::rowsRemoved,
+                this, &DependenciesView::updateSizeHint);
+        connect(newModel, &QAbstractItemModel::modelReset,
+                this, &DependenciesView::updateSizeHint);
+        connect(newModel, &QAbstractItemModel::layoutChanged,
+                this, &DependenciesView::updateSizeHint);
     }
     updateSizeHint();
 }
@@ -223,13 +219,21 @@ DependenciesWidget::DependenciesWidget(Project *project, QWidget *parent)
 
     QWidget *detailsWidget = new QWidget(m_detailsContainer);
     m_detailsContainer->setWidget(detailsWidget);
-    QHBoxLayout *layout = new QHBoxLayout(detailsWidget);
+    QGridLayout *layout = new QGridLayout(detailsWidget);
     layout->setContentsMargins(0, -1, 0, -1);
     DependenciesView *treeView = new DependenciesView(this);
     treeView->setModel(m_model);
     treeView->setHeaderHidden(true);
-    layout->addWidget(treeView);
-    layout->addSpacerItem(new QSpacerItem(0, 0 , QSizePolicy::Expanding, QSizePolicy::Fixed));
+    layout->addWidget(treeView, 0 ,0);
+    layout->addItem(new QSpacerItem(0, 0 , QSizePolicy::Expanding, QSizePolicy::Fixed), 0, 1);
+
+    m_cascadeSetActiveCheckBox = new QCheckBox;
+    m_cascadeSetActiveCheckBox->setText(tr("Synchronize configuration"));
+    m_cascadeSetActiveCheckBox->setToolTip(tr("Synchronize active kit, build, and deploy configuration between projects."));
+    m_cascadeSetActiveCheckBox->setChecked(SessionManager::isProjectConfigurationCascading());
+    connect(m_cascadeSetActiveCheckBox, &QCheckBox::toggled,
+            SessionManager::instance(), &SessionManager::setProjectConfigurationCascading);
+    layout->addWidget(m_cascadeSetActiveCheckBox, 1, 0, 2, 1);
 }
 
 } // namespace Internal

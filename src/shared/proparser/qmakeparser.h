@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -47,8 +42,9 @@ class QMAKE_EXPORT QMakeParserHandler
 public:
     enum {
         CategoryMask = 0xf00,
-        WarningMessage = 0x000,
-        ErrorMessage = 0x100,
+        InfoMessage = 0x100,
+        WarningMessage = 0x200,
+        ErrorMessage = 0x300,
 
         SourceMask = 0xf0,
         SourceParser = 0,
@@ -93,6 +89,10 @@ public:
 
     void discardFileFromCache(const QString &fileName);
 
+#ifdef PROPARSER_DEBUG
+    static QString formatProBlock(const QString &block);
+#endif
+
 private:
     enum ScopeNesting {
         NestNone = 0,
@@ -127,7 +127,7 @@ private:
     };
 
     bool read(ProFile *pro, ParseFlags flags);
-    bool read(ProFile *pro, const QString &content, int line, SubGrammar grammar);
+    void read(ProFile *pro, const QString &content, int line, SubGrammar grammar);
 
     ALWAYS_INLINE void putTok(ushort *&tokPtr, ushort tok);
     ALWAYS_INLINE void putBlockLen(ushort *&tokPtr, uint len);
@@ -141,8 +141,12 @@ private:
                                        const ushort *cur, const QString &in);
     void finalizeCond(ushort *&tokPtr, ushort *uc, ushort *ptr, int wordCount);
     void finalizeCall(ushort *&tokPtr, ushort *uc, ushort *ptr, int argc);
+    void warnOperator(const char *msg);
+    bool failOperator(const char *msg);
+    bool acceptColon(const char *msg);
+    void putOperator(ushort *&tokPtr);
     void finalizeTest(ushort *&tokPtr);
-    void bogusTest(ushort *&tokPtr);
+    void bogusTest(ushort *&tokPtr, const QString &msg);
     void enterScope(ushort *&tokPtr, bool special, ScopeState state);
     void leaveScope(ushort *&tokPtr);
     void flushCond(ushort *&tokPtr);
@@ -150,7 +154,10 @@ private:
 
     void message(int type, const QString &msg) const;
     void parseError(const QString &msg) const
-            { message(QMakeParserHandler::ParserError, msg); }
+    {
+        message(QMakeParserHandler::ParserError, msg);
+        m_proFile->setOk(false);
+    }
     void languageWarning(const QString &msg) const
             { message(QMakeParserHandler::ParserWarnLanguage, msg); }
     void deprecationWarning(const QString &msg) const
@@ -165,7 +172,7 @@ private:
     int m_markLine; // Put marker for this line
     bool m_inError; // Current line had a parsing error; suppress followup error messages
     bool m_canElse; // Conditionals met on previous line, but no scope was opened
-    bool m_invert; // Pending conditional is negated
+    int m_invert; // Pending conditional is negated
     enum { NoOperator, AndOperator, OrOperator } m_operator; // Pending conditional is ORed/ANDed
 
     QString m_tmp; // Temporary for efficient toQString

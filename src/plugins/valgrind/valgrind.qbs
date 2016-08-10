@@ -9,11 +9,11 @@ QtcPlugin {
     Depends { name: "Utils" }
 
     Depends { name: "Core" }
-    Depends { name: "AnalyzerBase" }
     Depends { name: "Debugger" }
     Depends { name: "ProjectExplorer" }
     Depends { name: "TextEditor" }
-    Depends { name: "RemoteLinux" }
+
+    cpp.enableExceptions: true
 
     Group {
         name: "General"

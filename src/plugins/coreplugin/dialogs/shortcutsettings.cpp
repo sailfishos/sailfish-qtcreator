@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -232,9 +227,6 @@ ShortcutSettingsWidget::ShortcutSettingsWidget(QWidget *parent)
     m_shortcutEdit = new Utils::FancyLineEdit(m_shortcutBox);
     m_shortcutEdit->setFiltering(true);
     m_shortcutEdit->setPlaceholderText(tr("Enter key sequence as text"));
-    m_shortcutEdit->setValidationFunction([this](Utils::FancyLineEdit *, QString *) {
-        return validateShortcutEdit();
-    });
     auto shortcutLabel = new QLabel(tr("Key sequence:"));
     shortcutLabel->setToolTip(Utils::HostOsInfo::isMacHost()
            ? QLatin1String("<html><body>")
@@ -279,6 +271,10 @@ ShortcutSettingsWidget::ShortcutSettingsWidget(QWidget *parent)
     layout()->addWidget(m_shortcutBox);
 
     initialize();
+
+    m_shortcutEdit->setValidationFunction([this](Utils::FancyLineEdit *, QString *) {
+        return validateShortcutEdit();
+    });
 }
 
 ShortcutSettingsWidget::~ShortcutSettingsWidget()
@@ -373,12 +369,15 @@ bool ShortcutSettingsWidget::filterColumn(const QString &filterString, QTreeWidg
                                           int column) const
 {
     QString text;
-    if (column == item->columnCount() - 1) {
+    if (column == item->columnCount() - 1) { // shortcut
         // filter on the shortcut edit text
         if (!item->data(0, Qt::UserRole).isValid())
             return true;
         ShortcutItem *scitem = qvariant_cast<ShortcutItem *>(item->data(0, Qt::UserRole));
         text = keySequenceToEditString(scitem->m_key);
+    } else if (column == 0 && item->data(0, Qt::UserRole).isValid()) { // command id
+        ShortcutItem *scitem = qvariant_cast<ShortcutItem *>(item->data(0, Qt::UserRole));
+        text = scitem->m_cmd->id().toString();
     } else {
         text = item->text(column);
     }

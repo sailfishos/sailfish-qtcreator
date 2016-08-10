@@ -6,20 +6,20 @@ Qt Creator is a cross-platform IDE for development with the Qt framework.
 
 The standalone binary packages support the following platforms:
 
-Windows XP SP3 or later
-(K)Ubuntu Linux 11.10 (32-bit and 64-bit) or later
+Windows 7 or later
+(K)Ubuntu Linux 14.04 (64-bit) or later
 Mac OS X 10.7 or later
 
-Building the sources requires Qt 5.4.0 or later.
+Building the sources requires Qt 5.5.0 or later.
 
 ## Compiling Qt Creator
 
 Prerequisites:
 
-* Qt 5.4.0 or later
+* Qt 5.5.0 or later
 * On Windows:
     * ActiveState Active Perl
-    * MinGW with g++ 4.7 or Visual Studio 2013 or later
+    * MinGW with g++ 4.7 or Visual Studio 2013 Update 2 or later
     * jom
 * On Mac OS X: latest Xcode
 * On Linux: g++ 4.7 or later
@@ -58,7 +58,7 @@ For detailed information on the supported compilers, see
        for example, `c:\work`. If you plan to use MinGW and Microsoft Visual
        Studio simultaneously or mix different Qt versions, we recommend
        creating a directory structure which reflects that. For example:
-       `C:\work\qt5.4.1-vs12, C:\work\qt5.4.1-mingw`.
+       `C:\work\qt5.5.1-vs12, C:\work\qt5.5.1-mingw`.
 
    4.  Download and install Perl from <https://www.activestate.com/activeperl>
        and check that perl.exe is added to the path. Run `perl -v` to verify
@@ -116,7 +116,11 @@ For detailed information on the supported compilers, see
        command...` error. If a `sh.exe` is found, the compile process will fail.
        You have to remove it from the path.
 
-  10.  You are now ready to configure and build Qt and Qt Creator.
+  10.  To enable the Clang-based code model: Install Clang (>= version 3.6.2)
+       and set the environment variable LLVM_INSTALL_DIR to point to the
+       installation location.
+
+  11.  You are now ready to configure and build Qt and Qt Creator.
        Please see <https://wiki.qt.io/Building_Qt_5_from_Git> for
        recommended configure-options for Qt 5.
        To use MinGW, open the the shell prompt and enter:
@@ -133,10 +137,17 @@ For detailed information on the supported compilers, see
          cd ..\creator
          qmake && jom
 
-   11. To launch Qt Creator, enter:
+   12. To launch Qt Creator, enter:
        qtcreator
 
-   12. When using  Visual C++ with the "Debugging Tools for Windows" installed,
+   13. To test the Clang-based code model, verify that backend process
+         bin\clangbackend.exe
+       launches (displaying its usage).
+
+       The library libclang.dll needs to be copied to the bin directory if
+       Clang cannot be found in the path.
+
+   14. When using  Visual C++ with the "Debugging Tools for Windows" installed,
        the extension library `qtcreatorcdbext.dll` to be loaded into the
        Windows console debugger (`cdb.exe`) should have been built under
        `lib\qtcreatorcdbext32` or `lib\qtcreatorcdbext64`.
@@ -151,7 +162,7 @@ For detailed information on the supported compilers, see
        debugging from the repository
        <https://code.qt.io/cgit/qt-creator/binary-artifacts.git/tree> .
 
-   13. Qt Creator can be registered as a post-mortem debugger. This
+   15. Qt Creator can be registered as a post-mortem debugger. This
        can be done in the options page or by running the tool qtcdebugger
        with administrative privileges passing the command line options
        -register/unregister, respectively. Alternatively,
@@ -168,7 +179,7 @@ For detailed information on the supported compilers, see
        able to find all dependent Qt-libraries and plugins when being launched by the
        system. The easiest way to provide them for Qt 5 is to run the tool windeployqt:
 
-        windeployqt -qmldir share\qtcreator -qmldir src\plugins\qmlprofiler bin\qtcreator.exe lib\qtcreator lib\qtcreator\plugins
+        windeployqt -quick -qmldir share\qtcreator\welcomescreen -qmldir src\plugins\qmlprofiler bin\qtcreator.exe lib\qtcreator lib\qtcreator\plugins
 
 Note that unlike on Unix, you cannot overwrite executables that are running.
 Thus, if you want to work on Qt Creator using Qt Creator, you need a
@@ -215,6 +226,30 @@ we thank the authors who made this possible:
   AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
   CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+### Open Source tool for generating C++ code that classifies keywords (license MIT)
+
+  Roberto Raggi <roberto.raggi@gmail.com>
+
+  QtCreator/src/tools/3rdparty/cplusplus-keywordgen
+
+  Copyright (c) 2007 Roberto Raggi <roberto.raggi@gmail.com>
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of
+  this software and associated documentation files (the "Software"), to deal in
+  the Software without restriction, including without limitation the rights to
+  use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+  the Software, and to permit persons to whom the Software is furnished to do so,
+  subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+  FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+  COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+  IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ### Botan, a C++ crypto library. Version 1.10.2
 
@@ -264,13 +299,16 @@ we thank the authors who made this possible:
   The source code of Botan C++ crypto library can be found in
   QtCreator/src/libs/3rdparty
 
+### SQLite, in-process library that implements a SQL database engine
+
+SQLite (https://www.sqlite.org) is in the Public Domain.
 
 ### ClassView and ImageViewer plugins
 
-  Copyright (C) 2015 The Qt Company Ltd.
+  Copyright (C) 2016 The Qt Company Ltd.
 
   All rights reserved.
-  Copyright (C) 2015 Denis Mingulov.
+  Copyright (C) 2016 Denis Mingulov.
 
   Contact: http://www.qt.io
 
@@ -303,6 +341,3 @@ we thank the authors who made this possible:
   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE."
-
-
-

@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -96,41 +91,34 @@ const char PLUGINPATH_OPTION[] = "-pluginpath";
 typedef QList<PluginSpec *> PluginSpecSet;
 
 // Helpers for displaying messages. Note that there is no console on Windows.
-#ifdef Q_OS_WIN
+
 // Format as <pre> HTML
-static inline void toHtml(QString &t)
+static inline QString toHtml(const QString &t)
 {
-    t.replace(QLatin1Char('&'), QLatin1String("&amp;"));
-    t.replace(QLatin1Char('<'), QLatin1String("&lt;"));
-    t.replace(QLatin1Char('>'), QLatin1String("&gt;"));
-    t.insert(0, QLatin1String("<html><pre>"));
-    t.append(QLatin1String("</pre></html>"));
+    QString res = t;
+    res.replace(QLatin1Char('&'), QLatin1String("&amp;"));
+    res.replace(QLatin1Char('<'), QLatin1String("&lt;"));
+    res.replace(QLatin1Char('>'), QLatin1String("&gt;"));
+    res.insert(0, QLatin1String("<html><pre>"));
+    res.append(QLatin1String("</pre></html>"));
+    return res;
 }
-
-static void displayHelpText(QString t) // No console on Windows.
-{
-    toHtml(t);
-    QMessageBox::information(0, QLatin1String(appNameC), t);
-}
-
-static void displayError(const QString &t) // No console on Windows.
-{
-    QMessageBox::critical(0, QLatin1String(appNameC), t);
-}
-
-#else
 
 static void displayHelpText(const QString &t)
 {
-    qWarning("%s", qPrintable(t));
+    if (Utils::HostOsInfo::isWindowsHost())
+        QMessageBox::information(0, QLatin1String(appNameC), toHtml(t));
+    else
+        qWarning("%s", qPrintable(t));
 }
 
 static void displayError(const QString &t)
 {
-    qCritical("%s", qPrintable(t));
+    if (Utils::HostOsInfo::isWindowsHost())
+        QMessageBox::critical(0, QLatin1String(appNameC), t);
+    else
+        qCritical("%s", qPrintable(t));
 }
-
-#endif
 
 static void printVersion(const PluginSpec *coreplugin)
 {
@@ -164,6 +152,28 @@ static inline int askMsgSendFailed()
                                                              "It appears to be not responding. Do you want to start a new instance of Creator?"),
                                  QMessageBox::Yes | QMessageBox::No | QMessageBox::Retry,
                                  QMessageBox::Retry);
+}
+
+static const char *setHighDpiEnvironmentVariable()
+{
+    const char* envVarName = 0;
+    static const char ENV_VAR_QT_DEVICE_PIXEL_RATIO[] = "QT_DEVICE_PIXEL_RATIO";
+#if (QT_VERSION < QT_VERSION_CHECK(5, 6, 0))
+    if (Utils::HostOsInfo().isWindowsHost()
+            && !qEnvironmentVariableIsSet(ENV_VAR_QT_DEVICE_PIXEL_RATIO)) {
+        envVarName = ENV_VAR_QT_DEVICE_PIXEL_RATIO;
+        qputenv(envVarName, "auto");
+    }
+#else
+    if (Utils::HostOsInfo().isWindowsHost()
+            && !qEnvironmentVariableIsSet(ENV_VAR_QT_DEVICE_PIXEL_RATIO) // legacy in 5.6, but still functional
+            && !qEnvironmentVariableIsSet("QT_AUTO_SCREEN_SCALE_FACTOR")
+            && !qEnvironmentVariableIsSet("QT_SCALE_FACTOR")
+            && !qEnvironmentVariableIsSet("QT_SCREEN_SCALE_FACTORS")) {
+        QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
+    }
+#endif // < Qt 5.6
+    return envVarName;
 }
 
 // taken from utils/fileutils.cpp. We can not use utils here since that depends app_version.h.
@@ -200,34 +210,32 @@ static inline QStringList getPluginPaths()
     QDir rootDir = QApplication::applicationDirPath();
     rootDir.cdUp();
     const QString rootDirPath = rootDir.canonicalPath();
-#if !defined(Q_OS_MAC)
-    // 1) "plugins" (Win/Linux)
-    QString pluginPath = rootDirPath;
-    pluginPath += QLatin1Char('/');
-    pluginPath += QLatin1String(IDE_LIBRARY_BASENAME);
-    pluginPath += QLatin1String("/qtcreator/plugins");
-    rc.push_back(pluginPath);
-#else
-    // 2) "PlugIns" (OS X)
-    QString pluginPath = rootDirPath;
-    pluginPath += QLatin1String("/PlugIns");
-    rc.push_back(pluginPath);
-#endif
+    QString pluginPath;
+    if (Utils::HostOsInfo::isMacHost()) {
+        // 1) "PlugIns" (OS X)
+        pluginPath = rootDirPath + QLatin1String("/PlugIns");
+        rc.push_back(pluginPath);
+    } else {
+        // 2) "plugins" (Win/Linux)
+        pluginPath = rootDirPath;
+        pluginPath += QLatin1Char('/');
+        pluginPath += QLatin1String(IDE_LIBRARY_BASENAME);
+        pluginPath += QLatin1String("/qtcreator/plugins");
+        rc.push_back(pluginPath);
+    }
     // 3) <localappdata>/plugins/<ideversion>
     //    where <localappdata> is e.g.
     //    "%LOCALAPPDATA%\QtProject\qtcreator" on Windows Vista and later
     //    "$XDG_DATA_HOME/data/QtProject/qtcreator" or "~/.local/share/data/QtProject/qtcreator" on Linux
     //    "~/Library/Application Support/QtProject/Qt Creator" on Mac
-    pluginPath = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)
-            + QLatin1String("/data");
+    pluginPath = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);
+#if defined(Q_OS_UNIX) && !defined(Q_OS_MAC)
+    pluginPath += QLatin1String("/data");
+#endif
     pluginPath += QLatin1Char('/')
             + QLatin1String(Core::Constants::IDE_SETTINGSVARIANT_STR)
             + QLatin1Char('/');
-#if !defined(Q_OS_MAC)
-    pluginPath += QLatin1String("qtcreator");
-#else
-    pluginPath += QLatin1String("Qt Creator");
-#endif
+    pluginPath += QLatin1String(Utils::HostOsInfo::isMacHost() ? "Qt Creator" : "qtcreator");
     pluginPath += QLatin1String("/plugins/");
     pluginPath += QLatin1String(Core::Constants::IDE_VERSION_LONG);
     rc.push_back(pluginPath);
@@ -284,18 +292,13 @@ static inline QSettings *userSettings()
     return createUserSettings();
 }
 
-#ifdef Q_OS_MAC
-#  define SHARE_PATH "/../Resources"
-#else
-#  define SHARE_PATH "/../share/qtcreator"
-#endif
+static const char *SHARE_PATH =
+        Utils::HostOsInfo::isMacHost() ? "/../Resources" : "/../share/qtcreator";
 
 int main(int argc, char **argv)
 {
-    if (Utils::HostOsInfo().isWindowsHost()
-            && !qEnvironmentVariableIsSet("QT_DEVICE_PIXEL_RATIO")) {
-        qputenv("QT_DEVICE_PIXEL_RATIO", "auto");
-    }
+    const char *highDpiEnvironmentVariable = setHighDpiEnvironmentVariable();
+
     QLoggingCategory::setFilterRules(QLatin1String("qtc.*.debug=false"));
 #ifdef Q_OS_MAC
     // increase the number of file that can be opened in Qt Creator.
@@ -307,6 +310,9 @@ int main(int argc, char **argv)
 #endif
 
     SharedTools::QtSingleApplication app((QLatin1String(appNameC)), argc, argv);
+
+    if (highDpiEnvironmentVariable)
+        qunsetenv(highDpiEnvironmentVariable);
 
     if (Utils::HostOsInfo().isWindowsHost()
             && !qFuzzyCompare(qApp->devicePixelRatio(), 1.0)
@@ -397,7 +403,7 @@ int main(int argc, char **argv)
     if (!overrideLanguage.isEmpty())
         uiLanguages.prepend(overrideLanguage);
     const QString &creatorTrPath = QCoreApplication::applicationDirPath()
-            + QLatin1String(SHARE_PATH "/translations");
+            + QLatin1String(SHARE_PATH) + QLatin1String("/translations");
     foreach (QString locale, uiLanguages) {
         locale = QLocale(locale).name();
         if (translator.load(QLatin1String("qtcreator_") + locale, creatorTrPath)) {

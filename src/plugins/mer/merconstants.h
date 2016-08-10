@@ -31,10 +31,7 @@ namespace Constants {
 const char MER_QT[] = "QmakeProjectManager.QtVersion.Mer";
 const char MER_TOOLCHAIN_ID[] = "QmakeProjectManager.ToolChain.Mer";
 
-const char MER_PLATFORM[] = "Mer";
-const char MER_PLATFORM_TR[] = QT_TRANSLATE_NOOP("QtSupport", "Mer");
 const char MER_TOOLCHAIN[] = "Mer GCC";
-const char MER_TOOLCHAIN_TYPE[] = "Mer.Gcc";
 
 const char MER_OPTIONS_CATEGORY[] = "W.Mer";
 const char MER_OPTIONS_CATEGORY_TR[] = QT_TRANSLATE_NOOP("Mer", "Mer");
@@ -111,11 +108,8 @@ const char SYSROOT[] = "Sysroot";
 const char TOOL_CHAINS[] = "ToolChains";
 const char QT_VERSIONS[] = "QtVersions";
 const char AUTO_DETECTED[] = "AutoDetected";
-const char TARGET[] = "Target";
 const char VIRTUAL_MACHINE[] = "VirtualMachine";
 const char SB2_TARGET_NAME[] = "SB2.TargetName";
-
-
 
 const char MER_RUNCONFIGURATION_PREFIX[] = "QmakeProjectManager.MerRunConfiguration:";
 const char MER_SFTP_DEPLOY_STRING[] = QT_TRANSLATE_NOOP("Mer", "Copy Files to Device");

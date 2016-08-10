@@ -1,9 +1,7 @@
 <RCC>
     <qresource prefix="/core">
         <file>images/clean_pane_small.png</file>
-        <file>images/clear.png</file>
-        <file>images/clear@2x.png</file>
-        <file>images/closebutton.png</file>
+        <file>images/clean_pane_small@2x.png</file>
         <file>images/compile_error_taskbar.png</file>
         <file>images/compile_error_taskbar@2x.png</file>
         <file>images/dir.png</file>
@@ -14,22 +12,25 @@
         <file>images/filenew.png</file>
         <file>images/fileopen.png</file>
         <file>images/filesave.png</file>
+        <file>images/filesave@2x.png</file>
         <file>images/logo/128/QtProject-qtcreator.png</file>
         <file>images/logo/32/QtProject-qtcreator.png</file>
         <file>images/inputfield.png</file>
         <file>images/inputfield@2x.png</file>
         <file>images/inputfield_disabled.png</file>
         <file>images/inputfield_disabled@2x.png</file>
+        <file>images/close.png</file>
+        <file>images/close@2x.png</file>
         <file>images/linkicon.png</file>
         <file>images/linkicon@2x.png</file>
         <file>images/locked.png</file>
         <file>images/locked@2x.png</file>
         <file>images/magnifier.png</file>
         <file>images/magnifier@2x.png</file>
-        <file>images/dark_magnifier.png</file>
-        <file>images/dark_magnifier@2x.png</file>
         <file>images/minus.png</file>
+        <file>images/minus@2x.png</file>
         <file>images/next.png</file>
+        <file>images/next@2x.png</file>
         <file>images/panel_button.png</file>
         <file>images/panel_button@2x.png</file>
         <file>images/panel_button_checked.png</file>
@@ -41,7 +42,9 @@
         <file>images/panel_button_pressed.png</file>
         <file>images/panel_button_pressed@2x.png</file>
         <file>images/plus.png</file>
+        <file>images/plus@2x.png</file>
         <file>images/prev.png</file>
+        <file>images/prev@2x.png</file>
         <file>images/pushbutton.png</file>
         <file>images/pushbutton_hover.png</file>
         <file>images/pushbutton_pressed.png</file>
@@ -49,6 +52,7 @@
         <file>images/replace.png</file>
         <file>images/reset.png</file>
         <file>images/sidebaricon.png</file>
+        <file>images/sidebaricon@2x.png</file>
         <file>images/splitbutton_horizontal.png</file>
         <file>images/splitbutton_horizontal@2x.png</file>
         <file>images/statusbar.png</file>
@@ -58,8 +62,6 @@
         <file>images/unlocked@2x.png</file>
         <file>images/extension.png</file>
         <file>images/extension@2x.png</file>
-        <file>images/darkclosebutton.png</file>
-        <file>images/darkclosebutton@2x.png</file>
         <file>images/category_core.png</file>
         <file>images/category_texteditor.png</file>
         <file>images/category_design.png</file>
@@ -68,18 +70,6 @@
         <file>images/help.png</file>
         <file>images/editclear.png</file>
         <file>images/editclear@2x.png</file>
-        <file>images/darkarrowdown.png</file>
-        <file>images/darkarrowdown@2x.png</file>
-        <file>images/darkarrowup.png</file>
-        <file>images/darkarrowup@2x.png</file>
-        <file>images/darkclose.png</file>
-        <file>images/darkclose@2x.png</file>
-        <file>images/lightarrowdown.png</file>
-        <file>images/lightarrowdown@2x.png</file>
-        <file>images/lightarrowup.png</file>
-        <file>images/lightarrowup@2x.png</file>
-        <file>images/lightclose.png</file>
-        <file>images/lightclose@2x.png</file>
         <file>images/arrowdown.png</file>
         <file>images/arrowdown@2x.png</file>
         <file>images/arrowup.png</file>
@@ -87,8 +77,6 @@
         <file>images/category_locator.png</file>
         <file>images/filtericon.png</file>
         <file>images/filtericon@2x.png</file>
-        <file>images/button_close.png</file>
-        <file>images/button_close@2x.png</file>
         <file>images/splitbutton_closebottom.png</file>
         <file>images/splitbutton_closebottom@2x.png</file>
         <file>images/splitbutton_closeleft.png</file>
@@ -101,7 +89,6 @@
         <file>images/splitbutton_vertical@2x.png</file>
         <file>images/panel_manage_button.png</file>
         <file>images/panel_manage_button@2x.png</file>
-        <file>images/pause.png</file>
         <file>images/reload_gray.png</file>
         <file>images/reload_gray@2x.png</file>
         <file>images/error.png</file>
@@ -110,8 +97,26 @@
         <file>images/warning@2x.png</file>
         <file>images/info.png</file>
         <file>images/info@2x.png</file>
+        <file>images/warningfill.png</file>
+        <file>images/warningfill@2x.png</file>
         <file>images/dark_fileicon.png</file>
         <file>images/dark_foldericon.png</file>
         <file>images/Desktop.png</file>
+        <file>images/zoom.png</file>
+        <file>images/zoom@2x.png</file>
+        <file>images/interrupt_small.png</file>
+        <file>images/interrupt_small@2x.png</file>
+        <file>images/run_small.png</file>
+        <file>images/run_small@2x.png</file>
+        <file>images/stop_small.png</file>
+        <file>images/stop_small@2x.png</file>
+        <file>images/boundingrect.png</file>
+        <file>images/boundingrect@2x.png</file>
+        <file>images/eye_closed.png</file>
+        <file>images/eye_closed@2x.png</file>
+        <file>images/eye_open.png</file>
+        <file>images/eye_open@2x.png</file>
+        <file>images/desktopdevicesmall.png</file>
+        <file>images/desktopdevicesmall@2x.png</file>
     </qresource>
 </RCC>

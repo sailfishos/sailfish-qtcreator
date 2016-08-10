@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -113,15 +108,13 @@ void TypeDescriptionReader::readDocument(UiProgram *ast)
     const QString versionString = _source.mid(import->versionToken.offset, import->versionToken.length);
     const int dotIdx = versionString.indexOf(QLatin1Char('.'));
     if (dotIdx != -1) {
-        version = ComponentVersion(versionString.left(dotIdx).toInt(),
-                                   versionString.mid(dotIdx + 1).toInt());
+        version = ComponentVersion(versionString.leftRef(dotIdx).toInt(),
+                                   versionString.midRef(dotIdx + 1).toInt());
     }
     if (version.majorVersion() != 1) {
         addError(import->versionToken, tr("Major version different from 1 not supported."));
         return;
     }
-    if (version.minorVersion() > 1)
-        addWarning(import->versionToken, tr("Reading only version 1.1 parts."));
 
     if (!ast->members || !ast->members->member || ast->members->next) {
         addError(SourceLocation(), tr("Expected document to contain a single object definition."));
@@ -153,8 +146,6 @@ void TypeDescriptionReader::readModule(UiObjectDefinition *ast)
             typeName = toString(component->qualifiedTypeNameId);
 
         if (!component || (typeName != QLatin1String("Component") && typeName != QLatin1String("ModuleApi"))) {
-            addWarning(member->firstSourceLocation(),
-                       tr("Expected only Component and ModuleApi object definitions."));
             continue;
         }
 

@@ -1,4 +1,30 @@
 #!/bin/bash
+
+############################################################################
+#
+# Copyright (C) 2016 The Qt Company Ltd.
+# Contact: https://www.qt.io/licensing/
+#
+# This file is part of Qt Creator.
+#
+# Commercial License Usage
+# Licensees holding valid commercial Qt licenses may use this file in
+# accordance with the commercial license agreement provided with the
+# Software or, alternatively, in accordance with the terms contained in
+# a written agreement between you and The Qt Company. For licensing terms
+# and conditions see https://www.qt.io/terms-conditions. For further
+# information use the contact form at https://www.qt.io/contact-us.
+#
+# GNU General Public License Usage
+# Alternatively, this file may be used under the terms of the GNU
+# General Public License version 3 as published by the Free Software
+# Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+# included in the packaging of this file. Please review the following
+# information to ensure the GNU General Public License requirements will
+# be met: https://www.gnu.org/licenses/gpl-3.0.html.
+#
+############################################################################
+
 [ $# -lt 5 ] && echo "Usage: $(basename $0) <app folder> <qt translations folder> <qt plugin folder> <qt quick imports folder> <qt quick 2 imports folder>" && exit 2
 [ $(uname -s) != "Darwin" ] && echo "Run this script on Mac OS X" && exit 2;
 
@@ -46,6 +72,12 @@ if [ ! -f "$1/Contents/Resources/ios/qt.conf" ]; then
     cp -f "$(dirname "${BASH_SOURCE[0]}")/../dist/installer/mac/ios_qt.conf" "$1/Contents/Resources/ios/qt.conf" || exit 1
 fi
 
+# copy qml2puppet's qt.conf
+if [ ! -f "$1/Contents/Resources/qmldesigner/qt.conf" ]; then
+    echo "- Copying qmldesigner/qt.conf"
+    cp -f "$(dirname "${BASH_SOURCE[0]}")/../dist/installer/mac/qmldesigner_qt.conf" "$1/Contents/Resources/qmldesigner/qt.conf" || exit 1
+fi
+
 # copy Qt translations
 # check for known existing translation to avoid copying multiple times
 if [ ! -f "$1/Contents/Resources/translations/qt_de.qm" ]; then
@@ -82,7 +114,7 @@ fi
 
 if [ ! -d "$1/Contents/Frameworks/QtCore.framework" ]; then
 
-    qml2puppetapp="$1/Contents/MacOS/qml2puppet"
+    qml2puppetapp="$1/Contents/Resources/qmldesigner/qml2puppet"
     if [ -f "$qml2puppetapp" ]; then
         qml2puppetArgument="-executable=$qml2puppetapp"
     fi

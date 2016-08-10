@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -112,7 +107,8 @@ const char SPLIT_SIDE_BY_SIDE[]    = "QtCreator.SplitSideBySide";
 const char SPLIT_NEW_WINDOW[]      = "QtCreator.SplitNewWindow";
 const char REMOVE_CURRENT_SPLIT[]  = "QtCreator.RemoveCurrentSplit";
 const char REMOVE_ALL_SPLITS[]     = "QtCreator.RemoveAllSplits";
-const char GOTO_NEXT_SPLIT[]      = "QtCreator.GotoOtherSplit";
+const char GOTO_PREV_SPLIT[]       = "QtCreator.GoToPreviousSplit";
+const char GOTO_NEXT_SPLIT[]       = "QtCreator.GoToNextSplit";
 const char CLOSE[]                 = "QtCreator.Close";
 const char CLOSE_ALTERNATIVE[]     = "QtCreator.Close_Alternative"; // temporary, see QTCREATORBUG-72
 const char CLOSEALL[]              = "QtCreator.CloseAll";
@@ -184,45 +180,6 @@ const char G_HELP_SUPPORT[]        = "QtCreator.Group.Help.Supprt";
 const char G_HELP_ABOUT[]          = "QtCreator.Group.Help.About";
 const char G_HELP_UPDATES[]        = "QtCreator.Group.Help.Updates";
 
-const char ICON_MINUS[]              = ":/core/images/minus.png";
-const char ICON_PLUS[]               = ":/core/images/plus.png";
-const char ICON_NEWFILE[]            = ":/core/images/filenew.png";
-const char ICON_OPENFILE[]           = ":/core/images/fileopen.png";
-const char ICON_SAVEFILE[]           = ":/core/images/filesave.png";
-const char ICON_UNDO[]               = ":/core/images/undo.png";
-const char ICON_REDO[]               = ":/core/images/redo.png";
-const char ICON_COPY[]               = ":/core/images/editcopy.png";
-const char ICON_PASTE[]              = ":/core/images/editpaste.png";
-const char ICON_CUT[]                = ":/core/images/editcut.png";
-const char ICON_NEXT[]               = ":/core/images/next.png";
-const char ICON_PREV[]               = ":/core/images/prev.png";
-const char ICON_DIR[]                = ":/core/images/dir.png";
-const char ICON_CLEAN_PANE[]         = ":/core/images/clean_pane_small.png";
-const char ICON_CLEAR[]              = ":/core/images/clear.png";
-const char ICON_RESET[]              = ":/core/images/reset.png";
-const char ICON_RELOAD_GRAY[]        = ":/core/images/reload_gray.png";
-const char ICON_MAGNIFIER[]          = ":/core/images/magnifier.png";
-const char ICON_TOGGLE_SIDEBAR[]     = ":/core/images/sidebaricon.png";
-const char ICON_BUTTON_CLOSE[]       = ":/core/images/button_close.png";
-const char ICON_CLOSE_BUTTON[]       = ":/core/images/closebutton.png";
-const char ICON_DARK_CLOSE_BUTTON[]  = ":/core/images/darkclosebutton.png";
-const char ICON_DARK_CLOSE[]         = ":/core/images/darkclose.png";
-const char ICON_SPLIT_HORIZONTAL[]   = ":/core/images/splitbutton_horizontal.png";
-const char ICON_SPLIT_VERTICAL[]     = ":/core/images/splitbutton_vertical.png";
-const char ICON_CLOSE_SPLIT_TOP[]    = ":/core/images/splitbutton_closetop.png";
-const char ICON_CLOSE_SPLIT_BOTTOM[] = ":/core/images/splitbutton_closebottom.png";
-const char ICON_CLOSE_SPLIT_LEFT[]   = ":/core/images/splitbutton_closeleft.png";
-const char ICON_CLOSE_SPLIT_RIGHT[]  = ":/core/images/splitbutton_closeright.png";
-const char ICON_FILTER[]             = ":/core/images/filtericon.png";
-const char ICON_LINK[]               = ":/core/images/linkicon.png";
-const char ICON_PAUSE[]              = ":/core/images/pause.png";
-const char ICON_QTLOGO_32[]          = ":/core/images/logo/32/QtProject-qtcreator.png";
-const char ICON_QTLOGO_64[]          = ":/core/images/logo/64/QtProject-qtcreator.png";
-const char ICON_QTLOGO_128[]         = ":/core/images/logo/128/QtProject-qtcreator.png";
-const char ICON_WARNING[]            = ":/core/images/warning.png";
-const char ICON_ERROR[]              = ":/core/images/error.png";
-const char ICON_INFO[]               = ":/core/images/info.png";
-
 const char WIZARD_CATEGORY_QT[] = "R.Qt";
 const char WIZARD_TR_CATEGORY_QT[] = QT_TRANSLATE_NOOP("Core", "Qt");
 const char WIZARD_KIND_UNKNOWN[] = "unknown";
@@ -232,14 +189,16 @@ const char WIZARD_KIND_FILE[] = "file";
 const char SETTINGS_CATEGORY_CORE[] = "A.Core";
 const char SETTINGS_CATEGORY_CORE_ICON[] = ":/core/images/category_core.png";
 const char SETTINGS_TR_CATEGORY_CORE[] = QT_TRANSLATE_NOOP("Core", "Environment");
-const char SETTINGS_ID_ENVIRONMENT[] = "A.General";
-const char SETTINGS_ID_SHORTCUTS[] = "B.Keyboard";
-const char SETTINGS_ID_TOOLS[] = "C.ExternalTools";
-const char SETTINGS_ID_MIMETYPES[] = "D.MimeTypes";
+const char SETTINGS_ID_INTERFACE[] = "A.Interface";
+const char SETTINGS_ID_SYSTEM[] = "B.Core.System";
+const char SETTINGS_ID_SHORTCUTS[] = "C.Keyboard";
+const char SETTINGS_ID_TOOLS[] = "D.ExternalTools";
+const char SETTINGS_ID_MIMETYPES[] = "E.MimeTypes";
 
 const char SETTINGS_DEFAULTTEXTENCODING[] = "General/DefaultFileEncoding";
 
 const char SETTINGS_THEME[] = "Core/CreatorTheme";
+const char DEFAULT_THEME[] = "flat";
 
 const char ALL_FILES_FILTER[]      = QT_TRANSLATE_NOOP("Core", "All Files (*)");
 

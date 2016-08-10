@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,41 +9,38 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
 #include "qmlprofilerviewmanager.h"
 
 #include "qmlprofilertraceview.h"
-#include "qmlprofilereventview.h"
+#include "qmlprofilerstatisticsview.h"
 #include "qmlprofilertool.h"
 #include "qmlprofilerstatemanager.h"
 #include "qmlprofilermodelmanager.h"
 #include "qmlprofilerstatewidget.h"
 
+#include <coreplugin/icore.h>
 #include <utils/qtcassert.h>
-#include <utils/fancymainwindow.h>
-#include <analyzerbase/analyzermanager.h>
+#include <debugger/analyzer/analyzermanager.h>
+#include <extensionsystem/pluginmanager.h>
 
 #include <QDockWidget>
 
-using namespace Analyzer;
+using namespace Debugger;
+using namespace Utils;
 
 namespace QmlProfiler {
 namespace Internal {
@@ -52,26 +49,24 @@ class QmlProfilerViewManager::QmlProfilerViewManagerPrivate {
 public:
     QmlProfilerViewManagerPrivate(QmlProfilerViewManager *qq) { Q_UNUSED(qq); }
 
-    QDockWidget *timelineDock;
     QmlProfilerTraceView *traceView;
-    QmlProfilerEventsWidget *eventsView;
+    QList<QmlProfilerEventsView *> eventsViews;
     QmlProfilerStateManager *profilerState;
     QmlProfilerModelManager *profilerModelManager;
-    QmlProfilerTool *profilerTool;
+    QmlProfilerEventsViewFactory *eventsViewFactory;
 };
 
 QmlProfilerViewManager::QmlProfilerViewManager(QObject *parent,
-                                               QmlProfilerTool *profilerTool,
                                                QmlProfilerModelManager *modelManager,
                                                QmlProfilerStateManager *profilerState)
     : QObject(parent), d(new QmlProfilerViewManagerPrivate(this))
 {
     setObjectName(QLatin1String("QML Profiler View Manager"));
     d->traceView = 0;
-    d->eventsView = 0;
     d->profilerState = profilerState;
     d->profilerModelManager = modelManager;
-    d->profilerTool = profilerTool;
+    d->eventsViewFactory =
+            ExtensionSystem::PluginManager::getObject<QmlProfilerEventsViewFactory>();
     createViews();
 }
 
@@ -80,46 +75,48 @@ QmlProfilerViewManager::~QmlProfilerViewManager()
     delete d;
 }
 
-////////////////////////////////////////////////////////////
-// Views
 void QmlProfilerViewManager::createViews()
 {
-
     QTC_ASSERT(d->profilerModelManager, return);
     QTC_ASSERT(d->profilerState, return);
 
-    Utils::FancyMainWindow *mw = AnalyzerManager::mainWindow();
-
-    d->traceView = new QmlProfilerTraceView(mw,
-                                            d->profilerTool,
-                                            this,
-                                            d->profilerModelManager);
+    d->traceView = new QmlProfilerTraceView(0, this, d->profilerModelManager);
     d->traceView->setWindowTitle(tr("Timeline"));
-    connect(d->traceView, SIGNAL(gotoSourceLocation(QString,int,int)),
-            this, SIGNAL(gotoSourceLocation(QString,int,int)));
+    connect(d->traceView, &QmlProfilerTraceView::gotoSourceLocation,
+            this, &QmlProfilerViewManager::gotoSourceLocation);
+    connect(d->traceView, &QmlProfilerTraceView::typeSelected,
+            this, &QmlProfilerViewManager::typeSelected);
+    connect(this, &QmlProfilerViewManager::typeSelected,
+            d->traceView, &QmlProfilerTraceView::selectByTypeId);
 
-    d->eventsView = new QmlProfilerEventsWidget(mw, d->profilerTool, this,
-                                                d->profilerModelManager);
-    d->eventsView->setWindowTitle(tr("Events"));
-    connect(d->eventsView, SIGNAL(gotoSourceLocation(QString,int,int)), this,
-            SIGNAL(gotoSourceLocation(QString,int,int)));
-    connect(d->eventsView, SIGNAL(typeSelected(int)), d->traceView, SLOT(selectByTypeId(int)));
-    connect(d->traceView, SIGNAL(typeSelected(int)), d->eventsView, SLOT(selectByTypeId(int)));
-
-    QDockWidget *eventsDock = AnalyzerManager::createDockWidget
-            (QmlProfilerToolId, d->eventsView);
-    d->timelineDock = AnalyzerManager::createDockWidget
-            (QmlProfilerToolId, d->traceView);
-
-    eventsDock->show();
-    d->timelineDock->show();
-
-    mw->splitDockWidget(mw->toolBarDockWidget(), d->timelineDock, Qt::Vertical);
-    mw->tabifyDockWidget(d->timelineDock, eventsDock);
-    d->timelineDock->raise();
-
-    new QmlProfilerStateWidget(d->profilerState, d->profilerModelManager, d->eventsView);
     new QmlProfilerStateWidget(d->profilerState, d->profilerModelManager, d->traceView);
+
+    Utils::Perspective perspective;
+    perspective.setName(tr("QML Profiler"));
+    perspective.addOperation({Constants::QmlProfilerTimelineDockId, d->traceView, {},
+                              Perspective::SplitVertical});
+
+    d->eventsViews << new QmlProfilerStatisticsView(0, d->profilerModelManager);
+    if (d->eventsViewFactory)
+        d->eventsViews.append(d->eventsViewFactory->create(0, d->profilerModelManager));
+
+    foreach (QmlProfilerEventsView *view, d->eventsViews) {
+        connect(view, &QmlProfilerEventsView::typeSelected,
+                this, &QmlProfilerViewManager::typeSelected);
+        connect(this, &QmlProfilerViewManager::typeSelected,
+                view, &QmlProfilerEventsView::selectByTypeId);
+        connect(d->profilerModelManager, &QmlProfilerModelManager::visibleFeaturesChanged,
+                view, &QmlProfilerEventsView::onVisibleFeaturesChanged);
+        connect(view, &QmlProfilerEventsView::gotoSourceLocation,
+                this, &QmlProfilerViewManager::gotoSourceLocation);
+        connect(view, &QmlProfilerEventsView::showFullRange,
+                this, [this](){restrictEventsToRange(-1, -1);});
+        QByteArray dockId = view->objectName().toLatin1();
+        perspective.addOperation({dockId, view, Constants::QmlProfilerTimelineDockId, Perspective::AddToTab});
+        new QmlProfilerStateWidget(d->profilerState, d->profilerModelManager, view);
+    }
+    perspective.addOperation({Constants::QmlProfilerTimelineDockId, 0, {}, Perspective::Raise});
+    Debugger::registerPerspective(Constants::QmlProfilerPerspectiveId, perspective);
 }
 
 bool QmlProfilerViewManager::hasValidSelection() const
@@ -137,26 +134,33 @@ qint64 QmlProfilerViewManager::selectionEnd() const
     return d->traceView->selectionEnd();
 }
 
-bool QmlProfilerViewManager::hasGlobalStats() const
+bool QmlProfilerViewManager::isEventsRestrictedToRange() const
 {
-    return d->eventsView->hasGlobalStats();
+    foreach (QmlProfilerEventsView *view, d->eventsViews) {
+        if (view->isRestrictedToRange())
+            return true;
+    }
+    return false;
 }
 
-void QmlProfilerViewManager::getStatisticsInRange(qint64 rangeStart, qint64 rangeEnd)
+void QmlProfilerViewManager::restrictEventsToRange(qint64 rangeStart, qint64 rangeEnd)
 {
-    d->eventsView->getStatisticsInRange(rangeStart, rangeEnd);
+    foreach (QmlProfilerEventsView *view, d->eventsViews)
+        view->restrictToRange(rangeStart, rangeEnd);
 }
 
 void QmlProfilerViewManager::raiseTimeline()
 {
-    d->timelineDock->raise();
+    QTC_ASSERT(qobject_cast<QDockWidget *>(d->traceView->parentWidget()), return);
+    d->traceView->parentWidget()->raise();
     d->traceView->setFocus();
 }
 
 void QmlProfilerViewManager::clear()
 {
     d->traceView->clear();
-    d->eventsView->clear();
+    foreach (QmlProfilerEventsView *view, d->eventsViews)
+        view->clear();
 }
 
 } // namespace Internal

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 Petar Perisin.
+** Copyright (C) 2016 Petar Perisin.
 ** Contact: petar.perisin@gmail.com
 **
 ** This file is part of Qt Creator.
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -34,6 +29,7 @@
 
 #include "../gitplugin.h"
 #include "../gitclient.h"
+#include "../gitconstants.h"
 
 #include <QDateTime>
 #include <QDir>
@@ -70,14 +66,14 @@ QString GerritPushDialog::determineRemoteBranch(const QString &localBranch)
     args << QLatin1String("-r") << QLatin1String("--contains")
          << earliestCommit + QLatin1Char('^');
 
-    if (!m_client->synchronousBranchCmd(m_workingDir, args, &output, &error))
+    if (!GitPlugin::client()->synchronousBranchCmd(m_workingDir, args, &output, &error))
         return QString();
     const QString head = QLatin1String("/HEAD");
     QStringList refs = output.split(QLatin1Char('\n'));
 
     QString remoteTrackingBranch;
     if (localBranch != QLatin1String("HEAD"))
-        remoteTrackingBranch = m_client->synchronousTrackingBranch(m_workingDir, localBranch);
+        remoteTrackingBranch = GitPlugin::client()->synchronousTrackingBranch(m_workingDir, localBranch);
 
     QString remoteBranch;
     foreach (const QString &reference, refs) {
@@ -104,7 +100,7 @@ void GerritPushDialog::initRemoteBranches()
     QString remotesPrefix(QLatin1String("refs/remotes/"));
     args << QLatin1String("--format=%(refname)\t%(committerdate:raw)")
          << remotesPrefix;
-    if (!m_client->synchronousForEachRefCmd(m_workingDir, args, &output))
+    if (!GitPlugin::client()->synchronousForEachRefCmd(m_workingDir, args, &output))
         return;
 
     const QStringList refs = output.split(QLatin1String("\n"));
@@ -114,11 +110,11 @@ void GerritPushDialog::initRemoteBranches()
             continue;
         const QString ref = entries.at(0).mid(remotesPrefix.size());
         int refBranchIndex = ref.indexOf(QLatin1Char('/'));
-        int timeT = entries.at(1).left(entries.at(1).indexOf(QLatin1Char(' '))).toInt();
+        int timeT = entries.at(1).leftRef(entries.at(1).indexOf(QLatin1Char(' '))).toInt();
         BranchDate bd(ref.mid(refBranchIndex + 1), QDateTime::fromTime_t(timeT).date());
         m_remoteBranches.insertMulti(ref.left(refBranchIndex), bd);
     }
-    QStringList remotes = m_client->synchronousRemotesList(m_workingDir).keys();
+    QStringList remotes = GitPlugin::client()->synchronousRemotesList(m_workingDir).keys();
     remotes.removeDuplicates();
     {
         const QString origin = QLatin1String("origin");
@@ -135,10 +131,8 @@ void GerritPushDialog::initRemoteBranches()
 GerritPushDialog::GerritPushDialog(const QString &workingDir, const QString &reviewerList, QWidget *parent) :
     QDialog(parent),
     m_workingDir(workingDir),
-    m_ui(new Ui::GerritPushDialog),
-    m_isValid(false)
+    m_ui(new Ui::GerritPushDialog)
 {
-    m_client = GitPlugin::instance()->client();
     setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
     m_ui->setupUi(this);
     m_ui->repositoryLabel->setText(QDir::toNativeSeparators(workingDir));
@@ -194,7 +188,7 @@ QString GerritPushDialog::calculateChangeRange(const QString &branch)
     QString number;
     QString error;
 
-    m_client->synchronousRevListCmd(m_workingDir, args, &number, &error);
+    GitPlugin::client()->synchronousRevListCmd(m_workingDir, args, &number, &error);
 
     number.chop(1);
     return number;
@@ -233,7 +227,7 @@ void GerritPushDialog::setRemoteBranches(bool includeOld)
 
     const QString remoteName = selectedRemoteName();
     if (!m_remoteBranches.contains(remoteName)) {
-        foreach (const QString &branch, m_client->synchronousRepositoryBranches(remoteName, m_workingDir))
+        foreach (const QString &branch, GitPlugin::client()->synchronousRepositoryBranches(remoteName, m_workingDir))
             m_remoteBranches.insertMulti(remoteName, qMakePair(branch, QDate()));
     }
 
@@ -242,7 +236,7 @@ void GerritPushDialog::setRemoteBranches(bool includeOld)
     foreach (const BranchDate &bd, m_remoteBranches.values(remoteName)) {
         const bool isSuggested = bd.first == m_suggestedRemoteBranch;
         if (includeOld || isSuggested || !bd.second.isValid()
-                || bd.second.daysTo(QDate::currentDate()) <= 60) {
+                || bd.second.daysTo(QDate::currentDate()) <= Git::Constants::OBSOLETE_COMMIT_AGE_IN_DAYS) {
             m_ui->targetBranchComboBox->addItem(bd.first);
             if (isSuggested)
                 m_ui->targetBranchComboBox->setCurrentIndex(i);

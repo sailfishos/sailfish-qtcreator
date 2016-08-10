@@ -1,18 +1,25 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
-** This file is part of Qt Creator
+** This file is part of the Qt Creator documentation.
 **
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Free Documentation License
-**
+** GNU Free Documentation License Usage
 ** Alternatively, this file may be used under the terms of the GNU Free
 ** Documentation License version 1.3 as published by the Free Software
-** Foundation and appearing in the file included in the packaging of this
-** file.
-**
+** Foundation and appearing in the file included in the packaging of
+** this file. Please review the following information to ensure
+** the GNU Free Documentation License version 1.3 requirements
+** will be met: https://www.gnu.org/licenses/fdl-1.3.html.
 **
 ****************************************************************************/
 
@@ -79,18 +86,11 @@
             to use for opening the file. If your files do not match the
             predefined MIME types, you can edit the MIME types.
 
-        \li \l{Comparing Files}
+        \li \l{Modeling}
 
-            You can use a diff editor to compare two versions of a file and
-            view the differences side-by-side in the \uicontrol Edit mode.
-
-        \li \l{Parsing C++ Files}
-
-            An experimental Clang code model plugin enables you to replace the
-            built-in \QC code model with the Clang code model. Clang is a C
-            language family front end for LLVM. Clang provides you with more
-            accurate information than the built-in code model but can be slower
-            to use for large projects.
+            You can use the experimental model editor to create Universal
+            Modeling Language (UML) style models with structured diagrams and
+            store them in XML format.
 
     \endlist
 

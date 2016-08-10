@@ -1,7 +1,7 @@
-/**************************************************************************
+/****************************************************************************
 **
-** Copyright (C) 2015 Lorenz Haas
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 Lorenz Haas
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -36,7 +31,7 @@
 
 #include <coreplugin/icore.h>
 
-#include <utils/QtConcurrentTools>
+#include <utils/runextensions.h>
 
 #include <QDateTime>
 #include <QFile>
@@ -70,36 +65,41 @@ ArtisticStyleSettings::ArtisticStyleSettings() :
     read();
 }
 
+static int parseVersion(const QString &text)
+{
+    // The version in Artistic Style is printed like "Artistic Style Version 2.04"
+    const QRegExp rx(QLatin1String("([2-9]{1})\\.([0-9]{2})(\\.[1-9]{1})?$"));
+    if (rx.indexIn(text) != -1) {
+        const int major = rx.cap(1).toInt() * 100;
+        const int minor = rx.cap(2).toInt();
+        return major + minor;
+    }
+    return 0;
+}
+
+static int updateVersionHelper(const QString &command)
+{
+    QProcess process;
+    process.start(command, QStringList() << QLatin1String("--version"));
+    if (!process.waitForFinished()) {
+        process.kill();
+        return 0;
+    }
+
+    // Astyle prints the version on stdout or stderr, depending on platform
+    const int version = parseVersion(QString::fromUtf8(process.readAllStandardOutput()).trimmed());
+    if (version != 0)
+        return version;
+    return parseVersion(QString::fromUtf8(process.readAllStandardError()).trimmed());
+}
+
 void ArtisticStyleSettings::updateVersion()
 {
     if (m_versionFuture.isRunning())
         m_versionFuture.cancel();
 
-    m_versionFuture = QtConcurrent::run(&ArtisticStyleSettings::helperUpdateVersion, this);
+    m_versionFuture = Utils::runAsync(updateVersionHelper, command());
     m_versionWatcher.setFuture(m_versionFuture);
-}
-
-void ArtisticStyleSettings::helperUpdateVersion(QFutureInterface<int> &future)
-{
-    QProcess process;
-    process.start(command(), QStringList() << QLatin1String("--version"));
-    if (!process.waitForFinished()) {
-        process.kill();
-        future.reportResult(0);
-        return;
-    }
-
-    // The version in Artistic Style is printed like "Artistic Style Version 2.04"
-    const QString version = QString::fromUtf8(process.readAllStandardError()).trimmed();
-    const QRegExp rx(QLatin1String("([2-9]{1})\\.([0-9]{2})(\\.[1-9]{1})?$"));
-    if (rx.indexIn(version) != -1) {
-        const int major = rx.cap(1).toInt() * 100;
-        const int minor = rx.cap(2).toInt();
-        future.reportResult(major + minor);
-        return;
-    }
-    future.reportResult(0);
-    return;
 }
 
 void ArtisticStyleSettings::helperSetVersion()

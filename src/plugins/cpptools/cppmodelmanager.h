@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -34,7 +29,9 @@
 #include "cpptools_global.h"
 
 #include "cppmodelmanagersupport.h"
-#include "cppprojects.h"
+#include "projectinfo.h"
+#include "projectpart.h"
+#include "projectpartheaderpath.h"
 
 #include <cplusplus/cppmodelmanagerbase.h>
 
@@ -42,7 +39,11 @@
 #include <QObject>
 #include <QStringList>
 
-namespace Core { class IEditor; }
+
+namespace Core {
+class IDocument;
+class IEditor;
+}
 namespace CPlusPlus { class LookupContext; }
 namespace ProjectExplorer { class Project; }
 namespace TextEditor { class TextDocument; }
@@ -54,6 +55,7 @@ class BaseEditorDocumentProcessor;
 class CppCompletionAssistProvider;
 class CppEditorDocumentHandle;
 class CppIndexingSupport;
+class SymbolFinder;
 class WorkingCopy;
 
 namespace Internal {
@@ -86,12 +88,15 @@ public:
 
     QFuture<void> updateSourceFiles(const QSet<QString> &sourceFiles,
         ProgressNotificationMode mode = ReservedProgressNotification);
+    void updateCppEditorDocuments() const;
     WorkingCopy workingCopy() const;
     QByteArray codeModelConfiguration() const;
 
     QList<ProjectInfo> projectInfos() const;
     ProjectInfo projectInfo(ProjectExplorer::Project *project) const;
     QFuture<void> updateProjectInfo(const ProjectInfo &newProjectInfo);
+    ProjectInfo updateCompilerCallDataForProject(ProjectExplorer::Project *project,
+                                                 ProjectInfo::CompilerCallData &compilerCallData);
 
     /// \return The project part with the given project file
     ProjectPart::Ptr projectPartForId(const QString &projectPartId) const;
@@ -104,7 +109,7 @@ public:
     QList<ProjectPart::Ptr> projectPartFromDependencies(const Utils::FileName &fileName) const;
     /// \return A synthetic \c ProjectPart which consists of all defines/includes/frameworks from
     ///         all loaded projects.
-    ProjectPart::Ptr fallbackProjectPart() const;
+    ProjectPart::Ptr fallbackProjectPart();
 
     CPlusPlus::Snapshot snapshot() const;
     Document::Ptr document(const QString &fileName) const;
@@ -115,7 +120,8 @@ public:
                                                   const QByteArray &contents);
     void emitAbstractEditorSupportRemoved(const QString &filePath);
 
-    bool isCppEditor(Core::IEditor *editor) const;
+    static bool isCppEditor(Core::IEditor *editor);
+    bool isClangCodeModelActive() const;
 
     QSet<AbstractEditorSupport*> abstractEditorSupports() const;
     void addExtraEditorSupport(AbstractEditorSupport *editorSupport);
@@ -137,8 +143,8 @@ public:
 
     void finishedRefreshingSourceFiles(const QSet<QString> &files);
 
-    void addModelManagerSupportProvider(ModelManagerSupportProvider *modelManagerSupportProvider);
-    CppCompletionAssistProvider *completionAssistProvider(const QString &mimeType) const;
+    void activateClangCodeModel(ModelManagerSupportProvider *modelManagerSupportProvider);
+    CppCompletionAssistProvider *completionAssistProvider() const;
     BaseEditorDocumentProcessor *editorDocumentProcessor(
         TextEditor::TextDocument *baseTextDocument) const;
 
@@ -147,14 +153,18 @@ public:
 
     QStringList projectFiles();
 
-    ProjectPart::HeaderPaths headerPaths();
+    ProjectPartHeaderPaths headerPaths();
 
     // Use this *only* for auto tests
-    void setHeaderPaths(const ProjectPart::HeaderPaths &headerPaths);
+    void setHeaderPaths(const ProjectPartHeaderPaths &headerPaths);
 
     QByteArray definedMacros();
 
     void enableGarbageCollector(bool enable);
+
+    SymbolFinder *symbolFinder();
+
+    QThreadPool *sharedThreadPool();
 
     static QSet<QString> timeStampModifiedFiles(const QList<Document::Ptr> &documentsToCheck);
 
@@ -187,36 +197,28 @@ private slots:
     // This should be executed in the GUI thread.
     friend class Tests::ModelManagerTestHelper;
     void onAboutToLoadSession();
-    void onAboutToUnloadSession();
     void renameIncludes(const QString &oldFileName, const QString &newFileName);
     void onProjectAdded(ProjectExplorer::Project *project);
     void onAboutToRemoveProject(ProjectExplorer::Project *project);
     void onSourceFilesRefreshed() const;
     void onCurrentEditorChanged(Core::IEditor *editor);
-    void onCodeModelSettingsChanged();
     void onCoreAboutToClose();
 
 private:
+    void initializeBuiltinModelManagerSupport();
     void delayedGC();
     void recalculateProjectPartMappings();
-    void updateCppEditorDocuments() const;
+    void watchForCanceledProjectIndexer(QFuture<void> future, ProjectExplorer::Project *project);
 
     void replaceSnapshot(const CPlusPlus::Snapshot &newSnapshot);
     void removeFilesFromSnapshot(const QSet<QString> &removedFiles);
     void removeProjectInfoFilesAndIncludesFromSnapshot(const ProjectInfo &projectInfo);
 
-    void handleAddedModelManagerSupports(const QSet<QString> &supportIds);
-    QList<ModelManagerSupport::Ptr> handleRemovedModelManagerSupports(
-            const QSet<QString> &supportIds);
-    void closeCppEditorDocuments();
-
-    ModelManagerSupport::Ptr modelManagerSupportForMimeType(const QString &mimeType) const;
-
     WorkingCopy buildWorkingCopyList();
 
     void ensureUpdated();
     QStringList internalProjectFiles() const;
-    ProjectPart::HeaderPaths internalHeaderPaths() const;
+    ProjectPartHeaderPaths internalHeaderPaths() const;
     QByteArray internalDefinedMacros() const;
 
     void dumpModelManagerConfiguration(const QString &logFileId);

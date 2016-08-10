@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://www.qt.io/licensing.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -34,6 +29,7 @@
 #include "customqbspropertiesdialog.h"
 #include "qbsconstants.h"
 #include "qbsprojectmanager.h"
+#include "qbsprojectmanagersettings.h"
 
 #include <coreplugin/icore.h>
 #include <projectexplorer/kit.h>
@@ -56,7 +52,7 @@ class QbsProfilesSettingsWidget : public QWidget
 public:
     QbsProfilesSettingsWidget(QWidget *parent = 0);
 
-    void applyCustomProperties();
+    void apply();
 
 private slots:
     void refreshKitsList();
@@ -76,7 +72,10 @@ private:
 };
 
 QbsProfilesSettingsPage::QbsProfilesSettingsPage(QObject *parent)
-    : Core::IOptionsPage(parent), m_widget(0)
+    : Core::IOptionsPage(parent)
+    , m_widget(0)
+    , m_useQtcSettingsDirPersistent(QbsProjectManagerSettings::useCreatorSettingsDirForQbs())
+
 {
     setId("AA.QbsProfiles");
     setDisplayName(QCoreApplication::translate("QbsProjectManager", "Profiles"));
@@ -96,32 +95,41 @@ QWidget *QbsProfilesSettingsPage::widget()
 void QbsProfilesSettingsPage::apply()
 {
     if (m_widget)
-        m_widget->applyCustomProperties();
+        m_widget->apply();
+    m_useQtcSettingsDirPersistent = QbsProjectManagerSettings::useCreatorSettingsDirForQbs();
 }
 
 void QbsProfilesSettingsPage::finish()
 {
     delete m_widget;
     m_widget = 0;
+    QbsProjectManagerSettings::setUseCreatorSettingsDirForQbs(m_useQtcSettingsDirPersistent);
+    QbsProjectManagerSettings::writeSettings();
 }
 
 
 QbsProfilesSettingsWidget::QbsProfilesSettingsWidget(QWidget *parent)
     : QWidget(parent)
-    , m_model(Core::ICore::userResourcePath())
+    , m_model(QbsProjectManagerSettings::qbsSettingsBaseDir())
     , m_applyingProperties(false)
 {
     m_model.setEditable(false);
     m_ui.setupUi(this);
+    m_ui.settingsDirCheckBox->setChecked(QbsProjectManagerSettings::useCreatorSettingsDirForQbs());
     connect(ProjectExplorer::KitManager::instance(), &ProjectExplorer::KitManager::kitsChanged,
             this, &QbsProfilesSettingsWidget::refreshKitsList);
+    connect(m_ui.settingsDirCheckBox, &QCheckBox::stateChanged, [this]() {
+        QbsProjectManagerSettings::setUseCreatorSettingsDirForQbs(m_ui.settingsDirCheckBox->isChecked());
+        m_model.updateSettingsDir(QbsProjectManagerSettings::qbsSettingsBaseDir());
+        displayCurrentProfile();
+    });
     connect(m_ui.expandButton, SIGNAL(clicked()), m_ui.propertiesView, SLOT(expandAll()));
     connect(m_ui.collapseButton, SIGNAL(clicked()), m_ui.propertiesView, SLOT(collapseAll()));
     connect(m_ui.editButton, SIGNAL(clicked()), SLOT(editProfile()));
     refreshKitsList();
 }
 
-void QbsProfilesSettingsWidget::applyCustomProperties()
+void QbsProfilesSettingsWidget::apply()
 {
     QTC_ASSERT(!m_applyingProperties, return);
     m_applyingProperties = true; // The following will cause kitsChanged() to be emitted.

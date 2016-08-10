@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -34,6 +29,12 @@
 #include "designmodewidget.h"
 #include "settingspage.h"
 #include "designmodecontext.h"
+
+#include <connectionview.h>
+#include <sourcetool/sourcetool.h>
+#include <colortool/colortool.h>
+#include <texttool/texttool.h>
+#include <pathtool/pathtool.h>
 
 #include <qmljseditor/qmljseditorconstants.h>
 
@@ -125,12 +126,18 @@ QmlDesignerPlugin::~QmlDesignerPlugin()
 ////////////////////////////////////////////////////
 bool QmlDesignerPlugin::initialize(const QStringList & /*arguments*/, QString *errorMessage/* = 0*/) // =0;
 {
-    if (errorMessage)
-        errorMessage->clear();
+    if (!Utils::HostOsInfo::canCreateOpenGLContext(errorMessage))
+        return false;
 
     data = new QmlDesignerPluginData;
 
     data->settings.fromSettings(Core::ICore::settings());
+
+    data->viewManager.registerViewTakingOwnership(new QmlDesigner::Internal::ConnectionView());
+    data->viewManager.registerFormEditorToolTakingOwnership(new QmlDesigner::SourceTool);
+    data->viewManager.registerFormEditorToolTakingOwnership(new QmlDesigner::ColorTool);
+    data->viewManager.registerFormEditorToolTakingOwnership(new QmlDesigner::TextTool);
+    data->viewManager.registerFormEditorToolTakingOwnership(new QmlDesigner::PathTool);
 
     const Core::Context switchContext(QmlDesigner::Constants::C_QMLDESIGNER,
         QmlJSEditor::Constants::C_QMLJSEDITOR_ID);
@@ -196,12 +203,6 @@ void QmlDesignerPlugin::createDesignModeWidget()
             this,
             SLOT(onTextEditorsClosed(QList<Core::IEditor*>)));
 
-//    connect(Core::ICore::editorManager(), SIGNAL(currentEditorChanged(Core::IEditor*)),
-//            &data->documentManager, SLOT(currentTextEditorChanged(Core::IEditor*)));
-
-//    connect(Core::ICore::instance(), SIGNAL(contextChanged(Core::IContext*,Core::Context)),
-//            this, SLOT(contextChanged(Core::IContext*,Core::Context)));
-
     connect(Core::ModeManager::instance(),
             SIGNAL(currentModeChanged(Core::IMode*,Core::IMode*)),
             SLOT(onCurrentModeChanged(Core::IMode*,Core::IMode*)));
@@ -223,7 +224,7 @@ void QmlDesignerPlugin::showDesigner()
     if (data->documentManager.hasCurrentDesignDocument()) {
         activateAutoSynchronization();
         data->shortCutManager.updateActions(currentDesignDocument()->textEditor());
-        data->viewManager.pushFileOnCrumbleBar(data->documentManager.currentDesignDocument()->fileName());
+        data->viewManager.pushFileOnCrumbleBar(data->documentManager.currentDesignDocument()->fileName().toString());
     }
 
     data->shortCutManager.updateUndoActions(currentDesignDocument());
@@ -266,7 +267,7 @@ void QmlDesignerPlugin::changeEditor()
 
     if (data->documentManager.hasCurrentDesignDocument()) {
         activateAutoSynchronization();
-        data->viewManager.pushFileOnCrumbleBar(data->documentManager.currentDesignDocument()->fileName());
+        data->viewManager.pushFileOnCrumbleBar(data->documentManager.currentDesignDocument()->fileName().toString());
         data->viewManager.setComponentViewToMaster();
     }
 
@@ -316,7 +317,7 @@ void QmlDesignerPlugin::activateAutoSynchronization()
     viewManager().attachComponentView();
     viewManager().attachViewsExceptRewriterAndComponetView();
 
-    QList<RewriterView::Error> errors = currentDesignDocument()->qmlSyntaxErrors();
+    QList<RewriterError> errors = currentDesignDocument()->qmlSyntaxErrors();
     if (errors.isEmpty()) {
         selectModelNodeUnderTextCursor();
         data->mainWidget->enableWidgets();
@@ -329,9 +330,9 @@ void QmlDesignerPlugin::activateAutoSynchronization()
     currentDesignDocument()->updateSubcomponentManager();
 
     connect(rewriterView(),
-            SIGNAL(errorsChanged(QList<RewriterView::Error>)),
+            SIGNAL(errorsChanged(QList<RewriterError>)),
             data->mainWidget,
-            SLOT(updateErrorStatus(QList<RewriterView::Error>)));
+            SLOT(updateErrorStatus(QList<RewriterError>)));
 }
 
 void QmlDesignerPlugin::deactivateAutoSynchronization()
@@ -342,9 +343,9 @@ void QmlDesignerPlugin::deactivateAutoSynchronization()
     documentManager().currentDesignDocument()->resetToDocumentModel();
 
     disconnect(rewriterView(),
-               SIGNAL(errorsChanged(QList<RewriterView::Error>)),
+               SIGNAL(errorsChanged(QList<RewriterError>)),
                data->mainWidget,
-               SLOT(updateErrorStatus(QList<RewriterView::Error>)));
+               SLOT(updateErrorStatus(QList<RewriterError>)));
 
 }
 

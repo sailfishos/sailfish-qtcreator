@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -40,7 +35,6 @@
 #include <QPainter>
 #include <QStyledItemDelegate>
 #include <QToolTip>
-#include <QtConcurrentRun>
 
 using namespace Android;
 using namespace Android::Internal;
@@ -123,7 +117,7 @@ public:
 
     void paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const
     {
-        QStyleOptionViewItemV4 opt = option;
+        QStyleOptionViewItem opt = option;
         initStyleOption(&opt, index);
         painter->save();
 
@@ -227,7 +221,7 @@ public:
 
     QSize sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const
     {
-        QStyleOptionViewItemV4 opt = option;
+        QStyleOptionViewItem opt = option;
         initStyleOption(&opt, index);
 
         QFontMetrics fm(option.font);
@@ -439,7 +433,7 @@ AndroidDeviceDialog::AndroidDeviceDialog(int apiLevel, const QString &abi, Andro
     m_ui->deviceView->setUniformRowHeights(true);
     m_ui->deviceView->setExpandsOnDoubleClick(false);
 
-    m_ui->defaultDeviceCheckBox->setText(tr("Always use this device for architecture %1").arg(abi));
+    m_ui->defaultDeviceCheckBox->setText(tr("Always use this device for architecture %1 for this project").arg(abi));
 
     m_ui->noDeviceFoundLabel->setText(QLatin1String("<p align=\"center\"><span style=\" font-size:16pt;\">")
                                       + tr("No Device Found") + QLatin1String("</span></p><br/>")
@@ -461,8 +455,6 @@ AndroidDeviceDialog::AndroidDeviceDialog(int apiLevel, const QString &abi, Andro
     connect(&m_futureWatcherRefreshDevices, &QFutureWatcherBase::finished,
             this, &AndroidDeviceDialog::devicesRefreshed);
 
-    refreshDeviceList();
-
     connect(m_ui->deviceView->selectionModel(), &QItemSelectionModel::currentChanged,
             this, &AndroidDeviceDialog::enableOkayButton);
 
@@ -482,7 +474,8 @@ AndroidDeviceDialog::AndroidDeviceDialog(int apiLevel, const QString &abi, Andro
 
     connect(m_ui->lookingForDeviceCancel, &QPushButton::clicked,
             this, &AndroidDeviceDialog::defaultDeviceClear);
-    m_defaultDeviceTimer.start();
+
+    m_connectedDevices = AndroidConfig::connectedDevices(AndroidConfigurations::currentConfig().adbToolPath().toString());
 }
 
 AndroidDeviceDialog::~AndroidDeviceDialog()
@@ -494,17 +487,25 @@ AndroidDeviceDialog::~AndroidDeviceDialog()
 
 AndroidDeviceInfo AndroidDeviceDialog::device()
 {
-    if (result() == QDialog::Accepted)
+    if (!m_defaultDevice.isEmpty()) {
+        auto device = std::find_if(m_connectedDevices.begin(), m_connectedDevices.end(), [this](const AndroidDeviceInfo& info) {
+            return info.serialNumber == m_defaultDevice ||
+                    info.avdname == m_defaultDevice;
+        });
+
+        if (device != m_connectedDevices.end())
+            return *device;
+        m_defaultDevice.clear();
+    }
+
+    refreshDeviceList();
+
+    if (exec() == QDialog::Accepted)
         return m_model->device(m_ui->deviceView->currentIndex());
     return AndroidDeviceInfo();
 }
 
-void AndroidDeviceDialog::accept()
-{
-    QDialog::accept();
-}
-
-bool AndroidDeviceDialog::saveDeviceSelection()
+bool AndroidDeviceDialog::saveDeviceSelection() const
 {
     return m_ui->defaultDeviceCheckBox->isChecked();
 }
@@ -512,27 +513,9 @@ bool AndroidDeviceDialog::saveDeviceSelection()
 void AndroidDeviceDialog::refreshDeviceList()
 {
     m_ui->refreshDevicesButton->setEnabled(false);
-    m_futureWatcherRefreshDevices.setFuture(QtConcurrent::run(&AndroidDeviceDialog::refreshDevices,
-                                                              AndroidConfigurations::currentConfig().adbToolPath().toString(),
-                                                              AndroidConfigurations::currentConfig().androidToolPath().toString(),
-                                                              AndroidConfigurations::currentConfig().androidToolEnvironment()));
-}
-
-QVector<AndroidDeviceInfo> AndroidDeviceDialog::refreshDevices(const QString &adbToolPath,
-                                                               const QString &androidToolPath,
-                                                               const Utils::Environment &environment)
-{
-    QVector<AndroidDeviceInfo> devices = AndroidConfig::connectedDevices(adbToolPath);
-
-    QSet<QString> startedAvds = Utils::transform<QSet>(devices,
-                                                       [] (const AndroidDeviceInfo &info) {
-                                                           return info.avdname;
-                                                       });
-
-    for (const AndroidDeviceInfo &dev : AndroidConfig::androidVirtualDevices(androidToolPath, environment))
-        if (!startedAvds.contains(dev.avdname))
-            devices << dev;
-    return devices;
+    m_progressIndicator->show();
+    m_connectedDevices = AndroidConfig::connectedDevices(AndroidConfigurations::currentConfig().adbToolPath().toString());
+    m_futureWatcherRefreshDevices.setFuture(AndroidConfigurations::currentConfig().androidVirtualDevicesFuture());
 }
 
 void AndroidDeviceDialog::devicesRefreshed()
@@ -548,7 +531,16 @@ void AndroidDeviceDialog::devicesRefreshed()
     }
 
     QVector<AndroidDeviceInfo> devices = m_futureWatcherRefreshDevices.result();
-    m_model->setDevices(devices);
+    QSet<QString> startedAvds = Utils::transform<QSet>(m_connectedDevices,
+                                                       [] (const AndroidDeviceInfo &info) {
+                                                           return info.avdname;
+                                                       });
+
+    for (const AndroidDeviceInfo &dev : devices)
+        if (!startedAvds.contains(dev.avdname))
+            m_connectedDevices << dev;
+
+    m_model->setDevices(m_connectedDevices);
 
     m_ui->deviceView->expand(m_model->index(0, 0));
     if (m_model->rowCount() > 1) // we have a incompatible device node
@@ -572,37 +564,18 @@ void AndroidDeviceDialog::devicesRefreshed()
     if (!newIndex.isValid() && !serialNumber.isEmpty())
         newIndex = m_model->indexFor(deviceType, serialNumber);
 
-    if (!newIndex.isValid() && !devices.isEmpty()) {
-        AndroidDeviceInfo info = devices.first();
+    if (!newIndex.isValid() && !m_connectedDevices.isEmpty()) {
+        AndroidDeviceInfo info = m_connectedDevices.first();
         const QString &name = info.type == AndroidDeviceInfo::Hardware ? info.serialNumber : info.avdname;
         newIndex = m_model->indexFor(info.type, name);
     }
 
     m_ui->deviceView->setCurrentIndex(newIndex);
 
-    m_ui->stackedWidget->setCurrentIndex(devices.isEmpty() ? 1 : 0);
+    m_ui->stackedWidget->setCurrentIndex(m_connectedDevices.isEmpty() ? 1 : 0);
 
     m_ui->refreshDevicesButton->setEnabled(true);
-
-    if (!m_defaultDevice.isEmpty()) {
-        int elapsed = m_defaultDeviceTimer.elapsed();
-        if (elapsed > 4000)
-            accept();
-        else
-            QTimer::singleShot(4000 - elapsed, this, &AndroidDeviceDialog::useDefaultDevice);
-    }
-}
-
-void AndroidDeviceDialog::useDefaultDevice()
-{
-    if (m_defaultDevice.isEmpty())
-        return;
-    AndroidDeviceInfo info = m_model->device(m_ui->deviceView->currentIndex());
-    if (info.serialNumber == m_defaultDevice
-            || info.avdname == m_defaultDevice)
-        accept();
-    else // something different is selected
-        defaultDeviceClear();
+    m_connectedDevices.clear();
 }
 
 void AndroidDeviceDialog::createAvd()

@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -129,7 +124,7 @@ static QString sanitizeBlameOutput(const QString &b)
     if (b.isEmpty())
         return b;
 
-    const bool omitDate = GitPlugin::instance()->client()->settings().boolValue(
+    const bool omitDate = GitPlugin::client()->settings().boolValue(
                 GitSettings::omitAnnotationDateKey);
     const QChar space(QLatin1Char(' '));
     const int parenPos = b.indexOf(QLatin1Char(')'));
@@ -195,31 +190,31 @@ void GitEditorWidget::setPlainText(const QString &text)
 
 void GitEditorWidget::checkoutChange()
 {
-    GitPlugin::instance()->client()->stashAndCheckout(
+    GitPlugin::client()->stashAndCheckout(
                 sourceWorkingDirectory(), m_currentChange);
 }
 
 void GitEditorWidget::resetChange(const QByteArray &resetType)
 {
-    GitPlugin::instance()->client()->reset(
+    GitPlugin::client()->reset(
                 sourceWorkingDirectory(), QLatin1String("--" + resetType), m_currentChange);
 }
 
 void GitEditorWidget::cherryPickChange()
 {
-    GitPlugin::instance()->client()->synchronousCherryPick(
+    GitPlugin::client()->synchronousCherryPick(
                 sourceWorkingDirectory(), m_currentChange);
 }
 
 void GitEditorWidget::revertChange()
 {
-    GitPlugin::instance()->client()->synchronousRevert(
+    GitPlugin::client()->synchronousRevert(
                 sourceWorkingDirectory(), m_currentChange);
 }
 
 void GitEditorWidget::logChange()
 {
-    GitPlugin::instance()->client()->log(
+    GitPlugin::client()->log(
                 sourceWorkingDirectory(), QString(), false, QStringList(m_currentChange));
 }
 
@@ -234,12 +229,11 @@ void GitEditorWidget::applyDiffChunk(const DiffChunk& chunk, bool revert)
     patchFile.write(chunk.chunk);
     patchFile.close();
 
-    GitClient *client = GitPlugin::instance()->client();
     QStringList args = QStringList() << QLatin1String("--cached");
     if (revert)
         args << QLatin1String("--reverse");
     QString errorMessage;
-    if (client->synchronousApplyPatch(baseDir, patchFile.fileName(), &errorMessage, args)) {
+    if (GitPlugin::client()->synchronousApplyPatch(baseDir, patchFile.fileName(), &errorMessage, args)) {
         if (errorMessage.isEmpty())
             VcsOutputWindow::append(tr("Chunk successfully staged"));
         else
@@ -288,7 +282,7 @@ void GitEditorWidget::aboutToOpen(const QString &fileName, const QString &realFi
         const QString gitPath = fi.absolutePath();
         setSource(gitPath);
         textDocument()->setCodec(
-                    GitPlugin::instance()->client()->encoding(gitPath, "i18n.commitEncoding"));
+                    GitPlugin::client()->encoding(gitPath, "i18n.commitEncoding"));
     }
 }
 
@@ -298,19 +292,17 @@ QString GitEditorWidget::decorateVersion(const QString &revision) const
     const QString workingDirectory = fi.absolutePath();
 
     // Format verbose, SHA1 being first token
-    return GitPlugin::instance()->client()->synchronousShortDescription(workingDirectory, revision);
+    return GitPlugin::client()->synchronousShortDescription(workingDirectory, revision);
 }
 
 QStringList GitEditorWidget::annotationPreviousVersions(const QString &revision) const
 {
     QStringList revisions;
     QString errorMessage;
-    GitClient *client = GitPlugin::instance()->client();
     const QFileInfo fi(source());
     const QString workingDirectory = fi.absolutePath();
     // Get the SHA1's of the file.
-    if (!client->synchronousParentRevisions(workingDirectory, QStringList(fi.fileName()),
-                                            revision, &revisions, &errorMessage)) {
+    if (!GitPlugin::client()->synchronousParentRevisions(workingDirectory, revision, &revisions, &errorMessage)) {
         VcsOutputWindow::appendSilently(errorMessage);
         return QStringList();
     }
@@ -319,17 +311,22 @@ QStringList GitEditorWidget::annotationPreviousVersions(const QString &revision)
 
 bool GitEditorWidget::isValidRevision(const QString &revision) const
 {
-    return GitPlugin::instance()->client()->isValidRevision(revision);
+    return GitPlugin::client()->isValidRevision(revision);
 }
 
 void GitEditorWidget::addChangeActions(QMenu *menu, const QString &change)
 {
     m_currentChange = change;
     if (contentType() != OtherContent) {
-        menu->addAction(tr("Cherr&y-Pick Change %1").arg(change), this, SLOT(cherryPickChange()));
-        menu->addAction(tr("Re&vert Change %1").arg(change), this, SLOT(revertChange()));
-        menu->addAction(tr("C&heckout Change %1").arg(change), this, SLOT(checkoutChange()));
-        menu->addAction(tr("&Log for Change %1").arg(change), this, SLOT(logChange()));
+        connect(menu->addAction(tr("Cherr&y-Pick Change %1").arg(change)), &QAction::triggered,
+                this, &GitEditorWidget::cherryPickChange);
+        connect(menu->addAction(tr("Re&vert Change %1").arg(change)), &QAction::triggered,
+                this, &GitEditorWidget::revertChange);
+        connect(menu->addAction(tr("C&heckout Change %1").arg(change)), &QAction::triggered,
+                this, &GitEditorWidget::checkoutChange);
+        connect(menu->addAction(tr("&Log for Change %1").arg(change)), &QAction::triggered,
+                this, &GitEditorWidget::logChange);
+
         QMenu *resetMenu = new QMenu(tr("&Reset to Change %1").arg(change), menu);
         connect(resetMenu->addAction(tr("&Hard")), &QAction::triggered,
                 this, [this]() { resetChange("hard"); });

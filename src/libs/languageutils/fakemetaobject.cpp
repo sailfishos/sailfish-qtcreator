@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -261,6 +256,7 @@ void FakeMetaProperty::addToHash(QCryptographicHash &hash) const
 
 QString FakeMetaProperty::describe(int baseIndent) const
 {
+    auto boolStr = [] (bool v) { return v ? QLatin1String("true") : QLatin1String("false"); };
     QString newLine = QString::fromLatin1("\n") + QString::fromLatin1(" ").repeated(baseIndent);
     QString res = QLatin1String("Property  {");
     res += newLine;
@@ -274,13 +270,13 @@ QString FakeMetaProperty::describe(int baseIndent) const
     res += QString::number(revision());
     res += newLine;
     res += QLatin1String("  isList:");
-    res += isList();
+    res += boolStr(isList());
     res += newLine;
     res += QLatin1String("  isPointer:");
-    res += isPointer();
+    res += boolStr(isPointer());
     res += newLine;
     res += QLatin1String("  isWritable:");
-    res += isWritable();
+    res += boolStr(isWritable());
     res += newLine;
     res += QLatin1Char('}');
     return res;
@@ -485,6 +481,7 @@ QString FakeMetaObject::describe(bool printDetails, int baseIndent) const
          .arg((quintptr)(void *)this, 0, 16);
     if (!printDetails)
         return res;
+    auto boolStr = [] (bool v) { return v ? QLatin1String("true") : QLatin1String("false"); };
     QString newLine = QString::fromLatin1("\n") + QString::fromLatin1(" ").repeated(baseIndent);
     res += QLatin1Char('{');
     res += newLine;
@@ -495,13 +492,13 @@ QString FakeMetaObject::describe(bool printDetails, int baseIndent) const
     res += superclassName();
     res += newLine;
     res += QLatin1String("isSingleton:");
-    res += isSingleton();
+    res += boolStr(isSingleton());
     res += newLine;
     res += QLatin1String("isCreatable:");
-    res += isCreatable();
+    res += boolStr(isCreatable());
     res += newLine;
     res += QLatin1String("isComposite:");
-    res += isComposite();
+    res += boolStr(isComposite());
     res += newLine;
     res += QLatin1String("defaultPropertyName:");
     res += defaultPropertyName();

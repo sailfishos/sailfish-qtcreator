@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -35,6 +30,7 @@
 #include "cppsemanticinfo.h"
 #include "cpptools_global.h"
 
+#include <texteditor/codeassist/assistinterface.h>
 #include <texteditor/texteditor.h>
 #include <texteditor/textdocument.h>
 
@@ -42,7 +38,10 @@
 
 #include <QTextEdit>
 
-namespace TextEditor { class TextDocument; }
+namespace TextEditor {
+class TextDocument;
+class QuickFixOperations;
+}
 
 namespace CppTools {
 
@@ -51,10 +50,8 @@ class CPPTOOLS_EXPORT BaseEditorDocumentProcessor : public QObject
     Q_OBJECT
 
 public:
-    BaseEditorDocumentProcessor(TextEditor::TextDocument *document);
+    BaseEditorDocumentProcessor(QTextDocument *textDocument, const QString &filePath);
     virtual ~BaseEditorDocumentProcessor();
-
-    TextEditor::TextDocument *baseTextDocument() const;
 
     // Function interface to implement
     virtual void run() = 0;
@@ -62,16 +59,23 @@ public:
     virtual void recalculateSemanticInfoDetached(bool force) = 0;
     virtual CppTools::SemanticInfo recalculateSemanticInfo() = 0;
     virtual CPlusPlus::Snapshot snapshot() = 0;
-    virtual BaseEditorDocumentParser *parser() = 0;
+    virtual BaseEditorDocumentParser::Ptr parser() = 0;
     virtual bool isParserRunning() const = 0;
 
-public:
-    static BaseEditorDocumentProcessor *get(const QString &filePath);
+    virtual TextEditor::QuickFixOperations
+    extraRefactoringOperations(const TextEditor::AssistInterface &assistInterface);
+
+    virtual bool hasDiagnosticsAt(uint line, uint column) const;
+    virtual void showDiagnosticTooltip(const QPoint &point,
+                                       QWidget *parent,
+                                       uint line,
+                                       uint column) const;
 
 signals:
     // Signal interface to implement
     void codeWarningsUpdated(unsigned revision,
-                             const QList<QTextEdit::ExtraSelection> selections);
+                             const QList<QTextEdit::ExtraSelection> selections,
+                             const TextEditor::RefactorMarkers &refactorMarkers);
 
     void ifdefedOutBlocksUpdated(unsigned revision,
                                  const QList<TextEditor::BlockRange> ifdefedOutBlocks);
@@ -80,21 +84,18 @@ signals:
     void semanticInfoUpdated(const CppTools::SemanticInfo semanticInfo); // TODO: Remove me
 
 protected:
-    static QList<QTextEdit::ExtraSelection> toTextEditorSelections(
-            const QList<CPlusPlus::Document::DiagnosticMessage> &diagnostics,
-            QTextDocument *textDocument);
-
     static void runParser(QFutureInterface<void> &future,
-                          CppTools::BaseEditorDocumentParser *parser,
-                          BaseEditorDocumentParser::InMemoryInfo info);
+                          BaseEditorDocumentParser::Ptr parser,
+                          const CppTools::WorkingCopy workingCopy);
 
     // Convenience
-    QString filePath() const { return m_baseTextDocument->filePath().toString(); }
-    unsigned revision() const { return static_cast<unsigned>(textDocument()->revision()); }
-    QTextDocument *textDocument() const { return m_baseTextDocument->document(); }
+    QString filePath() const { return m_filePath; }
+    unsigned revision() const { return static_cast<unsigned>(m_textDocument->revision()); }
+    QTextDocument *textDocument() const { return m_textDocument; }
 
 private:
-    TextEditor::TextDocument *m_baseTextDocument;
+    QString m_filePath;
+    QTextDocument *m_textDocument;
 };
 
 } // namespace CppTools

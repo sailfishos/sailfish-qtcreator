@@ -11,7 +11,7 @@ QtcPlugin {
     Depends { name: "Timeline" }
 
     Depends { name: "Core" }
-    Depends { name: "AnalyzerBase" }
+    Depends { name: "Debugger" }
     Depends { name: "ProjectExplorer" }
     Depends { name: "QtSupport" }
     Depends { name: "TextEditor" }
@@ -23,28 +23,31 @@ QtcPlugin {
             "qmlprofiler_global.h",
             "qmlprofileranimationsmodel.h", "qmlprofileranimationsmodel.cpp",
             "qmlprofilerattachdialog.cpp", "qmlprofilerattachdialog.h",
-            "qmlprofilerbasemodel.cpp", "qmlprofilerbasemodel.h", "qmlprofilerbasemodel_p.h",
             "qmlprofilerbindingloopsrenderpass.cpp","qmlprofilerbindingloopsrenderpass.h",
             "qmlprofilerclientmanager.cpp", "qmlprofilerclientmanager.h",
-            "qmlprofilerconstants.h",
+            "qmlprofilerconfigwidget.cpp", "qmlprofilerconfigwidget.h",
+            "qmlprofilerconfigwidget.ui", "qmlprofilerconstants.h",
             "qmlprofilerdatamodel.cpp", "qmlprofilerdatamodel.h",
             "qmlprofilerdetailsrewriter.cpp", "qmlprofilerdetailsrewriter.h",
-            "qmlprofilerengine.cpp", "qmlprofilerengine.h",
-            "qmlprofilereventsmodelproxy.cpp", "qmlprofilereventsmodelproxy.h",
-            "qmlprofilereventview.cpp", "qmlprofilereventview.h",
+            "qmlprofilereventsview.h",
             "qmlprofilermodelmanager.cpp", "qmlprofilermodelmanager.h",
             "qmlprofilernotesmodel.cpp", "qmlprofilernotesmodel.h",
+            "qmlprofileroptionspage.cpp", "qmlprofileroptionspage.h",
             "qmlprofilerplugin.cpp", "qmlprofilerplugin.h",
+            "qmlprofilerrunconfigurationaspect.cpp", "qmlprofilerrunconfigurationaspect.h",
             "qmlprofilerruncontrolfactory.cpp", "qmlprofilerruncontrolfactory.h",
+            "qmlprofilerrangemodel.cpp", "qmlprofilerrangemodel.h",
+            "qmlprofilerruncontrol.cpp", "qmlprofilerruncontrol.h",
+            "qmlprofilersettings.cpp", "qmlprofilersettings.h",
             "qmlprofilerstatemanager.cpp", "qmlprofilerstatemanager.h",
             "qmlprofilerstatewidget.cpp", "qmlprofilerstatewidget.h",
-            "qmlprofilerrangemodel.cpp", "qmlprofilerrangemodel.h",
+            "qmlprofilerstatisticsmodel.cpp", "qmlprofilerstatisticsmodel.h",
+            "qmlprofilerstatisticsview.cpp", "qmlprofilerstatisticsview.h",
             "qmlprofilertimelinemodel.cpp", "qmlprofilertimelinemodel.h",
             "qmlprofilertimelinemodelfactory.cpp", "qmlprofilertimelinemodelfactory.h",
             "qmlprofilertool.cpp", "qmlprofilertool.h",
             "qmlprofilertracefile.cpp", "qmlprofilertracefile.h",
             "qmlprofilertraceview.cpp", "qmlprofilertraceview.h",
-            "qmlprofilertreeview.cpp", "qmlprofilertreeview.h",
             "qmlprofilerviewmanager.cpp", "qmlprofilerviewmanager.h",
         ]
     }

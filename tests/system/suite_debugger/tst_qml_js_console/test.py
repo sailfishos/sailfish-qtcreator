@@ -1,44 +1,39 @@
-#############################################################################
-##
-## Copyright (C) 2015 The Qt Company Ltd.
-## Contact: http://www.qt.io/licensing
-##
-## This file is part of Qt Creator.
-##
-## Commercial License Usage
-## Licensees holding valid commercial Qt licenses may use this file in
-## accordance with the commercial license agreement provided with the
-## Software or, alternatively, in accordance with the terms contained in
-## a written agreement between you and The Qt Company.  For licensing terms and
-## conditions see http://www.qt.io/terms-conditions.  For further information
-## use the contact form at http://www.qt.io/contact-us.
-##
-## GNU Lesser General Public License Usage
-## Alternatively, this file may be used under the terms of the GNU Lesser
-## General Public License version 2.1 or version 3 as published by the Free
-## Software Foundation and appearing in the file LICENSE.LGPLv21 and
-## LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-## following information to ensure the GNU Lesser General Public License
-## requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-## http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-##
-## In addition, as a special exception, The Qt Company gives you certain additional
-## rights.  These rights are described in The Qt Company LGPL Exception
-## version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
-##
-#############################################################################
+############################################################################
+#
+# Copyright (C) 2016 The Qt Company Ltd.
+# Contact: https://www.qt.io/licensing/
+#
+# This file is part of Qt Creator.
+#
+# Commercial License Usage
+# Licensees holding valid commercial Qt licenses may use this file in
+# accordance with the commercial license agreement provided with the
+# Software or, alternatively, in accordance with the terms contained in
+# a written agreement between you and The Qt Company. For licensing terms
+# and conditions see https://www.qt.io/terms-conditions. For further
+# information use the contact form at https://www.qt.io/contact-us.
+#
+# GNU General Public License Usage
+# Alternatively, this file may be used under the terms of the GNU
+# General Public License version 3 as published by the Free Software
+# Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+# included in the packaging of this file. Please review the following
+# information to ensure the GNU General Public License requirements will
+# be met: https://www.gnu.org/licenses/gpl-3.0.html.
+#
+############################################################################
 
 source("../../shared/qtcreator.py")
 
-def typeToQmlConsole(expression):
+def typeToDebuggerConsole(expression):
     editableIndex = getQModelIndexStr("text=''",
-                                      ":DebugModeWidget_QmlJSTools::Internal::QmlConsoleView")
+                                      ":DebugModeWidget_Debugger::Internal::ConsoleView")
     mouseClick(editableIndex, 5, 5, 0, Qt.LeftButton)
-    type(waitForObject(":QmlJSTools::Internal::QmlConsoleEdit"), expression)
-    type(waitForObject(":QmlJSTools::Internal::QmlConsoleEdit"), "<Return>")
+    type(waitForObject(":Debugger::Internal::ConsoleEdit"), expression)
+    type(waitForObject(":Debugger::Internal::ConsoleEdit"), "<Return>")
 
-def useQmlJSConsole(expression, expectedOutput, check=None, checkOutp=None):
-    typeToQmlConsole(expression)
+def useDebuggerConsole(expression, expectedOutput, check=None, checkOutp=None):
+    typeToDebuggerConsole(expression)
 
     if expectedOutput == None:
         result = getQmlJSConsoleOutput()[-1]
@@ -46,7 +41,7 @@ def useQmlJSConsole(expression, expectedOutput, check=None, checkOutp=None):
         return result
 
     expected = getQModelIndexStr("text='%s'" % expectedOutput,
-                                 ":DebugModeWidget_QmlJSTools::Internal::QmlConsoleView")
+                                 ":DebugModeWidget_Debugger::Internal::ConsoleView")
     try:
         obj = waitForObject(expected, 3000)
         test.compare(obj.text, expectedOutput, "Verifying whether expected output appeared.")
@@ -57,7 +52,7 @@ def useQmlJSConsole(expression, expectedOutput, check=None, checkOutp=None):
     if check:
         if checkOutp == None:
             checkOutp = expectedOutput
-        useQmlJSConsole(check, checkOutp)
+        useDebuggerConsole(check, checkOutp)
 
 def debuggerHasStopped():
     stopDebugger = findObject(":Debugger Toolbar.Exit Debugger_QToolButton")
@@ -74,8 +69,10 @@ def debuggerHasStopped():
 def getQmlJSConsoleOutput():
     try:
         result = []
-        consoleView = waitForObject(":DebugModeWidget_QmlJSTools::Internal::QmlConsoleView")
+        consoleView = waitForObject(":DebugModeWidget_Debugger::Internal::ConsoleView")
         model = consoleView.model()
+        # old input, output, new input > 2
+        waitFor("model.rowCount() > 2", 2000)
         return dumpItems(model)[:-1]
     except:
         return [""]
@@ -83,7 +80,7 @@ def getQmlJSConsoleOutput():
 def runChecks(elementProps, parent, checks):
     mouseClick(getQModelIndexStr(elementProps, parent), 5, 5, 0, Qt.LeftButton)
     for check in checks:
-        useQmlJSConsole(*check)
+        useDebuggerConsole(*check)
 
 def testLoggingFeatures():
     expressions = ("console.log('info message'); console.info('info message2'); console.debug()",
@@ -98,7 +95,7 @@ def testLoggingFeatures():
                       )
 
     for expression, expect, tooltip in zip(expressions, expected, filterToolTips):
-        typeToQmlConsole(expression)
+        typeToDebuggerConsole(expression)
         output = getQmlJSConsoleOutput()[1:]
         test.compare(output, expect, "Verifying expected output.")
         filterButton = waitForObject("{container=':Qt Creator.DebugModeWidget_QSplitter' "
@@ -113,6 +110,9 @@ def testLoggingFeatures():
         clickButton(":*Qt Creator.Clear_QToolButton")
 
 def main():
+    test.warning("This test must be rewritten (QTCREATORBUG-15831)") # QmlJS Console has changed
+    return
+
     projName = "simpleQuickUI2.qmlproject"
     projFolder = os.path.dirname(findFile("testdata", "simpleQuickUI2/%s" % projName))
     if not neededFilePresent(os.path.join(projFolder, projName)):
@@ -143,8 +143,8 @@ def main():
                                       ":Locals and Expressions_Debugger::Internal::WatchTreeView")
         # make sure the items inside the root item are visible
         doubleClick(waitForObject(rootIndex))
-        if not object.exists(":DebugModeWidget_QmlJSTools::Internal::QmlConsoleView"):
-            invokeMenuItem("Window", "Output Panes", "QML/JS Console")
+        if not object.exists(":DebugModeWidget_Debugger::Internal::ConsoleView"):
+            invokeMenuItem("Window", "Output Panes", "Debugger Console")
         progressBarWait()
         # color and float values have additional ZERO WIDTH SPACE (\u200b), different usage of
         # whitespaces inside expressions is part of the test
@@ -167,19 +167,19 @@ def main():
         # check Text element
         runChecks("text='Text'", rootIndex, checks)
         # extended check must be done separately
-        originalVal = useQmlJSConsole("x", None)
+        originalVal = useDebuggerConsole("x", None)
         if originalVal:
             # Text element uses anchors.centerIn, so modification of x should not do anything
-            useQmlJSConsole("x=0", "0", "x", originalVal)
-            useQmlJSConsole("anchors.centerIn", "mainRect")
+            useDebuggerConsole("x=0", "0", "x", originalVal)
+            useDebuggerConsole("anchors.centerIn", "mainRect")
             # ignore output as it has none
-            useQmlJSConsole("anchors.centerIn = null", None)
-            useQmlJSConsole("x = 0", "0", "x")
+            useDebuggerConsole("anchors.centerIn = null", None)
+            useDebuggerConsole("x = 0", "0", "x")
 
         testLoggingFeatures()
 
         test.log("Calling Qt.quit() from inside Qml/JS Console - inferior should quit.")
-        useQmlJSConsole("Qt.quit()", "<undefined>")
+        useDebuggerConsole("Qt.quit()", "<undefined>")
         if not debuggerHasStopped():
             __stopDebugger__()
     invokeMenuItem("File", "Exit")

@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,41 +9,37 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
 #include "gitsubmiteditor.h"
-#include "commitdata.h"
 #include "gitclient.h"
 #include "gitplugin.h"
 #include "gitsubmiteditorwidget.h"
 
 #include <coreplugin/editormanager/editormanager.h>
+#include <coreplugin/iversioncontrol.h>
 #include <coreplugin/progressmanager/progressmanager.h>
 #include <utils/qtcassert.h>
+#include <utils/runextensions.h>
 #include <vcsbase/submitfilemodel.h>
 #include <vcsbase/vcsoutputwindow.h>
 
 #include <QDebug>
 #include <QStringList>
 #include <QTextCodec>
-#include <QtConcurrentRun>
+#include <QTimer>
 
 static const char TASK_UPDATE_COMMIT[] = "Git.UpdateCommit";
 
@@ -87,37 +83,15 @@ private:
     }
 };
 
-class CommitDataFetcher : public QObject
+CommitDataFetchResult CommitDataFetchResult::fetch(CommitType commitType, const QString &workingDirectory)
 {
-    Q_OBJECT
-
-public:
-    CommitDataFetcher(CommitType commitType, const QString &workingDirectory) :
-        m_commitData(commitType),
-        m_workingDirectory(workingDirectory)
-    {
-    }
-
-    void start()
-    {
-        GitClient *client = GitPlugin::instance()->client();
-        QString commitTemplate;
-        bool success = client->getCommitData(m_workingDirectory, &commitTemplate,
-                                             m_commitData, &m_errorMessage);
-        emit finished(success);
-    }
-
-    const CommitData &commitData() const { return m_commitData; }
-    const QString &errorMessage() const { return m_errorMessage; }
-
-signals:
-    void finished(bool result);
-
-private:
-    CommitData m_commitData;
-    QString m_workingDirectory;
-    QString m_errorMessage;
-};
+    CommitDataFetchResult result;
+    result.commitData.commitType = commitType;
+    QString commitTemplate;
+    result.success = GitPlugin::client()->getCommitData(workingDirectory, &commitTemplate,
+                                                        result.commitData, &result.errorMessage);
+    return result;
+}
 
 /* The problem with git is that no diff can be obtained to for a random
  * multiselection of staged/unstaged files; it requires the --cached
@@ -125,21 +99,18 @@ private:
  * according to a type flag we add to the model. */
 
 GitSubmitEditor::GitSubmitEditor(const VcsBaseSubmitEditorParameters *parameters) :
-    VcsBaseSubmitEditor(parameters, new GitSubmitEditorWidget),
-    m_model(0),
-    m_commitEncoding(0),
-    m_commitType(SimpleCommit),
-    m_firstUpdate(true),
-    m_commitDataFetcher(0)
+    VcsBaseSubmitEditor(parameters, new GitSubmitEditorWidget)
 {
-    connect(this, &VcsBaseSubmitEditor::diffSelectedRows,
-            this, &GitSubmitEditor::slotDiffSelected);
-    connect(submitEditorWidget(), SIGNAL(show(QString)), this, SLOT(showCommit(QString)));
+    connect(this, &VcsBaseSubmitEditor::diffSelectedRows, this, &GitSubmitEditor::slotDiffSelected);
+    connect(submitEditorWidget(), &GitSubmitEditorWidget::show, this, &GitSubmitEditor::showCommit);
+    connect(GitPlugin::instance()->versionControl(), &Core::IVersionControl::repositoryChanged,
+            this, &GitSubmitEditor::forceUpdateFileModel);
+    connect(&m_fetchWatcher, &QFutureWatcher<CommitDataFetchResult>::finished,
+            this, &GitSubmitEditor::commitDataRetrieved);
 }
 
 GitSubmitEditor::~GitSubmitEditor()
 {
-    resetCommitDataFetcher();
 }
 
 GitSubmitEditorWidget *GitSubmitEditor::submitEditorWidget()
@@ -150,14 +121,6 @@ GitSubmitEditorWidget *GitSubmitEditor::submitEditorWidget()
 const GitSubmitEditorWidget *GitSubmitEditor::submitEditorWidget() const
 {
     return static_cast<GitSubmitEditorWidget *>(widget());
-}
-
-void GitSubmitEditor::resetCommitDataFetcher()
-{
-    if (!m_commitDataFetcher)
-        return;
-    disconnect(m_commitDataFetcher, SIGNAL(finished(bool)), this, SLOT(commitDataRetrieved(bool)));
-    connect(m_commitDataFetcher, SIGNAL(finished(bool)), m_commitDataFetcher, SLOT(deleteLater()));
 }
 
 void GitSubmitEditor::setCommitData(const CommitData &d)
@@ -239,15 +202,15 @@ void GitSubmitEditor::slotDiffSelected(const QList<int> &rows)
         }
     }
     if (!unstagedFiles.empty() || !stagedFiles.empty())
-        emit diff(unstagedFiles, stagedFiles);
+        GitPlugin::client()->diffFiles(m_workingDirectory, unstagedFiles, stagedFiles);
     if (!unmergedFiles.empty())
-        emit merge(unmergedFiles);
+        GitPlugin::client()->merge(m_workingDirectory, unmergedFiles);
 }
 
 void GitSubmitEditor::showCommit(const QString &commit)
 {
     if (!m_workingDirectory.isEmpty())
-        emit show(m_workingDirectory, commit);
+        GitPlugin::client()->show(m_workingDirectory, commit);
 }
 
 void GitSubmitEditor::updateFileModel()
@@ -262,30 +225,37 @@ void GitSubmitEditor::updateFileModel()
     if (w->updateInProgress() || m_workingDirectory.isEmpty())
         return;
     w->setUpdateInProgress(true);
-    resetCommitDataFetcher();
-    m_commitDataFetcher = new CommitDataFetcher(m_commitType, m_workingDirectory);
-    connect(m_commitDataFetcher, SIGNAL(finished(bool)), this, SLOT(commitDataRetrieved(bool)));
-    QFuture<void> future = QtConcurrent::run(m_commitDataFetcher, &CommitDataFetcher::start);
-    Core::ProgressManager::addTask(future, tr("Refreshing Commit Data"), TASK_UPDATE_COMMIT);
+    m_fetchWatcher.setFuture(Utils::runAsync(&CommitDataFetchResult::fetch,
+                                             m_commitType, m_workingDirectory));
+    Core::ProgressManager::addTask(m_fetchWatcher.future(), tr("Refreshing Commit Data"),
+                                   TASK_UPDATE_COMMIT);
 
-    GitPlugin::instance()->client()->addFuture(future);
+    GitPlugin::client()->addFuture(m_fetchWatcher.future());
 }
 
-void GitSubmitEditor::commitDataRetrieved(bool success)
+void GitSubmitEditor::forceUpdateFileModel()
 {
     GitSubmitEditorWidget *w = submitEditorWidget();
-    if (success) {
-        setCommitData(m_commitDataFetcher->commitData());
+    if (w->updateInProgress())
+        QTimer::singleShot(10, this, [this] { forceUpdateFileModel(); });
+    else
+        updateFileModel();
+}
+
+void GitSubmitEditor::commitDataRetrieved()
+{
+    CommitDataFetchResult result = m_fetchWatcher.result();
+    GitSubmitEditorWidget *w = submitEditorWidget();
+    if (result.success) {
+        setCommitData(result.commitData);
         w->refreshLog(m_workingDirectory);
         w->setEnabled(true);
     } else {
         // Nothing to commit left!
-        VcsOutputWindow::appendError(m_commitDataFetcher->errorMessage());
+        VcsOutputWindow::appendError(result.errorMessage);
         m_model->clear();
         w->setEnabled(false);
     }
-    m_commitDataFetcher->deleteLater();
-    m_commitDataFetcher = 0;
     w->setUpdateInProgress(false);
 }
 
@@ -315,5 +285,3 @@ QByteArray GitSubmitEditor::fileContents() const
 
 } // namespace Internal
 } // namespace Git
-
-#include "gitsubmiteditor.moc"

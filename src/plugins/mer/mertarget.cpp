@@ -246,7 +246,7 @@ MerToolChain* MerTarget::createToolChain() const
 
     foreach (ToolChain *tc, toolChains) {
         if (tc->compilerCommand() == gcc && tc->isAutoDetected()) {
-            QTC_ASSERT(tc->type() == QLatin1String(Constants::MER_TOOLCHAIN_TYPE), return 0);
+            QTC_ASSERT(tc->typeId() == Constants::MER_TOOLCHAIN_ID, return 0);
         }
     }
 

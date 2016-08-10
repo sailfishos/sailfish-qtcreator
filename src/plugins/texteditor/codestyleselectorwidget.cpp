@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -49,8 +44,6 @@
 
 using namespace TextEditor;
 
-Q_DECLARE_METATYPE(TextEditor::ICodeStylePreferences *)
-
 namespace TextEditor {
 namespace Internal {
 
@@ -62,10 +55,10 @@ public:
                     ICodeStylePreferences *codeStyle, QWidget *parent = 0);
     ~CodeStyleDialog();
     ICodeStylePreferences *codeStyle() const;
-private slots:
+private:
     void slotCopyClicked();
     void slotDisplayNameChanged();
-private:
+
     ICodeStylePreferences *m_codeStyle;
     QLineEdit *m_lineEdit;
     QDialogButtonBox *m_buttons;
@@ -100,8 +93,7 @@ CodeStyleDialog::CodeStyleDialog(ICodeStylePreferencesFactory *factory,
         m_warningLabel->setWordWrap(true);
         m_copyButton = new QPushButton(tr("Copy Built-in Code Style"), this);
         m_copyButton->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-        connect(m_copyButton, SIGNAL(clicked()),
-                this, SLOT(slotCopyClicked()));
+        connect(m_copyButton, &QAbstractButton::clicked, this, &CodeStyleDialog::slotCopyClicked);
         warningLayout->addWidget(m_warningLabel);
         warningLayout->addWidget(m_copyButton);
         layout->addLayout(warningLayout);
@@ -127,9 +119,9 @@ CodeStyleDialog::CodeStyleDialog(ICodeStylePreferencesFactory *factory,
     layout->addWidget(m_buttons);
     resize(850, 600);
 
-    connect(m_lineEdit, SIGNAL(textChanged(QString)), this, SLOT(slotDisplayNameChanged()));
-    connect(m_buttons, SIGNAL(accepted()), this, SLOT(accept()));
-    connect(m_buttons, SIGNAL(rejected()), this, SLOT(reject()));
+    connect(m_lineEdit, &QLineEdit::textChanged, this, &CodeStyleDialog::slotDisplayNameChanged);
+    connect(m_buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
+    connect(m_buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
 }
 
 ICodeStylePreferences *CodeStyleDialog::codeStyle() const
@@ -174,18 +166,18 @@ CodeStyleSelectorWidget::CodeStyleSelectorWidget(ICodeStylePreferencesFactory *f
     m_ui->importButton->setEnabled(false);
     m_ui->exportButton->setEnabled(false);
 
-    connect(m_ui->delegateComboBox, SIGNAL(activated(int)),
-            this, SLOT(slotComboBoxActivated(int)));
-    connect(m_ui->copyButton, SIGNAL(clicked()),
-            this, SLOT(slotCopyClicked()));
-    connect(m_ui->editButton, SIGNAL(clicked()),
-            this, SLOT(slotEditClicked()));
-    connect(m_ui->removeButton, SIGNAL(clicked()),
-            this, SLOT(slotRemoveClicked()));
-    connect(m_ui->importButton, SIGNAL(clicked()),
-            this, SLOT(slotImportClicked()));
-    connect(m_ui->exportButton, SIGNAL(clicked()),
-            this, SLOT(slotExportClicked()));
+    connect(m_ui->delegateComboBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::activated),
+            this, &CodeStyleSelectorWidget::slotComboBoxActivated);
+    connect(m_ui->copyButton, &QAbstractButton::clicked,
+            this, &CodeStyleSelectorWidget::slotCopyClicked);
+    connect(m_ui->editButton, &QAbstractButton::clicked,
+            this, &CodeStyleSelectorWidget::slotEditClicked);
+    connect(m_ui->removeButton, &QAbstractButton::clicked,
+            this, &CodeStyleSelectorWidget::slotRemoveClicked);
+    connect(m_ui->importButton, &QAbstractButton::clicked,
+            this, &CodeStyleSelectorWidget::slotImportClicked);
+    connect(m_ui->exportButton, &QAbstractButton::clicked,
+            this, &CodeStyleSelectorWidget::slotExportClicked);
 }
 
 CodeStyleSelectorWidget::~CodeStyleSelectorWidget()
@@ -202,13 +194,13 @@ void CodeStyleSelectorWidget::setCodeStyle(ICodeStylePreferences *codeStyle)
     if (m_codeStyle) {
         CodeStylePool *codeStylePool = m_codeStyle->delegatingPool();
         if (codeStylePool) {
-            disconnect(codeStylePool, SIGNAL(codeStyleAdded(ICodeStylePreferences*)),
-                    this, SLOT(slotCodeStyleAdded(ICodeStylePreferences*)));
-            disconnect(codeStylePool, SIGNAL(codeStyleRemoved(ICodeStylePreferences*)),
-                    this, SLOT(slotCodeStyleRemoved(ICodeStylePreferences*)));
+            disconnect(codeStylePool, &CodeStylePool::codeStyleAdded,
+                    this, &CodeStyleSelectorWidget::slotCodeStyleAdded);
+            disconnect(codeStylePool, &CodeStylePool::codeStyleRemoved,
+                    this, &CodeStyleSelectorWidget::slotCodeStyleRemoved);
         }
-        disconnect(m_codeStyle, SIGNAL(currentDelegateChanged(ICodeStylePreferences*)),
-                this, SLOT(slotCurrentDelegateChanged(ICodeStylePreferences*)));
+        disconnect(m_codeStyle, &ICodeStylePreferences::currentDelegateChanged,
+                this, &CodeStyleSelectorWidget::slotCurrentDelegateChanged);
 
         m_ui->exportButton->setEnabled(false);
         m_ui->importButton->setEnabled(false);
@@ -222,10 +214,10 @@ void CodeStyleSelectorWidget::setCodeStyle(ICodeStylePreferences *codeStyle)
         if (codeStylePool) {
             delegates = codeStylePool->codeStyles();
 
-            connect(codeStylePool, SIGNAL(codeStyleAdded(ICodeStylePreferences*)),
-                    this, SLOT(slotCodeStyleAdded(ICodeStylePreferences*)));
-            connect(codeStylePool, SIGNAL(codeStyleRemoved(ICodeStylePreferences*)),
-                    this, SLOT(slotCodeStyleRemoved(ICodeStylePreferences*)));
+            connect(codeStylePool, &CodeStylePool::codeStyleAdded,
+                    this, &CodeStyleSelectorWidget::slotCodeStyleAdded);
+            connect(codeStylePool, &CodeStylePool::codeStyleRemoved,
+                    this, &CodeStyleSelectorWidget::slotCodeStyleRemoved);
             m_ui->exportButton->setEnabled(true);
             m_ui->importButton->setEnabled(true);
         }
@@ -235,8 +227,8 @@ void CodeStyleSelectorWidget::setCodeStyle(ICodeStylePreferences *codeStyle)
 
         slotCurrentDelegateChanged(m_codeStyle->currentDelegate());
 
-        connect(m_codeStyle, SIGNAL(currentDelegateChanged(TextEditor::ICodeStylePreferences*)),
-                this, SLOT(slotCurrentDelegateChanged(TextEditor::ICodeStylePreferences*)));
+        connect(m_codeStyle, &ICodeStylePreferences::currentDelegateChanged,
+                this, &CodeStyleSelectorWidget::slotCurrentDelegateChanged);
     }
 }
 
@@ -333,7 +325,7 @@ void CodeStyleSelectorWidget::slotRemoveClicked()
     messageBox.addButton(deleteButton, QMessageBox::AcceptRole);
     messageBox.setDefaultButton(deleteButton);
 
-    connect(deleteButton, SIGNAL(clicked()), &messageBox, SLOT(accept()));
+    connect(deleteButton, &QAbstractButton::clicked, &messageBox, &QDialog::accept);
     if (messageBox.exec() == QDialog::Accepted)
         codeStylePool->removeCodeStyle(currentPreferences);
 }
@@ -376,11 +368,11 @@ void CodeStyleSelectorWidget::slotCodeStyleAdded(ICodeStylePreferences *codeStyl
     const QString name = displayName(codeStylePreferences);
     m_ui->delegateComboBox->addItem(name, data);
     m_ui->delegateComboBox->setItemData(m_ui->delegateComboBox->count() - 1, name, Qt::ToolTipRole);
-    connect(codeStylePreferences, SIGNAL(displayNameChanged(QString)),
-            this, SLOT(slotUpdateName()));
+    connect(codeStylePreferences, &ICodeStylePreferences::displayNameChanged,
+            this, &CodeStyleSelectorWidget::slotUpdateName);
     if (codeStylePreferences->delegatingPool()) {
-        connect(codeStylePreferences, SIGNAL(currentPreferencesChanged(TextEditor::ICodeStylePreferences*)),
-                this, SLOT(slotUpdateName()));
+        connect(codeStylePreferences, &ICodeStylePreferences::currentPreferencesChanged,
+                this, &CodeStyleSelectorWidget::slotUpdateName);
     }
 }
 
@@ -388,11 +380,11 @@ void CodeStyleSelectorWidget::slotCodeStyleRemoved(ICodeStylePreferences *codeSt
 {
     m_ignoreGuiSignals = true;
     m_ui->delegateComboBox->removeItem(m_ui->delegateComboBox->findData(QVariant::fromValue(codeStylePreferences)));
-    disconnect(codeStylePreferences, SIGNAL(displayNameChanged(QString)),
-            this, SLOT(slotUpdateName()));
+    disconnect(codeStylePreferences, &ICodeStylePreferences::displayNameChanged,
+               this, &CodeStyleSelectorWidget::slotUpdateName);
     if (codeStylePreferences->delegatingPool()) {
-        disconnect(codeStylePreferences, SIGNAL(currentPreferencesChanged(TextEditor::ICodeStylePreferences*)),
-                this, SLOT(slotUpdateName()));
+        disconnect(codeStylePreferences, &ICodeStylePreferences::currentPreferencesChanged,
+                   this, &CodeStyleSelectorWidget::slotUpdateName);
     }
     m_ignoreGuiSignals = false;
 }

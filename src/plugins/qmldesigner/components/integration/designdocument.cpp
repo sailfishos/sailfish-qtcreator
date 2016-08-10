@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -120,7 +115,7 @@ static ComponentTextModifier *createComponentTextModifier(TextModifier *original
                                                           const QString &componentText,
                                                           const ModelNode &componentNode)
 {
-    bool explicitComponent = componentText.contains("Component");
+    bool explicitComponent = componentText.contains(QLatin1String("Component"));
 
     ModelNode rootModelNode = rewriterView->rootModelNode();
 
@@ -171,7 +166,7 @@ Model* DesignDocument::createInFileComponentModel()
 /*!
   Returns any errors that happened when parsing the latest qml file.
   */
-QList<RewriterView::Error> DesignDocument::qmlSyntaxErrors() const
+QList<RewriterError> DesignDocument::qmlSyntaxErrors() const
 {
     return m_rewriterView->errors();
 }
@@ -183,7 +178,7 @@ bool DesignDocument::hasQmlSyntaxErrors() const
 
 QString DesignDocument::displayName() const
 {
-    return fileName();
+    return fileName().toString();
 }
 
 QString DesignDocument::simplfiedDisplayName() const
@@ -193,8 +188,7 @@ QString DesignDocument::simplfiedDisplayName() const
     else
         return rootModelNode().simplifiedTypeName();
 
-    QStringList list = displayName().split(QLatin1Char('/'));
-    return list.last();
+    return fileName().fileName();
 }
 
 void DesignDocument::updateFileName(const Utils::FileName & /*oldFileName*/, const Utils::FileName &newFileName)
@@ -210,9 +204,9 @@ void DesignDocument::updateFileName(const Utils::FileName & /*oldFileName*/, con
     emit displayNameChanged(displayName());
 }
 
-QString DesignDocument::fileName() const
+Utils::FileName DesignDocument::fileName() const
 {
-    return editor()->document()->filePath().toString();
+    return editor()->document()->filePath();
 }
 
 Kit *DesignDocument::currentKit() const
@@ -246,7 +240,7 @@ void DesignDocument::loadDocument(QPlainTextEdit *edit)
 
     m_inFileComponentTextModifier.reset();
 
-    updateFileName(Utils::FileName(), Utils::FileName::fromString(fileName()));
+    updateFileName(Utils::FileName(), fileName());
 
     m_documentLoaded = true;
 }
@@ -301,7 +295,7 @@ void DesignDocument::changeToMaster()
     if (m_inFileComponentModel)
         changeToDocumentModel();
 
-    QmlDesignerPlugin::instance()->viewManager().pushFileOnCrumbleBar(fileName());
+    QmlDesignerPlugin::instance()->viewManager().pushFileOnCrumbleBar(fileName().toString());
     QmlDesignerPlugin::instance()->viewManager().setComponentNode(rootModelNode());
 }
 
@@ -339,7 +333,7 @@ void DesignDocument::close()
 void DesignDocument::updateSubcomponentManager()
 {
     Q_ASSERT(m_subComponentManager);
-    m_subComponentManager->update(QUrl::fromLocalFile(fileName()), currentModel()->imports());
+    m_subComponentManager->update(QUrl::fromLocalFile(fileName().toString()), currentModel()->imports());
 }
 
 void DesignDocument::deleteSelected()
@@ -407,7 +401,7 @@ void DesignDocument::copySelected()
             node.destroy();
         }
         view.changeRootNodeType("QtQuick.Rectangle", 1, 0);
-        view.rootModelNode().setIdWithRefactoring("designer__Selection");
+        view.rootModelNode().setIdWithRefactoring(QLatin1String("designer__Selection"));
 
         foreach (const ModelNode &selectedNode, selectedNodes) {
             ModelNode newNode(view.insertModel(selectedNode));
@@ -478,7 +472,7 @@ void DesignDocument::paste()
     if (rootNode.type() == "empty")
         return;
 
-    if (rootNode.id() == "designer__Selection") {
+    if (rootNode.id() == QLatin1String("designer__Selection")) {
         QList<ModelNode> selectedNodes = rootNode.directSubModelNodes();
         pasteModel->detachView(&view);
         currentModel()->attachView(&view);
@@ -629,28 +623,16 @@ void DesignDocument::redo()
     viewManager().resetPropertyEditorView();
 }
 
-static bool isFileInProject(DesignDocument *designDocument, Project *project)
-{
-    foreach (const QString &fileNameInProject, project->files(Project::ExcludeGeneratedFiles)) {
-        if (designDocument->fileName() == fileNameInProject)
-            return true;
-    }
-
-    return false;
-}
-
 static inline Kit *getActiveKit(DesignDocument *designDocument)
 {
-    Project *currentProject = ProjectTree::currentProject();
+    ProjectExplorer::Project *currentProject = ProjectExplorer::SessionManager::projectForFile(designDocument->fileName());
 
     if (!currentProject)
-        currentProject = SessionManager::projectForFile(Utils::FileName::fromString(designDocument->fileName()));
+        currentProject = ProjectExplorer::ProjectTree::currentProject();
 
     if (!currentProject)
         return 0;
 
-    if (!isFileInProject(designDocument, currentProject))
-        return 0;
 
     QObject::connect(ProjectTree::instance(), &ProjectTree::currentProjectChanged,
                      designDocument, &DesignDocument::updateActiveQtVersion, Qt::UniqueConnection);
@@ -664,6 +646,8 @@ static inline Kit *getActiveKit(DesignDocument *designDocument)
     if (!target)
         return 0;
 
+    if (!target->kit()->isValid())
+        return 0;
     QObject::connect(target, &Target::kitChanged,
                      designDocument, &DesignDocument::updateActiveQtVersion, Qt::UniqueConnection);
 
@@ -679,7 +663,7 @@ void DesignDocument::updateActiveQtVersion()
 QString DesignDocument::contextHelpId() const
 {
     if (view())
-        view()->contextHelpId();
+        return view()->contextHelpId();
 
     return QString();
 }

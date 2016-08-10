@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 Petar Perisin <petar.perisin@gmail.com>
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 Petar Perisin <petar.perisin@gmail.com>
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -43,12 +38,14 @@
 #include <projectexplorer/projecttree.h>
 #include <projectexplorer/runconfiguration.h>
 #include <projectexplorer/buildconfiguration.h>
-#include <projectexplorer/localapplicationrunconfiguration.h>
+#include <projectexplorer/runnables.h>
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QPushButton>
 #include <QCheckBox>
+#include <QDialogButtonBox>
+#include <QKeyEvent>
 #include <QLabel>
 #include <QFormLayout>
 #include <QLineEdit>
@@ -58,6 +55,13 @@ using namespace ProjectExplorer;
 
 namespace Debugger {
 namespace Internal {
+
+static bool isLocal(RunConfiguration *runConfiguration)
+{
+    Target *target = runConfiguration ? runConfiguration->target() : 0;
+    Kit *kit = target ? target->kit() : 0;
+    return DeviceTypeKitInformation::deviceTypeId(kit) == ProjectExplorer::Constants::DESKTOP_DEVICE_TYPE;
+}
 
 /*!
     \class Debugger::Internal::UnstartedAppWatcherDialog
@@ -84,28 +88,42 @@ UnstartedAppWatcherDialog::UnstartedAppWatcherDialog(QWidget *parent)
     : QDialog(parent)
 {
     setWindowTitle(tr("Attach to Process Not Yet Started"));
+    setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
 
     m_kitChooser = new DebuggerKitChooser(DebuggerKitChooser::LocalDebugging, this);
     m_kitChooser->populate();
     m_kitChooser->setVisible(true);
 
     Project *project = ProjectTree::currentProject();
-    if (project && project->activeTarget() && project->activeTarget()->kit())
-        m_kitChooser->setCurrentKitId(project->activeTarget()->kit()->id());
+    Target *activeTarget = project ? project->activeTarget() : 0;
+    Kit *kit = activeTarget ? activeTarget->kit() : 0;
+
+    if (kit)
+        m_kitChooser->setCurrentKitId(kit->id());
     else if (KitManager::defaultKit())
         m_kitChooser->setCurrentKitId(KitManager::defaultKit()->id());
 
+    auto pathLayout = new QHBoxLayout;
     m_pathChooser = new Utils::PathChooser(this);
     m_pathChooser->setExpectedKind(Utils::PathChooser::ExistingCommand);
-    m_pathChooser->setHistoryCompleter(QLatin1String("LocalExecutable"));
+    m_pathChooser->setHistoryCompleter(QLatin1String("LocalExecutable"), true);
+    m_pathChooser->setMinimumWidth(400);
 
-    if (project && project->activeTarget() && project->activeTarget()->activeRunConfiguration()) {
-        LocalApplicationRunConfiguration *localAppRC =
-                qobject_cast<LocalApplicationRunConfiguration *>
-                             (project->activeTarget()->activeRunConfiguration());
-
-        if (localAppRC)
-            m_pathChooser->setPath(localAppRC->executable());
+    auto resetExecutable = new QPushButton(tr("Reset"));
+    resetExecutable->setEnabled(false);
+    pathLayout->addWidget(m_pathChooser);
+    pathLayout->addWidget(resetExecutable);
+    if (activeTarget) {
+        if (RunConfiguration *runConfig = activeTarget->activeRunConfiguration()) {
+            const Runnable runnable = runConfig->runnable();
+            if (runnable.is<StandardRunnable>() && isLocal(runConfig)) {
+                resetExecutable->setEnabled(true);
+                connect(resetExecutable, &QPushButton::clicked,
+                        this, [this, runnable]() {
+                    m_pathChooser->setPath(runnable.as<StandardRunnable>().executable);
+                });
+            }
+        }
     }
 
     m_hideOnAttachCheckBox = new QCheckBox(tr("Reopen dialog when application finishes"), this);
@@ -124,28 +142,21 @@ UnstartedAppWatcherDialog::UnstartedAppWatcherDialog(QWidget *parent)
     m_waitingLabel = new QLabel(QString(), this);
     m_waitingLabel->setAlignment(Qt::AlignCenter);
 
-    m_watchingPushButton = new QPushButton(this);
+    QDialogButtonBox *buttonBox = new QDialogButtonBox(QDialogButtonBox::Close, this);
+    m_watchingPushButton = buttonBox->addButton(tr("Start Watching"), QDialogButtonBox::ActionRole);
     m_watchingPushButton->setCheckable(true);
     m_watchingPushButton->setChecked(false);
     m_watchingPushButton->setEnabled(false);
-    m_watchingPushButton->setText(tr("Start Watching"));
-
-    m_closePushButton = new QPushButton(this);
-    m_closePushButton->setText(tr("Close"));
-
-    QHBoxLayout *buttonsLine = new QHBoxLayout();
-    buttonsLine->addSpacerItem(new QSpacerItem(40, 20, QSizePolicy::Expanding, QSizePolicy::Minimum));
-    buttonsLine->addWidget(m_watchingPushButton);
-    buttonsLine->addWidget(m_closePushButton);
+    m_watchingPushButton->setDefault(true);
 
     QFormLayout *mainLayout = new QFormLayout(this);
     mainLayout->addRow(new QLabel(tr("Kit: "), this), m_kitChooser);
-    mainLayout->addRow(new QLabel(tr("Executable: "), this), m_pathChooser);
+    mainLayout->addRow(new QLabel(tr("Executable: "), this), pathLayout);
     mainLayout->addRow(m_hideOnAttachCheckBox);
     mainLayout->addRow(m_continueOnAttachCheckBox);
     mainLayout->addRow(m_waitingLabel);
     mainLayout->addItem(new QSpacerItem(20, 0, QSizePolicy::Minimum, QSizePolicy::Expanding));
-    mainLayout->addRow(buttonsLine);
+    mainLayout->addRow(buttonBox);
     setLayout(mainLayout);
 
     connect(m_pathChooser, &Utils::PathChooser::beforeBrowsing,
@@ -154,15 +165,27 @@ UnstartedAppWatcherDialog::UnstartedAppWatcherDialog(QWidget *parent)
             this, &UnstartedAppWatcherDialog::startStopWatching);
     connect(m_pathChooser, &Utils::PathChooser::pathChanged, this,
             &UnstartedAppWatcherDialog::stopAndCheckExecutable);
-    connect(m_closePushButton, &QAbstractButton::clicked,
-            this, &QDialog::reject);
+    connect(buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
     connect(&m_timer, &QTimer::timeout,
             this, &UnstartedAppWatcherDialog::findProcess);
     connect(m_kitChooser, &KitChooser::currentIndexChanged,
             this, &UnstartedAppWatcherDialog::kitChanged);
     kitChanged();
+    m_pathChooser->setFocus();
 
     setWaitingState(checkExecutableString() ? NotWatchingState : InvalidWacherState);
+}
+
+bool UnstartedAppWatcherDialog::event(QEvent *e)
+{
+    if (e->type() == QEvent::ShortcutOverride) {
+        QKeyEvent *ke = static_cast<QKeyEvent *>(e);
+        if (ke->key() == Qt::Key_Escape && !ke->modifiers()) {
+            ke->accept();
+            return true;
+        }
+    }
+    return QDialog::event(e);
 }
 
 void UnstartedAppWatcherDialog::selectExecutable()
@@ -170,20 +193,19 @@ void UnstartedAppWatcherDialog::selectExecutable()
     QString path;
 
     Project *project = ProjectTree::currentProject();
+    Target *activeTarget = project ? project->activeTarget() : 0;
 
-    if (project && project->activeTarget() && project->activeTarget()->activeRunConfiguration()) {
-
-        LocalApplicationRunConfiguration *localAppRC =
-                qobject_cast<LocalApplicationRunConfiguration *>
-                             (project->activeTarget()->activeRunConfiguration());
-        if (localAppRC)
-            path = QFileInfo(localAppRC->executable()).path();
+    if (activeTarget) {
+        if (RunConfiguration *runConfig = activeTarget->activeRunConfiguration()) {
+            const Runnable runnable = runConfig->runnable();
+            if (runnable.is<StandardRunnable>() && isLocal(runConfig))
+                path = QFileInfo(runnable.as<StandardRunnable>().executable).path();
+        }
     }
 
     if (path.isEmpty()) {
-        if (project && project->activeTarget() &&
-                project->activeTarget()->activeBuildConfiguration()) {
-            path = project->activeTarget()->activeBuildConfiguration()->buildDirectory().toString();
+        if (activeTarget && activeTarget->activeBuildConfiguration()) {
+            path = activeTarget->activeBuildConfiguration()->buildDirectory().toString();
         } else if (project) {
             path = project->projectDirectory().toString();
         }

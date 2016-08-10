@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,29 +9,24 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
 #ifndef CLANGCODEMODEL_INTERNAL_CLANGBACKENDIPCINTEGRATION_H
 #define CLANGCODEMODEL_INTERNAL_CLANGBACKENDIPCINTEGRATION_H
 
-#include <cpptools/cppprojects.h>
+#include <cpptools/projectpart.h>
 
 #include <clangbackendipc/connectionclient.h>
 #include <clangbackendipc/filecontainer.h>
@@ -47,8 +42,13 @@ class IEditor;
 class IDocument;
 }
 
+namespace ClangBackEnd {
+class DiagnosticsChangedMessage;
+}
+
 namespace TextEditor {
 class TextEditorWidget;
+class TextDocument;
 }
 
 namespace ClangCodeModel {
@@ -67,17 +67,21 @@ public:
     using AliveHandler = std::function<void ()>;
     void setAliveHandler(const AliveHandler &handler);
 
-    void addExpectedCodeCompletedCommand(quint64 ticket, ClangCompletionAssistProcessor *processor);
+    void addExpectedCodeCompletedMessage(quint64 ticket, ClangCompletionAssistProcessor *processor);
     void deleteAndClearWaitingAssistProcessors();
     void deleteProcessorsOfEditorWidget(TextEditor::TextEditorWidget *textEditorWidget);
 
+    bool isExpectingCodeCompletedMessage() const;
+
 private:
     void alive() override;
-    void echo(const ClangBackEnd::EchoCommand &command) override;
-    void codeCompleted(const ClangBackEnd::CodeCompletedCommand &command) override;
+    void echo(const ClangBackEnd::EchoMessage &message) override;
+    void codeCompleted(const ClangBackEnd::CodeCompletedMessage &message) override;
+    void diagnosticsChanged(const ClangBackEnd::DiagnosticsChangedMessage &message) override;
+    void highlightingChanged(const ClangBackEnd::HighlightingChangedMessage &message) override;
 
-    void translationUnitDoesNotExist(const ClangBackEnd::TranslationUnitDoesNotExistCommand &command) override;
-    void projectPartsDoNotExist(const ClangBackEnd::ProjectPartsDoNotExistCommand &command) override;
+    void translationUnitDoesNotExist(const ClangBackEnd::TranslationUnitDoesNotExistMessage &message) override;
+    void projectPartsDoNotExist(const ClangBackEnd::ProjectPartsDoNotExistMessage &message) override;
 
 private:
     AliveHandler m_aliveHandler;
@@ -90,11 +94,17 @@ public:
     virtual ~IpcSenderInterface() {}
 
     virtual void end() = 0;
-    virtual void registerTranslationUnitsForCodeCompletion(const ClangBackEnd::RegisterTranslationUnitForCodeCompletionCommand &command) = 0;
-    virtual void unregisterTranslationUnitsForCodeCompletion(const ClangBackEnd::UnregisterTranslationUnitsForCodeCompletionCommand &command) = 0;
-    virtual void registerProjectPartsForCodeCompletion(const ClangBackEnd::RegisterProjectPartsForCodeCompletionCommand &command) = 0;
-    virtual void unregisterProjectPartsForCodeCompletion(const ClangBackEnd::UnregisterProjectPartsForCodeCompletionCommand &command) = 0;
-    virtual void completeCode(const ClangBackEnd::CompleteCodeCommand &command) = 0;
+    virtual void registerTranslationUnitsForEditor(const ClangBackEnd::RegisterTranslationUnitForEditorMessage &message) = 0;
+    virtual void updateTranslationUnitsForEditor(const ClangBackEnd::UpdateTranslationUnitsForEditorMessage &message) = 0;
+    virtual void unregisterTranslationUnitsForEditor(const ClangBackEnd::UnregisterTranslationUnitsForEditorMessage &message) = 0;
+    virtual void registerProjectPartsForEditor(const ClangBackEnd::RegisterProjectPartsForEditorMessage &message) = 0;
+    virtual void unregisterProjectPartsForEditor(const ClangBackEnd::UnregisterProjectPartsForEditorMessage &message) = 0;
+    virtual void registerUnsavedFilesForEditor(const ClangBackEnd::RegisterUnsavedFilesForEditorMessage &message) = 0;
+    virtual void unregisterUnsavedFilesForEditor(const ClangBackEnd::UnregisterUnsavedFilesForEditorMessage &message) = 0;
+    virtual void completeCode(const ClangBackEnd::CompleteCodeMessage &message) = 0;
+    virtual void requestDiagnostics(const ClangBackEnd::RequestDiagnosticsMessage &message) = 0;
+    virtual void requestHighlighting(const ClangBackEnd::RequestHighlightingMessage &message) = 0;
+    virtual void updateVisibleTranslationUnits(const ClangBackEnd::UpdateVisibleTranslationUnitsMessage &message) = 0;
 };
 
 class IpcCommunicator : public QObject
@@ -109,10 +119,15 @@ public:
 public:
     IpcCommunicator();
 
-    void registerFilesForCodeCompletion(const FileContainers &fileContainers);
-    void unregisterFilesForCodeCompletion(const FileContainers &fileContainers);
-    void registerProjectPartsForCodeCompletion(const ProjectPartContainers &projectPartContainers);
-    void unregisterProjectPartsForCodeCompletion(const QStringList &projectPartIds);
+    void registerTranslationUnitsForEditor(const FileContainers &fileContainers);
+    void updateTranslationUnitsForEditor(const FileContainers &fileContainers);
+    void unregisterTranslationUnitsForEditor(const FileContainers &fileContainers);
+    void registerProjectPartsForEditor(const ProjectPartContainers &projectPartContainers);
+    void unregisterProjectPartsForEditor(const QStringList &projectPartIds);
+    void registerUnsavedFilesForEditor(const FileContainers &fileContainers);
+    void unregisterUnsavedFilesForEditor(const FileContainers &fileContainers);
+    void requestDiagnostics(const ClangBackEnd::FileContainer &fileContainer);
+    void requestHighlighting(const ClangBackEnd::FileContainer &fileContainer);
     void completeCode(ClangCompletionAssistProcessor *assistProcessor, const QString &filePath,
                       quint32 line,
                       quint32 column,
@@ -120,9 +135,21 @@ public:
 
     void registerProjectsParts(const QList<CppTools::ProjectPart::Ptr> projectParts);
 
-    void updateUnsavedFileIfNotCurrentDocument(Core::IDocument *document);
+    void updateTranslationUnitIfNotCurrentDocument(Core::IDocument *document);
+    void updateTranslationUnit(Core::IDocument *document);
+    void updateUnsavedFile(Core::IDocument *document);
+    void updateTranslationUnitFromCppEditorDocument(const QString &filePath);
     void updateUnsavedFileFromCppEditorDocument(const QString &filePath);
-    void updateUnsavedFile(const QString &filePath, const QByteArray &contents);
+    void updateTranslationUnit(const QString &filePath, const QByteArray &contents, uint documentRevision);
+    void updateUnsavedFile(const QString &filePath, const QByteArray &contents, uint documentRevision);
+    void updateTranslationUnitWithRevisionCheck(const ClangBackEnd::FileContainer &fileContainer);
+    void updateTranslationUnitWithRevisionCheck(Core::IDocument *document);
+    void updateChangeContentStartPosition(const QString &filePath, int position);
+
+    void registerFallbackProjectPart();
+    void updateTranslationUnitVisiblity();
+
+    bool isNotWaitingForCompletion() const;
 
 public: // for tests
     IpcSenderInterface *setIpcSender(IpcSenderInterface *ipcSender);
@@ -136,15 +163,21 @@ private:
 
     void initializeBackend();
     void initializeBackendWithCurrentData();
-    void registerEmptyProjectForProjectLessFiles();
     void registerCurrentProjectParts();
-    void registerCurrentUnsavedFiles();
-    void registerCurrrentCodeModelUiHeaders();
+    void restoreCppEditorDocuments();
+    void resetCppEditorDocumentProcessors();
+    void registerVisibleCppEditorDocumentAndMarkInvisibleDirty();
+    void registerCurrentCodeModelUiHeaders();
+
 
     void onBackendRestarted();
     void onEditorAboutToClose(Core::IEditor *editor);
     void onCoreAboutToClose();
 
+    void updateTranslationUnitVisiblity(const Utf8String &currentEditorFilePath,
+                                        const Utf8StringVector &visibleEditorsFilePaths);
+
+private:
     IpcReceiver m_ipcReceiver;
     ClangBackEnd::ConnectionClient m_connection;
     QScopedPointer<IpcSenderInterface> m_ipcSender;

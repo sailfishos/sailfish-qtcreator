@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -41,31 +36,17 @@
 namespace Valgrind {
 namespace Callgrind {
 
-//BEGIN CallModel::Private
-
 class CallModel::Private
 {
 public:
-    Private();
-
-    const ParseData *m_data;
+    const ParseData *m_data = 0;
     QVector<const FunctionCall *> m_calls;
-    int m_event;
-    const Function *m_function;
+    int m_event = 0;
+    const Function *m_function = 0;
 };
 
-CallModel::Private::Private()
-    : m_data(0)
-    , m_event(0)
-    , m_function(0)
-{
-}
-
-//END CallModel::Private
-
-//BEGIN CallModel
-CallModel::CallModel(QObject *parent)
-  : QAbstractItemModel(parent), d(new Private)
+CallModel::CallModel()
+  : d(new Private)
 {
 }
 
@@ -194,13 +175,13 @@ QVariant CallModel::data(const QModelIndex &index, int role) const
     if (role == RelativeTotalCostRole) {
         const quint64 totalCost = d->m_data->totalCost(d->m_event);
         const quint64 callCost = call->cost(d->m_event);
-        return double(callCost) / totalCost;
+        return totalCost ? (double(callCost) / totalCost) : 0.0;
     }
 
     if (role == RelativeParentCostRole) {
         const quint64 parentCost = d->m_function->inclusiveCost(d->m_event);
         const quint64 callCost = call->cost(d->m_event);
-        return double(callCost) / parentCost;
+        return parentCost ? (double(callCost) / parentCost) : 0.0;
     }
 
     return QVariant();

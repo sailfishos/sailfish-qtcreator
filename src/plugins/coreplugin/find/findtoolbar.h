@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -61,10 +56,9 @@ protected:
     bool event(QEvent *ev);
     bool eventFilter(QObject *obj, QEvent *ev);
 
-private slots:
+private:
     void actionChanged();
 
-private:
     QCheckBox *createCheckboxForCommand(Id id);
 
     QMap<QAction *, QCheckBox *> m_checkboxMap;
@@ -94,10 +88,15 @@ public:
     void setUseFakeVim(bool on);
 
     void setLightColoredIcon(bool lightColored);
+
 public slots:
     void setBackward(bool backward);
 
-private slots:
+protected:
+    bool focusNextPrevChild(bool next);
+    void resizeEvent(QResizeEvent *event);
+
+private:
     void invokeFindNext();
     void invokeGlobalFindNext();
     void invokeFindPrevious();
@@ -138,11 +137,6 @@ private slots:
 
     void setFocusToCurrentFindSupport();
 
-protected:
-    bool focusNextPrevChild(bool next);
-    void resizeEvent(QResizeEvent *event);
-
-private:
     void installEventFilters();
     void invokeClearResults();
     void setFindFlag(FindFlag flag, bool enabled);
@@ -162,40 +156,41 @@ private:
     void updateIcons();
     void updateFlagMenus();
 
-    FindPlugin *m_plugin;
-    CurrentDocumentFind *m_currentDocumentFind;
+    FindPlugin *m_plugin = nullptr;
+    CurrentDocumentFind *m_currentDocumentFind = nullptr;
     Ui::FindWidget m_ui;
-    QCompleter *m_findCompleter;
-    QCompleter *m_replaceCompleter;
-    QAction *m_goToCurrentFindAction;
-    QAction *m_findInDocumentAction;
-    QAction *m_findNextSelectedAction;
-    QAction *m_findPreviousSelectedAction;
-    QAction *m_enterFindStringAction;
-    QAction *m_findNextAction;
-    QAction *m_findPreviousAction;
-    QAction *m_replaceAction;
-    QAction *m_replaceNextAction;
-    QAction *m_replacePreviousAction;
-    QAction *m_replaceAllAction;
-    QAction *m_caseSensitiveAction;
-    QAction *m_wholeWordAction;
-    QAction *m_regularExpressionAction;
-    QAction *m_preserveCaseAction;
+    QCompleter *m_findCompleter = nullptr;
+    QCompleter *m_replaceCompleter = nullptr;
+    QAction *m_goToCurrentFindAction = nullptr;
+    QAction *m_findInDocumentAction = nullptr;
+    QAction *m_findNextSelectedAction = nullptr;
+    QAction *m_findPreviousSelectedAction = nullptr;
+    QAction *m_enterFindStringAction = nullptr;
+    QAction *m_findNextAction = nullptr;
+    QAction *m_findPreviousAction = nullptr;
+    QAction *m_replaceAction = nullptr;
+    QAction *m_replaceNextAction = nullptr;
+    QAction *m_replacePreviousAction = nullptr;
+    QAction *m_replaceAllAction = nullptr;
+    QAction *m_caseSensitiveAction = nullptr;
+    QAction *m_wholeWordAction = nullptr;
+    QAction *m_regularExpressionAction = nullptr;
+    QAction *m_preserveCaseAction = nullptr;
 
-    QAction *m_localFindNextAction;
-    QAction *m_localFindPreviousAction;
-    QAction *m_localReplaceAction;
-    QAction *m_localReplaceNextAction;
-    QAction *m_localReplacePreviousAction;
-    QAction *m_localReplaceAllAction;
+    QAction *m_localFindNextAction = nullptr;
+    QAction *m_localFindPreviousAction = nullptr;
+    QAction *m_localReplaceAction = nullptr;
+    QAction *m_localReplaceNextAction = nullptr;
+    QAction *m_localReplacePreviousAction = nullptr;
+    QAction *m_localReplaceAllAction = nullptr;
 
     FindFlags m_findFlags;
 
     QTimer m_findIncrementalTimer;
     QTimer m_findStepTimer;
-    bool m_useFakeVim;
-    bool m_eventFiltersInstalled;
+    IFindSupport::Result m_lastResult = IFindSupport::NotYetFound;
+    bool m_useFakeVim = false;
+    bool m_eventFiltersInstalled = false;
 };
 
 } // namespace Internal

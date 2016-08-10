@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -37,6 +32,7 @@
 #include "modemanager.h"
 #include "infobar.h"
 #include "iwizardfactory.h"
+#include "themechooser.h"
 
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/documentmanager.h>
@@ -44,9 +40,12 @@
 #include <coreplugin/find/findplugin.h>
 #include <coreplugin/locator/locator.h>
 #include <coreplugin/coreconstants.h>
+#include <coreplugin/fileutils.h>
 
 #include <extensionsystem/pluginerroroverview.h>
 #include <extensionsystem/pluginmanager.h>
+#include <utils/algorithm.h>
+#include <utils/pathchooser.h>
 #include <utils/macroexpander.h>
 #include <utils/savefile.h>
 #include <utils/stringutils.h>
@@ -56,7 +55,8 @@
 #include <QtPlugin>
 #include <QDebug>
 #include <QDateTime>
-#include <QDir>
+#include <QMenu>
+#include <QUuid>
 
 using namespace Core;
 using namespace Core::Internal;
@@ -94,39 +94,13 @@ CorePlugin::~CorePlugin()
     setCreatorTheme(0);
 }
 
-static QString absoluteThemePath(const QString &themeName, bool userProvidedTheme)
-{
-    if (themeName.isEmpty())
-        return themeName;
-    QString res = QDir::fromNativeSeparators(themeName);
-    QFileInfo fi(res);
-    bool tryRawName = userProvidedTheme || fi.isAbsolute();
-    // Try the given name
-    if (tryRawName && fi.exists())
-        return fi.absoluteFilePath();
-    const QString suffix = QLatin1String("creatortheme");
-    // Try name.creatortheme
-    if (fi.suffix() != suffix) {
-        res = themeName + QLatin1Char('.') + suffix;
-        fi.setFile(res);
-        if (tryRawName && fi.exists())
-            return fi.absoluteFilePath();
-    }
-    if (fi.path().isEmpty())
-        return QString(); // absolute/relative path, but not found
-    // If only name was given, look it up in qtcreator/themes
-    res.prepend(ICore::resourcePath() + QLatin1String("/themes/"));
-    return QFileInfo::exists(res) ? res : QString();
-}
-
 void CorePlugin::parseArguments(const QStringList &arguments)
 {
-    const QString defaultTheme = QLatin1String("default");
-    QString themeName = ICore::settings()->value(
-                QLatin1String(Constants::SETTINGS_THEME), defaultTheme).toString();
+    const Id settingsThemeId = Id::fromSetting(ICore::settings()->value(
+                QLatin1String(Constants::SETTINGS_THEME), QLatin1String(Constants::DEFAULT_THEME)));
+    Id themeId = settingsThemeId;
     QColor overrideColor;
     bool presentationMode = false;
-    bool userProvidedTheme = false;
 
     for (int i = 0; i < arguments.size(); ++i) {
         if (arguments.at(i) == QLatin1String("-color")) {
@@ -137,28 +111,27 @@ void CorePlugin::parseArguments(const QStringList &arguments)
         if (arguments.at(i) == QLatin1String("-presentationMode"))
             presentationMode = true;
         if (arguments.at(i) == QLatin1String("-theme")) {
-            themeName = arguments.at(i + 1);
-            userProvidedTheme = true;
+            themeId = Id::fromString(arguments.at(i + 1));
             i++;
         }
     }
-
-    QString themeURI = absoluteThemePath(themeName, userProvidedTheme);
-    if (themeURI.isEmpty()) {
-        themeName = defaultTheme;
-        themeURI = QStringLiteral("%1/themes/%2.creatortheme").arg(ICore::resourcePath()).arg(themeName);
-        if (themeURI.isEmpty()) {
-            qCritical("%s", qPrintable(QCoreApplication::translate("Application", "No valid theme \"%1\"")
-                                       .arg(themeName)));
-        }
+    const QList<ThemeEntry> availableThemes = ThemeEntry::availableThemes();
+    int themeIndex = Utils::indexOf(availableThemes, Utils::equal(&ThemeEntry::id, themeId));
+    if (themeIndex < 0) {
+        themeIndex = Utils::indexOf(availableThemes,
+                                    Utils::equal(&ThemeEntry::id, settingsThemeId));
     }
-
-    QSettings themeSettings(themeURI, QSettings::IniFormat);
-    Theme *theme = new Theme(themeName, qApp);
-    theme->readSettings(themeSettings);
-    if (theme->flag(Theme::ApplyThemePaletteGlobally))
-        QApplication::setPalette(theme->palette());
-    setCreatorTheme(theme);
+    if (themeIndex < 0)
+        themeIndex = 0;
+    if (themeIndex < availableThemes.size()) {
+        const ThemeEntry themeEntry = availableThemes.at(themeIndex);
+        QSettings themeSettings(themeEntry.filePath(), QSettings::IniFormat);
+        Theme *theme = new Theme(themeEntry.id().toString(), qApp);
+        theme->readSettings(themeSettings);
+        if (theme->flag(Theme::ApplyThemePaletteGlobally))
+            QApplication::setPalette(theme->palette());
+        setCreatorTheme(theme);
+    }
 
     // defer creation of these widgets until here,
     // because they need a valid theme set
@@ -173,6 +146,10 @@ void CorePlugin::parseArguments(const QStringList &arguments)
 
 bool CorePlugin::initialize(const QStringList &arguments, QString *errorMessage)
 {
+    if (ThemeEntry::availableThemes().isEmpty()) {
+        *errorMessage = tr("No themes found in installation.");
+        return false;
+    }
     new ActionManager(this);
     Theme::initialPalette(); // Initialize palette before setting it
     qsrand(QDateTime::currentDateTime().toTime_t());
@@ -223,11 +200,15 @@ bool CorePlugin::initialize(const QStringList &arguments, QString *errorMessage)
                              [](const QString &fmt) { return QDate::currentDate().toString(fmt); });
     expander->registerPrefix("CurrentTime:", tr("The current time (QTime formatstring)."),
                              [](const QString &fmt) { return QTime::currentTime().toString(fmt); });
+    expander->registerVariable("UUID", tr("Generate a new UUID."),
+                               []() { return QUuid::createUuid().toString(); });
 
     expander->registerPrefix("#:", tr("A comment."), [](const QString &) { return QStringLiteral(""); });
 
     // Make sure all wizards are there when the user might access the keyboard shortcuts:
     connect(ICore::instance(), &ICore::optionsDialogRequested, []() { IWizardFactory::allWizardFactories(); });
+
+    Utils::PathChooser::setAboutToShowContextMenuHandler(&CorePlugin::addToPathChooserContextMenu);
 
     return success;
 }
@@ -259,6 +240,13 @@ QObject *CorePlugin::remoteCommand(const QStringList & /* options */,
                                    const QString &workingDirectory,
                                    const QStringList &args)
 {
+    if (!ExtensionSystem::PluginManager::isInitializationDone()) {
+        connect(ExtensionSystem::PluginManager::instance(), &ExtensionSystem::PluginManager::initializationDone,
+                this, [this, workingDirectory, args]() {
+                    remoteCommand(QStringList(), workingDirectory, args);
+        });
+        return nullptr;
+    }
     IDocument *res = m_mainWindow->openFiles(
                 args, ICore::OpenFilesFlags(ICore::SwitchMode | ICore::CanContainLineAndColumnNumbers),
                 workingDirectory);
@@ -269,6 +257,27 @@ QObject *CorePlugin::remoteCommand(const QStringList & /* options */,
 void CorePlugin::fileOpenRequest(const QString &f)
 {
     remoteCommand(QStringList(), QString(), QStringList(f));
+}
+
+void CorePlugin::addToPathChooserContextMenu(Utils::PathChooser *pathChooser, QMenu *menu)
+{
+    QList<QAction*> actions = menu->actions();
+    QAction *firstAction = actions.isEmpty() ? nullptr : actions.first();
+
+    auto *showInGraphicalShell = new QAction(Core::FileUtils::msgGraphicalShellAction(), menu);
+    connect(showInGraphicalShell, &QAction::triggered, pathChooser, [pathChooser]() {
+        Core::FileUtils::showInGraphicalShell(pathChooser, pathChooser->path());
+    });
+    menu->insertAction(firstAction, showInGraphicalShell);
+
+    auto *showInTerminal = new QAction(Core::FileUtils::msgTerminalAction(), menu);
+    connect(showInTerminal, &QAction::triggered, pathChooser, [pathChooser]() {
+        Core::FileUtils::openTerminal(pathChooser->path());
+    });
+    menu->insertAction(firstAction, showInTerminal);
+
+    if (firstAction)
+        menu->insertSeparator(firstAction);
 }
 
 ExtensionSystem::IPlugin::ShutdownFlag CorePlugin::aboutToShutdown()

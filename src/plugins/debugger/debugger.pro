@@ -69,7 +69,8 @@ HEADERS += \
     localsandexpressionswindow.h \
     imageviewer.h \
     simplifytype.h \
-    unstartedappwatcherdialog.h
+    unstartedappwatcherdialog.h \
+    debuggericons.h
 
 SOURCES += \
     breakhandler.cpp \
@@ -140,11 +141,18 @@ SOURCES += registerpostmortemaction.cpp
 LIBS  *= -lole32 \
     -lshell32
 }
+
+equals(TEST, 1) {
+    RESOURCES += debuggerunittests.qrc
+}
+
 include(cdb/cdb.pri)
 include(gdb/gdb.pri)
 include(pdb/pdb.pri)
 include(lldb/lldb.pri)
 include(qml/qml.pri)
 include(namedemangler/namedemangler.pri)
+include(console/console.pri)
+include(analyzer/analyzer.pri)
 
 include(shared/shared.pri)

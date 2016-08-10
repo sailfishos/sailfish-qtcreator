@@ -3,7 +3,7 @@ QT       += core network
 QT       -= gui
 
 TARGET = echo
-CONFIG   += console c++14
+CONFIG   += console c++11
 CONFIG   -= app_bundle
 
 TEMPLATE = app
@@ -23,6 +23,6 @@ HEADERS += \
     echoipcserver.h
 
 DEFINES += CLANGBACKENDIPC_TESTS
-DEFINES += DONT_CHECK_COMMAND_COUNTER
+DEFINES += DONT_CHECK_MESSAGE_COUNTER
 
 win32:DESTDIR = ..

@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://www.qt.io/licensing.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -35,6 +30,8 @@
 
 #include <QByteArray>
 #include <QMetaType>
+
+#include <iosfwd>
 
 class Utf8StringVector;
 class Utf8String;
@@ -48,10 +45,14 @@ class SQLITE_EXPORT Utf8String
     friend SQLITE_EXPORT bool operator!=(const Utf8String &first, const Utf8String &second);
     friend SQLITE_EXPORT bool operator==(const Utf8String &first, const Utf8String &second);
     friend SQLITE_EXPORT bool operator==(const Utf8String &first, const char *second);
+    friend SQLITE_EXPORT bool operator==(const char *first, const Utf8String &second);
+    friend SQLITE_EXPORT bool operator==(const Utf8String &first, const QString &second);
     friend SQLITE_EXPORT bool operator<(const Utf8String &first, const Utf8String &second);
 
     friend SQLITE_EXPORT QDataStream &operator<<(QDataStream &datastream, const Utf8String &text);
     friend SQLITE_EXPORT QDataStream &operator>>(QDataStream &datastream, Utf8String &text);
+
+    friend SQLITE_EXPORT uint qHash(const Utf8String &utf8String);
 
 public:
     Utf8String() = default;
@@ -71,6 +72,7 @@ public:
 
     Utf8String mid(int position, int length = -1) const;
     void replace(const Utf8String &before, const Utf8String &after);
+    void replace(int position, int length, const Utf8String &after);
     Utf8StringVector split(char separator) const;
 
     void clear();
@@ -82,6 +84,8 @@ public:
     bool startsWith(const Utf8String &text) const;
     bool startsWith(const char *text) const;
     bool startsWith(char character) const;
+    bool endsWith(const Utf8String &text) const;
+    bool isNull() const;
     bool isEmpty() const;
     bool hasContent() const;
 
@@ -108,12 +112,17 @@ SQLITE_EXPORT const Utf8String operator+(const Utf8String &first, const Utf8Stri
 SQLITE_EXPORT bool operator!=(const Utf8String &first, const Utf8String &second);
 SQLITE_EXPORT bool operator==(const Utf8String &first, const Utf8String &second);
 SQLITE_EXPORT bool operator==(const Utf8String &first, const char *second);
+SQLITE_EXPORT bool operator==(const char *first, const Utf8String &second);
+SQLITE_EXPORT bool operator==(const Utf8String &first, const QString &second);
 SQLITE_EXPORT bool operator<(const Utf8String &first, const Utf8String &second);
 
 SQLITE_EXPORT QDataStream &operator<<(QDataStream &datastream, const Utf8String &text);
 SQLITE_EXPORT QDataStream &operator>>(QDataStream &datastream, Utf8String &text);
 SQLITE_EXPORT QDebug operator<<(QDebug debug, const Utf8String &text);
 SQLITE_EXPORT void PrintTo(const Utf8String &text, ::std::ostream* os);
+SQLITE_EXPORT std::ostream& operator<<(std::ostream &os, const Utf8String &utf8String);
+
+SQLITE_EXPORT uint qHash(const Utf8String &utf8String);
 
 #define Utf8StringLiteral(str) Utf8String::fromByteArray(QByteArrayLiteral(str))
 

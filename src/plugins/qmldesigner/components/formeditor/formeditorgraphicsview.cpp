@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,36 +9,33 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
 #include "formeditorgraphicsview.h"
 
 #include <QWheelEvent>
-#include <QDebug>
 #include <QScrollBar>
+#include <QGraphicsItem>
+#include <QGraphicsWidget>
+#include <QGraphicsProxyWidget>
+#include <QCoreApplication>
 
 namespace QmlDesigner {
 
 FormEditorGraphicsView::FormEditorGraphicsView(QWidget *parent) :
-    QGraphicsView(parent),
-    m_isPanning(false)
+    QGraphicsView(parent)
 {
     setTransformationAnchor(QGraphicsView::AnchorUnderMouse);
     setResizeAnchor(QGraphicsView::AnchorViewCenter);
@@ -46,8 +43,8 @@ FormEditorGraphicsView::FormEditorGraphicsView(QWidget *parent) :
     setCacheMode(QGraphicsView::CacheNone);
     setViewportUpdateMode(QGraphicsView::MinimalViewportUpdate);
     setOptimizationFlags(QGraphicsView::DontSavePainterState);
-//    setViewportUpdateMode(QGraphicsView::NoViewportUpdate);
     setRenderHint(QPainter::Antialiasing, false);
+    setRenderHint(QPainter::SmoothPixmapTransform, true);
 
     setFrameShape(QFrame::NoFrame);
 
@@ -56,7 +53,32 @@ FormEditorGraphicsView::FormEditorGraphicsView(QWidget *parent) :
 
     activateCheckboardBackground();
 
-    viewport()->setMouseTracking(true);
+    // as mousetracking only works for mouse key it is better to handle it in the
+    // eventFilter method so it works also for the space scrolling case as expected
+    QCoreApplication::instance()->installEventFilter(this);
+}
+
+bool FormEditorGraphicsView::eventFilter(QObject *watched, QEvent *event)
+{
+    if (m_isPanning != Panning::NotStarted) {
+        if (event->type() == QEvent::Leave && m_isPanning == Panning::SpaceKeyStarted) {
+            // there is no way to keep the cursor so we stop panning here
+            stopPanning(event);
+        }
+        if (event->type() == QEvent::MouseMove) {
+            QMouseEvent* mouseEvent = static_cast<QMouseEvent*>(event);
+            if (!m_panningStartPosition.isNull()) {
+                horizontalScrollBar()->setValue(horizontalScrollBar()->value() -
+                    (mouseEvent->x() - m_panningStartPosition.x()));
+                verticalScrollBar()->setValue(verticalScrollBar()->value() -
+                    (mouseEvent->y() - m_panningStartPosition.y()));
+            }
+            m_panningStartPosition = mouseEvent->pos();
+            event->accept();
+            return true;
+        }
+    }
+    return QGraphicsView::eventFilter(watched, event);
 }
 
 void FormEditorGraphicsView::wheelEvent(QWheelEvent *event)
@@ -65,45 +87,77 @@ void FormEditorGraphicsView::wheelEvent(QWheelEvent *event)
         event->ignore();
     else
         QGraphicsView::wheelEvent(event);
-
 }
 
 void FormEditorGraphicsView::mousePressEvent(QMouseEvent *event)
 {
-    if (event->buttons().testFlag(Qt::MiddleButton)) {
-        m_isPanning = true;
-        m_panStartX = event->x();
-        m_panStartY = event->y();
-        setCursor(Qt::ClosedHandCursor);
-        event->accept();
-    } else {
-        QGraphicsView::mousePressEvent(event);
-    }
-}
-
-void FormEditorGraphicsView::mouseMoveEvent(QMouseEvent *event)
-{
-    if (m_isPanning) {
-        horizontalScrollBar()->setValue(horizontalScrollBar()->value() - (event->x() - m_panStartX));
-        verticalScrollBar()->setValue(verticalScrollBar()->value() - (event->y() - m_panStartY));
-        m_panStartX = event->x();
-        m_panStartY = event->y();
-        event->accept();
-    }else {
-        QGraphicsView::mouseMoveEvent(event);
+    if (m_isPanning == Panning::NotStarted) {
+        if (event->buttons().testFlag(Qt::MiddleButton))
+            startPanning(event);
+        else
+            QGraphicsView::mousePressEvent(event);
     }
 }
 
 void FormEditorGraphicsView::mouseReleaseEvent(QMouseEvent *event)
 {
-    if (m_isPanning) {
-
-        m_isPanning = false;
-        setCursor(Qt::ArrowCursor);
-        event->accept();
-    }else {
+    // not sure why buttons() are empty here, but we have that information from the enum
+    if (/*event->buttons().testFlag(Qt::MiddleButton) && */m_isPanning == Panning::MouseWheelStarted)
+        stopPanning(event);
+    else
         QGraphicsView::mouseReleaseEvent(event);
+}
+
+bool isTextInputItem(QGraphicsItem* item)
+{
+    if (item && item->isWidget()) {
+        QGraphicsWidget *graphicsWidget = static_cast<QGraphicsWidget *>(item);
+        QGraphicsProxyWidget * textInputProxyWidget = qobject_cast<QGraphicsProxyWidget *>(graphicsWidget);
+        if (textInputProxyWidget && textInputProxyWidget->widget() && (
+                strcmp(textInputProxyWidget->widget()->metaObject()->className(), "QLineEdit") == 0 ||
+                strcmp(textInputProxyWidget->widget()->metaObject()->className(), "QTextEdit") == 0)) {
+            return true;
+        }
+
     }
+    return false;
+}
+
+void FormEditorGraphicsView::keyPressEvent(QKeyEvent *event)
+{
+    // check for autorepeat to avoid a stoped space panning by leave event to be restarted
+    if (!event->isAutoRepeat() && m_isPanning == Panning::NotStarted && event->key() == Qt::Key_Space &&
+            !isTextInputItem(scene()->focusItem())) {
+        startPanning(event);
+        return;
+    }
+    QGraphicsView::keyPressEvent(event);
+}
+
+void FormEditorGraphicsView::keyReleaseEvent(QKeyEvent *event)
+{
+    if (event->key() == Qt::Key_Space && !event->isAutoRepeat() && m_isPanning == Panning::SpaceKeyStarted)
+        stopPanning(event);
+
+    QGraphicsView::keyReleaseEvent(event);
+}
+
+void FormEditorGraphicsView::startPanning(QEvent *event)
+{
+    if (event->type() == QEvent::KeyPress)
+        m_isPanning = Panning::SpaceKeyStarted;
+    else
+        m_isPanning = Panning::MouseWheelStarted;
+    viewport()->setCursor(Qt::ClosedHandCursor);
+    event->accept();
+}
+
+void FormEditorGraphicsView::stopPanning(QEvent *event)
+{
+    m_isPanning = Panning::NotStarted;
+    m_panningStartPosition = QPoint();
+    viewport()->unsetCursor();
+    event->accept();
 }
 
 void FormEditorGraphicsView::setRootItemRect(const QRectF &rect)
@@ -119,7 +173,7 @@ QRectF FormEditorGraphicsView::rootItemRect() const
 
 void FormEditorGraphicsView::activateCheckboardBackground()
 {
-    const int checkerbordSize= 20;
+    const int checkerbordSize = 20;
     QPixmap tilePixmap(checkerbordSize * 2, checkerbordSize * 2);
     tilePixmap.fill(Qt::white);
     QPainter tilePainter(&tilePixmap);

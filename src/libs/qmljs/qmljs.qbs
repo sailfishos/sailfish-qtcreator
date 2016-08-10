@@ -17,12 +17,8 @@ QtcLibrary {
     Group {
         name: "General"
         files: [
-            "consoleitem.cpp", "consoleitem.h",
-            "consolemanagerinterface.cpp", "consolemanagerinterface.h",
-            "iscriptevaluator.h",
             "jsoncheck.cpp", "jsoncheck.h",
             "persistenttrie.cpp", "persistenttrie.h",
-            "qmljs.qrc",
             "qmljs_global.h",
             "qmljsbind.cpp", "qmljsbind.h",
             "qmljsbundle.cpp", "qmljsbundle.h",
@@ -59,17 +55,6 @@ QtcLibrary {
             "qmljsutils.cpp", "qmljsutils.h",
             "qmljsvalueowner.cpp", "qmljsvalueowner.h",
             "qmljsviewercontext.cpp", "qmljsviewercontext.h"
-        ]
-    }
-
-    Group {
-        name: "Images"
-        prefix: "images/"
-        files: [
-            "element.png",
-            "func.png",
-            "property.png",
-            "publicmember.png",
         ]
     }
 

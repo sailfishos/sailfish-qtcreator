@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -34,15 +29,16 @@
 #include "qbsparser.h"
 #include "qbsproject.h"
 #include "qbsprojectmanagerconstants.h"
+#include "qbsprojectmanagersettings.h"
 
 #include "ui_qbsbuildstepconfigwidget.h"
 
 #include <coreplugin/icore.h>
+#include <coreplugin/coreicons.h>
 #include <projectexplorer/buildsteplist.h>
 #include <projectexplorer/kit.h>
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/target.h>
-#include <qtsupport/debugginghelperbuildtask.h>
 #include <qtsupport/qtversionmanager.h>
 #include <utils/qtcassert.h>
 #include <utils/qtcprocess.h>
@@ -93,8 +89,9 @@ QbsBuildStep::~QbsBuildStep()
     delete m_parser;
 }
 
-bool QbsBuildStep::init()
+bool QbsBuildStep::init(QList<const BuildStep *> &earlierSteps)
 {
+    Q_UNUSED(earlierSteps);
     if (static_cast<QbsProject *>(project())->isParsing() || m_job)
         return false;
 
@@ -117,8 +114,7 @@ bool QbsBuildStep::init()
 
     connect(m_parser, SIGNAL(addOutput(QString,ProjectExplorer::BuildStep::OutputFormat)),
             this, SIGNAL(addOutput(QString,ProjectExplorer::BuildStep::OutputFormat)));
-    connect(m_parser, SIGNAL(addTask(ProjectExplorer::Task)),
-            this, SIGNAL(addTask(ProjectExplorer::Task)));
+    connect(m_parser, &ProjectExplorer::IOutputParser::addTask, this, &QbsBuildStep::addTask);
 
     return true;
 }
@@ -172,11 +168,6 @@ void QbsBuildStep::setQbsConfiguration(const QVariantMap &config)
     if (bc)
         bc->emitBuildTypeChanged();
     emit qbsConfigurationChanged();
-}
-
-bool QbsBuildStep::dryRun() const
-{
-    return m_qbsBuildOptions.dryRun();
 }
 
 bool QbsBuildStep::keepGoing() const
@@ -357,14 +348,6 @@ QString QbsBuildStep::profile() const
     return qbsConfiguration().value(QLatin1String(Constants::QBS_CONFIG_PROFILE_KEY)).toString();
 }
 
-void QbsBuildStep::setDryRun(bool dr)
-{
-    if (m_qbsBuildOptions.dryRun() == dr)
-        return;
-    m_qbsBuildOptions.setDryRun(dr);
-    emit qbsBuildOptionsChanged();
-}
-
 void QbsBuildStep::setKeepGoing(bool kg)
 {
     if (m_qbsBuildOptions.keepGoing() == kg)
@@ -472,6 +455,10 @@ QbsBuildStepConfigWidget::QbsBuildStepConfigWidget(QbsBuildStep *step) :
     connect(m_step, SIGNAL(displayNameChanged()), this, SLOT(updateState()));
     connect(m_step, SIGNAL(qbsConfigurationChanged()), this, SLOT(updateState()));
     connect(m_step, SIGNAL(qbsBuildOptionsChanged()), this, SLOT(updateState()));
+    connect(&QbsProjectManagerSettings::instance(), &QbsProjectManagerSettings::settingsBaseChanged,
+            this, &QbsBuildStepConfigWidget::updateState);
+    connect(step->buildConfiguration()->target(), &ProjectExplorer::Target::buildDirectoryChanged,
+            this, &QbsBuildStepConfigWidget::updateState);
 
     setContentsMargins(0, 0, 0, 0);
 
@@ -482,10 +469,10 @@ QbsBuildStepConfigWidget::QbsBuildStepConfigWidget(QbsBuildStep *step) :
                                                      QString *errorMessage) {
         return validateProperties(edit, errorMessage);
     });
+    m_ui->qmlDebuggingWarningText->setPixmap(Core::Icons::WARNING.pixmap());
 
     connect(m_ui->buildVariantComboBox, SIGNAL(currentIndexChanged(int)),
             this, SLOT(changeBuildVariant(int)));
-    connect(m_ui->dryRunCheckBox, SIGNAL(toggled(bool)), this, SLOT(changeDryRun(bool)));
     connect(m_ui->keepGoingCheckBox, SIGNAL(toggled(bool)), this, SLOT(changeKeepGoing(bool)));
     connect(m_ui->jobSpinBox, SIGNAL(valueChanged(int)), this, SLOT(changeJobCount(int)));
     connect(m_ui->showCommandLinesCheckBox, &QCheckBox::toggled, this,
@@ -519,7 +506,6 @@ QString QbsBuildStepConfigWidget::displayName() const
 void QbsBuildStepConfigWidget::updateState()
 {
     if (!m_ignoreChange) {
-        m_ui->dryRunCheckBox->setChecked(m_step->dryRun());
         m_ui->keepGoingCheckBox->setChecked(m_step->keepGoing());
         m_ui->jobSpinBox->setValue(m_step->maxJobs());
         m_ui->showCommandLinesCheckBox->setChecked(m_step->showCommandLines());
@@ -593,13 +579,6 @@ void QbsBuildStepConfigWidget::changeBuildVariant(int idx)
         variant = QLatin1String(Constants::QBS_VARIANT_DEBUG);
     m_ignoreChange = true;
     m_step->setBuildVariant(variant);
-    m_ignoreChange = false;
-}
-
-void QbsBuildStepConfigWidget::changeDryRun(bool dr)
-{
-    m_ignoreChange = true;
-    m_step->setDryRun(dr);
     m_ignoreChange = false;
 }
 

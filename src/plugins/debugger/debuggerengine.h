@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -33,6 +28,7 @@
 
 #include "debugger_global.h"
 #include "debuggerconstants.h"
+#include "debuggerprotocol.h"
 #include "debuggerstartparameters.h"
 
 #include <projectexplorer/devicesupport/idevice.h>
@@ -61,9 +57,7 @@ namespace Internal {
 class DebuggerEnginePrivate;
 class DebuggerPluginPrivate;
 class DisassemblerAgent;
-class GdbMi;
 class MemoryAgent;
-class WatchData;
 class WatchItem;
 class BreakHandler;
 class LocationMark;
@@ -90,7 +84,7 @@ public:
     DebuggerEngineType masterEngineType = NoEngineType;
     DebuggerEngineType cppEngineType = NoEngineType;
 
-    DebuggerLanguages languages = AnyLanguage;
+    DebuggerLanguages languages = NoLanguage;
     bool breakOnMain = false;
     bool multiProcess = false; // Whether to set detach-on-fork off.
 
@@ -109,8 +103,14 @@ public:
     QString projectSourceDirectory;
     QStringList projectSourceFiles;
 
+    // Used by Script debugging
+    QString interpreter;
+    QString mainScript;
+
     // Used by AttachCrashedExternal.
     QString crashParameter;
+
+    bool nativeMixedEnabled = false;
 
     // For Debugger testing.
     int testCase = 0;
@@ -197,9 +197,11 @@ public:
     virtual bool canHandleToolTip(const DebuggerToolTipContext &) const;
     virtual void expandItem(const QByteArray &iname); // Called when item in tree gets expanded.
     virtual void updateItem(const QByteArray &iname); // Called for fresh watch items.
+    void updateWatchData(const QByteArray &iname); // FIXME: Merge with above.
     virtual void selectWatchData(const QByteArray &iname);
 
     virtual void startDebugger(DebuggerRunControl *runControl);
+    virtual void prepareForRestart() {}
 
     virtual void watchPoint(const QPoint &);
 
@@ -210,6 +212,7 @@ public:
         MemoryView = 0x4           //!< Open a separate view (using the pos-parameter).
     };
 
+    virtual void runCommand(const DebuggerCommand &cmd);
     virtual void openMemoryView(const MemoryViewSetupData &data);
     virtual void fetchMemory(Internal::MemoryAgent *, QObject *,
                              quint64 addr, quint64 length);
@@ -315,7 +318,8 @@ public:
     virtual void notifyInferiorIll();
 
     QString toFileInProject(const QUrl &fileUrl);
-    void updateBreakpointMarkers();
+    void updateBreakpointMarker(const Breakpoint &bp);
+    void removeBreakpointMarker(const Breakpoint &bp);
 
 signals:
     void stateChanged(Debugger::DebuggerState state);
@@ -436,6 +440,10 @@ protected:
         DebuggerState state);
 
     void updateLocalsView(const GdbMi &all);
+    void checkState(DebuggerState state, const char *file, int line);
+    bool isNativeMixedEnabled() const;
+    bool isNativeMixedActive() const;
+    bool isNativeMixedActiveFrame() const;
 
 private:
     // Wrapper engine needs access to state of its subengines.
@@ -454,10 +462,11 @@ class LocationMark : public TextEditor::TextMark
 {
 public:
     LocationMark(DebuggerEngine *engine, const QString &file, int line);
+    void removedFromEditor() override { updateLineNumber(0); }
 
 private:
-    bool isDraggable() const;
-    void dragToLine(int line);
+    bool isDraggable() const override;
+    void dragToLine(int line) override;
 
     QPointer<DebuggerEngine> m_engine;
 };

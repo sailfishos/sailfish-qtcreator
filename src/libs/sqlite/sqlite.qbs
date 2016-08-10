@@ -1,4 +1,4 @@
-﻿import qbs 1.0
+import qbs 1.0
 
 QtcLibrary {
     name: "Sqlite"
@@ -13,7 +13,8 @@ QtcLibrary {
         "SQLITE_ENABLE_COLUMN_METADATA"
     ])
     cpp.optimization: "fast"
-    cpp.dynamicLibraries: base.concat(qbs.targetOS.contains("unix") ? ["dl"] : [])
+    cpp.dynamicLibraries: base.concat((qbs.targetOS.contains("unix") && !qbs.targetOS.contains("bsd"))
+                                      ? ["dl", "pthread"] : [])
 
 
     Group {

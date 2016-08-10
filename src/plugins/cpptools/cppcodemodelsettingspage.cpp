@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,26 +9,24 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
 #include "cppcodemodelsettingspage.h"
+
+#include "clangdiagnosticconfigswidget.h"
+#include "cppmodelmanager.h"
 #include "cpptoolsconstants.h"
 #include "ui_cppcodemodelsettingspage.h"
 
@@ -46,7 +44,7 @@ CppCodeModelSettingsWidget::CppCodeModelSettingsWidget(QWidget *parent)
 {
     m_ui->setupUi(this);
 
-    m_ui->theGroupBox->setVisible(true);
+    m_ui->clangSettingsGroupBox->setVisible(true);
 }
 
 CppCodeModelSettingsWidget::~CppCodeModelSettingsWidget()
@@ -58,63 +56,78 @@ void CppCodeModelSettingsWidget::setSettings(const QSharedPointer<CppCodeModelSe
 {
     m_settings = s;
 
-    applyToWidget(m_ui->cChooser, QLatin1String(Constants::C_SOURCE_MIMETYPE));
-    applyToWidget(m_ui->cppChooser, QLatin1String(Constants::CPP_SOURCE_MIMETYPE));
-    applyToWidget(m_ui->objcChooser, QLatin1String(Constants::OBJECTIVE_C_SOURCE_MIMETYPE));
-    applyToWidget(m_ui->objcppChooser, QLatin1String(Constants::OBJECTIVE_CPP_SOURCE_MIMETYPE));
-    applyToWidget(m_ui->hChooser, QLatin1String(Constants::C_HEADER_MIMETYPE));
-
-    m_ui->ignorePCHCheckBox->setChecked(s->pchUsage() == CppCodeModelSettings::PchUse_None);
-}
-
-void CppCodeModelSettingsWidget::applyToWidget(QComboBox *chooser, const QString &mimeType) const
-{
-    chooser->clear();
-
-    QStringList names = m_settings->availableModelManagerSupportProvidersByName().keys();
-    Utils::sort(names);
-    foreach (const QString &name, names) {
-        const QString &id = m_settings->availableModelManagerSupportProvidersByName()[name];
-        chooser->addItem(name, id);
-        if (id == m_settings->modelManagerSupportIdForMimeType(mimeType))
-            chooser->setCurrentIndex(chooser->count() - 1);
-    }
-    chooser->setEnabled(names.size() > 1);
+    setupClangCodeModelWidgets();
+    setupPchCheckBox();
 }
 
 void CppCodeModelSettingsWidget::applyToSettings() const
 {
     bool changed = false;
-    changed |= applyToSettings(m_ui->cChooser, QLatin1String(Constants::C_SOURCE_MIMETYPE));
-    changed |= applyToSettings(m_ui->cppChooser, QLatin1String(Constants::CPP_SOURCE_MIMETYPE));
-    changed |= applyToSettings(m_ui->objcChooser,
-                               QLatin1String(Constants::OBJECTIVE_C_SOURCE_MIMETYPE));
-    changed |= applyToSettings(m_ui->objcppChooser,
-                               QLatin1String(Constants::OBJECTIVE_CPP_SOURCE_MIMETYPE));
-    changed |= applyToSettings(m_ui->hChooser,
-                               QLatin1String(Constants::C_HEADER_MIMETYPE));
 
-    if (m_ui->ignorePCHCheckBox->isChecked() !=
-            (m_settings->pchUsage() == CppCodeModelSettings::PchUse_None)) {
-        m_settings->setPCHUsage(
-                   m_ui->ignorePCHCheckBox->isChecked() ? CppCodeModelSettings::PchUse_None
-                                                        : CppCodeModelSettings::PchUse_BuildSystem);
-        changed = true;
-    }
+    changed |= applyClangCodeModelWidgetsToSettings();
+    changed |= applyPchCheckBoxToSettings();
 
     if (changed)
         m_settings->toSettings(Core::ICore::settings());
 }
 
-bool CppCodeModelSettingsWidget::applyToSettings(QComboBox *chooser, const QString &mimeType) const
+void CppCodeModelSettingsWidget::setupClangCodeModelWidgets()
 {
-    QString newId = chooser->itemData(chooser->currentIndex()).toString();
-    QString currentId = m_settings->modelManagerSupportIdForMimeType(mimeType);
-    if (newId == currentId)
-        return false;
+    const bool isClangActive = CppModelManager::instance()->isClangCodeModelActive();
 
-    m_settings->setModelManagerSupportIdForMimeType(mimeType, newId);
-    return true;
+    m_ui->activateClangCodeModelPluginHint->setVisible(!isClangActive);
+    m_ui->clangSettingsGroupBox->setEnabled(isClangActive);
+
+    ClangDiagnosticConfigsModel diagnosticConfigsModel(m_settings->clangCustomDiagnosticConfigs());
+    m_clangDiagnosticConfigsWidget = new ClangDiagnosticConfigsWidget(
+                                            diagnosticConfigsModel,
+                                            m_settings->clangDiagnosticConfigId());
+    m_ui->clangSettingsGroupBox->layout()->addWidget(m_clangDiagnosticConfigsWidget);
+}
+
+void CppCodeModelSettingsWidget::setupPchCheckBox() const
+{
+    const bool ignorePch = m_settings->pchUsage() == CppCodeModelSettings::PchUse_None;
+    m_ui->ignorePCHCheckBox->setChecked(ignorePch);
+}
+
+bool CppCodeModelSettingsWidget::applyClangCodeModelWidgetsToSettings() const
+{
+    bool settingsChanged = false;
+
+    const Core::Id oldConfigId = m_settings->clangDiagnosticConfigId();
+    const Core::Id currentConfigId = m_clangDiagnosticConfigsWidget->currentConfigId();
+    if (oldConfigId != currentConfigId) {
+        m_settings->setClangDiagnosticConfigId(currentConfigId);
+        settingsChanged = true;
+    }
+
+    const ClangDiagnosticConfigs oldDiagnosticConfigs = m_settings->clangCustomDiagnosticConfigs();
+    const ClangDiagnosticConfigs currentDiagnosticConfigs
+            = m_clangDiagnosticConfigsWidget->customConfigs();
+    if (oldDiagnosticConfigs != currentDiagnosticConfigs) {
+        m_settings->setClangCustomDiagnosticConfigs(currentDiagnosticConfigs);
+        settingsChanged = true;
+    }
+
+    return settingsChanged;
+}
+
+bool CppCodeModelSettingsWidget::applyPchCheckBoxToSettings() const
+{
+    const bool newIgnorePch = m_ui->ignorePCHCheckBox->isChecked();
+    const bool previousIgnorePch = m_settings->pchUsage() == CppCodeModelSettings::PchUse_None;
+
+    if (newIgnorePch != previousIgnorePch) {
+        const CppCodeModelSettings::PCHUsage pchUsage = m_ui->ignorePCHCheckBox->isChecked()
+                ? CppCodeModelSettings::PchUse_None
+                : CppCodeModelSettings::PchUse_BuildSystem;
+        m_settings->setPCHUsage(pchUsage);
+
+        return true;
+    }
+
+    return false;
 }
 
 CppCodeModelSettingsPage::CppCodeModelSettingsPage(QSharedPointer<CppCodeModelSettings> &settings,

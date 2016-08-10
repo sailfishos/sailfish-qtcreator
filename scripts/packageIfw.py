@@ -1,31 +1,29 @@
 #!/usr/bin/env python
-################################################################################
-# Copyright (C) 2015 The Qt Company Ltd
-# All rights reserved.
+
+############################################################################
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
+# Copyright (C) 2016 The Qt Company Ltd.
+# Contact: https://www.qt.io/licensing/
 #
-#   * Redistributions of source code must retain the above copyright notice,
-#     this list of conditions and the following disclaimer.
-#   * Redistributions in binary form must reproduce the above copyright notice,
-#     this list of conditions and the following disclaimer in the documentation
-#     and/or other materials provided with the distribution.
-#   * Neither the name of The Qt Company Ltd, nor the names of its contributors
-#     may be used to endorse or promote products derived from this software
-#     without specific prior written permission.
+# This file is part of Qt Creator.
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 'AS IS'
-# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
-# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-################################################################################
+# Commercial License Usage
+# Licensees holding valid commercial Qt licenses may use this file in
+# accordance with the commercial license agreement provided with the
+# Software or, alternatively, in accordance with the terms contained in
+# a written agreement between you and The Qt Company. For licensing terms
+# and conditions see https://www.qt.io/terms-conditions. For further
+# information use the contact form at https://www.qt.io/contact-us.
+#
+# GNU General Public License Usage
+# Alternatively, this file may be used under the terms of the GNU
+# General Public License version 3 as published by the Free Software
+# Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+# included in the packaging of this file. Please review the following
+# information to ensure the GNU General Public License requirements will
+# be met: https://www.gnu.org/licenses/gpl-3.0.html.
+#
+############################################################################
 
 import os
 import sys
@@ -38,22 +36,22 @@ import shutil
 import inspect
 
 def usage():
-    print 'Usage: %s [-v|--version-string=versionstring] [-i|--installer-path=/path/to/installerfw] [-a|--archive=archive.7z] <outputname>' %  os.path.basename(sys.argv[0])
+    print('Usage: %s [-v|--version-string=versionstring] [-d|--display-version=versionstring] [-i|--installer-path=/path/to/installerfw] [-a|--archive=archive.7z] [--debug] <outputname>' %  os.path.basename(sys.argv[0]))
 
 def substitute_file(infile, outfile, substitutions):
     with open(infile, 'r') as f:
-      template = f.read()
+        template = f.read()
     with open(outfile, 'w') as f:
-      f.write(template.format(**substitutions))
+        f.write(template.format(**substitutions))
 
 def ifw_template_dir():
     script_dir = os.path.dirname(inspect.getfile(inspect.currentframe()))
-    source_dir = os.path.normpath(os.path.join(script_dir, '..'));
+    source_dir = os.path.normpath(os.path.join(script_dir, '..'))
     return os.path.normpath(os.path.join(source_dir, 'dist', 'installer', 'ifw'))
 
 def main():
     try:
-        opts, args = getopt.gnu_getopt(sys.argv[1:], 'hv:i:a:', ['help', 'version-string=', 'installer-path=', 'archive'])
+        opts, args = getopt.gnu_getopt(sys.argv[1:], 'hv:d:i:a:', ['help', 'version-string=', 'display-version=', 'installer-path=', 'archive', 'debug'])
     except:
         usage()
         sys.exit(2)
@@ -63,27 +61,36 @@ def main():
         sys.exit(2)
 
     version = ''
+    display_version = ''
     ifw_location = ''
-    archive = ''
+    archives = []
+    debug = False
     for o, a in opts:
-        if o in ('-h', '--help'):
+        if o in ['-h', '--help']:
             usage()
             sys.exit(0)
-        if o in ('-v', '--version-string'):
+        if o in ['-v', '--version-string']:
             version = a
-        if o in ('-i', '--installer-path'):
+        if o in ['-d', '--display-version']:
+            display_version = a
+        if o in ['-i', '--installer-path']:
             ifw_location = a
-        if o in ('-a', '--archive'):
-            archive = a
+        if o in ['-a', '--archive']:
+            archives.append(a)
+        if o in ['--debug']:
+            debug = True
 
     if (version == ''):
-      raise Exception('Version not specified (--version-string)!')
+        raise Exception('Version not specified (--version-string)!')
+
+    if not display_version:
+        display_version = version
 
     if (ifw_location == ''):
-      raise Exception('Installer framework location not specified (--installer-path)!')
+        raise Exception('Installer framework location not specified (--installer-path)!')
 
-    if (archive == ''):
-      raise Exception('Archive not specified (--archive)!')
+    if not archives:
+        raise ValueError('No archive(s) specified (--archive)!')
 
     installer_name = args[0]
     config_postfix = ''
@@ -100,12 +107,16 @@ def main():
     try:
         temp_dir = tempfile.mkdtemp()
     except:
-        raise Exception('Failed to create a temporary directory!')
+        raise IOError('Failed to create a temporary directory!')
 
+    if debug:
+        print('Working directory: {0}'.format(temp_dir))
     try:
         substs = {}
         substs['version'] = version
+        substs['display_version'] = display_version
         substs['date'] = datetime.date.today().isoformat()
+        substs['archives'] = ','.join(archives)
 
         template_dir = ifw_template_dir()
         out_config_dir = os.path.join(temp_dir,'config')
@@ -127,14 +138,18 @@ def main():
         data_path = os.path.join(out_packages_dir, 'org.qtproject.qtcreator.application', 'data')
         if not os.path.exists(data_path):
             os.makedirs(data_path)
-        shutil.copy(archive, data_path)
+        for archive in archives:
+            shutil.copy(archive, data_path)
 
         ifw_call = [os.path.join(ifw_location, 'bin', 'binarycreator'), '-c', os.path.join(out_config_dir, config_name), '-p', out_packages_dir, installer_name, '--offline-only' ]
+        if debug:
+            ifw_call.append('-v')
         subprocess.check_call(ifw_call, stderr=subprocess.STDOUT)
     finally:
-        print 'Cleaning up...'
-        shutil.rmtree(temp_dir)
-        print 'Done.'
+        if not debug:
+            print('Cleaning up...')
+            shutil.rmtree(temp_dir)
+        print('Done.')
 
 if __name__ == '__main__':
     main()

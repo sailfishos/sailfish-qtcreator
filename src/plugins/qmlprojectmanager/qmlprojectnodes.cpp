@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -41,12 +36,11 @@
 namespace QmlProjectManager {
 namespace Internal {
 
-QmlProjectNode::QmlProjectNode(QmlProject *project, Core::IDocument *projectFile)
-    : ProjectExplorer::ProjectNode(projectFile->filePath()),
-      m_project(project),
-      m_projectFile(projectFile)
+QmlProjectNode::QmlProjectNode(QmlProject *project)
+    : ProjectExplorer::ProjectNode(project->projectFilePath()),
+      m_project(project)
 {
-    setDisplayName(projectFile->filePath().toFileInfo().completeBaseName());
+    setDisplayName(project->projectFilePath().toFileInfo().completeBaseName());
     // make overlay
     const QSize desiredSize = QSize(16, 16);
     const QIcon projectBaseIcon(QLatin1String(":/qmlproject/images/qmlfolder.png"));
@@ -58,12 +52,6 @@ QmlProjectNode::QmlProjectNode(QmlProject *project, Core::IDocument *projectFile
 
 QmlProjectNode::~QmlProjectNode()
 { }
-
-Core::IDocument *QmlProjectNode::projectFile() const
-{ return m_projectFile; }
-
-QString QmlProjectNode::projectFilePath() const
-{ return m_projectFile->filePath().toString(); }
 
 void QmlProjectNode::refresh()
 {
@@ -97,6 +85,8 @@ void QmlProjectNode::refresh()
             // plain old file format
             absoluteFilePath = fileInfo.filePath();
             relativeDirectory = m_project->projectDir().relativeFilePath(fileInfo.path());
+            if (relativeDirectory == QLatin1String("."))
+                relativeDirectory.clear();
         } else {
             absoluteFilePath = m_project->projectDir().absoluteFilePath(fileInfo.filePath());
             relativeDirectory = fileInfo.path();
@@ -130,7 +120,7 @@ ProjectExplorer::FolderNode *QmlProjectNode::findOrCreateFolderByName(const QStr
     if (! end)
         return 0;
 
-    Utils::FileName folderPath = path().parentDir();
+    Utils::FileName folderPath = filePath().parentDir();
 
     QString folderName;
     for (int i = 0; i < end; ++i) {
@@ -186,32 +176,9 @@ QList<ProjectExplorer::ProjectAction> QmlProjectNode::supportedActions(Node *nod
     return actions;
 }
 
-bool QmlProjectNode::canAddSubProject(const QString &proFilePath) const
-{
-    Q_UNUSED(proFilePath)
-    return false;
-}
-
-bool QmlProjectNode::addSubProjects(const QStringList &proFilePaths)
-{
-    Q_UNUSED(proFilePaths)
-    return false;
-}
-
-bool QmlProjectNode::removeSubProjects(const QStringList &proFilePaths)
-{
-    Q_UNUSED(proFilePaths)
-    return false;
-}
-
 bool QmlProjectNode::addFiles(const QStringList &filePaths, QStringList * /*notAdded*/)
 {
     return m_project->addFiles(filePaths);
-}
-
-bool QmlProjectNode::removeFiles(const QStringList & /*filePaths*/, QStringList * /*notRemoved*/)
-{
-    return false;
 }
 
 bool QmlProjectNode::deleteFiles(const QStringList & /*filePaths*/)

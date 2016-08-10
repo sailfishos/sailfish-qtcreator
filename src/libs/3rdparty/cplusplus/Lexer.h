@@ -37,7 +37,6 @@ public:
     ~Lexer();
 
     Control *control() const { return _control; }
-    TranslationUnit *translationUnit() const;
 
     void scan(Token *tok);
 
@@ -96,6 +95,7 @@ private:
 
     void scanStringLiteral(Token *tok, unsigned char hint = 0);
     void scanRawStringLiteral(Token *tok, unsigned char hint = 0);
+    bool scanUntilRawStringLiteralEndSimple();
     void scanCharLiteral(Token *tok, unsigned char hint = 0);
     void scanUntilQuote(Token *tok, unsigned char quote);
     bool scanDigitSequence();
@@ -125,6 +125,7 @@ private:
         unsigned _scanKeywords: 1;
         unsigned _scanAngleStringLiteralTokens: 1;
         unsigned _ppMode: 1;
+        unsigned _ignoreTrigraph : 1;
     };
 
     struct State {

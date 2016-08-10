@@ -9,10 +9,10 @@ function initializeGL(canvas) {
     camera.position.z = 5;
 
     var material = new THREE.MeshBasicMaterial({ color: 0x80c342,
-                                                 ambient: 0x000000,
                                                  shading: THREE.SmoothShading });
     var cubeGeometry = new THREE.BoxGeometry(1, 1, 1);
     cube = new THREE.Mesh(cubeGeometry, material);
+    cube.rotation.set(0.785, 0.785, 0.0);
     scene.add(cube);
 
     renderer = new THREE.Canvas3DRenderer(
@@ -29,8 +29,5 @@ function resizeGL(canvas) {
 }
 
 function paintGL(canvas) {
-    cube.rotation.x += 0.01;
-    cube.rotation.y += 0.01;
-
     renderer.render(scene, camera);
 }

@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -39,10 +34,12 @@
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/target.h>
 #include <qtsupport/qtsupportconstants.h>
+#include <resourceeditor/resourcenode.h>
 #include <utils/algorithm.h>
 #include <utils/hostosinfo.h>
 #include <utils/qtcassert.h>
 
+#include <QtDebug>
 #include <QDir>
 #include <QStyle>
 
@@ -140,7 +137,7 @@ public:
         return new FileTreeNode(n, this, isFile);
     }
 
-    bool isFile() { return m_isFile; }
+    bool isFile() const { return m_isFile; }
 
     static FileTreeNode *moveChildrenUp(FileTreeNode *node)
     {
@@ -227,7 +224,7 @@ public:
         }
     }
 
-    QString path()
+    QString path() const
     {
         QString p = name;
         FileTreeNode *node = parent;
@@ -256,7 +253,7 @@ static QList<ProjectExplorer::ProjectAction> supportedNodeActions(ProjectExplore
     if (managesFiles)
         actions << ProjectExplorer::AddNewFile << ProjectExplorer::AddExistingFile;
     if (node->nodeType() == ProjectExplorer::FileNodeType
-            && !project->qbsProject().buildSystemFiles().contains(node->path().toString())) {
+            && !project->qbsProject().buildSystemFiles().contains(node->filePath().toString())) {
         actions << ProjectExplorer::RemoveFile << ProjectExplorer::Rename;
     }
     return actions;
@@ -310,51 +307,6 @@ QList<ProjectExplorer::ProjectAction> QbsBaseProjectNode::supportedActions(Proje
 {
     Q_UNUSED(node);
     return QList<ProjectExplorer::ProjectAction>();
-}
-
-bool QbsBaseProjectNode::canAddSubProject(const QString &proFilePath) const
-{
-    Q_UNUSED(proFilePath);
-    return false;
-}
-
-bool QbsBaseProjectNode::addSubProjects(const QStringList &proFilePaths)
-{
-    Q_UNUSED(proFilePaths);
-    return false;
-}
-
-bool QbsBaseProjectNode::removeSubProjects(const QStringList &proFilePaths)
-{
-    Q_UNUSED(proFilePaths);
-    return false;
-}
-
-bool QbsBaseProjectNode::addFiles(const QStringList &filePaths, QStringList *notAdded)
-{
-    Q_UNUSED(filePaths);
-    Q_UNUSED(notAdded);
-    return false;
-}
-
-bool QbsBaseProjectNode::removeFiles(const QStringList &filePaths, QStringList *notRemoved)
-{
-    Q_UNUSED(filePaths);
-    Q_UNUSED(notRemoved);
-    return false;
-}
-
-bool QbsBaseProjectNode::deleteFiles(const QStringList &filePaths)
-{
-    Q_UNUSED(filePaths);
-    return false;
-}
-
-bool QbsBaseProjectNode::renameFile(const QString &filePath, const QString &newFilePath)
-{
-    Q_UNUSED(filePath);
-    Q_UNUSED(newFilePath);
-    return false;
 }
 
 // --------------------------------------------------------------------
@@ -463,7 +415,7 @@ void QbsGroupNode::updateQbsGroupData(const qbs::GroupData &grp, const QString &
     m_productPath = productPath;
     m_qbsGroupData = grp;
 
-    setPath(Utils::FileName::fromString(grp.location().filePath()));
+    setAbsoluteFilePathAndLine(Utils::FileName::fromString(grp.location().filePath()), line());
     setDisplayName(grp.name());
 
     QbsFileNode *idx = 0;
@@ -473,7 +425,7 @@ void QbsGroupNode::updateQbsGroupData(const qbs::GroupData &grp, const QString &
             break;
     }
     QTC_ASSERT(idx, return);
-    idx->setPathAndLine(Utils::FileName::fromString(grp.location().filePath()),
+    idx->setAbsoluteFilePathAndLine(Utils::FileName::fromString(grp.location().filePath()),
                         grp.location().line());
 
     setupFiles(this, grp, grp.allFilePaths(), productPath, updateExisting);
@@ -501,11 +453,17 @@ void QbsGroupNode::setupFiles(ProjectExplorer::FolderNode *root, const qbs::Grou
     FileTreeNode::reorder(&tree, productPath);
     FileTreeNode::simplify(&tree);
 
-    setupFolder(root, group, &tree, productPath, updateExisting);
+    QHash<QString, ProjectExplorer::FileType> fileTypeHash;
+    foreach (const qbs::SourceArtifact &sa, group.allSourceArtifacts())
+        fileTypeHash[sa.filePath()] = fileType(sa);
+
+    setupFolder(root, fileTypeHash, &tree, productPath, updateExisting);
 }
 
-void QbsGroupNode::setupFolder(ProjectExplorer::FolderNode *root, const qbs::GroupData &group,
-                               const FileTreeNode *fileTree, const QString &baseDir,
+void QbsGroupNode::setupFolder(ProjectExplorer::FolderNode *root,
+                               const QHash<QString, ProjectExplorer::FileType> &fileTypeHash,
+                               const FileTreeNode *fileTree,
+                               const QString &baseDir,
                                bool updateExisting)
 {
     // We only need to care about FileNodes and FolderNodes here. Everything else is
@@ -529,14 +487,16 @@ void QbsGroupNode::setupFolder(ProjectExplorer::FolderNode *root, const qbs::Gro
 
     foreach (FileTreeNode *c, fileTree->children) {
         Utils::FileName path = Utils::FileName::fromString(c->path());
+        const ProjectExplorer::FileType newFileType =
+                fileTypeHash.value(c->path(), ProjectExplorer::UnknownFileType);
+        const bool isQrcFile = newFileType == ProjectExplorer::ResourceType;
 
         // Handle files:
-        if (c->isFile()) {
-            const ProjectExplorer::FileType newFileType = fileType(group, c->path());
+        if (c->isFile() && !isQrcFile) {
             ProjectExplorer::FileNode *fn = 0;
             foreach (ProjectExplorer::FileNode *f, root->fileNodes()) {
                 // There can be one match only here!
-                if (f->path() != path || f->fileType() != newFileType)
+                if (f->filePath() != path || f->fileType() != newFileType)
                     continue;
                 fn = f;
                 break;
@@ -554,15 +514,20 @@ void QbsGroupNode::setupFolder(ProjectExplorer::FolderNode *root, const qbs::Gro
             ProjectExplorer::FolderNode *fn = 0;
             foreach (ProjectExplorer::FolderNode *f, root->subFolderNodes()) {
                 // There can be one match only here!
-                if (f->path() != path)
+                if (f->filePath() != path)
                     continue;
                 fn = f;
                 break;
             }
+            using ResourceEditor::ResourceTopLevelNode;
             if (!fn) {
-                fn = new QbsFolderNode(Utils::FileName::fromString(c->path()),
-                                       ProjectExplorer::FolderNodeType,
-                                       displayNameFromPath(c->path(), baseDir));
+                if (isQrcFile) {
+                    fn = new ResourceTopLevelNode(Utils::FileName::fromString(c->path()), root);
+                } else {
+                    fn = new QbsFolderNode(Utils::FileName::fromString(c->path()),
+                                           ProjectExplorer::FolderNodeType,
+                                           displayNameFromPath(c->path(), baseDir));
+                }
                 root->addFolderNodes(QList<FolderNode *>() << fn);
             } else {
                 foldersToRemove.removeOne(fn);
@@ -571,7 +536,11 @@ void QbsGroupNode::setupFolder(ProjectExplorer::FolderNode *root, const qbs::Gro
                 fn->setDisplayName(displayNameFromPath(c->path(), baseDir));
             }
 
-            setupFolder(fn, group, c, c->path(), updateExisting);
+            if (isQrcFile)
+                static_cast<ResourceTopLevelNode *>(fn)->update();
+            else
+                setupFolder(fn, fileTypeHash, c, c->path(), updateExisting);
+
         }
     }
     root->removeFileNodes(filesToRemove);
@@ -579,14 +548,10 @@ void QbsGroupNode::setupFolder(ProjectExplorer::FolderNode *root, const qbs::Gro
     root->addFileNodes(filesToAdd);
 }
 
-ProjectExplorer::FileType QbsGroupNode::fileType(const qbs::GroupData &group,
-                                                 const QString &filePath)
+ProjectExplorer::FileType QbsGroupNode::fileType(const qbs::SourceArtifact &artifact)
 {
-    if (!group.isValid())
-        return ProjectExplorer::UnknownFileType;
-    const qbs::SourceArtifact artifact = Utils::findOrDefault(group.allSourceArtifacts(),
-            [filePath](const qbs::SourceArtifact &sa) { return sa.filePath() == filePath; });
     QTC_ASSERT(artifact.isValid(), return ProjectExplorer::UnknownFileType);
+
     if (artifact.fileTags().contains(QLatin1String("c"))
             || artifact.fileTags().contains(QLatin1String("cpp"))
             || artifact.fileTags().contains(QLatin1String("objc"))
@@ -599,6 +564,8 @@ ProjectExplorer::FileType QbsGroupNode::fileType(const qbs::GroupData &group,
         return ProjectExplorer::ResourceType;
     if (artifact.fileTags().contains(QLatin1String("ui")))
         return ProjectExplorer::FormType;
+    if (artifact.fileTags().contains(QLatin1String("scxml")))
+        return ProjectExplorer::StateChartType;
     return ProjectExplorer::UnknownFileType;
 }
 
@@ -700,7 +667,7 @@ void QbsProductNode::setQbsProductData(const qbs::Project &project, const qbs::P
     bool updateExisting = productWasEnabled != productIsEnabled;
 
     setDisplayName(QbsProject::productDisplayName(project, prd));
-    setPath(Utils::FileName::fromString(prd.location().filePath()));
+    setAbsoluteFilePathAndLine(Utils::FileName::fromString(prd.location().filePath()), line());
     const QString &productPath = QFileInfo(prd.location().filePath()).absolutePath();
 
     // Find the QbsFileNode we added earlier:
@@ -711,7 +678,7 @@ void QbsProductNode::setQbsProductData(const qbs::Project &project, const qbs::P
             break;
     }
     QTC_ASSERT(idx, return);
-    idx->setPathAndLine(Utils::FileName::fromString(prd.location().filePath()),
+    idx->setAbsoluteFilePathAndLine(Utils::FileName::fromString(prd.location().filePath()),
                         prd.location().line());
 
     QList<ProjectExplorer::ProjectNode *> toAdd;
@@ -842,11 +809,11 @@ bool QbsProjectNode::showInSimpleTree() const
 void QbsProjectNode::ctor()
 {
     if (m_projectIcon.isNull())
-        m_projectIcon = generateIcon(QString::fromLatin1(QtSupport::Constants::ICON_QT_PROJECT));
+        m_projectIcon = generateIcon(QString::fromLatin1(ProjectExplorer::Constants::FILEOVERLAY_QT));
 
     setIcon(m_projectIcon);
     addFileNodes(QList<ProjectExplorer::FileNode *>()
-                 << new ProjectExplorer::FileNode(path(), ProjectExplorer::ProjectFileType, false));
+                 << new ProjectExplorer::FileNode(filePath(), ProjectExplorer::ProjectFileType, false));
 }
 
 QbsProductNode *QbsProjectNode::findProductNode(const QString &uniqueName)

@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Denis Shienkov <denis.shienkov@gmail.com>
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2016 Denis Shienkov <denis.shienkov@gmail.com>
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://www.qt.io/licensing.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -57,6 +52,29 @@ DefaultGdbServerProvider::DefaultGdbServerProvider(const DefaultGdbServerProvide
     , m_host(other.m_host)
     , m_port(other.m_port)
 {
+}
+
+quint16 DefaultGdbServerProvider::port() const
+{
+    return m_port;
+}
+
+void DefaultGdbServerProvider::setPort(const quint16 &port)
+{
+    m_port = port;
+}
+
+QString DefaultGdbServerProvider::host() const
+{
+    return m_host;
+}
+
+void DefaultGdbServerProvider::setHost(const QString &host)
+{
+    if (m_host == host)
+        return;
+    m_host = host;
+    providerUpdated();
 }
 
 QString DefaultGdbServerProvider::typeDisplayName() const
@@ -167,14 +185,14 @@ DefaultGdbServerProviderConfigWidget::DefaultGdbServerProviderConfigWidget(
     setFromProvider();
 
     auto chooser = new Core::VariableChooser(this);
-    chooser->addSupportedWidget(m_initCommandsTextEdit.data());
-    chooser->addSupportedWidget(m_resetCommandsTextEdit.data());
+    chooser->addSupportedWidget(m_initCommandsTextEdit);
+    chooser->addSupportedWidget(m_resetCommandsTextEdit);
 
-    connect(m_hostWidget.data(), &HostWidget::dataChanged,
+    connect(m_hostWidget, &HostWidget::dataChanged,
             this, &GdbServerProviderConfigWidget::dirty);
-    connect(m_initCommandsTextEdit.data(), &QPlainTextEdit::textChanged,
+    connect(m_initCommandsTextEdit, &QPlainTextEdit::textChanged,
             this, &GdbServerProviderConfigWidget::dirty);
-    connect(m_resetCommandsTextEdit.data(), &QPlainTextEdit::textChanged,
+    connect(m_resetCommandsTextEdit, &QPlainTextEdit::textChanged,
             this, &GdbServerProviderConfigWidget::dirty);
 }
 
@@ -183,8 +201,8 @@ void DefaultGdbServerProviderConfigWidget::applyImpl()
     auto p = static_cast<DefaultGdbServerProvider *>(provider());
     Q_ASSERT(p);
 
-    p->m_host = m_hostWidget->host();
-    p->m_port = m_hostWidget->port();
+    p->setHost(m_hostWidget->host());
+    p->setPort(m_hostWidget->port());
     p->setInitCommands(m_initCommandsTextEdit->toPlainText());
     p->setResetCommands(m_resetCommandsTextEdit->toPlainText());
 }

@@ -1,8 +1,6 @@
-/**************************************************************************
+/****************************************************************************
 **
-** Copyright (C) 2012 - 2014 BlackBerry Limited. All rights reserved.
-**
-** Contact: BlackBerry (qt@blackberry.com)
+** Copyright (C) 2016 BlackBerry Limited. All rights reserved.
 ** Contact: KDAB (info@kdab.com)
 **
 ** This file is part of Qt Creator.
@@ -11,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -42,9 +35,11 @@
 #include <projectexplorer/devicesupport/deviceapplicationrunner.h>
 #include <projectexplorer/devicesupport/deviceusedportsgatherer.h>
 #include <projectexplorer/kitinformation.h>
+#include <projectexplorer/runnables.h>
 #include <projectexplorer/target.h>
 #include <utils/qtcassert.h>
 #include <utils/qtcprocess.h>
+#include <qmldebug/qmldebugcommandlinearguments.h>
 
 using namespace ProjectExplorer;
 using namespace RemoteLinux;
@@ -54,6 +49,7 @@ using namespace Qnx::Internal;
 
 QnxDebugSupport::QnxDebugSupport(QnxRunConfiguration *runConfig, Debugger::DebuggerRunControl *runControl)
     : QnxAbstractRunSupport(runConfig, runControl)
+    , m_runnable(runConfig->runnable().as<StandardRunnable>())
     , m_runControl(runControl)
     , m_pdebugPort(-1)
     , m_qmlPort(-1)
@@ -104,16 +100,21 @@ void QnxDebugSupport::startExecution()
     setState(StartingRemoteProcess);
 
     if (m_useQmlDebugger)
-        m_runControl->startParameters().processArgs += QString::fromLatin1(" -qmljsdebugger=port:%1,block").arg(m_qmlPort);
+        m_runControl->startParameters().inferior.commandLineArguments +=
+                QmlDebug::qmlDebugTcpArguments(QmlDebug::QmlDebuggerServices, m_qmlPort);
 
     QStringList arguments;
     if (m_useCppDebugger)
         arguments << QString::number(m_pdebugPort);
     else if (m_useQmlDebugger && !m_useCppDebugger)
-        arguments = Utils::QtcProcess::splitArgs(m_runControl->startParameters().processArgs);
-    appRunner()->setEnvironment(environment());
-    appRunner()->setWorkingDirectory(workingDirectory());
-    appRunner()->start(device(), executable(), arguments);
+        arguments = Utils::QtcProcess::splitArgs(
+                        m_runControl->startParameters().inferior.commandLineArguments);
+    StandardRunnable r;
+    r.executable = processExecutable();
+    r.commandLineArguments = Utils::QtcProcess::joinArgs(arguments);
+    r.environment = m_runnable.environment;
+    r.workingDirectory = m_runnable.workingDirectory;
+    appRunner()->start(device(), r);
 }
 
 void QnxDebugSupport::handleRemoteProcessStarted()
@@ -140,7 +141,7 @@ void QnxDebugSupport::handleRemoteProcessFinished(bool success)
     } else {
         Debugger::RemoteSetupResult result;
         result.success = false;
-        result.reason = tr("The %1 process closed unexpectedly.").arg(executable());
+        result.reason = tr("The %1 process closed unexpectedly.").arg(processExecutable());
         m_runControl->notifyEngineRemoteSetupFinished(result);
     }
 }
@@ -155,14 +156,14 @@ void QnxDebugSupport::handleDebuggingFinished()
     killInferiorProcess();
 }
 
-QString QnxDebugSupport::executable() const
+QString QnxDebugSupport::processExecutable() const
 {
-    return m_useCppDebugger? QLatin1String(Constants::QNX_DEBUG_EXECUTABLE) : QnxAbstractRunSupport::executable();
+    return m_useCppDebugger? QLatin1String(Constants::QNX_DEBUG_EXECUTABLE) : m_runnable.executable;
 }
 
 void QnxDebugSupport::killInferiorProcess()
 {
-    device()->signalOperation()->killProcess(QnxAbstractRunSupport::executable());
+    device()->signalOperation()->killProcess(m_runnable.executable);
 }
 
 void QnxDebugSupport::handleProgressReport(const QString &progressOutput)

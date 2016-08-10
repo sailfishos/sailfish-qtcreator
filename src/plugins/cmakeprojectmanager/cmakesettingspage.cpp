@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,24 +9,20 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
+
 #include "cmakeprojectconstants.h"
 #include "cmakesettingspage.h"
 #include "cmaketoolmanager.h"
@@ -48,7 +44,6 @@
 #include <QTreeView>
 #include <QWidget>
 #include <QUuid>
-#include <QCheckBox>
 
 using namespace Utils;
 
@@ -340,7 +335,7 @@ CMakeToolItemConfigWidget::CMakeToolItemConfigWidget(CMakeToolItemModel *model)
     formLayout->addRow(new QLabel(tr("Name:")), m_displayNameLineEdit);
     formLayout->addRow(new QLabel(tr("Path:")), m_binaryChooser);
 
-    connect(m_binaryChooser, &PathChooser::changed,
+    connect(m_binaryChooser, &PathChooser::rawPathChanged,
             this, &CMakeToolItemConfigWidget::store);
     connect(m_displayNameLineEdit, &QLineEdit::textChanged,
             this, &CMakeToolItemConfigWidget::store);
@@ -392,10 +387,7 @@ public:
 
         m_makeDefButton = new QPushButton(tr("Make Default"), this);
         m_makeDefButton->setEnabled(false);
-        m_makeDefButton->setToolTip(tr("Set as the default CMake Tool to use when creating a new Kit, or no value is set."));
-
-        m_preferNinjaCheckBox = new QCheckBox(tr("Prefer Ninja generator (CMake 2.8.9 or higher required)"));
-        m_preferNinjaCheckBox->setChecked(CMakeToolManager::preferNinja());
+        m_makeDefButton->setToolTip(tr("Set as the default CMake Tool to use when creating a new kit or when no value is set."));
 
         m_container = new DetailsWidget(this);
         m_container->setState(DetailsWidget::NoSummary);
@@ -425,7 +417,6 @@ public:
         QVBoxLayout *verticalLayout = new QVBoxLayout();
         verticalLayout->addWidget(m_cmakeToolsView);
         verticalLayout->addWidget(m_container);
-        verticalLayout->addWidget(m_preferNinjaCheckBox);
 
         QHBoxLayout *horizontalLayout = new QHBoxLayout(this);
         horizontalLayout->addLayout(verticalLayout);
@@ -460,7 +451,6 @@ public:
     QPushButton *m_cloneButton;
     QPushButton *m_delButton;
     QPushButton *m_makeDefButton;
-    QCheckBox *m_preferNinjaCheckBox;
     DetailsWidget *m_container;
     CMakeToolItemConfigWidget *m_itemConfigWidget;
     CMakeToolTreeItem *m_currentItem;
@@ -469,7 +459,6 @@ public:
 void CMakeToolConfigWidget::apply()
 {
     m_model.apply();
-    CMakeToolManager::setPreferNinja(m_preferNinjaCheckBox->checkState() == Qt::Checked);
 }
 
 void CMakeToolConfigWidget::cloneCMakeTool()
@@ -537,7 +526,7 @@ void CMakeToolConfigWidget::currentCMakeToolChanged(const QModelIndex &newCurren
 // CMakeSettingsPage
 ////
 
-CMakeSettingsPage::CMakeSettingsPage() : m_widget(0)
+CMakeSettingsPage::CMakeSettingsPage()
 {
     setId(Constants::CMAKE_SETTINGSPAGE_ID);
     setDisplayName(tr("CMake"));
@@ -545,10 +534,6 @@ CMakeSettingsPage::CMakeSettingsPage() : m_widget(0)
     setDisplayCategory(QCoreApplication::translate("ProjectExplorer",
        ProjectExplorer::Constants::PROJECTEXPLORER_SETTINGS_TR_CATEGORY));
     setCategoryIcon(QLatin1String(ProjectExplorer::Constants::PROJECTEXPLORER_SETTINGS_CATEGORY_ICON));
-}
-
-CMakeSettingsPage::~CMakeSettingsPage()
-{
 }
 
 QWidget *CMakeSettingsPage::widget()
@@ -562,7 +547,7 @@ void CMakeSettingsPage::apply()
 {
     QTC_ASSERT(m_widget, return);
     m_widget->m_itemConfigWidget->store();
-    m_widget->m_model.apply();
+    m_widget->apply();
 }
 
 void CMakeSettingsPage::finish()

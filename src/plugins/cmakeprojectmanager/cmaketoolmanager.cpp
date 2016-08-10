@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 Canonical Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 Canonical Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -49,27 +44,19 @@ namespace CMakeProjectManager {
 
 const char CMAKETOOL_COUNT_KEY[] = "CMakeTools.Count";
 const char CMAKETOOL_DEFAULT_KEY[] = "CMakeTools.Default";
-const char CMAKETOOL_PREFER_NINJA_KEY[] = "CMakeTools.PreferNinja";
 const char CMAKETOOL_DATA_KEY[] = "CMakeTools.";
 const char CMAKETOOL_FILE_VERSION_KEY[] = "Version";
 const char CMAKETOOL_FILENAME[] = "/qtcreator/cmaketools.xml";
 
 class CMakeToolManagerPrivate
 {
-
 public:
-    CMakeToolManagerPrivate() :
-        m_preferNinja(false),
-        m_writer(0)
-    {}
-
-    bool m_preferNinja;
     Id m_defaultCMake;
     QList<CMakeTool *> m_cmakeTools;
-    PersistentSettingsWriter *m_writer;
+    PersistentSettingsWriter *m_writer =  nullptr;
     QList<CMakeToolManager::AutodetectionHelper> m_autoDetectionHelpers;
 };
-static CMakeToolManagerPrivate *d = 0;
+static CMakeToolManagerPrivate *d = nullptr;
 
 static void addCMakeTool(CMakeTool *item)
 {
@@ -110,7 +97,7 @@ static QList<CMakeTool *> readCMakeTools(const FileName &fileName, Core::Id *def
             continue;
 
         const QVariantMap dbMap = data.value(key).toMap();
-        CMakeTool *item = new CMakeTool(dbMap,fromSDK);
+        auto item = new CMakeTool(dbMap,fromSDK);
         if (item->isAutoDetected()) {
             if (!item->cmakeExecutable().toFileInfo().isExecutable()) {
                 qWarning() << QString::fromLatin1("CMakeTool \"%1\" (%2) read from \"%3\" dropped since the command is not executable.")
@@ -124,7 +111,6 @@ static QList<CMakeTool *> readCMakeTools(const FileName &fileName, Core::Id *def
     }
 
     *defaultId = Id::fromSetting(data.value(QLatin1String(CMAKETOOL_DEFAULT_KEY), defaultId->toSetting()));
-    d->m_preferNinja= data.value(QLatin1String(CMAKETOOL_PREFER_NINJA_KEY), d->m_preferNinja).toBool();
 
     return loaded;
 }
@@ -139,13 +125,13 @@ static void readAndDeleteLegacyCMakeSettings ()
     if (exec.toFileInfo().isExecutable()) {
         CMakeTool *item = CMakeToolManager::findByCommand(exec);
         if (!item) {
-            item = new CMakeTool(CMakeTool::ManualDetection);
+            item = new CMakeTool(CMakeTool::ManualDetection, CMakeTool::createId());
             item->setCMakeExecutable(exec);
             item->setDisplayName(CMakeToolManager::tr("CMake at %1").arg(item->cmakeExecutable().toUserOutput()));
 
             if (!CMakeToolManager::registerCMakeTool(item)) {
                 delete item;
-                item = 0;
+                item = nullptr;
             }
         }
 
@@ -154,16 +140,13 @@ static void readAndDeleteLegacyCMakeSettings ()
             d->m_defaultCMake = item->id();
     }
 
-    //read the legacy ninja setting, if its not available use the current value
-    d->m_preferNinja = settings->value(QLatin1String("preferNinja"), d->m_preferNinja).toBool();
-
     settings->remove(QString());
     settings->endGroup();
 }
 
 static QList<CMakeTool *> autoDetectCMakeTools()
 {
-    QList<FileName> suspects;
+    FileNameList suspects;
 
     Utils::Environment env = Environment::systemEnvironment();
 
@@ -190,7 +173,7 @@ static QList<CMakeTool *> autoDetectCMakeTools()
 
     QList<CMakeTool *> found;
     foreach (const FileName &command, suspects) {
-        CMakeTool *item = new CMakeTool(CMakeTool::AutoDetection);
+        auto item = new CMakeTool(CMakeTool::AutoDetection, CMakeTool::createId());
         item->setCMakeExecutable(command);
         item->setDisplayName(CMakeToolManager::tr("System CMake at %1").arg(command.toUserOutput()));
 
@@ -204,10 +187,9 @@ static QList<CMakeTool *> autoDetectCMakeTools()
     return found;
 }
 
-CMakeToolManager *CMakeToolManager::m_instance = 0;
+CMakeToolManager *CMakeToolManager::m_instance = nullptr;
 
-CMakeToolManager::CMakeToolManager(QObject *parent) :
-    QObject(parent)
+CMakeToolManager::CMakeToolManager(QObject *parent) : QObject(parent)
 {
     QTC_ASSERT(!m_instance, return);
     m_instance = this;
@@ -225,8 +207,8 @@ CMakeToolManager::CMakeToolManager(QObject *parent) :
 CMakeToolManager::~CMakeToolManager()
 {
     delete d->m_writer;
+    qDeleteAll(d->m_cmakeTools);
     delete d;
-    d = 0;
 }
 
 CMakeToolManager *CMakeToolManager::instance()
@@ -239,23 +221,13 @@ QList<CMakeTool *> CMakeToolManager::cmakeTools()
     return d->m_cmakeTools;
 }
 
-void CMakeToolManager::setPreferNinja(bool set)
-{
-    d->m_preferNinja = set;
-}
-
-bool CMakeToolManager::preferNinja()
-{
-    return d->m_preferNinja;
-}
-
 Id CMakeToolManager::registerOrFindCMakeTool(const FileName &command)
 {
     CMakeTool  *cmake = findByCommand(command);
     if (cmake)
         return cmake->id();
 
-    cmake = new CMakeTool(CMakeTool::ManualDetection);
+    cmake = new CMakeTool(CMakeTool::ManualDetection, CMakeTool::createId());
     cmake->setCMakeExecutable(command);
     cmake->setDisplayName(tr("CMake at %1").arg(command.toUserOutput()));
 
@@ -424,7 +396,6 @@ void CMakeToolManager::saveCMakeTools()
     QVariantMap data;
     data.insert(QLatin1String(CMAKETOOL_FILE_VERSION_KEY), 1);
     data.insert(QLatin1String(CMAKETOOL_DEFAULT_KEY), d->m_defaultCMake.toSetting());
-    data.insert(QLatin1String(CMAKETOOL_PREFER_NINJA_KEY), d->m_preferNinja);
 
     int count = 0;
     foreach (CMakeTool *item, d->m_cmakeTools) {

@@ -1,8 +1,8 @@
-/**************************************************************************
+/****************************************************************************
 **
-** Copyright (C) 2015 BogDan Vatra <bog_dan_ro@yahoo.com>
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 BogDan Vatra <bog_dan_ro@yahoo.com>
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -10,22 +10,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -52,6 +47,7 @@
 
 #include <qtsupport/qtkitinformation.h>
 
+#include <utils/algorithm.h>
 #include <utils/qtcassert.h>
 #include <utils/qtcprocess.h>
 
@@ -63,12 +59,6 @@ using namespace Android;
 using namespace Android::Internal;
 
 const QLatin1String UninstallPreviousPackageKey("UninstallPreviousPackage");
-const QLatin1String KeystoreLocationKey("KeystoreLocation");
-const QLatin1String SignPackageKey("SignPackage");
-const QLatin1String BuildTargetSdkKey("BuildTargetSdk");
-const QLatin1String VerboseOutputKey("VerboseOutput");
-const QLatin1String InputFile("InputFile");
-const QLatin1String ProFilePathForInputFile("ProFilePathForInputFile");
 const QLatin1String InstallFailedInconsistentCertificatesString("INSTALL_PARSE_FAILED_INCONSISTENT_CERTIFICATES");
 const QLatin1String InstallFailedInconsistentCertificatesString2("INSTALL_FAILED_UPDATE_INCOMPATIBLE");
 const Core::Id AndroidDeployQtStep::Id("Qt4ProjectManager.AndroidDeployQtStep");
@@ -172,8 +162,16 @@ void AndroidDeployQtStep::ctor()
             this, &AndroidDeployQtStep::slotSetSerialNumber);
 }
 
-bool AndroidDeployQtStep::init()
+static AndroidDeviceInfo earlierDeviceInfo(QList<const ProjectExplorer::BuildStep *> &earlierSteps, Core::Id id)
 {
+    const ProjectExplorer::BuildStep *bs
+            = Utils::findOrDefault(earlierSteps, Utils::equal(&ProjectExplorer::BuildStep::id, id));
+    return bs ? static_cast<const AndroidDeployQtStep *>(bs)->deviceInfo() : AndroidDeviceInfo();
+}
+
+bool AndroidDeployQtStep::init(QList<const BuildStep *> &earlierSteps)
+{
+    Q_UNUSED(earlierSteps);
     m_androiddeployqtArgs.clear();
 
     if (AndroidManager::checkForQt51Files(project()->projectDirectory()))
@@ -196,23 +194,32 @@ bool AndroidDeployQtStep::init()
     AndroidConfigurations::Options options = AndroidConfigurations::None;
     if (androidBuildApkStep->deployAction() == AndroidBuildApkStep::DebugDeployment)
         options = AndroidConfigurations::FilterAndroid5;
-    AndroidDeviceInfo info = AndroidConfigurations::showDeviceDialog(project(), deviceAPILevel, m_targetArch, options);
-    if (info.serialNumber.isEmpty() && info.avdname.isEmpty()) // aborted
+    AndroidDeviceInfo info = earlierDeviceInfo(earlierSteps, Id);
+    if (!info.isValid()) {
+        info = AndroidConfigurations::showDeviceDialog(project(), deviceAPILevel, m_targetArch, options);
+        m_deviceInfo = info; // Keep around for later steps
+    }
+
+    if (!info.isValid()) // aborted
         return false;
 
     m_avdName = info.avdname;
     m_serialNumber = info.serialNumber;
-    m_appProcess = QLatin1String("readlink -f /system/bin/app_process");
+
+    m_appProcessBinaries.clear();
     m_libdir = QLatin1String("lib");
     if (info.cpuAbi.contains(QLatin1String("arm64-v8a")) ||
             info.cpuAbi.contains(QLatin1String("x86_64"))) {
         ProjectExplorer::ToolChain *tc = ProjectExplorer::ToolChainKitInformation::toolChain(target()->kit());
         if (tc && tc->targetAbi().wordWidth() == 64) {
-            m_appProcess += QLatin1String("64");
+            m_appProcessBinaries << QLatin1String("/system/bin/app_process64");
             m_libdir += QLatin1String("64");
         } else {
-            m_appProcess += QLatin1String("32");
+            m_appProcessBinaries << QLatin1String("/system/bin/app_process32");
         }
+    } else {
+        m_appProcessBinaries << QLatin1String("/system/bin/app_process32")
+                             << QLatin1String("/system/bin/app_process");
     }
 
     AndroidManager::setDeviceSerialNumber(target(), m_serialNumber);
@@ -347,7 +354,7 @@ AndroidDeployQtStep::DeployResult AndroidDeployQtStep::runDeploy(QFutureInterfac
                    .arg(QDir::toNativeSeparators(m_command), args),
                    BuildStep::MessageOutput);
 
-    while (!m_process->waitForFinished(200)) {
+    while (m_process->state() != QProcess::NotRunning && !m_process->waitForFinished(200)) {
         if (fi.isCanceled()) {
             m_process->kill();
             m_process->waitForFinished();
@@ -429,16 +436,23 @@ void AndroidDeployQtStep::run(QFutureInterface<bool> &fi)
 
     emit addOutput(tr("Pulling files necessary for debugging."), MessageOutput);
 
-    const QString remoteAppProcessFile = systemAppProcessFilePath();
     QString localAppProcessFile = QString::fromLatin1("%1/app_process").arg(m_buildDirectory);
-    runCommand(m_adbPath,
-               AndroidDeviceInfo::adbSelector(m_serialNumber)
-               << QLatin1String("pull") << remoteAppProcessFile
-               << localAppProcessFile);
+    QFile::remove(localAppProcessFile);
+
+    foreach (const QString &remoteAppProcessFile, m_appProcessBinaries) {
+        runCommand(m_adbPath,
+                   AndroidDeviceInfo::adbSelector(m_serialNumber)
+                   << QLatin1String("pull") << remoteAppProcessFile
+                   << localAppProcessFile);
+        if (QFileInfo::exists(localAppProcessFile))
+            break;
+    }
+
     if (!QFileInfo::exists(localAppProcessFile)) {
         returnValue = Failure;
         emit addOutput(tr("Package deploy: Failed to pull \"%1\" to \"%2\".")
-                       .arg(remoteAppProcessFile).arg(localAppProcessFile), ErrorMessageOutput);
+                       .arg(m_appProcessBinaries.join(QLatin1String("\", \"")))
+                       .arg(localAppProcessFile), ErrorMessageOutput);
     }
 
     runCommand(m_adbPath,
@@ -473,19 +487,9 @@ void AndroidDeployQtStep::runCommand(const QString &program, const QStringList &
     }
 }
 
-QString AndroidDeployQtStep::systemAppProcessFilePath() const
+AndroidDeviceInfo AndroidDeployQtStep::deviceInfo() const
 {
-    QProcess proc;
-    const QStringList args =
-            QStringList() << AndroidDeviceInfo::adbSelector(m_serialNumber) << QLatin1String("shell")
-                          << m_appProcess;
-    proc.start(m_adbPath, args);
-    proc.waitForFinished();
-    QString output = QString::fromUtf8(proc.readAll()).trimmed();
-    if (output.startsWith(QLatin1Char('/')))
-        return output;
-    else
-        return QString();
+    return m_deviceInfo;
 }
 
 ProjectExplorer::BuildStepConfigWidget *AndroidDeployQtStep::createConfigWidget()

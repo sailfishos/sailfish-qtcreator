@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -43,6 +38,7 @@
 #include <projectexplorer/taskhub.h>
 #include <projectexplorer/projectexplorerconstants.h>
 #include <debugger/debuggerrunconfigurationaspect.h>
+#include <qmldebug/qmldebugcommandlinearguments.h>
 
 #include <QDir>
 #include <QTime>
@@ -56,11 +52,12 @@ using namespace ProjectExplorer;
 namespace Ios {
 namespace Internal {
 
-IosRunner::IosRunner(QObject *parent, IosRunConfiguration *runConfig, bool cppDebug, bool qmlDebug)
+IosRunner::IosRunner(QObject *parent, IosRunConfiguration *runConfig, bool cppDebug,
+                     QmlDebug::QmlDebugServicesPreset qmlDebugServices)
     : QObject(parent), m_toolHandler(0), m_bundleDir(runConfig->bundleDirectory().toString()),
       m_arguments(runConfig->commandLineArguments()),
       m_device(DeviceKitInformation::device(runConfig->target()->kit())),
-      m_cppDebug(cppDebug), m_qmlDebug(qmlDebug), m_cleanExit(false),
+      m_cppDebug(cppDebug), m_qmlDebugServices(qmlDebugServices), m_cleanExit(false),
       m_qmlPort(0), m_pid(0)
 {
     m_deviceType = runConfig->deviceType();
@@ -80,7 +77,7 @@ QStringList IosRunner::extraArgs()
 {
     QStringList res = m_arguments;
     if (m_qmlPort != 0)
-        res << QString::fromLatin1("-qmljsdebugger=port:%1,block").arg(m_qmlPort);
+        res << QmlDebug::qmlDebugTcpArguments(m_qmlDebugServices, m_qmlPort);
     return res;
 }
 
@@ -104,9 +101,9 @@ bool IosRunner::cppDebug() const
     return m_cppDebug;
 }
 
-bool IosRunner::qmlDebug() const
+QmlDebug::QmlDebugServicesPreset IosRunner::qmlDebugServices() const
 {
-    return m_qmlDebug;
+    return m_qmlDebugServices;
 }
 
 void IosRunner::start()
@@ -130,7 +127,7 @@ void IosRunner::start()
             emit finished(m_cleanExit);
             return;
         }
-        if (m_qmlDebug)
+        if (m_qmlDebugServices != QmlDebug::NoQmlDebugServices)
             m_qmlPort = iosDevice->nextPort();
     } else {
         IosSimulator::ConstPtr sim = m_device.dynamicCast<const IosSimulator>();
@@ -138,26 +135,25 @@ void IosRunner::start()
             emit finished(m_cleanExit);
             return;
         }
-        if (m_qmlDebug)
+        if (m_qmlDebugServices != QmlDebug::NoQmlDebugServices)
             m_qmlPort = sim->nextPort();
     }
 
     m_toolHandler = new IosToolHandler(m_deviceType, this);
-    connect(m_toolHandler, SIGNAL(appOutput(Ios::IosToolHandler*,QString)),
-            SLOT(handleAppOutput(Ios::IosToolHandler*,QString)));
-    connect(m_toolHandler,
-            SIGNAL(didStartApp(Ios::IosToolHandler*,QString,QString,Ios::IosToolHandler::OpStatus)),
-            SLOT(handleDidStartApp(Ios::IosToolHandler*,QString,QString,Ios::IosToolHandler::OpStatus)));
-    connect(m_toolHandler, SIGNAL(errorMsg(Ios::IosToolHandler*,QString)),
-            SLOT(handleErrorMsg(Ios::IosToolHandler*,QString)));
-    connect(m_toolHandler, SIGNAL(gotServerPorts(Ios::IosToolHandler*,QString,QString,int,int)),
-            SLOT(handleGotServerPorts(Ios::IosToolHandler*,QString,QString,int,int)));
-    connect(m_toolHandler, SIGNAL(gotInferiorPid(Ios::IosToolHandler*,QString,QString,Q_PID)),
-            SLOT(handleGotInferiorPid(Ios::IosToolHandler*,QString,QString,Q_PID)));
-    connect(m_toolHandler, SIGNAL(toolExited(Ios::IosToolHandler*,int)),
-            SLOT(handleToolExited(Ios::IosToolHandler*,int)));
-    connect(m_toolHandler, SIGNAL(finished(Ios::IosToolHandler*)),
-            SLOT(handleFinished(Ios::IosToolHandler*)));
+    connect(m_toolHandler, &IosToolHandler::appOutput,
+            this, &IosRunner::handleAppOutput);
+    connect(m_toolHandler, &IosToolHandler::didStartApp,
+            this, &IosRunner::handleDidStartApp);
+    connect(m_toolHandler, &IosToolHandler::errorMsg,
+            this, &IosRunner::handleErrorMsg);
+    connect(m_toolHandler, &IosToolHandler::gotServerPorts,
+            this, &IosRunner::handleGotServerPorts);
+    connect(m_toolHandler, &IosToolHandler::gotInferiorPid,
+            this, &IosRunner::handleGotInferiorPid);
+    connect(m_toolHandler, &IosToolHandler::toolExited,
+            this, &IosRunner::handleToolExited);
+    connect(m_toolHandler, &IosToolHandler::finished,
+            this, &IosRunner::handleFinished);
     m_toolHandler->requestRunApp(bundlePath(), extraArgs(), runType(), deviceId());
 }
 
@@ -190,7 +186,7 @@ void IosRunner::handleGotServerPorts(IosToolHandler *handler, const QString &bun
 }
 
 void IosRunner::handleGotInferiorPid(IosToolHandler *handler, const QString &bundlePath,
-                                     const QString &deviceId, Q_PID pid)
+                                     const QString &deviceId, qint64 pid)
 {
     Q_UNUSED(bundlePath); Q_UNUSED(deviceId);
     m_pid = pid;

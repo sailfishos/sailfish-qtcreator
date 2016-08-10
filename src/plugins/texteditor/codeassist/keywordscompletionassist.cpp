@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -88,7 +83,7 @@ KeywordsAssistProposalItem::KeywordsAssistProposalItem(bool isFunction)
 {
 }
 
-KeywordsAssistProposalItem::~KeywordsAssistProposalItem()
+KeywordsAssistProposalItem::~KeywordsAssistProposalItem() Q_DECL_NOEXCEPT
 {}
 
 bool KeywordsAssistProposalItem::prematurelyApplies(const QChar &c) const
@@ -97,20 +92,22 @@ bool KeywordsAssistProposalItem::prematurelyApplies(const QChar &c) const
     return c == QLatin1Char('(') && m_isFunction;
 }
 
-void KeywordsAssistProposalItem::applyContextualContent(TextEditorWidget *editorWidget,
+void KeywordsAssistProposalItem::applyContextualContent(TextDocumentManipulatorInterface &manipulator,
                                                         int basePosition) const
 {
     const CompletionSettings &settings = TextEditorSettings::completionSettings();
 
-    int replaceLength = editorWidget->position() - basePosition;
+    int replaceLength = manipulator.currentPosition() - basePosition;
     QString toInsert = text();
     int cursorOffset = 0;
+    const QChar characterAtCurrentPosition = manipulator.characterAt(manipulator.currentPosition());
+
     if (m_isFunction && settings.m_autoInsertBrackets) {
         if (settings.m_spaceAfterFunctionName) {
-            if (editorWidget->textAt(editorWidget->position(), 2) == QLatin1String(" (")) {
+            if (manipulator.textAt(manipulator.currentPosition(), 2) == QLatin1String(" (")) {
                 cursorOffset = 2;
-            } else if (editorWidget->characterAt(editorWidget->position()) == QLatin1Char('(')
-                       || editorWidget->characterAt(editorWidget->position()) == QLatin1Char(' ')) {
+            } else if ( characterAtCurrentPosition == QLatin1Char('(')
+                       || characterAtCurrentPosition == QLatin1Char(' ')) {
                 replaceLength += 1;
                 toInsert += QLatin1String(" (");
             } else {
@@ -118,7 +115,7 @@ void KeywordsAssistProposalItem::applyContextualContent(TextEditorWidget *editor
                 cursorOffset = -1;
             }
         } else {
-            if (editorWidget->characterAt(editorWidget->position()) == QLatin1Char('(')) {
+            if (characterAtCurrentPosition == QLatin1Char('(')) {
                 cursorOffset = 1;
             } else {
                 toInsert += QLatin1String("()");
@@ -127,10 +124,9 @@ void KeywordsAssistProposalItem::applyContextualContent(TextEditorWidget *editor
         }
     }
 
-    editorWidget->setCursorPosition(basePosition);
-    editorWidget->replace(replaceLength, toInsert);
+    manipulator.replace(basePosition, replaceLength, toInsert);
     if (cursorOffset)
-        editorWidget->setCursorPosition(editorWidget->position() + cursorOffset);
+        manipulator.setCursorPosition(manipulator.currentPosition() + cursorOffset);
 }
 
 // -------------------------
@@ -197,7 +193,7 @@ IAssistProposal *KeywordsCompletionAssistProcessor::perform(const AssistInterfac
         IAssistProposal *proposal = new FunctionHintProposal(m_startPosition, model);
         return proposal;
     } else {
-        QList<AssistProposalItem *> items;
+        QList<AssistProposalItemInterface *> items;
         addWordsToProposalList(&items, m_keywords.variables(), m_variableIcon);
         addWordsToProposalList(&items, m_keywords.functions(), m_functionIcon);
         return new GenericProposal(m_startPosition, items);
@@ -261,7 +257,7 @@ bool KeywordsCompletionAssistProcessor::isInComment() const
     return false;
 }
 
-void KeywordsCompletionAssistProcessor::addWordsToProposalList(QList<AssistProposalItem *> *items, const QStringList &words, const QIcon &icon)
+void KeywordsCompletionAssistProcessor::addWordsToProposalList(QList<AssistProposalItemInterface *> *items, const QStringList &words, const QIcon &icon)
 {
     if (!items)
         return;

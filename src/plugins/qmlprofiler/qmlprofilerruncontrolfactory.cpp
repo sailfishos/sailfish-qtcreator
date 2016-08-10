@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 Kläralvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 Kläralvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,48 +9,54 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
 #include "qmlprofilerruncontrolfactory.h"
 #include "localqmlprofilerrunner.h"
-#include "qmlprofilerengine.h"
+#include "qmlprofilerruncontrol.h"
+#include "qmlprofilerrunconfigurationaspect.h"
 
-#include <analyzerbase/ianalyzertool.h>
-
+#include <debugger/analyzer/analyzermanager.h>
+#include <debugger/analyzer/analyzerruncontrol.h>
+#include <debugger/analyzer/analyzerstartparameters.h>
 #include <debugger/debuggerrunconfigurationaspect.h>
 
 #include <projectexplorer/environmentaspect.h>
 #include <projectexplorer/kitinformation.h>
-#include <projectexplorer/localapplicationrunconfiguration.h>
+#include <projectexplorer/runnables.h>
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/session.h>
 #include <projectexplorer/target.h>
+#include <qtsupport/baseqtversion.h>
+#include <qtsupport/qtkitinformation.h>
 
 #include <utils/qtcassert.h>
 
-using namespace Analyzer;
+using namespace Debugger;
 using namespace ProjectExplorer;
 
 namespace QmlProfiler {
 namespace Internal {
+
+static bool isLocal(RunConfiguration *runConfiguration)
+{
+    Target *target = runConfiguration ? runConfiguration->target() : 0;
+    Kit *kit = target ? target->kit() : 0;
+    return DeviceTypeKitInformation::deviceTypeId(kit) == ProjectExplorer::Constants::DESKTOP_DEVICE_TYPE;
+}
 
 QmlProfilerRunControlFactory::QmlProfilerRunControlFactory(QObject *parent) :
     IRunControlFactory(parent)
@@ -59,37 +65,56 @@ QmlProfilerRunControlFactory::QmlProfilerRunControlFactory(QObject *parent) :
 
 bool QmlProfilerRunControlFactory::canRun(RunConfiguration *runConfiguration, Core::Id mode) const
 {
-    return mode == ProjectExplorer::Constants::QML_PROFILER_RUN_MODE
-            && (qobject_cast<LocalApplicationRunConfiguration *>(runConfiguration));
-}
-
-static AnalyzerStartParameters createQmlProfilerStartParameters(RunConfiguration *runConfiguration)
-{
-    AnalyzerStartParameters sp;
-    EnvironmentAspect *environment = runConfiguration->extraAspect<EnvironmentAspect>();
-
-    // FIXME: This is only used to communicate the connParams settings.
-    LocalApplicationRunConfiguration *rc =
-                qobject_cast<LocalApplicationRunConfiguration *>(runConfiguration);
-    QTC_ASSERT(rc, return sp);
-    if (environment)
-        sp.environment = environment->environment();
-    sp.workingDirectory = rc->workingDirectory();
-    sp.debuggee = rc->executable();
-    sp.debuggeeArgs = rc->commandLineArguments();
-    sp.displayName = rc->displayName();
-    sp.analyzerPort = LocalQmlProfilerRunner::findFreePort(sp.analyzerHost);
-
-    return sp;
+    return mode == ProjectExplorer::Constants::QML_PROFILER_RUN_MODE && isLocal(runConfiguration);
 }
 
 RunControl *QmlProfilerRunControlFactory::create(RunConfiguration *runConfiguration, Core::Id mode, QString *errorMessage)
 {
     QTC_ASSERT(canRun(runConfiguration, mode), return 0);
+    QTC_ASSERT(runConfiguration->runnable().is<StandardRunnable>(), return 0);
+    auto runnable = runConfiguration->runnable().as<StandardRunnable>();
 
-    AnalyzerStartParameters sp = createQmlProfilerStartParameters(runConfiguration);
-    sp.runMode = mode;
-    return LocalQmlProfilerRunner::createLocalRunControl(runConfiguration, sp, errorMessage);
+    if (runnable.executable.isEmpty()) {
+        if (errorMessage)
+            *errorMessage = tr("No executable file to launch.");
+        return 0;
+    }
+
+    Kit *kit = runConfiguration->target()->kit();
+    AnalyzerConnection connection;
+    const QtSupport::BaseQtVersion *version = QtSupport::QtKitInformation::qtVersion(kit);
+    if (version) {
+        if (version->qtVersion() >= QtSupport::QtVersionNumber(5, 6, 0))
+            connection.analyzerSocket = LocalQmlProfilerRunner::findFreeSocket();
+        else
+            connection.analyzerPort = LocalQmlProfilerRunner::findFreePort(connection.analyzerHost);
+    } else {
+        qWarning() << "Running QML profiler on Kit without Qt version??";
+        connection.analyzerPort = LocalQmlProfilerRunner::findFreePort(connection.analyzerHost);
+    }
+
+    auto runControl = qobject_cast<QmlProfilerRunControl *>
+             (Debugger::createAnalyzerRunControl(runConfiguration, mode));
+    QTC_ASSERT(runControl, return 0);
+
+    runControl->setRunnable(runnable);
+    runControl->setConnection(connection);
+
+    LocalQmlProfilerRunner::Configuration conf;
+    conf.debuggee = runnable;
+    if (EnvironmentAspect *environment = runConfiguration->extraAspect<EnvironmentAspect>())
+        conf.debuggee.environment = environment->environment();
+    conf.socket = connection.analyzerSocket;
+    conf.port = connection.analyzerPort;
+
+    (void) new LocalQmlProfilerRunner(conf, runControl);
+    return runControl;
+}
+
+ProjectExplorer::IRunConfigurationAspect *
+QmlProfilerRunControlFactory::createRunConfigurationAspect(ProjectExplorer::RunConfiguration *rc)
+{
+    return new QmlProfilerRunConfigurationAspect(rc);
 }
 
 } // namespace Internal

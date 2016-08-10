@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -32,9 +27,11 @@
 #include "ieditor.h"
 #include <coreplugin/documentmanager.h>
 #include <coreplugin/idocument.h>
+#include <coreplugin/coreicons.h>
 
 #include <utils/algorithm.h>
 #include <utils/dropsupport.h>
+#include <utils/hostosinfo.h>
 #include <utils/qtcassert.h>
 
 #include <QAbstractItemModel>
@@ -51,7 +48,6 @@ class DocumentModelPrivate : public QAbstractItemModel
     Q_OBJECT
 
 public:
-    DocumentModelPrivate();
     ~DocumentModelPrivate();
 
     int columnCount(const QModelIndex &parent = QModelIndex()) const;
@@ -73,11 +69,12 @@ public:
 
     bool disambiguateDisplayNames(DocumentModel::Entry *entry);
 
-private slots:
+    static QIcon lockedIcon();
+
+private:
     friend class DocumentModel;
     void itemChanged();
 
-private:
     class DynamicEntry
     {
     public:
@@ -105,30 +102,10 @@ private:
         }
     };
 
-    const QIcon m_lockedIcon;
-    const QIcon m_unlockedIcon;
-
     QList<DocumentModel::Entry *> m_entries;
     QMap<IDocument *, QList<IEditor *> > m_editors;
     QHash<QString, DocumentModel::Entry *> m_entryByFixedPath;
 };
-
-class RestoredDocument : public IDocument
-{
-public:
-    bool save(QString *, const QString &, bool) override { return false; }
-    QString defaultPath() const override { return filePath().toFileInfo().absolutePath(); }
-    QString suggestedFileName() const override { return filePath().fileName(); }
-    bool isModified() const override { return false; }
-    bool isSaveAsAllowed() const override { return false; }
-    bool reload(QString *, ReloadFlag, ChangeType) override { return true; }
-};
-
-DocumentModelPrivate::DocumentModelPrivate() :
-    m_lockedIcon(QLatin1String(":/core/images/locked.png")),
-    m_unlockedIcon(QLatin1String(":/core/images/unlocked.png"))
-{
-}
 
 DocumentModelPrivate::~DocumentModelPrivate()
 {
@@ -139,13 +116,13 @@ static DocumentModelPrivate *d;
 
 DocumentModel::Entry::Entry() :
     document(0),
-    isRestored(false)
+    isSuspended(false)
 {
 }
 
 DocumentModel::Entry::~Entry()
 {
-    if (isRestored)
+    if (isSuspended)
         delete document;
 }
 
@@ -165,12 +142,7 @@ void DocumentModel::destroy()
 
 QIcon DocumentModel::lockedIcon()
 {
-    return d->m_lockedIcon;
-}
-
-QIcon DocumentModel::unlockedIcon()
-{
-    return d->m_unlockedIcon;
+    return DocumentModelPrivate::lockedIcon();
 }
 
 QAbstractItemModel *DocumentModel::model()
@@ -229,20 +201,20 @@ void DocumentModel::addEditor(IEditor *editor, bool *isNewDocument)
     }
 }
 
-void DocumentModel::addRestoredDocument(const QString &fileName, const QString &displayName, Id id)
+void DocumentModel::addSuspendedDocument(const QString &fileName, const QString &displayName, Id id)
 {
     Entry *entry = new Entry;
-    entry->document = new RestoredDocument;
+    entry->document = new IDocument;
     entry->document->setFilePath(Utils::FileName::fromString(fileName));
     entry->document->setPreferredDisplayName(displayName);
     entry->document->setId(id);
-    entry->isRestored = true;
+    entry->isSuspended = true;
     d->addEntry(entry);
 }
 
-DocumentModel::Entry *DocumentModel::firstRestoredEntry()
+DocumentModel::Entry *DocumentModel::firstSuspendedEntry()
 {
-    return Utils::findOrDefault(d->m_entries, [](Entry *entry) { return entry->isRestored; });
+    return Utils::findOrDefault(d->m_entries, [](Entry *entry) { return entry->isSuspended; });
 }
 
 void DocumentModelPrivate::addEntry(DocumentModel::Entry *entry)
@@ -252,11 +224,11 @@ void DocumentModelPrivate::addEntry(DocumentModel::Entry *entry)
     if (!fileName.isEmpty())
         fixedPath = DocumentManager::fixFileName(fileName.toString(), DocumentManager::ResolveLinks);
 
-    // replace a non-loaded entry (aka 'restored') if possible
+    // replace a non-loaded entry (aka 'suspended') if possible
     int previousIndex = indexOfFilePath(fileName);
     if (previousIndex >= 0) {
         DocumentModel::Entry *previousEntry = m_entries.at(previousIndex);
-        const bool replace = !entry->isRestored && previousEntry->isRestored;
+        const bool replace = !entry->isSuspended && previousEntry->isSuspended;
         if (replace) {
             delete previousEntry;
             m_entries[previousIndex] = entry;
@@ -269,7 +241,7 @@ void DocumentModelPrivate::addEntry(DocumentModel::Entry *entry)
         previousEntry = 0;
         disambiguateDisplayNames(entry);
         if (replace)
-            connect(entry->document, SIGNAL(changed()), this, SLOT(itemChanged()));
+            connect(entry->document, &IDocument::changed, this, &DocumentModelPrivate::itemChanged);
         return;
     }
 
@@ -288,7 +260,7 @@ void DocumentModelPrivate::addEntry(DocumentModel::Entry *entry)
     disambiguateDisplayNames(entry);
     if (!fixedPath.isEmpty())
         m_entryByFixedPath[fixedPath] = entry;
-    connect(entry->document, SIGNAL(changed()), this, SLOT(itemChanged()));
+    connect(entry->document, &IDocument::changed, this, &DocumentModelPrivate::itemChanged);
     endInsertRows();
 }
 
@@ -330,7 +302,7 @@ bool DocumentModelPrivate::disambiguateDisplayNames(DocumentModel::Entry *entry)
                 }
                 for (int j = i + 1; j < dupsCount; ++j) {
                     DynamicEntry &e2 = dups[j];
-                    if (e->displayName() == e2->displayName()) {
+                    if (e->displayName().compare(e2->displayName(), Utils::HostOsInfo::fileNameCaseSensitivity()) == 0) {
                         const Utils::FileName otherFileName = e2->document->filePath();
                         if (otherFileName.isEmpty())
                             continue;
@@ -355,6 +327,12 @@ bool DocumentModelPrivate::disambiguateDisplayNames(DocumentModel::Entry *entry)
     return true;
 }
 
+QIcon DocumentModelPrivate::lockedIcon()
+{
+    const static QIcon icon = Icons::LOCKED.icon();
+    return icon;
+}
+
 int DocumentModelPrivate::indexOfFilePath(const Utils::FileName &filePath) const
 {
     if (filePath.isEmpty())
@@ -366,8 +344,8 @@ int DocumentModelPrivate::indexOfFilePath(const Utils::FileName &filePath) const
 
 void DocumentModel::removeEntry(DocumentModel::Entry *entry)
 {
-    // For non restored entries, we wouldn't know what to do with the associated editors
-    QTC_ASSERT(entry->isRestored, return);
+    // For non suspended entries, we wouldn't know what to do with the associated editors
+    QTC_ASSERT(entry->isSuspended, return);
     int index = d->m_entries.indexOf(entry);
     d->removeDocument(index);
 }
@@ -391,8 +369,8 @@ void DocumentModel::removeEditor(IEditor *editor, bool *lastOneForDocument)
 void DocumentModel::removeDocument(const QString &fileName)
 {
     int index = d->indexOfFilePath(Utils::FileName::fromString(fileName));
-    // For non restored entries, we wouldn't know what to do with the associated editors
-    QTC_ASSERT(d->m_entries.at(index)->isRestored, return);
+    // For non suspended entries, we wouldn't know what to do with the associated editors
+    QTC_ASSERT(d->m_entries.at(index)->isSuspended, return);
     d->removeDocument(index);
 }
 
@@ -412,15 +390,15 @@ void DocumentModelPrivate::removeDocument(int idx)
                                                                DocumentManager::ResolveLinks);
         m_entryByFixedPath.remove(fixedPath);
     }
-    disconnect(entry->document, SIGNAL(changed()), this, SLOT(itemChanged()));
+    disconnect(entry->document, &IDocument::changed, this, &DocumentModelPrivate::itemChanged);
     disambiguateDisplayNames(entry);
     delete entry;
 }
 
-void DocumentModel::removeAllRestoredEntries()
+void DocumentModel::removeAllSuspendedEntries()
 {
     for (int i = d->m_entries.count()-1; i >= 0; --i) {
-        if (d->m_entries.at(i)->isRestored) {
+        if (d->m_entries.at(i)->isSuspended) {
             int row = i + 1/*<no document>*/;
             d->beginRemoveRows(QModelIndex(), row, row);
             delete d->m_entries.takeAt(i);
@@ -550,7 +528,7 @@ QVariant DocumentModelPrivate::data(const QModelIndex &index, int role) const
         return name;
     }
     case Qt::DecorationRole:
-        return e->document->isFileReadOnly() ? m_lockedIcon : QIcon();
+        return e->document->isFileReadOnly() ? lockedIcon() : QIcon();
     case Qt::ToolTipRole:
         return e->fileName().isEmpty() ? e->displayName() : e->fileName().toUserOutput();
     default:

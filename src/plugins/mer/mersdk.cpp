@@ -458,7 +458,7 @@ bool MerSdk::removeTarget(const MerTarget &target)
         if (!tc ) {
             continue;
         }
-        if (tc->type() == QLatin1String(Constants::MER_TOOLCHAIN_TYPE)) {
+        if (tc->typeId() == Constants::MER_TOOLCHAIN_ID) {
             MerToolChain *mertoolchain = static_cast<MerToolChain*>(tc);
             if (mertoolchain->virtualMachineName() == m_connection->virtualMachine() &&
                     mertoolchain->targetName() == target.name()) {

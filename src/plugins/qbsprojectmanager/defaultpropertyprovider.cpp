@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -32,6 +27,7 @@
 #include "qbsconstants.h"
 
 #include <projectexplorer/abi.h>
+#include <projectexplorer/gcctoolchain.h>
 #include <projectexplorer/kit.h>
 #include <projectexplorer/kitinformation.h>
 #include <projectexplorer/toolchain.h>
@@ -62,13 +58,16 @@ using namespace WinRt::Internal::Constants;
 static QString extractToolchainPrefix(QString *compilerName)
 {
     QString prefix;
-    if (compilerName->endsWith(QLatin1String("-g++"))
-            || compilerName->endsWith(QLatin1String("-clang++"))
-            || compilerName->endsWith(QLatin1String("-gcc"))
-            || compilerName->endsWith(QLatin1String("-clang"))) {
-        const int idx = compilerName->lastIndexOf(QLatin1Char('-')) + 1;
-        prefix = compilerName->left(idx);
-        compilerName->remove(0, idx);
+    const QStringList candidates = { QLatin1String("g++"), QLatin1String("clang++"),
+                                     QLatin1String("gcc"), QLatin1String("clang") };
+    foreach (const QString &candidate, candidates) {
+        const QString suffix = Utils::HostOsInfo::withExecutableSuffix(QLatin1Char('-')
+                                                                       + candidate);
+        if (compilerName->endsWith(suffix)) {
+            const int idx = compilerName->lastIndexOf(QLatin1Char('-')) + 1;
+            prefix = compilerName->left(idx);
+            compilerName->remove(0, idx);
+        }
     }
     return prefix;
 }
@@ -134,13 +133,13 @@ static QStringList targetOSList(const ProjectExplorer::Abi &abi, const ProjectEx
 static QStringList toolchainList(const ProjectExplorer::ToolChain *tc)
 {
     QStringList list;
-    if (tc->type() == QLatin1String("clang"))
+    if (tc->typeId() == ProjectExplorer::Constants::CLANG_TOOLCHAIN_TYPEID)
         list << QLatin1String("clang") << QLatin1String("llvm") << QLatin1String("gcc");
-    else if (tc->type() == QLatin1String("gcc"))
+    else if (tc->typeId() == ProjectExplorer::Constants::GCC_TOOLCHAIN_TYPEID)
         list << QLatin1String("gcc"); // TODO: Detect llvm-gcc
-    else if (tc->type() == QLatin1String("mingw"))
+    else if (tc->typeId() == ProjectExplorer::Constants::MINGW_TOOLCHAIN_TYPEID)
         list << QLatin1String("mingw") << QLatin1String("gcc");
-    else if (tc->type() == QLatin1String("msvc"))
+    else if (tc->typeId() == ProjectExplorer::Constants::MSVC_TOOLCHAIN_TYPEID)
         list << QLatin1String("msvc");
     return list;
 }
@@ -156,6 +155,19 @@ QVariantMap DefaultPropertyProvider::properties(const ProjectExplorer::Kit *k,
         data.insert(it.key(), it.value());
     }
     return data;
+}
+
+struct MSVCVersion
+{
+    int major = 0;
+    int minor = 0;
+};
+
+static MSVCVersion msvcCompilerVersion(const ProjectExplorer::Abi &abi)
+{
+    MSVCVersion v;
+    v.major = abi.osFlavor() - ProjectExplorer::Abi::WindowsMsvc2005Flavor + 14;
+    return v;
 }
 
 QVariantMap DefaultPropertyProvider::autoGeneratedProperties(const ProjectExplorer::Kit *k,
@@ -230,23 +242,25 @@ QVariantMap DefaultPropertyProvider::autoGeneratedProperties(const ProjectExplor
     const QString toolchainPrefix = extractToolchainPrefix(&compilerName);
     if (!toolchainPrefix.isEmpty())
         data.insert(QLatin1String(CPP_TOOLCHAINPREFIX), toolchainPrefix);
-    if (toolchain.contains(QLatin1String("msvc")))
+    if (toolchain.contains(QLatin1String("msvc"))) {
         data.insert(QLatin1String(CPP_COMPILERNAME), compilerName);
-    else
+        const MSVCVersion v = msvcCompilerVersion(targetAbi);
+        data.insert(QLatin1String(CPP_COMPILERVERSIONMAJOR), v.major);
+        data.insert(QLatin1String(CPP_COMPILERVERSIONMINOR), v.minor);
+    } else {
         data.insert(QLatin1String(CPP_CXXCOMPILERNAME), compilerName);
+    }
     if (targetAbi.os() != ProjectExplorer::Abi::WindowsOS
             || targetAbi.osFlavor() == ProjectExplorer::Abi::WindowsMSysFlavor) {
         data.insert(QLatin1String(CPP_LINKERNAME), compilerName);
     }
     data.insert(QLatin1String(CPP_TOOLCHAINPATH), cxxFileInfo.absolutePath());
 
-    // TODO: Remove this once compiler version properties are set for MSVC
-    if (targetAbi.osFlavor() == ProjectExplorer::Abi::WindowsMsvc2013Flavor
-            || targetAbi.osFlavor() == ProjectExplorer::Abi::WindowsMsvc2015Flavor) {
-        const QLatin1String flags("/FS");
-        data.insert(QLatin1String(CPP_PLATFORMCFLAGS), flags);
-        data.insert(QLatin1String(CPP_PLATFORMCXXFLAGS), flags);
+    if (ProjectExplorer::GccToolChain *gcc = dynamic_cast<ProjectExplorer::GccToolChain *>(tc)) {
+        data.insert(QLatin1String(CPP_PLATFORMCOMMONCOMPILERFLAGS), gcc->platformCodeGenFlags());
+        data.insert(QLatin1String(CPP_PLATFORMLINKERFLAGS), gcc->platformLinkerFlags());
     }
+
     return data;
 }
 

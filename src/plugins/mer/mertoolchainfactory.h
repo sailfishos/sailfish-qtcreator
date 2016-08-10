@@ -35,7 +35,7 @@ class MerToolChainFactory : public ProjectExplorer::ToolChainFactory
 public:
     MerToolChainFactory();
 
-    //QList<ProjectExplorer::ToolChain *> autoDetect();
+    QList<ProjectExplorer::ToolChain *> autoDetect(const QList<ProjectExplorer::ToolChain *> &alreadyKnown) override;
 
     bool canRestore(const QVariantMap &data) override;
     ProjectExplorer::ToolChain *restore(const QVariantMap &data) override;

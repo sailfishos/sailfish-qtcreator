@@ -6,7 +6,7 @@ contains(CONFIG, dll) {
 
 INCLUDEPATH += $$PWD
 
-unix:LIBS += -ldl
+unix:!bsd: LIBS += -ldl
 
 include(../3rdparty/sqlite/sqlite.pri)
 

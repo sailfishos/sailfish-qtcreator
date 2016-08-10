@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -42,13 +37,11 @@
 #include <projectexplorer/toolchain.h>
 #include <projectexplorer/target.h>
 #include <projectexplorer/taskhub.h>
-#include <qmakeprojectmanager/qmakebuildconfiguration.h>
-#include <qmakeprojectmanager/qmakenodes.h>
-#include <qmakeprojectmanager/qmakeproject.h>
 #include <qtsupport/qtkitinformation.h>
 #include <utils/fileutils.h>
 #include <utils/qtcprocess.h>
 
+#include <QDateTime>
 #include <QDir>
 #include <QTcpServer>
 #include <QSettings>
@@ -63,7 +56,6 @@
 
 using namespace Debugger;
 using namespace ProjectExplorer;
-using namespace QmakeProjectManager;
 
 namespace Ios {
 namespace Internal {
@@ -120,7 +112,7 @@ RunControl *IosDebugSupport::createDebugRunControl(IosRunConfiguration *runConfi
     bool cppDebug = aspect->useCppDebugger();
     bool qmlDebug = aspect->useQmlDebugger();
     if (cppDebug) {
-        params.executable = runConfig->localExecutable().toString();
+        params.inferior.executable = runConfig->localExecutable().toString();
         params.remoteChannel = QLatin1String("connect://localhost:0");
 
         Utils::FileName xcodeInfo = IosConfigurations::developerPath().parentDir()
@@ -164,24 +156,25 @@ RunControl *IosDebugSupport::createDebugRunControl(IosRunConfiguration *runConfi
 IosDebugSupport::IosDebugSupport(IosRunConfiguration *runConfig,
     DebuggerRunControl *runControl, bool cppDebug, bool qmlDebug)
     : QObject(runControl), m_runControl(runControl),
-      m_runner(new IosRunner(this, runConfig, cppDebug, qmlDebug))
+      m_runner(new IosRunner(this, runConfig, cppDebug, qmlDebug ? QmlDebug::QmlDebuggerServices :
+                                                                   QmlDebug::NoQmlDebugServices))
 {
-    connect(m_runControl, SIGNAL(requestRemoteSetup()),
-            m_runner, SLOT(start()));
-    connect(m_runControl, SIGNAL(finished()),
-            m_runner, SLOT(stop()));
+    connect(m_runControl, &DebuggerRunControl::requestRemoteSetup,
+            m_runner, &IosRunner::start);
+    connect(m_runControl, &RunControl::finished,
+            m_runner, &IosRunner::stop);
 
-    connect(m_runner, SIGNAL(gotServerPorts(int,int)),
-        SLOT(handleServerPorts(int,int)));
-    connect(m_runner, SIGNAL(gotInferiorPid(Q_PID,int)),
-        SLOT(handleGotInferiorPid(Q_PID,int)));
-    connect(m_runner, SIGNAL(finished(bool)),
-        SLOT(handleRemoteProcessFinished(bool)));
+    connect(m_runner, &IosRunner::gotServerPorts,
+        this, &IosDebugSupport::handleServerPorts);
+    connect(m_runner, &IosRunner::gotInferiorPid,
+        this, &IosDebugSupport::handleGotInferiorPid);
+    connect(m_runner, &IosRunner::finished,
+        this, &IosDebugSupport::handleRemoteProcessFinished);
 
-    connect(m_runner, SIGNAL(errorMsg(QString)),
-        SLOT(handleRemoteErrorOutput(QString)));
-    connect(m_runner, SIGNAL(appOutput(QString)),
-        SLOT(handleRemoteOutput(QString)));
+    connect(m_runner, &IosRunner::errorMsg,
+        this, &IosDebugSupport::handleRemoteErrorOutput);
+    connect(m_runner, &IosRunner::appOutput,
+        this, &IosDebugSupport::handleRemoteOutput);
 }
 
 IosDebugSupport::~IosDebugSupport()
@@ -199,11 +192,11 @@ void IosDebugSupport::handleServerPorts(int gdbServerPort, int qmlPort)
     m_runControl->notifyEngineRemoteSetupFinished(result);
 }
 
-void IosDebugSupport::handleGotInferiorPid(Q_PID pid, int qmlPort)
+void IosDebugSupport::handleGotInferiorPid(qint64 pid, int qmlPort)
 {
     RemoteSetupResult result;
     result.qmlServerPort = qmlPort;
-    result.inferiorPid = int(Utils::qPidToPid(pid));
+    result.inferiorPid = pid;
     result.success = pid > 0;
     if (!result.success)
         result.reason =  tr("Got an invalid process id.");

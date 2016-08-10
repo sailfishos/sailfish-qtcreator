@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -201,7 +196,7 @@ InternalNode::Pointer ModelPrivate::createNode(const TypeName &typeName,
                                                bool isRootNode)
 {
     if (typeName.isEmpty())
-        throw InvalidArgumentException(__LINE__, __FUNCTION__, __FILE__, tr("invalid type"));
+        throw InvalidArgumentException(__LINE__, __FUNCTION__, __FILE__, tr("invalid type").toUtf8());
 
     qint32 internalId = 0;
 
@@ -309,8 +304,10 @@ void ModelPrivate::changeNodeId(const InternalNode::Pointer& internalNodePointer
 
     try {
         notifyNodeIdChanged(internalNodePointer, id, oldId);
+
     } catch (const RewritingException &e) {
-        throw InvalidIdException(__LINE__, __FUNCTION__, __FILE__, id, e.description());
+        throw InvalidIdException(__LINE__, __FUNCTION__, __FILE__, id.toUtf8(), e.description().toUtf8());
+
     }
 }
 
@@ -321,9 +318,9 @@ void ModelPrivate::checkPropertyName(const QString &propertyName)
         throw InvalidPropertyException(__LINE__, __FUNCTION__, __FILE__, "<empty property name>");
     }
 
-    if (propertyName == "id") {
-        Q_ASSERT_X(propertyName != "id", Q_FUNC_INFO, "cannot add property id");
-        throw InvalidPropertyException(__LINE__, __FUNCTION__, __FILE__, propertyName);
+    if (propertyName == QLatin1String("id")) {
+        Q_ASSERT_X(propertyName != QLatin1String("id"), Q_FUNC_INFO, "cannot add property id");
+        throw InvalidPropertyException(__LINE__, __FUNCTION__, __FILE__, propertyName.toUtf8());
     }
 }
 
@@ -430,6 +427,19 @@ void ModelPrivate::notifyInstancePropertyChange(const QList<QPair<ModelNode, Pro
         }
 
         view->instancePropertyChange(adaptedPropertyList);
+    }
+}
+
+void ModelPrivate::notifyInstanceErrorChange(const QVector<qint32> &instanceIds)
+{
+    // no need to notify the rewriter or the instance view
+
+    QVector<ModelNode> errorNodeList;
+    foreach (const QPointer<AbstractView> &view, m_viewList) {
+        Q_ASSERT(view != 0);
+        foreach (qint32 instanceId, instanceIds)
+            errorNodeList.append(ModelNode(model()->d->nodeForInternalId(instanceId), model(), view));
+        view->instanceErrorChange(errorNodeList);
     }
 }
 
@@ -821,7 +831,7 @@ void ModelPrivate::resetModelByRewriter(const QString &description)
     if (rewriterView())
         rewriterView()->resetToLastCorrectQml();
 
-    throw RewritingException(__LINE__, __FUNCTION__, __FILE__, description, rewriterView()->textModifierContent());
+    throw RewritingException(__LINE__, __FUNCTION__, __FILE__, description.toUtf8(), rewriterView()->textModifierContent());
 }
 
 
@@ -1570,7 +1580,7 @@ void ModelPrivate::changeRootNodeType(const TypeName &type, int majorVersion, in
     rootNode()->setType(type);
     rootNode()->setMajorVersion(majorVersion);
     rootNode()->setMinorVersion(minorVersion);
-    notifyRootNodeTypeChanged(type, majorVersion, minorVersion);
+    notifyRootNodeTypeChanged(QString::fromUtf8(type), majorVersion, minorVersion);
 }
 
 void ModelPrivate::setScriptFunctions(const InternalNode::Pointer &internalNodePointer, const QStringList &scriptFunctionList)
@@ -1773,8 +1783,8 @@ static bool compareVersions(const QString &version1, const QString &version2, bo
         return true;
     if (!allowHigherVersion)
         return false;
-    QStringList version1List = version1.split('.');
-    QStringList version2List = version2.split('.');
+    QStringList version1List = version1.split(QLatin1Char('.'));
+    QStringList version2List = version2.split(QLatin1Char('.'));
     if (version1List.count() == 2 && version2List.count() == 2) {
         bool ok;
         int major1 = version1List.first().toInt(&ok);
@@ -1821,7 +1831,7 @@ QString Model::pathForImport(const Import &import)
     if (!rewriterView())
         return QString();
 
-    return  rewriterView()->pathForImport(import);
+    return rewriterView()->pathForImport(import);
 }
 
 QStringList Model::importPaths() const

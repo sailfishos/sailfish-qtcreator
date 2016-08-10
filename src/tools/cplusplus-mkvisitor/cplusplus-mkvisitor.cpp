@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -65,12 +60,12 @@ class MkVisitor: protected SymbolVisitor
 {
     const LookupContext &context;
     Overview oo;
-    QList<LookupScope *> interfaces;
-    QList<LookupScope *> nodes;
+    QList<ClassOrNamespace *> interfaces;
+    QList<ClassOrNamespace *> nodes;
 
-    bool isMiscNode(LookupScope *b) const
+    bool isMiscNode(ClassOrNamespace *b) const
     {
-        foreach (LookupScope *u, b->usings()) {
+        foreach (ClassOrNamespace *u, b->usings()) {
             if (oo(u->symbols().first()->name()) == QLatin1String("AST"))
                 return true;
         }
@@ -78,7 +73,7 @@ class MkVisitor: protected SymbolVisitor
         return false;
     }
 
-    QString getAcceptFunctionName(LookupScope *b, QString *retType) const
+    QString getAcceptFunctionName(ClassOrNamespace *b, QString *retType) const
     {
         Q_ASSERT(b != 0);
 
@@ -131,7 +126,7 @@ public:
                   << "    Semantic(TranslationUnit *unit): ASTVisitor(unit) { translationUnit(unit->ast()->asTranslationUnit()); }" << std::endl
                   << std::endl;
 
-        foreach (LookupScope *b, interfaces) {
+        foreach (ClassOrNamespace *b, interfaces) {
             Q_ASSERT(! b->symbols().isEmpty());
 
             Class *klass = 0;
@@ -162,10 +157,10 @@ public:
         std::cout << "    using ASTVisitor::translationUnit;" << std::endl
                   << std::endl;
 
-        QHash<LookupScope *, QList<LookupScope *> > implements;
-        foreach (LookupScope *b, nodes) {
-            LookupScope *iface = 0;
-            foreach (LookupScope *u, b->usings()) {
+        QHash<ClassOrNamespace *, QList<ClassOrNamespace *> > implements;
+        foreach (ClassOrNamespace *b, nodes) {
+            ClassOrNamespace *iface = 0;
+            foreach (ClassOrNamespace *u, b->usings()) {
                 if (interfaces.contains(u)) {
                     iface = u;
                     break;
@@ -175,8 +170,8 @@ public:
             implements[iface].append(b);
         }
 
-        foreach (LookupScope *iface, interfaces) {
-            foreach (LookupScope *b, implements.value(iface)) {
+        foreach (ClassOrNamespace *iface, interfaces) {
+            foreach (ClassOrNamespace *b, implements.value(iface)) {
                 if (! isMiscNode(b))
                     continue;
 
@@ -195,9 +190,9 @@ public:
 
         std::cout << std::endl;
 
-        foreach (LookupScope *iface, interfaces) {
+        foreach (ClassOrNamespace *iface, interfaces) {
             std::cout << "    // " << qPrintable(oo(iface->symbols().first()->name())) << std::endl;
-            foreach (LookupScope *b, implements.value(iface)) {
+            foreach (ClassOrNamespace *b, implements.value(iface)) {
                 Class *klass = 0;
                 foreach (Symbol *s, b->symbols())
                     if ((klass = s->asClass()) != 0)
@@ -212,7 +207,7 @@ public:
         }
 
         std::cout << "private:" << std::endl;
-        foreach (LookupScope *b, interfaces) {
+        foreach (ClassOrNamespace *b, interfaces) {
             Q_ASSERT(! b->symbols().isEmpty());
 
             Class *klass = 0;
@@ -245,7 +240,7 @@ public:
 
         // implementation
 
-        foreach (LookupScope *b, interfaces) {
+        foreach (ClassOrNamespace *b, interfaces) {
             Q_ASSERT(! b->symbols().isEmpty());
 
             Class *klass = 0;
@@ -280,9 +275,9 @@ public:
                       << std::endl;
         }
 
-        foreach (LookupScope *iface, interfaces) {
+        foreach (ClassOrNamespace *iface, interfaces) {
             std::cout << "// " << qPrintable(oo(iface->symbols().first()->name())) << std::endl;
-            foreach (LookupScope *b, implements.value(iface)) {
+            foreach (ClassOrNamespace *b, implements.value(iface)) {
                 Class *klass = 0;
                 foreach (Symbol *s, b->symbols())
                     if ((klass = s->asClass()) != 0)
@@ -331,7 +326,7 @@ public:
                                 Control *control = context.thisDocument()->control();
                                 const Name *n = control->identifier(name.toLatin1().constData());
 
-                                if (LookupScope *bb = context.lookupType(n, klass)) {
+                                if (ClassOrNamespace *bb = context.lookupType(n, klass)) {
                                     QString retTy;
                                     QString funcName = getAcceptFunctionName(bb, &retTy);
                                     Q_ASSERT(! funcName.isEmpty());
@@ -350,7 +345,7 @@ public:
                                 continue;
                             }
 
-                            if (LookupScope *ty = context.lookupType(namedTy->name(), klass)) {
+                            if (ClassOrNamespace *ty = context.lookupType(namedTy->name(), klass)) {
                                 QString className = oo(ty->symbols().first()->name());
                                 QString baseClassName = className;
                                 if (baseClassName.endsWith(QLatin1String("AST"))) {
@@ -386,9 +381,9 @@ public:
 protected:
     using SymbolVisitor::visit;
 
-    QList<LookupScope *> baseClasses(LookupScope *b) {
-        QList<LookupScope *> usings = b->usings();
-        foreach (LookupScope *u, usings)
+    QList<ClassOrNamespace *> baseClasses(ClassOrNamespace *b) {
+        QList<ClassOrNamespace *> usings = b->usings();
+        foreach (ClassOrNamespace *u, usings)
             usings += baseClasses(u);
         return usings;
     }
@@ -398,14 +393,14 @@ protected:
         if (! className.endsWith(QLatin1String("AST")))
             return false;
 
-        LookupScope *b = context.lookupType(klass);
+        ClassOrNamespace *b = context.lookupType(klass);
         Q_ASSERT(b != 0);
 
         const Identifier *accept0 = context.thisDocument()->control()->identifier("accept0");
         if (Symbol *s = klass->find(accept0)) {
             if (Function *meth = s->type()->asFunctionType()) {
                 if (! meth->isPureVirtual()) {
-                    foreach (LookupScope *u, b->usings()) {
+                    foreach (ClassOrNamespace *u, b->usings()) {
                         if (interfaces.contains(u)) {
                             // qDebug() << oo(klass->name()) << "implements" << oo(u->symbols().first()->name());
                         } else {

@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://www.qt.io/licensing.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -49,8 +44,10 @@ Rectangle {
     property bool selectionRangeMode: false
     property bool selectionRangeReady: selectionRange.ready
     property int typeId: content.typeId
-
-    onTypeIdChanged: updateCursorPosition()
+    onWidthChanged: {
+        zoomSliderToolBar.updateZoomLevel();
+        content.scroll();
+    }
 
     color: "#dcdcdc"
 
@@ -93,6 +90,7 @@ Rectangle {
         zoomSlider.value = zoomSlider.minimumValue;
     }
 
+    // This is called from outside to synchronize the timeline to other views
     function selectByTypeId(typeId)
     {
         if (lockItemSelection || typeId === -1)
@@ -130,13 +128,22 @@ Rectangle {
         if (modelIndex !== -1 && modelIndex < timelineModelAggregator.models.length &&
                 itemIndex !== -1) {
             // select an item, lock to it, and recenter if necessary
+
+            // set this here, so that propagateSelection doesn't trigger updateCursorPosition()
+            content.typeId = typeId;
             content.select(modelIndex, itemIndex);
             content.selectionLocked = true;
         }
     }
 
+    // This is called from outside to synchronize the timeline to other views
     function selectByIndices(modelIndex, eventIndex)
     {
+        if (modelIndex >= 0 && modelIndex < timelineModelAggregator.models.length &&
+                selectedItem !== -1) {
+            // set this here, so that propagateSelection doesn't trigger updateCursorPosition()
+            content.typeId = timelineModelAggregator.models[modelIndex].typeId(eventIndex);
+        }
         content.select(modelIndex, eventIndex);
     }
 
@@ -172,7 +179,6 @@ Rectangle {
         windowStart: zoomControl.windowStart
         rangeDuration: zoomControl.rangeDuration
         contentX: content.contentX
-        clip: true
     }
 
     ButtonsBar {
@@ -183,7 +189,6 @@ Rectangle {
         width: 150
         height: 24
         onZoomControlChanged: zoomSliderToolBar.visible = !zoomSliderToolBar.visible
-        onFilterMenuChanged: filterMenu.visible = !filterMenu.visible
         onJumpToNext: {
             var next = timelineModelAggregator.nextItem(root.selectedModel, root.selectedItem,
                                                       zoomControl.rangeStart);
@@ -230,21 +235,20 @@ Rectangle {
                 // update in other views
                 var model = timelineModelAggregator.models[selectedModel];
                 var eventLocation = model.location(selectedItem);
-                gotoSourceLocation(eventLocation.file, eventLocation.line,
-                                   eventLocation.column);
-                typeId = model.typeId(selectedItem);
+                if (eventLocation.file !== undefined) {
+                    root.fileName = eventLocation.file;
+                    root.lineNumber = eventLocation.line;
+                    root.columnNumber = eventLocation.column;
+                }
+                var newTypeId = model.typeId(selectedItem);
+                if (newTypeId !== typeId) {
+                    typeId = newTypeId;
+                    root.updateCursorPosition();
+                }
             } else {
                 rangeDetails.hide();
             }
             lockItemSelection = false;
-        }
-
-        onGotoSourceLocation: {
-            if (file !== undefined) {
-                root.fileName = file;
-                root.lineNumber = line;
-                root.columnNumber = column;
-            }
         }
     }
 
@@ -286,12 +290,12 @@ Rectangle {
     Flickable {
         flickableDirection: Flickable.HorizontalFlick
         clip: true
-        visible: selectionRangeMode &&
-                 selectionRange.creationState !== selectionRange.creationInactive
         interactive: false
         x: content.x + content.flickableItem.x
         y: content.y + content.flickableItem.y
-        height: content.flickableItem.height
+        height: (selectionRangeMode &&
+                 selectionRange.creationState !== selectionRange.creationInactive) ?
+                    content.flickableItem.height : 0
         width: content.flickableItem.width
         contentX: content.contentX
         contentWidth: content.contentWidth
@@ -299,10 +303,9 @@ Rectangle {
         SelectionRange {
             id: selectionRange
             zoomer: zoomControl
-            visible: parent.visible
 
             onRangeDoubleClicked: {
-                var diff = 500 - zoomer.selectionDuration;
+                var diff = zoomer.minimumRangeLength - zoomer.selectionDuration;
                 if (diff > 0)
                     zoomControl.setRange(zoomer.selectionStart - diff / 2,
                                          zoomer.selectionEnd + diff / 2);
@@ -319,12 +322,14 @@ Rectangle {
         x: 200
         y: 125
 
+        clip: true
         id: selectionRangeDetails
-        visible: selectionRange.visible
         startTime: zoomControl.selectionStart
         duration: zoomControl.selectionDuration
         endTime: zoomControl.selectionEnd
         showDuration: selectionRange.rangeWidth > 1
+        hasContents: selectionRangeMode &&
+                     selectionRange.creationState !== selectionRange.creationInactive
 
         onRecenter: {
             if ((zoomControl.selectionStart < zoomControl.rangeStart) ^
@@ -343,15 +348,15 @@ Rectangle {
         id: rangeDetails
 
         z: 3
-        visible: false
         x: 200
         y: 25
 
+        clip: true
         locked: content.selectionLocked
         models: timelineModelAggregator.models
         notes: timelineModelAggregator.notes
+        hasContents: false
         onRecenterOnItem: {
-            content.gotoSourceLocation(file, line, column);
             content.select(selectedModel, selectedItem)
         }
         onToggleSelectionLocked: {
@@ -371,48 +376,6 @@ Rectangle {
     }
 
     Rectangle {
-        id: filterMenu
-        color: "#9b9b9b"
-        enabled: buttonsBar.enabled
-        visible: false
-        width: buttonsBar.width
-        anchors.left: parent.left
-        anchors.top: buttonsBar.bottom
-        height: timelineModelAggregator.models.length * buttonsBar.height
-
-        Repeater {
-            id: filterMenuInner
-            model: timelineModelAggregator.models
-            CheckBox {
-                anchors.left: filterMenu.left
-                anchors.right: filterMenu.right
-                height: buttonsBar.height
-                y: index * height
-                enabled: !modelData.empty
-                checked: true
-                onCheckedChanged: modelData.hidden = !checked
-
-                style: CheckBoxStyle {
-                    label: Text {
-                        width: filterMenu.width - implicitHeight * 1.5
-                        color: control.enabled ? "black" : "#808080"
-                        text: modelData.displayName
-                        textFormat: Text.PlainText
-                        elide: Text.ElideRight
-                        renderType: Text.NativeRendering
-                    }
-                }
-
-                Connections {
-                    target: modelData
-                    onEmptyChanged: checked = true
-                }
-            }
-        }
-
-    }
-
-    Rectangle {
         id: zoomSliderToolBar
         objectName: "zoomSliderToolBar"
         color: "#9b9b9b"
@@ -424,10 +387,13 @@ Rectangle {
         anchors.top: buttonsBar.bottom
 
         function updateZoomLevel() {
-            zoomSlider.externalUpdate = true;
-            zoomSlider.value = Math.pow(zoomControl.rangeDuration /
-                                        Math.max(1, zoomControl.windowDuration),
-                                        1 / zoomSlider.exponent) * zoomSlider.maximumValue;
+            var newValue = Math.round(Math.pow(zoomControl.rangeDuration /
+                                               Math.max(1, zoomControl.windowDuration),
+                                               1 / zoomSlider.exponent) * zoomSlider.maximumValue);
+            if (newValue !== zoomSlider.value) {
+                zoomSlider.externalUpdate = true;
+                zoomSlider.value = newValue;
+            }
         }
 
         Slider {
@@ -440,6 +406,8 @@ Rectangle {
             property int exponent: 3
             property bool externalUpdate: false
             property int minWindowLength: 1e5 // 0.1 ms
+            property double fixedPoint: 0
+            onPressedChanged: fixedPoint = (zoomControl.rangeStart + zoomControl.rangeEnd) / 2;
 
             onValueChanged: {
                 if (externalUpdate || zoomControl.windowEnd <= zoomControl.windowStart) {
@@ -453,17 +421,6 @@ Rectangle {
                 var windowLength = Math.max(
                             Math.pow(value / maximumValue, exponent) * zoomControl.windowDuration,
                             minWindowLength);
-
-                var fixedPoint = (zoomControl.rangeStart + zoomControl.rangeEnd) / 2;
-                if (root.selectedItem !== -1) {
-                    // center on selected item if it's inside the current screen
-                    var model = timelineModelAggregator.models[root.selectedModel]
-                    var newFixedPoint = (model.startTime(root.selectedItem) +
-                                         model.endTime(root.selectedItem)) / 2;
-                    if (newFixedPoint >= zoomControl.rangeStart &&
-                            newFixedPoint < zoomControl.rangeEnd)
-                        fixedPoint = newFixedPoint;
-                }
 
                 var startTime = Math.max(zoomControl.windowStart, fixedPoint - windowLength / 2)
                 zoomControl.setRange(startTime, startTime + windowLength);

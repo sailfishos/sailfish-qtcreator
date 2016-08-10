@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -33,6 +28,7 @@
 #include <timeline/timelineselectionrenderpass.h>
 #include <timeline/timelinerenderstate.h>
 #include <timeline/timelineabstractrenderer_p.h>
+#include <timeline/timelineitemsrenderpass.h>
 
 #include <QtTest>
 #include <QSGMaterialShader>
@@ -56,7 +52,7 @@ private slots:
     void update();
 };
 
-DummyModel::DummyModel(int id) : TimelineModel(id, QLatin1String("dings"))
+DummyModel::DummyModel(int id) : TimelineModel(id)
 {
 }
 
@@ -71,8 +67,8 @@ void DummyModel::loadData()
 float DummyModel::relativeHeight(int index) const
 {
     if (index == 10)
-        return 0.002;
-    return 1.0;
+        return 0.002f;
+    return 1.0f;
 }
 
 void tst_TimelineSelectionRenderPass::instance()
@@ -81,6 +77,36 @@ void tst_TimelineSelectionRenderPass::instance()
     const TimelineSelectionRenderPass *inst2 = TimelineSelectionRenderPass::instance();
     QCOMPARE(inst, inst2);
     QVERIFY(inst != 0);
+}
+
+void compareSelectionNode(QSGNode *node, const QRectF &rect, int selectionId)
+{
+    QSGGeometryNode *geometryNode = static_cast<QSGGeometryNode *>(node);
+    QSGGeometry *geometry = geometryNode->geometry();
+    QCOMPARE(geometry->vertexCount(), 4);
+    QCOMPARE(geometry->drawingMode(), (GLenum)GL_TRIANGLE_STRIP);
+    OpaqueColoredPoint2DWithSize *data =
+            static_cast<OpaqueColoredPoint2DWithSize *>(geometry->vertexData());
+    float *lowerLeft = reinterpret_cast<float *>(data);
+    float *lowerRight = reinterpret_cast<float *>(++data);
+    float *upperLeft = reinterpret_cast<float *>(++data);
+    float *upperRight = reinterpret_cast<float *>(++data);
+
+    QCOMPARE(QRectF(QPointF(upperLeft[0], upperLeft[1]), QPointF(lowerRight[0], lowerRight[1])),
+            rect);
+    QCOMPARE(lowerRight[0], upperRight[0]);
+    QCOMPARE(lowerRight[1], lowerLeft[1]);
+    QCOMPARE(upperLeft[0], lowerLeft[0]);
+    QCOMPARE(upperLeft[1], upperRight[1]);
+
+    QCOMPARE(int(lowerLeft[4]), selectionId);
+    QCOMPARE(int(lowerRight[4]), selectionId);
+    QCOMPARE(int(upperLeft[4]), selectionId);
+    QCOMPARE(int(upperRight[4]), selectionId);
+
+    TimelineItemsMaterial *material = static_cast<TimelineItemsMaterial *>(
+                geometryNode->material());
+    QVERIFY(!(material->flags() & QSGMaterial::Blending));
 }
 
 void tst_TimelineSelectionRenderPass::update()
@@ -123,27 +149,24 @@ void tst_TimelineSelectionRenderPass::update()
     renderer.setSelectedItem(1);
     result = inst->update(&renderer, &parentState, result, 0, 10, false, 1);
     QVERIFY(result != nullState);
-    QSGSimpleRectNode *node = static_cast<QSGSimpleRectNode *>(result->collapsedOverlay());
-    QCOMPARE(node->rect(), QRectF(0, 0, 3, 30));
-    QCOMPARE(node->color(), QColor(96, 0, 255));
+    compareSelectionNode(result->collapsedOverlay(), QRectF(1, 0, 1, 30), model.selectionId(1));
 
     model.setExpanded(true);
     result = inst->update(&renderer, &parentState, result, 0, 10, false, 1);
-    node = static_cast<QSGSimpleRectNode *>(result->expandedOverlay());
-    QCOMPARE(node->rect(), QRectF(0, 0, 3, 30));
-    QCOMPARE(node->color(), QColor(96, 0, 255));
+    QVERIFY(result != nullState);
+    compareSelectionNode(result->expandedOverlay(), QRectF(1, 0, 1, 30), model.selectionId(1));
 
     renderer.setSelectedItem(10);
     result = inst->update(&renderer, &parentState, result, 0, 11, false, 1);
-    node = static_cast<QSGSimpleRectNode *>(result->expandedOverlay());
-    QCOMPARE(node->rect(), QRectF(10, 27, 200, 3));
-    QCOMPARE(node->color(), QColor(96, 0, 255));
+    QVERIFY(result != nullState);
+    float top = 30 * (1.0 - model.relativeHeight(10));
+    compareSelectionNode(result->expandedOverlay(), QRectF(10, top, 200, 30 - top),
+                         model.selectionId(10));
 
     renderer.setSelectedItem(11);
     result = inst->update(&renderer, &parentState, result, 0, 12, false, 1);
-    node = static_cast<QSGSimpleRectNode *>(result->expandedOverlay());
-    QCOMPARE(node->rect(), QRectF(11, 0, 200, 30));
-    QCOMPARE(node->color(), QColor(96, 0, 255));
+    QVERIFY(result != nullState);
+    compareSelectionNode(result->expandedOverlay(), QRectF(11, 0, 200, 30), model.selectionId(11));
 
     parentState.setPassState(0, result);
     parentState.assembleNodeTree(&model, 1, 1);

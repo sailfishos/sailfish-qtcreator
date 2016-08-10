@@ -1,18 +1,5 @@
-
 QT += core gui widgets qml quick network
-!isEmpty(QT.webkit.name) {
-    QT += webkit
-}
-
-!isEmpty(QT.v8.name) {
-    QT += v8
-}
-
 QT += core-private qml-private quick-private gui-private
-
-!isEmpty(QT.v8.name) {
-    QT += v8-private
-}
 
 CONFIG += c++11
 
@@ -37,12 +24,12 @@ DEFINES -= QT_NO_CAST_FROM_ASCII
 
 DISTFILES += Info.plist
 
-unix:!osx:LIBS += -lrt # posix shared memory
+unix:!openbsd:!osx: LIBS += -lrt # posix shared memory
 
 osx {
     CONFIG -= app_bundle
     QMAKE_LFLAGS += -Wl,-sectcreate,__TEXT,__info_plist,$$system_quote($$PWD/Info.plist)
 } else {
-    target.path  = $$QTC_PREFIX/bin
+    target.path  = $$INSTALL_LIBEXEC_PATH
     INSTALLS    += target
 }

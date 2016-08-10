@@ -1,18 +1,25 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
-** This file is part of Qt Creator
+** This file is part of the Qt Creator documentation.
 **
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Free Documentation License
-**
+** GNU Free Documentation License Usage
 ** Alternatively, this file may be used under the terms of the GNU Free
 ** Documentation License version 1.3 as published by the Free Software
-** Foundation and appearing in the file included in the packaging of this
-** file.
-**
+** Foundation and appearing in the file included in the packaging of
+** this file. Please review the following information to ensure
+** the GNU Free Documentation License version 1.3 requirements
+** will be met: https://www.gnu.org/licenses/fdl-1.3.html.
 **
 ****************************************************************************/
 
@@ -405,7 +412,7 @@
 
     \image qtcreator-debugger-views.png "Debug mode views"
 
-    You can drag and drop the views in \QD to new positions on the screen. The
+    You can drag and drop the views in \QC to new positions on the screen. The
     size and position of views are saved for future sessions. Select
     \uicontrol Window > \uicontrol Views > \uicontrol {Reset to Default Layout}
     to reset the views to their original sizes and positions.
@@ -677,7 +684,7 @@
             \li \b{Note:}
 
         \row
-            \li GDB and LLDB, and therefore \QC's debugger, work for optimized
+            \li GDB and LLDB, and therefore \QC's debugger, also work for optimized
                 builds on Linux and OS X. Optimization can lead to re-ordering
                 of instructions or removal of some local variables, causing the
                 \uicontrol {Locals and Expressions} view to show unexpected
@@ -714,7 +721,7 @@
     a compact option using the \c{name} column for keys, resulting in a concise
     display of containers with short keys, such as numbers or short strings. For
     example, to expand all the values of QMap, select
-    \uicontrol {Change Local Display Format} > \uicontrol Compact.
+    \uicontrol {Change Value Display Format} > \uicontrol Compact.
 
     You can use the \uicontrol {Locals and Expressions} view to change the
     contents of variables of simple data types, for example, \c int, \c float,
@@ -831,16 +838,28 @@
 
     By default, the \uicontrol {Source Files} view is hidden.
 
-    \section2 Viewing Disassembled Code and Register State
+    \section2 Viewing Disassembled Code
 
     The \uicontrol Disassembler view displays disassembled code for the current
-    function. The \uicontrol Registers view displays the current state of the
-    CPU's registers.
+    function.
 
-    The \uicontrol Disassembler view and the \uicontrol Registers view are both
-    useful for low-level commands for checking single instructions, such as
-    \uicontrol {Step Into} and \uicontrol {Step Over}. By default, both
-    \uicontrol Disassembler and \uicontrol Registers view are hidden.
+    The \uicontrol Disassembler view is useful for low-level commands for checking
+    single instructions, such as \uicontrol {Step Into} and \uicontrol {Step Over}.
+    By default, the \uicontrol Disassembler view is hidden.
+
+    \section2 Viewing and Editing Register State
+
+    The \uicontrol Registers view displays the current state of the CPU registers.
+    Depending on the CPU type, there will be different registers available. The
+    values of registers that recently have changed are highlighted in red and empty
+    register values as well as leading zeroes are grayed out.
+
+    In addition it is possible to edit the content of registers while the program is
+    stopped. This applies to both General-purpose and Special-purpose registers.
+    Registers can be edited in the standard condensed view or in their particular parts
+    if the register is displayed expanded.
+
+    By default, the \uicontrol Registers view is hidden.
 
     \section2 Creating Snapshots
 

@@ -1,12 +1,24 @@
-/**************************************************************************
+/****************************************************************************
 **
-** Copyright (C) 2015 Denis Mingulov.
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 Denis Mingulov.
+** Copyright (C) 2016 The Qt Company Ltd.
+** Copyright (C) 2016 Denis Mingulov.
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator
 **
-** You may use this file under the terms of the BSD license as follows:
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
+**
+** BSD License Usage
+** Alternatively, you may use this file under the terms of the BSD license
+** as follows:
 **
 ** "Redistribution and use in source and binary forms, with or without
 ** modification, are permitted provided that the following conditions are
@@ -17,10 +29,10 @@
 **     notice, this list of conditions and the following disclaimer in
 **     the documentation and/or other materials provided with the
 **     distribution.
-**   * Neither the name of The Qt Company Ltd and its Subsidiary(-ies) nor
-**     the names of its contributors may be used to endorse or promote
-**     products derived from this software without specific prior written
-**     permission.
+**   * Neither the name of The Qt Company Ltd nor the names of its
+**     contributors may be used to endorse or promote products derived
+**     from this software without specific prior written permission.
+**
 **
 ** THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 ** "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -34,18 +46,36 @@
 ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ** OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE."
 **
-**************************************************************************/
-
+****************************************************************************/
 
 #include "imageview.h"
 
+#include "exportdialog.h"
 #include "imageviewerfile.h"
+
+#include <coreplugin/messagemanager.h>
+
+#include <utils/fileutils.h>
+#include <utils/qtcassert.h>
+
+#include <QMessageBox>
+#include <QGraphicsRectItem>
 
 #include <QWheelEvent>
 #include <QMouseEvent>
-#include <QGraphicsRectItem>
+#include <QImage>
+#include <QPainter>
 #include <QPixmap>
+
+#include <QDir>
+#include <QFileInfo>
+
 #include <qmath.h>
+
+#ifndef QT_NO_SVG
+#include <QGraphicsSvgItem>
+#include <QSvgRenderer>
+#endif
 
 namespace ImageViewer {
 namespace Constants {
@@ -124,6 +154,48 @@ void ImageView::drawBackground(QPainter *p, const QRectF &)
     p->resetTransform();
     p->drawTiledPixmap(viewport()->rect(), backgroundBrush().texture());
     p->restore();
+}
+
+void ImageView::exportImage()
+{
+#ifndef QT_NO_SVG
+    QGraphicsSvgItem *svgItem = qgraphicsitem_cast<QGraphicsSvgItem *>(m_imageItem);
+    QTC_ASSERT(svgItem, return);
+
+    const QFileInfo origFi = m_file->filePath().toFileInfo();
+    const QString suggestedFileName = origFi.absolutePath() + QLatin1Char('/')
+        + origFi.baseName() + QStringLiteral(".png");
+
+    ExportDialog exportDialog(this);
+    exportDialog.setWindowTitle(tr("Export %1").arg(origFi.fileName()));
+    exportDialog.setExportSize(svgItem->boundingRect().size().toSize());
+    exportDialog.setExportFileName(suggestedFileName);
+
+    while (true) {
+        if (exportDialog.exec() != QDialog::Accepted)
+            break;
+
+        const QSize imageSize = exportDialog.exportSize();
+        QImage image(imageSize, QImage::Format_ARGB32);
+        image.fill(Qt::transparent);
+        QPainter painter;
+        painter.begin(&image);
+        svgItem->renderer()->render(&painter, QRectF(QPointF(), QSizeF(imageSize)));
+        painter.end();
+
+        const QString fileName = exportDialog.exportFileName();
+        if (image.save(fileName)) {
+            const QString message = tr("Exported \"%1\", %2x%3, %4 bytes")
+                .arg(QDir::toNativeSeparators(fileName)).arg(imageSize.width()).arg(imageSize.height())
+                .arg(QFileInfo(fileName).size());
+            Core::MessageManager::write(message);
+            break;
+        } else {
+            QMessageBox::critical(this, tr("Export Image"),
+                                  tr("Could not write file \"%1\".").arg(QDir::toNativeSeparators(fileName)));
+        }
+    }
+#endif // !QT_NO_SVG
 }
 
 void ImageView::setViewBackground(bool enable)

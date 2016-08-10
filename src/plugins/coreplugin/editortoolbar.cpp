@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -32,7 +27,7 @@
 
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/command.h>
-#include <coreplugin/coreconstants.h>
+#include <coreplugin/coreicons.h>
 #include <coreplugin/editormanager/documentmodel.h>
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/editormanager/editormanager_p.h>
@@ -99,13 +94,13 @@ EditorToolBarPrivate::EditorToolBarPrivate(QWidget *parent, EditorToolBar *q) :
     m_lockButton(new QToolButton(q)),
     m_dragHandle(new QToolButton(q)),
     m_dragHandleMenu(0),
-    m_goBackAction(new QAction(QIcon(QLatin1String(Constants::ICON_PREV)), EditorManager::tr("Go Back"), parent)),
-    m_goForwardAction(new QAction(QIcon(QLatin1String(Constants::ICON_NEXT)), EditorManager::tr("Go Forward"), parent)),
+    m_goBackAction(new QAction(Icons::PREV_TOOLBAR.icon(), EditorManager::tr("Go Back"), parent)),
+    m_goForwardAction(new QAction(Icons::NEXT_TOOLBAR.icon(), EditorManager::tr("Go Forward"), parent)),
     m_backButton(new QToolButton(q)),
     m_forwardButton(new QToolButton(q)),
     m_splitButton(new QToolButton(q)),
-    m_horizontalSplitAction(new QAction(QIcon(QLatin1String(Constants::ICON_SPLIT_HORIZONTAL)), EditorManager::tr("Split"), parent)),
-    m_verticalSplitAction(new QAction(QIcon(QLatin1String(Constants::ICON_SPLIT_VERTICAL)), EditorManager::tr("Split Side by Side"), parent)),
+    m_horizontalSplitAction(new QAction(Icons::SPLIT_HORIZONTAL_TOOLBAR.icon(), EditorManager::tr("Split"), parent)),
+    m_verticalSplitAction(new QAction(Icons::SPLIT_VERTICAL_TOOLBAR.icon(), EditorManager::tr("Split Side by Side"), parent)),
     m_splitNewWindowAction(new QAction(EditorManager::tr("Open in New Window"), parent)),
     m_closeSplitButton(new QToolButton(q)),
     m_activeToolBar(0),
@@ -140,8 +135,8 @@ EditorToolBar::EditorToolBar(QWidget *parent) :
     d->m_dragHandleMenu = new QMenu(d->m_dragHandle);
     d->m_dragHandle->setMenu(d->m_dragHandleMenu);
 
-    connect(d->m_goBackAction, SIGNAL(triggered()), this, SIGNAL(goBackClicked()));
-    connect(d->m_goForwardAction, SIGNAL(triggered()), this, SIGNAL(goForwardClicked()));
+    connect(d->m_goBackAction, &QAction::triggered, this, &EditorToolBar::goBackClicked);
+    connect(d->m_goForwardAction, &QAction::triggered, this, &EditorToolBar::goForwardClicked);
 
     d->m_editorList->setProperty("hideicon", true);
     d->m_editorList->setProperty("notelideasterisk", true);
@@ -152,7 +147,7 @@ EditorToolBar::EditorToolBar(QWidget *parent) :
     d->m_editorList->setContextMenuPolicy(Qt::CustomContextMenu);
 
     d->m_closeEditorButton->setAutoRaise(true);
-    d->m_closeEditorButton->setIcon(QIcon(QLatin1String(Constants::ICON_BUTTON_CLOSE)));
+    d->m_closeEditorButton->setIcon(Icons::CLOSE_TOOLBAR.icon());
     d->m_closeEditorButton->setEnabled(false);
     d->m_closeEditorButton->setProperty("showborder", true);
 
@@ -168,7 +163,7 @@ EditorToolBar::EditorToolBar(QWidget *parent) :
         d->m_splitNewWindowAction->setIconVisibleInMenu(false);
     }
 
-    d->m_splitButton->setIcon(QIcon(QLatin1String(Constants::ICON_SPLIT_HORIZONTAL)));
+    d->m_splitButton->setIcon(Icons::SPLIT_HORIZONTAL_TOOLBAR.icon());
     d->m_splitButton->setToolTip(tr("Split"));
     d->m_splitButton->setPopupMode(QToolButton::InstantPopup);
     d->m_splitButton->setProperty("noArrow", true);
@@ -179,7 +174,7 @@ EditorToolBar::EditorToolBar(QWidget *parent) :
     d->m_splitButton->setMenu(splitMenu);
 
     d->m_closeSplitButton->setAutoRaise(true);
-    d->m_closeSplitButton->setIcon(QIcon(QLatin1String(Constants::ICON_CLOSE_SPLIT_BOTTOM)));
+    d->m_closeSplitButton->setIcon(Icons::CLOSE_SPLIT_BOTTOM.icon());
 
     QHBoxLayout *toplayout = new QHBoxLayout(this);
     toplayout->setSpacing(0);
@@ -198,7 +193,8 @@ EditorToolBar::EditorToolBar(QWidget *parent) :
 
     // this signal is disconnected for standalone toolbars and replaced with
     // a private slot connection
-    connect(d->m_editorList, SIGNAL(activated(int)), this, SIGNAL(listSelectionActivated(int)));
+    connect(d->m_editorList, static_cast<void (QComboBox::*)(int)>(&QComboBox::activated),
+            this, &EditorToolBar::listSelectionActivated);
 
     connect(d->m_editorList, &QComboBox::customContextMenuRequested, [this](QPoint p) {
        QMenu menu;
@@ -209,24 +205,25 @@ EditorToolBar::EditorToolBar(QWidget *parent) :
        d->m_dragHandleMenu->clear();
        fillListContextMenu(d->m_dragHandleMenu);
     });
-    connect(d->m_lockButton, SIGNAL(clicked()), this, SLOT(makeEditorWritable()));
-    connect(d->m_closeEditorButton, SIGNAL(clicked()), this, SLOT(closeEditor()), Qt::QueuedConnection);
-    connect(d->m_horizontalSplitAction, SIGNAL(triggered()),
-            this, SIGNAL(horizontalSplitClicked()), Qt::QueuedConnection);
-    connect(d->m_verticalSplitAction, SIGNAL(triggered()),
-            this, SIGNAL(verticalSplitClicked()), Qt::QueuedConnection);
-    connect(d->m_splitNewWindowAction, SIGNAL(triggered()),
-            this, SIGNAL(splitNewWindowClicked()), Qt::QueuedConnection);
-    connect(d->m_closeSplitButton, SIGNAL(clicked()),
-            this, SIGNAL(closeSplitClicked()), Qt::QueuedConnection);
+    connect(d->m_lockButton, &QAbstractButton::clicked, this, &EditorToolBar::makeEditorWritable);
+    connect(d->m_closeEditorButton, &QAbstractButton::clicked,
+            this, &EditorToolBar::closeEditor, Qt::QueuedConnection);
+    connect(d->m_horizontalSplitAction, &QAction::triggered,
+            this, &EditorToolBar::horizontalSplitClicked, Qt::QueuedConnection);
+    connect(d->m_verticalSplitAction, &QAction::triggered,
+            this, &EditorToolBar::verticalSplitClicked, Qt::QueuedConnection);
+    connect(d->m_splitNewWindowAction, &QAction::triggered,
+            this, &EditorToolBar::splitNewWindowClicked, Qt::QueuedConnection);
+    connect(d->m_closeSplitButton, &QAbstractButton::clicked,
+            this, &EditorToolBar::closeSplitClicked, Qt::QueuedConnection);
 
 
-    connect(ActionManager::command(Constants::CLOSE), SIGNAL(keySequenceChanged()),
-            this, SLOT(updateActionShortcuts()));
-    connect(ActionManager::command(Constants::GO_BACK), SIGNAL(keySequenceChanged()),
-            this, SLOT(updateActionShortcuts()));
-    connect(ActionManager::command(Constants::GO_FORWARD), SIGNAL(keySequenceChanged()),
-            this, SLOT(updateActionShortcuts()));
+    connect(ActionManager::command(Constants::CLOSE), &Command::keySequenceChanged,
+            this, &EditorToolBar::updateActionShortcuts);
+    connect(ActionManager::command(Constants::GO_BACK), &Command::keySequenceChanged,
+            this, &EditorToolBar::updateActionShortcuts);
+    connect(ActionManager::command(Constants::GO_FORWARD), &Command::keySequenceChanged,
+            this, &EditorToolBar::updateActionShortcuts);
 
     updateActionShortcuts();
 }
@@ -239,7 +236,7 @@ EditorToolBar::~EditorToolBar()
 void EditorToolBar::removeToolbarForEditor(IEditor *editor)
 {
     QTC_ASSERT(editor, return);
-    disconnect(editor->document(), SIGNAL(changed()), this, SLOT(checkDocumentStatus()));
+    disconnect(editor->document(), &IDocument::changed, this, &EditorToolBar::checkDocumentStatus);
 
     QWidget *toolBar = editor->toolBar();
     if (toolBar != 0) {
@@ -273,7 +270,7 @@ void EditorToolBar::closeEditor()
 void EditorToolBar::addEditor(IEditor *editor)
 {
     QTC_ASSERT(editor, return);
-    connect(editor->document(), SIGNAL(changed()), this, SLOT(checkDocumentStatus()));
+    connect(editor->document(), &IDocument::changed, this, &EditorToolBar::checkDocumentStatus);
     QWidget *toolBar = editor->toolBar();
 
     if (toolBar && !d->m_isStandalone)
@@ -309,8 +306,10 @@ void EditorToolBar::setToolbarCreationFlags(ToolbarCreationFlags flags)
         connect(EditorManager::instance(), &EditorManager::currentEditorChanged,
                 this, &EditorToolBar::updateEditorListSelection);
 
-        disconnect(d->m_editorList, SIGNAL(activated(int)), this, SIGNAL(listSelectionActivated(int)));
-        connect(d->m_editorList, SIGNAL(activated(int)), this, SLOT(changeActiveEditor(int)));
+        disconnect(d->m_editorList, static_cast<void (QComboBox::*)(int)>(&QComboBox::activated),
+                   this, &EditorToolBar::listSelectionActivated);
+        connect(d->m_editorList, static_cast<void (QComboBox::*)(int)>(&QComboBox::activated),
+                this, &EditorToolBar::changeActiveEditor);
         d->m_splitButton->setVisible(false);
         d->m_closeSplitButton->setVisible(false);
     }
@@ -414,11 +413,13 @@ void EditorToolBar::updateDocumentStatus(IDocument *document)
         d->m_lockButton->setEnabled(false);
         d->m_lockButton->setToolTip(QString());
     } else if (document->isFileReadOnly()) {
-        d->m_lockButton->setIcon(DocumentModel::lockedIcon());
+        const static QIcon locked = Icons::LOCKED_TOOLBAR.icon();
+        d->m_lockButton->setIcon(locked);
         d->m_lockButton->setEnabled(true);
         d->m_lockButton->setToolTip(tr("Make Writable"));
     } else {
-        d->m_lockButton->setIcon(DocumentModel::unlockedIcon());
+        const static QIcon unlocked = Icons::UNLOCKED_TOOLBAR.icon();
+        d->m_lockButton->setIcon(unlocked);
         d->m_lockButton->setEnabled(false);
         d->m_lockButton->setToolTip(tr("File is writable"));
     }

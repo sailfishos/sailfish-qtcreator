@@ -1,20 +1,27 @@
-/**************************************************************************
+/****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
-** This file is part of Qt Creator
+** This file is part of the Qt Creator documentation.
 **
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Free Documentation License
-**
+** GNU Free Documentation License Usage
 ** Alternatively, this file may be used under the terms of the GNU Free
 ** Documentation License version 1.3 as published by the Free Software
-** Foundation and appearing in the file included in the packaging of this
-** file.
+** Foundation and appearing in the file included in the packaging of
+** this file. Please review the following information to ensure
+** the GNU Free Documentation License version 1.3 requirements
+** will be met: https://www.gnu.org/licenses/fdl-1.3.html.
 **
-**
-**************************************************************************/
+****************************************************************************/
 
 // **********************************************************************
 // NOTE: the sections are not ordered by their logical order to avoid
@@ -31,7 +38,8 @@
     \title Qt Creator Manual
 
     \QC provides a cross-platform, complete integrated development environment
-    (IDE) for application developers to create applications for multiple desktop
+    (IDE) for application developers to create applications for multiple
+    desktop, \l {http://doc.qt.io/QtForDeviceCreation/index.html}{embedded},
     and mobile device platforms, such as \l{Connecting Sailfish OS Devices}{Sailfish OS}, \l{Connecting Android Devices}{Android}
     and \l{Connecting iOS Devices}{iOS}. It is available for Linux, OS X and
     Windows
@@ -46,6 +54,7 @@
             \li \inlineimage creator_gettingstarted.png
             \li \inlineimage creator_managingprojects.png
             \li \inlineimage creator_designinguserinterface.png
+            \li \inlineimage creator_coding.png
         \row
             \li \b {\l{Getting Started}}
                 \list
@@ -68,43 +77,33 @@
                     \li \l{Developing Widget Based Applications}
                     \li \l{Optimizing Applications for Mobile Devices}
                 \endlist
-        \row
-            \li \inlineimage creator_coding.png
-            \li \inlineimage creator_buildingrunning.png
-            \li \inlineimage creator_testing.png
-        \row
             \li \b {\l{Coding}}
                 \list
                     \li \l{Writing Code}
                     \li \l{Finding}
                     \li \l{Refactoring}
                     \li \l{Configuring the Editor}
-            \endlist
+                    \li \l{Modeling}
+                \endlist
+        \row
+            \li \inlineimage creator_buildingrunning.png
+            \li \inlineimage creator_testing.png
+            \li \inlineimage creator_advanceduse.png
+            \li \inlineimage creator_gettinghelp.png
+        \row
             \li \b {\l{Building and Running}}
                 \list
                     \li \l{Building for Multiple Platforms}
                     \li \l{Running on Multiple Platforms}
                     \li \l{Deploying to Mobile Devices}
                     \li \l{Connecting Mobile Devices}
-            \endlist
+                \endlist
             \li \b {\l{Testing}}
                 \list
                     \li \l{Debugging}
                     \li \l{Analyzing Code}
                     \li \l{Running Autotests}
                 \endlist
-        \row
-            \li \inlineimage creator_advanceduse.png
-            \li \inlineimage creator_gettinghelp.png
-            \li
-        \row
-            \li \list
-            \li \b {Publishing}
-                \list
-                    \li \l{Publishing Qt Content for Sailfish OS Devices}
-                \endlist
-            \endlist
-            \li \list
             \li \b {\l{Advanced Use}}
                 \list
                     \li \l{Supported Platforms}
@@ -113,7 +112,6 @@
                     \li \l{Keyboard Shortcuts}
                     \li \l{Using External Tools}
                 \endlist
-            \endlist
             \li \b {\l{Getting Help}}
                 \list
                     \li \l{Using the Help Mode}
@@ -122,9 +120,8 @@
                     \li \l{Known Issues}
                     \li \l{Glossary}
                 \endlist
-            \li
         \row
-            \li {3,1} \note To report bugs and suggestions to the Qt Bug
+            \li {4,1} \note To report bugs and suggestions to the Qt Bug
                 Tracker, select \uicontrol {Help > Report Bug}.
 
                 You can also join the \QC mailing list at:
@@ -186,15 +183,13 @@
                 \li \l {Creating Qt Quick Projects}
                 \li \l {Qt Quick UI Forms}
                 \li \l {Using Qt Quick Designer}
+                \li \l {Editing PathView Properties}
+                \li \l {Adding Connections}
                 \li \l {Creating Components}
                 \li \l {Creating Buttons}
                 \li \l {Creating Scalable Buttons and Borders}
                 \li \l {Creating Screens}
-                \li \l {Using Qt Quick Designer Extensions}
-                    \list
-                        \li \l{Editing PathView Properties}
-                        \li \l{Adding Connections}
-                    \endlist
+                \li \l {Browsing ISO 7000 Icons}
                 \li \l {Exporting Designs from Graphics Software}
                 \li \l {Using QML Modules with Plugins}
             \endlist
@@ -232,6 +227,7 @@
                 \li \l{Using FakeVim Mode}
             \endlist
             \li \l{Editing MIME Types}
+            \li \l{Modeling}
         \endlist
         \li \l{Building and Running}
         \list
@@ -282,10 +278,6 @@
                 \li \l{Analyzing CPU Usage}
             \endlist
             \li \l{Running Autotests}
-        \endlist
-        \li Publishing
-        \list
-            \li \l{Publishing Qt Content for Sailfish OS Devices}
         \endlist
         \li \l{Advanced Use}
         \list

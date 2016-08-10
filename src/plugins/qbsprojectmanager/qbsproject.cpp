@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -32,6 +27,7 @@
 
 #include "qbsbuildconfiguration.h"
 #include "qbslogsink.h"
+#include "qbspmlogging.h"
 #include "qbsprojectfile.h"
 #include "qbsprojectmanager.h"
 #include "qbsprojectparser.h"
@@ -47,6 +43,8 @@
 #include <coreplugin/messagemanager.h>
 #include <coreplugin/progressmanager/progressmanager.h>
 #include <cpptools/cppmodelmanager.h>
+#include <cpptools/projectpartbuilder.h>
+#include <extensionsystem/pluginmanager.h>
 #include <projectexplorer/buildenvironmentwidget.h>
 #include <projectexplorer/buildmanager.h>
 #include <projectexplorer/buildtargetinfo.h>
@@ -60,7 +58,7 @@
 #include <projectexplorer/toolchain.h>
 #include <projectexplorer/headerpath.h>
 #include <qtsupport/qtkitinformation.h>
-#include <qtsupport/uicodemodelsupport.h>
+#include <cpptools/generatedcodemodelsupport.h>
 #include <qmljstools/qmljsmodelmanager.h>
 #include <qmljs/qmljsmodelmanagerinterface.h>
 #include <utils/hostosinfo.h>
@@ -100,19 +98,22 @@ static const char CONFIG_PRECOMPILEDHEADER[] = "precompiledHeader";
 // --------------------------------------------------------------------
 
 QbsProject::QbsProject(QbsManager *manager, const QString &fileName) :
-    m_manager(manager),
     m_projectName(QFileInfo(fileName).completeBaseName()),
-    m_fileName(fileName),
-    m_rootProjectNode(0),
     m_qbsProjectParser(0),
     m_qbsUpdateFutureInterface(0),
     m_parsingScheduled(false),
     m_cancelStatus(CancelStatusNone),
-    m_currentBc(0)
+    m_currentBc(0),
+    m_extraCompilersPending(false)
 {
     m_parsingDelay.setInterval(1000); // delay parsing by 1s.
 
     setId(Constants::PROJECT_ID);
+    setProjectManager(manager);
+    setDocument(new QbsProjectFile(this, fileName));
+    DocumentManager::addDocument(document());
+    setRootProjectNode(new QbsRootProjectNode(this));
+
     setProjectContext(Context(Constants::PROJECT_ID));
     setProjectLanguages(Context(ProjectExplorer::Constants::LANG_CXX));
 
@@ -123,11 +124,6 @@ QbsProject::QbsProject(QbsManager *manager, const QString &fileName) :
     connect(this, SIGNAL(environmentChanged()), this, SLOT(delayParsing()));
 
     connect(&m_parsingDelay, SIGNAL(timeout()), this, SLOT(startParsing()));
-
-    updateDocuments(QSet<QString>() << fileName);
-
-    // NOTE: QbsProjectNode does not use this as a parent!
-    m_rootProjectNode = new QbsRootProjectNode(this); // needs documents to be initialized!
 }
 
 QbsProject::~QbsProject()
@@ -140,12 +136,7 @@ QbsProject::~QbsProject()
         delete m_qbsUpdateFutureInterface;
         m_qbsUpdateFutureInterface = 0;
     }
-
-    // Deleting the root node triggers a few things, make sure rootProjectNode
-    // returns 0 already
-    QbsProjectNode *root = m_rootProjectNode;
-    m_rootProjectNode = 0;
-    delete root;
+    qDeleteAll(m_extraCompilers);
 }
 
 QString QbsProject::displayName() const
@@ -153,23 +144,19 @@ QString QbsProject::displayName() const
     return m_projectName;
 }
 
-IDocument *QbsProject::document() const
-{
-    foreach (IDocument *doc, m_qbsDocuments) {
-        if (doc->filePath().toString() == m_fileName)
-            return doc;
-    }
-    QTC_ASSERT(false, return 0);
-}
-
 QbsManager *QbsProject::projectManager() const
 {
-    return m_manager;
+    return static_cast<QbsManager *>(Project::projectManager());
 }
 
-ProjectNode *QbsProject::rootProjectNode() const
+QbsRootProjectNode *QbsProject::rootProjectNode() const
 {
-    return m_rootProjectNode;
+    return static_cast<QbsRootProjectNode *>(Project::rootProjectNode());
+}
+
+void QbsProject::projectLoaded()
+{
+    m_parsingDelay.start(0);
 }
 
 static void collectFilesForProject(const qbs::ProjectData &project, QSet<QString> &result)
@@ -190,12 +177,22 @@ static void collectFilesForProject(const qbs::ProjectData &project, QSet<QString
 QStringList QbsProject::files(Project::FilesMode fileMode) const
 {
     Q_UNUSED(fileMode);
+    qCDebug(qbsPmLog) << Q_FUNC_INFO << m_qbsProject.isValid() << isParsing();
     if (!m_qbsProject.isValid() || isParsing())
         return QStringList();
     QSet<QString> result;
     collectFilesForProject(m_projectData, result);
     result.unite(m_qbsProject.buildSystemFiles());
+    qCDebug(qbsPmLog) << "file count:" << result.count();
     return result.toList();
+}
+
+QStringList QbsProject::filesGeneratedFrom(const QString &sourceFile) const
+{
+    QStringList generated;
+    foreach (const qbs::ProductData &data, m_projectData.allProducts())
+         generated << m_qbsProject.generatedFiles(data, sourceFile, false);
+    return generated;
 }
 
 bool QbsProject::isProjectEditable() const
@@ -294,7 +291,7 @@ bool QbsProject::addFilesToProduct(QbsBaseProjectNode *node, const QStringList &
         m_projectData = m_qbsProject.projectData();
         QbsGroupNode::setupFiles(node, reRetrieveGroupData(productData, groupData),
                                  allPaths, QFileInfo(productFilePath).absolutePath(), true);
-        m_rootProjectNode->update();
+        rootProjectNode()->update();
         emit fileListChanged();
     }
     return notAdded->isEmpty();
@@ -323,7 +320,7 @@ bool QbsProject::removeFilesFromProduct(QbsBaseProjectNode *node, const QStringL
         m_projectData = m_qbsProject.projectData();
         QbsGroupNode::setupFiles(node, reRetrieveGroupData(productData, groupData), allPaths,
                                  QFileInfo(productFilePath).absolutePath(), true);
-        m_rootProjectNode->update();
+        rootProjectNode()->update();
         emit fileListChanged();
     }
     return notRemoved->isEmpty();
@@ -409,7 +406,7 @@ qbs::InstallJob *QbsProject::install(const qbs::InstallOptions &opts)
 
 QString QbsProject::profileForTarget(const Target *t) const
 {
-    return m_manager->profileForKit(t->kit());
+    return projectManager()->profileForKit(t->kit());
 }
 
 bool QbsProject::isParsing() const
@@ -437,45 +434,99 @@ bool QbsProject::needsSpecialDeployment() const
     return true;
 }
 
+bool QbsProject::checkCancelStatus()
+{
+    const CancelStatus cancelStatus = m_cancelStatus;
+    m_cancelStatus = CancelStatusNone;
+    if (cancelStatus != CancelStatusCancelingForReparse)
+        return false;
+    qCDebug(qbsPmLog) << "Cancel request while parsing, starting re-parse";
+    m_qbsProjectParser->deleteLater();
+    m_qbsProjectParser = 0;
+    parseCurrentBuildConfiguration();
+    return true;
+}
+
+void QbsProject::updateAfterParse()
+{
+    qCDebug(qbsPmLog) << "Updating data after parse";
+    rootProjectNode()->update();
+    updateDocuments(m_qbsProject.buildSystemFiles());
+    updateBuildTargetData();
+    updateCppCodeModel();
+    updateQmlJsCodeModel();
+    emit fileListChanged();
+}
+
 void QbsProject::handleQbsParsingDone(bool success)
 {
     QTC_ASSERT(m_qbsProjectParser, return);
+    QTC_ASSERT(m_qbsUpdateFutureInterface, return);
 
-    const CancelStatus cancelStatus = m_cancelStatus;
-    m_cancelStatus = CancelStatusNone;
+    qCDebug(qbsPmLog) << "Parsing done, success:" << success;
 
-    // Start a new one parse operation right away, ignoring the old result.
-    if (cancelStatus == CancelStatusCancelingForReparse) {
-        m_qbsProjectParser->deleteLater();
-        m_qbsProjectParser = 0;
-        parseCurrentBuildConfiguration();
+    if (checkCancelStatus())
         return;
-    }
 
     generateErrors(m_qbsProjectParser->error());
 
+    m_qbsProject = m_qbsProjectParser->qbsProject();
+    bool dataChanged = false;
     if (success) {
-        m_qbsProject = m_qbsProjectParser->qbsProject();
+        QTC_ASSERT(m_qbsProject.isValid(), return);
         const qbs::ProjectData &projectData = m_qbsProject.projectData();
-        QTC_CHECK(m_qbsProject.isValid());
         if (projectData != m_projectData) {
             m_projectData = projectData;
-            readQbsData();
+            dataChanged = true;
         }
     } else {
         m_qbsUpdateFutureInterface->reportCanceled();
     }
 
-    m_qbsProjectParser->deleteLater();
-    m_qbsProjectParser = 0;
-
-    if (m_qbsUpdateFutureInterface) {
-        m_qbsUpdateFutureInterface->reportFinished();
-        delete m_qbsUpdateFutureInterface;
-        m_qbsUpdateFutureInterface = 0;
+    bool hasTargetArtifacts = false;
+    if (dataChanged) {
+        qCDebug(qbsPmLog) << "Project data changed.";
+        foreach (const qbs::ProductData &product, m_projectData.allProducts()) {
+            if (!product.targetArtifacts().isEmpty()) {
+                hasTargetArtifacts = true;
+                break;
+            }
+        }
+        if (!hasTargetArtifacts) {
+            qCDebug(qbsPmLog) << "No target artifacts present, executing rules";
+            m_qbsProjectParser->startRuleExecution();
+            return;
+        }
     }
 
+    m_qbsProjectParser->deleteLater();
+    m_qbsProjectParser = 0;
+    m_qbsUpdateFutureInterface->reportFinished();
+    delete m_qbsUpdateFutureInterface;
+    m_qbsUpdateFutureInterface = 0;
+
+    if (dataChanged)
+        updateAfterParse();
     emit projectParsingDone(success);
+}
+
+void QbsProject::handleRuleExecutionDone()
+{
+    qCDebug(qbsPmLog) << "Rule execution done";
+
+    if (checkCancelStatus())
+        return;
+
+    m_qbsProjectParser->deleteLater();
+    m_qbsProjectParser = 0;
+    m_qbsUpdateFutureInterface->reportFinished();
+    delete m_qbsUpdateFutureInterface;
+    m_qbsUpdateFutureInterface = 0;
+
+    QTC_ASSERT(m_qbsProject.isValid(), return);
+    m_projectData = m_qbsProject.projectData();
+    updateAfterParse();
+    emit projectParsingDone(true);
 }
 
 void QbsProject::targetWasAdded(Target *t)
@@ -524,23 +575,6 @@ void QbsProject::delayParsing()
     m_parsingDelay.start();
 }
 
-// Qbs may change its data
-void QbsProject::readQbsData()
-{
-    QTC_ASSERT(m_rootProjectNode, return);
-
-    m_rootProjectNode->update();
-
-    updateDocuments(m_qbsProject.isValid()
-                    ? m_qbsProject.buildSystemFiles() : QSet<QString>() << m_fileName);
-
-    updateCppCodeModel();
-    updateQmlJsCodeModel();
-    updateBuildTargetData();
-
-    emit fileListChanged();
-}
-
 void QbsProject::parseCurrentBuildConfiguration()
 {
     m_parsingScheduled = false;
@@ -586,6 +620,10 @@ void QbsProject::updateAfterBuild()
     m_projectData = m_qbsProject.projectData();
     updateBuildTargetData();
     updateCppCompilerCallData();
+    if (m_extraCompilersPending) {
+        m_extraCompilersPending = false;
+        updateCppCodeModel();
+    }
 }
 
 void QbsProject::registerQbsProjectParser(QbsProjectParser *p)
@@ -599,25 +637,24 @@ void QbsProject::registerQbsProjectParser(QbsProjectParser *p)
 
     m_qbsProjectParser = p;
 
-    if (p)
+    if (p) {
+        connect(m_qbsProjectParser, &QbsProjectParser::ruleExecutionDone,
+                this, &QbsProject::handleRuleExecutionDone);
         connect(m_qbsProjectParser, SIGNAL(done(bool)), this, SLOT(handleQbsParsingDone(bool)));
+    }
 }
 
-bool QbsProject::fromMap(const QVariantMap &map)
+Project::RestoreResult QbsProject::fromMap(const QVariantMap &map, QString *errorMessage)
 {
-    if (!Project::fromMap(map))
-        return false;
+    RestoreResult result = Project::fromMap(map, errorMessage);
+    if (result != RestoreResult::Ok)
+        return result;
 
     Kit *defaultKit = KitManager::defaultKit();
-    if (!activeTarget() && defaultKit) {
-        Target *t = new Target(this, defaultKit);
-        t->updateDefaultBuildConfigurations();
-        t->updateDefaultDeployConfigurations();
-        t->updateDefaultRunConfigurations();
-        addTarget(t);
-    }
+    if (!activeTarget() && defaultKit)
+        addTarget(createTarget(defaultKit));
 
-    return true;
+    return RestoreResult::Ok;
 }
 
 void QbsProject::generateErrors(const qbs::ErrorInfo &e)
@@ -677,7 +714,7 @@ void QbsProject::updateDocuments(const QSet<QString> &files)
 {
     // Update documents:
     QSet<QString> newFiles = files;
-    QTC_ASSERT(!newFiles.isEmpty(), newFiles << m_fileName);
+    QTC_ASSERT(!newFiles.isEmpty(), newFiles << projectFilePath().toString());
     QSet<QString> oldFiles;
     foreach (IDocument *doc, m_qbsDocuments)
         oldFiles.insert(doc->filePath().toString());
@@ -702,6 +739,29 @@ void QbsProject::updateDocuments(const QSet<QString> &files)
     m_qbsDocuments.unite(toAdd);
 }
 
+static CppTools::ProjectFile::Kind cppFileType(const qbs::SourceArtifact &sourceFile)
+{
+    if (sourceFile.fileTags().contains(QLatin1String("hpp")))
+        return CppTools::ProjectFile::CXXHeader;
+    if (sourceFile.fileTags().contains(QLatin1String("cpp")))
+        return CppTools::ProjectFile::CXXSource;
+    if (sourceFile.fileTags().contains(QLatin1String("c")))
+        return CppTools::ProjectFile::CSource;
+    if (sourceFile.fileTags().contains(QLatin1String("objc")))
+        return CppTools::ProjectFile::ObjCSource;
+    if (sourceFile.fileTags().contains(QLatin1String("objcpp")))
+        return CppTools::ProjectFile::ObjCXXSource;
+    return CppTools::ProjectFile::Unclassified;
+}
+
+static QString groupLocationToProjectFile(const qbs::CodeLocation &location)
+{
+    return QString::fromLatin1("%1:%2:%3")
+                        .arg(location.filePath())
+                        .arg(location.line())
+                        .arg(location.column());
+}
+
 void QbsProject::updateCppCodeModel()
 {
     if (!m_projectData.isValid())
@@ -723,7 +783,13 @@ void QbsProject::updateCppCodeModel()
         ppBuilder.setQtVersion(CppTools::ProjectPart::NoQt);
     }
 
-    QHash<QString, QString> uiFiles;
+    QList<ProjectExplorer::ExtraCompilerFactory *> factories =
+            ProjectExplorer::ExtraCompilerFactory::extraCompilerFactories();
+    const auto factoriesBegin = factories.constBegin();
+    const auto factoriesEnd = factories.constEnd();
+
+    qDeleteAll(m_extraCompilers);
+    m_extraCompilers.clear();
     foreach (const qbs::ProductData &prd, m_projectData.allProducts()) {
         foreach (const qbs::GroupData &grp, prd.groups()) {
             const qbs::PropertyMap &props = grp.properties();
@@ -754,20 +820,20 @@ void QbsProject::updateCppCodeModel()
                                                          QLatin1String(CONFIG_INCLUDEPATHS));
             list.append(props.getModulePropertiesAsStringList(QLatin1String(CONFIG_CPP_MODULE),
                                                               QLatin1String(CONFIG_SYSTEM_INCLUDEPATHS)));
-            CppTools::ProjectPart::HeaderPaths grpHeaderPaths;
+            CppTools::ProjectPartHeaderPaths grpHeaderPaths;
             foreach (const QString &p, list)
-                grpHeaderPaths += CppTools::ProjectPart::HeaderPath(
+                grpHeaderPaths += CppTools::ProjectPartHeaderPath(
                             FileName::fromUserInput(p).toString(),
-                            CppTools::ProjectPart::HeaderPath::IncludePath);
+                            CppTools::ProjectPartHeaderPath::IncludePath);
 
             list = props.getModulePropertiesAsStringList(QLatin1String(CONFIG_CPP_MODULE),
                                                          QLatin1String(CONFIG_FRAMEWORKPATHS));
             list.append(props.getModulePropertiesAsStringList(QLatin1String(CONFIG_CPP_MODULE),
                                                               QLatin1String(CONFIG_SYSTEM_FRAMEWORKPATHS)));
             foreach (const QString &p, list)
-                grpHeaderPaths += CppTools::ProjectPart::HeaderPath(
+                grpHeaderPaths += CppTools::ProjectPartHeaderPath(
                             FileName::fromUserInput(p).toString(),
-                            CppTools::ProjectPart::HeaderPath::FrameworkPath);
+                            CppTools::ProjectPartHeaderPath::FrameworkPath);
 
             ppBuilder.setHeaderPaths(grpHeaderPaths);
 
@@ -776,22 +842,40 @@ void QbsProject::updateCppCodeModel()
             ppBuilder.setPreCompiledHeaders(QStringList() << pch);
 
             ppBuilder.setDisplayName(grp.name());
-            ppBuilder.setProjectFile(QString::fromLatin1("%1:%2:%3")
-                    .arg(grp.location().filePath())
-                    .arg(grp.location().line())
-                    .arg(grp.location().column()));
+            ppBuilder.setProjectFile(groupLocationToProjectFile(grp.location()));
 
-            foreach (const QString &file, grp.allFilePaths()) {
-                if (file.endsWith(QLatin1String(".ui"))) {
-                    QStringList generated = m_rootProjectNode->qbsProject()
-                            .generatedFiles(prd, file, QStringList(QLatin1String("hpp")));
-                    if (generated.count() == 1)
-                        uiFiles.insert(file, generated.at(0));
+            QHash<QString, qbs::SourceArtifact> filePathToSourceArtifact;
+            foreach (const qbs::SourceArtifact &source, grp.allSourceArtifacts()) {
+                filePathToSourceArtifact.insert(source.filePath(), source);
+
+                foreach (const QString &tag, source.fileTags()) {
+                    for (auto i = factoriesBegin; i != factoriesEnd; ++i) {
+                        if ((*i)->sourceTag() != tag)
+                            continue;
+                        QStringList generated = m_qbsProject.generatedFiles(prd, source.filePath(),
+                                                                            false);
+                        if (generated.isEmpty()) {
+                            // We don't know the target files until we build for the first time.
+                            m_extraCompilersPending = true;
+                            continue;
+                        }
+
+                        const FileNameList fileNames = Utils::transform(generated,
+                                                                        [](const QString &s) {
+                            return Utils::FileName::fromString(s);
+                        });
+                        m_extraCompilers.append((*i)->create(
+                                this, FileName::fromString(source.filePath()), fileNames));
+                    }
                 }
             }
 
-            const QList<Id> languages =
-                    ppBuilder.createProjectPartsForFiles(grp.allFilePaths());
+            const QList<Id> languages = ppBuilder.createProjectPartsForFiles(
+                grp.allFilePaths(),
+                [filePathToSourceArtifact](const QString &filePath) {
+                    return cppFileType(filePathToSourceArtifact.value(filePath));
+            });
+
             foreach (Id language, languages)
                 setProjectLanguage(language, true);
         }
@@ -799,7 +883,7 @@ void QbsProject::updateCppCodeModel()
 
     pinfo.finish();
 
-    QtSupport::UiCodeModelManager::update(this, uiFiles);
+    CppTools::GeneratedCodeModelSupport::update(m_extraCompilers);
 
     // Update the code model
     m_codeModelFuture.cancel();
@@ -822,13 +906,17 @@ void QbsProject::updateCppCompilerCallData()
             if (!group.isEnabled())
                 continue;
 
-            foreach (const QString &file, group.allFilePaths()) {
-                if (!CppTools::ProjectFile::isSource(CppTools::ProjectFile::classify(file)))
+            CppTools::ProjectInfo::CompilerCallGroup compilerCallGroup;
+            compilerCallGroup.groupId = groupLocationToProjectFile(group.location());
+
+            foreach (const qbs::SourceArtifact &file, group.allSourceArtifacts()) {
+                const QString &filePath = file.filePath();
+                if (!CppTools::ProjectFile::isSource(cppFileType(file)))
                     continue;
 
                 qbs::ErrorInfo errorInfo;
-                const qbs::RuleCommandList ruleCommands
-                       = m_qbsProject.ruleCommands(product, file, QLatin1String("obj"), &errorInfo);
+                const qbs::RuleCommandList ruleCommands = m_qbsProject.ruleCommands(product,
+                        filePath, QLatin1String("obj"), &errorInfo);
                 if (errorInfo.hasError())
                     continue;
 
@@ -839,14 +927,15 @@ void QbsProject::updateCppCompilerCallData()
                 }
 
                 if (!calls.isEmpty())
-                    data.insert(file, calls);
+                    compilerCallGroup.callsPerSourceFile.insert(filePath, calls);
             }
+
+            if (!compilerCallGroup.callsPerSourceFile.isEmpty())
+                data.append(compilerCallGroup);
         }
     }
 
-    m_codeModelProjectInfo.setCompilerCallData(data);
-    const QFuture<void> future = modelManager->updateProjectInfo(m_codeModelProjectInfo);
-    QTC_CHECK(future.isFinished()); // No reparse of files expected
+    m_codeModelProjectInfo = modelManager->updateCompilerCallDataForProject(this, data);
 }
 
 void QbsProject::updateQmlJsCodeModel()
@@ -902,9 +991,8 @@ void QbsProject::updateDeploymentInfo()
         installOptions.setInstallRoot(QLatin1String("/"));
         foreach (const qbs::InstallableFile &f, m_qbsProject
                      .installableFilesForProject(m_projectData, installOptions)) {
-            deploymentData.addFile(f.sourceFilePath(), f.targetDirectory(), f.isExecutable()
-                                   ? DeployableFile::TypeExecutable
-                                   : DeployableFile::TypeNormal);
+            deploymentData.addFile(f.sourceFilePath(), QFileInfo(f.targetFilePath()).path(),
+                    f.isExecutable() ? DeployableFile::TypeExecutable : DeployableFile::TypeNormal);
         }
     }
     activeTarget()->setDeploymentData(deploymentData);
@@ -914,8 +1002,8 @@ void QbsProject::updateBuildTargetData()
 {
     updateApplicationTargets();
     updateDeploymentInfo();
-    foreach (Target *t, targets())
-        t->updateDefaultRunConfigurations();
+    if (activeTarget())
+        activeTarget()->updateDefaultRunConfigurations();
 }
 
 } // namespace Internal

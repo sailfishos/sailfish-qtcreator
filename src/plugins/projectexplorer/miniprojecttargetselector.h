@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,27 +9,21 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
-#ifndef MINIPROJECTTARGETSELECTOR_H
-#define MINIPROJECTTARGETSELECTOR_H
+#pragma once
 
 #include <QListWidget>
 #include <QDateTime>
@@ -57,10 +51,11 @@ namespace Internal {
 class ListWidget : public QListWidget
 {
     Q_OBJECT
+
 public:
     ListWidget(QWidget *parent);
-    void keyPressEvent(QKeyEvent *event);
-    void keyReleaseEvent(QKeyEvent *event);
+    void keyPressEvent(QKeyEvent *event) override;
+    void keyReleaseEvent(QKeyEvent *event) override;
     void setMaxCount(int maxCount);
     int maxCount();
 
@@ -68,6 +63,7 @@ public:
     void setOptimalWidth(int width);
 
     int padding();
+
 private:
     int m_maxCount;
     int m_optimalWidth;
@@ -76,15 +72,16 @@ private:
 class ProjectListWidget : public ListWidget
 {
     Q_OBJECT
+
 public:
     explicit ProjectListWidget(QWidget *parent = 0);
-private slots:
+
+private:
     void addProject(ProjectExplorer::Project *project);
     void removeProject(ProjectExplorer::Project *project);
     void projectDisplayNameChanged(ProjectExplorer::Project *project);
     void changeStartupProject(ProjectExplorer::Project *project);
     void setProject(int index);
-private:
     QListWidgetItem *itemForProject(Project *project);
     QString fullName(Project *project);
     bool m_ignoreIndexChange;
@@ -95,15 +92,13 @@ class KitAreaWidget : public QWidget
     Q_OBJECT
 public:
     explicit KitAreaWidget(QWidget *parent = 0);
-    ~KitAreaWidget();
+    ~KitAreaWidget() override;
 
-public slots:
     void setKit(ProjectExplorer::Kit *k);
 
-private slots:
+private:
     void updateKit(ProjectExplorer::Kit *k);
 
-private:
     QGridLayout *m_layout;
     Kit *m_kit;
     QList<KitConfigWidget *> m_widgets;
@@ -113,19 +108,22 @@ private:
 class GenericListWidget : public ListWidget
 {
     Q_OBJECT
+
 public:
-    GenericListWidget(QWidget *parent = 0);
+    explicit GenericListWidget(QWidget *parent = 0);
+
 signals:
     void changeActiveProjectConfiguration(ProjectExplorer::ProjectConfiguration *dc);
+
 public:
     void setProjectConfigurations(const QList<ProjectConfiguration *> &list, ProjectConfiguration *active);
     void setActiveProjectConfiguration(ProjectConfiguration *active);
     void addProjectConfiguration(ProjectConfiguration *pc);
     void removeProjectConfiguration(ProjectConfiguration *pc);
-private slots:
+
+private:
     void rowChanged(int index);
     void displayNameChanged();
-private:
     QListWidgetItem *itemForProjectConfiguration(ProjectConfiguration *pc);
     bool m_ignoreIndexChange;
 };
@@ -134,18 +132,19 @@ private:
 class MiniProjectTargetSelector : public QWidget
 {
     Q_OBJECT
+
 public:
     explicit MiniProjectTargetSelector(QAction *projectAction, QWidget *parent = 0);
-    void setVisible(bool visible);
+    void setVisible(bool visible) override;
 
-    void keyPressEvent(QKeyEvent *ke);
-    void keyReleaseEvent(QKeyEvent *ke);
-    bool event(QEvent *event);
-public slots:
+    void keyPressEvent(QKeyEvent *ke) override;
+    void keyReleaseEvent(QKeyEvent *ke) override;
+    bool event(QEvent *event) override;
+
     void toggleVisible();
     void nextOrShow();
 
-private slots:
+private:
     void projectAdded(ProjectExplorer::Project *project);
     void projectRemoved(ProjectExplorer::Project *project);
     void slotAddedTarget(ProjectExplorer::Target *target);
@@ -172,7 +171,6 @@ private slots:
     void delayedHide();
     void updateActionAndSummary();
     void switchToProjectsMode();
-private:
     void addedTarget(Target *target);
     void removedTarget(Target *target);
     void addedBuildConfiguration(BuildConfiguration* bc);
@@ -188,8 +186,8 @@ private:
     void updateDeployListVisible();
     void updateRunListVisible();
     void updateSummary();
-    void paintEvent(QPaintEvent *);
-    void mousePressEvent(QMouseEvent *);
+    void paintEvent(QPaintEvent *) override;
+    void mousePressEvent(QMouseEvent *) override;
 
     void doLayout(bool keepSize);
     QVector<int> listWidgetWidths(int minSize, int maxSize);
@@ -215,5 +213,3 @@ private:
 
 } // namespace Internal
 } // namespace ProjectExplorer
-
-#endif // MINIPROJECTTARGETSELECTOR_H

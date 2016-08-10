@@ -1,18 +1,25 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
-** This file is part of Qt Creator
+** This file is part of the Qt Creator documentation.
 **
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Free Documentation License
-**
+** GNU Free Documentation License Usage
 ** Alternatively, this file may be used under the terms of the GNU Free
 ** Documentation License version 1.3 as published by the Free Software
-** Foundation and appearing in the file included in the packaging of this
-** file.
-**
+** Foundation and appearing in the file included in the packaging of
+** this file. Please review the following information to ensure
+** the GNU Free Documentation License version 1.3 requirements
+** will be met: https://www.gnu.org/licenses/fdl-1.3.html.
 **
 ****************************************************************************/
 
@@ -107,12 +114,18 @@
 
                 Create a Qt Quick application that contains both QML and C++
                 code. The project includes a QQuickView.
-                You can build the application and deploy it to desktop and
-                mobile target platforms.
+                You can build the application and deploy it to desktop,
+                embedded, and mobile target platforms.
 
             \li Qt Quick Controls Application
 
-                Create a Qt Quick application using Qt Quick Controls
+                Create a Qt Quick application using
+                \l{http://doc-snapshots.qt.io/qt5-5.7/qtquickcontrols2-index.html}
+                {Qt Quick Controls 2} (requires Qt 5.7 or later),
+                \l{http://doc.qt.io/qt-5/qtquickcontrols-index.html}
+                {Qt Quick Controls}, or
+                \l{http://doc.qt.io/qt-5/qtlabscontrols-index.html}
+                {Qt Labs Controls} (only for Qt 5.6)
 
             \li Qt Canvas 3D Application
 
@@ -159,10 +172,10 @@
 
                 Qt unit tests for features or classes
 
-            \li Qt Auto Test (commercial only)
+            \li Qt Auto Test
 
-                Projects with boilerplate code for an autotest. For more
-                information, see \l {Creating Autotests}.
+                Projects with boilerplate code for a Qt test. For more
+                information, see \l {Creating Qt Tests}.
 
             \li Qt Quick UI
 
@@ -311,7 +324,7 @@
     file for a new class that you can add to a C++ project. Specify the class
     name, base class, and header and source files for the class.
 
-    The  wizard supports namespaces. To use a namespace, enter a qualified
+    The wizard supports namespaces. To use a namespace, enter a qualified
     class name in the \uicontrol {Class name} field. For example:
     MyNamespace::MySubNamespace::MyClass.
 
@@ -320,6 +333,12 @@
     The names of the header and source file are based on the class name. To
     change the default suffix of a file, select \uicontrol Tools > \uicontrol Options >
     \uicontrol {C++} > \uicontrol {File Naming}.
+
+    \image qtcreator-options-cpp-files.png "File Naming tab in Options"
+
+    In the \uicontrol {License template} field, you can use
+    \l{Using Variables in Wizards}{predefined wizard variables} to specify the
+    path and filename of the license to use in the source and header files.
 
     You can create your own project and class wizards. For more information,
     see \l{Adding New Custom Wizards}.

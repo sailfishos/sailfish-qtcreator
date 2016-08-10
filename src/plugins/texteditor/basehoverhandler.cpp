@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -40,7 +35,7 @@ using namespace Core;
 
 namespace TextEditor {
 
-BaseHoverHandler::BaseHoverHandler() : m_diagnosticTooltip(false)
+BaseHoverHandler::BaseHoverHandler() : m_diagnosticTooltip(false), m_priority(-1)
 {
 }
 
@@ -53,6 +48,37 @@ void BaseHoverHandler::showToolTip(TextEditorWidget *widget, const QPoint &point
 
     process(widget, pos);
     operateTooltip(widget, point);
+}
+
+int BaseHoverHandler::checkToolTip(TextEditorWidget *widget, int pos)
+{
+    widget->setContextHelpId(QString());
+
+    process(widget, pos);
+
+    return priority();
+}
+
+int BaseHoverHandler::priority() const
+{
+    if (m_priority >= 0)
+        return m_priority;
+
+    if (isDiagnosticTooltip())
+        return Priority_Diagnostic;
+
+    if (lastHelpItemIdentified().isValid())
+        return Priority_Help;
+
+    if (!toolTip().isEmpty())
+        return Priority_Tooltip;
+
+    return Priority_None;
+}
+
+void BaseHoverHandler::setPriority(int priority)
+{
+    m_priority = priority;
 }
 
 QString BaseHoverHandler::contextHelpId(TextEditorWidget *widget, int pos)
@@ -82,13 +108,6 @@ void BaseHoverHandler::appendToolTip(const QString &extension)
     m_toolTip.append(extension);
 }
 
-void BaseHoverHandler::addF1ToToolTip()
-{
-    m_toolTip = QString::fromLatin1("<table><tr><td valign=middle>%1</td><td>&nbsp;&nbsp;"
-                                    "<img src=\":/texteditor/images/f1.png\"></td>"
-                                    "</tr></table>").arg(m_toolTip);
-}
-
 void BaseHoverHandler::setIsDiagnosticTooltip(bool isDiagnosticTooltip)
 {
     m_diagnosticTooltip = isDiagnosticTooltip;
@@ -113,6 +132,7 @@ void BaseHoverHandler::clear()
 {
     m_diagnosticTooltip = false;
     m_toolTip.clear();
+    m_priority = -1;
     m_lastHelpItemIdentified = HelpItem();
 }
 
@@ -121,6 +141,13 @@ void BaseHoverHandler::process(TextEditorWidget *widget, int pos)
     clear();
     identifyMatch(widget, pos);
     decorateToolTip();
+}
+
+void BaseHoverHandler::identifyMatch(TextEditorWidget *editorWidget, int pos)
+{
+    QString tooltip = editorWidget->extraSelectionTooltip(pos);
+    if (!tooltip.isEmpty())
+        setToolTip(tooltip);
 }
 
 void BaseHoverHandler::decorateToolTip()
@@ -133,7 +160,6 @@ void BaseHoverHandler::decorateToolTip()
         if (!contents.isEmpty()) {
             setToolTip(toolTip().toHtmlEscaped());
             appendToolTip(contents);
-            addF1ToToolTip();
         }
     }
 }
@@ -143,7 +169,9 @@ void BaseHoverHandler::operateTooltip(TextEditorWidget *editorWidget, const QPoi
     if (m_toolTip.isEmpty())
         Utils::ToolTip::hide();
     else
-        Utils::ToolTip::show(point, m_toolTip, editorWidget);
+        Utils::ToolTip::show(point, m_toolTip, editorWidget, m_lastHelpItemIdentified.isValid()
+                             ? m_lastHelpItemIdentified.helpId()
+                             : QString());
 }
 
 } // namespace TextEditor

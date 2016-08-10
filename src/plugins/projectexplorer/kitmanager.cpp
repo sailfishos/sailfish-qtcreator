@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,31 +9,28 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
 #include "kitmanager.h"
 
+#include "devicesupport/idevicefactory.h"
 #include "kit.h"
 #include "kitfeatureprovider.h"
 #include "kitmanagerconfigwidget.h"
 #include "project.h"
+#include "projectexplorerconstants.h"
 #include "task.h"
 
 #include <coreplugin/icore.h>
@@ -137,6 +134,7 @@ void KitManager::restoreKits()
     QList<Kit *> kitsToRegister;
     QList<Kit *> kitsToValidate;
     QList<Kit *> kitsToCheck;
+    QList<Kit *> sdkKits;
 
     // read all kits from SDK
     QFileInfo systemSettingsFile(ICore::settings(QSettings::SystemScope)->fileName());
@@ -148,7 +146,6 @@ void KitManager::restoreKits()
             k->setAutoDetected(true);
             k->setSdkProvided(true);
             k->makeSticky();
-            k->setup();
         }
 
         // SDK kits are always considered to be up for validation since they might have been
@@ -171,6 +168,8 @@ void KitManager::restoreKits()
     Kit *toStore = 0;
     foreach (Kit *current, kitsToValidate) {
         toStore = current;
+        toStore->setup(); // Make sure all kitinformation are properly set up before merging them
+                          // with the information from the user settings file
 
         // Check whether we had this kit stored and prefer the stored one:
         for (int i = 0; i < kitsToCheck.count(); ++i) {
@@ -192,6 +191,7 @@ void KitManager::restoreKits()
             }
         }
         addKit(toStore);
+        sdkKits << toStore;
     }
 
     // Delete all loaded autodetected kits that were not rediscovered:
@@ -208,7 +208,7 @@ void KitManager::restoreKits()
         defaultKit->setUnexpandedDisplayName(tr("Desktop"));
         defaultKit->setSdkProvided(false);
         defaultKit->setAutoDetected(false);
-        defaultKit->setIconPath(FileName::fromLatin1(":///DESKTOP///"));
+        defaultKit->setIconPath(FileName::fromLatin1(ProjectExplorer::Constants::DESKTOP_DEVICE_ICON));
 
         defaultKit->setup();
 
@@ -217,13 +217,10 @@ void KitManager::restoreKits()
     }
 
     Kit *k = find(userKits.defaultKit);
-    if (k) {
+    if (!k && !defaultKit())
+        k = Utils::findOrDefault(kitsToRegister + sdkKits, &Kit::isValid);
+    if (k)
         setDefaultKit(k);
-    } else if (!defaultKit()) {
-        k = Utils::findOr(kitsToRegister, 0, [](Kit *k) { return k->isValid(); });
-        if (k)
-            setDefaultKit(k);
-    }
 
     d->m_writer = new PersistentSettingsWriter(settingsFileName(), QLatin1String("QtCreatorProfiles"));
     d->m_initialized = true;
@@ -267,7 +264,7 @@ static bool isLoaded()
     return d->m_initialized;
 }
 
-bool greaterPriority(KitInformation *a, KitInformation *b)
+static bool greaterPriority(KitInformation *a, KitInformation *b)
 {
     return a->priority() > b->priority();
 }
@@ -302,31 +299,21 @@ void KitManager::deregisterKitInformation(KitInformation *ki)
     delete ki;
 }
 
-QSet<QString> KitManager::availablePlatforms()
+QSet<Id> KitManager::supportedPlatforms()
 {
-    QSet<QString> platforms;
+    QSet<Id> platforms;
     foreach (const Kit *k, kits())
-        platforms.unite(k->availablePlatforms());
+        platforms.unite(k->supportedPlatforms());
     return platforms;
 }
 
-QString KitManager::displayNameForPlatform(const QString &platform)
+QSet<Id> KitManager::availableFeatures(Core::Id platformId)
 {
+    QSet<Id> features;
     foreach (const Kit *k, kits()) {
-        const QString displayName = k->displayNameForPlatform(platform);
-        if (!displayName.isEmpty())
-            return displayName;
-    }
-    return QString();
-}
-
-FeatureSet KitManager::availableFeatures(const QString &platform)
-{
-    FeatureSet features;
-    foreach (const Kit *k, kits()) {
-        QSet<QString> kitPlatforms = k->availablePlatforms();
-        if (kitPlatforms.isEmpty() || kitPlatforms.contains(platform) || platform.isEmpty())
-            features |= k->availableFeatures();
+        if (!k->supportedPlatforms().contains(platformId))
+            continue;
+        features.unite(k->availableFeatures());
     }
     return features;
 }
@@ -553,23 +540,16 @@ QString KitInformation::displayNamePostfix(const Kit *k) const
     return QString();
 }
 
-QSet<QString> KitInformation::availablePlatforms(const Kit *k) const
+QSet<Id> KitInformation::supportedPlatforms(const Kit *k) const
 {
     Q_UNUSED(k);
-    return QSet<QString>();
+    return QSet<Id>();
 }
 
-QString KitInformation::displayNameForPlatform(const Kit *k, const QString &platform) const
+QSet<Id> KitInformation::availableFeatures(const Kit *k) const
 {
     Q_UNUSED(k);
-    Q_UNUSED(platform);
-    return QString();
-}
-
-FeatureSet KitInformation::availableFeatures(const Kit *k) const
-{
-    Q_UNUSED(k);
-    return FeatureSet();
+    return QSet<Id>();
 }
 
 void KitInformation::addToMacroExpander(Kit *k, MacroExpander *expander) const
@@ -588,19 +568,26 @@ void KitInformation::notifyAboutUpdate(Kit *k)
 // KitFeatureProvider:
 // --------------------------------------------------------------------
 
-FeatureSet KitFeatureProvider::availableFeatures(const QString &platform) const
+// This FeatureProvider maps the platforms onto the device types.
+
+QSet<Id> KitFeatureProvider::availableFeatures(Id id) const
 {
-    return KitManager::availableFeatures(platform);
+    return KitManager::availableFeatures(id);
 }
 
-QStringList KitFeatureProvider::availablePlatforms() const
+QSet<Id> KitFeatureProvider::availablePlatforms() const
 {
-    return KitManager::availablePlatforms().toList();
+    return KitManager::supportedPlatforms();
 }
 
-QString KitFeatureProvider::displayNameForPlatform(const QString &string) const
+QString KitFeatureProvider::displayNameForPlatform(Id id) const
 {
-    return KitManager::displayNameForPlatform(string);
+    foreach (IDeviceFactory *f, ExtensionSystem::PluginManager::getObjects<IDeviceFactory>()) {
+        const QString dn = f->displayNameForId(id);
+        if (!dn.isEmpty())
+            return dn;
+    }
+    return QString();
 }
 
 } // namespace ProjectExplorer

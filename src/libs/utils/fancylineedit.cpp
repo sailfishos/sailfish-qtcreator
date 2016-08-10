@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -33,6 +28,8 @@
 #include "historycompleter.h"
 #include "hostosinfo.h"
 #include "qtcassert.h"
+#include "stylehelper.h"
+#include "utilsicons.h"
 
 #include <QAbstractItemView>
 #include <QDebug>
@@ -90,46 +87,42 @@ public:
     virtual bool eventFilter(QObject *obj, QEvent *event);
 
     FancyLineEdit *m_lineEdit;
+    IconButton *m_iconbutton[2];
+    HistoryCompleter *m_historyCompleter = 0;
+    FancyLineEdit::ValidationFunction m_validationFunction = &FancyLineEdit::validateWithValidator;
     QString m_oldText;
     QPixmap m_pixmap[2];
     QMenu *m_menu[2];
+    FancyLineEdit::State m_state = FancyLineEdit::Invalid;
     bool m_menuTabFocusTrigger[2];
-    IconButton *m_iconbutton[2];
     bool m_iconEnabled[2];
 
-    HistoryCompleter *m_historyCompleter;
-    FancyLineEdit::ValidationFunction m_validationFunction;
+    bool m_isFiltering = false;
+    bool m_firstChange = true;
 
-    bool m_isFiltering;
     QString m_lastFilterText;
 
-    const QColor m_okTextColor;
-    QColor m_errorTextColor;
-    FancyLineEdit::State m_state;
+    QColor m_okTextColor;
+    QColor m_errorTextColor = Qt::red;
     QString m_errorMessage;
     QString m_initialText;
-    bool m_firstChange;
 };
-
 
 FancyLineEditPrivate::FancyLineEditPrivate(FancyLineEdit *parent) :
     QObject(parent),
-    m_lineEdit(parent),
-    m_historyCompleter(0),
-    m_validationFunction(FancyLineEdit::defaultValidationFunction()),
-    m_isFiltering(false),
-    m_okTextColor(FancyLineEdit::textColor(parent)),
-    m_errorTextColor(Qt::red),
-    m_state(FancyLineEdit::Invalid),
-    m_firstChange(true)
+    m_lineEdit(parent)
 {
+    m_okTextColor = parent->palette().color(QPalette::Active, QPalette::Text);
+
     for (int i = 0; i < 2; ++i) {
-        m_menu[i] = 0;
-        m_menuTabFocusTrigger[i] = false;
         m_iconbutton[i] = new IconButton(parent);
         m_iconbutton[i]->installEventFilter(this);
         m_iconbutton[i]->hide();
         m_iconbutton[i]->setAutoHide(false);
+
+        m_menu[i] = 0;
+
+        m_menuTabFocusTrigger[i] = false;
         m_iconEnabled[i] = false;
     }
 }
@@ -169,7 +162,7 @@ FancyLineEdit::FancyLineEdit(QWidget *parent) :
 
     connect(d->m_iconbutton[Left], &QAbstractButton::clicked, this, &FancyLineEdit::iconClicked);
     connect(d->m_iconbutton[Right], &QAbstractButton::clicked, this, &FancyLineEdit::iconClicked);
-    connect(this, &QLineEdit::textChanged, this, &FancyLineEdit::onTextChanged);
+    connect(this, &QLineEdit::textChanged, this, &FancyLineEdit::validate);
 }
 
 FancyLineEdit::~FancyLineEdit()
@@ -366,7 +359,8 @@ void FancyLineEdit::setFiltering(bool on)
         QIcon icon = QIcon::fromTheme(layoutDirection() == Qt::LeftToRight ?
                          QLatin1String("edit-clear-locationbar-rtl") :
                          QLatin1String("edit-clear-locationbar-ltr"),
-                         QIcon::fromTheme(QLatin1String("edit-clear"), QIcon(QLatin1String(":/core/images/editclear.png"))));
+                         QIcon::fromTheme(QLatin1String("edit-clear"),
+                                          Icons::EDIT_CLEAR.pixmap()));
 
         setButtonPixmap(Right, icon.pixmap(16));
         setButtonVisible(Right, true);
@@ -400,24 +394,25 @@ QColor FancyLineEdit::errorColor() const
 
 void FancyLineEdit::setErrorColor(const  QColor &c)
 {
-     d->m_errorTextColor = c;
+    d->m_errorTextColor = c;
+    validate();
 }
 
-QColor FancyLineEdit::textColor(const QWidget *w)
+QColor FancyLineEdit::okColor() const
 {
-    return w->palette().color(QPalette::Active, QPalette::Text);
+    return d->m_okTextColor;
 }
 
-void FancyLineEdit::setTextColor(QWidget *w, const QColor &c)
+void FancyLineEdit::setOkColor(const QColor &c)
 {
-    QPalette palette = w->palette();
-    palette.setColor(QPalette::Active, QPalette::Text, c);
-    w->setPalette(palette);
+    d->m_okTextColor = c;
+    validate();
 }
 
 void FancyLineEdit::setValidationFunction(const FancyLineEdit::ValidationFunction &fn)
 {
     d->m_validationFunction = fn;
+    validate();
 }
 
 FancyLineEdit::ValidationFunction FancyLineEdit::defaultValidationFunction()
@@ -451,8 +446,10 @@ QString FancyLineEdit::errorMessage() const
     return d->m_errorMessage;
 }
 
-void FancyLineEdit::onTextChanged(const QString &t)
+void FancyLineEdit::validate()
 {
+    const QString t = text();
+
     if (d->m_isFiltering){
         if (t != d->m_lastFilterText) {
             d->m_lastFilterText = t;
@@ -473,7 +470,11 @@ void FancyLineEdit::onTextChanged(const QString &t)
         const bool validHasChanged = (d->m_state == Valid) != (newState == Valid);
         d->m_state = newState;
         d->m_firstChange = false;
-        setTextColor(this, newState == Invalid ? d->m_errorTextColor : d->m_okTextColor);
+
+        QPalette p = palette();
+        p.setColor(QPalette::Active, QPalette::Text, newState == Invalid ? d->m_errorTextColor : d->m_okTextColor);
+        setPalette(p);
+
         if (validHasChanged)
             emit validChanged(newState == Valid);
     }
@@ -498,16 +499,10 @@ void FancyLineEdit::onTextChanged(const QString &t)
     handleChanged(t);
 }
 
-void FancyLineEdit::triggerChanged()
-{
-    onTextChanged(text());
-}
-
 QString FancyLineEdit::fixInputString(const QString &string)
 {
     return string;
 }
-
 
 //
 // IconButton - helper class to represent a clickable icon
@@ -547,17 +542,10 @@ void IconButton::paintEvent(QPaintEvent *)
 
 void IconButton::animateShow(bool visible)
 {
-    if (visible) {
-        QPropertyAnimation *animation = new QPropertyAnimation(this, "iconOpacity");
-        animation->setDuration(FADE_TIME);
-        animation->setEndValue(1.0);
-        animation->start(QAbstractAnimation::DeleteWhenStopped);
-    } else {
-        QPropertyAnimation *animation = new QPropertyAnimation(this, "iconOpacity");
-        animation->setDuration(FADE_TIME);
-        animation->setEndValue(0.0);
-        animation->start(QAbstractAnimation::DeleteWhenStopped);
-    }
+    QPropertyAnimation *animation = new QPropertyAnimation(this, "iconOpacity");
+    animation->setDuration(FADE_TIME);
+    animation->setEndValue(visible ? 1.0 : 0.0);
+    animation->start(QAbstractAnimation::DeleteWhenStopped);
 }
 
 QSize IconButton::sizeHint() const

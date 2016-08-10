@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 The Qt Company Ltd.
-** Contact: http://www.qt.io/licensing
+** Copyright (C) 2016 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
 **
 ** This file is part of Qt Creator.
 **
@@ -9,22 +9,17 @@
 ** Licensees holding valid commercial Qt licenses may use this file in
 ** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company.  For licensing terms and
-** conditions see http://www.qt.io/terms-conditions.  For further information
-** use the contact form at http://www.qt.io/contact-us.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
 **
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 or version 3 as published by the Free
-** Software Foundation and appearing in the file LICENSE.LGPLv21 and
-** LICENSE.LGPLv3 included in the packaging of this file.  Please review the
-** following information to ensure the GNU Lesser General Public License
-** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, The Qt Company gives you certain additional
-** rights.  These rights are described in The Qt Company LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 as published by the Free Software
+** Foundation with exceptions as appearing in the file LICENSE.GPL3-EXCEPT
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
 **
 ****************************************************************************/
 
@@ -65,8 +60,8 @@ bool sortNodes(Node *n1, Node *n2)
     FileNode *file2 = n2->asFileNode();
     if (file1 && file1->fileType() == ProjectFileType) {
         if (file2 && file2->fileType() == ProjectFileType) {
-            const QString fileName1 = file1->path().fileName();
-            const QString fileName2 = file2->path().fileName();
+            const QString fileName1 = file1->filePath().fileName();
+            const QString fileName2 = file2->filePath().fileName();
 
             int result = caseFriendlyCompare(fileName1, fileName2);
             if (result != 0)
@@ -91,7 +86,8 @@ bool sortNodes(Node *n1, Node *n2)
             if (result != 0)
                 return result < 0;
 
-            result = caseFriendlyCompare(project1->path().toString(), project2->path().toString());
+            result = caseFriendlyCompare(project1->filePath().toString(),
+                                         project2->filePath().toString());
             if (result != 0)
                 return result < 0;
             return project1 < project2; // sort by pointer value
@@ -111,7 +107,8 @@ bool sortNodes(Node *n1, Node *n2)
                 return true;
             if (folder1->priority() < folder2->priority())
                 return false;
-            int result = caseFriendlyCompare(folder1->path().toString(), folder2->path().toString());
+            int result = caseFriendlyCompare(folder1->filePath().toString(),
+                                             folder2->filePath().toString());
             if (result != 0)
                 return result < 0;
             else
@@ -130,7 +127,8 @@ bool sortNodes(Node *n1, Node *n2)
             FolderNode *folder1 = static_cast<FolderNode*>(n1);
             FolderNode *folder2 = static_cast<FolderNode*>(n2);
 
-            int result = caseFriendlyCompare(folder1->path().toString(), folder2->path().toString());
+            int result = caseFriendlyCompare(folder1->filePath().toString(),
+                                             folder2->filePath().toString());
             if (result != 0)
                 return result < 0;
             else
@@ -148,11 +146,11 @@ bool sortNodes(Node *n1, Node *n2)
         if (result != 0)
             return result < 0;
 
-        const QString filePath1 = n1->path().toString();
-        const QString filePath2 = n2->path().toString();
+        const QString filePath1 = n1->filePath().toString();
+        const QString filePath2 = n2->filePath().toString();
 
-        const QString fileName1 = Utils::FileName::fromString(filePath1).fileName();
-        const QString fileName2 = Utils::FileName::fromString(filePath2).fileName();
+        const QString fileName1 = n1->filePath().fileName();
+        const QString fileName2 = n2->filePath().fileName();
 
         result = caseFriendlyCompare(fileName1, fileName2);
         if (result != 0) {
@@ -272,7 +270,7 @@ QVariant FlatModel::data(const QModelIndex &index, int role) const
             break;
         }
         case Qt::EditRole: {
-            result = node->path().fileName();
+            result = node->filePath().fileName();
             break;
         }
         case Qt::ToolTipRole: {
@@ -283,7 +281,7 @@ QVariant FlatModel::data(const QModelIndex &index, int role) const
             if (folderNode)
                 result = folderNode->icon();
             else
-                result = Core::FileIconProvider::icon(node->path().toString());
+                result = Core::FileIconProvider::icon(node->filePath().toString());
             break;
         }
         case Qt::FontRole: {
@@ -294,7 +292,7 @@ QVariant FlatModel::data(const QModelIndex &index, int role) const
             break;
         }
         case Project::FilePathRole: {
-            result = node->path().toString();
+            result = node->filePath().toString();
             break;
         }
         case Project::EnabledRole: {
@@ -336,7 +334,7 @@ bool FlatModel::setData(const QModelIndex &index, const QVariant &value, int rol
 
     Node *node = nodeForIndex(index);
 
-    Utils::FileName orgFilePath = node->path();
+    Utils::FileName orgFilePath = node->filePath();
     Utils::FileName newFilePath = orgFilePath.parentDir().appendPath(value.toString());
 
     ProjectExplorerPlugin::renameFile(node, newFilePath.toString());
@@ -426,7 +424,7 @@ void FlatModel::recursiveAddFileNodes(FolderNode *startNode, QList<Node *> *list
 
 QList<Node*> FlatModel::childNodes(FolderNode *parentNode, const QSet<Node*> &blackList) const
 {
-    qCDebug(logger()) << "    FlatModel::childNodes for " << parentNode->path();
+    qCDebug(logger()) << "    FlatModel::childNodes for " << parentNode->filePath();
     QList<Node*> nodeList;
 
     if (parentNode->nodeType() == SessionNodeType) {
@@ -498,7 +496,7 @@ QMimeData *FlatModel::mimeData(const QModelIndexList &indexes) const
     foreach (const QModelIndex &index, indexes) {
         Node *node = nodeForIndex(index);
         if (node->asFileNode())
-            data->addFile(node->path().toString());
+            data->addFile(node->filePath().toString());
         data->addValue(QVariant::fromValue(node));
     }
     return data;
@@ -614,7 +612,7 @@ bool isSorted(const QList<Node *> &nodes)
 /// slots and all the fun
 void FlatModel::added(FolderNode* parentNode, const QList<Node*> &newNodeList)
 {
-    qCDebug(logger()) << "FlatModel::added" << parentNode->path() << newNodeList.size() << "nodes";
+    qCDebug(logger()) << "FlatModel::added" << parentNode->filePath() << newNodeList.size() << "nodes";
     QModelIndex parentIndex = indexForNode(parentNode);
     // Old  list
 
@@ -650,9 +648,8 @@ void FlatModel::added(FolderNode* parentNode, const QList<Node*> &newNodeList)
     if (!emptyDifference.isEmpty()) {
         // This should not happen...
         qDebug() << "FlatModel::added, old Node list should be subset of newNode list, found files in old list which were not part of new list";
-        foreach (Node *n, emptyDifference) {
-            qDebug()<<n->path();
-        }
+        foreach (Node *n, emptyDifference)
+            qDebug()<<n->filePath();
         Q_ASSERT(false);
     }
 
@@ -718,7 +715,7 @@ void FlatModel::added(FolderNode* parentNode, const QList<Node*> &newNodeList)
 
 void FlatModel::removed(FolderNode* parentNode, const QList<Node*> &newNodeList)
 {
-    qCDebug(logger()) << "FlatModel::removed" << parentNode->path() << newNodeList.size() << "nodes";
+    qCDebug(logger()) << "FlatModel::removed" << parentNode->filePath() << newNodeList.size() << "nodes";
     QModelIndex parentIndex = indexForNode(parentNode);
     // Old  list
     QHash<FolderNode*, QList<Node*> >::const_iterator it = m_childNodes.constFind(parentNode);
@@ -740,9 +737,8 @@ void FlatModel::removed(FolderNode* parentNode, const QList<Node*> &newNodeList)
     if (!emptyDifference.isEmpty()) {
         // This should not happen...
         qDebug() << "FlatModel::removed, new Node list should be subset of oldNode list, found files in new list which were not part of old list";
-        foreach (Node *n, emptyDifference) {
-            qDebug()<<n->path();
-        }
+        foreach (Node *n, emptyDifference)
+            qDebug()<<n->filePath();
         Q_ASSERT(false);
     }
 
