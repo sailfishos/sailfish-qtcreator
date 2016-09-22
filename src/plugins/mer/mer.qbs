@@ -84,6 +84,7 @@ QtcPlugin {
         "merconnection.h",
         "merconnectionmanager.cpp",
         "merconnectionmanager.h",
+        "mericons.h",
         "mermode.cpp",
         "mermode.h",
         "mermanagementwebview.cpp",

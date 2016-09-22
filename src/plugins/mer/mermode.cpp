@@ -23,11 +23,13 @@
 #include "mermode.h"
 
 #include "merconstants.h"
+#include "mericons.h"
 #if !defined(QT_NO_WEBKIT)
 #include "mermanagementwebview.h"
 #endif
 
 #include <coreplugin/modemanager.h>
+#include <utils/icon.h>
 
 #include <QDebug>
 
@@ -45,7 +47,8 @@ MerMode::MerMode()
 #endif
     setContext(Context("Mer.MerMode"));
     setDisplayName(tr("Sailfish OS"));
-    setIcon(QIcon(QLatin1String(Constants::MER_OPTIONS_CATEGORY_ICON)));
+    setIcon(Utils::Icon::modeIcon(Icons::MER_MODE_ICON_CLASSIC,
+                                Icons::MER_MODE_ICON_FLAT, Icons::MER_MODE_ICON_FLAT_ACTIVE));
     setPriority(80); // between "Projects" and "Analyze" modes
     setId("Mer.MerMode");
     setContextHelpId(QString());
