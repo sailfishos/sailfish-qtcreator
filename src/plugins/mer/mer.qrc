@@ -7,11 +7,13 @@
         <file>images/sdk-run.png</file>
         <file>images/sdk-stop.png</file>
         <file>images/icon-s-sailfish-qtcreator.png</file>
+        <file>images/icon-s-sailfish-qtcreator-mask.png</file>
         <file>images/emulator-run@2x.png</file>
         <file>images/emulator-stop@2x.png</file>
         <file>images/sdk-run@2x.png</file>
         <file>images/sdk-stop@2x.png</file>
         <file>images/icon-s-sailfish-qtcreator@2x.png</file>
+        <file>images/icon-s-sailfish-qtcreator-mask@2x.png</file>
         <file>images/sdk.png</file>
         <file>images/sdk@2x.png</file>
     </qresource>

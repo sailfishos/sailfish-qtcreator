@@ -36,6 +36,7 @@ const char MER_TOOLCHAIN[] = "Mer GCC";
 const char MER_OPTIONS_CATEGORY[] = "W.Mer";
 const char MER_OPTIONS_CATEGORY_TR[] = QT_TRANSLATE_NOOP("Mer", "Mer");
 const char MER_OPTIONS_CATEGORY_ICON[] = ":/mer/images/icon-s-sailfish-qtcreator.png";
+const char MER_OPTIONS_CATEGORY_ICON_MASK[] = ":/mer/images/icon-s-sailfish-qtcreator-mask.png";
 const char MER_OPTIONS_ID[] = "A.Mer";
 const char MER_OPTIONS_NAME[] = QT_TRANSLATE_NOOP("Mer", "SDK");
 const char MER_GENERAL_OPTIONS_ID[] = "A.MerGeneral";

@@ -109,6 +109,7 @@ HEADERS += \
     merhardwaredevicewidget.h \
     merhardwaredevicewizard.h \
     merhardwaredevicewizardpages.h \
+    mericons.h \
     mermode.h \
     meroptionspage.h \
     meroptionswidget.h \
