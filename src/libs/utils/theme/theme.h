@@ -196,6 +196,7 @@ public:
         IconsModeProjectActiveColor,
         IconsModeAnalyzeActiveColor,
         IconsModeHelpActiveColor,
+        IconsModeMerActiveColor,
 
         /* Code model Icons */
 
