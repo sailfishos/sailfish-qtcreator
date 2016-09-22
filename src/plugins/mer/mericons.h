@@ -31,7 +31,7 @@ namespace Mer {
 namespace Icons {
 
 const Utils::Icon MER_MODE_ICON_CLASSIC(
-        QLatin1String(Constants::MER_OPTIONS_CATEGORY_ICON));
+        (QLatin1String(Constants::MER_OPTIONS_CATEGORY_ICON)));
 const Utils::Icon MER_MODE_ICON_FLAT({
         {QLatin1String(Constants::MER_OPTIONS_CATEGORY_ICON_MASK), Utils::Theme::IconsBaseColor}});
 const Utils::Icon MER_MODE_ICON_FLAT_ACTIVE({
