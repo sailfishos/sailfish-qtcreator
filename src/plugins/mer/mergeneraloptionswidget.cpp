@@ -28,6 +28,8 @@
 #include "merdeploysteps.h"
 #include "mersettings.h"
 
+using namespace Utils;
+
 namespace Mer {
 namespace Internal {
 
@@ -40,6 +42,8 @@ MerGeneralOptionsWidget::MerGeneralOptionsWidget(QWidget *parent)
             .arg(MerRpmValidationStep::displayName())
             .arg(MerMb2RpmBuildConfiguration::displayName()));
     m_ui->rpmValidationByDefaultCheckBox->setChecked(MerSettings::rpmValidationByDefault());
+    m_ui->benchLocationPathChooser->setExpectedKind(PathChooser::ExistingCommand);
+    m_ui->benchLocationPathChooser->setPath(MerSettings::qmlLiveBenchLocation());
 }
 
 MerGeneralOptionsWidget::~MerGeneralOptionsWidget()
@@ -50,6 +54,7 @@ MerGeneralOptionsWidget::~MerGeneralOptionsWidget()
 void MerGeneralOptionsWidget::store()
 {
     MerSettings::setRpmValidationByDefault(m_ui->rpmValidationByDefaultCheckBox->isChecked());
+    MerSettings::setQmlLiveBenchLocation(m_ui->benchLocationPathChooser->path());
 }
 
 QString MerGeneralOptionsWidget::searchKeywords() const
@@ -58,6 +63,8 @@ QString MerGeneralOptionsWidget::searchKeywords() const
     const QLatin1Char sep(' ');
     QTextStream(&keywords) << sep << m_ui->rpmValidationInfoLabel->text()
                            << sep << m_ui->rpmValidationByDefaultCheckBox->text()
+                           << sep << m_ui->qmlLiveGroupBox->title()
+                           << sep << m_ui->benchLocationLabel->text()
                            ;
     keywords.remove(QLatin1Char('&'));
     return keywords;

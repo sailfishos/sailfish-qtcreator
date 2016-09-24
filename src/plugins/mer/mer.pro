@@ -23,6 +23,7 @@ FORMS += \
     merhardwaredevicewizardsetuppage.ui \
     meroptionswidget.ui \
     merrpmpackagingwidget.ui \
+    merrunconfigurationaspectqmllivedetailswidget.ui \
     mersdkdetailswidget.ui \
     mersdkselectiondialog.ui \
 
@@ -57,6 +58,7 @@ SOURCES += \
     meroptionswidget.cpp \
     merplugin.cpp \
     merprojectlistener.cpp \
+    merqmllivebenchmanager.cpp \
     merqtversion.cpp \
     merqtversionfactory.cpp \
     merrpminstaller.cpp \
@@ -64,6 +66,7 @@ SOURCES += \
     merrpmpackagingwidget.cpp \
     merrpmvalidationparser.cpp \
     merrunconfiguration.cpp \
+    merrunconfigurationaspect.cpp \
     merrunconfigurationfactory.cpp \
     merruncontrolfactory.cpp \
     mersdk.cpp \
@@ -115,6 +118,7 @@ HEADERS += \
     meroptionswidget.h \
     merplugin.h \
     merprojectlistener.h \
+    merqmllivebenchmanager.h \
     merqtversion.h \
     merqtversionfactory.h \
     merrpminstaller.h \
@@ -122,6 +126,7 @@ HEADERS += \
     merrpmpackagingwidget.h \
     merrpmvalidationparser.h \
     merrunconfiguration.h \
+    merrunconfigurationaspect.h \
     merrunconfigurationfactory.h \
     merruncontrolfactory.h \
     mersdk.h \

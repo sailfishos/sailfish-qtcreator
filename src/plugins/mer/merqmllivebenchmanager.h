@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 - 2014 Jolla Ltd.
+** Copyright (C) 2016 Jolla Ltd.
 ** Contact: http://jolla.com/
 **
 ** This file is part of Qt Creator.
@@ -20,30 +20,38 @@
 **
 ****************************************************************************/
 
-#ifndef MERRUNCONTROLFACTORY_H
-#define MERRUNCONTROLFACTORY_H
+#ifndef MERQMLLIVEBENCHMANAGER_H
+#define MERQMLLIVEBENCHMANAGER_H
 
-#include <projectexplorer/runconfiguration.h>
+#include <QObject>
 
 namespace Mer {
 namespace Internal {
 
-class MerRunControlFactory : public ProjectExplorer::IRunControlFactory
+class MerQmlLiveBenchManager : public QObject
 {
     Q_OBJECT
 
 public:
-    explicit MerRunControlFactory(QObject *parent = 0);
+    static MerQmlLiveBenchManager* instance();
+    ~MerQmlLiveBenchManager() override;
 
-    bool canRun(ProjectExplorer::RunConfiguration *runConfiguration,
-                Core::Id mode) const override;
-    ProjectExplorer::RunControl *create(ProjectExplorer::RunConfiguration *runConfiguration,
-                                        Core::Id mode, QString *errorMessage) override;
-    ProjectExplorer::IRunConfigurationAspect
-        *createRunConfigurationAspect(ProjectExplorer::RunConfiguration *rc) override;
+    static void startBench();
+
+private:
+    MerQmlLiveBenchManager(QObject *parent = nullptr);
+
+private slots:
+    void onBenchLocationChanged();
+
+private:
+    static MerQmlLiveBenchManager *m_instance;
+    friend class MerPlugin;
+
+    bool m_enabled;
 };
 
-} // namespace Internal
-} // namespace Mer
+} // Internal
+} // Mer
 
-#endif // MERRUNCONTROLFACTORY_H
+#endif // MERQMLLIVEBENCHMANAGER_H

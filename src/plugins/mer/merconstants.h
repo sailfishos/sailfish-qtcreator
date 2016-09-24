@@ -55,6 +55,7 @@ const char MER_SAILFISH_STOP_ICON[] = ":/mer/images/sdk-stop.png";
 
 const char MER_TOOLS_MENU[] = "Mer.Tools.Menu";
 const char MER_EMULATOR_MODE_ACTION_ID[] = "Mer.Emulator.Mode.Action";
+const char MER_START_QML_LIVE_BENCH_ACTION_ID[] = "Mer.StartQmlLiveBench.Action";
 
 #ifdef Q_OS_WIN
 #define SCRIPT_EXTENSION ".cmd"
@@ -172,6 +173,10 @@ const char MER_DEVICE_ARCHITECTURE[]= "MER_DEVICE_ARCHITECTURE";
 const char MER_DEVICE_DEVICE_MODEL[]= "MER_DEVICE_DEVICE_MODEL";
 const char MER_DEVICE_ORIENTATION[]= "MER_DEVICE_ORIENTATION";
 const char MER_DEVICE_VIEW_SCALED[]= "MER_DEVICE_VIEW_SCALED";
+
+const char MER_RUN_CONFIGURATION_ASPECT[] = "Mer.RunConfigurationAspect";
+
+const int DEFAULT_QML_LIVE_PORT = 10234;
 
 } // namespace Constants
 } // namespace Mer

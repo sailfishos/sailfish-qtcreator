@@ -35,14 +35,18 @@ public:
     explicit MerSettings(QObject *parent = 0);
     ~MerSettings() override;
 
-    static QObject *instance();
+    static MerSettings *instance();
 
     static bool rpmValidationByDefault();
-
     static void setRpmValidationByDefault(bool byDefault);
+
+    static QString qmlLiveBenchLocation();
+    static void setQmlLiveBenchLocation(const QString &location);
+    static bool hasValidQmlLiveBenchLocation();
 
 signals:
     void rpmValidationByDefaultChanged(bool byDefault);
+    void qmlLiveBenchLocationChanged(const QString &location);
 
 private:
     void read();
@@ -51,6 +55,7 @@ private:
 private:
     static MerSettings *s_instance;
     bool m_rpmValidationByDefault;
+    QString m_qmlLiveBenchLocation;
 };
 
 } // Internal
