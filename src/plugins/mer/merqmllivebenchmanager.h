@@ -23,7 +23,20 @@
 #ifndef MERQMLLIVEBENCHMANAGER_H
 #define MERQMLLIVEBENCHMANAGER_H
 
+#include <functional>
+
+#include <QHash>
 #include <QObject>
+#include <QQueue>
+#include <QSet>
+
+#include <coreplugin/id.h>
+
+QT_FORWARD_DECLARE_CLASS(QProcess)
+
+namespace Utils {
+    class PortList;
+}
 
 namespace Mer {
 namespace Internal {
@@ -31,6 +44,26 @@ namespace Internal {
 class MerQmlLiveBenchManager : public QObject
 {
     Q_OBJECT
+
+    struct DeviceInfo
+    {
+        QString name;
+        QSet<int> ports;
+    };
+
+    struct Command
+    {
+        QStringList arguments;
+#ifdef Q_CC_MSVC // Workaround C2797
+        QSet<int> expectedExitCodes = QSet<int>{0};
+#else
+        QSet<int> expectedExitCodes{0};
+#endif
+        std::function<void(int)> onFinished;
+
+        // Private to processCommandsQueue()
+        QProcess *process{};
+    };
 
 public:
     static MerQmlLiveBenchManager* instance();
@@ -41,14 +74,26 @@ public:
 private:
     MerQmlLiveBenchManager(QObject *parent = nullptr);
 
+    static QString qmlLiveHostName(const QString &merDeviceName, int port);
+    void addHostsToBench(const QString &merDeviceName, const QString &address, const QSet<int> &ports);
+    void removeHostsFromBench(const QString &merDeviceName, const QSet<int> &ports);
+    void enqueueCommand(Command *command);
+    void processCommandsQueue();
+
 private slots:
     void onBenchLocationChanged();
+    void onDeviceAdded(Core::Id id);
+    void onDeviceRemoved(Core::Id id);
+    void onDeviceListReplaced();
 
 private:
     static MerQmlLiveBenchManager *m_instance;
     friend class MerPlugin;
 
     bool m_enabled;
+    QHash<Core::Id, DeviceInfo *> m_deviceInfoCache;
+    QQueue<Command *> m_commands;
+    Command *m_currentCommand{};
 };
 
 } // Internal

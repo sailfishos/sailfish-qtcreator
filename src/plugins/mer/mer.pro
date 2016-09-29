@@ -53,6 +53,7 @@ SOURCES += \
     merhardwaredevicewidget.cpp \
     merhardwaredevicewizard.cpp \
     merhardwaredevicewizardpages.cpp \
+    merlogging.cpp \
     mermode.cpp \
     meroptionspage.cpp \
     meroptionswidget.cpp \
@@ -113,6 +114,7 @@ HEADERS += \
     merhardwaredevicewizard.h \
     merhardwaredevicewizardpages.h \
     mericons.h \
+    merlogging.h \
     mermode.h \
     meroptionspage.h \
     meroptionswidget.h \

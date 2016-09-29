@@ -88,8 +88,6 @@
           \li Start QmlLive Bench from \gui {Tools > Mer > Start QmlLive
               Bench...}.
 
-          \li Add your device to QmlLive Bench configuration.
-
           \li \l {Running on Sailfish OS Devices}{Run your application}.
 
           \li Connect your device in QmlLive Bench.
@@ -151,6 +149,16 @@
             documents located in the "dummydata" subdirectory of \gui
             {Workspace} directory. These will be exposed as context properties
             using file name without extension as property name.
+
+    \endlist
+
+    The following options can be set for each device:
+
+    \list
+
+        \li \gui {QmlLive ports} is the list of TCP ports to reserve for use
+            with QmlLive. For each configured port a unique Host in QmlLive
+            Bench will be created.
 
     \endlist
 
