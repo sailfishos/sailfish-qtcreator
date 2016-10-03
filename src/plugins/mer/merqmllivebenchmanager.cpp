@@ -23,10 +23,13 @@
 #include "merqmllivebenchmanager.h"
 
 #include <QCoreApplication>
+#include <QMessageBox>
 #include <QProcess>
 
+#include <coreplugin/icore.h>
 #include <projectexplorer/devicesupport/devicemanager.h>
 #include <projectexplorer/project.h>
+#include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/session.h>
 #include <ssh/sshconnection.h>
 #include <utils/portlist.h>
@@ -35,8 +38,10 @@
 #include "merconstants.h"
 #include "merdevice.h"
 #include "merlogging.h"
+#include "merrunconfigurationaspect.h"
 #include "mersettings.h"
 
+using namespace Core;
 using namespace ProjectExplorer;
 
 namespace Mer {
@@ -45,6 +50,7 @@ namespace Internal {
 namespace {
 const char VALUE_SEPARATOR = ',';
 const char ADD_HOST_OPTION[] = "--addhost";
+const char PING_OPTION[] = "--ping";
 const char RM_HOST_OPTION[] = "--rmhost";
 }
 
@@ -67,6 +73,9 @@ MerQmlLiveBenchManager::MerQmlLiveBenchManager(QObject *parent)
             this, &MerQmlLiveBenchManager::onDeviceRemoved);
     connect(DeviceManager::instance(), &DeviceManager::deviceListReplaced,
             this, &MerQmlLiveBenchManager::onDeviceListReplaced);
+
+    connect(ProjectExplorerPlugin::instance(), &ProjectExplorerPlugin::runControlStarted,
+            this, &MerQmlLiveBenchManager::onRunControlStarted);
 }
 
 MerQmlLiveBenchManager::~MerQmlLiveBenchManager()
@@ -92,6 +101,39 @@ void MerQmlLiveBenchManager::startBench()
     }
 
     QProcess::startDetached(MerSettings::qmlLiveBenchLocation(), arguments);
+}
+
+void MerQmlLiveBenchManager::offerToStartBenchIfNotRunning()
+{
+    if (!instance()->m_enabled)
+        return;
+
+    auto showDialog = [] {
+        QMessageBox *question = new QMessageBox{
+                QMessageBox::Question,
+                tr("Start QmlLive Bench"),
+                tr("QmlLive Bench is not running. Do you want to start it now?"),
+                QMessageBox::Yes | QMessageBox::No,
+                ICore::mainWindow()};
+        question->setAttribute(Qt::WA_DeleteOnClose);
+        question->setEscapeButton(QMessageBox::No);
+        connect(question, &QMessageBox::finished, instance(), [](int result) {
+            if (result == QMessageBox::Yes)
+                startBench();
+        });
+        question->show();
+        question->raise();
+    };
+
+    Command *ping = new Command;
+    ping->arguments = QStringList{QLatin1String(PING_OPTION)};
+    ping->expectedExitCodes = {0, 1};
+    ping->onFinished = [showDialog](int exitCode) {
+        if (exitCode == 1)
+            showDialog();
+    };
+
+    instance()->enqueueCommand(ping);
 }
 
 QString MerQmlLiveBenchManager::qmlLiveHostName(const QString &merDeviceName, int port)
@@ -315,6 +357,17 @@ void MerQmlLiveBenchManager::onDeviceListReplaced()
         if (!currentDevices.contains(id))
             onDeviceRemoved(id);
     }
+}
+
+void MerQmlLiveBenchManager::onRunControlStarted(ProjectExplorer::RunControl *rc)
+{
+    auto merAspect = rc->runConfiguration()->extraAspect<MerRunConfigurationAspect>();
+    if (!merAspect)
+        return;
+    if (!merAspect->isQmlLiveEnabled())
+        return;
+
+    offerToStartBenchIfNotRunning();
 }
 
 } // Internal

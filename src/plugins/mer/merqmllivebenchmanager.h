@@ -34,6 +34,10 @@
 
 QT_FORWARD_DECLARE_CLASS(QProcess)
 
+namespace ProjectExplorer {
+    class RunControl;
+}
+
 namespace Utils {
     class PortList;
 }
@@ -70,6 +74,7 @@ public:
     ~MerQmlLiveBenchManager() override;
 
     static void startBench();
+    static void offerToStartBenchIfNotRunning();
 
 private:
     MerQmlLiveBenchManager(QObject *parent = nullptr);
@@ -85,6 +90,7 @@ private slots:
     void onDeviceAdded(Core::Id id);
     void onDeviceRemoved(Core::Id id);
     void onDeviceListReplaced();
+    void onRunControlStarted(ProjectExplorer::RunControl *rc);
 
 private:
     static MerQmlLiveBenchManager *m_instance;
